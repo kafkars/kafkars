@@ -39,6 +39,7 @@ evidence = [
   "crates/kafka-client-engine/src/producer/reclaim_test.rs::registry_retry_never_emits_a_second_core_input",
   "crates/kafka-client-engine/src/producer/reclaim_turn_test.rs::observed_completion_reuses_only_a_new_completion_generation",
   "crates/kafka-client-engine/src/producer/reclaim_turn_test.rs::locked_cell_retry_does_not_repeat_the_core_reclaim_input",
+  "crates/kafka-client-engine/src/delivery_observer_test.rs::wait_and_future_observe_the_same_terminal_cell",
 ]
 
 [[invariant]]
@@ -58,6 +59,8 @@ evidence = [
   "crates/kafka-client-core/src/producer_test.rs::elapsed_deadline_never_crosses_admission",
   "crates/kafka-client-engine/src/producer/submission_deadline_test.rs::due_entry_constructs_the_exact_core_deadline_fact",
   "crates/kafka-client-engine/src/producer/execution_test.rs::pre_driver_expiry_releases_encoded_and_original_bytes_as_not_sent",
+  "crates/kafka-client-engine/src/producer/execution_turn_test.rs::pre_driver_expiry_releases_both_byte_owners_and_publishes_not_sent",
+  "crates/kafka-client-engine/src/producer/execution_turn_test.rs::terminal_release_cancels_submission_that_never_started",
 ]
 
 [[invariant]]
@@ -69,6 +72,7 @@ evidence = [
   "crates/kafka-client-core/src/operation_test.rs::possibly_sent_is_invalid_before_driver_ownership",
   "crates/kafka-client-core/src/operation_test.rs::driver_acceptance_does_not_invent_delivery_certainty",
   "crates/kafka-client-core/src/producer_transition_test.rs::broker_failure_preserves_classification_code_and_certainty",
+  "crates/kafka-client-engine/src/delivery_test.rs::failure_certainty_preserves_not_sent_and_possibly_sent",
 ]
 
 [[invariant]]
@@ -101,6 +105,8 @@ evidence = [
   "crates/kafka-client-engine/src/producer/materialization_test.rs::ordered_records_null_empty_and_duplicate_headers_survive_transfer",
   "crates/kafka-client-engine/src/producer/materialization_test.rs::encoding_failure_keeps_accounting_until_ordered_release_effects",
   "crates/kafka-client-engine/src/producer/execution_test.rs::materialization_retains_one_bounded_request_without_fake_driver_acceptance",
+  "crates/kafka-client-engine/src/producer/execution_turn_test.rs::immediate_batch_materializes_then_waits_without_fake_acceptance",
+  "crates/kafka-client-engine/src/producer/execution_turn_test.rs::semantic_partition_encoding_failure_settles_without_poisoning_host",
 ]
 
 [[invariant]]
@@ -118,6 +124,7 @@ status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/completion/registry_test.rs::pending_abandonment_settles_and_reclaims_exactly_once",
   "crates/kafka-client-engine/src/producer/reclaim_turn_test.rs::abandoned_observation_reclaims_after_terminal_publication",
+  "crates/kafka-client-engine/src/delivery_observer_test.rs::dropping_delivery_observer_preserves_abandon_reclaim",
 ]
 
 [[invariant]]
@@ -127,6 +134,7 @@ statement = "Engine completion and byte reservations commit atomically with core
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/admission_test.rs::non_ready_admission_synchronizes_core_store_timer_and_observer",
+  "crates/kafka-client-engine/src/producer/execution_turn_test.rs::materialization_capacity_failure_is_a_core_owned_terminal_fact",
   "crates/kafka-client-core/src/completion_test.rs::terminal_completion_is_exactly_once",
 ]
 
