@@ -9,17 +9,18 @@ use crate::SimulationError;
 
 #[derive(Debug, Default)]
 pub(super) struct VirtualBatch {
-    members: Vec<OperationId>,
-    phase: VirtualBatchPhase,
+    pub(super) members: Vec<OperationId>,
+    pub(super) phase: VirtualBatchPhase,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-enum VirtualBatchPhase {
+pub(super) enum VirtualBatchPhase {
     #[default]
     Open,
     Ready(BatchExecutionId),
     Materializing(BatchExecutionId),
     Materialized(BatchExecutionId),
+    AwaitingDriver(BatchExecutionId),
     Submitted(BatchExecutionId),
 }
 
@@ -80,6 +81,7 @@ impl VirtualBatch {
             VirtualBatchPhase::Ready(current)
             | VirtualBatchPhase::Materializing(current)
             | VirtualBatchPhase::Materialized(current)
+            | VirtualBatchPhase::AwaitingDriver(current)
             | VirtualBatchPhase::Submitted(current) => {
                 return Err(SimulationError::BatchExecutionMismatch {
                     expected: Some(current),
@@ -102,6 +104,7 @@ impl VirtualBatch {
             VirtualBatchPhase::Materialized(current)
             | VirtualBatchPhase::Ready(current)
             | VirtualBatchPhase::Materializing(current)
+            | VirtualBatchPhase::AwaitingDriver(current)
             | VirtualBatchPhase::Submitted(current)
                 if current != execution =>
             {
@@ -116,6 +119,7 @@ impl VirtualBatch {
             VirtualBatchPhase::Open
             | VirtualBatchPhase::Ready(_)
             | VirtualBatchPhase::Materializing(_)
+            | VirtualBatchPhase::AwaitingDriver(_)
             | VirtualBatchPhase::Materialized(_) => {
                 return Err(SimulationError::BatchNotMaterialized(execution));
             }
@@ -123,7 +127,7 @@ impl VirtualBatch {
         if !self.contains(deadline_operation_id) {
             return Err(SimulationError::OperationNotInBatch(deadline_operation_id));
         }
-        self.phase = VirtualBatchPhase::Submitted(execution);
+        self.phase = VirtualBatchPhase::AwaitingDriver(execution);
         Ok(self.members.clone())
     }
 }

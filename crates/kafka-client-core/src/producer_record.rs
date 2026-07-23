@@ -85,6 +85,13 @@ impl BatchExecutionGeneration {
     pub const fn get(self) -> u64 {
         self.0
     }
+
+    pub(crate) const fn checked_next(self) -> Option<Self> {
+        match self.0.checked_add(1) {
+            Some(next) => Some(Self(next)),
+            None => None,
+        }
+    }
 }
 
 /// Exact identity of one immutable execution of a logical producer batch.

@@ -97,6 +97,15 @@ pub enum ProducerEffect {
         /// Required record-batch compression mode.
         compression: CompressionPolicy,
     },
+    /// Revoke one exact sealed execution and replace its membership atomically.
+    ReviseBatchExecution {
+        /// Exact generation whose mechanism-owned resources must be discarded.
+        previous: BatchExecutionId,
+        /// Replacement generation, or `None` when no members survive.
+        replacement: Option<BatchExecutionId>,
+        /// Sole member removed from the immutable execution snapshot.
+        removed_operation_id: OperationId,
+    },
     /// Submit an engine-materialized batch through the driver adapter.
     SubmitProduce {
         /// Exact encoded membership snapshot to hand to the driver.

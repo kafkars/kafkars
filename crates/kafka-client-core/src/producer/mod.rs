@@ -1,9 +1,11 @@
 //! Atomic producer admission, retained capacity, and terminal settlement.
 
 mod batch;
+mod batch_revision;
 mod batch_timer;
 mod batch_transition;
 mod batching;
+mod cancellation;
 mod close_transition;
 mod execution_stop;
 #[cfg(test)]
@@ -18,7 +20,7 @@ mod partitioner;
 mod settlement;
 
 pub(crate) use batch::{
-    BatchAccumulation, BatchMember, BatchRemoval, BatchRoute, BatchSeal, BatchState,
+    BatchAccumulation, BatchMember, BatchRemoval, BatchRevision, BatchRoute, BatchSeal, BatchState,
     BatchTimerObservation, ProducerBatch,
 };
 pub(crate) use flush::FlushLedger;
@@ -26,6 +28,10 @@ pub use flush::{AdmissionSequence, FlushId, FlushLedgerError};
 pub use machine::ProducerMachine;
 pub use partitioner::{KeyedPartitionError, PartitionCount, select_java_keyed_partition};
 
+#[cfg(test)]
+mod cancellation_revision_test;
+#[cfg(test)]
+mod cancellation_test;
 #[cfg(test)]
 mod close_transition_test;
 #[cfg(test)]

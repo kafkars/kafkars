@@ -21,6 +21,7 @@ fn future_delivery_bridge_surface_remains_type_checked() {
 #[test]
 fn every_engine_delivery_failure_has_one_stable_facade_category() {
     let cases = [
+        (EngineFailureKind::Cancelled, ErrorKind::Cancelled),
         (EngineFailureKind::DriverRejected, ErrorKind::Backpressure),
         (
             EngineFailureKind::MaterializationFailed,

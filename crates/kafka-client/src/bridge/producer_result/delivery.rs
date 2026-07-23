@@ -46,6 +46,7 @@ pub(super) fn failure_error(
 
 pub(super) const fn failure_kind(kind: EngineFailureKind) -> ErrorKind {
     match kind {
+        EngineFailureKind::Cancelled => ErrorKind::Cancelled,
         EngineFailureKind::DriverRejected => ErrorKind::Backpressure,
         EngineFailureKind::MaterializationFailed | EngineFailureKind::ExecutionUnavailable => {
             ErrorKind::Internal
@@ -64,6 +65,9 @@ pub(super) const fn failure_kind(kind: EngineFailureKind) -> ErrorKind {
 
 const fn failure_message(kind: EngineFailureKind) -> &'static str {
     match kind {
+        EngineFailureKind::Cancelled => {
+            "producer delivery was cancelled before transport ownership"
+        }
         EngineFailureKind::DriverRejected => "driver rejected producer delivery",
         EngineFailureKind::MaterializationFailed => "producer record batch materialization failed",
         EngineFailureKind::Routing => "producer route is no longer valid",

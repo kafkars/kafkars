@@ -53,6 +53,9 @@ impl ProducerHost {
                 let _cancelled = self.timers.cancel(batch_id, generation);
                 Ok(None)
             }
+            ProducerEffect::ReviseBatchExecution { .. } => {
+                Err(ProducerHostInvariantError::UnexpectedCancellationEffect)
+            }
             ProducerEffect::RemoveBatchMember {
                 batch_id,
                 operation_id,

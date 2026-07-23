@@ -17,6 +17,11 @@ pub enum ProducerInput {
         /// Opaque payload identity and validated explicit route.
         record: ExplicitRecord,
     },
+    /// Requests cancellation of one accepted producer operation.
+    CancelRequested {
+        /// Operation whose current ownership stage decides the outcome.
+        operation_id: OperationId,
+    },
     /// Reports mechanism-owned accumulation and conservative sizing.
     RecordAccumulated {
         /// Operation whose bytes entered the accumulator.

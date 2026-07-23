@@ -14,6 +14,23 @@ impl ProducerMachine {
         ids: &[OperationId],
         observed_linger: bool,
     ) -> Result<ProducerTransition, ProducerMachineError> {
+        self.settle_open_members(
+            batch_id,
+            ids,
+            observed_linger,
+            Settlement::Expired,
+            ProducerFailure::deadline_elapsed(),
+        )
+    }
+
+    pub(crate) fn settle_open_members(
+        &mut self,
+        batch_id: BatchId,
+        ids: &[OperationId],
+        observed_linger: bool,
+        settlement: Settlement,
+        failure: ProducerFailure,
+    ) -> Result<ProducerTransition, ProducerMachineError> {
         let batch = self
             .batches
             .get(&batch_id)
@@ -23,9 +40,8 @@ impl ProducerMachine {
         let removal = batch.plan_remove_members(ids, observed_linger)?;
         let timer_update = removal.timer_update;
         let empties_batch = removal.members.is_empty();
-        let failure = ProducerFailure::deadline_elapsed();
         let mut effects = self.terminal_effects(ids, |_| ProducerCompletion::Failed(failure))?;
-        self.settle_operations(ids, Settlement::Expired)?;
+        self.settle_operations(ids, settlement)?;
         let flush_effects = self.settle_ready_flushes();
         if empties_batch {
             self.remove_open_batch_if_current(route, batch_id);
@@ -140,7 +156,7 @@ impl ProducerMachine {
         Ok(effects)
     }
 
-    fn terminal_effects(
+    pub(crate) fn terminal_effects(
         &self,
         ids: &[OperationId],
         mut completion: impl FnMut(OperationId) -> ProducerCompletion,

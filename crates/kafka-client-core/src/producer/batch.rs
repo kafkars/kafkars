@@ -53,6 +53,15 @@ pub(crate) struct BatchRemoval {
     pub(crate) linger_elapsed: bool,
 }
 
+/// Preflighted replacement of one immutable sealed-batch execution.
+#[derive(Debug)]
+pub(crate) struct BatchRevision {
+    pub(crate) previous: BatchExecutionId,
+    pub(crate) replacement: Option<BatchExecutionId>,
+    pub(crate) members: Vec<BatchMember>,
+    pub(crate) accumulator_bytes: ByteCount,
+}
+
 /// Pure observation of one current timer fact before any batch mutation.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct BatchTimerObservation {

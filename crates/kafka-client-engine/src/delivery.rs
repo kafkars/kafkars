@@ -66,6 +66,8 @@ impl ProducerDeliveryStatus {
 /// Semantic reason a terminal producer operation failed.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ProducerDeliveryFailureKind {
+    /// The caller cancelled the operation before driver ownership.
+    Cancelled,
     /// The driver rejected the request before taking transport ownership.
     DriverRejected,
     /// Record-batch materialization failed before driver ownership.
@@ -97,6 +99,7 @@ pub enum ProducerDeliveryFailureKind {
 impl ProducerDeliveryFailureKind {
     const fn from_core(kind: CoreProducerFailureKind) -> Self {
         match kind {
+            CoreProducerFailureKind::Cancelled => Self::Cancelled,
             CoreProducerFailureKind::DriverRejected => Self::DriverRejected,
             CoreProducerFailureKind::MaterializationFailed => Self::MaterializationFailed,
             CoreProducerFailureKind::Routing => Self::Routing,

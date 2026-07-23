@@ -84,6 +84,9 @@ impl ProducerScenario {
             _ => None,
         };
         let transition = self.core.apply(input).map_err(SimulationError::Core)?;
+        if let ProducerInput::DriverAccepted { execution } = input {
+            self.engine.driver_accepted(execution)?;
+        }
         for effect in transition.effects() {
             self.engine.interpret(*effect)?;
         }

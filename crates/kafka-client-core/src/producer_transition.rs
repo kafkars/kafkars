@@ -19,6 +19,7 @@ impl ProducerMachine {
                 deadline,
                 record,
             } => self.admit_explicit(now, deadline, record),
+            ProducerInput::CancelRequested { operation_id } => self.cancel_requested(operation_id),
             ProducerInput::RecordAccumulated {
                 operation_id,
                 batch_id,

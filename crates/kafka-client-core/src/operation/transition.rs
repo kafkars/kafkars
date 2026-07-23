@@ -188,11 +188,39 @@ impl ProducerOperation {
         }
     }
 
+    pub(crate) fn commit_execution_restart(&mut self, batch_id: BatchId) {
+        let (deadline, bytes, expected) = match self.state {
+            ProducerOperationState::Materializing {
+                deadline,
+                bytes,
+                batch_id,
+            }
+            | ProducerOperationState::AwaitingDriver {
+                deadline,
+                bytes,
+                batch_id,
+            } => (deadline, bytes, batch_id),
+            ProducerOperationState::WaitingForCapacity { .. }
+            | ProducerOperationState::Accumulating { .. }
+            | ProducerOperationState::Submitted { .. }
+            | ProducerOperationState::Completed => {
+                debug_assert!(false, "restart commit must follow preflight");
+                return;
+            }
+        };
+        debug_assert_eq!(expected, batch_id);
+        self.state = ProducerOperationState::Materializing {
+            deadline,
+            bytes,
+            batch_id,
+        };
+    }
+
     pub(crate) fn commit_terminal(&mut self) {
         self.state = ProducerOperationState::Completed;
     }
 
-    fn plan_finish(&self) -> Result<TerminalRelease, TransitionError> {
+    pub(crate) fn plan_finish(&self) -> Result<TerminalRelease, TransitionError> {
         let released_bytes = match self.state {
             ProducerOperationState::WaitingForCapacity { .. } => None,
             ProducerOperationState::Accumulating { bytes, .. }

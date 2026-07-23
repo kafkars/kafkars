@@ -1,6 +1,9 @@
 //! Virtual engine ownership for payloads, accumulators, timers, and results.
 
 mod batch;
+mod batch_revision;
+#[cfg(test)]
+mod batch_revision_test;
 #[cfg(test)]
 mod batch_test;
 
@@ -77,6 +80,13 @@ impl VirtualProducerState {
             }
             ProducerEffect::MaterializeBatch { execution, .. } => {
                 self.materialize(execution)?;
+            }
+            ProducerEffect::ReviseBatchExecution {
+                previous,
+                replacement,
+                removed_operation_id,
+            } => {
+                self.revise_batch_execution(previous, replacement, removed_operation_id)?;
             }
             ProducerEffect::SubmitProduce {
                 execution,

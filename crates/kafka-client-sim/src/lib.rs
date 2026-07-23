@@ -14,6 +14,8 @@ pub use producer::ProducerScenario;
 #[cfg(test)]
 mod clock_test;
 #[cfg(test)]
+mod producer_cancellation_test;
+#[cfg(test)]
 mod producer_test;
 #[cfg(test)]
 mod producer_timer_test;

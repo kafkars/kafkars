@@ -4,6 +4,17 @@ use core::fmt;
 
 use crate::{ByteCount, PartitionIndex};
 
+/// Core-owned resolution of one producer cancellation request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProducerCancellationOutcome {
+    /// Core cancelled the operation before driver ownership.
+    CancelledNotSent,
+    /// Driver ownership already made per-record cancellation unsafe.
+    TooLate,
+    /// The operation is terminal or no longer retained by core.
+    AlreadyTerminal,
+}
+
 /// Certainty attached to a failed producer operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeliveryStatus {

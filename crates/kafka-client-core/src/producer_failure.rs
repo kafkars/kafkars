@@ -5,6 +5,8 @@ use crate::{DeliveryStatus, ProducerBrokerFailure, ProducerBrokerFailureKind};
 /// Normalized failure reason interpreted by producer policy without wire types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProducerFailureKind {
+    /// The caller cancelled the operation before driver ownership.
+    Cancelled,
     /// Local submission failed before the driver accepted ownership.
     DriverRejected,
     /// Record-batch materialization failed before driver ownership.
@@ -60,6 +62,10 @@ impl ProducerFailure {
 
     pub(crate) const fn driver_rejected() -> Self {
         Self::new(ProducerFailureKind::DriverRejected, DeliveryStatus::NotSent)
+    }
+
+    pub(crate) const fn cancelled() -> Self {
+        Self::new(ProducerFailureKind::Cancelled, DeliveryStatus::NotSent)
     }
 
     pub(crate) const fn materialization_failed() -> Self {

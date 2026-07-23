@@ -3,8 +3,8 @@
 use std::collections::VecDeque;
 
 use kafka_client_core::{
-    BatchId, ByteCount, Deadline, FlushId, Moment, OperationId, ProducerBatchPolicy,
-    ProducerEffect, ProducerInput, ProducerMachineError,
+    BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline, FlushId, Moment,
+    OperationId, ProducerBatchPolicy, ProducerEffect, ProducerInput, ProducerMachineError,
 };
 
 use crate::{
@@ -141,6 +141,24 @@ fn unbound_flush_terminal_reports_its_typed_failure() {
         Err(ProducerHostInvariantError::FlushBinding(
             FlushBindingError::UnknownFlush
         ))
+    );
+}
+
+#[test]
+fn execution_revision_fails_closed_without_a_cancellation_owner() {
+    let mut host = start(valid_limits());
+    let generation = BatchExecutionGeneration::try_from_raw(1)
+        .unwrap_or_else(|| panic!("test execution generation must be nonzero"));
+    let execution = BatchExecutionId::new(BatchId::from_raw(7), generation);
+    let effect = ProducerEffect::ReviseBatchExecution {
+        previous: execution,
+        replacement: None,
+        removed_operation_id: OperationId::from_raw(9),
+    };
+
+    assert_eq!(
+        host.interpret_effect_owned(Moment::from_tick(0), effect),
+        Err(ProducerHostInvariantError::UnexpectedCancellationEffect)
     );
 }
 

@@ -111,6 +111,7 @@ pub(crate) enum ProducerHostInvariantError {
     Reclaim(CompletionReclaimError),
     Prepared(PreparedExecutionError),
     MissingAdmissionIdentity,
+    UnexpectedCancellationEffect,
     CommittedFactsMismatch,
     GeneratedFactCapacity,
     PendingEffectCapacity,
@@ -155,6 +156,9 @@ impl fmt::Display for ProducerHostInvariantError {
             }
             Self::MissingAdmissionIdentity => {
                 formatter.write_str("accepted producer transition omitted its operation identity")
+            }
+            Self::UnexpectedCancellationEffect => {
+                formatter.write_str("producer cancellation effect has no execution owner")
             }
             Self::CommittedFactsMismatch => {
                 formatter.write_str("committed producer record facts changed after core admission")

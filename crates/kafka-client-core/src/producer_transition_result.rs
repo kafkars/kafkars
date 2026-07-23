@@ -1,27 +1,47 @@
 //! Typed policy results pairing ordered effects with direct resolutions.
 
-use crate::{FlushId, OperationId, ProducerEffect};
+use crate::{FlushId, OperationId, ProducerCancellationOutcome, ProducerEffect};
 
-/// Dynamically sized ordered effects for batch fan-out.
+/// Dynamically sized ordered effects and direct policy results.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ProducerTransition {
     effects: Vec<ProducerEffect>,
+    cancellation: Option<ProducerCancellationOutcome>,
 }
 
 impl ProducerTransition {
     pub(crate) const fn none() -> Self {
         Self {
             effects: Vec::new(),
+            cancellation: None,
         }
     }
 
     pub(crate) fn from_effects(effects: Vec<ProducerEffect>) -> Self {
-        Self { effects }
+        Self {
+            effects,
+            cancellation: None,
+        }
+    }
+
+    pub(crate) fn with_cancellation(
+        cancellation: ProducerCancellationOutcome,
+        effects: Vec<ProducerEffect>,
+    ) -> Self {
+        Self {
+            effects,
+            cancellation: Some(cancellation),
+        }
     }
 
     /// Returns effects in the exact order the engine must interpret them.
     pub fn effects(&self) -> &[ProducerEffect] {
         &self.effects
+    }
+
+    /// Returns the core-owned resolution for a cancellation input.
+    pub const fn cancellation_outcome(&self) -> Option<ProducerCancellationOutcome> {
+        self.cancellation
     }
 
     /// Returns the operation accepted by an admission transition, when present.
@@ -31,6 +51,7 @@ impl ProducerTransition {
             ProducerEffect::ArmBatchTimer { .. }
             | ProducerEffect::CancelBatchTimer { .. }
             | ProducerEffect::MaterializeBatch { .. }
+            | ProducerEffect::ReviseBatchExecution { .. }
             | ProducerEffect::SubmitProduce { .. }
             | ProducerEffect::RemoveBatchMember { .. }
             | ProducerEffect::ReleaseBatch { .. }
@@ -49,6 +70,7 @@ impl ProducerTransition {
             | ProducerEffect::ArmBatchTimer { .. }
             | ProducerEffect::CancelBatchTimer { .. }
             | ProducerEffect::MaterializeBatch { .. }
+            | ProducerEffect::ReviseBatchExecution { .. }
             | ProducerEffect::SubmitProduce { .. }
             | ProducerEffect::RemoveBatchMember { .. }
             | ProducerEffect::ReleaseBatch { .. }

@@ -43,6 +43,10 @@ pub enum SimulationError {
         /// Execution named by the effect.
         actual: BatchExecutionId,
     },
+    /// A surviving sealed batch revision omitted its replacement generation.
+    MissingReplacementExecution(BatchExecutionId),
+    /// Core attempted to revise a driver-owned batch execution.
+    BatchExecutionAlreadySubmitted(BatchExecutionId),
     /// One virtual execution was materialized or submitted twice.
     DuplicateBatchExecution(BatchExecutionId),
     /// Completion publication preceded engine resource release.
@@ -80,6 +84,12 @@ impl fmt::Display for SimulationError {
             }
             Self::BatchExecutionMismatch { .. } => {
                 formatter.write_str("virtual batch execution identity does not match")
+            }
+            Self::MissingReplacementExecution(_) => {
+                formatter.write_str("virtual batch revision omitted its replacement")
+            }
+            Self::BatchExecutionAlreadySubmitted(_) => {
+                formatter.write_str("virtual batch execution is already driver-owned")
             }
             Self::DuplicateBatchExecution(_) => {
                 formatter.write_str("virtual batch execution was repeated")

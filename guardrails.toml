@@ -71,8 +71,20 @@ production = "crates/kafka-client-core/src/producer_transition_result.rs"
 test = "crates/kafka-client-core/src/producer_transition_identity_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/operation/cancellation.rs"
+test = "crates/kafka-client-core/src/operation/cancellation_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/producer/execution_stop.rs"
 test = "crates/kafka-client-core/src/producer/execution_stop_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/cancellation.rs"
+test = "crates/kafka-client-core/src/producer/cancellation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/batch_revision.rs"
+test = "crates/kafka-client-core/src/producer/cancellation_revision_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-core/src/producer/flush.rs"
@@ -97,6 +109,10 @@ test = "crates/kafka-client-sim/src/state_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-sim/src/state/batch.rs"
 test = "crates/kafka-client-sim/src/state/batch_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-sim/src/state/batch_revision.rs"
+test = "crates/kafka-client-sim/src/state/batch_revision_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/clock/monotonic.rs"
@@ -749,6 +765,7 @@ owner_type = "ProducerMachine"
 field = "batches"
 allowed_paths = [
   "crates/kafka-client-core/src/producer/batching.rs",
+  "crates/kafka-client-core/src/producer/cancellation.rs",
   "crates/kafka-client-core/src/producer/execution_stop.rs",
   "crates/kafka-client-core/src/producer/input_batch.rs",
   "crates/kafka-client-core/src/producer/input_outcome.rs",
@@ -782,13 +799,17 @@ allowed_paths = [
 [[mutation_owners]]
 owner_type = "ProducerBatch"
 field = "accumulator_bytes"
-allowed_paths = ["crates/kafka-client-core/src/producer/batch_transition.rs"]
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/batch_revision.rs",
+  "crates/kafka-client-core/src/producer/batch_transition.rs",
+]
 
 [[mutation_owners]]
 owner_type = "ProducerBatch"
 field = "members"
 allowed_paths = [
   "crates/kafka-client-core/src/producer/batch.rs",
+  "crates/kafka-client-core/src/producer/batch_revision.rs",
   "crates/kafka-client-core/src/producer/batch_timer.rs",
   "crates/kafka-client-core/src/producer/batch_transition.rs",
   "crates/kafka-client-core/src/producer/input_batch.rs",
@@ -798,6 +819,7 @@ allowed_paths = [
 owner_type = "ProducerBatch"
 field = "state"
 allowed_paths = [
+  "crates/kafka-client-core/src/producer/batch_revision.rs",
   "crates/kafka-client-core/src/producer/batch_transition.rs",
   "crates/kafka-client-core/src/producer/input_outcome.rs",
 ]
@@ -807,6 +829,7 @@ owner_type = "ProducerBatch"
 field = "execution_generation"
 allowed_paths = [
   "crates/kafka-client-core/src/producer/batch.rs",
+  "crates/kafka-client-core/src/producer/batch_revision.rs",
   "crates/kafka-client-core/src/producer/batch_transition.rs",
 ]
 
@@ -1186,17 +1209,26 @@ allowed_paths = ["crates/kafka-client-engine/src/producer/ingress/shard.rs"]
 [[mutation_owners]]
 owner_type = "VirtualBatch"
 field = "members"
-allowed_paths = ["crates/kafka-client-sim/src/state/batch.rs"]
+allowed_paths = [
+  "crates/kafka-client-sim/src/state/batch.rs",
+  "crates/kafka-client-sim/src/state/batch_revision.rs",
+]
 
 [[mutation_owners]]
 owner_type = "VirtualBatch"
 field = "phase"
-allowed_paths = ["crates/kafka-client-sim/src/state/batch.rs"]
+allowed_paths = [
+  "crates/kafka-client-sim/src/state/batch.rs",
+  "crates/kafka-client-sim/src/state/batch_revision.rs",
+]
 
 [[mutation_owners]]
 owner_type = "VirtualProducerState"
 field = "submissions"
-allowed_paths = ["crates/kafka-client-sim/src/state/batch.rs"]
+allowed_paths = [
+  "crates/kafka-client-sim/src/state/batch.rs",
+  "crates/kafka-client-sim/src/state/batch_revision.rs",
+]
 
 # Lifecycle and accounting owners must not be duplicated accidentally.
 [[linear_owners]]
@@ -1229,6 +1261,10 @@ path = "crates/kafka-client-core/src/producer/batch.rs"
 
 [[linear_owners]]
 owner_type = "BatchRemoval"
+path = "crates/kafka-client-core/src/producer/batch.rs"
+
+[[linear_owners]]
+owner_type = "BatchRevision"
 path = "crates/kafka-client-core/src/producer/batch.rs"
 
 [[linear_owners]]

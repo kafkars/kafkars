@@ -6,6 +6,7 @@ use super::ProducerMachine;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Settlement {
+    Cancelled,
     Expired,
     Failed(DeliveryStatus),
     Delivered,
@@ -87,6 +88,35 @@ impl ProducerMachine {
         Ok(())
     }
 
+    pub(crate) fn require_batch_execution_restart(
+        &self,
+        ids: &[OperationId],
+        batch_id: crate::BatchId,
+    ) -> Result<(), ProducerMachineError> {
+        for id in ids {
+            self.operations
+                .get(id)
+                .ok_or(ProducerMachineError::UnknownOperation)?
+                .require_execution_restart(batch_id)
+                .map_err(ProducerMachineError::Transition)?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn commit_batch_execution_restart(
+        &mut self,
+        ids: &[OperationId],
+        batch_id: crate::BatchId,
+    ) {
+        for id in ids {
+            let operation = self.operations.get_mut(id);
+            debug_assert!(operation.is_some());
+            if let Some(operation) = operation {
+                operation.commit_execution_restart(batch_id);
+            }
+        }
+    }
+
     pub(crate) fn settle_operations(
         &mut self,
         ids: &[OperationId],
@@ -143,6 +173,7 @@ impl ProducerMachine {
             .get(&id)
             .ok_or(ProducerMachineError::UnknownOperation)?;
         match settlement {
+            Settlement::Cancelled => operation.plan_cancel(),
             Settlement::Expired => operation.plan_expire(),
             Settlement::Failed(delivery) => operation.plan_failed(delivery),
             Settlement::Delivered => operation.plan_delivered(),

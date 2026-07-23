@@ -24,8 +24,8 @@ pub use capacity::{ByteBudget, CapacityError};
 pub use completion::{CompletionLedger, CompletionLedgerError};
 pub use operation::{ProducerOperation, ProducerOperationState};
 pub use operation_outcome::{
-    DeliveryStatus, ProducerBatchSuccess, ProducerCompletion, RecordMetadata, TerminalRelease,
-    TransitionError,
+    DeliveryStatus, ProducerBatchSuccess, ProducerCancellationOutcome, ProducerCompletion,
+    RecordMetadata, TerminalRelease, TransitionError,
 };
 pub use producer::{
     AdmissionSequence, FlushId, FlushLedgerError, KeyedPartitionError, PartitionCount,

@@ -28,6 +28,8 @@ pub enum ProducerMachineError {
     AccumulatorSizeOverflow,
     /// A timer generation could not advance without reuse.
     TimerGenerationExhausted,
+    /// A sealed execution generation could not advance without reuse.
+    ExecutionGenerationExhausted,
     /// Transport accepted bytes from a revoked or already-released execution.
     StaleDriverAcceptance {
         /// Exact execution reported by transport.
@@ -54,6 +56,9 @@ impl fmt::Display for ProducerMachineError {
             }
             Self::TimerGenerationExhausted => {
                 formatter.write_str("producer timer generation exhausted")
+            }
+            Self::ExecutionGenerationExhausted => {
+                formatter.write_str("producer execution generation exhausted")
             }
             Self::StaleDriverAcceptance { reported, .. } => write!(
                 formatter,
