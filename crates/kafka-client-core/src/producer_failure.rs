@@ -73,7 +73,11 @@ impl ProducerFailure {
         Self::new(ProducerFailureKind::Transport, delivery)
     }
 
-    pub(crate) const fn execution_unavailable(delivery: DeliveryStatus) -> Self {
+    /// Creates a permanent execution-loss failure with conservative certainty.
+    ///
+    /// Production mechanisms use this only as terminal fallback when the
+    /// deterministic execution-loss transition itself cannot be interpreted.
+    pub const fn execution_unavailable(delivery: DeliveryStatus) -> Self {
         Self::new(ProducerFailureKind::ExecutionUnavailable, delivery)
     }
 

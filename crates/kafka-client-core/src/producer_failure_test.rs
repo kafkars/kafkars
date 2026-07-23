@@ -40,3 +40,13 @@ fn unknown_broker_code_is_preserved_exactly() {
     assert_eq!(failure.kind(), ProducerFailureKind::UnknownBroker);
     assert_eq!(failure.broker_code(), Some(32_000));
 }
+
+#[test]
+fn execution_loss_preserves_the_reported_conservative_certainty() {
+    for status in [DeliveryStatus::NotSent, DeliveryStatus::PossiblySent] {
+        let failure = ProducerFailure::execution_unavailable(status);
+        assert_eq!(failure.kind(), ProducerFailureKind::ExecutionUnavailable);
+        assert_eq!(failure.delivery(), status);
+        assert_eq!(failure.broker_code(), None);
+    }
+}
