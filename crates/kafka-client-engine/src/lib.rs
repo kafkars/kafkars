@@ -44,12 +44,12 @@ pub use engine_host::{
     EngineShutdownError, EngineShutdownErrorKind, EngineStartError, EngineStartErrorKind,
 };
 pub use producer::{
-    ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerHandle, ProducerOperationId,
-    ProducerSend, ProducerSendCapture, ProducerSendCaptureError, ProducerSendCaptureErrorKind,
-    ProducerSendError, ProducerSendFailure, ProducerSendFailureKind, ProducerSendOptions,
-    ProducerSendResult, ProducerSendStartFailure, ProducerSendStartFailureKind,
-    ProducerTrySendAccepted, ProducerTrySendError, ProducerTrySendErrorKind,
-    PublicProducerHeader as ProducerHeader, PublicProducerRecord as ProducerRecord,
+    ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerHandle, ProducerSend,
+    ProducerSendCapture, ProducerSendCaptureError, ProducerSendCaptureErrorKind, ProducerSendError,
+    ProducerSendFailure, ProducerSendFailureKind, ProducerSendOptions, ProducerSendResult,
+    ProducerSendStartFailure, ProducerSendStartFailureKind, ProducerTrySendAccepted,
+    ProducerTrySendError, ProducerTrySendErrorKind, PublicProducerHeader as ProducerHeader,
+    PublicProducerRecord as ProducerRecord,
 };
 
 #[cfg(test)]

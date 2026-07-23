@@ -17,9 +17,7 @@ pub use capture::{
 pub use error::{ProducerTrySendError, ProducerTrySendErrorKind};
 pub use handle::ProducerHandle;
 pub use record::{ProducerHeader as PublicProducerHeader, ProducerRecord as PublicProducerRecord};
-pub use result::{
-    ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerOperationId, ProducerTrySendAccepted,
-};
+pub use result::{ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerTrySendAccepted};
 pub use send::ProducerSend;
 pub use send_error::{
     ProducerSendError, ProducerSendResult, ProducerSendStartFailure, ProducerSendStartFailureKind,

@@ -86,10 +86,7 @@ impl ProducerHandle {
         let prepared = prepare_explicit(capture, record)?;
         let (attempted_at, deadline, stored) = prepared.into_parts();
         match self.port.try_admit_explicit(attempted_at, deadline, stored) {
-            Ok(accepted) => Ok(ProducerTrySendAccepted::from_port(
-                accepted,
-                deadline.transport(),
-            )),
+            Ok(accepted) => Ok(ProducerTrySendAccepted::from_port(accepted)),
             Err(error) => Err(ProducerTrySendError::from_port(error)),
         }
     }

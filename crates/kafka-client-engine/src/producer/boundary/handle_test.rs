@@ -6,7 +6,7 @@ use std::{
 };
 
 use bytes::Bytes;
-use kafka_client_core::PartitionIndex;
+use kafka_client_core::{OperationId, PartitionIndex};
 
 use super::super::{
     ProducerHostInvariantError,
@@ -14,8 +14,8 @@ use super::super::{
     ingress::{CountingWake, ProducerShardOwner},
 };
 use super::{
-    ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerHandle, ProducerOperationId,
-    ProducerSendOptions, ProducerTrySendErrorKind, PublicProducerHeader as ProducerHeader,
+    ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerHandle, ProducerSendOptions,
+    ProducerTrySendErrorKind, PublicProducerHeader as ProducerHeader,
     PublicProducerRecord as ProducerRecord,
 };
 use crate::clock::MonotonicClock;
@@ -35,12 +35,11 @@ fn explicit_try_send_captures_one_absolute_deadline_and_commits() {
         panic!("valid explicit record should be accepted")
     };
 
-    assert_eq!(
-        accepted.operation_id().map(ProducerOperationId::get),
-        Some(1)
-    );
-    assert!(accepted.absolute_deadline() >= before);
-    assert!(accepted.absolute_deadline() <= after);
+    let bound = host(&owner)
+        .bound_deadline(OperationId::from_raw(1))
+        .unwrap_or_else(|| panic!("accepted operation should retain its internal deadline"));
+    assert!(bound.transport() >= before);
+    assert!(bound.transport() <= after);
     assert!(accepted.fault().is_none());
     assert_eq!(host(&owner).shard_stats().host.core_completion_slots, 1);
     assert_eq!(wake.count(), 1);
@@ -128,17 +127,13 @@ fn post_ownership_fault_remains_accepted_with_observer() {
         accepted.fault().map(ProducerAcceptedFault::kind),
         Some(ProducerAcceptedFaultKind::HostInvariant)
     );
-    assert_eq!(
-        accepted.operation_id().map(ProducerOperationId::get),
-        Some(1)
-    );
     assert_eq!(wake.count(), 1);
     drop(accepted.into_observer());
 }
 
 #[test]
 fn captured_admission_keeps_the_original_deadline_across_adapter_work() {
-    let (_owner, handle, _wake) = setup();
+    let (owner, handle, _wake) = setup();
     let timeout = Duration::from_secs(30);
     let capture = handle.capture_send(ProducerSendOptions::new(timeout));
     let Ok(capture) = capture else {
@@ -152,7 +147,10 @@ fn captured_admission_keeps_the_original_deadline_across_adapter_work() {
         panic!("captured explicit record should be accepted")
     };
 
-    assert_eq!(accepted.absolute_deadline(), original_deadline);
+    let bound = host(&owner)
+        .bound_deadline(OperationId::from_raw(1))
+        .unwrap_or_else(|| panic!("captured admission should retain its internal deadline"));
+    assert_eq!(bound.transport(), original_deadline);
     drop(accepted.into_observer());
 }
 
