@@ -39,6 +39,11 @@ impl CreateTopicError {
     pub const fn message_truncated(&self) -> bool {
         self.message_truncated
     }
+
+    /// Consumes the broker error into stable adapter-owned parts.
+    pub fn into_parts(self) -> (i16, Option<String>, bool) {
+        (self.code, self.message, self.message_truncated)
+    }
 }
 
 /// One per-topic terminal in original request order.
@@ -57,6 +62,11 @@ impl CreateTopicResult {
     /// Returns this topic's broker outcome.
     pub const fn result(&self) -> &Result<(), CreateTopicError> {
         &self.result
+    }
+
+    /// Consumes the ordered result into stable adapter-owned parts.
+    pub fn into_parts(self) -> (String, Result<(), CreateTopicError>) {
+        (self.topic, self.result)
     }
 }
 

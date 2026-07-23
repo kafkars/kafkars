@@ -9,7 +9,20 @@ fn provisional_defaults_are_explicit_and_bounded() {
     let config = EngineConfig::new(vec!["broker.test:9092".to_owned()]);
 
     assert_eq!(config.delivery_timeout(), Duration::from_secs(30));
+    assert_eq!(config.admin_timeout(), Duration::from_secs(30));
     assert!(config.validate().is_ok());
+}
+
+#[test]
+fn admin_timeout_is_engine_owned_and_validated() {
+    let config = EngineConfig::new(vec!["broker.test:9092".to_owned()])
+        .with_admin_timeout(Duration::from_secs(7));
+    assert_eq!(config.admin_timeout(), Duration::from_secs(7));
+    assert!(config.validate().is_ok());
+
+    let zero =
+        EngineConfig::new(vec!["broker.test:9092".to_owned()]).with_admin_timeout(Duration::ZERO);
+    assert!(zero.validate().is_err());
 }
 
 #[test]

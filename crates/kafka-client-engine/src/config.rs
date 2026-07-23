@@ -1,4 +1,4 @@
-//! Public engine defaults compiled into bounded producer-host settings.
+//! Public engine defaults compiled before bounded host resources start.
 
 use std::time::Duration;
 
@@ -13,6 +13,7 @@ pub use producer_limits::EngineProducerLimits;
 mod producer_limits_test;
 
 const DEFAULT_DELIVERY_TIMEOUT: Duration = Duration::from_secs(30);
+const DEFAULT_ADMIN_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_TURN_BUDGET: usize = 64;
 
 /// Engine construction inputs compiled before any host thread starts.
@@ -20,15 +21,17 @@ const DEFAULT_TURN_BUDGET: usize = 64;
 pub struct EngineConfig {
     bootstrap_servers: Vec<String>,
     delivery_timeout: Duration,
+    admin_timeout: Duration,
     producer_limits: EngineProducerLimits,
 }
 
 impl EngineConfig {
-    /// Creates an engine configuration with engine-owned producer defaults.
+    /// Creates an engine configuration with engine-owned execution defaults.
     pub fn new(bootstrap_servers: Vec<String>) -> Self {
         Self {
             bootstrap_servers,
             delivery_timeout: DEFAULT_DELIVERY_TIMEOUT,
+            admin_timeout: DEFAULT_ADMIN_TIMEOUT,
             producer_limits: EngineProducerLimits::default(),
         }
     }
@@ -37,6 +40,13 @@ impl EngineConfig {
     #[must_use]
     pub const fn with_delivery_timeout(mut self, delivery_timeout: Duration) -> Self {
         self.delivery_timeout = delivery_timeout;
+        self
+    }
+
+    /// Replaces the end-to-end default admin operation timeout.
+    #[must_use]
+    pub const fn with_admin_timeout(mut self, admin_timeout: Duration) -> Self {
+        self.admin_timeout = admin_timeout;
         self
     }
 
@@ -57,6 +67,11 @@ impl EngineConfig {
         self.delivery_timeout
     }
 
+    /// Returns the engine-owned default admin operation timeout.
+    pub const fn admin_timeout(&self) -> Duration {
+        self.admin_timeout
+    }
+
     /// Returns the provisional bounded producer limits.
     pub const fn producer_limits(&self) -> EngineProducerLimits {
         self.producer_limits
@@ -70,6 +85,10 @@ impl EngineConfig {
             return Err(EngineConfigError::ZeroDeliveryTimeout);
         }
         duration_ticks(self.delivery_timeout)?;
+        if self.admin_timeout.is_zero() {
+            return Err(EngineConfigError::ZeroAdminTimeout);
+        }
+        duration_ticks(self.admin_timeout)?;
         let host_limits = self.producer_host_limits()?;
         let validated_host = host_limits
             .validate()
@@ -126,6 +145,7 @@ pub(crate) struct ValidatedEngineConfig {
 pub(crate) enum EngineConfigError {
     EmptyBootstrap,
     ZeroDeliveryTimeout,
+    ZeroAdminTimeout,
     DurationOverflow,
     RetainedBytes,
     BatchBytes,
