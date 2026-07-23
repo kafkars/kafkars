@@ -7,8 +7,8 @@ use kafka_client_core::{AdmissionRejection, ProducerMachineError};
 use crate::{clock::BatchTimerError, completion::CompletionRegistryError};
 
 use super::{
-    ProducerStoreError, binding::OperationBindingError, execution::PreparedExecutionError,
-    flush::FlushBindingError, reclaim::CompletionReclaimError,
+    ProducerStoreError, binding::OperationBindingError, cancellation::ProducerRevisionError,
+    execution::PreparedExecutionError, flush::FlushBindingError, reclaim::CompletionReclaimError,
 };
 
 /// Invalid synchronization between core and engine capacity owners.
@@ -110,7 +110,9 @@ pub(crate) enum ProducerHostInvariantError {
     Completion(CompletionRegistryError),
     Reclaim(CompletionReclaimError),
     Prepared(PreparedExecutionError),
+    Revision(ProducerRevisionError),
     MissingAdmissionIdentity,
+    MissingCancellationOutcome,
     UnexpectedCancellationEffect,
     CommittedFactsMismatch,
     GeneratedFactCapacity,
@@ -154,11 +156,17 @@ impl fmt::Display for ProducerHostInvariantError {
             Self::Prepared(error) => {
                 write!(formatter, "prepared producer execution failed: {error}")
             }
+            Self::Revision(error) => {
+                write!(formatter, "producer execution revision failed: {error}")
+            }
             Self::MissingAdmissionIdentity => {
                 formatter.write_str("accepted producer transition omitted its operation identity")
             }
+            Self::MissingCancellationOutcome => {
+                formatter.write_str("producer cancellation omitted its core-owned outcome")
+            }
             Self::UnexpectedCancellationEffect => {
-                formatter.write_str("producer cancellation effect has no execution owner")
+                formatter.write_str("producer cancellation emitted a time-dependent effect")
             }
             Self::CommittedFactsMismatch => {
                 formatter.write_str("committed producer record facts changed after core admission")

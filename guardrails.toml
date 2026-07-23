@@ -327,6 +327,18 @@ production = "crates/kafka-client-engine/src/producer/boundary/prepare.rs"
 test = "crates/kafka-client-engine/src/producer/boundary/prepare_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/cancellation/host.rs"
+test = "crates/kafka-client-engine/src/producer/cancellation/host_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/cancellation/revision.rs"
+test = "crates/kafka-client-engine/src/producer/cancellation/revision_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/cancellation/revision/pending.rs"
+test = "crates/kafka-client-engine/src/producer/cancellation/revision/pending_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/interpreter.rs"
 test = "crates/kafka-client-engine/src/producer/interpreter_test.rs"
 
@@ -960,6 +972,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/interpreter.rs",
   "crates/kafka-client-engine/src/producer/reclaim_turn.rs",
   "crates/kafka-client-engine/src/producer/shutdown.rs",
+  "crates/kafka-client-engine/src/producer/cancellation/host.rs",
 ]
 
 [[mutation_owners]]
@@ -1151,6 +1164,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/execution_turn.rs",
   "crates/kafka-client-engine/src/producer/host.rs",
   "crates/kafka-client-engine/src/producer/host/driver_input.rs",
+  "crates/kafka-client-engine/src/producer/cancellation/revision.rs",
   "crates/kafka-client-engine/src/producer/shutdown.rs",
 ]
 
@@ -1196,6 +1210,8 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/effect.rs",
   "crates/kafka-client-engine/src/producer/execution_turn.rs",
   "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/cancellation/revision.rs",
+  "crates/kafka-client-engine/src/producer/cancellation/revision/pending.rs",
   "crates/kafka-client-engine/src/producer/shutdown.rs",
 ]
 
@@ -1206,6 +1222,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/effect.rs",
   "crates/kafka-client-engine/src/producer/execution_turn.rs",
   "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/cancellation/revision.rs",
   "crates/kafka-client-engine/src/producer/shutdown.rs",
 ]
 
@@ -1481,6 +1498,10 @@ path = "crates/kafka-client-engine/src/producer/execution.rs"
 [[linear_owners]]
 owner_type = "PreparedRevisionPlan"
 path = "crates/kafka-client-engine/src/producer/execution/revision.rs"
+
+[[linear_owners]]
+owner_type = "SealedRevisionPlan"
+path = "crates/kafka-client-engine/src/producer/cancellation/revision.rs"
 
 [[linear_owners]]
 owner_type = "RetainedTerminal"

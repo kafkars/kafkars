@@ -20,7 +20,8 @@ use super::ProducerStoreError;
 pub(in crate::producer) use driver::DriverAcceptancePlan;
 pub(in crate::producer) use execution::{MaterializationAbort, MaterializationAttempt};
 pub(in crate::producer) use revision::{
-    BatchCancellationPhase, BatchRevisionExpectation, EngineBatchRevisionPlan,
+    BatchCancellationPhase, BatchRevisionExpectation, BatchRevisionReplacement,
+    EngineBatchRevisionPlan,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

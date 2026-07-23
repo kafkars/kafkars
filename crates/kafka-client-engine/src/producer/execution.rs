@@ -34,7 +34,7 @@ use crate::{clock::OperationDeadline, protocol::produce::MaterializedProduce};
 pub(crate) use error::PreparedExecutionError;
 pub(crate) use handoff::{PreparedProduceHandoffError, PreparedProduceSubmission};
 pub(crate) use ownership::{PreparedProduceError, PreparedProduceStats, SubmissionDeadlineError};
-pub(crate) use revision::PreparedRevisionExpectation;
+pub(crate) use revision::{PreparedRevisionExpectation, PreparedRevisionPlan};
 
 /// Hard bounds shared by encoded bytes and pre-driver deadline ownership.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -15,6 +15,7 @@ use crate::{
 use super::{
     ProducerHostInvariantError, ProducerHostLimits,
     admission_test::{admit, record},
+    cancellation::ProducerRevisionError,
     flush::FlushBindingError,
     host_limits_test::{start, valid_limits},
     terminal_backlog::{ProducerTerminalOwner, RetainedTerminal},
@@ -158,7 +159,9 @@ fn execution_revision_fails_closed_without_a_cancellation_owner() {
 
     assert_eq!(
         host.interpret_effect_owned(Moment::from_tick(0), effect),
-        Err(ProducerHostInvariantError::UnexpectedCancellationEffect)
+        Err(ProducerHostInvariantError::Revision(
+            ProducerRevisionError::UnexpectedRevisionEffect(execution)
+        ))
     );
 }
 

@@ -35,6 +35,18 @@ impl ProducerHost {
                     now,
                 }))
             }
+            effect => self.interpret_time_free_effect(effect).map(|()| None),
+        }
+    }
+
+    pub(super) fn interpret_time_free_effect(
+        &mut self,
+        effect: ProducerEffect,
+    ) -> Result<(), ProducerHostInvariantError> {
+        match effect {
+            ProducerEffect::AccumulateExplicit { .. } => {
+                Err(ProducerHostInvariantError::UnexpectedCancellationEffect)
+            }
             ProducerEffect::ArmBatchTimer {
                 batch_id,
                 generation,
@@ -44,17 +56,14 @@ impl ProducerHost {
                     .timers
                     .arm(batch_id, generation, deadline)
                     .map_err(ProducerHostInvariantError::Timer)?;
-                Ok(None)
+                Ok(())
             }
             ProducerEffect::CancelBatchTimer {
                 batch_id,
                 generation,
             } => {
                 let _cancelled = self.timers.cancel(batch_id, generation);
-                Ok(None)
-            }
-            ProducerEffect::ReviseBatchExecution { .. } => {
-                Err(ProducerHostInvariantError::UnexpectedCancellationEffect)
+                Ok(())
             }
             ProducerEffect::RemoveBatchMember {
                 batch_id,
@@ -64,14 +73,19 @@ impl ProducerHost {
                     .store
                     .remove_member(batch_id, operation_id)
                     .map_err(ProducerHostInvariantError::Store)?;
-                Ok(None)
+                Ok(())
+            }
+            ProducerEffect::ReviseBatchExecution { previous, .. } => {
+                Err(ProducerHostInvariantError::Revision(
+                    super::cancellation::ProducerRevisionError::UnexpectedRevisionEffect(previous),
+                ))
             }
             ProducerEffect::ReleaseBatch { batch_id } => {
                 self.cancel_pending_batch(batch_id);
                 self.execution
                     .release_batch(&mut self.store, batch_id)
                     .map_err(ProducerHostInvariantError::Prepared)?;
-                Ok(None)
+                Ok(())
             }
             ProducerEffect::ReleasePayload {
                 payload_id,
@@ -80,23 +94,21 @@ impl ProducerHost {
                 self.store
                     .release_payload(payload_id, retained_bytes)
                     .map_err(ProducerHostInvariantError::Store)?;
-                Ok(None)
+                Ok(())
             }
             ProducerEffect::Complete {
                 operation_id,
                 completion,
-            } => self
-                .publish_or_retain_record_terminal(operation_id, completion)
-                .map(|()| None),
+            } => self.publish_or_retain_record_terminal(operation_id, completion),
             pending @ (ProducerEffect::MaterializeBatch { .. }
             | ProducerEffect::SubmitProduce { .. }) => {
                 self.retain_pending(pending)?;
-                Ok(None)
+                Ok(())
             }
-            ProducerEffect::AcceptFlush { .. } => Ok(None),
-            ProducerEffect::CompleteFlush { flush_id } => self
-                .publish_or_retain_flush_terminal(flush_id)
-                .map(|()| None),
+            ProducerEffect::AcceptFlush { .. } => Ok(()),
+            ProducerEffect::CompleteFlush { flush_id } => {
+                self.publish_or_retain_flush_terminal(flush_id)
+            }
         }
     }
 
