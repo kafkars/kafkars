@@ -21,6 +21,7 @@ mod record_access;
 mod record_store;
 pub(crate) mod shutdown;
 pub(crate) mod store;
+mod terminal;
 mod terminal_backlog;
 mod terminal_publication;
 mod topic_catalog;
@@ -31,6 +32,7 @@ pub(crate) use host_error::{ProducerHostInvariantError, ProducerHostLimitError};
 pub(crate) use host_error::{ProducerHostStartError, ProducerRejectionReason};
 pub(crate) use record::ProducerRecord;
 pub(crate) use store::{ProducerStore, ProducerStoreLimits, ProducerStoreStats};
+pub(crate) use terminal::ProducerTerminal;
 #[cfg(test)]
 mod admission_test;
 #[cfg(test)]
@@ -69,5 +71,7 @@ mod shutdown_test;
 mod terminal_backlog_test;
 #[cfg(test)]
 mod terminal_publication_test;
+#[cfg(test)]
+mod terminal_test;
 #[cfg(test)]
 mod topic_catalog_test;

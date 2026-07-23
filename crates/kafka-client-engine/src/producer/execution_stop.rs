@@ -8,7 +8,7 @@ use kafka_client_core::{
 
 use crate::completion::{CompletionId, CompletionRegistryError};
 
-use super::{ProducerHost, ProducerHostInvariantError};
+use super::{ProducerHost, ProducerHostInvariantError, terminal::ProducerTerminal};
 
 /// Failure to publish every conservative terminal during catastrophic recovery.
 #[derive(Debug)]
@@ -121,10 +121,9 @@ impl ProducerHost {
         let failure = ProducerFailure::execution_unavailable(DeliveryStatus::PossiblySent);
         let mut remaining = self.completions.unsettled_len();
         while remaining != 0 {
-            let progress = match self
-                .completions
-                .settle_reserved_with(remaining, |_id| ProducerCompletion::Failed(failure))
-            {
+            let progress = match self.completions.settle_reserved_with(remaining, |_id| {
+                ProducerTerminal::record(ProducerCompletion::Failed(failure))
+            }) {
                 Ok(progress) => progress,
                 Err(failed) => {
                     let progress = failed.progress();
@@ -133,7 +132,7 @@ impl ProducerHost {
                         error: failed.error(),
                         queued: progress.queued(),
                         remaining: progress.remaining(),
-                        terminal: failed.into_terminal(),
+                        terminal: failed.into_terminal().into_record(),
                     });
                 }
             };

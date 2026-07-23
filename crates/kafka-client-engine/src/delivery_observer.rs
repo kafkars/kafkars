@@ -13,6 +13,7 @@ use crate::completion::CompletionObserver;
 
 use super::{
     ProducerDeliveryError, ProducerDeliveryFailure, ProducerObserverError, ProducerRecordMetadata,
+    producer::ProducerTerminal,
 };
 
 /// Terminal result returned by asynchronous and blocking producer observation.
@@ -24,18 +25,18 @@ pub type ProducerDeliveryResult = Result<ProducerRecordMetadata, ProducerDeliver
 /// work or claim that Kafka did not receive the operation.
 #[must_use = "dropping abandons delivery observation without cancelling the operation"]
 pub struct ProducerDeliveryObserver {
-    inner: CompletionObserver<CoreProducerCompletion>,
+    inner: CompletionObserver<ProducerTerminal>,
 }
 
 impl ProducerDeliveryObserver {
-    pub(crate) const fn from_completion(inner: CompletionObserver<CoreProducerCompletion>) -> Self {
+    pub(crate) const fn from_completion(inner: CompletionObserver<ProducerTerminal>) -> Self {
         Self { inner }
     }
 
     /// Blocks on the same terminal cell used by `Future::poll`.
     pub fn wait(self) -> ProducerDeliveryResult {
         match self.inner.wait() {
-            Ok(completion) => translate(completion),
+            Ok(terminal) => translate(terminal.into_record()),
             Err(error) => Err(observer_error(error)),
         }
     }
@@ -48,7 +49,7 @@ impl Future for ProducerDeliveryObserver {
         let this = self.get_mut();
         match Pin::new(&mut this.inner).poll(context) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(Ok(completion)) => Poll::Ready(translate(completion)),
+            Poll::Ready(Ok(terminal)) => Poll::Ready(translate(terminal.into_record())),
             Poll::Ready(Err(error)) => Poll::Ready(Err(observer_error(error))),
         }
     }

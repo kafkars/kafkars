@@ -2,11 +2,14 @@
 
 use std::{error::Error, fmt};
 
-use kafka_client_core::{OperationId, ProducerCompletion, ProducerInput};
+use kafka_client_core::{OperationId, ProducerInput};
 
 use crate::completion::{CompletionId, CompletionRegistry, CompletionRegistryError, ReclaimStatus};
 
-use super::binding::{OperationBindingError, OperationBindings};
+use super::{
+    binding::{OperationBindingError, OperationBindings},
+    terminal::ProducerTerminal,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ReclaimPhase {
@@ -113,7 +116,7 @@ impl CompletionReclaimer {
     /// Obtains at most one reclaim identity and emits its core input once.
     pub(crate) fn next_input(
         &mut self,
-        registry: &mut CompletionRegistry<ProducerCompletion>,
+        registry: &mut CompletionRegistry<ProducerTerminal>,
         bindings: &OperationBindings,
     ) -> Result<Option<ProducerInput>, CompletionReclaimError> {
         if self.phase != ReclaimPhase::Idle {
@@ -140,7 +143,7 @@ impl CompletionReclaimer {
     /// Confirms successful `ProducerMachine::apply` and starts engine finish.
     pub(crate) fn confirm_core_applied(
         &mut self,
-        registry: &mut CompletionRegistry<ProducerCompletion>,
+        registry: &mut CompletionRegistry<ProducerTerminal>,
         bindings: &mut OperationBindings,
     ) -> Result<CompletionReclaimOutcome, CompletionReclaimError> {
         let ReclaimPhase::AwaitingCore {
@@ -160,7 +163,7 @@ impl CompletionReclaimer {
     /// Retries only registry recycling after a prior `Retry` outcome.
     pub(crate) fn retry_finish(
         &mut self,
-        registry: &mut CompletionRegistry<ProducerCompletion>,
+        registry: &mut CompletionRegistry<ProducerTerminal>,
         bindings: &mut OperationBindings,
     ) -> Result<CompletionReclaimOutcome, CompletionReclaimError> {
         if !matches!(self.phase, ReclaimPhase::Finishing { .. }) {
@@ -171,7 +174,7 @@ impl CompletionReclaimer {
 
     fn finish(
         &mut self,
-        registry: &mut CompletionRegistry<ProducerCompletion>,
+        registry: &mut CompletionRegistry<ProducerTerminal>,
         bindings: &mut OperationBindings,
     ) -> Result<CompletionReclaimOutcome, CompletionReclaimError> {
         let ReclaimPhase::Finishing {

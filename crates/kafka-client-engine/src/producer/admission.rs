@@ -1,12 +1,13 @@
 //! Atomic pre-core reservation, deterministic admission, and ownership commit.
 
-use kafka_client_core::{
-    Moment, OperationId, ProducerCompletion, ProducerInput, ProducerMachineError,
-};
+use kafka_client_core::{Moment, OperationId, ProducerInput, ProducerMachineError};
 
 use crate::{ProducerDeliveryObserver, clock::OperationDeadline, completion::CompletionObserver};
 
-use super::{ProducerHost, ProducerHostInvariantError, ProducerRecord, ProducerRejectionReason};
+use super::{
+    ProducerHost, ProducerHostInvariantError, ProducerRecord, ProducerRejectionReason,
+    terminal::ProducerTerminal,
+};
 
 mod rollback;
 
@@ -14,7 +15,7 @@ mod rollback;
 #[derive(Debug)]
 pub(crate) struct AdmittedExplicit {
     operation_id: OperationId,
-    observer: CompletionObserver<ProducerCompletion>,
+    observer: CompletionObserver<ProducerTerminal>,
 }
 
 impl AdmittedExplicit {
@@ -70,7 +71,7 @@ impl PoisonedBeforeOwnership {
 pub(crate) struct PoisonedExplicit {
     error: ProducerHostInvariantError,
     operation_id: Option<OperationId>,
-    observer: CompletionObserver<ProducerCompletion>,
+    observer: CompletionObserver<ProducerTerminal>,
 }
 
 impl PoisonedExplicit {
@@ -79,7 +80,7 @@ impl PoisonedExplicit {
     ) -> (
         ProducerHostInvariantError,
         Option<OperationId>,
-        CompletionObserver<ProducerCompletion>,
+        CompletionObserver<ProducerTerminal>,
     ) {
         (self.error, self.operation_id, self.observer)
     }
@@ -182,7 +183,7 @@ impl ProducerHost {
         &mut self,
         error: ProducerHostInvariantError,
         operation_id: Option<OperationId>,
-        observer: CompletionObserver<ProducerCompletion>,
+        observer: CompletionObserver<ProducerTerminal>,
     ) -> ProducerAdmissionFailure {
         ProducerAdmissionFailure::AcceptedInvariant(PoisonedExplicit {
             error: self.poison(error),

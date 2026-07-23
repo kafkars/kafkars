@@ -9,6 +9,7 @@ use kafka_client_core::{
 use crate::{
     ProducerDeliveryError, ProducerDeliveryFailureKind, ProducerDeliveryObserver,
     ProducerDeliveryResult, ProducerDeliveryStatus, completion::CompletionRegistry,
+    producer::ProducerTerminal,
 };
 
 fn execution(batch_id: BatchId) -> BatchExecutionId {
@@ -189,7 +190,10 @@ fn observe(completion: ProducerCompletion) -> ProducerDeliveryResult {
         panic!("completion slot should reserve")
     };
     let observer = ProducerDeliveryObserver::from_completion(observer);
-    assert_eq!(registry.publish(completion_id, completion), Ok(()));
+    assert_eq!(
+        registry.publish(completion_id, ProducerTerminal::record(completion)),
+        Ok(())
+    );
     let result = observer.wait();
     let Ok(join) = registry.stop_notifier() else {
         panic!("settled notifier should stop")

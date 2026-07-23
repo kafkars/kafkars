@@ -1,12 +1,11 @@
 //! Atomic pre-core rollback and recoverable record-ownership retention.
 
-use kafka_client_core::ProducerCompletion;
-
 use crate::completion::{CompletionId, CompletionObserver};
 
 use super::{
     super::{
         ProducerHost, ProducerHostInvariantError, ProducerRecord, record_store::RecordReservation,
+        terminal::ProducerTerminal,
     },
     PoisonedBeforeOwnership, ProducerAdmissionFailure,
 };
@@ -19,7 +18,7 @@ impl ProducerHost {
     pub(super) fn rollback_completion(
         &mut self,
         completion_id: CompletionId,
-        observer: CompletionObserver<ProducerCompletion>,
+        observer: CompletionObserver<ProducerTerminal>,
         record: ProducerRecord,
     ) -> Result<ProducerRecord, ProducerAdmissionFailure> {
         let result = self.completions.rollback_reservation(completion_id);
@@ -39,7 +38,7 @@ impl ProducerHost {
     pub(super) fn rollback_pre_core(
         &mut self,
         completion_id: CompletionId,
-        observer: CompletionObserver<ProducerCompletion>,
+        observer: CompletionObserver<ProducerTerminal>,
         reservation: RecordReservation,
     ) -> Result<ProducerRecord, ProducerAdmissionFailure> {
         let completion_result = self.completions.rollback_reservation(completion_id);

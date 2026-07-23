@@ -8,7 +8,10 @@ use kafka_client_core::{OperationId, ProducerCompletion};
 
 use crate::completion::{CompletionId, CompletionRegistryError};
 
-use super::{ProducerHost, ProducerHostInvariantError, terminal_backlog::RetainedTerminal};
+use super::{
+    ProducerHost, ProducerHostInvariantError, terminal::ProducerTerminal,
+    terminal_backlog::RetainedTerminal,
+};
 
 impl ProducerHost {
     pub(super) fn publish_or_retain_terminal(
@@ -114,7 +117,9 @@ impl ProducerHost {
                 return Err((error, completion));
             }
         }
-        self.completions.publish(completion_id, completion)
+        self.completions
+            .publish(completion_id, ProducerTerminal::record(completion))
+            .map_err(|(error, terminal)| (error, terminal.into_record()))
     }
 
     #[cfg(test)]

@@ -323,6 +323,10 @@ production = "crates/kafka-client-engine/src/producer/terminal_publication/valid
 test = "crates/kafka-client-engine/src/producer/terminal_publication/validation_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/terminal.rs"
+test = "crates/kafka-client-engine/src/producer/terminal_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/topic_catalog.rs"
 test = "crates/kafka-client-engine/src/producer/topic_catalog_test.rs"
 

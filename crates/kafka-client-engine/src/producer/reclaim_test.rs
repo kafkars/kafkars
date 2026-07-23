@@ -1,7 +1,5 @@
 //! Scenarios for exact two-phase producer-completion reclamation.
 
-use std::time::Instant;
-
 use kafka_client_core::{
     ByteCount, Deadline, ExplicitRecord, Moment, OperationId, PartitionIndex, PayloadId,
     ProducerCompletion, ProducerEffect, ProducerInput, ProducerMachine, TopicId,
@@ -18,6 +16,7 @@ use crate::{
 use super::{
     binding::OperationBindings,
     reclaim::{CompletionReclaimError, CompletionReclaimOutcome, CompletionReclaimer},
+    terminal::ProducerTerminal,
 };
 
 struct TerminalOperation {
@@ -77,21 +76,22 @@ fn terminal_operation() -> TerminalOperation {
 }
 
 fn publish_observed(
-    registry: &mut CompletionRegistry<ProducerCompletion>,
+    registry: &mut CompletionRegistry<ProducerTerminal>,
     completion: ProducerCompletion,
 ) -> CompletionId {
     let Ok((completion_id, observer)) = registry.reserve() else {
         panic!("completion capacity should reserve")
     };
-    assert_eq!(registry.publish(completion_id, completion), Ok(()));
-    assert_eq!(observer.wait(), Ok(completion));
+    let terminal = ProducerTerminal::record(completion);
+    assert_eq!(registry.publish(completion_id, terminal), Ok(()));
+    assert_eq!(observer.wait(), Ok(ProducerTerminal::record(completion)));
     completion_id
 }
 
-fn stop(mut registry: CompletionRegistry<ProducerCompletion>) {
-    let Ok(join) = registry.stop_notifier() else {
-        panic!("settled completion notifier should stop")
-    };
+fn stop(mut registry: CompletionRegistry<ProducerTerminal>) {
+    let join = registry
+        .stop_notifier()
+        .unwrap_or_else(|error| panic!("settled completion notifier should stop: {error}"));
     assert_eq!(join.join_off_notifier(), Ok(()));
 }
 
@@ -295,5 +295,5 @@ fn exhausted_generation_retires_capacity_after_core_confirmation() {
 }
 
 fn binding_deadline() -> OperationDeadline {
-    OperationDeadline::from_parts_for_test(Deadline::from_tick(10), Instant::now())
+    OperationDeadline::from_parts_for_test(Deadline::from_tick(10), std::time::Instant::now())
 }

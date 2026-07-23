@@ -13,6 +13,7 @@ use crate::{
     ProducerDeliveryError, ProducerDeliveryObserver, ProducerDeliveryResult, ProducerObserverError,
     completion::{CompletionRegistry, ReclaimStatus},
     delivery_test::delivered_completion,
+    producer::ProducerTerminal,
 };
 
 #[test]
@@ -29,7 +30,10 @@ fn wait_and_future_observe_the_same_terminal_cell() {
 
     assert_eq!(poll_once(&mut observer, Arc::clone(&wake)), Poll::Pending);
     assert_eq!(
-        registry.publish(completion_id, delivered_completion()),
+        registry.publish(
+            completion_id,
+            ProducerTerminal::record(delivered_completion())
+        ),
         Ok(())
     );
     let Some(waking_thread) = wake.wait() else {
@@ -54,7 +58,10 @@ fn observer_lifecycle_failures_translate_explicitly() {
     };
     let mut observer = ProducerDeliveryObserver::from_completion(inner);
     assert_eq!(
-        registry.publish(completion_id, delivered_completion()),
+        registry.publish(
+            completion_id,
+            ProducerTerminal::record(delivered_completion())
+        ),
         Ok(())
     );
     let wake = WakeSignal::new();
@@ -95,7 +102,10 @@ fn dropping_delivery_observer_preserves_abandon_reclaim() {
     };
     drop(ProducerDeliveryObserver::from_completion(inner));
     assert_eq!(
-        registry.publish(completion_id, delivered_completion()),
+        registry.publish(
+            completion_id,
+            ProducerTerminal::record(delivered_completion())
+        ),
         Ok(())
     );
     let Ok(join) = registry.stop_notifier() else {
@@ -135,7 +145,7 @@ fn poll_once(
 }
 
 fn reclaim_and_stop(
-    registry: &mut CompletionRegistry<kafka_client_core::ProducerCompletion>,
+    registry: &mut CompletionRegistry<ProducerTerminal>,
     completion_id: crate::completion::CompletionId,
 ) {
     assert_eq!(registry.next_reclaim(), Ok(Some(completion_id)));
@@ -146,7 +156,7 @@ fn reclaim_and_stop(
     stop(registry);
 }
 
-fn stop(registry: &mut CompletionRegistry<kafka_client_core::ProducerCompletion>) {
+fn stop(registry: &mut CompletionRegistry<ProducerTerminal>) {
     let Ok(join) = registry.stop_notifier() else {
         panic!("settled notifier should stop")
     };

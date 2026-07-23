@@ -13,6 +13,7 @@ use super::{
     binding::OperationBindings,
     execution::{PreparedExecution, PreparedExecutionLimits},
     reclaim::CompletionReclaimer,
+    terminal::ProducerTerminal,
     terminal_backlog::OrderedTerminalBacklog,
 };
 
@@ -64,7 +65,7 @@ pub(crate) struct ProducerHost {
     pub(super) core: ProducerMachine,
     pub(super) core_config: ProducerCoreConfig,
     pub(super) store: ProducerStore,
-    pub(super) completions: CompletionRegistry<kafka_client_core::ProducerCompletion>,
+    pub(super) completions: CompletionRegistry<ProducerTerminal>,
     pub(super) bindings: OperationBindings,
     pub(super) reclaimer: CompletionReclaimer,
     pub(super) timers: BatchTimers,
