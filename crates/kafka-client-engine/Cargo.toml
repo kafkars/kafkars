@@ -9,6 +9,7 @@ description = "Execution and driver-integration layer for the native Kafka clien
 publish = false
 
 [dependencies]
+bytes.workspace = true
 kafka-client-core.workspace = true
 kafka-driver.workspace = true
 kafka-wire.workspace = true

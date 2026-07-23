@@ -134,6 +134,7 @@ version = "0.0.0"
 name = "kafka-client-engine"
 version = "0.0.0"
 dependencies = [
+ "bytes",
  "kafka-client-core",
  "kafka-driver",
  "kafka-wire",
