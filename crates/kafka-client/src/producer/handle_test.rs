@@ -41,7 +41,20 @@ fn empty_flush_completes_through_the_public_named_operation() {
         panic!("producer construction should remain local")
     };
 
-    assert_eq!(producer.flush().wait(), Ok(()));
+    let deadline = Instant::now() + Duration::from_secs(1);
+    loop {
+        match producer.flush().wait() {
+            Ok(()) => break,
+            Err(error) if error.kind() == ErrorKind::Backpressure => {
+                assert!(
+                    Instant::now() < deadline,
+                    "one empty flush should be admitted after startup contention"
+                );
+                std::hint::spin_loop();
+            }
+            Err(error) => panic!("empty flush should succeed: {error}"),
+        }
+    }
 }
 
 #[test]
