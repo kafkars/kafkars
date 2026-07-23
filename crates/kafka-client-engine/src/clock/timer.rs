@@ -103,10 +103,13 @@ impl BatchTimers {
         true
     }
 
-    /// Removes due timers in `(deadline, BatchId)` order at the supplied moment.
-    pub(crate) fn drain_due(&mut self, now: Moment) -> Vec<DueBatchTimer> {
-        let mut due = Vec::new();
-        while let Some(next) = self.schedule.first().copied() {
+    /// Removes at most `limit` due timers in deterministic schedule order.
+    pub(crate) fn drain_due(&mut self, now: Moment, limit: usize) -> Vec<DueBatchTimer> {
+        let mut due = Vec::with_capacity(limit.min(self.schedule.len()));
+        while due.len() < limit {
+            let Some(next) = self.schedule.first().copied() else {
+                break;
+            };
             if !next.deadline.is_elapsed_at(now) {
                 break;
             }

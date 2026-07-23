@@ -136,13 +136,14 @@ impl ProducerHost {
     /// Retries bounded completion work without touching materialization or driver work.
     pub(crate) fn retry_pending_completions(
         &mut self,
+        limit: usize,
     ) -> Result<usize, ProducerHostInvariantError> {
         if let Some(error) = self.poison_reason() {
             return Err(error);
         }
         let mut published = 0;
         let mut index = 0;
-        while index < self.pending_effects.len() {
+        while index < self.pending_effects.len() && published < limit {
             let ProducerEffect::Complete {
                 operation_id,
                 completion,

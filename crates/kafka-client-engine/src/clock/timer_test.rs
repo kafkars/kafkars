@@ -26,8 +26,8 @@ fn newer_generation_replaces_older_schedule_once() {
 
     assert_eq!(timers.len(), 1);
     assert_eq!(timers.next_deadline(), Some(deadline(20)));
-    assert!(timers.drain_due(Moment::from_tick(19)).is_empty());
-    let due = timers.drain_due(Moment::from_tick(20));
+    assert!(timers.drain_due(Moment::from_tick(19), 1).is_empty());
+    let due = timers.drain_due(Moment::from_tick(20), 1);
     assert_eq!(due.len(), 1);
     assert_eq!(due[0].batch_id(), batch(1));
     assert_eq!(due[0].generation(), generation(2));
@@ -56,7 +56,7 @@ fn equal_deadlines_are_ordered_by_batch_identity() {
     assert_eq!(timers.arm(batch(2), generation(4), deadline(40)), Ok(true));
     assert_eq!(timers.arm(batch(5), generation(7), deadline(40)), Ok(true));
 
-    let due = timers.drain_due(Moment::from_tick(40));
+    let due = timers.drain_due(Moment::from_tick(40), 3);
     let batches = due
         .iter()
         .map(|timer| timer.batch_id().get())
@@ -71,7 +71,7 @@ fn due_timers_are_ordered_before_future_timers() {
     assert_eq!(timers.arm(batch(7), generation(1), deadline(10)), Ok(true));
     assert_eq!(timers.arm(batch(6), generation(1), deadline(20)), Ok(true));
 
-    let due = timers.drain_due(Moment::from_tick(20));
+    let due = timers.drain_due(Moment::from_tick(20), 3);
     let ordered = due
         .iter()
         .map(|timer| (timer.deadline().tick(), timer.batch_id().get()))
@@ -91,4 +91,25 @@ fn configured_capacity_rejects_only_new_batches() {
     assert_eq!(timers.next_deadline(), Some(deadline(10)));
     assert!(timers.cancel(batch(1), generation(2)));
     assert_eq!(timers.arm(batch(2), generation(1), deadline(20)), Ok(true));
+}
+
+#[test]
+fn due_timer_drain_preserves_work_beyond_the_turn_budget() {
+    let mut timers = BatchTimers::new(3);
+    assert_eq!(timers.arm(batch(3), generation(1), deadline(10)), Ok(true));
+    assert_eq!(timers.arm(batch(1), generation(1), deadline(10)), Ok(true));
+    assert_eq!(timers.arm(batch(2), generation(1), deadline(10)), Ok(true));
+
+    let first = timers.drain_due(Moment::from_tick(10), 2);
+    let first_ids = first
+        .iter()
+        .map(|timer| timer.batch_id().get())
+        .collect::<Vec<_>>();
+    assert_eq!(first_ids, [1, 2]);
+    assert_eq!(timers.next_deadline(), Some(deadline(10)));
+
+    let second = timers.drain_due(Moment::from_tick(10), 2);
+    assert_eq!(second.len(), 1);
+    assert_eq!(second[0].batch_id(), batch(3));
+    assert!(timers.is_empty());
 }

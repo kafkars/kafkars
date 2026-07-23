@@ -40,7 +40,7 @@ fn generated_accumulation_waits_until_the_whole_admission_transition_drains() {
         host.pending_effects(),
         [ProducerEffect::MaterializeBatch { .. }]
     ));
-    assert_eq!(host.retry_pending_completions(), Ok(0));
+    assert_eq!(host.retry_pending_completions(1), Ok(0));
     assert_eq!(host.stats().pending_effects, 1);
     drop(admitted);
 }
@@ -57,7 +57,7 @@ fn due_deadline_releases_engine_bytes_before_publishing_terminal_failure() {
     let operation_id = admitted.operation_id();
     let observer = admitted.into_delivery_observer();
 
-    assert_eq!(host.fire_due(Moment::from_tick(5)), Ok(1));
+    assert_eq!(host.fire_due(Moment::from_tick(5), 1), Ok(1));
     let stats = host.stats();
     assert_eq!(stats.store.records, 0);
     assert_eq!(stats.store.bytes, 0);

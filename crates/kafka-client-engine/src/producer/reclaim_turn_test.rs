@@ -28,7 +28,7 @@ fn observed_completion_reuses_only_a_new_completion_generation() {
     let Some(completion_id) = host.bindings.completion(operation_id) else {
         panic!("accepted operation should own a completion")
     };
-    assert_eq!(host.fire_due(Moment::from_tick(5)), Ok(1));
+    assert_eq!(host.fire_due(Moment::from_tick(5), 1), Ok(1));
     assert!(matches!(
         admitted.into_delivery_observer().wait(),
         Err(ProducerDeliveryError::Failed(_))
@@ -71,7 +71,7 @@ fn abandoned_observation_reclaims_after_terminal_publication() {
         panic!("accepted operation should own a completion")
     };
     drop(admitted);
-    assert_eq!(host.fire_due(Moment::from_tick(5)), Ok(1));
+    assert_eq!(host.fire_due(Moment::from_tick(5), 1), Ok(1));
     let Ok(join) = host.completions.stop_notifier() else {
         panic!("settled notifier should stop")
     };
@@ -101,7 +101,7 @@ fn locked_cell_retry_does_not_repeat_the_core_reclaim_input() {
     let Some(completion_id) = host.bindings.completion(operation_id) else {
         panic!("accepted operation should own a completion")
     };
-    assert_eq!(host.fire_due(Moment::from_tick(5)), Ok(1));
+    assert_eq!(host.fire_due(Moment::from_tick(5), 1), Ok(1));
     assert!(matches!(
         admitted.into_delivery_observer().wait(),
         Err(ProducerDeliveryError::Failed(_))
@@ -151,7 +151,7 @@ fn missing_exact_binding_poisons_host_closed() {
     let Some(completion_id) = host.bindings.completion(operation_id) else {
         panic!("accepted operation should own a completion")
     };
-    assert_eq!(host.fire_due(Moment::from_tick(5)), Ok(1));
+    assert_eq!(host.fire_due(Moment::from_tick(5), 1), Ok(1));
     assert!(matches!(
         admitted.into_delivery_observer().wait(),
         Err(ProducerDeliveryError::Failed(_))

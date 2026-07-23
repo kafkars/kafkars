@@ -9,6 +9,7 @@ pub(crate) mod execution;
 mod execution_turn;
 mod host;
 mod host_error;
+mod host_turn;
 mod interpreter;
 pub(crate) mod materialization;
 pub(crate) mod prepared;
@@ -31,6 +32,8 @@ pub(crate) use host_error::{
     ProducerHostInvariantError, ProducerHostLimitError, ProducerHostStartError,
     ProducerRejectionReason,
 };
+#[cfg_attr(not(test), expect(unused_imports, reason = "host bridge follows"))]
+pub(crate) use host_turn::{ProducerTurnBudget, ProducerTurnOutcome};
 pub(crate) use materialization::{
     MaterializationBatch, MaterializationHeader, MaterializationRecord,
 };
@@ -53,6 +56,8 @@ mod execution_test;
 mod execution_turn_test;
 #[cfg(test)]
 mod host_limits_test;
+#[cfg(test)]
+mod host_turn_test;
 #[cfg(test)]
 mod interpreter_test;
 #[cfg(test)]

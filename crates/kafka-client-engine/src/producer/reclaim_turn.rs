@@ -8,6 +8,10 @@ use super::{
 };
 
 impl ProducerHost {
+    pub(super) const fn reclaim_finish_pending(&self) -> bool {
+        self.reclaimer.finish_pending()
+    }
+
     /// Advances at most one reclaim identity without blocking the reactor.
     ///
     /// `Retry` retains the exact finishing phase. A later call retries only

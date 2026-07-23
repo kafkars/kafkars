@@ -117,6 +117,10 @@ production = "crates/kafka-client-engine/src/producer/host.rs"
 test = "crates/kafka-client-engine/src/producer/host_limits_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/host_turn.rs"
+test = "crates/kafka-client-engine/src/producer/host_turn_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/interpreter.rs"
 test = "crates/kafka-client-engine/src/producer/interpreter_test.rs"
 

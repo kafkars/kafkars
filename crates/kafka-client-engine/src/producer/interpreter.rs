@@ -24,12 +24,16 @@ impl ProducerHost {
         Ok(())
     }
 
-    /// Applies every due timer fact and drains each resulting transition.
-    pub(crate) fn fire_due(&mut self, now: Moment) -> Result<usize, ProducerHostInvariantError> {
+    /// Applies bounded due timer facts and drains each resulting transition.
+    pub(crate) fn fire_due(
+        &mut self,
+        now: Moment,
+        limit: usize,
+    ) -> Result<usize, ProducerHostInvariantError> {
         if let Some(error) = self.poison_reason() {
             return Err(error);
         }
-        let due = self.timers.drain_due(now);
+        let due = self.timers.drain_due(now, limit);
         let count = due.len();
         for timer in due {
             let transition = match self.core.apply(ProducerInput::BatchTimerFired {
