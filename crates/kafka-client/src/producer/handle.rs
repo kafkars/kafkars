@@ -29,10 +29,17 @@ impl ProducerBuilder {
 
     /// Builds the producer after local validation.
     pub fn build(self) -> Result<Producer, KafkaError> {
-        if self.engine.delivery_timeout().is_zero() {
+        let delivery_timeout = self.engine.delivery_timeout();
+        if delivery_timeout.is_zero() {
             return Err(KafkaError::new(
                 ErrorKind::Configuration,
                 "producer delivery timeout must be nonzero",
+            ));
+        }
+        if u64::try_from(delivery_timeout.as_nanos()).is_err() {
+            return Err(KafkaError::new(
+                ErrorKind::Configuration,
+                "producer delivery timeout exceeds the supported range",
             ));
         }
         Ok(Producer {

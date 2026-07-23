@@ -48,6 +48,19 @@ fn zero_delivery_timeout_is_rejected_when_the_producer_builds() {
 }
 
 #[test]
+fn unrepresentable_delivery_timeout_is_rejected_when_the_producer_builds() {
+    let result = build_client()
+        .producer()
+        .delivery_timeout(Duration::MAX)
+        .build();
+    let Err(error) = result else {
+        panic!("unrepresentable producer timeout must fail local validation")
+    };
+
+    assert_eq!(error.kind(), ErrorKind::Configuration);
+}
+
+#[test]
 fn try_send_rejection_returns_exact_nullable_ordered_bytes_storage() {
     let client = build_client();
     let result = client.producer().build();
