@@ -4,7 +4,7 @@ use std::{fmt, time::Duration};
 
 use kafka_driver::{
     BootstrapError, BootstrapLimits, BootstrapSet, Call, Driver, Reactor, ReactorError,
-    SubmitError, TurnOutcome,
+    SubmitError, TurnOutcome, WakeHandle,
 };
 
 use crate::EngineConfig;
@@ -19,7 +19,7 @@ use super::{DriverOwnerError, ProducerDriverWake, endpoint};
 pub(crate) struct DriverOwner {
     driver: Driver,
     reactor: Reactor,
-    producer_wake: ProducerDriverWake,
+    wake: WakeHandle,
 }
 
 impl DriverOwner {
@@ -45,17 +45,17 @@ impl DriverOwner {
             .bootstrap(bootstrap)
             .build_reactor()
             .map_err(DriverOwnerError::Build)?;
-        let producer_wake = ProducerDriverWake::new(reactor.wake_handle());
+        let wake = reactor.wake_handle();
         Ok(Self {
             driver,
             reactor,
-            producer_wake,
+            wake,
         })
     }
 
     /// Shares an engine-owned producer adapter over the coalesced reactor wake.
     pub(crate) fn producer_wake(&self) -> ProducerDriverWake {
-        self.producer_wake.clone()
+        ProducerDriverWake::new(self.wake.clone())
     }
 
     /// Drives one fairness-bounded embedded driver turn.
