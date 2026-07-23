@@ -35,10 +35,17 @@ fn size_violations(root: &Path, files: &[PathBuf], budgets: &FileBudgets) -> Vec
                 Some(entry) if entry.reason.trim().is_empty() => {
                     violations.push(format!("{relative} has an unexplained baseline"));
                 }
-                Some(entry) if lines > entry.lines => violations.push(format!(
-                    "{relative} grew from its {}-line baseline to {lines} lines",
-                    entry.lines
-                )),
+                Some(entry) if lines != entry.lines => {
+                    let direction = if lines > entry.lines {
+                        "grew beyond"
+                    } else {
+                        "shrunk below"
+                    };
+                    violations.push(format!(
+                        "{relative} {direction} its exact {}-line baseline to {lines} lines",
+                        entry.lines
+                    ));
+                }
                 Some(_) => {}
                 None => violations.push(format!(
                     "{relative} is {lines} lines, above its {}-line design target{}",
@@ -127,5 +134,65 @@ fn growth_above_a_design_target_is_rejected() {
             .iter()
             .any(|value| value.contains("oversized.rs") && value.contains("design target")),
         "file-size detector accepted oversized source: {violations:?}"
+    );
+}
+
+#[test]
+fn exact_reviewed_exception_is_accepted() {
+    let (root, files) = fixture_files("oversized_file");
+    let tight = Budget {
+        target: 5,
+        soft: 8,
+        hard: 9,
+    };
+    let budgets = FileBudgets {
+        facade: tight,
+        implementation: tight,
+        test: tight,
+        auxiliary: tight,
+        baseline: vec![support::BudgetBaseline {
+            path: "src/oversized.rs".to_owned(),
+            lines: 10,
+            reason: "fixture proves a measured ratchet".to_owned(),
+        }],
+        allow: vec![support::BudgetAllow {
+            path: "src/oversized.rs".to_owned(),
+            reason: "fixture proves reviewed hard exceptions".to_owned(),
+            owner: "architecture".to_owned(),
+            issue: "TEST-1".to_owned(),
+        }],
+    };
+
+    assert!(size_violations(&root, &files, &budgets).is_empty());
+}
+
+#[test]
+fn an_inflated_or_stale_baseline_is_rejected() {
+    let (root, files) = fixture_files("oversized_file");
+    let tight = Budget {
+        target: 5,
+        soft: 8,
+        hard: 10,
+    };
+    let budgets = FileBudgets {
+        facade: tight,
+        implementation: tight,
+        test: tight,
+        auxiliary: tight,
+        baseline: vec![support::BudgetBaseline {
+            path: "src/oversized.rs".to_owned(),
+            lines: 11,
+            reason: "an inflated ceiling is not a measured baseline".to_owned(),
+        }],
+        allow: Vec::new(),
+    };
+    let violations = size_violations(&root, &files, &budgets);
+
+    assert!(
+        violations.iter().any(|value| {
+            value.contains("oversized.rs")
+                && value.contains("shrunk below its exact 11-line baseline")
+        }),
+        "file-size detector accepted an inflated ratchet: {violations:?}"
     );
 }

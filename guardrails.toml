@@ -29,6 +29,107 @@ target = 300
 soft = 500
 hard = 700
 
+# Load-bearing modules keep their executable evidence as declared siblings.
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/capacity.rs"
+test = "crates/kafka-client-core/src/capacity_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/completion.rs"
+test = "crates/kafka-client-core/src/completion_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/producer_failure.rs"
+test = "crates/kafka-client-core/src/producer_failure_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/producer_transition.rs"
+test = "crates/kafka-client-core/src/producer_transition_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/clock/monotonic.rs"
+test = "crates/kafka-client-engine/src/clock/monotonic_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/clock/timer.rs"
+test = "crates/kafka-client-engine/src/clock/timer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/completion/observer.rs"
+test = "crates/kafka-client-engine/src/completion/observer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/completion/registry.rs"
+test = "crates/kafka-client-engine/src/completion/registry_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/owner.rs"
+test = "crates/kafka-client-engine/src/driver/owner_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/admission.rs"
+test = "crates/kafka-client-engine/src/producer/admission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/batch_store.rs"
+test = "crates/kafka-client-engine/src/producer/batch_store_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/binding.rs"
+test = "crates/kafka-client-engine/src/producer/binding_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/host.rs"
+test = "crates/kafka-client-engine/src/producer/host_limits_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/interpreter.rs"
+test = "crates/kafka-client-engine/src/producer/interpreter_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/materialization.rs"
+test = "crates/kafka-client-engine/src/producer/materialization_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/prepared.rs"
+test = "crates/kafka-client-engine/src/producer/prepared_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/reclaim.rs"
+test = "crates/kafka-client-engine/src/producer/reclaim_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/record_store.rs"
+test = "crates/kafka-client-engine/src/producer/record_store_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/submission_deadline.rs"
+test = "crates/kafka-client-engine/src/producer/submission_deadline_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/topic_catalog.rs"
+test = "crates/kafka-client-engine/src/producer/topic_catalog_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/produce.rs"
+test = "crates/kafka-client-engine/src/protocol/produce_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-sim/src/clock.rs"
+test = "crates/kafka-client-sim/src/clock_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-sim/src/producer.rs"
+test = "crates/kafka-client-sim/src/producer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/client.rs"
+test = "crates/kafka-client/src/client_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/error.rs"
+test = "crates/kafka-client/src/error_test.rs"
+
 [[dependency_rules]]
 package = "kafka-client-core"
 allowed_internal = []

@@ -12,6 +12,7 @@ pub(crate) struct GuardConfig {
     pub(crate) schema: u32,
     pub(crate) paths: Paths,
     pub(crate) budgets: FileBudgets,
+    pub(crate) test_mirrors: Vec<TestMirror>,
     pub(crate) dependency_rules: Vec<DependencyRule>,
     pub(crate) capability_rules: Vec<CapabilityRule>,
     pub(crate) mutation_owners: Vec<MutationOwner>,
@@ -64,6 +65,14 @@ pub(crate) struct BudgetAllow {
     pub(crate) reason: String,
     pub(crate) owner: String,
     pub(crate) issue: String,
+}
+
+/// A load-bearing production module and its sibling unit-test module.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct TestMirror {
+    pub(crate) production: String,
+    pub(crate) test: String,
 }
 
 /// Exact dependency allowlist for one workspace package.
