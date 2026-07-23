@@ -4,6 +4,7 @@ mod batch_store;
 mod binding;
 pub(crate) mod error;
 pub(crate) mod materialization;
+pub(crate) mod prepared;
 pub(crate) mod record;
 mod record_access;
 mod record_store;
@@ -35,6 +36,8 @@ mod batch_store_test;
 mod binding_test;
 #[cfg(test)]
 mod materialization_test;
+#[cfg(test)]
+mod prepared_test;
 #[cfg(test)]
 mod record_store_test;
 #[cfg(test)]
