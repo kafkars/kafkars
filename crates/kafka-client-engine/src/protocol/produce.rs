@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
+use kafka_client_core::Moment;
 use kafka_wire::{
     ProduceRequest,
     produce_request::{PartitionProduceData, TopicProduceData},
@@ -11,11 +12,15 @@ use kafka_wire_records::{
     Compression, Record, RecordBatch, RecordEncodeLimits, RecordHeader, TimestampType,
 };
 
-use crate::producer::materialization::{MaterializationBatch, MaterializationRecord};
+use crate::{
+    clock::OperationDeadline,
+    producer::materialization::{MaterializationBatch, MaterializationRecord},
+};
 
 use super::error::ProduceMaterializationError;
 
 const ACKS_ALL: i16 = -1;
+const NANOSECONDS_PER_MILLISECOND: u64 = 1_000_000;
 const NO_LEADER_EPOCH: i32 = -1;
 const NO_PRODUCER_ID: i64 = -1;
 const NO_PRODUCER_EPOCH: i16 = -1;
@@ -51,9 +56,13 @@ impl MaterializedProduce {
     }
 
     /// Consumes encoded bytes into one name-routed request at submission time.
+    ///
+    /// Kafka receives a rounded view of the remaining core budget. The caller
+    /// retains the same copied deadline for exact transport settlement.
     pub(crate) fn into_name_routed_request(
         self,
-        remaining_broker_timeout_ms: i32,
+        now: Moment,
+        deadline: OperationDeadline,
     ) -> ProduceRequest {
         let mut partition = PartitionProduceData::default();
         partition.index = self.partition;
@@ -65,7 +74,7 @@ impl MaterializedProduce {
 
         let mut request = ProduceRequest::default();
         request.acks = ACKS_ALL;
-        request.timeout_ms = remaining_broker_timeout_ms;
+        request.timeout_ms = remaining_broker_timeout_ms(now, deadline);
         request.topic_data.push(topic);
         request
     }
@@ -73,6 +82,17 @@ impl MaterializedProduce {
     #[cfg(test)]
     pub(crate) const fn encoded_records(&self) -> &Bytes {
         &self.records
+    }
+}
+
+fn remaining_broker_timeout_ms(now: Moment, deadline: OperationDeadline) -> i32 {
+    let remaining_nanoseconds = deadline.core().tick().saturating_sub(now.tick());
+    let rounded_milliseconds = remaining_nanoseconds
+        .saturating_add(NANOSECONDS_PER_MILLISECOND - 1)
+        / NANOSECONDS_PER_MILLISECOND;
+    match i32::try_from(rounded_milliseconds) {
+        Ok(timeout_ms) => timeout_ms,
+        Err(_overflow) => i32::MAX,
     }
 }
 
