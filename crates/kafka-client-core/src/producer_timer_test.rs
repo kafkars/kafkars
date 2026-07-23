@@ -129,3 +129,65 @@ fn earlier_deadline_rearms_timer_and_stale_facts_are_harmless() {
         .unwrap_or_else(|error| panic!("removed timer failed: {error}"));
     assert!(removed.effects().is_empty());
 }
+
+#[test]
+fn linger_before_accumulation_rearms_the_operation_deadline() {
+    let policy = ProducerBatchPolicy::try_new(10, ByteCount::new(1_024), 10)
+        .unwrap_or_else(|error| panic!("valid policy: {error}"));
+    let mut producer = ProducerMachine::with_batch_policy(ByteCount::new(64), 1, policy);
+    let (operation_id, batch_id, initial) = admit(&mut producer, 1, 30);
+    assert!(matches!(
+        initial.as_slice(),
+        [ProducerEffect::ArmBatchTimer {
+            generation,
+            deadline,
+            ..
+        }] if *generation == BatchTimerGeneration::from_raw(1)
+            && *deadline == Deadline::from_tick(10)
+    ));
+
+    let linger = producer
+        .apply(ProducerInput::BatchTimerFired {
+            batch_id,
+            generation: BatchTimerGeneration::from_raw(1),
+            now: Moment::from_tick(10),
+        })
+        .unwrap_or_else(|error| panic!("linger timer failed: {error}"));
+    assert!(matches!(
+        linger.effects(),
+        [ProducerEffect::ArmBatchTimer {
+            generation,
+            deadline,
+            ..
+        }] if *generation == BatchTimerGeneration::from_raw(2)
+            && *deadline == Deadline::from_tick(30)
+    ));
+    assert!(
+        !linger
+            .effects()
+            .iter()
+            .any(|effect| matches!(effect, ProducerEffect::MaterializeBatch { .. }))
+    );
+
+    let expired = producer
+        .apply(ProducerInput::BatchTimerFired {
+            batch_id,
+            generation: BatchTimerGeneration::from_raw(2),
+            now: Moment::from_tick(30),
+        })
+        .unwrap_or_else(|error| panic!("deadline timer failed: {error}"));
+    assert!(matches!(
+        expired.effects().last(),
+        Some(ProducerEffect::Complete {
+            operation_id: completed,
+            completion: ProducerCompletion::Failed(failure),
+        }) if *completed == operation_id
+            && failure.kind() == ProducerFailureKind::DeadlineElapsed
+    ));
+    assert!(
+        !expired
+            .effects()
+            .iter()
+            .any(|effect| matches!(effect, ProducerEffect::MaterializeBatch { .. }))
+    );
+}
