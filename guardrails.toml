@@ -67,6 +67,10 @@ production = "crates/kafka-client-core/src/producer_transition.rs"
 test = "crates/kafka-client-core/src/producer_transition_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/producer_transition_result.rs"
+test = "crates/kafka-client-core/src/producer_transition_identity_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/producer/execution_stop.rs"
 test = "crates/kafka-client-core/src/producer/execution_stop_test.rs"
 

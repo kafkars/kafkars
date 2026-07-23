@@ -16,6 +16,7 @@ mod producer_input;
 mod producer_policy;
 mod producer_record;
 mod producer_transition;
+mod producer_transition_result;
 mod types;
 
 pub use admission::AdmissionRejection;
@@ -33,8 +34,8 @@ pub use producer::{
 pub use producer_broker_failure::{ProducerBrokerFailure, ProducerBrokerFailureKind};
 pub use producer_effect::{
     AcknowledgementPolicy, CompressionPolicy, EXECUTION_STOP_EFFECTS_PER_FLUSH,
-    EXECUTION_STOP_EFFECTS_PER_RECORD, ProducerEffect, ProducerTransition,
-    execution_stop_effect_capacity, producer_transition_effect_capacity,
+    EXECUTION_STOP_EFFECTS_PER_RECORD, ProducerEffect, execution_stop_effect_capacity,
+    producer_transition_effect_capacity,
 };
 pub use producer_error::ProducerMachineError;
 pub use producer_failure::{ProducerFailure, ProducerFailureKind};
@@ -44,6 +45,7 @@ pub use producer_record::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, BatchTimerGeneration, ExplicitRecord,
     PartitionIndex, PayloadId, TopicId,
 };
+pub use producer_transition_result::ProducerTransition;
 pub use types::{ByteCount, Deadline, Moment, OperationId};
 
 #[cfg(test)]
