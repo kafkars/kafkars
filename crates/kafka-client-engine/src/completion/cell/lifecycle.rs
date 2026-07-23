@@ -9,6 +9,19 @@ use crate::completion::{
 };
 
 impl<T> CompletionCell<T> {
+    #[cfg(test)]
+    pub(in crate::completion) fn set_vacant_generation_for_test(
+        &self,
+        generation: u64,
+    ) -> Result<(), CompletionRegistryError> {
+        let mut phase = self.lock();
+        if !matches!(*phase, CellPhase::Vacant { .. }) {
+            return Err(CompletionRegistryError::UnknownCompletion);
+        }
+        *phase = CellPhase::Vacant { generation };
+        Ok(())
+    }
+
     pub(in crate::completion) fn activate(&self) -> Result<CompletionId, CompletionRegistryError> {
         let mut phase = self.lock();
         let CellPhase::Vacant { generation } = *phase else {

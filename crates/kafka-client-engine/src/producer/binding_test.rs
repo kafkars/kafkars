@@ -114,3 +114,26 @@ fn reused_slot_generations_remain_distinct_binding_identities() {
     rollback(&mut registry, live);
     stop(registry);
 }
+
+#[test]
+fn exact_removal_rejects_a_different_completion_generation() {
+    let Ok(mut registry) = CompletionRegistry::new(2, 2) else {
+        panic!("notifier should start")
+    };
+    let owned = reserve(&mut registry);
+    let different = reserve(&mut registry);
+    let operation = OperationId::from_raw(13);
+    let mut bindings = CompletionBindings::new(1);
+    assert_eq!(bindings.bind(operation, owned.id), Ok(()));
+
+    assert_eq!(
+        bindings.remove_exact(operation, different.id),
+        Err(CompletionBindingError::CompletionMismatch)
+    );
+    assert_eq!(bindings.completion(operation), Some(owned.id));
+    assert_eq!(bindings.remove_exact(operation, owned.id), Ok(()));
+
+    rollback(&mut registry, owned);
+    rollback(&mut registry, different);
+    stop(registry);
+}

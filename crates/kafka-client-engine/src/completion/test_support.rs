@@ -13,9 +13,28 @@ use std::{
 };
 
 use super::{
-    CompletionObserver, CompletionObserverError, CompletionRegistry, CompletionRegistryError,
-    ReclaimStatus,
+    CompletionId, CompletionObserver, CompletionObserverError, CompletionRegistry,
+    CompletionRegistryError, ReclaimStatus,
 };
+
+/// Holds one completion cell lock until the caller releases the returned gate.
+pub(crate) fn hold_cell_lock<T: Send + 'static>(
+    registry: &CompletionRegistry<T>,
+    id: CompletionId,
+) -> Option<(std::sync::mpsc::SyncSender<()>, std::thread::JoinHandle<()>)> {
+    let cell = registry.cell_for_test(id)?;
+    let (entered_sender, entered) = std::sync::mpsc::sync_channel(0);
+    let (release, released) = std::sync::mpsc::sync_channel(0);
+    let handle = std::thread::spawn(move || {
+        let _guard = cell.lock_for_test();
+        let _entered = entered_sender.send(());
+        let _released = released.recv();
+    });
+    if entered.recv().is_err() {
+        return None;
+    }
+    Some((release, handle))
+}
 
 pub(super) struct CountingWake {
     count: AtomicUsize,

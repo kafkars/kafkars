@@ -13,13 +13,6 @@ pub(crate) use error::{CompletionObserverError, CompletionRegistryError};
 pub(crate) use identity::CompletionId;
 pub(crate) use notifier::NotifierJoin;
 pub(crate) use observer::CompletionObserver;
-#[cfg_attr(
-    not(test),
-    expect(
-        unused_imports,
-        reason = "production completion ownership precedes the integrated producer host"
-    )
-)]
 pub(crate) use registry::{CompletionRegistry, ReclaimStatus};
 
 #[cfg(test)]
@@ -29,4 +22,4 @@ mod registry_generation_test;
 #[cfg(test)]
 mod registry_test;
 #[cfg(test)]
-mod test_support;
+pub(crate) mod test_support;

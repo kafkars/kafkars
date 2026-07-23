@@ -5,6 +5,7 @@ mod binding;
 pub(crate) mod error;
 pub(crate) mod materialization;
 pub(crate) mod prepared;
+pub(crate) mod reclaim;
 pub(crate) mod record;
 mod record_access;
 mod record_store;
@@ -12,13 +13,6 @@ pub(crate) mod store;
 mod submission_deadline;
 mod topic_catalog;
 
-#[cfg_attr(
-    not(test),
-    expect(
-        unused_imports,
-        reason = "production completion bindings precede the integrated producer host"
-    )
-)]
 pub(crate) use binding::{CompletionBindingError, CompletionBindings};
 pub(crate) use error::{ProducerAdmissionError, ProducerStoreError};
 pub(crate) use materialization::{
@@ -49,6 +43,8 @@ mod binding_test;
 mod materialization_test;
 #[cfg(test)]
 mod prepared_test;
+#[cfg(test)]
+mod reclaim_test;
 #[cfg(test)]
 mod record_store_test;
 #[cfg(test)]

@@ -427,6 +427,11 @@ field = "entries"
 allowed_paths = ["crates/kafka-client-engine/src/producer/binding.rs"]
 
 [[mutation_owners]]
+owner_type = "CompletionReclaimer"
+field = "phase"
+allowed_paths = ["crates/kafka-client-engine/src/producer/reclaim.rs"]
+
+[[mutation_owners]]
 owner_type = "PreparedProduceStore"
 field = "retained_bytes"
 allowed_paths = ["crates/kafka-client-engine/src/producer/prepared.rs"]
@@ -554,6 +559,10 @@ path = "crates/kafka-client-engine/src/producer/materialization.rs"
 [[linear_owners]]
 owner_type = "CompletionBindings"
 path = "crates/kafka-client-engine/src/producer/binding.rs"
+
+[[linear_owners]]
+owner_type = "CompletionReclaimer"
+path = "crates/kafka-client-engine/src/producer/reclaim.rs"
 
 [[linear_owners]]
 owner_type = "PreparedProduceStore"

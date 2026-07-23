@@ -179,6 +179,19 @@ impl<T: Send + 'static> CompletionRegistry<T> {
     pub(super) fn cell_for_test(&self, id: CompletionId) -> Option<Arc<CompletionCell<T>>> {
         self.slots.get(id.slot()).map(|slot| Arc::clone(&slot.cell))
     }
+
+    #[cfg(test)]
+    pub(crate) fn set_vacant_generation_for_test(
+        &self,
+        slot: usize,
+        generation: u64,
+    ) -> Result<(), CompletionRegistryError> {
+        let cell = self
+            .slots
+            .get(slot)
+            .ok_or(CompletionRegistryError::UnknownCompletion)?;
+        cell.cell.set_vacant_generation_for_test(generation)
+    }
 }
 
 impl<T> fmt::Debug for CompletionRegistry<T> {

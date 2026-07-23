@@ -23,6 +23,8 @@ pub(crate) enum CompletionBindingError {
     DuplicateCompletion,
     /// Removal named an operation with no live binding.
     UnknownOperation,
+    /// Removal named the right operation but the wrong completion generation.
+    CompletionMismatch,
 }
 
 impl fmt::Display for CompletionBindingError {
@@ -32,6 +34,7 @@ impl fmt::Display for CompletionBindingError {
             Self::DuplicateOperation => "producer operation already owns a completion",
             Self::DuplicateCompletion => "engine completion already belongs to an operation",
             Self::UnknownOperation => "producer operation owns no completion binding",
+            Self::CompletionMismatch => "producer operation owns a different completion generation",
         })
     }
 }
@@ -108,6 +111,22 @@ impl CompletionBindings {
             .operation_index(operation_id)
             .map_err(|_| CompletionBindingError::UnknownOperation)?;
         Ok(self.entries.remove(index).completion_id)
+    }
+
+    /// Removes only the exact operation and completion generation association.
+    pub(crate) fn remove_exact(
+        &mut self,
+        operation_id: OperationId,
+        completion_id: CompletionId,
+    ) -> Result<(), CompletionBindingError> {
+        let index = self
+            .operation_index(operation_id)
+            .map_err(|_| CompletionBindingError::UnknownOperation)?;
+        if self.entries[index].completion_id != completion_id {
+            return Err(CompletionBindingError::CompletionMismatch);
+        }
+        self.entries.remove(index);
+        Ok(())
     }
 
     fn operation_index(&self, operation_id: OperationId) -> Result<usize, usize> {
