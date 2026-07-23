@@ -58,7 +58,7 @@ fn completion_polling_waits_without_consuming_when_the_shard_is_contended() {
     drop(guard);
     assert!(
         calls
-            .poll_next_ready()
+            .poll_next_ready(Moment::from_tick(1))
             .unwrap_or_else(|error| panic!("ready completion retained: {error}"))
             .is_some()
     );

@@ -60,6 +60,23 @@ impl ProducerStore {
         self.batches.commit_revision(plan);
     }
 
+    /// Retains canonical membership under a fresh core-authorized retry generation.
+    pub(in crate::producer) fn start_batch_retry(
+        &mut self,
+        previous: BatchExecutionId,
+        replacement: BatchExecutionId,
+    ) -> Result<(), ProducerStoreError> {
+        self.batches.start_retry(previous, replacement)
+    }
+
+    /// Makes a retry-wait execution eligible for the declared materialization effect.
+    pub(in crate::producer) fn activate_batch_retry(
+        &mut self,
+        execution: BatchExecutionId,
+    ) -> Result<(), ProducerStoreError> {
+        self.batches.activate_retry(execution)
+    }
+
     /// Returns the exact engine mechanism phase for cancellation preflight.
     pub(in crate::producer) fn cancellation_phase(
         &self,

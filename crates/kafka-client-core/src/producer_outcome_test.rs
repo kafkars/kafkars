@@ -4,9 +4,9 @@ use core::num::NonZeroI16;
 
 use crate::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline, DeliveryStatus,
-    ExplicitRecord, Moment, OperationId, PartitionIndex, PayloadId, ProducerBatchPolicy,
-    ProducerBatchSuccess, ProducerBrokerFailure, ProducerBrokerFailureKind, ProducerEffect,
-    ProducerInput, ProducerMachine, ProducerMachineError, TopicId, TransitionError,
+    ExplicitRecord, Moment, OperationId, PartitionIndex, PayloadId, ProducerAttemptFailureKind,
+    ProducerBatchPolicy, ProducerBatchSuccess, ProducerBrokerFailure, ProducerBrokerFailureKind,
+    ProducerEffect, ProducerInput, ProducerMachine, ProducerMachineError, TopicId, TransitionError,
 };
 
 fn execution(batch_id: BatchId) -> BatchExecutionId {
@@ -54,6 +54,8 @@ fn materialization_and_driver_rejections_are_stage_specific() {
     assert_eq!(
         producer.apply(ProducerInput::DriverRejected {
             execution: execution(batch_id),
+            now: Moment::from_tick(1),
+            failure: ProducerAttemptFailureKind::Permanent,
         }),
         Err(ProducerMachineError::Transition(
             TransitionError::InvalidState
@@ -86,6 +88,8 @@ fn materialization_and_driver_rejections_are_stage_specific() {
         producer
             .apply(ProducerInput::DriverRejected {
                 execution: execution(batch_id),
+                now: Moment::from_tick(1),
+                failure: ProducerAttemptFailureKind::Permanent,
             })
             .is_ok()
     );
@@ -102,7 +106,7 @@ fn broker_outcome_requires_driver_ownership() {
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
     assert_eq!(
         producer.apply(ProducerInput::BrokerFailed {
-            batch_id,
+            execution: execution(batch_id),
             failure: routing_failure(),
             delivery: DeliveryStatus::PossiblySent,
         }),
@@ -118,7 +122,7 @@ fn broker_outcome_requires_driver_ownership() {
     assert!(
         producer
             .apply(ProducerInput::BrokerFailed {
-                batch_id,
+                execution: execution(batch_id),
                 failure: routing_failure(),
                 delivery: DeliveryStatus::PossiblySent,
             })
@@ -148,7 +152,9 @@ fn transport_failure_is_distinct_from_broker_error() {
         .unwrap_or_else(|error| panic!("driver acceptance failed: {error}"));
     let terminal = producer
         .apply(ProducerInput::TransportFailed {
-            batch_id,
+            execution: execution(batch_id),
+            now: Moment::from_tick(2),
+            failure: ProducerAttemptFailureKind::Permanent,
             delivery: DeliveryStatus::PossiblySent,
         })
         .unwrap_or_else(|error| panic!("transport failure failed: {error}"));
@@ -185,7 +191,7 @@ fn queued_deadline_fact_is_harmless_after_driver_or_terminal_ownership() {
     assert!(queued.effects().is_empty());
     producer
         .apply(ProducerInput::BrokerSucceeded {
-            batch_id,
+            execution: execution(batch_id),
             success: ProducerBatchSuccess::new(1, None, None),
         })
         .unwrap_or_else(|error| panic!("broker success failed: {error}"));

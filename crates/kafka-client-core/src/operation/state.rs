@@ -48,6 +48,15 @@ pub enum ProducerOperationState {
         /// Engine-owned batch accepted by the driver.
         batch_id: BatchId,
     },
+    /// A definitely-unsent attempt ended and core owns a bounded retry delay.
+    RetryWaiting {
+        /// Original absolute deadline created at the public boundary.
+        deadline: Deadline,
+        /// Bytes still charged to the producer buffer budget.
+        bytes: ByteCount,
+        /// Logical batch retaining the unchanged canonical records.
+        batch_id: BatchId,
+    },
     /// One terminal completion has been retained.
     Completed,
 }
@@ -101,7 +110,8 @@ impl ProducerOperation {
             | ProducerOperationState::Accumulating { deadline, .. }
             | ProducerOperationState::Materializing { deadline, .. }
             | ProducerOperationState::AwaitingDriver { deadline, .. }
-            | ProducerOperationState::Submitted { deadline, .. } => Some(deadline),
+            | ProducerOperationState::Submitted { deadline, .. }
+            | ProducerOperationState::RetryWaiting { deadline, .. } => Some(deadline),
             ProducerOperationState::Completed => None,
         }
     }
@@ -112,7 +122,8 @@ impl ProducerOperation {
             ProducerOperationState::Accumulating { batch_id, .. }
             | ProducerOperationState::Materializing { batch_id, .. }
             | ProducerOperationState::AwaitingDriver { batch_id, .. }
-            | ProducerOperationState::Submitted { batch_id, .. } => Some(batch_id),
+            | ProducerOperationState::Submitted { batch_id, .. }
+            | ProducerOperationState::RetryWaiting { batch_id, .. } => Some(batch_id),
             ProducerOperationState::WaitingForCapacity { .. }
             | ProducerOperationState::Completed => None,
         }

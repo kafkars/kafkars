@@ -2,7 +2,9 @@
 
 use std::time::Duration;
 
-use kafka_client_core::{ByteCount, ProducerBatchPolicy};
+use kafka_client_core::{
+    ByteCount, ProducerBatchPolicy, ProducerRetryPolicy, ProducerRetryPolicyError,
+};
 
 use crate::producer::{ProducerHostLimitError, ProducerHostLimits, host_turn::ProducerTurnBudget};
 
@@ -14,6 +16,8 @@ mod producer_limits_test;
 
 const DEFAULT_DELIVERY_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_ADMIN_TIMEOUT: Duration = Duration::from_secs(30);
+const DEFAULT_PRODUCER_RETRIES: u32 = 3;
+const DEFAULT_PRODUCER_RETRY_BACKOFF: Duration = Duration::from_millis(100);
 const DEFAULT_TURN_BUDGET: usize = 64;
 
 /// Engine construction inputs compiled before any host thread starts.
@@ -23,6 +27,8 @@ pub struct EngineConfig {
     delivery_timeout: Duration,
     admin_timeout: Duration,
     producer_limits: EngineProducerLimits,
+    producer_retry_max: u32,
+    producer_retry_backoff: Duration,
 }
 
 impl EngineConfig {
@@ -33,6 +39,8 @@ impl EngineConfig {
             delivery_timeout: DEFAULT_DELIVERY_TIMEOUT,
             admin_timeout: DEFAULT_ADMIN_TIMEOUT,
             producer_limits: EngineProducerLimits::default(),
+            producer_retry_max: DEFAULT_PRODUCER_RETRIES,
+            producer_retry_backoff: DEFAULT_PRODUCER_RETRY_BACKOFF,
         }
     }
 
@@ -54,6 +62,14 @@ impl EngineConfig {
     #[must_use]
     pub const fn with_producer_limits(mut self, producer_limits: EngineProducerLimits) -> Self {
         self.producer_limits = producer_limits;
+        self
+    }
+
+    /// Replaces bounded definitely-unsent retry intent.
+    #[must_use]
+    pub const fn with_producer_retry(mut self, max_retries: u32, backoff: Duration) -> Self {
+        self.producer_retry_max = max_retries;
+        self.producer_retry_backoff = backoff;
         self
     }
 
@@ -122,6 +138,13 @@ impl EngineConfig {
             linger_ticks,
         )
         .map_err(|_| EngineConfigError::BatchPolicy)?;
+        let retry_policy = if self.producer_retry_max == 0 {
+            ProducerRetryPolicy::none()
+        } else {
+            let retry_ticks = duration_ticks(self.producer_retry_backoff)?;
+            ProducerRetryPolicy::try_fixed(self.producer_retry_max, retry_ticks)
+                .map_err(EngineConfigError::RetryPolicy)?
+        };
         Ok(ProducerHostLimits {
             retained_bytes: limits.retained_bytes(),
             completion_capacity: limits.in_flight_records(),
@@ -131,6 +154,7 @@ impl EngineConfig {
             encoded_byte_capacity: limits.retained_bytes(),
             max_wire_batch_bytes: limits.batch_bytes(),
             batch_policy,
+            retry_policy,
         })
     }
 }
@@ -150,6 +174,7 @@ pub(crate) enum EngineConfigError {
     RetainedBytes,
     BatchBytes,
     BatchPolicy,
+    RetryPolicy(ProducerRetryPolicyError),
     Producer(ProducerHostLimitError),
     TurnBudget,
 }

@@ -40,6 +40,23 @@ fn surviving_members_require_the_exact_next_generation() {
     );
 }
 
+#[test]
+fn retry_wait_revision_preserves_waiting_phase_for_survivors() {
+    let previous = execution(2);
+    let replacement = execution(3);
+    let mut batch = VirtualBatch {
+        members: vec![OperationId::from_raw(1), OperationId::from_raw(2)],
+        phase: VirtualBatchPhase::RetryWaiting(previous),
+    };
+
+    assert_eq!(
+        batch.revise(previous, Some(replacement), OperationId::from_raw(2)),
+        Ok(false)
+    );
+    assert_eq!(batch.phase, VirtualBatchPhase::RetryWaiting(replacement));
+    assert_eq!(batch.members, [OperationId::from_raw(1)]);
+}
+
 fn execution(generation: u64) -> BatchExecutionId {
     let generation = BatchExecutionGeneration::try_from_raw(generation)
         .unwrap_or_else(|| panic!("test generation is nonzero"));

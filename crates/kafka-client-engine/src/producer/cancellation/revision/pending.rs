@@ -12,6 +12,7 @@ pub(super) enum PendingRevisionPlan {
     Materialize(usize),
     Submit(usize),
     Armed,
+    RetryWaiting,
 }
 
 impl PendingRevisionPlan {
@@ -19,12 +20,13 @@ impl PendingRevisionPlan {
         match self {
             Self::Materialize(_) => BatchRevisionExpectation::ReadyForMaterialization,
             Self::Submit(_) | Self::Armed => BatchRevisionExpectation::Materialized,
+            Self::RetryWaiting => BatchRevisionExpectation::RetryWaiting,
         }
     }
 
     pub(super) const fn prepared_expectation(self) -> PreparedRevisionExpectation {
         match self {
-            Self::Materialize(_) => PreparedRevisionExpectation::Absent,
+            Self::Materialize(_) | Self::RetryWaiting => PreparedRevisionExpectation::Absent,
             Self::Submit(_) => PreparedRevisionExpectation::Unarmed,
             Self::Armed => PreparedRevisionExpectation::Armed,
         }
@@ -36,7 +38,7 @@ impl PendingRevisionPlan {
                 let removed = effects.remove(index);
                 debug_assert!(pending_execution(removed).is_some());
             }
-            Self::Armed => {}
+            Self::Armed | Self::RetryWaiting => {}
         }
     }
 }

@@ -142,9 +142,12 @@ impl ProducerHost {
             .store
             .cancellation_phase(removed_operation_id)
             .map_err(|error| self.preflight_failed(ProducerHostInvariantError::Store(error)))?;
-        let (previous, open_pending) = match phase {
+        let (previous, open_pending, explicit_pending) = match phase {
             None | Some(BatchCancellationPhase::Submitted) => return Ok(None),
-            Some(BatchCancellationPhase::Sealed(previous)) => (previous, false),
+            Some(BatchCancellationPhase::Sealed(previous)) => (previous, false, None),
+            Some(BatchCancellationPhase::RetryWaiting(previous)) => {
+                (previous, false, Some(PendingRevisionPlan::RetryWaiting))
+            }
             Some(BatchCancellationPhase::Open(batch_id)) => {
                 let Some(previous) = self.open_pending_execution(batch_id).map_err(|error| {
                     self.preflight_failed(ProducerHostInvariantError::Revision(error))
@@ -152,12 +155,15 @@ impl ProducerHost {
                 else {
                     return Ok(None);
                 };
-                (previous, true)
+                (previous, true, None)
             }
         };
-        let pending = self
-            .plan_pending_revision(previous)
-            .map_err(|error| self.preflight_failed(ProducerHostInvariantError::Revision(error)))?;
+        let pending = match explicit_pending {
+            Some(pending) => pending,
+            None => self.plan_pending_revision(previous).map_err(|error| {
+                self.preflight_failed(ProducerHostInvariantError::Revision(error))
+            })?,
+        };
         if open_pending && !matches!(pending, PendingRevisionPlan::Materialize(_)) {
             return Err(self.preflight_failed(ProducerHostInvariantError::Revision(
                 ProducerRevisionError::OpenBatchPendingSubmit(previous),

@@ -27,6 +27,7 @@ pub(crate) enum BatchState {
     Materializing,
     AwaitingDriver,
     Submitted,
+    RetryWaiting,
 }
 
 /// Linear owner of batch membership, readiness, and stale-timer fencing.
@@ -41,6 +42,7 @@ pub(crate) struct ProducerBatch {
     pub(crate) accumulator_bytes: ByteCount,
     pub(crate) members: Vec<BatchMember>,
     pub(crate) execution_generation: Option<BatchExecutionGeneration>,
+    pub(crate) retries_started: u32,
     pub(crate) state: BatchState,
 }
 
@@ -110,6 +112,7 @@ impl ProducerBatch {
                 accumulator_bytes: None,
             }],
             execution_generation: None,
+            retries_started: 0,
             state: BatchState::Open,
         })
     }

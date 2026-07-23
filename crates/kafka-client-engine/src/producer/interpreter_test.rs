@@ -5,6 +5,7 @@ use std::collections::VecDeque;
 use kafka_client_core::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline, FlushId, Moment,
     OperationId, ProducerBatchPolicy, ProducerEffect, ProducerInput, ProducerMachineError,
+    ProducerRetryPolicy,
 };
 
 use crate::{
@@ -35,6 +36,7 @@ fn generated_accumulation_waits_until_the_whole_admission_transition_drains() {
         encoded_byte_capacity: 1_024,
         max_wire_batch_bytes: 1_024,
         batch_policy,
+        retry_policy: ProducerRetryPolicy::none(),
     };
     let mut host = start(limits);
     let admitted = admit(

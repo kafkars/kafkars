@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::{
     AdmissionRejection, BatchId, ByteBudget, ByteCount, CapacityError, CompletionLedger,
     CompletionLedgerError, Deadline, ExplicitRecord, Moment, OperationId, ProducerBatchPolicy,
-    ProducerOperation, producer_transition_effect_capacity,
+    ProducerOperation, ProducerRetryPolicy, producer_transition_effect_capacity,
 };
 
 use super::{BatchRoute, FlushLedger, ProducerBatch};
@@ -17,6 +17,7 @@ pub struct ProducerMachine {
     pub(crate) next_operation_id: Option<OperationId>,
     pub(crate) next_batch_id: Option<BatchId>,
     pub(crate) batch_policy: ProducerBatchPolicy,
+    pub(crate) retry_policy: ProducerRetryPolicy,
     pub(crate) byte_budget: ByteBudget,
     pub(crate) completions: CompletionLedger,
     pub(crate) flushes: FlushLedger,
@@ -52,6 +53,22 @@ impl ProducerMachine {
         )
     }
 
+    /// Creates an open producer with explicit batching and retry policies.
+    pub const fn with_batch_and_retry_policy(
+        retained_bytes: ByteCount,
+        completion_capacity: usize,
+        batch_policy: ProducerBatchPolicy,
+        retry_policy: ProducerRetryPolicy,
+    ) -> Self {
+        Self::with_policies_and_flush_capacity(
+            retained_bytes,
+            completion_capacity,
+            batch_policy,
+            retry_policy,
+            completion_capacity,
+        )
+    }
+
     /// Creates an open producer with independent bounded flush capacity.
     pub const fn with_batch_policy_and_flush_capacity(
         retained_bytes: ByteCount,
@@ -59,11 +76,29 @@ impl ProducerMachine {
         batch_policy: ProducerBatchPolicy,
         flush_capacity: usize,
     ) -> Self {
+        Self::with_policies_and_flush_capacity(
+            retained_bytes,
+            completion_capacity,
+            batch_policy,
+            ProducerRetryPolicy::none(),
+            flush_capacity,
+        )
+    }
+
+    /// Creates an open producer with all deterministic policies and capacities.
+    pub const fn with_policies_and_flush_capacity(
+        retained_bytes: ByteCount,
+        completion_capacity: usize,
+        batch_policy: ProducerBatchPolicy,
+        retry_policy: ProducerRetryPolicy,
+        flush_capacity: usize,
+    ) -> Self {
         Self {
             admission_open: true,
             next_operation_id: Some(OperationId::from_raw(1)),
             next_batch_id: Some(BatchId::from_raw(1)),
             batch_policy,
+            retry_policy,
             byte_budget: ByteBudget::new(retained_bytes),
             completions: CompletionLedger::new(completion_capacity),
             flushes: FlushLedger::new(flush_capacity),

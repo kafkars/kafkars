@@ -23,6 +23,7 @@ pub(super) enum VirtualBatchPhase {
     Materialized(BatchExecutionId),
     AwaitingDriver(BatchExecutionId),
     Submitted(BatchExecutionId),
+    RetryWaiting(BatchExecutionId),
 }
 
 impl VirtualBatch {
@@ -64,6 +65,7 @@ impl VirtualBatch {
     }
 
     fn materialize(&mut self, execution: BatchExecutionId) -> Result<(), SimulationError> {
+        self.activate_retry(execution)?;
         match self.phase {
             VirtualBatchPhase::Open => {
                 let expected = BatchExecutionId::new(
@@ -83,7 +85,8 @@ impl VirtualBatch {
             | VirtualBatchPhase::Materializing(current)
             | VirtualBatchPhase::Materialized(current)
             | VirtualBatchPhase::AwaitingDriver(current)
-            | VirtualBatchPhase::Submitted(current) => {
+            | VirtualBatchPhase::Submitted(current)
+            | VirtualBatchPhase::RetryWaiting(current) => {
                 return Err(SimulationError::BatchExecutionMismatch {
                     expected: Some(current),
                     actual: execution,
@@ -107,6 +110,7 @@ impl VirtualBatch {
             | VirtualBatchPhase::Materializing(current)
             | VirtualBatchPhase::AwaitingDriver(current)
             | VirtualBatchPhase::Submitted(current)
+            | VirtualBatchPhase::RetryWaiting(current)
                 if current != execution =>
             {
                 return Err(SimulationError::BatchExecutionMismatch {
@@ -121,7 +125,8 @@ impl VirtualBatch {
             | VirtualBatchPhase::Ready(_)
             | VirtualBatchPhase::Materializing(_)
             | VirtualBatchPhase::AwaitingDriver(_)
-            | VirtualBatchPhase::Materialized(_) => {
+            | VirtualBatchPhase::Materialized(_)
+            | VirtualBatchPhase::RetryWaiting(_) => {
                 return Err(SimulationError::BatchNotMaterialized(execution));
             }
         }

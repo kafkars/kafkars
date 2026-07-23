@@ -52,6 +52,7 @@ impl ProducerTransition {
             | ProducerEffect::CancelBatchTimer { .. }
             | ProducerEffect::MaterializeBatch { .. }
             | ProducerEffect::ReviseBatchExecution { .. }
+            | ProducerEffect::RetryBatchExecution { .. }
             | ProducerEffect::SubmitProduce { .. }
             | ProducerEffect::RemoveBatchMember { .. }
             | ProducerEffect::ReleaseBatch { .. }
@@ -71,6 +72,7 @@ impl ProducerTransition {
             | ProducerEffect::CancelBatchTimer { .. }
             | ProducerEffect::MaterializeBatch { .. }
             | ProducerEffect::ReviseBatchExecution { .. }
+            | ProducerEffect::RetryBatchExecution { .. }
             | ProducerEffect::SubmitProduce { .. }
             | ProducerEffect::RemoveBatchMember { .. }
             | ProducerEffect::ReleaseBatch { .. }

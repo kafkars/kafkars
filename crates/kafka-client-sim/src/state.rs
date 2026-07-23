@@ -6,6 +6,9 @@ mod batch_revision;
 mod batch_revision_test;
 #[cfg(test)]
 mod batch_test;
+mod retry;
+#[cfg(test)]
+mod retry_test;
 
 use std::collections::{BTreeMap, BTreeSet, btree_map::Entry};
 
@@ -87,6 +90,12 @@ impl VirtualProducerState {
                 removed_operation_id,
             } => {
                 self.revise_batch_execution(previous, replacement, removed_operation_id)?;
+            }
+            ProducerEffect::RetryBatchExecution {
+                previous,
+                replacement,
+            } => {
+                self.retry_batch_execution(previous, replacement)?;
             }
             ProducerEffect::SubmitProduce {
                 execution,

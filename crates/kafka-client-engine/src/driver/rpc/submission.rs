@@ -2,7 +2,7 @@
 
 use std::{error::Error, fmt, time::Instant};
 
-use kafka_client_core::DeliveryStatus;
+use kafka_client_core::{DeliveryStatus, ProducerAttemptFailureKind};
 use kafka_driver::{
     ApiVersion, PartitionId, PartitionIdError, RequestOptions, Route, RoutedCall, SubmitError,
     TopicName, TopicNameError, TrafficClass,
@@ -28,6 +28,20 @@ impl ProduceSubmitError {
             Self::InvalidTopic(_) | Self::InvalidPartition(_) | Self::Driver(_) => {
                 DeliveryStatus::NotSent
             }
+        }
+    }
+
+    /// Normalizes immediate rejection structure without inventing retry policy.
+    pub(crate) const fn failure_kind(&self) -> ProducerAttemptFailureKind {
+        match self {
+            Self::InvalidTopic(_) | Self::InvalidPartition(_) => {
+                ProducerAttemptFailureKind::Permanent
+            }
+            Self::Driver(SubmitError::Full) => ProducerAttemptFailureKind::LocalCapacity,
+            Self::Driver(SubmitError::Wake(_)) => ProducerAttemptFailureKind::ConnectionUnavailable,
+            Self::Driver(
+                SubmitError::Closed | SubmitError::IdentityExhausted | SubmitError::ForeignDriver,
+            ) => ProducerAttemptFailureKind::Permanent,
         }
     }
 }

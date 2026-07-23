@@ -132,6 +132,37 @@ fn maximum_generation_reports_exhaustion_without_mutation() {
     assert_eq!(batches.execution(batch_id), Ok(Some(maximum)));
 }
 
+#[test]
+fn retry_wait_revision_preserves_waiting_survivors() {
+    let batch_id = BatchId::from_raw(5);
+    let waiting = execution(batch_id, 2);
+    let replacement = execution(batch_id, 3);
+    let mut batches = batch(batch_id, &[50, 51]);
+    batches
+        .batches
+        .get_mut(&batch_id)
+        .unwrap_or_else(|| panic!("retry batch missing"))
+        .state = super::BatchState::RetryWaiting(waiting);
+    let plan = batches
+        .plan_revision(
+            waiting,
+            OperationId::from_raw(50),
+            BatchRevisionExpectation::RetryWaiting,
+        )
+        .unwrap_or_else(|error| panic!("retry-wait revision: {error}"));
+
+    batches.commit_revision(plan);
+
+    assert_eq!(
+        batches.cancellation_phase(OperationId::from_raw(51)),
+        Ok(Some(BatchCancellationPhase::RetryWaiting(replacement)))
+    );
+    assert_eq!(
+        batches.cancellation_phase(OperationId::from_raw(50)),
+        Ok(None)
+    );
+}
+
 fn batch(batch_id: BatchId, operations: &[u64]) -> BatchStore {
     let mut batches = BatchStore::new(1);
     for operation in operations {

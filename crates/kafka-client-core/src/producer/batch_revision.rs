@@ -1,8 +1,18 @@
-//! Sole owner of sealed-batch execution replacement.
+//! Sole owner of sealed-batch execution and retry-timer replacement.
 
-use crate::{ByteCount, OperationId, ProducerMachineError, TransitionError};
+use crate::{
+    BatchTimerGeneration, ByteCount, Deadline, OperationId, ProducerMachineError, TransitionError,
+};
 
 use super::{BatchRevision, BatchState, ProducerBatch};
+
+/// Preflighted retry-waiting membership and timer replacement.
+pub(crate) struct RetryBatchRevision {
+    pub(crate) batch: BatchRevision,
+    pub(crate) previous_timer: BatchTimerGeneration,
+    pub(crate) replacement_timer: Option<BatchTimerGeneration>,
+    pub(crate) timer_deadline: Deadline,
+}
 
 impl ProducerBatch {
     pub(crate) fn plan_revision(
@@ -12,7 +22,7 @@ impl ProducerBatch {
     ) -> Result<BatchRevision, ProducerMachineError> {
         if !matches!(
             self.state,
-            BatchState::Materializing | BatchState::AwaitingDriver
+            BatchState::Materializing | BatchState::AwaitingDriver | BatchState::RetryWaiting
         ) {
             return Err(ProducerMachineError::Transition(
                 TransitionError::InvalidState,
@@ -59,5 +69,47 @@ impl ProducerBatch {
             .replacement
             .map(crate::BatchExecutionId::generation);
         self.state = BatchState::Materializing;
+    }
+
+    pub(crate) fn plan_retry_revision(
+        &self,
+        batch_id: crate::BatchId,
+        operation_id: OperationId,
+    ) -> Result<RetryBatchRevision, ProducerMachineError> {
+        if self.state != BatchState::RetryWaiting {
+            return Err(ProducerMachineError::Transition(
+                TransitionError::InvalidState,
+            ));
+        }
+        let batch = self.plan_revision(batch_id, operation_id)?;
+        let replacement_timer = if batch.replacement.is_some() {
+            let next = self
+                .timer_generation
+                .get()
+                .checked_add(1)
+                .ok_or(ProducerMachineError::TimerGenerationExhausted)?;
+            Some(BatchTimerGeneration::from_raw(next))
+        } else {
+            None
+        };
+        Ok(RetryBatchRevision {
+            batch,
+            previous_timer: self.timer_generation,
+            replacement_timer,
+            timer_deadline: self.timer_deadline,
+        })
+    }
+
+    pub(crate) fn commit_retry_revision(&mut self, revision: RetryBatchRevision) {
+        self.members = revision.batch.members;
+        self.accumulator_bytes = revision.batch.accumulator_bytes;
+        self.execution_generation = revision
+            .batch
+            .replacement
+            .map(crate::BatchExecutionId::generation);
+        if let Some(generation) = revision.replacement_timer {
+            self.timer_generation = generation;
+        }
+        debug_assert_eq!(self.state, BatchState::RetryWaiting);
     }
 }

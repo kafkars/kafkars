@@ -6,6 +6,7 @@ use bytes::Bytes;
 use kafka_client_core::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, DeliveryStatus, Moment, ProducerInput,
 };
+use kafka_driver::RequestError;
 use kafka_wire::{
     ProduceResponse,
     produce_response::{PartitionProduceResponse, TopicProduceResponse},
@@ -52,7 +53,7 @@ fn pending_call_remains_owned_when_a_poll_has_no_result() {
 
     assert!(
         calls
-            .poll_next_ready()
+            .poll_next_ready(Moment::from_tick(1))
             .unwrap_or_else(|error| panic!("poll tracked call: {error}"))
             .is_none()
     );
@@ -70,14 +71,42 @@ fn structural_response_mismatch_terminalizes_conservatively() {
         execution(7),
         "orders",
         3,
+        Moment::from_tick(11),
         &Ok(success_response("wrong-topic", 3)),
     );
 
     assert_eq!(
         input,
         ProducerInput::TransportFailed {
-            batch_id: BatchId::from_raw(7),
+            execution: execution(7),
+            now: Moment::from_tick(11),
+            failure: kafka_client_core::ProducerAttemptFailureKind::Permanent,
             delivery: DeliveryStatus::PossiblySent,
+        }
+    );
+}
+
+#[test]
+fn terminal_driver_failure_preserves_execution_time_and_structure() {
+    let exact = BatchExecutionId::new(
+        BatchId::from_raw(8),
+        BatchExecutionGeneration::try_from_raw(3).unwrap_or_else(|| panic!("third generation")),
+    );
+    let input = normalized_terminal_input(
+        exact,
+        "orders",
+        3,
+        Moment::from_tick(12),
+        &Err(RequestError::RouteUnavailable),
+    );
+
+    assert_eq!(
+        input,
+        ProducerInput::TransportFailed {
+            execution: exact,
+            now: Moment::from_tick(12),
+            failure: kafka_client_core::ProducerAttemptFailureKind::RouteUnavailable,
+            delivery: DeliveryStatus::NotSent,
         }
     );
 }

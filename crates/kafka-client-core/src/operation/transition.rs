@@ -20,7 +20,8 @@ impl ProducerOperation {
             ProducerOperationState::Accumulating { .. }
             | ProducerOperationState::Materializing { .. }
             | ProducerOperationState::AwaitingDriver { .. }
-            | ProducerOperationState::Submitted { .. } => Err(TransitionError::InvalidState),
+            | ProducerOperationState::Submitted { .. }
+            | ProducerOperationState::RetryWaiting { .. } => Err(TransitionError::InvalidState),
         }
     }
 
@@ -41,7 +42,8 @@ impl ProducerOperation {
             ProducerOperationState::WaitingForCapacity { .. }
             | ProducerOperationState::Materializing { .. }
             | ProducerOperationState::AwaitingDriver { .. }
-            | ProducerOperationState::Submitted { .. } => Err(TransitionError::InvalidState),
+            | ProducerOperationState::Submitted { .. }
+            | ProducerOperationState::RetryWaiting { .. } => Err(TransitionError::InvalidState),
         }
     }
 
@@ -80,7 +82,8 @@ impl ProducerOperation {
             ProducerOperationState::WaitingForCapacity { .. }
             | ProducerOperationState::Accumulating { .. }
             | ProducerOperationState::AwaitingDriver { .. }
-            | ProducerOperationState::Submitted { .. } => Err(TransitionError::InvalidState),
+            | ProducerOperationState::Submitted { .. }
+            | ProducerOperationState::RetryWaiting { .. } => Err(TransitionError::InvalidState),
         }
     }
 
@@ -119,7 +122,8 @@ impl ProducerOperation {
             ProducerOperationState::WaitingForCapacity { .. }
             | ProducerOperationState::Accumulating { .. }
             | ProducerOperationState::Materializing { .. }
-            | ProducerOperationState::Submitted { .. } => Err(TransitionError::InvalidState),
+            | ProducerOperationState::Submitted { .. }
+            | ProducerOperationState::RetryWaiting { .. } => Err(TransitionError::InvalidState),
         }
     }
 
@@ -156,6 +160,7 @@ impl ProducerOperation {
             ProducerOperationState::WaitingForCapacity { .. }
             | ProducerOperationState::Accumulating { .. }
             | ProducerOperationState::Submitted { .. }
+            | ProducerOperationState::RetryWaiting { .. }
             | ProducerOperationState::Completed => {
                 debug_assert!(false, "restart commit must follow preflight");
                 return;

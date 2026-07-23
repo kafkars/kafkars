@@ -2,8 +2,9 @@
 
 use kafka_client_core::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline, DeliveryStatus,
-    ExplicitRecord, Moment, PartitionIndex, PayloadId, ProducerBatchSuccess, ProducerCompletion,
-    ProducerEffect, ProducerInput, ProducerMachine, ProducerTransition, TopicId,
+    ExplicitRecord, Moment, PartitionIndex, PayloadId, ProducerAttemptFailureKind,
+    ProducerBatchSuccess, ProducerCompletion, ProducerEffect, ProducerInput, ProducerMachine,
+    ProducerTransition, TopicId,
 };
 
 use crate::{
@@ -80,7 +81,7 @@ pub(super) fn delivered_completion() -> ProducerCompletion {
     terminal(
         &mut machine,
         ProducerInput::BrokerSucceeded {
-            batch_id,
+            execution: execution(batch_id),
             success: ProducerBatchSuccess::new(42, Some(900), Some(7)),
         },
     )
@@ -114,7 +115,9 @@ fn possibly_sent_completion() -> ProducerCompletion {
     terminal(
         &mut machine,
         ProducerInput::TransportFailed {
-            batch_id,
+            execution: execution(batch_id),
+            now: Moment::from_tick(3),
+            failure: ProducerAttemptFailureKind::Permanent,
             delivery: DeliveryStatus::PossiblySent,
         },
     )

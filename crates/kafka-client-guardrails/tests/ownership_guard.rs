@@ -176,6 +176,11 @@ fn mutation_fixture_is_rejected() {
         },
         MutationOwner {
             owner_type: "ProducerMachine".into(),
+            field: "retry_generation".into(),
+            allowed_paths: vec!["src/owner.rs".into()],
+        },
+        MutationOwner {
+            owner_type: "ProducerMachine".into(),
             field: "closed".into(),
             allowed_paths: vec!["src/owner.rs".into()],
         },
@@ -186,7 +191,7 @@ fn mutation_fixture_is_rejected() {
             .iter()
             .filter(|value| value.contains("intruder.rs"))
             .count(),
-        6
+        7
     );
 }
 

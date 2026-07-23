@@ -38,18 +38,25 @@ impl ProducerMachine {
                 self.materialization_failed(execution)
             }
             ProducerInput::DriverAccepted { execution } => self.driver_accepted(execution),
-            ProducerInput::DriverRejected { execution } => self.driver_rejected(execution),
-            ProducerInput::BrokerSucceeded { batch_id, success } => {
-                self.broker_succeeded(batch_id, success)
+            ProducerInput::DriverRejected {
+                execution,
+                now,
+                failure,
+            } => self.driver_rejected(execution, now, failure),
+            ProducerInput::BrokerSucceeded { execution, success } => {
+                self.broker_succeeded(execution, success)
             }
             ProducerInput::BrokerFailed {
-                batch_id,
+                execution,
                 failure,
                 delivery,
-            } => self.broker_failed(batch_id, failure, delivery),
-            ProducerInput::TransportFailed { batch_id, delivery } => {
-                self.transport_failed(batch_id, delivery)
-            }
+            } => self.broker_failed(execution, failure, delivery),
+            ProducerInput::TransportFailed {
+                execution,
+                now,
+                failure,
+                delivery,
+            } => self.transport_failed(execution, now, failure, delivery),
             ProducerInput::ExecutionUnavailable => self.execution_unavailable(),
             ProducerInput::FlushRequested => self.flush_requested(),
             ProducerInput::CloseRequested => self.close_requested(),

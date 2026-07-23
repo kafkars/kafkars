@@ -2,9 +2,9 @@
 
 use crate::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline, ExplicitRecord,
-    Moment, OperationId, PartitionIndex, PayloadId, ProducerBatchPolicy,
-    ProducerCancellationOutcome, ProducerEffect, ProducerInput, ProducerMachine,
-    ProducerMachineError, ProducerOperationState, TopicId,
+    Moment, OperationId, PartitionIndex, PayloadId, ProducerAttemptFailureKind,
+    ProducerBatchPolicy, ProducerCancellationOutcome, ProducerEffect, ProducerInput,
+    ProducerMachine, ProducerMachineError, ProducerOperationState, TopicId,
 };
 
 const RETAINED: ByteCount = ByteCount::new(8);
@@ -51,6 +51,8 @@ fn materializing_cancellation_revises_target_and_fences_stale_facts() {
         },
         ProducerInput::DriverRejected {
             execution: previous,
+            now: Moment::from_tick(2),
+            failure: ProducerAttemptFailureKind::Permanent,
         },
     ] {
         assert!(

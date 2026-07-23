@@ -1,6 +1,8 @@
 //! Checked agreement between producer admission and bounded engine owners.
 
-use kafka_client_core::{ByteCount, ProducerBatchPolicy, producer_transition_effect_capacity};
+use kafka_client_core::{
+    ByteCount, ProducerBatchPolicy, ProducerRetryPolicy, producer_transition_effect_capacity,
+};
 
 use crate::producer::host_error::ProducerHostLimitError;
 
@@ -15,6 +17,7 @@ pub(crate) struct ProducerHostLimits {
     pub(crate) encoded_byte_capacity: usize,
     pub(crate) max_wire_batch_bytes: usize,
     pub(crate) batch_policy: ProducerBatchPolicy,
+    pub(crate) retry_policy: ProducerRetryPolicy,
 }
 
 /// Fully checked values consumed before the host acquires native resources.

@@ -11,6 +11,7 @@ struct ProducerMachine {
     quarantine: VecDeque<u64>,
     generated: VecDeque<u64>,
     refusal: VecDeque<u64>,
+    retry_generation: u64,
     closed: AtomicBool,
 }
 
@@ -33,6 +34,10 @@ impl ProducerMachine {
 
     fn hide_refusal(&mut self) {
         self.refusal.retain_tail(vec![1]);
+    }
+
+    fn advance_retry_generation(&mut self) {
+        self.retry_generation += 1;
     }
 
     fn close_outside_owner(&self) {

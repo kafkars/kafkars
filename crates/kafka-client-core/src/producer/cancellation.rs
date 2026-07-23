@@ -28,6 +28,9 @@ impl ProducerMachine {
             ProducerOperationState::Submitted { .. } => {
                 Ok(resolved(ProducerCancellationOutcome::TooLate, Vec::new()))
             }
+            ProducerOperationState::RetryWaiting { batch_id, .. } => {
+                self.cancel_retry_waiting_member(batch_id, operation_id)
+            }
             ProducerOperationState::Accumulating { batch_id, .. } => {
                 let mut effects = self
                     .settle_open_members(
@@ -118,6 +121,77 @@ impl ProducerMachine {
                 compression: CompressionPolicy::Uncompressed,
             });
         }
+        Ok(resolved(
+            ProducerCancellationOutcome::CancelledNotSent,
+            effects,
+        ))
+    }
+
+    fn cancel_retry_waiting_member(
+        &mut self,
+        batch_id: crate::BatchId,
+        operation_id: OperationId,
+    ) -> Result<ProducerTransition, ProducerMachineError> {
+        let batch = self
+            .batches
+            .get(&batch_id)
+            .ok_or(ProducerMachineError::UnknownBatch)?;
+        if batch.state != BatchState::RetryWaiting {
+            return Err(ProducerMachineError::Transition(
+                TransitionError::InvalidState,
+            ));
+        }
+        let revision = batch.plan_retry_revision(batch_id, operation_id)?;
+        let previous = revision.batch.previous;
+        let replacement = revision.batch.replacement;
+        let cancelled_generation = revision.previous_timer;
+        let timer_generation = revision.replacement_timer;
+        let timer_deadline = revision.timer_deadline;
+        let failure = ProducerFailure::cancelled();
+        let mut terminal =
+            self.terminal_effects(&[operation_id], |_| ProducerCompletion::Failed(failure))?;
+        self.settle_operations(&[operation_id], Settlement::Cancelled)?;
+
+        if let Some(replacement) = replacement {
+            let batch = self
+                .batches
+                .get_mut(&batch_id)
+                .ok_or(ProducerMachineError::UnknownBatch)?;
+            debug_assert_eq!(
+                revision.batch.replacement,
+                Some(replacement),
+                "preflighted replacement changed before commit",
+            );
+            batch.commit_retry_revision(revision);
+        } else {
+            self.batches.remove(&batch_id);
+        }
+        let flush_effects = self.settle_ready_flushes();
+        let mut effects = Vec::with_capacity(
+            terminal
+                .len()
+                .saturating_add(flush_effects.len())
+                .saturating_add(2),
+        );
+        effects.push(ProducerEffect::ReviseBatchExecution {
+            previous,
+            replacement,
+            removed_operation_id: operation_id,
+        });
+        if let Some(generation) = timer_generation {
+            effects.push(ProducerEffect::ArmBatchTimer {
+                batch_id,
+                generation,
+                deadline: timer_deadline,
+            });
+        } else {
+            effects.push(ProducerEffect::CancelBatchTimer {
+                batch_id,
+                generation: cancelled_generation,
+            });
+        }
+        effects.append(&mut terminal);
+        effects.extend(flush_effects);
         Ok(resolved(
             ProducerCancellationOutcome::CancelledNotSent,
             effects,

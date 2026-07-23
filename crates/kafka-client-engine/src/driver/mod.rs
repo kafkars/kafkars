@@ -16,7 +16,7 @@ mod wake;
 #[cfg(test)]
 mod wake_test;
 
-pub(crate) use delivery::request_failure_delivery;
+pub(crate) use delivery::{request_failure_delivery, request_failure_kind};
 pub(crate) use endpoint::EndpointError;
 pub(crate) use error::DriverOwnerError;
 pub(crate) use owner::{DriverOwner, DriverTurn};

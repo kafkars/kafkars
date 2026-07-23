@@ -36,9 +36,17 @@ pub(super) fn admit_one(
                 rejection.delivery(),
                 kafka_client_core::DeliveryStatus::NotSent
             );
+            let failure = rejection.failure_kind();
             drop(rejection);
-            data.apply_produce_driver_input(now, ProducerInput::DriverRejected { execution })
-                .map_err(EngineHostError::Producer)?;
+            data.apply_produce_driver_input(
+                now,
+                ProducerInput::DriverRejected {
+                    execution,
+                    now,
+                    failure,
+                },
+            )
+            .map_err(EngineHostError::Producer)?;
         }
     }
     Ok(true)
@@ -54,7 +62,7 @@ pub(super) fn apply_ready(
     let mut progress = false;
     for _attempt in 0..budget {
         let Some(settled) = calls
-            .poll_next_ready()
+            .poll_next_ready(now)
             .map_err(EngineHostError::ProduceCompletion)?
         else {
             break;

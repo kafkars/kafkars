@@ -76,9 +76,11 @@ evidence = [
   "crates/kafka-client-core/src/producer/cancellation_test.rs::open_member_cancellation_releases_exact_resources_and_remains_terminal",
   "crates/kafka-client-core/src/producer/cancellation_test.rs::submitted_cancellation_is_too_late_without_mutation",
   "crates/kafka-client-core/src/producer/cancellation_revision_test.rs::awaiting_driver_cancellation_restarts_survivors_at_a_new_generation",
+  "crates/kafka-client-core/src/producer/retry_cancellation_test.rs::sole_retry_waiting_member_cancels_the_current_execution_and_timer",
   "crates/kafka-client-engine/src/producer/cancellation/host_test.rs::open_cancellation_releases_before_cancelled_not_sent_terminal",
   "crates/kafka-client-engine/src/producer/cancellation/revision_test.rs::awaiting_driver_revision_revokes_unarmed_and_armed_ownership",
   "crates/kafka-client-engine/src/producer/cancellation/revision_test.rs::driver_accepted_marks_engine_submitted_before_too_late_decision",
+  "crates/kafka-client-engine/src/producer/cancellation/revision_test.rs::retry_wait_preflight_requires_explicit_store_phase_with_no_prepared_owner",
   "crates/kafka-client-engine/src/producer/ingress/cancellation_test.rs::cancellation_terminal_backpressure_preserves_abandon_reclaim",
   "crates/kafka-client/src/producer/cancellation_test.rs::cancellation_preserves_the_terminal_observer_and_repeated_requests_reach_core",
 ]
@@ -161,7 +163,7 @@ evidence = [
 [[invariant]]
 id = "DRV-01"
 title = "Driver handoff preserves deadline and certainty"
-statement = "The public facade captures an absolute deadline before waiting; the engine preflights bounded call capacity, moves one prepared request into the embedded reactor with that same transport deadline, and applies authoritative driver delivery certainty without a second retry or metadata authority."
+statement = "The public facade captures an absolute deadline before waiting; the engine preflights bounded call capacity, moves one prepared request into the embedded reactor with that same transport deadline, and applies authoritative driver delivery certainty without engine-owned retry or metadata authority."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/boundary/handle_test.rs::explicit_try_send_captures_one_absolute_deadline_and_commits",
@@ -221,6 +223,8 @@ evidence = [
   "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::stale_execution_rejection_preserves_the_current_entry",
   "crates/kafka-client-engine/src/producer/execution/cleanup_test.rs::cleanup_preflight_preserves_wrong_generation_until_outside_in_recovery",
   "crates/kafka-client-sim/src/state/batch_test.rs::simulator_submits_only_exact_materialized_membership_snapshot",
+  "crates/kafka-client-core/src/producer/retry_test.rs::retry_identity_exhaustion_has_no_partial_mutation",
+  "crates/kafka-client-sim/src/state/retry_test.rs::retry_rejects_generation_skips_without_mutating_the_current_attempt",
 ]
 
 [[invariant]]
@@ -325,6 +329,25 @@ evidence = [
 ]
 
 [[invariant]]
+id = "RTY-01"
+title = "Producer retries require definitely-unsent structural evidence"
+statement = "Only a normalized structurally transient attempt with authoritative NotSent certainty may start a bounded replacement execution after nonzero backoff; PossiblySent and broker terminal facts never retry, and every replacement retains the original deadline, bytes, completion, flush, and close ownership."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/producer/retry_test.rs::definitely_unsent_transient_failure_retries_with_a_fresh_execution",
+  "crates/kafka-client-core/src/producer/retry_test.rs::retry_bound_exhaustion_settles_without_reusing_an_execution",
+  "crates/kafka-client-core/src/producer/retry_safety_test.rs::possibly_sent_permanent_and_broker_failures_never_retry",
+  "crates/kafka-client-core/src/producer/retry_safety_test.rs::original_deadline_caps_backoff_and_settles_before_another_attempt",
+  "crates/kafka-client-core/src/producer/retry_safety_test.rs::flush_waits_across_retry_and_completes_after_record_terminal",
+  "crates/kafka-client-core/src/producer/retry_safety_test.rs::close_waits_across_retry_and_completes_after_record_terminal",
+  "crates/kafka-client-engine/src/driver/delivery_test.rs::only_recoverable_connection_shapes_are_transient",
+  "crates/kafka-client-engine/src/driver/delivery_test.rs::driver_owned_possibly_sent_evidence_is_preserved",
+  "crates/kafka-client-engine/src/producer/host/driver_input_test.rs::live_retry_rematerializes_fresh_execution_with_original_deadline",
+  "crates/kafka-client-engine/src/producer/host/driver_input_test.rs::live_possibly_sent_failure_never_creates_replacement",
+  "crates/kafka-client-sim/src/state/retry_test.rs::retry_retains_attempt_history_and_materializes_only_the_replacement",
+]
+
+[[invariant]]
 id = "SD-01"
 title = "Shutdown closes admission before draining"
 statement = "Shutdown closes producer admission before draining. Emergency recovery attempts the shared driver barrier, unconditionally drops the unique driver and every tracked Produce owner, then releases engine bytes and publishes conservative core fallback. A Drop-backed notifier owner joins off-reactor during normal finalization and finalizer unwind before one shared report is retained."
@@ -350,6 +373,7 @@ evidence = [
   "crates/kafka-client-engine/src/clock/timer_test.rs::newer_generation_replaces_older_schedule_once",
   "crates/kafka-client-engine/src/clock/timer_test.rs::stale_cancellation_does_not_remove_replacement",
   "crates/kafka-client-core/src/producer_timer_test.rs::earlier_deadline_rearms_timer_and_stale_facts_are_harmless",
+  "crates/kafka-client-core/src/producer/retry_cancellation_test.rs::shared_retry_cancellation_revises_survivors_and_replaces_timer",
 ]
 
 [[invariant]]

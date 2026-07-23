@@ -39,3 +39,17 @@ fn submission_and_armed_plans_preserve_materialized_bytes() {
         assert_eq!(plan.prepared_expectation(), expected);
     }
 }
+
+#[test]
+fn retry_wait_plan_requires_explicit_waiting_state_and_no_prepared_bytes() {
+    let plan = PendingRevisionPlan::RetryWaiting;
+
+    assert_eq!(
+        plan.batch_expectation(),
+        BatchRevisionExpectation::RetryWaiting
+    );
+    assert_eq!(
+        plan.prepared_expectation(),
+        PreparedRevisionExpectation::Absent
+    );
+}

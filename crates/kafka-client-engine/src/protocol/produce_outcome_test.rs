@@ -3,7 +3,8 @@
 use core::num::NonZeroI16;
 
 use kafka_client_core::{
-    BatchId, DeliveryStatus, ProducerBatchSuccess, ProducerBrokerFailure,
+    BatchExecutionGeneration, BatchExecutionId, BatchId, DeliveryStatus, Moment,
+    ProducerAttemptFailureKind, ProducerBatchSuccess, ProducerBrokerFailure,
     ProducerBrokerFailureKind, ProducerInput,
 };
 use kafka_wire::{
@@ -17,6 +18,9 @@ use super::{
 };
 
 const BATCH_ID: BatchId = BatchId::from_raw(41);
+const EXECUTION: BatchExecutionId =
+    BatchExecutionId::new(BATCH_ID, BatchExecutionGeneration::initial());
+const NOW: Moment = Moment::from_tick(73);
 const TOPIC: &str = "art-events";
 const PARTITION: i32 = 7;
 
@@ -29,9 +33,9 @@ fn successful_response_becomes_the_correlated_core_success() {
     partition.current_leader.leader_epoch = 9;
 
     assert_eq!(
-        explicit_produce_response_input(BATCH_ID, TOPIC, PARTITION, &response),
+        explicit_produce_response_input(EXECUTION, TOPIC, PARTITION, &response),
         Ok(ProducerInput::BrokerSucceeded {
-            batch_id: BATCH_ID,
+            execution: EXECUTION,
             success: ProducerBatchSuccess::new(42, Some(1_234), Some(9)),
         })
     );
@@ -43,9 +47,9 @@ fn broker_error_becomes_the_correlated_core_failure() {
     sole_partition_mut(&mut response).error_code = 6;
 
     assert_eq!(
-        explicit_produce_response_input(BATCH_ID, TOPIC, PARTITION, &response),
+        explicit_produce_response_input(EXECUTION, TOPIC, PARTITION, &response),
         Ok(ProducerInput::BrokerFailed {
-            batch_id: BATCH_ID,
+            execution: EXECUTION,
             failure: ProducerBrokerFailure::new(ProducerBrokerFailureKind::Routing, nonzero(6)),
             delivery: DeliveryStatus::PossiblySent,
         })
@@ -58,7 +62,7 @@ fn structural_mismatch_remains_an_exact_protocol_failure() {
     sole_partition_mut(&mut response).index = 99;
 
     assert_eq!(
-        explicit_produce_response_input(BATCH_ID, TOPIC, PARTITION, &response),
+        explicit_produce_response_input(EXECUTION, TOPIC, PARTITION, &response),
         Err(ProduceResponseFailure::Protocol {
             failure: ProduceResponseProtocolFailure::PartitionIndexMismatch { actual: 99 },
             delivery: DeliveryStatus::PossiblySent,
@@ -70,9 +74,16 @@ fn structural_mismatch_remains_an_exact_protocol_failure() {
 fn transport_failure_preserves_adapter_normalized_delivery_certainty() {
     for delivery in [DeliveryStatus::NotSent, DeliveryStatus::PossiblySent] {
         assert_eq!(
-            produce_transport_failure_input(BATCH_ID, delivery),
+            produce_transport_failure_input(
+                EXECUTION,
+                NOW,
+                ProducerAttemptFailureKind::ConnectionUnavailable,
+                delivery,
+            ),
             ProducerInput::TransportFailed {
-                batch_id: BATCH_ID,
+                execution: EXECUTION,
+                now: NOW,
+                failure: ProducerAttemptFailureKind::ConnectionUnavailable,
                 delivery,
             }
         );

@@ -80,6 +80,13 @@ impl ProducerHost {
                     super::cancellation::ProducerRevisionError::UnexpectedRevisionEffect(previous),
                 ))
             }
+            ProducerEffect::RetryBatchExecution {
+                previous,
+                replacement,
+            } => self
+                .store
+                .start_batch_retry(previous, replacement)
+                .map_err(ProducerHostInvariantError::Store),
             ProducerEffect::ReleaseBatch { batch_id } => {
                 self.cancel_pending_batch(batch_id);
                 self.execution
@@ -100,8 +107,14 @@ impl ProducerHost {
                 operation_id,
                 completion,
             } => self.publish_or_retain_record_terminal(operation_id, completion),
-            pending @ (ProducerEffect::MaterializeBatch { .. }
-            | ProducerEffect::SubmitProduce { .. }) => {
+            pending @ ProducerEffect::MaterializeBatch { execution, .. } => {
+                self.store
+                    .activate_batch_retry(execution)
+                    .map_err(ProducerHostInvariantError::Store)?;
+                self.retain_pending(pending)?;
+                Ok(())
+            }
+            pending @ ProducerEffect::SubmitProduce { .. } => {
                 self.retain_pending(pending)?;
                 Ok(())
             }

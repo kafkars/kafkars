@@ -6,6 +6,9 @@ mod driver_test;
 mod execution;
 #[cfg(test)]
 mod execution_test;
+mod retry;
+#[cfg(test)]
+mod retry_test;
 mod revision;
 #[cfg(test)]
 mod revision_test;
@@ -43,6 +46,7 @@ enum BatchState {
     Materializing(BatchExecutionId),
     Materialized(BatchExecutionId),
     Submitted(BatchExecutionId),
+    RetryWaiting(BatchExecutionId),
 }
 
 #[derive(Debug)]

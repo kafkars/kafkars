@@ -58,6 +58,9 @@ impl ProducerMachine {
         let Some(batch) = self.batches.get(&batch_id) else {
             return Ok(ProducerTransition::none());
         };
+        if batch.state == super::BatchState::RetryWaiting {
+            return self.retry_timer_fired(batch_id, generation, now);
+        }
         let Some(observation) = batch.plan_timer_observation(generation, now)? else {
             return Ok(ProducerTransition::none());
         };

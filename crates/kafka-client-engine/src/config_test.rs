@@ -2,15 +2,65 @@
 
 use std::time::Duration;
 
-use crate::{EngineConfig, EngineProducerLimits};
+use kafka_client_core::{ProducerRetryPolicy, ProducerRetryPolicyError};
+
+use crate::{EngineConfig, EngineProducerLimits, config::EngineConfigError};
 
 #[test]
 fn provisional_defaults_are_explicit_and_bounded() {
     let config = EngineConfig::new(vec!["broker.test:9092".to_owned()]);
+    let validated = config
+        .validate()
+        .unwrap_or_else(|error| panic!("default config failed: {error:?}"));
 
     assert_eq!(config.delivery_timeout(), Duration::from_secs(30));
     assert_eq!(config.admin_timeout(), Duration::from_secs(30));
-    assert!(config.validate().is_ok());
+    assert_eq!(
+        validated.host_limits.retry_policy,
+        ProducerRetryPolicy::try_fixed(3, 100_000_000)
+            .unwrap_or_else(|error| panic!("default retry failed: {error}"))
+    );
+}
+
+#[test]
+fn zero_retry_count_canonicalizes_disabled_even_with_zero_backoff() {
+    let config = EngineConfig::new(vec!["broker.test:9092".to_owned()])
+        .with_producer_retry(0, Duration::ZERO);
+    let validated = config
+        .validate()
+        .unwrap_or_else(|error| panic!("disabled retry failed: {error:?}"));
+
+    assert_eq!(
+        validated.host_limits.retry_policy,
+        ProducerRetryPolicy::none()
+    );
+}
+
+#[test]
+fn disabled_retry_ignores_unrepresentable_backoff() {
+    let config = EngineConfig::new(vec!["broker.test:9092".to_owned()])
+        .with_producer_retry(0, Duration::MAX);
+    let validated = config
+        .validate()
+        .unwrap_or_else(|error| panic!("disabled retry failed: {error:?}"));
+
+    assert_eq!(
+        validated.host_limits.retry_policy,
+        ProducerRetryPolicy::none()
+    );
+}
+
+#[test]
+fn enabled_retry_rejects_zero_backoff_before_host_start() {
+    let config = EngineConfig::new(vec!["broker.test:9092".to_owned()])
+        .with_producer_retry(1, Duration::ZERO);
+
+    assert_eq!(
+        config.validate().err(),
+        Some(EngineConfigError::RetryPolicy(
+            ProducerRetryPolicyError::ZeroBackoff
+        ))
+    );
 }
 
 #[test]

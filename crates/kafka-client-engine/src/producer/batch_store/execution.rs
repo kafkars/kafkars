@@ -46,7 +46,8 @@ impl BatchAccumulator {
             BatchState::ReadyForMaterialization(_)
             | BatchState::Materializing(_)
             | BatchState::Materialized(_)
-            | BatchState::Submitted(_) => Err(ProducerStoreError::StaleBatchExecution),
+            | BatchState::Submitted(_)
+            | BatchState::RetryWaiting(_) => Err(ProducerStoreError::StaleBatchExecution),
         }
     }
 
@@ -60,7 +61,8 @@ impl BatchAccumulator {
             BatchState::Open
             | BatchState::Materializing(_)
             | BatchState::Materialized(_)
-            | BatchState::Submitted(_) => Err(ProducerStoreError::BatchAlreadyMaterialized),
+            | BatchState::Submitted(_)
+            | BatchState::RetryWaiting(_) => Err(ProducerStoreError::BatchAlreadyMaterialized),
         }
     }
 
@@ -74,6 +76,7 @@ impl BatchAccumulator {
             | BatchState::Materializing(current)
             | BatchState::Materialized(current)
             | BatchState::Submitted(current)
+            | BatchState::RetryWaiting(current)
                 if current != execution =>
             {
                 Err(ProducerStoreError::StaleBatchExecution)
@@ -81,7 +84,8 @@ impl BatchAccumulator {
             BatchState::Open
             | BatchState::ReadyForMaterialization(_)
             | BatchState::Materialized(_)
-            | BatchState::Submitted(_) => Err(ProducerStoreError::BatchAlreadyMaterialized),
+            | BatchState::Submitted(_)
+            | BatchState::RetryWaiting(_) => Err(ProducerStoreError::BatchAlreadyMaterialized),
             BatchState::Materializing(_) => Err(ProducerStoreError::StaleBatchExecution),
         }
     }
@@ -101,7 +105,8 @@ impl BatchAccumulator {
             BatchState::ReadyForMaterialization(execution)
             | BatchState::Materializing(execution)
             | BatchState::Materialized(execution)
-            | BatchState::Submitted(execution) => Some(execution),
+            | BatchState::Submitted(execution)
+            | BatchState::RetryWaiting(execution) => Some(execution),
         }
     }
 }
@@ -183,7 +188,8 @@ impl BatchStore {
             BatchState::ReadyForMaterialization(_)
             | BatchState::Materializing(_)
             | BatchState::Materialized(_)
-            | BatchState::Submitted(_) => Err(ProducerStoreError::StaleBatchExecution),
+            | BatchState::Submitted(_)
+            | BatchState::RetryWaiting(_) => Err(ProducerStoreError::StaleBatchExecution),
             BatchState::Open => Err(ProducerStoreError::BatchAlreadyMaterialized),
         }
     }

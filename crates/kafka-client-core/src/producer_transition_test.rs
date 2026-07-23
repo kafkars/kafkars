@@ -148,7 +148,7 @@ fn count_ready_batch_fans_success_out_in_membership_order() {
     );
     let terminal = producer
         .apply(ProducerInput::BrokerSucceeded {
-            batch_id,
+            execution: execution(batch_id),
             success: ProducerBatchSuccess::new(70, Some(11), Some(3)),
         })
         .unwrap_or_else(|error| panic!("success failed: {error}"));
@@ -228,7 +228,7 @@ fn broker_failure_preserves_semantic_code_and_certainty() {
         .unwrap_or_else(|error| panic!("driver acceptance failed: {error}"));
     let terminal = producer
         .apply(ProducerInput::BrokerFailed {
-            batch_id,
+            execution: execution(batch_id),
             failure: routing_failure(),
             delivery: DeliveryStatus::PossiblySent,
         })

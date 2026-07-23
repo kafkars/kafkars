@@ -2,8 +2,8 @@
 
 use crate::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline, ExplicitRecord,
-    Moment, PartitionIndex, PayloadId, ProducerEffect, ProducerInput, ProducerMachine,
-    ProducerMachineError, TopicId, TransitionError,
+    Moment, PartitionIndex, PayloadId, ProducerAttemptFailureKind, ProducerEffect, ProducerInput,
+    ProducerMachine, ProducerMachineError, TopicId, TransitionError,
 };
 
 fn materializing() -> (ProducerMachine, BatchExecutionId) {
@@ -76,7 +76,7 @@ fn generation_fenced_inputs_distinguish_stale_facts_from_corruption() {
             now: Moment::from_tick(2),
         },
         ProducerInput::BatchMaterializationFailed { execution: stale },
-        ProducerInput::DriverRejected { execution: stale },
+        rejected(stale),
         ProducerInput::BatchMaterialized {
             execution: unknown(current),
             now: Moment::from_tick(2),
@@ -86,6 +86,8 @@ fn generation_fenced_inputs_distinguish_stale_facts_from_corruption() {
         },
         ProducerInput::DriverRejected {
             execution: unknown(current),
+            now: Moment::from_tick(2),
+            failure: ProducerAttemptFailureKind::Permanent,
         },
     ] {
         assert!(
@@ -151,7 +153,7 @@ fn exact_driver_acceptance_in_wrong_phase_is_invalid() {
 #[test]
 fn exact_driver_rejection_in_wrong_phase_is_invalid() {
     let (mut producer, execution) = materializing();
-    invalid(&producer.apply(ProducerInput::DriverRejected { execution }));
+    invalid(&producer.apply(rejected(execution)));
 }
 
 #[test]
@@ -160,4 +162,12 @@ fn sealed_generation_is_nonzero_initial_identity() {
     let (_producer, execution) = materializing();
     assert_eq!(execution.generation(), BatchExecutionGeneration::initial());
     assert_eq!(execution.generation().get(), 1);
+}
+
+const fn rejected(execution: BatchExecutionId) -> ProducerInput {
+    ProducerInput::DriverRejected {
+        execution,
+        now: Moment::from_tick(2),
+        failure: ProducerAttemptFailureKind::Permanent,
+    }
 }

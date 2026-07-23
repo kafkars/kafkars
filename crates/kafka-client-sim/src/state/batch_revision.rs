@@ -15,11 +15,12 @@ impl VirtualBatch {
         replacement: Option<BatchExecutionId>,
         removed_operation_id: OperationId,
     ) -> Result<bool, SimulationError> {
-        let current = match self.phase {
+        let (current, retry_waiting) = match self.phase {
             VirtualBatchPhase::Ready(current)
             | VirtualBatchPhase::Materializing(current)
             | VirtualBatchPhase::Materialized(current)
-            | VirtualBatchPhase::AwaitingDriver(current) => current,
+            | VirtualBatchPhase::AwaitingDriver(current) => (current, false),
+            VirtualBatchPhase::RetryWaiting(current) => (current, true),
             VirtualBatchPhase::Submitted(current) => {
                 return Err(SimulationError::BatchExecutionAlreadySubmitted(current));
             }
@@ -64,7 +65,11 @@ impl VirtualBatch {
         }
         self.members.remove(position);
         if let Some(replacement) = replacement {
-            self.phase = VirtualBatchPhase::Ready(replacement);
+            self.phase = if retry_waiting {
+                VirtualBatchPhase::RetryWaiting(replacement)
+            } else {
+                VirtualBatchPhase::Ready(replacement)
+            };
             Ok(false)
         } else {
             Ok(true)
@@ -81,7 +86,8 @@ impl VirtualBatch {
             | VirtualBatchPhase::Ready(current)
             | VirtualBatchPhase::Materializing(current)
             | VirtualBatchPhase::Materialized(current)
-            | VirtualBatchPhase::Submitted(current) => {
+            | VirtualBatchPhase::Submitted(current)
+            | VirtualBatchPhase::RetryWaiting(current) => {
                 Err(SimulationError::BatchExecutionMismatch {
                     expected: Some(current),
                     actual: execution,

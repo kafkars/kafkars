@@ -136,6 +136,34 @@ fn stale_pending_generation_fails_without_engine_or_core_mutation() {
     drop((first, second));
 }
 
+#[test]
+fn retry_wait_preflight_requires_explicit_store_phase_with_no_prepared_owner() {
+    let (mut host, admitted) = driver_ready_host();
+    let submission = host
+        .execution
+        .take_next_driver_submission()
+        .unwrap_or_else(|error| panic!("retry handoff: {error}"))
+        .unwrap_or_else(|| panic!("one retry handoff"));
+    let previous = submission.execution();
+    let replacement = BatchExecutionId::new(
+        previous.batch_id(),
+        BatchExecutionGeneration::try_from_raw(2).unwrap_or_else(|| panic!("second generation")),
+    );
+    host.store
+        .start_batch_retry(previous, replacement)
+        .unwrap_or_else(|error| panic!("retry wait: {error}"));
+
+    let plan = host
+        .preflight_cancellation(admitted.operation_id())
+        .unwrap_or_else(|error| panic!("retry-wait preflight: {error:?}"));
+
+    assert!(plan.is_some());
+    assert_eq!(host.stats().prepared_batches, 0);
+    assert_eq!(host.stats().submission_deadlines, 0);
+    assert!(host.stats().healthy);
+    drop((submission, admitted));
+}
+
 fn two_record_host() -> (
     ProducerHost,
     crate::producer::admission::AdmittedExplicit,

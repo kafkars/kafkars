@@ -11,6 +11,7 @@ struct ProducerMachine {
     quarantine: VecDeque<u64>,
     generated: VecDeque<u64>,
     refusal: VecDeque<u64>,
+    retry_generation: u64,
     closed: AtomicBool,
 }
 
@@ -21,6 +22,7 @@ impl ProducerMachine {
         self.quarantine.push_back(id);
         self.generated.push_back(id);
         self.refusal.push_back(id);
+        self.retry_generation += 1;
         self.closed.store(true, Ordering::Release);
     }
 }

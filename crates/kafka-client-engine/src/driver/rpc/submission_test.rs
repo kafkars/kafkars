@@ -2,8 +2,8 @@
 
 use std::time::{Duration, Instant};
 
-use kafka_client_core::DeliveryStatus;
-use kafka_driver::{ApiVersion, RoutedCall, TrafficClass};
+use kafka_client_core::{DeliveryStatus, ProducerAttemptFailureKind};
+use kafka_driver::{ApiVersion, RoutedCall, SubmitError, TrafficClass};
 use kafka_wire::{ProduceRequest, ProduceResponse};
 
 use crate::EngineConfig;
@@ -48,6 +48,10 @@ fn invalid_route_and_closed_driver_rejections_are_not_sent() {
         .err()
         .unwrap_or_else(|| panic!("empty topic must be rejected"));
     assert_eq!(invalid.delivery(), DeliveryStatus::NotSent);
+    assert_eq!(
+        invalid.failure_kind(),
+        ProducerAttemptFailureKind::Permanent
+    );
 
     owner
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
@@ -58,6 +62,23 @@ fn invalid_route_and_closed_driver_rejections_are_not_sent() {
         .unwrap_or_else(|| panic!("closed driver must reject admission"));
     assert!(matches!(closed, ProduceSubmitError::Driver(_)));
     assert_eq!(closed.delivery(), DeliveryStatus::NotSent);
+}
+
+#[test]
+fn immediate_driver_rejections_are_normalized_without_retry_policy() {
+    let full = ProduceSubmitError::Driver(SubmitError::Full);
+    let wake = ProduceSubmitError::Driver(SubmitError::Wake(std::io::Error::other("wake")));
+    let closed = ProduceSubmitError::Driver(SubmitError::Closed);
+
+    assert_eq!(
+        full.failure_kind(),
+        ProducerAttemptFailureKind::LocalCapacity
+    );
+    assert_eq!(
+        wake.failure_kind(),
+        ProducerAttemptFailureKind::ConnectionUnavailable
+    );
+    assert_eq!(closed.failure_kind(), ProducerAttemptFailureKind::Permanent);
 }
 
 fn assert_tracked_produce(_call: &RoutedCall<ProduceResponse>) {}

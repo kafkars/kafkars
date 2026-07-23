@@ -55,7 +55,7 @@ impl ProducerMachine {
 
         for (batch_id, batch) in &self.batches {
             let delivery = delivery_for(batch.state);
-            if batch.state == BatchState::Open {
+            if matches!(batch.state, BatchState::Open | BatchState::RetryWaiting) {
                 effects.push(ProducerEffect::CancelBatchTimer {
                     batch_id: *batch_id,
                     generation: batch.timer_generation,
@@ -126,9 +126,10 @@ impl ProducerMachine {
 
 const fn delivery_for(state: BatchState) -> DeliveryStatus {
     match state {
-        BatchState::Open | BatchState::Materializing | BatchState::AwaitingDriver => {
-            DeliveryStatus::NotSent
-        }
+        BatchState::Open
+        | BatchState::Materializing
+        | BatchState::AwaitingDriver
+        | BatchState::RetryWaiting => DeliveryStatus::NotSent,
         BatchState::Submitted => DeliveryStatus::PossiblySent,
     }
 }
@@ -152,6 +153,12 @@ fn stage_matches(
             | (
                 ProducerOperationState::Submitted { batch_id: actual, .. },
                 BatchState::Submitted
+            )
+            | (
+                ProducerOperationState::RetryWaiting {
+                    batch_id: actual, ..
+                },
+                BatchState::RetryWaiting
             ) if actual == batch_id
     )
 }

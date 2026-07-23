@@ -106,6 +106,13 @@ pub enum ProducerEffect {
         /// Sole member removed from the immutable execution snapshot.
         removed_operation_id: OperationId,
     },
+    /// Replace one definitely-unsent submitted attempt without changing membership.
+    RetryBatchExecution {
+        /// Exact terminal attempt whose mechanism ownership is gone.
+        previous: BatchExecutionId,
+        /// Fresh execution generation retaining the same canonical records.
+        replacement: BatchExecutionId,
+    },
     /// Submit an engine-materialized batch through the driver adapter.
     SubmitProduce {
         /// Exact encoded membership snapshot to hand to the driver.

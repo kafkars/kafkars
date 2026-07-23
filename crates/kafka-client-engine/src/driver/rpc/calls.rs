@@ -2,7 +2,7 @@
 
 use std::{error::Error, fmt, sync::Arc};
 
-use kafka_client_core::{BatchExecutionId, Moment, ProducerInput};
+use kafka_client_core::{BatchExecutionId, Moment, ProducerAttemptFailureKind, ProducerInput};
 use kafka_driver::{CompletionError, RequestError, RouteFailureToken, RoutedCall};
 use kafka_wire::ProduceResponse;
 
@@ -153,6 +153,7 @@ impl TrackedProduceCalls {
     /// Polls bounded owners in admission order while retaining terminal authority.
     pub(crate) fn poll_next_ready(
         &mut self,
+        now: Moment,
     ) -> Result<Option<&SettledProduceCall>, ProduceCompletionFailure> {
         if self.settled.is_some() {
             return Ok(self.settled.as_ref());
@@ -171,8 +172,13 @@ impl TrackedProduceCalls {
             source,
         })?;
         let (result, route_token) = outcome.into_parts();
-        let input =
-            normalized_terminal_input(call.execution, call.topic.as_ref(), call.partition, &result);
+        let input = normalized_terminal_input(
+            call.execution,
+            call.topic.as_ref(),
+            call.partition,
+            now,
+            &result,
+        );
         self.settled = Some(SettledProduceCall { input, route_token });
         Ok(self.settled.as_ref())
     }
@@ -200,17 +206,23 @@ pub(super) fn normalized_terminal_input(
     execution: BatchExecutionId,
     topic: &str,
     partition: i32,
+    now: Moment,
     result: &Result<ProduceResponse, RequestError>,
 ) -> ProducerInput {
     match result {
-        Ok(response) => {
-            explicit_produce_response_input(execution.batch_id(), topic, partition, response)
-                .unwrap_or_else(|failure| {
-                    produce_transport_failure_input(execution.batch_id(), failure.delivery())
-                })
-        }
+        Ok(response) => explicit_produce_response_input(execution, topic, partition, response)
+            .unwrap_or_else(|failure| {
+                produce_transport_failure_input(
+                    execution,
+                    now,
+                    ProducerAttemptFailureKind::Permanent,
+                    failure.delivery(),
+                )
+            }),
         Err(error) => produce_transport_failure_input(
-            execution.batch_id(),
+            execution,
+            now,
+            super::super::request_failure_kind(error),
             super::super::request_failure_delivery(error),
         ),
     }

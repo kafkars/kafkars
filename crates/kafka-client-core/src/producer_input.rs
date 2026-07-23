@@ -2,7 +2,8 @@
 
 use crate::{
     BatchExecutionId, BatchId, BatchTimerGeneration, ByteCount, Deadline, DeliveryStatus,
-    ExplicitRecord, Moment, OperationId, ProducerBatchSuccess, ProducerBrokerFailure,
+    ExplicitRecord, Moment, OperationId, ProducerAttemptFailureKind, ProducerBatchSuccess,
+    ProducerBrokerFailure,
 };
 
 /// One external fact applied at a time to producer policy.
@@ -63,18 +64,22 @@ pub enum ProducerInput {
     DriverRejected {
         /// Exact membership snapshot rejected before transport.
         execution: BatchExecutionId,
+        /// Current monotonic observation after rejection.
+        now: Moment,
+        /// Normalized structural reason the attempt was not admitted.
+        failure: ProducerAttemptFailureKind,
     },
     /// Reports semantic broker success after driver ownership.
     BrokerSucceeded {
-        /// Correlated core batch identity.
-        batch_id: BatchId,
+        /// Exact driver-owned execution that produced the response.
+        execution: BatchExecutionId,
         /// Offset and optional broker metadata for per-record fan-out.
         success: ProducerBatchSuccess,
     },
     /// Reports a protocol-normalized broker failure fact after driver ownership.
     BrokerFailed {
-        /// Correlated core batch identity.
-        batch_id: BatchId,
+        /// Exact driver-owned execution that produced the response.
+        execution: BatchExecutionId,
         /// Semantic broker category with its exact signed diagnostic code.
         failure: ProducerBrokerFailure,
         /// Driver-owned certainty for this request attempt.
@@ -82,8 +87,12 @@ pub enum ProducerInput {
     },
     /// Reports transport failure after driver ownership.
     TransportFailed {
-        /// Correlated core batch identity.
-        batch_id: BatchId,
+        /// Exact driver-owned execution that reached a terminal failure.
+        execution: BatchExecutionId,
+        /// Current monotonic observation at terminal normalization.
+        now: Moment,
+        /// Normalized structural reason independent of delivery certainty.
+        failure: ProducerAttemptFailureKind,
         /// Driver-owned certainty for this request attempt.
         delivery: DeliveryStatus,
     },

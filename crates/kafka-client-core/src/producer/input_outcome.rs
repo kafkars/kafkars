@@ -71,44 +71,31 @@ impl ProducerMachine {
         Ok(ProducerTransition::none())
     }
 
-    pub(crate) fn driver_rejected(
+    pub(crate) fn broker_succeeded(
         &mut self,
         execution: BatchExecutionId,
+        success: ProducerBatchSuccess,
     ) -> Result<ProducerTransition, ProducerMachineError> {
         if !self.execution_is_current(execution) {
             return Ok(ProducerTransition::none());
         }
         let batch_id = execution.batch_id();
-        self.require_batch_state(batch_id, BatchState::AwaitingDriver)?;
-        self.settle_batch_failed(batch_id, ProducerFailure::driver_rejected())
-    }
-
-    pub(crate) fn broker_succeeded(
-        &mut self,
-        batch_id: BatchId,
-        success: ProducerBatchSuccess,
-    ) -> Result<ProducerTransition, ProducerMachineError> {
         self.require_batch_state(batch_id, BatchState::Submitted)?;
         self.settle_batch_succeeded(batch_id, success)
     }
 
     pub(crate) fn broker_failed(
         &mut self,
-        batch_id: BatchId,
+        execution: BatchExecutionId,
         failure: ProducerBrokerFailure,
         delivery: DeliveryStatus,
     ) -> Result<ProducerTransition, ProducerMachineError> {
+        if !self.execution_is_current(execution) {
+            return Ok(ProducerTransition::none());
+        }
+        let batch_id = execution.batch_id();
         self.require_batch_state(batch_id, BatchState::Submitted)?;
         self.settle_batch_failed(batch_id, ProducerFailure::broker(failure, delivery))
-    }
-
-    pub(crate) fn transport_failed(
-        &mut self,
-        batch_id: BatchId,
-        delivery: DeliveryStatus,
-    ) -> Result<ProducerTransition, ProducerMachineError> {
-        self.require_batch_state(batch_id, BatchState::Submitted)?;
-        self.settle_batch_failed(batch_id, ProducerFailure::transport(delivery))
     }
 
     pub(crate) fn deadline_elapsed(
@@ -126,7 +113,8 @@ impl ProducerMachine {
             ProducerOperationState::WaitingForCapacity { .. }
             | ProducerOperationState::Accumulating { .. }
             | ProducerOperationState::Materializing { .. }
-            | ProducerOperationState::AwaitingDriver { .. } => {}
+            | ProducerOperationState::AwaitingDriver { .. }
+            | ProducerOperationState::RetryWaiting { .. } => {}
         }
         let deadline = operation
             .deadline()
@@ -146,7 +134,8 @@ impl ProducerMachine {
                 self.expire_open_members(batch_id, &[operation_id], false)
             }
             ProducerOperationState::Materializing { .. }
-            | ProducerOperationState::AwaitingDriver { .. } => {
+            | ProducerOperationState::AwaitingDriver { .. }
+            | ProducerOperationState::RetryWaiting { .. } => {
                 self.settle_batch_failed(batch_id, ProducerFailure::deadline_elapsed())
             }
             ProducerOperationState::Submitted { .. } | ProducerOperationState::Completed => {
@@ -158,7 +147,7 @@ impl ProducerMachine {
         }
     }
 
-    fn require_batch_state(
+    pub(crate) fn require_batch_state(
         &self,
         batch_id: BatchId,
         expected: BatchState,
@@ -182,7 +171,7 @@ impl ProducerMachine {
             .and_then(|batch| batch.execution_id(batch_id))
     }
 
-    fn execution_is_current(&self, execution: BatchExecutionId) -> bool {
+    pub(crate) fn execution_is_current(&self, execution: BatchExecutionId) -> bool {
         self.current_execution(execution.batch_id()) == Some(execution)
     }
 }

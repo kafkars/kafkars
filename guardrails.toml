@@ -75,8 +75,24 @@ production = "crates/kafka-client-core/src/operation/cancellation.rs"
 test = "crates/kafka-client-core/src/operation/cancellation_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/operation/retry.rs"
+test = "crates/kafka-client-core/src/operation/retry_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/operation/terminal.rs"
+test = "crates/kafka-client-core/src/operation/terminal_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/producer_retry.rs"
 test = "crates/kafka-client-core/src/producer_retry_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/retry.rs"
+test = "crates/kafka-client-core/src/producer/retry_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/batch_retry.rs"
+test = "crates/kafka-client-core/src/producer/batch_retry_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-core/src/producer/execution_stop.rs"
@@ -137,6 +153,10 @@ test = "crates/kafka-client-sim/src/state/batch_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-sim/src/state/batch_revision.rs"
 test = "crates/kafka-client-sim/src/state/batch_revision_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-sim/src/state/retry.rs"
+test = "crates/kafka-client-sim/src/state/retry_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/clock/monotonic.rs"
@@ -297,6 +317,10 @@ test = "crates/kafka-client-engine/src/producer/batch_store/driver_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/batch_store/revision.rs"
 test = "crates/kafka-client-engine/src/producer/batch_store/revision_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/batch_store/retry.rs"
+test = "crates/kafka-client-engine/src/producer/batch_store/retry_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/binding.rs"
@@ -1058,6 +1082,7 @@ allowed_paths = [
   "crates/kafka-client-core/src/producer/execution_stop.rs",
   "crates/kafka-client-core/src/producer/machine.rs",
   "crates/kafka-client-core/src/producer/lifecycle.rs",
+  "crates/kafka-client-core/src/producer/retry.rs",
 ]
 
 [[mutation_owners]]
@@ -1086,6 +1111,7 @@ allowed_paths = [
   "crates/kafka-client-core/src/producer/execution_stop.rs",
   "crates/kafka-client-core/src/producer/input_batch.rs",
   "crates/kafka-client-core/src/producer/input_outcome.rs",
+  "crates/kafka-client-core/src/producer/retry.rs",
   "crates/kafka-client-core/src/producer/settlement.rs",
 ]
 
@@ -1093,8 +1119,10 @@ allowed_paths = [
 owner_type = "ProducerBatch"
 field = "timer_generation"
 allowed_paths = [
+  "crates/kafka-client-core/src/producer/batch_revision.rs",
   "crates/kafka-client-core/src/producer/batch_timer.rs",
   "crates/kafka-client-core/src/producer/batch_transition.rs",
+  "crates/kafka-client-core/src/producer/batch_retry.rs",
 ]
 
 [[mutation_owners]]
@@ -1103,6 +1131,7 @@ field = "timer_deadline"
 allowed_paths = [
   "crates/kafka-client-core/src/producer/batch_timer.rs",
   "crates/kafka-client-core/src/producer/batch_transition.rs",
+  "crates/kafka-client-core/src/producer/batch_retry.rs",
 ]
 
 [[mutation_owners]]
@@ -1139,6 +1168,8 @@ allowed_paths = [
   "crates/kafka-client-core/src/producer/batch_revision.rs",
   "crates/kafka-client-core/src/producer/batch_transition.rs",
   "crates/kafka-client-core/src/producer/input_outcome.rs",
+  "crates/kafka-client-core/src/producer/batch_retry.rs",
+  "crates/kafka-client-core/src/producer/retry.rs",
 ]
 
 [[mutation_owners]]
@@ -1148,7 +1179,13 @@ allowed_paths = [
   "crates/kafka-client-core/src/producer/batch.rs",
   "crates/kafka-client-core/src/producer/batch_revision.rs",
   "crates/kafka-client-core/src/producer/batch_transition.rs",
+  "crates/kafka-client-core/src/producer/batch_retry.rs",
 ]
+
+[[mutation_owners]]
+owner_type = "ProducerBatch"
+field = "retries_started"
+allowed_paths = ["crates/kafka-client-core/src/producer/batch_retry.rs"]
 
 [[mutation_owners]]
 owner_type = "ByteBudget"
@@ -1179,6 +1216,7 @@ allowed_paths = ["crates/kafka-client-core/src/producer/flush.rs"]
 owner_type = "ProducerOperation"
 field = "state"
 allowed_paths = [
+  "crates/kafka-client-core/src/operation/retry.rs",
   "crates/kafka-client-core/src/operation/terminal.rs",
   "crates/kafka-client-core/src/operation/transition.rs",
 ]
@@ -1330,6 +1368,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/batch_store/driver.rs",
   "crates/kafka-client-engine/src/producer/batch_store/execution.rs",
   "crates/kafka-client-engine/src/producer/batch_store/revision.rs",
+  "crates/kafka-client-engine/src/producer/batch_store/retry.rs",
 ]
 
 [[mutation_owners]]
@@ -1356,6 +1395,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/batch_store/driver.rs",
   "crates/kafka-client-engine/src/producer/batch_store/execution.rs",
   "crates/kafka-client-engine/src/producer/batch_store/revision.rs",
+  "crates/kafka-client-engine/src/producer/batch_store/retry.rs",
 ]
 
 [[mutation_owners]]
@@ -1647,6 +1687,7 @@ field = "phase"
 allowed_paths = [
   "crates/kafka-client-sim/src/state/batch.rs",
   "crates/kafka-client-sim/src/state/batch_revision.rs",
+  "crates/kafka-client-sim/src/state/retry.rs",
 ]
 
 [[mutation_owners]]
@@ -1701,6 +1742,10 @@ path = "crates/kafka-client-core/src/producer/batch.rs"
 [[linear_owners]]
 owner_type = "BatchRevision"
 path = "crates/kafka-client-core/src/producer/batch.rs"
+
+[[linear_owners]]
+owner_type = "RetryBatchRevision"
+path = "crates/kafka-client-core/src/producer/batch_revision.rs"
 
 [[linear_owners]]
 owner_type = "DriverOwner"

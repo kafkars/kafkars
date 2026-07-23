@@ -43,7 +43,9 @@ fn tracked_produce_failure_parks_without_spinning() {
 
 fn start(timeout: Duration) -> Engine {
     Engine::start(
-        EngineConfig::new(vec!["192.0.2.1:9092".to_owned()]).with_delivery_timeout(timeout),
+        EngineConfig::new(vec!["192.0.2.1:9092".to_owned()])
+            .with_delivery_timeout(timeout)
+            .with_producer_retry(0, Duration::ZERO),
     )
     .unwrap_or_else(|error| panic!("engine should start: {error}"))
 }

@@ -4,9 +4,10 @@ use core::num::NonZeroI16;
 
 use kafka_client_core::{
     AdmissionRejection, BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline,
-    DeliveryStatus, ExplicitRecord, OperationId, PartitionIndex, PayloadId, ProducerBatchSuccess,
-    ProducerBrokerFailure, ProducerBrokerFailureKind, ProducerCompletion, ProducerEffect,
-    ProducerFailureKind, ProducerInput, ProducerMachineError, TopicId,
+    DeliveryStatus, ExplicitRecord, OperationId, PartitionIndex, PayloadId,
+    ProducerAttemptFailureKind, ProducerBatchSuccess, ProducerBrokerFailure,
+    ProducerBrokerFailureKind, ProducerCompletion, ProducerEffect, ProducerFailureKind,
+    ProducerInput, ProducerMachineError, TopicId,
 };
 
 use crate::{ProducerScenario, SimulationError};
@@ -82,7 +83,7 @@ fn success_releases_batch_and_payload_before_completion() {
         .unwrap_or_else(|error| panic!("driver acceptance failed: {error}"));
     scenario
         .step(ProducerInput::BrokerSucceeded {
-            batch_id: BATCH,
+            execution: execution(),
             success: ProducerBatchSuccess::new(40, Some(7), Some(3)),
         })
         .unwrap_or_else(|error| panic!("broker success failed: {error}"));
@@ -213,6 +214,8 @@ fn driver_and_broker_failure_stages_preserve_certainty() {
     rejected
         .step(ProducerInput::DriverRejected {
             execution: execution(),
+            now: rejected.now(),
+            failure: ProducerAttemptFailureKind::Permanent,
         })
         .unwrap_or_else(|error| panic!("driver rejection failed: {error}"));
     assert!(matches!(
@@ -231,7 +234,7 @@ fn driver_and_broker_failure_stages_preserve_certainty() {
         .unwrap_or_else(|error| panic!("driver acceptance failed: {error}"));
     uncertain
         .step(ProducerInput::BrokerFailed {
-            batch_id: BATCH,
+            execution: execution(),
             failure: routing_failure(),
             delivery: DeliveryStatus::PossiblySent,
         })
@@ -257,6 +260,8 @@ fn retained_terminal_backpressures_until_result_and_marker_reclaim() {
     scenario
         .step(ProducerInput::DriverRejected {
             execution: execution(),
+            now: scenario.now(),
+            failure: ProducerAttemptFailureKind::Permanent,
         })
         .unwrap_or_else(|error| panic!("driver rejection failed: {error}"));
 

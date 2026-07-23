@@ -2,9 +2,9 @@
 
 use kafka_client_core::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline, DeliveryStatus,
-    ExplicitRecord, Moment, OperationId, PartitionIndex, PayloadId, ProducerBatchPolicy,
-    ProducerCancellationOutcome, ProducerCompletion, ProducerEffect, ProducerFailureKind,
-    ProducerInput, TopicId,
+    ExplicitRecord, Moment, OperationId, PartitionIndex, PayloadId, ProducerAttemptFailureKind,
+    ProducerBatchPolicy, ProducerCancellationOutcome, ProducerCompletion, ProducerEffect,
+    ProducerFailureKind, ProducerInput, TopicId,
 };
 
 use crate::ProducerScenario;
@@ -68,6 +68,8 @@ fn awaiting_driver_cancellation_discards_old_submission_and_rematerializes_survi
         },
         ProducerInput::DriverRejected {
             execution: previous,
+            now: Moment::from_tick(3),
+            failure: ProducerAttemptFailureKind::Permanent,
         },
     ] {
         assert!(

@@ -9,7 +9,8 @@ impl ProducerOperation {
         match self.state {
             ProducerOperationState::Accumulating { .. }
             | ProducerOperationState::Materializing { .. }
-            | ProducerOperationState::AwaitingDriver { .. } => self.plan_finish(),
+            | ProducerOperationState::AwaitingDriver { .. }
+            | ProducerOperationState::RetryWaiting { .. } => self.plan_finish(),
             ProducerOperationState::WaitingForCapacity { .. }
             | ProducerOperationState::Submitted { .. } => Err(TransitionError::InvalidState),
             ProducerOperationState::Completed => Err(TransitionError::AlreadyCompleted),
@@ -32,7 +33,8 @@ impl ProducerOperation {
             ProducerOperationState::Completed => Err(TransitionError::AlreadyCompleted),
             ProducerOperationState::WaitingForCapacity { .. }
             | ProducerOperationState::Accumulating { .. }
-            | ProducerOperationState::Submitted { .. } => Err(TransitionError::InvalidState),
+            | ProducerOperationState::Submitted { .. }
+            | ProducerOperationState::RetryWaiting { .. } => Err(TransitionError::InvalidState),
         }
     }
 }

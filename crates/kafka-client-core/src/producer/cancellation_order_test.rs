@@ -2,8 +2,9 @@
 
 use crate::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline, ExplicitRecord,
-    FlushId, Moment, OperationId, PartitionIndex, PayloadId, ProducerBatchPolicy, ProducerEffect,
-    ProducerInput, ProducerMachine, ProducerMachineError, TopicId,
+    FlushId, Moment, OperationId, PartitionIndex, PayloadId, ProducerAttemptFailureKind,
+    ProducerBatchPolicy, ProducerEffect, ProducerInput, ProducerMachine, ProducerMachineError,
+    TopicId,
 };
 
 const RETAINED: ByteCount = ByteCount::new(8);
@@ -83,7 +84,11 @@ fn successive_cancellations_advance_exact_generations_and_fence_old_facts() {
                 now: Moment::from_tick(2),
             },
             ProducerInput::BatchMaterializationFailed { execution: stale },
-            ProducerInput::DriverRejected { execution: stale },
+            ProducerInput::DriverRejected {
+                execution: stale,
+                now: Moment::from_tick(2),
+                failure: ProducerAttemptFailureKind::Permanent,
+            },
         ] {
             assert!(
                 producer

@@ -11,6 +11,7 @@ pub(in crate::producer) enum BatchRevisionExpectation {
     OpenForMaterialization,
     ReadyForMaterialization,
     Materialized,
+    RetryWaiting,
 }
 
 /// Exact engine mechanism phase retained for one cancellable operation.
@@ -18,6 +19,7 @@ pub(in crate::producer) enum BatchRevisionExpectation {
 pub(in crate::producer) enum BatchCancellationPhase {
     Open(BatchId),
     Sealed(BatchExecutionId),
+    RetryWaiting(BatchExecutionId),
     Submitted,
 }
 
@@ -37,6 +39,13 @@ pub(in crate::producer) struct EngineBatchRevisionPlan {
     expected_replacement: BatchRevisionReplacement,
     removed_index: usize,
     removed: BatchMember,
+    continuation: RevisionContinuation,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RevisionContinuation {
+    ReadyForMaterialization,
+    RetryWaiting,
 }
 
 impl BatchStore {
@@ -56,6 +65,7 @@ impl BatchStore {
             BatchState::ReadyForMaterialization(execution)
             | BatchState::Materializing(execution)
             | BatchState::Materialized(execution) => BatchCancellationPhase::Sealed(execution),
+            BatchState::RetryWaiting(execution) => BatchCancellationPhase::RetryWaiting(execution),
             BatchState::Submitted(_) => BatchCancellationPhase::Submitted,
         }))
     }
@@ -77,6 +87,7 @@ impl BatchStore {
                 BatchState::ReadyForMaterialization(previous)
             }
             BatchRevisionExpectation::Materialized => BatchState::Materialized(previous),
+            BatchRevisionExpectation::RetryWaiting => BatchState::RetryWaiting(previous),
         };
         if batch.state != expected_state {
             return Err(ProducerStoreError::StaleBatchExecution);
@@ -94,23 +105,38 @@ impl BatchStore {
             return Err(ProducerStoreError::UnknownBatchMember);
         }
         let expected_replacement = expected_replacement(previous, batch.members.len());
+        let continuation = match expectation {
+            BatchRevisionExpectation::RetryWaiting => RevisionContinuation::RetryWaiting,
+            BatchRevisionExpectation::OpenForMaterialization
+            | BatchRevisionExpectation::ReadyForMaterialization
+            | BatchRevisionExpectation::Materialized => {
+                RevisionContinuation::ReadyForMaterialization
+            }
+        };
         Ok(EngineBatchRevisionPlan {
             previous,
             expected_replacement,
             removed_index,
             removed,
+            continuation,
         })
     }
 
     pub(in crate::producer) fn commit_revision(&mut self, plan: EngineBatchRevisionPlan) {
-        let (previous, expected_replacement, removed_index, removed) = plan.into_parts();
+        let (previous, expected_replacement, removed_index, removed, continuation) =
+            plan.into_parts();
         let batch_id = previous.batch_id();
         match expected_replacement {
             BatchRevisionReplacement::Next(replacement) => {
                 if let Some(batch) = self.batches.get_mut(&batch_id) {
                     let committed = batch.remove(removed_index);
                     debug_assert_eq!(committed, removed);
-                    batch.state = BatchState::ReadyForMaterialization(replacement);
+                    batch.state = match continuation {
+                        RevisionContinuation::ReadyForMaterialization => {
+                            BatchState::ReadyForMaterialization(replacement)
+                        }
+                        RevisionContinuation::RetryWaiting => BatchState::RetryWaiting(replacement),
+                    };
                 }
             }
             BatchRevisionReplacement::Empty => {
@@ -141,12 +167,14 @@ impl EngineBatchRevisionPlan {
         BatchRevisionReplacement,
         usize,
         BatchMember,
+        RevisionContinuation,
     ) {
         (
             self.previous,
             self.expected_replacement,
             self.removed_index,
             self.removed,
+            self.continuation,
         )
     }
 }

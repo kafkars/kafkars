@@ -12,7 +12,8 @@ impl ProducerOperation {
             ProducerOperationState::WaitingForCapacity { .. }
             | ProducerOperationState::Accumulating { .. }
             | ProducerOperationState::Materializing { .. }
-            | ProducerOperationState::AwaitingDriver { .. } => Err(TransitionError::InvalidState),
+            | ProducerOperationState::AwaitingDriver { .. }
+            | ProducerOperationState::RetryWaiting { .. } => Err(TransitionError::InvalidState),
         }
     }
 
@@ -24,14 +25,16 @@ impl ProducerOperation {
             (
                 ProducerOperationState::Accumulating { .. }
                 | ProducerOperationState::Materializing { .. }
-                | ProducerOperationState::AwaitingDriver { .. },
+                | ProducerOperationState::AwaitingDriver { .. }
+                | ProducerOperationState::RetryWaiting { .. },
                 DeliveryStatus::NotSent,
             )
             | (ProducerOperationState::Submitted { .. }, _) => self.plan_finish(),
             (
                 ProducerOperationState::Accumulating { .. }
                 | ProducerOperationState::Materializing { .. }
-                | ProducerOperationState::AwaitingDriver { .. },
+                | ProducerOperationState::AwaitingDriver { .. }
+                | ProducerOperationState::RetryWaiting { .. },
                 DeliveryStatus::PossiblySent,
             )
             | (ProducerOperationState::WaitingForCapacity { .. }, _) => {
@@ -46,7 +49,8 @@ impl ProducerOperation {
             ProducerOperationState::WaitingForCapacity { .. }
             | ProducerOperationState::Accumulating { .. }
             | ProducerOperationState::Materializing { .. }
-            | ProducerOperationState::AwaitingDriver { .. } => self.plan_finish(),
+            | ProducerOperationState::AwaitingDriver { .. }
+            | ProducerOperationState::RetryWaiting { .. } => self.plan_finish(),
             ProducerOperationState::Submitted { .. } => Err(TransitionError::InvalidState),
             ProducerOperationState::Completed => Err(TransitionError::AlreadyCompleted),
         }
@@ -62,7 +66,8 @@ impl ProducerOperation {
             ProducerOperationState::Accumulating { bytes, .. }
             | ProducerOperationState::Materializing { bytes, .. }
             | ProducerOperationState::AwaitingDriver { bytes, .. }
-            | ProducerOperationState::Submitted { bytes, .. } => Some(bytes),
+            | ProducerOperationState::Submitted { bytes, .. }
+            | ProducerOperationState::RetryWaiting { bytes, .. } => Some(bytes),
             ProducerOperationState::Completed => return Err(TransitionError::AlreadyCompleted),
         };
         Ok(TerminalRelease { released_bytes })

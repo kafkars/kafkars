@@ -1,7 +1,7 @@
 //! Capacity synchronization scenarios for producer host construction.
 
 use kafka_client_core::{
-    ByteCount, Deadline, Moment, ProducerBatchPolicy, ProducerInput,
+    ByteCount, Deadline, Moment, ProducerBatchPolicy, ProducerInput, ProducerRetryPolicy,
     execution_stop_effect_capacity, producer_transition_effect_capacity,
 };
 
@@ -159,6 +159,7 @@ pub(crate) fn valid_limits() -> ProducerHostLimits {
         encoded_byte_capacity: 1_024,
         max_wire_batch_bytes: 1_024,
         batch_policy,
+        retry_policy: ProducerRetryPolicy::none(),
     }
 }
 

@@ -3,7 +3,9 @@
 mod driver_input;
 #[cfg(test)]
 mod driver_input_test;
-use kafka_client_core::{ByteCount, ProducerBatchPolicy, ProducerEffect, ProducerMachine};
+use kafka_client_core::{
+    ByteCount, ProducerBatchPolicy, ProducerEffect, ProducerMachine, ProducerRetryPolicy,
+};
 
 use crate::{clock::BatchTimers, completion::CompletionRegistry};
 
@@ -51,14 +53,16 @@ pub(super) struct ProducerCoreConfig {
     retained_bytes: ByteCount,
     completion_capacity: usize,
     batch_policy: ProducerBatchPolicy,
+    retry_policy: ProducerRetryPolicy,
 }
 
 impl ProducerCoreConfig {
     pub(super) const fn machine(self) -> ProducerMachine {
-        ProducerMachine::with_batch_policy(
+        ProducerMachine::with_batch_and_retry_policy(
             self.retained_bytes,
             self.completion_capacity,
             self.batch_policy,
+            self.retry_policy,
         )
     }
 }
@@ -98,6 +102,7 @@ impl ProducerHost {
             retained_bytes,
             completion_capacity: limits.completion_capacity,
             batch_policy: limits.batch_policy,
+            retry_policy: limits.retry_policy,
         };
         let core = core_config.machine();
         let completions = CompletionRegistry::start(limits.completion_capacity)
