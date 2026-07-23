@@ -1,0 +1,8 @@
+[package]
+name = "macro-source-order-parent"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+evil = { path = "../evil" }

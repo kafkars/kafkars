@@ -2,97 +2,10 @@
 
 mod support;
 
-use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
-
 use support::{
-    Budget, FileBudgets, FileClass, classify, display_path, fixture_files, load_config, read,
-    rust_files, workspace_root,
+    Budget, FileBudgets, FileClass, classify, fixture_files, load_config, rust_files,
+    size_violations, workspace_root,
 };
-
-fn size_violations(root: &Path, files: &[PathBuf], budgets: &FileBudgets) -> Vec<String> {
-    let baselines = budgets
-        .baseline
-        .iter()
-        .map(|entry| (entry.path.as_str(), entry))
-        .collect::<BTreeMap<_, _>>();
-    let allows = budgets
-        .allow
-        .iter()
-        .map(|entry| (entry.path.as_str(), entry))
-        .collect::<BTreeMap<_, _>>();
-    let mut seen = BTreeSet::new();
-    let mut violations = Vec::new();
-
-    for path in files {
-        let relative = display_path(root, path);
-        let lines = read(path).lines().count();
-        let budget = budget_for(classify(root, path), budgets);
-        seen.insert(relative.clone());
-
-        if lines > budget.target {
-            match baselines.get(relative.as_str()) {
-                Some(entry) if entry.reason.trim().is_empty() => {
-                    violations.push(format!("{relative} has an unexplained baseline"));
-                }
-                Some(entry) if lines != entry.lines => {
-                    let direction = if lines > entry.lines {
-                        "grew beyond"
-                    } else {
-                        "shrunk below"
-                    };
-                    violations.push(format!(
-                        "{relative} {direction} its exact {}-line baseline to {lines} lines",
-                        entry.lines
-                    ));
-                }
-                Some(_) => {}
-                None => violations.push(format!(
-                    "{relative} is {lines} lines, above its {}-line design target{}",
-                    budget.target,
-                    if lines > budget.soft {
-                        " and soft limit"
-                    } else {
-                        ""
-                    }
-                )),
-            }
-        } else if baselines.contains_key(relative.as_str()) {
-            violations.push(format!("{relative} has a stale baseline"));
-        }
-
-        if lines > budget.hard {
-            match allows.get(relative.as_str()) {
-                Some(entry)
-                    if !entry.reason.trim().is_empty()
-                        && !entry.owner.trim().is_empty()
-                        && !entry.issue.trim().is_empty() => {}
-                _ => violations.push(format!(
-                    "{relative} exceeds its {}-line hard ceiling without a reviewed allow",
-                    budget.hard
-                )),
-            }
-        } else if allows.contains_key(relative.as_str()) {
-            violations.push(format!("{relative} has a stale hard-ceiling allow"));
-        }
-    }
-
-    for path in baselines.keys().chain(allows.keys()) {
-        if !seen.contains(*path) {
-            violations.push(format!("policy names missing file {path}"));
-        }
-    }
-    violations
-}
-
-const fn budget_for(class: FileClass, budgets: &FileBudgets) -> Budget {
-    match class {
-        FileClass::Facade => budgets.facade,
-        FileClass::Implementation => budgets.implementation,
-        FileClass::Test => budgets.test,
-        FileClass::Auxiliary => budgets.auxiliary,
-    }
-}
 
 #[test]
 fn live_files_remain_within_reviewed_size_targets() {
@@ -195,4 +108,19 @@ fn an_inflated_or_stale_baseline_is_rejected() {
         }),
         "file-size detector accepted an inflated ratchet: {violations:?}"
     );
+}
+
+#[test]
+fn nested_src_tests_directory_keeps_implementation_budget() {
+    let (root, files) = fixture_files("nested_test_directory");
+    assert!(
+        root.join("src/owner/Cargo.toml").is_file(),
+        "fixture must contain the nested decoy manifest"
+    );
+    let case = files
+        .iter()
+        .find(|path| path.ends_with("owner/tests/case.rs"))
+        .unwrap_or_else(|| panic!("nested fixture source should be discoverable"));
+
+    assert_eq!(classify(&root, case), FileClass::Implementation);
 }

@@ -27,5 +27,9 @@ fn live_walk_covers_the_workspace_and_excludes_negative_fixtures() {
 #[test]
 fn fixture_walk_still_observes_deliberately_invalid_source() {
     let (_, files) = fixture_files("module_without_contract");
-    assert_eq!(files.len(), 2, "fixture traversal should see both probes");
+    assert_eq!(
+        files.len(),
+        3,
+        "fixture traversal should see every contract probe"
+    );
 }

@@ -9,9 +9,23 @@ use support::{display_path, fixture_files, load_config, read, rust_files, worksp
 fn files_without_contract(root: &Path, files: &[PathBuf]) -> Vec<String> {
     files
         .iter()
-        .filter(|path| !read(path).trim_start().starts_with("//!"))
+        .filter(|path| !has_module_contract(&read(path)))
         .map(|path| display_path(root, path))
         .collect()
+}
+
+fn has_module_contract(source: &str) -> bool {
+    let source = source.trim_start();
+    let mut lines = source.lines();
+    let Some(first) = lines.next() else {
+        return false;
+    };
+    if !first.starts_with("//!") {
+        return false;
+    }
+    first
+        .strip_prefix("//!")
+        .is_some_and(|contract| !contract.trim().is_empty())
 }
 
 #[test]
@@ -32,5 +46,5 @@ fn a_missing_module_contract_is_rejected() {
     let (root, files) = fixture_files("module_without_contract");
     let violations = files_without_contract(&root, &files);
 
-    assert_eq!(violations, ["src/bad.rs"]);
+    assert_eq!(violations, ["src/bad.rs", "src/empty.rs"]);
 }

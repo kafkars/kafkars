@@ -1,0 +1,4 @@
+[workspace]
+members = ["parent"]
+exclude = ["evil"]
+resolver = "2"

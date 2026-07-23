@@ -3,7 +3,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::{Declaration, GuardConfig, declaration, is_unit_test, sibling_facade};
+use super::{
+    Declaration, GuardConfig, declaration, is_unit_test, sibling_facade, workspace_targets,
+};
 
 /// Size-policy role for one Rust source file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,9 +140,38 @@ pub(crate) fn is_test_only_source(path: &Path) -> bool {
     declaration(&read(&facade), stem, file_name) == Declaration::Gated
 }
 
+pub(crate) fn workspace_package_roots(root: &Path) -> Vec<PathBuf> {
+    let (packages, _) = workspace_targets(root);
+    if packages.is_empty() {
+        vec![root.to_path_buf()]
+    } else {
+        packages
+            .into_iter()
+            .map(|package| package.package_root)
+            .collect()
+    }
+}
+
+pub(crate) fn is_integration_test(package_roots: &[PathBuf], path: &Path) -> bool {
+    package_roots.iter().any(|package_root| {
+        path.strip_prefix(package_root)
+            .ok()
+            .and_then(|relative| relative.components().next())
+            .is_some_and(|component| component.as_os_str() == "tests")
+    })
+}
+
 pub(crate) fn classify(root: &Path, path: &Path) -> FileClass {
+    classify_with_package_roots(root, &workspace_package_roots(root), path)
+}
+
+pub(crate) fn classify_with_package_roots(
+    root: &Path,
+    package_roots: &[PathBuf],
+    path: &Path,
+) -> FileClass {
     let relative = display_path(root, path);
-    if relative.contains("/tests/") || relative.ends_with("_test.rs") {
+    if is_integration_test(package_roots, path) || relative.ends_with("_test.rs") {
         FileClass::Test
     } else if relative.contains("/examples/")
         || relative.ends_with("/src/main.rs")

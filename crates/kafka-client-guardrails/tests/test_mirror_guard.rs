@@ -3,11 +3,11 @@
 mod support;
 
 use std::collections::BTreeSet;
-use std::path::{Component, Path};
+use std::path::Path;
 
 use support::{
     Declaration, TestMirror, declaration, display_path, fixture_files, is_unit_test, load_config,
-    read, sibling_facade, workspace_root,
+    read, runnable_test_count, sibling_facade, valid_relative_policy_path, workspace_root,
 };
 
 fn mirror_violations(root: &Path, mirrors: &[TestMirror]) -> Vec<String> {
@@ -16,7 +16,9 @@ fn mirror_violations(root: &Path, mirrors: &[TestMirror]) -> Vec<String> {
     let mut violations = Vec::new();
 
     for mirror in mirrors {
-        if !valid_policy_path(&mirror.production) || !valid_policy_path(&mirror.test) {
+        if !valid_relative_policy_path(&mirror.production)
+            || !valid_relative_policy_path(&mirror.test)
+        {
             violations.push(format!(
                 "test mirror uses a non-canonical relative path: {} -> {}",
                 mirror.production, mirror.test
@@ -63,6 +65,17 @@ fn mirror_violations(root: &Path, mirrors: &[TestMirror]) -> Vec<String> {
             ));
             continue;
         }
+        match runnable_test_count(&read(&test)) {
+            Ok(0) => violations.push(format!(
+                "registered test module {} has no runnable non-ignored `#[test]`",
+                mirror.test
+            )),
+            Ok(_) => {}
+            Err(error) => violations.push(format!(
+                "registered test module {} does not parse: {error}",
+                mirror.test
+            )),
+        }
 
         let Some(stem) = test.file_stem().and_then(|value| value.to_str()) else {
             continue;
@@ -87,6 +100,10 @@ fn mirror_violations(root: &Path, mirrors: &[TestMirror]) -> Vec<String> {
                 "{} redirects registered test `{stem}`",
                 display_path(root, &facade)
             )),
+            Declaration::Disabled => violations.push(format!(
+                "{} conditionally disables registered test `{stem}`",
+                display_path(root, &facade)
+            )),
             Declaration::Absent => violations.push(format!(
                 "{} does not declare registered test {}",
                 display_path(root, &facade),
@@ -96,21 +113,6 @@ fn mirror_violations(root: &Path, mirrors: &[TestMirror]) -> Vec<String> {
     }
 
     violations
-}
-
-fn valid_policy_path(value: &str) -> bool {
-    if value.is_empty() || value.contains('\\') {
-        return false;
-    }
-    let normalized = Path::new(value)
-        .components()
-        .map(|component| match component {
-            Component::Normal(value) => value.to_str(),
-            _ => None,
-        })
-        .collect::<Option<Vec<_>>>()
-        .map(|components| components.join("/"));
-    normalized.as_deref() == Some(value)
 }
 
 #[test]
@@ -206,5 +208,21 @@ fn malformed_or_stale_registered_mirrors_are_rejected() {
             .filter(|value| value.contains("non-canonical relative path"))
             .count(),
         2
+    );
+}
+
+#[test]
+fn registered_mirror_requires_runnable_non_ignored_evidence() {
+    let (root, _) = fixture_files("non_runnable_test_mirror");
+    let mirrors = [TestMirror {
+        production: "src/worker.rs".to_owned(),
+        test: "src/worker_test.rs".to_owned(),
+    }];
+    let violations = mirror_violations(&root, &mirrors);
+
+    assert!(
+        violations
+            .iter()
+            .any(|value| value.contains("no runnable non-ignored"))
     );
 }

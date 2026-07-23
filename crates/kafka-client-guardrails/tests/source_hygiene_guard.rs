@@ -4,16 +4,20 @@ mod support;
 
 use std::path::{Path, PathBuf};
 
-use support::{display_path, fixture_files, load_config, read, rust_files, workspace_root};
+use support::{
+    display_path, fixture_files, is_integration_test, load_config, read, rust_files,
+    workspace_package_roots, workspace_root,
+};
 use syn::punctuated::Punctuated;
 use syn::visit::Visit;
 use syn::{Attribute, ItemFn, ItemMod, Meta, Token};
 
 fn source_hygiene_violations(root: &Path, files: &[PathBuf]) -> Vec<String> {
     let mut violations = Vec::new();
+    let package_roots = workspace_package_roots(root);
     for path in files {
         let relative = display_path(root, path);
-        if relative.contains("/tests/") || relative.ends_with("_test.rs") {
+        if is_integration_test(&package_roots, path) || relative.ends_with("_test.rs") {
             continue;
         }
         let source = read(path);
@@ -140,4 +144,13 @@ fn embedded_tests_and_placeholders_are_rejected() {
             .any(|value| value.contains("test function"))
     );
     assert!(violations.iter().any(|value| value.contains("todo!")));
+
+    let (root, files) = fixture_files("nested_test_directory");
+    let violations = source_hygiene_violations(&root, &files);
+    assert!(
+        violations
+            .iter()
+            .any(|value| value.contains("owner/tests/case.rs")),
+        "nested src tests directory bypassed hygiene: {violations:?}"
+    );
 }

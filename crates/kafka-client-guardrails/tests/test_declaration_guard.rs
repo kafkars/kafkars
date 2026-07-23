@@ -35,6 +35,10 @@ fn undeclared_tests(root: &Path, files: &[PathBuf]) -> Vec<String> {
                 "{} redirects `{stem}` away from sibling test {relative}",
                 display_path(root, &facade)
             )),
+            Declaration::Disabled => violations.push(format!(
+                "{} conditionally disables or redirects sibling test {relative}",
+                display_path(root, &facade)
+            )),
             Declaration::Absent => {
                 violations.push(format!("{relative} is undeclared and runs zero tests"));
             }
@@ -75,6 +79,21 @@ fn undeclared_and_ungated_tests_are_rejected() {
         violations
             .iter()
             .any(|value| value.contains("redirects `redirected_test`"))
+    );
+    assert!(
+        violations
+            .iter()
+            .any(|value| value.contains("disabled_test.rs"))
+    );
+    assert!(
+        violations
+            .iter()
+            .any(|value| value.contains("conditional_test.rs"))
+    );
+    assert!(
+        violations
+            .iter()
+            .any(|value| value.contains("cfg_attr_disabled_test.rs"))
     );
 
     let (root, files) = fixture_files("undeclared_split_facade_test");

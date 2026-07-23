@@ -1,0 +1,3 @@
+[workspace]
+members = ["outer", "outer/src/nested"]
+resolver = "2"
