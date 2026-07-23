@@ -125,6 +125,29 @@ fn collect_dependencies(value: Option<&toml::Value>, dependencies: &mut BTreeSet
     }
 }
 
+fn forbidden_lockfile_dependencies(lockfile: &Path, forbidden: &[String]) -> Vec<String> {
+    let value = read(lockfile)
+        .parse::<toml::Value>()
+        .unwrap_or_else(|error| panic!("parse {}: {error}", lockfile.display()));
+    let forbidden = forbidden
+        .iter()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    let packages = value
+        .get("package")
+        .and_then(toml::Value::as_array)
+        .unwrap_or_else(|| panic!("{} has no package array", lockfile.display()));
+    let mut violations = packages
+        .iter()
+        .filter_map(|package| package.get("name").and_then(toml::Value::as_str))
+        .filter(|name| forbidden.contains(name))
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    violations.sort();
+    violations.dedup();
+    violations
+}
+
 #[test]
 fn live_dependency_graph_matches_the_reviewed_direction() {
     let workspace = workspace_root();
@@ -135,6 +158,22 @@ fn live_dependency_graph_matches_the_reviewed_direction() {
         violations.is_empty(),
         "dependency architecture violations:\n{}",
         violations.join("\n")
+    );
+}
+
+#[test]
+fn resolved_graph_contains_no_general_async_runtime() {
+    let workspace = workspace_root();
+    let config = load_config(&workspace);
+    let violations = forbidden_lockfile_dependencies(
+        &workspace.join("Cargo.lock"),
+        &config.forbidden_transitive_dependencies,
+    );
+
+    assert!(
+        violations.is_empty(),
+        "resolved graph contains forbidden async runtime packages: {}",
+        violations.join(", ")
     );
 }
 
@@ -162,4 +201,14 @@ fn a_core_dependency_on_the_engine_is_rejected() {
             .any(|value| { value.contains("fixture-core") && value.contains("fixture-engine") }),
         "dependency detector accepted a reversed edge: {violations:?}"
     );
+}
+
+#[test]
+fn a_transitive_async_runtime_in_the_lockfile_is_rejected() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/async_runtime_dependency/Cargo.lock");
+    let forbidden = vec!["tokio".to_owned()];
+    let violations = forbidden_lockfile_dependencies(&fixture, &forbidden);
+
+    assert_eq!(violations, ["tokio"]);
 }

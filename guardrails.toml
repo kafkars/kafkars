@@ -1,4 +1,18 @@
-schema = 1
+schema = 2
+
+forbidden_transitive_dependencies = [
+  "actix-rt",
+  "async-executor",
+  "async-global-executor",
+  "async-std",
+  "compio",
+  "embassy-executor",
+  "futures-executor",
+  "glommio",
+  "monoio",
+  "smol",
+  "tokio",
+]
 
 [paths]
 rust_roots = ["crates"]

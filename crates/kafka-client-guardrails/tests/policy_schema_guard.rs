@@ -9,6 +9,17 @@ fn checked_in_policy_is_supported_and_internally_ordered() {
     let workspace = workspace_root();
     let config = load_config(&workspace);
 
+    assert!(
+        !config.forbidden_transitive_dependencies.is_empty(),
+        "dependency denylist must name at least one reviewed runtime"
+    );
+    assert!(
+        config
+            .forbidden_transitive_dependencies
+            .windows(2)
+            .all(|pair| pair[0] < pair[1]),
+        "dependency denylist must be strictly ordered and duplicate-free"
+    );
     for budget in [
         config.budgets.facade,
         config.budgets.implementation,
@@ -26,7 +37,7 @@ fn checked_in_policy_is_supported_and_internally_ordered() {
 fn unknown_policy_keys_are_rejected() {
     let workspace = workspace_root();
     let source = read(&workspace.join("guardrails.toml"));
-    let invalid = source.replacen("schema = 1", "schema = 1\nunknown_policy_key = true", 1);
+    let invalid = source.replacen("schema = 2", "schema = 2\nunknown_policy_key = true", 1);
 
     assert!(
         parse_config(&invalid).is_err(),

@@ -10,6 +10,7 @@ use serde::Deserialize;
 #[serde(deny_unknown_fields)]
 pub(crate) struct GuardConfig {
     pub(crate) schema: u32,
+    pub(crate) forbidden_transitive_dependencies: Vec<String>,
     pub(crate) paths: Paths,
     pub(crate) budgets: FileBudgets,
     pub(crate) test_mirrors: Vec<TestMirror>,
@@ -109,7 +110,7 @@ pub(crate) struct LinearOwner {
     pub(crate) path: String,
 }
 
-const SUPPORTED_SCHEMA: u32 = 1;
+const SUPPORTED_SCHEMA: u32 = 2;
 
 pub(crate) fn load_config(workspace: &Path) -> GuardConfig {
     let path = workspace.join("guardrails.toml");
