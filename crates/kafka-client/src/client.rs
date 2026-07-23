@@ -1,8 +1,7 @@
 //! Cluster-scoped client construction and child-handle ownership.
 
-use kafka_client_engine::{Engine, EngineConfig};
-
 use crate::admin::Admin;
+use crate::bridge::ClientEngine;
 use crate::consumer::{AssignedConsumerBuilder, ConsumerBuilder};
 use crate::error::{ErrorKind, KafkaError};
 use crate::operation::Operation;
@@ -42,7 +41,7 @@ impl ClientBuilder {
             ));
         }
 
-        let engine = Engine::start(EngineConfig::new(self.bootstrap_servers));
+        let engine = ClientEngine::start(self.bootstrap_servers);
         Ok(Client {
             engine,
             client_id: self.client_id,
@@ -53,7 +52,7 @@ impl ClientBuilder {
 /// Cheaply cloneable cluster-scoped client handle.
 #[derive(Debug, Clone)]
 pub struct Client {
-    engine: Engine,
+    engine: ClientEngine,
     client_id: Option<String>,
 }
 
@@ -70,7 +69,7 @@ impl Client {
 
     /// Returns validated bootstrap endpoints.
     pub fn bootstrap_servers(&self) -> &[String] {
-        self.engine.config().bootstrap_servers()
+        self.engine.bootstrap_servers()
     }
 
     /// Begins construction of a thread-safe producer.

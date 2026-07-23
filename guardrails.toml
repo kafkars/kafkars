@@ -51,7 +51,7 @@ allowed_external = []
 
 [[dependency_rules]]
 package = "kafka-client-rs"
-allowed_internal = ["kafka-client-core", "kafka-client-engine"]
+allowed_internal = ["kafka-client-engine"]
 allowed_external = ["bytes"]
 
 # Time, I/O, execution, and protocol bytes stay outside deterministic policy.
@@ -68,6 +68,7 @@ forbidden = [
   "async_std",
   "kafka_driver",
   "kafka_wire",
+  "smol",
   "tokio",
 ]
 
@@ -84,6 +85,7 @@ forbidden = [
   "async_std",
   "kafka_driver",
   "kafka_wire",
+  "smol",
   "tokio",
 ]
 
@@ -96,6 +98,7 @@ forbidden = [
   "std::os::unix::net",
   "std::process",
   "async_std",
+  "smol",
   "tokio",
 ]
 
@@ -108,7 +111,10 @@ forbidden = [
   "std::os::unix::net",
   "std::process",
   "async_std",
+  "kafka_client_core",
   "kafka_driver",
   "kafka_wire",
+  "kafka_wire_records",
+  "smol",
   "tokio",
 ]

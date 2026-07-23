@@ -2,7 +2,14 @@
 
 use core::fmt;
 
-use kafka_client_core::DeliveryStatus;
+/// Certainty attached to a failed producer operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeliveryStatus {
+    /// The operation did not cross the transport ownership boundary.
+    NotSent,
+    /// The operation may have reached Kafka and a blind retry may duplicate it.
+    PossiblySent,
+}
 
 /// Stable top-level category for a client failure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

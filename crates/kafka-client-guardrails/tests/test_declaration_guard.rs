@@ -5,7 +5,7 @@ mod support;
 use std::path::{Path, PathBuf};
 
 use support::{display_path, fixture_files, load_config, read, rust_files, workspace_root};
-use syn::{Attribute, Item};
+use syn::{Attribute, Expr, Item, Lit, Meta};
 
 fn undeclared_tests(root: &Path, files: &[PathBuf]) -> Vec<String> {
     let mut violations = Vec::new();
@@ -20,10 +20,17 @@ fn undeclared_tests(root: &Path, files: &[PathBuf]) -> Vec<String> {
             ));
             continue;
         };
-        match declaration(&read(&facade), stem) {
+        let Some(file_name) = path.file_name().and_then(|value| value.to_str()) else {
+            continue;
+        };
+        match declaration(&read(&facade), stem, file_name) {
             Declaration::Gated => {}
             Declaration::Ungated => violations.push(format!(
                 "{} declares `{stem}` without #[cfg(test)]",
+                display_path(root, &facade)
+            )),
+            Declaration::Redirected => violations.push(format!(
+                "{} redirects `{stem}` away from sibling test {relative}",
                 display_path(root, &facade)
             )),
             Declaration::Absent => {
@@ -53,18 +60,29 @@ fn sibling_facade(path: &Path) -> Option<PathBuf> {
 enum Declaration {
     Gated,
     Ungated,
+    Redirected,
     Absent,
 }
 
-fn declaration(source: &str, stem: &str) -> Declaration {
+fn declaration(source: &str, stem: &str, file_name: &str) -> Declaration {
     let Ok(syntax) = syn::parse_file(source) else {
         return Declaration::Absent;
     };
+    let mut redirected = false;
     for item in syntax.items {
         let Item::Mod(module) = item else {
             continue;
         };
-        if module.ident != stem || module.content.is_some() {
+        if module.content.is_some() {
+            continue;
+        }
+        let explicit_path = module.attrs.iter().find_map(module_path);
+        let names_sibling = module.ident == stem && explicit_path.is_none();
+        let points_to_sibling = explicit_path.as_deref() == Some(file_name);
+        if module.ident == stem && explicit_path.is_some() && !points_to_sibling {
+            redirected = true;
+        }
+        if !names_sibling && !points_to_sibling {
             continue;
         }
         return if module.attrs.iter().any(is_cfg_test) {
@@ -73,7 +91,27 @@ fn declaration(source: &str, stem: &str) -> Declaration {
             Declaration::Ungated
         };
     }
-    Declaration::Absent
+    if redirected {
+        Declaration::Redirected
+    } else {
+        Declaration::Absent
+    }
+}
+
+fn module_path(attribute: &Attribute) -> Option<String> {
+    let Meta::NameValue(name_value) = &attribute.meta else {
+        return None;
+    };
+    if !name_value.path.is_ident("path") {
+        return None;
+    }
+    let Expr::Lit(expression) = &name_value.value else {
+        return None;
+    };
+    let Lit::Str(value) = &expression.lit else {
+        return None;
+    };
+    Some(value.value())
 }
 
 fn is_cfg_test(attribute: &Attribute) -> bool {
@@ -110,5 +148,10 @@ fn undeclared_and_ungated_tests_are_rejected() {
         violations
             .iter()
             .any(|value| value.contains("without #[cfg(test)]"))
+    );
+    assert!(
+        violations
+            .iter()
+            .any(|value| value.contains("redirects `redirected_test`"))
     );
 }

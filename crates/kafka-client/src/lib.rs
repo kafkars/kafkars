@@ -1,11 +1,12 @@
 //! Provisional idiomatic Rust facade over the shared Kafka client engine.
 //!
 //! This crate is an executable API sketch. It performs no Kafka network I/O and
-//! is not publishable under its current package or library name.
+//! remains unpublished until the native producer reaches its qualification gate.
 
 #![forbid(unsafe_code)]
 
 mod admin;
+mod bridge;
 mod client;
 mod consumer;
 mod error;
@@ -20,8 +21,7 @@ pub use consumer::{
     AssignedConsumer, AssignedConsumerBuilder, Checkpoint, Commit, Consumer, ConsumerBuilder,
     ConsumerControl, ConsumerRecord, NextBatch, OffsetReset, RecordBatch,
 };
-pub use error::{ErrorKind, KafkaError};
-pub use kafka_client_core::DeliveryStatus;
+pub use error::{DeliveryStatus, ErrorKind, KafkaError};
 pub use operation::Operation;
 pub use producer::{
     BatchDelivery, Delivery, Flush, Producer, ProducerBuilder, RecordMetadata, Send, SendBatch,
@@ -32,3 +32,8 @@ pub use transaction::{
     AbortTransaction, BeginTransaction, BeginTransactionProducer, CommitTransaction, Transaction,
     TransactionalProducer, TransactionalProducerBuilder,
 };
+
+#[cfg(test)]
+mod client_test;
+#[cfg(test)]
+mod error_test;

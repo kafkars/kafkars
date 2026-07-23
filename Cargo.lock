@@ -154,7 +154,6 @@ name = "kafka-client-rs"
 version = "0.0.0"
 dependencies = [
  "bytes",
- "kafka-client-core",
  "kafka-client-engine",
 ]
 
