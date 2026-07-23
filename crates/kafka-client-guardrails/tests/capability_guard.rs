@@ -238,11 +238,11 @@ fn live_source_respects_capability_ownership() {
 }
 
 #[test]
-fn a_forbidden_socket_import_alias_is_rejected() {
+fn forbidden_capability_aliases_are_rejected() {
     let (root, _) = fixture_files("forbidden_capability");
     let rules = [CapabilityRule {
         root: "src".to_owned(),
-        forbidden: vec!["std::net".to_owned()],
+        forbidden: vec!["std::net".to_owned(), "std::sync::Mutex".to_owned()],
     }];
     let violations = capability_violations(&root, &rules);
 
@@ -263,6 +263,12 @@ fn a_forbidden_socket_import_alias_is_rejected() {
             .iter()
             .any(|value| value.contains("scoped_positive.rs")),
         "capability detector leaked an inner alias into its parent scope: {violations:?}"
+    );
+    assert!(
+        violations
+            .iter()
+            .any(|value| value.contains("sync_alias.rs") && value.contains("std::sync::Mutex")),
+        "capability detector accepted an aliased facade lock: {violations:?}"
     );
 }
 
