@@ -20,17 +20,14 @@ pub enum SimulationError {
         /// Bytes named by the core effect.
         expected: ByteCount,
     },
-    /// The virtual engine already owns this batch identity.
-    DuplicateBatch(BatchId),
     /// An effect referenced a batch the virtual engine does not own.
     UnknownBatch(BatchId),
-    /// A batch was materialized for a different operation.
-    BatchOperationMismatch {
-        /// Operation recorded by the virtual engine.
-        actual: OperationId,
-        /// Operation named by the core effect.
-        expected: OperationId,
-    },
+    /// An operation was accumulated more than once.
+    DuplicateOperation(OperationId),
+    /// An effect named an operation outside its claimed accumulator.
+    OperationNotInBatch(OperationId),
+    /// Submission preceded the core-requested materialization mechanism.
+    BatchNotMaterialized(BatchId),
     /// Completion publication preceded engine resource release.
     ResourceStillRetained(OperationId),
     /// Core emitted a second terminal outcome for one operation.
@@ -50,10 +47,13 @@ impl fmt::Display for SimulationError {
             Self::PayloadSizeMismatch { .. } => {
                 formatter.write_str("virtual payload byte count does not match")
             }
-            Self::DuplicateBatch(_) => formatter.write_str("duplicate virtual batch"),
             Self::UnknownBatch(_) => formatter.write_str("unknown virtual batch"),
-            Self::BatchOperationMismatch { .. } => {
-                formatter.write_str("virtual batch belongs to a different operation")
+            Self::DuplicateOperation(_) => formatter.write_str("duplicate virtual operation"),
+            Self::OperationNotInBatch(_) => {
+                formatter.write_str("operation is not retained by the virtual batch")
+            }
+            Self::BatchNotMaterialized(_) => {
+                formatter.write_str("virtual batch was not materialized")
             }
             Self::ResourceStillRetained(_) => {
                 formatter.write_str("completion preceded virtual resource release")

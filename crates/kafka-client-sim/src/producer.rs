@@ -1,8 +1,8 @@
 //! Explicit deterministic steps joining producer policy to virtual engine ownership.
 
 use kafka_client_core::{
-    BatchId, ByteCount, Moment, OperationId, PayloadId, ProducerCompletion, ProducerEffect,
-    ProducerInput, ProducerMachine, ProducerTransition,
+    BatchId, ByteCount, Moment, OperationId, PayloadId, ProducerBatchPolicy, ProducerCompletion,
+    ProducerEffect, ProducerInput, ProducerMachine, ProducerTransition,
 };
 
 use crate::{SimulationError, VirtualClock, state::VirtualProducerState};
@@ -25,14 +25,39 @@ impl ProducerScenario {
         }
     }
 
+    /// Creates a scenario with explicit deterministic batch thresholds.
+    pub fn with_batch_policy(
+        retained_bytes: ByteCount,
+        completion_capacity: usize,
+        batch_policy: ProducerBatchPolicy,
+    ) -> Self {
+        Self {
+            clock: VirtualClock::default(),
+            core: ProducerMachine::with_batch_policy(
+                retained_bytes,
+                completion_capacity,
+                batch_policy,
+            ),
+            engine: VirtualProducerState::default(),
+        }
+    }
+
     /// Returns the current virtual monotonic observation.
     pub const fn now(&self) -> Moment {
         self.clock.now()
     }
 
-    /// Advances virtual time without sleeping or consulting an ambient clock.
-    pub const fn advance(&mut self, ticks: u64) {
+    /// Advances virtual time and deterministically dispatches every due batch timer.
+    pub fn advance(&mut self, ticks: u64) -> Result<(), SimulationError> {
         self.clock.advance(ticks);
+        while let Some((batch_id, generation)) = self.engine.take_due_timer(self.clock.now()) {
+            self.step(ProducerInput::BatchTimerFired {
+                batch_id,
+                generation,
+                now: self.clock.now(),
+            })?;
+        }
+        Ok(())
     }
 
     /// Gives the virtual engine ownership of bytes before core admission.
@@ -42,15 +67,6 @@ impl ProducerScenario {
         bytes: ByteCount,
     ) -> Result<(), SimulationError> {
         self.engine.retain_payload(payload_id, bytes)
-    }
-
-    /// Records a batch materialized by the virtual engine for one operation.
-    pub fn materialize_batch(
-        &mut self,
-        batch_id: BatchId,
-        operation_id: OperationId,
-    ) -> Result<(), SimulationError> {
-        self.engine.materialize_batch(batch_id, operation_id)
     }
 
     /// Applies one external fact and interprets every ordered core effect.

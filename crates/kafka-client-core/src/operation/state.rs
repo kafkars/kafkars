@@ -18,6 +18,17 @@ pub enum ProducerOperationState {
         deadline: Deadline,
         /// Bytes charged to the producer buffer budget.
         bytes: ByteCount,
+        /// Core-owned batch membership assigned before the accumulation effect.
+        batch_id: BatchId,
+    },
+    /// Core sealed the batch and requested wire-records materialization.
+    Materializing {
+        /// Absolute deadline created at the public boundary.
+        deadline: Deadline,
+        /// Bytes charged to the producer buffer budget.
+        bytes: ByteCount,
+        /// Core-owned batch being materialized.
+        batch_id: BatchId,
     },
     /// The engine materialized a batch and was instructed to submit it.
     AwaitingDriver {
@@ -57,10 +68,19 @@ impl ProducerOperation {
         }
     }
 
-    pub(crate) const fn admitted(id: OperationId, deadline: Deadline, bytes: ByteCount) -> Self {
+    pub(crate) const fn admitted(
+        id: OperationId,
+        deadline: Deadline,
+        bytes: ByteCount,
+        batch_id: BatchId,
+    ) -> Self {
         Self {
             id,
-            state: ProducerOperationState::Accumulating { deadline, bytes },
+            state: ProducerOperationState::Accumulating {
+                deadline,
+                bytes,
+                batch_id,
+            },
         }
     }
 
@@ -79,6 +99,7 @@ impl ProducerOperation {
         match self.state {
             ProducerOperationState::WaitingForCapacity { deadline, .. }
             | ProducerOperationState::Accumulating { deadline, .. }
+            | ProducerOperationState::Materializing { deadline, .. }
             | ProducerOperationState::AwaitingDriver { deadline, .. }
             | ProducerOperationState::Submitted { deadline, .. } => Some(deadline),
             ProducerOperationState::Completed => None,
@@ -88,10 +109,11 @@ impl ProducerOperation {
     /// Returns the batch identity after materialization.
     pub const fn batch_id(&self) -> Option<BatchId> {
         match self.state {
-            ProducerOperationState::AwaitingDriver { batch_id, .. }
+            ProducerOperationState::Accumulating { batch_id, .. }
+            | ProducerOperationState::Materializing { batch_id, .. }
+            | ProducerOperationState::AwaitingDriver { batch_id, .. }
             | ProducerOperationState::Submitted { batch_id, .. } => Some(batch_id),
             ProducerOperationState::WaitingForCapacity { .. }
-            | ProducerOperationState::Accumulating { .. }
             | ProducerOperationState::Completed => None,
         }
     }

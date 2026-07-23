@@ -1,8 +1,8 @@
 //! Ordered producer effects interpreted by the engine without hidden policy.
 
 use crate::{
-    BatchId, ByteCount, Deadline, ExplicitRecord, OperationId, PartitionIndex, PayloadId,
-    ProducerCompletion, TopicId,
+    BatchId, BatchTimerGeneration, ByteCount, Deadline, ExplicitRecord, OperationId,
+    PartitionIndex, PayloadId, ProducerCompletion, TopicId,
 };
 
 /// Fixed acknowledgment policy for the first producer vertical slice.
@@ -22,35 +22,63 @@ pub enum CompressionPolicy {
 /// One mechanism request emitted by deterministic producer policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProducerEffect {
-    /// Append engine-owned payload metadata to its explicit partition accumulator.
+    /// Append engine-owned payload metadata to a core-selected batch.
     AccumulateExplicit {
         /// Stable public operation identity.
         operation_id: OperationId,
+        /// Core-owned logical batch identity.
+        batch_id: BatchId,
         /// Original absolute operation deadline.
         deadline: Deadline,
         /// Opaque payload identity and validated route facts.
         record: ExplicitRecord,
     },
-    /// Submit an already materialized batch through the driver adapter.
-    SubmitProduce {
-        /// Operation represented by this first-slice batch.
-        operation_id: OperationId,
-        /// Engine-owned materialized batch identity.
+    /// Arm or replace one generation-fenced batch timer.
+    ArmBatchTimer {
+        /// Batch whose policy wakeup is requested.
         batch_id: BatchId,
-        /// Original absolute deadline handed to the driver unchanged.
+        /// Generation that must accompany the eventual timer fact.
+        generation: BatchTimerGeneration,
+        /// Absolute policy wakeup deadline.
         deadline: Deadline,
-        /// Engine topic-catalog identity.
-        topic_id: TopicId,
-        /// Explicit Kafka partition selected before admission.
-        partition: PartitionIndex,
-        /// Required broker acknowledgment strength.
-        acknowledgements: AcknowledgementPolicy,
+    },
+    /// Cancel a timer generation after the batch seals or empties.
+    CancelBatchTimer {
+        /// Batch whose timer is no longer live.
+        batch_id: BatchId,
+        /// Exact generation being cancelled.
+        generation: BatchTimerGeneration,
+    },
+    /// Materialize an already sealed accumulator through wire-records.
+    MaterializeBatch {
+        /// Core-owned logical batch identity.
+        batch_id: BatchId,
         /// Required record-batch compression mode.
         compression: CompressionPolicy,
     },
-    /// Release an engine-materialized batch after terminal settlement.
+    /// Submit an engine-materialized batch through the driver adapter.
+    SubmitProduce {
+        /// Core-owned logical batch identity.
+        batch_id: BatchId,
+        /// Earliest live member deadline handed to the driver unchanged.
+        deadline: Deadline,
+        /// Engine topic-catalog identity.
+        topic_id: TopicId,
+        /// Explicit Kafka partition shared by every member.
+        partition: PartitionIndex,
+        /// Required broker acknowledgment strength.
+        acknowledgements: AcknowledgementPolicy,
+    },
+    /// Remove one expired record from a still-live engine accumulator.
+    RemoveBatchMember {
+        /// Batch that continues without the expired member.
+        batch_id: BatchId,
+        /// Operation whose record must not be materialized or submitted.
+        operation_id: OperationId,
+    },
+    /// Release the engine accumulator or materialized bytes after settlement.
     ReleaseBatch {
-        /// Engine batch no longer retained on behalf of the operation.
+        /// Engine batch no longer retained by policy.
         batch_id: BatchId,
     },
     /// Release engine-owned record bytes after terminal settlement.
@@ -60,7 +88,7 @@ pub enum ProducerEffect {
         /// Bytes released from deterministic producer accounting.
         retained_bytes: ByteCount,
     },
-    /// Publish the one terminal operation result after resource release effects.
+    /// Publish one terminal result after every resource release effect.
     Complete {
         /// Stable public operation identity.
         operation_id: OperationId,
@@ -69,27 +97,25 @@ pub enum ProducerEffect {
     },
 }
 
-/// Allocation-free ordered effect collection for one producer transition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ProducerTransition {
-    /// The input changed ownership state without requesting engine work.
-    None,
-    /// One ordered effect.
-    One([ProducerEffect; 1]),
-    /// Two ordered effects.
-    Two([ProducerEffect; 2]),
-    /// Three ordered effects.
-    Three([ProducerEffect; 3]),
+/// Dynamically sized ordered effects for batch fan-out.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ProducerTransition {
+    effects: Vec<ProducerEffect>,
 }
 
 impl ProducerTransition {
-    /// Returns effects in the exact order the engine must interpret them.
-    pub const fn effects(&self) -> &[ProducerEffect] {
-        match self {
-            Self::None => &[],
-            Self::One(effects) => effects,
-            Self::Two(effects) => effects,
-            Self::Three(effects) => effects,
+    pub(crate) const fn none() -> Self {
+        Self {
+            effects: Vec::new(),
         }
+    }
+
+    pub(crate) fn from_effects(effects: Vec<ProducerEffect>) -> Self {
+        Self { effects }
+    }
+
+    /// Returns effects in the exact order the engine must interpret them.
+    pub fn effects(&self) -> &[ProducerEffect] {
+        &self.effects
     }
 }

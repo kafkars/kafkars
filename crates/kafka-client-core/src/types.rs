@@ -30,6 +30,14 @@ impl Moment {
     pub const fn tick(self) -> u64 {
         self.0
     }
+
+    /// Constructs an absolute deadline by checked addition.
+    pub const fn checked_deadline_after(self, ticks: u64) -> Option<Deadline> {
+        match self.0.checked_add(ticks) {
+            Some(value) => Some(Deadline(value)),
+            None => None,
+        }
+    }
 }
 
 /// Absolute virtual-clock tick owned by an operation.
@@ -50,6 +58,11 @@ impl Deadline {
     /// Returns whether this deadline has elapsed at the supplied observation.
     pub const fn is_elapsed_at(self, now: Moment) -> bool {
         self.0 <= now.0
+    }
+
+    /// Returns the earlier of two absolute deadlines.
+    pub const fn min(self, other: Self) -> Self {
+        if self.0 <= other.0 { self } else { other }
     }
 }
 

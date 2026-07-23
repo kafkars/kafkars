@@ -11,12 +11,22 @@ pub enum ProducerMachineError {
     Admission(AdmissionRejection),
     /// The operation is not retained by this producer.
     UnknownOperation,
+    /// The batch is not retained by this producer.
+    UnknownBatch,
     /// The requested lifecycle transition is invalid.
     Transition(TransitionError),
     /// Terminal-completion ownership rejected the transition.
     Completion(CompletionLedgerError),
     /// Retained-byte accounting rejected the transition.
     Capacity(CapacityError),
+    /// Conservative accumulator-size arithmetic could not be represented.
+    AccumulatorSizeOverflow,
+    /// A timer generation could not advance without reuse.
+    TimerGenerationExhausted,
+    /// A broker base offset could not fan out across every record.
+    OffsetOverflow,
+    /// A success code was incorrectly reported as a broker failure.
+    InvalidBrokerErrorCode,
 }
 
 impl fmt::Display for ProducerMachineError {
@@ -24,9 +34,20 @@ impl fmt::Display for ProducerMachineError {
         match self {
             Self::Admission(reason) => write!(formatter, "producer admission rejected: {reason:?}"),
             Self::UnknownOperation => formatter.write_str("producer operation is unknown"),
+            Self::UnknownBatch => formatter.write_str("producer batch is unknown"),
             Self::Transition(error) => error.fmt(formatter),
             Self::Completion(error) => error.fmt(formatter),
             Self::Capacity(error) => error.fmt(formatter),
+            Self::AccumulatorSizeOverflow => {
+                formatter.write_str("producer accumulator size overflow")
+            }
+            Self::TimerGenerationExhausted => {
+                formatter.write_str("producer timer generation exhausted")
+            }
+            Self::OffsetOverflow => formatter.write_str("producer record offset overflow"),
+            Self::InvalidBrokerErrorCode => {
+                formatter.write_str("broker failure carried the success error code")
+            }
         }
     }
 }

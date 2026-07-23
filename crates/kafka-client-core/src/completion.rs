@@ -103,6 +103,29 @@ impl CompletionLedger {
         Ok(())
     }
 
+    pub(crate) fn require_pending(&self, ids: &[OperationId]) -> Result<(), CompletionLedgerError> {
+        for id in ids {
+            match self.slots.get(id) {
+                Some(CompletionState::Pending) => {}
+                Some(CompletionState::Terminal) => {
+                    return Err(CompletionLedgerError::AlreadyCompleted);
+                }
+                None => return Err(CompletionLedgerError::UnknownOperation),
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn commit_terminal_many(&mut self, ids: &[OperationId]) {
+        for id in ids {
+            let state = self.slots.get_mut(id);
+            debug_assert!(state.is_some());
+            if let Some(state) = state {
+                *state = CompletionState::Terminal;
+            }
+        }
+    }
+
     /// Releases a terminal marker after the engine reclaims its retained result.
     pub fn reclaim(&mut self, id: OperationId) -> Result<(), CompletionLedgerError> {
         match self.slots.get(&id) {

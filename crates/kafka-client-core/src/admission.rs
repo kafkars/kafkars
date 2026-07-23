@@ -1,6 +1,4 @@
-//! Producer admission results that preserve caller ownership on rejection.
-
-use crate::{ByteCount, Deadline, OperationId};
+//! Producer admission rejections returned before ownership transfer.
 
 /// Why immediate producer admission returned caller ownership.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,58 +11,14 @@ pub enum AdmissionRejection {
     ByteCapacity,
     /// No terminal-completion slot is available.
     CompletionCapacity,
+    /// The current partition batch reached its count limit before accumulation caught up.
+    AccumulatorPending,
     /// Retained-byte arithmetic could not represent the requested reservation.
     ByteCountOverflow,
     /// The producer exhausted its monotonic operation identity space.
     IdentityExhausted,
-}
-
-/// Immediate admission failure that preserves caller ownership.
-#[derive(Debug)]
-pub struct TryAdmitError<T> {
-    pub(crate) reason: AdmissionRejection,
-    pub(crate) value: T,
-}
-
-impl<T> TryAdmitError<T> {
-    /// Returns the semantic rejection reason.
-    pub const fn reason(&self) -> AdmissionRejection {
-        self.reason
-    }
-
-    /// Returns the rejection reason and original value.
-    pub fn into_parts(self) -> (AdmissionRejection, T) {
-        (self.reason, self.value)
-    }
-}
-
-/// Value whose bytes and terminal completion are now owned by the producer.
-#[derive(Debug)]
-pub struct Admitted<T> {
-    pub(crate) id: OperationId,
-    pub(crate) deadline: Deadline,
-    pub(crate) bytes: ByteCount,
-    pub(crate) value: T,
-}
-
-impl<T> Admitted<T> {
-    /// Returns the stable operation identity.
-    pub const fn id(&self) -> OperationId {
-        self.id
-    }
-
-    /// Returns the absolute deadline captured at the public boundary.
-    pub const fn deadline(&self) -> Deadline {
-        self.deadline
-    }
-
-    /// Returns bytes charged to the producer budget.
-    pub const fn bytes(&self) -> ByteCount {
-        self.bytes
-    }
-
-    /// Returns the operation identity and admitted value for accumulation.
-    pub fn into_parts(self) -> (OperationId, T) {
-        (self.id, self.value)
-    }
+    /// The producer exhausted its monotonic batch identity space.
+    BatchIdentityExhausted,
+    /// Linger deadline construction exceeded the monotonic time domain.
+    DeadlineOverflow,
 }

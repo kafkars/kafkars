@@ -1,9 +1,13 @@
-//! Virtual engine ownership for payloads, batches, submissions, and results.
+//! Virtual engine ownership for payloads, accumulators, timers, and results.
+
+#[path = "state_batch.rs"]
+mod batch;
 
 use std::collections::{BTreeMap, BTreeSet, btree_map::Entry};
 
 use kafka_client_core::{
-    BatchId, ByteCount, OperationId, PayloadId, ProducerCompletion, ProducerEffect,
+    BatchId, BatchTimerGeneration, ByteCount, Deadline, OperationId, PayloadId, ProducerCompletion,
+    ProducerEffect,
 };
 
 use crate::SimulationError;
@@ -12,7 +16,9 @@ use crate::SimulationError;
 pub(crate) struct VirtualProducerState {
     payloads: BTreeMap<PayloadId, ByteCount>,
     operation_payloads: BTreeMap<OperationId, PayloadId>,
-    batches: BTreeMap<BatchId, OperationId>,
+    batches: BTreeMap<BatchId, Vec<OperationId>>,
+    timers: BTreeMap<BatchId, (BatchTimerGeneration, Deadline)>,
+    materialized: BTreeSet<BatchId>,
     terminals: BTreeMap<OperationId, ProducerCompletion>,
     released_terminals: BTreeSet<OperationId>,
     submission_count: usize,
@@ -34,40 +40,56 @@ impl VirtualProducerState {
         }
     }
 
-    pub(crate) fn materialize_batch(
-        &mut self,
-        batch_id: BatchId,
-        operation_id: OperationId,
-    ) -> Result<(), SimulationError> {
-        match self.batches.entry(batch_id) {
-            Entry::Occupied(_) => Err(SimulationError::DuplicateBatch(batch_id)),
-            Entry::Vacant(slot) => {
-                slot.insert(operation_id);
-                Ok(())
-            }
-        }
-    }
-
     pub(crate) fn interpret(&mut self, effect: ProducerEffect) -> Result<(), SimulationError> {
         match effect {
             ProducerEffect::AccumulateExplicit {
                 operation_id,
+                batch_id,
                 record,
                 ..
-            } => self.accumulate(operation_id, record.payload_id(), record.retained_bytes())?,
-            ProducerEffect::SubmitProduce {
-                operation_id,
+            } => self.accumulate(
                 batch_id,
-                ..
+                operation_id,
+                record.payload_id(),
+                record.retained_bytes(),
+            )?,
+            ProducerEffect::ArmBatchTimer {
+                batch_id,
+                generation,
+                deadline,
             } => {
-                self.require_batch(batch_id, operation_id)?;
+                self.require_batch(batch_id)?;
+                self.timers.insert(batch_id, (generation, deadline));
+            }
+            ProducerEffect::CancelBatchTimer {
+                batch_id,
+                generation,
+            } => {
+                self.require_batch(batch_id)?;
+                if self
+                    .timers
+                    .get(&batch_id)
+                    .is_some_and(|(actual, _)| *actual == generation)
+                {
+                    self.timers.remove(&batch_id);
+                }
+            }
+            ProducerEffect::MaterializeBatch { batch_id, .. } => {
+                self.require_batch(batch_id)?;
+                self.materialized.insert(batch_id);
+            }
+            ProducerEffect::SubmitProduce { batch_id, .. } => {
+                self.require_batch(batch_id)?;
+                if !self.materialized.contains(&batch_id) {
+                    return Err(SimulationError::BatchNotMaterialized(batch_id));
+                }
                 self.submission_count += 1;
             }
-            ProducerEffect::ReleaseBatch { batch_id } => {
-                self.batches
-                    .remove(&batch_id)
-                    .ok_or(SimulationError::UnknownBatch(batch_id))?;
-            }
+            ProducerEffect::RemoveBatchMember {
+                batch_id,
+                operation_id,
+            } => self.remove_batch_member(batch_id, operation_id)?,
+            ProducerEffect::ReleaseBatch { batch_id } => self.release_batch(batch_id)?,
             ProducerEffect::ReleasePayload {
                 payload_id,
                 retained_bytes,
@@ -79,41 +101,6 @@ impl VirtualProducerState {
         }
         self.trace.push(effect);
         Ok(())
-    }
-
-    fn accumulate(
-        &mut self,
-        operation_id: OperationId,
-        payload_id: PayloadId,
-        expected: ByteCount,
-    ) -> Result<(), SimulationError> {
-        let actual = self
-            .payloads
-            .get(&payload_id)
-            .copied()
-            .ok_or(SimulationError::UnknownPayload(payload_id))?;
-        if actual != expected {
-            return Err(SimulationError::PayloadSizeMismatch { actual, expected });
-        }
-        self.operation_payloads.insert(operation_id, payload_id);
-        Ok(())
-    }
-
-    fn require_batch(
-        &self,
-        batch_id: BatchId,
-        expected: OperationId,
-    ) -> Result<(), SimulationError> {
-        let actual = self
-            .batches
-            .get(&batch_id)
-            .copied()
-            .ok_or(SimulationError::UnknownBatch(batch_id))?;
-        if actual == expected {
-            Ok(())
-        } else {
-            Err(SimulationError::BatchOperationMismatch { actual, expected })
-        }
     }
 
     fn release_payload(
@@ -142,7 +129,10 @@ impl VirtualProducerState {
             .operation_payloads
             .get(&operation_id)
             .is_some_and(|payload_id| self.payloads.contains_key(payload_id));
-        let batch_retained = self.batches.values().any(|owner| *owner == operation_id);
+        let batch_retained = self
+            .batches
+            .values()
+            .any(|members| members.contains(&operation_id));
         if payload_retained || batch_retained {
             return Err(SimulationError::ResourceStillRetained(operation_id));
         }
@@ -168,15 +158,26 @@ impl VirtualProducerState {
         Ok(completion)
     }
 
+    pub(crate) fn take_due_timer(
+        &mut self,
+        now: kafka_client_core::Moment,
+    ) -> Option<(BatchId, BatchTimerGeneration)> {
+        let batch_id = self.timers.iter().find_map(|(batch_id, (_, deadline))| {
+            deadline.is_elapsed_at(now).then_some(*batch_id)
+        })?;
+        self.timers
+            .remove(&batch_id)
+            .map(|(generation, _)| (batch_id, generation))
+    }
+
     pub(crate) fn require_released_terminal(
         &self,
         operation_id: OperationId,
     ) -> Result<(), SimulationError> {
-        if self.released_terminals.contains(&operation_id) {
-            Ok(())
-        } else {
-            Err(SimulationError::TerminalStillRetained(operation_id))
-        }
+        self.released_terminals
+            .contains(&operation_id)
+            .then_some(())
+            .ok_or(SimulationError::TerminalStillRetained(operation_id))
     }
 
     pub(crate) fn finish_reclaim(&mut self, operation_id: OperationId) {

@@ -1,229 +1,96 @@
-//! Tests for atomic producer admission and settlement.
+//! Tests for atomic explicit-record admission and batch policy validation.
 
 use crate::{
-    AdmissionRejection, BatchId, ByteCount, Deadline, DeliveryStatus, Moment, OperationId,
-    ProducerMachine, ProducerMachineError, TransitionError,
+    AdmissionRejection, ByteCount, Deadline, ExplicitRecord, Moment, PartitionIndex, PayloadId,
+    ProducerBatchPolicy, ProducerBatchPolicyError, ProducerInput, ProducerMachine,
+    ProducerMachineError, TopicId,
 };
 
-#[test]
-fn admission_reserves_bytes_and_completion_together() {
-    let mut producer = ProducerMachine::new(ByteCount::new(1_024), 2);
-
-    let admission = producer.try_admit(
-        Moment::from_tick(10),
-        Deadline::from_tick(100),
-        ByteCount::new(300),
-        "record-a",
-    );
-
-    let Ok(admitted) = admission else {
-        panic!("admission should succeed");
-    };
-    assert_eq!(admitted.id(), OperationId::from_raw(1));
-    assert_eq!(admitted.deadline(), Deadline::from_tick(100));
-    assert_eq!(admitted.bytes(), ByteCount::new(300));
-    assert_eq!(producer.retained_bytes(), ByteCount::new(300));
-    assert_eq!(producer.completion_slots(), 1);
-    assert_eq!(admitted.into_parts().1, "record-a");
+fn record(payload: u64, bytes: u64) -> ExplicitRecord {
+    ExplicitRecord::new(
+        PayloadId::from_raw(payload),
+        TopicId::from_raw(2),
+        PartitionIndex::from_raw(0),
+        ByteCount::new(bytes),
+    )
 }
 
 #[test]
-fn byte_rejection_returns_original_value_without_reserving_completion() {
-    let mut producer = ProducerMachine::new(ByteCount::new(100), 2);
-
-    let rejection = producer.try_admit(
-        Moment::from_tick(1),
-        Deadline::from_tick(10),
-        ByteCount::new(101),
-        String::from("owned-record"),
+fn admission_reserves_bytes_and_completion_atomically() {
+    let mut producer = ProducerMachine::with_batch_policy(
+        ByteCount::new(64),
+        1,
+        ProducerBatchPolicy::try_new(2, ByteCount::new(128), 10)
+            .unwrap_or_else(|error| panic!("valid policy: {error}")),
     );
-
-    let Err(error) = rejection else {
-        panic!("oversized record should be rejected");
-    };
-    let (reason, record) = error.into_parts();
-    assert_eq!(reason, AdmissionRejection::ByteCapacity);
-    assert_eq!(record, "owned-record");
-    assert_eq!(producer.retained_bytes(), ByteCount::new(0));
-    assert_eq!(producer.completion_slots(), 0);
-}
-
-#[test]
-fn completion_rejection_rolls_back_the_byte_reservation() {
-    let mut producer = ProducerMachine::new(ByteCount::new(100), 1);
-    let first = producer.try_admit(
-        Moment::from_tick(1),
-        Deadline::from_tick(10),
-        ByteCount::new(40),
-        "first",
-    );
-    let Ok(first) = first else {
-        panic!("first record should be admitted");
-    };
-    assert_eq!(
-        producer.settle_failed(first.id(), DeliveryStatus::NotSent,),
-        Ok(())
-    );
-    assert_eq!(
-        producer.settle_failed(first.id(), DeliveryStatus::NotSent,),
-        Err(ProducerMachineError::Transition(
-            TransitionError::AlreadyCompleted
-        ))
-    );
-    assert_eq!(producer.retained_bytes(), ByteCount::new(0));
-
-    let second = producer.try_admit(
-        Moment::from_tick(2),
-        Deadline::from_tick(20),
-        ByteCount::new(60),
-        "second",
-    );
-    let Err(second) = second else {
-        panic!("retained completion should backpressure admission");
-    };
-    assert_eq!(second.reason(), AdmissionRejection::CompletionCapacity);
-    assert_eq!(producer.retained_bytes(), ByteCount::new(0));
-    assert_eq!(producer.completion_slots(), 1);
-
-    assert_eq!(producer.reclaim_completion(first.id()), Ok(()));
     assert!(
         producer
-            .try_admit(
-                Moment::from_tick(3),
-                Deadline::from_tick(30),
-                ByteCount::new(60),
-                "second",
-            )
+            .apply(ProducerInput::AdmitExplicit {
+                now: Moment::from_tick(0),
+                deadline: Deadline::from_tick(10),
+                record: record(1, 64),
+            })
             .is_ok()
     );
-}
-
-#[test]
-fn submitted_operation_cannot_be_expired_by_client_timing() {
-    let mut producer = ProducerMachine::new(ByteCount::new(100), 1);
-    let admission = producer.try_admit(
-        Moment::from_tick(1),
-        Deadline::from_tick(10),
-        ByteCount::new(20),
-        "record",
-    );
-    let Ok(admitted) = admission else {
-        panic!("record should be admitted");
-    };
+    assert_eq!(producer.retained_bytes(), ByteCount::new(64));
+    assert_eq!(producer.completion_slots(), 1);
 
     assert_eq!(
-        producer.mark_ready(admitted.id(), BatchId::from_raw(1)),
-        Ok(())
-    );
-    assert_eq!(
-        producer.mark_submitted(admitted.id(), BatchId::from_raw(1)),
-        Ok(())
-    );
-    assert_eq!(
-        producer.expire_before_submission(admitted.id()),
-        Err(ProducerMachineError::Transition(
-            TransitionError::InvalidState
+        producer.apply(ProducerInput::AdmitExplicit {
+            now: Moment::from_tick(0),
+            deadline: Deadline::from_tick(10),
+            record: record(2, 1),
+        }),
+        Err(ProducerMachineError::Admission(
+            AdmissionRejection::ByteCapacity
         ))
     );
-    assert_eq!(producer.retained_bytes(), ByteCount::new(20));
     assert_eq!(producer.completion_slots(), 1);
 }
 
 #[test]
-fn expired_record_never_crosses_the_admission_boundary() {
-    let mut producer = ProducerMachine::new(ByteCount::new(100), 1);
-
-    let rejection = producer.try_admit(
-        Moment::from_tick(10),
-        Deadline::from_tick(10),
-        ByteCount::new(20),
-        "expired",
+fn elapsed_deadline_never_crosses_admission() {
+    let mut producer = ProducerMachine::new(ByteCount::new(64), 1);
+    assert_eq!(
+        producer.apply(ProducerInput::AdmitExplicit {
+            now: Moment::from_tick(10),
+            deadline: Deadline::from_tick(10),
+            record: record(1, 1),
+        }),
+        Err(ProducerMachineError::Admission(
+            AdmissionRejection::DeadlineElapsed
+        ))
     );
-
-    let Err(error) = rejection else {
-        panic!("expired record should be rejected");
-    };
-    assert_eq!(error.reason(), AdmissionRejection::DeadlineElapsed);
     assert_eq!(producer.retained_bytes(), ByteCount::new(0));
     assert_eq!(producer.completion_slots(), 0);
 }
 
 #[test]
-fn driver_submission_does_not_invent_possibly_sent() {
-    let mut producer = ProducerMachine::new(ByteCount::new(100), 1);
-    let admission = producer.try_admit(
-        Moment::from_tick(1),
-        Deadline::from_tick(10),
-        ByteCount::new(20),
-        "record",
-    );
-    let Ok(admitted) = admission else {
-        panic!("record should be admitted");
-    };
-
+fn linger_deadline_overflow_rejects_without_reservation() {
+    let policy = ProducerBatchPolicy::try_new(2, ByteCount::new(64), 2)
+        .unwrap_or_else(|error| panic!("valid policy: {error}"));
+    let mut producer = ProducerMachine::with_batch_policy(ByteCount::new(64), 1, policy);
     assert_eq!(
-        producer.mark_ready(admitted.id(), BatchId::from_raw(2)),
-        Ok(())
-    );
-    assert_eq!(
-        producer.mark_submitted(admitted.id(), BatchId::from_raw(2)),
-        Ok(())
-    );
-    assert_eq!(
-        producer.settle_failed(admitted.id(), DeliveryStatus::NotSent,),
-        Ok(())
-    );
-    assert_eq!(producer.reclaim_completion(admitted.id()), Ok(()));
-}
-
-#[test]
-fn possibly_sent_is_rejected_before_driver_ownership() {
-    let mut producer = ProducerMachine::new(ByteCount::new(100), 1);
-    let admission = producer.try_admit(
-        Moment::from_tick(1),
-        Deadline::from_tick(10),
-        ByteCount::new(20),
-        "record",
-    );
-    let Ok(admitted) = admission else {
-        panic!("record should be admitted");
-    };
-
-    assert_eq!(
-        producer.settle_failed(admitted.id(), DeliveryStatus::PossiblySent,),
-        Err(ProducerMachineError::Transition(
-            TransitionError::InvalidState
+        producer.apply(ProducerInput::AdmitExplicit {
+            now: Moment::from_tick(u64::MAX - 1),
+            deadline: Deadline::from_tick(u64::MAX),
+            record: record(1, 1),
+        }),
+        Err(ProducerMachineError::Admission(
+            AdmissionRejection::DeadlineOverflow
         ))
     );
-    assert_eq!(producer.retained_bytes(), ByteCount::new(20));
-    assert_eq!(producer.completion_slots(), 1);
+    assert_eq!(producer.retained_bytes(), ByteCount::new(0));
 }
 
 #[test]
-fn close_rejects_new_work_but_preserves_accepted_settlement() {
-    let mut producer = ProducerMachine::new(ByteCount::new(100), 2);
-    let admission = producer.try_admit(
-        Moment::from_tick(1),
-        Deadline::from_tick(10),
-        ByteCount::new(20),
-        "accepted",
+fn zero_batch_limits_are_rejected() {
+    assert_eq!(
+        ProducerBatchPolicy::try_new(0, ByteCount::new(1), 0),
+        Err(ProducerBatchPolicyError::ZeroRecordLimit)
     );
-    let Ok(admitted) = admission else {
-        panic!("record should be admitted");
-    };
-
-    producer.close_admission();
-    assert!(!producer.admission_is_open());
-    let rejected = producer.try_admit(
-        Moment::from_tick(2),
-        Deadline::from_tick(20),
-        ByteCount::new(20),
-        "new",
+    assert_eq!(
+        ProducerBatchPolicy::try_new(1, ByteCount::new(0), 0),
+        Err(ProducerBatchPolicyError::ZeroByteLimit)
     );
-    let Err(rejected) = rejected else {
-        panic!("closed producer should reject new work");
-    };
-    assert_eq!(rejected.reason(), AdmissionRejection::Closed);
-    assert_eq!(producer.expire_before_submission(admitted.id()), Ok(()));
-    assert_eq!(producer.reclaim_completion(admitted.id()), Ok(()));
 }

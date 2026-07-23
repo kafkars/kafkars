@@ -128,7 +128,15 @@ allowed_paths = ["crates/kafka-client-core/src/producer/machine.rs"]
 [[mutation_owners]]
 owner_type = "ProducerMachine"
 field = "next_operation_id"
-allowed_paths = ["crates/kafka-client-core/src/producer/machine.rs"]
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/machine.rs",
+  "crates/kafka-client-core/src/producer/batching.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerMachine"
+field = "next_batch_id"
+allowed_paths = ["crates/kafka-client-core/src/producer/batching.rs"]
 
 [[mutation_owners]]
 owner_type = "ProducerMachine"
@@ -163,6 +171,61 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "ProducerMachine"
+field = "open_batches"
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/batching.rs",
+  "crates/kafka-client-core/src/producer/settlement.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerMachine"
+field = "batches"
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/batching.rs",
+  "crates/kafka-client-core/src/producer/input_batch.rs",
+  "crates/kafka-client-core/src/producer/input_outcome.rs",
+  "crates/kafka-client-core/src/producer/settlement.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerBatch"
+field = "timer_generation"
+allowed_paths = ["crates/kafka-client-core/src/producer/batch_transition.rs"]
+
+[[mutation_owners]]
+owner_type = "ProducerBatch"
+field = "timer_deadline"
+allowed_paths = ["crates/kafka-client-core/src/producer/batch_transition.rs"]
+
+[[mutation_owners]]
+owner_type = "ProducerBatch"
+field = "linger_elapsed"
+allowed_paths = ["crates/kafka-client-core/src/producer/batch_transition.rs"]
+
+[[mutation_owners]]
+owner_type = "ProducerBatch"
+field = "accumulator_bytes"
+allowed_paths = ["crates/kafka-client-core/src/producer/batch_transition.rs"]
+
+[[mutation_owners]]
+owner_type = "ProducerBatch"
+field = "members"
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/batch.rs",
+  "crates/kafka-client-core/src/producer/batch_transition.rs",
+  "crates/kafka-client-core/src/producer/input_batch.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerBatch"
+field = "state"
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/batch_transition.rs",
+  "crates/kafka-client-core/src/producer/input_outcome.rs",
+]
+
+[[mutation_owners]]
 owner_type = "ByteBudget"
 field = "used"
 allowed_paths = ["crates/kafka-client-core/src/capacity.rs"]
@@ -193,6 +256,14 @@ path = "crates/kafka-client-core/src/capacity.rs"
 [[linear_owners]]
 owner_type = "ProducerOperation"
 path = "crates/kafka-client-core/src/operation/state.rs"
+
+[[linear_owners]]
+owner_type = "ProducerBatch"
+path = "crates/kafka-client-core/src/producer/batch.rs"
+
+[[linear_owners]]
+owner_type = "BatchRemoval"
+path = "crates/kafka-client-core/src/producer/batch.rs"
 
 [[linear_owners]]
 owner_type = "DriverOwner"

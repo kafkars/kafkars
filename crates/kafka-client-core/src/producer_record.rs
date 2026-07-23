@@ -66,6 +66,22 @@ impl BatchId {
     }
 }
 
+/// Generation fencing replacement and cancellation of one batch timer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BatchTimerGeneration(u64);
+
+impl BatchTimerGeneration {
+    /// Creates a deterministic timer generation.
+    pub const fn from_raw(value: u64) -> Self {
+        Self(value)
+    }
+
+    /// Returns the raw generation.
+    pub const fn get(self) -> u64 {
+        self.0
+    }
+}
+
 /// Explicit-partition record facts required by deterministic producer policy.
 ///
 /// The engine resolves `payload_id` to the owned key, value, headers, timestamp,
