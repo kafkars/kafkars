@@ -245,11 +245,13 @@ fn reclaim_retries_without_blocking_while_observer_state_is_locked() {
     assert_eq!(observer.wait(), Ok(107));
     assert_eq!(registry.next_reclaim(), Ok(Some(id)));
 
-    let cell = Arc::clone(&registry.slots[id.slot()].cell);
+    let Some(cell) = registry.cell_for_test(id) else {
+        panic!("completion cell should exist");
+    };
     let gate = GateWake::new();
     let lock_gate = Arc::clone(&gate);
     let locker = thread::spawn(move || {
-        let _guard = cell.lock();
+        let _guard = cell.lock_for_test();
         lock_gate.block_until_released();
     });
     assert!(gate.wait_until_entered());

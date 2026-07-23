@@ -1,5 +1,7 @@
 //! Fixed-capacity host ownership of terminal publication and reclamation.
 
+mod lifecycle;
+
 use std::{
     fmt,
     sync::{
@@ -26,8 +28,8 @@ pub(crate) enum ReclaimStatus {
 
 /// Host-side fixed completion slots and their dedicated notifier owner.
 pub(crate) struct CompletionRegistry<T> {
-    pub(super) slots: Vec<HostSlot<T>>,
-    pub(super) free: Vec<usize>,
+    slots: Vec<HostSlot<T>>,
+    free: Vec<usize>,
     reclaim: Receiver<CompletionId>,
     notifier: Option<Notifier<T>>,
 }
@@ -171,6 +173,11 @@ impl<T: Send + 'static> CompletionRegistry<T> {
         self.slots
             .get_mut(id.slot())
             .ok_or(CompletionRegistryError::UnknownCompletion)
+    }
+
+    #[cfg(test)]
+    pub(super) fn cell_for_test(&self, id: CompletionId) -> Option<Arc<CompletionCell<T>>> {
+        self.slots.get(id.slot()).map(|slot| Arc::clone(&slot.cell))
     }
 }
 

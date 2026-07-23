@@ -39,11 +39,16 @@ impl<T> HostSlot<T> {
 
     pub(super) fn publish_error(&self, id: CompletionId) -> CompletionRegistryError {
         match self.phase {
-            HostPhase::Reserved { id: current } if current != id => {
-                CompletionRegistryError::UnknownCompletion
+            HostPhase::Reserved { id: current }
+            | HostPhase::Published { id: current }
+            | HostPhase::ReclaimReady { id: current } => {
+                if current == id {
+                    CompletionRegistryError::DuplicatePublish
+                } else {
+                    CompletionRegistryError::UnknownCompletion
+                }
             }
-            HostPhase::Vacant => CompletionRegistryError::UnknownCompletion,
-            _ => CompletionRegistryError::DuplicatePublish,
+            HostPhase::Vacant | HostPhase::Retired => CompletionRegistryError::UnknownCompletion,
         }
     }
 

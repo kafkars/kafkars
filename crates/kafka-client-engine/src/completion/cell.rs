@@ -1,5 +1,7 @@
 //! One synchronized terminal cell shared by async and blocking observation.
 
+mod lifecycle;
+
 use std::{
     sync::{
         Condvar, Mutex, MutexGuard,
@@ -20,8 +22,8 @@ pub(super) struct StoreOutcome<T> {
 }
 
 pub(super) struct CompletionCell<T> {
-    pub(super) slot: usize,
-    pub(super) phase: Mutex<CellPhase<T>>,
+    slot: usize,
+    phase: Mutex<CellPhase<T>>,
     ready: Condvar,
     reclaim: SyncSender<CompletionId>,
 }
@@ -170,10 +172,15 @@ impl<T> CompletionCell<T> {
         }
     }
 
-    pub(super) fn lock(&self) -> MutexGuard<'_, CellPhase<T>> {
+    fn lock(&self) -> MutexGuard<'_, CellPhase<T>> {
         self.phase
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    #[cfg(test)]
+    pub(super) fn lock_for_test(&self) -> MutexGuard<'_, CellPhase<T>> {
+        self.lock()
     }
 
     fn wait_guard<'a>(&self, guard: MutexGuard<'a, CellPhase<T>>) -> MutexGuard<'a, CellPhase<T>> {

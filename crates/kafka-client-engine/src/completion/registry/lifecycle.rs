@@ -1,6 +1,7 @@
 //! Engine admission rollback for fixed completion-registry slots.
 
-use super::{CompletionId, CompletionRegistryError, registry::CompletionRegistry};
+use super::CompletionRegistry;
+use crate::completion::{CompletionId, CompletionRegistryError};
 
 impl<T: Send + 'static> CompletionRegistry<T> {
     /// Rolls back engine capacity when deterministic core admission rejects.

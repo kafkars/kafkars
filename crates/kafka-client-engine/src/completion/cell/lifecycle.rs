@@ -2,14 +2,14 @@
 
 use std::sync::TryLockError;
 
+use super::CompletionCell;
 use crate::completion::{
     CompletionId, CompletionRegistryError,
-    cell::CompletionCell,
     state::{CellPhase, Presence},
 };
 
 impl<T> CompletionCell<T> {
-    pub(super) fn activate(&self) -> Result<CompletionId, CompletionRegistryError> {
+    pub(in crate::completion) fn activate(&self) -> Result<CompletionId, CompletionRegistryError> {
         let mut phase = self.lock();
         let CellPhase::Vacant { generation } = *phase else {
             return Err(CompletionRegistryError::UnknownCompletion);
@@ -23,7 +23,7 @@ impl<T> CompletionCell<T> {
         Ok(id)
     }
 
-    pub(super) fn rollback_reservation(
+    pub(in crate::completion) fn rollback_reservation(
         &self,
         id: CompletionId,
     ) -> Result<(), CompletionRegistryError> {
@@ -41,7 +41,10 @@ impl<T> CompletionCell<T> {
         advance_generation(&mut phase, id)
     }
 
-    pub(super) fn try_recycle(&self, id: CompletionId) -> Result<bool, CompletionRegistryError> {
+    pub(in crate::completion) fn try_recycle(
+        &self,
+        id: CompletionId,
+    ) -> Result<bool, CompletionRegistryError> {
         let mut phase = match self.phase.try_lock() {
             Ok(phase) => phase,
             Err(TryLockError::WouldBlock) => return Ok(false),

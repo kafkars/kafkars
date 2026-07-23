@@ -266,7 +266,7 @@ owner_type = "CompletionRegistry"
 field = "slots"
 allowed_paths = [
   "crates/kafka-client-engine/src/completion/registry.rs",
-  "crates/kafka-client-engine/src/completion/registry_lifecycle.rs",
+  "crates/kafka-client-engine/src/completion/registry/lifecycle.rs",
 ]
 
 [[mutation_owners]]
@@ -274,7 +274,7 @@ owner_type = "CompletionRegistry"
 field = "free"
 allowed_paths = [
   "crates/kafka-client-engine/src/completion/registry.rs",
-  "crates/kafka-client-engine/src/completion/registry_lifecycle.rs",
+  "crates/kafka-client-engine/src/completion/registry/lifecycle.rs",
 ]
 
 [[mutation_owners]]
@@ -287,7 +287,7 @@ owner_type = "CompletionCell"
 field = "phase"
 allowed_paths = [
   "crates/kafka-client-engine/src/completion/cell.rs",
-  "crates/kafka-client-engine/src/completion/cell_lifecycle.rs",
+  "crates/kafka-client-engine/src/completion/cell/lifecycle.rs",
 ]
 
 [[mutation_owners]]
