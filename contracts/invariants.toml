@@ -17,45 +17,9 @@ statement = "Application records and encoded batches have explicit count and byt
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/record_store_test.rs::count_and_bytes_are_reserved_before_core_admission",
-  "crates/kafka-client-engine/src/producer/pending/registry_test.rs::count_and_byte_bounds_return_the_exact_record",
-  "crates/kafka-client-engine/src/producer/pending/registration_test.rs::registration_returns_the_observer_for_the_exact_bounded_entry",
-  "crates/kafka-client-engine/src/producer/ingress/waiting_test.rs::capacity_rejection_registers_exact_pending_ownership_and_wakes_once",
-  "crates/kafka-client-engine/src/producer/ingress/waiting_test.rs::older_pending_entry_fences_nonblocking_try_send_even_with_core_capacity",
   "crates/kafka-client-engine/src/producer/record_store_test.rs::release_checks_provenance_and_happens_exactly_once",
   "crates/kafka-client-engine/src/producer/execution_test.rs::encoded_capacity_failure_becomes_a_core_owned_not_sent_outcome",
   "crates/kafka-client-engine/src/producer/execution/materialization_test.rs::prepared_entry_count_bound_rejects_without_accounting_drift",
-]
-
-[[invariant]]
-id = "BND-02"
-title = "Pending notification obligations are bounded"
-statement = "The engine-internal pending-send seam reserves one non-cloneable notification permit at registration, and the live host prestarts one bounded off-reactor recovery worker. Constant-time route retention preserves exact FIFO ownership, primary retries require an explicit nonzero work limit, and a closed primary transfers the untouched head and tail irreversibly to recovery. Dormant expiry and shutdown drain use caller-bounded turns and retain every completed notification through that route. One dormant composite shard turn always gives the bounded route its retry opportunity after local, accepted, and promotion stages; Recovery mode requires terminal handoff rather than ordinary polling. Terminal recovery cannot run until the older primary notifier is joined, and dropping its paired stop owner drains and joins rather than detaching. Public waiting admission and the live composite host runner remain separate milestones."
-status = "enforced"
-evidence = [
-  "crates/kafka-client-engine/src/producer/pending/permit_test.rs::notification_permit_is_not_reused_before_dispatch",
-  "crates/kafka-client-engine/src/producer/pending/permit_test.rs::blocked_notifier_cannot_exceed_pending_notification_bound",
-  "crates/kafka-client-engine/src/producer/pending/recovery/backlog_test.rs::backlog_retains_exact_jobs_in_fifo_order",
-  "crates/kafka-client-engine/src/producer/pending/recovery/backlog_test.rs::closed_transfer_keeps_backlog_and_returned_job_in_one_recovery_owner",
-  "crates/kafka-client-engine/src/producer/pending/recovery/queue_test.rs::permit_capacity_bounds_queued_and_current_recovery_jobs_together",
-  "crates/kafka-client-engine/src/producer/pending/recovery/queue_test.rs::terminal_tail_remains_fifo_when_the_normal_queue_is_full",
-  "crates/kafka-client-engine/src/producer/pending/recovery/worker_test.rs::worker_dispatches_away_from_the_submitting_thread_and_joins",
-  "crates/kafka-client-engine/src/producer/pending/recovery/route_test.rs::retain_stages_exact_fifo_without_running_application_wakers",
-  "crates/kafka-client-engine/src/producer/pending/recovery/route_test.rs::retain_overflow_returns_the_exact_newer_job",
-  "crates/kafka-client-engine/src/producer/pending/recovery/route_retry_test.rs::retry_respects_explicit_limit_and_reports_runnable_tail",
-  "crates/kafka-client-engine/src/producer/pending/recovery/route_retry_test.rs::backpressured_head_stays_before_every_newer_retained_job",
-  "crates/kafka-client-engine/src/producer/pending/recovery/route_retry_test.rs::primary_closure_moves_fifo_to_blocked_recovery_until_primary_join",
-  "crates/kafka-client-engine/src/producer/pending/recovery/route_test.rs::dropped_paired_owner_joins_primary_before_terminal_recovery",
-  "crates/kafka-client-engine/src/producer/pending/recovery/route_test.rs::missing_primary_refuses_retained_tail_without_splitting_owner",
-  "crates/kafka-client-engine/src/producer/shutdown_test.rs::missing_primary_only_allows_proven_empty_recovery_cleanup",
-  "crates/kafka-client-engine/src/producer/host_limits_test.rs::later_notification_start_failure_joins_the_prestarted_recovery_worker",
-  "crates/kafka-client-engine/src/producer/pending/turn_test.rs::take_next_counts_each_abandoned_tombstone_against_its_budget",
-  "crates/kafka-client-engine/src/producer/pending/turn_test.rs::expire_and_drain_count_tombstones_without_yielding_fake_failures",
-  "crates/kafka-client-engine/src/producer/ingress/pending_local_settlement_test.rs::expiry_is_bounded_and_reports_the_next_absolute_deadline",
-  "crates/kafka-client-engine/src/producer/ingress/pending_local_settlement_test.rs::closed_shard_drains_a_bounded_fifo_prefix",
-  "crates/kafka-client-engine/src/producer/ingress/shard_turn_test.rs::due_expiry_tail_suppresses_promotion_but_other_stages_run",
-  "crates/kafka-client-engine/src/producer/ingress/shard_turn_test.rs::clear_expiry_stage_allows_exactly_one_fifo_promotion_and_retry",
-  "crates/kafka-client-engine/src/producer/ingress/shard_turn_progress_test.rs::primary_route_backpressure_is_blocked_without_becoming_runnable",
-  "crates/kafka-client-engine/src/producer/ingress/shard_turn_progress_test.rs::recovery_route_requires_terminal_handoff_instead_of_polling",
 ]
 
 [[invariant]]
@@ -93,13 +57,10 @@ statement = "Engine deadline capture derives core and transport absolutes from o
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/clock/monotonic_test.rs::deadline_capture_uses_one_boundary_observation",
-  "crates/kafka-client-engine/src/producer/pending/registry_test.rs::pending_entry_preserves_both_absolute_deadline_representations",
-  "crates/kafka-client-engine/src/producer/ingress/promotion_test.rs::later_moment_admission_binds_the_original_core_and_transport_deadline",
   "crates/kafka-client-engine/src/producer/execution/submission_test.rs::submission_requires_and_preserves_the_admitted_operation_deadline",
   "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::handoff_preserves_exact_execution_deadline_and_encoded_owner",
   "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::accounting_corruption_preserves_the_full_prepared_entry",
   "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::missing_schedule_preserves_the_full_prepared_entry",
-  "crates/kafka-client-engine/src/producer/pending/registry_test.rs::deadline_expiry_is_ordered_bounded_and_not_sent",
   "crates/kafka-client-core/src/producer_test.rs::elapsed_deadline_never_crosses_admission",
   "crates/kafka-client-engine/src/producer/execution/deadline_test.rs::due_entries_emit_exact_facts_in_deadline_then_batch_order",
   "crates/kafka-client-engine/src/producer/execution_test.rs::pre_driver_expiry_releases_encoded_and_original_bytes_as_not_sent",
@@ -224,9 +185,6 @@ evidence = [
   "crates/kafka-client-engine/src/completion/registry_test.rs::pending_abandonment_settles_and_reclaims_exactly_once",
   "crates/kafka-client-engine/src/producer/reclaim_turn_test.rs::abandoned_observation_reclaims_after_terminal_publication",
   "crates/kafka-client-engine/src/delivery_observer_test.rs::dropping_delivery_observer_preserves_abandon_reclaim",
-  "crates/kafka-client-engine/src/producer/pending/promotion_test.rs::promotion_before_drop_abandons_only_the_accepted_observer",
-  "crates/kafka-client-engine/src/producer/pending/restore_test.rs::observer_drop_during_restore_removes_exact_reinserted_accounting",
-  "crates/kafka-client-engine/src/producer/pending/attempt_test.rs::promotion_drop_cannot_restore_only_one_half",
 ]
 
 [[invariant]]
@@ -241,42 +199,6 @@ evidence = [
 ]
 
 [[invariant]]
-id = "OWN-01"
-title = "Pending promotion has one coordinated owner"
-statement = "Removing a pending admission, claiming its observer cell, and transferring its exact record move through one non-cloneable attempt; every fallible restoration, settlement, or post-claim removal path returns the complete recovery owner. One dormant shard settlement consumes exactly one normal promotion outcome, distinguishes restored blocking from productive progress, releases unadmitted bytes before bounded notification retention, and preserves accepted delivery ownership. A separate dormant local turn expires running work or drains an explicitly closed shard under a nonzero caller limit. It routes completed jobs in order, preserves a refused current job, untouched suffix, retained prefix, and source-turn owner without allocating a replacement vector, and permits Closed to become Faulted only for drain-generated failure. The dormant composite turn orders local settlement before accepted work and at most one eligible promotion, and always retries the primary route afterward. Current single-lock execution can return only Host: a pending first fault installs its owner and returns Ok(Faulted), while an existing fault gates later local and promotion errors. Pending and HostAndPending are lossless structural future terminal-owner representations; their manually assembled executable evidence proves exact-owner representation only, not reachable composite execution. Explicit closure reports idle to promotion without consuming retained pending ownership, while an existing fault reports typed zero-work progress without replacing its exact first owner. Invariants close both admissions only after routing succeeds; route refusal retains the exact job with semantic context in the immutable first-fault slot, and later fatal owners return intact."
-status = "enforced"
-evidence = [
-  "crates/kafka-client-engine/src/producer/pending/attempt_test.rs::accept_before_record_commit_returns_observer_attempt_and_exact_record",
-  "crates/kafka-client-engine/src/producer/pending/attempt_transfer_test.rs::detached_record_restores_to_the_same_attempt_before_local_settlement",
-  "crates/kafka-client-engine/src/producer/pending/restore_test.rs::failed_restore_cannot_leave_cell_pending_without_registry_entry",
-  "crates/kafka-client-engine/src/producer/pending/turn_error_test.rs::settlement_turn_failure_retains_attempt_record_and_requested_failure",
-  "crates/kafka-client-engine/src/producer/pending/turn_error_test.rs::post_claim_take_failure_retains_the_exact_promotion_owner",
-  "crates/kafka-client-engine/src/producer/ingress/promotion_test.rs::transient_head_restores_before_any_later_fifo_entry_can_promote",
-  "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs::first_fault_closes_both_admission_paths_and_blocks_terminal_cleanup",
-  "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs::later_fault_and_explicit_close_preserve_the_first_owner",
-  "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs::explicit_close_is_idle_without_consuming_pending_ownership",
-  "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs::existing_fault_reports_faulted_without_replacing_its_exact_owner",
-  "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs::accepted_promotion_routes_observation_and_keeps_delivery_ownership",
-  "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs::restored_head_is_blocked_and_remaining_after_reinsertion",
-  "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs::local_and_start_failures_release_admission_bytes_before_routing",
-  "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs::accepted_invariant_routes_first_then_closes_with_copy_facts",
-  "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs::ordinary_route_refusal_faults_with_the_exact_local_context",
-  "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs::invariant_route_refusal_is_the_only_first_fault_owner",
-  "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs::later_settlement_fault_is_returned_without_replacing_the_first",
-  "crates/kafka-client-engine/src/producer/ingress/pending_local_fatal_test.rs::route_refusal_retains_current_job_and_untouched_expiry_suffix",
-  "crates/kafka-client-engine/src/producer/ingress/pending_local_fatal_test.rs::failed_source_turn_keeps_ownership_after_routing_completed_prefix",
-  "crates/kafka-client-engine/src/producer/ingress/pending_local_fatal_test.rs::shutdown_route_refusal_is_the_only_closed_to_faulted_transition",
-  "crates/kafka-client-engine/src/producer/ingress/pending_local_fatal_test.rs::closed_shard_returns_a_non_drain_local_fault_intact",
-  "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs::generic_fatal_cannot_convert_an_explicitly_closed_shard",
-  "crates/kafka-client-engine/src/producer/ingress/shard_turn_test.rs::existing_pending_fault_skips_local_mutation_but_runs_accepted_and_route",
-  "crates/kafka-client-engine/src/producer/ingress/shard_turn_test.rs::accepted_poison_closes_admission_retries_route_and_never_promotes",
-  "crates/kafka-client-engine/src/producer/ingress/shard_turn_test.rs::restored_blocked_promotion_is_preserved_by_the_composite_turn",
-  "crates/kafka-client-engine/src/producer/ingress/shard_turn_test.rs::reachable_promotion_fault_still_retries_its_notification_route",
-  "crates/kafka-client-engine/src/producer/ingress/shard_turn_failure_test.rs::pending_only_cause_returns_the_exact_local_owner",
-  "crates/kafka-client-engine/src/producer/ingress/shard_turn_failure_test.rs::structural_future_host_and_pending_representation_preserves_real_owners",
-]
-
-[[invariant]]
 id = "RCT-01"
 title = "Application code never runs on a reactor"
 statement = "Driver and engine reactors publish into bounded completion mechanisms and never invoke Rust or foreign application callbacks."
@@ -284,13 +206,12 @@ status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/completion/settlement_test.rs::hostile_waker_runs_only_on_the_completion_notifier",
   "crates/kafka-client-engine/src/engine_test.rs::notifier_reentrant_shutdown_returns_without_blocking_host_cleanup",
-  "crates/kafka-client-engine/src/producer/pending/notification_test.rs::local_failure_wakes_only_on_the_completion_notifier",
 ]
 
 [[invariant]]
 id = "SD-01"
 title = "Shutdown closes admission before draining"
-statement = "For the immediate-admission producer slice, shutdown closes admission before draining, drops engine-owned bytes and mechanisms before emergency fallback is observable, and replaces terminal core state before retaining one shared report. Pending-send and driver-owned Produce bytes become ratchet triggers when those paths are integrated."
+statement = "Shutdown closes producer admission before draining, drops engine-owned bytes and mechanisms before emergency fallback is observable, and replaces terminal core state before retaining one shared report. A Drop-backed notifier owner joins off-reactor during normal finalization and finalizer unwind before that report is published. Driver-owned Produce bytes become a ratchet trigger when that path is integrated."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/execution_stop_test.rs::damaged_interpretation_still_settles_observers_conservatively",
@@ -299,6 +220,8 @@ evidence = [
   "crates/kafka-client-engine/src/engine_test.rs::final_engine_drop_on_notifier_still_reaches_closed",
   "crates/kafka-client-engine/src/engine_host/recovery_test.rs::damaged_interpretation_drains_resources_before_retained_failure_report",
   "crates/kafka-client-engine/src/engine_host/recovery_test.rs::failed_runner_settles_accepted_work_and_closes_retained_handles",
+  "crates/kafka-client-engine/src/engine_host/start_test.rs::notifier_join_failure_appends_without_replacing_primary_failure",
+  "crates/kafka-client-engine/src/engine_host/start_test.rs::finalizer_panic_still_publishes_a_terminal_report",
   "crates/kafka-client-engine/src/driver/owner_test.rs::dropping_the_sole_driver_handle_uses_implicit_reactor_shutdown",
 ]
 

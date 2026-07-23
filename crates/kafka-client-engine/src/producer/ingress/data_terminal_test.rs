@@ -1,4 +1,4 @@
-//! Shard-wide terminal refusal and recovery scenarios.
+//! Shard terminal settlement and notifier-owner transfer scenarios.
 
 use std::time::Instant;
 
@@ -6,90 +6,53 @@ use kafka_client_core::{Deadline, Moment};
 
 use crate::{
     clock::OperationDeadline,
+    completion::CompletionRegistryError,
     producer::{
         admission_test::record,
         host_limits_test::{start, valid_limits},
     },
 };
 
-use super::{
-    data::ProducerShardData,
-    terminal::{ProducerShardPendingOwnership, ProducerShardTerminalError},
-};
+use super::data::ProducerShardData;
 
 #[test]
-fn normal_terminal_cleanup_refuses_registered_pending_ownership_without_drain() {
-    let mut data = ProducerShardData::new(start(valid_limits()));
-    let waiting = data
-        .register_pending(record("pending"), deadline())
-        .unwrap_or_else(|error| panic!("pending record should register: {error:?}"));
-    data.close_admission();
-    let expected = pending_ownership(&data);
-
-    let Err(release) = data.verify_release_before_completion() else {
-        panic!("release verification must refuse pending ownership")
-    };
-    assert_pending(release, expected);
-    let Err(drain) = data.drain_terminal_mechanisms() else {
-        panic!("terminal drain must refuse pending ownership")
-    };
-    assert_pending(drain, expected);
-    let Err(final_check) = data.verify_terminal_cleanup() else {
-        panic!("final verification must refuse pending ownership")
-    };
-    assert_pending(final_check, expected);
-    let Err(stop) = data.begin_notification_shutdown() else {
-        panic!("notification shutdown must refuse pending ownership")
-    };
-    assert_pending(stop, expected);
-    assert_eq!(pending_ownership(&data), expected);
-    drop(waiting);
-}
-
-#[test]
-fn recovery_refuses_registered_pending_ownership_after_settling_accepted_work() {
+fn settled_shard_transfers_the_notifier_join_owner() {
     let mut data = ProducerShardData::new(start(valid_limits()));
     let accepted = data
         .try_admit_explicit(Moment::from_tick(1), deadline(), record("accepted"))
-        .unwrap_or_else(|error| panic!("accepted record should enter core: {error:?}"));
-    let waiting = data
-        .register_pending(record("pending"), deadline())
-        .unwrap_or_else(|error| panic!("pending record should register: {error:?}"));
-    let expected = pending_ownership(&data);
+        .unwrap_or_else(|error| panic!("record should enter core: {error:?}"));
 
     data.execution_unavailable(Moment::from_tick(2))
-        .unwrap_or_else(|error| panic!("accepted work should settle before refusal: {error}"));
+        .unwrap_or_else(|error| panic!("accepted work should settle: {error}"));
     assert!(accepted.into_delivery_observer().wait().is_err());
-    let Err(release) = data.verify_release_before_completion() else {
-        panic!("recovery verification must refuse pending ownership")
-    };
-    assert_pending(release, expected);
-    let Err(drain) = data.drain_terminal_mechanisms() else {
-        panic!("recovery drain must preserve pending ownership")
-    };
-    assert_pending(drain, expected);
-    let Err(recovery) = data.recover_notifier() else {
-        panic!("notifier recovery must refuse pending ownership")
-    };
-    assert_pending(recovery, expected);
+    data.verify_release_before_completion()
+        .unwrap_or_else(|error| panic!("settled resources should release: {error}"));
+    data.drain_terminal_mechanisms();
+    data.verify_terminal_cleanup()
+        .unwrap_or_else(|error| panic!("terminal resources should be empty: {error}"));
 
-    let stats = data.shard_stats();
-    assert_eq!(stats.host.store.records, 0);
-    assert_eq!(pending_ownership(&data), expected);
-    drop(waiting);
+    let notifier = data
+        .begin_notification_shutdown()
+        .unwrap_or_else(|error| panic!("settled notifier should stop: {error}"));
+    assert_eq!(notifier.join_off_notifier(), Ok(()));
 }
 
-fn pending_ownership(data: &ProducerShardData) -> ProducerShardPendingOwnership {
-    let stats = data.shard_stats();
-    ProducerShardPendingOwnership::new(
-        stats.pending.records,
-        stats.pending.retained_bytes,
-        stats.pending.notification_permits,
-    )
-}
+#[test]
+fn damaged_recovery_retains_notifier_ownership_with_the_error() {
+    let mut data = ProducerShardData::new(start(valid_limits()));
+    let _accepted = data
+        .try_admit_explicit(Moment::from_tick(1), deadline(), record("accepted"))
+        .unwrap_or_else(|error| panic!("record should enter core: {error:?}"));
 
-fn assert_pending(error: ProducerShardTerminalError, expected: ProducerShardPendingOwnership) {
-    assert_eq!(error.pending_ownership(), Some(expected));
+    let recovery = data.recover_notifier();
+    assert_eq!(
+        recovery.error,
+        Some(CompletionRegistryError::UnsettledCompletion)
+    );
+    let notifier = recovery
+        .notifier
+        .unwrap_or_else(|| panic!("recovery must retain the notifier join owner"));
+    assert_eq!(notifier.join_off_notifier(), Ok(()));
 }
 
 fn deadline() -> OperationDeadline {

@@ -12,8 +12,7 @@ use std::{
 };
 
 use super::{
-    CompletionId, CompletionNotificationAuthority, CompletionObserver, CompletionRegistryError,
-    NotifierJoin,
+    CompletionId, CompletionObserver, CompletionRegistryError, NotifierJoin,
     cell::CompletionCell,
     host_state::HostSlot,
     notifier::{Notifier, PublishJob},
@@ -38,10 +37,7 @@ pub(crate) struct CompletionRegistry<T> {
 }
 
 impl<T: Send + 'static> CompletionRegistry<T> {
-    pub(super) fn start_with_notification_authority(
-        authority: CompletionNotificationAuthority,
-    ) -> std::io::Result<Self> {
-        let (capacity, queue_authority) = authority.into_parts();
+    pub(crate) fn start(capacity: usize) -> std::io::Result<Self> {
         let (reclaim_sender, reclaim) = sync_channel(capacity);
         let mut slots = Vec::with_capacity(capacity);
         let mut free = Vec::with_capacity(capacity);
@@ -54,7 +50,7 @@ impl<T: Send + 'static> CompletionRegistry<T> {
             slots,
             free,
             reclaim,
-            notifier: Some(Notifier::start(queue_authority)?),
+            notifier: Some(Notifier::start(capacity)?),
         })
     }
 

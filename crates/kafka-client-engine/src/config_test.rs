@@ -14,7 +14,7 @@ fn provisional_defaults_are_explicit_and_bounded() {
 
 #[test]
 fn zero_capacity_is_rejected_before_host_startup() {
-    let limits = EngineProducerLimits::new(0, 1, 1, 1, 1, Duration::from_millis(1));
+    let limits = EngineProducerLimits::new(0, 1, 1, 1, Duration::from_millis(1));
     let config =
         EngineConfig::new(vec!["broker.test:9092".to_owned()]).with_producer_limits(limits);
 
@@ -22,17 +22,8 @@ fn zero_capacity_is_rejected_before_host_startup() {
 }
 
 #[test]
-fn notification_capacity_overflow_is_rejected_before_host_startup() {
-    let limits = EngineProducerLimits::new(1, usize::MAX, 1, 1, 1, Duration::from_millis(1));
-    let config =
-        EngineConfig::new(vec!["broker.test:9092".to_owned()]).with_producer_limits(limits);
-
-    assert!(config.validate().is_err());
-}
-
-#[test]
-fn compiler_preserves_distinct_accepted_and_pending_capacities() {
-    let limits = EngineProducerLimits::new(4_096, 11, 17, 3, 2_048, Duration::from_millis(7));
+fn compiler_preserves_accepted_capacity() {
+    let limits = EngineProducerLimits::new(4_096, 11, 3, 2_048, Duration::from_millis(7));
     let config =
         EngineConfig::new(vec!["broker.test:9092".to_owned()]).with_producer_limits(limits);
     let validated = config
@@ -41,7 +32,5 @@ fn compiler_preserves_distinct_accepted_and_pending_capacities() {
 
     assert_eq!(validated.host_limits.record_capacity, 11);
     assert_eq!(validated.host_limits.completion_capacity, 11);
-    assert_eq!(validated.host_limits.pending_record_capacity, 17);
-    assert_eq!(validated.host_limits.pending_notification_capacity, 17);
-    assert_eq!(validated.host_limits.notification_capacity, 28);
+    assert_eq!(validated.host_limits.batch_policy.max_records(), 3);
 }

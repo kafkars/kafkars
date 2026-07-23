@@ -141,9 +141,7 @@ fn fallback_failure_retains_primary_and_settlement_diagnostics() {
         Deadline::from_tick(100),
         record("orders"),
     );
-    let recovery = host
-        .recover_notifier()
-        .unwrap_or_else(|error| panic!("notification recovery should remain owned: {error}"));
+    let recovery = host.recover_notifier();
     host.inject_terminal_interpretation_fault();
 
     let error = host
@@ -159,11 +157,10 @@ fn fallback_failure_retains_primary_and_settlement_diagnostics() {
     assert_eq!(host.stats().core_completion_slots, 0);
     assert_eq!(host.unsettled_completions(), 1);
     drop(admitted);
-    let shutdown = recovery.notifications;
-    assert_eq!(
-        shutdown.finish_notification_cleanup(),
-        super::pending::PendingNotificationShutdownFailures::default()
-    );
+    let notifier = recovery
+        .notifier
+        .unwrap_or_else(|| panic!("notification recovery should remain owned"));
+    assert_eq!(notifier.join_off_notifier(), Ok(()));
 }
 
 #[test]

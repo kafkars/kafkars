@@ -27,10 +27,7 @@ fn notifier_handoff_requires_terminal_settlement() {
     let shutdown = host
         .begin_notification_shutdown()
         .unwrap_or_else(|error| panic!("settled notifier should stop: {error}"));
-    assert_eq!(
-        shutdown.finish_notification_cleanup(),
-        super::pending::PendingNotificationShutdownFailures::default()
-    );
+    assert_eq!(shutdown.join_off_notifier(), Ok(()));
 
     let Err(ProducerDeliveryError::Failed(failure)) = admitted.into_delivery_observer().wait()
     else {
@@ -43,7 +40,7 @@ fn notifier_handoff_requires_terminal_settlement() {
 }
 
 #[test]
-fn missing_primary_only_allows_proven_empty_recovery_cleanup() {
+fn missing_notifier_is_reported_without_fabricating_an_owner() {
     let mut host = start(valid_limits());
     let notifier = host
         .completions
@@ -53,18 +50,13 @@ fn missing_primary_only_allows_proven_empty_recovery_cleanup() {
         .join_off_notifier()
         .unwrap_or_else(|error| panic!("empty notifier should join: {error}"));
 
-    let recovery = host
-        .recover_notifier()
-        .unwrap_or_else(|error| panic!("empty recovery should be provable: {error}"));
+    let recovery = host.recover_notifier();
 
     assert_eq!(
         recovery.error,
         Some(CompletionRegistryError::NotifierStopped)
     );
-    assert_eq!(
-        recovery.notifications.finish_notification_cleanup(),
-        super::pending::PendingNotificationShutdownFailures::default()
-    );
+    assert!(recovery.notifier.is_none());
 }
 
 #[test]
@@ -77,20 +69,17 @@ fn recovery_retains_notifier_owner_when_terminal_settlement_is_damaged() {
         record("orders"),
     );
 
-    let recovery = host
-        .recover_notifier()
-        .unwrap_or_else(|error| panic!("notification recovery should remain owned: {error}"));
+    let recovery = host.recover_notifier();
 
     assert_eq!(
         recovery.error,
         Some(CompletionRegistryError::UnsettledCompletion)
     );
     drop(admitted);
-    let shutdown = recovery.notifications;
-    assert_eq!(
-        shutdown.finish_notification_cleanup(),
-        super::pending::PendingNotificationShutdownFailures::default()
-    );
+    let notifier = recovery
+        .notifier
+        .unwrap_or_else(|| panic!("notification recovery should remain owned"));
+    assert_eq!(notifier.join_off_notifier(), Ok(()));
 }
 
 #[test]

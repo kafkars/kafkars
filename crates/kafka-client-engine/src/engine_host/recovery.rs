@@ -2,7 +2,10 @@
 
 use kafka_client_core::Moment;
 
-use super::{EngineHostError, EngineHostExit, EngineHostResources, runner::shutdown_driver};
+use super::{
+    EngineHostError, EngineHostExit, EngineHostResources,
+    runner::{NotifierShutdownOwner, shutdown_driver},
+};
 
 pub(crate) fn recover(
     resources: &mut EngineHostResources,
@@ -17,55 +20,32 @@ pub(crate) fn recover(
     {
         failure = failure.with_cleanup(cleanup);
     }
-    let release = producer.verify_release_before_completion();
-    let pending_blocked = release
-        .as_ref()
-        .is_err_and(|error| error.pending_ownership().is_some());
-    if let Some(cleanup) = release.err().map(EngineHostError::ProducerCleanup) {
+    if let Some(cleanup) = producer
+        .verify_release_before_completion()
+        .err()
+        .map(EngineHostError::ProducerCleanup)
+    {
         failure = failure.with_cleanup(cleanup);
     }
-    let notifications = if pending_blocked {
-        None
-    } else {
-        if let Some(cleanup) = producer
-            .drain_terminal_mechanisms()
-            .err()
-            .map(EngineHostError::ProducerCleanup)
-        {
-            failure = failure.with_cleanup(cleanup);
-        }
-        if let Some(cleanup) = producer
-            .verify_terminal_cleanup()
-            .err()
-            .map(EngineHostError::ProducerCleanup)
-        {
-            failure = failure.with_cleanup(cleanup);
-        }
-        match producer.recover_notifier() {
-            Ok(recovery) => {
-                if let Some(error) = recovery.error {
-                    failure = failure.with_cleanup(EngineHostError::ProducerCleanup(error.into()));
-                }
-                Some(recovery.notifications)
-            }
-            Err(error) => {
-                let cleanup = match error {
-                    crate::producer::ingress::ProducerShardTerminalError::PendingPrimaryMissing(
-                        error,
-                    ) => EngineHostError::PendingPrimaryMissing(error),
-                    error => EngineHostError::ProducerCleanup(error),
-                };
-                failure = failure.with_cleanup(cleanup);
-                None
-            }
-        }
-    };
+    producer.drain_terminal_mechanisms();
+    if let Some(cleanup) = producer
+        .verify_terminal_cleanup()
+        .err()
+        .map(EngineHostError::ProducerCleanup)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    let recovery = producer.recover_notifier();
+    let notifier = NotifierShutdownOwner::new(recovery.notifier);
+    if let Some(error) = recovery.error {
+        failure = failure.with_cleanup(EngineHostError::ProducerCleanup(error.into()));
+    }
     drop(producer);
     if let Some(cleanup) = shutdown_driver(resources).err() {
         failure = failure.with_cleanup(cleanup);
     }
     EngineHostExit {
-        notifications,
+        notifier,
         failure: Some(failure),
     }
 }

@@ -24,8 +24,6 @@ pub enum ProducerTrySendErrorKind {
     TimestampUnrepresentable,
     /// Another thread currently owns this producer shard.
     Contended,
-    /// An older pending send owns FIFO admission precedence.
-    PendingPrecedence,
     /// Every terminal-completion slot is retained.
     CompletionCapacity,
     /// Every retained-record slot is occupied.
@@ -128,9 +126,6 @@ impl std::error::Error for ProducerTrySendError {}
 fn map_rejection(reason: ProducerPortRejectionReason) -> ProducerTrySendErrorKind {
     match reason {
         ProducerPortRejectionReason::Contended => ProducerTrySendErrorKind::Contended,
-        ProducerPortRejectionReason::PendingPrecedence => {
-            ProducerTrySendErrorKind::PendingPrecedence
-        }
         ProducerPortRejectionReason::Host(reason) => map_host_rejection(reason),
     }
 }

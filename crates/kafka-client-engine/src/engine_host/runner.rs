@@ -6,11 +6,11 @@ use kafka_client_core::{Deadline, Moment};
 
 use crate::{
     clock::MonotonicClock,
+    completion::NotifierJoin,
     driver::{DriverOwner, DriverTurn},
     producer::{
         host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
         ingress::{ProducerShardLockError, ProducerShardOwner},
-        pending::PendingNotificationCleanupOwner,
     },
 };
 
@@ -38,8 +38,34 @@ impl Drop for EngineHostResources {
 }
 
 pub(crate) struct EngineHostExit {
-    pub(super) notifications: Option<PendingNotificationCleanupOwner>,
+    pub(super) notifier: NotifierShutdownOwner,
     pub(super) failure: Option<EngineHostError>,
+}
+
+/// Exact notifier-join owner carried only into the off-notifier finalizer.
+pub(crate) struct NotifierShutdownOwner {
+    notifier: Option<NotifierJoin>,
+}
+
+impl NotifierShutdownOwner {
+    pub(super) const fn new(notifier: Option<NotifierJoin>) -> Self {
+        Self { notifier }
+    }
+
+    pub(super) fn join_off_notifier(&mut self) -> Result<(), crate::completion::NotifierJoinError> {
+        let Some(notifier) = self.notifier.take() else {
+            return Ok(());
+        };
+        notifier.join_off_notifier()
+    }
+}
+
+impl Drop for NotifierShutdownOwner {
+    fn drop(&mut self) {
+        if let Some(notifier) = self.notifier.take() {
+            let _join_result = notifier.join_off_notifier();
+        }
+    }
 }
 
 pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit, EngineHostError> {
@@ -69,16 +95,16 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
 
     shutdown_driver(resources)?;
     prepare_notification_stop(resources)?;
-    let notifications = begin_notification_shutdown(resources)?;
+    let notifier = begin_notification_shutdown(resources)?;
     Ok(EngineHostExit {
-        notifications: Some(notifications),
+        notifier: NotifierShutdownOwner::new(Some(notifier)),
         failure: None,
     })
 }
 
 fn begin_notification_shutdown(
     resources: &EngineHostResources,
-) -> Result<PendingNotificationCleanupOwner, EngineHostError> {
+) -> Result<NotifierJoin, EngineHostError> {
     let mut data = resources.producer.terminal_data();
     data.begin_notification_shutdown()
         .map_err(EngineHostError::ProducerCleanup)
@@ -157,27 +183,15 @@ fn duration_until(now: Moment, deadline: Deadline) -> Duration {
     Duration::from_nanos(deadline.tick().saturating_sub(now.tick()))
 }
 
-/// Verifies all producer-owned admission and terminal work before either
-/// notification worker is stopped.
-///
-/// Live pending-registry integration extends this stage so pending refusal and
-/// routing complete before any join owner moves out of the producer host.
+/// Verifies all producer-owned admission and terminal work before the
+/// completion notifier is stopped.
 pub(super) fn prepare_notification_stop(
     resources: &EngineHostResources,
 ) -> Result<(), EngineHostError> {
     let mut data = resources.producer.terminal_data();
     let release = data.verify_release_before_completion();
-    if let Err(error) = release
-        && error.pending_ownership().is_some()
-    {
-        return Err(EngineHostError::ProducerCleanup(error));
-    }
-    let mut failure = release.err().map(EngineHostError::ProducerCleanup);
-    let drain_failure = data
-        .drain_terminal_mechanisms()
-        .err()
-        .map(EngineHostError::ProducerCleanup);
-    failure = combine_cleanup(failure, drain_failure);
+    let failure = release.err().map(EngineHostError::ProducerCleanup);
+    data.drain_terminal_mechanisms();
     let final_failure = data
         .verify_terminal_cleanup()
         .err()

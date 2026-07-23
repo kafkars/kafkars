@@ -8,7 +8,7 @@ use crate::clock::OperationDeadline;
 
 use super::{
     super::ProducerRecord,
-    ProducerShardLockError, ProducerShardWakeError,
+    ProducerShardLockError,
     outcome::{
         ProducerPortAccepted, ProducerPortAdmissionError, ProducerPortPoisonReason,
         ProducerPortRejectionReason, classify_admission, poisoned_before, rejected,
@@ -25,17 +25,6 @@ pub(crate) struct ProducerAdmissionPort {
 impl ProducerAdmissionPort {
     pub(super) const fn new(shared: Arc<ProducerShardState>) -> Self {
         Self { shared }
-    }
-
-    pub(super) fn data(
-        &self,
-    ) -> Result<std::sync::MutexGuard<'_, super::data::ProducerShardData>, ProducerShardLockError>
-    {
-        self.shared.data()
-    }
-
-    pub(super) fn wake(&self) -> Result<(), ProducerShardWakeError> {
-        self.shared.wake()
     }
 
     /// Closes core admission before terminal host draining begins.
@@ -61,19 +50,12 @@ impl ProducerAdmissionPort {
         Ok(())
     }
 
-    #[cfg(test)]
-    pub(crate) fn shard_lock_available_for_test(&self) -> bool {
-        self.shared.try_data().is_ok()
-    }
-
     /// Attempts immediate explicit-partition admission.
     ///
     /// `attempted_at` is captured once for this immediate attempt. `deadline`
     /// is the original public-boundary deadline and is never restarted. A
-    /// queued send must use its current promotion moment with that same
-    /// deadline. Success means bytes, core identity, and terminal-completion
-    /// capacity transferred atomically. Normal rejection returns the exact
-    /// record.
+    /// Success means bytes, core identity, and terminal-completion capacity
+    /// transferred atomically. Normal rejection returns the exact record.
     #[allow(
         clippy::result_large_err,
         reason = "ownership-preserving rejection returns the intact record"
@@ -93,12 +75,6 @@ impl ProducerAdmissionPort {
                 return Err(poisoned_before(record, ProducerPortPoisonReason::ShardLock));
             }
         };
-        if data.has_pending() {
-            return Err(rejected(
-                record,
-                ProducerPortRejectionReason::PendingPrecedence,
-            ));
-        }
         let accepted = classify_admission(data.try_admit_explicit(attempted_at, deadline, record))?;
         drop(data);
         Ok(accepted.with_wake(self.shared.wake()))

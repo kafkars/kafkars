@@ -4,10 +4,7 @@ use std::{error::Error, fmt};
 
 use kafka_client_core::{AdmissionRejection, ProducerMachineError};
 
-use crate::{
-    clock::BatchTimerError, completion::CompletionRegistryError,
-    producer::pending::PendingRecoveryJoinError,
-};
+use crate::{clock::BatchTimerError, completion::CompletionRegistryError};
 
 use super::{
     ProducerStoreError, binding::OperationBindingError, execution::PreparedExecutionError,
@@ -22,9 +19,6 @@ pub(crate) enum ProducerHostLimitError {
     RecordCompletionMismatch,
     InsufficientBatchCapacity,
     InsufficientTimerCapacity,
-    PendingNotificationCapacityMismatch,
-    NotificationCapacityOverflow,
-    NotificationCapacityMismatch,
     ZeroEncodedByteCapacity,
     ZeroWireBatchBytes,
     BatchRecordLimitExceedsCapacity,
@@ -45,15 +39,6 @@ impl fmt::Display for ProducerHostLimitError {
             }
             Self::InsufficientTimerCapacity => {
                 "producer timer capacity must cover every batch slot"
-            }
-            Self::PendingNotificationCapacityMismatch => {
-                "producer pending notification capacity must match pending record capacity"
-            }
-            Self::NotificationCapacityOverflow => {
-                "producer completion and pending notification capacities overflowed"
-            }
-            Self::NotificationCapacityMismatch => {
-                "producer notification capacity must equal completion plus pending capacity"
             }
             Self::ZeroEncodedByteCapacity => "producer encoded-byte capacity must be nonzero",
             Self::ZeroWireBatchBytes => "producer wire batch byte limit must be nonzero",
@@ -77,18 +62,6 @@ impl Error for ProducerHostLimitError {}
 pub(crate) enum ProducerHostStartError {
     Limits(ProducerHostLimitError),
     Notifier(std::io::Error),
-    PendingRecovery(std::io::Error),
-    NotificationRollback {
-        notifier: std::io::Error,
-        cleanup: PendingRecoveryStartupCleanupError,
-    },
-}
-
-/// Secondary failure while rolling back a prestarted recovery worker.
-#[derive(Debug)]
-pub(crate) enum PendingRecoveryStartupCleanupError {
-    Join(PendingRecoveryJoinError),
-    MissingJoin,
 }
 
 impl From<ProducerHostLimitError> for ProducerHostStartError {
@@ -104,17 +77,6 @@ impl fmt::Display for ProducerHostStartError {
             Self::Notifier(error) => {
                 write!(formatter, "producer notifier failed to start: {error}")
             }
-            Self::PendingRecovery(error) => {
-                write!(
-                    formatter,
-                    "producer pending recovery worker failed to start: {error}"
-                )
-            }
-            Self::NotificationRollback { notifier, cleanup } => write!(
-                formatter,
-                "producer notifier failed to start: {notifier}; pending recovery rollback also \
-                 failed: {cleanup}"
-            ),
         }
     }
 }
@@ -123,22 +85,10 @@ impl Error for ProducerHostStartError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Limits(error) => Some(error),
-            Self::Notifier(error) | Self::PendingRecovery(error) => Some(error),
-            Self::NotificationRollback { notifier, .. } => Some(notifier),
+            Self::Notifier(error) => Some(error),
         }
     }
 }
-
-impl fmt::Display for PendingRecoveryStartupCleanupError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Join(error) => error.fmt(formatter),
-            Self::MissingJoin => formatter.write_str("prestarted recovery worker lost join owner"),
-        }
-    }
-}
-
-impl Error for PendingRecoveryStartupCleanupError {}
 
 /// Why ownership remained with the caller during normal admission rejection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

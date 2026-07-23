@@ -7,17 +7,11 @@ use std::{
     thread::{self, JoinHandle, ThreadId},
 };
 
-use crate::producer::pending::PendingNotificationDispatchAuthority;
-
 use super::{
-    CompletionId, NotificationQueueAuthority,
+    CompletionId,
     cell::CompletionCell,
-    notifier_queue::{NotificationJob, NotificationQueue, QueuePushError},
+    notifier_queue::{NotificationQueue, QueuePushError},
 };
-
-#[path = "notifier/authority.rs"]
-mod authority;
-pub(crate) use authority::NotifierPendingDispatchOwner;
 
 pub(super) struct PublishJob<T> {
     pub(super) id: CompletionId,
@@ -31,10 +25,8 @@ pub(super) struct Notifier<T> {
 }
 
 impl<T: Send + 'static> Notifier<T> {
-    pub(super) fn start(authority: NotificationQueueAuthority) -> std::io::Result<Self> {
-        let queue = Arc::new(NotificationQueue::from_notification_queue_authority(
-            authority,
-        ));
+    pub(super) fn start(capacity: usize) -> std::io::Result<Self> {
+        let queue = Arc::new(NotificationQueue::new(capacity));
         let worker_queue = Arc::clone(&queue);
         let handle = thread::Builder::new()
             .name(String::from("kafka-client-completion-notifier"))
@@ -62,13 +54,6 @@ impl<T: Send + 'static> Notifier<T> {
     ) -> Result<(), QueuePushError<PublishJob<T>>> {
         self.queue.try_publish(job)
     }
-
-    pub(super) fn try_pending(
-        &self,
-        job: crate::producer::pending::PendingNotificationJob,
-    ) -> Result<(), QueuePushError<crate::producer::pending::PendingNotificationJob>> {
-        self.queue.try_pending(job)
-    }
 }
 
 impl<T> fmt::Debug for Notifier<T> {
@@ -81,13 +66,8 @@ impl<T> fmt::Debug for Notifier<T> {
 }
 
 fn run<T: Send + 'static>(queue: &NotificationQueue<T>) {
-    let authority =
-        PendingNotificationDispatchAuthority::from_notifier(NotifierPendingDispatchOwner::new());
     while let Some(job) = queue.next() {
-        match job {
-            NotificationJob::Publish(job) => publish(job),
-            NotificationJob::Pending(job) => job.dispatch_pending_notification(&authority),
-        }
+        publish(job);
     }
 }
 

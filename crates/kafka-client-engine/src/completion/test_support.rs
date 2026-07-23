@@ -14,28 +14,8 @@ use std::{
 
 use super::{
     CompletionId, CompletionObserver, CompletionObserverError, CompletionRegistry,
-    CompletionRegistryError, NotificationBudget, NotificationQueueAuthority,
-    PendingPermitAuthority, ReclaimStatus, notifier_queue::NotificationQueue,
+    CompletionRegistryError, ReclaimStatus,
 };
-
-pub(crate) struct NotificationQueueAuthorityTestOwner {
-    _seal: (),
-}
-
-pub(crate) struct PendingPermitAuthorityTestOwner {
-    _seal: (),
-}
-
-const fn notification_queue_authority(capacity: usize) -> NotificationQueueAuthority {
-    NotificationQueueAuthority::for_test(
-        NotificationQueueAuthorityTestOwner { _seal: () },
-        capacity,
-    )
-}
-
-pub(crate) const fn pending_permit_authority(capacity: usize) -> PendingPermitAuthority {
-    PendingPermitAuthority::for_test(PendingPermitAuthorityTestOwner { _seal: () }, capacity)
-}
 
 impl<T: Send + 'static> CompletionRegistry<T> {
     /// Test-only terminal notifier with no pending-notification lane.
@@ -46,21 +26,7 @@ impl<T: Send + 'static> CompletionRegistry<T> {
                 "terminal-only notification capacity must equal completion capacity",
             ));
         }
-        let budget =
-            NotificationBudget::try_new(capacity, 0, notification_capacity).map_err(|_error| {
-                std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "terminal-only notification budget should validate",
-                )
-            })?;
-        let owners = budget.start::<T>()?;
-        Ok(owners.into_parts().0)
-    }
-}
-
-impl<T> NotificationQueue<T> {
-    pub(super) fn new_for_test(capacity: usize) -> Self {
-        Self::from_notification_queue_authority(notification_queue_authority(capacity))
+        Self::start(capacity)
     }
 }
 

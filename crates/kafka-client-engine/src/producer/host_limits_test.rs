@@ -8,14 +8,6 @@ use kafka_client_core::{
 use super::{
     ProducerHost, ProducerHostLimitError, ProducerHostLimits, ProducerHostStartError,
     admission_test::{admit, record},
-    host::startup::start_notification_owners,
-};
-use crate::{
-    completion::NotificationBudget,
-    producer::pending::{
-        PendingAdmissionRegistry,
-        turn_error::{PendingTurnFailure, PendingTurnFailureOwnership},
-    },
 };
 
 #[test]
@@ -24,10 +16,6 @@ fn valid_limits_construct_one_synchronized_host() {
     let host = start(limits);
     let stats = host.stats();
 
-    assert_eq!(
-        host.pending_notification_permits.capacity(),
-        limits.pending_record_capacity
-    );
     assert_eq!(stats.store.records, 0);
     assert_eq!(stats.store.bytes, 0);
     assert_eq!(stats.store.batches, 0);
@@ -37,7 +25,6 @@ fn valid_limits_construct_one_synchronized_host() {
     assert_eq!(stats.prepared_batches, 0);
     assert_eq!(stats.prepared_bytes, 0);
     assert_eq!(stats.submission_deadlines, 0);
-    assert_eq!(stats.pending_notification_permits, 0);
     assert_eq!(stats.pending_effects, 0);
     assert!(stats.healthy);
 }
@@ -69,60 +56,6 @@ fn downstream_mechanisms_must_cover_admission_capacity() {
     let mut timers = valid_limits();
     timers.timer_capacity = 1;
     assert_limit(timers, ProducerHostLimitError::InsufficientTimerCapacity);
-
-    let mut pending_notifications = valid_limits();
-    pending_notifications.pending_notification_capacity = 2;
-    assert_limit(
-        pending_notifications,
-        ProducerHostLimitError::PendingNotificationCapacityMismatch,
-    );
-
-    let mut notifications = valid_limits();
-    notifications.notification_capacity = 3;
-    assert_limit(
-        notifications,
-        ProducerHostLimitError::NotificationCapacityMismatch,
-    );
-}
-
-#[test]
-fn pending_capacity_is_independent_from_accepted_record_capacity() {
-    let limits = valid_limits();
-
-    assert_ne!(limits.record_capacity, limits.pending_record_capacity);
-    assert_eq!(
-        limits.pending_record_capacity,
-        limits.pending_notification_capacity
-    );
-    assert_eq!(
-        limits.notification_capacity,
-        limits.completion_capacity + limits.pending_record_capacity
-    );
-    drop(start(limits));
-}
-
-#[test]
-fn notification_capacity_overflow_is_rejected_before_allocation() {
-    let mut limits = valid_limits();
-    limits.pending_record_capacity = usize::MAX;
-    limits.pending_notification_capacity = usize::MAX;
-    limits.notification_capacity = usize::MAX;
-
-    assert_limit(limits, ProducerHostLimitError::NotificationCapacityOverflow);
-}
-
-#[test]
-fn later_notification_start_failure_joins_the_prestarted_recovery_worker() {
-    let budget = NotificationBudget::try_new(1, 1, 2)
-        .unwrap_or_else(|error| panic!("test notification budget should validate: {error:?}"));
-
-    let result = start_notification_owners::<kafka_client_core::ProducerCompletion, _>(
-        budget,
-        1,
-        |_budget| Err(std::io::Error::other("forced notifier startup failure")),
-    );
-
-    assert!(matches!(result, Err(ProducerHostStartError::Notifier(_))));
 }
 
 #[test]
@@ -202,9 +135,6 @@ fn combined_transition_capacity_overflow_is_rejected_before_allocation() {
     limits.record_capacity = usize::MAX;
     limits.batch_capacity = usize::MAX;
     limits.timer_capacity = usize::MAX;
-    limits.pending_record_capacity = usize::MAX;
-    limits.pending_notification_capacity = usize::MAX;
-    limits.notification_capacity = usize::MAX;
 
     assert_eq!(
         execution_stop_effect_capacity(limits.record_capacity, limits.completion_capacity),
@@ -217,31 +147,6 @@ fn combined_transition_capacity_overflow_is_rejected_before_allocation() {
     assert_limit(limits, ProducerHostLimitError::TerminalTailCapacityOverflow);
 }
 
-#[test]
-fn pending_turn_failure_recovery_is_typed_at_the_host_boundary() {
-    type HostRecovery = fn(PendingTurnFailure, &mut PendingAdmissionRegistry);
-    let host_recovery: HostRecovery =
-        |failure: PendingTurnFailure, registry: &mut PendingAdmissionRegistry| {
-            let (completed, ownership) = failure.into_parts();
-            for local in completed {
-                let (_admission, _notification) = local.into_parts();
-            }
-            match ownership {
-                PendingTurnFailureOwnership::Registry => {}
-                PendingTurnFailureOwnership::Take(failure) => {
-                    let _recovered = failure.recover(registry);
-                }
-                PendingTurnFailureOwnership::Settlement(failure) => {
-                    let _retained = failure.into_parts();
-                }
-            }
-        };
-    assert_eq!(
-        std::mem::size_of_val(&host_recovery),
-        std::mem::size_of::<HostRecovery>()
-    );
-}
-
 pub(super) fn valid_limits() -> ProducerHostLimits {
     let Ok(batch_policy) = ProducerBatchPolicy::try_new(2, ByteCount::new(64), 100) else {
         panic!("test policy should be valid")
@@ -252,9 +157,6 @@ pub(super) fn valid_limits() -> ProducerHostLimits {
         record_capacity: 2,
         batch_capacity: 2,
         timer_capacity: 2,
-        pending_record_capacity: 3,
-        pending_notification_capacity: 3,
-        notification_capacity: 5,
         encoded_byte_capacity: 1_024,
         max_wire_batch_bytes: 1_024,
         batch_policy,

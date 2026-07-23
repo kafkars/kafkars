@@ -1,25 +1,18 @@
-//! One bounded queue shared by terminal publications and pending-send signals.
+//! One bounded queue for accepted-operation terminal publication.
 
 use std::{
     collections::VecDeque,
     sync::{Condvar, Mutex, MutexGuard},
 };
 
-use crate::producer::pending::PendingNotificationJob;
-
-use super::{NotificationQueueAuthority, notifier::PublishJob};
-
-pub(super) enum NotificationJob<T> {
-    Publish(PublishJob<T>),
-    Pending(PendingNotificationJob),
-}
+use super::notifier::PublishJob;
 
 pub(super) enum QueuePushError<J> {
     Full(J),
     Closed(J),
 }
 
-/// One global FIFO capacity shared by both typed notification classes.
+/// One FIFO sized to the accepted-operation completion capacity.
 ///
 /// Submission is non-blocking. Saturation and closure return the exact job;
 /// neither condition authorizes synchronous dispatch by the submitting owner.
@@ -31,12 +24,11 @@ pub(super) struct NotificationQueue<T> {
 
 struct QueueState<T> {
     open: bool,
-    jobs: VecDeque<NotificationJob<T>>,
+    jobs: VecDeque<PublishJob<T>>,
 }
 
 impl<T> NotificationQueue<T> {
-    pub(super) fn from_notification_queue_authority(authority: NotificationQueueAuthority) -> Self {
-        let capacity = authority.into_capacity();
+    pub(super) fn new(capacity: usize) -> Self {
         Self {
             capacity,
             state: Mutex::new(QueueState {
@@ -58,28 +50,12 @@ impl<T> NotificationQueue<T> {
         if state.jobs.len() == self.capacity {
             return Err(QueuePushError::Full(job));
         }
-        state.jobs.push_back(NotificationJob::Publish(job));
+        state.jobs.push_back(job);
         self.changed.notify_one();
         Ok(())
     }
 
-    pub(super) fn try_pending(
-        &self,
-        job: PendingNotificationJob,
-    ) -> Result<(), QueuePushError<PendingNotificationJob>> {
-        let mut state = self.lock();
-        if !state.open {
-            return Err(QueuePushError::Closed(job));
-        }
-        if state.jobs.len() == self.capacity {
-            return Err(QueuePushError::Full(job));
-        }
-        state.jobs.push_back(NotificationJob::Pending(job));
-        self.changed.notify_one();
-        Ok(())
-    }
-
-    pub(super) fn next(&self) -> Option<NotificationJob<T>> {
+    pub(super) fn next(&self) -> Option<PublishJob<T>> {
         let mut state = self.lock();
         loop {
             if let Some(job) = state.jobs.pop_front() {

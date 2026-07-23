@@ -88,7 +88,6 @@ impl ProducerPortRejected {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ProducerPortRejectionReason {
     Contended,
-    PendingPrecedence,
     Host(ProducerRejectionReason),
 }
 

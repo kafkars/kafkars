@@ -4,7 +4,6 @@ use std::time::Duration;
 
 const DEFAULT_RETAINED_BYTES: usize = 32 * 1024 * 1024;
 const DEFAULT_IN_FLIGHT_RECORDS: usize = 1_024;
-const DEFAULT_PENDING_RECORDS: usize = 1_024;
 const DEFAULT_BATCH_RECORDS: usize = 256;
 const DEFAULT_BATCH_BYTES: usize = 1024 * 1024;
 const DEFAULT_LINGER: Duration = Duration::from_millis(5);
@@ -14,18 +13,16 @@ const DEFAULT_LINGER: Duration = Duration::from_millis(5);
 pub struct EngineProducerLimits {
     retained_bytes: usize,
     in_flight_records: usize,
-    pending_records: usize,
     batch_records: usize,
     batch_bytes: usize,
     linger: Duration,
 }
 
 impl EngineProducerLimits {
-    /// Creates separate accepted and pre-admission record capacities.
+    /// Creates accepted-record and bounded batch capacities.
     pub const fn new(
         retained_bytes: usize,
         in_flight_records: usize,
-        pending_records: usize,
         batch_records: usize,
         batch_bytes: usize,
         linger: Duration,
@@ -33,14 +30,13 @@ impl EngineProducerLimits {
         Self {
             retained_bytes,
             in_flight_records,
-            pending_records,
             batch_records,
             batch_bytes,
             linger,
         }
     }
 
-    /// Returns the aggregate application-byte ceiling for accepted and pending records.
+    /// Returns the application-byte ceiling for accepted records.
     pub const fn retained_bytes(self) -> usize {
         self.retained_bytes
     }
@@ -48,11 +44,6 @@ impl EngineProducerLimits {
     /// Returns the accepted record and terminal-completion capacity.
     pub const fn in_flight_records(self) -> usize {
         self.in_flight_records
-    }
-
-    /// Returns the pre-core pending-admission record capacity.
-    pub const fn pending_records(self) -> usize {
-        self.pending_records
     }
 
     /// Returns the maximum records in one accumulator.
@@ -76,7 +67,6 @@ impl Default for EngineProducerLimits {
         Self::new(
             DEFAULT_RETAINED_BYTES,
             DEFAULT_IN_FLIGHT_RECORDS,
-            DEFAULT_PENDING_RECORDS,
             DEFAULT_BATCH_RECORDS,
             DEFAULT_BATCH_BYTES,
             DEFAULT_LINGER,

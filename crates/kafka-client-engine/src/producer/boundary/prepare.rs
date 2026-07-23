@@ -1,4 +1,4 @@
-//! One-time explicit-record preparation shared by immediate and waiting admission.
+//! One-time explicit-record preparation for immediate producer admission.
 
 use kafka_client_core::Moment;
 

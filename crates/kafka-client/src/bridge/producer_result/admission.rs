@@ -74,7 +74,6 @@ pub(super) const fn admission_kind(kind: EngineTrySendErrorKind) -> ErrorKind {
         EngineTrySendErrorKind::DeadlineUnrepresentable
         | EngineTrySendErrorKind::DeadlineElapsed => ErrorKind::Timeout,
         EngineTrySendErrorKind::Contended
-        | EngineTrySendErrorKind::PendingPrecedence
         | EngineTrySendErrorKind::CompletionCapacity
         | EngineTrySendErrorKind::RecordCapacity
         | EngineTrySendErrorKind::ByteCapacity
@@ -104,9 +103,6 @@ const fn admission_message(kind: EngineTrySendErrorKind) -> &'static str {
             "engine timestamp cannot be represented"
         }
         EngineTrySendErrorKind::Contended => "producer admission is contended",
-        EngineTrySendErrorKind::PendingPrecedence => {
-            "an older pending producer send owns admission precedence"
-        }
         EngineTrySendErrorKind::CompletionCapacity => "producer completion capacity is exhausted",
         EngineTrySendErrorKind::RecordCapacity => "producer record capacity is exhausted",
         EngineTrySendErrorKind::ByteCapacity => "producer byte capacity is exhausted",

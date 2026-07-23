@@ -3,24 +3,15 @@
 mod driver_input;
 #[cfg(test)]
 mod driver_input_test;
-#[path = "host/startup.rs"]
-pub(super) mod startup;
-
-use std::sync::Arc;
-
 use kafka_client_core::{ByteCount, ProducerBatchPolicy, ProducerEffect, ProducerMachine};
 
-use crate::{
-    clock::BatchTimers,
-    completion::{CompletionRegistry, NotificationBudget},
-};
+use crate::{clock::BatchTimers, completion::CompletionRegistry};
 
 use super::{
     ProducerHostInvariantError, ProducerHostLimitError, ProducerHostStartError, ProducerStore,
     ProducerStoreLimits, ProducerStoreStats,
     binding::OperationBindings,
     execution::{PreparedExecution, PreparedExecutionLimits},
-    pending::{PendingNotificationPermitPool, PendingNotificationRoute},
     reclaim::CompletionReclaimer,
     terminal_backlog::{
         FatalTransitionBuffer, OrderedTerminalBacklog, TerminalPoisonSlot, TerminalQuarantine,
@@ -43,8 +34,6 @@ pub(crate) struct ProducerHostStats {
     pub(crate) prepared_bytes: usize,
     pub(crate) submission_deadlines: usize,
     pub(crate) completion_bindings: usize,
-    pub(crate) pending_notification_permits: usize,
-    pub(crate) pending_notification_backlog: usize,
     pub(crate) pending_effects: usize,
     pub(crate) terminal_backlog: usize,
     pub(crate) healthy: bool,
@@ -79,8 +68,6 @@ pub(crate) struct ProducerHost {
     pub(super) core_config: ProducerCoreConfig,
     pub(super) store: ProducerStore,
     pub(super) completions: CompletionRegistry<kafka_client_core::ProducerCompletion>,
-    pub(super) pending_notification_permits: Arc<PendingNotificationPermitPool>,
-    pub(super) pending_notifications: PendingNotificationRoute,
     pub(super) bindings: OperationBindings,
     pub(super) reclaimer: CompletionReclaimer,
     pub(super) timers: BatchTimers,
@@ -93,7 +80,6 @@ pub(crate) struct ProducerHost {
     pub(super) fatal_transition: FatalTransitionBuffer,
     pub(super) effect_capacity: usize,
     pub(super) health: ProducerHostHealth,
-    retained_byte_limit: usize,
     #[cfg(test)]
     pub(super) terminal_publish_faults:
         std::collections::VecDeque<crate::completion::CompletionRegistryError>,
@@ -109,8 +95,7 @@ pub(crate) struct ProducerHost {
 
 impl ProducerHost {
     pub(crate) fn new(limits: ProducerHostLimits) -> Result<Self, ProducerHostStartError> {
-        let (retained_bytes, notification_budget, transition_capacity) =
-            limits.validate()?.into_parts();
+        let (retained_bytes, transition_capacity) = limits.validate()?.into_parts();
         let terminal_quarantine =
             TerminalQuarantine::for_capacities(limits.record_capacity, limits.completion_capacity)?;
         if terminal_quarantine.transition_effect_capacity() != transition_capacity {
@@ -125,12 +110,8 @@ impl ProducerHost {
         if core.transition_effect_capacity() != Some(transition_capacity) {
             return Err(ProducerHostLimitError::TerminalTailCapacityOverflow.into());
         }
-        let (notification_owners, pending_notifications) = startup::start_notification_owners(
-            notification_budget,
-            limits.pending_notification_capacity,
-            NotificationBudget::start,
-        )?;
-        let (completions, pending_notification_permits) = notification_owners.into_parts();
+        let completions = CompletionRegistry::start(limits.completion_capacity)
+            .map_err(ProducerHostStartError::Notifier)?;
         Ok(Self {
             core,
             core_config,
@@ -140,8 +121,6 @@ impl ProducerHost {
                 batches: limits.batch_capacity,
             }),
             completions,
-            pending_notification_permits,
-            pending_notifications,
             bindings: OperationBindings::new(limits.completion_capacity),
             reclaimer: CompletionReclaimer::new(),
             timers: BatchTimers::new(limits.timer_capacity),
@@ -160,7 +139,6 @@ impl ProducerHost {
             fatal_transition: FatalTransitionBuffer::new(transition_capacity),
             effect_capacity: limits.completion_capacity,
             health: ProducerHostHealth::Healthy,
-            retained_byte_limit: limits.retained_bytes,
             #[cfg(test)]
             terminal_publish_faults: std::collections::VecDeque::new(),
             #[cfg(test)]
@@ -185,21 +163,12 @@ impl ProducerHost {
             prepared_bytes: prepared.encoded_record_bytes,
             submission_deadlines: self.execution.submission_count(),
             completion_bindings: self.bindings.len(),
-            pending_notification_permits: self.pending_notification_permits.in_use(),
-            pending_notification_backlog: self.pending_notifications.retained_len(),
             pending_effects: self.pending_effects.len(),
             terminal_backlog: self.terminal_backlog.len(),
             healthy: self.health == ProducerHostHealth::Healthy,
         }
     }
 
-    pub(super) const fn retained_byte_limit(&self) -> usize {
-        self.retained_byte_limit
-    }
-
-    pub(super) fn pending_notification_permits(&self) -> Arc<PendingNotificationPermitPool> {
-        Arc::clone(&self.pending_notification_permits)
-    }
     pub(crate) fn pending_effects(&self) -> &[ProducerEffect] {
         &self.pending_effects
     }

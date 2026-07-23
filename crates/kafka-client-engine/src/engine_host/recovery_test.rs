@@ -95,11 +95,6 @@ fn damaged_interpretation_drains_resources_before_retained_failure_report() {
     assert!(retained.host.prepared_bytes > 0);
     assert_eq!(retained.host.submission_deadlines, 1);
     assert_eq!(retained.host.completion_bindings, 1);
-    assert_eq!(
-        retained.aggregate_retained_bytes,
-        retained.host.store.bytes + retained.pending.retained_bytes
-    );
-
     producer.inject_terminal_interpretation_fault();
     engine.force_host_failure();
     let error = engine
@@ -125,7 +120,6 @@ fn damaged_interpretation_drains_resources_before_retained_failure_report() {
     assert_eq!(drained.host.pending_effects, 0);
     assert_eq!(drained.host.core_retained_bytes, ByteCount::new(0));
     assert_eq!(drained.host.core_completion_slots, 0);
-    assert_eq!(drained.aggregate_retained_bytes, 0);
     wait_until(|| waker_called.load(Ordering::Acquire));
     assert!(released_before_wake.load(Ordering::Acquire));
 

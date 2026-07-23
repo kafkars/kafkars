@@ -2,8 +2,6 @@
 
 use kafka_client_core::{ByteCount, ProducerBatchPolicy, producer_transition_effect_capacity};
 
-use crate::completion::{NotificationBudget, NotificationBudgetError};
-
 use crate::producer::host_error::ProducerHostLimitError;
 
 /// Capacity values shared by core policy and every bounded engine owner.
@@ -14,9 +12,6 @@ pub(crate) struct ProducerHostLimits {
     pub(crate) record_capacity: usize,
     pub(crate) batch_capacity: usize,
     pub(crate) timer_capacity: usize,
-    pub(crate) pending_record_capacity: usize,
-    pub(crate) pending_notification_capacity: usize,
-    pub(crate) notification_capacity: usize,
     pub(crate) encoded_byte_capacity: usize,
     pub(crate) max_wire_batch_bytes: usize,
     pub(crate) batch_policy: ProducerBatchPolicy,
@@ -26,17 +21,12 @@ pub(crate) struct ProducerHostLimits {
 #[must_use = "validated producer capacities must be started or deliberately discarded"]
 pub(crate) struct ValidatedProducerHostLimits {
     retained_bytes: ByteCount,
-    notification_budget: NotificationBudget,
     transition_effect_capacity: usize,
 }
 
 impl ValidatedProducerHostLimits {
-    pub(super) fn into_parts(self) -> (ByteCount, NotificationBudget, usize) {
-        (
-            self.retained_bytes,
-            self.notification_budget,
-            self.transition_effect_capacity,
-        )
+    pub(super) const fn into_parts(self) -> (ByteCount, usize) {
+        (self.retained_bytes, self.transition_effect_capacity)
     }
 }
 
@@ -60,10 +50,6 @@ impl ProducerHostLimits {
         let transition_effect_capacity =
             producer_transition_effect_capacity(self.record_capacity, self.completion_capacity)
                 .ok_or(ProducerHostLimitError::TerminalTailCapacityOverflow)?;
-        if self.pending_notification_capacity != self.pending_record_capacity {
-            return Err(ProducerHostLimitError::PendingNotificationCapacityMismatch);
-        }
-        let notification_budget = self.notification_budget()?;
         if self.encoded_byte_capacity == 0 {
             return Err(ProducerHostLimitError::ZeroEncodedByteCapacity);
         }
@@ -77,24 +63,7 @@ impl ProducerHostLimits {
             .map_err(|_| ProducerHostLimitError::RetainedBytesOutOfRange)?;
         Ok(ValidatedProducerHostLimits {
             retained_bytes: ByteCount::new(bytes),
-            notification_budget,
             transition_effect_capacity,
-        })
-    }
-
-    fn notification_budget(self) -> Result<NotificationBudget, ProducerHostLimitError> {
-        NotificationBudget::try_new(
-            self.completion_capacity,
-            self.pending_record_capacity,
-            self.notification_capacity,
-        )
-        .map_err(|error| match error {
-            NotificationBudgetError::CapacityOverflow => {
-                ProducerHostLimitError::NotificationCapacityOverflow
-            }
-            NotificationBudgetError::TotalMismatch => {
-                ProducerHostLimitError::NotificationCapacityMismatch
-            }
         })
     }
 }

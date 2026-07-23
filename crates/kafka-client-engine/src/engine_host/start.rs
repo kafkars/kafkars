@@ -60,9 +60,6 @@ pub(crate) fn start(
     if let Some(thread_id) = producer.notifier_thread_id() {
         lifecycle.install_notifier_thread(thread_id);
     }
-    if let Some(thread_id) = producer.pending_recovery_thread_id() {
-        lifecycle.install_recovery_thread(thread_id);
-    }
     let producer = ProducerShardOwner::new(producer, Arc::new(wake));
     let admission = producer.admission_port();
     let resources = EngineHostResources {
@@ -128,18 +125,8 @@ pub(super) fn publish_caught(
 
 pub(super) fn finalize_exit(mut exit: EngineHostExit) -> Option<EngineHostError> {
     let mut failure = exit.failure.take();
-    if let Some(notifications) = exit.notifications.take() {
-        let cleanup: crate::producer::pending::PendingNotificationShutdownFailures =
-            notifications.finish_notification_cleanup();
-        if let Some(cleanup) = cleanup.notifier {
-            failure = Some(attach_cleanup(failure, EngineHostError::Notifier(cleanup)));
-        }
-        if let Some(cleanup) = cleanup.recovery {
-            failure = Some(attach_cleanup(
-                failure,
-                EngineHostError::PendingRecoveryJoin(cleanup),
-            ));
-        }
+    if let Err(cleanup) = exit.notifier.join_off_notifier() {
+        failure = Some(attach_cleanup(failure, EngineHostError::Notifier(cleanup)));
     }
     failure
 }

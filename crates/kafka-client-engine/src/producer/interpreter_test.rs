@@ -30,9 +30,6 @@ fn generated_accumulation_waits_until_the_whole_admission_transition_drains() {
         record_capacity: 1,
         batch_capacity: 1,
         timer_capacity: 1,
-        pending_record_capacity: 1,
-        pending_notification_capacity: 1,
-        notification_capacity: 2,
         encoded_byte_capacity: 1_024,
         max_wire_batch_bytes: 1_024,
         batch_policy,
@@ -105,9 +102,7 @@ fn notifier_stop_retains_every_same_transition_terminal_in_exact_fifo_order() {
         .core
         .apply(ProducerInput::ExecutionUnavailable)
         .unwrap_or_else(|error| panic!("execution stop should plan: {error}"));
-    let recovery = host
-        .recover_notifier()
-        .unwrap_or_else(|error| panic!("notification recovery should remain owned: {error}"));
+    let recovery = host.recover_notifier();
 
     assert_eq!(
         host.interpret_transition(Moment::from_tick(1), transition),
@@ -129,11 +124,10 @@ fn notifier_stop_retains_every_same_transition_terminal_in_exact_fifo_order() {
     assert_eq!(host.terminal_publish_attempts(), 1);
 
     drop((first, second));
-    let shutdown = recovery.notifications;
-    assert_eq!(
-        shutdown.finish_notification_cleanup(),
-        super::pending::PendingNotificationShutdownFailures::default()
-    );
+    let notifier = recovery
+        .notifier
+        .unwrap_or_else(|| panic!("notification recovery should remain owned"));
+    assert_eq!(notifier.join_off_notifier(), Ok(()));
 }
 
 #[test]
