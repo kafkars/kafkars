@@ -6,8 +6,10 @@ use std::sync::atomic::Ordering;
 
 use crate::ProducerDeliveryObserver;
 
+#[cfg(test)]
+use super::ProducerSendFailure;
 use super::{
-    PendingCellError, PendingNotificationJob, PendingSendCell, ProducerSendFailure,
+    PendingCellError, PendingNotificationJob, PendingSendCell, ProducerSendReadyFailure,
     cell::PromotionRestore, promotion::PendingPromotion, state::PendingSendPhase,
 };
 
@@ -115,7 +117,7 @@ impl PendingSendCell {
 
     pub(super) fn settle_promotion(
         self: &Arc<Self>,
-        failure: ProducerSendFailure,
+        failure: ProducerSendReadyFailure,
     ) -> Result<PendingNotificationJob, PendingCellError> {
         let mut phase = self.lock();
         let previous = std::mem::replace(&mut *phase, PendingSendPhase::Consumed);

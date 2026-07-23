@@ -9,52 +9,14 @@ use std::{
 };
 
 use crate::{
-    ProducerDeliveryError, ProducerDeliveryObserver, ProducerObserverError, ProducerRecordMetadata,
+    ProducerDeliveryObserver, ProducerObserverError, ProducerSendError, ProducerSendResult,
+    ProducerSendStartFailure,
 };
 
 use super::super::pending::{
     PendingCellError, PendingCellTransition, PendingSendCell, ProducerSendFailure,
+    ProducerSendReadyFailure,
 };
-
-/// Terminal result for a producer send that may wait for local admission.
-pub type ProducerSendResult = Result<ProducerRecordMetadata, ProducerSendError>;
-
-/// Failure from either local pending admission or accepted delivery.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ProducerSendError {
-    /// Work crossed core admission and then delivery observation failed.
-    Delivery(ProducerDeliveryError),
-    /// Work settled locally and definitely did not reach transport ownership.
-    Local(ProducerSendFailure),
-    /// The pending observation cell was consumed or abandoned.
-    Observer(ProducerObserverError),
-}
-
-impl fmt::Display for ProducerSendError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Delivery(error) => error.fmt(formatter),
-            Self::Local(failure) => {
-                write!(
-                    formatter,
-                    "producer send failed locally: {:?}",
-                    failure.kind()
-                )
-            }
-            Self::Observer(error) => error.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for ProducerSendError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Delivery(error) => Some(error),
-            Self::Local(_) => None,
-            Self::Observer(error) => Some(error),
-        }
-    }
-}
 
 /// Named, non-cloneable operation covering pending admission and delivery.
 #[must_use = "dropping before promotion cancels pending ownership; after promotion it abandons observation"]
@@ -65,7 +27,7 @@ pub struct ProducerSend {
 enum ProducerSendState {
     Pending(Arc<PendingSendCell>),
     Accepted(ProducerDeliveryObserver),
-    Ready(ProducerSendFailure),
+    Ready(ProducerSendReadyFailure),
     Consumed,
 }
 
@@ -84,7 +46,13 @@ impl ProducerSend {
 
     pub(crate) const fn from_local_failure(failure: ProducerSendFailure) -> Self {
         Self {
-            state: ProducerSendState::Ready(failure),
+            state: ProducerSendState::Ready(ProducerSendReadyFailure::Local(failure)),
+        }
+    }
+
+    pub(crate) const fn from_start_failure(failure: ProducerSendStartFailure) -> Self {
+        Self {
+            state: ProducerSendState::Ready(ProducerSendReadyFailure::Start(failure)),
         }
     }
 
@@ -98,7 +66,7 @@ impl ProducerSend {
                         self.state = ProducerSendState::Accepted(observer);
                     }
                     Ok(PendingCellTransition::Ready(failure)) => {
-                        return Err(ProducerSendError::Local(failure));
+                        return Err(ProducerSendError::from_ready(failure));
                     }
                     Err(error) => return Err(pending_error(error)),
                 },
@@ -106,7 +74,7 @@ impl ProducerSend {
                     return observer.wait().map_err(ProducerSendError::Delivery);
                 }
                 ProducerSendState::Ready(failure) => {
-                    return Err(ProducerSendError::Local(failure));
+                    return Err(ProducerSendError::from_ready(failure));
                 }
                 ProducerSendState::Consumed => {
                     return Err(ProducerSendError::Observer(
@@ -134,7 +102,7 @@ impl Future for ProducerSend {
                         self.state = ProducerSendState::Accepted(observer);
                     }
                     Ok(Poll::Ready(PendingCellTransition::Ready(failure))) => {
-                        return Poll::Ready(Err(ProducerSendError::Local(failure)));
+                        return Poll::Ready(Err(ProducerSendError::from_ready(failure)));
                     }
                     Err(error) => return Poll::Ready(Err(pending_error(error))),
                 },
@@ -150,7 +118,7 @@ impl Future for ProducerSend {
                     }
                 }
                 ProducerSendState::Ready(failure) => {
-                    return Poll::Ready(Err(ProducerSendError::Local(failure)));
+                    return Poll::Ready(Err(ProducerSendError::from_ready(failure)));
                 }
                 ProducerSendState::Consumed => {
                     return Poll::Ready(Err(ProducerSendError::Observer(

@@ -5,7 +5,7 @@ use std::task::{Context, Poll, Waker};
 use crate::ProducerDeliveryObserver;
 
 use super::{
-    PendingNotificationPermit, ProducerSendFailure,
+    PendingNotificationPermit, ProducerSendReadyFailure,
     cell::{PendingCellError, PendingCellTransition, PendingDropOutcome},
 };
 
@@ -26,7 +26,7 @@ pub(super) enum PendingSendPhase {
     },
     Ready {
         abandoned: bool,
-        failure: Option<ProducerSendFailure>,
+        failure: Option<ProducerSendReadyFailure>,
         waker: Option<Waker>,
     },
     Abandoned,

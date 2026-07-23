@@ -1,5 +1,6 @@
 //! Bounded ownership of producer records waiting before core admission.
 mod attempt;
+mod attempt_settlement;
 mod attempt_transfer;
 mod backlog;
 mod cell;
@@ -24,10 +25,11 @@ pub(crate) use attempt_transfer::PendingRecordTransferState;
 #[cfg(test)]
 pub(crate) use backlog::PendingNotificationBacklog;
 pub(crate) use cell::{PendingCellError, PendingCellTransition, PendingSendCell};
-pub(crate) use entry::{PendingAdmission, PendingLocalFailure};
+pub(crate) use entry::{PendingAdmission, PendingLocalFailure, PendingStartFailure};
 pub(crate) use error::{
     PendingAdmissionRejected, PendingAdmissionRejectionReason, PendingRegistryError,
 };
+pub(crate) use failure::ProducerSendReadyFailure;
 pub use failure::{ProducerSendFailure, ProducerSendFailureKind};
 pub(crate) use identity::PendingAdmissionId;
 pub(crate) use notification::PendingNotificationJob;
@@ -37,6 +39,8 @@ pub(crate) use registration::PendingSendRegistration;
 pub(crate) use registry::PendingAdmissionRegistry;
 #[cfg(test)]
 pub(crate) use restore_error::{PendingAttemptRestoreError, PendingAttemptRestoreOutcome};
+#[cfg(test)]
+mod attempt_settlement_test;
 #[cfg(test)]
 mod attempt_test;
 #[cfg(test)]

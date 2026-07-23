@@ -3,9 +3,8 @@
 use crate::ProducerDeliveryObserver;
 
 use super::{
-    PendingAdmission, PendingCellError, PendingLocalFailure, PendingNotificationJob,
-    PendingRecordTransferState, ProducerSendFailure, entry::PendingAdmissionFacts,
-    promotion::PendingPromotion,
+    PendingAdmission, PendingCellError, PendingNotificationJob, PendingRecordTransferState,
+    entry::PendingAdmissionFacts, promotion::PendingPromotion,
 };
 
 /// Misuse that retains every linear owner for an explicit recovery decision.
@@ -85,46 +84,6 @@ impl PendingPromotionAttempt {
         }
     }
 
-    /// Settles an unadmitted retained record and creates its bounded signal.
-    pub(crate) fn settle_local(
-        self,
-        failure: ProducerSendFailure,
-    ) -> Result<PendingLocalFailure, PendingAttemptSettleFailure> {
-        if self.transfer != PendingRecordTransferState::Retained || self.admission.is_none() {
-            return Err(PendingAttemptSettleFailure::new(
-                PendingAttemptStateError::RecordNotRetained,
-                self,
-                failure,
-            ));
-        }
-        let Self {
-            admission,
-            facts: _,
-            promotion,
-            transfer: _,
-        } = self;
-        let Some(admission) = admission else {
-            return Err(PendingAttemptSettleFailure::new(
-                PendingAttemptStateError::Invariant,
-                PendingPromotionAttempt {
-                    admission: None,
-                    facts: None,
-                    promotion,
-                    transfer: PendingRecordTransferState::Retained,
-                },
-                failure,
-            ));
-        };
-        match promotion.settle_local(failure) {
-            Ok(notification) => Ok(PendingLocalFailure::new(failure, admission, notification)),
-            Err((promotion, error)) => Err(PendingAttemptSettleFailure::new(
-                PendingAttemptStateError::Cell(error),
-                PendingPromotionAttempt::new(admission, promotion),
-                failure,
-            )),
-        }
-    }
-
     #[cfg(test)]
     pub(crate) fn retained_admission_for_test(&self) -> Option<&PendingAdmission> {
         self.admission.as_ref()
@@ -187,36 +146,5 @@ impl PendingAttemptAcceptFailure {
         ProducerDeliveryObserver,
     ) {
         (self.error, *self.attempt, self.observer)
-    }
-}
-
-/// Failed local resolution retaining the attempt and requested failure.
-pub(crate) struct PendingAttemptSettleFailure {
-    error: PendingAttemptStateError,
-    attempt: Box<PendingPromotionAttempt>,
-    failure: ProducerSendFailure,
-}
-
-impl PendingAttemptSettleFailure {
-    fn new(
-        error: PendingAttemptStateError,
-        attempt: PendingPromotionAttempt,
-        failure: ProducerSendFailure,
-    ) -> Self {
-        Self {
-            error,
-            attempt: Box::new(attempt),
-            failure,
-        }
-    }
-
-    pub(crate) fn into_parts(
-        self,
-    ) -> (
-        PendingAttemptStateError,
-        PendingPromotionAttempt,
-        ProducerSendFailure,
-    ) {
-        (self.error, *self.attempt, self.failure)
     }
 }

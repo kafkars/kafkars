@@ -6,7 +6,7 @@ use super::{
     super::ProducerRecord, PendingAdmissionId, PendingCellError, PendingNotificationJob,
     PendingSendCell, ProducerSendFailure, ProducerSendFailureKind, promotion::PendingPromotion,
 };
-use crate::clock::OperationDeadline;
+use crate::{ProducerSendStartFailure, ProducerSendStartFailureKind, clock::OperationDeadline};
 
 /// One engine-owned record that has not crossed deterministic admission.
 #[derive(Debug)]
@@ -145,6 +145,39 @@ impl PendingLocalFailure {
     }
 
     pub(crate) const fn failure(&self) -> ProducerSendFailure {
+        self.failure
+    }
+
+    pub(crate) fn into_parts(self) -> (PendingAdmission, PendingNotificationJob) {
+        (self.pending, self.notification)
+    }
+}
+
+/// Linear start failure retaining work that never crossed core admission.
+pub(crate) struct PendingStartFailure {
+    failure: ProducerSendStartFailure,
+    pending: PendingAdmission,
+    notification: PendingNotificationJob,
+}
+
+impl PendingStartFailure {
+    pub(super) const fn new(
+        failure: ProducerSendStartFailure,
+        pending: PendingAdmission,
+        notification: PendingNotificationJob,
+    ) -> Self {
+        Self {
+            failure,
+            pending,
+            notification,
+        }
+    }
+
+    pub(crate) const fn kind(&self) -> ProducerSendStartFailureKind {
+        self.failure.kind()
+    }
+
+    pub(crate) const fn failure(&self) -> ProducerSendStartFailure {
         self.failure
     }
 

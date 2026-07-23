@@ -11,7 +11,7 @@ use std::{
 use crate::ProducerDeliveryObserver;
 
 use super::{
-    PendingNotificationPermit, ProducerSendFailure,
+    PendingNotificationPermit, ProducerSendReadyFailure,
     state::{
         DispatchOutcome, PendingSendPhase, abandon_phase, dispatch_phase, poll_phase,
         take_transition,
@@ -20,7 +20,7 @@ use super::{
 
 pub(crate) enum PendingCellTransition {
     Accepted(ProducerDeliveryObserver),
-    Ready(ProducerSendFailure),
+    Ready(ProducerSendReadyFailure),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

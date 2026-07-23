@@ -245,6 +245,10 @@ production = "crates/kafka-client-engine/src/producer/boundary/send.rs"
 test = "crates/kafka-client-engine/src/producer/boundary/send_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/boundary/send_error.rs"
+test = "crates/kafka-client-engine/src/producer/boundary/send_error_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/interpreter.rs"
 test = "crates/kafka-client-engine/src/producer/interpreter_test.rs"
 
@@ -279,6 +283,10 @@ test = "crates/kafka-client-engine/src/producer/pending/registry_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/pending/attempt.rs"
 test = "crates/kafka-client-engine/src/producer/pending/attempt_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/attempt_settlement.rs"
+test = "crates/kafka-client-engine/src/producer/pending/attempt_settlement_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/pending/attempt_transfer.rs"
@@ -1225,6 +1233,7 @@ owner_type = "PendingPromotionAttempt"
 field = "admission"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/pending/attempt.rs",
+  "crates/kafka-client-engine/src/producer/pending/attempt_settlement.rs",
   "crates/kafka-client-engine/src/producer/pending/attempt_transfer.rs",
   "crates/kafka-client-engine/src/producer/pending/restore.rs",
 ]
@@ -1234,6 +1243,7 @@ owner_type = "PendingPromotionAttempt"
 field = "facts"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/pending/attempt.rs",
+  "crates/kafka-client-engine/src/producer/pending/attempt_settlement.rs",
   "crates/kafka-client-engine/src/producer/pending/attempt_transfer.rs",
   "crates/kafka-client-engine/src/producer/pending/restore.rs",
 ]
@@ -1243,6 +1253,7 @@ owner_type = "PendingPromotionAttempt"
 field = "transfer"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/pending/attempt.rs",
+  "crates/kafka-client-engine/src/producer/pending/attempt_settlement.rs",
   "crates/kafka-client-engine/src/producer/pending/attempt_transfer.rs",
   "crates/kafka-client-engine/src/producer/pending/restore.rs",
 ]
@@ -1704,6 +1715,10 @@ owner_type = "PendingLocalFailure"
 path = "crates/kafka-client-engine/src/producer/pending/entry.rs"
 
 [[linear_owners]]
+owner_type = "PendingStartFailure"
+path = "crates/kafka-client-engine/src/producer/pending/entry.rs"
+
+[[linear_owners]]
 owner_type = "NotificationQueue"
 path = "crates/kafka-client-engine/src/completion/notifier_queue.rs"
 
@@ -1733,7 +1748,7 @@ path = "crates/kafka-client-engine/src/producer/pending/attempt.rs"
 
 [[linear_owners]]
 owner_type = "PendingAttemptSettleFailure"
-path = "crates/kafka-client-engine/src/producer/pending/attempt.rs"
+path = "crates/kafka-client-engine/src/producer/pending/attempt_settlement.rs"
 
 [[linear_owners]]
 owner_type = "PendingRecordRestoreFailure"

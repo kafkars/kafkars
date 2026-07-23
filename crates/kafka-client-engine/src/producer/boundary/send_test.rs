@@ -9,7 +9,8 @@ use kafka_client_core::{
 use super::ProducerSend;
 use crate::{
     ProducerDeliveryError, ProducerDeliveryObserver, ProducerDeliveryStatus, ProducerSendError,
-    ProducerSendFailure, ProducerSendFailureKind,
+    ProducerSendFailure, ProducerSendFailureKind, ProducerSendStartFailure,
+    ProducerSendStartFailureKind,
     completion::{CompletionRegistry, ReclaimStatus},
     producer::pending::test_support::{CountingWake, poll_send},
 };
@@ -40,6 +41,16 @@ fn blocking_wait_observes_an_immediately_ready_local_send() {
         ProducerSend::from_local_failure(failure).wait(),
         Err(ProducerSendError::Local(failure))
     );
+}
+
+#[test]
+fn immediately_ready_start_failure_remains_distinct_from_backpressure() {
+    let failure = ProducerSendStartFailure::new(ProducerSendStartFailureKind::InternalInvariant);
+    assert_eq!(
+        ProducerSend::from_start_failure(failure).wait(),
+        Err(ProducerSendError::Start(failure))
+    );
+    assert_eq!(failure.delivery_status(), ProducerDeliveryStatus::NotSent);
 }
 
 #[test]

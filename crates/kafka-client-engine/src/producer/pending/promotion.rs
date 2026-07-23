@@ -6,7 +6,7 @@ use crate::ProducerDeliveryObserver;
 
 use super::{
     PendingCellError, PendingNotificationJob, PendingSendCell, ProducerSendFailure,
-    cell::PromotionRestore,
+    ProducerSendReadyFailure, cell::PromotionRestore,
 };
 
 /// Unique right to resolve one cell that remains in `Promoting`.
@@ -33,6 +33,13 @@ impl PendingPromotion {
     pub(in crate::producer::pending) fn settle_local(
         self,
         failure: ProducerSendFailure,
+    ) -> Result<PendingNotificationJob, (Self, PendingCellError)> {
+        self.settle_ready(ProducerSendReadyFailure::Local(failure))
+    }
+
+    pub(in crate::producer::pending) fn settle_ready(
+        self,
+        failure: ProducerSendReadyFailure,
     ) -> Result<PendingNotificationJob, (Self, PendingCellError)> {
         match self.cell.settle_promotion(failure) {
             Ok(job) => Ok(job),

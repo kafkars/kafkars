@@ -1,6 +1,6 @@
-//! Stable local failures for producer sends that never crossed core admission.
+//! Ordinary local failures and the data-only ready carrier for pending sends.
 
-use crate::ProducerDeliveryStatus;
+use crate::{ProducerDeliveryStatus, ProducerSendStartFailure};
 
 /// Why one waiting producer send settled before deterministic admission.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -36,4 +36,11 @@ impl ProducerSendFailure {
     pub const fn delivery_status(self) -> ProducerDeliveryStatus {
         ProducerDeliveryStatus::NotSent
     }
+}
+
+/// Data-only ready transition carried by pending mechanisms.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ProducerSendReadyFailure {
+    Local(ProducerSendFailure),
+    Start(ProducerSendStartFailure),
 }

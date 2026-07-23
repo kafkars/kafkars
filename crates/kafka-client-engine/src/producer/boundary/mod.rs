@@ -6,6 +6,7 @@ mod handle;
 mod record;
 mod result;
 mod send;
+mod send_error;
 
 pub use super::pending::{ProducerSendFailure, ProducerSendFailureKind};
 pub use capture::{
@@ -18,7 +19,10 @@ pub use record::{ProducerHeader as PublicProducerHeader, ProducerRecord as Publi
 pub use result::{
     ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerOperationId, ProducerTrySendAccepted,
 };
-pub use send::{ProducerSend, ProducerSendError, ProducerSendResult};
+pub use send::ProducerSend;
+pub use send_error::{
+    ProducerSendError, ProducerSendResult, ProducerSendStartFailure, ProducerSendStartFailureKind,
+};
 
 #[cfg(test)]
 mod capture_test;
@@ -26,5 +30,7 @@ mod capture_test;
 mod error_test;
 #[cfg(test)]
 mod handle_test;
+#[cfg(test)]
+mod send_error_test;
 #[cfg(test)]
 mod send_test;

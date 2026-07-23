@@ -47,7 +47,8 @@ pub use producer::{
     ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerHandle, ProducerOperationId,
     ProducerSend, ProducerSendCapture, ProducerSendCaptureError, ProducerSendCaptureErrorKind,
     ProducerSendError, ProducerSendFailure, ProducerSendFailureKind, ProducerSendOptions,
-    ProducerSendResult, ProducerTrySendAccepted, ProducerTrySendError, ProducerTrySendErrorKind,
+    ProducerSendResult, ProducerSendStartFailure, ProducerSendStartFailureKind,
+    ProducerTrySendAccepted, ProducerTrySendError, ProducerTrySendErrorKind,
     PublicProducerHeader as ProducerHeader, PublicProducerRecord as ProducerRecord,
 };
 

@@ -1,8 +1,8 @@
 //! Exact owners and progress reports for bounded pending-registry turns.
 
 use super::{
-    PendingLocalFailure, PendingPromotionAttempt, PendingRegistryError,
-    attempt::PendingAttemptSettleFailure, promotion::PendingPromotion,
+    PendingLocalFailure, PendingPromotionAttempt, PendingRegistryError, ProducerSendFailure,
+    attempt_settlement::PendingAttemptSettleFailure, promotion::PendingPromotion,
     registry::PendingRemovalPlan,
 };
 
@@ -157,7 +157,7 @@ pub(crate) struct PendingTurnFailure {
 pub(crate) enum PendingTurnFailureOwnership {
     Registry,
     Take(PendingTakeFailure),
-    Settlement(PendingAttemptSettleFailure),
+    Settlement(PendingAttemptSettleFailure<ProducerSendFailure>),
 }
 
 impl PendingTurnFailure {
@@ -187,7 +187,7 @@ impl PendingTurnFailure {
     pub(super) const fn settlement(
         inspected: usize,
         completed: Vec<PendingLocalFailure>,
-        failure: PendingAttemptSettleFailure,
+        failure: PendingAttemptSettleFailure<ProducerSendFailure>,
     ) -> Self {
         Self {
             error: PendingRegistryError::ObservationState,
