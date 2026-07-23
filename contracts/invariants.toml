@@ -230,7 +230,7 @@ evidence = [
 [[invariant]]
 id = "OWN-01"
 title = "Pending promotion has one coordinated owner"
-statement = "Removing a pending admission, claiming its observer cell, and transferring its exact record move through one non-cloneable attempt; every fallible restoration, settlement, or post-claim removal path returns the complete recovery owner."
+statement = "Removing a pending admission, claiming its observer cell, and transferring its exact record move through one non-cloneable attempt; every fallible restoration, settlement, or post-claim removal path returns the complete recovery owner. A dormant shard first-fault slot closes both admission domains before retaining that owner, refuses later owners intact, and blocks terminal cleanup without extracting the first."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/pending/attempt_test.rs::accept_before_record_commit_returns_observer_attempt_and_exact_record",
@@ -239,6 +239,8 @@ evidence = [
   "crates/kafka-client-engine/src/producer/pending/turn_error_test.rs::settlement_turn_failure_retains_attempt_record_and_requested_failure",
   "crates/kafka-client-engine/src/producer/pending/turn_error_test.rs::post_claim_take_failure_retains_the_exact_promotion_owner",
   "crates/kafka-client-engine/src/producer/ingress/promotion_test.rs::transient_head_restores_before_any_later_fifo_entry_can_promote",
+  "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs::first_fault_closes_both_admission_paths_and_blocks_terminal_cleanup",
+  "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs::later_fault_and_explicit_close_preserve_the_first_owner",
 ]
 
 [[invariant]]

@@ -271,6 +271,10 @@ production = "crates/kafka-client-engine/src/producer/ingress/data_terminal.rs"
 test = "crates/kafka-client-engine/src/producer/ingress/data_terminal_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/pending_fatal.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/ingress/promotion.rs"
 test = "crates/kafka-client-engine/src/producer/ingress/promotion_test.rs"
 
@@ -734,6 +738,11 @@ method = "promote_next"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/ingress/data.rs",
 ]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "retain_pending_fatal"
+allowed_paths = []
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
@@ -1651,7 +1660,10 @@ allowed_paths = [
 [[mutation_owners]]
 owner_type = "ProducerShardData"
 field = "admission"
-allowed_paths = ["crates/kafka-client-engine/src/producer/ingress/data.rs"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/ingress/data.rs",
+  "crates/kafka-client-engine/src/producer/ingress/pending_fatal.rs",
+]
 
 [[mutation_owners]]
 owner_type = "ProducerShardState"
@@ -1989,6 +2001,18 @@ path = "crates/kafka-client-engine/src/producer/ingress/promotion_error.rs"
 [[linear_owners]]
 owner_type = "PendingPromotionFailure"
 path = "crates/kafka-client-engine/src/producer/ingress/promotion_error.rs"
+
+[[linear_owners]]
+owner_type = "ProducerShardAdmission"
+path = "crates/kafka-client-engine/src/producer/ingress/data.rs"
+
+[[linear_owners]]
+owner_type = "PendingShardFatal"
+path = "crates/kafka-client-engine/src/producer/ingress/pending_fatal.rs"
+
+[[linear_owners]]
+owner_type = "PendingShardFatalRetentionFailure"
+path = "crates/kafka-client-engine/src/producer/ingress/pending_fatal.rs"
 
 [[linear_owners]]
 owner_type = "NotificationQueue"

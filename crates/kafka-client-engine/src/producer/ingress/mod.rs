@@ -3,6 +3,7 @@
 mod data;
 mod data_terminal;
 mod outcome;
+mod pending_fatal;
 mod port;
 mod promotion;
 mod promotion_error;
@@ -33,6 +34,8 @@ pub(crate) use waiting::ProducerWaitingStart;
 mod data_terminal_test;
 #[cfg(test)]
 mod data_test;
+#[cfg(test)]
+mod pending_fatal_test;
 #[cfg(test)]
 mod port_test;
 #[cfg(test)]

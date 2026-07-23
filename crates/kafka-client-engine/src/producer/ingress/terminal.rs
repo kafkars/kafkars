@@ -37,6 +37,7 @@ impl ProducerShardPendingOwnership {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ProducerShardTerminalError {
     Pending(ProducerShardPendingOwnership),
+    PendingFatal,
     Host(ProducerTerminalCleanupError),
     Completion(CompletionRegistryError),
     PendingPrimaryMissing(PendingPrimaryMissingError),
@@ -46,7 +47,10 @@ impl ProducerShardTerminalError {
     pub(crate) const fn pending_ownership(self) -> Option<ProducerShardPendingOwnership> {
         match self {
             Self::Pending(ownership) => Some(ownership),
-            Self::Host(_) | Self::Completion(_) | Self::PendingPrimaryMissing(_) => None,
+            Self::PendingFatal
+            | Self::Host(_)
+            | Self::Completion(_)
+            | Self::PendingPrimaryMissing(_) => None,
         }
     }
 }
@@ -78,6 +82,7 @@ impl fmt::Display for ProducerShardTerminalError {
                  notification_permits={}",
                 ownership.records, ownership.retained_bytes, ownership.notification_permits
             ),
+            Self::PendingFatal => formatter.write_str("pending producer fatal ownership remains"),
             Self::Host(error) => error.fmt(formatter),
             Self::Completion(error) => error.fmt(formatter),
             Self::PendingPrimaryMissing(error) => error.fmt(formatter),
@@ -91,7 +96,7 @@ impl Error for ProducerShardTerminalError {
             Self::Host(error) => Some(error),
             Self::Completion(error) => Some(error),
             Self::PendingPrimaryMissing(error) => Some(error),
-            Self::Pending(_) => None,
+            Self::Pending(_) | Self::PendingFatal => None,
         }
     }
 }

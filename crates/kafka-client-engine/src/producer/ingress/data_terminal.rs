@@ -56,6 +56,9 @@ impl ProducerShardData {
     }
 
     fn require_empty_pending(&self) -> Result<(), ProducerShardTerminalError> {
+        if self.has_pending_fatal() {
+            return Err(ProducerShardTerminalError::PendingFatal);
+        }
         let pending = self.pending.stats();
         let ownership = ProducerShardPendingOwnership::new(
             pending.records,

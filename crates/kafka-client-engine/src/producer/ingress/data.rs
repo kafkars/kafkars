@@ -20,6 +20,7 @@ use crate::{
 };
 
 use super::{
+    pending_fatal::PendingShardFatal,
     promotion,
     promotion_error::{PendingPromotionFailure, PendingPromotionProgress},
 };
@@ -35,10 +36,10 @@ pub(crate) struct ProducerShardStats {
     pub(crate) accepting: bool,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ProducerShardAdmission {
+pub(super) enum ProducerShardAdmission {
     Running,
     Closed,
+    Faulted(PendingShardFatal),
 }
 
 /// Sole synchronized owner of accepted and pre-core producer admission.
@@ -47,7 +48,7 @@ pub(crate) struct ProducerShardData {
     pub(super) pending: PendingAdmissionRegistry,
     pub(super) pending_notification_permits: Arc<PendingNotificationPermitPool>,
     retained_byte_limit: usize,
-    admission: ProducerShardAdmission,
+    pub(super) admission: ProducerShardAdmission,
 }
 
 impl ProducerShardData {
@@ -70,7 +71,9 @@ impl ProducerShardData {
 
     /// Closes both admission populations while the one shard mutex is held.
     pub(crate) fn close_admission(&mut self) {
-        self.admission = ProducerShardAdmission::Closed;
+        if matches!(&self.admission, ProducerShardAdmission::Running) {
+            self.admission = ProducerShardAdmission::Closed;
+        }
         self.pending.begin_close();
         self.host.close_admission();
     }
@@ -85,7 +88,9 @@ impl ProducerShardData {
         deadline: OperationDeadline,
         record: ProducerRecord,
     ) -> Result<AdmittedExplicit, ProducerAdmissionFailure> {
-        if self.admission == ProducerShardAdmission::Running && !self.allows_record(&record) {
+        if matches!(&self.admission, ProducerShardAdmission::Running)
+            && !self.allows_record(&record)
+        {
             return Err(ProducerAdmissionFailure::Rejected(RejectedExplicit::new(
                 ProducerRejectionReason::Store(ProducerStoreError::ByteCapacity),
                 record,
@@ -111,7 +116,7 @@ impl ProducerShardData {
         &mut self,
         now: Moment,
     ) -> Result<PendingPromotionProgress, PendingPromotionFailure> {
-        if self.admission == ProducerShardAdmission::Closed {
+        if !matches!(&self.admission, ProducerShardAdmission::Running) {
             return Err(PendingPromotionFailure::Closed);
         }
         promotion::promote_next(&mut self.host, &mut self.pending, now)
@@ -140,7 +145,7 @@ impl ProducerShardData {
             aggregate_retained_bytes: self.aggregate_retained_bytes(),
             retained_byte_limit: self.retained_byte_limit,
             pending_notification_capacity: self.pending_notification_permits.capacity(),
-            accepting: self.admission == ProducerShardAdmission::Running,
+            accepting: matches!(&self.admission, ProducerShardAdmission::Running),
         }
     }
 
@@ -158,7 +163,7 @@ impl ProducerShardData {
         record: ProducerRecord,
         deadline: OperationDeadline,
     ) -> Result<PendingSendRegistration, PendingAdmissionRejected> {
-        if self.admission == ProducerShardAdmission::Closed {
+        if !matches!(&self.admission, ProducerShardAdmission::Running) {
             return Err(PendingAdmissionRejected::new(
                 crate::producer::pending::PendingAdmissionRejectionReason::Closed,
                 record,
