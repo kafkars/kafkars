@@ -1,19 +1,20 @@
-//! Terminal ownership refusal scenarios for aggregate shard data.
+//! Shard-wide terminal refusal and recovery scenarios.
 
 use std::time::Instant;
 
 use kafka_client_core::{Deadline, Moment};
 
-use super::{
-    data::ProducerShardData,
-    terminal::{ProducerShardPendingOwnership, ProducerShardTerminalError},
-};
 use crate::{
     clock::OperationDeadline,
     producer::{
         admission_test::record,
         host_limits_test::{start, valid_limits},
     },
+};
+
+use super::{
+    data::ProducerShardData,
+    terminal::{ProducerShardPendingOwnership, ProducerShardTerminalError},
 };
 
 #[test]
@@ -37,8 +38,8 @@ fn normal_terminal_cleanup_refuses_registered_pending_ownership_without_drain() 
         panic!("final verification must refuse pending ownership")
     };
     assert_pending(final_check, expected);
-    let Err(stop) = data.stop_notifier() else {
-        panic!("notifier stop must refuse pending ownership")
+    let Err(stop) = data.begin_notification_shutdown() else {
+        panic!("notification shutdown must refuse pending ownership")
     };
     assert_pending(stop, expected);
     assert_eq!(pending_ownership(&data), expected);

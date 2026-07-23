@@ -2,7 +2,7 @@
 
 use crate::completion::NotifierPendingDispatchOwner;
 
-use super::backlog::PendingNotificationRecoveryDispatchOwner;
+use super::recovery::PendingNotificationRecoveryDispatchOwner;
 
 #[must_use = "dispatch authority must remain with its notifier or recovery owner"]
 pub(crate) struct PendingNotificationDispatchAuthority {

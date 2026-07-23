@@ -3,7 +3,8 @@
 use std::{error::Error, fmt};
 
 use crate::{
-    completion::CompletionRegistryError, producer::shutdown::ProducerTerminalCleanupError,
+    completion::CompletionRegistryError,
+    producer::{pending::PendingPrimaryMissingError, shutdown::ProducerTerminalCleanupError},
 };
 
 /// Exact pre-core ownership that must settle before shard cleanup can proceed.
@@ -38,13 +39,14 @@ pub(crate) enum ProducerShardTerminalError {
     Pending(ProducerShardPendingOwnership),
     Host(ProducerTerminalCleanupError),
     Completion(CompletionRegistryError),
+    PendingPrimaryMissing(PendingPrimaryMissingError),
 }
 
 impl ProducerShardTerminalError {
     pub(crate) const fn pending_ownership(self) -> Option<ProducerShardPendingOwnership> {
         match self {
             Self::Pending(ownership) => Some(ownership),
-            Self::Host(_) | Self::Completion(_) => None,
+            Self::Host(_) | Self::Completion(_) | Self::PendingPrimaryMissing(_) => None,
         }
     }
 }
@@ -61,6 +63,12 @@ impl From<CompletionRegistryError> for ProducerShardTerminalError {
     }
 }
 
+impl From<PendingPrimaryMissingError> for ProducerShardTerminalError {
+    fn from(error: PendingPrimaryMissingError) -> Self {
+        Self::PendingPrimaryMissing(error)
+    }
+}
+
 impl fmt::Display for ProducerShardTerminalError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -72,6 +80,7 @@ impl fmt::Display for ProducerShardTerminalError {
             ),
             Self::Host(error) => error.fmt(formatter),
             Self::Completion(error) => error.fmt(formatter),
+            Self::PendingPrimaryMissing(error) => error.fmt(formatter),
         }
     }
 }
@@ -81,6 +90,7 @@ impl Error for ProducerShardTerminalError {
         match self {
             Self::Host(error) => Some(error),
             Self::Completion(error) => Some(error),
+            Self::PendingPrimaryMissing(error) => Some(error),
             Self::Pending(_) => None,
         }
     }

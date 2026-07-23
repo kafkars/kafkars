@@ -9,7 +9,9 @@ use crate::{
     driver::DriverOwnerError,
     producer::{
         ProducerHostInvariantError, ProducerHostStartError,
-        execution_stop::ProducerExecutionStopError, ingress::ProducerShardTerminalError,
+        execution_stop::ProducerExecutionStopError,
+        ingress::ProducerShardTerminalError,
+        pending::{PendingPrimaryMissingError, PendingRecoveryJoinError},
     },
 };
 
@@ -141,6 +143,8 @@ pub(crate) enum EngineHostError {
     DriverStopped,
     HostPanicked,
     Notifier(NotifierJoinError),
+    PendingRecoveryJoin(PendingRecoveryJoinError),
+    PendingPrimaryMissing(PendingPrimaryMissingError),
     Recovery {
         primary: Box<EngineHostError>,
         cleanup: Box<EngineHostError>,
@@ -165,6 +169,15 @@ impl fmt::Display for EngineHostError {
             Self::DriverStopped => formatter.write_str("embedded driver stopped unexpectedly"),
             Self::HostPanicked => formatter.write_str("engine host thread panicked"),
             Self::Notifier(error) => write!(formatter, "completion notifier failed: {error}"),
+            Self::PendingRecoveryJoin(error) => {
+                write!(
+                    formatter,
+                    "pending notification recovery cleanup failed: {error}"
+                )
+            }
+            Self::PendingPrimaryMissing(error) => {
+                write!(formatter, "pending notification shutdown refused: {error}")
+            }
             Self::Recovery { primary, cleanup } => {
                 write!(
                     formatter,

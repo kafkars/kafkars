@@ -5,9 +5,14 @@ use std::task::Poll;
 use super::{
     PendingNotificationBacklog, PendingNotificationPermitPool, PendingSendCell,
     ProducerSendFailure, ProducerSendFailureKind,
-    test_support::{CountingWake, poll_send},
 };
-use crate::{ProducerSendError, producer::boundary::ProducerSend};
+use crate::{
+    ProducerSendError,
+    producer::{
+        boundary::ProducerSend,
+        pending::test_support::{CountingWake, poll_send},
+    },
+};
 
 #[test]
 fn backlog_retains_exact_jobs_in_fifo_order() {

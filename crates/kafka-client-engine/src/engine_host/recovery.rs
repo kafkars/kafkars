@@ -24,7 +24,7 @@ pub(crate) fn recover(
     if let Some(cleanup) = release.err().map(EngineHostError::ProducerCleanup) {
         failure = failure.with_cleanup(cleanup);
     }
-    let notifier = if pending_blocked {
+    let notifications = if pending_blocked {
         None
     } else {
         if let Some(cleanup) = producer
@@ -46,10 +46,16 @@ pub(crate) fn recover(
                 if let Some(error) = recovery.error {
                     failure = failure.with_cleanup(EngineHostError::ProducerCleanup(error.into()));
                 }
-                recovery.notifier
+                Some(recovery.notifications)
             }
             Err(error) => {
-                failure = failure.with_cleanup(EngineHostError::ProducerCleanup(error));
+                let cleanup = match error {
+                    crate::producer::ingress::ProducerShardTerminalError::PendingPrimaryMissing(
+                        error,
+                    ) => EngineHostError::PendingPrimaryMissing(error),
+                    error => EngineHostError::ProducerCleanup(error),
+                };
+                failure = failure.with_cleanup(cleanup);
                 None
             }
         }
@@ -59,7 +65,7 @@ pub(crate) fn recover(
         failure = failure.with_cleanup(cleanup);
     }
     EngineHostExit {
-        notifier,
+        notifications,
         failure: Some(failure),
     }
 }

@@ -2,9 +2,9 @@
 
 use kafka_client_core::Moment;
 
-use crate::{
-    completion::NotifierJoin,
-    producer::{execution_stop::ProducerExecutionStopError, shutdown::ProducerNotifierRecovery},
+use crate::producer::{
+    execution_stop::ProducerExecutionStopError, pending::PendingNotificationCleanupOwner,
+    shutdown::ProducerNotifierRecovery,
 };
 
 use super::{
@@ -41,16 +41,18 @@ impl ProducerShardData {
         self.host.verify_terminal_cleanup().map_err(Into::into)
     }
 
-    pub(crate) fn stop_notifier(&mut self) -> Result<NotifierJoin, ProducerShardTerminalError> {
+    pub(crate) fn begin_notification_shutdown(
+        &mut self,
+    ) -> Result<PendingNotificationCleanupOwner, ProducerShardTerminalError> {
         self.require_empty_pending()?;
-        self.host.stop_notifier().map_err(Into::into)
+        self.host.begin_notification_shutdown().map_err(Into::into)
     }
 
     pub(crate) fn recover_notifier(
         &mut self,
     ) -> Result<ProducerNotifierRecovery, ProducerShardTerminalError> {
         self.require_empty_pending()?;
-        Ok(self.host.recover_notifier())
+        self.host.recover_notifier().map_err(Into::into)
     }
 
     fn require_empty_pending(&self) -> Result<(), ProducerShardTerminalError> {

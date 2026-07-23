@@ -105,7 +105,9 @@ fn notifier_stop_retains_every_same_transition_terminal_in_exact_fifo_order() {
         .core
         .apply(ProducerInput::ExecutionUnavailable)
         .unwrap_or_else(|error| panic!("execution stop should plan: {error}"));
-    let recovery = host.recover_notifier();
+    let recovery = host
+        .recover_notifier()
+        .unwrap_or_else(|error| panic!("notification recovery should remain owned: {error}"));
 
     assert_eq!(
         host.interpret_transition(Moment::from_tick(1), transition),
@@ -127,11 +129,11 @@ fn notifier_stop_retains_every_same_transition_terminal_in_exact_fifo_order() {
     assert_eq!(host.terminal_publish_attempts(), 1);
 
     drop((first, second));
-    recovery
-        .notifier
-        .unwrap_or_else(|| panic!("notifier ownership must remain recoverable"))
-        .join_off_notifier()
-        .unwrap_or_else(|error| panic!("notifier should join: {error}"));
+    let shutdown = recovery.notifications;
+    assert_eq!(
+        shutdown.finish_notification_cleanup(),
+        super::pending::PendingNotificationShutdownFailures::default()
+    );
 }
 
 #[test]

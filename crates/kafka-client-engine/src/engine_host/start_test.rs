@@ -2,7 +2,10 @@
 
 use std::{error::Error, thread};
 
-use crate::completion::NotifierJoin;
+use crate::{
+    completion::NotifierJoin,
+    producer::pending::{PendingNotificationCleanupOwner, PendingNotificationShutdownOwner},
+};
 
 use super::{
     EngineHostError, EngineHostExit, EngineLifecycle,
@@ -14,8 +17,11 @@ fn notifier_join_failure_appends_without_replacing_primary_failure() {
     let notifier = NotifierJoin::from_handle_for_test(thread::spawn(|| {
         panic!("intentional notifier panic");
     }));
+    let notifications = PendingNotificationCleanupOwner::Paired(
+        PendingNotificationShutdownOwner::from_handles_for_test(notifier, None),
+    );
     let failure = finalize_exit(EngineHostExit {
-        notifier: Some(notifier),
+        notifications: Some(notifications),
         failure: Some(EngineHostError::ForcedTestFailure),
     })
     .unwrap_or_else(|| panic!("primary failure must remain visible"));
@@ -28,6 +34,38 @@ fn notifier_join_failure_appends_without_replacing_primary_failure() {
     assert!(failure.to_string().contains(
         "terminal cleanup also failed: completion notifier failed: completion notifier \
                  panicked"
+    ));
+    assert_eq!(
+        failure.source().map(ToString::to_string),
+        Some("forced engine host test failure".to_owned())
+    );
+}
+
+#[test]
+fn recovery_join_failure_appends_without_replacing_primary_failure() {
+    let notifier = NotifierJoin::from_handle_for_test(thread::spawn(|| {}));
+    let notifications = PendingNotificationCleanupOwner::Paired(
+        PendingNotificationShutdownOwner::from_handles_for_test(
+            notifier,
+            Some(thread::spawn(|| {
+                panic!("intentional recovery panic");
+            })),
+        ),
+    );
+    let failure = finalize_exit(EngineHostExit {
+        notifications: Some(notifications),
+        failure: Some(EngineHostError::ForcedTestFailure),
+    })
+    .unwrap_or_else(|| panic!("primary failure must remain visible"));
+
+    assert!(
+        failure
+            .to_string()
+            .starts_with("forced engine host test failure")
+    );
+    assert!(failure.to_string().contains(
+        "terminal cleanup also failed: pending notification recovery cleanup failed: pending \
+         recovery worker panicked"
     ));
     assert_eq!(
         failure.source().map(ToString::to_string),

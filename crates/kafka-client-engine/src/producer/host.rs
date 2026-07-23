@@ -1,17 +1,23 @@
 //! Synchronized capacity and ownership for one explicit-partition producer host.
 
+#[path = "host/startup.rs"]
+pub(super) mod startup;
+
 use std::sync::Arc;
 
 use kafka_client_core::{ByteCount, ProducerBatchPolicy, ProducerEffect, ProducerMachine};
 
-use crate::{clock::BatchTimers, completion::CompletionRegistry};
+use crate::{
+    clock::BatchTimers,
+    completion::{CompletionRegistry, NotificationBudget},
+};
 
 use super::{
     ProducerHostInvariantError, ProducerHostLimitError, ProducerHostStartError, ProducerStore,
     ProducerStoreLimits, ProducerStoreStats,
     binding::OperationBindings,
     execution::{PreparedExecution, PreparedExecutionLimits},
-    pending::PendingNotificationPermitPool,
+    pending::{PendingNotificationPermitPool, PendingNotificationRoute},
     reclaim::CompletionReclaimer,
     terminal_backlog::{
         FatalTransitionBuffer, OrderedTerminalBacklog, TerminalPoisonSlot, TerminalQuarantine,
@@ -35,6 +41,7 @@ pub(crate) struct ProducerHostStats {
     pub(crate) submission_deadlines: usize,
     pub(crate) completion_bindings: usize,
     pub(crate) pending_notification_permits: usize,
+    pub(crate) pending_notification_backlog: usize,
     pub(crate) pending_effects: usize,
     pub(crate) terminal_backlog: usize,
     pub(crate) healthy: bool,
@@ -70,6 +77,7 @@ pub(crate) struct ProducerHost {
     pub(super) store: ProducerStore,
     pub(super) completions: CompletionRegistry<kafka_client_core::ProducerCompletion>,
     pub(super) pending_notification_permits: Arc<PendingNotificationPermitPool>,
+    pub(super) pending_notifications: PendingNotificationRoute,
     pub(super) bindings: OperationBindings,
     pub(super) reclaimer: CompletionReclaimer,
     pub(super) timers: BatchTimers,
@@ -114,9 +122,11 @@ impl ProducerHost {
         if core.transition_effect_capacity() != Some(transition_capacity) {
             return Err(ProducerHostLimitError::TerminalTailCapacityOverflow.into());
         }
-        let notification_owners = notification_budget
-            .start()
-            .map_err(ProducerHostStartError::Notifier)?;
+        let (notification_owners, pending_notifications) = startup::start_notification_owners(
+            notification_budget,
+            limits.pending_notification_capacity,
+            NotificationBudget::start,
+        )?;
         let (completions, pending_notification_permits) = notification_owners.into_parts();
         Ok(Self {
             core,
@@ -128,6 +138,7 @@ impl ProducerHost {
             }),
             completions,
             pending_notification_permits,
+            pending_notifications,
             bindings: OperationBindings::new(limits.completion_capacity),
             reclaimer: CompletionReclaimer::new(),
             timers: BatchTimers::new(limits.timer_capacity),
@@ -172,6 +183,7 @@ impl ProducerHost {
             submission_deadlines: self.execution.submission_count(),
             completion_bindings: self.bindings.len(),
             pending_notification_permits: self.pending_notification_permits.in_use(),
+            pending_notification_backlog: self.pending_notifications.retained_len(),
             pending_effects: self.pending_effects.len(),
             terminal_backlog: self.terminal_backlog.len(),
             healthy: self.health == ProducerHostHealth::Healthy,

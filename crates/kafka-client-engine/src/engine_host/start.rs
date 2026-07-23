@@ -9,7 +9,6 @@ use std::{
 use crate::{
     EngineConfig,
     clock::MonotonicClock,
-    completion::NotifierJoin,
     config::ValidatedEngineConfig,
     driver::DriverOwner,
     producer::{
@@ -60,6 +59,9 @@ pub(crate) fn start(
     };
     if let Some(thread_id) = producer.notifier_thread_id() {
         lifecycle.install_notifier_thread(thread_id);
+    }
+    if let Some(thread_id) = producer.pending_recovery_thread_id() {
+        lifecycle.install_recovery_thread(thread_id);
     }
     let producer = ProducerShardOwner::new(producer, Arc::new(wake));
     let admission = producer.admission_port();
@@ -125,13 +127,21 @@ pub(super) fn publish_caught(
 }
 
 pub(super) fn finalize_exit(mut exit: EngineHostExit) -> Option<EngineHostError> {
-    match exit.notifier.take().map(NotifierJoin::join_off_notifier) {
-        None | Some(Ok(())) => exit.failure,
-        Some(Err(cleanup)) => Some(attach_cleanup(
-            exit.failure,
-            EngineHostError::Notifier(cleanup),
-        )),
+    let mut failure = exit.failure.take();
+    if let Some(notifications) = exit.notifications.take() {
+        let cleanup: crate::producer::pending::PendingNotificationShutdownFailures =
+            notifications.finish_notification_cleanup();
+        if let Some(cleanup) = cleanup.notifier {
+            failure = Some(attach_cleanup(failure, EngineHostError::Notifier(cleanup)));
+        }
+        if let Some(cleanup) = cleanup.recovery {
+            failure = Some(attach_cleanup(
+                failure,
+                EngineHostError::PendingRecoveryJoin(cleanup),
+            ));
+        }
     }
+    failure
 }
 
 fn attach_cleanup(primary: Option<EngineHostError>, cleanup: EngineHostError) -> EngineHostError {

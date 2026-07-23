@@ -2,13 +2,16 @@
 
 use std::{error::Error, fmt, thread::ThreadId};
 
-use crate::completion::{CompletionRegistryError, NotifierJoin};
+use crate::completion::CompletionRegistryError;
 
-use super::ProducerHost;
+use super::{
+    ProducerHost,
+    pending::{PendingNotificationCleanupOwner, PendingPrimaryMissingError},
+};
 
 /// Cleanup ownership retained even when terminal recovery remains damaged.
 pub(crate) struct ProducerNotifierRecovery {
-    pub(crate) notifier: Option<NotifierJoin>,
+    pub(crate) notifications: PendingNotificationCleanupOwner,
     pub(crate) error: Option<CompletionRegistryError>,
 }
 
@@ -56,13 +59,20 @@ impl ProducerHost {
         self.completions.unsettled_len()
     }
 
-    /// Stops the notifier without waiting after every terminal publishes.
-    pub(crate) fn stop_notifier(&mut self) -> Result<NotifierJoin, CompletionRegistryError> {
-        self.completions.stop_notifier()
+    /// Couples primary close/drain ownership to terminal recovery dispatch.
+    pub(crate) fn begin_notification_shutdown(
+        &mut self,
+    ) -> Result<PendingNotificationCleanupOwner, CompletionRegistryError> {
+        let notifier = self.completions.stop_notifier()?;
+        Ok(PendingNotificationCleanupOwner::Paired(
+            self.pending_notifications.begin_shutdown(notifier),
+        ))
     }
 
     /// Transfers terminal cleanup ownership after catastrophic recovery.
-    pub(crate) fn recover_notifier(&mut self) -> ProducerNotifierRecovery {
+    pub(crate) fn recover_notifier(
+        &mut self,
+    ) -> Result<ProducerNotifierRecovery, PendingPrimaryMissingError> {
         let error = (self.unsettled_completions() != 0)
             .then_some(CompletionRegistryError::UnsettledCompletion)
             .or_else(|| {
@@ -71,15 +81,30 @@ impl ProducerHost {
                     .is_none()
                     .then_some(CompletionRegistryError::NotifierStopped)
             });
-        ProducerNotifierRecovery {
-            notifier: self.completions.take_notifier(),
+        let notifier = self.completions.take_notifier();
+        let notifications = match notifier {
+            Some(notifier) => PendingNotificationCleanupOwner::Paired(
+                self.pending_notifications.begin_shutdown(notifier),
+            ),
+            None => PendingNotificationCleanupOwner::RecoveryOnly(
+                self.pending_notifications
+                    .begin_empty_recovery_without_primary()?,
+            ),
+        };
+        Ok(ProducerNotifierRecovery {
+            notifications,
             error,
-        }
+        })
     }
 
     /// Returns the thread that exclusively executes completion wakeups.
     pub(crate) fn notifier_thread_id(&self) -> Option<ThreadId> {
         self.completions.notifier_thread_id()
+    }
+
+    /// Returns the dedicated pending-recovery identity for shutdown fencing.
+    pub(crate) fn pending_recovery_thread_id(&self) -> Option<ThreadId> {
+        self.pending_notifications.worker_thread_id()
     }
 
     /// Drops live mechanisms outside-in and replaces all old core state.

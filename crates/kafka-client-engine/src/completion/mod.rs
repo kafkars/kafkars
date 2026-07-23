@@ -21,7 +21,7 @@ pub(crate) use error::{CompletionObserverError, CompletionRegistryError};
 pub(crate) use identity::CompletionId;
 pub(crate) use notification_budget::{
     CompletionNotificationAuthority, NotificationBudget, NotificationBudgetError,
-    NotificationQueueAuthority, PendingPermitAuthority,
+    NotificationOwners, NotificationQueueAuthority, PendingPermitAuthority,
 };
 pub(crate) use notifier::{NotifierJoin, NotifierJoinError, NotifierPendingDispatchOwner};
 pub(crate) use observer::CompletionObserver;

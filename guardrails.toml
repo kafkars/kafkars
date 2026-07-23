@@ -21,7 +21,7 @@ excluded_roots = ["crates/kafka-client-guardrails/tests/fixtures"]
 
 [budgets]
 baseline = [
-  { path = "crates/kafka-client-engine/src/producer/pending/mod.rs", lines = 83, reason = "declarative facade explicitly registers its sibling pending-domain test modules" },
+  { path = "crates/kafka-client-engine/src/producer/pending/mod.rs", lines = 85, reason = "declarative facade explicitly registers its sibling pending-domain test modules" },
 ]
 allow = []
 
@@ -327,8 +327,20 @@ production = "crates/kafka-client-engine/src/producer/pending/attempt_transfer.r
 test = "crates/kafka-client-engine/src/producer/pending/attempt_transfer_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/producer/pending/backlog.rs"
-test = "crates/kafka-client-engine/src/producer/pending/backlog_test.rs"
+production = "crates/kafka-client-engine/src/producer/pending/recovery/backlog.rs"
+test = "crates/kafka-client-engine/src/producer/pending/recovery/backlog_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/recovery/queue.rs"
+test = "crates/kafka-client-engine/src/producer/pending/recovery/queue_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/recovery/worker.rs"
+test = "crates/kafka-client-engine/src/producer/pending/recovery/worker_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/recovery/route.rs"
+test = "crates/kafka-client-engine/src/producer/pending/recovery/route_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/pending/cell.rs"
@@ -659,7 +671,7 @@ root = "crates/kafka-client-engine/src"
 method = "dispatch_pending_notification"
 allowed_paths = [
   "crates/kafka-client-engine/src/completion/notifier.rs",
-  "crates/kafka-client-engine/src/producer/pending/backlog.rs",
+  "crates/kafka-client-engine/src/producer/pending/recovery/backlog.rs",
 ]
 
 [[method_capabilities]]
@@ -676,6 +688,18 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
+method = "notify"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "begin_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
 method = "start_waiting_explicit"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/boundary/handle.rs",
@@ -683,9 +707,51 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
+method = "begin_startup_rollback"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/host/startup.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
 method = "promote_next"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/ingress/data.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "finish_notification_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/pending/recovery/shutdown.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "finish_notification_cleanup"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/start.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "finish_startup_rollback"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/host/startup.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "stop_with_terminal"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/pending/recovery/shutdown.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "begin_empty_recovery_without_primary"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
 ]
 
 [[call_capabilities]]
@@ -707,6 +773,36 @@ root = "crates/kafka-client-engine/src"
 call = "NotificationQueue::from_notification_queue_authority"
 allowed_paths = [
   "crates/kafka-client-engine/src/completion/notifier.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "PendingRecoveryWorker::start_prestarted"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/pending/recovery/route.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "PendingNotificationShutdownOwner::from_primary"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/pending/recovery/route.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "PendingRecoveryWithoutPrimaryOwner::from_empty_proof"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/pending/recovery/route.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "spawn"
+allowed_paths = [
+  "crates/kafka-client-engine/src/completion/notifier.rs",
+  "crates/kafka-client-engine/src/engine_host/start.rs",
+  "crates/kafka-client-engine/src/producer/pending/recovery/worker.rs",
 ]
 
 [[call_capabilities]]
@@ -769,9 +865,9 @@ allowed_paths = ["crates/kafka-client-engine/src/completion/notifier/authority.r
 
 [[authority_tokens]]
 owner_type = "PendingNotificationRecoveryDispatchOwner"
-path = "crates/kafka-client-engine/src/producer/pending/backlog/authority.rs"
+path = "crates/kafka-client-engine/src/producer/pending/recovery/backlog/authority.rs"
 fields = ["_recovery_owner_proof"]
-allowed_paths = ["crates/kafka-client-engine/src/producer/pending/backlog/authority.rs"]
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/backlog/authority.rs"]
 
 # Clock execution stays monotonic, local, and free of sleeping/runtime ownership.
 [[capability_rules]]
@@ -1337,17 +1433,67 @@ allowed_paths = ["crates/kafka-client-engine/src/producer/pending/permit.rs"]
 [[mutation_owners]]
 owner_type = "PendingNotificationBacklog"
 field = "jobs"
-allowed_paths = ["crates/kafka-client-engine/src/producer/pending/backlog.rs"]
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/backlog.rs"]
 
 [[mutation_owners]]
 owner_type = "PendingNotificationRecovery"
 field = "jobs"
-allowed_paths = ["crates/kafka-client-engine/src/producer/pending/backlog.rs"]
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/backlog.rs"]
 
 [[mutation_owners]]
-owner_type = "PendingNotificationRecovery"
-field = "returned"
-allowed_paths = ["crates/kafka-client-engine/src/producer/pending/backlog.rs"]
+owner_type = "PendingRecoveryQueue"
+field = "state"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/queue.rs"]
+
+[[mutation_owners]]
+owner_type = "PendingRecoveryWorker"
+field = "handle"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/worker.rs"]
+
+[[mutation_owners]]
+owner_type = "PendingRecoveryJoin"
+field = "handle"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/worker.rs"]
+
+[[mutation_owners]]
+owner_type = "PendingNotificationRoute"
+field = "state"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/route.rs"]
+
+[[mutation_owners]]
+owner_type = "PendingNotificationRoute"
+field = "worker"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/route.rs"]
+
+[[mutation_owners]]
+owner_type = "PendingNotificationShutdownOwner"
+field = "notifier"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/shutdown.rs"]
+
+[[mutation_owners]]
+owner_type = "PendingNotificationShutdownOwner"
+field = "worker"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/shutdown.rs"]
+
+[[mutation_owners]]
+owner_type = "PendingNotificationShutdownOwner"
+field = "terminal"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/shutdown.rs"]
+
+[[mutation_owners]]
+owner_type = "PendingRecoveryStartupOwner"
+field = "worker"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/shutdown.rs"]
+
+[[mutation_owners]]
+owner_type = "PendingRecoveryStartupOwner"
+field = "terminal"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/shutdown.rs"]
+
+[[mutation_owners]]
+owner_type = "PendingRecoveryWithoutPrimaryOwner"
+field = "worker"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/shutdown.rs"]
 
 [[mutation_owners]]
 owner_type = "NotificationQueue"
@@ -1935,7 +2081,7 @@ path = "crates/kafka-client-engine/src/completion/notifier/authority.rs"
 
 [[linear_owners]]
 owner_type = "PendingNotificationRecoveryDispatchOwner"
-path = "crates/kafka-client-engine/src/producer/pending/backlog/authority.rs"
+path = "crates/kafka-client-engine/src/producer/pending/recovery/backlog/authority.rs"
 
 [[linear_owners]]
 owner_type = "PendingNotificationPermit"
@@ -1943,15 +2089,59 @@ path = "crates/kafka-client-engine/src/producer/pending/permit.rs"
 
 [[linear_owners]]
 owner_type = "PendingNotificationBacklog"
-path = "crates/kafka-client-engine/src/producer/pending/backlog.rs"
+path = "crates/kafka-client-engine/src/producer/pending/recovery/backlog.rs"
 
 [[linear_owners]]
 owner_type = "PendingNotificationBacklogFull"
-path = "crates/kafka-client-engine/src/producer/pending/backlog.rs"
+path = "crates/kafka-client-engine/src/producer/pending/recovery/backlog.rs"
 
 [[linear_owners]]
 owner_type = "PendingNotificationRecovery"
-path = "crates/kafka-client-engine/src/producer/pending/backlog.rs"
+path = "crates/kafka-client-engine/src/producer/pending/recovery/backlog.rs"
+
+[[linear_owners]]
+owner_type = "PendingRecoveryQueue"
+path = "crates/kafka-client-engine/src/producer/pending/recovery/queue.rs"
+
+[[linear_owners]]
+owner_type = "PendingRecoverySubmitError"
+path = "crates/kafka-client-engine/src/producer/pending/recovery/queue.rs"
+
+[[linear_owners]]
+owner_type = "PendingRecoveryWorker"
+path = "crates/kafka-client-engine/src/producer/pending/recovery/worker.rs"
+
+[[linear_owners]]
+owner_type = "PendingRecoveryJoin"
+path = "crates/kafka-client-engine/src/producer/pending/recovery/worker.rs"
+
+[[linear_owners]]
+owner_type = "PendingNotificationRoute"
+path = "crates/kafka-client-engine/src/producer/pending/recovery/route.rs"
+
+[[linear_owners]]
+owner_type = "PendingNotificationRouteFailure"
+path = "crates/kafka-client-engine/src/producer/pending/recovery/route.rs"
+
+[[linear_owners]]
+owner_type = "ProducerNotifierRecovery"
+path = "crates/kafka-client-engine/src/producer/shutdown.rs"
+
+[[linear_owners]]
+owner_type = "PendingNotificationShutdownOwner"
+path = "crates/kafka-client-engine/src/producer/pending/recovery/shutdown.rs"
+
+[[linear_owners]]
+owner_type = "PendingRecoveryStartupOwner"
+path = "crates/kafka-client-engine/src/producer/pending/recovery/shutdown.rs"
+
+[[linear_owners]]
+owner_type = "PendingRecoveryWithoutPrimaryOwner"
+path = "crates/kafka-client-engine/src/producer/pending/recovery/shutdown.rs"
+
+[[linear_owners]]
+owner_type = "EngineHostExit"
+path = "crates/kafka-client-engine/src/engine_host/runner.rs"
 
 [[linear_owners]]
 owner_type = "PendingSendRegistration"

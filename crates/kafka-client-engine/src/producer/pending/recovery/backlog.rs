@@ -2,11 +2,11 @@
 
 use std::collections::VecDeque;
 
-use super::{PendingNotificationDispatchAuthority, PendingNotificationJob};
+use super::super::{PendingNotificationDispatchAuthority, PendingNotificationJob};
 
 #[path = "backlog/authority.rs"]
 mod authority;
-pub(super) use authority::PendingNotificationRecoveryDispatchOwner;
+pub(crate) use authority::PendingNotificationRecoveryDispatchOwner;
 
 /// Host-owned fixed capacity for exact jobs rejected by a full notifier FIFO.
 pub(crate) struct PendingNotificationBacklog {
@@ -34,20 +34,32 @@ impl PendingNotificationBacklog {
         Ok(())
     }
 
-    /// Transfers older retained jobs plus the exact closed-queue return.
-    pub(crate) fn into_recovery(
-        self,
-        returned: PendingNotificationJob,
-    ) -> PendingNotificationRecovery {
-        PendingNotificationRecovery {
-            jobs: self.jobs,
-            returned: Some(returned),
-        }
+    /// Returns the oldest retained job for a primary-notifier retry.
+    pub(crate) fn pop_front(&mut self) -> Option<PendingNotificationJob> {
+        self.jobs.pop_front()
     }
 
-    #[cfg(test)]
+    /// Restores a failed oldest retry without moving it behind newer work.
+    pub(crate) fn push_front(&mut self, job: PendingNotificationJob) {
+        self.jobs.push_front(job);
+    }
+
+    /// Transfers older retained jobs plus the exact closed-queue return.
+    pub(crate) fn into_recovery(
+        mut self,
+        returned: PendingNotificationJob,
+    ) -> PendingNotificationRecovery {
+        self.jobs.push_back(returned);
+        PendingNotificationRecovery { jobs: self.jobs }
+    }
+
     pub(crate) fn len(&self) -> usize {
         self.jobs.len()
+    }
+
+    /// Transfers every primary retry when terminal shutdown ends that route.
+    pub(crate) fn into_recovery_all(self) -> Option<PendingNotificationRecovery> {
+        (!self.jobs.is_empty()).then_some(PendingNotificationRecovery { jobs: self.jobs })
     }
 }
 
@@ -67,31 +79,32 @@ impl PendingNotificationBacklogFull {
 #[must_use = "off-reactor recovery owns live notification permits and wakers"]
 pub(crate) struct PendingNotificationRecovery {
     jobs: VecDeque<PendingNotificationJob>,
-    returned: Option<PendingNotificationJob>,
 }
 
 impl PendingNotificationRecovery {
-    /// Dispatches retained FIFO work and then the exact closed-queue return.
-    ///
-    /// This loop is private so reactor owners cannot invoke it with a recovery
-    /// value. A production worker handoff must be added before recovery is
-    /// connected to the host.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "off-reactor worker handoff precedes production recovery integration"
-        )
-    )]
-    fn run_off_reactor(mut self) {
+    /// Wraps one later job after the route has entered recovery mode.
+    pub(super) fn from_job(job: PendingNotificationJob) -> Self {
+        Self {
+            jobs: VecDeque::from([job]),
+        }
+    }
+
+    /// Appends newer work behind every job already awaiting recovery.
+    pub(super) fn push_back(&mut self, job: PendingNotificationJob) {
+        self.jobs.push_back(job);
+    }
+
+    pub(super) fn len(&self) -> usize {
+        self.jobs.len()
+    }
+
+    /// Dispatches one exact FIFO batch on the dedicated recovery worker.
+    pub(super) fn run_off_reactor(mut self) {
         let authority = PendingNotificationDispatchAuthority::from_recovery(
             PendingNotificationRecoveryDispatchOwner::new(),
         );
         while let Some(job) = self.jobs.pop_front() {
             job.dispatch_pending_notification(&authority);
-        }
-        if let Some(returned) = self.returned.take() {
-            returned.dispatch_pending_notification(&authority);
         }
     }
 
@@ -105,11 +118,6 @@ impl PendingNotificationRecovery {
         self.jobs
             .iter()
             .map(PendingNotificationJob::permit_slot_for_test)
-            .chain(
-                self.returned
-                    .as_ref()
-                    .map(PendingNotificationJob::permit_slot_for_test),
-            )
             .collect()
     }
 }

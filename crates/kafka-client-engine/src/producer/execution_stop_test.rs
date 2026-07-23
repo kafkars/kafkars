@@ -141,7 +141,9 @@ fn fallback_failure_retains_primary_and_settlement_diagnostics() {
         Deadline::from_tick(100),
         record("orders"),
     );
-    let recovery = host.recover_notifier();
+    let recovery = host
+        .recover_notifier()
+        .unwrap_or_else(|error| panic!("notification recovery should remain owned: {error}"));
     host.inject_terminal_interpretation_fault();
 
     let error = host
@@ -156,13 +158,12 @@ fn fallback_failure_retains_primary_and_settlement_diagnostics() {
     assert_eq!(host.stats().core_retained_bytes.get(), 0);
     assert_eq!(host.stats().core_completion_slots, 0);
     assert_eq!(host.unsettled_completions(), 1);
-
     drop(admitted);
-    recovery
-        .notifier
-        .unwrap_or_else(|| panic!("test must retain notifier ownership"))
-        .join_off_notifier()
-        .unwrap_or_else(|error| panic!("notifier should join: {error}"));
+    let shutdown = recovery.notifications;
+    assert_eq!(
+        shutdown.finish_notification_cleanup(),
+        super::pending::PendingNotificationShutdownFailures::default()
+    );
 }
 
 #[test]
@@ -283,10 +284,8 @@ struct ReleaseWitness {
 
 impl Wake for ReleaseWitness {
     fn wake(self: Arc<Self>) {
-        self.released_before_wake.store(
-            self.payload_dropped.load(Ordering::Acquire),
-            Ordering::Release,
-        );
+        let dropped = self.payload_dropped.load(Ordering::Acquire);
+        self.released_before_wake.store(dropped, Ordering::Release);
         self.waker_called.store(true, Ordering::Release);
     }
 }

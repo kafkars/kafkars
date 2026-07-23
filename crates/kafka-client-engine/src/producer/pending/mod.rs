@@ -2,7 +2,6 @@
 mod attempt;
 mod attempt_settlement;
 mod attempt_transfer;
-mod backlog;
 mod cell;
 mod cell_promotion;
 mod entry;
@@ -13,6 +12,7 @@ mod notification;
 mod notification_authority;
 mod permit;
 mod promotion;
+mod recovery;
 mod registration;
 mod registry;
 mod restore;
@@ -25,8 +25,6 @@ pub(crate) use attempt::{
 };
 pub(crate) use attempt_settlement::PendingAttemptSettleFailure;
 pub(crate) use attempt_transfer::{PendingRecordRestoreFailure, PendingRecordTransferState};
-#[cfg(test)]
-pub(crate) use backlog::PendingNotificationBacklog;
 pub(crate) use cell::{PendingCellError, PendingCellTransition, PendingSendCell};
 pub(crate) use entry::{PendingAdmission, PendingLocalFailure, PendingStartFailure};
 pub(crate) use error::{
@@ -38,6 +36,12 @@ pub(crate) use identity::PendingAdmissionId;
 pub(crate) use notification::PendingNotificationJob;
 pub(crate) use notification_authority::PendingNotificationDispatchAuthority;
 pub(crate) use permit::{PendingNotificationPermit, PendingNotificationPermitPool};
+#[cfg(test)]
+pub(crate) use recovery::PendingNotificationShutdownOwner;
+pub(crate) use recovery::{
+    PendingNotificationCleanupOwner, PendingNotificationRoute, PendingNotificationShutdownFailures,
+    PendingPrimaryMissingError, PendingRecoveryJoinError, PendingRecoveryStartupOwner,
+};
 pub(crate) use registration::PendingSendRegistration;
 pub(crate) use registry::{PendingAdmissionRegistry, PendingAdmissionStats};
 #[cfg(test)]
@@ -49,8 +53,6 @@ mod attempt_settlement_test;
 mod attempt_test;
 #[cfg(test)]
 mod attempt_transfer_test;
-#[cfg(test)]
-mod backlog_test;
 #[cfg(test)]
 mod cell_promotion_test;
 #[cfg(test)]

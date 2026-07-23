@@ -11,6 +11,7 @@ pub(crate) struct EngineLifecycle {
     state: Mutex<LifecycleState>,
     changed: Condvar,
     notifier_thread: Mutex<Option<ThreadId>>,
+    recovery_thread: Mutex<Option<ThreadId>>,
 }
 
 enum LifecycleState {
@@ -25,11 +26,16 @@ impl EngineLifecycle {
             state: Mutex::new(LifecycleState::Running),
             changed: Condvar::new(),
             notifier_thread: Mutex::new(None),
+            recovery_thread: Mutex::new(None),
         }
     }
 
     pub(crate) fn install_notifier_thread(&self, thread_id: ThreadId) {
         *lock(&self.notifier_thread) = Some(thread_id);
+    }
+
+    pub(crate) fn install_recovery_thread(&self, thread_id: ThreadId) {
+        *lock(&self.recovery_thread) = Some(thread_id);
     }
 
     pub(crate) fn request(&self, control: &EngineHostControl) {
@@ -46,7 +52,7 @@ impl EngineLifecycle {
         control: &EngineHostControl,
     ) -> Result<(), EngineShutdownError> {
         self.request(control);
-        if self.is_notifier_thread() {
+        if self.is_notification_thread() {
             return Err(EngineShutdownError::notifier_thread());
         }
         let mut state = lock(&self.state);
@@ -100,8 +106,10 @@ impl EngineLifecycle {
         }
     }
 
-    fn is_notifier_thread(&self) -> bool {
-        lock(&self.notifier_thread).is_some_and(|thread_id| thread_id == thread::current().id())
+    fn is_notification_thread(&self) -> bool {
+        let current = thread::current().id();
+        lock(&self.notifier_thread).is_some_and(|thread_id| thread_id == current)
+            || lock(&self.recovery_thread).is_some_and(|thread_id| thread_id == current)
     }
 }
 

@@ -28,13 +28,21 @@ evidence = [
 [[invariant]]
 id = "BND-02"
 title = "Pending notification obligations are bounded"
-statement = "The engine-internal pending-send seam reserves one non-cloneable notification permit at registration, does not reuse it before off-reactor dispatch or proven no-obligation abandonment, and retains full or closed notifier jobs in named bounded owners. Public waiting admission and live host promotion remain separate milestones."
+statement = "The engine-internal pending-send seam reserves one non-cloneable notification permit at registration, and the live host prestarts one bounded off-reactor recovery worker. Full or closed primary-notifier work remains in exact FIFO owners; terminal recovery cannot run until the older primary notifier is joined, and dropping its paired stop owner drains and joins rather than detaching. Public waiting admission and live host promotion remain separate milestones."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/pending/permit_test.rs::notification_permit_is_not_reused_before_dispatch",
   "crates/kafka-client-engine/src/producer/pending/permit_test.rs::blocked_notifier_cannot_exceed_pending_notification_bound",
-  "crates/kafka-client-engine/src/producer/pending/backlog_test.rs::backlog_retains_exact_jobs_in_fifo_order",
-  "crates/kafka-client-engine/src/producer/pending/backlog_test.rs::closed_transfer_keeps_backlog_and_returned_job_in_one_recovery_owner",
+  "crates/kafka-client-engine/src/producer/pending/recovery/backlog_test.rs::backlog_retains_exact_jobs_in_fifo_order",
+  "crates/kafka-client-engine/src/producer/pending/recovery/backlog_test.rs::closed_transfer_keeps_backlog_and_returned_job_in_one_recovery_owner",
+  "crates/kafka-client-engine/src/producer/pending/recovery/queue_test.rs::permit_capacity_bounds_queued_and_current_recovery_jobs_together",
+  "crates/kafka-client-engine/src/producer/pending/recovery/queue_test.rs::terminal_tail_remains_fifo_when_the_normal_queue_is_full",
+  "crates/kafka-client-engine/src/producer/pending/recovery/worker_test.rs::worker_dispatches_away_from_the_submitting_thread_and_joins",
+  "crates/kafka-client-engine/src/producer/pending/recovery/route_test.rs::front_retry_closure_transfers_fifo_then_routes_later_jobs_to_recovery",
+  "crates/kafka-client-engine/src/producer/pending/recovery/route_test.rs::dropped_paired_owner_joins_primary_before_terminal_recovery",
+  "crates/kafka-client-engine/src/producer/pending/recovery/route_test.rs::missing_primary_refuses_retained_tail_without_splitting_owner",
+  "crates/kafka-client-engine/src/producer/shutdown_test.rs::missing_primary_only_allows_proven_empty_recovery_cleanup",
+  "crates/kafka-client-engine/src/producer/host_limits_test.rs::later_notification_start_failure_joins_the_prestarted_recovery_worker",
   "crates/kafka-client-engine/src/producer/pending/turn_test.rs::take_next_counts_each_abandoned_tombstone_against_its_budget",
   "crates/kafka-client-engine/src/producer/pending/turn_test.rs::expire_and_drain_count_tombstones_without_yielding_fake_failures",
 ]

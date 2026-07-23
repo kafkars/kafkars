@@ -8,10 +8,14 @@ use kafka_client_core::{
 use super::{
     ProducerHost, ProducerHostLimitError, ProducerHostLimits, ProducerHostStartError,
     admission_test::{admit, record},
+    host::startup::start_notification_owners,
 };
-use crate::producer::pending::{
-    PendingAdmissionRegistry,
-    turn_error::{PendingTurnFailure, PendingTurnFailureOwnership},
+use crate::{
+    completion::NotificationBudget,
+    producer::pending::{
+        PendingAdmissionRegistry,
+        turn_error::{PendingTurnFailure, PendingTurnFailureOwnership},
+    },
 };
 
 #[test]
@@ -105,6 +109,20 @@ fn notification_capacity_overflow_is_rejected_before_allocation() {
     limits.notification_capacity = usize::MAX;
 
     assert_limit(limits, ProducerHostLimitError::NotificationCapacityOverflow);
+}
+
+#[test]
+fn later_notification_start_failure_joins_the_prestarted_recovery_worker() {
+    let budget = NotificationBudget::try_new(1, 1, 2)
+        .unwrap_or_else(|error| panic!("test notification budget should validate: {error:?}"));
+
+    let result = start_notification_owners::<kafka_client_core::ProducerCompletion, _>(
+        budget,
+        1,
+        |_budget| Err(std::io::Error::other("forced notifier startup failure")),
+    );
+
+    assert!(matches!(result, Err(ProducerHostStartError::Notifier(_))));
 }
 
 #[test]

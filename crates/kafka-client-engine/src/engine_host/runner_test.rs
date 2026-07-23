@@ -22,7 +22,7 @@ use crate::{
 
 use super::{
     EngineHostControl, EngineHostError, EngineHostResources, recover,
-    runner::{producer_wait, stop_notifier},
+    runner::{prepare_notification_stop, producer_wait},
 };
 
 #[test]
@@ -75,8 +75,8 @@ fn normal_stop_refuses_live_pending_ownership_while_resources_remain_retained() 
     let waiting = register_pending(&resources);
     let before = shard_stats(&resources);
 
-    let Err(error) = stop_notifier(&resources) else {
-        panic!("normal notifier stop must refuse pending ownership")
+    let Err(error) = prepare_notification_stop(&resources) else {
+        panic!("normal notification preparation must refuse pending ownership")
     };
     assert!(
         error
@@ -95,7 +95,7 @@ fn recovery_surfaces_pending_refusal_without_draining_the_retained_resources() {
 
     let exit = recover(&mut resources, EngineHostError::ForcedTestFailure);
 
-    assert!(exit.notifier.is_none());
+    assert!(exit.notifications.is_none());
     let failure = exit
         .failure
         .unwrap_or_else(|| panic!("pending refusal must remain in the recovery report"));
