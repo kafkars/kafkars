@@ -1,0 +1,114 @@
+schema = 1
+
+[paths]
+rust_roots = ["crates"]
+# These are deliberately invalid Rust shapes used to prove each detector.
+excluded_roots = ["crates/kafka-client-guardrails/tests/fixtures"]
+
+[budgets]
+baseline = []
+allow = []
+
+[budgets.facade]
+target = 80
+soft = 120
+hard = 180
+
+[budgets.implementation]
+target = 240
+soft = 360
+hard = 500
+
+[budgets.test]
+target = 300
+soft = 500
+hard = 700
+
+[budgets.auxiliary]
+target = 300
+soft = 500
+hard = 700
+
+[[dependency_rules]]
+package = "kafka-client-core"
+allowed_internal = []
+allowed_external = []
+
+[[dependency_rules]]
+package = "kafka-client-engine"
+allowed_internal = ["kafka-client-core"]
+allowed_external = []
+
+[[dependency_rules]]
+package = "kafka-client-guardrails"
+allowed_internal = []
+allowed_external = ["serde", "syn", "toml"]
+
+[[dependency_rules]]
+package = "kafka-client-sim"
+allowed_internal = ["kafka-client-core"]
+allowed_external = []
+
+[[dependency_rules]]
+package = "kafka-client-rs"
+allowed_internal = ["kafka-client-core", "kafka-client-engine"]
+allowed_external = ["bytes"]
+
+# Time, I/O, execution, and protocol bytes stay outside deterministic policy.
+[[capability_rules]]
+root = "crates/kafka-client-core/src"
+forbidden = [
+  "std::fs",
+  "std::net",
+  "std::os::unix::net",
+  "std::process",
+  "std::sync",
+  "std::thread",
+  "std::time",
+  "async_std",
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+]
+
+# Simulation owns virtual time only and must remain reproducible.
+[[capability_rules]]
+root = "crates/kafka-client-sim/src"
+forbidden = [
+  "std::fs",
+  "std::net",
+  "std::os::unix::net",
+  "std::process",
+  "std::thread",
+  "std::time",
+  "async_std",
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+]
+
+# The engine may own clocks and threads, but the driver owns socket mechanics.
+[[capability_rules]]
+root = "crates/kafka-client-engine/src"
+forbidden = [
+  "std::fs",
+  "std::net",
+  "std::os::unix::net",
+  "std::process",
+  "async_std",
+  "tokio",
+]
+
+# The curated Rust API delegates execution and wire work to lower layers.
+[[capability_rules]]
+root = "crates/kafka-client/src"
+forbidden = [
+  "std::fs",
+  "std::net",
+  "std::os::unix::net",
+  "std::process",
+  "async_std",
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+]

@@ -1,0 +1,15 @@
+[package]
+name = "kafka-client-engine"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Execution and driver-integration layer for the native Kafka client"
+publish = false
+
+[dependencies]
+kafka-client-core.workspace = true
+
+[lints]
+workspace = true

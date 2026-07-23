@@ -1,0 +1,21 @@
+[package]
+name = "kafka-client-rs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Idiomatic Rust client for Apache Kafka"
+publish = false
+
+[lib]
+name = "kafka_client"
+path = "src/lib.rs"
+
+[dependencies]
+bytes.workspace = true
+kafka-client-core.workspace = true
+kafka-client-engine.workspace = true
+
+[lints]
+workspace = true

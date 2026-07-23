@@ -1,0 +1,15 @@
+[package]
+name = "kafka-client-sim"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Virtual-time simulator for Kafka client semantic machines"
+publish = false
+
+[dependencies]
+kafka-client-core.workspace = true
+
+[lints]
+workspace = true
