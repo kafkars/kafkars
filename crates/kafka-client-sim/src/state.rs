@@ -103,7 +103,9 @@ impl VirtualProducerState {
                 operation_id,
                 completion,
             } => self.complete(operation_id, completion)?,
-            ProducerEffect::AcceptFlush { .. } | ProducerEffect::CompleteFlush { .. } => {}
+            ProducerEffect::AcceptFlush { .. } | ProducerEffect::CompleteFlush { .. } => {
+                return Err(SimulationError::FlushControlUnavailable);
+            }
         }
         self.trace.push(effect);
         Ok(())

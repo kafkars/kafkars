@@ -17,3 +17,5 @@ mod clock_test;
 mod producer_test;
 #[cfg(test)]
 mod producer_timer_test;
+#[cfg(test)]
+mod state_test;

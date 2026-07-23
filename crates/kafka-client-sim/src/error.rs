@@ -40,6 +40,8 @@ pub enum SimulationError {
     UnknownTerminal(OperationId),
     /// Core reclamation was reported before the engine released its result.
     TerminalStillRetained(OperationId),
+    /// Flush effects require completion ownership the simulator does not model.
+    FlushControlUnavailable,
 }
 
 impl fmt::Display for SimulationError {
@@ -67,6 +69,9 @@ impl fmt::Display for SimulationError {
             Self::UnknownTerminal(_) => formatter.write_str("unknown virtual terminal result"),
             Self::TerminalStillRetained(_) => {
                 formatter.write_str("terminal result remains retained by the virtual engine")
+            }
+            Self::FlushControlUnavailable => {
+                formatter.write_str("virtual producer flush completion is not implemented")
             }
         }
     }

@@ -102,13 +102,20 @@ evidence = [
 [[invariant]]
 id = "FL-01"
 title = "Flush is an admission-sequence barrier"
-statement = "Flush captures the next admission sequence, contains exactly operations with earlier sequences, ignores later admissions, and becomes terminal after every included operation reaches terminal publication without waiting for observer reclamation."
+statement = "Flush captures the next admission sequence, contains exactly operations with earlier sequences, excludes later admissions, and emits its terminal-decision effect after every included operation's ordered terminal-decision effect."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/producer/flush_transition_test.rs::flush_includes_exactly_operations_accepted_before_its_barrier",
   "crates/kafka-client-core/src/producer/flush_transition_test.rs::overlapping_flushes_settle_in_barrier_order",
-  "crates/kafka-client-core/src/producer/flush_transition_test.rs::terminal_publication_settles_flush_before_observer_reclamation",
+  "crates/kafka-client-core/src/producer/flush_transition_test.rs::terminal_decision_orders_flush_after_record_completion_effect",
 ]
+
+[[invariant]]
+id = "FL-02"
+title = "Flush observability follows record publication"
+statement = "A flush becomes observable only after every included record terminal is actually published or retained in a retry-acknowledged completion path."
+status = "planned"
+milestone = "engine-flush-completion-publication"
 
 [[invariant]]
 id = "IDM-01"

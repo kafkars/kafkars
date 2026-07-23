@@ -60,7 +60,7 @@ fn overlapping_flushes_settle_in_barrier_order() {
 }
 
 #[test]
-fn terminal_publication_settles_flush_before_observer_reclamation() {
+fn terminal_decision_orders_flush_after_record_completion_effect() {
     let mut producer = ProducerMachine::new(ByteCount::new(64), 2);
     let (operation_id, batch_id) = admit(&mut producer, 1, 0);
     let (flush_id, _barrier) = request_flush(&mut producer);
@@ -84,8 +84,6 @@ fn terminal_publication_settles_flush_before_observer_reclamation() {
             ProducerEffect::CompleteFlush { flush_id },
         ]
     );
-    assert_eq!(producer.completion_slots(), 1);
-    assert_eq!(producer.flush_slots(), 1);
 }
 
 #[test]

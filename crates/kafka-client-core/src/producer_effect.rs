@@ -108,7 +108,7 @@ pub enum ProducerEffect {
         /// Next record-admission sequence captured at the flush call boundary.
         barrier: AdmissionSequence,
     },
-    /// Publish terminal flush success after included record terminal effects.
+    /// Request terminal flush publication after included terminal-decision effects.
     CompleteFlush {
         /// Stable flush identity.
         flush_id: FlushId,

@@ -77,6 +77,10 @@ production = "crates/kafka-client-core/src/producer/flush_transition.rs"
 test = "crates/kafka-client-core/src/producer/flush_transition_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-sim/src/state.rs"
+test = "crates/kafka-client-sim/src/state_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/clock/monotonic.rs"
 test = "crates/kafka-client-engine/src/clock/monotonic_test.rs"
 
