@@ -264,7 +264,7 @@ evidence = [
   "crates/kafka-client-engine/src/engine_host/recovery_test.rs::failed_runner_settles_accepted_work_and_closes_retained_handles",
   "crates/kafka-client-engine/src/engine_host/start_test.rs::notifier_join_failure_appends_without_replacing_primary_failure",
   "crates/kafka-client-engine/src/engine_host/start_test.rs::finalizer_panic_still_publishes_a_terminal_report",
-  "crates/kafka-client-engine/src/driver/owner_test.rs::dropping_the_sole_driver_handle_uses_implicit_reactor_shutdown",
+  "crates/kafka-client-engine/src/driver/owner_test.rs::retained_explicit_shutdown_barrier_settles_with_the_reactor",
 ]
 
 [[invariant]]

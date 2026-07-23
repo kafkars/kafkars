@@ -20,41 +20,51 @@ fn one_owner_builds_the_driver_handle_reactor_and_wake_source() {
 
     assert!(!owner.is_shutdown());
     assert!(wake.request().is_ok());
+    owner
+        .close_admission()
+        .unwrap_or_else(|error| panic!("request explicit shutdown: {error}"));
     let turns = owner
         .shutdown_with_turn_limit(SHUTDOWN_TURN_LIMIT, SHUTDOWN_WAIT_LIMIT)
-        .unwrap_or_else(|error| panic!("drive bounded shutdown: {error}"));
+        .unwrap_or_else(|error| panic!("drive bounded shutdown turns: {error}"));
 
     assert!((1..=SHUTDOWN_TURN_LIMIT).contains(&turns));
     assert!(owner.is_shutdown());
 }
 
 #[test]
-fn dropping_the_sole_driver_handle_uses_implicit_reactor_shutdown() {
+fn retained_explicit_shutdown_barrier_settles_with_the_reactor() {
     let mut owner = owner();
-    owner.close_admission();
+    owner
+        .close_admission()
+        .unwrap_or_else(|error| panic!("request explicit shutdown: {error}"));
 
+    let first = owner
+        .turn(Duration::ZERO)
+        .unwrap_or_else(|error| panic!("drive bounded shutdown turn: {error}"));
+
+    assert!(matches!(
+        first,
+        DriverTurn::Progress { .. } | DriverTurn::Shutdown
+    ));
+    owner
+        .close_admission()
+        .unwrap_or_else(|error| panic!("repeat explicit shutdown: {error}"));
     let deadline = Instant::now() + SHUTDOWN_DEADLINE;
-    let outcome = loop {
-        let outcome = owner
+    while !owner.is_shutdown() {
+        owner
             .turn(Duration::ZERO)
-            .unwrap_or_else(|error| panic!("drive bounded shutdown turn: {error}"));
-        if outcome == DriverTurn::Shutdown {
-            break outcome;
-        }
+            .unwrap_or_else(|error| panic!("drive retained shutdown barrier: {error}"));
         assert!(
             Instant::now() < deadline,
-            "implicit driver shutdown exceeded its wall-clock bound"
+            "explicit driver shutdown exceeded its wall-clock bound"
         );
         thread::yield_now();
-    };
-
-    assert_eq!(outcome, DriverTurn::Shutdown);
-    owner.close_admission();
+    }
     assert!(owner.is_shutdown());
 }
 
 #[test]
-fn implicit_shutdown_respects_the_engine_turn_bound() {
+fn explicit_shutdown_respects_the_engine_turn_bound() {
     let mut owner = owner();
 
     let error = owner

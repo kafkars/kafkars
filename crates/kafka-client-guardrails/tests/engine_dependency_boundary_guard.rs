@@ -26,7 +26,7 @@ fn boundary_violations(source_root: &Path) -> Vec<String> {
             let allowed = if dependency == DRIVER {
                 is_beneath(relative, "driver")
             } else {
-                is_beneath(relative, "protocol")
+                is_wire_adapter(relative)
             };
             if !allowed {
                 violations.push(format!(
@@ -44,6 +44,12 @@ fn is_beneath(path: &Path, directory: &str) -> bool {
         path.components().next(),
         Some(Component::Normal(component)) if component == directory
     )
+}
+
+fn is_wire_adapter(path: &Path) -> bool {
+    is_beneath(path, "protocol")
+        || path == Path::new("driver/rpc.rs")
+        || path == Path::new("driver/rpc_test.rs")
 }
 
 #[derive(Default)]
@@ -123,5 +129,18 @@ fn aliases_and_qualified_paths_cannot_bypass_engine_adapters() {
     assert!(
         !violations.iter().any(|value| value.contains("allowed.rs")),
         "engine boundary detector rejected sanctioned adapters: {violations:?}"
+    );
+    assert!(
+        !violations
+            .iter()
+            .any(|value| value.starts_with("driver/rpc.rs ")),
+        "engine boundary detector rejected the exact driver RPC join point: {violations:?}"
+    );
+    assert!(
+        violations
+            .iter()
+            .any(|value| value.contains("driver/not_rpc.rs")),
+        "engine boundary detector accepted wire access beside the exact RPC join point: \
+         {violations:?}"
     );
 }

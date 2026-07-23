@@ -8,7 +8,7 @@ use kafka_driver::{
 
 use crate::EngineConfig;
 
-use super::{DriverOwnerError, ReactorWake, endpoint};
+use super::{DriverOwnerError, ReactorWake, endpoint, shutdown::DriverShutdown};
 
 /// Driver-neutral outcome from one embedded reactor turn.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -24,9 +24,10 @@ pub(crate) enum DriverTurn {
 /// driver's current relative-timeout request methods; reactor turns and
 /// terminal shutdown remain single-owner actions.
 pub(crate) struct DriverOwner {
-    driver: Option<Driver>,
+    pub(super) driver: Driver,
     reactor: Reactor,
     wake: WakeHandle,
+    shutdown: DriverShutdown,
 }
 
 impl DriverOwner {
@@ -54,9 +55,10 @@ impl DriverOwner {
             .map_err(DriverOwnerError::Build)?;
         let wake = reactor.wake_handle();
         Ok(Self {
-            driver: Some(driver),
+            driver,
             reactor,
             wake,
+            shutdown: DriverShutdown::default(),
         })
     }
 
@@ -71,6 +73,9 @@ impl DriverOwner {
             .reactor
             .turn(max_wait)
             .map_err(DriverOwnerError::Reactor)?;
+        self.shutdown
+            .observe()
+            .map_err(DriverOwnerError::ShutdownCompletion)?;
         Ok(match outcome {
             TurnOutcome::Idle => DriverTurn::Idle,
             TurnOutcome::Progress { more_work, .. } => DriverTurn::Progress { more_work },
@@ -78,18 +83,20 @@ impl DriverOwner {
         })
     }
 
-    /// Drops the sole command sender so the reactor begins implicit shutdown.
-    pub(crate) fn close_admission(&mut self) {
-        drop(self.driver.take());
+    /// Requests and retains the driver's shared explicit shutdown barrier.
+    pub(crate) fn close_admission(&mut self) -> Result<(), DriverOwnerError> {
+        self.shutdown
+            .begin(&self.driver)
+            .map_err(DriverOwnerError::ShutdownSubmit)
     }
 
-    /// Drives implicit shutdown within one caller-provided turn bound.
+    /// Drives the explicit shared shutdown barrier within a caller-provided bound.
     pub(crate) fn shutdown_with_turn_limit(
         &mut self,
         turn_limit: usize,
         max_wait: Duration,
     ) -> Result<usize, DriverOwnerError> {
-        self.close_admission();
+        self.close_admission()?;
         let mut turns = 0;
         while !self.is_shutdown() && turns < turn_limit {
             let _outcome = self.turn(max_wait)?;
@@ -102,9 +109,9 @@ impl DriverOwner {
         }
     }
 
-    /// Reports whether the embedded reactor has reached terminal shutdown.
-    pub(crate) const fn is_shutdown(&self) -> bool {
-        self.reactor.is_shutdown()
+    /// Reports whether both reactor and retained shared barrier are terminal.
+    pub(crate) fn is_shutdown(&self) -> bool {
+        self.reactor.is_shutdown() && self.shutdown.is_settled()
     }
 }
 
@@ -112,7 +119,8 @@ impl fmt::Debug for DriverOwner {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("DriverOwner")
-            .field("admission_open", &self.driver.is_some())
+            .field("shutdown_started", &self.shutdown.is_started())
+            .field("shutdown_settled", &self.shutdown.is_settled())
             .field("reactor_shutdown", &self.reactor.is_shutdown())
             .finish_non_exhaustive()
     }

@@ -163,6 +163,18 @@ production = "crates/kafka-client-engine/src/driver/owner.rs"
 test = "crates/kafka-client-engine/src/driver/owner_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/delivery.rs"
+test = "crates/kafka-client-engine/src/driver/delivery_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc.rs"
+test = "crates/kafka-client-engine/src/driver/rpc_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/shutdown.rs"
+test = "crates/kafka-client-engine/src/driver/shutdown_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/wake.rs"
 test = "crates/kafka-client-engine/src/driver/wake_test.rs"
 
@@ -1344,6 +1356,10 @@ path = "crates/kafka-client-core/src/producer/batch.rs"
 [[linear_owners]]
 owner_type = "DriverOwner"
 path = "crates/kafka-client-engine/src/driver/owner.rs"
+
+[[linear_owners]]
+owner_type = "DriverShutdown"
+path = "crates/kafka-client-engine/src/driver/shutdown.rs"
 
 [[linear_owners]]
 owner_type = "EngineInner"

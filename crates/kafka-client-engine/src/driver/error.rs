@@ -2,7 +2,7 @@
 
 use std::{error::Error, fmt};
 
-use kafka_driver::{BootstrapError, DriverBuildError, ReactorError};
+use kafka_driver::{BootstrapError, CompletionError, DriverBuildError, ReactorError, SubmitError};
 
 use super::EndpointError;
 
@@ -22,6 +22,10 @@ pub(crate) enum DriverOwnerError {
     Build(DriverBuildError),
     /// A bounded embedded-reactor turn failed.
     Reactor(ReactorError),
+    /// The driver's shared shutdown barrier rejected its first subscription.
+    ShutdownSubmit(SubmitError),
+    /// The retained shared shutdown barrier lost its terminal result.
+    ShutdownCompletion(CompletionError),
     /// Bounded terminal turns could not reach driver shutdown.
     ShutdownTurnExhausted,
 }
@@ -38,6 +42,12 @@ impl fmt::Display for DriverOwnerError {
             Self::Bootstrap(source) => write!(formatter, "invalid bootstrap set: {source}"),
             Self::Build(source) => write!(formatter, "failed to build embedded driver: {source}"),
             Self::Reactor(source) => write!(formatter, "embedded driver turn failed: {source}"),
+            Self::ShutdownSubmit(source) => {
+                write!(formatter, "driver shutdown request was rejected: {source}")
+            }
+            Self::ShutdownCompletion(source) => {
+                write!(formatter, "driver shutdown barrier failed: {source}")
+            }
             Self::ShutdownTurnExhausted => {
                 formatter.write_str("driver shutdown exceeded its bounded terminal turns")
             }
@@ -52,6 +62,8 @@ impl Error for DriverOwnerError {
             Self::Bootstrap(source) => Some(source),
             Self::Build(source) => Some(source),
             Self::Reactor(source) => Some(source),
+            Self::ShutdownSubmit(source) => Some(source),
+            Self::ShutdownCompletion(source) => Some(source),
             Self::ShutdownTurnExhausted => None,
         }
     }
