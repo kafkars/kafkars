@@ -113,6 +113,10 @@ pub(crate) enum ProducerHostInvariantError {
     CommittedFactsMismatch,
     GeneratedFactCapacity,
     PendingEffectCapacity,
+    #[cfg(test)]
+    ForcedTerminalInterpretation,
+    #[cfg(test)]
+    ForcedTerminalPlanning,
 }
 
 impl fmt::Display for ProducerHostInvariantError {
@@ -150,6 +154,14 @@ impl fmt::Display for ProducerHostInvariantError {
             }
             Self::PendingEffectCapacity => {
                 formatter.write_str("producer pending-effect storage exceeded its fixed capacity")
+            }
+            #[cfg(test)]
+            Self::ForcedTerminalInterpretation => {
+                formatter.write_str("forced terminal producer interpretation failure")
+            }
+            #[cfg(test)]
+            Self::ForcedTerminalPlanning => {
+                formatter.write_str("forced terminal producer planning failure")
             }
         }
     }

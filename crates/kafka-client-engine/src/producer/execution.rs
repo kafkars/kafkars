@@ -208,6 +208,12 @@ impl PreparedExecution {
         self.deadlines.len()
     }
 
+    /// Drops encoded requests and deadline ownership terminally.
+    pub(crate) fn clear_terminal(&mut self) {
+        self.prepared.clear_terminal();
+        self.deadlines.clear_terminal();
+    }
+
     fn classify_insert_rejection(
         batch_id: BatchId,
         rejected: PreparedInsertError,

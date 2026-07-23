@@ -1,6 +1,19 @@
 //! Producer-host execution-stop and emergency fallback scenarios.
 
-use kafka_client_core::{BatchId, ByteCount, Deadline, Moment, PayloadId};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    task::{Context, Poll, Wake, Waker},
+    thread,
+    time::{Duration, Instant},
+};
+
+use bytes::Bytes;
+use kafka_client_core::{Deadline, Moment, PartitionIndex};
 
 use crate::{
     ProducerDeliveryError, ProducerDeliveryFailureKind, ProducerDeliveryStatus,
@@ -33,28 +46,116 @@ fn deterministic_execution_stop_settles_pre_driver_work_not_sent() {
 #[test]
 fn damaged_interpretation_still_settles_observers_conservatively() {
     let mut host = start(valid_limits());
+    let payload_dropped = Arc::new(AtomicBool::new(false));
+    let admitted = admit(
+        &mut host,
+        Moment::from_tick(0),
+        Deadline::from_tick(100),
+        probed_record(Arc::clone(&payload_dropped)),
+    );
+    let mut observer = admitted.into_delivery_observer();
+    let waker_called = Arc::new(AtomicBool::new(false));
+    let released_before_wake = Arc::new(AtomicBool::new(false));
+    let waker = Waker::from(Arc::new(ReleaseWitness {
+        payload_dropped: Arc::clone(&payload_dropped),
+        waker_called: Arc::clone(&waker_called),
+        released_before_wake: Arc::clone(&released_before_wake),
+    }));
+    assert_eq!(
+        Pin::new(&mut observer).poll(&mut Context::from_waker(&waker)),
+        Poll::Pending
+    );
+    let retained = host.stats();
+    assert_eq!(retained.store.records, 1);
+    assert!(retained.store.bytes > 0);
+    assert_eq!(retained.store.batches, 1);
+    assert_eq!(retained.active_timers, 1);
+    assert_eq!(retained.completion_bindings, 1);
+    host.inject_terminal_interpretation_fault();
+
+    let error = host
+        .execution_unavailable(Moment::from_tick(1))
+        .err()
+        .unwrap_or_else(|| panic!("damaged exact cleanup must remain reportable"));
+    assert!(
+        error
+            .to_string()
+            .contains("forced terminal producer interpretation failure")
+    );
+    assert!(host.terminal_resources_empty());
+    wait_until(|| waker_called.load(Ordering::Acquire));
+    assert!(
+        released_before_wake.load(Ordering::Acquire),
+        "raw payload ownership must drop before fallback wakes application code"
+    );
+
+    assert_failure(observer.wait(), ProducerDeliveryStatus::PossiblySent);
+    assert_eq!(host.unsettled_completions(), 0);
+}
+
+#[test]
+fn planning_failure_replaces_the_live_core_before_fallback_publication() {
+    let mut host = start(valid_limits());
     let admitted = admit(
         &mut host,
         Moment::from_tick(0),
         Deadline::from_tick(100),
         record("orders"),
     );
-    let batch_id = BatchId::from_raw(1);
-    host.store
-        .release_batch(batch_id)
-        .unwrap_or_else(|error| panic!("test corruption should release batch: {error}"));
-    host.store
-        .release_payload(PayloadId::from_raw(1), ByteCount::new(7))
-        .unwrap_or_else(|error| panic!("test corruption should release payload: {error}"));
+    assert!(host.stats().core_retained_bytes.get() > 0);
+    assert_eq!(host.stats().core_completion_slots, 1);
+    host.inject_terminal_planning_fault();
 
-    host.execution_unavailable(Moment::from_tick(1))
-        .unwrap_or_else(|error| panic!("emergency fallback should publish: {error}"));
-
+    let error = host
+        .execution_unavailable(Moment::from_tick(1))
+        .err()
+        .unwrap_or_else(|| panic!("planning failure must remain reportable"));
+    assert!(
+        error
+            .to_string()
+            .contains("forced terminal producer planning failure")
+    );
+    let drained = host.stats();
+    assert_eq!(drained.core_retained_bytes.get(), 0);
+    assert_eq!(drained.core_completion_slots, 0);
+    assert!(host.terminal_resources_empty());
     assert_failure(
         admitted.into_delivery_observer().wait(),
         ProducerDeliveryStatus::PossiblySent,
     );
-    assert_eq!(host.unsettled_completions(), 0);
+}
+
+#[test]
+fn fallback_failure_retains_primary_and_settlement_diagnostics() {
+    let mut host = start(valid_limits());
+    let admitted = admit(
+        &mut host,
+        Moment::from_tick(0),
+        Deadline::from_tick(100),
+        record("orders"),
+    );
+    let recovery = host.recover_notifier();
+    host.inject_terminal_interpretation_fault();
+
+    let error = host
+        .execution_unavailable(Moment::from_tick(1))
+        .err()
+        .unwrap_or_else(|| panic!("disconnected fallback must report both failures"));
+    let message = error.to_string();
+    assert!(message.contains("forced terminal producer interpretation failure"));
+    assert!(message.contains("conservative fallback also failed"));
+    assert!(message.contains("completion notifier has stopped"));
+    assert_eq!(host.stats().store.bytes, 0);
+    assert_eq!(host.stats().core_retained_bytes.get(), 0);
+    assert_eq!(host.stats().core_completion_slots, 0);
+    assert_eq!(host.unsettled_completions(), 1);
+
+    drop(admitted);
+    recovery
+        .notifier
+        .unwrap_or_else(|| panic!("test must retain notifier ownership"))
+        .join_off_notifier()
+        .unwrap_or_else(|error| panic!("notifier should join: {error}"));
 }
 
 fn assert_failure(
@@ -69,4 +170,58 @@ fn assert_failure(
         ProducerDeliveryFailureKind::ExecutionUnavailable
     );
     assert_eq!(failure.delivery_status(), status);
+}
+
+fn probed_record(dropped: Arc<AtomicBool>) -> super::ProducerRecord {
+    super::ProducerRecord::new(
+        Arc::from("orders"),
+        PartitionIndex::from_raw(0),
+        10,
+        None,
+        Some(Bytes::from_owner(DropOwner {
+            bytes: [b'x'],
+            dropped,
+        })),
+    )
+}
+
+struct DropOwner {
+    bytes: [u8; 1],
+    dropped: Arc<AtomicBool>,
+}
+
+impl AsRef<[u8]> for DropOwner {
+    fn as_ref(&self) -> &[u8] {
+        &self.bytes
+    }
+}
+
+impl Drop for DropOwner {
+    fn drop(&mut self) {
+        self.dropped.store(true, Ordering::Release);
+    }
+}
+
+struct ReleaseWitness {
+    payload_dropped: Arc<AtomicBool>,
+    waker_called: Arc<AtomicBool>,
+    released_before_wake: Arc<AtomicBool>,
+}
+
+impl Wake for ReleaseWitness {
+    fn wake(self: Arc<Self>) {
+        self.released_before_wake.store(
+            self.payload_dropped.load(Ordering::Acquire),
+            Ordering::Release,
+        );
+        self.waker_called.store(true, Ordering::Release);
+    }
+}
+
+fn wait_until(mut condition: impl FnMut() -> bool) {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while !condition() {
+        assert!(Instant::now() < deadline, "notifier should run the waker");
+        thread::yield_now();
+    }
 }

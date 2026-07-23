@@ -40,6 +40,7 @@ pub(crate) use materialization::{MaterializationBatch, MaterializationHeader};
 #[cfg(test)]
 pub(crate) use record::ProducerHeader;
 pub(crate) use record::ProducerRecord;
+pub(crate) use shutdown::ProducerTerminalCleanupError;
 pub(crate) use store::{ProducerStore, ProducerStoreLimits, ProducerStoreStats};
 #[cfg(test)]
 mod admission_test;

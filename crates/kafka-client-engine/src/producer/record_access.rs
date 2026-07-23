@@ -102,7 +102,6 @@ impl RecordStore {
         self.slots.len()
     }
 
-    #[cfg(test)]
     pub(super) fn topic_count(&self) -> usize {
         self.topics.len()
     }

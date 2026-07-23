@@ -192,6 +192,12 @@ impl RecordStore {
         Ok(())
     }
 
+    pub(super) fn clear_terminal(&mut self) {
+        self.slots.clear();
+        self.topics.clear_terminal();
+        self.used_bytes = 0;
+    }
+
     fn remove_slot(&mut self, payload_id: PayloadId) -> Result<RecordSlot, ProducerStoreError> {
         let slot = self.slot(payload_id)?;
         let Some(next_used) = self.used_bytes.checked_sub(slot.retained_bytes) else {

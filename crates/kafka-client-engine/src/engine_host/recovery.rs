@@ -17,6 +17,21 @@ pub(crate) fn recover(
     {
         failure = failure.with_cleanup(cleanup);
     }
+    if let Some(cleanup) = producer
+        .verify_release_before_completion()
+        .err()
+        .map(EngineHostError::ProducerCleanup)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    producer.drain_terminal_mechanisms();
+    if let Some(cleanup) = producer
+        .verify_terminal_cleanup()
+        .err()
+        .map(EngineHostError::ProducerCleanup)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
     let recovery = producer.recover_notifier();
     drop(producer);
     if let Some(error) = recovery.error {

@@ -33,16 +33,8 @@ struct BatchAccumulator {
 }
 
 impl BatchAccumulator {
-    fn push(&mut self, member: BatchMember) {
-        self.members.push(member);
-    }
-
     fn remove(&mut self, index: usize) -> BatchMember {
         self.members.remove(index)
-    }
-
-    fn begin_materialization(&mut self) {
-        self.state = BatchState::Materializing;
     }
 
     fn finish_materialization(&mut self) {
@@ -116,6 +108,7 @@ impl BatchStore {
                 state: BatchState::Accumulating,
                 members: Vec::new(),
             })
+            .members
             .push(member);
         self.operations.insert(operation_id, batch_id);
         self.payloads.insert(payload_id, batch_id);
@@ -182,7 +175,7 @@ impl BatchStore {
         if batch.state != BatchState::Accumulating {
             return Err(ProducerStoreError::BatchAlreadyMaterialized);
         }
-        batch.begin_materialization();
+        batch.state = BatchState::Materializing;
         Ok(())
     }
 
@@ -236,5 +229,11 @@ impl BatchStore {
 
     pub(super) fn len(&self) -> usize {
         self.batches.len()
+    }
+
+    pub(super) fn clear_terminal(&mut self) {
+        self.batches.clear();
+        self.operations.clear();
+        self.payloads.clear();
     }
 }

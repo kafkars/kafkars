@@ -144,6 +144,12 @@ impl BatchTimers {
     pub(crate) fn is_empty(&self) -> bool {
         self.active.is_empty()
     }
+
+    /// Drops every active timer after permanent owner shutdown.
+    pub(crate) fn clear_terminal(&mut self) {
+        self.active.clear();
+        self.schedule.clear();
+    }
 }
 
 const fn scheduled(batch_id: BatchId, timer: ActiveTimer) -> ScheduledTimer {

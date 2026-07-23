@@ -105,6 +105,11 @@ impl CompletionReclaimer {
         matches!(self.phase, ReclaimPhase::Finishing { .. })
     }
 
+    /// Forgets an unrecoverable reclaim handshake after host termination.
+    pub(crate) fn clear_terminal(&mut self) {
+        self.phase = ReclaimPhase::Idle;
+    }
+
     /// Obtains at most one reclaim identity and emits its core input once.
     pub(crate) fn next_input(
         &mut self,

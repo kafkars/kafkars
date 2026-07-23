@@ -195,4 +195,10 @@ impl SubmissionDeadlines {
     pub(crate) fn is_empty(&self) -> bool {
         self.active.is_empty()
     }
+
+    /// Drops every pre-driver deadline after permanent execution loss.
+    pub(crate) fn clear_terminal(&mut self) {
+        self.active.clear();
+        self.schedule.clear();
+    }
 }

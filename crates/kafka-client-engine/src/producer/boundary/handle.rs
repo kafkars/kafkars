@@ -121,6 +121,20 @@ impl ProducerHandle {
             Err(error) => Err(ProducerTrySendError::from_port(error)),
         }
     }
+
+    #[cfg(test)]
+    pub(crate) fn host_stats(&self) -> crate::producer::host::ProducerHostStats {
+        self.port
+            .host_stats()
+            .unwrap_or_else(|error| panic!("producer host stats lock failed: {error:?}"))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn inject_terminal_interpretation_fault(&self) {
+        self.port
+            .inject_terminal_interpretation_fault()
+            .unwrap_or_else(|error| panic!("producer host fault injection failed: {error:?}"));
+    }
 }
 
 impl std::fmt::Debug for ProducerHandle {

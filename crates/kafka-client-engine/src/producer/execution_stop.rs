@@ -14,6 +14,10 @@ use super::{ProducerHost, ProducerHostInvariantError};
 #[derive(Debug)]
 pub(crate) enum ProducerExecutionStopError {
     Invariant(ProducerHostInvariantError),
+    Fallback {
+        primary: ProducerHostInvariantError,
+        settlement: Box<ProducerExecutionStopError>,
+    },
     Settlement {
         completion_id: CompletionId,
         error: CompletionRegistryError,
@@ -27,6 +31,14 @@ impl fmt::Display for ProducerExecutionStopError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Invariant(error) => write!(formatter, "execution-stop invariant failed: {error}"),
+            Self::Fallback {
+                primary,
+                settlement,
+            } => write!(
+                formatter,
+                "execution-stop invariant failed: {primary}; conservative fallback also failed: \
+                 {settlement}"
+            ),
             Self::Settlement {
                 completion_id,
                 error,
@@ -55,17 +67,42 @@ impl ProducerHost {
         now: Moment,
     ) -> Result<(), ProducerExecutionStopError> {
         self.core.close_admission();
+        #[cfg(test)]
+        if self.take_terminal_planning_fault() {
+            return self.publish_fallback_after(ProducerHostInvariantError::ForcedTerminalPlanning);
+        }
         let transition = match self.core.apply(ProducerInput::ExecutionUnavailable) {
             Ok(transition) => transition,
-            Err(_error) => {
-                self.publish_execution_fallback()?;
-                return Ok(());
+            Err(error) => {
+                return self.publish_fallback_after(ProducerHostInvariantError::Core(error));
             }
         };
-        if self.interpret_transition(now, transition).is_err() {
-            self.publish_execution_fallback()?;
+        #[cfg(test)]
+        let interpreted = if self.take_terminal_interpretation_fault() {
+            Err(ProducerHostInvariantError::ForcedTerminalInterpretation)
+        } else {
+            self.interpret_transition(now, transition)
+        };
+        #[cfg(not(test))]
+        let interpreted = self.interpret_transition(now, transition);
+        if let Err(error) = interpreted {
+            return self.publish_fallback_after(error);
         }
         Ok(())
+    }
+
+    fn publish_fallback_after(
+        &mut self,
+        error: ProducerHostInvariantError,
+    ) -> Result<(), ProducerExecutionStopError> {
+        self.drain_terminal_mechanisms();
+        match self.publish_execution_fallback() {
+            Ok(()) => Err(ProducerExecutionStopError::Invariant(error)),
+            Err(settlement) => Err(ProducerExecutionStopError::Fallback {
+                primary: error,
+                settlement: Box::new(settlement),
+            }),
+        }
     }
 
     fn publish_execution_fallback(&mut self) -> Result<(), ProducerExecutionStopError> {
@@ -98,5 +135,25 @@ impl ProducerHost {
             remaining = progress.remaining();
         }
         Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn inject_terminal_interpretation_fault(&mut self) {
+        self.terminal_interpretation_fault = true;
+    }
+
+    #[cfg(test)]
+    pub(crate) fn inject_terminal_planning_fault(&mut self) {
+        self.terminal_planning_fault = true;
+    }
+
+    #[cfg(test)]
+    fn take_terminal_interpretation_fault(&mut self) -> bool {
+        std::mem::take(&mut self.terminal_interpretation_fault)
+    }
+
+    #[cfg(test)]
+    fn take_terminal_planning_fault(&mut self) -> bool {
+        std::mem::take(&mut self.terminal_planning_fault)
     }
 }

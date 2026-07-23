@@ -23,6 +23,7 @@ fn count_and_bytes_are_reserved_before_core_admission() {
             records: 1,
             bytes: 7,
             batches: 0,
+            topics: 1,
         }
     );
 

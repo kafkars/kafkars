@@ -75,7 +75,11 @@ impl TopicCatalog {
         self.by_id.get(&id).ok_or(ProducerStoreError::UnknownTopic)
     }
 
-    #[cfg(test)]
+    pub(super) fn clear_terminal(&mut self) {
+        self.by_name.clear();
+        self.by_id.clear();
+    }
+
     pub(super) fn len(&self) -> usize {
         self.by_name.len()
     }

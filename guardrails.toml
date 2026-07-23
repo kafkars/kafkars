@@ -619,6 +619,19 @@ allowed_paths = ["crates/kafka-client-engine/src/clock/timer.rs"]
 
 # Engine producer bytes, identities, and membership have narrow mutation owners.
 [[mutation_owners]]
+owner_type = "ProducerHost"
+field = "core"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/admission.rs",
+  "crates/kafka-client-engine/src/producer/execution_stop.rs",
+  "crates/kafka-client-engine/src/producer/execution_turn.rs",
+  "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/interpreter.rs",
+  "crates/kafka-client-engine/src/producer/reclaim_turn.rs",
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
+]
+
+[[mutation_owners]]
 owner_type = "ProducerStore"
 field = "records"
 allowed_paths = [
@@ -807,6 +820,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/effect.rs",
   "crates/kafka-client-engine/src/producer/execution_turn.rs",
   "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
 ]
 
 [[mutation_owners]]
@@ -824,7 +838,10 @@ allowed_paths = [
 [[mutation_owners]]
 owner_type = "ProducerHost"
 field = "reclaimer"
-allowed_paths = ["crates/kafka-client-engine/src/producer/reclaim_turn.rs"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/reclaim_turn.rs",
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
+]
 
 [[mutation_owners]]
 owner_type = "ProducerHost"
@@ -833,6 +850,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/effect.rs",
   "crates/kafka-client-engine/src/producer/execution_turn.rs",
   "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
 ]
 
 [[mutation_owners]]
@@ -842,6 +860,18 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/effect.rs",
   "crates/kafka-client-engine/src/producer/execution_turn.rs",
   "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerHost"
+field = "bindings"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/admission.rs",
+  "crates/kafka-client-engine/src/producer/effect.rs",
+  "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/reclaim_turn.rs",
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
 ]
 
 [[mutation_owners]]

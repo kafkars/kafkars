@@ -33,6 +33,22 @@ impl ProducerAdmissionPort {
         Ok(())
     }
 
+    #[cfg(test)]
+    pub(crate) fn host_stats(
+        &self,
+    ) -> Result<crate::producer::host::ProducerHostStats, ProducerShardLockError> {
+        self.shared.host().map(|host| host.stats())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn inject_terminal_interpretation_fault(
+        &self,
+    ) -> Result<(), ProducerShardLockError> {
+        let mut host = self.shared.host()?;
+        host.inject_terminal_interpretation_fault();
+        Ok(())
+    }
+
     /// Attempts immediate explicit-partition admission.
     ///
     /// `attempted_at` is captured once for this immediate attempt. `deadline`

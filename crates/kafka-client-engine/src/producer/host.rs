@@ -70,6 +70,7 @@ pub(crate) struct ProducerHostStats {
     pub(crate) prepared_batches: usize,
     pub(crate) prepared_bytes: usize,
     pub(crate) submission_deadlines: usize,
+    pub(crate) completion_bindings: usize,
     pub(crate) pending_effects: usize,
     pub(crate) healthy: bool,
 }
@@ -80,10 +81,28 @@ pub(super) enum ProducerHostHealth {
     Poisoned(ProducerHostInvariantError),
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(super) struct ProducerCoreConfig {
+    retained_bytes: ByteCount,
+    completion_capacity: usize,
+    batch_policy: ProducerBatchPolicy,
+}
+
+impl ProducerCoreConfig {
+    pub(super) const fn machine(self) -> ProducerMachine {
+        ProducerMachine::with_batch_policy(
+            self.retained_bytes,
+            self.completion_capacity,
+            self.batch_policy,
+        )
+    }
+}
+
 /// Single engine owner of atomic producer admission and effect execution.
 #[derive(Debug)]
 pub(crate) struct ProducerHost {
     pub(super) core: ProducerMachine,
+    pub(super) core_config: ProducerCoreConfig,
     pub(super) store: ProducerStore,
     pub(super) completions: CompletionRegistry<kafka_client_core::ProducerCompletion>,
     pub(super) bindings: CompletionBindings,
@@ -95,6 +114,10 @@ pub(crate) struct ProducerHost {
     pub(super) health: ProducerHostHealth,
     #[cfg(test)]
     post_acceptance_fault: Option<ProducerHostInvariantError>,
+    #[cfg(test)]
+    pub(super) terminal_interpretation_fault: bool,
+    #[cfg(test)]
+    pub(super) terminal_planning_fault: bool,
 }
 
 impl ProducerHost {
@@ -104,12 +127,14 @@ impl ProducerHost {
         let completions =
             CompletionRegistry::new(limits.completion_capacity, limits.notification_capacity)
                 .map_err(ProducerHostStartError::Notifier)?;
+        let core_config = ProducerCoreConfig {
+            retained_bytes,
+            completion_capacity: limits.completion_capacity,
+            batch_policy: limits.batch_policy,
+        };
         Ok(Self {
-            core: ProducerMachine::with_batch_policy(
-                retained_bytes,
-                limits.completion_capacity,
-                limits.batch_policy,
-            ),
+            core: core_config.machine(),
+            core_config,
             store: ProducerStore::new(ProducerStoreLimits {
                 records: limits.record_capacity,
                 bytes: limits.retained_bytes,
@@ -131,6 +156,10 @@ impl ProducerHost {
             health: ProducerHostHealth::Healthy,
             #[cfg(test)]
             post_acceptance_fault: None,
+            #[cfg(test)]
+            terminal_interpretation_fault: false,
+            #[cfg(test)]
+            terminal_planning_fault: false,
         })
     }
 
@@ -145,6 +174,7 @@ impl ProducerHost {
             prepared_batches: prepared.batches,
             prepared_bytes: prepared.encoded_record_bytes,
             submission_deadlines: self.execution.submission_count(),
+            completion_bindings: self.bindings.len(),
             pending_effects: self.pending_effects.len(),
             healthy: self.health == ProducerHostHealth::Healthy,
         }
@@ -178,5 +208,23 @@ impl ProducerHost {
     #[cfg(test)]
     pub(super) fn take_post_acceptance_fault(&mut self) -> Option<ProducerHostInvariantError> {
         self.post_acceptance_fault.take()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn terminal_resources_empty(&self) -> bool {
+        let stats = self.stats();
+        stats.store.records == 0
+            && stats.store.bytes == 0
+            && stats.store.batches == 0
+            && stats.store.topics == 0
+            && stats.active_timers == 0
+            && stats.prepared_batches == 0
+            && stats.prepared_bytes == 0
+            && stats.submission_deadlines == 0
+            && stats.completion_bindings == 0
+            && stats.pending_effects == 0
+            && stats.core_retained_bytes == ByteCount::new(0)
+            && stats.core_completion_slots == 0
+            && self.unsettled_completions() == 0
     }
 }

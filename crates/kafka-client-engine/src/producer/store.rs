@@ -30,6 +30,8 @@ pub(crate) struct ProducerStoreStats {
     pub(crate) bytes: usize,
     /// Retained logical batch count.
     pub(crate) batches: usize,
+    /// Interned topic names retained by live records.
+    pub(crate) topics: usize,
 }
 
 /// Linear engine owner of producer application bytes and batch membership.
@@ -149,10 +151,16 @@ impl ProducerStore {
             records: self.records.len(),
             bytes: self.records.used_bytes(),
             batches: self.batches.len(),
+            topics: self.records.topic_count(),
         }
     }
 
-    #[cfg(test)]
+    /// Drops all engine-owned records and batch membership terminally.
+    pub(crate) fn clear_terminal(&mut self) {
+        self.batches.clear_terminal();
+        self.records.clear_terminal();
+    }
+
     pub(super) fn topic_count(&self) -> usize {
         self.records.topic_count()
     }

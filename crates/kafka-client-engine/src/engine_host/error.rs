@@ -7,7 +7,10 @@ use crate::{
     completion::{CompletionRegistryError, NotifierJoinError},
     config::EngineConfigError,
     driver::DriverOwnerError,
-    producer::{ProducerExecutionStopError, ProducerHostInvariantError, ProducerHostStartError},
+    producer::{
+        ProducerExecutionStopError, ProducerHostInvariantError, ProducerHostStartError,
+        ProducerTerminalCleanupError,
+    },
 };
 
 /// Stable category for engine startup failure.
@@ -132,6 +135,7 @@ pub(crate) enum EngineHostError {
     Clock(ClockError),
     Producer(ProducerHostInvariantError),
     ProducerStop(ProducerExecutionStopError),
+    ProducerCleanup(ProducerTerminalCleanupError),
     ProducerLockPoisoned,
     Completion(CompletionRegistryError),
     Driver(DriverOwnerError),
@@ -152,6 +156,9 @@ impl fmt::Display for EngineHostError {
             Self::Clock(error) => write!(formatter, "engine clock failed: {error}"),
             Self::Producer(error) => write!(formatter, "producer host failed: {error}"),
             Self::ProducerStop(error) => write!(formatter, "producer recovery failed: {error}"),
+            Self::ProducerCleanup(error) => {
+                write!(formatter, "producer terminal cleanup failed: {error}")
+            }
             Self::ProducerLockPoisoned => {
                 formatter.write_str("producer host ownership lock is poisoned")
             }

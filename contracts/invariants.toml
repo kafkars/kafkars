@@ -168,11 +168,14 @@ evidence = [
 [[invariant]]
 id = "SD-01"
 title = "Shutdown closes admission before draining"
-statement = "Shutdown closes producer admission before host draining, settles accepted producer operations, completes bounded driver and notifier cleanup, and retains one shared terminal report."
+statement = "For the immediate-admission producer slice, shutdown closes admission before draining, drops engine-owned bytes and mechanisms before emergency fallback is observable, and replaces terminal core state before retaining one shared report. Pending-send and driver-owned Produce bytes become ratchet triggers when those paths are integrated."
 status = "enforced"
 evidence = [
+  "crates/kafka-client-engine/src/producer/execution_stop_test.rs::damaged_interpretation_still_settles_observers_conservatively",
+  "crates/kafka-client-engine/src/producer/execution_stop_test.rs::planning_failure_replaces_the_live_core_before_fallback_publication",
   "crates/kafka-client-engine/src/engine_test.rs::concurrent_shutdown_callers_observe_one_retained_report",
   "crates/kafka-client-engine/src/engine_test.rs::final_engine_drop_on_notifier_still_reaches_closed",
+  "crates/kafka-client-engine/src/engine_host/recovery_test.rs::damaged_interpretation_drains_resources_before_retained_failure_report",
   "crates/kafka-client-engine/src/engine_host/recovery_test.rs::failed_runner_settles_accepted_work_and_closes_retained_handles",
   "crates/kafka-client-engine/src/driver/owner_test.rs::dropping_the_sole_driver_handle_uses_implicit_reactor_shutdown",
 ]

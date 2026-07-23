@@ -1,6 +1,6 @@
-//! Producer admission closure and terminal notifier handoff.
+//! Producer terminal drain, verification, and notifier handoff.
 
-use std::thread::ThreadId;
+use std::{error::Error, fmt, thread::ThreadId};
 
 use crate::completion::{CompletionRegistryError, NotifierJoin};
 
@@ -11,6 +11,39 @@ pub(crate) struct ProducerNotifierRecovery {
     pub(crate) notifier: Option<NotifierJoin>,
     pub(crate) error: Option<CompletionRegistryError>,
 }
+
+/// Stage whose ownership verification found retained terminal resources.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ProducerTerminalCleanupPhase {
+    ReleaseBeforeCompletion,
+    Final,
+}
+
+/// Terminal verification found retained resources or unpublished completions.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct ProducerTerminalCleanupError {
+    phase: ProducerTerminalCleanupPhase,
+    retained_mechanisms: usize,
+    unsettled_completions: usize,
+}
+
+impl fmt::Display for ProducerTerminalCleanupError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let phase = match self.phase {
+            ProducerTerminalCleanupPhase::ReleaseBeforeCompletion => {
+                "release-before-completion verification"
+            }
+            ProducerTerminalCleanupPhase::Final => "final terminal verification",
+        };
+        write!(
+            formatter,
+            "{phase} found {} retained mechanisms and {} unsettled completions",
+            self.retained_mechanisms, self.unsettled_completions
+        )
+    }
+}
+
+impl Error for ProducerTerminalCleanupError {}
 
 impl ProducerHost {
     /// Permanently closes core admission before terminal host drain.
@@ -47,5 +80,72 @@ impl ProducerHost {
     /// Returns the thread that exclusively executes completion wakeups.
     pub(crate) fn notifier_thread_id(&self) -> Option<ThreadId> {
         self.completions.notifier_thread_id()
+    }
+
+    /// Drops live mechanisms outside-in and replaces all old core state.
+    pub(crate) fn drain_terminal_mechanisms(&mut self) {
+        self.pending_effects.clear();
+        self.timers.clear_terminal();
+        self.execution.clear_terminal();
+        self.bindings.clear_terminal();
+        self.reclaimer.clear_terminal();
+        self.store.clear_terminal();
+        let mut core = self.core_config.machine();
+        core.close_admission();
+        self.core = core;
+    }
+
+    /// Verifies exact effect interpretation released bytes before completion.
+    pub(crate) fn verify_release_before_completion(
+        &self,
+    ) -> Result<(), ProducerTerminalCleanupError> {
+        let retained_mechanisms = self.release_owned_mechanisms();
+        if retained_mechanisms == 0 {
+            Ok(())
+        } else {
+            Err(ProducerTerminalCleanupError {
+                phase: ProducerTerminalCleanupPhase::ReleaseBeforeCompletion,
+                retained_mechanisms,
+                unsettled_completions: self.unsettled_completions(),
+            })
+        }
+    }
+
+    /// Confirms the drain and terminal publication completed before `Closed`.
+    pub(crate) fn verify_terminal_cleanup(&self) -> Result<(), ProducerTerminalCleanupError> {
+        let retained_mechanisms = self.final_retained_mechanisms();
+        let unsettled_completions = self.unsettled_completions();
+        if retained_mechanisms == 0 && unsettled_completions == 0 {
+            Ok(())
+        } else {
+            Err(ProducerTerminalCleanupError {
+                phase: ProducerTerminalCleanupPhase::Final,
+                retained_mechanisms,
+                unsettled_completions,
+            })
+        }
+    }
+
+    fn release_owned_mechanisms(&self) -> usize {
+        let stats = self.stats();
+        let core_bytes = usize::try_from(stats.core_retained_bytes.get()).unwrap_or(usize::MAX);
+        stats
+            .store
+            .records
+            .saturating_add(stats.store.bytes)
+            .saturating_add(stats.store.batches)
+            .saturating_add(stats.store.topics)
+            .saturating_add(stats.active_timers)
+            .saturating_add(stats.prepared_batches)
+            .saturating_add(stats.prepared_bytes)
+            .saturating_add(stats.submission_deadlines)
+            .saturating_add(stats.pending_effects)
+            .saturating_add(core_bytes)
+    }
+
+    fn final_retained_mechanisms(&self) -> usize {
+        self.release_owned_mechanisms()
+            .saturating_add(self.bindings.len())
+            .saturating_add(self.core.completion_slots())
     }
 }

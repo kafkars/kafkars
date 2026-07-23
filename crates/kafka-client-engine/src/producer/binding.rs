@@ -129,6 +129,16 @@ impl CompletionBindings {
         Ok(())
     }
 
+    /// Drops terminal-only associations after observer publication.
+    pub(crate) fn clear_terminal(&mut self) {
+        self.entries.clear();
+    }
+
+    /// Returns the number of live operation associations.
+    pub(crate) fn len(&self) -> usize {
+        self.entries.len()
+    }
+
     fn operation_index(&self, operation_id: OperationId) -> Result<usize, usize> {
         self.entries
             .binary_search_by_key(&operation_id, |binding| binding.operation_id)

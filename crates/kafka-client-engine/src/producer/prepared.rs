@@ -177,6 +177,12 @@ impl PreparedProduceStore {
         }
     }
 
+    /// Drops every encoded request after permanent execution loss.
+    pub(crate) fn clear_terminal(&mut self) {
+        self.batches.clear();
+        self.retained_bytes = 0;
+    }
+
     fn remove(&mut self, batch_id: BatchId) -> Result<MaterializedProduce, PreparedProduceError> {
         let value = self
             .batches

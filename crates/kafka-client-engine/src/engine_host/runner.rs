@@ -152,5 +152,28 @@ pub(super) fn stop_notifier(
     resources: &EngineHostResources,
 ) -> Result<NotifierJoin, EngineHostError> {
     let mut host = resources.producer.terminal_host();
+    let release_failure = host
+        .verify_release_before_completion()
+        .err()
+        .map(EngineHostError::ProducerCleanup);
+    host.drain_terminal_mechanisms();
+    let final_failure = host
+        .verify_terminal_cleanup()
+        .err()
+        .map(EngineHostError::ProducerCleanup);
+    if let Some(error) = combine_cleanup(release_failure, final_failure) {
+        return Err(error);
+    }
     host.stop_notifier().map_err(EngineHostError::Completion)
+}
+
+fn combine_cleanup(
+    primary: Option<EngineHostError>,
+    cleanup: Option<EngineHostError>,
+) -> Option<EngineHostError> {
+    match (primary, cleanup) {
+        (Some(primary), Some(cleanup)) => Some(primary.with_cleanup(cleanup)),
+        (Some(error), None) | (None, Some(error)) => Some(error),
+        (None, None) => None,
+    }
 }
