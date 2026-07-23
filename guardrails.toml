@@ -507,8 +507,16 @@ production = "crates/kafka-client-engine/src/admin/host.rs"
 test = "crates/kafka-client-engine/src/admin/host_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/handle.rs"
+test = "crates/kafka-client-engine/src/admin/handle_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/admin/observer.rs"
 test = "crates/kafka-client-engine/src/admin/observer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/shard.rs"
+test = "crates/kafka-client-engine/src/admin/shard_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-guardrails/src/invariant_registry/evidence.rs"
@@ -1637,6 +1645,10 @@ path = "crates/kafka-client-engine/src/admin/host.rs"
 [[linear_owners]]
 owner_type = "CreateTopicsOperation"
 path = "crates/kafka-client-engine/src/admin/host.rs"
+
+[[linear_owners]]
+owner_type = "CreateTopicsShardOwner"
+path = "crates/kafka-client-engine/src/admin/shard.rs"
 
 [[linear_owners]]
 owner_type = "CreateTopicsObserver"
