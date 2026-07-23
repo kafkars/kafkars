@@ -24,3 +24,5 @@ pub(crate) use shard::{
 mod port_test;
 #[cfg(test)]
 mod shard_test;
+#[cfg(test)]
+pub(crate) use shard_test::CountingWake;

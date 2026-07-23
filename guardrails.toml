@@ -125,6 +125,10 @@ production = "crates/kafka-client-engine/src/producer/host_turn.rs"
 test = "crates/kafka-client-engine/src/producer/host_turn_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/boundary/handle.rs"
+test = "crates/kafka-client-engine/src/producer/boundary/handle_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/interpreter.rs"
 test = "crates/kafka-client-engine/src/producer/interpreter_test.rs"
 
@@ -827,6 +831,14 @@ path = "crates/kafka-client-engine/src/producer/record.rs"
 [[linear_owners]]
 owner_type = "ProducerHeader"
 path = "crates/kafka-client-engine/src/producer/record.rs"
+
+[[linear_owners]]
+owner_type = "ProducerRecord"
+path = "crates/kafka-client-engine/src/producer/boundary/record.rs"
+
+[[linear_owners]]
+owner_type = "ProducerTrySendAccepted"
+path = "crates/kafka-client-engine/src/producer/boundary/result.rs"
 
 [[linear_owners]]
 owner_type = "MaterializationBatch"

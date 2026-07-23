@@ -56,6 +56,11 @@ pub use delivery::{
 pub use delivery_error::{ProducerDeliveryError, ProducerObserverError};
 pub use delivery_observer::{ProducerDeliveryObserver, ProducerDeliveryResult};
 pub use engine::Engine;
+pub use producer::{
+    ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerHandle, ProducerOperationId,
+    ProducerSendOptions, ProducerTrySendAccepted, ProducerTrySendError, ProducerTrySendErrorKind,
+    PublicProducerHeader as ProducerHeader, PublicProducerRecord as ProducerRecord,
+};
 
 #[cfg(test)]
 mod delivery_error_test;

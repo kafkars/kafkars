@@ -3,6 +3,7 @@
 mod admission;
 mod batch_store;
 mod binding;
+mod boundary;
 mod effect;
 pub(crate) mod error;
 pub(crate) mod execution;
@@ -27,6 +28,7 @@ mod topic_catalog;
 #[cfg_attr(not(test), expect(unused_imports, reason = "facade bridge follows"))]
 pub(crate) use admission::{AdmittedExplicit, ProducerAdmissionFailure, RejectedExplicit};
 pub(crate) use binding::{CompletionBindingError, CompletionBindings};
+pub use boundary::*;
 pub(crate) use error::{ProducerAdmissionError, ProducerStoreError};
 #[cfg_attr(not(test), expect(unused_imports, reason = "facade bridge follows"))]
 pub(crate) use host::{ProducerHost, ProducerHostLimits};

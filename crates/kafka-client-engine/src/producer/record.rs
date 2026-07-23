@@ -38,9 +38,20 @@ pub(crate) struct ProducerRecord {
     topic: Arc<str>,
     partition: PartitionIndex,
     timestamp_ms: i64,
+    defaulted_timestamp: bool,
     key: Option<Bytes>,
     value: Option<Bytes>,
     headers: Vec<ProducerHeader>,
+}
+
+pub(super) struct ProducerRecordParts {
+    pub(super) topic: Arc<str>,
+    pub(super) partition: PartitionIndex,
+    pub(super) timestamp_ms: i64,
+    pub(super) defaulted_timestamp: bool,
+    pub(super) key: Option<Bytes>,
+    pub(super) value: Option<Bytes>,
+    pub(super) headers: Vec<ProducerHeader>,
 }
 
 impl ProducerRecord {
@@ -56,9 +67,30 @@ impl ProducerRecord {
             topic,
             partition,
             timestamp_ms,
+            defaulted_timestamp: false,
             key,
             value,
             headers: Vec::new(),
+        }
+    }
+
+    pub(super) const fn from_public(
+        topic: Arc<str>,
+        partition: PartitionIndex,
+        timestamp_ms: i64,
+        defaulted_timestamp: bool,
+        key: Option<Bytes>,
+        value: Option<Bytes>,
+        headers: Vec<ProducerHeader>,
+    ) -> Self {
+        Self {
+            topic,
+            partition,
+            timestamp_ms,
+            defaulted_timestamp,
+            key,
+            value,
+            headers,
         }
     }
 
@@ -105,5 +137,17 @@ impl ProducerRecord {
             self.value,
             self.headers,
         )
+    }
+
+    pub(super) fn into_public_parts(self) -> ProducerRecordParts {
+        ProducerRecordParts {
+            topic: self.topic,
+            partition: self.partition,
+            timestamp_ms: self.timestamp_ms,
+            defaulted_timestamp: self.defaulted_timestamp,
+            key: self.key,
+            value: self.value,
+            headers: self.headers,
+        }
     }
 }

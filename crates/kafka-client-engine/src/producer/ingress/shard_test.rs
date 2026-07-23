@@ -26,12 +26,12 @@ fn assert_send_sync<T: Send + Sync>() {}
 fn assert_send_sync_value<T: Send + Sync>(_value: T) {}
 
 #[derive(Default)]
-pub(super) struct CountingWake {
+pub(crate) struct CountingWake {
     count: AtomicUsize,
 }
 
 impl CountingWake {
-    pub(super) fn count(&self) -> usize {
+    pub(crate) fn count(&self) -> usize {
         self.count.load(Ordering::Acquire)
     }
 }
