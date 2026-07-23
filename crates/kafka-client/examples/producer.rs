@@ -12,14 +12,19 @@ async fn produce() -> Result<(), KafkaError> {
         .build()?;
     let producer = client.producer().build()?;
 
-    let metadata = producer
-        .send(
-            Record::to("orders")
-                .key("order-42")
-                .value("created")
-                .header("traceparent", "00-example"),
-        )
-        .await?;
+    let record = Record::to("orders")
+        .partition(0)
+        .key("order-42")
+        .value("created")
+        .header("traceparent", "00-example");
+    let delivery = match producer.try_send(record) {
+        Ok(delivery) => delivery,
+        Err(rejection) => {
+            let (_record, error) = rejection.into_parts();
+            return Err(error);
+        }
+    };
+    let metadata = delivery.await?;
 
     assert_eq!(metadata.topic(), "orders");
     client.shutdown().await

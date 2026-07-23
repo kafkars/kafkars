@@ -5,10 +5,11 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-/// Prototype operation that is immediately ready in the fake facade.
+/// Provisional immediately-ready operation for inactive API domains.
 ///
-/// The production type will own cancellation, deadline, and completion-ledger
-/// identity. This placeholder exists solely to compile API examples.
+/// The implemented producer path uses its dedicated engine-backed `Delivery`
+/// observer instead. Other domains retain this compile-checked design probe
+/// until their own ownership transitions are implemented.
 #[derive(Debug)]
 pub struct Operation<T> {
     inner: Ready<T>,
@@ -29,15 +30,14 @@ impl<T> Operation<T> {
         self
     }
 
-    /// Returns the prototype deadline override.
+    /// Returns the provisional deadline override.
     pub const fn deadline_override(&self) -> Option<Duration> {
         self.deadline_override
     }
 
     /// Blocks for the operation result.
     ///
-    /// The prototype is already ready. The production implementation will wait
-    /// on the same completion cell used by `Future` polling.
+    /// This provisional operation is already ready.
     pub fn wait(self) -> T {
         self.inner.into_inner()
     }

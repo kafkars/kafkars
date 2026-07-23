@@ -3,6 +3,8 @@
 use kafka_client_engine::{
     ProducerAcceptedFault as EngineAcceptedFault,
     ProducerAcceptedFaultKind as EngineAcceptedFaultKind,
+    ProducerSendCaptureError as EngineCaptureError,
+    ProducerSendCaptureErrorKind as EngineCaptureErrorKind,
     ProducerTrySendError as EngineTrySendError, ProducerTrySendErrorKind as EngineTrySendErrorKind,
 };
 
@@ -33,8 +35,29 @@ pub(crate) fn translate_admission_error(error: EngineTrySendError) -> ProducerAd
     }
 }
 
+pub(crate) fn translate_capture_error(
+    record: Record,
+    error: EngineCaptureError,
+) -> ProducerAdmissionRejection {
+    ProducerAdmissionRejection {
+        record,
+        error: admission_error(capture_error_kind(error.kind()), None),
+    }
+}
+
 pub(crate) fn translate_accepted_fault(fault: &EngineAcceptedFault) -> KafkaError {
     KafkaError::new(accepted_fault_kind(fault.kind()), fault.to_string())
+}
+
+pub(super) const fn capture_error_kind(kind: EngineCaptureErrorKind) -> EngineTrySendErrorKind {
+    match kind {
+        EngineCaptureErrorKind::DeadlineUnrepresentable => {
+            EngineTrySendErrorKind::DeadlineUnrepresentable
+        }
+        EngineCaptureErrorKind::TimestampUnrepresentable => {
+            EngineTrySendErrorKind::TimestampUnrepresentable
+        }
+    }
 }
 
 pub(super) fn admission_error(kind: EngineTrySendErrorKind, detail: Option<&str>) -> KafkaError {

@@ -3,12 +3,13 @@
 use kafka_client_engine::{
     ProducerAcceptedFault as EngineAcceptedFault,
     ProducerAcceptedFaultKind as EngineAcceptedFaultKind,
+    ProducerSendCaptureErrorKind as EngineCaptureErrorKind,
     ProducerTrySendError as EngineTrySendError, ProducerTrySendErrorKind as EngineTrySendErrorKind,
 };
 
 use super::admission::{
     ProducerAdmissionRejection, accepted_fault_kind, admission_error, admission_kind,
-    translate_accepted_fault, translate_admission_error,
+    capture_error_kind, translate_accepted_fault, translate_admission_error,
 };
 use crate::{DeliveryStatus, ErrorKind, KafkaError, Record};
 
@@ -84,6 +85,18 @@ fn every_engine_admission_kind_has_one_stable_facade_category() {
 }
 
 #[test]
+fn every_boundary_capture_failure_maps_to_the_matching_admission_failure() {
+    assert_eq!(
+        capture_error_kind(EngineCaptureErrorKind::DeadlineUnrepresentable),
+        EngineTrySendErrorKind::DeadlineUnrepresentable
+    );
+    assert_eq!(
+        capture_error_kind(EngineCaptureErrorKind::TimestampUnrepresentable),
+        EngineTrySendErrorKind::TimestampUnrepresentable
+    );
+}
+
+#[test]
 fn pre_ownership_admission_failure_is_exactly_not_sent() {
     let error = admission_error(
         EngineTrySendErrorKind::InternalInvariant,
@@ -103,5 +116,7 @@ fn accepted_execution_faults_remain_internal_without_invented_delivery_status() 
         EngineAcceptedFaultKind::Wake,
     ] {
         assert_eq!(accepted_fault_kind(kind), ErrorKind::Internal);
+        let diagnostic = KafkaError::new(accepted_fault_kind(kind), "post-ownership diagnostic");
+        assert_eq!(diagnostic.delivery_status(), None);
     }
 }

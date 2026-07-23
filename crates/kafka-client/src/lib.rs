@@ -1,7 +1,7 @@
-//! Provisional idiomatic Rust facade over the shared Kafka client engine.
+//! Idiomatic Rust facade over the shared reactor-native Kafka client engine.
 //!
-//! This crate is an executable API sketch. It performs no Kafka network I/O and
-//! remains unpublished until the native producer reaches its qualification gate.
+//! Immediate explicit-partition producer admission is the first implemented
+//! vertical slice. Later API domains remain unpublished design probes.
 
 #![forbid(unsafe_code)]
 
@@ -23,18 +23,13 @@ pub use consumer::{
 };
 pub use error::{DeliveryStatus, ErrorKind, KafkaError};
 pub use operation::Operation;
-pub use producer::{
-    BatchDelivery, Delivery, Flush, Producer, ProducerBuilder, RecordMetadata, Send, SendBatch,
-    TrySendError,
-};
+pub use producer::{Delivery, Producer, ProducerBuilder, RecordMetadata, TrySendError};
 pub use record::{Header, Record};
 pub use transaction::{
     AbortTransaction, BeginTransaction, BeginTransactionProducer, CommitTransaction, Transaction,
     TransactionalProducer, TransactionalProducerBuilder,
 };
 
-#[cfg(test)]
-mod bridge_test;
 #[cfg(test)]
 mod client_test;
 #[cfg(test)]

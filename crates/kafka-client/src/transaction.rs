@@ -3,8 +3,6 @@
 use crate::client::Client;
 use crate::error::KafkaError;
 use crate::operation::Operation;
-use crate::producer::RecordMetadata;
-use crate::record::Record;
 
 /// Builder for one fenced transactional producer identity.
 #[derive(Debug, Clone)]
@@ -41,7 +39,7 @@ impl TransactionalProducer {
     /// Begins one transaction.
     pub fn begin(&mut self) -> BeginTransaction {
         Operation::ready(Ok(Transaction {
-            client: self.client.clone(),
+            _client: self.client.clone(),
             transactional_id: self.transactional_id.clone(),
         }))
     }
@@ -50,19 +48,11 @@ impl TransactionalProducer {
 /// Active transaction that must be committed or aborted explicitly.
 #[derive(Debug)]
 pub struct Transaction {
-    client: Client,
+    _client: Client,
     transactional_id: String,
 }
 
 impl Transaction {
-    /// Sends one record as part of the active transaction.
-    pub fn send(&mut self, record: Record) -> Operation<Result<RecordMetadata, KafkaError>> {
-        match self.client.producer().build() {
-            Ok(handle) => handle.send(record),
-            Err(error) => Operation::ready(Err(error)),
-        }
-    }
-
     /// Commits the active transaction.
     pub fn commit(self) -> CommitTransaction {
         let _ = self.transactional_id;

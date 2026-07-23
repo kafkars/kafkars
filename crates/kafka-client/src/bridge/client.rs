@@ -1,25 +1,8 @@
-//! Private translation boundary between the Rust facade and the shared engine.
+//! Facade-owned engine lifetime and private child-handle construction.
 
 use kafka_client_engine::{Engine, EngineConfig, EngineStartErrorKind};
 
 use crate::error::{ErrorKind, KafkaError};
-
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "the producer facade consumes this bridge in the next vertical slice"
-    )
-)]
-pub(crate) mod producer;
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "producer result translation precedes facade handle integration"
-    )
-)]
-pub(crate) mod producer_result;
 
 /// Facade-owned handle that hides engine types from public modules.
 #[derive(Debug, Clone)]
@@ -46,5 +29,13 @@ impl ClientEngine {
     /// Returns the validated logical bootstrap endpoints.
     pub(crate) fn bootstrap_servers(&self) -> &[String] {
         self.inner.config().bootstrap_servers()
+    }
+
+    /// Returns a producer bridge with the engine-owned default deadline.
+    pub(crate) fn producer(&self) -> super::producer::ProducerEngine {
+        super::producer::ProducerEngine::new(
+            self.inner.producer(),
+            self.inner.config().delivery_timeout(),
+        )
     }
 }

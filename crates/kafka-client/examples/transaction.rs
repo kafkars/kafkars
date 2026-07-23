@@ -1,6 +1,6 @@
 //! Compile-checked transactional-producer API sketch.
 
-use kafka_client::{Client, KafkaError, Record};
+use kafka_client::{Client, KafkaError};
 
 fn main() {}
 
@@ -13,10 +13,6 @@ async fn transact() -> Result<(), KafkaError> {
         .transactional_producer("invoice-worker-v1")
         .build()
         .await?;
-    let mut transaction = producer.begin().await?;
-
-    transaction
-        .send(Record::to("invoice-results").value("accepted"))
-        .await?;
+    let transaction = producer.begin().await?;
     transaction.commit().await
 }

@@ -74,7 +74,7 @@ impl Client {
 
     /// Begins construction of a thread-safe producer.
     pub fn producer(&self) -> ProducerBuilder {
-        ProducerBuilder::new(self.clone())
+        ProducerBuilder::new(self.engine.producer())
     }
 
     /// Begins construction of a uniquely controlled group consumer.
