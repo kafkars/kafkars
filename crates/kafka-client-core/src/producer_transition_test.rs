@@ -4,7 +4,8 @@ use crate::{
     AcknowledgementPolicy, BatchId, BatchTimerGeneration, ByteCount, CompressionPolicy, Deadline,
     DeliveryStatus, ExplicitRecord, Moment, OperationId, PartitionIndex, PayloadId,
     ProducerBatchPolicy, ProducerBatchSuccess, ProducerCompletion, ProducerEffect,
-    ProducerFailureKind, ProducerInput, ProducerMachine, RecordMetadata, TopicId,
+    ProducerFailureKind, ProducerInput, ProducerMachine, ProducerTransition, RecordMetadata,
+    TopicId,
 };
 
 const TOPIC: TopicId = TopicId::from_raw(9);
@@ -225,4 +226,45 @@ fn broker_failure_preserves_classification_code_and_certainty() {
             && actual.broker_code() == Some(6)
             && actual.delivery() == DeliveryStatus::PossiblySent
     ));
+}
+
+#[test]
+fn admission_transition_exposes_accepted_identity_and_moves_ordered_effects() {
+    let mut producer = ProducerMachine::new(ByteCount::new(64), 1);
+    let transition = producer
+        .apply(ProducerInput::AdmitExplicit {
+            now: Moment::from_tick(0),
+            deadline: Deadline::from_tick(100),
+            record: record(1),
+        })
+        .unwrap_or_else(|error| panic!("admission failed: {error}"));
+    let operation_id = transition
+        .admitted_operation_id()
+        .unwrap_or_else(|| panic!("accepted transition must identify its operation"));
+    let expected = transition.effects().to_vec();
+
+    assert_eq!(operation_id, OperationId::from_raw(1));
+    let mut owned = transition.into_effects();
+    assert_eq!(owned, expected);
+    owned.rotate_left(1);
+    assert_eq!(
+        ProducerTransition::from_effects(owned).admitted_operation_id(),
+        Some(operation_id)
+    );
+}
+
+#[test]
+fn non_admission_transition_exposes_no_accepted_identity() {
+    let mut producer = ProducerMachine::new(ByteCount::new(64), 1);
+    let (operation_id, batch_id, _) = admit(&mut producer, 1, 100);
+    let transition = producer
+        .apply(ProducerInput::RecordAccumulated {
+            operation_id,
+            batch_id,
+            accumulator_bytes: ByteCount::new(32),
+            now: Moment::from_tick(0),
+        })
+        .unwrap_or_else(|error| panic!("accumulation failed: {error}"));
+
+    assert_eq!(transition.admitted_operation_id(), None);
 }

@@ -118,4 +118,27 @@ impl ProducerTransition {
     pub fn effects(&self) -> &[ProducerEffect] {
         &self.effects
     }
+
+    /// Returns the operation accepted by an admission transition, when present.
+    ///
+    /// The identity is derived from the admission effect without requiring an
+    /// interpreter to depend on that effect's position in the ordered sequence.
+    pub fn admitted_operation_id(&self) -> Option<OperationId> {
+        self.effects.iter().find_map(|effect| match effect {
+            ProducerEffect::AccumulateExplicit { operation_id, .. } => Some(*operation_id),
+            ProducerEffect::ArmBatchTimer { .. }
+            | ProducerEffect::CancelBatchTimer { .. }
+            | ProducerEffect::MaterializeBatch { .. }
+            | ProducerEffect::SubmitProduce { .. }
+            | ProducerEffect::RemoveBatchMember { .. }
+            | ProducerEffect::ReleaseBatch { .. }
+            | ProducerEffect::ReleasePayload { .. }
+            | ProducerEffect::Complete { .. } => None,
+        })
+    }
+
+    /// Transfers the ordered effects to their single engine interpreter.
+    pub fn into_effects(self) -> Vec<ProducerEffect> {
+        self.effects
+    }
 }
