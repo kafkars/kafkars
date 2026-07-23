@@ -255,6 +255,14 @@ production = "crates/kafka-client-engine/src/engine_host/runner.rs"
 test = "crates/kafka-client-engine/src/engine_host/runner_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/admin.rs"
+test = "crates/kafka-client-engine/src/engine_host/admin_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/notifier_shutdown.rs"
+test = "crates/kafka-client-engine/src/engine_host/notifier_shutdown_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/produce_turn.rs"
 test = "crates/kafka-client-engine/src/engine_host/produce_turn_test.rs"
 
@@ -829,6 +837,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "try_reserve"
 allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/admin.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
 
@@ -836,6 +845,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "poll_next_ready"
 allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/admin.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
 
@@ -844,6 +854,7 @@ root = "crates/kafka-client-engine/src"
 method = "discard_settled"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
+  "crates/kafka-client-engine/src/engine_host/admin.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
 
@@ -902,7 +913,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "join_off_notifier"
 allowed_paths = [
-  "crates/kafka-client-engine/src/engine_host/runner.rs",
+  "crates/kafka-client-engine/src/engine_host/notifier_shutdown.rs",
   "crates/kafka-client-engine/src/engine_host/start.rs",
 ]
 
@@ -1387,8 +1398,8 @@ allowed_paths = ["crates/kafka-client-engine/src/completion/notifier_queue.rs"]
 
 [[mutation_owners]]
 owner_type = "NotifierShutdownOwner"
-field = "notifier"
-allowed_paths = ["crates/kafka-client-engine/src/engine_host/runner.rs"]
+field = "notifiers"
+allowed_paths = ["crates/kafka-client-engine/src/engine_host/notifier_shutdown.rs"]
 
 [[mutation_owners]]
 owner_type = "TrackedProduceCalls"
@@ -1702,6 +1713,10 @@ owner_type = "SettledCreateTopicsCall"
 path = "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs"
 
 [[linear_owners]]
+owner_type = "NotifierShutdownOwner"
+path = "crates/kafka-client-engine/src/engine_host/notifier_shutdown.rs"
+
+[[linear_owners]]
 owner_type = "TrackedProduceCall"
 path = "crates/kafka-client-engine/src/driver/rpc/calls.rs"
 
@@ -1963,10 +1978,6 @@ path = "crates/kafka-client-engine/src/producer/shutdown.rs"
 
 [[linear_owners]]
 owner_type = "EngineHostExit"
-path = "crates/kafka-client-engine/src/engine_host/runner.rs"
-
-[[linear_owners]]
-owner_type = "NotifierShutdownOwner"
 path = "crates/kafka-client-engine/src/engine_host/runner.rs"
 
 [[linear_owners]]

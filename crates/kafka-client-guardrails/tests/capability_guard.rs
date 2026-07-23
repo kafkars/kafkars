@@ -174,6 +174,43 @@ fn shared_driver_rejects_every_concrete_domain_import() {
 }
 
 #[test]
+fn engine_admin_rejects_transport_and_sibling_policy_imports() {
+    let (root, _) = fixture_files("engine_admin_boundary");
+    let violations = capability_violations(
+        &root,
+        &[CapabilityRule {
+            root: "src/admin".to_owned(),
+            forbidden: vec![
+                "crate::consumer".to_owned(),
+                "crate::driver".to_owned(),
+                "crate::producer".to_owned(),
+                "crate::transaction".to_owned(),
+                "kafka_driver".to_owned(),
+                "kafka_wire".to_owned(),
+            ],
+        }],
+    );
+
+    for capability in [
+        "crate::consumer",
+        "crate::driver",
+        "crate::producer",
+        "crate::transaction",
+        "kafka_driver",
+        "kafka_wire",
+    ] {
+        assert!(
+            violations.iter().any(|value| value.contains(capability)),
+            "engine admin accepted {capability}: {violations:?}"
+        );
+    }
+    assert!(
+        !violations.iter().any(|value| value.contains("allowed.rs")),
+        "domain-neutral admin policy was rejected: {violations:?}"
+    );
+}
+
+#[test]
 fn engine_wide_method_allowlist_has_positive_and_negative_evidence() {
     let (root, _) = fixture_files("unbounded_channel");
     let allowed = [MethodCapabilityRule {

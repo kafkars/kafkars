@@ -13,6 +13,23 @@ evidence = [
 ]
 
 [[invariant]]
+id = "ADM-02"
+title = "CreateTopics execution is bounded and driver tracked"
+statement = "Engine CreateTopics admission atomically reserves terminal and canonical retained-byte capacity, carries one original absolute deadline into a tracked controller request, preserves exact bounded ordered results, treats a taken submission as possibly driver-owned during recovery, retains bytes until observer reclamation, and joins every notifier during shutdown."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/admin/host_test.rs::terminal_bytes_remain_reserved_until_observer_reclamation",
+  "crates/kafka-client-engine/src/admin/host_test.rs::pre_driver_wait_expires_without_transport_ownership",
+  "crates/kafka-client-engine/src/admin/host_test.rs::recovery_after_submission_handoff_is_conservatively_possibly_sent",
+  "crates/kafka-client-engine/src/admin/host_test.rs::recovery_of_untouched_queued_submission_remains_not_sent",
+  "crates/kafka-client-engine/src/admin/model_test.rs::excess_input_capacity_is_removed_before_retained_byte_charging",
+  "crates/kafka-client-engine/src/driver/rpc/create_topics_submission_test.rs::create_topics_uses_interactive_lane_original_deadline_and_v7_ceiling",
+  "crates/kafka-client-engine/src/driver/rpc/create_topics_calls_test.rs::settled_input_moves_once_while_route_authority_remains_owned",
+  "crates/kafka-client-engine/src/protocol/admin/result_budget_test.rs::diagnostic_cap_truncates_on_a_utf8_boundary_and_preserves_exact_code",
+  "crates/kafka-client-engine/src/engine_host/notifier_shutdown_test.rs::partial_notifier_acquisition_joins_the_owner_already_taken",
+]
+
+[[invariant]]
 id = "BAT-01"
 title = "Core owns batch readiness"
 statement = "Record-count and conservative encoded-size readiness are deterministic core decisions and terminal fan-out preserves batch membership order."

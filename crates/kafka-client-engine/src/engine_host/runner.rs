@@ -5,16 +5,21 @@ use std::{sync::Arc, time::Duration};
 use kafka_client_core::{Deadline, Moment};
 
 use crate::{
+    admin::CreateTopicsShardOwner,
     clock::MonotonicClock,
     completion::NotifierJoin,
-    driver::{DriverOwner, DriverTurn, TrackedProduceCalls},
+    driver::{DriverOwner, DriverTurn, TrackedCreateTopicsCalls, TrackedProduceCalls},
     producer::{
         host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
         ingress::ProducerShardOwner,
     },
 };
 
-use super::{EngineHostControl, EngineHostError, produce_turn};
+use super::{
+    EngineHostControl, EngineHostError, admin,
+    notifier_shutdown::{NotifierShutdownOwner, collect_notification_joins},
+    produce_turn,
+};
 
 // Admission and shutdown report wake failure without revoking ownership. Until
 // that path can synchronously terminalize, this cap preserves deadline and
@@ -26,47 +31,24 @@ const SHUTDOWN_TURN_ATTEMPTS: usize = 64;
 pub(crate) struct EngineHostResources {
     pub(super) driver: Option<DriverOwner>,
     pub(super) producer: ProducerShardOwner,
+    pub(super) admin: CreateTopicsShardOwner,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) control: Arc<EngineHostControl>,
     pub(super) budget: ProducerTurnBudget,
     pub(super) produce_calls: TrackedProduceCalls,
+    pub(super) create_topics_calls: TrackedCreateTopicsCalls,
 }
 
 impl Drop for EngineHostResources {
     fn drop(&mut self) {
         let _close_result = self.producer.close_admission();
+        let _close_result = self.admin.admission_port().close_admission();
     }
 }
 
 pub(crate) struct EngineHostExit {
     pub(super) notifier: NotifierShutdownOwner,
     pub(super) failure: Option<EngineHostError>,
-}
-
-/// Exact notifier-join owner carried only into the off-notifier finalizer.
-pub(crate) struct NotifierShutdownOwner {
-    notifier: Option<NotifierJoin>,
-}
-
-impl NotifierShutdownOwner {
-    pub(super) const fn new(notifier: Option<NotifierJoin>) -> Self {
-        Self { notifier }
-    }
-
-    pub(super) fn join_off_notifier(&mut self) -> Result<(), crate::completion::NotifierJoinError> {
-        let Some(notifier) = self.notifier.take() else {
-            return Ok(());
-        };
-        notifier.join_off_notifier()
-    }
-}
-
-impl Drop for NotifierShutdownOwner {
-    fn drop(&mut self) {
-        if let Some(notifier) = self.notifier.take() {
-            let _join_result = notifier.join_off_notifier();
-        }
-    }
 }
 
 pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit, EngineHostError> {
@@ -76,20 +58,29 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
         if resources.control.failure_requested() {
             return Err(EngineHostError::ForcedTestFailure);
         }
-        let now = resources.clock.now().map_err(EngineHostError::Clock)?;
-        let producer = produce_turn::drive(resources, now)?;
+        let producer_now = resources.clock.now().map_err(EngineHostError::Clock)?;
+        let producer = produce_turn::drive(resources, producer_now)?;
+        // Producer execution may encode, submit, and apply completions before
+        // admin receives its turn. Recapture time so CreateTopics never
+        // computes a broker timeout from a stale pre-producer observation.
+        let admin_now = resources.clock.now().map_err(EngineHostError::Clock)?;
+        let admin = admin::drive(resources, admin_now)?;
         #[cfg(test)]
         if producer.driver_progress && resources.control.await_failure_after_produce_admission() {
             return Err(EngineHostError::ForcedTestFailure);
         }
-        if resources.control.shutdown_requested() && producer.unsettled == 0 {
+        if resources.control.shutdown_requested() && producer.unsettled == 0 && admin.unsettled == 0
+        {
             break;
         }
         let wait = producer_wait(
-            now,
+            admin_now,
             producer.outcome,
-            driver_more_work || producer.driver_progress,
+            driver_more_work || producer.driver_progress || admin.driver_progress,
         );
+        let wait = admin.next_deadline.map_or(wait, |deadline| {
+            wait.min(duration_until(admin_now, deadline))
+        });
         resources.control.record_driver_turn();
         let driver = resources
             .driver
@@ -106,24 +97,32 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
             &mut resources.produce_calls,
             completion_now,
         )?;
-        driver_more_work = driver_turn_more || completion_progress;
+        let admin_completion_progress = admin::apply_completions(resources)?;
+        driver_more_work = driver_turn_more || completion_progress || admin_completion_progress;
     }
 
     shutdown_driver(resources)?;
     prepare_notification_stop(resources)?;
-    let notifier = begin_notification_shutdown(resources)?;
+    let (notifier, failure) = begin_notification_shutdown(resources)?;
     Ok(EngineHostExit {
-        notifier: NotifierShutdownOwner::new(Some(notifier)),
-        failure: None,
+        notifier: NotifierShutdownOwner::new(notifier),
+        failure,
     })
 }
 
 fn begin_notification_shutdown(
     resources: &EngineHostResources,
-) -> Result<NotifierJoin, EngineHostError> {
+) -> Result<(Vec<NotifierJoin>, Option<EngineHostError>), EngineHostError> {
     let mut data = resources.producer.terminal_data();
-    data.begin_notification_shutdown()
-        .map_err(EngineHostError::ProducerCleanup)
+    let producer = data
+        .begin_notification_shutdown()
+        .map_err(EngineHostError::ProducerCleanup)?;
+    drop(data);
+    let mut admin_host = resources.admin.terminal_host();
+    let admin = admin_host.stop_notifier().map_err(EngineHostError::Admin);
+    let fallback = admin_host.recover_notifier();
+    drop(admin_host);
+    Ok(collect_notification_joins(producer, admin, fallback))
 }
 
 pub(super) fn shutdown_driver(resources: &mut EngineHostResources) -> Result<(), EngineHostError> {
@@ -176,6 +175,18 @@ pub(super) fn prepare_notification_stop(
     let tracked_calls = resources.produce_calls.retained_count();
     if tracked_calls != 0 {
         return Err(EngineHostError::TrackedProduceCallsRemain(tracked_calls));
+    }
+    let tracked_admin_calls = resources.create_topics_calls.retained_count();
+    if tracked_admin_calls != 0 {
+        return Err(EngineHostError::TrackedCreateTopicsCallsRemain(
+            tracked_admin_calls,
+        ));
+    }
+    let admin_unsettled = resources.admin.terminal_host().unsettled();
+    if admin_unsettled != 0 {
+        return Err(EngineHostError::Admin(
+            crate::admin::CreateTopicsHostError::Unsettled(admin_unsettled),
+        ));
     }
     let mut data = resources.producer.terminal_data();
     let release = data.verify_release_before_completion();

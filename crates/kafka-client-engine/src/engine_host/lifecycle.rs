@@ -10,7 +10,7 @@ use super::{EngineHostControl, EngineHostError, EngineShutdownError};
 pub(crate) struct EngineLifecycle {
     state: Mutex<LifecycleState>,
     changed: Condvar,
-    notifier_thread: Mutex<Option<ThreadId>>,
+    notifier_threads: Mutex<Vec<ThreadId>>,
 }
 
 enum LifecycleState {
@@ -24,12 +24,12 @@ impl EngineLifecycle {
         Self {
             state: Mutex::new(LifecycleState::Running),
             changed: Condvar::new(),
-            notifier_thread: Mutex::new(None),
+            notifier_threads: Mutex::new(Vec::new()),
         }
     }
 
     pub(crate) fn install_notifier_thread(&self, thread_id: ThreadId) {
-        *lock(&self.notifier_thread) = Some(thread_id);
+        lock(&self.notifier_threads).push(thread_id);
     }
 
     pub(crate) fn request(&self, control: &EngineHostControl) {
@@ -102,7 +102,7 @@ impl EngineLifecycle {
 
     fn is_notification_thread(&self) -> bool {
         let current = thread::current().id();
-        lock(&self.notifier_thread).is_some_and(|thread_id| thread_id == current)
+        lock(&self.notifier_threads).contains(&current)
     }
 }
 

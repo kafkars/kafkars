@@ -3,10 +3,11 @@
 use std::fmt;
 
 use crate::{
+    admin::CreateTopicsHostError,
     clock::ClockError,
     completion::NotifierJoinError,
     config::EngineConfigError,
-    driver::{DriverOwnerError, ProduceCompletionFailure},
+    driver::{CreateTopicsCompletionFailure, DriverOwnerError, ProduceCompletionFailure},
     producer::{
         ProducerHostInvariantError, ProducerHostStartError, execution::PreparedProduceHandoffError,
         execution_stop::ProducerExecutionStopError, ingress::ProducerShardTerminalError,
@@ -22,6 +23,8 @@ pub enum EngineStartErrorKind {
     Driver,
     /// Bounded producer resources could not be acquired.
     Producer,
+    /// Bounded admin resources could not be acquired.
+    Admin,
     /// The native engine host thread could not start.
     HostThread,
     /// Startup ownership could not be handed to the host thread.
@@ -54,6 +57,13 @@ impl EngineStartError {
 
     pub(super) fn producer(error: &ProducerHostStartError) -> Self {
         Self::new(EngineStartErrorKind::Producer, error.to_string())
+    }
+
+    pub(super) fn admin(error: &std::io::Error) -> Self {
+        Self::new(
+            EngineStartErrorKind::Admin,
+            format!("failed to start CreateTopics completion notifier: {error}"),
+        )
     }
 
     pub(super) fn host_thread(error: &std::io::Error) -> Self {
@@ -139,10 +149,14 @@ pub(crate) enum EngineHostError {
     ProducerStop(ProducerExecutionStopError),
     ProducerCleanup(ProducerShardTerminalError),
     ProducerLockPoisoned,
+    Admin(CreateTopicsHostError),
+    CreateTopicsCompletion(CreateTopicsCompletionFailure),
+    AdminLockPoisoned,
     Driver(DriverOwnerError),
     DriverOwnerMissing,
     DriverStopped,
     TrackedProduceCallsRemain(usize),
+    TrackedCreateTopicsCallsRemain(usize),
     HostPanicked,
     Notifier(NotifierJoinError),
     Recovery {
@@ -169,6 +183,11 @@ impl fmt::Display for EngineHostError {
             Self::ProducerLockPoisoned => {
                 formatter.write_str("producer host ownership lock is poisoned")
             }
+            Self::Admin(error) => write!(formatter, "CreateTopics host failed: {error}"),
+            Self::CreateTopicsCompletion(error) => write!(formatter, "{error}"),
+            Self::AdminLockPoisoned => {
+                formatter.write_str("CreateTopics host ownership lock is poisoned")
+            }
             Self::Driver(error) => write!(formatter, "embedded driver failed: {error}"),
             Self::DriverOwnerMissing => formatter.write_str("embedded driver owner is unavailable"),
             Self::DriverStopped => formatter.write_str("embedded driver stopped unexpectedly"),
@@ -176,6 +195,12 @@ impl fmt::Display for EngineHostError {
                 write!(
                     formatter,
                     "{count} tracked Produce calls remain at terminal cleanup"
+                )
+            }
+            Self::TrackedCreateTopicsCallsRemain(count) => {
+                write!(
+                    formatter,
+                    "{count} tracked CreateTopics calls remain at terminal cleanup"
                 )
             }
             Self::HostPanicked => formatter.write_str("engine host thread panicked"),

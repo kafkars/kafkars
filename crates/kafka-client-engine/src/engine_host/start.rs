@@ -8,6 +8,7 @@ use std::{
 
 use crate::{
     EngineConfig,
+    admin::{CreateTopicsHost, CreateTopicsShardOwner},
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
     driver::DriverOwner,
@@ -26,6 +27,7 @@ const HOST_THREAD_NAME: &str = "kafka-client-engine";
 
 pub(crate) struct StartedEngineHost {
     pub(crate) admission: ProducerAdmissionPort,
+    pub(crate) admin_admission: crate::admin::CreateTopicsAdmissionPort,
     pub(crate) clock: Arc<MonotonicClock>,
     pub(crate) control: Arc<EngineHostControl>,
     pub(crate) lifecycle: Arc<EngineLifecycle>,
@@ -53,24 +55,42 @@ pub(crate) fn start(
     let clock = Arc::new(MonotonicClock::new());
     let wake = driver.reactor_wake();
     let control = Arc::new(EngineHostControl::new(wake.clone()));
+    let mut admin = match CreateTopicsHost::new() {
+        Ok(admin) => admin,
+        Err(error) => return cancel_start(sender, handle, EngineStartError::admin(&error)),
+    };
     let producer = match ProducerHost::new(validated.host_limits) {
         Ok(producer) => producer,
-        Err(error) => return cancel_start(sender, handle, EngineStartError::producer(&error)),
+        Err(error) => {
+            if let Some(notifier) = admin.recover_notifier() {
+                let _join_result = notifier.join_off_notifier();
+            }
+            return cancel_start(sender, handle, EngineStartError::producer(&error));
+        }
     };
     if let Some(thread_id) = producer.notifier_thread_id() {
         lifecycle.install_notifier_thread(thread_id);
     }
     let producer = ProducerShardOwner::new(producer, Arc::new(wake));
     let admission = producer.admission_port();
+    if let Some(thread_id) = admin.notifier_thread_id() {
+        lifecycle.install_notifier_thread(thread_id);
+    }
+    let admin = CreateTopicsShardOwner::new(admin, Arc::new(driver.reactor_wake()));
+    let admin_admission = admin.admission_port();
     let produce_calls =
         crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
     let resources = EngineHostResources {
         driver: Some(driver),
         producer,
+        admin,
         clock: Arc::clone(&clock),
         control: Arc::clone(&control),
         budget: validated.turn_budget,
         produce_calls,
+        create_topics_calls: crate::driver::TrackedCreateTopicsCalls::new(
+            crate::admin::CREATE_TOPICS_CAPACITY,
+        ),
     };
     if let Err(error) = sender.send(resources) {
         control.request_shutdown();
@@ -85,6 +105,7 @@ pub(crate) fn start(
     drop(handle);
     Ok(StartedEngineHost {
         admission,
+        admin_admission,
         clock,
         control,
         lifecycle,

@@ -16,7 +16,8 @@ impl ClientEngine {
         let inner = Engine::start(EngineConfig::new(bootstrap_servers)).map_err(|error| {
             let kind = match error.kind() {
                 EngineStartErrorKind::Configuration => ErrorKind::Configuration,
-                EngineStartErrorKind::Driver
+                EngineStartErrorKind::Admin
+                | EngineStartErrorKind::Driver
                 | EngineStartErrorKind::Producer
                 | EngineStartErrorKind::HostThread
                 | EngineStartErrorKind::HostHandoff => ErrorKind::Internal,

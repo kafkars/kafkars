@@ -1,4 +1,4 @@
-//! Batched asynchronous admin operations with per-resource outcomes.
+//! Provisional Rust admin API shape; execution is not yet bridged to the engine.
 
 use crate::client::Client;
 use crate::error::KafkaError;
@@ -15,7 +15,10 @@ impl Admin {
         Self { client }
     }
 
-    /// Creates topics as one batched admin operation.
+    /// Returns the provisional ready-result API probe.
+    ///
+    /// This facade method is intentionally not yet connected to the live
+    /// engine `CreateTopics` path.
     pub fn create_topics<I>(&self, topics: I) -> CreateTopics
     where
         I: IntoIterator<Item = NewTopic>,

@@ -11,7 +11,7 @@ use crate::completion::NotifierJoin;
 
 use super::{
     EngineHostError, EngineHostExit, EngineLifecycle,
-    runner::NotifierShutdownOwner,
+    notifier_shutdown::NotifierShutdownOwner,
     start::{finalize_exit, publish_caught},
 };
 
@@ -21,7 +21,7 @@ fn notifier_join_failure_appends_without_replacing_primary_failure() {
         panic!("intentional notifier panic");
     }));
     let failure = finalize_exit(EngineHostExit {
-        notifier: NotifierShutdownOwner::new(Some(notifier)),
+        notifier: NotifierShutdownOwner::new(vec![notifier]),
         failure: Some(EngineHostError::ForcedTestFailure),
     })
     .unwrap_or_else(|| panic!("primary failure must remain visible"));
@@ -56,7 +56,7 @@ fn finalizer_panic_still_publishes_a_terminal_report() {
             .unwrap_or_else(|error| panic!("test termination should be observed: {error}"));
     }));
     let exit = EngineHostExit {
-        notifier: NotifierShutdownOwner::new(Some(notifier)),
+        notifier: NotifierShutdownOwner::new(vec![notifier]),
         failure: None,
     };
     let (panic_sender, panic_receiver) = sync_channel::<()>(0);
