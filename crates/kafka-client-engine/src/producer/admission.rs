@@ -53,6 +53,27 @@ impl RejectedExplicit {
 pub(crate) enum ProducerAdmissionFailure {
     Rejected(RejectedExplicit),
     Invariant(ProducerHostInvariantError),
+    AcceptedInvariant(PoisonedExplicit),
+}
+
+/// Post-core invariant retaining the sole observer and any known operation ID.
+#[derive(Debug)]
+pub(crate) struct PoisonedExplicit {
+    error: ProducerHostInvariantError,
+    operation_id: Option<OperationId>,
+    observer: CompletionObserver<ProducerCompletion>,
+}
+
+impl PoisonedExplicit {
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        ProducerHostInvariantError,
+        Option<OperationId>,
+        CompletionObserver<ProducerCompletion>,
+    ) {
+        (self.error, self.operation_id, self.observer)
+    }
 }
 
 impl ProducerHost {
@@ -101,29 +122,43 @@ impl ProducerHost {
                 return Err(self.invariant_failure(ProducerHostInvariantError::Core(error)));
             }
         };
+        let Some(operation_id) = transition.admitted_operation_id() else {
+            return Err(self.accepted_invariant(
+                ProducerHostInvariantError::MissingAdmissionIdentity,
+                None,
+                observer,
+            ));
+        };
         #[cfg(test)]
         if let Some(error) = self.take_post_acceptance_fault() {
-            return Err(self.invariant_failure(error));
+            return Err(self.accepted_invariant(error, Some(operation_id), observer));
         }
-        let Some(operation_id) = transition.admitted_operation_id() else {
-            return Err(
-                self.invariant_failure(ProducerHostInvariantError::MissingAdmissionIdentity)
-            );
-        };
         if let Err(error) = self.bindings.bind(operation_id, completion_id) {
-            return Err(self.invariant_failure(ProducerHostInvariantError::Binding(error)));
+            return Err(self.accepted_invariant(
+                ProducerHostInvariantError::Binding(error),
+                Some(operation_id),
+                observer,
+            ));
         }
         let committed = match self.store.commit(reservation) {
             Ok(committed) => committed,
             Err(error) => {
-                return Err(self.invariant_failure(ProducerHostInvariantError::Store(error)));
+                return Err(self.accepted_invariant(
+                    ProducerHostInvariantError::Store(error),
+                    Some(operation_id),
+                    observer,
+                ));
             }
         };
         if committed != facts {
-            return Err(self.invariant_failure(ProducerHostInvariantError::CommittedFactsMismatch));
+            return Err(self.accepted_invariant(
+                ProducerHostInvariantError::CommittedFactsMismatch,
+                Some(operation_id),
+                observer,
+            ));
         }
         if let Err(error) = self.interpret_transition(now, transition) {
-            return Err(self.invariant_failure(error));
+            return Err(self.accepted_invariant(error, Some(operation_id), observer));
         }
         Ok(AdmittedExplicit {
             operation_id,
@@ -174,6 +209,19 @@ impl ProducerHost {
 
     fn invariant_failure(&mut self, error: ProducerHostInvariantError) -> ProducerAdmissionFailure {
         ProducerAdmissionFailure::Invariant(self.poison(error))
+    }
+
+    fn accepted_invariant(
+        &mut self,
+        error: ProducerHostInvariantError,
+        operation_id: Option<OperationId>,
+        observer: CompletionObserver<ProducerCompletion>,
+    ) -> ProducerAdmissionFailure {
+        ProducerAdmissionFailure::AcceptedInvariant(PoisonedExplicit {
+            error: self.poison(error),
+            operation_id,
+            observer,
+        })
     }
 }
 

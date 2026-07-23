@@ -125,6 +125,14 @@ production = "crates/kafka-client-engine/src/producer/interpreter.rs"
 test = "crates/kafka-client-engine/src/producer/interpreter_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/port.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/port_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/shard.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/shard_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/materialization.rs"
 test = "crates/kafka-client-engine/src/producer/materialization_test.rs"
 
@@ -657,6 +665,11 @@ owner_type = "ProducerHost"
 field = "health"
 allowed_paths = ["crates/kafka-client-engine/src/producer/host.rs"]
 
+[[mutation_owners]]
+owner_type = "ProducerShardState"
+field = "host"
+allowed_paths = ["crates/kafka-client-engine/src/producer/ingress/shard.rs"]
+
 # Lifecycle and accounting owners must not be duplicated accidentally.
 [[linear_owners]]
 owner_type = "ProducerMachine"
@@ -799,5 +812,17 @@ owner_type = "RejectedExplicit"
 path = "crates/kafka-client-engine/src/producer/admission.rs"
 
 [[linear_owners]]
+owner_type = "PoisonedExplicit"
+path = "crates/kafka-client-engine/src/producer/admission.rs"
+
+[[linear_owners]]
 owner_type = "PreparedExecution"
 path = "crates/kafka-client-engine/src/producer/execution.rs"
+
+[[linear_owners]]
+owner_type = "ProducerShardOwner"
+path = "crates/kafka-client-engine/src/producer/ingress/shard.rs"
+
+[[linear_owners]]
+owner_type = "ProducerPortAccepted"
+path = "crates/kafka-client-engine/src/producer/ingress/port.rs"

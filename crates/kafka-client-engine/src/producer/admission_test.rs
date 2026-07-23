@@ -178,9 +178,7 @@ fn post_acceptance_fault_poisons_host_and_preserves_the_next_record() {
     );
     assert!(matches!(
         first,
-        Err(ProducerAdmissionFailure::Invariant(
-            ProducerHostInvariantError::MissingAdmissionIdentity
-        ))
+        Err(ProducerAdmissionFailure::AcceptedInvariant(_))
     ));
     assert!(!host.stats().healthy);
 
@@ -228,6 +226,9 @@ fn reject_result(result: Result<AdmittedExplicit, ProducerAdmissionFailure>) -> 
         Err(ProducerAdmissionFailure::Rejected(rejected)) => rejected,
         Err(ProducerAdmissionFailure::Invariant(error)) => {
             panic!("admission violated a host invariant: {error}")
+        }
+        Err(ProducerAdmissionFailure::AcceptedInvariant(error)) => {
+            panic!("admission violated an accepted host invariant: {error:?}")
         }
         Ok(_admitted) => panic!("producer admission should reject"),
     }

@@ -10,6 +10,7 @@ mod execution_turn;
 mod host;
 mod host_error;
 mod host_turn;
+pub(crate) mod ingress;
 mod interpreter;
 pub(crate) mod materialization;
 pub(crate) mod prepared;
