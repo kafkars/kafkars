@@ -18,6 +18,20 @@ pub enum ErrorKind {
     Configuration,
     /// A bounded local resource rejected admission.
     Backpressure,
+    /// Authentication or authorization rejected the operation.
+    Access,
+    /// Kafka returned a broker failure without a narrower stable category.
+    Broker,
+    /// The requested operation is incompatible with the broker.
+    Compatibility,
+    /// Kafka fenced the producer or transaction identity.
+    Fenced,
+    /// Kafka rejected record or batch content.
+    InvalidRecord,
+    /// Cluster metadata or leadership could not route the operation.
+    Routing,
+    /// The connection failed while the operation was active.
+    Transport,
     /// The operation's absolute deadline elapsed.
     Timeout,
     /// Explicit cancellation completed before transport ownership.
@@ -34,6 +48,7 @@ pub struct KafkaError {
     kind: ErrorKind,
     message: String,
     delivery_status: Option<DeliveryStatus>,
+    broker_code: Option<i16>,
 }
 
 impl KafkaError {
@@ -43,12 +58,18 @@ impl KafkaError {
             kind,
             message: message.into(),
             delivery_status: None,
+            broker_code: None,
         }
     }
 
     /// Attaches producer delivery certainty.
     pub fn with_delivery_status(mut self, status: DeliveryStatus) -> Self {
         self.delivery_status = Some(status);
+        self
+    }
+
+    pub(crate) fn with_broker_code(mut self, broker_code: Option<i16>) -> Self {
+        self.broker_code = broker_code;
         self
     }
 
@@ -60,6 +81,11 @@ impl KafkaError {
     /// Returns producer delivery certainty when relevant.
     pub const fn delivery_status(&self) -> Option<DeliveryStatus> {
         self.delivery_status
+    }
+
+    /// Returns Kafka's exact protocol error code when supplied by a broker.
+    pub const fn broker_code(&self) -> Option<i16> {
+        self.broker_code
     }
 }
 

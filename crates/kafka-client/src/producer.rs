@@ -38,6 +38,7 @@ impl Producer {
             partition: record.explicit_partition().unwrap_or(0),
             offset: 0,
             timestamp_milliseconds: record.timestamp(),
+            leader_epoch: None,
         };
         let _ = (record, &self.client);
         Operation::ready(Ok(metadata))
@@ -75,9 +76,26 @@ pub struct RecordMetadata {
     partition: i32,
     offset: i64,
     timestamp_milliseconds: Option<i64>,
+    leader_epoch: Option<i32>,
 }
 
 impl RecordMetadata {
+    pub(crate) const fn from_parts(
+        topic: String,
+        partition: i32,
+        offset: i64,
+        timestamp_milliseconds: Option<i64>,
+        leader_epoch: Option<i32>,
+    ) -> Self {
+        Self {
+            topic,
+            partition,
+            offset,
+            timestamp_milliseconds,
+            leader_epoch,
+        }
+    }
+
     /// Returns the topic name.
     pub fn topic(&self) -> &str {
         &self.topic
@@ -96,6 +114,11 @@ impl RecordMetadata {
     /// Returns the broker timestamp when present.
     pub const fn timestamp_milliseconds(&self) -> Option<i64> {
         self.timestamp_milliseconds
+    }
+
+    /// Returns the acknowledged leader epoch when supplied by Kafka.
+    pub const fn leader_epoch(&self) -> Option<i32> {
+        self.leader_epoch
     }
 }
 

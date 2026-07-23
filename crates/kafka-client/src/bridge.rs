@@ -10,6 +10,14 @@ use kafka_client_engine::{Engine, EngineConfig};
     )
 )]
 pub(crate) mod producer;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "producer result translation precedes facade handle integration"
+    )
+)]
+pub(crate) mod producer_result;
 
 /// Facade-owned handle that hides engine types from public modules.
 #[derive(Debug, Clone)]

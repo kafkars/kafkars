@@ -17,4 +17,13 @@ fn non_producer_error_has_no_delivery_certainty() {
     let error = KafkaError::new(ErrorKind::Configuration, "invalid configuration");
 
     assert_eq!(error.delivery_status(), None);
+    assert_eq!(error.broker_code(), None);
+}
+
+#[test]
+fn broker_code_preserves_the_signed_protocol_domain() {
+    let error =
+        KafkaError::new(ErrorKind::Broker, "unknown broker error").with_broker_code(Some(-123));
+
+    assert_eq!(error.broker_code(), Some(-123));
 }
