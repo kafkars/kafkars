@@ -38,7 +38,7 @@ fn due_entries_preserve_owners_and_order_before_future_entries() {
         Ok(true)
     );
 
-    let due: Vec<DueSubmissionDeadline> = deadlines.drain_due(Moment::from_tick(40));
+    let due: Vec<DueSubmissionDeadline> = deadlines.drain_due(Moment::from_tick(40), usize::MAX);
     let facts = due
         .iter()
         .map(|entry| {
@@ -88,7 +88,7 @@ fn conflicting_duplicate_never_replaces_core_declared_facts() {
         );
     }
 
-    let due = deadlines.drain_due(Moment::from_tick(30));
+    let due = deadlines.drain_due(Moment::from_tick(30), usize::MAX);
     assert_eq!(due.len(), 1);
     assert_eq!(due[0].operation_id(), operation(10));
     assert_eq!(due[0].deadline(), deadline(30));
@@ -108,8 +108,8 @@ fn cancellation_is_exact_before_or_after_deadline_transfer() {
 
     assert!(deadlines.cancel(batch(1)));
     assert!(!deadlines.cancel(batch(1)));
-    assert!(deadlines.drain_due(Moment::from_tick(20)).is_empty());
-    assert_eq!(deadlines.drain_due(Moment::from_tick(30)).len(), 1);
+    assert!(deadlines.drain_due(Moment::from_tick(20), 1).is_empty());
+    assert_eq!(deadlines.drain_due(Moment::from_tick(30), 1).len(), 1);
     assert!(!deadlines.cancel(batch(2)));
     assert!(deadlines.is_empty());
 }
@@ -121,7 +121,7 @@ fn due_entry_constructs_the_exact_core_deadline_fact() {
         deadlines.arm(batch(4), operation(44), deadline(12)),
         Ok(true)
     );
-    let mut due = deadlines.drain_due(Moment::from_tick(15));
+    let mut due = deadlines.drain_due(Moment::from_tick(15), 1);
     let fact = due
         .pop()
         .unwrap_or_else(|| panic!("deadline should be due"));
@@ -133,4 +133,25 @@ fn due_entry_constructs_the_exact_core_deadline_fact() {
             now: Moment::from_tick(15),
         }
     );
+}
+
+#[test]
+fn bounded_drain_leaves_equal_deadlines_ready_in_batch_order() {
+    let mut deadlines = SubmissionDeadlines::new(3);
+    for value in [3, 1, 2] {
+        assert_eq!(
+            deadlines.arm(batch(value), operation(value * 10), deadline(15)),
+            Ok(true)
+        );
+    }
+
+    let first = deadlines.drain_due(Moment::from_tick(15), 2);
+    let ids = first
+        .iter()
+        .map(|entry| entry.batch_id().get())
+        .collect::<Vec<_>>();
+    assert_eq!(ids, [1, 2]);
+    assert_eq!(deadlines.len(), 1);
+    assert_eq!(deadlines.next_deadline(), Some(deadline(15)));
+    assert_eq!(deadlines.drain_due(Moment::from_tick(15), 1).len(), 1);
 }

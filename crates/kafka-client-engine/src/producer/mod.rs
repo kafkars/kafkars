@@ -6,6 +6,7 @@ mod binding;
 mod effect;
 pub(crate) mod error;
 pub(crate) mod execution;
+mod execution_turn;
 mod host;
 mod host_error;
 mod interpreter;
@@ -27,8 +28,6 @@ mod topic_catalog;
 pub(crate) use admission::{AdmittedExplicit, ProducerAdmissionFailure, RejectedExplicit};
 pub(crate) use binding::{CompletionBindingError, CompletionBindings};
 pub(crate) use error::{ProducerAdmissionError, ProducerStoreError};
-#[cfg_attr(not(test), expect(unused_imports, reason = "producer host follows"))]
-pub(crate) use execution::{PreparedExecution, PreparedExecutionError, PreparedExecutionLimits};
 #[cfg_attr(
     not(test),
     expect(unused_imports, reason = "the facade bridge follows")
@@ -41,10 +40,9 @@ pub(crate) use host_error::{
 pub(crate) use materialization::{
     MaterializationBatch, MaterializationHeader, MaterializationRecord,
 };
-pub(crate) use record::ProducerRecord;
-
 #[cfg(test)]
 pub(crate) use record::ProducerHeader;
+pub(crate) use record::ProducerRecord;
 pub(crate) use store::{ProducerStore, ProducerStoreLimits, ProducerStoreStats};
 
 #[cfg(test)]
@@ -57,6 +55,8 @@ mod binding_test;
 mod execution_route_test;
 #[cfg(test)]
 mod execution_test;
+#[cfg(test)]
+mod execution_turn_test;
 #[cfg(test)]
 mod host_limits_test;
 #[cfg(test)]

@@ -83,6 +83,10 @@ production = "crates/kafka-client-engine/src/producer/execution.rs"
 test = "crates/kafka-client-engine/src/producer/execution_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/execution_turn.rs"
+test = "crates/kafka-client-engine/src/producer/execution_turn_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/host.rs"
 test = "crates/kafka-client-engine/src/producer/host_limits_test.rs"
 
@@ -578,6 +582,7 @@ field = "store"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/admission.rs",
   "crates/kafka-client-engine/src/producer/effect.rs",
+  "crates/kafka-client-engine/src/producer/execution_turn.rs",
   "crates/kafka-client-engine/src/producer/host.rs",
 ]
 
@@ -600,6 +605,16 @@ owner_type = "ProducerHost"
 field = "pending_effects"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/effect.rs",
+  "crates/kafka-client-engine/src/producer/execution_turn.rs",
+  "crates/kafka-client-engine/src/producer/host.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerHost"
+field = "execution"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/effect.rs",
+  "crates/kafka-client-engine/src/producer/execution_turn.rs",
   "crates/kafka-client-engine/src/producer/host.rs",
 ]
 

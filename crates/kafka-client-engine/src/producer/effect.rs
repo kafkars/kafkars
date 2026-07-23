@@ -60,9 +60,10 @@ impl ProducerHost {
                 Ok(None)
             }
             ProducerEffect::ReleaseBatch { batch_id } => {
-                self.store
-                    .release_batch(batch_id)
-                    .map_err(ProducerHostInvariantError::Store)?;
+                self.cancel_pending_batch(batch_id);
+                self.execution
+                    .release_batch(&mut self.store, batch_id)
+                    .map_err(ProducerHostInvariantError::Prepared)?;
                 Ok(None)
             }
             ProducerEffect::ReleasePayload {
@@ -115,6 +116,21 @@ impl ProducerHost {
         }
         self.pending_effects.push(effect);
         Ok(())
+    }
+
+    fn cancel_pending_batch(&mut self, batch_id: kafka_client_core::BatchId) {
+        self.pending_effects.retain(|effect| {
+            !matches!(
+                effect,
+                ProducerEffect::MaterializeBatch {
+                    batch_id: pending,
+                    ..
+                } | ProducerEffect::SubmitProduce {
+                    batch_id: pending,
+                    ..
+                } if *pending == batch_id
+            )
+        });
     }
 
     /// Retries bounded completion work without touching materialization or driver work.

@@ -10,7 +10,8 @@ use kafka_client_core::{
 };
 
 use super::{
-    PreparedExecution, PreparedExecutionLimits, ProducerRecord, ProducerStore, ProducerStoreLimits,
+    ProducerRecord, ProducerStore, ProducerStoreLimits,
+    execution::{PreparedExecution, PreparedExecutionLimits},
 };
 
 struct SealedBatch {
@@ -124,7 +125,7 @@ fn materialization_retains_one_bounded_request_without_fake_driver_acceptance() 
     assert_eq!(execution.prepared_stats().batches, 1);
     assert_eq!(execution.submission_count(), 1);
     assert_eq!(execution.next_deadline(), Some(Deadline::from_tick(10)));
-    assert!(execution.drain_due(Moment::from_tick(9)).is_empty());
+    assert!(execution.drain_due(Moment::from_tick(9), 1).is_empty());
 }
 
 #[test]
@@ -134,7 +135,7 @@ fn pre_driver_expiry_releases_encoded_and_original_bytes_as_not_sent() {
     let materialized = batch.materialize(&mut execution, Moment::from_tick(1));
     batch.apply_and_arm(&mut execution, materialized);
 
-    let due = execution.drain_due(Moment::from_tick(10));
+    let due = execution.drain_due(Moment::from_tick(10), 1);
     assert_eq!(
         due,
         [ProducerInput::DeadlineElapsed {

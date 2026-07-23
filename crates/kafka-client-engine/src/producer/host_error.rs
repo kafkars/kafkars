@@ -6,7 +6,10 @@ use kafka_client_core::{AdmissionRejection, ProducerMachineError};
 
 use crate::{clock::BatchTimerError, completion::CompletionRegistryError};
 
-use super::{CompletionBindingError, ProducerStoreError, reclaim::CompletionReclaimError};
+use super::{
+    CompletionBindingError, ProducerStoreError, execution::PreparedExecutionError,
+    reclaim::CompletionReclaimError,
+};
 
 /// Invalid synchronization between core and engine capacity owners.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -17,6 +20,8 @@ pub(crate) enum ProducerHostLimitError {
     InsufficientBatchCapacity,
     InsufficientTimerCapacity,
     InsufficientNotificationCapacity,
+    ZeroEncodedByteCapacity,
+    ZeroWireBatchBytes,
     BatchRecordLimitExceedsCapacity,
     RetainedBytesOutOfRange,
 }
@@ -38,6 +43,8 @@ impl fmt::Display for ProducerHostLimitError {
             Self::InsufficientNotificationCapacity => {
                 "producer notification capacity must cover every completion slot"
             }
+            Self::ZeroEncodedByteCapacity => "producer encoded-byte capacity must be nonzero",
+            Self::ZeroWireBatchBytes => "producer wire batch byte limit must be nonzero",
             Self::BatchRecordLimitExceedsCapacity => {
                 "producer batch record limit exceeds record capacity"
             }
@@ -101,6 +108,7 @@ pub(crate) enum ProducerHostInvariantError {
     Timer(BatchTimerError),
     Completion(CompletionRegistryError),
     Reclaim(CompletionReclaimError),
+    Prepared(PreparedExecutionError),
     MissingAdmissionIdentity,
     CommittedFactsMismatch,
     GeneratedFactCapacity,
@@ -127,6 +135,9 @@ impl fmt::Display for ProducerHostInvariantError {
                     formatter,
                     "producer completion reclaim invariant failed: {error}"
                 )
+            }
+            Self::Prepared(error) => {
+                write!(formatter, "prepared producer execution failed: {error}")
             }
             Self::MissingAdmissionIdentity => {
                 formatter.write_str("accepted producer transition omitted its operation identity")

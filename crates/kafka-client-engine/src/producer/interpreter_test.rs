@@ -23,6 +23,8 @@ fn generated_accumulation_waits_until_the_whole_admission_transition_drains() {
         batch_capacity: 1,
         timer_capacity: 1,
         notification_capacity: 1,
+        encoded_byte_capacity: 1_024,
+        max_wire_batch_bytes: 1_024,
         batch_policy,
     };
     let mut host = start(limits);

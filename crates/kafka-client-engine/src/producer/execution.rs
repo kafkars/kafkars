@@ -110,9 +110,13 @@ impl PreparedExecution {
         match compression {
             CompressionPolicy::Uncompressed => {}
         }
-        let input = store
-            .take_materialization(batch_id, self.max_batch_bytes)
-            .map_err(PreparedExecutionError::Store)?;
+        let input = match store.take_materialization(batch_id, self.max_batch_bytes) {
+            Ok(input) => input,
+            Err(ProducerStoreError::PartitionOutOfRange) => {
+                return Ok(materialization_failed(batch_id));
+            }
+            Err(error) => return Err(PreparedExecutionError::Store(error)),
+        };
         let materialized = match materialize_explicit_produce_batch(input) {
             Ok(value) => value,
             Err(_semantic_failure) => return Ok(materialization_failed(batch_id)),
@@ -164,10 +168,10 @@ impl PreparedExecution {
             .map_err(PreparedExecutionError::Deadline)
     }
 
-    /// Converts due mechanism entries into FIFO-ready deterministic facts.
-    pub(crate) fn drain_due(&mut self, now: Moment) -> Vec<ProducerInput> {
+    /// Converts bounded due mechanism entries into FIFO deterministic facts.
+    pub(crate) fn drain_due(&mut self, now: Moment, limit: usize) -> Vec<ProducerInput> {
         self.deadlines
-            .drain_due(now)
+            .drain_due(now, limit)
             .into_iter()
             .map(super::submission_deadline::DueSubmissionDeadline::into_input)
             .collect()

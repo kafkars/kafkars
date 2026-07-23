@@ -6,7 +6,9 @@ use crate::{clock::BatchTimers, completion::CompletionRegistry};
 
 use super::{
     CompletionBindings, ProducerHostInvariantError, ProducerHostLimitError, ProducerHostStartError,
-    ProducerStore, ProducerStoreLimits, ProducerStoreStats, reclaim::CompletionReclaimer,
+    ProducerStore, ProducerStoreLimits, ProducerStoreStats,
+    execution::{PreparedExecution, PreparedExecutionLimits},
+    reclaim::CompletionReclaimer,
 };
 
 /// Capacity values shared by core policy and every bounded engine owner.
@@ -18,6 +20,8 @@ pub(crate) struct ProducerHostLimits {
     pub(crate) batch_capacity: usize,
     pub(crate) timer_capacity: usize,
     pub(crate) notification_capacity: usize,
+    pub(crate) encoded_byte_capacity: usize,
+    pub(crate) max_wire_batch_bytes: usize,
     pub(crate) batch_policy: ProducerBatchPolicy,
 }
 
@@ -41,6 +45,12 @@ impl ProducerHostLimits {
         if self.notification_capacity < self.completion_capacity {
             return Err(ProducerHostLimitError::InsufficientNotificationCapacity);
         }
+        if self.encoded_byte_capacity == 0 {
+            return Err(ProducerHostLimitError::ZeroEncodedByteCapacity);
+        }
+        if self.max_wire_batch_bytes == 0 {
+            return Err(ProducerHostLimitError::ZeroWireBatchBytes);
+        }
         if self.batch_policy.max_records() > self.record_capacity {
             return Err(ProducerHostLimitError::BatchRecordLimitExceedsCapacity);
         }
@@ -57,6 +67,9 @@ pub(crate) struct ProducerHostStats {
     pub(crate) core_retained_bytes: ByteCount,
     pub(crate) core_completion_slots: usize,
     pub(crate) active_timers: usize,
+    pub(crate) prepared_batches: usize,
+    pub(crate) prepared_bytes: usize,
+    pub(crate) submission_deadlines: usize,
     pub(crate) pending_effects: usize,
     pub(crate) healthy: bool,
 }
@@ -76,6 +89,7 @@ pub(crate) struct ProducerHost {
     pub(super) bindings: CompletionBindings,
     pub(super) reclaimer: CompletionReclaimer,
     pub(super) timers: BatchTimers,
+    pub(super) execution: PreparedExecution,
     pub(super) pending_effects: Vec<ProducerEffect>,
     pub(super) effect_capacity: usize,
     pub(super) health: ProducerHostHealth,
@@ -105,6 +119,13 @@ impl ProducerHost {
             bindings: CompletionBindings::new(limits.completion_capacity),
             reclaimer: CompletionReclaimer::new(),
             timers: BatchTimers::new(limits.timer_capacity),
+            execution: PreparedExecution::new(
+                limits.batch_capacity,
+                PreparedExecutionLimits {
+                    encoded_bytes: limits.encoded_byte_capacity,
+                    max_batch_bytes: limits.max_wire_batch_bytes,
+                },
+            ),
             pending_effects: Vec::with_capacity(limits.completion_capacity),
             effect_capacity: limits.completion_capacity,
             health: ProducerHostHealth::Healthy,
@@ -115,11 +136,15 @@ impl ProducerHost {
 
     /// Returns bounded state without exposing lifecycle owners.
     pub(crate) fn stats(&self) -> ProducerHostStats {
+        let prepared = self.execution.prepared_stats();
         ProducerHostStats {
             store: self.store.stats(),
             core_retained_bytes: self.core.retained_bytes(),
             core_completion_slots: self.core.completion_slots(),
             active_timers: self.timers.len(),
+            prepared_batches: prepared.batches,
+            prepared_bytes: prepared.encoded_record_bytes,
+            submission_deadlines: self.execution.submission_count(),
             pending_effects: self.pending_effects.len(),
             healthy: self.health == ProducerHostHealth::Healthy,
         }

@@ -155,10 +155,13 @@ impl SubmissionDeadlines {
         true
     }
 
-    /// Removes due entries in `(Deadline, BatchId)` order at the supplied time.
-    pub(crate) fn drain_due(&mut self, now: Moment) -> Vec<DueSubmissionDeadline> {
-        let mut due = Vec::new();
+    /// Removes bounded due entries in `(Deadline, BatchId)` order.
+    pub(crate) fn drain_due(&mut self, now: Moment, limit: usize) -> Vec<DueSubmissionDeadline> {
+        let mut due = Vec::with_capacity(limit.min(self.active.len()));
         while let Some(next) = self.schedule.first().copied() {
+            if due.len() >= limit {
+                break;
+            }
             if !next.deadline.is_elapsed_at(now) {
                 break;
             }

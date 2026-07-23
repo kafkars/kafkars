@@ -34,6 +34,7 @@ fn non_ready_admission_synchronizes_core_store_timer_and_observer() {
     assert_eq!(stats.core_completion_slots, 1);
     assert_eq!(stats.active_timers, 1);
     assert_eq!(stats.pending_effects, 0);
+    assert_eq!(host.next_deadline(), Some(Deadline::from_tick(90)));
     assert!(stats.healthy);
     drop(admitted);
 }

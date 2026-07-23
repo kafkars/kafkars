@@ -15,6 +15,9 @@ fn valid_limits_construct_one_synchronized_host() {
     assert_eq!(stats.core_retained_bytes, ByteCount::new(0));
     assert_eq!(stats.core_completion_slots, 0);
     assert_eq!(stats.active_timers, 0);
+    assert_eq!(stats.prepared_batches, 0);
+    assert_eq!(stats.prepared_bytes, 0);
+    assert_eq!(stats.submission_deadlines, 0);
     assert_eq!(stats.pending_effects, 0);
     assert!(stats.healthy);
 }
@@ -69,6 +72,17 @@ fn batching_count_policy_cannot_exceed_record_capacity() {
     );
 }
 
+#[test]
+fn encoded_and_wire_byte_limits_must_be_nonzero() {
+    let mut encoded = valid_limits();
+    encoded.encoded_byte_capacity = 0;
+    assert_limit(encoded, ProducerHostLimitError::ZeroEncodedByteCapacity);
+
+    let mut wire = valid_limits();
+    wire.max_wire_batch_bytes = 0;
+    assert_limit(wire, ProducerHostLimitError::ZeroWireBatchBytes);
+}
+
 pub(super) fn valid_limits() -> ProducerHostLimits {
     let Ok(batch_policy) = ProducerBatchPolicy::try_new(2, ByteCount::new(64), 100) else {
         panic!("test policy should be valid")
@@ -80,6 +94,8 @@ pub(super) fn valid_limits() -> ProducerHostLimits {
         batch_capacity: 2,
         timer_capacity: 2,
         notification_capacity: 2,
+        encoded_byte_capacity: 1_024,
+        max_wire_batch_bytes: 1_024,
         batch_policy,
     }
 }

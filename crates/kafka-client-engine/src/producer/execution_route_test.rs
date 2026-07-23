@@ -9,8 +9,8 @@ use kafka_client_core::{
 };
 
 use super::{
-    PreparedExecution, PreparedExecutionError, PreparedExecutionLimits, ProducerRecord,
-    ProducerStore, ProducerStoreLimits,
+    ProducerRecord, ProducerStore, ProducerStoreLimits,
+    execution::{PreparedExecution, PreparedExecutionError, PreparedExecutionLimits},
 };
 
 #[test]
