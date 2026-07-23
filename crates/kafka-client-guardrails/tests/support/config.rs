@@ -14,6 +14,8 @@ pub(crate) struct GuardConfig {
     pub(crate) budgets: FileBudgets,
     pub(crate) dependency_rules: Vec<DependencyRule>,
     pub(crate) capability_rules: Vec<CapabilityRule>,
+    pub(crate) mutation_owners: Vec<MutationOwner>,
+    pub(crate) linear_owners: Vec<LinearOwner>,
 }
 
 /// Source roots included in and excluded from live inspection.
@@ -79,6 +81,23 @@ pub(crate) struct DependencyRule {
 pub(crate) struct CapabilityRule {
     pub(crate) root: String,
     pub(crate) forbidden: Vec<String>,
+}
+
+/// One load-bearing field and the modules permitted to mutate it.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct MutationOwner {
+    pub(crate) owner_type: String,
+    pub(crate) field: String,
+    pub(crate) allowed_paths: Vec<String>,
+}
+
+/// One lifecycle owner that must remain nonduplicable.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct LinearOwner {
+    pub(crate) owner_type: String,
+    pub(crate) path: String,
 }
 
 const SUPPORTED_SCHEMA: u32 = 1;

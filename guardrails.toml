@@ -118,3 +118,78 @@ forbidden = [
   "smol",
   "tokio",
 ]
+
+# Load-bearing producer fields have one deliberately small mutation surface.
+[[mutation_owners]]
+owner_type = "ProducerMachine"
+field = "admission_open"
+allowed_paths = ["crates/kafka-client-core/src/producer/machine.rs"]
+
+[[mutation_owners]]
+owner_type = "ProducerMachine"
+field = "next_operation_id"
+allowed_paths = ["crates/kafka-client-core/src/producer/machine.rs"]
+
+[[mutation_owners]]
+owner_type = "ProducerMachine"
+field = "byte_budget"
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/machine.rs",
+  "crates/kafka-client-core/src/producer/lifecycle.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerMachine"
+field = "completions"
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/machine.rs",
+  "crates/kafka-client-core/src/producer/lifecycle.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerMachine"
+field = "operations"
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/machine.rs",
+  "crates/kafka-client-core/src/producer/lifecycle.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerMachine"
+field = "records"
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/machine.rs",
+  "crates/kafka-client-core/src/producer/lifecycle.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ByteBudget"
+field = "used"
+allowed_paths = ["crates/kafka-client-core/src/capacity.rs"]
+
+[[mutation_owners]]
+owner_type = "CompletionLedger"
+field = "slots"
+allowed_paths = ["crates/kafka-client-core/src/completion.rs"]
+
+[[mutation_owners]]
+owner_type = "ProducerOperation"
+field = "state"
+allowed_paths = ["crates/kafka-client-core/src/operation/transition.rs"]
+
+# Lifecycle and accounting owners must not be duplicated accidentally.
+[[linear_owners]]
+owner_type = "ProducerMachine"
+path = "crates/kafka-client-core/src/producer/machine.rs"
+
+[[linear_owners]]
+owner_type = "CompletionLedger"
+path = "crates/kafka-client-core/src/completion.rs"
+
+[[linear_owners]]
+owner_type = "ByteBudget"
+path = "crates/kafka-client-core/src/capacity.rs"
+
+[[linear_owners]]
+owner_type = "ProducerOperation"
+path = "crates/kafka-client-core/src/operation/state.rs"
