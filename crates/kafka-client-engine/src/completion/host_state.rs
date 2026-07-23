@@ -33,6 +33,16 @@ impl<T> HostSlot<T> {
         matches!(self.phase, HostPhase::Reserved { id: current } if current == id)
     }
 
+    pub(super) const fn reserved_id(&self) -> Option<CompletionId> {
+        match self.phase {
+            HostPhase::Reserved { id } => Some(id),
+            HostPhase::Vacant
+            | HostPhase::Published { .. }
+            | HostPhase::ReclaimReady { .. }
+            | HostPhase::Retired => None,
+        }
+    }
+
     pub(super) fn has_unsettled_reservation(&self) -> bool {
         matches!(self.phase, HostPhase::Reserved { .. })
     }

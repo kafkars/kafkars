@@ -81,6 +81,10 @@ production = "crates/kafka-client-engine/src/completion/registry.rs"
 test = "crates/kafka-client-engine/src/completion/registry_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/completion/settlement.rs"
+test = "crates/kafka-client-engine/src/completion/settlement_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/delivery.rs"
 test = "crates/kafka-client-engine/src/delivery_test.rs"
 
@@ -472,6 +476,7 @@ field = "slots"
 allowed_paths = [
   "crates/kafka-client-engine/src/completion/registry.rs",
   "crates/kafka-client-engine/src/completion/registry/lifecycle.rs",
+  "crates/kafka-client-engine/src/completion/settlement.rs",
 ]
 
 [[mutation_owners]]
@@ -485,7 +490,10 @@ allowed_paths = [
 [[mutation_owners]]
 owner_type = "CompletionRegistry"
 field = "notifier"
-allowed_paths = ["crates/kafka-client-engine/src/completion/registry.rs"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/completion/registry.rs",
+  "crates/kafka-client-engine/src/completion/settlement.rs",
+]
 
 [[mutation_owners]]
 owner_type = "CompletionCell"

@@ -28,10 +28,10 @@ pub(crate) enum ReclaimStatus {
 
 /// Host-side fixed completion slots and their dedicated notifier owner.
 pub(crate) struct CompletionRegistry<T> {
-    slots: Vec<HostSlot<T>>,
+    pub(super) slots: Vec<HostSlot<T>>,
     free: Vec<usize>,
     reclaim: Receiver<CompletionId>,
-    notifier: Option<Notifier<T>>,
+    pub(super) notifier: Option<Notifier<T>>,
 }
 
 impl<T: Send + 'static> CompletionRegistry<T> {

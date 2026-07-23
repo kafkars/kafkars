@@ -7,6 +7,7 @@ mod identity;
 mod notifier;
 mod observer;
 mod registry;
+mod settlement;
 mod state;
 
 pub(crate) use error::{CompletionObserverError, CompletionRegistryError};
@@ -14,6 +15,14 @@ pub(crate) use identity::CompletionId;
 pub(crate) use notifier::NotifierJoin;
 pub(crate) use observer::CompletionObserver;
 pub(crate) use registry::{CompletionRegistry, ReclaimStatus};
+#[cfg_attr(
+    not(test),
+    expect(
+        unused_imports,
+        reason = "host-failure settlement owner follows this generic mechanism"
+    )
+)]
+pub(crate) use settlement::{SettlementFailure, SettlementProgress};
 
 #[cfg(test)]
 mod observer_test;
@@ -21,5 +30,7 @@ mod observer_test;
 mod registry_generation_test;
 #[cfg(test)]
 mod registry_test;
+#[cfg(test)]
+mod settlement_test;
 #[cfg(test)]
 pub(crate) mod test_support;
