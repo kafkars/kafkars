@@ -3,6 +3,9 @@
 mod cleanup;
 #[cfg(test)]
 mod cleanup_test;
+mod handoff;
+#[cfg(test)]
+mod handoff_test;
 mod materialization;
 #[cfg(test)]
 mod materialization_test;

@@ -1,5 +1,9 @@
 //! Bounded pre-driver deadline ownership for materialized producer batches.
 
+pub(crate) mod handoff;
+#[cfg(test)]
+mod handoff_test;
+
 use std::{
     collections::{BTreeMap, BTreeSet},
     error::Error,

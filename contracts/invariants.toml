@@ -91,6 +91,9 @@ evidence = [
   "crates/kafka-client-engine/src/producer/pending/registry_test.rs::pending_entry_preserves_both_absolute_deadline_representations",
   "crates/kafka-client-engine/src/producer/ingress/promotion_test.rs::later_moment_admission_binds_the_original_core_and_transport_deadline",
   "crates/kafka-client-engine/src/producer/execution/submission_test.rs::submission_requires_and_preserves_the_admitted_operation_deadline",
+  "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::handoff_preserves_exact_execution_deadline_and_encoded_owner",
+  "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::prepared_preflight_corruption_preserves_both_exact_owners",
+  "crates/kafka-client-engine/src/producer/submission_deadline/handoff_test.rs::missing_schedule_preserves_the_active_original_deadline",
   "crates/kafka-client-engine/src/producer/pending/registry_test.rs::deadline_expiry_is_ordered_bounded_and_not_sent",
   "crates/kafka-client-core/src/producer_test.rs::elapsed_deadline_never_crosses_admission",
   "crates/kafka-client-engine/src/producer/submission_deadline_test.rs::due_entry_constructs_the_exact_core_deadline_fact",
@@ -166,6 +169,8 @@ evidence = [
   "crates/kafka-client-engine/src/producer/execution/materialization_test.rs::stale_commit_drops_the_exact_prepared_bytes_it_inserted",
   "crates/kafka-client-engine/src/producer/prepared_test.rs::stale_prepared_generation_cannot_take_or_release_current_bytes",
   "crates/kafka-client-engine/src/producer/submission_deadline_test.rs::stale_deadline_cancellation_cannot_remove_current_execution",
+  "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::stale_execution_rejection_leaves_both_exact_owners_unchanged",
+  "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::post_plan_execution_drift_reports_the_actual_prepared_owner",
   "crates/kafka-client-sim/src/state/batch_test.rs::simulator_submits_only_exact_materialized_membership_snapshot",
 ]
 

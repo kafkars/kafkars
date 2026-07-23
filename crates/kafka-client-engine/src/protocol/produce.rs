@@ -61,7 +61,7 @@ impl MaterializedProduce {
     }
 
     #[cfg(test)]
-    pub(super) const fn encoded_records(&self) -> &Bytes {
+    pub(crate) const fn encoded_records(&self) -> &Bytes {
         &self.records
     }
 }

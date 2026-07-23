@@ -167,6 +167,21 @@ impl PreparedProduceStore {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn replace_execution_for_handoff_test(
+        &mut self,
+        batch_id: BatchId,
+        replacement: BatchExecutionId,
+    ) -> Option<BatchExecutionId> {
+        let entry = self.batches.get_mut(&batch_id)?;
+        Some(std::mem::replace(&mut entry.execution, replacement))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn replace_retained_bytes_for_handoff_test(&mut self, replacement: usize) -> usize {
+        std::mem::replace(&mut self.retained_bytes, replacement)
+    }
+
     /// Drops every encoded request after permanent execution loss.
     pub(crate) fn clear_terminal(&mut self) {
         self.batches.clear();

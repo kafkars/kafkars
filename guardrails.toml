@@ -203,12 +203,20 @@ production = "crates/kafka-client-engine/src/producer/execution/cleanup.rs"
 test = "crates/kafka-client-engine/src/producer/execution/cleanup_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/execution/handoff.rs"
+test = "crates/kafka-client-engine/src/producer/execution/handoff_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution/materialization.rs"
 test = "crates/kafka-client-engine/src/producer/execution/materialization_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution/submission.rs"
 test = "crates/kafka-client-engine/src/producer/execution/submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/submission_deadline/handoff.rs"
+test = "crates/kafka-client-engine/src/producer/submission_deadline/handoff_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/prepared/release.rs"
@@ -705,6 +713,26 @@ forbidden = [
 ]
 
 [[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/execution/handoff.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_records",
+  "std::time",
+  "Instant::now",
+  "OperationDeadline::from_boundary_parts",
+  "materialize_explicit_produce_batch",
+  "ProduceRequest",
+  "RecordBatch",
+  "Transport",
+  "Rpc",
+  "Retry",
+  "Metadata",
+  "std::future",
+  "Future",
+]
+
+[[capability_rules]]
 root = "crates/kafka-client-engine/src/producer/interpreter.rs"
 forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
 
@@ -821,6 +849,39 @@ allowed_paths = []
 root = "crates/kafka-client-engine/src"
 method = "settle_pending_local"
 allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "take_driver_submission"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "plan_handoff"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/execution/handoff.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "commit_handoff"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/execution/handoff.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "plan_driver_submission"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/execution/handoff.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "commit_driver_submission"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/execution/handoff.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
@@ -1365,12 +1426,39 @@ allowed_paths = [
 [[mutation_owners]]
 owner_type = "SubmissionDeadlines"
 field = "active"
-allowed_paths = ["crates/kafka-client-engine/src/producer/submission_deadline.rs"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/submission_deadline.rs",
+  "crates/kafka-client-engine/src/producer/submission_deadline/handoff.rs",
+]
 
 [[mutation_owners]]
 owner_type = "SubmissionDeadlines"
 field = "schedule"
-allowed_paths = ["crates/kafka-client-engine/src/producer/submission_deadline.rs"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/submission_deadline.rs",
+  "crates/kafka-client-engine/src/producer/submission_deadline/handoff.rs",
+]
+
+[[mutation_owners]]
+owner_type = "PreparedExecution"
+field = "prepared"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/execution.rs",
+  "crates/kafka-client-engine/src/producer/execution/cleanup.rs",
+  "crates/kafka-client-engine/src/producer/execution/handoff.rs",
+  "crates/kafka-client-engine/src/producer/execution/materialization.rs",
+  "crates/kafka-client-engine/src/producer/execution/submission.rs",
+]
+
+[[mutation_owners]]
+owner_type = "PreparedExecution"
+field = "deadlines"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/execution.rs",
+  "crates/kafka-client-engine/src/producer/execution/cleanup.rs",
+  "crates/kafka-client-engine/src/producer/execution/handoff.rs",
+  "crates/kafka-client-engine/src/producer/execution/submission.rs",
+]
 
 [[mutation_owners]]
 owner_type = "OrderedTerminalBacklog"
@@ -1939,6 +2027,22 @@ path = "crates/kafka-client-engine/src/producer/batch_store/execution.rs"
 [[linear_owners]]
 owner_type = "SubmissionDeadlines"
 path = "crates/kafka-client-engine/src/producer/submission_deadline.rs"
+
+[[linear_owners]]
+owner_type = "PreparedProduceSubmission"
+path = "crates/kafka-client-engine/src/producer/execution/handoff.rs"
+
+[[linear_owners]]
+owner_type = "PreparedProduceHandoffPlan"
+path = "crates/kafka-client-engine/src/producer/execution/handoff.rs"
+
+[[linear_owners]]
+owner_type = "PreparedProduceHandoffError"
+path = "crates/kafka-client-engine/src/producer/execution/handoff.rs"
+
+[[linear_owners]]
+owner_type = "SubmissionDeadlineHandoffPlan"
+path = "crates/kafka-client-engine/src/producer/submission_deadline/handoff.rs"
 
 [[linear_owners]]
 owner_type = "RetainedTerminal"
