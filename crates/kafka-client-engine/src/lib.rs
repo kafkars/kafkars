@@ -3,6 +3,14 @@
 #![forbid(unsafe_code)]
 
 mod config;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "the embedded owner precedes the integrated engine host"
+    )
+)]
+mod driver;
 mod engine;
 #[cfg_attr(
     not(test),

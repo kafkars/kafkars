@@ -193,3 +193,7 @@ path = "crates/kafka-client-core/src/capacity.rs"
 [[linear_owners]]
 owner_type = "ProducerOperation"
 path = "crates/kafka-client-core/src/operation/state.rs"
+
+[[linear_owners]]
+owner_type = "DriverOwner"
+path = "crates/kafka-client-engine/src/driver/owner.rs"

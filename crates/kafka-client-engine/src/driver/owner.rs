@@ -1,0 +1,84 @@
+//! Single-owner execution shell around one embedded driver reactor.
+
+use std::{fmt, time::Duration};
+
+use kafka_driver::{
+    BootstrapError, BootstrapLimits, BootstrapSet, Call, Driver, Reactor, ReactorError,
+    SubmitError, TurnOutcome, WakeHandle,
+};
+
+use crate::EngineConfig;
+
+use super::{DriverOwnerError, endpoint};
+
+/// Unique engine ownership of one driver handle, reactor, and wake source.
+///
+/// This type deliberately has no `Clone` implementation. It does not expose the
+/// driver's current relative-timeout request methods; reactor turns and
+/// terminal shutdown remain single-owner actions.
+pub(crate) struct DriverOwner {
+    driver: Driver,
+    reactor: Reactor,
+    wake: WakeHandle,
+}
+
+impl DriverOwner {
+    /// Acquires one embedded driver reactor for configured logical endpoints.
+    pub(crate) fn build(config: &EngineConfig) -> Result<Self, DriverOwnerError> {
+        let limits = BootstrapLimits::default();
+        let limit = limits.max_endpoints().get();
+        if config.bootstrap_servers().len() > limit {
+            return Err(DriverOwnerError::Bootstrap(BootstrapError::Capacity {
+                limit,
+            }));
+        }
+
+        let mut endpoints = Vec::with_capacity(config.bootstrap_servers().len());
+        for (index, value) in config.bootstrap_servers().iter().enumerate() {
+            let endpoint = endpoint::parse(value)
+                .map_err(|source| DriverOwnerError::Endpoint { index, source })?;
+            endpoints.push(endpoint);
+        }
+        let bootstrap =
+            BootstrapSet::try_from_iter(endpoints, limits).map_err(DriverOwnerError::Bootstrap)?;
+        let (driver, reactor) = Driver::builder()
+            .bootstrap(bootstrap)
+            .build_reactor()
+            .map_err(DriverOwnerError::Build)?;
+        let wake = reactor.wake_handle();
+        Ok(Self {
+            driver,
+            reactor,
+            wake,
+        })
+    }
+
+    /// Shares the reactor's coalesced wake source with bounded engine ingress.
+    pub(crate) fn wake_handle(&self) -> WakeHandle {
+        self.wake.clone()
+    }
+
+    /// Drives one fairness-bounded embedded driver turn.
+    pub(crate) fn turn(&mut self, max_wait: Duration) -> Result<TurnOutcome, ReactorError> {
+        self.reactor.turn(max_wait)
+    }
+
+    /// Enters the driver's priority shutdown lane and returns its barrier.
+    pub(crate) fn begin_shutdown(&self) -> Result<Call<()>, SubmitError> {
+        self.driver.shutdown()
+    }
+
+    /// Reports whether the embedded reactor has reached terminal shutdown.
+    pub(crate) const fn is_shutdown(&self) -> bool {
+        self.reactor.is_shutdown()
+    }
+}
+
+impl fmt::Debug for DriverOwner {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("DriverOwner")
+            .field("reactor_shutdown", &self.reactor.is_shutdown())
+            .finish_non_exhaustive()
+    }
+}
