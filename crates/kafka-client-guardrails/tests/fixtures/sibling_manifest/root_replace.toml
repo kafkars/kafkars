@@ -1,0 +1,10 @@
+[workspace]
+members = ["crates/kafka-client-engine"]
+
+[workspace.dependencies]
+kafka-driver = { path = "../kafka-driver" }
+kafka-wire = { path = "../kafka-protocol/crates/kafka-wire" }
+kafka-wire-records = { path = "../kafka-protocol/crates/kafka-wire-records" }
+
+[replace]
+"bytes:1.0.0" = { path = "../bytes-fork" }

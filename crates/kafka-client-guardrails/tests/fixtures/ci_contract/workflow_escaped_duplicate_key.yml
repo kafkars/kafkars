@@ -1,0 +1,6 @@
+name: escaped duplicate key
+on: push
+jobs:
+  quality-gate:
+    "if": ${{ always() }}
+    "\u0069f": ${{ false }}

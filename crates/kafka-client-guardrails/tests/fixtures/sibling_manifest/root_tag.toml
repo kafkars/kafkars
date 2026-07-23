@@ -1,0 +1,7 @@
+[workspace]
+members = ["crates/kafka-client-engine"]
+
+[workspace.dependencies]
+kafka-driver = { git = "https://example.invalid/kafka-driver", tag = "v1.0.0" }
+kafka-wire = { path = "../kafka-protocol/crates/kafka-wire" }
+kafka-wire-records = { path = "../kafka-protocol/crates/kafka-wire-records" }

@@ -8,6 +8,7 @@ mod capability;
 mod config;
 mod duplication;
 mod files;
+mod github_yaml;
 mod glob_import;
 mod invocation;
 mod invocation_pattern;
@@ -30,6 +31,7 @@ pub(crate) use files::{
     FileClass, WalkScope, classify, display_path, fixture_files, is_facade, is_test_only_source,
     read, rust_files, rust_files_under, workspace_root,
 };
+pub(crate) use github_yaml::{YamlNode, entry as yaml_entry, parse as parse_github_yaml};
 pub(crate) use glob_import::glob_import_violations;
 pub(crate) use invocation::{invocation_candidate_matches, invocation_matches, invocations};
 pub(crate) use macro_token::macro_identifiers;

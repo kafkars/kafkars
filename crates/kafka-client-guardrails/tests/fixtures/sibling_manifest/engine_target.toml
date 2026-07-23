@@ -1,0 +1,11 @@
+[package]
+name = "kafka-client-engine"
+version = "0.0.0"
+
+[dependencies]
+kafka-driver.workspace = true
+kafka-wire.workspace = true
+kafka-wire-records.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+kafka-driver.workspace = true

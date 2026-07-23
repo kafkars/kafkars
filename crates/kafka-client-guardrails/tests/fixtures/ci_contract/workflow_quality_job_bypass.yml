@@ -1,0 +1,36 @@
+name: bypassed quality job
+on: push
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+jobs:
+  quality-gate:
+    if: ${{ always() }}
+    needs: [architecture, rust-lint, rust-test]
+    runs-on: ubuntu-latest
+    env:
+      BASH_ENV: /tmp/bypass
+    defaults:
+      run:
+        shell: bash --noprofile --norc -e {0}
+    strategy:
+      matrix:
+        ignored: [true]
+    steps:
+      - name: Inspect every evidence lane
+        env:
+          ARCHITECTURE_RESULT: ${{ needs.architecture.result }}
+          RUST_LINT_RESULT: ${{ needs['rust-lint'].result }}
+          RUST_TEST_RESULT: ${{ needs['rust-test'].result }}
+        run: |
+          failures=0
+          check_result() {
+            if [[ "$2" != success ]]; then
+              echo "$1 evidence lane ended with: $2" >&2
+              failures=$((failures + 1))
+            fi
+          }
+          check_result architecture "$ARCHITECTURE_RESULT"
+          check_result rust-lint "$RUST_LINT_RESULT"
+          check_result rust-test "$RUST_TEST_RESULT"
+          test "$failures" -eq 0

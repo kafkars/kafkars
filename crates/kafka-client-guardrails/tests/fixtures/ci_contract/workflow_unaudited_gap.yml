@@ -1,0 +1,30 @@
+name: unaudited mutation gap
+on: push
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+jobs:
+  architecture:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kafka-client
+    steps:
+      - name: Check out client
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: kafka-client
+          persist-credentials: false
+      - name: Check out reviewed sibling dependencies
+        uses: ./kafka-client/.github/actions/checkout-siblings
+        with:
+          read-token: ${{ secrets.KAFKA_SIBLING_REPOS_READ_TOKEN }}
+      - name: Mutate only the architecture lane
+        run: |
+          if [[ "$GITHUB_JOB" == architecture ]]; then
+            sed -i s/reviewed/unreviewed/ dependencies/sibling-revisions.env
+          fi
+      - name: Install pinned Rust toolchain
+        uses: ./kafka-client/.github/actions/setup-rust
+      - name: Validate architecture
+        run: scripts/check-architecture

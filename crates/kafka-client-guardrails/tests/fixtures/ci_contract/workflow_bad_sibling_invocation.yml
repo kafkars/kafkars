@@ -1,0 +1,27 @@
+name: bypassed sibling invocation
+on: push
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+jobs:
+  rust-lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kafka-client
+    steps:
+      - name: Check out client
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: kafka-client
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        uses: ./kafka-client/.github/actions/setup-rust
+      - name: Check out reviewed sibling dependencies
+        uses: ./kafka-client/.github/actions/checkout-siblings
+        env:
+          GIT_CONFIG_GLOBAL: /tmp/bypass
+        with:
+          token: ${{ github.token }}
+      - name: Validate Rust style and documentation
+        run: scripts/check-rust-lint

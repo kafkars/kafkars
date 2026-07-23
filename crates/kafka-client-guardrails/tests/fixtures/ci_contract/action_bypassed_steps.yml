@@ -1,0 +1,29 @@
+name: bypassed siblings
+runs:
+  using: composite
+  steps:
+    - name: Driver
+      if: false
+      env:
+        GIT_CONFIG_GLOBAL: /tmp/bypass
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      with:
+        repository: kafkars/kafka-driver
+        ref: ${{ steps.revisions.outputs.driver }}
+        path: kafka-driver
+        persist-credentials: false
+    - name: Protocol
+      continue-on-error: true
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      with:
+        repository: kafkars/kafka-wire
+        ref: ${{ steps.revisions.outputs.protocol }}
+        path: kafka-protocol
+        persist-credentials: false
+    - name: Attest
+      if: ${{ false }}
+      continue-on-error: true
+      env:
+        GITHUB_ACTION_PATH: /tmp/bypass
+      shell: bash
+      run: "$GITHUB_ACTION_PATH/../../../scripts/check-dependency-provenance"

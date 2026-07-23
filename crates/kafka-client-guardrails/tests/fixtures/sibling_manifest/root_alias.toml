@@ -1,0 +1,8 @@
+[workspace]
+members = ["crates/kafka-client-engine"]
+
+[workspace.dependencies]
+driver-alias = { package = "kafka-driver", path = "../kafka-driver" }
+kafka-driver = { path = "../kafka-driver" }
+kafka-wire = { path = "../kafka-protocol/crates/kafka-wire" }
+kafka-wire-records = { path = "../kafka-protocol/crates/kafka-wire-records" }

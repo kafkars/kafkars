@@ -1,0 +1,21 @@
+name: wrong checkout inputs
+runs:
+  using: composite
+  steps:
+    - name: Driver
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      with:
+        repository: kafkars/kafka-driver
+        ref: refs/heads/main
+        path: kafka-driver
+        persist-credentials: true
+    - name: Protocol
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      with:
+        repository: kafkars/kafka-wire
+        ref: ${{ steps.revisions.outputs.protocol }}
+        path: another-protocol
+        persist-credentials: true
+    - name: Attest
+      shell: bash
+      run: "$GITHUB_ACTION_PATH/../../../scripts/check-dependency-provenance"

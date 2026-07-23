@@ -1,0 +1,49 @@
+name: weak quality
+on: push
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+
+jobs:
+  architecture:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kafka-client
+    steps:
+      - name: Siblings
+        uses: ./kafka-client/.github/actions/checkout-siblings
+      - name: Architecture
+        run: scripts/check-architecture
+  rust-lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kafka-client
+    steps:
+      - name: Siblings
+        uses: ./kafka-client/.github/actions/checkout-siblings
+      - name: Lint
+        run: scripts/check-rust-lint
+  rust-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kafka-client
+    steps:
+      - name: Siblings
+        uses: ./kafka-client/.github/actions/checkout-siblings
+      - name: Test
+        run: scripts/check-rust-test
+  quality-gate:
+    needs: [architecture, rust-lint]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect some results
+        env:
+          ARCHITECTURE_RESULT: ${{ needs.architecture.result }}
+          RUST_LINT_RESULT: ${{ needs['rust-lint'].result }}
+        run: |
+          check_result architecture "$ARCHITECTURE_RESULT"
+          check_result rust-lint "$RUST_LINT_RESULT"
