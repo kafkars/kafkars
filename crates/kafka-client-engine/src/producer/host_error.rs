@@ -6,7 +6,7 @@ use kafka_client_core::{AdmissionRejection, ProducerMachineError};
 
 use crate::{clock::BatchTimerError, completion::CompletionRegistryError};
 
-use super::{CompletionBindingError, ProducerStoreError};
+use super::{CompletionBindingError, ProducerStoreError, reclaim::CompletionReclaimError};
 
 /// Invalid synchronization between core and engine capacity owners.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -100,6 +100,7 @@ pub(crate) enum ProducerHostInvariantError {
     Binding(CompletionBindingError),
     Timer(BatchTimerError),
     Completion(CompletionRegistryError),
+    Reclaim(CompletionReclaimError),
     MissingAdmissionIdentity,
     CommittedFactsMismatch,
     GeneratedFactCapacity,
@@ -120,6 +121,12 @@ impl fmt::Display for ProducerHostInvariantError {
             Self::Timer(error) => write!(formatter, "producer timer invariant failed: {error}"),
             Self::Completion(error) => {
                 write!(formatter, "producer completion invariant failed: {error}")
+            }
+            Self::Reclaim(error) => {
+                write!(
+                    formatter,
+                    "producer completion reclaim invariant failed: {error}"
+                )
             }
             Self::MissingAdmissionIdentity => {
                 formatter.write_str("accepted producer transition omitted its operation identity")

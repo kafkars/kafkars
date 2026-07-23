@@ -100,6 +100,11 @@ impl CompletionReclaimer {
         }
     }
 
+    /// Reports whether the next host turn must retry engine finishing only.
+    pub(crate) const fn finish_pending(&self) -> bool {
+        matches!(self.phase, ReclaimPhase::Finishing { .. })
+    }
+
     /// Obtains at most one reclaim identity and emits its core input once.
     pub(crate) fn next_input(
         &mut self,

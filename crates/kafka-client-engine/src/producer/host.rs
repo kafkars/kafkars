@@ -6,7 +6,7 @@ use crate::{clock::BatchTimers, completion::CompletionRegistry};
 
 use super::{
     CompletionBindings, ProducerHostInvariantError, ProducerHostLimitError, ProducerHostStartError,
-    ProducerStore, ProducerStoreLimits, ProducerStoreStats,
+    ProducerStore, ProducerStoreLimits, ProducerStoreStats, reclaim::CompletionReclaimer,
 };
 
 /// Capacity values shared by core policy and every bounded engine owner.
@@ -74,6 +74,7 @@ pub(crate) struct ProducerHost {
     pub(super) store: ProducerStore,
     pub(super) completions: CompletionRegistry<kafka_client_core::ProducerCompletion>,
     pub(super) bindings: CompletionBindings,
+    pub(super) reclaimer: CompletionReclaimer,
     pub(super) timers: BatchTimers,
     pub(super) pending_effects: Vec<ProducerEffect>,
     pub(super) effect_capacity: usize,
@@ -102,6 +103,7 @@ impl ProducerHost {
             }),
             completions,
             bindings: CompletionBindings::new(limits.completion_capacity),
+            reclaimer: CompletionReclaimer::new(),
             timers: BatchTimers::new(limits.timer_capacity),
             pending_effects: Vec::with_capacity(limits.completion_capacity),
             effect_capacity: limits.completion_capacity,

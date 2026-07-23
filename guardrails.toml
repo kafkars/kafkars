@@ -99,6 +99,10 @@ production = "crates/kafka-client-engine/src/producer/reclaim.rs"
 test = "crates/kafka-client-engine/src/producer/reclaim_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/reclaim_turn.rs"
+test = "crates/kafka-client-engine/src/producer/reclaim_turn_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/record_store.rs"
 test = "crates/kafka-client-engine/src/producer/record_store_test.rs"
 
@@ -567,7 +571,13 @@ field = "completions"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/admission.rs",
   "crates/kafka-client-engine/src/producer/effect.rs",
+  "crates/kafka-client-engine/src/producer/reclaim_turn.rs",
 ]
+
+[[mutation_owners]]
+owner_type = "ProducerHost"
+field = "reclaimer"
+allowed_paths = ["crates/kafka-client-engine/src/producer/reclaim_turn.rs"]
 
 [[mutation_owners]]
 owner_type = "ProducerHost"

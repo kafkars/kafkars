@@ -11,6 +11,7 @@ mod interpreter;
 pub(crate) mod materialization;
 pub(crate) mod prepared;
 pub(crate) mod reclaim;
+mod reclaim_turn;
 pub(crate) mod record;
 mod record_access;
 mod record_store;
@@ -69,6 +70,8 @@ mod materialization_test;
 mod prepared_test;
 #[cfg(test)]
 mod reclaim_test;
+#[cfg(test)]
+mod reclaim_turn_test;
 #[cfg(test)]
 mod record_store_test;
 #[cfg(test)]
