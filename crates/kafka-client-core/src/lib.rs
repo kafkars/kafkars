@@ -18,39 +18,10 @@ mod producer_policy;
 mod producer_record;
 mod producer_transition;
 mod producer_transition_result;
+mod public_api;
 mod types;
 
-pub use admin::{
-    CreateTopicBrokerError, CreateTopicConfig, CreateTopicOutcome, CreateTopicResult,
-    CreateTopicSpecification, CreateTopicsEffect, CreateTopicsFailure, CreateTopicsFailureKind,
-    CreateTopicsInput, CreateTopicsMachine, CreateTopicsMachineError, CreateTopicsPlan,
-    CreateTopicsPlanError, CreateTopicsState, CreateTopicsTerminal, CreateTopicsTransition,
-};
-pub use admission::AdmissionRejection;
-pub use capacity::{ByteBudget, CapacityError};
-pub use completion::{CompletionLedger, CompletionLedgerError};
-pub use operation::{ProducerOperation, ProducerOperationState};
-pub use operation_outcome::{
-    DeliveryStatus, ProducerBatchSuccess, ProducerCancellationOutcome, ProducerCompletion,
-    RecordMetadata, TerminalRelease, TransitionError,
-};
-pub use producer::{AdmissionSequence, FlushId, FlushLedgerError, ProducerMachine};
-pub use producer_broker_failure::{ProducerBrokerFailure, ProducerBrokerFailureKind};
-pub use producer_effect::{
-    AcknowledgementPolicy, CompressionPolicy, EXECUTION_STOP_EFFECTS_PER_FLUSH,
-    EXECUTION_STOP_EFFECTS_PER_RECORD, ProducerEffect, execution_stop_effect_capacity,
-    producer_transition_effect_capacity,
-};
-pub use producer_error::ProducerMachineError;
-pub use producer_failure::{ProducerFailure, ProducerFailureKind};
-pub use producer_input::ProducerInput;
-pub use producer_policy::{ProducerBatchPolicy, ProducerBatchPolicyError};
-pub use producer_record::{
-    BatchExecutionGeneration, BatchExecutionId, BatchId, BatchTimerGeneration, ExplicitRecord,
-    PartitionIndex, PayloadId, TopicId,
-};
-pub use producer_transition_result::ProducerTransition;
-pub use types::{ByteCount, Deadline, Moment, OperationId};
+pub use public_api::*;
 
 #[cfg(test)]
 mod capacity_test;
