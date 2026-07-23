@@ -2,6 +2,14 @@
 
 #![forbid(unsafe_code)]
 
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "completion ownership precedes the integrated engine host"
+    )
+)]
+mod completion;
 mod config;
 #[cfg_attr(
     not(test),
