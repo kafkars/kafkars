@@ -17,21 +17,7 @@ pub(crate) use backlog::{PendingNotificationBacklog, PendingNotificationRecovery
 #[cfg(test)]
 pub(crate) use queue::{PendingRecoveryQueue, PendingRecoverySubmitErrorKind};
 pub(crate) use route::PendingNotificationRoute;
-#[cfg_attr(
-    not(test),
-    expect(
-        unused_imports,
-        reason = "live shard turn will consume the dormant route mode"
-    )
-)]
 pub(crate) use route::PendingNotificationRouteMode;
-#[cfg_attr(
-    not(test),
-    expect(
-        unused_imports,
-        reason = "live shard turn will consume bounded route progress"
-    )
-)]
 pub(crate) use route_retry::PendingNotificationRouteProgress;
 #[cfg(test)]
 pub(crate) use shutdown::PendingNotificationShutdownOwner;

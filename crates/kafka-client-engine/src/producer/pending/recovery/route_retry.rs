@@ -51,17 +51,20 @@ impl PendingNotificationRouteProgress {
     pub(crate) const fn mode(self) -> PendingNotificationRouteMode {
         self.mode
     }
+
+    #[cfg(test)]
+    pub(crate) const fn primary_for_test(attempted: usize, remaining: bool, blocked: bool) -> Self {
+        Self::new(
+            attempted,
+            remaining,
+            blocked,
+            PendingNotificationRouteMode::Primary,
+        )
+    }
 }
 
 impl PendingNotificationRoute {
     /// Attempts no more than `limit` submissions to the older primary notifier.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "live primary retry remains closed until shard-turn integration"
-        )
-    )]
     pub(crate) fn retry_primary_notifications<T: Send + 'static>(
         &mut self,
         primary: &CompletionRegistry<T>,

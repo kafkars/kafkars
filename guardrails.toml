@@ -21,7 +21,7 @@ excluded_roots = ["crates/kafka-client-guardrails/tests/fixtures"]
 
 [budgets]
 baseline = [
-  { path = "crates/kafka-client-engine/src/producer/pending/mod.rs", lines = 85, reason = "declarative facade explicitly registers its sibling pending-domain test modules" },
+  { path = "crates/kafka-client-engine/src/producer/pending/mod.rs", lines = 86, reason = "declarative facade explicitly registers sibling tests and bounded route facts" },
 ]
 allow = []
 
@@ -313,6 +313,18 @@ test = "crates/kafka-client-engine/src/producer/ingress/promotion_rejection_test
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/ingress/shard.rs"
 test = "crates/kafka-client-engine/src/producer/ingress/shard_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/shard_turn.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/shard_turn_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/shard_turn_failure.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/shard_turn_failure_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/shard_turn_progress.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/shard_turn_progress_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/ingress/terminal.rs"
@@ -741,6 +753,22 @@ forbidden = [
 ]
 
 [[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/ingress/shard_turn.rs"
+forbidden = [
+  "std::time",
+  "Instant::now",
+  "SystemTime",
+  "OperationDeadline::from_boundary_parts",
+  "dispatch_pending_notification",
+  "dispatch_all_pending_notifications",
+  "notify_pending",
+  "kafka_driver",
+  "kafka_wire",
+  "async fn",
+  ".await",
+]
+
+[[capability_rules]]
 root = "crates/kafka-client-engine/src/producer/interpreter.rs"
 forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
 
@@ -797,7 +825,9 @@ allowed_paths = [
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "retry_primary_notifications"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/ingress/shard_turn.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
@@ -851,11 +881,20 @@ allowed_paths = [
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "settle_next_pending"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/ingress/shard_turn.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "settle_pending_local"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/ingress/shard_turn.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "shard_turn"
 allowed_paths = []
 
 [[method_capabilities]]
@@ -2215,6 +2254,18 @@ path = "crates/kafka-client-engine/src/producer/ingress/pending_local_fatal.rs"
 [[linear_owners]]
 owner_type = "PendingShardFatalRetentionFailure"
 path = "crates/kafka-client-engine/src/producer/ingress/pending_fatal.rs"
+
+[[linear_owners]]
+owner_type = "ProducerShardTurnFailureOwner"
+path = "crates/kafka-client-engine/src/producer/ingress/shard_turn_failure.rs"
+
+[[linear_owners]]
+owner_type = "ProducerShardTurnFailureCause"
+path = "crates/kafka-client-engine/src/producer/ingress/shard_turn_failure.rs"
+
+[[linear_owners]]
+owner_type = "ProducerShardTurnFailure"
+path = "crates/kafka-client-engine/src/producer/ingress/shard_turn_failure.rs"
 
 [[linear_owners]]
 owner_type = "NotificationQueue"

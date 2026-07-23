@@ -13,6 +13,9 @@ mod promotion_error;
 mod promotion_rejection;
 mod reactor_wake;
 mod shard;
+mod shard_turn;
+mod shard_turn_failure;
+mod shard_turn_progress;
 mod terminal;
 mod waiting;
 
@@ -58,6 +61,12 @@ mod promotion_test;
 mod reactor_wake_test;
 #[cfg(test)]
 mod shard_test;
+#[cfg(test)]
+mod shard_turn_failure_test;
+#[cfg(test)]
+mod shard_turn_progress_test;
+#[cfg(test)]
+mod shard_turn_test;
 #[cfg(test)]
 mod terminal_test;
 #[cfg(test)]

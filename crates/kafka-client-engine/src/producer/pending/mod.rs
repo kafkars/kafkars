@@ -39,7 +39,8 @@ pub(crate) use permit::{PendingNotificationPermit, PendingNotificationPermitPool
 #[cfg(test)]
 pub(crate) use recovery::PendingNotificationShutdownOwner;
 pub(crate) use recovery::{
-    PendingNotificationCleanupOwner, PendingNotificationRoute, PendingNotificationShutdownFailures,
+    PendingNotificationCleanupOwner, PendingNotificationRoute, PendingNotificationRouteMode,
+    PendingNotificationRouteProgress, PendingNotificationShutdownFailures,
     PendingPrimaryMissingError, PendingRecoveryJoinError, PendingRecoveryStartupOwner,
 };
 pub(crate) use registration::PendingSendRegistration;
