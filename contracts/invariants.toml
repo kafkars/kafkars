@@ -25,9 +25,18 @@ evidence = [
 [[invariant]]
 id = "CAN-01"
 title = "Cancellation is stage-aware"
-statement = "Cancellation reports whether transport ownership makes a NotSent outcome impossible and never treats observer abandonment as cancellation."
-status = "planned"
-milestone = "generation-fenced-sealed-batch-cancellation"
+statement = "Cancellation is an immediate core decision: open and generation-fenced pre-driver work revokes its exact retained mechanisms and terminates NotSent, driver-owned work returns TooLate without mutation, terminal observation remains authoritative, and observer drop remains abandonment."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/producer/cancellation_test.rs::open_member_cancellation_releases_exact_resources_and_remains_terminal",
+  "crates/kafka-client-core/src/producer/cancellation_test.rs::submitted_cancellation_is_too_late_without_mutation",
+  "crates/kafka-client-core/src/producer/cancellation_revision_test.rs::awaiting_driver_cancellation_restarts_survivors_at_a_new_generation",
+  "crates/kafka-client-engine/src/producer/cancellation/host_test.rs::open_cancellation_releases_before_cancelled_not_sent_terminal",
+  "crates/kafka-client-engine/src/producer/cancellation/revision_test.rs::awaiting_driver_revision_revokes_unarmed_and_armed_ownership",
+  "crates/kafka-client-engine/src/producer/cancellation/revision_test.rs::driver_accepted_marks_engine_submitted_before_too_late_decision",
+  "crates/kafka-client-engine/src/producer/ingress/cancellation_test.rs::cancellation_terminal_backpressure_preserves_abandon_reclaim",
+  "crates/kafka-client/src/producer/cancellation_test.rs::cancellation_preserves_the_terminal_observer_and_repeated_requests_reach_core",
+]
 
 [[invariant]]
 id = "CLS-01"

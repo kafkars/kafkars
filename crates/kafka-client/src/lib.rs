@@ -1,8 +1,8 @@
 //! Idiomatic Rust facade over the shared reactor-native Kafka client engine.
 //!
-//! Immediate explicit-partition producer admission, flush observation, and
-//! atomic close-and-drain form the first implemented vertical slice. Later API
-//! domains remain unpublished design probes.
+//! Immediate explicit-partition producer admission, stage-aware cancellation,
+//! flush observation, and atomic close-and-drain form the first implemented
+//! vertical slice. Later API domains remain unpublished design probes.
 
 #![forbid(unsafe_code)]
 
@@ -25,7 +25,8 @@ pub use consumer::{
 pub use error::{DeliveryStatus, ErrorKind, KafkaError};
 pub use operation::Operation;
 pub use producer::{
-    CloseProducer, Delivery, Flush, Producer, ProducerBuilder, RecordMetadata, TrySendError,
+    CancellationOutcome, CloseProducer, Delivery, Flush, Producer, ProducerBuilder, RecordMetadata,
+    TrySendError,
 };
 pub use record::{Header, Record};
 pub use transaction::{

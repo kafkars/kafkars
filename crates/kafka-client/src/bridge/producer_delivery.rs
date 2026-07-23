@@ -10,8 +10,14 @@ use std::{
 use kafka_client_engine::ProducerDeliveryObserver as EngineDeliveryObserver;
 
 use crate::{
-    ErrorKind, KafkaError, RecordMetadata,
-    bridge::producer_result::delivery::translate_delivery_result,
+    CancellationOutcome, ErrorKind, KafkaError, RecordMetadata,
+    bridge::producer_result::{
+        cancellation::{
+            translate_cancellation_error, translate_cancellation_fault,
+            translate_cancellation_outcome,
+        },
+        delivery::translate_delivery_result,
+    },
 };
 
 /// Private runtime-neutral observer shared by asynchronous and blocking APIs.
@@ -24,6 +30,11 @@ pub(crate) struct ProducerDelivery {
     /// It never replaces, predicts, or changes the observer's one terminal
     /// delivery result.
     accepted_diagnostic: Option<KafkaError>,
+    /// Advisory wake fault after an authoritative cancellation decision.
+    ///
+    /// A committed cancellation outcome remains successful; this retained
+    /// diagnostic is visible only through `Debug`.
+    cancellation_diagnostic: Option<KafkaError>,
 }
 
 impl ProducerDelivery {
@@ -36,7 +47,19 @@ impl ProducerDelivery {
             topic: Some(topic),
             observer,
             accepted_diagnostic,
+            cancellation_diagnostic: None,
         }
+    }
+
+    pub(crate) fn cancel(&mut self) -> Result<CancellationOutcome, KafkaError> {
+        let accepted = self
+            .observer
+            .try_cancel()
+            .map_err(|error| translate_cancellation_error(&error))?;
+        if self.cancellation_diagnostic.is_none() {
+            self.cancellation_diagnostic = accepted.fault().map(translate_cancellation_fault);
+        }
+        Ok(translate_cancellation_outcome(accepted.outcome()))
     }
 
     /// Blocks on the same terminal observer used by `Future::poll`.
@@ -74,6 +97,7 @@ impl fmt::Debug for ProducerDelivery {
             .field("topic", &self.topic)
             .field("observer", &self.observer)
             .field("accepted_diagnostic", &self.accepted_diagnostic)
+            .field("cancellation_diagnostic", &self.cancellation_diagnostic)
             .finish()
     }
 }
