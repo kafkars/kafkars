@@ -29,6 +29,8 @@ use super::{
     submission_deadline::{SubmissionDeadlineError, SubmissionDeadlines},
 };
 
+pub(crate) use handoff::{PreparedProduceHandoffError, PreparedProduceSubmission};
+
 /// Hard bounds shared by encoded bytes and pre-driver deadline ownership.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct PreparedExecutionLimits {

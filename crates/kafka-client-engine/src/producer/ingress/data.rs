@@ -10,6 +10,7 @@ use crate::{
         ProducerHost, ProducerHostInvariantError, ProducerRecord, ProducerRejectionReason,
         ProducerStoreError,
         admission::{AdmittedExplicit, ProducerAdmissionFailure, RejectedExplicit},
+        execution::{PreparedProduceHandoffError, PreparedProduceSubmission},
         host::ProducerHostStats,
         host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
         pending::{
@@ -105,6 +106,22 @@ impl ProducerShardData {
         budget: ProducerTurnBudget,
     ) -> Result<ProducerTurnOutcome, ProducerHostInvariantError> {
         self.host.turn(now, budget)
+    }
+
+    /// Transfers at most one driver-ready request while this shard is locked.
+    pub(crate) fn take_produce_submission(
+        &mut self,
+    ) -> Result<Option<PreparedProduceSubmission>, PreparedProduceHandoffError> {
+        self.host.execution.take_next_driver_submission()
+    }
+
+    /// Applies one transport-owned fact while this shard is locked.
+    pub(crate) fn apply_produce_driver_input(
+        &mut self,
+        now: Moment,
+        input: kafka_client_core::ProducerInput,
+    ) -> Result<(), ProducerHostInvariantError> {
+        self.host.apply_one_driver_input(now, input)
     }
 
     /// Resolves at most one FIFO pending attempt without wiring live scheduling.

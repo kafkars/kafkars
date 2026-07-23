@@ -167,6 +167,7 @@ pub(crate) enum ProducerHostInvariantError {
     TerminalBacklogCorrupt,
     TerminalQuarantineCapacity,
     FlushControlUnavailable,
+    UnexpectedDriverInput,
     #[cfg(test)]
     ForcedTerminalInterpretation,
     #[cfg(test)]
@@ -220,6 +221,9 @@ impl fmt::Display for ProducerHostInvariantError {
             }
             Self::FlushControlUnavailable => formatter
                 .write_str("producer flush effects reached an engine without flush support"),
+            Self::UnexpectedDriverInput => {
+                formatter.write_str("producer driver bridge received a non-driver input")
+            }
             #[cfg(test)]
             Self::ForcedTerminalInterpretation => {
                 formatter.write_str("forced terminal producer interpretation failure")

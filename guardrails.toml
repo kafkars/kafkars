@@ -203,6 +203,10 @@ production = "crates/kafka-client-engine/src/producer/execution.rs"
 test = "crates/kafka-client-engine/src/producer/execution_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/host/driver_input.rs"
+test = "crates/kafka-client-engine/src/producer/host/driver_input_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution/cleanup.rs"
 test = "crates/kafka-client-engine/src/producer/execution/cleanup_test.rs"
 
@@ -935,6 +939,25 @@ allowed_paths = [
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "take_next_driver_submission"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/ingress/data.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "take_produce_submission"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "apply_one_driver_input"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/ingress/data.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "apply_produce_driver_input"
 allowed_paths = []
 
 [[method_capabilities]]
@@ -1373,6 +1396,7 @@ owner_type = "ProducerHost"
 field = "core"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/admission.rs",
+  "crates/kafka-client-engine/src/producer/host/driver_input.rs",
   "crates/kafka-client-engine/src/producer/execution_stop.rs",
   "crates/kafka-client-engine/src/producer/execution_turn.rs",
   "crates/kafka-client-engine/src/producer/host.rs",

@@ -1,5 +1,8 @@
 //! Synchronized capacity and ownership for one explicit-partition producer host.
 
+mod driver_input;
+#[cfg(test)]
+mod driver_input_test;
 #[path = "host/startup.rs"]
 pub(super) mod startup;
 
