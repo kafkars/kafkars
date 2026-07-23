@@ -1,19 +1,13 @@
-//! Atomic transfer of one prepared request and its original absolute deadline.
+//! Atomic transfer from the single prepared owner into one driver submission.
 
 use std::{error::Error, fmt};
 
 use kafka_client_core::BatchExecutionId;
 
-use super::PreparedExecution;
-use crate::{
-    clock::OperationDeadline,
-    producer::{
-        prepared::PreparedProduceError, submission_deadline::handoff::SubmissionDeadlineHandoffPlan,
-    },
-    protocol::produce::MaterializedProduce,
-};
+use super::{PreparedExecution, PreparedProduceError, ScheduledDeadline};
+use crate::{clock::OperationDeadline, protocol::produce::MaterializedProduce};
 
-/// Linear request owner ready for a future bounded driver admission attempt.
+/// Linear request owner ready for a bounded driver admission attempt.
 #[derive(Debug)]
 pub(crate) struct PreparedProduceSubmission {
     execution: BatchExecutionId,
@@ -38,56 +32,30 @@ impl PreparedProduceSubmission {
     }
 }
 
-/// Linear proof that both exact pre-driver owners passed handoff preflight.
-#[derive(Debug)]
-pub(super) struct PreparedProduceHandoffPlan {
-    execution: BatchExecutionId,
-    deadline: SubmissionDeadlineHandoffPlan,
-}
-
-/// Exact rejection from the paired prepared-request and deadline transfer.
+/// Exact rejection from the unified prepared-request transfer.
 #[derive(Debug)]
 pub(crate) enum PreparedProduceHandoffError {
-    /// The two pre-driver owners do not both retain the requested execution.
+    /// The prepared entry is absent, stale, or has not been armed by core.
     OwnershipMismatch {
-        /// Execution requested by the future driver owner.
+        /// Execution requested by the driver bridge.
         requested: BatchExecutionId,
-        /// Execution retaining encoded bytes, if any.
-        prepared: Option<BatchExecutionId>,
-        /// Execution retaining the original deadline, if any.
-        deadline: Option<BatchExecutionId>,
+        /// Execution retaining the unified entry, if any.
+        retained: Option<BatchExecutionId>,
     },
-    /// Deadline planning or commit drift reports current stores and any returned plan.
-    DeadlineInconsistent {
-        /// Execution requested by the handoff.
-        requested: BatchExecutionId,
-        /// Execution currently retaining encoded bytes, if any.
-        prepared: Option<BatchExecutionId>,
-        /// Execution currently retained by the active deadline store, if any.
-        active: Option<BatchExecutionId>,
-        /// Unchanged original deadline from before the disagreement.
-        deadline: OperationDeadline,
-        /// Exact uncommitted removal plan returned after commit-time drift.
-        plan: Option<Box<SubmissionDeadlineHandoffPlan>>,
-    },
-    /// Prepared-store preflight drift leaves both original owners retained.
-    PreparedPreflightInconsistent {
-        /// Requested execution whose encoded bytes and deadline remain retained.
+    /// The deadline-order index does not contain the entry's exact facts.
+    ScheduleInconsistent {
+        /// Exact execution still retaining bytes and deadline facts.
         execution: BatchExecutionId,
-        /// Original deadline still retained by the pre-driver deadline store.
+        /// Unchanged original deadline still retained in the entry.
         deadline: OperationDeadline,
-        /// Exact prepared-store rejection that preserved the encoded request.
-        reason: PreparedProduceError,
     },
-    /// Prepared ownership changed after planning; its current location is reported.
-    PreparedCommitInconsistent {
-        /// Execution requested by the consumed handoff plan.
-        requested: BatchExecutionId,
-        /// Original deadline detached during the planned commit.
+    /// Encoded-byte accounting cannot release the still-retained entry.
+    AccountingInconsistent {
+        /// Exact execution still retaining bytes and deadline facts.
+        execution: BatchExecutionId,
+        /// Unchanged original deadline still retained in the entry.
         deadline: OperationDeadline,
-        /// Execution currently retaining encoded bytes, if still in the store.
-        prepared: Option<BatchExecutionId>,
-        /// Exact prepared-store rejection observed after deadline transfer.
+        /// Accounting rejection observed before mutation.
         reason: PreparedProduceError,
     },
 }
@@ -101,27 +69,19 @@ impl fmt::Display for PreparedProduceHandoffError {
                 requested.batch_id().get(),
                 requested.generation().get()
             ),
-            Self::DeadlineInconsistent { requested, .. } => write!(
+            Self::ScheduleInconsistent { execution, .. } => write!(
                 formatter,
-                "prepared Produce deadline handoff disagrees for batch {} generation {}",
-                requested.batch_id().get(),
-                requested.generation().get()
-            ),
-            Self::PreparedPreflightInconsistent {
-                execution, reason, ..
-            } => write!(
-                formatter,
-                "prepared Produce handoff preflight failed for batch {} generation {}: {reason}",
+                "prepared Produce schedule disagrees for batch {} generation {}",
                 execution.batch_id().get(),
                 execution.generation().get()
             ),
-            Self::PreparedCommitInconsistent {
-                requested, reason, ..
+            Self::AccountingInconsistent {
+                execution, reason, ..
             } => write!(
                 formatter,
-                "prepared Produce handoff commit failed for batch {} generation {}: {reason}",
-                requested.batch_id().get(),
-                requested.generation().get()
+                "prepared Produce accounting disagrees for batch {} generation {}: {reason}",
+                execution.batch_id().get(),
+                execution.generation().get()
             ),
         }
     }
@@ -130,100 +90,71 @@ impl fmt::Display for PreparedProduceHandoffError {
 impl Error for PreparedProduceHandoffError {}
 
 impl PreparedExecution {
-    /// Atomically transfers one exact prepared execution out of both stores.
+    /// Transfers one exact armed entry after checking every retained fact.
     pub(crate) fn take_driver_submission(
         &mut self,
         execution: BatchExecutionId,
     ) -> Result<PreparedProduceSubmission, PreparedProduceHandoffError> {
-        let plan = self.plan_driver_submission(execution)?;
-        self.commit_driver_submission(plan)
-    }
-
-    /// Preflights both exact owners without mutating either store.
-    pub(super) fn plan_driver_submission(
-        &self,
-        execution: BatchExecutionId,
-    ) -> Result<PreparedProduceHandoffPlan, PreparedProduceHandoffError> {
         let batch_id = execution.batch_id();
-        let prepared = self.prepared.execution(batch_id);
-        let deadline = self.deadlines.execution(batch_id);
-        if prepared != Some(execution) || deadline != Some(execution) {
+        let retained = self.entries.get(&batch_id).map(|entry| entry.execution);
+        let Some(entry) = self
+            .entries
+            .get(&batch_id)
+            .filter(|entry| entry.execution == execution)
+        else {
             return Err(PreparedProduceHandoffError::OwnershipMismatch {
                 requested: execution,
-                prepared,
-                deadline,
+                retained,
+            });
+        };
+        let Some(submission) = entry.submission else {
+            return Err(PreparedProduceHandoffError::OwnershipMismatch {
+                requested: execution,
+                retained,
+            });
+        };
+        let scheduled = ScheduledDeadline {
+            deadline: submission.deadline.core(),
+            execution,
+        };
+        if !self.schedule.contains(&scheduled) {
+            return Err(PreparedProduceHandoffError::ScheduleInconsistent {
+                execution,
+                deadline: submission.deadline,
             });
         }
-        let original_deadline = self.deadlines.deadline(execution).ok_or(
-            PreparedProduceHandoffError::OwnershipMismatch {
-                requested: execution,
-                prepared,
-                deadline,
-            },
-        )?;
-        match self.prepared.preflight_release(execution) {
-            Ok(true) => {}
-            Ok(false) => {
-                return Err(PreparedProduceHandoffError::OwnershipMismatch {
-                    requested: execution,
-                    prepared: self.prepared.execution(batch_id),
-                    deadline: self.deadlines.execution(batch_id),
-                });
-            }
-            Err(reason) => {
-                return Err(PreparedProduceHandoffError::PreparedPreflightInconsistent {
-                    execution,
-                    deadline: original_deadline,
-                    reason,
-                });
-            }
+        let next_bytes = self
+            .retained_bytes
+            .checked_sub(entry.materialized.retained_record_bytes())
+            .ok_or(PreparedProduceHandoffError::AccountingInconsistent {
+                execution,
+                deadline: submission.deadline,
+                reason: PreparedProduceError::EncodedByteOverflow,
+            })?;
+
+        if !self.schedule.remove(&scheduled) {
+            return Err(PreparedProduceHandoffError::ScheduleInconsistent {
+                execution,
+                deadline: submission.deadline,
+            });
         }
-        let deadline = self.deadlines.plan_handoff(execution).ok_or(
-            PreparedProduceHandoffError::DeadlineInconsistent {
+        let Some(entry) = self.entries.remove(&batch_id) else {
+            self.schedule.insert(scheduled);
+            return Err(PreparedProduceHandoffError::OwnershipMismatch {
                 requested: execution,
-                prepared: self.prepared.execution(batch_id),
-                active: self.deadlines.execution(batch_id),
-                deadline: original_deadline,
-                plan: None,
-            },
-        )?;
-        Ok(PreparedProduceHandoffPlan {
+                retained: None,
+            });
+        };
+        self.retained_bytes = next_bytes;
+        Ok(PreparedProduceSubmission {
             execution,
-            deadline,
+            deadline: submission.deadline,
+            materialized: entry.materialized,
         })
     }
 
-    /// Consumes one validated plan or reports every surviving owner location.
-    pub(super) fn commit_driver_submission(
-        &mut self,
-        plan: PreparedProduceHandoffPlan,
-    ) -> Result<PreparedProduceSubmission, PreparedProduceHandoffError> {
-        let execution = plan.execution;
-        let deadline = match self.deadlines.commit_handoff(plan.deadline) {
-            Ok(deadline) => deadline,
-            Err(returned) => {
-                return Err(PreparedProduceHandoffError::DeadlineInconsistent {
-                    requested: execution,
-                    prepared: self.prepared.execution(execution.batch_id()),
-                    active: self.deadlines.execution(execution.batch_id()),
-                    deadline: returned.deadline(),
-                    plan: Some(Box::new(returned)),
-                });
-            }
-        };
-        let materialized = self.prepared.take(execution).map_err(|reason| {
-            PreparedProduceHandoffError::PreparedCommitInconsistent {
-                requested: execution,
-                deadline,
-                prepared: self.prepared.execution(execution.batch_id()),
-                reason,
-            }
-        })?;
-
-        Ok(PreparedProduceSubmission {
-            execution,
-            deadline,
-            materialized,
-        })
+    #[cfg(test)]
+    pub(super) fn replace_retained_bytes_for_test(&mut self, replacement: usize) -> usize {
+        std::mem::replace(&mut self.retained_bytes, replacement)
     }
 }

@@ -3,6 +3,8 @@
 mod cleanup;
 #[cfg(test)]
 mod cleanup_test;
+#[cfg(test)]
+mod deadline_test;
 mod handoff;
 #[cfg(test)]
 mod handoff_test;
@@ -12,24 +14,26 @@ mod materialization_test;
 mod next_submission;
 #[cfg(test)]
 mod next_submission_test;
+mod ownership;
 mod submission;
 #[cfg(test)]
 mod submission_test;
 
-use std::{error::Error, fmt};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    error::Error,
+    fmt,
+};
 
 use kafka_client_core::{
-    BatchExecutionId, BatchId, Deadline, Moment, OperationId, PartitionIndex, ProducerInput,
-    TopicId,
+    BatchExecutionId, BatchId, Deadline, OperationId, PartitionIndex, TopicId,
 };
 
-use super::{
-    ProducerStoreError,
-    prepared::{PreparedProduceError, PreparedProduceStats, PreparedProduceStore},
-    submission_deadline::{SubmissionDeadlineError, SubmissionDeadlines},
-};
+use super::ProducerStoreError;
+use crate::{clock::OperationDeadline, protocol::produce::MaterializedProduce};
 
 pub(crate) use handoff::{PreparedProduceHandoffError, PreparedProduceSubmission};
+pub(crate) use ownership::{PreparedProduceError, PreparedProduceStats, SubmissionDeadlineError};
 
 /// Hard bounds shared by encoded bytes and pre-driver deadline ownership.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -97,10 +101,8 @@ pub(crate) enum PreparedExecutionError {
         batch_id: BatchId,
         /// Exact execution retained with canonical membership.
         expected: Option<BatchExecutionId>,
-        /// Exact execution retaining prepared bytes.
-        prepared: Option<BatchExecutionId>,
-        /// Exact execution retaining a pre-driver deadline.
-        deadline: Option<BatchExecutionId>,
+        /// Exact execution retaining the unified prepared entry.
+        retained: Option<BatchExecutionId>,
     },
 }
 
@@ -155,12 +157,11 @@ impl fmt::Display for PreparedExecutionError {
             Self::CleanupExecutionMismatch {
                 batch_id,
                 expected,
-                prepared,
-                deadline,
+                retained,
             } => write!(
                 formatter,
-                "batch {} cleanup execution mismatch: expected {expected:?}, prepared \
-                 {prepared:?}, deadline {deadline:?}",
+                "batch {} cleanup execution mismatch: expected {expected:?}, retained \
+                 {retained:?}",
                 batch_id.get()
             ),
         }
@@ -173,8 +174,30 @@ impl Error for PreparedExecutionError {}
 #[derive(Debug)]
 pub(crate) struct PreparedExecution {
     max_batch_bytes: usize,
-    prepared: PreparedProduceStore,
-    deadlines: SubmissionDeadlines,
+    batch_capacity: usize,
+    encoded_byte_capacity: usize,
+    retained_bytes: usize,
+    entries: BTreeMap<BatchId, PreparedEntry>,
+    schedule: BTreeSet<ScheduledDeadline>,
+}
+
+#[derive(Debug)]
+struct PreparedEntry {
+    execution: BatchExecutionId,
+    materialized: MaterializedProduce,
+    submission: Option<SubmissionFacts>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct SubmissionFacts {
+    operation_id: OperationId,
+    deadline: OperationDeadline,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+struct ScheduledDeadline {
+    deadline: Deadline,
+    execution: BatchExecutionId,
 }
 
 impl PreparedExecution {
@@ -182,32 +205,32 @@ impl PreparedExecution {
     pub(crate) const fn new(batch_capacity: usize, limits: PreparedExecutionLimits) -> Self {
         Self {
             max_batch_bytes: limits.max_batch_bytes,
-            prepared: PreparedProduceStore::new(batch_capacity, limits.encoded_bytes),
-            deadlines: SubmissionDeadlines::new(batch_capacity),
+            batch_capacity,
+            encoded_byte_capacity: limits.encoded_bytes,
+            retained_bytes: 0,
+            entries: BTreeMap::new(),
+            schedule: BTreeSet::new(),
         }
-    }
-
-    /// Converts bounded due mechanism entries into FIFO deterministic facts.
-    pub(crate) fn drain_due(&mut self, now: Moment, limit: usize) -> Vec<ProducerInput> {
-        self.deadlines
-            .drain_due(now, limit)
-            .into_iter()
-            .map(super::submission_deadline::DueSubmissionDeadline::into_input)
-            .collect()
     }
 
     /// Returns the next unchanged core deadline for host-turn scheduling.
     pub(crate) fn next_deadline(&self) -> Option<Deadline> {
-        self.deadlines.next_deadline()
+        self.schedule.first().map(|entry| entry.deadline)
     }
 
     /// Returns bounded prepared-byte ownership for metrics and host checks.
     pub(crate) fn prepared_stats(&self) -> PreparedProduceStats {
-        self.prepared.stats()
+        PreparedProduceStats {
+            batches: self.entries.len(),
+            encoded_record_bytes: self.retained_bytes,
+        }
     }
 
     /// Returns active batches that have not crossed driver ownership.
     pub(crate) fn submission_count(&self) -> usize {
-        self.deadlines.len()
+        self.entries
+            .values()
+            .filter(|entry| entry.submission.is_some())
+            .count()
     }
 }

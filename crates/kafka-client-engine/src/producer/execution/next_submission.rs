@@ -13,7 +13,12 @@ impl PreparedExecution {
     pub(crate) fn take_next_driver_submission(
         &mut self,
     ) -> Result<Option<PreparedProduceSubmission>, PreparedProduceHandoffError> {
-        let Some(execution) = self.deadlines.next_handoff_execution() else {
+        let Some(execution) = self
+            .entries
+            .values()
+            .find(|entry| entry.submission.is_some())
+            .map(|entry| entry.execution)
+        else {
             return Ok(None);
         };
         self.take_driver_submission(execution).map(Some)

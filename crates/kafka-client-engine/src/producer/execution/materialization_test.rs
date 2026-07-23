@@ -1,15 +1,18 @@
 //! Materialization failure rollback and exact stale-commit scenarios.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use bytes::Bytes;
 use kafka_client_core::{
-    BatchExecutionGeneration, BatchExecutionId, BatchId, CompressionPolicy, Moment, OperationId,
-    PartitionIndex,
+    BatchExecutionGeneration, BatchExecutionId, BatchId, CompressionPolicy, Deadline, Moment,
+    OperationId, PartitionIndex,
 };
 
-use super::{PreparedExecution, PreparedExecutionError, PreparedExecutionLimits};
+use super::{
+    PreparedExecution, PreparedExecutionError, PreparedExecutionLimits, PreparedProduceError,
+};
 use crate::{
+    clock::OperationDeadline,
     producer::{ProducerRecord, ProducerStore, ProducerStoreLimits},
     protocol::produce::materialize_explicit_produce_batch,
 };
@@ -70,8 +73,7 @@ fn stale_commit_drops_the_exact_prepared_bytes_it_inserted() {
         .unwrap_or_else(|error| panic!("encoding failed: {error}"));
     let mut prepared = prepared(1_024);
     prepared
-        .prepared
-        .insert(current, encoded)
+        .retain_for_test(current, encoded)
         .unwrap_or_else(|error| panic!("prepared insertion failed: {error}"));
     store.replace_batch_execution_for_test(batch_id, replacement);
 
@@ -143,4 +145,144 @@ fn prepared_capacity_failure_returns_exact_attempt_to_ready() {
         store.abort_materialization(retry),
         crate::producer::batch_store::MaterializationAbort::Restored
     ));
+}
+
+#[test]
+fn rollback_refuses_an_entry_already_armed_by_core() {
+    let execution = execution(BatchId::from_raw(13), 1);
+    let mut owner = prepared(1_024);
+    let value = materialize_explicit_produce_batch(
+        crate::producer::materialization::MaterializationBatch::new(
+            "orders".to_owned(),
+            3,
+            vec![
+                crate::producer::materialization::MaterializationRecord::new(
+                    0,
+                    None,
+                    Some(Bytes::from_static(b"value")),
+                    Vec::new(),
+                ),
+            ],
+            usize::MAX,
+        ),
+    )
+    .unwrap_or_else(|error| panic!("encoding failed: {error}"));
+    owner
+        .retain_for_test(execution, value)
+        .unwrap_or_else(|error| panic!("retention failed: {error}"));
+    owner
+        .arm_for_test(
+            execution,
+            OperationId::from_raw(14),
+            OperationDeadline::from_parts_for_test(Deadline::from_tick(20), Instant::now()),
+        )
+        .unwrap_or_else(|error| panic!("arm failed: {error}"));
+    let before = owner.prepared_stats();
+
+    assert!(matches!(
+        owner.take_unarmed_materialized(execution),
+        Err(PreparedProduceError::SubmissionArmed)
+    ));
+    assert_eq!(owner.prepared_stats(), before);
+    assert_eq!(owner.submission_count(), 1);
+}
+
+#[test]
+fn prepared_entry_count_bound_rejects_without_accounting_drift() {
+    let mut owner = prepared(1_024);
+    let first = execution(BatchId::from_raw(15), 1);
+    let second = execution(BatchId::from_raw(16), 1);
+    let value = |partition| {
+        materialize_explicit_produce_batch(
+            crate::producer::materialization::MaterializationBatch::new(
+                "orders".to_owned(),
+                partition,
+                vec![
+                    crate::producer::materialization::MaterializationRecord::new(
+                        0,
+                        None,
+                        Some(Bytes::from_static(b"value")),
+                        Vec::new(),
+                    ),
+                ],
+                usize::MAX,
+            ),
+        )
+        .unwrap_or_else(|error| panic!("encoding failed: {error}"))
+    };
+    owner
+        .retain_for_test(first, value(1))
+        .unwrap_or_else(|error| panic!("first retention failed: {error}"));
+    let before = owner.prepared_stats();
+
+    assert_eq!(
+        owner.retain_for_test(second, value(2)),
+        Err(PreparedProduceError::BatchCapacity)
+    );
+    assert_eq!(owner.prepared_stats(), before);
+}
+
+#[test]
+fn duplicate_and_stale_insertions_return_incoming_bytes_without_touching_current_owner() {
+    let batch_id = BatchId::from_raw(17);
+    let current = execution(batch_id, 1);
+    let stale = execution(batch_id, 2);
+    let mut owner = prepared(1_024);
+    let current_value = encoded_value(b"current");
+    let current_pointer = current_value.encoded_records().as_ptr();
+    owner
+        .insert_materialized(current, current_value)
+        .unwrap_or_else(|error| panic!("current retention failed: {error:?}"));
+    let before = owner.prepared_stats();
+
+    for (execution, reason, bytes) in [
+        (
+            current,
+            PreparedProduceError::DuplicateBatch,
+            b"duplicate".as_slice(),
+        ),
+        (
+            stale,
+            PreparedProduceError::ExecutionMismatch,
+            b"stale".as_slice(),
+        ),
+    ] {
+        let incoming = encoded_value(bytes);
+        let incoming_pointer = incoming.encoded_records().as_ptr();
+        let Err(rejected) = owner.insert_materialized(execution, incoming) else {
+            panic!("conflicting insertion must return its incoming owner")
+        };
+        assert_eq!(rejected.reason(), reason);
+        assert_eq!(
+            rejected.into_materialized().encoded_records().as_ptr(),
+            incoming_pointer
+        );
+        assert_eq!(owner.prepared_stats(), before);
+        let retained = owner
+            .entries
+            .get(&batch_id)
+            .unwrap_or_else(|| panic!("current entry must remain retained"));
+        assert_eq!(retained.execution, current);
+        assert_eq!(
+            retained.materialized.encoded_records().as_ptr(),
+            current_pointer
+        );
+    }
+}
+
+fn encoded_value(value: &'static [u8]) -> crate::protocol::produce::MaterializedProduce {
+    materialize_explicit_produce_batch(crate::producer::materialization::MaterializationBatch::new(
+        "orders".to_owned(),
+        3,
+        vec![
+            crate::producer::materialization::MaterializationRecord::new(
+                0,
+                None,
+                Some(Bytes::from_static(value)),
+                Vec::new(),
+            ),
+        ],
+        usize::MAX,
+    ))
+    .unwrap_or_else(|error| panic!("encoding failed: {error}"))
 }

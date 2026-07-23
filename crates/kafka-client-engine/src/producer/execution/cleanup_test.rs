@@ -73,12 +73,10 @@ fn cleanup_preflight_preserves_wrong_generation_until_outside_in_recovery() {
         .unwrap_or_else(|error| panic!("encoding failed: {error}"));
     let mut prepared = prepared();
     prepared
-        .prepared
-        .insert(replacement, encoded)
+        .retain_for_test(replacement, encoded)
         .unwrap_or_else(|error| panic!("prepared insertion failed: {error}"));
     prepared
-        .deadlines
-        .arm(
+        .arm_for_test(
             replacement,
             operation_id,
             OperationDeadline::from_parts_for_test(Deadline::from_tick(20), Instant::now()),
@@ -89,15 +87,13 @@ fn cleanup_preflight_preserves_wrong_generation_until_outside_in_recovery() {
         prepared.release_batch(&mut store, batch_id),
         Err(PreparedExecutionError::CleanupExecutionMismatch {
             expected: Some(actual),
-            prepared: Some(prepared_execution),
-            deadline: Some(deadline_execution),
+            retained: Some(retained),
             ..
         }) if actual == current
-            && prepared_execution == replacement
-            && deadline_execution == replacement
+            && retained == replacement
     ));
     assert_eq!(store.stats().batches, 1);
-    assert!(prepared.prepared.contains(replacement));
+    assert_eq!(prepared.prepared_stats().batches, 1);
     assert_eq!(prepared.submission_count(), 1);
 
     prepared.clear_terminal();

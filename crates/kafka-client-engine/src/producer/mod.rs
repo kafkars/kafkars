@@ -15,7 +15,6 @@ pub(crate) mod ingress;
 mod interpreter;
 pub(crate) mod materialization;
 pub(crate) mod pending;
-pub(crate) mod prepared;
 pub(crate) mod reclaim;
 mod reclaim_turn;
 pub(crate) mod record;
@@ -23,7 +22,6 @@ mod record_access;
 mod record_store;
 pub(crate) mod shutdown;
 pub(crate) mod store;
-mod submission_deadline;
 mod terminal_backlog;
 mod terminal_publication;
 mod topic_catalog;
@@ -59,8 +57,6 @@ mod materialization_retention_test;
 #[cfg(test)]
 mod materialization_test;
 #[cfg(test)]
-mod prepared_test;
-#[cfg(test)]
 mod reclaim_test;
 #[cfg(test)]
 mod reclaim_turn_test;
@@ -70,8 +66,6 @@ mod record_store_test;
 mod record_test;
 #[cfg(test)]
 mod shutdown_test;
-#[cfg(test)]
-mod submission_deadline_test;
 #[cfg(test)]
 mod terminal_backlog_test;
 #[cfg(test)]

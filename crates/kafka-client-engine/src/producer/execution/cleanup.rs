@@ -2,7 +2,10 @@
 
 use kafka_client_core::BatchId;
 
-use super::{PreparedExecution, PreparedExecutionError};
+use super::{
+    PreparedExecution, PreparedExecutionError, PreparedProduceError, ScheduledDeadline,
+    SubmissionDeadlineError,
+};
 use crate::producer::store::ProducerStore;
 
 impl PreparedExecution {
@@ -15,51 +18,52 @@ impl PreparedExecution {
         let expected = store
             .batch_execution(batch_id)
             .map_err(PreparedExecutionError::Store)?;
-        let prepared = self.prepared.execution(batch_id);
-        let deadline = self.deadlines.execution(batch_id);
-        if prepared.is_some_and(|actual| Some(actual) != expected)
-            || deadline.is_some_and(|actual| Some(actual) != expected)
-        {
+        let retained = self.entries.get(&batch_id).map(|entry| entry.execution);
+        if retained.is_some_and(|actual| Some(actual) != expected) {
             return Err(PreparedExecutionError::CleanupExecutionMismatch {
                 batch_id,
                 expected,
-                prepared,
-                deadline,
+                retained,
             });
         }
-        let prepared_retained = match expected {
-            Some(execution) => self
-                .prepared
-                .preflight_release(execution)
-                .map_err(PreparedExecutionError::Prepared)?,
-            None => false,
-        };
+        let release = expected
+            .and_then(|execution| self.entries.get(&batch_id).map(|entry| (execution, entry)))
+            .map(|(execution, entry)| {
+                let next_bytes = self
+                    .retained_bytes
+                    .checked_sub(entry.materialized.retained_record_bytes())
+                    .ok_or(PreparedExecutionError::Prepared(
+                        PreparedProduceError::EncodedByteOverflow,
+                    ))?;
+                let scheduled = entry.submission.map(|submission| ScheduledDeadline {
+                    deadline: submission.deadline.core(),
+                    execution,
+                });
+                if scheduled.is_some_and(|deadline| !self.schedule.contains(&deadline)) {
+                    return Err(PreparedExecutionError::Deadline(
+                        SubmissionDeadlineError::ConflictingBatch { batch_id },
+                    ));
+                }
+                Ok((next_bytes, scheduled))
+            })
+            .transpose()?;
         store
             .release_batch(batch_id)
             .map_err(PreparedExecutionError::Store)?;
-        if let Some(execution) = expected {
-            let cancelled = self.deadlines.cancel(execution);
-            if deadline.is_some() != cancelled {
-                return Err(PreparedExecutionError::CleanupExecutionMismatch {
-                    batch_id,
-                    expected,
-                    prepared,
-                    deadline,
-                });
+        if let Some((next_bytes, scheduled)) = release {
+            if let Some(deadline) = scheduled {
+                self.schedule.remove(&deadline);
             }
-            if prepared_retained {
-                self.prepared
-                    .release(execution)
-                    .map(|_released| ())
-                    .map_err(PreparedExecutionError::Prepared)?;
-            }
+            self.entries.remove(&batch_id);
+            self.retained_bytes = next_bytes;
         }
         Ok(())
     }
 
     /// Drops all execution mechanisms during outside-in terminal recovery.
     pub(crate) fn clear_terminal(&mut self) {
-        self.prepared.clear_terminal();
-        self.deadlines.clear_terminal();
+        self.entries.clear();
+        self.schedule.clear();
+        self.retained_bytes = 0;
     }
 }

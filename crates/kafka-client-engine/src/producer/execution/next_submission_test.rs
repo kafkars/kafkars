@@ -7,7 +7,7 @@ use kafka_client_core::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, Deadline, OperationId,
 };
 
-use super::{PreparedExecution, PreparedExecutionLimits, handoff::PreparedProduceHandoffError};
+use super::{PreparedExecution, PreparedExecutionLimits};
 use crate::{
     clock::OperationDeadline,
     producer::materialization::{MaterializationBatch, MaterializationRecord},
@@ -59,8 +59,7 @@ fn materialized_but_unarmed_batch_is_not_a_driver_submission() {
         },
     );
     owner
-        .prepared
-        .insert(execution(1), prepared("waiting", 1))
+        .retain_for_test(execution(1), prepared("waiting", 1))
         .unwrap_or_else(|error| panic!("prepared insertion failed: {error}"));
     retain(&mut owner, 2, "ready", 2);
 
@@ -69,43 +68,14 @@ fn materialized_but_unarmed_batch_is_not_a_driver_submission() {
         .unwrap_or_else(|error| panic!("ready handoff failed: {error}"))
         .unwrap_or_else(|| panic!("armed submission should be selected"));
     assert_eq!(submission.execution(), execution(2));
-    assert!(owner.prepared.contains(execution(1)));
+    assert_eq!(owner.prepared_stats().batches, 1);
     assert_eq!(owner.submission_count(), 0);
-}
-
-#[test]
-fn selected_ownership_drift_preserves_the_exact_armed_deadline() {
-    let mut owner = PreparedExecution::new(
-        1,
-        PreparedExecutionLimits {
-            encoded_bytes: usize::MAX,
-            max_batch_bytes: 1_024,
-        },
-    );
-    arm(&mut owner, 5);
-
-    assert!(matches!(
-        owner.take_next_driver_submission(),
-        Err(PreparedProduceHandoffError::OwnershipMismatch {
-            requested,
-            prepared: None,
-            deadline: Some(retained),
-        }) if requested == execution(5) && retained == execution(5)
-    ));
-    assert_eq!(owner.submission_count(), 1);
-    assert_eq!(
-        owner
-            .submission_deadline(execution(5))
-            .map(OperationDeadline::core),
-        Some(Deadline::from_tick(105))
-    );
 }
 
 fn retain(owner: &mut PreparedExecution, batch: u64, topic: &'static str, partition: i32) {
     let execution = execution(batch);
     owner
-        .prepared
-        .insert(execution, prepared(topic, partition))
+        .retain_for_test(execution, prepared(topic, partition))
         .unwrap_or_else(|error| panic!("prepared insertion failed: {error}"));
     arm(owner, batch);
 }
@@ -113,8 +83,7 @@ fn retain(owner: &mut PreparedExecution, batch: u64, topic: &'static str, partit
 fn arm(owner: &mut PreparedExecution, batch: u64) {
     let execution = execution(batch);
     owner
-        .deadlines
-        .arm(
+        .arm_for_test(
             execution,
             OperationId::from_raw(batch),
             OperationDeadline::from_parts_for_test(

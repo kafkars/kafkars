@@ -23,6 +23,7 @@ evidence = [
   "crates/kafka-client-engine/src/producer/ingress/waiting_test.rs::older_pending_entry_fences_nonblocking_try_send_even_with_core_capacity",
   "crates/kafka-client-engine/src/producer/record_store_test.rs::release_checks_provenance_and_happens_exactly_once",
   "crates/kafka-client-engine/src/producer/execution_test.rs::encoded_capacity_failure_becomes_a_core_owned_not_sent_outcome",
+  "crates/kafka-client-engine/src/producer/execution/materialization_test.rs::prepared_entry_count_bound_rejects_without_accounting_drift",
 ]
 
 [[invariant]]
@@ -96,11 +97,11 @@ evidence = [
   "crates/kafka-client-engine/src/producer/ingress/promotion_test.rs::later_moment_admission_binds_the_original_core_and_transport_deadline",
   "crates/kafka-client-engine/src/producer/execution/submission_test.rs::submission_requires_and_preserves_the_admitted_operation_deadline",
   "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::handoff_preserves_exact_execution_deadline_and_encoded_owner",
-  "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::prepared_preflight_corruption_preserves_both_exact_owners",
-  "crates/kafka-client-engine/src/producer/submission_deadline/handoff_test.rs::missing_schedule_preserves_the_active_original_deadline",
+  "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::accounting_corruption_preserves_the_full_prepared_entry",
+  "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::missing_schedule_preserves_the_full_prepared_entry",
   "crates/kafka-client-engine/src/producer/pending/registry_test.rs::deadline_expiry_is_ordered_bounded_and_not_sent",
   "crates/kafka-client-core/src/producer_test.rs::elapsed_deadline_never_crosses_admission",
-  "crates/kafka-client-engine/src/producer/submission_deadline_test.rs::due_entry_constructs_the_exact_core_deadline_fact",
+  "crates/kafka-client-engine/src/producer/execution/deadline_test.rs::due_entries_emit_exact_facts_in_deadline_then_batch_order",
   "crates/kafka-client-engine/src/producer/execution_test.rs::pre_driver_expiry_releases_encoded_and_original_bytes_as_not_sent",
   "crates/kafka-client-engine/src/producer/execution_turn_test.rs::pre_driver_expiry_releases_both_byte_owners_and_publishes_not_sent",
   "crates/kafka-client-engine/src/producer/execution_turn_test.rs::terminal_release_cancels_submission_that_never_started",
@@ -171,10 +172,9 @@ evidence = [
   "crates/kafka-client-engine/src/producer/batch_store/execution_test.rs::aborted_materialization_keeps_sealed_membership_closed",
   "crates/kafka-client-engine/src/producer/batch_store/execution_test.rs::stale_abort_does_not_revoke_replacement_execution",
   "crates/kafka-client-engine/src/producer/execution/materialization_test.rs::stale_commit_drops_the_exact_prepared_bytes_it_inserted",
-  "crates/kafka-client-engine/src/producer/prepared_test.rs::stale_prepared_generation_cannot_take_or_release_current_bytes",
-  "crates/kafka-client-engine/src/producer/submission_deadline_test.rs::stale_deadline_cancellation_cannot_remove_current_execution",
-  "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::stale_execution_rejection_leaves_both_exact_owners_unchanged",
-  "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::post_plan_execution_drift_reports_the_actual_prepared_owner",
+  "crates/kafka-client-engine/src/producer/execution/deadline_test.rs::stale_generation_cannot_arm_or_take_the_current_entry",
+  "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::stale_execution_rejection_preserves_the_current_entry",
+  "crates/kafka-client-engine/src/producer/execution/cleanup_test.rs::cleanup_preflight_preserves_wrong_generation_until_outside_in_recovery",
   "crates/kafka-client-sim/src/state/batch_test.rs::simulator_submits_only_exact_materialized_membership_snapshot",
 ]
 

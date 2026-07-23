@@ -2,16 +2,21 @@
 
 use kafka_client_core::{BatchExecutionId, CompressionPolicy, Moment, ProducerInput};
 
-use super::{PreparedExecution, PreparedExecutionError};
+use super::{PreparedEntry, PreparedExecution, PreparedExecutionError, PreparedProduceError};
 use crate::{
     producer::{
         ProducerStoreError,
         batch_store::{MaterializationAbort, MaterializationAttempt},
-        prepared::{PreparedInsertError, PreparedProduceError},
         store::ProducerStore,
     },
-    protocol::produce::materialize_explicit_produce_batch,
+    protocol::produce::{MaterializedProduce, materialize_explicit_produce_batch},
 };
+
+#[derive(Debug)]
+pub(super) struct PreparedInsertError {
+    reason: PreparedProduceError,
+    materialized: MaterializedProduce,
+}
 
 impl PreparedExecution {
     /// Encodes and retains one exact execution before committing materialized state.
@@ -40,7 +45,7 @@ impl PreparedExecution {
                 return Ok(materialization_failed(execution));
             }
         };
-        match self.prepared.insert(execution, materialized) {
+        match self.insert_materialized(execution, materialized) {
             Ok(()) => self.commit_inserted(store, attempt, now),
             Err(rejected) => {
                 let failure = Self::classify_insert_rejection(execution, rejected);
@@ -59,7 +64,7 @@ impl PreparedExecution {
         let execution = attempt.execution();
         match store.commit_materialization(attempt) {
             Ok(()) => Ok(ProducerInput::BatchMaterialized { execution, now }),
-            Err(commit) => match self.prepared.take(execution) {
+            Err(commit) => match self.take_unarmed_materialized(execution) {
                 Ok(stale) => {
                     drop(stale);
                     Err(PreparedExecutionError::Store(commit))
@@ -74,15 +79,120 @@ impl PreparedExecution {
         rejected: PreparedInsertError,
     ) -> Result<ProducerInput, PreparedExecutionError> {
         let reason = rejected.reason();
-        let _unretained = rejected.into_value();
+        drop(rejected.materialized);
         match reason {
             PreparedProduceError::BatchCapacity
             | PreparedProduceError::EncodedByteCapacity
             | PreparedProduceError::EncodedByteOverflow => Ok(materialization_failed(execution)),
             PreparedProduceError::DuplicateBatch
+            | PreparedProduceError::SubmissionArmed
             | PreparedProduceError::ExecutionMismatch
             | PreparedProduceError::UnknownBatch => Err(PreparedExecutionError::Prepared(reason)),
         }
+    }
+
+    #[allow(
+        clippy::result_large_err,
+        reason = "bounded rejection returns the linear materialized request without allocating"
+    )]
+    pub(super) fn insert_materialized(
+        &mut self,
+        execution: BatchExecutionId,
+        materialized: MaterializedProduce,
+    ) -> Result<(), PreparedInsertError> {
+        let batch_id = execution.batch_id();
+        if let Some(current) = self.entries.get(&batch_id) {
+            let reason = if current.execution == execution {
+                PreparedProduceError::DuplicateBatch
+            } else {
+                PreparedProduceError::ExecutionMismatch
+            };
+            return Err(PreparedInsertError {
+                reason,
+                materialized,
+            });
+        }
+        if self.entries.len() >= self.batch_capacity {
+            return Err(PreparedInsertError {
+                reason: PreparedProduceError::BatchCapacity,
+                materialized,
+            });
+        }
+        let bytes = materialized.retained_record_bytes();
+        let Some(next_bytes) = self.retained_bytes.checked_add(bytes) else {
+            return Err(PreparedInsertError {
+                reason: PreparedProduceError::EncodedByteOverflow,
+                materialized,
+            });
+        };
+        if next_bytes > self.encoded_byte_capacity {
+            return Err(PreparedInsertError {
+                reason: PreparedProduceError::EncodedByteCapacity,
+                materialized,
+            });
+        }
+        self.entries.insert(
+            batch_id,
+            PreparedEntry {
+                execution,
+                materialized,
+                submission: None,
+            },
+        );
+        self.retained_bytes = next_bytes;
+        Ok(())
+    }
+
+    pub(super) fn take_unarmed_materialized(
+        &mut self,
+        execution: BatchExecutionId,
+    ) -> Result<MaterializedProduce, PreparedProduceError> {
+        let entry = self
+            .entries
+            .get(&execution.batch_id())
+            .ok_or(PreparedProduceError::UnknownBatch)?;
+        if entry.execution != execution {
+            return Err(PreparedProduceError::ExecutionMismatch);
+        }
+        if entry.submission.is_some()
+            || self
+                .schedule
+                .iter()
+                .any(|scheduled| scheduled.execution.batch_id() == execution.batch_id())
+        {
+            return Err(PreparedProduceError::SubmissionArmed);
+        }
+        let bytes = entry.materialized.retained_record_bytes();
+        let next_bytes = self
+            .retained_bytes
+            .checked_sub(bytes)
+            .ok_or(PreparedProduceError::EncodedByteOverflow)?;
+        let entry = self
+            .entries
+            .remove(&execution.batch_id())
+            .ok_or(PreparedProduceError::UnknownBatch)?;
+        self.retained_bytes = next_bytes;
+        Ok(entry.materialized)
+    }
+
+    #[cfg(test)]
+    pub(super) fn retain_for_test(
+        &mut self,
+        execution: BatchExecutionId,
+        materialized: MaterializedProduce,
+    ) -> Result<(), PreparedProduceError> {
+        self.insert_materialized(execution, materialized)
+            .map_err(|rejected| rejected.reason)
+    }
+}
+
+impl PreparedInsertError {
+    pub(super) const fn reason(&self) -> PreparedProduceError {
+        self.reason
+    }
+
+    pub(super) fn into_materialized(self) -> MaterializedProduce {
+        self.materialized
     }
 }
 
