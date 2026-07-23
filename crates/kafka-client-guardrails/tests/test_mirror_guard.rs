@@ -139,6 +139,13 @@ fn a_registered_sibling_test_layout_is_accepted() {
     }];
 
     assert!(mirror_violations(&root, &mirrors).is_empty());
+
+    let (root, _) = fixture_files("split_facade_test_layout");
+    let mirrors = [TestMirror {
+        production: "src/store/materialization_view.rs".to_owned(),
+        test: "src/store/materialization_view_test.rs".to_owned(),
+    }];
+    assert!(mirror_violations(&root, &mirrors).is_empty());
 }
 
 #[test]

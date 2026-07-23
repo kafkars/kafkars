@@ -76,4 +76,19 @@ fn undeclared_and_ungated_tests_are_rejected() {
             .iter()
             .any(|value| value.contains("redirects `redirected_test`"))
     );
+
+    let (root, files) = fixture_files("undeclared_split_facade_test");
+    let violations = undeclared_tests(&root, &files);
+    assert!(
+        violations
+            .iter()
+            .any(|value| value.contains("orphan_test.rs is undeclared"))
+    );
+}
+
+#[test]
+fn split_file_facades_declare_nested_sibling_tests() {
+    let (root, files) = fixture_files("split_facade_test_layout");
+
+    assert!(undeclared_tests(&root, &files).is_empty());
 }

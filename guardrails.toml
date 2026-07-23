@@ -217,6 +217,10 @@ production = "crates/kafka-client-engine/src/producer/record_access.rs"
 test = "crates/kafka-client-engine/src/producer/materialization_retention_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/store/materialization_view.rs"
+test = "crates/kafka-client-engine/src/producer/store/materialization_view_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/pending/registry.rs"
 test = "crates/kafka-client-engine/src/producer/pending/registry_test.rs"
 

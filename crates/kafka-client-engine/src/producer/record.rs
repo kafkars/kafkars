@@ -1,19 +1,25 @@
 //! Bytes-native producer records retained exclusively by the engine.
 
-use std::{mem::size_of, sync::Arc};
+use std::mem::size_of;
+use std::sync::{Arc, atomic::AtomicUsize};
 
 use bytes::Bytes;
 use kafka_client_core::PartitionIndex;
 
-use super::{
-    ProducerStoreError,
-    materialization::{MaterializationHeader, MaterializationRecord},
-};
+use super::ProducerStoreError;
+use super::materialization::{MaterializationHeader, MaterializationRecord};
 
-const ARC_COUNTER_BYTES: usize = 2 * size_of::<usize>();
-// One inline vector element plus the reference-counted byte-owner allocation.
+#[repr(C)]
+struct BytesOwnerControlLayout {
+    _reference_count: AtomicUsize,
+    _owner: HeaderNameOwner,
+}
+
+pub(super) const HEADER_BYTES_OWNER_CONTROL_BYTES: usize = size_of::<BytesOwnerControlLayout>();
+pub(super) const HEADER_NAME_ARC_CONTROL_BYTES: usize = 2 * size_of::<AtomicUsize>();
+// One inline vector element plus both reference-counted owner allocations.
 pub(super) const HEADER_CONTROL_BYTES: usize =
-    size_of::<ProducerHeader>() + size_of::<HeaderNameOwner>() + ARC_COUNTER_BYTES;
+    size_of::<ProducerHeader>() + HEADER_BYTES_OWNER_CONTROL_BYTES + HEADER_NAME_ARC_CONTROL_BYTES;
 
 #[derive(Debug)]
 struct HeaderNameOwner(Arc<str>);

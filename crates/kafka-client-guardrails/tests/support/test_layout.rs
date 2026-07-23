@@ -21,10 +21,16 @@ pub(crate) fn is_unit_test(path: &Path) -> bool {
 
 pub(crate) fn sibling_facade(path: &Path) -> Option<PathBuf> {
     let parent = path.parent()?;
-    ["mod.rs", "lib.rs", "main.rs"]
+    let direct = ["mod.rs", "lib.rs", "main.rs"]
         .iter()
         .map(|name| parent.join(name))
-        .find(|candidate| candidate.is_file())
+        .find(|candidate| candidate.is_file());
+    if direct.is_some() {
+        return direct;
+    }
+    let module = parent.file_name()?.to_str()?;
+    let split = parent.parent()?.join(format!("{module}.rs"));
+    split.is_file().then_some(split)
 }
 
 pub(crate) fn declaration(source: &str, stem: &str, file_name: &str) -> Declaration {

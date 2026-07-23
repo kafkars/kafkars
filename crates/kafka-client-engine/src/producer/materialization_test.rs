@@ -7,9 +7,7 @@ use kafka_client_core::{BatchId, OperationId, PartitionIndex};
 
 use crate::protocol::produce::materialize_explicit_produce_batch;
 
-use super::{
-    ProducerRecord, ProducerStore, ProducerStoreError, ProducerStoreLimits, record::ProducerHeader,
-};
+use super::{ProducerRecord, ProducerStore, ProducerStoreLimits, record::ProducerHeader};
 
 #[test]
 fn ordered_records_null_empty_and_duplicate_headers_survive_transfer() {
@@ -121,34 +119,6 @@ fn member_removal_preserves_sibling_admission_order() {
             Ok(())
         );
     }
-}
-
-#[test]
-fn unrepresentable_partition_fails_before_any_record_is_moved() {
-    let mut store = ProducerStore::new(limits());
-    let facts = admit(
-        &mut store,
-        ProducerRecord::new(
-            Arc::from("orders"),
-            PartitionIndex::from_raw(u32::MAX),
-            10,
-            None,
-            Some(Bytes::from_static(b"a")),
-        ),
-        OperationId::from_raw(1),
-    );
-    let before = store.stats();
-
-    assert_eq!(
-        store.materialization_view(BatchId::from_raw(1), 1_024),
-        Err(ProducerStoreError::PartitionOutOfRange)
-    );
-    assert_eq!(store.stats(), before);
-    assert_eq!(store.release_batch(BatchId::from_raw(1)), Ok(()));
-    assert_eq!(
-        store.release_payload(facts.payload_id(), facts.retained_bytes()),
-        Ok(())
-    );
 }
 
 #[test]

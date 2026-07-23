@@ -1,13 +1,18 @@
 //! Record accounting scenarios for byte-backed header metadata.
 
-use std::sync::Arc;
+use std::{
+    mem::{align_of, size_of},
+    sync::{Arc, atomic::AtomicUsize},
+};
 
-use bytes::Bytes;
 use kafka_client_core::PartitionIndex;
 
 use super::{
     ProducerStore, ProducerStoreError, ProducerStoreLimits,
-    record::{HEADER_CONTROL_BYTES, ProducerHeader, ProducerRecord, header_control_bytes},
+    record::{
+        HEADER_BYTES_OWNER_CONTROL_BYTES, HEADER_CONTROL_BYTES, HEADER_NAME_ARC_CONTROL_BYTES,
+        ProducerHeader, ProducerRecord, header_control_bytes,
+    },
 };
 
 #[test]
@@ -66,8 +71,25 @@ fn header_count_and_control_size_are_checked_before_accounting() {
         Err(ProducerStoreError::HeaderCountOutOfRange)
     );
     assert_eq!(
-        header_control_bytes(0, usize::MAX),
+        header_control_bytes(0, (usize::MAX / HEADER_CONTROL_BYTES) + 1),
         Err(ProducerStoreError::RetainedSizeOverflow)
     );
-    assert!(HEADER_CONTROL_BYTES >= std::mem::size_of::<Bytes>());
+    let owner_offset = align_up(size_of::<AtomicUsize>(), align_of::<Arc<str>>());
+    let owner_alignment = align_of::<AtomicUsize>().max(align_of::<Arc<str>>());
+    let owner_layout = align_up(owner_offset + size_of::<Arc<str>>(), owner_alignment);
+    assert_eq!(HEADER_BYTES_OWNER_CONTROL_BYTES, owner_layout);
+    assert_eq!(HEADER_NAME_ARC_CONTROL_BYTES, 2 * size_of::<AtomicUsize>());
+    assert_eq!(
+        HEADER_CONTROL_BYTES,
+        size_of::<ProducerHeader>() + owner_layout + HEADER_NAME_ARC_CONTROL_BYTES
+    );
+}
+
+fn align_up(value: usize, alignment: usize) -> usize {
+    let remainder = value % alignment;
+    if remainder == 0 {
+        value
+    } else {
+        value + (alignment - remainder)
+    }
 }
