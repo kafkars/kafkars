@@ -661,6 +661,10 @@ owner_type = "CompletionObserver"
 path = "crates/kafka-client-engine/src/completion/observer.rs"
 
 [[linear_owners]]
+owner_type = "ProducerDeliveryObserver"
+path = "crates/kafka-client-engine/src/delivery_observer.rs"
+
+[[linear_owners]]
 owner_type = "CompletionCell"
 path = "crates/kafka-client-engine/src/completion/cell.rs"
 

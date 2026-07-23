@@ -19,6 +19,9 @@ mod clock;
 )]
 mod completion;
 mod config;
+mod delivery;
+mod delivery_error;
+mod delivery_observer;
 #[cfg_attr(
     not(test),
     expect(
@@ -46,4 +49,10 @@ mod producer;
 mod protocol;
 
 pub use config::EngineConfig;
+pub use delivery::{
+    ProducerDeliveryFailure, ProducerDeliveryFailureKind, ProducerDeliveryStatus,
+    ProducerRecordMetadata,
+};
+pub use delivery_error::{ProducerDeliveryError, ProducerObserverError};
+pub use delivery_observer::{ProducerDeliveryObserver, ProducerDeliveryResult};
 pub use engine::Engine;

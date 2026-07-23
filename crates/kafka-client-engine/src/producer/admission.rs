@@ -4,7 +4,10 @@ use kafka_client_core::{
     Deadline, Moment, OperationId, ProducerCompletion, ProducerInput, ProducerMachineError,
 };
 
-use crate::completion::{CompletionId, CompletionObserver};
+use crate::{
+    ProducerDeliveryObserver,
+    completion::{CompletionId, CompletionObserver},
+};
 
 use super::{
     ProducerHost, ProducerHostInvariantError, ProducerRecord, ProducerRejectionReason,
@@ -23,8 +26,8 @@ impl AdmittedExplicit {
         self.operation_id
     }
 
-    pub(crate) fn into_observer(self) -> CompletionObserver<ProducerCompletion> {
-        self.observer
+    pub(crate) fn into_delivery_observer(self) -> ProducerDeliveryObserver {
+        ProducerDeliveryObserver::from_completion(self.observer)
     }
 }
 

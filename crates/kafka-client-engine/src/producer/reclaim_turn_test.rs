@@ -3,6 +3,7 @@
 use kafka_client_core::{Deadline, Moment};
 
 use crate::{
+    ProducerDeliveryError,
     completion::{CompletionRegistryError, test_support::hold_cell_lock},
     producer::ProducerAdmissionFailure,
 };
@@ -28,7 +29,10 @@ fn observed_completion_reuses_only_a_new_completion_generation() {
         panic!("accepted operation should own a completion")
     };
     assert_eq!(host.fire_due(Moment::from_tick(5)), Ok(1));
-    assert!(admitted.into_observer().wait().is_ok());
+    assert!(matches!(
+        admitted.into_delivery_observer().wait(),
+        Err(ProducerDeliveryError::Failed(_))
+    ));
 
     assert_eq!(
         host.reclaim_one(Moment::from_tick(5)),
@@ -98,7 +102,10 @@ fn locked_cell_retry_does_not_repeat_the_core_reclaim_input() {
         panic!("accepted operation should own a completion")
     };
     assert_eq!(host.fire_due(Moment::from_tick(5)), Ok(1));
-    assert!(admitted.into_observer().wait().is_ok());
+    assert!(matches!(
+        admitted.into_delivery_observer().wait(),
+        Err(ProducerDeliveryError::Failed(_))
+    ));
     let Some((release, lock)) = hold_cell_lock(&host.completions, completion_id) else {
         panic!("completion cell lock should be held")
     };
@@ -145,7 +152,10 @@ fn missing_exact_binding_poisons_host_closed() {
         panic!("accepted operation should own a completion")
     };
     assert_eq!(host.fire_due(Moment::from_tick(5)), Ok(1));
-    assert!(admitted.into_observer().wait().is_ok());
+    assert!(matches!(
+        admitted.into_delivery_observer().wait(),
+        Err(ProducerDeliveryError::Failed(_))
+    ));
     assert_eq!(host.bindings.remove(operation_id), Ok(completion_id));
 
     let invariant =

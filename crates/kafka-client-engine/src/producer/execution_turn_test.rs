@@ -4,9 +4,11 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use kafka_client_core::{
-    ByteCount, Deadline, DeliveryStatus, Moment, PartitionIndex, ProducerBatchPolicy,
-    ProducerCompletion, ProducerEffect, ProducerFailureKind, ProducerInput, TopicId,
+    ByteCount, Deadline, Moment, PartitionIndex, ProducerBatchPolicy, ProducerEffect,
+    ProducerInput, TopicId,
 };
+
+use crate::{ProducerDeliveryError, ProducerDeliveryFailureKind, ProducerDeliveryStatus};
 
 use super::{
     AdmittedExplicit, ProducerHostInvariantError, ProducerRecord,
@@ -65,7 +67,7 @@ fn pre_driver_expiry_releases_both_byte_owners_and_publishes_not_sent() {
     assert_eq!(stats.submission_deadlines, 0);
     assert_eq!(stats.core_retained_bytes, ByteCount::new(0));
     assert_eq!(host.next_deadline(), None);
-    assert_failure(admitted, ProducerFailureKind::DeadlineElapsed);
+    assert_failure(admitted, ProducerDeliveryFailureKind::DeadlineElapsed);
 }
 
 #[test]
@@ -87,7 +89,7 @@ fn materialization_capacity_failure_is_a_core_owned_terminal_fact() {
     assert_eq!(stats.prepared_bytes, 0);
     assert_eq!(stats.submission_deadlines, 0);
     assert_eq!(stats.pending_effects, 0);
-    assert_failure(admitted, ProducerFailureKind::MaterializationFailed);
+    assert_failure(admitted, ProducerDeliveryFailureKind::MaterializationFailed);
 }
 
 #[test]
@@ -110,7 +112,7 @@ fn semantic_partition_encoding_failure_settles_without_poisoning_host() {
     assert_eq!(host.drive_prepared(Moment::from_tick(1), 1), Ok(1));
     assert!(host.stats().healthy);
     assert_eq!(host.stats().store.records, 0);
-    assert_failure(admitted, ProducerFailureKind::MaterializationFailed);
+    assert_failure(admitted, ProducerDeliveryFailureKind::MaterializationFailed);
 }
 
 #[test]
@@ -186,7 +188,7 @@ fn terminal_release_cancels_submission_that_never_started() {
     assert_eq!(host.stats().pending_effects, 0);
     assert_eq!(host.stats().prepared_batches, 0);
     assert_eq!(host.drive_prepared(Moment::from_tick(5), 1), Ok(0));
-    assert_failure(admitted, ProducerFailureKind::DeadlineElapsed);
+    assert_failure(admitted, ProducerDeliveryFailureKind::DeadlineElapsed);
 }
 
 #[test]
@@ -210,12 +212,12 @@ fn due_submission_work_is_fifo_and_bounded_per_turn() {
     assert_eq!(host.fire_due_submissions(Moment::from_tick(5), 1), Ok(1));
     assert_eq!(host.stats().submission_deadlines, 1);
     assert_eq!(host.stats().store.records, 1);
-    assert_failure(first, ProducerFailureKind::DeadlineElapsed);
+    assert_failure(first, ProducerDeliveryFailureKind::DeadlineElapsed);
 
     assert_eq!(host.fire_due_submissions(Moment::from_tick(5), 1), Ok(1));
     assert_eq!(host.stats().submission_deadlines, 0);
     assert_eq!(host.stats().store.records, 0);
-    assert_failure(second, ProducerFailureKind::DeadlineElapsed);
+    assert_failure(second, ProducerDeliveryFailureKind::DeadlineElapsed);
 }
 
 fn ready_limits() -> super::ProducerHostLimits {
@@ -227,14 +229,11 @@ fn ready_limits() -> super::ProducerHostLimits {
     limits
 }
 
-fn assert_failure(admitted: AdmittedExplicit, expected: ProducerFailureKind) {
-    let completion = admitted
-        .into_observer()
-        .wait()
-        .unwrap_or_else(|error| panic!("terminal completion should be retained: {error}"));
-    let ProducerCompletion::Failed(failure) = completion else {
-        panic!("producer operation should fail")
+fn assert_failure(admitted: AdmittedExplicit, expected: ProducerDeliveryFailureKind) {
+    let Err(ProducerDeliveryError::Failed(failure)) = admitted.into_delivery_observer().wait()
+    else {
+        panic!("producer operation should fail");
     };
     assert_eq!(failure.kind(), expected);
-    assert_eq!(failure.delivery(), DeliveryStatus::NotSent);
+    assert_eq!(failure.delivery_status(), ProducerDeliveryStatus::NotSent);
 }

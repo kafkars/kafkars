@@ -1,9 +1,8 @@
 //! Effect ordering, timer expiry, release, and terminal publication scenarios.
 
-use kafka_client_core::{
-    ByteCount, Deadline, DeliveryStatus, Moment, ProducerBatchPolicy, ProducerCompletion,
-    ProducerEffect, ProducerFailureKind,
-};
+use kafka_client_core::{ByteCount, Deadline, Moment, ProducerBatchPolicy, ProducerEffect};
+
+use crate::{ProducerDeliveryError, ProducerDeliveryFailureKind, ProducerDeliveryStatus};
 
 use super::{
     ProducerHostLimits,
@@ -56,7 +55,7 @@ fn due_deadline_releases_engine_bytes_before_publishing_terminal_failure() {
         record("orders"),
     );
     let operation_id = admitted.operation_id();
-    let observer = admitted.into_observer();
+    let observer = admitted.into_delivery_observer();
 
     assert_eq!(host.fire_due(Moment::from_tick(5)), Ok(1));
     let stats = host.stats();
@@ -68,14 +67,10 @@ fn due_deadline_releases_engine_bytes_before_publishing_terminal_failure() {
     assert_eq!(stats.active_timers, 0);
     assert_eq!(stats.pending_effects, 0);
 
-    let completion = match observer.wait() {
-        Ok(completion) => completion,
-        Err(error) => panic!("terminal completion should be observable: {error}"),
-    };
-    let ProducerCompletion::Failed(failure) = completion else {
+    let Err(ProducerDeliveryError::Failed(failure)) = observer.wait() else {
         panic!("deadline should fail the producer operation")
     };
-    assert_eq!(failure.kind(), ProducerFailureKind::DeadlineElapsed);
-    assert_eq!(failure.delivery(), DeliveryStatus::NotSent);
+    assert_eq!(failure.kind(), ProducerDeliveryFailureKind::DeadlineElapsed);
+    assert_eq!(failure.delivery_status(), ProducerDeliveryStatus::NotSent);
     assert_eq!(operation_id.get(), 1);
 }

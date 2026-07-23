@@ -21,17 +21,11 @@ pub(crate) mod store;
 mod submission_deadline;
 mod topic_catalog;
 
-#[cfg_attr(
-    not(test),
-    expect(unused_imports, reason = "the facade bridge follows")
-)]
+#[cfg_attr(not(test), expect(unused_imports, reason = "facade bridge follows"))]
 pub(crate) use admission::{AdmittedExplicit, ProducerAdmissionFailure, RejectedExplicit};
 pub(crate) use binding::{CompletionBindingError, CompletionBindings};
 pub(crate) use error::{ProducerAdmissionError, ProducerStoreError};
-#[cfg_attr(
-    not(test),
-    expect(unused_imports, reason = "the facade bridge follows")
-)]
+#[cfg_attr(not(test), expect(unused_imports, reason = "facade bridge follows"))]
 pub(crate) use host::{ProducerHost, ProducerHostLimits};
 pub(crate) use host_error::{
     ProducerHostInvariantError, ProducerHostLimitError, ProducerHostStartError,
