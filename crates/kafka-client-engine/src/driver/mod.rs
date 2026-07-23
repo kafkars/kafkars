@@ -20,5 +20,12 @@ pub(crate) use delivery::request_failure_delivery;
 pub(crate) use endpoint::EndpointError;
 pub(crate) use error::DriverOwnerError;
 pub(crate) use owner::{DriverOwner, DriverTurn};
-pub(crate) use rpc::{ProduceCompletionFailure, TrackedProduceCalls};
+#[allow(
+    unused_imports,
+    reason = "engine-host turns consume tracked create-topics calls next"
+)]
+pub(crate) use rpc::{
+    CreateTopicsCompletionFailure, ProduceCompletionFailure, TrackedCreateTopicsCalls,
+    TrackedProduceCalls,
+};
 pub(crate) use wake::{ReactorWake, ReactorWakeError};

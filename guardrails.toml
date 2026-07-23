@@ -195,6 +195,18 @@ production = "crates/kafka-client-engine/src/driver/rpc/calls.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/calls_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/create_topics_calls_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/create_topics_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/create_topics_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/create_topics_terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/create_topics_terminal_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/shutdown.rs"
 test = "crates/kafka-client-engine/src/driver/shutdown_test.rs"
 
@@ -831,7 +843,15 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "discard_settled"
 allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_create_topics"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
 ]
 
 [[method_capabilities]]
@@ -845,6 +865,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "retained_count"
 allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
   "crates/kafka-client-engine/src/engine_host/runner.rs",
 ]
 
@@ -1418,6 +1439,16 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "TrackedCreateTopicsCalls"
+field = "calls"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs"]
+
+[[mutation_owners]]
+owner_type = "TrackedCreateTopicsCalls"
+field = "settled"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs"]
+
+[[mutation_owners]]
 owner_type = "TrackedProduceCalls"
 field = "settled"
 allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/calls.rs"]
@@ -1653,6 +1684,22 @@ path = "crates/kafka-client-engine/src/admin/shard.rs"
 [[linear_owners]]
 owner_type = "CreateTopicsObserver"
 path = "crates/kafka-client-engine/src/admin/observer.rs"
+
+[[linear_owners]]
+owner_type = "TrackedCreateTopicsCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs"
+
+[[linear_owners]]
+owner_type = "TrackedCreateTopicsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs"
+
+[[linear_owners]]
+owner_type = "CreateTopicsCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs"
+
+[[linear_owners]]
+owner_type = "SettledCreateTopicsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs"
 
 [[linear_owners]]
 owner_type = "TrackedProduceCall"
