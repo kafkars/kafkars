@@ -1,7 +1,7 @@
 //! Deterministic producer, consumer, transaction, and admin policy.
-
 #![forbid(unsafe_code)]
 
+mod admin;
 mod admission;
 mod capacity;
 mod completion;
@@ -19,6 +19,12 @@ mod producer_transition;
 mod producer_transition_result;
 mod types;
 
+pub use admin::{
+    CreateTopicBrokerError, CreateTopicConfig, CreateTopicOutcome, CreateTopicResult,
+    CreateTopicSpecification, CreateTopicsEffect, CreateTopicsFailure, CreateTopicsFailureKind,
+    CreateTopicsInput, CreateTopicsMachine, CreateTopicsMachineError, CreateTopicsPlan,
+    CreateTopicsPlanError, CreateTopicsState, CreateTopicsTerminal, CreateTopicsTransition,
+};
 pub use admission::AdmissionRejection;
 pub use capacity::{ByteBudget, CapacityError};
 pub use completion::{CompletionLedger, CompletionLedgerError};

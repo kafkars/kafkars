@@ -103,6 +103,14 @@ production = "crates/kafka-client-core/src/producer/partitioner.rs"
 test = "crates/kafka-client-core/src/producer/partitioner_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/model.rs"
+test = "crates/kafka-client-core/src/admin/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/transition.rs"
+test = "crates/kafka-client-core/src/admin/transition_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-sim/src/state.rs"
 test = "crates/kafka-client-sim/src/state_test.rs"
 
@@ -581,6 +589,19 @@ forbidden = [
   "tokio",
 ]
 
+# Admin state owns only normalized policy facts, never sibling-domain policy.
+[[capability_rules]]
+root = "crates/kafka-client-core/src/admin"
+forbidden = [
+  "crate::consumer",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "std::future",
+  "std::time",
+]
+
 # Simulation owns virtual time only and must remain reproducible.
 [[capability_rules]]
 root = "crates/kafka-client-sim/src"
@@ -748,7 +769,15 @@ forbidden = [
   "tokio",
 ]
 
-# Load-bearing producer fields have one deliberately small mutation surface.
+# Load-bearing state fields have one deliberately small mutation surface.
+[[mutation_owners]]
+owner_type = "CreateTopicsMachine"
+field = "state"
+allowed_paths = [
+  "crates/kafka-client-core/src/admin/machine.rs",
+  "crates/kafka-client-core/src/admin/transition.rs",
+]
+
 [[mutation_owners]]
 owner_type = "ProducerMachine"
 field = "admission_open"
@@ -1322,6 +1351,10 @@ allowed_paths = [
 ]
 
 # Lifecycle and accounting owners must not be duplicated accidentally.
+[[linear_owners]]
+owner_type = "CreateTopicsMachine"
+path = "crates/kafka-client-core/src/admin/machine.rs"
+
 [[linear_owners]]
 owner_type = "ProducerMachine"
 path = "crates/kafka-client-core/src/producer/machine.rs"
