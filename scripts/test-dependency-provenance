@@ -1,0 +1,369 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+sandbox=$(mktemp -d)
+trap 'rm -rf "$sandbox"' EXIT
+
+client_root="$sandbox/kafka-client"
+driver_root="$sandbox/kafka-driver"
+protocol_root="$sandbox/kafka-protocol"
+checker="$client_root/scripts/check-dependency-provenance"
+attestation="$client_root/dependencies/public-sibling-pair.tsv"
+log="$sandbox/check.log"
+
+mkdir -p "$client_root/scripts" "$client_root/dependencies"
+cp "$repo_root/scripts/check-dependency-provenance" "$checker"
+
+initialize_protocol() {
+  mkdir -p \
+    "$protocol_root/crates/kafka-wire-core/src" \
+    "$protocol_root/crates/kafka-wire-records/src" \
+    "$protocol_root/crates/kafka-wire/src/generated"
+  git init -q "$protocol_root"
+  git -C "$protocol_root" config user.name "provenance fixture"
+  git -C "$protocol_root" config user.email "fixture@example.invalid"
+  git -C "$protocol_root" config commit.gpgsign false
+  printf 'target/\n.cache/\n' > "$protocol_root/.gitignore"
+  printf '//! fixture facade\n' > "$protocol_root/crates/kafka-wire-core/src/lib.rs"
+  printf 'pub struct RuntimeEvidence;\n' \
+    > "$protocol_root/crates/kafka-wire-core/src/runtime.rs"
+  printf 'reviewed protocol\n' > "$protocol_root/tracked.txt"
+  git -C "$protocol_root" add .
+  git -C "$protocol_root" commit -q -m "fixture: reviewed protocol"
+  git -C "$protocol_root" rev-parse --verify 'HEAD^{commit}'
+}
+
+initialize_driver() {
+  local declared_wire_revision=$1
+  mkdir -p "$driver_root/src"
+  git init -q "$driver_root"
+  git -C "$driver_root" config user.name "provenance fixture"
+  git -C "$driver_root" config user.email "fixture@example.invalid"
+  git -C "$driver_root" config commit.gpgsign false
+  printf 'target/\n.cache/\n' > "$driver_root/.gitignore"
+  printf 'kafka_wire_revision = "%s"\n' "$declared_wire_revision" \
+    > "$driver_root/guardrails.toml"
+  printf 'pub struct DriverRuntimeEvidence;\n' > "$driver_root/src/lib.rs"
+  printf 'reviewed driver\n' > "$driver_root/tracked.txt"
+  git -C "$driver_root" add .
+  git -C "$driver_root" commit -q -m "fixture: reviewed driver"
+  git -C "$driver_root" rev-parse --verify 'HEAD^{commit}'
+}
+
+write_revisions() {
+  local driver=$1
+  local protocol=$2
+  {
+    printf 'KAFKA_DRIVER_REVISION=%s\n' "$driver"
+    printf 'KAFKA_PROTOCOL_REVISION=%s\n' "$protocol"
+  } > "$client_root/dependencies/sibling-revisions.env"
+}
+
+write_attestation() {
+  local driver=$1
+  local protocol=$2
+  local driver_fingerprint=$3
+  local wire_fingerprint=$4
+  local declared_wire_revision=$5
+  {
+    printf 'driver_revision\twire_revision\tdriver_runtime_fingerprint\twire_runtime_fingerprint\tdriver_declared_wire_revision\n'
+    printf '%s\t%s\t%s\t%s\t%s\n' \
+      "$driver" \
+      "$protocol" \
+      "$driver_fingerprint" \
+      "$wire_fingerprint" \
+      "$declared_wire_revision"
+  } > "$attestation"
+}
+
+driver_runtime_fingerprint() {
+  local revision=$1
+  git -C "$driver_root" ls-tree -r "$revision" -- src crates |
+    git hash-object --stdin
+}
+
+wire_runtime_fingerprint() {
+  local revision=$1
+  local entry
+  git -C "$protocol_root" ls-tree -r "$revision" -- \
+    crates/kafka-wire-core crates/kafka-wire-records crates/kafka-wire |
+    while IFS= read -r entry; do
+      case "$entry" in
+        *$'\tcrates/kafka-wire-core/src/lib.rs' | \
+        *$'\tcrates/kafka-wire/Cargo.toml' | \
+        *$'\tcrates/kafka-wire/src/generated/MANIFEST.json' | \
+        *$'\tcrates/kafka-wire/src/lib.rs') ;;
+        *) printf '%s\n' "$entry" ;;
+      esac
+    done |
+    git hash-object --stdin
+}
+
+expect_success() {
+  local scenario=$1
+  if ! bash "$checker" > "$log" 2>&1; then
+    echo "provenance scenario unexpectedly failed: $scenario" >&2
+    sed -n '1,120p' "$log" >&2
+    exit 1
+  fi
+}
+
+expect_failure() {
+  local scenario=$1
+  local evidence=$2
+  if bash "$checker" > "$log" 2>&1; then
+    echo "provenance scenario unexpectedly passed: $scenario" >&2
+    exit 1
+  fi
+  if ! grep -Fq "$evidence" "$log"; then
+    echo "provenance scenario failed without expected evidence: $scenario" >&2
+    sed -n '1,120p' "$log" >&2
+    exit 1
+  fi
+}
+
+unreachable_declared_wire=1111111111111111111111111111111111111111
+protocol_revision=$(initialize_protocol)
+driver_revision=$(initialize_driver "$unreachable_declared_wire")
+driver_fingerprint=$(driver_runtime_fingerprint "$driver_revision")
+wire_fingerprint=$(wire_runtime_fingerprint "$protocol_revision")
+write_revisions "$driver_revision" "$protocol_revision"
+write_attestation \
+  "$driver_revision" \
+  "$protocol_revision" \
+  "$driver_fingerprint" \
+  "$wire_fingerprint" \
+  "$unreachable_declared_wire"
+if git -C "$protocol_root" cat-file -e "$unreachable_declared_wire^{commit}" 2>/dev/null; then
+  echo "fixture's declared source-wire scalar unexpectedly resolves" >&2
+  exit 1
+fi
+expect_success "exact clean public pair with an independently attested source-wire scalar"
+
+printf 'not-the-header\n%s\n' "${driver_revision}" > "$attestation"
+expect_failure "noncanonical attestation header" "noncanonical header"
+write_attestation \
+  "$driver_revision" "$protocol_revision" "$driver_fingerprint" \
+  "$wire_fingerprint" "$unreachable_declared_wire"
+printf '%s\t%s\t%s\t%s\t%s\n' \
+  "$driver_revision" "$protocol_revision" "$driver_fingerprint" \
+  "$wire_fingerprint" "$unreachable_declared_wire" >> "$attestation"
+expect_failure "duplicate attestation row" "exactly one header and one row"
+{
+  printf 'driver_revision\twire_revision\tdriver_runtime_fingerprint\twire_runtime_fingerprint\tdriver_declared_wire_revision\n'
+  printf '%s %s %s %s %s\n' \
+    "$driver_revision" "$protocol_revision" "$driver_fingerprint" \
+    "$wire_fingerprint" "$unreachable_declared_wire"
+} > "$attestation"
+expect_failure "space-delimited attestation" "noncanonical row"
+
+write_attestation \
+  0000000000000000000000000000000000000000 \
+  "$protocol_revision" "$driver_fingerprint" "$wire_fingerprint" \
+  "$unreachable_declared_wire"
+expect_failure "attested driver pair mismatch" "driver revision does not match"
+write_attestation \
+  "$driver_revision" 0000000000000000000000000000000000000000 \
+  "$driver_fingerprint" "$wire_fingerprint" "$unreachable_declared_wire"
+expect_failure "attested wire pair mismatch" "wire revision does not match"
+write_attestation \
+  "$driver_revision" "$protocol_revision" \
+  0000000000000000000000000000000000000000 \
+  "$wire_fingerprint" "$unreachable_declared_wire"
+expect_failure "attested driver runtime drift" "kafka-driver runtime fingerprint"
+write_attestation \
+  "$driver_revision" "$protocol_revision" "$driver_fingerprint" \
+  0000000000000000000000000000000000000000 \
+  "$unreachable_declared_wire"
+expect_failure "attested wire runtime drift" "kafka-wire runtime fingerprint"
+write_attestation \
+  "$driver_revision" "$protocol_revision" "$driver_fingerprint" \
+  "$wire_fingerprint" 0000000000000000000000000000000000000000
+expect_failure "attested declared wire drift" "declared wire revision"
+
+marker="$sandbox/attestation-evaluated"
+{
+  printf 'driver_revision\twire_revision\tdriver_runtime_fingerprint\twire_runtime_fingerprint\tdriver_declared_wire_revision\n'
+  printf '%s\t%s\t%s\t%s\t%s\n' \
+    "$driver_revision" "$protocol_revision" "$driver_fingerprint" \
+    "$wire_fingerprint" "\$(touch $marker)"
+} > "$attestation"
+expect_failure "executable attestation data" "noncanonical row"
+test ! -e "$marker"
+
+write_attestation \
+  "$driver_revision" "$protocol_revision" "$driver_fingerprint" \
+  "$wire_fingerprint" "$unreachable_declared_wire"
+mv "$attestation" "$attestation.real"
+ln -s public-sibling-pair.tsv.real "$attestation"
+expect_failure "symlinked attestation" "regular, non-symlink file"
+rm "$attestation"
+mv "$attestation.real" "$attestation"
+
+{
+  printf 'exit 0\n'
+  printf 'KAFKA_DRIVER_REVISION=%s\n' "$driver_revision"
+  printf 'KAFKA_PROTOCOL_REVISION=%s\n' "$protocol_revision"
+} > "$client_root/dependencies/sibling-revisions.env"
+expect_failure "early shell exit in revision data" "exactly two assignments"
+{
+  printf 'KAFKA_DRIVER_REVISION=$%s\n' '(git rev-parse HEAD)'
+  printf 'KAFKA_PROTOCOL_REVISION=%s\n' "$protocol_revision"
+} > "$client_root/dependencies/sibling-revisions.env"
+expect_failure "command substitution in revision data" "invalid kafka-driver revision assignment"
+{
+  printf 'git() { printf fake; }\n'
+  printf 'KAFKA_DRIVER_REVISION=%s\n' "$driver_revision"
+  printf 'KAFKA_PROTOCOL_REVISION=%s\n' "$protocol_revision"
+} > "$client_root/dependencies/sibling-revisions.env"
+expect_failure "shell function in revision data" "exactly two assignments"
+{
+  printf 'KAFKA_DRIVER_REVISION=%s\n' "$driver_revision"
+  printf 'KAFKA_PROTOCOL_REVISION=%s\n' "$protocol_revision"
+  printf 'EXTRA_REVISION=0000000000000000000000000000000000000000\n'
+} > "$client_root/dependencies/sibling-revisions.env"
+expect_failure "extra key in revision data" "exactly two assignments"
+write_revisions "$driver_revision" "$protocol_revision"
+
+protocol_away="$sandbox/kafka-protocol-away"
+mv "$protocol_root" "$protocol_away"
+expect_failure "missing checkout" "kafka-protocol is not checked out"
+mv "$protocol_away" "$protocol_root"
+
+printf 'different commit\n' >> "$driver_root/tracked.txt"
+git -C "$driver_root" add tracked.txt
+git -C "$driver_root" commit -q -m "fixture: wrong commit"
+expect_failure "wrong commit" "does not match reviewed revision"
+git -C "$driver_root" checkout -q --detach "$driver_revision"
+
+printf 'kafka_wire_revision = "%040d"\n' 0 > "$driver_root/guardrails.toml"
+git -C "$driver_root" add guardrails.toml
+git -C "$driver_root" commit -q -m "fixture: wrong protocol declaration"
+wrong_driver_revision=$(git -C "$driver_root" rev-parse --verify 'HEAD^{commit}')
+wrong_driver_fingerprint=$(driver_runtime_fingerprint "$wrong_driver_revision")
+write_revisions "$wrong_driver_revision" "$protocol_revision"
+write_attestation \
+  "$wrong_driver_revision" "$protocol_revision" "$wrong_driver_fingerprint" \
+  "$wire_fingerprint" "$unreachable_declared_wire"
+expect_failure \
+  "driver declared-wire attestation mismatch" \
+  "kafka-driver declared wire revision"
+git -C "$driver_root" checkout -q --detach "$driver_revision"
+
+printf 'schema = 1\n' > "$driver_root/guardrails.toml"
+git -C "$driver_root" add guardrails.toml
+git -C "$driver_root" commit -q -m "fixture: missing protocol declaration"
+missing_declaration_revision=$(git -C "$driver_root" rev-parse --verify 'HEAD^{commit}')
+missing_driver_fingerprint=$(driver_runtime_fingerprint "$missing_declaration_revision")
+write_revisions "$missing_declaration_revision" "$protocol_revision"
+write_attestation \
+  "$missing_declaration_revision" "$protocol_revision" \
+  "$missing_driver_fingerprint" "$wire_fingerprint" "$unreachable_declared_wire"
+expect_failure \
+  "driver protocol declaration missing" \
+  "kafka-driver must declare exactly one kafka_wire_revision"
+git -C "$driver_root" checkout -q --detach "$driver_revision"
+
+printf 'kafka_wire_revision = "not-a-commit"\n' > "$driver_root/guardrails.toml"
+git -C "$driver_root" add guardrails.toml
+git -C "$driver_root" commit -q -m "fixture: malformed protocol declaration"
+malformed_declaration_revision=$(git -C "$driver_root" rev-parse --verify 'HEAD^{commit}')
+malformed_driver_fingerprint=$(driver_runtime_fingerprint "$malformed_declaration_revision")
+write_revisions "$malformed_declaration_revision" "$protocol_revision"
+write_attestation \
+  "$malformed_declaration_revision" "$protocol_revision" \
+  "$malformed_driver_fingerprint" "$wire_fingerprint" "$unreachable_declared_wire"
+expect_failure \
+  "driver protocol declaration malformed" \
+  "kafka-driver kafka_wire_revision must be one canonical 40-hex TOML string"
+git -C "$driver_root" checkout -q --detach "$driver_revision"
+
+{
+  printf 'kafka_wire_revision = "%s"\n' "$unreachable_declared_wire"
+  printf 'kafka_wire_revision = "%s"\n' "$unreachable_declared_wire"
+} > "$driver_root/guardrails.toml"
+git -C "$driver_root" add guardrails.toml
+git -C "$driver_root" commit -q -m "fixture: duplicate protocol declaration"
+duplicate_declaration_revision=$(git -C "$driver_root" rev-parse --verify 'HEAD^{commit}')
+duplicate_driver_fingerprint=$(driver_runtime_fingerprint "$duplicate_declaration_revision")
+write_revisions "$duplicate_declaration_revision" "$protocol_revision"
+write_attestation \
+  "$duplicate_declaration_revision" "$protocol_revision" \
+  "$duplicate_driver_fingerprint" "$wire_fingerprint" "$unreachable_declared_wire"
+expect_failure \
+  "driver protocol declaration duplicated" \
+  "kafka-driver must declare exactly one kafka_wire_revision"
+git -C "$driver_root" checkout -q --detach "$driver_revision"
+
+write_revisions "$driver_revision" "$protocol_revision"
+write_attestation \
+  "$driver_revision" "$protocol_revision" "$driver_fingerprint" \
+  "$wire_fingerprint" "$unreachable_declared_wire"
+
+git -C "$driver_root" update-index --assume-unchanged tracked.txt
+printf 'hidden assume-unchanged change\n' >> "$driver_root/tracked.txt"
+expect_failure "assume-unchanged tracked change" "noncanonical tracked-path flag"
+git -C "$driver_root" update-index --no-assume-unchanged tracked.txt
+git -C "$driver_root" restore tracked.txt
+
+git -C "$driver_root" update-index --skip-worktree tracked.txt
+printf 'hidden skip-worktree change\n' >> "$driver_root/tracked.txt"
+expect_failure "skip-worktree tracked change" "noncanonical tracked-path flag"
+git -C "$driver_root" update-index --no-skip-worktree tracked.txt
+git -C "$driver_root" restore tracked.txt
+
+fsmonitor_hook="$sandbox/fsmonitor-no-changes"
+{
+  printf '#!/usr/bin/env bash\n'
+  printf 'set -euo pipefail\n'
+  printf 'printf "fixture-token\\0"\n'
+} > "$fsmonitor_hook"
+chmod +x "$fsmonitor_hook"
+git -C "$driver_root" config core.fsmonitor "$fsmonitor_hook"
+git -C "$driver_root" update-index --fsmonitor
+git -C "$driver_root" status --porcelain=v1 > /dev/null
+if ! git -C "$driver_root" ls-files -f | grep -Fq "h tracked.txt"; then
+  echo "fsmonitor fixture did not mark tracked.txt valid" >&2
+  exit 1
+fi
+printf 'hidden fsmonitor-valid change\n' >> "$driver_root/tracked.txt"
+if [[ -n "$(git -C "$driver_root" status --porcelain=v1)" ]]; then
+  echo "fsmonitor fixture did not hide the tracked change from status" >&2
+  exit 1
+fi
+expect_failure "fsmonitor-valid tracked change" "noncanonical tracked-path flag"
+git -C "$driver_root" config --unset core.fsmonitor
+git -C "$driver_root" update-index --no-fsmonitor
+git -C "$driver_root" restore tracked.txt
+
+printf 'staged\n' >> "$driver_root/tracked.txt"
+git -C "$driver_root" add tracked.txt
+expect_failure "staged change" "differs from reviewed commit"
+git -C "$driver_root" restore --staged tracked.txt
+git -C "$driver_root" restore tracked.txt
+
+printf 'unstaged\n' >> "$driver_root/tracked.txt"
+expect_failure "unstaged change" "differs from reviewed commit"
+git -C "$driver_root" restore tracked.txt
+
+printf 'untracked\n' > "$driver_root/untracked.txt"
+expect_failure "untracked change" "differs from reviewed commit"
+rm "$driver_root/untracked.txt"
+
+mkdir -p "$driver_root/target"
+printf 'ignored\n' > "$driver_root/target/cache.bin"
+expect_success "ignored Cargo target cache"
+
+mkdir -p "$protocol_root/.cache"
+printf 'ignored\n' > "$protocol_root/.cache/cache.bin"
+expect_failure "unapproved ignored file" "differs from reviewed commit"
+rm -rf "$protocol_root/.cache"
+expect_success "clean after rejected ignored file"
+
+grep -Fq "kafka-driver commit=$driver_revision tree=" "$log"
+grep -Fq "kafka-protocol commit=$protocol_revision tree=" "$log"
+grep -Fq \
+  "public-sibling-pair driver=$driver_revision wire=$protocol_revision driver-runtime=$driver_fingerprint wire-runtime=$wire_fingerprint driver-declared-wire=$unreachable_declared_wire" \
+  "$log"
+echo "dependency provenance public-pair synthetic Git scenarios passed"

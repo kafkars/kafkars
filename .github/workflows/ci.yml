@@ -30,10 +30,10 @@ jobs:
         with:
           path: kafka-client
           persist-credentials: false
-      - name: Check out reviewed sibling dependencies
-        uses: ./kafka-client/.github/actions/checkout-siblings
       - name: Install pinned Rust toolchain
         uses: ./kafka-client/.github/actions/setup-rust
+      - name: Check out reviewed sibling dependencies
+        uses: ./kafka-client/.github/actions/checkout-siblings
       - name: Validate architecture
         run: scripts/check-architecture
 
@@ -50,10 +50,10 @@ jobs:
         with:
           path: kafka-client
           persist-credentials: false
-      - name: Check out reviewed sibling dependencies
-        uses: ./kafka-client/.github/actions/checkout-siblings
       - name: Install pinned Rust toolchain
         uses: ./kafka-client/.github/actions/setup-rust
+      - name: Check out reviewed sibling dependencies
+        uses: ./kafka-client/.github/actions/checkout-siblings
       - name: Validate Rust style and documentation
         run: scripts/check-rust-lint
 
@@ -70,10 +70,10 @@ jobs:
         with:
           path: kafka-client
           persist-credentials: false
-      - name: Check out reviewed sibling dependencies
-        uses: ./kafka-client/.github/actions/checkout-siblings
       - name: Install pinned Rust toolchain
         uses: ./kafka-client/.github/actions/setup-rust
+      - name: Check out reviewed sibling dependencies
+        uses: ./kafka-client/.github/actions/checkout-siblings
       - name: Run Rust tests
         run: scripts/check-rust-test
 
