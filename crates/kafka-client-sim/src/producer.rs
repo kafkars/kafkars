@@ -49,14 +49,19 @@ impl ProducerScenario {
 
     /// Advances virtual time and deterministically dispatches every due batch timer.
     pub fn advance(&mut self, ticks: u64) -> Result<(), SimulationError> {
-        self.clock.advance(ticks);
-        while let Some((batch_id, generation)) = self.engine.take_due_timer(self.clock.now()) {
+        let target = self
+            .clock
+            .target_after(ticks)
+            .map_err(SimulationError::Time)?;
+        while let Some((batch_id, generation, deadline)) = self.engine.take_timer_before(target) {
+            self.clock.set(Moment::from_tick(deadline.tick()));
             self.step(ProducerInput::BatchTimerFired {
                 batch_id,
                 generation,
                 now: self.clock.now(),
             })?;
         }
+        self.clock.set(target);
         Ok(())
     }
 

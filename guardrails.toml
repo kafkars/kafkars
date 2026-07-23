@@ -191,17 +191,26 @@ allowed_paths = [
 [[mutation_owners]]
 owner_type = "ProducerBatch"
 field = "timer_generation"
-allowed_paths = ["crates/kafka-client-core/src/producer/batch_transition.rs"]
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/batch_timer.rs",
+  "crates/kafka-client-core/src/producer/batch_transition.rs",
+]
 
 [[mutation_owners]]
 owner_type = "ProducerBatch"
 field = "timer_deadline"
-allowed_paths = ["crates/kafka-client-core/src/producer/batch_transition.rs"]
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/batch_timer.rs",
+  "crates/kafka-client-core/src/producer/batch_transition.rs",
+]
 
 [[mutation_owners]]
 owner_type = "ProducerBatch"
 field = "linger_elapsed"
-allowed_paths = ["crates/kafka-client-core/src/producer/batch_transition.rs"]
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/batch_timer.rs",
+  "crates/kafka-client-core/src/producer/batch_transition.rs",
+]
 
 [[mutation_owners]]
 owner_type = "ProducerBatch"
@@ -213,6 +222,7 @@ owner_type = "ProducerBatch"
 field = "members"
 allowed_paths = [
   "crates/kafka-client-core/src/producer/batch.rs",
+  "crates/kafka-client-core/src/producer/batch_timer.rs",
   "crates/kafka-client-core/src/producer/batch_transition.rs",
   "crates/kafka-client-core/src/producer/input_batch.rs",
 ]

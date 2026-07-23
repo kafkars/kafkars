@@ -77,6 +77,11 @@ impl ProducerMachine {
             return Ok(ProducerTransition::from_effects(effects));
         }
         if expired.is_empty() {
+            let timer_update = self
+                .batches
+                .get(&batch_id)
+                .ok_or(ProducerMachineError::UnknownBatch)?
+                .plan_timer_rearm(observation)?;
             let seal = if observation.readies_batch {
                 Some(self.plan_seal(batch_id)?)
             } else {
@@ -85,11 +90,18 @@ impl ProducerMachine {
             let batch = self.batches.get_mut(&batch_id);
             debug_assert!(batch.is_some());
             if let Some(batch) = batch {
-                batch.commit_timer_observation(observation);
+                batch.commit_timer_observation(observation, timer_update);
             }
             if let Some(seal) = seal {
                 effects.extend_from_slice(self.commit_seal(seal).effects());
                 return Ok(ProducerTransition::from_effects(effects));
+            }
+            if let Some((generation, deadline)) = timer_update {
+                effects.push(crate::ProducerEffect::ArmBatchTimer {
+                    batch_id,
+                    generation,
+                    deadline,
+                });
             }
         }
         let ready = self.seal_if_ready(batch_id)?;

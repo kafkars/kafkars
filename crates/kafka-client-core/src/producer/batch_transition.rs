@@ -1,13 +1,10 @@
 //! Sole mutation owner for producer batch membership and readiness.
 
 use crate::{
-    BatchTimerGeneration, ByteCount, Deadline, Moment, OperationId, ProducerMachineError,
-    TransitionError,
+    BatchTimerGeneration, ByteCount, Deadline, OperationId, ProducerMachineError, TransitionError,
 };
 
-use super::{
-    BatchAccumulation, BatchMember, BatchRemoval, BatchState, BatchTimerObservation, ProducerBatch,
-};
+use super::{BatchAccumulation, BatchMember, BatchRemoval, BatchState, ProducerBatch};
 
 impl ProducerBatch {
     pub(crate) fn plan_add_member(
@@ -109,7 +106,13 @@ impl ProducerBatch {
             .try_fold(ByteCount::new(0), ByteCount::checked_add)
             .ok_or(ProducerMachineError::AccumulatorSizeOverflow)?;
         let linger_elapsed = self.linger_elapsed || observed_linger;
-        let timer_update = if members.is_empty() || linger_elapsed {
+        let ready = members
+            .iter()
+            .all(|member| member.accumulator_bytes.is_some())
+            && (linger_elapsed
+                || members.len() >= self.policy.max_records()
+                || accumulator_bytes >= self.policy.max_accumulator_bytes());
+        let timer_update = if members.is_empty() || ready {
             None
         } else {
             let next = self
@@ -122,10 +125,12 @@ impl ProducerBatch {
                 .map(|member| member.deadline)
                 .min()
                 .ok_or(ProducerMachineError::UnknownBatch)?;
-            Some((
-                BatchTimerGeneration::from_raw(next),
-                earliest.min(self.linger_deadline),
-            ))
+            let deadline = if linger_elapsed {
+                earliest
+            } else {
+                earliest.min(self.linger_deadline)
+            };
+            Some((BatchTimerGeneration::from_raw(next), deadline))
         };
         Ok(BatchRemoval {
             members,
@@ -143,36 +148,6 @@ impl ProducerBatch {
             self.timer_generation = generation;
             self.timer_deadline = deadline;
         }
-    }
-
-    pub(crate) fn plan_timer_observation(
-        &self,
-        generation: BatchTimerGeneration,
-        now: Moment,
-    ) -> Result<Option<BatchTimerObservation>, ProducerMachineError> {
-        if self.state != BatchState::Open {
-            return Ok(None);
-        }
-        if generation != self.timer_generation {
-            return Ok(None);
-        }
-        if !self.timer_deadline.is_elapsed_at(now) {
-            return Err(ProducerMachineError::Transition(
-                TransitionError::DeadlineNotElapsed,
-            ));
-        }
-        let linger_elapsed = self.linger_elapsed || self.linger_deadline.is_elapsed_at(now);
-        Ok(Some(BatchTimerObservation {
-            linger_elapsed,
-            readies_batch: self.all_accumulated()
-                && (linger_elapsed
-                    || self.members.len() >= self.policy.max_records()
-                    || self.accumulator_bytes >= self.policy.max_accumulator_bytes()),
-        }))
-    }
-
-    pub(crate) fn commit_timer_observation(&mut self, observation: BatchTimerObservation) {
-        self.linger_elapsed = observation.linger_elapsed;
     }
 
     pub(crate) fn is_ready(&self) -> bool {

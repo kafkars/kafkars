@@ -4,9 +4,13 @@ use core::fmt;
 
 use kafka_client_core::{BatchId, ByteCount, OperationId, PayloadId, ProducerMachineError};
 
+use crate::VirtualClockError;
+
 /// A core rejection or an inconsistent engine-effect contract.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SimulationError {
+    /// The requested virtual-time target exceeded the monotonic domain.
+    Time(VirtualClockError),
     /// Deterministic producer policy rejected an input fact.
     Core(ProducerMachineError),
     /// The virtual engine already owns this payload identity.
@@ -41,6 +45,7 @@ pub enum SimulationError {
 impl fmt::Display for SimulationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Time(error) => error.fmt(formatter),
             Self::Core(error) => error.fmt(formatter),
             Self::DuplicatePayload(_) => formatter.write_str("duplicate virtual payload"),
             Self::UnknownPayload(_) => formatter.write_str("unknown virtual payload"),

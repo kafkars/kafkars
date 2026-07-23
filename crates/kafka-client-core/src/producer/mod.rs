@@ -1,6 +1,7 @@
 //! Atomic producer admission, retained capacity, and terminal settlement.
 
 mod batch;
+mod batch_timer;
 mod batch_transition;
 mod batching;
 mod input_batch;

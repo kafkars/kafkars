@@ -158,16 +158,19 @@ impl VirtualProducerState {
         Ok(completion)
     }
 
-    pub(crate) fn take_due_timer(
+    pub(crate) fn take_timer_before(
         &mut self,
-        now: kafka_client_core::Moment,
-    ) -> Option<(BatchId, BatchTimerGeneration)> {
-        let batch_id = self.timers.iter().find_map(|(batch_id, (_, deadline))| {
-            deadline.is_elapsed_at(now).then_some(*batch_id)
-        })?;
+        target: kafka_client_core::Moment,
+    ) -> Option<(BatchId, BatchTimerGeneration, Deadline)> {
+        let batch_id = self
+            .timers
+            .iter()
+            .filter(|(_, (_, deadline))| deadline.is_elapsed_at(target))
+            .min_by_key(|(batch_id, (_, deadline))| (deadline.tick(), batch_id.get()))
+            .map(|(batch_id, _)| *batch_id)?;
         self.timers
             .remove(&batch_id)
-            .map(|(generation, _)| (batch_id, generation))
+            .map(|(generation, deadline)| (batch_id, generation, deadline))
     }
 
     pub(crate) fn require_released_terminal(
