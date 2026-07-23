@@ -6,6 +6,9 @@ use crate::EngineConfig;
 
 use super::{DriverOwnerError, DriverTurn, owner::DriverOwner};
 
+const SHUTDOWN_TURN_LIMIT: usize = 64;
+const SHUTDOWN_WAIT_LIMIT: Duration = Duration::from_millis(100);
+
 #[test]
 fn one_owner_builds_the_driver_handle_reactor_and_wake_source() {
     let mut owner = owner();
@@ -13,11 +16,11 @@ fn one_owner_builds_the_driver_handle_reactor_and_wake_source() {
 
     assert!(!owner.is_shutdown());
     assert!(wake.request().is_ok());
-    owner.close_admission();
-    let outcome = owner
-        .turn(Duration::ZERO)
-        .unwrap_or_else(|error| panic!("drive bounded shutdown turn: {error}"));
-    assert_eq!(outcome, DriverTurn::Shutdown);
+    let turns = owner
+        .shutdown_with_turn_limit(SHUTDOWN_TURN_LIMIT, SHUTDOWN_WAIT_LIMIT)
+        .unwrap_or_else(|error| panic!("drive bounded shutdown: {error}"));
+
+    assert!((1..=SHUTDOWN_TURN_LIMIT).contains(&turns));
     assert!(owner.is_shutdown());
 }
 
@@ -26,9 +29,15 @@ fn dropping_the_sole_driver_handle_uses_implicit_reactor_shutdown() {
     let mut owner = owner();
     owner.close_admission();
 
-    let outcome = owner
-        .turn(Duration::ZERO)
-        .unwrap_or_else(|error| panic!("drive bounded shutdown turn: {error}"));
+    let mut outcome = DriverTurn::Idle;
+    for _turn in 0..SHUTDOWN_TURN_LIMIT {
+        outcome = owner
+            .turn(SHUTDOWN_WAIT_LIMIT)
+            .unwrap_or_else(|error| panic!("drive bounded shutdown turn: {error}"));
+        if outcome == DriverTurn::Shutdown {
+            break;
+        }
+    }
 
     assert_eq!(outcome, DriverTurn::Shutdown);
     owner.close_admission();

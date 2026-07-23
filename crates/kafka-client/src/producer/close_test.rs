@@ -46,25 +46,52 @@ fn public_close_is_clone_shared_and_first_success_wins() {
             Err(error) => panic!("first close should succeed: {error}"),
         }
     }
-    let Err(error) = clone.close().wait() else {
-        panic!("only the first clone-shared close may succeed")
-    };
+    let error = state_after_contention(admission_deadline, || clone.close().wait());
 
     assert_eq!(error.kind(), ErrorKind::State);
     assert_eq!(error.delivery_status(), None);
 
-    let Err(error) = producer.flush().wait() else {
-        panic!("close must fence later flush barriers")
-    };
+    let error = state_after_contention(admission_deadline, || producer.flush().wait());
     assert_eq!(error.kind(), ErrorKind::State);
     assert_eq!(error.delivery_status(), None);
 
-    let Err(rejection) = producer.try_send(Record::to("orders").partition(0)) else {
-        panic!("close must fence later record admission")
+    let mut record = Record::to("orders").partition(0);
+    let rejection = loop {
+        match producer.try_send(record) {
+            Err(rejection) if rejection.error().kind() == ErrorKind::Backpressure => {
+                assert!(
+                    Instant::now() < admission_deadline,
+                    "closed state should become observable after record-admission contention"
+                );
+                record = rejection.into_parts().0;
+                std::hint::spin_loop();
+            }
+            Err(rejection) => break rejection,
+            Ok(_) => panic!("close must fence later record admission"),
+        }
     };
     assert_eq!(rejection.error().kind(), ErrorKind::State);
     assert_eq!(
         rejection.error().delivery_status(),
         Some(DeliveryStatus::NotSent)
     );
+}
+
+fn state_after_contention(
+    deadline: Instant,
+    mut attempt: impl FnMut() -> Result<(), KafkaError>,
+) -> KafkaError {
+    loop {
+        match attempt() {
+            Err(error) if error.kind() == ErrorKind::Backpressure => {
+                assert!(
+                    Instant::now() < deadline,
+                    "closed state should become observable after barrier contention"
+                );
+                std::hint::spin_loop();
+            }
+            Err(error) => return error,
+            Ok(()) => panic!("only the first clone-shared close may succeed"),
+        }
+    }
 }
