@@ -21,6 +21,8 @@ pub(crate) enum ProduceMaterializationError {
         /// Timestamp that could not be represented as a signed delta.
         timestamp_ms: i64,
     },
+    /// An engine header-name invariant was violated before record encoding.
+    InvalidHeaderName(std::str::Utf8Error),
     /// The authoritative record-layer encoder rejected the batch.
     Record(RecordError),
 }
@@ -48,11 +50,16 @@ impl ProduceMaterializationError {
         Self::Record(source)
     }
 
+    pub(super) const fn invalid_header_name(source: std::str::Utf8Error) -> Self {
+        Self::InvalidHeaderName(source)
+    }
+
     #[cfg(test)]
     pub(super) const fn record_error(&self) -> Option<&RecordError> {
         match self {
             Self::Record(source) => Some(source),
-            Self::EmptyBatch
+            Self::InvalidHeaderName(_)
+            | Self::EmptyBatch
             | Self::RecordCountOverflow { .. }
             | Self::TimestampDeltaOverflow { .. } => None,
         }
@@ -81,6 +88,9 @@ impl fmt::Display for ProduceMaterializationError {
                     "Kafka record-batch materialization failed: {source}"
                 )
             }
+            Self::InvalidHeaderName(_) => {
+                formatter.write_str("producer header name lost its UTF-8 validation")
+            }
         }
     }
 }
@@ -89,6 +99,7 @@ impl Error for ProduceMaterializationError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Record(source) => Some(source),
+            Self::InvalidHeaderName(source) => Some(source),
             Self::EmptyBatch
             | Self::RecordCountOverflow { .. }
             | Self::TimestampDeltaOverflow { .. } => None,

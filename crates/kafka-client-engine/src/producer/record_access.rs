@@ -19,27 +19,6 @@ impl RecordSlot {
         self.state = PayloadState::Admitted;
         Ok(())
     }
-
-    fn take_record(&mut self) -> Result<ProducerRecord, ProducerStoreError> {
-        if self.state != PayloadState::Admitted {
-            return Err(ProducerStoreError::InvalidPayloadState);
-        }
-        let record = self
-            .record
-            .take()
-            .ok_or(ProducerStoreError::InvalidPayloadState)?;
-        self.state = PayloadState::Materialized;
-        Ok(record)
-    }
-
-    fn restore_record(&mut self, record: ProducerRecord) -> Result<(), ProducerStoreError> {
-        if self.state != PayloadState::Materialized || self.record.is_some() {
-            return Err(ProducerStoreError::InvalidPayloadState);
-        }
-        self.record = Some(record);
-        self.state = PayloadState::Admitted;
-        Ok(())
-    }
 }
 
 impl RecordStore {
@@ -67,31 +46,12 @@ impl RecordStore {
         payload_id: PayloadId,
     ) -> Result<&ProducerRecord, ProducerStoreError> {
         let slot = self.slot(payload_id)?;
-        if slot.state == PayloadState::Reserved {
+        if slot.state != PayloadState::Admitted {
             return Err(ProducerStoreError::InvalidPayloadState);
         }
         slot.record
             .as_ref()
             .ok_or(ProducerStoreError::InvalidPayloadState)
-    }
-
-    pub(super) fn take_for_materialization(
-        &mut self,
-        payload_id: PayloadId,
-    ) -> Result<ProducerRecord, ProducerStoreError> {
-        let slot = self.slot_mut(payload_id)?;
-        slot.take_record()
-    }
-
-    pub(super) fn restore_after_materialization(
-        &mut self,
-        payload_id: PayloadId,
-        record: ProducerRecord,
-    ) -> Result<(), ProducerStoreError> {
-        let Some(slot) = self.slots.get_mut(&payload_id) else {
-            return Err(ProducerStoreError::UnknownPayload);
-        };
-        slot.restore_record(record)
     }
 
     pub(super) const fn used_bytes(&self) -> usize {

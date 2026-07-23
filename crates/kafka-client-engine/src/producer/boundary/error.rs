@@ -148,7 +148,9 @@ fn map_host_rejection(reason: ProducerRejectionReason) -> ProducerTrySendErrorKi
         | ProducerRejectionReason::Core(AdmissionRejection::ByteCapacity) => {
             ProducerTrySendErrorKind::ByteCapacity
         }
-        ProducerRejectionReason::Store(ProducerStoreError::RetainedSizeOverflow)
+        ProducerRejectionReason::Store(
+            ProducerStoreError::RetainedSizeOverflow | ProducerStoreError::HeaderCountOutOfRange,
+        )
         | ProducerRejectionReason::Core(AdmissionRejection::ByteCountOverflow) => {
             ProducerTrySendErrorKind::RecordSizeUnrepresentable
         }

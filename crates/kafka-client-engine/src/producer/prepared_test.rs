@@ -4,7 +4,7 @@ use bytes::Bytes;
 use kafka_client_core::BatchId;
 
 use super::{
-    MaterializationBatch, MaterializationRecord,
+    materialization::{MaterializationBatch, MaterializationRecord},
     prepared::{PreparedProduceError, PreparedProduceStats, PreparedProduceStore},
 };
 use crate::protocol::produce::materialize_explicit_produce_batch;

@@ -1,6 +1,6 @@
 //! Atomic coordination of record ownership and ordered batch membership.
 
-mod materialize;
+mod materialization_view;
 
 use kafka_client_core::{BatchId, ByteCount, OperationId, PartitionIndex, PayloadId, TopicId};
 

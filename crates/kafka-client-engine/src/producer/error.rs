@@ -15,6 +15,8 @@ pub(crate) enum ProducerStoreError {
     BatchCapacity,
     /// A record's retained byte size cannot be represented.
     RetainedSizeOverflow,
+    /// A record has more headers than Kafka's signed count can represent.
+    HeaderCountOutOfRange,
     /// The monotonic payload identity space is exhausted.
     PayloadIdentityExhausted,
     /// The monotonic topic identity space is exhausted.
@@ -54,6 +56,9 @@ impl fmt::Display for ProducerStoreError {
             Self::ByteCapacity => "producer retained-byte capacity is full",
             Self::BatchCapacity => "producer batch capacity is full",
             Self::RetainedSizeOverflow => "producer retained byte size overflowed",
+            Self::HeaderCountOutOfRange => {
+                "producer record header count exceeds Kafka's signed domain"
+            }
             Self::PayloadIdentityExhausted => "producer payload identity space is exhausted",
             Self::TopicIdentityExhausted => "producer topic identity space is exhausted",
             Self::UnknownTopic => "producer topic identity is stale",

@@ -35,10 +35,6 @@ pub(crate) use host::{ProducerHost, ProducerHostLimits};
 pub(crate) use host_error::{ProducerHostInvariantError, ProducerHostLimitError};
 pub(crate) use host_error::{ProducerHostStartError, ProducerRejectionReason};
 pub(crate) use host_turn::{ProducerTurnBudget, ProducerTurnOutcome};
-pub(crate) use materialization::MaterializationRecord;
-pub(crate) use materialization::{MaterializationBatch, MaterializationHeader};
-#[cfg(test)]
-pub(crate) use record::ProducerHeader;
 pub(crate) use record::ProducerRecord;
 pub(crate) use shutdown::ProducerTerminalCleanupError;
 pub(crate) use store::{ProducerStore, ProducerStoreLimits, ProducerStoreStats};
@@ -63,6 +59,8 @@ mod host_turn_test;
 #[cfg(test)]
 mod interpreter_test;
 #[cfg(test)]
+mod materialization_retention_test;
+#[cfg(test)]
 mod materialization_test;
 #[cfg(test)]
 mod prepared_test;
@@ -72,6 +70,8 @@ mod reclaim_test;
 mod reclaim_turn_test;
 #[cfg(test)]
 mod record_store_test;
+#[cfg(test)]
+mod record_test;
 #[cfg(test)]
 mod shutdown_test;
 #[cfg(test)]

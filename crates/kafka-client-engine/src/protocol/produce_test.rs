@@ -6,7 +6,7 @@ use bytes::{Bytes, BytesMut};
 use kafka_wire::{OutboundFrameLimits, PRODUCE_API_DESCRIPTOR, encode_request};
 use kafka_wire_records::RecordError;
 
-use crate::producer::{MaterializationBatch, MaterializationRecord};
+use crate::producer::materialization::{MaterializationBatch, MaterializationRecord};
 
 use super::{error::ProduceMaterializationError, produce::materialize_explicit_produce_batch};
 

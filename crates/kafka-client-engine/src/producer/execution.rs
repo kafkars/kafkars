@@ -110,7 +110,7 @@ impl PreparedExecution {
         match compression {
             CompressionPolicy::Uncompressed => {}
         }
-        let input = match store.take_materialization(batch_id, self.max_batch_bytes) {
+        let input = match store.materialization_view(batch_id, self.max_batch_bytes) {
             Ok(input) => input,
             Err(ProducerStoreError::PartitionOutOfRange) => {
                 return Ok(materialization_failed(batch_id));

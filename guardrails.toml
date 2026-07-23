@@ -209,6 +209,14 @@ production = "crates/kafka-client-engine/src/producer/materialization.rs"
 test = "crates/kafka-client-engine/src/producer/materialization_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/record.rs"
+test = "crates/kafka-client-engine/src/producer/record_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/record_access.rs"
+test = "crates/kafka-client-engine/src/producer/materialization_retention_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/pending/registry.rs"
 test = "crates/kafka-client-engine/src/producer/pending/registry_test.rs"
 
@@ -663,7 +671,7 @@ owner_type = "ProducerStore"
 field = "records"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/store.rs",
-  "crates/kafka-client-engine/src/producer/store/materialize.rs",
+  "crates/kafka-client-engine/src/producer/store/materialization_view.rs",
 ]
 
 [[mutation_owners]]
@@ -671,7 +679,7 @@ owner_type = "ProducerStore"
 field = "batches"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/store.rs",
-  "crates/kafka-client-engine/src/producer/store/materialize.rs",
+  "crates/kafka-client-engine/src/producer/store/materialization_view.rs",
 ]
 
 [[mutation_owners]]

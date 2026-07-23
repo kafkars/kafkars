@@ -1,23 +1,71 @@
 //! Bytes-native producer records retained exclusively by the engine.
 
-use std::sync::Arc;
+use std::{mem::size_of, sync::Arc};
 
 use bytes::Bytes;
 use kafka_client_core::PartitionIndex;
 
-use super::ProducerStoreError;
+use super::{
+    ProducerStoreError,
+    materialization::{MaterializationHeader, MaterializationRecord},
+};
+
+const ARC_COUNTER_BYTES: usize = 2 * size_of::<usize>();
+// One inline vector element plus the reference-counted byte-owner allocation.
+pub(super) const HEADER_CONTROL_BYTES: usize =
+    size_of::<ProducerHeader>() + size_of::<HeaderNameOwner>() + ARC_COUNTER_BYTES;
+
+#[derive(Debug)]
+struct HeaderNameOwner(Arc<str>);
+
+impl AsRef<[u8]> for HeaderNameOwner {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_bytes()
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct ValidatedHeaderName {
+    text: Arc<str>,
+    bytes: Bytes,
+}
+
+impl ValidatedHeaderName {
+    fn new(text: String) -> Self {
+        let text: Arc<str> = Arc::from(text.into_boxed_str());
+        let bytes = Bytes::from_owner(HeaderNameOwner(Arc::clone(&text)));
+        Self { text, bytes }
+    }
+
+    fn len(&self) -> usize {
+        self.bytes.len()
+    }
+
+    fn shared_bytes(&self) -> Bytes {
+        self.bytes.clone()
+    }
+
+    fn into_string(self) -> String {
+        let Self { text, bytes } = self;
+        drop(bytes);
+        text.as_ref().to_owned()
+    }
+}
 
 /// One ordered Kafka header with a non-null name and nullable value.
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct ProducerHeader {
-    name: String,
+    name: ValidatedHeaderName,
     value: Option<Bytes>,
 }
 
 impl ProducerHeader {
-    /// Captures a validated header name and its nullable bytes.
-    pub(crate) const fn new(name: String, value: Option<Bytes>) -> Self {
-        Self { name, value }
+    /// Captures a validated header name once as shared immutable bytes.
+    pub(crate) fn new(name: String, value: Option<Bytes>) -> Self {
+        Self {
+            name: ValidatedHeaderName::new(name),
+            value,
+        }
     }
 
     pub(super) fn retained_bytes(&self) -> Result<usize, ProducerStoreError> {
@@ -27,8 +75,12 @@ impl ProducerHeader {
             .ok_or(ProducerStoreError::RetainedSizeOverflow)
     }
 
+    pub(super) fn materialization_view(&self) -> MaterializationHeader {
+        MaterializationHeader::new(self.name.shared_bytes(), self.value.clone())
+    }
+
     pub(super) fn into_parts(self) -> (String, Option<Bytes>) {
-        (self.name, self.value)
+        (self.name.into_string(), self.value)
     }
 }
 
@@ -107,10 +159,14 @@ impl ProducerRecord {
             .checked_add(self.key.as_ref().map_or(0, Bytes::len))
             .and_then(|size| size.checked_add(self.value.as_ref().map_or(0, Bytes::len)))
             .ok_or(ProducerStoreError::RetainedSizeOverflow)?;
-        self.headers.iter().try_fold(fields, |size, header| {
+        let fields = self.headers.iter().try_fold(fields, |size, header| {
             size.checked_add(header.retained_bytes()?)
                 .ok_or(ProducerStoreError::RetainedSizeOverflow)
-        })
+        })?;
+        let controls = header_control_bytes(self.headers.len(), self.headers.capacity())?;
+        fields
+            .checked_add(controls)
+            .ok_or(ProducerStoreError::RetainedSizeOverflow)
     }
 
     pub(super) fn topic(&self) -> &Arc<str> {
@@ -119,6 +175,20 @@ impl ProducerRecord {
 
     pub(super) const fn partition(&self) -> PartitionIndex {
         self.partition
+    }
+
+    pub(super) fn materialization_view(&self) -> MaterializationRecord {
+        let headers = self
+            .headers
+            .iter()
+            .map(ProducerHeader::materialization_view)
+            .collect();
+        MaterializationRecord::new(
+            self.timestamp_ms,
+            self.key.clone(),
+            self.value.clone(),
+            headers,
+        )
     }
 
     pub(super) fn into_parts(
@@ -150,4 +220,14 @@ impl ProducerRecord {
             headers: self.headers,
         }
     }
+}
+
+pub(super) fn header_control_bytes(
+    count: usize,
+    capacity: usize,
+) -> Result<usize, ProducerStoreError> {
+    i32::try_from(count).map_err(|_| ProducerStoreError::HeaderCountOutOfRange)?;
+    capacity
+        .checked_mul(HEADER_CONTROL_BYTES)
+        .ok_or(ProducerStoreError::RetainedSizeOverflow)
 }

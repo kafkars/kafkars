@@ -12,7 +12,6 @@ use super::{
 pub(super) enum PayloadState {
     Reserved,
     Admitted,
-    Materialized,
 }
 
 #[derive(Debug)]

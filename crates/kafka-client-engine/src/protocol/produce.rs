@@ -1,5 +1,7 @@
 //! Timeout-free `RecordBatch` bytes and late-bound generated Produce requests.
 
+use std::sync::Arc;
+
 use bytes::Bytes;
 use kafka_wire::{
     ProduceRequest,
@@ -9,7 +11,7 @@ use kafka_wire_records::{
     Compression, Record, RecordBatch, RecordEncodeLimits, RecordHeader, TimestampType,
 };
 
-use crate::producer::{MaterializationBatch, MaterializationRecord};
+use crate::producer::materialization::{MaterializationBatch, MaterializationRecord};
 
 use super::error::ProduceMaterializationError;
 
@@ -27,7 +29,7 @@ const NO_SEQUENCE: i32 = -1;
 /// contains no deadline-derived request timeout.
 #[derive(Debug)]
 pub(crate) struct MaterializedProduce {
-    topic: String,
+    topic: Arc<str>,
     partition: i32,
     records: Bytes,
 }
@@ -48,7 +50,7 @@ impl MaterializedProduce {
         partition.records = Some(self.records);
 
         let mut topic = TopicProduceData::default();
-        topic.name = self.topic.into();
+        topic.name = self.topic.as_ref().into();
         topic.partition_data.push(partition);
 
         let mut request = ProduceRequest::default();
@@ -134,21 +136,25 @@ fn wire_record(
         ProduceMaterializationError::record_count_overflow(offset.saturating_add(1))
     })?;
 
+    let headers = headers
+        .into_iter()
+        .map(|header| {
+            let (name, value) = header.into_parts();
+            Ok(RecordHeader {
+                key: name
+                    .try_into()
+                    .map_err(ProduceMaterializationError::invalid_header_name)?,
+                value,
+            })
+        })
+        .collect::<Result<Vec<_>, ProduceMaterializationError>>()?;
+
     Ok(Record {
         attributes: 0,
         timestamp_delta,
         offset_delta,
         key,
         value,
-        headers: headers
-            .into_iter()
-            .map(|header| {
-                let (name, value) = header.into_parts();
-                RecordHeader {
-                    key: name.into(),
-                    value,
-                }
-            })
-            .collect(),
+        headers,
     })
 }

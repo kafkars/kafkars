@@ -1,21 +1,30 @@
-//! Producer-owned, wire-free transfer values for one sealed batch.
+//! Producer-owned, wire-free shared-handle views of one sealed batch.
+//!
+//! Canonical raw payload backing remains charged in the record store. Each
+//! disposable view adds only bounded `Vec` and shared-handle control metadata;
+//! encoded `RecordBatch` bytes are charged separately by prepared execution.
+
+use std::sync::Arc;
 
 use bytes::Bytes;
 
 /// One header transferred from engine retention to protocol materialization.
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct MaterializationHeader {
-    name: String,
+    name: Bytes,
     value: Option<Bytes>,
 }
 
 impl MaterializationHeader {
-    pub(crate) const fn new(name: String, value: Option<Bytes>) -> Self {
-        Self { name, value }
+    pub(crate) fn new(name: impl Into<Bytes>, value: Option<Bytes>) -> Self {
+        Self {
+            name: name.into(),
+            value,
+        }
     }
 
     /// Consumes the header into the protocol adapter's mechanical fields.
-    pub(crate) fn into_parts(self) -> (String, Option<Bytes>) {
+    pub(crate) fn into_parts(self) -> (Bytes, Option<Bytes>) {
         (self.name, self.value)
     }
 }
@@ -65,21 +74,21 @@ impl MaterializationRecord {
 /// One explicit-partition batch ready for `kafka-wire-records`.
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct MaterializationBatch {
-    topic: String,
+    topic: Arc<str>,
     partition: i32,
     records: Vec<MaterializationRecord>,
     max_batch_bytes: usize,
 }
 
 impl MaterializationBatch {
-    pub(crate) const fn new(
-        topic: String,
+    pub(crate) fn new(
+        topic: impl Into<Arc<str>>,
         partition: i32,
         records: Vec<MaterializationRecord>,
         max_batch_bytes: usize,
     ) -> Self {
         Self {
-            topic,
+            topic: topic.into(),
             partition,
             records,
             max_batch_bytes,
@@ -87,7 +96,7 @@ impl MaterializationBatch {
     }
 
     /// Consumes the batch into the existing protocol materializer's fields.
-    pub(crate) fn into_parts(self) -> (String, i32, Vec<MaterializationRecord>, usize) {
+    pub(crate) fn into_parts(self) -> (Arc<str>, i32, Vec<MaterializationRecord>, usize) {
         (
             self.topic,
             self.partition,

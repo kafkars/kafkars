@@ -5,7 +5,9 @@
 use bytes::Bytes;
 use kafka_wire_records::{Compression, RecordBatch, RecordDecodeLimits, TimestampType};
 
-use crate::producer::{MaterializationBatch, MaterializationHeader, MaterializationRecord};
+use crate::producer::materialization::{
+    MaterializationBatch, MaterializationHeader, MaterializationRecord,
+};
 
 use super::{
     error::ProduceMaterializationError,

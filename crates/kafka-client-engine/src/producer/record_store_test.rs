@@ -6,8 +6,8 @@ use bytes::Bytes;
 use kafka_client_core::{ByteCount, PartitionIndex};
 
 use super::{
-    ProducerHeader, ProducerRecord, ProducerStore, ProducerStoreError, ProducerStoreLimits,
-    ProducerStoreStats,
+    ProducerRecord, ProducerStore, ProducerStoreError, ProducerStoreLimits, ProducerStoreStats,
+    record::ProducerHeader,
 };
 
 #[test]

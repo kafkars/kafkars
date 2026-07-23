@@ -8,7 +8,7 @@ use kafka_client_core::{BatchId, OperationId, PartitionIndex};
 use crate::protocol::produce::materialize_explicit_produce_batch;
 
 use super::{
-    ProducerHeader, ProducerRecord, ProducerStore, ProducerStoreError, ProducerStoreLimits,
+    ProducerRecord, ProducerStore, ProducerStoreError, ProducerStoreLimits, record::ProducerHeader,
 };
 
 #[test]
@@ -34,11 +34,11 @@ fn ordered_records_null_empty_and_duplicate_headers_survive_transfer() {
         OperationId::from_raw(2),
     );
     let batch = store
-        .take_materialization(BatchId::from_raw(1), 1_048_576)
+        .materialization_view(BatchId::from_raw(1), 1_048_576)
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
     let (topic, partition, records, limit) = batch.into_parts();
 
-    assert_eq!(topic, "orders");
+    assert_eq!(topic.as_ref(), "orders");
     assert_eq!(partition, 7);
     assert_eq!(limit, 1_048_576);
     assert_eq!(records.len(), 2);
@@ -60,7 +60,7 @@ fn ordered_records_null_empty_and_duplicate_headers_survive_transfer() {
     assert_eq!(second_value.as_deref(), Some(&b""[..]));
     let headers = second_headers
         .into_iter()
-        .map(super::MaterializationHeader::into_parts)
+        .map(super::materialization::MaterializationHeader::into_parts)
         .collect::<Vec<_>>();
     assert_eq!(headers[0].0, "traceparent");
     assert_eq!(headers[0].1.as_deref(), Some(&b"first"[..]));
@@ -104,7 +104,7 @@ fn member_removal_preserves_sibling_admission_order() {
     );
 
     let batch = store
-        .take_materialization(BatchId::from_raw(1), 1_024)
+        .materialization_view(BatchId::from_raw(1), 1_024)
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
     let records = batch.into_parts().2;
     let values = records
@@ -140,7 +140,7 @@ fn unrepresentable_partition_fails_before_any_record_is_moved() {
     let before = store.stats();
 
     assert_eq!(
-        store.take_materialization(BatchId::from_raw(1), 1_024),
+        store.materialization_view(BatchId::from_raw(1), 1_024),
         Err(ProducerStoreError::PartitionOutOfRange)
     );
     assert_eq!(store.stats(), before);
@@ -160,7 +160,7 @@ fn encoding_failure_keeps_accounting_until_ordered_release_effects() {
         OperationId::from_raw(1),
     );
     let input = store
-        .take_materialization(BatchId::from_raw(1), 1)
+        .materialization_view(BatchId::from_raw(1), 1)
         .unwrap_or_else(|error| panic!("store transfer failed: {error}"));
 
     assert!(materialize_explicit_produce_batch(input).is_err());
