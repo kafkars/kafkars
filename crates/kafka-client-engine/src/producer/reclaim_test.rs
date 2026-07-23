@@ -11,7 +11,7 @@ use crate::completion::{
 };
 
 use super::{
-    CompletionBindings,
+    binding::CompletionBindings,
     reclaim::{CompletionReclaimError, CompletionReclaimOutcome, CompletionReclaimer},
 };
 

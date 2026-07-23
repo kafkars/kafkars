@@ -7,7 +7,7 @@ use kafka_client_core::{AdmissionRejection, ProducerMachineError};
 use crate::{clock::BatchTimerError, completion::CompletionRegistryError};
 
 use super::{
-    CompletionBindingError, ProducerStoreError, execution::PreparedExecutionError,
+    ProducerStoreError, binding::CompletionBindingError, execution::PreparedExecutionError,
     reclaim::CompletionReclaimError,
 };
 
@@ -24,6 +24,7 @@ pub(crate) enum ProducerHostLimitError {
     ZeroWireBatchBytes,
     BatchRecordLimitExceedsCapacity,
     RetainedBytesOutOfRange,
+    TerminalTailCapacityOverflow,
 }
 
 impl fmt::Display for ProducerHostLimitError {
@@ -50,6 +51,9 @@ impl fmt::Display for ProducerHostLimitError {
             }
             Self::RetainedBytesOutOfRange => {
                 "producer retained-byte capacity exceeds the core byte domain"
+            }
+            Self::TerminalTailCapacityOverflow => {
+                "producer terminal-tail capacity exceeds the host domain"
             }
         })
     }
@@ -113,6 +117,9 @@ pub(crate) enum ProducerHostInvariantError {
     CommittedFactsMismatch,
     GeneratedFactCapacity,
     PendingEffectCapacity,
+    TerminalBacklogCapacity,
+    TerminalBacklogCorrupt,
+    TerminalQuarantineCapacity,
     FlushControlUnavailable,
     #[cfg(test)]
     ForcedTerminalInterpretation,
@@ -155,6 +162,15 @@ impl fmt::Display for ProducerHostInvariantError {
             }
             Self::PendingEffectCapacity => {
                 formatter.write_str("producer pending-effect storage exceeded its fixed capacity")
+            }
+            Self::TerminalBacklogCapacity => {
+                formatter.write_str("producer terminal backlog exceeded completion-slot capacity")
+            }
+            Self::TerminalBacklogCorrupt => {
+                formatter.write_str("producer terminal backlog retained a non-terminal effect")
+            }
+            Self::TerminalQuarantineCapacity => {
+                formatter.write_str("producer terminal quarantine exceeded its committed tail")
             }
             Self::FlushControlUnavailable => formatter
                 .write_str("producer flush effects reached an engine without flush support"),

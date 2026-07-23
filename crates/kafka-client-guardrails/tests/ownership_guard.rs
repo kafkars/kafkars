@@ -20,13 +20,41 @@ fn checked_in_producer_ownership_is_narrow_and_linear() {
 #[test]
 fn mutation_fixture_is_rejected() {
     let (root, files) = fixture_files("mutation_ownership");
-    let rules = [MutationOwner {
-        owner_type: "ProducerMachine".into(),
-        field: "operations".into(),
-        allowed_paths: vec!["src/owner.rs".into()],
-    }];
+    let rules = [
+        MutationOwner {
+            owner_type: "ProducerMachine".into(),
+            field: "operations".into(),
+            allowed_paths: vec!["src/owner.rs".into()],
+        },
+        MutationOwner {
+            owner_type: "ProducerMachine".into(),
+            field: "queue".into(),
+            allowed_paths: vec!["src/owner.rs".into()],
+        },
+        MutationOwner {
+            owner_type: "ProducerMachine".into(),
+            field: "quarantine".into(),
+            allowed_paths: vec!["src/owner.rs".into()],
+        },
+        MutationOwner {
+            owner_type: "ProducerMachine".into(),
+            field: "generated".into(),
+            allowed_paths: vec!["src/owner.rs".into()],
+        },
+        MutationOwner {
+            owner_type: "ProducerMachine".into(),
+            field: "refusal".into(),
+            allowed_paths: vec!["src/owner.rs".into()],
+        },
+    ];
     let violations = mutation_violations(&root, &files, &rules);
-    assert!(violations.iter().any(|value| value.contains("intruder.rs")));
+    assert_eq!(
+        violations
+            .iter()
+            .filter(|value| value.contains("intruder.rs"))
+            .count(),
+        5
+    );
 }
 
 #[test]

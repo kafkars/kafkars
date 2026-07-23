@@ -8,8 +8,8 @@ use crate::ProducerDeliveryObserver;
 
 use super::{
     super::{
-        ProducerAdmissionFailure, ProducerHostInvariantError, ProducerRecord,
-        ProducerRejectionReason,
+        ProducerHostInvariantError, ProducerRecord, ProducerRejectionReason,
+        admission::ProducerAdmissionFailure,
     },
     ProducerShardLockError, ProducerShardWakeError,
     shard::ProducerShardState,

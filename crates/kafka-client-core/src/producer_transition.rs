@@ -8,7 +8,12 @@ impl ProducerMachine {
         &mut self,
         input: ProducerInput,
     ) -> Result<ProducerTransition, ProducerMachineError> {
-        match input {
+        let Some(transition_effect_capacity) = self.transition_effect_capacity else {
+            return Err(ProducerMachineError::Transition(
+                crate::TransitionError::InvalidState,
+            ));
+        };
+        let transition = match input {
             ProducerInput::AdmitExplicit {
                 now,
                 deadline,
@@ -57,6 +62,11 @@ impl ProducerMachine {
                 self.reclaim_completion(operation_id)?;
                 Ok(ProducerTransition::none())
             }
-        }
+        }?;
+        debug_assert!(
+            transition.effects().len() <= transition_effect_capacity,
+            "producer transition exceeded its construction-time effect bound"
+        );
+        Ok(transition)
     }
 }

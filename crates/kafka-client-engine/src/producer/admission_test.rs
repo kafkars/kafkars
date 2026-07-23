@@ -10,8 +10,9 @@ use kafka_client_core::{
 use crate::completion::CompletionRegistryError;
 
 use super::{
-    AdmittedExplicit, ProducerAdmissionFailure, ProducerHost, ProducerHostInvariantError,
-    ProducerRecord, ProducerRejectionReason, ProducerStoreError, RejectedExplicit,
+    ProducerHost, ProducerHostInvariantError, ProducerRecord, ProducerRejectionReason,
+    ProducerStoreError,
+    admission::{AdmittedExplicit, ProducerAdmissionFailure, RejectedExplicit},
     host_limits_test::{start, valid_limits},
 };
 

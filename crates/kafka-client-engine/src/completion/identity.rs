@@ -19,4 +19,9 @@ impl CompletionId {
     pub(super) const fn generation(self) -> u64 {
         self.generation
     }
+
+    #[cfg(test)]
+    pub(crate) const fn from_parts_for_test(slot: usize, generation: u64) -> Self {
+        Self { slot, generation }
+    }
 }

@@ -5,6 +5,8 @@ mod batch_timer;
 mod batch_transition;
 mod batching;
 mod execution_stop;
+#[cfg(test)]
+mod execution_stop_capacity_test;
 mod flush;
 mod flush_transition;
 mod input_batch;

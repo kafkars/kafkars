@@ -67,6 +67,9 @@ impl ProducerHost {
         now: Moment,
     ) -> Result<(), ProducerExecutionStopError> {
         self.core.close_admission();
+        if let Some(primary) = self.poison_reason() {
+            return self.publish_fallback_after(primary);
+        }
         #[cfg(test)]
         if self.take_terminal_planning_fault() {
             return self.publish_fallback_after(ProducerHostInvariantError::ForcedTerminalPlanning);
@@ -95,7 +98,7 @@ impl ProducerHost {
         &mut self,
         error: ProducerHostInvariantError,
     ) -> Result<(), ProducerExecutionStopError> {
-        self.drain_terminal_mechanisms();
+        self.drain_terminal_mechanisms_preserving_completions();
         match self.publish_execution_fallback() {
             Ok(()) => Err(ProducerExecutionStopError::Invariant(error)),
             Err(settlement) => Err(ProducerExecutionStopError::Fallback {
@@ -106,6 +109,15 @@ impl ProducerHost {
     }
 
     fn publish_execution_fallback(&mut self) -> Result<(), ProducerExecutionStopError> {
+        let backlog = self.terminal_backlog.len();
+        let retry_error = self.retry_terminal_backlog_for_recovery(backlog).err();
+        if !self.terminal_backlog.is_empty() {
+            return Err(ProducerExecutionStopError::Invariant(
+                retry_error.unwrap_or(ProducerHostInvariantError::Completion(
+                    CompletionRegistryError::NotificationBackpressure,
+                )),
+            ));
+        }
         let failure = ProducerFailure::execution_unavailable(DeliveryStatus::PossiblySent);
         let mut remaining = self.completions.unsettled_len();
         while remaining != 0 {
@@ -134,6 +146,8 @@ impl ProducerHost {
             }
             remaining = progress.remaining();
         }
+        self.bindings.clear_terminal();
+        self.clear_terminal_evidence();
         Ok(())
     }
 

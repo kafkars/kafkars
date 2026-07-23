@@ -5,9 +5,10 @@ use kafka_client_core::{ByteCount, Deadline, Moment, ProducerBatchPolicy, Produc
 use crate::{ProducerDeliveryError, ProducerDeliveryFailureKind, ProducerDeliveryStatus};
 
 use super::{
-    ProducerHostInvariantError, ProducerTurnBudget, ProducerTurnOutcome,
+    ProducerHostInvariantError,
     admission_test::{admit, record},
     host_limits_test::{start, valid_limits},
+    host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
 };
 
 #[test]

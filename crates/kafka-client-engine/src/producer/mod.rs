@@ -6,11 +6,11 @@ mod boundary;
 mod effect;
 pub(crate) mod error;
 pub(crate) mod execution;
-mod execution_stop;
+pub(crate) mod execution_stop;
 mod execution_turn;
 mod host;
 mod host_error;
-mod host_turn;
+pub(crate) mod host_turn;
 pub(crate) mod ingress;
 mod interpreter;
 pub(crate) mod materialization;
@@ -21,22 +21,18 @@ mod reclaim_turn;
 pub(crate) mod record;
 mod record_access;
 mod record_store;
-mod shutdown;
+pub(crate) mod shutdown;
 pub(crate) mod store;
 mod submission_deadline;
+mod terminal_backlog;
+mod terminal_publication;
 mod topic_catalog;
-#[cfg_attr(not(test), expect(unused_imports, reason = "facade bridge follows"))]
-pub(crate) use admission::{AdmittedExplicit, ProducerAdmissionFailure, RejectedExplicit};
-pub(crate) use binding::{CompletionBindingError, CompletionBindings};
 pub use boundary::*;
 pub(crate) use error::{ProducerAdmissionError, ProducerStoreError};
-pub(crate) use execution_stop::ProducerExecutionStopError;
 pub(crate) use host::{ProducerHost, ProducerHostLimits};
 pub(crate) use host_error::{ProducerHostInvariantError, ProducerHostLimitError};
 pub(crate) use host_error::{ProducerHostStartError, ProducerRejectionReason};
-pub(crate) use host_turn::{ProducerTurnBudget, ProducerTurnOutcome};
 pub(crate) use record::ProducerRecord;
-pub(crate) use shutdown::ProducerTerminalCleanupError;
 pub(crate) use store::{ProducerStore, ProducerStoreLimits, ProducerStoreStats};
 #[cfg(test)]
 mod admission_test;
@@ -76,5 +72,9 @@ mod record_test;
 mod shutdown_test;
 #[cfg(test)]
 mod submission_deadline_test;
+#[cfg(test)]
+mod terminal_backlog_test;
+#[cfg(test)]
+mod terminal_publication_test;
 #[cfg(test)]
 mod topic_catalog_test;

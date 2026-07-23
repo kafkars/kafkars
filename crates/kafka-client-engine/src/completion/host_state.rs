@@ -47,6 +47,13 @@ impl<T> HostSlot<T> {
         matches!(self.phase, HostPhase::Reserved { .. })
     }
 
+    pub(super) fn is_published_or_reclaiming(&self) -> bool {
+        matches!(
+            self.phase,
+            HostPhase::Published { .. } | HostPhase::ReclaimReady { .. }
+        )
+    }
+
     pub(super) fn publish_error(&self, id: CompletionId) -> CompletionRegistryError {
         match self.phase {
             HostPhase::Reserved { id: current }

@@ -8,8 +8,8 @@ use crate::{
     config::EngineConfigError,
     driver::DriverOwnerError,
     producer::{
-        ProducerExecutionStopError, ProducerHostInvariantError, ProducerHostStartError,
-        ProducerTerminalCleanupError,
+        ProducerHostInvariantError, ProducerHostStartError,
+        execution_stop::ProducerExecutionStopError, shutdown::ProducerTerminalCleanupError,
     },
 };
 

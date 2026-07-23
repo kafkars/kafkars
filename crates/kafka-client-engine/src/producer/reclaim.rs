@@ -6,7 +6,7 @@ use kafka_client_core::{OperationId, ProducerCompletion, ProducerInput};
 
 use crate::completion::{CompletionId, CompletionRegistry, CompletionRegistryError, ReclaimStatus};
 
-use super::{CompletionBindingError, CompletionBindings};
+use super::binding::{CompletionBindingError, CompletionBindings};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ReclaimPhase {

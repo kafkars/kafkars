@@ -96,7 +96,7 @@ evidence = [
   "crates/kafka-client-core/src/producer/execution_stop_test.rs::execution_loss_settles_every_batch_stage_in_release_before_complete_order",
   "crates/kafka-client-core/src/producer/execution_stop_test.rs::empty_execution_loss_is_idempotent_and_closes_admission",
   "crates/kafka-client-core/src/producer/execution_stop_test.rs::execution_loss_does_not_repeat_an_unreclaimed_terminal",
-  "crates/kafka-client-core/src/producer/execution_stop_test.rs::execution_loss_effect_count_is_bounded_by_completion_capacity",
+  "crates/kafka-client-core/src/producer/execution_stop_capacity_test.rs::execution_loss_uses_the_combined_record_and_flush_bound",
 ]
 
 [[invariant]]

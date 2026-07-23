@@ -5,6 +5,47 @@ use crate::{
     OperationId, PartitionIndex, PayloadId, ProducerCompletion, TopicId,
 };
 
+/// Maximum execution-stop mechanism effects emitted per live record.
+pub const EXECUTION_STOP_EFFECTS_PER_RECORD: usize = 4;
+
+/// Maximum execution-stop terminal effects emitted per retained flush.
+pub const EXECUTION_STOP_EFFECTS_PER_FLUSH: usize = 1;
+
+/// Computes the combined record-plus-flush execution-stop transition bound.
+pub const fn execution_stop_effect_capacity(
+    record_capacity: usize,
+    flush_capacity: usize,
+) -> Option<usize> {
+    let Some(record_effects) = record_capacity.checked_mul(EXECUTION_STOP_EFFECTS_PER_RECORD)
+    else {
+        return None;
+    };
+    let Some(flush_effects) = flush_capacity.checked_mul(EXECUTION_STOP_EFFECTS_PER_FLUSH) else {
+        return None;
+    };
+    record_effects.checked_add(flush_effects)
+}
+
+/// Computes the maximum effects emitted by any one public producer transition.
+///
+/// Execution stop owns the general `4R + F` fan-out. An immediately settled
+/// flush emits both acceptance and completion even when `R` is zero.
+pub const fn producer_transition_effect_capacity(
+    record_capacity: usize,
+    flush_capacity: usize,
+) -> Option<usize> {
+    let Some(execution_stop) = execution_stop_effect_capacity(record_capacity, flush_capacity)
+    else {
+        return None;
+    };
+    let immediate_flush = if flush_capacity == 0 { 0 } else { 2 };
+    Some(if execution_stop > immediate_flush {
+        execution_stop
+    } else {
+        immediate_flush
+    })
+}
+
 /// Fixed acknowledgment policy for the first producer vertical slice.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AcknowledgementPolicy {

@@ -5,13 +5,16 @@ use kafka_client_core::{ByteCount, ProducerBatchPolicy, ProducerEffect, Producer
 use crate::{clock::BatchTimers, completion::CompletionRegistry};
 
 use super::{
-    CompletionBindings, ProducerHostInvariantError, ProducerHostLimitError, ProducerHostStartError,
-    ProducerStore, ProducerStoreLimits, ProducerStoreStats,
+    ProducerHostInvariantError, ProducerHostLimitError, ProducerHostStartError, ProducerStore,
+    ProducerStoreLimits, ProducerStoreStats,
+    binding::CompletionBindings,
     execution::{PreparedExecution, PreparedExecutionLimits},
     reclaim::CompletionReclaimer,
+    terminal_backlog::{
+        FatalTransitionBuffer, OrderedTerminalBacklog, TerminalPoisonSlot, TerminalQuarantine,
+        TerminalRefusalOwner,
+    },
 };
-
-/// Capacity values shared by core policy and every bounded engine owner.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ProducerHostLimits {
     pub(crate) retained_bytes: usize,
@@ -59,8 +62,6 @@ impl ProducerHostLimits {
         Ok(ByteCount::new(bytes))
     }
 }
-
-/// Current agreement between deterministic accounting and engine resources.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ProducerHostStats {
     pub(crate) store: ProducerStoreStats,
@@ -72,6 +73,7 @@ pub(crate) struct ProducerHostStats {
     pub(crate) submission_deadlines: usize,
     pub(crate) completion_bindings: usize,
     pub(crate) pending_effects: usize,
+    pub(crate) terminal_backlog: usize,
     pub(crate) healthy: bool,
 }
 
@@ -98,7 +100,6 @@ impl ProducerCoreConfig {
     }
 }
 
-/// Single engine owner of atomic producer admission and effect execution.
 #[derive(Debug)]
 pub(crate) struct ProducerHost {
     pub(super) core: ProducerMachine,
@@ -110,8 +111,18 @@ pub(crate) struct ProducerHost {
     pub(super) timers: BatchTimers,
     pub(super) execution: PreparedExecution,
     pub(super) pending_effects: Vec<ProducerEffect>,
+    pub(super) terminal_backlog: OrderedTerminalBacklog,
+    pub(super) terminal_poison: TerminalPoisonSlot,
+    pub(super) terminal_quarantine: TerminalQuarantine,
+    pub(super) terminal_refusals: TerminalRefusalOwner,
+    pub(super) fatal_transition: FatalTransitionBuffer,
     pub(super) effect_capacity: usize,
     pub(super) health: ProducerHostHealth,
+    #[cfg(test)]
+    pub(super) terminal_publish_faults:
+        std::collections::VecDeque<crate::completion::CompletionRegistryError>,
+    #[cfg(test)]
+    pub(super) terminal_publish_attempts: usize,
     #[cfg(test)]
     post_acceptance_fault: Option<ProducerHostInvariantError>,
     #[cfg(test)]
@@ -121,9 +132,11 @@ pub(crate) struct ProducerHost {
 }
 
 impl ProducerHost {
-    /// Builds all bounded owners from one validated capacity contract.
     pub(crate) fn new(limits: ProducerHostLimits) -> Result<Self, ProducerHostStartError> {
         let retained_bytes = limits.validate()?;
+        let terminal_quarantine =
+            TerminalQuarantine::for_capacities(limits.record_capacity, limits.completion_capacity)?;
+        let transition_capacity = terminal_quarantine.transition_effect_capacity();
         let completions =
             CompletionRegistry::new(limits.completion_capacity, limits.notification_capacity)
                 .map_err(ProducerHostStartError::Notifier)?;
@@ -132,8 +145,12 @@ impl ProducerHost {
             completion_capacity: limits.completion_capacity,
             batch_policy: limits.batch_policy,
         };
+        let core = core_config.machine();
+        if core.transition_effect_capacity() != Some(transition_capacity) {
+            return Err(ProducerHostLimitError::TerminalTailCapacityOverflow.into());
+        }
         Ok(Self {
-            core: core_config.machine(),
+            core,
             core_config,
             store: ProducerStore::new(ProducerStoreLimits {
                 records: limits.record_capacity,
@@ -152,8 +169,17 @@ impl ProducerHost {
                 },
             ),
             pending_effects: Vec::with_capacity(limits.completion_capacity),
+            terminal_backlog: OrderedTerminalBacklog::new(limits.completion_capacity),
+            terminal_poison: TerminalPoisonSlot::empty(),
+            terminal_quarantine,
+            terminal_refusals: TerminalRefusalOwner::empty(),
+            fatal_transition: FatalTransitionBuffer::new(transition_capacity),
             effect_capacity: limits.completion_capacity,
             health: ProducerHostHealth::Healthy,
+            #[cfg(test)]
+            terminal_publish_faults: std::collections::VecDeque::new(),
+            #[cfg(test)]
+            terminal_publish_attempts: 0,
             #[cfg(test)]
             post_acceptance_fault: None,
             #[cfg(test)]
@@ -163,7 +189,6 @@ impl ProducerHost {
         })
     }
 
-    /// Returns bounded state without exposing lifecycle owners.
     pub(crate) fn stats(&self) -> ProducerHostStats {
         let prepared = self.execution.prepared_stats();
         ProducerHostStats {
@@ -176,15 +201,13 @@ impl ProducerHost {
             submission_deadlines: self.execution.submission_count(),
             completion_bindings: self.bindings.len(),
             pending_effects: self.pending_effects.len(),
+            terminal_backlog: self.terminal_backlog.len(),
             healthy: self.health == ProducerHostHealth::Healthy,
         }
     }
-
-    /// Returns mechanism work deliberately retained for a later vertical slice.
     pub(crate) fn pending_effects(&self) -> &[ProducerEffect] {
         &self.pending_effects
     }
-
     pub(super) const fn poison_reason(&self) -> Option<ProducerHostInvariantError> {
         match self.health {
             ProducerHostHealth::Healthy => None,
@@ -196,8 +219,13 @@ impl ProducerHost {
         &mut self,
         error: ProducerHostInvariantError,
     ) -> ProducerHostInvariantError {
-        self.health = ProducerHostHealth::Poisoned(error);
-        error
+        match self.health {
+            ProducerHostHealth::Healthy => {
+                self.health = ProducerHostHealth::Poisoned(error);
+                error
+            }
+            ProducerHostHealth::Poisoned(first) => first,
+        }
     }
 
     #[cfg(test)]
@@ -208,23 +236,5 @@ impl ProducerHost {
     #[cfg(test)]
     pub(super) fn take_post_acceptance_fault(&mut self) -> Option<ProducerHostInvariantError> {
         self.post_acceptance_fault.take()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn terminal_resources_empty(&self) -> bool {
-        let stats = self.stats();
-        stats.store.records == 0
-            && stats.store.bytes == 0
-            && stats.store.batches == 0
-            && stats.store.topics == 0
-            && stats.active_timers == 0
-            && stats.prepared_batches == 0
-            && stats.prepared_bytes == 0
-            && stats.submission_deadlines == 0
-            && stats.completion_bindings == 0
-            && stats.pending_effects == 0
-            && stats.core_retained_bytes == ByteCount::new(0)
-            && stats.core_completion_slots == 0
-            && self.unsettled_completions() == 0
     }
 }

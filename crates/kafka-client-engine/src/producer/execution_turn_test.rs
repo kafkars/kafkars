@@ -11,7 +11,8 @@ use kafka_client_core::{
 use crate::{ProducerDeliveryError, ProducerDeliveryFailureKind, ProducerDeliveryStatus};
 
 use super::{
-    AdmittedExplicit, ProducerHostInvariantError, ProducerRecord,
+    ProducerHostInvariantError, ProducerRecord,
+    admission::AdmittedExplicit,
     admission_test::{admit, record},
     execution::PreparedExecutionError,
     host_limits_test::{start, valid_limits},

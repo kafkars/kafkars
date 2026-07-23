@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::{
     AdmissionRejection, BatchId, ByteBudget, ByteCount, CapacityError, CompletionLedger,
     CompletionLedgerError, Deadline, ExplicitRecord, Moment, OperationId, ProducerBatchPolicy,
-    ProducerOperation,
+    ProducerOperation, producer_transition_effect_capacity,
 };
 
 use super::{BatchRoute, FlushLedger, ProducerBatch};
@@ -20,6 +20,7 @@ pub struct ProducerMachine {
     pub(crate) byte_budget: ByteBudget,
     pub(crate) completions: CompletionLedger,
     pub(crate) flushes: FlushLedger,
+    pub(crate) transition_effect_capacity: Option<usize>,
     pub(crate) operations: BTreeMap<OperationId, ProducerOperation>,
     pub(crate) records: BTreeMap<OperationId, ExplicitRecord>,
     pub(crate) open_batches: BTreeMap<BatchRoute, BatchId>,
@@ -66,6 +67,10 @@ impl ProducerMachine {
             byte_budget: ByteBudget::new(retained_bytes),
             completions: CompletionLedger::new(completion_capacity),
             flushes: FlushLedger::new(flush_capacity),
+            transition_effect_capacity: producer_transition_effect_capacity(
+                completion_capacity,
+                flush_capacity,
+            ),
             operations: BTreeMap::new(),
             records: BTreeMap::new(),
             open_batches: BTreeMap::new(),
@@ -86,6 +91,11 @@ impl ProducerMachine {
     /// Returns retained flush slots, including terminal results not reclaimed.
     pub fn flush_slots(&self) -> usize {
         self.flushes.len()
+    }
+
+    /// Returns the checked maximum effects emitted by one public transition.
+    pub const fn transition_effect_capacity(&self) -> Option<usize> {
+        self.transition_effect_capacity
     }
 
     /// Returns whether new producer work may be admitted.

@@ -4,7 +4,7 @@ use kafka_client_core::OperationId;
 
 use crate::completion::{CompletionId, CompletionObserver, CompletionRegistry};
 
-use super::{CompletionBindingError, CompletionBindings};
+use super::binding::{CompletionBindingError, CompletionBindings};
 
 struct ReservedCompletion {
     id: CompletionId,

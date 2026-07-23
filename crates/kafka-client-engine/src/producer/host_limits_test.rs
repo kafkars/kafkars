@@ -1,8 +1,14 @@
 //! Capacity synchronization scenarios for producer host construction.
 
-use kafka_client_core::{ByteCount, ProducerBatchPolicy};
+use kafka_client_core::{
+    ByteCount, Deadline, Moment, ProducerBatchPolicy, ProducerInput,
+    execution_stop_effect_capacity, producer_transition_effect_capacity,
+};
 
-use super::{ProducerHost, ProducerHostLimitError, ProducerHostLimits, ProducerHostStartError};
+use super::{
+    ProducerHost, ProducerHostLimitError, ProducerHostLimits, ProducerHostStartError,
+    admission_test::{admit, record},
+};
 
 #[test]
 fn valid_limits_construct_one_synchronized_host() {
@@ -81,6 +87,71 @@ fn encoded_and_wire_byte_limits_must_be_nonzero() {
     let mut wire = valid_limits();
     wire.max_wire_batch_bytes = 0;
     assert_limit(wire, ProducerHostLimitError::ZeroWireBatchBytes);
+}
+
+#[test]
+fn configured_terminal_tail_covers_the_maximal_core_stop_shape() {
+    let limits = valid_limits();
+    let mut host = start(limits);
+    let first = admit(
+        &mut host,
+        Moment::from_tick(0),
+        Deadline::from_tick(100),
+        record("orders"),
+    );
+    let second = admit(
+        &mut host,
+        Moment::from_tick(0),
+        Deadline::from_tick(100),
+        record("payments"),
+    );
+    for _flush in 0..limits.completion_capacity {
+        let accepted = host
+            .core
+            .apply(ProducerInput::FlushRequested)
+            .unwrap_or_else(|error| panic!("flush reservation should succeed: {error}"));
+        assert_eq!(accepted.effects().len(), 1);
+    }
+
+    let transition = host
+        .core
+        .apply(ProducerInput::ExecutionUnavailable)
+        .unwrap_or_else(|error| panic!("maximal terminal plan should succeed: {error}"));
+    let transition_capacity =
+        producer_transition_effect_capacity(limits.record_capacity, limits.completion_capacity)
+            .unwrap_or_else(|| panic!("validated host capacity must be representable"));
+    assert_eq!(
+        transition.effects().len(),
+        execution_stop_effect_capacity(limits.record_capacity, limits.completion_capacity)
+            .unwrap_or_else(|| panic!("validated host capacity must be representable"))
+    );
+    assert_eq!(host.fatal_transition.capacity(), transition_capacity);
+    assert_eq!(
+        host.terminal_quarantine.transition_effect_capacity(),
+        transition_capacity
+    );
+    assert!(transition.effects().len() <= transition_capacity);
+    drop((first, second));
+}
+
+#[test]
+fn combined_transition_capacity_overflow_is_rejected_before_allocation() {
+    let mut limits = valid_limits();
+    limits.completion_capacity = usize::MAX;
+    limits.record_capacity = usize::MAX;
+    limits.batch_capacity = usize::MAX;
+    limits.timer_capacity = usize::MAX;
+    limits.notification_capacity = usize::MAX;
+
+    assert_eq!(
+        execution_stop_effect_capacity(limits.record_capacity, limits.completion_capacity),
+        None
+    );
+    assert_eq!(
+        producer_transition_effect_capacity(limits.record_capacity, limits.completion_capacity),
+        None
+    );
+    assert_limit(limits, ProducerHostLimitError::TerminalTailCapacityOverflow);
 }
 
 pub(super) fn valid_limits() -> ProducerHostLimits {

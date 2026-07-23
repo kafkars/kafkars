@@ -13,13 +13,20 @@ use std::{
 };
 
 use bytes::Bytes;
-use kafka_client_core::{Deadline, Moment, PartitionIndex};
+use kafka_client_core::{
+    Deadline, DeliveryStatus, Moment, OperationId, PartitionIndex, ProducerCompletion,
+    ProducerEffect, ProducerFailure,
+};
 
 use crate::{
     ProducerDeliveryError, ProducerDeliveryFailureKind, ProducerDeliveryStatus,
+    completion::CompletionRegistryError,
     producer::{
+        ProducerHostInvariantError,
         admission_test::{admit, record},
+        binding::CompletionBindingError,
         host_limits_test::{start, valid_limits},
+        terminal_backlog::RejectedTerminal,
     },
 };
 
@@ -156,6 +163,72 @@ fn fallback_failure_retains_primary_and_settlement_diagnostics() {
         .unwrap_or_else(|| panic!("test must retain notifier ownership"))
         .join_off_notifier()
         .unwrap_or_else(|error| panic!("notifier should join: {error}"));
+}
+
+#[test]
+fn poisoned_recovery_retries_exact_fifo_then_settles_distinct_reserved_slots() {
+    let mut host = start(valid_limits());
+    let first = admit(
+        &mut host,
+        Moment::from_tick(0),
+        Deadline::from_tick(5),
+        record("orders"),
+    );
+    let second = admit(
+        &mut host,
+        Moment::from_tick(0),
+        Deadline::from_tick(100),
+        record("payments"),
+    );
+    host.inject_terminal_publish_fault(CompletionRegistryError::NotificationBackpressure);
+    assert_eq!(host.fire_due(Moment::from_tick(5), 1), Ok(1));
+    let unknown = OperationId::from_raw(99);
+    let fallback = ProducerCompletion::Failed(ProducerFailure::execution_unavailable(
+        DeliveryStatus::NotSent,
+    ));
+    assert_eq!(
+        host.interpret_effect_owned(
+            Moment::from_tick(6),
+            ProducerEffect::Complete {
+                operation_id: unknown,
+                completion: fallback,
+            },
+        )
+        .map_err(|failure| failure.error()),
+        Err(ProducerHostInvariantError::Binding(
+            CompletionBindingError::UnknownOperation
+        ))
+    );
+    assert_eq!(
+        host.terminal_poison().map(RejectedTerminal::operation_id),
+        Some(unknown)
+    );
+
+    let error = host
+        .execution_unavailable(Moment::from_tick(6))
+        .err()
+        .unwrap_or_else(|| panic!("the first poison must remain reported"));
+    assert!(error.to_string().contains("owns no completion binding"));
+    assert_eq!(host.stats().terminal_backlog, 0);
+    assert!(host.terminal_resources_empty());
+    assert_eq!(
+        host.poison_reason(),
+        Some(ProducerHostInvariantError::Binding(
+            CompletionBindingError::UnknownOperation
+        ))
+    );
+    let Err(ProducerDeliveryError::Failed(deadline)) = first.into_delivery_observer().wait() else {
+        panic!("exact backlogged deadline terminal must publish first")
+    };
+    assert_eq!(
+        deadline.kind(),
+        ProducerDeliveryFailureKind::DeadlineElapsed
+    );
+    assert_eq!(deadline.delivery_status(), ProducerDeliveryStatus::NotSent);
+    assert_failure(
+        second.into_delivery_observer().wait(),
+        ProducerDeliveryStatus::PossiblySent,
+    );
 }
 
 fn assert_failure(

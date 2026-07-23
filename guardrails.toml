@@ -253,6 +253,34 @@ production = "crates/kafka-client-engine/src/producer/submission_deadline.rs"
 test = "crates/kafka-client-engine/src/producer/submission_deadline_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/terminal_backlog.rs"
+test = "crates/kafka-client-engine/src/producer/terminal_backlog_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/terminal_backlog/fatal_buffer.rs"
+test = "crates/kafka-client-engine/src/producer/terminal_backlog/fatal_buffer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/terminal_backlog/quarantine.rs"
+test = "crates/kafka-client-engine/src/producer/terminal_backlog/quarantine_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/terminal_backlog/quarantine/poison.rs"
+test = "crates/kafka-client-engine/src/producer/terminal_backlog/quarantine/poison_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/terminal_backlog/quarantine/refusal.rs"
+test = "crates/kafka-client-engine/src/producer/terminal_backlog/quarantine/refusal_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/terminal_publication.rs"
+test = "crates/kafka-client-engine/src/producer/terminal_publication_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/terminal_publication/validation.rs"
+test = "crates/kafka-client-engine/src/producer/terminal_publication/validation_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/topic_catalog.rs"
 test = "crates/kafka-client-engine/src/producer/topic_catalog_test.rs"
 
@@ -793,6 +821,56 @@ field = "schedule"
 allowed_paths = ["crates/kafka-client-engine/src/producer/submission_deadline.rs"]
 
 [[mutation_owners]]
+owner_type = "OrderedTerminalBacklog"
+field = "entries"
+allowed_paths = ["crates/kafka-client-engine/src/producer/terminal_backlog.rs"]
+
+[[mutation_owners]]
+owner_type = "TerminalPoisonSlot"
+field = "retained"
+allowed_paths = ["crates/kafka-client-engine/src/producer/terminal_backlog/quarantine/poison.rs"]
+
+[[mutation_owners]]
+owner_type = "TerminalQuarantine"
+field = "terminals"
+allowed_paths = ["crates/kafka-client-engine/src/producer/terminal_backlog/quarantine.rs"]
+
+[[mutation_owners]]
+owner_type = "TerminalQuarantine"
+field = "committed_tail"
+allowed_paths = ["crates/kafka-client-engine/src/producer/terminal_backlog/quarantine.rs"]
+
+[[mutation_owners]]
+owner_type = "TerminalQuarantine"
+field = "generated"
+allowed_paths = ["crates/kafka-client-engine/src/producer/terminal_backlog/quarantine.rs"]
+
+[[mutation_owners]]
+owner_type = "TerminalRefusalOwner"
+field = "tail"
+allowed_paths = ["crates/kafka-client-engine/src/producer/terminal_backlog/quarantine/refusal.rs"]
+
+[[mutation_owners]]
+owner_type = "TerminalRefusalOwner"
+field = "generated"
+allowed_paths = ["crates/kafka-client-engine/src/producer/terminal_backlog/quarantine/refusal.rs"]
+
+[[mutation_owners]]
+owner_type = "TerminalRefusalOwner"
+field = "terminal"
+allowed_paths = ["crates/kafka-client-engine/src/producer/terminal_backlog/quarantine/refusal.rs"]
+
+[[mutation_owners]]
+owner_type = "FatalTransitionBuffer"
+field = "effects"
+allowed_paths = ["crates/kafka-client-engine/src/producer/terminal_backlog/fatal_buffer.rs"]
+
+[[mutation_owners]]
+owner_type = "FatalTransitionBuffer"
+field = "generated"
+allowed_paths = ["crates/kafka-client-engine/src/producer/terminal_backlog/fatal_buffer.rs"]
+
+[[mutation_owners]]
 owner_type = "PendingAdmissionRegistry"
 field = "used_bytes"
 allowed_paths = [
@@ -872,6 +950,8 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/execution_stop.rs",
   "crates/kafka-client-engine/src/producer/reclaim_turn.rs",
   "crates/kafka-client-engine/src/producer/shutdown.rs",
+  "crates/kafka-client-engine/src/producer/terminal_publication.rs",
+  "crates/kafka-client-engine/src/producer/terminal_publication/validation.rs",
 ]
 
 [[mutation_owners]]
@@ -908,15 +988,69 @@ field = "bindings"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/admission.rs",
   "crates/kafka-client-engine/src/producer/effect.rs",
+  "crates/kafka-client-engine/src/producer/execution_stop.rs",
   "crates/kafka-client-engine/src/producer/host.rs",
   "crates/kafka-client-engine/src/producer/reclaim_turn.rs",
   "crates/kafka-client-engine/src/producer/shutdown.rs",
+  "crates/kafka-client-engine/src/producer/terminal_publication.rs",
+  "crates/kafka-client-engine/src/producer/terminal_publication/validation.rs",
 ]
 
 [[mutation_owners]]
 owner_type = "ProducerHost"
 field = "health"
 allowed_paths = ["crates/kafka-client-engine/src/producer/host.rs"]
+
+[[mutation_owners]]
+owner_type = "ProducerHost"
+field = "terminal_backlog"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/execution_stop.rs",
+  "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/host_turn.rs",
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
+  "crates/kafka-client-engine/src/producer/terminal_publication.rs",
+  "crates/kafka-client-engine/src/producer/terminal_publication/validation.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerHost"
+field = "terminal_poison"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
+  "crates/kafka-client-engine/src/producer/terminal_publication.rs",
+  "crates/kafka-client-engine/src/producer/terminal_publication/validation.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerHost"
+field = "terminal_quarantine"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/interpreter.rs",
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
+  "crates/kafka-client-engine/src/producer/terminal_publication/validation.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerHost"
+field = "terminal_refusals"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/interpreter.rs",
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
+  "crates/kafka-client-engine/src/producer/terminal_publication/validation.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerHost"
+field = "fatal_transition"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/interpreter.rs",
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
+]
 
 [[mutation_owners]]
 owner_type = "ProducerShardState"
@@ -1091,6 +1225,46 @@ path = "crates/kafka-client-engine/src/producer/prepared.rs"
 [[linear_owners]]
 owner_type = "SubmissionDeadlines"
 path = "crates/kafka-client-engine/src/producer/submission_deadline.rs"
+
+[[linear_owners]]
+owner_type = "RetainedTerminal"
+path = "crates/kafka-client-engine/src/producer/terminal_backlog.rs"
+
+[[linear_owners]]
+owner_type = "OrderedTerminalBacklog"
+path = "crates/kafka-client-engine/src/producer/terminal_backlog.rs"
+
+[[linear_owners]]
+owner_type = "TerminalPoisonSlot"
+path = "crates/kafka-client-engine/src/producer/terminal_backlog/quarantine/poison.rs"
+
+[[linear_owners]]
+owner_type = "RejectedTerminal"
+path = "crates/kafka-client-engine/src/producer/terminal_backlog/quarantine/poison.rs"
+
+[[linear_owners]]
+owner_type = "TerminalQuarantine"
+path = "crates/kafka-client-engine/src/producer/terminal_backlog/quarantine.rs"
+
+[[linear_owners]]
+owner_type = "PoisonRetentionFailure"
+path = "crates/kafka-client-engine/src/producer/terminal_backlog/quarantine/poison.rs"
+
+[[linear_owners]]
+owner_type = "TailQuarantineFailure"
+path = "crates/kafka-client-engine/src/producer/terminal_backlog/quarantine/refusal.rs"
+
+[[linear_owners]]
+owner_type = "GeneratedQuarantineFailure"
+path = "crates/kafka-client-engine/src/producer/terminal_backlog/quarantine/refusal.rs"
+
+[[linear_owners]]
+owner_type = "TerminalRefusalOwner"
+path = "crates/kafka-client-engine/src/producer/terminal_backlog/quarantine/refusal.rs"
+
+[[linear_owners]]
+owner_type = "FatalTransitionBuffer"
+path = "crates/kafka-client-engine/src/producer/terminal_backlog/fatal_buffer.rs"
 
 [[linear_owners]]
 owner_type = "ProducerHost"

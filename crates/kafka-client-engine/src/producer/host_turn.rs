@@ -71,7 +71,7 @@ impl ProducerHost {
         let batch_timers = self.fire_due(now, budget.batch_timers)?;
         let prepared_effects = self.drive_prepared(now, budget.prepared_effects)?;
         let submission_expiries = self.fire_due_submissions(now, budget.submission_expiries)?;
-        let completion_retries = self.retry_pending_completions(budget.completion_retries)?;
+        let completion_retries = self.retry_terminal_backlog(budget.completion_retries)?;
         let reclaim = self.reclaim_many(now, budget.reclaim_attempts)?;
         let next_deadline = min_deadline(self.next_deadline(), pending_submission_deadline(self));
         let due_remains = next_deadline.is_some_and(|deadline| deadline.is_elapsed_at(now));
@@ -80,10 +80,7 @@ impl ProducerHost {
             .iter()
             .copied()
             .any(is_runnable_effect);
-        let completion_blocked = self
-            .pending_effects()
-            .iter()
-            .any(|effect| matches!(effect, ProducerEffect::Complete { .. }));
+        let completion_blocked = !self.terminal_backlog.is_empty();
         let runnable_work = due_remains
             || prepared_remains
             || (reclaim.attempts == budget.reclaim_attempts && !reclaim.blocked);

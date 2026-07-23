@@ -5,7 +5,7 @@ use kafka_client_core::{Deadline, Moment};
 use crate::{
     ProducerDeliveryError,
     completion::{CompletionRegistryError, test_support::hold_cell_lock},
-    producer::ProducerAdmissionFailure,
+    producer::admission::ProducerAdmissionFailure,
 };
 
 use super::{

@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use kafka_client_core::{ByteCount, ProducerBatchPolicy};
 
-use crate::producer::{ProducerHostLimitError, ProducerHostLimits, ProducerTurnBudget};
+use crate::producer::{ProducerHostLimitError, ProducerHostLimits, host_turn::ProducerTurnBudget};
 
 const DEFAULT_DELIVERY_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_RETAINED_BYTES: usize = 32 * 1024 * 1024;

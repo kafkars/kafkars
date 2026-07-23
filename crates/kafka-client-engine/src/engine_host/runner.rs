@@ -9,7 +9,7 @@ use crate::{
     completion::NotifierJoin,
     driver::{DriverOwner, DriverTurn},
     producer::{
-        ProducerTurnBudget, ProducerTurnOutcome,
+        host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
         ingress::{ProducerShardLockError, ProducerShardOwner},
     },
 };

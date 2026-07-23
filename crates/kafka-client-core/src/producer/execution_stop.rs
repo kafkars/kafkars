@@ -3,8 +3,9 @@
 use std::collections::BTreeSet;
 
 use crate::{
-    DeliveryStatus, OperationId, ProducerCompletion, ProducerEffect, ProducerFailure,
-    ProducerMachineError, ProducerOperationState, ProducerTransition, TransitionError,
+    DeliveryStatus, EXECUTION_STOP_EFFECTS_PER_RECORD, OperationId, ProducerCompletion,
+    ProducerEffect, ProducerFailure, ProducerMachineError, ProducerOperationState,
+    ProducerTransition, TransitionError, execution_stop_effect_capacity,
 };
 
 use super::{BatchState, ProducerMachine, lifecycle::Settlement};
@@ -13,6 +14,8 @@ use super::{BatchState, ProducerMachine, lifecycle::Settlement};
 struct ExecutionStopPlan {
     settlements: Vec<(OperationId, Settlement)>,
     effects: Vec<ProducerEffect>,
+    flush_effect_count: usize,
+    final_effect_count: usize,
 }
 
 impl ProducerMachine {
@@ -22,7 +25,9 @@ impl ProducerMachine {
         let mut plan = self.plan_execution_unavailable()?;
         self.settle_operations_with(&plan.settlements)?;
         let flush_effects = self.settle_ready_flushes();
+        debug_assert_eq!(flush_effects.len(), plan.flush_effect_count);
         plan.effects.extend(flush_effects);
+        debug_assert_eq!(plan.effects.len(), plan.final_effect_count);
         self.admission_open = false;
         self.open_batches.clear();
         self.batches.clear();
@@ -38,10 +43,15 @@ impl ProducerMachine {
         if active_count > self.completion_slots() || self.batches.len() > active_count {
             return Err(invalid_state());
         }
-        let max_effects = active_count.checked_mul(4).ok_or_else(invalid_state)?;
+        let record_effect_capacity = active_count
+            .checked_mul(EXECUTION_STOP_EFFECTS_PER_RECORD)
+            .ok_or_else(invalid_state)?;
+        let effect_capacity = execution_stop_effect_capacity(active_count, self.flushes.len())
+            .ok_or_else(invalid_state)?;
+        let flush_effect_count = self.flushes.pending_len();
         let mut settlements = Vec::with_capacity(active_count);
         let mut seen = BTreeSet::new();
-        let mut effects = Vec::with_capacity(active_count.saturating_mul(2));
+        let mut effects = Vec::with_capacity(effect_capacity);
 
         for (batch_id, batch) in &self.batches {
             let delivery = delivery_for(batch.state);
@@ -95,12 +105,21 @@ impl ProducerMachine {
                 )),
             });
         }
-        if effects.len() > max_effects {
+        if effects.len() > record_effect_capacity {
+            return Err(invalid_state());
+        }
+        let final_effect_count = effects
+            .len()
+            .checked_add(flush_effect_count)
+            .ok_or_else(invalid_state)?;
+        if final_effect_count > effect_capacity || final_effect_count > effects.capacity() {
             return Err(invalid_state());
         }
         Ok(ExecutionStopPlan {
             settlements,
             effects,
+            flush_effect_count,
+            final_effect_count,
         })
     }
 }

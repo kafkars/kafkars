@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use kafka_client_core::{Deadline, Moment};
 
-use crate::producer::ProducerTurnOutcome;
+use crate::producer::host_turn::ProducerTurnOutcome;
 
 use super::runner::producer_wait;
 

@@ -188,6 +188,14 @@ impl<T: Send + 'static> CompletionRegistry<T> {
             .count()
     }
 
+    /// Returns slots whose terminal already crossed notifier ownership.
+    pub(crate) fn published_or_reclaiming_len(&self) -> usize {
+        self.slots
+            .iter()
+            .filter(|slot| slot.is_published_or_reclaiming())
+            .count()
+    }
+
     fn slot_mut(&mut self, id: CompletionId) -> Result<&mut HostSlot<T>, CompletionRegistryError> {
         self.slots
             .get_mut(id.slot())

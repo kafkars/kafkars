@@ -114,6 +114,13 @@ impl FlushLedger {
         self.slots.len()
     }
 
+    pub(crate) fn pending_len(&self) -> usize {
+        self.slots
+            .values()
+            .filter(|slot| slot.state == FlushState::Pending)
+            .count()
+    }
+
     pub(crate) fn request(
         &mut self,
         next_operation_id: Option<OperationId>,

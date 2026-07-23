@@ -19,13 +19,17 @@ fn record(payload: u64, partition: u32) -> ExplicitRecord {
     )
 }
 
-fn producer(capacity: usize) -> ProducerMachine {
+pub(super) fn producer(capacity: usize) -> ProducerMachine {
     let policy = ProducerBatchPolicy::try_new(2, ByteCount::new(1_024), 50)
         .unwrap_or_else(|error| panic!("valid test policy: {error}"));
     ProducerMachine::with_batch_policy(ByteCount::new(256), capacity, policy)
 }
 
-fn admit(producer: &mut ProducerMachine, payload: u64, partition: u32) -> (OperationId, BatchId) {
+pub(super) fn admit(
+    producer: &mut ProducerMachine,
+    payload: u64,
+    partition: u32,
+) -> (OperationId, BatchId) {
     let transition = producer
         .apply(ProducerInput::AdmitExplicit {
             now: Moment::from_tick(0),
@@ -216,13 +220,6 @@ fn empty_execution_loss_is_idempotent_and_closes_admission() {
     assert!(!producer.admission_is_open());
     assert_eq!(producer.retained_bytes(), ByteCount::new(0));
     assert_eq!(producer.completion_slots(), 0);
-
-    let mut huge_empty = ProducerMachine::new(ByteCount::new(0), usize::MAX);
-    assert!(
-        huge_empty
-            .apply(ProducerInput::ExecutionUnavailable)
-            .is_ok_and(|transition| transition.effects().is_empty())
-    );
 }
 
 #[test]
@@ -273,21 +270,4 @@ fn execution_loss_does_not_repeat_an_unreclaimed_terminal() {
             .unwrap_or_else(|error| panic!("completion reclaim failed: {error}"));
     }
     assert_eq!(producer.completion_slots(), 0);
-}
-
-#[test]
-fn execution_loss_effect_count_is_bounded_by_completion_capacity() {
-    const CAPACITY: usize = 4;
-    let mut producer = producer(CAPACITY);
-    for payload in 1..=CAPACITY {
-        let partition =
-            u32::try_from(payload).unwrap_or_else(|error| panic!("test partition: {error}"));
-        admit(&mut producer, payload as u64, partition);
-    }
-    let terminal = producer
-        .apply(ProducerInput::ExecutionUnavailable)
-        .unwrap_or_else(|error| panic!("execution settlement failed: {error}"));
-    assert_eq!(terminal.effects().len(), CAPACITY * 4);
-    assert_eq!(producer.completion_slots(), CAPACITY);
-    assert_eq!(producer.retained_bytes(), ByteCount::new(0));
 }

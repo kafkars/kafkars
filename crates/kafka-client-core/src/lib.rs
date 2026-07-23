@@ -29,7 +29,9 @@ pub use operation_outcome::{
 pub use producer::{AdmissionSequence, FlushId, FlushLedgerError, ProducerMachine};
 pub use producer_broker_failure::{ProducerBrokerFailure, ProducerBrokerFailureKind};
 pub use producer_effect::{
-    AcknowledgementPolicy, CompressionPolicy, ProducerEffect, ProducerTransition,
+    AcknowledgementPolicy, CompressionPolicy, EXECUTION_STOP_EFFECTS_PER_FLUSH,
+    EXECUTION_STOP_EFFECTS_PER_RECORD, ProducerEffect, ProducerTransition,
+    execution_stop_effect_capacity, producer_transition_effect_capacity,
 };
 pub use producer_error::ProducerMachineError;
 pub use producer_failure::{ProducerFailure, ProducerFailureKind};

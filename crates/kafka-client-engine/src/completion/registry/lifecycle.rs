@@ -4,6 +4,21 @@ use super::CompletionRegistry;
 use crate::completion::{CompletionId, CompletionRegistryError};
 
 impl<T: Send + 'static> CompletionRegistry<T> {
+    /// Proves that an identity still names its exact reserved generation.
+    pub(crate) fn validate_reserved(
+        &self,
+        id: CompletionId,
+    ) -> Result<(), CompletionRegistryError> {
+        let Some(slot) = self.slots.get(id.slot()) else {
+            return Err(CompletionRegistryError::UnknownCompletion);
+        };
+        if slot.is_reserved(id) {
+            Ok(())
+        } else {
+            Err(slot.publish_error(id))
+        }
+    }
+
     /// Rolls back engine capacity when deterministic core admission rejects.
     pub(crate) fn rollback_reservation(
         &mut self,
