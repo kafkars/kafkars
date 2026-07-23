@@ -9,6 +9,7 @@ pub(crate) mod record;
 mod record_access;
 mod record_store;
 pub(crate) mod store;
+mod submission_deadline;
 mod topic_catalog;
 
 #[cfg_attr(
@@ -24,6 +25,16 @@ pub(crate) use materialization::{
     MaterializationBatch, MaterializationHeader, MaterializationRecord,
 };
 pub(crate) use record::ProducerRecord;
+#[cfg_attr(
+    not(test),
+    expect(
+        unused_imports,
+        reason = "submission deadlines precede the integrated producer host"
+    )
+)]
+pub(crate) use submission_deadline::{
+    DueSubmissionDeadline, SubmissionDeadlineError, SubmissionDeadlines,
+};
 
 #[cfg(test)]
 pub(crate) use record::ProducerHeader;
@@ -40,5 +51,7 @@ mod materialization_test;
 mod prepared_test;
 #[cfg(test)]
 mod record_store_test;
+#[cfg(test)]
+mod submission_deadline_test;
 #[cfg(test)]
 mod topic_catalog_test;

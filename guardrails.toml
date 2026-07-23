@@ -436,6 +436,16 @@ owner_type = "PreparedProduceStore"
 field = "batches"
 allowed_paths = ["crates/kafka-client-engine/src/producer/prepared.rs"]
 
+[[mutation_owners]]
+owner_type = "SubmissionDeadlines"
+field = "active"
+allowed_paths = ["crates/kafka-client-engine/src/producer/submission_deadline.rs"]
+
+[[mutation_owners]]
+owner_type = "SubmissionDeadlines"
+field = "schedule"
+allowed_paths = ["crates/kafka-client-engine/src/producer/submission_deadline.rs"]
+
 # Lifecycle and accounting owners must not be duplicated accidentally.
 [[linear_owners]]
 owner_type = "ProducerMachine"
@@ -552,3 +562,7 @@ path = "crates/kafka-client-engine/src/producer/prepared.rs"
 [[linear_owners]]
 owner_type = "PreparedInsertError"
 path = "crates/kafka-client-engine/src/producer/prepared.rs"
+
+[[linear_owners]]
+owner_type = "SubmissionDeadlines"
+path = "crates/kafka-client-engine/src/producer/submission_deadline.rs"
