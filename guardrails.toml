@@ -93,6 +93,10 @@ production = "crates/kafka-client-engine/src/driver/owner.rs"
 test = "crates/kafka-client-engine/src/driver/owner_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/producer_wake.rs"
+test = "crates/kafka-client-engine/src/driver/producer_wake_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/admission.rs"
 test = "crates/kafka-client-engine/src/producer/admission_test.rs"
 

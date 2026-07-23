@@ -4,14 +4,14 @@ use std::time::Duration;
 
 use kafka_driver::{SubmitError, TurnOutcome};
 
-use crate::EngineConfig;
+use crate::{EngineConfig, producer::ingress::ProducerShardWake};
 
 use super::{DriverOwnerError, owner::DriverOwner};
 
 #[test]
 fn one_owner_builds_the_driver_handle_reactor_and_wake_source() {
     let mut owner = owner();
-    let wake = owner.wake_handle();
+    let wake = owner.producer_wake();
 
     assert!(!owner.is_shutdown());
     assert!(wake.wake().is_ok());
