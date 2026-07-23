@@ -9,6 +9,8 @@ use super::{
         ProducerSendOptions,
     },
     error::{ProducerTrySendError, ProducerTrySendErrorKind},
+    flush_error::ProducerTryFlushError,
+    flush_result::ProducerTryFlushAccepted,
     prepare::prepare_explicit,
     record::ProducerRecord,
     result::ProducerTrySendAccepted,
@@ -86,6 +88,18 @@ impl ProducerHandle {
             Ok(accepted) => Ok(ProducerTrySendAccepted::from_port(accepted)),
             Err(error) => Err(ProducerTrySendError::from_port(error)),
         }
+    }
+
+    /// Attempts one producer flush admission without blocking.
+    pub fn try_flush(&self) -> Result<ProducerTryFlushAccepted, ProducerTryFlushError> {
+        let now = self
+            .clock
+            .now()
+            .map_err(|_error| ProducerTryFlushError::moment_unrepresentable())?;
+        self.port
+            .try_admit_flush(now)
+            .map(ProducerTryFlushAccepted::from_port)
+            .map_err(ProducerTryFlushError::from_port)
     }
 
     #[cfg(test)]

@@ -1,14 +1,17 @@
 //! Two-phase core and engine ownership of terminal completion reclamation.
 
-use std::{error::Error, fmt};
+mod error;
+#[cfg(test)]
+mod error_test;
+pub(crate) use error::CompletionReclaimError;
 
-use kafka_client_core::{OperationId, ProducerInput};
+use kafka_client_core::ProducerInput;
 
 use crate::completion::{CompletionId, CompletionRegistry, CompletionRegistryError, ReclaimStatus};
 
 use super::{
-    binding::{OperationBindingError, OperationBindings},
-    terminal::ProducerTerminal,
+    binding::OperationBindings, flush::FlushBindings, terminal::ProducerTerminal,
+    terminal_backlog::ProducerTerminalOwner,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -16,56 +19,13 @@ enum ReclaimPhase {
     Idle,
     AwaitingCore {
         completion_id: CompletionId,
-        operation_id: OperationId,
+        owner: ProducerTerminalOwner,
     },
     Finishing {
         completion_id: CompletionId,
-        operation_id: OperationId,
+        owner: ProducerTerminalOwner,
     },
     Faulted,
-}
-
-/// Failure while preserving the two-phase completion ownership handshake.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum CompletionReclaimError {
-    /// A method was called before its required preceding phase.
-    InvalidPhase,
-    /// The registry produced a completion generation with no exact binding.
-    UnknownBinding(CompletionId),
-    /// The operation no longer names the completion generation being reclaimed.
-    BindingMismatch,
-    /// The completion registry rejected the requested lifecycle step.
-    Registry(CompletionRegistryError),
-    /// The binding owner rejected exact final removal.
-    Binding(OperationBindingError),
-}
-
-impl fmt::Display for CompletionReclaimError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::InvalidPhase => formatter.write_str("completion reclaim phase is invalid"),
-            Self::UnknownBinding(_) => {
-                formatter.write_str("reclaim-ready completion has no operation binding")
-            }
-            Self::BindingMismatch => {
-                formatter.write_str("completion reclaim binding generation changed")
-            }
-            Self::Registry(error) => {
-                write!(formatter, "completion registry rejected reclaim: {error}")
-            }
-            Self::Binding(error) => {
-                write!(formatter, "completion binding rejected reclaim: {error}")
-            }
-        }
-    }
-}
-
-impl Error for CompletionReclaimError {}
-
-impl From<CompletionRegistryError> for CompletionReclaimError {
-    fn from(error: CompletionRegistryError) -> Self {
-        Self::Registry(error)
-    }
 }
 
 /// Result of one engine-side finish attempt after core accepted the input.
@@ -73,17 +33,17 @@ impl From<CompletionRegistryError> for CompletionReclaimError {
 pub(crate) enum CompletionReclaimOutcome {
     /// Observer state is briefly locked; retry only the finish phase.
     Retry,
-    /// Registry capacity and the exact operation binding were reclaimed.
+    /// Registry capacity and the exact producer binding were reclaimed.
     Reclaimed {
-        /// Core operation whose terminal ownership ended.
-        operation_id: OperationId,
+        /// Core producer owner whose terminal ownership ended.
+        owner: ProducerTerminalOwner,
         /// Exact engine completion generation that was recycled.
         completion_id: CompletionId,
     },
-    /// The exhausted registry slot was retired and its exact binding removed.
+    /// The exhausted registry slot was retired and its exact producer binding removed.
     Retired {
-        /// Core operation whose terminal ownership ended.
-        operation_id: OperationId,
+        /// Core producer owner whose terminal ownership ended.
+        owner: ProducerTerminalOwner,
         /// Exact engine completion generation that exhausted.
         completion_id: CompletionId,
     },
@@ -118,6 +78,7 @@ impl CompletionReclaimer {
         &mut self,
         registry: &mut CompletionRegistry<ProducerTerminal>,
         bindings: &OperationBindings,
+        flush_bindings: &FlushBindings,
     ) -> Result<Option<ProducerInput>, CompletionReclaimError> {
         if self.phase != ReclaimPhase::Idle {
             return Err(CompletionReclaimError::InvalidPhase);
@@ -125,19 +86,32 @@ impl CompletionReclaimer {
         let Some(completion_id) = registry.next_reclaim()? else {
             return Ok(None);
         };
-        let Some(operation_id) = bindings.operation(completion_id) else {
-            self.phase = ReclaimPhase::Faulted;
-            return Err(CompletionReclaimError::UnknownBinding(completion_id));
+        let operation = bindings
+            .operation(completion_id)
+            .map(ProducerTerminalOwner::Record);
+        let flush = flush_bindings
+            .flush(completion_id)
+            .map(ProducerTerminalOwner::Flush);
+        let owner = match (operation, flush) {
+            (Some(owner), None) | (None, Some(owner)) => owner,
+            (None, None) => {
+                self.phase = ReclaimPhase::Faulted;
+                return Err(CompletionReclaimError::UnknownBinding(completion_id));
+            }
+            (Some(_), Some(_)) => {
+                self.phase = ReclaimPhase::Faulted;
+                return Err(CompletionReclaimError::AmbiguousBinding(completion_id));
+            }
         };
-        if bindings.completion(operation_id) != Some(completion_id) {
+        if owner_completion(owner, bindings, flush_bindings) != Some(completion_id) {
             self.phase = ReclaimPhase::Faulted;
             return Err(CompletionReclaimError::BindingMismatch);
         }
         self.phase = ReclaimPhase::AwaitingCore {
             completion_id,
-            operation_id,
+            owner,
         };
-        Ok(Some(ProducerInput::CompletionReclaimed { operation_id }))
+        Ok(Some(reclaim_input(owner)))
     }
 
     /// Confirms successful `ProducerMachine::apply` and starts engine finish.
@@ -145,19 +119,20 @@ impl CompletionReclaimer {
         &mut self,
         registry: &mut CompletionRegistry<ProducerTerminal>,
         bindings: &mut OperationBindings,
+        flush_bindings: &mut FlushBindings,
     ) -> Result<CompletionReclaimOutcome, CompletionReclaimError> {
         let ReclaimPhase::AwaitingCore {
             completion_id,
-            operation_id,
+            owner,
         } = self.phase
         else {
             return Err(CompletionReclaimError::InvalidPhase);
         };
         self.phase = ReclaimPhase::Finishing {
             completion_id,
-            operation_id,
+            owner,
         };
-        self.finish(registry, bindings)
+        self.finish(registry, bindings, flush_bindings)
     }
 
     /// Retries only registry recycling after a prior `Retry` outcome.
@@ -165,42 +140,44 @@ impl CompletionReclaimer {
         &mut self,
         registry: &mut CompletionRegistry<ProducerTerminal>,
         bindings: &mut OperationBindings,
+        flush_bindings: &mut FlushBindings,
     ) -> Result<CompletionReclaimOutcome, CompletionReclaimError> {
         if !matches!(self.phase, ReclaimPhase::Finishing { .. }) {
             return Err(CompletionReclaimError::InvalidPhase);
         }
-        self.finish(registry, bindings)
+        self.finish(registry, bindings, flush_bindings)
     }
 
     fn finish(
         &mut self,
         registry: &mut CompletionRegistry<ProducerTerminal>,
         bindings: &mut OperationBindings,
+        flush_bindings: &mut FlushBindings,
     ) -> Result<CompletionReclaimOutcome, CompletionReclaimError> {
         let ReclaimPhase::Finishing {
             completion_id,
-            operation_id,
+            owner,
         } = self.phase
         else {
             return Err(CompletionReclaimError::InvalidPhase);
         };
-        if bindings.completion(operation_id) != Some(completion_id) {
+        if owner_completion(owner, bindings, flush_bindings) != Some(completion_id) {
             self.phase = ReclaimPhase::Faulted;
             return Err(CompletionReclaimError::BindingMismatch);
         }
         match registry.finish_reclaim(completion_id) {
             Ok(ReclaimStatus::Retry) => Ok(CompletionReclaimOutcome::Retry),
             Ok(ReclaimStatus::Reclaimed) => {
-                self.finish_binding(bindings, operation_id, completion_id)?;
+                self.finish_binding(bindings, flush_bindings, owner, completion_id)?;
                 Ok(CompletionReclaimOutcome::Reclaimed {
-                    operation_id,
+                    owner,
                     completion_id,
                 })
             }
             Err(CompletionRegistryError::GenerationExhausted) => {
-                self.finish_binding(bindings, operation_id, completion_id)?;
+                self.finish_binding(bindings, flush_bindings, owner, completion_id)?;
                 Ok(CompletionReclaimOutcome::Retired {
-                    operation_id,
+                    owner,
                     completion_id,
                 })
             }
@@ -214,14 +191,45 @@ impl CompletionReclaimer {
     fn finish_binding(
         &mut self,
         bindings: &mut OperationBindings,
-        operation_id: OperationId,
+        flush_bindings: &mut FlushBindings,
+        owner: ProducerTerminalOwner,
         completion_id: CompletionId,
     ) -> Result<(), CompletionReclaimError> {
-        if let Err(error) = bindings.remove_exact(operation_id, completion_id) {
+        let result = match owner {
+            ProducerTerminalOwner::Record(operation_id) => bindings
+                .remove_exact(operation_id, completion_id)
+                .map_err(CompletionReclaimError::Binding),
+            ProducerTerminalOwner::Flush(flush_id) => flush_bindings
+                .remove_exact(flush_id, completion_id)
+                .map_err(CompletionReclaimError::FlushBinding),
+        };
+        if let Err(error) = result {
             self.phase = ReclaimPhase::Faulted;
-            return Err(CompletionReclaimError::Binding(error));
+            return Err(error);
         }
         self.phase = ReclaimPhase::Idle;
         Ok(())
+    }
+}
+
+const fn reclaim_input(owner: ProducerTerminalOwner) -> ProducerInput {
+    match owner {
+        ProducerTerminalOwner::Record(operation_id) => {
+            ProducerInput::CompletionReclaimed { operation_id }
+        }
+        ProducerTerminalOwner::Flush(flush_id) => {
+            ProducerInput::FlushCompletionReclaimed { flush_id }
+        }
+    }
+}
+
+fn owner_completion(
+    owner: ProducerTerminalOwner,
+    bindings: &OperationBindings,
+    flush_bindings: &FlushBindings,
+) -> Option<CompletionId> {
+    match owner {
+        ProducerTerminalOwner::Record(operation_id) => bindings.completion(operation_id),
+        ProducerTerminalOwner::Flush(flush_id) => flush_bindings.completion(flush_id),
     }
 }

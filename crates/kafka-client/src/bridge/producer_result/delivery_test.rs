@@ -45,6 +45,15 @@ fn every_engine_delivery_failure_has_one_stable_facade_category() {
 }
 
 #[test]
+fn terminal_type_mismatch_is_an_internal_contract_failure() {
+    let error = translate_delivery_error(EngineDeliveryError::Observer(
+        EngineObserverError::TerminalTypeMismatch,
+    ));
+
+    assert_eq!(error.kind(), ErrorKind::Internal);
+}
+
+#[test]
 fn engine_delivery_certainty_maps_without_weakening() {
     assert_eq!(
         delivery_status(EngineDeliveryStatus::NotSent),

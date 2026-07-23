@@ -1,10 +1,10 @@
-//! Ordered record-terminal validation, publication, and retry.
+//! Ordered producer-terminal validation, publication, and retry.
 
 mod validation;
 #[cfg(test)]
 mod validation_test;
 
-use kafka_client_core::{OperationId, ProducerCompletion};
+use kafka_client_core::{FlushId, OperationId, ProducerCompletion};
 
 use crate::completion::{CompletionId, CompletionRegistryError};
 
@@ -14,24 +14,35 @@ use super::{
 };
 
 impl ProducerHost {
-    pub(super) fn publish_or_retain_terminal(
+    pub(super) fn publish_or_retain_record_terminal(
         &mut self,
         operation_id: OperationId,
         completion: ProducerCompletion,
     ) -> Result<(), ProducerHostInvariantError> {
-        let terminal = self.validate_terminal(operation_id, completion)?;
+        let terminal = self.validate_record_terminal(operation_id, completion)?;
+        self.publish_or_retain_validated(terminal)
+    }
+
+    pub(super) fn publish_or_retain_flush_terminal(
+        &mut self,
+        flush_id: FlushId,
+    ) -> Result<(), ProducerHostInvariantError> {
+        let terminal = self.validate_flush_terminal(flush_id)?;
+        self.publish_or_retain_validated(terminal)
+    }
+
+    fn publish_or_retain_validated(
+        &mut self,
+        terminal: RetainedTerminal,
+    ) -> Result<(), ProducerHostInvariantError> {
         if !self.terminal_backlog.is_empty() {
             return self.retain_validated_terminal(terminal);
         }
         let completion_id = terminal.completion_id();
-        match self.publish_terminal(completion_id, completion) {
+        match self.publish_terminal(completion_id, terminal.terminal()) {
             Ok(()) => Ok(()),
-            Err((error, retained)) => {
-                self.retain_validated_terminal(RetainedTerminal::new(
-                    operation_id,
-                    completion_id,
-                    retained,
-                ))?;
+            Err((error, _value)) => {
+                self.retain_validated_terminal(terminal)?;
                 if error == CompletionRegistryError::NotificationBackpressure {
                     Ok(())
                 } else {
@@ -41,7 +52,7 @@ impl ProducerHost {
         }
     }
 
-    /// Retries valid record terminals from the front only.
+    /// Retries valid producer terminals from the front only.
     pub(crate) fn retry_terminal_backlog(
         &mut self,
         limit: usize,
@@ -53,9 +64,6 @@ impl ProducerHost {
     }
 
     /// Recovery retries valid terminals and drops invalid copies.
-    ///
-    /// The completion registry remains the authoritative owner of every
-    /// unsettled operation and publishes a conservative fallback afterward.
     pub(super) fn retry_terminal_backlog_for_recovery(
         &mut self,
         limit: usize,
@@ -75,10 +83,10 @@ impl ProducerHost {
             let Some(terminal) = self.terminal_backlog.front() else {
                 break;
             };
-            let operation_id = terminal.operation_id();
+            let owner = terminal.owner();
             let completion_id = terminal.completion_id();
-            let completion = terminal.completion();
-            if let Err(error) = self.revalidate_terminal(operation_id, completion_id) {
+            let value = terminal.terminal();
+            if let Err(error) = self.revalidate_terminal(owner, completion_id) {
                 let removed = self.terminal_backlog.pop_published();
                 debug_assert!(removed.is_some());
                 let poisoned = self.poison(error);
@@ -89,7 +97,7 @@ impl ProducerHost {
                 examined += 1;
                 continue;
             }
-            match self.publish_terminal(completion_id, completion) {
+            match self.publish_terminal(completion_id, value) {
                 Ok(()) => {
                     let removed = self.terminal_backlog.pop_published();
                     debug_assert!(removed.is_some());
@@ -108,18 +116,16 @@ impl ProducerHost {
     fn publish_terminal(
         &mut self,
         completion_id: CompletionId,
-        completion: ProducerCompletion,
-    ) -> Result<(), (CompletionRegistryError, ProducerCompletion)> {
+        terminal: ProducerTerminal,
+    ) -> Result<(), (CompletionRegistryError, ProducerTerminal)> {
         #[cfg(test)]
         {
             self.terminal_publish_attempts = self.terminal_publish_attempts.saturating_add(1);
             if let Some(error) = self.terminal_publish_faults.pop_front() {
-                return Err((error, completion));
+                return Err((error, terminal));
             }
         }
-        self.completions
-            .publish(completion_id, ProducerTerminal::record(completion))
-            .map_err(|(error, terminal)| (error, terminal.into_record()))
+        self.completions.publish(completion_id, terminal)
     }
 
     #[cfg(test)]

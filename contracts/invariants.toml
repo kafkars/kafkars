@@ -118,8 +118,10 @@ evidence = [
 id = "FL-02"
 title = "Flush observability follows record publication"
 statement = "A flush becomes observable only after every included record terminal is actually published or retained in a retry-acknowledged completion path."
-status = "planned"
-milestone = "engine-flush-completion-publication"
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/producer/terminal_publication_test.rs::flush_publication_stays_behind_retained_record_terminal_under_notifier_backpressure",
+]
 
 [[invariant]]
 id = "GEN-01"

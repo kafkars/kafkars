@@ -10,10 +10,12 @@ use kafka_client_engine::{
 use crate::{
     bridge::{
         producer_delivery::ProducerDelivery,
+        producer_flush::ProducerFlush,
         producer_result::admission::{
             ProducerAdmissionRejection, translate_accepted_fault, translate_admission_error,
             translate_capture_error,
         },
+        producer_result::flush::translate_flush_admission,
     },
     record::{Header, Record, RecordParts},
 };
@@ -40,6 +42,17 @@ impl ProducerEngine {
 
     pub(crate) const fn delivery_timeout(&self) -> Duration {
         self.options.delivery_timeout()
+    }
+
+    /// Captures one exact barrier or returns its admission error as ready state.
+    pub(crate) fn flush(&self) -> ProducerFlush {
+        match self.handle.try_flush() {
+            Ok(accepted) => {
+                let diagnostic = accepted.fault().map(translate_accepted_fault);
+                ProducerFlush::accepted(accepted.into_observer(), diagnostic)
+            }
+            Err(error) => ProducerFlush::ready(Err(translate_flush_admission(&error))),
+        }
     }
 
     /// Captures the public boundary before converting caller-owned bytes.

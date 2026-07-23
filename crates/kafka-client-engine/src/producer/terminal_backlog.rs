@@ -2,63 +2,89 @@
 
 use std::collections::VecDeque;
 
-use kafka_client_core::{OperationId, ProducerCompletion};
+use kafka_client_core::{FlushId, OperationId, ProducerCompletion};
 
 use crate::completion::CompletionId;
 
-/// One validated record terminal awaiting notifier ownership.
+use super::ProducerTerminal;
+
+/// Core owner named by one producer terminal.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ProducerTerminalOwner {
+    Record(OperationId),
+    Flush(FlushId),
+}
+
+/// One validated producer terminal awaiting notifier ownership.
 #[derive(Debug, Eq, PartialEq)]
-pub(super) struct RetainedTerminal {
-    operation_id: OperationId,
-    completion_id: CompletionId,
-    completion: ProducerCompletion,
+pub(super) enum RetainedTerminal {
+    Record {
+        operation_id: OperationId,
+        completion_id: CompletionId,
+        completion: ProducerCompletion,
+    },
+    Flush {
+        flush_id: FlushId,
+        completion_id: CompletionId,
+    },
 }
 
 impl RetainedTerminal {
-    pub(super) const fn new(
+    pub(super) const fn record(
         operation_id: OperationId,
         completion_id: CompletionId,
         completion: ProducerCompletion,
     ) -> Self {
-        Self {
+        Self::Record {
             operation_id,
             completion_id,
             completion,
         }
     }
 
-    pub(super) const fn operation_id(&self) -> OperationId {
-        self.operation_id
+    pub(super) const fn flush(flush_id: FlushId, completion_id: CompletionId) -> Self {
+        Self::Flush {
+            flush_id,
+            completion_id,
+        }
+    }
+
+    pub(super) const fn owner(&self) -> ProducerTerminalOwner {
+        match self {
+            Self::Record { operation_id, .. } => ProducerTerminalOwner::Record(*operation_id),
+            Self::Flush { flush_id, .. } => ProducerTerminalOwner::Flush(*flush_id),
+        }
     }
 
     pub(super) const fn completion_id(&self) -> CompletionId {
-        self.completion_id
-    }
-
-    pub(super) const fn completion(&self) -> ProducerCompletion {
-        self.completion
-    }
-}
-
-/// Ordered terminal union reserved for record and future flush publication.
-#[derive(Debug, Eq, PartialEq)]
-enum OrderedTerminal {
-    Record(RetainedTerminal),
-}
-
-impl OrderedTerminal {
-    const fn record(&self) -> &RetainedTerminal {
         match self {
-            Self::Record(terminal) => terminal,
+            Self::Record { completion_id, .. } | Self::Flush { completion_id, .. } => {
+                *completion_id
+            }
+        }
+    }
+
+    pub(super) const fn terminal(&self) -> ProducerTerminal {
+        match self {
+            Self::Record { completion, .. } => ProducerTerminal::record(*completion),
+            Self::Flush { .. } => ProducerTerminal::flush_completed(),
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) const fn record_completion(&self) -> Option<ProducerCompletion> {
+        match self {
+            Self::Record { completion, .. } => Some(*completion),
+            Self::Flush { .. } => None,
         }
     }
 }
 
-/// Linear fixed-capacity owner preserving valid terminal publication order.
+/// Linear fixed-capacity owner preserving producer terminal publication order.
 #[derive(Debug)]
 pub(super) struct OrderedTerminalBacklog {
     capacity: usize,
-    entries: VecDeque<OrderedTerminal>,
+    entries: VecDeque<RetainedTerminal>,
 }
 
 impl OrderedTerminalBacklog {
@@ -71,33 +97,30 @@ impl OrderedTerminalBacklog {
 
     pub(super) fn push(&mut self, terminal: RetainedTerminal) {
         debug_assert!(self.entries.len() < self.capacity);
-        self.entries.push_back(OrderedTerminal::Record(terminal));
+        self.entries.push_back(terminal);
     }
 
     pub(super) fn pop_published(&mut self) -> Option<RetainedTerminal> {
-        self.entries.pop_front().map(|entry| match entry {
-            OrderedTerminal::Record(terminal) => terminal,
-        })
+        self.entries.pop_front()
     }
 
     pub(super) fn front(&self) -> Option<&RetainedTerminal> {
-        self.entries.front().map(OrderedTerminal::record)
+        self.entries.front()
     }
 
+    #[cfg(test)]
     pub(super) fn back(&self) -> Option<&RetainedTerminal> {
-        self.entries.back().map(OrderedTerminal::record)
+        self.entries.back()
     }
 
-    pub(super) fn contains_operation(&self, operation_id: OperationId) -> bool {
-        self.entries
-            .iter()
-            .any(|entry| entry.record().operation_id == operation_id)
+    pub(super) fn contains_owner(&self, owner: ProducerTerminalOwner) -> bool {
+        self.entries.iter().any(|entry| entry.owner() == owner)
     }
 
     pub(super) fn contains_completion(&self, completion_id: CompletionId) -> bool {
         self.entries
             .iter()
-            .any(|entry| entry.record().completion_id == completion_id)
+            .any(|entry| entry.completion_id() == completion_id)
     }
 
     pub(super) fn len(&self) -> usize {

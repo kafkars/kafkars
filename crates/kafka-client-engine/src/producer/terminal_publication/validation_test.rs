@@ -11,7 +11,7 @@ use crate::producer::{
     admission_test::{admit, record},
     binding::OperationBindingError,
     host_limits_test::{start, valid_limits},
-    terminal_backlog::RetainedTerminal,
+    terminal_backlog::{ProducerTerminalOwner, RetainedTerminal},
 };
 use crate::{clock::OperationDeadline, completion::CompletionRegistryError};
 
@@ -34,8 +34,8 @@ fn unknown_terminal_does_not_alias_a_valid_blocked_entry() {
     );
     assert_eq!(host.stats().terminal_backlog, 1);
     assert_eq!(
-        host.terminal_front().map(RetainedTerminal::operation_id),
-        Some(first.operation_id())
+        host.terminal_front().map(RetainedTerminal::owner),
+        Some(ProducerTerminalOwner::Record(first.operation_id()))
     );
     assert_eq!(
         host.poison_reason(),

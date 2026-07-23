@@ -83,16 +83,17 @@ impl ProducerHost {
                 operation_id,
                 completion,
             } => self
-                .publish_or_retain_terminal(operation_id, completion)
+                .publish_or_retain_record_terminal(operation_id, completion)
                 .map(|()| None),
             pending @ (ProducerEffect::MaterializeBatch { .. }
             | ProducerEffect::SubmitProduce { .. }) => {
                 self.retain_pending(pending)?;
                 Ok(None)
             }
-            ProducerEffect::AcceptFlush { .. } | ProducerEffect::CompleteFlush { .. } => {
-                Err(ProducerHostInvariantError::FlushControlUnavailable)
-            }
+            ProducerEffect::AcceptFlush { .. } => Ok(None),
+            ProducerEffect::CompleteFlush { flush_id } => self
+                .publish_or_retain_flush_terminal(flush_id)
+                .map(|()| None),
         }
     }
 

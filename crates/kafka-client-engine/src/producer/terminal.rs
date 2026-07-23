@@ -1,23 +1,28 @@
-//! Producer-local terminal values carried by the single completion notifier.
+//! Producer-owned record, flush, and execution-loss terminal values.
 
 use kafka_client_core::ProducerCompletion;
 
-/// One terminal value whose concrete operation kind is decided by the producer.
+/// One producer terminal value retained by the shared completion registry.
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum ProducerTerminal {
     Record(ProducerCompletion),
+    FlushCompleted,
+    ExecutionUnavailable,
 }
 
 impl ProducerTerminal {
-    /// Wraps one deterministic record-delivery decision for engine publication.
+    /// Wraps one record delivery terminal at the registry boundary.
     pub(crate) const fn record(completion: ProducerCompletion) -> Self {
         Self::Record(completion)
     }
 
-    /// Consumes the envelope and returns its record-delivery decision.
-    pub(crate) const fn into_record(self) -> ProducerCompletion {
-        match self {
-            Self::Record(completion) => completion,
-        }
+    /// Creates a successful flush terminal.
+    pub(crate) const fn flush_completed() -> Self {
+        Self::FlushCompleted
+    }
+
+    /// Creates a type-neutral terminal after permanent host execution loss.
+    pub(crate) const fn execution_unavailable() -> Self {
+        Self::ExecutionUnavailable
     }
 }

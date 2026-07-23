@@ -9,6 +9,7 @@ use crate::clock::OperationDeadline;
 use super::{
     super::ProducerRecord,
     ProducerShardLockError,
+    flush_outcome::{ProducerPortFlushAccepted, ProducerPortFlushError, classify_flush},
     outcome::{
         ProducerPortAccepted, ProducerPortAdmissionError, ProducerPortPoisonReason,
         ProducerPortRejectionReason, classify_admission, poisoned_before, rejected,
@@ -76,6 +77,25 @@ impl ProducerAdmissionPort {
             }
         };
         let accepted = classify_admission(data.try_admit_explicit(attempted_at, deadline, record))?;
+        drop(data);
+        Ok(accepted.with_wake(self.shared.wake()))
+    }
+
+    /// Attempts immediate flush admission with one shared completion reservation.
+    pub(crate) fn try_admit_flush(
+        &self,
+        attempted_at: Moment,
+    ) -> Result<ProducerPortFlushAccepted, ProducerPortFlushError> {
+        let mut data = match self.shared.try_data() {
+            Ok(data) => data,
+            Err(ProducerShardLockError::Contended) => {
+                return Err(ProducerPortFlushError::Contended);
+            }
+            Err(ProducerShardLockError::Poisoned) => {
+                return Err(ProducerPortFlushError::ShardPoisoned);
+            }
+        };
+        let accepted = classify_flush(data.try_admit_flush(attempted_at))?;
         drop(data);
         Ok(accepted.with_wake(self.shared.wake()))
     }

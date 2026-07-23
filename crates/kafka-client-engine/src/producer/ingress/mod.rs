@@ -2,6 +2,7 @@
 
 mod data;
 mod data_terminal;
+mod flush_outcome;
 mod outcome;
 mod port;
 mod reactor_wake;
@@ -10,6 +11,7 @@ mod terminal;
 
 #[cfg(test)]
 pub(crate) use data::{ProducerShardData, ProducerShardStats};
+pub(crate) use flush_outcome::{ProducerPortFlushAccepted, ProducerPortFlushError};
 #[cfg_attr(
     not(test),
     expect(unused_imports, reason = "integrated engine host bridge follows")
@@ -29,6 +31,8 @@ pub(crate) use terminal::ProducerShardTerminalError;
 mod data_terminal_test;
 #[cfg(test)]
 mod data_test;
+#[cfg(test)]
+mod flush_outcome_test;
 #[cfg(test)]
 mod port_test;
 #[cfg(test)]

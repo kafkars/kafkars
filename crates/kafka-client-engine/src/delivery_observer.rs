@@ -7,7 +7,9 @@ use std::{
     task::{Context, Poll},
 };
 
-use kafka_client_core::ProducerCompletion as CoreProducerCompletion;
+use kafka_client_core::{
+    DeliveryStatus, ProducerCompletion as CoreProducerCompletion, ProducerFailure,
+};
 
 use crate::completion::CompletionObserver;
 
@@ -36,7 +38,7 @@ impl ProducerDeliveryObserver {
     /// Blocks on the same terminal cell used by `Future::poll`.
     pub fn wait(self) -> ProducerDeliveryResult {
         match self.inner.wait() {
-            Ok(terminal) => translate(terminal.into_record()),
+            Ok(terminal) => translate_terminal(terminal),
             Err(error) => Err(observer_error(error)),
         }
     }
@@ -49,9 +51,25 @@ impl Future for ProducerDeliveryObserver {
         let this = self.get_mut();
         match Pin::new(&mut this.inner).poll(context) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(Ok(terminal)) => Poll::Ready(translate(terminal.into_record())),
+            Poll::Ready(Ok(terminal)) => Poll::Ready(translate_terminal(terminal)),
             Poll::Ready(Err(error)) => Poll::Ready(Err(observer_error(error))),
         }
+    }
+}
+
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "observation consumes the linear terminal envelope"
+)]
+const fn translate_terminal(terminal: ProducerTerminal) -> ProducerDeliveryResult {
+    match terminal {
+        ProducerTerminal::Record(completion) => translate(completion),
+        ProducerTerminal::ExecutionUnavailable => translate(CoreProducerCompletion::Failed(
+            ProducerFailure::execution_unavailable(DeliveryStatus::PossiblySent),
+        )),
+        ProducerTerminal::FlushCompleted => Err(ProducerDeliveryError::Observer(
+            ProducerObserverError::TerminalTypeMismatch,
+        )),
     }
 }
 

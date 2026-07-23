@@ -64,7 +64,7 @@ impl ProducerAcceptedFault {
         self.kind
     }
 
-    fn from_port(fault: ProducerPortAcceptedFault) -> Self {
+    pub(super) fn from_port(fault: ProducerPortAcceptedFault) -> Self {
         match fault {
             ProducerPortAcceptedFault::HostInvariant(error) => Self {
                 kind: ProducerAcceptedFaultKind::HostInvariant,

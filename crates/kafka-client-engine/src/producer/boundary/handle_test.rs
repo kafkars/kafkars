@@ -15,10 +15,37 @@ use super::super::{
 };
 use super::{
     ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerHandle, ProducerSendOptions,
-    ProducerTrySendErrorKind, PublicProducerHeader as ProducerHeader,
+    ProducerTryFlushErrorKind, ProducerTrySendErrorKind, PublicProducerHeader as ProducerHeader,
     PublicProducerRecord as ProducerRecord,
 };
 use crate::clock::MonotonicClock;
+
+#[test]
+fn flush_uses_the_same_shard_wake_and_runtime_neutral_observer() {
+    let (_owner, handle, wake) = setup();
+    let accepted = handle
+        .try_flush()
+        .unwrap_or_else(|error| panic!("empty flush should be accepted: {error}"));
+
+    assert!(accepted.fault().is_none());
+    assert_eq!(wake.count(), 1);
+    assert_eq!(accepted.into_observer().wait(), Ok(()));
+}
+
+#[test]
+fn closed_shard_rejects_flush_before_terminal_capacity_crosses() {
+    let (owner, handle, wake) = setup();
+    owner
+        .close_admission()
+        .unwrap_or_else(|error| panic!("test shard should close: {error:?}"));
+
+    let error = handle
+        .try_flush()
+        .err()
+        .unwrap_or_else(|| panic!("closed producer must reject flush"));
+    assert_eq!(error.kind(), ProducerTryFlushErrorKind::Closed);
+    assert_eq!(wake.count(), 0);
+}
 
 #[test]
 fn explicit_try_send_captures_one_absolute_deadline_and_commits() {

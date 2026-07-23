@@ -15,7 +15,9 @@ use crate::{
 use super::{
     ProducerHostInvariantError, ProducerHostLimits,
     admission_test::{admit, record},
+    flush::FlushBindingError,
     host_limits_test::{start, valid_limits},
+    terminal_backlog::{ProducerTerminalOwner, RetainedTerminal},
 };
 
 #[test]
@@ -111,14 +113,12 @@ fn notifier_stop_retains_every_same_transition_terminal_in_exact_fifo_order() {
     );
     assert_eq!(host.stats().terminal_backlog, 2);
     assert_eq!(
-        host.terminal_front()
-            .map(super::terminal_backlog::RetainedTerminal::operation_id),
-        Some(first.operation_id())
+        host.terminal_front().map(RetainedTerminal::owner),
+        Some(ProducerTerminalOwner::Record(first.operation_id()))
     );
     assert_eq!(
-        host.terminal_back()
-            .map(super::terminal_backlog::RetainedTerminal::operation_id),
-        Some(second.operation_id())
+        host.terminal_back().map(RetainedTerminal::owner),
+        Some(ProducerTerminalOwner::Record(second.operation_id()))
     );
     assert_eq!(host.terminal_publish_attempts(), 1);
 
@@ -130,7 +130,7 @@ fn notifier_stop_retains_every_same_transition_terminal_in_exact_fifo_order() {
 }
 
 #[test]
-fn unsupported_effect_reports_its_typed_failure() {
+fn unbound_flush_terminal_reports_its_typed_failure() {
     let mut host = start(valid_limits());
     let effect = ProducerEffect::CompleteFlush {
         flush_id: FlushId::from_raw(7),
@@ -138,7 +138,9 @@ fn unsupported_effect_reports_its_typed_failure() {
 
     assert_eq!(
         host.interpret_effect_owned(Moment::from_tick(0), effect),
-        Err(ProducerHostInvariantError::FlushControlUnavailable)
+        Err(ProducerHostInvariantError::FlushBinding(
+            FlushBindingError::UnknownFlush
+        ))
     );
 }
 

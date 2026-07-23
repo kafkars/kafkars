@@ -35,6 +35,16 @@ fn accepted_record_returns_public_delivery_with_one_end_to_end_timeout() {
 }
 
 #[test]
+fn empty_flush_completes_through_the_public_named_operation() {
+    let result = build_client().producer().build();
+    let Ok(producer) = result else {
+        panic!("producer construction should remain local")
+    };
+
+    assert_eq!(producer.flush().wait(), Ok(()));
+}
+
+#[test]
 fn zero_delivery_timeout_is_rejected_when_the_producer_builds() {
     let result = build_client()
         .producer()

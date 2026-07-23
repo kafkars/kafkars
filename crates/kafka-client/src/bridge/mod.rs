@@ -3,6 +3,7 @@
 mod client;
 pub(crate) mod producer;
 pub(crate) mod producer_delivery;
+pub(crate) mod producer_flush;
 pub(crate) mod producer_result;
 
 pub(crate) use client::ClientEngine;
@@ -11,5 +12,7 @@ pub(crate) use client::ClientEngine;
 mod client_test;
 #[cfg(test)]
 mod producer_delivery_test;
+#[cfg(test)]
+mod producer_flush_test;
 #[cfg(test)]
 mod producer_test;

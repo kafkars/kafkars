@@ -93,6 +93,24 @@ fn concurrent_shutdown_callers_observe_one_retained_report() {
 }
 
 #[test]
+fn shutdown_settles_a_pending_record_then_its_flush_barrier() {
+    let timeout = Duration::from_millis(80);
+    let engine = start(timeout);
+    let producer = engine.producer();
+    let accepted = admit(&producer, timeout);
+    let flush = admit_flush(&producer);
+    let concurrent = engine.clone();
+    let waiter = thread::spawn(move || concurrent.shutdown());
+    wait_until(|| engine.host_is_closing());
+
+    wait_for_closed_flush_rejection(&producer);
+    assert!(waiter.join().is_ok_and(|result| result.is_ok()));
+    assert!(engine.host_is_closed());
+    assert_deadline_not_sent(accepted.into_observer().wait());
+    assert_eq!(flush.into_observer().wait(), Ok(()));
+}
+
+#[test]
 fn notifier_reentrant_shutdown_returns_without_blocking_host_cleanup() {
     let timeout = Duration::from_millis(30);
     let engine = start(timeout);
@@ -177,6 +195,43 @@ fn admit(producer: &ProducerHandle, timeout: Duration) -> crate::ProducerTrySend
         }
     }
     panic!("record admission should make progress within the bounded test loop")
+}
+
+fn admit_flush(producer: &ProducerHandle) -> crate::ProducerTryFlushAccepted {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        match producer.try_flush() {
+            Ok(accepted) => return accepted,
+            Err(error) if error.kind() == crate::ProducerTryFlushErrorKind::Contended => {
+                assert!(
+                    Instant::now() < deadline,
+                    "healthy producer contention must eventually admit the flush"
+                );
+                thread::yield_now();
+            }
+            Err(error) => panic!("flush admission should succeed: {error}"),
+        }
+    }
+}
+
+fn wait_for_closed_flush_rejection(producer: &ProducerHandle) {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        match producer.try_flush() {
+            Err(error) if error.kind() == crate::ProducerTryFlushErrorKind::Contended => {
+                assert!(
+                    Instant::now() < deadline,
+                    "shutdown contention must eventually reveal closed flush admission"
+                );
+                thread::yield_now();
+            }
+            Err(error) => {
+                assert_eq!(error.kind(), crate::ProducerTryFlushErrorKind::Closed);
+                return;
+            }
+            Ok(_accepted) => panic!("closing admission must not accept another flush"),
+        }
+    }
 }
 
 fn wait_for_closed_rejection(producer: &ProducerHandle, timeout: Duration) {

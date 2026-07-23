@@ -13,6 +13,8 @@ pub enum ProducerObserverError {
     AlreadyObserved,
     /// The observer's completion generation is no longer live.
     Stale,
+    /// A producer terminal reached an observer for another operation kind.
+    TerminalTypeMismatch,
 }
 
 impl ProducerObserverError {
@@ -29,6 +31,7 @@ impl fmt::Display for ProducerObserverError {
         formatter.write_str(match self {
             Self::AlreadyObserved => "producer delivery was already observed",
             Self::Stale => "producer delivery observer is stale",
+            Self::TerminalTypeMismatch => "producer observer received the wrong terminal type",
         })
     }
 }

@@ -8,6 +8,7 @@ use crate::{
         ProducerHost, ProducerHostInvariantError, ProducerRecord,
         admission::{AdmittedExplicit, ProducerAdmissionFailure},
         execution::{PreparedProduceHandoffError, PreparedProduceSubmission},
+        flush::{AdmittedFlush, FlushAdmissionFailure, FlushRejectionReason},
         host::ProducerHostStats,
         host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
     },
@@ -58,6 +59,18 @@ impl ProducerShardData {
         record: ProducerRecord,
     ) -> Result<AdmittedExplicit, ProducerAdmissionFailure> {
         self.host.try_admit_explicit(now, deadline, record)
+    }
+
+    pub(super) fn try_admit_flush(
+        &mut self,
+        now: Moment,
+    ) -> Result<AdmittedFlush, FlushAdmissionFailure> {
+        if matches!(self.admission, ProducerShardAdmission::Closed) {
+            return Err(FlushAdmissionFailure::Rejected(
+                FlushRejectionReason::Closed,
+            ));
+        }
+        self.host.try_admit_flush(now)
     }
 
     pub(crate) fn turn(

@@ -2,9 +2,7 @@
 
 use std::{error::Error, fmt};
 
-use kafka_client_core::{
-    DeliveryStatus, Moment, ProducerCompletion, ProducerFailure, ProducerInput,
-};
+use kafka_client_core::{Moment, ProducerInput};
 
 use crate::completion::{CompletionId, CompletionRegistryError};
 
@@ -23,7 +21,7 @@ pub(crate) enum ProducerExecutionStopError {
         error: CompletionRegistryError,
         queued: usize,
         remaining: usize,
-        terminal: ProducerCompletion,
+        terminal: ProducerTerminal,
     },
 }
 
@@ -118,12 +116,12 @@ impl ProducerHost {
                 )),
             ));
         }
-        let failure = ProducerFailure::execution_unavailable(DeliveryStatus::PossiblySent);
         let mut remaining = self.completions.unsettled_len();
         while remaining != 0 {
-            let progress = match self.completions.settle_reserved_with(remaining, |_id| {
-                ProducerTerminal::record(ProducerCompletion::Failed(failure))
-            }) {
+            let progress = match self
+                .completions
+                .settle_reserved_with(remaining, |_id| ProducerTerminal::execution_unavailable())
+            {
                 Ok(progress) => progress,
                 Err(failed) => {
                     let progress = failed.progress();
@@ -132,7 +130,7 @@ impl ProducerHost {
                         error: failed.error(),
                         queued: progress.queued(),
                         remaining: progress.remaining(),
-                        terminal: failed.into_terminal().into_record(),
+                        terminal: failed.into_terminal(),
                     });
                 }
             };
@@ -146,6 +144,7 @@ impl ProducerHost {
             remaining = progress.remaining();
         }
         self.bindings.clear_terminal();
+        self.flush_bindings.clear_terminal();
         Ok(())
     }
 

@@ -90,6 +90,7 @@ impl ProducerHost {
         self.drain_terminal_mechanisms_preserving_completions();
         if self.terminal_backlog.is_empty() {
             self.bindings.clear_terminal();
+            self.flush_bindings.clear_terminal();
         }
     }
 
@@ -156,8 +157,10 @@ impl ProducerHost {
     fn final_retained_mechanisms(&self) -> usize {
         self.release_owned_mechanisms()
             .saturating_add(self.bindings.len())
+            .saturating_add(self.flush_bindings.len())
             .saturating_add(self.terminal_backlog.len())
             .saturating_add(self.core.completion_slots())
+            .saturating_add(self.core.flush_slots())
     }
 
     #[cfg(test)]
@@ -172,10 +175,12 @@ impl ProducerHost {
             && stats.prepared_bytes == 0
             && stats.submission_deadlines == 0
             && stats.completion_bindings == 0
+            && stats.flush_completion_bindings == 0
             && stats.pending_effects == 0
             && stats.terminal_backlog == 0
             && stats.core_retained_bytes == kafka_client_core::ByteCount::new(0)
             && stats.core_completion_slots == 0
+            && stats.core_flush_slots == 0
             && self.unsettled_completions() == 0
     }
 }

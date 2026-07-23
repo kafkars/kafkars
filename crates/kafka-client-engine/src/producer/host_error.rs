@@ -8,7 +8,7 @@ use crate::{clock::BatchTimerError, completion::CompletionRegistryError};
 
 use super::{
     ProducerStoreError, binding::OperationBindingError, execution::PreparedExecutionError,
-    reclaim::CompletionReclaimError,
+    flush::FlushBindingError, reclaim::CompletionReclaimError,
 };
 
 /// Invalid synchronization between core and engine capacity owners.
@@ -105,6 +105,7 @@ pub(crate) enum ProducerHostInvariantError {
     Core(ProducerMachineError),
     Store(ProducerStoreError),
     Binding(OperationBindingError),
+    FlushBinding(FlushBindingError),
     Timer(BatchTimerError),
     Completion(CompletionRegistryError),
     Reclaim(CompletionReclaimError),
@@ -114,7 +115,7 @@ pub(crate) enum ProducerHostInvariantError {
     GeneratedFactCapacity,
     PendingEffectCapacity,
     TerminalBacklogCapacity,
-    FlushControlUnavailable,
+    MissingFlushIdentity,
     UnexpectedDriverInput,
     #[cfg(test)]
     ForcedTerminalInterpretation,
@@ -131,6 +132,12 @@ impl fmt::Display for ProducerHostInvariantError {
                 write!(
                     formatter,
                     "producer completion binding invariant failed: {error}"
+                )
+            }
+            Self::FlushBinding(error) => {
+                write!(
+                    formatter,
+                    "producer flush completion binding invariant failed: {error}"
                 )
             }
             Self::Timer(error) => write!(formatter, "producer timer invariant failed: {error}"),
@@ -161,8 +168,9 @@ impl fmt::Display for ProducerHostInvariantError {
             Self::TerminalBacklogCapacity => {
                 formatter.write_str("producer terminal backlog exceeded completion-slot capacity")
             }
-            Self::FlushControlUnavailable => formatter
-                .write_str("producer flush effects reached an engine without flush support"),
+            Self::MissingFlushIdentity => {
+                formatter.write_str("accepted producer flush omitted its flush identity")
+            }
             Self::UnexpectedDriverInput => {
                 formatter.write_str("producer driver bridge received a non-driver input")
             }

@@ -18,6 +18,8 @@ mod delivery_observer;
 mod driver;
 mod engine;
 mod engine_host;
+mod flush_error;
+mod flush_observer;
 #[cfg_attr(
     not(test),
     expect(
@@ -43,9 +45,12 @@ pub use engine::Engine;
 pub use engine_host::{
     EngineShutdownError, EngineShutdownErrorKind, EngineStartError, EngineStartErrorKind,
 };
+pub use flush_error::ProducerFlushError;
+pub use flush_observer::{ProducerFlushObserver, ProducerFlushResult};
 pub use producer::{
     ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerHandle, ProducerSendCapture,
     ProducerSendCaptureError, ProducerSendCaptureErrorKind, ProducerSendOptions,
+    ProducerTryFlushAccepted, ProducerTryFlushError, ProducerTryFlushErrorKind,
     ProducerTrySendAccepted, ProducerTrySendError, ProducerTrySendErrorKind,
     PublicProducerHeader as ProducerHeader, PublicProducerRecord as ProducerRecord,
 };
@@ -60,3 +65,7 @@ mod delivery_observer_test;
 mod delivery_test;
 #[cfg(test)]
 mod engine_test;
+#[cfg(test)]
+mod flush_error_test;
+#[cfg(test)]
+mod flush_observer_test;

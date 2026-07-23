@@ -131,6 +131,14 @@ production = "crates/kafka-client-engine/src/delivery_observer.rs"
 test = "crates/kafka-client-engine/src/delivery_observer_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/flush_observer.rs"
+test = "crates/kafka-client-engine/src/flush_observer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/flush_error.rs"
+test = "crates/kafka-client-engine/src/flush_error_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/owner.rs"
 test = "crates/kafka-client-engine/src/driver/owner_test.rs"
 
@@ -141,6 +149,10 @@ test = "crates/kafka-client-engine/src/driver/wake_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/ingress/reactor_wake.rs"
 test = "crates/kafka-client-engine/src/producer/ingress/reactor_wake_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/flush_outcome.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/flush_outcome_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/config.rs"
@@ -195,8 +207,20 @@ production = "crates/kafka-client-engine/src/producer/binding.rs"
 test = "crates/kafka-client-engine/src/producer/binding_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/flush/admission.rs"
+test = "crates/kafka-client-engine/src/producer/flush/admission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/flush/binding.rs"
+test = "crates/kafka-client-engine/src/producer/flush/binding_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution.rs"
 test = "crates/kafka-client-engine/src/producer/execution_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/reclaim/error.rs"
+test = "crates/kafka-client-engine/src/producer/reclaim/error_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/host/driver_input.rs"
@@ -241,6 +265,14 @@ test = "crates/kafka-client-engine/src/producer/host_turn_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/boundary/error.rs"
 test = "crates/kafka-client-engine/src/producer/boundary/error_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/boundary/flush_error.rs"
+test = "crates/kafka-client-engine/src/producer/boundary/flush_error_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/boundary/flush_result.rs"
+test = "crates/kafka-client-engine/src/producer/boundary/flush_result_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/boundary/capture.rs"
@@ -395,12 +427,24 @@ production = "crates/kafka-client/src/bridge/producer_delivery.rs"
 test = "crates/kafka-client/src/bridge/producer_delivery_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client/src/bridge/producer_flush.rs"
+test = "crates/kafka-client/src/bridge/producer_flush_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/producer_result/flush.rs"
+test = "crates/kafka-client/src/bridge/producer_result/flush_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client/src/producer/handle.rs"
 test = "crates/kafka-client/src/producer/handle_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/producer/delivery.rs"
 test = "crates/kafka-client/src/producer/delivery_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/producer/flush.rs"
+test = "crates/kafka-client/src/producer/flush_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/producer/metadata.rs"
@@ -849,6 +893,7 @@ owner_type = "ProducerHost"
 field = "core"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/admission.rs",
+  "crates/kafka-client-engine/src/producer/flush/admission.rs",
   "crates/kafka-client-engine/src/producer/host/driver_input.rs",
   "crates/kafka-client-engine/src/producer/execution_stop.rs",
   "crates/kafka-client-engine/src/producer/execution_turn.rs",
@@ -962,6 +1007,11 @@ field = "entries"
 allowed_paths = ["crates/kafka-client-engine/src/producer/binding.rs"]
 
 [[mutation_owners]]
+owner_type = "FlushBindings"
+field = "entries"
+allowed_paths = ["crates/kafka-client-engine/src/producer/flush/binding.rs"]
+
+[[mutation_owners]]
 owner_type = "CompletionReclaimer"
 field = "phase"
 allowed_paths = ["crates/kafka-client-engine/src/producer/reclaim.rs"]
@@ -1034,9 +1084,22 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/admission/rollback.rs",
   "crates/kafka-client-engine/src/producer/effect.rs",
   "crates/kafka-client-engine/src/producer/execution_stop.rs",
+  "crates/kafka-client-engine/src/producer/flush/admission.rs",
   "crates/kafka-client-engine/src/producer/reclaim_turn.rs",
   "crates/kafka-client-engine/src/producer/shutdown.rs",
   "crates/kafka-client-engine/src/producer/terminal_publication.rs",
+  "crates/kafka-client-engine/src/producer/terminal_publication/validation.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerHost"
+field = "flush_bindings"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/execution_stop.rs",
+  "crates/kafka-client-engine/src/producer/flush/admission.rs",
+  "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/reclaim_turn.rs",
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
   "crates/kafka-client-engine/src/producer/terminal_publication/validation.rs",
 ]
 
@@ -1186,6 +1249,10 @@ owner_type = "ProducerDeliveryObserver"
 path = "crates/kafka-client-engine/src/delivery_observer.rs"
 
 [[linear_owners]]
+owner_type = "ProducerFlushObserver"
+path = "crates/kafka-client-engine/src/flush_observer.rs"
+
+[[linear_owners]]
 owner_type = "CompletionCell"
 path = "crates/kafka-client-engine/src/completion/cell.rs"
 
@@ -1216,6 +1283,10 @@ path = "crates/kafka-client-engine/src/protocol/produce.rs"
 [[linear_owners]]
 owner_type = "ProducerStore"
 path = "crates/kafka-client-engine/src/producer/store.rs"
+
+[[linear_owners]]
+owner_type = "ProducerTerminal"
+path = "crates/kafka-client-engine/src/producer/terminal.rs"
 
 [[linear_owners]]
 owner_type = "RecordStore"
@@ -1254,6 +1325,10 @@ owner_type = "ProducerTrySendAccepted"
 path = "crates/kafka-client-engine/src/producer/boundary/result.rs"
 
 [[linear_owners]]
+owner_type = "ProducerTryFlushAccepted"
+path = "crates/kafka-client-engine/src/producer/boundary/flush_result.rs"
+
+[[linear_owners]]
 owner_type = "ProducerSendCapture"
 path = "crates/kafka-client-engine/src/producer/boundary/capture.rs"
 
@@ -1276,6 +1351,14 @@ path = "crates/kafka-client-engine/src/producer/materialization.rs"
 [[linear_owners]]
 owner_type = "OperationBindings"
 path = "crates/kafka-client-engine/src/producer/binding.rs"
+
+[[linear_owners]]
+owner_type = "FlushBindings"
+path = "crates/kafka-client-engine/src/producer/flush/binding.rs"
+
+[[linear_owners]]
+owner_type = "AdmittedFlush"
+path = "crates/kafka-client-engine/src/producer/flush/admission.rs"
 
 [[linear_owners]]
 owner_type = "CompletionReclaimer"
@@ -1354,6 +1437,10 @@ owner_type = "ProducerPortAccepted"
 path = "crates/kafka-client-engine/src/producer/ingress/outcome.rs"
 
 [[linear_owners]]
+owner_type = "ProducerPortFlushAccepted"
+path = "crates/kafka-client-engine/src/producer/ingress/flush_outcome.rs"
+
+[[linear_owners]]
 owner_type = "ProducerPortRejected"
 path = "crates/kafka-client-engine/src/producer/ingress/outcome.rs"
 
@@ -1390,8 +1477,16 @@ owner_type = "ProducerDelivery"
 path = "crates/kafka-client/src/bridge/producer_delivery.rs"
 
 [[linear_owners]]
+owner_type = "ProducerFlush"
+path = "crates/kafka-client/src/bridge/producer_flush.rs"
+
+[[linear_owners]]
 owner_type = "Delivery"
 path = "crates/kafka-client/src/producer/delivery.rs"
+
+[[linear_owners]]
+owner_type = "Flush"
+path = "crates/kafka-client/src/producer/flush.rs"
 
 [[linear_owners]]
 owner_type = "TrySendError"

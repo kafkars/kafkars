@@ -5,18 +5,19 @@ use kafka_client_core::{
     ProducerCompletion, ProducerEffect, ProducerInput, ProducerMachine, TopicId,
 };
 
+use super::{
+    binding::OperationBindings,
+    flush::FlushBindings,
+    reclaim::{CompletionReclaimError, CompletionReclaimOutcome, CompletionReclaimer},
+    terminal::ProducerTerminal,
+    terminal_backlog::ProducerTerminalOwner,
+};
 use crate::{
     clock::OperationDeadline,
     completion::{
         CompletionId, CompletionRegistry, CompletionRegistryError, ReclaimStatus,
         test_support::hold_cell_lock,
     },
-};
-
-use super::{
-    binding::OperationBindings,
-    reclaim::{CompletionReclaimError, CompletionReclaimOutcome, CompletionReclaimer},
-    terminal::ProducerTerminal,
 };
 
 struct TerminalOperation {
@@ -108,9 +109,9 @@ fn core_confirmation_precedes_exact_binding_and_capacity_release() {
         Ok(())
     );
     let mut reclaimer = CompletionReclaimer::new();
-
+    let mut flush_bindings = FlushBindings::new(1);
     let input = reclaimer
-        .next_input(&mut registry, &bindings)
+        .next_input(&mut registry, &bindings, &flush_bindings)
         .unwrap_or_else(|error| panic!("reclaim input failed: {error}"));
     assert_eq!(
         input,
@@ -131,9 +132,9 @@ fn core_confirmation_precedes_exact_binding_and_capacity_release() {
     };
     assert!(terminal.machine.apply(input).is_ok());
     assert_eq!(
-        reclaimer.confirm_core_applied(&mut registry, &mut bindings),
+        reclaimer.confirm_core_applied(&mut registry, &mut bindings, &mut flush_bindings),
         Ok(CompletionReclaimOutcome::Reclaimed {
-            operation_id: terminal.operation_id,
+            owner: ProducerTerminalOwner::Record(terminal.operation_id),
             completion_id,
         })
     );
@@ -159,8 +160,9 @@ fn registry_retry_never_emits_a_second_core_input() {
         Ok(())
     );
     let mut reclaimer = CompletionReclaimer::new();
+    let mut flush_bindings = FlushBindings::new(1);
     let Some(input) = reclaimer
-        .next_input(&mut registry, &bindings)
+        .next_input(&mut registry, &bindings, &flush_bindings)
         .unwrap_or_else(|error| panic!("reclaim input failed: {error}"))
     else {
         panic!("reclaim input should exist")
@@ -169,13 +171,12 @@ fn registry_retry_never_emits_a_second_core_input() {
     let Some((release, lock)) = hold_cell_lock(&registry, completion_id) else {
         panic!("completion cell lock should be held")
     };
-
     assert_eq!(
-        reclaimer.confirm_core_applied(&mut registry, &mut bindings),
+        reclaimer.confirm_core_applied(&mut registry, &mut bindings, &mut flush_bindings),
         Ok(CompletionReclaimOutcome::Retry)
     );
     assert_eq!(
-        reclaimer.next_input(&mut registry, &bindings),
+        reclaimer.next_input(&mut registry, &bindings, &flush_bindings),
         Err(CompletionReclaimError::InvalidPhase)
     );
     assert_eq!(
@@ -185,9 +186,9 @@ fn registry_retry_never_emits_a_second_core_input() {
     assert!(release.send(()).is_ok());
     assert!(lock.join().is_ok());
     assert_eq!(
-        reclaimer.retry_finish(&mut registry, &mut bindings),
+        reclaimer.retry_finish(&mut registry, &mut bindings, &mut flush_bindings),
         Ok(CompletionReclaimOutcome::Reclaimed {
-            operation_id: terminal.operation_id,
+            owner: ProducerTerminalOwner::Record(terminal.operation_id),
             completion_id,
         })
     );
@@ -202,10 +203,10 @@ fn missing_exact_binding_faults_without_releasing_capacity() {
     let terminal = terminal_operation();
     let completion_id = publish_observed(&mut registry, terminal.completion);
     let bindings = OperationBindings::new(1);
+    let flush_bindings = FlushBindings::new(1);
     let mut reclaimer = CompletionReclaimer::new();
-
     assert_eq!(
-        reclaimer.next_input(&mut registry, &bindings),
+        reclaimer.next_input(&mut registry, &bindings, &flush_bindings),
         Err(CompletionReclaimError::UnknownBinding(completion_id))
     );
     assert!(matches!(
@@ -213,7 +214,7 @@ fn missing_exact_binding_faults_without_releasing_capacity() {
         Err(CompletionRegistryError::Full)
     ));
     assert_eq!(
-        reclaimer.next_input(&mut registry, &bindings),
+        reclaimer.next_input(&mut registry, &bindings, &flush_bindings),
         Err(CompletionReclaimError::InvalidPhase)
     );
     assert_eq!(
@@ -243,9 +244,9 @@ fn a_stale_slot_generation_cannot_authorize_live_reclamation() {
         Ok(())
     );
     let mut reclaimer = CompletionReclaimer::new();
-
+    let flush_bindings = FlushBindings::new(1);
     assert_eq!(
-        reclaimer.next_input(&mut registry, &bindings),
+        reclaimer.next_input(&mut registry, &bindings, &flush_bindings),
         Err(CompletionReclaimError::UnknownBinding(live_id))
     );
     assert_eq!(bindings.completion(stale_operation), Some(stale_id));
@@ -271,18 +272,18 @@ fn exhausted_generation_retires_capacity_after_core_confirmation() {
         Ok(())
     );
     let mut reclaimer = CompletionReclaimer::new();
+    let mut flush_bindings = FlushBindings::new(1);
     let Some(input) = reclaimer
-        .next_input(&mut registry, &bindings)
+        .next_input(&mut registry, &bindings, &flush_bindings)
         .unwrap_or_else(|error| panic!("reclaim input failed: {error}"))
     else {
         panic!("reclaim input should exist")
     };
     assert!(terminal.machine.apply(input).is_ok());
-
     assert_eq!(
-        reclaimer.confirm_core_applied(&mut registry, &mut bindings),
+        reclaimer.confirm_core_applied(&mut registry, &mut bindings, &mut flush_bindings),
         Ok(CompletionReclaimOutcome::Retired {
-            operation_id: terminal.operation_id,
+            owner: ProducerTerminalOwner::Record(terminal.operation_id),
             completion_id,
         })
     );

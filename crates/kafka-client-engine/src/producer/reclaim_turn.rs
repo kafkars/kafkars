@@ -22,14 +22,18 @@ impl ProducerHost {
         if self.reclaimer.finish_pending() {
             let result = {
                 let reclaimer = &mut self.reclaimer;
-                reclaimer.retry_finish(&mut self.completions, &mut self.bindings)
+                reclaimer.retry_finish(
+                    &mut self.completions,
+                    &mut self.bindings,
+                    &mut self.flush_bindings,
+                )
             };
             return self.finish_reclaim(result).map(Some);
         }
 
         let next = {
             let reclaimer = &mut self.reclaimer;
-            reclaimer.next_input(&mut self.completions, &self.bindings)
+            reclaimer.next_input(&mut self.completions, &self.bindings, &self.flush_bindings)
         };
         let input = match next {
             Ok(Some(input)) => input,
@@ -47,7 +51,11 @@ impl ProducerHost {
         }
         let result = {
             let reclaimer = &mut self.reclaimer;
-            reclaimer.confirm_core_applied(&mut self.completions, &mut self.bindings)
+            reclaimer.confirm_core_applied(
+                &mut self.completions,
+                &mut self.bindings,
+                &mut self.flush_bindings,
+            )
         };
         self.finish_reclaim(result).map(Some)
     }

@@ -90,6 +90,7 @@ pub(super) const fn delivery_status(status: EngineDeliveryStatus) -> DeliverySta
 fn translate_observer_error(error: EngineObserverError) -> KafkaError {
     let kind = match error {
         EngineObserverError::AlreadyObserved | EngineObserverError::Stale => ErrorKind::State,
+        EngineObserverError::TerminalTypeMismatch => ErrorKind::Internal,
     };
     KafkaError::new(kind, error.to_string())
 }

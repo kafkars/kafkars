@@ -1,7 +1,13 @@
 //! Host terminal publication, independent mechanism progress, and recovery scenarios.
 
+use std::{
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll, Waker},
+};
+
 use kafka_client_core::{
-    Deadline, DeliveryStatus, Moment, OperationId, ProducerCompletion, ProducerEffect,
+    Deadline, DeliveryStatus, FlushId, Moment, OperationId, ProducerCompletion, ProducerEffect,
     ProducerFailureKind,
 };
 
@@ -15,8 +21,51 @@ use super::{
     admission::AdmittedExplicit,
     admission_test::{admit, record},
     host_limits_test::{start, valid_limits},
-    terminal_backlog::RetainedTerminal,
+    terminal_backlog::{ProducerTerminalOwner, RetainedTerminal},
 };
+
+#[test]
+fn flush_publication_stays_behind_retained_record_terminal_under_notifier_backpressure() {
+    let mut host = start(valid_limits());
+    let record = admit(
+        &mut host,
+        Moment::from_tick(0),
+        Deadline::from_tick(5),
+        record("orders"),
+    );
+    let flush = host
+        .try_admit_flush(Moment::from_tick(1))
+        .unwrap_or_else(|error| panic!("flush should be accepted: {error:?}"));
+    host.inject_terminal_publish_fault(CompletionRegistryError::NotificationBackpressure);
+
+    assert_eq!(host.fire_due(Moment::from_tick(5), 1), Ok(1));
+    assert_eq!(host.stats().terminal_backlog, 2);
+    assert_eq!(
+        host.terminal_front().map(RetainedTerminal::owner),
+        Some(ProducerTerminalOwner::Record(record.operation_id()))
+    );
+    assert_eq!(
+        host.terminal_back().map(RetainedTerminal::owner),
+        Some(ProducerTerminalOwner::Flush(flush.flush_id()))
+    );
+
+    assert_eq!(host.retry_terminal_backlog(1), Ok(1));
+    assert_deadline_failure(record);
+    let mut flush = flush.into_flush_observer();
+    let waker = Waker::noop();
+    assert_eq!(
+        Pin::new(&mut flush).poll(&mut Context::from_waker(waker)),
+        Poll::Pending
+    );
+    assert_eq!(host.stats().terminal_backlog, 1);
+    assert_eq!(
+        host.terminal_front().map(RetainedTerminal::owner),
+        Some(ProducerTerminalOwner::Flush(FlushId::from_raw(1)))
+    );
+
+    assert_eq!(host.retry_terminal_backlog(1), Ok(1));
+    assert_eq!(flush.wait(), Ok(()));
+}
 
 #[test]
 fn notification_backpressure_retains_the_exact_terminal_fifo() {
@@ -117,10 +166,10 @@ fn assert_deadline_terminal(terminal: Option<&RetainedTerminal>, expected: Opera
     let Some(terminal) = terminal else {
         panic!("backlog must retain one exact failed record terminal")
     };
-    let ProducerCompletion::Failed(failure) = terminal.completion() else {
+    let Some(ProducerCompletion::Failed(failure)) = terminal.record_completion() else {
         panic!("deadline should retain its exact failure")
     };
-    assert_eq!(terminal.operation_id(), expected);
+    assert_eq!(terminal.owner(), ProducerTerminalOwner::Record(expected));
     assert_eq!(failure.kind(), ProducerFailureKind::DeadlineElapsed);
     assert_eq!(failure.delivery(), DeliveryStatus::NotSent);
 }
