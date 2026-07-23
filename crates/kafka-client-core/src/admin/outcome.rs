@@ -9,12 +9,30 @@ use crate::DeliveryStatus;
 pub struct CreateTopicBrokerError {
     code: NonZeroI16,
     message: Option<String>,
+    message_truncated: bool,
 }
 
 impl CreateTopicBrokerError {
     /// Creates a normalized broker error without classifying unknown codes away.
     pub const fn new(code: NonZeroI16, message: Option<String>) -> Self {
-        Self { code, message }
+        Self {
+            code,
+            message,
+            message_truncated: false,
+        }
+    }
+
+    /// Creates an exact code with a bounded diagnostic representation.
+    pub const fn with_bounded_message(
+        code: NonZeroI16,
+        message: Option<String>,
+        message_truncated: bool,
+    ) -> Self {
+        Self {
+            code,
+            message,
+            message_truncated,
+        }
     }
 
     /// Returns Kafka's exact signed error code.
@@ -25,6 +43,16 @@ impl CreateTopicBrokerError {
     /// Returns Kafka's optional diagnostic message.
     pub fn message(&self) -> Option<&str> {
         self.message.as_deref()
+    }
+
+    /// Returns whether a present broker diagnostic was shortened or omitted.
+    pub const fn message_truncated(&self) -> bool {
+        self.message_truncated
+    }
+
+    /// Consumes the normalized broker error into adapter-owned parts.
+    pub fn into_parts(self) -> (i16, Option<String>, bool) {
+        (self.code.get(), self.message, self.message_truncated)
     }
 }
 
@@ -70,6 +98,11 @@ impl CreateTopicOutcome {
     pub const fn result(&self) -> &CreateTopicResult {
         &self.result
     }
+
+    /// Consumes this ordered outcome into adapter-owned parts.
+    pub fn into_parts(self) -> (String, CreateTopicResult) {
+        (self.topic, self.result)
+    }
 }
 
 /// Whole-operation failure category outside per-topic broker results.
@@ -81,6 +114,8 @@ pub enum CreateTopicsFailureKind {
     DriverRejected,
     /// Transport failed after the request entered driver ownership.
     Transport,
+    /// A broker response could not be correlated to the requested topics.
+    InvalidResponse,
 }
 
 /// Whole-operation failure with authoritative delivery certainty.
@@ -109,6 +144,13 @@ impl CreateTopicsFailure {
         Self {
             kind: CreateTopicsFailureKind::Transport,
             delivery,
+        }
+    }
+
+    pub(crate) const fn invalid_response() -> Self {
+        Self {
+            kind: CreateTopicsFailureKind::InvalidResponse,
+            delivery: DeliveryStatus::PossiblySent,
         }
     }
 

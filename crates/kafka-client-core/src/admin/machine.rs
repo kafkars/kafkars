@@ -31,6 +31,8 @@ pub enum CreateTopicsInput {
     DriverAccepted,
     /// Reports definite rejection before driver ownership.
     DriverRejected,
+    /// Reports that the original deadline elapsed before driver ownership.
+    DeadlineElapsed,
     /// Reports ordered protocol-normalized per-topic results.
     BrokerResponded {
         /// Per-topic outcomes in original request order.
@@ -41,6 +43,8 @@ pub enum CreateTopicsInput {
         /// Driver-authoritative delivery certainty.
         delivery: DeliveryStatus,
     },
+    /// Reports a broker response that cannot be correlated to the request.
+    InvalidResponse,
 }
 
 /// One concrete mechanism request emitted by `CreateTopics` policy.

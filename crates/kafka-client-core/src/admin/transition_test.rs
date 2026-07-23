@@ -38,6 +38,40 @@ fn start_and_accept(machine: &mut CreateTopicsMachine) {
 }
 
 #[test]
+fn pre_driver_wait_expires_with_deadline_certainty() {
+    let mut machine = machine(10);
+    let started = machine.apply(CreateTopicsInput::Start {
+        now: Moment::from_tick(5),
+    });
+    assert!(started.is_ok());
+
+    let elapsed = machine.apply(CreateTopicsInput::DeadlineElapsed);
+    let transition = elapsed.unwrap_or_else(|error| panic!("expire pre-driver wait: {error}"));
+    assert_failed(
+        transition.into_effect(),
+        CreateTopicsFailureKind::DeadlineElapsed,
+    );
+    assert_eq!(machine.state(), CreateTopicsState::Completed);
+}
+
+#[test]
+fn malformed_broker_terminal_is_not_misclassified_as_transport() {
+    let mut machine = machine(10);
+    start_and_accept(&mut machine);
+    let transition = machine
+        .apply(CreateTopicsInput::InvalidResponse)
+        .unwrap_or_else(|error| panic!("apply invalid response: {error}"));
+    let Some(CreateTopicsEffect::Complete { terminal, .. }) = transition.into_effect() else {
+        panic!("terminal completion expected");
+    };
+    let CreateTopicsTerminal::Failed(failure) = terminal else {
+        panic!("whole-operation failure expected");
+    };
+    assert_eq!(failure.kind(), CreateTopicsFailureKind::InvalidResponse);
+    assert_eq!(failure.delivery(), DeliveryStatus::PossiblySent);
+}
+
+#[test]
 fn start_emits_the_original_ordered_plan_and_deadline() {
     let mut machine = machine(50);
     let transition = machine.apply(CreateTopicsInput::Start {

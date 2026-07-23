@@ -21,8 +21,10 @@ impl CreateTopicsMachine {
             CreateTopicsInput::Start { now } => self.start(now),
             CreateTopicsInput::DriverAccepted => self.driver_accepted(),
             CreateTopicsInput::DriverRejected => self.driver_rejected(),
+            CreateTopicsInput::DeadlineElapsed => self.deadline_elapsed(),
             CreateTopicsInput::BrokerResponded { outcomes } => self.broker_responded(outcomes),
             CreateTopicsInput::TransportFailed { delivery } => self.transport_failed(delivery),
+            CreateTopicsInput::InvalidResponse => self.invalid_response(),
         }
     }
 
@@ -63,6 +65,15 @@ impl CreateTopicsMachine {
         )))
     }
 
+    fn deadline_elapsed(&mut self) -> Result<CreateTopicsTransition, CreateTopicsMachineError> {
+        if self.state != CreateTopicsState::AwaitingDriver {
+            return Err(CreateTopicsMachineError::InvalidState);
+        }
+        Ok(self.finish(CreateTopicsTerminal::Failed(
+            CreateTopicsFailure::deadline_elapsed(),
+        )))
+    }
+
     fn broker_responded(
         &mut self,
         outcomes: Vec<CreateTopicOutcome>,
@@ -83,6 +94,15 @@ impl CreateTopicsMachine {
         }
         Ok(self.finish(CreateTopicsTerminal::Failed(
             CreateTopicsFailure::transport(delivery),
+        )))
+    }
+
+    fn invalid_response(&mut self) -> Result<CreateTopicsTransition, CreateTopicsMachineError> {
+        if self.state != CreateTopicsState::Submitted {
+            return Err(CreateTopicsMachineError::InvalidState);
+        }
+        Ok(self.finish(CreateTopicsTerminal::Failed(
+            CreateTopicsFailure::invalid_response(),
         )))
     }
 
