@@ -49,7 +49,7 @@ fn is_beneath(path: &Path, directory: &str) -> bool {
 fn is_wire_adapter(path: &Path) -> bool {
     is_beneath(path, "protocol")
         || path == Path::new("driver/rpc.rs")
-        || path == Path::new("driver/rpc_test.rs")
+        || path.starts_with(Path::new("driver/rpc"))
 }
 
 #[derive(Default)]
@@ -135,6 +135,12 @@ fn aliases_and_qualified_paths_cannot_bypass_engine_adapters() {
             .iter()
             .any(|value| value.starts_with("driver/rpc.rs ")),
         "engine boundary detector rejected the exact driver RPC join point: {violations:?}"
+    );
+    assert!(
+        !violations
+            .iter()
+            .any(|value| value.contains("driver/rpc/nested.rs")),
+        "engine boundary detector rejected the exact driver RPC subtree: {violations:?}"
     );
     assert!(
         violations

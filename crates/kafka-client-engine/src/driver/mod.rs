@@ -17,8 +17,6 @@ mod owner_test;
     reason = "tracked Produce admission is callable before the shard join is linearized"
 )]
 mod rpc;
-#[cfg(test)]
-mod rpc_test;
 mod shutdown;
 #[cfg(test)]
 mod shutdown_test;
@@ -38,5 +36,5 @@ pub(crate) use owner::{DriverOwner, DriverTurn};
     unused_imports,
     reason = "reexported for the producer-driver join milestone"
 )]
-pub(crate) use rpc::ProduceSubmitError;
+pub(crate) use rpc::{ProduceCompletionFailure, ProduceSubmitError, TrackedProduceCalls};
 pub(crate) use wake::{ReactorWake, ReactorWakeError};

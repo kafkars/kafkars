@@ -9,8 +9,8 @@ use kafka_wire::{ProduceRequest, ProduceResponse};
 use crate::EngineConfig;
 
 use super::{
-    DriverOwner,
-    rpc::{ProduceSubmitError, produce_options},
+    super::DriverOwner,
+    submission::{ProduceSubmitError, produce_options},
 };
 
 #[test]

@@ -40,9 +40,28 @@ pub(crate) struct MaterializedProduce {
 }
 
 impl MaterializedProduce {
+    #[cfg(test)]
+    pub(crate) fn from_encoded_test_parts(
+        topic: impl Into<Arc<str>>,
+        partition: i32,
+        records: Bytes,
+    ) -> Self {
+        Self {
+            topic: topic.into(),
+            partition,
+            records,
+        }
+    }
+
     /// Borrows the topic needed for name-routed driver admission.
+    #[cfg(test)]
     pub(crate) fn topic_name(&self) -> &str {
         self.topic.as_ref()
+    }
+
+    /// Clones the existing interned owner for terminal response correlation.
+    pub(crate) fn topic_owner(&self) -> Arc<str> {
+        Arc::clone(&self.topic)
     }
 
     /// Returns the explicit partition needed for driver routing.

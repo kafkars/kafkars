@@ -175,8 +175,12 @@ production = "crates/kafka-client-engine/src/driver/delivery.rs"
 test = "crates/kafka-client-engine/src/driver/delivery_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/driver/rpc.rs"
-test = "crates/kafka-client-engine/src/driver/rpc_test.rs"
+production = "crates/kafka-client-engine/src/driver/rpc/submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/calls.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/calls_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/shutdown.rs"
@@ -738,6 +742,20 @@ allowed_paths = []
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
+method = "submit_tracked_produce"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/calls.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "topic_owner"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/calls.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
 method = "spawn"
 allowed_paths = [
   "crates/kafka-client-engine/src/completion/notifier.rs",
@@ -1227,6 +1245,16 @@ field = "notifier"
 allowed_paths = ["crates/kafka-client-engine/src/engine_host/runner.rs"]
 
 [[mutation_owners]]
+owner_type = "TrackedProduceCalls"
+field = "calls"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/calls.rs"]
+
+[[mutation_owners]]
+owner_type = "TrackedProduceCalls"
+field = "settled"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/calls.rs"]
+
+[[mutation_owners]]
 owner_type = "ProducerHost"
 field = "store"
 allowed_paths = [
@@ -1428,6 +1456,22 @@ path = "crates/kafka-client-engine/src/engine_host/lifecycle.rs"
 [[linear_owners]]
 owner_type = "EngineHostResources"
 path = "crates/kafka-client-engine/src/engine_host/runner.rs"
+
+[[linear_owners]]
+owner_type = "TrackedProduceCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/calls.rs"
+
+[[linear_owners]]
+owner_type = "TrackedProduceCall"
+path = "crates/kafka-client-engine/src/driver/rpc/calls.rs"
+
+[[linear_owners]]
+owner_type = "ProduceCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/calls.rs"
+
+[[linear_owners]]
+owner_type = "SettledProduceCall"
+path = "crates/kafka-client-engine/src/driver/rpc/calls.rs"
 
 [[linear_owners]]
 owner_type = "CompletionRegistry"
