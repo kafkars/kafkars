@@ -20,7 +20,7 @@ fn recovery_worker_cannot_wait_for_its_own_join() {
     lifecycle.install_recovery_thread(std::thread::current().id());
     let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("test driver should build: {error}"));
-    let control = EngineHostControl::new(driver.producer_wake());
+    let control = EngineHostControl::new(driver.reactor_wake());
 
     let error = lifecycle
         .request_and_wait(&control)

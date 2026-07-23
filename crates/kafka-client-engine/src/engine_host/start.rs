@@ -51,7 +51,7 @@ pub(crate) fn start(
         Err(error) => return cancel_start(sender, handle, EngineStartError::driver(&error)),
     };
     let clock = Arc::new(MonotonicClock::new());
-    let wake = driver.producer_wake();
+    let wake = driver.reactor_wake();
     let control = Arc::new(EngineHostControl::new(wake.clone()));
     let producer = match ProducerHost::new(validated.host_limits) {
         Ok(producer) => producer,

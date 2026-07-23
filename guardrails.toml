@@ -135,8 +135,12 @@ production = "crates/kafka-client-engine/src/driver/owner.rs"
 test = "crates/kafka-client-engine/src/driver/owner_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/driver/producer_wake.rs"
-test = "crates/kafka-client-engine/src/driver/producer_wake_test.rs"
+production = "crates/kafka-client-engine/src/driver/wake.rs"
+test = "crates/kafka-client-engine/src/driver/wake_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/reactor_wake.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/reactor_wake_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/config.rs"
@@ -624,6 +628,10 @@ forbidden = [
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/driver"
 forbidden = [
+  "crate::admin",
+  "crate::consumer",
+  "crate::producer",
+  "crate::transaction",
   "PendingNotificationJob",
   "PendingNotificationRecovery",
   "dispatch_pending_notification",

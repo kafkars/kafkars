@@ -8,7 +8,7 @@ use kafka_driver::{
 
 use crate::EngineConfig;
 
-use super::{DriverOwnerError, ProducerDriverWake, endpoint};
+use super::{DriverOwnerError, ReactorWake, endpoint};
 
 /// Driver-neutral outcome from one embedded reactor turn.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -60,9 +60,9 @@ impl DriverOwner {
         })
     }
 
-    /// Shares an engine-owned producer adapter over the coalesced reactor wake.
-    pub(crate) fn producer_wake(&self) -> ProducerDriverWake {
-        ProducerDriverWake::new(self.wake.clone())
+    /// Shares the domain-neutral coalescing wake for the integrated host.
+    pub(crate) fn reactor_wake(&self) -> ReactorWake {
+        ReactorWake::new(self.wake.clone())
     }
 
     /// Drives one fairness-bounded embedded driver turn.

@@ -144,6 +144,36 @@ fn exact_file_roots_have_positive_and_negative_method_call_evidence() {
 }
 
 #[test]
+fn shared_driver_rejects_every_concrete_domain_import() {
+    let (root, _) = fixture_files("driver_domain_boundary");
+    let violations = capability_violations(
+        &root,
+        &[CapabilityRule {
+            root: "src/driver".to_owned(),
+            forbidden: vec![
+                "crate::admin".to_owned(),
+                "crate::consumer".to_owned(),
+                "crate::producer".to_owned(),
+                "crate::transaction".to_owned(),
+            ],
+        }],
+    );
+
+    for domain in ["admin", "consumer", "producer", "transaction"] {
+        assert!(
+            violations
+                .iter()
+                .any(|value| value.contains(&format!("crate::{domain}"))),
+            "shared driver accepted {domain} policy: {violations:?}"
+        );
+    }
+    assert!(
+        !violations.iter().any(|value| value.contains("allowed.rs")),
+        "domain-neutral driver mechanism was rejected: {violations:?}"
+    );
+}
+
+#[test]
 fn engine_wide_method_allowlist_has_positive_and_negative_evidence() {
     let (root, _) = fixture_files("unbounded_channel");
     let allowed = [MethodCapabilityRule {

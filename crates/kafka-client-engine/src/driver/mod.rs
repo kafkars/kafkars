@@ -5,11 +5,11 @@ mod error;
 pub(crate) mod owner;
 #[cfg(test)]
 mod owner_test;
-mod producer_wake;
+mod wake;
 #[cfg(test)]
-mod producer_wake_test;
+mod wake_test;
 
 pub(crate) use endpoint::EndpointError;
 pub(crate) use error::DriverOwnerError;
 pub(crate) use owner::{DriverOwner, DriverTurn};
-pub(crate) use producer_wake::ProducerDriverWake;
+pub(crate) use wake::{ReactorWake, ReactorWakeError};

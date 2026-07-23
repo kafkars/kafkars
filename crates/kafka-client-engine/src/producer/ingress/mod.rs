@@ -11,6 +11,7 @@ mod port;
 mod promotion;
 mod promotion_error;
 mod promotion_rejection;
+mod reactor_wake;
 mod shard;
 mod terminal;
 mod waiting;
@@ -53,6 +54,8 @@ mod promotion_error_test;
 mod promotion_rejection_test;
 #[cfg(test)]
 mod promotion_test;
+#[cfg(test)]
+mod reactor_wake_test;
 #[cfg(test)]
 mod shard_test;
 #[cfg(test)]

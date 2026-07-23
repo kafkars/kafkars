@@ -132,7 +132,7 @@ fn resources() -> EngineHostResources {
         .unwrap_or_else(|error| panic!("test engine config should validate: {error:?}"));
     let driver = DriverOwner::build(&config)
         .unwrap_or_else(|error| panic!("test driver should build locally: {error}"));
-    let wake = driver.producer_wake();
+    let wake = driver.reactor_wake();
     let control = Arc::new(EngineHostControl::new(wake.clone()));
     let producer = ProducerHost::new(validated.host_limits)
         .unwrap_or_else(|error| panic!("test producer should start: {error}"));

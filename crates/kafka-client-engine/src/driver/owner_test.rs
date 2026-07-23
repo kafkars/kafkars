@@ -2,17 +2,17 @@
 
 use std::time::Duration;
 
-use crate::{EngineConfig, producer::ingress::ProducerShardWake};
+use crate::EngineConfig;
 
 use super::{DriverOwnerError, DriverTurn, owner::DriverOwner};
 
 #[test]
 fn one_owner_builds_the_driver_handle_reactor_and_wake_source() {
     let mut owner = owner();
-    let wake = owner.producer_wake();
+    let wake = owner.reactor_wake();
 
     assert!(!owner.is_shutdown());
-    assert!(wake.wake().is_ok());
+    assert!(wake.request().is_ok());
     owner.close_admission();
     let outcome = owner
         .turn(Duration::ZERO)

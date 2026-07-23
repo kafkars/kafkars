@@ -10,8 +10,8 @@ use super::{super::ProducerHost, data::ProducerShardData};
 
 /// Coalescible request for the producer host to make progress.
 ///
-/// Implementations must not run application code. A driver-backed adapter
-/// belongs under `driver` so no driver type crosses this boundary.
+/// Implementations must not run application code. The shared reactor wake is
+/// adapted by this concrete ingress domain rather than by the driver owner.
 pub(crate) trait ProducerShardWake: Send + Sync + 'static {
     fn wake(&self) -> Result<(), ProducerShardWakeError>;
 }

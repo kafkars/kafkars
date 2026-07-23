@@ -2,7 +2,7 @@
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-use crate::driver::ProducerDriverWake;
+use crate::driver::ReactorWake;
 
 #[derive(Debug)]
 pub(crate) struct EngineHostControl {
@@ -11,11 +11,11 @@ pub(crate) struct EngineHostControl {
     failure: AtomicBool,
     producer_turns: AtomicU64,
     driver_turns: AtomicU64,
-    wake: ProducerDriverWake,
+    wake: ReactorWake,
 }
 
 impl EngineHostControl {
-    pub(super) const fn new(wake: ProducerDriverWake) -> Self {
+    pub(super) const fn new(wake: ReactorWake) -> Self {
         Self {
             shutdown: AtomicBool::new(false),
             #[cfg(test)]
