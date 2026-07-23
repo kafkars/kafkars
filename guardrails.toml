@@ -215,6 +215,10 @@ production = "crates/kafka-client-engine/src/producer/execution/materialization.
 test = "crates/kafka-client-engine/src/producer/execution/materialization_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/execution/next_submission.rs"
+test = "crates/kafka-client-engine/src/producer/execution/next_submission_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution/submission.rs"
 test = "crates/kafka-client-engine/src/producer/execution/submission_test.rs"
 
@@ -757,6 +761,26 @@ forbidden = [
 ]
 
 [[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/execution/next_submission.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_records",
+  "std::time",
+  "Instant::now",
+  "OperationDeadline::from_boundary_parts",
+  "materialize_explicit_produce_batch",
+  "ProduceRequest",
+  "RecordBatch",
+  "Transport",
+  "Rpc",
+  "Retry",
+  "Metadata",
+  "std::future",
+  "Future",
+]
+
+[[capability_rules]]
 root = "crates/kafka-client-engine/src/producer/ingress/shard_turn.rs"
 forbidden = [
   "std::time",
@@ -904,6 +928,13 @@ allowed_paths = []
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "take_driver_submission"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/execution/next_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "take_next_driver_submission"
 allowed_paths = []
 
 [[method_capabilities]]
@@ -1508,6 +1539,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/execution.rs",
   "crates/kafka-client-engine/src/producer/execution/cleanup.rs",
   "crates/kafka-client-engine/src/producer/execution/handoff.rs",
+  "crates/kafka-client-engine/src/producer/execution/next_submission.rs",
   "crates/kafka-client-engine/src/producer/execution/submission.rs",
 ]
 

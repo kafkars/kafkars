@@ -9,6 +9,9 @@ mod handoff_test;
 mod materialization;
 #[cfg(test)]
 mod materialization_test;
+mod next_submission;
+#[cfg(test)]
+mod next_submission_test;
 mod submission;
 #[cfg(test)]
 mod submission_test;

@@ -53,6 +53,8 @@ fn generated_wire_encoder_accepts_the_name_based_flexible_request() {
 fn submission_binds_timeout_without_reencoding_record_batch_bytes() {
     for timeout_ms in [1_000, 30_000] {
         let materialized = materialize_explicit_produce_batch(input(usize::MAX)).unwrap();
+        assert_eq!(materialized.topic_name(), TOPIC);
+        assert_eq!(materialized.partition(), PARTITION);
         let encoded_address = materialized.encoded_records().as_ptr();
         let encoded_length = materialized.encoded_records().len();
         let request = materialized.into_name_routed_request(timeout_ms);

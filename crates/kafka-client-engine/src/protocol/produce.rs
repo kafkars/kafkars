@@ -35,6 +35,16 @@ pub(crate) struct MaterializedProduce {
 }
 
 impl MaterializedProduce {
+    /// Borrows the topic needed for name-routed driver admission.
+    pub(crate) fn topic_name(&self) -> &str {
+        self.topic.as_ref()
+    }
+
+    /// Returns the explicit partition needed for driver routing.
+    pub(crate) const fn partition(&self) -> i32 {
+        self.partition
+    }
+
     /// Returns the retained `RecordBatch` bytes awaiting driver submission.
     pub(crate) fn retained_record_bytes(&self) -> usize {
         self.records.len()

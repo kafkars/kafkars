@@ -1,0 +1,148 @@
+//! Stable prepared-submission selection and linear transfer scenarios.
+
+use std::time::Instant;
+
+use bytes::Bytes;
+use kafka_client_core::{
+    BatchExecutionGeneration, BatchExecutionId, BatchId, Deadline, OperationId,
+};
+
+use super::{PreparedExecution, PreparedExecutionLimits, handoff::PreparedProduceHandoffError};
+use crate::{
+    clock::OperationDeadline,
+    producer::materialization::{MaterializationBatch, MaterializationRecord},
+    protocol::produce::{MaterializedProduce, materialize_explicit_produce_batch},
+};
+
+#[test]
+fn next_submission_uses_lowest_batch_id_as_core_admission_order() {
+    let mut owner = PreparedExecution::new(
+        3,
+        PreparedExecutionLimits {
+            encoded_bytes: usize::MAX,
+            max_batch_bytes: 1_024,
+        },
+    );
+    // Arming out of order proves selection follows core's monotonically
+    // allocated BatchId rather than mechanism insertion order.
+    for (batch, topic, partition) in [(9, "newest", 9), (3, "oldest", 3), (7, "middle", 7)] {
+        retain(&mut owner, batch, topic, partition);
+    }
+
+    for (batch, topic, partition) in [(3, "oldest", 3), (7, "middle", 7), (9, "newest", 9)] {
+        let submission = owner
+            .take_next_driver_submission()
+            .unwrap_or_else(|error| panic!("ordered handoff failed: {error}"))
+            .unwrap_or_else(|| panic!("armed submission should be ready"));
+        assert_eq!(submission.execution(), execution(batch));
+        let (_, _, materialized) = submission.into_parts();
+        assert_eq!(materialized.topic_name(), topic);
+        assert_eq!(materialized.partition(), partition);
+    }
+    assert!(
+        owner
+            .take_next_driver_submission()
+            .unwrap_or_else(|error| panic!("empty handoff failed: {error}"))
+            .is_none()
+    );
+    assert_eq!(owner.prepared_stats().batches, 0);
+    assert_eq!(owner.submission_count(), 0);
+}
+
+#[test]
+fn materialized_but_unarmed_batch_is_not_a_driver_submission() {
+    let mut owner = PreparedExecution::new(
+        2,
+        PreparedExecutionLimits {
+            encoded_bytes: usize::MAX,
+            max_batch_bytes: 1_024,
+        },
+    );
+    owner
+        .prepared
+        .insert(execution(1), prepared("waiting", 1))
+        .unwrap_or_else(|error| panic!("prepared insertion failed: {error}"));
+    retain(&mut owner, 2, "ready", 2);
+
+    let submission = owner
+        .take_next_driver_submission()
+        .unwrap_or_else(|error| panic!("ready handoff failed: {error}"))
+        .unwrap_or_else(|| panic!("armed submission should be selected"));
+    assert_eq!(submission.execution(), execution(2));
+    assert!(owner.prepared.contains(execution(1)));
+    assert_eq!(owner.submission_count(), 0);
+}
+
+#[test]
+fn selected_ownership_drift_preserves_the_exact_armed_deadline() {
+    let mut owner = PreparedExecution::new(
+        1,
+        PreparedExecutionLimits {
+            encoded_bytes: usize::MAX,
+            max_batch_bytes: 1_024,
+        },
+    );
+    arm(&mut owner, 5);
+
+    assert!(matches!(
+        owner.take_next_driver_submission(),
+        Err(PreparedProduceHandoffError::OwnershipMismatch {
+            requested,
+            prepared: None,
+            deadline: Some(retained),
+        }) if requested == execution(5) && retained == execution(5)
+    ));
+    assert_eq!(owner.submission_count(), 1);
+    assert_eq!(
+        owner
+            .submission_deadline(execution(5))
+            .map(OperationDeadline::core),
+        Some(Deadline::from_tick(105))
+    );
+}
+
+fn retain(owner: &mut PreparedExecution, batch: u64, topic: &'static str, partition: i32) {
+    let execution = execution(batch);
+    owner
+        .prepared
+        .insert(execution, prepared(topic, partition))
+        .unwrap_or_else(|error| panic!("prepared insertion failed: {error}"));
+    arm(owner, batch);
+}
+
+fn arm(owner: &mut PreparedExecution, batch: u64) {
+    let execution = execution(batch);
+    owner
+        .deadlines
+        .arm(
+            execution,
+            OperationId::from_raw(batch),
+            OperationDeadline::from_parts_for_test(
+                Deadline::from_tick(100 + batch),
+                Instant::now(),
+            ),
+        )
+        .unwrap_or_else(|error| panic!("deadline arm failed: {error}"));
+}
+
+const fn execution(batch: u64) -> BatchExecutionId {
+    BatchExecutionId::new(
+        BatchId::from_raw(batch),
+        BatchExecutionGeneration::initial(),
+    )
+}
+
+fn prepared(topic: &'static str, partition: i32) -> MaterializedProduce {
+    materialize_explicit_produce_batch(MaterializationBatch::new(
+        topic.to_owned(),
+        partition,
+        vec![MaterializationRecord::new(
+            100,
+            None,
+            Some(Bytes::from_static(b"value")),
+            Vec::new(),
+        )],
+        usize::MAX,
+    ))
+    .unwrap_or_else(|error| panic!("test materialization failed: {error}"))
+}

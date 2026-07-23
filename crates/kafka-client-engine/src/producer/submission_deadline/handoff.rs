@@ -30,6 +30,13 @@ impl SubmissionDeadlineHandoffPlan {
 }
 
 impl SubmissionDeadlines {
+    /// Returns the oldest admitted batch ready for paired driver handoff.
+    pub(crate) fn next_handoff_execution(&self) -> Option<BatchExecutionId> {
+        self.active
+            .first_key_value()
+            .map(|(_, entry)| entry.execution)
+    }
+
     /// Plans removal only when both exact deadline owners are present.
     pub(crate) fn plan_handoff(
         &self,
