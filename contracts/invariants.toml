@@ -73,6 +73,7 @@ status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/clock/monotonic_test.rs::deadline_capture_uses_one_boundary_observation",
   "crates/kafka-client-engine/src/producer/pending/registry_test.rs::pending_entry_preserves_both_absolute_deadline_representations",
+  "crates/kafka-client-engine/src/producer/ingress/promotion_test.rs::later_moment_admission_binds_the_original_core_and_transport_deadline",
   "crates/kafka-client-engine/src/producer/execution/submission_test.rs::submission_requires_and_preserves_the_admitted_operation_deadline",
   "crates/kafka-client-engine/src/producer/pending/registry_test.rs::deadline_expiry_is_ordered_bounded_and_not_sent",
   "crates/kafka-client-core/src/producer_test.rs::elapsed_deadline_never_crosses_admission",
@@ -223,6 +224,7 @@ evidence = [
   "crates/kafka-client-engine/src/producer/pending/restore_test.rs::failed_restore_cannot_leave_cell_pending_without_registry_entry",
   "crates/kafka-client-engine/src/producer/pending/turn_error_test.rs::settlement_turn_failure_retains_attempt_record_and_requested_failure",
   "crates/kafka-client-engine/src/producer/pending/turn_error_test.rs::post_claim_take_failure_retains_the_exact_promotion_owner",
+  "crates/kafka-client-engine/src/producer/ingress/promotion_test.rs::transient_head_restores_before_any_later_fifo_entry_can_promote",
 ]
 
 [[invariant]]

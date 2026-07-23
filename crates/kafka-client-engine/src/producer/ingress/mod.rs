@@ -1,7 +1,11 @@
 //! Thread-safe producer-shard admission without runtime or driver coupling.
 
 mod data;
+mod data_terminal;
 mod port;
+mod promotion;
+mod promotion_error;
+mod promotion_rejection;
 mod shard;
 mod terminal;
 
@@ -22,9 +26,17 @@ pub(crate) use shard::{
 pub(crate) use terminal::ProducerShardTerminalError;
 
 #[cfg(test)]
+mod data_terminal_test;
+#[cfg(test)]
 mod data_test;
 #[cfg(test)]
 mod port_test;
+#[cfg(test)]
+mod promotion_error_test;
+#[cfg(test)]
+mod promotion_rejection_test;
+#[cfg(test)]
+mod promotion_test;
 #[cfg(test)]
 mod shard_test;
 #[cfg(test)]

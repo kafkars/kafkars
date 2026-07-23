@@ -6,23 +6,23 @@ use kafka_client_core::Moment;
 
 use crate::{
     clock::OperationDeadline,
-    completion::NotifierJoin,
     producer::{
         ProducerHost, ProducerHostInvariantError, ProducerRecord, ProducerRejectionReason,
         ProducerStoreError,
         admission::{AdmittedExplicit, ProducerAdmissionFailure, RejectedExplicit},
-        execution_stop::ProducerExecutionStopError,
         host::ProducerHostStats,
         host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
         pending::{
             PendingAdmissionRegistry, PendingAdmissionRejected, PendingAdmissionStats,
             PendingNotificationPermitPool, PendingSendRegistration,
         },
-        shutdown::ProducerNotifierRecovery,
     },
 };
 
-use super::terminal::{ProducerShardPendingOwnership, ProducerShardTerminalError};
+use super::{
+    promotion,
+    promotion_error::{PendingPromotionFailure, PendingPromotionProgress},
+};
 
 /// Combined accounting visible without splitting the shard's synchronization owner.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -43,9 +43,9 @@ enum ProducerShardAdmission {
 
 /// Sole synchronized owner of accepted and pre-core producer admission.
 pub(crate) struct ProducerShardData {
-    host: ProducerHost,
-    pending: PendingAdmissionRegistry,
-    pending_notification_permits: Arc<PendingNotificationPermitPool>,
+    pub(super) host: ProducerHost,
+    pub(super) pending: PendingAdmissionRegistry,
+    pub(super) pending_notification_permits: Arc<PendingNotificationPermitPool>,
     retained_byte_limit: usize,
     admission: ProducerShardAdmission,
 }
@@ -102,48 +102,23 @@ impl ProducerShardData {
         self.host.turn(now, budget)
     }
 
-    pub(crate) fn unsettled_completions(&self) -> usize {
-        self.host.unsettled_completions()
-    }
-
-    pub(crate) fn execution_unavailable(
+    /// Resolves at most one FIFO pending attempt without wiring live scheduling.
+    #[allow(
+        dead_code,
+        reason = "public registration remains guarded until recovery and shutdown integration"
+    )]
+    pub(crate) fn promote_next(
         &mut self,
         now: Moment,
-    ) -> Result<(), ProducerExecutionStopError> {
-        self.close_admission();
-        self.host.execution_unavailable(now)
+    ) -> Result<PendingPromotionProgress, PendingPromotionFailure> {
+        if self.admission == ProducerShardAdmission::Closed {
+            return Err(PendingPromotionFailure::Closed);
+        }
+        promotion::promote_next(&mut self.host, &mut self.pending, now)
     }
 
-    pub(crate) fn verify_release_before_completion(
-        &self,
-    ) -> Result<(), ProducerShardTerminalError> {
-        self.require_empty_pending()?;
-        self.host
-            .verify_release_before_completion()
-            .map_err(Into::into)
-    }
-
-    pub(crate) fn drain_terminal_mechanisms(&mut self) -> Result<(), ProducerShardTerminalError> {
-        self.require_empty_pending()?;
-        self.host.drain_terminal_mechanisms();
-        Ok(())
-    }
-
-    pub(crate) fn verify_terminal_cleanup(&self) -> Result<(), ProducerShardTerminalError> {
-        self.require_empty_pending()?;
-        self.host.verify_terminal_cleanup().map_err(Into::into)
-    }
-
-    pub(crate) fn stop_notifier(&mut self) -> Result<NotifierJoin, ProducerShardTerminalError> {
-        self.require_empty_pending()?;
-        self.host.stop_notifier().map_err(Into::into)
-    }
-
-    pub(crate) fn recover_notifier(
-        &mut self,
-    ) -> Result<ProducerNotifierRecovery, ProducerShardTerminalError> {
-        self.require_empty_pending()?;
-        Ok(self.host.recover_notifier())
+    pub(crate) fn unsettled_completions(&self) -> usize {
+        self.host.unsettled_completions()
     }
 
     /// Checks the one application-byte ceiling before immediate core admission.
@@ -205,20 +180,6 @@ impl ProducerShardData {
             .saturating_add(self.pending.stats().retained_bytes)
     }
 
-    fn require_empty_pending(&self) -> Result<(), ProducerShardTerminalError> {
-        let pending = self.pending.stats();
-        let ownership = ProducerShardPendingOwnership::new(
-            pending.records,
-            pending.retained_bytes,
-            self.pending_notification_permits.in_use(),
-        );
-        if ownership.is_empty() {
-            Ok(())
-        } else {
-            Err(ProducerShardTerminalError::Pending(ownership))
-        }
-    }
-
     #[cfg(test)]
     pub(crate) fn inject_post_acceptance_fault(&mut self, error: ProducerHostInvariantError) {
         self.host.inject_post_acceptance_fault(error);
@@ -227,5 +188,13 @@ impl ProducerShardData {
     #[cfg(test)]
     pub(crate) fn inject_terminal_interpretation_fault(&mut self) {
         self.host.inject_terminal_interpretation_fault();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn bound_deadline(
+        &self,
+        operation_id: kafka_client_core::OperationId,
+    ) -> Option<OperationDeadline> {
+        self.host.bindings.deadline(operation_id)
     }
 }

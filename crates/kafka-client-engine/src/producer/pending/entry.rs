@@ -103,6 +103,10 @@ impl PendingAdmission {
 }
 
 impl PendingAdmissionFacts {
+    pub(super) const fn operation_deadline(&self) -> OperationDeadline {
+        self.deadline
+    }
+
     pub(super) fn restore(self, record: ProducerRecord) -> PendingAdmission {
         PendingAdmission {
             id: self.id,

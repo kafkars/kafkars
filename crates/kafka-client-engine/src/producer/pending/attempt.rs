@@ -84,6 +84,18 @@ impl PendingPromotionAttempt {
         }
     }
 
+    /// Returns the original core/transport deadline pair without rebuilding it.
+    pub(crate) fn operation_deadline(&self) -> Option<crate::clock::OperationDeadline> {
+        self.admission
+            .as_ref()
+            .map(PendingAdmission::operation_deadline)
+            .or_else(|| {
+                self.facts
+                    .as_ref()
+                    .map(PendingAdmissionFacts::operation_deadline)
+            })
+    }
+
     #[cfg(test)]
     pub(crate) fn retained_admission_for_test(&self) -> Option<&PendingAdmission> {
         self.admission.as_ref()

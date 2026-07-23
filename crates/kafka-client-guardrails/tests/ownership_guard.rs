@@ -197,6 +197,10 @@ fn linear_owner_fixture_is_rejected() {
             owner_type: "ProducerMachine".into(),
             path: "src/manual.rs".into(),
         },
+        LinearOwner {
+            owner_type: "WaitingOutcome".into(),
+            path: "src/owner.rs".into(),
+        },
     ];
     let violations = linear_violations(&root, &files, &rules);
     assert!(
@@ -208,6 +212,11 @@ fn linear_owner_fixture_is_rejected() {
         violations
             .iter()
             .any(|value| value.contains("derives Copy"))
+    );
+    assert!(
+        violations
+            .iter()
+            .any(|value| value.contains("WaitingOutcome") && value.contains("derives Clone"))
     );
     assert!(
         violations

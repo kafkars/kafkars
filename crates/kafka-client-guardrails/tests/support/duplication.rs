@@ -24,18 +24,19 @@ pub(crate) fn linear_violations(
             continue;
         }
         let file = parse(&path);
-        let declaration = file.items.iter().find_map(|item| match item {
-            syn::Item::Struct(value) if value.ident == rule.owner_type => Some(value),
+        let attributes = file.items.iter().find_map(|item| match item {
+            syn::Item::Struct(value) if value.ident == rule.owner_type => Some(&value.attrs),
+            syn::Item::Enum(value) if value.ident == rule.owner_type => Some(&value.attrs),
             _ => None,
         });
-        let Some(declaration) = declaration else {
+        let Some(attributes) = attributes else {
             violations.push(format!(
                 "stale linear-owner rule: {} is not declared in {}",
                 rule.owner_type, rule.path
             ));
             continue;
         };
-        for forbidden in forbidden_derives(&declaration.attrs) {
+        for forbidden in forbidden_derives(attributes) {
             violations.push(format!(
                 "{} derives {forbidden} for linear owner {}",
                 rule.path, rule.owner_type

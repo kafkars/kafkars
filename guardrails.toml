@@ -20,7 +20,9 @@ rust_roots = ["crates"]
 excluded_roots = ["crates/kafka-client-guardrails/tests/fixtures"]
 
 [budgets]
-baseline = []
+baseline = [
+  { path = "crates/kafka-client-engine/src/producer/pending/mod.rs", lines = 83, reason = "declarative facade explicitly registers its sibling pending-domain test modules" },
+]
 allow = []
 
 [budgets.facade]
@@ -259,6 +261,22 @@ test = "crates/kafka-client-engine/src/producer/ingress/port_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/ingress/data.rs"
 test = "crates/kafka-client-engine/src/producer/ingress/data_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/data_terminal.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/data_terminal_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/promotion.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/promotion_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/promotion_error.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/promotion_error_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/promotion_rejection.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/promotion_rejection_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/ingress/shard.rs"
@@ -606,6 +624,17 @@ root = "crates/kafka-client-engine/src/producer/host_turn.rs"
 forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
 
 [[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/ingress/promotion.rs"
+forbidden = [
+  "std::time",
+  "Instant::now",
+  "SystemTime",
+  "OperationDeadline::from_boundary_parts",
+  "dispatch_pending_notification",
+  "dispatch_all_pending_notifications",
+]
+
+[[capability_rules]]
 root = "crates/kafka-client-engine/src/producer/interpreter.rs"
 forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
 
@@ -634,6 +663,13 @@ allowed_paths = []
 root = "crates/kafka-client-engine/src"
 method = "register_pending"
 allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "promote_next"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/ingress/data.rs",
+]
 
 [[call_capabilities]]
 root = "crates/kafka-client-engine/src"
@@ -1745,6 +1781,30 @@ owner_type = "PendingStartFailure"
 path = "crates/kafka-client-engine/src/producer/pending/entry.rs"
 
 [[linear_owners]]
+owner_type = "PendingPromotionResolution"
+path = "crates/kafka-client-engine/src/producer/ingress/promotion_error.rs"
+
+[[linear_owners]]
+owner_type = "PendingAcceptedResolution"
+path = "crates/kafka-client-engine/src/producer/ingress/promotion_error.rs"
+
+[[linear_owners]]
+owner_type = "PendingStartResolution"
+path = "crates/kafka-client-engine/src/producer/ingress/promotion_error.rs"
+
+[[linear_owners]]
+owner_type = "PendingPromotionProgress"
+path = "crates/kafka-client-engine/src/producer/ingress/promotion_error.rs"
+
+[[linear_owners]]
+owner_type = "PendingAcceptedCommitFailure"
+path = "crates/kafka-client-engine/src/producer/ingress/promotion_error.rs"
+
+[[linear_owners]]
+owner_type = "PendingPromotionFailure"
+path = "crates/kafka-client-engine/src/producer/ingress/promotion_error.rs"
+
+[[linear_owners]]
 owner_type = "NotificationQueue"
 path = "crates/kafka-client-engine/src/completion/notifier_queue.rs"
 
@@ -1782,6 +1842,10 @@ path = "crates/kafka-client-engine/src/producer/pending/attempt_transfer.rs"
 
 [[linear_owners]]
 owner_type = "PendingAttemptRestoreFailure"
+path = "crates/kafka-client-engine/src/producer/pending/restore_error.rs"
+
+[[linear_owners]]
+owner_type = "PendingAttemptRestoreOutcome"
 path = "crates/kafka-client-engine/src/producer/pending/restore_error.rs"
 
 [[linear_owners]]

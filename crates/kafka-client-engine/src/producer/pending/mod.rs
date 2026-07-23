@@ -20,8 +20,11 @@ pub(crate) mod restore_error;
 mod state;
 mod turn;
 pub(crate) mod turn_error;
-pub(crate) use attempt::{PendingAttemptStateError, PendingPromotionAttempt};
-pub(crate) use attempt_transfer::PendingRecordTransferState;
+pub(crate) use attempt::{
+    PendingAttemptAcceptFailure, PendingAttemptStateError, PendingPromotionAttempt,
+};
+pub(crate) use attempt_settlement::PendingAttemptSettleFailure;
+pub(crate) use attempt_transfer::{PendingRecordRestoreFailure, PendingRecordTransferState};
 #[cfg(test)]
 pub(crate) use backlog::PendingNotificationBacklog;
 pub(crate) use cell::{PendingCellError, PendingCellTransition, PendingSendCell};
@@ -38,7 +41,8 @@ pub(crate) use permit::{PendingNotificationPermit, PendingNotificationPermitPool
 pub(crate) use registration::PendingSendRegistration;
 pub(crate) use registry::{PendingAdmissionRegistry, PendingAdmissionStats};
 #[cfg(test)]
-pub(crate) use restore_error::{PendingAttemptRestoreError, PendingAttemptRestoreOutcome};
+pub(crate) use restore_error::PendingAttemptRestoreError;
+pub(crate) use restore_error::{PendingAttemptRestoreFailure, PendingAttemptRestoreOutcome};
 #[cfg(test)]
 mod attempt_settlement_test;
 #[cfg(test)]

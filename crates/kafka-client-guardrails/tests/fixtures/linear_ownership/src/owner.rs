@@ -4,3 +4,8 @@
 struct CompletionLedger {
     slots: usize,
 }
+
+#[derive(Clone)]
+enum WaitingOutcome {
+    Pending,
+}
