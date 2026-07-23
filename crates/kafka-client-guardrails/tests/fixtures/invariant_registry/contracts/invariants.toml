@@ -1,0 +1,8 @@
+schema = 1
+
+[[invariant]]
+id = "AA-01"
+title = "Fixture evidence"
+statement = "The fixture points at one exact Rust test."
+status = "enforced"
+evidence = ["src/evidence_test.rs::actual_test"]

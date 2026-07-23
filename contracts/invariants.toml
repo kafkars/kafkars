@@ -1,0 +1,163 @@
+schema = 1
+
+[[invariant]]
+id = "BAT-01"
+title = "Core owns batch readiness"
+statement = "Record-count and conservative encoded-size readiness are deterministic core decisions and terminal fan-out preserves batch membership order."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/producer_transition_test.rs::count_ready_batch_fans_success_out_in_membership_order",
+  "crates/kafka-client-core/src/producer_transition_test.rs::conservative_accumulator_size_threshold_is_core_owned",
+]
+
+[[invariant]]
+id = "BND-01"
+title = "Retained producer bytes are bounded"
+statement = "Application records and encoded batches have explicit count and byte limits; admission preserves provenance and releases each reservation exactly once."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/producer/record_store_test.rs::count_and_bytes_are_reserved_before_core_admission",
+  "crates/kafka-client-engine/src/producer/record_store_test.rs::release_checks_provenance_and_happens_exactly_once",
+  "crates/kafka-client-engine/src/producer/execution_test.rs::encoded_capacity_failure_becomes_a_core_owned_not_sent_outcome",
+]
+
+[[invariant]]
+id = "CAN-01"
+title = "Cancellation is stage-aware"
+statement = "Cancellation reports whether transport ownership makes a NotSent outcome impossible and never treats observer abandonment as cancellation."
+status = "planned"
+milestone = "producer-cancellation-and-flush"
+
+[[invariant]]
+id = "CMP-01"
+title = "Completion capacity survives until core-confirmed reclamation"
+statement = "An unobserved terminal retains its bounded slot, and slot reuse follows one exact core reclamation handshake."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/completion/registry_test.rs::unobserved_terminal_retains_fixed_capacity",
+  "crates/kafka-client-engine/src/producer/reclaim_test.rs::core_confirmation_precedes_exact_binding_and_capacity_release",
+  "crates/kafka-client-engine/src/producer/reclaim_test.rs::registry_retry_never_emits_a_second_core_input",
+  "crates/kafka-client-engine/src/producer/reclaim_turn_test.rs::observed_completion_reuses_only_a_new_completion_generation",
+  "crates/kafka-client-engine/src/producer/reclaim_turn_test.rs::locked_cell_retry_does_not_repeat_the_core_reclaim_input",
+]
+
+[[invariant]]
+id = "CON-01"
+title = "Consumer checkpoints are assignment-fenced next offsets"
+statement = "A checkpoint records the next offset and cannot commit or deliver after its assignment epoch is superseded."
+status = "planned"
+milestone = "direct-and-group-consumer"
+
+[[invariant]]
+id = "DL-01"
+title = "Producer policy consumes one absolute deadline"
+statement = "Engine deadline capture derives current time and deadline from one supplied monotonic instant, core rejects already elapsed work, and queued submission expiry reproduces the exact core deadline fact."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/clock/monotonic_test.rs::deadline_capture_uses_one_boundary_observation",
+  "crates/kafka-client-core/src/producer_test.rs::elapsed_deadline_never_crosses_admission",
+  "crates/kafka-client-engine/src/producer/submission_deadline_test.rs::due_entry_constructs_the_exact_core_deadline_fact",
+  "crates/kafka-client-engine/src/producer/execution_test.rs::pre_driver_expiry_releases_encoded_and_original_bytes_as_not_sent",
+]
+
+[[invariant]]
+id = "DLV-01"
+title = "Delivery certainty cannot improve"
+statement = "PossiblySent is invalid before driver ownership, driver acceptance invents no certainty, and broker failure preserves the reported certainty."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/operation_test.rs::possibly_sent_is_invalid_before_driver_ownership",
+  "crates/kafka-client-core/src/operation_test.rs::driver_acceptance_does_not_invent_delivery_certainty",
+  "crates/kafka-client-core/src/producer_transition_test.rs::broker_failure_preserves_classification_code_and_certainty",
+]
+
+[[invariant]]
+id = "DRV-01"
+title = "Driver handoff preserves deadline and certainty"
+statement = "The public facade captures an absolute deadline before waiting, the engine submits it through the reactor-native driver seam, and delivery classification returns without a second retry authority."
+status = "planned"
+milestone = "native-produce-driver-handoff"
+
+[[invariant]]
+id = "FL-01"
+title = "Flush is an admission-sequence barrier"
+statement = "Flush contains exactly accepted operations at or before its captured admission sequence and does not admit new work into that membership."
+status = "planned"
+milestone = "producer-cancellation-and-flush"
+
+[[invariant]]
+id = "IDM-01"
+title = "Idempotent producer state is fenced"
+statement = "Producer identity epochs and per-partition sequence ranges are monotonic, uniquely owned, and recover only according to core policy."
+status = "planned"
+milestone = "idempotent-producer"
+
+[[invariant]]
+id = "MAT-01"
+title = "Materialization transfers bytes without changing semantics"
+statement = "Materialization preserves record order and nullable fields, and an encoding failure retains accounting until ordered core release effects execute."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/producer/materialization_test.rs::ordered_records_null_empty_and_duplicate_headers_survive_transfer",
+  "crates/kafka-client-engine/src/producer/materialization_test.rs::encoding_failure_keeps_accounting_until_ordered_release_effects",
+  "crates/kafka-client-engine/src/producer/execution_test.rs::materialization_retains_one_bounded_request_without_fake_driver_acceptance",
+]
+
+[[invariant]]
+id = "META-01"
+title = "The driver is sole cluster-topology authority"
+statement = "Metadata generations and exact route receipts fence stale leader knowledge without a second client-owned topology cache."
+status = "planned"
+milestone = "metadata-driven-partitioning"
+
+[[invariant]]
+id = "OBS-01"
+title = "Observer drop is not network cancellation"
+statement = "Dropping an observer leaves accepted work owing a terminal value; publication then drops that value and reclaims the slot exactly once."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/completion/registry_test.rs::pending_abandonment_settles_and_reclaims_exactly_once",
+  "crates/kafka-client-engine/src/producer/reclaim_turn_test.rs::abandoned_observation_reclaims_after_terminal_publication",
+]
+
+[[invariant]]
+id = "OP-01"
+title = "Accepted operations reserve one terminal outcome"
+statement = "Engine completion and byte reservations commit atomically with core acceptance, and a terminal completion is single-assignment."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/producer/admission_test.rs::non_ready_admission_synchronizes_core_store_timer_and_observer",
+  "crates/kafka-client-core/src/completion_test.rs::terminal_completion_is_exactly_once",
+]
+
+[[invariant]]
+id = "RCT-01"
+title = "Application code never runs on a reactor"
+statement = "Driver and engine reactors publish into bounded completion mechanisms and never invoke Rust or foreign application callbacks."
+status = "planned"
+milestone = "reactor-isolation-host"
+
+[[invariant]]
+id = "SD-01"
+title = "Shutdown closes admission before draining"
+statement = "Shutdown rejects new work, settles accepted operations according to their deadlines, joins every owned worker, and returns one terminal result."
+status = "planned"
+milestone = "engine-host-shutdown"
+
+[[invariant]]
+id = "TMR-01"
+title = "Batch timers are generation-fenced"
+statement = "A newer batch-timer generation replaces older schedules, and stale cancellation or firing cannot affect the live generation."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/clock/timer_test.rs::newer_generation_replaces_older_schedule_once",
+  "crates/kafka-client-engine/src/clock/timer_test.rs::stale_cancellation_does_not_remove_replacement",
+  "crates/kafka-client-core/src/producer_timer_test.rs::earlier_deadline_rearms_timer_and_stale_facts_are_harmless",
+]
+
+[[invariant]]
+id = "TXN-01"
+title = "Transactions are uniquely owned and epoch-fenced"
+statement = "One transactional producer has at most one active transaction, with distinct abort-required and fatal fenced outcomes."
+status = "planned"
+milestone = "transactional-producer"

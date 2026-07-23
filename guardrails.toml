@@ -123,6 +123,18 @@ production = "crates/kafka-client-engine/src/protocol/produce.rs"
 test = "crates/kafka-client-engine/src/protocol/produce_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-guardrails/src/invariant_registry/evidence.rs"
+test = "crates/kafka-client-guardrails/src/invariant_registry/evidence_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-guardrails/src/invariant_registry/model.rs"
+test = "crates/kafka-client-guardrails/src/invariant_registry/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-guardrails/src/invariant_registry/validation.rs"
+test = "crates/kafka-client-guardrails/src/invariant_registry/validation_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-sim/src/clock.rs"
 test = "crates/kafka-client-sim/src/clock_test.rs"
 
