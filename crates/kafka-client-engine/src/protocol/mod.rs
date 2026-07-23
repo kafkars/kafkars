@@ -7,5 +7,8 @@ mod produce_batch_test;
 pub(crate) mod produce_failure;
 #[cfg(test)]
 mod produce_failure_test;
+pub(crate) mod produce_response;
+#[cfg(test)]
+mod produce_response_test;
 #[cfg(test)]
 mod produce_test;

@@ -463,6 +463,10 @@ production = "crates/kafka-client-engine/src/protocol/produce_failure.rs"
 test = "crates/kafka-client-engine/src/protocol/produce_failure_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/produce_response.rs"
+test = "crates/kafka-client-engine/src/protocol/produce_response_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-guardrails/src/invariant_registry/evidence.rs"
 test = "crates/kafka-client-guardrails/src/invariant_registry/evidence_test.rs"
 
