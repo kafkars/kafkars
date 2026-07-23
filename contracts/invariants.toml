@@ -1,6 +1,18 @@
 schema = 1
 
 [[invariant]]
+id = "ADM-01"
+title = "CreateTopics preserves one ordered terminal decision"
+statement = "One capacity-reserved CreateTopics machine assigns at most one terminal decision, validates normalized results against original request order, and the generated protocol seam preserves exact unknown broker codes while restoring broker results to that order."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/admin/transition_test.rs::mixed_broker_results_are_terminal_once_in_request_order",
+  "crates/kafka-client-core/src/admin/transition_test.rs::malformed_normalized_order_does_not_consume_terminal_assignment",
+  "crates/kafka-client-engine/src/protocol/admin/create_topics_test.rs::response_is_reordered_to_request_order_and_unknown_code_is_lossless",
+  "crates/kafka-client-engine/src/protocol/admin/create_topics_test.rs::structural_mismatches_never_bind_results_to_the_wrong_topic",
+]
+
+[[invariant]]
 id = "BAT-01"
 title = "Core owns batch readiness"
 statement = "Record-count and conservative encoded-size readiness are deterministic core decisions and terminal fan-out preserves batch membership order."

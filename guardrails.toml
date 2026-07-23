@@ -463,6 +463,10 @@ production = "crates/kafka-client-engine/src/protocol/produce_response.rs"
 test = "crates/kafka-client-engine/src/protocol/produce_response_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/create_topics.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/create_topics_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-guardrails/src/invariant_registry/evidence.rs"
 test = "crates/kafka-client-guardrails/src/invariant_registry/evidence_test.rs"
 
@@ -631,6 +635,20 @@ forbidden = [
   "async_std",
   "smol",
   "tokio",
+]
+
+# Generated admin DTOs remain in one protocol seam without transport policy.
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/protocol/admin"
+forbidden = [
+  "crate::consumer",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "std::future",
+  "std::time",
+  "Transport",
+  "Retry",
 ]
 
 # Reactor-driving driver adapters never touch observer locks or wakers.

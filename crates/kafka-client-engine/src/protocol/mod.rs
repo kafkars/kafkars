@@ -1,5 +1,6 @@
 //! Wire-owned materialization behind engine-owned semantic inputs.
 
+pub(crate) mod admin;
 mod error;
 pub(crate) mod produce;
 #[cfg(test)]
