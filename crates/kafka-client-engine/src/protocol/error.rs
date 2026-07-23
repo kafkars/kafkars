@@ -4,35 +4,94 @@ use std::{error::Error, fmt};
 
 use kafka_wire_records::RecordError;
 
-/// Failure to turn one admitted record into wire-owned Produce material.
+/// Failure to turn one admitted batch into wire-owned Produce material.
 #[derive(Debug)]
-pub(crate) struct ProduceMaterializationError {
-    source: RecordError,
+pub(crate) enum ProduceMaterializationError {
+    /// Core supplied no records for a ready batch.
+    EmptyBatch,
+    /// The ordered record run cannot be represented by Kafka's signed deltas.
+    RecordCountOverflow {
+        /// Number of records in the engine-owned batch.
+        count: usize,
+    },
+    /// A record timestamp cannot be expressed relative to the first timestamp.
+    TimestampDeltaOverflow {
+        /// First record timestamp and therefore the batch base.
+        base_timestamp_ms: i64,
+        /// Timestamp that could not be represented as a signed delta.
+        timestamp_ms: i64,
+    },
+    /// The authoritative record-layer encoder rejected the batch.
+    Record(RecordError),
 }
 
 impl ProduceMaterializationError {
-    pub(super) const fn new(source: RecordError) -> Self {
-        Self { source }
+    pub(super) const fn empty_batch() -> Self {
+        Self::EmptyBatch
+    }
+
+    pub(super) const fn record_count_overflow(count: usize) -> Self {
+        Self::RecordCountOverflow { count }
+    }
+
+    pub(super) const fn timestamp_delta_overflow(
+        base_timestamp_ms: i64,
+        timestamp_ms: i64,
+    ) -> Self {
+        Self::TimestampDeltaOverflow {
+            base_timestamp_ms,
+            timestamp_ms,
+        }
+    }
+
+    pub(super) const fn record(source: RecordError) -> Self {
+        Self::Record(source)
     }
 
     #[cfg(test)]
-    pub(super) const fn record_error(&self) -> &RecordError {
-        &self.source
+    pub(super) const fn record_error(&self) -> Option<&RecordError> {
+        match self {
+            Self::Record(source) => Some(source),
+            Self::EmptyBatch
+            | Self::RecordCountOverflow { .. }
+            | Self::TimestampDeltaOverflow { .. } => None,
+        }
     }
 }
 
 impl fmt::Display for ProduceMaterializationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "Kafka record-batch materialization failed: {}",
-            self.source
-        )
+        match self {
+            Self::EmptyBatch => formatter.write_str("cannot materialize an empty Produce batch"),
+            Self::RecordCountOverflow { count } => write!(
+                formatter,
+                "Produce batch record count {count} exceeds Kafka's signed-delta domain"
+            ),
+            Self::TimestampDeltaOverflow {
+                base_timestamp_ms,
+                timestamp_ms,
+            } => write!(
+                formatter,
+                "record timestamp {timestamp_ms} cannot be represented relative to batch base \
+                 timestamp {base_timestamp_ms}"
+            ),
+            Self::Record(source) => {
+                write!(
+                    formatter,
+                    "Kafka record-batch materialization failed: {source}"
+                )
+            }
+        }
     }
 }
 
 impl Error for ProduceMaterializationError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(&self.source)
+        match self {
+            Self::Record(source) => Some(source),
+            Self::EmptyBatch
+            | Self::RecordCountOverflow { .. }
+            | Self::TimestampDeltaOverflow { .. } => None,
+        }
     }
 }

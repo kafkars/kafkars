@@ -17,21 +17,28 @@ const NO_PRODUCER_ID: i64 = -1;
 const NO_PRODUCER_EPOCH: i16 = -1;
 const NO_SEQUENCE: i32 = -1;
 
-/// Owned, policy-approved input for the first explicit-partition Produce slice.
+/// Owned, policy-approved input for one explicit-partition Produce batch.
 ///
 /// Core policy must validate the topic, partition, deadline, and capacity before
-/// this execution input reaches materialization. The broker timeout is the
-/// already-derived remaining budget, not a fresh deadline owned here.
+/// this execution input reaches materialization. Records retain admission order.
+/// The broker timeout is an already-derived remaining budget, not a fresh
+/// deadline owned here.
 #[derive(Debug)]
-pub(super) struct ExplicitProduce {
+pub(super) struct ExplicitProduceBatch {
     topic: String,
     partition: i32,
+    records: Vec<ProduceRecord>,
+    remaining_broker_timeout_ms: i32,
+    max_batch_bytes: usize,
+}
+
+/// One engine-owned record in a policy-approved partition batch.
+#[derive(Debug)]
+pub(super) struct ProduceRecord {
     timestamp_ms: i64,
     key: Option<Bytes>,
     value: Option<Bytes>,
     headers: Vec<ProduceHeader>,
-    remaining_broker_timeout_ms: i32,
-    max_batch_bytes: usize,
 }
 
 /// One validated, non-null header name and its nullable engine-owned value.
@@ -48,26 +55,33 @@ impl ProduceHeader {
     }
 }
 
-impl ExplicitProduce {
-    /// Captures one admitted record and its already-derived broker wait budget.
+impl ExplicitProduceBatch {
+    /// Captures an ordered record run and its already-derived broker wait budget.
     pub(super) const fn new(
         topic: String,
         partition: i32,
-        timestamp_ms: i64,
-        key: Option<Bytes>,
-        value: Option<Bytes>,
+        records: Vec<ProduceRecord>,
         remaining_broker_timeout_ms: i32,
         max_batch_bytes: usize,
     ) -> Self {
         Self {
             topic,
             partition,
+            records,
+            remaining_broker_timeout_ms,
+            max_batch_bytes,
+        }
+    }
+}
+
+impl ProduceRecord {
+    /// Captures one engine-owned record without changing nullable payloads.
+    pub(super) const fn new(timestamp_ms: i64, key: Option<Bytes>, value: Option<Bytes>) -> Self {
+        Self {
             timestamp_ms,
             key,
             value,
             headers: Vec::new(),
-            remaining_broker_timeout_ms,
-            max_batch_bytes,
         }
     }
 
@@ -101,23 +115,20 @@ impl MaterializedProduce {
     }
 }
 
-/// Uses the sibling wire crates to materialize one uncompressed Produce request.
-pub(super) fn materialize_explicit_produce(
-    input: ExplicitProduce,
+/// Uses the sibling wire crates to materialize one uncompressed Produce batch.
+pub(super) fn materialize_explicit_produce_batch(
+    input: ExplicitProduceBatch,
 ) -> Result<MaterializedProduce, ProduceMaterializationError> {
-    let ExplicitProduce {
+    let ExplicitProduceBatch {
         topic: topic_name,
         partition: partition_index,
-        timestamp_ms,
-        key,
-        value,
-        headers,
+        records,
         remaining_broker_timeout_ms,
         max_batch_bytes,
     } = input;
-    let records = record_batch(timestamp_ms, key, value, headers)
+    let records = record_batch(records)?
         .encode_to_bytes(RecordEncodeLimits::new(max_batch_bytes, max_batch_bytes))
-        .map_err(ProduceMaterializationError::new)?;
+        .map_err(ProduceMaterializationError::record)?;
 
     let mut partition = PartitionProduceData::default();
     partition.index = partition_index;
@@ -134,39 +145,73 @@ pub(super) fn materialize_explicit_produce(
     Ok(MaterializedProduce { request })
 }
 
-fn record_batch(
-    timestamp_ms: i64,
-    key: Option<Bytes>,
-    value: Option<Bytes>,
-    headers: Vec<ProduceHeader>,
-) -> RecordBatch {
-    RecordBatch {
+fn record_batch(records: Vec<ProduceRecord>) -> Result<RecordBatch, ProduceMaterializationError> {
+    let Some(base_timestamp) = records.first().map(|record| record.timestamp_ms) else {
+        return Err(ProduceMaterializationError::empty_batch());
+    };
+    let last_offset = records.len().saturating_sub(1);
+    let last_offset_delta = i32::try_from(last_offset)
+        .map_err(|_| ProduceMaterializationError::record_count_overflow(records.len()))?;
+    let max_timestamp = records
+        .iter()
+        .map(|record| record.timestamp_ms)
+        .max()
+        .unwrap_or(base_timestamp);
+    let records = records
+        .into_iter()
+        .enumerate()
+        .map(|(offset, record)| wire_record(base_timestamp, offset, record))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(RecordBatch {
         base_offset: 0,
-        last_offset_delta: 0,
+        last_offset_delta,
         partition_leader_epoch: NO_LEADER_EPOCH,
         compression: Compression::None,
         timestamp_type: TimestampType::CreateTime,
         is_transactional: false,
         is_control: false,
         has_delete_horizon: false,
-        base_timestamp: timestamp_ms,
-        max_timestamp: timestamp_ms,
+        base_timestamp,
+        max_timestamp,
         producer_id: NO_PRODUCER_ID,
         producer_epoch: NO_PRODUCER_EPOCH,
         base_sequence: NO_SEQUENCE,
-        records: vec![Record {
-            attributes: 0,
-            timestamp_delta: 0,
-            offset_delta: 0,
-            key,
-            value,
-            headers: headers
-                .into_iter()
-                .map(|header| RecordHeader {
-                    key: header.name.into(),
-                    value: header.value,
-                })
-                .collect(),
-        }],
-    }
+        records,
+    })
+}
+
+fn wire_record(
+    base_timestamp: i64,
+    offset: usize,
+    record: ProduceRecord,
+) -> Result<Record, ProduceMaterializationError> {
+    let timestamp_delta = record
+        .timestamp_ms
+        .checked_sub(base_timestamp)
+        .ok_or_else(|| {
+            ProduceMaterializationError::timestamp_delta_overflow(
+                base_timestamp,
+                record.timestamp_ms,
+            )
+        })?;
+    let offset_delta = i32::try_from(offset).map_err(|_| {
+        ProduceMaterializationError::record_count_overflow(offset.saturating_add(1))
+    })?;
+
+    Ok(Record {
+        attributes: 0,
+        timestamp_delta,
+        offset_delta,
+        key: record.key,
+        value: record.value,
+        headers: record
+            .headers
+            .into_iter()
+            .map(|header| RecordHeader {
+                key: header.name.into(),
+                value: header.value,
+            })
+            .collect(),
+    })
 }
