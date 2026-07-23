@@ -4,15 +4,11 @@ use kafka_client_core::{
     Deadline, Moment, OperationId, ProducerCompletion, ProducerInput, ProducerMachineError,
 };
 
-use crate::{
-    ProducerDeliveryObserver,
-    completion::{CompletionId, CompletionObserver},
-};
+use crate::{ProducerDeliveryObserver, completion::CompletionObserver};
 
-use super::{
-    ProducerHost, ProducerHostInvariantError, ProducerRecord, ProducerRejectionReason,
-    record_store::RecordReservation,
-};
+use super::{ProducerHost, ProducerHostInvariantError, ProducerRecord, ProducerRejectionReason};
+
+mod rollback;
 
 /// Accepted operation identity paired with its sole terminal observer.
 #[derive(Debug)]
@@ -52,8 +48,21 @@ impl RejectedExplicit {
 #[derive(Debug)]
 pub(crate) enum ProducerAdmissionFailure {
     Rejected(RejectedExplicit),
-    Invariant(ProducerHostInvariantError),
+    Invariant(PoisonedBeforeOwnership),
     AcceptedInvariant(PoisonedExplicit),
+}
+
+/// Pre-core poison retaining the record whenever rollback recovered ownership.
+#[derive(Debug)]
+pub(crate) struct PoisonedBeforeOwnership {
+    error: ProducerHostInvariantError,
+    record: Option<ProducerRecord>,
+}
+
+impl PoisonedBeforeOwnership {
+    pub(crate) fn into_parts(self) -> (ProducerHostInvariantError, Option<ProducerRecord>) {
+        (self.error, self.record)
+    }
 }
 
 /// Post-core invariant retaining the sole observer and any known operation ID.
@@ -102,7 +111,7 @@ impl ProducerHost {
             Err(error) => {
                 let reason = error.reason();
                 let record = error.into_record();
-                self.rollback_completion(completion_id, observer)?;
+                let record = self.rollback_completion(completion_id, observer, record)?;
                 return Err(reject(record, ProducerRejectionReason::Store(reason)));
             }
         };
@@ -118,8 +127,10 @@ impl ProducerHost {
                 return Err(reject(record, ProducerRejectionReason::Core(reason)));
             }
             Err(error) => {
-                let _record = self.rollback_pre_core(completion_id, observer, reservation)?;
-                return Err(self.invariant_failure(ProducerHostInvariantError::Core(error)));
+                let record = self.rollback_pre_core(completion_id, observer, reservation)?;
+                return Err(
+                    self.invariant_failure(ProducerHostInvariantError::Core(error), Some(record))
+                );
             }
         };
         let Some(operation_id) = transition.admitted_operation_id() else {
@@ -164,51 +175,6 @@ impl ProducerHost {
             operation_id,
             observer,
         })
-    }
-
-    #[allow(
-        clippy::result_large_err,
-        reason = "rollback preserves allocation-free ownership-returning admission errors"
-    )]
-    fn rollback_completion(
-        &mut self,
-        completion_id: CompletionId,
-        observer: CompletionObserver<ProducerCompletion>,
-    ) -> Result<(), ProducerAdmissionFailure> {
-        let result = self.completions.rollback_reservation(completion_id);
-        drop(observer);
-        match result {
-            Ok(()) => Ok(()),
-            Err(error) => {
-                Err(self.invariant_failure(ProducerHostInvariantError::Completion(error)))
-            }
-        }
-    }
-
-    #[allow(
-        clippy::result_large_err,
-        reason = "rollback preserves allocation-free ownership-returning admission errors"
-    )]
-    fn rollback_pre_core(
-        &mut self,
-        completion_id: CompletionId,
-        observer: CompletionObserver<ProducerCompletion>,
-        reservation: RecordReservation,
-    ) -> Result<ProducerRecord, ProducerAdmissionFailure> {
-        let completion_result = self.completions.rollback_reservation(completion_id);
-        let record_result = self.store.rollback(reservation);
-        drop(observer);
-        if let Err(error) = completion_result {
-            return Err(self.invariant_failure(ProducerHostInvariantError::Completion(error)));
-        }
-        match record_result {
-            Ok(record) => Ok(record),
-            Err(error) => Err(self.invariant_failure(ProducerHostInvariantError::Store(error))),
-        }
-    }
-
-    fn invariant_failure(&mut self, error: ProducerHostInvariantError) -> ProducerAdmissionFailure {
-        ProducerAdmissionFailure::Invariant(self.poison(error))
     }
 
     fn accepted_invariant(

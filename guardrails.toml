@@ -125,6 +125,10 @@ production = "crates/kafka-client-engine/src/producer/host_turn.rs"
 test = "crates/kafka-client-engine/src/producer/host_turn_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/boundary/error.rs"
+test = "crates/kafka-client-engine/src/producer/boundary/error_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/boundary/handle.rs"
 test = "crates/kafka-client-engine/src/producer/boundary/handle_test.rs"
 
@@ -688,6 +692,7 @@ owner_type = "ProducerHost"
 field = "store"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/admission.rs",
+  "crates/kafka-client-engine/src/producer/admission/rollback.rs",
   "crates/kafka-client-engine/src/producer/effect.rs",
   "crates/kafka-client-engine/src/producer/execution_turn.rs",
   "crates/kafka-client-engine/src/producer/host.rs",
@@ -698,6 +703,7 @@ owner_type = "ProducerHost"
 field = "completions"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/admission.rs",
+  "crates/kafka-client-engine/src/producer/admission/rollback.rs",
   "crates/kafka-client-engine/src/producer/effect.rs",
   "crates/kafka-client-engine/src/producer/reclaim_turn.rs",
 ]
@@ -841,6 +847,10 @@ owner_type = "ProducerTrySendAccepted"
 path = "crates/kafka-client-engine/src/producer/boundary/result.rs"
 
 [[linear_owners]]
+owner_type = "ProducerTrySendError"
+path = "crates/kafka-client-engine/src/producer/boundary/error.rs"
+
+[[linear_owners]]
 owner_type = "MaterializationBatch"
 path = "crates/kafka-client-engine/src/producer/materialization.rs"
 
@@ -899,6 +909,14 @@ path = "crates/kafka-client-engine/src/producer/ingress/shard.rs"
 [[linear_owners]]
 owner_type = "ProducerPortAccepted"
 path = "crates/kafka-client-engine/src/producer/ingress/port.rs"
+
+[[linear_owners]]
+owner_type = "ProducerPortRejected"
+path = "crates/kafka-client-engine/src/producer/ingress/port.rs"
+
+[[linear_owners]]
+owner_type = "PoisonedBeforeOwnership"
+path = "crates/kafka-client-engine/src/producer/admission.rs"
 
 [[linear_owners]]
 owner_type = "PendingAdmissionRegistry"

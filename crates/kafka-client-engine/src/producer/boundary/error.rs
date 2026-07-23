@@ -53,6 +53,7 @@ pub enum ProducerTrySendErrorKind {
 pub struct ProducerTrySendError {
     kind: ProducerTrySendErrorKind,
     record: Option<ProducerRecord>,
+    detail: Option<String>,
 }
 
 impl ProducerTrySendError {
@@ -66,6 +67,11 @@ impl ProducerTrySendError {
         self.record
     }
 
+    /// Returns diagnostic detail for an internal mechanism fault.
+    pub fn detail(&self) -> Option<&str> {
+        self.detail.as_deref()
+    }
+
     pub(super) const fn with_record(
         kind: ProducerTrySendErrorKind,
         record: ProducerRecord,
@@ -73,6 +79,7 @@ impl ProducerTrySendError {
         Self {
             kind,
             record: Some(record),
+            detail: None,
         }
     }
 
@@ -90,10 +97,12 @@ impl ProducerTrySendError {
                 ProducerRecord::from_stored(record),
             ),
             ProducerPortAdmissionError::Poisoned(ProducerPortPoison::BeforeOwnership {
-                ..
+                error,
+                record,
             }) => Self {
                 kind: ProducerTrySendErrorKind::InternalInvariant,
-                record: None,
+                record: record.map(ProducerRecord::from_stored),
+                detail: Some(error.to_string()),
             },
         }
     }
@@ -101,7 +110,14 @@ impl ProducerTrySendError {
 
 impl fmt::Display for ProducerTrySendError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "producer try_send failed: {:?}", self.kind)
+        match &self.detail {
+            Some(detail) => write!(
+                formatter,
+                "producer try_send failed: {:?}: {detail}",
+                self.kind
+            ),
+            None => write!(formatter, "producer try_send failed: {:?}", self.kind),
+        }
     }
 }
 

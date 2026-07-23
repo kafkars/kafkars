@@ -71,9 +71,10 @@ impl ProducerAdmissionPort {
                     },
                 ));
             }
-            Err(ProducerAdmissionFailure::Invariant(error)) => {
+            Err(ProducerAdmissionFailure::Invariant(poisoned)) => {
+                let (error, record) = poisoned.into_parts();
                 return Err(super::ProducerPortAdmissionError::Poisoned(
-                    ProducerPortPoison::BeforeOwnership { error },
+                    ProducerPortPoison::BeforeOwnership { error, record },
                 ));
             }
             Err(ProducerAdmissionFailure::AcceptedInvariant(poisoned)) => {
@@ -177,11 +178,8 @@ pub(crate) enum ProducerPortPoison {
         record: ProducerRecord,
     },
     BeforeOwnership {
-        #[expect(
-            dead_code,
-            reason = "pre-core invariant injection is intentionally unavailable"
-        )]
         error: ProducerHostInvariantError,
+        record: Option<ProducerRecord>,
     },
 }
 

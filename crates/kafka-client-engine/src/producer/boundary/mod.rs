@@ -13,4 +13,6 @@ pub use result::{
 };
 
 #[cfg(test)]
+mod error_test;
+#[cfg(test)]
 mod handle_test;

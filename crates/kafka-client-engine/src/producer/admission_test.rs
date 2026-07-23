@@ -225,7 +225,7 @@ fn reject_result(result: Result<AdmittedExplicit, ProducerAdmissionFailure>) -> 
     match result {
         Err(ProducerAdmissionFailure::Rejected(rejected)) => rejected,
         Err(ProducerAdmissionFailure::Invariant(error)) => {
-            panic!("admission violated a host invariant: {error}")
+            panic!("admission violated a host invariant: {error:?}")
         }
         Err(ProducerAdmissionFailure::AcceptedInvariant(error)) => {
             panic!("admission violated an accepted host invariant: {error:?}")
