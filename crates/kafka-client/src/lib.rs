@@ -34,6 +34,8 @@ pub use transaction::{
 };
 
 #[cfg(test)]
+mod bridge_test;
+#[cfg(test)]
 mod client_test;
 #[cfg(test)]
 mod error_test;

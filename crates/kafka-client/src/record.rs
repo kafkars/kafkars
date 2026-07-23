@@ -2,6 +2,17 @@
 
 use bytes::Bytes;
 
+/// Crate-private ownership transfer for the engine bridge.
+#[derive(Debug)]
+pub(crate) struct RecordParts {
+    pub(crate) topic: String,
+    pub(crate) partition: Option<i32>,
+    pub(crate) timestamp_milliseconds: Option<i64>,
+    pub(crate) key: Option<Bytes>,
+    pub(crate) value: Option<Bytes>,
+    pub(crate) headers: Vec<Header>,
+}
+
 /// One Kafka record header.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Header {
@@ -34,6 +45,14 @@ impl Header {
     /// Returns nullable header bytes.
     pub fn value(&self) -> Option<&Bytes> {
         self.value.as_ref()
+    }
+
+    pub(crate) const fn from_parts(name: String, value: Option<Bytes>) -> Self {
+        Self { name, value }
+    }
+
+    pub(crate) fn into_parts(self) -> (String, Option<Bytes>) {
+        (self.name, self.value)
     }
 }
 
@@ -124,5 +143,27 @@ impl Record {
     /// Returns ordered headers, including duplicate names.
     pub fn headers(&self) -> &[Header] {
         &self.headers
+    }
+
+    pub(crate) fn from_parts(parts: RecordParts) -> Self {
+        Self {
+            topic: parts.topic,
+            partition: parts.partition,
+            timestamp_milliseconds: parts.timestamp_milliseconds,
+            key: parts.key,
+            value: parts.value,
+            headers: parts.headers,
+        }
+    }
+
+    pub(crate) fn into_parts(self) -> RecordParts {
+        RecordParts {
+            topic: self.topic,
+            partition: self.partition,
+            timestamp_milliseconds: self.timestamp_milliseconds,
+            key: self.key,
+            value: self.value,
+            headers: self.headers,
+        }
     }
 }

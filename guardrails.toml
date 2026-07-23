@@ -220,6 +220,10 @@ test = "crates/kafka-client/src/client_test.rs"
 production = "crates/kafka-client/src/error.rs"
 test = "crates/kafka-client/src/error_test.rs"
 
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge.rs"
+test = "crates/kafka-client/src/bridge_test.rs"
+
 [[dependency_rules]]
 package = "kafka-client-core"
 allowed_internal = []

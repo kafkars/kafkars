@@ -2,6 +2,15 @@
 
 use kafka_client_engine::{Engine, EngineConfig};
 
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "the producer facade consumes this bridge in the next vertical slice"
+    )
+)]
+pub(crate) mod producer;
+
 /// Facade-owned handle that hides engine types from public modules.
 #[derive(Debug, Clone)]
 pub(crate) struct ClientEngine {
