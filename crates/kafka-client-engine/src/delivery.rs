@@ -86,6 +86,8 @@ pub enum ProducerDeliveryFailureKind {
     ProducerIdentity,
     /// The transport failed while the request was active.
     Transport,
+    /// The engine execution owner stopped before delivery settled.
+    ExecutionUnavailable,
     /// The absolute delivery deadline elapsed before driver ownership.
     DeadlineElapsed,
     /// A future broker error is not classified by this engine version.
@@ -105,6 +107,7 @@ impl ProducerDeliveryFailureKind {
             CoreProducerFailureKind::ProducerFenced => Self::ProducerFenced,
             CoreProducerFailureKind::ProducerIdentity => Self::ProducerIdentity,
             CoreProducerFailureKind::Transport => Self::Transport,
+            CoreProducerFailureKind::ExecutionUnavailable => Self::ExecutionUnavailable,
             CoreProducerFailureKind::DeadlineElapsed => Self::DeadlineElapsed,
             CoreProducerFailureKind::UnknownBroker => Self::UnknownBroker,
         }

@@ -4,6 +4,7 @@ mod batch;
 mod batch_timer;
 mod batch_transition;
 mod batching;
+mod execution_stop;
 mod input_batch;
 mod input_outcome;
 mod lifecycle;

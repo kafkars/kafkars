@@ -92,12 +92,24 @@ impl ProducerMachine {
         ids: &[OperationId],
         settlement: Settlement,
     ) -> Result<(), ProducerMachineError> {
-        let releases = ids
+        let settlements = ids.iter().map(|id| (*id, settlement)).collect::<Vec<_>>();
+        self.settle_operations_with(&settlements)
+    }
+
+    pub(crate) fn settle_operations_with(
+        &mut self,
+        settlements: &[(OperationId, Settlement)],
+    ) -> Result<(), ProducerMachineError> {
+        let releases = settlements
             .iter()
-            .map(|id| self.plan_settlement(*id, settlement))
+            .map(|(id, settlement)| self.plan_settlement(*id, *settlement))
             .collect::<Result<Vec<_>, _>>()?;
+        let ids = settlements
+            .iter()
+            .map(|(id, _settlement)| *id)
+            .collect::<Vec<_>>();
         self.completions
-            .require_pending(ids)
+            .require_pending(&ids)
             .map_err(ProducerMachineError::Completion)?;
         let total = releases
             .iter()
@@ -109,9 +121,9 @@ impl ProducerMachine {
             .plan_release(total)
             .map_err(ProducerMachineError::Capacity)?;
 
-        self.completions.commit_terminal_many(ids);
+        self.completions.commit_terminal_many(&ids);
         self.byte_budget.commit_release(release_plan);
-        for id in ids {
+        for id in &ids {
             let operation = self.operations.get_mut(id);
             debug_assert!(operation.is_some());
             if let Some(operation) = operation {

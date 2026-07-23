@@ -25,6 +25,8 @@ pub enum ProducerFailureKind {
     ProducerIdentity,
     /// The transport failed while the request was active.
     Transport,
+    /// Production execution stopped permanently before the operation settled.
+    ExecutionUnavailable,
     /// The public absolute deadline elapsed before driver ownership.
     DeadlineElapsed,
     /// A future broker error has not yet been classified by this core version.
@@ -69,6 +71,10 @@ impl ProducerFailure {
 
     pub(crate) const fn transport(delivery: DeliveryStatus) -> Self {
         Self::new(ProducerFailureKind::Transport, delivery)
+    }
+
+    pub(crate) const fn execution_unavailable(delivery: DeliveryStatus) -> Self {
+        Self::new(ProducerFailureKind::ExecutionUnavailable, delivery)
     }
 
     pub(crate) const fn deadline_elapsed() -> Self {

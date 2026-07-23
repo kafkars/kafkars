@@ -329,7 +329,10 @@ forbidden = [
 [[mutation_owners]]
 owner_type = "ProducerMachine"
 field = "admission_open"
-allowed_paths = ["crates/kafka-client-core/src/producer/machine.rs"]
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/execution_stop.rs",
+  "crates/kafka-client-core/src/producer/machine.rs",
+]
 
 [[mutation_owners]]
 owner_type = "ProducerMachine"
@@ -364,6 +367,7 @@ allowed_paths = [
 owner_type = "ProducerMachine"
 field = "operations"
 allowed_paths = [
+  "crates/kafka-client-core/src/producer/execution_stop.rs",
   "crates/kafka-client-core/src/producer/machine.rs",
   "crates/kafka-client-core/src/producer/lifecycle.rs",
 ]
@@ -381,6 +385,7 @@ owner_type = "ProducerMachine"
 field = "open_batches"
 allowed_paths = [
   "crates/kafka-client-core/src/producer/batching.rs",
+  "crates/kafka-client-core/src/producer/execution_stop.rs",
   "crates/kafka-client-core/src/producer/settlement.rs",
 ]
 
@@ -389,6 +394,7 @@ owner_type = "ProducerMachine"
 field = "batches"
 allowed_paths = [
   "crates/kafka-client-core/src/producer/batching.rs",
+  "crates/kafka-client-core/src/producer/execution_stop.rs",
   "crates/kafka-client-core/src/producer/input_batch.rs",
   "crates/kafka-client-core/src/producer/input_outcome.rs",
   "crates/kafka-client-core/src/producer/settlement.rs",

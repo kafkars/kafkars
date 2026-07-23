@@ -44,6 +44,7 @@ impl ProducerMachine {
             ProducerInput::TransportFailed { batch_id, delivery } => {
                 self.transport_failed(batch_id, delivery)
             }
+            ProducerInput::ExecutionUnavailable => self.execution_unavailable(),
             ProducerInput::DeadlineElapsed { operation_id, now } => {
                 self.deadline_elapsed(operation_id, now)
             }

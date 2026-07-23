@@ -82,6 +82,11 @@ pub enum ProducerInput {
         /// Driver-owned certainty for this request attempt.
         delivery: DeliveryStatus,
     },
+    /// Reports that production execution is permanently unavailable.
+    ///
+    /// This fact closes admission and settles every accepted operation because
+    /// no remaining mechanism can make progress.
+    ExecutionUnavailable,
     /// Reports a monotonic observation for pre-driver operation expiry.
     DeadlineElapsed {
         /// Operation checked for expiration.
