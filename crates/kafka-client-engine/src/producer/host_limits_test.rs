@@ -84,7 +84,7 @@ fn encoded_and_wire_byte_limits_must_be_nonzero() {
 }
 
 #[test]
-fn configured_terminal_tail_covers_the_maximal_core_stop_shape() {
+fn validated_limits_cover_the_maximal_core_stop_shape() {
     let limits = valid_limits();
     let mut host = start(limits);
     let first = admit(
@@ -119,10 +119,9 @@ fn configured_terminal_tail_covers_the_maximal_core_stop_shape() {
         execution_stop_effect_capacity(limits.record_capacity, limits.completion_capacity)
             .unwrap_or_else(|| panic!("validated host capacity must be representable"))
     );
-    assert_eq!(host.fatal_transition.capacity(), transition_capacity);
     assert_eq!(
-        host.terminal_quarantine.transition_effect_capacity(),
-        transition_capacity
+        host.core.transition_effect_capacity(),
+        Some(transition_capacity)
     );
     assert!(transition.effects().len() <= transition_capacity);
     drop((first, second));
@@ -144,7 +143,7 @@ fn combined_transition_capacity_overflow_is_rejected_before_allocation() {
         producer_transition_effect_capacity(limits.record_capacity, limits.completion_capacity),
         None
     );
-    assert_limit(limits, ProducerHostLimitError::TerminalTailCapacityOverflow);
+    assert_limit(limits, ProducerHostLimitError::TransitionCapacityOverflow);
 }
 
 pub(super) fn valid_limits() -> ProducerHostLimits {

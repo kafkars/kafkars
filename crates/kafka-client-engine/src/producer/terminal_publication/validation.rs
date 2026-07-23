@@ -1,59 +1,35 @@
 //! Exact binding, generation, duplicate, and capacity validation for terminals.
 
-use kafka_client_core::{OperationId, ProducerCompletion};
+use kafka_client_core::{OperationId, ProducerCompletion, ProducerEffect};
 
 use crate::completion::CompletionId;
 
 use super::super::{
-    ProducerHost, ProducerHostInvariantError,
-    binding::OperationBindingError,
-    terminal_backlog::{RejectedTerminal, RetainedTerminal},
+    ProducerHost, ProducerHostInvariantError, binding::OperationBindingError,
+    terminal_backlog::RetainedTerminal,
 };
 
 impl ProducerHost {
-    /// Transfers a tail terminal only when every normal FIFO proof still holds.
+    /// Preserves only exact terminal decisions after interpretation has stopped.
     ///
-    /// Failure leaves the original `ProducerEffect::Complete` in the committed
-    /// tail vector owned by the caller.
-    pub(in crate::producer) fn retain_terminal_tail(
-        &mut self,
-        operation_id: OperationId,
-        completion: ProducerCompletion,
-    ) -> Result<(), ProducerHostInvariantError> {
-        let Some(completion_id) = self.bindings.completion(operation_id) else {
-            let error =
-                ProducerHostInvariantError::Binding(OperationBindingError::UnknownOperation);
-            return Err(self.poison(error));
-        };
-        if let Err(error) = self.revalidate_terminal(operation_id, completion_id) {
-            return Err(self.poison(error));
+    /// Mechanism effects and generated facts remain owned by their real stores
+    /// and are drained during poisoned recovery.
+    pub(in crate::producer) fn retain_terminal_tail(&mut self, effects: &[ProducerEffect]) {
+        for effect in effects {
+            let ProducerEffect::Complete {
+                operation_id,
+                completion,
+            } = *effect
+            else {
+                continue;
+            };
+            let Ok(terminal) = self.validate_terminal(operation_id, completion) else {
+                // Its reserved registry slot receives the conservative fallback.
+                continue;
+            };
+            // Failed FIFO transfer leaves the same registry slot authoritative.
+            let _retained = self.retain_validated_terminal(terminal);
         }
-        let terminal = RetainedTerminal::new(operation_id, completion_id, completion);
-        if self
-            .terminal_backlog
-            .contains_operation(terminal.operation_id())
-        {
-            let error =
-                ProducerHostInvariantError::Binding(OperationBindingError::DuplicateOperation);
-            return Err(self.poison(error));
-        }
-        if self
-            .terminal_backlog
-            .contains_completion(terminal.completion_id())
-        {
-            let error =
-                ProducerHostInvariantError::Binding(OperationBindingError::DuplicateCompletion);
-            return Err(self.poison(error));
-        }
-        let occupied = self
-            .terminal_backlog
-            .len()
-            .saturating_add(self.completions.published_or_reclaiming_len());
-        if occupied >= self.effect_capacity {
-            return Err(self.poison(ProducerHostInvariantError::TerminalBacklogCapacity));
-        }
-        self.terminal_backlog.push(terminal);
-        Ok(())
     }
 
     pub(super) fn validate_terminal(
@@ -64,20 +40,10 @@ impl ProducerHost {
         let Some(completion_id) = self.bindings.completion(operation_id) else {
             let error =
                 ProducerHostInvariantError::Binding(OperationBindingError::UnknownOperation);
-            return Err(self.quarantine_rejected(RejectedTerminal::new(
-                operation_id,
-                None,
-                completion,
-                error,
-            )));
+            return Err(self.poison(error));
         };
         if let Err(error) = self.revalidate_terminal(operation_id, completion_id) {
-            return Err(self.quarantine_rejected(RejectedTerminal::new(
-                operation_id,
-                Some(completion_id),
-                completion,
-                error,
-            )));
+            return Err(self.poison(error));
         }
         Ok(RetainedTerminal::new(
             operation_id,
@@ -128,12 +94,7 @@ impl ProducerHost {
         };
         if let Some(error) = duplicate {
             let invariant = ProducerHostInvariantError::Binding(error);
-            return Err(self.quarantine_rejected(RejectedTerminal::new(
-                terminal.operation_id(),
-                Some(terminal.completion_id()),
-                terminal.completion(),
-                invariant,
-            )));
+            return Err(self.poison(invariant));
         }
         let occupied = self
             .terminal_backlog
@@ -141,31 +102,9 @@ impl ProducerHost {
             .saturating_add(self.completions.published_or_reclaiming_len());
         if occupied >= self.effect_capacity {
             let error = ProducerHostInvariantError::TerminalBacklogCapacity;
-            return Err(self.quarantine_rejected(RejectedTerminal::new(
-                terminal.operation_id(),
-                Some(terminal.completion_id()),
-                terminal.completion(),
-                error,
-            )));
+            return Err(self.poison(error));
         }
         self.terminal_backlog.push(terminal);
         Ok(())
-    }
-
-    pub(super) fn quarantine_rejected(
-        &mut self,
-        terminal: RejectedTerminal,
-    ) -> ProducerHostInvariantError {
-        let reason = terminal.reason();
-        if let Err(occupied) = self.terminal_poison.retain(terminal) {
-            let Some(vacancy) = self.terminal_refusals.terminal_vacancy() else {
-                return self.poison(ProducerHostInvariantError::TerminalBacklogCorrupt);
-            };
-            if let Err(refused) = self.terminal_quarantine.retain_terminal(occupied) {
-                vacancy.retain(refused);
-                return self.poison(ProducerHostInvariantError::TerminalQuarantineCapacity);
-            }
-        }
-        self.poison(reason)
     }
 }

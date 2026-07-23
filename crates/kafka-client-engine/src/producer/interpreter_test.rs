@@ -15,7 +15,6 @@ use crate::{
 use super::{
     ProducerHostInvariantError, ProducerHostLimits,
     admission_test::{admit, record},
-    effect::FailedEffectDisposition,
     host_limits_test::{start, valid_limits},
 };
 
@@ -131,23 +130,20 @@ fn notifier_stop_retains_every_same_transition_terminal_in_exact_fifo_order() {
 }
 
 #[test]
-fn failed_mechanism_disposition_owns_the_effect_inline() {
+fn unsupported_effect_reports_its_typed_failure() {
     let mut host = start(valid_limits());
-    let expected = ProducerEffect::CompleteFlush {
+    let effect = ProducerEffect::CompleteFlush {
         flush_id: FlushId::from_raw(7),
     };
-    let Err(failure) = host.interpret_effect_owned(Moment::from_tick(0), expected) else {
-        panic!("unsupported flush must return its exact effect")
-    };
 
-    assert!(matches!(
-        failure.into_parts().1,
-        FailedEffectDisposition::Mechanism { effect, .. } if effect == expected
-    ));
+    assert_eq!(
+        host.interpret_effect_owned(Moment::from_tick(0), effect),
+        Err(ProducerHostInvariantError::FlushControlUnavailable)
+    );
 }
 
 #[test]
-fn core_rejection_retains_the_current_and_remaining_generated_fifo() {
+fn core_rejection_discards_copied_facts_and_fences_reentry() {
     let mut host = start(valid_limits());
     let current = ProducerInput::RecordAccumulated {
         operation_id: OperationId::from_raw(99),
@@ -166,14 +162,15 @@ fn core_rejection_retains_the_current_and_remaining_generated_fifo() {
     );
     assert!(generated.is_empty());
     assert_eq!(
-        host.terminal_quarantine.generated(),
-        Some([current, queued].as_slice())
+        host.poison_reason(),
+        Some(ProducerHostInvariantError::Core(
+            ProducerMachineError::UnknownOperation
+        ))
     );
-    assert_eq!(host.fatal_transition.retained_len(), 0);
 }
 
 #[test]
-fn failing_current_and_mixed_tail_are_owned_before_poison_fences_reentry() {
+fn failing_mechanism_poison_fences_reentry_before_conservative_settlement() {
     let mut host = start(valid_limits());
     let admitted = admit(
         &mut host,
@@ -194,22 +191,20 @@ fn failing_current_and_mixed_tail_are_owned_before_poison_fences_reentry() {
         Err(ProducerHostInvariantError::Prepared(_))
     ));
     assert_eq!(host.stats().terminal_backlog, 1);
-    assert!(matches!(
-        host.terminal_quarantine.committed_tail(),
-        Some([
-            ProducerEffect::ReleaseBatch { .. },
-            ProducerEffect::ReleasePayload { .. }
-        ])
-    ));
-    let retained = host.terminal_quarantine.retained_len();
     assert_eq!(
         host.interpret_transition(Moment::from_tick(2), repeated),
         first
     );
-    assert_eq!(host.terminal_quarantine.retained_len(), retained);
-    assert_eq!(host.fatal_transition.retained_len(), 0);
 
     assert!(host.execution_unavailable(Moment::from_tick(2)).is_err());
-    assert!(admitted.into_delivery_observer().wait().is_err());
+    let Err(ProducerDeliveryError::Failed(failure)) = admitted.into_delivery_observer().wait()
+    else {
+        panic!("the exact planned terminal must settle the accepted operation")
+    };
+    assert_eq!(
+        failure.kind(),
+        ProducerDeliveryFailureKind::ExecutionUnavailable
+    );
+    assert_eq!(failure.delivery_status(), ProducerDeliveryStatus::NotSent);
     assert!(host.terminal_resources_empty());
 }

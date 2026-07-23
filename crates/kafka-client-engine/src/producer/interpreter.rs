@@ -2,9 +2,9 @@
 
 use std::collections::VecDeque;
 
-use kafka_client_core::{Moment, ProducerEffect, ProducerInput, ProducerTransition};
+use kafka_client_core::{Moment, ProducerInput, ProducerTransition};
 
-use super::{ProducerHost, ProducerHostInvariantError, effect::FailedEffectDisposition};
+use super::{ProducerHost, ProducerHostInvariantError};
 
 impl ProducerHost {
     pub(super) fn interpret_transition(
@@ -33,11 +33,7 @@ impl ProducerHost {
                 Ok(transition) => transition,
                 Err(error) => {
                     let first = self.poison(ProducerHostInvariantError::Core(error));
-                    if let Err(capture_error) =
-                        self.capture_committed_failure(None, &[], generated, None)
-                    {
-                        self.poison(capture_error);
-                    }
+                    generated.clear();
                     return Err(first);
                 }
             };
@@ -85,119 +81,24 @@ impl ProducerHost {
         generated: &mut VecDeque<ProducerInput>,
     ) -> Result<(), ProducerHostInvariantError> {
         let effects = transition.into_effects();
-        debug_assert!(effects.len() <= self.fatal_transition.capacity());
-        debug_assert!(effects.len() <= self.terminal_quarantine.transition_effect_capacity());
-        let mut first_fatal = None;
-        let mut refused_input = None;
-        let mut failed_effect = None;
-        let mut index = 0;
-        while index < effects.len() {
-            let effect = effects[index];
+        for (index, effect) in effects.iter().copied().enumerate() {
             match self.interpret_effect_owned(now, effect) {
-                Ok(Some(input)) if generated.len() >= self.effect_capacity => {
-                    refused_input = Some(input);
+                Ok(Some(_input)) if generated.len() >= self.effect_capacity => {
                     let error = self.poison(ProducerHostInvariantError::GeneratedFactCapacity);
-                    first_fatal = Some(error);
+                    self.retain_terminal_tail(&effects[index + 1..]);
+                    generated.clear();
+                    return Err(error);
                 }
                 Ok(Some(input)) => generated.push_back(input),
                 Ok(None) => {}
-                Err(failure) => {
-                    let (error, disposition) = failure.into_parts();
-                    if let FailedEffectDisposition::Mechanism {
-                        effect,
-                        progress: _progress,
-                    } = disposition
-                    {
-                        failed_effect = Some(effect);
-                    }
-                    let first = self.poison(error);
-                    first_fatal = Some(first);
-                }
-            }
-            if first_fatal.is_some() {
-                if let Err(error) = self.capture_committed_failure(
-                    failed_effect,
-                    &effects[index + 1..],
-                    generated,
-                    refused_input,
-                ) {
-                    self.poison(error);
-                }
-                break;
-            }
-            index += 1;
-        }
-        first_fatal.map_or(Ok(()), Err)
-    }
-
-    fn capture_committed_failure(
-        &mut self,
-        failed_effect: Option<ProducerEffect>,
-        remaining: &[ProducerEffect],
-        generated: &mut VecDeque<ProducerInput>,
-        refused_input: Option<ProducerInput>,
-    ) -> Result<(), ProducerHostInvariantError> {
-        if !self
-            .fatal_transition
-            .capture(failed_effect, remaining, generated, refused_input)
-        {
-            return Err(ProducerHostInvariantError::TerminalBacklogCorrupt);
-        }
-        generated.clear();
-        let tail = self.fatal_transition.take_effects();
-        let unapplied = self.fatal_transition.take_generated();
-        self.quarantine_committed_failure(unapplied, tail)
-    }
-
-    pub(super) fn quarantine_committed_tail(
-        &mut self,
-        tail: Vec<ProducerEffect>,
-    ) -> Result<(), ProducerHostInvariantError> {
-        self.quarantine_committed_failure(Vec::new(), tail)
-    }
-
-    fn quarantine_committed_failure(
-        &mut self,
-        generated: Vec<ProducerInput>,
-        mut tail: Vec<ProducerEffect>,
-    ) -> Result<(), ProducerHostInvariantError> {
-        let mut tail_error = None;
-        tail.retain(|effect| {
-            let ProducerEffect::Complete {
-                operation_id,
-                completion,
-            } = *effect
-            else {
-                return true;
-            };
-            match self.retain_terminal_tail(operation_id, completion) {
-                Ok(()) => false,
                 Err(error) => {
-                    if tail_error.is_none() {
-                        tail_error = Some(error);
-                    }
-                    true
+                    let first = self.poison(error);
+                    self.retain_terminal_tail(&effects[index + 1..]);
+                    generated.clear();
+                    return Err(first);
                 }
             }
-        });
-        if !generated.is_empty() {
-            let Some(vacancy) = self.terminal_refusals.generated_vacancy() else {
-                return Err(ProducerHostInvariantError::TerminalBacklogCorrupt);
-            };
-            if let Err(failure) = self.terminal_quarantine.retain_generated(generated) {
-                vacancy.retain(failure);
-                return Err(ProducerHostInvariantError::TerminalQuarantineCapacity);
-            }
         }
-        if !tail.is_empty() {
-            let Some(vacancy) = self.terminal_refusals.tail_vacancy() else {
-                return Err(ProducerHostInvariantError::TerminalBacklogCorrupt);
-            };
-            if let Err(failure) = self.terminal_quarantine.retain_committed_tail(tail) {
-                vacancy.retain(failure);
-                return Err(ProducerHostInvariantError::TerminalQuarantineCapacity);
-            }
-        }
-        tail_error.map_or(Ok(()), Err)
+        Ok(())
     }
 }

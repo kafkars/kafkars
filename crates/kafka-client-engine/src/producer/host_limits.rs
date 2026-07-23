@@ -21,12 +21,11 @@ pub(crate) struct ProducerHostLimits {
 #[must_use = "validated producer capacities must be started or deliberately discarded"]
 pub(crate) struct ValidatedProducerHostLimits {
     retained_bytes: ByteCount,
-    transition_effect_capacity: usize,
 }
 
 impl ValidatedProducerHostLimits {
-    pub(super) const fn into_parts(self) -> (ByteCount, usize) {
-        (self.retained_bytes, self.transition_effect_capacity)
+    pub(super) const fn retained_bytes(self) -> ByteCount {
+        self.retained_bytes
     }
 }
 
@@ -47,9 +46,8 @@ impl ProducerHostLimits {
         if self.timer_capacity < self.batch_capacity {
             return Err(ProducerHostLimitError::InsufficientTimerCapacity);
         }
-        let transition_effect_capacity =
-            producer_transition_effect_capacity(self.record_capacity, self.completion_capacity)
-                .ok_or(ProducerHostLimitError::TerminalTailCapacityOverflow)?;
+        producer_transition_effect_capacity(self.record_capacity, self.completion_capacity)
+            .ok_or(ProducerHostLimitError::TransitionCapacityOverflow)?;
         if self.encoded_byte_capacity == 0 {
             return Err(ProducerHostLimitError::ZeroEncodedByteCapacity);
         }
@@ -63,7 +61,6 @@ impl ProducerHostLimits {
             .map_err(|_| ProducerHostLimitError::RetainedBytesOutOfRange)?;
         Ok(ValidatedProducerHostLimits {
             retained_bytes: ByteCount::new(bytes),
-            transition_effect_capacity,
         })
     }
 }

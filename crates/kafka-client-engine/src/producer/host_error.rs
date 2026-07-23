@@ -23,7 +23,7 @@ pub(crate) enum ProducerHostLimitError {
     ZeroWireBatchBytes,
     BatchRecordLimitExceedsCapacity,
     RetainedBytesOutOfRange,
-    TerminalTailCapacityOverflow,
+    TransitionCapacityOverflow,
 }
 
 impl fmt::Display for ProducerHostLimitError {
@@ -48,8 +48,8 @@ impl fmt::Display for ProducerHostLimitError {
             Self::RetainedBytesOutOfRange => {
                 "producer retained-byte capacity exceeds the core byte domain"
             }
-            Self::TerminalTailCapacityOverflow => {
-                "producer terminal-tail capacity exceeds the host domain"
+            Self::TransitionCapacityOverflow => {
+                "producer transition capacity exceeds the host domain"
             }
         })
     }
@@ -114,8 +114,6 @@ pub(crate) enum ProducerHostInvariantError {
     GeneratedFactCapacity,
     PendingEffectCapacity,
     TerminalBacklogCapacity,
-    TerminalBacklogCorrupt,
-    TerminalQuarantineCapacity,
     FlushControlUnavailable,
     UnexpectedDriverInput,
     #[cfg(test)]
@@ -162,12 +160,6 @@ impl fmt::Display for ProducerHostInvariantError {
             }
             Self::TerminalBacklogCapacity => {
                 formatter.write_str("producer terminal backlog exceeded completion-slot capacity")
-            }
-            Self::TerminalBacklogCorrupt => {
-                formatter.write_str("producer terminal backlog retained a non-terminal effect")
-            }
-            Self::TerminalQuarantineCapacity => {
-                formatter.write_str("producer terminal quarantine exceeded its committed tail")
             }
             Self::FlushControlUnavailable => formatter
                 .write_str("producer flush effects reached an engine without flush support"),

@@ -105,14 +105,6 @@ impl ProducerHost {
         self.core = core;
     }
 
-    /// Releases quarantined effect tokens only after completion settlement.
-    pub(super) fn clear_terminal_evidence(&mut self) {
-        self.terminal_poison.clear_terminal();
-        self.terminal_quarantine.clear_terminal();
-        self.terminal_refusals.clear_terminal();
-        self.fatal_transition.clear_terminal();
-    }
-
     /// Verifies exact effect interpretation released bytes before completion.
     pub(crate) fn verify_release_before_completion(
         &self,
@@ -165,10 +157,6 @@ impl ProducerHost {
         self.release_owned_mechanisms()
             .saturating_add(self.bindings.len())
             .saturating_add(self.terminal_backlog.len())
-            .saturating_add(self.terminal_poison.len())
-            .saturating_add(self.terminal_quarantine.retained_len())
-            .saturating_add(self.terminal_refusals.retained_len())
-            .saturating_add(self.fatal_transition.retained_len())
             .saturating_add(self.core.completion_slots())
     }
 
@@ -186,10 +174,6 @@ impl ProducerHost {
             && stats.completion_bindings == 0
             && stats.pending_effects == 0
             && stats.terminal_backlog == 0
-            && self.terminal_poison.len() == 0
-            && self.terminal_quarantine.retained_len() == 0
-            && self.terminal_refusals.retained_len() == 0
-            && self.fatal_transition.retained_len() == 0
             && stats.core_retained_bytes == kafka_client_core::ByteCount::new(0)
             && stats.core_completion_slots == 0
             && self.unsettled_completions() == 0

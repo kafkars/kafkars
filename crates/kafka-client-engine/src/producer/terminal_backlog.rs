@@ -1,21 +1,10 @@
-//! Bounded FIFO and quarantine ownership for ordered producer terminals.
-
-mod fatal_buffer;
-#[cfg(test)]
-mod fatal_buffer_test;
-mod quarantine;
-#[cfg(test)]
-mod quarantine_test;
+//! Bounded FIFO ownership for ordered producer terminals.
 
 use std::collections::VecDeque;
 
 use kafka_client_core::{OperationId, ProducerCompletion};
 
 use crate::completion::CompletionId;
-
-pub(super) use fatal_buffer::FatalTransitionBuffer;
-pub(super) use quarantine::TerminalRefusalOwner;
-pub(super) use quarantine::{RejectedTerminal, TerminalPoisonSlot, TerminalQuarantine};
 
 /// One validated record terminal awaiting notifier ownership.
 #[derive(Debug, Eq, PartialEq)]
@@ -89,10 +78,6 @@ impl OrderedTerminalBacklog {
         self.entries.pop_front().map(|entry| match entry {
             OrderedTerminal::Record(terminal) => terminal,
         })
-    }
-
-    pub(super) fn pop_rejected(&mut self) -> Option<RetainedTerminal> {
-        self.pop_published()
     }
 
     pub(super) fn front(&self) -> Option<&RetainedTerminal> {

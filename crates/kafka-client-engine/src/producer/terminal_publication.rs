@@ -1,4 +1,4 @@
-//! Ordered record-terminal validation, publication, retry, and quarantine.
+//! Ordered record-terminal validation, publication, and retry.
 
 mod validation;
 #[cfg(test)]
@@ -8,10 +8,7 @@ use kafka_client_core::{OperationId, ProducerCompletion};
 
 use crate::completion::{CompletionId, CompletionRegistryError};
 
-use super::{
-    ProducerHost, ProducerHostInvariantError,
-    terminal_backlog::{RejectedTerminal, RetainedTerminal},
-};
+use super::{ProducerHost, ProducerHostInvariantError, terminal_backlog::RetainedTerminal};
 
 impl ProducerHost {
     pub(super) fn publish_or_retain_terminal(
@@ -52,7 +49,10 @@ impl ProducerHost {
         self.retry_terminal_backlog_inner(limit, false)
     }
 
-    /// Recovery retries valid terminals and quarantines corrupt entries.
+    /// Recovery retries valid terminals and drops invalid copies.
+    ///
+    /// The completion registry remains the authoritative owner of every
+    /// unsettled operation and publishes a conservative fallback afterward.
     pub(super) fn retry_terminal_backlog_for_recovery(
         &mut self,
         limit: usize,
@@ -76,15 +76,9 @@ impl ProducerHost {
             let completion_id = terminal.completion_id();
             let completion = terminal.completion();
             if let Err(error) = self.revalidate_terminal(operation_id, completion_id) {
-                let Some(removed) = self.terminal_backlog.pop_rejected() else {
-                    return Err(self.poison(ProducerHostInvariantError::TerminalBacklogCorrupt));
-                };
-                let poisoned = self.quarantine_rejected(RejectedTerminal::new(
-                    removed.operation_id(),
-                    Some(removed.completion_id()),
-                    removed.completion(),
-                    error,
-                ));
+                let removed = self.terminal_backlog.pop_published();
+                debug_assert!(removed.is_some());
+                let poisoned = self.poison(error);
                 if !recovery {
                     return Err(poisoned);
                 }
@@ -141,10 +135,5 @@ impl ProducerHost {
     #[cfg(test)]
     pub(super) fn terminal_back(&self) -> Option<&RetainedTerminal> {
         self.terminal_backlog.back()
-    }
-
-    #[cfg(test)]
-    pub(super) const fn terminal_poison(&self) -> Option<&RejectedTerminal> {
-        self.terminal_poison.evidence()
     }
 }

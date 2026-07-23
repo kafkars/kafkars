@@ -26,7 +26,6 @@ use crate::{
         admission_test::{admit, record},
         binding::OperationBindingError,
         host_limits_test::{start, valid_limits},
-        terminal_backlog::RejectedTerminal,
     },
 };
 
@@ -191,16 +190,12 @@ fn poisoned_recovery_retries_exact_fifo_then_settles_distinct_reserved_slots() {
                 operation_id: unknown,
                 completion: fallback,
             },
-        )
-        .map_err(|failure| failure.error()),
+        ),
         Err(ProducerHostInvariantError::Binding(
             OperationBindingError::UnknownOperation
         ))
     );
-    assert_eq!(
-        host.terminal_poison().map(RejectedTerminal::operation_id),
-        Some(unknown)
-    );
+    assert_eq!(host.stats().terminal_backlog, 1);
 
     let error = host
         .execution_unavailable(Moment::from_tick(6))

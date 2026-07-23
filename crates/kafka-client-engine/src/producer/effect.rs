@@ -4,73 +4,16 @@ use kafka_client_core::{Moment, ProducerEffect, ProducerInput};
 
 use super::{ProducerHost, ProducerHostInvariantError};
 
-/// How far a failed mechanism effect progressed before returning its error.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum FailedEffectProgress {
-    NotApplied,
-    PartiallyApplied,
-}
-
-/// Exact ownership of the effect that returned an interpreter failure.
-#[derive(Debug)]
-pub(super) enum FailedEffectDisposition {
-    Mechanism {
-        effect: ProducerEffect,
-        progress: FailedEffectProgress,
-    },
-    TerminalTransferred,
-}
-
-/// Error plus the non-duplicable disposition of its current effect.
-#[derive(Debug)]
-pub(super) struct EffectInterpretationFailure {
-    error: ProducerHostInvariantError,
-    disposition: FailedEffectDisposition,
-}
-
-impl EffectInterpretationFailure {
-    fn mechanism(
-        error: ProducerHostInvariantError,
-        effect: ProducerEffect,
-        progress: FailedEffectProgress,
-    ) -> Self {
-        Self {
-            error,
-            disposition: FailedEffectDisposition::Mechanism { effect, progress },
-        }
-    }
-
-    fn terminal(error: ProducerHostInvariantError) -> Self {
-        Self {
-            error,
-            disposition: FailedEffectDisposition::TerminalTransferred,
-        }
-    }
-
-    pub(super) fn into_parts(self) -> (ProducerHostInvariantError, FailedEffectDisposition) {
-        (self.error, self.disposition)
-    }
-
-    #[cfg(test)]
-    pub(super) const fn error(&self) -> ProducerHostInvariantError {
-        self.error
-    }
-}
-
 impl ProducerHost {
     #[allow(
-        clippy::result_large_err,
-        reason = "the ownership-returning failure stores one Copy effect inline to avoid fault-path allocation"
-    )]
-    #[allow(
         clippy::too_many_lines,
-        reason = "one exhaustive match must assign an ownership disposition to every effect"
+        reason = "one exhaustive match keeps producer effect execution explicit"
     )]
     pub(super) fn interpret_effect_owned(
         &mut self,
         now: Moment,
         effect: ProducerEffect,
-    ) -> Result<Option<ProducerInput>, EffectInterpretationFailure> {
+    ) -> Result<Option<ProducerInput>, ProducerHostInvariantError> {
         match effect {
             ProducerEffect::AccumulateExplicit {
                 operation_id,
@@ -81,20 +24,9 @@ impl ProducerHost {
                 let accumulator_bytes = self
                     .store
                     .accumulate(batch_id, operation_id, record.payload_id())
-                    .map_err(ProducerHostInvariantError::Store)
-                    .map_err(|error| {
-                        EffectInterpretationFailure::mechanism(
-                            error,
-                            effect,
-                            FailedEffectProgress::NotApplied,
-                        )
-                    })?;
+                    .map_err(ProducerHostInvariantError::Store)?;
                 if accumulator_bytes != record.retained_bytes() {
-                    return Err(EffectInterpretationFailure::mechanism(
-                        ProducerHostInvariantError::CommittedFactsMismatch,
-                        effect,
-                        FailedEffectProgress::PartiallyApplied,
-                    ));
+                    return Err(ProducerHostInvariantError::CommittedFactsMismatch);
                 }
                 Ok(Some(ProducerInput::RecordAccumulated {
                     operation_id,
@@ -111,14 +43,7 @@ impl ProducerHost {
                 let _armed = self
                     .timers
                     .arm(batch_id, generation, deadline)
-                    .map_err(ProducerHostInvariantError::Timer)
-                    .map_err(|error| {
-                        EffectInterpretationFailure::mechanism(
-                            error,
-                            effect,
-                            FailedEffectProgress::NotApplied,
-                        )
-                    })?;
+                    .map_err(ProducerHostInvariantError::Timer)?;
                 Ok(None)
             }
             ProducerEffect::CancelBatchTimer {
@@ -135,28 +60,14 @@ impl ProducerHost {
                 let _payload_id = self
                     .store
                     .remove_member(batch_id, operation_id)
-                    .map_err(ProducerHostInvariantError::Store)
-                    .map_err(|error| {
-                        EffectInterpretationFailure::mechanism(
-                            error,
-                            effect,
-                            FailedEffectProgress::NotApplied,
-                        )
-                    })?;
+                    .map_err(ProducerHostInvariantError::Store)?;
                 Ok(None)
             }
             ProducerEffect::ReleaseBatch { batch_id } => {
                 self.cancel_pending_batch(batch_id);
                 self.execution
                     .release_batch(&mut self.store, batch_id)
-                    .map_err(ProducerHostInvariantError::Prepared)
-                    .map_err(|error| {
-                        EffectInterpretationFailure::mechanism(
-                            error,
-                            effect,
-                            FailedEffectProgress::PartiallyApplied,
-                        )
-                    })?;
+                    .map_err(ProducerHostInvariantError::Prepared)?;
                 Ok(None)
             }
             ProducerEffect::ReleasePayload {
@@ -165,14 +76,7 @@ impl ProducerHost {
             } => {
                 self.store
                     .release_payload(payload_id, retained_bytes)
-                    .map_err(ProducerHostInvariantError::Store)
-                    .map_err(|error| {
-                        EffectInterpretationFailure::mechanism(
-                            error,
-                            effect,
-                            FailedEffectProgress::PartiallyApplied,
-                        )
-                    })?;
+                    .map_err(ProducerHostInvariantError::Store)?;
                 Ok(None)
             }
             ProducerEffect::Complete {
@@ -180,25 +84,14 @@ impl ProducerHost {
                 completion,
             } => self
                 .publish_or_retain_terminal(operation_id, completion)
-                .map(|()| None)
-                .map_err(EffectInterpretationFailure::terminal),
+                .map(|()| None),
             pending @ (ProducerEffect::MaterializeBatch { .. }
             | ProducerEffect::SubmitProduce { .. }) => {
-                self.retain_pending(pending).map_err(|error| {
-                    EffectInterpretationFailure::mechanism(
-                        error,
-                        effect,
-                        FailedEffectProgress::NotApplied,
-                    )
-                })?;
+                self.retain_pending(pending)?;
                 Ok(None)
             }
             ProducerEffect::AcceptFlush { .. } | ProducerEffect::CompleteFlush { .. } => {
-                Err(EffectInterpretationFailure::mechanism(
-                    ProducerHostInvariantError::FlushControlUnavailable,
-                    effect,
-                    FailedEffectProgress::NotApplied,
-                ))
+                Err(ProducerHostInvariantError::FlushControlUnavailable)
             }
         }
     }

@@ -147,7 +147,6 @@ impl ProducerHost {
             remaining = progress.remaining();
         }
         self.bindings.clear_terminal();
-        self.clear_terminal_evidence();
         Ok(())
     }
 

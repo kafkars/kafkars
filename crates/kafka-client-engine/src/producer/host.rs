@@ -8,15 +8,12 @@ use kafka_client_core::{ByteCount, ProducerBatchPolicy, ProducerEffect, Producer
 use crate::{clock::BatchTimers, completion::CompletionRegistry};
 
 use super::{
-    ProducerHostInvariantError, ProducerHostLimitError, ProducerHostStartError, ProducerStore,
-    ProducerStoreLimits, ProducerStoreStats,
+    ProducerHostInvariantError, ProducerHostStartError, ProducerStore, ProducerStoreLimits,
+    ProducerStoreStats,
     binding::OperationBindings,
     execution::{PreparedExecution, PreparedExecutionLimits},
     reclaim::CompletionReclaimer,
-    terminal_backlog::{
-        FatalTransitionBuffer, OrderedTerminalBacklog, TerminalPoisonSlot, TerminalQuarantine,
-        TerminalRefusalOwner,
-    },
+    terminal_backlog::OrderedTerminalBacklog,
 };
 
 #[path = "host_limits.rs"]
@@ -74,10 +71,6 @@ pub(crate) struct ProducerHost {
     pub(super) execution: PreparedExecution,
     pub(super) pending_effects: Vec<ProducerEffect>,
     pub(super) terminal_backlog: OrderedTerminalBacklog,
-    pub(super) terminal_poison: TerminalPoisonSlot,
-    pub(super) terminal_quarantine: TerminalQuarantine,
-    pub(super) terminal_refusals: TerminalRefusalOwner,
-    pub(super) fatal_transition: FatalTransitionBuffer,
     pub(super) effect_capacity: usize,
     pub(super) health: ProducerHostHealth,
     #[cfg(test)]
@@ -95,21 +88,13 @@ pub(crate) struct ProducerHost {
 
 impl ProducerHost {
     pub(crate) fn new(limits: ProducerHostLimits) -> Result<Self, ProducerHostStartError> {
-        let (retained_bytes, transition_capacity) = limits.validate()?.into_parts();
-        let terminal_quarantine =
-            TerminalQuarantine::for_capacities(limits.record_capacity, limits.completion_capacity)?;
-        if terminal_quarantine.transition_effect_capacity() != transition_capacity {
-            return Err(ProducerHostLimitError::TerminalTailCapacityOverflow.into());
-        }
+        let retained_bytes = limits.validate()?.retained_bytes();
         let core_config = ProducerCoreConfig {
             retained_bytes,
             completion_capacity: limits.completion_capacity,
             batch_policy: limits.batch_policy,
         };
         let core = core_config.machine();
-        if core.transition_effect_capacity() != Some(transition_capacity) {
-            return Err(ProducerHostLimitError::TerminalTailCapacityOverflow.into());
-        }
         let completions = CompletionRegistry::start(limits.completion_capacity)
             .map_err(ProducerHostStartError::Notifier)?;
         Ok(Self {
@@ -133,10 +118,6 @@ impl ProducerHost {
             ),
             pending_effects: Vec::with_capacity(limits.completion_capacity),
             terminal_backlog: OrderedTerminalBacklog::new(limits.completion_capacity),
-            terminal_poison: TerminalPoisonSlot::empty(),
-            terminal_quarantine,
-            terminal_refusals: TerminalRefusalOwner::empty(),
-            fatal_transition: FatalTransitionBuffer::new(transition_capacity),
             effect_capacity: limits.completion_capacity,
             health: ProducerHostHealth::Healthy,
             #[cfg(test)]
