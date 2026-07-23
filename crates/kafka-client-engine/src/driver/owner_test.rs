@@ -1,6 +1,9 @@
 //! Embedded driver construction, wake, bounded-turn, and shutdown scenarios.
 
-use std::time::Duration;
+use std::{
+    thread,
+    time::{Duration, Instant},
+};
 
 use crate::EngineConfig;
 
@@ -8,6 +11,7 @@ use super::{DriverOwnerError, DriverTurn, owner::DriverOwner};
 
 const SHUTDOWN_TURN_LIMIT: usize = 64;
 const SHUTDOWN_WAIT_LIMIT: Duration = Duration::from_millis(100);
+const SHUTDOWN_DEADLINE: Duration = Duration::from_secs(1);
 
 #[test]
 fn one_owner_builds_the_driver_handle_reactor_and_wake_source() {
@@ -29,15 +33,20 @@ fn dropping_the_sole_driver_handle_uses_implicit_reactor_shutdown() {
     let mut owner = owner();
     owner.close_admission();
 
-    let mut outcome = DriverTurn::Idle;
-    for _turn in 0..SHUTDOWN_TURN_LIMIT {
-        outcome = owner
-            .turn(SHUTDOWN_WAIT_LIMIT)
+    let deadline = Instant::now() + SHUTDOWN_DEADLINE;
+    let outcome = loop {
+        let outcome = owner
+            .turn(Duration::ZERO)
             .unwrap_or_else(|error| panic!("drive bounded shutdown turn: {error}"));
         if outcome == DriverTurn::Shutdown {
-            break;
+            break outcome;
         }
-    }
+        assert!(
+            Instant::now() < deadline,
+            "implicit driver shutdown exceeded its wall-clock bound"
+        );
+        thread::yield_now();
+    };
 
     assert_eq!(outcome, DriverTurn::Shutdown);
     owner.close_admission();
