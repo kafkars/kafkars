@@ -78,11 +78,16 @@ impl VirtualProducerState {
                 self.require_batch(batch_id)?;
                 self.materialized.insert(batch_id);
             }
-            ProducerEffect::SubmitProduce { batch_id, .. } => {
+            ProducerEffect::SubmitProduce {
+                batch_id,
+                deadline_operation_id,
+                ..
+            } => {
                 self.require_batch(batch_id)?;
                 if !self.materialized.contains(&batch_id) {
                     return Err(SimulationError::BatchNotMaterialized(batch_id));
                 }
+                self.require_batch_member(batch_id, deadline_operation_id)?;
                 self.submission_count += 1;
             }
             ProducerEffect::RemoveBatchMember {

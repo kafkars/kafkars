@@ -110,7 +110,23 @@ impl ProducerBatch {
     }
 
     pub(crate) fn earliest_deadline(&self) -> Option<Deadline> {
-        self.members.iter().map(|member| member.deadline).min()
+        self.earliest_deadline_owner()
+            .map(|(_operation_id, deadline)| deadline)
+    }
+
+    /// Returns the earliest live member, preserving membership order on ties.
+    pub(crate) fn earliest_deadline_owner(&self) -> Option<(OperationId, Deadline)> {
+        let first = self.members.first()?;
+        Some(self.members.iter().skip(1).fold(
+            (first.operation_id, first.deadline),
+            |earliest, member| {
+                if member.deadline < earliest.1 {
+                    (member.operation_id, member.deadline)
+                } else {
+                    earliest
+                }
+            },
+        ))
     }
 
     pub(crate) fn contains(&self, operation_id: OperationId) -> bool {

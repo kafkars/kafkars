@@ -60,6 +60,8 @@ pub enum ProducerEffect {
     SubmitProduce {
         /// Core-owned logical batch identity.
         batch_id: BatchId,
+        /// Live member the engine expires if driver ownership is not obtained.
+        deadline_operation_id: OperationId,
         /// Earliest live member deadline handed to the driver unchanged.
         deadline: Deadline,
         /// Engine topic-catalog identity.

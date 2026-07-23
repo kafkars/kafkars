@@ -36,6 +36,19 @@ impl VirtualProducerState {
             .ok_or(SimulationError::UnknownBatch(batch_id))
     }
 
+    pub(super) fn require_batch_member(
+        &self,
+        batch_id: BatchId,
+        operation_id: OperationId,
+    ) -> Result<(), SimulationError> {
+        self.batches
+            .get(&batch_id)
+            .ok_or(SimulationError::UnknownBatch(batch_id))?
+            .contains(&operation_id)
+            .then_some(())
+            .ok_or(SimulationError::OperationNotInBatch(operation_id))
+    }
+
     pub(super) fn remove_batch_member(
         &mut self,
         batch_id: BatchId,

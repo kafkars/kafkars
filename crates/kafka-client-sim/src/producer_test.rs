@@ -60,6 +60,14 @@ fn success_releases_batch_and_payload_before_completion() {
     let mut scenario = ProducerScenario::new(ByteCount::new(128), 1);
     let operation_id = admit(&mut scenario, PAYLOAD);
     materialized(&mut scenario, operation_id);
+    assert!(scenario.effect_trace().iter().any(|effect| matches!(
+        effect,
+        ProducerEffect::SubmitProduce {
+            deadline_operation_id,
+            deadline,
+            ..
+        } if *deadline_operation_id == operation_id && *deadline == Deadline::from_tick(10)
+    )));
     scenario
         .step(ProducerInput::DriverAccepted { batch_id: BATCH })
         .unwrap_or_else(|error| panic!("driver acceptance failed: {error}"));

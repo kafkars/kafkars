@@ -168,8 +168,8 @@ impl ProducerMachine {
             .get(&batch_id)
             .ok_or(ProducerMachineError::UnknownBatch)?;
         let members = batch.member_ids();
-        let deadline = batch
-            .earliest_deadline()
+        let (deadline_operation_id, deadline) = batch
+            .earliest_deadline_owner()
             .ok_or(ProducerMachineError::UnknownBatch)?;
         let route = batch.route;
         batch.require_materializing()?;
@@ -182,6 +182,7 @@ impl ProducerMachine {
         Ok(ProducerTransition::from_effects(vec![
             ProducerEffect::SubmitProduce {
                 batch_id,
+                deadline_operation_id,
                 deadline,
                 topic_id: route.topic_id,
                 partition: route.partition,

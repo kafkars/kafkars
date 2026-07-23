@@ -69,6 +69,17 @@ fn accumulated(
         .to_vec()
 }
 
+fn materialized(producer: &mut ProducerMachine, batch_id: BatchId) -> Vec<ProducerEffect> {
+    producer
+        .apply(ProducerInput::BatchMaterialized {
+            batch_id,
+            now: Moment::from_tick(1),
+        })
+        .unwrap_or_else(|error| panic!("materialization failed: {error}"))
+        .effects()
+        .to_vec()
+}
+
 #[test]
 fn count_ready_batch_fans_success_out_in_membership_order() {
     let mut producer =
@@ -112,19 +123,15 @@ fn count_ready_batch_fans_success_out_in_membership_order() {
             .is_ok_and(|transition| transition.effects().is_empty())
     );
     assert_eq!(
-        producer
-            .apply(ProducerInput::BatchMaterialized {
-                batch_id,
-                now: Moment::from_tick(1),
-            })
-            .map(|transition| transition.effects().to_vec()),
-        Ok(vec![ProducerEffect::SubmitProduce {
+        materialized(&mut producer, batch_id),
+        vec![ProducerEffect::SubmitProduce {
             batch_id,
+            deadline_operation_id: first,
             deadline: Deadline::from_tick(100),
             topic_id: TOPIC,
             partition: PARTITION,
             acknowledgements: AcknowledgementPolicy::All,
-        }])
+        }]
     );
     assert!(
         producer

@@ -51,6 +51,8 @@ mod producer_outcome_test;
 #[cfg(test)]
 mod producer_reclaim_test;
 #[cfg(test)]
+mod producer_submission_deadline_test;
+#[cfg(test)]
 mod producer_test;
 #[cfg(test)]
 mod producer_timer_test;
