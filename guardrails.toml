@@ -111,6 +111,14 @@ production = "crates/kafka-client-core/src/admin/transition.rs"
 test = "crates/kafka-client-core/src/admin/transition_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/topic_partition.rs"
+test = "crates/kafka-client-core/src/producer/topic_partition_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/topic_partitions.rs"
+test = "crates/kafka-client-core/src/producer/topic_partitions_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-sim/src/state.rs"
 test = "crates/kafka-client-sim/src/state_test.rs"
 
