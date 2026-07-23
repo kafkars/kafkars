@@ -12,7 +12,11 @@ async fn create_topic() -> Result<(), KafkaError> {
 
     let result = client
         .admin()
-        .create_topics([NewTopic::new("orders", 24).replication_factor(3)])
+        .create_topics([NewTopic::new("orders", 24)
+            .replication_factor(3)
+            .config("cleanup.policy", "compact")])
+        .validate_only(false)
+        .submit()
         .await?;
 
     assert_eq!(result.entries().len(), 1);

@@ -2,7 +2,7 @@
 
 use core::fmt;
 
-/// Certainty attached to a failed producer operation.
+/// Certainty attached to a failed network operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeliveryStatus {
     /// The operation did not cross the transport ownership boundary.
@@ -49,6 +49,7 @@ pub struct KafkaError {
     message: String,
     delivery_status: Option<DeliveryStatus>,
     broker_code: Option<i16>,
+    diagnostic_truncated: bool,
 }
 
 impl KafkaError {
@@ -59,6 +60,7 @@ impl KafkaError {
             message: message.into(),
             delivery_status: None,
             broker_code: None,
+            diagnostic_truncated: false,
         }
     }
 
@@ -70,6 +72,11 @@ impl KafkaError {
 
     pub(crate) fn with_broker_code(mut self, broker_code: Option<i16>) -> Self {
         self.broker_code = broker_code;
+        self
+    }
+
+    pub(crate) const fn with_diagnostic_truncated(mut self, truncated: bool) -> Self {
+        self.diagnostic_truncated = truncated;
         self
     }
 
@@ -86,6 +93,11 @@ impl KafkaError {
     /// Returns Kafka's exact protocol error code when supplied by a broker.
     pub const fn broker_code(&self) -> Option<i16> {
         self.broker_code
+    }
+
+    /// Returns whether a broker diagnostic was shortened to a bounded prefix.
+    pub const fn diagnostic_truncated(&self) -> bool {
+        self.diagnostic_truncated
     }
 }
 

@@ -18,6 +18,7 @@ fn non_producer_error_has_no_delivery_certainty() {
 
     assert_eq!(error.delivery_status(), None);
     assert_eq!(error.broker_code(), None);
+    assert!(!error.diagnostic_truncated());
 }
 
 #[test]
@@ -26,4 +27,12 @@ fn broker_code_preserves_the_signed_protocol_domain() {
         KafkaError::new(ErrorKind::Broker, "unknown broker error").with_broker_code(Some(-123));
 
     assert_eq!(error.broker_code(), Some(-123));
+}
+
+#[test]
+fn bounded_broker_diagnostics_preserve_truncation() {
+    let error = KafkaError::new(ErrorKind::Broker, "bounded broker diagnostic")
+        .with_diagnostic_truncated(true);
+
+    assert!(error.diagnostic_truncated());
 }

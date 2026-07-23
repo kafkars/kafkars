@@ -1,5 +1,8 @@
 //! Declarative private boundary between the Rust facade and shared engine.
 
+pub(crate) mod admin;
+pub(crate) mod admin_operation;
+pub(crate) mod admin_result;
 mod client;
 pub(crate) mod producer;
 pub(crate) mod producer_barrier;
@@ -8,6 +11,12 @@ pub(crate) mod producer_result;
 
 pub(crate) use client::ClientEngine;
 
+#[cfg(test)]
+mod admin_operation_test;
+#[cfg(test)]
+mod admin_result_test;
+#[cfg(test)]
+mod admin_test;
 #[cfg(test)]
 mod client_test;
 #[cfg(test)]

@@ -1,8 +1,8 @@
 //! Idiomatic Rust facade over the shared reactor-native Kafka client engine.
 //!
 //! Immediate explicit-partition producer admission, stage-aware cancellation,
-//! flush observation, and atomic close-and-drain form the first implemented
-//! vertical slice. Later API domains remain unpublished design probes.
+//! flush observation, atomic close-and-drain, and batched topic creation form
+//! the implemented vertical slices. Later API domains remain design probes.
 
 #![forbid(unsafe_code)]
 
@@ -16,7 +16,7 @@ mod producer;
 mod record;
 mod transaction;
 
-pub use admin::{Admin, BatchResult, CreateTopics, NewTopic};
+pub use admin::{Admin, BatchResult, CreateTopics, CreateTopicsBuilder, NewTopic};
 pub use client::{Client, ClientBuilder, Shutdown};
 pub use consumer::{
     AssignedConsumer, AssignedConsumerBuilder, Checkpoint, Commit, Consumer, ConsumerBuilder,

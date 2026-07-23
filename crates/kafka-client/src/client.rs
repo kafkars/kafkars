@@ -89,7 +89,7 @@ impl Client {
 
     /// Returns a cheap thread-safe admin handle.
     pub fn admin(&self) -> Admin {
-        Admin::new(self.clone())
+        Admin::new(self.engine.admin())
     }
 
     /// Begins construction of a uniquely controlled transactional producer.

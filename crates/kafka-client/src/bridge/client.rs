@@ -39,4 +39,9 @@ impl ClientEngine {
             self.inner.config().delivery_timeout(),
         )
     }
+
+    /// Returns an admin bridge with the engine-owned default timeout.
+    pub(crate) fn admin(&self) -> super::admin::AdminEngine {
+        super::admin::AdminEngine::new(self.inner.admin(), self.inner.config().admin_timeout())
+    }
 }

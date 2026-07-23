@@ -30,6 +30,22 @@ evidence = [
 ]
 
 [[invariant]]
+id = "ADM-03"
+title = "Rust CreateTopics submission is explicit and lossless"
+statement = "The Rust facade prepares an inert batch before one explicit submit boundary, returns immediate definitely-unsent rejection through the same named runtime-neutral observer used by Future and blocking wait, and exhaustively preserves ordered outcomes, signed broker codes, bounded-diagnostic truncation, and delivery certainty without an async runtime or hidden retry."
+status = "enforced"
+evidence = [
+  "crates/kafka-client/src/admin/batch_result_test.rs::entries_preserve_request_order_and_move_without_reclassification",
+  "crates/kafka-client/src/admin/builder_test.rs::empty_zero_deadline_builder_is_inert_until_submit",
+  "crates/kafka-client/src/bridge/admin_test.rs::prepared_empty_request_is_rejected_without_first_poll_work",
+  "crates/kafka-client/src/bridge/admin_operation_test.rs::wait_and_future_share_the_same_concrete_result_shape",
+  "crates/kafka-client/src/bridge/admin_result_test.rs::every_admission_category_maps_without_hidden_retry_policy",
+  "crates/kafka-client/src/bridge/admin_result_test.rs::whole_failure_preserves_authoritative_delivery_certainty",
+  "crates/kafka-client/src/bridge/admin_result_test.rs::unknown_signed_code_and_bounded_diagnostic_are_lossless",
+  "crates/kafka-client/src/bridge/admin_result_test.rs::observer_and_accepted_fault_categories_remain_distinct",
+]
+
+[[invariant]]
 id = "BAT-01"
 title = "Core owns batch readiness"
 statement = "Record-count and conservative encoded-size readiness are deterministic core decisions and terminal fan-out preserves batch membership order."

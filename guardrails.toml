@@ -571,6 +571,18 @@ production = "crates/kafka-client/src/bridge/client.rs"
 test = "crates/kafka-client/src/bridge/client_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin.rs"
+test = "crates/kafka-client/src/bridge/admin_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_operation.rs"
+test = "crates/kafka-client/src/bridge/admin_operation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_result.rs"
+test = "crates/kafka-client/src/bridge/admin_result_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client/src/bridge/producer_result/admission.rs"
 test = "crates/kafka-client/src/bridge/producer_result/admission_test.rs"
 
@@ -621,6 +633,26 @@ test = "crates/kafka-client/src/producer/metadata_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/producer/rejection.rs"
 test = "crates/kafka-client/src/producer/rejection_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/batch_result.rs"
+test = "crates/kafka-client/src/admin/batch_result_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/builder.rs"
+test = "crates/kafka-client/src/admin/builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/create_topics.rs"
+test = "crates/kafka-client/src/admin/create_topics_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/handle.rs"
+test = "crates/kafka-client/src/admin/handle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/new_topic.rs"
+test = "crates/kafka-client/src/admin/new_topic_test.rs"
 
 [[dependency_rules]]
 package = "kafka-client-core"
@@ -950,6 +982,13 @@ forbidden = [
   "kafka_wire_records",
   "smol",
   "tokio",
+]
+
+# Public admin vocabulary reaches execution only through its private bridge.
+[[capability_rules]]
+root = "crates/kafka-client/src/admin"
+forbidden = [
+  "kafka_client_engine",
 ]
 
 # Load-bearing state fields have one deliberately small mutation surface.
@@ -2007,3 +2046,19 @@ path = "crates/kafka-client/src/producer/close.rs"
 [[linear_owners]]
 owner_type = "TrySendError"
 path = "crates/kafka-client/src/producer/rejection.rs"
+
+[[linear_owners]]
+owner_type = "AdminRequest"
+path = "crates/kafka-client/src/bridge/admin.rs"
+
+[[linear_owners]]
+owner_type = "AdminCreateTopics"
+path = "crates/kafka-client/src/bridge/admin_operation.rs"
+
+[[linear_owners]]
+owner_type = "CreateTopicsBuilder"
+path = "crates/kafka-client/src/admin/builder.rs"
+
+[[linear_owners]]
+owner_type = "CreateTopics"
+path = "crates/kafka-client/src/admin/create_topics.rs"
