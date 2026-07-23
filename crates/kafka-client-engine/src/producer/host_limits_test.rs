@@ -16,9 +16,14 @@ use crate::producer::pending::{
 
 #[test]
 fn valid_limits_construct_one_synchronized_host() {
-    let host = start(valid_limits());
+    let limits = valid_limits();
+    let host = start(limits);
     let stats = host.stats();
 
+    assert_eq!(
+        host.pending_notification_permits.capacity(),
+        limits.pending_record_capacity
+    );
     assert_eq!(stats.store.records, 0);
     assert_eq!(stats.store.bytes, 0);
     assert_eq!(stats.store.batches, 0);
@@ -62,7 +67,7 @@ fn downstream_mechanisms_must_cover_admission_capacity() {
     assert_limit(timers, ProducerHostLimitError::InsufficientTimerCapacity);
 
     let mut pending_notifications = valid_limits();
-    pending_notifications.pending_notification_capacity = 1;
+    pending_notifications.pending_notification_capacity = 2;
     assert_limit(
         pending_notifications,
         ProducerHostLimitError::PendingNotificationCapacityMismatch,
@@ -74,6 +79,32 @@ fn downstream_mechanisms_must_cover_admission_capacity() {
         notifications,
         ProducerHostLimitError::NotificationCapacityMismatch,
     );
+}
+
+#[test]
+fn pending_capacity_is_independent_from_accepted_record_capacity() {
+    let limits = valid_limits();
+
+    assert_ne!(limits.record_capacity, limits.pending_record_capacity);
+    assert_eq!(
+        limits.pending_record_capacity,
+        limits.pending_notification_capacity
+    );
+    assert_eq!(
+        limits.notification_capacity,
+        limits.completion_capacity + limits.pending_record_capacity
+    );
+    drop(start(limits));
+}
+
+#[test]
+fn notification_capacity_overflow_is_rejected_before_allocation() {
+    let mut limits = valid_limits();
+    limits.pending_record_capacity = usize::MAX;
+    limits.pending_notification_capacity = usize::MAX;
+    limits.notification_capacity = usize::MAX;
+
+    assert_limit(limits, ProducerHostLimitError::NotificationCapacityOverflow);
 }
 
 #[test]
@@ -153,6 +184,7 @@ fn combined_transition_capacity_overflow_is_rejected_before_allocation() {
     limits.record_capacity = usize::MAX;
     limits.batch_capacity = usize::MAX;
     limits.timer_capacity = usize::MAX;
+    limits.pending_record_capacity = usize::MAX;
     limits.pending_notification_capacity = usize::MAX;
     limits.notification_capacity = usize::MAX;
 
@@ -202,8 +234,9 @@ pub(super) fn valid_limits() -> ProducerHostLimits {
         record_capacity: 2,
         batch_capacity: 2,
         timer_capacity: 2,
-        pending_notification_capacity: 2,
-        notification_capacity: 4,
+        pending_record_capacity: 3,
+        pending_notification_capacity: 3,
+        notification_capacity: 5,
         encoded_byte_capacity: 1_024,
         max_wire_batch_bytes: 1_024,
         batch_policy,

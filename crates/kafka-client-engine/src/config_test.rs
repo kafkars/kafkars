@@ -7,20 +7,14 @@ use crate::{EngineConfig, EngineProducerLimits};
 #[test]
 fn provisional_defaults_are_explicit_and_bounded() {
     let config = EngineConfig::new(vec!["broker.test:9092".to_owned()]);
-    let limits = config.producer_limits();
 
     assert_eq!(config.delivery_timeout(), Duration::from_secs(30));
-    assert_eq!(limits.retained_bytes(), 32 * 1024 * 1024);
-    assert_eq!(limits.in_flight_records(), 1_024);
-    assert_eq!(limits.batch_records(), 256);
-    assert_eq!(limits.batch_bytes(), 1024 * 1024);
-    assert_eq!(limits.linger(), Duration::from_millis(5));
     assert!(config.validate().is_ok());
 }
 
 #[test]
 fn zero_capacity_is_rejected_before_host_startup() {
-    let limits = EngineProducerLimits::new(0, 1, 1, 1, Duration::from_millis(1));
+    let limits = EngineProducerLimits::new(0, 1, 1, 1, 1, Duration::from_millis(1));
     let config =
         EngineConfig::new(vec!["broker.test:9092".to_owned()]).with_producer_limits(limits);
 
@@ -29,9 +23,25 @@ fn zero_capacity_is_rejected_before_host_startup() {
 
 #[test]
 fn notification_capacity_overflow_is_rejected_before_host_startup() {
-    let limits = EngineProducerLimits::new(1, usize::MAX, 1, 1, Duration::from_millis(1));
+    let limits = EngineProducerLimits::new(1, usize::MAX, 1, 1, 1, Duration::from_millis(1));
     let config =
         EngineConfig::new(vec!["broker.test:9092".to_owned()]).with_producer_limits(limits);
 
     assert!(config.validate().is_err());
+}
+
+#[test]
+fn compiler_preserves_distinct_accepted_and_pending_capacities() {
+    let limits = EngineProducerLimits::new(4_096, 11, 17, 3, 2_048, Duration::from_millis(7));
+    let config =
+        EngineConfig::new(vec!["broker.test:9092".to_owned()]).with_producer_limits(limits);
+    let validated = config
+        .validate()
+        .unwrap_or_else(|error| panic!("distinct capacities should compile: {error:?}"));
+
+    assert_eq!(validated.host_limits.record_capacity, 11);
+    assert_eq!(validated.host_limits.completion_capacity, 11);
+    assert_eq!(validated.host_limits.pending_record_capacity, 17);
+    assert_eq!(validated.host_limits.pending_notification_capacity, 17);
+    assert_eq!(validated.host_limits.notification_capacity, 28);
 }

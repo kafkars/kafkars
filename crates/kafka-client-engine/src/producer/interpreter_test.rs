@@ -30,6 +30,7 @@ fn generated_accumulation_waits_until_the_whole_admission_transition_drains() {
         record_capacity: 1,
         batch_capacity: 1,
         timer_capacity: 1,
+        pending_record_capacity: 1,
         pending_notification_capacity: 1,
         notification_capacity: 2,
         encoded_byte_capacity: 1_024,

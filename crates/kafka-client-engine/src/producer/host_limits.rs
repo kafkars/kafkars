@@ -14,6 +14,7 @@ pub(crate) struct ProducerHostLimits {
     pub(crate) record_capacity: usize,
     pub(crate) batch_capacity: usize,
     pub(crate) timer_capacity: usize,
+    pub(crate) pending_record_capacity: usize,
     pub(crate) pending_notification_capacity: usize,
     pub(crate) notification_capacity: usize,
     pub(crate) encoded_byte_capacity: usize,
@@ -59,7 +60,7 @@ impl ProducerHostLimits {
         let transition_effect_capacity =
             producer_transition_effect_capacity(self.record_capacity, self.completion_capacity)
                 .ok_or(ProducerHostLimitError::TerminalTailCapacityOverflow)?;
-        if self.pending_notification_capacity != self.record_capacity {
+        if self.pending_notification_capacity != self.pending_record_capacity {
             return Err(ProducerHostLimitError::PendingNotificationCapacityMismatch);
         }
         let notification_budget = self.notification_budget()?;
@@ -84,7 +85,7 @@ impl ProducerHostLimits {
     fn notification_budget(self) -> Result<NotificationBudget, ProducerHostLimitError> {
         NotificationBudget::try_new(
             self.completion_capacity,
-            self.pending_notification_capacity,
+            self.pending_record_capacity,
             self.notification_capacity,
         )
         .map_err(|error| match error {

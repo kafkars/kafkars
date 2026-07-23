@@ -141,6 +141,10 @@ production = "crates/kafka-client-engine/src/config.rs"
 test = "crates/kafka-client-engine/src/config_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/config/producer_limits.rs"
+test = "crates/kafka-client-engine/src/config/producer_limits_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine.rs"
 test = "crates/kafka-client-engine/src/engine_test.rs"
 
