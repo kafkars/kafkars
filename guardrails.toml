@@ -153,6 +153,10 @@ production = "crates/kafka-client-engine/src/producer/pending/registry.rs"
 test = "crates/kafka-client-engine/src/producer/pending/registry_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/restore.rs"
+test = "crates/kafka-client-engine/src/producer/pending/restore_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/prepared.rs"
 test = "crates/kafka-client-engine/src/producer/prepared_test.rs"
 
@@ -640,6 +644,7 @@ field = "used_bytes"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/pending/registry.rs",
   "crates/kafka-client-engine/src/producer/pending/registry/mutation.rs",
+  "crates/kafka-client-engine/src/producer/pending/restore.rs",
 ]
 
 [[mutation_owners]]
@@ -661,6 +666,7 @@ field = "slots"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/pending/registry.rs",
   "crates/kafka-client-engine/src/producer/pending/registry/mutation.rs",
+  "crates/kafka-client-engine/src/producer/pending/restore.rs",
 ]
 
 [[mutation_owners]]
@@ -669,6 +675,7 @@ field = "free"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/pending/registry.rs",
   "crates/kafka-client-engine/src/producer/pending/registry/mutation.rs",
+  "crates/kafka-client-engine/src/producer/pending/restore.rs",
 ]
 
 [[mutation_owners]]
@@ -677,6 +684,7 @@ field = "fifo"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/pending/registry.rs",
   "crates/kafka-client-engine/src/producer/pending/registry/mutation.rs",
+  "crates/kafka-client-engine/src/producer/pending/restore.rs",
 ]
 
 [[mutation_owners]]
@@ -685,6 +693,7 @@ field = "deadlines"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/pending/registry.rs",
   "crates/kafka-client-engine/src/producer/pending/registry/mutation.rs",
+  "crates/kafka-client-engine/src/producer/pending/restore.rs",
 ]
 
 [[mutation_owners]]
@@ -925,6 +934,14 @@ path = "crates/kafka-client-engine/src/producer/pending/registry.rs"
 [[linear_owners]]
 owner_type = "PendingAdmission"
 path = "crates/kafka-client-engine/src/producer/pending/entry.rs"
+
+[[linear_owners]]
+owner_type = "PendingAdmissionRejected"
+path = "crates/kafka-client-engine/src/producer/pending/error.rs"
+
+[[linear_owners]]
+owner_type = "PendingRestoreFailure"
+path = "crates/kafka-client-engine/src/producer/pending/error.rs"
 
 [[linear_owners]]
 owner_type = "PendingLocalFailure"

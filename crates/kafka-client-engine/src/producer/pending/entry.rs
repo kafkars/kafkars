@@ -103,3 +103,12 @@ impl PendingLocalFailure {
         self.pending
     }
 }
+
+/// Host disposition after attempting to return unadmitted work to its queue.
+#[derive(Debug)]
+pub(crate) enum PendingRestoreOutcome {
+    /// The exact slot generation and ordering facts are live again.
+    Restored,
+    /// Close won, so the unadmitted record settled locally as not sent.
+    Shutdown(PendingLocalFailure),
+}

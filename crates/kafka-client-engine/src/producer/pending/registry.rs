@@ -12,9 +12,9 @@ use super::{
 mod mutation;
 
 #[derive(Debug)]
-struct PendingSlot {
-    generation: u64,
-    entry: Option<PendingAdmission>,
+pub(super) struct PendingSlot {
+    pub(super) generation: u64,
+    pub(super) entry: Option<PendingAdmission>,
 }
 
 /// Observable bounded pending-admission accounting.
@@ -28,14 +28,14 @@ pub(crate) struct PendingAdmissionStats {
 /// Fixed-capacity owner of records waiting to attempt core admission.
 #[derive(Debug)]
 pub(crate) struct PendingAdmissionRegistry {
-    max_bytes: usize,
-    used_bytes: usize,
-    accepting: bool,
+    pub(super) max_bytes: usize,
+    pub(super) used_bytes: usize,
+    pub(super) accepting: bool,
     next_sequence: Option<u64>,
-    slots: Vec<PendingSlot>,
-    free: Vec<usize>,
-    fifo: BTreeMap<u64, PendingAdmissionId>,
-    deadlines: BTreeSet<(Deadline, u64, PendingAdmissionId)>,
+    pub(super) slots: Vec<PendingSlot>,
+    pub(super) free: Vec<usize>,
+    pub(super) fifo: BTreeMap<u64, PendingAdmissionId>,
+    pub(super) deadlines: BTreeSet<(Deadline, u64, PendingAdmissionId)>,
 }
 
 impl PendingAdmissionRegistry {
@@ -150,5 +150,10 @@ impl PendingAdmissionRegistry {
         }
         target.generation = generation;
         Ok(())
+    }
+
+    #[cfg(test)]
+    pub(super) fn insert_fifo_index_for_test(&mut self, sequence: u64, id: PendingAdmissionId) {
+        self.fifo.insert(sequence, id);
     }
 }
