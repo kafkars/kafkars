@@ -132,7 +132,7 @@ fn post_ownership_fault_remains_accepted_with_observer() {
         accepted.operation_id().map(ProducerOperationId::get),
         Some(1)
     );
-    assert_eq!(wake.count(), 0);
+    assert_eq!(wake.count(), 1);
     drop(accepted.into_observer());
 }
 

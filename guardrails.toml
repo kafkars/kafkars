@@ -243,6 +243,10 @@ production = "crates/kafka-client-engine/src/producer/boundary/handle.rs"
 test = "crates/kafka-client-engine/src/producer/boundary/handle_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/boundary/prepare.rs"
+test = "crates/kafka-client-engine/src/producer/boundary/prepare_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/boundary/send.rs"
 test = "crates/kafka-client-engine/src/producer/boundary/send_test.rs"
 
@@ -285,6 +289,10 @@ test = "crates/kafka-client-engine/src/producer/ingress/shard_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/ingress/terminal.rs"
 test = "crates/kafka-client-engine/src/producer/ingress/terminal_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/waiting.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/waiting_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/materialization.rs"
@@ -662,7 +670,16 @@ allowed_paths = []
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "register_pending"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/ingress/waiting.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "start_waiting_explicit"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/boundary/handle.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
@@ -1750,11 +1767,15 @@ path = "crates/kafka-client-engine/src/producer/ingress/data.rs"
 
 [[linear_owners]]
 owner_type = "ProducerPortAccepted"
-path = "crates/kafka-client-engine/src/producer/ingress/port.rs"
+path = "crates/kafka-client-engine/src/producer/ingress/outcome.rs"
 
 [[linear_owners]]
 owner_type = "ProducerPortRejected"
-path = "crates/kafka-client-engine/src/producer/ingress/port.rs"
+path = "crates/kafka-client-engine/src/producer/ingress/outcome.rs"
+
+[[linear_owners]]
+owner_type = "ProducerWaitingStart"
+path = "crates/kafka-client-engine/src/producer/ingress/waiting.rs"
 
 [[linear_owners]]
 owner_type = "PoisonedBeforeOwnership"
@@ -1939,6 +1960,10 @@ path = "crates/kafka-client-engine/src/producer/pending/registration.rs"
 [[linear_owners]]
 owner_type = "ProducerSend"
 path = "crates/kafka-client-engine/src/producer/boundary/send.rs"
+
+[[linear_owners]]
+owner_type = "PreparedExplicitSend"
+path = "crates/kafka-client-engine/src/producer/boundary/prepare.rs"
 
 [[linear_owners]]
 owner_type = "ProducerDelivery"

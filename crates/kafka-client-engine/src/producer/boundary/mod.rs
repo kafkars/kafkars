@@ -3,6 +3,7 @@
 mod capture;
 mod error;
 mod handle;
+mod prepare;
 mod record;
 mod result;
 mod send;
@@ -29,7 +30,11 @@ mod capture_test;
 #[cfg(test)]
 mod error_test;
 #[cfg(test)]
+mod handle_send_test;
+#[cfg(test)]
 mod handle_test;
+#[cfg(test)]
+mod prepare_test;
 #[cfg(test)]
 mod send_error_test;
 #[cfg(test)]

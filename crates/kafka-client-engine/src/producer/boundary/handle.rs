@@ -3,14 +3,18 @@
 use std::sync::Arc;
 
 use super::super::ingress::ProducerAdmissionPort;
+use super::super::ingress::ProducerWaitingStart;
 use super::{
     capture::{
         ProducerSendCapture, ProducerSendCaptureError, ProducerSendCaptureErrorKind,
         ProducerSendOptions,
     },
     error::{ProducerTrySendError, ProducerTrySendErrorKind},
+    prepare::prepare_explicit,
     record::ProducerRecord,
     result::ProducerTrySendAccepted,
+    send::ProducerSend,
+    send_error::{ready_from_pending_rejection, ready_from_try_send_kind},
 };
 use crate::clock::MonotonicClock;
 
@@ -79,46 +83,70 @@ impl ProducerHandle {
         capture: ProducerSendCapture,
         record: ProducerRecord,
     ) -> Result<ProducerTrySendAccepted, ProducerTrySendError> {
-        let (deadline, default_timestamp_ms) = capture.into_parts();
-        if record.topic().is_empty() {
-            return Err(ProducerTrySendError::with_record(
-                ProducerTrySendErrorKind::EmptyTopic,
-                record,
-            ));
-        }
-        let partition = match record.explicit_partition() {
-            None => {
-                return Err(ProducerTrySendError::with_record(
-                    ProducerTrySendErrorKind::MissingExplicitPartition,
-                    record,
-                ));
-            }
-            Some(partition) if partition < 0 => {
-                return Err(ProducerTrySendError::with_record(
-                    ProducerTrySendErrorKind::NegativeExplicitPartition,
-                    record,
-                ));
-            }
-            Some(_) => match record.validate_explicit_partition() {
-                Some(partition) => partition,
-                None => {
-                    return Err(ProducerTrySendError::with_record(
-                        ProducerTrySendErrorKind::NegativeExplicitPartition,
-                        record,
-                    ));
-                }
-            },
-        };
-        let stored = record.into_stored(partition, default_timestamp_ms);
-        match self
-            .port
-            .try_admit_explicit(deadline.now(), deadline.operation_deadline(), stored)
-        {
+        let prepared = prepare_explicit(capture, record)?;
+        let (attempted_at, deadline, stored) = prepared.into_parts();
+        match self.port.try_admit_explicit(attempted_at, deadline, stored) {
             Ok(accepted) => Ok(ProducerTrySendAccepted::from_port(
                 accepted,
-                deadline.operation_deadline().transport(),
+                deadline.transport(),
             )),
             Err(error) => Err(ProducerTrySendError::from_port(error)),
+        }
+    }
+
+    /// Starts the engine-internal waiting path without publishing it to adapters.
+    pub(crate) fn send(
+        &self,
+        record: ProducerRecord,
+        options: ProducerSendOptions,
+    ) -> ProducerSend {
+        let capture = match self.capture_send(options) {
+            Ok(capture) => capture,
+            Err(error) => {
+                drop(record);
+                return ProducerSend::from_ready(ready_from_try_send_kind(capture_error_kind(
+                    error.kind(),
+                )));
+            }
+        };
+        self.send_captured(capture, record)
+    }
+
+    /// Consumes one captured boundary into immediate or bounded pending ownership.
+    pub(crate) fn send_captured(
+        &self,
+        capture: ProducerSendCapture,
+        record: ProducerRecord,
+    ) -> ProducerSend {
+        let prepared = match prepare_explicit(capture, record) {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                let kind = error.kind();
+                drop(error);
+                return ProducerSend::from_ready(ready_from_try_send_kind(kind));
+            }
+        };
+        let (attempted_at, deadline, stored) = prepared.into_parts();
+        match self
+            .port
+            .start_waiting_explicit(attempted_at, deadline, stored)
+        {
+            ProducerWaitingStart::Accepted(accepted) => {
+                let (observer, _operation_id, _fault) = accepted.into_parts();
+                ProducerSend::from_accepted(observer)
+            }
+            ProducerWaitingStart::Pending(registration) => registration.into_send(),
+            ProducerWaitingStart::ImmediateFailure(error) => {
+                let error = ProducerTrySendError::from_port(error);
+                let kind = error.kind();
+                drop(error);
+                ProducerSend::from_ready(ready_from_try_send_kind(kind))
+            }
+            ProducerWaitingStart::PendingRejected(rejected) => {
+                let reason = rejected.reason();
+                drop(rejected.into_record());
+                ProducerSend::from_ready(ready_from_pending_rejection(reason))
+            }
         }
     }
 

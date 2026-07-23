@@ -178,7 +178,7 @@ fn poisoned_host_is_not_reported_as_semantic_backpressure() {
         ProducerPortPoisonReason::Host(ProducerHostInvariantError::MissingAdmissionIdentity)
     );
     assert!(Arc::ptr_eq(record.topic(), &expected));
-    assert_eq!(wake.count(), 0);
+    assert_eq!(wake.count(), 1);
 }
 
 fn setup() -> (

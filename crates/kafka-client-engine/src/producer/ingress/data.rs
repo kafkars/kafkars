@@ -144,10 +144,11 @@ impl ProducerShardData {
         }
     }
 
-    #[allow(
-        dead_code,
-        reason = "the waiting-send boundary follows this aggregate ownership slice"
-    )]
+    /// Reports whether older pending ownership fences a new immediate caller.
+    pub(super) fn has_pending(&self) -> bool {
+        self.pending.has_entries()
+    }
+
     #[allow(
         clippy::result_large_err,
         reason = "pending rejection returns the intact record for retry"

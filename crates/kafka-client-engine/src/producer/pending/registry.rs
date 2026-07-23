@@ -104,6 +104,11 @@ impl PendingAdmissionRegistry {
         self.deadlines.first().map(|(deadline, _, _)| *deadline)
     }
 
+    /// Reports whether an older admission or abandoned tombstone owns FIFO precedence.
+    pub(crate) fn has_entries(&self) -> bool {
+        !self.fifo.is_empty()
+    }
+
     pub(crate) fn stats(&self) -> PendingAdmissionStats {
         PendingAdmissionStats {
             records: self.fifo.len(),

@@ -7,7 +7,10 @@ use crate::{
 };
 
 use super::{
-    super::pending::{ProducerSendFailure, ProducerSendFailureKind, ProducerSendReadyFailure},
+    super::pending::{
+        PendingAdmissionRejectionReason, ProducerSendFailure, ProducerSendFailureKind,
+        ProducerSendReadyFailure,
+    },
     error::ProducerTrySendErrorKind,
 };
 
@@ -165,12 +168,36 @@ pub(crate) const fn ready_from_try_send_kind(
             ProducerSendFailure::new(ProducerSendFailureKind::Closed),
         ),
         ProducerTrySendErrorKind::Contended
+        | ProducerTrySendErrorKind::PendingPrecedence
         | ProducerTrySendErrorKind::CompletionCapacity
         | ProducerTrySendErrorKind::RecordCapacity
         | ProducerTrySendErrorKind::ByteCapacity
         | ProducerTrySendErrorKind::BatchCapacity
         | ProducerTrySendErrorKind::AccumulatorPending => ProducerSendReadyFailure::Local(
             ProducerSendFailure::new(ProducerSendFailureKind::Backpressure),
+        ),
+    }
+}
+
+pub(crate) const fn ready_from_pending_rejection(
+    reason: PendingAdmissionRejectionReason,
+) -> ProducerSendReadyFailure {
+    match reason {
+        PendingAdmissionRejectionReason::Closed => ProducerSendReadyFailure::Local(
+            ProducerSendFailure::new(ProducerSendFailureKind::Closed),
+        ),
+        PendingAdmissionRejectionReason::CountCapacity
+        | PendingAdmissionRejectionReason::ByteCapacity
+        | PendingAdmissionRejectionReason::NotificationBackpressure => {
+            ProducerSendReadyFailure::Local(ProducerSendFailure::new(
+                ProducerSendFailureKind::Backpressure,
+            ))
+        }
+        PendingAdmissionRejectionReason::RetainedSizeOverflow => ProducerSendReadyFailure::Start(
+            ProducerSendStartFailure::new(ProducerSendStartFailureKind::RecordSizeUnrepresentable),
+        ),
+        PendingAdmissionRejectionReason::IdentityExhausted => ProducerSendReadyFailure::Start(
+            ProducerSendStartFailure::new(ProducerSendStartFailureKind::LocalIdentityExhausted),
         ),
     }
 }

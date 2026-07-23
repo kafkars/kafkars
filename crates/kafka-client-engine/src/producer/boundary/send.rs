@@ -56,6 +56,12 @@ impl ProducerSend {
         }
     }
 
+    pub(crate) const fn from_ready(failure: ProducerSendReadyFailure) -> Self {
+        Self {
+            state: ProducerSendState::Ready(failure),
+        }
+    }
+
     /// Blocks on the same pending and accepted cells used by `Future::poll`.
     pub fn wait(mut self) -> ProducerSendResult {
         loop {

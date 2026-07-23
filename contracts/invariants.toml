@@ -19,6 +19,8 @@ evidence = [
   "crates/kafka-client-engine/src/producer/record_store_test.rs::count_and_bytes_are_reserved_before_core_admission",
   "crates/kafka-client-engine/src/producer/pending/registry_test.rs::count_and_byte_bounds_return_the_exact_record",
   "crates/kafka-client-engine/src/producer/pending/registration_test.rs::registration_returns_the_observer_for_the_exact_bounded_entry",
+  "crates/kafka-client-engine/src/producer/ingress/waiting_test.rs::capacity_rejection_registers_exact_pending_ownership_and_wakes_once",
+  "crates/kafka-client-engine/src/producer/ingress/waiting_test.rs::older_pending_entry_fences_nonblocking_try_send_even_with_core_capacity",
   "crates/kafka-client-engine/src/producer/record_store_test.rs::release_checks_provenance_and_happens_exactly_once",
   "crates/kafka-client-engine/src/producer/execution_test.rs::encoded_capacity_failure_becomes_a_core_owned_not_sent_outcome",
 ]
@@ -26,7 +28,7 @@ evidence = [
 [[invariant]]
 id = "BND-02"
 title = "Pending notification obligations are bounded"
-statement = "The modeled pending-send seam reserves one non-cloneable notification permit at registration, does not reuse it before off-reactor dispatch or proven no-obligation abandonment, and retains full or closed notifier jobs in named bounded owners. Live ProducerHost integration remains a separate milestone."
+statement = "The engine-internal pending-send seam reserves one non-cloneable notification permit at registration, does not reuse it before off-reactor dispatch or proven no-obligation abandonment, and retains full or closed notifier jobs in named bounded owners. Public waiting admission and live host promotion remain separate milestones."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/pending/permit_test.rs::notification_permit_is_not_reused_before_dispatch",

@@ -6,6 +6,7 @@ use super::{
     ProducerSendError, ProducerSendStartFailure, ProducerSendStartFailureKind,
     ProducerTrySendErrorKind, send_error::ready_from_try_send_kind,
 };
+use crate::producer::pending::PendingAdmissionRejectionReason;
 use crate::{ProducerDeliveryStatus, ProducerSendFailure, ProducerSendFailureKind};
 
 #[test]
@@ -83,6 +84,10 @@ fn every_try_send_kind_has_one_honest_waiting_send_classification() {
             local(ProducerSendFailureKind::Backpressure),
         ),
         (
+            ProducerTrySendErrorKind::PendingPrecedence,
+            local(ProducerSendFailureKind::Backpressure),
+        ),
+        (
             ProducerTrySendErrorKind::CompletionCapacity,
             local(ProducerSendFailureKind::Backpressure),
         ),
@@ -105,6 +110,43 @@ fn every_try_send_kind_has_one_honest_waiting_send_classification() {
     ] {
         assert_eq!(
             ProducerSendError::from_ready(ready_from_try_send_kind(kind)),
+            expected
+        );
+    }
+}
+
+#[test]
+fn every_pending_rejection_has_one_exact_ready_classification() {
+    use super::send_error::ready_from_pending_rejection;
+
+    for (reason, expected) in [
+        (
+            PendingAdmissionRejectionReason::Closed,
+            local(ProducerSendFailureKind::Closed),
+        ),
+        (
+            PendingAdmissionRejectionReason::CountCapacity,
+            local(ProducerSendFailureKind::Backpressure),
+        ),
+        (
+            PendingAdmissionRejectionReason::ByteCapacity,
+            local(ProducerSendFailureKind::Backpressure),
+        ),
+        (
+            PendingAdmissionRejectionReason::NotificationBackpressure,
+            local(ProducerSendFailureKind::Backpressure),
+        ),
+        (
+            PendingAdmissionRejectionReason::RetainedSizeOverflow,
+            start(ProducerSendStartFailureKind::RecordSizeUnrepresentable),
+        ),
+        (
+            PendingAdmissionRejectionReason::IdentityExhausted,
+            start(ProducerSendStartFailureKind::LocalIdentityExhausted),
+        ),
+    ] {
+        assert_eq!(
+            ProducerSendError::from_ready(ready_from_pending_rejection(reason)),
             expected
         );
     }

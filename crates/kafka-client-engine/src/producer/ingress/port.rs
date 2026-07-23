@@ -4,14 +4,15 @@ use std::sync::Arc;
 
 use kafka_client_core::Moment;
 
-use crate::{ProducerDeliveryObserver, clock::OperationDeadline};
+use crate::clock::OperationDeadline;
 
 use super::{
-    super::{
-        ProducerHostInvariantError, ProducerRecord, ProducerRejectionReason,
-        admission::ProducerAdmissionFailure,
-    },
+    super::ProducerRecord,
     ProducerShardLockError, ProducerShardWakeError,
+    outcome::{
+        ProducerPortAccepted, ProducerPortAdmissionError, ProducerPortPoisonReason,
+        ProducerPortRejectionReason, classify_admission, poisoned_before, rejected,
+    },
     shard::ProducerShardState,
 };
 
@@ -24,6 +25,17 @@ pub(crate) struct ProducerAdmissionPort {
 impl ProducerAdmissionPort {
     pub(super) const fn new(shared: Arc<ProducerShardState>) -> Self {
         Self { shared }
+    }
+
+    pub(super) fn data(
+        &self,
+    ) -> Result<std::sync::MutexGuard<'_, super::data::ProducerShardData>, ProducerShardLockError>
+    {
+        self.shared.data()
+    }
+
+    pub(super) fn wake(&self) -> Result<(), ProducerShardWakeError> {
+        self.shared.wake()
     }
 
     /// Closes core admission before terminal host draining begins.
@@ -47,6 +59,11 @@ impl ProducerAdmissionPort {
         let mut data = self.shared.data()?;
         data.inject_terminal_interpretation_fault();
         Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn shard_lock_available_for_test(&self) -> bool {
+        self.shared.try_data().is_ok()
     }
 
     /// Attempts immediate explicit-partition admission.
@@ -76,153 +93,14 @@ impl ProducerAdmissionPort {
                 return Err(poisoned_before(record, ProducerPortPoisonReason::ShardLock));
             }
         };
-        let admitted = match data.try_admit_explicit(attempted_at, deadline, record) {
-            Ok(admitted) => admitted,
-            Err(ProducerAdmissionFailure::Rejected(rejected)) => {
-                let reason = rejected.reason();
-                let record = rejected.into_record();
-                if let ProducerRejectionReason::HostPoisoned(error) = reason {
-                    return Err(poisoned_before(
-                        record,
-                        ProducerPortPoisonReason::Host(error),
-                    ));
-                }
-                return Err(super::ProducerPortAdmissionError::Rejected(
-                    ProducerPortRejected {
-                        reason: ProducerPortRejectionReason::Host(reason),
-                        record,
-                    },
-                ));
-            }
-            Err(ProducerAdmissionFailure::Invariant(poisoned)) => {
-                let (error, record) = poisoned.into_parts();
-                return Err(super::ProducerPortAdmissionError::Poisoned(
-                    ProducerPortPoison::BeforeOwnership { error, record },
-                ));
-            }
-            Err(ProducerAdmissionFailure::AcceptedInvariant(poisoned)) => {
-                let (error, operation_id, observer) = poisoned.into_parts();
-                return Ok(ProducerPortAccepted {
-                    observer: ProducerDeliveryObserver::from_completion(observer),
-                    operation_id,
-                    fault: Err(ProducerPortAcceptedFault::HostInvariant(error)),
-                });
-            }
-        };
-        let operation_id = admitted.operation_id();
-        let observer = admitted.into_delivery_observer();
+        if data.has_pending() {
+            return Err(rejected(
+                record,
+                ProducerPortRejectionReason::PendingPrecedence,
+            ));
+        }
+        let accepted = classify_admission(data.try_admit_explicit(attempted_at, deadline, record))?;
         drop(data);
-        let fault = self.shared.wake().map_err(ProducerPortAcceptedFault::Wake);
-        Ok(ProducerPortAccepted {
-            observer,
-            operation_id: Some(operation_id),
-            fault,
-        })
+        Ok(accepted.with_wake(self.shared.wake()))
     }
-}
-
-/// Committed admission retaining terminal observation, identity, and execution fault.
-///
-/// Once this value exists, core accepted ownership. Neither a host invariant
-/// nor a wake failure may be translated into ownership-returning rejection.
-#[must_use = "committed admission owns a terminal observer and accepted-operation state"]
-pub(crate) struct ProducerPortAccepted {
-    observer: ProducerDeliveryObserver,
-    operation_id: Option<kafka_client_core::OperationId>,
-    fault: Result<(), ProducerPortAcceptedFault>,
-}
-
-impl ProducerPortAccepted {
-    pub(crate) fn into_parts(
-        self,
-    ) -> (
-        ProducerDeliveryObserver,
-        Option<kafka_client_core::OperationId>,
-        Result<(), ProducerPortAcceptedFault>,
-    ) {
-        (self.observer, self.operation_id, self.fault)
-    }
-}
-
-impl std::fmt::Debug for ProducerPortAccepted {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProducerPortAccepted")
-            .field("observer", &self.observer)
-            .field("operation_id", &self.operation_id)
-            .field("fault", &self.fault)
-            .finish()
-    }
-}
-
-/// Post-ownership execution fault that cannot revoke admission.
-#[derive(Debug)]
-pub(crate) enum ProducerPortAcceptedFault {
-    HostInvariant(ProducerHostInvariantError),
-    Wake(ProducerShardWakeError),
-}
-
-/// Immediate admission failure with ownership state encoded in its variant.
-#[derive(Debug)]
-pub(crate) enum ProducerPortAdmissionError {
-    Rejected(ProducerPortRejected),
-    Poisoned(ProducerPortPoison),
-}
-
-/// Healthy local rejection that preserves caller ownership.
-#[derive(Debug)]
-pub(crate) struct ProducerPortRejected {
-    reason: ProducerPortRejectionReason,
-    record: ProducerRecord,
-}
-
-impl ProducerPortRejected {
-    pub(crate) const fn reason(&self) -> ProducerPortRejectionReason {
-        self.reason
-    }
-
-    pub(crate) fn into_record(self) -> ProducerRecord {
-        self.record
-    }
-}
-
-/// Healthy immediate rejection before any ownership transfer.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ProducerPortRejectionReason {
-    Contended,
-    Host(ProducerRejectionReason),
-}
-
-/// Fatal shard state, distinct from ordinary bounded backpressure.
-#[derive(Debug)]
-pub(crate) enum ProducerPortPoison {
-    BeforeAdmission {
-        reason: ProducerPortPoisonReason,
-        record: ProducerRecord,
-    },
-    BeforeOwnership {
-        error: ProducerHostInvariantError,
-        record: ProducerRecord,
-    },
-}
-
-/// Source of a poisoned admission boundary.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ProducerPortPoisonReason {
-    ShardLock,
-    Host(ProducerHostInvariantError),
-}
-
-fn rejected(
-    record: ProducerRecord,
-    reason: ProducerPortRejectionReason,
-) -> ProducerPortAdmissionError {
-    ProducerPortAdmissionError::Rejected(ProducerPortRejected { reason, record })
-}
-
-fn poisoned_before(
-    record: ProducerRecord,
-    reason: ProducerPortPoisonReason,
-) -> ProducerPortAdmissionError {
-    ProducerPortAdmissionError::Poisoned(ProducerPortPoison::BeforeAdmission { reason, record })
 }

@@ -2,12 +2,14 @@
 
 mod data;
 mod data_terminal;
+mod outcome;
 mod port;
 mod promotion;
 mod promotion_error;
 mod promotion_rejection;
 mod shard;
 mod terminal;
+mod waiting;
 
 #[cfg(test)]
 pub(crate) use data::{ProducerShardData, ProducerShardStats};
@@ -15,15 +17,17 @@ pub(crate) use data::{ProducerShardData, ProducerShardStats};
     not(test),
     expect(unused_imports, reason = "integrated engine host bridge follows")
 )]
-pub(crate) use port::{
-    ProducerAdmissionPort, ProducerPortAccepted, ProducerPortAcceptedFault,
-    ProducerPortAdmissionError, ProducerPortPoison, ProducerPortPoisonReason, ProducerPortRejected,
+pub(crate) use outcome::{
+    ProducerPortAccepted, ProducerPortAcceptedFault, ProducerPortAdmissionError,
+    ProducerPortPoison, ProducerPortPoisonReason, ProducerPortRejected,
     ProducerPortRejectionReason,
 };
+pub(crate) use port::ProducerAdmissionPort;
 pub(crate) use shard::{
     ProducerShardLockError, ProducerShardOwner, ProducerShardWake, ProducerShardWakeError,
 };
 pub(crate) use terminal::ProducerShardTerminalError;
+pub(crate) use waiting::ProducerWaitingStart;
 
 #[cfg(test)]
 mod data_terminal_test;
@@ -41,5 +45,9 @@ mod promotion_test;
 mod shard_test;
 #[cfg(test)]
 mod terminal_test;
+#[cfg(test)]
+mod waiting_classification_test;
+#[cfg(test)]
+mod waiting_test;
 #[cfg(test)]
 pub(crate) use shard_test::CountingWake;
