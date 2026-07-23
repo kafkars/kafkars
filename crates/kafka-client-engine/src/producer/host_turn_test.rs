@@ -46,7 +46,8 @@ fn busy_timer_stage_cannot_starve_prepared_work() {
     assert_eq!(outcome.completion_retries, 0);
     assert_eq!(outcome.reclaim_attempts, 0);
     assert_eq!(outcome.next_deadline, Some(Deadline::from_tick(100)));
-    assert!(outcome.should_continue);
+    assert!(outcome.runnable_work);
+    assert!(!outcome.blocked_work);
     assert_eq!(host.stats().active_timers, 1);
     assert_eq!(host.stats().prepared_batches, 1);
     assert!(matches!(
@@ -73,7 +74,9 @@ fn prepared_submission_expires_and_reclaims_across_bounded_turns() {
         .unwrap_or_else(|error| panic!("materialization turn should run: {error}"));
     assert_eq!(materialized.prepared_effects, 1);
     assert_eq!(materialized.submission_expiries, 0);
-    assert!(materialized.should_continue);
+    assert!(!materialized.runnable_work);
+    assert!(!materialized.blocked_work);
+    assert_eq!(materialized.next_deadline, Some(Deadline::from_tick(5)));
     assert!(matches!(
         host.pending_effects(),
         [ProducerEffect::SubmitProduce { .. }]
@@ -104,7 +107,8 @@ fn prepared_submission_expires_and_reclaims_across_bounded_turns() {
     let idle = host
         .turn(Moment::from_tick(5), one_each())
         .unwrap_or_else(|error| panic!("idle turn should run: {error}"));
-    assert!(!idle.should_continue);
+    assert!(!idle.runnable_work);
+    assert!(!idle.blocked_work);
 }
 
 #[test]

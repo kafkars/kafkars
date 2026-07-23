@@ -16,11 +16,16 @@ impl ProducerDriverWake {
     pub(super) const fn new(handle: WakeHandle) -> Self {
         Self { handle }
     }
+
+    /// Requests one coalesced embedded-reactor turn.
+    pub(crate) fn request(&self) -> Result<(), ProducerShardWakeError> {
+        self.handle.wake().map_err(map_wake_failure)
+    }
 }
 
 impl ProducerShardWake for ProducerDriverWake {
     fn wake(&self) -> Result<(), ProducerShardWakeError> {
-        self.handle.wake().map_err(map_wake_failure)
+        self.request()
     }
 }
 

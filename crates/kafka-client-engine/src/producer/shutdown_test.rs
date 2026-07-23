@@ -1,0 +1,39 @@
+//! Producer shutdown ordering and notifier handoff scenarios.
+
+use kafka_client_core::{Deadline, Moment};
+
+use crate::{ProducerDeliveryError, ProducerDeliveryFailureKind};
+
+use super::{
+    admission_test::{admit, record},
+    host_limits_test::{start, valid_limits},
+};
+
+#[test]
+fn notifier_handoff_requires_terminal_settlement() {
+    let mut host = start(valid_limits());
+    let admitted = admit(
+        &mut host,
+        Moment::from_tick(0),
+        Deadline::from_tick(100),
+        record("orders"),
+    );
+
+    assert!(host.stop_notifier().is_err());
+    host.execution_unavailable(Moment::from_tick(1))
+        .unwrap_or_else(|error| panic!("shutdown settlement should succeed: {error}"));
+    let join = host
+        .stop_notifier()
+        .unwrap_or_else(|error| panic!("settled notifier should stop: {error}"));
+    join.join()
+        .unwrap_or_else(|error| panic!("notifier should join off-host: {error}"));
+
+    let Err(ProducerDeliveryError::Failed(failure)) = admitted.into_delivery_observer().wait()
+    else {
+        panic!("shutdown should publish a terminal failure")
+    };
+    assert_eq!(
+        failure.kind(),
+        ProducerDeliveryFailureKind::ExecutionUnavailable
+    );
+}

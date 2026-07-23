@@ -12,7 +12,7 @@ mod state;
 
 pub(crate) use error::{CompletionObserverError, CompletionRegistryError};
 pub(crate) use identity::CompletionId;
-pub(crate) use notifier::NotifierJoin;
+pub(crate) use notifier::{NotifierJoin, NotifierJoinError};
 pub(crate) use observer::CompletionObserver;
 pub(crate) use registry::{CompletionRegistry, ReclaimStatus};
 #[cfg_attr(

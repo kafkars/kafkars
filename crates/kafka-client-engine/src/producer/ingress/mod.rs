@@ -12,10 +12,6 @@ pub(crate) use port::{
     ProducerPortAdmissionError, ProducerPortPoison, ProducerPortPoisonReason, ProducerPortRejected,
     ProducerPortRejectionReason,
 };
-#[cfg_attr(
-    not(test),
-    expect(unused_imports, reason = "integrated engine host bridge follows")
-)]
 pub(crate) use shard::{
     ProducerShardLockError, ProducerShardOwner, ProducerShardWake, ProducerShardWakeError,
 };

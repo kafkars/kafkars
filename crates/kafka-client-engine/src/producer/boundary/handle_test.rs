@@ -157,7 +157,11 @@ fn absent_timestamp_defaults_inside_engine_and_restores_as_absent() {
 fn setup() -> (ProducerShardOwner, ProducerHandle, Arc<CountingWake>) {
     let wake = Arc::new(CountingWake::default());
     let owner = ProducerShardOwner::new(start(valid_limits()), Arc::clone(&wake));
-    let handle = ProducerHandle::from_port(owner.admission_port(), Arc::new(MonotonicClock::new()));
+    let handle = ProducerHandle::from_port(
+        owner.admission_port(),
+        Arc::new(MonotonicClock::new()),
+        Arc::new(()),
+    );
     (owner, handle, wake)
 }
 

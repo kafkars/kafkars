@@ -3,13 +3,40 @@
 use std::{fmt, time::Duration};
 
 use kafka_driver::{
-    BootstrapError, BootstrapLimits, BootstrapSet, Call, Driver, Reactor, ReactorError,
-    SubmitError, TurnOutcome, WakeHandle,
+    BootstrapError, BootstrapLimits, BootstrapSet, Call, Driver, Reactor, TurnOutcome, WakeHandle,
 };
 
 use crate::EngineConfig;
 
 use super::{DriverOwnerError, ProducerDriverWake, endpoint};
+
+/// Driver-neutral outcome from one embedded reactor turn.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum DriverTurn {
+    Idle,
+    Progress { more_work: bool },
+    Shutdown,
+}
+
+/// One bounded attempt to enter terminal driver shutdown.
+pub(crate) enum DriverShutdownStart {
+    Started(DriverShutdown),
+    Retry,
+    AlreadyShutdown,
+}
+
+/// Sole terminal barrier retained while the engine drives driver shutdown.
+pub(crate) struct DriverShutdown {
+    call: Call<()>,
+}
+
+impl DriverShutdown {
+    pub(crate) fn wait(self) -> Result<(), DriverOwnerError> {
+        self.call
+            .wait()
+            .map_err(DriverOwnerError::ShutdownCompletion)
+    }
+}
 
 /// Unique engine ownership of one driver handle, reactor, and wake source.
 ///
@@ -59,13 +86,33 @@ impl DriverOwner {
     }
 
     /// Drives one fairness-bounded embedded driver turn.
-    pub(crate) fn turn(&mut self, max_wait: Duration) -> Result<TurnOutcome, ReactorError> {
-        self.reactor.turn(max_wait)
+    pub(crate) fn turn(&mut self, max_wait: Duration) -> Result<DriverTurn, DriverOwnerError> {
+        let outcome = self
+            .reactor
+            .turn(max_wait)
+            .map_err(DriverOwnerError::Reactor)?;
+        Ok(match outcome {
+            TurnOutcome::Idle => DriverTurn::Idle,
+            TurnOutcome::Progress { more_work, .. } => DriverTurn::Progress { more_work },
+            TurnOutcome::Shutdown { .. } => DriverTurn::Shutdown,
+        })
     }
 
     /// Enters the driver's priority shutdown lane and returns its barrier.
-    pub(crate) fn begin_shutdown(&self) -> Result<Call<()>, SubmitError> {
-        self.driver.shutdown()
+    pub(crate) fn begin_shutdown(&self) -> Result<DriverShutdownStart, DriverOwnerError> {
+        match self.driver.shutdown() {
+            Ok(call) => Ok(DriverShutdownStart::Started(DriverShutdown { call })),
+            Err(kafka_driver::SubmitError::Full | kafka_driver::SubmitError::Wake(_)) => {
+                Ok(DriverShutdownStart::Retry)
+            }
+            Err(kafka_driver::SubmitError::Closed) if self.reactor.is_shutdown() => {
+                Ok(DriverShutdownStart::AlreadyShutdown)
+            }
+            Err(kafka_driver::SubmitError::Closed) => Err(DriverOwnerError::ShutdownClosed),
+            Err(kafka_driver::SubmitError::IdentityExhausted) => {
+                Err(DriverOwnerError::ShutdownIdentityExhausted)
+            }
+        }
     }
 
     /// Reports whether the embedded reactor has reached terminal shutdown.

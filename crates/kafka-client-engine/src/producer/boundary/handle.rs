@@ -36,11 +36,20 @@ impl ProducerSendOptions {
 pub struct ProducerHandle {
     port: ProducerAdmissionPort,
     clock: Arc<MonotonicClock>,
+    lifetime: Arc<dyn Send + Sync>,
 }
 
 impl ProducerHandle {
-    pub(crate) fn from_port(port: ProducerAdmissionPort, clock: Arc<MonotonicClock>) -> Self {
-        Self { port, clock }
+    pub(crate) fn from_port(
+        port: ProducerAdmissionPort,
+        clock: Arc<MonotonicClock>,
+        lifetime: Arc<dyn Send + Sync>,
+    ) -> Self {
+        Self {
+            port,
+            clock,
+            lifetime,
+        }
     }
 
     /// Attempts one atomic explicit-partition admission without waiting.
@@ -119,6 +128,7 @@ impl std::fmt::Debug for ProducerHandle {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("ProducerHandle")
+            .field("host_retained", &Arc::strong_count(&self.lifetime))
             .finish_non_exhaustive()
     }
 }

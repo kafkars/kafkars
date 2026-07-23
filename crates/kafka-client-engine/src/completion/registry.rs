@@ -169,6 +169,14 @@ impl<T: Send + 'static> CompletionRegistry<T> {
         Ok(notifier.stop())
     }
 
+    /// Returns accepted operations that have not published a terminal value.
+    pub(crate) fn unsettled_len(&self) -> usize {
+        self.slots
+            .iter()
+            .filter(|slot| slot.has_unsettled_reservation())
+            .count()
+    }
+
     fn slot_mut(&mut self, id: CompletionId) -> Result<&mut HostSlot<T>, CompletionRegistryError> {
         self.slots
             .get_mut(id.slot())

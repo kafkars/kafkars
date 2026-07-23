@@ -26,7 +26,7 @@ pub(crate) struct ProducerHostLimits {
 }
 
 impl ProducerHostLimits {
-    pub(super) fn validate(self) -> Result<ByteCount, ProducerHostLimitError> {
+    pub(crate) fn validate(self) -> Result<ByteCount, ProducerHostLimitError> {
         if self.retained_bytes == 0 {
             return Err(ProducerHostLimitError::ZeroRetainedBytes);
         }

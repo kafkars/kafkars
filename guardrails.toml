@@ -109,6 +109,22 @@ production = "crates/kafka-client-engine/src/driver/producer_wake.rs"
 test = "crates/kafka-client-engine/src/driver/producer_wake_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/config.rs"
+test = "crates/kafka-client-engine/src/config_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine.rs"
+test = "crates/kafka-client-engine/src/engine_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/recovery.rs"
+test = "crates/kafka-client-engine/src/engine_host/recovery_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/runner.rs"
+test = "crates/kafka-client-engine/src/engine_host/runner_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/admission.rs"
 test = "crates/kafka-client-engine/src/producer/admission_test.rs"
 
@@ -123,6 +139,10 @@ test = "crates/kafka-client-engine/src/producer/binding_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution.rs"
 test = "crates/kafka-client-engine/src/producer/execution_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/execution_stop.rs"
+test = "crates/kafka-client-engine/src/producer/execution_stop_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution_turn.rs"
@@ -183,6 +203,10 @@ test = "crates/kafka-client-engine/src/producer/reclaim_turn_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/record_store.rs"
 test = "crates/kafka-client-engine/src/producer/record_store_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/shutdown.rs"
+test = "crates/kafka-client-engine/src/producer/shutdown_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/submission_deadline.rs"
@@ -752,7 +776,9 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/admission.rs",
   "crates/kafka-client-engine/src/producer/admission/rollback.rs",
   "crates/kafka-client-engine/src/producer/effect.rs",
+  "crates/kafka-client-engine/src/producer/execution_stop.rs",
   "crates/kafka-client-engine/src/producer/reclaim_turn.rs",
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
 ]
 
 [[mutation_owners]]
@@ -816,6 +842,18 @@ path = "crates/kafka-client-core/src/producer/batch.rs"
 [[linear_owners]]
 owner_type = "DriverOwner"
 path = "crates/kafka-client-engine/src/driver/owner.rs"
+
+[[linear_owners]]
+owner_type = "EngineInner"
+path = "crates/kafka-client-engine/src/engine.rs"
+
+[[linear_owners]]
+owner_type = "EngineHostJoin"
+path = "crates/kafka-client-engine/src/engine_host/start.rs"
+
+[[linear_owners]]
+owner_type = "EngineHostResources"
+path = "crates/kafka-client-engine/src/engine_host/runner.rs"
 
 [[linear_owners]]
 owner_type = "CompletionRegistry"

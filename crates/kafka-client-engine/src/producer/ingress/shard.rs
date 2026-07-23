@@ -105,4 +105,23 @@ impl ProducerShardOwner {
     pub(crate) fn try_host(&self) -> Result<MutexGuard<'_, ProducerHost>, ProducerShardLockError> {
         self.shared.try_host()
     }
+
+    /// Closes admission during terminal owner cleanup, waiting out a live caller.
+    pub(crate) fn close_admission(&self) -> Result<(), ProducerShardLockError> {
+        let mut host = self
+            .shared
+            .host
+            .lock()
+            .map_err(|_poisoned| ProducerShardLockError::Poisoned)?;
+        host.close_admission();
+        Ok(())
+    }
+
+    /// Recovers terminal ownership even when a prior host panic poisoned it.
+    pub(crate) fn terminal_host(&self) -> MutexGuard<'_, ProducerHost> {
+        self.shared
+            .host
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
 }

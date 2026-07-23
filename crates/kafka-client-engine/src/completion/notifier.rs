@@ -77,7 +77,11 @@ impl NotifierJoin {
         let Some(handle) = self.handle.take() else {
             return Ok(());
         };
-        handle.join().map_err(|_panic| NotifierJoinError)
+        if handle.thread().id() == thread::current().id() {
+            drop(handle);
+            return Err(NotifierJoinError::SelfJoin);
+        }
+        handle.join().map_err(|_panic| NotifierJoinError::Panicked)
     }
 }
 
@@ -92,11 +96,17 @@ impl fmt::Debug for NotifierJoin {
 
 /// Failure indicating an internal notifier thread panic.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct NotifierJoinError;
+pub(crate) enum NotifierJoinError {
+    Panicked,
+    SelfJoin,
+}
 
 impl fmt::Display for NotifierJoinError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("completion notifier panicked")
+        formatter.write_str(match self {
+            Self::Panicked => "completion notifier panicked",
+            Self::SelfJoin => "completion notifier cannot join its own thread",
+        })
     }
 }
 

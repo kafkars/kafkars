@@ -1,6 +1,6 @@
 //! Fair bounded coordination of every runnable producer host mechanism.
 
-use kafka_client_core::{Deadline, Moment};
+use kafka_client_core::{Deadline, Moment, ProducerEffect};
 
 use super::{ProducerHost, ProducerHostInvariantError, reclaim::CompletionReclaimOutcome};
 
@@ -50,7 +50,8 @@ pub(crate) struct ProducerTurnOutcome {
     pub(crate) completion_retries: usize,
     pub(crate) reclaim_attempts: usize,
     pub(crate) next_deadline: Option<Deadline>,
-    pub(crate) should_continue: bool,
+    pub(crate) runnable_work: bool,
+    pub(crate) blocked_work: bool,
 }
 
 impl ProducerHost {
@@ -71,26 +72,31 @@ impl ProducerHost {
         let prepared_effects = self.drive_prepared(now, budget.prepared_effects)?;
         let submission_expiries = self.fire_due_submissions(now, budget.submission_expiries)?;
         let completion_retries = self.retry_pending_completions(budget.completion_retries)?;
-        let reclaim_attempts = self.reclaim_many(now, budget.reclaim_attempts)?;
-        let next_deadline = self.next_deadline();
-        let saturated = batch_timers == budget.batch_timers
-            || prepared_effects == budget.prepared_effects
-            || submission_expiries == budget.submission_expiries
-            || completion_retries == budget.completion_retries
-            || reclaim_attempts == budget.reclaim_attempts;
+        let reclaim = self.reclaim_many(now, budget.reclaim_attempts)?;
+        let next_deadline = min_deadline(self.next_deadline(), pending_submission_deadline(self));
         let due_remains = next_deadline.is_some_and(|deadline| deadline.is_elapsed_at(now));
-        let should_continue = saturated
-            || due_remains
-            || !self.pending_effects().is_empty()
-            || self.reclaim_finish_pending();
+        let prepared_remains = self
+            .pending_effects()
+            .iter()
+            .copied()
+            .any(is_runnable_effect);
+        let completion_blocked = self
+            .pending_effects()
+            .iter()
+            .any(|effect| matches!(effect, ProducerEffect::Complete { .. }));
+        let runnable_work = due_remains
+            || prepared_remains
+            || (reclaim.attempts == budget.reclaim_attempts && !reclaim.blocked);
+        let blocked_work = completion_blocked || reclaim.blocked;
         Ok(ProducerTurnOutcome {
             batch_timers,
             prepared_effects,
             submission_expiries,
             completion_retries,
-            reclaim_attempts,
+            reclaim_attempts: reclaim.attempts,
             next_deadline,
-            should_continue,
+            runnable_work,
+            blocked_work,
         })
     }
 
@@ -98,17 +104,51 @@ impl ProducerHost {
         &mut self,
         now: Moment,
         limit: usize,
-    ) -> Result<usize, ProducerHostInvariantError> {
+    ) -> Result<ReclaimProgress, ProducerHostInvariantError> {
         let mut attempts = 0;
+        let mut blocked = false;
         while attempts < limit {
             let Some(outcome) = self.reclaim_one(now)? else {
                 break;
             };
             attempts += 1;
             if outcome == CompletionReclaimOutcome::Retry {
+                blocked = true;
                 break;
             }
         }
-        Ok(attempts)
+        Ok(ReclaimProgress { attempts, blocked })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ReclaimProgress {
+    attempts: usize,
+    blocked: bool,
+}
+
+const fn is_runnable_effect(effect: ProducerEffect) -> bool {
+    matches!(effect, ProducerEffect::MaterializeBatch { .. })
+}
+
+fn pending_submission_deadline(host: &ProducerHost) -> Option<Deadline> {
+    host.pending_effects()
+        .iter()
+        .filter_map(|effect| {
+            if let ProducerEffect::SubmitProduce { deadline, .. } = effect {
+                Some(*deadline)
+            } else {
+                None
+            }
+        })
+        .min()
+}
+
+const fn min_deadline(left: Option<Deadline>, right: Option<Deadline>) -> Option<Deadline> {
+    match (left, right) {
+        (Some(left), Some(right)) => Some(left.min(right)),
+        (Some(left), None) => Some(left),
+        (None, Some(right)) => Some(right),
+        (None, None) => None,
     }
 }

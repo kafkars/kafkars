@@ -41,7 +41,7 @@ impl ClientBuilder {
             ));
         }
 
-        let engine = ClientEngine::start(self.bootstrap_servers);
+        let engine = ClientEngine::start(self.bootstrap_servers)?;
         Ok(Client {
             engine,
             client_id: self.client_id,

@@ -2,7 +2,7 @@
 
 use std::{error::Error, fmt};
 
-use kafka_driver::{BootstrapError, DriverBuildError};
+use kafka_driver::{BootstrapError, CompletionError, DriverBuildError, ReactorError};
 
 use super::EndpointError;
 
@@ -20,6 +20,16 @@ pub(crate) enum DriverOwnerError {
     Bootstrap(BootstrapError),
     /// The driver could not acquire its embedded reactor resources.
     Build(DriverBuildError),
+    /// A bounded embedded-reactor turn failed.
+    Reactor(ReactorError),
+    /// The driver's priority shutdown lane closed before terminal state.
+    ShutdownClosed,
+    /// Repeated bounded drive/retry attempts could not admit the barrier.
+    ShutdownRetryExhausted,
+    /// An impossible identity failure reached the identity-free shutdown lane.
+    ShutdownIdentityExhausted,
+    /// The terminal shutdown barrier disconnected unexpectedly.
+    ShutdownCompletion(CompletionError),
 }
 
 impl fmt::Display for DriverOwnerError {
@@ -33,6 +43,19 @@ impl fmt::Display for DriverOwnerError {
             }
             Self::Bootstrap(source) => write!(formatter, "invalid bootstrap set: {source}"),
             Self::Build(source) => write!(formatter, "failed to build embedded driver: {source}"),
+            Self::Reactor(source) => write!(formatter, "embedded driver turn failed: {source}"),
+            Self::ShutdownClosed => {
+                formatter.write_str("driver shutdown admission closed before terminal state")
+            }
+            Self::ShutdownRetryExhausted => {
+                formatter.write_str("driver shutdown admission stayed unavailable")
+            }
+            Self::ShutdownIdentityExhausted => {
+                formatter.write_str("driver shutdown unexpectedly exhausted call identity")
+            }
+            Self::ShutdownCompletion(source) => {
+                write!(formatter, "driver shutdown barrier failed: {source}")
+            }
         }
     }
 }
@@ -43,6 +66,11 @@ impl Error for DriverOwnerError {
             Self::Endpoint { source, .. } => Some(source),
             Self::Bootstrap(source) => Some(source),
             Self::Build(source) => Some(source),
+            Self::Reactor(source) => Some(source),
+            Self::ShutdownCompletion(source) => Some(source),
+            Self::ShutdownClosed
+            | Self::ShutdownRetryExhausted
+            | Self::ShutdownIdentityExhausted => None,
         }
     }
 }

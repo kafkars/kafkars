@@ -137,6 +137,10 @@ fn map_host_rejection(reason: ProducerRejectionReason) -> ProducerTrySendErrorKi
         | ProducerRejectionReason::Core(AdmissionRejection::CompletionCapacity) => {
             ProducerTrySendErrorKind::CompletionCapacity
         }
+        ProducerRejectionReason::Completion(CompletionRegistryError::NotifierStopped)
+        | ProducerRejectionReason::Core(AdmissionRejection::Closed) => {
+            ProducerTrySendErrorKind::Closed
+        }
         ProducerRejectionReason::Store(ProducerStoreError::RecordCapacity) => {
             ProducerTrySendErrorKind::RecordCapacity
         }
@@ -156,9 +160,6 @@ fn map_host_rejection(reason: ProducerRejectionReason) -> ProducerTrySendErrorKi
         }
         ProducerRejectionReason::Core(AdmissionRejection::DeadlineElapsed) => {
             ProducerTrySendErrorKind::DeadlineElapsed
-        }
-        ProducerRejectionReason::Core(AdmissionRejection::Closed) => {
-            ProducerTrySendErrorKind::Closed
         }
         ProducerRejectionReason::HostPoisoned(_) => ProducerTrySendErrorKind::HostPoisoned,
         ProducerRejectionReason::Core(

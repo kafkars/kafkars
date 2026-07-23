@@ -2,11 +2,9 @@
 
 use std::time::Duration;
 
-use kafka_driver::{SubmitError, TurnOutcome};
-
 use crate::{EngineConfig, producer::ingress::ProducerShardWake};
 
-use super::{DriverOwnerError, owner::DriverOwner};
+use super::{DriverOwnerError, DriverShutdownStart, DriverTurn, owner::DriverOwner};
 
 #[test]
 fn one_owner_builds_the_driver_handle_reactor_and_wake_source() {
@@ -15,31 +13,40 @@ fn one_owner_builds_the_driver_handle_reactor_and_wake_source() {
 
     assert!(!owner.is_shutdown());
     assert!(wake.wake().is_ok());
-    let barrier = owner
+    let start = owner
         .begin_shutdown()
         .unwrap_or_else(|error| panic!("admit owner shutdown barrier: {error}"));
+    let DriverShutdownStart::Started(barrier) = start else {
+        panic!("first shutdown attempt should own the barrier")
+    };
     let outcome = owner
         .turn(Duration::ZERO)
         .unwrap_or_else(|error| panic!("drive bounded shutdown turn: {error}"));
-    assert_eq!(outcome, TurnOutcome::Shutdown { commands: 1 });
-    assert_eq!(barrier.wait(), Ok(()));
+    assert_eq!(outcome, DriverTurn::Shutdown);
+    assert!(barrier.wait().is_ok());
     assert!(owner.is_shutdown());
 }
 
 #[test]
 fn priority_shutdown_is_one_bounded_turn_and_one_terminal_barrier() {
     let mut owner = owner();
-    let barrier = owner
+    let start = owner
         .begin_shutdown()
         .unwrap_or_else(|error| panic!("admit driver shutdown barrier: {error}"));
+    let DriverShutdownStart::Started(barrier) = start else {
+        panic!("first shutdown attempt should own the barrier")
+    };
 
     let outcome = owner
         .turn(Duration::ZERO)
         .unwrap_or_else(|error| panic!("drive bounded shutdown turn: {error}"));
 
-    assert_eq!(outcome, TurnOutcome::Shutdown { commands: 1 });
-    assert_eq!(barrier.wait(), Ok(()));
-    assert!(matches!(owner.begin_shutdown(), Err(SubmitError::Closed)));
+    assert_eq!(outcome, DriverTurn::Shutdown);
+    assert!(barrier.wait().is_ok());
+    assert!(matches!(
+        owner.begin_shutdown(),
+        Ok(DriverShutdownStart::AlreadyShutdown)
+    ));
 }
 
 #[test]
