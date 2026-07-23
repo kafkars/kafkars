@@ -16,7 +16,7 @@ use crate::{DeliveryStatus, ErrorKind, KafkaError, Record};
 fn future_admission_bridge_surface_remains_type_checked() {
     let _ = translate_admission_error as fn(EngineTrySendError) -> ProducerAdmissionRejection;
     let _ = ProducerAdmissionRejection::into_parts
-        as fn(ProducerAdmissionRejection) -> (Option<Record>, KafkaError);
+        as fn(ProducerAdmissionRejection) -> (Record, KafkaError);
     let _ = translate_accepted_fault as fn(&EngineAcceptedFault) -> KafkaError;
 }
 

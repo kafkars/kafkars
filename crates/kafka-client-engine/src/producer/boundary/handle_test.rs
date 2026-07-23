@@ -62,9 +62,7 @@ fn missing_partition_is_rejected_after_deadline_capture_with_record_intact() {
         error.kind(),
         ProducerTrySendErrorKind::MissingExplicitPartition
     );
-    let Some(record) = error.into_record() else {
-        panic!("validation must preserve record ownership")
-    };
+    let record = error.into_record();
     assert_eq!(record.topic(), "orders");
     assert_eq!(record.value_bytes(), Some(&Bytes::from_static(b"value")));
     assert_eq!(record.timestamp(), None);
@@ -87,10 +85,7 @@ fn deadline_failure_precedes_record_validation() {
         error.kind(),
         ProducerTrySendErrorKind::DeadlineUnrepresentable
     );
-    assert_eq!(
-        error.into_record().map(|record| record.topic().to_owned()),
-        Some(String::new())
-    );
+    assert_eq!(error.into_record().topic(), "");
     assert_eq!(wake.count(), 0);
 }
 
@@ -108,9 +103,7 @@ fn healthy_contention_restores_absent_timestamp_and_all_bytes() {
     };
 
     assert_eq!(error.kind(), ProducerTrySendErrorKind::Contended);
-    let Some(record) = error.into_record() else {
-        panic!("contention must preserve record ownership")
-    };
+    let record = error.into_record();
     assert_eq!(record.timestamp(), None);
     assert_eq!(record.key_bytes(), Some(&Bytes::from_static(b"key")));
     assert_eq!(record.value_bytes(), Some(&Bytes::from_static(b"value")));
@@ -140,6 +133,26 @@ fn post_ownership_fault_remains_accepted_with_observer() {
         Some(1)
     );
     assert_eq!(wake.count(), 0);
+    drop(accepted.into_observer());
+}
+
+#[test]
+fn captured_admission_keeps_the_original_deadline_across_adapter_work() {
+    let (_owner, handle, _wake) = setup();
+    let timeout = Duration::from_secs(30);
+    let capture = handle.capture_send(ProducerSendOptions::new(timeout));
+    let Ok(capture) = capture else {
+        panic!("ordinary boundary capture should succeed")
+    };
+    let original_deadline = capture.absolute_deadline();
+
+    std::thread::sleep(Duration::from_millis(2));
+    let accepted = handle.try_send_captured(capture, record());
+    let Ok(accepted) = accepted else {
+        panic!("captured explicit record should be accepted")
+    };
+
+    assert_eq!(accepted.absolute_deadline(), original_deadline);
     drop(accepted.into_observer());
 }
 

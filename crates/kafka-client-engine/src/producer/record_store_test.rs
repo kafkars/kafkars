@@ -33,9 +33,8 @@ fn count_and_bytes_are_reserved_before_core_admission() {
     assert_eq!(rejected.into_record().topic().as_ref(), "other");
     assert_eq!(store.stats().records, 1);
 
-    let rolled_back = store
-        .rollback(first)
-        .unwrap_or_else(|error| panic!("reservation should roll back: {error}"));
+    let (rolled_back, cleanup) = store.rollback(first).into_parts();
+    assert_eq!(cleanup, Ok(()));
     assert_eq!(rolled_back.topic().as_ref(), "orders");
     assert_eq!(store.stats().bytes, 0);
 }
@@ -95,15 +94,58 @@ fn rollback_restores_capacity_without_reusing_payload_identity() {
         .reserve(record("orders", None, Some(b"a"), Vec::new()))
         .unwrap_or_else(|error| panic!("first reserve failed: {error}"));
     let first_id = first.facts().payload_id();
-    let returned = store
-        .rollback(first)
-        .unwrap_or_else(|error| panic!("rollback failed: {error}"));
+    let (returned, cleanup) = store.rollback(first).into_parts();
+    assert_eq!(cleanup, Ok(()));
     let second = store
         .reserve(returned)
         .unwrap_or_else(|error| panic!("second reserve failed: {error}"));
 
     assert!(second.facts().payload_id().get() > first_id.get());
     assert_eq!(store.stats().records, 1);
+}
+
+#[test]
+fn reservation_keeps_record_bytes_outside_the_fallible_slot_until_commit() {
+    let value = Bytes::from_static(b"linearly-owned");
+    let mut records = super::record_store::RecordStore::new(1, 64);
+    let reservation = records
+        .reserve(record("orders", None, Some(b"linearly-owned"), Vec::new()))
+        .unwrap_or_else(|error| panic!("record should reserve: {error}"));
+    let payload_id = reservation.facts().payload_id();
+
+    let slot = records
+        .slots
+        .get(&payload_id)
+        .unwrap_or_else(|| panic!("reserved accounting slot should exist"));
+    assert!(slot.record.is_none());
+    let (returned, cleanup) = records.rollback(reservation).into_parts();
+
+    assert_eq!(cleanup, Ok(()));
+    let (_topic, _timestamp, _key, returned_value, _headers) = returned.into_parts();
+    assert_eq!(
+        returned_value.as_ref().map(|bytes| bytes.as_ptr()),
+        Some(value.as_ptr())
+    );
+}
+
+#[test]
+fn cleanup_corruption_cannot_consume_the_reserved_record() {
+    let value = Bytes::from_static(b"must-return");
+    let mut records = super::record_store::RecordStore::new(1, 64);
+    let reservation = records
+        .reserve(record("orders", None, Some(b"must-return"), Vec::new()))
+        .unwrap_or_else(|error| panic!("record should reserve: {error}"));
+    let payload_id = reservation.facts().payload_id();
+    let _corrupted_slot = records.slots.remove(&payload_id);
+
+    let (returned, cleanup) = records.rollback(reservation).into_parts();
+    let (_topic, _timestamp, _key, returned_value, _headers) = returned.into_parts();
+
+    assert_eq!(cleanup, Err(ProducerStoreError::UnknownPayload));
+    assert_eq!(
+        returned_value.as_ref().map(|bytes| bytes.as_ptr()),
+        Some(value.as_ptr())
+    );
 }
 
 #[test]

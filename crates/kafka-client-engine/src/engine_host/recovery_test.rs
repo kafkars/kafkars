@@ -41,9 +41,7 @@ fn failed_runner_settles_accepted_work_and_closes_retained_handles() {
         error.kind(),
         ProducerTrySendErrorKind::Closed | ProducerTrySendErrorKind::HostPoisoned
     ));
-    let restored = error
-        .into_record()
-        .unwrap_or_else(|| panic!("failed host must preserve caller ownership"));
+    let restored = error.into_record();
     assert_eq!(restored.topic(), "orders");
 }
 

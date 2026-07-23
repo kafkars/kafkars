@@ -1,35 +1,18 @@
 //! Public immediate-admission handle over one synchronized producer shard.
 
-use std::{
-    sync::Arc,
-    time::{Duration, SystemTime, UNIX_EPOCH},
-};
+use std::sync::Arc;
 
 use super::super::ingress::ProducerAdmissionPort;
 use super::{
+    capture::{
+        ProducerSendCapture, ProducerSendCaptureError, ProducerSendCaptureErrorKind,
+        ProducerSendOptions,
+    },
     error::{ProducerTrySendError, ProducerTrySendErrorKind},
     record::ProducerRecord,
     result::ProducerTrySendAccepted,
 };
 use crate::clock::MonotonicClock;
-
-/// Per-call producer admission options captured before validation or locking.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct ProducerSendOptions {
-    delivery_timeout: Duration,
-}
-
-impl ProducerSendOptions {
-    /// Creates options with one end-to-end delivery timeout.
-    pub const fn new(delivery_timeout: Duration) -> Self {
-        Self { delivery_timeout }
-    }
-
-    /// Returns the end-to-end delivery timeout.
-    pub const fn delivery_timeout(self) -> Duration {
-        self.delivery_timeout
-    }
-}
 
 /// Cloneable, runtime-neutral producer admission handle.
 #[derive(Clone)]
@@ -52,6 +35,14 @@ impl ProducerHandle {
         }
     }
 
+    /// Captures time before a Rust facade converts its record.
+    pub fn capture_send(
+        &self,
+        options: ProducerSendOptions,
+    ) -> Result<ProducerSendCapture, ProducerSendCaptureError> {
+        ProducerSendCapture::capture(&self.clock, options)
+    }
+
     /// Attempts one atomic explicit-partition admission without waiting.
     ///
     /// The monotonic deadline is captured before record validation, timestamp
@@ -66,21 +57,29 @@ impl ProducerHandle {
         record: ProducerRecord,
         options: ProducerSendOptions,
     ) -> Result<ProducerTrySendAccepted, ProducerTrySendError> {
-        let Ok(capture) = self
-            .clock
-            .capture_deadline_after(options.delivery_timeout())
-        else {
-            return Err(ProducerTrySendError::with_record(
-                ProducerTrySendErrorKind::DeadlineUnrepresentable,
-                record,
-            ));
+        let capture = match self.capture_send(options) {
+            Ok(capture) => capture,
+            Err(error) => {
+                return Err(ProducerTrySendError::with_record(
+                    capture_error_kind(error.kind()),
+                    record,
+                ));
+            }
         };
-        let Some(default_timestamp_ms) = unix_timestamp_milliseconds() else {
-            return Err(ProducerTrySendError::with_record(
-                ProducerTrySendErrorKind::TimestampUnrepresentable,
-                record,
-            ));
-        };
+        self.try_send_captured(capture, record)
+    }
+
+    /// Consumes one original call boundary after adapter-owned record conversion.
+    #[allow(
+        clippy::result_large_err,
+        reason = "pre-admission failures return the intact bytes-native record"
+    )]
+    pub fn try_send_captured(
+        &self,
+        capture: ProducerSendCapture,
+        record: ProducerRecord,
+    ) -> Result<ProducerTrySendAccepted, ProducerTrySendError> {
+        let (deadline, default_timestamp_ms) = capture.into_parts();
         if record.topic().is_empty() {
             return Err(ProducerTrySendError::with_record(
                 ProducerTrySendErrorKind::EmptyTopic,
@@ -113,11 +112,11 @@ impl ProducerHandle {
         let stored = record.into_stored(partition, default_timestamp_ms);
         match self
             .port
-            .try_admit_explicit(capture.now(), capture.deadline(), stored)
+            .try_admit_explicit(deadline.now(), deadline.deadline(), stored)
         {
             Ok(accepted) => Ok(ProducerTrySendAccepted::from_port(
                 accepted,
-                capture.absolute_instant(),
+                deadline.absolute_instant(),
             )),
             Err(error) => Err(ProducerTrySendError::from_port(error)),
         }
@@ -133,7 +132,13 @@ impl std::fmt::Debug for ProducerHandle {
     }
 }
 
-fn unix_timestamp_milliseconds() -> Option<i64> {
-    let elapsed = SystemTime::now().duration_since(UNIX_EPOCH).ok()?;
-    i64::try_from(elapsed.as_millis()).ok()
+const fn capture_error_kind(kind: ProducerSendCaptureErrorKind) -> ProducerTrySendErrorKind {
+    match kind {
+        ProducerSendCaptureErrorKind::DeadlineUnrepresentable => {
+            ProducerTrySendErrorKind::DeadlineUnrepresentable
+        }
+        ProducerSendCaptureErrorKind::TimestampUnrepresentable => {
+            ProducerTrySendErrorKind::TimestampUnrepresentable
+        }
+    }
 }

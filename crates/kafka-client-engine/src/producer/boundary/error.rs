@@ -48,11 +48,11 @@ pub enum ProducerTrySendErrorKind {
     InternalInvariant,
 }
 
-/// Immediate admission error, retaining the record whenever ownership survived.
+/// Immediate admission error retaining exact pre-ownership record ownership.
 #[derive(Debug)]
 pub struct ProducerTrySendError {
     kind: ProducerTrySendErrorKind,
-    record: Option<ProducerRecord>,
+    record: ProducerRecord,
     detail: Option<String>,
 }
 
@@ -62,8 +62,8 @@ impl ProducerTrySendError {
         self.kind
     }
 
-    /// Recovers the exact unadmitted record when ownership remained available.
-    pub fn into_record(self) -> Option<ProducerRecord> {
+    /// Recovers the exact record whose ownership never crossed admission.
+    pub fn into_record(self) -> ProducerRecord {
         self.record
     }
 
@@ -78,7 +78,7 @@ impl ProducerTrySendError {
     ) -> Self {
         Self {
             kind,
-            record: Some(record),
+            record,
             detail: None,
         }
     }
@@ -101,7 +101,7 @@ impl ProducerTrySendError {
                 record,
             }) => Self {
                 kind: ProducerTrySendErrorKind::InternalInvariant,
-                record: record.map(ProducerRecord::from_stored),
+                record: ProducerRecord::from_stored(record),
                 detail: Some(error.to_string()),
             },
         }

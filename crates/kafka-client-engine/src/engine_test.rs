@@ -174,9 +174,7 @@ fn admit(producer: &ProducerHandle, timeout: Duration) -> crate::ProducerTrySend
         match producer.try_send(pending, ProducerSendOptions::new(timeout)) {
             Ok(accepted) => return accepted,
             Err(error) if error.kind() == crate::ProducerTrySendErrorKind::Contended => {
-                pending = error
-                    .into_record()
-                    .unwrap_or_else(|| panic!("contention must preserve the record"));
+                pending = error.into_record();
                 thread::yield_now();
             }
             Err(error) => panic!("record admission should succeed: {error}"),

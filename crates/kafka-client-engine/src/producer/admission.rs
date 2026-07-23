@@ -52,15 +52,15 @@ pub(crate) enum ProducerAdmissionFailure {
     AcceptedInvariant(PoisonedExplicit),
 }
 
-/// Pre-core poison retaining the record whenever rollback recovered ownership.
+/// Pre-core poison retaining exact record ownership despite cleanup failure.
 #[derive(Debug)]
 pub(crate) struct PoisonedBeforeOwnership {
     error: ProducerHostInvariantError,
-    record: Option<ProducerRecord>,
+    record: ProducerRecord,
 }
 
 impl PoisonedBeforeOwnership {
-    pub(crate) fn into_parts(self) -> (ProducerHostInvariantError, Option<ProducerRecord>) {
+    pub(crate) fn into_parts(self) -> (ProducerHostInvariantError, ProducerRecord) {
         (self.error, self.record)
     }
 }
@@ -128,9 +128,7 @@ impl ProducerHost {
             }
             Err(error) => {
                 let record = self.rollback_pre_core(completion_id, observer, reservation)?;
-                return Err(
-                    self.invariant_failure(ProducerHostInvariantError::Core(error), Some(record))
-                );
+                return Err(self.invariant_failure(ProducerHostInvariantError::Core(error), record));
             }
         };
         let Some(operation_id) = transition.admitted_operation_id() else {
@@ -151,6 +149,9 @@ impl ProducerHost {
                 observer,
             ));
         }
+        // Core ownership crossed above. A store disagreement from this point
+        // remains an accepted invariant with the sole terminal observer; it
+        // can never become a record-returning pre-ownership rejection.
         let committed = match self.store.commit(reservation) {
             Ok(committed) => committed,
             Err(error) => {

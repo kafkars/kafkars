@@ -13,12 +13,12 @@ use crate::{
 /// Caller-owned record and semantic reason immediate admission failed.
 #[derive(Debug)]
 pub(crate) struct ProducerAdmissionRejection {
-    record: Option<Record>,
+    record: Record,
     error: KafkaError,
 }
 
 impl ProducerAdmissionRejection {
-    pub(crate) fn into_parts(self) -> (Option<Record>, KafkaError) {
+    pub(crate) fn into_parts(self) -> (Record, KafkaError) {
         (self.record, self.error)
     }
 }
@@ -26,7 +26,7 @@ impl ProducerAdmissionRejection {
 pub(crate) fn translate_admission_error(error: EngineTrySendError) -> ProducerAdmissionRejection {
     let kind = error.kind();
     let detail = error.detail().map(str::to_owned);
-    let record = error.into_record().map(restore_rejected_record);
+    let record = restore_rejected_record(error.into_record());
     ProducerAdmissionRejection {
         record,
         error: admission_error(kind, detail.as_deref()),

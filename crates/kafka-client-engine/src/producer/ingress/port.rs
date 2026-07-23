@@ -186,7 +186,7 @@ pub(crate) enum ProducerPortPoison {
     },
     BeforeOwnership {
         error: ProducerHostInvariantError,
-        record: Option<ProducerRecord>,
+        record: ProducerRecord,
     },
 }
 

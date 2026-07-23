@@ -69,8 +69,9 @@ impl ProducerStore {
         &mut self,
         reservation: RecordReservation,
     ) -> Result<kafka_client_core::ExplicitRecord, ProducerStoreError> {
-        self.records.commit(&reservation)?;
-        Ok(reservation.facts())
+        let facts = reservation.facts();
+        self.records.commit(reservation)?;
+        Ok(facts)
     }
 
     /// Atomically returns the intact record when core rejects its reservation.
@@ -81,8 +82,8 @@ impl ProducerStore {
     pub(crate) fn rollback(
         &mut self,
         reservation: RecordReservation,
-    ) -> Result<ProducerRecord, ProducerStoreError> {
-        self.records.rollback(&reservation)
+    ) -> super::record_store::RecordRollback {
+        self.records.rollback(reservation)
     }
 
     /// Appends a core-accepted operation to one ordered logical batch.

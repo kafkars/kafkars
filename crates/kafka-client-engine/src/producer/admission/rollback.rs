@@ -27,8 +27,7 @@ impl ProducerHost {
         match result {
             Ok(()) => Ok(record),
             Err(error) => {
-                Err(self
-                    .invariant_failure(ProducerHostInvariantError::Completion(error), Some(record)))
+                Err(self.invariant_failure(ProducerHostInvariantError::Completion(error), record))
             }
         }
     }
@@ -44,19 +43,15 @@ impl ProducerHost {
         reservation: RecordReservation,
     ) -> Result<ProducerRecord, ProducerAdmissionFailure> {
         let completion_result = self.completions.rollback_reservation(completion_id);
-        let record_result = self.store.rollback(reservation);
+        let (record, store_result) = self.store.rollback(reservation).into_parts();
         drop(observer);
-        match (completion_result, record_result) {
-            (Ok(()), Ok(record)) => Ok(record),
-            (Err(error), Ok(record)) => {
-                Err(self
-                    .invariant_failure(ProducerHostInvariantError::Completion(error), Some(record)))
+        match (completion_result, store_result) {
+            (Ok(()), Ok(())) => Ok(record),
+            (Err(error), Ok(()) | Err(_)) => {
+                Err(self.invariant_failure(ProducerHostInvariantError::Completion(error), record))
             }
             (Ok(()), Err(error)) => {
-                Err(self.invariant_failure(ProducerHostInvariantError::Store(error), None))
-            }
-            (Err(error), Err(_store_error)) => {
-                Err(self.invariant_failure(ProducerHostInvariantError::Completion(error), None))
+                Err(self.invariant_failure(ProducerHostInvariantError::Store(error), record))
             }
         }
     }
@@ -64,7 +59,7 @@ impl ProducerHost {
     pub(super) fn invariant_failure(
         &mut self,
         error: ProducerHostInvariantError,
-        record: Option<ProducerRecord>,
+        record: ProducerRecord,
     ) -> ProducerAdmissionFailure {
         ProducerAdmissionFailure::Invariant(PoisonedBeforeOwnership {
             error: self.poison(error),

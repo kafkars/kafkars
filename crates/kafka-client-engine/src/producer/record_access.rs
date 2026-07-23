@@ -8,8 +8,16 @@ use super::{
 };
 
 impl RecordSlot {
-    pub(super) fn commit_reservation(&mut self) {
+    pub(super) fn commit_reservation(
+        &mut self,
+        record: ProducerRecord,
+    ) -> Result<(), ProducerStoreError> {
+        if self.state != PayloadState::Reserved || self.record.is_some() {
+            return Err(ProducerStoreError::InvalidPayloadState);
+        }
+        self.record = Some(record);
         self.state = PayloadState::Admitted;
+        Ok(())
     }
 
     fn take_record(&mut self) -> Result<ProducerRecord, ProducerStoreError> {

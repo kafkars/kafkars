@@ -45,6 +45,7 @@ pub use engine_host::{
 };
 pub use producer::{
     ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerHandle, ProducerOperationId,
+    ProducerSendCapture, ProducerSendCaptureError, ProducerSendCaptureErrorKind,
     ProducerSendOptions, ProducerTrySendAccepted, ProducerTrySendError, ProducerTrySendErrorKind,
     PublicProducerHeader as ProducerHeader, PublicProducerRecord as ProducerRecord,
 };

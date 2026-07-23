@@ -28,6 +28,7 @@ pub(super) struct RecordSlot {
 pub(crate) struct RecordReservation {
     payload_id: PayloadId,
     facts: ExplicitRecord,
+    record: ProducerRecord,
 }
 
 impl RecordReservation {
@@ -36,8 +37,28 @@ impl RecordReservation {
         self.facts
     }
 
-    pub(super) const fn payload_id(&self) -> PayloadId {
-        self.payload_id
+    pub(super) fn into_parts(self) -> (PayloadId, ExplicitRecord, ProducerRecord) {
+        (self.payload_id, self.facts, self.record)
+    }
+}
+
+/// Exact record ownership paired with the result of reservation cleanup.
+#[derive(Debug)]
+pub(crate) struct RecordRollback {
+    record: ProducerRecord,
+    cleanup: Result<(), ProducerStoreError>,
+}
+
+impl RecordRollback {
+    pub(super) const fn new(
+        record: ProducerRecord,
+        cleanup: Result<(), ProducerStoreError>,
+    ) -> Self {
+        Self { record, cleanup }
+    }
+
+    pub(crate) fn into_parts(self) -> (ProducerRecord, Result<(), ProducerStoreError>) {
+        (self.record, self.cleanup)
     }
 }
 
@@ -128,40 +149,31 @@ impl RecordStore {
         self.slots.insert(
             payload_id,
             RecordSlot {
-                record: Some(record),
+                record: None,
                 retained_bytes,
                 topic_id,
                 state: PayloadState::Reserved,
             },
         );
-        Ok(RecordReservation { payload_id, facts })
+        Ok(RecordReservation {
+            payload_id,
+            facts,
+            record,
+        })
     }
 
     pub(super) fn commit(
         &mut self,
-        reservation: &RecordReservation,
+        reservation: RecordReservation,
     ) -> Result<(), ProducerStoreError> {
-        let slot = self.slot_mut(reservation.payload_id())?;
-        if slot.state != PayloadState::Reserved {
-            return Err(ProducerStoreError::InvalidPayloadState);
-        }
-        slot.commit_reservation();
-        Ok(())
+        let (payload_id, _facts, record) = reservation.into_parts();
+        self.slot_mut(payload_id)?.commit_reservation(record)
     }
 
-    pub(super) fn rollback(
-        &mut self,
-        reservation: &RecordReservation,
-    ) -> Result<ProducerRecord, ProducerStoreError> {
-        let slot = self.slot(reservation.payload_id())?;
-        if slot.state != PayloadState::Reserved || slot.record.is_none() {
-            return Err(ProducerStoreError::InvalidPayloadState);
-        }
-        let mut removed = self.remove_slot(reservation.payload_id())?;
-        removed
-            .record
-            .take()
-            .ok_or(ProducerStoreError::InvalidPayloadState)
+    pub(super) fn rollback(&mut self, reservation: RecordReservation) -> RecordRollback {
+        let (payload_id, _facts, record) = reservation.into_parts();
+        let cleanup = self.rollback_slot(payload_id);
+        RecordRollback::new(record, cleanup)
     }
 
     pub(super) fn release(
@@ -192,5 +204,14 @@ impl RecordStore {
         };
         self.used_bytes = next_used;
         Ok(removed)
+    }
+
+    fn rollback_slot(&mut self, payload_id: PayloadId) -> Result<(), ProducerStoreError> {
+        let slot = self.slot(payload_id)?;
+        if slot.state != PayloadState::Reserved || slot.record.is_some() {
+            return Err(ProducerStoreError::InvalidPayloadState);
+        }
+        let _removed = self.remove_slot(payload_id)?;
+        Ok(())
     }
 }

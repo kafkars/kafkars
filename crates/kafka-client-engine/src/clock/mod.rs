@@ -5,7 +5,7 @@ mod monotonic;
 mod timer;
 
 pub(crate) use error::{BatchTimerError, ClockError};
-pub(crate) use monotonic::MonotonicClock;
+pub(crate) use monotonic::{DeadlineCapture, MonotonicClock};
 pub(crate) use timer::BatchTimers;
 
 #[cfg(test)]
