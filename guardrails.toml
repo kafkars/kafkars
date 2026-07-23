@@ -343,6 +343,10 @@ production = "crates/kafka-client-engine/src/producer/pending/recovery/route.rs"
 test = "crates/kafka-client-engine/src/producer/pending/recovery/route_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/recovery/route_retry.rs"
+test = "crates/kafka-client-engine/src/producer/pending/recovery/route_retry_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/pending/cell.rs"
 test = "crates/kafka-client-engine/src/producer/pending/cell_test.rs"
 
@@ -688,8 +692,20 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
-method = "notify"
+method = "retain_pending_notification"
 allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "retry_primary_notifications"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "notify_pending"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/pending/recovery/route_retry.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
@@ -1458,7 +1474,10 @@ allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/worke
 [[mutation_owners]]
 owner_type = "PendingNotificationRoute"
 field = "state"
-allowed_paths = ["crates/kafka-client-engine/src/producer/pending/recovery/route.rs"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/pending/recovery/route.rs",
+  "crates/kafka-client-engine/src/producer/pending/recovery/route_retry.rs",
+]
 
 [[mutation_owners]]
 owner_type = "PendingNotificationRoute"

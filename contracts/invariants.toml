@@ -28,7 +28,7 @@ evidence = [
 [[invariant]]
 id = "BND-02"
 title = "Pending notification obligations are bounded"
-statement = "The engine-internal pending-send seam reserves one non-cloneable notification permit at registration, and the live host prestarts one bounded off-reactor recovery worker. Full or closed primary-notifier work remains in exact FIFO owners; terminal recovery cannot run until the older primary notifier is joined, and dropping its paired stop owner drains and joins rather than detaching. Public waiting admission and live host promotion remain separate milestones."
+statement = "The engine-internal pending-send seam reserves one non-cloneable notification permit at registration, and the live host prestarts one bounded off-reactor recovery worker. Constant-time route retention preserves exact FIFO ownership, primary retries require an explicit nonzero work limit, and a closed primary transfers the untouched head and tail irreversibly to recovery. Terminal recovery cannot run until the older primary notifier is joined, and dropping its paired stop owner drains and joins rather than detaching. Public waiting admission and live host promotion remain separate milestones."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/pending/permit_test.rs::notification_permit_is_not_reused_before_dispatch",
@@ -38,7 +38,11 @@ evidence = [
   "crates/kafka-client-engine/src/producer/pending/recovery/queue_test.rs::permit_capacity_bounds_queued_and_current_recovery_jobs_together",
   "crates/kafka-client-engine/src/producer/pending/recovery/queue_test.rs::terminal_tail_remains_fifo_when_the_normal_queue_is_full",
   "crates/kafka-client-engine/src/producer/pending/recovery/worker_test.rs::worker_dispatches_away_from_the_submitting_thread_and_joins",
-  "crates/kafka-client-engine/src/producer/pending/recovery/route_test.rs::front_retry_closure_transfers_fifo_then_routes_later_jobs_to_recovery",
+  "crates/kafka-client-engine/src/producer/pending/recovery/route_test.rs::retain_stages_exact_fifo_without_running_application_wakers",
+  "crates/kafka-client-engine/src/producer/pending/recovery/route_test.rs::retain_overflow_returns_the_exact_newer_job",
+  "crates/kafka-client-engine/src/producer/pending/recovery/route_retry_test.rs::retry_respects_explicit_limit_and_reports_runnable_tail",
+  "crates/kafka-client-engine/src/producer/pending/recovery/route_retry_test.rs::backpressured_head_stays_before_every_newer_retained_job",
+  "crates/kafka-client-engine/src/producer/pending/recovery/route_retry_test.rs::primary_closure_moves_fifo_to_blocked_recovery_until_primary_join",
   "crates/kafka-client-engine/src/producer/pending/recovery/route_test.rs::dropped_paired_owner_joins_primary_before_terminal_recovery",
   "crates/kafka-client-engine/src/producer/pending/recovery/route_test.rs::missing_primary_refuses_retained_tail_without_splitting_owner",
   "crates/kafka-client-engine/src/producer/shutdown_test.rs::missing_primary_only_allows_proven_empty_recovery_cleanup",

@@ -2,6 +2,7 @@
 mod backlog;
 mod queue;
 mod route;
+mod route_retry;
 mod shutdown;
 mod worker;
 
@@ -16,8 +17,22 @@ pub(crate) use backlog::{PendingNotificationBacklog, PendingNotificationRecovery
 #[cfg(test)]
 pub(crate) use queue::{PendingRecoveryQueue, PendingRecoverySubmitErrorKind};
 pub(crate) use route::PendingNotificationRoute;
-#[cfg(test)]
+#[cfg_attr(
+    not(test),
+    expect(
+        unused_imports,
+        reason = "live shard turn will consume the dormant route mode"
+    )
+)]
 pub(crate) use route::PendingNotificationRouteMode;
+#[cfg_attr(
+    not(test),
+    expect(
+        unused_imports,
+        reason = "live shard turn will consume bounded route progress"
+    )
+)]
+pub(crate) use route_retry::PendingNotificationRouteProgress;
 #[cfg(test)]
 pub(crate) use shutdown::PendingNotificationShutdownOwner;
 pub(crate) use shutdown::{
@@ -32,6 +47,8 @@ pub(crate) use worker::{PendingRecoveryJoinError, PendingRecoveryWorker};
 mod backlog_test;
 #[cfg(test)]
 mod queue_test;
+#[cfg(test)]
+mod route_retry_test;
 #[cfg(test)]
 mod route_test;
 #[cfg(test)]

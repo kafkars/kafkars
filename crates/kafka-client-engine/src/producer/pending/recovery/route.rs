@@ -1,6 +1,6 @@
-//! Stateful FIFO routing from the primary notifier to its prestarted recovery worker.
+//! Constant-time FIFO retention and irreversible recovery-route ownership.
 
-use crate::completion::{CompletionRegistry, CompletionRegistryError, NotifierJoin};
+use crate::completion::NotifierJoin;
 
 use super::{
     PendingNotificationBacklog, PendingNotificationJob, PendingNotificationRecovery,
@@ -18,7 +18,7 @@ pub(crate) enum PendingNotificationRouteMode {
     Recovery,
 }
 
-enum PendingNotificationRouteState {
+pub(super) enum PendingNotificationRouteState {
     Primary(PendingNotificationBacklog),
     Recovery {
         retained: Option<PendingNotificationRecovery>,
@@ -27,8 +27,9 @@ enum PendingNotificationRouteState {
 
 /// One mutable owner of primary retry order and irreversible recovery mode.
 pub(crate) struct PendingNotificationRoute {
-    state: PendingNotificationRouteState,
+    pub(super) state: PendingNotificationRouteState,
     worker: Option<PendingRecoveryWorker>,
+    capacity: usize,
 }
 
 impl std::fmt::Debug for PendingNotificationRoute {
@@ -55,53 +56,34 @@ impl PendingNotificationRoute {
                 capacity,
             )),
             worker: Some(PendingRecoveryWorker::start_prestarted(capacity)?),
+            capacity,
         })
     }
 
-    /// Retries every older primary job before considering the newer job.
+    /// Retains one newer job without invoking either notification worker.
     #[cfg_attr(
         not(test),
         expect(
             dead_code,
-            reason = "live pending admission installs this route in the next integration slice"
+            reason = "live pending admission remains closed until shard-turn integration"
         )
     )]
-    pub(crate) fn notify<T: Send + 'static>(
+    pub(crate) fn retain_pending_notification(
         &mut self,
-        primary: &CompletionRegistry<T>,
         job: PendingNotificationJob,
     ) -> Result<PendingNotificationRouteMode, PendingNotificationRouteFailure> {
         if self.worker.is_none() {
             return Err(PendingNotificationRouteFailure { job });
         }
         match &mut self.state {
-            PendingNotificationRouteState::Primary(backlog) => {
-                match retry_primary(backlog, primary) {
-                    PrimaryRetry::Ready => match primary.notify_pending(job) {
-                        Ok(()) => Ok(PendingNotificationRouteMode::Primary),
-                        Err((CompletionRegistryError::NotificationBackpressure, returned)) => {
-                            retain_newer(backlog, returned)
-                        }
-                        Err((_stopped, returned)) => {
-                            let recovery = take_backlog(backlog).into_recovery(returned);
-                            self.state = PendingNotificationRouteState::Recovery {
-                                retained: Some(recovery),
-                            };
-                            Ok(PendingNotificationRouteMode::Recovery)
-                        }
-                    },
-                    PrimaryRetry::Backpressured => retain_newer(backlog, job),
-                    PrimaryRetry::Stopped(returned) => {
-                        backlog.push_front(returned);
-                        let recovery = take_backlog(backlog).into_recovery(job);
-                        self.state = PendingNotificationRouteState::Recovery {
-                            retained: Some(recovery),
-                        };
-                        Ok(PendingNotificationRouteMode::Recovery)
-                    }
-                }
-            }
+            PendingNotificationRouteState::Primary(backlog) => retain_primary(backlog, job),
             PendingNotificationRouteState::Recovery { retained } => {
+                let retained_len = retained
+                    .as_ref()
+                    .map_or(0, PendingNotificationRecovery::len);
+                if retained_len >= self.capacity {
+                    return Err(PendingNotificationRouteFailure { job });
+                }
                 match retained {
                     Some(older) => older.push_back(job),
                     None => *retained = Some(PendingNotificationRecovery::from_job(job)),
@@ -167,32 +149,18 @@ impl PendingNotificationRoute {
                 .map_or(0, PendingNotificationRecovery::len),
         }
     }
-}
 
-enum PrimaryRetry {
-    Ready,
-    Backpressured,
-    Stopped(PendingNotificationJob),
-}
-
-fn retry_primary<T: Send + 'static>(
-    backlog: &mut PendingNotificationBacklog,
-    primary: &CompletionRegistry<T>,
-) -> PrimaryRetry {
-    while let Some(job) = backlog.pop_front() {
-        match primary.notify_pending(job) {
-            Ok(()) => {}
-            Err((CompletionRegistryError::NotificationBackpressure, returned)) => {
-                backlog.push_front(returned);
-                return PrimaryRetry::Backpressured;
+    pub(super) const fn mode(&self) -> PendingNotificationRouteMode {
+        match &self.state {
+            PendingNotificationRouteState::Primary(_) => PendingNotificationRouteMode::Primary,
+            PendingNotificationRouteState::Recovery { .. } => {
+                PendingNotificationRouteMode::Recovery
             }
-            Err((_stopped, returned)) => return PrimaryRetry::Stopped(returned),
         }
     }
-    PrimaryRetry::Ready
 }
 
-fn retain_newer(
+fn retain_primary(
     backlog: &mut PendingNotificationBacklog,
     job: PendingNotificationJob,
 ) -> Result<PendingNotificationRouteMode, PendingNotificationRouteFailure> {
@@ -204,7 +172,7 @@ fn retain_newer(
         })
 }
 
-fn take_backlog(backlog: &mut PendingNotificationBacklog) -> PendingNotificationBacklog {
+pub(super) fn take_backlog(backlog: &mut PendingNotificationBacklog) -> PendingNotificationBacklog {
     std::mem::replace(backlog, PendingNotificationBacklog::new(0))
 }
 
