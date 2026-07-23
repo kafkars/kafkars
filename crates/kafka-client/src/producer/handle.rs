@@ -1,6 +1,8 @@
 //! Cloneable public producer handle over the private engine bridge.
 
-use crate::{KafkaError, Record, bridge::producer::ProducerEngine};
+use std::time::Duration;
+
+use crate::{ErrorKind, KafkaError, Record, bridge::producer::ProducerEngine};
 
 use super::{Delivery, TrySendError};
 
@@ -15,8 +17,24 @@ impl ProducerBuilder {
         Self { engine }
     }
 
+    /// Sets the duration used to create each record's absolute end-to-end deadline.
+    ///
+    /// The timeout starts at the `Producer::try_send` call boundary and spans
+    /// local batching, transport admission, and broker delivery.
+    #[must_use]
+    pub fn delivery_timeout(mut self, delivery_timeout: Duration) -> Self {
+        self.engine = self.engine.with_delivery_timeout(delivery_timeout);
+        self
+    }
+
     /// Builds the producer after local validation.
     pub fn build(self) -> Result<Producer, KafkaError> {
+        if self.engine.delivery_timeout().is_zero() {
+            return Err(KafkaError::new(
+                ErrorKind::Configuration,
+                "producer delivery timeout must be nonzero",
+            ));
+        }
         Ok(Producer {
             engine: self.engine,
         })

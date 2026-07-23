@@ -33,6 +33,15 @@ impl ProducerEngine {
         }
     }
 
+    pub(crate) const fn with_delivery_timeout(mut self, delivery_timeout: Duration) -> Self {
+        self.options = EngineProducerSendOptions::new(delivery_timeout);
+        self
+    }
+
+    pub(crate) const fn delivery_timeout(&self) -> Duration {
+        self.options.delivery_timeout()
+    }
+
     /// Captures the public boundary before converting caller-owned bytes.
     #[allow(
         clippy::result_large_err,
