@@ -1,0 +1,157 @@
+//! Record reservation, rollback, accounting, and identity scenarios.
+
+use std::sync::Arc;
+
+use bytes::Bytes;
+use kafka_client_core::{ByteCount, PartitionIndex};
+
+use super::{
+    ProducerHeader, ProducerRecord, ProducerStore, ProducerStoreError, ProducerStoreLimits,
+    ProducerStoreStats,
+};
+
+#[test]
+fn count_and_bytes_are_reserved_before_core_admission() {
+    let mut store = ProducerStore::new(limits(1, 8, 1));
+    let first = store
+        .reserve(record("orders", Some(Bytes::new()), Some(b"v"), Vec::new()))
+        .unwrap_or_else(|error| panic!("first record should reserve: {error}"));
+    assert_eq!(first.facts().retained_bytes(), ByteCount::new(7));
+    assert_eq!(
+        store.stats(),
+        ProducerStoreStats {
+            records: 1,
+            bytes: 7,
+            batches: 0,
+        }
+    );
+
+    let Err(rejected) = store.reserve(record("other", None, None, Vec::new())) else {
+        panic!("record count should reject before core admission");
+    };
+    assert_eq!(rejected.reason(), ProducerStoreError::RecordCapacity);
+    assert_eq!(rejected.into_record().topic().as_ref(), "other");
+    assert_eq!(store.stats().records, 1);
+
+    let rolled_back = store
+        .rollback(first)
+        .unwrap_or_else(|error| panic!("reservation should roll back: {error}"));
+    assert_eq!(rolled_back.topic().as_ref(), "orders");
+    assert_eq!(store.stats().bytes, 0);
+}
+
+#[test]
+fn byte_rejection_returns_the_same_linear_record() {
+    let topic: Arc<str> = Arc::from("orders");
+    let mut store = ProducerStore::new(limits(4, 6, 4));
+    let Err(rejected) = store.reserve(
+        ProducerRecord::new(
+            Arc::clone(&topic),
+            PartitionIndex::from_raw(0),
+            10,
+            Some(Bytes::new()),
+            Some(Bytes::from_static(b"x")),
+        )
+        .with_headers(vec![
+            ProducerHeader::new(String::new(), None),
+            ProducerHeader::new(String::new(), Some(Bytes::new())),
+        ]),
+    ) else {
+        panic!("seven retained bytes must exceed the six byte bound");
+    };
+    assert_eq!(rejected.reason(), ProducerStoreError::ByteCapacity);
+    let returned = rejected.into_record();
+
+    assert!(Arc::ptr_eq(returned.topic(), &topic));
+    let (_topic, timestamp, key, value, headers) = returned.into_parts();
+    assert_eq!(timestamp, 10);
+    assert_eq!(key.as_deref(), Some(&b""[..]));
+    assert_eq!(value.as_deref(), Some(&b"x"[..]));
+    let mut headers = headers.into_iter();
+    assert!(
+        headers
+            .next()
+            .unwrap_or_else(|| panic!("first header missing"))
+            .into_parts()
+            .1
+            .is_none()
+    );
+    assert_eq!(
+        headers
+            .next()
+            .unwrap_or_else(|| panic!("second header missing"))
+            .into_parts()
+            .1
+            .as_deref(),
+        Some(&b""[..])
+    );
+    assert_eq!(store.stats().records, 0);
+}
+
+#[test]
+fn rollback_restores_capacity_without_reusing_payload_identity() {
+    let mut store = ProducerStore::new(limits(1, 64, 1));
+    let first = store
+        .reserve(record("orders", None, Some(b"a"), Vec::new()))
+        .unwrap_or_else(|error| panic!("first reserve failed: {error}"));
+    let first_id = first.facts().payload_id();
+    let returned = store
+        .rollback(first)
+        .unwrap_or_else(|error| panic!("rollback failed: {error}"));
+    let second = store
+        .reserve(returned)
+        .unwrap_or_else(|error| panic!("second reserve failed: {error}"));
+
+    assert!(second.facts().payload_id().get() > first_id.get());
+    assert_eq!(store.stats().records, 1);
+}
+
+#[test]
+fn release_checks_provenance_and_happens_exactly_once() {
+    let mut store = ProducerStore::new(limits(1, 64, 1));
+    let reservation = store
+        .reserve(record("orders", None, Some(b"a"), Vec::new()))
+        .unwrap_or_else(|error| panic!("reserve failed: {error}"));
+    let facts = store
+        .commit(reservation)
+        .unwrap_or_else(|error| panic!("commit failed: {error}"));
+
+    assert_eq!(
+        store.release_payload(facts.payload_id(), ByteCount::new(99)),
+        Err(ProducerStoreError::RetainedSizeMismatch)
+    );
+    assert_eq!(store.stats().records, 1);
+    assert_eq!(
+        store.release_payload(facts.payload_id(), facts.retained_bytes()),
+        Ok(())
+    );
+    assert_eq!(
+        store.release_payload(facts.payload_id(), facts.retained_bytes()),
+        Err(ProducerStoreError::UnknownPayload)
+    );
+    assert_eq!(store.topic_count(), 0);
+}
+
+fn limits(max_records: usize, max_bytes: usize, max_batches: usize) -> ProducerStoreLimits {
+    ProducerStoreLimits {
+        records: max_records,
+        bytes: max_bytes,
+        batches: max_batches,
+    }
+}
+
+fn record(
+    topic: &str,
+    key: Option<Bytes>,
+    value: Option<&'static [u8]>,
+    headers: Vec<ProducerHeader>,
+) -> ProducerRecord {
+    ProducerRecord::new(
+        Arc::from(topic),
+        PartitionIndex::from_raw(0),
+        10,
+        key,
+        value.map(Bytes::from_static),
+    )
+    .with_headers(headers)
+}

@@ -6,10 +6,9 @@ use bytes::{Bytes, BytesMut};
 use kafka_wire::{OutboundFrameLimits, PRODUCE_API_DESCRIPTOR, encode_request};
 use kafka_wire_records::RecordError;
 
-use super::{
-    error::ProduceMaterializationError,
-    produce::{ExplicitProduceBatch, ProduceRecord, materialize_explicit_produce_batch},
-};
+use crate::producer::{MaterializationBatch, MaterializationRecord};
+
+use super::{error::ProduceMaterializationError, produce::materialize_explicit_produce_batch};
 
 const TOPIC: &str = "orders";
 const PARTITION: i32 = 7;
@@ -66,7 +65,7 @@ fn wire_record_limits_reject_materialization_before_a_request_exists() {
 
 #[test]
 fn empty_ready_batch_is_rejected_before_wire_encoding() {
-    let input = ExplicitProduceBatch::new(
+    let input = MaterializationBatch::new(
         TOPIC.to_owned(),
         PARTITION,
         Vec::new(),
@@ -80,14 +79,15 @@ fn empty_ready_batch_is_rejected_before_wire_encoding() {
     ));
 }
 
-fn input(max_batch_bytes: usize) -> ExplicitProduceBatch {
-    ExplicitProduceBatch::new(
+fn input(max_batch_bytes: usize) -> MaterializationBatch {
+    MaterializationBatch::new(
         TOPIC.to_owned(),
         PARTITION,
-        vec![ProduceRecord::new(
+        vec![MaterializationRecord::new(
             TIMESTAMP_MS,
             Some(Bytes::from_static(b"customer-42")),
             Some(Bytes::from_static(b"created")),
+            Vec::new(),
         )],
         REMAINING_BROKER_TIMEOUT_MS,
         max_batch_bytes,

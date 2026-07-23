@@ -328,6 +328,99 @@ owner_type = "BatchTimers"
 field = "schedule"
 allowed_paths = ["crates/kafka-client-engine/src/clock/timer.rs"]
 
+# Engine producer bytes, identities, and membership have narrow mutation owners.
+[[mutation_owners]]
+owner_type = "ProducerStore"
+field = "records"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/store.rs",
+  "crates/kafka-client-engine/src/producer/store/materialize.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerStore"
+field = "batches"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/store.rs",
+  "crates/kafka-client-engine/src/producer/store/materialize.rs",
+]
+
+[[mutation_owners]]
+owner_type = "RecordStore"
+field = "next_payload_id"
+allowed_paths = ["crates/kafka-client-engine/src/producer/record_store.rs"]
+
+[[mutation_owners]]
+owner_type = "RecordStore"
+field = "used_bytes"
+allowed_paths = ["crates/kafka-client-engine/src/producer/record_store.rs"]
+
+[[mutation_owners]]
+owner_type = "RecordStore"
+field = "slots"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/record_store.rs",
+  "crates/kafka-client-engine/src/producer/record_access.rs",
+]
+
+[[mutation_owners]]
+owner_type = "RecordStore"
+field = "topics"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/record_store.rs",
+  "crates/kafka-client-engine/src/producer/record_access.rs",
+]
+
+[[mutation_owners]]
+owner_type = "RecordSlot"
+field = "record"
+allowed_paths = ["crates/kafka-client-engine/src/producer/record_access.rs"]
+
+[[mutation_owners]]
+owner_type = "RecordSlot"
+field = "state"
+allowed_paths = ["crates/kafka-client-engine/src/producer/record_access.rs"]
+
+[[mutation_owners]]
+owner_type = "BatchStore"
+field = "batches"
+allowed_paths = ["crates/kafka-client-engine/src/producer/batch_store.rs"]
+
+[[mutation_owners]]
+owner_type = "BatchStore"
+field = "operations"
+allowed_paths = ["crates/kafka-client-engine/src/producer/batch_store.rs"]
+
+[[mutation_owners]]
+owner_type = "BatchStore"
+field = "payloads"
+allowed_paths = ["crates/kafka-client-engine/src/producer/batch_store.rs"]
+
+[[mutation_owners]]
+owner_type = "BatchAccumulator"
+field = "state"
+allowed_paths = ["crates/kafka-client-engine/src/producer/batch_store.rs"]
+
+[[mutation_owners]]
+owner_type = "BatchAccumulator"
+field = "members"
+allowed_paths = ["crates/kafka-client-engine/src/producer/batch_store.rs"]
+
+[[mutation_owners]]
+owner_type = "TopicCatalog"
+field = "next_topic_id"
+allowed_paths = ["crates/kafka-client-engine/src/producer/topic_catalog.rs"]
+
+[[mutation_owners]]
+owner_type = "TopicCatalog"
+field = "by_name"
+allowed_paths = ["crates/kafka-client-engine/src/producer/topic_catalog.rs"]
+
+[[mutation_owners]]
+owner_type = "TopicCatalog"
+field = "by_id"
+allowed_paths = ["crates/kafka-client-engine/src/producer/topic_catalog.rs"]
+
 # Lifecycle and accounting owners must not be duplicated accidentally.
 [[linear_owners]]
 owner_type = "ProducerMachine"
@@ -388,3 +481,43 @@ path = "crates/kafka-client-engine/src/clock/monotonic.rs"
 [[linear_owners]]
 owner_type = "BatchTimers"
 path = "crates/kafka-client-engine/src/clock/timer.rs"
+
+[[linear_owners]]
+owner_type = "ProducerStore"
+path = "crates/kafka-client-engine/src/producer/store.rs"
+
+[[linear_owners]]
+owner_type = "RecordStore"
+path = "crates/kafka-client-engine/src/producer/record_store.rs"
+
+[[linear_owners]]
+owner_type = "RecordReservation"
+path = "crates/kafka-client-engine/src/producer/record_store.rs"
+
+[[linear_owners]]
+owner_type = "BatchStore"
+path = "crates/kafka-client-engine/src/producer/batch_store.rs"
+
+[[linear_owners]]
+owner_type = "TopicCatalog"
+path = "crates/kafka-client-engine/src/producer/topic_catalog.rs"
+
+[[linear_owners]]
+owner_type = "ProducerRecord"
+path = "crates/kafka-client-engine/src/producer/record.rs"
+
+[[linear_owners]]
+owner_type = "ProducerHeader"
+path = "crates/kafka-client-engine/src/producer/record.rs"
+
+[[linear_owners]]
+owner_type = "MaterializationBatch"
+path = "crates/kafka-client-engine/src/producer/materialization.rs"
+
+[[linear_owners]]
+owner_type = "MaterializationRecord"
+path = "crates/kafka-client-engine/src/producer/materialization.rs"
+
+[[linear_owners]]
+owner_type = "MaterializationHeader"
+path = "crates/kafka-client-engine/src/producer/materialization.rs"

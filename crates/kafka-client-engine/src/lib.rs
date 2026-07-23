@@ -32,6 +32,14 @@ mod engine;
     not(test),
     expect(
         dead_code,
+        reason = "bounded producer ownership precedes integrated host interpretation"
+    )
+)]
+mod producer;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
         reason = "wire materialization precedes the blocked driver submission seam"
     )
 )]

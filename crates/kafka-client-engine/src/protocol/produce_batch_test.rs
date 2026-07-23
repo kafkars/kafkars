@@ -5,12 +5,11 @@
 use bytes::Bytes;
 use kafka_wire_records::{Compression, RecordBatch, RecordDecodeLimits, TimestampType};
 
+use crate::producer::{MaterializationBatch, MaterializationHeader, MaterializationRecord};
+
 use super::{
     error::ProduceMaterializationError,
-    produce::{
-        ExplicitProduceBatch, MaterializedProduce, ProduceHeader, ProduceRecord,
-        materialize_explicit_produce_batch,
-    },
+    produce::{MaterializedProduce, materialize_explicit_produce_batch},
 };
 
 const TOPIC: &str = "orders";
@@ -51,11 +50,12 @@ fn ordered_records_use_contiguous_offsets_and_first_timestamp_as_base() {
 #[test]
 fn null_and_empty_payloads_remain_distinct_in_one_batch() {
     let materialized = materialize_explicit_produce_batch(batch(vec![
-        ProduceRecord::new(BASE_TIMESTAMP_MS, None, None),
-        ProduceRecord::new(
+        MaterializationRecord::new(BASE_TIMESTAMP_MS, None, None, Vec::new()),
+        MaterializationRecord::new(
             BASE_TIMESTAMP_MS + 1,
             Some(Bytes::new()),
             Some(Bytes::new()),
+            Vec::new(),
         ),
     ]))
     .unwrap();
@@ -70,13 +70,18 @@ fn null_and_empty_payloads_remain_distinct_in_one_batch() {
 #[test]
 fn headers_preserve_record_order_duplicates_and_nullable_values() {
     let headers = vec![
-        ProduceHeader::new("traceparent".to_owned(), Some(Bytes::from_static(b"first"))),
-        ProduceHeader::new("traceparent".to_owned(), None),
-        ProduceHeader::new("traceparent".to_owned(), Some(Bytes::new())),
+        MaterializationHeader::new("traceparent".to_owned(), Some(Bytes::from_static(b"first"))),
+        MaterializationHeader::new("traceparent".to_owned(), None),
+        MaterializationHeader::new("traceparent".to_owned(), Some(Bytes::new())),
     ];
     let materialized = materialize_explicit_produce_batch(batch(vec![
         record(BASE_TIMESTAMP_MS, b"first"),
-        record(BASE_TIMESTAMP_MS + 1, b"second").with_headers(headers),
+        MaterializationRecord::new(
+            BASE_TIMESTAMP_MS + 1,
+            None,
+            Some(Bytes::from_static(b"second")),
+            headers,
+        ),
     ]))
     .unwrap();
     let decoded = decoded_batch(&materialized);
@@ -108,8 +113,8 @@ fn unrepresentable_timestamp_delta_is_rejected_without_saturation() {
     ));
 }
 
-fn batch(records: Vec<ProduceRecord>) -> ExplicitProduceBatch {
-    ExplicitProduceBatch::new(
+fn batch(records: Vec<MaterializationRecord>) -> MaterializationBatch {
+    MaterializationBatch::new(
         TOPIC.to_owned(),
         PARTITION,
         records,
@@ -118,8 +123,13 @@ fn batch(records: Vec<ProduceRecord>) -> ExplicitProduceBatch {
     )
 }
 
-fn record(timestamp_ms: i64, value: &'static [u8]) -> ProduceRecord {
-    ProduceRecord::new(timestamp_ms, None, Some(Bytes::from_static(value)))
+fn record(timestamp_ms: i64, value: &'static [u8]) -> MaterializationRecord {
+    MaterializationRecord::new(
+        timestamp_ms,
+        None,
+        Some(Bytes::from_static(value)),
+        Vec::new(),
+    )
 }
 
 fn decoded_batch(materialized: &MaterializedProduce) -> RecordBatch {
