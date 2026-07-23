@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+driver_root="$repo_root/../kafka-driver"
+protocol_root="$repo_root/../kafka-protocol"
+revision_file="$repo_root/dependencies/sibling-revisions.env"
+
+if [[ ! -f "$revision_file" || -L "$revision_file" ]]; then
+  echo "revision file must be a regular, non-symlink file" >&2
+  exit 1
+fi
+revision_lines=()
+while IFS= read -r revision_line || [[ -n "$revision_line" ]]; do
+  revision_lines+=("$revision_line")
+done < "$revision_file"
+if [[ "${#revision_lines[@]}" -ne 2 ]]; then
+  echo "revision file must contain exactly two assignments" >&2
+  exit 1
+fi
+if [[ ! "${revision_lines[0]}" =~ ^KAFKA_DRIVER_REVISION=([0-9a-f]{40})$ ]]; then
+  echo "invalid kafka-driver revision assignment" >&2
+  exit 1
+fi
+KAFKA_DRIVER_REVISION="${BASH_REMATCH[1]}"
+if [[ ! "${revision_lines[1]}" =~ ^KAFKA_PROTOCOL_REVISION=([0-9a-f]{40})$ ]]; then
+  echo "invalid kafka-protocol revision assignment" >&2
+  exit 1
+fi
+KAFKA_PROTOCOL_REVISION="${BASH_REMATCH[1]}"
+
+check_revision() {
+  local name=$1
+  local checkout=$2
+  local expected=$3
+  local actual
+
+  actual=$(git -C "$checkout" rev-parse HEAD 2>/dev/null) || {
+    echo "$name is not checked out at $checkout" >&2
+    return 1
+  }
+  if [[ "$actual" != "$expected" ]]; then
+    echo "$name revision $actual does not match reviewed revision $expected" >&2
+    return 1
+  fi
+}
+
+check_revision kafka-driver "$driver_root" "$KAFKA_DRIVER_REVISION"
+check_revision kafka-protocol "$protocol_root" "$KAFKA_PROTOCOL_REVISION"

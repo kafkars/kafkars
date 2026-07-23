@@ -1,0 +1,11 @@
+name: Install pinned Rust
+description: Install the workspace minimum Rust toolchain and lint components.
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust 1.88.0
+      shell: bash
+      run: |
+        rustup toolchain install 1.88.0 --profile minimal --component clippy,rustfmt
+        rustup default 1.88.0

@@ -37,7 +37,7 @@ allowed_external = []
 [[dependency_rules]]
 package = "kafka-client-engine"
 allowed_internal = ["kafka-client-core"]
-allowed_external = []
+allowed_external = ["kafka-driver", "kafka-wire", "kafka-wire-records"]
 
 [[dependency_rules]]
 package = "kafka-client-guardrails"

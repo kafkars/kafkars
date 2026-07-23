@@ -17,17 +17,87 @@ env:
   RUST_BACKTRACE: "1"
 
 jobs:
-  validate:
+  architecture:
+    name: architecture
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: kafka-client
+    steps:
+      - name: Check out client
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: kafka-client
+          persist-credentials: false
+      - name: Check out reviewed sibling dependencies
+        uses: ./kafka-client/.github/actions/checkout-siblings
+      - name: Install pinned Rust toolchain
+        uses: ./kafka-client/.github/actions/setup-rust
+      - name: Validate architecture
+        run: scripts/check-architecture
+
+  rust-lint:
+    name: rust-lint
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: kafka-client
     steps:
-      - name: Check out repository
+      - name: Check out client
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-
+        with:
+          path: kafka-client
+          persist-credentials: false
+      - name: Check out reviewed sibling dependencies
+        uses: ./kafka-client/.github/actions/checkout-siblings
       - name: Install pinned Rust toolchain
-        run: |
-          rustup toolchain install 1.88.0 --profile minimal --component clippy,rustfmt
-          rustup default 1.88.0
+        uses: ./kafka-client/.github/actions/setup-rust
+      - name: Validate Rust style and documentation
+        run: scripts/check-rust-lint
 
-      - name: Validate repository
-        run: scripts/check
+  rust-test:
+    name: rust-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: kafka-client
+    steps:
+      - name: Check out client
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: kafka-client
+          persist-credentials: false
+      - name: Check out reviewed sibling dependencies
+        uses: ./kafka-client/.github/actions/checkout-siblings
+      - name: Install pinned Rust toolchain
+        uses: ./kafka-client/.github/actions/setup-rust
+      - name: Run Rust tests
+        run: scripts/check-rust-test
+
+  quality-gate:
+    name: quality-gate
+    if: ${{ always() }}
+    needs: [architecture, rust-lint, rust-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect every evidence lane
+        env:
+          ARCHITECTURE_RESULT: ${{ needs.architecture.result }}
+          RUST_LINT_RESULT: ${{ needs['rust-lint'].result }}
+          RUST_TEST_RESULT: ${{ needs['rust-test'].result }}
+        run: |
+          failures=0
+          check_result() {
+            if [[ "$2" != success ]]; then
+              echo "$1 evidence lane ended with: $2" >&2
+              failures=$((failures + 1))
+            fi
+          }
+          check_result architecture "$ARCHITECTURE_RESULT"
+          check_result rust-lint "$RUST_LINT_RESULT"
+          check_result rust-test "$RUST_TEST_RESULT"
+          test "$failures" -eq 0
