@@ -113,6 +113,14 @@ forbidden = [
   "std::task",
 ]
 
+# Clock execution stays monotonic, local, and free of sleeping/runtime ownership.
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/clock"
+forbidden = [
+  "std::thread",
+  "std::time::SystemTime",
+]
+
 # The curated Rust API delegates execution and wire work to lower layers.
 [[capability_rules]]
 root = "crates/kafka-client/src"
@@ -310,6 +318,16 @@ owner_type = "NotifierJoin"
 field = "handle"
 allowed_paths = ["crates/kafka-client-engine/src/completion/notifier.rs"]
 
+[[mutation_owners]]
+owner_type = "BatchTimers"
+field = "active"
+allowed_paths = ["crates/kafka-client-engine/src/clock/timer.rs"]
+
+[[mutation_owners]]
+owner_type = "BatchTimers"
+field = "schedule"
+allowed_paths = ["crates/kafka-client-engine/src/clock/timer.rs"]
+
 # Lifecycle and accounting owners must not be duplicated accidentally.
 [[linear_owners]]
 owner_type = "ProducerMachine"
@@ -362,3 +380,11 @@ path = "crates/kafka-client-engine/src/completion/notifier.rs"
 [[linear_owners]]
 owner_type = "NotifierJoin"
 path = "crates/kafka-client-engine/src/completion/notifier.rs"
+
+[[linear_owners]]
+owner_type = "MonotonicClock"
+path = "crates/kafka-client-engine/src/clock/monotonic.rs"
+
+[[linear_owners]]
+owner_type = "BatchTimers"
+path = "crates/kafka-client-engine/src/clock/timer.rs"

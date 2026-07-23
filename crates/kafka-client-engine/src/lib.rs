@@ -6,6 +6,14 @@
     not(test),
     expect(
         dead_code,
+        reason = "clock and timer ownership precede the integrated engine host"
+    )
+)]
+mod clock;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
         reason = "completion ownership precedes the integrated engine host"
     )
 )]
