@@ -1,4 +1,4 @@
-schema = 2
+schema = 3
 
 forbidden_transitive_dependencies = [
   "actix-rt",

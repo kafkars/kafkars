@@ -11,8 +11,8 @@ struct ProducerMachine {
 }
 
 impl ProducerMachine {
-    fn erase_all(&mut self) {
-        self.operations.clear();
+    fn append_outside_owner(&mut self, id: u64) {
+        self.operations.insert(id, ());
     }
 
     fn discard_front(&mut self) {

@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::GuardConfig;
+use super::{Declaration, GuardConfig, declaration, is_unit_test, sibling_facade};
 
 /// Size-policy role for one Rust source file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -120,6 +120,22 @@ pub(crate) fn is_facade(path: &Path) -> bool {
         path.file_name().and_then(|value| value.to_str()),
         Some("lib.rs" | "mod.rs")
     )
+}
+
+pub(crate) fn is_test_only_source(path: &Path) -> bool {
+    if is_unit_test(path) {
+        return true;
+    }
+    let Some(stem) = path.file_stem().and_then(|value| value.to_str()) else {
+        return false;
+    };
+    let Some(file_name) = path.file_name().and_then(|value| value.to_str()) else {
+        return false;
+    };
+    let Some(facade) = sibling_facade(path) else {
+        return false;
+    };
+    declaration(&read(&facade), stem, file_name) == Declaration::Gated
 }
 
 pub(crate) fn classify(root: &Path, path: &Path) -> FileClass {

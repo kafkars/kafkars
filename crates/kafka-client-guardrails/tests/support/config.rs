@@ -16,8 +16,14 @@ pub(crate) struct GuardConfig {
     pub(crate) test_mirrors: Vec<TestMirror>,
     pub(crate) dependency_rules: Vec<DependencyRule>,
     pub(crate) capability_rules: Vec<CapabilityRule>,
+    #[serde(default)]
+    pub(crate) call_capabilities: Vec<CallCapabilityRule>,
+    #[serde(default)]
+    pub(crate) method_capabilities: Vec<MethodCapabilityRule>,
     pub(crate) mutation_owners: Vec<MutationOwner>,
     pub(crate) linear_owners: Vec<LinearOwner>,
+    #[serde(default)]
+    pub(crate) authority_tokens: Vec<AuthorityToken>,
 }
 
 /// Source roots included in and excluded from live inspection.
@@ -93,6 +99,24 @@ pub(crate) struct CapabilityRule {
     pub(crate) forbidden: Vec<String>,
 }
 
+/// One constructor call and its complete production allowlist.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CallCapabilityRule {
+    pub(crate) root: String,
+    pub(crate) call: String,
+    pub(crate) allowed_paths: Vec<String>,
+}
+
+/// One inferred method capability and its complete production allowlist.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct MethodCapabilityRule {
+    pub(crate) root: String,
+    pub(crate) method: String,
+    pub(crate) allowed_paths: Vec<String>,
+}
+
 /// One load-bearing field and the modules permitted to mutate it.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -110,7 +134,17 @@ pub(crate) struct LinearOwner {
     pub(crate) path: String,
 }
 
-const SUPPORTED_SCHEMA: u32 = 2;
+/// One unforgeable authority whose fields and construction remain owner-private.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct AuthorityToken {
+    pub(crate) owner_type: String,
+    pub(crate) path: String,
+    pub(crate) fields: Vec<String>,
+    pub(crate) allowed_paths: Vec<String>,
+}
+
+const SUPPORTED_SCHEMA: u32 = 3;
 
 pub(crate) fn load_config(workspace: &Path) -> GuardConfig {
     let path = workspace.join("guardrails.toml");

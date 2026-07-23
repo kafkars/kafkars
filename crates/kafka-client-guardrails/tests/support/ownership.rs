@@ -3,12 +3,12 @@
 use std::path::{Path, PathBuf};
 
 use syn::{
-    Attribute, BinOp, Expr, ExprBinary, ExprMethodCall, ExprReference, File, ItemImpl, ItemStruct,
-    Member, Type,
+    BinOp, Expr, ExprBinary, ExprMethodCall, ExprReference, File, ItemImpl, ItemStruct, Member,
+    Type,
     visit::{self, Visit},
 };
 
-use super::{LinearOwner, MutationOwner, display_path, read};
+use super::{MutationOwner, display_path, read};
 
 const MUTATING_METHODS: &[&str] = &[
     "append",
@@ -174,71 +174,6 @@ pub(crate) fn mutation_violations(
         }
     }
     violations
-}
-
-pub(crate) fn linear_violations(root: &Path, rules: &[LinearOwner]) -> Vec<String> {
-    let mut violations = Vec::new();
-    for rule in rules {
-        let path = root.join(&rule.path);
-        if !path.is_file() {
-            violations.push(format!("stale linear-owner path: {}", rule.path));
-            continue;
-        }
-        let file = parse(&path);
-        let mut declaration = false;
-        for item in &file.items {
-            match item {
-                syn::Item::Struct(value) if value.ident == rule.owner_type => {
-                    declaration = true;
-                    for forbidden in forbidden_derives(&value.attrs) {
-                        violations.push(format!(
-                            "{} derives {forbidden} for linear owner {}",
-                            rule.path, rule.owner_type
-                        ));
-                    }
-                }
-                syn::Item::Impl(value) if type_is(&value.self_ty, &rule.owner_type) => {
-                    if let Some((_, path, _)) = &value.trait_
-                        && let Some(segment) = path.segments.last()
-                        && (segment.ident == "Clone" || segment.ident == "Copy")
-                    {
-                        violations.push(format!(
-                            "{} implements {} for linear owner {}",
-                            rule.path, segment.ident, rule.owner_type
-                        ));
-                    }
-                }
-                _ => {}
-            }
-        }
-        if !declaration {
-            violations.push(format!(
-                "stale linear-owner rule: {} is not declared in {}",
-                rule.owner_type, rule.path
-            ));
-        }
-    }
-    violations
-}
-
-fn forbidden_derives(attributes: &[Attribute]) -> Vec<String> {
-    let mut forbidden = Vec::new();
-    for attribute in attributes
-        .iter()
-        .filter(|value| value.path().is_ident("derive"))
-    {
-        attribute
-            .parse_nested_meta(|meta| {
-                if let Some(segment) = meta.path.segments.last()
-                    && (segment.ident == "Clone" || segment.ident == "Copy")
-                {
-                    forbidden.push(segment.ident.to_string());
-                }
-                Ok(())
-            })
-            .unwrap_or_else(|error| panic!("parse derive attribute: {error}"));
-    }
-    forbidden
 }
 
 fn references_self_field(expression: &Expr, field: &str) -> bool {
