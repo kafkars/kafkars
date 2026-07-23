@@ -86,6 +86,18 @@ status = "planned"
 milestone = "native-produce-driver-handoff"
 
 [[invariant]]
+id = "EXE-01"
+title = "Permanent execution loss settles accepted work"
+statement = "Permanent execution loss closes admission and settles every accepted producer operation once, releasing timers and retained resources before bounded terminal publication with conservative delivery certainty."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/producer/execution_stop_test.rs::execution_loss_settles_every_batch_stage_in_release_before_complete_order",
+  "crates/kafka-client-core/src/producer/execution_stop_test.rs::empty_execution_loss_is_idempotent_and_closes_admission",
+  "crates/kafka-client-core/src/producer/execution_stop_test.rs::execution_loss_does_not_repeat_an_unreclaimed_terminal",
+  "crates/kafka-client-core/src/producer/execution_stop_test.rs::execution_loss_effect_count_is_bounded_by_completion_capacity",
+]
+
+[[invariant]]
 id = "FL-01"
 title = "Flush is an admission-sequence barrier"
 statement = "Flush contains exactly accepted operations at or before its captured admission sequence and does not admit new work into that membership."

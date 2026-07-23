@@ -16,3 +16,6 @@ pub(crate) use batch::{
     BatchTimerObservation, ProducerBatch,
 };
 pub use machine::ProducerMachine;
+
+#[cfg(test)]
+mod execution_stop_test;

@@ -45,6 +45,16 @@ fn failure_certainty_preserves_not_sent_and_possibly_sent() {
         possibly_sent.delivery_status(),
         ProducerDeliveryStatus::PossiblySent
     );
+
+    let Err(ProducerDeliveryError::Failed(stopped)) = observe(execution_unavailable_completion())
+    else {
+        panic!("execution loss should be terminal")
+    };
+    assert_eq!(
+        stopped.kind(),
+        ProducerDeliveryFailureKind::ExecutionUnavailable
+    );
+    assert_eq!(stopped.delivery_status(), ProducerDeliveryStatus::NotSent);
 }
 
 pub(super) fn delivered_completion() -> ProducerCompletion {
@@ -91,6 +101,11 @@ fn possibly_sent_completion() -> ProducerCompletion {
             delivery: DeliveryStatus::PossiblySent,
         },
     )
+}
+
+fn execution_unavailable_completion() -> ProducerCompletion {
+    let (mut machine, _batch_id) = materializing_machine();
+    terminal(&mut machine, ProducerInput::ExecutionUnavailable)
 }
 
 fn materializing_machine() -> (ProducerMachine, kafka_client_core::BatchId) {
