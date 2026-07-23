@@ -13,13 +13,6 @@ pub(crate) use error::{BatchTimerError, ClockError};
     )
 )]
 pub(crate) use monotonic::MonotonicClock;
-#[cfg_attr(
-    not(test),
-    expect(
-        unused_imports,
-        reason = "timer ownership precedes the integrated engine host"
-    )
-)]
 pub(crate) use timer::BatchTimers;
 
 #[cfg(test)]

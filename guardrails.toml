@@ -451,6 +451,36 @@ owner_type = "SubmissionDeadlines"
 field = "schedule"
 allowed_paths = ["crates/kafka-client-engine/src/producer/submission_deadline.rs"]
 
+[[mutation_owners]]
+owner_type = "ProducerHost"
+field = "store"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/admission.rs",
+  "crates/kafka-client-engine/src/producer/effect.rs",
+  "crates/kafka-client-engine/src/producer/host.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerHost"
+field = "completions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/admission.rs",
+  "crates/kafka-client-engine/src/producer/effect.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerHost"
+field = "pending_effects"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/effect.rs",
+  "crates/kafka-client-engine/src/producer/host.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerHost"
+field = "health"
+allowed_paths = ["crates/kafka-client-engine/src/producer/host.rs"]
+
 # Lifecycle and accounting owners must not be duplicated accidentally.
 [[linear_owners]]
 owner_type = "ProducerMachine"
@@ -575,3 +605,15 @@ path = "crates/kafka-client-engine/src/producer/prepared.rs"
 [[linear_owners]]
 owner_type = "SubmissionDeadlines"
 path = "crates/kafka-client-engine/src/producer/submission_deadline.rs"
+
+[[linear_owners]]
+owner_type = "ProducerHost"
+path = "crates/kafka-client-engine/src/producer/host.rs"
+
+[[linear_owners]]
+owner_type = "AdmittedExplicit"
+path = "crates/kafka-client-engine/src/producer/admission.rs"
+
+[[linear_owners]]
+owner_type = "RejectedExplicit"
+path = "crates/kafka-client-engine/src/producer/admission.rs"
