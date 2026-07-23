@@ -28,24 +28,24 @@ impl ProducerAdmissionPort {
 
     /// Closes core admission before terminal host draining begins.
     pub(crate) fn close_admission(&self) -> Result<(), ProducerShardLockError> {
-        let mut host = self.shared.host()?;
-        host.close_admission();
+        let mut data = self.shared.data()?;
+        data.close_admission();
         Ok(())
     }
 
     #[cfg(test)]
-    pub(crate) fn host_stats(
+    pub(crate) fn shard_stats(
         &self,
-    ) -> Result<crate::producer::host::ProducerHostStats, ProducerShardLockError> {
-        self.shared.host().map(|host| host.stats())
+    ) -> Result<super::data::ProducerShardStats, ProducerShardLockError> {
+        self.shared.data().map(|data| data.shard_stats())
     }
 
     #[cfg(test)]
     pub(crate) fn inject_terminal_interpretation_fault(
         &self,
     ) -> Result<(), ProducerShardLockError> {
-        let mut host = self.shared.host()?;
-        host.inject_terminal_interpretation_fault();
+        let mut data = self.shared.data()?;
+        data.inject_terminal_interpretation_fault();
         Ok(())
     }
 
@@ -67,8 +67,8 @@ impl ProducerAdmissionPort {
         deadline: OperationDeadline,
         record: ProducerRecord,
     ) -> Result<ProducerPortAccepted, ProducerPortAdmissionError> {
-        let mut host = match self.shared.try_host() {
-            Ok(host) => host,
+        let mut data = match self.shared.try_data() {
+            Ok(data) => data,
             Err(ProducerShardLockError::Contended) => {
                 return Err(rejected(record, ProducerPortRejectionReason::Contended));
             }
@@ -76,7 +76,7 @@ impl ProducerAdmissionPort {
                 return Err(poisoned_before(record, ProducerPortPoisonReason::ShardLock));
             }
         };
-        let admitted = match host.try_admit_explicit(attempted_at, deadline, record) {
+        let admitted = match data.try_admit_explicit(attempted_at, deadline, record) {
             Ok(admitted) => admitted,
             Err(ProducerAdmissionFailure::Rejected(rejected)) => {
                 let reason = rejected.reason();
@@ -111,7 +111,7 @@ impl ProducerAdmissionPort {
         };
         let operation_id = admitted.operation_id();
         let observer = admitted.into_delivery_observer();
-        drop(host);
+        drop(data);
         let fault = self.shared.wake().map_err(ProducerPortAcceptedFault::Wake);
         Ok(ProducerPortAccepted {
             observer,

@@ -21,7 +21,7 @@ pub(crate) struct PendingAdmissionRejected {
 }
 
 impl PendingAdmissionRejected {
-    pub(super) const fn new(
+    pub(crate) const fn new(
         reason: PendingAdmissionRejectionReason,
         record: ProducerRecord,
     ) -> Self {

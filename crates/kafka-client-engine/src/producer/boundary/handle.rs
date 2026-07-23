@@ -123,10 +123,10 @@ impl ProducerHandle {
     }
 
     #[cfg(test)]
-    pub(crate) fn host_stats(&self) -> crate::producer::host::ProducerHostStats {
+    pub(crate) fn shard_stats(&self) -> crate::producer::ingress::ProducerShardStats {
         self.port
-            .host_stats()
-            .unwrap_or_else(|error| panic!("producer host stats lock failed: {error:?}"))
+            .shard_stats()
+            .unwrap_or_else(|error| panic!("producer shard stats lock failed: {error:?}"))
     }
 
     #[cfg(test)]

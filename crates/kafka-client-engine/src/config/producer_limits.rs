@@ -41,9 +41,6 @@ impl EngineProducerLimits {
     }
 
     /// Returns the aggregate application-byte ceiling for accepted and pending records.
-    ///
-    /// Pending records are not retained by the live host yet, so aggregate enforcement
-    /// remains part of the pending-admission integration milestone.
     pub const fn retained_bytes(self) -> usize {
         self.retained_bytes
     }

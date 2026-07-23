@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, Mutex, MutexGuard, TryLockError},
 };
 
-use super::super::ProducerHost;
+use super::{super::ProducerHost, data::ProducerShardData};
 
 /// Coalescible request for the producer host to make progress.
 ///
@@ -45,7 +45,7 @@ impl Error for ProducerShardWakeError {
 }
 
 pub(super) struct ProducerShardState {
-    host: Mutex<ProducerHost>,
+    data: Mutex<ProducerShardData>,
     wake: Arc<dyn ProducerShardWake>,
 }
 
@@ -55,21 +55,23 @@ impl ProducerShardState {
         W: ProducerShardWake,
     {
         Self {
-            host: Mutex::new(host),
+            data: Mutex::new(ProducerShardData::new(host)),
             wake,
         }
     }
 
-    pub(super) fn try_host(&self) -> Result<MutexGuard<'_, ProducerHost>, ProducerShardLockError> {
-        match self.host.try_lock() {
-            Ok(host) => Ok(host),
+    pub(super) fn try_data(
+        &self,
+    ) -> Result<MutexGuard<'_, ProducerShardData>, ProducerShardLockError> {
+        match self.data.try_lock() {
+            Ok(data) => Ok(data),
             Err(TryLockError::WouldBlock) => Err(ProducerShardLockError::Contended),
             Err(TryLockError::Poisoned(_)) => Err(ProducerShardLockError::Poisoned),
         }
     }
 
-    pub(super) fn host(&self) -> Result<MutexGuard<'_, ProducerHost>, ProducerShardLockError> {
-        self.host
+    pub(super) fn data(&self) -> Result<MutexGuard<'_, ProducerShardData>, ProducerShardLockError> {
+        self.data
             .lock()
             .map_err(|_poisoned| ProducerShardLockError::Poisoned)
     }
@@ -108,21 +110,23 @@ impl ProducerShardOwner {
     }
 
     /// Attempts to acquire this shard for one bounded host turn.
-    pub(crate) fn try_host(&self) -> Result<MutexGuard<'_, ProducerHost>, ProducerShardLockError> {
-        self.shared.try_host()
+    pub(crate) fn try_data(
+        &self,
+    ) -> Result<MutexGuard<'_, ProducerShardData>, ProducerShardLockError> {
+        self.shared.try_data()
     }
 
     /// Closes admission during terminal owner cleanup, waiting out a live caller.
     pub(crate) fn close_admission(&self) -> Result<(), ProducerShardLockError> {
-        let mut host = self.shared.host()?;
-        host.close_admission();
+        let mut data = self.shared.data()?;
+        data.close_admission();
         Ok(())
     }
 
     /// Recovers terminal ownership even when a prior host panic poisoned it.
-    pub(crate) fn terminal_host(&self) -> MutexGuard<'_, ProducerHost> {
+    pub(crate) fn terminal_data(&self) -> MutexGuard<'_, ProducerShardData> {
         self.shared
-            .host
+            .data
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }

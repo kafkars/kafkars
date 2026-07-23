@@ -82,6 +82,7 @@ pub(crate) struct ProducerHost {
     pub(super) fatal_transition: FatalTransitionBuffer,
     pub(super) effect_capacity: usize,
     pub(super) health: ProducerHostHealth,
+    retained_byte_limit: usize,
     #[cfg(test)]
     pub(super) terminal_publish_faults:
         std::collections::VecDeque<crate::completion::CompletionRegistryError>,
@@ -145,6 +146,7 @@ impl ProducerHost {
             fatal_transition: FatalTransitionBuffer::new(transition_capacity),
             effect_capacity: limits.completion_capacity,
             health: ProducerHostHealth::Healthy,
+            retained_byte_limit: limits.retained_bytes,
             #[cfg(test)]
             terminal_publish_faults: std::collections::VecDeque::new(),
             #[cfg(test)]
@@ -174,6 +176,14 @@ impl ProducerHost {
             terminal_backlog: self.terminal_backlog.len(),
             healthy: self.health == ProducerHostHealth::Healthy,
         }
+    }
+
+    pub(super) const fn retained_byte_limit(&self) -> usize {
+        self.retained_byte_limit
+    }
+
+    pub(super) fn pending_notification_permits(&self) -> Arc<PendingNotificationPermitPool> {
+        Arc::clone(&self.pending_notification_permits)
     }
     pub(crate) fn pending_effects(&self) -> &[ProducerEffect] {
         &self.pending_effects

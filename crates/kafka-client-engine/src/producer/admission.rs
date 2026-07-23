@@ -35,6 +35,10 @@ pub(crate) struct RejectedExplicit {
 }
 
 impl RejectedExplicit {
+    pub(crate) const fn new(reason: ProducerRejectionReason, record: ProducerRecord) -> Self {
+        Self { reason, record }
+    }
+
     pub(crate) const fn reason(&self) -> ProducerRejectionReason {
         self.reason
     }

@@ -9,7 +9,7 @@ use bytes::Bytes;
 use kafka_client_core::PartitionIndex;
 
 use super::super::{
-    ProducerHost, ProducerHostInvariantError,
+    ProducerHostInvariantError,
     host_limits_test::{start, valid_limits},
     ingress::{CountingWake, ProducerShardOwner},
 };
@@ -42,7 +42,7 @@ fn explicit_try_send_captures_one_absolute_deadline_and_commits() {
     assert!(accepted.absolute_deadline() >= before);
     assert!(accepted.absolute_deadline() <= after);
     assert!(accepted.fault().is_none());
-    assert_eq!(host(&owner).stats().core_completion_slots, 1);
+    assert_eq!(host(&owner).shard_stats().host.core_completion_slots, 1);
     assert_eq!(wake.count(), 1);
     drop(accepted.into_observer());
 }
@@ -178,9 +178,11 @@ fn setup() -> (ProducerShardOwner, ProducerHandle, Arc<CountingWake>) {
     (owner, handle, wake)
 }
 
-fn host(owner: &ProducerShardOwner) -> std::sync::MutexGuard<'_, ProducerHost> {
-    match owner.try_host() {
-        Ok(host) => host,
+fn host(
+    owner: &ProducerShardOwner,
+) -> std::sync::MutexGuard<'_, crate::producer::ingress::ProducerShardData> {
+    match owner.try_data() {
+        Ok(data) => data,
         Err(error) => panic!("test should acquire producer shard: {error:?}"),
     }
 }

@@ -257,8 +257,16 @@ production = "crates/kafka-client-engine/src/producer/ingress/port.rs"
 test = "crates/kafka-client-engine/src/producer/ingress/port_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/data.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/data_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/ingress/shard.rs"
 test = "crates/kafka-client-engine/src/producer/ingress/shard_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/terminal.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/terminal_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/materialization.rs"
@@ -620,6 +628,11 @@ allowed_paths = [
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "dispatch_all_pending_notifications"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "register_pending"
 allowed_paths = []
 
 [[call_capabilities]]
@@ -1418,8 +1431,13 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "ProducerShardData"
+field = "admission"
+allowed_paths = ["crates/kafka-client-engine/src/producer/ingress/data.rs"]
+
+[[mutation_owners]]
 owner_type = "ProducerShardState"
-field = "host"
+field = "data"
 allowed_paths = ["crates/kafka-client-engine/src/producer/ingress/shard.rs"]
 
 [[mutation_owners]]
@@ -1685,6 +1703,14 @@ path = "crates/kafka-client-engine/src/producer/execution.rs"
 [[linear_owners]]
 owner_type = "ProducerShardOwner"
 path = "crates/kafka-client-engine/src/producer/ingress/shard.rs"
+
+[[linear_owners]]
+owner_type = "ProducerShardState"
+path = "crates/kafka-client-engine/src/producer/ingress/shard.rs"
+
+[[linear_owners]]
+owner_type = "ProducerShardData"
+path = "crates/kafka-client-engine/src/producer/ingress/data.rs"
 
 [[linear_owners]]
 owner_type = "ProducerPortAccepted"

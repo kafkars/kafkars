@@ -82,17 +82,23 @@ fn damaged_interpretation_drains_resources_before_retained_failure_report() {
         Poll::Pending
     );
     wait_until(|| {
-        let stats = producer.host_stats();
-        stats.prepared_batches == 1 && stats.submission_deadlines == 1 && stats.pending_effects == 0
+        let stats = producer.shard_stats();
+        stats.host.prepared_batches == 1
+            && stats.host.submission_deadlines == 1
+            && stats.host.pending_effects == 0
     });
-    let retained = producer.host_stats();
-    assert_eq!(retained.store.records, 1);
-    assert!(retained.store.bytes > 0);
-    assert_eq!(retained.store.batches, 1);
-    assert_eq!(retained.store.topics, 1);
-    assert!(retained.prepared_bytes > 0);
-    assert_eq!(retained.submission_deadlines, 1);
-    assert_eq!(retained.completion_bindings, 1);
+    let retained = producer.shard_stats();
+    assert_eq!(retained.host.store.records, 1);
+    assert!(retained.host.store.bytes > 0);
+    assert_eq!(retained.host.store.batches, 1);
+    assert_eq!(retained.host.store.topics, 1);
+    assert!(retained.host.prepared_bytes > 0);
+    assert_eq!(retained.host.submission_deadlines, 1);
+    assert_eq!(retained.host.completion_bindings, 1);
+    assert_eq!(
+        retained.aggregate_retained_bytes,
+        retained.host.store.bytes + retained.pending.retained_bytes
+    );
 
     producer.inject_terminal_interpretation_fault();
     engine.force_host_failure();
@@ -106,19 +112,20 @@ fn damaged_interpretation_drains_resources_before_retained_failure_report() {
             .contains("forced terminal producer interpretation failure")
     );
 
-    let drained = producer.host_stats();
-    assert_eq!(drained.store.records, 0);
-    assert_eq!(drained.store.bytes, 0);
-    assert_eq!(drained.store.batches, 0);
-    assert_eq!(drained.store.topics, 0);
-    assert_eq!(drained.active_timers, 0);
-    assert_eq!(drained.prepared_batches, 0);
-    assert_eq!(drained.prepared_bytes, 0);
-    assert_eq!(drained.submission_deadlines, 0);
-    assert_eq!(drained.completion_bindings, 0);
-    assert_eq!(drained.pending_effects, 0);
-    assert_eq!(drained.core_retained_bytes, ByteCount::new(0));
-    assert_eq!(drained.core_completion_slots, 0);
+    let drained = producer.shard_stats();
+    assert_eq!(drained.host.store.records, 0);
+    assert_eq!(drained.host.store.bytes, 0);
+    assert_eq!(drained.host.store.batches, 0);
+    assert_eq!(drained.host.store.topics, 0);
+    assert_eq!(drained.host.active_timers, 0);
+    assert_eq!(drained.host.prepared_batches, 0);
+    assert_eq!(drained.host.prepared_bytes, 0);
+    assert_eq!(drained.host.submission_deadlines, 0);
+    assert_eq!(drained.host.completion_bindings, 0);
+    assert_eq!(drained.host.pending_effects, 0);
+    assert_eq!(drained.host.core_retained_bytes, ByteCount::new(0));
+    assert_eq!(drained.host.core_completion_slots, 0);
+    assert_eq!(drained.aggregate_retained_bytes, 0);
     wait_until(|| waker_called.load(Ordering::Acquire));
     assert!(released_before_wake.load(Ordering::Acquire));
 

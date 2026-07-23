@@ -23,7 +23,7 @@ fn acceptance_synchronously_transfers_all_owned_capacity_and_wakes_once() {
     let (owner, port, wake) = setup();
     let observer = admit(&port, record("orders"));
 
-    let stats = host(&owner).stats();
+    let stats = host(&owner).shard_stats().host;
     assert_eq!(stats.store.records, 1);
     assert_eq!(stats.core_completion_slots, 1);
     assert_eq!(wake.count(), 1);
@@ -49,7 +49,7 @@ fn post_commit_wake_failure_preserves_observer_and_owned_capacity() {
         Some(1)
     );
     assert_eq!(error.kind(), io::ErrorKind::Other);
-    assert_eq!(host(&owner).stats().core_completion_slots, 1);
+    assert_eq!(host(&owner).shard_stats().host.core_completion_slots, 1);
     drop(observer);
 }
 
@@ -111,7 +111,7 @@ fn bounded_local_rejection_rolls_back_and_returns_the_exact_record() {
         ))
     );
     assert!(Arc::ptr_eq(rejected.into_record().topic(), &expected));
-    assert_eq!(host(&owner).stats().core_completion_slots, 0);
+    assert_eq!(host(&owner).shard_stats().host.core_completion_slots, 0);
     assert_eq!(wake.count(), 0);
 }
 
@@ -121,7 +121,7 @@ fn observer_abandonment_does_not_cancel_admitted_host_work() {
     let observer = admit(&port, record("orders"));
     drop(observer);
 
-    let stats = host(&owner).stats();
+    let stats = host(&owner).shard_stats().host;
     assert_eq!(stats.store.records, 1);
     assert_eq!(stats.core_completion_slots, 1);
     assert_eq!(wake.count(), 1);
@@ -192,9 +192,9 @@ fn setup() -> (
     (owner, port, wake)
 }
 
-fn host(owner: &ProducerShardOwner) -> std::sync::MutexGuard<'_, crate::producer::ProducerHost> {
-    match owner.try_host() {
-        Ok(host) => host,
+fn host(owner: &ProducerShardOwner) -> std::sync::MutexGuard<'_, super::data::ProducerShardData> {
+    match owner.try_data() {
+        Ok(data) => data,
         Err(error) => panic!("test should acquire producer shard: {error:?}"),
     }
 }

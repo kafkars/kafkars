@@ -4,12 +4,12 @@ use std::fmt;
 
 use crate::{
     clock::ClockError,
-    completion::{CompletionRegistryError, NotifierJoinError},
+    completion::NotifierJoinError,
     config::EngineConfigError,
     driver::DriverOwnerError,
     producer::{
         ProducerHostInvariantError, ProducerHostStartError,
-        execution_stop::ProducerExecutionStopError, shutdown::ProducerTerminalCleanupError,
+        execution_stop::ProducerExecutionStopError, ingress::ProducerShardTerminalError,
     },
 };
 
@@ -135,9 +135,8 @@ pub(crate) enum EngineHostError {
     Clock(ClockError),
     Producer(ProducerHostInvariantError),
     ProducerStop(ProducerExecutionStopError),
-    ProducerCleanup(ProducerTerminalCleanupError),
+    ProducerCleanup(ProducerShardTerminalError),
     ProducerLockPoisoned,
-    Completion(CompletionRegistryError),
     Driver(DriverOwnerError),
     DriverStopped,
     HostPanicked,
@@ -161,9 +160,6 @@ impl fmt::Display for EngineHostError {
             }
             Self::ProducerLockPoisoned => {
                 formatter.write_str("producer host ownership lock is poisoned")
-            }
-            Self::Completion(error) => {
-                write!(formatter, "producer completion shutdown failed: {error}")
             }
             Self::Driver(error) => write!(formatter, "embedded driver failed: {error}"),
             Self::DriverStopped => formatter.write_str("embedded driver stopped unexpectedly"),

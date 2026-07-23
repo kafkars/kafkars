@@ -95,8 +95,8 @@ fn drive_producer(
     resources: &EngineHostResources,
     now: Moment,
 ) -> Result<ProducerProgress, EngineHostError> {
-    let mut host = match resources.producer.try_host() {
-        Ok(host) => host,
+    let mut data = match resources.producer.try_data() {
+        Ok(data) => data,
         Err(ProducerShardLockError::Contended) => {
             return Ok(ProducerProgress {
                 outcome: None,
@@ -108,15 +108,15 @@ fn drive_producer(
         }
     };
     if resources.control.shutdown_requested() {
-        host.close_admission();
+        data.close_admission();
     }
     resources.control.record_producer_turn();
-    let outcome = host
+    let outcome = data
         .turn(now, resources.budget)
         .map_err(EngineHostError::Producer)?;
     Ok(ProducerProgress {
         outcome: Some(outcome),
-        unsettled: host.unsettled_completions(),
+        unsettled: data.unsettled_completions(),
     })
 }
 
@@ -151,20 +151,28 @@ fn duration_until(now: Moment, deadline: Deadline) -> Duration {
 pub(super) fn stop_notifier(
     resources: &EngineHostResources,
 ) -> Result<NotifierJoin, EngineHostError> {
-    let mut host = resources.producer.terminal_host();
-    let release_failure = host
-        .verify_release_before_completion()
+    let mut data = resources.producer.terminal_data();
+    let release = data.verify_release_before_completion();
+    if let Err(error) = release
+        && error.pending_ownership().is_some()
+    {
+        return Err(EngineHostError::ProducerCleanup(error));
+    }
+    let mut failure = release.err().map(EngineHostError::ProducerCleanup);
+    let drain_failure = data
+        .drain_terminal_mechanisms()
         .err()
         .map(EngineHostError::ProducerCleanup);
-    host.drain_terminal_mechanisms();
-    let final_failure = host
+    failure = combine_cleanup(failure, drain_failure);
+    let final_failure = data
         .verify_terminal_cleanup()
         .err()
         .map(EngineHostError::ProducerCleanup);
-    if let Some(error) = combine_cleanup(release_failure, final_failure) {
+    if let Some(error) = combine_cleanup(failure, final_failure) {
         return Err(error);
     }
-    host.stop_notifier().map_err(EngineHostError::Completion)
+    data.stop_notifier()
+        .map_err(EngineHostError::ProducerCleanup)
 }
 
 fn combine_cleanup(

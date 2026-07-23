@@ -36,7 +36,7 @@ pub(crate) use notification::PendingNotificationJob;
 pub(crate) use notification_authority::PendingNotificationDispatchAuthority;
 pub(crate) use permit::{PendingNotificationPermit, PendingNotificationPermitPool};
 pub(crate) use registration::PendingSendRegistration;
-pub(crate) use registry::PendingAdmissionRegistry;
+pub(crate) use registry::{PendingAdmissionRegistry, PendingAdmissionStats};
 #[cfg(test)]
 pub(crate) use restore_error::{PendingAttemptRestoreError, PendingAttemptRestoreOutcome};
 #[cfg(test)]
