@@ -3,7 +3,10 @@
 use std::{
     error::Error,
     fmt, io,
-    sync::{Arc, Mutex, MutexGuard, TryLockError},
+    sync::{
+        Arc, Mutex, MutexGuard, TryLockError,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use super::{super::ProducerHost, data::ProducerShardData};
@@ -46,6 +49,7 @@ impl Error for ProducerShardWakeError {
 
 pub(super) struct ProducerShardState {
     data: Mutex<ProducerShardData>,
+    admission_closed: AtomicBool,
     wake: Arc<dyn ProducerShardWake>,
 }
 
@@ -56,8 +60,17 @@ impl ProducerShardState {
     {
         Self {
             data: Mutex::new(ProducerShardData::new(host)),
+            admission_closed: AtomicBool::new(false),
             wake,
         }
+    }
+
+    pub(super) fn admission_is_closed(&self) -> bool {
+        self.admission_closed.load(Ordering::Acquire)
+    }
+
+    pub(super) fn publish_admission_closed(&self, _locked_data: &ProducerShardData) {
+        self.admission_closed.store(true, Ordering::Release);
     }
 
     pub(super) fn try_data(
@@ -119,15 +132,24 @@ impl ProducerShardOwner {
     /// Closes admission during terminal owner cleanup, waiting out a live caller.
     pub(crate) fn close_admission(&self) -> Result<(), ProducerShardLockError> {
         let mut data = self.shared.data()?;
-        data.close_admission();
+        self.close_locked_admission(&mut data);
         Ok(())
+    }
+
+    /// Closes policy admission and publishes its mechanism mirror under one shard lock.
+    pub(crate) fn close_locked_admission(&self, data: &mut ProducerShardData) {
+        data.close_admission();
+        self.shared.publish_admission_closed(data);
     }
 
     /// Recovers terminal ownership even when a prior host panic poisoned it.
     pub(crate) fn terminal_data(&self) -> MutexGuard<'_, ProducerShardData> {
-        self.shared
+        let mut data = self
+            .shared
             .data
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        self.close_locked_admission(&mut data);
+        data
     }
 }

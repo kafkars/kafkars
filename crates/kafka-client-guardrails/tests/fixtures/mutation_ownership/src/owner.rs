@@ -1,6 +1,9 @@
 //! Allowed producer operation-table mutation fixture.
 
-use std::collections::{BTreeMap, VecDeque};
+use std::{
+    collections::{BTreeMap, VecDeque},
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 struct ProducerMachine {
     operations: BTreeMap<u64, ()>,
@@ -8,6 +11,7 @@ struct ProducerMachine {
     quarantine: VecDeque<u64>,
     generated: VecDeque<u64>,
     refusal: VecDeque<u64>,
+    closed: AtomicBool,
 }
 
 impl ProducerMachine {
@@ -17,5 +21,6 @@ impl ProducerMachine {
         self.quarantine.push_back(id);
         self.generated.push_back(id);
         self.refusal.push_back(id);
+        self.closed.store(true, Ordering::Release);
     }
 }

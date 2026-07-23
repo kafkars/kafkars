@@ -30,6 +30,7 @@ const MUTATING_METHODS: &[&str] = &[
     "release",
     "remove",
     "reserve",
+    "store",
     "retain",
     "retain_committed_tail",
     "retain_generated",

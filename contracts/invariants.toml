@@ -47,6 +47,8 @@ evidence = [
   "crates/kafka-client-core/src/producer/close_transition_test.rs::close_atomically_captures_drain_barrier_before_rejecting_new_records",
   "crates/kafka-client-core/src/producer/close_transition_test.rs::close_capacity_failure_leaves_record_admission_open",
   "crates/kafka-client-engine/src/producer/boundary/handle_test.rs::close_is_clone_shared_and_first_success_wins",
+  "crates/kafka-client-engine/src/producer/ingress/close_test.rs::accepted_close_fast_rejects_while_the_host_lock_is_contended",
+  "crates/kafka-client-engine/src/producer/ingress/close_test.rs::failed_close_capacity_leaves_the_fast_fence_open",
   "crates/kafka-client-engine/src/producer/ingress/close_test.rs::wake_failure_keeps_the_clone_shared_close_fence",
   "crates/kafka-client-engine/src/producer/ingress/data_test.rs::accepted_close_invariant_still_fences_shared_admission",
   "crates/kafka-client-engine/src/producer/ingress/data_test.rs::producer_close_fences_records_flushes_and_repeated_close",

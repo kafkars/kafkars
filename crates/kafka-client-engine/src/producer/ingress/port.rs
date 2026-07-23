@@ -2,12 +2,12 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::Moment;
+use kafka_client_core::{AdmissionRejection, Moment};
 
 use crate::clock::OperationDeadline;
 
 use super::{
-    super::ProducerRecord,
+    super::{ProducerRecord, ProducerRejectionReason},
     ProducerShardLockError,
     flush_outcome::{ProducerPortFlushAccepted, ProducerPortFlushError, classify_flush},
     outcome::{
@@ -32,6 +32,7 @@ impl ProducerAdmissionPort {
     pub(crate) fn close_admission(&self) -> Result<(), ProducerShardLockError> {
         let mut data = self.shared.data()?;
         data.close_admission();
+        self.shared.publish_admission_closed(&data);
         Ok(())
     }
 
@@ -67,6 +68,9 @@ impl ProducerAdmissionPort {
         deadline: OperationDeadline,
         record: ProducerRecord,
     ) -> Result<ProducerPortAccepted, ProducerPortAdmissionError> {
+        if self.shared.admission_is_closed() {
+            return Err(closed(record));
+        }
         let mut data = match self.shared.try_data() {
             Ok(data) => data,
             Err(ProducerShardLockError::Contended) => {
@@ -87,6 +91,11 @@ impl ProducerAdmissionPort {
         &self,
         attempted_at: Moment,
     ) -> Result<ProducerPortFlushAccepted, ProducerPortFlushError> {
+        if self.shared.admission_is_closed() {
+            return Err(ProducerPortFlushError::Rejected(
+                super::super::flush::FlushRejectionReason::Closed,
+            ));
+        }
         let mut data = match self.shared.try_data() {
             Ok(data) => data,
             Err(ProducerShardLockError::Contended) => {
@@ -106,6 +115,11 @@ impl ProducerAdmissionPort {
         &self,
         attempted_at: Moment,
     ) -> Result<ProducerPortFlushAccepted, ProducerPortFlushError> {
+        if self.shared.admission_is_closed() {
+            return Err(ProducerPortFlushError::Rejected(
+                super::super::flush::FlushRejectionReason::Closed,
+            ));
+        }
         let mut data = match self.shared.try_data() {
             Ok(data) => data,
             Err(ProducerShardLockError::Contended) => {
@@ -116,7 +130,17 @@ impl ProducerAdmissionPort {
             }
         };
         let accepted = classify_flush(data.try_admit_close(attempted_at))?;
+        self.shared.publish_admission_closed(&data);
         drop(data);
         Ok(accepted.with_wake(self.shared.wake()))
     }
+}
+
+fn closed(record: ProducerRecord) -> ProducerPortAdmissionError {
+    rejected(
+        record,
+        ProducerPortRejectionReason::Host(ProducerRejectionReason::Core(
+            AdmissionRejection::Closed,
+        )),
+    )
 }

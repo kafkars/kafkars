@@ -174,6 +174,11 @@ fn mutation_fixture_is_rejected() {
             field: "refusal".into(),
             allowed_paths: vec!["src/owner.rs".into()],
         },
+        MutationOwner {
+            owner_type: "ProducerMachine".into(),
+            field: "closed".into(),
+            allowed_paths: vec!["src/owner.rs".into()],
+        },
     ];
     let violations = mutation_violations(&root, &files, &rules);
     assert_eq!(
@@ -181,7 +186,7 @@ fn mutation_fixture_is_rejected() {
             .iter()
             .filter(|value| value.contains("intruder.rs"))
             .count(),
-        5
+        6
     );
 }
 

@@ -143,7 +143,7 @@ fn drive_producer(
         }
     };
     if resources.control.shutdown_requested() {
-        data.close_admission();
+        resources.producer.close_locked_admission(&mut data);
     }
     resources.control.record_producer_turn();
     let outcome = data

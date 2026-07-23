@@ -1293,6 +1293,11 @@ field = "fault"
 allowed_paths = ["crates/kafka-client-engine/src/producer/ingress/cancellation.rs"]
 
 [[mutation_owners]]
+owner_type = "ProducerShardState"
+field = "admission_closed"
+allowed_paths = ["crates/kafka-client-engine/src/producer/ingress/shard.rs"]
+
+[[mutation_owners]]
 owner_type = "VirtualBatch"
 field = "members"
 allowed_paths = [
