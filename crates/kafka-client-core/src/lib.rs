@@ -26,7 +26,10 @@ pub use operation_outcome::{
     DeliveryStatus, ProducerBatchSuccess, ProducerCompletion, RecordMetadata, TerminalRelease,
     TransitionError,
 };
-pub use producer::{AdmissionSequence, FlushId, FlushLedgerError, ProducerMachine};
+pub use producer::{
+    AdmissionSequence, FlushId, FlushLedgerError, KeyedPartitionError, PartitionCount,
+    ProducerMachine, select_java_keyed_partition,
+};
 pub use producer_broker_failure::{ProducerBrokerFailure, ProducerBrokerFailureKind};
 pub use producer_effect::{
     AcknowledgementPolicy, CompressionPolicy, EXECUTION_STOP_EFFECTS_PER_FLUSH,

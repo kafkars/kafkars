@@ -13,6 +13,7 @@ mod input_batch;
 mod input_outcome;
 mod lifecycle;
 mod machine;
+mod partitioner;
 mod settlement;
 
 pub(crate) use batch::{
@@ -22,6 +23,7 @@ pub(crate) use batch::{
 pub(crate) use flush::FlushLedger;
 pub use flush::{AdmissionSequence, FlushId, FlushLedgerError};
 pub use machine::ProducerMachine;
+pub use partitioner::{KeyedPartitionError, PartitionCount, select_java_keyed_partition};
 
 #[cfg(test)]
 mod execution_stop_test;
@@ -31,3 +33,5 @@ mod flush_test;
 mod flush_transition_test;
 #[cfg(test)]
 mod input_outcome_test;
+#[cfg(test)]
+mod partitioner_test;

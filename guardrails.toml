@@ -83,6 +83,10 @@ production = "crates/kafka-client-core/src/producer/input_outcome.rs"
 test = "crates/kafka-client-core/src/producer/input_outcome_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/partitioner.rs"
+test = "crates/kafka-client-core/src/producer/partitioner_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-sim/src/state.rs"
 test = "crates/kafka-client-sim/src/state_test.rs"
 
