@@ -1,6 +1,6 @@
 //! Monotonic virtual time for deterministic scenarios.
 
-use kafka_client_core::Deadline;
+use kafka_client_core::Moment;
 
 /// Monotonic virtual clock used by deterministic scenarios.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -10,8 +10,8 @@ pub struct VirtualClock {
 
 impl VirtualClock {
     /// Returns the current absolute tick.
-    pub const fn now(self) -> Deadline {
-        Deadline::from_tick(self.tick)
+    pub const fn now(self) -> Moment {
+        Moment::from_tick(self.tick)
     }
 
     /// Advances the clock by a deterministic number of ticks.

@@ -16,6 +16,22 @@ impl OperationId {
     }
 }
 
+/// Absolute virtual-clock observation supplied by an effect interpreter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Moment(u64);
+
+impl Moment {
+    /// Creates a moment from an absolute virtual-clock tick.
+    pub const fn from_tick(tick: u64) -> Self {
+        Self(tick)
+    }
+
+    /// Returns the absolute virtual-clock tick.
+    pub const fn tick(self) -> u64 {
+        self.0
+    }
+}
+
 /// Absolute virtual-clock tick owned by an operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Deadline(u64);
@@ -29,6 +45,11 @@ impl Deadline {
     /// Returns the absolute virtual-clock tick.
     pub const fn tick(self) -> u64 {
         self.0
+    }
+
+    /// Returns whether this deadline has elapsed at the supplied observation.
+    pub const fn is_elapsed_at(self, now: Moment) -> bool {
+        self.0 <= now.0
     }
 }
 

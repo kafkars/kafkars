@@ -28,7 +28,7 @@ impl fmt::Display for CapacityError {
 impl std::error::Error for CapacityError {}
 
 /// Deterministic retained-byte budget.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ByteBudget {
     limit: ByteCount,
     used: ByteCount,
@@ -44,17 +44,17 @@ impl ByteBudget {
     }
 
     /// Returns the hard limit.
-    pub const fn limit(self) -> ByteCount {
+    pub const fn limit(&self) -> ByteCount {
         self.limit
     }
 
     /// Returns bytes currently retained.
-    pub const fn used(self) -> ByteCount {
+    pub const fn used(&self) -> ByteCount {
         self.used
     }
 
     /// Returns bytes still available.
-    pub const fn available(self) -> ByteCount {
+    pub const fn available(&self) -> ByteCount {
         ByteCount::new(self.limit.get() - self.used.get())
     }
 
@@ -72,10 +72,30 @@ impl ByteBudget {
 
     /// Releases bytes previously reserved.
     pub fn release(&mut self, bytes: ByteCount) -> Result<(), CapacityError> {
-        let Some(next) = self.used.checked_sub(bytes) else {
-            return Err(CapacityError::OverRelease);
-        };
-        self.used = next;
+        let plan = self.plan_release(bytes)?;
+        self.commit_release(plan);
         Ok(())
     }
+
+    pub(crate) fn plan_release(&self, bytes: ByteCount) -> Result<ByteReleasePlan, CapacityError> {
+        let Some(next_used) = self.used.checked_sub(bytes) else {
+            return Err(CapacityError::OverRelease);
+        };
+        Ok(ByteReleasePlan { next_used })
+    }
+
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "the preflight plan is a linear commit capability"
+    )]
+    pub(crate) fn commit_release(&mut self, plan: ByteReleasePlan) {
+        let ByteReleasePlan { next_used } = plan;
+        self.used = next_used;
+    }
+}
+
+/// Preflighted retained-byte release consumed by its mutation owner.
+#[derive(Debug)]
+pub(crate) struct ByteReleasePlan {
+    next_used: ByteCount,
 }

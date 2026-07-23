@@ -1,7 +1,7 @@
 //! Tests for producer operation state transitions.
 
 use crate::{
-    ByteCount, Deadline, DeliveryStatus, OperationId, ProducerCompletion, ProducerOperation,
+    BatchId, ByteCount, Deadline, DeliveryStatus, OperationId, ProducerOperation,
     ProducerOperationState, TransitionError,
 };
 
@@ -16,8 +16,8 @@ fn waiting_operation_expires_not_sent_without_releasing_budget() {
     let effects = operation.expire();
 
     assert_eq!(
-        effects.map(|value| (value.completion(), value.released_bytes())),
-        Ok((ProducerCompletion::Failed(DeliveryStatus::NotSent), None,))
+        effects.map(crate::TerminalRelease::released_bytes),
+        Ok(None)
     );
     assert_eq!(operation.state(), ProducerOperationState::Completed);
 }
@@ -32,11 +32,8 @@ fn admitted_operation_expires_not_sent_and_releases_budget() {
     let effects = operation.expire();
 
     assert_eq!(
-        effects.map(|value| (value.completion(), value.released_bytes())),
-        Ok((
-            ProducerCompletion::Failed(DeliveryStatus::NotSent),
-            Some(bytes),
-        ))
+        effects.map(crate::TerminalRelease::released_bytes),
+        Ok(Some(bytes))
     );
 }
 
@@ -47,16 +44,14 @@ fn submitted_operation_waits_for_driver_delivery_certainty() {
         ProducerOperation::new(OperationId::from_raw(9), Deadline::from_tick(300), bytes);
 
     assert_eq!(operation.admit(), Ok(()));
-    assert_eq!(operation.mark_submitted(), Ok(()));
+    assert_eq!(operation.mark_ready(BatchId::from_raw(20)), Ok(()));
+    assert_eq!(operation.mark_submitted(BatchId::from_raw(20)), Ok(()));
     assert_eq!(operation.expire(), Err(TransitionError::InvalidState));
     let effects = operation.complete_failed(DeliveryStatus::PossiblySent);
 
     assert_eq!(
-        effects.map(|value| (value.completion(), value.released_bytes())),
-        Ok((
-            ProducerCompletion::Failed(DeliveryStatus::PossiblySent),
-            Some(bytes),
-        ))
+        effects.map(crate::TerminalRelease::released_bytes),
+        Ok(Some(bytes))
     );
 }
 

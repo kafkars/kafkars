@@ -1,4 +1,4 @@
-//! Bounded reservation and retention of terminal operation completions.
+//! Bounded reservation and terminal-readiness markers for operation completions.
 
 use core::fmt;
 use std::collections::{BTreeMap, btree_map::Entry};
@@ -14,7 +14,7 @@ pub enum CompletionLedgerError {
     DuplicateOperation,
     /// The operation identity owns no slot.
     UnknownOperation,
-    /// A terminal completion was already retained for the operation.
+    /// A terminal decision was already marked for the operation.
     AlreadyCompleted,
     /// The operation is admitted but has not reached a terminal completion.
     NotReady,
@@ -29,7 +29,7 @@ impl fmt::Display for CompletionLedgerError {
             }
             Self::UnknownOperation => formatter.write_str("operation owns no completion slot"),
             Self::AlreadyCompleted => {
-                formatter.write_str("operation already has a terminal completion")
+                formatter.write_str("operation already has a terminal decision")
             }
             Self::NotReady => formatter.write_str("operation has not completed"),
         }
@@ -38,14 +38,23 @@ impl fmt::Display for CompletionLedgerError {
 
 impl std::error::Error for CompletionLedgerError {}
 
-/// Bounded terminal-completion storage reserved before operation admission.
-#[derive(Debug)]
-pub struct CompletionLedger<T> {
-    capacity: usize,
-    slots: BTreeMap<OperationId, Option<T>>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CompletionState {
+    Pending,
+    Terminal,
 }
 
-impl<T> CompletionLedger<T> {
+/// Bounded terminal-completion capacity reserved before operation admission.
+///
+/// This ledger stores only lifecycle markers. The engine owns terminal result
+/// payloads and their observer wakeups.
+#[derive(Debug)]
+pub struct CompletionLedger {
+    capacity: usize,
+    slots: BTreeMap<OperationId, CompletionState>,
+}
+
+impl CompletionLedger {
     /// Creates an empty ledger with a hard operation-count limit.
     pub const fn new(capacity: usize) -> Self {
         Self {
@@ -59,7 +68,7 @@ impl<T> CompletionLedger<T> {
         self.capacity
     }
 
-    /// Returns reserved slots, including completed results not yet observed.
+    /// Returns reserved slots, including terminal results retained by the engine.
     pub fn len(&self) -> usize {
         self.slots.len()
     }
@@ -76,32 +85,32 @@ impl<T> CompletionLedger<T> {
             Entry::Occupied(_) => Err(CompletionLedgerError::DuplicateOperation),
             Entry::Vacant(_) if !has_capacity => Err(CompletionLedgerError::Full),
             Entry::Vacant(slot) => {
-                slot.insert(None);
+                slot.insert(CompletionState::Pending);
                 Ok(())
             }
         }
     }
 
-    /// Retains exactly one terminal completion for a reserved operation.
-    pub fn complete(&mut self, id: OperationId, value: T) -> Result<(), CompletionLedgerError> {
-        let Some(slot) = self.slots.get_mut(&id) else {
+    /// Marks exactly one terminal decision for a reserved operation.
+    pub fn mark_terminal(&mut self, id: OperationId) -> Result<(), CompletionLedgerError> {
+        let Some(state) = self.slots.get_mut(&id) else {
             return Err(CompletionLedgerError::UnknownOperation);
         };
-        if slot.is_some() {
+        if *state == CompletionState::Terminal {
             return Err(CompletionLedgerError::AlreadyCompleted);
         }
-        *slot = Some(value);
+        *state = CompletionState::Terminal;
         Ok(())
     }
 
-    /// Removes and returns a terminal completion, releasing its slot.
-    pub fn take(&mut self, id: OperationId) -> Result<T, CompletionLedgerError> {
-        match self.slots.remove(&id) {
-            Some(Some(value)) => Ok(value),
-            Some(None) => {
-                self.slots.insert(id, None);
-                Err(CompletionLedgerError::NotReady)
+    /// Releases a terminal marker after the engine reclaims its retained result.
+    pub fn reclaim(&mut self, id: OperationId) -> Result<(), CompletionLedgerError> {
+        match self.slots.get(&id) {
+            Some(CompletionState::Terminal) => {
+                self.slots.remove(&id);
+                Ok(())
             }
+            Some(CompletionState::Pending) => Err(CompletionLedgerError::NotReady),
             None => Err(CompletionLedgerError::UnknownOperation),
         }
     }
