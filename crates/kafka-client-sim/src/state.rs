@@ -1,27 +1,28 @@
 //! Virtual engine ownership for payloads, accumulators, timers, and results.
 
-#[path = "state_batch.rs"]
 mod batch;
+#[cfg(test)]
+mod batch_test;
 
 use std::collections::{BTreeMap, BTreeSet, btree_map::Entry};
 
 use kafka_client_core::{
-    BatchId, BatchTimerGeneration, ByteCount, Deadline, OperationId, PayloadId, ProducerCompletion,
-    ProducerEffect,
+    BatchExecutionId, BatchId, BatchTimerGeneration, ByteCount, Deadline, OperationId, PayloadId,
+    ProducerCompletion, ProducerEffect,
 };
 
 use crate::SimulationError;
+use batch::VirtualBatch;
 
 #[derive(Debug, Default)]
 pub(crate) struct VirtualProducerState {
     payloads: BTreeMap<PayloadId, ByteCount>,
     operation_payloads: BTreeMap<OperationId, PayloadId>,
-    batches: BTreeMap<BatchId, Vec<OperationId>>,
+    batches: BTreeMap<BatchId, VirtualBatch>,
+    submissions: BTreeMap<BatchExecutionId, Vec<OperationId>>,
     timers: BTreeMap<BatchId, (BatchTimerGeneration, Deadline)>,
-    materialized: BTreeSet<BatchId>,
     terminals: BTreeMap<OperationId, ProducerCompletion>,
     released_terminals: BTreeSet<OperationId>,
-    submission_count: usize,
     trace: Vec<ProducerEffect>,
 }
 
@@ -74,21 +75,15 @@ impl VirtualProducerState {
                     self.timers.remove(&batch_id);
                 }
             }
-            ProducerEffect::MaterializeBatch { batch_id, .. } => {
-                self.require_batch(batch_id)?;
-                self.materialized.insert(batch_id);
+            ProducerEffect::MaterializeBatch { execution, .. } => {
+                self.materialize(execution)?;
             }
             ProducerEffect::SubmitProduce {
-                batch_id,
+                execution,
                 deadline_operation_id,
                 ..
             } => {
-                self.require_batch(batch_id)?;
-                if !self.materialized.contains(&batch_id) {
-                    return Err(SimulationError::BatchNotMaterialized(batch_id));
-                }
-                self.require_batch_member(batch_id, deadline_operation_id)?;
-                self.submission_count += 1;
+                self.submit(execution, deadline_operation_id)?;
             }
             ProducerEffect::RemoveBatchMember {
                 batch_id,
@@ -140,7 +135,7 @@ impl VirtualProducerState {
         let batch_retained = self
             .batches
             .values()
-            .any(|members| members.contains(&operation_id));
+            .any(|batch| batch.contains(operation_id));
         if payload_retained || batch_retained {
             return Err(SimulationError::ResourceStillRetained(operation_id));
         }
@@ -205,10 +200,6 @@ impl VirtualProducerState {
 
     pub(crate) fn terminal(&self, operation_id: OperationId) -> Option<ProducerCompletion> {
         self.terminals.get(&operation_id).copied()
-    }
-
-    pub(crate) const fn submission_count(&self) -> usize {
-        self.submission_count
     }
 
     pub(crate) fn trace(&self) -> &[ProducerEffect] {

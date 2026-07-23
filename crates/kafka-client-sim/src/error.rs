@@ -2,7 +2,9 @@
 
 use core::fmt;
 
-use kafka_client_core::{BatchId, ByteCount, OperationId, PayloadId, ProducerMachineError};
+use kafka_client_core::{
+    BatchExecutionId, BatchId, ByteCount, OperationId, PayloadId, ProducerMachineError,
+};
 
 use crate::VirtualClockError;
 
@@ -28,10 +30,21 @@ pub enum SimulationError {
     UnknownBatch(BatchId),
     /// An operation was accumulated more than once.
     DuplicateOperation(OperationId),
+    /// Accumulator membership changed after the execution was sealed.
+    BatchMembershipClosed(BatchId),
     /// An effect named an operation outside its claimed accumulator.
     OperationNotInBatch(OperationId),
     /// Submission preceded the core-requested materialization mechanism.
-    BatchNotMaterialized(BatchId),
+    BatchNotMaterialized(BatchExecutionId),
+    /// A virtual mechanism named a non-current execution generation.
+    BatchExecutionMismatch {
+        /// Execution retained by the virtual batch, when one exists.
+        expected: Option<BatchExecutionId>,
+        /// Execution named by the effect.
+        actual: BatchExecutionId,
+    },
+    /// One virtual execution was materialized or submitted twice.
+    DuplicateBatchExecution(BatchExecutionId),
     /// Completion publication preceded engine resource release.
     ResourceStillRetained(OperationId),
     /// Core emitted a second terminal outcome for one operation.
@@ -56,11 +69,20 @@ impl fmt::Display for SimulationError {
             }
             Self::UnknownBatch(_) => formatter.write_str("unknown virtual batch"),
             Self::DuplicateOperation(_) => formatter.write_str("duplicate virtual operation"),
+            Self::BatchMembershipClosed(_) => {
+                formatter.write_str("virtual batch membership is sealed")
+            }
             Self::OperationNotInBatch(_) => {
                 formatter.write_str("operation is not retained by the virtual batch")
             }
             Self::BatchNotMaterialized(_) => {
                 formatter.write_str("virtual batch was not materialized")
+            }
+            Self::BatchExecutionMismatch { .. } => {
+                formatter.write_str("virtual batch execution identity does not match")
+            }
+            Self::DuplicateBatchExecution(_) => {
+                formatter.write_str("virtual batch execution was repeated")
             }
             Self::ResourceStillRetained(_) => {
                 formatter.write_str("completion preceded virtual resource release")

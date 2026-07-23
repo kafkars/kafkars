@@ -66,6 +66,54 @@ impl BatchId {
     }
 }
 
+/// Generation fencing one immutable sealed-batch membership snapshot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BatchExecutionGeneration(u64);
+
+impl BatchExecutionGeneration {
+    /// Restores a nonzero execution generation from persisted state.
+    pub const fn try_from_raw(value: u64) -> Option<Self> {
+        if value == 0 { None } else { Some(Self(value)) }
+    }
+
+    /// Returns the first generation assigned when a logical batch seals.
+    pub const fn initial() -> Self {
+        Self(1)
+    }
+
+    /// Returns the raw generation.
+    pub const fn get(self) -> u64 {
+        self.0
+    }
+}
+
+/// Exact identity of one immutable execution of a logical producer batch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BatchExecutionId {
+    batch_id: BatchId,
+    generation: BatchExecutionGeneration,
+}
+
+impl BatchExecutionId {
+    /// Joins one logical batch with its sealed-membership generation.
+    pub const fn new(batch_id: BatchId, generation: BatchExecutionGeneration) -> Self {
+        Self {
+            batch_id,
+            generation,
+        }
+    }
+
+    /// Returns the logical batch retaining the membership.
+    pub const fn batch_id(self) -> BatchId {
+        self.batch_id
+    }
+
+    /// Returns the exact sealed-membership generation.
+    pub const fn generation(self) -> BatchExecutionGeneration {
+        self.generation
+    }
+}
+
 /// Generation fencing replacement and cancellation of one batch timer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BatchTimerGeneration(u64);

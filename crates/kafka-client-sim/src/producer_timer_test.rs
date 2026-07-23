@@ -56,8 +56,8 @@ fn advancing_past_linger_and_deadline_fires_linger_first() {
     assert!(scenario.effect_trace().iter().any(|effect| matches!(
         effect,
         ProducerEffect::MaterializeBatch {
-            batch_id: materialized,
+            execution,
             ..
-        } if *materialized == batch_id
+        } if execution.batch_id() == batch_id
     )));
 }

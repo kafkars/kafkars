@@ -3,13 +3,19 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use kafka_client_core::{BatchId, OperationId, PartitionIndex};
+use kafka_client_core::{
+    BatchExecutionGeneration, BatchExecutionId, BatchId, OperationId, PartitionIndex,
+};
 
 use super::ProducerStore;
 use crate::producer::{
     ProducerStoreError, ProducerStoreLimits,
     record::{ProducerHeader, ProducerRecord},
 };
+
+fn execution() -> BatchExecutionId {
+    BatchExecutionId::new(BatchId::from_raw(1), BatchExecutionGeneration::initial())
+}
 
 #[test]
 fn batch_view_shares_handles_while_the_store_retains_the_canonical_record() {
@@ -31,8 +37,8 @@ fn batch_view_shares_handles_while_the_store_retains_the_canonical_record() {
     let mut store = ProducerStore::new(limits());
     let facts = admit(&mut store, record);
 
-    let batch = store
-        .materialization_view(BatchId::from_raw(1), 1_024)
+    let (attempt, batch) = store
+        .materialization_view(execution(), 1_024)
         .unwrap_or_else(|error| panic!("materialization view failed: {error}"));
     let (view_topic, partition, records, _limit) = batch.into_parts();
     let (_timestamp, view_key, view_value, view_headers) = records
@@ -62,6 +68,10 @@ fn batch_view_shares_handles_while_the_store_retains_the_canonical_record() {
         Some(header_value.as_ptr())
     );
     assert!(store.records.record(facts.payload_id()).is_ok());
+    assert!(matches!(
+        store.abort_materialization(attempt),
+        crate::producer::batch_store::MaterializationAbort::Restored
+    ));
 
     assert_eq!(store.release_batch(BatchId::from_raw(1)), Ok(()));
     assert_eq!(
@@ -83,10 +93,10 @@ fn unrepresentable_partition_fails_before_any_record_is_viewed() {
     let facts = admit(&mut store, record);
     let before = store.stats();
 
-    assert_eq!(
-        store.materialization_view(BatchId::from_raw(1), 1_024),
+    assert!(matches!(
+        store.materialization_view(execution(), 1_024),
         Err(ProducerStoreError::PartitionOutOfRange)
-    );
+    ));
     assert_eq!(store.stats(), before);
     assert!(store.records.record(facts.payload_id()).is_ok());
 

@@ -131,7 +131,7 @@ fn route_disagreement_poisons_the_host_closed() {
         .pop()
         .unwrap_or_else(|| panic!("submission effect should be pending"));
     let ProducerEffect::SubmitProduce {
-        batch_id,
+        execution,
         deadline_operation_id,
         deadline,
         topic_id,
@@ -142,7 +142,7 @@ fn route_disagreement_poisons_the_host_closed() {
         panic!("materialized batch should request submission")
     };
     host.pending_effects.push(ProducerEffect::SubmitProduce {
-        batch_id,
+        execution,
         deadline_operation_id,
         deadline,
         topic_id: TopicId::from_raw(topic_id.get() + 1),

@@ -1,6 +1,9 @@
 //! Capacity, ordering, cancellation, and owner-preservation deadline scenarios.
 
-use kafka_client_core::{BatchId, Deadline, Moment, OperationId, ProducerInput};
+use kafka_client_core::{
+    BatchExecutionGeneration, BatchExecutionId, BatchId, Deadline, Moment, OperationId,
+    ProducerInput,
+};
 
 use super::submission_deadline::{
     DueSubmissionDeadline, SubmissionDeadlineError, SubmissionDeadlines,
@@ -8,6 +11,10 @@ use super::submission_deadline::{
 
 fn batch(value: u64) -> BatchId {
     BatchId::from_raw(value)
+}
+
+fn execution(value: u64) -> BatchExecutionId {
+    BatchExecutionId::new(batch(value), BatchExecutionGeneration::initial())
 }
 
 fn operation(value: u64) -> OperationId {
@@ -22,19 +29,19 @@ fn deadline(value: u64) -> Deadline {
 fn due_entries_preserve_owners_and_order_before_future_entries() {
     let mut deadlines = SubmissionDeadlines::new(4);
     assert_eq!(
-        deadlines.arm(batch(9), operation(90), deadline(40)),
+        deadlines.arm(execution(9), operation(90), deadline(40)),
         Ok(true)
     );
     assert_eq!(
-        deadlines.arm(batch(2), operation(20), deadline(40)),
+        deadlines.arm(execution(2), operation(20), deadline(40)),
         Ok(true)
     );
     assert_eq!(
-        deadlines.arm(batch(7), operation(70), deadline(10)),
+        deadlines.arm(execution(7), operation(70), deadline(10)),
         Ok(true)
     );
     assert_eq!(
-        deadlines.arm(batch(1), operation(10), deadline(60)),
+        deadlines.arm(execution(1), operation(10), deadline(60)),
         Ok(true)
     );
 
@@ -59,15 +66,15 @@ fn due_entries_preserve_owners_and_order_before_future_entries() {
 fn capacity_rejects_new_batches_but_exact_replay_is_idempotent() {
     let mut deadlines = SubmissionDeadlines::new(1);
     assert_eq!(
-        deadlines.arm(batch(1), operation(10), deadline(30)),
+        deadlines.arm(execution(1), operation(10), deadline(30)),
         Ok(true)
     );
     assert_eq!(
-        deadlines.arm(batch(1), operation(10), deadline(30)),
+        deadlines.arm(execution(1), operation(10), deadline(30)),
         Ok(false)
     );
     assert_eq!(
-        deadlines.arm(batch(2), operation(20), deadline(20)),
+        deadlines.arm(execution(2), operation(20), deadline(20)),
         Err(SubmissionDeadlineError::Capacity { limit: 1 })
     );
     assert_eq!(deadlines.len(), 1);
@@ -78,12 +85,12 @@ fn capacity_rejects_new_batches_but_exact_replay_is_idempotent() {
 fn conflicting_duplicate_never_replaces_core_declared_facts() {
     let mut deadlines = SubmissionDeadlines::new(1);
     assert_eq!(
-        deadlines.arm(batch(1), operation(10), deadline(30)),
+        deadlines.arm(execution(1), operation(10), deadline(30)),
         Ok(true)
     );
     for (owner, due_at) in [(11, 30), (10, 31)] {
         assert_eq!(
-            deadlines.arm(batch(1), operation(owner), deadline(due_at)),
+            deadlines.arm(execution(1), operation(owner), deadline(due_at)),
             Err(SubmissionDeadlineError::ConflictingBatch { batch_id: batch(1) })
         );
     }
@@ -98,19 +105,19 @@ fn conflicting_duplicate_never_replaces_core_declared_facts() {
 fn cancellation_is_exact_before_or_after_deadline_transfer() {
     let mut deadlines = SubmissionDeadlines::new(2);
     assert_eq!(
-        deadlines.arm(batch(1), operation(10), deadline(20)),
+        deadlines.arm(execution(1), operation(10), deadline(20)),
         Ok(true)
     );
     assert_eq!(
-        deadlines.arm(batch(2), operation(20), deadline(30)),
+        deadlines.arm(execution(2), operation(20), deadline(30)),
         Ok(true)
     );
 
-    assert!(deadlines.cancel(batch(1)));
-    assert!(!deadlines.cancel(batch(1)));
+    assert!(deadlines.cancel(execution(1)));
+    assert!(!deadlines.cancel(execution(1)));
     assert!(deadlines.drain_due(Moment::from_tick(20), 1).is_empty());
     assert_eq!(deadlines.drain_due(Moment::from_tick(30), 1).len(), 1);
-    assert!(!deadlines.cancel(batch(2)));
+    assert!(!deadlines.cancel(execution(2)));
     assert!(deadlines.is_empty());
 }
 
@@ -118,7 +125,7 @@ fn cancellation_is_exact_before_or_after_deadline_transfer() {
 fn due_entry_constructs_the_exact_core_deadline_fact() {
     let mut deadlines = SubmissionDeadlines::new(1);
     assert_eq!(
-        deadlines.arm(batch(4), operation(44), deadline(12)),
+        deadlines.arm(execution(4), operation(44), deadline(12)),
         Ok(true)
     );
     let mut due = deadlines.drain_due(Moment::from_tick(15), 1);
@@ -140,7 +147,7 @@ fn bounded_drain_leaves_equal_deadlines_ready_in_batch_order() {
     let mut deadlines = SubmissionDeadlines::new(3);
     for value in [3, 1, 2] {
         assert_eq!(
-            deadlines.arm(batch(value), operation(value * 10), deadline(15)),
+            deadlines.arm(execution(value), operation(value * 10), deadline(15)),
             Ok(true)
         );
     }
@@ -154,4 +161,23 @@ fn bounded_drain_leaves_equal_deadlines_ready_in_batch_order() {
     assert_eq!(deadlines.len(), 1);
     assert_eq!(deadlines.next_deadline(), Some(deadline(15)));
     assert_eq!(deadlines.drain_due(Moment::from_tick(15), 1).len(), 1);
+}
+
+#[test]
+fn stale_deadline_cancellation_cannot_remove_current_execution() {
+    let mut deadlines = SubmissionDeadlines::new(1);
+    let current = execution(8);
+    let stale = BatchExecutionId::new(
+        current.batch_id(),
+        BatchExecutionGeneration::try_from_raw(2)
+            .unwrap_or_else(|| panic!("second generation must be valid")),
+    );
+    deadlines
+        .arm(current, operation(80), deadline(12))
+        .unwrap_or_else(|error| panic!("deadline arm failed: {error}"));
+
+    assert!(!deadlines.cancel(stale));
+    let due = deadlines.drain_due(Moment::from_tick(12), 1);
+    assert_eq!(due.len(), 1);
+    assert_eq!(due[0].execution(), current);
 }

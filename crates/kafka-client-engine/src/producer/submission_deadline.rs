@@ -6,7 +6,7 @@ use std::{
     fmt,
 };
 
-use kafka_client_core::{BatchId, Deadline, Moment, OperationId, ProducerInput};
+use kafka_client_core::{BatchExecutionId, BatchId, Deadline, Moment, OperationId, ProducerInput};
 
 /// Failure to retain a core-declared submission deadline.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -44,6 +44,7 @@ impl Error for SubmissionDeadlineError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct ActiveDeadline {
+    execution: BatchExecutionId,
     operation_id: OperationId,
     deadline: Deadline,
 }
@@ -51,13 +52,13 @@ struct ActiveDeadline {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 struct ScheduledDeadline {
     deadline: Deadline,
-    batch_id: BatchId,
+    execution: BatchExecutionId,
 }
 
 /// One elapsed pre-driver deadline fact ready for deterministic core policy.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct DueSubmissionDeadline {
-    batch_id: BatchId,
+    execution: BatchExecutionId,
     operation_id: OperationId,
     deadline: Deadline,
     observed_at: Moment,
@@ -66,7 +67,12 @@ pub(crate) struct DueSubmissionDeadline {
 impl DueSubmissionDeadline {
     /// Returns the batch that had not crossed driver ownership.
     pub(crate) const fn batch_id(self) -> BatchId {
-        self.batch_id
+        self.execution.batch_id()
+    }
+
+    /// Returns the exact execution that still awaited driver ownership.
+    pub(crate) const fn execution(self) -> BatchExecutionId {
+        self.execution
     }
 
     /// Returns the core-selected member owning the batch deadline.
@@ -117,14 +123,16 @@ impl SubmissionDeadlines {
     /// already active batch is an invariant error rather than a replacement.
     pub(crate) fn arm(
         &mut self,
-        batch_id: BatchId,
+        execution: BatchExecutionId,
         operation_id: OperationId,
         deadline: Deadline,
     ) -> Result<bool, SubmissionDeadlineError> {
         let candidate = ActiveDeadline {
+            execution,
             operation_id,
             deadline,
         };
+        let batch_id = execution.batch_id();
         if let Some(current) = self.active.get(&batch_id) {
             return if *current == candidate {
                 Ok(false)
@@ -138,21 +146,33 @@ impl SubmissionDeadlines {
             });
         }
         self.active.insert(batch_id, candidate);
-        self.schedule
-            .insert(ScheduledDeadline { deadline, batch_id });
+        self.schedule.insert(ScheduledDeadline {
+            deadline,
+            execution,
+        });
         Ok(true)
     }
 
     /// Cancels only the named batch after driver acceptance or core settlement.
-    pub(crate) fn cancel(&mut self, batch_id: BatchId) -> bool {
-        let Some(active) = self.active.remove(&batch_id) else {
+    pub(crate) fn cancel(&mut self, execution: BatchExecutionId) -> bool {
+        let batch_id = execution.batch_id();
+        let Some(active) = self.active.get(&batch_id).copied() else {
             return false;
         };
+        if active.execution != execution {
+            return false;
+        }
+        self.active.remove(&batch_id);
         self.schedule.remove(&ScheduledDeadline {
             deadline: active.deadline,
-            batch_id,
+            execution,
         });
         true
+    }
+
+    /// Returns the exact retained execution for cleanup preflight.
+    pub(crate) fn execution(&self, batch_id: BatchId) -> Option<BatchExecutionId> {
+        self.active.get(&batch_id).map(|entry| entry.execution)
     }
 
     /// Removes bounded due entries in `(Deadline, BatchId)` order.
@@ -166,12 +186,14 @@ impl SubmissionDeadlines {
                 break;
             }
             self.schedule.remove(&next);
-            let Some(active) = self.active.remove(&next.batch_id) else {
+            let batch_id = next.execution.batch_id();
+            let Some(active) = self.active.get(&batch_id).copied() else {
                 continue;
             };
-            if active.deadline == next.deadline {
+            if active.execution == next.execution && active.deadline == next.deadline {
+                self.active.remove(&batch_id);
                 due.push(DueSubmissionDeadline {
-                    batch_id: next.batch_id,
+                    execution: next.execution,
                     operation_id: active.operation_id,
                     deadline: active.deadline,
                     observed_at: now,

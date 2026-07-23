@@ -1,8 +1,9 @@
 //! Admission-to-batch coordination and deterministic seal effects.
 
 use crate::{
-    AcknowledgementPolicy, AdmissionRejection, BatchId, CompressionPolicy, Deadline,
-    ExplicitRecord, Moment, OperationId, ProducerEffect, ProducerMachineError, ProducerTransition,
+    AcknowledgementPolicy, AdmissionRejection, BatchExecutionGeneration, BatchExecutionId, BatchId,
+    CompressionPolicy, Deadline, ExplicitRecord, Moment, OperationId, ProducerEffect,
+    ProducerMachineError, ProducerTransition,
 };
 
 use super::{BatchRoute, BatchSeal, ProducerBatch, ProducerMachine};
@@ -130,6 +131,7 @@ impl ProducerMachine {
             members,
             route,
             timer_generation,
+            execution: BatchExecutionId::new(batch_id, BatchExecutionGeneration::initial()),
         })
     }
 
@@ -139,12 +141,13 @@ impl ProducerMachine {
             members,
             route,
             timer_generation,
+            execution,
         } = seal;
         self.commit_batch_ready(&members, batch_id);
         let batch = self.batches.get_mut(&batch_id);
         debug_assert!(batch.is_some());
         if let Some(batch) = batch {
-            batch.commit_seal();
+            batch.commit_seal(execution.generation());
         }
         self.open_batches.remove(&route);
         ProducerTransition::from_effects(vec![
@@ -153,7 +156,7 @@ impl ProducerMachine {
                 generation: timer_generation,
             },
             ProducerEffect::MaterializeBatch {
-                batch_id,
+                execution,
                 compression: CompressionPolicy::Uncompressed,
             },
         ])
@@ -161,8 +164,9 @@ impl ProducerMachine {
 
     pub(crate) fn submit_materialized(
         &mut self,
-        batch_id: BatchId,
+        execution: BatchExecutionId,
     ) -> Result<ProducerTransition, ProducerMachineError> {
+        let batch_id = execution.batch_id();
         let batch = self
             .batches
             .get(&batch_id)
@@ -181,7 +185,7 @@ impl ProducerMachine {
         batch.commit_materialized();
         Ok(ProducerTransition::from_effects(vec![
             ProducerEffect::SubmitProduce {
-                batch_id,
+                execution,
                 deadline_operation_id,
                 deadline,
                 topic_id: route.topic_id,

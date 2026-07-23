@@ -4,14 +4,18 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use kafka_client_core::{
-    AcknowledgementPolicy, BatchId, CompressionPolicy, Deadline, Moment, OperationId,
-    PartitionIndex, ProducerEffect, TopicId,
+    AcknowledgementPolicy, BatchExecutionGeneration, BatchExecutionId, BatchId, CompressionPolicy,
+    Deadline, Moment, OperationId, PartitionIndex, ProducerEffect, TopicId,
 };
 
 use super::{
     ProducerRecord, ProducerStore, ProducerStoreLimits,
     execution::{PreparedExecution, PreparedExecutionError, PreparedExecutionLimits},
 };
+
+const fn batch_execution(batch_id: BatchId) -> BatchExecutionId {
+    BatchExecutionId::new(batch_id, BatchExecutionGeneration::initial())
+}
 
 #[test]
 fn submission_requires_prepared_bytes_before_deadline_ownership() {
@@ -28,7 +32,9 @@ fn submission_requires_prepared_bytes_before_deadline_ownership() {
                 PartitionIndex::from_raw(7),
             ),
         ),
-        Err(PreparedExecutionError::MissingPreparedBatch(batch_id))
+        Err(PreparedExecutionError::MissingPreparedBatch(
+            batch_execution(batch_id)
+        ))
     );
     assert_eq!(execution.submission_count(), 0);
 }
@@ -57,7 +63,7 @@ fn submission_route_mismatches_do_not_arm_or_discard_prepared_bytes() {
     execution
         .materialize(
             &mut store,
-            batch_id,
+            batch_execution(batch_id),
             CompressionPolicy::Uncompressed,
             Moment::from_tick(1),
         )
@@ -97,7 +103,7 @@ const fn submission(
     partition: PartitionIndex,
 ) -> ProducerEffect {
     ProducerEffect::SubmitProduce {
-        batch_id,
+        execution: batch_execution(batch_id),
         deadline_operation_id: operation_id,
         deadline: Deadline::from_tick(20),
         topic_id,

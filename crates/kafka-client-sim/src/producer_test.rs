@@ -3,16 +3,20 @@
 use core::num::NonZeroI16;
 
 use kafka_client_core::{
-    AdmissionRejection, BatchId, ByteCount, Deadline, DeliveryStatus, ExplicitRecord, OperationId,
-    PartitionIndex, PayloadId, ProducerBatchSuccess, ProducerBrokerFailure,
-    ProducerBrokerFailureKind, ProducerCompletion, ProducerEffect, ProducerFailureKind,
-    ProducerInput, ProducerMachineError, TopicId,
+    AdmissionRejection, BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline,
+    DeliveryStatus, ExplicitRecord, OperationId, PartitionIndex, PayloadId, ProducerBatchSuccess,
+    ProducerBrokerFailure, ProducerBrokerFailureKind, ProducerCompletion, ProducerEffect,
+    ProducerFailureKind, ProducerInput, ProducerMachineError, TopicId,
 };
 
 use crate::{ProducerScenario, SimulationError};
 
 const PAYLOAD: PayloadId = PayloadId::from_raw(11);
 const BATCH: BatchId = BatchId::from_raw(1);
+
+fn execution() -> BatchExecutionId {
+    BatchExecutionId::new(BATCH, BatchExecutionGeneration::initial())
+}
 
 fn record(payload_id: PayloadId) -> ExplicitRecord {
     ExplicitRecord::new(
@@ -52,7 +56,7 @@ fn materialized(scenario: &mut ProducerScenario, operation_id: OperationId) {
         .unwrap_or_else(|error| panic!("accumulation failed: {error}"));
     scenario
         .step(ProducerInput::BatchMaterialized {
-            batch_id: BATCH,
+            execution: execution(),
             now: scenario.now(),
         })
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
@@ -72,7 +76,9 @@ fn success_releases_batch_and_payload_before_completion() {
         } if *deadline_operation_id == operation_id && *deadline == Deadline::from_tick(10)
     )));
     scenario
-        .step(ProducerInput::DriverAccepted { batch_id: BATCH })
+        .step(ProducerInput::DriverAccepted {
+            execution: execution(),
+        })
         .unwrap_or_else(|error| panic!("driver acceptance failed: {error}"));
     scenario
         .step(ProducerInput::BrokerSucceeded {
@@ -205,7 +211,9 @@ fn driver_and_broker_failure_stages_preserve_certainty() {
     let rejected_id = admit(&mut rejected, PAYLOAD);
     materialized(&mut rejected, rejected_id);
     rejected
-        .step(ProducerInput::DriverRejected { batch_id: BATCH })
+        .step(ProducerInput::DriverRejected {
+            execution: execution(),
+        })
         .unwrap_or_else(|error| panic!("driver rejection failed: {error}"));
     assert!(matches!(
         rejected.terminal_result(rejected_id),
@@ -217,7 +225,9 @@ fn driver_and_broker_failure_stages_preserve_certainty() {
     let uncertain_id = admit(&mut uncertain, PAYLOAD);
     materialized(&mut uncertain, uncertain_id);
     uncertain
-        .step(ProducerInput::DriverAccepted { batch_id: BATCH })
+        .step(ProducerInput::DriverAccepted {
+            execution: execution(),
+        })
         .unwrap_or_else(|error| panic!("driver acceptance failed: {error}"));
     uncertain
         .step(ProducerInput::BrokerFailed {
@@ -245,7 +255,9 @@ fn retained_terminal_backpressures_until_result_and_marker_reclaim() {
     let operation_id = admit(&mut scenario, PAYLOAD);
     materialized(&mut scenario, operation_id);
     scenario
-        .step(ProducerInput::DriverRejected { batch_id: BATCH })
+        .step(ProducerInput::DriverRejected {
+            execution: execution(),
+        })
         .unwrap_or_else(|error| panic!("driver rejection failed: {error}"));
 
     let second = PayloadId::from_raw(12);

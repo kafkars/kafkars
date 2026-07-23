@@ -3,11 +3,17 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use kafka_client_core::{BatchId, OperationId, PartitionIndex};
+use kafka_client_core::{
+    BatchExecutionGeneration, BatchExecutionId, BatchId, OperationId, PartitionIndex,
+};
 
 use crate::protocol::produce::materialize_explicit_produce_batch;
 
 use super::{ProducerRecord, ProducerStore, ProducerStoreLimits, record::ProducerHeader};
+
+fn execution() -> BatchExecutionId {
+    BatchExecutionId::new(BatchId::from_raw(1), BatchExecutionGeneration::initial())
+}
 
 #[test]
 fn ordered_records_null_empty_and_duplicate_headers_survive_transfer() {
@@ -31,8 +37,8 @@ fn ordered_records_null_empty_and_duplicate_headers_survive_transfer() {
         ),
         OperationId::from_raw(2),
     );
-    let batch = store
-        .materialization_view(BatchId::from_raw(1), 1_048_576)
+    let (attempt, batch) = store
+        .materialization_view(execution(), 1_048_576)
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
     let (topic, partition, records, limit) = batch.into_parts();
 
@@ -66,6 +72,10 @@ fn ordered_records_null_empty_and_duplicate_headers_survive_transfer() {
     assert!(headers[1].1.is_none());
     assert_eq!(headers[2].0, "traceparent");
     assert_eq!(headers[2].1.as_deref(), Some(&b""[..]));
+    assert!(matches!(
+        store.abort_materialization(attempt),
+        crate::producer::batch_store::MaterializationAbort::Restored
+    ));
 
     assert_eq!(store.release_batch(BatchId::from_raw(1)), Ok(()));
     assert_eq!(
@@ -101,8 +111,8 @@ fn member_removal_preserves_sibling_admission_order() {
         Ok(second.payload_id())
     );
 
-    let batch = store
-        .materialization_view(BatchId::from_raw(1), 1_024)
+    let (attempt, batch) = store
+        .materialization_view(execution(), 1_024)
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
     let records = batch.into_parts().2;
     let values = records
@@ -111,6 +121,10 @@ fn member_removal_preserves_sibling_admission_order() {
         .collect::<Vec<_>>();
     assert_eq!(values[0].as_deref(), Some(&b"a"[..]));
     assert_eq!(values[1].as_deref(), Some(&b"c"[..]));
+    assert!(matches!(
+        store.abort_materialization(attempt),
+        crate::producer::batch_store::MaterializationAbort::Restored
+    ));
 
     assert_eq!(store.release_batch(BatchId::from_raw(1)), Ok(()));
     for facts in [first, second, third] {
@@ -129,11 +143,15 @@ fn encoding_failure_keeps_accounting_until_ordered_release_effects() {
         record(10, None, Some(Bytes::from_static(b"payload")), Vec::new()),
         OperationId::from_raw(1),
     );
-    let input = store
-        .materialization_view(BatchId::from_raw(1), 1)
+    let (attempt, input) = store
+        .materialization_view(execution(), 1)
         .unwrap_or_else(|error| panic!("store transfer failed: {error}"));
 
     assert!(materialize_explicit_produce_batch(input).is_err());
+    assert!(matches!(
+        store.abort_materialization(attempt),
+        crate::producer::batch_store::MaterializationAbort::Restored
+    ));
     assert_eq!(store.stats().records, 1);
     assert_eq!(store.stats().batches, 1);
     assert_eq!(store.release_batch(BatchId::from_raw(1)), Ok(()));

@@ -3,11 +3,15 @@
 use core::num::NonZeroI16;
 
 use crate::{
-    BatchId, ByteCount, Deadline, DeliveryStatus, ExplicitRecord, Moment, OperationId,
-    PartitionIndex, PayloadId, ProducerBatchPolicy, ProducerBatchSuccess, ProducerBrokerFailure,
-    ProducerBrokerFailureKind, ProducerEffect, ProducerInput, ProducerMachine,
-    ProducerMachineError, TopicId, TransitionError,
+    BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline, DeliveryStatus,
+    ExplicitRecord, Moment, OperationId, PartitionIndex, PayloadId, ProducerBatchPolicy,
+    ProducerBatchSuccess, ProducerBrokerFailure, ProducerBrokerFailureKind, ProducerEffect,
+    ProducerInput, ProducerMachine, ProducerMachineError, TopicId, TransitionError,
 };
+
+fn execution(batch_id: BatchId) -> BatchExecutionId {
+    BatchExecutionId::new(batch_id, BatchExecutionGeneration::initial())
+}
 
 fn ready_batch() -> (ProducerMachine, OperationId, BatchId) {
     let mut producer = ProducerMachine::new(ByteCount::new(64), 1);
@@ -48,33 +52,41 @@ fn ready_batch() -> (ProducerMachine, OperationId, BatchId) {
 fn materialization_and_driver_rejections_are_stage_specific() {
     let (mut producer, _, batch_id) = ready_batch();
     assert_eq!(
-        producer.apply(ProducerInput::DriverRejected { batch_id }),
+        producer.apply(ProducerInput::DriverRejected {
+            execution: execution(batch_id),
+        }),
         Err(ProducerMachineError::Transition(
             TransitionError::InvalidState
         ))
     );
     assert!(
         producer
-            .apply(ProducerInput::BatchMaterializationFailed { batch_id })
+            .apply(ProducerInput::BatchMaterializationFailed {
+                execution: execution(batch_id),
+            })
             .is_ok()
     );
 
     let (mut producer, _, batch_id) = ready_batch();
     producer
         .apply(ProducerInput::BatchMaterialized {
-            batch_id,
+            execution: execution(batch_id),
             now: Moment::from_tick(1),
         })
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
     assert_eq!(
-        producer.apply(ProducerInput::BatchMaterializationFailed { batch_id }),
+        producer.apply(ProducerInput::BatchMaterializationFailed {
+            execution: execution(batch_id),
+        }),
         Err(ProducerMachineError::Transition(
             TransitionError::InvalidState
         ))
     );
     assert!(
         producer
-            .apply(ProducerInput::DriverRejected { batch_id })
+            .apply(ProducerInput::DriverRejected {
+                execution: execution(batch_id),
+            })
             .is_ok()
     );
 }
@@ -84,7 +96,7 @@ fn broker_outcome_requires_driver_ownership() {
     let (mut producer, _, batch_id) = ready_batch();
     producer
         .apply(ProducerInput::BatchMaterialized {
-            batch_id,
+            execution: execution(batch_id),
             now: Moment::from_tick(1),
         })
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
@@ -99,7 +111,9 @@ fn broker_outcome_requires_driver_ownership() {
         ))
     );
     producer
-        .apply(ProducerInput::DriverAccepted { batch_id })
+        .apply(ProducerInput::DriverAccepted {
+            execution: execution(batch_id),
+        })
         .unwrap_or_else(|error| panic!("driver acceptance failed: {error}"));
     assert!(
         producer
@@ -123,12 +137,14 @@ fn transport_failure_is_distinct_from_broker_error() {
     let (mut producer, _, batch_id) = ready_batch();
     producer
         .apply(ProducerInput::BatchMaterialized {
-            batch_id,
+            execution: execution(batch_id),
             now: Moment::from_tick(1),
         })
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
     producer
-        .apply(ProducerInput::DriverAccepted { batch_id })
+        .apply(ProducerInput::DriverAccepted {
+            execution: execution(batch_id),
+        })
         .unwrap_or_else(|error| panic!("driver acceptance failed: {error}"));
     let terminal = producer
         .apply(ProducerInput::TransportFailed {
@@ -151,12 +167,14 @@ fn queued_deadline_fact_is_harmless_after_driver_or_terminal_ownership() {
     let (mut producer, operation_id, batch_id) = ready_batch();
     producer
         .apply(ProducerInput::BatchMaterialized {
-            batch_id,
+            execution: execution(batch_id),
             now: Moment::from_tick(1),
         })
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
     producer
-        .apply(ProducerInput::DriverAccepted { batch_id })
+        .apply(ProducerInput::DriverAccepted {
+            execution: execution(batch_id),
+        })
         .unwrap_or_else(|error| panic!("driver acceptance failed: {error}"));
     let queued = producer
         .apply(ProducerInput::DeadlineElapsed {
@@ -240,7 +258,7 @@ fn older_batch_failure_preserves_the_newer_open_route() {
     assert_ne!(newer_batch, older_batch);
     producer
         .apply(ProducerInput::BatchMaterializationFailed {
-            batch_id: *older_batch,
+            execution: execution(*older_batch),
         })
         .unwrap_or_else(|error| panic!("older batch failure failed: {error}"));
 

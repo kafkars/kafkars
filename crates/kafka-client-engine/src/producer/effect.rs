@@ -216,12 +216,12 @@ impl ProducerHost {
             !matches!(
                 effect,
                 ProducerEffect::MaterializeBatch {
-                    batch_id: pending,
+                    execution,
                     ..
                 } | ProducerEffect::SubmitProduce {
-                    batch_id: pending,
+                    execution,
                     ..
-                } if *pending == batch_id
+                } if execution.batch_id() == batch_id
             )
         });
     }

@@ -1,7 +1,8 @@
 //! Sole mutation owner for producer batch membership and readiness.
 
 use crate::{
-    BatchTimerGeneration, ByteCount, Deadline, OperationId, ProducerMachineError, TransitionError,
+    BatchExecutionGeneration, BatchTimerGeneration, ByteCount, Deadline, OperationId,
+    ProducerMachineError, TransitionError,
 };
 
 use super::{BatchAccumulation, BatchMember, BatchRemoval, BatchState, ProducerBatch};
@@ -166,7 +167,8 @@ impl ProducerBatch {
         Ok(self.timer_generation)
     }
 
-    pub(crate) fn commit_seal(&mut self) {
+    pub(crate) fn commit_seal(&mut self, generation: BatchExecutionGeneration) {
+        self.execution_generation = Some(generation);
         self.state = BatchState::Materializing;
     }
 

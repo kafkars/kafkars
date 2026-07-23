@@ -29,3 +29,5 @@ mod execution_stop_test;
 mod flush_test;
 #[cfg(test)]
 mod flush_transition_test;
+#[cfg(test)]
+mod input_outcome_test;

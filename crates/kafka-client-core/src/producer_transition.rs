@@ -30,14 +30,14 @@ impl ProducerMachine {
                 generation,
                 now,
             } => self.batch_timer_fired(batch_id, generation, now),
-            ProducerInput::BatchMaterialized { batch_id, now } => {
-                self.batch_materialized(batch_id, now)
+            ProducerInput::BatchMaterialized { execution, now } => {
+                self.batch_materialized(execution, now)
             }
-            ProducerInput::BatchMaterializationFailed { batch_id } => {
-                self.materialization_failed(batch_id)
+            ProducerInput::BatchMaterializationFailed { execution } => {
+                self.materialization_failed(execution)
             }
-            ProducerInput::DriverAccepted { batch_id } => self.driver_accepted(batch_id),
-            ProducerInput::DriverRejected { batch_id } => self.driver_rejected(batch_id),
+            ProducerInput::DriverAccepted { execution } => self.driver_accepted(execution),
+            ProducerInput::DriverRejected { execution } => self.driver_rejected(execution),
             ProducerInput::BrokerSucceeded { batch_id, success } => {
                 self.broker_succeeded(batch_id, success)
             }

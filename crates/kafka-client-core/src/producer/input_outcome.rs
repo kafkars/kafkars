@@ -1,9 +1,9 @@
 //! Materialization, driver, broker, and deadline outcome handling.
 
 use crate::{
-    BatchId, DeliveryStatus, Moment, OperationId, ProducerBatchSuccess, ProducerBrokerFailure,
-    ProducerFailure, ProducerMachineError, ProducerOperationState, ProducerTransition,
-    TransitionError,
+    BatchExecutionId, BatchId, DeliveryStatus, Moment, OperationId, ProducerBatchSuccess,
+    ProducerBrokerFailure, ProducerFailure, ProducerMachineError, ProducerOperationState,
+    ProducerTransition, TransitionError,
 };
 
 use super::{BatchState, ProducerMachine};
@@ -11,9 +11,13 @@ use super::{BatchState, ProducerMachine};
 impl ProducerMachine {
     pub(crate) fn batch_materialized(
         &mut self,
-        batch_id: BatchId,
+        execution: BatchExecutionId,
         now: Moment,
     ) -> Result<ProducerTransition, ProducerMachineError> {
+        if !self.execution_is_current(execution) {
+            return Ok(ProducerTransition::none());
+        }
+        let batch_id = execution.batch_id();
         self.require_batch_state(batch_id, BatchState::Materializing)?;
         let batch = self
             .batches
@@ -25,21 +29,33 @@ impl ProducerMachine {
         if deadline.is_elapsed_at(now) {
             return self.settle_batch_failed(batch_id, ProducerFailure::deadline_elapsed());
         }
-        self.submit_materialized(batch_id)
+        self.submit_materialized(execution)
     }
 
     pub(crate) fn materialization_failed(
         &mut self,
-        batch_id: BatchId,
+        execution: BatchExecutionId,
     ) -> Result<ProducerTransition, ProducerMachineError> {
+        if !self.execution_is_current(execution) {
+            return Ok(ProducerTransition::none());
+        }
+        let batch_id = execution.batch_id();
         self.require_batch_state(batch_id, BatchState::Materializing)?;
         self.settle_batch_failed(batch_id, ProducerFailure::materialization_failed())
     }
 
     pub(crate) fn driver_accepted(
         &mut self,
-        batch_id: BatchId,
+        execution: BatchExecutionId,
     ) -> Result<ProducerTransition, ProducerMachineError> {
+        let current = self.current_execution(execution.batch_id());
+        if current != Some(execution) {
+            return Err(ProducerMachineError::StaleDriverAcceptance {
+                reported: execution,
+                current,
+            });
+        }
+        let batch_id = execution.batch_id();
         self.require_batch_state(batch_id, BatchState::AwaitingDriver)?;
         let members = self
             .batches
@@ -57,8 +73,12 @@ impl ProducerMachine {
 
     pub(crate) fn driver_rejected(
         &mut self,
-        batch_id: BatchId,
+        execution: BatchExecutionId,
     ) -> Result<ProducerTransition, ProducerMachineError> {
+        if !self.execution_is_current(execution) {
+            return Ok(ProducerTransition::none());
+        }
+        let batch_id = execution.batch_id();
         self.require_batch_state(batch_id, BatchState::AwaitingDriver)?;
         self.settle_batch_failed(batch_id, ProducerFailure::driver_rejected())
     }
@@ -154,5 +174,15 @@ impl ProducerMachine {
                 TransitionError::InvalidState,
             ))
         }
+    }
+
+    fn current_execution(&self, batch_id: BatchId) -> Option<BatchExecutionId> {
+        self.batches
+            .get(&batch_id)
+            .and_then(|batch| batch.execution_id(batch_id))
+    }
+
+    fn execution_is_current(&self, execution: BatchExecutionId) -> bool {
+        self.current_execution(execution.batch_id()) == Some(execution)
     }
 }

@@ -64,6 +64,10 @@ impl TerminalQuarantine {
     }
 
     /// Transfers the poison slot's refused exact terminal into bounded evidence.
+    #[allow(
+        clippy::result_large_err,
+        reason = "fatal-path refusal returns the exact terminal inline without a fallible allocation"
+    )]
     pub(in crate::producer) fn retain_terminal(
         &mut self,
         failure: PoisonRetentionFailure,

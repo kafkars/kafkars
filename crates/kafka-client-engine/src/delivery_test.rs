@@ -1,15 +1,19 @@
 //! Producer metadata and certainty translation scenarios at the engine boundary.
 
 use kafka_client_core::{
-    ByteCount, Deadline, DeliveryStatus, ExplicitRecord, Moment, PartitionIndex, PayloadId,
-    ProducerBatchSuccess, ProducerCompletion, ProducerEffect, ProducerInput, ProducerMachine,
-    ProducerTransition, TopicId,
+    BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline, DeliveryStatus,
+    ExplicitRecord, Moment, PartitionIndex, PayloadId, ProducerBatchSuccess, ProducerCompletion,
+    ProducerEffect, ProducerInput, ProducerMachine, ProducerTransition, TopicId,
 };
 
 use crate::{
     ProducerDeliveryError, ProducerDeliveryFailureKind, ProducerDeliveryObserver,
     ProducerDeliveryResult, ProducerDeliveryStatus, completion::CompletionRegistry,
 };
+
+fn execution(batch_id: BatchId) -> BatchExecutionId {
+    BatchExecutionId::new(batch_id, BatchExecutionGeneration::initial())
+}
 
 #[test]
 fn delivered_metadata_translates_without_core_types() {
@@ -62,11 +66,16 @@ pub(super) fn delivered_completion() -> ProducerCompletion {
     apply(
         &mut machine,
         ProducerInput::BatchMaterialized {
-            batch_id,
+            execution: execution(batch_id),
             now: Moment::from_tick(2),
         },
     );
-    apply(&mut machine, ProducerInput::DriverAccepted { batch_id });
+    apply(
+        &mut machine,
+        ProducerInput::DriverAccepted {
+            execution: execution(batch_id),
+        },
+    );
     terminal(
         &mut machine,
         ProducerInput::BrokerSucceeded {
@@ -80,7 +89,9 @@ fn not_sent_completion() -> ProducerCompletion {
     let (mut machine, batch_id) = materializing_machine();
     terminal(
         &mut machine,
-        ProducerInput::BatchMaterializationFailed { batch_id },
+        ProducerInput::BatchMaterializationFailed {
+            execution: execution(batch_id),
+        },
     )
 }
 
@@ -89,11 +100,16 @@ fn possibly_sent_completion() -> ProducerCompletion {
     apply(
         &mut machine,
         ProducerInput::BatchMaterialized {
-            batch_id,
+            execution: execution(batch_id),
             now: Moment::from_tick(2),
         },
     );
-    apply(&mut machine, ProducerInput::DriverAccepted { batch_id });
+    apply(
+        &mut machine,
+        ProducerInput::DriverAccepted {
+            execution: execution(batch_id),
+        },
+    );
     terminal(
         &mut machine,
         ProducerInput::TransportFailed {

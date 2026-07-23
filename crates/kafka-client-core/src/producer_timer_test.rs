@@ -1,10 +1,15 @@
 //! Scenarios for earliest-member deadlines and stale batch timer facts.
 
 use crate::{
-    BatchId, BatchTimerGeneration, ByteCount, Deadline, ExplicitRecord, Moment, OperationId,
-    PartitionIndex, PayloadId, ProducerBatchPolicy, ProducerCompletion, ProducerEffect,
-    ProducerFailureKind, ProducerInput, ProducerMachine, TopicId,
+    BatchExecutionGeneration, BatchExecutionId, BatchId, BatchTimerGeneration, ByteCount, Deadline,
+    ExplicitRecord, Moment, OperationId, PartitionIndex, PayloadId, ProducerBatchPolicy,
+    ProducerCompletion, ProducerEffect, ProducerFailureKind, ProducerInput, ProducerMachine,
+    TopicId,
 };
+
+fn execution(batch_id: BatchId) -> BatchExecutionId {
+    BatchExecutionId::new(batch_id, BatchExecutionGeneration::initial())
+}
 
 fn record(payload: u64) -> ExplicitRecord {
     ExplicitRecord::new(
@@ -118,7 +123,9 @@ fn earlier_deadline_rearms_timer_and_stale_facts_are_harmless() {
         })
         .unwrap_or_else(|error| panic!("linger timer failed: {error}"));
     producer
-        .apply(ProducerInput::BatchMaterializationFailed { batch_id })
+        .apply(ProducerInput::BatchMaterializationFailed {
+            execution: execution(batch_id),
+        })
         .unwrap_or_else(|error| panic!("materialization failure failed: {error}"));
     let removed = producer
         .apply(ProducerInput::BatchTimerFired {

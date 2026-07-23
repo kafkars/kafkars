@@ -65,16 +65,22 @@ fn accepted_delivery(
     timeout: Duration,
 ) -> super::producer_delivery::ProducerDelivery {
     let producer = ProducerEngine::new(engine.producer(), timeout);
-    let result = producer.try_send(
-        Record::to("orders")
-            .partition(0)
-            .key("order-42")
-            .value("created"),
-    );
-    let Ok(delivery) = result else {
-        panic!("one valid explicit-partition record should be admitted")
-    };
-    delivery
+    let mut pending = Record::to("orders")
+        .partition(0)
+        .key("order-42")
+        .value("created");
+    for _attempt in 0..1_000 {
+        match producer.try_send(pending) {
+            Ok(delivery) => return delivery,
+            Err(rejection) => {
+                let (record, error) = rejection.into_parts();
+                assert_eq!(error.kind(), ErrorKind::Backpressure);
+                pending = record;
+                std::hint::spin_loop();
+            }
+        }
+    }
+    panic!("one valid explicit-partition record should be admitted")
 }
 
 fn start_engine() -> Engine {

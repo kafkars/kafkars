@@ -41,6 +41,8 @@ pub(crate) enum ProducerStoreError {
     EmptyBatch,
     /// A batch was already taken for materialization.
     BatchAlreadyMaterialized,
+    /// A mechanism named a non-current sealed-batch execution.
+    StaleBatchExecution,
     /// The explicit partition cannot be represented by the Kafka protocol.
     PartitionOutOfRange,
     /// The release byte count disagrees with the originally retained count.
@@ -71,6 +73,7 @@ impl fmt::Display for ProducerStoreError {
             Self::BatchRouteMismatch => "producer batch contains inconsistent routes",
             Self::EmptyBatch => "producer batch has no records",
             Self::BatchAlreadyMaterialized => "producer batch was already materialized",
+            Self::StaleBatchExecution => "producer batch execution identity is stale",
             Self::PartitionOutOfRange => "producer partition exceeds the Kafka protocol range",
             Self::RetainedSizeMismatch => "producer release byte count does not match admission",
             Self::PayloadStillBatched => "producer payload still belongs to a batch",

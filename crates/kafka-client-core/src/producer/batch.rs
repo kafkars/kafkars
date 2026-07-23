@@ -1,8 +1,8 @@
 //! Producer-owned topic-partition batch membership and timer state.
 
 use crate::{
-    BatchTimerGeneration, ByteCount, Deadline, Moment, OperationId, PartitionIndex,
-    ProducerBatchPolicy, TopicId,
+    BatchExecutionGeneration, BatchExecutionId, BatchTimerGeneration, ByteCount, Deadline, Moment,
+    OperationId, PartitionIndex, ProducerBatchPolicy, TopicId,
 };
 
 /// Topic-partition identity for one accumulator.
@@ -40,6 +40,7 @@ pub(crate) struct ProducerBatch {
     pub(crate) linger_elapsed: bool,
     pub(crate) accumulator_bytes: ByteCount,
     pub(crate) members: Vec<BatchMember>,
+    pub(crate) execution_generation: Option<BatchExecutionGeneration>,
     pub(crate) state: BatchState,
 }
 
@@ -74,6 +75,7 @@ pub(crate) struct BatchSeal {
     pub(crate) members: Vec<OperationId>,
     pub(crate) route: BatchRoute,
     pub(crate) timer_generation: BatchTimerGeneration,
+    pub(crate) execution: BatchExecutionId,
 }
 
 impl ProducerBatch {
@@ -98,6 +100,7 @@ impl ProducerBatch {
                 deadline,
                 accumulator_bytes: None,
             }],
+            execution_generation: None,
             state: BatchState::Open,
         })
     }
@@ -139,5 +142,10 @@ impl ProducerBatch {
         self.members
             .iter()
             .all(|member| member.accumulator_bytes.is_some())
+    }
+
+    pub(crate) fn execution_id(&self, batch_id: crate::BatchId) -> Option<BatchExecutionId> {
+        self.execution_generation
+            .map(|generation| BatchExecutionId::new(batch_id, generation))
     }
 }

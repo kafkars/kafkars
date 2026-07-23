@@ -1,8 +1,8 @@
 //! Deterministic facts accepted by the explicit-partition producer machine.
 
 use crate::{
-    BatchId, BatchTimerGeneration, ByteCount, Deadline, DeliveryStatus, ExplicitRecord, Moment,
-    OperationId, ProducerBatchSuccess, ProducerBrokerFailure,
+    BatchExecutionId, BatchId, BatchTimerGeneration, ByteCount, Deadline, DeliveryStatus,
+    ExplicitRecord, Moment, OperationId, ProducerBatchSuccess, ProducerBrokerFailure,
 };
 
 /// One external fact applied at a time to producer policy.
@@ -39,25 +39,25 @@ pub enum ProducerInput {
     },
     /// Reports successful wire-records materialization before driver ownership.
     BatchMaterialized {
-        /// Batch whose bytes are ready for a Produce request.
-        batch_id: BatchId,
+        /// Exact membership snapshot whose bytes are ready.
+        execution: BatchExecutionId,
         /// Current monotonic observation before submission.
         now: Moment,
     },
     /// Reports semantic materialization failure before driver ownership.
     BatchMaterializationFailed {
-        /// Batch that could not be materialized.
-        batch_id: BatchId,
+        /// Exact membership snapshot that could not be materialized.
+        execution: BatchExecutionId,
     },
     /// Reports that the driver accepted ownership of the batch request.
     DriverAccepted {
-        /// Correlated core batch identity.
-        batch_id: BatchId,
+        /// Exact membership snapshot accepted by transport.
+        execution: BatchExecutionId,
     },
     /// Reports definite rejection before the driver accepted ownership.
     DriverRejected {
-        /// Correlated core batch identity.
-        batch_id: BatchId,
+        /// Exact membership snapshot rejected before transport.
+        execution: BatchExecutionId,
     },
     /// Reports semantic broker success after driver ownership.
     BrokerSucceeded {

@@ -1,8 +1,12 @@
 //! Fixed-capacity ownership of encoded Produce requests before driver transfer.
 
+mod release;
+#[cfg(test)]
+mod release_test;
+
 use std::{collections::BTreeMap, error::Error, fmt};
 
-use kafka_client_core::BatchId;
+use kafka_client_core::{BatchExecutionId, BatchId};
 
 use crate::protocol::produce::MaterializedProduce;
 
@@ -17,6 +21,8 @@ pub(crate) enum PreparedProduceError {
     EncodedByteOverflow,
     /// The logical batch already owns a prepared request.
     DuplicateBatch,
+    /// The logical batch owns bytes from a different execution generation.
+    ExecutionMismatch,
     /// The logical batch is unknown, already taken, or already released.
     UnknownBatch,
 }
@@ -28,6 +34,7 @@ impl fmt::Display for PreparedProduceError {
             Self::EncodedByteCapacity => "prepared Produce encoded-byte capacity is full",
             Self::EncodedByteOverflow => "prepared Produce encoded-byte accounting overflowed",
             Self::DuplicateBatch => "batch already owns a prepared Produce request",
+            Self::ExecutionMismatch => "prepared Produce execution identity is stale",
             Self::UnknownBatch => "prepared Produce batch identity is stale",
         })
     }
@@ -81,7 +88,13 @@ pub(crate) struct PreparedProduceStore {
     batch_capacity: usize,
     encoded_byte_capacity: usize,
     retained_bytes: usize,
-    batches: BTreeMap<BatchId, MaterializedProduce>,
+    batches: BTreeMap<BatchId, PreparedBatch>,
+}
+
+#[derive(Debug)]
+struct PreparedBatch {
+    execution: BatchExecutionId,
+    value: MaterializedProduce,
 }
 
 impl PreparedProduceStore {
@@ -102,14 +115,17 @@ impl PreparedProduceStore {
     )]
     pub(crate) fn insert(
         &mut self,
-        batch_id: BatchId,
+        execution: BatchExecutionId,
         value: MaterializedProduce,
     ) -> Result<(), PreparedInsertError> {
-        if self.batches.contains_key(&batch_id) {
-            return Err(PreparedInsertError::new(
-                PreparedProduceError::DuplicateBatch,
-                value,
-            ));
+        let batch_id = execution.batch_id();
+        if let Some(current) = self.batches.get(&batch_id) {
+            let reason = if current.execution == execution {
+                PreparedProduceError::DuplicateBatch
+            } else {
+                PreparedProduceError::ExecutionMismatch
+            };
+            return Err(PreparedInsertError::new(reason, value));
         }
         if self.batches.len() >= self.batch_capacity {
             return Err(PreparedInsertError::new(
@@ -130,43 +146,17 @@ impl PreparedProduceStore {
                 value,
             ));
         }
-        self.batches.insert(batch_id, value);
+        self.batches
+            .insert(batch_id, PreparedBatch { execution, value });
         self.retained_bytes = next_bytes;
         Ok(())
     }
 
-    /// Transfers one request and its accounting out to the synchronous host.
-    ///
-    /// The caller becomes the sole owner and must immediately submit or drop the
-    /// request. No lease remains in this store, so a later `release` for the same
-    /// batch is an explicit `UnknownBatch` error rather than a second decrement.
-    pub(crate) fn take(
-        &mut self,
-        batch_id: BatchId,
-    ) -> Result<MaterializedProduce, PreparedProduceError> {
-        self.remove(batch_id)
-    }
-
-    /// Drops one retained request and releases its accounting exactly once.
-    pub(crate) fn release(&mut self, batch_id: BatchId) -> Result<usize, PreparedProduceError> {
-        let value = self.remove(batch_id)?;
-        Ok(value.retained_record_bytes())
-    }
-
-    /// Drops a retained request when present without weakening exact `release`.
-    pub(crate) fn release_if_present(
-        &mut self,
-        batch_id: BatchId,
-    ) -> Result<Option<usize>, PreparedProduceError> {
-        if !self.batches.contains_key(&batch_id) {
-            return Ok(None);
-        }
-        self.release(batch_id).map(Some)
-    }
-
     /// Returns whether this store is the encoded-byte owner for a batch.
-    pub(crate) fn contains(&self, batch_id: BatchId) -> bool {
-        self.batches.contains_key(&batch_id)
+    pub(crate) fn contains(&self, execution: BatchExecutionId) -> bool {
+        self.batches
+            .get(&execution.batch_id())
+            .is_some_and(|entry| entry.execution == execution)
     }
 
     /// Returns current count and byte ownership.
@@ -181,23 +171,5 @@ impl PreparedProduceStore {
     pub(crate) fn clear_terminal(&mut self) {
         self.batches.clear();
         self.retained_bytes = 0;
-    }
-
-    fn remove(&mut self, batch_id: BatchId) -> Result<MaterializedProduce, PreparedProduceError> {
-        let value = self
-            .batches
-            .get(&batch_id)
-            .ok_or(PreparedProduceError::UnknownBatch)?;
-        let bytes = value.retained_record_bytes();
-        let next_bytes = self
-            .retained_bytes
-            .checked_sub(bytes)
-            .ok_or(PreparedProduceError::EncodedByteOverflow)?;
-        let value = self
-            .batches
-            .remove(&batch_id)
-            .ok_or(PreparedProduceError::UnknownBatch)?;
-        self.retained_bytes = next_bytes;
-        Ok(value)
     }
 }

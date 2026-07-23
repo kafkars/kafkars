@@ -3,15 +3,20 @@
 use core::num::NonZeroI16;
 
 use crate::{
-    AcknowledgementPolicy, BatchId, BatchTimerGeneration, ByteCount, CompressionPolicy, Deadline,
-    DeliveryStatus, ExplicitRecord, Moment, OperationId, PartitionIndex, PayloadId,
-    ProducerBatchPolicy, ProducerBatchSuccess, ProducerBrokerFailure, ProducerBrokerFailureKind,
-    ProducerCompletion, ProducerEffect, ProducerFailureKind, ProducerInput, ProducerMachine,
-    ProducerTransition, RecordMetadata, TopicId,
+    AcknowledgementPolicy, BatchExecutionGeneration, BatchExecutionId, BatchId,
+    BatchTimerGeneration, ByteCount, CompressionPolicy, Deadline, DeliveryStatus, ExplicitRecord,
+    Moment, OperationId, PartitionIndex, PayloadId, ProducerBatchPolicy, ProducerBatchSuccess,
+    ProducerBrokerFailure, ProducerBrokerFailureKind, ProducerCompletion, ProducerEffect,
+    ProducerFailureKind, ProducerInput, ProducerMachine, ProducerTransition, RecordMetadata,
+    TopicId,
 };
 
 const TOPIC: TopicId = TopicId::from_raw(9);
 const PARTITION: PartitionIndex = PartitionIndex::from_raw(2);
+
+fn execution(batch_id: BatchId) -> BatchExecutionId {
+    BatchExecutionId::new(batch_id, BatchExecutionGeneration::initial())
+}
 
 fn record(payload: u64) -> ExplicitRecord {
     ExplicitRecord::new(
@@ -74,7 +79,7 @@ fn accumulated(
 fn materialized(producer: &mut ProducerMachine, batch_id: BatchId) -> Vec<ProducerEffect> {
     producer
         .apply(ProducerInput::BatchMaterialized {
-            batch_id,
+            execution: execution(batch_id),
             now: Moment::from_tick(1),
         })
         .unwrap_or_else(|error| panic!("materialization failed: {error}"))
@@ -110,7 +115,7 @@ fn count_ready_batch_fans_success_out_in_membership_order() {
                 generation: BatchTimerGeneration::from_raw(1),
             },
             ProducerEffect::MaterializeBatch {
-                batch_id,
+                execution: execution(batch_id),
                 compression: CompressionPolicy::Uncompressed,
             },
         ]
@@ -127,7 +132,7 @@ fn count_ready_batch_fans_success_out_in_membership_order() {
     assert_eq!(
         materialized(&mut producer, batch_id),
         vec![ProducerEffect::SubmitProduce {
-            batch_id,
+            execution: execution(batch_id),
             deadline_operation_id: first,
             deadline: Deadline::from_tick(100),
             topic_id: TOPIC,
@@ -137,7 +142,9 @@ fn count_ready_batch_fans_success_out_in_membership_order() {
     );
     assert!(
         producer
-            .apply(ProducerInput::DriverAccepted { batch_id })
+            .apply(ProducerInput::DriverAccepted {
+                execution: execution(batch_id),
+            })
             .is_ok()
     );
     let terminal = producer
@@ -197,7 +204,7 @@ fn conservative_accumulator_size_threshold_is_core_owned() {
                 generation: BatchTimerGeneration::from_raw(1),
             },
             ProducerEffect::MaterializeBatch {
-                batch_id,
+                execution: execution(batch_id),
                 compression: CompressionPolicy::Uncompressed,
             },
         ]
@@ -211,12 +218,14 @@ fn broker_failure_preserves_semantic_code_and_certainty() {
     accumulated(&mut producer, operation_id, batch_id, 20);
     producer
         .apply(ProducerInput::BatchMaterialized {
-            batch_id,
+            execution: execution(batch_id),
             now: Moment::from_tick(1),
         })
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
     producer
-        .apply(ProducerInput::DriverAccepted { batch_id })
+        .apply(ProducerInput::DriverAccepted {
+            execution: execution(batch_id),
+        })
         .unwrap_or_else(|error| panic!("driver acceptance failed: {error}"));
     let terminal = producer
         .apply(ProducerInput::BrokerFailed {

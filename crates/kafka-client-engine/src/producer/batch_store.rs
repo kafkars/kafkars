@@ -1,10 +1,17 @@
 //! Sole owner of ordered operation-to-payload batch membership.
 
+mod execution;
+#[cfg(test)]
+mod execution_test;
+
 use std::collections::BTreeMap;
 
-use kafka_client_core::{BatchId, OperationId, PartitionIndex, PayloadId, TopicId};
+use kafka_client_core::{
+    BatchExecutionId, BatchId, OperationId, PartitionIndex, PayloadId, TopicId,
+};
 
 use super::ProducerStoreError;
+pub(in crate::producer) use execution::{MaterializationAbort, MaterializationAttempt};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct BatchRoute {
@@ -20,9 +27,10 @@ pub(super) struct BatchMember {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum BatchState {
-    Accumulating,
-    Materializing,
-    Materialized,
+    Open,
+    ReadyForMaterialization(BatchExecutionId),
+    Materializing(BatchExecutionId),
+    Materialized(BatchExecutionId),
 }
 
 #[derive(Debug)]
@@ -36,20 +44,11 @@ impl BatchAccumulator {
     fn remove(&mut self, index: usize) -> BatchMember {
         self.members.remove(index)
     }
-
-    fn finish_materialization(&mut self) {
-        self.state = BatchState::Materialized;
-    }
-
-    fn cancel_materialization(&mut self) {
-        self.state = BatchState::Accumulating;
-    }
 }
 
 /// Pure materialization preflight, consumed by the store coordinator.
 #[derive(Debug)]
 pub(super) struct BatchPlan {
-    pub(super) batch_id: BatchId,
     pub(super) route: BatchRoute,
     pub(super) members: Vec<BatchMember>,
 }
@@ -90,7 +89,7 @@ impl BatchStore {
             return Err(ProducerStoreError::BatchCapacity);
         }
         if let Some(batch) = self.batches.get(&batch_id) {
-            if batch.state != BatchState::Accumulating {
+            if batch.state != BatchState::Open {
                 return Err(ProducerStoreError::BatchAlreadyMaterialized);
             }
             if batch.route != route {
@@ -105,7 +104,7 @@ impl BatchStore {
             .entry(batch_id)
             .or_insert_with(|| BatchAccumulator {
                 route,
-                state: BatchState::Accumulating,
+                state: BatchState::Open,
                 members: Vec::new(),
             })
             .members
@@ -127,7 +126,7 @@ impl BatchStore {
             .batches
             .get_mut(&batch_id)
             .ok_or(ProducerStoreError::UnknownBatch)?;
-        if batch.state != BatchState::Accumulating {
+        if batch.state != BatchState::Open {
             return Err(ProducerStoreError::BatchAlreadyMaterialized);
         }
         let Some(index) = batch
@@ -146,62 +145,6 @@ impl BatchStore {
         Ok(member.payload_id)
     }
 
-    pub(super) fn plan(&self, batch_id: BatchId) -> Result<BatchPlan, ProducerStoreError> {
-        let batch = self
-            .batches
-            .get(&batch_id)
-            .ok_or(ProducerStoreError::UnknownBatch)?;
-        if batch.state != BatchState::Accumulating {
-            return Err(ProducerStoreError::BatchAlreadyMaterialized);
-        }
-        if batch.members.is_empty() {
-            return Err(ProducerStoreError::EmptyBatch);
-        }
-        Ok(BatchPlan {
-            batch_id,
-            route: batch.route,
-            members: batch.members.clone(),
-        })
-    }
-
-    pub(super) fn begin_materialization(
-        &mut self,
-        batch_id: BatchId,
-    ) -> Result<(), ProducerStoreError> {
-        let batch = self
-            .batches
-            .get_mut(&batch_id)
-            .ok_or(ProducerStoreError::UnknownBatch)?;
-        if batch.state != BatchState::Accumulating {
-            return Err(ProducerStoreError::BatchAlreadyMaterialized);
-        }
-        batch.state = BatchState::Materializing;
-        Ok(())
-    }
-
-    pub(super) fn finish_materialization(
-        &mut self,
-        batch_id: BatchId,
-    ) -> Result<(), ProducerStoreError> {
-        let batch = self
-            .batches
-            .get_mut(&batch_id)
-            .ok_or(ProducerStoreError::UnknownBatch)?;
-        if batch.state != BatchState::Materializing {
-            return Err(ProducerStoreError::BatchAlreadyMaterialized);
-        }
-        batch.finish_materialization();
-        Ok(())
-    }
-
-    pub(super) fn cancel_materialization(&mut self, batch_id: BatchId) {
-        if let Some(batch) = self.batches.get_mut(&batch_id)
-            && batch.state == BatchState::Materializing
-        {
-            batch.cancel_materialization();
-        }
-    }
-
     pub(super) fn release(
         &mut self,
         batch_id: BatchId,
@@ -218,13 +161,6 @@ impl BatchStore {
 
     pub(super) fn contains_payload(&self, payload_id: PayloadId) -> bool {
         self.payloads.contains_key(&payload_id)
-    }
-
-    pub(super) fn route(&self, batch_id: BatchId) -> Result<BatchRoute, ProducerStoreError> {
-        self.batches
-            .get(&batch_id)
-            .map(|batch| batch.route)
-            .ok_or(ProducerStoreError::UnknownBatch)
     }
 
     pub(super) fn len(&self) -> usize {

@@ -1,10 +1,14 @@
 //! Submission deadline ownership across ties and expired open-batch members.
 
 use crate::{
-    BatchId, BatchTimerGeneration, ByteCount, Deadline, ExplicitRecord, Moment, OperationId,
-    PartitionIndex, PayloadId, ProducerBatchPolicy, ProducerEffect, ProducerInput, ProducerMachine,
-    TopicId,
+    BatchExecutionGeneration, BatchExecutionId, BatchId, BatchTimerGeneration, ByteCount, Deadline,
+    ExplicitRecord, Moment, OperationId, PartitionIndex, PayloadId, ProducerBatchPolicy,
+    ProducerEffect, ProducerInput, ProducerMachine, TopicId,
 };
+
+fn execution(batch_id: BatchId) -> BatchExecutionId {
+    BatchExecutionId::new(batch_id, BatchExecutionGeneration::initial())
+}
 
 fn record(payload: u64) -> ExplicitRecord {
     ExplicitRecord::new(
@@ -54,7 +58,7 @@ fn accumulate(producer: &mut ProducerMachine, operation_id: OperationId, batch_i
 fn submission(producer: &mut ProducerMachine, batch_id: BatchId, now: u64) -> ProducerEffect {
     let transition = producer
         .apply(ProducerInput::BatchMaterialized {
-            batch_id,
+            execution: execution(batch_id),
             now: Moment::from_tick(now),
         })
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));

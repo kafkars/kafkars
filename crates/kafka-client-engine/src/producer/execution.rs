@@ -1,9 +1,16 @@
 //! Bounded execution of core-declared producer materialization and submission.
 
+mod cleanup;
+#[cfg(test)]
+mod cleanup_test;
+mod materialization;
+#[cfg(test)]
+mod materialization_test;
+
 use std::{error::Error, fmt};
 
 use kafka_client_core::{
-    AcknowledgementPolicy, BatchId, CompressionPolicy, Deadline, Moment, PartitionIndex,
+    AcknowledgementPolicy, BatchExecutionId, BatchId, Deadline, Moment, PartitionIndex,
     ProducerEffect, ProducerInput, TopicId,
 };
 
@@ -12,9 +19,6 @@ use super::{
     prepared::{PreparedProduceError, PreparedProduceStats, PreparedProduceStore},
     store::ProducerStore,
     submission_deadline::{SubmissionDeadlineError, SubmissionDeadlines},
-};
-use crate::{
-    producer::prepared::PreparedInsertError, protocol::produce::materialize_explicit_produce_batch,
 };
 
 /// Hard bounds shared by encoded bytes and pre-driver deadline ownership.
@@ -34,11 +38,11 @@ pub(crate) enum PreparedExecutionError {
     /// The original payload or batch store disagreed with a core effect.
     Store(ProducerStoreError),
     /// A submission effect named a batch without retained encoded bytes.
-    MissingPreparedBatch(BatchId),
+    MissingPreparedBatch(BatchExecutionId),
     /// A submission effect disagreed with retained engine route provenance.
     RouteMismatch {
         /// Batch whose route facts diverged.
-        batch_id: BatchId,
+        execution: BatchExecutionId,
         /// Topic identity retained when the record was admitted.
         stored_topic_id: TopicId,
         /// Explicit partition retained when the record was admitted.
@@ -52,6 +56,24 @@ pub(crate) enum PreparedExecutionError {
     Prepared(PreparedProduceError),
     /// Core-declared deadline ownership was internally inconsistent.
     Deadline(SubmissionDeadlineError),
+    /// A stale commit could not remove the exact prepared bytes it inserted.
+    CommitRollback {
+        /// Commit failure that detected the phase race.
+        commit: ProducerStoreError,
+        /// Exact prepared-byte rollback failure.
+        rollback: PreparedProduceError,
+    },
+    /// Terminal cleanup owners disagree about the exact retained execution.
+    CleanupExecutionMismatch {
+        /// Logical batch being released.
+        batch_id: BatchId,
+        /// Exact execution retained with canonical membership.
+        expected: Option<BatchExecutionId>,
+        /// Exact execution retaining prepared bytes.
+        prepared: Option<BatchExecutionId>,
+        /// Exact execution retaining a pre-driver deadline.
+        deadline: Option<BatchExecutionId>,
+    },
 }
 
 impl fmt::Display for PreparedExecutionError {
@@ -61,20 +83,38 @@ impl fmt::Display for PreparedExecutionError {
                 formatter.write_str("prepared execution received a non-submission effect")
             }
             Self::Store(error) => write!(formatter, "producer store execution failed: {error}"),
-            Self::MissingPreparedBatch(batch_id) => write!(
+            Self::MissingPreparedBatch(execution) => write!(
                 formatter,
-                "batch {} has no prepared Produce bytes",
-                batch_id.get()
+                "batch {} generation {} has no prepared Produce bytes",
+                execution.batch_id().get(),
+                execution.generation().get()
             ),
-            Self::RouteMismatch { batch_id, .. } => write!(
+            Self::RouteMismatch { execution, .. } => write!(
                 formatter,
-                "batch {} submission route disagrees with retained provenance",
-                batch_id.get()
+                "batch {} generation {} submission route disagrees with retained provenance",
+                execution.batch_id().get(),
+                execution.generation().get()
             ),
             Self::Prepared(error) => {
                 write!(formatter, "prepared Produce ownership failed: {error}")
             }
             Self::Deadline(error) => write!(formatter, "submission deadline failed: {error}"),
+            Self::CommitRollback { commit, rollback } => write!(
+                formatter,
+                "materialization commit failed: {commit}; exact prepared rollback failed: \
+                 {rollback}"
+            ),
+            Self::CleanupExecutionMismatch {
+                batch_id,
+                expected,
+                prepared,
+                deadline,
+            } => write!(
+                formatter,
+                "batch {} cleanup execution mismatch: expected {expected:?}, prepared \
+                 {prepared:?}, deadline {deadline:?}",
+                batch_id.get()
+            ),
         }
     }
 }
@@ -99,34 +139,6 @@ impl PreparedExecution {
         }
     }
 
-    /// Executes wire-records materialization and returns one deferred core fact.
-    pub(crate) fn materialize(
-        &mut self,
-        store: &mut ProducerStore,
-        batch_id: BatchId,
-        compression: CompressionPolicy,
-        now: Moment,
-    ) -> Result<ProducerInput, PreparedExecutionError> {
-        match compression {
-            CompressionPolicy::Uncompressed => {}
-        }
-        let input = match store.materialization_view(batch_id, self.max_batch_bytes) {
-            Ok(input) => input,
-            Err(ProducerStoreError::PartitionOutOfRange) => {
-                return Ok(materialization_failed(batch_id));
-            }
-            Err(error) => return Err(PreparedExecutionError::Store(error)),
-        };
-        let materialized = match materialize_explicit_produce_batch(input) {
-            Ok(value) => value,
-            Err(_semantic_failure) => return Ok(materialization_failed(batch_id)),
-        };
-        match self.prepared.insert(batch_id, materialized) {
-            Ok(()) => Ok(ProducerInput::BatchMaterialized { batch_id, now }),
-            Err(rejected) => Self::classify_insert_rejection(batch_id, rejected),
-        }
-    }
-
     /// Retains the exact core-selected deadline while bytes await the driver.
     pub(crate) fn arm_submission(
         &mut self,
@@ -134,7 +146,7 @@ impl PreparedExecution {
         effect: ProducerEffect,
     ) -> Result<(), PreparedExecutionError> {
         let ProducerEffect::SubmitProduce {
-            batch_id,
+            execution,
             deadline_operation_id,
             deadline,
             topic_id,
@@ -147,15 +159,15 @@ impl PreparedExecution {
         match acknowledgements {
             AcknowledgementPolicy::All => {}
         }
-        if !self.prepared.contains(batch_id) {
-            return Err(PreparedExecutionError::MissingPreparedBatch(batch_id));
+        if !self.prepared.contains(execution) {
+            return Err(PreparedExecutionError::MissingPreparedBatch(execution));
         }
         let (stored_topic_id, stored_partition) = store
-            .batch_route(batch_id)
+            .execution_route(execution)
             .map_err(PreparedExecutionError::Store)?;
         if stored_topic_id != topic_id || stored_partition != partition {
             return Err(PreparedExecutionError::RouteMismatch {
-                batch_id,
+                execution,
                 stored_topic_id,
                 stored_partition,
                 effect_topic_id: topic_id,
@@ -163,7 +175,7 @@ impl PreparedExecution {
             });
         }
         self.deadlines
-            .arm(batch_id, deadline_operation_id, deadline)
+            .arm(execution, deadline_operation_id, deadline)
             .map(|_newly_armed| ())
             .map_err(PreparedExecutionError::Deadline)
     }
@@ -182,22 +194,6 @@ impl PreparedExecution {
         self.deadlines.next_deadline()
     }
 
-    /// Releases encoded bytes, deadline ownership, and original batch membership.
-    pub(crate) fn release_batch(
-        &mut self,
-        store: &mut ProducerStore,
-        batch_id: BatchId,
-    ) -> Result<(), PreparedExecutionError> {
-        store
-            .release_batch(batch_id)
-            .map_err(PreparedExecutionError::Store)?;
-        let _cancelled = self.deadlines.cancel(batch_id);
-        self.prepared
-            .release_if_present(batch_id)
-            .map(|_released| ())
-            .map_err(PreparedExecutionError::Prepared)
-    }
-
     /// Returns bounded prepared-byte ownership for metrics and host checks.
     pub(crate) fn prepared_stats(&self) -> PreparedProduceStats {
         self.prepared.stats()
@@ -207,30 +203,4 @@ impl PreparedExecution {
     pub(crate) fn submission_count(&self) -> usize {
         self.deadlines.len()
     }
-
-    /// Drops encoded requests and deadline ownership terminally.
-    pub(crate) fn clear_terminal(&mut self) {
-        self.prepared.clear_terminal();
-        self.deadlines.clear_terminal();
-    }
-
-    fn classify_insert_rejection(
-        batch_id: BatchId,
-        rejected: PreparedInsertError,
-    ) -> Result<ProducerInput, PreparedExecutionError> {
-        let reason = rejected.reason();
-        let _unretained = rejected.into_value();
-        match reason {
-            PreparedProduceError::BatchCapacity
-            | PreparedProduceError::EncodedByteCapacity
-            | PreparedProduceError::EncodedByteOverflow => Ok(materialization_failed(batch_id)),
-            PreparedProduceError::DuplicateBatch | PreparedProduceError::UnknownBatch => {
-                Err(PreparedExecutionError::Prepared(reason))
-            }
-        }
-    }
-}
-
-const fn materialization_failed(batch_id: BatchId) -> ProducerInput {
-    ProducerInput::BatchMaterializationFailed { batch_id }
 }

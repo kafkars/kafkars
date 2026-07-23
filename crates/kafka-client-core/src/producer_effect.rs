@@ -1,8 +1,8 @@
 //! Ordered producer effects interpreted by the engine without hidden policy.
 
 use crate::{
-    AdmissionSequence, BatchId, BatchTimerGeneration, ByteCount, Deadline, ExplicitRecord, FlushId,
-    OperationId, PartitionIndex, PayloadId, ProducerCompletion, TopicId,
+    AdmissionSequence, BatchExecutionId, BatchId, BatchTimerGeneration, ByteCount, Deadline,
+    ExplicitRecord, FlushId, OperationId, PartitionIndex, PayloadId, ProducerCompletion, TopicId,
 };
 
 /// Maximum execution-stop mechanism effects emitted per live record.
@@ -92,15 +92,15 @@ pub enum ProducerEffect {
     },
     /// Materialize an already sealed accumulator through wire-records.
     MaterializeBatch {
-        /// Core-owned logical batch identity.
-        batch_id: BatchId,
+        /// Exact immutable membership snapshot to encode.
+        execution: BatchExecutionId,
         /// Required record-batch compression mode.
         compression: CompressionPolicy,
     },
     /// Submit an engine-materialized batch through the driver adapter.
     SubmitProduce {
-        /// Core-owned logical batch identity.
-        batch_id: BatchId,
+        /// Exact encoded membership snapshot to hand to the driver.
+        execution: BatchExecutionId,
         /// Live member the engine expires if driver ownership is not obtained.
         deadline_operation_id: OperationId,
         /// Earliest live member deadline handed to the driver unchanged.

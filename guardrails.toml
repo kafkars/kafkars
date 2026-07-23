@@ -77,8 +77,16 @@ production = "crates/kafka-client-core/src/producer/flush_transition.rs"
 test = "crates/kafka-client-core/src/producer/flush_transition_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/input_outcome.rs"
+test = "crates/kafka-client-core/src/producer/input_outcome_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-sim/src/state.rs"
 test = "crates/kafka-client-sim/src/state_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-sim/src/state/batch.rs"
+test = "crates/kafka-client-sim/src/state/batch_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/clock/monotonic.rs"
@@ -157,12 +165,28 @@ production = "crates/kafka-client-engine/src/producer/batch_store.rs"
 test = "crates/kafka-client-engine/src/producer/batch_store_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/batch_store/execution.rs"
+test = "crates/kafka-client-engine/src/producer/batch_store/execution_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/binding.rs"
 test = "crates/kafka-client-engine/src/producer/binding_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution.rs"
 test = "crates/kafka-client-engine/src/producer/execution_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/execution/cleanup.rs"
+test = "crates/kafka-client-engine/src/producer/execution/cleanup_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/execution/materialization.rs"
+test = "crates/kafka-client-engine/src/producer/execution/materialization_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/prepared/release.rs"
+test = "crates/kafka-client-engine/src/producer/prepared/release_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution_stop.rs"
@@ -592,6 +616,14 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "ProducerBatch"
+field = "execution_generation"
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/batch.rs",
+  "crates/kafka-client-core/src/producer/batch_transition.rs",
+]
+
+[[mutation_owners]]
 owner_type = "ByteBudget"
 field = "used"
 allowed_paths = ["crates/kafka-client-core/src/capacity.rs"]
@@ -753,7 +785,10 @@ allowed_paths = ["crates/kafka-client-engine/src/producer/record_access.rs"]
 [[mutation_owners]]
 owner_type = "BatchStore"
 field = "batches"
-allowed_paths = ["crates/kafka-client-engine/src/producer/batch_store.rs"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/batch_store.rs",
+  "crates/kafka-client-engine/src/producer/batch_store/execution.rs",
+]
 
 [[mutation_owners]]
 owner_type = "BatchStore"
@@ -768,7 +803,10 @@ allowed_paths = ["crates/kafka-client-engine/src/producer/batch_store.rs"]
 [[mutation_owners]]
 owner_type = "BatchAccumulator"
 field = "state"
-allowed_paths = ["crates/kafka-client-engine/src/producer/batch_store.rs"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/batch_store.rs",
+  "crates/kafka-client-engine/src/producer/batch_store/execution.rs",
+]
 
 [[mutation_owners]]
 owner_type = "BatchAccumulator"
@@ -803,12 +841,18 @@ allowed_paths = ["crates/kafka-client-engine/src/producer/reclaim.rs"]
 [[mutation_owners]]
 owner_type = "PreparedProduceStore"
 field = "retained_bytes"
-allowed_paths = ["crates/kafka-client-engine/src/producer/prepared.rs"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/prepared.rs",
+  "crates/kafka-client-engine/src/producer/prepared/release.rs",
+]
 
 [[mutation_owners]]
 owner_type = "PreparedProduceStore"
 field = "batches"
-allowed_paths = ["crates/kafka-client-engine/src/producer/prepared.rs"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/prepared.rs",
+  "crates/kafka-client-engine/src/producer/prepared/release.rs",
+]
 
 [[mutation_owners]]
 owner_type = "SubmissionDeadlines"
@@ -1057,6 +1101,21 @@ owner_type = "ProducerShardState"
 field = "host"
 allowed_paths = ["crates/kafka-client-engine/src/producer/ingress/shard.rs"]
 
+[[mutation_owners]]
+owner_type = "VirtualBatch"
+field = "members"
+allowed_paths = ["crates/kafka-client-sim/src/state/batch.rs"]
+
+[[mutation_owners]]
+owner_type = "VirtualBatch"
+field = "phase"
+allowed_paths = ["crates/kafka-client-sim/src/state/batch.rs"]
+
+[[mutation_owners]]
+owner_type = "VirtualProducerState"
+field = "submissions"
+allowed_paths = ["crates/kafka-client-sim/src/state/batch.rs"]
+
 # Lifecycle and accounting owners must not be duplicated accidentally.
 [[linear_owners]]
 owner_type = "ProducerMachine"
@@ -1219,8 +1278,16 @@ owner_type = "PreparedProduceStore"
 path = "crates/kafka-client-engine/src/producer/prepared.rs"
 
 [[linear_owners]]
+owner_type = "PreparedBatch"
+path = "crates/kafka-client-engine/src/producer/prepared.rs"
+
+[[linear_owners]]
 owner_type = "PreparedInsertError"
 path = "crates/kafka-client-engine/src/producer/prepared.rs"
+
+[[linear_owners]]
+owner_type = "MaterializationAttempt"
+path = "crates/kafka-client-engine/src/producer/batch_store/execution.rs"
 
 [[linear_owners]]
 owner_type = "SubmissionDeadlines"
@@ -1265,6 +1332,10 @@ path = "crates/kafka-client-engine/src/producer/terminal_backlog/quarantine/refu
 [[linear_owners]]
 owner_type = "FatalTransitionBuffer"
 path = "crates/kafka-client-engine/src/producer/terminal_backlog/fatal_buffer.rs"
+
+[[linear_owners]]
+owner_type = "VirtualBatch"
+path = "crates/kafka-client-sim/src/state/batch.rs"
 
 [[linear_owners]]
 owner_type = "ProducerHost"

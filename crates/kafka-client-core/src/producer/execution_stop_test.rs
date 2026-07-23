@@ -1,14 +1,18 @@
 //! Scenarios for bounded settlement after permanent execution loss.
 
 use crate::{
-    AdmissionRejection, BatchId, ByteCount, Deadline, DeliveryStatus, ExplicitRecord, Moment,
-    OperationId, PartitionIndex, PayloadId, ProducerBatchPolicy, ProducerCompletion,
-    ProducerEffect, ProducerFailureKind, ProducerInput, ProducerMachine, ProducerMachineError,
-    ProducerOperationState, TopicId,
+    AdmissionRejection, BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline,
+    DeliveryStatus, ExplicitRecord, Moment, OperationId, PartitionIndex, PayloadId,
+    ProducerBatchPolicy, ProducerCompletion, ProducerEffect, ProducerFailureKind, ProducerInput,
+    ProducerMachine, ProducerMachineError, ProducerOperationState, TopicId,
 };
 
 const TOPIC: TopicId = TopicId::from_raw(7);
 const BYTES: ByteCount = ByteCount::new(11);
+
+fn execution(batch_id: BatchId) -> BatchExecutionId {
+    BatchExecutionId::new(batch_id, BatchExecutionGeneration::initial())
+}
 
 fn record(payload: u64, partition: u32) -> ExplicitRecord {
     ExplicitRecord::new(
@@ -110,20 +114,20 @@ fn execution_loss_settles_every_batch_stage_in_release_before_complete_order() {
     let (awaiting_driver, awaiting_batch) = ready_pair(&mut producer, 4, 2);
     producer
         .apply(ProducerInput::BatchMaterialized {
-            batch_id: awaiting_batch,
+            execution: execution(awaiting_batch),
             now: Moment::from_tick(2),
         })
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
     let (submitted, submitted_batch) = ready_pair(&mut producer, 6, 3);
     producer
         .apply(ProducerInput::BatchMaterialized {
-            batch_id: submitted_batch,
+            execution: execution(submitted_batch),
             now: Moment::from_tick(2),
         })
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
     producer
         .apply(ProducerInput::DriverAccepted {
-            batch_id: submitted_batch,
+            execution: execution(submitted_batch),
         })
         .unwrap_or_else(|error| panic!("driver acceptance failed: {error}"));
 
@@ -229,7 +233,7 @@ fn execution_loss_does_not_repeat_an_unreclaimed_terminal() {
     accumulate(&mut producer, completed, completed_batch);
     producer
         .apply(ProducerInput::BatchMaterializationFailed {
-            batch_id: completed_batch,
+            execution: execution(completed_batch),
         })
         .unwrap_or_else(|error| panic!("terminal setup failed: {error}"));
     let (active, active_batch) = admit(&mut producer, 2, 1);

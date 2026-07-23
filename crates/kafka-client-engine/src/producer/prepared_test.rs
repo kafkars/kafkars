@@ -1,7 +1,7 @@
 //! Prepared-request capacity, ownership transfer, and exact release scenarios.
 
 use bytes::Bytes;
-use kafka_client_core::BatchId;
+use kafka_client_core::{BatchExecutionGeneration, BatchExecutionId, BatchId};
 
 use super::{
     materialization::{MaterializationBatch, MaterializationRecord},
@@ -9,17 +9,24 @@ use super::{
 };
 use crate::protocol::produce::materialize_explicit_produce_batch;
 
+fn execution(value: u64) -> BatchExecutionId {
+    BatchExecutionId::new(
+        BatchId::from_raw(value),
+        BatchExecutionGeneration::initial(),
+    )
+}
+
 #[test]
 fn count_rejection_returns_the_unstored_request() {
     let mut store = PreparedProduceStore::new(1, usize::MAX);
     let first = prepared(b"first");
     let first_bytes = first.retained_record_bytes();
     store
-        .insert(BatchId::from_raw(1), first)
+        .insert(execution(1), first)
         .unwrap_or_else(|error| panic!("first insertion failed: {error}"));
     let second = prepared(b"second");
     let second_bytes = second.retained_record_bytes();
-    let Err(rejected) = store.insert(BatchId::from_raw(2), second) else {
+    let Err(rejected) = store.insert(execution(2), second) else {
         panic!("full count capacity should reject");
     };
 
@@ -46,9 +53,9 @@ fn byte_rejection_returns_the_unstored_request() {
         .unwrap_or_else(|| panic!("test byte capacity should be representable"));
     let mut store = PreparedProduceStore::new(2, capacity);
     store
-        .insert(BatchId::from_raw(1), first)
+        .insert(execution(1), first)
         .unwrap_or_else(|error| panic!("first insertion failed: {error}"));
-    let Err(rejected) = store.insert(BatchId::from_raw(2), candidate) else {
+    let Err(rejected) = store.insert(execution(2), candidate) else {
         panic!("undersized byte capacity should reject");
     };
 
@@ -72,11 +79,11 @@ fn duplicate_rejection_preserves_existing_and_incoming_requests() {
     let first = prepared(b"first");
     let first_bytes = first.retained_record_bytes();
     store
-        .insert(BatchId::from_raw(1), first)
+        .insert(execution(1), first)
         .unwrap_or_else(|error| panic!("first insertion failed: {error}"));
     let duplicate = prepared(b"duplicate");
     let duplicate_bytes = duplicate.retained_record_bytes();
-    let Err(rejected) = store.insert(BatchId::from_raw(1), duplicate) else {
+    let Err(rejected) = store.insert(execution(1), duplicate) else {
         panic!("duplicate batch should reject");
     };
 
@@ -94,26 +101,26 @@ fn take_transfers_ownership_and_accounting_exactly_once() {
     let value = prepared(b"payload");
     let bytes = value.retained_record_bytes();
     store
-        .insert(BatchId::from_raw(9), value)
+        .insert(execution(9), value)
         .unwrap_or_else(|error| panic!("insertion failed: {error}"));
 
     let taken = store
-        .take(BatchId::from_raw(9))
+        .take(execution(9))
         .unwrap_or_else(|error| panic!("take failed: {error}"));
     assert_eq!(taken.retained_record_bytes(), bytes);
     assert_eq!(store.stats().batches, 0);
     assert_eq!(store.stats().encoded_record_bytes, 0);
     assert!(matches!(
-        store.take(BatchId::from_raw(9)),
+        store.take(execution(9)),
         Err(PreparedProduceError::UnknownBatch)
     ));
     assert_eq!(
-        store.release(BatchId::from_raw(9)),
+        store.release(execution(9)),
         Err(PreparedProduceError::UnknownBatch)
     );
     assert!(
         store
-            .insert(BatchId::from_raw(10), prepared(b"replacement"))
+            .insert(execution(10), prepared(b"replacement"))
             .is_ok()
     );
 }
@@ -124,15 +131,41 @@ fn release_drops_and_decrements_exactly_once() {
     let value = prepared(b"payload");
     let bytes = value.retained_record_bytes();
     store
-        .insert(BatchId::from_raw(3), value)
+        .insert(execution(3), value)
         .unwrap_or_else(|error| panic!("insertion failed: {error}"));
 
-    assert_eq!(store.release(BatchId::from_raw(3)), Ok(bytes));
+    assert_eq!(store.release(execution(3)), Ok(bytes));
     assert_eq!(
-        store.release(BatchId::from_raw(3)),
+        store.release(execution(3)),
         Err(PreparedProduceError::UnknownBatch)
     );
     assert_eq!(store.stats().encoded_record_bytes, 0);
+}
+
+#[test]
+fn stale_prepared_generation_cannot_take_or_release_current_bytes() {
+    let mut store = PreparedProduceStore::new(1, usize::MAX);
+    let current = execution(7);
+    let stale = BatchExecutionId::new(
+        current.batch_id(),
+        BatchExecutionGeneration::try_from_raw(2)
+            .unwrap_or_else(|| panic!("second generation must be valid")),
+    );
+    store
+        .insert(current, prepared(b"current"))
+        .unwrap_or_else(|error| panic!("insertion failed: {error}"));
+    let before = store.stats();
+
+    assert!(matches!(
+        store.take(stale),
+        Err(PreparedProduceError::ExecutionMismatch)
+    ));
+    assert_eq!(
+        store.release(stale),
+        Err(PreparedProduceError::ExecutionMismatch)
+    );
+    assert_eq!(store.stats(), before);
+    assert!(store.contains(current));
 }
 
 fn prepared(value: &'static [u8]) -> crate::protocol::produce::MaterializedProduce {

@@ -80,12 +80,12 @@ impl ProducerHost {
     ) -> Result<Option<ProducerInput>, ProducerHostInvariantError> {
         match effect {
             ProducerEffect::MaterializeBatch {
-                batch_id,
+                execution,
                 compression,
             } => {
                 let result = {
-                    let execution = &mut self.execution;
-                    execution.materialize(&mut self.store, batch_id, compression, now)
+                    let prepared = &mut self.execution;
+                    prepared.materialize(&mut self.store, execution, compression, now)
                 };
                 result
                     .map(Some)

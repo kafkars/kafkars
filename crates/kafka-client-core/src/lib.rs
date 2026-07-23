@@ -38,7 +38,8 @@ pub use producer_failure::{ProducerFailure, ProducerFailureKind};
 pub use producer_input::ProducerInput;
 pub use producer_policy::{ProducerBatchPolicy, ProducerBatchPolicyError};
 pub use producer_record::{
-    BatchId, BatchTimerGeneration, ExplicitRecord, PartitionIndex, PayloadId, TopicId,
+    BatchExecutionGeneration, BatchExecutionId, BatchId, BatchTimerGeneration, ExplicitRecord,
+    PartitionIndex, PayloadId, TopicId,
 };
 pub use types::{ByteCount, Deadline, Moment, OperationId};
 

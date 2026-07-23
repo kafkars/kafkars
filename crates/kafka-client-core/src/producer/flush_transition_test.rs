@@ -1,13 +1,18 @@
 //! Producer-machine scenarios for bounded admission-sequence flush barriers.
 
 use crate::{
-    AdmissionRejection, AdmissionSequence, BatchId, ByteCount, Deadline, ExplicitRecord, FlushId,
-    FlushLedgerError, Moment, OperationId, PartitionIndex, PayloadId, ProducerEffect,
-    ProducerInput, ProducerMachine, ProducerMachineError, TopicId,
+    AdmissionRejection, AdmissionSequence, BatchExecutionGeneration, BatchExecutionId, BatchId,
+    ByteCount, Deadline, ExplicitRecord, FlushId, FlushLedgerError, Moment, OperationId,
+    PartitionIndex, PayloadId, ProducerEffect, ProducerInput, ProducerMachine,
+    ProducerMachineError, TopicId,
 };
 
 const TOPIC: TopicId = TopicId::from_raw(7);
 const BYTES: ByteCount = ByteCount::new(11);
+
+fn execution(batch_id: BatchId) -> BatchExecutionId {
+    BatchExecutionId::new(batch_id, BatchExecutionGeneration::initial())
+}
 
 #[test]
 fn flush_includes_exactly_operations_accepted_before_its_barrier() {
@@ -201,7 +206,9 @@ fn fail_materialization(
         })
         .unwrap_or_else(|error| panic!("accumulation failed: {error}"));
     producer
-        .apply(ProducerInput::BatchMaterializationFailed { batch_id })
+        .apply(ProducerInput::BatchMaterializationFailed {
+            execution: execution(batch_id),
+        })
         .unwrap_or_else(|error| panic!("materialization failure failed: {error}"))
 }
 

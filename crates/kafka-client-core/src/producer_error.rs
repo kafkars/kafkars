@@ -3,7 +3,8 @@
 use core::fmt;
 
 use crate::{
-    AdmissionRejection, CapacityError, CompletionLedgerError, FlushLedgerError, TransitionError,
+    AdmissionRejection, BatchExecutionId, CapacityError, CompletionLedgerError, FlushLedgerError,
+    TransitionError,
 };
 
 /// Rejected producer-machine transition.
@@ -27,6 +28,13 @@ pub enum ProducerMachineError {
     AccumulatorSizeOverflow,
     /// A timer generation could not advance without reuse.
     TimerGenerationExhausted,
+    /// Transport accepted bytes from a revoked or already-released execution.
+    StaleDriverAcceptance {
+        /// Exact execution reported by transport.
+        reported: BatchExecutionId,
+        /// Current execution retained by core, when the batch remains live.
+        current: Option<BatchExecutionId>,
+    },
     /// A broker base offset could not fan out across every record.
     OffsetOverflow,
 }
@@ -47,6 +55,12 @@ impl fmt::Display for ProducerMachineError {
             Self::TimerGenerationExhausted => {
                 formatter.write_str("producer timer generation exhausted")
             }
+            Self::StaleDriverAcceptance { reported, .. } => write!(
+                formatter,
+                "driver accepted stale producer batch {} generation {}",
+                reported.batch_id().get(),
+                reported.generation().get()
+            ),
             Self::OffsetOverflow => formatter.write_str("producer record offset overflow"),
         }
     }

@@ -8,7 +8,7 @@ use kafka_client_core::{BatchId, ByteCount, OperationId, PartitionIndex, Payload
 
 use super::{
     ProducerAdmissionError, ProducerRecord, ProducerStoreError,
-    batch_store::{BatchRoute, BatchStore},
+    batch_store::{BatchRoute, BatchStore, MaterializationAttempt},
     record_store::RecordStore,
 };
 
@@ -138,13 +138,46 @@ impl ProducerStore {
         self.records.release(payload_id, expected)
     }
 
-    /// Returns immutable route provenance already owned by one engine batch.
-    pub(crate) fn batch_route(
+    /// Returns route provenance only for the exact sealed membership snapshot.
+    pub(crate) fn execution_route(
+        &self,
+        execution: kafka_client_core::BatchExecutionId,
+    ) -> Result<(TopicId, PartitionIndex), ProducerStoreError> {
+        let route = self.batches.execution_route(execution)?;
+        Ok((route.topic_id, route.partition))
+    }
+
+    /// Commits an exact attempt only after encoded bytes are retained.
+    pub(crate) fn commit_materialization(
+        &mut self,
+        attempt: MaterializationAttempt,
+    ) -> Result<(), ProducerStoreError> {
+        self.batches.commit_materialization(attempt)
+    }
+
+    /// Returns one failed exact attempt to its immutable ready phase.
+    pub(crate) fn abort_materialization(
+        &mut self,
+        attempt: MaterializationAttempt,
+    ) -> crate::producer::batch_store::MaterializationAbort {
+        self.batches.abort_materialization(attempt)
+    }
+
+    /// Returns the execution retained by a sealed batch for cleanup preflight.
+    pub(crate) fn batch_execution(
         &self,
         batch_id: BatchId,
-    ) -> Result<(TopicId, PartitionIndex), ProducerStoreError> {
-        let route = self.batches.route(batch_id)?;
-        Ok((route.topic_id, route.partition))
+    ) -> Result<Option<kafka_client_core::BatchExecutionId>, ProducerStoreError> {
+        self.batches.execution(batch_id)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn replace_batch_execution_for_test(
+        &mut self,
+        batch_id: BatchId,
+        replacement: kafka_client_core::BatchExecutionId,
+    ) {
+        self.batches.replace_ready_for_test(batch_id, replacement);
     }
 
     /// Returns current count and byte ownership for metrics and tests.

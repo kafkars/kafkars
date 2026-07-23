@@ -117,7 +117,7 @@ impl ProducerScenario {
     }
 
     /// Returns driver submissions requested by core policy.
-    pub const fn submission_count(&self) -> usize {
+    pub fn submission_count(&self) -> usize {
         self.engine.submission_count()
     }
 

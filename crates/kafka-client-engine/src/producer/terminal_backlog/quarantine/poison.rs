@@ -79,6 +79,10 @@ impl TerminalPoisonSlot {
         Self { retained: None }
     }
 
+    #[allow(
+        clippy::result_large_err,
+        reason = "fatal-path refusal returns the exact terminal inline without a fallible allocation"
+    )]
     pub(in crate::producer) fn retain(
         &mut self,
         evidence: RejectedTerminal,

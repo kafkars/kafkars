@@ -118,6 +118,30 @@ status = "planned"
 milestone = "engine-flush-completion-publication"
 
 [[invariant]]
+id = "GEN-01"
+title = "Sealed batch executions are generation-fenced"
+statement = "The first immutable sealed-batch membership snapshot has a nonzero execution identity propagated exactly through core, materialization, prepared-byte, deadline, and simulator ownership; stale local outcomes are harmless, stale driver acceptance facts are fatal, and exact-generation facts in the wrong lifecycle phase remain invalid."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/producer/input_outcome_test.rs::generation_fenced_inputs_distinguish_stale_facts_from_corruption",
+  "crates/kafka-client-core/src/producer/input_outcome_test.rs::sealed_generation_is_nonzero_initial_identity",
+  "crates/kafka-client-engine/src/producer/batch_store/execution_test.rs::sealed_batch_execution_rejects_stale_phase_changes",
+  "crates/kafka-client-engine/src/producer/batch_store/execution_test.rs::aborted_materialization_keeps_sealed_membership_closed",
+  "crates/kafka-client-engine/src/producer/batch_store/execution_test.rs::stale_abort_does_not_revoke_replacement_execution",
+  "crates/kafka-client-engine/src/producer/execution/materialization_test.rs::stale_commit_drops_the_exact_prepared_bytes_it_inserted",
+  "crates/kafka-client-engine/src/producer/prepared_test.rs::stale_prepared_generation_cannot_take_or_release_current_bytes",
+  "crates/kafka-client-engine/src/producer/submission_deadline_test.rs::stale_deadline_cancellation_cannot_remove_current_execution",
+  "crates/kafka-client-sim/src/state/batch_test.rs::simulator_submits_only_exact_materialized_membership_snapshot",
+]
+
+[[invariant]]
+id = "GEN-02"
+title = "Replacement batch executions never reuse identity"
+statement = "Future replacement or revision of sealed batch membership advances without identity reuse, defines exhaustion behavior, and carries the exact execution through the real kafka-driver handoff and acceptance receipt."
+status = "planned"
+milestone = "generation-fenced-driver-handoff"
+
+[[invariant]]
 id = "IDM-01"
 title = "Idempotent producer state is fenced"
 statement = "Producer identity epochs and per-partition sequence ranges are monotonic, uniquely owned, and recover only according to core policy."
@@ -126,12 +150,15 @@ milestone = "idempotent-producer"
 
 [[invariant]]
 id = "MAT-01"
-title = "Materialization transfers bytes without changing semantics"
-statement = "Materialization preserves record order and nullable fields, and an encoding failure retains accounting until ordered core release effects execute."
+title = "Materialization retains canonical records without changing semantics"
+statement = "Materialization preserves record order and nullable fields, creates a separately bounded encoded representation from shared canonical record handles, and retains canonical accounting until ordered core release effects execute."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/materialization_test.rs::ordered_records_null_empty_and_duplicate_headers_survive_transfer",
   "crates/kafka-client-engine/src/producer/materialization_test.rs::encoding_failure_keeps_accounting_until_ordered_release_effects",
+  "crates/kafka-client-engine/src/producer/materialization_retention_test.rs::materialization_view_keeps_canonical_record_owned_until_terminal_release",
+  "crates/kafka-client-engine/src/producer/execution/materialization_test.rs::semantic_encoding_failure_returns_exact_attempt_to_ready",
+  "crates/kafka-client-engine/src/producer/execution/materialization_test.rs::prepared_capacity_failure_returns_exact_attempt_to_ready",
   "crates/kafka-client-engine/src/producer/execution_test.rs::materialization_retains_one_bounded_request_without_fake_driver_acceptance",
   "crates/kafka-client-engine/src/producer/execution_turn_test.rs::immediate_batch_materializes_then_waits_without_fake_acceptance",
   "crates/kafka-client-engine/src/producer/execution_turn_test.rs::semantic_partition_encoding_failure_settles_without_poisoning_host",

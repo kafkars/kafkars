@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use kafka_client_core::{
-    BatchId, ByteCount, CompressionPolicy, Deadline, DeliveryStatus, Moment, OperationId,
-    PartitionIndex, ProducerCompletion, ProducerEffect, ProducerFailureKind, ProducerInput,
-    ProducerMachine,
+    BatchExecutionId, BatchId, ByteCount, CompressionPolicy, Deadline, DeliveryStatus, Moment,
+    OperationId, PartitionIndex, ProducerCompletion, ProducerEffect, ProducerFailureKind,
+    ProducerInput, ProducerMachine,
 };
 
 use super::{
@@ -18,7 +18,7 @@ struct SealedBatch {
     core: ProducerMachine,
     store: ProducerStore,
     operation_id: OperationId,
-    batch_id: BatchId,
+    execution_id: BatchExecutionId,
 }
 
 impl SealedBatch {
@@ -62,20 +62,22 @@ impl SealedBatch {
                 now: Moment::from_tick(0),
             })
             .unwrap_or_else(|error| panic!("core accumulation failed: {error}"));
-        assert!(sealed.effects().iter().any(|effect| {
-            matches!(
-                effect,
+        let execution_id = sealed
+            .effects()
+            .iter()
+            .find_map(|effect| match effect {
                 ProducerEffect::MaterializeBatch {
-                    batch_id: selected,
+                    execution,
                     compression: CompressionPolicy::Uncompressed,
-                } if *selected == batch_id
-            )
-        }));
+                } if execution.batch_id() == batch_id => Some(*execution),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("sealed batch must request materialization"));
         Self {
             core,
             store,
             operation_id,
-            batch_id,
+            execution_id,
         }
     }
 
@@ -83,7 +85,7 @@ impl SealedBatch {
         execution
             .materialize(
                 &mut self.store,
-                self.batch_id,
+                self.execution_id,
                 CompressionPolicy::Uncompressed,
                 now,
             )
@@ -113,7 +115,7 @@ fn materialization_retains_one_bounded_request_without_fake_driver_acceptance() 
     assert_eq!(
         fact,
         ProducerInput::BatchMaterialized {
-            batch_id: batch.batch_id,
+            execution: batch.execution_id,
             now: Moment::from_tick(1),
         }
     );
@@ -170,7 +172,7 @@ fn encoded_capacity_failure_becomes_a_core_owned_not_sent_outcome() {
     assert_eq!(
         failed,
         ProducerInput::BatchMaterializationFailed {
-            batch_id: batch.batch_id,
+            execution: batch.execution_id,
         }
     );
     assert_eq!(execution.prepared_stats().batches, 0);
