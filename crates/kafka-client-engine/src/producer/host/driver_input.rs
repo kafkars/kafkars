@@ -18,10 +18,21 @@ impl ProducerHost {
         if !is_driver_input(input) {
             return Err(self.poison(ProducerHostInvariantError::UnexpectedDriverInput));
         }
+        let acceptance = match input {
+            ProducerInput::DriverAccepted { execution } => Some(
+                self.store
+                    .plan_driver_accepted(execution)
+                    .map_err(|error| self.poison(ProducerHostInvariantError::Store(error)))?,
+            ),
+            _ => None,
+        };
         let transition = self
             .core
             .apply(input)
             .map_err(|error| self.poison(ProducerHostInvariantError::Core(error)))?;
+        if let Some(acceptance) = acceptance {
+            self.store.commit_driver_accepted(acceptance);
+        }
         self.interpret_transition(now, transition)
             .map_err(|error| self.poison(error))
     }

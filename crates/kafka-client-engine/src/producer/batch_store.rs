@@ -1,8 +1,14 @@
 //! Sole owner of ordered operation-to-payload batch membership.
 
+mod driver;
+#[cfg(test)]
+mod driver_test;
 mod execution;
 #[cfg(test)]
 mod execution_test;
+mod revision;
+#[cfg(test)]
+mod revision_test;
 
 use std::collections::BTreeMap;
 
@@ -11,7 +17,11 @@ use kafka_client_core::{
 };
 
 use super::ProducerStoreError;
+pub(in crate::producer) use driver::DriverAcceptancePlan;
 pub(in crate::producer) use execution::{MaterializationAbort, MaterializationAttempt};
+pub(in crate::producer) use revision::{
+    BatchCancellationPhase, BatchRevisionExpectation, EngineBatchRevisionPlan,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct BatchRoute {
@@ -31,6 +41,7 @@ enum BatchState {
     ReadyForMaterialization(BatchExecutionId),
     Materializing(BatchExecutionId),
     Materialized(BatchExecutionId),
+    Submitted(BatchExecutionId),
 }
 
 #[derive(Debug)]

@@ -223,6 +223,14 @@ production = "crates/kafka-client-engine/src/producer/batch_store/execution.rs"
 test = "crates/kafka-client-engine/src/producer/batch_store/execution_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/batch_store/driver.rs"
+test = "crates/kafka-client-engine/src/producer/batch_store/driver_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/batch_store/revision.rs"
+test = "crates/kafka-client-engine/src/producer/batch_store/revision_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/binding.rs"
 test = "crates/kafka-client-engine/src/producer/binding_test.rs"
 
@@ -237,6 +245,10 @@ test = "crates/kafka-client-engine/src/producer/flush/binding_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution.rs"
 test = "crates/kafka-client-engine/src/producer/execution_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/execution/error.rs"
+test = "crates/kafka-client-engine/src/producer/execution/error_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/reclaim/error.rs"
@@ -265,6 +277,10 @@ test = "crates/kafka-client-engine/src/producer/execution/next_submission_test.r
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution/submission.rs"
 test = "crates/kafka-client-engine/src/producer/execution/submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/execution/revision.rs"
+test = "crates/kafka-client-engine/src/producer/execution/revision_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution_stop.rs"
@@ -349,6 +365,10 @@ test = "crates/kafka-client-engine/src/producer/materialization_retention_test.r
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/store/materialization_view.rs"
 test = "crates/kafka-client-engine/src/producer/store/materialization_view_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/store/batch_lifecycle.rs"
+test = "crates/kafka-client-engine/src/producer/store/batch_lifecycle_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/reclaim.rs"
@@ -947,6 +967,7 @@ owner_type = "ProducerStore"
 field = "records"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/store.rs",
+  "crates/kafka-client-engine/src/producer/store/batch_lifecycle.rs",
   "crates/kafka-client-engine/src/producer/store/materialization_view.rs",
 ]
 
@@ -955,6 +976,7 @@ owner_type = "ProducerStore"
 field = "batches"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/store.rs",
+  "crates/kafka-client-engine/src/producer/store/batch_lifecycle.rs",
   "crates/kafka-client-engine/src/producer/store/materialization_view.rs",
 ]
 
@@ -999,31 +1021,44 @@ owner_type = "BatchStore"
 field = "batches"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/batch_store.rs",
+  "crates/kafka-client-engine/src/producer/batch_store/driver.rs",
   "crates/kafka-client-engine/src/producer/batch_store/execution.rs",
+  "crates/kafka-client-engine/src/producer/batch_store/revision.rs",
 ]
 
 [[mutation_owners]]
 owner_type = "BatchStore"
 field = "operations"
-allowed_paths = ["crates/kafka-client-engine/src/producer/batch_store.rs"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/batch_store.rs",
+  "crates/kafka-client-engine/src/producer/batch_store/revision.rs",
+]
 
 [[mutation_owners]]
 owner_type = "BatchStore"
 field = "payloads"
-allowed_paths = ["crates/kafka-client-engine/src/producer/batch_store.rs"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/batch_store.rs",
+  "crates/kafka-client-engine/src/producer/batch_store/revision.rs",
+]
 
 [[mutation_owners]]
 owner_type = "BatchAccumulator"
 field = "state"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/batch_store.rs",
+  "crates/kafka-client-engine/src/producer/batch_store/driver.rs",
   "crates/kafka-client-engine/src/producer/batch_store/execution.rs",
+  "crates/kafka-client-engine/src/producer/batch_store/revision.rs",
 ]
 
 [[mutation_owners]]
 owner_type = "BatchAccumulator"
 field = "members"
-allowed_paths = ["crates/kafka-client-engine/src/producer/batch_store.rs"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/batch_store.rs",
+  "crates/kafka-client-engine/src/producer/batch_store/revision.rs",
+]
 
 [[mutation_owners]]
 owner_type = "TopicCatalog"
@@ -1063,6 +1098,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/execution/cleanup.rs",
   "crates/kafka-client-engine/src/producer/execution/handoff.rs",
   "crates/kafka-client-engine/src/producer/execution/materialization.rs",
+  "crates/kafka-client-engine/src/producer/execution/revision.rs",
 ]
 
 [[mutation_owners]]
@@ -1074,6 +1110,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/execution/handoff.rs",
   "crates/kafka-client-engine/src/producer/execution/materialization.rs",
   "crates/kafka-client-engine/src/producer/execution/next_submission.rs",
+  "crates/kafka-client-engine/src/producer/execution/revision.rs",
   "crates/kafka-client-engine/src/producer/execution/submission.rs",
 ]
 
@@ -1085,6 +1122,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/execution/cleanup.rs",
   "crates/kafka-client-engine/src/producer/execution/handoff.rs",
   "crates/kafka-client-engine/src/producer/execution/materialization.rs",
+  "crates/kafka-client-engine/src/producer/execution/revision.rs",
   "crates/kafka-client-engine/src/producer/execution/submission.rs",
 ]
 
@@ -1112,6 +1150,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/effect.rs",
   "crates/kafka-client-engine/src/producer/execution_turn.rs",
   "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/host/driver_input.rs",
   "crates/kafka-client-engine/src/producer/shutdown.rs",
 ]
 
@@ -1352,6 +1391,14 @@ owner_type = "BatchStore"
 path = "crates/kafka-client-engine/src/producer/batch_store.rs"
 
 [[linear_owners]]
+owner_type = "DriverAcceptancePlan"
+path = "crates/kafka-client-engine/src/producer/batch_store/driver.rs"
+
+[[linear_owners]]
+owner_type = "EngineBatchRevisionPlan"
+path = "crates/kafka-client-engine/src/producer/batch_store/revision.rs"
+
+[[linear_owners]]
 owner_type = "TopicCatalog"
 path = "crates/kafka-client-engine/src/producer/topic_catalog.rs"
 
@@ -1430,6 +1477,10 @@ path = "crates/kafka-client-engine/src/producer/execution/handoff.rs"
 [[linear_owners]]
 owner_type = "PreparedEntry"
 path = "crates/kafka-client-engine/src/producer/execution.rs"
+
+[[linear_owners]]
+owner_type = "PreparedRevisionPlan"
+path = "crates/kafka-client-engine/src/producer/execution/revision.rs"
 
 [[linear_owners]]
 owner_type = "RetainedTerminal"

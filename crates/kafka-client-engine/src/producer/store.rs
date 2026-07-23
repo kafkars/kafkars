@@ -1,14 +1,16 @@
 //! Atomic coordination of record ownership and ordered batch membership.
 
+mod batch_lifecycle;
+#[cfg(test)]
+mod batch_lifecycle_test;
 mod materialization_view;
 #[cfg(test)]
 mod materialization_view_test;
 
-use kafka_client_core::{BatchId, ByteCount, OperationId, PartitionIndex, PayloadId, TopicId};
+use kafka_client_core::{ByteCount, PayloadId};
 
 use super::{
-    ProducerAdmissionError, ProducerRecord, ProducerStoreError,
-    batch_store::{BatchRoute, BatchStore, MaterializationAttempt},
+    ProducerAdmissionError, ProducerRecord, ProducerStoreError, batch_store::BatchStore,
     record_store::RecordStore,
 };
 
@@ -90,42 +92,6 @@ impl ProducerStore {
         self.records.rollback(reservation)
     }
 
-    /// Appends a core-accepted operation to one ordered logical batch.
-    pub(crate) fn accumulate(
-        &mut self,
-        batch_id: BatchId,
-        operation_id: OperationId,
-        payload_id: PayloadId,
-    ) -> Result<ByteCount, ProducerStoreError> {
-        let (topic_id, partition) = self.records.route(payload_id)?;
-        let retained = self.records.retained_bytes(payload_id)?;
-        self.batches.append(
-            batch_id,
-            operation_id,
-            payload_id,
-            BatchRoute {
-                topic_id,
-                partition,
-            },
-        )?;
-        Ok(retained)
-    }
-
-    /// Removes one open-batch member while preserving all sibling order.
-    pub(crate) fn remove_member(
-        &mut self,
-        batch_id: BatchId,
-        operation_id: OperationId,
-    ) -> Result<PayloadId, ProducerStoreError> {
-        self.batches.remove_member(batch_id, operation_id)
-    }
-
-    /// Releases logical batch membership exactly once before payload release.
-    pub(crate) fn release_batch(&mut self, batch_id: BatchId) -> Result<(), ProducerStoreError> {
-        let _members = self.batches.release(batch_id)?;
-        Ok(())
-    }
-
     /// Releases one admitted payload exactly once with provenance checking.
     pub(crate) fn release_payload(
         &mut self,
@@ -136,58 +102,6 @@ impl ProducerStore {
             return Err(ProducerStoreError::PayloadStillBatched);
         }
         self.records.release(payload_id, expected)
-    }
-
-    /// Returns route provenance only for the exact sealed membership snapshot.
-    pub(crate) fn execution_route(
-        &self,
-        execution: kafka_client_core::BatchExecutionId,
-    ) -> Result<(TopicId, PartitionIndex), ProducerStoreError> {
-        let route = self.batches.execution_route(execution)?;
-        Ok((route.topic_id, route.partition))
-    }
-
-    /// Proves that one operation belongs to the exact materialized execution.
-    pub(crate) fn execution_contains_operation(
-        &self,
-        execution: kafka_client_core::BatchExecutionId,
-        operation_id: OperationId,
-    ) -> Result<bool, ProducerStoreError> {
-        self.batches
-            .execution_contains_operation(execution, operation_id)
-    }
-
-    /// Commits an exact attempt only after encoded bytes are retained.
-    pub(crate) fn commit_materialization(
-        &mut self,
-        attempt: MaterializationAttempt,
-    ) -> Result<(), ProducerStoreError> {
-        self.batches.commit_materialization(attempt)
-    }
-
-    /// Returns one failed exact attempt to its immutable ready phase.
-    pub(crate) fn abort_materialization(
-        &mut self,
-        attempt: MaterializationAttempt,
-    ) -> crate::producer::batch_store::MaterializationAbort {
-        self.batches.abort_materialization(attempt)
-    }
-
-    /// Returns the execution retained by a sealed batch for cleanup preflight.
-    pub(crate) fn batch_execution(
-        &self,
-        batch_id: BatchId,
-    ) -> Result<Option<kafka_client_core::BatchExecutionId>, ProducerStoreError> {
-        self.batches.execution(batch_id)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn replace_batch_execution_for_test(
-        &mut self,
-        batch_id: BatchId,
-        replacement: kafka_client_core::BatchExecutionId,
-    ) {
-        self.batches.replace_ready_for_test(batch_id, replacement);
     }
 
     /// Returns current count and byte ownership for metrics and tests.

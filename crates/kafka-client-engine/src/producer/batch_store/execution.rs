@@ -45,7 +45,8 @@ impl BatchAccumulator {
             BatchState::ReadyForMaterialization(current) if current == execution => Ok(()),
             BatchState::ReadyForMaterialization(_)
             | BatchState::Materializing(_)
-            | BatchState::Materialized(_) => Err(ProducerStoreError::StaleBatchExecution),
+            | BatchState::Materialized(_)
+            | BatchState::Submitted(_) => Err(ProducerStoreError::StaleBatchExecution),
         }
     }
 
@@ -56,9 +57,10 @@ impl BatchAccumulator {
                 Ok(())
             }
             BatchState::ReadyForMaterialization(_) => Err(ProducerStoreError::StaleBatchExecution),
-            BatchState::Open | BatchState::Materializing(_) | BatchState::Materialized(_) => {
-                Err(ProducerStoreError::BatchAlreadyMaterialized)
-            }
+            BatchState::Open
+            | BatchState::Materializing(_)
+            | BatchState::Materialized(_)
+            | BatchState::Submitted(_) => Err(ProducerStoreError::BatchAlreadyMaterialized),
         }
     }
 
@@ -71,13 +73,15 @@ impl BatchAccumulator {
             BatchState::ReadyForMaterialization(current)
             | BatchState::Materializing(current)
             | BatchState::Materialized(current)
+            | BatchState::Submitted(current)
                 if current != execution =>
             {
                 Err(ProducerStoreError::StaleBatchExecution)
             }
             BatchState::Open
             | BatchState::ReadyForMaterialization(_)
-            | BatchState::Materialized(_) => Err(ProducerStoreError::BatchAlreadyMaterialized),
+            | BatchState::Materialized(_)
+            | BatchState::Submitted(_) => Err(ProducerStoreError::BatchAlreadyMaterialized),
             BatchState::Materializing(_) => Err(ProducerStoreError::StaleBatchExecution),
         }
     }
@@ -96,7 +100,8 @@ impl BatchAccumulator {
             BatchState::Open => None,
             BatchState::ReadyForMaterialization(execution)
             | BatchState::Materializing(execution)
-            | BatchState::Materialized(execution) => Some(execution),
+            | BatchState::Materialized(execution)
+            | BatchState::Submitted(execution) => Some(execution),
         }
     }
 }
@@ -177,7 +182,8 @@ impl BatchStore {
             BatchState::Materialized(current) if current == execution => Ok(batch.route),
             BatchState::ReadyForMaterialization(_)
             | BatchState::Materializing(_)
-            | BatchState::Materialized(_) => Err(ProducerStoreError::StaleBatchExecution),
+            | BatchState::Materialized(_)
+            | BatchState::Submitted(_) => Err(ProducerStoreError::StaleBatchExecution),
             BatchState::Open => Err(ProducerStoreError::BatchAlreadyMaterialized),
         }
     }
