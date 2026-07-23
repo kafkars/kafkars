@@ -97,21 +97,27 @@ impl ProducerMachine {
         } else {
             self.batches.remove(&batch_id);
         }
+        let flush_effects = self.settle_ready_flushes();
 
-        let mut effects = Vec::with_capacity(terminal.len().saturating_add(3));
+        let mut effects = Vec::with_capacity(
+            terminal
+                .len()
+                .saturating_add(flush_effects.len())
+                .saturating_add(2),
+        );
         effects.push(ProducerEffect::ReviseBatchExecution {
             previous,
             replacement,
             removed_operation_id: operation_id,
         });
         effects.append(&mut terminal);
+        effects.extend(flush_effects);
         if let Some(execution) = replacement {
             effects.push(ProducerEffect::MaterializeBatch {
                 execution,
                 compression: CompressionPolicy::Uncompressed,
             });
         }
-        effects.extend(self.settle_ready_flushes());
         Ok(resolved(
             ProducerCancellationOutcome::CancelledNotSent,
             effects,

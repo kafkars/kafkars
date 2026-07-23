@@ -19,6 +19,7 @@ pub(super) enum VirtualBatchPhase {
     Open,
     Ready(BatchExecutionId),
     Materializing(BatchExecutionId),
+    /// Virtual materialization may finish before core receives its explicit fact.
     Materialized(BatchExecutionId),
     AwaitingDriver(BatchExecutionId),
     Submitted(BatchExecutionId),

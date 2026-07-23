@@ -29,6 +29,8 @@ pub use machine::ProducerMachine;
 pub use partitioner::{KeyedPartitionError, PartitionCount, select_java_keyed_partition};
 
 #[cfg(test)]
+mod cancellation_order_test;
+#[cfg(test)]
 mod cancellation_revision_test;
 #[cfg(test)]
 mod cancellation_test;
