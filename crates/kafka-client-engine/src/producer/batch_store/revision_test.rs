@@ -6,8 +6,8 @@ use kafka_client_core::{
 };
 
 use super::{
-    BatchCancellationPhase, BatchRevisionExpectation, BatchRoute, BatchStore,
-    revision::BatchRevisionReplacement,
+    BatchCancellationPhase, BatchRevisionExpectation, BatchRevisionReplacement, BatchRoute,
+    BatchStore,
 };
 use crate::producer::ProducerStoreError;
 
