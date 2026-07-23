@@ -9,13 +9,13 @@ use kafka_client_engine::{
 
 use crate::{
     bridge::{
+        producer_barrier::{BarrierKind, ProducerBarrier},
         producer_delivery::ProducerDelivery,
-        producer_flush::ProducerFlush,
         producer_result::admission::{
             ProducerAdmissionRejection, translate_accepted_fault, translate_admission_error,
             translate_capture_error,
         },
-        producer_result::flush::translate_flush_admission,
+        producer_result::{close::translate_close_admission, flush::translate_flush_admission},
     },
     record::{Header, Record, RecordParts},
 };
@@ -45,13 +45,28 @@ impl ProducerEngine {
     }
 
     /// Captures one exact barrier or returns its admission error as ready state.
-    pub(crate) fn flush(&self) -> ProducerFlush {
+    pub(crate) fn flush(&self) -> ProducerBarrier {
         match self.handle.try_flush() {
             Ok(accepted) => {
                 let diagnostic = accepted.fault().map(translate_accepted_fault);
-                ProducerFlush::accepted(accepted.into_observer(), diagnostic)
+                ProducerBarrier::accepted(BarrierKind::Flush, accepted.into_observer(), diagnostic)
             }
-            Err(error) => ProducerFlush::ready(Err(translate_flush_admission(&error))),
+            Err(error) => {
+                ProducerBarrier::ready(BarrierKind::Flush, Err(translate_flush_admission(&error)))
+            }
+        }
+    }
+
+    /// Attempts one atomic close and returns its terminal authority.
+    pub(crate) fn close(&self) -> ProducerBarrier {
+        match self.handle.try_close() {
+            Ok(accepted) => {
+                let diagnostic = accepted.fault().map(translate_accepted_fault);
+                ProducerBarrier::accepted(BarrierKind::Close, accepted.into_observer(), diagnostic)
+            }
+            Err(error) => {
+                ProducerBarrier::ready(BarrierKind::Close, Err(translate_close_admission(&error)))
+            }
         }
     }
 

@@ -44,6 +44,7 @@ evidence = [
   "crates/kafka-client-engine/src/producer/ingress/data_test.rs::close_capacity_failure_leaves_record_and_flush_admission_running",
   "crates/kafka-client-engine/src/producer/terminal_publication_test.rs::close_publication_stays_behind_prior_record_under_notifier_backpressure",
   "crates/kafka-client-engine/src/producer/flush/close_reclaim_test.rs::abandoned_close_reclaims_its_exact_flush_binding_and_shared_capacity",
+  "crates/kafka-client/src/producer/close_test.rs::public_close_is_clone_shared_and_first_success_wins",
 ]
 
 [[invariant]]

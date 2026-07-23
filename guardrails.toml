@@ -419,6 +419,10 @@ production = "crates/kafka-client/src/bridge/producer_result/admission.rs"
 test = "crates/kafka-client/src/bridge/producer_result/admission_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client/src/bridge/producer_result/close.rs"
+test = "crates/kafka-client/src/bridge/producer_result/close_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client/src/bridge/producer_result/delivery.rs"
 test = "crates/kafka-client/src/bridge/producer_result/delivery_test.rs"
 
@@ -431,8 +435,8 @@ production = "crates/kafka-client/src/bridge/producer_delivery.rs"
 test = "crates/kafka-client/src/bridge/producer_delivery_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/producer_flush.rs"
-test = "crates/kafka-client/src/bridge/producer_flush_test.rs"
+production = "crates/kafka-client/src/bridge/producer_barrier.rs"
+test = "crates/kafka-client/src/bridge/producer_barrier_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/bridge/producer_result/flush.rs"
@@ -441,6 +445,10 @@ test = "crates/kafka-client/src/bridge/producer_result/flush_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/producer/handle.rs"
 test = "crates/kafka-client/src/producer/handle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/producer/close.rs"
+test = "crates/kafka-client/src/producer/close_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/producer/delivery.rs"
@@ -1472,8 +1480,8 @@ owner_type = "ProducerDelivery"
 path = "crates/kafka-client/src/bridge/producer_delivery.rs"
 
 [[linear_owners]]
-owner_type = "ProducerFlush"
-path = "crates/kafka-client/src/bridge/producer_flush.rs"
+owner_type = "ProducerBarrier"
+path = "crates/kafka-client/src/bridge/producer_barrier.rs"
 
 [[linear_owners]]
 owner_type = "Delivery"
@@ -1482,6 +1490,10 @@ path = "crates/kafka-client/src/producer/delivery.rs"
 [[linear_owners]]
 owner_type = "Flush"
 path = "crates/kafka-client/src/producer/flush.rs"
+
+[[linear_owners]]
+owner_type = "CloseProducer"
+path = "crates/kafka-client/src/producer/close.rs"
 
 [[linear_owners]]
 owner_type = "TrySendError"

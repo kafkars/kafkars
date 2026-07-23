@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::{ErrorKind, KafkaError, Record, bridge::producer::ProducerEngine};
 
-use super::{Delivery, Flush, TrySendError};
+use super::{CloseProducer, Delivery, Flush, TrySendError};
 
 /// Builder for a bounded, batch-native producer.
 #[derive(Debug, Clone)]
@@ -55,6 +55,15 @@ pub struct Producer {
 }
 
 impl Producer {
+    /// Atomically closes admission and drains work accepted before this call.
+    ///
+    /// The first accepted close fences all clone-shared producer handles.
+    /// Admission failures are immediately ready on the returned named
+    /// operation; an accepted terminal observer remains the result authority.
+    pub fn close(&self) -> CloseProducer {
+        CloseProducer::from_bridge(self.engine.close())
+    }
+
     /// Creates a barrier over records accepted before this call.
     ///
     /// Admission failures are returned by the named operation as an
