@@ -153,6 +153,22 @@ impl PreparedProduceStore {
         Ok(value.retained_record_bytes())
     }
 
+    /// Drops a retained request when present without weakening exact `release`.
+    pub(crate) fn release_if_present(
+        &mut self,
+        batch_id: BatchId,
+    ) -> Result<Option<usize>, PreparedProduceError> {
+        if !self.batches.contains_key(&batch_id) {
+            return Ok(None);
+        }
+        self.release(batch_id).map(Some)
+    }
+
+    /// Returns whether this store is the encoded-byte owner for a batch.
+    pub(crate) fn contains(&self, batch_id: BatchId) -> bool {
+        self.batches.contains_key(&batch_id)
+    }
+
     /// Returns current count and byte ownership.
     pub(crate) fn stats(&self) -> PreparedProduceStats {
         PreparedProduceStats {

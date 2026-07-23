@@ -2,7 +2,9 @@
 
 use kafka_client_core::{BatchId, Deadline, Moment, OperationId, ProducerInput};
 
-use super::{DueSubmissionDeadline, SubmissionDeadlineError, SubmissionDeadlines};
+use super::submission_deadline::{
+    DueSubmissionDeadline, SubmissionDeadlineError, SubmissionDeadlines,
+};
 
 fn batch(value: u64) -> BatchId {
     BatchId::from_raw(value)

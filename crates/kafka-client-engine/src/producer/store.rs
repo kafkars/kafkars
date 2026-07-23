@@ -2,7 +2,7 @@
 
 mod materialize;
 
-use kafka_client_core::{BatchId, ByteCount, OperationId, PayloadId};
+use kafka_client_core::{BatchId, ByteCount, OperationId, PartitionIndex, PayloadId, TopicId};
 
 use super::{
     ProducerAdmissionError, ProducerRecord, ProducerStoreError,
@@ -131,6 +131,15 @@ impl ProducerStore {
             return Err(ProducerStoreError::PayloadStillBatched);
         }
         self.records.release(payload_id, expected)
+    }
+
+    /// Returns immutable route provenance already owned by one engine batch.
+    pub(crate) fn batch_route(
+        &self,
+        batch_id: BatchId,
+    ) -> Result<(TopicId, PartitionIndex), ProducerStoreError> {
+        let route = self.batches.route(batch_id)?;
+        Ok((route.topic_id, route.partition))
     }
 
     /// Returns current count and byte ownership for metrics and tests.

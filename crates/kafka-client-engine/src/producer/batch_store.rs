@@ -227,6 +227,13 @@ impl BatchStore {
         self.payloads.contains_key(&payload_id)
     }
 
+    pub(super) fn route(&self, batch_id: BatchId) -> Result<BatchRoute, ProducerStoreError> {
+        self.batches
+            .get(&batch_id)
+            .map(|batch| batch.route)
+            .ok_or(ProducerStoreError::UnknownBatch)
+    }
+
     pub(super) fn len(&self) -> usize {
         self.batches.len()
     }

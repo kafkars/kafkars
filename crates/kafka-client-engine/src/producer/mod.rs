@@ -5,6 +5,7 @@ mod batch_store;
 mod binding;
 mod effect;
 pub(crate) mod error;
+pub(crate) mod execution;
 mod host;
 mod host_error;
 mod interpreter;
@@ -26,6 +27,8 @@ mod topic_catalog;
 pub(crate) use admission::{AdmittedExplicit, ProducerAdmissionFailure, RejectedExplicit};
 pub(crate) use binding::{CompletionBindingError, CompletionBindings};
 pub(crate) use error::{ProducerAdmissionError, ProducerStoreError};
+#[cfg_attr(not(test), expect(unused_imports, reason = "producer host follows"))]
+pub(crate) use execution::{PreparedExecution, PreparedExecutionError, PreparedExecutionLimits};
 #[cfg_attr(
     not(test),
     expect(unused_imports, reason = "the facade bridge follows")
@@ -39,16 +42,6 @@ pub(crate) use materialization::{
     MaterializationBatch, MaterializationHeader, MaterializationRecord,
 };
 pub(crate) use record::ProducerRecord;
-#[cfg_attr(
-    not(test),
-    expect(
-        unused_imports,
-        reason = "submission deadlines precede the integrated producer host"
-    )
-)]
-pub(crate) use submission_deadline::{
-    DueSubmissionDeadline, SubmissionDeadlineError, SubmissionDeadlines,
-};
 
 #[cfg(test)]
 pub(crate) use record::ProducerHeader;
@@ -60,6 +53,10 @@ mod admission_test;
 mod batch_store_test;
 #[cfg(test)]
 mod binding_test;
+#[cfg(test)]
+mod execution_route_test;
+#[cfg(test)]
+mod execution_test;
 #[cfg(test)]
 mod host_limits_test;
 #[cfg(test)]

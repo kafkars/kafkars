@@ -79,6 +79,10 @@ production = "crates/kafka-client-engine/src/producer/binding.rs"
 test = "crates/kafka-client-engine/src/producer/binding_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/execution.rs"
+test = "crates/kafka-client-engine/src/producer/execution_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/host.rs"
 test = "crates/kafka-client-engine/src/producer/host_limits_test.rs"
 
@@ -728,3 +732,7 @@ path = "crates/kafka-client-engine/src/producer/admission.rs"
 [[linear_owners]]
 owner_type = "RejectedExplicit"
 path = "crates/kafka-client-engine/src/producer/admission.rs"
+
+[[linear_owners]]
+owner_type = "PreparedExecution"
+path = "crates/kafka-client-engine/src/producer/execution.rs"
