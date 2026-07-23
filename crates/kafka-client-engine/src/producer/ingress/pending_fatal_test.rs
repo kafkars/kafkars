@@ -93,6 +93,22 @@ fn later_fault_and_explicit_close_preserve_the_first_owner() {
 }
 
 #[test]
+fn generic_fatal_cannot_convert_an_explicitly_closed_shard() {
+    let mut data = ProducerShardData::new(start(valid_limits()));
+    data.close_admission();
+    let (incoming, send, expected_deadline) = fatal_with_deadline(33);
+
+    let refused = match data.retain_pending_fatal(incoming) {
+        Err(refused) => refused.into_owner(),
+        Ok(()) => panic!("generic fatal retention must not bypass explicit closure"),
+    };
+
+    assert_eq!(owner_deadline(&refused), expected_deadline);
+    assert!(data.pending_fatal_for_test().is_none());
+    drop((send, refused));
+}
+
+#[test]
 fn ordinary_route_refusal_faults_with_the_exact_local_context() {
     let mut data = ProducerShardData::new(start(valid_limits()));
     let send = data

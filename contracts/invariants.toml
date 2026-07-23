@@ -28,7 +28,7 @@ evidence = [
 [[invariant]]
 id = "BND-02"
 title = "Pending notification obligations are bounded"
-statement = "The engine-internal pending-send seam reserves one non-cloneable notification permit at registration, and the live host prestarts one bounded off-reactor recovery worker. Constant-time route retention preserves exact FIFO ownership, primary retries require an explicit nonzero work limit, and a closed primary transfers the untouched head and tail irreversibly to recovery. Terminal recovery cannot run until the older primary notifier is joined, and dropping its paired stop owner drains and joins rather than detaching. Public waiting admission and live host promotion remain separate milestones."
+statement = "The engine-internal pending-send seam reserves one non-cloneable notification permit at registration, and the live host prestarts one bounded off-reactor recovery worker. Constant-time route retention preserves exact FIFO ownership, primary retries require an explicit nonzero work limit, and a closed primary transfers the untouched head and tail irreversibly to recovery. Dormant expiry and shutdown drain use caller-bounded turns and retain every completed notification through that route. Terminal recovery cannot run until the older primary notifier is joined, and dropping its paired stop owner drains and joins rather than detaching. Public waiting admission and live host promotion remain separate milestones."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/pending/permit_test.rs::notification_permit_is_not_reused_before_dispatch",
@@ -49,6 +49,8 @@ evidence = [
   "crates/kafka-client-engine/src/producer/host_limits_test.rs::later_notification_start_failure_joins_the_prestarted_recovery_worker",
   "crates/kafka-client-engine/src/producer/pending/turn_test.rs::take_next_counts_each_abandoned_tombstone_against_its_budget",
   "crates/kafka-client-engine/src/producer/pending/turn_test.rs::expire_and_drain_count_tombstones_without_yielding_fake_failures",
+  "crates/kafka-client-engine/src/producer/ingress/pending_local_settlement_test.rs::expiry_is_bounded_and_reports_the_next_absolute_deadline",
+  "crates/kafka-client-engine/src/producer/ingress/pending_local_settlement_test.rs::closed_shard_drains_a_bounded_fifo_prefix",
 ]
 
 [[invariant]]
@@ -232,7 +234,7 @@ evidence = [
 [[invariant]]
 id = "OWN-01"
 title = "Pending promotion has one coordinated owner"
-statement = "Removing a pending admission, claiming its observer cell, and transferring its exact record move through one non-cloneable attempt; every fallible restoration, settlement, or post-claim removal path returns the complete recovery owner. One dormant shard settlement consumes exactly one normal promotion outcome, distinguishes restored blocking from productive progress, releases unadmitted bytes before bounded notification retention, and preserves accepted delivery ownership. Explicit closure reports idle without consuming retained pending ownership, while an existing fault reports faulted without replacing its exact first owner. Invariants close both admissions only after routing succeeds; route refusal retains the exact job with semantic context in the immutable first-fault slot, and later fatal owners return intact."
+statement = "Removing a pending admission, claiming its observer cell, and transferring its exact record move through one non-cloneable attempt; every fallible restoration, settlement, or post-claim removal path returns the complete recovery owner. One dormant shard settlement consumes exactly one normal promotion outcome, distinguishes restored blocking from productive progress, releases unadmitted bytes before bounded notification retention, and preserves accepted delivery ownership. A separate dormant local turn expires running work or drains an explicitly closed shard under a nonzero caller limit. It routes completed jobs in order, preserves a refused current job, untouched suffix, retained prefix, and source-turn owner without allocating a replacement vector, and permits Closed to become Faulted only for drain-generated failure. Explicit closure reports idle to promotion without consuming retained pending ownership, while an existing fault reports typed zero-work progress without replacing its exact first owner. Invariants close both admissions only after routing succeeds; route refusal retains the exact job with semantic context in the immutable first-fault slot, and later fatal owners return intact."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/pending/attempt_test.rs::accept_before_record_commit_returns_observer_attempt_and_exact_record",
@@ -252,6 +254,11 @@ evidence = [
   "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs::ordinary_route_refusal_faults_with_the_exact_local_context",
   "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs::invariant_route_refusal_is_the_only_first_fault_owner",
   "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs::later_settlement_fault_is_returned_without_replacing_the_first",
+  "crates/kafka-client-engine/src/producer/ingress/pending_local_fatal_test.rs::route_refusal_retains_current_job_and_untouched_expiry_suffix",
+  "crates/kafka-client-engine/src/producer/ingress/pending_local_fatal_test.rs::failed_source_turn_keeps_ownership_after_routing_completed_prefix",
+  "crates/kafka-client-engine/src/producer/ingress/pending_local_fatal_test.rs::shutdown_route_refusal_is_the_only_closed_to_faulted_transition",
+  "crates/kafka-client-engine/src/producer/ingress/pending_local_fatal_test.rs::closed_shard_returns_a_non_drain_local_fault_intact",
+  "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs::generic_fatal_cannot_convert_an_explicitly_closed_shard",
 ]
 
 [[invariant]]

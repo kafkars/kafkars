@@ -139,4 +139,18 @@ impl PendingAdmissionRegistry {
     pub(super) fn insert_fifo_index_for_test(&mut self, sequence: u64, id: PendingAdmissionId) {
         self.fifo.insert(sequence, id);
     }
+
+    #[cfg(test)]
+    pub(crate) fn remove_fifo_index_for_test(
+        &mut self,
+        id: PendingAdmissionId,
+    ) -> Result<(), PendingRegistryError> {
+        let entry = self
+            .slots
+            .get(id.slot())
+            .and_then(|slot| slot.entry.as_ref())
+            .ok_or(PendingRegistryError::StaleGeneration)?;
+        self.fifo.remove(&entry.sequence());
+        Ok(())
+    }
 }

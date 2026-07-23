@@ -155,6 +155,11 @@ impl PendingLocalFailure {
     pub(crate) fn into_parts(self) -> (PendingAdmission, PendingNotificationJob) {
         (self.pending, self.notification)
     }
+
+    #[cfg(test)]
+    pub(crate) fn topic_for_test(&self) -> &str {
+        self.pending.topic_for_test()
+    }
 }
 
 /// Linear start failure retaining work that never crossed core admission.

@@ -275,6 +275,14 @@ production = "crates/kafka-client-engine/src/producer/ingress/pending_fatal.rs"
 test = "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/pending_local_fatal.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/pending_local_fatal_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/pending_local_settlement.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/pending_local_settlement_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/ingress/pending_settlement.rs"
 test = "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs"
 
@@ -684,6 +692,19 @@ forbidden = [
 ]
 
 [[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/ingress/pending_local_settlement.rs"
+forbidden = [
+  "std::time",
+  "Instant::now",
+  "SystemTime",
+  "OperationDeadline::from_boundary_parts",
+  "dispatch_pending_notification",
+  "dispatch_all_pending_notifications",
+  "retry_primary_notifications",
+  "notify_pending",
+]
+
+[[capability_rules]]
 root = "crates/kafka-client-engine/src/producer/interpreter.rs"
 forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
 
@@ -719,7 +740,22 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "retain_pending_notification"
 allowed_paths = [
+  "crates/kafka-client-engine/src/producer/ingress/pending_local_settlement.rs",
   "crates/kafka-client-engine/src/producer/ingress/pending_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "expire_due"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/ingress/pending_local_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "drain_closed"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/ingress/pending_local_settlement.rs",
 ]
 
 [[method_capabilities]]
@@ -771,7 +807,19 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
+method = "retain_pending_local_fatal"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/ingress/pending_local_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
 method = "settle_next_pending"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "settle_pending_local"
 allowed_paths = []
 
 [[method_capabilities]]
@@ -2043,6 +2091,14 @@ path = "crates/kafka-client-engine/src/producer/ingress/pending_fatal.rs"
 [[linear_owners]]
 owner_type = "PendingNotificationFatal"
 path = "crates/kafka-client-engine/src/producer/ingress/pending_fatal.rs"
+
+[[linear_owners]]
+owner_type = "PendingLocalSettlementFatal"
+path = "crates/kafka-client-engine/src/producer/ingress/pending_local_fatal.rs"
+
+[[linear_owners]]
+owner_type = "PendingLocalSettlementRetentionFailure"
+path = "crates/kafka-client-engine/src/producer/ingress/pending_local_fatal.rs"
 
 [[linear_owners]]
 owner_type = "PendingShardFatalRetentionFailure"

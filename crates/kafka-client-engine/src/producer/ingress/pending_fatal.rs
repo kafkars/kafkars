@@ -9,6 +9,10 @@ use crate::{
 
 use super::{
     data::{ProducerShardAdmission, ProducerShardData},
+    pending_local_fatal::{
+        PendingLocalSettlementFatal, PendingLocalSettlementMode,
+        PendingLocalSettlementRetentionFailure,
+    },
     promotion_error::{PendingPromotionFailure, PendingPromotionInvariant},
 };
 
@@ -67,6 +71,7 @@ impl PendingNotificationFatal {
 pub(crate) enum PendingShardFatal {
     Promotion(PendingPromotionFailure),
     Notification(PendingNotificationFatal),
+    LocalSettlement(PendingLocalSettlementFatal),
     AcceptedInvariant(PendingAcceptedInvariant),
     StartInvariant(PendingStartInvariant),
 }
@@ -81,6 +86,10 @@ impl PendingShardFatal {
         job: PendingNotificationJob,
     ) -> Self {
         Self::Notification(PendingNotificationFatal::new(context, job))
+    }
+
+    pub(crate) const fn local_settlement(fatal: PendingLocalSettlementFatal) -> Self {
+        Self::LocalSettlement(fatal)
     }
 
     pub(crate) const fn accepted_invariant(
@@ -104,7 +113,10 @@ impl PendingShardFatal {
     pub(crate) const fn promotion_for_test(&self) -> Option<&PendingPromotionFailure> {
         match self {
             Self::Promotion(failure) => Some(failure),
-            Self::Notification(_) | Self::AcceptedInvariant(_) | Self::StartInvariant(_) => None,
+            Self::Notification(_)
+            | Self::LocalSettlement(_)
+            | Self::AcceptedInvariant(_)
+            | Self::StartInvariant(_) => None,
         }
     }
 }
@@ -135,6 +147,33 @@ impl ProducerShardData {
         self.pending.begin_close();
         self.host.close_admission();
         self.admission = ProducerShardAdmission::Faulted(incoming);
+        Ok(())
+    }
+
+    /// Allows only shutdown drain to convert an already-closed shard into a fault.
+    #[allow(
+        clippy::result_large_err,
+        reason = "refusal returns exact local ownership without allocating after route failure"
+    )]
+    pub(crate) fn retain_pending_local_fatal(
+        &mut self,
+        incoming: PendingLocalSettlementFatal,
+    ) -> Result<(), PendingLocalSettlementRetentionFailure> {
+        let allowed = matches!(&self.admission, ProducerShardAdmission::Running)
+            || matches!(
+                (&self.admission, incoming.mode()),
+                (
+                    ProducerShardAdmission::Closed,
+                    PendingLocalSettlementMode::ShutdownDrain
+                )
+            );
+        if !allowed {
+            return Err(PendingLocalSettlementRetentionFailure::new(incoming));
+        }
+        self.pending.begin_close();
+        self.host.close_admission();
+        self.admission =
+            ProducerShardAdmission::Faulted(PendingShardFatal::local_settlement(incoming));
         Ok(())
     }
 
