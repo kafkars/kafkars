@@ -1,4 +1,4 @@
-//! Promotion restoration identity, ordering, capacity, and shutdown scenarios.
+//! Coordinated registry-first restoration and observer-drop race scenarios.
 
 use std::{sync::Arc, time::Instant};
 
@@ -6,190 +6,160 @@ use bytes::Bytes;
 use kafka_client_core::{Deadline, PartitionIndex};
 
 use super::{
-    PendingAdmission, PendingAdmissionId, PendingAdmissionRegistry, PendingLocalFailureKind,
-    PendingRegistryError, PendingRestoreOutcome, PendingSendCell,
+    PendingAdmissionRegistry, PendingAttemptRestoreError, PendingAttemptRestoreOutcome,
+    PendingCellError, PendingRegistryError, ProducerSendFailure, ProducerSendFailureKind,
 };
-use crate::{ProducerDeliveryStatus, producer::ProducerRecord};
+use crate::producer::ProducerRecord;
 
 #[test]
-fn restoration_reinstates_the_exact_fifo_head_and_accounting() {
-    let mut registry = PendingAdmissionRegistry::new(3, 64);
-    let absolute = Instant::now();
-    let first = registry
-        .register(record("first", 3), deadline(40), absolute)
-        .unwrap_or_else(|error| panic!("first registration failed: {error:?}"))
-        .id();
-    let second = register(&mut registry, record("second", 4), 20);
+fn restoration_reinstates_exact_fifo_accounting_before_cell_pending() {
+    let mut registry = PendingAdmissionRegistry::new(2, 64, 2);
+    let registration = register(&mut registry, "first", 3, 40);
+    let send = registration.into_send();
     let before = registry.stats();
-    let pending = take(&mut registry);
-    let original_sequence = pending.sequence();
-    let original_bytes = pending.retained_bytes();
+    let attempt = take(&mut registry);
+    let original = attempt
+        .retained_admission_for_test()
+        .unwrap_or_else(|| panic!("attempt should retain its admission"));
+    let id = original.id();
+    let sequence = original.sequence();
 
-    assert_eq!(pending.id(), first);
     assert!(matches!(
-        registry.restore_front(pending),
-        Ok(PendingRestoreOutcome::Restored)
+        attempt.restore(&mut registry),
+        Ok(PendingAttemptRestoreOutcome::Restored)
     ));
     assert_eq!(registry.stats(), before);
-
     let restored = take(&mut registry);
-    assert_eq!(restored.id(), first);
-    assert_eq!(restored.sequence(), original_sequence);
-    assert_eq!(restored.retained_bytes(), original_bytes);
-    assert_eq!(restored.deadline(), deadline(40));
-    assert_eq!(restored.absolute_instant(), absolute);
-    let (topic, _, _, value, _) = restored.into_record().into_parts();
-    assert_eq!(topic.as_ref(), "first");
-    assert_eq!(value, Some(Bytes::from_static(b"xxx")));
-    assert_eq!(take(&mut registry).id(), second);
+    let restored_admission = restored
+        .retained_admission_for_test()
+        .unwrap_or_else(|| panic!("restored attempt should retain admission"));
+    assert_eq!(restored_admission.id(), id);
+    assert_eq!(restored_admission.sequence(), sequence);
+    let local = restored
+        .settle_local(ProducerSendFailure::new(
+            ProducerSendFailureKind::Backpressure,
+        ))
+        .unwrap_or_else(|_failure| panic!("restored attempt should settle"));
+    let (pending, job) = local.into_parts();
+    assert_eq!(pending.into_record().topic().as_ref(), "first");
+    job.dispatch_pending_notification_for_test();
+    assert!(send.wait().is_err());
 }
 
 #[test]
-fn reused_slot_rejects_stale_restore_without_losing_either_record() {
-    let mut registry = PendingAdmissionRegistry::new(2, 64);
-    let absolute = Instant::now();
-    let stale = registry
-        .register(record("stale", 1), deadline(30), absolute)
-        .unwrap_or_else(|error| panic!("stale registration failed: {error:?}"))
-        .id();
-    let held = take(&mut registry);
-    let live = register(&mut registry, record("live", 2), 50);
-    let stats = registry.stats();
-    let Err(failure) = registry.restore_front(held) else {
-        panic!("reused slot must reject stale restore");
-    };
-
-    assert_eq!(failure.error(), PendingRegistryError::StaleGeneration);
-    let (error, held) = failure.into_parts();
-    assert_eq!(error, PendingRegistryError::StaleGeneration);
-    assert_eq!(held.id(), stale);
-    assert_eq!(held.deadline(), deadline(30));
-    assert_eq!(held.absolute_instant(), absolute);
-    assert_eq!(held.into_record().topic().as_ref(), "stale");
-    assert_eq!(registry.stats(), stats);
-    assert_eq!(take(&mut registry).id(), live);
-}
-
-#[test]
-fn colliding_fifo_index_rejects_restore_before_any_mutation() {
-    let mut registry = PendingAdmissionRegistry::new(2, 64);
-    let held_id = register(&mut registry, record("held", 1), 30);
-    let live_id = register(&mut registry, record("live", 1), 40);
-    let held = take(&mut registry);
-    registry.insert_fifo_index_for_test(held.sequence(), live_id);
-    let stats = registry.stats();
-    let Err(failure) = registry.restore_front(held) else {
-        panic!("colliding FIFO index must reject restore");
-    };
-
-    assert_eq!(failure.error(), PendingRegistryError::IndexCollision);
-    let (_, held) = failure.into_parts();
-    assert_eq!(held.id(), held_id);
-    assert_eq!(held.into_record().topic().as_ref(), "held");
-    assert_eq!(registry.stats(), stats);
-}
-
-#[test]
-fn unknown_slot_rejection_retains_the_complete_entry() {
-    let mut registry = PendingAdmissionRegistry::new(1, 64);
-    let absolute = Instant::now();
-    let record = record("unknown", 2);
-    let retained = record
-        .retained_bytes()
-        .unwrap_or_else(|error| panic!("test record size failed: {error}"));
-    let id = PendingAdmissionId::new(usize::MAX, 7);
-    let pending = PendingAdmission::new(
-        id,
-        record,
-        deadline(70),
-        absolute,
-        retained,
-        0,
-        PendingSendCell::new(),
-    );
-    let Err(failure) = registry.restore_front(pending) else {
-        panic!("unknown slot must reject restore");
-    };
-
-    assert_eq!(failure.error(), PendingRegistryError::UnknownSlot);
-    let (_, pending) = failure.into_parts();
-    assert_eq!(pending.id(), id);
-    assert_eq!(pending.deadline(), deadline(70));
-    assert_eq!(pending.absolute_instant(), absolute);
-    assert_eq!(pending.into_record().topic().as_ref(), "unknown");
-    assert_eq!(registry.stats().records, 0);
-    assert_eq!(registry.stats().retained_bytes, 0);
-}
-
-#[test]
-fn byte_capacity_failure_retains_entry_and_existing_accounting() {
-    let mut registry = PendingAdmissionRegistry::new(3, 20);
-    register(&mut registry, record("a", 1), 30);
-    register(&mut registry, record("b", 1), 40);
-    let held = take(&mut registry);
-    let other_held = take(&mut registry);
-    register(&mut registry, record("c", 18), 50);
-    let stats = registry.stats();
-    let Err(failure) = registry.restore_front(held) else {
-        panic!("byte capacity must reject restoration");
-    };
-
-    assert_eq!(failure.error(), PendingRegistryError::ByteCapacity);
-    assert_eq!(failure.into_parts().1.into_record().topic().as_ref(), "a");
-    assert_eq!(registry.stats(), stats);
-    assert_eq!(registry.stats().records, 1);
-    drop(other_held);
-}
-
-#[test]
-fn close_converts_held_work_to_shutdown_instead_of_restoring() {
-    let mut registry = PendingAdmissionRegistry::new(1, 64);
-    let absolute = Instant::now();
-    let id = registry
-        .register(record("closing", 1), deadline(90), absolute)
-        .unwrap_or_else(|error| panic!("registration failed: {error:?}"))
-        .id();
-    let held = take(&mut registry);
+fn failed_restore_cannot_leave_cell_pending_without_registry_entry() {
+    let mut registry = PendingAdmissionRegistry::new(1, 64, 1);
+    let registration = register(&mut registry, "closed", 1, 30);
+    let send = registration.into_send();
+    let attempt = take(&mut registry);
+    let cell = attempt.cell_for_test();
     registry.begin_close();
-    let outcome = registry
-        .restore_front(held)
-        .unwrap_or_else(|error| panic!("close conversion failed: {error:?}"));
-    let PendingRestoreOutcome::Shutdown(failure) = outcome else {
-        panic!("closed registry must settle held work");
-    };
 
-    assert_eq!(failure.kind(), PendingLocalFailureKind::Shutdown);
-    assert_eq!(failure.delivery_status(), ProducerDeliveryStatus::NotSent);
-    let pending = failure.into_pending();
-    assert_eq!(pending.id(), id);
-    assert_eq!(pending.deadline(), deadline(90));
-    assert_eq!(pending.absolute_instant(), absolute);
-    assert_eq!(pending.into_record().topic().as_ref(), "closing");
+    let failure = attempt
+        .restore(&mut registry)
+        .err()
+        .unwrap_or_else(|| panic!("closed registry should reject restore"));
+    assert_eq!(
+        failure.error(),
+        PendingAttemptRestoreError::Registry(PendingRegistryError::Closed)
+    );
+    let attempt = failure
+        .into_attempt()
+        .unwrap_or_else(|_failure| panic!("preflight failure should retain unchanged attempt"));
     assert_eq!(registry.stats().records, 0);
-    assert_eq!(registry.stats().retained_bytes, 0);
-    assert!(!registry.stats().accepting);
+    assert!(matches!(
+        cell.begin_promotion_for_test(),
+        Err(PendingCellError::TransitionInProgress)
+    ));
+
+    let local = attempt
+        .settle_local(ProducerSendFailure::new(ProducerSendFailureKind::Shutdown))
+        .unwrap_or_else(|_failure| panic!("retained attempt should settle"));
+    let (pending, job) = local.into_parts();
+    assert_eq!(pending.into_record().topic().as_ref(), "closed");
+    job.dispatch_pending_notification_for_test();
+    assert!(send.wait().is_err());
 }
 
-fn take(registry: &mut PendingAdmissionRegistry) -> PendingAdmission {
-    registry
-        .take_next()
-        .unwrap_or_else(|error| panic!("pending take failed: {error:?}"))
-        .unwrap_or_else(|| panic!("pending entry missing"))
+#[test]
+fn observer_drop_during_restore_removes_exact_reinserted_accounting() {
+    let mut registry = PendingAdmissionRegistry::new(1, 64, 1);
+    let registration = register(&mut registry, "raced", 4, 50);
+    let send = registration.into_send();
+    let attempt = take(&mut registry);
+    drop(send);
+
+    let outcome = attempt
+        .restore(&mut registry)
+        .unwrap_or_else(|_failure| panic!("raced restore should resolve"));
+    let PendingAttemptRestoreOutcome::Abandoned(pending) = outcome else {
+        panic!("observer drop should win after temporary registry insertion");
+    };
+    assert_eq!(pending.into_record().topic().as_ref(), "raced");
+    assert_eq!(registry.stats().records, 0);
+    assert_eq!(registry.stats().retained_bytes, 0);
+    assert_eq!(registry.stats().notification_permits, 0);
+}
+
+#[test]
+fn restore_preflight_failure_returns_unchanged_attempt_and_record() {
+    let mut registry = PendingAdmissionRegistry::new(2, 64, 2);
+    let held_registration = register(&mut registry, "held", 2, 20);
+    let held_send = held_registration.into_send();
+    let live_registration = register(&mut registry, "live", 3, 40);
+    let live_id = live_registration.id();
+    let live_send = live_registration.into_send();
+    let attempt = take(&mut registry);
+    registry.insert_fifo_index_for_test(
+        attempt
+            .retained_admission_for_test()
+            .unwrap_or_else(|| panic!("held attempt should retain admission"))
+            .sequence(),
+        live_id,
+    );
+
+    let failure = attempt
+        .restore(&mut registry)
+        .err()
+        .unwrap_or_else(|| panic!("colliding index should reject restore"));
+    assert_eq!(
+        failure.error(),
+        PendingAttemptRestoreError::Registry(PendingRegistryError::IndexCollision)
+    );
+    let attempt = failure
+        .into_attempt()
+        .unwrap_or_else(|_failure| panic!("preflight should return the exact attempt"));
+    let held = attempt
+        .settle_local(ProducerSendFailure::new(ProducerSendFailureKind::Closed))
+        .unwrap_or_else(|_failure| panic!("held attempt should settle"));
+    let (held, held_job) = held.into_parts();
+    assert_eq!(held.into_record().topic().as_ref(), "held");
+    held_job.dispatch_pending_notification_for_test();
+    assert!(held_send.wait().is_err());
+    drop(live_send);
 }
 
 fn register(
     registry: &mut PendingAdmissionRegistry,
-    record: ProducerRecord,
+    topic: &str,
+    value_bytes: usize,
     deadline_tick: u64,
-) -> PendingAdmissionId {
+) -> super::PendingSendRegistration {
     registry
-        .register(record, deadline(deadline_tick), Instant::now())
-        .unwrap_or_else(|error| panic!("pending registration failed: {error:?}"))
-        .id()
+        .register(
+            record(topic, value_bytes),
+            Deadline::from_tick(deadline_tick),
+            Instant::now(),
+        )
+        .unwrap_or_else(|error| panic!("pending registration should succeed: {error:?}"))
 }
 
-fn deadline(tick: u64) -> Deadline {
-    Deadline::from_tick(tick)
+fn take(registry: &mut PendingAdmissionRegistry) -> super::PendingPromotionAttempt {
+    registry
+        .take_next(1)
+        .unwrap_or_else(|error| panic!("pending take should succeed: {error:?}"))
+        .into_attempt()
+        .unwrap_or_else(|| panic!("pending attempt should exist"))
 }
 
 fn record(topic: &str, value_bytes: usize) -> ProducerRecord {

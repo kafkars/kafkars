@@ -136,9 +136,10 @@ impl EngineConfig {
         }
         duration_ticks(self.delivery_timeout)?;
         let host_limits = self.producer_host_limits()?;
-        host_limits
+        let validated_host = host_limits
             .validate()
             .map_err(EngineConfigError::Producer)?;
+        drop(validated_host);
         let Some(turn_budget) = ProducerTurnBudget::try_new(
             DEFAULT_TURN_BUDGET,
             DEFAULT_TURN_BUDGET,
@@ -156,6 +157,10 @@ impl EngineConfig {
 
     fn producer_host_limits(&self) -> Result<ProducerHostLimits, EngineConfigError> {
         let limits = self.producer_limits;
+        let notification_capacity = limits
+            .in_flight_records
+            .checked_add(limits.in_flight_records)
+            .ok_or(EngineConfigError::NotificationCapacity)?;
         let _retained_bytes =
             u64::try_from(limits.retained_bytes).map_err(|_| EngineConfigError::RetainedBytes)?;
         let batch_bytes =
@@ -173,7 +178,8 @@ impl EngineConfig {
             record_capacity: limits.in_flight_records,
             batch_capacity: limits.in_flight_records,
             timer_capacity: limits.in_flight_records,
-            notification_capacity: limits.in_flight_records,
+            pending_notification_capacity: limits.in_flight_records,
+            notification_capacity,
             encoded_byte_capacity: limits.retained_bytes,
             max_wire_batch_bytes: limits.batch_bytes,
             batch_policy,
@@ -195,6 +201,7 @@ pub(crate) enum EngineConfigError {
     RetainedBytes,
     BatchBytes,
     BatchPolicy,
+    NotificationCapacity,
     Producer(ProducerHostLimitError),
     TurnBudget,
 }

@@ -1,6 +1,6 @@
 //! Ownership-preserving rejection and invariant failures for pending admission.
 
-use super::{super::ProducerRecord, PendingAdmission};
+use super::super::ProducerRecord;
 
 /// Healthy reason a record could not enter bounded pending ownership.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -8,6 +8,7 @@ pub(crate) enum PendingAdmissionRejectionReason {
     Closed,
     CountCapacity,
     ByteCapacity,
+    NotificationBackpressure,
     RetainedSizeOverflow,
     IdentityExhausted,
 }
@@ -50,26 +51,7 @@ pub(crate) enum PendingRegistryError {
     IndexCollision,
     CorruptIndex,
     RetainedAccounting,
+    ObservationState,
+    Closed,
     StillOpen,
-}
-
-/// Failed atomic restoration that retains the exact unadmitted record.
-#[derive(Debug)]
-pub(crate) struct PendingRestoreFailure {
-    error: PendingRegistryError,
-    pending: PendingAdmission,
-}
-
-impl PendingRestoreFailure {
-    pub(super) const fn new(error: PendingRegistryError, pending: PendingAdmission) -> Self {
-        Self { error, pending }
-    }
-
-    pub(crate) const fn error(&self) -> PendingRegistryError {
-        self.error
-    }
-
-    pub(crate) fn into_parts(self) -> (PendingRegistryError, PendingAdmission) {
-        (self.error, self.pending)
-    }
 }

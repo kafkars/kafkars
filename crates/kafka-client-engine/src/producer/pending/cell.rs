@@ -1,5 +1,7 @@
 //! Linearized pending-send state shared by async and blocking observation.
 
+#[cfg(test)]
+use std::sync::atomic::AtomicBool;
 use std::{
     fmt,
     sync::{Arc, Condvar, Mutex, MutexGuard},
@@ -9,7 +11,7 @@ use std::{
 use crate::ProducerDeliveryObserver;
 
 use super::{
-    PendingNotificationJob, PendingPromotion, ProducerSendFailure,
+    PendingNotificationPermit, ProducerSendFailure,
     state::{
         DispatchOutcome, PendingSendPhase, abandon_phase, dispatch_phase, poll_phase,
         take_transition,
@@ -45,8 +47,10 @@ pub(super) enum PromotionRestore {
 }
 
 pub(crate) struct PendingSendCell {
-    phase: Mutex<PendingSendPhase>,
-    ready: Condvar,
+    pub(super) phase: Mutex<PendingSendPhase>,
+    pub(super) ready: Condvar,
+    #[cfg(test)]
+    pub(super) fail_next_restore: AtomicBool,
 }
 
 impl fmt::Debug for PendingSendCell {
@@ -58,61 +62,16 @@ impl fmt::Debug for PendingSendCell {
 }
 
 impl PendingSendCell {
-    pub(crate) fn new() -> Arc<Self> {
+    pub(crate) fn new(permit: PendingNotificationPermit) -> Arc<Self> {
         Arc::new(Self {
-            phase: Mutex::new(PendingSendPhase::Pending { waker: None }),
+            phase: Mutex::new(PendingSendPhase::Pending {
+                permit,
+                waker: None,
+            }),
             ready: Condvar::new(),
+            #[cfg(test)]
+            fail_next_restore: AtomicBool::new(false),
         })
-    }
-
-    pub(crate) fn begin_promotion(self: &Arc<Self>) -> Result<PendingPromotion, PendingCellError> {
-        let mut phase = self.lock();
-        let previous = std::mem::replace(&mut *phase, PendingSendPhase::Consumed);
-        match previous {
-            PendingSendPhase::Pending { waker } => {
-                *phase = PendingSendPhase::Promoting {
-                    abandoned: false,
-                    waker,
-                };
-                Ok(PendingPromotion::new(Arc::clone(self)))
-            }
-            PendingSendPhase::Abandoned => {
-                *phase = PendingSendPhase::Abandoned;
-                Err(PendingCellError::Abandoned)
-            }
-            PendingSendPhase::Promoting { abandoned, waker } => {
-                *phase = PendingSendPhase::Promoting { abandoned, waker };
-                Err(PendingCellError::TransitionInProgress)
-            }
-            PendingSendPhase::Accepted {
-                abandoned,
-                observer,
-                waker,
-            } => {
-                *phase = PendingSendPhase::Accepted {
-                    abandoned,
-                    observer,
-                    waker,
-                };
-                Err(PendingCellError::AlreadySettled)
-            }
-            PendingSendPhase::Ready {
-                abandoned,
-                failure,
-                waker,
-            } => {
-                *phase = PendingSendPhase::Ready {
-                    abandoned,
-                    failure,
-                    waker,
-                };
-                Err(PendingCellError::AlreadySettled)
-            }
-            PendingSendPhase::Consumed => {
-                *phase = PendingSendPhase::Consumed;
-                Err(PendingCellError::AlreadyConsumed)
-            }
-        }
     }
 
     pub(crate) fn poll(
@@ -135,81 +94,24 @@ impl PendingSendCell {
     }
 
     pub(crate) fn abandon(&self) -> PendingDropOutcome {
-        let (outcome, waker, observer) = abandon_phase(&mut self.lock());
+        let (outcome, waker, observer, permit) = abandon_phase(&mut self.lock());
         drop(waker);
         drop(observer);
+        if let Some(permit) = permit {
+            permit.release();
+        }
         outcome
     }
 
-    pub(super) fn accept_promotion(
-        self: &Arc<Self>,
-        observer: ProducerDeliveryObserver,
-    ) -> Result<PendingNotificationJob, ProducerDeliveryObserver> {
-        let mut phase = self.lock();
-        let previous = std::mem::replace(&mut *phase, PendingSendPhase::Consumed);
-        let PendingSendPhase::Promoting { abandoned, waker } = previous else {
-            *phase = previous;
-            return Err(observer);
-        };
-        *phase = PendingSendPhase::Accepted {
-            abandoned,
-            observer: Some(observer),
-            waker,
-        };
-        self.ready.notify_all();
-        Ok(PendingNotificationJob::new(Arc::clone(self)))
-    }
-
-    pub(super) fn settle_promotion(
-        self: &Arc<Self>,
-        failure: ProducerSendFailure,
-    ) -> Result<PendingNotificationJob, PendingCellError> {
-        let mut phase = self.lock();
-        let previous = std::mem::replace(&mut *phase, PendingSendPhase::Consumed);
-        let PendingSendPhase::Promoting { abandoned, waker } = previous else {
-            *phase = previous;
-            return Err(PendingCellError::AlreadySettled);
-        };
-        *phase = PendingSendPhase::Ready {
-            abandoned,
-            failure: Some(failure),
-            waker,
-        };
-        self.ready.notify_all();
-        Ok(PendingNotificationJob::new(Arc::clone(self)))
-    }
-
-    pub(super) fn restore_promotion(&self) -> Result<PromotionRestore, PendingCellError> {
-        let mut phase = self.lock();
-        let previous = std::mem::replace(&mut *phase, PendingSendPhase::Consumed);
-        match previous {
-            PendingSendPhase::Promoting {
-                abandoned: false,
-                waker,
-            } => {
-                *phase = PendingSendPhase::Pending { waker };
-                Ok(PromotionRestore::Pending)
-            }
-            PendingSendPhase::Promoting {
-                abandoned: true,
-                waker,
-            } => {
-                drop(waker);
-                *phase = PendingSendPhase::Abandoned;
-                Ok(PromotionRestore::Abandoned)
-            }
-            other => {
-                *phase = other;
-                Err(PendingCellError::AlreadySettled)
-            }
-        }
+    pub(super) fn is_abandoned(&self) -> bool {
+        matches!(&*self.lock(), PendingSendPhase::Abandoned)
     }
 
     pub(super) fn dispatch(&self) -> DispatchOutcome {
         dispatch_phase(&mut self.lock())
     }
 
-    fn lock(&self) -> MutexGuard<'_, PendingSendPhase> {
+    pub(super) fn lock(&self) -> MutexGuard<'_, PendingSendPhase> {
         self.phase
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)

@@ -5,15 +5,17 @@ use std::task::{Context, Poll, Waker};
 use crate::ProducerDeliveryObserver;
 
 use super::{
-    ProducerSendFailure,
+    PendingNotificationPermit, ProducerSendFailure,
     cell::{PendingCellError, PendingCellTransition, PendingDropOutcome},
 };
 
 pub(super) enum PendingSendPhase {
     Pending {
+        permit: PendingNotificationPermit,
         waker: Option<Waker>,
     },
     Promoting {
+        permit: PendingNotificationPermit,
         abandoned: bool,
         waker: Option<Waker>,
     },
@@ -41,10 +43,11 @@ pub(super) fn poll_phase(
     context: &Context<'_>,
 ) -> Result<Poll<PendingCellTransition>, PendingCellError> {
     match phase {
-        PendingSendPhase::Pending { waker }
+        PendingSendPhase::Pending { waker, .. }
         | PendingSendPhase::Promoting {
             abandoned: false,
             waker,
+            ..
         } => {
             replace_waker(waker, context);
             Ok(Poll::Pending)
@@ -105,27 +108,31 @@ pub(super) fn abandon_phase(
     PendingDropOutcome,
     Option<Waker>,
     Option<ProducerDeliveryObserver>,
+    Option<PendingNotificationPermit>,
 ) {
     let previous = std::mem::replace(phase, PendingSendPhase::Consumed);
     match previous {
-        PendingSendPhase::Pending { waker } => {
+        PendingSendPhase::Pending { permit, waker } => {
             *phase = PendingSendPhase::Abandoned;
-            (PendingDropOutcome::Unadmitted, waker, None)
+            (PendingDropOutcome::Unadmitted, waker, None, Some(permit))
         }
-        PendingSendPhase::Promoting { waker, .. } => {
+        PendingSendPhase::Promoting { permit, waker, .. } => {
             *phase = PendingSendPhase::Promoting {
+                permit,
                 abandoned: true,
                 waker: None,
             };
-            (PendingDropOutcome::PromotionWon, waker, None)
+            (PendingDropOutcome::PromotionWon, waker, None, None)
         }
         PendingSendPhase::Accepted {
             observer, waker, ..
-        } => (PendingDropOutcome::Accepted, waker, observer),
-        PendingSendPhase::Ready { waker, .. } => (PendingDropOutcome::LocallySettled, waker, None),
+        } => (PendingDropOutcome::Accepted, waker, observer, None),
+        PendingSendPhase::Ready { waker, .. } => {
+            (PendingDropOutcome::LocallySettled, waker, None, None)
+        }
         PendingSendPhase::Abandoned | PendingSendPhase::Consumed => {
             *phase = previous;
-            (PendingDropOutcome::AlreadyDropped, None, None)
+            (PendingDropOutcome::AlreadyDropped, None, None, None)
         }
     }
 }

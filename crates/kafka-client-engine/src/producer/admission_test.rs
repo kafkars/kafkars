@@ -47,7 +47,8 @@ fn completion_rejection_returns_the_exact_record_before_store_reservation() {
     limits.record_capacity = 1;
     limits.batch_capacity = 1;
     limits.timer_capacity = 1;
-    limits.notification_capacity = 1;
+    limits.pending_notification_capacity = 1;
+    limits.notification_capacity = 2;
     limits.batch_policy = single_record_with_linger();
     let mut host = start(limits);
     let admitted = admit(
@@ -112,7 +113,8 @@ fn elapsed_deadline_rolls_back_both_reservations_and_preserves_record() {
     limits.record_capacity = 1;
     limits.batch_capacity = 1;
     limits.timer_capacity = 1;
-    limits.notification_capacity = 1;
+    limits.pending_notification_capacity = 1;
+    limits.notification_capacity = 2;
     limits.batch_policy = single_record_with_linger();
     let mut host = start(limits);
     let topic: Arc<str> = Arc::from("orders");
@@ -146,7 +148,8 @@ fn deadline_overflow_is_a_core_rejection_with_full_rollback() {
     limits.record_capacity = 1;
     limits.batch_capacity = 1;
     limits.timer_capacity = 1;
-    limits.notification_capacity = 1;
+    limits.pending_notification_capacity = 1;
+    limits.notification_capacity = 2;
     limits.batch_policy = single_record_with_linger();
     let mut host = start(limits);
     let rejected = reject_result(host.try_admit_explicit(

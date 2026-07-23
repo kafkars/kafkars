@@ -7,10 +7,11 @@ use super::{CompletionRegistry, CompletionRegistryError, notifier_queue::QueuePu
 impl<T: Send + 'static> CompletionRegistry<T> {
     /// Queues one pending-send state notification on the completion dispatcher.
     ///
-    /// The job owns only a cell reference. Its application waker and transition
-    /// value remain inside that cell when the global notification FIFO
-    /// backpressures. Full and stopped outcomes return that exact typed job;
-    /// callers must retain it for later off-reactor retry or recovery.
+    /// The job owns a cell reference and its non-cloneable pending-notification
+    /// permit. Its application waker and transition value remain inside that
+    /// cell when the global notification FIFO backpressures. Full and stopped
+    /// outcomes return that exact typed job; callers must retain it, including
+    /// the permit capacity, for later off-reactor retry or recovery.
     #[cfg_attr(
         not(test),
         expect(

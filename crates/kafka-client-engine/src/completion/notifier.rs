@@ -7,11 +7,17 @@ use std::{
     thread::{self, JoinHandle, ThreadId},
 };
 
+use crate::producer::pending::PendingNotificationDispatchAuthority;
+
 use super::{
-    CompletionId,
+    CompletionId, NotificationQueueAuthority,
     cell::CompletionCell,
     notifier_queue::{NotificationJob, NotificationQueue, QueuePushError},
 };
+
+#[path = "notifier/authority.rs"]
+mod authority;
+pub(crate) use authority::NotifierPendingDispatchOwner;
 
 pub(super) struct PublishJob<T> {
     pub(super) id: CompletionId,
@@ -25,8 +31,10 @@ pub(super) struct Notifier<T> {
 }
 
 impl<T: Send + 'static> Notifier<T> {
-    pub(super) fn start(capacity: usize) -> std::io::Result<Self> {
-        let queue = Arc::new(NotificationQueue::new(capacity));
+    pub(super) fn start(authority: NotificationQueueAuthority) -> std::io::Result<Self> {
+        let queue = Arc::new(NotificationQueue::from_notification_queue_authority(
+            authority,
+        ));
         let worker_queue = Arc::clone(&queue);
         let handle = thread::Builder::new()
             .name(String::from("kafka-client-completion-notifier"))
@@ -73,10 +81,12 @@ impl<T> fmt::Debug for Notifier<T> {
 }
 
 fn run<T: Send + 'static>(queue: &NotificationQueue<T>) {
+    let authority =
+        PendingNotificationDispatchAuthority::from_notifier(NotifierPendingDispatchOwner::new());
     while let Some(job) = queue.next() {
         match job {
             NotificationJob::Publish(job) => publish(job),
-            NotificationJob::Pending(job) => job.dispatch(),
+            NotificationJob::Pending(job) => job.dispatch_pending_notification(&authority),
         }
     }
 }

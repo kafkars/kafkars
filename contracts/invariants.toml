@@ -24,6 +24,20 @@ evidence = [
 ]
 
 [[invariant]]
+id = "BND-02"
+title = "Pending notification obligations are bounded"
+statement = "The modeled pending-send seam reserves one non-cloneable notification permit at registration, does not reuse it before off-reactor dispatch or proven no-obligation abandonment, and retains full or closed notifier jobs in named bounded owners. Live ProducerHost integration remains a separate milestone."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/producer/pending/permit_test.rs::notification_permit_is_not_reused_before_dispatch",
+  "crates/kafka-client-engine/src/producer/pending/permit_test.rs::blocked_notifier_cannot_exceed_pending_notification_bound",
+  "crates/kafka-client-engine/src/producer/pending/backlog_test.rs::backlog_retains_exact_jobs_in_fifo_order",
+  "crates/kafka-client-engine/src/producer/pending/backlog_test.rs::closed_transfer_keeps_backlog_and_returned_job_in_one_recovery_owner",
+  "crates/kafka-client-engine/src/producer/pending/turn_test.rs::take_next_counts_each_abandoned_tombstone_against_its_budget",
+  "crates/kafka-client-engine/src/producer/pending/turn_test.rs::expire_and_drain_count_tombstones_without_yielding_fake_failures",
+]
+
+[[invariant]]
 id = "CAN-01"
 title = "Cancellation is stage-aware"
 statement = "Cancellation reports whether transport ownership makes a NotSent outcome impossible and never treats observer abandonment as cancellation."
@@ -182,6 +196,8 @@ evidence = [
   "crates/kafka-client-engine/src/producer/reclaim_turn_test.rs::abandoned_observation_reclaims_after_terminal_publication",
   "crates/kafka-client-engine/src/delivery_observer_test.rs::dropping_delivery_observer_preserves_abandon_reclaim",
   "crates/kafka-client-engine/src/producer/pending/promotion_test.rs::promotion_before_drop_abandons_only_the_accepted_observer",
+  "crates/kafka-client-engine/src/producer/pending/restore_test.rs::observer_drop_during_restore_removes_exact_reinserted_accounting",
+  "crates/kafka-client-engine/src/producer/pending/attempt_test.rs::promotion_drop_cannot_restore_only_one_half",
 ]
 
 [[invariant]]
@@ -193,6 +209,19 @@ evidence = [
   "crates/kafka-client-engine/src/producer/admission_test.rs::non_ready_admission_synchronizes_core_store_timer_and_observer",
   "crates/kafka-client-engine/src/producer/execution_turn_test.rs::materialization_capacity_failure_is_a_core_owned_terminal_fact",
   "crates/kafka-client-core/src/completion_test.rs::terminal_completion_is_exactly_once",
+]
+
+[[invariant]]
+id = "OWN-01"
+title = "Pending promotion has one coordinated owner"
+statement = "Removing a pending admission, claiming its observer cell, and transferring its exact record move through one non-cloneable attempt; every fallible restoration, settlement, or post-claim removal path returns the complete recovery owner."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/producer/pending/attempt_test.rs::accept_before_record_commit_returns_observer_attempt_and_exact_record",
+  "crates/kafka-client-engine/src/producer/pending/attempt_transfer_test.rs::detached_record_restores_to_the_same_attempt_before_local_settlement",
+  "crates/kafka-client-engine/src/producer/pending/restore_test.rs::failed_restore_cannot_leave_cell_pending_without_registry_entry",
+  "crates/kafka-client-engine/src/producer/pending/turn_error_test.rs::settlement_turn_failure_retains_attempt_record_and_requested_failure",
+  "crates/kafka-client-engine/src/producer/pending/turn_error_test.rs::post_claim_take_failure_retains_the_exact_promotion_owner",
 ]
 
 [[invariant]]

@@ -17,7 +17,8 @@ use kafka_client_core::ByteCount;
 
 use crate::{
     Engine, EngineConfig, ProducerDeliveryError, ProducerDeliveryFailureKind,
-    ProducerDeliveryStatus, ProducerRecord, ProducerSendOptions, ProducerTrySendErrorKind,
+    ProducerDeliveryStatus, ProducerHandle, ProducerRecord, ProducerSendOptions,
+    ProducerTrySendAccepted, ProducerTrySendErrorKind,
 };
 
 #[test]
@@ -28,11 +29,7 @@ fn failed_runner_settles_accepted_work_and_closes_retained_handles() {
     )
     .unwrap_or_else(|error| panic!("engine should start: {error}"));
     let producer = engine.producer();
-    let accepted = admit(
-        &producer,
-        record(),
-        ProducerSendOptions::new(Duration::from_secs(1)),
-    );
+    let accepted = admit(&producer, record(), Duration::from_secs(1));
 
     engine.force_host_failure();
     assert!(engine.shutdown().is_err());
@@ -70,7 +67,7 @@ fn damaged_interpretation_drains_resources_before_retained_failure_report() {
     let accepted = admit(
         &producer,
         record_with_probe(Arc::clone(&payload_dropped)),
-        ProducerSendOptions::new(timeout),
+        timeout,
     );
     let mut observer = accepted.into_observer();
     let waker_called = Arc::new(AtomicBool::new(false));
@@ -156,21 +153,25 @@ fn record_with_probe(dropped: Arc<AtomicBool>) -> ProducerRecord {
 }
 
 fn admit(
-    producer: &crate::ProducerHandle,
-    mut pending: ProducerRecord,
-    options: ProducerSendOptions,
-) -> crate::ProducerTrySendAccepted {
-    for _attempt in 0..1_000 {
-        match producer.try_send(pending, options) {
+    producer: &ProducerHandle,
+    mut record: ProducerRecord,
+    timeout: Duration,
+) -> ProducerTrySendAccepted {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        match producer.try_send(record, ProducerSendOptions::new(timeout)) {
             Ok(accepted) => return accepted,
             Err(error) if error.kind() == ProducerTrySendErrorKind::Contended => {
-                pending = error.into_record();
+                assert!(
+                    Instant::now() < deadline,
+                    "healthy producer contention must eventually admit the record"
+                );
+                record = error.into_record();
                 thread::yield_now();
             }
             Err(error) => panic!("pre-failure admission should succeed: {error}"),
         }
     }
-    panic!("pre-failure admission should make progress within the bounded test loop")
 }
 
 struct DropOwner {

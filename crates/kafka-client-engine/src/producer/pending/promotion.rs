@@ -1,4 +1,4 @@
-//! Linear claim that makes promotion and observer drop choose one winner.
+//! Private cell claim resolved only through its coordinated promotion attempt.
 
 use std::sync::Arc;
 
@@ -9,60 +9,43 @@ use super::{
     cell::PromotionRestore,
 };
 
-/// Result of returning a failed admission attempt to pending ownership.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum PendingPromotionRestore {
-    Pending,
-    Abandoned,
-}
-
-/// Unique right to finish or restore one pending-send transition.
-pub(crate) struct PendingPromotion {
+/// Unique right to resolve one cell that remains in `Promoting`.
+#[derive(Debug)]
+pub(super) struct PendingPromotion {
     cell: Arc<PendingSendCell>,
-    live: bool,
 }
 
 impl PendingPromotion {
     pub(super) const fn new(cell: Arc<PendingSendCell>) -> Self {
-        Self { cell, live: true }
+        Self { cell }
     }
 
-    pub(crate) fn accept(
-        mut self,
+    pub(in crate::producer::pending) fn accept(
+        self,
         observer: ProducerDeliveryObserver,
-    ) -> Result<PendingNotificationJob, ProducerDeliveryObserver> {
-        let result = self.cell.accept_promotion(observer);
-        self.live = false;
-        result
-    }
-
-    pub(crate) fn settle_local(
-        mut self,
-        failure: ProducerSendFailure,
-    ) -> Result<PendingNotificationJob, PendingCellError> {
-        let result = self.cell.settle_promotion(failure);
-        self.live = false;
-        result
-    }
-
-    pub(crate) fn restore(mut self) -> Result<PendingPromotionRestore, PendingCellError> {
-        let result = self.cell.restore_promotion().map(map_restore);
-        self.live = false;
-        result
-    }
-}
-
-impl Drop for PendingPromotion {
-    fn drop(&mut self) {
-        if self.live {
-            let _restored = self.cell.restore_promotion();
+    ) -> Result<PendingNotificationJob, (Self, ProducerDeliveryObserver)> {
+        match self.cell.accept_promotion(observer) {
+            Ok(job) => Ok(job),
+            Err(observer) => Err((self, observer)),
         }
     }
-}
 
-fn map_restore(restore: PromotionRestore) -> PendingPromotionRestore {
-    match restore {
-        PromotionRestore::Pending => PendingPromotionRestore::Pending,
-        PromotionRestore::Abandoned => PendingPromotionRestore::Abandoned,
+    pub(in crate::producer::pending) fn settle_local(
+        self,
+        failure: ProducerSendFailure,
+    ) -> Result<PendingNotificationJob, (Self, PendingCellError)> {
+        match self.cell.settle_promotion(failure) {
+            Ok(job) => Ok(job),
+            Err(error) => Err((self, error)),
+        }
+    }
+
+    pub(in crate::producer::pending) fn restore(
+        self,
+    ) -> Result<PromotionRestore, (Self, PendingCellError)> {
+        match self.cell.restore_promotion() {
+            Ok(restore) => Ok(restore),
+            Err(error) => Err((self, error)),
+        }
     }
 }

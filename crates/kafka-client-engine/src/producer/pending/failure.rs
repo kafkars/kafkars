@@ -13,8 +13,6 @@ pub enum ProducerSendFailureKind {
     Closed,
     /// A bounded local count or byte owner could not retain the send.
     Backpressure,
-    /// Explicit pre-admission cancellation won the ownership race.
-    Cancelled,
 }
 
 /// Terminal local result for a send that definitely did not reach transport.

@@ -1,48 +1,96 @@
-//! Atomic return of one promotion lease to its original FIFO position.
+//! Registry-first restoration of one coordinated pending promotion attempt.
 
 use super::{
-    PendingAdmission, PendingAdmissionId, PendingAdmissionRegistry, PendingLocalFailure,
-    PendingLocalFailureKind, PendingRegistryError, PendingRestoreFailure, PendingRestoreOutcome,
+    PendingAdmission, PendingAdmissionId, PendingAttemptStateError, PendingPromotionAttempt,
+    PendingRecordTransferState, PendingRegistryError,
+    cell::PromotionRestore,
+    promotion::PendingPromotion,
+    registry::{PendingAdmissionRegistry, PendingRemovalFailure, PendingRemovalPlan},
+    restore_error::{
+        PendingAttemptRestoreError, PendingAttemptRestoreFailure, PendingAttemptRestoreOutcome,
+    },
 };
 
 struct RestorePlan {
     id: PendingAdmissionId,
     free_position: usize,
+    previous_used_bytes: usize,
     next_used_bytes: usize,
 }
 
-impl PendingAdmissionRegistry {
-    /// Restores one failed healthy promotion without changing its identity.
+impl PendingPromotionAttempt {
+    /// Inserts exact record/index/accounting while the cell stays `Promoting`.
     ///
-    /// Validation is read-only. Every failure returns the exact pending entry.
-    /// Once close begins, unadmitted work settles locally rather than becoming
-    /// queued shutdown work again.
-    #[allow(
-        clippy::result_large_err,
-        reason = "failed restoration must return the intact linear pending entry"
-    )]
-    pub(crate) fn restore_front(
-        &mut self,
-        pending: PendingAdmission,
-    ) -> Result<PendingRestoreOutcome, PendingRestoreFailure> {
-        if !self.accepting {
-            return Ok(PendingRestoreOutcome::Shutdown(PendingLocalFailure::new(
-                PendingLocalFailureKind::Shutdown,
-                pending,
-            )));
+    /// Only after insertion succeeds may the cell return to `Pending`. If
+    /// observer drop raced, the exact insertion is removed again.
+    pub(crate) fn restore(
+        self,
+        registry: &mut PendingAdmissionRegistry,
+    ) -> Result<PendingAttemptRestoreOutcome, PendingAttemptRestoreFailure> {
+        if self.transfer != PendingRecordTransferState::Retained {
+            return Err(PendingAttemptRestoreFailure::attempt(
+                PendingAttemptRestoreError::State(PendingAttemptStateError::RecordNotRetained),
+                self,
+            ));
         }
-        let plan = match self.validate_restore(&pending) {
-            Ok(plan) => plan,
-            Err(error) => return Err(PendingRestoreFailure::new(error, pending)),
+        let Some(admission) = self.admission.as_ref() else {
+            return Err(PendingAttemptRestoreFailure::attempt(
+                PendingAttemptRestoreError::State(PendingAttemptStateError::Invariant),
+                self,
+            ));
         };
-        self.commit_restore(&plan, pending);
-        Ok(PendingRestoreOutcome::Restored)
+        let plan = match registry.validate_restore(admission) {
+            Ok(plan) => plan,
+            Err(error) => {
+                return Err(PendingAttemptRestoreFailure::attempt(
+                    PendingAttemptRestoreError::Registry(error),
+                    self,
+                ));
+            }
+        };
+        let PendingPromotionAttempt {
+            admission,
+            facts: _,
+            promotion,
+            transfer: _,
+        } = self;
+        let Some(admission) = admission else {
+            return Err(PendingAttemptRestoreFailure::attempt(
+                PendingAttemptRestoreError::State(PendingAttemptStateError::Invariant),
+                PendingPromotionAttempt {
+                    admission: None,
+                    facts: None,
+                    promotion,
+                    transfer: PendingRecordTransferState::Retained,
+                },
+            ));
+        };
+        let rollback = registry.commit_restore(&plan, admission);
+        match promotion.restore() {
+            Ok(PromotionRestore::Pending) => Ok(PendingAttemptRestoreOutcome::Restored),
+            Ok(PromotionRestore::Abandoned) => commit_abandoned_rollback(registry, rollback)
+                .map(PendingAttemptRestoreOutcome::Abandoned),
+            Err((promotion, error)) => {
+                match commit_cell_rollback(registry, rollback, error, promotion) {
+                    Ok((admission, promotion)) => Err(PendingAttemptRestoreFailure::attempt(
+                        PendingAttemptRestoreError::State(PendingAttemptStateError::Cell(error)),
+                        PendingPromotionAttempt::new(admission, promotion),
+                    )),
+                    Err(failure) => Err(failure),
+                }
+            }
+        }
     }
+}
 
+impl PendingAdmissionRegistry {
     fn validate_restore(
         &self,
         pending: &PendingAdmission,
     ) -> Result<RestorePlan, PendingRegistryError> {
+        if !self.accepting {
+            return Err(PendingRegistryError::Closed);
+        }
         let id = pending.id();
         let slot = self
             .slots
@@ -84,11 +132,16 @@ impl PendingAdmissionRegistry {
         Ok(RestorePlan {
             id,
             free_position,
+            previous_used_bytes: self.used_bytes,
             next_used_bytes,
         })
     }
 
-    fn commit_restore(&mut self, plan: &RestorePlan, pending: PendingAdmission) {
+    fn commit_restore(
+        &mut self,
+        plan: &RestorePlan,
+        pending: PendingAdmission,
+    ) -> PendingRemovalPlan {
         let sequence = pending.sequence();
         let deadline = pending.deadline();
         self.free.remove(plan.free_position);
@@ -96,6 +149,55 @@ impl PendingAdmissionRegistry {
         self.slots[plan.id.slot()].entry = Some(pending);
         self.fifo.insert(sequence, plan.id);
         self.deadlines.insert((deadline, sequence, plan.id));
+        PendingRemovalPlan::restored(plan.id, sequence, deadline, plan.previous_used_bytes)
+    }
+
+    #[cfg(test)]
+    pub(super) fn inject_restore_rollback_failure_for_test(&mut self) {
+        self.fail_next_restore_rollback = true;
+    }
+
+    #[cfg(test)]
+    fn corrupt_restore_rollback_for_test(&mut self, plan: &PendingRemovalPlan) {
+        if std::mem::take(&mut self.fail_next_restore_rollback) {
+            self.fifo.remove(&plan.sequence());
+        }
+    }
+}
+
+fn commit_abandoned_rollback(
+    registry: &mut PendingAdmissionRegistry,
+    plan: PendingRemovalPlan,
+) -> Result<PendingAdmission, PendingAttemptRestoreFailure> {
+    #[cfg(test)]
+    registry.corrupt_restore_rollback_for_test(&plan);
+    registry
+        .commit_remove(plan)
+        .map_err(|failure: PendingRemovalFailure| {
+            let (registry_error, plan) = failure.into_parts();
+            PendingAttemptRestoreFailure::rollback(None, registry_error, plan, None)
+        })
+}
+
+fn commit_cell_rollback(
+    registry: &mut PendingAdmissionRegistry,
+    plan: PendingRemovalPlan,
+    cell_error: super::PendingCellError,
+    promotion: PendingPromotion,
+) -> Result<(PendingAdmission, PendingPromotion), PendingAttemptRestoreFailure> {
+    #[cfg(test)]
+    registry.corrupt_restore_rollback_for_test(&plan);
+    match registry.commit_remove(plan) {
+        Ok(admission) => Ok((admission, promotion)),
+        Err(failure) => {
+            let (registry_error, plan) = failure.into_parts();
+            Err(PendingAttemptRestoreFailure::rollback(
+                Some(cell_error),
+                registry_error,
+                plan,
+                Some(promotion),
+            ))
+        }
     }
 }
 

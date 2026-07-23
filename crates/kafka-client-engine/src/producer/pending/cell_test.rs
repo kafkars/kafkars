@@ -15,7 +15,7 @@ use crate::{
 
 #[test]
 fn pending_cell_retains_only_the_latest_waker() {
-    let cell = PendingSendCell::new();
+    let cell = PendingSendCell::new_for_test();
     let mut send = ProducerSend::from_pending(cell.clone());
     let replaced = CountingWake::new();
     let retained = CountingWake::new();
@@ -40,7 +40,7 @@ fn pending_cell_retains_only_the_latest_waker() {
 
 #[test]
 fn blocking_wait_uses_the_same_pending_cell_and_local_result() {
-    let cell = PendingSendCell::new();
+    let cell = PendingSendCell::new_for_test();
     let send = ProducerSend::from_pending(cell.clone());
     let waiter = thread::spawn(move || send.wait());
     let promotion = cell
@@ -121,8 +121,7 @@ fn bounded_notification_backpressure_returns_the_exact_pending_job() {
 }
 
 fn registry(capacity: usize) -> CompletionRegistry<ProducerCompletion> {
-    CompletionRegistry::new(1, capacity)
-        .unwrap_or_else(|error| panic!("completion notifier should start: {error}"))
+    super::test_support::notification_registry(capacity)
 }
 
 fn pending_failure(
@@ -132,7 +131,7 @@ fn pending_failure(
     std::sync::Arc<CountingWake>,
     PendingNotificationJob,
 ) {
-    let cell = PendingSendCell::new();
+    let cell = PendingSendCell::new_for_test();
     let mut send = ProducerSend::from_pending(cell.clone());
     let wake = CountingWake::new();
     assert_eq!(poll_send(&mut send, wake.clone()), Poll::Pending);

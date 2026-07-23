@@ -4,6 +4,7 @@ mod cell;
 mod error;
 mod host_state;
 mod identity;
+mod notification_budget;
 mod notifier;
 mod notifier_queue;
 #[cfg(test)]
@@ -18,7 +19,11 @@ mod state;
 
 pub(crate) use error::{CompletionObserverError, CompletionRegistryError};
 pub(crate) use identity::CompletionId;
-pub(crate) use notifier::{NotifierJoin, NotifierJoinError};
+pub(crate) use notification_budget::{
+    CompletionNotificationAuthority, NotificationBudget, NotificationBudgetError,
+    NotificationQueueAuthority, PendingPermitAuthority,
+};
+pub(crate) use notifier::{NotifierJoin, NotifierJoinError, NotifierPendingDispatchOwner};
 pub(crate) use observer::CompletionObserver;
 pub(crate) use registry::{CompletionRegistry, ReclaimStatus};
 #[cfg_attr(
@@ -30,6 +35,8 @@ pub(crate) use registry::{CompletionRegistry, ReclaimStatus};
 )]
 pub(crate) use settlement::{SettlementFailure, SettlementProgress};
 
+#[cfg(test)]
+mod notification_budget_test;
 #[cfg(test)]
 mod observer_test;
 #[cfg(test)]

@@ -26,3 +26,12 @@ fn zero_capacity_is_rejected_before_host_startup() {
 
     assert!(config.validate().is_err());
 }
+
+#[test]
+fn notification_capacity_overflow_is_rejected_before_host_startup() {
+    let limits = EngineProducerLimits::new(1, usize::MAX, 1, 1, Duration::from_millis(1));
+    let config =
+        EngineConfig::new(vec!["broker.test:9092".to_owned()]).with_producer_limits(limits);
+
+    assert!(config.validate().is_err());
+}

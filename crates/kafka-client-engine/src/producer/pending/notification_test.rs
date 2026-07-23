@@ -13,7 +13,7 @@ use crate::{ProducerSendError, completion::CompletionRegistry, producer::boundar
 #[test]
 fn local_failure_wakes_only_on_the_completion_notifier() {
     let caller = thread::current().id();
-    let cell = PendingSendCell::new();
+    let cell = PendingSendCell::new_for_test();
     let mut send = ProducerSend::from_pending(cell.clone());
     let wake = CountingWake::new();
     assert_eq!(poll_send(&mut send, wake.clone()), Poll::Pending);

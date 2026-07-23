@@ -7,7 +7,7 @@ use std::{
 
 use crate::producer::pending::PendingNotificationJob;
 
-use super::notifier::PublishJob;
+use super::{NotificationQueueAuthority, notifier::PublishJob};
 
 pub(super) enum NotificationJob<T> {
     Publish(PublishJob<T>),
@@ -35,7 +35,8 @@ struct QueueState<T> {
 }
 
 impl<T> NotificationQueue<T> {
-    pub(super) fn new(capacity: usize) -> Self {
+    pub(super) fn from_notification_queue_authority(authority: NotificationQueueAuthority) -> Self {
+        let capacity = authority.into_capacity();
         Self {
             capacity,
             state: Mutex::new(QueueState {

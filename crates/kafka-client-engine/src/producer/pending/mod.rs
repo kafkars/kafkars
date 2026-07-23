@@ -1,41 +1,50 @@
 //! Bounded ownership of producer records waiting before core admission.
-
+mod attempt;
+mod attempt_transfer;
+mod backlog;
 mod cell;
+mod cell_promotion;
 mod entry;
 mod error;
 mod failure;
 mod identity;
 mod notification;
+mod notification_authority;
+mod permit;
 mod promotion;
 mod registration;
 mod registry;
 mod restore;
+pub(crate) mod restore_error;
 mod state;
-
+mod turn;
+pub(crate) mod turn_error;
+pub(crate) use attempt::{PendingAttemptStateError, PendingPromotionAttempt};
+pub(crate) use attempt_transfer::PendingRecordTransferState;
+#[cfg(test)]
+pub(crate) use backlog::PendingNotificationBacklog;
 pub(crate) use cell::{PendingCellError, PendingCellTransition, PendingSendCell};
-pub(crate) use entry::{
-    PendingAdmission, PendingLocalFailure, PendingLocalFailureKind, PendingRestoreOutcome,
-};
+pub(crate) use entry::{PendingAdmission, PendingLocalFailure};
 pub(crate) use error::{
     PendingAdmissionRejected, PendingAdmissionRejectionReason, PendingRegistryError,
-    PendingRestoreFailure,
 };
 pub use failure::{ProducerSendFailure, ProducerSendFailureKind};
 pub(crate) use identity::PendingAdmissionId;
 pub(crate) use notification::PendingNotificationJob;
-pub(crate) use promotion::PendingPromotion;
-#[cfg(test)]
-pub(crate) use promotion::PendingPromotionRestore;
+pub(crate) use notification_authority::PendingNotificationDispatchAuthority;
+pub(crate) use permit::{PendingNotificationPermit, PendingNotificationPermitPool};
 pub(crate) use registration::PendingSendRegistration;
-#[cfg_attr(
-    not(test),
-    expect(
-        unused_imports,
-        reason = "pending host promotion and public send integration follow"
-    )
-)]
-pub(crate) use registry::{PendingAdmissionRegistry, PendingAdmissionStats};
-
+pub(crate) use registry::PendingAdmissionRegistry;
+#[cfg(test)]
+pub(crate) use restore_error::{PendingAttemptRestoreError, PendingAttemptRestoreOutcome};
+#[cfg(test)]
+mod attempt_test;
+#[cfg(test)]
+mod attempt_transfer_test;
+#[cfg(test)]
+mod backlog_test;
+#[cfg(test)]
+mod cell_promotion_test;
 #[cfg(test)]
 mod cell_test;
 #[cfg(test)]
@@ -43,14 +52,24 @@ mod failure_test;
 #[cfg(test)]
 mod notification_test;
 #[cfg(test)]
+mod permit_test;
+#[cfg(test)]
 mod promotion_test;
 #[cfg(test)]
 mod registration_test;
 #[cfg(test)]
+mod registry_removal_test;
+#[cfg(test)]
 mod registry_test;
+#[cfg(test)]
+mod restore_error_test;
 #[cfg(test)]
 mod restore_test;
 #[cfg(test)]
 mod state_test;
 #[cfg(test)]
 pub(crate) mod test_support;
+#[cfg(test)]
+mod turn_error_test;
+#[cfg(test)]
+mod turn_test;

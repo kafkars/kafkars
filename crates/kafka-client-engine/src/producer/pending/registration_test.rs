@@ -6,14 +6,14 @@ use bytes::Bytes;
 use kafka_client_core::{Deadline, PartitionIndex};
 
 use super::{
-    PendingAdmissionRegistry,
+    PendingAdmissionRegistry, PendingAttemptRestoreOutcome,
     test_support::{CountingWake, poll_send},
 };
 use crate::producer::ProducerRecord;
 
 #[test]
 fn registration_returns_the_observer_for_the_exact_bounded_entry() {
-    let mut registry = PendingAdmissionRegistry::new(1, 64);
+    let mut registry = PendingAdmissionRegistry::new(1, 64, 1);
     let registration = registry
         .register(record(), Deadline::from_tick(19), Instant::now())
         .unwrap_or_else(|error| panic!("pending registration should succeed: {error:?}"));
@@ -21,13 +21,25 @@ fn registration_returns_the_observer_for_the_exact_bounded_entry() {
     let mut send = registration.into_send();
     assert_eq!(poll_send(&mut send, CountingWake::new()), Poll::Pending);
 
-    let pending = registry
-        .take_next()
+    let attempt = registry
+        .take_next(1)
         .unwrap_or_else(|error| panic!("pending entry should remain indexed: {error:?}"))
+        .into_attempt()
         .unwrap_or_else(|| panic!("registered entry should exist"));
-    assert_eq!(pending.id(), id);
+    assert_eq!(
+        attempt
+            .retained_admission_for_test()
+            .unwrap_or_else(|| panic!("attempt should retain admission"))
+            .id(),
+        id
+    );
     drop(send);
-    assert!(pending.begin_promotion().is_err());
+    let restored = attempt
+        .restore(&mut registry)
+        .unwrap_or_else(|_failure| panic!("dropped observer restore should resolve"));
+    let PendingAttemptRestoreOutcome::Abandoned(pending) = restored else {
+        panic!("dropped observer should remove the temporarily restored entry");
+    };
     assert_eq!(pending.into_record().topic().as_ref(), "orders");
 }
 

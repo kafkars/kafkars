@@ -10,9 +10,80 @@ use std::{
 };
 
 use crate::{
-    completion::{CompletionObserver, CompletionObserverError},
+    completion::{
+        CompletionObserver, CompletionObserverError, CompletionRegistry, NotificationBudget,
+    },
     producer::boundary::{ProducerSend, ProducerSendResult},
 };
+
+use super::{
+    PendingAdmissionRegistry, PendingNotificationDispatchAuthority, PendingNotificationJob,
+    PendingNotificationPermitPool, PendingSendCell,
+};
+
+pub(crate) struct PendingNotificationDispatchTestOwner {
+    _seal: (),
+}
+
+const fn pending_notification_dispatch_authority() -> PendingNotificationDispatchAuthority {
+    PendingNotificationDispatchAuthority::from_test(PendingNotificationDispatchTestOwner {
+        _seal: (),
+    })
+}
+
+impl PendingAdmissionRegistry {
+    pub(crate) fn new(
+        max_records: usize,
+        max_bytes: usize,
+        max_pending_notifications: usize,
+    ) -> Self {
+        Self::with_notification_permits(
+            max_records,
+            max_bytes,
+            PendingNotificationPermitPool::new_for_test(max_pending_notifications),
+        )
+    }
+}
+
+impl PendingSendCell {
+    pub(crate) fn new_for_test() -> Arc<Self> {
+        let pool = PendingNotificationPermitPool::new_for_test(1);
+        let permit = pool
+            .reserve()
+            .unwrap_or_else(|| panic!("test pending permit should reserve"));
+        Self::new(permit)
+    }
+}
+
+impl PendingNotificationPermitPool {
+    pub(crate) fn new_for_test(capacity: usize) -> Arc<Self> {
+        Self::from_pending_permit_authority(
+            crate::completion::test_support::pending_permit_authority(capacity),
+        )
+    }
+}
+
+impl PendingNotificationJob {
+    pub(crate) fn dispatch_pending_notification_for_test(self) {
+        let authority = pending_notification_dispatch_authority();
+        self.dispatch_pending_notification(&authority);
+    }
+}
+
+pub(crate) fn notification_registry<T: Send + 'static>(
+    total_capacity: usize,
+) -> CompletionRegistry<T> {
+    let pending_capacity = total_capacity
+        .checked_sub(1)
+        .unwrap_or_else(|| panic!("test notification capacity must cover one terminal"));
+    let budget = NotificationBudget::try_new(1, pending_capacity, total_capacity)
+        .unwrap_or_else(|error| panic!("test notification budget should validate: {error:?}"));
+    budget
+        .start()
+        .unwrap_or_else(|error| panic!("completion notifier should start: {error}"))
+        .into_parts()
+        .0
+}
 
 pub(crate) struct CountingWake {
     state: Mutex<WakeState>,

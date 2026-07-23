@@ -8,14 +8,14 @@ use kafka_client_core::{
 };
 
 use super::{
-    PendingAdmissionRegistry, PendingCellError, PendingPromotionRestore,
+    PendingAdmissionRegistry, PendingCellError,
     test_support::{CountingWake, poll_send},
 };
 use crate::{ProducerDeliveryObserver, completion::CompletionRegistry, producer::ProducerRecord};
 
 #[test]
 fn drop_before_promotion_tombstones_and_preserves_the_unadmitted_record() {
-    let mut pending = PendingAdmissionRegistry::new(1, 64);
+    let mut pending = PendingAdmissionRegistry::new(1, 64, 1);
     let registration = pending
         .register(
             record("orders"),
@@ -39,42 +39,23 @@ fn drop_before_promotion_tombstones_and_preserves_the_unadmitted_record() {
 }
 
 #[test]
-fn failed_promotion_restores_active_or_remembers_abandoned_ownership() {
-    let active = super::PendingSendCell::new();
-    let active_claim = active
-        .begin_promotion()
-        .unwrap_or_else(|error| panic!("active cell should claim: {error:?}"));
-    assert_eq!(active_claim.restore(), Ok(PendingPromotionRestore::Pending));
-
-    let abandoned = super::PendingSendCell::new();
-    let send = crate::producer::boundary::ProducerSend::from_pending(abandoned.clone());
-    let abandoned_claim = abandoned
-        .begin_promotion()
-        .unwrap_or_else(|error| panic!("pending cell should claim: {error:?}"));
-    drop(send);
-    assert_eq!(
-        abandoned_claim.restore(),
-        Ok(PendingPromotionRestore::Abandoned)
-    );
-}
-
-#[test]
 fn promotion_before_drop_abandons_only_the_accepted_observer() {
-    let cell = super::PendingSendCell::new();
+    let cell = super::PendingSendCell::new_for_test();
     let mut send = crate::producer::boundary::ProducerSend::from_pending(cell.clone());
     let wake = CountingWake::new();
     assert_eq!(poll_send(&mut send, wake), Poll::Pending);
     let claim = cell
         .begin_promotion()
         .unwrap_or_else(|error| panic!("promotion should claim: {error:?}"));
-    let mut completions = CompletionRegistry::new(1, 2)
-        .unwrap_or_else(|error| panic!("completion notifier should start: {error}"));
+    let mut completions = super::test_support::notification_registry(2);
     let (id, observer) = completions
         .reserve()
         .unwrap_or_else(|error| panic!("accepted completion should reserve: {error}"));
     let job = claim
         .accept(ProducerDeliveryObserver::from_completion(observer))
-        .unwrap_or_else(|_observer| panic!("promotion should install accepted observer"));
+        .unwrap_or_else(|(_promotion, _observer)| {
+            panic!("promotion should install accepted observer")
+        });
 
     drop(send);
     notify(&completions, job);
@@ -94,20 +75,21 @@ fn promotion_before_drop_abandons_only_the_accepted_observer() {
 #[test]
 fn drop_after_promotion_claim_is_dispatched_off_the_caller_thread() {
     let caller = thread::current().id();
-    let cell = super::PendingSendCell::new();
+    let cell = super::PendingSendCell::new_for_test();
     let send = crate::producer::boundary::ProducerSend::from_pending(cell.clone());
     let claim = cell
         .begin_promotion()
         .unwrap_or_else(|error| panic!("promotion should claim: {error:?}"));
     drop(send);
-    let mut completions = CompletionRegistry::new(1, 2)
-        .unwrap_or_else(|error| panic!("completion notifier should start: {error}"));
+    let mut completions = super::test_support::notification_registry(2);
     let (id, observer) = completions
         .reserve()
         .unwrap_or_else(|error| panic!("accepted completion should reserve: {error}"));
     let job = claim
         .accept(ProducerDeliveryObserver::from_completion(observer))
-        .unwrap_or_else(|_observer| panic!("claimed promotion should remain accepted"));
+        .unwrap_or_else(|(_promotion, _observer)| {
+            panic!("claimed promotion should remain accepted")
+        });
     notify(&completions, job);
     assert_eq!(
         completions.publish(

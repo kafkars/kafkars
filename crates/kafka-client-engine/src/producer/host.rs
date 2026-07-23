@@ -1,5 +1,7 @@
 //! Synchronized capacity and ownership for one explicit-partition producer host.
 
+use std::sync::Arc;
+
 use kafka_client_core::{ByteCount, ProducerBatchPolicy, ProducerEffect, ProducerMachine};
 
 use crate::{clock::BatchTimers, completion::CompletionRegistry};
@@ -9,59 +11,19 @@ use super::{
     ProducerStoreLimits, ProducerStoreStats,
     binding::CompletionBindings,
     execution::{PreparedExecution, PreparedExecutionLimits},
+    pending::PendingNotificationPermitPool,
     reclaim::CompletionReclaimer,
     terminal_backlog::{
         FatalTransitionBuffer, OrderedTerminalBacklog, TerminalPoisonSlot, TerminalQuarantine,
         TerminalRefusalOwner,
     },
 };
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct ProducerHostLimits {
-    pub(crate) retained_bytes: usize,
-    pub(crate) completion_capacity: usize,
-    pub(crate) record_capacity: usize,
-    pub(crate) batch_capacity: usize,
-    pub(crate) timer_capacity: usize,
-    pub(crate) notification_capacity: usize,
-    pub(crate) encoded_byte_capacity: usize,
-    pub(crate) max_wire_batch_bytes: usize,
-    pub(crate) batch_policy: ProducerBatchPolicy,
-}
 
-impl ProducerHostLimits {
-    pub(crate) fn validate(self) -> Result<ByteCount, ProducerHostLimitError> {
-        if self.retained_bytes == 0 {
-            return Err(ProducerHostLimitError::ZeroRetainedBytes);
-        }
-        if self.completion_capacity == 0 {
-            return Err(ProducerHostLimitError::ZeroCompletionCapacity);
-        }
-        if self.record_capacity != self.completion_capacity {
-            return Err(ProducerHostLimitError::RecordCompletionMismatch);
-        }
-        if self.batch_capacity < self.record_capacity {
-            return Err(ProducerHostLimitError::InsufficientBatchCapacity);
-        }
-        if self.timer_capacity < self.batch_capacity {
-            return Err(ProducerHostLimitError::InsufficientTimerCapacity);
-        }
-        if self.notification_capacity < self.completion_capacity {
-            return Err(ProducerHostLimitError::InsufficientNotificationCapacity);
-        }
-        if self.encoded_byte_capacity == 0 {
-            return Err(ProducerHostLimitError::ZeroEncodedByteCapacity);
-        }
-        if self.max_wire_batch_bytes == 0 {
-            return Err(ProducerHostLimitError::ZeroWireBatchBytes);
-        }
-        if self.batch_policy.max_records() > self.record_capacity {
-            return Err(ProducerHostLimitError::BatchRecordLimitExceedsCapacity);
-        }
-        let bytes = u64::try_from(self.retained_bytes)
-            .map_err(|_| ProducerHostLimitError::RetainedBytesOutOfRange)?;
-        Ok(ByteCount::new(bytes))
-    }
-}
+#[path = "host_limits.rs"]
+mod limits;
+pub(crate) use limits::ProducerHostLimits;
+
+/// Current agreement between deterministic accounting and engine resources.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ProducerHostStats {
     pub(crate) store: ProducerStoreStats,
@@ -72,6 +34,7 @@ pub(crate) struct ProducerHostStats {
     pub(crate) prepared_bytes: usize,
     pub(crate) submission_deadlines: usize,
     pub(crate) completion_bindings: usize,
+    pub(crate) pending_notification_permits: usize,
     pub(crate) pending_effects: usize,
     pub(crate) terminal_backlog: usize,
     pub(crate) healthy: bool,
@@ -106,6 +69,7 @@ pub(crate) struct ProducerHost {
     pub(super) core_config: ProducerCoreConfig,
     pub(super) store: ProducerStore,
     pub(super) completions: CompletionRegistry<kafka_client_core::ProducerCompletion>,
+    pub(super) pending_notification_permits: Arc<PendingNotificationPermitPool>,
     pub(super) bindings: CompletionBindings,
     pub(super) reclaimer: CompletionReclaimer,
     pub(super) timers: BatchTimers,
@@ -133,13 +97,13 @@ pub(crate) struct ProducerHost {
 
 impl ProducerHost {
     pub(crate) fn new(limits: ProducerHostLimits) -> Result<Self, ProducerHostStartError> {
-        let retained_bytes = limits.validate()?;
+        let (retained_bytes, notification_budget, transition_capacity) =
+            limits.validate()?.into_parts();
         let terminal_quarantine =
             TerminalQuarantine::for_capacities(limits.record_capacity, limits.completion_capacity)?;
-        let transition_capacity = terminal_quarantine.transition_effect_capacity();
-        let completions =
-            CompletionRegistry::new(limits.completion_capacity, limits.notification_capacity)
-                .map_err(ProducerHostStartError::Notifier)?;
+        if terminal_quarantine.transition_effect_capacity() != transition_capacity {
+            return Err(ProducerHostLimitError::TerminalTailCapacityOverflow.into());
+        }
         let core_config = ProducerCoreConfig {
             retained_bytes,
             completion_capacity: limits.completion_capacity,
@@ -149,6 +113,10 @@ impl ProducerHost {
         if core.transition_effect_capacity() != Some(transition_capacity) {
             return Err(ProducerHostLimitError::TerminalTailCapacityOverflow.into());
         }
+        let notification_owners = notification_budget
+            .start()
+            .map_err(ProducerHostStartError::Notifier)?;
+        let (completions, pending_notification_permits) = notification_owners.into_parts();
         Ok(Self {
             core,
             core_config,
@@ -158,6 +126,7 @@ impl ProducerHost {
                 batches: limits.batch_capacity,
             }),
             completions,
+            pending_notification_permits,
             bindings: CompletionBindings::new(limits.completion_capacity),
             reclaimer: CompletionReclaimer::new(),
             timers: BatchTimers::new(limits.timer_capacity),
@@ -200,6 +169,7 @@ impl ProducerHost {
             prepared_bytes: prepared.encoded_record_bytes,
             submission_deadlines: self.execution.submission_count(),
             completion_bindings: self.bindings.len(),
+            pending_notification_permits: self.pending_notification_permits.in_use(),
             pending_effects: self.pending_effects.len(),
             terminal_backlog: self.terminal_backlog.len(),
             healthy: self.health == ProducerHostHealth::Healthy,

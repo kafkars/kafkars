@@ -10,7 +10,6 @@ fn every_local_failure_is_explicitly_not_sent() {
         ProducerSendFailureKind::Shutdown,
         ProducerSendFailureKind::Closed,
         ProducerSendFailureKind::Backpressure,
-        ProducerSendFailureKind::Cancelled,
     ] {
         let failure = ProducerSendFailure::new(kind);
         assert_eq!(failure.kind(), kind);

@@ -12,7 +12,8 @@ use std::{
 };
 
 use super::{
-    CompletionId, CompletionObserver, CompletionRegistryError, NotifierJoin,
+    CompletionId, CompletionNotificationAuthority, CompletionObserver, CompletionRegistryError,
+    NotifierJoin,
     cell::CompletionCell,
     host_state::HostSlot,
     notifier::{Notifier, PublishJob},
@@ -37,14 +38,10 @@ pub(crate) struct CompletionRegistry<T> {
 }
 
 impl<T: Send + 'static> CompletionRegistry<T> {
-    /// Preallocates every slot and starts one bounded notifier thread.
-    pub(crate) fn new(capacity: usize, notification_capacity: usize) -> std::io::Result<Self> {
-        if notification_capacity < capacity {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                "notification capacity must cover every completion slot",
-            ));
-        }
+    pub(super) fn start_with_notification_authority(
+        authority: CompletionNotificationAuthority,
+    ) -> std::io::Result<Self> {
+        let (capacity, queue_authority) = authority.into_parts();
         let (reclaim_sender, reclaim) = sync_channel(capacity);
         let mut slots = Vec::with_capacity(capacity);
         let mut free = Vec::with_capacity(capacity);
@@ -57,7 +54,7 @@ impl<T: Send + 'static> CompletionRegistry<T> {
             slots,
             free,
             reclaim,
-            notifier: Some(Notifier::start(notification_capacity)?),
+            notifier: Some(Notifier::start(queue_authority)?),
         })
     }
 

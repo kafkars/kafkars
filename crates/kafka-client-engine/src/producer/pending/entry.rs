@@ -4,10 +4,9 @@ use std::{sync::Arc, time::Instant};
 
 use kafka_client_core::Deadline;
 
-use crate::ProducerDeliveryStatus;
-
 use super::{
-    super::ProducerRecord, PendingAdmissionId, PendingCellError, PendingPromotion, PendingSendCell,
+    super::ProducerRecord, PendingAdmissionId, PendingCellError, PendingNotificationJob,
+    PendingSendCell, ProducerSendFailure, ProducerSendFailureKind, promotion::PendingPromotion,
 };
 
 /// One engine-owned record that has not crossed deterministic admission.
@@ -15,6 +14,17 @@ use super::{
 pub(crate) struct PendingAdmission {
     id: PendingAdmissionId,
     record: ProducerRecord,
+    deadline: Deadline,
+    absolute_instant: Instant,
+    retained_bytes: usize,
+    sequence: u64,
+    cell: Arc<PendingSendCell>,
+}
+
+/// Non-byte facts retained while the exact record attempts core admission.
+#[derive(Debug)]
+pub(super) struct PendingAdmissionFacts {
+    id: PendingAdmissionId,
     deadline: Deadline,
     absolute_instant: Instant,
     retained_bytes: usize,
@@ -59,12 +69,24 @@ impl PendingAdmission {
         self.record
     }
 
-    pub(crate) fn into_parts(self) -> (PendingAdmissionId, ProducerRecord, Deadline, Instant) {
-        (self.id, self.record, self.deadline, self.absolute_instant)
+    pub(super) fn begin_promotion(&self) -> Result<PendingPromotion, PendingCellError> {
+        self.cell.begin_promotion()
     }
 
-    pub(crate) fn begin_promotion(&self) -> Result<PendingPromotion, PendingCellError> {
-        self.cell.begin_promotion()
+    pub(super) fn is_abandoned(&self) -> bool {
+        self.cell.is_abandoned()
+    }
+
+    pub(super) fn into_transfer_parts(self) -> (PendingAdmissionFacts, ProducerRecord) {
+        let facts = PendingAdmissionFacts {
+            id: self.id,
+            deadline: self.deadline,
+            absolute_instant: self.absolute_instant,
+            retained_bytes: self.retained_bytes,
+            sequence: self.sequence,
+            cell: self.cell,
+        };
+        (facts, self.record)
     }
 
     pub(super) const fn retained_bytes(&self) -> usize {
@@ -74,50 +96,66 @@ impl PendingAdmission {
     pub(super) const fn sequence(&self) -> u64 {
         self.sequence
     }
+
+    #[cfg(test)]
+    pub(super) fn cell_for_test(&self) -> Arc<PendingSendCell> {
+        Arc::clone(&self.cell)
+    }
+
+    #[cfg(test)]
+    pub(super) fn topic_for_test(&self) -> &str {
+        self.record.topic().as_ref()
+    }
 }
 
-/// Why an unadmitted pending record settled locally.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum PendingLocalFailureKind {
-    DeadlineElapsed,
-    Shutdown,
-}
-
-/// Linear local outcome for work that never crossed core admission.
-#[derive(Debug)]
-pub(crate) struct PendingLocalFailure {
-    kind: PendingLocalFailureKind,
-    delivery_status: ProducerDeliveryStatus,
-    pending: PendingAdmission,
-}
-
-impl PendingLocalFailure {
-    pub(super) const fn new(kind: PendingLocalFailureKind, pending: PendingAdmission) -> Self {
-        Self {
-            kind,
-            delivery_status: ProducerDeliveryStatus::NotSent,
-            pending,
+impl PendingAdmissionFacts {
+    pub(super) fn restore(self, record: ProducerRecord) -> PendingAdmission {
+        PendingAdmission {
+            id: self.id,
+            record,
+            deadline: self.deadline,
+            absolute_instant: self.absolute_instant,
+            retained_bytes: self.retained_bytes,
+            sequence: self.sequence,
+            cell: self.cell,
         }
     }
 
-    pub(crate) const fn kind(&self) -> PendingLocalFailureKind {
-        self.kind
-    }
-
-    pub(crate) const fn delivery_status(&self) -> ProducerDeliveryStatus {
-        self.delivery_status
-    }
-
-    pub(crate) fn into_pending(self) -> PendingAdmission {
-        self.pending
+    #[cfg(test)]
+    pub(super) fn cell_for_test(&self) -> Arc<PendingSendCell> {
+        Arc::clone(&self.cell)
     }
 }
 
-/// Host disposition after attempting to return unadmitted work to its queue.
-#[derive(Debug)]
-pub(crate) enum PendingRestoreOutcome {
-    /// The exact slot generation and ordering facts are live again.
-    Restored,
-    /// Close won, so the unadmitted record settled locally as not sent.
-    Shutdown(PendingLocalFailure),
+/// Linear local outcome for work that never crossed core admission.
+pub(crate) struct PendingLocalFailure {
+    failure: ProducerSendFailure,
+    pending: PendingAdmission,
+    notification: PendingNotificationJob,
+}
+
+impl PendingLocalFailure {
+    pub(super) const fn new(
+        failure: ProducerSendFailure,
+        pending: PendingAdmission,
+        notification: PendingNotificationJob,
+    ) -> Self {
+        Self {
+            failure,
+            pending,
+            notification,
+        }
+    }
+
+    pub(crate) const fn kind(&self) -> ProducerSendFailureKind {
+        self.failure.kind()
+    }
+
+    pub(crate) const fn failure(&self) -> ProducerSendFailure {
+        self.failure
+    }
+
+    pub(crate) fn into_parts(self) -> (PendingAdmission, PendingNotificationJob) {
+        (self.pending, self.notification)
+    }
 }

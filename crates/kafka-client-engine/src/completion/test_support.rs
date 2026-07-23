@@ -14,8 +14,55 @@ use std::{
 
 use super::{
     CompletionId, CompletionObserver, CompletionObserverError, CompletionRegistry,
-    CompletionRegistryError, ReclaimStatus,
+    CompletionRegistryError, NotificationBudget, NotificationQueueAuthority,
+    PendingPermitAuthority, ReclaimStatus, notifier_queue::NotificationQueue,
 };
+
+pub(crate) struct NotificationQueueAuthorityTestOwner {
+    _seal: (),
+}
+
+pub(crate) struct PendingPermitAuthorityTestOwner {
+    _seal: (),
+}
+
+const fn notification_queue_authority(capacity: usize) -> NotificationQueueAuthority {
+    NotificationQueueAuthority::for_test(
+        NotificationQueueAuthorityTestOwner { _seal: () },
+        capacity,
+    )
+}
+
+pub(crate) const fn pending_permit_authority(capacity: usize) -> PendingPermitAuthority {
+    PendingPermitAuthority::for_test(PendingPermitAuthorityTestOwner { _seal: () }, capacity)
+}
+
+impl<T: Send + 'static> CompletionRegistry<T> {
+    /// Test-only terminal notifier with no pending-notification lane.
+    pub(crate) fn new(capacity: usize, notification_capacity: usize) -> std::io::Result<Self> {
+        if notification_capacity != capacity {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "terminal-only notification capacity must equal completion capacity",
+            ));
+        }
+        let budget =
+            NotificationBudget::try_new(capacity, 0, notification_capacity).map_err(|_error| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "terminal-only notification budget should validate",
+                )
+            })?;
+        let owners = budget.start::<T>()?;
+        Ok(owners.into_parts().0)
+    }
+}
+
+impl<T> NotificationQueue<T> {
+    pub(super) fn new_for_test(capacity: usize) -> Self {
+        Self::from_notification_queue_authority(notification_queue_authority(capacity))
+    }
+}
 
 /// Holds one completion cell lock until the caller releases the returned gate.
 pub(crate) fn hold_cell_lock<T: Send + 'static>(

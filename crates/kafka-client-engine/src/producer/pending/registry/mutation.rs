@@ -16,6 +16,53 @@ use super::{
 };
 use crate::producer::boundary::ProducerSend;
 
+#[derive(Debug, Eq, PartialEq)]
+pub(in crate::producer::pending) struct PendingRemovalPlan {
+    id: PendingAdmissionId,
+    sequence: u64,
+    deadline: Deadline,
+    next_used_bytes: usize,
+}
+
+#[must_use = "failed removal retains the linear proof for recovery"]
+pub(in crate::producer::pending) struct PendingRemovalFailure {
+    error: PendingRegistryError,
+    plan: PendingRemovalPlan,
+}
+
+impl PendingRemovalPlan {
+    pub(in crate::producer::pending) const fn restored(
+        id: PendingAdmissionId,
+        sequence: u64,
+        deadline: Deadline,
+        next_used_bytes: usize,
+    ) -> Self {
+        Self {
+            id,
+            sequence,
+            deadline,
+            next_used_bytes,
+        }
+    }
+
+    #[cfg(test)]
+    pub(in crate::producer::pending) const fn sequence(&self) -> u64 {
+        self.sequence
+    }
+}
+
+impl PendingRemovalFailure {
+    pub(in crate::producer::pending) const fn error(&self) -> PendingRegistryError {
+        self.error
+    }
+
+    pub(in crate::producer::pending) const fn into_parts(
+        self,
+    ) -> (PendingRegistryError, PendingRemovalPlan) {
+        (self.error, self.plan)
+    }
+}
+
 impl PendingAdmissionRegistry {
     /// Retains one unadmitted record under exact count and byte bounds.
     #[allow(
@@ -61,13 +108,20 @@ impl PendingAdmissionRegistry {
                 record,
             ));
         };
+        let Some(permit) = self.notification_permits.reserve() else {
+            return Err(rejected(
+                PendingAdmissionRejectionReason::NotificationBackpressure,
+                record,
+            ));
+        };
         let Some(id) = self.reserve_identity() else {
+            permit.release();
             return Err(rejected(
                 PendingAdmissionRejectionReason::IdentityExhausted,
                 record,
             ));
         };
-        let cell = PendingSendCell::new();
+        let cell = PendingSendCell::new(permit);
         let send = ProducerSend::from_pending(Arc::clone(&cell));
         let entry = PendingAdmission::new(
             id,
@@ -86,10 +140,18 @@ impl PendingAdmissionRegistry {
         Ok(PendingSendRegistration::new(id, send))
     }
 
-    pub(super) fn remove(
+    pub(in crate::producer::pending) fn remove(
         &mut self,
         id: PendingAdmissionId,
     ) -> Result<PendingAdmission, PendingRegistryError> {
+        let plan = self.validate_remove(id)?;
+        self.commit_remove(plan).map_err(|failure| failure.error())
+    }
+
+    pub(in crate::producer::pending) fn validate_remove(
+        &self,
+        id: PendingAdmissionId,
+    ) -> Result<PendingRemovalPlan, PendingRegistryError> {
         let slot = self
             .slots
             .get(id.slot())
@@ -110,14 +172,39 @@ impl PendingAdmissionRegistry {
             .used_bytes
             .checked_sub(entry.retained_bytes())
             .ok_or(PendingRegistryError::RetainedAccounting)?;
-        self.fifo.remove(&sequence);
-        self.deadlines.remove(&deadline_key);
-        let entry = self.slots[id.slot()]
-            .entry
-            .take()
-            .ok_or(PendingRegistryError::CorruptIndex)?;
-        self.used_bytes = next_used;
-        self.free.push(id.slot());
+        Ok(PendingRemovalPlan {
+            id,
+            sequence,
+            deadline: entry.deadline(),
+            next_used_bytes: next_used,
+        })
+    }
+
+    pub(in crate::producer::pending) fn commit_remove(
+        &mut self,
+        plan: PendingRemovalPlan,
+    ) -> Result<PendingAdmission, PendingRemovalFailure> {
+        let current = match self.validate_remove(plan.id) {
+            Ok(current) => current,
+            Err(error) => return Err(PendingRemovalFailure { error, plan }),
+        };
+        if current != plan {
+            return Err(PendingRemovalFailure {
+                error: PendingRegistryError::CorruptIndex,
+                plan,
+            });
+        }
+        let Some(entry) = self.slots[plan.id.slot()].entry.take() else {
+            return Err(PendingRemovalFailure {
+                error: PendingRegistryError::CorruptIndex,
+                plan,
+            });
+        };
+        self.fifo.remove(&plan.sequence);
+        self.deadlines
+            .remove(&(plan.deadline, plan.sequence, plan.id));
+        self.used_bytes = plan.next_used_bytes;
+        self.free.push(plan.id.slot());
         Ok(entry)
     }
 

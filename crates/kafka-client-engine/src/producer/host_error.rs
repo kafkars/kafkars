@@ -19,7 +19,9 @@ pub(crate) enum ProducerHostLimitError {
     RecordCompletionMismatch,
     InsufficientBatchCapacity,
     InsufficientTimerCapacity,
-    InsufficientNotificationCapacity,
+    PendingNotificationCapacityMismatch,
+    NotificationCapacityOverflow,
+    NotificationCapacityMismatch,
     ZeroEncodedByteCapacity,
     ZeroWireBatchBytes,
     BatchRecordLimitExceedsCapacity,
@@ -41,8 +43,14 @@ impl fmt::Display for ProducerHostLimitError {
             Self::InsufficientTimerCapacity => {
                 "producer timer capacity must cover every batch slot"
             }
-            Self::InsufficientNotificationCapacity => {
-                "producer notification capacity must cover every completion slot"
+            Self::PendingNotificationCapacityMismatch => {
+                "producer pending notification capacity must match pending record capacity"
+            }
+            Self::NotificationCapacityOverflow => {
+                "producer completion and pending notification capacities overflowed"
+            }
+            Self::NotificationCapacityMismatch => {
+                "producer notification capacity must equal completion plus pending capacity"
             }
             Self::ZeroEncodedByteCapacity => "producer encoded-byte capacity must be nonzero",
             Self::ZeroWireBatchBytes => "producer wire batch byte limit must be nonzero",

@@ -21,7 +21,6 @@ fn immediately_ready_local_send_reports_exact_not_sent_vocabulary() {
         ProducerSendFailureKind::Shutdown,
         ProducerSendFailureKind::Closed,
         ProducerSendFailureKind::Backpressure,
-        ProducerSendFailureKind::Cancelled,
     ] {
         let failure = ProducerSendFailure::new(kind);
         let mut send = ProducerSend::from_local_failure(failure);

@@ -101,6 +101,10 @@ production = "crates/kafka-client-engine/src/completion/observer.rs"
 test = "crates/kafka-client-engine/src/completion/observer_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/completion/notification_budget.rs"
+test = "crates/kafka-client-engine/src/completion/notification_budget_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/completion/registry.rs"
 test = "crates/kafka-client-engine/src/completion/registry_test.rs"
 
@@ -205,7 +209,7 @@ production = "crates/kafka-client-engine/src/producer/execution_turn.rs"
 test = "crates/kafka-client-engine/src/producer/execution_turn_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/producer/host.rs"
+production = "crates/kafka-client-engine/src/producer/host_limits.rs"
 test = "crates/kafka-client-engine/src/producer/host_limits_test.rs"
 
 [[test_mirrors]]
@@ -261,12 +265,36 @@ production = "crates/kafka-client-engine/src/producer/pending/registry.rs"
 test = "crates/kafka-client-engine/src/producer/pending/registry_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/attempt.rs"
+test = "crates/kafka-client-engine/src/producer/pending/attempt_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/attempt_transfer.rs"
+test = "crates/kafka-client-engine/src/producer/pending/attempt_transfer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/backlog.rs"
+test = "crates/kafka-client-engine/src/producer/pending/backlog_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/pending/cell.rs"
 test = "crates/kafka-client-engine/src/producer/pending/cell_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/cell_promotion.rs"
+test = "crates/kafka-client-engine/src/producer/pending/cell_promotion_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/pending/state.rs"
 test = "crates/kafka-client-engine/src/producer/pending/state_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/turn.rs"
+test = "crates/kafka-client-engine/src/producer/pending/turn_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/turn_error.rs"
+test = "crates/kafka-client-engine/src/producer/pending/turn_error_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/pending/failure.rs"
@@ -275,6 +303,10 @@ test = "crates/kafka-client-engine/src/producer/pending/failure_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/pending/notification.rs"
 test = "crates/kafka-client-engine/src/producer/pending/notification_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/permit.rs"
+test = "crates/kafka-client-engine/src/producer/pending/permit_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/pending/promotion.rs"
@@ -494,11 +526,159 @@ forbidden = [
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/driver"
 forbidden = [
+  "PendingNotificationJob",
+  "PendingNotificationRecovery",
+  "dispatch_pending_notification",
+  "dispatch_all_pending_notifications",
   "std::sync::Condvar",
   "std::sync::Mutex",
   "std::sync::mpsc",
   "std::task",
 ]
+
+# Neither engine nor producer host code may recover wakers synchronously.
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/engine_host"
+forbidden = [
+  "PendingNotificationJob",
+  "PendingNotificationRecovery",
+  "dispatch_pending_notification",
+  "dispatch_all_pending_notifications",
+]
+
+# Every file that implements reactor-driven ProducerHost work is isolated from
+# application notification dispatch. Exact-file roots keep the pending notifier
+# owners available without creating an exception across the producer domain.
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/admission.rs"
+forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/admission/rollback.rs"
+forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/effect.rs"
+forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/execution_stop.rs"
+forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/execution_turn.rs"
+forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/host.rs"
+forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/host_turn.rs"
+forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/interpreter.rs"
+forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/reclaim_turn.rs"
+forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/shutdown.rs"
+forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "dispatch_pending_notification"
+allowed_paths = [
+  "crates/kafka-client-engine/src/completion/notifier.rs",
+  "crates/kafka-client-engine/src/producer/pending/backlog.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "dispatch_all_pending_notifications"
+allowed_paths = []
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "PendingNotificationPermitPool::from_pending_permit_authority"
+allowed_paths = [
+  "crates/kafka-client-engine/src/completion/notification_budget.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "CompletionRegistry::start_with_notification_authority"
+allowed_paths = [
+  "crates/kafka-client-engine/src/completion/notification_budget.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "NotificationQueue::from_notification_queue_authority"
+allowed_paths = [
+  "crates/kafka-client-engine/src/completion/notifier.rs",
+]
+
+[[authority_tokens]]
+owner_type = "NotificationBudgetAuthority"
+path = "crates/kafka-client-engine/src/completion/notification_budget/authority.rs"
+fields = [
+  "_budget_proof",
+  "budget_completion_capacity",
+  "budget_pending_capacity",
+  "budget_queue_capacity",
+]
+allowed_paths = ["crates/kafka-client-engine/src/completion/notification_budget/authority.rs"]
+
+[[authority_tokens]]
+owner_type = "CompletionNotificationAuthority"
+path = "crates/kafka-client-engine/src/completion/notification_budget/authority.rs"
+fields = [
+  "_completion_proof",
+  "completion_notification_capacity",
+  "notification_queue_authority",
+]
+allowed_paths = ["crates/kafka-client-engine/src/completion/notification_budget/authority.rs"]
+
+[[authority_tokens]]
+owner_type = "NotificationQueueAuthority"
+path = "crates/kafka-client-engine/src/completion/notification_budget/authority.rs"
+fields = [
+  "_queue_proof",
+  "notification_queue_capacity",
+]
+allowed_paths = ["crates/kafka-client-engine/src/completion/notification_budget/authority.rs"]
+
+[[authority_tokens]]
+owner_type = "PendingPermitAuthority"
+path = "crates/kafka-client-engine/src/completion/notification_budget/authority.rs"
+fields = [
+  "_permit_proof",
+  "pending_permit_capacity",
+]
+allowed_paths = ["crates/kafka-client-engine/src/completion/notification_budget/authority.rs"]
+
+[[authority_tokens]]
+owner_type = "PendingNotificationDispatchAuthority"
+path = "crates/kafka-client-engine/src/producer/pending/notification_authority.rs"
+fields = ["_dispatch_proof"]
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/notification_authority.rs"]
+
+[[authority_tokens]]
+owner_type = "NotifierPendingDispatchOwner"
+path = "crates/kafka-client-engine/src/completion/notifier/authority.rs"
+fields = ["_notifier_owner_proof"]
+allowed_paths = ["crates/kafka-client-engine/src/completion/notifier/authority.rs"]
+
+[[authority_tokens]]
+owner_type = "PendingNotificationRecoveryDispatchOwner"
+path = "crates/kafka-client-engine/src/producer/pending/backlog/authority.rs"
+fields = ["_recovery_owner_proof"]
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/backlog/authority.rs"]
 
 # Clock execution stays monotonic, local, and free of sleeping/runtime ownership.
 [[capability_rules]]
@@ -957,6 +1137,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/pending/registry.rs",
   "crates/kafka-client-engine/src/producer/pending/registry/mutation.rs",
   "crates/kafka-client-engine/src/producer/pending/restore.rs",
+  "crates/kafka-client-engine/src/producer/pending/turn.rs",
 ]
 
 [[mutation_owners]]
@@ -979,6 +1160,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/pending/registry.rs",
   "crates/kafka-client-engine/src/producer/pending/registry/mutation.rs",
   "crates/kafka-client-engine/src/producer/pending/restore.rs",
+  "crates/kafka-client-engine/src/producer/pending/turn.rs",
 ]
 
 [[mutation_owners]]
@@ -997,6 +1179,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/pending/registry.rs",
   "crates/kafka-client-engine/src/producer/pending/registry/mutation.rs",
   "crates/kafka-client-engine/src/producer/pending/restore.rs",
+  "crates/kafka-client-engine/src/producer/pending/turn.rs",
 ]
 
 [[mutation_owners]]
@@ -1006,6 +1189,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/pending/registry.rs",
   "crates/kafka-client-engine/src/producer/pending/registry/mutation.rs",
   "crates/kafka-client-engine/src/producer/pending/restore.rs",
+  "crates/kafka-client-engine/src/producer/pending/turn.rs",
 ]
 
 [[mutation_owners]]
@@ -1013,8 +1197,61 @@ owner_type = "PendingSendCell"
 field = "phase"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/pending/cell.rs",
+  "crates/kafka-client-engine/src/producer/pending/cell_promotion.rs",
   "crates/kafka-client-engine/src/producer/pending/state.rs",
 ]
+
+[[mutation_owners]]
+owner_type = "PendingPromotionAttempt"
+field = "admission"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/pending/attempt.rs",
+  "crates/kafka-client-engine/src/producer/pending/attempt_transfer.rs",
+  "crates/kafka-client-engine/src/producer/pending/restore.rs",
+]
+
+[[mutation_owners]]
+owner_type = "PendingPromotionAttempt"
+field = "facts"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/pending/attempt.rs",
+  "crates/kafka-client-engine/src/producer/pending/attempt_transfer.rs",
+  "crates/kafka-client-engine/src/producer/pending/restore.rs",
+]
+
+[[mutation_owners]]
+owner_type = "PendingPromotionAttempt"
+field = "transfer"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/pending/attempt.rs",
+  "crates/kafka-client-engine/src/producer/pending/attempt_transfer.rs",
+  "crates/kafka-client-engine/src/producer/pending/restore.rs",
+]
+
+[[mutation_owners]]
+owner_type = "PendingNotificationPermitPool"
+field = "state"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/permit.rs"]
+
+[[mutation_owners]]
+owner_type = "PendingNotificationPermit"
+field = "slot"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/permit.rs"]
+
+[[mutation_owners]]
+owner_type = "PendingNotificationBacklog"
+field = "jobs"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/backlog.rs"]
+
+[[mutation_owners]]
+owner_type = "PendingNotificationRecovery"
+field = "jobs"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/backlog.rs"]
+
+[[mutation_owners]]
+owner_type = "PendingNotificationRecovery"
+field = "returned"
+allowed_paths = ["crates/kafka-client-engine/src/producer/pending/backlog.rs"]
 
 [[mutation_owners]]
 owner_type = "NotificationQueue"
@@ -1396,6 +1633,10 @@ owner_type = "ProducerHost"
 path = "crates/kafka-client-engine/src/producer/host.rs"
 
 [[linear_owners]]
+owner_type = "ValidatedProducerHostLimits"
+path = "crates/kafka-client-engine/src/producer/host_limits.rs"
+
+[[linear_owners]]
 owner_type = "AdmittedExplicit"
 path = "crates/kafka-client-engine/src/producer/admission.rs"
 
@@ -1440,10 +1681,6 @@ owner_type = "PendingAdmissionRejected"
 path = "crates/kafka-client-engine/src/producer/pending/error.rs"
 
 [[linear_owners]]
-owner_type = "PendingRestoreFailure"
-path = "crates/kafka-client-engine/src/producer/pending/error.rs"
-
-[[linear_owners]]
 owner_type = "PendingLocalFailure"
 path = "crates/kafka-client-engine/src/producer/pending/entry.rs"
 
@@ -1462,6 +1699,114 @@ path = "crates/kafka-client-engine/src/producer/pending/notification.rs"
 [[linear_owners]]
 owner_type = "PendingPromotion"
 path = "crates/kafka-client-engine/src/producer/pending/promotion.rs"
+
+[[linear_owners]]
+owner_type = "PendingPromotionAttempt"
+path = "crates/kafka-client-engine/src/producer/pending/attempt.rs"
+
+[[linear_owners]]
+owner_type = "PendingAcceptedPromotion"
+path = "crates/kafka-client-engine/src/producer/pending/attempt.rs"
+
+[[linear_owners]]
+owner_type = "PendingAttemptAcceptFailure"
+path = "crates/kafka-client-engine/src/producer/pending/attempt.rs"
+
+[[linear_owners]]
+owner_type = "PendingAttemptSettleFailure"
+path = "crates/kafka-client-engine/src/producer/pending/attempt.rs"
+
+[[linear_owners]]
+owner_type = "PendingRecordRestoreFailure"
+path = "crates/kafka-client-engine/src/producer/pending/attempt_transfer.rs"
+
+[[linear_owners]]
+owner_type = "PendingAttemptRestoreFailure"
+path = "crates/kafka-client-engine/src/producer/pending/restore_error.rs"
+
+[[linear_owners]]
+owner_type = "PendingRestoreRecovery"
+path = "crates/kafka-client-engine/src/producer/pending/restore_error.rs"
+
+[[linear_owners]]
+owner_type = "PendingTakeProgress"
+path = "crates/kafka-client-engine/src/producer/pending/turn_error.rs"
+
+[[linear_owners]]
+owner_type = "PendingLocalFailureProgress"
+path = "crates/kafka-client-engine/src/producer/pending/turn_error.rs"
+
+[[linear_owners]]
+owner_type = "PendingTakeFailure"
+path = "crates/kafka-client-engine/src/producer/pending/turn_error.rs"
+
+[[linear_owners]]
+owner_type = "PendingRemovalPlan"
+path = "crates/kafka-client-engine/src/producer/pending/registry/mutation.rs"
+
+[[linear_owners]]
+owner_type = "PendingRemovalFailure"
+path = "crates/kafka-client-engine/src/producer/pending/registry/mutation.rs"
+
+[[linear_owners]]
+owner_type = "PendingTurnFailure"
+path = "crates/kafka-client-engine/src/producer/pending/turn_error.rs"
+
+[[linear_owners]]
+owner_type = "PendingNotificationPermitPool"
+path = "crates/kafka-client-engine/src/producer/pending/permit.rs"
+
+[[linear_owners]]
+owner_type = "NotificationBudget"
+path = "crates/kafka-client-engine/src/completion/notification_budget.rs"
+
+[[linear_owners]]
+owner_type = "NotificationOwners"
+path = "crates/kafka-client-engine/src/completion/notification_budget.rs"
+
+[[linear_owners]]
+owner_type = "NotificationBudgetAuthority"
+path = "crates/kafka-client-engine/src/completion/notification_budget/authority.rs"
+
+[[linear_owners]]
+owner_type = "CompletionNotificationAuthority"
+path = "crates/kafka-client-engine/src/completion/notification_budget/authority.rs"
+
+[[linear_owners]]
+owner_type = "NotificationQueueAuthority"
+path = "crates/kafka-client-engine/src/completion/notification_budget/authority.rs"
+
+[[linear_owners]]
+owner_type = "PendingPermitAuthority"
+path = "crates/kafka-client-engine/src/completion/notification_budget/authority.rs"
+
+[[linear_owners]]
+owner_type = "PendingNotificationDispatchAuthority"
+path = "crates/kafka-client-engine/src/producer/pending/notification_authority.rs"
+
+[[linear_owners]]
+owner_type = "NotifierPendingDispatchOwner"
+path = "crates/kafka-client-engine/src/completion/notifier/authority.rs"
+
+[[linear_owners]]
+owner_type = "PendingNotificationRecoveryDispatchOwner"
+path = "crates/kafka-client-engine/src/producer/pending/backlog/authority.rs"
+
+[[linear_owners]]
+owner_type = "PendingNotificationPermit"
+path = "crates/kafka-client-engine/src/producer/pending/permit.rs"
+
+[[linear_owners]]
+owner_type = "PendingNotificationBacklog"
+path = "crates/kafka-client-engine/src/producer/pending/backlog.rs"
+
+[[linear_owners]]
+owner_type = "PendingNotificationBacklogFull"
+path = "crates/kafka-client-engine/src/producer/pending/backlog.rs"
+
+[[linear_owners]]
+owner_type = "PendingNotificationRecovery"
+path = "crates/kafka-client-engine/src/producer/pending/backlog.rs"
 
 [[linear_owners]]
 owner_type = "PendingSendRegistration"
