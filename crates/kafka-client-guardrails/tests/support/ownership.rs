@@ -19,6 +19,7 @@ const MUTATING_METHODS: &[&str] = &[
     "extend",
     "get_mut",
     "insert",
+    "lock",
     "pop",
     "push",
     "release",
@@ -27,6 +28,7 @@ const MUTATING_METHODS: &[&str] = &[
     "retain",
     "take",
     "try_reserve",
+    "try_lock",
 ];
 
 #[derive(Default)]

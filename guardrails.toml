@@ -97,9 +97,20 @@ forbidden = [
   "std::net",
   "std::os::unix::net",
   "std::process",
+  "std::sync::mpsc::channel",
   "async_std",
   "smol",
   "tokio",
+]
+
+# Reactor-driving driver adapters never touch observer locks or wakers.
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/driver"
+forbidden = [
+  "std::sync::Condvar",
+  "std::sync::Mutex",
+  "std::sync::mpsc",
+  "std::task",
 ]
 
 # The curated Rust API delegates execution and wire work to lower layers.
@@ -250,6 +261,55 @@ owner_type = "ProducerOperation"
 field = "state"
 allowed_paths = ["crates/kafka-client-core/src/operation/transition.rs"]
 
+[[mutation_owners]]
+owner_type = "CompletionRegistry"
+field = "slots"
+allowed_paths = [
+  "crates/kafka-client-engine/src/completion/registry.rs",
+  "crates/kafka-client-engine/src/completion/registry_lifecycle.rs",
+]
+
+[[mutation_owners]]
+owner_type = "CompletionRegistry"
+field = "free"
+allowed_paths = [
+  "crates/kafka-client-engine/src/completion/registry.rs",
+  "crates/kafka-client-engine/src/completion/registry_lifecycle.rs",
+]
+
+[[mutation_owners]]
+owner_type = "CompletionRegistry"
+field = "notifier"
+allowed_paths = ["crates/kafka-client-engine/src/completion/registry.rs"]
+
+[[mutation_owners]]
+owner_type = "CompletionCell"
+field = "phase"
+allowed_paths = [
+  "crates/kafka-client-engine/src/completion/cell.rs",
+  "crates/kafka-client-engine/src/completion/cell_lifecycle.rs",
+]
+
+[[mutation_owners]]
+owner_type = "HostSlot"
+field = "phase"
+allowed_paths = ["crates/kafka-client-engine/src/completion/host_state.rs"]
+
+[[mutation_owners]]
+owner_type = "CompletionObserver"
+field = "observed"
+allowed_paths = ["crates/kafka-client-engine/src/completion/observer.rs"]
+
+[[mutation_owners]]
+owner_type = "Notifier"
+field = "handle"
+allowed_paths = ["crates/kafka-client-engine/src/completion/notifier.rs"]
+
+[[mutation_owners]]
+owner_type = "NotifierJoin"
+field = "handle"
+allowed_paths = ["crates/kafka-client-engine/src/completion/notifier.rs"]
+
 # Lifecycle and accounting owners must not be duplicated accidentally.
 [[linear_owners]]
 owner_type = "ProducerMachine"
@@ -278,3 +338,27 @@ path = "crates/kafka-client-core/src/producer/batch.rs"
 [[linear_owners]]
 owner_type = "DriverOwner"
 path = "crates/kafka-client-engine/src/driver/owner.rs"
+
+[[linear_owners]]
+owner_type = "CompletionRegistry"
+path = "crates/kafka-client-engine/src/completion/registry.rs"
+
+[[linear_owners]]
+owner_type = "CompletionObserver"
+path = "crates/kafka-client-engine/src/completion/observer.rs"
+
+[[linear_owners]]
+owner_type = "CompletionCell"
+path = "crates/kafka-client-engine/src/completion/cell.rs"
+
+[[linear_owners]]
+owner_type = "HostSlot"
+path = "crates/kafka-client-engine/src/completion/host_state.rs"
+
+[[linear_owners]]
+owner_type = "Notifier"
+path = "crates/kafka-client-engine/src/completion/notifier.rs"
+
+[[linear_owners]]
+owner_type = "NotifierJoin"
+path = "crates/kafka-client-engine/src/completion/notifier.rs"
