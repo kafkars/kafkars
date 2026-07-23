@@ -87,7 +87,7 @@ fn stop(mut registry: CompletionRegistry<ProducerCompletion>) {
     let Ok(join) = registry.stop_notifier() else {
         panic!("settled completion notifier should stop")
     };
-    assert_eq!(join.join(), Ok(()));
+    assert_eq!(join.join_off_notifier(), Ok(()));
 }
 
 #[test]

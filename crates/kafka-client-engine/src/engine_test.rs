@@ -1,12 +1,20 @@
 //! Integrated engine-host lifecycle, parking, and failure scenarios.
 
-use std::{thread, time::Duration};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{Arc, mpsc::sync_channel},
+    task::{Context, Poll, Wake, Waker},
+    thread,
+    time::{Duration, Instant},
+};
 
 use bytes::Bytes;
 
 use crate::{
-    Engine, EngineConfig, EngineStartErrorKind, ProducerDeliveryError, ProducerDeliveryFailureKind,
-    ProducerDeliveryStatus, ProducerHandle, ProducerRecord, ProducerSendOptions,
+    Engine, EngineConfig, EngineShutdownError, EngineShutdownErrorKind, EngineStartErrorKind,
+    ProducerDeliveryError, ProducerDeliveryFailureKind, ProducerDeliveryStatus, ProducerHandle,
+    ProducerRecord, ProducerSendOptions,
 };
 
 #[test]
@@ -31,9 +39,7 @@ fn prepared_produce_parks_until_the_original_deadline_without_spinning() {
     let timeout = Duration::from_millis(200);
     let engine = start(timeout);
     let producer = engine.producer();
-    let accepted = producer
-        .try_send(record(), ProducerSendOptions::new(timeout))
-        .unwrap_or_else(|error| panic!("record admission should succeed: {error}"));
+    let accepted = admit(&producer, timeout);
     assert!(accepted.fault().is_none());
 
     thread::sleep(Duration::from_millis(40));
@@ -64,11 +70,88 @@ fn producer_handle_retains_the_host_after_parent_engine_drop() {
     let producer = engine.producer();
     drop(engine);
 
-    let accepted = producer
-        .try_send(record(), ProducerSendOptions::new(timeout))
-        .unwrap_or_else(|error| panic!("retained child handle must keep host live: {error}"));
+    let accepted = admit(&producer, timeout);
 
     assert_deadline_not_sent(accepted.into_observer().wait());
+}
+
+#[test]
+fn concurrent_shutdown_callers_observe_one_retained_report() {
+    let timeout = Duration::from_millis(80);
+    let engine = start(timeout);
+    let producer = engine.producer();
+    let accepted = admit(&producer, timeout);
+    let concurrent = engine.clone();
+    let waiter = thread::spawn(move || concurrent.shutdown());
+    wait_until(|| engine.host_is_closing());
+
+    let rejection = producer
+        .try_send(record(), ProducerSendOptions::new(timeout))
+        .err()
+        .unwrap_or_else(|| panic!("shutdown must close admission before draining"));
+    assert_eq!(rejection.kind(), crate::ProducerTrySendErrorKind::Closed);
+    assert!(engine.shutdown().is_ok());
+    assert!(waiter.join().is_ok_and(|result| result.is_ok()));
+    assert!(engine.host_is_closed());
+    assert_deadline_not_sent(accepted.into_observer().wait());
+}
+
+#[test]
+fn notifier_reentrant_shutdown_returns_without_blocking_host_cleanup() {
+    let timeout = Duration::from_millis(30);
+    let engine = start(timeout);
+    let producer = engine.producer();
+    let accepted = admit(&producer, timeout);
+    let mut observer = accepted.into_observer();
+    let (result_sender, result_receiver) = sync_channel(1);
+    let waker = Waker::from(Arc::new(ShutdownWake {
+        engine: engine.clone(),
+        result_sender,
+    }));
+    let mut context = Context::from_waker(&waker);
+    assert_eq!(Pin::new(&mut observer).poll(&mut context), Poll::Pending);
+
+    let result = result_receiver
+        .recv_timeout(Duration::from_secs(2))
+        .unwrap_or_else(|error| panic!("notifier shutdown result should arrive: {error}"));
+    let error = result
+        .err()
+        .unwrap_or_else(|| panic!("notifier shutdown must report deferred observation"));
+    assert_eq!(error.kind(), EngineShutdownErrorKind::NotifierThread);
+    assert!(engine.shutdown().is_ok());
+    assert!(engine.host_is_closed());
+    assert_deadline_not_sent(observer.wait());
+}
+
+#[test]
+fn final_engine_drop_on_notifier_still_reaches_closed() {
+    let timeout = Duration::from_millis(30);
+    let engine = start(timeout);
+    let probe = engine.host_probe();
+    let producer = engine.producer();
+    let accepted = admit(&producer, timeout);
+    let mut observer = accepted.into_observer();
+    let (result_sender, result_receiver) = sync_channel(1);
+    let waker = Waker::from(Arc::new(ShutdownWake {
+        engine,
+        result_sender,
+    }));
+    {
+        let mut context = Context::from_waker(&waker);
+        assert_eq!(Pin::new(&mut observer).poll(&mut context), Poll::Pending);
+    }
+    drop(waker);
+    drop(producer);
+
+    let result = result_receiver
+        .recv_timeout(Duration::from_secs(2))
+        .unwrap_or_else(|error| panic!("notifier shutdown result should arrive: {error}"));
+    assert_eq!(
+        result.err().map(|error| error.kind()),
+        Some(EngineShutdownErrorKind::NotifierThread)
+    );
+    assert!(probe.wait_closed(Duration::from_secs(2)));
+    assert_deadline_not_sent(observer.wait());
 }
 
 fn start(timeout: Duration) -> Engine {
@@ -85,10 +168,49 @@ fn record() -> ProducerRecord {
         .value(Bytes::from_static(b"value"))
 }
 
+fn admit(producer: &ProducerHandle, timeout: Duration) -> crate::ProducerTrySendAccepted {
+    let mut pending = record();
+    for _attempt in 0..1_000 {
+        match producer.try_send(pending, ProducerSendOptions::new(timeout)) {
+            Ok(accepted) => return accepted,
+            Err(error) if error.kind() == crate::ProducerTrySendErrorKind::Contended => {
+                pending = error
+                    .into_record()
+                    .unwrap_or_else(|| panic!("contention must preserve the record"));
+                thread::yield_now();
+            }
+            Err(error) => panic!("record admission should succeed: {error}"),
+        }
+    }
+    panic!("record admission should make progress within the bounded test loop")
+}
+
 fn assert_deadline_not_sent(result: Result<crate::ProducerRecordMetadata, ProducerDeliveryError>) {
     let Err(ProducerDeliveryError::Failed(failure)) = result else {
         panic!("parked pre-driver work must fail at its deadline")
     };
     assert_eq!(failure.kind(), ProducerDeliveryFailureKind::DeadlineElapsed);
     assert_eq!(failure.delivery_status(), ProducerDeliveryStatus::NotSent);
+}
+
+struct ShutdownWake {
+    engine: Engine,
+    result_sender: std::sync::mpsc::SyncSender<Result<(), EngineShutdownError>>,
+}
+
+impl Wake for ShutdownWake {
+    fn wake(self: Arc<Self>) {
+        let _sent = self.result_sender.send(self.engine.shutdown());
+    }
+}
+
+fn wait_until(mut condition: impl FnMut() -> bool) {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while !condition() {
+        assert!(
+            Instant::now() < deadline,
+            "lifecycle condition should become visible"
+        );
+        thread::yield_now();
+    }
 }

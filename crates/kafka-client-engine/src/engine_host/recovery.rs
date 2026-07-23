@@ -2,34 +2,31 @@
 
 use kafka_client_core::Moment;
 
-use super::{
-    EngineHostError, EngineHostExit, EngineHostResources,
-    runner::{shutdown_driver, stop_notifier},
-};
+use super::{EngineHostError, EngineHostExit, EngineHostResources, runner::shutdown_driver};
 
 pub(crate) fn recover(
     resources: &mut EngineHostResources,
     primary: EngineHostError,
-) -> Result<EngineHostExit, EngineHostError> {
+) -> EngineHostExit {
     let mut failure = primary;
-    if let Some(cleanup) = {
-        let mut producer = resources.producer.terminal_host();
-        producer
-            .execution_unavailable(Moment::from_tick(0))
-            .err()
-            .map(EngineHostError::ProducerStop)
-    } {
+    let mut producer = resources.producer.terminal_host();
+    if let Some(cleanup) = producer
+        .execution_unavailable(Moment::from_tick(0))
+        .err()
+        .map(EngineHostError::ProducerStop)
+    {
         failure = failure.with_cleanup(cleanup);
+    }
+    let recovery = producer.recover_notifier();
+    drop(producer);
+    if let Some(error) = recovery.error {
+        failure = failure.with_cleanup(EngineHostError::Completion(error));
     }
     if let Some(cleanup) = shutdown_driver(resources).err() {
         failure = failure.with_cleanup(cleanup);
     }
-    let notifier = match stop_notifier(resources) {
-        Ok(notifier) => notifier,
-        Err(cleanup) => return Err(failure.with_cleanup(cleanup)),
-    };
-    Ok(EngineHostExit {
-        notifier,
+    EngineHostExit {
+        notifier: recovery.notifier,
         failure: Some(failure),
-    })
+    }
 }

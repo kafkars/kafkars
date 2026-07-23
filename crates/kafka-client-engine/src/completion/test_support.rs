@@ -182,7 +182,7 @@ pub(super) fn stop<T: Send + 'static>(registry: &mut CompletionRegistry<T>) {
     let Ok(join) = registry.stop_notifier() else {
         panic!("notifier should stop");
     };
-    assert_eq!(join.join(), Ok(()));
+    assert_eq!(join.join_off_notifier(), Ok(()));
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {

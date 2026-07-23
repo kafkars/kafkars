@@ -2,6 +2,9 @@
 
 mod control;
 mod error;
+mod lifecycle;
+#[cfg(test)]
+mod lifecycle_test;
 mod recovery;
 #[cfg(test)]
 mod recovery_test;
@@ -9,12 +12,17 @@ mod runner;
 #[cfg(test)]
 mod runner_test;
 mod start;
+#[cfg(test)]
+mod start_test;
 
 pub(crate) use control::EngineHostControl;
 #[cfg(test)]
 pub(crate) use control::EngineHostSnapshot;
 pub(crate) use error::EngineHostError;
-pub use error::{EngineShutdownError, EngineStartError, EngineStartErrorKind};
+pub use error::{
+    EngineShutdownError, EngineShutdownErrorKind, EngineStartError, EngineStartErrorKind,
+};
+pub(crate) use lifecycle::EngineLifecycle;
 pub(crate) use recovery::recover;
 pub(crate) use runner::{EngineHostExit, EngineHostResources, run};
-pub(crate) use start::{EngineHostJoin, StartedEngineHost, start};
+pub(crate) use start::{StartedEngineHost, start};

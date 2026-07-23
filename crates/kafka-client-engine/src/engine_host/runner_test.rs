@@ -19,6 +19,16 @@ fn prepared_submission_parks_on_its_original_deadline() {
 }
 
 #[test]
+fn every_nonzero_wait_is_capped_for_failed_wake_liveness() {
+    let outcome = outcome(Some(Deadline::from_tick(1_000_000_000)), false, false);
+
+    assert_eq!(
+        producer_wait(Moment::from_tick(0), Some(outcome), false),
+        Duration::from_millis(100)
+    );
+}
+
+#[test]
 fn only_runnable_or_driver_local_work_requests_an_immediate_turn() {
     let runnable = outcome(None, true, false);
     assert_eq!(

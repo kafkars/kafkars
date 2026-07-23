@@ -114,7 +114,7 @@ fn abandoned_settlement_drops_and_reclaims_on_the_notifier() {
     let Ok(join) = registry.stop_notifier() else {
         panic!("settled notifier should stop")
     };
-    assert_eq!(join.join(), Ok(()));
+    assert_eq!(join.join_off_notifier(), Ok(()));
     assert_eq!(finish_reclaims(&mut registry), Ok(1));
 }
 
@@ -186,7 +186,7 @@ fn partial_notifier_failure_retains_exact_progress_identity_and_terminal() {
     let Ok(join) = registry.disconnect_notifier_for_settlement_test() else {
         panic!("test notifier should stop without discarding queued work")
     };
-    assert_eq!(join.join(), Ok(()));
+    assert_eq!(join.join_off_notifier(), Ok(()));
     let failed_identity = Arc::new(());
     let failure: SettlementFailure<ExactTerminal> =
         match registry.settle_reserved_with(1, |_id| ExactTerminal {

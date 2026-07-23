@@ -75,7 +75,7 @@ fn abandoned_observation_reclaims_after_terminal_publication() {
     let Ok(join) = host.completions.stop_notifier() else {
         panic!("settled notifier should stop")
     };
-    assert_eq!(join.join(), Ok(()));
+    assert_eq!(join.join_off_notifier(), Ok(()));
 
     assert_eq!(
         host.reclaim_one(Moment::from_tick(5)),

@@ -26,6 +26,13 @@ impl ProducerAdmissionPort {
         Self { shared }
     }
 
+    /// Closes core admission before terminal host draining begins.
+    pub(crate) fn close_admission(&self) -> Result<(), ProducerShardLockError> {
+        let mut host = self.shared.host()?;
+        host.close_admission();
+        Ok(())
+    }
+
     /// Attempts immediate explicit-partition admission.
     ///
     /// `attempted_at` is captured once for this immediate attempt. `deadline`

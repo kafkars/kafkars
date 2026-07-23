@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::{EngineConfig, producer::ingress::ProducerShardWake};
 
-use super::{DriverOwnerError, DriverShutdownStart, DriverTurn, owner::DriverOwner};
+use super::{DriverOwnerError, DriverTurn, owner::DriverOwner};
 
 #[test]
 fn one_owner_builds_the_driver_handle_reactor_and_wake_source() {
@@ -13,40 +13,38 @@ fn one_owner_builds_the_driver_handle_reactor_and_wake_source() {
 
     assert!(!owner.is_shutdown());
     assert!(wake.wake().is_ok());
-    let start = owner
-        .begin_shutdown()
-        .unwrap_or_else(|error| panic!("admit owner shutdown barrier: {error}"));
-    let DriverShutdownStart::Started(barrier) = start else {
-        panic!("first shutdown attempt should own the barrier")
-    };
+    owner.close_admission();
     let outcome = owner
         .turn(Duration::ZERO)
         .unwrap_or_else(|error| panic!("drive bounded shutdown turn: {error}"));
     assert_eq!(outcome, DriverTurn::Shutdown);
-    assert!(barrier.wait().is_ok());
     assert!(owner.is_shutdown());
 }
 
 #[test]
-fn priority_shutdown_is_one_bounded_turn_and_one_terminal_barrier() {
+fn dropping_the_sole_driver_handle_uses_implicit_reactor_shutdown() {
     let mut owner = owner();
-    let start = owner
-        .begin_shutdown()
-        .unwrap_or_else(|error| panic!("admit driver shutdown barrier: {error}"));
-    let DriverShutdownStart::Started(barrier) = start else {
-        panic!("first shutdown attempt should own the barrier")
-    };
+    owner.close_admission();
 
     let outcome = owner
         .turn(Duration::ZERO)
         .unwrap_or_else(|error| panic!("drive bounded shutdown turn: {error}"));
 
     assert_eq!(outcome, DriverTurn::Shutdown);
-    assert!(barrier.wait().is_ok());
-    assert!(matches!(
-        owner.begin_shutdown(),
-        Ok(DriverShutdownStart::AlreadyShutdown)
-    ));
+    owner.close_admission();
+    assert!(owner.is_shutdown());
+}
+
+#[test]
+fn implicit_shutdown_respects_the_engine_turn_bound() {
+    let mut owner = owner();
+
+    let error = owner
+        .shutdown_with_turn_limit(0, Duration::ZERO)
+        .err()
+        .unwrap_or_else(|| panic!("zero shutdown turns must preserve the outer bound"));
+
+    assert!(matches!(error, DriverOwnerError::ShutdownTurnExhausted));
 }
 
 #[test]

@@ -8,6 +8,7 @@ use std::{
         Arc,
         mpsc::{Receiver, TryRecvError, TrySendError, sync_channel},
     },
+    thread::ThreadId,
 };
 
 use super::{
@@ -167,6 +168,16 @@ impl<T: Send + 'static> CompletionRegistry<T> {
             return Err(CompletionRegistryError::NotifierStopped);
         };
         Ok(notifier.stop())
+    }
+
+    /// Transfers notifier cleanup ownership even after a recovery failure.
+    pub(crate) fn take_notifier(&mut self) -> Option<NotifierJoin> {
+        self.notifier.take().map(Notifier::stop)
+    }
+
+    /// Returns the dedicated notifier identity for reentrant-shutdown fencing.
+    pub(crate) fn notifier_thread_id(&self) -> Option<ThreadId> {
+        self.notifier.as_ref().and_then(Notifier::thread_id)
     }
 
     /// Returns accepted operations that have not published a terminal value.

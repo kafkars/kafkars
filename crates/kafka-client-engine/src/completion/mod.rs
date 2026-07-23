@@ -5,6 +5,8 @@ mod error;
 mod host_state;
 mod identity;
 mod notifier;
+#[cfg(test)]
+mod notifier_test;
 mod observer;
 mod registry;
 mod settlement;

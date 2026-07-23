@@ -80,23 +80,33 @@ impl fmt::Display for EngineStartError {
 
 impl std::error::Error for EngineStartError {}
 
-/// Failure while joining the explicit terminal engine shutdown.
-#[derive(Debug)]
+/// Retained failure from explicit terminal engine shutdown.
+#[derive(Clone, Debug)]
 pub struct EngineShutdownError {
+    kind: EngineShutdownErrorKind,
     detail: String,
 }
 
 impl EngineShutdownError {
     pub(crate) fn host(error: &EngineHostError) -> Self {
         Self {
+            kind: EngineShutdownErrorKind::Host,
             detail: error.to_string(),
         }
     }
 
-    pub(crate) fn lock_poisoned() -> Self {
+    pub(crate) fn notifier_thread() -> Self {
         Self {
-            detail: "engine shutdown ownership lock is poisoned".to_owned(),
+            kind: EngineShutdownErrorKind::NotifierThread,
+            detail: "shutdown was requested from the completion notifier; terminal cleanup \
+                     continues after the callback returns"
+                .to_owned(),
         }
+    }
+
+    /// Returns the stable shutdown-failure category.
+    pub const fn kind(&self) -> EngineShutdownErrorKind {
+        self.kind
     }
 }
 
@@ -107,6 +117,15 @@ impl fmt::Display for EngineShutdownError {
 }
 
 impl std::error::Error for EngineShutdownError {}
+
+/// Stable category for an engine shutdown report.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EngineShutdownErrorKind {
+    /// Host or cleanup execution failed before terminal shutdown.
+    Host,
+    /// A notifier callback initiated shutdown and cannot wait for itself.
+    NotifierThread,
+}
 
 #[derive(Debug)]
 pub(crate) enum EngineHostError {

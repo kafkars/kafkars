@@ -159,15 +159,23 @@ evidence = [
 id = "RCT-01"
 title = "Application code never runs on a reactor"
 statement = "Driver and engine reactors publish into bounded completion mechanisms and never invoke Rust or foreign application callbacks."
-status = "planned"
-milestone = "reactor-isolation-host"
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/completion/settlement_test.rs::hostile_waker_runs_only_on_the_completion_notifier",
+  "crates/kafka-client-engine/src/engine_test.rs::notifier_reentrant_shutdown_returns_without_blocking_host_cleanup",
+]
 
 [[invariant]]
 id = "SD-01"
 title = "Shutdown closes admission before draining"
-statement = "Shutdown rejects new work, settles accepted operations according to their deadlines, joins every owned worker, and returns one terminal result."
-status = "planned"
-milestone = "engine-host-shutdown"
+statement = "Shutdown closes producer admission before host draining, settles accepted producer operations, completes bounded driver and notifier cleanup, and retains one shared terminal report."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/engine_test.rs::concurrent_shutdown_callers_observe_one_retained_report",
+  "crates/kafka-client-engine/src/engine_test.rs::final_engine_drop_on_notifier_still_reaches_closed",
+  "crates/kafka-client-engine/src/engine_host/recovery_test.rs::failed_runner_settles_accepted_work_and_closes_retained_handles",
+  "crates/kafka-client-engine/src/driver/owner_test.rs::dropping_the_sole_driver_handle_uses_implicit_reactor_shutdown",
+]
 
 [[invariant]]
 id = "TMR-01"

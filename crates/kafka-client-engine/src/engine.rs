@@ -1,12 +1,12 @@
 //! Shared public owner of one reactor-native execution host.
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::{
     EngineConfig, ProducerHandle,
     engine_host::{
-        EngineHostJoin, EngineShutdownError, EngineStartError, StartedEngineHost,
-        start as start_host,
+        EngineHostControl, EngineLifecycle, EngineShutdownError, EngineStartError,
+        StartedEngineHost, start as start_host,
     },
 };
 
@@ -20,7 +20,8 @@ struct EngineInner {
     config: EngineConfig,
     admission: crate::producer::ingress::ProducerAdmissionPort,
     clock: Arc<crate::clock::MonotonicClock>,
-    host: Mutex<Option<EngineHostJoin>>,
+    control: Arc<EngineHostControl>,
+    lifecycle: Arc<EngineLifecycle>,
 }
 
 impl Engine {
@@ -30,14 +31,16 @@ impl Engine {
         let StartedEngineHost {
             admission,
             clock,
-            join,
+            control,
+            lifecycle,
         } = start_host(&config, validated)?;
         Ok(Self {
             inner: Arc::new(EngineInner {
                 config,
                 admission,
                 clock,
-                host: Mutex::new(Some(join)),
+                control,
+                lifecycle,
             }),
         })
     }
@@ -57,56 +60,50 @@ impl Engine {
         &self.inner.config
     }
 
-    /// Closes admission, drains accepted work, and joins native resources.
+    /// Waits for the host's retained report after native resource cleanup.
     pub fn shutdown(&self) -> Result<(), EngineShutdownError> {
         self.inner.shutdown()
     }
 
     #[cfg(test)]
     pub(crate) fn host_snapshot(&self) -> crate::engine_host::EngineHostSnapshot {
-        match self.inner.host.lock() {
-            Ok(host) => host
-                .as_ref()
-                .map_or(crate::engine_host::EngineHostSnapshot::default(), |host| {
-                    host.snapshot()
-                }),
-            Err(_) => crate::engine_host::EngineHostSnapshot::default(),
-        }
+        self.inner.control.snapshot()
     }
 
     #[cfg(test)]
     pub(crate) fn force_host_failure(&self) {
-        if let Ok(host) = self.inner.host.lock()
-            && let Some(host) = host.as_ref()
-        {
-            host.force_failure();
+        self.inner.control.request_failure();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn host_is_closed(&self) -> bool {
+        self.inner.lifecycle.is_closed()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn host_is_closing(&self) -> bool {
+        self.inner.lifecycle.is_closing()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn host_probe(&self) -> EngineHostProbe {
+        EngineHostProbe {
+            lifecycle: Arc::clone(&self.inner.lifecycle),
         }
     }
 }
 
 impl EngineInner {
     fn shutdown(&self) -> Result<(), EngineShutdownError> {
-        let mut host = self
-            .host
-            .lock()
-            .map_err(|_poisoned| EngineShutdownError::lock_poisoned())?;
-        let Some(mut host) = host.take() else {
-            return Ok(());
-        };
-        host.shutdown_and_join()
-            .map_err(|error| EngineShutdownError::host(&error))
+        let _close_result = self.admission.close_admission();
+        self.lifecycle.request_and_wait(&self.control)
     }
 }
 
 impl Drop for EngineInner {
     fn drop(&mut self) {
-        let host = match self.host.get_mut() {
-            Ok(host) => host,
-            Err(poisoned) => poisoned.into_inner(),
-        };
-        if let Some(host) = host.take() {
-            host.shutdown_detached();
-        }
+        let _close_result = self.admission.close_admission();
+        self.lifecycle.request(&self.control);
     }
 }
 
@@ -116,5 +113,17 @@ impl std::fmt::Debug for Engine {
             .debug_struct("Engine")
             .field("config", &self.inner.config)
             .finish_non_exhaustive()
+    }
+}
+
+#[cfg(test)]
+pub(crate) struct EngineHostProbe {
+    lifecycle: Arc<EngineLifecycle>,
+}
+
+#[cfg(test)]
+impl EngineHostProbe {
+    pub(crate) fn wait_closed(&self, timeout: std::time::Duration) -> bool {
+        self.lifecycle.wait_closed(timeout)
     }
 }

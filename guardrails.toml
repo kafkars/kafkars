@@ -117,12 +117,24 @@ production = "crates/kafka-client-engine/src/engine.rs"
 test = "crates/kafka-client-engine/src/engine_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/completion/notifier.rs"
+test = "crates/kafka-client-engine/src/completion/notifier_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/lifecycle.rs"
+test = "crates/kafka-client-engine/src/engine_host/lifecycle_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/recovery.rs"
 test = "crates/kafka-client-engine/src/engine_host/recovery_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/runner.rs"
 test = "crates/kafka-client-engine/src/engine_host/runner_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/start.rs"
+test = "crates/kafka-client-engine/src/engine_host/start_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/admission.rs"
@@ -848,8 +860,8 @@ owner_type = "EngineInner"
 path = "crates/kafka-client-engine/src/engine.rs"
 
 [[linear_owners]]
-owner_type = "EngineHostJoin"
-path = "crates/kafka-client-engine/src/engine_host/start.rs"
+owner_type = "EngineLifecycle"
+path = "crates/kafka-client-engine/src/engine_host/lifecycle.rs"
 
 [[linear_owners]]
 owner_type = "EngineHostResources"

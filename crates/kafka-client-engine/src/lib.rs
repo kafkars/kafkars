@@ -40,7 +40,9 @@ pub use delivery::{
 pub use delivery_error::{ProducerDeliveryError, ProducerObserverError};
 pub use delivery_observer::{ProducerDeliveryObserver, ProducerDeliveryResult};
 pub use engine::Engine;
-pub use engine_host::{EngineShutdownError, EngineStartError, EngineStartErrorKind};
+pub use engine_host::{
+    EngineShutdownError, EngineShutdownErrorKind, EngineStartError, EngineStartErrorKind,
+};
 pub use producer::{
     ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerHandle, ProducerOperationId,
     ProducerSendOptions, ProducerTrySendAccepted, ProducerTrySendError, ProducerTrySendErrorKind,

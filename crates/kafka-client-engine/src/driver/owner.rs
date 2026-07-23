@@ -3,7 +3,7 @@
 use std::{fmt, time::Duration};
 
 use kafka_driver::{
-    BootstrapError, BootstrapLimits, BootstrapSet, Call, Driver, Reactor, TurnOutcome, WakeHandle,
+    BootstrapError, BootstrapLimits, BootstrapSet, Driver, Reactor, TurnOutcome, WakeHandle,
 };
 
 use crate::EngineConfig;
@@ -18,33 +18,13 @@ pub(crate) enum DriverTurn {
     Shutdown,
 }
 
-/// One bounded attempt to enter terminal driver shutdown.
-pub(crate) enum DriverShutdownStart {
-    Started(DriverShutdown),
-    Retry,
-    AlreadyShutdown,
-}
-
-/// Sole terminal barrier retained while the engine drives driver shutdown.
-pub(crate) struct DriverShutdown {
-    call: Call<()>,
-}
-
-impl DriverShutdown {
-    pub(crate) fn wait(self) -> Result<(), DriverOwnerError> {
-        self.call
-            .wait()
-            .map_err(DriverOwnerError::ShutdownCompletion)
-    }
-}
-
 /// Unique engine ownership of one driver handle, reactor, and wake source.
 ///
 /// This type deliberately has no `Clone` implementation. It does not expose the
 /// driver's current relative-timeout request methods; reactor turns and
 /// terminal shutdown remain single-owner actions.
 pub(crate) struct DriverOwner {
-    driver: Driver,
+    driver: Option<Driver>,
     reactor: Reactor,
     wake: WakeHandle,
 }
@@ -74,7 +54,7 @@ impl DriverOwner {
             .map_err(DriverOwnerError::Build)?;
         let wake = reactor.wake_handle();
         Ok(Self {
-            driver,
+            driver: Some(driver),
             reactor,
             wake,
         })
@@ -98,20 +78,27 @@ impl DriverOwner {
         })
     }
 
-    /// Enters the driver's priority shutdown lane and returns its barrier.
-    pub(crate) fn begin_shutdown(&self) -> Result<DriverShutdownStart, DriverOwnerError> {
-        match self.driver.shutdown() {
-            Ok(call) => Ok(DriverShutdownStart::Started(DriverShutdown { call })),
-            Err(kafka_driver::SubmitError::Full | kafka_driver::SubmitError::Wake(_)) => {
-                Ok(DriverShutdownStart::Retry)
-            }
-            Err(kafka_driver::SubmitError::Closed) if self.reactor.is_shutdown() => {
-                Ok(DriverShutdownStart::AlreadyShutdown)
-            }
-            Err(kafka_driver::SubmitError::Closed) => Err(DriverOwnerError::ShutdownClosed),
-            Err(kafka_driver::SubmitError::IdentityExhausted) => {
-                Err(DriverOwnerError::ShutdownIdentityExhausted)
-            }
+    /// Drops the sole command sender so the reactor begins implicit shutdown.
+    pub(crate) fn close_admission(&mut self) {
+        drop(self.driver.take());
+    }
+
+    /// Drives implicit shutdown within one caller-provided turn bound.
+    pub(crate) fn shutdown_with_turn_limit(
+        &mut self,
+        turn_limit: usize,
+        max_wait: Duration,
+    ) -> Result<usize, DriverOwnerError> {
+        self.close_admission();
+        let mut turns = 0;
+        while !self.is_shutdown() && turns < turn_limit {
+            let _outcome = self.turn(max_wait)?;
+            turns += 1;
+        }
+        if self.is_shutdown() {
+            Ok(turns)
+        } else {
+            Err(DriverOwnerError::ShutdownTurnExhausted)
         }
     }
 
@@ -125,6 +112,7 @@ impl fmt::Debug for DriverOwner {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("DriverOwner")
+            .field("admission_open", &self.driver.is_some())
             .field("reactor_shutdown", &self.reactor.is_shutdown())
             .finish_non_exhaustive()
     }

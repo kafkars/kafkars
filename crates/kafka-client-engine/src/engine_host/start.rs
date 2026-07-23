@@ -1,4 +1,4 @@
-//! Leak-free startup handoff and off-reactor host joining.
+//! Leak-free resource handoff into one self-cleaning native host.
 
 use std::{
     panic::{AssertUnwindSafe, catch_unwind},
@@ -9,6 +9,7 @@ use std::{
 use crate::{
     EngineConfig,
     clock::MonotonicClock,
+    completion::NotifierJoin,
     config::ValidatedEngineConfig,
     driver::DriverOwner,
     producer::{
@@ -18,57 +19,48 @@ use crate::{
 };
 
 use super::{
-    EngineHostControl, EngineHostError, EngineHostExit, EngineHostResources, EngineStartError,
-    recover, run,
+    EngineHostControl, EngineHostError, EngineHostExit, EngineHostResources, EngineLifecycle,
+    EngineStartError, recover, run,
 };
 
 const HOST_THREAD_NAME: &str = "kafka-client-engine";
-const REAPER_THREAD_NAME: &str = "kafka-client-engine-reaper";
 
 pub(crate) struct StartedEngineHost {
     pub(crate) admission: ProducerAdmissionPort,
     pub(crate) clock: Arc<MonotonicClock>,
-    pub(crate) join: EngineHostJoin,
+    pub(crate) control: Arc<EngineHostControl>,
+    pub(crate) lifecycle: Arc<EngineLifecycle>,
 }
 
 pub(crate) fn start(
     config: &EngineConfig,
     validated: ValidatedEngineConfig,
 ) -> Result<StartedEngineHost, EngineStartError> {
+    let lifecycle = Arc::new(EngineLifecycle::new());
+    let host_lifecycle = Arc::clone(&lifecycle);
     let (sender, receiver) = sync_channel::<EngineHostResources>(1);
     let handle = thread::Builder::new()
         .name(HOST_THREAD_NAME.to_owned())
         .spawn(move || match receiver.recv() {
-            Ok(mut resources) => {
-                let outcome = catch_unwind(AssertUnwindSafe(|| run(&mut resources)));
-                match outcome {
-                    Ok(Ok(exit)) => Ok(Some(exit)),
-                    Ok(Err(error)) => recover(&mut resources, error).map(Some),
-                    Err(_panic) => recover(&mut resources, EngineHostError::HostPanicked).map(Some),
-                }
-            }
-            Err(_) => Ok(None),
+            Ok(resources) => finish_host(resources, &host_lifecycle),
+            Err(_) => host_lifecycle.publish(None),
         })
         .map_err(|error| EngineStartError::host_thread(&error))?;
+
     let driver = match DriverOwner::build(config) {
         Ok(driver) => driver,
-        Err(error) => {
-            drop(sender);
-            join_cancelled(handle);
-            return Err(EngineStartError::driver(&error));
-        }
+        Err(error) => return cancel_start(sender, handle, EngineStartError::driver(&error)),
     };
     let clock = Arc::new(MonotonicClock::new());
     let wake = driver.producer_wake();
     let control = Arc::new(EngineHostControl::new(wake.clone()));
     let producer = match ProducerHost::new(validated.host_limits) {
         Ok(producer) => producer,
-        Err(error) => {
-            drop(sender);
-            join_cancelled(handle);
-            return Err(EngineStartError::producer(&error));
-        }
+        Err(error) => return cancel_start(sender, handle, EngineStartError::producer(&error)),
     };
+    if let Some(thread_id) = producer.notifier_thread_id() {
+        lifecycle.install_notifier_thread(thread_id);
+    }
     let producer = ProducerShardOwner::new(producer, Arc::new(wake));
     let admission = producer.admission_port();
     let resources = EngineHostResources {
@@ -79,72 +71,76 @@ pub(crate) fn start(
         budget: validated.turn_budget,
     };
     if let Err(error) = sender.send(resources) {
-        drop(sender);
         control.request_shutdown();
-        let mut resources = error.0;
-        let cleanup = run(&mut resources);
-        if let Ok(exit) = cleanup {
-            let _join_result = exit.notifier.join();
-        }
+        finish_host(error.0, &lifecycle);
         join_cancelled(handle);
         return Err(EngineStartError::handoff());
     }
+
+    // The host self-cleans and publishes a retained terminal report after
+    // joining its notifier. External shutdown observes that report, not this
+    // operating-system join token.
+    drop(handle);
     Ok(StartedEngineHost {
         admission,
         clock,
-        join: EngineHostJoin {
-            control,
-            handle: Some(handle),
-        },
+        control,
+        lifecycle,
     })
 }
 
-pub(crate) struct EngineHostJoin {
-    control: Arc<EngineHostControl>,
-    handle: Option<JoinHandle<Result<Option<EngineHostExit>, EngineHostError>>>,
+fn cancel_start(
+    sender: std::sync::mpsc::SyncSender<EngineHostResources>,
+    handle: JoinHandle<()>,
+    error: EngineStartError,
+) -> Result<StartedEngineHost, EngineStartError> {
+    drop(sender);
+    join_cancelled(handle);
+    Err(error)
 }
 
-impl EngineHostJoin {
-    pub(crate) fn shutdown_and_join(&mut self) -> Result<(), EngineHostError> {
-        self.control.request_shutdown();
-        let Some(handle) = self.handle.take() else {
-            return Ok(());
+fn finish_host(mut resources: EngineHostResources, lifecycle: &EngineLifecycle) {
+    publish_caught(lifecycle, move || {
+        let outcome = catch_unwind(AssertUnwindSafe(|| run(&mut resources)));
+        let exit = match outcome {
+            Ok(Ok(exit)) => exit,
+            Ok(Err(error)) => recover(&mut resources, error),
+            Err(_panic) => recover(&mut resources, EngineHostError::HostPanicked),
         };
-        let exit = handle.join().map_err(|_| EngineHostError::HostPanicked)??;
-        let Some(exit) = exit else {
-            return Err(EngineHostError::HostPanicked);
-        };
-        exit.notifier.join().map_err(EngineHostError::Notifier)?;
-        exit.failure.map_or(Ok(()), Err)
-    }
+        let failure = finalize_exit(exit);
+        drop(resources);
+        failure
+    });
+}
 
-    pub(crate) fn shutdown_detached(mut self) {
-        self.control.request_shutdown();
-        let _spawn_result = thread::Builder::new()
-            .name(REAPER_THREAD_NAME.to_owned())
-            .spawn(move || {
-                let _shutdown_result = self.shutdown_and_join();
-            });
-    }
-
-    #[cfg(test)]
-    pub(crate) fn snapshot(&self) -> super::EngineHostSnapshot {
-        self.control.snapshot()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn force_failure(&self) {
-        self.control.request_failure();
+pub(super) fn publish_caught(
+    lifecycle: &EngineLifecycle,
+    finalize: impl FnOnce() -> Option<EngineHostError>,
+) {
+    let outcome = catch_unwind(AssertUnwindSafe(finalize));
+    match outcome {
+        Ok(failure) => lifecycle.publish(failure.as_ref()),
+        Err(_panic) => lifecycle.publish(Some(&EngineHostError::HostPanicked)),
     }
 }
 
-impl Drop for EngineHostJoin {
-    fn drop(&mut self) {
-        self.control.request_shutdown();
-        let _detached = self.handle.take();
+pub(super) fn finalize_exit(mut exit: EngineHostExit) -> Option<EngineHostError> {
+    match exit.notifier.take().map(NotifierJoin::join_off_notifier) {
+        None | Some(Ok(())) => exit.failure,
+        Some(Err(cleanup)) => Some(attach_cleanup(
+            exit.failure,
+            EngineHostError::Notifier(cleanup),
+        )),
     }
 }
 
-fn join_cancelled(handle: JoinHandle<Result<Option<EngineHostExit>, EngineHostError>>) {
+fn attach_cleanup(primary: Option<EngineHostError>, cleanup: EngineHostError) -> EngineHostError {
+    match primary {
+        Some(primary) => primary.with_cleanup(cleanup),
+        None => cleanup,
+    }
+}
+
+fn join_cancelled(handle: JoinHandle<()>) {
     let _join_result = handle.join();
 }

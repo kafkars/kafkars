@@ -44,7 +44,7 @@ impl EngineHostControl {
     }
 
     #[cfg(test)]
-    pub(super) fn request_failure(&self) {
+    pub(crate) fn request_failure(&self) {
         self.failure.store(true, Ordering::Release);
         let _wake_result = self.wake.request();
     }
@@ -55,7 +55,7 @@ impl EngineHostControl {
     }
 
     #[cfg(test)]
-    pub(super) fn snapshot(&self) -> EngineHostSnapshot {
+    pub(crate) fn snapshot(&self) -> EngineHostSnapshot {
         EngineHostSnapshot {
             producer_turns: self.producer_turns.load(Ordering::Relaxed),
             driver_turns: self.driver_turns.load(Ordering::Relaxed),

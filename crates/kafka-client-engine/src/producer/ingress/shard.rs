@@ -68,6 +68,12 @@ impl ProducerShardState {
         }
     }
 
+    pub(super) fn host(&self) -> Result<MutexGuard<'_, ProducerHost>, ProducerShardLockError> {
+        self.host
+            .lock()
+            .map_err(|_poisoned| ProducerShardLockError::Poisoned)
+    }
+
     pub(super) fn wake(&self) -> Result<(), ProducerShardWakeError> {
         self.wake.wake()
     }
@@ -108,11 +114,7 @@ impl ProducerShardOwner {
 
     /// Closes admission during terminal owner cleanup, waiting out a live caller.
     pub(crate) fn close_admission(&self) -> Result<(), ProducerShardLockError> {
-        let mut host = self
-            .shared
-            .host
-            .lock()
-            .map_err(|_poisoned| ProducerShardLockError::Poisoned)?;
+        let mut host = self.shared.host()?;
         host.close_admission();
         Ok(())
     }

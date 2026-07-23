@@ -101,7 +101,7 @@ fn dropping_delivery_observer_preserves_abandon_reclaim() {
     let Ok(join) = registry.stop_notifier() else {
         panic!("settled notifier should stop")
     };
-    assert_eq!(join.join(), Ok(()));
+    assert_eq!(join.join_off_notifier(), Ok(()));
     assert_eq!(registry.next_reclaim(), Ok(Some(completion_id)));
     assert_eq!(
         registry.finish_reclaim(completion_id),
@@ -150,7 +150,7 @@ fn stop(registry: &mut CompletionRegistry<kafka_client_core::ProducerCompletion>
     let Ok(join) = registry.stop_notifier() else {
         panic!("settled notifier should stop")
     };
-    assert_eq!(join.join(), Ok(()));
+    assert_eq!(join.join_off_notifier(), Ok(()));
 }
 
 struct WakeSignal {

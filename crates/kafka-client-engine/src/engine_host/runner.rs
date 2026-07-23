@@ -7,7 +7,7 @@ use kafka_client_core::{Deadline, Moment};
 use crate::{
     clock::MonotonicClock,
     completion::NotifierJoin,
-    driver::{DriverOwner, DriverShutdownStart, DriverTurn},
+    driver::{DriverOwner, DriverTurn},
     producer::{
         ProducerTurnBudget, ProducerTurnOutcome,
         ingress::{ProducerShardLockError, ProducerShardOwner},
@@ -21,7 +21,7 @@ use super::{EngineHostControl, EngineHostError};
 // shutdown liveness after an operating-system wake failure.
 const HOST_PARK_LIMIT: Duration = Duration::from_millis(100);
 const BLOCKED_RETRY_DELAY: Duration = HOST_PARK_LIMIT;
-const SHUTDOWN_ADMISSION_ATTEMPTS: usize = 16;
+const SHUTDOWN_TURN_ATTEMPTS: usize = 64;
 
 pub(crate) struct EngineHostResources {
     pub(super) driver: DriverOwner,
@@ -38,7 +38,7 @@ impl Drop for EngineHostResources {
 }
 
 pub(crate) struct EngineHostExit {
-    pub(super) notifier: NotifierJoin,
+    pub(super) notifier: Option<NotifierJoin>,
     pub(super) failure: Option<EngineHostError>,
 }
 
@@ -70,47 +70,18 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
     shutdown_driver(resources)?;
     let notifier = stop_notifier(resources)?;
     Ok(EngineHostExit {
-        notifier,
+        notifier: Some(notifier),
         failure: None,
     })
 }
 
 pub(super) fn shutdown_driver(resources: &mut EngineHostResources) -> Result<(), EngineHostError> {
-    let mut barrier = None;
-    for _attempt in 0..SHUTDOWN_ADMISSION_ATTEMPTS {
-        match resources
-            .driver
-            .begin_shutdown()
-            .map_err(EngineHostError::Driver)?
-        {
-            DriverShutdownStart::Started(value) => {
-                barrier = Some(value);
-                break;
-            }
-            DriverShutdownStart::AlreadyShutdown => break,
-            DriverShutdownStart::Retry => {
-                resources.control.record_driver_turn();
-                let _outcome = resources
-                    .driver
-                    .turn(Duration::ZERO)
-                    .map_err(EngineHostError::Driver)?;
-            }
-        }
-    }
-    if barrier.is_none() && !resources.driver.is_shutdown() {
-        return Err(EngineHostError::Driver(
-            crate::driver::DriverOwnerError::ShutdownRetryExhausted,
-        ));
-    }
-    while !resources.driver.is_shutdown() {
+    let turns = resources
+        .driver
+        .shutdown_with_turn_limit(SHUTDOWN_TURN_ATTEMPTS, HOST_PARK_LIMIT)
+        .map_err(EngineHostError::Driver)?;
+    for _turn in 0..turns {
         resources.control.record_driver_turn();
-        let _outcome = resources
-            .driver
-            .turn(HOST_PARK_LIMIT)
-            .map_err(EngineHostError::Driver)?;
-    }
-    if let Some(barrier) = barrier {
-        barrier.wait().map_err(EngineHostError::Driver)?;
     }
     Ok(())
 }
@@ -163,9 +134,9 @@ pub(super) fn producer_wait(
     if outcome.runnable_work {
         return Duration::ZERO;
     }
-    let deadline_wait = outcome
-        .next_deadline
-        .map_or(HOST_PARK_LIMIT, |deadline| duration_until(now, deadline));
+    let deadline_wait = outcome.next_deadline.map_or(HOST_PARK_LIMIT, |deadline| {
+        duration_until(now, deadline).min(HOST_PARK_LIMIT)
+    });
     if outcome.blocked_work {
         deadline_wait.min(BLOCKED_RETRY_DELAY)
     } else {

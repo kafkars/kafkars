@@ -32,7 +32,7 @@ fn unobserved_terminal_retains_fixed_capacity() {
     let Ok(join) = registry.stop_notifier() else {
         panic!("notifier should stop");
     };
-    assert_eq!(join.join(), Ok(()));
+    assert_eq!(join.join_off_notifier(), Ok(()));
     assert_eq!(finish_reclaims(&mut registry), Ok(1));
     assert!(matches!(
         registry.reserve(),
@@ -61,7 +61,7 @@ fn pending_abandonment_settles_and_reclaims_exactly_once() {
     let Ok(join) = registry.stop_notifier() else {
         panic!("notifier should stop");
     };
-    assert_eq!(join.join(), Ok(()));
+    assert_eq!(join.join_off_notifier(), Ok(()));
     assert_eq!(drops.load(Ordering::Acquire), 1);
     assert_eq!(finish_reclaims(&mut registry), Ok(1));
     assert_eq!(finish_reclaims(&mut registry), Ok(0));
@@ -89,7 +89,7 @@ fn abandoned_value_is_dropped_before_reclaim_becomes_visible() {
         panic!("notifier stop should not wait");
     };
     gate.release();
-    assert_eq!(join.join(), Ok(()));
+    assert_eq!(join.join_off_notifier(), Ok(()));
     assert_eq!(registry.next_reclaim(), Ok(Some(id)));
     assert_eq!(registry.finish_reclaim(id), Ok(ReclaimStatus::Reclaimed));
 }

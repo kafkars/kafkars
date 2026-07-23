@@ -2,7 +2,7 @@
 
 use std::{error::Error, fmt};
 
-use kafka_driver::{BootstrapError, CompletionError, DriverBuildError, ReactorError};
+use kafka_driver::{BootstrapError, DriverBuildError, ReactorError};
 
 use super::EndpointError;
 
@@ -22,14 +22,8 @@ pub(crate) enum DriverOwnerError {
     Build(DriverBuildError),
     /// A bounded embedded-reactor turn failed.
     Reactor(ReactorError),
-    /// The driver's priority shutdown lane closed before terminal state.
-    ShutdownClosed,
-    /// Repeated bounded drive/retry attempts could not admit the barrier.
-    ShutdownRetryExhausted,
-    /// An impossible identity failure reached the identity-free shutdown lane.
-    ShutdownIdentityExhausted,
-    /// The terminal shutdown barrier disconnected unexpectedly.
-    ShutdownCompletion(CompletionError),
+    /// Bounded terminal turns could not reach driver shutdown.
+    ShutdownTurnExhausted,
 }
 
 impl fmt::Display for DriverOwnerError {
@@ -44,17 +38,8 @@ impl fmt::Display for DriverOwnerError {
             Self::Bootstrap(source) => write!(formatter, "invalid bootstrap set: {source}"),
             Self::Build(source) => write!(formatter, "failed to build embedded driver: {source}"),
             Self::Reactor(source) => write!(formatter, "embedded driver turn failed: {source}"),
-            Self::ShutdownClosed => {
-                formatter.write_str("driver shutdown admission closed before terminal state")
-            }
-            Self::ShutdownRetryExhausted => {
-                formatter.write_str("driver shutdown admission stayed unavailable")
-            }
-            Self::ShutdownIdentityExhausted => {
-                formatter.write_str("driver shutdown unexpectedly exhausted call identity")
-            }
-            Self::ShutdownCompletion(source) => {
-                write!(formatter, "driver shutdown barrier failed: {source}")
+            Self::ShutdownTurnExhausted => {
+                formatter.write_str("driver shutdown exceeded its bounded terminal turns")
             }
         }
     }
@@ -67,10 +52,7 @@ impl Error for DriverOwnerError {
             Self::Bootstrap(source) => Some(source),
             Self::Build(source) => Some(source),
             Self::Reactor(source) => Some(source),
-            Self::ShutdownCompletion(source) => Some(source),
-            Self::ShutdownClosed
-            | Self::ShutdownRetryExhausted
-            | Self::ShutdownIdentityExhausted => None,
+            Self::ShutdownTurnExhausted => None,
         }
     }
 }
