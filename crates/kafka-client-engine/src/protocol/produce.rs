@@ -1,4 +1,4 @@
-//! One-topic, one-partition Produce DTO and `RecordBatch` v2 materialization.
+//! Timeout-free `RecordBatch` bytes and late-bound generated Produce requests.
 
 use bytes::Bytes;
 use kafka_wire::{
@@ -19,31 +19,48 @@ const NO_PRODUCER_ID: i64 = -1;
 const NO_PRODUCER_EPOCH: i16 = -1;
 const NO_SEQUENCE: i32 = -1;
 
-/// Opaque generated request plus separately bounded host-owned encoded bytes.
+/// Opaque route and separately bounded host-owned encoded batch bytes.
 ///
 /// `ProducerStore` continues accounting for accepted application payloads until
 /// core emits their release effects. The host must reserve and retain this
-/// encoded request independently until driver settlement; this type deliberately
-/// does not introduce an unbounded materialized-batch registry.
+/// encoded batch independently until driver settlement; this type deliberately
+/// contains no deadline-derived request timeout.
 #[derive(Debug)]
 pub(crate) struct MaterializedProduce {
-    request: ProduceRequest,
+    topic: String,
+    partition: i32,
+    records: Bytes,
 }
 
 impl MaterializedProduce {
-    /// Returns the retained `RecordBatch` bytes carried by this request.
+    /// Returns the retained `RecordBatch` bytes awaiting driver submission.
     pub(crate) fn retained_record_bytes(&self) -> usize {
-        self.request
-            .topic_data
-            .first()
-            .and_then(|topic| topic.partition_data.first())
-            .and_then(|partition| partition.records.as_ref())
-            .map_or(0, Bytes::len)
+        self.records.len()
+    }
+
+    /// Consumes encoded bytes into one name-routed request at submission time.
+    pub(crate) fn into_name_routed_request(
+        self,
+        remaining_broker_timeout_ms: i32,
+    ) -> ProduceRequest {
+        let mut partition = PartitionProduceData::default();
+        partition.index = self.partition;
+        partition.records = Some(self.records);
+
+        let mut topic = TopicProduceData::default();
+        topic.name = self.topic.into();
+        topic.partition_data.push(partition);
+
+        let mut request = ProduceRequest::default();
+        request.acks = ACKS_ALL;
+        request.timeout_ms = remaining_broker_timeout_ms;
+        request.topic_data.push(topic);
+        request
     }
 
     #[cfg(test)]
-    pub(super) const fn request(&self) -> &ProduceRequest {
-        &self.request
+    pub(super) const fn encoded_records(&self) -> &Bytes {
+        &self.records
     }
 }
 
@@ -51,25 +68,16 @@ impl MaterializedProduce {
 pub(crate) fn materialize_explicit_produce_batch(
     input: MaterializationBatch,
 ) -> Result<MaterializedProduce, ProduceMaterializationError> {
-    let (topic_name, partition_index, records, remaining_broker_timeout_ms, max_batch_bytes) =
-        input.into_parts();
+    let (topic, partition, records, max_batch_bytes) = input.into_parts();
     let records = record_batch(records)?
         .encode_to_bytes(RecordEncodeLimits::new(max_batch_bytes, max_batch_bytes))
         .map_err(ProduceMaterializationError::record)?;
 
-    let mut partition = PartitionProduceData::default();
-    partition.index = partition_index;
-    partition.records = Some(records);
-
-    let mut topic = TopicProduceData::default();
-    topic.name = topic_name.into();
-    topic.partition_data.push(partition);
-
-    let mut request = ProduceRequest::default();
-    request.acks = ACKS_ALL;
-    request.timeout_ms = remaining_broker_timeout_ms;
-    request.topic_data.push(topic);
-    Ok(MaterializedProduce { request })
+    Ok(MaterializedProduce {
+        topic,
+        partition,
+        records,
+    })
 }
 
 fn record_batch(

@@ -15,7 +15,6 @@ use super::{
 const TOPIC: &str = "orders";
 const PARTITION: i32 = 7;
 const BASE_TIMESTAMP_MS: i64 = 1_000;
-const REMAINING_BROKER_TIMEOUT_MS: i32 = 30_000;
 
 #[test]
 fn ordered_records_use_contiguous_offsets_and_first_timestamp_as_base() {
@@ -114,13 +113,7 @@ fn unrepresentable_timestamp_delta_is_rejected_without_saturation() {
 }
 
 fn batch(records: Vec<MaterializationRecord>) -> MaterializationBatch {
-    MaterializationBatch::new(
-        TOPIC.to_owned(),
-        PARTITION,
-        records,
-        REMAINING_BROKER_TIMEOUT_MS,
-        usize::MAX,
-    )
+    MaterializationBatch::new(TOPIC.to_owned(), PARTITION, records, usize::MAX)
 }
 
 fn record(timestamp_ms: i64, value: &'static [u8]) -> MaterializationRecord {
@@ -133,10 +126,7 @@ fn record(timestamp_ms: i64, value: &'static [u8]) -> MaterializationRecord {
 }
 
 fn decoded_batch(materialized: &MaterializedProduce) -> RecordBatch {
-    let mut encoded = materialized.request().topic_data[0].partition_data[0]
-        .records
-        .clone()
-        .unwrap();
+    let mut encoded = materialized.encoded_records().clone();
     let decoded = RecordBatch::decode(&mut encoded, RecordDecodeLimits::default()).unwrap();
     assert!(encoded.is_empty());
     decoded

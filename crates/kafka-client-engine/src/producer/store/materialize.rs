@@ -13,7 +13,6 @@ impl ProducerStore {
     pub(crate) fn take_materialization(
         &mut self,
         batch_id: BatchId,
-        remaining_broker_timeout_ms: i32,
         max_batch_bytes: usize,
     ) -> Result<MaterializationBatch, ProducerStoreError> {
         let plan = self.batches.plan(batch_id)?;
@@ -61,7 +60,6 @@ impl ProducerStore {
             topic,
             partition,
             records,
-            remaining_broker_timeout_ms,
             max_batch_bytes,
         ))
     }

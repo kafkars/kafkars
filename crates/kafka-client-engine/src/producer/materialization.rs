@@ -68,7 +68,6 @@ pub(crate) struct MaterializationBatch {
     topic: String,
     partition: i32,
     records: Vec<MaterializationRecord>,
-    remaining_broker_timeout_ms: i32,
     max_batch_bytes: usize,
 }
 
@@ -77,25 +76,22 @@ impl MaterializationBatch {
         topic: String,
         partition: i32,
         records: Vec<MaterializationRecord>,
-        remaining_broker_timeout_ms: i32,
         max_batch_bytes: usize,
     ) -> Self {
         Self {
             topic,
             partition,
             records,
-            remaining_broker_timeout_ms,
             max_batch_bytes,
         }
     }
 
     /// Consumes the batch into the existing protocol materializer's fields.
-    pub(crate) fn into_parts(self) -> (String, i32, Vec<MaterializationRecord>, i32, usize) {
+    pub(crate) fn into_parts(self) -> (String, i32, Vec<MaterializationRecord>, usize) {
         (
             self.topic,
             self.partition,
             self.records,
-            self.remaining_broker_timeout_ms,
             self.max_batch_bytes,
         )
     }

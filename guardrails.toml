@@ -488,6 +488,10 @@ owner_type = "BatchTimers"
 path = "crates/kafka-client-engine/src/clock/timer.rs"
 
 [[linear_owners]]
+owner_type = "MaterializedProduce"
+path = "crates/kafka-client-engine/src/protocol/produce.rs"
+
+[[linear_owners]]
 owner_type = "ProducerStore"
 path = "crates/kafka-client-engine/src/producer/store.rs"
 
