@@ -24,7 +24,7 @@ use crate::{
     producer::{
         ProducerHostInvariantError,
         admission_test::{admit, record},
-        binding::CompletionBindingError,
+        binding::OperationBindingError,
         host_limits_test::{start, valid_limits},
         terminal_backlog::RejectedTerminal,
     },
@@ -196,7 +196,7 @@ fn poisoned_recovery_retries_exact_fifo_then_settles_distinct_reserved_slots() {
         )
         .map_err(|failure| failure.error()),
         Err(ProducerHostInvariantError::Binding(
-            CompletionBindingError::UnknownOperation
+            OperationBindingError::UnknownOperation
         ))
     );
     assert_eq!(
@@ -214,7 +214,7 @@ fn poisoned_recovery_retries_exact_fifo_then_settles_distinct_reserved_slots() {
     assert_eq!(
         host.poison_reason(),
         Some(ProducerHostInvariantError::Binding(
-            CompletionBindingError::UnknownOperation
+            OperationBindingError::UnknownOperation
         ))
     );
     let Err(ProducerDeliveryError::Failed(deadline)) = first.into_delivery_observer().wait() else {

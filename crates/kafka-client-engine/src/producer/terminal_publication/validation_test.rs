@@ -5,15 +5,15 @@ use kafka_client_core::{
     ProducerFailure,
 };
 
-use crate::completion::CompletionRegistryError;
 use crate::producer::{
     ProducerHost, ProducerHostInvariantError,
     admission::AdmittedExplicit,
     admission_test::{admit, record},
-    binding::CompletionBindingError,
+    binding::OperationBindingError,
     host_limits_test::{start, valid_limits},
     terminal_backlog::{RejectedTerminal, RetainedTerminal},
 };
+use crate::{clock::OperationDeadline, completion::CompletionRegistryError};
 
 #[test]
 fn unknown_terminal_does_not_alias_a_valid_blocked_entry() {
@@ -30,7 +30,7 @@ fn unknown_terminal_does_not_alias_a_valid_blocked_entry() {
         )
         .map_err(|failure| failure.error()),
         Err(ProducerHostInvariantError::Binding(
-            CompletionBindingError::UnknownOperation
+            OperationBindingError::UnknownOperation
         ))
     );
     assert_eq!(host.stats().terminal_backlog, 1);
@@ -60,7 +60,7 @@ fn duplicate_terminal_never_creates_a_second_normal_fifo_alias() {
         )
         .map_err(|failure| failure.error()),
         Err(ProducerHostInvariantError::Binding(
-            CompletionBindingError::DuplicateOperation
+            OperationBindingError::DuplicateOperation
         ))
     );
     assert_eq!(host.stats().terminal_backlog, 1);
@@ -80,7 +80,14 @@ fn stale_reused_completion_generation_never_enters_the_normal_fifo() {
         .reserve()
         .unwrap_or_else(|error| panic!("stale slot should reserve: {error}"));
     host.bindings
-        .bind(operation_id, stale)
+        .bind(
+            operation_id,
+            stale,
+            OperationDeadline::from_parts_for_test(
+                Deadline::from_tick(10),
+                std::time::Instant::now(),
+            ),
+        )
         .unwrap_or_else(|error| panic!("test binding should commit: {error}"));
     host.completions
         .rollback_reservation(stale)
@@ -123,7 +130,14 @@ fn terminal_refusal_preserves_identity_generation_completion_and_reason() {
         .reserve()
         .unwrap_or_else(|error| panic!("stale slot should reserve: {error}"));
     host.bindings
-        .bind(operation_id, stale)
+        .bind(
+            operation_id,
+            stale,
+            OperationDeadline::from_parts_for_test(
+                Deadline::from_tick(10),
+                std::time::Instant::now(),
+            ),
+        )
         .unwrap_or_else(|error| panic!("test binding should commit: {error}"));
     host.completions
         .rollback_reservation(stale)

@@ -9,7 +9,7 @@ use super::{
     PendingAdmissionRegistry, PendingAttemptRestoreError, PendingAttemptRestoreOutcome,
     PendingCellError, PendingRegistryError, ProducerSendFailure, ProducerSendFailureKind,
 };
-use crate::producer::ProducerRecord;
+use crate::{clock::OperationDeadline, producer::ProducerRecord};
 
 #[test]
 fn restoration_reinstates_exact_fifo_accounting_before_cell_pending() {
@@ -148,8 +148,10 @@ fn register(
     registry
         .register(
             record(topic, value_bytes),
-            Deadline::from_tick(deadline_tick),
-            Instant::now(),
+            OperationDeadline::from_parts_for_test(
+                Deadline::from_tick(deadline_tick),
+                Instant::now(),
+            ),
         )
         .unwrap_or_else(|error| panic!("pending registration should succeed: {error:?}"))
 }

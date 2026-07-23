@@ -6,18 +6,20 @@ mod cleanup_test;
 mod materialization;
 #[cfg(test)]
 mod materialization_test;
+mod submission;
+#[cfg(test)]
+mod submission_test;
 
 use std::{error::Error, fmt};
 
 use kafka_client_core::{
-    AcknowledgementPolicy, BatchExecutionId, BatchId, Deadline, Moment, PartitionIndex,
-    ProducerEffect, ProducerInput, TopicId,
+    BatchExecutionId, BatchId, Deadline, Moment, OperationId, PartitionIndex, ProducerInput,
+    TopicId,
 };
 
 use super::{
     ProducerStoreError,
     prepared::{PreparedProduceError, PreparedProduceStats, PreparedProduceStore},
-    store::ProducerStore,
     submission_deadline::{SubmissionDeadlineError, SubmissionDeadlines},
 };
 
@@ -56,6 +58,24 @@ pub(crate) enum PreparedExecutionError {
     Prepared(PreparedProduceError),
     /// Core-declared deadline ownership was internally inconsistent.
     Deadline(SubmissionDeadlineError),
+    /// A core submission effect named no live admitted deadline owner.
+    UnknownDeadlineOperation(OperationId),
+    /// A core submission effect disagreed with the admitted operation deadline.
+    DeadlineMismatch {
+        /// Operation selected by core as the batch deadline owner.
+        operation_id: OperationId,
+        /// Core deadline emitted in the submission effect.
+        effect: Deadline,
+        /// Core deadline retained from the original public boundary.
+        bound: Deadline,
+    },
+    /// The selected deadline operation belongs to another materialized batch.
+    DeadlineOperationMismatch {
+        /// Exact batch execution being armed.
+        execution: BatchExecutionId,
+        /// Operation selected by core as the deadline owner.
+        operation_id: OperationId,
+    },
     /// A stale commit could not remove the exact prepared bytes it inserted.
     CommitRollback {
         /// Commit failure that detected the phase race.
@@ -99,6 +119,26 @@ impl fmt::Display for PreparedExecutionError {
                 write!(formatter, "prepared Produce ownership failed: {error}")
             }
             Self::Deadline(error) => write!(formatter, "submission deadline failed: {error}"),
+            Self::UnknownDeadlineOperation(operation_id) => write!(
+                formatter,
+                "submission deadline operation {} has no live engine binding",
+                operation_id.get()
+            ),
+            Self::DeadlineMismatch { operation_id, .. } => write!(
+                formatter,
+                "submission deadline for operation {} disagrees with admission",
+                operation_id.get()
+            ),
+            Self::DeadlineOperationMismatch {
+                execution,
+                operation_id,
+            } => write!(
+                formatter,
+                "submission deadline operation {} does not belong to batch {} generation {}",
+                operation_id.get(),
+                execution.batch_id().get(),
+                execution.generation().get()
+            ),
             Self::CommitRollback { commit, rollback } => write!(
                 formatter,
                 "materialization commit failed: {commit}; exact prepared rollback failed: \
@@ -137,47 +177,6 @@ impl PreparedExecution {
             prepared: PreparedProduceStore::new(batch_capacity, limits.encoded_bytes),
             deadlines: SubmissionDeadlines::new(batch_capacity),
         }
-    }
-
-    /// Retains the exact core-selected deadline while bytes await the driver.
-    pub(crate) fn arm_submission(
-        &mut self,
-        store: &ProducerStore,
-        effect: ProducerEffect,
-    ) -> Result<(), PreparedExecutionError> {
-        let ProducerEffect::SubmitProduce {
-            execution,
-            deadline_operation_id,
-            deadline,
-            topic_id,
-            partition,
-            acknowledgements,
-        } = effect
-        else {
-            return Err(PreparedExecutionError::UnexpectedEffect);
-        };
-        match acknowledgements {
-            AcknowledgementPolicy::All => {}
-        }
-        if !self.prepared.contains(execution) {
-            return Err(PreparedExecutionError::MissingPreparedBatch(execution));
-        }
-        let (stored_topic_id, stored_partition) = store
-            .execution_route(execution)
-            .map_err(PreparedExecutionError::Store)?;
-        if stored_topic_id != topic_id || stored_partition != partition {
-            return Err(PreparedExecutionError::RouteMismatch {
-                execution,
-                stored_topic_id,
-                stored_partition,
-                effect_topic_id: topic_id,
-                effect_partition: partition,
-            });
-        }
-        self.deadlines
-            .arm(execution, deadline_operation_id, deadline)
-            .map(|_newly_armed| ())
-            .map_err(PreparedExecutionError::Deadline)
     }
 
     /// Converts bounded due mechanism entries into FIFO deterministic facts.

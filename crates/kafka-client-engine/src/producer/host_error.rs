@@ -7,7 +7,7 @@ use kafka_client_core::{AdmissionRejection, ProducerMachineError};
 use crate::{clock::BatchTimerError, completion::CompletionRegistryError};
 
 use super::{
-    ProducerStoreError, binding::CompletionBindingError, execution::PreparedExecutionError,
+    ProducerStoreError, binding::OperationBindingError, execution::PreparedExecutionError,
     reclaim::CompletionReclaimError,
 };
 
@@ -116,7 +116,7 @@ pub(crate) enum ProducerRejectionReason {
 pub(crate) enum ProducerHostInvariantError {
     Core(ProducerMachineError),
     Store(ProducerStoreError),
-    Binding(CompletionBindingError),
+    Binding(OperationBindingError),
     Timer(BatchTimerError),
     Completion(CompletionRegistryError),
     Reclaim(CompletionReclaimError),

@@ -1,6 +1,6 @@
 //! End-to-end prepared-byte, submission-deadline, and release scenarios.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use bytes::Bytes;
 use kafka_client_core::{
@@ -11,12 +11,15 @@ use kafka_client_core::{
 
 use super::{
     ProducerRecord, ProducerStore, ProducerStoreLimits,
+    binding::OperationBindings,
     execution::{PreparedExecution, PreparedExecutionLimits},
 };
+use crate::{clock::OperationDeadline, completion::CompletionId};
 
 struct SealedBatch {
     core: ProducerMachine,
     store: ProducerStore,
+    bindings: OperationBindings,
     operation_id: OperationId,
     execution_id: BatchExecutionId,
 }
@@ -73,9 +76,18 @@ impl SealedBatch {
                 _ => None,
             })
             .unwrap_or_else(|| panic!("sealed batch must request materialization"));
+        let mut bindings = OperationBindings::new(1);
+        bindings
+            .bind(
+                operation_id,
+                CompletionId::from_parts_for_test(0, 1),
+                OperationDeadline::from_parts_for_test(deadline, Instant::now()),
+            )
+            .unwrap_or_else(|error| panic!("operation binding failed: {error}"));
         Self {
             core,
             store,
+            bindings,
             operation_id,
             execution_id,
         }
@@ -101,7 +113,7 @@ impl SealedBatch {
             panic!("materialized batch must request one submission")
         };
         execution
-            .arm_submission(&self.store, *effect)
+            .arm_submission(&self.store, &self.bindings, *effect)
             .unwrap_or_else(|error| panic!("submission arm failed: {error}"));
     }
 }

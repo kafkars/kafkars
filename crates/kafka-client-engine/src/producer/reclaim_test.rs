@@ -1,17 +1,22 @@
 //! Scenarios for exact two-phase producer-completion reclamation.
 
+use std::time::Instant;
+
 use kafka_client_core::{
     ByteCount, Deadline, ExplicitRecord, Moment, OperationId, PartitionIndex, PayloadId,
     ProducerCompletion, ProducerEffect, ProducerInput, ProducerMachine, TopicId,
 };
 
-use crate::completion::{
-    CompletionId, CompletionRegistry, CompletionRegistryError, ReclaimStatus,
-    test_support::hold_cell_lock,
+use crate::{
+    clock::OperationDeadline,
+    completion::{
+        CompletionId, CompletionRegistry, CompletionRegistryError, ReclaimStatus,
+        test_support::hold_cell_lock,
+    },
 };
 
 use super::{
-    binding::CompletionBindings,
+    binding::OperationBindings,
     reclaim::{CompletionReclaimError, CompletionReclaimOutcome, CompletionReclaimer},
 };
 
@@ -97,8 +102,11 @@ fn core_confirmation_precedes_exact_binding_and_capacity_release() {
     };
     let mut terminal = terminal_operation();
     let completion_id = publish_observed(&mut registry, terminal.completion);
-    let mut bindings = CompletionBindings::new(1);
-    assert_eq!(bindings.bind(terminal.operation_id, completion_id), Ok(()));
+    let mut bindings = OperationBindings::new(1);
+    assert_eq!(
+        bindings.bind(terminal.operation_id, completion_id, binding_deadline()),
+        Ok(())
+    );
     let mut reclaimer = CompletionReclaimer::new();
 
     let input = reclaimer
@@ -145,8 +153,11 @@ fn registry_retry_never_emits_a_second_core_input() {
     };
     let mut terminal = terminal_operation();
     let completion_id = publish_observed(&mut registry, terminal.completion);
-    let mut bindings = CompletionBindings::new(1);
-    assert_eq!(bindings.bind(terminal.operation_id, completion_id), Ok(()));
+    let mut bindings = OperationBindings::new(1);
+    assert_eq!(
+        bindings.bind(terminal.operation_id, completion_id, binding_deadline()),
+        Ok(())
+    );
     let mut reclaimer = CompletionReclaimer::new();
     let Some(input) = reclaimer
         .next_input(&mut registry, &bindings)
@@ -190,7 +201,7 @@ fn missing_exact_binding_faults_without_releasing_capacity() {
     };
     let terminal = terminal_operation();
     let completion_id = publish_observed(&mut registry, terminal.completion);
-    let bindings = CompletionBindings::new(1);
+    let bindings = OperationBindings::new(1);
     let mut reclaimer = CompletionReclaimer::new();
 
     assert_eq!(
@@ -226,8 +237,11 @@ fn a_stale_slot_generation_cannot_authorize_live_reclamation() {
     let live_id = publish_observed(&mut registry, terminal.completion);
     assert_ne!(live_id, stale_id);
     let stale_operation = OperationId::from_raw(99);
-    let mut bindings = CompletionBindings::new(1);
-    assert_eq!(bindings.bind(stale_operation, stale_id), Ok(()));
+    let mut bindings = OperationBindings::new(1);
+    assert_eq!(
+        bindings.bind(stale_operation, stale_id, binding_deadline()),
+        Ok(())
+    );
     let mut reclaimer = CompletionReclaimer::new();
 
     assert_eq!(
@@ -251,8 +265,11 @@ fn exhausted_generation_retires_capacity_after_core_confirmation() {
     assert_eq!(registry.set_vacant_generation_for_test(0, u64::MAX), Ok(()));
     let mut terminal = terminal_operation();
     let completion_id = publish_observed(&mut registry, terminal.completion);
-    let mut bindings = CompletionBindings::new(1);
-    assert_eq!(bindings.bind(terminal.operation_id, completion_id), Ok(()));
+    let mut bindings = OperationBindings::new(1);
+    assert_eq!(
+        bindings.bind(terminal.operation_id, completion_id, binding_deadline()),
+        Ok(())
+    );
     let mut reclaimer = CompletionReclaimer::new();
     let Some(input) = reclaimer
         .next_input(&mut registry, &bindings)
@@ -275,4 +292,8 @@ fn exhausted_generation_retires_capacity_after_core_confirmation() {
         Err(CompletionRegistryError::Full)
     ));
     stop(registry);
+}
+
+fn binding_deadline() -> OperationDeadline {
+    OperationDeadline::from_parts_for_test(Deadline::from_tick(10), Instant::now())
 }

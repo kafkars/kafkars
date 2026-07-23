@@ -11,7 +11,10 @@ use super::{
     PendingAdmissionRegistry, PendingCellError,
     test_support::{CountingWake, poll_send},
 };
-use crate::{ProducerDeliveryObserver, completion::CompletionRegistry, producer::ProducerRecord};
+use crate::{
+    ProducerDeliveryObserver, clock::OperationDeadline, completion::CompletionRegistry,
+    producer::ProducerRecord,
+};
 
 #[test]
 fn drop_before_promotion_tombstones_and_preserves_the_unadmitted_record() {
@@ -19,8 +22,10 @@ fn drop_before_promotion_tombstones_and_preserves_the_unadmitted_record() {
     let registration = pending
         .register(
             record("orders"),
-            Deadline::from_tick(10),
-            std::time::Instant::now(),
+            OperationDeadline::from_parts_for_test(
+                Deadline::from_tick(10),
+                std::time::Instant::now(),
+            ),
         )
         .unwrap_or_else(|error| panic!("pending registration should succeed: {error:?}"));
     let id = registration.id();

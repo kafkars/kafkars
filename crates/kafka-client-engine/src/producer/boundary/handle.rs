@@ -112,11 +112,11 @@ impl ProducerHandle {
         let stored = record.into_stored(partition, default_timestamp_ms);
         match self
             .port
-            .try_admit_explicit(deadline.now(), deadline.deadline(), stored)
+            .try_admit_explicit(deadline.now(), deadline.operation_deadline(), stored)
         {
             Ok(accepted) => Ok(ProducerTrySendAccepted::from_port(
                 accepted,
-                deadline.absolute_instant(),
+                deadline.operation_deadline().transport(),
             )),
             Err(error) => Err(ProducerTrySendError::from_port(error)),
         }

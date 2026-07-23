@@ -9,7 +9,7 @@ use super::{
     PendingAdmissionRegistry, PendingPromotionAttempt, PendingRegistryError, ProducerSendFailure,
     ProducerSendFailureKind,
 };
-use crate::producer::ProducerRecord;
+use crate::{clock::OperationDeadline, producer::ProducerRecord};
 
 #[test]
 fn stale_removal_plan_cannot_take_a_reused_slot() {
@@ -72,8 +72,7 @@ fn register(
                 None,
                 Some(Bytes::from_static(b"value")),
             ),
-            Deadline::from_tick(10),
-            Instant::now(),
+            OperationDeadline::from_parts_for_test(Deadline::from_tick(10), Instant::now()),
         )
         .unwrap_or_else(|error| panic!("pending registration should succeed: {error:?}"))
 }

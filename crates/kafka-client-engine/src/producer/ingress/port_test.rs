@@ -1,6 +1,6 @@
 //! Atomic admission, intact rejection, wake, and poison scenarios.
 
-use std::{io, sync::Arc, thread};
+use std::{io, sync::Arc, thread, time::Instant};
 
 use bytes::Bytes;
 use kafka_client_core::{AdmissionRejection, Deadline, Moment, PartitionIndex};
@@ -10,9 +10,12 @@ use super::{
     ProducerPortPoisonReason, ProducerPortRejectionReason, ProducerShardOwner, ProducerShardWake,
     ProducerShardWakeError, shard_test::CountingWake,
 };
-use crate::producer::{
-    ProducerHostInvariantError, ProducerRecord, ProducerRejectionReason, ProducerStoreError,
-    host_limits_test::{start, valid_limits},
+use crate::{
+    clock::OperationDeadline,
+    producer::{
+        ProducerHostInvariantError, ProducerRecord, ProducerRejectionReason, ProducerStoreError,
+        host_limits_test::{start, valid_limits},
+    },
 };
 
 #[test]
@@ -249,6 +252,6 @@ const fn now() -> Moment {
     Moment::from_tick(10)
 }
 
-const fn deadline() -> Deadline {
-    Deadline::from_tick(90)
+fn deadline() -> OperationDeadline {
+    OperationDeadline::from_parts_for_test(Deadline::from_tick(90), Instant::now())
 }

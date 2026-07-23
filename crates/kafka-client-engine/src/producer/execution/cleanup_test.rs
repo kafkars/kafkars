@@ -1,6 +1,6 @@
 //! Terminal cleanup preflight and outside-in recovery scenarios.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use bytes::Bytes;
 use kafka_client_core::{
@@ -8,8 +8,11 @@ use kafka_client_core::{
 };
 
 use super::{PreparedExecution, PreparedExecutionError, PreparedExecutionLimits};
-use crate::producer::{ProducerRecord, ProducerStore, ProducerStoreLimits};
 use crate::protocol::produce::materialize_explicit_produce_batch;
+use crate::{
+    clock::OperationDeadline,
+    producer::{ProducerRecord, ProducerStore, ProducerStoreLimits},
+};
 
 fn execution(batch_id: BatchId, generation: u64) -> BatchExecutionId {
     BatchExecutionId::new(
@@ -75,7 +78,11 @@ fn cleanup_preflight_preserves_wrong_generation_until_outside_in_recovery() {
         .unwrap_or_else(|error| panic!("prepared insertion failed: {error}"));
     prepared
         .deadlines
-        .arm(replacement, operation_id, Deadline::from_tick(20))
+        .arm(
+            replacement,
+            operation_id,
+            OperationDeadline::from_parts_for_test(Deadline::from_tick(20), Instant::now()),
+        )
         .unwrap_or_else(|error| panic!("deadline arm failed: {error}"));
 
     assert!(matches!(

@@ -68,11 +68,12 @@ milestone = "direct-and-group-consumer"
 [[invariant]]
 id = "DL-01"
 title = "Producer policy consumes one absolute deadline"
-statement = "Engine deadline capture derives current time and deadline from one supplied monotonic instant, core rejects already elapsed work, and queued submission expiry reproduces the exact core deadline fact."
+statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant, accepted operation bindings retain that pair unchanged, core rejects already elapsed work, and queued submission expiry reproduces the exact core deadline fact."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/clock/monotonic_test.rs::deadline_capture_uses_one_boundary_observation",
   "crates/kafka-client-engine/src/producer/pending/registry_test.rs::pending_entry_preserves_both_absolute_deadline_representations",
+  "crates/kafka-client-engine/src/producer/execution/submission_test.rs::submission_requires_and_preserves_the_admitted_operation_deadline",
   "crates/kafka-client-engine/src/producer/pending/registry_test.rs::deadline_expiry_is_ordered_bounded_and_not_sent",
   "crates/kafka-client-core/src/producer_test.rs::elapsed_deadline_never_crosses_admission",
   "crates/kafka-client-engine/src/producer/submission_deadline_test.rs::due_entry_constructs_the_exact_core_deadline_fact",

@@ -6,7 +6,7 @@ use crate::completion::CompletionId;
 
 use super::super::{
     ProducerHost, ProducerHostInvariantError,
-    binding::CompletionBindingError,
+    binding::OperationBindingError,
     terminal_backlog::{RejectedTerminal, RetainedTerminal},
 };
 
@@ -22,7 +22,7 @@ impl ProducerHost {
     ) -> Result<(), ProducerHostInvariantError> {
         let Some(completion_id) = self.bindings.completion(operation_id) else {
             let error =
-                ProducerHostInvariantError::Binding(CompletionBindingError::UnknownOperation);
+                ProducerHostInvariantError::Binding(OperationBindingError::UnknownOperation);
             return Err(self.poison(error));
         };
         if let Err(error) = self.revalidate_terminal(operation_id, completion_id) {
@@ -34,7 +34,7 @@ impl ProducerHost {
             .contains_operation(terminal.operation_id())
         {
             let error =
-                ProducerHostInvariantError::Binding(CompletionBindingError::DuplicateOperation);
+                ProducerHostInvariantError::Binding(OperationBindingError::DuplicateOperation);
             return Err(self.poison(error));
         }
         if self
@@ -42,7 +42,7 @@ impl ProducerHost {
             .contains_completion(terminal.completion_id())
         {
             let error =
-                ProducerHostInvariantError::Binding(CompletionBindingError::DuplicateCompletion);
+                ProducerHostInvariantError::Binding(OperationBindingError::DuplicateCompletion);
             return Err(self.poison(error));
         }
         let occupied = self
@@ -63,7 +63,7 @@ impl ProducerHost {
     ) -> Result<RetainedTerminal, ProducerHostInvariantError> {
         let Some(completion_id) = self.bindings.completion(operation_id) else {
             let error =
-                ProducerHostInvariantError::Binding(CompletionBindingError::UnknownOperation);
+                ProducerHostInvariantError::Binding(OperationBindingError::UnknownOperation);
             return Err(self.quarantine_rejected(RejectedTerminal::new(
                 operation_id,
                 None,
@@ -94,12 +94,12 @@ impl ProducerHost {
         match self.bindings.completion(operation_id) {
             None => {
                 return Err(ProducerHostInvariantError::Binding(
-                    CompletionBindingError::UnknownOperation,
+                    OperationBindingError::UnknownOperation,
                 ));
             }
             Some(current) if current != completion_id => {
                 return Err(ProducerHostInvariantError::Binding(
-                    CompletionBindingError::CompletionMismatch,
+                    OperationBindingError::CompletionMismatch,
                 ));
             }
             Some(_) => {}
@@ -117,12 +117,12 @@ impl ProducerHost {
             .terminal_backlog
             .contains_operation(terminal.operation_id())
         {
-            Some(CompletionBindingError::DuplicateOperation)
+            Some(OperationBindingError::DuplicateOperation)
         } else if self
             .terminal_backlog
             .contains_completion(terminal.completion_id())
         {
-            Some(CompletionBindingError::DuplicateCompletion)
+            Some(OperationBindingError::DuplicateCompletion)
         } else {
             None
         };

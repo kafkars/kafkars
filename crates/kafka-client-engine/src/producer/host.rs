@@ -9,7 +9,7 @@ use crate::{clock::BatchTimers, completion::CompletionRegistry};
 use super::{
     ProducerHostInvariantError, ProducerHostLimitError, ProducerHostStartError, ProducerStore,
     ProducerStoreLimits, ProducerStoreStats,
-    binding::CompletionBindings,
+    binding::OperationBindings,
     execution::{PreparedExecution, PreparedExecutionLimits},
     pending::PendingNotificationPermitPool,
     reclaim::CompletionReclaimer,
@@ -70,7 +70,7 @@ pub(crate) struct ProducerHost {
     pub(super) store: ProducerStore,
     pub(super) completions: CompletionRegistry<kafka_client_core::ProducerCompletion>,
     pub(super) pending_notification_permits: Arc<PendingNotificationPermitPool>,
-    pub(super) bindings: CompletionBindings,
+    pub(super) bindings: OperationBindings,
     pub(super) reclaimer: CompletionReclaimer,
     pub(super) timers: BatchTimers,
     pub(super) execution: PreparedExecution,
@@ -127,7 +127,7 @@ impl ProducerHost {
             }),
             completions,
             pending_notification_permits,
-            bindings: CompletionBindings::new(limits.completion_capacity),
+            bindings: OperationBindings::new(limits.completion_capacity),
             reclaimer: CompletionReclaimer::new(),
             timers: BatchTimers::new(limits.timer_capacity),
             execution: PreparedExecution::new(

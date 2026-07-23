@@ -1,10 +1,10 @@
 //! Atomic insertion, generation allocation, and removal of pending records.
 
-use std::{sync::Arc, time::Instant};
+use std::sync::Arc;
 
 use kafka_client_core::Deadline;
 
-use crate::producer::ProducerRecord;
+use crate::{clock::OperationDeadline, producer::ProducerRecord};
 
 use super::{
     super::{
@@ -72,8 +72,7 @@ impl PendingAdmissionRegistry {
     pub(crate) fn register(
         &mut self,
         record: ProducerRecord,
-        deadline: Deadline,
-        absolute_instant: Instant,
+        deadline: OperationDeadline,
     ) -> Result<PendingSendRegistration, PendingAdmissionRejected> {
         if !self.accepting {
             return Err(rejected(PendingAdmissionRejectionReason::Closed, record));
@@ -123,20 +122,12 @@ impl PendingAdmissionRegistry {
         };
         let cell = PendingSendCell::new(permit);
         let send = ProducerSend::from_pending(Arc::clone(&cell));
-        let entry = PendingAdmission::new(
-            id,
-            record,
-            deadline,
-            absolute_instant,
-            retained_bytes,
-            sequence,
-            cell,
-        );
+        let entry = PendingAdmission::new(id, record, deadline, retained_bytes, sequence, cell);
         self.next_sequence = sequence.checked_add(1);
         self.used_bytes = next_used;
         self.slots[id.slot()].entry = Some(entry);
         self.fifo.insert(sequence, id);
-        self.deadlines.insert((deadline, sequence, id));
+        self.deadlines.insert((deadline.core(), sequence, id));
         Ok(PendingSendRegistration::new(id, send))
     }
 

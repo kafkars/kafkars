@@ -1,21 +1,19 @@
 //! Linear pending records and local pre-admission terminal failures.
 
-use std::{sync::Arc, time::Instant};
-
-use kafka_client_core::Deadline;
+use std::sync::Arc;
 
 use super::{
     super::ProducerRecord, PendingAdmissionId, PendingCellError, PendingNotificationJob,
     PendingSendCell, ProducerSendFailure, ProducerSendFailureKind, promotion::PendingPromotion,
 };
+use crate::clock::OperationDeadline;
 
 /// One engine-owned record that has not crossed deterministic admission.
 #[derive(Debug)]
 pub(crate) struct PendingAdmission {
     id: PendingAdmissionId,
     record: ProducerRecord,
-    deadline: Deadline,
-    absolute_instant: Instant,
+    deadline: OperationDeadline,
     retained_bytes: usize,
     sequence: u64,
     cell: Arc<PendingSendCell>,
@@ -25,8 +23,7 @@ pub(crate) struct PendingAdmission {
 #[derive(Debug)]
 pub(super) struct PendingAdmissionFacts {
     id: PendingAdmissionId,
-    deadline: Deadline,
-    absolute_instant: Instant,
+    deadline: OperationDeadline,
     retained_bytes: usize,
     sequence: u64,
     cell: Arc<PendingSendCell>,
@@ -36,8 +33,7 @@ impl PendingAdmission {
     pub(super) const fn new(
         id: PendingAdmissionId,
         record: ProducerRecord,
-        deadline: Deadline,
-        absolute_instant: Instant,
+        deadline: OperationDeadline,
         retained_bytes: usize,
         sequence: u64,
         cell: Arc<PendingSendCell>,
@@ -46,7 +42,6 @@ impl PendingAdmission {
             id,
             record,
             deadline,
-            absolute_instant,
             retained_bytes,
             sequence,
             cell,
@@ -57,12 +52,12 @@ impl PendingAdmission {
         self.id
     }
 
-    pub(crate) const fn deadline(&self) -> Deadline {
-        self.deadline
+    pub(crate) const fn deadline(&self) -> kafka_client_core::Deadline {
+        self.deadline.core()
     }
 
-    pub(crate) const fn absolute_instant(&self) -> Instant {
-        self.absolute_instant
+    pub(crate) const fn operation_deadline(&self) -> OperationDeadline {
+        self.deadline
     }
 
     pub(crate) fn into_record(self) -> ProducerRecord {
@@ -81,7 +76,6 @@ impl PendingAdmission {
         let facts = PendingAdmissionFacts {
             id: self.id,
             deadline: self.deadline,
-            absolute_instant: self.absolute_instant,
             retained_bytes: self.retained_bytes,
             sequence: self.sequence,
             cell: self.cell,
@@ -114,7 +108,6 @@ impl PendingAdmissionFacts {
             id: self.id,
             record,
             deadline: self.deadline,
-            absolute_instant: self.absolute_instant,
             retained_bytes: self.retained_bytes,
             sequence: self.sequence,
             cell: self.cell,

@@ -4,6 +4,7 @@ use kafka_client_core::{Deadline, Moment};
 
 use crate::{
     ProducerDeliveryError,
+    clock::OperationDeadline,
     completion::{CompletionRegistryError, test_support::hold_cell_lock},
     producer::admission::ProducerAdmissionFailure,
 };
@@ -164,7 +165,7 @@ fn missing_exact_binding_poisons_host_closed() {
     assert!(!host.stats().healthy);
     let rejected = host.try_admit_explicit(
         Moment::from_tick(6),
-        Deadline::from_tick(11),
+        OperationDeadline::from_parts_for_test(Deadline::from_tick(11), std::time::Instant::now()),
         record("payments"),
     );
     assert!(matches!(

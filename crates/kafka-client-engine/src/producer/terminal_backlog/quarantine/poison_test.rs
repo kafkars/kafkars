@@ -3,7 +3,7 @@
 use kafka_client_core::{DeliveryStatus, OperationId, ProducerCompletion, ProducerFailure};
 
 use super::{RejectedTerminal, TerminalPoisonSlot};
-use crate::producer::{ProducerHostInvariantError, binding::CompletionBindingError};
+use crate::producer::{ProducerHostInvariantError, binding::OperationBindingError};
 
 #[test]
 fn poison_refuses_to_overwrite_and_returns_the_second_exact_terminal() {
@@ -30,7 +30,7 @@ fn rejected(operation: u64) -> RejectedTerminal {
         OperationId::from_raw(operation),
         None,
         terminal(),
-        ProducerHostInvariantError::Binding(CompletionBindingError::UnknownOperation),
+        ProducerHostInvariantError::Binding(OperationBindingError::UnknownOperation),
     )
 }
 

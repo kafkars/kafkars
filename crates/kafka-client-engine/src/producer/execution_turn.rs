@@ -94,7 +94,7 @@ impl ProducerHost {
             effect @ ProducerEffect::SubmitProduce { .. } => {
                 let result = {
                     let execution = &mut self.execution;
-                    execution.arm_submission(&self.store, effect)
+                    execution.arm_submission(&self.store, &self.bindings, effect)
                 };
                 result
                     .map(|()| None)

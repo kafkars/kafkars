@@ -9,15 +9,14 @@ use super::{
     PendingAdmissionRegistry, PendingAdmissionRejectionReason, PendingRegistryError,
     ProducerSendFailureKind,
 };
-use crate::{ProducerDeliveryStatus, producer::ProducerRecord};
+use crate::{ProducerDeliveryStatus, clock::OperationDeadline, producer::ProducerRecord};
 
 #[test]
 fn count_and_byte_bounds_return_the_exact_record() {
     let mut count_limited = PendingAdmissionRegistry::new(1, 64, 1);
     let first = register(&mut count_limited, record("first", 1), 30);
     let first_id = first.id();
-    let Err(rejected) = count_limited.register(record("second", 1), deadline(40), Instant::now())
-    else {
+    let Err(rejected) = count_limited.register(record("second", 1), operation_deadline(40)) else {
         panic!("count capacity should reject");
     };
     assert_eq!(
@@ -37,8 +36,7 @@ fn count_and_byte_bounds_return_the_exact_record() {
     );
 
     let mut byte_limited = PendingAdmissionRegistry::new(2, 6, 2);
-    let Err(rejected) = byte_limited.register(record("orders", 1), deadline(50), Instant::now())
-    else {
+    let Err(rejected) = byte_limited.register(record("orders", 1), operation_deadline(50)) else {
         panic!("byte capacity should reject");
     };
     assert_eq!(
@@ -79,7 +77,10 @@ fn pending_entry_preserves_both_absolute_deadline_representations() {
     let mut registry = PendingAdmissionRegistry::new(1, 64, 1);
     let absolute = Instant::now();
     let registration = registry
-        .register(record("orders", 1), deadline(44), absolute)
+        .register(
+            record("orders", 1),
+            OperationDeadline::from_parts_for_test(deadline(44), absolute),
+        )
         .unwrap_or_else(|error| panic!("registration failed: {error:?}"));
     let id = registration.id();
     let send = registration.into_send();
@@ -89,7 +90,7 @@ fn pending_entry_preserves_both_absolute_deadline_representations() {
         .unwrap_or_else(|| panic!("attempt should retain admission"));
     assert_eq!(pending.id(), id);
     assert_eq!(pending.deadline(), deadline(44));
-    assert_eq!(pending.absolute_instant(), absolute);
+    assert_eq!(pending.operation_deadline().transport(), absolute);
     settle(attempt, send, ProducerSendFailureKind::Closed);
 }
 
@@ -167,7 +168,7 @@ fn shutdown_closes_registration_and_drains_in_fifo_budgets() {
     assert_eq!(open.error(), PendingRegistryError::StillOpen);
     assert_eq!(open.inspected(), 0);
     registry.begin_close();
-    let Err(rejected) = registry.register(record("late", 1), deadline(30), Instant::now()) else {
+    let Err(rejected) = registry.register(record("late", 1), operation_deadline(30)) else {
         panic!("closing must reject new pending records");
     };
     assert_eq!(rejected.reason(), PendingAdmissionRejectionReason::Closed);
@@ -195,7 +196,7 @@ fn exhausted_slot_generation_retires_capacity_without_losing_permit() {
     registry
         .set_vacant_generation_for_test(0, u64::MAX)
         .unwrap_or_else(|error| panic!("generation setup failed: {error:?}"));
-    let Err(rejected) = registry.register(record("orders", 1), deadline(10), Instant::now()) else {
+    let Err(rejected) = registry.register(record("orders", 1), operation_deadline(10)) else {
         panic!("retired generation must reject registration");
     };
     assert_eq!(
@@ -212,7 +213,7 @@ fn register(
     deadline_tick: u64,
 ) -> super::PendingSendRegistration {
     registry
-        .register(record, deadline(deadline_tick), Instant::now())
+        .register(record, operation_deadline(deadline_tick))
         .unwrap_or_else(|error| panic!("pending registration failed: {error:?}"))
 }
 
@@ -275,6 +276,10 @@ fn assert_shutdown(
 
 fn deadline(tick: u64) -> Deadline {
     Deadline::from_tick(tick)
+}
+
+fn operation_deadline(tick: u64) -> OperationDeadline {
+    OperationDeadline::from_parts_for_test(deadline(tick), Instant::now())
 }
 
 fn record(topic: &str, value_bytes: usize) -> ProducerRecord {

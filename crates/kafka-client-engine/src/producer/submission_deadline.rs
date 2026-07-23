@@ -8,6 +8,8 @@ use std::{
 
 use kafka_client_core::{BatchExecutionId, BatchId, Deadline, Moment, OperationId, ProducerInput};
 
+use crate::clock::OperationDeadline;
+
 /// Failure to retain a core-declared submission deadline.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum SubmissionDeadlineError {
@@ -46,7 +48,7 @@ impl Error for SubmissionDeadlineError {}
 struct ActiveDeadline {
     execution: BatchExecutionId,
     operation_id: OperationId,
-    deadline: Deadline,
+    deadline: OperationDeadline,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -125,7 +127,7 @@ impl SubmissionDeadlines {
         &mut self,
         execution: BatchExecutionId,
         operation_id: OperationId,
-        deadline: Deadline,
+        deadline: OperationDeadline,
     ) -> Result<bool, SubmissionDeadlineError> {
         let candidate = ActiveDeadline {
             execution,
@@ -147,7 +149,7 @@ impl SubmissionDeadlines {
         }
         self.active.insert(batch_id, candidate);
         self.schedule.insert(ScheduledDeadline {
-            deadline,
+            deadline: deadline.core(),
             execution,
         });
         Ok(true)
@@ -164,7 +166,7 @@ impl SubmissionDeadlines {
         }
         self.active.remove(&batch_id);
         self.schedule.remove(&ScheduledDeadline {
-            deadline: active.deadline,
+            deadline: active.deadline.core(),
             execution,
         });
         true
@@ -173,6 +175,14 @@ impl SubmissionDeadlines {
     /// Returns the exact retained execution for cleanup preflight.
     pub(crate) fn execution(&self, batch_id: BatchId) -> Option<BatchExecutionId> {
         self.active.get(&batch_id).map(|entry| entry.execution)
+    }
+
+    /// Returns the unchanged paired deadline retained before driver acceptance.
+    pub(crate) fn deadline(&self, execution: BatchExecutionId) -> Option<OperationDeadline> {
+        self.active
+            .get(&execution.batch_id())
+            .filter(|entry| entry.execution == execution)
+            .map(|entry| entry.deadline)
     }
 
     /// Removes bounded due entries in `(Deadline, BatchId)` order.
@@ -190,12 +200,12 @@ impl SubmissionDeadlines {
             let Some(active) = self.active.get(&batch_id).copied() else {
                 continue;
             };
-            if active.execution == next.execution && active.deadline == next.deadline {
+            if active.execution == next.execution && active.deadline.core() == next.deadline {
                 self.active.remove(&batch_id);
                 due.push(DueSubmissionDeadline {
                     execution: next.execution,
                     operation_id: active.operation_id,
-                    deadline: active.deadline,
+                    deadline: active.deadline.core(),
                     observed_at: now,
                 });
             }

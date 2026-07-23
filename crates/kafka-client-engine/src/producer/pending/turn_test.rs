@@ -6,7 +6,10 @@ use bytes::Bytes;
 use kafka_client_core::{Deadline, Moment, PartitionIndex};
 
 use super::{PendingAdmissionRegistry, ProducerSendFailure, ProducerSendFailureKind};
-use crate::producer::{ProducerRecord, boundary::ProducerSend};
+use crate::{
+    clock::OperationDeadline,
+    producer::{ProducerRecord, boundary::ProducerSend},
+};
 
 #[test]
 fn take_next_counts_each_abandoned_tombstone_against_its_budget() {
@@ -84,8 +87,7 @@ fn register(registry: &mut PendingAdmissionRegistry, topic: &str) -> ProducerSen
                 None,
                 Some(Bytes::from_static(b"value")),
             ),
-            Deadline::from_tick(10),
-            Instant::now(),
+            OperationDeadline::from_parts_for_test(Deadline::from_tick(10), Instant::now()),
         )
         .unwrap_or_else(|error| panic!("pending registration should succeed: {error:?}"))
         .into_send()

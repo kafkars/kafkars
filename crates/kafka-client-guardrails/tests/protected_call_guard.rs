@@ -5,6 +5,30 @@ mod support;
 use support::{CallCapabilityRule, call_capability_violations, fixture_files};
 
 const PROTECTED_CALL: &str = "PendingNotificationPermitPool::from_pending_permit_authority";
+const OPERATION_DEADLINE_CONSTRUCTOR: &str = "OperationDeadline::from_boundary_parts";
+
+#[test]
+fn operation_deadline_construction_stays_with_monotonic_capture() {
+    let root = fixture_files("operation_deadline_constructor").0;
+    let violations = call_capability_violations(
+        &root,
+        &[CallCapabilityRule {
+            root: "src".to_owned(),
+            call: OPERATION_DEADLINE_CONSTRUCTOR.to_owned(),
+            allowed_paths: vec!["src/owner.rs".to_owned()],
+        }],
+    );
+    assert!(
+        violations.iter().any(|value| {
+            value.contains("intruder.rs") && value.contains(OPERATION_DEADLINE_CONSTRUCTOR)
+        }),
+        "operation deadline constructor escaped its owner: {violations:?}"
+    );
+    assert!(
+        !violations.iter().any(|value| value.contains("owner.rs")),
+        "configured operation deadline owner was rejected: {violations:?}"
+    );
+}
 
 #[test]
 fn constructor_call_allowlist_has_positive_and_negative_evidence() {

@@ -48,7 +48,7 @@ fn deadline_capture_uses_one_boundary_observation() {
     let Some(expected_instant) = boundary.checked_add(Duration::from_nanos(31)) else {
         panic!("small monotonic addition should be representable");
     };
-    assert_eq!(capture.absolute_instant(), expected_instant);
+    assert_eq!(capture.operation_deadline().transport(), expected_instant);
 }
 
 #[test]

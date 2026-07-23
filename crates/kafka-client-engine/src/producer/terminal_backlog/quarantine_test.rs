@@ -7,7 +7,7 @@ use kafka_client_core::{
 use super::{RejectedTerminal, TerminalPoisonSlot, TerminalQuarantine};
 use crate::producer::{
     ProducerHostInvariantError,
-    binding::CompletionBindingError,
+    binding::OperationBindingError,
     host_limits_test::{start, valid_limits},
 };
 
@@ -55,7 +55,7 @@ fn refused_tail_complete_remains_in_the_single_committed_tail_owner() {
     assert_eq!(
         host.quarantine_committed_tail(vec![refused]),
         Err(ProducerHostInvariantError::Binding(
-            CompletionBindingError::UnknownOperation
+            OperationBindingError::UnknownOperation
         ))
     );
     assert_eq!(host.stats().terminal_backlog, 0);
@@ -73,7 +73,7 @@ fn rejected(operation: u64) -> RejectedTerminal {
         OperationId::from_raw(operation),
         None,
         terminal(),
-        ProducerHostInvariantError::Binding(CompletionBindingError::UnknownOperation),
+        ProducerHostInvariantError::Binding(OperationBindingError::UnknownOperation),
     )
 }
 

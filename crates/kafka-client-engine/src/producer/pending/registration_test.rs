@@ -9,13 +9,16 @@ use super::{
     PendingAdmissionRegistry, PendingAttemptRestoreOutcome,
     test_support::{CountingWake, poll_send},
 };
-use crate::producer::ProducerRecord;
+use crate::{clock::OperationDeadline, producer::ProducerRecord};
 
 #[test]
 fn registration_returns_the_observer_for_the_exact_bounded_entry() {
     let mut registry = PendingAdmissionRegistry::new(1, 64, 1);
     let registration = registry
-        .register(record(), Deadline::from_tick(19), Instant::now())
+        .register(
+            record(),
+            OperationDeadline::from_parts_for_test(Deadline::from_tick(19), Instant::now()),
+        )
         .unwrap_or_else(|error| panic!("pending registration should succeed: {error:?}"));
     let id = registration.id();
     let mut send = registration.into_send();

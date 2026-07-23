@@ -93,6 +93,10 @@ production = "crates/kafka-client-engine/src/clock/monotonic.rs"
 test = "crates/kafka-client-engine/src/clock/monotonic_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/clock/operation_deadline.rs"
+test = "crates/kafka-client-engine/src/clock/operation_deadline_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/clock/timer.rs"
 test = "crates/kafka-client-engine/src/clock/timer_test.rs"
 
@@ -195,6 +199,10 @@ test = "crates/kafka-client-engine/src/producer/execution/cleanup_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution/materialization.rs"
 test = "crates/kafka-client-engine/src/producer/execution/materialization_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/execution/submission.rs"
+test = "crates/kafka-client-engine/src/producer/execution/submission_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/prepared/release.rs"
@@ -623,6 +631,13 @@ allowed_paths = [
   "crates/kafka-client-engine/src/completion/notifier.rs",
 ]
 
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "OperationDeadline::from_boundary_parts"
+allowed_paths = [
+  "crates/kafka-client-engine/src/clock/monotonic.rs",
+]
+
 [[authority_tokens]]
 owner_type = "NotificationBudgetAuthority"
 path = "crates/kafka-client-engine/src/completion/notification_budget/authority.rs"
@@ -1045,7 +1060,7 @@ field = "by_id"
 allowed_paths = ["crates/kafka-client-engine/src/producer/topic_catalog.rs"]
 
 [[mutation_owners]]
-owner_type = "CompletionBindings"
+owner_type = "OperationBindings"
 field = "entries"
 allowed_paths = ["crates/kafka-client-engine/src/producer/binding.rs"]
 
@@ -1557,7 +1572,7 @@ owner_type = "MaterializationHeader"
 path = "crates/kafka-client-engine/src/producer/materialization.rs"
 
 [[linear_owners]]
-owner_type = "CompletionBindings"
+owner_type = "OperationBindings"
 path = "crates/kafka-client-engine/src/producer/binding.rs"
 
 [[linear_owners]]

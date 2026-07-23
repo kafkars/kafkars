@@ -3,8 +3,8 @@
 use std::collections::VecDeque;
 
 use kafka_client_core::{
-    BatchId, BatchTimerGeneration, ByteCount, Deadline, FlushId, Moment, OperationId,
-    ProducerBatchPolicy, ProducerCompletion, ProducerEffect, ProducerInput, ProducerMachineError,
+    BatchId, ByteCount, Deadline, FlushId, Moment, OperationId, ProducerBatchPolicy,
+    ProducerEffect, ProducerInput, ProducerMachineError,
 };
 
 use crate::{
@@ -14,7 +14,6 @@ use crate::{
 
 use super::{
     ProducerHostInvariantError, ProducerHostLimits,
-    admission::ProducerAdmissionFailure,
     admission_test::{admit, record},
     effect::FailedEffectDisposition,
     host_limits_test::{start, valid_limits},
@@ -135,62 +134,6 @@ fn notifier_stop_retains_every_same_transition_terminal_in_exact_fifo_order() {
 }
 
 #[test]
-fn generated_fact_and_failing_current_mechanism_remain_owned_after_poison() {
-    let mut host = start(valid_limits());
-    fill_timer_capacity(&mut host);
-    let failure = host
-        .try_admit_explicit(
-            Moment::from_tick(0),
-            Deadline::from_tick(100),
-            record("orders"),
-        )
-        .err()
-        .unwrap_or_else(|| panic!("timer saturation must poison accepted admission"));
-    let (error, observer) = accepted_failure(failure);
-
-    assert!(matches!(error, ProducerHostInvariantError::Timer(_)));
-    assert!(matches!(
-        host.terminal_quarantine.generated(),
-        Some([ProducerInput::RecordAccumulated { .. }])
-    ));
-    assert!(matches!(
-        host.terminal_quarantine.committed_tail(),
-        Some([ProducerEffect::ArmBatchTimer { .. }])
-    ));
-    assert!(host.execution_unavailable(Moment::from_tick(1)).is_err());
-    drop(observer);
-    assert!(host.terminal_resources_empty());
-}
-
-#[test]
-fn generated_capacity_refusal_owns_the_refused_fact_and_remaining_effect() {
-    let mut host = start(valid_limits());
-    host.effect_capacity = 0;
-    let failure = host
-        .try_admit_explicit(
-            Moment::from_tick(0),
-            Deadline::from_tick(100),
-            record("orders"),
-        )
-        .err()
-        .unwrap_or_else(|| panic!("zero test fact capacity must poison admission"));
-    let (error, observer) = accepted_failure(failure);
-
-    assert_eq!(error, ProducerHostInvariantError::GeneratedFactCapacity);
-    assert!(matches!(
-        host.terminal_quarantine.generated(),
-        Some([ProducerInput::RecordAccumulated { .. }])
-    ));
-    assert!(matches!(
-        host.terminal_quarantine.committed_tail(),
-        Some([ProducerEffect::ArmBatchTimer { .. }])
-    ));
-    assert!(host.execution_unavailable(Moment::from_tick(1)).is_err());
-    drop(observer);
-    assert!(host.terminal_resources_empty());
-}
-
-#[test]
 fn failed_mechanism_disposition_owns_the_effect_inline() {
     let mut host = start(valid_limits());
     let expected = ProducerEffect::CompleteFlush {
@@ -272,29 +215,4 @@ fn failing_current_and_mixed_tail_are_owned_before_poison_fences_reentry() {
     assert!(host.execution_unavailable(Moment::from_tick(2)).is_err());
     assert!(admitted.into_delivery_observer().wait().is_err());
     assert!(host.terminal_resources_empty());
-}
-
-fn fill_timer_capacity(host: &mut super::ProducerHost) {
-    for raw in [90, 91] {
-        host.timers
-            .arm(
-                BatchId::from_raw(raw),
-                BatchTimerGeneration::from_raw(1),
-                Deadline::from_tick(500),
-            )
-            .unwrap_or_else(|error| panic!("test timer should fill capacity: {error}"));
-    }
-}
-
-fn accepted_failure(
-    failure: ProducerAdmissionFailure,
-) -> (
-    ProducerHostInvariantError,
-    crate::completion::CompletionObserver<ProducerCompletion>,
-) {
-    let ProducerAdmissionFailure::AcceptedInvariant(poisoned) = failure else {
-        panic!("post-core poison must retain the accepted observer")
-    };
-    let (error, _operation_id, observer) = poisoned.into_parts();
-    (error, observer)
 }

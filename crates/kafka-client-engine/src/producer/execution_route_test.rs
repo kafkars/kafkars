@@ -10,6 +10,7 @@ use kafka_client_core::{
 
 use super::{
     ProducerRecord, ProducerStore, ProducerStoreLimits,
+    binding::OperationBindings,
     execution::{PreparedExecution, PreparedExecutionError, PreparedExecutionLimits},
 };
 
@@ -21,10 +22,12 @@ const fn batch_execution(batch_id: BatchId) -> BatchExecutionId {
 fn submission_requires_prepared_bytes_before_deadline_ownership() {
     let mut execution = execution();
     let store = ProducerStore::new(store_limits());
+    let bindings = OperationBindings::new(0);
     let batch_id = BatchId::from_raw(9);
     assert_eq!(
         execution.arm_submission(
             &store,
+            &bindings,
             submission(
                 batch_id,
                 OperationId::from_raw(4),
@@ -60,6 +63,7 @@ fn submission_route_mismatches_do_not_arm_or_discard_prepared_bytes() {
         .accumulate(batch_id, operation_id, facts.payload_id())
         .unwrap_or_else(|error| panic!("accumulation failed: {error}"));
     let mut execution = execution();
+    let bindings = OperationBindings::new(0);
     execution
         .materialize(
             &mut store,
@@ -78,6 +82,7 @@ fn submission_route_mismatches_do_not_arm_or_discard_prepared_bytes() {
         assert!(matches!(
             execution.arm_submission(
                 &store,
+                &bindings,
                 submission(batch_id, operation_id, topic_id, partition),
             ),
             Err(PreparedExecutionError::RouteMismatch {

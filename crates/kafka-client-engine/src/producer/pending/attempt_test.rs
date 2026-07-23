@@ -13,6 +13,7 @@ use super::{
 };
 use crate::{
     ProducerDeliveryObserver,
+    clock::OperationDeadline,
     completion::{CompletionRegistry, ReclaimStatus},
     producer::ProducerRecord,
 };
@@ -166,8 +167,7 @@ fn register(pending: &mut PendingAdmissionRegistry, topic: &str) -> super::Pendi
                 None,
                 Some(Bytes::from_static(b"value")),
             ),
-            Deadline::from_tick(40),
-            Instant::now(),
+            OperationDeadline::from_parts_for_test(Deadline::from_tick(40), Instant::now()),
         )
         .unwrap_or_else(|error| panic!("pending registration should succeed: {error:?}"))
 }

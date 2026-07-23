@@ -9,7 +9,7 @@ use super::{
     PendingAdmissionRegistry, PendingAttemptRestoreError, PendingCellError, PendingRegistryError,
     ProducerSendFailure, ProducerSendFailureKind,
 };
-use crate::producer::ProducerRecord;
+use crate::{clock::OperationDeadline, producer::ProducerRecord};
 
 #[test]
 fn double_restore_failure_retains_exact_retryable_removal_owner() {
@@ -17,8 +17,7 @@ fn double_restore_failure_retains_exact_retryable_removal_owner() {
     let registration = registry
         .register(
             record("recover", 7),
-            Deadline::from_tick(90),
-            Instant::now(),
+            OperationDeadline::from_parts_for_test(Deadline::from_tick(90), Instant::now()),
         )
         .unwrap_or_else(|error| panic!("pending registration should succeed: {error:?}"));
     let send = registration.into_send();

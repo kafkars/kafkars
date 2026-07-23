@@ -10,7 +10,10 @@ use super::{
     ProducerSendFailureKind,
     turn_error::{PendingTakeFailure, PendingTurnFailure, PendingTurnFailureOwnership},
 };
-use crate::producer::{ProducerRecord, boundary::ProducerSend};
+use crate::{
+    clock::OperationDeadline,
+    producer::{ProducerRecord, boundary::ProducerSend},
+};
 
 #[test]
 fn settlement_turn_failure_retains_attempt_record_and_requested_failure() {
@@ -60,8 +63,7 @@ fn post_claim_take_failure_retains_the_exact_promotion_owner() {
                 None,
                 Some(Bytes::from_static(b"value")),
             ),
-            Deadline::from_tick(10),
-            Instant::now(),
+            OperationDeadline::from_parts_for_test(Deadline::from_tick(10), Instant::now()),
         )
         .unwrap_or_else(|error| panic!("pending registration should succeed: {error:?}"));
     let id = registration.id();
@@ -124,8 +126,7 @@ fn register(registry: &mut PendingAdmissionRegistry) -> ProducerSend {
                 None,
                 Some(Bytes::from_static(b"value")),
             ),
-            Deadline::from_tick(10),
-            Instant::now(),
+            OperationDeadline::from_parts_for_test(Deadline::from_tick(10), Instant::now()),
         )
         .unwrap_or_else(|error| panic!("pending registration should succeed: {error:?}"))
         .into_send()

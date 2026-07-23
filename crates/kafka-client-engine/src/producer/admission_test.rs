@@ -1,13 +1,13 @@
 //! Atomic reservation, rollback, and observer scenarios for producer admission.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use bytes::Bytes;
 use kafka_client_core::{
     AdmissionRejection, ByteCount, Deadline, Moment, PartitionIndex, ProducerBatchPolicy,
 };
 
-use crate::completion::CompletionRegistryError;
+use crate::{clock::OperationDeadline, completion::CompletionRegistryError};
 
 use super::{
     ProducerHost, ProducerHostInvariantError, ProducerRecord, ProducerRejectionReason,
@@ -60,7 +60,7 @@ fn completion_rejection_returns_the_exact_record_before_store_reservation() {
     let topic: Arc<str> = Arc::from("second");
     let rejected = reject_result(host.try_admit_explicit(
         Moment::from_tick(0),
-        Deadline::from_tick(20),
+        operation_deadline(20),
         record_from(Arc::clone(&topic)),
     ));
 
@@ -81,7 +81,7 @@ fn byte_rejection_rolls_back_the_reserved_completion_slot() {
     let topic: Arc<str> = Arc::from("orders");
     let rejected = reject_result(host.try_admit_explicit(
         Moment::from_tick(0),
-        Deadline::from_tick(20),
+        operation_deadline(20),
         record_from(Arc::clone(&topic)),
     ));
 
@@ -120,7 +120,7 @@ fn elapsed_deadline_rolls_back_both_reservations_and_preserves_record() {
     let topic: Arc<str> = Arc::from("orders");
     let rejected = reject_result(host.try_admit_explicit(
         Moment::from_tick(10),
-        Deadline::from_tick(10),
+        operation_deadline(10),
         record_from(Arc::clone(&topic)),
     ));
 
@@ -154,7 +154,7 @@ fn deadline_overflow_is_a_core_rejection_with_full_rollback() {
     let mut host = start(limits);
     let rejected = reject_result(host.try_admit_explicit(
         Moment::from_tick(u64::MAX),
-        Deadline::from_tick(u64::MAX),
+        operation_deadline(u64::MAX),
         record("orders"),
     ));
 
@@ -177,7 +177,7 @@ fn post_acceptance_fault_poisons_host_and_preserves_the_next_record() {
     host.inject_post_acceptance_fault(ProducerHostInvariantError::MissingAdmissionIdentity);
     let first = host.try_admit_explicit(
         Moment::from_tick(0),
-        Deadline::from_tick(20),
+        operation_deadline(20),
         record("first"),
     );
     assert!(matches!(
@@ -189,7 +189,7 @@ fn post_acceptance_fault_poisons_host_and_preserves_the_next_record() {
     let topic: Arc<str> = Arc::from("second");
     let rejected = reject_result(host.try_admit_explicit(
         Moment::from_tick(0),
-        Deadline::from_tick(20),
+        operation_deadline(20),
         record_from(Arc::clone(&topic)),
     ));
     assert_eq!(
@@ -205,10 +205,18 @@ pub(super) fn admit(
     deadline: Deadline,
     record: ProducerRecord,
 ) -> AdmittedExplicit {
-    match host.try_admit_explicit(now, deadline, record) {
+    match host.try_admit_explicit(
+        now,
+        OperationDeadline::from_parts_for_test(deadline, Instant::now()),
+        record,
+    ) {
         Ok(admitted) => admitted,
         Err(error) => panic!("producer admission should succeed: {error:?}"),
     }
+}
+
+fn operation_deadline(tick: u64) -> OperationDeadline {
+    OperationDeadline::from_parts_for_test(Deadline::from_tick(tick), Instant::now())
 }
 
 pub(super) fn record(topic: &str) -> ProducerRecord {

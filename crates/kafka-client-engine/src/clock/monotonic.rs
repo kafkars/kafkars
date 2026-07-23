@@ -4,14 +4,13 @@ use std::time::{Duration, Instant};
 
 use kafka_client_core::{Deadline, Moment};
 
-use super::ClockError;
+use super::{ClockError, OperationDeadline};
 
 /// One monotonic observation and deadline captured at the same method boundary.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct DeadlineCapture {
     now: Moment,
-    deadline: Deadline,
-    absolute_instant: Instant,
+    deadline: OperationDeadline,
 }
 
 impl DeadlineCapture {
@@ -22,12 +21,12 @@ impl DeadlineCapture {
 
     /// Returns the checked absolute deadline created at that boundary.
     pub(crate) const fn deadline(self) -> Deadline {
-        self.deadline
+        self.deadline.core()
     }
 
-    /// Returns the same absolute boundary handed to the driver request context.
-    pub(crate) const fn absolute_instant(self) -> Instant {
-        self.absolute_instant
+    /// Returns both unchanged absolute representations captured at the boundary.
+    pub(crate) const fn operation_deadline(self) -> OperationDeadline {
+        self.deadline
     }
 }
 
@@ -78,8 +77,7 @@ impl MonotonicClock {
         let deadline = deadline_after_moment(now, timeout)?;
         Ok(DeadlineCapture {
             now,
-            deadline,
-            absolute_instant,
+            deadline: OperationDeadline::from_boundary_parts(deadline, absolute_instant),
         })
     }
 }

@@ -147,6 +147,16 @@ impl ProducerStore {
         Ok((route.topic_id, route.partition))
     }
 
+    /// Proves that one operation belongs to the exact materialized execution.
+    pub(crate) fn execution_contains_operation(
+        &self,
+        execution: kafka_client_core::BatchExecutionId,
+        operation_id: OperationId,
+    ) -> Result<bool, ProducerStoreError> {
+        self.batches
+            .execution_contains_operation(execution, operation_id)
+    }
+
     /// Commits an exact attempt only after encoded bytes are retained.
     pub(crate) fn commit_materialization(
         &mut self,

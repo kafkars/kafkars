@@ -163,6 +163,15 @@ impl BatchStore {
         self.payloads.contains_key(&payload_id)
     }
 
+    pub(super) fn execution_contains_operation(
+        &self,
+        execution: kafka_client_core::BatchExecutionId,
+        operation_id: OperationId,
+    ) -> Result<bool, ProducerStoreError> {
+        self.execution_route(execution)?;
+        Ok(self.operations.get(&operation_id) == Some(&execution.batch_id()))
+    }
+
     pub(super) fn len(&self) -> usize {
         self.batches.len()
     }

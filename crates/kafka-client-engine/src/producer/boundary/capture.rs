@@ -97,7 +97,7 @@ impl ProducerSendCapture {
 
     /// Returns the original absolute monotonic deadline reserved for driver handoff.
     pub const fn absolute_deadline(&self) -> Instant {
-        self.deadline.absolute_instant()
+        self.deadline.operation_deadline().transport()
     }
 
     pub(super) const fn into_parts(self) -> (DeadlineCapture, i64) {

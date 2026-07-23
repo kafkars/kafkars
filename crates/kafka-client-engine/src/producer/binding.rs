@@ -1,20 +1,21 @@
-//! Fixed-capacity association of core operations with engine completion slots.
+//! Fixed-capacity association of operations with engine execution ownership.
 
 use std::{error::Error, fmt};
 
 use kafka_client_core::OperationId;
 
-use crate::completion::CompletionId;
+use crate::{clock::OperationDeadline, completion::CompletionId};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct CompletionBinding {
+struct OperationBinding {
     operation_id: OperationId,
     completion_id: CompletionId,
+    deadline: OperationDeadline,
 }
 
-/// Failure to mutate producer operation-to-completion ownership.
+/// Failure to mutate producer operation execution ownership.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum CompletionBindingError {
+pub(crate) enum OperationBindingError {
     /// Every preallocated binding entry is occupied.
     Full,
     /// The operation already owns a completion binding.
@@ -27,7 +28,7 @@ pub(crate) enum CompletionBindingError {
     CompletionMismatch,
 }
 
-impl fmt::Display for CompletionBindingError {
+impl fmt::Display for OperationBindingError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::Full => "producer completion bindings are full",
@@ -39,16 +40,16 @@ impl fmt::Display for CompletionBindingError {
     }
 }
 
-impl Error for CompletionBindingError {}
+impl Error for OperationBindingError {}
 
-/// Linear fixed-capacity owner of operation and completion associations.
+/// Linear fixed-capacity owner of operation, completion, and deadline facts.
 #[derive(Debug)]
-pub(crate) struct CompletionBindings {
+pub(crate) struct OperationBindings {
     max_entries: usize,
-    entries: Vec<CompletionBinding>,
+    entries: Vec<OperationBinding>,
 }
 
-impl CompletionBindings {
+impl OperationBindings {
     /// Preallocates the complete association capacity.
     pub(crate) fn new(capacity: usize) -> Self {
         Self {
@@ -62,9 +63,10 @@ impl CompletionBindings {
         &mut self,
         operation_id: OperationId,
         completion_id: CompletionId,
-    ) -> Result<(), CompletionBindingError> {
+        deadline: OperationDeadline,
+    ) -> Result<(), OperationBindingError> {
         let index = match self.operation_index(operation_id) {
-            Ok(_) => return Err(CompletionBindingError::DuplicateOperation),
+            Ok(_) => return Err(OperationBindingError::DuplicateOperation),
             Err(index) => index,
         };
         if self
@@ -72,16 +74,17 @@ impl CompletionBindings {
             .iter()
             .any(|binding| binding.completion_id == completion_id)
         {
-            return Err(CompletionBindingError::DuplicateCompletion);
+            return Err(OperationBindingError::DuplicateCompletion);
         }
         if self.entries.len() >= self.max_entries {
-            return Err(CompletionBindingError::Full);
+            return Err(OperationBindingError::Full);
         }
         self.entries.insert(
             index,
-            CompletionBinding {
+            OperationBinding {
                 operation_id,
                 completion_id,
+                deadline,
             },
         );
         Ok(())
@@ -102,14 +105,21 @@ impl CompletionBindings {
             .map(|binding| binding.operation_id)
     }
 
+    /// Returns the original paired deadline bound at public admission.
+    pub(crate) fn deadline(&self, operation_id: OperationId) -> Option<OperationDeadline> {
+        self.operation_index(operation_id)
+            .ok()
+            .map(|index| self.entries[index].deadline)
+    }
+
     /// Removes an operation association and returns its completion generation.
     pub(crate) fn remove(
         &mut self,
         operation_id: OperationId,
-    ) -> Result<CompletionId, CompletionBindingError> {
+    ) -> Result<CompletionId, OperationBindingError> {
         let index = self
             .operation_index(operation_id)
-            .map_err(|_| CompletionBindingError::UnknownOperation)?;
+            .map_err(|_| OperationBindingError::UnknownOperation)?;
         Ok(self.entries.remove(index).completion_id)
     }
 
@@ -118,12 +128,12 @@ impl CompletionBindings {
         &mut self,
         operation_id: OperationId,
         completion_id: CompletionId,
-    ) -> Result<(), CompletionBindingError> {
+    ) -> Result<(), OperationBindingError> {
         let index = self
             .operation_index(operation_id)
-            .map_err(|_| CompletionBindingError::UnknownOperation)?;
+            .map_err(|_| OperationBindingError::UnknownOperation)?;
         if self.entries[index].completion_id != completion_id {
-            return Err(CompletionBindingError::CompletionMismatch);
+            return Err(OperationBindingError::CompletionMismatch);
         }
         self.entries.remove(index);
         Ok(())

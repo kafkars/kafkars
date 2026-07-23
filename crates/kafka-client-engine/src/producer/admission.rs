@@ -1,10 +1,10 @@
 //! Atomic pre-core reservation, deterministic admission, and ownership commit.
 
 use kafka_client_core::{
-    Deadline, Moment, OperationId, ProducerCompletion, ProducerInput, ProducerMachineError,
+    Moment, OperationId, ProducerCompletion, ProducerInput, ProducerMachineError,
 };
 
-use crate::{ProducerDeliveryObserver, completion::CompletionObserver};
+use crate::{ProducerDeliveryObserver, clock::OperationDeadline, completion::CompletionObserver};
 
 use super::{ProducerHost, ProducerHostInvariantError, ProducerRecord, ProducerRejectionReason};
 
@@ -94,7 +94,7 @@ impl ProducerHost {
     pub(crate) fn try_admit_explicit(
         &mut self,
         now: Moment,
-        deadline: Deadline,
+        deadline: OperationDeadline,
         record: ProducerRecord,
     ) -> Result<AdmittedExplicit, ProducerAdmissionFailure> {
         if let Some(error) = self.poison_reason() {
@@ -118,7 +118,7 @@ impl ProducerHost {
         let facts = reservation.facts();
         let transition = match self.core.apply(ProducerInput::AdmitExplicit {
             now,
-            deadline,
+            deadline: deadline.core(),
             record: facts,
         }) {
             Ok(transition) => transition,
@@ -142,7 +142,7 @@ impl ProducerHost {
         if let Some(error) = self.take_post_acceptance_fault() {
             return Err(self.accepted_invariant(error, Some(operation_id), observer));
         }
-        if let Err(error) = self.bindings.bind(operation_id, completion_id) {
+        if let Err(error) = self.bindings.bind(operation_id, completion_id, deadline) {
             return Err(self.accepted_invariant(
                 ProducerHostInvariantError::Binding(error),
                 Some(operation_id),

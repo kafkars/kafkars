@@ -20,7 +20,7 @@ fn capture_retains_one_monotonic_deadline_and_boundary_timestamp() {
     std::thread::sleep(Duration::from_millis(2));
     let (deadline, timestamp_ms) = capture.into_parts();
 
-    assert_eq!(deadline.absolute_instant(), absolute_deadline);
+    assert_eq!(deadline.operation_deadline().transport(), absolute_deadline);
     assert!(timestamp_ms >= before);
     assert!(timestamp_ms <= after);
 }

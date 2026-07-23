@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{Deadline, Moment};
+use kafka_client_core::Moment;
 
-use crate::ProducerDeliveryObserver;
+use crate::{ProducerDeliveryObserver, clock::OperationDeadline};
 
 use super::{
     super::{
@@ -64,7 +64,7 @@ impl ProducerAdmissionPort {
     pub(crate) fn try_admit_explicit(
         &self,
         attempted_at: Moment,
-        deadline: Deadline,
+        deadline: OperationDeadline,
         record: ProducerRecord,
     ) -> Result<ProducerPortAccepted, ProducerPortAdmissionError> {
         let mut host = match self.shared.try_host() {

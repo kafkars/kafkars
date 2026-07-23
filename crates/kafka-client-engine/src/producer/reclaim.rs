@@ -6,7 +6,7 @@ use kafka_client_core::{OperationId, ProducerCompletion, ProducerInput};
 
 use crate::completion::{CompletionId, CompletionRegistry, CompletionRegistryError, ReclaimStatus};
 
-use super::binding::{CompletionBindingError, CompletionBindings};
+use super::binding::{OperationBindingError, OperationBindings};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ReclaimPhase {
@@ -34,7 +34,7 @@ pub(crate) enum CompletionReclaimError {
     /// The completion registry rejected the requested lifecycle step.
     Registry(CompletionRegistryError),
     /// The binding owner rejected exact final removal.
-    Binding(CompletionBindingError),
+    Binding(OperationBindingError),
 }
 
 impl fmt::Display for CompletionReclaimError {
@@ -114,7 +114,7 @@ impl CompletionReclaimer {
     pub(crate) fn next_input(
         &mut self,
         registry: &mut CompletionRegistry<ProducerCompletion>,
-        bindings: &CompletionBindings,
+        bindings: &OperationBindings,
     ) -> Result<Option<ProducerInput>, CompletionReclaimError> {
         if self.phase != ReclaimPhase::Idle {
             return Err(CompletionReclaimError::InvalidPhase);
@@ -141,7 +141,7 @@ impl CompletionReclaimer {
     pub(crate) fn confirm_core_applied(
         &mut self,
         registry: &mut CompletionRegistry<ProducerCompletion>,
-        bindings: &mut CompletionBindings,
+        bindings: &mut OperationBindings,
     ) -> Result<CompletionReclaimOutcome, CompletionReclaimError> {
         let ReclaimPhase::AwaitingCore {
             completion_id,
@@ -161,7 +161,7 @@ impl CompletionReclaimer {
     pub(crate) fn retry_finish(
         &mut self,
         registry: &mut CompletionRegistry<ProducerCompletion>,
-        bindings: &mut CompletionBindings,
+        bindings: &mut OperationBindings,
     ) -> Result<CompletionReclaimOutcome, CompletionReclaimError> {
         if !matches!(self.phase, ReclaimPhase::Finishing { .. }) {
             return Err(CompletionReclaimError::InvalidPhase);
@@ -172,7 +172,7 @@ impl CompletionReclaimer {
     fn finish(
         &mut self,
         registry: &mut CompletionRegistry<ProducerCompletion>,
-        bindings: &mut CompletionBindings,
+        bindings: &mut OperationBindings,
     ) -> Result<CompletionReclaimOutcome, CompletionReclaimError> {
         let ReclaimPhase::Finishing {
             completion_id,
@@ -210,7 +210,7 @@ impl CompletionReclaimer {
 
     fn finish_binding(
         &mut self,
-        bindings: &mut CompletionBindings,
+        bindings: &mut OperationBindings,
         operation_id: OperationId,
         completion_id: CompletionId,
     ) -> Result<(), CompletionReclaimError> {

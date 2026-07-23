@@ -9,7 +9,7 @@ use super::{
     PendingAdmissionRegistry, PendingRecordTransferState, ProducerSendFailure,
     ProducerSendFailureKind,
 };
-use crate::producer::ProducerRecord;
+use crate::{clock::OperationDeadline, producer::ProducerRecord};
 
 #[test]
 fn detached_record_restores_to_the_same_attempt_before_local_settlement() {
@@ -23,8 +23,7 @@ fn detached_record_restores_to_the_same_attempt_before_local_settlement() {
                 None,
                 Some(Bytes::from_static(b"value")),
             ),
-            Deadline::from_tick(40),
-            Instant::now(),
+            OperationDeadline::from_parts_for_test(Deadline::from_tick(40), Instant::now()),
         )
         .unwrap_or_else(|error| panic!("pending registration should succeed: {error:?}"));
     let send = registration.into_send();

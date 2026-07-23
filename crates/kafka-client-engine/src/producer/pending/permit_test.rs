@@ -13,6 +13,7 @@ use super::{
     test_support::{GateWake, poll_completion},
 };
 use crate::{
+    clock::OperationDeadline,
     completion::{CompletionRegistry, NotificationBudget},
     producer::ProducerRecord,
 };
@@ -29,9 +30,10 @@ fn notification_permit_is_not_reused_before_dispatch() {
         ))
         .unwrap_or_else(|_failure| panic!("first attempt should settle"));
     let (_admission, job) = local.into_parts();
-    let Err(rejected) =
-        pending.register(record("blocked"), Deadline::from_tick(50), Instant::now())
-    else {
+    let Err(rejected) = pending.register(
+        record("blocked"),
+        OperationDeadline::from_parts_for_test(Deadline::from_tick(50), Instant::now()),
+    ) else {
         panic!("live notification job must retain its permit");
     };
     assert_eq!(
@@ -44,7 +46,10 @@ fn notification_permit_is_not_reused_before_dispatch() {
     job.dispatch_pending_notification_for_test();
     assert!(first_send.wait().is_err());
     let registration = pending
-        .register(returned, Deadline::from_tick(50), Instant::now())
+        .register(
+            returned,
+            OperationDeadline::from_parts_for_test(Deadline::from_tick(50), Instant::now()),
+        )
         .unwrap_or_else(|error| panic!("dispatch should release permit: {error:?}"));
     let id = registration.id();
     drop(registration.into_send());
@@ -89,9 +94,10 @@ fn blocked_notifier_cannot_exceed_pending_notification_bound() {
     let second_job = settle_next(&mut pending);
     notify(&completions, first_job);
     notify(&completions, second_job);
-    let Err(rejected) =
-        pending.register(record("bounded"), Deadline::from_tick(50), Instant::now())
-    else {
+    let Err(rejected) = pending.register(
+        record("bounded"),
+        OperationDeadline::from_parts_for_test(Deadline::from_tick(50), Instant::now()),
+    ) else {
         panic!("two blocked jobs must consume the complete pending bound");
     };
     assert_eq!(
@@ -111,7 +117,10 @@ fn blocked_notifier_cannot_exceed_pending_notification_bound() {
     }
     assert_eq!(pending.stats().notification_permits, 0);
     let third = pending
-        .register(returned, Deadline::from_tick(50), Instant::now())
+        .register(
+            returned,
+            OperationDeadline::from_parts_for_test(Deadline::from_tick(50), Instant::now()),
+        )
         .unwrap_or_else(|error| panic!("dispatched jobs should release permits: {error:?}"));
     let third_id = third.id();
     drop(third.into_send());
@@ -186,7 +195,10 @@ fn register(
     record: ProducerRecord,
 ) -> super::PendingSendRegistration {
     pending
-        .register(record, Deadline::from_tick(50), Instant::now())
+        .register(
+            record,
+            OperationDeadline::from_parts_for_test(Deadline::from_tick(50), Instant::now()),
+        )
         .unwrap_or_else(|error| panic!("pending registration should succeed: {error:?}"))
 }
 
