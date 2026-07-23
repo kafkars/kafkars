@@ -109,7 +109,12 @@ fn aliases_and_qualified_paths_cannot_bypass_engine_adapters() {
     let (root, _) = fixture_files("engine_dependency_boundary");
     let violations = boundary_violations(&root.join("src"));
 
-    for file in ["driver_alias.rs", "wire_qualified.rs", "records_alias.rs"] {
+    for file in [
+        "driver_alias.rs",
+        "driver_forbidden.rs",
+        "wire_qualified.rs",
+        "records_alias.rs",
+    ] {
         assert!(
             violations.iter().any(|value| value.contains(file)),
             "engine boundary detector accepted {file}: {violations:?}"
