@@ -29,5 +29,8 @@ pub use crate::producer_record::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, BatchTimerGeneration, ExplicitRecord,
     PartitionIndex, PayloadId, TopicId,
 };
+pub use crate::producer_retry::{
+    ProducerAttemptFailureKind, ProducerRetryPolicy, ProducerRetryPolicyError,
+};
 pub use crate::producer_transition_result::ProducerTransition;
 pub use crate::types::{ByteCount, Deadline, Moment, OperationId};
