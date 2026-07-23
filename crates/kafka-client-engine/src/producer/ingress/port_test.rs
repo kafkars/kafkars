@@ -3,7 +3,7 @@
 use std::{io, sync::Arc, thread};
 
 use bytes::Bytes;
-use kafka_client_core::{Deadline, Moment, PartitionIndex};
+use kafka_client_core::{AdmissionRejection, Deadline, Moment, PartitionIndex};
 
 use super::{
     ProducerPortAcceptedFault, ProducerPortAdmissionError, ProducerPortPoison,
@@ -70,6 +70,24 @@ fn contention_is_immediate_and_returns_the_exact_record() {
     assert!(Arc::ptr_eq(rejected.into_record().topic(), &expected));
     assert_eq!(wake.count(), 0);
     drop(guard);
+}
+
+#[test]
+fn closed_admission_is_observed_once_the_shard_lock_is_available() {
+    let (owner, port, wake) = setup();
+    owner
+        .close_admission()
+        .unwrap_or_else(|error| panic!("test should close producer admission: {error:?}"));
+
+    let rejected = rejected(port.try_admit_explicit(now(), deadline(), record("closed")));
+
+    assert_eq!(
+        rejected.reason(),
+        ProducerPortRejectionReason::Host(ProducerRejectionReason::Core(
+            AdmissionRejection::Closed
+        ))
+    );
+    assert_eq!(wake.count(), 0);
 }
 
 #[test]

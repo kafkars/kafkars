@@ -85,11 +85,7 @@ fn concurrent_shutdown_callers_observe_one_retained_report() {
     let waiter = thread::spawn(move || concurrent.shutdown());
     wait_until(|| engine.host_is_closing());
 
-    let rejection = producer
-        .try_send(record(), ProducerSendOptions::new(timeout))
-        .err()
-        .unwrap_or_else(|| panic!("shutdown must close admission before draining"));
-    assert_eq!(rejection.kind(), crate::ProducerTrySendErrorKind::Closed);
+    wait_for_closed_rejection(&producer, timeout);
     assert!(engine.shutdown().is_ok());
     assert!(waiter.join().is_ok_and(|result| result.is_ok()));
     assert!(engine.host_is_closed());
@@ -181,6 +177,28 @@ fn admit(producer: &ProducerHandle, timeout: Duration) -> crate::ProducerTrySend
         }
     }
     panic!("record admission should make progress within the bounded test loop")
+}
+
+fn wait_for_closed_rejection(producer: &ProducerHandle, timeout: Duration) {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let mut pending = record();
+    loop {
+        match producer.try_send(pending, ProducerSendOptions::new(timeout)) {
+            Err(error) if error.kind() == crate::ProducerTrySendErrorKind::Contended => {
+                assert!(
+                    Instant::now() < deadline,
+                    "shutdown contention must eventually reveal closed admission"
+                );
+                pending = error.into_record();
+                thread::yield_now();
+            }
+            Err(error) => {
+                assert_eq!(error.kind(), crate::ProducerTrySendErrorKind::Closed);
+                return;
+            }
+            Ok(_accepted) => panic!("closing admission must not accept another record"),
+        }
+    }
 }
 
 fn assert_deadline_not_sent(result: Result<crate::ProducerRecordMetadata, ProducerDeliveryError>) {
