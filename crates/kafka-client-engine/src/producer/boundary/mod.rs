@@ -1,6 +1,7 @@
 //! Public producer records, options, admission handles, and ownership-aware results.
 
 mod capture;
+mod close;
 mod error;
 mod flush_error;
 mod flush_result;
@@ -13,6 +14,7 @@ pub use capture::{
     ProducerSendCapture, ProducerSendCaptureError, ProducerSendCaptureErrorKind,
     ProducerSendOptions,
 };
+pub use close::{ProducerTryCloseAccepted, ProducerTryCloseError, ProducerTryCloseErrorKind};
 pub use error::{ProducerTrySendError, ProducerTrySendErrorKind};
 pub use flush_error::{ProducerTryFlushError, ProducerTryFlushErrorKind};
 pub use flush_result::ProducerTryFlushAccepted;
@@ -22,6 +24,8 @@ pub use result::{ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerTrySe
 
 #[cfg(test)]
 mod capture_test;
+#[cfg(test)]
+mod close_test;
 #[cfg(test)]
 mod error_test;
 #[cfg(test)]

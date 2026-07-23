@@ -267,6 +267,10 @@ production = "crates/kafka-client-engine/src/producer/boundary/error.rs"
 test = "crates/kafka-client-engine/src/producer/boundary/error_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/boundary/close.rs"
+test = "crates/kafka-client-engine/src/producer/boundary/close_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/boundary/flush_error.rs"
 test = "crates/kafka-client-engine/src/producer/boundary/flush_error_test.rs"
 
@@ -1182,11 +1186,6 @@ owner_type = "VirtualProducerState"
 field = "submissions"
 allowed_paths = ["crates/kafka-client-sim/src/state/batch.rs"]
 
-[[mutation_owners]]
-owner_type = "ProducerShardData"
-field = "admission"
-allowed_paths = ["crates/kafka-client-engine/src/producer/ingress/data.rs"]
-
 # Lifecycle and accounting owners must not be duplicated accidentally.
 [[linear_owners]]
 owner_type = "ProducerMachine"
@@ -1447,10 +1446,6 @@ path = "crates/kafka-client-engine/src/producer/ingress/outcome.rs"
 [[linear_owners]]
 owner_type = "PoisonedBeforeOwnership"
 path = "crates/kafka-client-engine/src/producer/admission.rs"
-
-[[linear_owners]]
-owner_type = "ProducerShardAdmission"
-path = "crates/kafka-client-engine/src/producer/ingress/data.rs"
 
 [[linear_owners]]
 owner_type = "NotificationQueue"

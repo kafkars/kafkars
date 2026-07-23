@@ -51,6 +51,22 @@ impl ProducerHost {
         &mut self,
         now: Moment,
     ) -> Result<AdmittedFlush, FlushAdmissionFailure> {
+        self.try_admit_barrier(now, ProducerInput::FlushRequested)
+    }
+
+    /// Reserves terminal capacity before core can close admission and accept its drain barrier.
+    pub(crate) fn try_admit_close(
+        &mut self,
+        now: Moment,
+    ) -> Result<AdmittedFlush, FlushAdmissionFailure> {
+        self.try_admit_barrier(now, ProducerInput::CloseRequested)
+    }
+
+    fn try_admit_barrier(
+        &mut self,
+        now: Moment,
+        request: ProducerInput,
+    ) -> Result<AdmittedFlush, FlushAdmissionFailure> {
         if let Some(error) = self.poison_reason() {
             return Err(FlushAdmissionFailure::Rejected(
                 FlushRejectionReason::HostPoisoned(error),
@@ -59,7 +75,7 @@ impl ProducerHost {
         let (completion_id, observer) = self.completions.reserve().map_err(|error| {
             FlushAdmissionFailure::Rejected(FlushRejectionReason::Completion(error))
         })?;
-        let transition = match self.core.apply(ProducerInput::FlushRequested) {
+        let transition = match self.core.apply(request) {
             Ok(transition) => transition,
             Err(ProducerMachineError::Flush(error)) => {
                 self.rollback_flush_reservation(completion_id, observer)?;

@@ -161,6 +161,12 @@ impl ProducerHost {
     pub(crate) fn pending_effects(&self) -> &[ProducerEffect] {
         &self.pending_effects
     }
+
+    /// Reports the deterministic core's producer admission decision.
+    pub(crate) const fn admission_is_open(&self) -> bool {
+        self.core.admission_is_open()
+    }
+
     pub(super) const fn poison_reason(&self) -> Option<ProducerHostInvariantError> {
         match self.health {
             ProducerHostHealth::Healthy => None,

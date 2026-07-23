@@ -28,6 +28,8 @@ pub(crate) use shard::{
 pub(crate) use terminal::ProducerShardTerminalError;
 
 #[cfg(test)]
+mod close_test;
+#[cfg(test)]
 mod data_terminal_test;
 #[cfg(test)]
 mod data_test;

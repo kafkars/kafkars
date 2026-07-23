@@ -99,4 +99,23 @@ impl ProducerAdmissionPort {
         drop(data);
         Ok(accepted.with_wake(self.shared.wake()))
     }
+
+    /// Attempts atomic producer close and drain-barrier admission.
+    pub(crate) fn try_admit_close(
+        &self,
+        attempted_at: Moment,
+    ) -> Result<ProducerPortFlushAccepted, ProducerPortFlushError> {
+        let mut data = match self.shared.try_data() {
+            Ok(data) => data,
+            Err(ProducerShardLockError::Contended) => {
+                return Err(ProducerPortFlushError::Contended);
+            }
+            Err(ProducerShardLockError::Poisoned) => {
+                return Err(ProducerPortFlushError::ShardPoisoned);
+            }
+        };
+        let accepted = classify_flush(data.try_admit_close(attempted_at))?;
+        drop(data);
+        Ok(accepted.with_wake(self.shared.wake()))
+    }
 }

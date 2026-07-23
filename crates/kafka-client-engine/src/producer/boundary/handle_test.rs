@@ -15,8 +15,8 @@ use super::super::{
 };
 use super::{
     ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerHandle, ProducerSendOptions,
-    ProducerTryFlushErrorKind, ProducerTrySendErrorKind, PublicProducerHeader as ProducerHeader,
-    PublicProducerRecord as ProducerRecord,
+    ProducerTryCloseErrorKind, ProducerTryFlushErrorKind, ProducerTrySendErrorKind,
+    PublicProducerHeader as ProducerHeader, PublicProducerRecord as ProducerRecord,
 };
 use crate::clock::MonotonicClock;
 
@@ -30,6 +30,34 @@ fn flush_uses_the_same_shard_wake_and_runtime_neutral_observer() {
     assert!(accepted.fault().is_none());
     assert_eq!(wake.count(), 1);
     assert_eq!(accepted.into_observer().wait(), Ok(()));
+}
+
+#[test]
+fn close_is_clone_shared_and_first_success_wins() {
+    let (_owner, handle, wake) = setup();
+    let clone = handle.clone();
+    let first = handle
+        .try_close()
+        .unwrap_or_else(|error| panic!("first close should be accepted: {error}"));
+
+    let send = clone
+        .try_send(record(), ProducerSendOptions::new(Duration::from_secs(1)))
+        .err()
+        .unwrap_or_else(|| panic!("clone must observe closed record admission"));
+    assert_eq!(send.kind(), ProducerTrySendErrorKind::Closed);
+    let flush = clone
+        .try_flush()
+        .err()
+        .unwrap_or_else(|| panic!("ordinary flush must remain fenced after close"));
+    assert_eq!(flush.kind(), ProducerTryFlushErrorKind::Closed);
+    let second = clone
+        .try_close()
+        .err()
+        .unwrap_or_else(|| panic!("repeated close must not consume another terminal slot"));
+
+    assert_eq!(second.kind(), ProducerTryCloseErrorKind::Closed);
+    assert_eq!(wake.count(), 1);
+    assert_eq!(first.into_observer().wait(), Ok(()));
 }
 
 #[test]

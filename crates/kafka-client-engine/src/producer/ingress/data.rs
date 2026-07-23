@@ -21,30 +21,18 @@ pub(crate) struct ProducerShardStats {
     pub(crate) accepting: bool,
 }
 
-pub(super) enum ProducerShardAdmission {
-    Running,
-    Closed,
-}
-
 /// Sole synchronized owner of immediate producer admission and host execution.
 pub(crate) struct ProducerShardData {
     pub(super) host: ProducerHost,
-    pub(super) admission: ProducerShardAdmission,
 }
 
 impl ProducerShardData {
     pub(super) const fn new(host: ProducerHost) -> Self {
-        Self {
-            host,
-            admission: ProducerShardAdmission::Running,
-        }
+        Self { host }
     }
 
     /// Closes immediate admission while the one shard mutex is held.
     pub(crate) fn close_admission(&mut self) {
-        if matches!(&self.admission, ProducerShardAdmission::Running) {
-            self.admission = ProducerShardAdmission::Closed;
-        }
         self.host.close_admission();
     }
 
@@ -65,12 +53,24 @@ impl ProducerShardData {
         &mut self,
         now: Moment,
     ) -> Result<AdmittedFlush, FlushAdmissionFailure> {
-        if matches!(self.admission, ProducerShardAdmission::Closed) {
+        if !self.host.admission_is_open() {
             return Err(FlushAdmissionFailure::Rejected(
                 FlushRejectionReason::Closed,
             ));
         }
         self.host.try_admit_flush(now)
+    }
+
+    pub(super) fn try_admit_close(
+        &mut self,
+        now: Moment,
+    ) -> Result<AdmittedFlush, FlushAdmissionFailure> {
+        if !self.host.admission_is_open() {
+            return Err(FlushAdmissionFailure::Rejected(
+                FlushRejectionReason::Closed,
+            ));
+        }
+        self.host.try_admit_close(now)
     }
 
     pub(crate) fn turn(
@@ -104,7 +104,7 @@ impl ProducerShardData {
     pub(crate) fn shard_stats(&self) -> ProducerShardStats {
         ProducerShardStats {
             host: self.host.stats(),
-            accepting: matches!(&self.admission, ProducerShardAdmission::Running),
+            accepting: self.host.admission_is_open(),
         }
     }
 

@@ -68,6 +68,42 @@ fn flush_publication_stays_behind_retained_record_terminal_under_notifier_backpr
 }
 
 #[test]
+fn close_publication_stays_behind_prior_record_under_notifier_backpressure() {
+    let mut host = start(valid_limits());
+    let record = admit(
+        &mut host,
+        Moment::from_tick(0),
+        Deadline::from_tick(5),
+        record("orders"),
+    );
+    let close = host
+        .try_admit_close(Moment::from_tick(1))
+        .unwrap_or_else(|error| panic!("close should be accepted: {error:?}"));
+    host.inject_terminal_publish_fault(CompletionRegistryError::NotificationBackpressure);
+
+    assert_eq!(host.fire_due(Moment::from_tick(5), 1), Ok(1));
+    assert_eq!(
+        host.terminal_front().map(RetainedTerminal::owner),
+        Some(ProducerTerminalOwner::Record(record.operation_id()))
+    );
+    assert_eq!(
+        host.terminal_back().map(RetainedTerminal::owner),
+        Some(ProducerTerminalOwner::Flush(close.flush_id()))
+    );
+
+    assert_eq!(host.retry_terminal_backlog(1), Ok(1));
+    assert_deadline_failure(record);
+    let mut close = close.into_flush_observer();
+    let waker = Waker::noop();
+    assert_eq!(
+        Pin::new(&mut close).poll(&mut Context::from_waker(waker)),
+        Poll::Pending
+    );
+    assert_eq!(host.retry_terminal_backlog(1), Ok(1));
+    assert_eq!(close.wait(), Ok(()));
+}
+
+#[test]
 fn notification_backpressure_retains_the_exact_terminal_fifo() {
     let (mut host, operation, admitted) = backlogged_deadline();
 

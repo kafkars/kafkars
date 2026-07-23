@@ -8,6 +8,7 @@ use super::{
         ProducerSendCapture, ProducerSendCaptureError, ProducerSendCaptureErrorKind,
         ProducerSendOptions,
     },
+    close::{ProducerTryCloseAccepted, ProducerTryCloseError},
     error::{ProducerTrySendError, ProducerTrySendErrorKind},
     flush_error::ProducerTryFlushError,
     flush_result::ProducerTryFlushAccepted,
@@ -100,6 +101,18 @@ impl ProducerHandle {
             .try_admit_flush(now)
             .map(ProducerTryFlushAccepted::from_port)
             .map_err(ProducerTryFlushError::from_port)
+    }
+
+    /// Atomically closes record admission and accepts one drain barrier.
+    pub fn try_close(&self) -> Result<ProducerTryCloseAccepted, ProducerTryCloseError> {
+        let now = self
+            .clock
+            .now()
+            .map_err(|_error| ProducerTryCloseError::moment_unrepresentable())?;
+        self.port
+            .try_admit_close(now)
+            .map(ProducerTryCloseAccepted::from_port)
+            .map_err(ProducerTryCloseError::from_port)
     }
 
     #[cfg(test)]

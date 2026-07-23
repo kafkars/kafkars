@@ -50,6 +50,7 @@ pub use flush_observer::{ProducerFlushObserver, ProducerFlushResult};
 pub use producer::{
     ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerHandle, ProducerSendCapture,
     ProducerSendCaptureError, ProducerSendCaptureErrorKind, ProducerSendOptions,
+    ProducerTryCloseAccepted, ProducerTryCloseError, ProducerTryCloseErrorKind,
     ProducerTryFlushAccepted, ProducerTryFlushError, ProducerTryFlushErrorKind,
     ProducerTrySendAccepted, ProducerTrySendError, ProducerTrySendErrorKind,
     PublicProducerHeader as ProducerHeader, PublicProducerRecord as ProducerRecord,

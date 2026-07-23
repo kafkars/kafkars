@@ -30,6 +30,23 @@ status = "planned"
 milestone = "generation-fenced-sealed-batch-cancellation"
 
 [[invariant]]
+id = "CLS-01"
+title = "Producer close is an atomic first-success fence"
+statement = "Engine producer close reserves shared terminal capacity before core acceptance. The first accepted close atomically fences clone-shared record, flush, and close admission while its drain barrier follows the existing flush terminal FIFO and reclamation path. Pre-acceptance rejection leaves admission open."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/producer/close_transition_test.rs::close_atomically_captures_drain_barrier_before_rejecting_new_records",
+  "crates/kafka-client-core/src/producer/close_transition_test.rs::close_capacity_failure_leaves_record_admission_open",
+  "crates/kafka-client-engine/src/producer/boundary/handle_test.rs::close_is_clone_shared_and_first_success_wins",
+  "crates/kafka-client-engine/src/producer/ingress/close_test.rs::wake_failure_keeps_the_clone_shared_close_fence",
+  "crates/kafka-client-engine/src/producer/ingress/data_test.rs::accepted_close_invariant_still_fences_shared_admission",
+  "crates/kafka-client-engine/src/producer/ingress/data_test.rs::producer_close_fences_records_flushes_and_repeated_close",
+  "crates/kafka-client-engine/src/producer/ingress/data_test.rs::close_capacity_failure_leaves_record_and_flush_admission_running",
+  "crates/kafka-client-engine/src/producer/terminal_publication_test.rs::close_publication_stays_behind_prior_record_under_notifier_backpressure",
+  "crates/kafka-client-engine/src/producer/flush/close_reclaim_test.rs::abandoned_close_reclaims_its_exact_flush_binding_and_shared_capacity",
+]
+
+[[invariant]]
 id = "CMP-01"
 title = "Completion capacity survives until core-confirmed reclamation"
 statement = "An unobserved terminal retains its bounded slot, and slot reuse follows one exact core reclamation handshake."

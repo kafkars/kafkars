@@ -11,4 +11,6 @@ mod admission_test;
 #[cfg(test)]
 mod binding_test;
 #[cfg(test)]
+mod close_reclaim_test;
+#[cfg(test)]
 mod execution_stop_test;

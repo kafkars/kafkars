@@ -62,6 +62,96 @@ fn close_atomically_stops_immediate_and_core_admission() {
     assert!(!data.shard_stats().accepting);
 }
 
+#[test]
+fn producer_close_fences_records_flushes_and_repeated_close() {
+    let mut data = ProducerShardData::new(start(valid_limits()));
+    let first = data
+        .try_admit_close(Moment::from_tick(1))
+        .unwrap_or_else(|error| panic!("first close should be accepted: {error:?}"));
+
+    assert!(!data.shard_stats().accepting);
+    assert!(matches!(
+        data.try_admit_explicit(Moment::from_tick(2), deadline(), record("late")),
+        Err(ProducerAdmissionFailure::Rejected(rejected))
+            if rejected.reason()
+                == ProducerRejectionReason::Core(AdmissionRejection::Closed)
+    ));
+    assert!(matches!(
+        data.try_admit_flush(Moment::from_tick(2)),
+        Err(super::super::flush::FlushAdmissionFailure::Rejected(
+            super::super::flush::FlushRejectionReason::Closed
+        ))
+    ));
+
+    assert!(matches!(
+        data.try_admit_close(Moment::from_tick(2)),
+        Err(super::super::flush::FlushAdmissionFailure::Rejected(
+            super::super::flush::FlushRejectionReason::Closed
+        ))
+    ));
+    assert_eq!(first.into_flush_observer().wait(), Ok(()));
+}
+
+#[test]
+fn close_capacity_failure_leaves_record_and_flush_admission_running() {
+    let mut data = ProducerShardData::new(start(valid_limits()));
+    let capacity = valid_limits().completion_capacity;
+    let reservations: Vec<_> = (0..capacity)
+        .map(|_| {
+            data.host
+                .completions
+                .reserve()
+                .unwrap_or_else(|error| panic!("test reservation should fit: {error}"))
+        })
+        .collect();
+
+    assert!(matches!(
+        data.try_admit_close(Moment::from_tick(1)),
+        Err(super::super::flush::FlushAdmissionFailure::Rejected(
+            super::super::flush::FlushRejectionReason::Completion(
+                crate::completion::CompletionRegistryError::Full
+            )
+        ))
+    ));
+    assert!(data.shard_stats().accepting);
+    assert!(data.host.core.admission_is_open());
+    for (completion_id, observer) in reservations {
+        assert_eq!(
+            data.host.completions.rollback_reservation(completion_id),
+            Ok(())
+        );
+        drop(observer);
+    }
+    let flush = data
+        .try_admit_flush(Moment::from_tick(2))
+        .unwrap_or_else(|error| panic!("failed close must leave flush open: {error:?}"));
+    assert!(
+        data.try_admit_explicit(Moment::from_tick(2), deadline(), record("still-open"))
+            .is_ok()
+    );
+    assert_eq!(flush.into_flush_observer().wait(), Ok(()));
+}
+
+#[test]
+fn accepted_close_invariant_still_fences_shared_admission() {
+    let mut data = ProducerShardData::new(start(valid_limits()));
+    data.host
+        .inject_terminal_publish_fault(crate::completion::CompletionRegistryError::NotifierStopped);
+
+    assert!(matches!(
+        data.try_admit_close(Moment::from_tick(1)),
+        Err(super::super::flush::FlushAdmissionFailure::AcceptedInvariant { .. })
+    ));
+    assert!(!data.shard_stats().accepting);
+    assert!(!data.host.core.admission_is_open());
+    assert!(matches!(
+        data.try_admit_flush(Moment::from_tick(2)),
+        Err(super::super::flush::FlushAdmissionFailure::Rejected(
+            super::super::flush::FlushRejectionReason::Closed
+        ))
+    ));
+}
+
 fn deadline() -> OperationDeadline {
     OperationDeadline::from_parts_for_test(Deadline::from_tick(90), Instant::now())
 }
