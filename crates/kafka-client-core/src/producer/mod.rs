@@ -18,11 +18,8 @@ mod lifecycle;
 mod machine;
 mod partitioner;
 mod settlement;
+mod sticky;
 mod topic_partition;
-#[expect(
-    dead_code,
-    reason = "metadata facts become executable partition policy in the next milestone"
-)]
 mod topic_partitions;
 
 pub(crate) use batch::{
@@ -32,7 +29,9 @@ pub(crate) use batch::{
 pub(crate) use flush::FlushLedger;
 pub use flush::{AdmissionSequence, FlushId, FlushLedgerError};
 pub use machine::ProducerMachine;
+pub use partitioner::select_java_keyed_topic_partition;
 pub use partitioner::{KeyedPartitionError, PartitionCount, select_java_keyed_partition};
+pub use sticky::{StickyPartitionError, StickyPartitioner};
 pub use topic_partition::{
     AvailablePartition, LeaderEpoch, LeaderEpochError, PartitionSelection, TopicMetadataGeneration,
 };
@@ -56,6 +55,8 @@ mod flush_transition_test;
 mod input_outcome_test;
 #[cfg(test)]
 mod partitioner_test;
+#[cfg(test)]
+mod sticky_test;
 #[cfg(test)]
 mod topic_partition_test;
 #[cfg(test)]

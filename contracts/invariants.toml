@@ -252,7 +252,7 @@ evidence = [
 [[invariant]]
 id = "PRT-01"
 title = "Keyed partitioning is Java-compatible"
-statement = "Present serialized keys use Kafka's Java Murmur2 arithmetic, sign-bit masking, and modulo over a validated total logical partition count; null keys remain outside keyed policy."
+statement = "Present serialized keys use Kafka's Java Murmur2 arithmetic, sign-bit masking, and modulo over a validated total logical partition count rather than the currently available subset; the generation-stamped result retains whether its selected logical partition has a known leader, and null keys remain outside keyed policy."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/producer/partitioner_test.rs::apache_java_golden_vectors_select_the_same_partitions",
@@ -260,6 +260,25 @@ evidence = [
   "crates/kafka-client-core/src/producer/partitioner_test.rs::empty_present_key_is_hashed_and_single_partition_is_zero",
   "crates/kafka-client-core/src/producer/partitioner_test.rs::partition_count_rejects_zero_and_values_outside_java_domain",
   "crates/kafka-client-core/src/producer/partitioner_test.rs::serialized_key_length_rejects_values_outside_java_array_domain",
+  "crates/kafka-client-core/src/producer/partitioner_test.rs::keyed_selection_uses_logical_count_instead_of_available_count",
+  "crates/kafka-client-core/src/producer/partitioner_test.rs::keyed_selection_retains_available_leader_facts",
+]
+
+[[invariant]]
+id = "PRT-02"
+title = "Unkeyed selection is sticky and availability-aware"
+statement = "Per-topic unkeyed selection captures one generation, logical count, and available length, lazily reads driver-owned entries without copying a topology cache, remains on one available partition until its batch seals, reselects when that partition becomes unavailable, and advances from target-independent caller dispersion."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/producer/topic_partitions_test.rs::facts_borrow_a_lazy_source_without_copying_a_topic_cache",
+  "crates/kafka-client-core/src/producer/topic_partitions_test.rs::missing_index_below_captured_source_length_is_rejected_at_use",
+  "crates/kafka-client-core/src/producer/topic_partitions_test.rs::source_partitions_must_fit_the_total_logical_count",
+  "crates/kafka-client-core/src/producer/topic_partition_test.rs::kafka_absent_leader_epoch_is_distinct_from_malformed_negative_values",
+  "crates/kafka-client-core/src/producer/sticky_test.rs::repeated_unkeyed_selection_sticks_while_partition_remains_available",
+  "crates/kafka-client-core/src/producer/sticky_test.rs::sealed_batches_advance_over_available_partitions_in_stable_order",
+  "crates/kafka-client-core/src/producer/sticky_test.rs::metadata_loss_reselects_without_waiting_for_the_old_batch_to_seal",
+  "crates/kafka-client-core/src/producer/sticky_test.rs::unavailable_topic_rejects_without_mutating_sticky_state",
+  "crates/kafka-client-core/src/producer/sticky_test.rs::available_selection_uses_the_exact_indexed_fact_without_a_second_lookup",
 ]
 
 [[invariant]]

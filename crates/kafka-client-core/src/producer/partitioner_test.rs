@@ -1,7 +1,11 @@
 //! Compatibility scenarios for deterministic keyed partition selection.
 
 use super::partitioner::java_key_length;
-use super::{KeyedPartitionError, PartitionCount, select_java_keyed_partition};
+use super::topic_partitions_test::TestTopicSource;
+use super::{
+    AvailablePartition, KeyedPartitionError, LeaderEpoch, PartitionCount, TopicMetadataGeneration,
+    select_java_keyed_partition, select_java_keyed_topic_partition,
+};
 use crate::PartitionIndex;
 
 #[test]
@@ -87,7 +91,43 @@ fn serialized_key_length_rejects_values_outside_java_array_domain() {
     );
 }
 
+#[test]
+fn keyed_selection_uses_logical_count_instead_of_available_count() {
+    let available = [
+        AvailablePartition::new(PartitionIndex::from_raw(1), None),
+        AvailablePartition::new(PartitionIndex::from_raw(7), None),
+    ];
+    let source = TestTopicSource::new(TopicMetadataGeneration::from_raw(21), count(12), &available);
+
+    let selected = select_java_keyed_topic_partition(b"kafka", source.facts())
+        .unwrap_or_else(|error| panic!("Java-compatible keyed selection: {error}"));
+    assert_eq!(selected.partition(), PartitionIndex::from_raw(4));
+    assert_eq!(selected.generation(), TopicMetadataGeneration::from_raw(21));
+    assert!(!selected.is_available());
+    assert_eq!(selected.leader_epoch(), None);
+}
+
+#[test]
+fn keyed_selection_retains_available_leader_facts() {
+    let available = [AvailablePartition::new(
+        PartitionIndex::from_raw(9),
+        epoch(14),
+    )];
+    let source = TestTopicSource::new(TopicMetadataGeneration::from_raw(22), count(12), &available);
+
+    let selected = select_java_keyed_topic_partition(b"", source.facts())
+        .unwrap_or_else(|error| panic!("empty present key remains keyed: {error}"));
+    assert_eq!(selected.partition(), PartitionIndex::from_raw(9));
+    assert!(selected.is_available());
+    assert_eq!(selected.leader_epoch().map(LeaderEpoch::get), Some(14));
+}
+
 fn count(value: u32) -> PartitionCount {
     PartitionCount::try_from_raw(value)
         .unwrap_or_else(|| panic!("test partition count must be Java-representable"))
+}
+
+fn epoch(value: i32) -> Option<LeaderEpoch> {
+    LeaderEpoch::try_from_raw(value)
+        .unwrap_or_else(|error| panic!("test leader epoch must be valid: {error}"))
 }

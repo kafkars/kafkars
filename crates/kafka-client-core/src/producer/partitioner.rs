@@ -4,6 +4,8 @@ use core::fmt;
 
 use crate::PartitionIndex;
 
+use super::{PartitionSelection, TopicPartitionFacts, TopicPartitionFactsError};
+
 const JAVA_SIGNED_INT_MAX: u32 = i32::MAX.unsigned_abs();
 const MURMUR2_SEED: u32 = 0x9747_b28c;
 const MURMUR2_MULTIPLIER: u32 = 0x5bd1_e995;
@@ -33,6 +35,8 @@ impl PartitionCount {
 pub enum KeyedPartitionError {
     /// The serialized key length exceeds Java's signed array-length domain.
     KeyLengthUnrepresentable,
+    /// The supplied lazy topic view violated its normalized fact contract.
+    IncoherentTopicFacts(TopicPartitionFactsError),
 }
 
 impl fmt::Display for KeyedPartitionError {
@@ -41,11 +45,21 @@ impl fmt::Display for KeyedPartitionError {
             Self::KeyLengthUnrepresentable => {
                 formatter.write_str("serialized key length exceeds Java's signed array domain")
             }
+            Self::IncoherentTopicFacts(source) => {
+                write!(formatter, "incoherent topic partition facts: {source}")
+            }
         }
     }
 }
 
-impl std::error::Error for KeyedPartitionError {}
+impl std::error::Error for KeyedPartitionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::KeyLengthUnrepresentable => None,
+            Self::IncoherentTopicFacts(source) => Some(source),
+        }
+    }
+}
 
 /// Selects a partition exactly as Kafka's Java default keyed path does.
 ///
@@ -59,6 +73,21 @@ pub fn select_java_keyed_partition(
     let key_length = java_key_length(serialized_key.len())?;
     let hash = murmur2(serialized_key, key_length) & i32::MAX.unsigned_abs();
     Ok(PartitionIndex::from_raw(hash % partition_count.get()))
+}
+
+/// Selects a generation-stamped topic partition through the Java-compatible keyed path.
+///
+/// Hashing uses the total logical count rather than the currently available
+/// subset. The returned selection records whether the borrowed metadata view
+/// currently knows a leader for the chosen logical partition.
+pub fn select_java_keyed_topic_partition(
+    serialized_key: &[u8],
+    facts: TopicPartitionFacts<'_>,
+) -> Result<PartitionSelection, KeyedPartitionError> {
+    let partition = select_java_keyed_partition(serialized_key, facts.logical_count())?;
+    facts
+        .select(partition)
+        .map_err(KeyedPartitionError::IncoherentTopicFacts)
 }
 
 pub(super) fn java_key_length(length: usize) -> Result<u32, KeyedPartitionError> {

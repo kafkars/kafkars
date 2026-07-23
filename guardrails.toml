@@ -111,6 +111,10 @@ production = "crates/kafka-client-core/src/admin/transition.rs"
 test = "crates/kafka-client-core/src/admin/transition_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/sticky.rs"
+test = "crates/kafka-client-core/src/producer/sticky_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/producer/topic_partition.rs"
 test = "crates/kafka-client-core/src/producer/topic_partition_test.rs"
 
@@ -884,6 +888,16 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "StickyPartitioner"
+field = "current"
+allowed_paths = ["crates/kafka-client-core/src/producer/sticky.rs"]
+
+[[mutation_owners]]
+owner_type = "StickyPartitioner"
+field = "cursor"
+allowed_paths = ["crates/kafka-client-core/src/producer/sticky.rs"]
+
+[[mutation_owners]]
 owner_type = "ProducerMachine"
 field = "admission_open"
 allowed_paths = [
@@ -1474,6 +1488,10 @@ allowed_paths = [
 [[linear_owners]]
 owner_type = "CreateTopicsMachine"
 path = "crates/kafka-client-core/src/admin/machine.rs"
+
+[[linear_owners]]
+owner_type = "StickyPartitioner"
+path = "crates/kafka-client-core/src/producer/sticky.rs"
 
 [[linear_owners]]
 owner_type = "ProducerMachine"
