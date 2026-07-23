@@ -67,4 +67,6 @@ mod producer_test;
 #[cfg(test)]
 mod producer_timer_test;
 #[cfg(test)]
+mod producer_transition_identity_test;
+#[cfg(test)]
 mod producer_transition_test;

@@ -198,6 +198,26 @@ impl ProducerTransition {
         })
     }
 
+    /// Returns the flush accepted by a flush-request transition, when present.
+    ///
+    /// The identity is derived from the acceptance effect without requiring an
+    /// interpreter to depend on that effect's position in the ordered sequence.
+    pub fn accepted_flush_id(&self) -> Option<FlushId> {
+        self.effects.iter().find_map(|effect| match effect {
+            ProducerEffect::AcceptFlush { flush_id, .. } => Some(*flush_id),
+            ProducerEffect::AccumulateExplicit { .. }
+            | ProducerEffect::ArmBatchTimer { .. }
+            | ProducerEffect::CancelBatchTimer { .. }
+            | ProducerEffect::MaterializeBatch { .. }
+            | ProducerEffect::SubmitProduce { .. }
+            | ProducerEffect::RemoveBatchMember { .. }
+            | ProducerEffect::ReleaseBatch { .. }
+            | ProducerEffect::ReleasePayload { .. }
+            | ProducerEffect::Complete { .. }
+            | ProducerEffect::CompleteFlush { .. } => None,
+        })
+    }
+
     /// Transfers the ordered effects to their single engine interpreter.
     pub fn into_effects(self) -> Vec<ProducerEffect> {
         self.effects
