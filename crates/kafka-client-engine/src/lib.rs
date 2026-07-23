@@ -31,6 +31,12 @@ mod flush_observer;
 mod producer;
 mod protocol;
 
+pub use admin::{
+    CreateTopic, CreateTopicConfig, CreateTopicError, CreateTopicResult,
+    CreateTopicsAdmissionError, CreateTopicsAdmissionErrorKind, CreateTopicsDeliveryStatus,
+    CreateTopicsFailure, CreateTopicsFailureKind, CreateTopicsObserver, CreateTopicsObserverError,
+    CreateTopicsOutcome, CreateTopicsRequest,
+};
 pub use config::{EngineConfig, EngineProducerLimits};
 pub use delivery::{
     ProducerDeliveryFailure, ProducerDeliveryFailureKind, ProducerDeliveryStatus,
