@@ -1,8 +1,9 @@
 //! Materialization, driver, broker, and deadline outcome handling.
 
 use crate::{
-    BatchId, DeliveryStatus, Moment, OperationId, ProducerBatchSuccess, ProducerFailure,
-    ProducerMachineError, ProducerOperationState, ProducerTransition, TransitionError,
+    BatchId, DeliveryStatus, Moment, OperationId, ProducerBatchSuccess, ProducerBrokerFailure,
+    ProducerFailure, ProducerMachineError, ProducerOperationState, ProducerTransition,
+    TransitionError,
 };
 
 use super::{BatchState, ProducerMachine};
@@ -74,14 +75,11 @@ impl ProducerMachine {
     pub(crate) fn broker_failed(
         &mut self,
         batch_id: BatchId,
-        broker_code: i16,
+        failure: ProducerBrokerFailure,
         delivery: DeliveryStatus,
     ) -> Result<ProducerTransition, ProducerMachineError> {
         self.require_batch_state(batch_id, BatchState::Submitted)?;
-        if broker_code == 0 {
-            return Err(ProducerMachineError::InvalidBrokerErrorCode);
-        }
-        self.settle_batch_failed(batch_id, ProducerFailure::broker(broker_code, delivery))
+        self.settle_batch_failed(batch_id, ProducerFailure::broker(failure, delivery))
     }
 
     pub(crate) fn transport_failed(

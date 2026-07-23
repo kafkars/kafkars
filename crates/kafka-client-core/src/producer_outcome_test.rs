@@ -1,9 +1,12 @@
 //! Stage-validation and queued-deadline race scenarios.
 
+use core::num::NonZeroI16;
+
 use crate::{
     BatchId, ByteCount, Deadline, DeliveryStatus, ExplicitRecord, Moment, OperationId,
-    PartitionIndex, PayloadId, ProducerBatchPolicy, ProducerBatchSuccess, ProducerEffect,
-    ProducerInput, ProducerMachine, ProducerMachineError, TopicId, TransitionError,
+    PartitionIndex, PayloadId, ProducerBatchPolicy, ProducerBatchSuccess, ProducerBrokerFailure,
+    ProducerBrokerFailureKind, ProducerEffect, ProducerInput, ProducerMachine,
+    ProducerMachineError, TopicId, TransitionError,
 };
 
 fn ready_batch() -> (ProducerMachine, OperationId, BatchId) {
@@ -88,7 +91,7 @@ fn broker_outcome_requires_driver_ownership() {
     assert_eq!(
         producer.apply(ProducerInput::BrokerFailed {
             batch_id,
-            broker_code: 6,
+            failure: routing_failure(),
             delivery: DeliveryStatus::PossiblySent,
         }),
         Err(ProducerMachineError::Transition(
@@ -102,11 +105,17 @@ fn broker_outcome_requires_driver_ownership() {
         producer
             .apply(ProducerInput::BrokerFailed {
                 batch_id,
-                broker_code: 6,
+                failure: routing_failure(),
                 delivery: DeliveryStatus::PossiblySent,
             })
             .is_ok()
     );
+}
+
+fn routing_failure() -> ProducerBrokerFailure {
+    let code =
+        NonZeroI16::new(6).unwrap_or_else(|| panic!("the test broker code must be non-zero"));
+    ProducerBrokerFailure::new(ProducerBrokerFailureKind::Routing, code)
 }
 
 #[test]

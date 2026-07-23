@@ -25,8 +25,6 @@ pub enum ProducerMachineError {
     TimerGenerationExhausted,
     /// A broker base offset could not fan out across every record.
     OffsetOverflow,
-    /// A success code was incorrectly reported as a broker failure.
-    InvalidBrokerErrorCode,
 }
 
 impl fmt::Display for ProducerMachineError {
@@ -45,9 +43,6 @@ impl fmt::Display for ProducerMachineError {
                 formatter.write_str("producer timer generation exhausted")
             }
             Self::OffsetOverflow => formatter.write_str("producer record offset overflow"),
-            Self::InvalidBrokerErrorCode => {
-                formatter.write_str("broker failure carried the success error code")
-            }
         }
     }
 }

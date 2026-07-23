@@ -1,9 +1,12 @@
 //! Scenarios proving virtual execution preserves core ownership decisions.
 
+use core::num::NonZeroI16;
+
 use kafka_client_core::{
     AdmissionRejection, BatchId, ByteCount, Deadline, DeliveryStatus, ExplicitRecord, OperationId,
-    PartitionIndex, PayloadId, ProducerBatchSuccess, ProducerCompletion, ProducerEffect,
-    ProducerFailureKind, ProducerInput, ProducerMachineError, TopicId,
+    PartitionIndex, PayloadId, ProducerBatchSuccess, ProducerBrokerFailure,
+    ProducerBrokerFailureKind, ProducerCompletion, ProducerEffect, ProducerFailureKind,
+    ProducerInput, ProducerMachineError, TopicId,
 };
 
 use crate::{ProducerScenario, SimulationError};
@@ -219,7 +222,7 @@ fn driver_and_broker_failure_stages_preserve_certainty() {
     uncertain
         .step(ProducerInput::BrokerFailed {
             batch_id: BATCH,
-            broker_code: 6,
+            failure: routing_failure(),
             delivery: DeliveryStatus::PossiblySent,
         })
         .unwrap_or_else(|error| panic!("broker failure failed: {error}"));
@@ -228,6 +231,12 @@ fn driver_and_broker_failure_stages_preserve_certainty() {
         Some(ProducerCompletion::Failed(failure))
             if failure.delivery() == DeliveryStatus::PossiblySent
     ));
+}
+
+fn routing_failure() -> ProducerBrokerFailure {
+    let code =
+        NonZeroI16::new(6).unwrap_or_else(|| panic!("the test broker code must be non-zero"));
+    ProducerBrokerFailure::new(ProducerBrokerFailureKind::Routing, code)
 }
 
 #[test]

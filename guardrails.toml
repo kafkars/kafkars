@@ -57,6 +57,10 @@ production = "crates/kafka-client-core/src/producer_failure.rs"
 test = "crates/kafka-client-core/src/producer_failure_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/producer_broker_failure.rs"
+test = "crates/kafka-client-core/src/producer_broker_failure_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/producer_transition.rs"
 test = "crates/kafka-client-core/src/producer_transition_test.rs"
 
@@ -191,6 +195,10 @@ test = "crates/kafka-client-engine/src/producer/topic_catalog_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/produce.rs"
 test = "crates/kafka-client-engine/src/protocol/produce_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/produce_failure.rs"
+test = "crates/kafka-client-engine/src/protocol/produce_failure_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-guardrails/src/invariant_registry/evidence.rs"

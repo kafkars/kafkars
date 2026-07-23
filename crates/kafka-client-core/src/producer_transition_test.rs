@@ -1,11 +1,13 @@
 //! Scenarios for batch readiness, timer fencing, and terminal fan-out.
 
+use core::num::NonZeroI16;
+
 use crate::{
     AcknowledgementPolicy, BatchId, BatchTimerGeneration, ByteCount, CompressionPolicy, Deadline,
     DeliveryStatus, ExplicitRecord, Moment, OperationId, PartitionIndex, PayloadId,
-    ProducerBatchPolicy, ProducerBatchSuccess, ProducerCompletion, ProducerEffect,
-    ProducerFailureKind, ProducerInput, ProducerMachine, ProducerTransition, RecordMetadata,
-    TopicId,
+    ProducerBatchPolicy, ProducerBatchSuccess, ProducerBrokerFailure, ProducerBrokerFailureKind,
+    ProducerCompletion, ProducerEffect, ProducerFailureKind, ProducerInput, ProducerMachine,
+    ProducerTransition, RecordMetadata, TopicId,
 };
 
 const TOPIC: TopicId = TopicId::from_raw(9);
@@ -203,7 +205,7 @@ fn conservative_accumulator_size_threshold_is_core_owned() {
 }
 
 #[test]
-fn broker_failure_preserves_classification_code_and_certainty() {
+fn broker_failure_preserves_semantic_code_and_certainty() {
     let mut producer = ProducerMachine::new(ByteCount::new(64), 1);
     let (operation_id, batch_id, _) = admit(&mut producer, 1, 100);
     accumulated(&mut producer, operation_id, batch_id, 20);
@@ -219,7 +221,7 @@ fn broker_failure_preserves_classification_code_and_certainty() {
     let terminal = producer
         .apply(ProducerInput::BrokerFailed {
             batch_id,
-            broker_code: 6,
+            failure: routing_failure(),
             delivery: DeliveryStatus::PossiblySent,
         })
         .unwrap_or_else(|error| panic!("broker failure failed: {error}"));
@@ -233,6 +235,12 @@ fn broker_failure_preserves_classification_code_and_certainty() {
             && actual.broker_code() == Some(6)
             && actual.delivery() == DeliveryStatus::PossiblySent
     ));
+}
+
+fn routing_failure() -> ProducerBrokerFailure {
+    let code =
+        NonZeroI16::new(6).unwrap_or_else(|| panic!("the test broker code must be non-zero"));
+    ProducerBrokerFailure::new(ProducerBrokerFailureKind::Routing, code)
 }
 
 #[test]

@@ -2,7 +2,7 @@
 
 use crate::{
     BatchId, BatchTimerGeneration, ByteCount, Deadline, DeliveryStatus, ExplicitRecord, Moment,
-    OperationId, ProducerBatchSuccess,
+    OperationId, ProducerBatchSuccess, ProducerBrokerFailure,
 };
 
 /// One external fact applied at a time to producer policy.
@@ -66,12 +66,12 @@ pub enum ProducerInput {
         /// Offset and optional broker metadata for per-record fan-out.
         success: ProducerBatchSuccess,
     },
-    /// Reports a raw broker failure fact after driver ownership.
+    /// Reports a protocol-normalized broker failure fact after driver ownership.
     BrokerFailed {
         /// Correlated core batch identity.
         batch_id: BatchId,
-        /// Exact Kafka error code extracted structurally from the response.
-        broker_code: i16,
+        /// Semantic broker category with its exact signed diagnostic code.
+        failure: ProducerBrokerFailure,
         /// Driver-owned certainty for this request attempt.
         delivery: DeliveryStatus,
     },

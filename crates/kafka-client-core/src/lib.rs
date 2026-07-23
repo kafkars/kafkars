@@ -8,6 +8,7 @@ mod completion;
 mod operation;
 mod operation_outcome;
 mod producer;
+mod producer_broker_failure;
 mod producer_effect;
 mod producer_error;
 mod producer_failure;
@@ -26,6 +27,7 @@ pub use operation_outcome::{
     TransitionError,
 };
 pub use producer::ProducerMachine;
+pub use producer_broker_failure::{ProducerBrokerFailure, ProducerBrokerFailureKind};
 pub use producer_effect::{
     AcknowledgementPolicy, CompressionPolicy, ProducerEffect, ProducerTransition,
 };
@@ -44,6 +46,8 @@ mod capacity_test;
 mod completion_test;
 #[cfg(test)]
 mod operation_test;
+#[cfg(test)]
+mod producer_broker_failure_test;
 #[cfg(test)]
 mod producer_failure_test;
 #[cfg(test)]

@@ -1,44 +1,63 @@
-//! Evidence for core-owned Produce error classification and unknown preservation.
+//! Evidence for core-owned Produce failure policy and unknown preservation.
 
-use crate::{DeliveryStatus, ProducerFailure, ProducerFailureKind};
+use core::num::NonZeroI16;
+
+use crate::{
+    DeliveryStatus, ProducerBrokerFailure, ProducerBrokerFailureKind, ProducerFailure,
+    ProducerFailureKind,
+};
 
 #[test]
-fn produce_error_codes_are_classified_in_core() {
-    assert_eq!(
-        ProducerFailure::broker(6, DeliveryStatus::PossiblySent).kind(),
-        ProducerFailureKind::Routing
-    );
-    assert_eq!(
-        ProducerFailure::broker(19, DeliveryStatus::PossiblySent).kind(),
-        ProducerFailureKind::BrokerRetriable
-    );
-    assert_eq!(
-        ProducerFailure::broker(29, DeliveryStatus::PossiblySent).kind(),
-        ProducerFailureKind::AccessRejected
-    );
-    assert_eq!(
-        ProducerFailure::broker(10, DeliveryStatus::PossiblySent).kind(),
-        ProducerFailureKind::InvalidRecord
-    );
-    assert_eq!(
-        ProducerFailure::broker(47, DeliveryStatus::PossiblySent).kind(),
-        ProducerFailureKind::ProducerIdentity
-    );
-    assert_eq!(
-        ProducerFailure::broker(2, DeliveryStatus::PossiblySent).kind(),
-        ProducerFailureKind::BrokerRetriable
-    );
-    assert_eq!(
-        ProducerFailure::broker(35, DeliveryStatus::PossiblySent).kind(),
-        ProducerFailureKind::Compatibility
-    );
+fn semantic_broker_facts_map_to_core_owned_terminal_policy() {
+    for (broker, terminal) in [
+        (
+            ProducerBrokerFailureKind::Routing,
+            ProducerFailureKind::Routing,
+        ),
+        (
+            ProducerBrokerFailureKind::Retriable,
+            ProducerFailureKind::BrokerRetriable,
+        ),
+        (
+            ProducerBrokerFailureKind::AccessRejected,
+            ProducerFailureKind::AccessRejected,
+        ),
+        (
+            ProducerBrokerFailureKind::InvalidRecord,
+            ProducerFailureKind::InvalidRecord,
+        ),
+        (
+            ProducerBrokerFailureKind::Compatibility,
+            ProducerFailureKind::Compatibility,
+        ),
+        (
+            ProducerBrokerFailureKind::ProducerIdentity,
+            ProducerFailureKind::ProducerIdentity,
+        ),
+        (
+            ProducerBrokerFailureKind::ProducerFenced,
+            ProducerFailureKind::ProducerFenced,
+        ),
+        (
+            ProducerBrokerFailureKind::Unknown,
+            ProducerFailureKind::UnknownBroker,
+        ),
+    ] {
+        assert_eq!(
+            ProducerFailure::broker(fact(broker, -123), DeliveryStatus::PossiblySent).kind(),
+            terminal
+        );
+    }
 }
 
 #[test]
 fn unknown_broker_code_is_preserved_exactly() {
-    let failure = ProducerFailure::broker(32_000, DeliveryStatus::PossiblySent);
+    let failure = ProducerFailure::broker(
+        fact(ProducerBrokerFailureKind::Unknown, -123),
+        DeliveryStatus::PossiblySent,
+    );
     assert_eq!(failure.kind(), ProducerFailureKind::UnknownBroker);
-    assert_eq!(failure.broker_code(), Some(32_000));
+    assert_eq!(failure.broker_code(), Some(-123));
 }
 
 #[test]
@@ -49,4 +68,10 @@ fn execution_loss_preserves_the_reported_conservative_certainty() {
         assert_eq!(failure.delivery(), status);
         assert_eq!(failure.broker_code(), None);
     }
+}
+
+fn fact(kind: ProducerBrokerFailureKind, code: i16) -> ProducerBrokerFailure {
+    let code =
+        NonZeroI16::new(code).unwrap_or_else(|| panic!("the test broker code must be non-zero"));
+    ProducerBrokerFailure::new(kind, code)
 }

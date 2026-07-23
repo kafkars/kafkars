@@ -69,12 +69,14 @@ evidence = [
 [[invariant]]
 id = "DLV-01"
 title = "Delivery certainty cannot improve"
-statement = "PossiblySent is invalid before driver ownership, driver acceptance invents no certainty, and broker failure preserves the reported certainty."
+statement = "PossiblySent is invalid before driver ownership, driver acceptance invents no certainty, the engine protocol boundary normalizes broker codes, and core policy preserves the exact signed code and reported certainty."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/operation_test.rs::possibly_sent_is_invalid_before_driver_ownership",
   "crates/kafka-client-core/src/operation_test.rs::driver_acceptance_does_not_invent_delivery_certainty",
-  "crates/kafka-client-core/src/producer_transition_test.rs::broker_failure_preserves_classification_code_and_certainty",
+  "crates/kafka-client-engine/src/protocol/produce_failure_test.rs::every_owned_produce_error_code_maps_to_its_semantic_category",
+  "crates/kafka-client-engine/src/protocol/produce_failure_test.rs::unknown_signed_code_remains_lossless",
+  "crates/kafka-client-core/src/producer_transition_test.rs::broker_failure_preserves_semantic_code_and_certainty",
   "crates/kafka-client-engine/src/delivery_test.rs::failure_certainty_preserves_not_sent_and_possibly_sent",
 ]
 

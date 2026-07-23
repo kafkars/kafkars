@@ -38,9 +38,9 @@ impl ProducerMachine {
             }
             ProducerInput::BrokerFailed {
                 batch_id,
-                broker_code,
+                failure,
                 delivery,
-            } => self.broker_failed(batch_id, broker_code, delivery),
+            } => self.broker_failed(batch_id, failure, delivery),
             ProducerInput::TransportFailed { batch_id, delivery } => {
                 self.transport_failed(batch_id, delivery)
             }

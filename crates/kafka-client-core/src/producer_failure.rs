@@ -1,6 +1,6 @@
-//! Core-owned Produce failure classification and diagnostic preservation.
+//! Core-owned Produce failure policy and diagnostic preservation.
 
-use crate::DeliveryStatus;
+use crate::{DeliveryStatus, ProducerBrokerFailure, ProducerBrokerFailureKind};
 
 /// Normalized failure reason interpreted by producer policy without wire types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,7 +29,7 @@ pub enum ProducerFailureKind {
     ExecutionUnavailable,
     /// The public absolute deadline elapsed before driver ownership.
     DeadlineElapsed,
-    /// A future broker error has not yet been classified by this core version.
+    /// A broker error was not recognized by the engine protocol normalizer.
     UnknownBroker,
 }
 
@@ -50,11 +50,11 @@ impl ProducerFailure {
         }
     }
 
-    pub(crate) const fn broker(broker_code: i16, delivery: DeliveryStatus) -> Self {
+    pub(crate) const fn broker(failure: ProducerBrokerFailure, delivery: DeliveryStatus) -> Self {
         Self {
-            kind: classify_broker_error(broker_code),
+            kind: broker_failure_kind(failure.kind()),
             delivery,
-            broker_code: Some(broker_code),
+            broker_code: Some(failure.code()),
         }
     }
 
@@ -104,15 +104,15 @@ impl ProducerFailure {
     }
 }
 
-const fn classify_broker_error(code: i16) -> ProducerFailureKind {
-    match code {
-        3 | 5 | 6 | 74 | 75 | 100 | 103 => ProducerFailureKind::Routing,
-        2 | 7 | 13 | 19 | 20 | 56 | 89 => ProducerFailureKind::BrokerRetriable,
-        29 | 58 => ProducerFailureKind::AccessRejected,
-        10 | 17 | 18 | 21 | 32 | 42 | 44 | 87 => ProducerFailureKind::InvalidRecord,
-        35 | 43 | 76 => ProducerFailureKind::Compatibility,
-        45 | 46 | 47 | 59 => ProducerFailureKind::ProducerIdentity,
-        90 => ProducerFailureKind::ProducerFenced,
-        _ => ProducerFailureKind::UnknownBroker,
+const fn broker_failure_kind(kind: ProducerBrokerFailureKind) -> ProducerFailureKind {
+    match kind {
+        ProducerBrokerFailureKind::Routing => ProducerFailureKind::Routing,
+        ProducerBrokerFailureKind::Retriable => ProducerFailureKind::BrokerRetriable,
+        ProducerBrokerFailureKind::AccessRejected => ProducerFailureKind::AccessRejected,
+        ProducerBrokerFailureKind::InvalidRecord => ProducerFailureKind::InvalidRecord,
+        ProducerBrokerFailureKind::Compatibility => ProducerFailureKind::Compatibility,
+        ProducerBrokerFailureKind::ProducerIdentity => ProducerFailureKind::ProducerIdentity,
+        ProducerBrokerFailureKind::ProducerFenced => ProducerFailureKind::ProducerFenced,
+        ProducerBrokerFailureKind::Unknown => ProducerFailureKind::UnknownBroker,
     }
 }
