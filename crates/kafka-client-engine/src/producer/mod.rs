@@ -50,7 +50,7 @@ mod execution_test;
 #[cfg(test)]
 mod execution_turn_test;
 #[cfg(test)]
-mod host_limits_test;
+pub(crate) mod host_limits_test;
 #[cfg(test)]
 mod host_turn_test;
 #[cfg(test)]

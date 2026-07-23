@@ -28,8 +28,10 @@ fn failed_runner_settles_accepted_work_and_closes_retained_handles() {
             .with_delivery_timeout(Duration::from_secs(1)),
     )
     .unwrap_or_else(|error| panic!("engine should start: {error}"));
+    engine.pause_after_produce_admission();
     let producer = engine.producer();
     let accepted = admit(&producer, record(), Duration::from_secs(1));
+    wait_until(|| engine.host_snapshot().produce_admission_paused);
 
     engine.force_host_failure();
     assert!(engine.shutdown().is_err());
@@ -41,7 +43,10 @@ fn failed_runner_settles_accepted_work_and_closes_retained_handles() {
         failure.kind(),
         ProducerDeliveryFailureKind::ExecutionUnavailable
     );
-    assert_eq!(failure.delivery_status(), ProducerDeliveryStatus::NotSent);
+    assert_eq!(
+        failure.delivery_status(),
+        ProducerDeliveryStatus::PossiblySent
+    );
 
     let error = producer
         .try_send(record(), ProducerSendOptions::new(Duration::from_secs(1)))
@@ -56,12 +61,13 @@ fn failed_runner_settles_accepted_work_and_closes_retained_handles() {
 }
 
 #[test]
-fn damaged_interpretation_drains_resources_before_retained_failure_report() {
+fn damaged_interpretation_releases_driver_and_bytes_before_retained_failure_report() {
     let timeout = Duration::from_secs(30);
     let engine = Engine::start(
         EngineConfig::new(vec!["192.0.2.1:9092".to_owned()]).with_delivery_timeout(timeout),
     )
     .unwrap_or_else(|error| panic!("engine should start: {error}"));
+    engine.pause_after_produce_admission();
     let producer = engine.producer();
     let payload_dropped = Arc::new(AtomicBool::new(false));
     let accepted = admit(
@@ -73,6 +79,7 @@ fn damaged_interpretation_drains_resources_before_retained_failure_report() {
     let waker_called = Arc::new(AtomicBool::new(false));
     let released_before_wake = Arc::new(AtomicBool::new(false));
     let waker = Waker::from(Arc::new(ReleaseWitness {
+        engine: engine.clone(),
         payload_dropped,
         waker_called: Arc::clone(&waker_called),
         released_before_wake: Arc::clone(&released_before_wake),
@@ -81,19 +88,14 @@ fn damaged_interpretation_drains_resources_before_retained_failure_report() {
         Pin::new(&mut observer).poll(&mut Context::from_waker(&waker)),
         Poll::Pending
     );
-    wait_until(|| {
-        let stats = producer.shard_stats();
-        stats.host.prepared_batches == 1
-            && stats.host.submission_deadlines == 1
-            && stats.host.pending_effects == 0
-    });
+    wait_until(|| engine.host_snapshot().produce_admission_paused);
     let retained = producer.shard_stats();
     assert_eq!(retained.host.store.records, 1);
     assert!(retained.host.store.bytes > 0);
     assert_eq!(retained.host.store.batches, 1);
     assert_eq!(retained.host.store.topics, 1);
-    assert!(retained.host.prepared_bytes > 0);
-    assert_eq!(retained.host.submission_deadlines, 1);
+    assert_eq!(retained.host.prepared_bytes, 0);
+    assert_eq!(retained.host.submission_deadlines, 0);
     assert_eq!(retained.host.completion_bindings, 1);
     producer.inject_terminal_interpretation_fault();
     engine.force_host_failure();
@@ -193,6 +195,7 @@ impl Drop for DropOwner {
 }
 
 struct ReleaseWitness {
+    engine: Engine,
     payload_dropped: Arc<AtomicBool>,
     waker_called: Arc<AtomicBool>,
     released_before_wake: Arc<AtomicBool>,
@@ -201,7 +204,8 @@ struct ReleaseWitness {
 impl Wake for ReleaseWitness {
     fn wake(self: Arc<Self>) {
         self.released_before_wake.store(
-            self.payload_dropped.load(Ordering::Acquire),
+            self.payload_dropped.load(Ordering::Acquire)
+                && self.engine.host_snapshot().recovery_driver_released,
             Ordering::Release,
         );
         self.waker_called.store(true, Ordering::Release);

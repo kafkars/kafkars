@@ -5,6 +5,12 @@ mod error;
 mod lifecycle;
 #[cfg(test)]
 mod lifecycle_test;
+mod produce;
+#[cfg(test)]
+mod produce_test;
+mod produce_turn;
+#[cfg(test)]
+mod produce_turn_test;
 mod recovery;
 #[cfg(test)]
 mod recovery_test;

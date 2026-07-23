@@ -14,8 +14,9 @@ pub(crate) use cancellation::{
     ProducerCancellationPort, ProducerPortCancelAccepted, ProducerPortCancelError,
     ProducerPortCancelFault,
 };
+pub(crate) use data::ProducerShardData;
 #[cfg(test)]
-pub(crate) use data::{ProducerShardData, ProducerShardStats};
+pub(crate) use data::ProducerShardStats;
 pub(crate) use flush_outcome::{ProducerPortFlushAccepted, ProducerPortFlushError};
 #[cfg_attr(
     not(test),

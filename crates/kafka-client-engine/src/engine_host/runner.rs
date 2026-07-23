@@ -7,14 +7,14 @@ use kafka_client_core::{Deadline, Moment};
 use crate::{
     clock::MonotonicClock,
     completion::NotifierJoin,
-    driver::{DriverOwner, DriverTurn},
+    driver::{DriverOwner, DriverTurn, TrackedProduceCalls},
     producer::{
         host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
-        ingress::{ProducerShardLockError, ProducerShardOwner},
+        ingress::ProducerShardOwner,
     },
 };
 
-use super::{EngineHostControl, EngineHostError};
+use super::{EngineHostControl, EngineHostError, produce_turn};
 
 // Admission and shutdown report wake failure without revoking ownership. Until
 // that path can synchronously terminalize, this cap preserves deadline and
@@ -24,11 +24,12 @@ const BLOCKED_RETRY_DELAY: Duration = HOST_PARK_LIMIT;
 const SHUTDOWN_TURN_ATTEMPTS: usize = 64;
 
 pub(crate) struct EngineHostResources {
-    pub(super) driver: DriverOwner,
+    pub(super) driver: Option<DriverOwner>,
     pub(super) producer: ProducerShardOwner,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) control: Arc<EngineHostControl>,
     pub(super) budget: ProducerTurnBudget,
+    pub(super) produce_calls: TrackedProduceCalls,
 }
 
 impl Drop for EngineHostResources {
@@ -76,21 +77,36 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
             return Err(EngineHostError::ForcedTestFailure);
         }
         let now = resources.clock.now().map_err(EngineHostError::Clock)?;
-        let producer = drive_producer(resources, now)?;
+        let producer = produce_turn::drive(resources, now)?;
+        #[cfg(test)]
+        if producer.driver_progress && resources.control.await_failure_after_produce_admission() {
+            return Err(EngineHostError::ForcedTestFailure);
+        }
         if resources.control.shutdown_requested() && producer.unsettled == 0 {
             break;
         }
-        let wait = producer_wait(now, producer.outcome, driver_more_work);
+        let wait = producer_wait(
+            now,
+            producer.outcome,
+            driver_more_work || producer.driver_progress,
+        );
         resources.control.record_driver_turn();
-        driver_more_work = match resources
+        let driver = resources
             .driver
-            .turn(wait)
-            .map_err(EngineHostError::Driver)?
-        {
+            .as_mut()
+            .ok_or(EngineHostError::DriverOwnerMissing)?;
+        let driver_turn_more = match driver.turn(wait).map_err(EngineHostError::Driver)? {
             DriverTurn::Idle => false,
             DriverTurn::Progress { more_work } => more_work,
             DriverTurn::Shutdown => return Err(EngineHostError::DriverStopped),
         };
+        let completion_now = resources.clock.now().map_err(EngineHostError::Clock)?;
+        let completion_progress = produce_turn::apply_completions(
+            &resources.producer,
+            &mut resources.produce_calls,
+            completion_now,
+        )?;
+        driver_more_work = driver_turn_more || completion_progress;
     }
 
     shutdown_driver(resources)?;
@@ -111,48 +127,17 @@ fn begin_notification_shutdown(
 }
 
 pub(super) fn shutdown_driver(resources: &mut EngineHostResources) -> Result<(), EngineHostError> {
-    let turns = resources
+    let driver = resources
         .driver
+        .as_mut()
+        .ok_or(EngineHostError::DriverOwnerMissing)?;
+    let turns = driver
         .shutdown_with_turn_limit(SHUTDOWN_TURN_ATTEMPTS, HOST_PARK_LIMIT)
         .map_err(EngineHostError::Driver)?;
     for _turn in 0..turns {
         resources.control.record_driver_turn();
     }
     Ok(())
-}
-
-struct ProducerProgress {
-    outcome: Option<ProducerTurnOutcome>,
-    unsettled: usize,
-}
-
-fn drive_producer(
-    resources: &EngineHostResources,
-    now: Moment,
-) -> Result<ProducerProgress, EngineHostError> {
-    let mut data = match resources.producer.try_data() {
-        Ok(data) => data,
-        Err(ProducerShardLockError::Contended) => {
-            return Ok(ProducerProgress {
-                outcome: None,
-                unsettled: usize::MAX,
-            });
-        }
-        Err(ProducerShardLockError::Poisoned) => {
-            return Err(EngineHostError::ProducerLockPoisoned);
-        }
-    };
-    if resources.control.shutdown_requested() {
-        resources.producer.close_locked_admission(&mut data);
-    }
-    resources.control.record_producer_turn();
-    let outcome = data
-        .turn(now, resources.budget)
-        .map_err(EngineHostError::Producer)?;
-    Ok(ProducerProgress {
-        outcome: Some(outcome),
-        unsettled: data.unsettled_completions(),
-    })
 }
 
 pub(super) fn producer_wait(
@@ -188,6 +173,10 @@ fn duration_until(now: Moment, deadline: Deadline) -> Duration {
 pub(super) fn prepare_notification_stop(
     resources: &EngineHostResources,
 ) -> Result<(), EngineHostError> {
+    let tracked_calls = resources.produce_calls.retained_count();
+    if tracked_calls != 0 {
+        return Err(EngineHostError::TrackedProduceCallsRemain(tracked_calls));
+    }
     let mut data = resources.producer.terminal_data();
     let release = data.verify_release_before_completion();
     let failure = release.err().map(EngineHostError::ProducerCleanup);

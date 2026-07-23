@@ -231,6 +231,14 @@ production = "crates/kafka-client-engine/src/engine_host/runner.rs"
 test = "crates/kafka-client-engine/src/engine_host/runner_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/produce_turn.rs"
+test = "crates/kafka-client-engine/src/engine_host/produce_turn_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/produce.rs"
+test = "crates/kafka-client-engine/src/engine_host/produce_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/start.rs"
 test = "crates/kafka-client-engine/src/engine_host/start_test.rs"
 
@@ -726,7 +734,9 @@ allowed_paths = [
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "take_produce_submission"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
@@ -738,7 +748,58 @@ allowed_paths = [
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "apply_produce_driver_input"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_produce"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/calls.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "try_reserve"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "poll_next_ready"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "discard_settled"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "discard_after_driver_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/recovery.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "retained_count"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/runner.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "topic_owner"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/calls.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
@@ -1253,6 +1314,11 @@ allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/calls.rs"]
 owner_type = "TrackedProduceCalls"
 field = "settled"
 allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/calls.rs"]
+
+[[mutation_owners]]
+owner_type = "EngineHostResources"
+field = "driver"
+allowed_paths = ["crates/kafka-client-engine/src/engine_host/recovery.rs"]
 
 [[mutation_owners]]
 owner_type = "ProducerHost"

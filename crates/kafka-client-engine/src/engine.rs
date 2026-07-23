@@ -76,6 +76,11 @@ impl Engine {
     }
 
     #[cfg(test)]
+    pub(crate) fn pause_after_produce_admission(&self) {
+        self.inner.control.request_pause_after_produce_admission();
+    }
+
+    #[cfg(test)]
     pub(crate) fn host_is_closed(&self) -> bool {
         self.inner.lifecycle.is_closed()
     }

@@ -24,14 +24,10 @@ mod flush_observer;
     not(test),
     expect(
         dead_code,
-        reason = "driver handoff does not yet expose every producer mechanism"
+        reason = "the first Produce slice does not yet expose every producer mechanism"
     )
 )]
 mod producer;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "real driver Produce admission remains blocked")
-)]
 mod protocol;
 
 pub use config::{EngineConfig, EngineProducerLimits};
@@ -66,6 +62,8 @@ mod delivery_error_test;
 mod delivery_observer_test;
 #[cfg(test)]
 mod delivery_test;
+#[cfg(test)]
+mod engine_driver_test;
 #[cfg(test)]
 mod engine_test;
 #[cfg(test)]

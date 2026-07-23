@@ -62,12 +62,15 @@ pub(crate) fn start(
     }
     let producer = ProducerShardOwner::new(producer, Arc::new(wake));
     let admission = producer.admission_port();
+    let produce_calls =
+        crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
     let resources = EngineHostResources {
-        driver,
+        driver: Some(driver),
         producer,
         clock: Arc::clone(&clock),
         control: Arc::clone(&control),
         budget: validated.turn_budget,
+        produce_calls,
     };
     if let Err(error) = sender.send(resources) {
         control.request_shutdown();

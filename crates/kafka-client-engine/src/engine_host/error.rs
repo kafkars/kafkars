@@ -6,9 +6,9 @@ use crate::{
     clock::ClockError,
     completion::NotifierJoinError,
     config::EngineConfigError,
-    driver::DriverOwnerError,
+    driver::{DriverOwnerError, ProduceCompletionFailure},
     producer::{
-        ProducerHostInvariantError, ProducerHostStartError,
+        ProducerHostInvariantError, ProducerHostStartError, execution::PreparedProduceHandoffError,
         execution_stop::ProducerExecutionStopError, ingress::ProducerShardTerminalError,
     },
 };
@@ -134,11 +134,15 @@ pub enum EngineShutdownErrorKind {
 pub(crate) enum EngineHostError {
     Clock(ClockError),
     Producer(ProducerHostInvariantError),
+    ProducerHandoff(PreparedProduceHandoffError),
+    ProduceCompletion(ProduceCompletionFailure),
     ProducerStop(ProducerExecutionStopError),
     ProducerCleanup(ProducerShardTerminalError),
     ProducerLockPoisoned,
     Driver(DriverOwnerError),
+    DriverOwnerMissing,
     DriverStopped,
+    TrackedProduceCallsRemain(usize),
     HostPanicked,
     Notifier(NotifierJoinError),
     Recovery {
@@ -154,6 +158,10 @@ impl fmt::Display for EngineHostError {
         match self {
             Self::Clock(error) => write!(formatter, "engine clock failed: {error}"),
             Self::Producer(error) => write!(formatter, "producer host failed: {error}"),
+            Self::ProducerHandoff(error) => {
+                write!(formatter, "prepared Produce handoff failed: {error}")
+            }
+            Self::ProduceCompletion(error) => write!(formatter, "{error}"),
             Self::ProducerStop(error) => write!(formatter, "producer recovery failed: {error}"),
             Self::ProducerCleanup(error) => {
                 write!(formatter, "producer terminal cleanup failed: {error}")
@@ -162,7 +170,14 @@ impl fmt::Display for EngineHostError {
                 formatter.write_str("producer host ownership lock is poisoned")
             }
             Self::Driver(error) => write!(formatter, "embedded driver failed: {error}"),
+            Self::DriverOwnerMissing => formatter.write_str("embedded driver owner is unavailable"),
             Self::DriverStopped => formatter.write_str("embedded driver stopped unexpectedly"),
+            Self::TrackedProduceCallsRemain(count) => {
+                write!(
+                    formatter,
+                    "{count} tracked Produce calls remain at terminal cleanup"
+                )
+            }
             Self::HostPanicked => formatter.write_str("engine host thread panicked"),
             Self::Notifier(error) => write!(formatter, "completion notifier failed: {error}"),
             Self::Recovery { primary, cleanup } => {

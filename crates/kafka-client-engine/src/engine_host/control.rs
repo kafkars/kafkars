@@ -9,6 +9,12 @@ pub(crate) struct EngineHostControl {
     shutdown: AtomicBool,
     #[cfg(test)]
     failure: AtomicBool,
+    #[cfg(test)]
+    recovery_driver_released: AtomicBool,
+    #[cfg(test)]
+    pause_after_produce_admission: AtomicBool,
+    #[cfg(test)]
+    produce_admission_paused: AtomicBool,
     producer_turns: AtomicU64,
     driver_turns: AtomicU64,
     wake: ReactorWake,
@@ -20,6 +26,12 @@ impl EngineHostControl {
             shutdown: AtomicBool::new(false),
             #[cfg(test)]
             failure: AtomicBool::new(false),
+            #[cfg(test)]
+            recovery_driver_released: AtomicBool::new(false),
+            #[cfg(test)]
+            pause_after_produce_admission: AtomicBool::new(false),
+            #[cfg(test)]
+            produce_admission_paused: AtomicBool::new(false),
             producer_turns: AtomicU64::new(0),
             driver_turns: AtomicU64::new(0),
             wake,
@@ -50,8 +62,32 @@ impl EngineHostControl {
     }
 
     #[cfg(test)]
+    pub(crate) fn request_pause_after_produce_admission(&self) {
+        self.pause_after_produce_admission
+            .store(true, Ordering::Release);
+        let _wake_result = self.wake.request();
+    }
+
+    #[cfg(test)]
+    pub(super) fn await_failure_after_produce_admission(&self) -> bool {
+        if !self.pause_after_produce_admission.load(Ordering::Acquire) {
+            return false;
+        }
+        self.produce_admission_paused.store(true, Ordering::Release);
+        while !self.failure.load(Ordering::Acquire) {
+            std::thread::yield_now();
+        }
+        true
+    }
+
+    #[cfg(test)]
     pub(super) fn failure_requested(&self) -> bool {
         self.failure.load(Ordering::Acquire)
+    }
+
+    #[cfg(test)]
+    pub(super) fn record_recovery_driver_released(&self) {
+        self.recovery_driver_released.store(true, Ordering::Release);
     }
 
     #[cfg(test)]
@@ -59,6 +95,8 @@ impl EngineHostControl {
         EngineHostSnapshot {
             producer_turns: self.producer_turns.load(Ordering::Relaxed),
             driver_turns: self.driver_turns.load(Ordering::Relaxed),
+            recovery_driver_released: self.recovery_driver_released.load(Ordering::Acquire),
+            produce_admission_paused: self.produce_admission_paused.load(Ordering::Acquire),
         }
     }
 }
@@ -68,4 +106,6 @@ impl EngineHostControl {
 pub(crate) struct EngineHostSnapshot {
     pub(crate) producer_turns: u64,
     pub(crate) driver_turns: u64,
+    pub(crate) recovery_driver_released: bool,
+    pub(crate) produce_admission_paused: bool,
 }

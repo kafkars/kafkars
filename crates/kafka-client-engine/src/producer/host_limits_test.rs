@@ -146,7 +146,7 @@ fn combined_transition_capacity_overflow_is_rejected_before_allocation() {
     assert_limit(limits, ProducerHostLimitError::TransitionCapacityOverflow);
 }
 
-pub(super) fn valid_limits() -> ProducerHostLimits {
+pub(crate) fn valid_limits() -> ProducerHostLimits {
     let Ok(batch_policy) = ProducerBatchPolicy::try_new(2, ByteCount::new(64), 100) else {
         panic!("test policy should be valid")
     };
@@ -162,7 +162,7 @@ pub(super) fn valid_limits() -> ProducerHostLimits {
     }
 }
 
-pub(super) fn start(limits: ProducerHostLimits) -> ProducerHost {
+pub(crate) fn start(limits: ProducerHostLimits) -> ProducerHost {
     match ProducerHost::new(limits) {
         Ok(host) => host,
         Err(error) => panic!("producer host should start: {error}"),

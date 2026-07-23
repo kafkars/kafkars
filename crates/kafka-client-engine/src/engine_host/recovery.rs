@@ -7,11 +7,29 @@ use super::{
     runner::{NotifierShutdownOwner, shutdown_driver},
 };
 
+impl EngineHostResources {
+    fn discard_driver_after_shutdown(&mut self) {
+        drop(self.driver.take());
+    }
+}
+
 pub(crate) fn recover(
     resources: &mut EngineHostResources,
     primary: EngineHostError,
 ) -> EngineHostExit {
     let mut failure = primary;
+    // Fence application admission before any execution owner is quiesced.
+    drop(resources.producer.terminal_data());
+    if let Some(cleanup) = shutdown_driver(resources).err() {
+        failure = failure.with_cleanup(cleanup);
+    }
+    // Even a failed bounded shutdown cannot retain driver-owned bytes past
+    // fallback publication: dropping the unique owner tears down the reactor.
+    resources.discard_driver_after_shutdown();
+    resources.produce_calls.discard_after_driver_shutdown();
+    #[cfg(test)]
+    resources.control.record_recovery_driver_released();
+
     let mut producer = resources.producer.terminal_data();
     if let Some(cleanup) = producer
         .execution_unavailable(Moment::from_tick(0))
@@ -41,9 +59,6 @@ pub(crate) fn recover(
         failure = failure.with_cleanup(EngineHostError::ProducerCleanup(error.into()));
     }
     drop(producer);
-    if let Some(cleanup) = shutdown_driver(resources).err() {
-        failure = failure.with_cleanup(cleanup);
-    }
     EngineHostExit {
         notifier,
         failure: Some(failure),
