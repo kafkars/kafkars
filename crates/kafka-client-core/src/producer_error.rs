@@ -2,7 +2,9 @@
 
 use core::fmt;
 
-use crate::{AdmissionRejection, CapacityError, CompletionLedgerError, TransitionError};
+use crate::{
+    AdmissionRejection, CapacityError, CompletionLedgerError, FlushLedgerError, TransitionError,
+};
 
 /// Rejected producer-machine transition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -17,6 +19,8 @@ pub enum ProducerMachineError {
     Transition(TransitionError),
     /// Terminal-completion ownership rejected the transition.
     Completion(CompletionLedgerError),
+    /// Bounded flush-completion ownership rejected the transition.
+    Flush(FlushLedgerError),
     /// Retained-byte accounting rejected the transition.
     Capacity(CapacityError),
     /// Conservative accumulator-size arithmetic could not be represented.
@@ -35,6 +39,7 @@ impl fmt::Display for ProducerMachineError {
             Self::UnknownBatch => formatter.write_str("producer batch is unknown"),
             Self::Transition(error) => error.fmt(formatter),
             Self::Completion(error) => error.fmt(formatter),
+            Self::Flush(error) => error.fmt(formatter),
             Self::Capacity(error) => error.fmt(formatter),
             Self::AccumulatorSizeOverflow => {
                 formatter.write_str("producer accumulator size overflow")

@@ -19,8 +19,10 @@ impl ProducerMachine {
     pub(crate) fn execution_unavailable(
         &mut self,
     ) -> Result<ProducerTransition, ProducerMachineError> {
-        let plan = self.plan_execution_unavailable()?;
+        let mut plan = self.plan_execution_unavailable()?;
         self.settle_operations_with(&plan.settlements)?;
+        let flush_effects = self.settle_ready_flushes();
+        plan.effects.extend(flush_effects);
         self.admission_open = false;
         self.open_batches.clear();
         self.batches.clear();

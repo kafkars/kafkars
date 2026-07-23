@@ -27,7 +27,7 @@ id = "CAN-01"
 title = "Cancellation is stage-aware"
 statement = "Cancellation reports whether transport ownership makes a NotSent outcome impossible and never treats observer abandonment as cancellation."
 status = "planned"
-milestone = "producer-cancellation-and-flush"
+milestone = "generation-fenced-sealed-batch-cancellation"
 
 [[invariant]]
 id = "CMP-01"
@@ -102,9 +102,13 @@ evidence = [
 [[invariant]]
 id = "FL-01"
 title = "Flush is an admission-sequence barrier"
-statement = "Flush contains exactly accepted operations at or before its captured admission sequence and does not admit new work into that membership."
-status = "planned"
-milestone = "producer-cancellation-and-flush"
+statement = "Flush captures the next admission sequence, contains exactly operations with earlier sequences, ignores later admissions, and becomes terminal after every included operation reaches terminal publication without waiting for observer reclamation."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/producer/flush_transition_test.rs::flush_includes_exactly_operations_accepted_before_its_barrier",
+  "crates/kafka-client-core/src/producer/flush_transition_test.rs::overlapping_flushes_settle_in_barrier_order",
+  "crates/kafka-client-core/src/producer/flush_transition_test.rs::terminal_publication_settles_flush_before_observer_reclamation",
+]
 
 [[invariant]]
 id = "IDM-01"

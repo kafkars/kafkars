@@ -107,6 +107,9 @@ impl ProducerHost {
                 self.retain_pending(pending)?;
                 Ok(None)
             }
+            ProducerEffect::AcceptFlush { .. } | ProducerEffect::CompleteFlush { .. } => {
+                Err(ProducerHostInvariantError::FlushControlUnavailable)
+            }
         }
     }
 

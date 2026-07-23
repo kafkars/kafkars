@@ -8,7 +8,7 @@ use crate::{
     ProducerOperation,
 };
 
-use super::{BatchRoute, ProducerBatch};
+use super::{BatchRoute, FlushLedger, ProducerBatch};
 
 /// Single-owner deterministic producer admission and completion machine.
 #[derive(Debug)]
@@ -19,6 +19,7 @@ pub struct ProducerMachine {
     pub(crate) batch_policy: ProducerBatchPolicy,
     pub(crate) byte_budget: ByteBudget,
     pub(crate) completions: CompletionLedger,
+    pub(crate) flushes: FlushLedger,
     pub(crate) operations: BTreeMap<OperationId, ProducerOperation>,
     pub(crate) records: BTreeMap<OperationId, ExplicitRecord>,
     pub(crate) open_batches: BTreeMap<BatchRoute, BatchId>,
@@ -28,10 +29,11 @@ pub struct ProducerMachine {
 impl ProducerMachine {
     /// Creates an open producer whose first slice submits one accumulated record.
     pub const fn new(retained_bytes: ByteCount, completion_capacity: usize) -> Self {
-        Self::with_batch_policy(
+        Self::with_batch_policy_and_flush_capacity(
             retained_bytes,
             completion_capacity,
             ProducerBatchPolicy::single_record(),
+            completion_capacity,
         )
     }
 
@@ -41,6 +43,21 @@ impl ProducerMachine {
         completion_capacity: usize,
         batch_policy: ProducerBatchPolicy,
     ) -> Self {
+        Self::with_batch_policy_and_flush_capacity(
+            retained_bytes,
+            completion_capacity,
+            batch_policy,
+            completion_capacity,
+        )
+    }
+
+    /// Creates an open producer with independent bounded flush capacity.
+    pub const fn with_batch_policy_and_flush_capacity(
+        retained_bytes: ByteCount,
+        completion_capacity: usize,
+        batch_policy: ProducerBatchPolicy,
+        flush_capacity: usize,
+    ) -> Self {
         Self {
             admission_open: true,
             next_operation_id: Some(OperationId::from_raw(1)),
@@ -48,6 +65,7 @@ impl ProducerMachine {
             batch_policy,
             byte_budget: ByteBudget::new(retained_bytes),
             completions: CompletionLedger::new(completion_capacity),
+            flushes: FlushLedger::new(flush_capacity),
             operations: BTreeMap::new(),
             records: BTreeMap::new(),
             open_batches: BTreeMap::new(),
@@ -63,6 +81,11 @@ impl ProducerMachine {
     /// Returns completion slots reserved by active or completed operations.
     pub fn completion_slots(&self) -> usize {
         self.completions.len()
+    }
+
+    /// Returns retained flush slots, including terminal results not reclaimed.
+    pub fn flush_slots(&self) -> usize {
+        self.flushes.len()
     }
 
     /// Returns whether new producer work may be admitted.

@@ -1,8 +1,8 @@
 //! Ordered producer effects interpreted by the engine without hidden policy.
 
 use crate::{
-    BatchId, BatchTimerGeneration, ByteCount, Deadline, ExplicitRecord, OperationId,
-    PartitionIndex, PayloadId, ProducerCompletion, TopicId,
+    AdmissionSequence, BatchId, BatchTimerGeneration, ByteCount, Deadline, ExplicitRecord, FlushId,
+    OperationId, PartitionIndex, PayloadId, ProducerCompletion, TopicId,
 };
 
 /// Fixed acknowledgment policy for the first producer vertical slice.
@@ -97,6 +97,22 @@ pub enum ProducerEffect {
         /// Terminal result retained for its observer.
         completion: ProducerCompletion,
     },
+    /// Commit a pre-reserved engine completion destination to a flush barrier.
+    ///
+    /// The engine must reserve bounded completion capacity before presenting
+    /// the flush input. Interpreting this effect only binds that infallible
+    /// reservation to the accepted identity.
+    AcceptFlush {
+        /// Stable flush identity.
+        flush_id: FlushId,
+        /// Next record-admission sequence captured at the flush call boundary.
+        barrier: AdmissionSequence,
+    },
+    /// Publish terminal flush success after included record terminal effects.
+    CompleteFlush {
+        /// Stable flush identity.
+        flush_id: FlushId,
+    },
 }
 
 /// Dynamically sized ordered effects for batch fan-out.
@@ -135,7 +151,9 @@ impl ProducerTransition {
             | ProducerEffect::RemoveBatchMember { .. }
             | ProducerEffect::ReleaseBatch { .. }
             | ProducerEffect::ReleasePayload { .. }
-            | ProducerEffect::Complete { .. } => None,
+            | ProducerEffect::Complete { .. }
+            | ProducerEffect::AcceptFlush { .. }
+            | ProducerEffect::CompleteFlush { .. } => None,
         })
     }
 

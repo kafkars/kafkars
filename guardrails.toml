@@ -69,6 +69,14 @@ production = "crates/kafka-client-core/src/producer/execution_stop.rs"
 test = "crates/kafka-client-core/src/producer/execution_stop_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/flush.rs"
+test = "crates/kafka-client-core/src/producer/flush_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/flush_transition.rs"
+test = "crates/kafka-client-core/src/producer/flush_transition_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/clock/monotonic.rs"
 test = "crates/kafka-client-engine/src/clock/monotonic_test.rs"
 
@@ -550,6 +558,21 @@ field = "slots"
 allowed_paths = ["crates/kafka-client-core/src/completion.rs"]
 
 [[mutation_owners]]
+owner_type = "FlushLedger"
+field = "next_id"
+allowed_paths = ["crates/kafka-client-core/src/producer/flush.rs"]
+
+[[mutation_owners]]
+owner_type = "FlushLedger"
+field = "slots"
+allowed_paths = ["crates/kafka-client-core/src/producer/flush.rs"]
+
+[[mutation_owners]]
+owner_type = "FlushSlot"
+field = "state"
+allowed_paths = ["crates/kafka-client-core/src/producer/flush.rs"]
+
+[[mutation_owners]]
 owner_type = "ProducerOperation"
 field = "state"
 allowed_paths = ["crates/kafka-client-core/src/operation/transition.rs"]
@@ -892,6 +915,14 @@ path = "crates/kafka-client-core/src/producer/machine.rs"
 [[linear_owners]]
 owner_type = "CompletionLedger"
 path = "crates/kafka-client-core/src/completion.rs"
+
+[[linear_owners]]
+owner_type = "FlushLedger"
+path = "crates/kafka-client-core/src/producer/flush.rs"
+
+[[linear_owners]]
+owner_type = "FlushSlot"
+path = "crates/kafka-client-core/src/producer/flush.rs"
 
 [[linear_owners]]
 owner_type = "ByteBudget"

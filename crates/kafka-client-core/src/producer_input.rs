@@ -87,6 +87,13 @@ pub enum ProducerInput {
     /// This fact closes admission and settles every accepted operation because
     /// no remaining mechanism can make progress.
     ExecutionUnavailable,
+    /// Captures a barrier at the next record-admission sequence.
+    FlushRequested,
+    /// Reports that the engine released one retained flush result.
+    FlushCompletionReclaimed {
+        /// Flush whose result and wakeup state were reclaimed.
+        flush_id: crate::FlushId,
+    },
     /// Reports a monotonic observation for pre-driver operation expiry.
     DeadlineElapsed {
         /// Operation checked for expiration.

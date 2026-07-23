@@ -113,6 +113,7 @@ pub(crate) enum ProducerHostInvariantError {
     CommittedFactsMismatch,
     GeneratedFactCapacity,
     PendingEffectCapacity,
+    FlushControlUnavailable,
     #[cfg(test)]
     ForcedTerminalInterpretation,
     #[cfg(test)]
@@ -155,6 +156,8 @@ impl fmt::Display for ProducerHostInvariantError {
             Self::PendingEffectCapacity => {
                 formatter.write_str("producer pending-effect storage exceeded its fixed capacity")
             }
+            Self::FlushControlUnavailable => formatter
+                .write_str("producer flush effects reached an engine without flush support"),
             #[cfg(test)]
             Self::ForcedTerminalInterpretation => {
                 formatter.write_str("forced terminal producer interpretation failure")

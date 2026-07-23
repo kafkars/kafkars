@@ -26,7 +26,7 @@ pub use operation_outcome::{
     DeliveryStatus, ProducerBatchSuccess, ProducerCompletion, RecordMetadata, TerminalRelease,
     TransitionError,
 };
-pub use producer::ProducerMachine;
+pub use producer::{AdmissionSequence, FlushId, FlushLedgerError, ProducerMachine};
 pub use producer_broker_failure::{ProducerBrokerFailure, ProducerBrokerFailureKind};
 pub use producer_effect::{
     AcknowledgementPolicy, CompressionPolicy, ProducerEffect, ProducerTransition,

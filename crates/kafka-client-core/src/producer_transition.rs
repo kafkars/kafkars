@@ -45,6 +45,11 @@ impl ProducerMachine {
                 self.transport_failed(batch_id, delivery)
             }
             ProducerInput::ExecutionUnavailable => self.execution_unavailable(),
+            ProducerInput::FlushRequested => self.flush_requested(),
+            ProducerInput::FlushCompletionReclaimed { flush_id } => {
+                self.reclaim_flush(flush_id)?;
+                Ok(ProducerTransition::none())
+            }
             ProducerInput::DeadlineElapsed { operation_id, now } => {
                 self.deadline_elapsed(operation_id, now)
             }

@@ -26,6 +26,7 @@ impl ProducerMachine {
         let failure = ProducerFailure::deadline_elapsed();
         let mut effects = self.terminal_effects(ids, |_| ProducerCompletion::Failed(failure))?;
         self.settle_operations(ids, Settlement::Expired)?;
+        let flush_effects = self.settle_ready_flushes();
         if empties_batch {
             self.remove_open_batch_if_current(route, batch_id);
             self.batches.remove(&batch_id);
@@ -64,6 +65,7 @@ impl ProducerMachine {
                 );
             }
         }
+        effects.extend(flush_effects);
         Ok(ProducerTransition::from_effects(effects))
     }
 
@@ -78,11 +80,13 @@ impl ProducerMachine {
             .ok_or(ProducerMachineError::UnknownBatch)?;
         let ids = batch.member_ids();
         let route = batch.route;
-        let effects =
+        let mut effects =
             self.batch_terminal_effects(batch_id, &ids, |_| ProducerCompletion::Failed(failure))?;
         self.settle_operations(&ids, Settlement::Failed(failure.delivery()))?;
+        let flush_effects = self.settle_ready_flushes();
         self.remove_open_batch_if_current(route, batch_id);
         self.batches.remove(&batch_id);
+        effects.extend(flush_effects);
         Ok(ProducerTransition::from_effects(effects))
     }
 
@@ -119,7 +123,9 @@ impl ProducerMachine {
         let mut effects = self.terminal_effects_with(&ids, &completions)?;
         effects.insert(0, ProducerEffect::ReleaseBatch { batch_id });
         self.settle_operations(&ids, Settlement::Delivered)?;
+        let flush_effects = self.settle_ready_flushes();
         self.batches.remove(&batch_id);
+        effects.extend(flush_effects);
         Ok(ProducerTransition::from_effects(effects))
     }
 

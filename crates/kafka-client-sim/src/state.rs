@@ -103,6 +103,7 @@ impl VirtualProducerState {
                 operation_id,
                 completion,
             } => self.complete(operation_id, completion)?,
+            ProducerEffect::AcceptFlush { .. } | ProducerEffect::CompleteFlush { .. } => {}
         }
         self.trace.push(effect);
         Ok(())
