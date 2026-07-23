@@ -2,6 +2,7 @@
 
 #![forbid(unsafe_code)]
 
+mod admin;
 #[cfg_attr(
     not(test),
     expect(

@@ -7,7 +7,7 @@ use kafka_wire::{CreateTopicsResponse, create_topics_response::CreatableTopicRes
 
 use super::create_topics::{
     CreateTopicsProtocolFailure, CreateTopicsRequestError, create_topics_request,
-    normalize_create_topics_response,
+    normalize_create_topics_response_bounded, remaining_timeout_ms,
 };
 
 fn plan() -> CreateTopicsPlan {
@@ -67,12 +67,30 @@ fn generated_request_preserves_order_nullable_configs_and_broker_timeout() {
 }
 
 #[test]
+fn remaining_timeout_uses_the_original_absolute_deadline() {
+    assert_eq!(
+        remaining_timeout_ms(
+            kafka_client_core::Moment::from_tick(1_000_001),
+            kafka_client_core::Deadline::from_tick(2_000_000),
+        ),
+        Ok(1)
+    );
+    assert_eq!(
+        remaining_timeout_ms(
+            kafka_client_core::Moment::from_tick(2_000_000),
+            kafka_client_core::Deadline::from_tick(2_000_000),
+        ),
+        Err(CreateTopicsRequestError::DeadlineElapsed)
+    );
+}
+
+#[test]
 fn response_is_reordered_to_request_order_and_unknown_code_is_lossless() {
     let response = response(vec![
         result("audit", -32_000, Some("future broker code")),
         result("orders", 0, None),
     ]);
-    let outcomes = normalize_create_topics_response(&plan(), &response)
+    let outcomes = normalize_create_topics_response_bounded(&plan(), &response, usize::MAX)
         .unwrap_or_else(|error| panic!("correlatable response: {error:?}"));
 
     assert_eq!(outcomes[0].topic(), "orders");
@@ -89,7 +107,7 @@ fn response_is_reordered_to_request_order_and_unknown_code_is_lossless() {
 fn structural_mismatches_never_bind_results_to_the_wrong_topic() {
     let count = response(vec![result("orders", 0, None)]);
     assert_eq!(
-        normalize_create_topics_response(&plan(), &count),
+        normalize_create_topics_response_bounded(&plan(), &count, usize::MAX),
         Err(CreateTopicsProtocolFailure::TopicCount {
             expected: 2,
             actual: 1,
@@ -98,7 +116,7 @@ fn structural_mismatches_never_bind_results_to_the_wrong_topic() {
 
     let unexpected = response(vec![result("orders", 0, None), result("payments", 0, None)]);
     assert_eq!(
-        normalize_create_topics_response(&plan(), &unexpected),
+        normalize_create_topics_response_bounded(&plan(), &unexpected, usize::MAX),
         Err(CreateTopicsProtocolFailure::UnexpectedTopic {
             topic: "payments".to_owned(),
         })
@@ -106,7 +124,7 @@ fn structural_mismatches_never_bind_results_to_the_wrong_topic() {
 
     let duplicate = response(vec![result("orders", 0, None), result("orders", 0, None)]);
     assert_eq!(
-        normalize_create_topics_response(&plan(), &duplicate),
+        normalize_create_topics_response_bounded(&plan(), &duplicate, usize::MAX),
         Err(CreateTopicsProtocolFailure::DuplicateTopic {
             topic: "orders".to_owned(),
         })

@@ -1,8 +1,6 @@
 //! Generated `CreateTopics` construction and ordered response normalization.
 
-use core::num::NonZeroI16;
-
-use kafka_client_core::{CreateTopicBrokerError, CreateTopicOutcome, CreateTopicsPlan};
+use kafka_client_core::{CreateTopicOutcome, CreateTopicsPlan, Deadline, Moment};
 use kafka_wire::{
     CreateTopicsRequest, CreateTopicsResponse,
     create_topics_request::{CreatableTopic, CreatableTopicConfig},
@@ -14,11 +12,29 @@ use kafka_wire::{
 pub(crate) enum CreateTopicsRequestError {
     /// A deadline adapter supplied an impossible negative broker timeout.
     NegativeTimeout,
+    /// The original absolute deadline has already elapsed.
+    DeadlineElapsed,
+}
+
+/// Derives Kafka's millisecond broker timeout from the remaining original deadline.
+pub(crate) fn remaining_timeout_ms(
+    now: Moment,
+    deadline: Deadline,
+) -> Result<i32, CreateTopicsRequestError> {
+    let remaining = deadline
+        .tick()
+        .checked_sub(now.tick())
+        .filter(|remaining| *remaining > 0)
+        .ok_or(CreateTopicsRequestError::DeadlineElapsed)?;
+    let milliseconds = remaining.saturating_add(999_999) / 1_000_000;
+    Ok(i32::try_from(milliseconds).unwrap_or(i32::MAX))
 }
 
 /// Invalid generated response shape for the requested topic set.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum CreateTopicsProtocolFailure {
+    /// Fixed ordered results cannot fit the accepted retained-result reservation.
+    RetainedBytes,
     /// The broker returned a different number of per-topic results.
     TopicCount {
         /// Number of requested topics.
@@ -83,15 +99,18 @@ pub(crate) fn create_topics_request(
     Ok(request)
 }
 
-/// Normalizes generated per-topic results into original request order.
-///
-/// Numeric broker errors remain exact even when the current client does not
-/// recognize their meaning. Any uncorrelatable response fails structurally
-/// rather than assigning a result to the wrong requested topic.
-pub(crate) fn normalize_create_topics_response(
+pub(crate) fn normalize_create_topics_response_bounded(
     plan: &CreateTopicsPlan,
     response: &CreateTopicsResponse,
+    retained_bytes: usize,
 ) -> Result<Vec<CreateTopicOutcome>, CreateTopicsProtocolFailure> {
+    super::result_budget::normalize(plan, response, retained_bytes)
+}
+
+pub(super) fn validate_response_shape(
+    plan: &CreateTopicsPlan,
+    response: &CreateTopicsResponse,
+) -> Result<(), CreateTopicsProtocolFailure> {
     if plan.topics().len() != response.topics.len() {
         return Err(CreateTopicsProtocolFailure::TopicCount {
             expected: plan.topics().len(),
@@ -108,17 +127,13 @@ pub(crate) fn normalize_create_topics_response(
             topic: topic.name.as_str().to_owned(),
         });
     }
-
-    plan.topics()
-        .iter()
-        .map(|topic| matching_outcome(topic.name(), &response.topics))
-        .collect()
+    Ok(())
 }
 
-fn matching_outcome(
+pub(super) fn matching_result<'a>(
     requested_topic: &str,
-    results: &[CreatableTopicResult],
-) -> Result<CreateTopicOutcome, CreateTopicsProtocolFailure> {
+    results: &'a [CreatableTopicResult],
+) -> Result<&'a CreatableTopicResult, CreateTopicsProtocolFailure> {
     let mut matches = results
         .iter()
         .filter(|result| result.name.as_str() == requested_topic);
@@ -132,15 +147,5 @@ fn matching_outcome(
             topic: requested_topic.to_owned(),
         });
     }
-    let Some(code) = NonZeroI16::new(result.error_code) else {
-        return Ok(CreateTopicOutcome::created(requested_topic));
-    };
-    let message = result
-        .error_message
-        .as_ref()
-        .map(|value| value.as_str().to_owned());
-    Ok(CreateTopicOutcome::failed(
-        requested_topic,
-        CreateTopicBrokerError::new(code, message),
-    ))
+    Ok(result)
 }

@@ -491,6 +491,14 @@ production = "crates/kafka-client-engine/src/protocol/admin/create_topics.rs"
 test = "crates/kafka-client-engine/src/protocol/admin/create_topics_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/result_budget.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/result_budget_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/retention.rs"
+test = "crates/kafka-client-engine/src/admin/retention_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-guardrails/src/invariant_registry/evidence.rs"
 test = "crates/kafka-client-guardrails/src/invariant_registry/evidence_test.rs"
 
@@ -671,6 +679,20 @@ forbidden = [
   "kafka_driver",
   "std::future",
   "std::time",
+  "Transport",
+  "Retry",
+]
+
+# Engine admin owns one concrete operation, not transport or sibling policy.
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/admin"
+forbidden = [
+  "crate::consumer",
+  "crate::driver",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
   "Transport",
   "Retry",
 ]
