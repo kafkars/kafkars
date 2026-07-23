@@ -421,6 +421,11 @@ owner_type = "TopicCatalog"
 field = "by_id"
 allowed_paths = ["crates/kafka-client-engine/src/producer/topic_catalog.rs"]
 
+[[mutation_owners]]
+owner_type = "CompletionBindings"
+field = "entries"
+allowed_paths = ["crates/kafka-client-engine/src/producer/binding.rs"]
+
 # Lifecycle and accounting owners must not be duplicated accidentally.
 [[linear_owners]]
 owner_type = "ProducerMachine"
@@ -521,3 +526,7 @@ path = "crates/kafka-client-engine/src/producer/materialization.rs"
 [[linear_owners]]
 owner_type = "MaterializationHeader"
 path = "crates/kafka-client-engine/src/producer/materialization.rs"
+
+[[linear_owners]]
+owner_type = "CompletionBindings"
+path = "crates/kafka-client-engine/src/producer/binding.rs"
