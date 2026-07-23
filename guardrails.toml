@@ -63,6 +63,18 @@ production = "crates/kafka-client-engine/src/completion/registry.rs"
 test = "crates/kafka-client-engine/src/completion/registry_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/delivery.rs"
+test = "crates/kafka-client-engine/src/delivery_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/delivery_error.rs"
+test = "crates/kafka-client-engine/src/delivery_error_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/delivery_observer.rs"
+test = "crates/kafka-client-engine/src/delivery_observer_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/owner.rs"
 test = "crates/kafka-client-engine/src/driver/owner_test.rs"
 

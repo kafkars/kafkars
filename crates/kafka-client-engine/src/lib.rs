@@ -56,3 +56,10 @@ pub use delivery::{
 pub use delivery_error::{ProducerDeliveryError, ProducerObserverError};
 pub use delivery_observer::{ProducerDeliveryObserver, ProducerDeliveryResult};
 pub use engine::Engine;
+
+#[cfg(test)]
+mod delivery_error_test;
+#[cfg(test)]
+mod delivery_observer_test;
+#[cfg(test)]
+mod delivery_test;
