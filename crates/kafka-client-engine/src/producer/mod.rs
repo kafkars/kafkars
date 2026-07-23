@@ -13,6 +13,7 @@ mod host_turn;
 pub(crate) mod ingress;
 mod interpreter;
 pub(crate) mod materialization;
+pub(crate) mod pending;
 pub(crate) mod prepared;
 pub(crate) mod reclaim;
 mod reclaim_turn;
