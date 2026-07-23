@@ -503,6 +503,10 @@ production = "crates/kafka-client-engine/src/admin/model.rs"
 test = "crates/kafka-client-engine/src/admin/model_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/host.rs"
+test = "crates/kafka-client-engine/src/admin/host_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/admin/observer.rs"
 test = "crates/kafka-client-engine/src/admin/observer_test.rs"
 
@@ -1363,6 +1367,49 @@ field = "calls"
 allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/calls.rs"]
 
 [[mutation_owners]]
+owner_type = "CreateTopicsHost"
+field = "operations"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/host.rs",
+  "crates/kafka-client-engine/src/admin/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "CreateTopicsHost"
+field = "completions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/host.rs",
+  "crates/kafka-client-engine/src/admin/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "CreateTopicsHost"
+field = "retained_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/host.rs",
+  "crates/kafka-client-engine/src/admin/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "CreateTopicsHost"
+field = "published_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/host.rs",
+  "crates/kafka-client-engine/src/admin/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "CreateTopicsHost"
+field = "next_operation_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/host.rs",
+  "crates/kafka-client-engine/src/admin/host/admission.rs",
+]
+
+[[mutation_owners]]
 owner_type = "TrackedProduceCalls"
 field = "settled"
 allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/calls.rs"]
@@ -1582,6 +1629,18 @@ path = "crates/kafka-client-engine/src/engine_host/runner.rs"
 [[linear_owners]]
 owner_type = "TrackedProduceCalls"
 path = "crates/kafka-client-engine/src/driver/rpc/calls.rs"
+
+[[linear_owners]]
+owner_type = "CreateTopicsHost"
+path = "crates/kafka-client-engine/src/admin/host.rs"
+
+[[linear_owners]]
+owner_type = "CreateTopicsOperation"
+path = "crates/kafka-client-engine/src/admin/host.rs"
+
+[[linear_owners]]
+owner_type = "CreateTopicsObserver"
+path = "crates/kafka-client-engine/src/admin/observer.rs"
 
 [[linear_owners]]
 owner_type = "TrackedProduceCall"
