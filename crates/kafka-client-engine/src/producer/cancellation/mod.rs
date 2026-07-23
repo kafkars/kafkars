@@ -9,4 +9,4 @@ mod revision;
 mod revision_test;
 
 pub(super) use error::ProducerRevisionError;
-pub(super) use host::ProducerHostCancelError;
+pub(super) use host::{ProducerHostCancelAccepted, ProducerHostCancelError};

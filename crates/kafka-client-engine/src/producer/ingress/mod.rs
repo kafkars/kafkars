@@ -1,5 +1,6 @@
 //! Thread-safe producer-shard admission without runtime or driver coupling.
 
+mod cancellation;
 mod data;
 mod data_terminal;
 mod flush_outcome;
@@ -9,6 +10,10 @@ mod reactor_wake;
 mod shard;
 mod terminal;
 
+pub(crate) use cancellation::{
+    ProducerCancellationPort, ProducerPortCancelAccepted, ProducerPortCancelError,
+    ProducerPortCancelFault,
+};
 #[cfg(test)]
 pub(crate) use data::{ProducerShardData, ProducerShardStats};
 pub(crate) use flush_outcome::{ProducerPortFlushAccepted, ProducerPortFlushError};
@@ -27,6 +32,8 @@ pub(crate) use shard::{
 };
 pub(crate) use terminal::ProducerShardTerminalError;
 
+#[cfg(test)]
+mod cancellation_test;
 #[cfg(test)]
 mod close_test;
 #[cfg(test)]

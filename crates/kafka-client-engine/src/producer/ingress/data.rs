@@ -7,6 +7,7 @@ use crate::{
     producer::{
         ProducerHost, ProducerHostInvariantError, ProducerRecord,
         admission::{AdmittedExplicit, ProducerAdmissionFailure},
+        cancellation::{ProducerHostCancelAccepted, ProducerHostCancelError},
         execution::{PreparedProduceHandoffError, PreparedProduceSubmission},
         flush::{AdmittedFlush, FlushAdmissionFailure, FlushRejectionReason},
         host::ProducerHostStats,
@@ -47,6 +48,13 @@ impl ProducerShardData {
         record: ProducerRecord,
     ) -> Result<AdmittedExplicit, ProducerAdmissionFailure> {
         self.host.try_admit_explicit(now, deadline, record)
+    }
+
+    pub(super) fn try_cancel(
+        &mut self,
+        operation_id: kafka_client_core::OperationId,
+    ) -> Result<ProducerHostCancelAccepted, ProducerHostCancelError> {
+        self.host.try_cancel_operation(operation_id)
     }
 
     pub(super) fn try_admit_flush(

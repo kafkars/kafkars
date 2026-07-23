@@ -1,5 +1,7 @@
 //! Ownership-aware outcomes from synchronized producer admission.
 
+use std::sync::Arc;
+
 use kafka_client_core::OperationId;
 
 use crate::{ProducerDeliveryObserver, producer::ProducerHostInvariantError};
@@ -10,6 +12,8 @@ use super::{
         admission::ProducerAdmissionFailure,
     },
     ProducerShardWakeError,
+    cancellation::ProducerCancellationPort,
+    shard::ProducerShardState,
 };
 
 /// Committed admission retaining terminal observation, identity, and execution fault.
@@ -24,6 +28,18 @@ pub(crate) struct ProducerPortAccepted {
 }
 
 impl ProducerPortAccepted {
+    pub(super) fn with_cancellation(mut self, shared: &Arc<ProducerShardState>) -> Self {
+        if let Some(operation_id) = self.operation_id {
+            self.observer = self
+                .observer
+                .with_cancellation(ProducerCancellationPort::new(
+                    Arc::downgrade(shared),
+                    operation_id,
+                ));
+        }
+        self
+    }
+
     pub(crate) fn into_parts(
         self,
     ) -> (

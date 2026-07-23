@@ -1,5 +1,6 @@
 //! Public producer records, options, admission handles, and ownership-aware results.
 
+mod cancellation;
 mod capture;
 mod close;
 mod error;
@@ -10,6 +11,10 @@ mod prepare;
 mod record;
 mod result;
 
+pub use cancellation::{
+    ProducerCancelAccepted, ProducerCancelError, ProducerCancelErrorKind, ProducerCancelFault,
+    ProducerCancelFaultKind, ProducerCancellationOutcome,
+};
 pub use capture::{
     ProducerSendCapture, ProducerSendCaptureError, ProducerSendCaptureErrorKind,
     ProducerSendOptions,
@@ -22,6 +27,8 @@ pub use handle::ProducerHandle;
 pub use record::{ProducerHeader as PublicProducerHeader, ProducerRecord as PublicProducerRecord};
 pub use result::{ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerTrySendAccepted};
 
+#[cfg(test)]
+mod cancellation_test;
 #[cfg(test)]
 mod capture_test;
 #[cfg(test)]

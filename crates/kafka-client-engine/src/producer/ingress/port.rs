@@ -76,7 +76,8 @@ impl ProducerAdmissionPort {
                 return Err(poisoned_before(record, ProducerPortPoisonReason::ShardLock));
             }
         };
-        let accepted = classify_admission(data.try_admit_explicit(attempted_at, deadline, record))?;
+        let accepted = classify_admission(data.try_admit_explicit(attempted_at, deadline, record))?
+            .with_cancellation(&self.shared);
         drop(data);
         Ok(accepted.with_wake(self.shared.wake()))
     }

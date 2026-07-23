@@ -14,8 +14,9 @@ use kafka_client_core::{
 use crate::completion::CompletionObserver;
 
 use super::{
-    ProducerDeliveryError, ProducerDeliveryFailure, ProducerObserverError, ProducerRecordMetadata,
-    producer::ProducerTerminal,
+    ProducerCancelAccepted, ProducerCancelError, ProducerDeliveryError, ProducerDeliveryFailure,
+    ProducerObserverError, ProducerRecordMetadata,
+    producer::{ProducerTerminal, ingress::ProducerCancellationPort},
 };
 
 /// Terminal result returned by asynchronous and blocking producer observation.
@@ -28,11 +29,30 @@ pub type ProducerDeliveryResult = Result<ProducerRecordMetadata, ProducerDeliver
 #[must_use = "dropping abandons delivery observation without cancelling the operation"]
 pub struct ProducerDeliveryObserver {
     inner: CompletionObserver<ProducerTerminal>,
+    cancellation: Option<ProducerCancellationPort>,
 }
 
 impl ProducerDeliveryObserver {
     pub(crate) const fn from_completion(inner: CompletionObserver<ProducerTerminal>) -> Self {
-        Self { inner }
+        Self {
+            inner,
+            cancellation: None,
+        }
+    }
+
+    pub(crate) fn with_cancellation(mut self, cancellation: ProducerCancellationPort) -> Self {
+        self.cancellation = Some(cancellation);
+        self
+    }
+
+    /// Attempts stage-aware cancellation without waiting or restarting time.
+    pub fn try_cancel(&self) -> Result<ProducerCancelAccepted, ProducerCancelError> {
+        self.cancellation
+            .as_ref()
+            .ok_or_else(ProducerCancelError::host_unavailable)?
+            .try_cancel()
+            .map(ProducerCancelAccepted::from_port)
+            .map_err(ProducerCancelError::from_port)
     }
 
     /// Blocks on the same terminal cell used by `Future::poll`.
@@ -77,6 +97,7 @@ impl fmt::Debug for ProducerDeliveryObserver {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("ProducerDeliveryObserver")
+            .field("cancellable", &self.cancellation.is_some())
             .finish_non_exhaustive()
     }
 }

@@ -327,6 +327,10 @@ production = "crates/kafka-client-engine/src/producer/boundary/prepare.rs"
 test = "crates/kafka-client-engine/src/producer/boundary/prepare_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/boundary/cancellation.rs"
+test = "crates/kafka-client-engine/src/producer/boundary/cancellation_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/cancellation/host.rs"
 test = "crates/kafka-client-engine/src/producer/cancellation/host_test.rs"
 
@@ -361,6 +365,10 @@ test = "crates/kafka-client-engine/src/producer/ingress/shard_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/ingress/terminal.rs"
 test = "crates/kafka-client-engine/src/producer/ingress/terminal_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/cancellation.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/cancellation_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/materialization.rs"
@@ -939,6 +947,11 @@ field = "observed"
 allowed_paths = ["crates/kafka-client-engine/src/completion/observer.rs"]
 
 [[mutation_owners]]
+owner_type = "ProducerDeliveryObserver"
+field = "cancellation"
+allowed_paths = ["crates/kafka-client-engine/src/delivery_observer.rs"]
+
+[[mutation_owners]]
 owner_type = "Notifier"
 field = "handle"
 allowed_paths = ["crates/kafka-client-engine/src/completion/notifier.rs"]
@@ -1263,6 +1276,11 @@ field = "data"
 allowed_paths = ["crates/kafka-client-engine/src/producer/ingress/shard.rs"]
 
 [[mutation_owners]]
+owner_type = "ProducerPortCancelAccepted"
+field = "fault"
+allowed_paths = ["crates/kafka-client-engine/src/producer/ingress/cancellation.rs"]
+
+[[mutation_owners]]
 owner_type = "VirtualBatch"
 field = "members"
 allowed_paths = [
@@ -1350,6 +1368,18 @@ path = "crates/kafka-client-engine/src/completion/observer.rs"
 [[linear_owners]]
 owner_type = "ProducerDeliveryObserver"
 path = "crates/kafka-client-engine/src/delivery_observer.rs"
+
+[[linear_owners]]
+owner_type = "ProducerCancellationPort"
+path = "crates/kafka-client-engine/src/producer/ingress/cancellation.rs"
+
+[[linear_owners]]
+owner_type = "ProducerPortCancelAccepted"
+path = "crates/kafka-client-engine/src/producer/ingress/cancellation.rs"
+
+[[linear_owners]]
+owner_type = "ProducerCancelAccepted"
+path = "crates/kafka-client-engine/src/producer/boundary/cancellation.rs"
 
 [[linear_owners]]
 owner_type = "ProducerFlushObserver"
