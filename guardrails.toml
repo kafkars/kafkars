@@ -141,6 +141,14 @@ production = "crates/kafka-client-engine/src/completion/notifier.rs"
 test = "crates/kafka-client-engine/src/completion/notifier_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/completion/notifier_queue.rs"
+test = "crates/kafka-client-engine/src/completion/notifier_queue_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/completion/registry_notification.rs"
+test = "crates/kafka-client-engine/src/completion/registry_notification_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/lifecycle.rs"
 test = "crates/kafka-client-engine/src/engine_host/lifecycle_test.rs"
 
@@ -217,6 +225,10 @@ production = "crates/kafka-client-engine/src/producer/boundary/handle.rs"
 test = "crates/kafka-client-engine/src/producer/boundary/handle_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/boundary/send.rs"
+test = "crates/kafka-client-engine/src/producer/boundary/send_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/interpreter.rs"
 test = "crates/kafka-client-engine/src/producer/interpreter_test.rs"
 
@@ -247,6 +259,30 @@ test = "crates/kafka-client-engine/src/producer/store/materialization_view_test.
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/pending/registry.rs"
 test = "crates/kafka-client-engine/src/producer/pending/registry_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/cell.rs"
+test = "crates/kafka-client-engine/src/producer/pending/cell_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/state.rs"
+test = "crates/kafka-client-engine/src/producer/pending/state_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/failure.rs"
+test = "crates/kafka-client-engine/src/producer/pending/failure_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/notification.rs"
+test = "crates/kafka-client-engine/src/producer/pending/notification_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/promotion.rs"
+test = "crates/kafka-client-engine/src/producer/pending/promotion_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/pending/registration.rs"
+test = "crates/kafka-client-engine/src/producer/pending/registration_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/pending/restore.rs"
@@ -973,6 +1009,24 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "PendingSendCell"
+field = "phase"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/pending/cell.rs",
+  "crates/kafka-client-engine/src/producer/pending/state.rs",
+]
+
+[[mutation_owners]]
+owner_type = "NotificationQueue"
+field = "state"
+allowed_paths = ["crates/kafka-client-engine/src/completion/notifier_queue.rs"]
+
+[[mutation_owners]]
+owner_type = "ProducerSend"
+field = "state"
+allowed_paths = ["crates/kafka-client-engine/src/producer/boundary/send.rs"]
+
+[[mutation_owners]]
 owner_type = "ProducerHost"
 field = "store"
 allowed_paths = [
@@ -1392,6 +1446,30 @@ path = "crates/kafka-client-engine/src/producer/pending/error.rs"
 [[linear_owners]]
 owner_type = "PendingLocalFailure"
 path = "crates/kafka-client-engine/src/producer/pending/entry.rs"
+
+[[linear_owners]]
+owner_type = "NotificationQueue"
+path = "crates/kafka-client-engine/src/completion/notifier_queue.rs"
+
+[[linear_owners]]
+owner_type = "PendingSendCell"
+path = "crates/kafka-client-engine/src/producer/pending/cell.rs"
+
+[[linear_owners]]
+owner_type = "PendingNotificationJob"
+path = "crates/kafka-client-engine/src/producer/pending/notification.rs"
+
+[[linear_owners]]
+owner_type = "PendingPromotion"
+path = "crates/kafka-client-engine/src/producer/pending/promotion.rs"
+
+[[linear_owners]]
+owner_type = "PendingSendRegistration"
+path = "crates/kafka-client-engine/src/producer/pending/registration.rs"
+
+[[linear_owners]]
+owner_type = "ProducerSend"
+path = "crates/kafka-client-engine/src/producer/boundary/send.rs"
 
 [[linear_owners]]
 owner_type = "ProducerDelivery"

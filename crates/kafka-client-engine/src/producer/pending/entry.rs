@@ -1,12 +1,14 @@
 //! Linear pending records and local pre-admission terminal failures.
 
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
 use kafka_client_core::Deadline;
 
 use crate::ProducerDeliveryStatus;
 
-use super::{super::ProducerRecord, PendingAdmissionId};
+use super::{
+    super::ProducerRecord, PendingAdmissionId, PendingCellError, PendingPromotion, PendingSendCell,
+};
 
 /// One engine-owned record that has not crossed deterministic admission.
 #[derive(Debug)]
@@ -17,6 +19,7 @@ pub(crate) struct PendingAdmission {
     absolute_instant: Instant,
     retained_bytes: usize,
     sequence: u64,
+    cell: Arc<PendingSendCell>,
 }
 
 impl PendingAdmission {
@@ -27,6 +30,7 @@ impl PendingAdmission {
         absolute_instant: Instant,
         retained_bytes: usize,
         sequence: u64,
+        cell: Arc<PendingSendCell>,
     ) -> Self {
         Self {
             id,
@@ -35,6 +39,7 @@ impl PendingAdmission {
             absolute_instant,
             retained_bytes,
             sequence,
+            cell,
         }
     }
 
@@ -56,6 +61,10 @@ impl PendingAdmission {
 
     pub(crate) fn into_parts(self) -> (PendingAdmissionId, ProducerRecord, Deadline, Instant) {
         (self.id, self.record, self.deadline, self.absolute_instant)
+    }
+
+    pub(crate) fn begin_promotion(&self) -> Result<PendingPromotion, PendingCellError> {
+        self.cell.begin_promotion()
     }
 
     pub(super) const fn retained_bytes(&self) -> usize {

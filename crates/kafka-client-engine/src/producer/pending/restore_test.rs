@@ -7,7 +7,7 @@ use kafka_client_core::{Deadline, PartitionIndex};
 
 use super::{
     PendingAdmission, PendingAdmissionId, PendingAdmissionRegistry, PendingLocalFailureKind,
-    PendingRegistryError, PendingRestoreOutcome,
+    PendingRegistryError, PendingRestoreOutcome, PendingSendCell,
 };
 use crate::{ProducerDeliveryStatus, producer::ProducerRecord};
 
@@ -17,7 +17,8 @@ fn restoration_reinstates_the_exact_fifo_head_and_accounting() {
     let absolute = Instant::now();
     let first = registry
         .register(record("first", 3), deadline(40), absolute)
-        .unwrap_or_else(|error| panic!("first registration failed: {error:?}"));
+        .unwrap_or_else(|error| panic!("first registration failed: {error:?}"))
+        .id();
     let second = register(&mut registry, record("second", 4), 20);
     let before = registry.stats();
     let pending = take(&mut registry);
@@ -49,7 +50,8 @@ fn reused_slot_rejects_stale_restore_without_losing_either_record() {
     let absolute = Instant::now();
     let stale = registry
         .register(record("stale", 1), deadline(30), absolute)
-        .unwrap_or_else(|error| panic!("stale registration failed: {error:?}"));
+        .unwrap_or_else(|error| panic!("stale registration failed: {error:?}"))
+        .id();
     let held = take(&mut registry);
     let live = register(&mut registry, record("live", 2), 50);
     let stats = registry.stats();
@@ -96,7 +98,15 @@ fn unknown_slot_rejection_retains_the_complete_entry() {
         .retained_bytes()
         .unwrap_or_else(|error| panic!("test record size failed: {error}"));
     let id = PendingAdmissionId::new(usize::MAX, 7);
-    let pending = PendingAdmission::new(id, record, deadline(70), absolute, retained, 0);
+    let pending = PendingAdmission::new(
+        id,
+        record,
+        deadline(70),
+        absolute,
+        retained,
+        0,
+        PendingSendCell::new(),
+    );
     let Err(failure) = registry.restore_front(pending) else {
         panic!("unknown slot must reject restore");
     };
@@ -137,7 +147,8 @@ fn close_converts_held_work_to_shutdown_instead_of_restoring() {
     let absolute = Instant::now();
     let id = registry
         .register(record("closing", 1), deadline(90), absolute)
-        .unwrap_or_else(|error| panic!("registration failed: {error:?}"));
+        .unwrap_or_else(|error| panic!("registration failed: {error:?}"))
+        .id();
     let held = take(&mut registry);
     registry.begin_close();
     let outcome = registry
@@ -174,6 +185,7 @@ fn register(
     registry
         .register(record, deadline(deadline_tick), Instant::now())
         .unwrap_or_else(|error| panic!("pending registration failed: {error:?}"))
+        .id()
 }
 
 fn deadline(tick: u64) -> Deadline {

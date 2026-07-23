@@ -1,6 +1,6 @@
 //! Atomic insertion, generation allocation, and removal of pending records.
 
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
 use kafka_client_core::Deadline;
 
@@ -9,10 +9,12 @@ use crate::producer::ProducerRecord;
 use super::{
     super::{
         PendingAdmission, PendingAdmissionId, PendingAdmissionRejected,
-        PendingAdmissionRejectionReason, PendingRegistryError,
+        PendingAdmissionRejectionReason, PendingRegistryError, PendingSendCell,
+        PendingSendRegistration,
     },
     PendingAdmissionRegistry,
 };
+use crate::producer::boundary::ProducerSend;
 
 impl PendingAdmissionRegistry {
     /// Retains one unadmitted record under exact count and byte bounds.
@@ -25,7 +27,7 @@ impl PendingAdmissionRegistry {
         record: ProducerRecord,
         deadline: Deadline,
         absolute_instant: Instant,
-    ) -> Result<PendingAdmissionId, PendingAdmissionRejected> {
+    ) -> Result<PendingSendRegistration, PendingAdmissionRejected> {
         if !self.accepting {
             return Err(rejected(PendingAdmissionRejectionReason::Closed, record));
         }
@@ -65,6 +67,8 @@ impl PendingAdmissionRegistry {
                 record,
             ));
         };
+        let cell = PendingSendCell::new();
+        let send = ProducerSend::from_pending(Arc::clone(&cell));
         let entry = PendingAdmission::new(
             id,
             record,
@@ -72,13 +76,14 @@ impl PendingAdmissionRegistry {
             absolute_instant,
             retained_bytes,
             sequence,
+            cell,
         );
         self.next_sequence = sequence.checked_add(1);
         self.used_bytes = next_used;
         self.slots[id.slot()].entry = Some(entry);
         self.fifo.insert(sequence, id);
         self.deadlines.insert((deadline, sequence, id));
-        Ok(id)
+        Ok(PendingSendRegistration::new(id, send))
     }
 
     pub(super) fn remove(

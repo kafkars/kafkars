@@ -1,13 +1,14 @@
 //! Bounded notifier-only settlement of completion slots left reserved by host failure.
 
-use std::sync::{
-    Arc,
-    mpsc::{TrySendError, TrySendError::Disconnected},
-};
+use std::sync::Arc;
 
 #[cfg(test)]
 use super::NotifierJoin;
-use super::{CompletionId, CompletionRegistry, CompletionRegistryError, notifier::PublishJob};
+use super::{
+    CompletionId, CompletionRegistry, CompletionRegistryError,
+    notifier::PublishJob,
+    notifier_queue::{QueuePushError, QueuePushError::Closed},
+};
 
 /// Exact progress from one bounded reserved-slot settlement pass.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -90,22 +91,22 @@ impl<T: Send + 'static> CompletionRegistry<T> {
                 value: terminal,
             };
             let result = match &self.notifier {
-                Some(notifier) => notifier.sender.try_send(job),
-                None => Err(Disconnected(job)),
+                Some(notifier) => notifier.try_publish(job),
+                None => Err(Closed(job)),
             };
             match result {
                 Ok(()) => {
                     self.slots[index].mark_published(completion_id);
                     queued += 1;
                 }
-                Err(TrySendError::Full(job)) => {
+                Err(QueuePushError::Full(job)) => {
                     return Err(self.settlement_failure(
                         queued,
                         job,
                         CompletionRegistryError::NotificationBackpressure,
                     ));
                 }
-                Err(TrySendError::Disconnected(job)) => {
+                Err(QueuePushError::Closed(job)) => {
                     return Err(self.settlement_failure(
                         queued,
                         job,

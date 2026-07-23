@@ -5,10 +5,14 @@ mod error;
 mod host_state;
 mod identity;
 mod notifier;
+mod notifier_queue;
+#[cfg(test)]
+mod notifier_queue_test;
 #[cfg(test)]
 mod notifier_test;
 mod observer;
 mod registry;
+mod registry_notification;
 mod settlement;
 mod state;
 
@@ -30,6 +34,8 @@ pub(crate) use settlement::{SettlementFailure, SettlementProgress};
 mod observer_test;
 #[cfg(test)]
 mod registry_generation_test;
+#[cfg(test)]
+mod registry_notification_test;
 #[cfg(test)]
 mod registry_test;
 #[cfg(test)]

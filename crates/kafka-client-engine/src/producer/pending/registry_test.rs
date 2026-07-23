@@ -79,7 +79,8 @@ fn pending_entry_preserves_both_absolute_deadline_representations() {
     let absolute = Instant::now();
     let id = registry
         .register(record("orders", 1), deadline(44), absolute)
-        .unwrap_or_else(|error| panic!("registration failed: {error:?}"));
+        .unwrap_or_else(|error| panic!("registration failed: {error:?}"))
+        .id();
     let pending = registry
         .take_next()
         .unwrap_or_else(|error| panic!("take failed: {error:?}"))
@@ -250,6 +251,7 @@ fn register(
     registry
         .register(record, deadline(deadline_tick), Instant::now())
         .unwrap_or_else(|error| panic!("pending registration failed: {error:?}"))
+        .id()
 }
 
 fn deadline(tick: u64) -> Deadline {

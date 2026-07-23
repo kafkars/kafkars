@@ -3,14 +3,15 @@
 use std::{
     fmt,
     panic::{AssertUnwindSafe, catch_unwind},
-    sync::{
-        Arc,
-        mpsc::{Receiver, SyncSender, sync_channel},
-    },
+    sync::Arc,
     thread::{self, JoinHandle, ThreadId},
 };
 
-use super::{CompletionId, cell::CompletionCell};
+use super::{
+    CompletionId,
+    cell::CompletionCell,
+    notifier_queue::{NotificationJob, NotificationQueue, QueuePushError},
+};
 
 pub(super) struct PublishJob<T> {
     pub(super) id: CompletionId,
@@ -19,24 +20,25 @@ pub(super) struct PublishJob<T> {
 }
 
 pub(super) struct Notifier<T> {
-    pub(super) sender: SyncSender<PublishJob<T>>,
+    queue: Arc<NotificationQueue<T>>,
     handle: Option<JoinHandle<()>>,
 }
 
 impl<T: Send + 'static> Notifier<T> {
     pub(super) fn start(capacity: usize) -> std::io::Result<Self> {
-        let (sender, receiver) = sync_channel(capacity);
+        let queue = Arc::new(NotificationQueue::new(capacity));
+        let worker_queue = Arc::clone(&queue);
         let handle = thread::Builder::new()
             .name(String::from("kafka-client-completion-notifier"))
-            .spawn(move || run(receiver))?;
+            .spawn(move || run(&worker_queue))?;
         Ok(Self {
-            sender,
+            queue,
             handle: Some(handle),
         })
     }
 
     pub(super) fn stop(mut self) -> NotifierJoin {
-        drop(self.sender);
+        self.queue.close();
         NotifierJoin {
             handle: self.handle.take(),
         }
@@ -44,6 +46,20 @@ impl<T: Send + 'static> Notifier<T> {
 
     pub(super) fn thread_id(&self) -> Option<ThreadId> {
         self.handle.as_ref().map(|handle| handle.thread().id())
+    }
+
+    pub(super) fn try_publish(
+        &self,
+        job: PublishJob<T>,
+    ) -> Result<(), QueuePushError<PublishJob<T>>> {
+        self.queue.try_publish(job)
+    }
+
+    pub(super) fn try_pending(
+        &self,
+        job: crate::producer::pending::PendingNotificationJob,
+    ) -> Result<(), QueuePushError<crate::producer::pending::PendingNotificationJob>> {
+        self.queue.try_pending(job)
     }
 }
 
@@ -56,16 +72,23 @@ impl<T> fmt::Debug for Notifier<T> {
     }
 }
 
-fn run<T: Send + 'static>(receiver: Receiver<PublishJob<T>>) {
-    for job in receiver {
-        let outcome = job.cell.store_terminal(job.id, job.value);
-        let _ignored = catch_unwind(AssertUnwindSafe(|| drop(outcome.discarded)));
-        if outcome.reclaim_after_drop {
-            job.cell.queue_reclaim(job.id);
+fn run<T: Send + 'static>(queue: &NotificationQueue<T>) {
+    while let Some(job) = queue.next() {
+        match job {
+            NotificationJob::Publish(job) => publish(job),
+            NotificationJob::Pending(job) => job.dispatch(),
         }
-        if let Some(waker) = outcome.waker {
-            let _ignored = catch_unwind(AssertUnwindSafe(|| waker.wake()));
-        }
+    }
+}
+
+fn publish<T>(job: PublishJob<T>) {
+    let outcome = job.cell.store_terminal(job.id, job.value);
+    let _ignored = catch_unwind(AssertUnwindSafe(|| drop(outcome.discarded)));
+    if outcome.reclaim_after_drop {
+        job.cell.queue_reclaim(job.id);
+    }
+    if let Some(waker) = outcome.waker {
+        let _ignored = catch_unwind(AssertUnwindSafe(|| waker.wake()));
     }
 }
 

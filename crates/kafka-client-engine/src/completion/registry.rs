@@ -6,7 +6,7 @@ use std::{
     fmt,
     sync::{
         Arc,
-        mpsc::{Receiver, TryRecvError, TrySendError, sync_channel},
+        mpsc::{Receiver, TryRecvError, sync_channel},
     },
     thread::ThreadId,
 };
@@ -16,6 +16,7 @@ use super::{
     cell::CompletionCell,
     host_state::HostSlot,
     notifier::{Notifier, PublishJob},
+    notifier_queue::QueuePushError,
 };
 
 /// Result of non-blocking cell recycling after core accepts reclamation.
@@ -105,15 +106,15 @@ impl<T: Send + 'static> CompletionRegistry<T> {
             cell: Arc::clone(&slot.cell),
             value,
         };
-        match notifier.sender.try_send(job) {
+        match notifier.try_publish(job) {
             Ok(()) => {
                 slot.mark_published(id);
                 Ok(())
             }
-            Err(TrySendError::Full(job)) => {
+            Err(QueuePushError::Full(job)) => {
                 Err((CompletionRegistryError::NotificationBackpressure, job.value))
             }
-            Err(TrySendError::Disconnected(job)) => {
+            Err(QueuePushError::Closed(job)) => {
                 Err((CompletionRegistryError::NotifierStopped, job.value))
             }
         }

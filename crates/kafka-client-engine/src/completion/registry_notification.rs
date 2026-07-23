@@ -1,0 +1,38 @@
+//! Pending-send admission into the shared bounded completion notifier.
+
+use crate::producer::pending::PendingNotificationJob;
+
+use super::{CompletionRegistry, CompletionRegistryError, notifier_queue::QueuePushError};
+
+impl<T: Send + 'static> CompletionRegistry<T> {
+    /// Queues one pending-send state notification on the completion dispatcher.
+    ///
+    /// The job owns only a cell reference. Its application waker and transition
+    /// value remain inside that cell when the global notification FIFO
+    /// backpressures. Full and stopped outcomes return that exact typed job;
+    /// callers must retain it for later off-reactor retry or recovery.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "pending notification is attached to the producer host in the next phase"
+        )
+    )]
+    pub(crate) fn notify_pending(
+        &self,
+        job: PendingNotificationJob,
+    ) -> Result<(), (CompletionRegistryError, PendingNotificationJob)> {
+        let Some(notifier) = &self.notifier else {
+            return Err((CompletionRegistryError::NotifierStopped, job));
+        };
+        match notifier.try_pending(job) {
+            Ok(()) => Ok(()),
+            Err(QueuePushError::Full(job)) => {
+                Err((CompletionRegistryError::NotificationBackpressure, job))
+            }
+            Err(QueuePushError::Closed(job)) => {
+                Err((CompletionRegistryError::NotifierStopped, job))
+            }
+        }
+    }
+}
