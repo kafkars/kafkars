@@ -15,6 +15,9 @@ impl ProducerMachine {
         deadline: Deadline,
         record: ExplicitRecord,
     ) -> Result<ProducerTransition, ProducerMachineError> {
+        if !self.admission_open {
+            return Err(ProducerMachineError::Admission(AdmissionRejection::Closed));
+        }
         let route = BatchRoute {
             topic_id: record.topic_id(),
             partition: record.partition(),

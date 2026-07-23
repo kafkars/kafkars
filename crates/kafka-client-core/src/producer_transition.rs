@@ -51,6 +51,7 @@ impl ProducerMachine {
             }
             ProducerInput::ExecutionUnavailable => self.execution_unavailable(),
             ProducerInput::FlushRequested => self.flush_requested(),
+            ProducerInput::CloseRequested => self.close_requested(),
             ProducerInput::FlushCompletionReclaimed { flush_id } => {
                 self.reclaim_flush(flush_id)?;
                 Ok(ProducerTransition::none())

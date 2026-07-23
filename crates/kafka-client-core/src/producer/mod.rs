@@ -4,6 +4,7 @@ mod batch;
 mod batch_timer;
 mod batch_transition;
 mod batching;
+mod close_transition;
 mod execution_stop;
 #[cfg(test)]
 mod execution_stop_capacity_test;
@@ -25,6 +26,8 @@ pub use flush::{AdmissionSequence, FlushId, FlushLedgerError};
 pub use machine::ProducerMachine;
 pub use partitioner::{KeyedPartitionError, PartitionCount, select_java_keyed_partition};
 
+#[cfg(test)]
+mod close_transition_test;
 #[cfg(test)]
 mod execution_stop_test;
 #[cfg(test)]

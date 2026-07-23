@@ -89,6 +89,8 @@ pub enum ProducerInput {
     ExecutionUnavailable,
     /// Captures a barrier at the next record-admission sequence.
     FlushRequested,
+    /// Atomically captures a drain barrier and permanently closes record admission.
+    CloseRequested,
     /// Reports that the engine released one retained flush result.
     FlushCompletionReclaimed {
         /// Flush whose result and wakeup state were reclaimed.
