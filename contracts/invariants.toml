@@ -230,7 +230,7 @@ evidence = [
 [[invariant]]
 id = "OWN-01"
 title = "Pending promotion has one coordinated owner"
-statement = "Removing a pending admission, claiming its observer cell, and transferring its exact record move through one non-cloneable attempt; every fallible restoration, settlement, or post-claim removal path returns the complete recovery owner. A dormant shard first-fault slot closes both admission domains before retaining that owner, refuses later owners intact, and blocks terminal cleanup without extracting the first."
+statement = "Removing a pending admission, claiming its observer cell, and transferring its exact record move through one non-cloneable attempt; every fallible restoration, settlement, or post-claim removal path returns the complete recovery owner. One dormant shard settlement consumes exactly one normal promotion outcome, distinguishes restored blocking from productive progress, releases unadmitted bytes before bounded notification retention, and preserves accepted delivery ownership. Explicit closure reports idle without consuming retained pending ownership, while an existing fault reports faulted without replacing its exact first owner. Invariants close both admissions only after routing succeeds; route refusal retains the exact job with semantic context in the immutable first-fault slot, and later fatal owners return intact."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/pending/attempt_test.rs::accept_before_record_commit_returns_observer_attempt_and_exact_record",
@@ -241,6 +241,15 @@ evidence = [
   "crates/kafka-client-engine/src/producer/ingress/promotion_test.rs::transient_head_restores_before_any_later_fifo_entry_can_promote",
   "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs::first_fault_closes_both_admission_paths_and_blocks_terminal_cleanup",
   "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs::later_fault_and_explicit_close_preserve_the_first_owner",
+  "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs::explicit_close_is_idle_without_consuming_pending_ownership",
+  "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs::existing_fault_reports_faulted_without_replacing_its_exact_owner",
+  "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs::accepted_promotion_routes_observation_and_keeps_delivery_ownership",
+  "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs::restored_head_is_blocked_and_remaining_after_reinsertion",
+  "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs::local_and_start_failures_release_admission_bytes_before_routing",
+  "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs::accepted_invariant_routes_first_then_closes_with_copy_facts",
+  "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs::ordinary_route_refusal_faults_with_the_exact_local_context",
+  "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs::invariant_route_refusal_is_the_only_first_fault_owner",
+  "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs::later_settlement_fault_is_returned_without_replacing_the_first",
 ]
 
 [[invariant]]

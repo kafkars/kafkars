@@ -61,13 +61,6 @@ impl PendingNotificationRoute {
     }
 
     /// Retains one newer job without invoking either notification worker.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "live pending admission remains closed until shard-turn integration"
-        )
-    )]
     pub(crate) fn retain_pending_notification(
         &mut self,
         job: PendingNotificationJob,

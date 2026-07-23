@@ -275,6 +275,10 @@ production = "crates/kafka-client-engine/src/producer/ingress/pending_fatal.rs"
 test = "crates/kafka-client-engine/src/producer/ingress/pending_fatal_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/ingress/pending_settlement.rs"
+test = "crates/kafka-client-engine/src/producer/ingress/pending_settlement_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/ingress/promotion.rs"
 test = "crates/kafka-client-engine/src/producer/ingress/promotion_test.rs"
 
@@ -663,6 +667,19 @@ forbidden = [
 ]
 
 [[capability_rules]]
+root = "crates/kafka-client-engine/src/producer/ingress/pending_settlement.rs"
+forbidden = [
+  "std::time",
+  "Instant::now",
+  "SystemTime",
+  "OperationDeadline::from_boundary_parts",
+  "dispatch_pending_notification",
+  "dispatch_all_pending_notifications",
+  "retry_primary_notifications",
+  "notify_pending",
+]
+
+[[capability_rules]]
 root = "crates/kafka-client-engine/src/producer/interpreter.rs"
 forbidden = ["PendingNotificationJob", "PendingNotificationRecovery", "dispatch_pending_notification", "dispatch_all_pending_notifications"]
 
@@ -697,7 +714,9 @@ allowed_paths = [
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "retain_pending_notification"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/ingress/pending_settlement.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
@@ -736,12 +755,19 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "promote_next"
 allowed_paths = [
-  "crates/kafka-client-engine/src/producer/ingress/data.rs",
+  "crates/kafka-client-engine/src/producer/ingress/pending_settlement.rs",
 ]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "retain_pending_fatal"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/ingress/pending_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "settle_next_pending"
 allowed_paths = []
 
 [[method_capabilities]]
@@ -2008,6 +2034,10 @@ path = "crates/kafka-client-engine/src/producer/ingress/data.rs"
 
 [[linear_owners]]
 owner_type = "PendingShardFatal"
+path = "crates/kafka-client-engine/src/producer/ingress/pending_fatal.rs"
+
+[[linear_owners]]
+owner_type = "PendingNotificationFatal"
 path = "crates/kafka-client-engine/src/producer/ingress/pending_fatal.rs"
 
 [[linear_owners]]

@@ -4,6 +4,7 @@ mod data;
 mod data_terminal;
 mod outcome;
 mod pending_fatal;
+mod pending_settlement;
 mod port;
 mod promotion;
 mod promotion_error;
@@ -36,6 +37,8 @@ mod data_terminal_test;
 mod data_test;
 #[cfg(test)]
 mod pending_fatal_test;
+#[cfg(test)]
+mod pending_settlement_test;
 #[cfg(test)]
 mod port_test;
 #[cfg(test)]

@@ -25,7 +25,7 @@ use super::promotion_rejection::{RejectionAction, classify_rejection};
 ///
 /// The caller supplies a fresh monotonic observation. The exact deadline pair
 /// remains owned by the pending attempt and is passed through unchanged.
-pub(super) fn promote_next(
+pub(super) fn promote_one(
     host: &mut ProducerHost,
     pending: &mut PendingAdmissionRegistry,
     now: Moment,

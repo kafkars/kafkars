@@ -119,7 +119,7 @@ impl ProducerShardData {
         if !matches!(&self.admission, ProducerShardAdmission::Running) {
             return Err(PendingPromotionFailure::Closed);
         }
-        promotion::promote_next(&mut self.host, &mut self.pending, now)
+        promotion::promote_one(&mut self.host, &mut self.pending, now)
     }
 
     pub(crate) fn unsettled_completions(&self) -> usize {

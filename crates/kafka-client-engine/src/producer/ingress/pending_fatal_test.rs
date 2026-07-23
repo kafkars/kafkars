@@ -8,17 +8,22 @@ use crate::{
     ProducerSend,
     clock::OperationDeadline,
     producer::{
-        ProducerRejectionReason,
+        ProducerHostInvariantError, ProducerRejectionReason,
         admission::ProducerAdmissionFailure,
         admission_test::record,
         host_limits_test::{start, valid_limits},
-        pending::{PendingAdmissionRejectionReason, PendingAttemptStateError},
+        pending::{
+            PendingAdmissionRejectionReason, PendingAttemptStateError, ProducerSendFailureKind,
+        },
     },
 };
 
 use super::{
-    data::ProducerShardData, pending_fatal::PendingShardFatal,
-    promotion_error::PendingPromotionFailure, terminal::ProducerShardTerminalError,
+    data::ProducerShardData,
+    pending_fatal::{PendingNotificationContext, PendingShardFatal},
+    pending_settlement::PendingSettlementDisposition,
+    promotion_error::PendingPromotionFailure,
+    terminal::ProducerShardTerminalError,
 };
 
 #[test]
@@ -87,6 +92,71 @@ fn later_fault_and_explicit_close_preserve_the_first_owner() {
     drop((first_send, later_send, refused));
 }
 
+#[test]
+fn ordinary_route_refusal_faults_with_the_exact_local_context() {
+    let mut data = ProducerShardData::new(start(valid_limits()));
+    let send = data
+        .register_pending(record("local-route"), deadline(5))
+        .unwrap_or_else(|error| panic!("local route fixture should register: {error:?}"))
+        .into_send();
+    let rollback = data.host.pending_notifications.begin_startup_rollback();
+
+    let progress = data
+        .settle_next_pending(Moment::from_tick(5))
+        .unwrap_or_else(|_refused| panic!("first route fault should install"));
+
+    assert_eq!(
+        progress.disposition(),
+        PendingSettlementDisposition::Faulted
+    );
+    assert_eq!(data.shard_stats().aggregate_retained_bytes, 0);
+    let Some(PendingShardFatal::Notification(notification)) = data.pending_fatal_for_test() else {
+        panic!("route refusal should retain one notification owner")
+    };
+    let PendingNotificationContext::Local(failure) = notification.context_for_test() else {
+        panic!("local settlement cannot be reclassified")
+    };
+    assert_eq!(failure.kind(), ProducerSendFailureKind::DeadlineElapsed);
+    assert!(notification.permit_slot_for_test().is_some());
+    drop((send, rollback));
+}
+
+#[test]
+fn invariant_route_refusal_is_the_only_first_fault_owner() {
+    let mut data = ProducerShardData::new(start(valid_limits()));
+    let send = data
+        .register_pending(record("accepted-route"), deadline(100))
+        .unwrap_or_else(|error| panic!("accepted route fixture should register: {error:?}"))
+        .into_send();
+    let expected = ProducerHostInvariantError::MissingAdmissionIdentity;
+    data.inject_post_acceptance_fault(expected);
+    let rollback = data.host.pending_notifications.begin_startup_rollback();
+
+    let progress = data
+        .settle_next_pending(Moment::from_tick(1))
+        .unwrap_or_else(|_refused| panic!("route context already owns the invariant"));
+
+    assert_eq!(
+        progress.disposition(),
+        PendingSettlementDisposition::Faulted
+    );
+    let Some(PendingShardFatal::Notification(notification)) = data.pending_fatal_for_test() else {
+        panic!("route refusal should remain the one immutable first owner")
+    };
+    let PendingNotificationContext::AcceptedInvariant(facts) = notification.context_for_test()
+    else {
+        panic!("accepted invariant must remain attached to its exact job")
+    };
+    assert!(facts.operation_id.is_some());
+    assert_eq!(
+        facts.invariant,
+        super::promotion_error::PendingPromotionInvariant::Host(expected)
+    );
+    assert!(notification.permit_slot_for_test().is_some());
+    assert_eq!(data.shard_stats().host.pending_notification_backlog, 0);
+    drop((send, rollback));
+}
+
 fn fatal_with_deadline(tick: u64) -> (PendingShardFatal, ProducerSend, OperationDeadline) {
     let mut source = ProducerShardData::new(start(valid_limits()));
     let expected_deadline = deadline(tick);
@@ -105,7 +175,11 @@ fn fatal_with_deadline(tick: u64) -> (PendingShardFatal, ProducerSend, Operation
         error: PendingAttemptStateError::Invariant,
         attempt: Box::new(attempt),
     };
-    (PendingShardFatal::new(failure), send, expected_deadline)
+    (
+        PendingShardFatal::promotion(failure),
+        send,
+        expected_deadline,
+    )
 }
 
 fn fatal_deadline(data: &ProducerShardData) -> OperationDeadline {
@@ -116,7 +190,7 @@ fn fatal_deadline(data: &ProducerShardData) -> OperationDeadline {
 }
 
 fn owner_deadline(owner: &PendingShardFatal) -> OperationDeadline {
-    let PendingPromotionFailure::Detach { attempt, .. } = owner.failure_for_test() else {
+    let Some(PendingPromotionFailure::Detach { attempt, .. }) = owner.promotion_for_test() else {
         panic!("test fatal owner should retain its exact detach attempt")
     };
     attempt
