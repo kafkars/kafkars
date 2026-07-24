@@ -2,20 +2,23 @@
 
 use kafka_client_core::{
     AssignedConsumerEffect, AssignedConsumerMachine, AssignedConsumerMachineError,
-    AssignedConsumerTransition, Moment,
+    AssignedConsumerTransition, Moment, PositionOwnership,
 };
 
 use crate::{
     clock::OperationDeadline,
     driver::{
         DriverOwner, PositionAdmissionFailure, PositionCompletionFailure,
-        PositionRequestPreparationError, PositionResolutionRequest, TrackedPositionCalls,
+        PositionResolutionRequest, TrackedPositionCalls,
     },
     protocol::consumer::ListOffsetsIsolation,
 };
 
+use super::position_prepare_error::PreparePositionError;
+
 /// One linear position effect paired with its original call-boundary deadline.
 #[must_use = "a prepared position resolution must be submitted or terminally settled"]
+#[derive(Debug)]
 pub(crate) struct PreparedPositionResolution {
     request: PositionResolutionRequest,
 }
@@ -31,25 +34,24 @@ impl PreparedPositionResolution {
             .map_err(PreparePositionError::from)?;
         Ok(Self { request })
     }
-}
 
-/// Preparation rejected a non-resolution effect without changing core state.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum PreparePositionError {
-    UnexpectedEffect,
-    DeadlineMismatch {
-        effect: kafka_client_core::Deadline,
-        operation: kafka_client_core::Deadline,
-    },
-}
+    pub(crate) const fn fence(&self) -> kafka_client_core::PositionFence {
+        self.request.fence()
+    }
 
-impl From<PositionRequestPreparationError> for PreparePositionError {
-    fn from(error: PositionRequestPreparationError) -> Self {
-        match error {
-            PositionRequestPreparationError::UnexpectedEffect => Self::UnexpectedEffect,
-            PositionRequestPreparationError::DeadlineMismatch { effect, operation } => {
-                Self::DeadlineMismatch { effect, operation }
-            }
+    /// Reconciles queued work against core's directional position ownership.
+    #[allow(
+        clippy::result_large_err,
+        reason = "ownership errors must return the exact linear prepared lookup"
+    )]
+    pub(crate) fn reconcile_ownership(
+        self,
+        machine: &AssignedConsumerMachine,
+    ) -> Result<Option<Self>, (AssignedConsumerMachineError, Self)> {
+        match machine.position_ownership(self.fence()) {
+            Ok(PositionOwnership::Active) => Ok(Some(self)),
+            Ok(PositionOwnership::Superseded) => Ok(None),
+            Err(error) => Err((error, self)),
         }
     }
 }
@@ -66,6 +68,10 @@ impl From<PositionRequestPreparationError> for PreparePositionError {
 pub(crate) enum PositionExecutionError {
     Completion(PositionCompletionFailure),
     Core(AssignedConsumerMachineError),
+    Ownership {
+        error: AssignedConsumerMachineError,
+        prepared: Box<PreparedPositionResolution>,
+    },
 }
 
 /// Result of one preflighted attempt to hand work to the bounded call owner.
@@ -101,6 +107,16 @@ impl PositionResolutionExecutor {
         prepared: PreparedPositionResolution,
         now: Moment,
     ) -> Result<PositionSubmission, PositionExecutionError> {
+        let prepared = match prepared.reconcile_ownership(machine) {
+            Ok(Some(prepared)) => prepared,
+            Ok(None) => return Ok(PositionSubmission::Settled(None)),
+            Err((error, prepared)) => {
+                return Err(PositionExecutionError::Ownership {
+                    error,
+                    prepared: Box::new(prepared),
+                });
+            }
+        };
         let Some(permit) = self.calls.try_reserve() else {
             return Ok(PositionSubmission::Backpressured(prepared));
         };

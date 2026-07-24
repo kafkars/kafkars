@@ -36,7 +36,7 @@ pub use crate::consumer::{
     AssignedConsumerMachineError, AssignedConsumerTransition, AssignedPartition,
     AssignedTopicPartition, AssignmentEpoch, FetchFailure, FetchFence, FetchOwnership,
     FetchRecords, FetchRevision, FetchThrottleFailure, NextFetchOffset, PositionEpoch,
-    PositionFence, PositionResolutionFailure, StartPosition,
+    PositionFence, PositionOwnership, PositionResolutionFailure, StartPosition,
 };
 pub use crate::operation::{ProducerOperation, ProducerOperationState};
 pub use crate::operation_outcome::{

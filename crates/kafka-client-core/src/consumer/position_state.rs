@@ -2,7 +2,7 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerMachineError, AssignedTopicPartition, FetchFence,
-    FetchRevision, NextFetchOffset, PositionEpoch, PositionFence, StartPosition,
+    FetchRevision, NextFetchOffset, PositionEpoch, PositionFence, PositionOwnership, StartPosition,
     fetch_throttle::FetchThrottle,
     position_resolution::{PositionResolution, ResolutionActivation},
 };
@@ -44,6 +44,19 @@ impl PartitionPosition {
 
     pub(super) const fn epoch(&self) -> PositionEpoch {
         self.epoch
+    }
+
+    pub(super) fn position_ownership(
+        &self,
+        fence: PositionFence,
+    ) -> Result<PositionOwnership, AssignedConsumerMachineError> {
+        match &self.phase {
+            PositionPhase::Resolution(resolution) => resolution.ownership(fence),
+            PositionPhase::Ready(_)
+            | PositionPhase::Fetching { .. }
+            | PositionPhase::FetchThrottled(_)
+            | PositionPhase::FetchFailed(_) => Ok(PositionOwnership::Superseded),
+        }
     }
 
     pub(super) fn replace(&mut self, position: StartPosition) {

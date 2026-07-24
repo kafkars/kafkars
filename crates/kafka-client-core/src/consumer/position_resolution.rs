@@ -2,7 +2,7 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerMachineError, NextFetchOffset, PositionFence,
-    PositionResolutionFailure, StartPosition,
+    PositionOwnership, PositionResolutionFailure, StartPosition,
 };
 use crate::{Deadline, Moment};
 
@@ -36,6 +36,21 @@ impl PositionResolution {
     pub(super) const fn new(position: StartPosition) -> Self {
         Self {
             state: ResolutionState::Awaiting(position),
+        }
+    }
+
+    pub(super) const fn ownership(
+        &self,
+        fence: PositionFence,
+    ) -> Result<PositionOwnership, AssignedConsumerMachineError> {
+        match self.state {
+            ResolutionState::Resolving { .. } => Ok(PositionOwnership::Active),
+            ResolutionState::Throttled { .. } | ResolutionState::Failed => {
+                Ok(PositionOwnership::Superseded)
+            }
+            ResolutionState::Awaiting(_) => {
+                Err(AssignedConsumerMachineError::PositionResolutionNotPending { fence })
+            }
         }
     }
 

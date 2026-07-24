@@ -11,31 +11,10 @@ use kafka_client_core::{
 use crate::{EngineConfig, clock::OperationDeadline, driver::DriverOwner};
 
 use super::position_execution::{
-    PositionExecutionError, PositionResolutionExecutor, PositionSubmission, PreparePositionError,
+    PositionExecutionError, PositionResolutionExecutor, PositionSubmission,
     PreparedPositionResolution,
 };
 use crate::protocol::consumer::ListOffsetsIsolation;
-
-#[test]
-fn deadline_pair_mismatch_is_an_invariant_not_a_core_attempt_failure() {
-    let (effect, _) = assignment(&[3], Deadline::from_tick(20));
-    let error = PreparedPositionResolution::new(
-        effect[0],
-        "orders".to_owned(),
-        ListOffsetsIsolation::ReadUncommitted,
-        operation_deadline(21),
-    )
-    .err()
-    .unwrap_or_else(|| panic!("deadline mismatch must fail preparation"));
-
-    assert_eq!(
-        error,
-        PreparePositionError::DeadlineMismatch {
-            effect: Deadline::from_tick(20),
-            operation: Deadline::from_tick(21),
-        }
-    );
-}
 
 #[test]
 fn full_registry_returns_the_unconsumed_prepared_lookup() {
@@ -179,7 +158,7 @@ fn completion_corruption_is_fatal_until_post_driver_recovery() {
     assert_eq!(executor.retained_count(), 0);
 }
 
-fn assignment(
+pub(super) fn assignment(
     partitions: &[u32],
     deadline: Deadline,
 ) -> (Vec<AssignedConsumerEffect>, AssignedConsumerMachine) {
@@ -206,7 +185,10 @@ fn assignment(
     (transition.into_effects(), machine)
 }
 
-fn prepared(effect: AssignedConsumerEffect, remaining: Duration) -> PreparedPositionResolution {
+pub(super) fn prepared(
+    effect: AssignedConsumerEffect,
+    remaining: Duration,
+) -> PreparedPositionResolution {
     let AssignedConsumerEffect::ResolvePosition { deadline, .. } = effect else {
         panic!("resolution effect");
     };
@@ -219,26 +201,19 @@ fn prepared(effect: AssignedConsumerEffect, remaining: Duration) -> PreparedPosi
     .unwrap_or_else(|error| panic!("prepare position lookup: {error:?}"))
 }
 
-fn operation_deadline(tick: u64) -> OperationDeadline {
-    OperationDeadline::from_parts_for_test(
-        Deadline::from_tick(tick),
-        Instant::now() + Duration::from_secs(1),
-    )
-}
-
-fn resolve_fence(effect: AssignedConsumerEffect) -> PositionFence {
+pub(super) fn resolve_fence(effect: AssignedConsumerEffect) -> PositionFence {
     let AssignedConsumerEffect::ResolvePosition { fence, .. } = effect else {
         panic!("resolution effect");
     };
     fence
 }
 
-fn owner() -> DriverOwner {
+pub(super) fn owner() -> DriverOwner {
     DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("build embedded driver owner: {error}"))
 }
 
-fn shutdown(driver: &mut DriverOwner) {
+pub(super) fn shutdown(driver: &mut DriverOwner) {
     driver
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));

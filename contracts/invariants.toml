@@ -274,7 +274,7 @@ milestone = "direct-and-group-consumer"
 [[invariant]]
 id = "CON-02"
 title = "Direct fetch positions are generation-fenced"
-statement = "Direct assignment replacement allocates a monotonic epoch and revokes old partitions before new work; pause and seek advance partition-local position generations so stale resolution, throttle, and fetch results cannot mutate retained state. Start-position resolution preserves one supplied absolute child deadline, deadline precedence and terminal failure remain core-owned, and positive broker throttle retains one exact fenced deadline. Every successful Fetch reports its exact monotonic observation, nonnegative broker throttle, and whether application records were retained. Core authorizes an exact retained delivery and its checkpoint next offset before emitting the next FetchReady revision or throttle; empty and control-only progress emits no delivery. Exact Fetch failure preserves deadline, driver-rejection, transport, exact signed broker-code, compatibility, invalid-response, and over-budget reasons, never retries, and remains inert until seek or assignment replacement. Zero throttle emits the next exact FetchReady revision immediately, while positive throttle reserves one exact future fetch fence and one checked absolute deadline before arming. Early or stale timer facts reject without mutation; pause and resume retain that deadline while re-fencing it; offset regression and revision exhaustion are atomic; and throttle-deadline overflow becomes an explicit core-owned terminal effect after any retained delivery is authorized."
+statement = "Direct assignment replacement allocates a monotonic epoch and revokes old partitions before new work; pause and seek advance partition-local position generations so stale resolution, throttle, and fetch results cannot mutate retained state. Start-position resolution preserves one supplied absolute child deadline, deadline precedence and terminal failure remain core-owned, and positive broker throttle retains one exact fenced deadline. A queued prepared position lookup reconciles against core ownership before tracked-call capacity: active work proceeds, directionally superseded work settles without driver admission, and future or cross-partition facts return an error with the exact linear owner intact. Every successful Fetch reports its exact monotonic observation, nonnegative broker throttle, and whether application records were retained. Core authorizes an exact retained delivery and its checkpoint next offset before emitting the next FetchReady revision or throttle; empty and control-only progress emits no delivery. Exact Fetch failure preserves deadline, driver-rejection, transport, exact signed broker-code, compatibility, invalid-response, and over-budget reasons, never retries, and remains inert until seek or assignment replacement. Zero throttle emits the next exact FetchReady revision immediately, while positive throttle reserves one exact future fetch fence and one checked absolute deadline before arming. Early or stale timer facts reject without mutation; pause and resume retain that deadline while re-fencing it; offset regression and revision exhaustion are atomic; and throttle-deadline overflow becomes an explicit core-owned terminal effect after any retained delivery is authorized."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/consumer/assignment_test.rs::replacement_revokes_old_order_before_starting_new_epoch",
@@ -302,6 +302,12 @@ evidence = [
   "crates/kafka-client-core/src/consumer/position_state_test.rs::fetch_revision_exhaustion_preserves_the_active_fetch_and_offset",
   "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls_test.rs::superseded_accepted_call_drains_before_releasing_capacity",
   "crates/kafka-client-engine/src/consumer/position_execution_test.rs::superseded_terminal_drains_without_mutating_new_position_state",
+  "crates/kafka-client-core/src/consumer/position_ownership_test.rs::active_resolution_is_superseded_by_control_terminal_and_assignment_progress",
+  "crates/kafka-client-core/src/consumer/position_ownership_test.rs::future_and_cross_partition_fences_remain_directional_errors",
+  "crates/kafka-client-engine/src/consumer/position_execution_ownership_test.rs::superseded_prepared_lookup_settles_before_zero_call_capacity",
+  "crates/kafka-client-engine/src/consumer/position_execution_ownership_test.rs::future_position_error_returns_the_exact_prepared_owner_before_capacity",
+  "crates/kafka-client-engine/src/consumer/position_execution_ownership_test.rs::cross_partition_error_returns_the_exact_prepared_owner_before_capacity",
+  "crates/kafka-client-engine/src/consumer/position_execution_ownership_test.rs::exact_active_lookup_still_backpressures_with_its_owner",
 ]
 
 [[invariant]]
@@ -385,7 +391,7 @@ evidence = [
   "crates/kafka-client-engine/src/driver/rpc/init_producer_id_calls_test.rs::driver_deadline_remains_an_explicit_core_fact",
   "crates/kafka-client-engine/src/producer/compression/pool_test.rs::due_deadline_fences_the_exact_late_worker_result",
   "crates/kafka-client-engine/src/protocol/request_timeout_test.rs::millisecond_ceiling_keeps_the_original_transport_instant_unchanged",
-  "crates/kafka-client-engine/src/consumer/position_execution_test.rs::deadline_pair_mismatch_is_an_invariant_not_a_core_attempt_failure",
+  "crates/kafka-client-engine/src/consumer/position_prepare_error_test.rs::deadline_pair_mismatch_is_an_invariant_not_a_core_attempt_failure",
   "crates/kafka-client-engine/src/consumer/position_execution_test.rs::elapsed_local_admission_preserves_core_deadline_precedence",
 ]
 

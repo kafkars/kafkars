@@ -153,6 +153,10 @@ production = "crates/kafka-client-core/src/consumer/position.rs"
 test = "crates/kafka-client-core/src/consumer/control_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/position_ownership.rs"
+test = "crates/kafka-client-core/src/consumer/position_ownership_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/position_resolution.rs"
 test = "crates/kafka-client-core/src/consumer/resolution_test.rs"
 
@@ -913,6 +917,10 @@ production = "crates/kafka-client-engine/src/consumer/position_execution.rs"
 test = "crates/kafka-client-engine/src/consumer/position_execution_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/position_prepare_error.rs"
+test = "crates/kafka-client-engine/src/consumer/position_prepare_error_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/fetch_store.rs"
 test = "crates/kafka-client-engine/src/consumer/fetch_store_test.rs"
 
@@ -1449,10 +1457,34 @@ forbidden = [
   "crate::transaction",
   "kafka_driver",
   "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
   "std::future",
   "std::time",
   "Instant::now",
   "Future",
+  "async",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/position_prepare_error.rs"
+forbidden = [
+  "crate::admin",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "std::future",
+  "std::time",
+  "Instant::now",
+  "Future",
+  "async",
+  "Metadata",
   "Transport",
   "Retry",
 ]
@@ -1631,6 +1663,13 @@ allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/admin/describe_configs.rs",
   "crates/kafka-client-engine/src/engine_host/admin/describe_topics.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "position_ownership"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/position_execution.rs",
 ]
 
 [[method_capabilities]]
@@ -1985,6 +2024,7 @@ field = "assignment"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/fetch_transition.rs",
   "crates/kafka-client-core/src/consumer/machine.rs",
+  "crates/kafka-client-core/src/consumer/position_ownership.rs",
   "crates/kafka-client-core/src/consumer/transition.rs",
 ]
 
@@ -2982,6 +3022,13 @@ allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.r
 owner_type = "TrackedPositionCalls"
 field = "settled"
 allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs"]
+
+[[mutation_owners]]
+owner_type = "PositionResolutionExecutor"
+field = "calls"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/position_execution.rs",
+]
 
 [[mutation_owners]]
 owner_type = "TrackedPositionCalls"

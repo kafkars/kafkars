@@ -9,5 +9,6 @@ pub use super::input::AssignedConsumerInput;
 pub use super::machine::AssignedConsumerMachine;
 pub use super::model::{
     AssignedPartition, AssignedTopicPartition, AssignmentEpoch, FetchFence, FetchOwnership,
-    FetchRecords, FetchRevision, NextFetchOffset, PositionEpoch, PositionFence, StartPosition,
+    FetchRecords, FetchRevision, NextFetchOffset, PositionEpoch, PositionFence, PositionOwnership,
+    StartPosition,
 };

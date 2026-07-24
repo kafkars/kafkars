@@ -10,6 +10,7 @@ mod input;
 mod machine;
 mod model;
 mod position;
+mod position_ownership;
 mod position_resolution;
 mod position_state;
 mod transition;
@@ -28,6 +29,8 @@ mod fetch_state_test;
 mod fetch_throttle_test;
 #[cfg(test)]
 mod model_test;
+#[cfg(test)]
+mod position_ownership_test;
 #[cfg(test)]
 mod position_state_test;
 #[cfg(test)]

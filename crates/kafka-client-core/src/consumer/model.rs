@@ -188,6 +188,15 @@ impl PositionFence {
     }
 }
 
+/// Deterministic ownership of one prepared position-resolution fence.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PositionOwnership {
+    /// The exact position lookup still owns the active resolution attempt.
+    Active,
+    /// A directionally newer assignment, position, or terminal superseded it.
+    Superseded,
+}
+
 /// Exact identity of one future-engine fetch execution.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct FetchFence {

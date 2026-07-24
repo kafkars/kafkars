@@ -13,6 +13,7 @@ use super::{super::DriverOwner, list_offsets_terminal::PositionResolutionTermina
 
 /// Exact core effect facts paired with engine catalog and isolation facts.
 #[must_use = "a prepared position lookup must be submitted or terminally settled"]
+#[derive(Debug)]
 pub(crate) struct PositionResolutionRequest {
     fence: PositionFence,
     position: StartPosition,
@@ -49,6 +50,10 @@ impl PositionResolutionRequest {
             isolation,
             operation_deadline,
         })
+    }
+
+    pub(crate) const fn fence(&self) -> PositionFence {
+        self.fence
     }
 }
 

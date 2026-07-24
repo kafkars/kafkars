@@ -10,4 +10,9 @@ mod position_execution;
 #[cfg(test)]
 mod position_execution_fence_test;
 #[cfg(test)]
+mod position_execution_ownership_test;
+#[cfg(test)]
 mod position_execution_test;
+mod position_prepare_error;
+#[cfg(test)]
+mod position_prepare_error_test;
