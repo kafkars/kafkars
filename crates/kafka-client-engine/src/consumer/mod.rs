@@ -16,6 +16,11 @@ mod assigned_timers_identity_test;
 mod assigned_timers_order_test;
 #[cfg(test)]
 mod assigned_timers_test;
+mod assigned_topics;
+#[cfg(test)]
+mod assigned_topics_replacement_test;
+#[cfg(test)]
+mod assigned_topics_test;
 mod fetch_execution;
 mod fetch_store;
 #[cfg(test)]
