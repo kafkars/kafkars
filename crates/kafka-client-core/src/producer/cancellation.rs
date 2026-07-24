@@ -6,7 +6,7 @@ use crate::{
 };
 
 use super::{
-    BatchState, ProducerMachine, idempotence_transition::materialize_effect, lifecycle::Settlement,
+    BatchState, ProducerMachine, lifecycle::Settlement, materialization::materialize_effect,
 };
 
 impl ProducerMachine {
@@ -144,7 +144,17 @@ impl ProducerMachine {
             let sequence = batch
                 .sequence_lease()
                 .ok_or(ProducerMachineError::ProducerIdentityFenced)?;
-            effects.push(materialize_effect(execution, identity, sequence));
+            let (deadline_operation_id, deadline) = batch
+                .earliest_deadline_owner()
+                .ok_or(ProducerMachineError::UnknownBatch)?;
+            effects.push(materialize_effect(
+                execution,
+                deadline_operation_id,
+                deadline,
+                self.compression,
+                identity,
+                sequence,
+            ));
         }
         Ok(resolved(
             ProducerCancellationOutcome::CancelledNotSent,

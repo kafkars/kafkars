@@ -3,6 +3,7 @@
 mod cleanup;
 #[cfg(test)]
 mod cleanup_test;
+mod compression;
 #[cfg(test)]
 mod deadline_test;
 mod error;

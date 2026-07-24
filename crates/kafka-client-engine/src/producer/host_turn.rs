@@ -69,22 +69,35 @@ impl ProducerHost {
             return Err(error);
         }
         let batch_timers = self.fire_due(now, budget.batch_timers)?;
+        let compression_expiries = self.fire_due_compression(now, budget.submission_expiries)?;
         let prepared_effects = self.drive_prepared(now, budget.prepared_effects)?;
-        let submission_expiries = self.fire_due_submissions(now, budget.submission_expiries)?;
+        let submission_expiries = compression_expiries
+            .saturating_add(self.fire_due_submissions(now, budget.submission_expiries)?);
         let completion_retries = self.retry_terminal_backlog(budget.completion_retries)?;
         let reclaim = self.reclaim_many(now, budget.reclaim_attempts)?;
         let next_deadline = min_deadline(self.next_deadline(), pending_submission_deadline(self));
         let due_remains = next_deadline.is_some_and(|deadline| deadline.is_elapsed_at(now));
+        let compressed_pending = self.pending_effects().iter().copied().any(|effect| {
+            matches!(
+                effect,
+                ProducerEffect::MaterializeBatch {
+                    compression,
+                    ..
+                } if compression != kafka_client_core::CompressionPolicy::None
+            )
+        });
         let prepared_remains = self
             .pending_effects()
             .iter()
             .copied()
-            .any(is_runnable_effect);
+            .any(|effect| is_runnable_effect(effect, self.compression_saturated));
         let completion_blocked = !self.terminal_backlog.is_empty();
         let runnable_work = due_remains
             || prepared_remains
             || (reclaim.attempts == budget.reclaim_attempts && !reclaim.blocked);
-        let blocked_work = completion_blocked || reclaim.blocked;
+        let blocked_work = completion_blocked
+            || reclaim.blocked
+            || (compressed_pending && self.compression_saturated);
         Ok(ProducerTurnOutcome {
             batch_timers,
             prepared_effects,
@@ -124,11 +137,16 @@ struct ReclaimProgress {
     blocked: bool,
 }
 
-const fn is_runnable_effect(effect: ProducerEffect) -> bool {
-    matches!(
-        effect,
-        ProducerEffect::AcquireProducerIdentity { .. } | ProducerEffect::MaterializeBatch { .. }
-    )
+const fn is_runnable_effect(effect: ProducerEffect, compression_saturated: bool) -> bool {
+    match effect {
+        ProducerEffect::AcquireProducerIdentity { .. }
+        | ProducerEffect::MaterializeBatch {
+            compression: kafka_client_core::CompressionPolicy::None,
+            ..
+        } => true,
+        ProducerEffect::MaterializeBatch { .. } => !compression_saturated,
+        _ => false,
+    }
 }
 
 fn pending_submission_deadline(host: &ProducerHost) -> Option<Deadline> {
@@ -136,6 +154,7 @@ fn pending_submission_deadline(host: &ProducerHost) -> Option<Deadline> {
         .iter()
         .filter_map(|effect| match effect {
             ProducerEffect::AcquireProducerIdentity { deadline, .. }
+            | ProducerEffect::MaterializeBatch { deadline, .. }
             | ProducerEffect::SubmitProduce { deadline, .. } => Some(*deadline),
             _ => None,
         })

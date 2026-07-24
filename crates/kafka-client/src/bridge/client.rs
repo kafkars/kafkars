@@ -1,8 +1,11 @@
 //! Facade-owned engine lifetime and private child-handle construction.
 
-use kafka_client_engine::{Engine, EngineConfig, EngineStartErrorKind};
+use kafka_client_engine::{
+    Engine, EngineConfig, EngineStartErrorKind, ProducerCompression as EngineCompression,
+};
 
 use crate::error::{ErrorKind, KafkaError};
+use crate::producer::Compression;
 
 /// Facade-owned handle that hides engine types from public modules.
 #[derive(Debug, Clone)]
@@ -12,8 +15,13 @@ pub(crate) struct ClientEngine {
 
 impl ClientEngine {
     /// Starts the engine from facade-owned configuration values.
-    pub(crate) fn start(bootstrap_servers: Vec<String>) -> Result<Self, KafkaError> {
-        let inner = Engine::start(EngineConfig::new(bootstrap_servers)).map_err(|error| {
+    pub(crate) fn start(
+        bootstrap_servers: Vec<String>,
+        compression: Compression,
+    ) -> Result<Self, KafkaError> {
+        let config = EngineConfig::new(bootstrap_servers)
+            .with_producer_compression(engine_compression(compression));
+        let inner = Engine::start(config).map_err(|error| {
             let kind = match error.kind() {
                 EngineStartErrorKind::Configuration => ErrorKind::Configuration,
                 EngineStartErrorKind::Admin
@@ -43,5 +51,15 @@ impl ClientEngine {
     /// Returns an admin bridge with the engine-owned default timeout.
     pub(crate) fn admin(&self) -> super::admin::AdminEngine {
         super::admin::AdminEngine::new(self.inner.admin(), self.inner.config().admin_timeout())
+    }
+}
+
+const fn engine_compression(compression: Compression) -> EngineCompression {
+    match compression {
+        Compression::None => EngineCompression::None,
+        Compression::Gzip => EngineCompression::Gzip,
+        Compression::Snappy => EngineCompression::Snappy,
+        Compression::Lz4 => EngineCompression::Lz4,
+        Compression::Zstd => EngineCompression::Zstd,
     }
 }

@@ -91,7 +91,7 @@ production = "crates/kafka-client-core/src/producer/retry.rs"
 test = "crates/kafka-client-core/src/producer/retry_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-core/src/producer/batch_retry.rs"
+production = "crates/kafka-client-core/src/producer/batch_transition.rs"
 test = "crates/kafka-client-core/src/producer/batch_retry_test.rs"
 
 [[test_mirrors]]
@@ -465,6 +465,14 @@ test = "crates/kafka-client-engine/src/producer/execution/handoff_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution/materialization.rs"
 test = "crates/kafka-client-engine/src/producer/execution/materialization_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/compression/pool.rs"
+test = "crates/kafka-client-engine/src/producer/compression/pool_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/config/compression.rs"
+test = "crates/kafka-client-engine/src/config/compression_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution/next_submission.rs"
@@ -946,6 +954,10 @@ test = "crates/kafka-client/src/admin/partitions_builder_test.rs"
 production = "crates/kafka-client/src/admin/create_partitions.rs"
 test = "crates/kafka-client/src/admin/create_partitions_test.rs"
 
+[[test_mirrors]]
+production = "crates/kafka-client/src/producer/compression.rs"
+test = "crates/kafka-client/src/producer/compression_test.rs"
+
 [[dependency_rules]]
 package = "kafka-client-core"
 allowed_internal = []
@@ -1263,6 +1275,7 @@ method = "spawn"
 allowed_paths = [
   "crates/kafka-client-engine/src/completion/notifier.rs",
   "crates/kafka-client-engine/src/engine_host/start.rs",
+  "crates/kafka-client-engine/src/producer/compression/pool.rs",
 ]
 
 [[method_capabilities]]
@@ -1462,7 +1475,6 @@ allowed_paths = [
   "crates/kafka-client-core/src/producer/batch_revision.rs",
   "crates/kafka-client-core/src/producer/batch_timer.rs",
   "crates/kafka-client-core/src/producer/batch_transition.rs",
-  "crates/kafka-client-core/src/producer/batch_retry.rs",
 ]
 
 [[mutation_owners]]
@@ -1472,7 +1484,6 @@ allowed_paths = [
   "crates/kafka-client-core/src/producer/batch_revision.rs",
   "crates/kafka-client-core/src/producer/batch_timer.rs",
   "crates/kafka-client-core/src/producer/batch_transition.rs",
-  "crates/kafka-client-core/src/producer/batch_retry.rs",
 ]
 
 [[mutation_owners]]
@@ -1509,7 +1520,6 @@ allowed_paths = [
   "crates/kafka-client-core/src/producer/batch_revision.rs",
   "crates/kafka-client-core/src/producer/batch_transition.rs",
   "crates/kafka-client-core/src/producer/input_outcome.rs",
-  "crates/kafka-client-core/src/producer/batch_retry.rs",
   "crates/kafka-client-core/src/producer/retry.rs",
   "crates/kafka-client-core/src/producer/retry_timer.rs",
 ]
@@ -1552,13 +1562,12 @@ allowed_paths = [
   "crates/kafka-client-core/src/producer/batch.rs",
   "crates/kafka-client-core/src/producer/batch_revision.rs",
   "crates/kafka-client-core/src/producer/batch_transition.rs",
-  "crates/kafka-client-core/src/producer/batch_retry.rs",
 ]
 
 [[mutation_owners]]
 owner_type = "ProducerBatch"
 field = "retries_started"
-allowed_paths = ["crates/kafka-client-core/src/producer/batch_retry.rs"]
+allowed_paths = ["crates/kafka-client-core/src/producer/batch_transition.rs"]
 
 [[mutation_owners]]
 owner_type = "ByteBudget"
@@ -2101,6 +2110,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/admission.rs",
   "crates/kafka-client-engine/src/producer/admission/rollback.rs",
   "crates/kafka-client-engine/src/producer/effect.rs",
+  "crates/kafka-client-engine/src/producer/execution/compression.rs",
   "crates/kafka-client-engine/src/producer/execution_turn.rs",
   "crates/kafka-client-engine/src/producer/host.rs",
   "crates/kafka-client-engine/src/producer/host/driver_input.rs",
@@ -2169,6 +2179,64 @@ allowed_paths = [
 
 [[mutation_owners]]
 owner_type = "ProducerHost"
+field = "compression"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/effect.rs",
+  "crates/kafka-client-engine/src/producer/execution/compression.rs",
+  "crates/kafka-client-engine/src/producer/execution_turn.rs",
+  "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/cancellation/revision.rs",
+  "crates/kafka-client-engine/src/producer/cancellation/revision/pending.rs",
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerHost"
+field = "compression_saturated"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/execution_turn.rs",
+  "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/shutdown.rs",
+]
+
+[[mutation_owners]]
+owner_type = "CompressionWorkers"
+field = "sender"
+allowed_paths = ["crates/kafka-client-engine/src/producer/compression/pool.rs"]
+
+[[mutation_owners]]
+owner_type = "CompressionWorkers"
+field = "handles"
+allowed_paths = ["crates/kafka-client-engine/src/producer/compression/pool.rs"]
+
+[[mutation_owners]]
+owner_type = "CompressionWorkers"
+field = "entries"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/compression/deadline.rs",
+  "crates/kafka-client-engine/src/producer/compression/pool.rs",
+]
+
+[[mutation_owners]]
+owner_type = "CompressionWorkers"
+field = "schedule"
+allowed_paths = [
+  "crates/kafka-client-engine/src/producer/compression/deadline.rs",
+  "crates/kafka-client-engine/src/producer/compression/pool.rs",
+]
+
+[[mutation_owners]]
+owner_type = "CompressionWorkers"
+field = "reserved_bytes"
+allowed_paths = ["crates/kafka-client-engine/src/producer/compression/pool.rs"]
+
+[[mutation_owners]]
+owner_type = "ProducerPortCancelAccepted"
+field = "fault"
+allowed_paths = ["crates/kafka-client-engine/src/producer/ingress/cancellation.rs"]
+
+[[mutation_owners]]
+owner_type = "ProducerHost"
 field = "bindings"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/admission.rs",
@@ -2208,11 +2276,6 @@ allowed_paths = [
 owner_type = "ProducerShardState"
 field = "data"
 allowed_paths = ["crates/kafka-client-engine/src/producer/ingress/shard.rs"]
-
-[[mutation_owners]]
-owner_type = "ProducerPortCancelAccepted"
-field = "fault"
-allowed_paths = ["crates/kafka-client-engine/src/producer/ingress/cancellation.rs"]
 
 [[mutation_owners]]
 owner_type = "ProducerShardState"
@@ -2680,6 +2743,18 @@ path = "crates/kafka-client-engine/src/producer/execution.rs"
 [[linear_owners]]
 owner_type = "PreparedRevisionPlan"
 path = "crates/kafka-client-engine/src/producer/execution/revision.rs"
+
+[[linear_owners]]
+owner_type = "CompressionJob"
+path = "crates/kafka-client-engine/src/producer/compression/job.rs"
+
+[[linear_owners]]
+owner_type = "CompressionCompletion"
+path = "crates/kafka-client-engine/src/producer/compression/job.rs"
+
+[[linear_owners]]
+owner_type = "CompressionWorkers"
+path = "crates/kafka-client-engine/src/producer/compression/pool.rs"
 
 [[linear_owners]]
 owner_type = "SealedRevisionPlan"

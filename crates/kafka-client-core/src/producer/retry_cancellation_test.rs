@@ -155,7 +155,9 @@ fn shared_retry_cancellation_revises_survivors_and_replaces_timer() {
         fire_retry(&mut producer, third, 3, 7).effects(),
         [ProducerEffect::MaterializeBatch {
             execution: third,
-            compression: crate::CompressionPolicy::Uncompressed,
+            deadline_operation_id: survivor,
+            deadline: crate::Deadline::from_tick(30),
+            compression: crate::CompressionPolicy::None,
             identity: crate::ProducerIdentity::try_new(7, 2)
                 .unwrap_or_else(|| panic!("valid test identity")),
             sequence: crate::ProducerSequenceLease::try_new(0, 1)

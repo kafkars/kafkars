@@ -133,19 +133,20 @@ evidence = [
 [[invariant]]
 id = "BND-01"
 title = "Retained producer bytes are bounded"
-statement = "Application records and encoded batches have explicit count and byte limits; admission preserves provenance and releases each reservation exactly once."
+statement = "Application records, compression jobs, compression results, and encoded batches have explicit count and byte limits; admission preserves provenance and releases each reservation exactly once."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/record_store_test.rs::count_and_bytes_are_reserved_before_core_admission",
   "crates/kafka-client-engine/src/producer/record_store_test.rs::release_checks_provenance_and_happens_exactly_once",
   "crates/kafka-client-engine/src/producer/execution_test.rs::encoded_capacity_failure_becomes_a_core_owned_not_sent_outcome",
   "crates/kafka-client-engine/src/producer/execution/materialization_test.rs::prepared_entry_count_bound_rejects_without_accounting_drift",
+  "crates/kafka-client-engine/src/producer/compression/pool_test.rs::one_bounded_slot_returns_the_second_linear_job",
 ]
 
 [[invariant]]
 id = "CAN-01"
 title = "Cancellation is stage-aware"
-statement = "Cancellation is an immediate core decision: open and generation-fenced pre-driver work revokes its exact retained mechanisms and terminates NotSent, driver-owned work returns TooLate without mutation, terminal observation remains authoritative, and observer drop remains abandonment."
+statement = "Cancellation is an immediate core decision: open and generation-fenced pre-driver work, including worker-owned compression, revokes its exact retained mechanisms and terminates NotSent; driver-owned work returns TooLate without mutation, terminal observation remains authoritative, and observer drop remains abandonment."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/producer/cancellation_test.rs::open_member_cancellation_releases_exact_resources_and_remains_terminal",
@@ -159,6 +160,7 @@ evidence = [
   "crates/kafka-client-engine/src/producer/cancellation/revision_test.rs::retry_wait_preflight_requires_explicit_store_phase_with_no_prepared_owner",
   "crates/kafka-client-engine/src/producer/ingress/cancellation_test.rs::cancellation_terminal_backpressure_preserves_abandon_reclaim",
   "crates/kafka-client/src/producer/cancellation_test.rs::cancellation_preserves_the_terminal_observer_and_repeated_requests_reach_core",
+  "crates/kafka-client-engine/src/producer/compression/pool_test.rs::explicit_cancellation_fences_a_completed_but_unapplied_generation",
 ]
 
 [[invariant]]
@@ -205,7 +207,7 @@ milestone = "direct-and-group-consumer"
 [[invariant]]
 id = "DL-01"
 title = "Producer policy consumes one absolute deadline"
-statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant, accepted operation bindings retain that pair unchanged, core rejects already elapsed work, queued submission expiry reproduces the exact core deadline fact, and identity-request deadline completion cannot be erased by an earlier transport category."
+statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant, accepted operation bindings retain that pair unchanged, core rejects already elapsed work, queued compression or submission expiry reproduces the exact core deadline fact, and identity-request deadline completion cannot be erased by an earlier transport category."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/clock/monotonic_test.rs::deadline_capture_uses_one_boundary_observation",
@@ -220,6 +222,7 @@ evidence = [
   "crates/kafka-client-engine/src/producer/execution_turn_test.rs::terminal_release_cancels_submission_that_never_started",
   "crates/kafka-client-core/src/producer/idempotence_fencing_test.rs::identity_deadline_fences_atomically_without_timing_out_later_batches",
   "crates/kafka-client-engine/src/driver/rpc/init_producer_id_calls_test.rs::driver_deadline_remains_an_explicit_core_fact",
+  "crates/kafka-client-engine/src/producer/compression/pool_test.rs::due_deadline_fences_the_exact_late_worker_result",
 ]
 
 [[invariant]]
@@ -338,7 +341,7 @@ evidence = [
 [[invariant]]
 id = "MAT-01"
 title = "Materialization retains canonical records without changing semantics"
-statement = "Materialization preserves record order and nullable fields, creates a separately bounded encoded representation from shared canonical record handles, and retains canonical accounting until ordered core release effects execute."
+statement = "Materialization preserves record order and nullable fields, creates a separately bounded encoded representation from shared canonical record handles, delegates every codec, RecordBatch layout, and CRC to kafka-wire-records, and retains canonical or worker-reserved accounting until ordered core release effects execute."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/materialization_test.rs::ordered_records_null_empty_and_duplicate_headers_survive_transfer",
@@ -349,6 +352,7 @@ evidence = [
   "crates/kafka-client-engine/src/producer/execution_test.rs::materialization_retains_one_bounded_request_without_fake_driver_acceptance",
   "crates/kafka-client-engine/src/producer/execution_turn_test.rs::immediate_batch_materializes_then_waits_without_fake_acceptance",
   "crates/kafka-client-engine/src/producer/execution_turn_test.rs::semantic_partition_encoding_failure_settles_without_poisoning_host",
+  "crates/kafka-client-engine/src/protocol/produce_batch_test.rs::every_client_policy_uses_the_wire_records_codec_authority",
 ]
 
 [[invariant]]
@@ -420,6 +424,7 @@ status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/completion/settlement_test.rs::hostile_waker_runs_only_on_the_completion_notifier",
   "crates/kafka-client-engine/src/engine_test.rs::notifier_reentrant_shutdown_returns_without_blocking_host_cleanup",
+  "crates/kafka-client-engine/src/producer/compression/pool_test.rs::worker_materializes_and_wakes_away_from_the_host_thread",
 ]
 
 [[invariant]]
@@ -444,7 +449,7 @@ evidence = [
 [[invariant]]
 id = "SD-01"
 title = "Shutdown closes admission before draining"
-statement = "Shutdown closes producer admission before draining. Emergency recovery attempts the shared driver barrier, unconditionally drops the unique driver and every tracked Produce owner, then releases engine bytes and publishes conservative core fallback. A Drop-backed notifier owner joins off-reactor during normal finalization and finalizer unwind before one shared report is retained."
+statement = "Shutdown closes producer admission before draining. Emergency recovery attempts the shared driver barrier, unconditionally drops the unique driver and every tracked Produce owner, then releases engine bytes and publishes conservative core fallback. Native compression workers and the Drop-backed notifier owner are joined during finalization before one shared report is retained."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/execution_stop_test.rs::damaged_interpretation_still_settles_observers_conservatively",
@@ -456,6 +461,7 @@ evidence = [
   "crates/kafka-client-engine/src/engine_host/start_test.rs::notifier_join_failure_appends_without_replacing_primary_failure",
   "crates/kafka-client-engine/src/engine_host/start_test.rs::finalizer_panic_still_publishes_a_terminal_report",
   "crates/kafka-client-engine/src/driver/owner_test.rs::retained_explicit_shutdown_barrier_settles_with_the_reactor",
+  "crates/kafka-client-engine/src/producer/compression/pool_test.rs::shutdown_joins_every_owned_native_worker",
 ]
 
 [[invariant]]

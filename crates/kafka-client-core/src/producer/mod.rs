@@ -1,10 +1,8 @@
 //! Atomic producer admission, retained capacity, and terminal settlement.
-
 mod admission_batching;
 #[cfg(test)]
 mod admission_batching_test;
 mod batch;
-mod batch_retry;
 #[cfg(test)]
 mod batch_retry_test;
 mod batch_revision;
@@ -13,7 +11,8 @@ mod batch_transition;
 mod batching;
 mod cancellation;
 mod cancellation_waiting;
-mod close_transition;
+#[cfg(test)]
+mod compression_policy_test;
 mod execution_stop;
 #[cfg(test)]
 mod execution_stop_capacity_test;
@@ -50,6 +49,7 @@ mod input_outcome;
 mod input_outcome_test;
 mod lifecycle;
 mod machine;
+mod materialization;
 mod partitioner;
 #[cfg(test)]
 mod partitioner_test;

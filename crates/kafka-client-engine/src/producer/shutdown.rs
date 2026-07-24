@@ -98,6 +98,8 @@ impl ProducerHost {
     pub(super) fn drain_terminal_mechanisms_preserving_completions(&mut self) {
         self.pending_effects.clear();
         self.timers.clear_terminal();
+        self.compression.shutdown();
+        self.compression_saturated = false;
         self.execution.clear_terminal();
         self.reclaimer.clear_terminal();
         self.store.clear_terminal();
@@ -151,6 +153,8 @@ impl ProducerHost {
             .saturating_add(stats.prepared_bytes)
             .saturating_add(stats.submission_deadlines)
             .saturating_add(stats.pending_effects)
+            .saturating_add(stats.compression_jobs)
+            .saturating_add(stats.compression_bytes)
             .saturating_add(core_bytes)
     }
 
@@ -177,6 +181,8 @@ impl ProducerHost {
             && stats.completion_bindings == 0
             && stats.flush_completion_bindings == 0
             && stats.pending_effects == 0
+            && stats.compression_jobs == 0
+            && stats.compression_bytes == 0
             && stats.terminal_backlog == 0
             && stats.core_retained_bytes == kafka_client_core::ByteCount::new(0)
             && stats.core_completion_slots == 0

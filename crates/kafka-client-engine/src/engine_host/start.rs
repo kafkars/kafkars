@@ -60,8 +60,8 @@ pub(crate) fn start(
         Err(error) => return cancel_start(sender, handle, EngineStartError::driver(&error)),
     };
     let clock = Arc::new(MonotonicClock::new());
-    let wake = driver.reactor_wake();
-    let control = Arc::new(EngineHostControl::new(wake.clone()));
+    let wake = Arc::new(driver.reactor_wake());
+    let control = Arc::new(EngineHostControl::new(wake.as_ref().clone()));
     let (mut admin_notifier, admin_ports) = match AdminCompletionNotifier::start() {
         Ok(owner) => owner,
         Err(error) => {
@@ -78,7 +78,7 @@ pub(crate) fn start(
     let delete_topics = DeleteTopicsHost::new(delete_topics);
     let describe_cluster = DescribeClusterHost::new(describe_cluster);
     let create_partitions = CreatePartitionsHost::new(create_partitions);
-    let producer = match ProducerHost::new(validated.host_limits) {
+    let producer = match ProducerHost::new_with_compression_wake(validated.host_limits, &wake) {
         Ok(producer) => producer,
         Err(error) => {
             if let Some(notifier) = admin_notifier.take_join() {
@@ -88,7 +88,7 @@ pub(crate) fn start(
         }
     };
     install_notifier_threads(&lifecycle, &producer, &admin_notifier);
-    let producer = ProducerShardOwner::new(producer, Arc::new(wake));
+    let producer = ProducerShardOwner::new(producer, Arc::clone(&wake));
     let admission = producer.admission_port();
     let create_topics = CreateTopicsShardOwner::new(create_topics, Arc::new(driver.reactor_wake()));
     let create_topics_admission = create_topics.admission_port();

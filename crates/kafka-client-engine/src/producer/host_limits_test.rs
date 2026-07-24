@@ -160,6 +160,10 @@ pub(crate) fn valid_limits() -> ProducerHostLimits {
         max_wire_batch_bytes: 1_024,
         batch_policy,
         retry_policy: ProducerRetryPolicy::none(),
+        compression: kafka_client_core::CompressionPolicy::None,
+        compression_worker_count: 0,
+        compression_job_capacity: 0,
+        compression_byte_capacity: 0,
     }
 }
 

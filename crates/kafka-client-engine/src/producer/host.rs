@@ -4,7 +4,8 @@ mod driver_input;
 #[cfg(test)]
 mod driver_input_test;
 use kafka_client_core::{
-    ByteCount, ProducerBatchPolicy, ProducerEffect, ProducerMachine, ProducerRetryPolicy,
+    ByteCount, CompressionPolicy, ProducerBatchPolicy, ProducerEffect, ProducerMachine,
+    ProducerRetryPolicy,
 };
 
 use crate::{clock::BatchTimers, completion::CompletionRegistry};
@@ -13,6 +14,7 @@ use super::{
     ProducerHostInvariantError, ProducerHostStartError, ProducerStore, ProducerStoreLimits,
     ProducerStoreStats,
     binding::OperationBindings,
+    compression::{CompressionWorkerLimits, CompressionWorkers, SilentCompressionWake},
     execution::{PreparedExecution, PreparedExecutionLimits},
     flush::FlushBindings,
     reclaim::CompletionReclaimer,
@@ -38,6 +40,8 @@ pub(crate) struct ProducerHostStats {
     pub(crate) completion_bindings: usize,
     pub(crate) flush_completion_bindings: usize,
     pub(crate) pending_effects: usize,
+    pub(crate) compression_jobs: usize,
+    pub(crate) compression_bytes: usize,
     pub(crate) terminal_backlog: usize,
     pub(crate) healthy: bool,
 }
@@ -54,15 +58,17 @@ pub(super) struct ProducerCoreConfig {
     completion_capacity: usize,
     batch_policy: ProducerBatchPolicy,
     retry_policy: ProducerRetryPolicy,
+    compression: CompressionPolicy,
 }
 
 impl ProducerCoreConfig {
     pub(super) const fn machine(self) -> ProducerMachine {
-        ProducerMachine::with_batch_and_retry_policy(
+        ProducerMachine::with_batch_retry_and_compression_policy(
             self.retained_bytes,
             self.completion_capacity,
             self.batch_policy,
             self.retry_policy,
+            self.compression,
         )
     }
 }
@@ -78,6 +84,8 @@ pub(crate) struct ProducerHost {
     pub(super) reclaimer: CompletionReclaimer,
     pub(super) timers: BatchTimers,
     pub(super) execution: PreparedExecution,
+    pub(super) compression: CompressionWorkers,
+    pub(super) compression_saturated: bool,
     pub(super) pending_effects: Vec<ProducerEffect>,
     pub(super) terminal_backlog: OrderedTerminalBacklog,
     pub(super) effect_capacity: usize,
@@ -97,14 +105,34 @@ pub(crate) struct ProducerHost {
 
 impl ProducerHost {
     pub(crate) fn new(limits: ProducerHostLimits) -> Result<Self, ProducerHostStartError> {
+        Self::new_with_compression_wake(limits, &std::sync::Arc::new(SilentCompressionWake))
+    }
+
+    pub(crate) fn new_with_compression_wake<W>(
+        limits: ProducerHostLimits,
+        wake: &std::sync::Arc<W>,
+    ) -> Result<Self, ProducerHostStartError>
+    where
+        W: super::ingress::ProducerShardWake,
+    {
         let retained_bytes = limits.validate()?.retained_bytes();
         let core_config = ProducerCoreConfig {
             retained_bytes,
             completion_capacity: limits.completion_capacity,
             batch_policy: limits.batch_policy,
             retry_policy: limits.retry_policy,
+            compression: limits.compression,
         };
         let core = core_config.machine();
+        let compression = CompressionWorkers::start(
+            CompressionWorkerLimits {
+                workers: limits.compression_worker_count,
+                jobs: limits.compression_job_capacity,
+                bytes: limits.compression_byte_capacity,
+            },
+            wake,
+        )
+        .map_err(ProducerHostStartError::Compression)?;
         let completions = CompletionRegistry::start(limits.completion_capacity)
             .map_err(ProducerHostStartError::Notifier)?;
         Ok(Self {
@@ -127,6 +155,8 @@ impl ProducerHost {
                     max_batch_bytes: limits.max_wire_batch_bytes,
                 },
             ),
+            compression,
+            compression_saturated: false,
             pending_effects: Vec::with_capacity(limits.completion_capacity),
             terminal_backlog: OrderedTerminalBacklog::new(limits.completion_capacity),
             effect_capacity: limits.completion_capacity,
@@ -158,6 +188,8 @@ impl ProducerHost {
             completion_bindings: self.bindings.len(),
             flush_completion_bindings: self.flush_bindings.len(),
             pending_effects: self.pending_effects.len(),
+            compression_jobs: self.compression.retained_jobs(),
+            compression_bytes: self.compression.retained_bytes(),
             terminal_backlog: self.terminal_backlog.len(),
             healthy: self.health == ProducerHostHealth::Healthy,
         }

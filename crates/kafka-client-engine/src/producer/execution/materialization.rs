@@ -12,7 +12,10 @@ use crate::{
         batch_store::{MaterializationAbort, MaterializationAttempt},
         store::ProducerStore,
     },
-    protocol::produce::{MaterializedProduce, materialize_explicit_produce_batch},
+    protocol::produce::{
+        MaterializedProduce, materialize_explicit_produce_batch,
+        materialize_explicit_produce_batch_with_compression,
+    },
 };
 
 #[derive(Debug)]
@@ -32,9 +35,6 @@ impl PreparedExecution {
         sequence: ProducerSequenceLease,
         now: Moment,
     ) -> Result<ProducerInput, PreparedExecutionError> {
-        match compression {
-            CompressionPolicy::Uncompressed => {}
-        }
         let (attempt, input) = match store.materialization_view_idempotent(
             execution,
             self.max_batch_bytes,
@@ -48,7 +48,11 @@ impl PreparedExecution {
             Err(error) => return Err(PreparedExecutionError::Store(error)),
         };
         let execution = attempt.execution();
-        let materialized = match materialize_explicit_produce_batch(input) {
+        let materialized = match compression {
+            CompressionPolicy::None => materialize_explicit_produce_batch(input),
+            _ => materialize_explicit_produce_batch_with_compression(input, compression),
+        };
+        let materialized = match materialized {
             Ok(value) => value,
             Err(_semantic_failure) => {
                 abort_failed_attempt(store, attempt);
@@ -100,7 +104,7 @@ impl PreparedExecution {
         }
     }
 
-    fn classify_insert_rejection(
+    pub(super) fn classify_insert_rejection(
         execution: BatchExecutionId,
         rejected: PreparedInsertError,
     ) -> Result<ProducerInput, PreparedExecutionError> {

@@ -87,7 +87,7 @@ impl SealedBatch {
             .find_map(|effect| match effect {
                 ProducerEffect::MaterializeBatch {
                     execution,
-                    compression: CompressionPolicy::Uncompressed,
+                    compression: CompressionPolicy::None,
                     ..
                 } if execution.batch_id() == batch_id => Some(*execution),
                 _ => None,
@@ -115,7 +115,7 @@ impl SealedBatch {
             .materialize(
                 &mut self.store,
                 self.execution_id,
-                CompressionPolicy::Uncompressed,
+                CompressionPolicy::None,
                 now,
             )
             .unwrap_or_else(|error| panic!("engine materialization failed: {error}"))

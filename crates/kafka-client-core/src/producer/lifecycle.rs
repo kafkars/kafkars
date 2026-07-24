@@ -1,6 +1,9 @@
 //! Atomic settlement across operation, byte-budget, and completion owners.
 
-use crate::{ByteCount, DeliveryStatus, OperationId, ProducerMachineError, TerminalRelease};
+use crate::{
+    ByteCount, DeliveryStatus, OperationId, ProducerMachineError, ProducerTransition,
+    TerminalRelease,
+};
 
 use super::ProducerMachine;
 
@@ -13,6 +16,15 @@ pub(crate) enum Settlement {
 }
 
 impl ProducerMachine {
+    pub(crate) fn close_requested(&mut self) -> Result<ProducerTransition, ProducerMachineError> {
+        let effects = self
+            .flushes
+            .request(self.next_operation_id, &self.operations)
+            .map_err(ProducerMachineError::Flush)?;
+        self.close_admission();
+        Ok(ProducerTransition::from_effects(effects))
+    }
+
     pub(crate) fn require_batch_accumulating(
         &self,
         ids: &[OperationId],

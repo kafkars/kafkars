@@ -37,6 +37,10 @@ fn generated_accumulation_waits_until_the_whole_admission_transition_drains() {
         max_wire_batch_bytes: 1_024,
         batch_policy,
         retry_policy: ProducerRetryPolicy::none(),
+        compression: kafka_client_core::CompressionPolicy::None,
+        compression_worker_count: 0,
+        compression_job_capacity: 0,
+        compression_byte_capacity: 0,
     };
     let mut host = start(limits);
     let admitted = admit(

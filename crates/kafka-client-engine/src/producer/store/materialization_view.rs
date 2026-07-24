@@ -40,6 +40,15 @@ impl ProducerStore {
                 }
             }
             let topic = expected_topic.ok_or(ProducerStoreError::EmptyBatch)?;
+            let source_retained_bytes =
+                plan.members.iter().try_fold(0_usize, |retained, member| {
+                    let member_bytes = self.records.retained_bytes(member.payload_id)?;
+                    let member_bytes = usize::try_from(member_bytes.get())
+                        .map_err(|_| ProducerStoreError::RetainedSizeOverflow)?;
+                    retained
+                        .checked_add(member_bytes)
+                        .ok_or(ProducerStoreError::RetainedSizeOverflow)
+                })?;
             let records = plan
                 .members
                 .iter()
@@ -54,6 +63,7 @@ impl ProducerStore {
                 partition,
                 records,
                 max_batch_bytes,
+                source_retained_bytes,
                 identity,
                 sequence,
             ))

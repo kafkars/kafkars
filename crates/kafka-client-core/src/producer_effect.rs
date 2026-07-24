@@ -54,11 +54,25 @@ pub enum AcknowledgementPolicy {
     All,
 }
 
-/// Fixed compression policy for the first producer vertical slice.
+/// Closed producer compression policy interpreted by the engine.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompressionPolicy {
     /// The engine materializes a Kafka batch without compression.
-    Uncompressed,
+    None,
+    /// The engine asks `kafka-wire-records` for Kafka-compatible gzip framing.
+    Gzip,
+    /// The engine asks `kafka-wire-records` for Kafka's xerial snappy framing.
+    Snappy,
+    /// The engine asks `kafka-wire-records` for Kafka-compatible LZ4 framing.
+    Lz4,
+    /// The engine asks `kafka-wire-records` for Kafka-compatible zstd framing.
+    Zstd,
+}
+
+impl Default for CompressionPolicy {
+    fn default() -> Self {
+        Self::None
+    }
 }
 
 /// One mechanism request emitted by deterministic producer policy.
@@ -104,6 +118,10 @@ pub enum ProducerEffect {
     MaterializeBatch {
         /// Exact immutable membership snapshot to encode.
         execution: BatchExecutionId,
+        /// Live member proving ownership of the unchanged public deadline.
+        deadline_operation_id: OperationId,
+        /// Earliest live public deadline fencing worker retention.
+        deadline: Deadline,
         /// Required record-batch compression mode.
         compression: CompressionPolicy,
         /// Broker-issued identity covered by the `RecordBatch` CRC.

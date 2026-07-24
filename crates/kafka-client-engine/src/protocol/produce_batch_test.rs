@@ -11,7 +11,10 @@ use crate::producer::materialization::{
 
 use super::{
     error::ProduceMaterializationError,
-    produce::{MaterializedProduce, materialize_explicit_produce_batch},
+    produce::{
+        MaterializedProduce, materialize_explicit_produce_batch,
+        materialize_explicit_produce_batch_with_compression,
+    },
 };
 
 const TOPIC: &str = "orders";
@@ -112,6 +115,36 @@ fn unrepresentable_timestamp_delta_is_rejected_without_saturation() {
             timestamp_ms: i64::MAX,
         })
     ));
+}
+
+#[test]
+fn every_client_policy_uses_the_wire_records_codec_authority() {
+    let pairs = [
+        (
+            kafka_client_core::CompressionPolicy::Gzip,
+            Compression::Gzip,
+        ),
+        (
+            kafka_client_core::CompressionPolicy::Snappy,
+            Compression::Snappy,
+        ),
+        (kafka_client_core::CompressionPolicy::Lz4, Compression::Lz4),
+        (
+            kafka_client_core::CompressionPolicy::Zstd,
+            Compression::Zstd,
+        ),
+    ];
+    for (policy, expected) in pairs {
+        let materialized = materialize_explicit_produce_batch_with_compression(
+            batch(vec![
+                record(BASE_TIMESTAMP_MS, b"compressible payload"),
+                record(BASE_TIMESTAMP_MS + 1, b"compressible payload"),
+            ]),
+            policy,
+        )
+        .unwrap_or_else(|error| panic!("{expected:?} materialization failed: {error}"));
+        assert_eq!(decoded_batch(&materialized).compression, expected);
+    }
 }
 
 fn batch(records: Vec<MaterializationRecord>) -> MaterializationBatch {

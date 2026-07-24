@@ -29,8 +29,8 @@ pub use consumer::{
 pub use error::{DeliveryStatus, ErrorKind, KafkaError};
 pub use operation::Operation;
 pub use producer::{
-    CancellationOutcome, CloseProducer, Delivery, Flush, Producer, ProducerBuilder, RecordMetadata,
-    TrySendError,
+    CancellationOutcome, CloseProducer, Compression, Delivery, Flush, Producer, ProducerBuilder,
+    RecordMetadata, TrySendError,
 };
 pub use record::{Header, Record};
 pub use transaction::{

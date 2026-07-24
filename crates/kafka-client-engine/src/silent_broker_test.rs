@@ -13,6 +13,7 @@ const INIT_PRODUCER_ID_KEY: i16 = 22;
 
 pub(crate) struct SilentBroker {
     endpoint: String,
+    ready: Receiver<()>,
     stop: SyncSender<()>,
     worker: Option<JoinHandle<()>>,
 }
@@ -29,9 +30,11 @@ impl SilentBroker {
             .unwrap_or_else(|error| panic!("silent broker should have an address: {error}"))
             .to_string();
         let (stop, stopped) = sync_channel(1);
-        let worker = thread::spawn(move || serve(&listener, &stopped));
+        let (negotiated, ready) = sync_channel(1);
+        let worker = thread::spawn(move || serve(&listener, &stopped, &negotiated));
         Self {
             endpoint,
+            ready,
             stop,
             worker: Some(worker),
         }
@@ -39,6 +42,12 @@ impl SilentBroker {
 
     pub(crate) fn endpoint(&self) -> String {
         self.endpoint.clone()
+    }
+
+    pub(crate) fn wait_negotiated(&self) {
+        self.ready
+            .recv_timeout(Duration::from_secs(1))
+            .unwrap_or_else(|error| panic!("silent broker should negotiate: {error}"));
     }
 }
 
@@ -58,7 +67,7 @@ impl Drop for SilentBroker {
     }
 }
 
-fn serve(listener: &TcpListener, stopped: &Receiver<()>) {
+fn serve(listener: &TcpListener, stopped: &Receiver<()>, negotiated: &SyncSender<()>) {
     let mut peer = accept_until_stopped(listener, stopped);
     peer.set_nonblocking(false)
         .unwrap_or_else(|error| panic!("silent broker peer should be blocking: {error}"));
@@ -68,6 +77,9 @@ fn serve(listener: &TcpListener, stopped: &Receiver<()>) {
     assert_eq!(api_key(&negotiation), API_VERSIONS_KEY);
     peer.write_all(&negotiation_response(correlation_id(&negotiation)))
         .unwrap_or_else(|error| panic!("write negotiation response: {error}"));
+    negotiated
+        .send(())
+        .unwrap_or_else(|error| panic!("publish silent broker negotiation: {error}"));
     // Keep the negotiated connection alive without acknowledging whichever
     // producer prerequisite the engine submits first. The test concerns the
     // client's bounded wait behavior, not one incidental prerequisite order.

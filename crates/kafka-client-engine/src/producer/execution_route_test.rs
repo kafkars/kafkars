@@ -68,7 +68,7 @@ fn submission_route_mismatches_do_not_arm_or_discard_prepared_bytes() {
         .materialize(
             &mut store,
             batch_execution(batch_id),
-            CompressionPolicy::Uncompressed,
+            CompressionPolicy::None,
             Moment::from_tick(1),
         )
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));

@@ -79,6 +79,7 @@ pub(crate) struct MaterializationBatch {
     partition: i32,
     records: Vec<MaterializationRecord>,
     max_batch_bytes: usize,
+    source_retained_bytes: usize,
     identity: ProducerIdentity,
     sequence: ProducerSequenceLease,
 }
@@ -99,6 +100,7 @@ impl MaterializationBatch {
             partition,
             records,
             max_batch_bytes,
+            max_batch_bytes,
             identity,
             sequence,
         ))
@@ -109,6 +111,7 @@ impl MaterializationBatch {
         partition: i32,
         records: Vec<MaterializationRecord>,
         max_batch_bytes: usize,
+        source_retained_bytes: usize,
         identity: ProducerIdentity,
         sequence: ProducerSequenceLease,
     ) -> Self {
@@ -117,6 +120,7 @@ impl MaterializationBatch {
             partition,
             records,
             max_batch_bytes,
+            source_retained_bytes,
             identity,
             sequence,
         }
@@ -141,6 +145,16 @@ impl MaterializationBatch {
             self.identity,
             self.sequence,
         )
+    }
+
+    /// Returns the canonical source bytes fenced while a worker owns shared views.
+    pub(crate) const fn source_retained_bytes(&self) -> usize {
+        self.source_retained_bytes
+    }
+
+    /// Returns the maximum encoded output retained by this exact job.
+    pub(crate) const fn max_batch_bytes(&self) -> usize {
+        self.max_batch_bytes
     }
 
     #[cfg(test)]

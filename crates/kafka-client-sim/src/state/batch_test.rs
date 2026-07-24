@@ -45,7 +45,9 @@ fn simulator_submits_only_exact_materialized_membership_snapshot() {
     state
         .interpret(ProducerEffect::MaterializeBatch {
             execution: current,
-            compression: CompressionPolicy::Uncompressed,
+            deadline_operation_id: members[0],
+            deadline: Deadline::from_tick(20),
+            compression: CompressionPolicy::None,
             identity: identity(),
             sequence: sequence(2),
         })
@@ -107,7 +109,9 @@ fn sealed_batch_rejects_delayed_membership_effects() {
     state
         .interpret(ProducerEffect::MaterializeBatch {
             execution: current,
-            compression: CompressionPolicy::Uncompressed,
+            deadline_operation_id: admitted,
+            deadline: Deadline::from_tick(20),
+            compression: CompressionPolicy::None,
             identity: identity(),
             sequence: sequence(1),
         })
@@ -146,7 +150,9 @@ fn duplicate_submission_history_is_rejected_before_phase_mutation() {
     state
         .interpret(ProducerEffect::MaterializeBatch {
             execution: current,
-            compression: CompressionPolicy::Uncompressed,
+            deadline_operation_id: operation_id,
+            deadline: Deadline::from_tick(20),
+            compression: CompressionPolicy::None,
             identity: identity(),
             sequence: sequence(1),
         })

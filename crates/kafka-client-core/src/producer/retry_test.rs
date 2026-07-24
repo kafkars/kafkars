@@ -13,7 +13,7 @@ use super::scenario_support::retry::{
 
 #[test]
 fn definitely_unsent_transient_failure_retries_with_a_fresh_execution() {
-    let (mut producer, _operation_id, first) = submitted(2, 5, 30);
+    let (mut producer, operation_id, first) = submitted(2, 5, 30);
     let retry = transient_failure(&mut producer, first, 2);
     let second = next(first);
     assert_eq!(
@@ -63,7 +63,9 @@ fn definitely_unsent_transient_failure_retries_with_a_fresh_execution() {
             .effects(),
         [ProducerEffect::MaterializeBatch {
             execution: second,
-            compression: crate::CompressionPolicy::Uncompressed,
+            deadline_operation_id: operation_id,
+            deadline: crate::Deadline::from_tick(30),
+            compression: crate::CompressionPolicy::None,
             identity: crate::ProducerIdentity::try_new(7, 2)
                 .unwrap_or_else(|| panic!("valid test identity")),
             sequence: crate::ProducerSequenceLease::try_new(0, 1)

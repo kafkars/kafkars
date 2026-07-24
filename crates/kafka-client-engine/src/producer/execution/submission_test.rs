@@ -35,7 +35,7 @@ fn submission_requires_and_preserves_the_admitted_operation_deadline() {
         .materialize(
             &mut store,
             execution_id,
-            CompressionPolicy::Uncompressed,
+            CompressionPolicy::None,
             Moment::from_tick(1),
         )
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
@@ -113,7 +113,7 @@ fn equal_deadline_from_another_batch_cannot_arm_this_execution() {
         .materialize(
             &mut store,
             target_execution,
-            CompressionPolicy::Uncompressed,
+            CompressionPolicy::None,
             Moment::from_tick(1),
         )
         .unwrap_or_else(|error| panic!("target materialization failed: {error}"));

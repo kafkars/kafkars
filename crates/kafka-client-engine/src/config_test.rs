@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use kafka_client_core::{ProducerRetryPolicy, ProducerRetryPolicyError};
 
-use crate::{EngineConfig, EngineProducerLimits, config::EngineConfigError};
+use crate::{EngineConfig, EngineProducerLimits, ProducerCompression, config::EngineConfigError};
 
 #[test]
 fn provisional_defaults_are_explicit_and_bounded() {
@@ -15,11 +15,49 @@ fn provisional_defaults_are_explicit_and_bounded() {
 
     assert_eq!(config.delivery_timeout(), Duration::from_secs(30));
     assert_eq!(config.admin_timeout(), Duration::from_secs(30));
+    assert_eq!(config.producer_compression(), ProducerCompression::None);
+    assert_eq!(
+        validated.host_limits.compression,
+        kafka_client_core::CompressionPolicy::None
+    );
     assert_eq!(
         validated.host_limits.retry_policy,
         ProducerRetryPolicy::try_fixed(3, 100_000_000)
             .unwrap_or_else(|error| panic!("default retry failed: {error}"))
     );
+}
+
+#[test]
+fn every_compression_choice_translates_exhaustively_into_core_policy() {
+    let pairs = [
+        (
+            ProducerCompression::None,
+            kafka_client_core::CompressionPolicy::None,
+        ),
+        (
+            ProducerCompression::Gzip,
+            kafka_client_core::CompressionPolicy::Gzip,
+        ),
+        (
+            ProducerCompression::Snappy,
+            kafka_client_core::CompressionPolicy::Snappy,
+        ),
+        (
+            ProducerCompression::Lz4,
+            kafka_client_core::CompressionPolicy::Lz4,
+        ),
+        (
+            ProducerCompression::Zstd,
+            kafka_client_core::CompressionPolicy::Zstd,
+        ),
+    ];
+    for (requested, expected) in pairs {
+        let validated = EngineConfig::new(vec!["broker.test:9092".to_owned()])
+            .with_producer_compression(requested)
+            .validate()
+            .unwrap_or_else(|error| panic!("compression config failed: {error:?}"));
+        assert_eq!(validated.host_limits.compression, expected);
+    }
 }
 
 #[test]

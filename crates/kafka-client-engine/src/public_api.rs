@@ -19,7 +19,7 @@ pub use crate::admin::{
     DescribeClusterObserver, DescribeClusterObserverError, DescribeClusterOutcome,
     PartitionIncrease, PartitionIncreaseError, PartitionIncreaseResult,
 };
-pub use crate::config::{EngineConfig, EngineProducerLimits};
+pub use crate::config::{EngineConfig, EngineProducerLimits, ProducerCompression};
 pub use crate::delivery::{
     ProducerDeliveryFailure, ProducerDeliveryFailureKind, ProducerDeliveryStatus,
     ProducerRecordMetadata,

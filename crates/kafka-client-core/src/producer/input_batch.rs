@@ -70,7 +70,7 @@ impl ProducerMachine {
                     TransitionError::DeadlineNotElapsed,
                 ));
             }
-            return super::idempotence_transition::settle_waiting_identity_expiry(self, batch_id);
+            return super::materialization::settle_waiting_identity_expiry(self, batch_id);
         }
         if batch.state == super::BatchState::RetryWaiting {
             return self.retry_timer_fired(batch_id, generation, now);

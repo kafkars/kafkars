@@ -93,6 +93,7 @@ impl ProducerHost {
                 .map_err(ProducerHostInvariantError::Store),
             ProducerEffect::ReleaseBatch { batch_id } => {
                 self.cancel_pending_batch(batch_id);
+                self.compression.cancel_batch(batch_id);
                 self.execution
                     .release_batch(&mut self.store, batch_id)
                     .map_err(ProducerHostInvariantError::Prepared)?;

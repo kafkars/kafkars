@@ -8,7 +8,11 @@ use kafka_client_core::{
 
 use crate::producer::{ProducerHostLimitError, ProducerHostLimits, host_turn::ProducerTurnBudget};
 
+mod compression;
+#[cfg(test)]
+mod compression_test;
 mod producer_limits;
+pub use compression::ProducerCompression;
 pub use producer_limits::EngineProducerLimits;
 
 #[cfg(test)]
@@ -18,6 +22,7 @@ const DEFAULT_DELIVERY_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_ADMIN_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_PRODUCER_RETRIES: u32 = 3;
 const DEFAULT_PRODUCER_RETRY_BACKOFF: Duration = Duration::from_millis(100);
+const DEFAULT_COMPRESSION_WORKERS: usize = 2;
 const DEFAULT_TURN_BUDGET: usize = 64;
 
 /// Engine construction inputs compiled before any host thread starts.
@@ -27,6 +32,7 @@ pub struct EngineConfig {
     delivery_timeout: Duration,
     admin_timeout: Duration,
     producer_limits: EngineProducerLimits,
+    producer_compression: ProducerCompression,
     producer_retry_max: u32,
     producer_retry_backoff: Duration,
 }
@@ -39,6 +45,7 @@ impl EngineConfig {
             delivery_timeout: DEFAULT_DELIVERY_TIMEOUT,
             admin_timeout: DEFAULT_ADMIN_TIMEOUT,
             producer_limits: EngineProducerLimits::default(),
+            producer_compression: ProducerCompression::None,
             producer_retry_max: DEFAULT_PRODUCER_RETRIES,
             producer_retry_backoff: DEFAULT_PRODUCER_RETRY_BACKOFF,
         }
@@ -62,6 +69,16 @@ impl EngineConfig {
     #[must_use]
     pub const fn with_producer_limits(mut self, producer_limits: EngineProducerLimits) -> Self {
         self.producer_limits = producer_limits;
+        self
+    }
+
+    /// Selects the `RecordBatch` compression policy before the host starts.
+    #[must_use]
+    pub const fn with_producer_compression(
+        mut self,
+        producer_compression: ProducerCompression,
+    ) -> Self {
+        self.producer_compression = producer_compression;
         self
     }
 
@@ -91,6 +108,11 @@ impl EngineConfig {
     /// Returns the provisional bounded producer limits.
     pub const fn producer_limits(&self) -> EngineProducerLimits {
         self.producer_limits
+    }
+
+    /// Returns the configured producer compression policy.
+    pub const fn producer_compression(&self) -> ProducerCompression {
+        self.producer_compression
     }
 
     pub(crate) fn validate(&self) -> Result<ValidatedEngineConfig, EngineConfigError> {
@@ -145,6 +167,16 @@ impl EngineConfig {
             ProducerRetryPolicy::try_fixed(self.producer_retry_max, retry_ticks)
                 .map_err(EngineConfigError::RetryPolicy)?
         };
+        let compression = self.producer_compression.core();
+        let compressed = compression != kafka_client_core::CompressionPolicy::None;
+        let compression_byte_capacity = if compressed {
+            limits
+                .retained_bytes()
+                .checked_add(limits.retained_bytes())
+                .ok_or(EngineConfigError::CompressionBytes)?
+        } else {
+            0
+        };
         Ok(ProducerHostLimits {
             retained_bytes: limits.retained_bytes(),
             completion_capacity: limits.in_flight_records(),
@@ -155,6 +187,18 @@ impl EngineConfig {
             max_wire_batch_bytes: limits.batch_bytes(),
             batch_policy,
             retry_policy,
+            compression,
+            compression_worker_count: if compressed {
+                DEFAULT_COMPRESSION_WORKERS
+            } else {
+                0
+            },
+            compression_job_capacity: if compressed {
+                limits.in_flight_records()
+            } else {
+                0
+            },
+            compression_byte_capacity,
         })
     }
 }
@@ -173,6 +217,7 @@ pub(crate) enum EngineConfigError {
     DurationOverflow,
     RetainedBytes,
     BatchBytes,
+    CompressionBytes,
     BatchPolicy,
     RetryPolicy(ProducerRetryPolicyError),
     Producer(ProducerHostLimitError),

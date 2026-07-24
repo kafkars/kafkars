@@ -4,6 +4,7 @@ mod batch_store;
 mod binding;
 mod boundary;
 mod cancellation;
+mod compression;
 mod effect;
 pub(crate) mod error;
 pub(crate) mod execution;

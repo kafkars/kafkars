@@ -6,13 +6,15 @@ use crate::{
     ProducerTransition,
 };
 
-use super::idempotence_transition::{materialize_effect, next_timer_generation};
+use super::materialization::{materialize_effect, next_timer_generation};
 use super::{BatchSeal, ProducerBatch, ProducerMachine};
 
 enum SealIdentityPlan {
     Ready {
         identity: ProducerIdentity,
         lease: ProducerSequenceLease,
+        deadline_operation_id: OperationId,
+        deadline: Deadline,
     },
     Waiting {
         timer_generation: crate::BatchTimerGeneration,
@@ -68,9 +70,16 @@ impl ProducerMachine {
             execution,
         } = seal;
         let identity_plan = if let Some(identity) = self.idempotence.identity() {
+            let (deadline_operation_id, deadline) = self
+                .batches
+                .get(&batch_id)
+                .and_then(ProducerBatch::earliest_deadline_owner)
+                .ok_or(ProducerMachineError::UnknownBatch)?;
             SealIdentityPlan::Ready {
                 identity,
                 lease: self.idempotence.plan_lease(route, members.len())?,
+                deadline_operation_id,
+                deadline,
             }
         } else if self.idempotence.is_fenced() {
             return Err(ProducerMachineError::ProducerIdentityFenced);
@@ -91,7 +100,12 @@ impl ProducerMachine {
         self.open_batches.remove(&route);
         self.commit_batch_ready(&members, batch_id);
         match identity_plan {
-            SealIdentityPlan::Ready { identity, lease } => {
+            SealIdentityPlan::Ready {
+                identity,
+                lease,
+                deadline_operation_id,
+                deadline,
+            } => {
                 self.idempotence.commit_lease(route);
                 let batch = self.batches.get_mut(&batch_id);
                 debug_assert!(batch.is_some());
@@ -103,7 +117,14 @@ impl ProducerMachine {
                         batch_id,
                         generation: timer_generation,
                     },
-                    materialize_effect(execution, identity, lease),
+                    materialize_effect(
+                        execution,
+                        deadline_operation_id,
+                        deadline,
+                        self.compression,
+                        identity,
+                        lease,
+                    ),
                 ]))
             }
             SealIdentityPlan::Waiting {

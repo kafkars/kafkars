@@ -210,4 +210,18 @@ impl ProducerBatch {
     pub(crate) fn commit_submitted(&mut self) {
         self.state = BatchState::Submitted;
     }
+
+    pub(crate) fn commit_retry_waiting(
+        &mut self,
+        execution_generation: BatchExecutionGeneration,
+        retries_started: u32,
+        timer_generation: BatchTimerGeneration,
+        timer_deadline: Deadline,
+    ) {
+        self.execution_generation = Some(execution_generation);
+        self.retries_started = retries_started;
+        self.timer_generation = timer_generation;
+        self.timer_deadline = timer_deadline;
+        self.state = BatchState::RetryWaiting;
+    }
 }

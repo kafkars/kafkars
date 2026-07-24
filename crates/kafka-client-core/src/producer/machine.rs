@@ -18,6 +18,7 @@ pub struct ProducerMachine {
     pub(crate) next_batch_id: Option<BatchId>,
     pub(crate) batch_policy: ProducerBatchPolicy,
     pub(crate) retry_policy: ProducerRetryPolicy,
+    pub(crate) compression: crate::CompressionPolicy,
     pub(crate) idempotence: IdempotentProducer,
     pub(crate) byte_budget: ByteBudget,
     pub(crate) completions: CompletionLedger,
@@ -66,6 +67,25 @@ impl ProducerMachine {
             completion_capacity,
             batch_policy,
             retry_policy,
+            crate::CompressionPolicy::None,
+            completion_capacity,
+        )
+    }
+
+    /// Creates an open producer with explicit batching, retry, and compression policy.
+    pub const fn with_batch_retry_and_compression_policy(
+        retained_bytes: ByteCount,
+        completion_capacity: usize,
+        batch_policy: ProducerBatchPolicy,
+        retry_policy: ProducerRetryPolicy,
+        compression: crate::CompressionPolicy,
+    ) -> Self {
+        Self::with_policies_and_flush_capacity(
+            retained_bytes,
+            completion_capacity,
+            batch_policy,
+            retry_policy,
+            compression,
             completion_capacity,
         )
     }
@@ -82,6 +102,7 @@ impl ProducerMachine {
             completion_capacity,
             batch_policy,
             ProducerRetryPolicy::none(),
+            crate::CompressionPolicy::None,
             flush_capacity,
         )
     }
@@ -92,6 +113,7 @@ impl ProducerMachine {
         completion_capacity: usize,
         batch_policy: ProducerBatchPolicy,
         retry_policy: ProducerRetryPolicy,
+        compression: crate::CompressionPolicy,
         flush_capacity: usize,
     ) -> Self {
         Self {
@@ -100,6 +122,7 @@ impl ProducerMachine {
             next_batch_id: Some(BatchId::from_raw(1)),
             batch_policy,
             retry_policy,
+            compression,
             idempotence: IdempotentProducer::new(),
             byte_budget: ByteBudget::new(retained_bytes),
             completions: CompletionLedger::new(completion_capacity),

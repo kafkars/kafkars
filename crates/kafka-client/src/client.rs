@@ -5,6 +5,7 @@ use crate::bridge::ClientEngine;
 use crate::consumer::{AssignedConsumerBuilder, ConsumerBuilder};
 use crate::error::{ErrorKind, KafkaError};
 use crate::operation::Operation;
+use crate::producer::Compression;
 use crate::producer::ProducerBuilder;
 use crate::transaction::TransactionalProducerBuilder;
 
@@ -13,6 +14,7 @@ use crate::transaction::TransactionalProducerBuilder;
 pub struct ClientBuilder {
     bootstrap_servers: Vec<String>,
     client_id: Option<String>,
+    producer_compression: Compression,
 }
 
 impl ClientBuilder {
@@ -32,6 +34,13 @@ impl ClientBuilder {
         self
     }
 
+    /// Selects `RecordBatch` compression for this client's producer owner.
+    #[must_use]
+    pub const fn producer_compression(mut self, compression: Compression) -> Self {
+        self.producer_compression = compression;
+        self
+    }
+
     /// Validates local configuration and starts the default host.
     pub fn build(self) -> Result<Client, KafkaError> {
         if self.bootstrap_servers.is_empty() {
@@ -41,7 +50,7 @@ impl ClientBuilder {
             ));
         }
 
-        let engine = ClientEngine::start(self.bootstrap_servers)?;
+        let engine = ClientEngine::start(self.bootstrap_servers, self.producer_compression)?;
         Ok(Client {
             engine,
             client_id: self.client_id,

@@ -30,6 +30,11 @@ impl MaterializationAttempt {
     const fn into_execution(self) -> BatchExecutionId {
         self.execution
     }
+
+    #[cfg(test)]
+    pub(crate) const fn for_test(execution: BatchExecutionId) -> Self {
+        Self { execution }
+    }
 }
 
 impl BatchAccumulator {

@@ -92,9 +92,10 @@ impl SealedRevisionPlan {
         self,
         effects: &mut Vec<ProducerEffect>,
         prepared: &mut crate::producer::execution::PreparedExecution,
+        compression: &mut crate::producer::compression::CompressionWorkers,
         store: &mut crate::producer::ProducerStore,
     ) {
-        self.pending.commit(effects);
+        self.pending.commit(effects, compression, self.previous);
         prepared.commit_revision(self.prepared);
         store.commit_batch_revision(self.batch);
     }
@@ -114,6 +115,7 @@ impl ProducerHost {
             preflight.commit(
                 &mut self.pending_effects,
                 &mut self.execution,
+                &mut self.compression,
                 &mut self.store,
             );
             1

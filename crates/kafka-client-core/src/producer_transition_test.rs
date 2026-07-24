@@ -156,7 +156,9 @@ fn count_ready_batch_fans_success_out_in_membership_order() {
             },
             ProducerEffect::MaterializeBatch {
                 execution: execution(batch_id),
-                compression: CompressionPolicy::Uncompressed,
+                deadline_operation_id: first,
+                deadline: Deadline::from_tick(100),
+                compression: CompressionPolicy::None,
                 identity: crate::ProducerIdentity::try_new(7, 2)
                     .unwrap_or_else(|| panic!("valid test identity")),
                 sequence: crate::ProducerSequenceLease::try_new(0, 2)
@@ -215,7 +217,9 @@ fn conservative_accumulator_size_threshold_is_core_owned() {
             },
             ProducerEffect::MaterializeBatch {
                 execution: execution(batch_id),
-                compression: CompressionPolicy::Uncompressed,
+                deadline_operation_id: operation_id,
+                deadline: Deadline::from_tick(100),
+                compression: CompressionPolicy::None,
                 identity: crate::ProducerIdentity::try_new(7, 2)
                     .unwrap_or_else(|| panic!("valid test identity")),
                 sequence: crate::ProducerSequenceLease::try_new(0, 1)

@@ -24,6 +24,9 @@ pub(crate) enum ProducerHostLimitError {
     BatchRecordLimitExceedsCapacity,
     RetainedBytesOutOfRange,
     TransitionCapacityOverflow,
+    UnexpectedCompressionWorkers,
+    MissingCompressionWorkers,
+    CompressionJobsExceedBatches,
 }
 
 impl fmt::Display for ProducerHostLimitError {
@@ -51,6 +54,15 @@ impl fmt::Display for ProducerHostLimitError {
             Self::TransitionCapacityOverflow => {
                 "producer transition capacity exceeds the host domain"
             }
+            Self::UnexpectedCompressionWorkers => {
+                "uncompressed producer must not start compression workers"
+            }
+            Self::MissingCompressionWorkers => {
+                "compressed producer requires bounded worker, job, and byte capacity"
+            }
+            Self::CompressionJobsExceedBatches => {
+                "producer compression jobs exceed logical batch capacity"
+            }
         })
     }
 }
@@ -62,6 +74,7 @@ impl Error for ProducerHostLimitError {}
 pub(crate) enum ProducerHostStartError {
     Limits(ProducerHostLimitError),
     Notifier(std::io::Error),
+    Compression(std::io::Error),
 }
 
 impl From<ProducerHostLimitError> for ProducerHostStartError {
@@ -77,6 +90,12 @@ impl fmt::Display for ProducerHostStartError {
             Self::Notifier(error) => {
                 write!(formatter, "producer notifier failed to start: {error}")
             }
+            Self::Compression(error) => {
+                write!(
+                    formatter,
+                    "producer compression workers failed to start: {error}"
+                )
+            }
         }
     }
 }
@@ -85,7 +104,7 @@ impl Error for ProducerHostStartError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Limits(error) => Some(error),
-            Self::Notifier(error) => Some(error),
+            Self::Notifier(error) | Self::Compression(error) => Some(error),
         }
     }
 }
@@ -110,6 +129,7 @@ pub(crate) enum ProducerHostInvariantError {
     Completion(CompletionRegistryError),
     Reclaim(CompletionReclaimError),
     Prepared(PreparedExecutionError),
+    Compression(super::compression::CompressionPollError),
     Revision(ProducerRevisionError),
     MissingAdmissionIdentity,
     MissingCancellationOutcome,
@@ -155,6 +175,12 @@ impl fmt::Display for ProducerHostInvariantError {
             }
             Self::Prepared(error) => {
                 write!(formatter, "prepared producer execution failed: {error}")
+            }
+            Self::Compression(error) => {
+                write!(
+                    formatter,
+                    "producer compression invariant failed: {error:?}"
+                )
             }
             Self::Revision(error) => {
                 write!(formatter, "producer execution revision failed: {error}")

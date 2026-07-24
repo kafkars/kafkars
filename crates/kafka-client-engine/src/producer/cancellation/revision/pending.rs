@@ -10,6 +10,7 @@ use crate::producer::{
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum PendingRevisionPlan {
     Materialize(usize),
+    Compression,
     Submit(usize),
     Armed,
     RetryWaiting,
@@ -19,6 +20,7 @@ impl PendingRevisionPlan {
     pub(super) const fn batch_expectation(self) -> BatchRevisionExpectation {
         match self {
             Self::Materialize(_) => BatchRevisionExpectation::ReadyForMaterialization,
+            Self::Compression => BatchRevisionExpectation::Materializing,
             Self::Submit(_) | Self::Armed => BatchRevisionExpectation::Materialized,
             Self::RetryWaiting => BatchRevisionExpectation::RetryWaiting,
         }
@@ -26,18 +28,26 @@ impl PendingRevisionPlan {
 
     pub(super) const fn prepared_expectation(self) -> PreparedRevisionExpectation {
         match self {
-            Self::Materialize(_) | Self::RetryWaiting => PreparedRevisionExpectation::Absent,
+            Self::Materialize(_) | Self::Compression | Self::RetryWaiting => {
+                PreparedRevisionExpectation::Absent
+            }
             Self::Submit(_) => PreparedRevisionExpectation::Unarmed,
             Self::Armed => PreparedRevisionExpectation::Armed,
         }
     }
 
-    pub(super) fn commit(self, effects: &mut Vec<ProducerEffect>) {
+    pub(super) fn commit(
+        self,
+        effects: &mut Vec<ProducerEffect>,
+        compression: &mut crate::producer::compression::CompressionWorkers,
+        previous: BatchExecutionId,
+    ) {
         match self {
             Self::Materialize(index) | Self::Submit(index) => {
                 let removed = effects.remove(index);
                 debug_assert!(pending_execution(removed).is_some());
             }
+            Self::Compression => compression.cancel(previous),
             Self::Armed | Self::RetryWaiting => {}
         }
     }
@@ -95,6 +105,12 @@ impl ProducerHost {
                 PendingKind::Materialize => PendingRevisionPlan::Materialize(index),
                 PendingKind::Submit => PendingRevisionPlan::Submit(index),
             };
+        }
+        if self.compression.contains(previous) {
+            if plan != PendingRevisionPlan::Armed {
+                return Err(ProducerRevisionError::DuplicatePendingExecution(previous));
+            }
+            return Ok(PendingRevisionPlan::Compression);
         }
         Ok(plan)
     }

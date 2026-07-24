@@ -100,7 +100,7 @@ fn semantic_encoding_failure_returns_exact_attempt_to_ready() {
         prepared.materialize(
             &mut store,
             current,
-            CompressionPolicy::Uncompressed,
+            CompressionPolicy::None,
             Moment::from_tick(8),
         ),
         Ok(kafka_client_core::ProducerInput::BatchMaterializationFailed { execution: current })
@@ -132,7 +132,7 @@ fn prepared_capacity_failure_returns_exact_attempt_to_ready() {
         prepared.materialize(
             &mut store,
             current,
-            CompressionPolicy::Uncompressed,
+            CompressionPolicy::None,
             Moment::from_tick(11),
         ),
         Ok(kafka_client_core::ProducerInput::BatchMaterializationFailed { execution: current })

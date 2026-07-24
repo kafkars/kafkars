@@ -15,6 +15,7 @@ fn tracked_produce_failure_parks_without_spinning() {
     let timeout = Duration::from_millis(200);
     let broker = SilentBroker::start();
     let engine = start(timeout, broker.endpoint());
+    broker.wait_negotiated();
     let accepted = admit(&engine.producer(), timeout);
     assert!(accepted.fault().is_none());
 

@@ -6,8 +6,8 @@ use crate::{
 };
 
 use super::{
-    BatchState, ProducerMachine, cancellation::resolved,
-    idempotence_transition::next_timer_generation, lifecycle::Settlement,
+    BatchState, ProducerMachine, cancellation::resolved, lifecycle::Settlement,
+    materialization::next_timer_generation,
 };
 
 impl ProducerMachine {

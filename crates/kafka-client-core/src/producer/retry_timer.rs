@@ -44,6 +44,9 @@ impl ProducerMachine {
         let sequence = batch
             .sequence_lease()
             .ok_or(ProducerMachineError::ProducerIdentityFenced)?;
+        let (deadline_operation_id, deadline) = batch
+            .earliest_deadline_owner()
+            .ok_or(ProducerMachineError::UnknownBatch)?;
         self.idempotence.require_owned_lease(route, sequence)?;
         for operation_id in &members {
             self.operations
@@ -63,7 +66,14 @@ impl ProducerMachine {
             .ok_or(ProducerMachineError::UnknownBatch)?;
         batch.state = BatchState::Materializing;
         Ok(ProducerTransition::from_effects(vec![
-            super::idempotence_transition::materialize_effect(execution, identity, sequence),
+            super::materialization::materialize_effect(
+                execution,
+                deadline_operation_id,
+                deadline,
+                self.compression,
+                identity,
+                sequence,
+            ),
         ]))
     }
 }

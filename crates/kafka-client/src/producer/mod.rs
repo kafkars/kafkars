@@ -2,6 +2,7 @@
 
 mod cancellation;
 mod close;
+mod compression;
 mod delivery;
 mod flush;
 mod handle;
@@ -10,6 +11,7 @@ mod rejection;
 
 pub use cancellation::CancellationOutcome;
 pub use close::CloseProducer;
+pub use compression::Compression;
 pub use delivery::Delivery;
 pub use flush::Flush;
 pub use handle::{Producer, ProducerBuilder};
@@ -20,6 +22,8 @@ pub use rejection::TrySendError;
 mod cancellation_test;
 #[cfg(test)]
 mod close_test;
+#[cfg(test)]
+mod compression_test;
 #[cfg(test)]
 mod delivery_test;
 #[cfg(test)]

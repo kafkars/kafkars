@@ -1,6 +1,6 @@
 //! Tests for facade-owned client construction and configuration views.
 
-use crate::{Client, ErrorKind};
+use crate::{Client, Compression, ErrorKind};
 
 #[test]
 fn client_retains_facade_configuration_across_clones() {
@@ -18,6 +18,23 @@ fn client_retains_facade_configuration_across_clones() {
         clone.bootstrap_servers(),
         &["broker-a:9092".to_owned(), "broker-b:9092".to_owned()]
     );
+}
+
+#[test]
+fn client_builder_accepts_each_closed_producer_compression_choice() {
+    for compression in [
+        Compression::None,
+        Compression::Gzip,
+        Compression::Snappy,
+        Compression::Lz4,
+        Compression::Zstd,
+    ] {
+        let client = Client::builder()
+            .bootstrap_servers(["127.0.0.1:1"])
+            .producer_compression(compression)
+            .build();
+        assert!(client.is_ok());
+    }
 }
 
 #[test]

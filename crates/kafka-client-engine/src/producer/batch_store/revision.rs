@@ -10,6 +10,7 @@ use crate::producer::ProducerStoreError;
 pub(in crate::producer) enum BatchRevisionExpectation {
     OpenForMaterialization,
     ReadyForMaterialization,
+    Materializing,
     Materialized,
     RetryWaiting,
 }
@@ -86,6 +87,7 @@ impl BatchStore {
             BatchRevisionExpectation::ReadyForMaterialization => {
                 BatchState::ReadyForMaterialization(previous)
             }
+            BatchRevisionExpectation::Materializing => BatchState::Materializing(previous),
             BatchRevisionExpectation::Materialized => BatchState::Materialized(previous),
             BatchRevisionExpectation::RetryWaiting => BatchState::RetryWaiting(previous),
         };
@@ -109,6 +111,7 @@ impl BatchStore {
             BatchRevisionExpectation::RetryWaiting => RevisionContinuation::RetryWaiting,
             BatchRevisionExpectation::OpenForMaterialization
             | BatchRevisionExpectation::ReadyForMaterialization
+            | BatchRevisionExpectation::Materializing
             | BatchRevisionExpectation::Materialized => {
                 RevisionContinuation::ReadyForMaterialization
             }

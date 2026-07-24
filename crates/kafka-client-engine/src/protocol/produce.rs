@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use kafka_client_core::Moment;
+use kafka_client_core::{CompressionPolicy, Moment};
 use kafka_wire::{
     ProduceRequest,
     produce_request::{PartitionProduceData, TopicProduceData},
@@ -116,9 +116,17 @@ fn remaining_broker_timeout_ms(now: Moment, deadline: OperationDeadline) -> i32 
 pub(crate) fn materialize_explicit_produce_batch(
     input: MaterializationBatch,
 ) -> Result<MaterializedProduce, ProduceMaterializationError> {
+    materialize_explicit_produce_batch_with_compression(input, CompressionPolicy::None)
+}
+
+/// Uses the sibling wire crates for the complete `RecordBatch` codec operation.
+pub(crate) fn materialize_explicit_produce_batch_with_compression(
+    input: MaterializationBatch,
+    compression: CompressionPolicy,
+) -> Result<MaterializedProduce, ProduceMaterializationError> {
     let (topic, partition, records, max_batch_bytes, identity, sequence) =
         input.into_idempotent_parts();
-    let records = record_batch(records, identity, sequence)?
+    let records = record_batch(records, identity, sequence, wire_compression(compression))?
         .encode_to_bytes(RecordEncodeLimits::new(max_batch_bytes, max_batch_bytes))
         .map_err(ProduceMaterializationError::record)?;
 
@@ -133,6 +141,7 @@ fn record_batch(
     records: Vec<MaterializationRecord>,
     identity: kafka_client_core::ProducerIdentity,
     sequence: kafka_client_core::ProducerSequenceLease,
+    compression: Compression,
 ) -> Result<RecordBatch, ProduceMaterializationError> {
     let Some(base_timestamp) = records
         .first()
@@ -163,7 +172,7 @@ fn record_batch(
         base_offset: 0,
         last_offset_delta,
         partition_leader_epoch: NO_LEADER_EPOCH,
-        compression: Compression::None,
+        compression,
         timestamp_type: TimestampType::CreateTime,
         is_transactional: false,
         is_control: false,
@@ -175,6 +184,16 @@ fn record_batch(
         base_sequence: sequence.base_sequence(),
         records,
     })
+}
+
+const fn wire_compression(compression: CompressionPolicy) -> Compression {
+    match compression {
+        CompressionPolicy::None => Compression::None,
+        CompressionPolicy::Gzip => Compression::Gzip,
+        CompressionPolicy::Snappy => Compression::Snappy,
+        CompressionPolicy::Lz4 => Compression::Lz4,
+        CompressionPolicy::Zstd => Compression::Zstd,
+    }
 }
 
 fn wire_record(

@@ -3,11 +3,11 @@
 use core::num::NonZeroI16;
 
 use crate::{
-    BatchId, BatchTimerGeneration, CompressionPolicy, Moment, ProducerEffect, ProducerFailure,
-    ProducerIdentity, ProducerIdentityGeneration, ProducerMachineError, ProducerTransition,
+    BatchId, Moment, ProducerEffect, ProducerFailure, ProducerIdentityGeneration,
+    ProducerMachineError, ProducerTransition,
 };
 
-use super::{BatchState, ProducerMachine};
+use super::{BatchState, ProducerMachine, materialization::materialize_effect};
 
 pub(crate) struct SequenceSuccessPlan {
     route: super::BatchRoute,
@@ -47,8 +47,8 @@ impl ProducerMachine {
                 .batches
                 .get(&batch_id)
                 .ok_or(ProducerMachineError::UnknownBatch)?;
-            let deadline = batch
-                .earliest_deadline()
+            let (deadline_operation_id, deadline) = batch
+                .earliest_deadline_owner()
                 .ok_or(ProducerMachineError::UnknownBatch)?;
             if deadline.is_elapsed_at(now) {
                 expired.push((batch_id, ProducerFailure::deadline_elapsed()));
@@ -64,6 +64,8 @@ impl ProducerMachine {
                 batch
                     .execution_id(batch_id)
                     .ok_or(ProducerMachineError::UnknownBatch)?,
+                deadline_operation_id,
+                deadline,
                 lease,
             ));
         }
@@ -71,7 +73,16 @@ impl ProducerMachine {
         let mut effects = self.commit_batch_failures(expired_plan)?.into_effects();
         self.idempotence.commit_acquired(identity);
         effects.reserve(plans.len().saturating_mul(2));
-        for (batch_id, route, timer_generation, execution, lease) in plans {
+        for (
+            batch_id,
+            route,
+            timer_generation,
+            execution,
+            deadline_operation_id,
+            deadline,
+            lease,
+        ) in plans
+        {
             self.idempotence.commit_lease(route);
             let batch = self
                 .batches
@@ -82,7 +93,14 @@ impl ProducerMachine {
                 batch_id,
                 generation: timer_generation,
             });
-            effects.push(materialize_effect(execution, identity, lease));
+            effects.push(materialize_effect(
+                execution,
+                deadline_operation_id,
+                deadline,
+                self.compression,
+                identity,
+                lease,
+            ));
         }
         Ok(ProducerTransition::from_effects(effects))
     }
@@ -198,34 +216,4 @@ impl ProducerMachine {
         );
         self.idempotence.release_not_sent(route);
     }
-}
-
-pub(crate) const fn materialize_effect(
-    execution: crate::BatchExecutionId,
-    identity: ProducerIdentity,
-    sequence: crate::ProducerSequenceLease,
-) -> ProducerEffect {
-    ProducerEffect::MaterializeBatch {
-        execution,
-        compression: CompressionPolicy::Uncompressed,
-        identity,
-        sequence,
-    }
-}
-
-pub(crate) fn next_timer_generation(
-    generation: BatchTimerGeneration,
-) -> Result<BatchTimerGeneration, ProducerMachineError> {
-    generation
-        .get()
-        .checked_add(1)
-        .map(BatchTimerGeneration::from_raw)
-        .ok_or(ProducerMachineError::TimerGenerationExhausted)
-}
-
-pub(crate) fn settle_waiting_identity_expiry(
-    machine: &mut ProducerMachine,
-    batch_id: BatchId,
-) -> Result<ProducerTransition, ProducerMachineError> {
-    machine.settle_batch_failed(batch_id, ProducerFailure::deadline_elapsed())
 }

@@ -112,7 +112,9 @@ fn submit_and_accept(state: &mut VirtualProducerState, execution: BatchExecution
 fn materialize(execution: BatchExecutionId) -> ProducerEffect {
     ProducerEffect::MaterializeBatch {
         execution,
-        compression: CompressionPolicy::Uncompressed,
+        deadline_operation_id: OperationId::from_raw(1),
+        deadline: Deadline::from_tick(20),
+        compression: CompressionPolicy::None,
         identity: ProducerIdentity::try_new(1, 0)
             .unwrap_or_else(|| panic!("test identity must be valid")),
         sequence: ProducerSequenceLease::try_new(0, 1)
