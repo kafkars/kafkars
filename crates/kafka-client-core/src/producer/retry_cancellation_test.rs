@@ -11,7 +11,7 @@ use super::scenario_support::retry::{
 };
 
 #[test]
-fn sole_retry_waiting_member_cancels_the_current_execution_and_timer() {
+fn sole_retry_waiting_cancellation_releases_sequence_lease_without_advancing() {
     let (mut producer, operation_id, first) = submitted(1, 2, 30);
     transient_failure(&mut producer, first, 2);
     let second = next(first);

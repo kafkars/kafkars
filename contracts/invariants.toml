@@ -128,7 +128,8 @@ evidence = [
   "crates/kafka-client-core/src/producer/cancellation_test.rs::open_member_cancellation_releases_exact_resources_and_remains_terminal",
   "crates/kafka-client-core/src/producer/cancellation_test.rs::submitted_cancellation_is_too_late_without_mutation",
   "crates/kafka-client-core/src/producer/cancellation_revision_test.rs::awaiting_driver_cancellation_restarts_survivors_at_a_new_generation",
-  "crates/kafka-client-core/src/producer/retry_cancellation_test.rs::sole_retry_waiting_member_cancels_the_current_execution_and_timer",
+  "crates/kafka-client-core/src/producer/cancellation_revision_test.rs::missing_materializing_sequence_lease_rejects_cancellation_without_mutation",
+  "crates/kafka-client-core/src/producer/retry_cancellation_test.rs::missing_retry_sequence_lease_rejects_cancellation_without_mutation",
   "crates/kafka-client-engine/src/producer/cancellation/host_test.rs::open_cancellation_releases_before_cancelled_not_sent_terminal",
   "crates/kafka-client-engine/src/producer/cancellation/revision_test.rs::awaiting_driver_revision_revokes_unarmed_and_armed_ownership",
   "crates/kafka-client-engine/src/producer/cancellation/revision_test.rs::driver_accepted_marks_engine_submitted_before_too_late_decision",
@@ -181,7 +182,7 @@ milestone = "direct-and-group-consumer"
 [[invariant]]
 id = "DL-01"
 title = "Producer policy consumes one absolute deadline"
-statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant, accepted operation bindings retain that pair unchanged, core rejects already elapsed work, and queued submission expiry reproduces the exact core deadline fact."
+statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant, accepted operation bindings retain that pair unchanged, core rejects already elapsed work, queued submission expiry reproduces the exact core deadline fact, and identity-request deadline completion cannot be erased by an earlier transport category."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/clock/monotonic_test.rs::deadline_capture_uses_one_boundary_observation",
@@ -194,6 +195,8 @@ evidence = [
   "crates/kafka-client-engine/src/producer/execution_test.rs::pre_driver_expiry_releases_encoded_and_original_bytes_as_not_sent",
   "crates/kafka-client-engine/src/producer/execution_turn_test.rs::pre_driver_expiry_releases_both_byte_owners_and_publishes_not_sent",
   "crates/kafka-client-engine/src/producer/execution_turn_test.rs::terminal_release_cancels_submission_that_never_started",
+  "crates/kafka-client-core/src/producer/idempotence_fencing_test.rs::identity_deadline_fences_atomically_without_timing_out_later_batches",
+  "crates/kafka-client-engine/src/driver/rpc/init_producer_id_calls_test.rs::driver_deadline_remains_an_explicit_core_fact",
 ]
 
 [[invariant]]
@@ -289,9 +292,25 @@ milestone = "generation-fenced-driver-handoff"
 [[invariant]]
 id = "IDM-01"
 title = "Idempotent producer state is fenced"
-statement = "Producer identity epochs and per-partition sequence ranges are monotonic, uniquely owned, and recover only according to core policy."
-status = "planned"
-milestone = "idempotent-producer"
+statement = "Core lazily acquires one nontransactional producer identity against the original operation deadline, assigns one partition-local contiguous sequence lease before wire materialization, advances it only after terminal success preflight, reuses it for definitely-unsent retries and after final-member pre-driver cancellation, and fences all accepted work atomically when identity or possibly-sent sequence certainty is lost. Engine uses the generated kafka-wire InitProducerId and record-batch types through tracked kafka-driver calls without an async runtime."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/producer/idempotence_acquisition_test.rs::lazy_identity_uses_original_deadline_before_materialization",
+  "crates/kafka-client-core/src/producer/idempotence_acquisition_test.rs::identity_failure_settles_waiting_and_open_batches_atomically",
+  "crates/kafka-client-core/src/producer/idempotence_sequence_test.rs::successful_sequence_wraps_only_after_terminal_preflight",
+  "crates/kafka-client-core/src/producer/idempotence_sequence_test.rs::broker_success_preflight_failure_does_not_advance_sequence",
+  "crates/kafka-client-core/src/producer/idempotence_sequence_test.rs::missing_sequence_lease_rejects_success_without_any_machine_mutation",
+  "crates/kafka-client-core/src/producer/idempotence_fencing_test.rs::ambiguous_batch_fences_second_submitted_batch_out_of_retry",
+  "crates/kafka-client-core/src/producer/idempotence_fencing_test.rs::authoritative_success_after_another_batch_fences_still_delivers_once",
+  "crates/kafka-client-core/src/producer/cancellation_revision_test.rs::sole_sealed_member_releases_sequence_lease_without_advancing",
+  "crates/kafka-client-core/src/producer/retry_cancellation_test.rs::sole_retry_waiting_cancellation_releases_sequence_lease_without_advancing",
+  "crates/kafka-client-engine/src/producer/identity_submission_test.rs::handoff_preserves_generation_and_original_operation_deadline",
+  "crates/kafka-client-engine/src/driver/rpc/init_producer_id_submission_test.rs::options_preserve_original_deadline_control_lane_and_stable_v5_ceiling",
+  "crates/kafka-client-engine/src/driver/rpc/init_producer_id_calls_test.rs::broker_failure_preserves_exact_signed_code",
+  "crates/kafka-client-engine/src/driver/rpc/init_producer_id_calls_test.rs::non_deadline_request_failure_remains_an_explicit_core_fact",
+  "crates/kafka-client-engine/src/protocol/produce_batch_test.rs::ordered_records_encode_identity_sequence_and_contiguous_offsets",
+  "crates/kafka-client-sim/src/producer_idempotence_test.rs::definitely_unsent_retry_reuses_identity_and_base_sequence",
+]
 
 [[invariant]]
 id = "MAT-01"
