@@ -6,7 +6,7 @@ use std::{
         atomic::{AtomicUsize, Ordering},
     },
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use bytes::Bytes;
@@ -81,7 +81,7 @@ fn due_deadline_fences_the_exact_late_worker_result() {
         .unwrap_or_else(|| panic!("worker did not return"));
     assert_eq!(result.0.execution(), execution);
     assert!(result.1);
-    assert!(wake.count.load(Ordering::Acquire) > 0);
+    assert!(wake.wait_for_wake(Duration::from_secs(2)));
 }
 
 #[test]
@@ -106,7 +106,7 @@ fn worker_materializes_and_wakes_away_from_the_host_thread() {
         .unwrap_or_else(|| panic!("worker did not return"));
 
     assert!(!cancelled);
-    assert!(wake.count.load(Ordering::Acquire) > 0);
+    assert!(wake.wait_for_wake(Duration::from_secs(2)));
     assert_ne!(
         *wake
             .thread_id
@@ -204,5 +204,18 @@ impl ProducerShardWake for CountingWake {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(thread::current().id());
         Ok(())
+    }
+}
+
+impl CountingWake {
+    fn wait_for_wake(&self, timeout: Duration) -> bool {
+        let deadline = Instant::now() + timeout;
+        while self.count.load(Ordering::Acquire) == 0 {
+            if Instant::now() >= deadline {
+                return false;
+            }
+            thread::yield_now();
+        }
+        true
     }
 }

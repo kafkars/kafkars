@@ -864,6 +864,18 @@ production = "crates/kafka-client-engine/src/protocol/admin/create_partitions_bu
 test = "crates/kafka-client-engine/src/protocol/admin/create_partitions_budget_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/request.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/response.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/retention.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/retention_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/admin/result_budget.rs"
 test = "crates/kafka-client-engine/src/protocol/admin/result_budget_test.rs"
 

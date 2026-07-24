@@ -198,8 +198,8 @@ evidence = [
 
 [[invariant]]
 id = "ADM-09"
-title = "IncrementalAlterConfigs core policy is ordered and exact"
-statement = "One capacity-reserved topic IncrementalAlterConfigs machine validates a nonempty ordered batch of unique topics with at least one nonempty unique key each; represents Set, Delete, Append, and Subtract with exact value presence; retains one original absolute deadline; emits only one concrete submit attempt; revalidates ordered topic correlation; assigns at most one terminal decision; preserves nonnegative throttle, exact signed broker codes, bounded-diagnostic facts, and authoritative delivery certainty; and terminates compatibility without retry, legacy AlterConfigs fallback, invalidation, cache authority, generated protocol types, or transport types."
+title = "IncrementalAlterConfigs policy and protocol are ordered and exact"
+statement = "One capacity-reserved topic IncrementalAlterConfigs machine validates a nonempty ordered batch of unique topics with at least one nonempty unique key each; represents Set, Delete, Append, and Subtract with exact value presence; retains one original absolute deadline; emits only one concrete submit attempt; revalidates ordered topic correlation; assigns at most one terminal decision; preserves nonnegative throttle, exact signed broker codes, bounded-diagnostic facts, and authoritative delivery certainty; and terminates compatibility without retry, legacy AlterConfigs fallback, invalidation, cache authority, generated protocol types, or transport types. The engine constructs the real generated API-key 44 v0/v1 request with topic resource type 2, exact Set=0, Delete=1, Append=2, and Subtract=3 operation codes, null values only for Delete, caller order, and validate-only intent; it restores generated resource results to request order, rejects negative throttle and malformed resource identity, preserves exact signed codes, and bounds nullable UTF-8 diagnostics before core ownership without adding driver execution or policy."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/admin/alter_configs/model_test.rs::plan_preserves_topic_operation_order_flags_and_exact_value_semantics",
@@ -211,6 +211,11 @@ evidence = [
   "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs::malformed_response_settles_invalid_once_without_follow_up",
   "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs::pre_driver_failures_are_definitely_not_sent",
   "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs::submitted_failures_preserve_certainty_without_retry_or_legacy_fallback",
+  "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/request_test.rs::request_uses_generated_v0_v1_topic_operations_without_legacy_fallback",
+  "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/response_test.rs::response_restores_caller_order_throttle_and_exact_signed_codes",
+  "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/response_test.rs::malformed_resource_identity_and_negative_throttle_are_rejected",
+  "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/response_test.rs::closed_shape_failures_cover_count_unexpected_missing_and_duplicate_topics",
+  "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/retention_test.rs::retained_budget_bounds_utf8_diagnostics_before_core_ownership",
 ]
 
 [[invariant]]
