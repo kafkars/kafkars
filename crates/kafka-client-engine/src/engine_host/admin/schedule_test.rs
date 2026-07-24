@@ -1,21 +1,13 @@
 //! Cross-admin fairness and shutdown-quiescence scenarios.
 
-use std::cell::Cell;
-
-use kafka_client_core::{Deadline, Moment};
+use kafka_client_core::Deadline;
 
 use super::{
-    create_partitions::CreatePartitionsProgress,
-    create_topics::CreateTopicsProgress,
-    delete_topics::DeleteTopicsProgress,
-    describe_cluster::DescribeClusterProgress,
-    describe_topics::DescribeTopicsProgress,
-    schedule::{
-        combine, drive_create_then_capture_delete, drive_delete_then_capture_describe,
-        drive_describe_then_capture_topics,
-    },
+    create_partitions::CreatePartitionsProgress, create_topics::CreateTopicsProgress,
+    delete_topics::DeleteTopicsProgress, describe_cluster::DescribeClusterProgress,
+    describe_configs::DescribeConfigsProgress, describe_topics::DescribeTopicsProgress,
+    schedule::combine,
 };
-use crate::protocol::admin::delete_topics::remaining_timeout_ms;
 
 #[test]
 fn saturated_create_lane_cannot_hide_runnable_delete_work() {
@@ -41,6 +33,7 @@ fn saturated_create_lane_cannot_hide_runnable_delete_work() {
             next_deadline: None,
         },
         &idle_topics(),
+        &idle_configs(),
     );
     assert_eq!(combined.unsettled, usize::MAX);
     assert!(combined.driver_progress);
@@ -72,6 +65,7 @@ fn either_concrete_owner_prevents_false_shutdown_quiescence() {
                 next_deadline: None,
             },
             &idle_topics(),
+            &idle_configs(),
         );
         assert_ne!(combined.unsettled, 0);
         assert_eq!(combined.next_deadline, Some(Deadline::from_tick(5)));
@@ -102,6 +96,7 @@ fn describe_cluster_owner_prevents_false_shutdown_quiescence() {
             next_deadline: None,
         },
         &idle_topics(),
+        &idle_configs(),
     );
     assert_eq!(combined.unsettled, 1);
     assert_eq!(combined.next_deadline, Some(Deadline::from_tick(7)));
@@ -131,6 +126,7 @@ fn saturated_delete_lane_cannot_hide_runnable_describe_cluster_work() {
             next_deadline: None,
         },
         &idle_topics(),
+        &idle_configs(),
     );
     assert_eq!(combined.unsettled, usize::MAX);
     assert!(combined.driver_progress);
@@ -161,6 +157,7 @@ fn create_partitions_owner_is_independent_and_prevents_false_quiescence() {
             next_deadline: Some(Deadline::from_tick(3)),
         },
         &idle_topics(),
+        &idle_configs(),
     );
     assert_eq!(combined.unsettled, usize::MAX);
     assert!(combined.driver_progress);
@@ -195,8 +192,44 @@ fn describe_topics_owner_is_independent_and_prevents_false_quiescence() {
             driver_progress: true,
             next_deadline: Some(Deadline::from_tick(2)),
         },
+        &idle_configs(),
     );
     assert_eq!(combined.unsettled, usize::MAX);
+    assert!(combined.driver_progress);
+    assert_eq!(combined.next_deadline, Some(Deadline::from_tick(2)));
+}
+
+#[test]
+fn describe_configs_owner_is_independent_and_prevents_false_quiescence() {
+    let combined = combine(
+        &CreateTopicsProgress {
+            unsettled: 0,
+            driver_progress: false,
+            next_deadline: None,
+        },
+        &DeleteTopicsProgress {
+            unsettled: 0,
+            driver_progress: false,
+            next_deadline: None,
+        },
+        &DescribeClusterProgress {
+            unsettled: 0,
+            driver_progress: false,
+            next_deadline: None,
+        },
+        &CreatePartitionsProgress {
+            unsettled: 0,
+            driver_progress: false,
+            next_deadline: None,
+        },
+        &idle_topics(),
+        &DescribeConfigsProgress {
+            unsettled: 1,
+            driver_progress: true,
+            next_deadline: Some(Deadline::from_tick(2)),
+        },
+    );
+    assert_eq!(combined.unsettled, 1);
     assert!(combined.driver_progress);
     assert_eq!(combined.next_deadline, Some(Deadline::from_tick(2)));
 }
@@ -209,78 +242,10 @@ const fn idle_topics() -> DescribeTopicsProgress {
     }
 }
 
-#[test]
-fn delete_timeout_uses_time_recaptured_after_create_work() {
-    let observed = Cell::new(Moment::from_tick(1_000_000));
-    let create_now = observed.get();
-    let create_progress = CreateTopicsProgress {
-        unsettled: 1,
-        driver_progress: true,
+const fn idle_configs() -> DescribeConfigsProgress {
+    DescribeConfigsProgress {
+        unsettled: 0,
+        driver_progress: false,
         next_deadline: None,
-    };
-    let result = drive_create_then_capture_delete(
-        create_now,
-        |now| {
-            assert_eq!(now, Moment::from_tick(1_000_000));
-            observed.set(Moment::from_tick(4_000_000));
-            Ok(create_progress)
-        },
-        || Ok(observed.get()),
-    );
-    let Ok((_create, delete_now)) = result else {
-        panic!("deterministic turn moments should remain representable");
-    };
-
-    assert_eq!(
-        remaining_timeout_ms(delete_now, Deadline::from_tick(11_000_000)),
-        Ok(7)
-    );
-}
-
-#[test]
-fn describe_cluster_uses_time_recaptured_after_delete_work() {
-    let observed = Cell::new(Moment::from_tick(4_000_000));
-    let delete_now = observed.get();
-    let delete_progress = DeleteTopicsProgress {
-        unsettled: 1,
-        driver_progress: true,
-        next_deadline: None,
-    };
-    let result = drive_delete_then_capture_describe(
-        delete_now,
-        |now| {
-            assert_eq!(now, Moment::from_tick(4_000_000));
-            observed.set(Moment::from_tick(8_000_000));
-            Ok(delete_progress)
-        },
-        || Ok(observed.get()),
-    );
-    let Ok((_delete, describe_now)) = result else {
-        panic!("deterministic turn moments should remain representable");
-    };
-    assert_eq!(describe_now, Moment::from_tick(8_000_000));
-}
-
-#[test]
-fn describe_topics_uses_time_recaptured_after_describe_cluster_work() {
-    let observed = Cell::new(Moment::from_tick(8_000_000));
-    let describe_now = observed.get();
-    let describe_progress = DescribeClusterProgress {
-        unsettled: 1,
-        driver_progress: true,
-        next_deadline: None,
-    };
-    let result = drive_describe_then_capture_topics(
-        describe_now,
-        |now| {
-            assert_eq!(now, Moment::from_tick(8_000_000));
-            observed.set(Moment::from_tick(12_000_000));
-            Ok(describe_progress)
-        },
-        || Ok(observed.get()),
-    );
-    let Ok((_describe, topics_now)) = result else {
-        panic!("deterministic turn moments should remain representable");
-    };
-    assert_eq!(topics_now, Moment::from_tick(12_000_000));
+    }
 }

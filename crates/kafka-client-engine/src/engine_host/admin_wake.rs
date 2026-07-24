@@ -1,11 +1,11 @@
-//! Explicit join between `CreateTopics` admission and the embedded reactor wake.
+//! Explicit joins from concrete admin admission into the embedded reactor wake.
 
 use crate::{
     admin::{
         CreatePartitionsShardWake, CreatePartitionsShardWakeError, CreateTopicsShardWake,
         CreateTopicsShardWakeError, DeleteTopicsShardWake, DeleteTopicsShardWakeError,
-        DescribeClusterShardWake, DescribeClusterShardWakeError, DescribeTopicsShardWake,
-        DescribeTopicsShardWakeError,
+        DescribeClusterShardWake, DescribeClusterShardWakeError, DescribeConfigsShardWake,
+        DescribeConfigsShardWakeError, DescribeTopicsShardWake, DescribeTopicsShardWakeError,
     },
     driver::ReactorWake,
 };
@@ -42,5 +42,12 @@ impl DescribeTopicsShardWake for ReactorWake {
     fn wake(&self) -> Result<(), DescribeTopicsShardWakeError> {
         self.request()
             .map_err(|error| DescribeTopicsShardWakeError::from_io(error.into_io()))
+    }
+}
+
+impl DescribeConfigsShardWake for ReactorWake {
+    fn wake(&self) -> Result<(), DescribeConfigsShardWakeError> {
+        self.request()
+            .map_err(|error| DescribeConfigsShardWakeError::from_io(error.into_io()))
     }
 }

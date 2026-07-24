@@ -23,10 +23,11 @@ pub(crate) use owner::{DriverOwner, DriverTurn};
 pub(crate) use rpc::{
     CreatePartitionsCompletionFailure, CreateTopicsCompletionFailure,
     DeleteTopicsCompletionFailure, DescribeClusterCalls, DescribeClusterCompletionFailure,
-    DescribeTopicsCalls, DescribeTopicsCompletionFailure, PositionAdmissionFailure,
-    PositionCompletionFailure, PositionRequestPreparationError, PositionResolutionRequest,
-    ProduceCompletionFailure, ProducerIdentityCompletionFailure, TrackedCreatePartitionsCalls,
-    TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls, TrackedPositionCalls, TrackedProduceCalls,
+    DescribeConfigsCalls, DescribeConfigsCompletionFailure, DescribeTopicsCalls,
+    DescribeTopicsCompletionFailure, PositionAdmissionFailure, PositionCompletionFailure,
+    PositionRequestPreparationError, PositionResolutionRequest, ProduceCompletionFailure,
+    ProducerIdentityCompletionFailure, TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls,
+    TrackedDeleteTopicsCalls, TrackedPositionCalls, TrackedProduceCalls,
     TrackedProducerIdentityCalls,
 };
 pub(crate) use wake::{ReactorWake, ReactorWakeError};

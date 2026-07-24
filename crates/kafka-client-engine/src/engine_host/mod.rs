@@ -8,6 +8,7 @@ mod cleanup;
 #[cfg(test)]
 mod cleanup_test;
 mod control;
+mod describe_configs_start;
 mod error;
 mod lifecycle;
 #[cfg(test)]

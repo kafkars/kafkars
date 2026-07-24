@@ -2,6 +2,13 @@
 
 use kafka_wire::{DescribeConfigsRequest, describe_configs_request::DescribeConfigsResource};
 
+pub(crate) use super::describe_configs_model::{
+    NormalizedConfigEntry, NormalizedDescribeConfigsResponse,
+};
+pub(crate) use super::describe_configs_response::{
+    DescribeConfigsProtocolFailure, normalize_describe_configs_response,
+};
+
 /// One already-validated resource query borrowed from its future policy owner.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct DescribeConfigsQuery<'a> {

@@ -32,6 +32,11 @@ impl DescribeConfigSynonym {
     pub const fn source(&self) -> i8 {
         self.source
     }
+
+    /// Consumes this synonym into adapter-owned parts.
+    pub fn into_parts(self) -> (String, Option<String>, i8) {
+        (self.name, self.value, self.source)
+    }
 }
 
 /// One protocol-normalized configuration entry.
@@ -110,5 +115,31 @@ impl DescribeConfigEntry {
     /// Returns version-present nullable documentation.
     pub fn documentation(&self) -> Option<&str> {
         self.documentation.as_deref()
+    }
+
+    /// Consumes this entry into adapter-owned parts.
+    #[allow(clippy::type_complexity)]
+    pub fn into_parts(
+        self,
+    ) -> (
+        String,
+        Option<String>,
+        bool,
+        i8,
+        bool,
+        Vec<DescribeConfigSynonym>,
+        Option<i8>,
+        Option<String>,
+    ) {
+        (
+            self.name,
+            self.value,
+            self.read_only,
+            self.source,
+            self.sensitive,
+            self.synonyms,
+            self.config_type,
+            self.documentation,
+        )
     }
 }

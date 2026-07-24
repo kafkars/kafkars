@@ -23,7 +23,7 @@ excluded_roots = ["crates/kafka-client-guardrails/tests/fixtures"]
 
 [budgets]
 baseline = [
-  { path = "crates/kafka-client-engine/src/admin/mod.rs", lines = 95, reason = "The nearest declarative facade explicitly test-gates every concrete admin sibling; this exact baseline must shrink when domains gain nested facades." },
+  { path = "crates/kafka-client-engine/src/admin/mod.rs", lines = 96, reason = "The declarative root registers the new nested DescribeConfigs domain while legacy admin domains remain flat; this exact baseline cannot grow and must shrink as those domains gain their own facades." },
 ]
 allow = []
 
@@ -1172,6 +1172,46 @@ test = "crates/kafka-client/src/admin/create_partitions_test.rs"
 production = "crates/kafka-client/src/producer/compression.rs"
 test = "crates/kafka-client/src/producer/compression_test.rs"
 
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/describe_configs_outcome.rs"
+test = "crates/kafka-client-core/src/admin/describe_configs_outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/describe_configs_value.rs"
+test = "crates/kafka-client-core/src/admin/describe_configs_value_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/configs/handle.rs"
+test = "crates/kafka-client-engine/src/admin/configs/handle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/configs/host.rs"
+test = "crates/kafka-client-engine/src/admin/configs/host_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/configs/model.rs"
+test = "crates/kafka-client-engine/src/admin/configs/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/configs/outcome.rs"
+test = "crates/kafka-client-engine/src/admin/configs/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/configs/shard.rs"
+test = "crates/kafka-client-engine/src/admin/configs/shard_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/describe_configs_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/describe_configs_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/describe_configs_terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/describe_configs_terminal_test.rs"
+
 [[dependency_rules]]
 package = "kafka-client-core"
 allowed_internal = []
@@ -1467,6 +1507,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/delete_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/describe_cluster.rs",
+  "crates/kafka-client-engine/src/engine_host/admin/describe_configs.rs",
   "crates/kafka-client-engine/src/engine_host/admin/describe_topics.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
@@ -1480,6 +1521,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/delete_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/describe_cluster.rs",
+  "crates/kafka-client-engine/src/engine_host/admin/describe_configs.rs",
   "crates/kafka-client-engine/src/engine_host/admin/describe_topics.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
@@ -1493,12 +1535,14 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/describe_topics_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_partitions.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/delete_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/describe_cluster.rs",
+  "crates/kafka-client-engine/src/engine_host/admin/describe_configs.rs",
   "crates/kafka-client-engine/src/engine_host/admin/describe_topics.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
@@ -1547,6 +1591,13 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
+method = "submit_tracked_describe_configs"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
 method = "discard_after_driver_shutdown"
 allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/recovery.rs",
@@ -1561,6 +1612,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/describe_topics_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs",
   "crates/kafka-client-engine/src/engine_host/cleanup.rs",
@@ -3515,3 +3567,88 @@ path = "crates/kafka-client/src/admin/partitions_builder.rs"
 [[linear_owners]]
 owner_type = "CreatePartitions"
 path = "crates/kafka-client/src/admin/create_partitions.rs"
+
+[[mutation_owners]]
+owner_type = "DescribeConfigsCalls"
+field = "calls"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/describe_configs_calls.rs"]
+
+[[mutation_owners]]
+owner_type = "DescribeConfigsCalls"
+field = "settled"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/describe_configs_calls.rs"]
+
+[[mutation_owners]]
+owner_type = "DescribeConfigsHost"
+field = "operations"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/configs/host.rs",
+  "crates/kafka-client-engine/src/admin/configs/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/configs/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DescribeConfigsHost"
+field = "completions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/configs/host.rs",
+  "crates/kafka-client-engine/src/admin/configs/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/configs/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DescribeConfigsHost"
+field = "retained_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/configs/host.rs",
+  "crates/kafka-client-engine/src/admin/configs/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/configs/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DescribeConfigsHost"
+field = "published_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/configs/host.rs",
+  "crates/kafka-client-engine/src/admin/configs/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DescribeConfigsHost"
+field = "next_operation_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/configs/host.rs",
+  "crates/kafka-client-engine/src/admin/configs/host/admission.rs",
+]
+
+[[linear_owners]]
+owner_type = "DescribeConfigsCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls.rs"
+
+[[linear_owners]]
+owner_type = "DescribeConfigsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls.rs"
+
+[[linear_owners]]
+owner_type = "DescribeConfigsCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls.rs"
+
+[[linear_owners]]
+owner_type = "SettledDescribeConfigsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls.rs"
+
+[[linear_owners]]
+owner_type = "DescribeConfigsHost"
+path = "crates/kafka-client-engine/src/admin/configs/host.rs"
+
+[[linear_owners]]
+owner_type = "DescribeConfigsOperation"
+path = "crates/kafka-client-engine/src/admin/configs/host.rs"
+
+[[linear_owners]]
+owner_type = "DescribeConfigsShardOwner"
+path = "crates/kafka-client-engine/src/admin/configs/shard.rs"
+
+[[linear_owners]]
+owner_type = "DescribeConfigsObserver"
+path = "crates/kafka-client-engine/src/admin/configs/observer.rs"

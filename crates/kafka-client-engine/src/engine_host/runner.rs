@@ -7,11 +7,11 @@ use kafka_client_core::{Deadline, Moment};
 use crate::{
     admin::{
         CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteTopicsShardOwner,
-        DescribeClusterShardOwner, DescribeTopicsShardOwner,
+        DescribeClusterShardOwner, DescribeConfigsShardOwner, DescribeTopicsShardOwner,
     },
     clock::MonotonicClock,
     driver::{
-        DescribeClusterCalls, DescribeTopicsCalls, DriverOwner, DriverTurn,
+        DescribeClusterCalls, DescribeConfigsCalls, DescribeTopicsCalls, DriverOwner, DriverTurn,
         TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls,
         TrackedProduceCalls, TrackedProducerIdentityCalls,
     },
@@ -42,6 +42,7 @@ pub(crate) struct EngineHostResources {
     pub(super) describe_cluster: DescribeClusterShardOwner,
     pub(super) create_partitions: CreatePartitionsShardOwner,
     pub(super) describe_topics: DescribeTopicsShardOwner,
+    pub(super) describe_configs: DescribeConfigsShardOwner,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) control: Arc<EngineHostControl>,
     pub(super) budget: ProducerTurnBudget,
@@ -52,6 +53,7 @@ pub(crate) struct EngineHostResources {
     pub(super) describe_cluster_calls: DescribeClusterCalls,
     pub(super) create_partitions_calls: TrackedCreatePartitionsCalls,
     pub(super) describe_topics_calls: DescribeTopicsCalls,
+    pub(super) describe_configs_calls: DescribeConfigsCalls,
 }
 
 impl Drop for EngineHostResources {
@@ -62,6 +64,7 @@ impl Drop for EngineHostResources {
         let _close_result = self.describe_cluster.admission_port().close_admission();
         let _close_result = self.create_partitions.admission_port().close_admission();
         let _close_result = self.describe_topics.admission_port().close_admission();
+        let _close_result = self.describe_configs.admission_port().close_admission();
     }
 }
 

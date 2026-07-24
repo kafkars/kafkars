@@ -24,6 +24,7 @@ struct EngineInner {
     describe_cluster_admission: crate::admin::DescribeClusterAdmissionPort,
     create_partitions_admission: crate::admin::CreatePartitionsAdmissionPort,
     describe_topics_admission: crate::admin::DescribeTopicsAdmissionPort,
+    describe_configs_admission: crate::admin::DescribeConfigsAdmissionPort,
     clock: Arc<crate::clock::MonotonicClock>,
     control: Arc<EngineHostControl>,
     lifecycle: Arc<EngineLifecycle>,
@@ -40,6 +41,7 @@ impl Engine {
             describe_cluster_admission,
             create_partitions_admission,
             describe_topics_admission,
+            describe_configs_admission,
             clock,
             control,
             lifecycle,
@@ -53,6 +55,7 @@ impl Engine {
                 describe_cluster_admission,
                 create_partitions_admission,
                 describe_topics_admission,
+                describe_configs_admission,
                 clock,
                 control,
                 lifecycle,
@@ -74,11 +77,14 @@ impl Engine {
     pub fn admin(&self) -> AdminHandle {
         let lifetime: Arc<dyn Send + Sync> = self.inner.clone();
         AdminHandle::new(
-            self.inner.create_topics_admission.clone(),
-            self.inner.delete_topics_admission.clone(),
-            self.inner.describe_cluster_admission.clone(),
-            self.inner.create_partitions_admission.clone(),
-            self.inner.describe_topics_admission.clone(),
+            crate::admin::AdminAdmissionPorts {
+                create_topics: self.inner.create_topics_admission.clone(),
+                delete_topics: self.inner.delete_topics_admission.clone(),
+                describe_cluster: self.inner.describe_cluster_admission.clone(),
+                create_partitions: self.inner.create_partitions_admission.clone(),
+                describe_topics: self.inner.describe_topics_admission.clone(),
+                describe_configs: self.inner.describe_configs_admission.clone(),
+            },
             Arc::clone(&self.inner.clock),
             lifetime,
         )
@@ -140,6 +146,7 @@ impl EngineInner {
         let _close_result = self.describe_cluster_admission.close_admission();
         let _close_result = self.create_partitions_admission.close_admission();
         let _close_result = self.describe_topics_admission.close_admission();
+        let _close_result = self.describe_configs_admission.close_admission();
         self.lifecycle.request_and_wait(&self.control)
     }
 }
@@ -152,6 +159,7 @@ impl Drop for EngineInner {
         let _close_result = self.describe_cluster_admission.close_admission();
         let _close_result = self.create_partitions_admission.close_admission();
         let _close_result = self.describe_topics_admission.close_admission();
+        let _close_result = self.describe_configs_admission.close_admission();
         self.lifecycle.request(&self.control);
     }
 }

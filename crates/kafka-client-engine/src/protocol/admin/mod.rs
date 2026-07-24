@@ -6,17 +6,9 @@ pub(crate) mod create_topics;
 pub(crate) mod delete_topics;
 mod delete_topics_budget;
 pub(crate) mod describe_cluster;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "bounded DescribeConfigs host integration follows")
-)]
 pub(crate) mod describe_configs;
 mod describe_configs_budget;
 mod describe_configs_model;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "bounded DescribeConfigs host integration follows")
-)]
 pub(crate) mod describe_configs_response;
 mod describe_configs_values;
 pub(crate) mod describe_topics;

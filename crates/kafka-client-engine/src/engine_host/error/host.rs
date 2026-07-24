@@ -5,15 +5,15 @@ use std::fmt;
 use crate::{
     admin::{
         CreatePartitionsHostError, CreateTopicsHostError, DeleteTopicsHostError,
-        DescribeClusterHostError, DescribeTopicsHostError,
+        DescribeClusterHostError, DescribeConfigsHostError, DescribeTopicsHostError,
     },
     clock::ClockError,
     completion::{CompletionRegistryError, NotifierJoinError},
     driver::{
         CreatePartitionsCompletionFailure, CreateTopicsCompletionFailure,
         DeleteTopicsCompletionFailure, DescribeClusterCompletionFailure,
-        DescribeTopicsCompletionFailure, DriverOwnerError, ProduceCompletionFailure,
-        ProducerIdentityCompletionFailure,
+        DescribeConfigsCompletionFailure, DescribeTopicsCompletionFailure, DriverOwnerError,
+        ProduceCompletionFailure, ProducerIdentityCompletionFailure,
     },
     producer::{
         ProducerHostInvariantError, ProducerIdentityHandoffError,
@@ -48,6 +48,9 @@ pub(crate) enum EngineHostError {
     DescribeTopics(DescribeTopicsHostError),
     DescribeTopicsCompletion(DescribeTopicsCompletionFailure),
     DescribeTopicsLockPoisoned,
+    DescribeConfigs(DescribeConfigsHostError),
+    DescribeConfigsCompletion(DescribeConfigsCompletionFailure),
+    DescribeConfigsLockPoisoned,
     AdminCompletion(CompletionRegistryError),
     Driver(DriverOwnerError),
     DriverOwnerMissing,
@@ -59,6 +62,7 @@ pub(crate) enum EngineHostError {
     DescribeClusterCallsRemain(usize),
     TrackedCreatePartitionsCallsRemain(usize),
     DescribeTopicsCallsRemain(usize),
+    DescribeConfigsCallsRemain(usize),
     HostPanicked,
     Notifier(NotifierJoinError),
     Recovery {
@@ -121,6 +125,13 @@ impl fmt::Display for EngineHostError {
             Self::DescribeTopicsLockPoisoned => {
                 formatter.write_str("DescribeTopics host ownership lock is poisoned")
             }
+            Self::DescribeConfigs(error) => {
+                write!(formatter, "DescribeConfigs host failed: {error}")
+            }
+            Self::DescribeConfigsCompletion(error) => write!(formatter, "{error}"),
+            Self::DescribeConfigsLockPoisoned => {
+                formatter.write_str("DescribeConfigs host ownership lock is poisoned")
+            }
             Self::AdminCompletion(error) => {
                 write!(
                     formatter,
@@ -168,6 +179,12 @@ impl fmt::Display for EngineHostError {
                 write!(
                     formatter,
                     "{count} DescribeTopics calls remain at terminal cleanup"
+                )
+            }
+            Self::DescribeConfigsCallsRemain(count) => {
+                write!(
+                    formatter,
+                    "{count} DescribeConfigs calls remain at terminal cleanup"
                 )
             }
             Self::HostPanicked => formatter.write_str("engine host thread panicked"),

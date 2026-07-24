@@ -39,6 +39,15 @@ mod describe_cluster_submission_test;
 mod describe_cluster_terminal;
 #[cfg(test)]
 mod describe_cluster_terminal_test;
+mod describe_configs_calls;
+#[cfg(test)]
+mod describe_configs_calls_test;
+mod describe_configs_submission;
+#[cfg(test)]
+mod describe_configs_submission_test;
+mod describe_configs_terminal;
+#[cfg(test)]
+mod describe_configs_terminal_test;
 mod describe_topics_calls;
 #[cfg(test)]
 mod describe_topics_calls_test;
@@ -90,6 +99,7 @@ pub(crate) use create_partitions_calls::{
 pub(crate) use create_topics_calls::{CreateTopicsCompletionFailure, TrackedCreateTopicsCalls};
 pub(crate) use delete_topics_calls::{DeleteTopicsCompletionFailure, TrackedDeleteTopicsCalls};
 pub(crate) use describe_cluster_calls::{DescribeClusterCalls, DescribeClusterCompletionFailure};
+pub(crate) use describe_configs_calls::{DescribeConfigsCalls, DescribeConfigsCompletionFailure};
 pub(crate) use describe_topics_calls::{DescribeTopicsCalls, DescribeTopicsCompletionFailure};
 pub(crate) use init_producer_id_calls::{
     ProducerIdentityCompletionFailure, TrackedProducerIdentityCalls,

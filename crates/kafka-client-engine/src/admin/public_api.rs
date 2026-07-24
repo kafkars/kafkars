@@ -1,5 +1,18 @@
 //! Curated public and crate-private admin re-exports.
 
+pub(crate) use super::configs::{
+    DESCRIBE_CONFIGS_CAPACITY, DescribeConfigsAdmissionPort, DescribeConfigsHost,
+    DescribeConfigsHostError, DescribeConfigsShardLockError, DescribeConfigsShardOwner,
+    DescribeConfigsShardWake, DescribeConfigsShardWakeError, DescribeConfigsTurn,
+};
+pub use super::configs::{
+    DescribeConfigEntry, DescribeConfigResourceError, DescribeConfigResourceResult,
+    DescribeConfigSynonym, DescribeConfigsAccepted, DescribeConfigsAcceptedFaultKind,
+    DescribeConfigsAdmissionError, DescribeConfigsAdmissionErrorKind, DescribeConfigsBatch,
+    DescribeConfigsDeliveryStatus, DescribeConfigsFailure, DescribeConfigsFailureKind,
+    DescribeConfigsObserver, DescribeConfigsObserverError, DescribeConfigsOutcome,
+    DescribeConfigsRequest, DescribeConfigsResourceQuery,
+};
 pub use super::delete_error::{DeleteTopicsAdmissionError, DeleteTopicsAdmissionErrorKind};
 pub use super::delete_handle::{DeleteTopicsAccepted, DeleteTopicsAcceptedFaultKind};
 pub(crate) use super::delete_host::{

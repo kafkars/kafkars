@@ -2,7 +2,7 @@
 
 use super::{
     CreatePartitionsHost, CreateTopicsHost, DeleteTopicsHost, DescribeClusterHost,
-    DescribeTopicsHost,
+    DescribeConfigsHost, DescribeTopicsHost,
     completion::{AdminCompletionNotifier, AdminCompletionPorts},
 };
 
@@ -29,6 +29,11 @@ pub(super) fn create_partitions_host() -> (CreatePartitionsHost, AdminCompletion
 pub(super) fn describe_topics_host() -> (DescribeTopicsHost, AdminCompletionNotifier) {
     let (notifier, ports) = completion_owner();
     (DescribeTopicsHost::new(ports.describe_topics), notifier)
+}
+
+pub(super) fn describe_configs_host() -> (DescribeConfigsHost, AdminCompletionNotifier) {
+    let (notifier, ports) = completion_owner();
+    (DescribeConfigsHost::new(ports.describe_configs), notifier)
 }
 
 pub(super) fn completion_owner() -> (AdminCompletionNotifier, AdminCompletionPorts) {

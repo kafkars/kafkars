@@ -25,7 +25,7 @@ use crate::{
 
 use super::{
     EngineHostControl, EngineHostError, EngineHostExit, EngineHostResources, EngineLifecycle,
-    EngineStartError, recover, run,
+    EngineStartError, describe_configs_start, recover, run,
 };
 
 const HOST_THREAD_NAME: &str = "kafka-client-engine";
@@ -37,13 +37,13 @@ pub(crate) struct StartedEngineHost {
     pub(crate) describe_cluster_admission: crate::admin::DescribeClusterAdmissionPort,
     pub(crate) create_partitions_admission: crate::admin::CreatePartitionsAdmissionPort,
     pub(crate) describe_topics_admission: crate::admin::DescribeTopicsAdmissionPort,
+    pub(crate) describe_configs_admission: crate::admin::DescribeConfigsAdmissionPort,
     pub(crate) clock: Arc<MonotonicClock>,
     pub(crate) control: Arc<EngineHostControl>,
     pub(crate) lifecycle: Arc<EngineLifecycle>,
 }
 
-// Construction remains one explicit rollback-ordered handoff so a generic
-// owner factory cannot obscure which resource must be reclaimed.
+// Construction stays rollback-ordered so every resource has a visible reclamation owner.
 #[allow(clippy::too_many_lines)]
 pub(crate) fn start(
     config: &EngineConfig,
@@ -79,6 +79,7 @@ pub(crate) fn start(
         describe_cluster,
         create_partitions,
         describe_topics,
+        describe_configs,
     } = admin_ports;
     let create_topics = CreateTopicsHost::new(create_topics);
     let delete_topics = DeleteTopicsHost::new(delete_topics);
@@ -110,6 +111,8 @@ pub(crate) fn start(
     let describe_topics =
         DescribeTopicsShardOwner::new(describe_topics, Arc::new(driver.reactor_wake()));
     let describe_topics_admission = describe_topics.admission_port();
+    let describe_configs =
+        describe_configs_start::start(describe_configs, Arc::new(driver.reactor_wake()));
     let produce_calls =
         crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
     let resources = EngineHostResources {
@@ -121,6 +124,7 @@ pub(crate) fn start(
         describe_cluster,
         create_partitions,
         describe_topics,
+        describe_configs: describe_configs.owner,
         clock: Arc::clone(&clock),
         control: Arc::clone(&control),
         budget: validated.turn_budget,
@@ -141,6 +145,7 @@ pub(crate) fn start(
         describe_topics_calls: crate::driver::DescribeTopicsCalls::new(
             crate::admin::DESCRIBE_TOPICS_CAPACITY,
         ),
+        describe_configs_calls: describe_configs.calls,
     };
     if let Err(error) = sender.send(resources) {
         control.request_shutdown();
@@ -160,6 +165,7 @@ pub(crate) fn start(
         describe_cluster_admission,
         create_partitions_admission,
         describe_topics_admission,
+        describe_configs_admission: describe_configs.admission,
         clock,
         control,
         lifecycle,

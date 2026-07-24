@@ -6,7 +6,8 @@ use kafka_client_core::{Deadline, Moment};
 
 use super::{
     super::{EngineHostError, EngineHostResources},
-    create_partitions, create_topics, delete_topics, describe_cluster, describe_topics,
+    create_partitions, create_topics, delete_topics, describe_cluster, describe_configs,
+    describe_topics,
 };
 
 pub(in crate::engine_host) struct AdminProgress {
@@ -38,9 +39,18 @@ pub(in crate::engine_host) fn drive(
         || clock.now().map_err(EngineHostError::Clock),
     )?;
     let topics = describe_topics::drive(resources, topics_now)?;
+    let configs_now = clock.now().map_err(EngineHostError::Clock)?;
+    let configs = describe_configs::drive(resources, configs_now)?;
     let partitions_now = clock.now().map_err(EngineHostError::Clock)?;
     let partitions = create_partitions::drive(resources, partitions_now)?;
-    Ok(combine(&create, &delete, &describe, &partitions, &topics))
+    Ok(combine(
+        &create,
+        &delete,
+        &describe,
+        &partitions,
+        &topics,
+        &configs,
+    ))
 }
 
 pub(super) fn drive_create_then_capture_delete(
@@ -82,6 +92,7 @@ pub(super) const fn combine(
     describe: &describe_cluster::DescribeClusterProgress,
     partitions: &create_partitions::CreatePartitionsProgress,
     topics: &describe_topics::DescribeTopicsProgress,
+    configs: &describe_configs::DescribeConfigsProgress,
 ) -> AdminProgress {
     AdminProgress {
         unsettled: create
@@ -89,17 +100,19 @@ pub(super) const fn combine(
             .saturating_add(delete.unsettled)
             .saturating_add(describe.unsettled)
             .saturating_add(partitions.unsettled)
-            .saturating_add(topics.unsettled),
+            .saturating_add(topics.unsettled)
+            .saturating_add(configs.unsettled),
         driver_progress: create.driver_progress
             || delete.driver_progress
             || describe.driver_progress
             || partitions.driver_progress
-            || topics.driver_progress,
+            || topics.driver_progress
+            || configs.driver_progress,
         next_deadline: earliest(
             earliest(create.next_deadline, delete.next_deadline),
             earliest(
                 earliest(describe.next_deadline, partitions.next_deadline),
-                topics.next_deadline,
+                earliest(topics.next_deadline, configs.next_deadline),
             ),
         ),
     }
@@ -113,7 +126,8 @@ pub(in crate::engine_host) fn apply_completions(
     let describe = describe_cluster::apply_completions(resources)?;
     let partitions = create_partitions::apply_completions(resources)?;
     let topics = describe_topics::apply_completions(resources)?;
-    Ok(create || delete || describe || partitions || topics)
+    let configs = describe_configs::apply_completions(resources)?;
+    Ok(create || delete || describe || partitions || topics || configs)
 }
 
 #[cfg(test)]

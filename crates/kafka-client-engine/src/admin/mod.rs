@@ -2,6 +2,7 @@
 mod completion;
 #[cfg(test)]
 mod completion_test;
+mod configs;
 mod delete_error;
 mod delete_handle;
 mod delete_host;

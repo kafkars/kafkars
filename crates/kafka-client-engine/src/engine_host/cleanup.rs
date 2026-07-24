@@ -73,6 +73,10 @@ fn verify_tracked_calls(resources: &EngineHostResources) -> Result<(), EngineHos
     if topics != 0 {
         return Err(EngineHostError::DescribeTopicsCallsRemain(topics));
     }
+    let configs = resources.describe_configs_calls.retained_count();
+    if configs != 0 {
+        return Err(EngineHostError::DescribeConfigsCallsRemain(configs));
+    }
     Ok(())
 }
 
@@ -105,6 +109,12 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
     if topics != 0 {
         return Err(EngineHostError::DescribeTopics(
             crate::admin::DescribeTopicsHostError::Unsettled(topics),
+        ));
+    }
+    let configs = resources.describe_configs.terminal_host().unsettled();
+    if configs != 0 {
+        return Err(EngineHostError::DescribeConfigs(
+            crate::admin::DescribeConfigsHostError::Unsettled(configs),
         ));
     }
     Ok(())

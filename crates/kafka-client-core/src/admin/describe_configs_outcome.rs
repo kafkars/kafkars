@@ -38,6 +38,11 @@ impl DescribeConfigBrokerError {
     pub const fn message_truncated(&self) -> bool {
         self.message_truncated
     }
+
+    /// Consumes this broker error into adapter-owned parts.
+    pub fn into_parts(self) -> (i16, Option<String>, bool) {
+        (self.code.get(), self.message, self.message_truncated)
+    }
 }
 
 /// Per-resource `DescribeConfigs` result.

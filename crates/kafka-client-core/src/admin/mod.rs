@@ -36,7 +36,11 @@ mod delete_transition_test;
 #[cfg(test)]
 mod describe_configs_model_test;
 #[cfg(test)]
+mod describe_configs_outcome_test;
+#[cfg(test)]
 mod describe_configs_transition_test;
+#[cfg(test)]
+mod describe_configs_value_test;
 #[cfg(test)]
 mod describe_transition_test;
 #[cfg(test)]

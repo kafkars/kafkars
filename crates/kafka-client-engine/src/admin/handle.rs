@@ -8,6 +8,16 @@ use super::{
 };
 use crate::clock::MonotonicClock;
 
+/// Closed set of concrete admin admission capabilities retained by one handle.
+pub(crate) struct AdminAdmissionPorts {
+    pub(crate) create_topics: CreateTopicsAdmissionPort,
+    pub(crate) delete_topics: DeleteTopicsAdmissionPort,
+    pub(crate) describe_cluster: super::DescribeClusterAdmissionPort,
+    pub(crate) create_partitions: super::CreatePartitionsAdmissionPort,
+    pub(crate) describe_topics: super::DescribeTopicsAdmissionPort,
+    pub(crate) describe_configs: super::DescribeConfigsAdmissionPort,
+}
+
 /// Cheaply cloneable handle to the concrete admin shards.
 #[derive(Clone)]
 pub struct AdminHandle {
@@ -16,26 +26,24 @@ pub struct AdminHandle {
     pub(super) describe_cluster: super::DescribeClusterAdmissionPort,
     pub(super) create_partitions: super::CreatePartitionsAdmissionPort,
     pub(super) describe_topics: super::DescribeTopicsAdmissionPort,
+    pub(super) describe_configs: super::DescribeConfigsAdmissionPort,
     pub(super) clock: Arc<MonotonicClock>,
     _lifetime: Arc<dyn Send + Sync>,
 }
 
 impl AdminHandle {
     pub(crate) fn new(
-        create_topics: CreateTopicsAdmissionPort,
-        delete_topics: DeleteTopicsAdmissionPort,
-        describe_cluster: super::DescribeClusterAdmissionPort,
-        create_partitions: super::CreatePartitionsAdmissionPort,
-        describe_topics: super::DescribeTopicsAdmissionPort,
+        ports: AdminAdmissionPorts,
         clock: Arc<MonotonicClock>,
         lifetime: Arc<dyn Send + Sync>,
     ) -> Self {
         Self {
-            create_topics,
-            delete_topics,
-            describe_cluster,
-            create_partitions,
-            describe_topics,
+            create_topics: ports.create_topics,
+            delete_topics: ports.delete_topics,
+            describe_cluster: ports.describe_cluster,
+            create_partitions: ports.create_partitions,
+            describe_topics: ports.describe_topics,
+            describe_configs: ports.describe_configs,
             clock,
             _lifetime: lifetime,
         }

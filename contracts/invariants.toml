@@ -62,7 +62,7 @@ evidence = [
   "crates/kafka-client-engine/src/admin/delete_host_test.rs::queued_and_taken_recovery_preserve_the_last_not_sent_boundary",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::saturated_create_lane_cannot_hide_runnable_delete_work",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::either_concrete_owner_prevents_false_shutdown_quiescence",
-  "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::delete_timeout_uses_time_recaptured_after_create_work",
+  "crates/kafka-client-engine/src/engine_host/admin/schedule_time_test.rs::delete_timeout_uses_time_recaptured_after_create_work",
   "crates/kafka-client/src/admin/delete_builder_test.rs::empty_zero_deadline_builder_is_inert_until_submit",
   "crates/kafka-client/src/bridge/admin_delete_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
   "crates/kafka-client/src/bridge/admin_delete_result_test.rs::every_admission_category_maps_without_hidden_retry_policy",
@@ -86,7 +86,7 @@ evidence = [
   "crates/kafka-client-engine/src/admin/describe_host_test.rs::reserved_result_bytes_survive_until_observer_reclamation",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::saturated_delete_lane_cannot_hide_runnable_describe_cluster_work",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::describe_cluster_owner_prevents_false_shutdown_quiescence",
-  "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::describe_cluster_uses_time_recaptured_after_delete_work",
+  "crates/kafka-client-engine/src/engine_host/admin/schedule_time_test.rs::describe_cluster_uses_time_recaptured_after_delete_work",
   "crates/kafka-client-engine/src/admin/completion_test.rs::one_worker_publishes_every_concrete_admin_terminal_off_reactor",
   "crates/kafka-client-engine/src/admin/completion_test.rs::shared_capacity_is_the_sum_of_the_closed_admin_ticket_set",
   "crates/kafka-client-engine/src/completion/shared_notifier_test.rs::bounded_shared_queue_returns_the_exact_typed_terminal_for_retry",
@@ -148,7 +148,7 @@ evidence = [
   "crates/kafka-client-engine/src/admin/completion_test.rs::describe_topics_is_included_in_the_closed_shared_capacity_equation",
   "crates/kafka-client-engine/src/admin/topics_outcome_test.rs::topic_and_partition_codes_cross_the_engine_boundary_exactly",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::describe_topics_owner_is_independent_and_prevents_false_quiescence",
-  "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::describe_topics_uses_time_recaptured_after_describe_cluster_work",
+  "crates/kafka-client-engine/src/engine_host/admin/schedule_time_test.rs::describe_topics_uses_time_recaptured_after_describe_cluster_work",
   "crates/kafka-client/src/admin/topics_builder_test.rs::empty_zero_deadline_builder_is_inert_until_submit",
   "crates/kafka-client/src/bridge/admin_topics_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
   "crates/kafka-client/src/bridge/admin_topics_result_test.rs::top_level_and_partition_codes_remain_exact",
@@ -158,7 +158,7 @@ evidence = [
 [[invariant]]
 id = "ADM-08"
 title = "DescribeConfigs policy is ordered, bounded, and exact"
-statement = "One capacity-reserved DescribeConfigs machine validates a nonempty ordered batch of unique positive resource type/name identities and optional ordered unique configuration keys, retains one original absolute deadline and request intent, assigns at most one terminal decision, revalidates ordered resource and configuration correlation, preserves exact signed per-resource broker errors and positive broker throttle as observation data without retry policy, and distinguishes invalid, over-budget, protocol-incompatible, deadline, driver-rejected, and transport terminals with authoritative delivery certainty. Its isolated generated protocol seam preserves request intent, normalizes only negotiated v1-v4 response fields, and bounds terminal text and ownership before copying."
+statement = "One capacity-reserved DescribeConfigs machine validates a nonempty ordered batch of unique positive resource type/name identities and optional ordered unique configuration keys, retains one original absolute deadline and request intent, assigns at most one terminal decision, revalidates ordered resource and configuration correlation, preserves exact signed per-resource broker errors and positive broker throttle as observation data without retry policy, and distinguishes invalid, over-budget, protocol-incompatible, deadline, driver-rejected, and transport terminals with authoritative delivery certainty. Its concrete engine slice admits only topic resources, rejects broker-specific and mixed plans definitely-unsent before driver ownership, reserves distinct request and terminal-result bytes atomically, and uses one tracked AnyBroker Interactive call with a v4 ceiling and the original deadline. The exact selected v1-v4 response version gates v3 type and documentation fields; no retry, cache, generic executor, callback, or async runtime is introduced."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/admin/describe_configs_model_test.rs::plan_preserves_order_flags_and_optional_key_selection",
@@ -172,6 +172,19 @@ evidence = [
   "crates/kafka-client-engine/src/protocol/admin/describe_configs_response_test.rs::pre_v3_generated_defaults_do_not_fabricate_type_or_documentation",
   "crates/kafka-client-engine/src/protocol/admin/describe_configs_budget_test.rs::exact_normalized_charge_is_accepted_and_one_byte_less_is_rejected",
   "crates/kafka-client-engine/src/protocol/admin/describe_configs_budget_test.rs::hostile_diagnostic_is_utf8_bounded_before_terminal_copy",
+  "crates/kafka-client-engine/src/admin/configs/model_test.rs::broker_specific_and_mixed_batches_are_definitely_unsupported",
+  "crates/kafka-client-engine/src/admin/configs/shard_test.rs::broker_and_mixed_plans_never_reserve_terminal_or_retained_bytes",
+  "crates/kafka-client-engine/src/admin/configs/model_test.rs::topic_batches_reserve_result_capacity_before_acceptance",
+  "crates/kafka-client-engine/src/admin/configs/host_test.rs::terminal_bytes_remain_reserved_until_observer_reclamation",
+  "crates/kafka-client-engine/src/driver/rpc/describe_configs_submission_test.rs::topic_configs_use_any_broker_interactive_lane_original_deadline_and_v4_ceiling",
+  "crates/kafka-client-engine/src/driver/rpc/describe_configs_terminal_test.rs::selected_v2_does_not_fabricate_v3_fields_but_retains_throttle",
+  "crates/kafka-client-engine/src/driver/rpc/describe_configs_terminal_test.rs::selected_v3_retains_type_and_documentation",
+  "crates/kafka-client-engine/src/driver/rpc/describe_configs_terminal_test.rs::request_bytes_cannot_inflate_the_response_capacity",
+  "crates/kafka-client-engine/src/driver/rpc/describe_configs_terminal_test.rs::version_failure_preserves_driver_authoritative_delivery",
+  "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls_test.rs::accepted_call_occupies_the_only_slot_until_driver_shutdown",
+  "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls_test.rs::zero_capacity_rejects_before_submission",
+  "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::describe_configs_owner_is_independent_and_prevents_false_quiescence",
+  "crates/kafka-client-engine/src/admin/completion_test.rs::describe_configs_is_included_in_the_closed_shared_capacity_equation",
 ]
 
 [[invariant]]
