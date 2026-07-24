@@ -12,10 +12,12 @@ const CLAIM: &str = "crates/kafka-client-engine/src/consumer/assigned_host/claim
 const CLAIM_TEST: &str = "crates/kafka-client-engine/src/consumer/assigned_host/claim_test.rs";
 const HANDLE: &str = "crates/kafka-client-engine/src/consumer/assigned_host/handle.rs";
 const HANDLE_TEST: &str = "crates/kafka-client-engine/src/consumer/assigned_host/handle_test.rs";
+const RESULT: &str = "crates/kafka-client-engine/src/consumer/assigned_host/result.rs";
 const LINEAR: &[(&str, &str)] = &[
     ("AssignedConsumerClaimSlot", CLAIM),
     ("AssignedConsumerAdmissionCloser", CLAIM),
     ("AssignedConsumerHandle", HANDLE),
+    ("AssignedConsumerTryCloseAccepted", RESULT),
 ];
 const FORBIDDEN: &[&str] = &[
     "kafka_driver",

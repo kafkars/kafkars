@@ -10,7 +10,7 @@ use super::super::{
     assigned_owner_test::{input, limits, settings},
 };
 use super::{
-    result::{AssignedConsumerAcceptedFaultKind, AssignedConsumerPortError},
+    result::{AssignedConsumerPortAcceptedFaultKind, AssignedConsumerPortError},
     shard::AssignedConsumerShardOwner,
     shard_test::{FailingWake, setup},
 };
@@ -71,7 +71,7 @@ fn wake_failure_is_advisory_after_assignment_commits() {
 
     assert_eq!(
         accepted.fault(),
-        Some(AssignedConsumerAcceptedFaultKind::Wake)
+        Some(AssignedConsumerPortAcceptedFaultKind::Wake)
     );
     assert!(
         owner

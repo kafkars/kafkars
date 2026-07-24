@@ -28,12 +28,7 @@ fn unread_ready_delivery_is_reclaimed_during_close() {
     assert!(owner.progress_close());
     assert_eq!(owner.interpret_front_effect(), FrontEffect::Interpreted);
     assert!(owner.progress_close());
-    assert!(matches!(
-        observer.wait(),
-        Ok(super::assigned_host::AssignedConsumerCloseTerminal::Closed(
-            _
-        ))
-    ));
+    assert_eq!(observer.wait(), Ok(()));
 }
 
 #[test]
@@ -55,12 +50,7 @@ fn close_publication_backpressure_retains_the_exact_terminal_for_retry() {
     assert_eq!(owner.close_completions.unsettled_len(), 1);
 
     assert!(owner.progress_close());
-    assert!(matches!(
-        observer.wait(),
-        Ok(super::assigned_host::AssignedConsumerCloseTerminal::Closed(
-            _
-        ))
-    ));
+    assert_eq!(observer.wait(), Ok(()));
 }
 
 #[test]

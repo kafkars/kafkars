@@ -91,10 +91,7 @@ fn host_owner_drop_leaves_core_completed_close_for_the_unique_port() {
     shutdown(&mut driver);
     drop(owner);
 
-    assert!(matches!(
-        accepted.into_value().wait(),
-        Ok(super::super::assigned_host::AssignedConsumerCloseTerminal::Closed(_))
-    ));
+    assert_eq!(accepted.into_value().wait(), Ok(()));
 }
 
 #[test]

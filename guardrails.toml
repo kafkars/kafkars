@@ -4328,6 +4328,10 @@ owner_type = "AssignedConsumerCloseObserver"
 path = "crates/kafka-client-engine/src/consumer/assigned_host/close_observer.rs"
 
 [[linear_owners]]
+owner_type = "AssignedConsumerTryCloseAccepted"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/result.rs"
+
+[[linear_owners]]
 owner_type = "AssignedConsumerCompletionNotifier"
 path = "crates/kafka-client-engine/src/consumer/assigned_host/completion.rs"
 

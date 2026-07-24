@@ -26,7 +26,7 @@ fn accepted_close_settles_execution_unavailable_after_driver_shutdown() {
     assert_eq!(recovery.close_completion_error(), None);
     assert_eq!(
         observer.wait(),
-        Ok(super::assigned_host::AssignedConsumerCloseTerminal::ExecutionUnavailable)
+        Err(super::assigned_host::AssignedConsumerCloseObserverError::ExecutionUnavailable)
     );
 }
 
@@ -47,7 +47,7 @@ fn recovery_retries_an_injected_close_publication_backpressure() {
     assert_eq!(recovery.close_completion_error(), None);
     assert_eq!(
         observer.wait(),
-        Ok(super::assigned_host::AssignedConsumerCloseTerminal::ExecutionUnavailable)
+        Err(super::assigned_host::AssignedConsumerCloseObserverError::ExecutionUnavailable)
     );
 }
 

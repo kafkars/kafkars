@@ -39,9 +39,14 @@ mod wake_test;
 
 pub use claim::AssignedConsumerClaimError;
 pub(crate) use claim::{AssignedConsumerAdmissionCloser, AssignedConsumerClaimSlot};
-pub(crate) use close_observer::{AssignedConsumerCloseObserver, AssignedConsumerCloseTerminal};
+pub(crate) use close_observer::AssignedConsumerCloseTerminal;
+pub use close_observer::{AssignedConsumerCloseObserver, AssignedConsumerCloseObserverError};
 pub(crate) use completion::{AssignedConsumerClosePublisher, AssignedConsumerCompletionNotifier};
 pub use handle::AssignedConsumerHandle;
+pub use result::{
+    AssignedConsumerAcceptedFaultKind, AssignedConsumerTryCloseAccepted,
+    AssignedConsumerTryCloseError, AssignedConsumerTryCloseErrorKind,
+};
 pub(crate) use shard::{
     AssignedConsumerPort, AssignedConsumerShardLockError, AssignedConsumerShardOwner,
     AssignedConsumerShutdownStart,

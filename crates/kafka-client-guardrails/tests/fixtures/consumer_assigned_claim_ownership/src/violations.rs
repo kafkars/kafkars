@@ -17,6 +17,9 @@ struct AssignedConsumerAdmissionCloser;
 #[derive(Clone, Copy)]
 struct AssignedConsumerHandle;
 
+#[derive(Clone, Copy)]
+struct AssignedConsumerTryCloseAccepted;
+
 impl AssignedConsumerClaimSlot {
     fn create_for_engine() -> Self {
         Self { port: Vec::new() }

@@ -20,14 +20,18 @@ pub(crate) enum AssignedConsumerCloseTerminal {
 
 /// Observation failure without changing close or delivery semantics.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum AssignedConsumerCloseObserverError {
+pub enum AssignedConsumerCloseObserverError {
+    /// The engine lost execution ownership after close was accepted.
+    ExecutionUnavailable,
+    /// This single observer already yielded its terminal result.
     AlreadyObserved,
+    /// The completion generation no longer belongs to this observer.
     Stale,
 }
 
 /// Single non-clone observer shared by asynchronous and blocking callers.
 #[must_use = "dropping abandons close observation without cancelling accepted close work"]
-pub(crate) struct AssignedConsumerCloseObserver {
+pub struct AssignedConsumerCloseObserver {
     inner: CompletionObserver<AssignedConsumerCloseTerminal>,
 }
 
@@ -38,21 +42,20 @@ impl AssignedConsumerCloseObserver {
         Self { inner }
     }
 
-    pub(crate) fn wait(
-        self,
-    ) -> Result<AssignedConsumerCloseTerminal, AssignedConsumerCloseObserverError> {
-        self.inner.wait().map_err(observer_error)
+    /// Blocks on the same terminal cell used by `Future::poll`.
+    pub fn wait(self) -> Result<(), AssignedConsumerCloseObserverError> {
+        translate_terminal(self.inner.wait().map_err(observer_error)?)
     }
 }
 
 impl Future for AssignedConsumerCloseObserver {
-    type Output = Result<AssignedConsumerCloseTerminal, AssignedConsumerCloseObserverError>;
+    type Output = Result<(), AssignedConsumerCloseObserverError>;
 
     fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
         Pin::new(&mut this.inner)
             .poll(context)
-            .map(|result| result.map_err(observer_error))
+            .map(|result| result.map_err(observer_error).and_then(translate_terminal))
     }
 }
 
@@ -72,3 +75,28 @@ const fn observer_error(error: CompletionObserverError) -> AssignedConsumerClose
         CompletionObserverError::Stale => AssignedConsumerCloseObserverError::Stale,
     }
 }
+
+const fn translate_terminal(
+    terminal: AssignedConsumerCloseTerminal,
+) -> Result<(), AssignedConsumerCloseObserverError> {
+    match terminal {
+        AssignedConsumerCloseTerminal::Closed(_close_id) => Ok(()),
+        AssignedConsumerCloseTerminal::ExecutionUnavailable => {
+            Err(AssignedConsumerCloseObserverError::ExecutionUnavailable)
+        }
+    }
+}
+
+impl fmt::Display for AssignedConsumerCloseObserverError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ExecutionUnavailable => {
+                formatter.write_str("assigned-consumer close execution became unavailable")
+            }
+            Self::AlreadyObserved => formatter.write_str("close completion was already observed"),
+            Self::Stale => formatter.write_str("close observer is stale"),
+        }
+    }
+}
+
+impl std::error::Error for AssignedConsumerCloseObserverError {}

@@ -2,7 +2,10 @@
 
 use std::{cell::Cell, marker::PhantomData, sync::Arc};
 
-use super::shard::AssignedConsumerPort;
+use super::{
+    result::{AssignedConsumerTryCloseAccepted, AssignedConsumerTryCloseError},
+    shard::AssignedConsumerPort,
+};
 
 /// Sole application-side capability for the engine's assigned consumer.
 ///
@@ -23,6 +26,16 @@ impl AssignedConsumerHandle {
             lifetime,
             _not_sync: PhantomData,
         }
+    }
+
+    /// Attempts immediate close after reserving the sole terminal-completion lane.
+    pub fn try_close(
+        &mut self,
+    ) -> Result<AssignedConsumerTryCloseAccepted, AssignedConsumerTryCloseError> {
+        self.port
+            .begin_close()
+            .map(AssignedConsumerTryCloseAccepted::from_port)
+            .map_err(|error| AssignedConsumerTryCloseError::from_port(&error))
     }
 
     #[cfg(test)]
