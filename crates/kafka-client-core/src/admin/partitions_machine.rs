@@ -33,6 +33,11 @@ pub enum CreatePartitionsInput {
     DriverRejected,
     /// Reports original-deadline expiry before driver ownership.
     DeadlineElapsed,
+    /// Reports driver-owned original-deadline expiry.
+    DriverDeadlineElapsed {
+        /// Driver-authoritative delivery certainty.
+        delivery: DeliveryStatus,
+    },
     /// Reports ordered protocol-normalized per-topic results.
     BrokerResponded {
         /// Outcomes in original request order.

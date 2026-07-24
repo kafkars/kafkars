@@ -3,9 +3,10 @@
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
 use super::{
-    CreatePartitionsEffect, CreatePartitionsInput, CreatePartitionsMachine,
-    CreatePartitionsMachineError, CreatePartitionsPlan, CreatePartitionsSpecification,
-    CreatePartitionsState, CreatePartitionsTerminal, PartitionIncreaseOutcome,
+    CreatePartitionsEffect, CreatePartitionsFailureKind, CreatePartitionsInput,
+    CreatePartitionsMachine, CreatePartitionsMachineError, CreatePartitionsPlan,
+    CreatePartitionsSpecification, CreatePartitionsState, CreatePartitionsTerminal,
+    PartitionIncreaseOutcome,
 };
 
 fn machine(deadline: u64) -> CreatePartitionsMachine {
@@ -71,13 +72,15 @@ fn deadline_and_response_order_remain_core_owned() {
             now: Moment::from_tick(10),
         })
         .unwrap_or_else(|error| panic!("elapsed start settles: {error}"));
-    assert!(matches!(
-        terminal.into_effect(),
-        Some(CreatePartitionsEffect::Complete {
-            terminal: CreatePartitionsTerminal::Failed(_),
-            ..
-        })
-    ));
+    let Some(CreatePartitionsEffect::Complete {
+        terminal: CreatePartitionsTerminal::Failed(failure),
+        ..
+    }) = terminal.into_effect()
+    else {
+        panic!("pre-driver deadline terminal expected");
+    };
+    assert_eq!(failure.kind(), CreatePartitionsFailureKind::DeadlineElapsed);
+    assert_eq!(failure.delivery(), DeliveryStatus::NotSent);
 
     let mut mismatch = machine(20);
     mismatch
@@ -96,4 +99,29 @@ fn deadline_and_response_order_remain_core_owned() {
         Err(CreatePartitionsMachineError::OutcomeTopicMismatch)
     );
     assert_eq!(mismatch.state(), CreatePartitionsState::Submitted);
+}
+
+#[test]
+fn driver_deadline_preserves_possibly_sent_certainty_as_timeout() {
+    let mut machine = machine(20);
+    machine
+        .apply(CreatePartitionsInput::Start {
+            now: Moment::from_tick(1),
+        })
+        .and_then(|_| machine.apply(CreatePartitionsInput::DriverAccepted))
+        .unwrap_or_else(|error| panic!("driver-owned setup should succeed: {error}"));
+    let terminal = machine
+        .apply(CreatePartitionsInput::DriverDeadlineElapsed {
+            delivery: DeliveryStatus::PossiblySent,
+        })
+        .unwrap_or_else(|error| panic!("driver deadline should settle: {error}"));
+    let Some(CreatePartitionsEffect::Complete {
+        terminal: CreatePartitionsTerminal::Failed(failure),
+        ..
+    }) = terminal.into_effect()
+    else {
+        panic!("driver deadline terminal expected");
+    };
+    assert_eq!(failure.kind(), CreatePartitionsFailureKind::DeadlineElapsed);
+    assert_eq!(failure.delivery(), DeliveryStatus::PossiblySent);
 }

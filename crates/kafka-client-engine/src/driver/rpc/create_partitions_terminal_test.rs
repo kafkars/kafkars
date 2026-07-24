@@ -1,9 +1,10 @@
 //! Semantic `CreatePartitions` terminal normalization scenarios.
 
 use kafka_client_core::{
-    CreatePartitionsInput, CreatePartitionsPlan, CreatePartitionsSpecification,
+    CreatePartitionsInput, CreatePartitionsPlan, CreatePartitionsSpecification, DeliveryStatus,
     PartitionIncreaseResult,
 };
+use kafka_driver::{CallFailure, Delivery, RequestError};
 use kafka_wire::{
     CreatePartitionsResponse, create_partitions_response::CreatePartitionsTopicResult,
 };
@@ -36,4 +37,31 @@ fn broker_results_normalize_without_losing_exact_codes() {
         panic!("broker failure expected");
     };
     assert_eq!(error.code(), -32_000);
+}
+
+#[test]
+fn driver_deadline_remains_explicit_and_preserves_delivery_certainty() {
+    let input = normalize_terminal(
+        &plan(),
+        usize::MAX,
+        Err(RequestError::Rejected {
+            failure: CallFailure::DeadlineExceeded,
+            delivery: Delivery::PossiblySent,
+        }),
+    )
+    .unwrap_or_else(|error| panic!("normalize driver deadline: {error:?}"));
+    assert_eq!(
+        input,
+        CreatePartitionsInput::DriverDeadlineElapsed {
+            delivery: DeliveryStatus::PossiblySent,
+        }
+    );
+}
+
+fn plan() -> CreatePartitionsPlan {
+    CreatePartitionsPlan::new(
+        vec![CreatePartitionsSpecification::new("orders".to_owned(), 8)],
+        false,
+    )
+    .unwrap_or_else(|error| panic!("valid partition plan: {error}"))
 }

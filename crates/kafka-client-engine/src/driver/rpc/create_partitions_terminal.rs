@@ -1,7 +1,7 @@
 //! Semantic terminal normalization for tracked `CreatePartitions` calls.
 
 use kafka_client_core::CreatePartitionsInput;
-use kafka_driver::RequestError;
+use kafka_driver::{CallFailure, RequestError};
 use kafka_wire::CreatePartitionsResponse;
 
 use crate::protocol::admin::create_partitions::{
@@ -28,6 +28,14 @@ pub(super) fn normalize_terminal(
                 ) => Ok(CreatePartitionsInput::InvalidResponse),
             }
         }
+        Err(
+            error @ RequestError::Rejected {
+                failure: CallFailure::DeadlineExceeded,
+                ..
+            },
+        ) => Ok(CreatePartitionsInput::DriverDeadlineElapsed {
+            delivery: super::super::request_failure_delivery(&error),
+        }),
         Err(error) => Ok(CreatePartitionsInput::TransportFailed {
             delivery: super::super::request_failure_delivery(&error),
         }),

@@ -126,6 +126,13 @@ impl CreatePartitionsFailure {
         }
     }
 
+    pub(crate) const fn driver_deadline_elapsed(delivery: DeliveryStatus) -> Self {
+        Self {
+            kind: CreatePartitionsFailureKind::DeadlineElapsed,
+            delivery,
+        }
+    }
+
     pub(crate) const fn transport(delivery: DeliveryStatus) -> Self {
         Self {
             kind: CreatePartitionsFailureKind::Transport,

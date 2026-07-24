@@ -68,6 +68,19 @@ fn failures_codes_and_diagnostics_are_lossless() {
 }
 
 #[test]
+fn driver_deadline_is_public_timeout_with_authoritative_certainty() {
+    let failure = translate_failure_parts(
+        CreatePartitionsFailureKind::DeadlineElapsed,
+        CreatePartitionsDeliveryStatus::PossiblySent,
+    );
+    assert_eq!(failure.kind(), ErrorKind::Timeout);
+    assert_eq!(
+        failure.delivery_status(),
+        Some(DeliveryStatus::PossiblySent)
+    );
+}
+
+#[test]
 fn observer_and_accepted_fault_categories_remain_distinct() {
     assert_eq!(
         translate_observer_error(CreatePartitionsObserverError::AlreadyObserved).kind(),

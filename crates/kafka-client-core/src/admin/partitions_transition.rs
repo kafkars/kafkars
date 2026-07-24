@@ -22,6 +22,9 @@ impl CreatePartitionsMachine {
             CreatePartitionsInput::DriverAccepted => self.driver_accepted(),
             CreatePartitionsInput::DriverRejected => self.driver_rejected(),
             CreatePartitionsInput::DeadlineElapsed => self.deadline_elapsed(),
+            CreatePartitionsInput::DriverDeadlineElapsed { delivery } => {
+                self.driver_deadline_elapsed(delivery)
+            }
             CreatePartitionsInput::BrokerResponded { outcomes } => self.broker_responded(outcomes),
             CreatePartitionsInput::TransportFailed { delivery } => self.transport_failed(delivery),
             CreatePartitionsInput::InvalidResponse => self.invalid_response(),
@@ -91,6 +94,18 @@ impl CreatePartitionsMachine {
         }
         self.validate_outcomes(&outcomes)?;
         Ok(self.finish(CreatePartitionsTerminal::Topics(outcomes)))
+    }
+
+    fn driver_deadline_elapsed(
+        &mut self,
+        delivery: DeliveryStatus,
+    ) -> Result<CreatePartitionsTransition, CreatePartitionsMachineError> {
+        if self.state != CreatePartitionsState::Submitted {
+            return Err(CreatePartitionsMachineError::InvalidState);
+        }
+        Ok(self.finish(CreatePartitionsTerminal::Failed(
+            CreatePartitionsFailure::driver_deadline_elapsed(delivery),
+        )))
     }
 
     fn transport_failed(
