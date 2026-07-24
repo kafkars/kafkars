@@ -1,6 +1,6 @@
 //! Compile-checked batched admin API sketch.
 
-use kafka_client::{Client, KafkaError, NewTopic};
+use kafka_client::{Client, KafkaError, NewPartitions, NewTopic};
 
 fn main() {}
 
@@ -31,6 +31,24 @@ async fn delete_topics() -> Result<(), KafkaError> {
     let result = client
         .admin()
         .delete_topics(["orders", "audit"])
+        .submit()
+        .await?;
+    assert_eq!(result.entries().len(), 2);
+    Ok(())
+}
+
+#[allow(dead_code)]
+async fn create_partitions() -> Result<(), KafkaError> {
+    let client = Client::builder()
+        .bootstrap_servers(["localhost:9092"])
+        .build()?;
+    let result = client
+        .admin()
+        .create_partitions([
+            NewPartitions::new("orders", 48),
+            NewPartitions::new("audit", 12),
+        ])
+        .validate_only(false)
         .submit()
         .await?;
     assert_eq!(result.entries().len(), 2);
