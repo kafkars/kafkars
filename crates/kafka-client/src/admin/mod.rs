@@ -1,7 +1,8 @@
-//! Declarative facade for batched `CreateTopics` construction and observation.
+//! Declarative facade for concrete batched Kafka administration.
 
 mod batch_result;
 mod builder;
+mod create_partitions;
 mod create_topics;
 mod delete_builder;
 mod delete_topics;
@@ -9,10 +10,13 @@ mod describe_builder;
 mod describe_cluster;
 mod description;
 mod handle;
+mod new_partitions;
 mod new_topic;
+mod partitions_builder;
 
 pub use batch_result::BatchResult;
 pub use builder::CreateTopicsBuilder;
+pub use create_partitions::CreatePartitions;
 pub use create_topics::CreateTopics;
 pub use delete_builder::DeleteTopicsBuilder;
 pub use delete_topics::DeleteTopics;
@@ -20,12 +24,16 @@ pub use describe_builder::DescribeClusterBuilder;
 pub use describe_cluster::DescribeCluster;
 pub use description::{ClusterBroker, ClusterDescription};
 pub use handle::Admin;
+pub use new_partitions::NewPartitions;
 pub use new_topic::NewTopic;
+pub use partitions_builder::CreatePartitionsBuilder;
 
 #[cfg(test)]
 mod batch_result_test;
 #[cfg(test)]
 mod builder_test;
+#[cfg(test)]
+mod create_partitions_test;
 #[cfg(test)]
 mod create_topics_test;
 #[cfg(test)]
@@ -41,4 +49,8 @@ mod description_test;
 #[cfg(test)]
 mod handle_test;
 #[cfg(test)]
+mod new_partitions_test;
+#[cfg(test)]
 mod new_topic_test;
+#[cfg(test)]
+mod partitions_builder_test;

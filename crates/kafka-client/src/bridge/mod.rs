@@ -6,6 +6,8 @@ pub(crate) mod admin_delete_result;
 pub(crate) mod admin_describe_operation;
 pub(crate) mod admin_describe_result;
 pub(crate) mod admin_operation;
+pub(crate) mod admin_partitions_operation;
+pub(crate) mod admin_partitions_result;
 pub(crate) mod admin_result;
 mod client;
 pub(crate) mod producer;
@@ -25,6 +27,10 @@ mod admin_describe_operation_test;
 mod admin_describe_result_test;
 #[cfg(test)]
 mod admin_operation_test;
+#[cfg(test)]
+mod admin_partitions_operation_test;
+#[cfg(test)]
+mod admin_partitions_result_test;
 #[cfg(test)]
 mod admin_result_test;
 #[cfg(test)]

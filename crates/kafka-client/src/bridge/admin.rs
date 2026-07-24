@@ -5,15 +5,17 @@ mod describe_cluster_submit;
 use std::time::Duration;
 
 use kafka_client_engine::{
-    AdminHandle as EngineAdminHandle, CreateTopic as EngineTopic,
-    CreateTopicConfig as EngineTopicConfig, CreateTopicsRequest as EngineRequest,
-    DeleteTopicsRequest as EngineDeleteRequest,
+    AdminHandle as EngineAdminHandle, CreatePartitionsRequest as EnginePartitionsRequest,
+    CreateTopic as EngineTopic, CreateTopicConfig as EngineTopicConfig,
+    CreateTopicsRequest as EngineRequest, DeleteTopicsRequest as EngineDeleteRequest,
+    PartitionIncrease as EnginePartitionIncrease,
 };
 
-use crate::admin::NewTopic;
+use crate::admin::{NewPartitions, NewTopic};
 
 use super::admin_delete_operation::AdminDeleteTopics;
 use super::admin_operation::AdminCreateTopics;
+use super::admin_partitions_operation::AdminCreatePartitions;
 
 /// Cloneable facade owner of the engine's concrete admin handle and default.
 #[derive(Debug, Clone)]
@@ -44,6 +46,46 @@ impl AdminEngine {
         timeout: Duration,
     ) -> AdminDeleteTopics {
         AdminDeleteTopics::from_admission(self.handle.try_delete_topics(request.inner, timeout))
+    }
+    pub(crate) fn submit_create_partitions(
+        &self,
+        request: PartitionsAdminRequest,
+        timeout: Duration,
+    ) -> AdminCreatePartitions {
+        AdminCreatePartitions::from_admission(
+            self.handle.try_create_partitions(request.inner, timeout),
+        )
+    }
+}
+
+/// Prepared engine request retained by an inert partition builder.
+pub(crate) struct PartitionsAdminRequest {
+    inner: EnginePartitionsRequest,
+}
+
+impl PartitionsAdminRequest {
+    pub(crate) fn from_topics<I>(topics: I) -> Self
+    where
+        I: IntoIterator<Item = NewPartitions>,
+    {
+        Self {
+            inner: EnginePartitionsRequest::new(
+                topics.into_iter().map(into_engine_partitions).collect(),
+            ),
+        }
+    }
+
+    pub(crate) fn with_validate_only(mut self, validate_only: bool) -> Self {
+        self.inner = self.inner.with_validate_only(validate_only);
+        self
+    }
+}
+
+impl std::fmt::Debug for PartitionsAdminRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PartitionsAdminRequest")
+            .finish_non_exhaustive()
     }
 }
 
@@ -107,4 +149,9 @@ fn into_engine_topic(topic: NewTopic) -> EngineTopic {
         EngineTopic::new(name, partitions).with_replication_factor(replication_factor),
         |topic, (name, value)| topic.with_config(EngineTopicConfig::new(name, Some(value))),
     )
+}
+
+fn into_engine_partitions(topic: NewPartitions) -> EnginePartitionIncrease {
+    let (name, total_count) = topic.into_parts();
+    EnginePartitionIncrease::new(name, total_count)
 }

@@ -1,8 +1,11 @@
 //! Cloneable public admin handle over the private engine bridge.
 
-use crate::bridge::admin::{AdminEngine, AdminRequest, DeleteAdminRequest};
+use crate::bridge::admin::{AdminEngine, AdminRequest, DeleteAdminRequest, PartitionsAdminRequest};
 
-use super::{CreateTopicsBuilder, DeleteTopicsBuilder, DescribeClusterBuilder, NewTopic};
+use super::{
+    CreatePartitionsBuilder, CreateTopicsBuilder, DeleteTopicsBuilder, DescribeClusterBuilder,
+    NewPartitions, NewTopic,
+};
 
 /// Cheaply cloneable, thread-safe admin handle.
 #[derive(Debug, Clone)]
@@ -46,5 +49,17 @@ impl Admin {
     /// [`DescribeClusterBuilder::submit`] is called.
     pub fn describe_cluster(&self) -> DescribeClusterBuilder {
         DescribeClusterBuilder::new(self.engine.clone(), self.engine.default_timeout())
+    }
+
+    /// Builds an inert automatic-assignment `CreatePartitions` request.
+    ///
+    /// No timeout starts and no operation is admitted until
+    /// [`CreatePartitionsBuilder::submit`] is called.
+    pub fn create_partitions<I>(&self, topics: I) -> CreatePartitionsBuilder
+    where
+        I: IntoIterator<Item = NewPartitions>,
+    {
+        let request = PartitionsAdminRequest::from_topics(topics);
+        CreatePartitionsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
     }
 }
