@@ -40,6 +40,8 @@ fn pause_fences_inflight_fetch_and_resume_restarts_retained_offset() {
         machine.apply(AssignedConsumerInput::FetchAdvanced {
             fence: old_fetch,
             next_offset: offset(12),
+            now: Moment::from_tick(1),
+            throttle_ticks: 0,
         }),
         Err(AssignedConsumerMachineError::StalePosition {
             active: paused_fence,

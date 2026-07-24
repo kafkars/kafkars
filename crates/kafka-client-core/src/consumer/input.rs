@@ -97,5 +97,16 @@ pub enum AssignedConsumerInput {
         fence: FetchFence,
         /// Next offset after the normalized fetch response.
         next_offset: NextFetchOffset,
+        /// Monotonic observation when the successful fetch was applied.
+        now: Moment,
+        /// Exact nonnegative broker throttle duration in deterministic clock ticks.
+        throttle_ticks: u64,
+    },
+    /// Reports that one exact successful-Fetch throttle elapsed.
+    FetchThrottleElapsed {
+        /// Exact future fetch fenced by the timer.
+        fence: FetchFence,
+        /// Monotonic observation proving the throttle deadline elapsed.
+        now: Moment,
     },
 }

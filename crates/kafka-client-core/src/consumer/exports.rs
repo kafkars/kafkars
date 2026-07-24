@@ -1,7 +1,8 @@
 //! Curated direct-assignment policy exports.
 
 pub use super::effect::{
-    AssignedConsumerEffect, AssignedConsumerTransition, PositionResolutionFailure,
+    AssignedConsumerEffect, AssignedConsumerTransition, FetchThrottleFailure,
+    PositionResolutionFailure,
 };
 pub use super::error::AssignedConsumerMachineError;
 pub use super::input::AssignedConsumerInput;

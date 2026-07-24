@@ -76,6 +76,20 @@ pub enum AssignedConsumerMachineError {
         /// Early monotonic observation.
         now: Moment,
     },
+    /// No positive successful-Fetch throttle is outstanding for the supplied fence.
+    FetchThrottleNotPending {
+        /// Supplied future fetch identity.
+        fence: FetchFence,
+    },
+    /// A successful-Fetch throttle wake arrived before its exact deadline.
+    FetchThrottleDeadlineNotElapsed {
+        /// Exact future fetch fenced by the timer.
+        fence: FetchFence,
+        /// Exact absolute throttle deadline.
+        deadline: Deadline,
+        /// Early monotonic observation.
+        now: Moment,
+    },
     /// A fetch terminal does not own the active execution.
     StaleFetch {
         /// Supplied stale fetch identity.
@@ -127,6 +141,12 @@ impl fmt::Display for AssignedConsumerMachineError {
             }
             Self::PositionThrottleDeadlineNotElapsed { .. } => {
                 formatter.write_str("position throttle deadline has not elapsed")
+            }
+            Self::FetchThrottleNotPending { .. } => {
+                formatter.write_str("successful-Fetch throttle is not pending")
+            }
+            Self::FetchThrottleDeadlineNotElapsed { .. } => {
+                formatter.write_str("successful-Fetch throttle deadline has not elapsed")
             }
             Self::StaleFetch { .. } => {
                 formatter.write_str("fetch result does not own the active execution")

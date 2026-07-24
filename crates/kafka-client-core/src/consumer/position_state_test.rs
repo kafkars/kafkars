@@ -38,11 +38,11 @@ fn fetch_revision_exhaustion_preserves_the_active_fetch_and_offset() {
     );
 
     assert_eq!(
-        state.advance_and_activate(first_fetch, offset(12), partition),
+        state.advance(first_fetch, offset(12), Moment::from_tick(1), 5, partition,),
         Err(AssignedConsumerMachineError::FetchRevisionExhausted { partition })
     );
     assert_eq!(
-        state.advance_and_activate(first_fetch, offset(9), partition),
+        state.advance(first_fetch, offset(9), Moment::from_tick(1), 0, partition,),
         Err(AssignedConsumerMachineError::OffsetRegression {
             requested: offset(10),
             observed: offset(9),
@@ -55,7 +55,13 @@ fn fetch_revision_exhaustion_preserves_the_active_fetch_and_offset() {
     );
     assert!(matches!(
         state
-            .advance_and_activate(first_fetch, offset(12), partition)
+            .advance(
+                first_fetch,
+                offset(12),
+                Moment::from_tick(1),
+                0,
+                partition,
+            )
             .unwrap_or_else(|error| panic!("active fetch must survive exhaustion: {error}")),
         AssignedConsumerEffect::FetchReady { fence, next_offset }
             if fence.revision().get() == 2 && next_offset == offset(12)

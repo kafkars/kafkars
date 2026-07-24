@@ -157,6 +157,14 @@ production = "crates/kafka-client-core/src/consumer/position_resolution.rs"
 test = "crates/kafka-client-core/src/consumer/resolution_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/fetch_throttle.rs"
+test = "crates/kafka-client-core/src/consumer/fetch_throttle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/fetch_state.rs"
+test = "crates/kafka-client-core/src/consumer/fetch_state_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/position_state.rs"
 test = "crates/kafka-client-core/src/consumer/position_state_test.rs"
 
@@ -1668,15 +1676,22 @@ owner_type = "PartitionPosition"
 field = "epoch"
 allowed_paths = ["crates/kafka-client-core/src/consumer/position_state.rs"]
 
+# Position state owns cross-phase fencing/reset; Fetch state owns successful-Fetch commits.
 [[mutation_owners]]
 owner_type = "PartitionPosition"
 field = "next_fetch_revision"
-allowed_paths = ["crates/kafka-client-core/src/consumer/position_state.rs"]
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/fetch_state.rs",
+  "crates/kafka-client-core/src/consumer/position_state.rs",
+]
 
 [[mutation_owners]]
 owner_type = "PartitionPosition"
 field = "phase"
-allowed_paths = ["crates/kafka-client-core/src/consumer/position_state.rs"]
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/fetch_state.rs",
+  "crates/kafka-client-core/src/consumer/position_state.rs",
+]
 
 [[mutation_owners]]
 owner_type = "PositionResolution"
@@ -2709,6 +2724,10 @@ path = "crates/kafka-client-core/src/consumer/position_state.rs"
 [[linear_owners]]
 owner_type = "PositionResolution"
 path = "crates/kafka-client-core/src/consumer/position_resolution.rs"
+
+[[linear_owners]]
+owner_type = "FetchThrottle"
+path = "crates/kafka-client-core/src/consumer/fetch_throttle.rs"
 
 [[linear_owners]]
 owner_type = "ProducerMachine"

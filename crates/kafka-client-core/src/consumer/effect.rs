@@ -17,6 +17,13 @@ pub enum PositionResolutionFailure {
     ThrottleDeadlineOverflow,
 }
 
+/// Terminal reason successful Fetch progress cannot schedule its next fetch.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FetchThrottleFailure {
+    /// The positive throttle duration could not become an absolute deadline.
+    DeadlineOverflow,
+}
+
 /// One ordered action selected by deterministic direct-consumer policy.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AssignedConsumerEffect {
@@ -57,6 +64,20 @@ pub enum AssignedConsumerEffect {
         fence: PositionFence,
         /// Exact absolute throttle deadline.
         deadline: Deadline,
+    },
+    /// Arms one positive successful-Fetch throttle before the next fetch.
+    ArmFetchThrottle {
+        /// Exact future fetch fenced by the timer.
+        fence: FetchFence,
+        /// Exact absolute throttle deadline.
+        deadline: Deadline,
+    },
+    /// Publishes terminal failure to schedule after one successful fetch.
+    FetchThrottleFailed {
+        /// Exact completed fetch whose throttle could not be represented.
+        fence: FetchFence,
+        /// Deterministic terminal classification.
+        failure: FetchThrottleFailure,
     },
     /// Announces that one exact partition position may be fetched.
     FetchReady {

@@ -35,6 +35,8 @@ fn resolved_start_and_fetch_progress_issue_exact_ordered_positions() {
         .apply(AssignedConsumerInput::FetchAdvanced {
             fence: first_fetch,
             next_offset: offset(14),
+            now: Moment::from_tick(2),
+            throttle_ticks: 0,
         })
         .unwrap_or_else(|error| panic!("advance completed fetch: {error}"));
     assert!(matches!(
@@ -65,6 +67,8 @@ fn offset_regression_rejects_without_consuming_fetch_revision() {
         machine.apply(AssignedConsumerInput::FetchAdvanced {
             fence: first_fetch,
             next_offset: offset(9),
+            now: Moment::from_tick(1),
+            throttle_ticks: 0,
         }),
         Err(AssignedConsumerMachineError::OffsetRegression {
             requested: offset(10),
@@ -76,6 +80,8 @@ fn offset_regression_rejects_without_consuming_fetch_revision() {
         .apply(AssignedConsumerInput::FetchAdvanced {
             fence: first_fetch,
             next_offset: offset(11),
+            now: Moment::from_tick(1),
+            throttle_ticks: 0,
         })
         .unwrap_or_else(|error| panic!("valid progress after rejection: {error}"));
     assert!(matches!(
@@ -102,6 +108,8 @@ fn older_fetch_revision_cannot_advance_the_active_execution() {
         .apply(AssignedConsumerInput::FetchAdvanced {
             fence: first_fetch,
             next_offset: offset(12),
+            now: Moment::from_tick(1),
+            throttle_ticks: 0,
         })
         .unwrap_or_else(|error| panic!("advance first fetch: {error}"));
     let AssignedConsumerEffect::FetchReady {
@@ -116,6 +124,8 @@ fn older_fetch_revision_cannot_advance_the_active_execution() {
         machine.apply(AssignedConsumerInput::FetchAdvanced {
             fence: first_fetch,
             next_offset: offset(13),
+            now: Moment::from_tick(2),
+            throttle_ticks: 0,
         }),
         Err(AssignedConsumerMachineError::StaleFetch {
             supplied: first_fetch,
@@ -125,6 +135,8 @@ fn older_fetch_revision_cannot_advance_the_active_execution() {
         .apply(AssignedConsumerInput::FetchAdvanced {
             fence: second_fetch,
             next_offset: offset(14),
+            now: Moment::from_tick(2),
+            throttle_ticks: 0,
         })
         .unwrap_or_else(|error| panic!("active fetch survives stale result: {error}"));
     assert!(matches!(

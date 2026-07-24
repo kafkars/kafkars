@@ -124,14 +124,27 @@ impl AssignedPartitionState {
         &mut self,
         supplied: FetchFence,
         next_offset: NextFetchOffset,
-    ) -> Result<Option<AssignedConsumerEffect>, AssignedConsumerMachineError> {
+        now: Moment,
+        throttle_ticks: u64,
+    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
         self.ensure_position_fence(supplied.position())?;
         if self.paused {
             return Err(AssignedConsumerMachineError::StaleFetch { supplied });
         }
         self.position
-            .advance_and_activate(supplied, next_offset, self.partition)
-            .map(Some)
+            .advance(supplied, next_offset, now, throttle_ticks, self.partition)
+    }
+
+    pub(super) fn fetch_throttle_elapsed(
+        &mut self,
+        supplied: FetchFence,
+        now: Moment,
+    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
+        self.ensure_position_fence(supplied.position())?;
+        if self.paused {
+            return Err(AssignedConsumerMachineError::StaleFetch { supplied });
+        }
+        self.position.fetch_throttle_elapsed(supplied, now)
     }
 
     fn activate(
