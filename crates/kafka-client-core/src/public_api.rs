@@ -1,18 +1,22 @@
 //! Curated public re-exports for deterministic client policy.
 
 pub use crate::admin::{
-    ClusterBroker, ClusterDescription, CreateTopicBrokerError, CreateTopicConfig,
-    CreateTopicOutcome, CreateTopicResult, CreateTopicSpecification, CreateTopicsEffect,
-    CreateTopicsFailure, CreateTopicsFailureKind, CreateTopicsInput, CreateTopicsMachine,
-    CreateTopicsMachineError, CreateTopicsPlan, CreateTopicsPlanError, CreateTopicsState,
-    CreateTopicsTerminal, CreateTopicsTransition, DeleteTopicBrokerError, DeleteTopicOutcome,
-    DeleteTopicResult, DeleteTopicsEffect, DeleteTopicsFailure, DeleteTopicsFailureKind,
-    DeleteTopicsInput, DeleteTopicsMachine, DeleteTopicsMachineError, DeleteTopicsPlan,
-    DeleteTopicsPlanError, DeleteTopicsState, DeleteTopicsTerminal, DeleteTopicsTransition,
-    DescribeClusterBrokerError, DescribeClusterEffect, DescribeClusterFailure,
-    DescribeClusterFailureKind, DescribeClusterInput, DescribeClusterMachine,
-    DescribeClusterMachineError, DescribeClusterState, DescribeClusterTerminal,
-    DescribeClusterTransition,
+    ClusterBroker, ClusterDescription, CreatePartitionsEffect, CreatePartitionsFailure,
+    CreatePartitionsFailureKind, CreatePartitionsInput, CreatePartitionsMachine,
+    CreatePartitionsMachineError, CreatePartitionsPlan, CreatePartitionsPlanError,
+    CreatePartitionsSpecification, CreatePartitionsState, CreatePartitionsTerminal,
+    CreatePartitionsTransition, CreateTopicBrokerError, CreateTopicConfig, CreateTopicOutcome,
+    CreateTopicResult, CreateTopicSpecification, CreateTopicsEffect, CreateTopicsFailure,
+    CreateTopicsFailureKind, CreateTopicsInput, CreateTopicsMachine, CreateTopicsMachineError,
+    CreateTopicsPlan, CreateTopicsPlanError, CreateTopicsState, CreateTopicsTerminal,
+    CreateTopicsTransition, DeleteTopicBrokerError, DeleteTopicOutcome, DeleteTopicResult,
+    DeleteTopicsEffect, DeleteTopicsFailure, DeleteTopicsFailureKind, DeleteTopicsInput,
+    DeleteTopicsMachine, DeleteTopicsMachineError, DeleteTopicsPlan, DeleteTopicsPlanError,
+    DeleteTopicsState, DeleteTopicsTerminal, DeleteTopicsTransition, DescribeClusterBrokerError,
+    DescribeClusterEffect, DescribeClusterFailure, DescribeClusterFailureKind,
+    DescribeClusterInput, DescribeClusterMachine, DescribeClusterMachineError,
+    DescribeClusterState, DescribeClusterTerminal, DescribeClusterTransition,
+    PartitionIncreaseBrokerError, PartitionIncreaseOutcome, PartitionIncreaseResult,
 };
 pub use crate::admission::AdmissionRejection;
 pub use crate::capacity::{ByteBudget, CapacityError};

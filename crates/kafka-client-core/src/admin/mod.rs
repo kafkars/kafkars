@@ -10,6 +10,10 @@ mod describe_transition;
 mod machine;
 mod model;
 mod outcome;
+mod partitions_machine;
+mod partitions_model;
+mod partitions_outcome;
+mod partitions_transition;
 mod transition;
 
 pub use delete_machine::{
@@ -40,6 +44,17 @@ pub use outcome::{
     CreateTopicBrokerError, CreateTopicOutcome, CreateTopicResult, CreateTopicsFailure,
     CreateTopicsFailureKind, CreateTopicsTerminal,
 };
+pub use partitions_machine::{
+    CreatePartitionsEffect, CreatePartitionsInput, CreatePartitionsMachine,
+    CreatePartitionsMachineError, CreatePartitionsState, CreatePartitionsTransition,
+};
+pub use partitions_model::{
+    CreatePartitionsPlan, CreatePartitionsPlanError, CreatePartitionsSpecification,
+};
+pub use partitions_outcome::{
+    CreatePartitionsFailure, CreatePartitionsFailureKind, CreatePartitionsTerminal,
+    PartitionIncreaseBrokerError, PartitionIncreaseOutcome, PartitionIncreaseResult,
+};
 
 #[cfg(test)]
 mod delete_model_test;
@@ -49,5 +64,9 @@ mod delete_transition_test;
 mod describe_transition_test;
 #[cfg(test)]
 mod model_test;
+#[cfg(test)]
+mod partitions_model_test;
+#[cfg(test)]
+mod partitions_transition_test;
 #[cfg(test)]
 mod transition_test;
