@@ -70,6 +70,29 @@ evidence = [
 ]
 
 [[invariant]]
+id = "ADM-05"
+title = "DescribeCluster is bounded, exact, and independently scheduled"
+statement = "DescribeCluster reserves completion and retained bytes before acceptance, assigns one terminal outcome, preserves nullable controller and rack facts plus exact signed broker errors, rejects fenced or structurally invalid and oversized broker facts before copying them, carries the original deadline through a fixed v2 broker-endpoint AnyBroker Interactive call without a route receipt, retry, metadata authority, or async runtime, schedules independently of mutating admin owners, and exposes one inert Rust builder with a named Future and blocking wait."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/admin/describe_transition_test.rs::successful_description_is_terminal_once",
+  "crates/kafka-client-core/src/admin/describe_transition_test.rs::already_elapsed_start_settles_once_without_driver_ownership",
+  "crates/kafka-client-engine/src/protocol/admin/describe_cluster_test.rs::request_is_fixed_to_broker_endpoints_without_optional_expansion",
+  "crates/kafka-client-engine/src/protocol/admin/describe_cluster_test.rs::success_preserves_nullable_racks_and_orders_brokers_by_id",
+  "crates/kafka-client-engine/src/protocol/admin/describe_cluster_test.rs::excluded_fenced_brokers_and_empty_hosts_are_structural_failures",
+  "crates/kafka-client-engine/src/protocol/admin/describe_cluster_test.rs::hostile_oversized_host_is_rejected_without_copying_it_into_the_error",
+  "crates/kafka-client-engine/src/protocol/admin/describe_cluster_test.rs::broker_count_and_terminal_bytes_are_bounded_before_copying",
+  "crates/kafka-client-engine/src/driver/rpc/describe_cluster_submission_test.rs::describe_cluster_uses_interactive_lane_original_deadline_and_v2_ceiling",
+  "crates/kafka-client-engine/src/admin/describe_host_test.rs::reserved_result_bytes_survive_until_observer_reclamation",
+  "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::saturated_delete_lane_cannot_hide_runnable_describe_cluster_work",
+  "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::describe_cluster_owner_prevents_false_shutdown_quiescence",
+  "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::describe_cluster_uses_time_recaptured_after_delete_work",
+  "crates/kafka-client/src/admin/describe_builder_test.rs::zero_deadline_builder_is_inert_until_submit",
+  "crates/kafka-client/src/bridge/admin_describe_result_test.rs::controller_identity_crosses_the_bridge_without_becoming_policy",
+  "crates/kafka-client/src/bridge/admin_describe_result_test.rs::signed_code_nullable_diagnostic_and_certainty_are_lossless",
+]
+
+[[invariant]]
 id = "BAT-01"
 title = "Core owns batch readiness"
 statement = "Record-count and conservative encoded-size readiness are deterministic core decisions and terminal fan-out preserves batch membership order."
