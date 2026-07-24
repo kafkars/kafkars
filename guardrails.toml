@@ -925,6 +925,10 @@ production = "crates/kafka-client-engine/src/consumer/position_execution.rs"
 test = "crates/kafka-client-engine/src/consumer/position_execution_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_timers.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_timers_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/position_prepare_error.rs"
 test = "crates/kafka-client-engine/src/consumer/position_prepare_error_test.rs"
 
@@ -1482,6 +1486,62 @@ forbidden = [
 ]
 
 [[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_timer_model.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "std::future",
+  "std::sync",
+  "std::thread",
+  "std::time",
+  "async_std",
+  "smol",
+  "tokio",
+  "Future",
+  "async",
+  "Instant",
+  "SystemTime",
+  "Transport",
+  "Retry",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_timers.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "std::future",
+  "std::sync",
+  "std::thread",
+  "std::time",
+  "async_std",
+  "smol",
+  "tokio",
+  "Future",
+  "async",
+  "Instant",
+  "SystemTime",
+  "Transport",
+  "Retry",
+]
+
+[[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/position_prepare_error.rs"
 forbidden = [
   "crate::admin",
@@ -1666,6 +1726,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "try_reserve"
 allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_timers.rs",
   "crates/kafka-client-engine/src/consumer/fetch_execution/admission.rs",
   "crates/kafka-client-engine/src/consumer/fetch_execution/executor.rs",
   "crates/kafka-client-engine/src/consumer/fetch_store.rs",
@@ -3060,6 +3121,20 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "AssignedTimers"
+field = "entries"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_timers.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AssignedTimers"
+field = "next_sequence"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_timers.rs",
+]
+
+[[mutation_owners]]
 owner_type = "TrackedPositionCalls"
 field = "completion_failure"
 allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs"]
@@ -3152,6 +3227,10 @@ path = "crates/kafka-client-engine/src/consumer/position_execution.rs"
 [[linear_owners]]
 owner_type = "PositionResolutionExecutor"
 path = "crates/kafka-client-engine/src/consumer/position_execution.rs"
+
+[[linear_owners]]
+owner_type = "AssignedTimers"
+path = "crates/kafka-client-engine/src/consumer/assigned_timers.rs"
 
 [[linear_owners]]
 owner_type = "PositionResolutionRequest"

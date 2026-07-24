@@ -1,5 +1,15 @@
 //! Concrete direct-consumer effect execution without public API ownership.
 
+mod assigned_timer_model;
+mod assigned_timers;
+#[cfg(test)]
+mod assigned_timers_generation_test;
+#[cfg(test)]
+mod assigned_timers_identity_test;
+#[cfg(test)]
+mod assigned_timers_order_test;
+#[cfg(test)]
+mod assigned_timers_test;
 mod fetch_execution;
 mod fetch_store;
 #[cfg(test)]
