@@ -14,6 +14,7 @@ use crate::{
 fn accepted_record_returns_public_delivery_with_one_end_to_end_timeout() {
     let broker = SilentBroker::start();
     let client = build_client_at(broker.endpoint());
+    broker.wait_negotiated();
     let producer = client
         .producer()
         .delivery_timeout(Duration::from_millis(200))
