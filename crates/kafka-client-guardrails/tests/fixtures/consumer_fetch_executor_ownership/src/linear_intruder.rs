@@ -1,6 +1,9 @@
 //! Deliberately cloneable direct-Fetch executor owners.
 
 #[derive(Clone, Copy)]
+struct FetchAttemptDeadline;
+
+#[derive(Clone, Copy)]
 struct PreparedFetchExecution;
 
 #[derive(Clone, Copy)]

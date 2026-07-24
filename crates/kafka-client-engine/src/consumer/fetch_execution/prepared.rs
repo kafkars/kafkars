@@ -5,10 +5,11 @@ use kafka_client_core::{
 };
 
 use crate::{
-    clock::OperationDeadline,
     driver::{FetchRequestPreparationError, PartitionFetchRequest},
     protocol::fetch::{FetchDecodeLimits, FetchRequestSettings},
 };
+
+use super::FetchAttemptDeadline;
 
 /// One exact Fetch effect paired with every fact needed before driver admission.
 #[must_use = "a prepared Fetch must be submitted or explicitly abandoned"]
@@ -27,9 +28,18 @@ impl PreparedFetchExecution {
         topic: String,
         settings: FetchRequestSettings,
         decode_limits: FetchDecodeLimits,
-        operation_deadline: OperationDeadline,
+        attempt_deadline: FetchAttemptDeadline,
         hard_output_bytes: usize,
     ) -> Result<Self, PrepareFetchError> {
+        let AssignedConsumerEffect::FetchReady { fence, .. } = effect else {
+            return Err(PrepareFetchError::UnexpectedEffect);
+        };
+        let operation_deadline = attempt_deadline.bind(fence).map_err(|mismatch| {
+            PrepareFetchError::DeadlineFenceMismatch {
+                effect: mismatch.effect,
+                captured: mismatch.captured,
+            }
+        })?;
         let request = PartitionFetchRequest::from_effect(
             effect,
             topic,
@@ -84,6 +94,10 @@ impl PreparedFetchExecution {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum PrepareFetchError {
     UnexpectedEffect,
+    DeadlineFenceMismatch {
+        effect: kafka_client_core::FetchFence,
+        captured: kafka_client_core::FetchFence,
+    },
 }
 
 impl From<FetchRequestPreparationError> for PrepareFetchError {

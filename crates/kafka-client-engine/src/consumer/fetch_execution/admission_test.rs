@@ -15,7 +15,10 @@ use crate::{
     protocol::fetch::{FetchDecodeLimits, FetchRequestSettings},
 };
 
-use super::{DirectFetchExecutor, FetchSubmission, PrepareFetchError, PreparedFetchExecution};
+use super::{
+    DirectFetchExecutor, FetchAttemptDeadline, FetchSubmission, PrepareFetchError,
+    PreparedFetchExecution,
+};
 
 #[test]
 fn non_fetch_effect_is_rejected_as_caller_invariant_misuse() {
@@ -35,7 +38,7 @@ fn non_fetch_effect_is_rejected_as_caller_invariant_misuse() {
         "events".to_owned(),
         settings(0),
         FetchDecodeLimits::default(),
-        operation_deadline(100),
+        FetchAttemptDeadline::from_parts_for_test(fence, operation_deadline(100)),
         4_096,
     )
     .err()
@@ -53,7 +56,7 @@ fn read_committed_settles_compatibility_before_output_or_call_capacity() {
         "events".to_owned(),
         settings(1),
         FetchDecodeLimits::default(),
-        operation_deadline(100),
+        FetchAttemptDeadline::from_parts_for_test(fence, operation_deadline(100)),
         4_096,
     )
     .unwrap_or_else(|error| panic!("prepare read-committed Fetch: {error:?}"));
@@ -211,12 +214,13 @@ pub(super) fn prepared(
     deadline: u64,
     hard_output_bytes: usize,
 ) -> PreparedFetchExecution {
+    let fence = fetch_fence(effect);
     PreparedFetchExecution::new(
         effect,
         "events".to_owned(),
         settings(0),
         FetchDecodeLimits::default(),
-        operation_deadline(deadline),
+        FetchAttemptDeadline::from_parts_for_test(fence, operation_deadline(deadline)),
         hard_output_bytes,
     )
     .unwrap_or_else(|error| panic!("prepare Fetch: {error:?}"))
@@ -226,7 +230,7 @@ fn settings(isolation: i8) -> FetchRequestSettings {
     FetchRequestSettings::new(500, 1, 1_048_576, 1_048_576, isolation)
 }
 
-fn operation_deadline(tick: u64) -> OperationDeadline {
+pub(super) fn operation_deadline(tick: u64) -> OperationDeadline {
     OperationDeadline::from_parts_for_test(
         Deadline::from_tick(tick),
         Instant::now() + Duration::from_secs(60),

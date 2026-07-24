@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use kafka_client_core::Deadline;
 
-/// Original absolute deadline representations captured at one public boundary.
+/// Original absolute deadline representations captured at one timing boundary.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct OperationDeadline {
     core: Deadline,

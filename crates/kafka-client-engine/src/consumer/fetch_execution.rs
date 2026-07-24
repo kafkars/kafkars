@@ -10,6 +10,10 @@ mod apply;
 mod control;
 #[cfg(test)]
 mod control_test;
+#[path = "fetch_execution/deadline.rs"]
+mod deadline;
+#[cfg(test)]
+mod deadline_test;
 #[path = "fetch_execution/delivery.rs"]
 mod delivery;
 #[path = "fetch_execution/executor.rs"]
@@ -39,6 +43,14 @@ mod terminal;
     )
 )]
 pub(crate) use admission::FetchSubmission;
+#[cfg_attr(
+    not(test),
+    allow(
+        unused_imports,
+        reason = "the direct-consumer owner will capture each internal Fetch attempt boundary"
+    )
+)]
+pub(crate) use deadline::FetchAttemptDeadline;
 #[cfg_attr(
     not(test),
     allow(

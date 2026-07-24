@@ -945,6 +945,10 @@ production = "crates/kafka-client-engine/src/consumer/fetch_execution/control.rs
 test = "crates/kafka-client-engine/src/consumer/fetch_execution/control_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/fetch_execution/deadline.rs"
+test = "crates/kafka-client-engine/src/consumer/fetch_execution/deadline_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/fetch_execution/fault.rs"
 test = "crates/kafka-client-engine/src/consumer/fetch_execution/fault_test.rs"
 
@@ -1515,6 +1519,9 @@ allow = [
   { path = "crates/kafka-client-engine/src/consumer/fetch_execution/admission_test.rs", capability = "Instant::now", reason = "Test-only absolute deadlines exercise pre-admission expiry without granting production clock ownership." },
   { path = "crates/kafka-client-engine/src/consumer/fetch_execution/control_test.rs", capability = "std::time", reason = "Test-only live driver deadlines prove control fencing without granting production clock ownership." },
   { path = "crates/kafka-client-engine/src/consumer/fetch_execution/control_test.rs", capability = "Instant::now", reason = "Test-only live driver deadlines prove control fencing without granting production clock ownership." },
+  { path = "crates/kafka-client-engine/src/consumer/fetch_execution/deadline.rs", capability = "std::time", reason = "The linear attempt owner accepts one configured duration while delegating the sole monotonic observation to the engine clock." },
+  { path = "crates/kafka-client-engine/src/consumer/fetch_execution/deadline_test.rs", capability = "std::time", reason = "Test-only duration input proves one internal attempt capture without granting production clock ownership." },
+  { path = "crates/kafka-client-engine/src/consumer/fetch_execution/deadline_test.rs", capability = "Instant::now", reason = "Test-only boundary bracketing proves the transport absolute came from the same internal attempt capture." },
   { path = "crates/kafka-client-engine/src/consumer/fetch_execution/fault_test.rs", capability = "std::time", reason = "Test-only driver timeout duration exercises explicit shutdown recovery without production clock ownership." },
   { path = "crates/kafka-client-engine/src/consumer/fetch_execution/settlement_test.rs", capability = "std::time", reason = "Test-only absolute driver deadlines exercise terminal settlement without granting production clock ownership." },
   { path = "crates/kafka-client-engine/src/consumer/fetch_execution/settlement_test.rs", capability = "Instant::now", reason = "Test-only absolute driver deadlines exercise terminal settlement without granting production clock ownership." },
@@ -1910,6 +1917,11 @@ allowed_paths = [
 [[call_capabilities]]
 root = "crates/kafka-client-engine/src"
 call = "DirectFetchExecutor::create_unbound"
+allowed_paths = []
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "FetchAttemptDeadline::capture_for_fetch"
 allowed_paths = []
 
 [[capability_rules]]
@@ -3391,6 +3403,10 @@ path = "crates/kafka-client-engine/src/consumer/fetch_store.rs"
 [[linear_owners]]
 owner_type = "FetchDelivery"
 path = "crates/kafka-client-engine/src/consumer/fetch_store/delivery.rs"
+
+[[linear_owners]]
+owner_type = "FetchAttemptDeadline"
+path = "crates/kafka-client-engine/src/consumer/fetch_execution/deadline.rs"
 
 [[linear_owners]]
 owner_type = "PreparedFetchExecution"

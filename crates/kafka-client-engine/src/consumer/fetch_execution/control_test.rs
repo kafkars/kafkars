@@ -15,7 +15,7 @@ use crate::{
     protocol::fetch::{FetchDecodeLimits, FetchRequestSettings},
 };
 
-use super::{DirectFetchExecutor, FetchSubmission, PreparedFetchExecution};
+use super::{DirectFetchExecutor, FetchAttemptDeadline, FetchSubmission, PreparedFetchExecution};
 
 #[test]
 fn suspend_returns_request_storage_before_the_driver_call_finishes_draining() {
@@ -72,14 +72,18 @@ fn assignment() -> (AssignedConsumerEffect, AssignedConsumerMachine) {
 }
 
 fn prepared(effect: AssignedConsumerEffect) -> PreparedFetchExecution {
+    let fence = fetch_fence(effect);
     PreparedFetchExecution::new(
         effect,
         "events".to_owned(),
         FetchRequestSettings::new(500, 1, 1_048_576, 1_048_576, 0),
         FetchDecodeLimits::default(),
-        OperationDeadline::from_parts_for_test(
-            Deadline::from_tick(1_000_000_000),
-            Instant::now() + Duration::from_secs(60),
+        FetchAttemptDeadline::from_parts_for_test(
+            fence,
+            OperationDeadline::from_parts_for_test(
+                Deadline::from_tick(1_000_000_000),
+                Instant::now() + Duration::from_secs(60),
+            ),
         ),
         4_096,
     )

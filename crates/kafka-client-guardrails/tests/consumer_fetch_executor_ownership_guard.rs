@@ -12,6 +12,7 @@ const EXECUTION: &str = "crates/kafka-client-engine/src/consumer/fetch_execution
 const ADMISSION: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/admission.rs";
 const APPLY: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/apply.rs";
 const CONTROL: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/control.rs";
+const DEADLINE: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/deadline.rs";
 const DELIVERY: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/delivery.rs";
 const EXECUTOR: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/executor.rs";
 const FAULT: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/fault.rs";
@@ -20,6 +21,7 @@ const SETTLEMENT: &str = "crates/kafka-client-engine/src/consumer/fetch_executio
 const TERMINAL: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/terminal.rs";
 
 const LINEAR: &[(&str, &str)] = &[
+    ("FetchAttemptDeadline", DEADLINE),
     ("PreparedFetchExecution", PREPARED),
     ("FetchSubmission", ADMISSION),
     ("ActiveFetchReservation", EXECUTOR),
@@ -73,6 +75,9 @@ const CAPABILITY_ALLOWS: &[(&str, &str)] = &[
     ("admission_test.rs", "Instant::now"),
     ("control_test.rs", "std::time"),
     ("control_test.rs", "Instant::now"),
+    ("deadline.rs", "std::time"),
+    ("deadline_test.rs", "std::time"),
+    ("deadline_test.rs", "Instant::now"),
     ("fault_test.rs", "std::time"),
     ("settlement_test.rs", "std::time"),
     ("settlement_test.rs", "Instant::now"),
@@ -158,6 +163,13 @@ fn checked_in_executor_policy_is_exact() {
         .collect::<Vec<_>>();
     assert_eq!(constructors.len(), 1);
     assert!(constructors[0].allowed_paths.is_empty());
+    let deadline_constructors = config
+        .call_capabilities
+        .iter()
+        .filter(|rule| rule.call == "FetchAttemptDeadline::capture_for_fetch")
+        .collect::<Vec<_>>();
+    assert_eq!(deadline_constructors.len(), 1);
+    assert!(deadline_constructors[0].allowed_paths.is_empty());
 
     for (method, execution_paths) in [
         ("try_reserve", vec![ADMISSION, EXECUTOR]),
@@ -265,16 +277,20 @@ fn fixture_rejects_foreign_tracked_calls_and_unbound_construction() {
             violation.contains("tracked_method_intruder.rs") && violation.contains(method)
         }));
     }
-    let violations = call_capability_violations(
-        &root,
-        &[CallCapabilityRule {
-            root: "src".into(),
-            call: "DirectFetchExecutor::create_unbound".into(),
-            allowed_paths: Vec::new(),
-        }],
-    );
-    assert!(violations.iter().any(|violation| {
-        violation.contains("constructor_intruder.rs")
-            && violation.contains("DirectFetchExecutor::create_unbound")
-    }));
+    for constructor in [
+        "DirectFetchExecutor::create_unbound",
+        "FetchAttemptDeadline::capture_for_fetch",
+    ] {
+        let violations = call_capability_violations(
+            &root,
+            &[CallCapabilityRule {
+                root: "src".into(),
+                call: constructor.into(),
+                allowed_paths: Vec::new(),
+            }],
+        );
+        assert!(violations.iter().any(|violation| {
+            violation.contains("constructor_intruder.rs") && violation.contains(constructor)
+        }));
+    }
 }
