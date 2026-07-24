@@ -1,0 +1,145 @@
+//! Atomic transitions for one concrete directly assigned consumer.
+
+use super::{
+    AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
+    AssignedConsumerMachineError, AssignedConsumerTransition, AssignedTopicPartition,
+    AssignmentEpoch, machine::DirectAssignment, position::AssignedPartitionState,
+};
+
+impl AssignedConsumerMachine {
+    /// Applies one fact or control request without hidden effects.
+    pub fn apply(
+        &mut self,
+        input: AssignedConsumerInput,
+    ) -> Result<AssignedConsumerTransition, AssignedConsumerMachineError> {
+        match input {
+            AssignedConsumerInput::Assign { partitions } => self.assign(partitions),
+            AssignedConsumerInput::Pause {
+                assignment_epoch,
+                partition,
+            } => self.pause(assignment_epoch, partition),
+            AssignedConsumerInput::Resume {
+                assignment_epoch,
+                partition,
+            } => self.resume(assignment_epoch, partition),
+            AssignedConsumerInput::Seek {
+                assignment_epoch,
+                partition,
+                position,
+            } => {
+                let assignment = self.assignment_mut(assignment_epoch)?;
+                let effects = assignment
+                    .find_mut(partition)?
+                    .seek(assignment_epoch, position)?;
+                Ok(AssignedConsumerTransition::new(assignment_epoch, effects))
+            }
+            AssignedConsumerInput::PositionResolved { fence, next_offset } => {
+                let assignment = self.assignment_mut(fence.assignment_epoch())?;
+                let effect = assignment
+                    .find_mut(fence.partition())?
+                    .position_resolved(fence, next_offset)?;
+                Ok(AssignedConsumerTransition::new(
+                    fence.assignment_epoch(),
+                    effect.into_iter().collect(),
+                ))
+            }
+            AssignedConsumerInput::FetchAdvanced { fence, next_offset } => {
+                let position = fence.position();
+                let assignment = self.assignment_mut(position.assignment_epoch())?;
+                let effect = assignment
+                    .find_mut(position.partition())?
+                    .fetch_advanced(fence, next_offset)?;
+                Ok(AssignedConsumerTransition::new(
+                    position.assignment_epoch(),
+                    effect.into_iter().collect(),
+                ))
+            }
+        }
+    }
+
+    fn assign(
+        &mut self,
+        partitions: Vec<super::AssignedPartition>,
+    ) -> Result<AssignedConsumerTransition, AssignedConsumerMachineError> {
+        DirectAssignment::validate(&partitions)?;
+        let epoch = self.next_epoch;
+        let next_epoch = epoch
+            .checked_next()
+            .ok_or(AssignedConsumerMachineError::AssignmentEpochExhausted)?;
+        let mut states = Vec::with_capacity(partitions.len());
+        let mut start_effects = Vec::with_capacity(partitions.len());
+        for partition in partitions {
+            let (state, effect) = AssignedPartitionState::new(epoch, partition)?;
+            states.push(state);
+            start_effects.push(effect);
+        }
+        let mut effects = Vec::with_capacity(
+            self.assignment
+                .as_ref()
+                .map_or(0, |assignment| assignment.partitions.len())
+                + start_effects.len(),
+        );
+        if let Some(assignment) = &self.assignment {
+            effects.extend(assignment.partitions.iter().map(|state| {
+                AssignedConsumerEffect::Revoke {
+                    assignment_epoch: assignment.epoch,
+                    partition: state.partition,
+                }
+            }));
+        }
+        effects.extend(start_effects);
+        self.assignment = Some(DirectAssignment {
+            epoch,
+            partitions: states,
+        });
+        self.next_epoch = next_epoch;
+        Ok(AssignedConsumerTransition::new(epoch, effects))
+    }
+
+    fn pause(
+        &mut self,
+        epoch: AssignmentEpoch,
+        partition: AssignedTopicPartition,
+    ) -> Result<AssignedConsumerTransition, AssignedConsumerMachineError> {
+        let effect = self
+            .assignment_mut(epoch)?
+            .find_mut(partition)?
+            .pause(epoch)?;
+        Ok(AssignedConsumerTransition::new(
+            epoch,
+            effect.into_iter().collect(),
+        ))
+    }
+
+    fn resume(
+        &mut self,
+        epoch: AssignmentEpoch,
+        partition: AssignedTopicPartition,
+    ) -> Result<AssignedConsumerTransition, AssignedConsumerMachineError> {
+        let effect = self
+            .assignment_mut(epoch)?
+            .find_mut(partition)?
+            .resume(epoch)?;
+        Ok(AssignedConsumerTransition::new(
+            epoch,
+            effect.into_iter().collect(),
+        ))
+    }
+
+    fn assignment_mut(
+        &mut self,
+        supplied: AssignmentEpoch,
+    ) -> Result<&mut DirectAssignment, AssignedConsumerMachineError> {
+        let assignment = self
+            .assignment
+            .as_mut()
+            .ok_or(AssignedConsumerMachineError::NoAssignment)?;
+        if assignment.epoch != supplied {
+            return Err(AssignedConsumerMachineError::StaleAssignment {
+                active: assignment.epoch,
+                supplied,
+            });
+        }
+        Ok(assignment)
+    }
+}

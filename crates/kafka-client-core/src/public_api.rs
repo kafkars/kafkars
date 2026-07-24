@@ -21,6 +21,12 @@ pub use crate::admin::{
 pub use crate::admission::AdmissionRejection;
 pub use crate::capacity::{ByteBudget, CapacityError};
 pub use crate::completion::{CompletionLedger, CompletionLedgerError};
+pub use crate::consumer::{
+    AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
+    AssignedConsumerMachineError, AssignedConsumerTransition, AssignedPartition,
+    AssignedTopicPartition, AssignmentEpoch, FetchFence, FetchRevision, NextFetchOffset,
+    PositionEpoch, PositionFence, StartPosition,
+};
 pub use crate::operation::{ProducerOperation, ProducerOperationState};
 pub use crate::operation_outcome::{
     DeliveryStatus, ProducerBatchSuccess, ProducerCancellationOutcome, ProducerCompletion,

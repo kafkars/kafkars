@@ -205,6 +205,20 @@ status = "planned"
 milestone = "direct-and-group-consumer"
 
 [[invariant]]
+id = "CON-02"
+title = "Direct fetch positions are generation-fenced"
+statement = "Direct assignment replacement allocates a monotonic epoch and revokes old partitions before new work; pause and seek advance partition-local position generations so stale resolution and fetch results cannot mutate the retained next-fetch offset, while accepted fetch progress is nondecreasing and receives an exact fetch revision."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/consumer/assignment_test.rs::replacement_revokes_old_order_before_starting_new_epoch",
+  "crates/kafka-client-core/src/consumer/control_test.rs::pause_fences_inflight_fetch_and_resume_restarts_retained_offset",
+  "crates/kafka-client-core/src/consumer/control_test.rs::seek_orders_fence_before_replacement_and_rejects_old_work",
+  "crates/kafka-client-core/src/consumer/position_test.rs::resolved_start_and_fetch_progress_issue_exact_ordered_positions",
+  "crates/kafka-client-core/src/consumer/position_test.rs::older_fetch_revision_cannot_advance_the_active_execution",
+  "crates/kafka-client-core/src/consumer/position_test.rs::offset_regression_rejects_without_consuming_fetch_revision",
+]
+
+[[invariant]]
 id = "DL-01"
 title = "Producer policy consumes one absolute deadline"
 statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant, accepted operation bindings retain that pair unchanged, core rejects already elapsed work, queued compression or submission expiry reproduces the exact core deadline fact, and identity-request deadline completion cannot be erased by an earlier transport category."

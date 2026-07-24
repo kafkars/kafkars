@@ -5,6 +5,7 @@ mod admin;
 mod admission;
 mod capacity;
 mod completion;
+mod consumer;
 mod operation;
 mod operation_outcome;
 pub mod partitioning;

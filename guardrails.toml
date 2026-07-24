@@ -139,6 +139,26 @@ production = "crates/kafka-client-core/src/producer/idempotence_request_terminal
 test = "crates/kafka-client-core/src/producer/idempotence_fencing_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/model.rs"
+test = "crates/kafka-client-core/src/consumer/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/machine.rs"
+test = "crates/kafka-client-core/src/consumer/assignment_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/position.rs"
+test = "crates/kafka-client-core/src/consumer/control_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/position_state.rs"
+test = "crates/kafka-client-core/src/consumer/position_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/transition.rs"
+test = "crates/kafka-client-core/src/consumer/transition_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/producer/retry_timer.rs"
 test = "crates/kafka-client-core/src/producer/retry_timer_test.rs"
 
@@ -1014,6 +1034,19 @@ forbidden = [
   "std::time",
 ]
 
+# Direct assignment owns no group, protocol, transport, or sibling policy.
+[[capability_rules]]
+root = "crates/kafka-client-core/src/consumer"
+forbidden = [
+  "crate::admin",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "std::future",
+  "std::time",
+]
+
 # Simulation owns virtual time only and must remain reproducible.
 [[capability_rules]]
 root = "crates/kafka-client-sim/src"
@@ -1381,6 +1414,42 @@ allowed_paths = ["crates/kafka-client-core/src/producer/sticky.rs"]
 owner_type = "StickyPartitioner"
 field = "cursor"
 allowed_paths = ["crates/kafka-client-core/src/producer/sticky.rs"]
+
+[[mutation_owners]]
+owner_type = "AssignedConsumerMachine"
+field = "next_epoch"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/machine.rs",
+  "crates/kafka-client-core/src/consumer/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AssignedConsumerMachine"
+field = "assignment"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/machine.rs",
+  "crates/kafka-client-core/src/consumer/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AssignedPartitionState"
+field = "paused"
+allowed_paths = ["crates/kafka-client-core/src/consumer/position.rs"]
+
+[[mutation_owners]]
+owner_type = "PartitionPosition"
+field = "epoch"
+allowed_paths = ["crates/kafka-client-core/src/consumer/position_state.rs"]
+
+[[mutation_owners]]
+owner_type = "PartitionPosition"
+field = "next_fetch_revision"
+allowed_paths = ["crates/kafka-client-core/src/consumer/position_state.rs"]
+
+[[mutation_owners]]
+owner_type = "PartitionPosition"
+field = "phase"
+allowed_paths = ["crates/kafka-client-core/src/consumer/position_state.rs"]
 
 [[mutation_owners]]
 owner_type = "ProducerMachine"
@@ -2327,6 +2396,22 @@ path = "crates/kafka-client-core/src/admin/partitions_machine.rs"
 [[linear_owners]]
 owner_type = "StickyPartitioner"
 path = "crates/kafka-client-core/src/producer/sticky.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerMachine"
+path = "crates/kafka-client-core/src/consumer/machine.rs"
+
+[[linear_owners]]
+owner_type = "DirectAssignment"
+path = "crates/kafka-client-core/src/consumer/machine.rs"
+
+[[linear_owners]]
+owner_type = "AssignedPartitionState"
+path = "crates/kafka-client-core/src/consumer/position.rs"
+
+[[linear_owners]]
+owner_type = "PartitionPosition"
+path = "crates/kafka-client-core/src/consumer/position_state.rs"
 
 [[linear_owners]]
 owner_type = "ProducerMachine"

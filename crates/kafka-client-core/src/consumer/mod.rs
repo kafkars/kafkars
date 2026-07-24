@@ -1,0 +1,24 @@
+//! Deterministic direct-assignment consumer ownership and fetch-position policy.
+
+mod effect;
+mod error;
+mod exports;
+mod input;
+mod machine;
+mod model;
+mod position;
+mod position_state;
+mod transition;
+
+pub use exports::*;
+
+#[cfg(test)]
+mod assignment_test;
+#[cfg(test)]
+mod control_test;
+#[cfg(test)]
+mod model_test;
+#[cfg(test)]
+mod position_test;
+#[cfg(test)]
+mod transition_test;
