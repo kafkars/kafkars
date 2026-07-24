@@ -4,6 +4,9 @@ mod admin;
 #[cfg(test)]
 mod admin_test;
 mod admin_wake;
+mod cleanup;
+#[cfg(test)]
+mod cleanup_test;
 mod control;
 mod error;
 mod lifecycle;

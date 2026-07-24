@@ -279,6 +279,10 @@ production = "crates/kafka-client-engine/src/engine_host/runner.rs"
 test = "crates/kafka-client-engine/src/engine_host/runner_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/cleanup.rs"
+test = "crates/kafka-client-engine/src/engine_host/cleanup_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/admin.rs"
 test = "crates/kafka-client-engine/src/engine_host/admin_test.rs"
 
@@ -945,7 +949,7 @@ root = "crates/kafka-client-engine/src"
 method = "retained_count"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
-  "crates/kafka-client-engine/src/engine_host/runner.rs",
+  "crates/kafka-client-engine/src/engine_host/cleanup.rs",
 ]
 
 [[method_capabilities]]

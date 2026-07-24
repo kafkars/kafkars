@@ -7,7 +7,6 @@ use kafka_client_core::{Deadline, Moment};
 use crate::{
     admin::CreateTopicsShardOwner,
     clock::MonotonicClock,
-    completion::NotifierJoin,
     driver::{DriverOwner, DriverTurn, TrackedCreateTopicsCalls, TrackedProduceCalls},
     producer::{
         host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
@@ -16,8 +15,7 @@ use crate::{
 };
 
 use super::{
-    EngineHostControl, EngineHostError, admin,
-    notifier_shutdown::{NotifierShutdownOwner, collect_notification_joins},
+    EngineHostControl, EngineHostError, admin, cleanup, notifier_shutdown::NotifierShutdownOwner,
     produce_turn,
 };
 
@@ -102,27 +100,12 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
     }
 
     shutdown_driver(resources)?;
-    prepare_notification_stop(resources)?;
-    let (notifier, failure) = begin_notification_shutdown(resources)?;
+    cleanup::prepare_notification_stop(resources)?;
+    let (notifier, failure) = cleanup::begin_notification_shutdown(resources)?;
     Ok(EngineHostExit {
         notifier: NotifierShutdownOwner::new(notifier),
         failure,
     })
-}
-
-fn begin_notification_shutdown(
-    resources: &EngineHostResources,
-) -> Result<(Vec<NotifierJoin>, Option<EngineHostError>), EngineHostError> {
-    let mut data = resources.producer.terminal_data();
-    let producer = data
-        .begin_notification_shutdown()
-        .map_err(EngineHostError::ProducerCleanup)?;
-    drop(data);
-    let mut admin_host = resources.admin.terminal_host();
-    let admin = admin_host.stop_notifier().map_err(EngineHostError::Admin);
-    let fallback = admin_host.recover_notifier();
-    drop(admin_host);
-    Ok(collect_notification_joins(producer, admin, fallback))
 }
 
 pub(super) fn shutdown_driver(resources: &mut EngineHostResources) -> Result<(), EngineHostError> {
@@ -165,50 +148,4 @@ pub(super) fn producer_wait(
 
 fn duration_until(now: Moment, deadline: Deadline) -> Duration {
     Duration::from_nanos(deadline.tick().saturating_sub(now.tick()))
-}
-
-/// Verifies all producer-owned admission and terminal work before the
-/// completion notifier is stopped.
-pub(super) fn prepare_notification_stop(
-    resources: &EngineHostResources,
-) -> Result<(), EngineHostError> {
-    let tracked_calls = resources.produce_calls.retained_count();
-    if tracked_calls != 0 {
-        return Err(EngineHostError::TrackedProduceCallsRemain(tracked_calls));
-    }
-    let tracked_admin_calls = resources.create_topics_calls.retained_count();
-    if tracked_admin_calls != 0 {
-        return Err(EngineHostError::TrackedCreateTopicsCallsRemain(
-            tracked_admin_calls,
-        ));
-    }
-    let admin_unsettled = resources.admin.terminal_host().unsettled();
-    if admin_unsettled != 0 {
-        return Err(EngineHostError::Admin(
-            crate::admin::CreateTopicsHostError::Unsettled(admin_unsettled),
-        ));
-    }
-    let mut data = resources.producer.terminal_data();
-    let release = data.verify_release_before_completion();
-    let failure = release.err().map(EngineHostError::ProducerCleanup);
-    data.drain_terminal_mechanisms();
-    let final_failure = data
-        .verify_terminal_cleanup()
-        .err()
-        .map(EngineHostError::ProducerCleanup);
-    if let Some(error) = combine_cleanup(failure, final_failure) {
-        return Err(error);
-    }
-    Ok(())
-}
-
-fn combine_cleanup(
-    primary: Option<EngineHostError>,
-    cleanup: Option<EngineHostError>,
-) -> Option<EngineHostError> {
-    match (primary, cleanup) {
-        (Some(primary), Some(cleanup)) => Some(primary.with_cleanup(cleanup)),
-        (Some(error), None) | (None, Some(error)) => Some(error),
-        (None, None) => None,
-    }
 }
