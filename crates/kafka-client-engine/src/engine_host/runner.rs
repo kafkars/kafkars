@@ -7,13 +7,13 @@ use kafka_client_core::{Deadline, Moment};
 use crate::{
     admin::{
         CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteTopicsShardOwner,
-        DescribeClusterShardOwner,
+        DescribeClusterShardOwner, DescribeTopicsShardOwner,
     },
     clock::MonotonicClock,
     driver::{
-        DescribeClusterCalls, DriverOwner, DriverTurn, TrackedCreatePartitionsCalls,
-        TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls, TrackedProduceCalls,
-        TrackedProducerIdentityCalls,
+        DescribeClusterCalls, DescribeTopicsCalls, DriverOwner, DriverTurn,
+        TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls,
+        TrackedProduceCalls, TrackedProducerIdentityCalls,
     },
     producer::{
         host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
@@ -41,6 +41,7 @@ pub(crate) struct EngineHostResources {
     pub(super) delete_topics: DeleteTopicsShardOwner,
     pub(super) describe_cluster: DescribeClusterShardOwner,
     pub(super) create_partitions: CreatePartitionsShardOwner,
+    pub(super) describe_topics: DescribeTopicsShardOwner,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) control: Arc<EngineHostControl>,
     pub(super) budget: ProducerTurnBudget,
@@ -50,6 +51,7 @@ pub(crate) struct EngineHostResources {
     pub(super) delete_topics_calls: TrackedDeleteTopicsCalls,
     pub(super) describe_cluster_calls: DescribeClusterCalls,
     pub(super) create_partitions_calls: TrackedCreatePartitionsCalls,
+    pub(super) describe_topics_calls: DescribeTopicsCalls,
 }
 
 impl Drop for EngineHostResources {
@@ -59,6 +61,7 @@ impl Drop for EngineHostResources {
         let _close_result = self.delete_topics.admission_port().close_admission();
         let _close_result = self.describe_cluster.admission_port().close_admission();
         let _close_result = self.create_partitions.admission_port().close_admission();
+        let _close_result = self.describe_topics.admission_port().close_admission();
     }
 }
 

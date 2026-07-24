@@ -29,6 +29,7 @@ kafka-client-engine = { path = "crates/kafka-client-engine" }
 kafka-client-sim = { path = "crates/kafka-client-sim" }
 kafka-driver = { path = "../kafka-driver" }
 kafka-wire = { path = "../kafka-protocol/crates/kafka-wire" }
+kafka-wire-core = { path = "../kafka-protocol/crates/kafka-wire-core" }
 kafka-wire-records = { path = "../kafka-protocol/crates/kafka-wire-records" }
 serde = { version = "1.0", features = ["derive"] }
 syn = { version = "2.0", features = ["full", "visit"] }

@@ -19,7 +19,8 @@ mod transaction;
 pub use admin::{
     Admin, BatchResult, ClusterBroker, ClusterDescription, CreatePartitions,
     CreatePartitionsBuilder, CreateTopics, CreateTopicsBuilder, DeleteTopics, DeleteTopicsBuilder,
-    DescribeCluster, DescribeClusterBuilder, NewPartitions, NewTopic,
+    DescribeCluster, DescribeClusterBuilder, DescribeTopics, DescribeTopicsBuilder, NewPartitions,
+    NewTopic, TopicDescription, TopicPartitionDescription,
 };
 pub use client::{Client, ClientBuilder, Shutdown};
 pub use consumer::{

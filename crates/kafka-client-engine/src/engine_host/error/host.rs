@@ -5,14 +5,15 @@ use std::fmt;
 use crate::{
     admin::{
         CreatePartitionsHostError, CreateTopicsHostError, DeleteTopicsHostError,
-        DescribeClusterHostError,
+        DescribeClusterHostError, DescribeTopicsHostError,
     },
     clock::ClockError,
     completion::{CompletionRegistryError, NotifierJoinError},
     driver::{
         CreatePartitionsCompletionFailure, CreateTopicsCompletionFailure,
-        DeleteTopicsCompletionFailure, DescribeClusterCompletionFailure, DriverOwnerError,
-        ProduceCompletionFailure, ProducerIdentityCompletionFailure,
+        DeleteTopicsCompletionFailure, DescribeClusterCompletionFailure,
+        DescribeTopicsCompletionFailure, DriverOwnerError, ProduceCompletionFailure,
+        ProducerIdentityCompletionFailure,
     },
     producer::{
         ProducerHostInvariantError, ProducerIdentityHandoffError,
@@ -44,6 +45,9 @@ pub(crate) enum EngineHostError {
     CreatePartitions(CreatePartitionsHostError),
     CreatePartitionsCompletion(CreatePartitionsCompletionFailure),
     CreatePartitionsLockPoisoned,
+    DescribeTopics(DescribeTopicsHostError),
+    DescribeTopicsCompletion(DescribeTopicsCompletionFailure),
+    DescribeTopicsLockPoisoned,
     AdminCompletion(CompletionRegistryError),
     Driver(DriverOwnerError),
     DriverOwnerMissing,
@@ -54,6 +58,7 @@ pub(crate) enum EngineHostError {
     TrackedDeleteTopicsCallsRemain(usize),
     DescribeClusterCallsRemain(usize),
     TrackedCreatePartitionsCallsRemain(usize),
+    DescribeTopicsCallsRemain(usize),
     HostPanicked,
     Notifier(NotifierJoinError),
     Recovery {
@@ -65,6 +70,9 @@ pub(crate) enum EngineHostError {
 }
 
 impl fmt::Display for EngineHostError {
+    // Keeping every concrete owner visible here prevents a generic error layer
+    // from erasing which lifecycle failed.
+    #[allow(clippy::too_many_lines)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Clock(error) => write!(formatter, "engine clock failed: {error}"),
@@ -108,6 +116,11 @@ impl fmt::Display for EngineHostError {
             Self::CreatePartitionsLockPoisoned => {
                 formatter.write_str("CreatePartitions host ownership lock is poisoned")
             }
+            Self::DescribeTopics(error) => write!(formatter, "DescribeTopics host failed: {error}"),
+            Self::DescribeTopicsCompletion(error) => write!(formatter, "{error}"),
+            Self::DescribeTopicsLockPoisoned => {
+                formatter.write_str("DescribeTopics host ownership lock is poisoned")
+            }
             Self::AdminCompletion(error) => {
                 write!(
                     formatter,
@@ -149,6 +162,12 @@ impl fmt::Display for EngineHostError {
                 write!(
                     formatter,
                     "{count} tracked CreatePartitions calls remain at terminal cleanup"
+                )
+            }
+            Self::DescribeTopicsCallsRemain(count) => {
+                write!(
+                    formatter,
+                    "{count} DescribeTopics calls remain at terminal cleanup"
                 )
             }
             Self::HostPanicked => formatter.write_str("engine host thread panicked"),

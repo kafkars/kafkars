@@ -138,6 +138,7 @@ dependencies = [
  "kafka-client-core",
  "kafka-driver",
  "kafka-wire",
+ "kafka-wire-core",
  "kafka-wire-records",
 ]
 

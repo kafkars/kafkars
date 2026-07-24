@@ -69,6 +69,10 @@ fn verify_tracked_calls(resources: &EngineHostResources) -> Result<(), EngineHos
             partitions,
         ));
     }
+    let topics = resources.describe_topics_calls.retained_count();
+    if topics != 0 {
+        return Err(EngineHostError::DescribeTopicsCallsRemain(topics));
+    }
     Ok(())
 }
 
@@ -95,6 +99,12 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
     if partitions != 0 {
         return Err(EngineHostError::CreatePartitions(
             crate::admin::CreatePartitionsHostError::Unsettled(partitions),
+        ));
+    }
+    let topics = resources.describe_topics.terminal_host().unsettled();
+    if topics != 0 {
+        return Err(EngineHostError::DescribeTopics(
+            crate::admin::DescribeTopicsHostError::Unsettled(topics),
         ));
     }
     Ok(())

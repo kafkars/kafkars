@@ -4,6 +4,7 @@ use std::thread::ThreadId;
 
 use kafka_client_core::{
     CreatePartitionsTerminal, CreateTopicsTerminal, DeleteTopicsTerminal, DescribeClusterTerminal,
+    DescribeTopicsTerminal,
 };
 
 use crate::completion::{
@@ -13,14 +14,15 @@ use crate::completion::{
 
 use super::{
     CREATE_PARTITIONS_CAPACITY, CREATE_TOPICS_CAPACITY, DELETE_TOPICS_CAPACITY,
-    DESCRIBE_CLUSTER_CAPACITY,
+    DESCRIBE_CLUSTER_CAPACITY, DESCRIBE_TOPICS_CAPACITY,
 };
 
 const ADMIN_NOTIFIER_THREAD: &str = "kafka-client-admin-completion-notifier";
 const ADMIN_NOTIFICATION_CAPACITY: usize = CREATE_TOPICS_CAPACITY
     + DELETE_TOPICS_CAPACITY
     + DESCRIBE_CLUSTER_CAPACITY
-    + CREATE_PARTITIONS_CAPACITY;
+    + CREATE_PARTITIONS_CAPACITY
+    + DESCRIBE_TOPICS_CAPACITY;
 
 /// Closed allocation-free set of terminal tickets accepted by the admin worker.
 pub(crate) enum AdminPublishTicket {
@@ -28,6 +30,7 @@ pub(crate) enum AdminPublishTicket {
     DeleteTopics(PublishTicket<DeleteTopicsTerminal>),
     DescribeCluster(PublishTicket<DescribeClusterTerminal>),
     CreatePartitions(PublishTicket<CreatePartitionsTerminal>),
+    DescribeTopics(PublishTicket<DescribeTopicsTerminal>),
 }
 
 impl NotificationTicket for AdminPublishTicket {
@@ -37,6 +40,7 @@ impl NotificationTicket for AdminPublishTicket {
             Self::DeleteTopics(ticket) => ticket.publish(),
             Self::DescribeCluster(ticket) => ticket.publish(),
             Self::CreatePartitions(ticket) => ticket.publish(),
+            Self::DescribeTopics(ticket) => ticket.publish(),
         }
     }
 }
@@ -47,6 +51,8 @@ pub(crate) type DescribeClusterPublisher =
     SharedPublishPort<DescribeClusterTerminal, AdminPublishTicket>;
 pub(crate) type CreatePartitionsPublisher =
     SharedPublishPort<CreatePartitionsTerminal, AdminPublishTicket>;
+pub(crate) type DescribeTopicsPublisher =
+    SharedPublishPort<DescribeTopicsTerminal, AdminPublishTicket>;
 
 /// Exact typed ports issued once with the shared worker.
 pub(crate) struct AdminCompletionPorts {
@@ -54,6 +60,7 @@ pub(crate) struct AdminCompletionPorts {
     pub(crate) delete_topics: DeleteTopicsPublisher,
     pub(crate) describe_cluster: DescribeClusterPublisher,
     pub(crate) create_partitions: CreatePartitionsPublisher,
+    pub(crate) describe_topics: DescribeTopicsPublisher,
 }
 
 /// Unique lifecycle owner for the one shared admin notifier.
@@ -69,6 +76,7 @@ impl AdminCompletionNotifier {
             delete_topics: worker.publish_port(AdminPublishTicket::DeleteTopics),
             describe_cluster: worker.publish_port(AdminPublishTicket::DescribeCluster),
             create_partitions: worker.publish_port(AdminPublishTicket::CreatePartitions),
+            describe_topics: worker.publish_port(AdminPublishTicket::DescribeTopics),
         };
         Ok((
             Self {

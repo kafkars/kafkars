@@ -3,4 +3,5 @@
 pub(crate) use super::completion::{
     AdminCompletionNotifier, AdminCompletionPorts, CreatePartitionsPublisher,
     CreateTopicsPublisher, DeleteTopicsPublisher, DescribeClusterPublisher,
+    DescribeTopicsPublisher,
 };

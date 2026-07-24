@@ -9,6 +9,8 @@ pub(crate) mod admin_operation;
 pub(crate) mod admin_partitions_operation;
 pub(crate) mod admin_partitions_result;
 pub(crate) mod admin_result;
+pub(crate) mod admin_topics_operation;
+pub(crate) mod admin_topics_result;
 mod client;
 pub(crate) mod producer;
 pub(crate) mod producer_barrier;
@@ -35,6 +37,10 @@ mod admin_partitions_result_test;
 mod admin_result_test;
 #[cfg(test)]
 mod admin_test;
+#[cfg(test)]
+mod admin_topics_operation_test;
+#[cfg(test)]
+mod admin_topics_result_test;
 #[cfg(test)]
 mod client_test;
 #[cfg(test)]

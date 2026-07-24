@@ -11,7 +11,8 @@ use crate::{
     admin::{
         AdminCompletionNotifier, AdminCompletionPorts, CreatePartitionsHost,
         CreatePartitionsShardOwner, CreateTopicsHost, CreateTopicsShardOwner, DeleteTopicsHost,
-        DeleteTopicsShardOwner, DescribeClusterHost, DescribeClusterShardOwner,
+        DeleteTopicsShardOwner, DescribeClusterHost, DescribeClusterShardOwner, DescribeTopicsHost,
+        DescribeTopicsShardOwner,
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
@@ -35,11 +36,15 @@ pub(crate) struct StartedEngineHost {
     pub(crate) delete_topics_admission: crate::admin::DeleteTopicsAdmissionPort,
     pub(crate) describe_cluster_admission: crate::admin::DescribeClusterAdmissionPort,
     pub(crate) create_partitions_admission: crate::admin::CreatePartitionsAdmissionPort,
+    pub(crate) describe_topics_admission: crate::admin::DescribeTopicsAdmissionPort,
     pub(crate) clock: Arc<MonotonicClock>,
     pub(crate) control: Arc<EngineHostControl>,
     pub(crate) lifecycle: Arc<EngineLifecycle>,
 }
 
+// Construction remains one explicit rollback-ordered handoff so a generic
+// owner factory cannot obscure which resource must be reclaimed.
+#[allow(clippy::too_many_lines)]
 pub(crate) fn start(
     config: &EngineConfig,
     validated: ValidatedEngineConfig,
@@ -73,11 +78,13 @@ pub(crate) fn start(
         delete_topics,
         describe_cluster,
         create_partitions,
+        describe_topics,
     } = admin_ports;
     let create_topics = CreateTopicsHost::new(create_topics);
     let delete_topics = DeleteTopicsHost::new(delete_topics);
     let describe_cluster = DescribeClusterHost::new(describe_cluster);
     let create_partitions = CreatePartitionsHost::new(create_partitions);
+    let describe_topics = DescribeTopicsHost::new(describe_topics);
     let producer = match ProducerHost::new_with_compression_wake(validated.host_limits, &wake) {
         Ok(producer) => producer,
         Err(error) => {
@@ -100,6 +107,9 @@ pub(crate) fn start(
     let create_partitions =
         CreatePartitionsShardOwner::new(create_partitions, Arc::new(driver.reactor_wake()));
     let create_partitions_admission = create_partitions.admission_port();
+    let describe_topics =
+        DescribeTopicsShardOwner::new(describe_topics, Arc::new(driver.reactor_wake()));
+    let describe_topics_admission = describe_topics.admission_port();
     let produce_calls =
         crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
     let resources = EngineHostResources {
@@ -110,6 +120,7 @@ pub(crate) fn start(
         delete_topics,
         describe_cluster,
         create_partitions,
+        describe_topics,
         clock: Arc::clone(&clock),
         control: Arc::clone(&control),
         budget: validated.turn_budget,
@@ -126,6 +137,9 @@ pub(crate) fn start(
         ),
         create_partitions_calls: crate::driver::TrackedCreatePartitionsCalls::new(
             crate::admin::CREATE_PARTITIONS_CAPACITY,
+        ),
+        describe_topics_calls: crate::driver::DescribeTopicsCalls::new(
+            crate::admin::DESCRIBE_TOPICS_CAPACITY,
         ),
     };
     if let Err(error) = sender.send(resources) {
@@ -145,6 +159,7 @@ pub(crate) fn start(
         delete_topics_admission,
         describe_cluster_admission,
         create_partitions_admission,
+        describe_topics_admission,
         clock,
         control,
         lifecycle,

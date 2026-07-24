@@ -24,6 +24,7 @@ pub(crate) fn recover(
     drop(resources.delete_topics.terminal_host());
     drop(resources.describe_cluster.terminal_host());
     drop(resources.create_partitions.terminal_host());
+    drop(resources.describe_topics.terminal_host());
     if let Some(cleanup) = shutdown_driver(resources).err() {
         failure = failure.with_cleanup(cleanup);
     }
@@ -45,6 +46,9 @@ pub(crate) fn recover(
         .discard_after_driver_shutdown();
     resources
         .create_partitions_calls
+        .discard_after_driver_shutdown();
+    resources
+        .describe_topics_calls
         .discard_after_driver_shutdown();
     #[cfg(test)]
     resources.control.record_recovery_driver_released();
@@ -131,5 +135,14 @@ fn recover_admin_operations(
         failure = failure.with_cleanup(cleanup);
     }
     drop(create_partitions);
+    let mut describe_topics = resources.describe_topics.terminal_host();
+    if let Some(cleanup) = describe_topics
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::DescribeTopics)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    drop(describe_topics);
     failure
 }

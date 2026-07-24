@@ -17,7 +17,12 @@ pub use crate::admin::{
     DescribeClusterAdmissionError, DescribeClusterAdmissionErrorKind, DescribeClusterBrokerError,
     DescribeClusterDeliveryStatus, DescribeClusterFailure, DescribeClusterFailureKind,
     DescribeClusterObserver, DescribeClusterObserverError, DescribeClusterOutcome,
-    PartitionIncrease, PartitionIncreaseError, PartitionIncreaseResult,
+    DescribeTopicError, DescribeTopicResult, DescribeTopicsAccepted,
+    DescribeTopicsAcceptedFaultKind, DescribeTopicsAdmissionError,
+    DescribeTopicsAdmissionErrorKind, DescribeTopicsDeliveryStatus, DescribeTopicsFailure,
+    DescribeTopicsFailureKind, DescribeTopicsObserver, DescribeTopicsObserverError,
+    DescribeTopicsOutcome, DescribeTopicsRequest, PartitionIncrease, PartitionIncreaseError,
+    PartitionIncreaseResult, TopicDescription, TopicPartitionDescription,
 };
 pub use crate::config::{EngineConfig, EngineProducerLimits, ProducerCompression};
 pub use crate::delivery::{

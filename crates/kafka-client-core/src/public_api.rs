@@ -16,7 +16,11 @@ pub use crate::admin::{
     DescribeClusterEffect, DescribeClusterFailure, DescribeClusterFailureKind,
     DescribeClusterInput, DescribeClusterMachine, DescribeClusterMachineError,
     DescribeClusterState, DescribeClusterTerminal, DescribeClusterTransition,
-    PartitionIncreaseBrokerError, PartitionIncreaseOutcome, PartitionIncreaseResult,
+    DescribeTopicBrokerError, DescribeTopicOutcome, DescribeTopicResult, DescribeTopicsEffect,
+    DescribeTopicsFailure, DescribeTopicsFailureKind, DescribeTopicsInput, DescribeTopicsMachine,
+    DescribeTopicsMachineError, DescribeTopicsPlan, DescribeTopicsPlanError, DescribeTopicsState,
+    DescribeTopicsTerminal, DescribeTopicsTransition, PartitionIncreaseBrokerError,
+    PartitionIncreaseOutcome, PartitionIncreaseResult, TopicDescription, TopicPartitionDescription,
 };
 pub use crate::admission::AdmissionRejection;
 pub use crate::capacity::{ByteBudget, CapacityError};

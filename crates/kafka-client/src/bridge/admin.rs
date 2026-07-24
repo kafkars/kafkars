@@ -8,6 +8,7 @@ use kafka_client_engine::{
     AdminHandle as EngineAdminHandle, CreatePartitionsRequest as EnginePartitionsRequest,
     CreateTopic as EngineTopic, CreateTopicConfig as EngineTopicConfig,
     CreateTopicsRequest as EngineRequest, DeleteTopicsRequest as EngineDeleteRequest,
+    DescribeTopicsRequest as EngineDescribeTopicsRequest,
     PartitionIncrease as EnginePartitionIncrease,
 };
 
@@ -16,6 +17,7 @@ use crate::admin::{NewPartitions, NewTopic};
 use super::admin_delete_operation::AdminDeleteTopics;
 use super::admin_operation::AdminCreateTopics;
 use super::admin_partitions_operation::AdminCreatePartitions;
+use super::admin_topics_operation::AdminDescribeTopics;
 
 /// Cloneable facade owner of the engine's concrete admin handle and default.
 #[derive(Debug, Clone)]
@@ -47,6 +49,14 @@ impl AdminEngine {
     ) -> AdminDeleteTopics {
         AdminDeleteTopics::from_admission(self.handle.try_delete_topics(request.inner, timeout))
     }
+    pub(crate) fn submit_describe_topics(
+        &self,
+        request: DescribeTopicsAdminRequest,
+        timeout: Duration,
+    ) -> AdminDescribeTopics {
+        AdminDescribeTopics::from_admission(self.handle.try_describe_topics(request.inner, timeout))
+    }
+
     pub(crate) fn submit_create_partitions(
         &self,
         request: PartitionsAdminRequest,
@@ -55,6 +65,31 @@ impl AdminEngine {
         AdminCreatePartitions::from_admission(
             self.handle.try_create_partitions(request.inner, timeout),
         )
+    }
+}
+
+/// Prepared engine request retained by an inert topic-description builder.
+pub(crate) struct DescribeTopicsAdminRequest {
+    inner: EngineDescribeTopicsRequest,
+}
+
+impl DescribeTopicsAdminRequest {
+    pub(crate) fn from_topics<I, T>(topics: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<String>,
+    {
+        Self {
+            inner: EngineDescribeTopicsRequest::new(topics.into_iter().map(Into::into).collect()),
+        }
+    }
+}
+
+impl std::fmt::Debug for DescribeTopicsAdminRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DescribeTopicsAdminRequest")
+            .finish_non_exhaustive()
     }
 }
 

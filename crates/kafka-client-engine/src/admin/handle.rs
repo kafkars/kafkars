@@ -15,6 +15,7 @@ pub struct AdminHandle {
     pub(super) delete_topics: DeleteTopicsAdmissionPort,
     pub(super) describe_cluster: super::DescribeClusterAdmissionPort,
     pub(super) create_partitions: super::CreatePartitionsAdmissionPort,
+    pub(super) describe_topics: super::DescribeTopicsAdmissionPort,
     pub(super) clock: Arc<MonotonicClock>,
     _lifetime: Arc<dyn Send + Sync>,
 }
@@ -25,6 +26,7 @@ impl AdminHandle {
         delete_topics: DeleteTopicsAdmissionPort,
         describe_cluster: super::DescribeClusterAdmissionPort,
         create_partitions: super::CreatePartitionsAdmissionPort,
+        describe_topics: super::DescribeTopicsAdmissionPort,
         clock: Arc<MonotonicClock>,
         lifetime: Arc<dyn Send + Sync>,
     ) -> Self {
@@ -33,6 +35,7 @@ impl AdminHandle {
             delete_topics,
             describe_cluster,
             create_partitions,
+            describe_topics,
             clock,
             _lifetime: lifetime,
         }

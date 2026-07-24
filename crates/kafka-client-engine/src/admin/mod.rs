@@ -34,6 +34,13 @@ pub(crate) mod retention;
 mod shard;
 #[cfg(test)]
 mod test_support;
+mod topics_error;
+mod topics_handle;
+mod topics_host;
+mod topics_model;
+mod topics_observer;
+mod topics_outcome;
+mod topics_shard;
 pub(crate) use exports::*;
 pub use public_api::*;
 #[cfg(test)]
@@ -78,3 +85,11 @@ mod partitions_shard_test;
 mod retention_test;
 #[cfg(test)]
 mod shard_test;
+#[cfg(test)]
+mod topics_host_test;
+#[cfg(test)]
+mod topics_model_test;
+#[cfg(test)]
+mod topics_outcome_test;
+#[cfg(test)]
+mod topics_shard_test;

@@ -6,7 +6,7 @@ use kafka_client_core::{Deadline, Moment};
 
 use super::{
     super::{EngineHostError, EngineHostResources},
-    create_partitions, create_topics, delete_topics, describe_cluster,
+    create_partitions, create_topics, delete_topics, describe_cluster, describe_topics,
 };
 
 pub(in crate::engine_host) struct AdminProgress {
@@ -32,10 +32,15 @@ pub(in crate::engine_host) fn drive(
         |now| delete_topics::drive(resources, now),
         || clock.now().map_err(EngineHostError::Clock),
     )?;
-    let describe = describe_cluster::drive(resources, describe_now)?;
+    let (describe, topics_now) = drive_describe_then_capture_topics(
+        describe_now,
+        |now| describe_cluster::drive(resources, now),
+        || clock.now().map_err(EngineHostError::Clock),
+    )?;
+    let topics = describe_topics::drive(resources, topics_now)?;
     let partitions_now = clock.now().map_err(EngineHostError::Clock)?;
     let partitions = create_partitions::drive(resources, partitions_now)?;
-    Ok(combine(&create, &delete, &describe, &partitions))
+    Ok(combine(&create, &delete, &describe, &partitions, &topics))
 }
 
 pub(super) fn drive_create_then_capture_delete(
@@ -58,25 +63,44 @@ pub(super) fn drive_delete_then_capture_describe(
     Ok((delete, describe_now))
 }
 
+pub(super) fn drive_describe_then_capture_topics(
+    describe_now: Moment,
+    drive_describe: impl FnOnce(
+        Moment,
+    )
+        -> Result<describe_cluster::DescribeClusterProgress, EngineHostError>,
+    capture_topics_now: impl FnOnce() -> Result<Moment, EngineHostError>,
+) -> Result<(describe_cluster::DescribeClusterProgress, Moment), EngineHostError> {
+    let describe = drive_describe(describe_now)?;
+    let topics_now = capture_topics_now()?;
+    Ok((describe, topics_now))
+}
+
 pub(super) const fn combine(
     create: &create_topics::CreateTopicsProgress,
     delete: &delete_topics::DeleteTopicsProgress,
     describe: &describe_cluster::DescribeClusterProgress,
     partitions: &create_partitions::CreatePartitionsProgress,
+    topics: &describe_topics::DescribeTopicsProgress,
 ) -> AdminProgress {
     AdminProgress {
         unsettled: create
             .unsettled
             .saturating_add(delete.unsettled)
             .saturating_add(describe.unsettled)
-            .saturating_add(partitions.unsettled),
+            .saturating_add(partitions.unsettled)
+            .saturating_add(topics.unsettled),
         driver_progress: create.driver_progress
             || delete.driver_progress
             || describe.driver_progress
-            || partitions.driver_progress,
+            || partitions.driver_progress
+            || topics.driver_progress,
         next_deadline: earliest(
             earliest(create.next_deadline, delete.next_deadline),
-            earliest(describe.next_deadline, partitions.next_deadline),
+            earliest(
+                earliest(describe.next_deadline, partitions.next_deadline),
+                topics.next_deadline,
+            ),
         ),
     }
 }
@@ -88,7 +112,8 @@ pub(in crate::engine_host) fn apply_completions(
     let delete = delete_topics::apply_completions(resources)?;
     let describe = describe_cluster::apply_completions(resources)?;
     let partitions = create_partitions::apply_completions(resources)?;
-    Ok(create || delete || describe || partitions)
+    let topics = describe_topics::apply_completions(resources)?;
+    Ok(create || delete || describe || partitions || topics)
 }
 
 #[cfg(test)]

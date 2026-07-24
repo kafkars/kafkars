@@ -5,4 +5,5 @@ members = ["crates/kafka-client-engine"]
 bytes = "1"
 kafka-driver = { path = "../kafka-driver" }
 kafka-wire = { path = "../kafka-protocol/crates/kafka-wire" }
+kafka-wire-core = { path = "../kafka-protocol/crates/kafka-wire-core" }
 kafka-wire-records = { path = "../kafka-protocol/crates/kafka-wire-records" }

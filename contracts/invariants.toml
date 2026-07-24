@@ -121,6 +121,41 @@ evidence = [
 ]
 
 [[invariant]]
+id = "ADM-07"
+title = "DescribeTopics is transient, bounded, exact, and explicit"
+statement = "Name-based DescribeTopics validates one ordered unique batch, reserves terminal and retained-result capacity before acceptance, assigns one core-owned terminal, and carries the original absolute deadline through one plain AnyBroker Interactive Metadata call with a v13 ceiling. Driver-owned deadline expiry remains Timeout with authoritative delivery certainty; structurally valid over-budget results settle only that operation as ResponseTooLarge and public Backpressure. The query disables auto-creation and authorization expansion, maps the local below-Metadata-v4 encoding rejection to definitely-unsent public Compatibility rather than enabling mutation or claiming Transport, preserves exact top-level, topic, and partition signed broker codes plus optional stable topic UUID bytes with the zero sentinel mapped to absence, restores topic order and deterministic partition order, and exposes one inert Rust submit boundary without retry, metadata-cache authority, route invalidation, an async runtime, or raw generated protocol types."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/admin/topics_model_test.rs::plan_preserves_order_and_rejects_ambiguous_topics",
+  "crates/kafka-client-core/src/admin/topics_transition_test.rs::ordered_terminal_is_single_assignment_and_lossless",
+  "crates/kafka-client-core/src/admin/topics_transition_test.rs::top_level_unknown_broker_code_is_terminal_and_exact",
+  "crates/kafka-client-core/src/admin/topics_transition_test.rs::driver_deadline_is_timeout_policy_with_authoritative_certainty",
+  "crates/kafka-client-core/src/admin/topics_transition_test.rs::valid_over_budget_response_is_actionable_and_possibly_sent",
+  "crates/kafka-client-core/src/admin/topics_transition_test.rs::unrepresentable_read_only_policy_is_compatibility_and_not_sent",
+  "crates/kafka-client-engine/src/protocol/admin/describe_topics_test.rs::request_batches_names_without_auto_creation_or_authorization_queries",
+  "crates/kafka-client-engine/src/protocol/admin/describe_topics_test.rs::brokers_older_than_v4_fail_locally_instead_of_auto_creating",
+  "crates/kafka-client-engine/src/protocol/admin/describe_topics_response_test.rs::results_return_in_request_order_with_sorted_partitions_and_exact_codes",
+  "crates/kafka-client-engine/src/protocol/admin/describe_topics_response_test.rs::zero_topic_id_sentinel_becomes_none_without_leaking_wire_uuid",
+  "crates/kafka-client-engine/src/protocol/admin/describe_topics_response_test.rs::top_level_v13_error_remains_a_whole_operation_broker_rejection",
+  "crates/kafka-client-engine/src/protocol/admin/describe_topics_response_test.rs::retained_result_must_fit_the_accepted_operation_reservation",
+  "crates/kafka-client-engine/src/driver/rpc/describe_topics_submission_test.rs::describe_topics_uses_interactive_lane_original_deadline_and_v13_ceiling",
+  "crates/kafka-client-engine/src/driver/rpc/describe_topics_terminal_test.rs::driver_deadline_remains_timeout_with_authoritative_certainty",
+  "crates/kafka-client-engine/src/driver/rpc/describe_topics_terminal_test.rs::old_broker_auto_creation_field_failure_is_local_compatibility",
+  "crates/kafka-client-engine/src/driver/rpc/describe_topics_terminal_test.rs::malformed_and_valid_over_budget_responses_remain_distinct",
+  "crates/kafka-client-engine/src/driver/rpc/describe_topics_calls_test.rs::call_capacity_is_explicit_and_non_growing",
+  "crates/kafka-client-engine/src/admin/topics_host_test.rs::terminal_bytes_remain_reserved_until_observer_reclamation",
+  "crates/kafka-client-engine/src/admin/topics_host_test.rs::recovery_after_submission_handoff_is_conservatively_possibly_sent",
+  "crates/kafka-client-engine/src/admin/completion_test.rs::describe_topics_is_included_in_the_closed_shared_capacity_equation",
+  "crates/kafka-client-engine/src/admin/topics_outcome_test.rs::topic_and_partition_codes_cross_the_engine_boundary_exactly",
+  "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::describe_topics_owner_is_independent_and_prevents_false_quiescence",
+  "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::describe_topics_uses_time_recaptured_after_describe_cluster_work",
+  "crates/kafka-client/src/admin/topics_builder_test.rs::empty_zero_deadline_builder_is_inert_until_submit",
+  "crates/kafka-client/src/bridge/admin_topics_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
+  "crates/kafka-client/src/bridge/admin_topics_result_test.rs::top_level_and_partition_codes_remain_exact",
+  "crates/kafka-client/src/bridge/admin_topics_result_test.rs::old_broker_policy_failure_maps_to_public_compatibility",
+]
+
+[[invariant]]
 id = "BAT-01"
 title = "Core owns batch readiness"
 statement = "Record-count and conservative encoded-size readiness are deterministic core decisions and terminal fan-out preserves batch membership order."

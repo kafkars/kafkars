@@ -10,7 +10,7 @@ use syn::visit::Visit;
 use syn::{ItemExternCrate, ItemUse, UseTree};
 
 const DRIVER: &str = "kafka_driver";
-const WIRE: [&str; 2] = ["kafka_wire", "kafka_wire_records"];
+const WIRE: [&str; 3] = ["kafka_wire", "kafka_wire_core", "kafka_wire_records"];
 
 fn boundary_violations(source_root: &Path) -> Vec<String> {
     let mut violations = Vec::new();
@@ -118,6 +118,7 @@ fn aliases_and_qualified_paths_cannot_bypass_engine_adapters() {
     for file in [
         "driver_alias.rs",
         "driver_forbidden.rs",
+        "core_qualified.rs",
         "wire_qualified.rs",
         "records_alias.rs",
     ] {
