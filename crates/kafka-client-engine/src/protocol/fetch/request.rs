@@ -52,6 +52,27 @@ impl FetchRequestSettings {
             isolation_level,
         }
     }
+
+    /// Caps the broker long poll without changing any other request setting.
+    pub(crate) const fn cap_max_wait_ms(self, limit: u32) -> Self {
+        let max_wait_ms = if self.max_wait_ms < limit {
+            self.max_wait_ms
+        } else {
+            limit
+        };
+        Self {
+            max_wait_ms,
+            min_bytes: self.min_bytes,
+            max_bytes: self.max_bytes,
+            partition_max_bytes: self.partition_max_bytes,
+            isolation_level: self.isolation_level,
+        }
+    }
+
+    /// Reports whether this request may expose uncommitted transaction records.
+    pub(crate) const fn is_read_uncommitted(self) -> bool {
+        self.isolation_level == 0
+    }
 }
 
 /// Why one core-selected fetch could not become a generated request.

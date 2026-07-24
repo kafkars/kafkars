@@ -59,14 +59,9 @@ mod describe_topics_terminal;
 mod describe_topics_terminal_test;
 #[cfg_attr(
     not(test),
-    expect(
-        dead_code,
-        reason = "direct-consumer fetch execution follows this tracked RPC seam"
-    )
+    expect(dead_code, reason = "awaiting direct-consumer executor")
 )]
-mod fetch_submission;
-#[cfg(test)]
-mod fetch_submission_test;
+mod fetch;
 mod init_producer_id_calls;
 #[cfg(test)]
 mod init_producer_id_calls_test;
@@ -91,7 +86,6 @@ mod list_offsets_terminal_test;
 mod submission;
 #[cfg(test)]
 mod submission_test;
-
 pub(crate) use calls::{ProduceCompletionFailure, TrackedProduceCalls};
 pub(crate) use create_partitions_calls::{
     CreatePartitionsCompletionFailure, TrackedCreatePartitionsCalls,
@@ -101,6 +95,24 @@ pub(crate) use delete_topics_calls::{DeleteTopicsCompletionFailure, TrackedDelet
 pub(crate) use describe_cluster_calls::{DescribeClusterCalls, DescribeClusterCompletionFailure};
 pub(crate) use describe_configs_calls::{DescribeConfigsCalls, DescribeConfigsCompletionFailure};
 pub(crate) use describe_topics_calls::{DescribeTopicsCalls, DescribeTopicsCompletionFailure};
+#[cfg_attr(
+    not(test),
+    expect(unused_imports, reason = "awaiting direct-consumer executor")
+)]
+#[cfg_attr(
+    test,
+    allow(
+        unused_imports,
+        reason = "tracked Fetch calls land before the direct-consumer executor"
+    )
+)]
+pub(crate) use fetch::{
+    FetchAdmissionFailure, FetchAdmissionFailureSource, FetchBeginSettlementError,
+    FetchCallAdmission, FetchCompletionFailure, FetchCompletionObservation, FetchConfirmationError,
+    FetchControlPending, FetchPoll, FetchRecovery, FetchRequestPreparationError, FetchRestoreError,
+    FetchRestoreFailure, FetchTerminal, PartitionFetchRequest, StaleFetchConfirmationError,
+    StaleFetchDrains, TrackedFetchCalls,
+};
 pub(crate) use init_producer_id_calls::{
     ProducerIdentityCompletionFailure, TrackedProducerIdentityCalls,
 };

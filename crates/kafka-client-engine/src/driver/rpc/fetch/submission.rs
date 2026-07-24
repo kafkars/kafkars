@@ -1,4 +1,4 @@
-//! Tracked partition-leader submission of one generated `Fetch` request.
+//! Tracked partition-leader submission of one exact generated `Fetch` request.
 
 use std::{error::Error, fmt, time::Instant};
 
@@ -8,8 +8,7 @@ use kafka_driver::{
 };
 use kafka_wire::{FetchRequest, FetchResponse};
 
-use super::super::DriverOwner;
-use crate::protocol::fetch::FETCH_NAME_ROUTE_MAX_VERSION;
+use crate::{driver::DriverOwner, protocol::fetch::FETCH_NAME_ROUTE_MAX_VERSION};
 
 /// Definitely-unsent failure before the driver accepted request ownership.
 #[derive(Debug)]

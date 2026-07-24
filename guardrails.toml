@@ -389,8 +389,36 @@ production = "crates/kafka-client-engine/src/driver/rpc/describe_topics_terminal
 test = "crates/kafka-client-engine/src/driver/rpc/describe_topics_terminal_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/driver/rpc/fetch_submission.rs"
-test = "crates/kafka-client-engine/src/driver/rpc/fetch_submission_test.rs"
+production = "crates/kafka-client-engine/src/driver/rpc/fetch/admission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/fetch/admission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/fetch/calls_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/fetch/fence.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/fetch/fence_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/fetch/settlement.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/fetch/settlement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/fetch/settlement_owner.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/fetch/settlement_owner_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/fetch/stale.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/fetch/stale_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/fetch/submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/fetch/submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/fetch/terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/fetch/terminal_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/init_producer_id_calls.rs"
@@ -1341,6 +1369,7 @@ forbidden = [
 ]
 allow = [
   { path = "crates/kafka-client-engine/src/silent_broker_test.rs", capability = "std::net", reason = "A silent loopback listener makes driver deadline evidence deterministic without production socket ownership." },
+  { path = "crates/kafka-client-engine/src/driver/rpc/fetch/routed_response_broker_test.rs", capability = "std::net", reason = "One test-only loopback Kafka fixture proves real driver route-token ownership without exposing sockets to production or scenario code." },
 ]
 
 # Generated admin DTOs remain in one protocol seam without transport policy.
@@ -1523,6 +1552,7 @@ root = "crates/kafka-client-engine/src"
 method = "try_reserve"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/position_execution.rs",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_partitions.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/delete_topics.rs",
@@ -1604,6 +1634,53 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
+method = "submit_tracked_fetch"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/fetch/admission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "try_submit_fetch"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "observe_fetch_control"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "poll_fetch"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "begin_fetch_settlement"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "confirm_fetch_settlement"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "restore_fetch_settlement"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "confirm_stale_fetch"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "recover_fetches_after_driver_shutdown"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
 method = "recover_positions_after_driver_shutdown"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/position_execution.rs",
@@ -1628,6 +1705,7 @@ root = "crates/kafka-client-engine/src"
 method = "retained_count"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/position_execution.rs",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs",
@@ -2820,6 +2898,51 @@ field = "stale"
 allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs"]
 
 [[mutation_owners]]
+owner_type = "TrackedFetchCalls"
+field = "calls"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedFetchCalls"
+field = "settled"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedFetchCalls"
+field = "pending_confirmation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedFetchCalls"
+field = "completion_failure"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedFetchCall"
+field = "request"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "SettledFetchCall"
+field = "terminal"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/fetch/settlement.rs"]
+
+[[mutation_owners]]
 owner_type = "VirtualBatch"
 field = "members"
 allowed_paths = [
@@ -2868,6 +2991,58 @@ path = "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs"
 [[linear_owners]]
 owner_type = "TrackedPositionCalls"
 path = "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs"
+
+[[linear_owners]]
+owner_type = "PartitionFetchRequest"
+path = "crates/kafka-client-engine/src/driver/rpc/fetch/admission.rs"
+
+[[linear_owners]]
+owner_type = "FetchAdmissionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/fetch/admission.rs"
+
+[[linear_owners]]
+owner_type = "FetchCallAdmission"
+path = "crates/kafka-client-engine/src/driver/rpc/fetch/admission.rs"
+
+[[linear_owners]]
+owner_type = "FetchCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs"
+
+[[linear_owners]]
+owner_type = "TrackedFetchCall"
+path = "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs"
+
+[[linear_owners]]
+owner_type = "SettledFetchCall"
+path = "crates/kafka-client-engine/src/driver/rpc/fetch/settlement.rs"
+
+[[linear_owners]]
+owner_type = "PendingFetchConfirmation"
+path = "crates/kafka-client-engine/src/driver/rpc/fetch/settlement.rs"
+
+[[linear_owners]]
+owner_type = "TrackedFetchCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs"
+
+[[linear_owners]]
+owner_type = "FetchTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/fetch/terminal.rs"
+
+[[linear_owners]]
+owner_type = "FetchCompletionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/fetch/terminal.rs"
+
+[[linear_owners]]
+owner_type = "StaleFetchDrains"
+path = "crates/kafka-client-engine/src/driver/rpc/fetch/stale.rs"
+
+[[linear_owners]]
+owner_type = "FetchRecovery"
+path = "crates/kafka-client-engine/src/driver/rpc/fetch/stale.rs"
+
+[[linear_owners]]
+owner_type = "FetchRestoreFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/fetch/settlement.rs"
 
 [[linear_owners]]
 owner_type = "CreateTopicsMachine"

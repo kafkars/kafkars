@@ -5,12 +5,9 @@ use std::time::{Duration, Instant};
 use kafka_driver::{ApiVersion, RoutedCall, TrafficClass};
 use kafka_wire::{FetchRequest, FetchResponse};
 
-use crate::{EngineConfig, protocol::fetch::FETCH_NAME_ROUTE_MAX_VERSION};
+use crate::{EngineConfig, driver::DriverOwner, protocol::fetch::FETCH_NAME_ROUTE_MAX_VERSION};
 
-use super::{
-    super::DriverOwner,
-    fetch_submission::{FetchSubmitError, fetch_options},
-};
+use super::submission::{FetchSubmitError, fetch_options};
 
 #[test]
 fn options_preserve_original_deadline_long_poll_lane_and_name_ceiling() {

@@ -55,14 +55,32 @@ fn request_uses_generated_v12_name_and_exact_consumer_sentinels() {
 #[test]
 fn both_kafka_isolation_levels_are_represented_exactly() {
     for isolation_level in [0, 1] {
-        let request = fetch_request("events", 0, 0, settings(isolation_level))
+        let configured = settings(isolation_level);
+        let request = fetch_request("events", 0, 0, configured)
             .unwrap_or_else(|error| panic!("valid isolation level: {error:?}"));
         assert_eq!(request.isolation_level, isolation_level);
+        assert_eq!(configured.is_read_uncommitted(), isolation_level == 0);
     }
+    assert!(!settings(2).is_read_uncommitted());
     assert_eq!(
         fetch_request("events", 0, 0, settings(2)),
         Err(FetchRequestFailure::InvalidIsolationLevel { actual: 2 })
     );
+}
+
+#[test]
+fn max_wait_cap_changes_only_the_broker_long_poll() {
+    let configured = settings(1);
+    let capped = fetch_request("events", 7, 42, configured.cap_max_wait_ms(37))
+        .unwrap_or_else(|error| panic!("deadline-capped Fetch request: {error:?}"));
+    assert_eq!(capped.max_wait_ms, 37);
+    assert_eq!(capped.min_bytes, 1);
+    assert_eq!(capped.max_bytes, 50 * 1024 * 1024);
+    assert_eq!(capped.isolation_level, 1);
+
+    let unchanged = fetch_request("events", 7, 42, configured.cap_max_wait_ms(1_000))
+        .unwrap_or_else(|error| panic!("uncapped Fetch request: {error:?}"));
+    assert_eq!(unchanged.max_wait_ms, 500);
 }
 
 #[test]

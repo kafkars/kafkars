@@ -306,12 +306,13 @@ evidence = [
 
 [[invariant]]
 id = "CON-03"
-title = "Direct Fetch protocol is bounded and version-fenced"
-statement = "The direct-consumer Fetch seam builds one name-routed normal-consumer partition request with exact Kafka sentinels, validates isolation and byte settings, and requires the driver-selected version to remain within v4-v12. Nonzero top-level or exactly correlated partition broker codes remain exact signed failures and short-circuit success-only session, throttle, and record decoding while retaining no application data. Successful normalization delegates RecordBatch decoding, CRC, and compression to kafka-wire-records, cumulatively bounds scratch generated and decoded storage, filters records below the requested offset, drops empty and control batches from delivery, advances only through complete batches including control or compacted-empty batches, ignores partial tails for advancement, and never regresses the requested offset. Before publication, stable descriptor capacity and visible byte spans must fit the pre-acquired hard output reservation; exact slack is reported and every local or retention failure returns the linear token."
+title = "Direct Fetch protocol is bounded and raw-terminal fenced"
+statement = "The direct-consumer Fetch seam builds one name-routed normal-consumer partition request with exact Kafka sentinels and validates isolation and byte settings. Admission reserves bounded tracked-call capacity before driver submission, returns the exact prepared request under backpressure or local rejection, proves remaining original core-deadline time before request construction, caps broker max-wait to that remainder, and preserves the original transport deadline and LongPoll lane. The driver boundary retains the exact prepared request, monotonic observation, selected version, opaque route token, and raw generated response without correlation, normalization, decompression, or RecordBatch decoding. Two-phase settlement moves the raw terminal while the registry retains the route token; exact confirmation releases it and exact restoration is lossless. Directionally newer partition control or exact old-assignment revocation returns the prepared owner through a must-use stale drain while the driver call continues draining and later requires exact stale confirmation. Future and cross-partition control retain ownership, and completion corruption retains its exact prepared request until explicit post-driver-shutdown recovery. Composed normalization requires the driver-selected version to remain within v4-v12. Nonzero top-level or exactly correlated partition broker codes remain exact signed failures and short-circuit success-only session, throttle, and record decoding while retaining no application data. Successful normalization delegates RecordBatch decoding, CRC, and compression to kafka-wire-records, cumulatively bounds scratch generated and decoded storage, filters records below the requested offset, drops empty and control batches from delivery, advances only through complete batches including control or compacted-empty batches, ignores partial tails for advancement, and never regresses the requested offset. Before publication, stable descriptor capacity and visible byte spans must fit the pre-acquired hard output reservation; exact slack is reported and every local or retention failure returns the linear token."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/protocol/fetch/request_test.rs::request_uses_generated_v12_name_and_exact_consumer_sentinels",
   "crates/kafka-client-engine/src/protocol/fetch/request_test.rs::both_kafka_isolation_levels_are_represented_exactly",
+  "crates/kafka-client-engine/src/protocol/fetch/request_test.rs::max_wait_cap_changes_only_the_broker_long_poll",
   "crates/kafka-client-engine/src/protocol/fetch/response_test.rs::selected_version_must_preserve_name_routing_and_fetch_semantics",
   "crates/kafka-client-engine/src/protocol/fetch/response_test.rs::missing_duplicate_and_unexpected_topics_never_correlate",
   "crates/kafka-client-engine/src/protocol/fetch/response_test.rs::missing_duplicate_and_unexpected_partitions_never_correlate",
@@ -328,6 +329,15 @@ evidence = [
   "crates/kafka-client-engine/src/protocol/fetch/outcome_offset_test.rs::complete_empty_data_batch_advances_without_delivery_or_charge",
   "crates/kafka-client-engine/src/protocol/fetch/outcome_test.rs::retained_uncompressed_payload_moves_without_copying",
   "crates/kafka-client-engine/src/protocol/fetch/outcome_test.rs::scratch_decode_limits_are_independent_from_final_output_reservation",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/submission_test.rs::options_preserve_original_deadline_long_poll_lane_and_name_ceiling",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/calls_test.rs::full_capacity_returns_the_exact_prepared_fetch_without_driver_submission",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/calls_test.rs::accepted_stale_call_returns_request_before_the_driver_call_drains",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/calls_test.rs::completion_corruption_recovers_the_exact_prepared_request_after_shutdown",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/settlement_owner_test.rs::raw_settlement_restores_or_confirms_only_the_exact_fence",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/settlement_owner_test.rs::stale_control_returns_request_and_requires_exact_stale_confirmation",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/routed_response_test.rs::actual_route_token_survives_restore_and_only_exact_live_confirmation_releases_it",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/routed_response_test.rs::actual_stale_route_token_requires_exact_stale_confirmation",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/terminal_test.rs::raw_terminal_preserves_selected_version_and_uninterpreted_broker_response",
 ]
 
 [[invariant]]
@@ -342,6 +352,8 @@ evidence = [
   "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::accounting_corruption_preserves_the_full_prepared_entry",
   "crates/kafka-client-engine/src/producer/execution/handoff_test.rs::missing_schedule_preserves_the_full_prepared_entry",
   "crates/kafka-client-core/src/producer_test.rs::elapsed_deadline_never_crosses_admission",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/admission_test.rs::deadline_precedes_request_validation_and_caps_broker_max_wait",
+  "crates/kafka-client-engine/src/driver/rpc/fetch/calls_test.rs::elapsed_deadline_precedes_full_registry_backpressure",
   "crates/kafka-client-engine/src/producer/execution/deadline_test.rs::due_entries_emit_exact_facts_in_deadline_then_batch_order",
   "crates/kafka-client-engine/src/producer/execution_test.rs::pre_driver_expiry_releases_encoded_and_original_bytes_as_not_sent",
   "crates/kafka-client-engine/src/producer/execution_turn_test.rs::pre_driver_expiry_releases_both_byte_owners_and_publishes_not_sent",
