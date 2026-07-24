@@ -26,8 +26,14 @@ pub use crate::admin::{
     DescribeTopicsAccepted, DescribeTopicsAcceptedFaultKind, DescribeTopicsAdmissionError,
     DescribeTopicsAdmissionErrorKind, DescribeTopicsDeliveryStatus, DescribeTopicsFailure,
     DescribeTopicsFailureKind, DescribeTopicsObserver, DescribeTopicsObserverError,
-    DescribeTopicsOutcome, DescribeTopicsRequest, PartitionIncrease, PartitionIncreaseError,
-    PartitionIncreaseResult, TopicDescription, TopicPartitionDescription,
+    DescribeTopicsOutcome, DescribeTopicsRequest, IncrementalAlterConfigError,
+    IncrementalAlterConfigResult, IncrementalAlterConfigsDeliveryStatus,
+    IncrementalAlterConfigsFailure, IncrementalAlterConfigsFailureKind,
+    IncrementalAlterConfigsObserver, IncrementalAlterConfigsObserverError,
+    IncrementalAlterConfigsOutcome, IncrementalAlterConfigsRequest, IncrementalAlterConfigsResult,
+    IncrementalConfigAlteration, IncrementalConfigOperation, PartitionIncrease,
+    PartitionIncreaseError, PartitionIncreaseResult, TopicConfigAlterations, TopicDescription,
+    TopicPartitionDescription,
 };
 pub use crate::config::{EngineConfig, EngineProducerLimits, ProducerCompression};
 pub use crate::consumer::{

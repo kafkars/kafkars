@@ -85,6 +85,7 @@ pub(crate) fn start(
         create_partitions,
         describe_topics,
         describe_configs,
+        incremental_alter_configs: _incremental_alter_configs,
     } = admin_ports;
     let create_topics = CreateTopicsHost::new(create_topics);
     let delete_topics = DeleteTopicsHost::new(delete_topics);

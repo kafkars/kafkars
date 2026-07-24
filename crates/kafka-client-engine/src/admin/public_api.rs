@@ -1,5 +1,13 @@
 //! Curated public and crate-private admin re-exports.
 
+pub use super::alter_configs::{
+    IncrementalAlterConfigError, IncrementalAlterConfigResult,
+    IncrementalAlterConfigsDeliveryStatus, IncrementalAlterConfigsFailure,
+    IncrementalAlterConfigsFailureKind, IncrementalAlterConfigsObserver,
+    IncrementalAlterConfigsObserverError, IncrementalAlterConfigsOutcome,
+    IncrementalAlterConfigsRequest, IncrementalAlterConfigsResult, IncrementalConfigAlteration,
+    IncrementalConfigOperation, TopicConfigAlterations,
+};
 pub(crate) use super::configs::{
     DESCRIBE_CONFIGS_CAPACITY, DescribeConfigsAdmissionPort, DescribeConfigsHost,
     DescribeConfigsHostError, DescribeConfigsShardLockError, DescribeConfigsShardOwner,

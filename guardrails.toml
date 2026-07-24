@@ -6636,3 +6636,91 @@ path = "crates/kafka-client-engine/src/admin/configs/shard.rs"
 [[linear_owners]]
 owner_type = "DescribeConfigsObserver"
 path = "crates/kafka-client-engine/src/admin/configs/observer.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/alter_configs/model.rs"
+test = "crates/kafka-client-engine/src/admin/alter_configs/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/alter_configs/host.rs"
+test = "crates/kafka-client-engine/src/admin/alter_configs/host_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/alter_configs/observer.rs"
+test = "crates/kafka-client-engine/src/admin/alter_configs/observer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/alter_configs/outcome.rs"
+test = "crates/kafka-client-engine/src/admin/alter_configs/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/alter_configs/shard.rs"
+test = "crates/kafka-client-engine/src/admin/alter_configs/shard_test.rs"
+
+[[mutation_owners]]
+owner_type = "IncrementalAlterConfigsHost"
+field = "operations"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/alter_configs/host.rs",
+  "crates/kafka-client-engine/src/admin/alter_configs/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/alter_configs/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "IncrementalAlterConfigsHost"
+field = "completions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/alter_configs/host.rs",
+  "crates/kafka-client-engine/src/admin/alter_configs/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/alter_configs/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "IncrementalAlterConfigsHost"
+field = "retained_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/alter_configs/host.rs",
+  "crates/kafka-client-engine/src/admin/alter_configs/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/alter_configs/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "IncrementalAlterConfigsHost"
+field = "published_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/alter_configs/host.rs",
+  "crates/kafka-client-engine/src/admin/alter_configs/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "IncrementalAlterConfigsHost"
+field = "next_operation_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/alter_configs/host.rs",
+  "crates/kafka-client-engine/src/admin/alter_configs/host/admission.rs",
+]
+
+[[mutation_owners]]
+owner_type = "IncrementalAlterConfigsOperation"
+field = "handoff"
+allowed_paths = ["crates/kafka-client-engine/src/admin/alter_configs/host.rs"]
+
+[[linear_owners]]
+owner_type = "IncrementalAlterConfigsHost"
+path = "crates/kafka-client-engine/src/admin/alter_configs/host.rs"
+
+[[linear_owners]]
+owner_type = "IncrementalAlterConfigsOperation"
+path = "crates/kafka-client-engine/src/admin/alter_configs/host.rs"
+
+[[linear_owners]]
+owner_type = "IncrementalAlterConfigsSubmission"
+path = "crates/kafka-client-engine/src/admin/alter_configs/host.rs"
+
+[[linear_owners]]
+owner_type = "IncrementalAlterConfigsShardOwner"
+path = "crates/kafka-client-engine/src/admin/alter_configs/shard.rs"
+
+[[linear_owners]]
+owner_type = "IncrementalAlterConfigsObserver"
+path = "crates/kafka-client-engine/src/admin/alter_configs/observer.rs"

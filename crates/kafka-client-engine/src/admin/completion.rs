@@ -4,7 +4,7 @@ use std::thread::ThreadId;
 
 use kafka_client_core::{
     CreatePartitionsTerminal, CreateTopicsTerminal, DeleteTopicsTerminal, DescribeClusterTerminal,
-    DescribeConfigsTerminal, DescribeTopicsTerminal,
+    DescribeConfigsTerminal, DescribeTopicsTerminal, IncrementalAlterConfigsTerminal,
 };
 
 use crate::completion::{
@@ -15,6 +15,7 @@ use crate::completion::{
 use super::{
     CREATE_PARTITIONS_CAPACITY, CREATE_TOPICS_CAPACITY, DELETE_TOPICS_CAPACITY,
     DESCRIBE_CLUSTER_CAPACITY, DESCRIBE_CONFIGS_CAPACITY, DESCRIBE_TOPICS_CAPACITY,
+    INCREMENTAL_ALTER_CONFIGS_CAPACITY,
 };
 
 const ADMIN_NOTIFIER_THREAD: &str = "kafka-client-admin-completion-notifier";
@@ -23,7 +24,8 @@ const ADMIN_NOTIFICATION_CAPACITY: usize = CREATE_TOPICS_CAPACITY
     + DESCRIBE_CLUSTER_CAPACITY
     + CREATE_PARTITIONS_CAPACITY
     + DESCRIBE_TOPICS_CAPACITY
-    + DESCRIBE_CONFIGS_CAPACITY;
+    + DESCRIBE_CONFIGS_CAPACITY
+    + INCREMENTAL_ALTER_CONFIGS_CAPACITY;
 
 /// Closed allocation-free set of terminal tickets accepted by the admin worker.
 pub(crate) enum AdminPublishTicket {
@@ -33,6 +35,7 @@ pub(crate) enum AdminPublishTicket {
     CreatePartitions(PublishTicket<CreatePartitionsTerminal>),
     DescribeTopics(PublishTicket<DescribeTopicsTerminal>),
     DescribeConfigs(PublishTicket<DescribeConfigsTerminal>),
+    IncrementalAlterConfigs(PublishTicket<IncrementalAlterConfigsTerminal>),
 }
 
 impl NotificationTicket for AdminPublishTicket {
@@ -44,6 +47,7 @@ impl NotificationTicket for AdminPublishTicket {
             Self::CreatePartitions(ticket) => ticket.publish(),
             Self::DescribeTopics(ticket) => ticket.publish(),
             Self::DescribeConfigs(ticket) => ticket.publish(),
+            Self::IncrementalAlterConfigs(ticket) => ticket.publish(),
         }
     }
 }
@@ -58,6 +62,8 @@ pub(crate) type DescribeTopicsPublisher =
     SharedPublishPort<DescribeTopicsTerminal, AdminPublishTicket>;
 pub(crate) type DescribeConfigsPublisher =
     SharedPublishPort<DescribeConfigsTerminal, AdminPublishTicket>;
+pub(crate) type IncrementalAlterConfigsPublisher =
+    SharedPublishPort<IncrementalAlterConfigsTerminal, AdminPublishTicket>;
 
 /// Exact typed ports issued once with the shared worker.
 pub(crate) struct AdminCompletionPorts {
@@ -67,6 +73,7 @@ pub(crate) struct AdminCompletionPorts {
     pub(crate) create_partitions: CreatePartitionsPublisher,
     pub(crate) describe_topics: DescribeTopicsPublisher,
     pub(crate) describe_configs: DescribeConfigsPublisher,
+    pub(crate) incremental_alter_configs: IncrementalAlterConfigsPublisher,
 }
 
 /// Unique lifecycle owner for the one shared admin notifier.
@@ -84,6 +91,8 @@ impl AdminCompletionNotifier {
             create_partitions: worker.publish_port(AdminPublishTicket::CreatePartitions),
             describe_topics: worker.publish_port(AdminPublishTicket::DescribeTopics),
             describe_configs: worker.publish_port(AdminPublishTicket::DescribeConfigs),
+            incremental_alter_configs: worker
+                .publish_port(AdminPublishTicket::IncrementalAlterConfigs),
         };
         Ok((
             Self {

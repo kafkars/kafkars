@@ -198,8 +198,8 @@ evidence = [
 
 [[invariant]]
 id = "ADM-09"
-title = "IncrementalAlterConfigs policy and protocol are ordered and exact"
-statement = "One capacity-reserved topic IncrementalAlterConfigs machine validates a nonempty ordered batch of unique topics with at least one nonempty unique key each; represents Set, Delete, Append, and Subtract with exact value presence; retains one original absolute deadline; emits only one concrete submit attempt; revalidates ordered topic correlation; assigns at most one terminal decision; preserves nonnegative throttle, exact signed broker codes, bounded-diagnostic facts, and authoritative delivery certainty; and terminates compatibility without retry, legacy AlterConfigs fallback, invalidation, cache authority, generated protocol types, or transport types. The engine constructs the real generated API-key 44 v0/v1 request with topic resource type 2, exact Set=0, Delete=1, Append=2, and Subtract=3 operation codes, null values only for Delete, caller order, and validate-only intent; it restores generated resource results to request order, rejects negative throttle and malformed resource identity, preserves exact signed codes, and bounds nullable UTF-8 diagnostics before core ownership without adding driver execution or policy."
+title = "IncrementalAlterConfigs policy, ownership, and protocol are ordered, bounded, and exact"
+statement = "One capacity-reserved topic IncrementalAlterConfigs machine validates a nonempty ordered batch of unique topics with at least one nonempty unique key each; represents Set, Delete, Append, and Subtract with exact value presence; retains one original absolute deadline; emits only one concrete submit attempt; revalidates ordered topic correlation; assigns at most one terminal decision; preserves nonnegative throttle, exact signed broker codes, bounded-diagnostic facts, and authoritative delivery certainty; and terminates compatibility without retry, legacy AlterConfigs fallback, invalidation, cache authority, generated protocol types, or transport types. Its concrete engine owner canonicalizes request strings, uses the shared conservative operation charge plus an explicit terminal normalization ceiling, reserves one operation slot and terminal cell before machine construction, retains bytes through single terminal publication and observer reclamation, preserves untouched NotSent versus handed-off or submitted PossiblySent recovery, and joins the closed shared-admin notifier capacity. The engine constructs the real generated API-key 44 v0/v1 request with topic resource type 2, exact Set=0, Delete=1, Append=2, and Subtract=3 operation codes, null values only for Delete, caller order, and validate-only intent; it restores generated resource results to request order, rejects negative throttle and malformed resource identity, preserves exact signed codes, and bounds nullable UTF-8 diagnostics before core ownership without adding driver execution, scheduling, or policy."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/admin/alter_configs/model_test.rs::plan_preserves_topic_operation_order_flags_and_exact_value_semantics",
@@ -216,6 +216,13 @@ evidence = [
   "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/response_test.rs::malformed_resource_identity_and_negative_throttle_are_rejected",
   "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/response_test.rs::closed_shape_failures_cover_count_unexpected_missing_and_duplicate_topics",
   "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/retention_test.rs::retained_budget_bounds_utf8_diagnostics_before_core_ownership",
+  "crates/kafka-client-engine/src/admin/alter_configs/model_test.rs::shared_operation_charge_covers_the_separate_terminal_result_limit",
+  "crates/kafka-client-engine/src/admin/alter_configs/host_test.rs::admission_reserves_slot_completion_bytes_and_original_deadline_before_machine_start",
+  "crates/kafka-client-engine/src/admin/alter_configs/host_test.rs::operation_and_completion_capacity_reject_before_constructing_an_extra_machine",
+  "crates/kafka-client-engine/src/admin/alter_configs/host_test.rs::abandoned_observer_releases_reserved_bytes_once_after_terminal_publication",
+  "crates/kafka-client-engine/src/admin/alter_configs/host_test.rs::recovery_distinguishes_untouched_handed_off_and_submitted_work",
+  "crates/kafka-client-engine/src/admin/alter_configs/outcome_test.rs::throttle_order_exact_signed_code_and_diagnostic_fact_cross_losslessly",
+  "crates/kafka-client-engine/src/admin/completion_test.rs::incremental_alter_configs_is_included_in_the_closed_shared_capacity_equation",
 ]
 
 [[invariant]]

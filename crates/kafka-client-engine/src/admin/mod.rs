@@ -1,4 +1,12 @@
 //! Concrete bounded admin owners without a generic state-machine framework.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "driver execution and scheduling follow the bounded incremental owner"
+    )
+)]
+mod alter_configs;
 mod completion;
 #[cfg(test)]
 mod completion_test;

@@ -2,7 +2,7 @@
 
 use super::{
     CreatePartitionsHost, CreateTopicsHost, DeleteTopicsHost, DescribeClusterHost,
-    DescribeConfigsHost, DescribeTopicsHost,
+    DescribeConfigsHost, DescribeTopicsHost, IncrementalAlterConfigsHost,
     completion::{AdminCompletionNotifier, AdminCompletionPorts},
 };
 
@@ -34,6 +34,15 @@ pub(super) fn describe_topics_host() -> (DescribeTopicsHost, AdminCompletionNoti
 pub(super) fn describe_configs_host() -> (DescribeConfigsHost, AdminCompletionNotifier) {
     let (notifier, ports) = completion_owner();
     (DescribeConfigsHost::new(ports.describe_configs), notifier)
+}
+
+pub(super) fn incremental_alter_configs_host()
+-> (IncrementalAlterConfigsHost, AdminCompletionNotifier) {
+    let (notifier, ports) = completion_owner();
+    (
+        IncrementalAlterConfigsHost::new(ports.incremental_alter_configs),
+        notifier,
+    )
 }
 
 pub(super) fn completion_owner() -> (AdminCompletionNotifier, AdminCompletionPorts) {
