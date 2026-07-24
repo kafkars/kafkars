@@ -547,6 +547,10 @@ production = "crates/kafka-client-engine/src/protocol/admin/timeout.rs"
 test = "crates/kafka-client-engine/src/protocol/admin/timeout_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/error/host.rs"
+test = "crates/kafka-client-engine/src/engine_host/error/host_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/admin/retention.rs"
 test = "crates/kafka-client-engine/src/admin/retention_test.rs"
 

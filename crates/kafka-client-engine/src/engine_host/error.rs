@@ -3,16 +3,14 @@
 use std::fmt;
 
 use crate::{
-    admin::CreateTopicsHostError,
-    clock::ClockError,
-    completion::NotifierJoinError,
-    config::EngineConfigError,
-    driver::{CreateTopicsCompletionFailure, DriverOwnerError, ProduceCompletionFailure},
-    producer::{
-        ProducerHostInvariantError, ProducerHostStartError, execution::PreparedProduceHandoffError,
-        execution_stop::ProducerExecutionStopError, ingress::ProducerShardTerminalError,
-    },
+    config::EngineConfigError, driver::DriverOwnerError, producer::ProducerHostStartError,
 };
+
+mod host;
+#[cfg(test)]
+mod host_test;
+
+pub(crate) use host::EngineHostError;
 
 /// Stable category for engine startup failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -138,99 +136,4 @@ pub enum EngineShutdownErrorKind {
     Host,
     /// A notifier callback initiated shutdown and cannot wait for itself.
     NotifierThread,
-}
-
-#[derive(Debug)]
-pub(crate) enum EngineHostError {
-    Clock(ClockError),
-    Producer(ProducerHostInvariantError),
-    ProducerHandoff(PreparedProduceHandoffError),
-    ProduceCompletion(ProduceCompletionFailure),
-    ProducerStop(ProducerExecutionStopError),
-    ProducerCleanup(ProducerShardTerminalError),
-    ProducerLockPoisoned,
-    Admin(CreateTopicsHostError),
-    CreateTopicsCompletion(CreateTopicsCompletionFailure),
-    AdminLockPoisoned,
-    Driver(DriverOwnerError),
-    DriverOwnerMissing,
-    DriverStopped,
-    TrackedProduceCallsRemain(usize),
-    TrackedCreateTopicsCallsRemain(usize),
-    HostPanicked,
-    Notifier(NotifierJoinError),
-    Recovery {
-        primary: Box<EngineHostError>,
-        cleanup: Box<EngineHostError>,
-    },
-    #[cfg(test)]
-    ForcedTestFailure,
-}
-
-impl fmt::Display for EngineHostError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Clock(error) => write!(formatter, "engine clock failed: {error}"),
-            Self::Producer(error) => write!(formatter, "producer host failed: {error}"),
-            Self::ProducerHandoff(error) => {
-                write!(formatter, "prepared Produce handoff failed: {error}")
-            }
-            Self::ProduceCompletion(error) => write!(formatter, "{error}"),
-            Self::ProducerStop(error) => write!(formatter, "producer recovery failed: {error}"),
-            Self::ProducerCleanup(error) => {
-                write!(formatter, "producer terminal cleanup failed: {error}")
-            }
-            Self::ProducerLockPoisoned => {
-                formatter.write_str("producer host ownership lock is poisoned")
-            }
-            Self::Admin(error) => write!(formatter, "CreateTopics host failed: {error}"),
-            Self::CreateTopicsCompletion(error) => write!(formatter, "{error}"),
-            Self::AdminLockPoisoned => {
-                formatter.write_str("CreateTopics host ownership lock is poisoned")
-            }
-            Self::Driver(error) => write!(formatter, "embedded driver failed: {error}"),
-            Self::DriverOwnerMissing => formatter.write_str("embedded driver owner is unavailable"),
-            Self::DriverStopped => formatter.write_str("embedded driver stopped unexpectedly"),
-            Self::TrackedProduceCallsRemain(count) => {
-                write!(
-                    formatter,
-                    "{count} tracked Produce calls remain at terminal cleanup"
-                )
-            }
-            Self::TrackedCreateTopicsCallsRemain(count) => {
-                write!(
-                    formatter,
-                    "{count} tracked CreateTopics calls remain at terminal cleanup"
-                )
-            }
-            Self::HostPanicked => formatter.write_str("engine host thread panicked"),
-            Self::Notifier(error) => write!(formatter, "completion notifier failed: {error}"),
-            Self::Recovery { primary, cleanup } => {
-                write!(
-                    formatter,
-                    "{primary}; terminal cleanup also failed: {cleanup}"
-                )
-            }
-            #[cfg(test)]
-            Self::ForcedTestFailure => formatter.write_str("forced engine host test failure"),
-        }
-    }
-}
-
-impl EngineHostError {
-    pub(super) fn with_cleanup(self, cleanup: Self) -> Self {
-        Self::Recovery {
-            primary: Box::new(self),
-            cleanup: Box::new(cleanup),
-        }
-    }
-}
-
-impl std::error::Error for EngineHostError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Recovery { primary, .. } => Some(primary),
-            _ => None,
-        }
-    }
 }
