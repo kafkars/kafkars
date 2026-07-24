@@ -17,17 +17,31 @@ use super::{
 };
 
 impl AssignedConsumerPort {
+    pub(crate) fn capture_assignment_deadline(
+        &self,
+        timeout: Duration,
+    ) -> Result<crate::clock::DeadlineCapture, AssignedConsumerPortError> {
+        self.shared
+            .clock
+            .capture_deadline_after(timeout)
+            .map_err(AssignedConsumerPortError::Clock)
+    }
+
     pub(crate) fn replace_assignment(
         &self,
         entries: Vec<AssignedPartitionInput>,
         timeout: Duration,
     ) -> Result<AssignedConsumerAccepted<AssignmentEpoch>, AssignedConsumerPortError> {
-        let capture = self
-            .shared
-            .clock
-            .capture_deadline_after(timeout)
-            .map_err(AssignedConsumerPortError::Clock)?;
-        self.admit(move |owner| owner.replace_assignment_captured(entries, capture))
+        let deadline = self.capture_assignment_deadline(timeout)?;
+        self.replace_assignment_captured(entries, deadline)
+    }
+
+    pub(crate) fn replace_assignment_captured(
+        &self,
+        entries: Vec<AssignedPartitionInput>,
+        deadline: crate::clock::DeadlineCapture,
+    ) -> Result<AssignedConsumerAccepted<AssignmentEpoch>, AssignedConsumerPortError> {
+        self.admit(move |owner| owner.replace_assignment_captured(entries, deadline))
     }
 
     pub(crate) fn pause(

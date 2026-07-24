@@ -16,6 +16,8 @@ pub(crate) mod admin_topics_operation;
 pub(crate) mod admin_topics_result;
 mod client;
 pub(crate) mod consumer;
+pub(crate) mod consumer_assignment;
+pub(crate) mod consumer_assignment_result;
 pub(crate) mod consumer_close;
 pub(crate) mod consumer_result;
 pub(crate) mod producer;
@@ -55,6 +57,10 @@ mod admin_topics_operation_test;
 mod admin_topics_result_test;
 #[cfg(test)]
 mod client_test;
+#[cfg(test)]
+mod consumer_assignment_result_test;
+#[cfg(test)]
+mod consumer_assignment_test;
 #[cfg(test)]
 mod consumer_close_test;
 #[cfg(test)]

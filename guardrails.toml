@@ -953,6 +953,10 @@ production = "crates/kafka-client-engine/src/consumer/assigned_host/assignment.r
 test = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_capture.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_capture_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/position_prepare_error.rs"
 test = "crates/kafka-client-engine/src/consumer/position_prepare_error_test.rs"
 
@@ -1305,6 +1309,14 @@ production = "crates/kafka-client/src/bridge/consumer.rs"
 test = "crates/kafka-client/src/bridge/consumer_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client/src/bridge/consumer_assignment.rs"
+test = "crates/kafka-client/src/bridge/consumer_assignment_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/consumer_assignment_result.rs"
+test = "crates/kafka-client/src/bridge/consumer_assignment_result_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client/src/bridge/consumer_close.rs"
 test = "crates/kafka-client/src/bridge/consumer_close_test.rs"
 
@@ -1403,6 +1415,10 @@ test = "crates/kafka-client/src/producer/handle_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/consumer/assigned.rs"
 test = "crates/kafka-client/src/consumer/assigned_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/consumer/assignment.rs"
+test = "crates/kafka-client/src/consumer/assignment_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/consumer/assigned_builder.rs"
@@ -2692,6 +2708,13 @@ allowed_paths = [
 
 [[call_capabilities]]
 root = "crates/kafka-client-engine/src"
+call = "AssignedConsumerAssignmentCapture::bind_deadline_to_handle"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_host/handle.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
 call = "FetchAttemptDeadline::capture_for_fetch"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
@@ -2903,6 +2926,23 @@ forbidden = [
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/assigned_host/assignment.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_capture.rs"
 forbidden = [
   "kafka_driver",
   "kafka_wire",
@@ -4585,6 +4625,10 @@ owner_type = "AssignedConsumerTryCloseAccepted"
 path = "crates/kafka-client-engine/src/consumer/assigned_host/result.rs"
 
 [[linear_owners]]
+owner_type = "AssignedConsumerAssignmentCapture"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_capture.rs"
+
+[[linear_owners]]
 owner_type = "AssignedConsumerCompletionNotifier"
 path = "crates/kafka-client-engine/src/consumer/assigned_host/completion.rs"
 
@@ -5735,6 +5779,10 @@ path = "crates/kafka-client/src/producer/close.rs"
 [[linear_owners]]
 owner_type = "AssignedConsumerEngine"
 path = "crates/kafka-client/src/bridge/consumer.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerAssignmentState"
+path = "crates/kafka-client/src/bridge/consumer_assignment.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumerClose"

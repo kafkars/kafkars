@@ -3,6 +3,7 @@
 use std::{cell::Cell, marker::PhantomData, sync::Arc, time::Duration};
 
 use super::{
+    assignment_capture::AssignedConsumerAssignmentCapture,
     assignment_result::{
         AssignedConsumerAssignmentEpoch, AssignedConsumerTryReplaceAssignmentAccepted,
         AssignedConsumerTryReplaceAssignmentError,
@@ -43,8 +44,35 @@ impl AssignedConsumerHandle {
         AssignedConsumerTryReplaceAssignmentAccepted,
         AssignedConsumerTryReplaceAssignmentError,
     > {
+        let capture = self.capture_replace_assignment(resolution_timeout)?;
+        capture.try_replace_assignment(entries)
+    }
+
+    /// Captures the operation deadline before caller-owned input conversion.
+    pub fn capture_replace_assignment(
+        &mut self,
+        resolution_timeout: Duration,
+    ) -> Result<AssignedConsumerAssignmentCapture<'_>, AssignedConsumerTryReplaceAssignmentError>
+    {
+        let deadline = self
+            .port
+            .capture_assignment_deadline(resolution_timeout)
+            .map_err(|error| AssignedConsumerTryReplaceAssignmentError::from_port(&error))?;
+        Ok(AssignedConsumerAssignmentCapture::bind_deadline_to_handle(
+            self, deadline,
+        ))
+    }
+
+    pub(super) fn try_replace_assignment_captured(
+        &mut self,
+        entries: Vec<crate::consumer::AssignedConsumerAssignment>,
+        deadline: crate::clock::DeadlineCapture,
+    ) -> Result<
+        AssignedConsumerTryReplaceAssignmentAccepted,
+        AssignedConsumerTryReplaceAssignmentError,
+    > {
         self.port
-            .replace_assignment(entries, resolution_timeout)
+            .replace_assignment_captured(entries, deadline)
             .map(AssignedConsumerTryReplaceAssignmentAccepted::from_port)
             .map_err(|error| AssignedConsumerTryReplaceAssignmentError::from_port(&error))
     }

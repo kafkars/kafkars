@@ -31,7 +31,8 @@ pub use crate::admin::{
 };
 pub use crate::config::{EngineConfig, EngineProducerLimits, ProducerCompression};
 pub use crate::consumer::{
-    AssignedConsumerAcceptedFaultKind, AssignedConsumerAssignment, AssignedConsumerAssignmentEpoch,
+    AssignedConsumerAcceptedFaultKind, AssignedConsumerAssignment,
+    AssignedConsumerAssignmentCapture, AssignedConsumerAssignmentEpoch,
     AssignedConsumerAssignmentInputError, AssignedConsumerAssignmentInputErrorKind,
     AssignedConsumerClaimError, AssignedConsumerCloseObserver, AssignedConsumerCloseObserverError,
     AssignedConsumerControlAccepted, AssignedConsumerControlError,
