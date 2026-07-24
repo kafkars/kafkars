@@ -3,10 +3,14 @@
 use std::fmt;
 
 use crate::{
-    config::EngineConfigError, driver::DriverOwnerError, producer::ProducerHostStartError,
+    config::EngineConfigError, consumer::AssignedConsumerOwnerBuildError, driver::DriverOwnerError,
+    producer::ProducerHostStartError,
 };
 
 mod host;
+mod host_display;
+#[cfg(test)]
+mod host_display_test;
 #[cfg(test)]
 mod host_test;
 
@@ -23,6 +27,8 @@ pub enum EngineStartErrorKind {
     Producer,
     /// Bounded admin resources could not be acquired.
     Admin,
+    /// Bounded direct-consumer resources could not be acquired.
+    Consumer,
     /// The native engine host thread could not start.
     HostThread,
     /// Startup ownership could not be handed to the host thread.
@@ -61,6 +67,13 @@ impl EngineStartError {
         Self::new(
             EngineStartErrorKind::Admin,
             format!("failed to start shared admin completion notifier: {error}"),
+        )
+    }
+
+    pub(super) fn assigned_consumer(error: AssignedConsumerOwnerBuildError) -> Self {
+        Self::new(
+            EngineStartErrorKind::Consumer,
+            format!("failed to start assigned consumer: {error:?}"),
         )
     }
 

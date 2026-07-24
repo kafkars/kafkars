@@ -180,7 +180,7 @@ fn reclaim_remains_available_through_owner_and_fetch_faults() {
     assert_eq!(owner.fetches.retained().1, 1);
 }
 
-fn ready_owner() -> AssignedConsumerOwner {
+pub(super) fn ready_owner() -> AssignedConsumerOwner {
     let mut owner = owner(2);
     owner
         .replace_assignment(
@@ -193,7 +193,7 @@ fn ready_owner() -> AssignedConsumerOwner {
     owner
 }
 
-fn install_pending_ready(owner: &mut AssignedConsumerOwner, record_offset: i64) {
+pub(super) fn install_pending_ready(owner: &mut AssignedConsumerOwner, record_offset: i64) {
     let prepared = owner
         .pending_fetches
         .pop_front()

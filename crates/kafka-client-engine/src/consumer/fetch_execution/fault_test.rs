@@ -56,7 +56,7 @@ fn completion_corruption_freezes_every_surface_and_recovers_exact_owners() {
     driver
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("driver shutdown: {error}"));
-    let recovery = executor.recover_after_driver_shutdown();
+    let recovery = executor.release_fetch_executor_after_driver_shutdown();
     assert!(recovery.had_fault());
     let (requests, completion) = recovery.into_driver_recovery().into_parts();
     assert_eq!(requests.len(), 1);

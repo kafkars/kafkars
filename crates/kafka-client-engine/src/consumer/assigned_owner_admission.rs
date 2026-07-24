@@ -1,10 +1,13 @@
 //! Deadline-first assignment, position-control, and close admission.
 
+#[cfg(test)]
 use std::time::Duration;
 
 use kafka_client_core::{
     AssignedConsumerInput, AssignedTopicPartition, AssignmentEpoch, StartPosition,
 };
+
+use crate::clock::DeadlineCapture;
 
 use super::{
     assigned_owner::AssignedConsumerOwner, assigned_owner_fault::AssignedConsumerOwnerFault,
@@ -13,6 +16,7 @@ use super::{
 
 impl AssignedConsumerOwner {
     /// Replaces all assigned partitions after one deadline-first, two-phase preparation.
+    #[cfg(test)]
     pub(crate) fn replace_assignment(
         &mut self,
         entries: Vec<AssignedPartitionInput>,
@@ -22,6 +26,15 @@ impl AssignedConsumerOwner {
             .clock
             .capture_deadline_after(resolution_timeout)
             .map_err(AssignedConsumerOwnerError::Clock)?;
+        self.replace_assignment_captured(entries, capture)
+    }
+
+    /// Applies an assignment with the exact outer-boundary capture unchanged.
+    pub(crate) fn replace_assignment_captured(
+        &mut self,
+        entries: Vec<AssignedPartitionInput>,
+        capture: DeadlineCapture,
+    ) -> Result<AssignmentEpoch, AssignedConsumerOwnerError> {
         self.ensure_admission_ready()?;
         let prepared = self
             .topics
@@ -69,6 +82,7 @@ impl AssignedConsumerOwner {
     }
 
     /// Resumes one partition with a deadline captured before any owner work.
+    #[cfg(test)]
     pub(crate) fn resume(
         &mut self,
         assignment_epoch: AssignmentEpoch,
@@ -79,6 +93,16 @@ impl AssignedConsumerOwner {
             .clock
             .capture_deadline_after(resolution_timeout)
             .map_err(AssignedConsumerOwnerError::Clock)?;
+        self.resume_captured(assignment_epoch, partition, capture)
+    }
+
+    /// Resumes with the exact outer-boundary capture unchanged.
+    pub(crate) fn resume_captured(
+        &mut self,
+        assignment_epoch: AssignmentEpoch,
+        partition: AssignedTopicPartition,
+        capture: DeadlineCapture,
+    ) -> Result<(), AssignedConsumerOwnerError> {
         self.ensure_admission_ready()?;
         let transition = self
             .machine
@@ -94,6 +118,7 @@ impl AssignedConsumerOwner {
     }
 
     /// Replaces one partition position with one unchanged boundary deadline.
+    #[cfg(test)]
     pub(crate) fn seek(
         &mut self,
         assignment_epoch: AssignmentEpoch,
@@ -105,6 +130,17 @@ impl AssignedConsumerOwner {
             .clock
             .capture_deadline_after(resolution_timeout)
             .map_err(AssignedConsumerOwnerError::Clock)?;
+        self.seek_captured(assignment_epoch, partition, position, capture)
+    }
+
+    /// Seeks with the exact outer-boundary capture unchanged.
+    pub(crate) fn seek_captured(
+        &mut self,
+        assignment_epoch: AssignmentEpoch,
+        partition: AssignedTopicPartition,
+        position: StartPosition,
+        capture: DeadlineCapture,
+    ) -> Result<(), AssignedConsumerOwnerError> {
         self.ensure_admission_ready()?;
         let transition = self
             .machine

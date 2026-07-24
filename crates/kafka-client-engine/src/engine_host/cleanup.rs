@@ -29,6 +29,7 @@ pub(super) fn prepare_notification_stop(
 ) -> Result<(), EngineHostError> {
     verify_tracked_calls(resources)?;
     verify_admin_operations(resources)?;
+    verify_assigned_consumer(resources)?;
     let mut data = resources.producer.terminal_data();
     let release = data.verify_release_before_completion();
     let failure = release.err().map(EngineHostError::ProducerCleanup);
@@ -38,6 +39,39 @@ pub(super) fn prepare_notification_stop(
         .err()
         .map(EngineHostError::ProducerCleanup);
     combine_cleanup(failure, final_failure).map_or(Ok(()), Err)
+}
+
+fn verify_assigned_consumer(resources: &EngineHostResources) -> Result<(), EngineHostError> {
+    let (closed, unsettled, fault) = resources
+        .assigned_consumer
+        .inspect_terminal(|owner| {
+            (
+                owner.close_completed(),
+                owner.unsettled(),
+                owner.fault_kind(),
+            )
+        })
+        .map_err(|error| match error {
+            crate::consumer::AssignedConsumerShardLockError::Poisoned => {
+                EngineHostError::AssignedConsumerLockPoisoned
+            }
+            crate::consumer::AssignedConsumerShardLockError::OwnerMissing => {
+                EngineHostError::AssignedConsumerOwnerMissing
+            }
+            crate::consumer::AssignedConsumerShardLockError::Contended => {
+                EngineHostError::AssignedConsumerUnsettled(usize::MAX)
+            }
+        })?;
+    if !closed {
+        return Err(EngineHostError::AssignedConsumerCloseIncomplete);
+    }
+    if let Some(fault) = fault {
+        return Err(EngineHostError::AssignedConsumerFault(fault));
+    }
+    if unsettled != 0 {
+        return Err(EngineHostError::AssignedConsumerUnsettled(unsettled));
+    }
+    Ok(())
 }
 
 fn verify_tracked_calls(resources: &EngineHostResources) -> Result<(), EngineHostError> {

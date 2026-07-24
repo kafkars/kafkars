@@ -25,6 +25,7 @@ struct EngineInner {
     create_partitions_admission: crate::admin::CreatePartitionsAdmissionPort,
     describe_topics_admission: crate::admin::DescribeTopicsAdmissionPort,
     describe_configs_admission: crate::admin::DescribeConfigsAdmissionPort,
+    assigned_consumer: crate::consumer::AssignedConsumerPort,
     clock: Arc<crate::clock::MonotonicClock>,
     control: Arc<EngineHostControl>,
     lifecycle: Arc<EngineLifecycle>,
@@ -42,6 +43,7 @@ impl Engine {
             create_partitions_admission,
             describe_topics_admission,
             describe_configs_admission,
+            assigned_consumer,
             clock,
             control,
             lifecycle,
@@ -56,6 +58,7 @@ impl Engine {
                 create_partitions_admission,
                 describe_topics_admission,
                 describe_configs_admission,
+                assigned_consumer,
                 clock,
                 control,
                 lifecycle,
@@ -147,6 +150,7 @@ impl EngineInner {
         let _close_result = self.create_partitions_admission.close_admission();
         let _close_result = self.describe_topics_admission.close_admission();
         let _close_result = self.describe_configs_admission.close_admission();
+        let _close_result = self.assigned_consumer.close_assigned_admission();
         self.lifecycle.request_and_wait(&self.control)
     }
 }
@@ -160,6 +164,7 @@ impl Drop for EngineInner {
         let _close_result = self.create_partitions_admission.close_admission();
         let _close_result = self.describe_topics_admission.close_admission();
         let _close_result = self.describe_configs_admission.close_admission();
+        let _close_result = self.assigned_consumer.close_assigned_admission();
         self.lifecycle.request(&self.control);
     }
 }

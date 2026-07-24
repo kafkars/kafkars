@@ -6,6 +6,7 @@ mod assigned_close_error;
 mod assigned_close_slot;
 #[cfg(test)]
 mod assigned_close_slot_test;
+mod assigned_host;
 mod assigned_owner;
 mod assigned_owner_admission;
 #[cfg(test)]
@@ -25,6 +26,12 @@ mod assigned_owner_model_test;
 mod assigned_owner_pending;
 #[cfg(test)]
 mod assigned_owner_pending_test;
+mod assigned_owner_recovery;
+#[cfg(test)]
+mod assigned_owner_recovery_test;
+mod assigned_owner_status;
+#[cfg(test)]
+mod assigned_owner_status_test;
 #[cfg(test)]
 mod assigned_owner_test;
 mod assigned_owner_turn;
@@ -45,6 +52,7 @@ mod assigned_topics;
 mod assigned_topics_replacement_test;
 #[cfg(test)]
 mod assigned_topics_test;
+mod exports;
 mod fetch_execution;
 mod fetch_store;
 #[cfg(test)]
@@ -63,3 +71,5 @@ mod position_execution_test;
 mod position_prepare_error;
 #[cfg(test)]
 mod position_prepare_error_test;
+
+pub(crate) use exports::*;

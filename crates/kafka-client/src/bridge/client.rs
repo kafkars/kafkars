@@ -25,6 +25,7 @@ impl ClientEngine {
             let kind = match error.kind() {
                 EngineStartErrorKind::Configuration => ErrorKind::Configuration,
                 EngineStartErrorKind::Admin
+                | EngineStartErrorKind::Consumer
                 | EngineStartErrorKind::Driver
                 | EngineStartErrorKind::Producer
                 | EngineStartErrorKind::HostThread

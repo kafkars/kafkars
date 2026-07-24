@@ -17,6 +17,8 @@ const OWNER_FILES: &[&str] = &[
     "crates/kafka-client-engine/src/consumer/assigned_owner_fault.rs",
     "crates/kafka-client-engine/src/consumer/assigned_owner_model.rs",
     "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs",
+    "crates/kafka-client-engine/src/consumer/assigned_owner_recovery.rs",
+    "crates/kafka-client-engine/src/consumer/assigned_owner_status.rs",
     "crates/kafka-client-engine/src/consumer/assigned_owner_turn.rs",
 ];
 const FIELDS: &[&str] = &[
@@ -223,23 +225,27 @@ fn expected_paths(field: &str) -> Vec<String> {
             "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_status.rs",
         ],
         "effects" => &[
             "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_status.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_turn.rs",
         ],
         "raw_position_deadlines" => &[
             "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_status.rs",
         ],
         "pending_positions" | "pending_fetches" => &[
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_status.rs",
         ],
         "fault" => &[
             "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
@@ -247,11 +253,14 @@ fn expected_paths(field: &str) -> Vec<String> {
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_recovery.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_turn.rs",
         ],
         "reclaim_faults" | "reclaim_overflow" => &[
             "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_recovery.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_status.rs",
         ],
         _ => panic!("unknown owner field {field}"),
     };

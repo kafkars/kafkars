@@ -1,0 +1,123 @@
+//! Post-driver-shutdown release of one failed assigned-consumer owner.
+
+use super::{
+    assigned_owner::AssignedConsumerOwner, assigned_owner_fault::AssignedConsumerFaultKind,
+    assigned_owner_status::AssignedConsumerRecoveryAudit, fetch_execution::FetchExecutionError,
+};
+
+/// Scalar audit of linear owners released after the driver was destroyed.
+#[must_use = "assigned-consumer shutdown recovery observations must be inspected"]
+#[derive(Debug)]
+pub(crate) struct AssignedConsumerShutdownRecovery {
+    owner_fault: Option<AssignedConsumerFaultKind>,
+    recovered_position_calls: usize,
+    position_completion: Option<crate::driver::PositionCompletionFailure>,
+    fetch_completion: Option<crate::driver::FetchCompletionObservation>,
+    fetch_executor_faulted: bool,
+    recovered_fetch_requests: usize,
+    reclaim_failures: usize,
+    first_reclaim_failure: Option<FetchExecutionError>,
+}
+
+/// Before-and-after audit retained in abnormal engine-host diagnostics.
+#[derive(Debug)]
+pub(crate) struct AssignedConsumerRecoveryReport {
+    audit: AssignedConsumerRecoveryAudit,
+    release: AssignedConsumerShutdownRecovery,
+    lock_was_poisoned: bool,
+}
+
+impl AssignedConsumerOwner {
+    /// Consumes retained mechanism ownership only after unique driver teardown.
+    pub(crate) fn release_assigned_after_driver_shutdown(
+        mut self,
+    ) -> AssignedConsumerShutdownRecovery {
+        let owner_fault = self
+            .fault
+            .as_ref()
+            .map(super::assigned_owner_fault::AssignedConsumerOwnerFault::kind);
+        let recovered_position_calls = self.positions.retained_positions();
+        let position_completion = self
+            .positions
+            .release_position_calls_after_driver_shutdown();
+        let fetch = self.fetches.release_fetch_executor_after_driver_shutdown();
+        let fetch_executor_faulted = fetch.had_fault();
+        let (requests, fetch_completion) = fetch.into_driver_recovery().into_parts();
+        let recovered_fetch_requests = requests.len();
+        drop(requests);
+        let reclaim_failures = self
+            .reclaim_faults
+            .len()
+            .saturating_add(usize::from(self.reclaim_overflow.is_some()));
+        let mut first_reclaim_failure = None;
+        for failure in self.reclaim_faults.drain(..) {
+            let (error, delivery) = failure.into_parts();
+            first_reclaim_failure.get_or_insert(error);
+            drop(delivery);
+        }
+        if let Some(failure) = self.reclaim_overflow.take() {
+            let (error, delivery) = failure.into_parts();
+            first_reclaim_failure.get_or_insert(error);
+            drop(delivery);
+        }
+        AssignedConsumerShutdownRecovery {
+            owner_fault,
+            recovered_position_calls,
+            position_completion,
+            fetch_completion,
+            fetch_executor_faulted,
+            recovered_fetch_requests,
+            reclaim_failures,
+            first_reclaim_failure,
+        }
+    }
+}
+
+impl AssignedConsumerShutdownRecovery {
+    /// Reports ownership corruption rather than ordinary abandoned live calls.
+    pub(crate) const fn had_fault(&self) -> bool {
+        self.owner_fault.is_some()
+            || self.position_completion.is_some()
+            || self.fetch_completion.is_some()
+            || self.fetch_executor_faulted
+            || self.reclaim_failures != 0
+    }
+
+    pub(crate) const fn owner_fault(&self) -> Option<AssignedConsumerFaultKind> {
+        self.owner_fault
+    }
+
+    pub(crate) const fn recovered_position_calls(&self) -> usize {
+        self.recovered_position_calls
+    }
+
+    pub(crate) const fn recovered_fetch_requests(&self) -> usize {
+        self.recovered_fetch_requests
+    }
+
+    pub(crate) const fn reclaim_failures(&self) -> usize {
+        self.reclaim_failures
+    }
+
+    pub(crate) const fn first_reclaim_failure(&self) -> Option<FetchExecutionError> {
+        self.first_reclaim_failure
+    }
+}
+
+impl AssignedConsumerRecoveryReport {
+    pub(crate) const fn new(
+        audit: AssignedConsumerRecoveryAudit,
+        release: AssignedConsumerShutdownRecovery,
+        lock_was_poisoned: bool,
+    ) -> Self {
+        Self {
+            audit,
+            release,
+            lock_was_poisoned,
+        }
+    }
+
+    pub(crate) fn requires_cleanup_report(&self) -> bool {
+        self.release.had_fault() || !self.audit.was_cleanly_closed() || self.lock_was_poisoned
+    }
+}

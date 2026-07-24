@@ -4,7 +4,7 @@ use kafka_client_core::{AssignedConsumerCloseId, AssignedConsumerEffect};
 
 /// Observable phase of the single assigned-consumer close slot.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum AssignedCloseSlotPhase {
+pub(crate) enum AssignedCloseSlotPhase {
     /// No terminal capacity is currently held.
     Vacant,
     /// Terminal capacity is reserved before core close admission.
@@ -19,7 +19,7 @@ pub(super) enum AssignedCloseSlotPhase {
 
 /// Close effect kind preserved in invariant diagnostics.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum AssignedCloseEffectKind {
+pub(crate) enum AssignedCloseEffectKind {
     /// Core accepted the close.
     Accept,
     /// Core authorized terminal completion.
@@ -28,7 +28,7 @@ pub(super) enum AssignedCloseEffectKind {
 
 /// Exact reason a close-slot transition could not be applied.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum AssignedCloseSlotError {
+pub(crate) enum AssignedCloseSlotError {
     /// Capacity was reserved outside the sole vacant phase.
     InvalidReservation {
         /// Phase retained by the failed transition.

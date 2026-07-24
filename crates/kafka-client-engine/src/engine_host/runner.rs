@@ -22,8 +22,8 @@ use crate::{
 };
 
 use super::{
-    EngineHostControl, EngineHostError, admin, cleanup, notifier_shutdown::NotifierShutdownOwner,
-    produce_turn,
+    EngineHostControl, EngineHostError, admin, assigned_consumer, cleanup,
+    notifier_shutdown::NotifierShutdownOwner, produce_turn,
 };
 
 // Admission and shutdown report wake failure without revoking ownership. Until
@@ -43,6 +43,7 @@ pub(crate) struct EngineHostResources {
     pub(super) create_partitions: CreatePartitionsShardOwner,
     pub(super) describe_topics: DescribeTopicsShardOwner,
     pub(super) describe_configs: DescribeConfigsShardOwner,
+    pub(super) assigned_consumer: crate::consumer::AssignedConsumerShardOwner,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) control: Arc<EngineHostControl>,
     pub(super) budget: ProducerTurnBudget,
@@ -65,6 +66,7 @@ impl Drop for EngineHostResources {
         let _close_result = self.create_partitions.admission_port().close_admission();
         let _close_result = self.describe_topics.admission_port().close_admission();
         let _close_result = self.describe_configs.admission_port().close_admission();
+        let _close_result = self.assigned_consumer.close_assigned_admission();
     }
 }
 
@@ -86,11 +88,17 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
         // admin receives its turn. Recapture time so admin operations never
         // compute broker timeouts from a stale pre-producer observation.
         let admin = admin::drive(resources)?;
+        let assigned_now = resources.clock.now().map_err(EngineHostError::Clock)?;
+        let assigned = assigned_consumer::drive(resources, assigned_now)?;
         #[cfg(test)]
         if producer.driver_progress && resources.control.await_failure_after_produce_admission() {
             return Err(EngineHostError::ForcedTestFailure);
         }
-        if resources.control.shutdown_requested() && producer.unsettled == 0 && admin.unsettled == 0
+        if resources.control.shutdown_requested()
+            && producer.unsettled == 0
+            && admin.unsettled == 0
+            && assigned.unsettled == 0
+            && assigned.close_completed
         {
             break;
         }
@@ -103,6 +111,7 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
         let wait = admin.next_deadline.map_or(wait, |deadline| {
             wait.min(duration_until(wait_now, deadline))
         });
+        let wait = assigned_consumer_wait(wait_now, wait, &assigned);
         resources.control.record_driver_turn();
         let driver = resources
             .driver
@@ -168,6 +177,25 @@ pub(super) fn producer_wait(
         deadline_wait.min(BLOCKED_RETRY_DELAY)
     } else {
         deadline_wait
+    }
+}
+
+pub(super) fn assigned_consumer_wait(
+    now: Moment,
+    current: Duration,
+    progress: &assigned_consumer::AssignedConsumerProgress,
+) -> Duration {
+    if progress.progressed {
+        return Duration::ZERO;
+    }
+    let deadline_wait = progress.next_deadline.map_or(HOST_PARK_LIMIT, |deadline| {
+        duration_until(now, deadline).min(HOST_PARK_LIMIT)
+    });
+    let wait = current.min(deadline_wait);
+    if progress.blocked_work {
+        wait.min(BLOCKED_RETRY_DELAY)
+    } else {
+        wait
     }
 }
 

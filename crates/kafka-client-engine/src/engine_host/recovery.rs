@@ -19,6 +19,19 @@ pub(crate) fn recover(
 ) -> EngineHostExit {
     let mut failure = primary;
     // Fence application admission before any execution owner is quiesced.
+    if let Err(cleanup) = resources.assigned_consumer.close_assigned_admission() {
+        failure = failure.with_cleanup(match cleanup {
+            crate::consumer::AssignedConsumerShardLockError::Poisoned => {
+                EngineHostError::AssignedConsumerLockPoisoned
+            }
+            crate::consumer::AssignedConsumerShardLockError::OwnerMissing => {
+                EngineHostError::AssignedConsumerOwnerMissing
+            }
+            crate::consumer::AssignedConsumerShardLockError::Contended => {
+                EngineHostError::AssignedConsumerUnsettled(usize::MAX)
+            }
+        });
+    }
     drop(resources.producer.terminal_data());
     drop(resources.create_topics.terminal_host());
     drop(resources.delete_topics.terminal_host());
@@ -32,6 +45,8 @@ pub(crate) fn recover(
     // Even a failed bounded shutdown cannot retain driver-owned bytes past
     // fallback publication: dropping the unique owner tears down the reactor.
     resources.discard_driver_after_shutdown();
+    #[cfg(test)]
+    resources.control.record_recovery_driver_released();
     resources.produce_calls.discard_after_driver_shutdown();
     resources
         .producer_identity_calls
@@ -54,8 +69,7 @@ pub(crate) fn recover(
     resources
         .describe_configs_calls
         .discard_after_driver_shutdown();
-    #[cfg(test)]
-    resources.control.record_recovery_driver_released();
+    failure = recover_assigned_after_driver_shutdown(resources, failure);
 
     let mut producer = resources.producer.terminal_data();
     if let Some(cleanup) = producer
@@ -97,6 +111,34 @@ pub(crate) fn recover(
         notifier: NotifierShutdownOwner::new(notifiers),
         failure: Some(failure),
     }
+}
+
+fn recover_assigned_after_driver_shutdown(
+    resources: &mut EngineHostResources,
+    mut failure: EngineHostError,
+) -> EngineHostError {
+    #[cfg(test)]
+    resources.control.record_assigned_recovery_started();
+    match resources
+        .assigned_consumer
+        .take_assigned_owner_after_driver_shutdown()
+    {
+        Ok(report) if report.requires_cleanup_report() => {
+            failure =
+                failure.with_cleanup(EngineHostError::AssignedConsumerRecovery(Box::new(report)));
+        }
+        Ok(_report) => {}
+        Err(crate::consumer::AssignedConsumerShardLockError::OwnerMissing) => {
+            failure = failure.with_cleanup(EngineHostError::AssignedConsumerOwnerMissing);
+        }
+        Err(crate::consumer::AssignedConsumerShardLockError::Poisoned) => {
+            failure = failure.with_cleanup(EngineHostError::AssignedConsumerLockPoisoned);
+        }
+        Err(crate::consumer::AssignedConsumerShardLockError::Contended) => {
+            failure = failure.with_cleanup(EngineHostError::AssignedConsumerUnsettled(usize::MAX));
+        }
+    }
+    failure
 }
 
 fn recover_admin_operations(

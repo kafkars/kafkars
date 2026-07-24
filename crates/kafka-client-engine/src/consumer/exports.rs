@@ -1,0 +1,16 @@
+//! Crate-private assigned-consumer capabilities exposed to the engine host.
+
+pub(crate) use super::{
+    assigned_host::{
+        AssignedConsumerPort, AssignedConsumerShardLockError, AssignedConsumerShardOwner,
+        AssignedConsumerShardWake, AssignedConsumerShardWakeError, AssignedConsumerShutdownStart,
+        build_first_assigned_consumer,
+    },
+    assigned_owner::AssignedConsumerOwner,
+    assigned_owner_fault::AssignedConsumerFaultKind,
+    assigned_owner_model::{AssignedConsumerOwnerBuildError, AssignedConsumerOwnerError},
+    assigned_owner_recovery::AssignedConsumerRecoveryReport,
+};
+
+#[cfg(test)]
+pub(crate) use super::assigned_topics::AssignedPartitionInput;

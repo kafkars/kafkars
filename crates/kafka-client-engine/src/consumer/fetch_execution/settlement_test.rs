@@ -164,7 +164,7 @@ fn unexpected_core_rejection_retains_store_and_route_ownership_until_shutdown() 
     let (calls, deliveries, bytes) = executor.retained();
     assert_eq!((calls, deliveries), (1, 1));
     assert!(bytes > 0);
-    let recovery = executor.recover_after_driver_shutdown();
+    let recovery = executor.release_fetch_executor_after_driver_shutdown();
     assert!(recovery.had_fault());
     let (requests, completion) = recovery.into_driver_recovery().into_parts();
     assert!(requests.is_empty());

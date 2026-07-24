@@ -20,7 +20,7 @@ use super::{
 
 /// Immutable resource limits for one direct-assignment lifecycle.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct AssignedConsumerOwnerLimits {
+pub(super) struct AssignedConsumerOwnerLimits {
     pub(super) partition_capacity: usize,
     pub(super) effect_capacity: usize,
     pub(super) call_capacity: usize,
@@ -35,7 +35,7 @@ impl AssignedConsumerOwnerLimits {
         clippy::too_many_arguments,
         reason = "the owner must receive every independent resource bound explicitly"
     )]
-    pub(crate) fn new(
+    pub(super) fn new(
         partition_capacity: usize,
         call_capacity: usize,
         delivery_capacity: usize,
@@ -82,7 +82,7 @@ impl AssignedConsumerOwnerLimits {
 
 /// Immutable execution policy already compiled outside this owner.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct AssignedConsumerOwnerSettings {
+pub(super) struct AssignedConsumerOwnerSettings {
     pub(super) position_isolation: ListOffsetsIsolation,
     pub(super) fetch_settings: FetchRequestSettings,
     pub(super) fetch_decode_limits: FetchDecodeLimits,
@@ -91,7 +91,7 @@ pub(crate) struct AssignedConsumerOwnerSettings {
 }
 
 impl AssignedConsumerOwnerSettings {
-    pub(crate) const fn new(
+    pub(super) const fn new(
         position_isolation: ListOffsetsIsolation,
         fetch_settings: FetchRequestSettings,
         fetch_decode_limits: FetchDecodeLimits,
@@ -161,6 +161,19 @@ pub(crate) struct AssignedConsumerTurn {
     pub(crate) position_submitted: bool,
     pub(crate) fetch_submitted: bool,
     pub(crate) close_progressed: bool,
+}
+
+impl AssignedConsumerTurn {
+    /// Reports only work that this exact bounded turn committed or consumed.
+    pub(crate) const fn progressed(self) -> bool {
+        self.effect_interpreted
+            || self.timer_inputs != 0
+            || self.position_polled
+            || self.fetch_polled
+            || self.position_submitted
+            || self.fetch_submitted
+            || self.close_progressed
+    }
 }
 
 pub(super) fn minimum_deadline(current: Option<Deadline>, candidate: Deadline) -> Option<Deadline> {

@@ -35,6 +35,11 @@ fn failed_runner_settles_accepted_work_and_closes_retained_handles() {
 
     engine.force_host_failure();
     assert!(engine.shutdown().is_err());
+    assert!(
+        engine
+            .host_snapshot()
+            .assigned_recovery_after_driver_release
+    );
 
     let Err(ProducerDeliveryError::Failed(failure)) = accepted.into_observer().wait() else {
         panic!("host failure must settle every accepted observer")

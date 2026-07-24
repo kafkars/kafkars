@@ -12,6 +12,8 @@ pub(crate) struct EngineHostControl {
     #[cfg(test)]
     recovery_driver_released: AtomicBool,
     #[cfg(test)]
+    assigned_recovery_after_driver_release: AtomicBool,
+    #[cfg(test)]
     pause_after_produce_admission: AtomicBool,
     #[cfg(test)]
     produce_admission_paused: AtomicBool,
@@ -28,6 +30,8 @@ impl EngineHostControl {
             failure: AtomicBool::new(false),
             #[cfg(test)]
             recovery_driver_released: AtomicBool::new(false),
+            #[cfg(test)]
+            assigned_recovery_after_driver_release: AtomicBool::new(false),
             #[cfg(test)]
             pause_after_produce_admission: AtomicBool::new(false),
             #[cfg(test)]
@@ -91,11 +95,22 @@ impl EngineHostControl {
     }
 
     #[cfg(test)]
+    pub(super) fn record_assigned_recovery_started(&self) {
+        self.assigned_recovery_after_driver_release.store(
+            self.recovery_driver_released.load(Ordering::Acquire),
+            Ordering::Release,
+        );
+    }
+
+    #[cfg(test)]
     pub(crate) fn snapshot(&self) -> EngineHostSnapshot {
         EngineHostSnapshot {
             producer_turns: self.producer_turns.load(Ordering::Relaxed),
             driver_turns: self.driver_turns.load(Ordering::Relaxed),
             recovery_driver_released: self.recovery_driver_released.load(Ordering::Acquire),
+            assigned_recovery_after_driver_release: self
+                .assigned_recovery_after_driver_release
+                .load(Ordering::Acquire),
             produce_admission_paused: self.produce_admission_paused.load(Ordering::Acquire),
         }
     }
@@ -107,5 +122,6 @@ pub(crate) struct EngineHostSnapshot {
     pub(crate) producer_turns: u64,
     pub(crate) driver_turns: u64,
     pub(crate) recovery_driver_released: bool,
+    pub(crate) assigned_recovery_after_driver_release: bool,
     pub(crate) produce_admission_paused: bool,
 }

@@ -155,14 +155,7 @@ impl PositionResolutionExecutor {
         self.calls.retained_count()
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "host recovery integration follows this explicit driver-shutdown seam"
-        )
-    )]
-    pub(crate) fn recover_positions_after_driver_shutdown(
+    pub(crate) fn release_position_calls_after_driver_shutdown(
         &mut self,
     ) -> Option<PositionCompletionFailure> {
         self.calls.recover_positions_after_driver_shutdown()

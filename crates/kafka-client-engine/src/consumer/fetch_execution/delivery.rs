@@ -41,7 +41,7 @@ impl DirectFetchExecutor {
     }
 
     /// Releases retained fault and store ownership only after driver shutdown.
-    pub(crate) fn recover_after_driver_shutdown(mut self) -> FetchShutdownRecovery {
+    pub(crate) fn release_fetch_executor_after_driver_shutdown(mut self) -> FetchShutdownRecovery {
         let driver = self.calls.recover_fetches_after_driver_shutdown();
         FetchShutdownRecovery::new(driver, self.fault.is_some())
     }

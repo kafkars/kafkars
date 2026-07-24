@@ -152,7 +152,7 @@ fn completion_corruption_is_fatal_until_post_driver_recovery() {
     assert_eq!(failure.fence(), fence);
     assert!(failure.is_consumed());
     assert_eq!(
-        executor.recover_positions_after_driver_shutdown(),
+        executor.release_position_calls_after_driver_shutdown(),
         Some(failure)
     );
     assert_eq!(executor.retained_positions(), 0);

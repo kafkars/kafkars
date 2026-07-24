@@ -3,7 +3,7 @@
 use std::{
     panic::{AssertUnwindSafe, catch_unwind},
     sync::{Arc, mpsc::sync_channel},
-    thread::{self, JoinHandle},
+    thread,
 };
 
 use crate::{
@@ -17,31 +17,16 @@ use crate::{
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
     driver::DriverOwner,
-    producer::{
-        ProducerHost,
-        ingress::{ProducerAdmissionPort, ProducerShardOwner},
-    },
+    producer::{ProducerHost, ingress::ProducerShardOwner},
 };
 
 use super::{
     EngineHostControl, EngineHostError, EngineHostExit, EngineHostResources, EngineLifecycle,
-    EngineStartError, describe_configs_start, recover, run,
+    EngineStartError, assigned_consumer_start, describe_configs_start, recover, run,
+    start_handoff::{StartedEngineHost, cancel_start, join_cancelled},
 };
 
 const HOST_THREAD_NAME: &str = "kafka-client-engine";
-
-pub(crate) struct StartedEngineHost {
-    pub(crate) admission: ProducerAdmissionPort,
-    pub(crate) create_topics_admission: crate::admin::CreateTopicsAdmissionPort,
-    pub(crate) delete_topics_admission: crate::admin::DeleteTopicsAdmissionPort,
-    pub(crate) describe_cluster_admission: crate::admin::DescribeClusterAdmissionPort,
-    pub(crate) create_partitions_admission: crate::admin::CreatePartitionsAdmissionPort,
-    pub(crate) describe_topics_admission: crate::admin::DescribeTopicsAdmissionPort,
-    pub(crate) describe_configs_admission: crate::admin::DescribeConfigsAdmissionPort,
-    pub(crate) clock: Arc<MonotonicClock>,
-    pub(crate) control: Arc<EngineHostControl>,
-    pub(crate) lifecycle: Arc<EngineLifecycle>,
-}
 
 // Construction stays rollback-ordered so every resource has a visible reclamation owner.
 #[allow(clippy::too_many_lines)]
@@ -67,6 +52,16 @@ pub(crate) fn start(
     let clock = Arc::new(MonotonicClock::new());
     let wake = Arc::new(driver.reactor_wake());
     let control = Arc::new(EngineHostControl::new(wake.as_ref().clone()));
+    let (assigned_consumer_owner, assigned_consumer) =
+        match assigned_consumer_start::start_assigned_consumer(
+            Arc::clone(&clock),
+            Arc::clone(&wake),
+        ) {
+            Ok(owner) => owner,
+            Err(error) => {
+                return cancel_start(sender, handle, EngineStartError::assigned_consumer(error));
+            }
+        };
     let (mut admin_notifier, admin_ports) = match AdminCompletionNotifier::start() {
         Ok(owner) => owner,
         Err(error) => {
@@ -125,6 +120,7 @@ pub(crate) fn start(
         create_partitions,
         describe_topics,
         describe_configs: describe_configs.owner,
+        assigned_consumer: assigned_consumer_owner,
         clock: Arc::clone(&clock),
         control: Arc::clone(&control),
         budget: validated.turn_budget,
@@ -166,6 +162,7 @@ pub(crate) fn start(
         create_partitions_admission,
         describe_topics_admission,
         describe_configs_admission: describe_configs.admission,
+        assigned_consumer,
         clock,
         control,
         lifecycle,
@@ -183,16 +180,6 @@ fn install_notifier_threads(
     if let Some(thread_id) = admin.thread_id() {
         lifecycle.install_notifier_thread(thread_id);
     }
-}
-
-fn cancel_start(
-    sender: std::sync::mpsc::SyncSender<EngineHostResources>,
-    handle: JoinHandle<()>,
-    error: EngineStartError,
-) -> Result<StartedEngineHost, EngineStartError> {
-    drop(sender);
-    join_cancelled(handle);
-    Err(error)
 }
 
 fn finish_host(mut resources: EngineHostResources, lifecycle: &EngineLifecycle) {
@@ -233,8 +220,4 @@ fn attach_cleanup(primary: Option<EngineHostError>, cleanup: EngineHostError) ->
         Some(primary) => primary.with_cleanup(cleanup),
         None => cleanup,
     }
-}
-
-fn join_cancelled(handle: JoinHandle<()>) {
-    let _join_result = handle.join();
 }

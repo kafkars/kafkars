@@ -44,14 +44,14 @@ impl AssignedTopicLimits {
 
 /// Engine-owned input facts for one caller-ordered assignment entry.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct AssignedPartitionInput {
+pub(crate) struct AssignedPartitionInput {
     topic: Arc<str>,
     partition: PartitionIndex,
     start: StartPosition,
 }
 
 impl AssignedPartitionInput {
-    pub(super) const fn new(
+    pub(crate) const fn new(
         topic: Arc<str>,
         partition: PartitionIndex,
         start: StartPosition,
@@ -66,7 +66,7 @@ impl AssignedPartitionInput {
 
 /// Failure to retain or replace a bounded, identity-safe assignment.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum AssignedTopicsError {
+pub(crate) enum AssignedTopicsError {
     PartitionCapacity { actual: usize, limit: usize },
     RetainedTopicCapacity { actual: usize, limit: usize },
     TopicNameBytes { actual: usize, limit: usize },

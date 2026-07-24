@@ -4,6 +4,15 @@ mod admin;
 #[cfg(test)]
 mod admin_test;
 mod admin_wake;
+mod assigned_consumer;
+mod assigned_consumer_start;
+#[cfg(test)]
+mod assigned_consumer_start_test;
+#[cfg(test)]
+mod assigned_consumer_test;
+mod assigned_consumer_wake;
+#[cfg(test)]
+mod assigned_consumer_wake_test;
 mod cleanup;
 #[cfg(test)]
 mod cleanup_test;
@@ -29,6 +38,9 @@ mod runner;
 #[cfg(test)]
 mod runner_test;
 mod start;
+mod start_handoff;
+#[cfg(test)]
+mod start_handoff_test;
 #[cfg(test)]
 mod start_test;
 
@@ -42,4 +54,5 @@ pub use error::{
 pub(crate) use lifecycle::EngineLifecycle;
 pub(crate) use recovery::recover;
 pub(crate) use runner::{EngineHostExit, EngineHostResources, run};
-pub(crate) use start::{StartedEngineHost, start};
+pub(crate) use start::start;
+pub(crate) use start_handoff::StartedEngineHost;

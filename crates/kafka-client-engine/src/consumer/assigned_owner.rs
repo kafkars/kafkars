@@ -42,7 +42,7 @@ pub(crate) struct AssignedConsumerOwner {
 }
 
 impl AssignedConsumerOwner {
-    pub(crate) fn new(
+    pub(super) fn new(
         clock: Arc<MonotonicClock>,
         settings: AssignedConsumerOwnerSettings,
         limits: AssignedConsumerOwnerLimits,
@@ -177,5 +177,22 @@ impl AssignedConsumerOwner {
         for effect in transition.into_effects() {
             self.effects.push_back(effect);
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn install_fault_for_test(&mut self) {
+        self.fault = Some(AssignedConsumerOwnerFault::Clock(
+            crate::clock::ClockError::TickOverflow,
+        ));
+    }
+
+    #[cfg(test)]
+    pub(crate) fn install_ready_delivery_for_test(&mut self, record_offset: i64) {
+        super::assigned_owner_close_test::install_pending_ready(self, record_offset);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn pending_effect_count_for_test(&self) -> usize {
+        self.effects.len()
     }
 }

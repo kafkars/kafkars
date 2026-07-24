@@ -49,7 +49,7 @@ fn suspend_returns_request_storage_before_the_driver_call_finishes_draining() {
 
     assert_eq!(executor.retained(), (1, 0, 0));
     shutdown(&mut driver);
-    let recovery = executor.recover_after_driver_shutdown();
+    let recovery = executor.release_fetch_executor_after_driver_shutdown();
     assert!(!recovery.had_fault());
     let (requests, completion) = recovery.into_driver_recovery().into_parts();
     assert_eq!(requests.len(), 0);
