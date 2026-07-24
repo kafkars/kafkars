@@ -72,7 +72,7 @@ evidence = [
 [[invariant]]
 id = "ADM-05"
 title = "DescribeCluster is bounded, exact, and independently scheduled"
-statement = "DescribeCluster reserves completion and retained bytes before acceptance, assigns one terminal outcome, preserves nullable controller and rack facts plus exact signed broker errors, rejects fenced or structurally invalid and oversized broker facts before copying them, carries the original deadline through a fixed v2 broker-endpoint AnyBroker Interactive call without a route receipt, retry, metadata authority, or async runtime, schedules independently of mutating admin owners, and exposes one inert Rust builder with a named Future and blocking wait."
+statement = "DescribeCluster reserves completion and retained bytes before acceptance, assigns one terminal outcome, preserves nullable controller and rack facts plus exact signed broker errors, rejects fenced or structurally invalid and oversized broker facts before copying them, carries the original deadline through a fixed v2 broker-endpoint AnyBroker Interactive call without a route receipt, retry, metadata authority, or async runtime, schedules independently of mutating admin owners, and exposes one inert Rust builder with a named Future and blocking wait. Its concrete registry shares one bounded allocation-free admin publication worker with CreateTopics and DeleteTopics; the queue capacity is exactly the sum of the closed ticket set, startup owns exactly one producer notifier plus that one admin notifier, and another admin terminal type must deliberately extend the closed ticket and capacity owner."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/admin/describe_transition_test.rs::successful_description_is_terminal_once",
@@ -87,6 +87,11 @@ evidence = [
   "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::saturated_delete_lane_cannot_hide_runnable_describe_cluster_work",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::describe_cluster_owner_prevents_false_shutdown_quiescence",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::describe_cluster_uses_time_recaptured_after_delete_work",
+  "crates/kafka-client-engine/src/admin/completion_test.rs::one_worker_publishes_every_concrete_admin_terminal_off_reactor",
+  "crates/kafka-client-engine/src/admin/completion_test.rs::shared_capacity_is_the_sum_of_the_closed_admin_ticket_set",
+  "crates/kafka-client-engine/src/completion/shared_notifier_test.rs::bounded_shared_queue_returns_the_exact_typed_terminal_for_retry",
+  "crates/kafka-client-engine/src/engine_admin_notifier_test.rs::startup_owns_one_producer_and_one_shared_admin_notifier",
+  "crates/kafka-client-engine/src/engine_admin_notifier_test.rs::admin_notifier_reentrant_shutdown_defers_its_own_join",
   "crates/kafka-client/src/admin/describe_builder_test.rs::zero_deadline_builder_is_inert_until_submit",
   "crates/kafka-client/src/bridge/admin_describe_result_test.rs::controller_identity_crosses_the_bridge_without_becoming_policy",
   "crates/kafka-client/src/bridge/admin_describe_result_test.rs::signed_code_nullable_diagnostic_and_certainty_are_lossless",
