@@ -46,6 +46,30 @@ evidence = [
 ]
 
 [[invariant]]
+id = "ADM-04"
+title = "DeleteTopics is bounded, tracked, ordered, and explicit"
+statement = "Name-based DeleteTopics preserves one ordered terminal decision, exact signed broker codes and bounded UTF-8 diagnostics; retains no arbitrary broker topic name on structural failure; reserves completion and retained bytes before acceptance; carries the original public deadline through a v5 controller-tracked driver call with time recaptured after CreateTopics work; distinguishes queued NotSent recovery from taken PossiblySent recovery; schedules independently from CreateTopics; and exposes one explicit Rust submit boundary without retry or an async runtime."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/admin/delete_transition_test.rs::ordered_terminal_is_single_assignment_and_lossless",
+  "crates/kafka-client-engine/src/protocol/admin/delete_topics_test.rs::generated_name_request_preserves_order_and_timeout",
+  "crates/kafka-client-engine/src/protocol/admin/delete_topics_test.rs::response_is_reordered_to_request_order_and_unknown_code_is_lossless",
+  "crates/kafka-client-engine/src/protocol/admin/delete_topics_test.rs::nullable_or_ambiguous_names_never_bind_to_the_wrong_topic",
+  "crates/kafka-client-engine/src/protocol/admin/delete_topics_test.rs::oversized_unexpected_name_is_rejected_without_retaining_a_copy",
+  "crates/kafka-client-engine/src/protocol/admin/delete_topics_budget_test.rs::oversized_utf8_diagnostic_is_bounded_and_reports_truncation",
+  "crates/kafka-client-engine/src/driver/rpc/delete_topics_submission_test.rs::delete_topics_uses_interactive_lane_original_deadline_and_v5_ceiling",
+  "crates/kafka-client-engine/src/admin/delete_host_test.rs::terminal_bytes_remain_reserved_until_observer_reclamation",
+  "crates/kafka-client-engine/src/admin/delete_host_test.rs::queued_and_taken_recovery_preserve_the_last_not_sent_boundary",
+  "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::saturated_create_lane_cannot_hide_runnable_delete_work",
+  "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::either_concrete_owner_prevents_false_shutdown_quiescence",
+  "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::delete_timeout_uses_time_recaptured_after_create_work",
+  "crates/kafka-client/src/admin/delete_builder_test.rs::empty_zero_deadline_builder_is_inert_until_submit",
+  "crates/kafka-client/src/bridge/admin_delete_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
+  "crates/kafka-client/src/bridge/admin_delete_result_test.rs::every_admission_category_maps_without_hidden_retry_policy",
+  "crates/kafka-client/src/bridge/admin_delete_result_test.rs::failures_codes_and_diagnostics_are_lossless",
+]
+
+[[invariant]]
 id = "BAT-01"
 title = "Core owns batch readiness"
 statement = "Record-count and conservative encoded-size readiness are deterministic core decisions and terminal fan-out preserves batch membership order."

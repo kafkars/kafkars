@@ -16,7 +16,10 @@ mod producer;
 mod record;
 mod transaction;
 
-pub use admin::{Admin, BatchResult, CreateTopics, CreateTopicsBuilder, NewTopic};
+pub use admin::{
+    Admin, BatchResult, CreateTopics, CreateTopicsBuilder, DeleteTopics, DeleteTopicsBuilder,
+    NewTopic,
+};
 pub use client::{Client, ClientBuilder, Shutdown};
 pub use consumer::{
     AssignedConsumer, AssignedConsumerBuilder, Checkpoint, Commit, Consumer, ConsumerBuilder,

@@ -1,8 +1,8 @@
 //! Cloneable public admin handle over the private engine bridge.
 
-use crate::bridge::admin::{AdminEngine, AdminRequest};
+use crate::bridge::admin::{AdminEngine, AdminRequest, DeleteAdminRequest};
 
-use super::{CreateTopicsBuilder, NewTopic};
+use super::{CreateTopicsBuilder, DeleteTopicsBuilder, NewTopic};
 
 /// Cheaply cloneable, thread-safe admin handle.
 #[derive(Debug, Clone)]
@@ -25,5 +25,18 @@ impl Admin {
     {
         let request = AdminRequest::from_topics(topics);
         CreateTopicsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
+    }
+
+    /// Builds an inert ordered name-based `DeleteTopics` request.
+    ///
+    /// No timeout starts and no operation is admitted until
+    /// [`DeleteTopicsBuilder::submit`] is called.
+    pub fn delete_topics<I, T>(&self, topics: I) -> DeleteTopicsBuilder
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<String>,
+    {
+        let request = DeleteAdminRequest::from_topics(topics);
+        DeleteTopicsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
     }
 }

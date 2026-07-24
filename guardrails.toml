@@ -675,6 +675,14 @@ production = "crates/kafka-client/src/bridge/admin_result.rs"
 test = "crates/kafka-client/src/bridge/admin_result_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_delete_operation.rs"
+test = "crates/kafka-client/src/bridge/admin_delete_operation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_delete_result.rs"
+test = "crates/kafka-client/src/bridge/admin_delete_result_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client/src/bridge/producer_result/admission.rs"
 test = "crates/kafka-client/src/bridge/producer_result/admission_test.rs"
 
@@ -737,6 +745,14 @@ test = "crates/kafka-client/src/admin/builder_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/admin/create_topics.rs"
 test = "crates/kafka-client/src/admin/create_topics_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/delete_builder.rs"
+test = "crates/kafka-client/src/admin/delete_builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/delete_topics.rs"
+test = "crates/kafka-client/src/admin/delete_topics_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/admin/handle.rs"
@@ -2287,3 +2303,19 @@ path = "crates/kafka-client/src/admin/builder.rs"
 [[linear_owners]]
 owner_type = "CreateTopics"
 path = "crates/kafka-client/src/admin/create_topics.rs"
+
+[[linear_owners]]
+owner_type = "DeleteAdminRequest"
+path = "crates/kafka-client/src/bridge/admin.rs"
+
+[[linear_owners]]
+owner_type = "AdminDeleteTopics"
+path = "crates/kafka-client/src/bridge/admin_delete_operation.rs"
+
+[[linear_owners]]
+owner_type = "DeleteTopicsBuilder"
+path = "crates/kafka-client/src/admin/delete_builder.rs"
+
+[[linear_owners]]
+owner_type = "DeleteTopics"
+path = "crates/kafka-client/src/admin/delete_topics.rs"
