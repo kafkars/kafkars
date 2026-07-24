@@ -184,7 +184,7 @@ impl TrackedDeleteTopicsCalls {
             operation_id: call.operation_id,
             source: Some(source),
         })?;
-        let (result, route_token) = outcome.into_parts();
+        let (result, _selected_version, route_token) = outcome.into_parts();
         let input = normalize_terminal(&call.plan, call.retained_bytes, result).map_err(
             |_retained_accounting| DeleteTopicsCompletionFailure {
                 operation_id: call.operation_id,

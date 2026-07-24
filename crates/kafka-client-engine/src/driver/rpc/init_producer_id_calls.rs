@@ -96,7 +96,7 @@ impl TrackedProducerIdentityCalls {
             generation: call.generation,
             source,
         })?;
-        let (result, _route_token) = outcome.into_parts();
+        let (result, _selected_version, _route_token) = outcome.into_parts();
         Ok(Some(normalize_terminal(call.generation, now, result)))
     }
 

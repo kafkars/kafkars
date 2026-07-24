@@ -171,7 +171,7 @@ impl TrackedProduceCalls {
             execution: call.execution,
             source,
         })?;
-        let (result, route_token) = outcome.into_parts();
+        let (result, _selected_version, route_token) = outcome.into_parts();
         let input = normalized_terminal_input(
             call.execution,
             call.topic.as_ref(),
