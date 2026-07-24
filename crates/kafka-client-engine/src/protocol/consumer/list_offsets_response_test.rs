@@ -6,7 +6,10 @@ use kafka_wire::{
     list_offsets_response::{ListOffsetsPartitionResponse, ListOffsetsTopicResponse},
 };
 
-use super::{ListOffsetsOutcome, ListOffsetsResponseFailure, normalize_list_offsets_response};
+use super::{
+    ListOffsetsOutcome, ListOffsetsResponseFailure, NormalizedListOffsetsResponse,
+    normalize_list_offsets_response,
+};
 
 fn partition_response(
     partition_index: i32,
@@ -40,6 +43,7 @@ fn normalize(
     response: &ListOffsetsResponse,
 ) -> Result<ListOffsetsOutcome, ListOffsetsResponseFailure> {
     normalize_list_offsets_response("audit", PartitionIndex::from_raw(3), response)
+        .map(NormalizedListOffsetsResponse::outcome)
 }
 
 #[test]
@@ -77,6 +81,33 @@ fn unknown_signed_broker_code_is_lossless_before_success_validation() {
             Ok(ListOffsetsOutcome::BrokerError { code }) if code.get() == expected
         ));
     }
+}
+
+#[test]
+fn positive_throttle_is_retained_for_success_and_broker_error() {
+    let mut success = response(vec![topic_response(
+        "audit",
+        vec![partition_response(3, 0, 42)],
+    )]);
+    success.throttle_time_ms = 47;
+    let success = normalize_list_offsets_response("audit", PartitionIndex::from_raw(3), &success)
+        .unwrap_or_else(|error| panic!("throttled success: {error:?}"));
+    assert_eq!(success.throttle_time_ms(), 47);
+    assert!(matches!(success.outcome(), ListOffsetsOutcome::Resolved(_)));
+
+    let mut broker_error = response(vec![topic_response(
+        "audit",
+        vec![partition_response(3, -32_000, -1)],
+    )]);
+    broker_error.throttle_time_ms = 91;
+    let broker_error =
+        normalize_list_offsets_response("audit", PartitionIndex::from_raw(3), &broker_error)
+            .unwrap_or_else(|error| panic!("throttled broker error: {error:?}"));
+    assert_eq!(broker_error.throttle_time_ms(), 91);
+    assert!(matches!(
+        broker_error.outcome(),
+        ListOffsetsOutcome::BrokerError { code } if code.get() == -32_000
+    ));
 }
 
 #[test]

@@ -70,3 +70,29 @@ pub(crate) enum ListOffsetsOutcome {
         code: NonZeroI16,
     },
 }
+
+/// Scalar-only response facts retained for quota-aware interpreter scheduling.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct NormalizedListOffsetsResponse {
+    throttle_time_ms: u32,
+    outcome: ListOffsetsOutcome,
+}
+
+impl NormalizedListOffsetsResponse {
+    pub(super) const fn new(throttle_time_ms: u32, outcome: ListOffsetsOutcome) -> Self {
+        Self {
+            throttle_time_ms,
+            outcome,
+        }
+    }
+
+    /// Returns Kafka's nonnegative quota delay before subsequent broker work.
+    pub(crate) const fn throttle_time_ms(self) -> u32 {
+        self.throttle_time_ms
+    }
+
+    /// Returns the correlated partition result without generated DTO ownership.
+    pub(crate) const fn outcome(self) -> ListOffsetsOutcome {
+        self.outcome
+    }
+}

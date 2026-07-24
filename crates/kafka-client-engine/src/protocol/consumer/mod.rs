@@ -4,7 +4,9 @@ mod list_offsets_model;
 mod list_offsets_request;
 mod list_offsets_response;
 
-pub(crate) use list_offsets_model::{ListOffsetsIsolation, ListOffsetsOutcome, ResolvedPosition};
+pub(crate) use list_offsets_model::{
+    ListOffsetsIsolation, ListOffsetsOutcome, NormalizedListOffsetsResponse, ResolvedPosition,
+};
 #[cfg_attr(
     not(test),
     expect(
