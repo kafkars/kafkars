@@ -4,6 +4,7 @@ use kafka_client_core::AssignedConsumerEffect;
 
 use super::{
     assigned_owner::AssignedConsumerOwner,
+    assigned_owner_event::is_terminal_event,
     assigned_owner_fault::{AssignedConsumerEffectFailure, AssignedConsumerOwnerFault},
     assigned_owner_model::PendingPosition,
     fetch_execution::{FetchAttemptDeadline, FetchExecutionError, PreparedFetchExecution},
@@ -25,6 +26,9 @@ impl AssignedConsumerOwner {
         let Some(effect) = self.effects.front().copied() else {
             return FrontEffect::Idle;
         };
+        if is_terminal_event(effect) {
+            return self.retain_terminal_event(effect);
+        }
         if is_control(effect) {
             return self.interpret_control(effect);
         }
@@ -48,16 +52,23 @@ impl AssignedConsumerOwner {
                 .map(|_disposition| ())
                 .map_err(AssignedConsumerEffectFailure::Timer),
             AssignedConsumerEffect::FetchReady { fence, .. } => self.prepare_fetch(effect, fence),
+            AssignedConsumerEffect::AuthorizeFetchDelivery { .. } => Ok(()),
             AssignedConsumerEffect::PositionResolutionFailed { .. }
             | AssignedConsumerEffect::FetchThrottleFailed { .. }
-            | AssignedConsumerEffect::AuthorizeFetchDelivery { .. }
-            | AssignedConsumerEffect::FetchFailed { .. } => Ok(()),
+            | AssignedConsumerEffect::FetchFailed { .. } => return FrontEffect::Idle,
             AssignedConsumerEffect::Revoke { .. } | AssignedConsumerEffect::Suspend { .. } => {
                 return FrontEffect::Idle;
             }
         };
         match result {
             Ok(()) => {
+                if let Err(failure) = self.events.observe_effect(effect) {
+                    self.fault = Some(AssignedConsumerOwnerFault::Effect {
+                        effect,
+                        failure: AssignedConsumerEffectFailure::Event(failure),
+                    });
+                    return FrontEffect::Idle;
+                }
                 self.effects.pop_front();
                 FrontEffect::Interpreted
             }
@@ -82,6 +93,13 @@ impl AssignedConsumerOwner {
         self.positions.observe_control(effect);
         self.timers.observe_control(effect);
         if !self.reconcile_pending_positions() || !self.reconcile_pending_fetches() {
+            return FrontEffect::Idle;
+        }
+        if let Err(failure) = self.events.observe_effect(effect) {
+            self.fault = Some(AssignedConsumerOwnerFault::Effect {
+                effect,
+                failure: AssignedConsumerEffectFailure::Event(failure),
+            });
             return FrontEffect::Idle;
         }
         self.effects.pop_front();

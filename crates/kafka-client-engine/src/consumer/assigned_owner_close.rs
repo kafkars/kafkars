@@ -107,7 +107,7 @@ impl AssignedConsumerOwner {
         }
     }
 
-    fn is_quiescent(&self) -> bool {
+    pub(super) fn is_quiescent(&self) -> bool {
         self.effects.is_empty()
             && self.raw_position_deadlines.is_empty()
             && self.pending_positions.is_empty()
@@ -115,6 +115,7 @@ impl AssignedConsumerOwner {
             && self.timers.timer_count() == 0
             && self.positions.retained_positions() == 0
             && self.fetches.retained() == (0, 0, 0)
+            && self.events.retained().0 == 0
             && !self.is_faulted()
     }
 

@@ -10,6 +10,7 @@ pub(crate) struct AssignedConsumerRecoveryAudit {
     unsettled: usize,
     position_calls: usize,
     fetch_retained: (usize, usize, usize),
+    event_retained: (usize, usize),
     reclaim_failures: usize,
 }
 
@@ -52,6 +53,7 @@ impl AssignedConsumerOwner {
             unsettled: self.unsettled(),
             position_calls: self.positions.retained_positions(),
             fetch_retained: self.fetches.retained(),
+            event_retained: self.events.retained(),
             reclaim_failures: self
                 .reclaim_faults
                 .len()
@@ -63,5 +65,9 @@ impl AssignedConsumerOwner {
 impl AssignedConsumerRecoveryAudit {
     pub(crate) const fn was_cleanly_closed(self) -> bool {
         self.close_completed && self.unsettled == 0
+    }
+
+    pub(crate) const fn event_retained(self) -> (usize, usize) {
+        self.event_retained
     }
 }

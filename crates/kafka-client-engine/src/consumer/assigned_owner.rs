@@ -10,6 +10,7 @@ use crate::clock::MonotonicClock;
 
 use super::{
     assigned_close_slot::AssignedCloseSlot,
+    assigned_event::AssignedConsumerEventStore,
     assigned_owner_fault::{AssignedConsumerFaultKind, AssignedConsumerOwnerFault},
     assigned_owner_model::{
         AssignedConsumerOwnerBuildError, AssignedConsumerOwnerLimits,
@@ -28,6 +29,7 @@ pub(crate) struct AssignedConsumerOwner {
     pub(super) timers: AssignedTimers,
     pub(super) positions: PositionResolutionExecutor,
     pub(super) fetches: DirectFetchExecutor,
+    pub(super) events: AssignedConsumerEventStore,
     pub(super) close: AssignedCloseSlot,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) settings: AssignedConsumerOwnerSettings,
@@ -80,6 +82,8 @@ impl AssignedConsumerOwner {
                 limits.delivery_capacity,
                 limits.delivery_bytes,
             ),
+            events: AssignedConsumerEventStore::new(limits.partition_capacity)
+                .map_err(AssignedConsumerOwnerBuildError::Event)?,
             close: AssignedCloseSlot::create_for_assigned_owner(),
             clock,
             settings,

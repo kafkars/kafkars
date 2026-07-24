@@ -45,16 +45,28 @@ impl AssignedConsumerOwner {
             .try_reserve_exact(prepared.partitions().len())
             .map_err(|_error| AssignedConsumerOwnerError::Allocation)?;
         partitions.extend_from_slice(prepared.partitions());
-        let transition = self
-            .machine
-            .apply(AssignedConsumerInput::Assign {
-                partitions,
-                now: capture.now(),
-                resolution_deadline: capture.deadline(),
-            })
-            .map_err(AssignedConsumerOwnerError::Core)?;
+        let partition_count = partitions.len();
+        let event_claims = self
+            .events
+            .prepare_replacement(partition_count)
+            .map_err(AssignedConsumerOwnerError::Event)?;
+        let transition = match self.machine.apply(AssignedConsumerInput::Assign {
+            partitions,
+            now: capture.now(),
+            resolution_deadline: capture.deadline(),
+        }) {
+            Ok(transition) => transition,
+            Err(error) => {
+                event_claims.rollback_event_claims();
+                return Err(AssignedConsumerOwnerError::Core(error));
+            }
+        };
         let epoch = transition.assignment_epoch();
         prepared.commit();
+        if let Err(error) = event_claims.commit_event_claims(transition.effects()) {
+            self.fault = Some(AssignedConsumerOwnerFault::EventTransition { transition, error });
+            return Err(AssignedConsumerOwnerError::Faulted);
+        }
         let Some(epoch) = epoch else {
             self.retain_transition(transition, Some(capture.operation_deadline()));
             return Err(AssignedConsumerOwnerError::Faulted);
@@ -104,15 +116,26 @@ impl AssignedConsumerOwner {
         capture: DeadlineCapture,
     ) -> Result<(), AssignedConsumerOwnerError> {
         self.ensure_admission_ready()?;
-        let transition = self
-            .machine
-            .apply(AssignedConsumerInput::Resume {
-                assignment_epoch,
-                partition,
-                now: capture.now(),
-                resolution_deadline: capture.deadline(),
-            })
-            .map_err(AssignedConsumerOwnerError::Core)?;
+        let event_claims = self
+            .events
+            .prepare_partition(partition)
+            .map_err(AssignedConsumerOwnerError::Event)?;
+        let transition = match self.machine.apply(AssignedConsumerInput::Resume {
+            assignment_epoch,
+            partition,
+            now: capture.now(),
+            resolution_deadline: capture.deadline(),
+        }) {
+            Ok(transition) => transition,
+            Err(error) => {
+                event_claims.rollback_event_claims();
+                return Err(AssignedConsumerOwnerError::Core(error));
+            }
+        };
+        if let Err(error) = event_claims.commit_event_claims(transition.effects()) {
+            self.fault = Some(AssignedConsumerOwnerFault::EventTransition { transition, error });
+            return Err(AssignedConsumerOwnerError::Faulted);
+        }
         self.enqueue_transition(transition, Some(capture.operation_deadline()));
         Ok(())
     }
@@ -142,16 +165,27 @@ impl AssignedConsumerOwner {
         capture: DeadlineCapture,
     ) -> Result<(), AssignedConsumerOwnerError> {
         self.ensure_admission_ready()?;
-        let transition = self
-            .machine
-            .apply(AssignedConsumerInput::Seek {
-                assignment_epoch,
-                partition,
-                position,
-                now: capture.now(),
-                resolution_deadline: capture.deadline(),
-            })
-            .map_err(AssignedConsumerOwnerError::Core)?;
+        let event_claims = self
+            .events
+            .prepare_partition(partition)
+            .map_err(AssignedConsumerOwnerError::Event)?;
+        let transition = match self.machine.apply(AssignedConsumerInput::Seek {
+            assignment_epoch,
+            partition,
+            position,
+            now: capture.now(),
+            resolution_deadline: capture.deadline(),
+        }) {
+            Ok(transition) => transition,
+            Err(error) => {
+                event_claims.rollback_event_claims();
+                return Err(AssignedConsumerOwnerError::Core(error));
+            }
+        };
+        if let Err(error) = event_claims.commit_event_claims(transition.effects()) {
+            self.fault = Some(AssignedConsumerOwnerFault::EventTransition { transition, error });
+            return Err(AssignedConsumerOwnerError::Faulted);
+        }
         self.enqueue_transition(transition, Some(capture.operation_deadline()));
         Ok(())
     }

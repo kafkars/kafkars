@@ -6,6 +6,9 @@ mod assigned_close_error;
 mod assigned_close_slot;
 #[cfg(test)]
 mod assigned_close_slot_test;
+mod assigned_event;
+#[cfg(test)]
+mod assigned_event_test;
 mod assigned_host;
 mod assigned_owner;
 mod assigned_owner_admission;
@@ -17,6 +20,9 @@ mod assigned_owner_close_test;
 mod assigned_owner_effect;
 #[cfg(test)]
 mod assigned_owner_effect_test;
+mod assigned_owner_event;
+#[cfg(test)]
+mod assigned_owner_event_test;
 mod assigned_owner_fault;
 #[cfg(test)]
 mod assigned_owner_fault_test;
@@ -71,5 +77,4 @@ mod position_execution_test;
 mod position_prepare_error;
 #[cfg(test)]
 mod position_prepare_error_test;
-
 pub(crate) use exports::*;

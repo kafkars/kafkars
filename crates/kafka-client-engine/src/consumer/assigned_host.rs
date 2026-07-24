@@ -1,5 +1,8 @@
 //! Declarative ownership boundary for the first synchronized assigned consumer.
 
+mod event_port;
+#[cfg(test)]
+mod event_port_test;
 mod port;
 #[cfg(test)]
 mod port_test;

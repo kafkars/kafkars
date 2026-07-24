@@ -14,6 +14,7 @@ use crate::{
 
 use super::{
     assigned_close_error::AssignedCloseSlotError,
+    assigned_event::{AssignedConsumerEventStoreBuildError, AssignedConsumerEventStoreError},
     assigned_topics::{AssignedTopicLimits, AssignedTopicsError},
     position_execution::PreparedPositionResolution,
 };
@@ -118,6 +119,7 @@ pub(crate) enum AssignedConsumerOwnerBuildError {
     ZeroDeliveryCapacity,
     TopicPartitionCapacity { topic: usize, owner: usize },
     FetchOutputBytes { actual: usize, limit: usize },
+    Event(AssignedConsumerEventStoreBuildError),
     Allocation,
 }
 
@@ -131,6 +133,7 @@ pub(crate) enum AssignedConsumerOwnerError {
     Topics(AssignedTopicsError),
     Core(AssignedConsumerMachineError),
     Close(AssignedCloseSlotError),
+    Event(AssignedConsumerEventStoreError),
     Allocation,
 }
 

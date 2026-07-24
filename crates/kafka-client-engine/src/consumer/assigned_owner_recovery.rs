@@ -1,7 +1,8 @@
 //! Post-driver-shutdown release of one failed assigned-consumer owner.
 
 use super::{
-    assigned_owner::AssignedConsumerOwner, assigned_owner_fault::AssignedConsumerFaultKind,
+    assigned_event::AssignedConsumerEventRecovery, assigned_owner::AssignedConsumerOwner,
+    assigned_owner_fault::AssignedConsumerFaultKind,
     assigned_owner_status::AssignedConsumerRecoveryAudit, fetch_execution::FetchExecutionError,
 };
 
@@ -17,6 +18,7 @@ pub(crate) struct AssignedConsumerShutdownRecovery {
     recovered_fetch_requests: usize,
     reclaim_failures: usize,
     first_reclaim_failure: Option<FetchExecutionError>,
+    events: AssignedConsumerEventRecovery,
 }
 
 /// Before-and-after audit retained in abnormal engine-host diagnostics.
@@ -60,6 +62,7 @@ impl AssignedConsumerOwner {
             first_reclaim_failure.get_or_insert(error);
             drop(delivery);
         }
+        let events = self.events.recover_after_driver_shutdown();
         AssignedConsumerShutdownRecovery {
             owner_fault,
             recovered_position_calls,
@@ -69,18 +72,21 @@ impl AssignedConsumerOwner {
             recovered_fetch_requests,
             reclaim_failures,
             first_reclaim_failure,
+            events,
         }
     }
 }
 
 impl AssignedConsumerShutdownRecovery {
-    /// Reports ownership corruption rather than ordinary abandoned live calls.
-    pub(crate) const fn had_fault(&self) -> bool {
+    /// Reports whether shutdown retained evidence worth preserving.
+    pub(crate) const fn requires_report(&self) -> bool {
         self.owner_fault.is_some()
             || self.position_completion.is_some()
             || self.fetch_completion.is_some()
             || self.fetch_executor_faulted
             || self.reclaim_failures != 0
+            || self.events.claimed() != 0
+            || self.events.ready() != 0
     }
 
     pub(crate) const fn owner_fault(&self) -> Option<AssignedConsumerFaultKind> {
@@ -102,6 +108,14 @@ impl AssignedConsumerShutdownRecovery {
     pub(crate) const fn first_reclaim_failure(&self) -> Option<FetchExecutionError> {
         self.first_reclaim_failure
     }
+
+    pub(crate) const fn recovered_event_claims(&self) -> usize {
+        self.events.claimed()
+    }
+
+    pub(crate) const fn recovered_ready_events(&self) -> usize {
+        self.events.ready()
+    }
 }
 
 impl AssignedConsumerRecoveryReport {
@@ -118,6 +132,6 @@ impl AssignedConsumerRecoveryReport {
     }
 
     pub(crate) fn requires_cleanup_report(&self) -> bool {
-        self.release.had_fault() || !self.audit.was_cleanly_closed() || self.lock_was_poisoned
+        self.release.requires_report() || !self.audit.was_cleanly_closed() || self.lock_was_poisoned
     }
 }

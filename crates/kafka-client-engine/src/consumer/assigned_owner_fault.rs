@@ -1,5 +1,7 @@
 //! Frozen linear recovery state for fatal assigned-owner mechanism failures.
 
+use std::sync::Arc;
+
 use kafka_client_core::{
     AssignedConsumerEffect, AssignedConsumerMachineError, AssignedConsumerTransition, PositionFence,
 };
@@ -8,6 +10,7 @@ use crate::clock::ClockError;
 
 use super::{
     assigned_close_error::AssignedCloseSlotError,
+    assigned_event::AssignedConsumerEventStoreError,
     assigned_owner_model::PendingPosition,
     assigned_timer_model::AssignedTimerError,
     assigned_topics::AssignedTopicsError,
@@ -28,6 +31,15 @@ pub(super) enum AssignedConsumerOwnerFault {
     Effect {
         effect: AssignedConsumerEffect,
         failure: AssignedConsumerEffectFailure,
+    },
+    Event {
+        effect: AssignedConsumerEffect,
+        error: AssignedConsumerEventStoreError,
+        topic: Arc<str>,
+    },
+    EventTransition {
+        transition: AssignedConsumerTransition,
+        error: AssignedConsumerEventStoreError,
     },
     Position(PositionExecutionError),
     Fetch(FetchExecutionError),
@@ -60,6 +72,7 @@ pub(super) enum AssignedConsumerOwnerFault {
 pub(crate) enum AssignedConsumerFaultKind {
     Clock,
     Effect,
+    Event,
     Position,
     Fetch,
     Close,
@@ -77,6 +90,7 @@ impl AssignedConsumerOwnerFault {
         match self {
             Self::Clock(_) => AssignedConsumerFaultKind::Clock,
             Self::Effect { .. } => AssignedConsumerFaultKind::Effect,
+            Self::Event { .. } | Self::EventTransition { .. } => AssignedConsumerFaultKind::Event,
             Self::Position(_) => AssignedConsumerFaultKind::Position,
             Self::Fetch(_) => AssignedConsumerFaultKind::Fetch,
             Self::Close(_) => AssignedConsumerFaultKind::Close,
@@ -99,6 +113,7 @@ pub(super) enum AssignedConsumerEffectFailure {
     FetchPreparation(PrepareFetchError),
     Timer(AssignedTimerError),
     Close(AssignedCloseSlotError),
+    Event(AssignedConsumerEventStoreError),
     PendingCapacity,
     Allocation,
     PositionDeadlineMissing,
