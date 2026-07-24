@@ -5,7 +5,7 @@ use kafka_wire_records::Compression;
 
 use super::{
     FetchDecodeLimits,
-    decode_test::{partition, record_bytes, response, topic},
+    decode_test::{partition, record_bytes, record_bytes_at, response, topic},
     normalize_fetch_response,
 };
 
@@ -13,7 +13,7 @@ use super::{
 #[ignore = "requires budget-aware kafka-wire-records decode-next retention accounting"]
 fn tiny_compressed_batches_share_actual_retained_budget() {
     let first = record_bytes(Compression::Gzip);
-    let second = record_bytes(Compression::Gzip);
+    let second = record_bytes_at(Compression::Gzip, 43);
     let mut records = BytesMut::with_capacity(first.len() + second.len());
     records.extend_from_slice(&first);
     records.extend_from_slice(&second);

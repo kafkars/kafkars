@@ -87,7 +87,20 @@ fn records_keep_offsets_nullability_and_duplicate_header_order() {
 }
 
 #[test]
-fn wire_records_remains_the_crc_authority() {
+fn wire_records_remains_the_compression_and_crc_authority() {
+    let compressed_response = response(vec![topic(
+        "compressed",
+        vec![partition(0, Some(record_bytes(Compression::Gzip)))],
+    )]);
+    let normalized = normalize_fetch_response(compressed_response, FetchDecodeLimits::default())
+        .unwrap_or_else(|error| panic!("wire-records should decode gzip: {error:?}"));
+    assert_eq!(
+        normalized.topics[0].partitions[0].batches[0].records[1].headers[0]
+            .value
+            .as_deref(),
+        Some(&b"first"[..])
+    );
+
     let mut corrupt = BytesMut::from(record_bytes(Compression::None).as_ref());
     let last = corrupt.len() - 1;
     corrupt[last] ^= 0x80;
@@ -164,8 +177,12 @@ fn aborted(producer_id: i64, first_offset: i64) -> AbortedTransaction {
 }
 
 pub(super) fn record_bytes(compression: Compression) -> Bytes {
+    record_bytes_at(compression, 40)
+}
+
+pub(super) fn record_bytes_at(compression: Compression, base_offset: i64) -> Bytes {
     let batch = RecordBatch {
-        base_offset: 40,
+        base_offset,
         last_offset_delta: 2,
         partition_leader_epoch: 11,
         compression,

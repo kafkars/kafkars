@@ -35,7 +35,9 @@ pub(super) fn normalize_batch(
         batch.base_timestamp,
         batch.max_timestamp,
         batch.timestamp_type,
+        batch.has_delete_horizon,
     )?;
+    let delete_horizon_ms = batch.has_delete_horizon.then_some(batch.base_timestamp);
     let producer = producer_identity(
         batch.producer_id,
         batch.producer_epoch,
@@ -88,7 +90,7 @@ pub(super) fn normalize_batch(
         producer,
         is_transactional: batch.is_transactional,
         is_control: batch.is_control,
-        has_delete_horizon: batch.has_delete_horizon,
+        delete_horizon_ms,
         records,
     })
 }
@@ -124,13 +126,16 @@ fn batch_timestamps(
     base: i64,
     max: i64,
     timestamp_type: TimestampType,
+    has_delete_horizon: bool,
 ) -> Result<(Option<i64>, Option<i64>), FetchDecodeFailure> {
     match (base, max) {
-        (-1, -1) => Ok((None, None)),
+        (-1, -1) if !has_delete_horizon => Ok((None, None)),
         (base, max)
             if base >= 0
                 && max >= 0
-                && (timestamp_type == TimestampType::LogAppendTime || max >= base) =>
+                && (has_delete_horizon
+                    || timestamp_type == TimestampType::LogAppendTime
+                    || max >= base) =>
         {
             Ok((Some(base), Some(max)))
         }

@@ -139,14 +139,37 @@ fn producer_identity_is_coherent_and_required_for_transactions() {
 #[test]
 fn leader_epoch_next_offset_and_delete_horizon_are_lossless() {
     let mut budget = test_budget();
+    let ordinary = normalize_batch(batch(), &mut budget)
+        .unwrap_or_else(|error| panic!("ordinary batch facts: {error:?}"));
+    assert_eq!(ordinary.delete_horizon_ms, None);
+
+    let mut budget = test_budget();
     let mut retained = batch();
     retained.partition_leader_epoch = 3;
     retained.has_delete_horizon = true;
+    retained.base_timestamp = 100;
+    retained.max_timestamp = 20;
+    retained.records[0].timestamp_delta = -80;
     let normalized = normalize_batch(retained, &mut budget)
         .unwrap_or_else(|error| panic!("valid batch facts: {error:?}"));
     assert_eq!(normalized.partition_leader_epoch, Some(3));
     assert_eq!(normalized.next_offset, 11);
-    assert!(normalized.has_delete_horizon);
+    assert_eq!(normalized.delete_horizon_ms, Some(100));
+    assert_eq!(normalized.max_timestamp, Some(20));
+    assert_eq!(normalized.records[0].timestamp, Some(20));
+
+    let mut budget = test_budget();
+    let mut missing_horizon = batch();
+    missing_horizon.has_delete_horizon = true;
+    missing_horizon.base_timestamp = -1;
+    missing_horizon.max_timestamp = -1;
+    assert_eq!(
+        normalize_batch(missing_horizon, &mut budget),
+        Err(FetchDecodeFailure::InvalidBatchTimestamps {
+            base_timestamp: -1,
+            max_timestamp: -1,
+        })
+    );
 
     let mut budget = test_budget();
     let mut malformed_epoch = batch();

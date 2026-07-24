@@ -78,7 +78,7 @@ pub(crate) struct FetchBatch {
     pub(crate) producer: Option<FetchProducerIdentity>,
     pub(crate) is_transactional: bool,
     pub(crate) is_control: bool,
-    pub(crate) has_delete_horizon: bool,
+    pub(crate) delete_horizon_ms: Option<i64>,
     pub(crate) records: Vec<FetchRecord>,
 }
 
