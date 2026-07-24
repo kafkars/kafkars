@@ -1,6 +1,14 @@
 //! Wire-owned materialization behind engine-owned semantic inputs.
 
 pub(crate) mod admin;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "direct-consumer host integration follows the protocol slices"
+    )
+)]
+pub(crate) mod consumer;
 mod error;
 pub(crate) mod init_producer_id;
 #[cfg(test)]

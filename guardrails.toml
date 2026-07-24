@@ -745,6 +745,14 @@ production = "crates/kafka-client-engine/src/protocol/admin/timeout.rs"
 test = "crates/kafka-client-engine/src/protocol/admin/timeout_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/list_offsets_request.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/list_offsets_request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/list_offsets_response.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/list_offsets_response_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/error/host.rs"
 test = "crates/kafka-client-engine/src/engine_host/error/host_test.rs"
 
@@ -1171,6 +1179,22 @@ forbidden = [
   "crate::producer",
   "crate::transaction",
   "kafka_driver",
+  "std::future",
+  "std::time",
+  "Transport",
+  "Retry",
+]
+
+# Generated consumer DTOs remain in one scalar protocol seam without execution policy.
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/protocol/consumer"
+forbidden = [
+  "crate::admin",
+  "crate::driver",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire_records",
   "std::future",
   "std::time",
   "Transport",
