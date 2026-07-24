@@ -933,6 +933,10 @@ production = "crates/kafka-client-engine/src/consumer/position_prepare_error.rs"
 test = "crates/kafka-client-engine/src/consumer/position_prepare_error_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_close_slot.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_close_slot_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/fetch_store.rs"
 test = "crates/kafka-client-engine/src/consumer/fetch_store_test.rs"
 
@@ -1561,6 +1565,62 @@ forbidden = [
   "Retry",
 ]
 
+# The pre-reserved assigned-close slot owns one scalar terminal value and no
+# allocation, completion publication, clock, transport, async, or sibling policy.
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_close_error.rs"
+forbidden = [
+  "crate::admin",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "std::collections",
+  "std::future",
+  "std::net",
+  "std::sync",
+  "std::thread",
+  "std::time",
+  "Arc",
+  "Box",
+  "Future",
+  "String",
+  "Vec",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_close_slot.rs"
+forbidden = [
+  "crate::admin",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "std::collections",
+  "std::future",
+  "std::net",
+  "std::sync",
+  "std::thread",
+  "std::time",
+  "Arc",
+  "Box",
+  "Future",
+  "String",
+  "Vec",
+  "async",
+]
+
 # Concrete direct-Fetch execution uses the engine port without acquiring raw
 # protocol, transport, clock, async, metadata, or sibling-domain authority.
 [[capability_rules]]
@@ -1986,6 +2046,11 @@ allowed_paths = [
 [[call_capabilities]]
 root = "crates/kafka-client-engine/src"
 call = "DirectFetchExecutor::create_unbound"
+allowed_paths = []
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "AssignedCloseSlot::create_for_assigned_owner"
 allowed_paths = []
 
 [[call_capabilities]]
@@ -3220,6 +3285,19 @@ allowed_paths = [
 ]
 
 # Lifecycle and accounting owners must not be duplicated accidentally.
+[[linear_owners]]
+owner_type = "AssignedCloseState"
+path = "crates/kafka-client-engine/src/consumer/assigned_close_slot.rs"
+
+[[linear_owners]]
+owner_type = "AssignedCloseSlot"
+path = "crates/kafka-client-engine/src/consumer/assigned_close_slot.rs"
+
+[[mutation_owners]]
+owner_type = "AssignedCloseSlot"
+field = "state"
+allowed_paths = ["crates/kafka-client-engine/src/consumer/assigned_close_slot.rs"]
+
 [[linear_owners]]
 owner_type = "PreparedPositionResolution"
 path = "crates/kafka-client-engine/src/consumer/position_execution.rs"

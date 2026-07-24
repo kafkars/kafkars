@@ -1,5 +1,11 @@
 //! Concrete direct-consumer effect execution without public API ownership.
 
+#[cfg(test)]
+mod assigned_close_composition_test;
+mod assigned_close_error;
+mod assigned_close_slot;
+#[cfg(test)]
+mod assigned_close_slot_test;
 mod assigned_timer_model;
 mod assigned_timers;
 #[cfg(test)]
