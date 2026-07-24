@@ -30,38 +30,8 @@ mod flush_observer;
 )]
 mod producer;
 mod protocol;
-
-pub use admin::{
-    AdminHandle, CreateTopic, CreateTopicConfig, CreateTopicError, CreateTopicResult,
-    CreateTopicsAccepted, CreateTopicsAcceptedFaultKind, CreateTopicsAdmissionError,
-    CreateTopicsAdmissionErrorKind, CreateTopicsDeliveryStatus, CreateTopicsFailure,
-    CreateTopicsFailureKind, CreateTopicsObserver, CreateTopicsObserverError, CreateTopicsOutcome,
-    CreateTopicsRequest,
-};
-pub use config::{EngineConfig, EngineProducerLimits};
-pub use delivery::{
-    ProducerDeliveryFailure, ProducerDeliveryFailureKind, ProducerDeliveryStatus,
-    ProducerRecordMetadata,
-};
-pub use delivery_error::{ProducerDeliveryError, ProducerObserverError};
-pub use delivery_observer::{ProducerDeliveryObserver, ProducerDeliveryResult};
-pub use engine::Engine;
-pub use engine_host::{
-    EngineShutdownError, EngineShutdownErrorKind, EngineStartError, EngineStartErrorKind,
-};
-pub use flush_error::ProducerFlushError;
-pub use flush_observer::{ProducerFlushObserver, ProducerFlushResult};
-pub use producer::{
-    ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerCancelAccepted, ProducerCancelError,
-    ProducerCancelErrorKind, ProducerCancelFault, ProducerCancelFaultKind,
-    ProducerCancellationOutcome, ProducerHandle, ProducerSendCapture, ProducerSendCaptureError,
-    ProducerSendCaptureErrorKind, ProducerSendOptions, ProducerTryCloseAccepted,
-    ProducerTryCloseError, ProducerTryCloseErrorKind, ProducerTryFlushAccepted,
-    ProducerTryFlushError, ProducerTryFlushErrorKind, ProducerTrySendAccepted,
-    ProducerTrySendError, ProducerTrySendErrorKind, PublicProducerHeader as ProducerHeader,
-    PublicProducerRecord as ProducerRecord,
-};
-
+mod public_api;
+pub use public_api::*;
 #[cfg(test)]
 mod config_test;
 #[cfg(test)]
