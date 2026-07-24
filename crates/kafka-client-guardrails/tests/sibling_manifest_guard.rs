@@ -111,14 +111,21 @@ fn direct_aliased_target_development_and_build_engine_specs_are_rejected() {
 }
 
 #[test]
-fn wire_core_is_exactly_test_only_and_cannot_be_aliased() {
+fn wire_core_is_exactly_normal_and_cannot_be_aliased_or_redeclared() {
     let root = fixture("root_valid.toml");
     let normal = violations(&root, &fixture("engine_wire_core_normal.toml"));
     assert!(
-        normal
-            .iter()
-            .any(|violation| violation.contains("kafka-wire-core must remain test-only")),
-        "sibling manifest guard accepted normal wire-core: {normal:?}"
+        normal.is_empty(),
+        "sibling manifest guard rejected exact normal wire-core: {normal:?}"
+    );
+
+    let development = violations(&root, &fixture("engine_wire_core_dev.toml"));
+    assert!(
+        development.iter().any(|violation| {
+            violation
+                .contains("engine dev-dependencies redeclares reviewed package kafka-wire-core")
+        }),
+        "sibling manifest guard accepted dev-only wire-core: {development:?}"
     );
 
     let aliased = violations(&root, &fixture("engine_wire_core_alias.toml"));

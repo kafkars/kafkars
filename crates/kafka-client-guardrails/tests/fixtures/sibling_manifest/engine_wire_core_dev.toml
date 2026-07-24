@@ -6,5 +6,7 @@ version = "0.0.0"
 bytes.workspace = true
 kafka-driver.workspace = true
 kafka-wire.workspace = true
-kafka-wire-core.workspace = true
 kafka-wire-records.workspace = true
+
+[dev-dependencies]
+kafka-wire-core.workspace = true

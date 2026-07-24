@@ -1268,8 +1268,9 @@ allowed_external = []
 [[dependency_rules]]
 package = "kafka-client-engine"
 allowed_internal = ["kafka-client-core"]
-# kafka-wire-core is an exact test-only fixture edge; sibling_manifest_guard
-# rejects it from normal/build/target dependencies and rejects aliases.
+# kafka-wire-core is an exact normal edge because the engine exhaustively
+# classifies wire encode/decode failures carried by kafka-driver. The sibling
+# manifest guard rejects dev/build/target redeclarations and aliases.
 allowed_external = [
   "bytes",
   "kafka-driver",

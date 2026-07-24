@@ -10,7 +10,7 @@ struct Sibling {
     path: &'static str,
 }
 
-const SIBLINGS: [Sibling; 3] = [
+const SIBLINGS: [Sibling; 4] = [
     Sibling {
         name: "kafka-driver",
         path: "../kafka-driver",
@@ -23,12 +23,11 @@ const SIBLINGS: [Sibling; 3] = [
         name: "kafka-wire-records",
         path: "../kafka-protocol/crates/kafka-wire-records",
     },
+    Sibling {
+        name: "kafka-wire-core",
+        path: "../kafka-protocol/crates/kafka-wire-core",
+    },
 ];
-
-const WIRE_CORE_TEST: Sibling = Sibling {
-    name: "kafka-wire-core",
-    path: "../kafka-protocol/crates/kafka-wire-core",
-};
 
 pub(crate) fn violations(root_source: &str, engine_source: &str) -> Vec<String> {
     let mut violations = Vec::new();
@@ -70,14 +69,6 @@ fn inspect_root(root: &Value, violations: &mut Vec<String>) {
             ));
         }
     }
-    let wire_core =
-        workspace_dependencies.and_then(|dependencies| dependencies.get(WIRE_CORE_TEST.name));
-    if !is_exact_path(wire_core, WIRE_CORE_TEST.path) {
-        violations.push(format!(
-            "workspace dependency {} must be exactly {{ path = \"{}\" }}",
-            WIRE_CORE_TEST.name, WIRE_CORE_TEST.path
-        ));
-    }
     if let Some(dependencies) = workspace_dependencies {
         reject_aliases("workspace dependencies", dependencies, violations);
     }
@@ -97,30 +88,14 @@ fn inspect_engine(engine: &Value, violations: &mut Vec<String>) {
             ));
         }
     }
-    if dependencies.is_some_and(|values| values.contains_key(WIRE_CORE_TEST.name)) {
-        violations.push(format!(
-            "engine dependency {} must remain test-only",
-            WIRE_CORE_TEST.name
-        ));
-    }
     if let Some(dependencies) = dependencies {
         reject_aliases("engine dependencies", dependencies, violations);
     }
-    let development = engine.get("dev-dependencies").and_then(Value::as_table);
-    let wire_core = development.and_then(|values| values.get(WIRE_CORE_TEST.name));
-    if !is_exact_workspace(wire_core) {
-        violations.push(format!(
-            "engine dev-dependency {} must be exactly {{ workspace = true }}",
-            WIRE_CORE_TEST.name
-        ));
-    }
-    if let Some(dependencies) = development {
+    if let Some(dependencies) = engine.get("dev-dependencies").and_then(Value::as_table) {
         reject_siblings("engine dev-dependencies", dependencies, violations);
-        reject_wire_core_aliases("engine dev-dependencies", dependencies, violations);
     }
     if let Some(dependencies) = engine.get("build-dependencies").and_then(Value::as_table) {
         reject_siblings("engine build-dependencies", dependencies, violations);
-        reject_wire_core("engine build-dependencies", dependencies, violations);
     }
     reject_target_siblings("engine", engine, violations);
 }
@@ -153,44 +128,7 @@ fn reject_target_siblings(label: &str, manifest: &Value, violations: &mut Vec<St
                     dependencies,
                     violations,
                 );
-                reject_wire_core(
-                    &format!("{label} target {selector} {section}"),
-                    dependencies,
-                    violations,
-                );
             }
-        }
-    }
-}
-
-fn reject_wire_core(
-    label: &str,
-    dependencies: &toml::map::Map<String, Value>,
-    violations: &mut Vec<String>,
-) {
-    for (declared, specification) in dependencies {
-        if package_name(declared, specification) == WIRE_CORE_TEST.name {
-            violations.push(format!(
-                "{label} redeclares reviewed test-only package {}",
-                WIRE_CORE_TEST.name
-            ));
-        }
-    }
-}
-
-fn reject_wire_core_aliases(
-    label: &str,
-    dependencies: &toml::map::Map<String, Value>,
-    violations: &mut Vec<String>,
-) {
-    for (declared, specification) in dependencies {
-        if package_name(declared, specification) == WIRE_CORE_TEST.name
-            && declared != WIRE_CORE_TEST.name
-        {
-            violations.push(format!(
-                "{label} aliases reviewed package {} as {declared}",
-                WIRE_CORE_TEST.name
-            ));
         }
     }
 }
