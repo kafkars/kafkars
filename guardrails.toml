@@ -1711,6 +1711,18 @@ test = "crates/kafka-client-engine/src/driver/rpc/describe_configs_submission_te
 production = "crates/kafka-client-engine/src/driver/rpc/describe_configs_terminal.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/describe_configs_terminal_test.rs"
 
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_terminal_test.rs"
+
 [[dependency_rules]]
 package = "kafka-client-core"
 allowed_internal = []
@@ -2615,6 +2627,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/describe_topics_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_partitions.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
@@ -2832,6 +2845,13 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
+method = "submit_tracked_incremental_alter_configs"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
 method = "discard_after_driver_shutdown"
 allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/recovery.rs",
@@ -2850,6 +2870,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/describe_topics_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs",
   "crates/kafka-client-engine/src/engine_host/cleanup.rs",
 ]
@@ -6563,6 +6584,20 @@ field = "settled"
 allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/describe_configs_calls.rs"]
 
 [[mutation_owners]]
+owner_type = "IncrementalAlterConfigsCalls"
+field = "calls"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls.rs",
+]
+
+[[mutation_owners]]
+owner_type = "IncrementalAlterConfigsCalls"
+field = "settled"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls.rs",
+]
+
+[[mutation_owners]]
 owner_type = "DescribeConfigsHost"
 field = "operations"
 allowed_paths = [
@@ -6620,6 +6655,22 @@ path = "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls.rs"
 [[linear_owners]]
 owner_type = "SettledDescribeConfigsCall"
 path = "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls.rs"
+
+[[linear_owners]]
+owner_type = "IncrementalAlterConfigsCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls.rs"
+
+[[linear_owners]]
+owner_type = "IncrementalAlterConfigsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls.rs"
+
+[[linear_owners]]
+owner_type = "IncrementalAlterConfigsCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls.rs"
+
+[[linear_owners]]
+owner_type = "SettledIncrementalAlterConfigsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls.rs"
 
 [[linear_owners]]
 owner_type = "DescribeConfigsHost"

@@ -62,6 +62,19 @@ mod describe_topics_terminal_test;
     expect(dead_code, reason = "awaiting direct-consumer executor")
 )]
 mod fetch;
+#[expect(
+    dead_code,
+    reason = "tracked IncrementalAlterConfigs execution precedes host scheduling"
+)]
+mod incremental_alter_configs_calls;
+#[cfg(test)]
+mod incremental_alter_configs_calls_test;
+mod incremental_alter_configs_submission;
+#[cfg(test)]
+mod incremental_alter_configs_submission_test;
+mod incremental_alter_configs_terminal;
+#[cfg(test)]
+mod incremental_alter_configs_terminal_test;
 mod init_producer_id_calls;
 #[cfg(test)]
 mod init_producer_id_calls_test;

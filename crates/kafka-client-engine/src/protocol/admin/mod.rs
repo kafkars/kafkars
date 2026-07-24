@@ -14,10 +14,6 @@ mod describe_configs_values;
 pub(crate) mod describe_topics;
 mod describe_topics_budget;
 pub(crate) mod describe_topics_response;
-#[allow(
-    dead_code,
-    reason = "the protocol adapter intentionally lands before concrete driver execution"
-)]
 pub(crate) mod incremental_alter_configs;
 mod request_timeout_error;
 #[cfg(test)]
