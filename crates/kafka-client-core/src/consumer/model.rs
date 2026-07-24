@@ -18,11 +18,6 @@ impl AssignmentEpoch {
         }
     }
 
-    /// Restores a nonzero assignment epoch.
-    pub const fn try_from_raw(value: u64) -> Option<Self> {
-        if value == 0 { None } else { Some(Self(value)) }
-    }
-
     /// Returns the deterministic epoch value.
     pub const fn get(self) -> u64 {
         self.0
@@ -43,11 +38,6 @@ impl PositionEpoch {
             Some(value) => Some(Self(value)),
             None => None,
         }
-    }
-
-    /// Restores a nonzero position epoch.
-    pub const fn try_from_raw(value: u64) -> Option<Self> {
-        if value == 0 { None } else { Some(Self(value)) }
     }
 
     /// Returns the deterministic epoch value.
@@ -72,8 +62,8 @@ impl FetchRevision {
         }
     }
 
-    /// Restores a nonzero fetch revision.
-    pub const fn try_from_raw(value: u64) -> Option<Self> {
+    #[cfg(test)]
+    pub(super) const fn try_from_raw_for_test(value: u64) -> Option<Self> {
         if value == 0 { None } else { Some(Self(value)) }
     }
 

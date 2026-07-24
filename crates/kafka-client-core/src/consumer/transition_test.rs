@@ -9,7 +9,7 @@ use super::{
 #[test]
 fn rejected_inputs_leave_assignment_identity_unconsumed() {
     let mut machine = AssignedConsumerMachine::new();
-    let epoch = AssignmentEpoch::try_from_raw(1).unwrap_or_else(|| panic!("nonzero test epoch"));
+    let epoch = AssignmentEpoch::initial();
     assert_eq!(
         machine.apply(AssignedConsumerInput::Pause {
             assignment_epoch: epoch,

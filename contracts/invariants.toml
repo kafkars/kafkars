@@ -216,6 +216,7 @@ evidence = [
   "crates/kafka-client-core/src/consumer/position_test.rs::resolved_start_and_fetch_progress_issue_exact_ordered_positions",
   "crates/kafka-client-core/src/consumer/position_test.rs::older_fetch_revision_cannot_advance_the_active_execution",
   "crates/kafka-client-core/src/consumer/position_test.rs::offset_regression_rejects_without_consuming_fetch_revision",
+  "crates/kafka-client-core/src/consumer/position_state_test.rs::fetch_revision_exhaustion_preserves_the_active_fetch_and_offset",
 ]
 
 [[invariant]]

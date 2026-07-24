@@ -19,6 +19,8 @@ mod control_test;
 #[cfg(test)]
 mod model_test;
 #[cfg(test)]
+mod position_state_test;
+#[cfg(test)]
 mod position_test;
 #[cfg(test)]
 mod transition_test;

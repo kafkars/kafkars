@@ -109,10 +109,7 @@ fn invalid_assignment_does_not_consume_the_first_epoch() {
             partitions: vec![assigned(1, 2, StartPosition::Beginning)],
         })
         .unwrap_or_else(|error| panic!("valid assignment after rejection: {error}"));
-    assert_eq!(
-        transition.assignment_epoch(),
-        AssignmentEpoch::try_from_raw(1).unwrap_or_else(|| panic!("nonzero test epoch"))
-    );
+    assert_eq!(transition.assignment_epoch(), AssignmentEpoch::initial());
 }
 
 pub(super) fn assign(

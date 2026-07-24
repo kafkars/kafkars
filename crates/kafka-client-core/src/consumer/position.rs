@@ -97,12 +97,12 @@ impl AssignedPartitionState {
         next_offset: NextFetchOffset,
     ) -> Result<Option<AssignedConsumerEffect>, AssignedConsumerMachineError> {
         self.ensure_position_fence(supplied.position())?;
-        self.position.advance(supplied, next_offset)?;
         if self.paused {
-            Ok(None)
-        } else {
-            self.activate(supplied.position().assignment_epoch())
+            return Err(AssignedConsumerMachineError::StaleFetch { supplied });
         }
+        self.position
+            .advance_and_activate(supplied, next_offset, self.partition)
+            .map(Some)
     }
 
     fn activate(

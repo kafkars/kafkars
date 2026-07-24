@@ -58,11 +58,12 @@ impl PartitionPosition {
         self.phase = PositionPhase::Ready(next_offset);
     }
 
-    pub(super) fn advance(
+    pub(super) fn advance_and_activate(
         &mut self,
         supplied: FetchFence,
         next_offset: NextFetchOffset,
-    ) -> Result<(), AssignedConsumerMachineError> {
+        partition: AssignedTopicPartition,
+    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
         let PositionPhase::Fetching {
             fence,
             next_offset: requested,
@@ -79,8 +80,7 @@ impl PartitionPosition {
                 observed: next_offset,
             });
         }
-        self.phase = PositionPhase::Ready(next_offset);
-        Ok(())
+        self.start_fetch(supplied.position(), next_offset, partition)
     }
 
     pub(super) fn activate(
@@ -96,23 +96,26 @@ impl PartitionPosition {
                 }))
             }
             PositionPhase::Ready(next_offset) => {
-                let revision = self.next_fetch_revision;
-                let next_revision = revision
-                    .checked_next()
-                    .ok_or(AssignedConsumerMachineError::FetchRevisionExhausted { partition })?;
-                let fetch_fence = FetchFence::new(fence, revision);
-                self.next_fetch_revision = next_revision;
-                self.phase = PositionPhase::Fetching {
-                    fence: fetch_fence,
-                    next_offset,
-                };
-                Ok(Some(AssignedConsumerEffect::Fetch {
-                    fence: fetch_fence,
-                    next_offset,
-                }))
+                self.start_fetch(fence, next_offset, partition).map(Some)
             }
             PositionPhase::Fetching { .. } => Ok(None),
         }
+    }
+
+    fn start_fetch(
+        &mut self,
+        position: PositionFence,
+        next_offset: NextFetchOffset,
+        partition: AssignedTopicPartition,
+    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
+        let revision = self.next_fetch_revision;
+        let next_revision = revision
+            .checked_next()
+            .ok_or(AssignedConsumerMachineError::FetchRevisionExhausted { partition })?;
+        let fence = FetchFence::new(position, revision);
+        self.next_fetch_revision = next_revision;
+        self.phase = PositionPhase::Fetching { fence, next_offset };
+        Ok(AssignedConsumerEffect::Fetch { fence, next_offset })
     }
 
     pub(super) fn fence(
@@ -129,5 +132,10 @@ impl PartitionPosition {
         self.epoch = next;
         self.next_fetch_revision = FetchRevision::initial();
         Ok(())
+    }
+
+    #[cfg(test)]
+    pub(super) fn replace_next_fetch_revision_for_test(&mut self, revision: FetchRevision) {
+        self.next_fetch_revision = revision;
     }
 }

@@ -152,7 +152,7 @@ test = "crates/kafka-client-core/src/consumer/control_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/position_state.rs"
-test = "crates/kafka-client-core/src/consumer/position_test.rs"
+test = "crates/kafka-client-core/src/consumer/position_state_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/transition.rs"
