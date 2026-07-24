@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use super::{
     CreatePartitionsAdmissionErrorKind, CreatePartitionsShardOwner, CreatePartitionsShardWake,
-    CreatePartitionsShardWakeError, test_support::create_partitions_host,
-    test_support::stop_notifier,
+    CreatePartitionsShardWakeError,
 };
+use crate::admin::test_support::{create_partitions_host, stop_notifier};
 
 struct NoopWake;
 

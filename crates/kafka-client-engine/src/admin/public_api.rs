@@ -54,24 +54,17 @@ pub use super::outcome::{
     CreateTopicError, CreateTopicResult, CreateTopicsDeliveryStatus, CreateTopicsFailure,
     CreateTopicsFailureKind, CreateTopicsObserverError, CreateTopicsOutcome,
 };
-pub use super::partitions_error::{
-    CreatePartitionsAdmissionError, CreatePartitionsAdmissionErrorKind,
+pub(crate) use super::partitions::{
+    CREATE_PARTITIONS_CAPACITY, CreatePartitionsAdmissionPort, CreatePartitionsHost,
+    CreatePartitionsHostError, CreatePartitionsShardLockError, CreatePartitionsShardOwner,
+    CreatePartitionsShardWake, CreatePartitionsShardWakeError, CreatePartitionsTurn,
 };
-pub use super::partitions_handle::{CreatePartitionsAccepted, CreatePartitionsAcceptedFaultKind};
-pub(crate) use super::partitions_host::{
-    CREATE_PARTITIONS_CAPACITY, CreatePartitionsHost, CreatePartitionsHostError,
-    CreatePartitionsTurn,
-};
-pub use super::partitions_model::{CreatePartitionsRequest, PartitionIncrease};
-pub use super::partitions_observer::CreatePartitionsObserver;
-pub use super::partitions_outcome::{
-    CreatePartitionsDeliveryStatus, CreatePartitionsFailure, CreatePartitionsFailureKind,
-    CreatePartitionsObserverError, CreatePartitionsOutcome, PartitionIncreaseError,
+pub use super::partitions::{
+    CreatePartitionsAccepted, CreatePartitionsAcceptedFaultKind, CreatePartitionsAdmissionError,
+    CreatePartitionsAdmissionErrorKind, CreatePartitionsDeliveryStatus, CreatePartitionsFailure,
+    CreatePartitionsFailureKind, CreatePartitionsObserver, CreatePartitionsObserverError,
+    CreatePartitionsOutcome, CreatePartitionsRequest, PartitionIncrease, PartitionIncreaseError,
     PartitionIncreaseResult,
-};
-pub(crate) use super::partitions_shard::{
-    CreatePartitionsAdmissionPort, CreatePartitionsShardLockError, CreatePartitionsShardOwner,
-    CreatePartitionsShardWake, CreatePartitionsShardWakeError,
 };
 pub(crate) use super::shard::{
     CreateTopicsAdmissionPort, CreateTopicsShardLockError, CreateTopicsShardOwner,

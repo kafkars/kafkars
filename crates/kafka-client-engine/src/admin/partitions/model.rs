@@ -68,7 +68,7 @@ impl CreatePartitionsRequest {
             .topics
             .iter()
             .try_fold(0usize, |bytes, topic| bytes.checked_add(topic.topic.len()))?;
-        super::retention::request_charge(self.topics.len(), 0, text_bytes)
+        crate::admin::retention::request_charge(self.topics.len(), 0, text_bytes)
     }
 
     #[cfg(test)]

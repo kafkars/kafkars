@@ -1,8 +1,7 @@
 //! Accepted `CreatePartitions` post-commit fault scenarios.
 
 use super::{
-    CreatePartitionsAcceptedFaultKind, CreatePartitionsHostError,
-    partitions_handle::accepted_fault_kind,
+    CreatePartitionsAcceptedFaultKind, CreatePartitionsHostError, handle::accepted_fault_kind,
 };
 
 #[test]

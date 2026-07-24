@@ -23,7 +23,6 @@ excluded_roots = ["crates/kafka-client-guardrails/tests/fixtures"]
 
 [budgets]
 baseline = [
-  { path = "crates/kafka-client-engine/src/admin/mod.rs", lines = 96, reason = "The declarative root registers the new nested DescribeConfigs domain while legacy admin domains remain flat; this exact baseline cannot grow and must shrink as those domains gain their own facades." },
 ]
 allow = []
 
@@ -1285,24 +1284,24 @@ production = "crates/kafka-client-engine/src/admin/describe_shard.rs"
 test = "crates/kafka-client-engine/src/admin/describe_shard_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/admin/partitions_handle.rs"
-test = "crates/kafka-client-engine/src/admin/partitions_handle_test.rs"
+production = "crates/kafka-client-engine/src/admin/partitions/handle.rs"
+test = "crates/kafka-client-engine/src/admin/partitions/handle_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/admin/partitions_host.rs"
-test = "crates/kafka-client-engine/src/admin/partitions_host_test.rs"
+production = "crates/kafka-client-engine/src/admin/partitions/host.rs"
+test = "crates/kafka-client-engine/src/admin/partitions/host_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/admin/partitions_model.rs"
-test = "crates/kafka-client-engine/src/admin/partitions_model_test.rs"
+production = "crates/kafka-client-engine/src/admin/partitions/model.rs"
+test = "crates/kafka-client-engine/src/admin/partitions/model_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/admin/partitions_observer.rs"
-test = "crates/kafka-client-engine/src/admin/partitions_observer_test.rs"
+production = "crates/kafka-client-engine/src/admin/partitions/observer.rs"
+test = "crates/kafka-client-engine/src/admin/partitions/observer_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/admin/partitions_shard.rs"
-test = "crates/kafka-client-engine/src/admin/partitions_shard_test.rs"
+production = "crates/kafka-client-engine/src/admin/partitions/shard.rs"
+test = "crates/kafka-client-engine/src/admin/partitions/shard_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/admin/schedule.rs"
@@ -4592,43 +4591,43 @@ allowed_paths = [
 owner_type = "CreatePartitionsHost"
 field = "operations"
 allowed_paths = [
-  "crates/kafka-client-engine/src/admin/partitions_host.rs",
-  "crates/kafka-client-engine/src/admin/partitions_host/admission.rs",
-  "crates/kafka-client-engine/src/admin/partitions_host/terminal.rs",
+  "crates/kafka-client-engine/src/admin/partitions/host.rs",
+  "crates/kafka-client-engine/src/admin/partitions/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/partitions/host/terminal.rs",
 ]
 
 [[mutation_owners]]
 owner_type = "CreatePartitionsHost"
 field = "completions"
 allowed_paths = [
-  "crates/kafka-client-engine/src/admin/partitions_host.rs",
-  "crates/kafka-client-engine/src/admin/partitions_host/admission.rs",
-  "crates/kafka-client-engine/src/admin/partitions_host/terminal.rs",
+  "crates/kafka-client-engine/src/admin/partitions/host.rs",
+  "crates/kafka-client-engine/src/admin/partitions/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/partitions/host/terminal.rs",
 ]
 
 [[mutation_owners]]
 owner_type = "CreatePartitionsHost"
 field = "retained_bytes"
 allowed_paths = [
-  "crates/kafka-client-engine/src/admin/partitions_host.rs",
-  "crates/kafka-client-engine/src/admin/partitions_host/admission.rs",
-  "crates/kafka-client-engine/src/admin/partitions_host/terminal.rs",
+  "crates/kafka-client-engine/src/admin/partitions/host.rs",
+  "crates/kafka-client-engine/src/admin/partitions/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/partitions/host/terminal.rs",
 ]
 
 [[mutation_owners]]
 owner_type = "CreatePartitionsHost"
 field = "published_bytes"
 allowed_paths = [
-  "crates/kafka-client-engine/src/admin/partitions_host.rs",
-  "crates/kafka-client-engine/src/admin/partitions_host/terminal.rs",
+  "crates/kafka-client-engine/src/admin/partitions/host.rs",
+  "crates/kafka-client-engine/src/admin/partitions/host/terminal.rs",
 ]
 
 [[mutation_owners]]
 owner_type = "CreatePartitionsHost"
 field = "next_operation_id"
 allowed_paths = [
-  "crates/kafka-client-engine/src/admin/partitions_host.rs",
-  "crates/kafka-client-engine/src/admin/partitions_host/admission.rs",
+  "crates/kafka-client-engine/src/admin/partitions/host.rs",
+  "crates/kafka-client-engine/src/admin/partitions/host/admission.rs",
 ]
 
 [[mutation_owners]]
@@ -5762,19 +5761,19 @@ path = "crates/kafka-client-engine/src/admin/topics_observer.rs"
 
 [[linear_owners]]
 owner_type = "CreatePartitionsHost"
-path = "crates/kafka-client-engine/src/admin/partitions_host.rs"
+path = "crates/kafka-client-engine/src/admin/partitions/host.rs"
 
 [[linear_owners]]
 owner_type = "CreatePartitionsOperation"
-path = "crates/kafka-client-engine/src/admin/partitions_host.rs"
+path = "crates/kafka-client-engine/src/admin/partitions/host.rs"
 
 [[linear_owners]]
 owner_type = "CreatePartitionsShardOwner"
-path = "crates/kafka-client-engine/src/admin/partitions_shard.rs"
+path = "crates/kafka-client-engine/src/admin/partitions/shard.rs"
 
 [[linear_owners]]
 owner_type = "CreatePartitionsObserver"
-path = "crates/kafka-client-engine/src/admin/partitions_observer.rs"
+path = "crates/kafka-client-engine/src/admin/partitions/observer.rs"
 
 [[linear_owners]]
 owner_type = "TrackedCreatePartitionsCalls"

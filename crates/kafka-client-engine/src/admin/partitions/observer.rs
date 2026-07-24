@@ -11,9 +11,7 @@ use kafka_client_core::CreatePartitionsTerminal;
 
 use crate::completion::{CompletionObserver, CompletionObserverError};
 
-use super::{
-    CreatePartitionsObserverError, CreatePartitionsOutcome, partitions_outcome::translate_terminal,
-};
+use super::{CreatePartitionsObserverError, CreatePartitionsOutcome, outcome::translate_terminal};
 
 /// Single observer for one accepted `CreatePartitions` batch.
 #[must_use = "dropping abandons observation without cancelling accepted admin work"]

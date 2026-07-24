@@ -2,9 +2,11 @@
 
 use std::{fmt, time::Duration};
 
+use crate::admin::AdminHandle;
+
 use super::{
-    AdminHandle, CreatePartitionsAdmissionError, CreatePartitionsAdmissionErrorKind,
-    CreatePartitionsObserver, CreatePartitionsRequest,
+    CreatePartitionsAdmissionError, CreatePartitionsAdmissionErrorKind, CreatePartitionsObserver,
+    CreatePartitionsRequest,
 };
 
 impl AdminHandle {

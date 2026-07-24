@@ -10,9 +10,9 @@ use crate::clock::OperationDeadline;
 
 use super::{
     CreatePartitionsDeliveryStatus, CreatePartitionsFailureKind, CreatePartitionsHost,
-    CreatePartitionsOutcome, CreatePartitionsTurn, test_support::create_partitions_host,
-    test_support::stop_notifier,
+    CreatePartitionsOutcome, CreatePartitionsTurn,
 };
+use crate::admin::test_support::{create_partitions_host, stop_notifier};
 
 fn plan() -> CreatePartitionsPlan {
     CreatePartitionsPlan::new(
@@ -174,7 +174,7 @@ fn queued_and_taken_recovery_preserve_driver_ownership_boundary() {
     }
 }
 
-fn stop(host: CreatePartitionsHost, notifier: super::completion::AdminCompletionNotifier) {
+fn stop(host: CreatePartitionsHost, notifier: crate::admin::completion::AdminCompletionNotifier) {
     drop(host);
     stop_notifier(notifier);
 }

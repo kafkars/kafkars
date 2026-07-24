@@ -14,7 +14,7 @@ use crate::clock::OperationDeadline;
 
 use super::{
     CreatePartitionsAdmissionErrorKind, CreatePartitionsHost, CreatePartitionsHostError,
-    partitions_host::CreatePartitionsAdmission,
+    host::CreatePartitionsAdmission,
 };
 
 pub(crate) trait CreatePartitionsShardWake: Send + Sync + 'static {
