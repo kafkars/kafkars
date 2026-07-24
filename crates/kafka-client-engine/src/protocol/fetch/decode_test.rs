@@ -9,7 +9,9 @@ use kafka_wire_records::{
     Compression, Record, RecordBatch, RecordEncodeLimits, RecordHeader, TimestampType,
 };
 
-use super::{FetchDecodeFailure, FetchDecodeLimits, FetchTimestampType, normalize_fetch_response};
+use super::{
+    FetchDecodeFailure, FetchDecodeLimits, FetchTimestampType, decode::normalize_fetch_response,
+};
 
 #[test]
 fn response_order_and_semantic_broker_facts_are_preserved() {

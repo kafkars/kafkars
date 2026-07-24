@@ -6,8 +6,8 @@ use kafka_wire_records::{Compression, RecordError};
 use super::{
     FetchDecodeFailure, FetchDecodeLimits,
     batch_model_test::batch,
+    decode::normalize_fetch_response,
     decode_test::{batch_bytes, partition, record_bytes, record_bytes_at, response, topic},
-    normalize_fetch_response,
 };
 
 #[test]

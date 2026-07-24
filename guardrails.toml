@@ -729,6 +729,14 @@ production = "crates/kafka-client-engine/src/protocol/fetch/model.rs"
 test = "crates/kafka-client-engine/src/protocol/fetch/model_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/fetch/request.rs"
+test = "crates/kafka-client-engine/src/protocol/fetch/request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/fetch/response.rs"
+test = "crates/kafka-client-engine/src/protocol/fetch/response_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/admin/create_topics.rs"
 test = "crates/kafka-client-engine/src/protocol/admin/create_topics_test.rs"
 

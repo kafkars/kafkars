@@ -16,7 +16,7 @@ use super::{
 };
 
 /// Normalizes one bounded generated response without retaining wire DTOs.
-pub(crate) fn normalize_fetch_response(
+pub(super) fn normalize_fetch_response(
     response: WireFetchResponse,
     limits: FetchDecodeLimits,
 ) -> Result<FetchResponse, FetchDecodeFailure> {

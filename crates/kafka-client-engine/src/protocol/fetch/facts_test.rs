@@ -6,7 +6,8 @@ use kafka_wire::{
 };
 
 use super::{
-    FetchDecodeFailure, FetchDecodeLimits, failure::FetchPartitionOffset, normalize_fetch_response,
+    FetchDecodeFailure, FetchDecodeLimits, decode::normalize_fetch_response,
+    failure::FetchPartitionOffset,
 };
 
 #[test]

@@ -15,12 +15,9 @@ mod decode;
 mod failure;
 mod limits;
 mod model;
+mod request;
+mod response;
 
-#[allow(
-    unused_imports,
-    reason = "the direct-consumer interpreter will consume this complete retained seam"
-)]
-pub(crate) use decode::normalize_fetch_response;
 #[allow(
     unused_imports,
     reason = "the direct-consumer interpreter will consume this complete retained seam"
@@ -39,6 +36,19 @@ pub(crate) use model::{
     FetchBatch, FetchEndpoint, FetchHeader, FetchPartition, FetchProducerIdentity, FetchRecord,
     FetchResponse, FetchTimestampType, FetchTopic,
 };
+#[allow(
+    unused_imports,
+    reason = "the direct-consumer interpreter will consume this request seam"
+)]
+pub(crate) use request::{
+    FETCH_NAME_ROUTE_MAX_VERSION, FETCH_NAME_ROUTE_MIN_VERSION, FetchRequestFailure,
+    FetchRequestSettings, fetch_request,
+};
+#[allow(
+    unused_imports,
+    reason = "the direct-consumer interpreter will consume this correlated response seam"
+)]
+pub(crate) use response::{FetchResponseFailure, normalize_one_partition_fetch_response};
 
 #[cfg(test)]
 mod batch_identity_test;
@@ -58,3 +68,7 @@ mod failure_test;
 mod limits_test;
 #[cfg(test)]
 mod model_test;
+#[cfg(test)]
+mod request_test;
+#[cfg(test)]
+mod response_test;
