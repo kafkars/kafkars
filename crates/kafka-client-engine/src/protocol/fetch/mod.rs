@@ -9,6 +9,7 @@
 )]
 
 mod batch;
+mod batch_identity;
 mod batch_model;
 mod decode;
 mod failure;
@@ -40,9 +41,13 @@ pub(crate) use model::{
 };
 
 #[cfg(test)]
+mod batch_identity_test;
+#[cfg(test)]
 mod batch_model_test;
 #[cfg(test)]
 mod batch_test;
+#[cfg(test)]
+mod decode_next_test;
 #[cfg(test)]
 mod decode_test;
 #[cfg(test)]
@@ -53,5 +58,3 @@ mod failure_test;
 mod limits_test;
 #[cfg(test)]
 mod model_test;
-#[cfg(test)]
-mod pending_test;

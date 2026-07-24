@@ -1,7 +1,7 @@
 //! Record-batch decoding and absolute engine descriptor materialization.
 
 use bytes::Bytes;
-use kafka_wire_records::{Compression, RecordBatch};
+use kafka_wire_records::{RecordBatch, RecordBatchDecode};
 
 use super::{
     batch_model::normalize_batch, failure::FetchDecodeFailure, limits::FetchBudget,
@@ -18,16 +18,32 @@ pub(super) fn decode_batches(
     let mut previous_last_offset = None;
     while !bytes.is_empty() {
         let batch_index = batches.len();
-        let decoded =
-            RecordBatch::decode(&mut bytes, budget.record_limits()).map_err(|source| {
-                FetchDecodeFailure::RecordBatch {
+        let decoded = RecordBatch::decode_next(
+            &mut bytes,
+            budget.record_limits(),
+            budget.remaining_additional_retained_payload_bytes(),
+        )
+        .map_err(|source| FetchDecodeFailure::RecordBatch {
+            topic,
+            partition,
+            batch: batch_index,
+            source,
+        })?;
+        let (decoded, additional_retained_payload_bytes) = match decoded {
+            RecordBatchDecode::Complete {
+                batch,
+                additional_retained_payload_bytes,
+            } => (batch, additional_retained_payload_bytes),
+            RecordBatchDecode::PartialTrailing { .. } => break,
+            _ => {
+                return Err(FetchDecodeFailure::UnsupportedRecordBatchDecode {
                     topic,
                     partition,
                     batch: batch_index,
-                    source,
-                }
-            })?;
-        budget.add_batch(decoded.compression != Compression::None)?;
+                });
+            }
+        };
+        budget.add_batch(additional_retained_payload_bytes)?;
         let batch = normalize_batch(decoded, budget)?;
         if let Some(previous) = previous_last_offset
             && batch.base_offset <= previous

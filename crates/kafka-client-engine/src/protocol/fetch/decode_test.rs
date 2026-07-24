@@ -181,7 +181,7 @@ pub(super) fn record_bytes(compression: Compression) -> Bytes {
 }
 
 pub(super) fn record_bytes_at(compression: Compression, base_offset: i64) -> Bytes {
-    let batch = RecordBatch {
+    batch_bytes(&RecordBatch {
         base_offset,
         last_offset_delta: 2,
         partition_leader_epoch: 11,
@@ -217,7 +217,10 @@ pub(super) fn record_bytes_at(compression: Compression, base_offset: i64) -> Byt
                 ],
             },
         ],
-    };
+    })
+}
+
+pub(super) fn batch_bytes(batch: &RecordBatch) -> Bytes {
     batch
         .encode_to_bytes(RecordEncodeLimits::default())
         .unwrap_or_else(|error| panic!("test record batch encoding: {error}"))

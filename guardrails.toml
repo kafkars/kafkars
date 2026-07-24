@@ -701,6 +701,10 @@ production = "crates/kafka-client-engine/src/protocol/fetch/batch.rs"
 test = "crates/kafka-client-engine/src/protocol/fetch/batch_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/fetch/batch_identity.rs"
+test = "crates/kafka-client-engine/src/protocol/fetch/batch_identity_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/fetch/batch_model.rs"
 test = "crates/kafka-client-engine/src/protocol/fetch/batch_model_test.rs"
 

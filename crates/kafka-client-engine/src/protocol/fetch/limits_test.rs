@@ -82,3 +82,29 @@ fn aborted_transaction_count_is_cumulative() {
         })
     );
 }
+
+#[test]
+fn additional_retained_payload_bytes_are_cumulative() {
+    let response = FetchResponse::default();
+    let limits = FetchDecodeLimits {
+        max_additional_retained_payload_bytes: 5,
+        ..FetchDecodeLimits::default()
+    };
+    let mut budget = FetchBudget::start(&response, limits)
+        .unwrap_or_else(|error| panic!("empty response budget: {error:?}"));
+
+    budget
+        .add_batch(2)
+        .unwrap_or_else(|error| panic!("first retained payload: {error:?}"));
+    budget
+        .add_batch(3)
+        .unwrap_or_else(|error| panic!("second retained payload: {error:?}"));
+    assert_eq!(budget.remaining_additional_retained_payload_bytes(), 0);
+    assert_eq!(
+        budget.add_batch(1),
+        Err(FetchDecodeFailure::AdditionalRetainedPayloadBytes {
+            actual: 6,
+            limit: 5,
+        })
+    );
+}

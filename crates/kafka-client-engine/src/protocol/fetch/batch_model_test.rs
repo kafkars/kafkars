@@ -78,10 +78,23 @@ fn timestamps_accept_only_the_exact_absent_sentinel() {
     let mut absent = batch();
     absent.base_timestamp = -1;
     absent.max_timestamp = -1;
+    absent.records.clear();
     let normalized = normalize_batch(absent, &mut budget)
         .unwrap_or_else(|error| panic!("exact timestamp sentinel: {error:?}"));
     assert_eq!(normalized.max_timestamp, None);
-    assert_eq!(normalized.records[0].timestamp, None);
+    assert!(normalized.records.is_empty());
+
+    let mut budget = test_budget();
+    let mut nonempty_absent = batch();
+    nonempty_absent.base_timestamp = -1;
+    nonempty_absent.max_timestamp = -1;
+    assert_eq!(
+        normalize_batch(nonempty_absent, &mut budget),
+        Err(FetchDecodeFailure::InvalidBatchTimestamps {
+            base_timestamp: -1,
+            max_timestamp: -1,
+        })
+    );
 
     for (base_timestamp, max_timestamp) in [(-2, -2), (-1, 20), (20, -1)] {
         let mut budget = test_budget();
@@ -99,41 +112,17 @@ fn timestamps_accept_only_the_exact_absent_sentinel() {
 }
 
 #[test]
-fn producer_identity_is_coherent_and_required_for_transactions() {
+fn empty_compacted_batch_retains_max_timestamp_without_record_time() {
     let mut budget = test_budget();
-    let mut identified = batch();
-    identified.producer_id = 7;
-    identified.producer_epoch = 2;
-    identified.base_sequence = 4;
-    identified.is_transactional = true;
-    let normalized = normalize_batch(identified, &mut budget)
-        .unwrap_or_else(|error| panic!("coherent producer tuple: {error:?}"));
-    let identity = normalized
-        .producer
-        .unwrap_or_else(|| panic!("transactional batch identity"));
-    assert_eq!(identity.producer_id, 7);
-    assert_eq!(identity.producer_epoch, 2);
-    assert_eq!(identity.base_sequence, 4);
-
-    let mut budget = test_budget();
-    let mut missing = batch();
-    missing.is_transactional = true;
-    assert_eq!(
-        normalize_batch(missing, &mut budget),
-        Err(FetchDecodeFailure::TransactionalIdentityMissing)
-    );
-
-    let mut budget = test_budget();
-    let mut mixed = batch();
-    mixed.producer_id = 7;
-    assert_eq!(
-        normalize_batch(mixed, &mut budget),
-        Err(FetchDecodeFailure::InvalidProducerIdentity {
-            producer_id: 7,
-            producer_epoch: -1,
-            base_sequence: -1,
-        })
-    );
+    let mut compacted = batch();
+    compacted.base_timestamp = -1;
+    compacted.max_timestamp = 20;
+    compacted.records.clear();
+    let normalized = normalize_batch(compacted, &mut budget)
+        .unwrap_or_else(|error| panic!("empty compacted batch: {error:?}"));
+    assert_eq!(normalized.max_timestamp, Some(20));
+    assert!(normalized.records.is_empty());
+    assert_eq!(normalized.delete_horizon_ms, None);
 }
 
 #[test]
@@ -190,12 +179,12 @@ fn leader_epoch_next_offset_and_delete_horizon_are_lossless() {
     );
 }
 
-fn test_budget() -> FetchBudget {
+pub(super) fn test_budget() -> FetchBudget {
     FetchBudget::start(&FetchResponse::default(), FetchDecodeLimits::default())
         .unwrap_or_else(|error| panic!("empty response budget: {error:?}"))
 }
 
-fn batch() -> RecordBatch {
+pub(super) fn batch() -> RecordBatch {
     RecordBatch {
         base_offset: 10,
         last_offset_delta: 0,

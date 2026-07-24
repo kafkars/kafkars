@@ -53,7 +53,7 @@ pub(crate) enum FetchDecodeFailure {
         actual: usize,
         limit: usize,
     },
-    CompressedBackingBytes {
+    AdditionalRetainedPayloadBytes {
         actual: usize,
         limit: usize,
     },
@@ -125,6 +125,7 @@ pub(crate) enum FetchDecodeFailure {
         base_sequence: i32,
     },
     TransactionalIdentityMissing,
+    ControlBatchNotTransactional,
     InvalidAbortedTransaction {
         producer_id: i64,
         first_offset: i64,
@@ -139,6 +140,11 @@ pub(crate) enum FetchDecodeFailure {
         actual: i64,
     },
     AccountingOverflow,
+    UnsupportedRecordBatchDecode {
+        topic: usize,
+        partition: usize,
+        batch: usize,
+    },
     RecordBatch {
         topic: usize,
         partition: usize,

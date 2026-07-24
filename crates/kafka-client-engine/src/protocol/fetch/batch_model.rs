@@ -4,9 +4,10 @@ use bytes::Bytes;
 use kafka_wire_records::{RecordBatch, TimestampType};
 
 use super::{
+    batch_identity::producer_identity,
     failure::FetchDecodeFailure,
     limits::FetchBudget,
-    model::{FetchBatch, FetchHeader, FetchProducerIdentity, FetchRecord, FetchTimestampType},
+    model::{FetchBatch, FetchHeader, FetchRecord, FetchTimestampType},
 };
 
 pub(super) fn normalize_batch(
@@ -30,12 +31,14 @@ pub(super) fn normalize_batch(
     let next_offset = last_offset
         .checked_add(1)
         .ok_or(FetchDecodeFailure::NextOffsetOverflow { last_offset })?;
+    let records_empty = batch.records.is_empty();
     let partition_leader_epoch = optional_epoch(batch.partition_leader_epoch)?;
     let (base_timestamp, max_timestamp) = batch_timestamps(
         batch.base_timestamp,
         batch.max_timestamp,
         batch.timestamp_type,
         batch.has_delete_horizon,
+        records_empty,
     )?;
     let delete_horizon_ms = batch.has_delete_horizon.then_some(batch.base_timestamp);
     let producer = producer_identity(
@@ -43,6 +46,7 @@ pub(super) fn normalize_batch(
         batch.producer_epoch,
         batch.base_sequence,
         batch.is_transactional,
+        batch.is_control,
     )?;
     let mut records = Vec::with_capacity(batch.records.len());
     let mut previous_offset = None;
@@ -127,9 +131,11 @@ fn batch_timestamps(
     max: i64,
     timestamp_type: TimestampType,
     has_delete_horizon: bool,
+    records_empty: bool,
 ) -> Result<(Option<i64>, Option<i64>), FetchDecodeFailure> {
     match (base, max) {
-        (-1, -1) if !has_delete_horizon => Ok((None, None)),
+        (-1, -1) if !has_delete_horizon && records_empty => Ok((None, None)),
+        (-1, max) if !has_delete_horizon && records_empty && max >= 0 => Ok((None, Some(max))),
         (base, max)
             if base >= 0
                 && max >= 0
@@ -183,37 +189,6 @@ fn optional_epoch(value: i32) -> Result<Option<i32>, FetchDecodeFailure> {
         value if value >= 0 => Ok(Some(value)),
         actual => Err(FetchDecodeFailure::InvalidPartitionLeaderEpoch { actual }),
     }
-}
-
-fn producer_identity(
-    producer_id: i64,
-    producer_epoch: i16,
-    base_sequence: i32,
-    transactional: bool,
-) -> Result<Option<FetchProducerIdentity>, FetchDecodeFailure> {
-    let identity = match (producer_id, producer_epoch, base_sequence) {
-        (-1, -1, -1) => None,
-        (producer_id, producer_epoch, base_sequence)
-            if producer_id >= 0 && producer_epoch >= 0 && base_sequence >= 0 =>
-        {
-            Some(FetchProducerIdentity {
-                producer_id,
-                producer_epoch,
-                base_sequence,
-            })
-        }
-        _ => {
-            return Err(FetchDecodeFailure::InvalidProducerIdentity {
-                producer_id,
-                producer_epoch,
-                base_sequence,
-            });
-        }
-    };
-    if transactional && identity.is_none() {
-        return Err(FetchDecodeFailure::TransactionalIdentityMissing);
-    }
-    Ok(identity)
 }
 
 fn record_bytes(record: &kafka_wire_records::Record) -> Result<usize, FetchDecodeFailure> {

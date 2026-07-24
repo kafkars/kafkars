@@ -18,7 +18,7 @@ pub(crate) struct FetchDecodeLimits {
     pub(crate) max_headers: usize,
     pub(crate) max_aborted_transactions: usize,
     pub(crate) max_logical_record_bytes: usize,
-    pub(crate) max_compressed_backing_bytes: usize,
+    pub(crate) max_additional_retained_payload_bytes: usize,
     pub(crate) record_batch: RecordDecodeLimits,
 }
 
@@ -35,7 +35,7 @@ impl FetchDecodeLimits {
             max_headers: 4_000_000,
             max_aborted_transactions: 1_000_000,
             max_logical_record_bytes: 128 * 1024 * 1024,
-            max_compressed_backing_bytes: 128 * 1024 * 1024,
+            max_additional_retained_payload_bytes: 128 * 1024 * 1024,
             record_batch,
         }
     }
@@ -56,7 +56,7 @@ pub(super) struct FetchBudget {
     headers: usize,
     aborted_transactions: usize,
     logical_record_bytes: usize,
-    compressed_backing_bytes: usize,
+    additional_retained_payload_bytes: usize,
 }
 
 impl FetchBudget {
@@ -93,7 +93,7 @@ impl FetchBudget {
             headers: 0,
             aborted_transactions: 0,
             logical_record_bytes: 0,
-            compressed_backing_bytes: 0,
+            additional_retained_payload_bytes: 0,
         })
     }
 
@@ -110,22 +110,28 @@ impl FetchBudget {
         )
     }
 
-    pub(super) fn add_batch(&mut self, compressed: bool) -> Result<(), FetchDecodeFailure> {
+    pub(super) const fn remaining_additional_retained_payload_bytes(&self) -> usize {
+        self.limits
+            .max_additional_retained_payload_bytes
+            .saturating_sub(self.additional_retained_payload_bytes)
+    }
+
+    pub(super) fn add_batch(
+        &mut self,
+        additional_retained_payload_bytes: usize,
+    ) -> Result<(), FetchDecodeFailure> {
         add_limited(
             &mut self.batches,
             1,
             self.limits.max_batches,
             |actual, limit| FetchDecodeFailure::BatchCount { actual, limit },
         )?;
-        if compressed {
-            add_limited(
-                &mut self.compressed_backing_bytes,
-                self.limits.record_batch.max_decompressed_records_bytes,
-                self.limits.max_compressed_backing_bytes,
-                |actual, limit| FetchDecodeFailure::CompressedBackingBytes { actual, limit },
-            )?;
-        }
-        Ok(())
+        add_limited(
+            &mut self.additional_retained_payload_bytes,
+            additional_retained_payload_bytes,
+            self.limits.max_additional_retained_payload_bytes,
+            |actual, limit| FetchDecodeFailure::AdditionalRetainedPayloadBytes { actual, limit },
+        )
     }
 
     pub(super) fn add_record(
