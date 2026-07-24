@@ -53,7 +53,7 @@ pub(crate) fn start(
     let clock = Arc::new(MonotonicClock::new());
     let wake = Arc::new(driver.reactor_wake());
     let control = Arc::new(EngineHostControl::new(wake.as_ref().clone()));
-    let (mut assigned_consumer_notifier, assigned_close_publisher) =
+    let (mut assigned_consumer_notifier, assigned_publishers) =
         match notifier_start::start_assigned_consumer_notifier() {
             Ok(started) => started,
             Err(error) => return cancel_start(sender, handle, error),
@@ -62,7 +62,8 @@ pub(crate) fn start(
         match assigned_consumer_start::start_assigned_consumer(
             Arc::clone(&clock),
             Arc::clone(&wake),
-            assigned_close_publisher,
+            assigned_publishers.close,
+            assigned_publishers.recv,
         ) {
             Ok(owner) => owner,
             Err(error) => {

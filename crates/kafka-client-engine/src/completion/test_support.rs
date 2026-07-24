@@ -49,14 +49,14 @@ pub(crate) fn hold_cell_lock<T: Send + 'static>(
     Some((release, handle))
 }
 
-pub(super) struct CountingWake {
+pub(crate) struct CountingWake {
     count: AtomicUsize,
     state: Mutex<Option<ThreadId>>,
     changed: Condvar,
 }
 
 impl CountingWake {
-    pub(super) fn new() -> Arc<Self> {
+    pub(crate) fn new() -> Arc<Self> {
         Arc::new(Self {
             count: AtomicUsize::new(0),
             state: Mutex::new(None),
@@ -64,11 +64,11 @@ impl CountingWake {
         })
     }
 
-    pub(super) fn count(&self) -> usize {
+    pub(crate) fn count(&self) -> usize {
         self.count.load(Ordering::Acquire)
     }
 
-    pub(super) fn wait_for_wake(&self) -> Option<ThreadId> {
+    pub(crate) fn wait_for_wake(&self) -> Option<ThreadId> {
         let guard = lock(&self.state);
         let result = self
             .changed
@@ -99,7 +99,7 @@ impl CountingWake {
     }
 }
 
-pub(super) struct GateWake {
+pub(crate) struct GateWake {
     state: Mutex<GateState>,
     changed: Condvar,
 }
@@ -110,7 +110,7 @@ struct GateState {
 }
 
 impl GateWake {
-    pub(super) fn new() -> Arc<Self> {
+    pub(crate) fn new() -> Arc<Self> {
         Arc::new(Self {
             state: Mutex::new(GateState {
                 entered: false,
@@ -120,7 +120,7 @@ impl GateWake {
         })
     }
 
-    pub(super) fn wait_until_entered(&self) -> bool {
+    pub(crate) fn wait_until_entered(&self) -> bool {
         let guard = lock(&self.state);
         let result = self
             .changed
@@ -132,7 +132,7 @@ impl GateWake {
         guard.entered
     }
 
-    pub(super) fn release(&self) {
+    pub(crate) fn release(&self) {
         lock(&self.state).released = true;
         self.changed.notify_all();
     }
@@ -164,7 +164,7 @@ impl Wake for PanicWake {
     }
 }
 
-pub(super) fn poll_once<T>(
+pub(crate) fn poll_once<T>(
     observer: &mut CompletionObserver<T>,
     wake: Arc<impl Wake + Send + Sync + 'static>,
 ) -> Poll<Result<T, CompletionObserverError>> {

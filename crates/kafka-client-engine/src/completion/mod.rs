@@ -37,7 +37,7 @@ pub(crate) use registry::{CompletionRegistry, ReclaimStatus};
     )
 )]
 pub(crate) use settlement::{SettlementFailure, SettlementProgress};
-pub(crate) use shared_notifier::{SharedNotifier, SharedPublishPort};
+pub(crate) use shared_notifier::{SharedNotificationPort, SharedNotifier, SharedPublishPort};
 
 #[cfg(test)]
 mod observer_test;

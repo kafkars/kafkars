@@ -38,16 +38,28 @@ pub(super) fn drive_shard(
     shutdown: bool,
     stage_now: Moment,
 ) -> Result<AssignedConsumerProgress, EngineHostError> {
-    match shard.try_with_owner(|owner| drive_locked(shard, owner, driver, shutdown, stage_now)) {
+    let result = match shard
+        .try_with_owner(|owner| drive_locked(shard, owner, driver, shutdown, stage_now))
+    {
         Ok(result) => result,
-        Err(AssignedConsumerShardLockError::Contended) => Ok(AssignedConsumerProgress::contended()),
+        Err(AssignedConsumerShardLockError::Contended) => {
+            return Ok(AssignedConsumerProgress::contended());
+        }
         Err(AssignedConsumerShardLockError::Poisoned) => {
             Err(EngineHostError::AssignedConsumerLockPoisoned)
         }
         Err(AssignedConsumerShardLockError::OwnerMissing) => {
             Err(EngineHostError::AssignedConsumerOwnerMissing)
         }
+    };
+    if result
+        .as_ref()
+        .is_ok_and(|progress| progress.progressed || progress.close_completed)
+        || result.is_err()
+    {
+        shard.notify_recv_change();
     }
+    result
 }
 
 fn drive_locked(

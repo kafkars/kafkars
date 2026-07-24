@@ -15,6 +15,7 @@ use super::{
     control_result::{translate_assigned_control_admission, translate_missing_assignment},
     event::translate_assigned_event,
     event_result::translate_assigned_event_observation,
+    recv::AssignedConsumerRecv,
     result::translate_assigned_consumer_claim,
 };
 
@@ -116,6 +117,11 @@ impl AssignedConsumerEngine {
             .try_take_event()
             .map(|event| event.map(translate_assigned_event))
             .map_err(translate_assigned_event_observation)
+    }
+
+    /// Waits only for an already-authorized delivery.
+    pub(crate) fn recv(&mut self) -> AssignedConsumerRecv<'_> {
+        AssignedConsumerRecv::from_engine(self.handle.recv())
     }
 
     /// Attempts bounded close without consuming this capability on rejection.

@@ -35,13 +35,13 @@ fn construction_preallocates_every_bounded_owner_queue() {
 }
 
 pub(super) fn owner(partitions: usize) -> AssignedConsumerOwner {
-    let (notifier, publisher) = AssignedConsumerCompletionNotifier::start()
+    let (notifier, publishers) = AssignedConsumerCompletionNotifier::start()
         .unwrap_or_else(|error| panic!("start assigned completion notifier: {error}"));
     let mut owner = AssignedConsumerOwner::new(
         Arc::new(MonotonicClock::new()),
         settings(),
         limits(partitions),
-        publisher,
+        publishers.close,
     )
     .unwrap_or_else(|error| panic!("construct assigned owner: {error:?}"));
     owner.install_close_notifier_for_test(notifier);

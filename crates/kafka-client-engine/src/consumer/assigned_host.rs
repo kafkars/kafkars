@@ -54,6 +54,7 @@ mod port_test;
 mod reclaim;
 #[cfg(test)]
 mod reclaim_test;
+mod recv;
 mod result;
 #[cfg(test)]
 mod result_test;
@@ -83,7 +84,10 @@ pub use claim::AssignedConsumerClaimError;
 pub(crate) use claim::{AssignedConsumerAdmissionCloser, AssignedConsumerClaimSlot};
 pub(crate) use close_observer::AssignedConsumerCloseTerminal;
 pub use close_observer::{AssignedConsumerCloseObserver, AssignedConsumerCloseObserverError};
-pub(crate) use completion::{AssignedConsumerClosePublisher, AssignedConsumerCompletionNotifier};
+pub(crate) use completion::{
+    AssignedConsumerClosePublisher, AssignedConsumerCompletionNotifier,
+    AssignedConsumerCompletionPorts, AssignedConsumerRecvPublisher,
+};
 pub(crate) use control::AssignedConsumerControlInputError;
 pub use control::{
     AssignedConsumerPartition, AssignedConsumerPartitionInputError,
@@ -106,6 +110,7 @@ pub use event::{
     AssignedConsumerTryTakeEventError, AssignedConsumerTryTakeEventErrorKind,
 };
 pub use handle::AssignedConsumerHandle;
+pub use recv::{AssignedConsumerRecv, AssignedConsumerRecvError, AssignedConsumerRecvErrorKind};
 pub use result::{
     AssignedConsumerAcceptedFaultKind, AssignedConsumerTryCloseAccepted,
     AssignedConsumerTryCloseError, AssignedConsumerTryCloseErrorKind,

@@ -488,8 +488,8 @@ evidence = [
 
 [[invariant]]
 id = "CON-07"
-title = "Assigned-consumer claim and close observation are linear and bounded"
-statement = "Every clone of one Engine shares one capacity-one assigned-consumer claim slot. Exactly one claim transfers the sole private port into a movable, non-clone, non-Sync engine handle; failed and concurrent claims leave the winning handle operational, while a separate retained closer preserves shutdown admission fencing. Close reserves one bounded completion generation before deterministic BeginClose admission and binds that generation to the exact core AcceptClose identity. Only matching CompleteClose publishes Closed; notifier backpressure retains the exact ready terminal for retry. Abnormal recovery publishes ExecutionUnavailable only after unique driver teardown. Future polling and blocking wait observe the same cell. One capacity-one assigned-consumer notifier owns application wakeups off the host and driver reactors without an async runtime."
+title = "Assigned-consumer claim, close, and receive observation are linear and bounded"
+statement = "Every clone of one Engine shares one capacity-one assigned-consumer claim slot. Exactly one claim transfers the sole private port into a movable, non-clone, non-Sync engine handle; failed and concurrent claims leave the winning handle operational, while a separate retained closer preserves shutdown admission fencing. Close reserves one bounded completion generation before deterministic BeginClose admission and binds that generation to the exact core AcceptClose identity. Only matching CompleteClose publishes Closed; notifier backpressure retains the exact ready terminal for retry. Abnormal recovery publishes ExecutionUnavailable only after unique driver teardown. Close Future polling and blocking wait observe the same cell. Batch recv is a named linear Future and blocking wait over one capacity-one generation-fenced signal; it starts no Fetch, owns no deadline or bytes, registers readiness under the assigned-owner lock, services contention on unlock, runs wakers only on the notifier, cancels only exact observation on Drop, returns end-of-stream after admission close, and translates owner loss or fault into a stable error. A queued recv ticket services the current pending generation, so replacing a dropped observer cannot be stranded behind stale queued work. One exact capacity-two assigned-consumer notifier queue owns one close ticket and one coalesced recv-change ticket off the host and driver reactors without an async runtime."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/consumer/assigned_host/claim_test.rs::one_claim_transfers_the_port_and_rejects_every_later_claim",
@@ -503,6 +503,14 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/assigned_owner_recovery_test.rs::recovery_retries_an_injected_close_publication_backpressure",
   "crates/kafka-client-engine/src/consumer/assigned_host/close_observer_test.rs::blocking_wait_observes_the_same_notifier_terminal",
   "crates/kafka-client-engine/src/consumer/assigned_host/completion_test.rs::one_consumer_notifier_issues_a_close_port_and_stops_linearly",
+  "crates/kafka-client-engine/src/consumer/assigned_host/completion_test.rs::stale_recv_ticket_in_a_full_queue_wakes_the_current_generation",
+  "crates/kafka-client-engine/src/consumer/assigned_host/recv/operation_test.rs::pending_recv_wakes_only_on_the_assigned_notifier",
+  "crates/kafka-client-engine/src/consumer/assigned_host/recv/operation_test.rs::drop_cancels_only_observation_and_preserves_the_delivery",
+  "crates/kafka-client-engine/src/consumer/assigned_host/recv/operation_test.rs::admission_close_wakes_recv_as_end_of_stream",
+  "crates/kafka-client-engine/src/consumer/assigned_host/recv/operation_test.rs::owner_failure_wakes_recv_with_stable_host_failure",
+  "crates/kafka-client-engine/src/consumer/assigned_host/recv/operation_test.rs::contended_registration_is_woken_when_the_owner_unlocks",
+  "crates/kafka-client-engine/src/consumer/assigned_host/state/notification_test.rs::owner_lock_is_released_before_the_unlock_waker_runs",
+  "crates/kafka-client/src/consumer/assigned_recv_test.rs::recv_is_send_linear_and_borrows_the_unique_consumer",
 ]
 
 [[invariant]]

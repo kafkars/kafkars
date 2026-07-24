@@ -43,6 +43,7 @@ pub use crate::consumer::{
     AssignedConsumerPartitionInputError, AssignedConsumerPartitionInputErrorKind,
     AssignedConsumerPositionFence, AssignedConsumerPositionResolutionFailure,
     AssignedConsumerPositionResolutionFailureKind, AssignedConsumerRecord, AssignedConsumerRecords,
+    AssignedConsumerRecv, AssignedConsumerRecvError, AssignedConsumerRecvErrorKind,
     AssignedConsumerResumeCapture, AssignedConsumerSeekCapture, AssignedConsumerStartPosition,
     AssignedConsumerTryCloseAccepted, AssignedConsumerTryCloseError,
     AssignedConsumerTryCloseErrorKind, AssignedConsumerTryReplaceAssignmentAccepted,

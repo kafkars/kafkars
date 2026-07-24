@@ -3,7 +3,7 @@
 use crate::{
     admin::AdminCompletionNotifier,
     completion::NotifierJoin,
-    consumer::{AssignedConsumerClosePublisher, AssignedConsumerCompletionNotifier},
+    consumer::{AssignedConsumerCompletionNotifier, AssignedConsumerCompletionPorts},
     producer::ProducerHost,
 };
 
@@ -12,7 +12,7 @@ use super::{EngineLifecycle, EngineStartError, notifier_shutdown::NotifierShutdo
 pub(super) fn start_assigned_consumer_notifier() -> Result<
     (
         AssignedConsumerCompletionNotifier,
-        AssignedConsumerClosePublisher,
+        AssignedConsumerCompletionPorts,
     ),
     EngineStartError,
 > {

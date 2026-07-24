@@ -23,9 +23,9 @@ use super::{
 
 #[test]
 fn blocking_wait_observes_the_same_notifier_terminal() {
-    let (mut notifier, publisher) = AssignedConsumerCompletionNotifier::start()
+    let (mut notifier, publishers) = AssignedConsumerCompletionNotifier::start()
         .unwrap_or_else(|error| panic!("start notifier: {error}"));
-    let mut completions = CompletionRegistry::with_publisher(1, publisher);
+    let mut completions = CompletionRegistry::with_publisher(1, publishers.close);
     let (completion_id, observer) = completions
         .reserve()
         .unwrap_or_else(|error| panic!("reserve close: {error}"));
@@ -51,9 +51,9 @@ fn blocking_wait_observes_the_same_notifier_terminal() {
 
 #[test]
 fn execution_unavailable_is_a_stable_terminal_error() {
-    let (mut notifier, publisher) = AssignedConsumerCompletionNotifier::start()
+    let (mut notifier, publishers) = AssignedConsumerCompletionNotifier::start()
         .unwrap_or_else(|error| panic!("start notifier: {error}"));
-    let mut completions = CompletionRegistry::with_publisher(1, publisher);
+    let mut completions = CompletionRegistry::with_publisher(1, publishers.close);
     let (completion_id, observer) = completions
         .reserve()
         .unwrap_or_else(|error| panic!("reserve close: {error}"));
@@ -88,9 +88,9 @@ fn close_id() -> kafka_client_core::AssignedConsumerCloseId {
 
 #[test]
 fn observer_drop_abandons_without_revoking_terminal_authority() {
-    let (mut notifier, publisher) = AssignedConsumerCompletionNotifier::start()
+    let (mut notifier, publishers) = AssignedConsumerCompletionNotifier::start()
         .unwrap_or_else(|error| panic!("start notifier: {error}"));
-    let mut completions = CompletionRegistry::with_publisher(1, publisher);
+    let mut completions = CompletionRegistry::with_publisher(1, publishers.close);
     let (completion_id, observer) = completions
         .reserve()
         .unwrap_or_else(|error| panic!("reserve close: {error}"));
@@ -114,9 +114,9 @@ fn observer_drop_abandons_without_revoking_terminal_authority() {
 #[test]
 fn close_waker_runs_only_on_the_assigned_consumer_notifier() {
     let caller = std::thread::current().id();
-    let (mut notifier, publisher) = AssignedConsumerCompletionNotifier::start()
+    let (mut notifier, publishers) = AssignedConsumerCompletionNotifier::start()
         .unwrap_or_else(|error| panic!("start notifier: {error}"));
-    let mut completions = CompletionRegistry::with_publisher(1, publisher);
+    let mut completions = CompletionRegistry::with_publisher(1, publishers.close);
     let (completion_id, observer) = completions
         .reserve()
         .unwrap_or_else(|error| panic!("reserve close: {error}"));

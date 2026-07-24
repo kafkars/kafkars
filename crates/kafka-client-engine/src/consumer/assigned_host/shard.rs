@@ -15,7 +15,9 @@ use super::super::{
     },
 };
 use super::{
-    completion::AssignedConsumerClosePublisher, state::AssignedConsumerShardState,
+    completion::{AssignedConsumerClosePublisher, AssignedConsumerRecvPublisher},
+    recv::AssignedConsumerRecvWait,
+    state::AssignedConsumerShardState,
     wake::AssignedConsumerShardWake,
 };
 
@@ -39,13 +41,19 @@ impl AssignedConsumerShardOwner {
         limits: AssignedConsumerOwnerLimits,
         wake: Arc<W>,
         close_publisher: AssignedConsumerClosePublisher,
+        recv_publisher: AssignedConsumerRecvPublisher,
     ) -> Result<(Self, AssignedConsumerPort), AssignedConsumerOwnerBuildError>
     where
         W: AssignedConsumerShardWake,
     {
         let owner =
             AssignedConsumerOwner::new(Arc::clone(&clock), settings, limits, close_publisher)?;
-        let shared = Arc::new(AssignedConsumerShardState::new(owner, clock, wake));
+        let shared = Arc::new(AssignedConsumerShardState::new(
+            owner,
+            clock,
+            wake,
+            recv_publisher,
+        ));
         Ok((
             Self {
                 shared: Arc::clone(&shared),
@@ -64,12 +72,17 @@ impl AssignedConsumerShardOwner {
     where
         W: AssignedConsumerShardWake,
     {
-        let (notifier, publisher) = AssignedConsumerCompletionNotifier::start()
+        let (notifier, publishers) = AssignedConsumerCompletionNotifier::start()
             .map_err(|_error| AssignedConsumerOwnerBuildError::Allocation)?;
         let mut owner =
-            AssignedConsumerOwner::new(Arc::clone(&clock), settings, limits, publisher)?;
+            AssignedConsumerOwner::new(Arc::clone(&clock), settings, limits, publishers.close)?;
         owner.install_close_notifier_for_test(notifier);
-        let shared = Arc::new(AssignedConsumerShardState::new(owner, clock, wake));
+        let shared = Arc::new(AssignedConsumerShardState::new(
+            owner,
+            clock,
+            wake,
+            publishers.recv,
+        ));
         Ok((
             Self {
                 shared: Arc::clone(&shared),
@@ -118,6 +131,11 @@ impl AssignedConsumerShardOwner {
 
     pub(crate) fn close_assigned_admission(&self) -> Result<(), AssignedConsumerShardLockError> {
         self.shared.close_assigned_admission()
+    }
+
+    pub(crate) fn notify_recv_change(&self) {
+        self.shared
+            .request_recv_notification(AssignedConsumerRecvWait::Change);
     }
 
     #[cfg(test)]

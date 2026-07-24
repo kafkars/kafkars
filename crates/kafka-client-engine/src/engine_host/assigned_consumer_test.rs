@@ -182,12 +182,13 @@ fn setup() -> (
     let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("build driver: {error}"));
     let clock = Arc::new(MonotonicClock::new());
-    let (notifier, publisher) = AssignedConsumerCompletionNotifier::start()
+    let (notifier, publishers) = AssignedConsumerCompletionNotifier::start()
         .unwrap_or_else(|error| panic!("assigned-consumer notifier: {error}"));
     let (owner, port) = start_assigned_consumer(
         Arc::clone(&clock),
         Arc::new(driver.reactor_wake()),
-        publisher,
+        publishers.close,
+        publishers.recv,
     )
     .unwrap_or_else(|error| panic!("assigned consumer: {error:?}"));
     (driver, clock, owner, port, notifier)

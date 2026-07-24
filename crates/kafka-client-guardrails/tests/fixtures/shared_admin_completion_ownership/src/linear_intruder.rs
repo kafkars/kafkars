@@ -10,6 +10,9 @@ struct SharedNotifier;
 struct SharedPublishPort;
 
 #[derive(Clone, Copy)]
+struct SharedNotificationPort;
+
+#[derive(Clone, Copy)]
 struct AdminCompletionNotifier;
 
 #[derive(Clone, Copy)]

@@ -1,5 +1,10 @@
 //! Atomic admission fencing and synchronized assigned-consumer access.
 
+mod notification;
+
+#[cfg(test)]
+mod notification_test;
+
 use std::sync::{
     Arc, Mutex, MutexGuard, TryLockError,
     atomic::{AtomicBool, Ordering},
@@ -12,8 +17,12 @@ use super::super::{
     fetch_store::FetchDelivery,
 };
 use super::{
-    close_observer::AssignedConsumerCloseObserver, delivery::AssignedConsumerDelivery,
-    reclaim::AssignedConsumerReclaimRejection, shard::AssignedConsumerShardLockError,
+    close_observer::AssignedConsumerCloseObserver,
+    completion::AssignedConsumerRecvPublisher,
+    delivery::AssignedConsumerDelivery,
+    reclaim::AssignedConsumerReclaimRejection,
+    recv::{AssignedConsumerRecvSignal, AssignedConsumerRecvWait},
+    shard::AssignedConsumerShardLockError,
     wake::AssignedConsumerShardWake,
 };
 
@@ -21,6 +30,8 @@ pub(super) struct AssignedConsumerShardState {
     owner: Mutex<Option<AssignedConsumerOwner>>,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) wake: Arc<dyn AssignedConsumerShardWake>,
+    pub(super) recv_signal: Arc<AssignedConsumerRecvSignal>,
+    recv_publisher: AssignedConsumerRecvPublisher,
     admission_closed: AtomicBool,
 }
 
@@ -29,11 +40,14 @@ impl AssignedConsumerShardState {
         owner: AssignedConsumerOwner,
         clock: Arc<MonotonicClock>,
         wake: Arc<dyn AssignedConsumerShardWake>,
+        recv_publisher: AssignedConsumerRecvPublisher,
     ) -> Self {
         Self {
             owner: Mutex::new(Some(owner)),
             clock,
             wake,
+            recv_signal: Arc::new(AssignedConsumerRecvSignal::new()),
+            recv_publisher,
             admission_closed: AtomicBool::new(false),
         }
     }
@@ -44,8 +58,13 @@ impl AssignedConsumerShardState {
 
     pub(super) fn close_assigned_admission(&self) -> Result<(), AssignedConsumerShardLockError> {
         self.publish_assigned_admission_closed();
-        let _guard = self.owner()?;
-        Ok(())
+        match self.owner() {
+            Ok(guard) => self.finish_owner_lock(guard, Ok(()), AssignedConsumerRecvWait::Change),
+            Err(error) => {
+                self.request_recv_notification(AssignedConsumerRecvWait::Change);
+                Err(error)
+            }
+        }
     }
 
     pub(super) fn assigned_admission_is_closed(&self) -> bool {
@@ -57,10 +76,11 @@ impl AssignedConsumerShardState {
         operation: impl FnOnce(&mut AssignedConsumerOwner) -> T,
     ) -> Result<T, AssignedConsumerShardLockError> {
         let mut guard = self.try_owner()?;
-        let Some(owner) = guard.as_mut() else {
-            return Err(AssignedConsumerShardLockError::OwnerMissing);
+        let result = match guard.as_mut() {
+            Some(owner) => Ok(operation(owner)),
+            None => Err(AssignedConsumerShardLockError::OwnerMissing),
         };
-        Ok(operation(owner))
+        self.finish_owner_lock(guard, result, AssignedConsumerRecvWait::Unlock)
     }
 
     pub(super) fn inspect_owner<T>(
@@ -68,10 +88,11 @@ impl AssignedConsumerShardState {
         inspect: impl FnOnce(&AssignedConsumerOwner) -> T,
     ) -> Result<T, AssignedConsumerShardLockError> {
         let guard = self.owner()?;
-        let Some(owner) = guard.as_ref() else {
-            return Err(AssignedConsumerShardLockError::OwnerMissing);
+        let result = match guard.as_ref() {
+            Some(owner) => Ok(inspect(owner)),
+            None => Err(AssignedConsumerShardLockError::OwnerMissing),
         };
-        Ok(inspect(owner))
+        self.finish_owner_lock(guard, result, AssignedConsumerRecvWait::Unlock)
     }
 
     pub(super) fn try_admit_with_owner<T>(
@@ -79,13 +100,15 @@ impl AssignedConsumerShardState {
         operation: impl FnOnce(&mut AssignedConsumerOwner) -> T,
     ) -> Result<Option<T>, AssignedConsumerShardLockError> {
         let mut guard = self.try_owner()?;
-        if self.assigned_admission_is_closed() {
-            return Ok(None);
-        }
-        let Some(owner) = guard.as_mut() else {
-            return Err(AssignedConsumerShardLockError::OwnerMissing);
+        let result = if self.assigned_admission_is_closed() {
+            Ok(None)
+        } else {
+            match guard.as_mut() {
+                Some(owner) => Ok(Some(operation(owner))),
+                None => Err(AssignedConsumerShardLockError::OwnerMissing),
+            }
         };
-        Ok(Some(operation(owner)))
+        self.finish_owner_lock(guard, result, AssignedConsumerRecvWait::Unlock)
     }
 
     pub(super) fn begin_assigned_close(
@@ -95,17 +118,26 @@ impl AssignedConsumerShardState {
         AssignedConsumerShardLockError,
     > {
         let mut guard = self.try_owner()?;
-        if self.assigned_admission_is_closed() {
-            return Ok(None);
-        }
-        let Some(owner) = guard.as_mut() else {
-            return Err(AssignedConsumerShardLockError::OwnerMissing);
+        let result = if self.assigned_admission_is_closed() {
+            Ok(None)
+        } else {
+            match guard.as_mut() {
+                Some(owner) => Ok(Some(owner.begin_close())),
+                None => Err(AssignedConsumerShardLockError::OwnerMissing),
+            }
         };
-        let result = owner.begin_close();
-        if result.is_ok() {
+        let accepted = result
+            .as_ref()
+            .is_ok_and(|close| close.as_ref().is_some_and(Result::is_ok));
+        if accepted {
             self.publish_assigned_admission_closed();
         }
-        Ok(Some(result))
+        let wake = if accepted {
+            AssignedConsumerRecvWait::Change
+        } else {
+            AssignedConsumerRecvWait::Unlock
+        };
+        self.finish_owner_lock(guard, result, wake)
     }
 
     #[expect(
@@ -120,13 +152,14 @@ impl AssignedConsumerShardState {
             Ok(guard) => guard,
             Err(reason) => return Err(AssignedConsumerReclaimRejection::new(reason, delivery)),
         };
-        let Some(owner) = guard.as_mut() else {
-            return Err(AssignedConsumerReclaimRejection::new(
+        let result = match guard.as_mut() {
+            Some(owner) => Ok(owner.reclaim_delivery(delivery)),
+            None => Err(AssignedConsumerReclaimRejection::new(
                 AssignedConsumerShardLockError::OwnerMissing,
                 delivery,
-            ));
+            )),
         };
-        Ok(owner.reclaim_delivery(delivery))
+        self.finish_owner_lock(guard, result, AssignedConsumerRecvWait::Unlock)
     }
 
     /// Returns a public batch lease without losing it to transient contention.
@@ -145,6 +178,7 @@ impl AssignedConsumerShardState {
         if returned_to_owner {
             let _wake = self.wake.request_assigned_turn();
         }
+        self.request_recv_notification(AssignedConsumerRecvWait::Unlock);
     }
 
     /// Consumes the failed owner after the caller has destroyed the unique driver.
@@ -155,16 +189,24 @@ impl AssignedConsumerShardState {
             Ok(guard) => (guard, false),
             Err(poisoned) => (poisoned.into_inner(), true),
         };
-        let Some(owner) = guard.take() else {
-            return Err(AssignedConsumerShardLockError::OwnerMissing);
+        let result = match guard.take() {
+            Some(owner) => {
+                let audit = owner.recovery_audit();
+                let release = owner.release_assigned_after_driver_shutdown();
+                Ok(super::super::AssignedConsumerRecoveryReport::new(
+                    audit,
+                    release,
+                    lock_was_poisoned,
+                ))
+            }
+            None => Err(AssignedConsumerShardLockError::OwnerMissing),
         };
-        let audit = owner.recovery_audit();
-        let release = owner.release_assigned_after_driver_shutdown();
-        Ok(super::super::AssignedConsumerRecoveryReport::new(
-            audit,
-            release,
-            lock_was_poisoned,
-        ))
+        let wake = if result.is_ok() {
+            AssignedConsumerRecvWait::Change
+        } else {
+            AssignedConsumerRecvWait::Unlock
+        };
+        self.finish_owner_lock(guard, result, wake)
     }
 
     #[cfg(test)]
@@ -175,7 +217,7 @@ impl AssignedConsumerShardState {
         }
     }
 
-    fn owner(
+    pub(super) fn owner(
         &self,
     ) -> Result<MutexGuard<'_, Option<AssignedConsumerOwner>>, AssignedConsumerShardLockError> {
         self.owner
@@ -183,7 +225,7 @@ impl AssignedConsumerShardState {
             .map_err(|_poisoned| AssignedConsumerShardLockError::Poisoned)
     }
 
-    fn try_owner(
+    pub(super) fn try_owner(
         &self,
     ) -> Result<MutexGuard<'_, Option<AssignedConsumerOwner>>, AssignedConsumerShardLockError> {
         match self.owner.try_lock() {

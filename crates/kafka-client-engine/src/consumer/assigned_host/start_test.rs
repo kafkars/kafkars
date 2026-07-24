@@ -10,12 +10,13 @@ use crate::clock::MonotonicClock;
 
 #[test]
 fn first_slice_builds_one_idle_bounded_owner() {
-    let (mut notifier, publisher) = AssignedConsumerCompletionNotifier::start()
+    let (mut notifier, publishers) = AssignedConsumerCompletionNotifier::start()
         .unwrap_or_else(|error| panic!("completion notifier: {error}"));
     let (owner, _port) = build_first_assigned_consumer(
         Arc::new(MonotonicClock::new()),
         Arc::new(CountingWake::default()),
-        publisher,
+        publishers.close,
+        publishers.recv,
     )
     .unwrap_or_else(|error| panic!("first assigned consumer: {error:?}"));
 

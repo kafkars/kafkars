@@ -3,7 +3,8 @@
 use crate::bridge::consumer::AssignedConsumerEngine;
 
 use super::{
-    AssignedConsumerEvent, CloseAssignedConsumer, RecordBatch, StartPosition, TopicPartition,
+    AssignedConsumerEvent, CloseAssignedConsumer, RecordBatch, RecvAssignedBatch, StartPosition,
+    TopicPartition,
 };
 
 /// Consumer whose positions are controlled directly rather than by a group.
@@ -76,6 +77,13 @@ impl AssignedConsumer {
         self.engine
             .try_take_batch()
             .map(|batch| batch.map(RecordBatch::from_bridge))
+    }
+
+    /// Waits for one already-authorized background Fetch delivery.
+    ///
+    /// This operation creates no application timeout and does not start Fetch.
+    pub fn recv(&mut self) -> RecvAssignedBatch<'_> {
+        RecvAssignedBatch::from_bridge(self.engine.recv())
     }
 
     /// Takes one retained failure event when immediately available.

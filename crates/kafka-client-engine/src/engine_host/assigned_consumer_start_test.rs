@@ -14,10 +14,15 @@ fn startup_constructs_one_idle_owner_and_one_nonclone_port() {
     let mut driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("build driver: {error}"));
     let clock = Arc::new(MonotonicClock::new());
-    let (mut notifier, publisher) = AssignedConsumerCompletionNotifier::start()
+    let (mut notifier, publishers) = AssignedConsumerCompletionNotifier::start()
         .unwrap_or_else(|error| panic!("assigned-consumer notifier: {error}"));
-    let (owner, _port) = start_assigned_consumer(clock, Arc::new(driver.reactor_wake()), publisher)
-        .unwrap_or_else(|error| panic!("assigned consumer: {error:?}"));
+    let (owner, _port) = start_assigned_consumer(
+        clock,
+        Arc::new(driver.reactor_wake()),
+        publishers.close,
+        publishers.recv,
+    )
+    .unwrap_or_else(|error| panic!("assigned consumer: {error:?}"));
 
     assert!(notifier.thread_id().is_some());
     assert_eq!(

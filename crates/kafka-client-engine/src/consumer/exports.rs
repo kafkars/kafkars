@@ -13,6 +13,7 @@ pub use super::assigned_host::{
     AssignedConsumerPartitionInputError, AssignedConsumerPartitionInputErrorKind,
     AssignedConsumerPositionFence, AssignedConsumerPositionResolutionFailure,
     AssignedConsumerPositionResolutionFailureKind, AssignedConsumerRecord, AssignedConsumerRecords,
+    AssignedConsumerRecv, AssignedConsumerRecvError, AssignedConsumerRecvErrorKind,
     AssignedConsumerResumeCapture, AssignedConsumerSeekCapture, AssignedConsumerStartPosition,
     AssignedConsumerTryCloseAccepted, AssignedConsumerTryCloseError,
     AssignedConsumerTryCloseErrorKind, AssignedConsumerTryReplaceAssignmentAccepted,
@@ -22,6 +23,7 @@ pub use super::assigned_host::{
 };
 pub(crate) use super::assigned_host::{
     AssignedConsumerClosePublisher, AssignedConsumerCompletionNotifier,
+    AssignedConsumerCompletionPorts, AssignedConsumerRecvPublisher,
 };
 
 pub(crate) use super::{

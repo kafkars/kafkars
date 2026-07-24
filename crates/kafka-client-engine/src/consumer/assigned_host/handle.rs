@@ -13,6 +13,7 @@ use super::{
     control_result::{AssignedConsumerControlAccepted, AssignedConsumerControlError},
     delivery::{AssignedConsumerBatch, AssignedConsumerTryTakeBatchError},
     event::{AssignedConsumerEvent, AssignedConsumerTryTakeEventError},
+    recv::AssignedConsumerRecv,
     result::{AssignedConsumerTryCloseAccepted, AssignedConsumerTryCloseError},
     shard::AssignedConsumerPort,
 };
@@ -24,7 +25,7 @@ use super::{
 /// synchronized port or its deterministic owner.
 #[must_use = "dropping the unique handle relinquishes assigned-consumer access"]
 pub struct AssignedConsumerHandle {
-    port: AssignedConsumerPort,
+    pub(in crate::consumer::assigned_host) port: AssignedConsumerPort,
     lifetime: Arc<dyn Send + Sync>,
     _not_sync: PhantomData<Cell<()>>,
 }
@@ -36,6 +37,13 @@ impl AssignedConsumerHandle {
             lifetime,
             _not_sync: PhantomData,
         }
+    }
+
+    /// Waits for one already-authorized background Fetch delivery.
+    ///
+    /// This operation creates no Fetch attempt or application timeout.
+    pub fn recv(&mut self) -> AssignedConsumerRecv<'_> {
+        AssignedConsumerRecv::new(self)
     }
 
     /// Attempts an immediate, all-or-nothing replacement of every partition.

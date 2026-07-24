@@ -7,7 +7,7 @@ use support::{
     workspace_root,
 };
 
-const LINEAR_OWNERS: [(&str, &str); 6] = [
+const LINEAR_OWNERS: [(&str, &str); 7] = [
     (
         "PublishTicket",
         "crates/kafka-client-engine/src/completion/publish_ticket.rs",
@@ -18,6 +18,10 @@ const LINEAR_OWNERS: [(&str, &str); 6] = [
     ),
     (
         "SharedPublishPort",
+        "crates/kafka-client-engine/src/completion/shared_notifier.rs",
+    ),
+    (
+        "SharedNotificationPort",
         "crates/kafka-client-engine/src/completion/shared_notifier.rs",
     ),
     (
