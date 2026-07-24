@@ -909,7 +909,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "try_reserve"
 allowed_paths = [
-  "crates/kafka-client-engine/src/engine_host/admin.rs",
+  "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
 
@@ -917,7 +917,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "poll_next_ready"
 allowed_paths = [
-  "crates/kafka-client-engine/src/engine_host/admin.rs",
+  "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
 
@@ -926,7 +926,7 @@ root = "crates/kafka-client-engine/src"
 method = "discard_settled"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
-  "crates/kafka-client-engine/src/engine_host/admin.rs",
+  "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
 
