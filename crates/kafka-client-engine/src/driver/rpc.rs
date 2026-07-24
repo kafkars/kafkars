@@ -48,6 +48,16 @@ mod describe_topics_submission_test;
 mod describe_topics_terminal;
 #[cfg(test)]
 mod describe_topics_terminal_test;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "direct-consumer fetch execution follows this tracked RPC seam"
+    )
+)]
+mod fetch_submission;
+#[cfg(test)]
+mod fetch_submission_test;
 mod init_producer_id_calls;
 #[cfg(test)]
 mod init_producer_id_calls_test;

@@ -1,0 +1,75 @@
+//! Tracked partition-leader submission of one generated `Fetch` request.
+
+use std::{error::Error, fmt, time::Instant};
+
+use kafka_driver::{
+    ApiVersion, PartitionId, PartitionIdError, RequestOptions, Route, RoutedCall, SubmitError,
+    TopicName, TopicNameError, TrafficClass,
+};
+use kafka_wire::{FetchRequest, FetchResponse};
+
+use super::super::DriverOwner;
+use crate::protocol::fetch::FETCH_NAME_ROUTE_MAX_VERSION;
+
+/// Definitely-unsent failure before the driver accepted request ownership.
+#[derive(Debug)]
+pub(crate) enum FetchSubmitError {
+    /// The engine supplied a topic outside the driver's validated domain.
+    InvalidTopic(TopicNameError),
+    /// The engine supplied a partition outside the driver's validated domain.
+    InvalidPartition(PartitionIdError),
+    /// Bounded driver admission rejected the request.
+    Driver(SubmitError),
+}
+
+impl fmt::Display for FetchSubmitError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidTopic(source) => write!(formatter, "invalid Fetch topic: {source}"),
+            Self::InvalidPartition(source) => {
+                write!(formatter, "invalid Fetch partition: {source}")
+            }
+            Self::Driver(source) => write!(formatter, "driver rejected Fetch: {source}"),
+        }
+    }
+}
+
+impl Error for FetchSubmitError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::InvalidTopic(source) => Some(source),
+            Self::InvalidPartition(source) => Some(source),
+            Self::Driver(source) => Some(source),
+        }
+    }
+}
+
+impl DriverOwner {
+    /// Submits one long-poll fetch against the driver's current partition leader.
+    ///
+    /// The returned call retains the selected API version and exact route
+    /// authority while the consumer owner retains its fetch fence.
+    pub(crate) fn submit_tracked_fetch(
+        &self,
+        topic: &str,
+        partition: i32,
+        request: FetchRequest,
+        deadline: Instant,
+    ) -> Result<RoutedCall<FetchResponse>, FetchSubmitError> {
+        let topic = TopicName::new(topic.to_owned()).map_err(FetchSubmitError::InvalidTopic)?;
+        let partition = PartitionId::new(partition).map_err(FetchSubmitError::InvalidPartition)?;
+        self.driver
+            .request_tracked_with(
+                Route::PartitionLeader { topic, partition },
+                request,
+                fetch_options(deadline),
+            )
+            .map_err(FetchSubmitError::Driver)
+    }
+}
+
+pub(super) const fn fetch_options(deadline: Instant) -> RequestOptions {
+    RequestOptions::new(deadline)
+        .with_traffic_class(TrafficClass::LongPoll)
+        .with_maximum_version(ApiVersion::new(FETCH_NAME_ROUTE_MAX_VERSION))
+}

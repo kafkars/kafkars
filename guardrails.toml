@@ -369,6 +369,10 @@ production = "crates/kafka-client-engine/src/driver/rpc/describe_topics_terminal
 test = "crates/kafka-client-engine/src/driver/rpc/describe_topics_terminal_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/fetch_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/fetch_submission_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/init_producer_id_calls.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/init_producer_id_calls_test.rs"
 
