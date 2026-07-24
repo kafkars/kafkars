@@ -835,6 +835,14 @@ production = "crates/kafka-client/src/bridge/admin_describe_result.rs"
 test = "crates/kafka-client/src/bridge/admin_describe_result_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_partitions_operation.rs"
+test = "crates/kafka-client/src/bridge/admin_partitions_operation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_partitions_result.rs"
+test = "crates/kafka-client/src/bridge/admin_partitions_result_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client/src/bridge/producer_result/admission.rs"
 test = "crates/kafka-client/src/bridge/producer_result/admission_test.rs"
 
@@ -925,6 +933,18 @@ test = "crates/kafka-client/src/admin/handle_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/admin/new_topic.rs"
 test = "crates/kafka-client/src/admin/new_topic_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/new_partitions.rs"
+test = "crates/kafka-client/src/admin/new_partitions_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/partitions_builder.rs"
+test = "crates/kafka-client/src/admin/partitions_builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/create_partitions.rs"
+test = "crates/kafka-client/src/admin/create_partitions_test.rs"
 
 [[dependency_rules]]
 package = "kafka-client-core"
@@ -1186,16 +1206,16 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
-method = "submit_tracked_create_partitions"
+method = "submit_tracked_delete_topics"
 allowed_paths = [
-  "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs",
 ]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
-method = "submit_tracked_delete_topics"
+method = "submit_tracked_create_partitions"
 allowed_paths = [
-  "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs",
 ]
 
 [[method_capabilities]]
@@ -2354,22 +2374,6 @@ owner_type = "SettledCreateTopicsCall"
 path = "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs"
 
 [[linear_owners]]
-owner_type = "TrackedCreatePartitionsCalls"
-path = "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs"
-
-[[linear_owners]]
-owner_type = "TrackedCreatePartitionsCall"
-path = "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs"
-
-[[linear_owners]]
-owner_type = "CreatePartitionsCallPermit"
-path = "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs"
-
-[[linear_owners]]
-owner_type = "SettledCreatePartitionsCall"
-path = "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs"
-
-[[linear_owners]]
 owner_type = "DeleteTopicsHost"
 path = "crates/kafka-client-engine/src/admin/delete_host.rs"
 
@@ -2418,6 +2422,22 @@ owner_type = "DescribeClusterObserver"
 path = "crates/kafka-client-engine/src/admin/describe_observer.rs"
 
 [[linear_owners]]
+owner_type = "DescribeClusterCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs"
+
+[[linear_owners]]
+owner_type = "DescribeClusterCall"
+path = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs"
+
+[[linear_owners]]
+owner_type = "DescribeClusterCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs"
+
+[[linear_owners]]
+owner_type = "SettledDescribeClusterCall"
+path = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs"
+
+[[linear_owners]]
 owner_type = "CreatePartitionsHost"
 path = "crates/kafka-client-engine/src/admin/partitions_host.rs"
 
@@ -2434,20 +2454,20 @@ owner_type = "CreatePartitionsObserver"
 path = "crates/kafka-client-engine/src/admin/partitions_observer.rs"
 
 [[linear_owners]]
-owner_type = "DescribeClusterCalls"
-path = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs"
+owner_type = "TrackedCreatePartitionsCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs"
 
 [[linear_owners]]
-owner_type = "DescribeClusterCall"
-path = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs"
+owner_type = "TrackedCreatePartitionsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs"
 
 [[linear_owners]]
-owner_type = "DescribeClusterCallPermit"
-path = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs"
+owner_type = "CreatePartitionsCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs"
 
 [[linear_owners]]
-owner_type = "SettledDescribeClusterCall"
-path = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs"
+owner_type = "SettledCreatePartitionsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs"
 
 [[linear_owners]]
 owner_type = "NotifierShutdownOwner"
@@ -2828,3 +2848,19 @@ path = "crates/kafka-client/src/admin/describe_builder.rs"
 [[linear_owners]]
 owner_type = "DescribeCluster"
 path = "crates/kafka-client/src/admin/describe_cluster.rs"
+
+[[linear_owners]]
+owner_type = "PartitionsAdminRequest"
+path = "crates/kafka-client/src/bridge/admin.rs"
+
+[[linear_owners]]
+owner_type = "AdminCreatePartitions"
+path = "crates/kafka-client/src/bridge/admin_partitions_operation.rs"
+
+[[linear_owners]]
+owner_type = "CreatePartitionsBuilder"
+path = "crates/kafka-client/src/admin/partitions_builder.rs"
+
+[[linear_owners]]
+owner_type = "CreatePartitions"
+path = "crates/kafka-client/src/admin/create_partitions.rs"
