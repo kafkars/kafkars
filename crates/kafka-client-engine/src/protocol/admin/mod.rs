@@ -6,6 +6,19 @@ pub(crate) mod create_topics;
 pub(crate) mod delete_topics;
 mod delete_topics_budget;
 pub(crate) mod describe_cluster;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "bounded DescribeConfigs host integration follows")
+)]
+pub(crate) mod describe_configs;
+mod describe_configs_budget;
+mod describe_configs_model;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "bounded DescribeConfigs host integration follows")
+)]
+pub(crate) mod describe_configs_response;
+mod describe_configs_values;
 pub(crate) mod describe_topics;
 mod describe_topics_budget;
 pub(crate) mod describe_topics_response;
@@ -24,6 +37,16 @@ mod delete_topics_budget_test;
 mod delete_topics_test;
 #[cfg(test)]
 mod describe_cluster_test;
+#[cfg(test)]
+mod describe_configs_budget_test;
+#[cfg(test)]
+mod describe_configs_model_test;
+#[cfg(test)]
+mod describe_configs_response_test;
+#[cfg(test)]
+mod describe_configs_test;
+#[cfg(test)]
+mod describe_configs_values_test;
 #[cfg(test)]
 mod describe_topics_budget_test;
 #[cfg(test)]

@@ -721,6 +721,26 @@ production = "crates/kafka-client-engine/src/protocol/admin/delete_topics_budget
 test = "crates/kafka-client-engine/src/protocol/admin/delete_topics_budget_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/describe_configs.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/describe_configs_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/describe_configs_budget.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/describe_configs_budget_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/describe_configs_model.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/describe_configs_model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/describe_configs_response.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/describe_configs_response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/describe_configs_values.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/describe_configs_values_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/admin/describe_cluster.rs"
 test = "crates/kafka-client-engine/src/protocol/admin/describe_cluster_test.rs"
 
