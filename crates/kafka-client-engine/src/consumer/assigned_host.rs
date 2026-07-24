@@ -1,5 +1,16 @@
 //! Declarative ownership boundary for the first synchronized assigned consumer.
 
+mod assignment;
+mod assignment_error;
+#[cfg(test)]
+mod assignment_error_test;
+#[cfg(test)]
+mod assignment_handle_test;
+mod assignment_result;
+#[cfg(test)]
+mod assignment_result_test;
+#[cfg(test)]
+mod assignment_test;
 mod claim;
 #[cfg(test)]
 mod claim_test;
@@ -37,6 +48,15 @@ mod wake;
 #[cfg(test)]
 mod wake_test;
 
+pub(crate) use assignment::AssignedPartitionInput;
+pub use assignment::{
+    AssignedConsumerAssignment, AssignedConsumerAssignmentInputError,
+    AssignedConsumerAssignmentInputErrorKind, AssignedConsumerStartPosition,
+};
+pub use assignment_result::{
+    AssignedConsumerAssignmentEpoch, AssignedConsumerTryReplaceAssignmentAccepted,
+    AssignedConsumerTryReplaceAssignmentError, AssignedConsumerTryReplaceAssignmentErrorKind,
+};
 pub use claim::AssignedConsumerClaimError;
 pub(crate) use claim::{AssignedConsumerAdmissionCloser, AssignedConsumerClaimSlot};
 pub(crate) use close_observer::AssignedConsumerCloseTerminal;

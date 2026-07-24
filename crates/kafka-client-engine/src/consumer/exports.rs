@@ -1,9 +1,13 @@
 //! Crate-private assigned-consumer capabilities exposed to the engine host.
 
 pub use super::assigned_host::{
-    AssignedConsumerAcceptedFaultKind, AssignedConsumerClaimError, AssignedConsumerCloseObserver,
-    AssignedConsumerCloseObserverError, AssignedConsumerHandle, AssignedConsumerTryCloseAccepted,
+    AssignedConsumerAcceptedFaultKind, AssignedConsumerAssignment, AssignedConsumerAssignmentEpoch,
+    AssignedConsumerAssignmentInputError, AssignedConsumerAssignmentInputErrorKind,
+    AssignedConsumerClaimError, AssignedConsumerCloseObserver, AssignedConsumerCloseObserverError,
+    AssignedConsumerHandle, AssignedConsumerStartPosition, AssignedConsumerTryCloseAccepted,
     AssignedConsumerTryCloseError, AssignedConsumerTryCloseErrorKind,
+    AssignedConsumerTryReplaceAssignmentAccepted, AssignedConsumerTryReplaceAssignmentError,
+    AssignedConsumerTryReplaceAssignmentErrorKind,
 };
 pub(crate) use super::assigned_host::{
     AssignedConsumerClosePublisher, AssignedConsumerCompletionNotifier,

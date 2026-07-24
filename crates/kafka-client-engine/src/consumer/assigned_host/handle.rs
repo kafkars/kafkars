@@ -1,8 +1,11 @@
 //! Unique runtime-neutral application ownership of one assigned consumer.
 
-use std::{cell::Cell, marker::PhantomData, sync::Arc};
+use std::{cell::Cell, marker::PhantomData, sync::Arc, time::Duration};
 
 use super::{
+    assignment_result::{
+        AssignedConsumerTryReplaceAssignmentAccepted, AssignedConsumerTryReplaceAssignmentError,
+    },
     result::{AssignedConsumerTryCloseAccepted, AssignedConsumerTryCloseError},
     shard::AssignedConsumerPort,
 };
@@ -26,6 +29,21 @@ impl AssignedConsumerHandle {
             lifetime,
             _not_sync: PhantomData,
         }
+    }
+
+    /// Attempts an immediate, all-or-nothing replacement of every partition.
+    pub fn try_replace_assignment(
+        &mut self,
+        entries: Vec<crate::consumer::AssignedConsumerAssignment>,
+        resolution_timeout: Duration,
+    ) -> Result<
+        AssignedConsumerTryReplaceAssignmentAccepted,
+        AssignedConsumerTryReplaceAssignmentError,
+    > {
+        self.port
+            .replace_assignment(entries, resolution_timeout)
+            .map(AssignedConsumerTryReplaceAssignmentAccepted::from_port)
+            .map_err(|error| AssignedConsumerTryReplaceAssignmentError::from_port(&error))
     }
 
     /// Attempts immediate close after reserving the sole terminal-completion lane.

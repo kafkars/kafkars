@@ -36,9 +36,10 @@ impl<'a> PreparedAssignedTopicsReplacement<'a> {
             owner,
         };
         for entry in entries {
+            let partition = entry.partition_index();
             let topic_id = prepared.stage_topic(entry.topic)?;
             prepared.partitions.push(AssignedPartition::new(
-                AssignedTopicPartition::new(topic_id, entry.partition),
+                AssignedTopicPartition::new(topic_id, partition),
                 entry.start,
             ));
         }

@@ -10,12 +10,24 @@ use support::{
 
 const MIRRORS: &[(&str, &str)] = &[
     (
+        "consumer/assigned_host/assignment.rs",
+        "consumer/assigned_host/assignment_test.rs",
+    ),
+    (
         "consumer/assigned_owner_recovery.rs",
         "consumer/assigned_owner_recovery_test.rs",
     ),
     (
         "consumer/assigned_owner_status.rs",
         "consumer/assigned_owner_status_test.rs",
+    ),
+    (
+        "consumer/assigned_host/assignment_error.rs",
+        "consumer/assigned_host/assignment_error_test.rs",
+    ),
+    (
+        "consumer/assigned_host/assignment_result.rs",
+        "consumer/assigned_host/assignment_result_test.rs",
     ),
     (
         "consumer/assigned_host/port.rs",
@@ -70,6 +82,9 @@ const CAPABILITY_FILES: &[&str] = &[
     "consumer/assigned_host.rs",
     "consumer/assigned_owner_recovery.rs",
     "consumer/assigned_owner_status.rs",
+    "consumer/assigned_host/assignment.rs",
+    "consumer/assigned_host/assignment_error.rs",
+    "consumer/assigned_host/assignment_result.rs",
     "consumer/assigned_host/port.rs",
     "consumer/assigned_host/reclaim.rs",
     "consumer/assigned_host/result.rs",

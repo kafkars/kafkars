@@ -4,9 +4,10 @@ mod prepared;
 #[cfg(test)]
 mod prepared_test;
 
-use kafka_client_core::{AssignedPartition, PartitionIndex, StartPosition, TopicId};
+use kafka_client_core::{AssignedPartition, TopicId};
 use std::{collections::BTreeMap, sync::Arc};
 
+pub(crate) use super::assigned_host::AssignedPartitionInput;
 pub(super) use prepared::PreparedAssignedTopicsReplacement;
 
 /// Bounds topic identities, retained names, and one current assignment.
@@ -39,28 +40,6 @@ impl AssignedTopicLimits {
 
     pub(super) const fn max_partitions(self) -> usize {
         self.max_partitions
-    }
-}
-
-/// Engine-owned input facts for one caller-ordered assignment entry.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct AssignedPartitionInput {
-    topic: Arc<str>,
-    partition: PartitionIndex,
-    start: StartPosition,
-}
-
-impl AssignedPartitionInput {
-    pub(crate) const fn new(
-        topic: Arc<str>,
-        partition: PartitionIndex,
-        start: StartPosition,
-    ) -> Self {
-        Self {
-            topic,
-            partition,
-            start,
-        }
     }
 }
 

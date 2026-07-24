@@ -5,7 +5,11 @@ use kafka_driver;
 use kafka_wire;
 use kafka_wire_core;
 use kafka_wire_records;
-use std::{future::Future, net, thread, time};
+use std::{
+    future::Future,
+    net, thread,
+    time::{Instant, SystemTime},
+};
 
 async fn violate() {
     let _admin = crate::admin;
@@ -24,7 +28,8 @@ async fn violate() {
     let _future = Future;
     let _net = net;
     let _thread = thread;
-    let _time = time;
+    let _instant = Instant::now();
+    let _system_time = SystemTime::now();
     let _callback = Callback;
     let _metadata = Metadata;
     let _retry = Retry;
