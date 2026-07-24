@@ -48,18 +48,11 @@ impl AssignedConsumerAssignment {
                 AssignedConsumerAssignmentInputErrorKind::NegativePartition,
             ));
         }
-        let start = match start {
-            AssignedConsumerStartPosition::Beginning => StartPosition::Beginning,
-            AssignedConsumerStartPosition::End => StartPosition::End,
-            AssignedConsumerStartPosition::Offset(offset) => {
-                let offset = kafka_client_core::NextFetchOffset::try_from_raw(offset).ok_or(
-                    AssignedConsumerAssignmentInputError::new(
-                        AssignedConsumerAssignmentInputErrorKind::NegativeOffset,
-                    ),
-                )?;
-                StartPosition::Offset(offset)
-            }
-        };
+        let start = start
+            .try_into_core()
+            .ok_or(AssignedConsumerAssignmentInputError::new(
+                AssignedConsumerAssignmentInputErrorKind::NegativeOffset,
+            ))?;
         Ok(Self {
             topic,
             partition,
@@ -100,6 +93,18 @@ impl AssignedConsumerAssignment {
             topic,
             partition: partition.get().cast_signed(),
             start,
+        }
+    }
+}
+
+impl AssignedConsumerStartPosition {
+    pub(in crate::consumer) fn try_into_core(self) -> Option<StartPosition> {
+        match self {
+            Self::Beginning => Some(StartPosition::Beginning),
+            Self::End => Some(StartPosition::End),
+            Self::Offset(offset) => {
+                kafka_client_core::NextFetchOffset::try_from_raw(offset).map(StartPosition::Offset)
+            }
         }
     }
 }

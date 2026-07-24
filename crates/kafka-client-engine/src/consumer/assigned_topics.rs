@@ -4,7 +4,7 @@ mod prepared;
 #[cfg(test)]
 mod prepared_test;
 
-use kafka_client_core::{AssignedPartition, TopicId};
+use kafka_client_core::{AssignedPartition, AssignedTopicPartition, PartitionIndex, TopicId};
 use std::{collections::BTreeMap, sync::Arc};
 
 pub(crate) use super::assigned_host::AssignedPartitionInput;
@@ -118,6 +118,17 @@ impl AssignedTopics {
         self.by_id
             .get(&topic_id)
             .ok_or(AssignedTopicsError::UnknownTopic(topic_id))
+    }
+
+    pub(super) fn control_partition(
+        &self,
+        topic: &str,
+        partition: PartitionIndex,
+    ) -> Option<AssignedTopicPartition> {
+        self.by_name
+            .get(topic)
+            .copied()
+            .map(|topic_id| AssignedTopicPartition::new(topic_id, partition))
     }
 
     #[cfg(test)]

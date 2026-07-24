@@ -20,12 +20,26 @@ mod close_observer_test;
 mod completion;
 #[cfg(test)]
 mod completion_test;
+mod control;
+mod control_error;
+#[cfg(test)]
+mod control_error_test;
+#[cfg(test)]
+mod control_handle_test;
+mod control_result;
+#[cfg(test)]
+mod control_result_test;
+#[cfg(test)]
+mod control_test;
 mod event_port;
 #[cfg(test)]
 mod event_port_test;
 mod handle;
 #[cfg(test)]
 mod handle_test;
+mod owner_control;
+#[cfg(test)]
+mod owner_control_test;
 mod port;
 #[cfg(test)]
 mod port_test;
@@ -62,6 +76,14 @@ pub(crate) use claim::{AssignedConsumerAdmissionCloser, AssignedConsumerClaimSlo
 pub(crate) use close_observer::AssignedConsumerCloseTerminal;
 pub use close_observer::{AssignedConsumerCloseObserver, AssignedConsumerCloseObserverError};
 pub(crate) use completion::{AssignedConsumerClosePublisher, AssignedConsumerCompletionNotifier};
+pub(crate) use control::AssignedConsumerControlInputError;
+pub use control::{
+    AssignedConsumerPartition, AssignedConsumerPartitionInputError,
+    AssignedConsumerPartitionInputErrorKind,
+};
+pub use control_result::{
+    AssignedConsumerControlAccepted, AssignedConsumerControlError, AssignedConsumerControlErrorKind,
+};
 pub use handle::AssignedConsumerHandle;
 pub use result::{
     AssignedConsumerAcceptedFaultKind, AssignedConsumerTryCloseAccepted,

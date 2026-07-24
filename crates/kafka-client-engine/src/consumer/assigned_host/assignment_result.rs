@@ -11,16 +11,20 @@ use super::{
 
 /// Opaque engine representation of one accepted assignment generation.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct AssignedConsumerAssignmentEpoch(u64);
+pub struct AssignedConsumerAssignmentEpoch(AssignmentEpoch);
 
 impl AssignedConsumerAssignmentEpoch {
     /// Returns the stable scalar epoch used by later engine control boundaries.
     pub const fn get(self) -> u64 {
-        self.0
+        self.0.get()
     }
 
     pub(super) const fn from_core(epoch: AssignmentEpoch) -> Self {
-        Self(epoch.get())
+        Self(epoch)
+    }
+
+    pub(super) const fn into_core(self) -> AssignmentEpoch {
+        self.0
     }
 }
 

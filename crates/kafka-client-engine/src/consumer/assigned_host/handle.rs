@@ -4,8 +4,11 @@ use std::{cell::Cell, marker::PhantomData, sync::Arc, time::Duration};
 
 use super::{
     assignment_result::{
-        AssignedConsumerTryReplaceAssignmentAccepted, AssignedConsumerTryReplaceAssignmentError,
+        AssignedConsumerAssignmentEpoch, AssignedConsumerTryReplaceAssignmentAccepted,
+        AssignedConsumerTryReplaceAssignmentError,
     },
+    control::AssignedConsumerPartition,
+    control_result::{AssignedConsumerControlAccepted, AssignedConsumerControlError},
     result::{AssignedConsumerTryCloseAccepted, AssignedConsumerTryCloseError},
     shard::AssignedConsumerPort,
 };
@@ -44,6 +47,45 @@ impl AssignedConsumerHandle {
             .replace_assignment(entries, resolution_timeout)
             .map(AssignedConsumerTryReplaceAssignmentAccepted::from_port)
             .map_err(|error| AssignedConsumerTryReplaceAssignmentError::from_port(&error))
+    }
+
+    /// Attempts to fence and pause one partition in the supplied assignment generation.
+    pub fn try_pause(
+        &mut self,
+        epoch: AssignedConsumerAssignmentEpoch,
+        partition: AssignedConsumerPartition,
+    ) -> Result<AssignedConsumerControlAccepted, AssignedConsumerControlError> {
+        self.port
+            .pause(epoch.into_core(), partition)
+            .map(AssignedConsumerControlAccepted::from_port)
+            .map_err(|error| AssignedConsumerControlError::from_port(&error))
+    }
+
+    /// Attempts to resume one paused partition under one call-boundary deadline.
+    pub fn try_resume(
+        &mut self,
+        epoch: AssignedConsumerAssignmentEpoch,
+        partition: AssignedConsumerPartition,
+        resolution_timeout: Duration,
+    ) -> Result<AssignedConsumerControlAccepted, AssignedConsumerControlError> {
+        self.port
+            .resume(epoch.into_core(), partition, resolution_timeout)
+            .map(AssignedConsumerControlAccepted::from_port)
+            .map_err(|error| AssignedConsumerControlError::from_port(&error))
+    }
+
+    /// Attempts to replace one partition's next position under one call-boundary deadline.
+    pub fn try_seek(
+        &mut self,
+        epoch: AssignedConsumerAssignmentEpoch,
+        partition: AssignedConsumerPartition,
+        position: super::AssignedConsumerStartPosition,
+        resolution_timeout: Duration,
+    ) -> Result<AssignedConsumerControlAccepted, AssignedConsumerControlError> {
+        self.port
+            .seek(epoch.into_core(), partition, position, resolution_timeout)
+            .map(AssignedConsumerControlAccepted::from_port)
+            .map_err(|error| AssignedConsumerControlError::from_port(&error))
     }
 
     /// Attempts immediate close after reserving the sole terminal-completion lane.

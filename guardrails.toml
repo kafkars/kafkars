@@ -1009,6 +1009,10 @@ production = "crates/kafka-client-engine/src/consumer/assigned_owner_admission.r
 test = "crates/kafka-client-engine/src/consumer/assigned_owner_admission_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/owner_control.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/owner_control_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs"
 test = "crates/kafka-client-engine/src/consumer/assigned_owner_close_test.rs"
 
@@ -1059,6 +1063,18 @@ test = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_error_t
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_result.rs"
 test = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_result_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/control.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/control_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/control_error.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/control_error_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/control_result.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/control_result_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_host/close_observer.rs"
@@ -2716,6 +2732,23 @@ forbidden = [
 ]
 
 [[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/owner_control.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs"
 forbidden = [
   "kafka_driver",
@@ -2904,6 +2937,57 @@ forbidden = [
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_result.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/control.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/control_error.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/control_result.rs"
 forbidden = [
   "kafka_driver",
   "kafka_wire",

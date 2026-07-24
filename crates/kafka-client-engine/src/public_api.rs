@@ -34,10 +34,12 @@ pub use crate::consumer::{
     AssignedConsumerAcceptedFaultKind, AssignedConsumerAssignment, AssignedConsumerAssignmentEpoch,
     AssignedConsumerAssignmentInputError, AssignedConsumerAssignmentInputErrorKind,
     AssignedConsumerClaimError, AssignedConsumerCloseObserver, AssignedConsumerCloseObserverError,
-    AssignedConsumerHandle, AssignedConsumerStartPosition, AssignedConsumerTryCloseAccepted,
-    AssignedConsumerTryCloseError, AssignedConsumerTryCloseErrorKind,
-    AssignedConsumerTryReplaceAssignmentAccepted, AssignedConsumerTryReplaceAssignmentError,
-    AssignedConsumerTryReplaceAssignmentErrorKind,
+    AssignedConsumerControlAccepted, AssignedConsumerControlError,
+    AssignedConsumerControlErrorKind, AssignedConsumerHandle, AssignedConsumerPartition,
+    AssignedConsumerPartitionInputError, AssignedConsumerPartitionInputErrorKind,
+    AssignedConsumerStartPosition, AssignedConsumerTryCloseAccepted, AssignedConsumerTryCloseError,
+    AssignedConsumerTryCloseErrorKind, AssignedConsumerTryReplaceAssignmentAccepted,
+    AssignedConsumerTryReplaceAssignmentError, AssignedConsumerTryReplaceAssignmentErrorKind,
 };
 pub use crate::delivery::{
     ProducerDeliveryFailure, ProducerDeliveryFailureKind, ProducerDeliveryStatus,

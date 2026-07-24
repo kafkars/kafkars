@@ -2,13 +2,15 @@
 
 use std::time::Duration;
 
-use kafka_client_core::{AssignedTopicPartition, AssignmentEpoch, StartPosition};
+use kafka_client_core::AssignmentEpoch;
 
 use super::super::{
     assigned_owner::AssignedConsumerOwner, assigned_owner_model::AssignedConsumerOwnerError,
     assigned_topics::AssignedPartitionInput, fetch_store::FetchDelivery,
 };
 use super::{
+    assignment::AssignedConsumerStartPosition,
+    control::AssignedConsumerPartition,
     reclaim::AssignedConsumerReclaimRejection,
     result::{AssignedConsumerAccepted, AssignedConsumerPortError},
     shard::AssignedConsumerPort,
@@ -31,22 +33,15 @@ impl AssignedConsumerPort {
     pub(crate) fn pause(
         &self,
         epoch: AssignmentEpoch,
-        partition: AssignedTopicPartition,
+        partition: AssignedConsumerPartition,
     ) -> Result<AssignedConsumerAccepted<()>, AssignedConsumerPortError> {
-        self.admit(move |owner| owner.pause(epoch, partition))
+        self.admit(move |owner| owner.pause_named(epoch, &partition))
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "the private assigned-consumer port precedes its facade claim seam"
-        )
-    )]
     pub(crate) fn resume(
         &self,
         epoch: AssignmentEpoch,
-        partition: AssignedTopicPartition,
+        partition: AssignedConsumerPartition,
         timeout: Duration,
     ) -> Result<AssignedConsumerAccepted<()>, AssignedConsumerPortError> {
         let capture = self
@@ -54,21 +49,14 @@ impl AssignedConsumerPort {
             .clock
             .capture_deadline_after(timeout)
             .map_err(AssignedConsumerPortError::Clock)?;
-        self.admit(move |owner| owner.resume_captured(epoch, partition, capture))
+        self.admit(move |owner| owner.resume_named_captured(epoch, &partition, capture))
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "the private assigned-consumer port precedes its facade claim seam"
-        )
-    )]
     pub(crate) fn seek(
         &self,
         epoch: AssignmentEpoch,
-        partition: AssignedTopicPartition,
-        position: StartPosition,
+        partition: AssignedConsumerPartition,
+        position: AssignedConsumerStartPosition,
         timeout: Duration,
     ) -> Result<AssignedConsumerAccepted<()>, AssignedConsumerPortError> {
         let capture = self
@@ -76,7 +64,7 @@ impl AssignedConsumerPort {
             .clock
             .capture_deadline_after(timeout)
             .map_err(AssignedConsumerPortError::Clock)?;
-        self.admit(move |owner| owner.seek_captured(epoch, partition, position, capture))
+        self.admit(move |owner| owner.seek_named_captured(epoch, &partition, position, capture))
     }
 
     pub(crate) fn begin_close(

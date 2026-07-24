@@ -16,6 +16,7 @@ use crate::{
 use super::{
     assigned_close_error::AssignedCloseSlotError,
     assigned_event::{AssignedConsumerEventStoreBuildError, AssignedConsumerEventStoreError},
+    assigned_host::AssignedConsumerControlInputError,
     assigned_topics::{AssignedTopicLimits, AssignedTopicsError},
     position_execution::PreparedPositionResolution,
 };
@@ -136,6 +137,7 @@ pub(crate) enum AssignedConsumerOwnerError {
     Close(AssignedCloseSlotError),
     Completion(CompletionRegistryError),
     Event(AssignedConsumerEventStoreError),
+    ControlInput(AssignedConsumerControlInputError),
     Allocation,
 }
 

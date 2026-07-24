@@ -42,7 +42,9 @@ const fn owner_error_kind(
         AssignedConsumerOwnerError::EffectsPending => {
             AssignedConsumerTryReplaceAssignmentErrorKind::Pending
         }
-        AssignedConsumerOwnerError::DeliveryUnavailable | AssignedConsumerOwnerError::Close(_) => {
+        AssignedConsumerOwnerError::DeliveryUnavailable
+        | AssignedConsumerOwnerError::Close(_)
+        | AssignedConsumerOwnerError::ControlInput(_) => {
             AssignedConsumerTryReplaceAssignmentErrorKind::InternalInvariant
         }
         AssignedConsumerOwnerError::Clock(error) => clock_error_kind(error),

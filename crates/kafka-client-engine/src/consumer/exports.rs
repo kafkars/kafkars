@@ -4,10 +4,12 @@ pub use super::assigned_host::{
     AssignedConsumerAcceptedFaultKind, AssignedConsumerAssignment, AssignedConsumerAssignmentEpoch,
     AssignedConsumerAssignmentInputError, AssignedConsumerAssignmentInputErrorKind,
     AssignedConsumerClaimError, AssignedConsumerCloseObserver, AssignedConsumerCloseObserverError,
-    AssignedConsumerHandle, AssignedConsumerStartPosition, AssignedConsumerTryCloseAccepted,
-    AssignedConsumerTryCloseError, AssignedConsumerTryCloseErrorKind,
-    AssignedConsumerTryReplaceAssignmentAccepted, AssignedConsumerTryReplaceAssignmentError,
-    AssignedConsumerTryReplaceAssignmentErrorKind,
+    AssignedConsumerControlAccepted, AssignedConsumerControlError,
+    AssignedConsumerControlErrorKind, AssignedConsumerHandle, AssignedConsumerPartition,
+    AssignedConsumerPartitionInputError, AssignedConsumerPartitionInputErrorKind,
+    AssignedConsumerStartPosition, AssignedConsumerTryCloseAccepted, AssignedConsumerTryCloseError,
+    AssignedConsumerTryCloseErrorKind, AssignedConsumerTryReplaceAssignmentAccepted,
+    AssignedConsumerTryReplaceAssignmentError, AssignedConsumerTryReplaceAssignmentErrorKind,
 };
 pub(crate) use super::assigned_host::{
     AssignedConsumerClosePublisher, AssignedConsumerCompletionNotifier,

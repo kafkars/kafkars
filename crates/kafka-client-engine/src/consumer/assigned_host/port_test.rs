@@ -2,7 +2,7 @@
 
 use std::{sync::Arc, time::Duration};
 
-use kafka_client_core::{AssignedTopicPartition, PartitionIndex, StartPosition, TopicId};
+use kafka_client_core::StartPosition;
 
 use super::super::{
     assigned_owner_close_test::install_pending_ready,
@@ -10,6 +10,7 @@ use super::super::{
     assigned_owner_test::{input, limits, settings},
 };
 use super::{
+    AssignedConsumerPartition, AssignedConsumerStartPosition,
     result::{AssignedConsumerPortAcceptedFaultKind, AssignedConsumerPortError},
     shard::AssignedConsumerShardOwner,
     shard_test::{FailingWake, setup},
@@ -98,18 +99,22 @@ fn pause_resume_and_seek_cross_the_same_synchronized_port() {
         .unwrap_or_else(|error| panic!("assigned owner: {error:?}"));
 
     let _paused = port
-        .pause(epoch, partition)
+        .pause(epoch, control("orders", partition.partition().get()))
         .unwrap_or_else(|error| panic!("pause: {error:?}"));
     drain_effects(&owner);
     let _resumed = port
-        .resume(epoch, partition, Duration::from_secs(1))
+        .resume(
+            epoch,
+            control("orders", partition.partition().get()),
+            Duration::from_secs(1),
+        )
         .unwrap_or_else(|error| panic!("resume: {error:?}"));
     drain_effects(&owner);
     let _sought = port
         .seek(
             epoch,
-            partition,
-            StartPosition::Beginning,
+            control("orders", partition.partition().get()),
+            AssignedConsumerStartPosition::Beginning,
             Duration::from_secs(1),
         )
         .unwrap_or_else(|error| panic!("seek: {error:?}"));
@@ -128,10 +133,7 @@ fn ordinary_owner_rejection_does_not_request_an_extra_wake() {
         .into_value();
 
     let error = port
-        .pause(
-            epoch,
-            AssignedTopicPartition::new(TopicId::from_raw(1), PartitionIndex::from_raw(0)),
-        )
+        .pause(epoch, control("orders", 0))
         .err()
         .unwrap_or_else(|| panic!("pending effects must reject control"));
 
@@ -250,6 +252,11 @@ fn transferred_reclaim_fault_still_requests_host_recovery() {
 fn offset(value: i64) -> kafka_client_core::NextFetchOffset {
     kafka_client_core::NextFetchOffset::try_from_raw(value)
         .unwrap_or_else(|| panic!("nonnegative offset"))
+}
+
+fn control(topic: &str, partition: u32) -> AssignedConsumerPartition {
+    AssignedConsumerPartition::try_new(topic, partition.cast_signed())
+        .unwrap_or_else(|error| panic!("control partition: {error}"))
 }
 
 fn drain_effects(owner: &AssignedConsumerShardOwner) {
