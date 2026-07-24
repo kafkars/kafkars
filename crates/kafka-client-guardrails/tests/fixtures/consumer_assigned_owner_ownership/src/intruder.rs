@@ -12,6 +12,7 @@ struct AssignedConsumerOwner {
     timers: usize,
     positions: usize,
     fetches: usize,
+    events: usize,
     close: usize,
     effects: usize,
     raw_position_deadlines: usize,
@@ -28,6 +29,7 @@ fn mutate(owner: &mut AssignedConsumerOwner) {
     owner.timers = 1;
     owner.positions = 1;
     owner.fetches = 1;
+    owner.events = 1;
     owner.close = 1;
     owner.effects = 1;
     owner.raw_position_deadlines = 1;

@@ -19,6 +19,7 @@ mod macro_scope;
 mod macro_token;
 mod method_capability;
 mod ownership;
+mod ownership_methods;
 mod policy_path;
 mod size_policy;
 mod source_graph;

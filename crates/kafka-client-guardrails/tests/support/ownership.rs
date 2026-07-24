@@ -1,63 +1,29 @@
 //! AST inspection for protected field mutation and linear owner duplication.
-
+use super::{
+    MutationOwner, display_path, is_test_only_source,
+    ownership_methods::{is_mutating_method, is_non_owning_access},
+    read,
+};
 use std::path::{Path, PathBuf};
-
 use syn::{
-    BinOp, Expr, ExprBinary, ExprMethodCall, ExprReference, File, ItemImpl, ItemStruct, Member,
-    Type,
+    BinOp, Expr, ExprBinary, ExprMethodCall, ExprReference, File, FnArg, ImplItemFn, ItemFn,
+    ItemImpl, ItemStruct, Member, Pat, Type,
     visit::{self, Visit},
 };
-
-use super::{MutationOwner, display_path, read};
-
-const MUTATING_METHODS: &[&str] = &[
-    "append",
-    "capture",
-    "clear",
-    "complete",
-    "drain",
-    "entry",
-    "extend",
-    "get_mut",
-    "insert",
-    "lock",
-    "pop",
-    "pop_back",
-    "pop_front",
-    "push",
-    "push_back",
-    "push_front",
-    "release",
-    "remove",
-    "reserve",
-    "store",
-    "retain",
-    "retain_committed_tail",
-    "retain_generated",
-    "retain_tail",
-    "retain_terminal",
-    "take",
-    "take_effects",
-    "take_generated",
-    "clear_terminal",
-    "try_reserve",
-    "try_lock",
-];
-
 #[derive(Default)]
 struct MutationEvidence {
     declared: bool,
     mutations: usize,
     violations: Vec<String>,
 }
-
 struct MutationVisitor<'a> {
     rule: &'a MutationOwner,
     path: &'a str,
     in_owner_impl: bool,
+    track_owner_bindings: bool,
+    owner_bindings: Vec<String>,
     evidence: MutationEvidence,
 }
-
 impl<'ast> Visit<'ast> for MutationVisitor<'_> {
     fn visit_item_struct(&mut self, item: &'ast ItemStruct) {
         if item.ident == self.rule.owner_type
@@ -80,6 +46,18 @@ impl<'ast> Visit<'ast> for MutationVisitor<'_> {
         self.in_owner_impl = previous;
     }
 
+    fn visit_item_fn(&mut self, item: &'ast ItemFn) {
+        self.visit_function(&item.sig.inputs, |visitor| {
+            visit::visit_item_fn(visitor, item);
+        });
+    }
+
+    fn visit_impl_item_fn(&mut self, item: &'ast ImplItemFn) {
+        self.visit_function(&item.sig.inputs, |visitor| {
+            visit::visit_impl_item_fn(visitor, item);
+        });
+    }
+
     fn visit_expr_assign(&mut self, expression: &'ast syn::ExprAssign) {
         self.record_if_protected(&expression.left);
         visit::visit_expr_assign(self, expression);
@@ -100,13 +78,10 @@ impl<'ast> Visit<'ast> for MutationVisitor<'_> {
     }
 
     fn visit_expr_method_call(&mut self, expression: &'ast ExprMethodCall) {
-        if self.in_owner_impl && references_self_field(&expression.receiver, &self.rule.field) {
-            if MUTATING_METHODS
-                .iter()
-                .any(|method| expression.method == method)
-            {
+        if self.references_owner_field(&expression.receiver) {
+            if is_mutating_method(&expression.method) {
                 self.record_if_protected(&expression.receiver);
-            } else if !matches!(expression.method.to_string().as_str(), "iter" | "len")
+            } else if !is_non_owning_access(self.rule, &expression.method)
                 && !self.rule.allowed_paths.iter().any(|path| path == self.path)
             {
                 self.evidence.violations.push(format!(
@@ -118,10 +93,24 @@ impl<'ast> Visit<'ast> for MutationVisitor<'_> {
         visit::visit_expr_method_call(self, expression);
     }
 }
-
 impl MutationVisitor<'_> {
+    fn visit_function(
+        &mut self,
+        inputs: &syn::punctuated::Punctuated<FnArg, syn::token::Comma>,
+        visit_function: impl FnOnce(&mut Self),
+    ) {
+        let bindings = if self.track_owner_bindings {
+            owner_bindings(inputs, &self.rule.owner_type)
+        } else {
+            Vec::new()
+        };
+        let previous = std::mem::replace(&mut self.owner_bindings, bindings);
+        visit_function(self);
+        self.owner_bindings = previous;
+    }
+
     fn record_if_protected(&mut self, expression: &Expr) {
-        if !self.in_owner_impl || !references_self_field(expression, &self.rule.field) {
+        if !self.references_owner_field(expression) {
             return;
         }
         self.evidence.mutations += 1;
@@ -132,6 +121,15 @@ impl MutationVisitor<'_> {
             ));
         }
     }
+
+    fn references_owner_field(&self, expression: &Expr) -> bool {
+        references_owner_field(
+            expression,
+            &self.rule.field,
+            self.in_owner_impl,
+            &self.owner_bindings,
+        )
+    }
 }
 
 pub(crate) fn mutation_violations(
@@ -141,7 +139,13 @@ pub(crate) fn mutation_violations(
 ) -> Vec<String> {
     let parsed = files
         .iter()
-        .map(|path| (display_path(root, path), parse(path)))
+        .map(|path| {
+            (
+                display_path(root, path),
+                parse(path),
+                !is_test_only_source(path),
+            )
+        })
         .collect::<Vec<_>>();
     let mut violations = Vec::new();
     for rule in rules {
@@ -150,13 +154,14 @@ pub(crate) fn mutation_violations(
                 violations.push(format!("stale mutation owner path: {allowed}"));
             }
         }
-        let mut declared = false;
-        let mut mutations = 0;
-        for (path, file) in &parsed {
+        let (mut declared, mut mutations) = (false, 0);
+        for (path, file, track_owner_bindings) in &parsed {
             let mut visitor = MutationVisitor {
                 rule,
                 path,
                 in_owner_impl: false,
+                track_owner_bindings: *track_owner_bindings,
+                owner_bindings: Vec::new(),
                 evidence: MutationEvidence::default(),
             };
             visitor.visit_file(file);
@@ -179,15 +184,64 @@ pub(crate) fn mutation_violations(
     violations
 }
 
-fn references_self_field(expression: &Expr, field: &str) -> bool {
+fn references_owner_field(
+    expression: &Expr,
+    field: &str,
+    in_owner_impl: bool,
+    owner_bindings: &[String],
+) -> bool {
     match expression {
         Expr::Field(value) => {
             matches!(&value.member, Member::Named(name) if name == field)
-                && matches!(&*value.base, Expr::Path(path) if path.path.is_ident("self"))
+                && matches!(
+                    &*value.base,
+                    Expr::Path(path)
+                        if (in_owner_impl && path.path.is_ident("self"))
+                            || owner_bindings
+                                .iter()
+                                .any(|binding| path.path.is_ident(binding.as_str()))
+                )
         }
-        Expr::Group(value) => references_self_field(&value.expr, field),
-        Expr::Index(value) => references_self_field(&value.expr, field),
-        Expr::Paren(value) => references_self_field(&value.expr, field),
+        Expr::Group(value) => {
+            references_owner_field(&value.expr, field, in_owner_impl, owner_bindings)
+        }
+        Expr::Index(value) => {
+            references_owner_field(&value.expr, field, in_owner_impl, owner_bindings)
+        }
+        Expr::Paren(value) => {
+            references_owner_field(&value.expr, field, in_owner_impl, owner_bindings)
+        }
+        _ => false,
+    }
+}
+
+fn owner_bindings(
+    inputs: &syn::punctuated::Punctuated<FnArg, syn::token::Comma>,
+    owner_type: &str,
+) -> Vec<String> {
+    inputs
+        .iter()
+        .filter_map(|argument| {
+            let FnArg::Typed(argument) = argument else {
+                return None;
+            };
+            if !type_reaches(&argument.ty, owner_type) {
+                return None;
+            }
+            let Pat::Ident(binding) = &*argument.pat else {
+                return None;
+            };
+            Some(binding.ident.to_string())
+        })
+        .collect()
+}
+
+fn type_reaches(value: &Type, expected: &str) -> bool {
+    match value {
+        Type::Group(value) => type_reaches(&value.elem, expected),
+        Type::Paren(value) => type_reaches(&value.elem, expected),
+        Type::Path(_) => type_is(value, expected),
+        Type::Reference(value) => type_reaches(&value.elem, expected),
         _ => false,
     }
 }

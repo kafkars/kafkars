@@ -10,6 +10,7 @@ use support::{
 
 const STORE: &str = "crates/kafka-client-engine/src/consumer/assigned_event.rs";
 const STORE_TEST: &str = "crates/kafka-client-engine/src/consumer/assigned_event_test.rs";
+const STORE_DIR: &str = "crates/kafka-client-engine/src/consumer/assigned_event";
 const CLAIM: &str = "crates/kafka-client-engine/src/consumer/assigned_event/claim.rs";
 const CLAIM_TEST: &str = "crates/kafka-client-engine/src/consumer/assigned_event/claim_test.rs";
 const MODEL: &str = "crates/kafka-client-engine/src/consumer/assigned_event/model.rs";
@@ -44,16 +45,22 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
         ],
     ),
 ];
-const METHODS: &[(&str, &str)] = &[
-    ("install_replacement_claims", PREPARED),
-    ("install_partition_claim", PREPARED),
+const METHODS: &[(&str, &[&str])] = &[
+    ("install_replacement_claims", &[PREPARED]),
+    ("install_partition_claim", &[PREPARED]),
     (
         "commit_event_claims",
-        "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+        &["crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs"],
     ),
     (
         "rollback_event_claims",
-        "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+        &["crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs"],
+    ),
+    ("take_event", &[OWNER_EVENT, PORT]),
+    ("retain_terminal", &[OWNER_EVENT]),
+    (
+        "observe_effect",
+        &["crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs"],
     ),
 ];
 const METHOD_ROOT: &str = "crates/kafka-client-engine/src";
@@ -130,7 +137,7 @@ fn checked_in_event_policy_is_exact() {
             *allowed_paths,
         );
     }
-    for root in [STORE, CLAIM, MODEL, PREPARED, OWNER_EVENT, PORT] {
+    for root in [STORE, STORE_DIR, CLAIM, MODEL, PREPARED, OWNER_EVENT, PORT] {
         let rules = config
             .capability_rules
             .iter()
@@ -155,7 +162,14 @@ fn checked_in_event_policy_is_exact() {
             .collect::<Vec<_>>();
         assert_eq!(rules.len(), 1, "{method} needs one method rule");
         assert_eq!(rules[0].root, METHOD_ROOT);
-        assert_eq!(rules[0].allowed_paths, [*allowed]);
+        assert_eq!(
+            rules[0]
+                .allowed_paths
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            *allowed,
+        );
     }
 }
 
@@ -194,6 +208,16 @@ fn fixture_rejects_duplication_and_foreign_mutation() {
                 && violation.contains(field)
         }));
     }
+    assert!(violations.iter().any(|violation| {
+        violation.contains("external_mutation_intruder.rs")
+            && violation.contains("AssignedConsumerOwner")
+            && violation.contains("events")
+    }));
+    assert!(violations.iter().any(|violation| {
+        violation.contains("unknown_method_intruder.rs")
+            && violation.contains("AssignedConsumerOwner")
+            && violation.contains("events")
+    }));
 }
 
 #[test]
@@ -214,6 +238,25 @@ fn fixture_rejects_runtime_transport_and_foreign_domain_capabilities() {
             }),
             "capability detector missed {capability}: {violations:?}"
         );
+    }
+}
+
+#[test]
+fn fixture_rejects_capabilities_in_a_new_nested_event_module() {
+    let (root, _) = fixture_files("consumer_assigned_event_ownership");
+    let violations = capability_violations(
+        &root,
+        &[CapabilityRule {
+            root: "src/assigned_event".into(),
+            forbidden: FORBIDDEN.iter().map(|value| (*value).into()).collect(),
+            allow: Vec::new(),
+        }],
+    );
+    for capability in FORBIDDEN {
+        assert!(violations.iter().any(|violation| {
+            violation.contains("assigned_event/capability_intruder.rs")
+                && violation.contains(capability)
+        }));
     }
 }
 
