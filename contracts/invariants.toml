@@ -197,6 +197,23 @@ evidence = [
 ]
 
 [[invariant]]
+id = "ADM-09"
+title = "IncrementalAlterConfigs core policy is ordered and exact"
+statement = "One capacity-reserved topic IncrementalAlterConfigs machine validates a nonempty ordered batch of unique topics with at least one nonempty unique key each; represents Set, Delete, Append, and Subtract with exact value presence; retains one original absolute deadline; emits only one concrete submit attempt; revalidates ordered topic correlation; assigns at most one terminal decision; preserves nonnegative throttle, exact signed broker codes, bounded-diagnostic facts, and authoritative delivery certainty; and terminates compatibility without retry, legacy AlterConfigs fallback, invalidation, cache authority, generated protocol types, or transport types."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/admin/alter_configs/model_test.rs::plan_preserves_topic_operation_order_flags_and_exact_value_semantics",
+  "crates/kafka-client-core/src/admin/alter_configs/model_test.rs::plan_rejects_empty_duplicate_or_ambiguous_topic_inputs",
+  "crates/kafka-client-core/src/admin/alter_configs/model_test.rs::configuration_keys_are_nonempty_and_unique_within_each_topic",
+  "crates/kafka-client-core/src/admin/alter_configs/outcome_test.rs::exact_signed_code_and_bounded_diagnostic_fact_move_without_reclassification",
+  "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs::original_deadline_and_semantic_plan_cross_the_only_submit_effect",
+  "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs::ordered_terminal_is_single_assignment_and_retains_exact_broker_facts",
+  "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs::malformed_response_settles_invalid_once_without_follow_up",
+  "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs::pre_driver_failures_are_definitely_not_sent",
+  "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs::submitted_failures_preserve_certainty_without_retry_or_legacy_fallback",
+]
+
+[[invariant]]
 id = "BAT-01"
 title = "Core owns batch readiness"
 statement = "Record-count and conservative encoded-size readiness are deterministic core decisions and terminal fan-out preserves batch membership order."

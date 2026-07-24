@@ -1,5 +1,6 @@
 //! Deterministic policy for concrete Kafka admin operations.
 
+mod alter_configs;
 mod delete_machine;
 mod delete_model;
 mod delete_outcome;

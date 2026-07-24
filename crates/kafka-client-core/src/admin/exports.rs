@@ -1,5 +1,14 @@
 //! Curated deterministic admin policy exports.
 
+pub use super::alter_configs::{
+    ConfigAlteration, ConfigAlterationOperation, IncrementalAlterConfigBrokerError,
+    IncrementalAlterConfigOutcome, IncrementalAlterConfigResult, IncrementalAlterConfigsBatch,
+    IncrementalAlterConfigsEffect, IncrementalAlterConfigsFailure,
+    IncrementalAlterConfigsFailureKind, IncrementalAlterConfigsInput,
+    IncrementalAlterConfigsMachine, IncrementalAlterConfigsMachineError,
+    IncrementalAlterConfigsPlan, IncrementalAlterConfigsPlanError, IncrementalAlterConfigsState,
+    IncrementalAlterConfigsTerminal, IncrementalAlterConfigsTransition, TopicConfigAlteration,
+};
 pub use super::delete_machine::{
     DeleteTopicsEffect, DeleteTopicsInput, DeleteTopicsMachine, DeleteTopicsMachineError,
     DeleteTopicsState, DeleteTopicsTransition,

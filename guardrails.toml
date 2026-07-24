@@ -244,6 +244,18 @@ production = "crates/kafka-client-core/src/admin/describe_configs_transition.rs"
 test = "crates/kafka-client-core/src/admin/describe_configs_transition_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/alter_configs/model.rs"
+test = "crates/kafka-client-core/src/admin/alter_configs/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/alter_configs/outcome.rs"
+test = "crates/kafka-client-core/src/admin/alter_configs/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/alter_configs/transition.rs"
+test = "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/producer/sticky.rs"
 test = "crates/kafka-client-core/src/producer/sticky_test.rs"
 
@@ -3772,6 +3784,14 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "IncrementalAlterConfigsMachine"
+field = "state"
+allowed_paths = [
+  "crates/kafka-client-core/src/admin/alter_configs/machine.rs",
+  "crates/kafka-client-core/src/admin/alter_configs/transition.rs",
+]
+
+[[mutation_owners]]
 owner_type = "StickyPartitioner"
 field = "current"
 allowed_paths = ["crates/kafka-client-core/src/producer/sticky.rs"]
@@ -5322,6 +5342,10 @@ path = "crates/kafka-client-core/src/admin/topics_machine.rs"
 [[linear_owners]]
 owner_type = "DescribeConfigsMachine"
 path = "crates/kafka-client-core/src/admin/describe_configs_machine.rs"
+
+[[linear_owners]]
+owner_type = "IncrementalAlterConfigsMachine"
+path = "crates/kafka-client-core/src/admin/alter_configs/machine.rs"
 
 [[linear_owners]]
 owner_type = "StickyPartitioner"
