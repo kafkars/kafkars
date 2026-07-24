@@ -4,8 +4,9 @@ use std::sync::Arc;
 
 use super::{
     DescribeTopicsAdmissionErrorKind, DescribeTopicsShardOwner, DescribeTopicsShardWake,
-    DescribeTopicsShardWakeError, test_support::describe_topics_host, test_support::stop_notifier,
+    DescribeTopicsShardWakeError,
 };
+use crate::admin::test_support::{describe_topics_host, stop_notifier};
 
 struct NoopWake;
 

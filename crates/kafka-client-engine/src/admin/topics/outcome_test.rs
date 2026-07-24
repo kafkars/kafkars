@@ -9,7 +9,7 @@ use kafka_client_core::{
     TopicPartitionDescription as CorePartitionDescription,
 };
 
-use super::{DescribeTopicsFailureKind, DescribeTopicsOutcome, topics_outcome::translate_terminal};
+use super::{DescribeTopicsFailureKind, DescribeTopicsOutcome, outcome::translate_terminal};
 
 #[test]
 fn topic_and_partition_codes_cross_the_engine_boundary_exactly() {

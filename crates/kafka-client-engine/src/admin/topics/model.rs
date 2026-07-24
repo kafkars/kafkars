@@ -33,7 +33,7 @@ impl DescribeTopicsRequest {
             .topics
             .iter()
             .try_fold(0usize, |bytes, topic| bytes.checked_add(topic.len()))?;
-        let request = super::retention::request_charge(self.topics.len(), 0, text_bytes)?;
+        let request = crate::admin::retention::request_charge(self.topics.len(), 0, text_bytes)?;
         request.checked_add(self.topics.len().checked_mul(RESULT_BYTES_PER_TOPIC)?)
     }
 }

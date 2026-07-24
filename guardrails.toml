@@ -1220,20 +1220,20 @@ production = "crates/kafka-client-engine/src/admin/observer.rs"
 test = "crates/kafka-client-engine/src/admin/observer_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/admin/topics_model.rs"
-test = "crates/kafka-client-engine/src/admin/topics_model_test.rs"
+production = "crates/kafka-client-engine/src/admin/topics/model.rs"
+test = "crates/kafka-client-engine/src/admin/topics/model_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/admin/topics_outcome.rs"
-test = "crates/kafka-client-engine/src/admin/topics_outcome_test.rs"
+production = "crates/kafka-client-engine/src/admin/topics/outcome.rs"
+test = "crates/kafka-client-engine/src/admin/topics/outcome_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/admin/topics_host.rs"
-test = "crates/kafka-client-engine/src/admin/topics_host_test.rs"
+production = "crates/kafka-client-engine/src/admin/topics/host.rs"
+test = "crates/kafka-client-engine/src/admin/topics/host_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/admin/topics_shard.rs"
-test = "crates/kafka-client-engine/src/admin/topics_shard_test.rs"
+production = "crates/kafka-client-engine/src/admin/topics/shard.rs"
+test = "crates/kafka-client-engine/src/admin/topics/shard_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/admin/shard.rs"
@@ -4548,43 +4548,43 @@ allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/describe_topics_call
 owner_type = "DescribeTopicsHost"
 field = "operations"
 allowed_paths = [
-  "crates/kafka-client-engine/src/admin/topics_host.rs",
-  "crates/kafka-client-engine/src/admin/topics_host/admission.rs",
-  "crates/kafka-client-engine/src/admin/topics_host/terminal.rs",
+  "crates/kafka-client-engine/src/admin/topics/host.rs",
+  "crates/kafka-client-engine/src/admin/topics/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/topics/host/terminal.rs",
 ]
 
 [[mutation_owners]]
 owner_type = "DescribeTopicsHost"
 field = "completions"
 allowed_paths = [
-  "crates/kafka-client-engine/src/admin/topics_host.rs",
-  "crates/kafka-client-engine/src/admin/topics_host/admission.rs",
-  "crates/kafka-client-engine/src/admin/topics_host/terminal.rs",
+  "crates/kafka-client-engine/src/admin/topics/host.rs",
+  "crates/kafka-client-engine/src/admin/topics/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/topics/host/terminal.rs",
 ]
 
 [[mutation_owners]]
 owner_type = "DescribeTopicsHost"
 field = "retained_bytes"
 allowed_paths = [
-  "crates/kafka-client-engine/src/admin/topics_host.rs",
-  "crates/kafka-client-engine/src/admin/topics_host/admission.rs",
-  "crates/kafka-client-engine/src/admin/topics_host/terminal.rs",
+  "crates/kafka-client-engine/src/admin/topics/host.rs",
+  "crates/kafka-client-engine/src/admin/topics/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/topics/host/terminal.rs",
 ]
 
 [[mutation_owners]]
 owner_type = "DescribeTopicsHost"
 field = "published_bytes"
 allowed_paths = [
-  "crates/kafka-client-engine/src/admin/topics_host.rs",
-  "crates/kafka-client-engine/src/admin/topics_host/terminal.rs",
+  "crates/kafka-client-engine/src/admin/topics/host.rs",
+  "crates/kafka-client-engine/src/admin/topics/host/terminal.rs",
 ]
 
 [[mutation_owners]]
 owner_type = "DescribeTopicsHost"
 field = "next_operation_id"
 allowed_paths = [
-  "crates/kafka-client-engine/src/admin/topics_host.rs",
-  "crates/kafka-client-engine/src/admin/topics_host/admission.rs",
+  "crates/kafka-client-engine/src/admin/topics/host.rs",
+  "crates/kafka-client-engine/src/admin/topics/host/admission.rs",
 ]
 
 [[mutation_owners]]
@@ -5745,19 +5745,19 @@ path = "crates/kafka-client-engine/src/driver/rpc/describe_topics_calls.rs"
 
 [[linear_owners]]
 owner_type = "DescribeTopicsHost"
-path = "crates/kafka-client-engine/src/admin/topics_host.rs"
+path = "crates/kafka-client-engine/src/admin/topics/host.rs"
 
 [[linear_owners]]
 owner_type = "DescribeTopicsOperation"
-path = "crates/kafka-client-engine/src/admin/topics_host.rs"
+path = "crates/kafka-client-engine/src/admin/topics/host.rs"
 
 [[linear_owners]]
 owner_type = "DescribeTopicsShardOwner"
-path = "crates/kafka-client-engine/src/admin/topics_shard.rs"
+path = "crates/kafka-client-engine/src/admin/topics/shard.rs"
 
 [[linear_owners]]
 owner_type = "DescribeTopicsObserver"
-path = "crates/kafka-client-engine/src/admin/topics_observer.rs"
+path = "crates/kafka-client-engine/src/admin/topics/observer.rs"
 
 [[linear_owners]]
 owner_type = "CreatePartitionsHost"

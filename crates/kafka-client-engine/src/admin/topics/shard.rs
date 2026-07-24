@@ -14,7 +14,7 @@ use crate::clock::OperationDeadline;
 
 use super::{
     DescribeTopicsAdmissionErrorKind, DescribeTopicsHost, DescribeTopicsHostError,
-    topics_host::DescribeTopicsAdmission,
+    host::DescribeTopicsAdmission,
 };
 
 pub(crate) trait DescribeTopicsShardWake: Send + Sync + 'static {

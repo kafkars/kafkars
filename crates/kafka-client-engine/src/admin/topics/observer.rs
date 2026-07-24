@@ -11,9 +11,7 @@ use kafka_client_core::DescribeTopicsTerminal;
 
 use crate::completion::{CompletionObserver, CompletionObserverError};
 
-use super::{
-    DescribeTopicsObserverError, DescribeTopicsOutcome, topics_outcome::translate_terminal,
-};
+use super::{DescribeTopicsObserverError, DescribeTopicsOutcome, outcome::translate_terminal};
 
 /// Single observer for one accepted `DescribeTopics` batch.
 #[must_use = "dropping abandons observation without cancelling accepted admin work"]

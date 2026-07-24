@@ -2,9 +2,11 @@
 
 use std::{fmt, time::Duration};
 
+use crate::admin::AdminHandle;
+
 use super::{
-    AdminHandle, DescribeTopicsAdmissionError, DescribeTopicsAdmissionErrorKind,
-    DescribeTopicsObserver, DescribeTopicsRequest,
+    DescribeTopicsAdmissionError, DescribeTopicsAdmissionErrorKind, DescribeTopicsObserver,
+    DescribeTopicsRequest,
 };
 
 impl AdminHandle {

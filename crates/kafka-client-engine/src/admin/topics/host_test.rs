@@ -8,9 +8,9 @@ use crate::clock::OperationDeadline;
 
 use super::{
     DescribeTopicsDeliveryStatus, DescribeTopicsFailureKind, DescribeTopicsHost,
-    DescribeTopicsOutcome, DescribeTopicsTurn, test_support::describe_topics_host,
-    test_support::stop_notifier, topics_host::DESCRIBE_TOPICS_RETAINED_BYTES,
+    DescribeTopicsOutcome, DescribeTopicsTurn, host::DESCRIBE_TOPICS_RETAINED_BYTES,
 };
+use crate::admin::test_support::{describe_topics_host, stop_notifier};
 
 fn plan() -> DescribeTopicsPlan {
     DescribeTopicsPlan::new(vec!["orders".to_owned()])
@@ -211,7 +211,7 @@ fn retained_byte_limit_rejects_before_completion_reservation() {
     stop(host, notifier);
 }
 
-fn stop(host: DescribeTopicsHost, notifier: super::completion::AdminCompletionNotifier) {
+fn stop(host: DescribeTopicsHost, notifier: crate::admin::completion::AdminCompletionNotifier) {
     drop(host);
     stop_notifier(notifier);
 }

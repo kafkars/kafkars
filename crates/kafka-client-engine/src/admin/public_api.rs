@@ -70,19 +70,15 @@ pub(crate) use super::shard::{
     CreateTopicsAdmissionPort, CreateTopicsShardLockError, CreateTopicsShardOwner,
     CreateTopicsShardWake, CreateTopicsShardWakeError,
 };
-pub use super::topics_error::{DescribeTopicsAdmissionError, DescribeTopicsAdmissionErrorKind};
-pub use super::topics_handle::{DescribeTopicsAccepted, DescribeTopicsAcceptedFaultKind};
-pub(crate) use super::topics_host::{
-    DESCRIBE_TOPICS_CAPACITY, DescribeTopicsHost, DescribeTopicsHostError, DescribeTopicsTurn,
+pub(crate) use super::topics::{
+    DESCRIBE_TOPICS_CAPACITY, DescribeTopicsAdmissionPort, DescribeTopicsHost,
+    DescribeTopicsHostError, DescribeTopicsShardLockError, DescribeTopicsShardOwner,
+    DescribeTopicsShardWake, DescribeTopicsShardWakeError, DescribeTopicsTurn,
 };
-pub use super::topics_model::DescribeTopicsRequest;
-pub use super::topics_observer::DescribeTopicsObserver;
-pub use super::topics_outcome::{
-    DescribeTopicError, DescribeTopicResult, DescribeTopicsDeliveryStatus, DescribeTopicsFailure,
-    DescribeTopicsFailureKind, DescribeTopicsObserverError, DescribeTopicsOutcome,
-    TopicDescription, TopicPartitionDescription,
-};
-pub(crate) use super::topics_shard::{
-    DescribeTopicsAdmissionPort, DescribeTopicsShardLockError, DescribeTopicsShardOwner,
-    DescribeTopicsShardWake, DescribeTopicsShardWakeError,
+pub use super::topics::{
+    DescribeTopicError, DescribeTopicResult, DescribeTopicsAccepted,
+    DescribeTopicsAcceptedFaultKind, DescribeTopicsAdmissionError,
+    DescribeTopicsAdmissionErrorKind, DescribeTopicsDeliveryStatus, DescribeTopicsFailure,
+    DescribeTopicsFailureKind, DescribeTopicsObserver, DescribeTopicsObserverError,
+    DescribeTopicsOutcome, DescribeTopicsRequest, TopicDescription, TopicPartitionDescription,
 };
