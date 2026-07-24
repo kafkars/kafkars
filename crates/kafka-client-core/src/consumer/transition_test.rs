@@ -34,5 +34,5 @@ fn rejected_inputs_leave_assignment_identity_unconsumed() {
             resolution_deadline: Deadline::from_tick(100),
         })
         .unwrap_or_else(|error| panic!("valid assignment after rejection: {error}"));
-    assert_eq!(assigned.assignment_epoch(), epoch);
+    assert_eq!(assigned.assignment_epoch(), Some(epoch));
 }

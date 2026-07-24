@@ -8,6 +8,8 @@ mod fetch_store_domain_test;
 mod fetch_store_test;
 mod position_execution;
 #[cfg(test)]
+mod position_execution_close_test;
+#[cfg(test)]
 mod position_execution_fence_test;
 #[cfg(test)]
 mod position_execution_ownership_test;

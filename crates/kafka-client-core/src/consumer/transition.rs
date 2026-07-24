@@ -14,6 +14,8 @@ impl AssignedConsumerMachine {
         input: AssignedConsumerInput,
     ) -> Result<AssignedConsumerTransition, AssignedConsumerMachineError> {
         match input {
+            AssignedConsumerInput::BeginClose => self.begin_close(),
+            AssignedConsumerInput::CloseDrained { close_id } => self.close_drained(close_id),
             AssignedConsumerInput::Assign {
                 partitions,
                 now,
@@ -36,6 +38,7 @@ impl AssignedConsumerMachine {
                 now,
                 resolution_deadline,
             } => {
+                self.ensure_open()?;
                 let assignment = self.assignment_mut(assignment_epoch)?;
                 let effects = assignment.find_mut(partition)?.seek(
                     assignment_epoch,
@@ -115,6 +118,7 @@ impl AssignedConsumerMachine {
         now: Moment,
         deadline: Deadline,
     ) -> Result<AssignedConsumerTransition, AssignedConsumerMachineError> {
+        self.ensure_open()?;
         DirectAssignment::validate(&partitions)?;
         let epoch = self.next_epoch;
         let next_epoch = epoch
@@ -155,6 +159,7 @@ impl AssignedConsumerMachine {
         epoch: AssignmentEpoch,
         partition: AssignedTopicPartition,
     ) -> Result<AssignedConsumerTransition, AssignedConsumerMachineError> {
+        self.ensure_open()?;
         let effect = self
             .assignment_mut(epoch)?
             .find_mut(partition)?
@@ -172,6 +177,7 @@ impl AssignedConsumerMachine {
         now: Moment,
         deadline: Deadline,
     ) -> Result<AssignedConsumerTransition, AssignedConsumerMachineError> {
+        self.ensure_open()?;
         let effect = self
             .assignment_mut(epoch)?
             .find_mut(partition)?

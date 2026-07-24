@@ -2,12 +2,34 @@
 
 use core::fmt;
 
-use super::{AssignedTopicPartition, AssignmentEpoch, FetchFence, NextFetchOffset, PositionFence};
+use super::{
+    AssignedConsumerCloseId, AssignedTopicPartition, AssignmentEpoch, FetchFence, NextFetchOffset,
+    PositionFence,
+};
 use crate::{Deadline, Moment};
 
 /// Deterministic rejection of one assigned-consumer input.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AssignedConsumerMachineError {
+    /// Direct-consumer admission is permanently closed.
+    ConsumerClosed,
+    /// A drain fact arrived before any close was accepted.
+    CloseNotPending {
+        /// Unowned close identity supplied by the engine.
+        supplied: AssignedConsumerCloseId,
+    },
+    /// A drain fact belongs to a different close identity.
+    StaleClose {
+        /// Exact close retained by core.
+        active: AssignedConsumerCloseId,
+        /// Mismatched close supplied by the engine.
+        supplied: AssignedConsumerCloseId,
+    },
+    /// The exact close already selected its terminal outcome.
+    CloseAlreadyCompleted {
+        /// Close identity whose terminal outcome is immutable.
+        close_id: AssignedConsumerCloseId,
+    },
     /// A direct assignment must contain at least one partition.
     EmptyAssignment,
     /// One topic-partition appeared more than once.
@@ -107,6 +129,16 @@ pub enum AssignedConsumerMachineError {
 impl fmt::Display for AssignedConsumerMachineError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ConsumerClosed => formatter.write_str("direct consumer is closed"),
+            Self::CloseNotPending { .. } => {
+                formatter.write_str("direct-consumer close is not pending")
+            }
+            Self::StaleClose { .. } => {
+                formatter.write_str("close drain belongs to a different close")
+            }
+            Self::CloseAlreadyCompleted { .. } => {
+                formatter.write_str("direct-consumer close already completed")
+            }
             Self::EmptyAssignment => formatter.write_str("direct assignment must not be empty"),
             Self::DuplicatePartition { .. } => {
                 formatter.write_str("direct assignment contains a duplicate partition")

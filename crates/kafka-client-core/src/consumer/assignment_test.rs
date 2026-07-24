@@ -23,7 +23,10 @@ fn explicit_start_positions_emit_in_assignment_order() {
         })
         .unwrap_or_else(|error| panic!("initial direct assignment: {error}"));
 
-    assert_eq!(transition.assignment_epoch().get(), 1);
+    assert_eq!(
+        transition.assignment_epoch().map(AssignmentEpoch::get),
+        Some(1)
+    );
     let effects = transition.effects();
     assert_eq!(effects.len(), 3);
     assert!(matches!(
@@ -70,7 +73,10 @@ fn replacement_revokes_old_order_before_starting_new_epoch() {
         })
         .unwrap_or_else(|error| panic!("replacement assignment: {error}"));
 
-    assert_eq!(replacement.assignment_epoch().get(), 2);
+    assert_eq!(
+        replacement.assignment_epoch().map(AssignmentEpoch::get),
+        Some(2)
+    );
     assert_eq!(replacement.effects().len(), 3);
     assert!(matches!(
         replacement.effects()[0],
@@ -120,7 +126,10 @@ fn invalid_assignment_does_not_consume_the_first_epoch() {
             resolution_deadline: Deadline::from_tick(100),
         })
         .unwrap_or_else(|error| panic!("valid assignment after rejection: {error}"));
-    assert_eq!(transition.assignment_epoch(), AssignmentEpoch::initial());
+    assert_eq!(
+        transition.assignment_epoch(),
+        Some(AssignmentEpoch::initial())
+    );
 }
 
 pub(super) fn assign(

@@ -145,8 +145,16 @@ production = "crates/kafka-client-core/src/consumer/model.rs"
 test = "crates/kafka-client-core/src/consumer/model_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/identity.rs"
+test = "crates/kafka-client-core/src/consumer/identity_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/machine.rs"
 test = "crates/kafka-client-core/src/consumer/assignment_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/close.rs"
+test = "crates/kafka-client-core/src/consumer/close_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/position.rs"
@@ -2034,10 +2042,19 @@ allowed_paths = [
 owner_type = "AssignedConsumerMachine"
 field = "assignment"
 allowed_paths = [
+  "crates/kafka-client-core/src/consumer/close.rs",
   "crates/kafka-client-core/src/consumer/fetch_transition.rs",
   "crates/kafka-client-core/src/consumer/machine.rs",
   "crates/kafka-client-core/src/consumer/position_ownership.rs",
   "crates/kafka-client-core/src/consumer/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AssignedConsumerMachine"
+field = "close_state"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/close.rs",
+  "crates/kafka-client-core/src/consumer/machine.rs",
 ]
 
 [[mutation_owners]]
@@ -3235,6 +3252,10 @@ path = "crates/kafka-client-core/src/producer/sticky.rs"
 [[linear_owners]]
 owner_type = "AssignedConsumerMachine"
 path = "crates/kafka-client-core/src/consumer/machine.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerCloseState"
+path = "crates/kafka-client-core/src/consumer/close.rs"
 
 [[linear_owners]]
 owner_type = "DirectAssignment"

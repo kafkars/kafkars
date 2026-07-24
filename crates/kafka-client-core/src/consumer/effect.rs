@@ -3,8 +3,8 @@
 use core::num::NonZeroI16;
 
 use super::{
-    AssignedTopicPartition, AssignmentEpoch, FetchFence, NextFetchOffset, PositionFence,
-    StartPosition,
+    AssignedConsumerCloseId, AssignedTopicPartition, AssignmentEpoch, FetchFence, NextFetchOffset,
+    PositionFence, StartPosition,
 };
 use crate::Deadline;
 
@@ -48,6 +48,16 @@ pub enum FetchFailure {
 /// One ordered action selected by deterministic direct-consumer policy.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AssignedConsumerEffect {
+    /// Binds the core-owned close to one pre-reserved terminal completion.
+    AcceptClose {
+        /// Identity that every drain and terminal fact must preserve.
+        close_id: AssignedConsumerCloseId,
+    },
+    /// Publishes the sole terminal outcome after core accepts exact drain proof.
+    CompleteClose {
+        /// Exact accepted close that became terminal.
+        close_id: AssignedConsumerCloseId,
+    },
     /// Terminally cancels all internal interpreter work for a partition.
     Revoke {
         /// Superseded assignment epoch.
@@ -130,7 +140,7 @@ pub enum AssignedConsumerEffect {
 /// Ordered output of one accepted direct-consumer transition.
 #[derive(Debug, Eq, PartialEq)]
 pub struct AssignedConsumerTransition {
-    assignment_epoch: AssignmentEpoch,
+    assignment_epoch: Option<AssignmentEpoch>,
     effects: Vec<AssignedConsumerEffect>,
 }
 
@@ -140,13 +150,20 @@ impl AssignedConsumerTransition {
         effects: Vec<AssignedConsumerEffect>,
     ) -> Self {
         Self {
-            assignment_epoch,
+            assignment_epoch: Some(assignment_epoch),
             effects,
         }
     }
 
-    /// Returns the active assignment generation after the transition.
-    pub const fn assignment_epoch(&self) -> AssignmentEpoch {
+    pub(crate) const fn without_assignment(effects: Vec<AssignedConsumerEffect>) -> Self {
+        Self {
+            assignment_epoch: None,
+            effects,
+        }
+    }
+
+    /// Returns the retained assignment generation, when one exists.
+    pub const fn assignment_epoch(&self) -> Option<AssignmentEpoch> {
         self.assignment_epoch
     }
 

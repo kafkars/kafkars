@@ -5,10 +5,10 @@ pub use super::effect::{
     PositionResolutionFailure,
 };
 pub use super::error::AssignedConsumerMachineError;
+pub use super::identity::{AssignedConsumerCloseId, AssignmentEpoch, FetchRevision, PositionEpoch};
 pub use super::input::AssignedConsumerInput;
 pub use super::machine::AssignedConsumerMachine;
 pub use super::model::{
-    AssignedPartition, AssignedTopicPartition, AssignmentEpoch, FetchFence, FetchOwnership,
-    FetchRecords, FetchRevision, NextFetchOffset, PositionEpoch, PositionFence, PositionOwnership,
-    StartPosition,
+    AssignedPartition, AssignedTopicPartition, FetchFence, FetchOwnership, FetchRecords,
+    NextFetchOffset, PositionFence, PositionOwnership, StartPosition,
 };

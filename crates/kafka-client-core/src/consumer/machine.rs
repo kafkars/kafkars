@@ -2,7 +2,7 @@
 
 use super::{
     AssignedConsumerMachineError, AssignedPartition, AssignedTopicPartition, AssignmentEpoch,
-    position::AssignedPartitionState,
+    close::AssignedConsumerCloseState, position::AssignedPartitionState,
 };
 
 /// Deterministic owner of direct-assignment epochs and fetch positions.
@@ -10,6 +10,7 @@ use super::{
 pub struct AssignedConsumerMachine {
     pub(super) next_epoch: AssignmentEpoch,
     pub(super) assignment: Option<DirectAssignment>,
+    pub(super) close_state: AssignedConsumerCloseState,
 }
 
 impl AssignedConsumerMachine {
@@ -18,14 +19,30 @@ impl AssignedConsumerMachine {
         Self {
             next_epoch: AssignmentEpoch::initial(),
             assignment: None,
+            close_state: AssignedConsumerCloseState::Open,
         }
     }
 
-    /// Returns the active assignment epoch, when assigned.
+    /// Returns the retained assignment epoch, when one has been installed.
+    ///
+    /// A closed machine retains this identity only to fence draining work.
     pub const fn assignment_epoch(&self) -> Option<AssignmentEpoch> {
         match &self.assignment {
             Some(assignment) => Some(assignment.epoch),
             None => None,
+        }
+    }
+
+    /// Reports whether direct-consumer work admission is permanently closed.
+    pub const fn is_closed(&self) -> bool {
+        self.close_state.is_closed()
+    }
+
+    pub(super) const fn ensure_open(&self) -> Result<(), AssignedConsumerMachineError> {
+        if self.close_state.is_closed() {
+            Err(AssignedConsumerMachineError::ConsumerClosed)
+        } else {
+            Ok(())
         }
     }
 }

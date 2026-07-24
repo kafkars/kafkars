@@ -59,6 +59,11 @@ impl PartitionPosition {
         }
     }
 
+    #[cfg(test)]
+    pub(super) fn replace_epoch_for_test(&mut self, epoch: PositionEpoch) {
+        self.epoch = epoch;
+    }
+
     pub(super) fn replace(&mut self, position: StartPosition) {
         self.phase = match position {
             position @ (StartPosition::Beginning | StartPosition::End) => {
@@ -137,10 +142,21 @@ impl PartitionPosition {
         &mut self,
         partition: AssignedTopicPartition,
     ) -> Result<(), AssignedConsumerMachineError> {
-        let next = self
-            .epoch
+        let next = self.plan_fence(partition)?;
+        self.install_preflighted_fence(next);
+        Ok(())
+    }
+
+    pub(super) fn plan_fence(
+        &self,
+        partition: AssignedTopicPartition,
+    ) -> Result<PositionEpoch, AssignedConsumerMachineError> {
+        self.epoch
             .checked_next()
-            .ok_or(AssignedConsumerMachineError::PositionEpochExhausted { partition })?;
+            .ok_or(AssignedConsumerMachineError::PositionEpochExhausted { partition })
+    }
+
+    pub(super) fn install_preflighted_fence(&mut self, next: PositionEpoch) {
         match &mut self.phase {
             PositionPhase::Resolution(resolution) => resolution.fence(),
             PositionPhase::Fetching { next_offset, .. } => {
@@ -152,7 +168,6 @@ impl PartitionPosition {
         }
         self.epoch = next;
         self.next_fetch_revision = FetchRevision::initial();
-        Ok(())
     }
 
     fn apply_resolution_activation(

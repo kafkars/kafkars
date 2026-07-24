@@ -5,14 +5,24 @@
 //! that deadline from a later relative timeout.
 
 use super::{
-    AssignedPartition, AssignedTopicPartition, AssignmentEpoch, FetchFailure, FetchFence,
-    FetchRecords, NextFetchOffset, PositionFence, StartPosition,
+    AssignedConsumerCloseId, AssignedPartition, AssignedTopicPartition, AssignmentEpoch,
+    FetchFailure, FetchFence, FetchRecords, NextFetchOffset, PositionFence, StartPosition,
 };
 use crate::{Deadline, Moment};
 
 /// One deterministic direct-assignment transition input.
 #[derive(Debug, Eq, PartialEq)]
 pub enum AssignedConsumerInput {
+    /// Accepts the sole close after its terminal capacity has been reserved.
+    ///
+    /// The engine must reserve one terminal completion before applying this
+    /// input and release that reservation if core rejects the input.
+    BeginClose,
+    /// Reports that every cleanup effect and accepted driver call drained.
+    CloseDrained {
+        /// Exact core-owned close whose mechanisms finished draining.
+        close_id: AssignedConsumerCloseId,
+    },
     /// Replaces the complete direct assignment in caller order.
     Assign {
         /// Explicit topic-partition start positions.

@@ -21,7 +21,9 @@ fn pause_fences_inflight_fetch_and_resume_restarts_retained_offset() {
     else {
         panic!("explicit offset should fetch immediately");
     };
-    let epoch = initial.assignment_epoch();
+    let epoch = initial
+        .assignment_epoch()
+        .unwrap_or_else(|| panic!("assigned transition epoch"));
 
     let paused = machine
         .apply(AssignedConsumerInput::Pause {
@@ -77,7 +79,9 @@ fn seek_orders_fence_before_replacement_and_rejects_old_work() {
     else {
         panic!("beginning should require resolution");
     };
-    let epoch = initial.assignment_epoch();
+    let epoch = initial
+        .assignment_epoch()
+        .unwrap_or_else(|| panic!("assigned transition epoch"));
 
     let seek = machine
         .apply(AssignedConsumerInput::Seek {
@@ -136,10 +140,12 @@ fn seek_orders_fence_before_replacement_and_rejects_old_work() {
 #[test]
 fn controls_from_a_superseded_assignment_cannot_mutate_replacement() {
     let mut machine = AssignedConsumerMachine::new();
-    let old_epoch =
-        assign(&mut machine, vec![assigned(1, 0, StartPosition::Beginning)]).assignment_epoch();
-    let active_epoch =
-        assign(&mut machine, vec![assigned(1, 0, StartPosition::End)]).assignment_epoch();
+    let old_epoch = assign(&mut machine, vec![assigned(1, 0, StartPosition::Beginning)])
+        .assignment_epoch()
+        .unwrap_or_else(|| panic!("old assignment epoch"));
+    let active_epoch = assign(&mut machine, vec![assigned(1, 0, StartPosition::End)])
+        .assignment_epoch()
+        .unwrap_or_else(|| panic!("active assignment epoch"));
 
     assert_eq!(
         machine.apply(AssignedConsumerInput::Pause {

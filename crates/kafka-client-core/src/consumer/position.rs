@@ -2,8 +2,8 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerMachineError, AssignedPartition,
-    AssignedTopicPartition, AssignmentEpoch, FetchFailure, FetchFence, FetchOwnership,
-    FetchRecords, NextFetchOffset, PositionFence, PositionOwnership, StartPosition,
+    AssignedTopicPartition, AssignmentEpoch, FetchFailure, FetchFence, FetchRecords,
+    NextFetchOffset, PositionEpoch, PositionFence, StartPosition,
     position_state::PartitionPosition,
 };
 use crate::{Deadline, Moment};
@@ -16,41 +16,25 @@ pub(super) struct AssignedPartitionState {
 }
 
 impl AssignedPartitionState {
-    pub(super) fn position_ownership(
-        &self,
-        supplied: PositionFence,
-    ) -> Result<PositionOwnership, AssignedConsumerMachineError> {
-        let active = self.position_fence(supplied.assignment_epoch());
-        if supplied.position_epoch() < active.position_epoch() {
-            return Ok(PositionOwnership::Superseded);
-        }
-        if supplied.position_epoch() > active.position_epoch() {
-            return Err(AssignedConsumerMachineError::StalePosition { active, supplied });
-        }
-        if self.paused {
-            return Err(AssignedConsumerMachineError::PositionResolutionNotPending {
-                fence: supplied,
-            });
-        }
-        self.position.position_ownership(supplied)
+    #[cfg(test)]
+    pub(super) fn replace_position_epoch_for_test(&mut self, epoch: PositionEpoch) {
+        self.position.replace_epoch_for_test(epoch);
     }
 
-    pub(super) fn fetch_ownership(
-        &self,
-        fence: FetchFence,
-    ) -> Result<FetchOwnership, AssignedConsumerMachineError> {
-        let supplied = fence.position();
-        let active = self.position_fence(supplied.assignment_epoch());
-        if supplied.position_epoch() < active.position_epoch() {
-            return Ok(FetchOwnership::Superseded);
+    pub(super) fn plan_close(&self) -> Result<PositionEpoch, AssignedConsumerMachineError> {
+        self.position.plan_fence(self.partition)
+    }
+
+    pub(super) fn suspend_for_close(
+        &mut self,
+        assignment_epoch: AssignmentEpoch,
+        next_epoch: PositionEpoch,
+    ) -> AssignedConsumerEffect {
+        self.position.install_preflighted_fence(next_epoch);
+        self.paused = true;
+        AssignedConsumerEffect::Suspend {
+            fence: self.position_fence(assignment_epoch),
         }
-        if supplied.position_epoch() > active.position_epoch() {
-            return Err(AssignedConsumerMachineError::StalePosition { active, supplied });
-        }
-        if self.paused {
-            return Err(AssignedConsumerMachineError::StaleFetch { supplied: fence });
-        }
-        self.position.fetch_ownership(fence)
     }
 
     pub(super) fn new(
@@ -230,7 +214,15 @@ impl AssignedPartitionState {
         }
     }
 
-    const fn position_fence(&self, assignment_epoch: AssignmentEpoch) -> PositionFence {
+    pub(super) const fn is_paused(&self) -> bool {
+        self.paused
+    }
+
+    pub(super) const fn position_state(&self) -> &PartitionPosition {
+        &self.position
+    }
+
+    pub(super) const fn position_fence(&self, assignment_epoch: AssignmentEpoch) -> PositionFence {
         PositionFence::new(assignment_epoch, self.partition, self.position.epoch())
     }
 }
