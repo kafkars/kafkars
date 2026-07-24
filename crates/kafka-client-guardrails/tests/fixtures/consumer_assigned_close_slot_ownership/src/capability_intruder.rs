@@ -18,7 +18,6 @@ fn reaches_forbidden_capabilities(
     _boxed: Box<u8>,
     _string: String,
     _bytes: Vec<u8>,
-    _completion: crate::completion::Slot,
     _engine_driver: crate::driver::Port,
     _producer: crate::producer::Policy,
 ) {

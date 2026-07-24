@@ -20,17 +20,29 @@ const LINEAR: &[(&str, &str)] = &[
     ("AssignedConsumerTryCloseAccepted", RESULT),
 ];
 const FORBIDDEN: &[&str] = &[
+    "crate::admin",
+    "crate::driver",
+    "crate::producer",
+    "crate::protocol",
+    "crate::transaction",
+    "kafka_client_core",
     "kafka_driver",
     "kafka_wire",
+    "kafka_wire_core",
+    "kafka_wire_records",
     "tokio",
     "async_std",
     "smol",
+    "std::future",
+    "std::net",
     "std::thread",
-    "std::time::Instant",
-    "std::time::SystemTime",
+    "std::time",
     "Callback",
+    "Future",
     "Metadata",
     "Retry",
+    "Stream",
+    "Transport",
     "async",
 ];
 
@@ -92,6 +104,15 @@ fn checked_in_claim_policy_is_exact() {
         constructors[0].allowed_paths,
         ["crates/kafka-client-engine/src/engine.rs"]
     );
+    let generic_rules = config
+        .method_capabilities
+        .iter()
+        .filter(|rule| rule.method == "claim")
+        .collect::<Vec<_>>();
+    assert!(
+        generic_rules.is_empty(),
+        "generic claim token is not type-resolved"
+    );
 }
 
 #[test]
@@ -101,7 +122,7 @@ fn fixture_rejects_duplication_mutation_runtime_and_constructor_theft() {
         .iter()
         .map(|(owner_type, _)| LinearOwner {
             owner_type: (*owner_type).into(),
-            path: "src/violations.rs".into(),
+            path: "src/linear_intruder.rs".into(),
         })
         .collect::<Vec<_>>();
     let violations = linear_violations(&root, &files, &linear);
@@ -123,7 +144,7 @@ fn fixture_rejects_duplication_mutation_runtime_and_constructor_theft() {
         }],
     );
     assert!(mutations.iter().any(|violation| {
-        violation.contains("violations.rs")
+        violation.contains("mutation_intruder.rs")
             && violation.contains("AssignedConsumerClaimSlot")
             && violation.contains("port")
     }));
@@ -154,7 +175,7 @@ fn fixture_rejects_duplication_mutation_runtime_and_constructor_theft() {
         }],
     );
     assert!(constructors.iter().any(|violation| {
-        violation.contains("violations.rs")
+        violation.contains("method_intruder.rs")
             && violation.contains("AssignedConsumerClaimSlot::create_for_engine")
     }));
 }

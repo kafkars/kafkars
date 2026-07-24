@@ -406,7 +406,7 @@ evidence = [
 [[invariant]]
 id = "CON-05"
 title = "Direct-consumer close is one-way, fenced, and core-completed"
-statement = "After engine terminal-capacity reservation, the first BeginClose allocates one core-owned close identity and emits AcceptClose before permanently closing assignment and control admission. It preflights every assigned partition fence, then emits one final Suspend followed by Revoke in original assignment order without Fetch work. An unassigned close succeeds without inventing assignment identity and blocks every future assignment. AssignedConsumerOwner reserves its fixed slot before core admission and rolls reservation back on rejection, applies ordered cleanup through Fetch first, reclaims unread ready deliveries, waits for every external delivery lease and accepted call, timer, prepared owner, effect, and retained byte to drain, then supplies the exact accepted identity. Core alone emits CompleteClose exactly once, while early, mismatched, repeated-drain, and repeated-begin inputs cannot select another terminal outcome. Embedded-host shutdown closes private-port admission under the same owner lock, begins close once, and waits for the core-authorized ready terminal without reclaiming it. Normal owner-capability drop leaves that terminal for the unique port; abnormal recovery may consume the optional owner and release retained position, Fetch, delivery, and fault ownership only after driver teardown, after which surviving ports report OwnerMissing. Until the close completion port exists, abnormal release does not claim application-observer settlement or terminal publication."
+statement = "After engine terminal-capacity reservation, the first BeginClose allocates one core-owned close identity and emits AcceptClose before permanently closing assignment and control admission. It preflights every assigned partition fence, then emits one final Suspend followed by Revoke in original assignment order without Fetch work. An unassigned close succeeds without inventing assignment identity and blocks every future assignment. AssignedConsumerOwner reserves its fixed slot before core admission and rolls reservation back on rejection, applies ordered cleanup through Fetch first, reclaims unread ready deliveries, waits for every external delivery lease and accepted call, timer, prepared owner, effect, and retained byte to drain, then supplies the exact accepted identity. Core alone emits CompleteClose exactly once, while early, mismatched, repeated-drain, and repeated-begin inputs cannot select another terminal outcome. Embedded-host shutdown closes private-port admission under the same owner lock, begins close once, and waits for the core-authorized ready terminal without reclaiming it. Normal owner-capability drop leaves that terminal for the unique port; abnormal recovery may consume the optional owner and release retained position, Fetch, delivery, and fault ownership only after driver teardown, after which surviving ports report OwnerMissing."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/consumer/close_test.rs::close_accepts_then_suspends_and_revokes_in_assignment_order",
@@ -446,6 +446,25 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/assigned_owner_event_test.rs::elapsed_public_deadline_retains_the_immediate_terminal_event",
   "crates/kafka-client-engine/src/consumer/assigned_host/event_port_test.rs::take_event_releases_capacity_without_reactor_wake",
   "crates/kafka-client-engine/src/consumer/assigned_owner_recovery_test.rs::recovery_reports_exact_claimed_and_ready_event_counts",
+]
+
+[[invariant]]
+id = "CON-07"
+title = "Assigned-consumer claim and close observation are linear and bounded"
+statement = "Every clone of one Engine shares one capacity-one assigned-consumer claim slot. Exactly one claim transfers the sole private port into a movable, non-clone, non-Sync engine handle; failed and concurrent claims leave the winning handle operational, while a separate retained closer preserves shutdown admission fencing. Close reserves one bounded completion generation before deterministic BeginClose admission and binds that generation to the exact core AcceptClose identity. Only matching CompleteClose publishes Closed; notifier backpressure retains the exact ready terminal for retry. Abnormal recovery publishes ExecutionUnavailable only after unique driver teardown. Future polling and blocking wait observe the same cell. One capacity-one assigned-consumer notifier owns application wakeups off the host and driver reactors without an async runtime."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/consumer/assigned_host/claim_test.rs::one_claim_transfers_the_port_and_rejects_every_later_claim",
+  "crates/kafka-client-engine/src/consumer/assigned_host/claim_test.rs::failed_second_engine_claim_leaves_the_live_handle_operational",
+  "crates/kafka-client-engine/src/consumer/assigned_host/claim_test.rs::clone_shared_engine_contention_selects_exactly_one_claim",
+  "crates/kafka-client-engine/src/consumer/assigned_host/claim_test.rs::retained_closer_fences_admission_after_the_port_transfers",
+  "crates/kafka-client-engine/src/consumer/assigned_host/handle_test.rs::assigned_consumer_handle_is_send_but_linear_and_not_shared",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission_test.rs::accepted_close_binds_one_completion_before_effect_interpretation",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close_test.rs::close_publication_backpressure_retains_the_exact_terminal_for_retry",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_recovery_test.rs::accepted_close_settles_execution_unavailable_after_driver_shutdown",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_recovery_test.rs::recovery_retries_an_injected_close_publication_backpressure",
+  "crates/kafka-client-engine/src/consumer/assigned_host/close_observer_test.rs::blocking_wait_observes_the_same_notifier_terminal",
+  "crates/kafka-client-engine/src/consumer/assigned_host/completion_test.rs::one_consumer_notifier_issues_a_close_port_and_stops_linearly",
 ]
 
 [[invariant]]
@@ -621,6 +640,7 @@ evidence = [
   "crates/kafka-client-engine/src/completion/registry_test.rs::pending_abandonment_settles_and_reclaims_exactly_once",
   "crates/kafka-client-engine/src/producer/reclaim_turn_test.rs::abandoned_observation_reclaims_after_terminal_publication",
   "crates/kafka-client-engine/src/delivery_observer_test.rs::dropping_delivery_observer_preserves_abandon_reclaim",
+  "crates/kafka-client-engine/src/consumer/assigned_host/close_observer_test.rs::observer_drop_abandons_without_revoking_terminal_authority",
 ]
 
 [[invariant]]
