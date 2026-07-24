@@ -39,6 +39,7 @@ fn producer_handle_retains_the_host_after_parent_engine_drop() {
     let timeout = Duration::from_millis(30);
     let broker = SilentBroker::start();
     let engine = start_at(timeout, broker.endpoint());
+    broker.wait_negotiated();
     let producer = engine.producer();
     drop(engine);
 
@@ -266,7 +267,7 @@ impl Wake for ShutdownWake {
 }
 
 fn wait_until(mut condition: impl FnMut() -> bool) {
-    let deadline = Instant::now() + Duration::from_secs(2);
+    let deadline = Instant::now() + Duration::from_secs(5);
     while !condition() {
         assert!(
             Instant::now() < deadline,

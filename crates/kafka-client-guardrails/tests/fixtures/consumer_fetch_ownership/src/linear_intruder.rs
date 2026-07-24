@@ -20,3 +20,18 @@ struct FetchRecord;
 
 #[derive(Clone, Copy)]
 struct FetchHeader;
+
+#[derive(Clone, Copy)]
+struct FetchOutcome;
+
+#[derive(Clone, Copy)]
+struct RetainedFetchOutcome;
+
+#[derive(Clone, Copy)]
+struct RejectedFetchOutcome;
+
+#[derive(Clone, Copy)]
+struct FetchOutputReservation;
+
+#[derive(Clone, Copy)]
+struct FetchRetainedCharge;

@@ -5,7 +5,10 @@ use kafka_wire::{
     fetch_response::{FetchableTopicResponse, PartitionData},
 };
 
-use super::{FetchDecodeLimits, FetchResponseFailure, normalize_one_partition_fetch_response};
+use super::{
+    FetchDecodeLimits, FetchResponseFailure,
+    response::{correlate_partition, normalize_correlated_response, validate_selected_version},
+};
 
 const SELECTED_VERSION: i16 = 12;
 
@@ -30,24 +33,26 @@ fn response(topics: Vec<FetchableTopicResponse>) -> WireFetchResponse {
 }
 
 fn normalize(response: WireFetchResponse) -> Result<super::FetchResponse, FetchResponseFailure> {
-    normalize_one_partition_fetch_response(
-        "events",
-        3,
-        SELECTED_VERSION,
-        response,
-        FetchDecodeLimits::default(),
-    )
+    normalize_with(response, SELECTED_VERSION, FetchDecodeLimits::default())
+}
+
+fn normalize_with(
+    response: WireFetchResponse,
+    selected_version: i16,
+    limits: FetchDecodeLimits,
+) -> Result<super::FetchResponse, FetchResponseFailure> {
+    validate_selected_version(selected_version)?;
+    let _partition = correlate_partition("events", 3, &response)?;
+    normalize_correlated_response(response, limits)
 }
 
 #[test]
 fn selected_version_must_preserve_name_routing_and_fetch_semantics() {
     for actual in [i16::MIN, 3, 13, i16::MAX] {
         assert_eq!(
-            normalize_one_partition_fetch_response(
-                "events",
-                3,
-                actual,
+            normalize_with(
                 response(vec![topic("events", vec![partition(3, 0)])]),
+                actual,
                 FetchDecodeLimits::default(),
             ),
             Err(FetchResponseFailure::UnsupportedApiVersion { actual })
@@ -55,11 +60,9 @@ fn selected_version_must_preserve_name_routing_and_fetch_semantics() {
     }
     for selected_version in [4, 12] {
         assert!(
-            normalize_one_partition_fetch_response(
-                "events",
-                3,
-                selected_version,
+            normalize_with(
                 response(vec![topic("events", vec![partition(3, 0)])]),
+                selected_version,
                 FetchDecodeLimits::default(),
             )
             .is_ok()
@@ -121,12 +124,10 @@ fn missing_duplicate_and_unexpected_partitions_never_correlate() {
         Err(FetchResponseFailure::PartitionIndexMismatch { actual: -1 })
     );
     assert_eq!(
-        normalize_one_partition_fetch_response(
+        correlate_partition(
             "events",
             i32::MAX as u32 + 1,
-            SELECTED_VERSION,
-            response(vec![topic("events", vec![partition(3, 0)])]),
-            FetchDecodeLimits::default(),
+            &response(vec![topic("events", vec![partition(3, 0)])]),
         ),
         Err(FetchResponseFailure::RequestedPartitionOutOfRange {
             actual: i32::MAX as u32 + 1,
@@ -141,11 +142,9 @@ fn correlated_shape_still_uses_the_existing_bounded_decoder() {
         ..FetchDecodeLimits::default()
     };
     assert!(matches!(
-        normalize_one_partition_fetch_response(
-            "events",
-            3,
-            SELECTED_VERSION,
+        normalize_with(
             response(vec![topic("events", vec![partition(3, 0)])]),
+            SELECTED_VERSION,
             limits,
         ),
         Err(FetchResponseFailure::Decode(

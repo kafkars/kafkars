@@ -757,12 +757,28 @@ production = "crates/kafka-client-engine/src/protocol/fetch/model.rs"
 test = "crates/kafka-client-engine/src/protocol/fetch/model_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/fetch/outcome.rs"
+test = "crates/kafka-client-engine/src/protocol/fetch/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/fetch/outcome_normalize.rs"
+test = "crates/kafka-client-engine/src/protocol/fetch/outcome_broker_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/fetch/outcome_retain.rs"
+test = "crates/kafka-client-engine/src/protocol/fetch/outcome_offset_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/fetch/request.rs"
 test = "crates/kafka-client-engine/src/protocol/fetch/request_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/fetch/response.rs"
 test = "crates/kafka-client-engine/src/protocol/fetch/response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/fetch/retention.rs"
+test = "crates/kafka-client-engine/src/protocol/fetch/retention_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/admin/create_topics.rs"
@@ -1673,6 +1689,11 @@ call = "OperationDeadline::from_boundary_parts"
 allowed_paths = [
   "crates/kafka-client-engine/src/clock/monotonic.rs",
 ]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "FetchOutputReservation::from_acquired_capacity"
+allowed_paths = []
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/clock"
@@ -3003,6 +3024,26 @@ path = "crates/kafka-client-engine/src/protocol/fetch/model.rs"
 [[linear_owners]]
 owner_type = "FetchHeader"
 path = "crates/kafka-client-engine/src/protocol/fetch/model.rs"
+
+[[linear_owners]]
+owner_type = "FetchOutcome"
+path = "crates/kafka-client-engine/src/protocol/fetch/outcome.rs"
+
+[[linear_owners]]
+owner_type = "RetainedFetchOutcome"
+path = "crates/kafka-client-engine/src/protocol/fetch/outcome.rs"
+
+[[linear_owners]]
+owner_type = "RejectedFetchOutcome"
+path = "crates/kafka-client-engine/src/protocol/fetch/outcome.rs"
+
+[[linear_owners]]
+owner_type = "FetchOutputReservation"
+path = "crates/kafka-client-engine/src/protocol/fetch/retention.rs"
+
+[[linear_owners]]
+owner_type = "FetchRetainedCharge"
+path = "crates/kafka-client-engine/src/protocol/fetch/retention.rs"
 
 [[linear_owners]]
 owner_type = "CreateTopicsHost"

@@ -307,7 +307,7 @@ evidence = [
 [[invariant]]
 id = "CON-03"
 title = "Direct Fetch protocol is bounded and version-fenced"
-statement = "The first direct-consumer Fetch seam builds one name-routed normal-consumer partition request with exact Kafka sentinels, validates isolation and byte settings, and requires the driver-selected version to remain within v4-v12 before response correlation. It rejects missing, duplicate, or unexpected topic-partition results before bounded normalization, preserves exact signed broker codes and throttle observations, delegates RecordBatch decoding, CRC, and compression to kafka-wire-records, and cumulatively bounds generated storage, decoded records, headers, batches, transactions, and retained payload bytes."
+statement = "The direct-consumer Fetch seam builds one name-routed normal-consumer partition request with exact Kafka sentinels, validates isolation and byte settings, and requires the driver-selected version to remain within v4-v12. Nonzero top-level or exactly correlated partition broker codes remain exact signed failures and short-circuit success-only session, throttle, and record decoding while retaining no application data. Successful normalization delegates RecordBatch decoding, CRC, and compression to kafka-wire-records, cumulatively bounds scratch generated and decoded storage, filters records below the requested offset, drops empty and control batches from delivery, advances only through complete batches including control or compacted-empty batches, ignores partial tails for advancement, and never regresses the requested offset. Before publication, stable descriptor capacity and visible byte spans must fit the pre-acquired hard output reservation; exact slack is reported and every local or retention failure returns the linear token."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/protocol/fetch/request_test.rs::request_uses_generated_v12_name_and_exact_consumer_sentinels",
@@ -318,6 +318,16 @@ evidence = [
   "crates/kafka-client-engine/src/protocol/fetch/decode_test.rs::wire_records_remains_the_compression_and_crc_authority",
   "crates/kafka-client-engine/src/protocol/fetch/limits_test.rs::record_and_header_counts_accumulate_across_batches",
   "crates/kafka-client-engine/src/protocol/fetch/decode_next_test.rs::compressed_batches_share_exact_cumulative_retained_payload_budget",
+  "crates/kafka-client-engine/src/protocol/fetch/outcome_broker_test.rs::top_level_broker_failure_needs_no_success_shape_or_session",
+  "crates/kafka-client-engine/src/protocol/fetch/outcome_broker_test.rs::partition_broker_failure_needs_no_record_decode_or_success_session",
+  "crates/kafka-client-engine/src/protocol/fetch/outcome_broker_test.rs::every_local_failure_returns_the_same_hard_reservation",
+  "crates/kafka-client-engine/src/protocol/fetch/outcome_offset_test.rs::overlapping_first_batch_delivers_only_records_at_or_above_requested_offset",
+  "crates/kafka-client-engine/src/protocol/fetch/outcome_offset_test.rs::entirely_stale_batch_is_dropped_and_cannot_regress_next_offset",
+  "crates/kafka-client-engine/src/protocol/fetch/outcome_offset_test.rs::complete_control_batch_advances_without_application_delivery",
+  "crates/kafka-client-engine/src/protocol/fetch/outcome_offset_test.rs::partial_trailing_batch_never_advances_beyond_final_complete_batch",
+  "crates/kafka-client-engine/src/protocol/fetch/outcome_offset_test.rs::complete_empty_data_batch_advances_without_delivery_or_charge",
+  "crates/kafka-client-engine/src/protocol/fetch/outcome_test.rs::retained_uncompressed_payload_moves_without_copying",
+  "crates/kafka-client-engine/src/protocol/fetch/outcome_test.rs::scratch_decode_limits_are_independent_from_final_output_reservation",
 ]
 
 [[invariant]]

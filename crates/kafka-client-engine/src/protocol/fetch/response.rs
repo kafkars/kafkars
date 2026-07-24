@@ -1,6 +1,7 @@
 //! Strict one-topic, one-partition correlation around bounded Fetch decoding.
 
 use kafka_wire::FetchResponse as WireFetchResponse;
+use kafka_wire::fetch_response::PartitionData;
 
 use super::{
     decode::normalize_fetch_response, failure::FetchDecodeFailure, limits::FetchDecodeLimits,
@@ -20,19 +21,20 @@ pub(crate) enum FetchResponseFailure {
     Decode(FetchDecodeFailure),
 }
 
-/// Correlates one generated response before retaining any fact for a fetch fence.
-pub(crate) fn normalize_one_partition_fetch_response(
-    topic: &str,
-    partition: u32,
-    selected_version: i16,
-    response: WireFetchResponse,
-    limits: FetchDecodeLimits,
-) -> Result<FetchResponse, FetchResponseFailure> {
+pub(super) fn validate_selected_version(selected_version: i16) -> Result<(), FetchResponseFailure> {
     if !(FETCH_NAME_ROUTE_MIN_VERSION..=FETCH_NAME_ROUTE_MAX_VERSION).contains(&selected_version) {
         return Err(FetchResponseFailure::UnsupportedApiVersion {
             actual: selected_version,
         });
     }
+    Ok(())
+}
+
+pub(super) fn correlate_partition<'a>(
+    topic: &str,
+    partition: u32,
+    response: &'a WireFetchResponse,
+) -> Result<&'a PartitionData, FetchResponseFailure> {
     let expected_partition = i32::try_from(partition)
         .map_err(|_| FetchResponseFailure::RequestedPartitionOutOfRange { actual: partition })?;
     let [topic_response] = response.responses.as_slice() else {
@@ -53,6 +55,12 @@ pub(crate) fn normalize_one_partition_fetch_response(
             actual: partition_response.partition_index,
         });
     }
+    Ok(partition_response)
+}
 
+pub(super) fn normalize_correlated_response(
+    response: WireFetchResponse,
+    limits: FetchDecodeLimits,
+) -> Result<FetchResponse, FetchResponseFailure> {
     normalize_fetch_response(response, limits).map_err(FetchResponseFailure::Decode)
 }
