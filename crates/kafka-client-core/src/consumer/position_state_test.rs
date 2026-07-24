@@ -36,6 +36,13 @@ fn fetch_revision_exhaustion_preserves_the_active_fetch_and_offset() {
         state.advance_and_activate(first_fetch, offset(12), partition),
         Err(AssignedConsumerMachineError::FetchRevisionExhausted { partition })
     );
+    assert_eq!(
+        state.advance_and_activate(first_fetch, offset(9), partition),
+        Err(AssignedConsumerMachineError::OffsetRegression {
+            requested: offset(10),
+            observed: offset(9),
+        })
+    );
 
     state.replace_next_fetch_revision_for_test(
         FetchRevision::try_from_raw_for_test(2)
