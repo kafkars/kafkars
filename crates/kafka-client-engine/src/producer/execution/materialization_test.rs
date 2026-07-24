@@ -151,22 +151,22 @@ fn prepared_capacity_failure_returns_exact_attempt_to_ready() {
 fn rollback_refuses_an_entry_already_armed_by_core() {
     let execution = execution(BatchId::from_raw(13), 1);
     let mut owner = prepared(1_024);
-    let value = materialize_explicit_produce_batch(
-        crate::producer::materialization::MaterializationBatch::new(
-            "orders".to_owned(),
-            3,
-            vec![
-                crate::producer::materialization::MaterializationRecord::new(
-                    0,
-                    None,
-                    Some(Bytes::from_static(b"value")),
-                    Vec::new(),
-                ),
-            ],
-            usize::MAX,
-        ),
+    let batch = crate::producer::materialization::MaterializationBatch::try_for_test(
+        "orders".to_owned(),
+        3,
+        vec![
+            crate::producer::materialization::MaterializationRecord::new(
+                0,
+                None,
+                Some(Bytes::from_static(b"value")),
+                Vec::new(),
+            ),
+        ],
+        usize::MAX,
     )
-    .unwrap_or_else(|error| panic!("encoding failed: {error}"));
+    .unwrap_or_else(|| panic!("test materialization batch must be representable"));
+    let value = materialize_explicit_produce_batch(batch)
+        .unwrap_or_else(|error| panic!("encoding failed: {error}"));
     owner
         .retain_for_test(execution, value)
         .unwrap_or_else(|error| panic!("retention failed: {error}"));
@@ -193,22 +193,22 @@ fn prepared_entry_count_bound_rejects_without_accounting_drift() {
     let first = execution(BatchId::from_raw(15), 1);
     let second = execution(BatchId::from_raw(16), 1);
     let value = |partition| {
-        materialize_explicit_produce_batch(
-            crate::producer::materialization::MaterializationBatch::new(
-                "orders".to_owned(),
-                partition,
-                vec![
-                    crate::producer::materialization::MaterializationRecord::new(
-                        0,
-                        None,
-                        Some(Bytes::from_static(b"value")),
-                        Vec::new(),
-                    ),
-                ],
-                usize::MAX,
-            ),
+        let batch = crate::producer::materialization::MaterializationBatch::try_for_test(
+            "orders".to_owned(),
+            partition,
+            vec![
+                crate::producer::materialization::MaterializationRecord::new(
+                    0,
+                    None,
+                    Some(Bytes::from_static(b"value")),
+                    Vec::new(),
+                ),
+            ],
+            usize::MAX,
         )
-        .unwrap_or_else(|error| panic!("encoding failed: {error}"))
+        .unwrap_or_else(|| panic!("test materialization batch must be representable"));
+        materialize_explicit_produce_batch(batch)
+            .unwrap_or_else(|error| panic!("encoding failed: {error}"))
     };
     owner
         .retain_for_test(first, value(1))
@@ -271,7 +271,7 @@ fn duplicate_and_stale_insertions_return_incoming_bytes_without_touching_current
 }
 
 fn encoded_value(value: &'static [u8]) -> crate::protocol::produce::MaterializedProduce {
-    materialize_explicit_produce_batch(crate::producer::materialization::MaterializationBatch::new(
+    let batch = crate::producer::materialization::MaterializationBatch::try_for_test(
         "orders".to_owned(),
         3,
         vec![
@@ -283,6 +283,8 @@ fn encoded_value(value: &'static [u8]) -> crate::protocol::produce::Materialized
             ),
         ],
         usize::MAX,
-    ))
-    .unwrap_or_else(|error| panic!("encoding failed: {error}"))
+    )
+    .unwrap_or_else(|| panic!("test materialization batch must be representable"));
+    materialize_explicit_produce_batch(batch)
+        .unwrap_or_else(|error| panic!("encoding failed: {error}"))
 }

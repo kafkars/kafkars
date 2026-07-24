@@ -48,7 +48,8 @@ impl ProducerTransition {
     pub fn admitted_operation_id(&self) -> Option<OperationId> {
         self.effects.iter().find_map(|effect| match effect {
             ProducerEffect::AccumulateExplicit { operation_id, .. } => Some(*operation_id),
-            ProducerEffect::ArmBatchTimer { .. }
+            ProducerEffect::AcquireProducerIdentity { .. }
+            | ProducerEffect::ArmBatchTimer { .. }
             | ProducerEffect::CancelBatchTimer { .. }
             | ProducerEffect::MaterializeBatch { .. }
             | ProducerEffect::ReviseBatchExecution { .. }
@@ -68,6 +69,7 @@ impl ProducerTransition {
         self.effects.iter().find_map(|effect| match effect {
             ProducerEffect::AcceptFlush { flush_id, .. } => Some(*flush_id),
             ProducerEffect::AccumulateExplicit { .. }
+            | ProducerEffect::AcquireProducerIdentity { .. }
             | ProducerEffect::ArmBatchTimer { .. }
             | ProducerEffect::CancelBatchTimer { .. }
             | ProducerEffect::MaterializeBatch { .. }

@@ -82,10 +82,19 @@ impl ProducerHost {
             ProducerEffect::MaterializeBatch {
                 execution,
                 compression,
+                identity,
+                sequence,
             } => {
                 let result = {
                     let prepared = &mut self.execution;
-                    prepared.materialize(&mut self.store, execution, compression, now)
+                    prepared.materialize_idempotent(
+                        &mut self.store,
+                        execution,
+                        compression,
+                        identity,
+                        sequence,
+                        now,
+                    )
                 };
                 result
                     .map(Some)

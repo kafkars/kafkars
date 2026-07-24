@@ -14,6 +14,22 @@ impl ProducerMachine {
             ));
         };
         let transition = match input {
+            ProducerInput::ProducerIdentityAcquired {
+                generation,
+                producer_id,
+                producer_epoch,
+                now,
+            } => self.producer_identity_acquired(generation, producer_id, producer_epoch, now),
+            ProducerInput::ProducerIdentityFailed {
+                generation,
+                broker_code,
+            } => self.producer_identity_failed(generation, broker_code),
+            ProducerInput::ProducerIdentityDeadlineElapsed { generation, now } => {
+                self.producer_identity_deadline_elapsed(generation, now)
+            }
+            ProducerInput::ProducerIdentityRequestFailed { generation, now } => {
+                self.producer_identity_request_failed(generation, now)
+            }
             ProducerInput::AdmitExplicit {
                 now,
                 deadline,

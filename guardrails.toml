@@ -103,6 +103,14 @@ production = "crates/kafka-client-core/src/producer/cancellation.rs"
 test = "crates/kafka-client-core/src/producer/cancellation_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/admission_batching.rs"
+test = "crates/kafka-client-core/src/producer/admission_batching_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/cancellation_waiting.rs"
+test = "crates/kafka-client-core/src/producer/retry_cancellation_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/producer/batch_revision.rs"
 test = "crates/kafka-client-core/src/producer/cancellation_revision_test.rs"
 
@@ -117,6 +125,26 @@ test = "crates/kafka-client-core/src/producer/flush_transition_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-core/src/producer/input_outcome.rs"
 test = "crates/kafka-client-core/src/producer/input_outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/idempotence.rs"
+test = "crates/kafka-client-core/src/producer/idempotence_sequence_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/idempotence_transition.rs"
+test = "crates/kafka-client-core/src/producer/idempotence_acquisition_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/idempotence_request_terminal.rs"
+test = "crates/kafka-client-core/src/producer/idempotence_fencing_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/retry_timer.rs"
+test = "crates/kafka-client-core/src/producer/retry_timer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/producer/settlement_failure.rs"
+test = "crates/kafka-client-core/src/producer/settlement_failure_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-core/src/producer/partitioner.rs"
@@ -273,6 +301,14 @@ test = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_submission_te
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_terminal.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_terminal_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/init_producer_id_calls.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/init_producer_id_calls_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/init_producer_id_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/init_producer_id_submission_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/shutdown.rs"
@@ -487,6 +523,10 @@ production = "crates/kafka-client-engine/src/producer/interpreter.rs"
 test = "crates/kafka-client-engine/src/producer/interpreter_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/identity_submission.rs"
+test = "crates/kafka-client-engine/src/producer/identity_submission_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/ingress/port.rs"
 test = "crates/kafka-client-engine/src/producer/ingress/port_test.rs"
 
@@ -569,6 +609,10 @@ test = "crates/kafka-client-engine/src/producer/topic_catalog_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/produce.rs"
 test = "crates/kafka-client-engine/src/protocol/produce_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/init_producer_id.rs"
+test = "crates/kafka-client-engine/src/protocol/init_producer_id_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/produce_failure.rs"
@@ -920,6 +964,9 @@ forbidden = [
   "smol",
   "tokio",
 ]
+allow = [
+  { path = "crates/kafka-client-engine/src/silent_broker_test.rs", capability = "std::net", reason = "A silent loopback listener makes driver deadline evidence deterministic without production socket ownership." },
+]
 
 # Generated admin DTOs remain in one protocol seam without transport policy.
 [[capability_rules]]
@@ -1187,6 +1234,10 @@ forbidden = [
   "smol",
   "tokio",
 ]
+allow = [
+  { path = "crates/kafka-client/src/silent_broker_test.rs", capability = "std::net", reason = "A test-only silent loopback listener proves the public timeout translation without exposing a production test hook." },
+  { path = "crates/kafka-client/src/silent_broker_test.rs", capability = "std::thread", reason = "The test broker completes negotiation off the client reactor and joins before the scenario exits." },
+]
 
 # Public admin vocabulary reaches execution only through its private bridge.
 [[capability_rules]]
@@ -1235,6 +1286,8 @@ owner_type = "ProducerMachine"
 field = "admission_open"
 allowed_paths = [
   "crates/kafka-client-core/src/producer/execution_stop.rs",
+  "crates/kafka-client-core/src/producer/idempotence_request_terminal.rs",
+  "crates/kafka-client-core/src/producer/idempotence_transition.rs",
   "crates/kafka-client-core/src/producer/machine.rs",
 ]
 
@@ -1243,13 +1296,13 @@ owner_type = "ProducerMachine"
 field = "next_operation_id"
 allowed_paths = [
   "crates/kafka-client-core/src/producer/machine.rs",
-  "crates/kafka-client-core/src/producer/batching.rs",
+  "crates/kafka-client-core/src/producer/admission_batching.rs",
 ]
 
 [[mutation_owners]]
 owner_type = "ProducerMachine"
 field = "next_batch_id"
-allowed_paths = ["crates/kafka-client-core/src/producer/batching.rs"]
+allowed_paths = ["crates/kafka-client-core/src/producer/admission_batching.rs"]
 
 [[mutation_owners]]
 owner_type = "ProducerMachine"
@@ -1271,6 +1324,7 @@ allowed_paths = [
 owner_type = "ProducerMachine"
 field = "operations"
 allowed_paths = [
+  "crates/kafka-client-core/src/producer/retry_timer.rs",
   "crates/kafka-client-core/src/producer/execution_stop.rs",
   "crates/kafka-client-core/src/producer/machine.rs",
   "crates/kafka-client-core/src/producer/lifecycle.rs",
@@ -1289,6 +1343,7 @@ allowed_paths = [
 owner_type = "ProducerMachine"
 field = "open_batches"
 allowed_paths = [
+  "crates/kafka-client-core/src/producer/admission_batching.rs",
   "crates/kafka-client-core/src/producer/batching.rs",
   "crates/kafka-client-core/src/producer/execution_stop.rs",
   "crates/kafka-client-core/src/producer/settlement.rs",
@@ -1298,13 +1353,18 @@ allowed_paths = [
 owner_type = "ProducerMachine"
 field = "batches"
 allowed_paths = [
+  "crates/kafka-client-core/src/producer/admission_batching.rs",
   "crates/kafka-client-core/src/producer/batching.rs",
   "crates/kafka-client-core/src/producer/cancellation.rs",
+  "crates/kafka-client-core/src/producer/cancellation_waiting.rs",
   "crates/kafka-client-core/src/producer/execution_stop.rs",
+  "crates/kafka-client-core/src/producer/idempotence_transition.rs",
   "crates/kafka-client-core/src/producer/input_batch.rs",
   "crates/kafka-client-core/src/producer/input_outcome.rs",
   "crates/kafka-client-core/src/producer/retry.rs",
+  "crates/kafka-client-core/src/producer/retry_timer.rs",
   "crates/kafka-client-core/src/producer/settlement.rs",
+  "crates/kafka-client-core/src/producer/settlement_failure.rs",
 ]
 
 [[mutation_owners]]
@@ -1321,6 +1381,7 @@ allowed_paths = [
 owner_type = "ProducerBatch"
 field = "timer_deadline"
 allowed_paths = [
+  "crates/kafka-client-core/src/producer/batch_revision.rs",
   "crates/kafka-client-core/src/producer/batch_timer.rs",
   "crates/kafka-client-core/src/producer/batch_transition.rs",
   "crates/kafka-client-core/src/producer/batch_retry.rs",
@@ -1362,6 +1423,38 @@ allowed_paths = [
   "crates/kafka-client-core/src/producer/input_outcome.rs",
   "crates/kafka-client-core/src/producer/batch_retry.rs",
   "crates/kafka-client-core/src/producer/retry.rs",
+  "crates/kafka-client-core/src/producer/retry_timer.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ProducerBatch"
+field = "sequence_lease"
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/batch.rs",
+  "crates/kafka-client-core/src/producer/batch_revision.rs",
+  "crates/kafka-client-core/src/producer/batch_transition.rs",
+  "crates/kafka-client-core/src/producer/idempotence_sequence_test.rs",
+]
+
+[[mutation_owners]]
+owner_type = "IdempotentProducer"
+field = "state"
+allowed_paths = ["crates/kafka-client-core/src/producer/idempotence.rs"]
+
+[[mutation_owners]]
+owner_type = "IdempotentProducer"
+field = "next_sequences"
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/idempotence.rs",
+  "crates/kafka-client-core/src/producer/idempotence_sequence_test.rs",
+]
+
+[[mutation_owners]]
+owner_type = "IdempotentProducer"
+field = "leased_partitions"
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/idempotence.rs",
+  "crates/kafka-client-core/src/producer/idempotence_sequence_test.rs",
 ]
 
 [[mutation_owners]]
@@ -1916,6 +2009,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/effect.rs",
   "crates/kafka-client-engine/src/producer/execution_turn.rs",
   "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/identity_submission.rs",
   "crates/kafka-client-engine/src/producer/cancellation/revision.rs",
   "crates/kafka-client-engine/src/producer/cancellation/revision/pending.rs",
   "crates/kafka-client-engine/src/producer/shutdown.rs",
@@ -1940,6 +2034,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/effect.rs",
   "crates/kafka-client-engine/src/producer/execution_stop.rs",
   "crates/kafka-client-engine/src/producer/host.rs",
+  "crates/kafka-client-engine/src/producer/identity_submission.rs",
   "crates/kafka-client-engine/src/producer/reclaim_turn.rs",
   "crates/kafka-client-engine/src/producer/shutdown.rs",
   "crates/kafka-client-engine/src/producer/terminal_publication.rs",
@@ -1950,6 +2045,11 @@ allowed_paths = [
 owner_type = "ProducerHost"
 field = "health"
 allowed_paths = ["crates/kafka-client-engine/src/producer/host.rs"]
+
+[[mutation_owners]]
+owner_type = "TrackedProducerIdentityCalls"
+field = "call"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/init_producer_id_calls.rs"]
 
 [[mutation_owners]]
 owner_type = "ProducerHost"
@@ -2023,6 +2123,18 @@ path = "crates/kafka-client-core/src/producer/sticky.rs"
 [[linear_owners]]
 owner_type = "ProducerMachine"
 path = "crates/kafka-client-core/src/producer/machine.rs"
+
+[[linear_owners]]
+owner_type = "IdempotentProducer"
+path = "crates/kafka-client-core/src/producer/idempotence.rs"
+
+[[linear_owners]]
+owner_type = "SequenceSuccessPlan"
+path = "crates/kafka-client-core/src/producer/idempotence_transition.rs"
+
+[[linear_owners]]
+owner_type = "SequenceNotSentPlan"
+path = "crates/kafka-client-core/src/producer/idempotence_transition.rs"
 
 [[linear_owners]]
 owner_type = "CompletionLedger"
@@ -2411,6 +2523,22 @@ path = "crates/kafka-client-sim/src/state/batch.rs"
 [[linear_owners]]
 owner_type = "ProducerHost"
 path = "crates/kafka-client-engine/src/producer/host.rs"
+
+[[linear_owners]]
+owner_type = "ProducerIdentitySubmission"
+path = "crates/kafka-client-engine/src/producer/identity_submission.rs"
+
+[[linear_owners]]
+owner_type = "TrackedProducerIdentityCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/init_producer_id_calls.rs"
+
+[[linear_owners]]
+owner_type = "ProducerIdentityCallEntry"
+path = "crates/kafka-client-engine/src/driver/rpc/init_producer_id_calls.rs"
+
+[[linear_owners]]
+owner_type = "ProducerIdentityCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/init_producer_id_calls.rs"
 
 [[linear_owners]]
 owner_type = "ValidatedProducerHostLimits"

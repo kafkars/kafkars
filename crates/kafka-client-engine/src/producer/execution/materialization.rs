@@ -1,6 +1,9 @@
 //! Linear materialization attempts spanning canonical views and prepared bytes.
 
-use kafka_client_core::{BatchExecutionId, CompressionPolicy, Moment, ProducerInput};
+use kafka_client_core::{
+    BatchExecutionId, CompressionPolicy, Moment, ProducerIdentity, ProducerInput,
+    ProducerSequenceLease,
+};
 
 use super::{PreparedEntry, PreparedExecution, PreparedExecutionError, PreparedProduceError};
 use crate::{
@@ -20,17 +23,24 @@ pub(super) struct PreparedInsertError {
 
 impl PreparedExecution {
     /// Encodes and retains one exact execution before committing materialized state.
-    pub(crate) fn materialize(
+    pub(crate) fn materialize_idempotent(
         &mut self,
         store: &mut ProducerStore,
         execution: BatchExecutionId,
         compression: CompressionPolicy,
+        identity: ProducerIdentity,
+        sequence: ProducerSequenceLease,
         now: Moment,
     ) -> Result<ProducerInput, PreparedExecutionError> {
         match compression {
             CompressionPolicy::Uncompressed => {}
         }
-        let (attempt, input) = match store.materialization_view(execution, self.max_batch_bytes) {
+        let (attempt, input) = match store.materialization_view_idempotent(
+            execution,
+            self.max_batch_bytes,
+            identity,
+            sequence,
+        ) {
             Ok(view) => view,
             Err(ProducerStoreError::PartitionOutOfRange) => {
                 return Ok(materialization_failed(execution));
@@ -53,6 +63,22 @@ impl PreparedExecution {
                 failure
             }
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn materialize(
+        &mut self,
+        store: &mut ProducerStore,
+        execution: BatchExecutionId,
+        compression: CompressionPolicy,
+        now: Moment,
+    ) -> Result<ProducerInput, PreparedExecutionError> {
+        let identity =
+            ProducerIdentity::try_new(1, 0).ok_or(PreparedExecutionError::UnexpectedEffect)?;
+        let sequence = store
+            .sequence_for_test(execution)
+            .map_err(PreparedExecutionError::Store)?;
+        self.materialize_idempotent(store, execution, compression, identity, sequence, now)
     }
 
     pub(super) fn commit_inserted(

@@ -13,6 +13,7 @@ mod producer_broker_failure;
 mod producer_effect;
 mod producer_error;
 mod producer_failure;
+mod producer_idempotence;
 mod producer_input;
 mod producer_policy;
 mod producer_record;

@@ -102,7 +102,7 @@ const fn execution(batch: u64) -> BatchExecutionId {
 }
 
 fn prepared(topic: &'static str, partition: i32) -> MaterializedProduce {
-    materialize_explicit_produce_batch(MaterializationBatch::new(
+    let batch = MaterializationBatch::try_for_test(
         topic.to_owned(),
         partition,
         vec![MaterializationRecord::new(
@@ -112,6 +112,8 @@ fn prepared(topic: &'static str, partition: i32) -> MaterializedProduce {
             Vec::new(),
         )],
         usize::MAX,
-    ))
-    .unwrap_or_else(|error| panic!("test materialization failed: {error}"))
+    )
+    .unwrap_or_else(|| panic!("test materialization batch must be representable"));
+    materialize_explicit_produce_batch(batch)
+        .unwrap_or_else(|error| panic!("test materialization failed: {error}"))
 }

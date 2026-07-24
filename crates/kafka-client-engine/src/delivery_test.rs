@@ -3,8 +3,8 @@
 use kafka_client_core::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline, DeliveryStatus,
     ExplicitRecord, Moment, PartitionIndex, PayloadId, ProducerAttemptFailureKind,
-    ProducerBatchSuccess, ProducerCompletion, ProducerEffect, ProducerInput, ProducerMachine,
-    ProducerTransition, TopicId,
+    ProducerBatchSuccess, ProducerCompletion, ProducerEffect, ProducerIdentityGeneration,
+    ProducerInput, ProducerMachine, ProducerTransition, TopicId,
 };
 
 use crate::{
@@ -155,7 +155,7 @@ fn materializing_machine() -> (ProducerMachine, kafka_client_core::BatchId) {
     else {
         panic!("admission should identify its batch")
     };
-    apply(
+    let waiting = apply(
         &mut machine,
         ProducerInput::RecordAccumulated {
             operation_id,
@@ -164,7 +164,27 @@ fn materializing_machine() -> (ProducerMachine, kafka_client_core::BatchId) {
             now: Moment::from_tick(2),
         },
     );
+    let generation = identity_generation(&waiting);
+    apply(
+        &mut machine,
+        ProducerInput::ProducerIdentityAcquired {
+            generation,
+            producer_id: 1,
+            producer_epoch: 0,
+            now: Moment::from_tick(2),
+        },
+    );
     (machine, batch_id)
+}
+
+fn identity_generation(transition: &ProducerTransition) -> ProducerIdentityGeneration {
+    let Some(generation) = transition.effects().iter().find_map(|effect| match effect {
+        ProducerEffect::AcquireProducerIdentity { generation, .. } => Some(*generation),
+        _ => None,
+    }) else {
+        panic!("sealed batch should acquire one producer identity")
+    };
+    generation
 }
 
 fn terminal(machine: &mut ProducerMachine, input: ProducerInput) -> ProducerCompletion {

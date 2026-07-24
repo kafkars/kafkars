@@ -59,6 +59,7 @@ fn earlier_deadline_rearms_timer_and_stale_facts_are_harmless() {
     let policy = ProducerBatchPolicy::try_new(10, ByteCount::new(1_024), 20)
         .unwrap_or_else(|error| panic!("valid policy: {error}"));
     let mut producer = ProducerMachine::with_batch_policy(ByteCount::new(128), 4, policy);
+    producer.install_identity_for_test();
     let (first, batch_id, _) = admit(&mut producer, 1, 100);
     confirm(&mut producer, first, batch_id);
     let (second, same_batch, tail) = admit(&mut producer, 2, 10);

@@ -45,6 +45,12 @@ fn verify_tracked_calls(resources: &EngineHostResources) -> Result<(), EngineHos
     if produce != 0 {
         return Err(EngineHostError::TrackedProduceCallsRemain(produce));
     }
+    let identity = resources.producer_identity_calls.retained_count();
+    if identity != 0 {
+        return Err(EngineHostError::TrackedProducerIdentityCallsRemain(
+            identity,
+        ));
+    }
     let create = resources.create_topics_calls.retained_count();
     if create != 0 {
         return Err(EngineHostError::TrackedCreateTopicsCallsRemain(create));

@@ -16,6 +16,8 @@ mod clock_test;
 #[cfg(test)]
 mod producer_cancellation_test;
 #[cfg(test)]
+mod producer_idempotence_test;
+#[cfg(test)]
 mod producer_test;
 #[cfg(test)]
 mod producer_timer_test;

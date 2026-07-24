@@ -125,7 +125,9 @@ fn wire_record_limits_reject_materialization_before_a_request_exists() {
 
 #[test]
 fn empty_ready_batch_is_rejected_before_wire_encoding() {
-    let input = MaterializationBatch::new(TOPIC.to_owned(), PARTITION, Vec::new(), usize::MAX);
+    let input =
+        MaterializationBatch::try_for_test(TOPIC.to_owned(), PARTITION, Vec::new(), usize::MAX)
+            .unwrap_or_else(|| panic!("test materialization batch must be representable"));
 
     assert!(matches!(
         materialize_explicit_produce_batch(input),
@@ -134,7 +136,7 @@ fn empty_ready_batch_is_rejected_before_wire_encoding() {
 }
 
 fn input(max_batch_bytes: usize) -> MaterializationBatch {
-    MaterializationBatch::new(
+    MaterializationBatch::try_for_test(
         TOPIC.to_owned(),
         PARTITION,
         vec![MaterializationRecord::new(
@@ -145,6 +147,7 @@ fn input(max_batch_bytes: usize) -> MaterializationBatch {
         )],
         max_batch_bytes,
     )
+    .unwrap_or_else(|| panic!("test materialization batch must be representable"))
 }
 
 fn operation_deadline(tick: u64, transport: Instant) -> OperationDeadline {

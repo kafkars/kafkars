@@ -44,6 +44,10 @@ impl ProducerHost {
         effect: ProducerEffect,
     ) -> Result<(), ProducerHostInvariantError> {
         match effect {
+            pending @ ProducerEffect::AcquireProducerIdentity { .. } => {
+                self.retain_pending(pending)?;
+                Ok(())
+            }
             ProducerEffect::AccumulateExplicit { .. } => {
                 Err(ProducerHostInvariantError::UnexpectedCancellationEffect)
             }

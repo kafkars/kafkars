@@ -26,7 +26,9 @@ fn record(payload: u64, partition: u32) -> ExplicitRecord {
 pub(super) fn producer(capacity: usize) -> ProducerMachine {
     let policy = ProducerBatchPolicy::try_new(2, ByteCount::new(1_024), 50)
         .unwrap_or_else(|error| panic!("valid test policy: {error}"));
-    ProducerMachine::with_batch_policy(ByteCount::new(256), capacity, policy)
+    let mut producer = ProducerMachine::with_batch_policy(ByteCount::new(256), capacity, policy);
+    producer.install_identity_for_test();
+    producer
 }
 
 pub(super) fn admit(
@@ -229,6 +231,7 @@ fn empty_execution_loss_is_idempotent_and_closes_admission() {
 #[test]
 fn execution_loss_does_not_repeat_an_unreclaimed_terminal() {
     let mut producer = ProducerMachine::new(ByteCount::new(64), 2);
+    producer.install_identity_for_test();
     let (completed, completed_batch) = admit(&mut producer, 1, 0);
     accumulate(&mut producer, completed, completed_batch);
     producer

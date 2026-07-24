@@ -22,7 +22,8 @@ pub(crate) use error::DriverOwnerError;
 pub(crate) use owner::{DriverOwner, DriverTurn};
 pub(crate) use rpc::{
     CreateTopicsCompletionFailure, DeleteTopicsCompletionFailure, DescribeClusterCalls,
-    DescribeClusterCompletionFailure, ProduceCompletionFailure, TrackedCreateTopicsCalls,
-    TrackedDeleteTopicsCalls, TrackedProduceCalls,
+    DescribeClusterCompletionFailure, ProduceCompletionFailure, ProducerIdentityCompletionFailure,
+    TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls, TrackedProduceCalls,
+    TrackedProducerIdentityCalls,
 };
 pub(crate) use wake::{ReactorWake, ReactorWakeError};

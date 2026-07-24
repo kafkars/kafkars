@@ -50,3 +50,5 @@ mod engine_test;
 mod flush_error_test;
 #[cfg(test)]
 mod flush_observer_test;
+#[cfg(test)]
+mod silent_broker_test;

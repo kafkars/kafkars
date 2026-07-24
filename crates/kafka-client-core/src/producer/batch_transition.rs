@@ -167,8 +167,30 @@ impl ProducerBatch {
         Ok(self.timer_generation)
     }
 
-    pub(crate) fn commit_seal(&mut self, generation: BatchExecutionGeneration) {
+    pub(crate) fn commit_seal_waiting_identity(
+        &mut self,
+        generation: BatchExecutionGeneration,
+        timer_generation: BatchTimerGeneration,
+        deadline: Deadline,
+    ) {
         self.execution_generation = Some(generation);
+        self.timer_generation = timer_generation;
+        self.timer_deadline = deadline;
+        self.state = BatchState::AwaitingIdentity;
+    }
+
+    pub(crate) fn commit_seal_ready(
+        &mut self,
+        generation: BatchExecutionGeneration,
+        lease: crate::ProducerSequenceLease,
+    ) {
+        self.execution_generation = Some(generation);
+        self.sequence_lease = Some(lease);
+        self.state = BatchState::Materializing;
+    }
+
+    pub(crate) fn commit_identity_lease(&mut self, lease: crate::ProducerSequenceLease) {
+        self.sequence_lease = Some(lease);
         self.state = BatchState::Materializing;
     }
 

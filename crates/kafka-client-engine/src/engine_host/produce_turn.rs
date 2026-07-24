@@ -39,16 +39,24 @@ pub(super) fn drive(
         .driver
         .as_ref()
         .ok_or(EngineHostError::DriverOwnerMissing)?;
-    let driver_progress = produce::admit_one(driver, &mut resources.produce_calls, &mut data, now)?;
+    let identity_progress = produce::admit_identity(
+        driver,
+        &mut resources.producer_identity_calls,
+        &mut data,
+        now,
+    )?;
+    let produce_progress =
+        produce::admit_one(driver, &mut resources.produce_calls, &mut data, now)?;
     Ok(ProducerProgress {
         outcome: Some(outcome),
         unsettled: data.unsettled_completions(),
-        driver_progress,
+        driver_progress: identity_progress || produce_progress,
     })
 }
 
 pub(super) fn apply_completions(
     producer: &ProducerShardOwner,
+    identity_calls: &mut crate::driver::TrackedProducerIdentityCalls,
     calls: &mut crate::driver::TrackedProduceCalls,
     now: Moment,
 ) -> Result<bool, EngineHostError> {
@@ -59,7 +67,9 @@ pub(super) fn apply_completions(
             return Err(EngineHostError::ProducerLockPoisoned);
         }
     };
-    produce::apply_ready(calls, &mut data, now, PRODUCE_COMPLETION_BUDGET)
+    let identity = produce::apply_identity_ready(identity_calls, &mut data, now)?;
+    let produce = produce::apply_ready(calls, &mut data, now, PRODUCE_COMPLETION_BUDGET)?;
+    Ok(identity || produce)
 }
 
 impl ProducerProgress {

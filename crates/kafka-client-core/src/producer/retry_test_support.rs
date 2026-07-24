@@ -6,9 +6,9 @@ use crate::{
     ProducerEffect, ProducerInput, ProducerMachine, ProducerRetryPolicy, TopicId,
 };
 
-pub(super) const RETAINED: ByteCount = ByteCount::new(8);
+pub(in crate::producer) const RETAINED: ByteCount = ByteCount::new(8);
 
-pub(super) fn submitted(
+pub(crate) fn submitted(
     retries: u32,
     backoff: u64,
     deadline: u64,
@@ -21,6 +21,7 @@ pub(super) fn submitted(
         crate::ProducerBatchPolicy::single_record(),
         retry,
     );
+    producer.install_identity_for_test();
     let admitted = producer
         .apply(ProducerInput::AdmitExplicit {
             now: Moment::from_tick(0),
@@ -55,7 +56,7 @@ pub(super) fn submitted(
     (producer, operation_id, execution)
 }
 
-pub(super) fn submitted_pair(
+pub(in crate::producer) fn submitted_pair(
     retries: u32,
     backoff: u64,
     deadline: u64,
@@ -70,15 +71,16 @@ pub(super) fn submitted_pair(
         batch_policy,
         retry_policy,
     );
-    let (first, batch_id) = admit_and_accumulate(&mut producer, 1, deadline);
-    let (second, same_batch) = admit_and_accumulate(&mut producer, 2, deadline);
+    producer.install_identity_for_test();
+    let (first, batch_id, _) = admit_and_accumulate(&mut producer, 1, 0, deadline);
+    let (second, same_batch, _) = admit_and_accumulate(&mut producer, 2, 0, deadline);
     assert_eq!(same_batch, batch_id);
     let execution = BatchExecutionId::new(batch_id, BatchExecutionGeneration::initial());
     materialize_and_submit(&mut producer, execution, 1);
     (producer, first, second, execution)
 }
 
-pub(super) fn fire_retry(
+pub(in crate::producer) fn fire_retry(
     producer: &mut ProducerMachine,
     execution: BatchExecutionId,
     timer_generation: u64,
@@ -93,7 +95,7 @@ pub(super) fn fire_retry(
         .unwrap_or_else(|error| panic!("retry timer failed: {error}"))
 }
 
-pub(super) fn materialize_and_submit(
+pub(in crate::producer) fn materialize_and_submit(
     producer: &mut ProducerMachine,
     execution: BatchExecutionId,
     now: u64,
@@ -109,7 +111,7 @@ pub(super) fn materialize_and_submit(
         .unwrap_or_else(|error| panic!("driver acceptance failed: {error}"));
 }
 
-pub(super) fn transient_failure(
+pub(crate) fn transient_failure(
     producer: &mut ProducerMachine,
     execution: BatchExecutionId,
     now: u64,
@@ -124,7 +126,7 @@ pub(super) fn transient_failure(
         .unwrap_or_else(|error| panic!("transient failure failed: {error}"))
 }
 
-pub(super) fn next(execution: BatchExecutionId) -> BatchExecutionId {
+pub(in crate::producer) fn next(execution: BatchExecutionId) -> BatchExecutionId {
     let generation = execution
         .generation()
         .get()
@@ -134,20 +136,21 @@ pub(super) fn next(execution: BatchExecutionId) -> BatchExecutionId {
     BatchExecutionId::new(execution.batch_id(), generation)
 }
 
-pub(super) fn has_retry(effects: &[ProducerEffect]) -> bool {
+pub(in crate::producer) fn has_retry(effects: &[ProducerEffect]) -> bool {
     effects
         .iter()
         .any(|effect| matches!(effect, ProducerEffect::RetryBatchExecution { .. }))
 }
 
-fn admit_and_accumulate(
+pub(in crate::producer) fn admit_and_accumulate(
     producer: &mut ProducerMachine,
     payload: u64,
+    now: u64,
     deadline: u64,
-) -> (OperationId, BatchId) {
+) -> (OperationId, BatchId, crate::ProducerTransition) {
     let admitted = producer
         .apply(ProducerInput::AdmitExplicit {
-            now: Moment::from_tick(0),
+            now: Moment::from_tick(now),
             deadline: Deadline::from_tick(deadline),
             record: ExplicitRecord::new(
                 PayloadId::from_raw(payload),
@@ -166,13 +169,13 @@ fn admit_and_accumulate(
         panic!("missing accumulation effect")
     };
     let result = (*operation_id, *batch_id);
-    producer
+    let accumulated = producer
         .apply(ProducerInput::RecordAccumulated {
             operation_id: result.0,
             batch_id: result.1,
             accumulator_bytes: RETAINED,
-            now: Moment::from_tick(1),
+            now: Moment::from_tick(now.saturating_add(1)),
         })
         .unwrap_or_else(|error| panic!("accumulation failed: {error}"));
-    result
+    (result.0, result.1, accumulated)
 }

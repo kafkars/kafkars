@@ -111,6 +111,7 @@ pub(crate) fn start(
         control: Arc::clone(&control),
         budget: validated.turn_budget,
         produce_calls,
+        producer_identity_calls: crate::driver::TrackedProducerIdentityCalls::new(),
         create_topics_calls: crate::driver::TrackedCreateTopicsCalls::new(
             crate::admin::CREATE_TOPICS_CAPACITY,
         ),

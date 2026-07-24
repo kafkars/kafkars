@@ -31,14 +31,21 @@ impl ProducerMachine {
         failure: ProducerAttemptFailureKind,
         delivery: DeliveryStatus,
     ) -> Result<ProducerTransition, ProducerMachineError> {
-        self.attempt_failed(
+        if self.execution_is_current(execution) && delivery == DeliveryStatus::PossiblySent {
+            return self.settle_uncertain_delivery(
+                execution.batch_id(),
+                ProducerFailure::transport(delivery),
+            );
+        }
+        let transition = self.attempt_failed(
             execution,
             now,
             failure,
             delivery,
             BatchState::Submitted,
             ProducerFailure::transport(delivery),
-        )
+        )?;
+        Ok(transition)
     }
 
     fn attempt_failed(
@@ -55,7 +62,8 @@ impl ProducerMachine {
         }
         let batch_id = execution.batch_id();
         self.require_batch_state(batch_id, expected)?;
-        if delivery != DeliveryStatus::NotSent
+        if self.idempotence.is_fenced()
+            || delivery != DeliveryStatus::NotSent
             || !failure.is_structurally_transient()
             || !self.retry_available(batch_id)?
         {
@@ -161,65 +169,13 @@ impl ProducerMachine {
             match expected {
                 BatchState::AwaitingDriver => operation.require_awaiting_driver(batch_id),
                 BatchState::Submitted => operation.require_submitted(batch_id),
-                BatchState::Open | BatchState::Materializing | BatchState::RetryWaiting => {
-                    Err(TransitionError::InvalidState)
-                }
+                BatchState::Open
+                | BatchState::AwaitingIdentity
+                | BatchState::Materializing
+                | BatchState::RetryWaiting => Err(TransitionError::InvalidState),
             }
             .map_err(ProducerMachineError::Transition)?;
         }
         Ok(())
-    }
-
-    pub(crate) fn retry_timer_fired(
-        &mut self,
-        batch_id: crate::BatchId,
-        generation: BatchTimerGeneration,
-        now: Moment,
-    ) -> Result<ProducerTransition, ProducerMachineError> {
-        let batch = self
-            .batches
-            .get(&batch_id)
-            .ok_or(ProducerMachineError::UnknownBatch)?;
-        if batch.state != BatchState::RetryWaiting || generation != batch.timer_generation {
-            return Ok(ProducerTransition::none());
-        }
-        if !batch.timer_deadline.is_elapsed_at(now) {
-            return Err(ProducerMachineError::Transition(
-                TransitionError::DeadlineNotElapsed,
-            ));
-        }
-        let deadline = batch
-            .earliest_deadline()
-            .ok_or(ProducerMachineError::UnknownBatch)?;
-        if deadline.is_elapsed_at(now) {
-            return self.settle_batch_failed(batch_id, ProducerFailure::deadline_elapsed());
-        }
-        let execution = batch
-            .execution_id(batch_id)
-            .ok_or(ProducerMachineError::UnknownBatch)?;
-        let members = batch.member_ids();
-        for operation_id in &members {
-            self.operations
-                .get(operation_id)
-                .ok_or(ProducerMachineError::UnknownOperation)?
-                .require_retry_waiting(batch_id)
-                .map_err(ProducerMachineError::Transition)?;
-        }
-        for operation_id in &members {
-            if let Some(operation) = self.operations.get_mut(operation_id) {
-                operation.commit_retry_ready(batch_id);
-            }
-        }
-        let batch = self
-            .batches
-            .get_mut(&batch_id)
-            .ok_or(ProducerMachineError::UnknownBatch)?;
-        batch.state = BatchState::Materializing;
-        Ok(ProducerTransition::from_effects(vec![
-            ProducerEffect::MaterializeBatch {
-                execution,
-                compression: crate::CompressionPolicy::Uncompressed,
-            },
-        ]))
     }
 }

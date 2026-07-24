@@ -49,6 +49,7 @@ impl VirtualProducerState {
 
     pub(crate) fn interpret(&mut self, effect: ProducerEffect) -> Result<(), SimulationError> {
         match effect {
+            ProducerEffect::AcquireProducerIdentity { .. } => {}
             ProducerEffect::AccumulateExplicit {
                 operation_id,
                 batch_id,

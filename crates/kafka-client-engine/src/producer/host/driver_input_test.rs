@@ -40,6 +40,9 @@ fn shard_transfers_one_submission_and_interprets_one_driver_rejection() {
         .unwrap_or_else(|| panic!("nonzero budget should be valid"));
     data.turn(Moment::from_tick(1), budget)
         .unwrap_or_else(|error| panic!("materialization turn failed: {error}"));
+    crate::producer::test_identity::acquire_shard_if_pending(&mut data, Moment::from_tick(1));
+    data.turn(Moment::from_tick(1), budget)
+        .unwrap_or_else(|error| panic!("materialization turn failed: {error}"));
     data.turn(Moment::from_tick(1), budget)
         .unwrap_or_else(|error| panic!("submission-arm turn failed: {error}"));
 
@@ -103,6 +106,9 @@ fn live_retry_rematerializes_fresh_execution_with_original_deadline() {
         .unwrap_or_else(|error| panic!("test should lock producer shard: {error:?}"));
     let budget = ProducerTurnBudget::try_new(1, 1, 1, 1, 1)
         .unwrap_or_else(|| panic!("nonzero budget should be valid"));
+    data.turn(Moment::from_tick(1), budget)
+        .unwrap_or_else(|error| panic!("materialization turn failed: {error}"));
+    crate::producer::test_identity::acquire_shard_if_pending(&mut data, Moment::from_tick(1));
     data.turn(Moment::from_tick(1), budget)
         .unwrap_or_else(|error| panic!("materialization turn failed: {error}"));
     data.turn(Moment::from_tick(1), budget)
@@ -189,6 +195,9 @@ fn live_possibly_sent_failure_never_creates_replacement() {
         .unwrap_or_else(|error| panic!("test should lock producer shard: {error:?}"));
     let budget = ProducerTurnBudget::try_new(1, 1, 1, 1, 1)
         .unwrap_or_else(|| panic!("nonzero budget should be valid"));
+    data.turn(Moment::from_tick(1), budget)
+        .unwrap_or_else(|error| panic!("materialization turn failed: {error}"));
+    crate::producer::test_identity::acquire_shard_if_pending(&mut data, Moment::from_tick(1));
     data.turn(Moment::from_tick(1), budget)
         .unwrap_or_else(|error| panic!("materialization turn failed: {error}"));
     data.turn(Moment::from_tick(1), budget)

@@ -3,11 +3,42 @@
 use kafka_client_core::{Moment, ProducerInput};
 
 use crate::{
-    driver::{DriverOwner, TrackedProduceCalls},
+    driver::{DriverOwner, TrackedProduceCalls, TrackedProducerIdentityCalls},
     producer::ingress::ProducerShardData,
 };
 
 use super::EngineHostError;
+
+/// Attempts the one lazy nontransactional identity acquisition.
+pub(super) fn admit_identity(
+    driver: &DriverOwner,
+    calls: &mut TrackedProducerIdentityCalls,
+    data: &mut ProducerShardData,
+    now: Moment,
+) -> Result<bool, EngineHostError> {
+    let Some(permit) = calls.try_reserve() else {
+        return Ok(false);
+    };
+    let Some(submission) = data
+        .take_identity_submission()
+        .map_err(EngineHostError::ProducerIdentityHandoff)?
+    else {
+        return Ok(false);
+    };
+    let (generation, deadline) = submission.into_parts();
+    match permit.submit(driver, generation, deadline) {
+        Ok(()) => Ok(true),
+        Err(rejection) => {
+            drop(rejection);
+            data.apply_produce_driver_input(
+                now,
+                ProducerInput::ProducerIdentityRequestFailed { generation, now },
+            )
+            .map_err(EngineHostError::Producer)?;
+            Ok(true)
+        }
+    }
+}
 
 /// Attempts one prepared admission under the producer shard's existing guard.
 pub(super) fn admit_one(
@@ -73,4 +104,21 @@ pub(super) fn apply_ready(
         progress = true;
     }
     Ok(progress)
+}
+
+/// Applies at most one terminal identity fact under the producer shard guard.
+pub(super) fn apply_identity_ready(
+    calls: &mut TrackedProducerIdentityCalls,
+    data: &mut ProducerShardData,
+    now: Moment,
+) -> Result<bool, EngineHostError> {
+    let Some(input) = calls
+        .poll_ready(now)
+        .map_err(EngineHostError::ProducerIdentityCompletion)?
+    else {
+        return Ok(false);
+    };
+    data.apply_produce_driver_input(now, input)
+        .map_err(EngineHostError::Producer)?;
+    Ok(true)
 }

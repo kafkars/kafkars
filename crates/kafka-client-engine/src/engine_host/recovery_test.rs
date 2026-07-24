@@ -43,10 +43,7 @@ fn failed_runner_settles_accepted_work_and_closes_retained_handles() {
         failure.kind(),
         ProducerDeliveryFailureKind::ExecutionUnavailable
     );
-    assert_eq!(
-        failure.delivery_status(),
-        ProducerDeliveryStatus::PossiblySent
-    );
+    assert_eq!(failure.delivery_status(), ProducerDeliveryStatus::NotSent);
 
     let error = producer
         .try_send(record(), ProducerSendOptions::new(Duration::from_secs(1)))

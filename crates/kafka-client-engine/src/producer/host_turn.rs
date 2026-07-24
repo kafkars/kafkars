@@ -125,18 +125,19 @@ struct ReclaimProgress {
 }
 
 const fn is_runnable_effect(effect: ProducerEffect) -> bool {
-    matches!(effect, ProducerEffect::MaterializeBatch { .. })
+    matches!(
+        effect,
+        ProducerEffect::AcquireProducerIdentity { .. } | ProducerEffect::MaterializeBatch { .. }
+    )
 }
 
 fn pending_submission_deadline(host: &ProducerHost) -> Option<Deadline> {
     host.pending_effects()
         .iter()
-        .filter_map(|effect| {
-            if let ProducerEffect::SubmitProduce { deadline, .. } = effect {
-                Some(*deadline)
-            } else {
-                None
-            }
+        .filter_map(|effect| match effect {
+            ProducerEffect::AcquireProducerIdentity { deadline, .. }
+            | ProducerEffect::SubmitProduce { deadline, .. } => Some(*deadline),
+            _ => None,
         })
         .min()
 }

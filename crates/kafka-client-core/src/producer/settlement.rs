@@ -85,27 +85,6 @@ impl ProducerMachine {
         Ok(ProducerTransition::from_effects(effects))
     }
 
-    pub(crate) fn settle_batch_failed(
-        &mut self,
-        batch_id: BatchId,
-        failure: ProducerFailure,
-    ) -> Result<ProducerTransition, ProducerMachineError> {
-        let batch = self
-            .batches
-            .get(&batch_id)
-            .ok_or(ProducerMachineError::UnknownBatch)?;
-        let ids = batch.member_ids();
-        let route = batch.route;
-        let mut effects =
-            self.batch_terminal_effects(batch_id, &ids, |_| ProducerCompletion::Failed(failure))?;
-        self.settle_operations(&ids, Settlement::Failed(failure.delivery()))?;
-        let flush_effects = self.settle_ready_flushes();
-        self.remove_open_batch_if_current(route, batch_id);
-        self.batches.remove(&batch_id);
-        effects.extend(flush_effects);
-        Ok(ProducerTransition::from_effects(effects))
-    }
-
     pub(crate) fn settle_batch_succeeded(
         &mut self,
         batch_id: BatchId,
@@ -138,22 +117,13 @@ impl ProducerMachine {
         }
         let mut effects = self.terminal_effects_with(&ids, &completions)?;
         effects.insert(0, ProducerEffect::ReleaseBatch { batch_id });
+        let sequence = self.plan_sequence_success(batch_id)?;
         self.settle_operations(&ids, Settlement::Delivered)?;
+        self.commit_sequence_success(sequence);
         let flush_effects = self.settle_ready_flushes();
         self.batches.remove(&batch_id);
         effects.extend(flush_effects);
         Ok(ProducerTransition::from_effects(effects))
-    }
-
-    fn batch_terminal_effects(
-        &self,
-        batch_id: BatchId,
-        ids: &[OperationId],
-        completion: impl FnMut(OperationId) -> ProducerCompletion,
-    ) -> Result<Vec<ProducerEffect>, ProducerMachineError> {
-        let mut effects = self.terminal_effects(ids, completion)?;
-        effects.insert(0, ProducerEffect::ReleaseBatch { batch_id });
-        Ok(effects)
     }
 
     pub(crate) fn terminal_effects(
@@ -207,7 +177,11 @@ impl ProducerMachine {
         Ok(effects)
     }
 
-    fn remove_open_batch_if_current(&mut self, route: super::BatchRoute, batch_id: BatchId) {
+    pub(super) fn remove_open_batch_if_current(
+        &mut self,
+        route: super::BatchRoute,
+        batch_id: BatchId,
+    ) {
         if self.open_batches.get(&route) == Some(&batch_id) {
             self.open_batches.remove(&route);
         }

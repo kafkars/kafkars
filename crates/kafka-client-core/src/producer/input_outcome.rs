@@ -95,6 +95,10 @@ impl ProducerMachine {
         }
         let batch_id = execution.batch_id();
         self.require_batch_state(batch_id, BatchState::Submitted)?;
+        if delivery == DeliveryStatus::PossiblySent {
+            return self
+                .settle_uncertain_delivery(batch_id, ProducerFailure::broker(failure, delivery));
+        }
         self.settle_batch_failed(batch_id, ProducerFailure::broker(failure, delivery))
     }
 

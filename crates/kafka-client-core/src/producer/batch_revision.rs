@@ -22,7 +22,10 @@ impl ProducerBatch {
     ) -> Result<BatchRevision, ProducerMachineError> {
         if !matches!(
             self.state,
-            BatchState::Materializing | BatchState::AwaitingDriver | BatchState::RetryWaiting
+            BatchState::AwaitingIdentity
+                | BatchState::Materializing
+                | BatchState::AwaitingDriver
+                | BatchState::RetryWaiting
         ) {
             return Err(ProducerMachineError::Transition(
                 TransitionError::InvalidState,
@@ -68,7 +71,28 @@ impl ProducerBatch {
         self.execution_generation = revision
             .replacement
             .map(crate::BatchExecutionId::generation);
+        self.sequence_lease = self.sequence_lease.and_then(|lease| {
+            u32::try_from(self.members.len())
+                .ok()
+                .and_then(|count| lease.with_record_count(count))
+        });
         self.state = BatchState::Materializing;
+    }
+
+    pub(crate) fn commit_identity_revision(
+        &mut self,
+        revision: BatchRevision,
+        timer_generation: BatchTimerGeneration,
+        timer_deadline: Deadline,
+    ) {
+        self.members = revision.members;
+        self.accumulator_bytes = revision.accumulator_bytes;
+        self.execution_generation = revision
+            .replacement
+            .map(crate::BatchExecutionId::generation);
+        self.timer_generation = timer_generation;
+        self.timer_deadline = timer_deadline;
+        self.state = BatchState::AwaitingIdentity;
     }
 
     pub(crate) fn plan_retry_revision(
@@ -107,6 +131,11 @@ impl ProducerBatch {
             .batch
             .replacement
             .map(crate::BatchExecutionId::generation);
+        self.sequence_lease = self.sequence_lease.and_then(|lease| {
+            u32::try_from(self.members.len())
+                .ok()
+                .and_then(|count| lease.with_record_count(count))
+        });
         if let Some(generation) = revision.replacement_timer {
             self.timer_generation = generation;
         }

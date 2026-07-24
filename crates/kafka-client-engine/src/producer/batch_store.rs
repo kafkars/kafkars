@@ -192,6 +192,20 @@ impl BatchStore {
         self.batches.len()
     }
 
+    #[cfg(test)]
+    pub(super) fn record_count(&self, batch_id: BatchId) -> Result<u32, ProducerStoreError> {
+        let count = self
+            .batches
+            .get(&batch_id)
+            .ok_or(ProducerStoreError::UnknownBatch)?
+            .members
+            .len();
+        if count == 0 {
+            return Err(ProducerStoreError::EmptyBatch);
+        }
+        u32::try_from(count).map_err(|_overflow| ProducerStoreError::BatchRecordCountOutOfRange)
+    }
+
     pub(super) fn clear_terminal(&mut self) {
         self.batches.clear();
         self.operations.clear();

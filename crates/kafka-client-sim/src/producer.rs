@@ -2,7 +2,7 @@
 
 use kafka_client_core::{
     BatchId, ByteCount, Moment, OperationId, PayloadId, ProducerBatchPolicy, ProducerCompletion,
-    ProducerEffect, ProducerInput, ProducerMachine, ProducerTransition,
+    ProducerEffect, ProducerInput, ProducerMachine, ProducerRetryPolicy, ProducerTransition,
 };
 
 use crate::{SimulationError, VirtualClock, state::VirtualProducerState};
@@ -37,6 +37,25 @@ impl ProducerScenario {
                 retained_bytes,
                 completion_capacity,
                 batch_policy,
+            ),
+            engine: VirtualProducerState::default(),
+        }
+    }
+
+    /// Creates a scenario with explicit batching and definitely-unsent retry policy.
+    pub fn with_batch_and_retry_policy(
+        retained_bytes: ByteCount,
+        completion_capacity: usize,
+        batch_policy: ProducerBatchPolicy,
+        retry_policy: ProducerRetryPolicy,
+    ) -> Self {
+        Self {
+            clock: VirtualClock::default(),
+            core: ProducerMachine::with_batch_and_retry_policy(
+                retained_bytes,
+                completion_capacity,
+                batch_policy,
+                retry_policy,
             ),
             engine: VirtualProducerState::default(),
         }
@@ -87,13 +106,34 @@ impl ProducerScenario {
         if let ProducerInput::DriverAccepted { execution } = input {
             self.engine.driver_accepted(execution)?;
         }
-        for effect in transition.effects() {
-            self.engine.interpret(*effect)?;
-        }
+        self.interpret_effects(transition.effects())?;
         if let Some(operation_id) = reclaimed {
             self.engine.finish_reclaim(operation_id);
         }
         Ok(transition)
+    }
+
+    fn interpret_effects(&mut self, effects: &[ProducerEffect]) -> Result<(), SimulationError> {
+        let mut pending = effects.to_vec();
+        let mut index = 0;
+        while let Some(effect) = pending.get(index).copied() {
+            index += 1;
+            self.engine.interpret(effect)?;
+            let ProducerEffect::AcquireProducerIdentity { generation, .. } = effect else {
+                continue;
+            };
+            let acquired = self
+                .core
+                .apply(ProducerInput::ProducerIdentityAcquired {
+                    generation,
+                    producer_id: 1,
+                    producer_epoch: 0,
+                    now: self.clock.now(),
+                })
+                .map_err(SimulationError::Core)?;
+            pending.extend_from_slice(acquired.effects());
+        }
+        Ok(())
     }
 
     /// Releases the engine-owned terminal result without reclaiming core capacity.

@@ -14,7 +14,7 @@ use bytes::Bytes;
 use crate::{
     Engine, EngineConfig, EngineShutdownError, EngineShutdownErrorKind, EngineStartErrorKind,
     ProducerDeliveryError, ProducerDeliveryFailureKind, ProducerDeliveryStatus, ProducerHandle,
-    ProducerRecord, ProducerSendOptions,
+    ProducerRecord, ProducerSendOptions, silent_broker_test::SilentBroker,
 };
 
 #[test]
@@ -37,7 +37,8 @@ fn startup_validation_precedes_native_resource_acquisition() {
 #[test]
 fn producer_handle_retains_the_host_after_parent_engine_drop() {
     let timeout = Duration::from_millis(30);
-    let engine = start(timeout);
+    let broker = SilentBroker::start();
+    let engine = start_at(timeout, broker.endpoint());
     let producer = engine.producer();
     drop(engine);
 
@@ -105,7 +106,7 @@ fn notifier_reentrant_shutdown_returns_without_blocking_host_cleanup() {
     assert_eq!(error.kind(), EngineShutdownErrorKind::NotifierThread);
     assert!(engine.shutdown().is_ok());
     assert!(engine.host_is_closed());
-    assert_deadline_not_sent(observer.wait());
+    assert_execution_not_sent(observer.wait());
 }
 
 #[test]
@@ -136,14 +137,16 @@ fn final_engine_drop_on_notifier_still_reaches_closed() {
         Some(EngineShutdownErrorKind::NotifierThread)
     );
     assert!(probe.wait_closed(Duration::from_secs(2)));
-    assert_deadline_not_sent(observer.wait());
+    assert_execution_not_sent(observer.wait());
 }
 
 fn start(timeout: Duration) -> Engine {
-    Engine::start(
-        EngineConfig::new(vec!["192.0.2.1:9092".to_owned()]).with_delivery_timeout(timeout),
-    )
-    .unwrap_or_else(|error| panic!("engine should start: {error}"))
+    start_at(timeout, "192.0.2.1:9092".to_owned())
+}
+
+fn start_at(timeout: Duration, endpoint: String) -> Engine {
+    Engine::start(EngineConfig::new(vec![endpoint]).with_delivery_timeout(timeout))
+        .unwrap_or_else(|error| panic!("engine should start: {error}"))
 }
 
 fn record() -> ProducerRecord {
@@ -242,7 +245,9 @@ fn assert_execution_not_sent(result: Result<crate::ProducerRecordMetadata, Produ
     assert!(
         matches!(
             failure.kind(),
-            ProducerDeliveryFailureKind::DeadlineElapsed | ProducerDeliveryFailureKind::Transport
+            ProducerDeliveryFailureKind::DeadlineElapsed
+                | ProducerDeliveryFailureKind::ProducerIdentity
+                | ProducerDeliveryFailureKind::Transport
         ),
         "shutdown may race an authoritative local driver failure with the original deadline"
     );

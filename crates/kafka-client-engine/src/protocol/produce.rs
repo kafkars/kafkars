@@ -22,9 +22,6 @@ use super::error::ProduceMaterializationError;
 const ACKS_ALL: i16 = -1;
 const NANOSECONDS_PER_MILLISECOND: u64 = 1_000_000;
 const NO_LEADER_EPOCH: i32 = -1;
-const NO_PRODUCER_ID: i64 = -1;
-const NO_PRODUCER_EPOCH: i16 = -1;
-const NO_SEQUENCE: i32 = -1;
 
 /// Opaque route and separately bounded host-owned encoded batch bytes.
 ///
@@ -119,8 +116,9 @@ fn remaining_broker_timeout_ms(now: Moment, deadline: OperationDeadline) -> i32 
 pub(crate) fn materialize_explicit_produce_batch(
     input: MaterializationBatch,
 ) -> Result<MaterializedProduce, ProduceMaterializationError> {
-    let (topic, partition, records, max_batch_bytes) = input.into_parts();
-    let records = record_batch(records)?
+    let (topic, partition, records, max_batch_bytes, identity, sequence) =
+        input.into_idempotent_parts();
+    let records = record_batch(records, identity, sequence)?
         .encode_to_bytes(RecordEncodeLimits::new(max_batch_bytes, max_batch_bytes))
         .map_err(ProduceMaterializationError::record)?;
 
@@ -133,6 +131,8 @@ pub(crate) fn materialize_explicit_produce_batch(
 
 fn record_batch(
     records: Vec<MaterializationRecord>,
+    identity: kafka_client_core::ProducerIdentity,
+    sequence: kafka_client_core::ProducerSequenceLease,
 ) -> Result<RecordBatch, ProduceMaterializationError> {
     let Some(base_timestamp) = records
         .first()
@@ -143,6 +143,11 @@ fn record_batch(
     let last_offset = records.len().saturating_sub(1);
     let last_offset_delta = i32::try_from(last_offset)
         .map_err(|_| ProduceMaterializationError::record_count_overflow(records.len()))?;
+    if usize::try_from(sequence.record_count()) != Ok(records.len()) {
+        return Err(ProduceMaterializationError::record_count_overflow(
+            records.len(),
+        ));
+    }
     let max_timestamp = records
         .iter()
         .map(MaterializationRecord::timestamp_ms_for_protocol)
@@ -165,9 +170,9 @@ fn record_batch(
         has_delete_horizon: false,
         base_timestamp,
         max_timestamp,
-        producer_id: NO_PRODUCER_ID,
-        producer_epoch: NO_PRODUCER_EPOCH,
-        base_sequence: NO_SEQUENCE,
+        producer_id: identity.producer_id(),
+        producer_epoch: identity.producer_epoch(),
+        base_sequence: sequence.base_sequence(),
         records,
     })
 }

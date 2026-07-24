@@ -46,7 +46,10 @@ impl ProducerMachine {
         if let Some(batch) = batch {
             batch.commit_accumulation(accumulation, accumulator_bytes);
         }
-        Ok(seal.map_or_else(ProducerTransition::none, |plan| self.commit_seal(plan)))
+        match seal {
+            Some(plan) => self.commit_seal(plan),
+            None => Ok(ProducerTransition::none()),
+        }
     }
 
     pub(crate) fn batch_timer_fired(
@@ -58,6 +61,17 @@ impl ProducerMachine {
         let Some(batch) = self.batches.get(&batch_id) else {
             return Ok(ProducerTransition::none());
         };
+        if batch.state == super::BatchState::AwaitingIdentity {
+            if generation != batch.timer_generation {
+                return Ok(ProducerTransition::none());
+            }
+            if !batch.timer_deadline.is_elapsed_at(now) {
+                return Err(ProducerMachineError::Transition(
+                    TransitionError::DeadlineNotElapsed,
+                ));
+            }
+            return super::idempotence_transition::settle_waiting_identity_expiry(self, batch_id);
+        }
         if batch.state == super::BatchState::RetryWaiting {
             return self.retry_timer_fired(batch_id, generation, now);
         }
@@ -96,7 +110,7 @@ impl ProducerMachine {
                 batch.commit_timer_observation(observation, timer_update);
             }
             if let Some(seal) = seal {
-                effects.extend_from_slice(self.commit_seal(seal).effects());
+                effects.extend_from_slice(self.commit_seal(seal)?.effects());
                 return Ok(ProducerTransition::from_effects(effects));
             }
             if let Some((generation, deadline)) = timer_update {

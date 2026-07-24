@@ -86,10 +86,51 @@ fn materialized(producer: &mut ProducerMachine, batch_id: BatchId) -> Vec<Produc
         .to_vec()
 }
 
+fn assert_two_record_success(
+    effects: &[ProducerEffect],
+    batch_id: BatchId,
+    first: OperationId,
+    second: OperationId,
+) {
+    assert_eq!(effects.len(), 5);
+    assert_eq!(effects[0], ProducerEffect::ReleaseBatch { batch_id });
+    assert!(matches!(
+        effects[1..3],
+        [
+            ProducerEffect::ReleasePayload { payload_id: first_payload, .. },
+            ProducerEffect::ReleasePayload { payload_id: second_payload, .. },
+        ] if first_payload.get() == 1 && second_payload.get() == 2
+    ));
+    assert_eq!(
+        effects[3..],
+        [
+            ProducerEffect::Complete {
+                operation_id: first,
+                completion: ProducerCompletion::Delivered(RecordMetadata::new(
+                    PARTITION,
+                    70,
+                    Some(11),
+                    Some(3),
+                )),
+            },
+            ProducerEffect::Complete {
+                operation_id: second,
+                completion: ProducerCompletion::Delivered(RecordMetadata::new(
+                    PARTITION,
+                    71,
+                    Some(11),
+                    Some(3),
+                )),
+            },
+        ]
+    );
+}
+
 #[test]
 fn count_ready_batch_fans_success_out_in_membership_order() {
     let mut producer =
         ProducerMachine::with_batch_policy(ByteCount::new(128), 4, policy(2, 1_024, 50));
+    producer.install_identity_for_test();
     let (first, batch_id, first_tail) = admit(&mut producer, 1, 100);
     assert!(matches!(
         first_tail.as_slice(),
@@ -116,6 +157,10 @@ fn count_ready_batch_fans_success_out_in_membership_order() {
             ProducerEffect::MaterializeBatch {
                 execution: execution(batch_id),
                 compression: CompressionPolicy::Uncompressed,
+                identity: crate::ProducerIdentity::try_new(7, 2)
+                    .unwrap_or_else(|| panic!("valid test identity")),
+                sequence: crate::ProducerSequenceLease::try_new(0, 2)
+                    .unwrap_or_else(|| panic!("valid test sequence")),
             },
         ]
     );
@@ -152,48 +197,14 @@ fn count_ready_batch_fans_success_out_in_membership_order() {
             success: ProducerBatchSuccess::new(70, Some(11), Some(3)),
         })
         .unwrap_or_else(|error| panic!("success failed: {error}"));
-
-    assert_eq!(terminal.effects().len(), 5);
-    assert_eq!(
-        terminal.effects()[0],
-        ProducerEffect::ReleaseBatch { batch_id }
-    );
-    assert!(matches!(
-        terminal.effects()[1..3],
-        [
-            ProducerEffect::ReleasePayload { payload_id: first_payload, .. },
-            ProducerEffect::ReleasePayload { payload_id: second_payload, .. },
-        ] if first_payload.get() == 1 && second_payload.get() == 2
-    ));
-    assert_eq!(
-        terminal.effects()[3..],
-        [
-            ProducerEffect::Complete {
-                operation_id: first,
-                completion: ProducerCompletion::Delivered(RecordMetadata::new(
-                    PARTITION,
-                    70,
-                    Some(11),
-                    Some(3),
-                )),
-            },
-            ProducerEffect::Complete {
-                operation_id: second,
-                completion: ProducerCompletion::Delivered(RecordMetadata::new(
-                    PARTITION,
-                    71,
-                    Some(11),
-                    Some(3),
-                )),
-            },
-        ]
-    );
+    assert_two_record_success(terminal.effects(), batch_id, first, second);
 }
 
 #[test]
 fn conservative_accumulator_size_threshold_is_core_owned() {
     let mut producer =
         ProducerMachine::with_batch_policy(ByteCount::new(64), 2, policy(10, 100, 50));
+    producer.install_identity_for_test();
     let (operation_id, batch_id, _) = admit(&mut producer, 1, 100);
     assert_eq!(
         accumulated(&mut producer, operation_id, batch_id, 100),
@@ -205,6 +216,10 @@ fn conservative_accumulator_size_threshold_is_core_owned() {
             ProducerEffect::MaterializeBatch {
                 execution: execution(batch_id),
                 compression: CompressionPolicy::Uncompressed,
+                identity: crate::ProducerIdentity::try_new(7, 2)
+                    .unwrap_or_else(|| panic!("valid test identity")),
+                sequence: crate::ProducerSequenceLease::try_new(0, 1)
+                    .unwrap_or_else(|| panic!("valid test sequence")),
             },
         ]
     );
@@ -213,6 +228,7 @@ fn conservative_accumulator_size_threshold_is_core_owned() {
 #[test]
 fn broker_failure_preserves_semantic_code_and_certainty() {
     let mut producer = ProducerMachine::new(ByteCount::new(64), 1);
+    producer.install_identity_for_test();
     let (operation_id, batch_id, _) = admit(&mut producer, 1, 100);
     accumulated(&mut producer, operation_id, batch_id, 20);
     producer

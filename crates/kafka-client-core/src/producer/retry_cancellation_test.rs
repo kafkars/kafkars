@@ -6,7 +6,9 @@ use crate::{
     ProducerInput, ProducerOperationState,
 };
 
-use super::retry_test_support::{fire_retry, next, submitted, submitted_pair, transient_failure};
+use super::scenario_support::retry::{
+    admit_and_accumulate, fire_retry, next, submitted, submitted_pair, transient_failure,
+};
 
 #[test]
 fn sole_retry_waiting_member_cancels_the_current_execution_and_timer() {
@@ -57,6 +59,33 @@ fn sole_retry_waiting_member_cancels_the_current_execution_and_timer() {
                 .is_ok_and(|transition| transition.effects().is_empty())
         );
     }
+    producer
+        .apply(ProducerInput::CompletionReclaimed { operation_id })
+        .unwrap_or_else(|error| panic!("completion reclaim failed: {error}"));
+    let (_, _, sealed) = admit_and_accumulate(&mut producer, 2, 5, 30);
+    assert!(sealed.effects().iter().any(|effect| matches!(
+        effect,
+        ProducerEffect::MaterializeBatch { sequence, .. }
+            if sequence.base_sequence() == 0 && sequence.record_count() == 1
+    )));
+}
+
+#[test]
+fn missing_retry_sequence_lease_rejects_cancellation_without_mutation() {
+    let (mut producer, operation_id, first) = submitted(1, 2, 30);
+    transient_failure(&mut producer, first, 2);
+    producer
+        .batches
+        .get_mut(&first.batch_id())
+        .unwrap_or_else(|| panic!("retry-waiting batch missing"))
+        .sequence_lease = None;
+    let before = format!("{producer:?}");
+
+    assert_eq!(
+        producer.apply(ProducerInput::CancelRequested { operation_id }),
+        Err(crate::ProducerMachineError::ProducerIdentityFenced)
+    );
+    assert_eq!(format!("{producer:?}"), before);
 }
 
 #[test]
@@ -127,6 +156,10 @@ fn shared_retry_cancellation_revises_survivors_and_replaces_timer() {
         [ProducerEffect::MaterializeBatch {
             execution: third,
             compression: crate::CompressionPolicy::Uncompressed,
+            identity: crate::ProducerIdentity::try_new(7, 2)
+                .unwrap_or_else(|| panic!("valid test identity")),
+            sequence: crate::ProducerSequenceLease::try_new(0, 1)
+                .unwrap_or_else(|| panic!("valid test sequence")),
         }]
     );
     assert_eq!(producer.flush_slots(), 1);

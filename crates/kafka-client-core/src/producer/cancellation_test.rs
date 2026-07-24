@@ -60,6 +60,7 @@ fn open_member_cancellation_releases_exact_resources_and_remains_terminal() {
 #[test]
 fn cancellation_seals_a_linger_elapsed_open_survivor() {
     let mut producer = ProducerMachine::with_batch_policy(ByteCount::new(64), 2, policy(10));
+    producer.install_identity_for_test();
     let (survivor, batch_id) = admit(&mut producer, 1);
     accumulate(&mut producer, survivor, batch_id);
     let (cancelled, _) = admit(&mut producer, 2);
@@ -121,6 +122,7 @@ fn cancellation_terminal_precedes_close_barrier_completion() {
 #[test]
 fn submitted_cancellation_is_too_late_without_mutation() {
     let mut producer = ProducerMachine::new(ByteCount::new(64), 1);
+    producer.install_identity_for_test();
     let (operation_id, batch_id) = admit(&mut producer, 1);
     accumulate(&mut producer, operation_id, batch_id);
     let execution = BatchExecutionId::new(batch_id, BatchExecutionGeneration::initial());

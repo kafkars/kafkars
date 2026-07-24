@@ -8,7 +8,7 @@ use crate::{
     ProducerEffect, ProducerFailureKind, ProducerInput,
 };
 
-use super::retry_test_support::{
+use super::scenario_support::retry::{
     fire_retry, has_retry, materialize_and_submit, next, submitted, transient_failure,
 };
 

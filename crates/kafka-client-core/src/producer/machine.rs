@@ -8,7 +8,7 @@ use crate::{
     ProducerOperation, ProducerRetryPolicy, producer_transition_effect_capacity,
 };
 
-use super::{BatchRoute, FlushLedger, ProducerBatch};
+use super::{BatchRoute, FlushLedger, ProducerBatch, idempotence::IdempotentProducer};
 
 /// Single-owner deterministic producer admission and completion machine.
 #[derive(Debug)]
@@ -18,6 +18,7 @@ pub struct ProducerMachine {
     pub(crate) next_batch_id: Option<BatchId>,
     pub(crate) batch_policy: ProducerBatchPolicy,
     pub(crate) retry_policy: ProducerRetryPolicy,
+    pub(crate) idempotence: IdempotentProducer,
     pub(crate) byte_budget: ByteBudget,
     pub(crate) completions: CompletionLedger,
     pub(crate) flushes: FlushLedger,
@@ -99,6 +100,7 @@ impl ProducerMachine {
             next_batch_id: Some(BatchId::from_raw(1)),
             batch_policy,
             retry_policy,
+            idempotence: IdempotentProducer::new(),
             byte_budget: ByteBudget::new(retained_bytes),
             completions: CompletionLedger::new(completion_capacity),
             flushes: FlushLedger::new(flush_capacity),

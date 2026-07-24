@@ -39,6 +39,8 @@ pub(crate) enum ProducerStoreError {
     BatchRouteMismatch,
     /// A batch has no records to materialize.
     EmptyBatch,
+    /// A batch has more records than Kafka's producer sequence domain.
+    BatchRecordCountOutOfRange,
     /// A batch was already taken for materialization.
     BatchAlreadyMaterialized,
     /// A mechanism named a non-current sealed-batch execution.
@@ -72,6 +74,9 @@ impl fmt::Display for ProducerStoreError {
             Self::UnknownBatchMember => "operation is not a member of the producer batch",
             Self::BatchRouteMismatch => "producer batch contains inconsistent routes",
             Self::EmptyBatch => "producer batch has no records",
+            Self::BatchRecordCountOutOfRange => {
+                "producer batch record count exceeds Kafka's sequence domain"
+            }
             Self::BatchAlreadyMaterialized => "producer batch was already materialized",
             Self::StaleBatchExecution => "producer batch execution identity is stale",
             Self::PartitionOutOfRange => "producer partition exceeds the Kafka protocol range",

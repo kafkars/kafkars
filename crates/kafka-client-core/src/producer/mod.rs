@@ -1,5 +1,8 @@
 //! Atomic producer admission, retained capacity, and terminal settlement.
 
+mod admission_batching;
+#[cfg(test)]
+mod admission_batching_test;
 mod batch;
 mod batch_retry;
 #[cfg(test)]
@@ -9,46 +12,13 @@ mod batch_timer;
 mod batch_transition;
 mod batching;
 mod cancellation;
+mod cancellation_waiting;
 mod close_transition;
 mod execution_stop;
 #[cfg(test)]
 mod execution_stop_capacity_test;
-mod flush;
-mod flush_transition;
-mod input_batch;
-mod input_outcome;
-mod lifecycle;
-mod machine;
-mod partitioner;
-mod retry;
-#[cfg(test)]
-mod retry_cancellation_test;
-#[cfg(test)]
-mod retry_safety_test;
-#[cfg(test)]
-mod retry_test;
-#[cfg(test)]
-mod retry_test_support;
-mod settlement;
-mod sticky;
-mod topic_partition;
-mod topic_partitions;
-
-pub(crate) use batch::{
-    BatchAccumulation, BatchMember, BatchRemoval, BatchRevision, BatchRoute, BatchSeal, BatchState,
-    BatchTimerObservation, ProducerBatch,
-};
-pub(crate) use flush::FlushLedger;
-pub use flush::{AdmissionSequence, FlushId, FlushLedgerError};
-pub use machine::ProducerMachine;
-pub use partitioner::select_java_keyed_topic_partition;
-pub use partitioner::{KeyedPartitionError, PartitionCount, select_java_keyed_partition};
-pub use sticky::{StickyPartitionError, StickyPartitioner};
-pub use topic_partition::{
-    AvailablePartition, LeaderEpoch, LeaderEpochError, PartitionSelection, TopicMetadataGeneration,
-};
-pub use topic_partitions::{TopicPartitionFacts, TopicPartitionFactsError, TopicPartitionSource};
-
+mod exports;
+pub use exports::*;
 #[cfg(test)]
 mod cancellation_order_test;
 #[cfg(test)]
@@ -59,17 +29,52 @@ mod cancellation_test;
 mod close_transition_test;
 #[cfg(test)]
 mod execution_stop_test;
+mod flush;
 #[cfg(test)]
 mod flush_test;
+mod flush_transition;
 #[cfg(test)]
 mod flush_transition_test;
+mod idempotence;
+#[cfg(test)]
+mod idempotence_acquisition_test;
+#[cfg(test)]
+mod idempotence_fencing_test;
+mod idempotence_request_terminal;
+#[cfg(test)]
+mod idempotence_sequence_test;
+mod idempotence_transition;
+mod input_batch;
+mod input_outcome;
 #[cfg(test)]
 mod input_outcome_test;
+mod lifecycle;
+mod machine;
+mod partitioner;
 #[cfg(test)]
 mod partitioner_test;
+mod retry;
+#[cfg(test)]
+mod retry_cancellation_test;
+#[cfg(test)]
+mod retry_safety_test;
+#[cfg(test)]
+mod retry_test;
+mod retry_timer;
+#[cfg(test)]
+mod retry_timer_test;
+#[cfg(test)]
+mod scenario_support;
+mod settlement;
+mod settlement_failure;
+#[cfg(test)]
+mod settlement_failure_test;
+mod sticky;
 #[cfg(test)]
 mod sticky_test;
+mod topic_partition;
 #[cfg(test)]
 mod topic_partition_test;
+mod topic_partitions;
 #[cfg(test)]
 mod topic_partitions_test;

@@ -41,3 +41,5 @@ pub use transaction::{
 mod client_test;
 #[cfg(test)]
 mod error_test;
+#[cfg(test)]
+mod silent_broker_test;

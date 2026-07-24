@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::BatchExecutionId;
+use kafka_client_core::{BatchExecutionId, ProducerIdentity, ProducerSequenceLease};
 
 use super::ProducerStore;
 use crate::producer::{
@@ -13,10 +13,12 @@ use crate::producer::{
 
 impl ProducerStore {
     /// Begins one exact attempt and borrows shared handles from canonical records.
-    pub(crate) fn materialization_view(
+    pub(crate) fn materialization_view_idempotent(
         &mut self,
         execution: BatchExecutionId,
         max_batch_bytes: usize,
+        identity: ProducerIdentity,
+        sequence: ProducerSequenceLease,
     ) -> Result<(MaterializationAttempt, MaterializationBatch), ProducerStoreError> {
         self.batches.seal_for_materialization(execution)?;
         let (attempt, plan) = self.batches.begin_materialization(execution)?;
@@ -47,11 +49,13 @@ impl ProducerStore {
                         .map(ProducerRecord::materialization_view)
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            Ok(MaterializationBatch::new(
+            Ok(MaterializationBatch::idempotent(
                 topic,
                 partition,
                 records,
                 max_batch_bytes,
+                identity,
+                sequence,
             ))
         })();
         match view {
@@ -61,5 +65,28 @@ impl ProducerStore {
                 MaterializationAbort::Superseded => Err(ProducerStoreError::StaleBatchExecution),
             },
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn materialization_view(
+        &mut self,
+        execution: BatchExecutionId,
+        max_batch_bytes: usize,
+    ) -> Result<(MaterializationAttempt, MaterializationBatch), ProducerStoreError> {
+        let identity =
+            ProducerIdentity::try_new(1, 0).ok_or(ProducerStoreError::StaleBatchExecution)?;
+        let record_count = self.batches.record_count(execution.batch_id())?;
+        let sequence = ProducerSequenceLease::try_new(0, record_count)
+            .ok_or(ProducerStoreError::StaleBatchExecution)?;
+        self.materialization_view_idempotent(execution, max_batch_bytes, identity, sequence)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn sequence_for_test(
+        &self,
+        execution: BatchExecutionId,
+    ) -> Result<ProducerSequenceLease, ProducerStoreError> {
+        let record_count = self.batches.record_count(execution.batch_id())?;
+        ProducerSequenceLease::try_new(0, record_count).ok_or(ProducerStoreError::EmptyBatch)
     }
 }

@@ -31,6 +31,9 @@ pub(crate) fn recover(
     resources.discard_driver_after_shutdown();
     resources.produce_calls.discard_after_driver_shutdown();
     resources
+        .producer_identity_calls
+        .discard_after_driver_shutdown();
+    resources
         .create_topics_calls
         .discard_after_driver_shutdown();
     resources

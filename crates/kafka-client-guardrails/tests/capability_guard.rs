@@ -51,6 +51,7 @@ fn forbidden_capability_aliases_are_rejected() {
     let rules = [CapabilityRule {
         root: "src".to_owned(),
         forbidden: vec!["std::net".to_owned(), "std::sync::Mutex".to_owned()],
+        allow: Vec::new(),
     }];
     let violations = capability_violations(&root, &rules);
 
@@ -89,6 +90,7 @@ fn unbounded_channel_and_method_call_capabilities_are_rejected() {
             "dispatch_all_pending_notifications".to_owned(),
             "std::sync::mpsc::channel".to_owned(),
         ],
+        allow: Vec::new(),
     }];
     let violations = capability_violations(&root, &rules);
 
@@ -121,6 +123,7 @@ fn exact_file_roots_have_positive_and_negative_method_call_evidence() {
         &[CapabilityRule {
             root: "src/method_call.rs".to_owned(),
             forbidden: forbidden.to_vec(),
+            allow: Vec::new(),
         }],
     );
     assert!(
@@ -135,6 +138,7 @@ fn exact_file_roots_have_positive_and_negative_method_call_evidence() {
         &[CapabilityRule {
             root: "src/glob.rs".to_owned(),
             forbidden: forbidden.to_vec(),
+            allow: Vec::new(),
         }],
     );
     assert!(
@@ -156,6 +160,7 @@ fn shared_driver_rejects_every_concrete_domain_import() {
                 "crate::producer".to_owned(),
                 "crate::transaction".to_owned(),
             ],
+            allow: Vec::new(),
         }],
     );
 
@@ -188,6 +193,7 @@ fn engine_admin_rejects_transport_and_sibling_policy_imports() {
                 "kafka_driver".to_owned(),
                 "kafka_wire".to_owned(),
             ],
+            allow: Vec::new(),
         }],
     );
 

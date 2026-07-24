@@ -88,7 +88,7 @@ fn owner() -> PreparedExecution {
 }
 
 fn retain(owner: &mut PreparedExecution, execution: BatchExecutionId) {
-    let materialized = materialize_explicit_produce_batch(MaterializationBatch::new(
+    let batch = MaterializationBatch::try_for_test(
         "orders".to_owned(),
         0,
         vec![MaterializationRecord::new(
@@ -98,8 +98,10 @@ fn retain(owner: &mut PreparedExecution, execution: BatchExecutionId) {
             Vec::new(),
         )],
         usize::MAX,
-    ))
-    .unwrap_or_else(|error| panic!("encoding failed: {error}"));
+    )
+    .unwrap_or_else(|| panic!("test materialization batch must be representable"));
+    let materialized = materialize_explicit_produce_batch(batch)
+        .unwrap_or_else(|error| panic!("encoding failed: {error}"));
     owner
         .retain_for_test(execution, materialized)
         .unwrap_or_else(|error| panic!("retention failed: {error}"));

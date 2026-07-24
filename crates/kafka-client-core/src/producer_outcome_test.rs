@@ -15,6 +15,7 @@ fn execution(batch_id: BatchId) -> BatchExecutionId {
 
 fn ready_batch() -> (ProducerMachine, OperationId, BatchId) {
     let mut producer = ProducerMachine::new(ByteCount::new(64), 1);
+    producer.install_identity_for_test();
     let admitted = producer
         .apply(ProducerInput::AdmitExplicit {
             now: Moment::from_tick(0),
@@ -217,10 +218,11 @@ fn queued_deadline_fact_is_harmless_after_driver_or_terminal_ownership() {
 }
 
 #[test]
-fn older_batch_failure_preserves_the_newer_open_route() {
+fn unresolved_partition_rejects_a_new_batch_until_terminal() {
     let policy = ProducerBatchPolicy::try_new(2, ByteCount::new(20), 100)
         .unwrap_or_else(|error| panic!("valid policy: {error}"));
     let mut producer = ProducerMachine::with_batch_policy(ByteCount::new(128), 4, policy);
+    producer.install_identity_for_test();
     let admit = |producer: &mut ProducerMachine, payload| {
         producer
             .apply(ProducerInput::AdmitExplicit {
@@ -253,24 +255,30 @@ fn older_batch_failure_preserves_the_newer_open_route() {
         })
         .unwrap_or_else(|error| panic!("first accumulation failed: {error}"));
 
-    let second = admit(&mut producer, 2);
-    let Some(ProducerEffect::AccumulateExplicit {
-        batch_id: newer_batch,
-        ..
-    }) = second.effects().first()
-    else {
-        panic!("missing second accumulation")
-    };
-    assert_ne!(newer_batch, older_batch);
+    assert_eq!(
+        producer.apply(ProducerInput::AdmitExplicit {
+            now: Moment::from_tick(0),
+            deadline: Deadline::from_tick(100),
+            record: ExplicitRecord::new(
+                PayloadId::from_raw(2),
+                TopicId::from_raw(1),
+                PartitionIndex::from_raw(0),
+                ByteCount::new(32),
+            ),
+        }),
+        Err(ProducerMachineError::Admission(
+            crate::AdmissionRejection::AccumulatorPending,
+        ))
+    );
     producer
         .apply(ProducerInput::BatchMaterializationFailed {
             execution: execution(*older_batch),
         })
         .unwrap_or_else(|error| panic!("older batch failure failed: {error}"));
 
-    let third = admit(&mut producer, 3);
+    let second = admit(&mut producer, 2);
     assert!(matches!(
-        third.effects().first(),
-        Some(ProducerEffect::AccumulateExplicit { batch_id, .. }) if batch_id == newer_batch
+        second.effects().first(),
+        Some(ProducerEffect::AccumulateExplicit { batch_id, .. }) if batch_id != older_batch
     ));
 }

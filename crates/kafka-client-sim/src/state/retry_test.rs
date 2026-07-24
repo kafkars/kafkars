@@ -3,7 +3,7 @@
 use kafka_client_core::{
     AcknowledgementPolicy, BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount,
     CompressionPolicy, Deadline, ExplicitRecord, OperationId, PartitionIndex, PayloadId,
-    ProducerEffect, TopicId,
+    ProducerEffect, ProducerIdentity, ProducerSequenceLease, TopicId,
 };
 
 use crate::{SimulationError, state::VirtualProducerState};
@@ -113,6 +113,10 @@ fn materialize(execution: BatchExecutionId) -> ProducerEffect {
     ProducerEffect::MaterializeBatch {
         execution,
         compression: CompressionPolicy::Uncompressed,
+        identity: ProducerIdentity::try_new(1, 0)
+            .unwrap_or_else(|| panic!("test identity must be valid")),
+        sequence: ProducerSequenceLease::try_new(0, 1)
+            .unwrap_or_else(|| panic!("test sequence must be valid")),
     }
 }
 

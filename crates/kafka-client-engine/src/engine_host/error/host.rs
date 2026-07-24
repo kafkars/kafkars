@@ -9,10 +9,12 @@ use crate::{
     driver::{
         CreateTopicsCompletionFailure, DeleteTopicsCompletionFailure,
         DescribeClusterCompletionFailure, DriverOwnerError, ProduceCompletionFailure,
+        ProducerIdentityCompletionFailure,
     },
     producer::{
-        ProducerHostInvariantError, execution::PreparedProduceHandoffError,
-        execution_stop::ProducerExecutionStopError, ingress::ProducerShardTerminalError,
+        ProducerHostInvariantError, ProducerIdentityHandoffError,
+        execution::PreparedProduceHandoffError, execution_stop::ProducerExecutionStopError,
+        ingress::ProducerShardTerminalError,
     },
 };
 
@@ -21,7 +23,9 @@ pub(crate) enum EngineHostError {
     Clock(ClockError),
     Producer(ProducerHostInvariantError),
     ProducerHandoff(PreparedProduceHandoffError),
+    ProducerIdentityHandoff(ProducerIdentityHandoffError),
     ProduceCompletion(ProduceCompletionFailure),
+    ProducerIdentityCompletion(ProducerIdentityCompletionFailure),
     ProducerStop(ProducerExecutionStopError),
     ProducerCleanup(ProducerShardTerminalError),
     ProducerLockPoisoned,
@@ -39,6 +43,7 @@ pub(crate) enum EngineHostError {
     DriverOwnerMissing,
     DriverStopped,
     TrackedProduceCallsRemain(usize),
+    TrackedProducerIdentityCallsRemain(usize),
     TrackedCreateTopicsCallsRemain(usize),
     TrackedDeleteTopicsCallsRemain(usize),
     DescribeClusterCallsRemain(usize),
@@ -60,7 +65,11 @@ impl fmt::Display for EngineHostError {
             Self::ProducerHandoff(error) => {
                 write!(formatter, "prepared Produce handoff failed: {error}")
             }
+            Self::ProducerIdentityHandoff(error) => {
+                write!(formatter, "producer identity handoff failed: {error}")
+            }
             Self::ProduceCompletion(error) => write!(formatter, "{error}"),
+            Self::ProducerIdentityCompletion(error) => write!(formatter, "{error}"),
             Self::ProducerStop(error) => write!(formatter, "producer recovery failed: {error}"),
             Self::ProducerCleanup(error) => {
                 write!(formatter, "producer terminal cleanup failed: {error}")
@@ -100,6 +109,10 @@ impl fmt::Display for EngineHostError {
                     "{count} tracked Produce calls remain at terminal cleanup"
                 )
             }
+            Self::TrackedProducerIdentityCallsRemain(count) => write!(
+                formatter,
+                "{count} tracked producer identity calls remain at terminal cleanup"
+            ),
             Self::TrackedCreateTopicsCallsRemain(count) => {
                 write!(
                     formatter,

@@ -5,7 +5,8 @@ use kafka_client_core::Moment;
 use crate::{
     clock::OperationDeadline,
     producer::{
-        ProducerHost, ProducerHostInvariantError, ProducerRecord,
+        ProducerHost, ProducerHostInvariantError, ProducerIdentityHandoffError,
+        ProducerIdentitySubmission, ProducerRecord,
         admission::{AdmittedExplicit, ProducerAdmissionFailure},
         cancellation::{ProducerHostCancelAccepted, ProducerHostCancelError},
         execution::{PreparedProduceHandoffError, PreparedProduceSubmission},
@@ -94,6 +95,12 @@ impl ProducerShardData {
         &mut self,
     ) -> Result<Option<PreparedProduceSubmission>, PreparedProduceHandoffError> {
         self.host.execution.take_next_driver_submission()
+    }
+
+    pub(crate) fn take_identity_submission(
+        &mut self,
+    ) -> Result<Option<ProducerIdentitySubmission>, ProducerIdentityHandoffError> {
+        self.host.take_identity_submission()
     }
 
     /// Applies one transport-owned fact while this shard is locked.

@@ -2,7 +2,8 @@
 
 use crate::{
     AdmissionSequence, BatchExecutionId, BatchId, BatchTimerGeneration, ByteCount, Deadline,
-    ExplicitRecord, FlushId, OperationId, PartitionIndex, PayloadId, ProducerCompletion, TopicId,
+    ExplicitRecord, FlushId, OperationId, PartitionIndex, PayloadId, ProducerCompletion,
+    ProducerIdentity, ProducerIdentityGeneration, ProducerSequenceLease, TopicId,
 };
 
 /// Maximum execution-stop mechanism effects emitted per live record.
@@ -63,6 +64,15 @@ pub enum CompressionPolicy {
 /// One mechanism request emitted by deterministic producer policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProducerEffect {
+    /// Lazily acquire one global nontransactional producer identity.
+    AcquireProducerIdentity {
+        /// Generation fencing a late identity result.
+        generation: ProducerIdentityGeneration,
+        /// Live operation proving ownership of the unchanged public deadline.
+        deadline_operation_id: OperationId,
+        /// Earliest waiting batch deadline captured at admission.
+        deadline: Deadline,
+    },
     /// Append engine-owned payload metadata to a core-selected batch.
     AccumulateExplicit {
         /// Stable public operation identity.
@@ -96,6 +106,10 @@ pub enum ProducerEffect {
         execution: BatchExecutionId,
         /// Required record-batch compression mode.
         compression: CompressionPolicy,
+        /// Broker-issued identity covered by the `RecordBatch` CRC.
+        identity: ProducerIdentity,
+        /// Partition-local sequence range covered by the `RecordBatch` CRC.
+        sequence: ProducerSequenceLease,
     },
     /// Revoke one exact sealed execution and replace its membership atomically.
     ReviseBatchExecution {

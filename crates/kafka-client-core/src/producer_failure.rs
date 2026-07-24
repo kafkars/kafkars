@@ -79,6 +79,17 @@ impl ProducerFailure {
         Self::new(ProducerFailureKind::Transport, delivery)
     }
 
+    pub(crate) const fn producer_identity(broker_code: Option<core::num::NonZeroI16>) -> Self {
+        Self {
+            kind: ProducerFailureKind::ProducerIdentity,
+            delivery: DeliveryStatus::NotSent,
+            broker_code: match broker_code {
+                Some(code) => Some(code.get()),
+                None => None,
+            },
+        }
+    }
+
     /// Creates a permanent execution-loss failure with conservative certainty.
     ///
     /// Production mechanisms use this only as terminal fallback when the

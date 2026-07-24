@@ -1,12 +1,13 @@
 //! Stage-aware per-record cancellation before driver ownership.
 
 use crate::{
-    CompressionPolicy, OperationId, ProducerCancellationOutcome, ProducerCompletion,
-    ProducerEffect, ProducerFailure, ProducerMachineError, ProducerOperationState,
-    ProducerTransition, TransitionError,
+    OperationId, ProducerCancellationOutcome, ProducerCompletion, ProducerEffect, ProducerFailure,
+    ProducerMachineError, ProducerOperationState, ProducerTransition, TransitionError,
 };
 
-use super::{BatchState, ProducerMachine, lifecycle::Settlement};
+use super::{
+    BatchState, ProducerMachine, idempotence_transition::materialize_effect, lifecycle::Settlement,
+};
 
 impl ProducerMachine {
     pub(crate) fn cancel_requested(
@@ -70,19 +71,32 @@ impl ProducerMachine {
             .ok_or(ProducerMachineError::UnknownBatch)?;
         if !matches!(
             batch.state,
-            BatchState::Materializing | BatchState::AwaitingDriver
+            BatchState::AwaitingIdentity | BatchState::Materializing | BatchState::AwaitingDriver
         ) {
             return Err(ProducerMachineError::Transition(
                 TransitionError::InvalidState,
             ));
         }
         let revision = batch.plan_revision(batch_id, operation_id)?;
+        if batch.state == BatchState::AwaitingIdentity {
+            return self.cancel_identity_waiting_member(
+                batch_id,
+                operation_id,
+                revision,
+                batch.timer_generation,
+            );
+        }
         let survivors = revision
             .members
             .iter()
             .map(|member| member.operation_id)
             .collect::<Vec<_>>();
         self.require_batch_execution_restart(&survivors, batch_id)?;
+        let sequence_release = revision
+            .replacement
+            .is_none()
+            .then(|| self.plan_sequence_not_sent(batch_id))
+            .transpose()?;
         let failure = ProducerFailure::cancelled();
         let mut terminal =
             self.terminal_effects(&[operation_id], |_| ProducerCompletion::Failed(failure))?;
@@ -100,6 +114,9 @@ impl ProducerMachine {
         } else {
             self.batches.remove(&batch_id);
         }
+        if let Some(sequence_release) = sequence_release {
+            self.commit_sequence_not_sent(sequence_release);
+        }
         let flush_effects = self.settle_ready_flushes();
 
         let mut effects = Vec::with_capacity(
@@ -116,82 +133,19 @@ impl ProducerMachine {
         effects.append(&mut terminal);
         effects.extend(flush_effects);
         if let Some(execution) = replacement {
-            effects.push(ProducerEffect::MaterializeBatch {
-                execution,
-                compression: CompressionPolicy::Uncompressed,
-            });
-        }
-        Ok(resolved(
-            ProducerCancellationOutcome::CancelledNotSent,
-            effects,
-        ))
-    }
-
-    fn cancel_retry_waiting_member(
-        &mut self,
-        batch_id: crate::BatchId,
-        operation_id: OperationId,
-    ) -> Result<ProducerTransition, ProducerMachineError> {
-        let batch = self
-            .batches
-            .get(&batch_id)
-            .ok_or(ProducerMachineError::UnknownBatch)?;
-        if batch.state != BatchState::RetryWaiting {
-            return Err(ProducerMachineError::Transition(
-                TransitionError::InvalidState,
-            ));
-        }
-        let revision = batch.plan_retry_revision(batch_id, operation_id)?;
-        let previous = revision.batch.previous;
-        let replacement = revision.batch.replacement;
-        let cancelled_generation = revision.previous_timer;
-        let timer_generation = revision.replacement_timer;
-        let timer_deadline = revision.timer_deadline;
-        let failure = ProducerFailure::cancelled();
-        let mut terminal =
-            self.terminal_effects(&[operation_id], |_| ProducerCompletion::Failed(failure))?;
-        self.settle_operations(&[operation_id], Settlement::Cancelled)?;
-
-        if let Some(replacement) = replacement {
             let batch = self
                 .batches
-                .get_mut(&batch_id)
+                .get(&batch_id)
                 .ok_or(ProducerMachineError::UnknownBatch)?;
-            debug_assert_eq!(
-                revision.batch.replacement,
-                Some(replacement),
-                "preflighted replacement changed before commit",
-            );
-            batch.commit_retry_revision(revision);
-        } else {
-            self.batches.remove(&batch_id);
+            let identity = self
+                .idempotence
+                .identity()
+                .ok_or(ProducerMachineError::ProducerIdentityFenced)?;
+            let sequence = batch
+                .sequence_lease()
+                .ok_or(ProducerMachineError::ProducerIdentityFenced)?;
+            effects.push(materialize_effect(execution, identity, sequence));
         }
-        let flush_effects = self.settle_ready_flushes();
-        let mut effects = Vec::with_capacity(
-            terminal
-                .len()
-                .saturating_add(flush_effects.len())
-                .saturating_add(2),
-        );
-        effects.push(ProducerEffect::ReviseBatchExecution {
-            previous,
-            replacement,
-            removed_operation_id: operation_id,
-        });
-        if let Some(generation) = timer_generation {
-            effects.push(ProducerEffect::ArmBatchTimer {
-                batch_id,
-                generation,
-                deadline: timer_deadline,
-            });
-        } else {
-            effects.push(ProducerEffect::CancelBatchTimer {
-                batch_id,
-                generation: cancelled_generation,
-            });
-        }
-        effects.append(&mut terminal);
-        effects.extend(flush_effects);
         Ok(resolved(
             ProducerCancellationOutcome::CancelledNotSent,
             effects,
@@ -199,7 +153,7 @@ impl ProducerMachine {
     }
 }
 
-fn resolved(
+pub(super) fn resolved(
     outcome: ProducerCancellationOutcome,
     effects: Vec<ProducerEffect>,
 ) -> ProducerTransition {

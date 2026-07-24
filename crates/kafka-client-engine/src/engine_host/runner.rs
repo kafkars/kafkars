@@ -9,7 +9,7 @@ use crate::{
     clock::MonotonicClock,
     driver::{
         DescribeClusterCalls, DriverOwner, DriverTurn, TrackedCreateTopicsCalls,
-        TrackedDeleteTopicsCalls, TrackedProduceCalls,
+        TrackedDeleteTopicsCalls, TrackedProduceCalls, TrackedProducerIdentityCalls,
     },
     producer::{
         host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
@@ -40,6 +40,7 @@ pub(crate) struct EngineHostResources {
     pub(super) control: Arc<EngineHostControl>,
     pub(super) budget: ProducerTurnBudget,
     pub(super) produce_calls: TrackedProduceCalls,
+    pub(super) producer_identity_calls: TrackedProducerIdentityCalls,
     pub(super) create_topics_calls: TrackedCreateTopicsCalls,
     pub(super) delete_topics_calls: TrackedDeleteTopicsCalls,
     pub(super) describe_cluster_calls: DescribeClusterCalls,
@@ -102,6 +103,7 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
         let completion_now = resources.clock.now().map_err(EngineHostError::Clock)?;
         let completion_progress = produce_turn::apply_completions(
             &resources.producer,
+            &mut resources.producer_identity_calls,
             &mut resources.produce_calls,
             completion_now,
         )?;

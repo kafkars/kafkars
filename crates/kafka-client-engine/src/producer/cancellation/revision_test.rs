@@ -110,6 +110,10 @@ fn stale_pending_generation_fails_without_engine_or_core_mutation() {
     let retained_effect = ProducerEffect::MaterializeBatch {
         execution: stale,
         compression: kafka_client_core::CompressionPolicy::Uncompressed,
+        identity: kafka_client_core::ProducerIdentity::try_new(1, 0)
+            .unwrap_or_else(|| panic!("valid test identity")),
+        sequence: kafka_client_core::ProducerSequenceLease::try_new(0, 2)
+            .unwrap_or_else(|| panic!("valid test sequence")),
     };
     host.pending_effects[0] = retained_effect;
     let before = host.stats();

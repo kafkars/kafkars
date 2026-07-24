@@ -12,6 +12,7 @@ const BYTES: ByteCount = ByteCount::new(11);
 #[test]
 fn close_atomically_captures_drain_barrier_before_rejecting_new_records() {
     let mut producer = ProducerMachine::new(ByteCount::new(64), 2);
+    producer.install_identity_for_test();
     let (operation_id, batch_id) = admit(&mut producer, 1);
 
     let close = producer

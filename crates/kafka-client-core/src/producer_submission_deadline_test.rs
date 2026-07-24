@@ -22,7 +22,10 @@ fn record(payload: u64) -> ExplicitRecord {
 fn producer(max_records: usize, linger: u64) -> ProducerMachine {
     let policy = ProducerBatchPolicy::try_new(max_records, ByteCount::new(1_024), linger)
         .unwrap_or_else(|error| panic!("valid policy: {error}"));
-    ProducerMachine::with_batch_policy(ByteCount::new(1_024), max_records, policy)
+    let mut producer =
+        ProducerMachine::with_batch_policy(ByteCount::new(1_024), max_records, policy);
+    producer.install_identity_for_test();
+    producer
 }
 
 fn admit(producer: &mut ProducerMachine, payload: u64, deadline: u64) -> (OperationId, BatchId) {

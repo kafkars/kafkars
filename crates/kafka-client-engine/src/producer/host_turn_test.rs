@@ -36,6 +36,8 @@ fn busy_timer_stage_cannot_starve_prepared_work() {
         Deadline::from_tick(200),
         record("payments"),
     );
+    assert_eq!(host.fire_due(Moment::from_tick(100), 1), Ok(1));
+    super::test_identity::acquire_host_if_pending(&mut host, Moment::from_tick(100));
 
     let outcome = host
         .turn(Moment::from_tick(100), one_each())
@@ -46,15 +48,21 @@ fn busy_timer_stage_cannot_starve_prepared_work() {
     assert_eq!(outcome.submission_expiries, 0);
     assert_eq!(outcome.completion_retries, 0);
     assert_eq!(outcome.reclaim_attempts, 0);
-    assert_eq!(outcome.next_deadline, Some(Deadline::from_tick(100)));
+    assert_eq!(outcome.next_deadline, Some(Deadline::from_tick(200)));
     assert!(outcome.runnable_work);
     assert!(!outcome.blocked_work);
-    assert_eq!(host.stats().active_timers, 1);
+    assert_eq!(host.stats().active_timers, 0);
     assert_eq!(host.stats().prepared_batches, 1);
-    assert!(matches!(
-        host.pending_effects(),
-        [ProducerEffect::SubmitProduce { .. }]
-    ));
+    assert!(
+        host.pending_effects()
+            .iter()
+            .any(|effect| matches!(effect, ProducerEffect::SubmitProduce { .. }))
+    );
+    assert!(
+        host.pending_effects()
+            .iter()
+            .any(|effect| matches!(effect, ProducerEffect::MaterializeBatch { .. }))
+    );
     drop(first);
     drop(second);
 }

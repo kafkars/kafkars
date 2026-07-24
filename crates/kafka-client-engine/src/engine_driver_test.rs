@@ -7,12 +7,14 @@ use bytes::Bytes;
 use crate::{
     Engine, EngineConfig, ProducerDeliveryError, ProducerDeliveryFailureKind,
     ProducerDeliveryStatus, ProducerHandle, ProducerRecord, ProducerSendOptions,
+    silent_broker_test::SilentBroker,
 };
 
 #[test]
 fn tracked_produce_failure_parks_without_spinning() {
     let timeout = Duration::from_millis(200);
-    let engine = start(timeout);
+    let broker = SilentBroker::start();
+    let engine = start(timeout, broker.endpoint());
     let accepted = admit(&engine.producer(), timeout);
     assert!(accepted.fault().is_none());
 
@@ -32,18 +34,18 @@ fn tracked_produce_failure_parks_without_spinning() {
         "tracked Produce failure must not accumulate driver turns: {before:?} -> {after:?}"
     );
     let Err(ProducerDeliveryError::Failed(failure)) = accepted.into_observer().wait() else {
-        panic!("driver-owned work must report its transport failure")
+        panic!("silent broker work must fail at its public deadline")
     };
-    assert_eq!(failure.kind(), ProducerDeliveryFailureKind::Transport);
+    assert_eq!(failure.kind(), ProducerDeliveryFailureKind::DeadlineElapsed);
     assert_eq!(failure.delivery_status(), ProducerDeliveryStatus::NotSent);
     engine
         .shutdown()
         .unwrap_or_else(|error| panic!("clean engine shutdown should join: {error}"));
 }
 
-fn start(timeout: Duration) -> Engine {
+fn start(timeout: Duration, endpoint: String) -> Engine {
     Engine::start(
-        EngineConfig::new(vec!["192.0.2.1:9092".to_owned()])
+        EngineConfig::new(vec![endpoint])
             .with_delivery_timeout(timeout)
             .with_producer_retry(0, Duration::ZERO),
     )

@@ -174,7 +174,7 @@ fn retain(
 }
 
 fn prepared(value: &'static [u8]) -> MaterializedProduce {
-    materialize_explicit_produce_batch(MaterializationBatch::new(
+    let batch = MaterializationBatch::try_for_test(
         "orders".to_owned(),
         4,
         vec![MaterializationRecord::new(
@@ -184,6 +184,8 @@ fn prepared(value: &'static [u8]) -> MaterializedProduce {
             Vec::new(),
         )],
         usize::MAX,
-    ))
-    .unwrap_or_else(|error| panic!("test materialization failed: {error}"))
+    )
+    .unwrap_or_else(|| panic!("test materialization batch must be representable"));
+    materialize_explicit_produce_batch(batch)
+        .unwrap_or_else(|error| panic!("test materialization failed: {error}"))
 }

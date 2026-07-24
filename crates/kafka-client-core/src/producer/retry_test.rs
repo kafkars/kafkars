@@ -7,7 +7,7 @@ use crate::{
     TransitionError,
 };
 
-use super::retry_test_support::{
+use super::scenario_support::retry::{
     RETAINED, fire_retry, materialize_and_submit, next, submitted, transient_failure,
 };
 
@@ -64,6 +64,10 @@ fn definitely_unsent_transient_failure_retries_with_a_fresh_execution() {
         [ProducerEffect::MaterializeBatch {
             execution: second,
             compression: crate::CompressionPolicy::Uncompressed,
+            identity: crate::ProducerIdentity::try_new(7, 2)
+                .unwrap_or_else(|| panic!("valid test identity")),
+            sequence: crate::ProducerSequenceLease::try_new(0, 1)
+                .unwrap_or_else(|| panic!("valid test sequence")),
         }]
     );
 }

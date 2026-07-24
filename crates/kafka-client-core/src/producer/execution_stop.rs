@@ -55,7 +55,10 @@ impl ProducerMachine {
 
         for (batch_id, batch) in &self.batches {
             let delivery = delivery_for(batch.state);
-            if matches!(batch.state, BatchState::Open | BatchState::RetryWaiting) {
+            if matches!(
+                batch.state,
+                BatchState::Open | BatchState::AwaitingIdentity | BatchState::RetryWaiting
+            ) {
                 effects.push(ProducerEffect::CancelBatchTimer {
                     batch_id: *batch_id,
                     generation: batch.timer_generation,
@@ -127,6 +130,7 @@ impl ProducerMachine {
 const fn delivery_for(state: BatchState) -> DeliveryStatus {
     match state {
         BatchState::Open
+        | BatchState::AwaitingIdentity
         | BatchState::Materializing
         | BatchState::AwaitingDriver
         | BatchState::RetryWaiting => DeliveryStatus::NotSent,
@@ -141,25 +145,32 @@ fn stage_matches(
 ) -> bool {
     matches!(
         (state, batch_state),
-        (ProducerOperationState::Accumulating { batch_id: actual, .. }, BatchState::Open)
-            | (
-                ProducerOperationState::Materializing { batch_id: actual, .. },
-                BatchState::Materializing
-            )
-            | (
-                ProducerOperationState::AwaitingDriver { batch_id: actual, .. },
-                BatchState::AwaitingDriver
-            )
-            | (
-                ProducerOperationState::Submitted { batch_id: actual, .. },
-                BatchState::Submitted
-            )
-            | (
-                ProducerOperationState::RetryWaiting {
-                    batch_id: actual, ..
-                },
-                BatchState::RetryWaiting
-            ) if actual == batch_id
+        (
+            ProducerOperationState::Accumulating {
+                batch_id: actual, ..
+            },
+            BatchState::Open,
+        ) | (
+            ProducerOperationState::Materializing {
+                batch_id: actual, ..
+            },
+            BatchState::AwaitingIdentity | BatchState::Materializing,
+        ) | (
+            ProducerOperationState::AwaitingDriver {
+                batch_id: actual, ..
+            },
+            BatchState::AwaitingDriver,
+        ) | (
+            ProducerOperationState::Submitted {
+                batch_id: actual, ..
+            },
+            BatchState::Submitted,
+        ) | (
+            ProducerOperationState::RetryWaiting {
+                batch_id: actual, ..
+            },
+            BatchState::RetryWaiting,
+        ) if actual == batch_id
     )
 }
 

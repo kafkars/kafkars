@@ -7,6 +7,7 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
+use kafka_client_core::{ProducerIdentity, ProducerSequenceLease};
 
 /// One header transferred from engine retention to protocol materialization.
 #[derive(Debug, Eq, PartialEq)]
@@ -78,24 +79,71 @@ pub(crate) struct MaterializationBatch {
     partition: i32,
     records: Vec<MaterializationRecord>,
     max_batch_bytes: usize,
+    identity: ProducerIdentity,
+    sequence: ProducerSequenceLease,
 }
 
 impl MaterializationBatch {
-    pub(crate) fn new(
+    #[cfg(test)]
+    pub(crate) fn try_for_test(
         topic: impl Into<Arc<str>>,
         partition: i32,
         records: Vec<MaterializationRecord>,
         max_batch_bytes: usize,
+    ) -> Option<Self> {
+        let identity = ProducerIdentity::try_new(1, 0)?;
+        let count = u32::try_from(records.len().max(1)).ok()?;
+        let sequence = ProducerSequenceLease::try_new(0, count)?;
+        Some(Self::idempotent(
+            topic,
+            partition,
+            records,
+            max_batch_bytes,
+            identity,
+            sequence,
+        ))
+    }
+
+    pub(crate) fn idempotent(
+        topic: impl Into<Arc<str>>,
+        partition: i32,
+        records: Vec<MaterializationRecord>,
+        max_batch_bytes: usize,
+        identity: ProducerIdentity,
+        sequence: ProducerSequenceLease,
     ) -> Self {
         Self {
             topic: topic.into(),
             partition,
             records,
             max_batch_bytes,
+            identity,
+            sequence,
         }
     }
 
     /// Consumes the batch into the existing protocol materializer's fields.
+    pub(crate) fn into_idempotent_parts(
+        self,
+    ) -> (
+        Arc<str>,
+        i32,
+        Vec<MaterializationRecord>,
+        usize,
+        ProducerIdentity,
+        ProducerSequenceLease,
+    ) {
+        (
+            self.topic,
+            self.partition,
+            self.records,
+            self.max_batch_bytes,
+            self.identity,
+            self.sequence,
+        )
+    }
+
+    #[cfg(test)]
     pub(crate) fn into_parts(self) -> (Arc<str>, i32, Vec<MaterializationRecord>, usize) {
         (
             self.topic,

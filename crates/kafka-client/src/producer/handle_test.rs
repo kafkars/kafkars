@@ -7,11 +7,13 @@ use bytes::Bytes;
 use crate::{
     Client, Delivery, DeliveryStatus, ErrorKind, Producer,
     record::{Header, Record, RecordParts},
+    silent_broker_test::SilentBroker,
 };
 
 #[test]
 fn accepted_record_returns_public_delivery_with_one_end_to_end_timeout() {
-    let client = build_client();
+    let broker = SilentBroker::start();
+    let client = build_client_at(broker.endpoint());
     let producer = client
         .producer()
         .delivery_timeout(Duration::from_millis(50))
@@ -27,7 +29,7 @@ fn accepted_record_returns_public_delivery_with_one_end_to_end_timeout() {
 
     let delivery = admit_with_backpressure_retry(&producer, record, &retained);
     let Err(error) = delivery.wait() else {
-        panic!("pre-driver work should expire at its public deadline")
+        panic!("a silent broker cannot initialize the producer before its deadline")
     };
 
     assert_eq!(error.kind(), ErrorKind::Timeout);
@@ -157,7 +159,11 @@ fn admit_with_backpressure_retry(
 }
 
 fn build_client() -> Client {
-    let result = Client::builder().bootstrap_servers(["127.0.0.1:1"]).build();
+    build_client_at("127.0.0.1:1".to_owned())
+}
+
+fn build_client_at(endpoint: String) -> Client {
+    let result = Client::builder().bootstrap_servers([endpoint]).build();
     let Ok(client) = result else {
         panic!("valid local client configuration should build")
     };

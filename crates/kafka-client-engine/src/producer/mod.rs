@@ -9,10 +9,12 @@ pub(crate) mod error;
 pub(crate) mod execution;
 pub(crate) mod execution_stop;
 mod execution_turn;
+mod exports;
 mod flush;
 mod host;
 mod host_error;
 pub(crate) mod host_turn;
+mod identity_submission;
 pub(crate) mod ingress;
 mod interpreter;
 pub(crate) mod materialization;
@@ -27,14 +29,7 @@ mod terminal;
 mod terminal_backlog;
 mod terminal_publication;
 mod topic_catalog;
-pub use boundary::*;
-pub(crate) use error::{ProducerAdmissionError, ProducerStoreError};
-pub(crate) use host::{ProducerHost, ProducerHostLimits};
-pub(crate) use host_error::{ProducerHostInvariantError, ProducerHostLimitError};
-pub(crate) use host_error::{ProducerHostStartError, ProducerRejectionReason};
-pub(crate) use record::ProducerRecord;
-pub(crate) use store::{ProducerStore, ProducerStoreLimits, ProducerStoreStats};
-pub(crate) use terminal::ProducerTerminal;
+pub use exports::*;
 #[cfg(test)]
 mod admission_test;
 #[cfg(test)]
@@ -53,6 +48,8 @@ mod execution_turn_test;
 pub(crate) mod host_limits_test;
 #[cfg(test)]
 mod host_turn_test;
+#[cfg(test)]
+mod identity_submission_test;
 #[cfg(test)]
 mod interpreter_test;
 #[cfg(test)]
@@ -75,5 +72,7 @@ mod terminal_backlog_test;
 mod terminal_publication_test;
 #[cfg(test)]
 mod terminal_test;
+#[cfg(test)]
+pub(crate) mod test_identity;
 #[cfg(test)]
 mod topic_catalog_test;

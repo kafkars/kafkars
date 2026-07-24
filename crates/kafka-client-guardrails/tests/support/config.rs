@@ -97,6 +97,17 @@ pub(crate) struct DependencyRule {
 pub(crate) struct CapabilityRule {
     pub(crate) root: String,
     pub(crate) forbidden: Vec<String>,
+    #[serde(default)]
+    pub(crate) allow: Vec<CapabilityAllow>,
+}
+
+/// One exact, justified source-file exception to a forbidden capability.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CapabilityAllow {
+    pub(crate) path: String,
+    pub(crate) capability: String,
+    pub(crate) reason: String,
 }
 
 /// One constructor call and its complete production allowlist.

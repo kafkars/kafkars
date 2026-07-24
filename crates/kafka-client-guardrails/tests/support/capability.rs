@@ -18,28 +18,81 @@ pub(crate) fn capability_violations(root: &Path, rules: &[CapabilityRule]) -> Ve
             "capability root {} is missing",
             source_root.display()
         );
+        validate_allow_entries(root, &source_root, rule, &mut violations);
         let files = if source_root.is_file() {
             vec![source_root]
         } else {
             rust_files_under(&source_root, WalkScope::Fixture)
         };
+        let mut used = BTreeSet::new();
         for path in files {
-            inspect_file(root, &path, rule, &mut violations);
+            inspect_file(root, &path, rule, &mut used, &mut violations);
+        }
+        for allowed in &rule.allow {
+            if !used.contains(&(allowed.path.clone(), allowed.capability.clone())) {
+                violations.push(format!(
+                    "{} has decorative capability allow for {}",
+                    allowed.path, allowed.capability
+                ));
+            }
         }
     }
     violations
 }
 
-fn inspect_file(root: &Path, path: &Path, rule: &CapabilityRule, violations: &mut Vec<String>) {
+fn validate_allow_entries(
+    root: &Path,
+    source_root: &Path,
+    rule: &CapabilityRule,
+    violations: &mut Vec<String>,
+) {
+    let mut unique = BTreeSet::new();
+    for allowed in &rule.allow {
+        let path = root.join(&allowed.path);
+        if !path.is_file() || !path.starts_with(source_root) {
+            violations.push(format!(
+                "{} is not an exact file beneath capability root {}",
+                allowed.path, rule.root
+            ));
+        }
+        if !rule.forbidden.contains(&allowed.capability) {
+            violations.push(format!(
+                "{} allows undeclared capability {}",
+                allowed.path, allowed.capability
+            ));
+        }
+        if allowed.reason.trim().is_empty() {
+            violations.push(format!(
+                "{} allows {} without a reason",
+                allowed.path, allowed.capability
+            ));
+        }
+        if !unique.insert((&allowed.path, &allowed.capability)) {
+            violations.push(format!(
+                "{} duplicates capability allow {}",
+                allowed.path, allowed.capability
+            ));
+        }
+    }
+}
+
+fn inspect_file(
+    root: &Path,
+    path: &Path,
+    rule: &CapabilityRule,
+    used: &mut BTreeSet<(String, String)>,
+    violations: &mut Vec<String>,
+) {
     let source = read(path);
     let syntax = syn::parse_file(&source)
         .unwrap_or_else(|error| panic!("parse {}: {error}", display_path(root, path)));
     let mut collector = CapabilityCollector::default();
     collector.visit_file(&syntax);
 
+    let relative = display_path(root, path);
     for observed in &collector.paths {
         for forbidden in &rule.forbidden {
-            if observed == forbidden
+            let reaches_forbidden = observed == forbidden
                 || observed
                     .strip_prefix(forbidden)
                     .is_some_and(|suffix| suffix.starts_with("::"))
@@ -47,11 +100,19 @@ fn inspect_file(root: &Path, path: &Path, rule: &CapabilityRule, violations: &mu
                     forbidden
                         .strip_prefix(prefix)
                         .is_some_and(|suffix| suffix.starts_with("::"))
-                })
+                });
+            if !reaches_forbidden {
+                continue;
+            }
+            if rule
+                .allow
+                .iter()
+                .any(|allowed| allowed.path == relative && allowed.capability == *forbidden)
             {
+                used.insert((relative.clone(), forbidden.clone()));
+            } else {
                 violations.push(format!(
-                    "{} reaches forbidden capability {forbidden} through {observed}",
-                    display_path(root, path)
+                    "{relative} reaches forbidden capability {forbidden} through {observed}"
                 ));
             }
         }

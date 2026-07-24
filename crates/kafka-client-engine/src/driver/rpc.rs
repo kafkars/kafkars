@@ -30,13 +30,9 @@ mod describe_cluster_submission_test;
 mod describe_cluster_terminal;
 #[cfg(test)]
 mod describe_cluster_terminal_test;
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "the adjacent core idempotence slice has not joined this driver seam yet"
-    )
-)]
+mod init_producer_id_calls;
+#[cfg(test)]
+mod init_producer_id_calls_test;
 mod init_producer_id_submission;
 #[cfg(test)]
 mod init_producer_id_submission_test;
@@ -48,4 +44,7 @@ pub(crate) use calls::{ProduceCompletionFailure, TrackedProduceCalls};
 pub(crate) use create_topics_calls::{CreateTopicsCompletionFailure, TrackedCreateTopicsCalls};
 pub(crate) use delete_topics_calls::{DeleteTopicsCompletionFailure, TrackedDeleteTopicsCalls};
 pub(crate) use describe_cluster_calls::{DescribeClusterCalls, DescribeClusterCompletionFailure};
+pub(crate) use init_producer_id_calls::{
+    ProducerIdentityCompletionFailure, TrackedProducerIdentityCalls,
+};
 pub(crate) use submission::ProduceSubmitError;

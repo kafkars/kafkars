@@ -11,7 +11,7 @@ use crate::{
     EngineConfig, ProducerCancellationOutcome, ProducerDeliveryError, ProducerDeliveryFailureKind,
     ProducerDeliveryObserver, ProducerDeliveryStatus,
     clock::OperationDeadline,
-    driver::{DriverOwner, TrackedProduceCalls},
+    driver::{DriverOwner, TrackedProduceCalls, TrackedProducerIdentityCalls},
     producer::{
         ProducerRecord,
         host_limits_test::{start, valid_limits},
@@ -20,7 +20,7 @@ use crate::{
     },
 };
 
-use super::produce::{admit_one, apply_ready};
+use super::produce::{admit_identity, admit_one, apply_ready};
 
 const DRIVER_TURN_LIMIT: usize = 256;
 const DRIVER_TURN_WAIT: Duration = Duration::from_millis(10);
@@ -75,6 +75,36 @@ fn immediate_driver_rejection_applies_not_sent_before_unlock() {
 }
 
 #[test]
+fn immediate_identity_rejection_applies_live_identity_failure_before_unlock() {
+    let producer =
+        ProducerShardOwner::new(start(ready_limits()), Arc::new(CountingWake::default()));
+    let observer = admit_identity_pending(&producer);
+    let mut driver = driver();
+    shutdown(&mut driver);
+    let mut calls = TrackedProducerIdentityCalls::new();
+    let mut data = producer
+        .try_data()
+        .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
+
+    assert!(
+        admit_identity(&driver, &mut calls, &mut data, Moment::from_tick(2))
+            .unwrap_or_else(|error| panic!("identity rejection application: {error}"))
+    );
+    assert_eq!(calls.retained_count(), 0);
+    assert!(!data.shard_stats().accepting);
+    drop(data);
+
+    let Err(ProducerDeliveryError::Failed(failure)) = observer.wait() else {
+        panic!("live identity request rejection must publish one failure")
+    };
+    assert_eq!(
+        failure.kind(),
+        ProducerDeliveryFailureKind::ProducerIdentity
+    );
+    assert_eq!(failure.delivery_status(), ProducerDeliveryStatus::NotSent);
+}
+
+#[test]
 fn terminal_fact_is_applied_before_the_tracked_slot_is_released() {
     let (producer, observer) = prepared_producer();
     let mut driver = driver();
@@ -124,7 +154,7 @@ fn full_call_capacity_preserves_the_next_prepared_owner() {
         admit_one(&driver, &mut calls, &mut data, Moment::from_tick(2))
             .unwrap_or_else(|error| panic!("first tracked admission: {error}"));
     }
-    let second = admit_prepared(&producer);
+    let second = admit_prepared(&producer, "payments");
     let mut data = producer
         .try_data()
         .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
@@ -148,11 +178,11 @@ fn full_call_capacity_preserves_the_next_prepared_owner() {
 fn prepared_producer() -> (ProducerShardOwner, ProducerDeliveryObserver) {
     let producer =
         ProducerShardOwner::new(start(ready_limits()), Arc::new(CountingWake::default()));
-    let observer = admit_prepared(&producer);
+    let observer = admit_prepared(&producer, "orders");
     (producer, observer)
 }
 
-fn admit_prepared(producer: &ProducerShardOwner) -> ProducerDeliveryObserver {
+fn admit_identity_pending(producer: &ProducerShardOwner) -> ProducerDeliveryObserver {
     let accepted = producer
         .admission_port()
         .try_admit_explicit(
@@ -178,6 +208,41 @@ fn admit_prepared(producer: &ProducerShardOwner) -> ProducerDeliveryObserver {
         .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
     let budget =
         ProducerTurnBudget::try_new(1, 1, 1, 1, 1).unwrap_or_else(|| panic!("nonzero turn budget"));
+    data.turn(Moment::from_tick(1), budget)
+        .unwrap_or_else(|error| panic!("prepare identity request: {error}"));
+    drop(data);
+    observer
+}
+
+fn admit_prepared(producer: &ProducerShardOwner, topic: &str) -> ProducerDeliveryObserver {
+    let accepted = producer
+        .admission_port()
+        .try_admit_explicit(
+            Moment::from_tick(0),
+            OperationDeadline::from_parts_for_test(
+                Deadline::from_tick(500_000_000),
+                Instant::now() + Duration::from_millis(500),
+            ),
+            ProducerRecord::new(
+                Arc::from(topic),
+                kafka_client_core::PartitionIndex::from_raw(0),
+                1,
+                None,
+                Some(bytes::Bytes::from_static(b"value")),
+            ),
+        )
+        .unwrap_or_else(|error| panic!("admit producer record: {error:?}"));
+    let (observer, operation_id, fault) = accepted.into_parts();
+    assert!(operation_id.is_some());
+    assert!(fault.is_ok());
+    let mut data = producer
+        .try_data()
+        .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
+    let budget =
+        ProducerTurnBudget::try_new(1, 1, 1, 1, 1).unwrap_or_else(|| panic!("nonzero turn budget"));
+    data.turn(Moment::from_tick(1), budget)
+        .unwrap_or_else(|error| panic!("materialize Produce batch: {error}"));
+    crate::producer::test_identity::acquire_shard_if_pending(&mut data, Moment::from_tick(1));
     data.turn(Moment::from_tick(1), budget)
         .unwrap_or_else(|error| panic!("materialize Produce batch: {error}"));
     data.turn(Moment::from_tick(1), budget)

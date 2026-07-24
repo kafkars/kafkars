@@ -1,110 +1,28 @@
 //! Admission-to-batch coordination and deterministic seal effects.
 
 use crate::{
-    AcknowledgementPolicy, AdmissionRejection, BatchExecutionGeneration, BatchExecutionId, BatchId,
-    CompressionPolicy, Deadline, ExplicitRecord, Moment, OperationId, ProducerEffect,
-    ProducerMachineError, ProducerTransition,
+    AcknowledgementPolicy, BatchExecutionGeneration, BatchExecutionId, BatchId, Deadline,
+    OperationId, ProducerEffect, ProducerIdentity, ProducerMachineError, ProducerSequenceLease,
+    ProducerTransition,
 };
 
-use super::{BatchRoute, BatchSeal, ProducerBatch, ProducerMachine};
+use super::idempotence_transition::{materialize_effect, next_timer_generation};
+use super::{BatchSeal, ProducerBatch, ProducerMachine};
+
+enum SealIdentityPlan {
+    Ready {
+        identity: ProducerIdentity,
+        lease: ProducerSequenceLease,
+    },
+    Waiting {
+        timer_generation: crate::BatchTimerGeneration,
+        deadline_operation_id: OperationId,
+        deadline: Deadline,
+        starts_acquisition: bool,
+    },
+}
 
 impl ProducerMachine {
-    pub(crate) fn admit_explicit(
-        &mut self,
-        now: Moment,
-        deadline: Deadline,
-        record: ExplicitRecord,
-    ) -> Result<ProducerTransition, ProducerMachineError> {
-        if !self.admission_open {
-            return Err(ProducerMachineError::Admission(AdmissionRejection::Closed));
-        }
-        let route = BatchRoute {
-            topic_id: record.topic_id(),
-            partition: record.partition(),
-        };
-        if let Some(batch_id) = self.open_batches.get(&route).copied() {
-            return self.admit_existing(batch_id, now, deadline, record);
-        }
-        self.admit_new(route, now, deadline, record)
-    }
-
-    fn admit_existing(
-        &mut self,
-        batch_id: BatchId,
-        now: Moment,
-        deadline: Deadline,
-        record: ExplicitRecord,
-    ) -> Result<ProducerTransition, ProducerMachineError> {
-        let batch = self
-            .batches
-            .get(&batch_id)
-            .ok_or(ProducerMachineError::UnknownBatch)?;
-        if batch.members.len() >= batch.policy.max_records() {
-            return Err(ProducerMachineError::Admission(
-                AdmissionRejection::AccumulatorPending,
-            ));
-        }
-        let timer_update = batch.plan_add_member(deadline)?;
-        let operation_id = self
-            .reserve_explicit(now, deadline, record, batch_id)
-            .map_err(ProducerMachineError::Admission)?;
-        let batch = self
-            .batches
-            .get_mut(&batch_id)
-            .ok_or(ProducerMachineError::UnknownBatch)?;
-        batch.commit_add_member(operation_id, deadline, timer_update);
-
-        let mut effects = vec![accumulate_effect(operation_id, batch_id, deadline, record)];
-        if let Some((generation, timer_deadline)) = timer_update {
-            effects.push(ProducerEffect::ArmBatchTimer {
-                batch_id,
-                generation,
-                deadline: timer_deadline,
-            });
-        }
-        Ok(ProducerTransition::from_effects(effects))
-    }
-
-    fn admit_new(
-        &mut self,
-        route: BatchRoute,
-        now: Moment,
-        deadline: Deadline,
-        record: ExplicitRecord,
-    ) -> Result<ProducerTransition, ProducerMachineError> {
-        let batch_id = self.next_batch_id.ok_or(ProducerMachineError::Admission(
-            AdmissionRejection::BatchIdentityExhausted,
-        ))?;
-        let operation_id = self
-            .next_operation_id
-            .ok_or(ProducerMachineError::Admission(
-                AdmissionRejection::IdentityExhausted,
-            ))?;
-        let Some(batch) = ProducerBatch::new(route, self.batch_policy, now, operation_id, deadline)
-        else {
-            return Err(ProducerMachineError::Admission(
-                AdmissionRejection::DeadlineOverflow,
-            ));
-        };
-        let reserved_operation_id = self
-            .reserve_explicit(now, deadline, record, batch_id)
-            .map_err(ProducerMachineError::Admission)?;
-        debug_assert_eq!(operation_id, reserved_operation_id);
-        let generation = batch.timer_generation;
-        let timer_deadline = batch.timer_deadline;
-        self.next_batch_id = batch_id.get().checked_add(1).map(BatchId::from_raw);
-        self.open_batches.insert(route, batch_id);
-        self.batches.insert(batch_id, batch);
-        Ok(ProducerTransition::from_effects(vec![
-            accumulate_effect(reserved_operation_id, batch_id, deadline, record),
-            ProducerEffect::ArmBatchTimer {
-                batch_id,
-                generation,
-                deadline: timer_deadline,
-            },
-        ]))
-    }
-
     pub(crate) fn seal_if_ready(
         &mut self,
         batch_id: BatchId,
@@ -117,7 +35,7 @@ impl ProducerMachine {
             return Ok(ProducerTransition::none());
         }
         let seal = self.plan_seal(batch_id)?;
-        Ok(self.commit_seal(seal))
+        self.commit_seal(seal)
     }
 
     pub(crate) fn plan_seal(&self, batch_id: BatchId) -> Result<BatchSeal, ProducerMachineError> {
@@ -138,7 +56,10 @@ impl ProducerMachine {
         })
     }
 
-    pub(crate) fn commit_seal(&mut self, seal: BatchSeal) -> ProducerTransition {
+    pub(crate) fn commit_seal(
+        &mut self,
+        seal: BatchSeal,
+    ) -> Result<ProducerTransition, ProducerMachineError> {
         let BatchSeal {
             batch_id,
             members,
@@ -146,23 +67,76 @@ impl ProducerMachine {
             timer_generation,
             execution,
         } = seal;
-        self.commit_batch_ready(&members, batch_id);
-        let batch = self.batches.get_mut(&batch_id);
-        debug_assert!(batch.is_some());
-        if let Some(batch) = batch {
-            batch.commit_seal(execution.generation());
-        }
+        let identity_plan = if let Some(identity) = self.idempotence.identity() {
+            SealIdentityPlan::Ready {
+                identity,
+                lease: self.idempotence.plan_lease(route, members.len())?,
+            }
+        } else if self.idempotence.is_fenced() {
+            return Err(ProducerMachineError::ProducerIdentityFenced);
+        } else {
+            let (deadline_operation_id, deadline) = self
+                .batches
+                .get(&batch_id)
+                .and_then(ProducerBatch::earliest_deadline_owner)
+                .ok_or(ProducerMachineError::UnknownBatch)?;
+            SealIdentityPlan::Waiting {
+                timer_generation: next_timer_generation(timer_generation)?,
+                deadline_operation_id,
+                deadline,
+                starts_acquisition: self.idempotence.is_uninitialized(),
+            }
+        };
+
         self.open_batches.remove(&route);
-        ProducerTransition::from_effects(vec![
-            ProducerEffect::CancelBatchTimer {
-                batch_id,
-                generation: timer_generation,
-            },
-            ProducerEffect::MaterializeBatch {
-                execution,
-                compression: CompressionPolicy::Uncompressed,
-            },
-        ])
+        self.commit_batch_ready(&members, batch_id);
+        match identity_plan {
+            SealIdentityPlan::Ready { identity, lease } => {
+                self.idempotence.commit_lease(route);
+                let batch = self.batches.get_mut(&batch_id);
+                debug_assert!(batch.is_some());
+                if let Some(batch) = batch {
+                    batch.commit_seal_ready(execution.generation(), lease);
+                }
+                Ok(ProducerTransition::from_effects(vec![
+                    ProducerEffect::CancelBatchTimer {
+                        batch_id,
+                        generation: timer_generation,
+                    },
+                    materialize_effect(execution, identity, lease),
+                ]))
+            }
+            SealIdentityPlan::Waiting {
+                timer_generation: next_timer,
+                deadline_operation_id,
+                deadline,
+                starts_acquisition,
+            } => {
+                let batch = self.batches.get_mut(&batch_id);
+                debug_assert!(batch.is_some());
+                if let Some(batch) = batch {
+                    batch.commit_seal_waiting_identity(
+                        execution.generation(),
+                        next_timer,
+                        deadline,
+                    );
+                }
+                let mut effects = vec![ProducerEffect::ArmBatchTimer {
+                    batch_id,
+                    generation: next_timer,
+                    deadline,
+                }];
+                if starts_acquisition {
+                    let generation = self.idempotence.begin_acquisition();
+                    effects.push(ProducerEffect::AcquireProducerIdentity {
+                        generation,
+                        deadline_operation_id,
+                        deadline,
+                    });
+                }
+                Ok(ProducerTransition::from_effects(effects))
+            }
+        }
     }
 
     pub(crate) fn submit_materialized(
@@ -196,19 +170,5 @@ impl ProducerMachine {
                 acknowledgements: AcknowledgementPolicy::All,
             },
         ]))
-    }
-}
-
-const fn accumulate_effect(
-    operation_id: OperationId,
-    batch_id: BatchId,
-    deadline: Deadline,
-    record: ExplicitRecord,
-) -> ProducerEffect {
-    ProducerEffect::AccumulateExplicit {
-        operation_id,
-        batch_id,
-        deadline,
-        record,
     }
 }

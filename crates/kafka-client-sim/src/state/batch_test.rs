@@ -3,7 +3,7 @@
 use kafka_client_core::{
     AcknowledgementPolicy, BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount,
     CompressionPolicy, Deadline, ExplicitRecord, OperationId, PartitionIndex, PayloadId,
-    ProducerEffect, TopicId,
+    ProducerEffect, ProducerIdentity, ProducerSequenceLease, TopicId,
 };
 
 use crate::{SimulationError, state::VirtualProducerState};
@@ -46,6 +46,8 @@ fn simulator_submits_only_exact_materialized_membership_snapshot() {
         .interpret(ProducerEffect::MaterializeBatch {
             execution: current,
             compression: CompressionPolicy::Uncompressed,
+            identity: identity(),
+            sequence: sequence(2),
         })
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
     let stale = BatchExecutionId::new(
@@ -106,6 +108,8 @@ fn sealed_batch_rejects_delayed_membership_effects() {
         .interpret(ProducerEffect::MaterializeBatch {
             execution: current,
             compression: CompressionPolicy::Uncompressed,
+            identity: identity(),
+            sequence: sequence(1),
         })
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
 
@@ -143,6 +147,8 @@ fn duplicate_submission_history_is_rejected_before_phase_mutation() {
         .interpret(ProducerEffect::MaterializeBatch {
             execution: current,
             compression: CompressionPolicy::Uncompressed,
+            identity: identity(),
+            sequence: sequence(1),
         })
         .unwrap_or_else(|error| panic!("materialization failed: {error}"));
     state.submissions.insert(current, vec![operation_id]);
@@ -167,4 +173,13 @@ fn duplicate_submission_history_is_rejected_before_phase_mutation() {
         state.submitted_members(current),
         Some([operation_id].as_slice())
     );
+}
+
+fn identity() -> ProducerIdentity {
+    ProducerIdentity::try_new(1, 0).unwrap_or_else(|| panic!("test identity must be valid"))
+}
+
+fn sequence(record_count: u32) -> ProducerSequenceLease {
+    ProducerSequenceLease::try_new(0, record_count)
+        .unwrap_or_else(|| panic!("test sequence must be valid"))
 }

@@ -2,7 +2,7 @@
 
 use crate::{
     BatchExecutionGeneration, BatchExecutionId, BatchTimerGeneration, ByteCount, Deadline, Moment,
-    OperationId, PartitionIndex, ProducerBatchPolicy, TopicId,
+    OperationId, PartitionIndex, ProducerBatchPolicy, ProducerSequenceLease, TopicId,
 };
 
 /// Topic-partition identity for one accumulator.
@@ -25,6 +25,7 @@ pub(crate) struct BatchMember {
 pub(crate) enum BatchState {
     Open,
     Materializing,
+    AwaitingIdentity,
     AwaitingDriver,
     Submitted,
     RetryWaiting,
@@ -43,6 +44,7 @@ pub(crate) struct ProducerBatch {
     pub(crate) members: Vec<BatchMember>,
     pub(crate) execution_generation: Option<BatchExecutionGeneration>,
     pub(crate) retries_started: u32,
+    pub(crate) sequence_lease: Option<ProducerSequenceLease>,
     pub(crate) state: BatchState,
 }
 
@@ -113,6 +115,7 @@ impl ProducerBatch {
             }],
             execution_generation: None,
             retries_started: 0,
+            sequence_lease: None,
             state: BatchState::Open,
         })
     }
@@ -159,5 +162,9 @@ impl ProducerBatch {
     pub(crate) fn execution_id(&self, batch_id: crate::BatchId) -> Option<BatchExecutionId> {
         self.execution_generation
             .map(|generation| BatchExecutionId::new(batch_id, generation))
+    }
+
+    pub(crate) const fn sequence_lease(&self) -> Option<ProducerSequenceLease> {
+        self.sequence_lease
     }
 }

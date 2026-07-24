@@ -51,8 +51,14 @@ fn completion_polling_waits_without_consuming_when_the_shard_is_contended() {
         .try_data()
         .unwrap_or_else(|error| panic!("acquire producer shard: {error:?}"));
 
-    let progress = apply_completions(&producer, &mut calls, Moment::from_tick(1))
-        .unwrap_or_else(|error| panic!("contended completion turn: {error}"));
+    let mut identity_calls = crate::driver::TrackedProducerIdentityCalls::new();
+    let progress = apply_completions(
+        &producer,
+        &mut identity_calls,
+        &mut calls,
+        Moment::from_tick(1),
+    )
+    .unwrap_or_else(|error| panic!("contended completion turn: {error}"));
 
     assert!(!progress);
     drop(guard);
@@ -69,7 +75,7 @@ fn completion_polling_waits_without_consuming_when_the_shard_is_contended() {
 }
 
 fn materialized() -> crate::protocol::produce::MaterializedProduce {
-    materialize_explicit_produce_batch(MaterializationBatch::new(
+    let batch = MaterializationBatch::try_for_test(
         "orders",
         0,
         vec![MaterializationRecord::new(
@@ -79,8 +85,10 @@ fn materialized() -> crate::protocol::produce::MaterializedProduce {
             Vec::new(),
         )],
         1_024,
-    ))
-    .unwrap_or_else(|error| panic!("materialize Produce request: {error}"))
+    )
+    .unwrap_or_else(|| panic!("test materialization batch must be representable"));
+    materialize_explicit_produce_batch(batch)
+        .unwrap_or_else(|error| panic!("materialize Produce request: {error}"))
 }
 
 fn driver() -> DriverOwner {

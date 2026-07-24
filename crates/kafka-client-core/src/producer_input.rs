@@ -3,12 +3,44 @@
 use crate::{
     BatchExecutionId, BatchId, BatchTimerGeneration, ByteCount, Deadline, DeliveryStatus,
     ExplicitRecord, Moment, OperationId, ProducerAttemptFailureKind, ProducerBatchSuccess,
-    ProducerBrokerFailure,
+    ProducerBrokerFailure, ProducerIdentityGeneration,
 };
 
 /// One external fact applied at a time to producer policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProducerInput {
+    /// Reports a broker-issued nontransactional identity.
+    ProducerIdentityAcquired {
+        /// Exact acquisition generation.
+        generation: ProducerIdentityGeneration,
+        /// Broker-issued producer ID.
+        producer_id: i64,
+        /// Broker-issued producer epoch.
+        producer_epoch: i16,
+        /// Monotonic observation when the terminal identity result was applied.
+        now: Moment,
+    },
+    /// Reports terminal failure of one identity acquisition.
+    ProducerIdentityFailed {
+        /// Exact acquisition generation.
+        generation: ProducerIdentityGeneration,
+        /// Exact signed broker code, or no code for local/transport failure.
+        broker_code: Option<core::num::NonZeroI16>,
+    },
+    /// Reports that the unchanged identity-request deadline elapsed.
+    ProducerIdentityDeadlineElapsed {
+        /// Exact acquisition generation.
+        generation: ProducerIdentityGeneration,
+        /// Monotonic observation used to classify each retained batch deadline.
+        now: Moment,
+    },
+    /// Reports a non-deadline driver failure of one identity request.
+    ProducerIdentityRequestFailed {
+        /// Exact acquisition generation.
+        generation: ProducerIdentityGeneration,
+        /// Monotonic observation used to preserve already elapsed public deadlines.
+        now: Moment,
+    },
     /// Requests atomic admission of byte-free explicit record facts.
     AdmitExplicit {
         /// Current monotonic observation at the admission boundary.

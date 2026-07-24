@@ -30,9 +30,9 @@ pub(crate) use call_capability::call_capability_violations;
 pub(crate) use capability::capability_violations;
 pub(crate) use cargo_targets::{PackageTargets, package_targets, workspace_targets};
 pub(crate) use config::{
-    AuthorityToken, Budget, BudgetAllow, BudgetBaseline, CallCapabilityRule, CapabilityRule,
-    DependencyRule, FileBudgets, GuardConfig, LinearOwner, MethodCapabilityRule, MutationOwner,
-    TestMirror, load_config, parse_config,
+    AuthorityToken, Budget, BudgetAllow, BudgetBaseline, CallCapabilityRule, CapabilityAllow,
+    CapabilityRule, DependencyRule, FileBudgets, GuardConfig, LinearOwner, MethodCapabilityRule,
+    MutationOwner, TestMirror, load_config, parse_config,
 };
 pub(crate) use duplication::{authority_linear_violations, linear_violations};
 pub(crate) use files::{

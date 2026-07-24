@@ -10,11 +10,12 @@ use std::{
 use kafka_client_engine::{Engine, EngineConfig};
 
 use super::producer::ProducerEngine;
-use crate::{DeliveryStatus, ErrorKind, Record};
+use crate::{DeliveryStatus, ErrorKind, Record, silent_broker_test::SilentBroker};
 
 #[test]
 fn accepted_delivery_is_one_runtime_neutral_observer() {
-    let engine = start_engine();
+    let broker = SilentBroker::start();
+    let engine = start_engine(broker.endpoint());
     let mut delivery = accepted_delivery(&engine, Duration::from_millis(50));
     let waker = Waker::noop();
     let mut context = Context::from_waker(waker);
@@ -24,7 +25,7 @@ fn accepted_delivery_is_one_runtime_neutral_observer() {
         Poll::Pending => delivery.wait(),
     };
     let Err(error) = terminal else {
-        panic!("an unreachable bootstrap endpoint cannot acknowledge delivery")
+        panic!("a silent broker cannot acknowledge delivery")
     };
 
     assert_eq!(error.kind(), ErrorKind::Timeout);
@@ -33,7 +34,8 @@ fn accepted_delivery_is_one_runtime_neutral_observer() {
 
 #[test]
 fn polling_after_terminal_observation_is_a_safe_state_error() {
-    let engine = start_engine();
+    let broker = SilentBroker::start();
+    let engine = start_engine(broker.endpoint());
     let mut delivery = accepted_delivery(&engine, Duration::from_millis(10));
     let waker = Waker::noop();
     let mut context = Context::from_waker(waker);
@@ -49,7 +51,7 @@ fn polling_after_terminal_observation_is_a_safe_state_error() {
         }
     };
     let Err(first_error) = first else {
-        panic!("an unreachable bootstrap endpoint cannot acknowledge delivery")
+        panic!("a silent broker cannot acknowledge delivery")
     };
     assert_eq!(first_error.kind(), ErrorKind::Timeout);
 
@@ -87,8 +89,8 @@ fn accepted_delivery(
     }
 }
 
-fn start_engine() -> Engine {
-    let result = Engine::start(EngineConfig::new(vec!["127.0.0.1:1".to_owned()]));
+fn start_engine(endpoint: String) -> Engine {
+    let result = Engine::start(EngineConfig::new(vec![endpoint]));
     let Ok(engine) = result else {
         panic!("valid local engine configuration should start")
     };

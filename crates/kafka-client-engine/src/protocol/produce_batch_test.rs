@@ -19,7 +19,7 @@ const PARTITION: i32 = 7;
 const BASE_TIMESTAMP_MS: i64 = 1_000;
 
 #[test]
-fn ordered_records_use_contiguous_offsets_and_first_timestamp_as_base() {
+fn ordered_records_encode_identity_sequence_and_contiguous_offsets() {
     let materialized = materialize_explicit_produce_batch(batch(vec![
         record(BASE_TIMESTAMP_MS, b"first"),
         record(1_600, b"second"),
@@ -33,9 +33,9 @@ fn ordered_records_use_contiguous_offsets_and_first_timestamp_as_base() {
     assert_eq!(decoded.base_timestamp, BASE_TIMESTAMP_MS);
     assert_eq!(decoded.max_timestamp, 1_600);
     assert_eq!(decoded.last_offset_delta, 2);
-    assert_eq!(decoded.producer_id, -1);
-    assert_eq!(decoded.producer_epoch, -1);
-    assert_eq!(decoded.base_sequence, -1);
+    assert_eq!(decoded.producer_id, 1);
+    assert_eq!(decoded.producer_epoch, 0);
+    assert_eq!(decoded.base_sequence, 0);
     assert_eq!(decoded.records.len(), 3);
     assert_eq!(decoded.records[0].offset_delta, 0);
     assert_eq!(decoded.records[1].offset_delta, 1);
@@ -115,7 +115,8 @@ fn unrepresentable_timestamp_delta_is_rejected_without_saturation() {
 }
 
 fn batch(records: Vec<MaterializationRecord>) -> MaterializationBatch {
-    MaterializationBatch::new(TOPIC.to_owned(), PARTITION, records, usize::MAX)
+    MaterializationBatch::try_for_test(TOPIC.to_owned(), PARTITION, records, usize::MAX)
+        .unwrap_or_else(|| panic!("test materialization batch must be representable"))
 }
 
 fn record(timestamp_ms: i64, value: &'static [u8]) -> MaterializationRecord {

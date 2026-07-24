@@ -142,7 +142,7 @@ fn deadline(tick: u64) -> OperationDeadline {
 }
 
 fn prepared(value: u64) -> crate::protocol::produce::MaterializedProduce {
-    materialize_explicit_produce_batch(MaterializationBatch::new(
+    let batch = MaterializationBatch::try_for_test(
         "orders".to_owned(),
         i32::try_from(value).unwrap_or_else(|_| panic!("small partition must fit")),
         vec![MaterializationRecord::new(
@@ -152,6 +152,8 @@ fn prepared(value: u64) -> crate::protocol::produce::MaterializedProduce {
             Vec::new(),
         )],
         usize::MAX,
-    ))
-    .unwrap_or_else(|error| panic!("test materialization failed: {error}"))
+    )
+    .unwrap_or_else(|| panic!("test materialization batch must be representable"));
+    materialize_explicit_produce_batch(batch)
+        .unwrap_or_else(|error| panic!("test materialization failed: {error}"))
 }

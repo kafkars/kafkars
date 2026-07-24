@@ -6,7 +6,7 @@ use bytes::Bytes;
 use kafka_client_core::{
     BatchExecutionId, BatchId, ByteCount, CompressionPolicy, Deadline, DeliveryStatus, Moment,
     OperationId, PartitionIndex, ProducerCompletion, ProducerEffect, ProducerFailureKind,
-    ProducerInput, ProducerMachine,
+    ProducerIdentityGeneration, ProducerInput, ProducerMachine,
 };
 
 use super::{
@@ -57,7 +57,7 @@ impl SealedBatch {
         let accumulated_bytes = store
             .accumulate(batch_id, operation_id, facts.payload_id())
             .unwrap_or_else(|error| panic!("accumulation failed: {error}"));
-        let sealed = core
+        let waiting = core
             .apply(ProducerInput::RecordAccumulated {
                 operation_id,
                 batch_id,
@@ -65,6 +65,22 @@ impl SealedBatch {
                 now: Moment::from_tick(0),
             })
             .unwrap_or_else(|error| panic!("core accumulation failed: {error}"));
+        let generation = waiting
+            .effects()
+            .iter()
+            .find_map(|effect| match effect {
+                ProducerEffect::AcquireProducerIdentity { generation, .. } => Some(*generation),
+                _ => None,
+            })
+            .unwrap_or_else(ProducerIdentityGeneration::initial);
+        let sealed = core
+            .apply(ProducerInput::ProducerIdentityAcquired {
+                generation,
+                producer_id: 1,
+                producer_epoch: 0,
+                now: Moment::from_tick(0),
+            })
+            .unwrap_or_else(|error| panic!("test identity failed: {error}"));
         let execution_id = sealed
             .effects()
             .iter()
@@ -72,6 +88,7 @@ impl SealedBatch {
                 ProducerEffect::MaterializeBatch {
                     execution,
                     compression: CompressionPolicy::Uncompressed,
+                    ..
                 } if execution.batch_id() == batch_id => Some(*execution),
                 _ => None,
             })

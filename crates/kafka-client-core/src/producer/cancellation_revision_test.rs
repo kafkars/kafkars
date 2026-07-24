@@ -102,8 +102,9 @@ fn awaiting_driver_cancellation_restarts_survivors_at_a_new_generation() {
 }
 
 #[test]
-fn sole_sealed_member_revision_discards_batch_before_terminal_completion() {
+fn sole_sealed_member_releases_sequence_lease_without_advancing() {
     let mut producer = ProducerMachine::new(ByteCount::new(64), 1);
+    producer.install_identity_for_test();
     let (operation_id, batch_id) = admit(&mut producer, 1);
     accumulate(&mut producer, operation_id, batch_id);
     let previous = execution(batch_id, 1);
@@ -129,6 +130,37 @@ fn sole_sealed_member_revision_discards_batch_before_terminal_completion() {
     ));
     assert!(!producer.batches.contains_key(&batch_id));
     assert_eq!(producer.retained_bytes(), ByteCount::new(0));
+    producer
+        .apply(ProducerInput::CompletionReclaimed { operation_id })
+        .unwrap_or_else(|error| panic!("completion reclaim failed: {error}"));
+
+    let (next_operation, next_batch) = admit(&mut producer, 2);
+    let sealed = accumulate(&mut producer, next_operation, next_batch);
+    assert!(sealed.effects().iter().any(|effect| matches!(
+        effect,
+        ProducerEffect::MaterializeBatch { sequence, .. }
+            if sequence.base_sequence() == 0 && sequence.record_count() == 1
+    )));
+}
+
+#[test]
+fn missing_materializing_sequence_lease_rejects_cancellation_without_mutation() {
+    let mut producer = ProducerMachine::new(ByteCount::new(64), 1);
+    producer.install_identity_for_test();
+    let (operation_id, batch_id) = admit(&mut producer, 1);
+    accumulate(&mut producer, operation_id, batch_id);
+    producer
+        .batches
+        .get_mut(&batch_id)
+        .unwrap_or_else(|| panic!("materializing batch missing"))
+        .sequence_lease = None;
+    let before = format!("{producer:?}");
+
+    assert_eq!(
+        producer.apply(ProducerInput::CancelRequested { operation_id }),
+        Err(ProducerMachineError::ProducerIdentityFenced)
+    );
+    assert_eq!(format!("{producer:?}"), before);
 }
 
 #[test]
@@ -168,6 +200,7 @@ fn sealed_pair() -> (ProducerMachine, OperationId, OperationId, BatchExecutionId
     let policy = ProducerBatchPolicy::try_new(2, ByteCount::new(1_024), 20)
         .unwrap_or_else(|error| panic!("policy invalid: {error}"));
     let mut producer = ProducerMachine::with_batch_policy(ByteCount::new(64), 2, policy);
+    producer.install_identity_for_test();
     let (first, batch_id) = admit(&mut producer, 1);
     accumulate(&mut producer, first, batch_id);
     let (second, same_batch) = admit(&mut producer, 2);
@@ -199,7 +232,11 @@ fn admit(producer: &mut ProducerMachine, payload: u64) -> (OperationId, BatchId)
     }
 }
 
-fn accumulate(producer: &mut ProducerMachine, operation_id: OperationId, batch_id: BatchId) {
+fn accumulate(
+    producer: &mut ProducerMachine,
+    operation_id: OperationId,
+    batch_id: BatchId,
+) -> crate::ProducerTransition {
     producer
         .apply(ProducerInput::RecordAccumulated {
             operation_id,
@@ -207,7 +244,7 @@ fn accumulate(producer: &mut ProducerMachine, operation_id: OperationId, batch_i
             accumulator_bytes: RETAINED,
             now: Moment::from_tick(1),
         })
-        .unwrap_or_else(|error| panic!("accumulation failed: {error}"));
+        .unwrap_or_else(|error| panic!("accumulation failed: {error}"))
 }
 
 fn cancel(producer: &mut ProducerMachine, operation_id: OperationId) -> crate::ProducerTransition {

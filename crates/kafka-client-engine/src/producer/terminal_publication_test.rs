@@ -171,6 +171,7 @@ fn materialization_and_unrelated_admission_continue_while_terminals_are_backlogg
     );
 
     assert_eq!(host.fire_due(Moment::from_tick(110), 1), Ok(1));
+    super::test_identity::acquire_host_if_pending(&mut host, Moment::from_tick(110));
     assert_eq!(host.drive_prepared(Moment::from_tick(111), 1), Ok(1));
     assert_eq!(host.stats().terminal_backlog, 1);
     assert_eq!(host.stats().prepared_batches, 1);

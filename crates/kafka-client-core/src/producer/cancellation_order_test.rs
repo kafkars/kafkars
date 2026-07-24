@@ -124,7 +124,10 @@ fn assert_revision(
 fn producer(max_records: usize, completion_capacity: usize) -> ProducerMachine {
     let policy = ProducerBatchPolicy::try_new(max_records, ByteCount::new(1_024), 20)
         .unwrap_or_else(|error| panic!("policy invalid: {error}"));
-    ProducerMachine::with_batch_policy(ByteCount::new(64), completion_capacity, policy)
+    let mut producer =
+        ProducerMachine::with_batch_policy(ByteCount::new(64), completion_capacity, policy);
+    producer.install_identity_for_test();
+    producer
 }
 
 fn admit(producer: &mut ProducerMachine, payload: u64) -> (OperationId, BatchId) {

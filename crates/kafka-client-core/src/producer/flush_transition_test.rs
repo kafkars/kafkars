@@ -17,6 +17,7 @@ fn execution(batch_id: BatchId) -> BatchExecutionId {
 #[test]
 fn flush_includes_exactly_operations_accepted_before_its_barrier() {
     let mut producer = ProducerMachine::new(ByteCount::new(128), 4);
+    producer.install_identity_for_test();
     let (first, first_batch) = admit(&mut producer, 1, 0);
     let (flush_id, barrier) = request_flush(&mut producer);
     assert_eq!(flush_id, FlushId::from_raw(1));
@@ -36,6 +37,7 @@ fn flush_includes_exactly_operations_accepted_before_its_barrier() {
 #[test]
 fn overlapping_flushes_settle_in_barrier_order() {
     let mut producer = ProducerMachine::new(ByteCount::new(128), 4);
+    producer.install_identity_for_test();
     let (first, first_batch) = admit(&mut producer, 1, 0);
     let (first_flush, first_barrier) = request_flush(&mut producer);
     let (second, second_batch) = admit(&mut producer, 2, 1);
@@ -67,6 +69,7 @@ fn overlapping_flushes_settle_in_barrier_order() {
 #[test]
 fn terminal_decision_orders_flush_after_record_completion_effect() {
     let mut producer = ProducerMachine::new(ByteCount::new(64), 2);
+    producer.install_identity_for_test();
     let (operation_id, batch_id) = admit(&mut producer, 1, 0);
     let (flush_id, _barrier) = request_flush(&mut producer);
 

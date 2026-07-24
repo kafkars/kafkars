@@ -8,6 +8,7 @@ use crate::{
 
 fn materializing() -> (ProducerMachine, BatchExecutionId) {
     let mut producer = ProducerMachine::new(ByteCount::new(64), 1);
+    producer.install_identity_for_test();
     let admitted = producer
         .apply(ProducerInput::AdmitExplicit {
             now: Moment::from_tick(0),
