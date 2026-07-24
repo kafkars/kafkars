@@ -1,40 +1,31 @@
-//! Directly assigned consumer ownership.
+//! Unique public ownership of one directly assigned consumer.
 
-use crate::client::Client;
-use crate::error::KafkaError;
-use crate::operation::Operation;
+use crate::bridge::consumer::AssignedConsumerEngine;
 
-use super::NextBatch;
-
-/// Builder for a consumer with direct partition ownership.
-#[derive(Debug, Clone)]
-pub struct AssignedConsumerBuilder {
-    client: Client,
-}
-
-impl AssignedConsumerBuilder {
-    pub(crate) fn new(client: Client) -> Self {
-        Self { client }
-    }
-
-    /// Builds a directly assigned consumer prototype.
-    pub fn build(self) -> Result<AssignedConsumer, KafkaError> {
-        Ok(AssignedConsumer {
-            client: self.client,
-        })
-    }
-}
+use super::CloseAssignedConsumer;
 
 /// Consumer whose positions are controlled directly rather than by a group.
+///
+/// Assignment and record delivery remain absent until their engine seams are
+/// complete; this handle currently exposes only its real close lifecycle.
 #[derive(Debug)]
 pub struct AssignedConsumer {
-    client: Client,
+    engine: AssignedConsumerEngine,
 }
 
 impl AssignedConsumer {
-    /// Receives the next directly assigned record batch.
-    pub fn next_batch(&mut self) -> NextBatch {
-        let _ = &self.client;
-        Operation::ready(Ok(None))
+    pub(crate) const fn new(engine: AssignedConsumerEngine) -> Self {
+        Self { engine }
+    }
+
+    /// Attempts to close this consumer and returns the sole terminal observer.
+    ///
+    /// Close admission reserves its terminal capacity before deterministic core
+    /// policy closes later work. Rejection leaves this unique consumer available
+    /// for an explicit retry.
+    pub fn try_close(&mut self) -> Result<CloseAssignedConsumer, crate::KafkaError> {
+        self.engine
+            .try_close()
+            .map(CloseAssignedConsumer::from_bridge)
     }
 }

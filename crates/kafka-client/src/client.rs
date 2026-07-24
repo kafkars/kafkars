@@ -93,7 +93,7 @@ impl Client {
 
     /// Begins construction of a directly assigned consumer.
     pub fn assigned_consumer(&self) -> AssignedConsumerBuilder {
-        AssignedConsumerBuilder::new(self.clone())
+        AssignedConsumerBuilder::new(self.engine.clone())
     }
 
     /// Returns a cheap thread-safe admin handle.

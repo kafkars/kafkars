@@ -1273,6 +1273,18 @@ production = "crates/kafka-client/src/bridge/client.rs"
 test = "crates/kafka-client/src/bridge/client_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client/src/bridge/consumer.rs"
+test = "crates/kafka-client/src/bridge/consumer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/consumer_close.rs"
+test = "crates/kafka-client/src/bridge/consumer_close_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/consumer_result.rs"
+test = "crates/kafka-client/src/bridge/consumer_result_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client/src/bridge/admin.rs"
 test = "crates/kafka-client/src/bridge/admin_test.rs"
 
@@ -1347,6 +1359,18 @@ test = "crates/kafka-client/src/bridge/producer_result/flush_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/producer/handle.rs"
 test = "crates/kafka-client/src/producer/handle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/consumer/assigned.rs"
+test = "crates/kafka-client/src/consumer/assigned_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/consumer/assigned_builder.rs"
+test = "crates/kafka-client/src/consumer/assigned_builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/consumer/assigned_close.rs"
+test = "crates/kafka-client/src/consumer/assigned_close_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/producer/close.rs"
@@ -5526,6 +5550,22 @@ path = "crates/kafka-client/src/producer/flush.rs"
 [[linear_owners]]
 owner_type = "CloseProducer"
 path = "crates/kafka-client/src/producer/close.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerEngine"
+path = "crates/kafka-client/src/bridge/consumer.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerClose"
+path = "crates/kafka-client/src/bridge/consumer_close.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumer"
+path = "crates/kafka-client/src/consumer/assigned.rs"
+
+[[linear_owners]]
+owner_type = "CloseAssignedConsumer"
+path = "crates/kafka-client/src/consumer/assigned_close.rs"
 
 [[linear_owners]]
 owner_type = "TrySendError"

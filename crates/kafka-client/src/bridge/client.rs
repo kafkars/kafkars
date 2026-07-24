@@ -53,6 +53,13 @@ impl ClientEngine {
     pub(crate) fn admin(&self) -> super::admin::AdminEngine {
         super::admin::AdminEngine::new(self.inner.admin(), self.inner.config().admin_timeout())
     }
+
+    /// Claims the engine's sole directly assigned consumer.
+    pub(crate) fn claim_assigned_consumer(
+        &self,
+    ) -> Result<super::consumer::AssignedConsumerEngine, KafkaError> {
+        super::consumer::AssignedConsumerEngine::claim(&self.inner)
+    }
 }
 
 const fn engine_compression(compression: Compression) -> EngineCompression {
