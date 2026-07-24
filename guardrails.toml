@@ -165,6 +165,10 @@ production = "crates/kafka-client-core/src/consumer/fetch_state.rs"
 test = "crates/kafka-client-core/src/consumer/fetch_state_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/fetch_transition.rs"
+test = "crates/kafka-client-core/src/consumer/fetch_delivery_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/position_state.rs"
 test = "crates/kafka-client-core/src/consumer/position_state_test.rs"
 
@@ -1794,7 +1798,7 @@ owner_type = "PartitionPosition"
 field = "epoch"
 allowed_paths = ["crates/kafka-client-core/src/consumer/position_state.rs"]
 
-# Position state owns cross-phase fencing/reset; Fetch state owns successful-Fetch commits.
+# Position state owns cross-phase fencing/reset; Fetch state owns Fetch terminal commits.
 [[mutation_owners]]
 owner_type = "PartitionPosition"
 field = "next_fetch_revision"

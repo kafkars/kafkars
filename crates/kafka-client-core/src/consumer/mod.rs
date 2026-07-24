@@ -5,6 +5,7 @@ mod error;
 mod exports;
 mod fetch_state;
 mod fetch_throttle;
+mod fetch_transition;
 mod input;
 mod machine;
 mod model;
@@ -19,6 +20,8 @@ pub use exports::*;
 mod assignment_test;
 #[cfg(test)]
 mod control_test;
+#[cfg(test)]
+mod fetch_delivery_test;
 #[cfg(test)]
 mod fetch_state_test;
 #[cfg(test)]

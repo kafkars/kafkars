@@ -1,8 +1,8 @@
 //! Sole owner of atomic successful-Fetch progression and throttle transitions.
 
 use super::{
-    AssignedConsumerEffect, AssignedConsumerMachineError, AssignedTopicPartition, FetchFence,
-    FetchRevision, FetchThrottleFailure, NextFetchOffset, PositionFence,
+    AssignedConsumerEffect, AssignedConsumerMachineError, AssignedTopicPartition, FetchFailure,
+    FetchFence, FetchRecords, FetchRevision, FetchThrottleFailure, NextFetchOffset, PositionFence,
     fetch_throttle::FetchThrottle,
     position_state::{PartitionPosition, PositionPhase},
 };
@@ -12,11 +12,12 @@ impl PartitionPosition {
     pub(super) fn advance(
         &mut self,
         supplied: FetchFence,
+        records: FetchRecords,
         next_offset: NextFetchOffset,
         now: Moment,
         throttle_ticks: u64,
         partition: AssignedTopicPartition,
-    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
+    ) -> Result<Vec<AssignedConsumerEffect>, AssignedConsumerMachineError> {
         let PositionPhase::Fetching {
             fence,
             next_offset: requested,
@@ -34,20 +35,47 @@ impl PartitionPosition {
             });
         }
         let (next_fence, next_revision) = self.plan_fetch(supplied.position(), partition)?;
-        if throttle_ticks == 0 {
-            return Ok(self.install_fetch(next_fence, next_revision, next_offset));
-        }
-        let Some(deadline) = now.checked_deadline_after(throttle_ticks) else {
+        let progress = if throttle_ticks == 0 {
+            self.install_fetch(next_fence, next_revision, next_offset)
+        } else if let Some(deadline) = now.checked_deadline_after(throttle_ticks) {
+            self.install_throttle(next_fence, next_revision, next_offset, deadline);
+            AssignedConsumerEffect::ArmFetchThrottle {
+                fence: next_fence,
+                deadline,
+            }
+        } else {
             self.phase = PositionPhase::FetchFailed;
-            return Ok(AssignedConsumerEffect::FetchThrottleFailed {
+            AssignedConsumerEffect::FetchThrottleFailed {
                 fence: supplied,
                 failure: FetchThrottleFailure::DeadlineOverflow,
-            });
+            }
         };
-        self.install_throttle(next_fence, next_revision, next_offset, deadline);
-        Ok(AssignedConsumerEffect::ArmFetchThrottle {
-            fence: next_fence,
-            deadline,
+        let mut effects = Vec::with_capacity(usize::from(records == FetchRecords::Deliverable) + 1);
+        if records == FetchRecords::Deliverable {
+            effects.push(AssignedConsumerEffect::AuthorizeFetchDelivery {
+                fence: supplied,
+                next_offset,
+            });
+        }
+        effects.push(progress);
+        Ok(effects)
+    }
+
+    pub(super) fn fetch_failed(
+        &mut self,
+        supplied: FetchFence,
+        failure: FetchFailure,
+    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
+        let PositionPhase::Fetching { fence, .. } = self.phase else {
+            return Err(AssignedConsumerMachineError::StaleFetch { supplied });
+        };
+        if fence != supplied {
+            return Err(AssignedConsumerMachineError::StaleFetch { supplied });
+        }
+        self.phase = PositionPhase::FetchFailed;
+        Ok(AssignedConsumerEffect::FetchFailed {
+            fence: supplied,
+            failure,
         })
     }
 

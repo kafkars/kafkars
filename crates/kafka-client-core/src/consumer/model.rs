@@ -210,3 +210,12 @@ impl FetchFence {
         self.revision
     }
 }
+
+/// Whether one normalized Fetch result retains records visible to the application.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FetchRecords {
+    /// The response was empty or contained only Kafka control records.
+    NoApplicationRecords,
+    /// The engine retains one or more application records for delivery.
+    Deliverable,
+}

@@ -2,7 +2,7 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
-    AssignedConsumerMachineError, StartPosition,
+    AssignedConsumerMachineError, FetchRecords, StartPosition,
     assignment_test::{assign, assigned, offset, partition},
 };
 use crate::{Deadline, Moment};
@@ -39,6 +39,7 @@ fn pause_fences_inflight_fetch_and_resume_restarts_retained_offset() {
     assert_eq!(
         machine.apply(AssignedConsumerInput::FetchAdvanced {
             fence: old_fetch,
+            records: FetchRecords::NoApplicationRecords,
             next_offset: offset(12),
             now: Moment::from_tick(1),
             throttle_ticks: 0,

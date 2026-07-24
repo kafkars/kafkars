@@ -2,7 +2,7 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
-    AssignedConsumerMachineError, FetchThrottleFailure, StartPosition,
+    AssignedConsumerMachineError, FetchRecords, FetchThrottleFailure, StartPosition,
     assignment_test::{assign_at, assigned, offset},
     fetch_throttle_test::{advance_with_throttle, first_fetch},
 };
@@ -63,6 +63,7 @@ fn fetch_throttle_deadline_overflow_is_explicit_and_inert_until_seek() {
     let failed = machine
         .apply(AssignedConsumerInput::FetchAdvanced {
             fence: completed,
+            records: FetchRecords::NoApplicationRecords,
             next_offset: offset(12),
             now: Moment::from_tick(u64::MAX - 1),
             throttle_ticks: 2,
@@ -78,6 +79,7 @@ fn fetch_throttle_deadline_overflow_is_explicit_and_inert_until_seek() {
     assert_eq!(
         machine.apply(AssignedConsumerInput::FetchAdvanced {
             fence: completed,
+            records: FetchRecords::NoApplicationRecords,
             next_offset: offset(13),
             now: Moment::from_tick(u64::MAX),
             throttle_ticks: 0,

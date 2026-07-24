@@ -5,8 +5,8 @@
 //! that deadline from a later relative timeout.
 
 use super::{
-    AssignedPartition, AssignedTopicPartition, AssignmentEpoch, FetchFence, NextFetchOffset,
-    PositionFence, StartPosition,
+    AssignedPartition, AssignedTopicPartition, AssignmentEpoch, FetchFailure, FetchFence,
+    FetchRecords, NextFetchOffset, PositionFence, StartPosition,
 };
 use crate::{Deadline, Moment};
 
@@ -95,12 +95,21 @@ pub enum AssignedConsumerInput {
     FetchAdvanced {
         /// Exact fetch execution being settled.
         fence: FetchFence,
+        /// Whether the engine retains application-visible records for this result.
+        records: FetchRecords,
         /// Next offset after the normalized fetch response.
         next_offset: NextFetchOffset,
         /// Monotonic observation when the successful fetch was applied.
         now: Moment,
         /// Exact nonnegative broker throttle duration in deterministic clock ticks.
         throttle_ticks: u64,
+    },
+    /// Reports terminal failure of one exact fetch execution.
+    FetchFailed {
+        /// Exact fetch execution being settled.
+        fence: FetchFence,
+        /// Normalized semantic terminal reason, free of driver and wire types.
+        failure: FetchFailure,
     },
     /// Reports that one exact successful-Fetch throttle elapsed.
     FetchThrottleElapsed {

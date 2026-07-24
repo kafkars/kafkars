@@ -1,5 +1,7 @@
 //! Ordered direct-consumer actions for a future engine fetch interpreter.
 
+use core::num::NonZeroI16;
+
 use super::{
     AssignedTopicPartition, AssignmentEpoch, FetchFence, NextFetchOffset, PositionFence,
     StartPosition,
@@ -22,6 +24,25 @@ pub enum PositionResolutionFailure {
 pub enum FetchThrottleFailure {
     /// The positive throttle duration could not become an absolute deadline.
     DeadlineOverflow,
+}
+
+/// Terminal semantic reason one exact Fetch cannot deliver or advance.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FetchFailure {
+    /// The absolute Fetch deadline elapsed.
+    DeadlineElapsed,
+    /// The driver rejected permanent ownership of the request.
+    DriverRejected,
+    /// Transport ownership terminated without a response.
+    Transport,
+    /// Kafka returned one exact nonzero signed partition error code.
+    Broker(NonZeroI16),
+    /// The selected Fetch version cannot preserve required semantics.
+    Compatibility,
+    /// The correlated response was structurally or semantically invalid.
+    InvalidResponse,
+    /// The generated or decoded response exceeded a configured bound.
+    ResponseTooLarge,
 }
 
 /// One ordered action selected by deterministic direct-consumer policy.
@@ -78,6 +99,24 @@ pub enum AssignedConsumerEffect {
         fence: FetchFence,
         /// Deterministic terminal classification.
         failure: FetchThrottleFailure,
+    },
+    /// Authorizes application delivery of the engine-owned records for one exact Fetch.
+    ///
+    /// The interpreter must apply this before later effects from the same
+    /// transition. The supplied next offset is the checkpoint position after
+    /// every record represented by that retained delivery.
+    AuthorizeFetchDelivery {
+        /// Exact Fetch whose retained records may become application-visible.
+        fence: FetchFence,
+        /// Assignment-fenced next offset carried by the delivery checkpoint.
+        next_offset: NextFetchOffset,
+    },
+    /// Publishes terminal failure of one exact Fetch without retry.
+    FetchFailed {
+        /// Exact Fetch execution whose attempt terminated.
+        fence: FetchFence,
+        /// Preserved semantic failure selected by the engine protocol boundary.
+        failure: FetchFailure,
     },
     /// Announces that one exact partition position may be fetched.
     FetchReady {

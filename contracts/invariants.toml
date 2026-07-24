@@ -274,7 +274,7 @@ milestone = "direct-and-group-consumer"
 [[invariant]]
 id = "CON-02"
 title = "Direct fetch positions are generation-fenced"
-statement = "Direct assignment replacement allocates a monotonic epoch and revokes old partitions before new work; pause and seek advance partition-local position generations so stale resolution, throttle, and fetch results cannot mutate retained state. Start-position resolution preserves one supplied absolute child deadline, deadline precedence and terminal failure remain core-owned, and positive broker throttle retains one exact fenced deadline. Every successful Fetch reports its exact monotonic observation and nonnegative broker throttle; zero throttle emits the next exact FetchReady revision immediately, while positive throttle reserves one exact future fetch fence and one checked absolute deadline before arming. Early or stale timer facts reject without mutation; pause and resume retain that deadline while re-fencing it; offset regression and revision exhaustion are atomic; and throttle-deadline overflow becomes an explicit core-owned terminal effect."
+statement = "Direct assignment replacement allocates a monotonic epoch and revokes old partitions before new work; pause and seek advance partition-local position generations so stale resolution, throttle, and fetch results cannot mutate retained state. Start-position resolution preserves one supplied absolute child deadline, deadline precedence and terminal failure remain core-owned, and positive broker throttle retains one exact fenced deadline. Every successful Fetch reports its exact monotonic observation, nonnegative broker throttle, and whether application records were retained. Core authorizes an exact retained delivery and its checkpoint next offset before emitting the next FetchReady revision or throttle; empty and control-only progress emits no delivery. Exact Fetch failure preserves deadline, driver-rejection, transport, exact signed broker-code, compatibility, invalid-response, and over-budget reasons, never retries, and remains inert until seek or assignment replacement. Zero throttle emits the next exact FetchReady revision immediately, while positive throttle reserves one exact future fetch fence and one checked absolute deadline before arming. Early or stale timer facts reject without mutation; pause and resume retain that deadline while re-fencing it; offset regression and revision exhaustion are atomic; and throttle-deadline overflow becomes an explicit core-owned terminal effect after any retained delivery is authorized."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/consumer/assignment_test.rs::replacement_revokes_old_order_before_starting_new_epoch",
@@ -287,6 +287,13 @@ evidence = [
   "crates/kafka-client-core/src/consumer/fetch_throttle_test.rs::positive_fetch_throttle_arms_one_exact_future_fence_and_rejects_early_wake",
   "crates/kafka-client-core/src/consumer/fetch_throttle_test.rs::zero_fetch_throttle_emits_the_next_exact_revision_without_a_timer",
   "crates/kafka-client-core/src/consumer/fetch_throttle_test.rs::pause_rearms_the_same_fetch_throttle_deadline_under_a_new_fence",
+  "crates/kafka-client-core/src/consumer/fetch_delivery_test.rs::deliverable_fetch_authorizes_before_unthrottled_progress",
+  "crates/kafka-client-core/src/consumer/fetch_delivery_test.rs::empty_or_control_only_fetch_advances_without_delivery",
+  "crates/kafka-client-core/src/consumer/fetch_delivery_test.rs::deliverable_fetch_authorizes_before_positive_throttle",
+  "crates/kafka-client-core/src/consumer/fetch_delivery_test.rs::delivery_precedes_terminal_throttle_overflow",
+  "crates/kafka-client-core/src/consumer/fetch_delivery_test.rs::stale_failure_cannot_terminate_the_active_fetch_revision",
+  "crates/kafka-client-core/src/consumer/fetch_delivery_test.rs::every_terminal_fetch_failure_preserves_its_semantic_reason",
+  "crates/kafka-client-core/src/consumer/fetch_delivery_test.rs::terminal_fetch_failure_is_inert_until_seek_replaces_position",
   "crates/kafka-client-core/src/consumer/fetch_state_test.rs::seek_and_assignment_replacement_fence_old_fetch_throttle_timers",
   "crates/kafka-client-core/src/consumer/fetch_state_test.rs::fetch_throttle_deadline_overflow_is_explicit_and_inert_until_seek",
   "crates/kafka-client-core/src/consumer/position_test.rs::resolved_start_and_fetch_progress_issue_exact_ordered_positions",

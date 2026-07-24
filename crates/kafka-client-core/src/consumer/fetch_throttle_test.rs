@@ -2,7 +2,7 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
-    AssignedConsumerMachineError, FetchFence, FetchRevision, StartPosition,
+    AssignedConsumerMachineError, FetchFence, FetchRecords, FetchRevision, StartPosition,
     assignment_test::{assign, assigned, offset},
 };
 use crate::{Deadline, Moment};
@@ -70,6 +70,7 @@ fn zero_fetch_throttle_emits_the_next_exact_revision_without_a_timer() {
     let advanced = machine
         .apply(AssignedConsumerInput::FetchAdvanced {
             fence: completed,
+            records: FetchRecords::NoApplicationRecords,
             next_offset: offset(12),
             now: Moment::from_tick(10),
             throttle_ticks: 0,
@@ -205,6 +206,7 @@ pub(super) fn advance_with_throttle(
     let transition = machine
         .apply(AssignedConsumerInput::FetchAdvanced {
             fence: completed,
+            records: FetchRecords::NoApplicationRecords,
             next_offset: offset(next_offset),
             now: Moment::from_tick(now),
             throttle_ticks,

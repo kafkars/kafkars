@@ -2,7 +2,7 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
-    AssignedConsumerMachineError, StartPosition,
+    AssignedConsumerMachineError, FetchRecords, StartPosition,
     assignment_test::{assign, assigned, offset},
 };
 use crate::Moment;
@@ -34,6 +34,7 @@ fn resolved_start_and_fetch_progress_issue_exact_ordered_positions() {
     let advanced = machine
         .apply(AssignedConsumerInput::FetchAdvanced {
             fence: first_fetch,
+            records: FetchRecords::NoApplicationRecords,
             next_offset: offset(14),
             now: Moment::from_tick(2),
             throttle_ticks: 0,
@@ -66,6 +67,7 @@ fn offset_regression_rejects_without_consuming_fetch_revision() {
     assert_eq!(
         machine.apply(AssignedConsumerInput::FetchAdvanced {
             fence: first_fetch,
+            records: FetchRecords::NoApplicationRecords,
             next_offset: offset(9),
             now: Moment::from_tick(1),
             throttle_ticks: 0,
@@ -79,6 +81,7 @@ fn offset_regression_rejects_without_consuming_fetch_revision() {
     let accepted = machine
         .apply(AssignedConsumerInput::FetchAdvanced {
             fence: first_fetch,
+            records: FetchRecords::NoApplicationRecords,
             next_offset: offset(11),
             now: Moment::from_tick(1),
             throttle_ticks: 0,
@@ -107,6 +110,7 @@ fn older_fetch_revision_cannot_advance_the_active_execution() {
     let second = machine
         .apply(AssignedConsumerInput::FetchAdvanced {
             fence: first_fetch,
+            records: FetchRecords::NoApplicationRecords,
             next_offset: offset(12),
             now: Moment::from_tick(1),
             throttle_ticks: 0,
@@ -123,6 +127,7 @@ fn older_fetch_revision_cannot_advance_the_active_execution() {
     assert_eq!(
         machine.apply(AssignedConsumerInput::FetchAdvanced {
             fence: first_fetch,
+            records: FetchRecords::Deliverable,
             next_offset: offset(13),
             now: Moment::from_tick(2),
             throttle_ticks: 0,
@@ -134,6 +139,7 @@ fn older_fetch_revision_cannot_advance_the_active_execution() {
     let accepted = machine
         .apply(AssignedConsumerInput::FetchAdvanced {
             fence: second_fetch,
+            records: FetchRecords::NoApplicationRecords,
             next_offset: offset(14),
             now: Moment::from_tick(2),
             throttle_ticks: 0,

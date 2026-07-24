@@ -2,8 +2,8 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerMachineError, AssignedPartition,
-    AssignedTopicPartition, AssignmentEpoch, FetchFence, NextFetchOffset, PositionFence,
-    StartPosition, position_state::PartitionPosition,
+    AssignedTopicPartition, AssignmentEpoch, FetchFailure, FetchFence, FetchRecords,
+    NextFetchOffset, PositionFence, StartPosition, position_state::PartitionPosition,
 };
 use crate::{Deadline, Moment};
 
@@ -123,16 +123,35 @@ impl AssignedPartitionState {
     pub(super) fn fetch_advanced(
         &mut self,
         supplied: FetchFence,
+        records: FetchRecords,
         next_offset: NextFetchOffset,
         now: Moment,
         throttle_ticks: u64,
+    ) -> Result<Vec<AssignedConsumerEffect>, AssignedConsumerMachineError> {
+        self.ensure_position_fence(supplied.position())?;
+        if self.paused {
+            return Err(AssignedConsumerMachineError::StaleFetch { supplied });
+        }
+        self.position.advance(
+            supplied,
+            records,
+            next_offset,
+            now,
+            throttle_ticks,
+            self.partition,
+        )
+    }
+
+    pub(super) fn fetch_failed(
+        &mut self,
+        supplied: FetchFence,
+        failure: FetchFailure,
     ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
         self.ensure_position_fence(supplied.position())?;
         if self.paused {
             return Err(AssignedConsumerMachineError::StaleFetch { supplied });
         }
-        self.position
-            .advance(supplied, next_offset, now, throttle_ticks, self.partition)
+        self.position.fetch_failed(supplied, failure)
     }
 
     pub(super) fn fetch_throttle_elapsed(

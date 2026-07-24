@@ -4,7 +4,7 @@ use crate::{Deadline, Moment, PartitionIndex, TopicId};
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerMachineError, AssignedTopicPartition, AssignmentEpoch,
-    FetchRevision, NextFetchOffset, PositionEpoch, PositionFence, StartPosition,
+    FetchRecords, FetchRevision, NextFetchOffset, PositionEpoch, PositionFence, StartPosition,
     position_state::PartitionPosition,
 };
 
@@ -38,11 +38,25 @@ fn fetch_revision_exhaustion_preserves_the_active_fetch_and_offset() {
     );
 
     assert_eq!(
-        state.advance(first_fetch, offset(12), Moment::from_tick(1), 5, partition,),
+        state.advance(
+            first_fetch,
+            FetchRecords::NoApplicationRecords,
+            offset(12),
+            Moment::from_tick(1),
+            5,
+            partition,
+        ),
         Err(AssignedConsumerMachineError::FetchRevisionExhausted { partition })
     );
     assert_eq!(
-        state.advance(first_fetch, offset(9), Moment::from_tick(1), 0, partition,),
+        state.advance(
+            first_fetch,
+            FetchRecords::NoApplicationRecords,
+            offset(9),
+            Moment::from_tick(1),
+            0,
+            partition,
+        ),
         Err(AssignedConsumerMachineError::OffsetRegression {
             requested: offset(10),
             observed: offset(9),
@@ -53,18 +67,20 @@ fn fetch_revision_exhaustion_preserves_the_active_fetch_and_offset() {
         FetchRevision::try_from_raw_for_test(2)
             .unwrap_or_else(|| panic!("test revision is nonzero")),
     );
+    let effects = state
+        .advance(
+            first_fetch,
+            FetchRecords::NoApplicationRecords,
+            offset(12),
+            Moment::from_tick(1),
+            0,
+            partition,
+        )
+        .unwrap_or_else(|error| panic!("active fetch must survive exhaustion: {error}"));
     assert!(matches!(
-        state
-            .advance(
-                first_fetch,
-                offset(12),
-                Moment::from_tick(1),
-                0,
-                partition,
-            )
-            .unwrap_or_else(|error| panic!("active fetch must survive exhaustion: {error}")),
-        AssignedConsumerEffect::FetchReady { fence, next_offset }
-            if fence.revision().get() == 2 && next_offset == offset(12)
+        effects.as_slice(),
+        [AssignedConsumerEffect::FetchReady { fence, next_offset }]
+            if fence.revision().get() == 2 && *next_offset == offset(12)
     ));
 }
 

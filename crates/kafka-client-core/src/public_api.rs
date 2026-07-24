@@ -34,8 +34,9 @@ pub use crate::completion::{CompletionLedger, CompletionLedgerError};
 pub use crate::consumer::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
     AssignedConsumerMachineError, AssignedConsumerTransition, AssignedPartition,
-    AssignedTopicPartition, AssignmentEpoch, FetchFence, FetchRevision, FetchThrottleFailure,
-    NextFetchOffset, PositionEpoch, PositionFence, PositionResolutionFailure, StartPosition,
+    AssignedTopicPartition, AssignmentEpoch, FetchFailure, FetchFence, FetchRecords, FetchRevision,
+    FetchThrottleFailure, NextFetchOffset, PositionEpoch, PositionFence, PositionResolutionFailure,
+    StartPosition,
 };
 pub use crate::operation::{ProducerOperation, ProducerOperationState};
 pub use crate::operation_outcome::{
