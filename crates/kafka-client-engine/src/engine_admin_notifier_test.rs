@@ -1,4 +1,4 @@
-//! Integrated one-admin-worker and reentrant-shutdown scenarios.
+//! Integrated fixed-domain notifier workers and reentrant-shutdown scenarios.
 
 use std::{
     future::Future,
@@ -11,9 +11,9 @@ use std::{
 use crate::{Engine, EngineConfig, EngineShutdownError, EngineShutdownErrorKind};
 
 #[test]
-fn startup_owns_one_producer_and_one_shared_admin_notifier() {
+fn startup_owns_one_worker_for_each_completion_domain() {
     let engine = start(Duration::from_millis(80));
-    assert_eq!(engine.completion_notifier_thread_count(), 2);
+    assert_eq!(engine.completion_notifier_thread_count(), 3);
     assert!(engine.shutdown().is_ok());
 }
 

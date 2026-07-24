@@ -90,7 +90,7 @@ evidence = [
   "crates/kafka-client-engine/src/admin/completion_test.rs::one_worker_publishes_every_concrete_admin_terminal_off_reactor",
   "crates/kafka-client-engine/src/admin/completion_test.rs::shared_capacity_is_the_sum_of_the_closed_admin_ticket_set",
   "crates/kafka-client-engine/src/completion/shared_notifier_test.rs::bounded_shared_queue_returns_the_exact_typed_terminal_for_retry",
-  "crates/kafka-client-engine/src/engine_admin_notifier_test.rs::startup_owns_one_producer_and_one_shared_admin_notifier",
+  "crates/kafka-client-engine/src/engine_admin_notifier_test.rs::startup_owns_one_worker_for_each_completion_domain",
   "crates/kafka-client-engine/src/engine_admin_notifier_test.rs::admin_notifier_reentrant_shutdown_defers_its_own_join",
   "crates/kafka-client/src/admin/describe_builder_test.rs::zero_deadline_builder_is_inert_until_submit",
   "crates/kafka-client/src/bridge/admin_describe_result_test.rs::controller_identity_crosses_the_bridge_without_becoming_policy",

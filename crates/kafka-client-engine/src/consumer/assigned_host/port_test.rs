@@ -54,9 +54,13 @@ fn deadline_capture_precedes_contended_check() {
 #[test]
 fn wake_failure_is_advisory_after_assignment_commits() {
     let clock = Arc::new(MonotonicClock::new());
-    let (owner, port) =
-        AssignedConsumerShardOwner::new(clock, settings(), limits(1), Arc::new(FailingWake))
-            .unwrap_or_else(|error| panic!("assigned shard: {error:?}"));
+    let (owner, port) = AssignedConsumerShardOwner::new_for_test(
+        clock,
+        settings(),
+        limits(1),
+        Arc::new(FailingWake),
+    )
+    .unwrap_or_else(|error| panic!("assigned shard: {error:?}"));
 
     let accepted = port
         .replace_assignment(
@@ -170,7 +174,7 @@ fn rejected_explicit_close_does_not_publish_the_closed_mirror() {
     let accepted = port
         .begin_close()
         .unwrap_or_else(|error| panic!("mirror must remain open: {error:?}"));
-    let () = accepted.into_value();
+    let _observer = accepted.into_value();
     assert_eq!(wake.count(), 2);
 }
 

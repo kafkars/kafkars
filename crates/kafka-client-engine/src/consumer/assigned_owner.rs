@@ -7,10 +7,12 @@ use kafka_client_core::{
 };
 
 use crate::clock::MonotonicClock;
+use crate::completion::CompletionRegistry;
 
 use super::{
     assigned_close_slot::AssignedCloseSlot,
     assigned_event::AssignedConsumerEventStore,
+    assigned_host::{AssignedConsumerClosePublisher, AssignedConsumerCloseTerminal},
     assigned_owner_fault::{AssignedConsumerFaultKind, AssignedConsumerOwnerFault},
     assigned_owner_model::{
         AssignedConsumerOwnerBuildError, AssignedConsumerOwnerLimits,
@@ -22,6 +24,9 @@ use super::{
     position_execution::PositionResolutionExecutor,
 };
 
+#[cfg(test)]
+use super::assigned_owner_test::AssignedConsumerNotifierGuard;
+
 /// Sole engine owner of one core machine and every retained execution mechanism.
 pub(crate) struct AssignedConsumerOwner {
     pub(super) machine: AssignedConsumerMachine,
@@ -31,6 +36,8 @@ pub(crate) struct AssignedConsumerOwner {
     pub(super) fetches: DirectFetchExecutor,
     pub(super) events: AssignedConsumerEventStore,
     pub(super) close: AssignedCloseSlot,
+    pub(super) close_completions:
+        CompletionRegistry<AssignedConsumerCloseTerminal, AssignedConsumerClosePublisher>,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) settings: AssignedConsumerOwnerSettings,
     pub(super) limits: AssignedConsumerOwnerLimits,
@@ -41,6 +48,10 @@ pub(crate) struct AssignedConsumerOwner {
     pub(super) reclaim_faults: Vec<FetchReclaimFailure>,
     pub(super) reclaim_overflow: Option<FetchReclaimFailure>,
     pub(super) fault: Option<AssignedConsumerOwnerFault>,
+    #[cfg(test)]
+    pub(super) close_notifier: Option<AssignedConsumerNotifierGuard>,
+    #[cfg(test)]
+    pub(super) close_publish_faults: VecDeque<crate::completion::CompletionRegistryError>,
 }
 
 impl AssignedConsumerOwner {
@@ -48,6 +59,7 @@ impl AssignedConsumerOwner {
         clock: Arc<MonotonicClock>,
         settings: AssignedConsumerOwnerSettings,
         limits: AssignedConsumerOwnerLimits,
+        close_publisher: AssignedConsumerClosePublisher,
     ) -> Result<Self, AssignedConsumerOwnerBuildError> {
         if settings.due_timer_budget == 0 {
             return Err(AssignedConsumerOwnerBuildError::ZeroTimerBudget);
@@ -85,6 +97,7 @@ impl AssignedConsumerOwner {
             events: AssignedConsumerEventStore::new(limits.partition_capacity)
                 .map_err(AssignedConsumerOwnerBuildError::Event)?,
             close: AssignedCloseSlot::create_for_assigned_owner(),
+            close_completions: CompletionRegistry::with_publisher(1, close_publisher),
             clock,
             settings,
             limits,
@@ -95,6 +108,10 @@ impl AssignedConsumerOwner {
             reclaim_faults,
             reclaim_overflow: None,
             fault: None,
+            #[cfg(test)]
+            close_notifier: None,
+            #[cfg(test)]
+            close_publish_faults: VecDeque::new(),
         })
     }
 

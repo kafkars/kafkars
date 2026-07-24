@@ -10,10 +10,14 @@ use support::{
 
 const ERROR: &str = "crates/kafka-client-engine/src/consumer/assigned_close_error.rs";
 const SLOT: &str = "crates/kafka-client-engine/src/consumer/assigned_close_slot.rs";
+const SLOT_TEST: &str = "crates/kafka-client-engine/src/consumer/assigned_close_slot_test.rs";
+const PUBLICATION: &str =
+    "crates/kafka-client-engine/src/consumer/assigned_close_slot/publication.rs";
+const PUBLICATION_TEST: &str =
+    "crates/kafka-client-engine/src/consumer/assigned_close_slot/publication_test.rs";
 const LINEAR: &[&str] = &["AssignedCloseState", "AssignedCloseSlot"];
 const FORBIDDEN: &[&str] = &[
     "crate::admin",
-    "crate::completion",
     "crate::driver",
     "crate::producer",
     "crate::protocol",
@@ -39,6 +43,15 @@ const FORBIDDEN: &[&str] = &[
 #[test]
 fn checked_in_close_slot_policy_is_exact() {
     let config = load_config(&workspace_root());
+    for (production, test) in [(SLOT, SLOT_TEST), (PUBLICATION, PUBLICATION_TEST)] {
+        let rules = config
+            .test_mirrors
+            .iter()
+            .filter(|rule| rule.production == production)
+            .collect::<Vec<_>>();
+        assert_eq!(rules.len(), 1, "{production} needs one test mirror");
+        assert_eq!(rules[0].test, test);
+    }
     for owner_type in LINEAR {
         let rules = config
             .linear_owners
@@ -55,9 +68,9 @@ fn checked_in_close_slot_policy_is_exact() {
         .filter(|rule| rule.owner_type == "AssignedCloseSlot" && rule.field == "state")
         .collect::<Vec<_>>();
     assert_eq!(mutations.len(), 1);
-    assert_eq!(mutations[0].allowed_paths, [SLOT]);
+    assert_eq!(mutations[0].allowed_paths, [SLOT, PUBLICATION]);
 
-    for root in [ERROR, SLOT] {
+    for root in [ERROR, SLOT, PUBLICATION] {
         let capabilities = config
             .capability_rules
             .iter()
@@ -134,7 +147,6 @@ fn fixture_rejects_allocation_runtime_and_sibling_capabilities() {
         }],
     );
     for capability in [
-        "crate::completion",
         "crate::driver",
         "crate::producer",
         "kafka_driver",

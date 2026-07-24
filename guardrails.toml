@@ -505,6 +505,10 @@ production = "crates/kafka-client-engine/src/engine_host/notifier_shutdown.rs"
 test = "crates/kafka-client-engine/src/engine_host/notifier_shutdown_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/notifier_start.rs"
+test = "crates/kafka-client-engine/src/engine_host/notifier_start_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/produce_turn.rs"
 test = "crates/kafka-client-engine/src/engine_host/produce_turn_test.rs"
 
@@ -961,6 +965,10 @@ production = "crates/kafka-client-engine/src/consumer/assigned_host/handle.rs"
 test = "crates/kafka-client-engine/src/consumer/assigned_host/handle_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_close_slot/publication.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_close_slot/publication_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_event.rs"
 test = "crates/kafka-client-engine/src/consumer/assigned_event_test.rs"
 
@@ -1001,6 +1009,10 @@ production = "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs"
 test = "crates/kafka-client-engine/src/consumer/assigned_owner_close_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs"
 test = "crates/kafka-client-engine/src/consumer/assigned_owner_effect_test.rs"
 
@@ -1035,6 +1047,14 @@ test = "crates/kafka-client-engine/src/consumer/assigned_owner_turn_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_host/port.rs"
 test = "crates/kafka-client-engine/src/consumer/assigned_host/port_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/close_observer.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/close_observer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/completion.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/completion_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_host/event_port.rs"
@@ -1755,13 +1775,12 @@ forbidden = [
   "Retry",
 ]
 
-# The pre-reserved assigned-close slot owns one scalar terminal value and no
-# allocation, completion publication, clock, transport, async, or sibling policy.
+# The assigned-close slot binds one completion identity but owns no publication
+# queue, allocation, clock, transport, async runtime, or sibling policy.
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/assigned_close_error.rs"
 forbidden = [
   "crate::admin",
-  "crate::completion",
   "crate::driver",
   "crate::producer",
   "crate::protocol",
@@ -1788,7 +1807,32 @@ forbidden = [
 root = "crates/kafka-client-engine/src/consumer/assigned_close_slot.rs"
 forbidden = [
   "crate::admin",
-  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "std::collections",
+  "std::future",
+  "std::net",
+  "std::sync",
+  "std::thread",
+  "std::time",
+  "Arc",
+  "Box",
+  "Future",
+  "String",
+  "Vec",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_close_slot/publication.rs"
+forbidden = [
+  "crate::admin",
   "crate::driver",
   "crate::producer",
   "crate::protocol",
@@ -2515,6 +2559,7 @@ root = "crates/kafka-client-engine/src"
 method = "publish_port"
 allowed_paths = [
   "crates/kafka-client-engine/src/admin/completion.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_host/completion.rs",
 ]
 
 [[method_capabilities]]
@@ -2522,6 +2567,7 @@ root = "crates/kafka-client-engine/src"
 method = "join_off_notifier"
 allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/notifier_shutdown.rs",
+  "crates/kafka-client-engine/src/engine_host/notifier_start.rs",
   "crates/kafka-client-engine/src/engine_host/start.rs",
 ]
 
@@ -2899,6 +2945,39 @@ forbidden = [
   "async_std",
   "smol",
   "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/close_observer.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/completion.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
   "std::time::Instant",
   "std::time::SystemTime",
   "Callback",
@@ -4239,7 +4318,18 @@ path = "crates/kafka-client-engine/src/consumer/assigned_close_slot.rs"
 [[mutation_owners]]
 owner_type = "AssignedCloseSlot"
 field = "state"
-allowed_paths = ["crates/kafka-client-engine/src/consumer/assigned_close_slot.rs"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_close_slot.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_close_slot/publication.rs",
+]
+
+[[linear_owners]]
+owner_type = "AssignedConsumerCloseObserver"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/close_observer.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerCompletionNotifier"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/completion.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumerEventStore"
@@ -4358,6 +4448,7 @@ field = "machine"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_turn.rs",
 ]
@@ -4381,6 +4472,7 @@ field = "close"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_status.rs",
 ]
@@ -4435,6 +4527,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_event.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs",

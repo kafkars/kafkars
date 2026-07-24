@@ -1,6 +1,9 @@
 //! Crate-private assigned-consumer capabilities exposed to the engine host.
 
 pub use super::assigned_host::{AssignedConsumerClaimError, AssignedConsumerHandle};
+pub(crate) use super::assigned_host::{
+    AssignedConsumerClosePublisher, AssignedConsumerCompletionNotifier,
+};
 
 pub(crate) use super::{
     assigned_host::{

@@ -22,14 +22,23 @@ fn partial_notifier_acquisition_joins_the_owner_already_taken() {
     let admin_handle = std::thread::spawn(move || {
         worker_finished.store(true, Ordering::Release);
     });
+    let assigned_finished = Arc::new(AtomicBool::new(false));
+    let worker_finished = Arc::clone(&assigned_finished);
+    let assigned_handle = std::thread::spawn(move || {
+        worker_finished.store(true, Ordering::Release);
+    });
     let producer = crate::completion::NotifierJoin::from_handle_for_test(producer_handle);
-    let fallback = crate::completion::NotifierJoin::from_handle_for_test(admin_handle);
+    let admin_fallback = crate::completion::NotifierJoin::from_handle_for_test(admin_handle);
+    let assigned = crate::completion::NotifierJoin::from_handle_for_test(assigned_handle);
     let admin = Err(EngineHostError::CreateTopics(
         crate::admin::CreateTopicsHostError::Unsettled(1),
     ));
 
-    let (notifiers, failure) = collect_notification_joins(producer, [(admin, Some(fallback))]);
-    assert_eq!(notifiers.len(), 2);
+    let (notifiers, failure) = collect_notification_joins(
+        producer,
+        [(admin, Some(admin_fallback)), (Ok(assigned), None)],
+    );
+    assert_eq!(notifiers.len(), 3);
     assert!(failure.is_some());
     let mut owner = NotifierShutdownOwner::new(notifiers);
     owner
@@ -37,4 +46,5 @@ fn partial_notifier_acquisition_joins_the_owner_already_taken() {
         .unwrap_or_else(|error| panic!("join retained partial notifiers: {error}"));
     assert!(producer_finished.load(Ordering::Acquire));
     assert!(admin_finished.load(Ordering::Acquire));
+    assert!(assigned_finished.load(Ordering::Acquire));
 }

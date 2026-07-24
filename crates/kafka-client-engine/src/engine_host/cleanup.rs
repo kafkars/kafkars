@@ -17,9 +17,17 @@ pub(super) fn begin_notification_shutdown(
         .stop()
         .map_err(EngineHostError::AdminCompletion);
     let admin_fallback = resources.admin_notifier.take_join();
+    let assigned_consumer = resources
+        .assigned_consumer_notifier
+        .stop()
+        .map_err(EngineHostError::AssignedConsumerCompletion);
+    let assigned_consumer_fallback = resources.assigned_consumer_notifier.take_join();
     Ok(collect_notification_joins(
         producer,
-        [(admin, admin_fallback)],
+        [
+            (admin, admin_fallback),
+            (assigned_consumer, assigned_consumer_fallback),
+        ],
     ))
 }
 

@@ -101,7 +101,7 @@ fn ready_events_do_not_block_close_but_claimed_slots_do() {
 
     assert_eq!(owner.events.retained(), (0, 1));
     assert!(owner.is_quiescent());
-    owner
+    let _observer = owner
         .begin_close()
         .unwrap_or_else(|error| panic!("begin close: {error:?}"));
     drain_effects(&mut owner);

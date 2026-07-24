@@ -8,6 +8,7 @@ use kafka_client_core::{
 
 use super::assigned_close_error::AssignedCloseSlotPhase;
 use super::assigned_close_slot::AssignedCloseSlot;
+use crate::completion::CompletionId;
 
 #[test]
 fn reservation_precedes_core_acceptance_and_ordered_cleanup() {
@@ -25,7 +26,8 @@ fn reservation_precedes_core_acceptance_and_ordered_cleanup() {
         .unwrap_or_else(|error| panic!("assign before close: {error}"));
     let mut slot = AssignedCloseSlot::create_for_assigned_owner();
 
-    slot.reserve().unwrap_or_else(|error| panic!("{error:?}"));
+    slot.reserve(CompletionId::from_parts_for_test(0, 1))
+        .unwrap_or_else(|error| panic!("{error:?}"));
     assert_eq!(slot.phase(), AssignedCloseSlotPhase::Reserved);
     let transition = machine
         .apply(AssignedConsumerInput::BeginClose)

@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use kafka_client_core::{AssignedConsumerMachine, NextFetchOffset, StartPosition};
 
+use crate::completion::CompletionRegistryError;
 use crate::protocol::fetch::fixture::encoded_data_batch_for_test;
 
 use super::{
@@ -17,7 +18,7 @@ use super::{
 #[test]
 fn unread_ready_delivery_is_reclaimed_during_close() {
     let mut owner = ready_owner();
-    owner
+    let observer = owner
         .begin_close()
         .unwrap_or_else(|error| panic!("begin close: {error:?}"));
     drain_effects(&mut owner);
@@ -26,7 +27,40 @@ fn unread_ready_delivery_is_reclaimed_during_close() {
     assert_eq!(owner.fetches.retained(), (0, 0, 0));
     assert!(owner.progress_close());
     assert_eq!(owner.interpret_front_effect(), FrontEffect::Interpreted);
-    assert!(owner.take_close().is_ok());
+    assert!(owner.progress_close());
+    assert!(matches!(
+        observer.wait(),
+        Ok(super::assigned_host::AssignedConsumerCloseTerminal::Closed(
+            _
+        ))
+    ));
+}
+
+#[test]
+fn close_publication_backpressure_retains_the_exact_terminal_for_retry() {
+    let mut owner = owner(1);
+    let observer = owner
+        .begin_close()
+        .unwrap_or_else(|error| panic!("begin close: {error:?}"));
+    assert_eq!(owner.interpret_front_effect(), FrontEffect::Interpreted);
+    assert!(owner.progress_close());
+    assert_eq!(owner.interpret_front_effect(), FrontEffect::Interpreted);
+    owner.inject_close_publish_fault(CompletionRegistryError::NotificationBackpressure);
+
+    assert!(!owner.progress_close());
+    assert_eq!(
+        owner.close.phase(),
+        super::assigned_close_error::AssignedCloseSlotPhase::Ready
+    );
+    assert_eq!(owner.close_completions.unsettled_len(), 1);
+
+    assert!(owner.progress_close());
+    assert!(matches!(
+        observer.wait(),
+        Ok(super::assigned_host::AssignedConsumerCloseTerminal::Closed(
+            _
+        ))
+    ));
 }
 
 #[test]
@@ -36,7 +70,7 @@ fn external_delivery_lease_delays_close_until_reclaimed() {
         .take_delivery()
         .unwrap_or_else(|error| panic!("take delivery: {error:?}"))
         .unwrap_or_else(|| panic!("ready delivery"));
-    owner
+    let _observer = owner
         .begin_close()
         .unwrap_or_else(|error| panic!("begin close: {error:?}"));
     drain_effects(&mut owner);

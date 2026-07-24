@@ -190,27 +190,7 @@ impl AssignedConsumerOwner {
         Ok(())
     }
 
-    /// Reserves terminal capacity before core can accept close.
-    pub(crate) fn begin_close(&mut self) -> Result<(), AssignedConsumerOwnerError> {
-        self.ensure_admission_ready()?;
-        self.close
-            .reserve()
-            .map_err(AssignedConsumerOwnerError::Close)?;
-        let transition = match self.machine.apply(AssignedConsumerInput::BeginClose) {
-            Ok(transition) => transition,
-            Err(error) => {
-                if let Err(release) = self.close.release_rejected() {
-                    self.fault = Some(AssignedConsumerOwnerFault::Close(release));
-                    return Err(AssignedConsumerOwnerError::Faulted);
-                }
-                return Err(AssignedConsumerOwnerError::Core(error));
-            }
-        };
-        self.enqueue_transition(transition, None);
-        Ok(())
-    }
-
-    fn ensure_admission_ready(&self) -> Result<(), AssignedConsumerOwnerError> {
+    pub(super) fn ensure_admission_ready(&self) -> Result<(), AssignedConsumerOwnerError> {
         if self.is_faulted() {
             return Err(AssignedConsumerOwnerError::Faulted);
         }

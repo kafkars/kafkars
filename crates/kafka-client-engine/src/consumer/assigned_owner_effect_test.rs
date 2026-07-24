@@ -132,7 +132,7 @@ fn accepted_close_is_not_blocked_by_prepared_position_work() {
         )
         .unwrap_or_else(|error| panic!("assign: {error:?}"));
     assert_eq!(owner.interpret_front_effect(), FrontEffect::Interpreted);
-    owner
+    let _observer = owner
         .begin_close()
         .unwrap_or_else(|error| panic!("begin close: {error:?}"));
 

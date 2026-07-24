@@ -70,6 +70,7 @@ pub(crate) fn recover(
         .describe_configs_calls
         .discard_after_driver_shutdown();
     failure = recover_assigned_after_driver_shutdown(resources, failure);
+    let assigned_consumer_notifier = resources.assigned_consumer_notifier.take_join();
 
     let mut producer = resources.producer.terminal_data();
     if let Some(cleanup) = producer
@@ -95,7 +96,7 @@ pub(crate) fn recover(
         failure = failure.with_cleanup(cleanup);
     }
     let recovery = producer.recover_notifier();
-    let mut notifiers = Vec::with_capacity(2);
+    let mut notifiers = Vec::with_capacity(3);
     if let Some(notifier) = recovery.notifier {
         notifiers.push(notifier);
     }
@@ -105,6 +106,9 @@ pub(crate) fn recover(
     drop(producer);
     failure = recover_admin_operations(resources, failure);
     if let Some(notifier) = resources.admin_notifier.take_join() {
+        notifiers.push(notifier);
+    }
+    if let Some(notifier) = assigned_consumer_notifier {
         notifiers.push(notifier);
     }
     EngineHostExit {

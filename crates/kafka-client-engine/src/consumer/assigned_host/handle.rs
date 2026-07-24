@@ -28,8 +28,10 @@ impl AssignedConsumerHandle {
     #[cfg(test)]
     pub(crate) fn begin_close_for_test(
         &self,
-    ) -> Result<super::result::AssignedConsumerAccepted<()>, super::result::AssignedConsumerPortError>
-    {
+    ) -> Result<
+        super::result::AssignedConsumerAccepted<super::AssignedConsumerCloseObserver>,
+        super::result::AssignedConsumerPortError,
+    > {
         self.port.begin_close()
     }
 }

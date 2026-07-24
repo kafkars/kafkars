@@ -14,7 +14,13 @@ use super::super::{
         AssignedConsumerOwnerSettings,
     },
 };
-use super::{state::AssignedConsumerShardState, wake::AssignedConsumerShardWake};
+use super::{
+    completion::AssignedConsumerClosePublisher, state::AssignedConsumerShardState,
+    wake::AssignedConsumerShardWake,
+};
+
+#[cfg(test)]
+use super::completion::AssignedConsumerCompletionNotifier;
 
 /// Unique host-side capability for one synchronized assigned consumer.
 pub(crate) struct AssignedConsumerShardOwner {
@@ -32,11 +38,37 @@ impl AssignedConsumerShardOwner {
         settings: AssignedConsumerOwnerSettings,
         limits: AssignedConsumerOwnerLimits,
         wake: Arc<W>,
+        close_publisher: AssignedConsumerClosePublisher,
     ) -> Result<(Self, AssignedConsumerPort), AssignedConsumerOwnerBuildError>
     where
         W: AssignedConsumerShardWake,
     {
-        let owner = AssignedConsumerOwner::new(Arc::clone(&clock), settings, limits)?;
+        let owner =
+            AssignedConsumerOwner::new(Arc::clone(&clock), settings, limits, close_publisher)?;
+        let shared = Arc::new(AssignedConsumerShardState::new(owner, clock, wake));
+        Ok((
+            Self {
+                shared: Arc::clone(&shared),
+            },
+            AssignedConsumerPort { shared },
+        ))
+    }
+
+    #[cfg(test)]
+    pub(super) fn new_for_test<W>(
+        clock: Arc<MonotonicClock>,
+        settings: AssignedConsumerOwnerSettings,
+        limits: AssignedConsumerOwnerLimits,
+        wake: Arc<W>,
+    ) -> Result<(Self, AssignedConsumerPort), AssignedConsumerOwnerBuildError>
+    where
+        W: AssignedConsumerShardWake,
+    {
+        let (notifier, publisher) = AssignedConsumerCompletionNotifier::start()
+            .map_err(|_error| AssignedConsumerOwnerBuildError::Allocation)?;
+        let mut owner =
+            AssignedConsumerOwner::new(Arc::clone(&clock), settings, limits, publisher)?;
+        owner.install_close_notifier_for_test(notifier);
         let shared = Arc::new(AssignedConsumerShardState::new(owner, clock, wake));
         Ok((
             Self {
@@ -62,7 +94,7 @@ impl AssignedConsumerShardOwner {
             return Ok(AssignedConsumerShutdownStart::AlreadyStarted);
         }
         match owner.begin_close() {
-            Ok(()) => Ok(AssignedConsumerShutdownStart::Started),
+            Ok(_observer) => Ok(AssignedConsumerShutdownStart::Started),
             Err(AssignedConsumerOwnerError::EffectsPending) => {
                 Ok(AssignedConsumerShutdownStart::Pending)
             }

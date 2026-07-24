@@ -12,8 +12,8 @@ use super::super::{
     fetch_store::FetchDelivery,
 };
 use super::{
-    reclaim::AssignedConsumerReclaimRejection, shard::AssignedConsumerShardLockError,
-    wake::AssignedConsumerShardWake,
+    close_observer::AssignedConsumerCloseObserver, reclaim::AssignedConsumerReclaimRejection,
+    shard::AssignedConsumerShardLockError, wake::AssignedConsumerShardWake,
 };
 
 pub(super) struct AssignedConsumerShardState {
@@ -89,8 +89,10 @@ impl AssignedConsumerShardState {
 
     pub(super) fn begin_assigned_close(
         &self,
-    ) -> Result<Option<Result<(), AssignedConsumerOwnerError>>, AssignedConsumerShardLockError>
-    {
+    ) -> Result<
+        Option<Result<AssignedConsumerCloseObserver, AssignedConsumerOwnerError>>,
+        AssignedConsumerShardLockError,
+    > {
         let mut guard = self.try_owner()?;
         if self.assigned_admission_is_closed() {
             return Ok(None);

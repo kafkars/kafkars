@@ -2,6 +2,7 @@
 
 use super::{
     assigned_event::AssignedConsumerEventRecovery, assigned_owner::AssignedConsumerOwner,
+    assigned_owner_close::AssignedConsumerCloseSettlement,
     assigned_owner_fault::AssignedConsumerFaultKind,
     assigned_owner_status::AssignedConsumerRecoveryAudit, fetch_execution::FetchExecutionError,
 };
@@ -19,6 +20,7 @@ pub(crate) struct AssignedConsumerShutdownRecovery {
     reclaim_failures: usize,
     first_reclaim_failure: Option<FetchExecutionError>,
     events: AssignedConsumerEventRecovery,
+    close_completion: Option<crate::completion::CompletionRegistryError>,
 }
 
 /// Before-and-after audit retained in abnormal engine-host diagnostics.
@@ -34,6 +36,22 @@ impl AssignedConsumerOwner {
     pub(crate) fn release_assigned_after_driver_shutdown(
         mut self,
     ) -> AssignedConsumerShutdownRecovery {
+        let close_completion = loop {
+            match self.settle_close_after_driver_shutdown() {
+                // The closed consumer notifier has capacity one and this owner
+                // can issue only its sole close ticket. Real saturation is
+                // therefore unreachable here; Retry exists for injected
+                // evidence and future reviewed ticket-set expansion.
+                Ok(AssignedConsumerCloseSettlement::Retry) => {}
+                Ok(
+                    AssignedConsumerCloseSettlement::Idle
+                    | AssignedConsumerCloseSettlement::Published,
+                ) => {
+                    break None;
+                }
+                Err(error) => break Some(error),
+            }
+        };
         let owner_fault = self
             .fault
             .as_ref()
@@ -73,6 +91,7 @@ impl AssignedConsumerOwner {
             reclaim_failures,
             first_reclaim_failure,
             events,
+            close_completion,
         }
     }
 }
@@ -87,6 +106,7 @@ impl AssignedConsumerShutdownRecovery {
             || self.reclaim_failures != 0
             || self.events.claimed() != 0
             || self.events.ready() != 0
+            || self.close_completion.is_some()
     }
 
     pub(crate) const fn owner_fault(&self) -> Option<AssignedConsumerFaultKind> {
@@ -115,6 +135,12 @@ impl AssignedConsumerShutdownRecovery {
 
     pub(crate) const fn recovered_ready_events(&self) -> usize {
         self.events.ready()
+    }
+
+    pub(crate) const fn close_completion_error(
+        &self,
+    ) -> Option<crate::completion::CompletionRegistryError> {
+        self.close_completion
     }
 }
 

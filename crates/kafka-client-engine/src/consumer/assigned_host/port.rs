@@ -2,9 +2,7 @@
 
 use std::time::Duration;
 
-use kafka_client_core::{
-    AssignedConsumerCloseId, AssignedTopicPartition, AssignmentEpoch, StartPosition,
-};
+use kafka_client_core::{AssignedTopicPartition, AssignmentEpoch, StartPosition};
 
 use super::super::{
     assigned_owner::AssignedConsumerOwner, assigned_owner_model::AssignedConsumerOwnerError,
@@ -83,7 +81,10 @@ impl AssignedConsumerPort {
 
     pub(crate) fn begin_close(
         &self,
-    ) -> Result<AssignedConsumerAccepted<()>, AssignedConsumerPortError> {
+    ) -> Result<
+        AssignedConsumerAccepted<super::AssignedConsumerCloseObserver>,
+        AssignedConsumerPortError,
+    > {
         let result = self
             .shared
             .begin_assigned_close()
@@ -91,9 +92,9 @@ impl AssignedConsumerPort {
         let Some(result) = result else {
             return Err(AssignedConsumerPortError::Closed);
         };
-        self.finish_owner_result(result)?;
+        let observer = self.finish_owner_result(result)?;
         Ok(AssignedConsumerAccepted::new(
-            (),
+            observer,
             self.shared.wake.request_assigned_turn(),
         ))
     }
@@ -125,14 +126,6 @@ impl AssignedConsumerPort {
             result,
             self.shared.wake.request_assigned_turn(),
         ))
-    }
-
-    pub(crate) fn take_close(&self) -> Result<AssignedConsumerCloseId, AssignedConsumerPortError> {
-        let result = self
-            .shared
-            .try_with_owner(AssignedConsumerOwner::take_close)
-            .map_err(AssignedConsumerPortError::Lock)?;
-        self.finish_owner_result(result)
     }
 
     fn admit<T>(

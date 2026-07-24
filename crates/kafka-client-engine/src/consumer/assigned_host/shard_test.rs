@@ -58,7 +58,7 @@ fn abnormal_recovery_consumes_the_owner_only_after_driver_shutdown() {
         Err(AssignedConsumerShardLockError::OwnerMissing)
     );
     assert!(matches!(
-        port.take_close(),
+        port.begin_close(),
         Err(AssignedConsumerPortError::Lock(
             AssignedConsumerShardLockError::OwnerMissing
         ))
@@ -68,7 +68,7 @@ fn abnormal_recovery_consumes_the_owner_only_after_driver_shutdown() {
 #[test]
 fn host_owner_drop_leaves_core_completed_close_for_the_unique_port() {
     let (owner, port, _wake) = setup();
-    let _accepted = port
+    let accepted = port
         .begin_close()
         .unwrap_or_else(|error| panic!("begin close: {error:?}"));
     let mut driver = driver();
@@ -76,7 +76,7 @@ fn host_owner_drop_leaves_core_completed_close_for_the_unique_port() {
         let completed = owner
             .try_with_owner(|assigned| {
                 let _turn = assigned.turn(&driver);
-                assigned.close_completed()
+                assigned.close_completed() && assigned.unsettled() == 0
             })
             .unwrap_or_else(|error| panic!("owner turn: {error:?}"));
         if completed {
@@ -85,13 +85,16 @@ fn host_owner_drop_leaves_core_completed_close_for_the_unique_port() {
     }
     assert!(
         owner
-            .try_with_owner(|assigned| assigned.close_completed())
+            .try_with_owner(|assigned| { assigned.close_completed() && assigned.unsettled() == 0 })
             .unwrap_or_else(|error| panic!("owner slot: {error:?}"))
     );
     shutdown(&mut driver);
     drop(owner);
 
-    assert!(port.take_close().is_ok());
+    assert!(matches!(
+        accepted.into_value().wait(),
+        Ok(super::super::assigned_host::AssignedConsumerCloseTerminal::Closed(_))
+    ));
 }
 
 #[test]
@@ -135,7 +138,7 @@ pub(super) fn setup() -> (
     let clock = Arc::new(MonotonicClock::new());
     let wake = Arc::new(CountingWake::default());
     let (owner, port) =
-        AssignedConsumerShardOwner::new(clock, settings(), limits(2), Arc::clone(&wake))
+        AssignedConsumerShardOwner::new_for_test(clock, settings(), limits(2), Arc::clone(&wake))
             .unwrap_or_else(|error| panic!("assigned shard: {error:?}"));
     (owner, port, wake)
 }

@@ -34,7 +34,9 @@ impl AssignedConsumerOwner {
             .saturating_add(deliveries)
             .saturating_add(usize::from(matches!(
                 self.close.phase(),
-                AssignedCloseSlotPhase::Reserved | AssignedCloseSlotPhase::Accepted
+                AssignedCloseSlotPhase::Reserved
+                    | AssignedCloseSlotPhase::Accepted
+                    | AssignedCloseSlotPhase::Ready
             )))
     }
 
@@ -42,7 +44,7 @@ impl AssignedConsumerOwner {
     pub(crate) fn close_completed(&self) -> bool {
         matches!(
             self.close.phase(),
-            AssignedCloseSlotPhase::Ready | AssignedCloseSlotPhase::Reclaimed
+            AssignedCloseSlotPhase::Ready | AssignedCloseSlotPhase::Published
         )
     }
 

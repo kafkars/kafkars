@@ -52,6 +52,12 @@ impl fmt::Display for EngineHostError {
                     "assigned-consumer recovery observed {recovery:?}"
                 )
             }
+            Self::AssignedConsumerCompletion(error) => {
+                write!(
+                    formatter,
+                    "assigned-consumer completion notifier failed: {error}"
+                )
+            }
             Self::CreateTopics(error) => write!(formatter, "CreateTopics host failed: {error}"),
             Self::CreateTopicsCompletion(error) => write!(formatter, "{error}"),
             Self::CreateTopicsLockPoisoned => {

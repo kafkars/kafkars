@@ -1,6 +1,12 @@
-//! Fixed-capacity terminal retention for one future assigned-consumer owner.
+//! Exact completion binding and terminal retention for one assigned close.
+
+mod publication;
+#[cfg(test)]
+mod publication_test;
 
 use kafka_client_core::{AssignedConsumerCloseId, AssignedConsumerEffect};
+
+use crate::completion::CompletionId;
 
 use super::assigned_close_error::{
     AssignedCloseEffectKind, AssignedCloseSlotError, AssignedCloseSlotPhase,
@@ -9,10 +15,16 @@ use super::assigned_close_error::{
 #[derive(Debug, Eq, PartialEq)]
 enum AssignedCloseState {
     Vacant,
-    Reserved,
-    Accepted(AssignedConsumerCloseId),
-    Ready(AssignedConsumerCloseId),
-    Reclaimed,
+    Reserved(CompletionId),
+    Accepted {
+        completion_id: CompletionId,
+        close_id: AssignedConsumerCloseId,
+    },
+    Ready {
+        completion_id: CompletionId,
+        close_id: AssignedConsumerCloseId,
+    },
+    Published,
 }
 
 /// One allocation-free terminal slot reserved before core close admission.
@@ -30,25 +42,28 @@ impl AssignedCloseSlot {
     }
 
     /// Reserves terminal capacity before applying core `BeginClose`.
-    pub(super) fn reserve(&mut self) -> Result<(), AssignedCloseSlotError> {
+    pub(super) fn reserve(
+        &mut self,
+        completion_id: CompletionId,
+    ) -> Result<(), AssignedCloseSlotError> {
         if self.phase() != AssignedCloseSlotPhase::Vacant {
             return Err(AssignedCloseSlotError::InvalidReservation {
                 phase: self.phase(),
             });
         }
-        self.state = AssignedCloseState::Reserved;
+        self.state = AssignedCloseState::Reserved(completion_id);
         Ok(())
     }
 
     /// Releases capacity when core rejects `BeginClose`.
-    pub(super) fn release_rejected(&mut self) -> Result<(), AssignedCloseSlotError> {
-        if self.phase() != AssignedCloseSlotPhase::Reserved {
+    pub(super) fn release_rejected(&mut self) -> Result<CompletionId, AssignedCloseSlotError> {
+        let AssignedCloseState::Reserved(completion_id) = self.state else {
             return Err(AssignedCloseSlotError::InvalidRelease {
                 phase: self.phase(),
             });
-        }
+        };
         self.state = AssignedCloseState::Vacant;
-        Ok(())
+        Ok(completion_id)
     }
 
     /// Applies only the ordered close effects emitted by core.
@@ -63,22 +78,10 @@ impl AssignedCloseSlot {
         }
     }
 
-    /// Takes the retained terminal identity and permanently reclaims the slot.
-    pub(super) fn take_ready(&mut self) -> Result<AssignedConsumerCloseId, AssignedCloseSlotError> {
-        let AssignedCloseState::Ready(close_id) = &self.state else {
-            return Err(AssignedCloseSlotError::TerminalUnavailable {
-                phase: self.phase(),
-            });
-        };
-        let close_id = *close_id;
-        self.state = AssignedCloseState::Reclaimed;
-        Ok(close_id)
-    }
-
     /// Returns the accepted identity needed for the exact `CloseDrained` fact.
     pub(super) fn accepted_id(&self) -> Result<AssignedConsumerCloseId, AssignedCloseSlotError> {
         match &self.state {
-            AssignedCloseState::Accepted(close_id) => Ok(*close_id),
+            AssignedCloseState::Accepted { close_id, .. } => Ok(*close_id),
             _ => Err(AssignedCloseSlotError::AcceptedIdUnavailable {
                 phase: self.phase(),
             }),
@@ -89,35 +92,42 @@ impl AssignedCloseSlot {
     pub(super) const fn phase(&self) -> AssignedCloseSlotPhase {
         match &self.state {
             AssignedCloseState::Vacant => AssignedCloseSlotPhase::Vacant,
-            AssignedCloseState::Reserved => AssignedCloseSlotPhase::Reserved,
-            AssignedCloseState::Accepted(_) => AssignedCloseSlotPhase::Accepted,
-            AssignedCloseState::Ready(_) => AssignedCloseSlotPhase::Ready,
-            AssignedCloseState::Reclaimed => AssignedCloseSlotPhase::Reclaimed,
+            AssignedCloseState::Reserved(_) => AssignedCloseSlotPhase::Reserved,
+            AssignedCloseState::Accepted { .. } => AssignedCloseSlotPhase::Accepted,
+            AssignedCloseState::Ready { .. } => AssignedCloseSlotPhase::Ready,
+            AssignedCloseState::Published => AssignedCloseSlotPhase::Published,
         }
     }
 
     fn accept(&mut self, supplied: AssignedConsumerCloseId) -> Result<(), AssignedCloseSlotError> {
         match &self.state {
-            AssignedCloseState::Reserved => {
-                self.state = AssignedCloseState::Accepted(supplied);
+            AssignedCloseState::Reserved(completion_id) => {
+                self.state = AssignedCloseState::Accepted {
+                    completion_id: *completion_id,
+                    close_id: supplied,
+                };
                 Ok(())
             }
-            AssignedCloseState::Accepted(active) | AssignedCloseState::Ready(active)
-                if *active == supplied =>
-            {
-                Err(AssignedCloseSlotError::DuplicateEffect {
-                    effect: AssignedCloseEffectKind::Accept,
-                    close_id: supplied,
-                })
+            AssignedCloseState::Accepted {
+                close_id: active, ..
             }
-            AssignedCloseState::Accepted(active) | AssignedCloseState::Ready(active) => {
-                Err(AssignedCloseSlotError::MismatchedCloseId {
-                    effect: AssignedCloseEffectKind::Accept,
-                    active: *active,
-                    supplied,
-                })
+            | AssignedCloseState::Ready {
+                close_id: active, ..
+            } if *active == supplied => Err(AssignedCloseSlotError::DuplicateEffect {
+                effect: AssignedCloseEffectKind::Accept,
+                close_id: supplied,
+            }),
+            AssignedCloseState::Accepted {
+                close_id: active, ..
             }
-            AssignedCloseState::Reclaimed => Err(AssignedCloseSlotError::StaleEffect {
+            | AssignedCloseState::Ready {
+                close_id: active, ..
+            } => Err(AssignedCloseSlotError::MismatchedCloseId {
+                effect: AssignedCloseEffectKind::Accept,
+                active: *active,
+                supplied,
+            }),
+            AssignedCloseState::Published => Err(AssignedCloseSlotError::StaleEffect {
                 effect: AssignedCloseEffectKind::Accept,
                 close_id: supplied,
             }),
@@ -134,18 +144,26 @@ impl AssignedCloseSlot {
         supplied: AssignedConsumerCloseId,
     ) -> Result<(), AssignedCloseSlotError> {
         match &self.state {
-            AssignedCloseState::Accepted(active) if *active == supplied => {
-                self.state = AssignedCloseState::Ready(supplied);
+            AssignedCloseState::Accepted {
+                completion_id,
+                close_id: active,
+            } if *active == supplied => {
+                self.state = AssignedCloseState::Ready {
+                    completion_id: *completion_id,
+                    close_id: supplied,
+                };
                 Ok(())
             }
-            AssignedCloseState::Accepted(active) => {
-                Err(AssignedCloseSlotError::MismatchedCloseId {
-                    effect: AssignedCloseEffectKind::Complete,
-                    active: *active,
-                    supplied,
-                })
-            }
-            AssignedCloseState::Ready(active) => {
+            AssignedCloseState::Accepted {
+                close_id: active, ..
+            } => Err(AssignedCloseSlotError::MismatchedCloseId {
+                effect: AssignedCloseEffectKind::Complete,
+                active: *active,
+                supplied,
+            }),
+            AssignedCloseState::Ready {
+                close_id: active, ..
+            } => {
                 if *active == supplied {
                     Err(AssignedCloseSlotError::DuplicateEffect {
                         effect: AssignedCloseEffectKind::Complete,
@@ -159,11 +177,11 @@ impl AssignedCloseSlot {
                     })
                 }
             }
-            AssignedCloseState::Reclaimed => Err(AssignedCloseSlotError::StaleEffect {
+            AssignedCloseState::Published => Err(AssignedCloseSlotError::StaleEffect {
                 effect: AssignedCloseEffectKind::Complete,
                 close_id: supplied,
             }),
-            AssignedCloseState::Vacant | AssignedCloseState::Reserved => {
+            AssignedCloseState::Vacant | AssignedCloseState::Reserved(_) => {
                 Err(AssignedCloseSlotError::EffectOutOfOrder {
                     effect: AssignedCloseEffectKind::Complete,
                     close_id: supplied,

@@ -6,6 +6,7 @@ use kafka_client_core::{AssignedConsumerMachineError, Deadline, PositionFence};
 
 use crate::{
     clock::ClockError,
+    completion::CompletionRegistryError,
     protocol::{
         consumer::ListOffsetsIsolation,
         fetch::{FetchDecodeLimits, FetchRequestSettings},
@@ -133,6 +134,7 @@ pub(crate) enum AssignedConsumerOwnerError {
     Topics(AssignedTopicsError),
     Core(AssignedConsumerMachineError),
     Close(AssignedCloseSlotError),
+    Completion(CompletionRegistryError),
     Event(AssignedConsumerEventStoreError),
     Allocation,
 }

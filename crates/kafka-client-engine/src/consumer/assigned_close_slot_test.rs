@@ -10,13 +10,17 @@ use super::assigned_close_error::{
     AssignedCloseEffectKind, AssignedCloseSlotError, AssignedCloseSlotPhase,
 };
 use super::assigned_close_slot::AssignedCloseSlot;
+use super::assigned_host::AssignedConsumerCloseTerminal;
+use crate::completion::CompletionId;
 
 #[test]
 fn reserved_close_reaches_one_retained_terminal_then_reclaims() {
     let (close_id, mut machine) = accepted_close();
     let mut slot = AssignedCloseSlot::create_for_assigned_owner();
+    let completion_id = completion_id();
 
-    slot.reserve().unwrap_or_else(|error| panic!("{error:?}"));
+    slot.reserve(completion_id)
+        .unwrap_or_else(|error| panic!("{error:?}"));
     slot.observe_close_effect(AssignedConsumerEffect::AcceptClose { close_id })
         .unwrap_or_else(|error| panic!("{error:?}"));
     assert_eq!(slot.phase(), AssignedCloseSlotPhase::Accepted);
@@ -28,8 +32,16 @@ fn reserved_close_reaches_one_retained_terminal_then_reclaims() {
     slot.observe_close_effect(complete.effects()[0])
         .unwrap_or_else(|error| panic!("{error:?}"));
     assert_eq!(slot.phase(), AssignedCloseSlotPhase::Ready);
-    assert_eq!(slot.take_ready(), Ok(close_id));
-    assert_eq!(slot.phase(), AssignedCloseSlotPhase::Reclaimed);
+    assert_eq!(
+        slot.ready_terminal(),
+        Ok((
+            completion_id,
+            AssignedConsumerCloseTerminal::Closed(close_id)
+        ))
+    );
+    slot.mark_published(completion_id)
+        .unwrap_or_else(|error| panic!("{error:?}"));
+    assert_eq!(slot.phase(), AssignedCloseSlotPhase::Published);
 }
 
 #[test]
@@ -43,16 +55,18 @@ fn rejected_admission_releases_the_exact_reservation() {
             phase: AssignedCloseSlotPhase::Vacant,
         })
     );
-    slot.reserve().unwrap_or_else(|error| panic!("{error:?}"));
+    let completion_id = completion_id();
+    slot.reserve(completion_id)
+        .unwrap_or_else(|error| panic!("{error:?}"));
     assert!(
         closed_machine
             .apply(AssignedConsumerInput::BeginClose)
             .is_err()
     );
-    slot.release_rejected()
-        .unwrap_or_else(|error| panic!("{error:?}"));
+    assert_eq!(slot.release_rejected(), Ok(completion_id));
     assert_eq!(slot.phase(), AssignedCloseSlotPhase::Vacant);
-    slot.reserve().unwrap_or_else(|error| panic!("{error:?}"));
+    slot.reserve(completion_id)
+        .unwrap_or_else(|error| panic!("{error:?}"));
     assert_eq!(slot.phase(), AssignedCloseSlotPhase::Reserved);
 }
 
@@ -62,14 +76,15 @@ fn reservation_and_take_failures_retain_the_exact_phase() {
     let mut slot = AssignedCloseSlot::create_for_assigned_owner();
 
     assert_eq!(
-        slot.take_ready(),
+        slot.ready_terminal(),
         Err(AssignedCloseSlotError::TerminalUnavailable {
             phase: AssignedCloseSlotPhase::Vacant,
         })
     );
-    slot.reserve().unwrap_or_else(|error| panic!("{error:?}"));
+    slot.reserve(completion_id())
+        .unwrap_or_else(|error| panic!("{error:?}"));
     assert_eq!(
-        slot.reserve(),
+        slot.reserve(completion_id()),
         Err(AssignedCloseSlotError::InvalidReservation {
             phase: AssignedCloseSlotPhase::Reserved,
         })
@@ -90,7 +105,9 @@ fn accepted_identity_query_is_narrow_and_never_mutates_state() {
     let (close_id, mut machine) = accepted_close();
     let mut slot = AssignedCloseSlot::create_for_assigned_owner();
     assert_accepted_id_unavailable(&slot, AssignedCloseSlotPhase::Vacant);
-    slot.reserve().unwrap_or_else(|error| panic!("{error:?}"));
+    let completion_id = completion_id();
+    slot.reserve(completion_id)
+        .unwrap_or_else(|error| panic!("{error:?}"));
     assert_accepted_id_unavailable(&slot, AssignedCloseSlotPhase::Reserved);
     slot.observe_close_effect(AssignedConsumerEffect::AcceptClose { close_id })
         .unwrap_or_else(|error| panic!("{error:?}"));
@@ -104,8 +121,9 @@ fn accepted_identity_query_is_narrow_and_never_mutates_state() {
     slot.observe_close_effect(complete)
         .unwrap_or_else(|error| panic!("{error:?}"));
     assert_accepted_id_unavailable(&slot, AssignedCloseSlotPhase::Ready);
-    assert_eq!(slot.take_ready(), Ok(close_id));
-    assert_accepted_id_unavailable(&slot, AssignedCloseSlotPhase::Reclaimed);
+    slot.mark_published(completion_id)
+        .unwrap_or_else(|error| panic!("{error:?}"));
+    assert_accepted_id_unavailable(&slot, AssignedCloseSlotPhase::Published);
 }
 
 #[test]
@@ -121,7 +139,8 @@ fn out_of_order_and_foreign_effects_leave_reservation_untouched() {
             phase: AssignedCloseSlotPhase::Vacant,
         })
     );
-    slot.reserve().unwrap_or_else(|error| panic!("{error:?}"));
+    slot.reserve(completion_id())
+        .unwrap_or_else(|error| panic!("{error:?}"));
     assert_eq!(
         slot.observe_close_effect(AssignedConsumerEffect::CompleteClose { close_id }),
         Err(AssignedCloseSlotError::EffectOutOfOrder {
@@ -142,7 +161,9 @@ fn out_of_order_and_foreign_effects_leave_reservation_untouched() {
 fn duplicate_and_stale_effects_never_replace_terminal_state() {
     let (close_id, mut machine) = accepted_close();
     let mut slot = AssignedCloseSlot::create_for_assigned_owner();
-    slot.reserve().unwrap_or_else(|error| panic!("{error:?}"));
+    let completion_id = completion_id();
+    slot.reserve(completion_id)
+        .unwrap_or_else(|error| panic!("{error:?}"));
     slot.observe_close_effect(AssignedConsumerEffect::AcceptClose { close_id })
         .unwrap_or_else(|error| panic!("{error:?}"));
 
@@ -166,7 +187,8 @@ fn duplicate_and_stale_effects_never_replace_terminal_state() {
             close_id,
         })
     );
-    assert_eq!(slot.take_ready(), Ok(close_id));
+    slot.mark_published(completion_id)
+        .unwrap_or_else(|error| panic!("{error:?}"));
     assert_eq!(
         slot.observe_close_effect(complete),
         Err(AssignedCloseSlotError::StaleEffect {
@@ -174,7 +196,7 @@ fn duplicate_and_stale_effects_never_replace_terminal_state() {
             close_id,
         })
     );
-    assert_eq!(slot.phase(), AssignedCloseSlotPhase::Reclaimed);
+    assert_eq!(slot.phase(), AssignedCloseSlotPhase::Published);
 }
 
 fn accepted_close() -> (AssignedConsumerCloseId, AssignedConsumerMachine) {
@@ -218,4 +240,8 @@ fn revoke_effect() -> AssignedConsumerEffect {
         .copied()
         .find(|effect| matches!(effect, AssignedConsumerEffect::Revoke { .. }))
         .unwrap_or_else(|| panic!("assigned close must revoke"))
+}
+
+fn completion_id() -> CompletionId {
+    CompletionId::from_parts_for_test(0, 1)
 }

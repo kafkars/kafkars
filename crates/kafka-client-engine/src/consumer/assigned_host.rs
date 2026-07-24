@@ -3,6 +3,12 @@
 mod claim;
 #[cfg(test)]
 mod claim_test;
+mod close_observer;
+#[cfg(test)]
+mod close_observer_test;
+mod completion;
+#[cfg(test)]
+mod completion_test;
 mod event_port;
 #[cfg(test)]
 mod event_port_test;
@@ -33,6 +39,8 @@ mod wake_test;
 
 pub use claim::AssignedConsumerClaimError;
 pub(crate) use claim::{AssignedConsumerAdmissionCloser, AssignedConsumerClaimSlot};
+pub(crate) use close_observer::{AssignedConsumerCloseObserver, AssignedConsumerCloseTerminal};
+pub(crate) use completion::{AssignedConsumerClosePublisher, AssignedConsumerCompletionNotifier};
 pub use handle::AssignedConsumerHandle;
 pub(crate) use shard::{
     AssignedConsumerPort, AssignedConsumerShardLockError, AssignedConsumerShardOwner,

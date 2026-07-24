@@ -15,6 +15,7 @@ use crate::{
 };
 
 use super::{
+    assigned_host::AssignedConsumerCompletionNotifier,
     assigned_owner::AssignedConsumerOwner,
     assigned_owner_model::{AssignedConsumerOwnerLimits, AssignedConsumerOwnerSettings},
     assigned_topics::{AssignedPartitionInput, AssignedTopicLimits},
@@ -34,12 +35,48 @@ fn construction_preallocates_every_bounded_owner_queue() {
 }
 
 pub(super) fn owner(partitions: usize) -> AssignedConsumerOwner {
-    AssignedConsumerOwner::new(
+    let (notifier, publisher) = AssignedConsumerCompletionNotifier::start()
+        .unwrap_or_else(|error| panic!("start assigned completion notifier: {error}"));
+    let mut owner = AssignedConsumerOwner::new(
         Arc::new(MonotonicClock::new()),
         settings(),
         limits(partitions),
+        publisher,
     )
-    .unwrap_or_else(|error| panic!("construct assigned owner: {error:?}"))
+    .unwrap_or_else(|error| panic!("construct assigned owner: {error:?}"));
+    owner.install_close_notifier_for_test(notifier);
+    owner
+}
+
+impl AssignedConsumerOwner {
+    pub(crate) fn install_close_notifier_for_test(
+        &mut self,
+        notifier: AssignedConsumerCompletionNotifier,
+    ) {
+        self.close_notifier = Some(AssignedConsumerNotifierGuard::new(notifier));
+    }
+}
+
+pub(super) struct AssignedConsumerNotifierGuard {
+    notifier: Option<AssignedConsumerCompletionNotifier>,
+}
+
+impl AssignedConsumerNotifierGuard {
+    const fn new(notifier: AssignedConsumerCompletionNotifier) -> Self {
+        Self {
+            notifier: Some(notifier),
+        }
+    }
+}
+
+impl Drop for AssignedConsumerNotifierGuard {
+    fn drop(&mut self) {
+        if let Some(mut notifier) = self.notifier.take()
+            && let Some(join) = notifier.take_join()
+        {
+            let _join_result = join.join_off_notifier();
+        }
+    }
 }
 
 pub(super) fn settings() -> AssignedConsumerOwnerSettings {

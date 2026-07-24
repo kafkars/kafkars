@@ -70,6 +70,13 @@ impl EngineStartError {
         )
     }
 
+    pub(super) fn assigned_consumer_notifier(error: &std::io::Error) -> Self {
+        Self::new(
+            EngineStartErrorKind::Consumer,
+            format!("failed to start assigned-consumer completion notifier: {error}"),
+        )
+    }
+
     pub(super) fn assigned_consumer(error: AssignedConsumerOwnerBuildError) -> Self {
         Self::new(
             EngineStartErrorKind::Consumer,

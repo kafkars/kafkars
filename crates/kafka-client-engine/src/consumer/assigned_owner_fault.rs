@@ -7,6 +7,7 @@ use kafka_client_core::{
 };
 
 use crate::clock::ClockError;
+use crate::completion::CompletionRegistryError;
 
 use super::{
     assigned_close_error::AssignedCloseSlotError,
@@ -44,6 +45,7 @@ pub(super) enum AssignedConsumerOwnerFault {
     Position(PositionExecutionError),
     Fetch(FetchExecutionError),
     Close(AssignedCloseSlotError),
+    CloseCompletion(CompletionRegistryError),
     PendingPosition {
         error: AssignedConsumerMachineError,
         pending: PendingPosition,
@@ -93,7 +95,7 @@ impl AssignedConsumerOwnerFault {
             Self::Event { .. } | Self::EventTransition { .. } => AssignedConsumerFaultKind::Event,
             Self::Position(_) => AssignedConsumerFaultKind::Position,
             Self::Fetch(_) => AssignedConsumerFaultKind::Fetch,
-            Self::Close(_) => AssignedConsumerFaultKind::Close,
+            Self::Close(_) | Self::CloseCompletion(_) => AssignedConsumerFaultKind::Close,
             Self::PendingPosition { .. } => AssignedConsumerFaultKind::PendingPosition,
             Self::PendingFetch { .. } => AssignedConsumerFaultKind::PendingFetch,
             Self::Delivery { .. } => AssignedConsumerFaultKind::Delivery,

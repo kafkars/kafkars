@@ -22,7 +22,8 @@ use crate::{
 
 use super::{
     EngineHostControl, EngineHostError, EngineHostExit, EngineHostResources, EngineLifecycle,
-    EngineStartError, assigned_consumer_start, describe_configs_start, recover, run,
+    EngineStartError, assigned_consumer_start, describe_configs_start, notifier_start, recover,
+    run,
     start_handoff::{StartedEngineHost, cancel_start, join_cancelled},
 };
 
@@ -52,19 +53,27 @@ pub(crate) fn start(
     let clock = Arc::new(MonotonicClock::new());
     let wake = Arc::new(driver.reactor_wake());
     let control = Arc::new(EngineHostControl::new(wake.as_ref().clone()));
+    let (mut assigned_consumer_notifier, assigned_close_publisher) =
+        match notifier_start::start_assigned_consumer_notifier() {
+            Ok(started) => started,
+            Err(error) => return cancel_start(sender, handle, error),
+        };
     let (assigned_consumer_owner, assigned_consumer) =
         match assigned_consumer_start::start_assigned_consumer(
             Arc::clone(&clock),
             Arc::clone(&wake),
+            assigned_close_publisher,
         ) {
             Ok(owner) => owner,
             Err(error) => {
+                notifier_start::join_acquired(assigned_consumer_notifier.take_join());
                 return cancel_start(sender, handle, EngineStartError::assigned_consumer(error));
             }
         };
     let (mut admin_notifier, admin_ports) = match AdminCompletionNotifier::start() {
         Ok(owner) => owner,
         Err(error) => {
+            notifier_start::join_acquired(assigned_consumer_notifier.take_join());
             return cancel_start(sender, handle, EngineStartError::admin_notifier(&error));
         }
     };
@@ -84,13 +93,17 @@ pub(crate) fn start(
     let producer = match ProducerHost::new_with_compression_wake(validated.host_limits, &wake) {
         Ok(producer) => producer,
         Err(error) => {
-            if let Some(notifier) = admin_notifier.take_join() {
-                let _join_result = notifier.join_off_notifier();
-            }
+            notifier_start::join_acquired(admin_notifier.take_join());
+            notifier_start::join_acquired(assigned_consumer_notifier.take_join());
             return cancel_start(sender, handle, EngineStartError::producer(&error));
         }
     };
-    install_notifier_threads(&lifecycle, &producer, &admin_notifier);
+    notifier_start::install_thread_ids(
+        &lifecycle,
+        &producer,
+        &admin_notifier,
+        &assigned_consumer_notifier,
+    );
     let producer = ProducerShardOwner::new(producer, Arc::clone(&wake));
     let admission = producer.admission_port();
     let create_topics = CreateTopicsShardOwner::new(create_topics, Arc::new(driver.reactor_wake()));
@@ -114,6 +127,7 @@ pub(crate) fn start(
         driver: Some(driver),
         producer,
         admin_notifier,
+        assigned_consumer_notifier,
         create_topics,
         delete_topics,
         describe_cluster,
@@ -167,19 +181,6 @@ pub(crate) fn start(
         control,
         lifecycle,
     })
-}
-
-fn install_notifier_threads(
-    lifecycle: &EngineLifecycle,
-    producer: &ProducerHost,
-    admin: &AdminCompletionNotifier,
-) {
-    if let Some(thread_id) = producer.notifier_thread_id() {
-        lifecycle.install_notifier_thread(thread_id);
-    }
-    if let Some(thread_id) = admin.thread_id() {
-        lifecycle.install_notifier_thread(thread_id);
-    }
 }
 
 fn finish_host(mut resources: EngineHostResources, lifecycle: &EngineLifecycle) {

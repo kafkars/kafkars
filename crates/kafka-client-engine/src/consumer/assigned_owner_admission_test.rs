@@ -33,7 +33,7 @@ fn assignment_commits_topics_only_after_core_accepts() {
 #[test]
 fn close_reserves_before_core_acceptance_and_rolls_back_core_rejection() {
     let mut accepted = owner(1);
-    accepted
+    let _observer = accepted
         .begin_close()
         .unwrap_or_else(|error| panic!("begin close: {error:?}"));
     assert_eq!(accepted.close.phase(), AssignedCloseSlotPhase::Reserved);

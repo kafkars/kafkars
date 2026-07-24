@@ -13,6 +13,45 @@ use kafka_client_core::{
 };
 
 #[test]
+fn accepted_close_settles_execution_unavailable_after_driver_shutdown() {
+    let mut owner = owner(1);
+    let observer = owner
+        .begin_close()
+        .unwrap_or_else(|error| panic!("begin close: {error:?}"));
+    let mut driver = driver();
+    shutdown(&mut driver);
+
+    let recovery = owner.release_assigned_after_driver_shutdown();
+
+    assert_eq!(recovery.close_completion_error(), None);
+    assert_eq!(
+        observer.wait(),
+        Ok(super::assigned_host::AssignedConsumerCloseTerminal::ExecutionUnavailable)
+    );
+}
+
+#[test]
+fn recovery_retries_an_injected_close_publication_backpressure() {
+    let mut owner = owner(1);
+    let observer = owner
+        .begin_close()
+        .unwrap_or_else(|error| panic!("begin close: {error:?}"));
+    owner.inject_close_publish_fault(
+        crate::completion::CompletionRegistryError::NotificationBackpressure,
+    );
+    let mut driver = driver();
+    shutdown(&mut driver);
+
+    let recovery = owner.release_assigned_after_driver_shutdown();
+
+    assert_eq!(recovery.close_completion_error(), None);
+    assert_eq!(
+        observer.wait(),
+        Ok(super::assigned_host::AssignedConsumerCloseTerminal::ExecutionUnavailable)
+    );
+}
+
+#[test]
 fn recovery_releases_faulted_delivery_only_after_driver_shutdown() {
     let mut owner = ready_owner();
     let delivery = owner

@@ -25,6 +25,9 @@ mod lifecycle_test;
 mod notifier_shutdown;
 #[cfg(test)]
 mod notifier_shutdown_test;
+mod notifier_start;
+#[cfg(test)]
+mod notifier_start_test;
 mod produce;
 #[cfg(test)]
 mod produce_test;

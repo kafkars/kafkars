@@ -2,6 +2,8 @@
 
 use kafka_client_core::{AssignedConsumerCloseId, AssignedConsumerEffect};
 
+use crate::completion::CompletionId;
+
 /// Observable phase of the single assigned-consumer close slot.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AssignedCloseSlotPhase {
@@ -13,8 +15,8 @@ pub(crate) enum AssignedCloseSlotPhase {
     Accepted,
     /// Core authorized the sole retained terminal outcome.
     Ready,
-    /// The owner explicitly took the retained terminal outcome.
-    Reclaimed,
+    /// The terminal crossed notifier ownership exactly once.
+    Published,
 }
 
 /// Close effect kind preserved in invariant diagnostics.
@@ -57,6 +59,13 @@ pub(crate) enum AssignedCloseSlotError {
         /// Different identity supplied by the effect.
         supplied: AssignedConsumerCloseId,
     },
+    /// Publication named a different completion reservation.
+    MismatchedCompletionId {
+        /// Completion reservation retained by the slot.
+        active: CompletionId,
+        /// Different reservation supplied by publication.
+        supplied: CompletionId,
+    },
     /// Core repeated an effect already applied for the same operation.
     DuplicateEffect {
         /// Repeated effect.
@@ -64,7 +73,7 @@ pub(crate) enum AssignedCloseSlotError {
         /// Identity retained by the slot.
         close_id: AssignedConsumerCloseId,
     },
-    /// An effect arrived after the terminal value was explicitly reclaimed.
+    /// An effect arrived after terminal publication.
     StaleEffect {
         /// Stale effect.
         effect: AssignedCloseEffectKind,
@@ -76,7 +85,7 @@ pub(crate) enum AssignedCloseSlotError {
         /// Unconsumed effect retained in the diagnostic.
         effect: AssignedConsumerEffect,
     },
-    /// The owner attempted to take a terminal value before it was ready.
+    /// The owner queried a normal terminal value before core authorized it.
     TerminalUnavailable {
         /// Phase retained by the failed transition.
         phase: AssignedCloseSlotPhase,

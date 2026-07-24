@@ -1,12 +1,25 @@
-//! Delivery leasing and exact close quiescence for the assigned owner.
+//! Delivery leasing, close quiescence, and exact terminal publication.
 
-use kafka_client_core::{AssignedConsumerCloseId, AssignedConsumerInput};
+mod admission;
+#[cfg(test)]
+mod admission_test;
+
+use kafka_client_core::AssignedConsumerInput;
+
+use crate::completion::CompletionRegistryError;
 
 use super::{
-    assigned_close_error::AssignedCloseSlotPhase, assigned_owner::AssignedConsumerOwner,
-    assigned_owner_fault::AssignedConsumerOwnerFault,
+    assigned_close_error::AssignedCloseSlotPhase, assigned_host::AssignedConsumerCloseTerminal,
+    assigned_owner::AssignedConsumerOwner, assigned_owner_fault::AssignedConsumerOwnerFault,
     assigned_owner_model::AssignedConsumerOwnerError, fetch_store::FetchDelivery,
 };
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum AssignedConsumerCloseSettlement {
+    Idle,
+    Published,
+    Retry,
+}
 
 impl AssignedConsumerOwner {
     /// Transfers one authorized delivery lease to the application boundary.
@@ -52,20 +65,14 @@ impl AssignedConsumerOwner {
         })
     }
 
-    /// Takes the sole retained close result.
-    pub(crate) fn take_close(
-        &mut self,
-    ) -> Result<AssignedConsumerCloseId, AssignedConsumerOwnerError> {
-        if self.is_faulted() {
-            return Err(AssignedConsumerOwnerError::Faulted);
-        }
-        self.close
-            .take_ready()
-            .map_err(AssignedConsumerOwnerError::Close)
-    }
-
     pub(super) fn progress_close(&mut self) -> bool {
-        if self.is_faulted() || self.close.phase() != AssignedCloseSlotPhase::Accepted {
+        if self.is_faulted() {
+            return false;
+        }
+        if self.close.phase() == AssignedCloseSlotPhase::Ready {
+            return self.publish_normal_close_terminal();
+        }
+        if self.close.phase() != AssignedCloseSlotPhase::Accepted {
             return false;
         }
         match self.fetches.take_ready() {
@@ -107,6 +114,22 @@ impl AssignedConsumerOwner {
         }
     }
 
+    /// Settles an accepted observer only after unique driver ownership is gone.
+    pub(crate) fn settle_close_after_driver_shutdown(
+        &mut self,
+    ) -> Result<AssignedConsumerCloseSettlement, CompletionRegistryError> {
+        let Some((completion_id, terminal)) = self.close.recovery_terminal() else {
+            return Ok(AssignedConsumerCloseSettlement::Idle);
+        };
+        match self.publish_close(completion_id, terminal) {
+            Ok(()) => Ok(AssignedConsumerCloseSettlement::Published),
+            Err(CompletionRegistryError::NotificationBackpressure) => {
+                Ok(AssignedConsumerCloseSettlement::Retry)
+            }
+            Err(error) => Err(error),
+        }
+    }
+
     pub(super) fn is_quiescent(&self) -> bool {
         self.effects.is_empty()
             && self.raw_position_deadlines.is_empty()
@@ -125,5 +148,46 @@ impl AssignedConsumerOwner {
         } else {
             self.reclaim_overflow = Some(failure);
         }
+    }
+
+    fn publish_normal_close_terminal(&mut self) -> bool {
+        let (completion_id, terminal) = match self.close.ready_terminal() {
+            Ok(terminal) => terminal,
+            Err(error) => {
+                self.fault = Some(AssignedConsumerOwnerFault::Close(error));
+                return false;
+            }
+        };
+        match self.publish_close(completion_id, terminal) {
+            Ok(()) => true,
+            Err(CompletionRegistryError::NotificationBackpressure) => false,
+            Err(error) => {
+                self.fault = Some(AssignedConsumerOwnerFault::CloseCompletion(error));
+                false
+            }
+        }
+    }
+
+    fn publish_close(
+        &mut self,
+        completion_id: crate::completion::CompletionId,
+        terminal: AssignedConsumerCloseTerminal,
+    ) -> Result<(), CompletionRegistryError> {
+        #[cfg(test)]
+        if let Some(error) = self.close_publish_faults.pop_front() {
+            return Err(error);
+        }
+        self.close_completions
+            .publish(completion_id, terminal)
+            .map_err(|(error, _terminal)| error)?;
+        self.close.mark_published(completion_id).map_err(|error| {
+            self.fault = Some(AssignedConsumerOwnerFault::Close(error));
+            CompletionRegistryError::UnknownCompletion
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn inject_close_publish_fault(&mut self, error: CompletionRegistryError) {
+        self.close_publish_faults.push_back(error);
     }
 }

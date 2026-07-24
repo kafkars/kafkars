@@ -17,6 +17,7 @@ use super::super::{
     assigned_topics::AssignedTopicLimits,
 };
 use super::{
+    completion::AssignedConsumerClosePublisher,
     shard::{AssignedConsumerPort, AssignedConsumerShardOwner},
     wake::AssignedConsumerShardWake,
 };
@@ -31,6 +32,7 @@ const FETCH_OUTPUT_BYTES: usize = 1024 * 1024;
 pub(crate) fn build_first_assigned_consumer<W>(
     clock: Arc<MonotonicClock>,
     wake: Arc<W>,
+    close_publisher: AssignedConsumerClosePublisher,
 ) -> Result<(AssignedConsumerShardOwner, AssignedConsumerPort), AssignedConsumerOwnerBuildError>
 where
     W: AssignedConsumerShardWake,
@@ -50,5 +52,5 @@ where
         FETCH_OUTPUT_BYTES,
         AssignedTopicLimits::new(PARTITIONS, PARTITIONS, 249, 16 * 1024),
     )?;
-    AssignedConsumerShardOwner::new(clock, settings, limits, wake)
+    AssignedConsumerShardOwner::new(clock, settings, limits, wake, close_publisher)
 }
