@@ -9,9 +9,9 @@ use std::{
 use crate::{
     EngineConfig,
     admin::{
-        CreatePartitionsHost, CreatePartitionsShardOwner, CreateTopicsHost, CreateTopicsShardOwner,
-        DeleteTopicsHost, DeleteTopicsShardOwner, DescribeClusterHost, DescribeClusterShardOwner,
-        completion::{AdminCompletionNotifier, AdminCompletionPorts},
+        AdminCompletionNotifier, AdminCompletionPorts, CreatePartitionsHost,
+        CreatePartitionsShardOwner, CreateTopicsHost, CreateTopicsShardOwner, DeleteTopicsHost,
+        DeleteTopicsShardOwner, DescribeClusterHost, DescribeClusterShardOwner,
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,

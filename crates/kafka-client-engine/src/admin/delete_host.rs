@@ -15,7 +15,7 @@ use crate::{
     completion::{CompletionId, CompletionRegistry, CompletionRegistryError},
 };
 
-use super::{DeleteTopicsObserver, completion::DeleteTopicsPublisher};
+use super::{DeleteTopicsObserver, DeleteTopicsPublisher};
 
 pub(crate) const DELETE_TOPICS_CAPACITY: usize = 32;
 pub(crate) const DELETE_TOPICS_RETAINED_BYTES: usize = 4 * 1024 * 1024;

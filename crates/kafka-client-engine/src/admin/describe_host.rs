@@ -15,7 +15,7 @@ use crate::{
     completion::{CompletionId, CompletionRegistry, CompletionRegistryError},
 };
 
-use super::{DescribeClusterObserver, completion::DescribeClusterPublisher};
+use super::{DescribeClusterObserver, DescribeClusterPublisher};
 
 pub(crate) const DESCRIBE_CLUSTER_CAPACITY: usize = 16;
 const DESCRIBE_CLUSTER_RETAINED_BYTES: usize = 4 * 1024 * 1024;

@@ -16,7 +16,7 @@ use crate::{
     completion::{CompletionId, CompletionRegistry, CompletionRegistryError},
 };
 
-use super::{CreatePartitionsObserver, completion::CreatePartitionsPublisher};
+use super::{CreatePartitionsObserver, CreatePartitionsPublisher};
 
 pub(crate) const CREATE_PARTITIONS_CAPACITY: usize = 32;
 pub(crate) const CREATE_PARTITIONS_RETAINED_BYTES: usize = 4 * 1024 * 1024;

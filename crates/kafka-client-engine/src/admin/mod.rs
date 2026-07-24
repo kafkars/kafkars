@@ -1,5 +1,5 @@
 //! Concrete bounded admin owners without a generic state-machine framework.
-pub(crate) mod completion;
+mod completion;
 #[cfg(test)]
 mod completion_test;
 mod delete_error;
@@ -16,6 +16,7 @@ mod describe_observer;
 mod describe_outcome;
 mod describe_shard;
 mod error;
+mod exports;
 mod handle;
 mod host;
 mod model;
@@ -33,6 +34,7 @@ pub(crate) mod retention;
 mod shard;
 #[cfg(test)]
 mod test_support;
+pub(crate) use exports::*;
 pub use public_api::*;
 #[cfg(test)]
 mod delete_handle_test;
