@@ -102,6 +102,38 @@ fn encoded_control_batch_preserves_exact_sequence_sentinel() {
 }
 
 #[test]
+fn encoded_kraft_control_batch_is_identity_free() {
+    let mut control = batch();
+    control.is_control = true;
+    let normalized = normalize_fetch_response(
+        response(vec![topic(
+            "kraft-control",
+            vec![partition(0, Some(batch_bytes(&control)))],
+        )]),
+        FetchDecodeLimits::default(),
+    )
+    .unwrap_or_else(|error| panic!("canonical KRaft control batch: {error:?}"));
+    let batch = &normalized.topics[0].partitions[0].batches[0];
+    assert!(!batch.is_transactional);
+    assert!(batch.is_control);
+    assert_eq!(batch.producer, None);
+
+    control.producer_id = 7;
+    control.producer_epoch = 2;
+    let encoded = batch_bytes(&control);
+    assert_eq!(
+        normalize_fetch_response(
+            response(vec![topic(
+                "kraft-control",
+                vec![partition(0, Some(encoded))],
+            )]),
+            FetchDecodeLimits::default(),
+        ),
+        Err(FetchDecodeFailure::NonTransactionalControlIdentity)
+    );
+}
+
+#[test]
 fn encoded_empty_compacted_batch_retains_only_max_timestamp() {
     let mut compacted = batch();
     compacted.base_timestamp = -1;

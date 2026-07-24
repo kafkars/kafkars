@@ -125,7 +125,7 @@ pub(crate) enum FetchDecodeFailure {
         base_sequence: i32,
     },
     TransactionalIdentityMissing,
-    ControlBatchNotTransactional,
+    NonTransactionalControlIdentity,
     InvalidAbortedTransaction {
         producer_id: i64,
         first_offset: i64,

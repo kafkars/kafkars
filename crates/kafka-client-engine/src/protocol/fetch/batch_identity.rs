@@ -30,8 +30,8 @@ pub(super) fn producer_identity(
             });
         }
     };
-    if control && !transactional {
-        return Err(FetchDecodeFailure::ControlBatchNotTransactional);
+    if control && !transactional && identity.is_some() {
+        return Err(FetchDecodeFailure::NonTransactionalControlIdentity);
     }
     if transactional && identity.is_none() {
         return Err(FetchDecodeFailure::TransactionalIdentityMissing);

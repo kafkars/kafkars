@@ -45,7 +45,7 @@ fn producer_identity_is_coherent_and_required_for_transactions() {
 }
 
 #[test]
-fn control_batch_requires_transactional_identity_and_exact_sequence_sentinel() {
+fn control_batch_identity_matches_transactional_mode_and_exact_sequence_sentinel() {
     let mut budget = test_budget();
     let mut control = batch();
     control.producer_id = 7;
@@ -85,7 +85,7 @@ fn control_batch_requires_transactional_identity_and_exact_sequence_sentinel() {
             true,
             false,
             -1,
-            FetchDecodeFailure::ControlBatchNotTransactional,
+            FetchDecodeFailure::NonTransactionalControlIdentity,
         ),
     ] {
         let mut budget = test_budget();
