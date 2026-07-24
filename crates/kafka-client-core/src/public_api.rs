@@ -5,6 +5,10 @@ pub use crate::admin::{
     CreateTopicSpecification, CreateTopicsEffect, CreateTopicsFailure, CreateTopicsFailureKind,
     CreateTopicsInput, CreateTopicsMachine, CreateTopicsMachineError, CreateTopicsPlan,
     CreateTopicsPlanError, CreateTopicsState, CreateTopicsTerminal, CreateTopicsTransition,
+    DeleteTopicBrokerError, DeleteTopicOutcome, DeleteTopicResult, DeleteTopicsEffect,
+    DeleteTopicsFailure, DeleteTopicsFailureKind, DeleteTopicsInput, DeleteTopicsMachine,
+    DeleteTopicsMachineError, DeleteTopicsPlan, DeleteTopicsPlanError, DeleteTopicsState,
+    DeleteTopicsTerminal, DeleteTopicsTransition,
 };
 pub use crate::admission::AdmissionRejection;
 pub use crate::capacity::{ByteBudget, CapacityError};

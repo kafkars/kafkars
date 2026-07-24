@@ -1,10 +1,23 @@
 //! Deterministic policy for concrete Kafka admin operations.
 
+mod delete_machine;
+mod delete_model;
+mod delete_outcome;
+mod delete_transition;
 mod machine;
 mod model;
 mod outcome;
 mod transition;
 
+pub use delete_machine::{
+    DeleteTopicsEffect, DeleteTopicsInput, DeleteTopicsMachine, DeleteTopicsMachineError,
+    DeleteTopicsState, DeleteTopicsTransition,
+};
+pub use delete_model::{DeleteTopicsPlan, DeleteTopicsPlanError};
+pub use delete_outcome::{
+    DeleteTopicBrokerError, DeleteTopicOutcome, DeleteTopicResult, DeleteTopicsFailure,
+    DeleteTopicsFailureKind, DeleteTopicsTerminal,
+};
 pub use machine::{
     CreateTopicsEffect, CreateTopicsInput, CreateTopicsMachine, CreateTopicsMachineError,
     CreateTopicsState, CreateTopicsTransition,
@@ -17,6 +30,10 @@ pub use outcome::{
     CreateTopicsFailureKind, CreateTopicsTerminal,
 };
 
+#[cfg(test)]
+mod delete_model_test;
+#[cfg(test)]
+mod delete_transition_test;
 #[cfg(test)]
 mod model_test;
 #[cfg(test)]
