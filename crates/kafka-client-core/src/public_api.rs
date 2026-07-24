@@ -1,14 +1,18 @@
 //! Curated public re-exports for deterministic client policy.
 
 pub use crate::admin::{
-    CreateTopicBrokerError, CreateTopicConfig, CreateTopicOutcome, CreateTopicResult,
-    CreateTopicSpecification, CreateTopicsEffect, CreateTopicsFailure, CreateTopicsFailureKind,
-    CreateTopicsInput, CreateTopicsMachine, CreateTopicsMachineError, CreateTopicsPlan,
-    CreateTopicsPlanError, CreateTopicsState, CreateTopicsTerminal, CreateTopicsTransition,
-    DeleteTopicBrokerError, DeleteTopicOutcome, DeleteTopicResult, DeleteTopicsEffect,
-    DeleteTopicsFailure, DeleteTopicsFailureKind, DeleteTopicsInput, DeleteTopicsMachine,
-    DeleteTopicsMachineError, DeleteTopicsPlan, DeleteTopicsPlanError, DeleteTopicsState,
-    DeleteTopicsTerminal, DeleteTopicsTransition,
+    ClusterBroker, ClusterDescription, CreateTopicBrokerError, CreateTopicConfig,
+    CreateTopicOutcome, CreateTopicResult, CreateTopicSpecification, CreateTopicsEffect,
+    CreateTopicsFailure, CreateTopicsFailureKind, CreateTopicsInput, CreateTopicsMachine,
+    CreateTopicsMachineError, CreateTopicsPlan, CreateTopicsPlanError, CreateTopicsState,
+    CreateTopicsTerminal, CreateTopicsTransition, DeleteTopicBrokerError, DeleteTopicOutcome,
+    DeleteTopicResult, DeleteTopicsEffect, DeleteTopicsFailure, DeleteTopicsFailureKind,
+    DeleteTopicsInput, DeleteTopicsMachine, DeleteTopicsMachineError, DeleteTopicsPlan,
+    DeleteTopicsPlanError, DeleteTopicsState, DeleteTopicsTerminal, DeleteTopicsTransition,
+    DescribeClusterBrokerError, DescribeClusterEffect, DescribeClusterFailure,
+    DescribeClusterFailureKind, DescribeClusterInput, DescribeClusterMachine,
+    DescribeClusterMachineError, DescribeClusterState, DescribeClusterTerminal,
+    DescribeClusterTransition,
 };
 pub use crate::admission::AdmissionRejection;
 pub use crate::capacity::{ByteBudget, CapacityError};
