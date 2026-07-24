@@ -54,6 +54,16 @@ mod init_producer_id_calls_test;
 mod init_producer_id_submission;
 #[cfg(test)]
 mod init_producer_id_submission_test;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "direct-consumer host integration follows this tracked RPC seam"
+    )
+)]
+mod list_offsets_submission;
+#[cfg(test)]
+mod list_offsets_submission_test;
 mod submission;
 #[cfg(test)]
 mod submission_test;
