@@ -29,7 +29,7 @@ pub use crate::consumer::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
     AssignedConsumerMachineError, AssignedConsumerTransition, AssignedPartition,
     AssignedTopicPartition, AssignmentEpoch, FetchFence, FetchRevision, NextFetchOffset,
-    PositionEpoch, PositionFence, StartPosition,
+    PositionEpoch, PositionFence, PositionResolutionFailure, StartPosition,
 };
 pub use crate::operation::{ProducerOperation, ProducerOperationState};
 pub use crate::operation_outcome::{

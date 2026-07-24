@@ -5,6 +5,7 @@ use super::{
     AssignedTopicPartition, AssignmentEpoch, FetchFence, NextFetchOffset, PositionFence,
     StartPosition, position_state::PartitionPosition,
 };
+use crate::{Deadline, Moment};
 
 #[derive(Debug)]
 pub(super) struct AssignedPartitionState {
@@ -17,13 +18,15 @@ impl AssignedPartitionState {
     pub(super) fn new(
         assignment_epoch: AssignmentEpoch,
         assigned: AssignedPartition,
+        now: Moment,
+        deadline: Deadline,
     ) -> Result<(Self, AssignedConsumerEffect), AssignedConsumerMachineError> {
         let mut state = Self {
             partition: assigned.partition(),
             paused: false,
             position: PartitionPosition::new(assigned.start()),
         };
-        let effect = state.activate(assignment_epoch)?.ok_or(
+        let effect = state.activate(assignment_epoch, now, deadline)?.ok_or(
             AssignedConsumerMachineError::PositionResolutionNotPending {
                 fence: state.position_fence(assignment_epoch),
             },
@@ -48,18 +51,22 @@ impl AssignedPartitionState {
     pub(super) fn resume(
         &mut self,
         assignment_epoch: AssignmentEpoch,
+        now: Moment,
+        deadline: Deadline,
     ) -> Result<Option<AssignedConsumerEffect>, AssignedConsumerMachineError> {
         if !self.paused {
             return Ok(None);
         }
         self.paused = false;
-        self.activate(assignment_epoch)
+        self.activate(assignment_epoch, now, deadline)
     }
 
     pub(super) fn seek(
         &mut self,
         assignment_epoch: AssignmentEpoch,
         position: StartPosition,
+        now: Moment,
+        deadline: Deadline,
     ) -> Result<Vec<AssignedConsumerEffect>, AssignedConsumerMachineError> {
         self.fence_position()?;
         self.position.replace(position);
@@ -67,7 +74,7 @@ impl AssignedPartitionState {
             fence: self.position_fence(assignment_epoch),
         }];
         if !self.paused {
-            if let Some(effect) = self.activate(assignment_epoch)? {
+            if let Some(effect) = self.activate(assignment_epoch, now, deadline)? {
                 effects.push(effect);
             }
         }
@@ -78,17 +85,39 @@ impl AssignedPartitionState {
         &mut self,
         fence: PositionFence,
         next_offset: NextFetchOffset,
-    ) -> Result<Option<AssignedConsumerEffect>, AssignedConsumerMachineError> {
+        now: Moment,
+        throttle_ticks: u64,
+    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
         self.ensure_position_fence(fence)?;
-        if !self.position.is_awaiting_resolution() {
-            return Err(AssignedConsumerMachineError::PositionResolutionNotPending { fence });
-        }
-        self.position.resolve(next_offset);
-        if self.paused {
-            Ok(None)
-        } else {
-            self.activate(fence.assignment_epoch())
-        }
+        self.position
+            .resolve(fence, next_offset, now, throttle_ticks, self.partition)
+    }
+
+    pub(super) fn position_resolution_failed(
+        &mut self,
+        fence: PositionFence,
+        now: Moment,
+    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
+        self.ensure_position_fence(fence)?;
+        self.position.fail(fence, now)
+    }
+
+    pub(super) fn position_resolution_deadline_elapsed(
+        &mut self,
+        fence: PositionFence,
+        now: Moment,
+    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
+        self.ensure_position_fence(fence)?;
+        self.position.resolution_deadline_elapsed(fence, now)
+    }
+
+    pub(super) fn position_throttle_elapsed(
+        &mut self,
+        fence: PositionFence,
+        now: Moment,
+    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
+        self.ensure_position_fence(fence)?;
+        self.position.throttle_elapsed(fence, now, self.partition)
     }
 
     pub(super) fn fetch_advanced(
@@ -108,9 +137,11 @@ impl AssignedPartitionState {
     fn activate(
         &mut self,
         assignment_epoch: AssignmentEpoch,
+        now: Moment,
+        deadline: Deadline,
     ) -> Result<Option<AssignedConsumerEffect>, AssignedConsumerMachineError> {
         let fence = self.position_fence(assignment_epoch);
-        self.position.activate(fence, self.partition)
+        self.position.activate(fence, self.partition, now, deadline)
     }
 
     fn fence_position(&mut self) -> Result<(), AssignedConsumerMachineError> {

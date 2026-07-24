@@ -7,6 +7,7 @@ mod input;
 mod machine;
 mod model;
 mod position;
+mod position_resolution;
 mod position_state;
 mod transition;
 
@@ -22,5 +23,9 @@ mod model_test;
 mod position_state_test;
 #[cfg(test)]
 mod position_test;
+#[cfg(test)]
+mod resolution_test;
+#[cfg(test)]
+mod throttle_test;
 #[cfg(test)]
 mod transition_test;

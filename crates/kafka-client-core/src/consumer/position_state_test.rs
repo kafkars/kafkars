@@ -1,6 +1,6 @@
 //! Fetch-revision exhaustion scenarios for atomic position transitions.
 
-use crate::{PartitionIndex, TopicId};
+use crate::{Deadline, Moment, PartitionIndex, TopicId};
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerMachineError, AssignedTopicPartition, AssignmentEpoch,
@@ -18,10 +18,15 @@ fn fetch_revision_exhaustion_preserves_the_active_fetch_and_offset() {
     );
     let mut state = PartitionPosition::new(StartPosition::Offset(offset(10)));
     let first = state
-        .activate(position, partition)
+        .activate(
+            position,
+            partition,
+            Moment::from_tick(0),
+            Deadline::from_tick(100),
+        )
         .unwrap_or_else(|error| panic!("initial fetch activation: {error}"))
         .unwrap_or_else(|| panic!("explicit offset must activate a fetch"));
-    let AssignedConsumerEffect::Fetch {
+    let AssignedConsumerEffect::FetchReady {
         fence: first_fetch, ..
     } = first
     else {
@@ -52,7 +57,7 @@ fn fetch_revision_exhaustion_preserves_the_active_fetch_and_offset() {
         state
             .advance_and_activate(first_fetch, offset(12), partition)
             .unwrap_or_else(|error| panic!("active fetch must survive exhaustion: {error}")),
-        AssignedConsumerEffect::Fetch { fence, next_offset }
+        AssignedConsumerEffect::FetchReady { fence, next_offset }
             if fence.revision().get() == 2 && next_offset == offset(12)
     ));
 }

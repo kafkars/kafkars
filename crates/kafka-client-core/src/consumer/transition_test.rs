@@ -5,6 +5,7 @@ use super::{
     StartPosition,
     assignment_test::{assigned, partition},
 };
+use crate::{Deadline, Moment};
 
 #[test]
 fn rejected_inputs_leave_assignment_identity_unconsumed() {
@@ -20,6 +21,8 @@ fn rejected_inputs_leave_assignment_identity_unconsumed() {
     assert_eq!(
         machine.apply(AssignedConsumerInput::Assign {
             partitions: Vec::new(),
+            now: Moment::from_tick(0),
+            resolution_deadline: Deadline::from_tick(100),
         }),
         Err(AssignedConsumerMachineError::EmptyAssignment)
     );
@@ -27,6 +30,8 @@ fn rejected_inputs_leave_assignment_identity_unconsumed() {
     let assigned = machine
         .apply(AssignedConsumerInput::Assign {
             partitions: vec![assigned(1, 0, StartPosition::Beginning)],
+            now: Moment::from_tick(0),
+            resolution_deadline: Deadline::from_tick(100),
         })
         .unwrap_or_else(|error| panic!("valid assignment after rejection: {error}"));
     assert_eq!(assigned.assignment_epoch(), epoch);

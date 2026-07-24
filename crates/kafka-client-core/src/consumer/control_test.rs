@@ -5,6 +5,7 @@ use super::{
     AssignedConsumerMachineError, StartPosition,
     assignment_test::{assign, assigned, offset, partition},
 };
+use crate::{Deadline, Moment};
 
 #[test]
 fn pause_fences_inflight_fetch_and_resume_restarts_retained_offset() {
@@ -13,7 +14,7 @@ fn pause_fences_inflight_fetch_and_resume_restarts_retained_offset() {
         &mut machine,
         vec![assigned(1, 0, StartPosition::Offset(offset(10)))],
     );
-    let AssignedConsumerEffect::Fetch {
+    let AssignedConsumerEffect::FetchReady {
         fence: old_fetch,
         next_offset: old_offset,
     } = initial.effects()[0]
@@ -50,11 +51,13 @@ fn pause_fences_inflight_fetch_and_resume_restarts_retained_offset() {
         .apply(AssignedConsumerInput::Resume {
             assignment_epoch: epoch,
             partition: partition(1, 0),
+            now: Moment::from_tick(1),
+            resolution_deadline: Deadline::from_tick(100),
         })
         .unwrap_or_else(|error| panic!("resume partition: {error}"));
     assert!(matches!(
         resumed.effects(),
-        [AssignedConsumerEffect::Fetch {
+        [AssignedConsumerEffect::FetchReady {
             fence,
             next_offset,
         }] if fence.position() == paused_fence && *next_offset == old_offset
@@ -78,6 +81,8 @@ fn seek_orders_fence_before_replacement_and_rejects_old_work() {
             assignment_epoch: epoch,
             partition: partition(3, 2),
             position: StartPosition::End,
+            now: Moment::from_tick(1),
+            resolution_deadline: Deadline::from_tick(100),
         })
         .unwrap_or_else(|error| panic!("seek to end: {error}"));
     let [
@@ -85,6 +90,7 @@ fn seek_orders_fence_before_replacement_and_rejects_old_work() {
         AssignedConsumerEffect::ResolvePosition {
             fence: resolution_fence,
             position: StartPosition::End,
+            ..
         },
     ] = seek.effects()
     else {
@@ -96,12 +102,32 @@ fn seek_orders_fence_before_replacement_and_rejects_old_work() {
         machine.apply(AssignedConsumerInput::PositionResolved {
             fence: old_fence,
             next_offset: offset(4),
+            now: Moment::from_tick(2),
+            throttle_ticks: 0,
         }),
         Err(AssignedConsumerMachineError::StalePosition {
             active: *new_fence,
             supplied: old_fence,
         })
     );
+    for input in [
+        AssignedConsumerInput::PositionResolutionFailed {
+            fence: old_fence,
+            now: Moment::from_tick(2),
+        },
+        AssignedConsumerInput::PositionResolutionDeadlineElapsed {
+            fence: old_fence,
+            now: Moment::from_tick(100),
+        },
+    ] {
+        assert_eq!(
+            machine.apply(input),
+            Err(AssignedConsumerMachineError::StalePosition {
+                active: *new_fence,
+                supplied: old_fence,
+            })
+        );
+    }
 }
 
 #[test]

@@ -1,9 +1,11 @@
-//! Sole mutation owner for one partition's next-fetch generation and phase.
+//! Sole mutation owner for one partition's position epoch and fetch revision.
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerMachineError, AssignedTopicPartition, FetchFence,
     FetchRevision, NextFetchOffset, PositionEpoch, PositionFence, StartPosition,
+    position_resolution::{PositionResolution, ResolutionActivation},
 };
+use crate::{Deadline, Moment};
 
 #[derive(Debug)]
 pub(super) struct PartitionPosition {
@@ -12,9 +14,9 @@ pub(super) struct PartitionPosition {
     phase: PositionPhase,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 enum PositionPhase {
-    AwaitingResolution(StartPosition),
+    Resolution(PositionResolution),
     Ready(NextFetchOffset),
     Fetching {
         fence: FetchFence,
@@ -26,7 +28,7 @@ impl PartitionPosition {
     pub(super) const fn new(position: StartPosition) -> Self {
         let phase = match position {
             position @ (StartPosition::Beginning | StartPosition::End) => {
-                PositionPhase::AwaitingResolution(position)
+                PositionPhase::Resolution(PositionResolution::new(position))
             }
             StartPosition::Offset(next_offset) => PositionPhase::Ready(next_offset),
         };
@@ -41,21 +43,13 @@ impl PartitionPosition {
         self.epoch
     }
 
-    pub(super) const fn is_awaiting_resolution(&self) -> bool {
-        matches!(self.phase, PositionPhase::AwaitingResolution(_))
-    }
-
     pub(super) fn replace(&mut self, position: StartPosition) {
         self.phase = match position {
             position @ (StartPosition::Beginning | StartPosition::End) => {
-                PositionPhase::AwaitingResolution(position)
+                PositionPhase::Resolution(PositionResolution::new(position))
             }
             StartPosition::Offset(next_offset) => PositionPhase::Ready(next_offset),
         };
-    }
-
-    pub(super) fn resolve(&mut self, next_offset: NextFetchOffset) {
-        self.phase = PositionPhase::Ready(next_offset);
     }
 
     pub(super) fn advance_and_activate(
@@ -87,19 +81,63 @@ impl PartitionPosition {
         &mut self,
         fence: PositionFence,
         partition: AssignedTopicPartition,
+        now: Moment,
+        deadline: Deadline,
     ) -> Result<Option<AssignedConsumerEffect>, AssignedConsumerMachineError> {
-        match self.phase {
-            PositionPhase::AwaitingResolution(position) => {
-                Ok(Some(AssignedConsumerEffect::ResolvePosition {
-                    fence,
-                    position,
-                }))
-            }
-            PositionPhase::Ready(next_offset) => {
-                self.start_fetch(fence, next_offset, partition).map(Some)
-            }
-            PositionPhase::Fetching { .. } => Ok(None),
+        if let PositionPhase::Ready(next_offset) = &self.phase {
+            let next_offset = *next_offset;
+            return self.start_fetch(fence, next_offset, partition).map(Some);
         }
+        let activation = match &mut self.phase {
+            PositionPhase::Resolution(resolution) => resolution.activate(fence, now, deadline),
+            PositionPhase::Ready(_) | PositionPhase::Fetching { .. } => return Ok(None),
+        };
+        self.apply_resolution_activation(activation, fence, partition)
+    }
+
+    pub(super) fn resolve(
+        &mut self,
+        fence: PositionFence,
+        next_offset: NextFetchOffset,
+        now: Moment,
+        throttle_ticks: u64,
+        partition: AssignedTopicPartition,
+    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
+        let PositionPhase::Resolution(resolution) = &mut self.phase else {
+            return Err(AssignedConsumerMachineError::PositionResolutionNotPending { fence });
+        };
+        let activation = resolution.resolve(fence, next_offset, now, throttle_ticks)?;
+        self.apply_resolution_activation(activation, fence, partition)?
+            .ok_or(AssignedConsumerMachineError::PositionResolutionNotPending { fence })
+    }
+
+    pub(super) fn fail(
+        &mut self,
+        fence: PositionFence,
+        now: Moment,
+    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
+        self.resolution_mut(fence)?.terminal_failure(fence, now)
+    }
+
+    pub(super) fn resolution_deadline_elapsed(
+        &mut self,
+        fence: PositionFence,
+        now: Moment,
+    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
+        self.resolution_mut(fence)?.deadline_elapsed(fence, now)
+    }
+
+    pub(super) fn throttle_elapsed(
+        &mut self,
+        fence: PositionFence,
+        now: Moment,
+        partition: AssignedTopicPartition,
+    ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
+        let PositionPhase::Resolution(resolution) = &mut self.phase else {
+            return Err(AssignedConsumerMachineError::PositionThrottleNotPending { fence });
+        };
+        let next_offset = resolution.throttle_elapsed(fence, now)?;
+        self.start_fetch(fence, next_offset, partition)
     }
 
     fn start_fetch(
@@ -115,7 +153,7 @@ impl PartitionPosition {
         let fence = FetchFence::new(position, revision);
         self.next_fetch_revision = next_revision;
         self.phase = PositionPhase::Fetching { fence, next_offset };
-        Ok(AssignedConsumerEffect::Fetch { fence, next_offset })
+        Ok(AssignedConsumerEffect::FetchReady { fence, next_offset })
     }
 
     pub(super) fn fence(
@@ -126,12 +164,41 @@ impl PartitionPosition {
             .epoch
             .checked_next()
             .ok_or(AssignedConsumerMachineError::PositionEpochExhausted { partition })?;
-        if let PositionPhase::Fetching { next_offset, .. } = self.phase {
-            self.phase = PositionPhase::Ready(next_offset);
+        match &mut self.phase {
+            PositionPhase::Resolution(resolution) => resolution.fence(),
+            PositionPhase::Fetching { next_offset, .. } => {
+                self.phase = PositionPhase::Ready(*next_offset);
+            }
+            PositionPhase::Ready(_) => {}
         }
         self.epoch = next;
         self.next_fetch_revision = FetchRevision::initial();
         Ok(())
+    }
+
+    fn apply_resolution_activation(
+        &mut self,
+        activation: ResolutionActivation,
+        fence: PositionFence,
+        partition: AssignedTopicPartition,
+    ) -> Result<Option<AssignedConsumerEffect>, AssignedConsumerMachineError> {
+        match activation {
+            ResolutionActivation::Effect(effect) => Ok(Some(effect)),
+            ResolutionActivation::FetchReady(next_offset) => {
+                self.start_fetch(fence, next_offset, partition).map(Some)
+            }
+            ResolutionActivation::None => Ok(None),
+        }
+    }
+
+    fn resolution_mut(
+        &mut self,
+        fence: PositionFence,
+    ) -> Result<&mut PositionResolution, AssignedConsumerMachineError> {
+        let PositionPhase::Resolution(resolution) = &mut self.phase else {
+            return Err(AssignedConsumerMachineError::PositionResolutionNotPending { fence });
+        };
+        Ok(resolution)
     }
 
     #[cfg(test)]

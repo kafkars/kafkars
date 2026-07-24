@@ -1,6 +1,6 @@
 //! Direct-assignment replacement and ordered-effect scenarios.
 
-use crate::{PartitionIndex, TopicId};
+use crate::{Deadline, Moment, PartitionIndex, TopicId};
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
@@ -18,6 +18,8 @@ fn explicit_start_positions_emit_in_assignment_order() {
                 assigned(1, 4, StartPosition::Offset(offset(9))),
                 assigned(2, 3, StartPosition::End),
             ],
+            now: Moment::from_tick(0),
+            resolution_deadline: Deadline::from_tick(100),
         })
         .unwrap_or_else(|error| panic!("initial direct assignment: {error}"));
 
@@ -29,11 +31,12 @@ fn explicit_start_positions_emit_in_assignment_order() {
         AssignedConsumerEffect::ResolvePosition {
             fence,
             position: StartPosition::Beginning,
+            ..
         } if fence.partition() == partition(2, 0)
     ));
     assert!(matches!(
         effects[1],
-        AssignedConsumerEffect::Fetch {
+        AssignedConsumerEffect::FetchReady {
             fence,
             next_offset,
         } if fence.position().partition() == partition(1, 4)
@@ -44,6 +47,7 @@ fn explicit_start_positions_emit_in_assignment_order() {
         AssignedConsumerEffect::ResolvePosition {
             fence,
             position: StartPosition::End,
+            ..
         } if fence.partition() == partition(2, 3)
     ));
 }
@@ -61,6 +65,8 @@ fn replacement_revokes_old_order_before_starting_new_epoch() {
     let replacement = machine
         .apply(AssignedConsumerInput::Assign {
             partitions: vec![assigned(4, 2, StartPosition::End)],
+            now: Moment::from_tick(0),
+            resolution_deadline: Deadline::from_tick(100),
         })
         .unwrap_or_else(|error| panic!("replacement assignment: {error}"));
 
@@ -85,6 +91,7 @@ fn replacement_revokes_old_order_before_starting_new_epoch() {
         AssignedConsumerEffect::ResolvePosition {
             fence,
             position: StartPosition::End,
+            ..
         } if fence.assignment_epoch().get() == 2
             && fence.partition() == partition(4, 2)
     ));
@@ -97,6 +104,8 @@ fn invalid_assignment_does_not_consume_the_first_epoch() {
     assert_eq!(
         machine.apply(AssignedConsumerInput::Assign {
             partitions: vec![duplicate, duplicate],
+            now: Moment::from_tick(0),
+            resolution_deadline: Deadline::from_tick(100),
         }),
         Err(AssignedConsumerMachineError::DuplicatePartition {
             partition: partition(1, 2),
@@ -107,6 +116,8 @@ fn invalid_assignment_does_not_consume_the_first_epoch() {
     let transition = machine
         .apply(AssignedConsumerInput::Assign {
             partitions: vec![assigned(1, 2, StartPosition::Beginning)],
+            now: Moment::from_tick(0),
+            resolution_deadline: Deadline::from_tick(100),
         })
         .unwrap_or_else(|error| panic!("valid assignment after rejection: {error}"));
     assert_eq!(transition.assignment_epoch(), AssignmentEpoch::initial());
@@ -116,8 +127,26 @@ pub(super) fn assign(
     machine: &mut AssignedConsumerMachine,
     partitions: Vec<AssignedPartition>,
 ) -> super::AssignedConsumerTransition {
+    assign_at(
+        machine,
+        partitions,
+        Moment::from_tick(0),
+        Deadline::from_tick(100),
+    )
+}
+
+pub(super) fn assign_at(
+    machine: &mut AssignedConsumerMachine,
+    partitions: Vec<AssignedPartition>,
+    now: Moment,
+    resolution_deadline: Deadline,
+) -> super::AssignedConsumerTransition {
     machine
-        .apply(AssignedConsumerInput::Assign { partitions })
+        .apply(AssignedConsumerInput::Assign {
+            partitions,
+            now,
+            resolution_deadline,
+        })
         .unwrap_or_else(|error| panic!("test assignment: {error}"))
 }
 

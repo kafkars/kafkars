@@ -153,6 +153,10 @@ production = "crates/kafka-client-core/src/consumer/position.rs"
 test = "crates/kafka-client-core/src/consumer/control_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/position_resolution.rs"
+test = "crates/kafka-client-core/src/consumer/resolution_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/position_state.rs"
 test = "crates/kafka-client-core/src/consumer/position_state_test.rs"
 
@@ -1655,6 +1659,11 @@ field = "phase"
 allowed_paths = ["crates/kafka-client-core/src/consumer/position_state.rs"]
 
 [[mutation_owners]]
+owner_type = "PositionResolution"
+field = "state"
+allowed_paths = ["crates/kafka-client-core/src/consumer/position_resolution.rs"]
+
+[[mutation_owners]]
 owner_type = "ProducerMachine"
 field = "admission_open"
 allowed_paths = [
@@ -2672,6 +2681,10 @@ path = "crates/kafka-client-core/src/consumer/position.rs"
 [[linear_owners]]
 owner_type = "PartitionPosition"
 path = "crates/kafka-client-core/src/consumer/position_state.rs"
+
+[[linear_owners]]
+owner_type = "PositionResolution"
+path = "crates/kafka-client-core/src/consumer/position_resolution.rs"
 
 [[linear_owners]]
 owner_type = "ProducerMachine"

@@ -242,12 +242,16 @@ milestone = "direct-and-group-consumer"
 [[invariant]]
 id = "CON-02"
 title = "Direct fetch positions are generation-fenced"
-statement = "Direct assignment replacement allocates a monotonic epoch and revokes old partitions before new work; pause and seek advance partition-local position generations so stale resolution and fetch results cannot mutate the retained next-fetch offset, while accepted fetch progress is nondecreasing and receives an exact fetch revision."
+statement = "Direct assignment replacement allocates a monotonic epoch and revokes old partitions before new work; pause and seek advance partition-local position generations so stale resolution, throttle, and fetch results cannot mutate retained state. Start-position resolution preserves one supplied absolute child deadline, deadline precedence and terminal failure remain core-owned, positive broker throttle retains one exact fenced deadline, and FetchReady appears only after resolution and throttle while accepted fetch progress is nondecreasing and receives an exact fetch revision."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/consumer/assignment_test.rs::replacement_revokes_old_order_before_starting_new_epoch",
   "crates/kafka-client-core/src/consumer/control_test.rs::pause_fences_inflight_fetch_and_resume_restarts_retained_offset",
   "crates/kafka-client-core/src/consumer/control_test.rs::seek_orders_fence_before_replacement_and_rejects_old_work",
+  "crates/kafka-client-core/src/consumer/resolution_test.rs::result_and_failure_observations_apply_core_owned_deadline_precedence",
+  "crates/kafka-client-core/src/consumer/resolution_test.rs::pause_and_reassignment_fence_every_old_resolution_terminal",
+  "crates/kafka-client-core/src/consumer/throttle_test.rs::positive_throttle_arms_exact_deadline_and_rejects_early_wake_without_mutation",
+  "crates/kafka-client-core/src/consumer/throttle_test.rs::pause_rearms_the_same_throttle_deadline_under_a_new_fence",
   "crates/kafka-client-core/src/consumer/position_test.rs::resolved_start_and_fetch_progress_issue_exact_ordered_positions",
   "crates/kafka-client-core/src/consumer/position_test.rs::older_fetch_revision_cannot_advance_the_active_execution",
   "crates/kafka-client-core/src/consumer/position_test.rs::offset_regression_rejects_without_consuming_fetch_revision",

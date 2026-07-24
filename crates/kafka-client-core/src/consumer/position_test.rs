@@ -5,6 +5,7 @@ use super::{
     AssignedConsumerMachineError, StartPosition,
     assignment_test::{assign, assigned, offset},
 };
+use crate::Moment;
 
 #[test]
 fn resolved_start_and_fetch_progress_issue_exact_ordered_positions() {
@@ -17,9 +18,11 @@ fn resolved_start_and_fetch_progress_issue_exact_ordered_positions() {
         .apply(AssignedConsumerInput::PositionResolved {
             fence,
             next_offset: offset(10),
+            now: Moment::from_tick(1),
+            throttle_ticks: 0,
         })
         .unwrap_or_else(|error| panic!("resolve beginning: {error}"));
-    let AssignedConsumerEffect::Fetch {
+    let AssignedConsumerEffect::FetchReady {
         fence: first_fetch,
         next_offset,
     } = resolved.effects()[0]
@@ -36,7 +39,7 @@ fn resolved_start_and_fetch_progress_issue_exact_ordered_positions() {
         .unwrap_or_else(|error| panic!("advance completed fetch: {error}"));
     assert!(matches!(
         advanced.effects(),
-        [AssignedConsumerEffect::Fetch {
+        [AssignedConsumerEffect::FetchReady {
             fence,
             next_offset,
         }] if fence.position() == first_fetch.position()
@@ -52,7 +55,7 @@ fn offset_regression_rejects_without_consuming_fetch_revision() {
         &mut machine,
         vec![assigned(1, 0, StartPosition::Offset(offset(10)))],
     );
-    let AssignedConsumerEffect::Fetch {
+    let AssignedConsumerEffect::FetchReady {
         fence: first_fetch, ..
     } = initial.effects()[0]
     else {
@@ -77,7 +80,7 @@ fn offset_regression_rejects_without_consuming_fetch_revision() {
         .unwrap_or_else(|error| panic!("valid progress after rejection: {error}"));
     assert!(matches!(
         accepted.effects(),
-        [AssignedConsumerEffect::Fetch { fence, next_offset }]
+        [AssignedConsumerEffect::FetchReady { fence, next_offset }]
             if fence.revision().get() == 2 && *next_offset == offset(11)
     ));
 }
@@ -89,7 +92,7 @@ fn older_fetch_revision_cannot_advance_the_active_execution() {
         &mut machine,
         vec![assigned(1, 0, StartPosition::Offset(offset(10)))],
     );
-    let AssignedConsumerEffect::Fetch {
+    let AssignedConsumerEffect::FetchReady {
         fence: first_fetch, ..
     } = initial.effects()[0]
     else {
@@ -101,7 +104,7 @@ fn older_fetch_revision_cannot_advance_the_active_execution() {
             next_offset: offset(12),
         })
         .unwrap_or_else(|error| panic!("advance first fetch: {error}"));
-    let AssignedConsumerEffect::Fetch {
+    let AssignedConsumerEffect::FetchReady {
         fence: second_fetch,
         ..
     } = second.effects()[0]
@@ -126,7 +129,7 @@ fn older_fetch_revision_cannot_advance_the_active_execution() {
         .unwrap_or_else(|error| panic!("active fetch survives stale result: {error}"));
     assert!(matches!(
         accepted.effects(),
-        [AssignedConsumerEffect::Fetch { fence, next_offset }]
+        [AssignedConsumerEffect::FetchReady { fence, next_offset }]
             if fence.revision().get() == 3 && *next_offset == offset(14)
     ));
 }

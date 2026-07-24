@@ -3,6 +3,7 @@
 use core::fmt;
 
 use super::{AssignedTopicPartition, AssignmentEpoch, FetchFence, NextFetchOffset, PositionFence};
+use crate::{Deadline, Moment};
 
 /// Deterministic rejection of one assigned-consumer input.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -52,6 +53,29 @@ pub enum AssignedConsumerMachineError {
         /// Current position fence.
         fence: PositionFence,
     },
+    /// A position-resolution deadline wake arrived before its exact deadline.
+    PositionResolutionDeadlineNotElapsed {
+        /// Current position fence.
+        fence: PositionFence,
+        /// Exact deadline retained by the resolving phase.
+        deadline: Deadline,
+        /// Early monotonic observation.
+        now: Moment,
+    },
+    /// No positive position throttle is outstanding for the supplied fence.
+    PositionThrottleNotPending {
+        /// Current position fence.
+        fence: PositionFence,
+    },
+    /// A position-throttle wake arrived before its exact deadline.
+    PositionThrottleDeadlineNotElapsed {
+        /// Current position fence.
+        fence: PositionFence,
+        /// Exact absolute throttle deadline.
+        deadline: Deadline,
+        /// Early monotonic observation.
+        now: Moment,
+    },
     /// A fetch terminal does not own the active execution.
     StaleFetch {
         /// Supplied stale fetch identity.
@@ -94,6 +118,15 @@ impl fmt::Display for AssignedConsumerMachineError {
             }
             Self::PositionResolutionNotPending { .. } => {
                 formatter.write_str("position resolution is not pending")
+            }
+            Self::PositionResolutionDeadlineNotElapsed { .. } => {
+                formatter.write_str("position resolution deadline has not elapsed")
+            }
+            Self::PositionThrottleNotPending { .. } => {
+                formatter.write_str("position throttle is not pending")
+            }
+            Self::PositionThrottleDeadlineNotElapsed { .. } => {
+                formatter.write_str("position throttle deadline has not elapsed")
             }
             Self::StaleFetch { .. } => {
                 formatter.write_str("fetch result does not own the active execution")

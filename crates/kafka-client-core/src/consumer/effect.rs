@@ -4,18 +4,33 @@ use super::{
     AssignedTopicPartition, AssignmentEpoch, FetchFence, NextFetchOffset, PositionFence,
     StartPosition,
 };
+use crate::Deadline;
+
+/// Terminal reason one position-resolution attempt cannot become fetch-ready.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PositionResolutionFailure {
+    /// The supplied public operation deadline elapsed.
+    DeadlineElapsed,
+    /// The interpreter reported terminal resolution failure.
+    AttemptFailed,
+    /// The positive throttle duration could not become an absolute deadline.
+    ThrottleDeadlineOverflow,
+}
 
 /// One ordered action selected by deterministic direct-consumer policy.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AssignedConsumerEffect {
-    /// Revokes all interpreter work for an assignment partition.
+    /// Terminally cancels all internal interpreter work for a partition.
     Revoke {
         /// Superseded assignment epoch.
         assignment_epoch: AssignmentEpoch,
         /// Superseded partition.
         partition: AssignedTopicPartition,
     },
-    /// Suspends work older than the supplied position fence.
+    /// Cancels interpreter work older than the supplied position fence.
+    ///
+    /// Cancellation is terminal for an outstanding internal resolution or
+    /// throttle effect; it does not produce a public terminal result.
     Suspend {
         /// Newly installed fence; older work must not be applied.
         fence: PositionFence,
@@ -26,9 +41,25 @@ pub enum AssignedConsumerEffect {
         fence: PositionFence,
         /// Beginning or end policy to resolve.
         position: StartPosition,
+        /// Original absolute deadline supplied at the public operation boundary.
+        deadline: Deadline,
     },
-    /// Fetches from one exact partition position.
-    Fetch {
+    /// Publishes terminal failure of one exact position resolution.
+    PositionResolutionFailed {
+        /// Exact generation whose resolution terminated.
+        fence: PositionFence,
+        /// Deterministic terminal classification.
+        failure: PositionResolutionFailure,
+    },
+    /// Arms one positive broker throttle before fetch readiness.
+    ArmPositionThrottle {
+        /// Exact position fenced by the timer.
+        fence: PositionFence,
+        /// Exact absolute throttle deadline.
+        deadline: Deadline,
+    },
+    /// Announces that one exact partition position may be fetched.
+    FetchReady {
         /// Exact execution identity for the fetch.
         fence: FetchFence,
         /// Offset used by this fetch.
