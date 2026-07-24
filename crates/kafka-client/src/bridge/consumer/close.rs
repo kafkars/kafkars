@@ -14,7 +14,7 @@ use kafka_client_engine::{
 
 use crate::KafkaError;
 
-use super::consumer_result::{
+use super::result::{
     translate_assigned_close_admission, translate_assigned_close_fault,
     translate_assigned_close_observation,
 };

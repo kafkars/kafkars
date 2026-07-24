@@ -2,7 +2,7 @@
 
 use kafka_client_engine::AssignedConsumerPartition as EnginePartition;
 
-use super::consumer_control::engine_partition;
+use super::control::engine_partition;
 use crate::{ErrorKind, consumer::TopicPartition};
 
 #[test]

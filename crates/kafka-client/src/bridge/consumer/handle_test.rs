@@ -1,6 +1,6 @@
 //! Private bridge claim and close lifecycle scenarios.
 
-use super::client::ClientEngine;
+use crate::bridge::ClientEngine;
 use crate::{ErrorKind, producer::Compression};
 
 #[test]

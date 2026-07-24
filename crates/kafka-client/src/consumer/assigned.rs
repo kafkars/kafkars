@@ -2,11 +2,10 @@
 
 use crate::bridge::consumer::AssignedConsumerEngine;
 
-use super::{CloseAssignedConsumer, StartPosition, TopicPartition};
+use super::{CloseAssignedConsumer, RecordBatch, StartPosition, TopicPartition};
 
 /// Consumer whose positions are controlled directly rather than by a group.
 ///
-/// Record delivery remains absent until its engine seam is complete.
 #[derive(Debug)]
 pub struct AssignedConsumer {
     engine: AssignedConsumerEngine,
@@ -66,6 +65,15 @@ impl AssignedConsumer {
     ) -> Result<(), crate::KafkaError> {
         self.engine
             .try_seek(partition, position, resolution_timeout)
+    }
+
+    /// Takes one already-authorized prefetched batch when immediately available.
+    ///
+    /// This call has no application timeout and does not start Fetch work.
+    pub fn try_take_batch(&mut self) -> Result<Option<RecordBatch>, crate::KafkaError> {
+        self.engine
+            .try_take_batch()
+            .map(|batch| batch.map(RecordBatch::from_bridge))
     }
 
     /// Attempts to close this consumer and returns the sole terminal observer.

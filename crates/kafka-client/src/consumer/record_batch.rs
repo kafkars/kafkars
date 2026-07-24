@@ -1,81 +1,62 @@
-//! Owned consumer records, batches, and assignment-fenced checkpoints.
+//! Linear facade ownership over one bounded assigned-consumer delivery lease.
 
-use bytes::Bytes;
+use crate::bridge::consumer::AssignedConsumerBatch;
 
-use crate::record::Header;
+use super::ConsumerRecords;
 
-/// One consumed record whose bytes remain valid while its batch is retained.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConsumerRecord {
-    topic: String,
-    partition: i32,
-    offset: i64,
-    key: Option<Bytes>,
-    value: Option<Bytes>,
-    headers: Vec<Header>,
-}
-
-impl ConsumerRecord {
-    /// Returns the topic name.
-    pub fn topic(&self) -> &str {
-        &self.topic
-    }
-
-    /// Returns the partition.
-    pub const fn partition(&self) -> i32 {
-        self.partition
-    }
-
-    /// Returns the record offset.
-    pub const fn offset(&self) -> i64 {
-        self.offset
-    }
-
-    /// Returns nullable key bytes.
-    pub fn key(&self) -> Option<&Bytes> {
-        self.key.as_ref()
-    }
-
-    /// Returns nullable value bytes.
-    pub fn value(&self) -> Option<&Bytes> {
-        self.value.as_ref()
-    }
-
-    /// Returns ordered duplicate-preserving headers.
-    pub fn headers(&self) -> &[Header] {
-        &self.headers
-    }
-}
-
-/// Assignment-fenced next offsets for processed records.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Checkpoint {
-    pub(super) group_id: String,
-    pub(super) assignment_epoch: u64,
-}
-
-impl Checkpoint {
-    /// Returns the assignment generation used to reject stale commits.
-    pub const fn assignment_epoch(&self) -> u64 {
-        self.assignment_epoch
-    }
-}
-
-/// Owned batch that releases retained-byte capacity when dropped.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Owned batch whose borrowed records remain valid until this value is dropped.
+///
+/// Dropping the batch synchronously returns its exact retained-byte lease to
+/// the assigned-consumer engine owner.
+#[must_use = "dropping the batch releases its bounded delivery lease"]
 pub struct RecordBatch {
-    records: Vec<ConsumerRecord>,
-    checkpoint: Checkpoint,
+    inner: AssignedConsumerBatch,
 }
 
 impl RecordBatch {
-    /// Returns records in fetch order.
-    pub fn records(&self) -> &[ConsumerRecord] {
-        &self.records
+    pub(crate) const fn from_bridge(inner: AssignedConsumerBatch) -> Self {
+        Self { inner }
     }
 
-    /// Returns the generation-fenced next-offset checkpoint.
-    pub fn checkpoint(&self) -> Checkpoint {
-        self.checkpoint.clone()
+    /// Returns the retained Kafka topic name.
+    pub fn topic(&self) -> &str {
+        self.inner.topic()
+    }
+
+    /// Returns the zero-based Kafka partition.
+    pub fn partition(&self) -> i32 {
+        self.inner.partition()
+    }
+
+    /// Returns the next offset after every record represented by this batch.
+    pub fn checkpoint_next_offset(&self) -> i64 {
+        self.inner.checkpoint_next_offset()
+    }
+
+    /// Returns the number of normalized application records.
+    pub fn len(&self) -> usize {
+        self.inner.record_count()
+    }
+
+    /// Returns whether the batch contains no application records.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Iterates normalized application records in Kafka order without copying.
+    pub fn records(&self) -> ConsumerRecords<'_> {
+        ConsumerRecords::from_bridge(self.inner.records())
+    }
+}
+
+impl std::fmt::Debug for RecordBatch {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RecordBatch")
+            .field("topic", &self.topic())
+            .field("partition", &self.partition())
+            .field("checkpoint_next_offset", &self.checkpoint_next_offset())
+            .field("len", &self.len())
+            .finish()
     }
 }

@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use super::{AssignedConsumer, CloseAssignedConsumer, StartPosition, TopicPartition};
+use super::{AssignedConsumer, CloseAssignedConsumer, RecordBatch, StartPosition, TopicPartition};
 use crate::{Client, ErrorKind};
 
 macro_rules! assert_not_impl {
@@ -129,6 +129,41 @@ fn control_deadline_capture_precedes_target_and_position_conversion() {
     consumer
         .try_close()
         .unwrap_or_else(|error| panic!("admit close after rejections: {error}"))
+        .wait()
+        .unwrap_or_else(|error| panic!("observe close: {error}"));
+}
+
+#[test]
+fn batch_observation_is_immediate_and_timeout_free() {
+    fn require_take(
+        _take: fn(&mut AssignedConsumer) -> Result<Option<RecordBatch>, crate::KafkaError>,
+    ) {
+    }
+
+    require_take(AssignedConsumer::try_take_batch);
+}
+
+#[test]
+fn immediate_batch_observation_does_not_start_fetch_work() {
+    let client = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .build()
+        .unwrap_or_else(|error| panic!("start client: {error}"));
+    let mut consumer = client
+        .assigned_consumer()
+        .build()
+        .unwrap_or_else(|error| panic!("claim assigned consumer: {error}"));
+
+    assert!(
+        consumer
+            .try_take_batch()
+            .unwrap_or_else(|error| panic!("take ready batch: {error}"))
+            .is_none()
+    );
+
+    consumer
+        .try_close()
+        .unwrap_or_else(|error| panic!("admit close after observation: {error}"))
         .wait()
         .unwrap_or_else(|error| panic!("observe close: {error}"));
 }

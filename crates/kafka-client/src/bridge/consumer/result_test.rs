@@ -5,7 +5,7 @@ use kafka_client_engine::{
     AssignedConsumerCloseObserverError, AssignedConsumerTryCloseErrorKind,
 };
 
-use super::consumer_result::{
+use super::result::{
     translate_assigned_close_admission_kind, translate_assigned_close_fault,
     translate_assigned_close_observation, translate_assigned_consumer_claim,
 };

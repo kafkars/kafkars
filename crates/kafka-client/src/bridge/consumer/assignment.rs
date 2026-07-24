@@ -14,7 +14,7 @@ use crate::{
     consumer::{StartPosition, TopicPartition},
 };
 
-use super::consumer_assignment_result::{
+use super::assignment_result::{
     translate_assigned_assignment_admission, translate_assigned_assignment_fault,
     translate_assigned_assignment_input,
 };

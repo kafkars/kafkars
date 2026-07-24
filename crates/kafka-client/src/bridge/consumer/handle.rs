@@ -7,11 +7,13 @@ use kafka_client_engine::{
 use crate::KafkaError;
 
 use super::{
-    consumer_assignment::AssignedConsumerAssignmentState,
-    consumer_close::AssignedConsumerClose,
-    consumer_control::{try_pause, try_resume_captured, try_seek_captured},
-    consumer_control_result::{translate_assigned_control_admission, translate_missing_assignment},
-    consumer_result::translate_assigned_consumer_claim,
+    assignment::AssignedConsumerAssignmentState,
+    batch::AssignedConsumerBatch,
+    batch_result::translate_assigned_batch_observation,
+    close::AssignedConsumerClose,
+    control::{try_pause, try_resume_captured, try_seek_captured},
+    control_result::{translate_assigned_control_admission, translate_missing_assignment},
+    result::translate_assigned_consumer_claim,
 };
 
 /// Private linear bridge retaining the engine's sole assigned-consumer handle.
@@ -94,6 +96,14 @@ impl AssignedConsumerEngine {
             .as_mut()
             .ok_or_else(translate_missing_assignment)?;
         try_seek_captured(capture, assignment, partition, position)
+    }
+
+    /// Transfers one already-authorized delivery without starting Fetch work.
+    pub(crate) fn try_take_batch(&mut self) -> Result<Option<AssignedConsumerBatch>, KafkaError> {
+        self.handle
+            .try_take_batch()
+            .map(|batch| batch.map(AssignedConsumerBatch::from_engine))
+            .map_err(translate_assigned_batch_observation)
     }
 
     /// Attempts bounded close without consuming this capability on rejection.

@@ -4,7 +4,7 @@ use kafka_client_engine::{
     AssignedConsumerAcceptedFaultKind, AssignedConsumerTryReplaceAssignmentErrorKind as Kind,
 };
 
-use super::consumer_assignment_result::{
+use super::assignment_result::{
     translate_assigned_assignment_admission_kind, translate_assigned_assignment_fault,
 };
 use crate::ErrorKind;

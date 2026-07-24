@@ -6,7 +6,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use crate::{KafkaError, bridge::consumer_close::AssignedConsumerClose};
+use crate::{KafkaError, bridge::consumer::AssignedConsumerClose};
 
 /// Sole terminal observer for one assigned-consumer close.
 #[derive(Debug)]

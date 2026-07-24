@@ -2,7 +2,7 @@
 
 use kafka_client_engine::AssignedConsumerControlErrorKind as Kind;
 
-use super::consumer_control_result::translate_assigned_control_admission_kind;
+use super::control_result::translate_assigned_control_admission_kind;
 use crate::ErrorKind;
 
 #[test]

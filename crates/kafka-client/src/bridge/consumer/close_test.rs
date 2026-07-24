@@ -2,7 +2,7 @@
 
 use std::future::Future;
 
-use super::consumer_close::AssignedConsumerClose;
+use super::close::AssignedConsumerClose;
 use crate::KafkaError;
 
 #[test]

@@ -19,7 +19,7 @@ async fn consume() -> Result<(), KafkaError> {
         for record in batch.records() {
             let _value = record.value();
         }
-        consumer.commit(batch.checkpoint()).await?;
+        let _next_offset = batch.checkpoint_next_offset();
     }
 
     client.shutdown().await

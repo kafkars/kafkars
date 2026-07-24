@@ -12,11 +12,9 @@ use crate::{
 };
 
 use super::{
-    consumer_assignment::{AssignedConsumerAssignmentState, engine_start},
-    consumer_assignment_result::translate_assigned_assignment_fault,
-    consumer_control_result::{
-        translate_assigned_control_admission, translate_assigned_control_input,
-    },
+    assignment::{AssignedConsumerAssignmentState, engine_start},
+    assignment_result::translate_assigned_assignment_fault,
+    control_result::{translate_assigned_control_admission, translate_assigned_control_input},
 };
 
 pub(super) fn try_pause(

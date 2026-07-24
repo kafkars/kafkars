@@ -2,7 +2,7 @@
 
 use kafka_client_engine::AssignedConsumerStartPosition as EngineStart;
 
-use super::consumer_assignment::into_engine_assignment;
+use super::assignment::into_engine_assignment;
 use crate::{
     ErrorKind,
     consumer::{StartPosition, TopicPartition},

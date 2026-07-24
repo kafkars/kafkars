@@ -1329,32 +1329,40 @@ production = "crates/kafka-client/src/bridge/client.rs"
 test = "crates/kafka-client/src/bridge/client_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer.rs"
-test = "crates/kafka-client/src/bridge/consumer_test.rs"
+production = "crates/kafka-client/src/bridge/consumer/handle.rs"
+test = "crates/kafka-client/src/bridge/consumer/handle_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_assignment.rs"
-test = "crates/kafka-client/src/bridge/consumer_assignment_test.rs"
+production = "crates/kafka-client/src/bridge/consumer/assignment.rs"
+test = "crates/kafka-client/src/bridge/consumer/assignment_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_assignment_result.rs"
-test = "crates/kafka-client/src/bridge/consumer_assignment_result_test.rs"
+production = "crates/kafka-client/src/bridge/consumer/assignment_result.rs"
+test = "crates/kafka-client/src/bridge/consumer/assignment_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_control.rs"
-test = "crates/kafka-client/src/bridge/consumer_control_test.rs"
+production = "crates/kafka-client/src/bridge/consumer/control.rs"
+test = "crates/kafka-client/src/bridge/consumer/control_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_control_result.rs"
-test = "crates/kafka-client/src/bridge/consumer_control_result_test.rs"
+production = "crates/kafka-client/src/bridge/consumer/control_result.rs"
+test = "crates/kafka-client/src/bridge/consumer/control_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_close.rs"
-test = "crates/kafka-client/src/bridge/consumer_close_test.rs"
+production = "crates/kafka-client/src/bridge/consumer/batch.rs"
+test = "crates/kafka-client/src/bridge/consumer/batch_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_result.rs"
-test = "crates/kafka-client/src/bridge/consumer_result_test.rs"
+production = "crates/kafka-client/src/bridge/consumer/batch_result.rs"
+test = "crates/kafka-client/src/bridge/consumer/batch_result_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/consumer/close.rs"
+test = "crates/kafka-client/src/bridge/consumer/close_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/consumer/result.rs"
+test = "crates/kafka-client/src/bridge/consumer/result_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/bridge/admin.rs"
@@ -1459,6 +1467,18 @@ test = "crates/kafka-client/src/consumer/assigned_builder_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/consumer/assigned_close.rs"
 test = "crates/kafka-client/src/consumer/assigned_close_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/consumer/checkpoint.rs"
+test = "crates/kafka-client/src/consumer/checkpoint_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/consumer/record.rs"
+test = "crates/kafka-client/src/consumer/record_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/consumer/record_batch.rs"
+test = "crates/kafka-client/src/consumer/record_batch_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/producer/close.rs"
@@ -5997,19 +6017,27 @@ path = "crates/kafka-client/src/producer/close.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumerEngine"
-path = "crates/kafka-client/src/bridge/consumer.rs"
+path = "crates/kafka-client/src/bridge/consumer/handle.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumerAssignmentState"
-path = "crates/kafka-client/src/bridge/consumer_assignment.rs"
+path = "crates/kafka-client/src/bridge/consumer/assignment.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumerClose"
-path = "crates/kafka-client/src/bridge/consumer_close.rs"
+path = "crates/kafka-client/src/bridge/consumer/close.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerBatch"
+path = "crates/kafka-client/src/bridge/consumer/batch.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumer"
 path = "crates/kafka-client/src/consumer/assigned.rs"
+
+[[linear_owners]]
+owner_type = "RecordBatch"
+path = "crates/kafka-client/src/consumer/record_batch.rs"
 
 [[linear_owners]]
 owner_type = "CloseAssignedConsumer"
