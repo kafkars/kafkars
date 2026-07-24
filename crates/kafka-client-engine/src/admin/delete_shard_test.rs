@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use super::{
-    DeleteTopicsAdmissionErrorKind, DeleteTopicsHost, DeleteTopicsShardOwner,
-    DeleteTopicsShardWake, DeleteTopicsShardWakeError,
+    DeleteTopicsAdmissionErrorKind, DeleteTopicsShardOwner, DeleteTopicsShardWake,
+    DeleteTopicsShardWakeError, test_support::delete_topics_host, test_support::stop_notifier,
 };
 
 struct NoopWake;
@@ -17,8 +17,7 @@ impl DeleteTopicsShardWake for NoopWake {
 
 #[test]
 fn closed_port_rejects_without_reserving_terminal_capacity() {
-    let host =
-        DeleteTopicsHost::new().unwrap_or_else(|error| panic!("start deletion host: {error}"));
+    let (host, notifier) = delete_topics_host();
     let owner = DeleteTopicsShardOwner::new(host, Arc::new(NoopWake));
     let port = owner.admission_port();
     port.close_admission()
@@ -38,11 +37,7 @@ fn closed_port_rejects_without_reserving_terminal_capacity() {
         ),
         Err(DeleteTopicsAdmissionErrorKind::Closed)
     ));
-    let notifier = owner
-        .terminal_host()
-        .stop_notifier()
-        .unwrap_or_else(|error| panic!("stop notifier: {error}"));
-    notifier
-        .join_off_notifier()
-        .unwrap_or_else(|error| panic!("join notifier: {error}"));
+    drop(port);
+    drop(owner);
+    stop_notifier(notifier);
 }

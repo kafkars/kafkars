@@ -139,6 +139,10 @@ production = "crates/kafka-client-core/src/admin/delete_transition.rs"
 test = "crates/kafka-client-core/src/admin/delete_transition_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/describe_transition.rs"
+test = "crates/kafka-client-core/src/admin/describe_transition_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/producer/sticky.rs"
 test = "crates/kafka-client-core/src/producer/sticky_test.rs"
 
@@ -189,6 +193,10 @@ test = "crates/kafka-client-engine/src/completion/registry_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/completion/settlement.rs"
 test = "crates/kafka-client-engine/src/completion/settlement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/completion/shared_notifier.rs"
+test = "crates/kafka-client-engine/src/completion/shared_notifier_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/delivery.rs"
@@ -249,6 +257,18 @@ test = "crates/kafka-client-engine/src/driver/rpc/delete_topics_submission_test.
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/delete_topics_terminal.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/delete_topics_terminal_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_terminal_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/shutdown.rs"
@@ -575,6 +595,10 @@ production = "crates/kafka-client-engine/src/protocol/admin/delete_topics_budget
 test = "crates/kafka-client-engine/src/protocol/admin/delete_topics_budget_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/describe_cluster.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/describe_cluster_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/admin/timeout.rs"
 test = "crates/kafka-client-engine/src/protocol/admin/timeout_test.rs"
 
@@ -625,6 +649,30 @@ test = "crates/kafka-client-engine/src/admin/delete_observer_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/admin/delete_shard.rs"
 test = "crates/kafka-client-engine/src/admin/delete_shard_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/completion.rs"
+test = "crates/kafka-client-engine/src/admin/completion_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/describe_handle.rs"
+test = "crates/kafka-client-engine/src/admin/describe_handle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/describe_host.rs"
+test = "crates/kafka-client-engine/src/admin/describe_host_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/describe_observer.rs"
+test = "crates/kafka-client-engine/src/admin/describe_observer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/describe_outcome.rs"
+test = "crates/kafka-client-engine/src/admin/describe_outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/describe_shard.rs"
+test = "crates/kafka-client-engine/src/admin/describe_shard_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/admin/schedule.rs"
@@ -681,6 +729,14 @@ test = "crates/kafka-client/src/bridge/admin_delete_operation_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/bridge/admin_delete_result.rs"
 test = "crates/kafka-client/src/bridge/admin_delete_result_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_describe_operation.rs"
+test = "crates/kafka-client/src/bridge/admin_describe_operation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_describe_result.rs"
+test = "crates/kafka-client/src/bridge/admin_describe_result_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/bridge/producer_result/admission.rs"
@@ -753,6 +809,18 @@ test = "crates/kafka-client/src/admin/delete_builder_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/admin/delete_topics.rs"
 test = "crates/kafka-client/src/admin/delete_topics_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/describe_builder.rs"
+test = "crates/kafka-client/src/admin/describe_builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/describe_cluster.rs"
+test = "crates/kafka-client/src/admin/describe_cluster_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/description.rs"
+test = "crates/kafka-client/src/admin/description_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/admin/handle.rs"
@@ -1068,9 +1136,15 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
+method = "publish_port"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/completion.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
 method = "join_off_notifier"
 allowed_paths = [
-  "crates/kafka-client-engine/src/engine_host/admin_start.rs",
   "crates/kafka-client-engine/src/engine_host/notifier_shutdown.rs",
   "crates/kafka-client-engine/src/engine_host/start.rs",
 ]
@@ -1132,6 +1206,14 @@ field = "state"
 allowed_paths = [
   "crates/kafka-client-core/src/admin/delete_machine.rs",
   "crates/kafka-client-core/src/admin/delete_transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DescribeClusterMachine"
+field = "state"
+allowed_paths = [
+  "crates/kafka-client-core/src/admin/describe_machine.rs",
+  "crates/kafka-client-core/src/admin/describe_transition.rs",
 ]
 
 [[mutation_owners]]
@@ -1333,6 +1415,7 @@ field = "slots"
 allowed_paths = [
   "crates/kafka-client-engine/src/completion/registry.rs",
   "crates/kafka-client-engine/src/completion/registry/lifecycle.rs",
+  "crates/kafka-client-engine/src/completion/registry/notifier_lifecycle.rs",
   "crates/kafka-client-engine/src/completion/settlement.rs",
 ]
 
@@ -1346,9 +1429,10 @@ allowed_paths = [
 
 [[mutation_owners]]
 owner_type = "CompletionRegistry"
-field = "notifier"
+field = "publisher"
 allowed_paths = [
   "crates/kafka-client-engine/src/completion/registry.rs",
+  "crates/kafka-client-engine/src/completion/registry/notifier_lifecycle.rs",
   "crates/kafka-client-engine/src/completion/settlement.rs",
 ]
 
@@ -1705,6 +1789,59 @@ field = "settled"
 allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs"]
 
 [[mutation_owners]]
+owner_type = "DescribeClusterHost"
+field = "operations"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/describe_host.rs",
+  "crates/kafka-client-engine/src/admin/describe_host/admission.rs",
+  "crates/kafka-client-engine/src/admin/describe_host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DescribeClusterHost"
+field = "completions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/describe_host.rs",
+  "crates/kafka-client-engine/src/admin/describe_host/admission.rs",
+  "crates/kafka-client-engine/src/admin/describe_host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DescribeClusterHost"
+field = "retained_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/describe_host.rs",
+  "crates/kafka-client-engine/src/admin/describe_host/admission.rs",
+  "crates/kafka-client-engine/src/admin/describe_host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DescribeClusterHost"
+field = "published_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/describe_host.rs",
+  "crates/kafka-client-engine/src/admin/describe_host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DescribeClusterHost"
+field = "next_operation_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/describe_host.rs",
+  "crates/kafka-client-engine/src/admin/describe_host/admission.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DescribeClusterCalls"
+field = "calls"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs"]
+
+[[mutation_owners]]
+owner_type = "DescribeClusterCalls"
+field = "settled"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs"]
+
+[[mutation_owners]]
 owner_type = "TrackedProduceCalls"
 field = "settled"
 allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/calls.rs"]
@@ -1867,6 +2004,10 @@ owner_type = "DeleteTopicsMachine"
 path = "crates/kafka-client-core/src/admin/delete_machine.rs"
 
 [[linear_owners]]
+owner_type = "DescribeClusterMachine"
+path = "crates/kafka-client-core/src/admin/describe_machine.rs"
+
+[[linear_owners]]
 owner_type = "StickyPartitioner"
 path = "crates/kafka-client-core/src/producer/sticky.rs"
 
@@ -1997,6 +2138,38 @@ path = "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs"
 [[linear_owners]]
 owner_type = "SettledDeleteTopicsCall"
 path = "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs"
+
+[[linear_owners]]
+owner_type = "DescribeClusterHost"
+path = "crates/kafka-client-engine/src/admin/describe_host.rs"
+
+[[linear_owners]]
+owner_type = "DescribeClusterOperation"
+path = "crates/kafka-client-engine/src/admin/describe_host.rs"
+
+[[linear_owners]]
+owner_type = "DescribeClusterShardOwner"
+path = "crates/kafka-client-engine/src/admin/describe_shard.rs"
+
+[[linear_owners]]
+owner_type = "DescribeClusterObserver"
+path = "crates/kafka-client-engine/src/admin/describe_observer.rs"
+
+[[linear_owners]]
+owner_type = "DescribeClusterCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs"
+
+[[linear_owners]]
+owner_type = "DescribeClusterCall"
+path = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs"
+
+[[linear_owners]]
+owner_type = "DescribeClusterCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs"
+
+[[linear_owners]]
+owner_type = "SettledDescribeClusterCall"
+path = "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs"
 
 [[linear_owners]]
 owner_type = "NotifierShutdownOwner"
@@ -2325,3 +2498,15 @@ path = "crates/kafka-client/src/admin/delete_builder.rs"
 [[linear_owners]]
 owner_type = "DeleteTopics"
 path = "crates/kafka-client/src/admin/delete_topics.rs"
+
+[[linear_owners]]
+owner_type = "AdminDescribeCluster"
+path = "crates/kafka-client/src/bridge/admin_describe_operation.rs"
+
+[[linear_owners]]
+owner_type = "DescribeClusterBuilder"
+path = "crates/kafka-client/src/admin/describe_builder.rs"
+
+[[linear_owners]]
+owner_type = "DescribeCluster"
+path = "crates/kafka-client/src/admin/describe_cluster.rs"

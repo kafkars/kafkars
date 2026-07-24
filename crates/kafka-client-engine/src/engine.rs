@@ -112,6 +112,11 @@ impl Engine {
     }
 
     #[cfg(test)]
+    pub(crate) fn completion_notifier_thread_count(&self) -> usize {
+        self.inner.lifecycle.notifier_thread_count()
+    }
+
+    #[cfg(test)]
     pub(crate) fn host_probe(&self) -> EngineHostProbe {
         EngineHostProbe {
             lifecycle: Arc::clone(&self.inner.lifecycle),

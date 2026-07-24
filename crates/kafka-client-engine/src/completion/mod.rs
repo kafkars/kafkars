@@ -11,14 +11,21 @@ mod notifier_queue_test;
 #[cfg(test)]
 mod notifier_test;
 mod observer;
+mod publish_ticket;
 mod registry;
 mod settlement;
+mod shared_notifier;
+#[cfg(test)]
+mod shared_notifier_test;
 mod state;
 
 pub(crate) use error::{CompletionObserverError, CompletionRegistryError};
 pub(crate) use identity::CompletionId;
-pub(crate) use notifier::{NotifierJoin, NotifierJoinError};
+pub(crate) use notifier::{NotificationTicket, NotifierJoin, NotifierJoinError};
 pub(crate) use observer::CompletionObserver;
+pub(crate) use publish_ticket::PublishTicket;
+#[cfg(test)]
+pub(crate) use registry::CompletionPublisher;
 pub(crate) use registry::{CompletionRegistry, ReclaimStatus};
 #[cfg_attr(
     not(test),
@@ -28,6 +35,7 @@ pub(crate) use registry::{CompletionRegistry, ReclaimStatus};
     )
 )]
 pub(crate) use settlement::{SettlementFailure, SettlementProgress};
+pub(crate) use shared_notifier::{SharedNotifier, SharedPublishPort};
 
 #[cfg(test)]
 mod observer_test;

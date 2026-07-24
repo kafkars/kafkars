@@ -3,8 +3,9 @@
 use std::sync::Arc;
 
 use super::{
-    DescribeClusterAdmissionErrorKind, DescribeClusterHost, DescribeClusterShardOwner,
-    DescribeClusterShardWake, DescribeClusterShardWakeError,
+    DescribeClusterAdmissionErrorKind, DescribeClusterShardOwner, DescribeClusterShardWake,
+    DescribeClusterShardWakeError, test_support::describe_cluster_host,
+    test_support::stop_notifier,
 };
 
 struct NoopWake;
@@ -17,8 +18,7 @@ impl DescribeClusterShardWake for NoopWake {
 
 #[test]
 fn closed_port_rejects_before_terminal_reservation() {
-    let host = DescribeClusterHost::new()
-        .unwrap_or_else(|error| panic!("start DescribeCluster host: {error}"));
+    let (host, notifier) = describe_cluster_host();
     let owner = DescribeClusterShardOwner::new(host, Arc::new(NoopWake));
     let port = owner.admission_port();
     port.close_admission()
@@ -31,11 +31,7 @@ fn closed_port_rejects_before_terminal_reservation() {
         port.try_admit(kafka_client_core::Moment::from_tick(1), deadline),
         Err(DescribeClusterAdmissionErrorKind::Closed)
     ));
-    let notifier = owner
-        .terminal_host()
-        .stop_notifier()
-        .unwrap_or_else(|error| panic!("stop notifier: {error}"));
-    notifier
-        .join_off_notifier()
-        .unwrap_or_else(|error| panic!("join notifier: {error}"));
+    drop(port);
+    drop(owner);
+    stop_notifier(notifier);
 }

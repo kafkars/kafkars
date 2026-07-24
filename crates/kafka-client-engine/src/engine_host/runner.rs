@@ -32,6 +32,7 @@ const SHUTDOWN_TURN_ATTEMPTS: usize = 64;
 pub(crate) struct EngineHostResources {
     pub(super) driver: Option<DriverOwner>,
     pub(super) producer: ProducerShardOwner,
+    pub(super) admin_notifier: crate::admin::AdminCompletionNotifier,
     pub(super) create_topics: CreateTopicsShardOwner,
     pub(super) delete_topics: DeleteTopicsShardOwner,
     pub(super) describe_cluster: DescribeClusterShardOwner,

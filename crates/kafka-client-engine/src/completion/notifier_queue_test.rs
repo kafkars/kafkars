@@ -4,8 +4,8 @@ use std::sync::{Arc, mpsc::sync_channel};
 
 use super::{
     cell::CompletionCell,
-    notifier::PublishJob,
     notifier_queue::{NotificationQueue, QueuePushError},
+    publish_ticket::PublishTicket,
 };
 
 #[test]
@@ -69,11 +69,11 @@ fn closed_queue_returns_the_exact_terminal_job() {
     assert!(queue.next().is_none());
 }
 
-fn publish_job(slot: usize, value: u8) -> PublishJob<u8> {
+fn publish_job(slot: usize, value: u8) -> PublishTicket<u8> {
     let (reclaim, _reclaims) = sync_channel(1);
     let cell = Arc::new(CompletionCell::new(slot, reclaim));
     let id = cell
         .activate()
         .unwrap_or_else(|error| panic!("test completion should activate: {error}"));
-    PublishJob { id, cell, value }
+    PublishTicket { id, cell, value }
 }

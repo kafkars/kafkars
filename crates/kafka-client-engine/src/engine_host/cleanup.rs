@@ -5,38 +5,21 @@ use crate::completion::NotifierJoin;
 use super::{EngineHostError, EngineHostResources, notifier_shutdown::collect_notification_joins};
 
 pub(super) fn begin_notification_shutdown(
-    resources: &EngineHostResources,
+    resources: &mut EngineHostResources,
 ) -> Result<(Vec<NotifierJoin>, Option<EngineHostError>), EngineHostError> {
     let mut data = resources.producer.terminal_data();
     let producer = data
         .begin_notification_shutdown()
         .map_err(EngineHostError::ProducerCleanup)?;
     drop(data);
-    let mut create_host = resources.create_topics.terminal_host();
-    let create = create_host
-        .stop_notifier()
-        .map_err(EngineHostError::CreateTopics);
-    let create_fallback = create_host.recover_notifier();
-    drop(create_host);
-    let mut delete_host = resources.delete_topics.terminal_host();
-    let delete = delete_host
-        .stop_notifier()
-        .map_err(EngineHostError::DeleteTopics);
-    let delete_fallback = delete_host.recover_notifier();
-    drop(delete_host);
-    let mut describe_host = resources.describe_cluster.terminal_host();
-    let describe = describe_host
-        .stop_notifier()
-        .map_err(EngineHostError::DescribeCluster);
-    let describe_fallback = describe_host.recover_notifier();
-    drop(describe_host);
+    let admin = resources
+        .admin_notifier
+        .stop()
+        .map_err(EngineHostError::AdminCompletion);
+    let admin_fallback = resources.admin_notifier.take_join();
     Ok(collect_notification_joins(
         producer,
-        [
-            (create, create_fallback),
-            (delete, delete_fallback),
-            (describe, describe_fallback),
-        ],
+        [(admin, admin_fallback)],
     ))
 }
 

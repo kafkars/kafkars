@@ -8,13 +8,13 @@ use crate::clock::OperationDeadline;
 
 use super::{
     DescribeClusterDeliveryStatus, DescribeClusterFailureKind, DescribeClusterHost,
-    DescribeClusterOutcome, DescribeClusterTurn,
+    DescribeClusterOutcome, DescribeClusterTurn, test_support::describe_cluster_host,
+    test_support::stop_notifier,
 };
 
 #[test]
 fn reserved_result_bytes_survive_until_observer_reclamation() {
-    let mut host = DescribeClusterHost::new()
-        .unwrap_or_else(|error| panic!("start DescribeCluster host: {error}"));
+    let (mut host, notifier) = describe_cluster_host();
     let admission = host
         .try_admit(kafka_client_core::Moment::from_tick(1), deadline(10))
         .unwrap_or_else(|error| panic!("admit DescribeCluster: {error:?}"));
@@ -52,13 +52,12 @@ fn reserved_result_bytes_survive_until_observer_reclamation() {
         .turn(kafka_client_core::Moment::from_tick(3))
         .unwrap_or_else(|error| panic!("reclaim terminal: {error}"));
     assert_eq!(host.retained_bytes_for_test(), 0);
-    stop(host);
+    stop(host, notifier);
 }
 
 #[test]
 fn pre_driver_deadline_is_definitely_unsent() {
-    let mut host = DescribeClusterHost::new()
-        .unwrap_or_else(|error| panic!("start DescribeCluster host: {error}"));
+    let (mut host, notifier) = describe_cluster_host();
     let admission = host
         .try_admit(kafka_client_core::Moment::from_tick(1), deadline(2))
         .unwrap_or_else(|error| panic!("admit DescribeCluster: {error:?}"));
@@ -78,13 +77,12 @@ fn pre_driver_deadline_is_definitely_unsent() {
     let _progress = host
         .turn(kafka_client_core::Moment::from_tick(3))
         .unwrap_or_else(|error| panic!("reclaim terminal: {error}"));
-    stop(host);
+    stop(host, notifier);
 }
 
 #[test]
 fn optional_response_expansions_cross_the_existing_submission_owner() {
-    let mut host = DescribeClusterHost::new()
-        .unwrap_or_else(|error| panic!("start DescribeCluster host: {error}"));
+    let (mut host, notifier) = describe_cluster_host();
     let admission = host
         .try_admit_with_options(
             kafka_client_core::Moment::from_tick(1),
@@ -118,7 +116,7 @@ fn optional_response_expansions_cross_the_existing_submission_owner() {
     let _progress = host
         .turn(kafka_client_core::Moment::from_tick(3))
         .unwrap_or_else(|error| panic!("reclaim terminal: {error}"));
-    stop(host);
+    stop(host, notifier);
 }
 
 fn deadline(tick: u64) -> OperationDeadline {
@@ -128,11 +126,7 @@ fn deadline(tick: u64) -> OperationDeadline {
     )
 }
 
-fn stop(mut host: DescribeClusterHost) {
-    let notifier = host
-        .stop_notifier()
-        .unwrap_or_else(|error| panic!("stop notifier: {error}"));
-    notifier
-        .join_off_notifier()
-        .unwrap_or_else(|error| panic!("join notifier: {error}"));
+fn stop(host: DescribeClusterHost, notifier: super::AdminCompletionNotifier) {
+    drop(host);
+    stop_notifier(notifier);
 }

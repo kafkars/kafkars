@@ -10,7 +10,8 @@ use crate::clock::OperationDeadline;
 
 use super::{
     CreateTopicsDeliveryStatus, CreateTopicsFailureKind, CreateTopicsHost, CreateTopicsOutcome,
-    CreateTopicsTurn, host::CREATE_TOPICS_RETAINED_BYTES,
+    CreateTopicsTurn, host::CREATE_TOPICS_RETAINED_BYTES, test_support::create_topics_host,
+    test_support::stop_notifier,
 };
 
 fn plan() -> CreateTopicsPlan {
@@ -30,8 +31,7 @@ fn deadline(tick: u64) -> OperationDeadline {
 
 #[test]
 fn terminal_bytes_remain_reserved_until_observer_reclamation() {
-    let mut host =
-        CreateTopicsHost::new().unwrap_or_else(|error| panic!("start CreateTopics host: {error}"));
+    let (mut host, notifier) = create_topics_host();
     let admission = host
         .try_admit(
             kafka_client_core::Moment::from_tick(1),
@@ -70,13 +70,12 @@ fn terminal_bytes_remain_reserved_until_observer_reclamation() {
         .turn(kafka_client_core::Moment::from_tick(3))
         .unwrap_or_else(|error| panic!("reclaim terminal: {error}"));
     assert_eq!(host.retained_bytes_for_test(), 0);
-    stop(host);
+    stop(host, notifier);
 }
 
 #[test]
 fn pre_driver_wait_expires_without_transport_ownership() {
-    let mut host =
-        CreateTopicsHost::new().unwrap_or_else(|error| panic!("start CreateTopics host: {error}"));
+    let (mut host, notifier) = create_topics_host();
     let admission = host
         .try_admit(
             kafka_client_core::Moment::from_tick(1),
@@ -101,13 +100,12 @@ fn pre_driver_wait_expires_without_transport_ownership() {
     let _progress = host
         .turn(kafka_client_core::Moment::from_tick(3))
         .unwrap_or_else(|error| panic!("reclaim terminal: {error}"));
-    stop(host);
+    stop(host, notifier);
 }
 
 #[test]
 fn already_elapsed_start_publishes_its_terminal_without_submission() {
-    let mut host =
-        CreateTopicsHost::new().unwrap_or_else(|error| panic!("start CreateTopics host: {error}"));
+    let (mut host, notifier) = create_topics_host();
     let admission = host
         .try_admit(
             kafka_client_core::Moment::from_tick(2),
@@ -129,13 +127,12 @@ fn already_elapsed_start_publishes_its_terminal_without_submission() {
     let _progress = host
         .turn(kafka_client_core::Moment::from_tick(3))
         .unwrap_or_else(|error| panic!("reclaim elapsed terminal: {error}"));
-    stop(host);
+    stop(host, notifier);
 }
 
 #[test]
 fn recovery_after_submission_handoff_is_conservatively_possibly_sent() {
-    let mut host =
-        CreateTopicsHost::new().unwrap_or_else(|error| panic!("start CreateTopics host: {error}"));
+    let (mut host, notifier) = create_topics_host();
     let admission = host
         .try_admit(
             kafka_client_core::Moment::from_tick(1),
@@ -165,13 +162,12 @@ fn recovery_after_submission_handoff_is_conservatively_possibly_sent() {
     let _progress = host
         .turn(kafka_client_core::Moment::from_tick(3))
         .unwrap_or_else(|error| panic!("reclaim recovery terminal: {error}"));
-    stop(host);
+    stop(host, notifier);
 }
 
 #[test]
 fn recovery_of_untouched_queued_submission_remains_not_sent() {
-    let mut host =
-        CreateTopicsHost::new().unwrap_or_else(|error| panic!("start CreateTopics host: {error}"));
+    let (mut host, notifier) = create_topics_host();
     let admission = host
         .try_admit(
             kafka_client_core::Moment::from_tick(1),
@@ -195,13 +191,12 @@ fn recovery_of_untouched_queued_submission_remains_not_sent() {
     let _progress = host
         .turn(kafka_client_core::Moment::from_tick(3))
         .unwrap_or_else(|error| panic!("reclaim recovery terminal: {error}"));
-    stop(host);
+    stop(host, notifier);
 }
 
 #[test]
 fn retained_byte_limit_rejects_before_completion_reservation() {
-    let mut host =
-        CreateTopicsHost::new().unwrap_or_else(|error| panic!("start CreateTopics host: {error}"));
+    let (mut host, notifier) = create_topics_host();
     let rejection = host.try_admit(
         kafka_client_core::Moment::from_tick(1),
         deadline(10),
@@ -212,14 +207,10 @@ fn retained_byte_limit_rejects_before_completion_reservation() {
         rejection,
         Err(super::CreateTopicsAdmissionErrorKind::RetainedBytes)
     ));
-    stop(host);
+    stop(host, notifier);
 }
 
-fn stop(mut host: CreateTopicsHost) {
-    let notifier = host
-        .stop_notifier()
-        .unwrap_or_else(|error| panic!("stop CreateTopics notifier: {error}"));
-    notifier
-        .join_off_notifier()
-        .unwrap_or_else(|error| panic!("join CreateTopics notifier: {error}"));
+fn stop(host: CreateTopicsHost, notifier: super::AdminCompletionNotifier) {
+    drop(host);
+    stop_notifier(notifier);
 }

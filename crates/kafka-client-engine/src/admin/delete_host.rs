@@ -15,7 +15,7 @@ use crate::{
     completion::{CompletionId, CompletionRegistry, CompletionRegistryError},
 };
 
-use super::DeleteTopicsObserver;
+use super::{DeleteTopicsObserver, DeleteTopicsPublisher};
 
 pub(crate) const DELETE_TOPICS_CAPACITY: usize = 32;
 pub(crate) const DELETE_TOPICS_RETAINED_BYTES: usize = 4 * 1024 * 1024;
@@ -61,7 +61,7 @@ pub(super) struct DeleteTopicsOperation {
 
 pub(crate) struct DeleteTopicsHost {
     pub(super) operations: Vec<DeleteTopicsOperation>,
-    pub(super) completions: CompletionRegistry<DeleteTopicsTerminal>,
+    pub(super) completions: CompletionRegistry<DeleteTopicsTerminal, DeleteTopicsPublisher>,
     pub(super) next_operation_id: Option<OperationId>,
     pub(super) reclaim_pending: Option<CompletionId>,
     pub(super) retained_bytes: usize,
@@ -71,17 +71,17 @@ pub(crate) struct DeleteTopicsHost {
 }
 
 impl DeleteTopicsHost {
-    pub(crate) fn new() -> Result<Self, std::io::Error> {
-        Ok(Self {
+    pub(crate) fn new(publisher: DeleteTopicsPublisher) -> Self {
+        Self {
             operations: Vec::with_capacity(DELETE_TOPICS_CAPACITY),
-            completions: CompletionRegistry::start(DELETE_TOPICS_CAPACITY)?,
+            completions: CompletionRegistry::with_publisher(DELETE_TOPICS_CAPACITY, publisher),
             next_operation_id: Some(OperationId::from_raw(1)),
             reclaim_pending: None,
             retained_bytes: 0,
             accepting: true,
             health: None,
             published_bytes: Vec::with_capacity(DELETE_TOPICS_CAPACITY),
-        })
+        }
     }
 
     pub(crate) fn turn(&mut self, now: Moment) -> Result<DeleteTopicsTurn, DeleteTopicsHostError> {

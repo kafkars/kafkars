@@ -1,6 +1,7 @@
 //! Fixed-capacity host ownership of terminal publication and reclamation.
 
 mod lifecycle;
+mod notifier_lifecycle;
 
 use std::{
     fmt,
@@ -8,15 +9,12 @@ use std::{
         Arc,
         mpsc::{Receiver, TryRecvError, sync_channel},
     },
-    thread::ThreadId,
 };
 
 use super::{
-    CompletionId, CompletionObserver, CompletionRegistryError, NotifierJoin,
-    cell::CompletionCell,
-    host_state::HostSlot,
-    notifier::{Notifier, PublishJob},
-    notifier_queue::QueuePushError,
+    CompletionId, CompletionObserver, CompletionRegistryError, cell::CompletionCell,
+    host_state::HostSlot, notifier::Notifier, notifier_queue::QueuePushError,
+    publish_ticket::PublishTicket,
 };
 
 /// Result of non-blocking cell recycling after core accepts reclamation.
@@ -28,16 +26,30 @@ pub(crate) enum ReclaimStatus {
     Retry,
 }
 
-/// Host-side fixed completion slots and their dedicated notifier owner.
-pub(crate) struct CompletionRegistry<T> {
+/// Host-side fixed completion slots and one typed terminal publisher.
+pub(crate) struct CompletionRegistry<T, P = Notifier<PublishTicket<T>>> {
     pub(super) slots: Vec<HostSlot<T>>,
     free: Vec<usize>,
     reclaim: Receiver<CompletionId>,
-    pub(super) notifier: Option<Notifier<T>>,
+    pub(super) publisher: Option<P>,
 }
 
-impl<T: Send + 'static> CompletionRegistry<T> {
-    pub(crate) fn start(capacity: usize) -> std::io::Result<Self> {
+pub(crate) trait CompletionPublisher<T> {
+    fn try_publish(&self, ticket: PublishTicket<T>)
+    -> Result<(), QueuePushError<PublishTicket<T>>>;
+}
+
+impl<T: Send + 'static> CompletionPublisher<T> for Notifier<PublishTicket<T>> {
+    fn try_publish(
+        &self,
+        ticket: PublishTicket<T>,
+    ) -> Result<(), QueuePushError<PublishTicket<T>>> {
+        self.try_publish(ticket)
+    }
+}
+
+impl<T: Send + 'static, P: CompletionPublisher<T>> CompletionRegistry<T, P> {
+    pub(crate) fn with_publisher(capacity: usize, publisher: P) -> Self {
         let (reclaim_sender, reclaim) = sync_channel(capacity);
         let mut slots = Vec::with_capacity(capacity);
         let mut free = Vec::with_capacity(capacity);
@@ -46,19 +58,19 @@ impl<T: Send + 'static> CompletionRegistry<T> {
             slots.push(HostSlot::new(cell));
             free.push(capacity - slot - 1);
         }
-        Ok(Self {
+        Self {
             slots,
             free,
             reclaim,
-            notifier: Some(Notifier::start(capacity)?),
-        })
+            publisher: Some(publisher),
+        }
     }
 
     /// Reserves host capacity before an operation can cross admission.
     pub(crate) fn reserve(
         &mut self,
     ) -> Result<(CompletionId, CompletionObserver<T>), CompletionRegistryError> {
-        if self.notifier.is_none() {
+        if self.publisher.is_none() {
             return Err(CompletionRegistryError::NotifierStopped);
         }
         let Some(slot_index) = self.free.pop() else {
@@ -85,7 +97,7 @@ impl<T: Send + 'static> CompletionRegistry<T> {
         id: CompletionId,
         value: T,
     ) -> Result<(), (CompletionRegistryError, T)> {
-        let Some(notifier) = &self.notifier else {
+        let Some(publisher) = &self.publisher else {
             return Err((CompletionRegistryError::NotifierStopped, value));
         };
         let Some(slot) = self.slots.get_mut(id.slot()) else {
@@ -94,21 +106,18 @@ impl<T: Send + 'static> CompletionRegistry<T> {
         if !slot.is_reserved(id) {
             return Err((slot.publish_error(id), value));
         }
-        let job = PublishJob {
-            id,
-            cell: Arc::clone(&slot.cell),
-            value,
-        };
-        match notifier.try_publish(job) {
+        let ticket = PublishTicket::new(id, Arc::clone(&slot.cell), value);
+        match publisher.try_publish(ticket) {
             Ok(()) => {
                 slot.mark_published(id);
                 Ok(())
             }
-            Err(QueuePushError::Full(job)) => {
-                Err((CompletionRegistryError::NotificationBackpressure, job.value))
-            }
-            Err(QueuePushError::Closed(job)) => {
-                Err((CompletionRegistryError::NotifierStopped, job.value))
+            Err(QueuePushError::Full(ticket)) => Err((
+                CompletionRegistryError::NotificationBackpressure,
+                ticket.value,
+            )),
+            Err(QueuePushError::Closed(ticket)) => {
+                Err((CompletionRegistryError::NotifierStopped, ticket.value))
             }
         }
     }
@@ -153,27 +162,6 @@ impl<T: Send + 'static> CompletionRegistry<T> {
         }
     }
 
-    /// Stops notification without waiting; joining belongs off-reactor.
-    pub(crate) fn stop_notifier(&mut self) -> Result<NotifierJoin, CompletionRegistryError> {
-        if self.slots.iter().any(HostSlot::has_unsettled_reservation) {
-            return Err(CompletionRegistryError::UnsettledCompletion);
-        }
-        let Some(notifier) = self.notifier.take() else {
-            return Err(CompletionRegistryError::NotifierStopped);
-        };
-        Ok(notifier.stop())
-    }
-
-    /// Transfers notifier cleanup ownership even after a recovery failure.
-    pub(crate) fn take_notifier(&mut self) -> Option<NotifierJoin> {
-        self.notifier.take().map(Notifier::stop)
-    }
-
-    /// Returns the dedicated notifier identity for reentrant-shutdown fencing.
-    pub(crate) fn notifier_thread_id(&self) -> Option<ThreadId> {
-        self.notifier.as_ref().and_then(Notifier::thread_id)
-    }
-
     /// Returns accepted operations that have not published a terminal value.
     pub(crate) fn unsettled_len(&self) -> usize {
         self.slots
@@ -215,13 +203,13 @@ impl<T: Send + 'static> CompletionRegistry<T> {
     }
 }
 
-impl<T> fmt::Debug for CompletionRegistry<T> {
+impl<T, P> fmt::Debug for CompletionRegistry<T, P> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("CompletionRegistry")
             .field("capacity", &self.slots.len())
             .field("free", &self.free.len())
-            .field("notifier_running", &self.notifier.is_some())
+            .field("publisher_running", &self.publisher.is_some())
             .finish_non_exhaustive()
     }
 }

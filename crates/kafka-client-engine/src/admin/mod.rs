@@ -1,5 +1,8 @@
 //! Concrete bounded admin owners without a generic state-machine framework.
 
+mod completion;
+#[cfg(test)]
+mod completion_test;
 mod delete_error;
 mod delete_handle;
 mod delete_host;
@@ -22,6 +25,8 @@ mod outcome;
 mod public_api;
 pub(crate) mod retention;
 mod shard;
+#[cfg(test)]
+mod test_support;
 
 #[cfg(test)]
 mod delete_handle_test;
@@ -56,4 +61,8 @@ mod retention_test;
 #[cfg(test)]
 mod shard_test;
 
+pub(crate) use completion::{
+    AdminCompletionNotifier, AdminCompletionPorts, CreateTopicsPublisher, DeleteTopicsPublisher,
+    DescribeClusterPublisher,
+};
 pub use public_api::*;

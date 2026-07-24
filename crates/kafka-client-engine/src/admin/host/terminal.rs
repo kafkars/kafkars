@@ -2,7 +2,7 @@
 
 use kafka_client_core::{CreateTopicsInput, CreateTopicsState, DeliveryStatus, Moment};
 
-use crate::completion::{CompletionRegistryError, NotifierJoin, ReclaimStatus};
+use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
 use super::{CreateTopicsHost, CreateTopicsHostError};
 
@@ -39,23 +39,6 @@ impl CreateTopicsHost {
             self.apply(operation_id, input)?;
         }
         Ok(())
-    }
-
-    pub(crate) fn stop_notifier(&mut self) -> Result<NotifierJoin, CreateTopicsHostError> {
-        if !self.operations.is_empty() {
-            return Err(CreateTopicsHostError::Unsettled(self.operations.len()));
-        }
-        self.completions
-            .stop_notifier()
-            .map_err(CreateTopicsHostError::Completion)
-    }
-
-    pub(crate) fn recover_notifier(&mut self) -> Option<NotifierJoin> {
-        self.completions.take_notifier()
-    }
-
-    pub(crate) fn notifier_thread_id(&self) -> Option<std::thread::ThreadId> {
-        self.completions.notifier_thread_id()
     }
 
     pub(super) fn publish_terminal(&mut self, index: usize) -> Result<(), CreateTopicsHostError> {

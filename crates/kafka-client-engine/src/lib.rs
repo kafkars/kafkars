@@ -41,6 +41,8 @@ mod delivery_observer_test;
 #[cfg(test)]
 mod delivery_test;
 #[cfg(test)]
+mod engine_admin_notifier_test;
+#[cfg(test)]
 mod engine_driver_test;
 #[cfg(test)]
 mod engine_test;

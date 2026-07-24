@@ -2,34 +2,42 @@
 
 use std::{
     fmt,
-    panic::{AssertUnwindSafe, catch_unwind},
     sync::Arc,
     thread::{self, JoinHandle, ThreadId},
 };
 
 use super::{
-    CompletionId,
-    cell::CompletionCell,
     notifier_queue::{NotificationQueue, QueuePushError},
+    publish_ticket::PublishTicket,
 };
 
-pub(super) struct PublishJob<T> {
-    pub(super) id: CompletionId,
-    pub(super) cell: Arc<CompletionCell<T>>,
-    pub(super) value: T,
+pub(crate) trait NotificationTicket: Send + 'static {
+    fn publish(self);
 }
 
-pub(super) struct Notifier<T> {
-    queue: Arc<NotificationQueue<T>>,
+impl<T: Send + 'static> NotificationTicket for PublishTicket<T> {
+    fn publish(self) {
+        PublishTicket::publish(self);
+    }
+}
+
+pub(crate) struct Notifier<J> {
+    queue: Arc<NotificationQueue<J>>,
     handle: Option<JoinHandle<()>>,
 }
 
-impl<T: Send + 'static> Notifier<T> {
+impl<T: Send + 'static> Notifier<PublishTicket<T>> {
     pub(super) fn start(capacity: usize) -> std::io::Result<Self> {
+        Self::start_named(capacity, "kafka-client-completion-notifier")
+    }
+}
+
+impl<J: NotificationTicket> Notifier<J> {
+    pub(super) fn start_named(capacity: usize, thread_name: &str) -> std::io::Result<Self> {
         let queue = Arc::new(NotificationQueue::new(capacity));
         let worker_queue = Arc::clone(&queue);
         let handle = thread::Builder::new()
-            .name(String::from("kafka-client-completion-notifier"))
+            .name(thread_name.to_owned())
             .spawn(move || run(&worker_queue))?;
         Ok(Self {
             queue,
@@ -48,15 +56,16 @@ impl<T: Send + 'static> Notifier<T> {
         self.handle.as_ref().map(|handle| handle.thread().id())
     }
 
-    pub(super) fn try_publish(
-        &self,
-        job: PublishJob<T>,
-    ) -> Result<(), QueuePushError<PublishJob<T>>> {
-        self.queue.try_publish(job)
+    pub(super) fn try_publish(&self, ticket: J) -> Result<(), QueuePushError<J>> {
+        self.queue.try_publish(ticket)
+    }
+
+    pub(super) fn queue(&self) -> Arc<NotificationQueue<J>> {
+        Arc::clone(&self.queue)
     }
 }
 
-impl<T> fmt::Debug for Notifier<T> {
+impl<J> fmt::Debug for Notifier<J> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("Notifier")
@@ -65,20 +74,9 @@ impl<T> fmt::Debug for Notifier<T> {
     }
 }
 
-fn run<T: Send + 'static>(queue: &NotificationQueue<T>) {
-    while let Some(job) = queue.next() {
-        publish(job);
-    }
-}
-
-fn publish<T>(job: PublishJob<T>) {
-    let outcome = job.cell.store_terminal(job.id, job.value);
-    let _ignored = catch_unwind(AssertUnwindSafe(|| drop(outcome.discarded)));
-    if outcome.reclaim_after_drop {
-        job.cell.queue_reclaim(job.id);
-    }
-    if let Some(waker) = outcome.waker {
-        let _ignored = catch_unwind(AssertUnwindSafe(|| waker.wake()));
+fn run<J: NotificationTicket>(queue: &NotificationQueue<J>) {
+    while let Some(ticket) = queue.next() {
+        ticket.publish();
     }
 }
 

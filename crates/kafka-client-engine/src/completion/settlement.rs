@@ -6,8 +6,8 @@ use std::sync::Arc;
 use super::NotifierJoin;
 use super::{
     CompletionId, CompletionRegistry, CompletionRegistryError,
-    notifier::PublishJob,
     notifier_queue::{QueuePushError, QueuePushError::Closed},
+    publish_ticket::PublishTicket,
 };
 
 /// Exact progress from one bounded reserved-slot settlement pass.
@@ -85,31 +85,28 @@ impl<T: Send + 'static> CompletionRegistry<T> {
                 continue;
             };
             let terminal = terminal_for(completion_id);
-            let job = PublishJob {
-                id: completion_id,
-                cell: Arc::clone(&self.slots[index].cell),
-                value: terminal,
-            };
-            let result = match &self.notifier {
-                Some(notifier) => notifier.try_publish(job),
-                None => Err(Closed(job)),
+            let ticket =
+                PublishTicket::new(completion_id, Arc::clone(&self.slots[index].cell), terminal);
+            let result = match &self.publisher {
+                Some(publisher) => publisher.try_publish(ticket),
+                None => Err(Closed(ticket)),
             };
             match result {
                 Ok(()) => {
                     self.slots[index].mark_published(completion_id);
                     queued += 1;
                 }
-                Err(QueuePushError::Full(job)) => {
+                Err(QueuePushError::Full(ticket)) => {
                     return Err(self.settlement_failure(
                         queued,
-                        job,
+                        ticket,
                         CompletionRegistryError::NotificationBackpressure,
                     ));
                 }
-                Err(QueuePushError::Closed(job)) => {
+                Err(QueuePushError::Closed(ticket)) => {
                     return Err(self.settlement_failure(
                         queued,
-                        job,
+                        ticket,
                         CompletionRegistryError::NotifierStopped,
                     ));
                 }
@@ -124,7 +121,7 @@ impl<T: Send + 'static> CompletionRegistry<T> {
     fn settlement_failure(
         &self,
         queued: usize,
-        job: PublishJob<T>,
+        ticket: PublishTicket<T>,
         error: CompletionRegistryError,
     ) -> SettlementFailure<T> {
         SettlementFailure {
@@ -132,9 +129,9 @@ impl<T: Send + 'static> CompletionRegistry<T> {
                 queued,
                 remaining: self.reserved_count(),
             },
-            completion_id: job.id,
+            completion_id: ticket.id,
             error,
-            terminal: job.value,
+            terminal: ticket.value,
         }
     }
 
@@ -149,7 +146,7 @@ impl<T: Send + 'static> CompletionRegistry<T> {
     pub(super) fn disconnect_notifier_for_settlement_test(
         &mut self,
     ) -> Result<NotifierJoin, CompletionRegistryError> {
-        let Some(notifier) = self.notifier.take() else {
+        let Some(notifier) = self.publisher.take() else {
             return Err(CompletionRegistryError::NotifierStopped);
         };
         Ok(notifier.stop())

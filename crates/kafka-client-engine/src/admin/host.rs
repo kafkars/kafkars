@@ -15,7 +15,7 @@ use crate::{
     completion::{CompletionId, CompletionRegistry, CompletionRegistryError},
 };
 
-use super::CreateTopicsObserver;
+use super::{CreateTopicsObserver, CreateTopicsPublisher};
 
 pub(crate) const CREATE_TOPICS_CAPACITY: usize = 32;
 pub(crate) const CREATE_TOPICS_RETAINED_BYTES: usize = 4 * 1024 * 1024;
@@ -61,7 +61,7 @@ pub(super) struct CreateTopicsOperation {
 
 pub(crate) struct CreateTopicsHost {
     pub(super) operations: Vec<CreateTopicsOperation>,
-    pub(super) completions: CompletionRegistry<CreateTopicsTerminal>,
+    pub(super) completions: CompletionRegistry<CreateTopicsTerminal, CreateTopicsPublisher>,
     pub(super) next_operation_id: Option<OperationId>,
     pub(super) reclaim_pending: Option<CompletionId>,
     pub(super) retained_bytes: usize,
@@ -71,17 +71,17 @@ pub(crate) struct CreateTopicsHost {
 }
 
 impl CreateTopicsHost {
-    pub(crate) fn new() -> Result<Self, std::io::Error> {
-        Ok(Self {
+    pub(crate) fn new(publisher: CreateTopicsPublisher) -> Self {
+        Self {
             operations: Vec::with_capacity(CREATE_TOPICS_CAPACITY),
-            completions: CompletionRegistry::start(CREATE_TOPICS_CAPACITY)?,
+            completions: CompletionRegistry::with_publisher(CREATE_TOPICS_CAPACITY, publisher),
             next_operation_id: Some(OperationId::from_raw(1)),
             reclaim_pending: None,
             retained_bytes: 0,
             accepting: true,
             health: None,
             published_bytes: Vec::with_capacity(CREATE_TOPICS_CAPACITY),
-        })
+        }
     }
 
     pub(crate) fn turn(&mut self, now: Moment) -> Result<CreateTopicsTurn, CreateTopicsHostError> {

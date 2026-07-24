@@ -57,24 +57,10 @@ impl EngineStartError {
         Self::new(EngineStartErrorKind::Producer, error.to_string())
     }
 
-    pub(super) fn create_topics(error: &std::io::Error) -> Self {
+    pub(super) fn admin_notifier(error: &std::io::Error) -> Self {
         Self::new(
             EngineStartErrorKind::Admin,
-            format!("failed to start CreateTopics completion notifier: {error}"),
-        )
-    }
-
-    pub(super) fn delete_topics(error: &std::io::Error) -> Self {
-        Self::new(
-            EngineStartErrorKind::Admin,
-            format!("failed to start DeleteTopics completion notifier: {error}"),
-        )
-    }
-
-    pub(super) fn describe_cluster(error: &std::io::Error) -> Self {
-        Self::new(
-            EngineStartErrorKind::Admin,
-            format!("failed to start DescribeCluster completion notifier: {error}"),
+            format!("failed to start shared admin completion notifier: {error}"),
         )
     }
 

@@ -239,3 +239,20 @@ fn engine_wide_method_allowlist_has_positive_and_negative_evidence() {
         "engine-wide method owner missed method syntax or UFCS: {violations:?}"
     );
 }
+
+#[test]
+fn shared_admin_publish_port_factory_cannot_admit_an_unreviewed_fourth_owner() {
+    let (root, _) = fixture_files("unbounded_channel");
+    let rules = [MethodCapabilityRule {
+        root: "src".to_owned(),
+        method: "publish_port".to_owned(),
+        allowed_paths: Vec::new(),
+    }];
+    let violations = method_capability_violations(&root, &rules);
+    assert!(
+        violations
+            .iter()
+            .any(|value| value.contains("method_call.rs") && value.contains("publish_port")),
+        "typed shared-port factory escaped its exact owner: {violations:?}"
+    );
+}

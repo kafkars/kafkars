@@ -8,7 +8,10 @@ use std::{
 
 use crate::{
     EngineConfig,
-    admin::{CreateTopicsShardOwner, DeleteTopicsShardOwner, DescribeClusterShardOwner},
+    admin::{
+        AdminCompletionNotifier, AdminCompletionPorts, CreateTopicsHost, CreateTopicsShardOwner,
+        DeleteTopicsHost, DeleteTopicsShardOwner, DescribeClusterHost, DescribeClusterShardOwner,
+    },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
     driver::DriverOwner,
@@ -20,7 +23,7 @@ use crate::{
 
 use super::{
     EngineHostControl, EngineHostError, EngineHostExit, EngineHostResources, EngineLifecycle,
-    EngineStartError, admin_start::AdminHosts, recover, run,
+    EngineStartError, recover, run,
 };
 
 const HOST_THREAD_NAME: &str = "kafka-client-engine";
@@ -57,40 +60,41 @@ pub(crate) fn start(
     let clock = Arc::new(MonotonicClock::new());
     let wake = driver.reactor_wake();
     let control = Arc::new(EngineHostControl::new(wake.clone()));
-    let mut admin = match AdminHosts::start() {
-        Ok(admin) => admin,
-        Err(error) => return cancel_start(sender, handle, error),
-    };
-    let producer = match ProducerHost::new(validated.host_limits) {
-        Ok(producer) => producer,
+    let (mut admin_notifier, admin_ports) = match AdminCompletionNotifier::start() {
+        Ok(owner) => owner,
         Err(error) => {
-            admin.join_notifiers();
-            return cancel_start(sender, handle, EngineStartError::producer(&error));
+            return cancel_start(sender, handle, EngineStartError::admin_notifier(&error));
         }
     };
-    let AdminHosts {
+    let AdminCompletionPorts {
         create_topics,
         delete_topics,
         describe_cluster,
-    } = admin;
+    } = admin_ports;
+    let create_topics = CreateTopicsHost::new(create_topics);
+    let delete_topics = DeleteTopicsHost::new(delete_topics);
+    let describe_cluster = DescribeClusterHost::new(describe_cluster);
+    let producer = match ProducerHost::new(validated.host_limits) {
+        Ok(producer) => producer,
+        Err(error) => {
+            if let Some(notifier) = admin_notifier.take_join() {
+                let _join_result = notifier.join_off_notifier();
+            }
+            return cancel_start(sender, handle, EngineStartError::producer(&error));
+        }
+    };
     if let Some(thread_id) = producer.notifier_thread_id() {
         lifecycle.install_notifier_thread(thread_id);
     }
     let producer = ProducerShardOwner::new(producer, Arc::new(wake));
     let admission = producer.admission_port();
-    if let Some(thread_id) = create_topics.notifier_thread_id() {
+    if let Some(thread_id) = admin_notifier.thread_id() {
         lifecycle.install_notifier_thread(thread_id);
     }
     let create_topics = CreateTopicsShardOwner::new(create_topics, Arc::new(driver.reactor_wake()));
     let create_topics_admission = create_topics.admission_port();
-    if let Some(thread_id) = delete_topics.notifier_thread_id() {
-        lifecycle.install_notifier_thread(thread_id);
-    }
     let delete_topics = DeleteTopicsShardOwner::new(delete_topics, Arc::new(driver.reactor_wake()));
     let delete_topics_admission = delete_topics.admission_port();
-    if let Some(thread_id) = describe_cluster.notifier_thread_id() {
-        lifecycle.install_notifier_thread(thread_id);
-    }
     let describe_cluster =
         DescribeClusterShardOwner::new(describe_cluster, Arc::new(driver.reactor_wake()));
     let describe_cluster_admission = describe_cluster.admission_port();
@@ -99,6 +103,7 @@ pub(crate) fn start(
     let resources = EngineHostResources {
         driver: Some(driver),
         producer,
+        admin_notifier,
         create_topics,
         delete_topics,
         describe_cluster,

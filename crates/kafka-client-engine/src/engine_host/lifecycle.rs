@@ -32,6 +32,11 @@ impl EngineLifecycle {
         lock(&self.notifier_threads).push(thread_id);
     }
 
+    #[cfg(test)]
+    pub(crate) fn notifier_thread_count(&self) -> usize {
+        lock(&self.notifier_threads).len()
+    }
+
     pub(crate) fn request(&self, control: &EngineHostControl) {
         let mut state = lock(&self.state);
         if matches!(*state, LifecycleState::Running) {

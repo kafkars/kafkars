@@ -1,9 +1,9 @@
 //! Engine admission rollback for fixed completion-registry slots.
 
-use super::CompletionRegistry;
+use super::{CompletionPublisher, CompletionRegistry};
 use crate::completion::{CompletionId, CompletionRegistryError};
 
-impl<T: Send + 'static> CompletionRegistry<T> {
+impl<T: Send + 'static, P: CompletionPublisher<T>> CompletionRegistry<T, P> {
     /// Proves that an identity still names its exact reserved generation.
     pub(crate) fn validate_reserved(
         &self,

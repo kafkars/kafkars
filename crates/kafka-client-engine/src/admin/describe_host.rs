@@ -15,7 +15,7 @@ use crate::{
     completion::{CompletionId, CompletionRegistry, CompletionRegistryError},
 };
 
-use super::DescribeClusterObserver;
+use super::{DescribeClusterObserver, DescribeClusterPublisher};
 
 pub(crate) const DESCRIBE_CLUSTER_CAPACITY: usize = 16;
 const DESCRIBE_CLUSTER_RETAINED_BYTES: usize = 4 * 1024 * 1024;
@@ -64,7 +64,7 @@ pub(super) struct DescribeClusterOperation {
 
 pub(crate) struct DescribeClusterHost {
     pub(super) operations: Vec<DescribeClusterOperation>,
-    pub(super) completions: CompletionRegistry<DescribeClusterTerminal>,
+    pub(super) completions: CompletionRegistry<DescribeClusterTerminal, DescribeClusterPublisher>,
     pub(super) next_operation_id: Option<OperationId>,
     pub(super) reclaim_pending: Option<CompletionId>,
     pub(super) retained_bytes: usize,
@@ -74,17 +74,17 @@ pub(crate) struct DescribeClusterHost {
 }
 
 impl DescribeClusterHost {
-    pub(crate) fn new() -> Result<Self, std::io::Error> {
-        Ok(Self {
+    pub(crate) fn new(publisher: DescribeClusterPublisher) -> Self {
+        Self {
             operations: Vec::with_capacity(DESCRIBE_CLUSTER_CAPACITY),
-            completions: CompletionRegistry::start(DESCRIBE_CLUSTER_CAPACITY)?,
+            completions: CompletionRegistry::with_publisher(DESCRIBE_CLUSTER_CAPACITY, publisher),
             next_operation_id: Some(OperationId::from_raw(1)),
             reclaim_pending: None,
             retained_bytes: 0,
             accepting: true,
             health: None,
             published_bytes: Vec::with_capacity(DESCRIBE_CLUSTER_CAPACITY),
-        })
+        }
     }
 
     pub(crate) fn turn(

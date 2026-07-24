@@ -5,9 +5,7 @@ use std::{
     sync::{Condvar, Mutex, MutexGuard},
 };
 
-use super::notifier::PublishJob;
-
-pub(super) enum QueuePushError<J> {
+pub(crate) enum QueuePushError<J> {
     Full(J),
     Closed(J),
 }
@@ -16,18 +14,18 @@ pub(super) enum QueuePushError<J> {
 ///
 /// Submission is non-blocking. Saturation and closure return the exact job;
 /// neither condition authorizes synchronous dispatch by the submitting owner.
-pub(super) struct NotificationQueue<T> {
+pub(super) struct NotificationQueue<J> {
     capacity: usize,
-    state: Mutex<QueueState<T>>,
+    state: Mutex<QueueState<J>>,
     changed: Condvar,
 }
 
-struct QueueState<T> {
+struct QueueState<J> {
     open: bool,
-    jobs: VecDeque<PublishJob<T>>,
+    jobs: VecDeque<J>,
 }
 
-impl<T> NotificationQueue<T> {
+impl<J> NotificationQueue<J> {
     pub(super) fn new(capacity: usize) -> Self {
         Self {
             capacity,
@@ -39,10 +37,7 @@ impl<T> NotificationQueue<T> {
         }
     }
 
-    pub(super) fn try_publish(
-        &self,
-        job: PublishJob<T>,
-    ) -> Result<(), QueuePushError<PublishJob<T>>> {
+    pub(super) fn try_publish(&self, job: J) -> Result<(), QueuePushError<J>> {
         let mut state = self.lock();
         if !state.open {
             return Err(QueuePushError::Closed(job));
@@ -55,7 +50,24 @@ impl<T> NotificationQueue<T> {
         Ok(())
     }
 
-    pub(super) fn next(&self) -> Option<PublishJob<T>> {
+    pub(super) fn try_publish_with<I>(
+        &self,
+        input: I,
+        wrap: fn(I) -> J,
+    ) -> Result<(), QueuePushError<I>> {
+        let mut state = self.lock();
+        if !state.open {
+            return Err(QueuePushError::Closed(input));
+        }
+        if state.jobs.len() == self.capacity {
+            return Err(QueuePushError::Full(input));
+        }
+        state.jobs.push_back(wrap(input));
+        self.changed.notify_one();
+        Ok(())
+    }
+
+    pub(super) fn next(&self) -> Option<J> {
         let mut state = self.lock();
         loop {
             if let Some(job) = state.jobs.pop_front() {
@@ -73,13 +85,13 @@ impl<T> NotificationQueue<T> {
         self.changed.notify_all();
     }
 
-    fn lock(&self) -> MutexGuard<'_, QueueState<T>> {
+    fn lock(&self) -> MutexGuard<'_, QueueState<J>> {
         self.state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
-    fn wait<'a>(&self, state: MutexGuard<'a, QueueState<T>>) -> MutexGuard<'a, QueueState<T>> {
+    fn wait<'a>(&self, state: MutexGuard<'a, QueueState<J>>) -> MutexGuard<'a, QueueState<J>> {
         self.changed
             .wait(state)
             .unwrap_or_else(std::sync::PoisonError::into_inner)

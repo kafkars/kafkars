@@ -5,7 +5,7 @@ use std::fmt;
 use crate::{
     admin::{CreateTopicsHostError, DeleteTopicsHostError, DescribeClusterHostError},
     clock::ClockError,
-    completion::NotifierJoinError,
+    completion::{CompletionRegistryError, NotifierJoinError},
     driver::{
         CreateTopicsCompletionFailure, DeleteTopicsCompletionFailure,
         DescribeClusterCompletionFailure, DriverOwnerError, ProduceCompletionFailure,
@@ -34,6 +34,7 @@ pub(crate) enum EngineHostError {
     DescribeCluster(DescribeClusterHostError),
     DescribeClusterCompletion(DescribeClusterCompletionFailure),
     DescribeClusterLockPoisoned,
+    AdminCompletion(CompletionRegistryError),
     Driver(DriverOwnerError),
     DriverOwnerMissing,
     DriverStopped,
@@ -83,6 +84,12 @@ impl fmt::Display for EngineHostError {
             Self::DescribeClusterCompletion(error) => write!(formatter, "{error}"),
             Self::DescribeClusterLockPoisoned => {
                 formatter.write_str("DescribeCluster host ownership lock is poisoned")
+            }
+            Self::AdminCompletion(error) => {
+                write!(
+                    formatter,
+                    "shared admin completion notifier failed: {error}"
+                )
             }
             Self::Driver(error) => write!(formatter, "embedded driver failed: {error}"),
             Self::DriverOwnerMissing => formatter.write_str("embedded driver owner is unavailable"),

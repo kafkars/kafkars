@@ -8,7 +8,7 @@ use crate::clock::OperationDeadline;
 
 use super::{
     DeleteTopicsDeliveryStatus, DeleteTopicsFailureKind, DeleteTopicsHost, DeleteTopicsOutcome,
-    DeleteTopicsTurn,
+    DeleteTopicsTurn, test_support::delete_topics_host, test_support::stop_notifier,
 };
 
 fn plan() -> DeleteTopicsPlan {
@@ -25,8 +25,7 @@ fn deadline(tick: u64) -> OperationDeadline {
 
 #[test]
 fn terminal_bytes_remain_reserved_until_observer_reclamation() {
-    let mut host =
-        DeleteTopicsHost::new().unwrap_or_else(|error| panic!("start deletion host: {error}"));
+    let (mut host, notifier) = delete_topics_host();
     let admission = host
         .try_admit(
             kafka_client_core::Moment::from_tick(1),
@@ -66,12 +65,12 @@ fn terminal_bytes_remain_reserved_until_observer_reclamation() {
         .turn(kafka_client_core::Moment::from_tick(3))
         .unwrap_or_else(|error| panic!("reclaim terminal: {error}"));
     assert_eq!(host.retained_bytes, 0);
-    stop(host);
+    stop(host, notifier);
 }
 
 #[test]
 fn queued_and_taken_recovery_preserve_the_last_not_sent_boundary() {
-    let (mut queued, queued_admission) = admitted();
+    let (mut queued, queued_admission, queued_notifier) = admitted();
     queued
         .recover_after_driver_shutdown()
         .unwrap_or_else(|error| panic!("recover queued deletion: {error}"));
@@ -83,9 +82,9 @@ fn queued_and_taken_recovery_preserve_the_last_not_sent_boundary() {
     let _turn = queued
         .turn(kafka_client_core::Moment::from_tick(3))
         .unwrap_or_else(|error| panic!("reclaim queued result: {error}"));
-    stop(queued);
+    stop(queued, queued_notifier);
 
-    let (mut taken, taken_admission) = admitted();
+    let (mut taken, taken_admission, taken_notifier) = admitted();
     assert!(matches!(
         taken.turn(kafka_client_core::Moment::from_tick(2)),
         Ok(DeleteTopicsTurn::Submit(_))
@@ -101,12 +100,15 @@ fn queued_and_taken_recovery_preserve_the_last_not_sent_boundary() {
     let _turn = taken
         .turn(kafka_client_core::Moment::from_tick(3))
         .unwrap_or_else(|error| panic!("reclaim taken result: {error}"));
-    stop(taken);
+    stop(taken, taken_notifier);
 }
 
-fn admitted() -> (DeleteTopicsHost, super::delete_host::DeleteTopicsAdmission) {
-    let mut host =
-        DeleteTopicsHost::new().unwrap_or_else(|error| panic!("start deletion host: {error}"));
+fn admitted() -> (
+    DeleteTopicsHost,
+    super::delete_host::DeleteTopicsAdmission,
+    super::AdminCompletionNotifier,
+) {
+    let (mut host, notifier) = delete_topics_host();
     let admission = host
         .try_admit(
             kafka_client_core::Moment::from_tick(1),
@@ -115,7 +117,7 @@ fn admitted() -> (DeleteTopicsHost, super::delete_host::DeleteTopicsAdmission) {
             16 * 1024,
         )
         .unwrap_or_else(|error| panic!("admit deletion: {error:?}"));
-    (host, admission)
+    (host, admission, notifier)
 }
 
 fn assert_failure(
@@ -132,11 +134,7 @@ fn assert_failure(
     assert_eq!(failure.delivery(), delivery);
 }
 
-fn stop(mut host: DeleteTopicsHost) {
-    let notifier = host
-        .stop_notifier()
-        .unwrap_or_else(|error| panic!("stop deletion notifier: {error}"));
-    notifier
-        .join_off_notifier()
-        .unwrap_or_else(|error| panic!("join deletion notifier: {error}"));
+fn stop(host: DeleteTopicsHost, notifier: super::AdminCompletionNotifier) {
+    drop(host);
+    stop_notifier(notifier);
 }

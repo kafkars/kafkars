@@ -66,7 +66,7 @@ pub(crate) fn recover(
         failure = failure.with_cleanup(cleanup);
     }
     let recovery = producer.recover_notifier();
-    let mut notifiers = Vec::with_capacity(4);
+    let mut notifiers = Vec::with_capacity(2);
     if let Some(notifier) = recovery.notifier {
         notifiers.push(notifier);
     }
@@ -82,9 +82,6 @@ pub(crate) fn recover(
     {
         failure = failure.with_cleanup(cleanup);
     }
-    if let Some(notifier) = create_topics.recover_notifier() {
-        notifiers.push(notifier);
-    }
     drop(create_topics);
     let mut delete_topics = resources.delete_topics.terminal_host();
     if let Some(cleanup) = delete_topics
@@ -93,9 +90,6 @@ pub(crate) fn recover(
         .map(EngineHostError::DeleteTopics)
     {
         failure = failure.with_cleanup(cleanup);
-    }
-    if let Some(notifier) = delete_topics.recover_notifier() {
-        notifiers.push(notifier);
     }
     drop(delete_topics);
     let mut describe_cluster = resources.describe_cluster.terminal_host();
@@ -106,10 +100,10 @@ pub(crate) fn recover(
     {
         failure = failure.with_cleanup(cleanup);
     }
-    if let Some(notifier) = describe_cluster.recover_notifier() {
+    drop(describe_cluster);
+    if let Some(notifier) = resources.admin_notifier.take_join() {
         notifiers.push(notifier);
     }
-    drop(describe_cluster);
     EngineHostExit {
         notifier: NotifierShutdownOwner::new(notifiers),
         failure: Some(failure),
