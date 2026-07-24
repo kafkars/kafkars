@@ -10,6 +10,7 @@ pub(crate) mod admin;
 )]
 pub(crate) mod consumer;
 mod error;
+pub(crate) mod fetch;
 pub(crate) mod init_producer_id;
 #[cfg(test)]
 mod init_producer_id_test;

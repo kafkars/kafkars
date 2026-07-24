@@ -697,6 +697,26 @@ production = "crates/kafka-client-engine/src/protocol/produce_response.rs"
 test = "crates/kafka-client-engine/src/protocol/produce_response_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/fetch/batch.rs"
+test = "crates/kafka-client-engine/src/protocol/fetch/batch_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/fetch/decode.rs"
+test = "crates/kafka-client-engine/src/protocol/fetch/decode_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/fetch/failure.rs"
+test = "crates/kafka-client-engine/src/protocol/fetch/failure_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/fetch/limits.rs"
+test = "crates/kafka-client-engine/src/protocol/fetch/limits_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/fetch/model.rs"
+test = "crates/kafka-client-engine/src/protocol/fetch/model_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/admin/create_topics.rs"
 test = "crates/kafka-client-engine/src/protocol/admin/create_topics_test.rs"
 
@@ -1215,6 +1235,23 @@ forbidden = [
   "crate::transaction",
   "kafka_driver",
   "kafka_wire_records",
+  "std::future",
+  "std::time",
+  "Transport",
+  "Retry",
+]
+
+# Generated Fetch DTOs and record bytes remain in one bounded protocol seam.
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/protocol/fetch"
+forbidden = [
+  "crate::admin",
+  "crate::consumer",
+  "crate::driver",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_client_core",
+  "kafka_driver",
   "std::future",
   "std::time",
   "Transport",
