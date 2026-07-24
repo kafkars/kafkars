@@ -9,6 +9,18 @@ pub use super::delete_outcome::{
     DeleteTopicBrokerError, DeleteTopicOutcome, DeleteTopicResult, DeleteTopicsFailure,
     DeleteTopicsFailureKind, DeleteTopicsTerminal,
 };
+pub use super::describe_configs_machine::{
+    DescribeConfigsEffect, DescribeConfigsInput, DescribeConfigsMachine,
+    DescribeConfigsMachineError, DescribeConfigsState, DescribeConfigsTransition,
+};
+pub use super::describe_configs_model::{
+    DescribeConfigsPlan, DescribeConfigsPlanError, DescribeConfigsResourceQuery,
+};
+pub use super::describe_configs_outcome::{
+    DescribeConfigBrokerError, DescribeConfigOutcome, DescribeConfigResult, DescribeConfigsBatch,
+    DescribeConfigsFailure, DescribeConfigsFailureKind, DescribeConfigsTerminal,
+};
+pub use super::describe_configs_value::{DescribeConfigEntry, DescribeConfigSynonym};
 pub use super::describe_machine::{
     DescribeClusterEffect, DescribeClusterInput, DescribeClusterMachine,
     DescribeClusterMachineError, DescribeClusterState, DescribeClusterTransition,

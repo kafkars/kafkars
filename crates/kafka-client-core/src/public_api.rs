@@ -16,11 +16,17 @@ pub use crate::admin::{
     DescribeClusterEffect, DescribeClusterFailure, DescribeClusterFailureKind,
     DescribeClusterInput, DescribeClusterMachine, DescribeClusterMachineError,
     DescribeClusterState, DescribeClusterTerminal, DescribeClusterTransition,
-    DescribeTopicBrokerError, DescribeTopicOutcome, DescribeTopicResult, DescribeTopicsEffect,
-    DescribeTopicsFailure, DescribeTopicsFailureKind, DescribeTopicsInput, DescribeTopicsMachine,
-    DescribeTopicsMachineError, DescribeTopicsPlan, DescribeTopicsPlanError, DescribeTopicsState,
-    DescribeTopicsTerminal, DescribeTopicsTransition, PartitionIncreaseBrokerError,
-    PartitionIncreaseOutcome, PartitionIncreaseResult, TopicDescription, TopicPartitionDescription,
+    DescribeConfigBrokerError, DescribeConfigEntry, DescribeConfigOutcome, DescribeConfigResult,
+    DescribeConfigSynonym, DescribeConfigsBatch, DescribeConfigsEffect, DescribeConfigsFailure,
+    DescribeConfigsFailureKind, DescribeConfigsInput, DescribeConfigsMachine,
+    DescribeConfigsMachineError, DescribeConfigsPlan, DescribeConfigsPlanError,
+    DescribeConfigsResourceQuery, DescribeConfigsState, DescribeConfigsTerminal,
+    DescribeConfigsTransition, DescribeTopicBrokerError, DescribeTopicOutcome, DescribeTopicResult,
+    DescribeTopicsEffect, DescribeTopicsFailure, DescribeTopicsFailureKind, DescribeTopicsInput,
+    DescribeTopicsMachine, DescribeTopicsMachineError, DescribeTopicsPlan, DescribeTopicsPlanError,
+    DescribeTopicsState, DescribeTopicsTerminal, DescribeTopicsTransition,
+    PartitionIncreaseBrokerError, PartitionIncreaseOutcome, PartitionIncreaseResult,
+    TopicDescription, TopicPartitionDescription,
 };
 pub use crate::admission::AdmissionRejection;
 pub use crate::capacity::{ByteBudget, CapacityError};

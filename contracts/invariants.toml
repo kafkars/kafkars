@@ -156,6 +156,25 @@ evidence = [
 ]
 
 [[invariant]]
+id = "ADM-08"
+title = "DescribeConfigs policy is ordered, bounded, and exact"
+statement = "One capacity-reserved DescribeConfigs machine validates a nonempty ordered batch of unique positive resource type/name identities and optional ordered unique configuration keys, retains one original absolute deadline and request intent, assigns at most one terminal decision, revalidates ordered resource and configuration correlation, preserves exact signed per-resource broker errors and positive broker throttle as observation data without retry policy, and distinguishes invalid, over-budget, protocol-incompatible, deadline, driver-rejected, and transport terminals with authoritative delivery certainty. Its isolated generated protocol seam preserves request intent, normalizes only negotiated v1-v4 response fields, and bounds terminal text and ownership before copying."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/admin/describe_configs_model_test.rs::plan_preserves_order_flags_and_optional_key_selection",
+  "crates/kafka-client-core/src/admin/describe_configs_model_test.rs::plan_rejects_empty_invalid_and_ambiguous_resource_queries",
+  "crates/kafka-client-core/src/admin/describe_configs_transition_test.rs::ordered_terminal_retains_exact_error_and_positive_throttle_once",
+  "crates/kafka-client-core/src/admin/describe_configs_transition_test.rs::driver_owned_deadline_and_transport_preserve_authoritative_certainty",
+  "crates/kafka-client-core/src/admin/describe_configs_transition_test.rs::invalid_too_large_and_compatibility_have_distinct_terminal_categories",
+  "crates/kafka-client-core/src/admin/describe_configs_transition_test.rs::response_resource_and_configuration_order_are_revalidated_before_terminal",
+  "crates/kafka-client-engine/src/protocol/admin/describe_configs_test.rs::request_preserves_resource_and_key_order_without_policy_expansion",
+  "crates/kafka-client-engine/src/protocol/admin/describe_configs_response_test.rs::shuffled_response_becomes_ordered_wire_free_scalar_facts",
+  "crates/kafka-client-engine/src/protocol/admin/describe_configs_response_test.rs::pre_v3_generated_defaults_do_not_fabricate_type_or_documentation",
+  "crates/kafka-client-engine/src/protocol/admin/describe_configs_budget_test.rs::exact_normalized_charge_is_accepted_and_one_byte_less_is_rejected",
+  "crates/kafka-client-engine/src/protocol/admin/describe_configs_budget_test.rs::hostile_diagnostic_is_utf8_bounded_before_terminal_copy",
+]
+
+[[invariant]]
 id = "BAT-01"
 title = "Core owns batch readiness"
 statement = "Record-count and conservative encoded-size readiness are deterministic core decisions and terminal fan-out preserves batch membership order."
