@@ -1117,6 +1117,18 @@ production = "crates/kafka-client-engine/src/consumer/assigned_host/event_port.r
 test = "crates/kafka-client-engine/src/consumer/assigned_host/event_port_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/event/error.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/event/handle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/event/model.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/event/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/event/translate.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/event/translate_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_host/reclaim.rs"
 test = "crates/kafka-client-engine/src/consumer/assigned_host/reclaim_test.rs"
 
@@ -2228,6 +2240,98 @@ forbidden = [
   "async",
 ]
 
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/event/model.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Future",
+  "Metadata",
+  "Retry",
+  "Stream",
+  "Transport",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/event/error.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Future",
+  "Metadata",
+  "Retry",
+  "Stream",
+  "Transport",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/event/translate.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Future",
+  "Metadata",
+  "Retry",
+  "Stream",
+  "Transport",
+  "async",
+]
+
 # Concrete direct-Fetch execution uses the engine port without acquiring raw
 # protocol, transport, clock, async, metadata, or sibling-domain authority.
 [[capability_rules]]
@@ -2603,6 +2707,7 @@ method = "take_event"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner_event.rs",
   "crates/kafka-client-engine/src/consumer/assigned_host/event_port.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_host/handle.rs",
 ]
 
 [[method_capabilities]]
@@ -4874,6 +4979,10 @@ path = "crates/kafka-client-engine/src/consumer/assigned_event.rs"
 [[linear_owners]]
 owner_type = "AssignedConsumerEvent"
 path = "crates/kafka-client-engine/src/consumer/assigned_event/model.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerEvent"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/event/model.rs"
 
 [[linear_owners]]
 owner_type = "PreparedEventClaims"

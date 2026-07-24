@@ -4,10 +4,8 @@ use std::time::Duration;
 
 use kafka_client_core::{AssignedConsumerEffect, FetchFailure, StartPosition};
 
-use super::super::{
-    assigned_event::AssignedConsumerEvent, assigned_owner_effect::FrontEffect,
-    assigned_owner_test::input,
-};
+use super::super::{assigned_owner_effect::FrontEffect, assigned_owner_test::input};
+use super::event::{AssignedConsumerEvent, AssignedConsumerFetchFailureKind};
 use super::shard_test::setup;
 
 #[test]
@@ -50,11 +48,16 @@ fn take_event_releases_capacity_without_reactor_wake() {
 
     assert!(matches!(
         event,
-        AssignedConsumerEvent::FetchFailed {
-            topic,
-            fence: actual,
-            failure: FetchFailure::Transport,
-        } if topic.as_ref() == "orders" && actual == fence
+        AssignedConsumerEvent::FetchFailed(failure)
+            if failure.fence().position().topic() == "orders"
+                && failure.fence().position().partition()
+                    == fence.position().partition().partition().get().cast_signed()
+                && failure.fence().position().assignment_epoch()
+                    == fence.position().assignment_epoch().get()
+                && failure.fence().position().position_epoch()
+                    == fence.position().position_epoch().get()
+                && failure.fence().fetch_revision() == fence.revision().get()
+                && failure.kind() == AssignedConsumerFetchFailureKind::Transport
     ));
     assert_eq!(wake.count(), wakes);
     assert_eq!(

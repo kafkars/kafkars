@@ -12,6 +12,7 @@ use super::{
     control_capture::{AssignedConsumerResumeCapture, AssignedConsumerSeekCapture},
     control_result::{AssignedConsumerControlAccepted, AssignedConsumerControlError},
     delivery::{AssignedConsumerBatch, AssignedConsumerTryTakeBatchError},
+    event::{AssignedConsumerEvent, AssignedConsumerTryTakeEventError},
     result::{AssignedConsumerTryCloseAccepted, AssignedConsumerTryCloseError},
     shard::AssignedConsumerPort,
 };
@@ -182,6 +183,18 @@ impl AssignedConsumerHandle {
                 })
             })
             .map_err(|error| AssignedConsumerTryTakeBatchError::from_port(&error))
+    }
+
+    /// Immediately transfers one retained scalar failure event, if ready.
+    ///
+    /// This does not wait, start Fetch work, request a reactor turn, or reopen
+    /// admission after close.
+    pub fn try_take_event(
+        &mut self,
+    ) -> Result<Option<AssignedConsumerEvent>, AssignedConsumerTryTakeEventError> {
+        self.port
+            .take_event()
+            .map_err(|error| AssignedConsumerTryTakeEventError::from_port(&error))
     }
 
     /// Attempts immediate close after reserving the sole terminal-completion lane.

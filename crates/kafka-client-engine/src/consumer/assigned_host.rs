@@ -38,6 +38,7 @@ mod control_result_test;
 #[cfg(test)]
 mod control_test;
 mod delivery;
+mod event;
 mod event_port;
 #[cfg(test)]
 mod event_port_test;
@@ -96,6 +97,13 @@ pub(crate) use delivery::AssignedConsumerDelivery;
 pub use delivery::{
     AssignedConsumerBatch, AssignedConsumerHeader, AssignedConsumerRecord, AssignedConsumerRecords,
     AssignedConsumerTryTakeBatchError, AssignedConsumerTryTakeBatchErrorKind,
+};
+pub use event::{
+    AssignedConsumerEvent, AssignedConsumerFetchFailure, AssignedConsumerFetchFailureKind,
+    AssignedConsumerFetchFence, AssignedConsumerFetchThrottleFailure,
+    AssignedConsumerFetchThrottleFailureKind, AssignedConsumerPositionFence,
+    AssignedConsumerPositionResolutionFailure, AssignedConsumerPositionResolutionFailureKind,
+    AssignedConsumerTryTakeEventError, AssignedConsumerTryTakeEventErrorKind,
 };
 pub use handle::AssignedConsumerHandle;
 pub use result::{

@@ -63,7 +63,14 @@ const METHODS: &[(&str, &[&str])] = &[
             "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
         ],
     ),
-    ("take_event", &[OWNER_EVENT, PORT]),
+    (
+        "take_event",
+        &[
+            OWNER_EVENT,
+            PORT,
+            "crates/kafka-client-engine/src/consumer/assigned_host/handle.rs",
+        ],
+    ),
     ("retain_terminal", &[OWNER_EVENT]),
     (
         "observe_effect",
@@ -123,9 +130,13 @@ fn checked_in_event_policy_is_exact() {
         let rules = config
             .linear_owners
             .iter()
-            .filter(|rule| rule.owner_type == *owner_type)
+            .filter(|rule| rule.owner_type == *owner_type && rule.path == *path)
             .collect::<Vec<_>>();
-        assert_eq!(rules.len(), 1, "{owner_type} needs one linear rule");
+        assert_eq!(
+            rules.len(),
+            1,
+            "{owner_type} needs one linear rule at {path}"
+        );
         assert_eq!(rules[0].path, *path);
     }
     for (owner_type, field, allowed_paths) in MUTATIONS {
