@@ -17,8 +17,8 @@ mod record;
 mod transaction;
 
 pub use admin::{
-    Admin, BatchResult, CreateTopics, CreateTopicsBuilder, DeleteTopics, DeleteTopicsBuilder,
-    NewTopic,
+    Admin, BatchResult, ClusterBroker, ClusterDescription, CreateTopics, CreateTopicsBuilder,
+    DeleteTopics, DeleteTopicsBuilder, DescribeCluster, DescribeClusterBuilder, NewTopic,
 };
 pub use client::{Client, ClientBuilder, Shutdown};
 pub use consumer::{

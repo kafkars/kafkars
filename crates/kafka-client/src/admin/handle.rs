@@ -2,7 +2,7 @@
 
 use crate::bridge::admin::{AdminEngine, AdminRequest, DeleteAdminRequest};
 
-use super::{CreateTopicsBuilder, DeleteTopicsBuilder, NewTopic};
+use super::{CreateTopicsBuilder, DeleteTopicsBuilder, DescribeClusterBuilder, NewTopic};
 
 /// Cheaply cloneable, thread-safe admin handle.
 #[derive(Debug, Clone)]
@@ -38,5 +38,13 @@ impl Admin {
     {
         let request = DeleteAdminRequest::from_topics(topics);
         DeleteTopicsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
+    }
+
+    /// Builds an inert broker-endpoint `DescribeCluster` request.
+    ///
+    /// No timeout starts and no operation is admitted until
+    /// [`DescribeClusterBuilder::submit`] is called.
+    pub fn describe_cluster(&self) -> DescribeClusterBuilder {
+        DescribeClusterBuilder::new(self.engine.clone(), self.engine.default_timeout())
     }
 }

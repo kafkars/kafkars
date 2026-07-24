@@ -1,5 +1,7 @@
 //! Sole conversion and admission boundary from public admin values to the engine.
 
+mod describe_cluster_submit;
+
 use std::time::Duration;
 
 use kafka_client_engine::{
