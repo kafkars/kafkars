@@ -1,7 +1,8 @@
 //! Linear preparation of one core-authorized direct-consumer Fetch.
 
 use kafka_client_core::{
-    AssignedConsumerEffect, AssignedConsumerMachine, AssignedConsumerMachineError, FetchOwnership,
+    AssignedConsumerEffect, AssignedConsumerMachine, AssignedConsumerMachineError, Deadline,
+    FetchOwnership,
 };
 
 use crate::{
@@ -56,6 +57,11 @@ impl PreparedFetchExecution {
 
     pub(crate) const fn fence(&self) -> kafka_client_core::FetchFence {
         self.request.fence()
+    }
+
+    /// Borrows the original core deadline without exposing transport timing.
+    pub(crate) const fn deadline(&self) -> Deadline {
+        self.request.operation_deadline().core()
     }
 
     /// Reconciles queued work against the core-owned directional fence policy.

@@ -16,6 +16,21 @@ use super::{
 use crate::protocol::fetch::{FetchDecodeLimits, FetchRequestSettings};
 
 #[test]
+fn pending_deadline_borrows_the_exact_capture_without_consuming_ownership() {
+    let expected = Deadline::from_tick(137);
+    let (effect, machine) = assignment(3, expected);
+    let prepared = prepared(effect, expected.tick(), 4_096);
+    let fence = prepared.fence();
+    let ownership = machine.fetch_ownership(fence);
+
+    assert_eq!(prepared.deadline(), expected);
+    assert_eq!(prepared.fence(), fence);
+    assert_eq!(prepared.deadline(), expected);
+    assert_eq!(machine.fetch_ownership(fence), ownership);
+    assert_eq!(ownership, Ok(FetchOwnership::Active));
+}
+
+#[test]
 fn deadline_captured_for_another_fetch_revision_cannot_prepare_this_effect() {
     let (first, mut machine) = assignment(3, Deadline::from_tick(100));
     let first_fence = fetch_fence(first);
