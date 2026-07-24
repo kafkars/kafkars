@@ -2,6 +2,16 @@
 
 pub(crate) mod admin;
 mod error;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "the adjacent core idempotence slice has not joined this protocol seam yet"
+    )
+)]
+pub(crate) mod init_producer_id;
+#[cfg(test)]
+mod init_producer_id_test;
 pub(crate) mod produce;
 #[cfg(test)]
 mod produce_batch_test;

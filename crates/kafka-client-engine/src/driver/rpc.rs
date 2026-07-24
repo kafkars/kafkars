@@ -30,6 +30,16 @@ mod describe_cluster_submission_test;
 mod describe_cluster_terminal;
 #[cfg(test)]
 mod describe_cluster_terminal_test;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "the adjacent core idempotence slice has not joined this driver seam yet"
+    )
+)]
+mod init_producer_id_submission;
+#[cfg(test)]
+mod init_producer_id_submission_test;
 mod submission;
 #[cfg(test)]
 mod submission_test;
