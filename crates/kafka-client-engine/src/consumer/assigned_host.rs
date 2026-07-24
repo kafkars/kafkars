@@ -34,6 +34,7 @@ mod control_result;
 mod control_result_test;
 #[cfg(test)]
 mod control_test;
+mod delivery;
 mod event_port;
 #[cfg(test)]
 mod event_port_test;
@@ -64,7 +65,6 @@ mod state_test;
 mod wake;
 #[cfg(test)]
 mod wake_test;
-
 pub(crate) use assignment::AssignedPartitionInput;
 pub use assignment::{
     AssignedConsumerAssignment, AssignedConsumerAssignmentInputError,
@@ -87,6 +87,11 @@ pub use control::{
 };
 pub use control_result::{
     AssignedConsumerControlAccepted, AssignedConsumerControlError, AssignedConsumerControlErrorKind,
+};
+pub(crate) use delivery::AssignedConsumerDelivery;
+pub use delivery::{
+    AssignedConsumerBatch, AssignedConsumerHeader, AssignedConsumerRecord, AssignedConsumerRecords,
+    AssignedConsumerTryTakeBatchError, AssignedConsumerTryTakeBatchErrorKind,
 };
 pub use handle::AssignedConsumerHandle;
 pub use result::{

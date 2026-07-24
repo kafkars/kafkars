@@ -58,6 +58,10 @@ pub(super) enum AssignedConsumerOwnerFault {
         error: AssignedConsumerMachineError,
         delivery: FetchDelivery,
     },
+    DeliveryTopic {
+        error: AssignedTopicsError,
+        delivery: FetchDelivery,
+    },
     Transition {
         transition: AssignedConsumerTransition,
         position_deadline: Option<crate::clock::OperationDeadline>,
@@ -98,7 +102,9 @@ impl AssignedConsumerOwnerFault {
             Self::Close(_) | Self::CloseCompletion(_) => AssignedConsumerFaultKind::Close,
             Self::PendingPosition { .. } => AssignedConsumerFaultKind::PendingPosition,
             Self::PendingFetch { .. } => AssignedConsumerFaultKind::PendingFetch,
-            Self::Delivery { .. } => AssignedConsumerFaultKind::Delivery,
+            Self::Delivery { .. } | Self::DeliveryTopic { .. } => {
+                AssignedConsumerFaultKind::Delivery
+            }
             Self::Transition { .. } => AssignedConsumerFaultKind::Transition,
             Self::Core { .. } => AssignedConsumerFaultKind::Core,
             Self::UnexpectedTimerInput(_) => AssignedConsumerFaultKind::TimerInput,

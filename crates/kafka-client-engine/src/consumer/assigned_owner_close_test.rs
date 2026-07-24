@@ -218,6 +218,13 @@ pub(super) fn ready_owner() -> AssignedConsumerOwner {
 }
 
 pub(super) fn install_pending_ready(owner: &mut AssignedConsumerOwner, record_offset: i64) {
+    install_pending_ready_with_records(owner, encoded_data_batch_for_test(record_offset));
+}
+
+pub(super) fn install_pending_ready_with_records(
+    owner: &mut AssignedConsumerOwner,
+    records: bytes::Bytes,
+) {
     let prepared = owner
         .pending_fetches
         .pop_front()
@@ -225,7 +232,7 @@ pub(super) fn install_pending_ready(owner: &mut AssignedConsumerOwner, record_of
     install_terminal_for_test(
         &mut owner.fetches,
         prepared,
-        FetchTerminalFixture::Success(Some(encoded_data_batch_for_test(record_offset))),
+        FetchTerminalFixture::Success(Some(records)),
     );
     let now = owner
         .clock

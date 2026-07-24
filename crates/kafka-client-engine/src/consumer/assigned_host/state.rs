@@ -12,8 +12,9 @@ use super::super::{
     fetch_store::FetchDelivery,
 };
 use super::{
-    close_observer::AssignedConsumerCloseObserver, reclaim::AssignedConsumerReclaimRejection,
-    shard::AssignedConsumerShardLockError, wake::AssignedConsumerShardWake,
+    close_observer::AssignedConsumerCloseObserver, delivery::AssignedConsumerDelivery,
+    reclaim::AssignedConsumerReclaimRejection, shard::AssignedConsumerShardLockError,
+    wake::AssignedConsumerShardWake,
 };
 
 pub(super) struct AssignedConsumerShardState {
@@ -126,6 +127,24 @@ impl AssignedConsumerShardState {
             ));
         };
         Ok(owner.reclaim_delivery(delivery))
+    }
+
+    /// Returns a public batch lease without losing it to transient contention.
+    pub(super) fn return_assigned_delivery(&self, delivery: AssignedConsumerDelivery) {
+        let mut guard = match self.owner.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        let returned_to_owner = if let Some(owner) = guard.as_mut() {
+            let _reclaimed = owner.reclaim_delivery(delivery.into_lease());
+            true
+        } else {
+            false
+        };
+        drop(guard);
+        if returned_to_owner {
+            let _wake = self.wake.request_assigned_turn();
+        }
     }
 
     /// Consumes the failed owner after the caller has destroyed the unique driver.

@@ -1089,6 +1089,22 @@ production = "crates/kafka-client-engine/src/consumer/assigned_host/completion.r
 test = "crates/kafka-client-engine/src/consumer/assigned_host/completion_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/batch.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/batch_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/error.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/handle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/owner.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/return_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/record.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/record_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_host/event_port.rs"
 test = "crates/kafka-client-engine/src/consumer/assigned_host/event_port_test.rs"
 
@@ -3104,6 +3120,124 @@ forbidden = [
 ]
 
 [[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/batch.rs"
+forbidden = [
+  "crate::admin",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Future",
+  "Metadata",
+  "Retry",
+  "Stream",
+  "Transport",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/error.rs"
+forbidden = [
+  "crate::admin",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Future",
+  "Metadata",
+  "Retry",
+  "Stream",
+  "Transport",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/owner.rs"
+forbidden = [
+  "crate::admin",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Future",
+  "Metadata",
+  "Retry",
+  "Stream",
+  "Transport",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/record.rs"
+forbidden = [
+  "crate::admin",
+  "crate::driver",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Future",
+  "Metadata",
+  "Retry",
+  "Stream",
+  "Transport",
+  "async",
+]
+
+[[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/assigned_host/port.rs"
 forbidden = [
   "kafka_driver",
@@ -4716,6 +4850,14 @@ path = "crates/kafka-client-engine/src/consumer/assigned_host/claim.rs"
 [[linear_owners]]
 owner_type = "AssignedConsumerHandle"
 path = "crates/kafka-client-engine/src/consumer/assigned_host/handle.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerBatch"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/batch.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerDelivery"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/delivery/owner.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumerAccepted"

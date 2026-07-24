@@ -10,7 +10,8 @@ use crate::completion::CompletionRegistryError;
 
 use super::{
     assigned_close_error::AssignedCloseSlotPhase, assigned_host::AssignedConsumerCloseTerminal,
-    assigned_owner::AssignedConsumerOwner, assigned_owner_fault::AssignedConsumerOwnerFault,
+    assigned_host::AssignedConsumerDelivery, assigned_owner::AssignedConsumerOwner,
+    assigned_owner_fault::AssignedConsumerOwnerFault,
     assigned_owner_model::AssignedConsumerOwnerError, fetch_store::FetchDelivery,
 };
 
@@ -22,6 +23,28 @@ pub(crate) enum AssignedConsumerCloseSettlement {
 }
 
 impl AssignedConsumerOwner {
+    /// Joins an active Fetch lease with its catalog-owned public identity.
+    pub(crate) fn take_named_delivery(
+        &mut self,
+    ) -> Result<Option<AssignedConsumerDelivery>, AssignedConsumerOwnerError> {
+        let Some(delivery) = self.take_delivery()? else {
+            return Ok(None);
+        };
+        let partition = delivery.fence().position().partition();
+        let topic = match self.topics.name(partition.topic_id()) {
+            Ok(topic) => std::sync::Arc::clone(topic),
+            Err(error) => {
+                self.fault = Some(AssignedConsumerOwnerFault::DeliveryTopic { error, delivery });
+                return Err(AssignedConsumerOwnerError::Faulted);
+            }
+        };
+        Ok(Some(AssignedConsumerDelivery::new(
+            topic,
+            partition.partition().get().cast_signed(),
+            delivery,
+        )))
+    }
+
     /// Transfers one authorized delivery lease to the application boundary.
     pub(crate) fn take_delivery(
         &mut self,

@@ -5,7 +5,9 @@ use kafka_wire::{
     FetchResponse as WireFetchResponse,
     fetch_response::{FetchableTopicResponse, PartitionData},
 };
-use kafka_wire_records::{Compression, Record, RecordBatch, RecordEncodeLimits, TimestampType};
+use kafka_wire_records::{
+    Compression, Record, RecordBatch, RecordEncodeLimits, RecordHeader, TimestampType,
+};
 
 use super::{
     FetchDecodeLimits, FetchOutputReservation, RetainedFetchOutcome,
@@ -107,4 +109,80 @@ pub(crate) fn encoded_data_batch_for_test(base_offset: i64) -> Bytes {
         .encode_into(&mut encoded, RecordEncodeLimits::default())
         .unwrap_or_else(|error| panic!("encode Fetch fixture batch: {error}"));
     encoded.freeze()
+}
+
+/// Encodes multiple application batches with nullable and duplicate header facts.
+pub(crate) fn encoded_delivery_batches_for_test(base_offset: i64) -> Bytes {
+    let batches = [
+        RecordBatch {
+            base_offset,
+            last_offset_delta: 1,
+            partition_leader_epoch: 3,
+            compression: Compression::None,
+            timestamp_type: TimestampType::CreateTime,
+            is_transactional: false,
+            is_control: false,
+            has_delete_horizon: false,
+            base_timestamp: 20,
+            max_timestamp: 25,
+            producer_id: -1,
+            producer_epoch: -1,
+            base_sequence: -1,
+            records: vec![
+                Record {
+                    attributes: 0,
+                    timestamp_delta: 0,
+                    offset_delta: 0,
+                    key: None,
+                    value: Some(Bytes::new()),
+                    headers: vec![delivery_header(None), delivery_header(Some(Bytes::new()))],
+                },
+                Record {
+                    attributes: 0,
+                    timestamp_delta: 5,
+                    offset_delta: 1,
+                    key: Some(Bytes::new()),
+                    value: None,
+                    headers: Vec::new(),
+                },
+            ],
+        },
+        RecordBatch {
+            base_offset: base_offset + 2,
+            last_offset_delta: 0,
+            partition_leader_epoch: 3,
+            compression: Compression::None,
+            timestamp_type: TimestampType::CreateTime,
+            is_transactional: false,
+            is_control: false,
+            has_delete_horizon: false,
+            base_timestamp: 30,
+            max_timestamp: 30,
+            producer_id: -1,
+            producer_epoch: -1,
+            base_sequence: -1,
+            records: vec![Record {
+                attributes: 0,
+                timestamp_delta: 0,
+                offset_delta: 0,
+                key: Some(Bytes::from_static(b"k")),
+                value: Some(Bytes::from_static(b"third")),
+                headers: Vec::new(),
+            }],
+        },
+    ];
+    let mut encoded = BytesMut::new();
+    for batch in batches {
+        batch
+            .encode_into(&mut encoded, RecordEncodeLimits::default())
+            .unwrap_or_else(|error| panic!("encode Fetch delivery fixture: {error}"));
+    }
+    encoded.freeze()
+}
+
+fn delivery_header(value: Option<Bytes>) -> RecordHeader {
+    RecordHeader {
+        key: "trace".into(),
+        value,
+    }
 }

@@ -10,6 +10,7 @@ use super::{
     },
     control::AssignedConsumerPartition,
     control_result::{AssignedConsumerControlAccepted, AssignedConsumerControlError},
+    delivery::{AssignedConsumerBatch, AssignedConsumerTryTakeBatchError},
     result::{AssignedConsumerTryCloseAccepted, AssignedConsumerTryCloseError},
     shard::AssignedConsumerPort,
 };
@@ -114,6 +115,23 @@ impl AssignedConsumerHandle {
             .seek(epoch.into_core(), partition, position, resolution_timeout)
             .map(AssignedConsumerControlAccepted::from_port)
             .map_err(|error| AssignedConsumerControlError::from_port(&error))
+    }
+
+    /// Immediately transfers one ready batch, or reports that none is ready.
+    ///
+    /// Fetch execution is engine-owned background work. This method only
+    /// observes already-authorized delivery and does not start a new timeout.
+    pub fn try_take_batch(
+        &mut self,
+    ) -> Result<Option<AssignedConsumerBatch>, AssignedConsumerTryTakeBatchError> {
+        self.port
+            .take_named_delivery()
+            .map(|delivery| {
+                delivery.map(|delivery| {
+                    AssignedConsumerBatch::new(delivery, Arc::clone(&self.port.shared))
+                })
+            })
+            .map_err(|error| AssignedConsumerTryTakeBatchError::from_port(&error))
     }
 
     /// Attempts immediate close after reserving the sole terminal-completion lane.

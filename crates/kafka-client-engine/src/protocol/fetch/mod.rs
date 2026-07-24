@@ -34,7 +34,8 @@ mod retention;
 pub(crate) use exports::*;
 #[cfg(test)]
 pub(crate) use fixture::{
-    encoded_data_batch_for_test, retained_broker_failure_for_test, retained_success_for_test,
+    encoded_data_batch_for_test, encoded_delivery_batches_for_test,
+    retained_broker_failure_for_test, retained_success_for_test,
 };
 
 #[cfg(test)]

@@ -11,6 +11,7 @@ use super::super::{
 use super::{
     assignment::AssignedConsumerStartPosition,
     control::AssignedConsumerPartition,
+    delivery::AssignedConsumerDelivery,
     reclaim::AssignedConsumerReclaimRejection,
     result::{AssignedConsumerAccepted, AssignedConsumerPortError},
     shard::AssignedConsumerPort,
@@ -105,6 +106,19 @@ impl AssignedConsumerPort {
         let result = self
             .shared
             .try_admit_with_owner(AssignedConsumerOwner::take_delivery)
+            .map_err(AssignedConsumerPortError::Lock)?;
+        let Some(result) = result else {
+            return Err(AssignedConsumerPortError::Closed);
+        };
+        self.finish_owner_result(result)
+    }
+
+    pub(super) fn take_named_delivery(
+        &self,
+    ) -> Result<Option<AssignedConsumerDelivery>, AssignedConsumerPortError> {
+        let result = self
+            .shared
+            .try_admit_with_owner(AssignedConsumerOwner::take_named_delivery)
             .map_err(AssignedConsumerPortError::Lock)?;
         let Some(result) = result else {
             return Err(AssignedConsumerPortError::Closed);
