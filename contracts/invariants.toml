@@ -429,6 +429,26 @@ evidence = [
 ]
 
 [[invariant]]
+id = "CON-06"
+title = "Direct-consumer terminal events are claimed, bounded, and retained"
+statement = "The private AssignedConsumerEventStore has one fixed capacity shared by outstanding claims and ready FIFO events. Assignment replacement, resume, and seek reserve the exact event claims their core transitions may owe before applying those transitions, and core rejection rolls the prepared claims back without changing retained state. Only an exact PositionResolutionFailed, FetchThrottleFailed, or FetchFailed effect may consume its matching fence claim and retain one scalar-plus-Arc terminal event; stale terminal fences cannot steal newer claims, and exact revoke removes only claims owned by that assignment. Ready events remain charged until private-port observation, so capacity exhaustion backpressures new claim-bearing admission rather than dropping a terminal. Outstanding claims delay close, while already-ready terminals remain retained without preventing core-authorized close. Taking one linear event releases its slot without requesting a reactor wake because observation makes no host work runnable; later claim-bearing admission supplies its own wake. Abnormal recovery reports and releases exact claimed and ready counts after driver teardown. No record bytes, generated protocol type, driver capability, callback, async runtime, public observer, or facade connection enters this slice."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/consumer/assigned_event_test.rs::terminal_effects_transfer_exact_claims_into_fifo_events",
+  "crates/kafka-client-engine/src/consumer/assigned_event_test.rs::stale_terminal_fence_cannot_consume_active_claim",
+  "crates/kafka-client-engine/src/consumer/assigned_event_test.rs::ready_events_backpressure_new_claims_until_observed",
+  "crates/kafka-client-engine/src/consumer/assigned_event_test.rs::revoke_removes_only_matching_assignment_claim",
+  "crates/kafka-client-engine/src/consumer/assigned_event/prepared_test.rs::no_start_resume_and_paused_seek_commit_without_inventing_claims",
+  "crates/kafka-client-engine/src/consumer/assigned_event/prepared_test.rs::rejected_and_rolled_back_preparations_preserve_existing_claims",
+  "crates/kafka-client-engine/src/consumer/assigned_event/prepared_test.rs::prepared_replacement_rejects_impossible_terminal_and_hitchhiker_effects",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_event_test.rs::terminal_failure_effects_transfer_to_exact_fifo_events",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_event_test.rs::ready_events_do_not_block_close_but_claimed_slots_do",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_event_test.rs::elapsed_public_deadline_retains_the_immediate_terminal_event",
+  "crates/kafka-client-engine/src/consumer/assigned_host/event_port_test.rs::take_event_releases_capacity_without_reactor_wake",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_recovery_test.rs::recovery_reports_exact_claimed_and_ready_event_counts",
+]
+
+[[invariant]]
 id = "DL-01"
 title = "Client policy consumes one absolute deadline"
 statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant. Public operations capture at their public boundary, while engine-owned background Fetch captures at the exact internal-attempt boundary and fence rather than borrowing a later recv observation timeout. Accepted operation and direct-consumer bindings retain that pair unchanged, generated request timeout fields derive only from the remaining core deadline while the original transport instant is unchanged, core rejects already elapsed work, queued compression or submission expiry reproduces the exact core deadline fact, and identity-request deadline completion cannot be erased by an earlier transport category."

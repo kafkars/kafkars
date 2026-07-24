@@ -27,6 +27,7 @@ const FIELDS: &[&str] = &[
     "timers",
     "positions",
     "fetches",
+    "events",
     "close",
     "effects",
     "raw_position_deadlines",
@@ -38,6 +39,7 @@ const FIELDS: &[&str] = &[
 ];
 const MUTATION_FIELDS: &[&str] = &[
     "machine",
+    "events",
     "close",
     "effects",
     "raw_position_deadlines",
@@ -220,6 +222,15 @@ fn expected_paths(field: &str) -> Vec<String> {
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_turn.rs",
+        ],
+        "events" => &[
+            "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_event.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_recovery.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_status.rs",
         ],
         "close" => &[
             "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",

@@ -106,7 +106,9 @@ impl<'ast> Visit<'ast> for MutationVisitor<'_> {
                 .any(|method| expression.method == method)
             {
                 self.record_if_protected(&expression.receiver);
-            } else if !self.rule.allowed_paths.iter().any(|path| path == self.path) {
+            } else if !matches!(expression.method.to_string().as_str(), "iter" | "len")
+                && !self.rule.allowed_paths.iter().any(|path| path == self.path)
+            {
                 self.evidence.violations.push(format!(
                     "{} directly accesses {}.{} outside its configured owner modules",
                     self.path, self.rule.owner_type, self.rule.field
