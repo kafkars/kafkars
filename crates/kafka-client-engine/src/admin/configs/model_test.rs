@@ -35,3 +35,21 @@ fn broker_specific_and_mixed_batches_are_definitely_unsupported() {
         ));
     }
 }
+
+#[test]
+fn include_flags_are_prepared_without_changing_resource_order() {
+    let request = DescribeConfigsRequest::new(
+        vec![resource(2, "orders"), resource(2, "audit")],
+        false,
+        false,
+    )
+    .with_include_synonyms(true)
+    .with_include_documentation(true);
+    let Ok(plan) = request.into_topic_plan() else {
+        panic!("topic request should validate");
+    };
+    assert!(plan.include_synonyms());
+    assert!(plan.include_documentation());
+    assert_eq!(plan.resources()[0].resource_name(), "orders");
+    assert_eq!(plan.resources()[1].resource_name(), "audit");
+}

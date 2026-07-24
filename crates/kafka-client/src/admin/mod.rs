@@ -2,6 +2,7 @@
 
 mod batch_result;
 mod builder;
+mod configs;
 mod create_partitions;
 mod create_topics;
 mod delete_builder;
@@ -19,6 +20,10 @@ mod topics_builder;
 
 pub use batch_result::BatchResult;
 pub use builder::CreateTopicsBuilder;
+pub use configs::{
+    ConfigEntry, ConfigSynonym, DescribeConfigs, DescribeConfigsBuilder, DescribeConfigsResult,
+    TopicConfigQuery,
+};
 pub use create_partitions::CreatePartitions;
 pub use create_topics::CreateTopics;
 pub use delete_builder::DeleteTopicsBuilder;

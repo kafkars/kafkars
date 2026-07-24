@@ -106,6 +106,20 @@ impl DescribeConfigsRequest {
         }
     }
 
+    /// Replaces whether Kafka should return configuration synonyms.
+    #[must_use]
+    pub const fn with_include_synonyms(mut self, include_synonyms: bool) -> Self {
+        self.include_synonyms = include_synonyms;
+        self
+    }
+
+    /// Replaces whether Kafka should return configuration documentation.
+    #[must_use]
+    pub const fn with_include_documentation(mut self, include_documentation: bool) -> Self {
+        self.include_documentation = include_documentation;
+        self
+    }
+
     pub(crate) fn canonicalize(mut self) -> Self {
         self.resources = self
             .resources

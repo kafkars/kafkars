@@ -38,16 +38,35 @@ fn throttle_versioned_fields_and_signed_resource_codes_cross_exactly() {
         panic!("config batch expected");
     };
     assert_eq!(batch.throttle_time_ms(), 77);
-    let resources = batch.into_resources();
-    let (_, _, success) = resources[0].clone().into_parts();
+    let mut resources = batch.into_resources().into_iter();
+    let Some(success_resource) = resources.next() else {
+        panic!("successful resource expected");
+    };
+    let (_, _, success) = success_resource.into_parts();
     let entries = success.unwrap_or_else(|error| panic!("configs expected: {error:?}"));
-    assert_eq!(entries[0].config_type(), Some(2));
-    assert_eq!(entries[0].documentation(), Some("docs"));
-    assert_eq!(entries[0].source(), -3);
-    let (_, _, failed) = resources[1].clone().into_parts();
+    let Some(entry) = entries.into_iter().next() else {
+        panic!("configuration entry expected");
+    };
+    let (name, value, read_only, source, sensitive, synonyms, config_type, documentation) =
+        entry.into_parts();
+    assert_eq!(name, "cleanup.policy");
+    assert_eq!(value.as_deref(), Some("compact"));
+    assert!(read_only);
+    assert_eq!(source, -3);
+    assert!(!sensitive);
+    assert_eq!(synonyms.len(), 1);
+    assert_eq!(config_type, Some(2));
+    assert_eq!(documentation.as_deref(), Some("docs"));
+
+    let Some(failed_resource) = resources.next() else {
+        panic!("failed resource expected");
+    };
+    let (_, _, failed) = failed_resource.into_parts();
     let error = failed
         .err()
         .unwrap_or_else(|| panic!("broker error expected"));
-    assert_eq!(error.code(), -32_123);
-    assert_eq!(error.message(), Some("future"));
+    let (code, message, truncated) = error.into_parts();
+    assert_eq!(code, -32_123);
+    assert_eq!(message.as_deref(), Some("future"));
+    assert!(!truncated);
 }

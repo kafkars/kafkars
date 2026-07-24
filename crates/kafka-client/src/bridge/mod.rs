@@ -1,6 +1,9 @@
 //! Declarative private boundary between the Rust facade and shared engine.
 
 pub(crate) mod admin;
+pub(crate) mod admin_configs_operation;
+pub(crate) mod admin_configs_request;
+pub(crate) mod admin_configs_result;
 pub(crate) mod admin_delete_operation;
 pub(crate) mod admin_delete_result;
 pub(crate) mod admin_describe_operation;
@@ -22,6 +25,12 @@ pub(crate) mod producer_result;
 
 pub(crate) use client::ClientEngine;
 
+#[cfg(test)]
+mod admin_configs_operation_test;
+#[cfg(test)]
+mod admin_configs_request_test;
+#[cfg(test)]
+mod admin_configs_result_test;
 #[cfg(test)]
 mod admin_delete_operation_test;
 #[cfg(test)]

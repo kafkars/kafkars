@@ -1,7 +1,5 @@
 //! Engine-owned terminal values from one ordered `DescribeConfigs` batch.
 
-use core::fmt;
-
 /// Stable admin delivery certainty independent of core types.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DescribeConfigsDeliveryStatus {
@@ -79,6 +77,32 @@ impl DescribeConfigEntry {
     pub fn documentation(&self) -> Option<&str> {
         self.documentation.as_deref()
     }
+
+    /// Consumes this entry into stable adapter-owned parts.
+    #[allow(clippy::type_complexity)]
+    pub fn into_parts(
+        self,
+    ) -> (
+        String,
+        Option<String>,
+        bool,
+        i8,
+        bool,
+        Vec<DescribeConfigSynonym>,
+        Option<i8>,
+        Option<String>,
+    ) {
+        (
+            self.name,
+            self.value,
+            self.read_only,
+            self.source,
+            self.sensitive,
+            self.synonyms,
+            self.config_type,
+            self.documentation,
+        )
+    }
 }
 
 /// Exact broker-declared resource rejection.
@@ -103,6 +127,11 @@ impl DescribeConfigResourceError {
     /// Returns whether the diagnostic was truncated.
     pub const fn message_truncated(&self) -> bool {
         self.message_truncated
+    }
+
+    /// Consumes this broker rejection into stable adapter-owned parts.
+    pub fn into_parts(self) -> (i16, Option<String>, bool) {
+        (self.code, self.message, self.message_truncated)
     }
 }
 
@@ -190,23 +219,3 @@ pub enum DescribeConfigsOutcome {
     /// Whole-operation failure.
     Failed(DescribeConfigsFailure),
 }
-
-/// Failure to observe a named completion.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DescribeConfigsObserverError {
-    /// This linear observer already consumed its terminal.
-    AlreadyObserved,
-    /// The observer generation is no longer live.
-    Stale,
-}
-
-impl fmt::Display for DescribeConfigsObserverError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::AlreadyObserved => "DescribeConfigs result was already observed",
-            Self::Stale => "DescribeConfigs observer is stale",
-        })
-    }
-}
-
-impl std::error::Error for DescribeConfigsObserverError {}

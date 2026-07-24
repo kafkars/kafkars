@@ -11,6 +11,7 @@ mod model;
 #[cfg(test)]
 mod model_test;
 mod observer;
+mod observer_error;
 mod outcome;
 #[cfg(test)]
 mod outcome_test;
@@ -27,11 +28,11 @@ pub(crate) use host::{
 pub(crate) use model::DescribeConfigsRetention;
 pub use model::{DescribeConfigsRequest, DescribeConfigsResourceQuery};
 pub use observer::DescribeConfigsObserver;
+pub use observer_error::DescribeConfigsObserverError;
 pub use outcome::{
     DescribeConfigEntry, DescribeConfigResourceError, DescribeConfigResourceResult,
     DescribeConfigSynonym, DescribeConfigsBatch, DescribeConfigsDeliveryStatus,
-    DescribeConfigsFailure, DescribeConfigsFailureKind, DescribeConfigsObserverError,
-    DescribeConfigsOutcome,
+    DescribeConfigsFailure, DescribeConfigsFailureKind, DescribeConfigsOutcome,
 };
 pub(crate) use shard::{
     DescribeConfigsAdmissionPort, DescribeConfigsShardLockError, DescribeConfigsShardOwner,

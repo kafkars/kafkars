@@ -4,10 +4,11 @@ use crate::bridge::admin::{
     AdminEngine, AdminRequest, DeleteAdminRequest, DescribeTopicsAdminRequest,
     PartitionsAdminRequest,
 };
+use crate::bridge::admin_configs_request::DescribeConfigsAdminRequest;
 
 use super::{
     CreatePartitionsBuilder, CreateTopicsBuilder, DeleteTopicsBuilder, DescribeClusterBuilder,
-    DescribeTopicsBuilder, NewPartitions, NewTopic,
+    DescribeConfigsBuilder, DescribeTopicsBuilder, NewPartitions, NewTopic, TopicConfigQuery,
 };
 
 /// Cheaply cloneable, thread-safe admin handle.
@@ -65,6 +66,20 @@ impl Admin {
     {
         let request = DescribeTopicsAdminRequest::from_topics(topics);
         DescribeTopicsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
+    }
+
+    /// Builds an inert ordered topic `DescribeConfigs` request.
+    ///
+    /// String items request all configurations. [`TopicConfigQuery`] items can
+    /// select an ordered set of keys per topic. No timeout starts and no
+    /// operation is admitted until [`DescribeConfigsBuilder::submit`] is called.
+    pub fn describe_configs<I, T>(&self, topics: I) -> DescribeConfigsBuilder
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<TopicConfigQuery>,
+    {
+        let request = DescribeConfigsAdminRequest::from_topics(topics);
+        DescribeConfigsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
     }
 
     /// Builds an inert automatic-assignment `CreatePartitions` request.

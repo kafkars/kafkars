@@ -14,6 +14,8 @@ use kafka_client_engine::{
 
 use crate::admin::{NewPartitions, NewTopic};
 
+use super::admin_configs_operation::AdminDescribeConfigs;
+use super::admin_configs_request::DescribeConfigsAdminRequest;
 use super::admin_delete_operation::AdminDeleteTopics;
 use super::admin_operation::AdminCreateTopics;
 use super::admin_partitions_operation::AdminCreatePartitions;
@@ -55,6 +57,17 @@ impl AdminEngine {
         timeout: Duration,
     ) -> AdminDescribeTopics {
         AdminDescribeTopics::from_admission(self.handle.try_describe_topics(request.inner, timeout))
+    }
+
+    pub(crate) fn submit_describe_configs(
+        &self,
+        request: DescribeConfigsAdminRequest,
+        timeout: Duration,
+    ) -> AdminDescribeConfigs {
+        AdminDescribeConfigs::from_admission(
+            self.handle
+                .try_describe_configs(request.into_engine(), timeout),
+        )
     }
 
     pub(crate) fn submit_create_partitions(
