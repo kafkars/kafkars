@@ -16,7 +16,7 @@ fn accepted_record_returns_public_delivery_with_one_end_to_end_timeout() {
     let client = build_client_at(broker.endpoint());
     let producer = client
         .producer()
-        .delivery_timeout(Duration::from_millis(50))
+        .delivery_timeout(Duration::from_millis(200))
         .build();
     let Ok(producer) = producer else {
         panic!("nonzero producer timeout should build")

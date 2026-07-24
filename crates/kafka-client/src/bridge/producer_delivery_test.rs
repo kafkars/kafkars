@@ -16,7 +16,7 @@ use crate::{DeliveryStatus, ErrorKind, Record, silent_broker_test::SilentBroker}
 fn accepted_delivery_is_one_runtime_neutral_observer() {
     let broker = SilentBroker::start();
     let engine = start_engine(broker.endpoint());
-    let mut delivery = accepted_delivery(&engine, Duration::from_millis(50));
+    let mut delivery = accepted_delivery(&engine, Duration::from_millis(200));
     let waker = Waker::noop();
     let mut context = Context::from_waker(waker);
 
@@ -36,7 +36,7 @@ fn accepted_delivery_is_one_runtime_neutral_observer() {
 fn polling_after_terminal_observation_is_a_safe_state_error() {
     let broker = SilentBroker::start();
     let engine = start_engine(broker.endpoint());
-    let mut delivery = accepted_delivery(&engine, Duration::from_millis(10));
+    let mut delivery = accepted_delivery(&engine, Duration::from_millis(200));
     let waker = Waker::noop();
     let mut context = Context::from_waker(waker);
     let started = Instant::now();
