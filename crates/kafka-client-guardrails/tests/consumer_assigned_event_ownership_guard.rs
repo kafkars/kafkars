@@ -37,6 +37,7 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
         &[
             "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_event.rs",
@@ -50,11 +51,17 @@ const METHODS: &[(&str, &[&str])] = &[
     ("install_partition_claim", &[PREPARED]),
     (
         "commit_event_claims",
-        &["crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs"],
+        &[
+            "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
+        ],
     ),
     (
         "rollback_event_claims",
-        &["crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs"],
+        &[
+            "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
+        ],
     ),
     ("take_event", &[OWNER_EVENT, PORT]),
     ("retain_terminal", &[OWNER_EVENT]),

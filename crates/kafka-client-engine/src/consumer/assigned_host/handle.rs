@@ -9,6 +9,7 @@ use super::{
         AssignedConsumerTryReplaceAssignmentError,
     },
     control::AssignedConsumerPartition,
+    control_capture::{AssignedConsumerResumeCapture, AssignedConsumerSeekCapture},
     control_result::{AssignedConsumerControlAccepted, AssignedConsumerControlError},
     delivery::{AssignedConsumerBatch, AssignedConsumerTryTakeBatchError},
     result::{AssignedConsumerTryCloseAccepted, AssignedConsumerTryCloseError},
@@ -97,8 +98,32 @@ impl AssignedConsumerHandle {
         partition: AssignedConsumerPartition,
         resolution_timeout: Duration,
     ) -> Result<AssignedConsumerControlAccepted, AssignedConsumerControlError> {
+        let capture = self.capture_resume(resolution_timeout)?;
+        capture.try_resume(epoch, partition)
+    }
+
+    /// Captures the resume deadline before caller-owned target conversion.
+    pub fn capture_resume(
+        &mut self,
+        resolution_timeout: Duration,
+    ) -> Result<AssignedConsumerResumeCapture<'_>, AssignedConsumerControlError> {
+        let deadline = self
+            .port
+            .capture_control_deadline(resolution_timeout)
+            .map_err(|error| AssignedConsumerControlError::from_port(&error))?;
+        Ok(AssignedConsumerResumeCapture::bind_deadline_to_handle(
+            self, deadline,
+        ))
+    }
+
+    pub(super) fn try_resume_captured(
+        &mut self,
+        epoch: AssignedConsumerAssignmentEpoch,
+        partition: AssignedConsumerPartition,
+        deadline: crate::clock::DeadlineCapture,
+    ) -> Result<AssignedConsumerControlAccepted, AssignedConsumerControlError> {
         self.port
-            .resume(epoch.into_core(), partition, resolution_timeout)
+            .resume_captured(epoch.into_core(), partition, deadline)
             .map(AssignedConsumerControlAccepted::from_port)
             .map_err(|error| AssignedConsumerControlError::from_port(&error))
     }
@@ -111,8 +136,33 @@ impl AssignedConsumerHandle {
         position: super::AssignedConsumerStartPosition,
         resolution_timeout: Duration,
     ) -> Result<AssignedConsumerControlAccepted, AssignedConsumerControlError> {
+        let capture = self.capture_seek(resolution_timeout)?;
+        capture.try_seek(epoch, partition, position)
+    }
+
+    /// Captures the seek deadline before caller-owned target and position conversion.
+    pub fn capture_seek(
+        &mut self,
+        resolution_timeout: Duration,
+    ) -> Result<AssignedConsumerSeekCapture<'_>, AssignedConsumerControlError> {
+        let deadline = self
+            .port
+            .capture_control_deadline(resolution_timeout)
+            .map_err(|error| AssignedConsumerControlError::from_port(&error))?;
+        Ok(AssignedConsumerSeekCapture::bind_deadline_to_handle(
+            self, deadline,
+        ))
+    }
+
+    pub(super) fn try_seek_captured(
+        &mut self,
+        epoch: AssignedConsumerAssignmentEpoch,
+        partition: AssignedConsumerPartition,
+        position: super::AssignedConsumerStartPosition,
+        deadline: crate::clock::DeadlineCapture,
+    ) -> Result<AssignedConsumerControlAccepted, AssignedConsumerControlError> {
         self.port
-            .seek(epoch.into_core(), partition, position, resolution_timeout)
+            .seek_captured(epoch.into_core(), partition, position, deadline)
             .map(AssignedConsumerControlAccepted::from_port)
             .map_err(|error| AssignedConsumerControlError::from_port(&error))
     }

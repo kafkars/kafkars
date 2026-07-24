@@ -49,6 +49,16 @@ impl AssignedConsumerAssignmentState {
             accepted_diagnostic: accepted.fault().map(translate_assigned_assignment_fault),
         })
     }
+
+    pub(super) const fn epoch(&self) -> EngineAssignmentEpoch {
+        self.epoch
+    }
+
+    pub(super) fn retain_control_diagnostic(&mut self, diagnostic: Option<KafkaError>) {
+        if diagnostic.is_some() {
+            self.accepted_diagnostic = diagnostic;
+        }
+    }
 }
 
 impl std::fmt::Debug for AssignedConsumerAssignmentState {
@@ -75,7 +85,7 @@ pub(super) fn into_engine_assignment(
         .map_err(translate_assigned_assignment_input)
 }
 
-const fn engine_start(start: StartPosition) -> EngineStartPosition {
+pub(super) const fn engine_start(start: StartPosition) -> EngineStartPosition {
     match start {
         StartPosition::Beginning => EngineStartPosition::Beginning,
         StartPosition::End => EngineStartPosition::End,

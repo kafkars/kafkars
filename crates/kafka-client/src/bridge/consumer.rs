@@ -7,7 +7,10 @@ use kafka_client_engine::{
 use crate::KafkaError;
 
 use super::{
-    consumer_assignment::AssignedConsumerAssignmentState, consumer_close::AssignedConsumerClose,
+    consumer_assignment::AssignedConsumerAssignmentState,
+    consumer_close::AssignedConsumerClose,
+    consumer_control::{try_pause, try_resume_captured, try_seek_captured},
+    consumer_control_result::{translate_assigned_control_admission, translate_missing_assignment},
     consumer_result::translate_assigned_consumer_claim,
 };
 
@@ -44,6 +47,53 @@ impl AssignedConsumerEngine {
         )?;
         self.assignment = Some(assignment);
         Ok(())
+    }
+
+    /// Attempts one deadline-free assignment-fenced pause.
+    pub(crate) fn try_pause(
+        &mut self,
+        partition: &crate::consumer::TopicPartition,
+    ) -> Result<(), KafkaError> {
+        let assignment = self
+            .assignment
+            .as_mut()
+            .ok_or_else(translate_missing_assignment)?;
+        try_pause(&mut self.handle, assignment, partition)
+    }
+
+    /// Captures time before checking state or converting the facade target.
+    pub(crate) fn try_resume(
+        &mut self,
+        partition: &crate::consumer::TopicPartition,
+        resolution_timeout: std::time::Duration,
+    ) -> Result<(), KafkaError> {
+        let capture = self
+            .handle
+            .capture_resume(resolution_timeout)
+            .map_err(translate_assigned_control_admission)?;
+        let assignment = self
+            .assignment
+            .as_mut()
+            .ok_or_else(translate_missing_assignment)?;
+        try_resume_captured(capture, assignment, partition)
+    }
+
+    /// Captures time before checking state or converting facade seek values.
+    pub(crate) fn try_seek(
+        &mut self,
+        partition: &crate::consumer::TopicPartition,
+        position: crate::consumer::StartPosition,
+        resolution_timeout: std::time::Duration,
+    ) -> Result<(), KafkaError> {
+        let capture = self
+            .handle
+            .capture_seek(resolution_timeout)
+            .map_err(translate_assigned_control_admission)?;
+        let assignment = self
+            .assignment
+            .as_mut()
+            .ok_or_else(translate_missing_assignment)?;
+        try_seek_captured(capture, assignment, partition, position)
     }
 
     /// Attempts bounded close without consuming this capability on rejection.

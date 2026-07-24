@@ -24,6 +24,9 @@ mod completion;
 #[cfg(test)]
 mod completion_test;
 mod control;
+mod control_capture;
+#[cfg(test)]
+mod control_capture_test;
 mod control_error;
 #[cfg(test)]
 mod control_error_test;
@@ -85,6 +88,7 @@ pub use control::{
     AssignedConsumerPartition, AssignedConsumerPartitionInputError,
     AssignedConsumerPartitionInputErrorKind,
 };
+pub use control_capture::{AssignedConsumerResumeCapture, AssignedConsumerSeekCapture};
 pub use control_result::{
     AssignedConsumerControlAccepted, AssignedConsumerControlError, AssignedConsumerControlErrorKind,
 };

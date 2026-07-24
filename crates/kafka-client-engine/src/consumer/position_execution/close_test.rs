@@ -6,8 +6,8 @@ use kafka_client_core::{
     AssignedConsumerEffect, AssignedConsumerInput, Deadline, Moment, PositionOwnership,
 };
 
-use super::position_execution::{PositionResolutionExecutor, PositionSubmission};
-use super::position_execution_test::{assignment, owner, prepared, shutdown};
+use super::owner_test::{assignment, owner, prepared, shutdown};
+use super::{PositionResolutionExecutor, PositionSubmission};
 
 #[test]
 fn close_supersedes_backpressured_position_before_zero_call_capacity() {

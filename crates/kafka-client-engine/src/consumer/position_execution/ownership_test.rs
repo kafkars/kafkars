@@ -6,10 +6,8 @@ use kafka_client_core::{
     AssignedConsumerInput, AssignedConsumerMachineError, Deadline, Moment, StartPosition,
 };
 
-use super::position_execution::{
-    PositionExecutionError, PositionResolutionExecutor, PositionSubmission,
-};
-use super::position_execution_test::{assignment, owner, prepared, resolve_fence, shutdown};
+use super::owner_test::{assignment, owner, prepared, resolve_fence, shutdown};
+use super::{PositionExecutionError, PositionResolutionExecutor, PositionSubmission};
 
 #[test]
 fn superseded_prepared_lookup_settles_before_zero_call_capacity() {

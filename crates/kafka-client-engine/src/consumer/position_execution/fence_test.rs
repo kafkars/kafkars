@@ -6,7 +6,7 @@ use kafka_client_core::{
     TopicId,
 };
 
-use super::position_execution::{PositionExecutionError, PositionResolutionExecutor};
+use super::{PositionExecutionError, PositionResolutionExecutor};
 
 #[test]
 fn newer_position_terminal_is_invariant_and_remains_owned() {

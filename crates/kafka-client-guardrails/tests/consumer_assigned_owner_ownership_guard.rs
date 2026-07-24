@@ -12,6 +12,7 @@ const PATH: &str = "crates/kafka-client-engine/src/consumer/assigned_owner.rs";
 const OWNER_FILES: &[&str] = &[
     "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
     "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+    "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
     "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
     "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
     "crates/kafka-client-engine/src/consumer/assigned_owner_fault.rs",
@@ -221,6 +222,7 @@ fn expected_paths(field: &str) -> Vec<String> {
     let paths: &[&str] = match field {
         "machine" => &[
             "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs",
@@ -229,6 +231,7 @@ fn expected_paths(field: &str) -> Vec<String> {
         "events" => &[
             "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_event.rs",
@@ -271,6 +274,7 @@ fn expected_paths(field: &str) -> Vec<String> {
         "fault" => &[
             "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",

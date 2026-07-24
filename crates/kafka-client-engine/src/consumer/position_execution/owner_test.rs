@@ -10,7 +10,7 @@ use kafka_client_core::{
 
 use crate::{EngineConfig, clock::OperationDeadline, driver::DriverOwner};
 
-use super::position_execution::{
+use super::{
     PositionExecutionError, PositionResolutionExecutor, PositionSubmission,
     PreparedPositionResolution,
 };
@@ -158,7 +158,7 @@ fn completion_corruption_is_fatal_until_post_driver_recovery() {
     assert_eq!(executor.retained_positions(), 0);
 }
 
-pub(super) fn assignment(
+pub(in crate::consumer) fn assignment(
     partitions: &[u32],
     deadline: Deadline,
 ) -> (Vec<AssignedConsumerEffect>, AssignedConsumerMachine) {
@@ -201,7 +201,7 @@ pub(super) fn prepared(
     .unwrap_or_else(|error| panic!("prepare position lookup: {error:?}"))
 }
 
-pub(super) fn resolve_fence(effect: AssignedConsumerEffect) -> PositionFence {
+pub(in crate::consumer) fn resolve_fence(effect: AssignedConsumerEffect) -> PositionFence {
     let AssignedConsumerEffect::ResolvePosition { fence, .. } = effect else {
         panic!("resolution effect");
     };

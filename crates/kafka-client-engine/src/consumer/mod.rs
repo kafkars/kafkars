@@ -17,6 +17,9 @@ mod assigned_owner_admission_test;
 mod assigned_owner_close;
 #[cfg(test)]
 mod assigned_owner_close_test;
+mod assigned_owner_control;
+#[cfg(test)]
+mod assigned_owner_control_test;
 mod assigned_owner_effect;
 #[cfg(test)]
 mod assigned_owner_effect_test;
@@ -66,14 +69,6 @@ mod fetch_store_domain_test;
 #[cfg(test)]
 mod fetch_store_test;
 mod position_execution;
-#[cfg(test)]
-mod position_execution_close_test;
-#[cfg(test)]
-mod position_execution_fence_test;
-#[cfg(test)]
-mod position_execution_ownership_test;
-#[cfg(test)]
-mod position_execution_test;
 mod position_prepare_error;
 #[cfg(test)]
 mod position_prepare_error_test;

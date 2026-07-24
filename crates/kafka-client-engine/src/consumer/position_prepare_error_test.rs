@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use kafka_client_core::Deadline;
 
 use super::{
-    position_execution::PreparedPositionResolution, position_execution_test::assignment,
+    position_execution::{PreparedPositionResolution, assignment},
     position_prepare_error::PreparePositionError,
 };
 use crate::{clock::OperationDeadline, protocol::consumer::ListOffsetsIsolation};

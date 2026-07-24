@@ -8,7 +8,7 @@ use support::{
     mutation_violations, workspace_root,
 };
 
-const EXECUTION: &str = "crates/kafka-client-engine/src/consumer/position_execution.rs";
+const EXECUTION: &str = "crates/kafka-client-engine/src/consumer/position_execution/owner.rs";
 const PREPARE_ERROR: &str = "crates/kafka-client-engine/src/consumer/position_prepare_error.rs";
 const OWNERSHIP: &str = "crates/kafka-client-core/src/consumer/position_ownership.rs";
 const LINEAR: &[(&str, &str)] = &[

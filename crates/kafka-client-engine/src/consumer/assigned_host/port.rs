@@ -45,6 +45,16 @@ impl AssignedConsumerPort {
         self.admit(move |owner| owner.replace_assignment_captured(entries, deadline))
     }
 
+    pub(crate) fn capture_control_deadline(
+        &self,
+        timeout: Duration,
+    ) -> Result<crate::clock::DeadlineCapture, AssignedConsumerPortError> {
+        self.shared
+            .clock
+            .capture_deadline_after(timeout)
+            .map_err(AssignedConsumerPortError::Clock)
+    }
+
     pub(crate) fn pause(
         &self,
         epoch: AssignmentEpoch,
@@ -59,11 +69,16 @@ impl AssignedConsumerPort {
         partition: AssignedConsumerPartition,
         timeout: Duration,
     ) -> Result<AssignedConsumerAccepted<()>, AssignedConsumerPortError> {
-        let capture = self
-            .shared
-            .clock
-            .capture_deadline_after(timeout)
-            .map_err(AssignedConsumerPortError::Clock)?;
+        let capture = self.capture_control_deadline(timeout)?;
+        self.resume_captured(epoch, partition, capture)
+    }
+
+    pub(crate) fn resume_captured(
+        &self,
+        epoch: AssignmentEpoch,
+        partition: AssignedConsumerPartition,
+        capture: crate::clock::DeadlineCapture,
+    ) -> Result<AssignedConsumerAccepted<()>, AssignedConsumerPortError> {
         self.admit(move |owner| owner.resume_named_captured(epoch, &partition, capture))
     }
 
@@ -74,11 +89,17 @@ impl AssignedConsumerPort {
         position: AssignedConsumerStartPosition,
         timeout: Duration,
     ) -> Result<AssignedConsumerAccepted<()>, AssignedConsumerPortError> {
-        let capture = self
-            .shared
-            .clock
-            .capture_deadline_after(timeout)
-            .map_err(AssignedConsumerPortError::Clock)?;
+        let capture = self.capture_control_deadline(timeout)?;
+        self.seek_captured(epoch, partition, position, capture)
+    }
+
+    pub(crate) fn seek_captured(
+        &self,
+        epoch: AssignmentEpoch,
+        partition: AssignedConsumerPartition,
+        position: AssignedConsumerStartPosition,
+        capture: crate::clock::DeadlineCapture,
+    ) -> Result<AssignedConsumerAccepted<()>, AssignedConsumerPortError> {
         self.admit(move |owner| owner.seek_named_captured(epoch, &partition, position, capture))
     }
 

@@ -6,7 +6,7 @@ use super::{
     assigned_owner_close_test::ready_owner,
     assigned_owner_fault::{AssignedConsumerFaultKind, AssignedConsumerOwnerFault},
     assigned_owner_test::{driver, input, owner, shutdown},
-    position_execution_test::{assignment, resolve_fence},
+    position_execution::{assignment, resolve_fence},
 };
 use kafka_client_core::{
     AssignedConsumerEffect, Deadline, FetchFailure, Moment, NextFetchOffset, StartPosition,

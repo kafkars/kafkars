@@ -19,6 +19,8 @@ pub(crate) mod consumer;
 pub(crate) mod consumer_assignment;
 pub(crate) mod consumer_assignment_result;
 pub(crate) mod consumer_close;
+pub(crate) mod consumer_control;
+pub(crate) mod consumer_control_result;
 pub(crate) mod consumer_result;
 pub(crate) mod producer;
 pub(crate) mod producer_barrier;
@@ -26,7 +28,6 @@ pub(crate) mod producer_delivery;
 pub(crate) mod producer_result;
 
 pub(crate) use client::ClientEngine;
-
 #[cfg(test)]
 mod admin_configs_operation_test;
 #[cfg(test)]
@@ -63,6 +64,10 @@ mod consumer_assignment_result_test;
 mod consumer_assignment_test;
 #[cfg(test)]
 mod consumer_close_test;
+#[cfg(test)]
+mod consumer_control_result_test;
+#[cfg(test)]
+mod consumer_control_test;
 #[cfg(test)]
 mod consumer_result_test;
 #[cfg(test)]

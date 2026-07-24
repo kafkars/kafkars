@@ -2,7 +2,7 @@
 
 use crate::bridge::consumer::AssignedConsumerEngine;
 
-use super::{CloseAssignedConsumer, TopicPartition};
+use super::{CloseAssignedConsumer, StartPosition, TopicPartition};
 
 /// Consumer whose positions are controlled directly rather than by a group.
 ///
@@ -32,6 +32,40 @@ impl AssignedConsumer {
     {
         self.engine
             .try_replace_assignment(entries, resolution_timeout)
+    }
+
+    /// Attempts to pause one partition in the active direct assignment.
+    ///
+    /// Only `partition`'s topic and partition identity are observed. This
+    /// operation has no position-resolution deadline.
+    pub fn try_pause(&mut self, partition: &TopicPartition) -> Result<(), crate::KafkaError> {
+        self.engine.try_pause(partition)
+    }
+
+    /// Attempts to resume one partition in the active direct assignment.
+    ///
+    /// The absolute position-resolution deadline starts before target
+    /// conversion. Rejection preserves the unique consumer and assignment.
+    pub fn try_resume(
+        &mut self,
+        partition: &TopicPartition,
+        resolution_timeout: std::time::Duration,
+    ) -> Result<(), crate::KafkaError> {
+        self.engine.try_resume(partition, resolution_timeout)
+    }
+
+    /// Attempts to replace one partition's next position.
+    ///
+    /// The absolute position-resolution deadline starts before target and
+    /// position conversion. Rejection preserves the consumer and assignment.
+    pub fn try_seek(
+        &mut self,
+        partition: &TopicPartition,
+        position: StartPosition,
+        resolution_timeout: std::time::Duration,
+    ) -> Result<(), crate::KafkaError> {
+        self.engine
+            .try_seek(partition, position, resolution_timeout)
     }
 
     /// Attempts to close this consumer and returns the sole terminal observer.

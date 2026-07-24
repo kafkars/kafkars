@@ -941,8 +941,8 @@ production = "crates/kafka-client-engine/src/driver/rpc/list_offsets_terminal.rs
 test = "crates/kafka-client-engine/src/driver/rpc/list_offsets_terminal_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/consumer/position_execution.rs"
-test = "crates/kafka-client-engine/src/consumer/position_execution_test.rs"
+production = "crates/kafka-client-engine/src/consumer/position_execution/owner.rs"
+test = "crates/kafka-client-engine/src/consumer/position_execution/owner_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_timers.rs"
@@ -1017,6 +1017,10 @@ production = "crates/kafka-client-engine/src/consumer/assigned_host/owner_contro
 test = "crates/kafka-client-engine/src/consumer/assigned_host/owner_control_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_owner_control_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs"
 test = "crates/kafka-client-engine/src/consumer/assigned_owner_close_test.rs"
 
@@ -1071,6 +1075,10 @@ test = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_result_
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_host/control.rs"
 test = "crates/kafka-client-engine/src/consumer/assigned_host/control_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/control_capture.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/control_capture_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_host/control_error.rs"
@@ -1331,6 +1339,14 @@ test = "crates/kafka-client/src/bridge/consumer_assignment_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/bridge/consumer_assignment_result.rs"
 test = "crates/kafka-client/src/bridge/consumer_assignment_result_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/consumer_control.rs"
+test = "crates/kafka-client/src/bridge/consumer_control_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/consumer_control_result.rs"
+test = "crates/kafka-client/src/bridge/consumer_control_result_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/bridge/consumer_close.rs"
@@ -1796,7 +1812,7 @@ forbidden = [
 # Direct-consumer position execution may use the engine driver port, never raw
 # driver, wire, clock acquisition, sibling policy, or generic async machinery.
 [[capability_rules]]
-root = "crates/kafka-client-engine/src/consumer/position_execution.rs"
+root = "crates/kafka-client-engine/src/consumer/position_execution/owner.rs"
 forbidden = [
   "crate::admin",
   "crate::producer",
@@ -2361,7 +2377,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/fetch_execution/admission.rs",
   "crates/kafka-client-engine/src/consumer/fetch_execution/executor.rs",
   "crates/kafka-client-engine/src/consumer/fetch_store.rs",
-  "crates/kafka-client-engine/src/consumer/position_execution.rs",
+  "crates/kafka-client-engine/src/consumer/position_execution/owner.rs",
   "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_partitions.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
@@ -2376,14 +2392,14 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "position_ownership"
 allowed_paths = [
-  "crates/kafka-client-engine/src/consumer/position_execution.rs",
+  "crates/kafka-client-engine/src/consumer/position_execution/owner.rs",
 ]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "poll_next_ready"
 allowed_paths = [
-  "crates/kafka-client-engine/src/consumer/position_execution.rs",
+  "crates/kafka-client-engine/src/consumer/position_execution/owner.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_partitions.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/delete_topics.rs",
@@ -2397,7 +2413,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "discard_settled"
 allowed_paths = [
-  "crates/kafka-client-engine/src/consumer/position_execution.rs",
+  "crates/kafka-client-engine/src/consumer/position_execution/owner.rs",
   "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs",
@@ -2521,7 +2537,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "recover_positions_after_driver_shutdown"
 allowed_paths = [
-  "crates/kafka-client-engine/src/consumer/position_execution.rs",
+  "crates/kafka-client-engine/src/consumer/position_execution/owner.rs",
 ]
 
 [[method_capabilities]]
@@ -2550,6 +2566,7 @@ root = "crates/kafka-client-engine/src"
 method = "commit_event_claims"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
 ]
 
 [[method_capabilities]]
@@ -2557,6 +2574,7 @@ root = "crates/kafka-client-engine/src"
 method = "rollback_event_claims"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
 ]
 
 [[method_capabilities]]
@@ -2628,7 +2646,7 @@ root = "crates/kafka-client-engine/src"
 method = "retained_count"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/fetch_execution/executor.rs",
-  "crates/kafka-client-engine/src/consumer/position_execution.rs",
+  "crates/kafka-client-engine/src/consumer/position_execution/owner.rs",
   "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
@@ -2731,6 +2749,20 @@ allowed_paths = [
 
 [[call_capabilities]]
 root = "crates/kafka-client-engine/src"
+call = "AssignedConsumerResumeCapture::bind_deadline_to_handle"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_host/handle.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "AssignedConsumerSeekCapture::bind_deadline_to_handle"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_host/handle.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
 call = "FetchAttemptDeadline::capture_for_fetch"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
@@ -2772,6 +2804,23 @@ forbidden = [
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/assigned_host/owner_control.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs"
 forbidden = [
   "kafka_driver",
   "kafka_wire",
@@ -3010,6 +3059,23 @@ forbidden = [
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/assigned_host/control.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/control_capture.rs"
 forbidden = [
   "kafka_driver",
   "kafka_wire",
@@ -4631,7 +4697,7 @@ allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.r
 owner_type = "PositionResolutionExecutor"
 field = "calls"
 allowed_paths = [
-  "crates/kafka-client-engine/src/consumer/position_execution.rs",
+  "crates/kafka-client-engine/src/consumer/position_execution/owner.rs",
 ]
 
 [[mutation_owners]]
@@ -4763,6 +4829,14 @@ owner_type = "AssignedConsumerAssignmentCapture"
 path = "crates/kafka-client-engine/src/consumer/assigned_host/assignment_capture.rs"
 
 [[linear_owners]]
+owner_type = "AssignedConsumerResumeCapture"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/control_capture.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerSeekCapture"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/control_capture.rs"
+
+[[linear_owners]]
 owner_type = "AssignedConsumerCompletionNotifier"
 path = "crates/kafka-client-engine/src/consumer/assigned_host/completion.rs"
 
@@ -4805,11 +4879,11 @@ path = "crates/kafka-client-engine/src/consumer/assigned_topics/prepared.rs"
 
 [[linear_owners]]
 owner_type = "PreparedPositionResolution"
-path = "crates/kafka-client-engine/src/consumer/position_execution.rs"
+path = "crates/kafka-client-engine/src/consumer/position_execution/owner.rs"
 
 [[linear_owners]]
 owner_type = "PositionResolutionExecutor"
-path = "crates/kafka-client-engine/src/consumer/position_execution.rs"
+path = "crates/kafka-client-engine/src/consumer/position_execution/owner.rs"
 
 [[linear_owners]]
 owner_type = "AssignedTimers"
@@ -4897,6 +4971,7 @@ owner_type = "AssignedConsumerOwner"
 field = "machine"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs",
@@ -4909,6 +4984,7 @@ field = "events"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_event.rs",
@@ -4985,6 +5061,7 @@ field = "fault"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",

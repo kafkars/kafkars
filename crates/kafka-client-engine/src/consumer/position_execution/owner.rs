@@ -14,7 +14,7 @@ use crate::{
     protocol::consumer::ListOffsetsIsolation,
 };
 
-use super::position_prepare_error::PreparePositionError;
+use super::super::position_prepare_error::PreparePositionError;
 
 /// One linear position effect paired with its original call-boundary deadline.
 #[must_use = "a prepared position resolution must be submitted or terminally settled"]
@@ -162,7 +162,7 @@ impl PositionResolutionExecutor {
     }
 
     #[cfg(test)]
-    pub(super) fn install_terminal_for_test(
+    pub(in crate::consumer) fn install_terminal_for_test(
         &mut self,
         fence: kafka_client_core::PositionFence,
         now: Moment,
@@ -171,7 +171,7 @@ impl PositionResolutionExecutor {
     }
 
     #[cfg(test)]
-    pub(super) fn install_completion_failure_for_test(
+    pub(in crate::consumer) fn install_completion_failure_for_test(
         &mut self,
         fence: kafka_client_core::PositionFence,
     ) {
