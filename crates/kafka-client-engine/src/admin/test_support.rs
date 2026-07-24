@@ -1,8 +1,8 @@
 //! Shared-admin-notifier ownership helpers for concrete host scenarios.
 
 use super::{
-    AdminCompletionNotifier, AdminCompletionPorts, CreateTopicsHost, DeleteTopicsHost,
-    DescribeClusterHost,
+    CreatePartitionsHost, CreateTopicsHost, DeleteTopicsHost, DescribeClusterHost,
+    completion::{AdminCompletionNotifier, AdminCompletionPorts},
 };
 
 pub(super) fn create_topics_host() -> (CreateTopicsHost, AdminCompletionNotifier) {
@@ -18,6 +18,11 @@ pub(super) fn delete_topics_host() -> (DeleteTopicsHost, AdminCompletionNotifier
 pub(super) fn describe_cluster_host() -> (DescribeClusterHost, AdminCompletionNotifier) {
     let (notifier, ports) = completion_owner();
     (DescribeClusterHost::new(ports.describe_cluster), notifier)
+}
+
+pub(super) fn create_partitions_host() -> (CreatePartitionsHost, AdminCompletionNotifier) {
+    let (notifier, ports) = completion_owner();
+    (CreatePartitionsHost::new(ports.create_partitions), notifier)
 }
 
 pub(super) fn completion_owner() -> (AdminCompletionNotifier, AdminCompletionPorts) {

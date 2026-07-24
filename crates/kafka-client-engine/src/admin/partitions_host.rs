@@ -1,4 +1,4 @@
-//! Bounded ownership of accepted `DeleteTopics` machines and terminal capacity.
+//! Bounded ownership of accepted `CreatePartitions` machines and capacity.
 
 mod admission;
 mod terminal;
@@ -6,8 +6,9 @@ mod terminal;
 use core::fmt;
 
 use kafka_client_core::{
-    DeleteTopicsEffect, DeleteTopicsInput, DeleteTopicsMachine, DeleteTopicsMachineError,
-    DeleteTopicsPlan, DeleteTopicsTerminal, Moment, OperationId,
+    CreatePartitionsEffect, CreatePartitionsInput, CreatePartitionsMachine,
+    CreatePartitionsMachineError, CreatePartitionsPlan, CreatePartitionsTerminal, Moment,
+    OperationId,
 };
 
 use crate::{
@@ -15,25 +16,27 @@ use crate::{
     completion::{CompletionId, CompletionRegistry, CompletionRegistryError},
 };
 
-use super::{DeleteTopicsObserver, completion::DeleteTopicsPublisher};
+use super::{CreatePartitionsObserver, completion::CreatePartitionsPublisher};
 
-pub(crate) const DELETE_TOPICS_CAPACITY: usize = 32;
-pub(crate) const DELETE_TOPICS_RETAINED_BYTES: usize = 4 * 1024 * 1024;
+pub(crate) const CREATE_PARTITIONS_CAPACITY: usize = 32;
+pub(crate) const CREATE_PARTITIONS_RETAINED_BYTES: usize = 4 * 1024 * 1024;
 
-pub(crate) struct DeleteTopicsAdmission {
-    pub(crate) observer: DeleteTopicsObserver,
-    pub(crate) fault: Option<DeleteTopicsHostError>,
+pub(crate) struct CreatePartitionsAdmission {
+    pub(crate) observer: CreatePartitionsObserver,
+    pub(crate) fault: Option<CreatePartitionsHostError>,
 }
 
-pub(crate) struct DeleteTopicsSubmission {
+pub(crate) struct CreatePartitionsSubmission {
     pub(crate) operation_id: OperationId,
     pub(crate) deadline: OperationDeadline,
-    pub(crate) plan: DeleteTopicsPlan,
+    pub(crate) plan: CreatePartitionsPlan,
     pub(crate) retained_bytes: usize,
 }
 
-impl DeleteTopicsSubmission {
-    pub(crate) fn into_parts(self) -> (OperationId, OperationDeadline, DeleteTopicsPlan, usize) {
+impl CreatePartitionsSubmission {
+    pub(crate) fn into_parts(
+        self,
+    ) -> (OperationId, OperationDeadline, CreatePartitionsPlan, usize) {
         (
             self.operation_id,
             self.deadline,
@@ -43,83 +46,86 @@ impl DeleteTopicsSubmission {
     }
 }
 
-pub(crate) enum DeleteTopicsTurn {
+pub(crate) enum CreatePartitionsTurn {
     Idle,
     Progress,
-    Submit(DeleteTopicsSubmission),
+    Submit(CreatePartitionsSubmission),
 }
 
-pub(super) struct DeleteTopicsOperation {
+pub(super) struct CreatePartitionsOperation {
     pub(super) operation_id: OperationId,
-    pub(super) machine: DeleteTopicsMachine,
+    pub(super) machine: CreatePartitionsMachine,
     pub(super) completion_id: CompletionId,
     pub(super) deadline: OperationDeadline,
     pub(super) retained_bytes: usize,
-    pub(super) submission: Option<DeleteTopicsSubmission>,
-    pub(super) terminal: Option<DeleteTopicsTerminal>,
+    pub(super) submission: Option<CreatePartitionsSubmission>,
+    pub(super) terminal: Option<CreatePartitionsTerminal>,
 }
 
-pub(crate) struct DeleteTopicsHost {
-    pub(super) operations: Vec<DeleteTopicsOperation>,
-    pub(super) completions: CompletionRegistry<DeleteTopicsTerminal, DeleteTopicsPublisher>,
+pub(crate) struct CreatePartitionsHost {
+    pub(super) operations: Vec<CreatePartitionsOperation>,
+    pub(super) completions: CompletionRegistry<CreatePartitionsTerminal, CreatePartitionsPublisher>,
     pub(super) next_operation_id: Option<OperationId>,
     pub(super) reclaim_pending: Option<CompletionId>,
     pub(super) retained_bytes: usize,
     pub(super) accepting: bool,
-    pub(super) health: Option<DeleteTopicsHostError>,
+    pub(super) health: Option<CreatePartitionsHostError>,
     pub(super) published_bytes: Vec<(CompletionId, usize)>,
 }
 
-impl DeleteTopicsHost {
-    pub(crate) fn new(publisher: DeleteTopicsPublisher) -> Self {
+impl CreatePartitionsHost {
+    pub(crate) fn new(publisher: CreatePartitionsPublisher) -> Self {
         Self {
-            operations: Vec::with_capacity(DELETE_TOPICS_CAPACITY),
-            completions: CompletionRegistry::with_publisher(DELETE_TOPICS_CAPACITY, publisher),
+            operations: Vec::with_capacity(CREATE_PARTITIONS_CAPACITY),
+            completions: CompletionRegistry::with_publisher(CREATE_PARTITIONS_CAPACITY, publisher),
             next_operation_id: Some(OperationId::from_raw(1)),
             reclaim_pending: None,
             retained_bytes: 0,
             accepting: true,
             health: None,
-            published_bytes: Vec::with_capacity(DELETE_TOPICS_CAPACITY),
+            published_bytes: Vec::with_capacity(CREATE_PARTITIONS_CAPACITY),
         }
     }
 
-    pub(crate) fn turn(&mut self, now: Moment) -> Result<DeleteTopicsTurn, DeleteTopicsHostError> {
+    pub(crate) fn turn(
+        &mut self,
+        now: Moment,
+    ) -> Result<CreatePartitionsTurn, CreatePartitionsHostError> {
         if let Some(error) = self.health {
             return Err(error);
         }
         if self.reclaim_one()? {
-            return Ok(DeleteTopicsTurn::Progress);
+            return Ok(CreatePartitionsTurn::Progress);
         }
         let Some(index) = self
             .operations
             .iter()
             .position(|operation| operation.submission.is_some())
         else {
-            return Ok(DeleteTopicsTurn::Idle);
+            return Ok(CreatePartitionsTurn::Idle);
         };
         if self.operations[index].deadline.core().is_elapsed_at(now) {
             let operation_id = self.operations[index].machine_id();
-            self.apply(operation_id, DeleteTopicsInput::DeadlineElapsed)?;
-            return Ok(DeleteTopicsTurn::Progress);
+            self.apply(operation_id, CreatePartitionsInput::DeadlineElapsed)?;
+            return Ok(CreatePartitionsTurn::Progress);
         }
         let submission = self.operations[index]
             .submission
             .take()
-            .ok_or(DeleteTopicsHostError::MissingSubmission)?;
-        Ok(DeleteTopicsTurn::Submit(submission))
+            .ok_or(CreatePartitionsHostError::MissingSubmission)?;
+        Ok(CreatePartitionsTurn::Submit(submission))
     }
 
     pub(crate) fn apply(
         &mut self,
         operation_id: OperationId,
-        input: DeleteTopicsInput,
-    ) -> Result<(), DeleteTopicsHostError> {
+        input: CreatePartitionsInput,
+    ) -> Result<(), CreatePartitionsHostError> {
         let index = self
             .operation_index(operation_id)
-            .ok_or(DeleteTopicsHostError::UnknownOperation)?;
+            .ok_or(CreatePartitionsHostError::UnknownOperation)?;
         let transition = self.operations[index].machine.apply(input)?;
-        if let Some(DeleteTopicsEffect::Complete { terminal, .. }) = transition.into_effect() {
+        if let Some(CreatePartitionsEffect::Complete { terminal, .. }) = transition.into_effect() {
             self.operations[index].terminal = Some(terminal);
             self.publish_terminal(index)?;
         }
@@ -149,15 +155,15 @@ impl DeleteTopicsHost {
     }
 }
 
-impl DeleteTopicsOperation {
+impl CreatePartitionsOperation {
     const fn machine_id(&self) -> OperationId {
         self.operation_id
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum DeleteTopicsHostError {
-    Machine(DeleteTopicsMachineError),
+pub(crate) enum CreatePartitionsHostError {
+    Machine(CreatePartitionsMachineError),
     Completion(CompletionRegistryError),
     UnknownOperation,
     MissingSubmission,
@@ -167,22 +173,25 @@ pub(crate) enum DeleteTopicsHostError {
     Wake,
 }
 
-impl From<DeleteTopicsMachineError> for DeleteTopicsHostError {
-    fn from(error: DeleteTopicsMachineError) -> Self {
+impl From<CreatePartitionsMachineError> for CreatePartitionsHostError {
+    fn from(error: CreatePartitionsMachineError) -> Self {
         Self::Machine(error)
     }
 }
 
-impl From<CompletionRegistryError> for DeleteTopicsHostError {
+impl From<CompletionRegistryError> for CreatePartitionsHostError {
     fn from(error: CompletionRegistryError) -> Self {
         Self::Completion(error)
     }
 }
 
-impl fmt::Display for DeleteTopicsHostError {
+impl fmt::Display for CreatePartitionsHostError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "DeleteTopics host invariant failed: {self:?}")
+        write!(
+            formatter,
+            "CreatePartitions host invariant failed: {self:?}"
+        )
     }
 }
 
-impl std::error::Error for DeleteTopicsHostError {}
+impl std::error::Error for CreatePartitionsHostError {}

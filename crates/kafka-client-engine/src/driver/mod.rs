@@ -21,8 +21,9 @@ pub(crate) use endpoint::EndpointError;
 pub(crate) use error::DriverOwnerError;
 pub(crate) use owner::{DriverOwner, DriverTurn};
 pub(crate) use rpc::{
-    CreateTopicsCompletionFailure, DeleteTopicsCompletionFailure, DescribeClusterCalls,
-    DescribeClusterCompletionFailure, ProduceCompletionFailure, ProducerIdentityCompletionFailure,
+    CreatePartitionsCompletionFailure, CreateTopicsCompletionFailure,
+    DeleteTopicsCompletionFailure, DescribeClusterCalls, DescribeClusterCompletionFailure,
+    ProduceCompletionFailure, ProducerIdentityCompletionFailure, TrackedCreatePartitionsCalls,
     TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls, TrackedProduceCalls,
     TrackedProducerIdentityCalls,
 };

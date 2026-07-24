@@ -210,7 +210,7 @@ fn retained_byte_limit_rejects_before_completion_reservation() {
     stop(host, notifier);
 }
 
-fn stop(host: CreateTopicsHost, notifier: super::AdminCompletionNotifier) {
+fn stop(host: CreateTopicsHost, notifier: super::completion::AdminCompletionNotifier) {
     drop(host);
     stop_notifier(notifier);
 }

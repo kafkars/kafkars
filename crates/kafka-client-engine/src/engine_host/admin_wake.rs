@@ -2,8 +2,9 @@
 
 use crate::{
     admin::{
-        CreateTopicsShardWake, CreateTopicsShardWakeError, DeleteTopicsShardWake,
-        DeleteTopicsShardWakeError, DescribeClusterShardWake, DescribeClusterShardWakeError,
+        CreatePartitionsShardWake, CreatePartitionsShardWakeError, CreateTopicsShardWake,
+        CreateTopicsShardWakeError, DeleteTopicsShardWake, DeleteTopicsShardWakeError,
+        DescribeClusterShardWake, DescribeClusterShardWakeError,
     },
     driver::ReactorWake,
 };
@@ -26,5 +27,12 @@ impl DescribeClusterShardWake for ReactorWake {
     fn wake(&self) -> Result<(), DescribeClusterShardWakeError> {
         self.request()
             .map_err(|error| DescribeClusterShardWakeError::from_io(error.into_io()))
+    }
+}
+
+impl CreatePartitionsShardWake for ReactorWake {
+    fn wake(&self) -> Result<(), CreatePartitionsShardWakeError> {
+        self.request()
+            .map_err(|error| CreatePartitionsShardWakeError::from_io(error.into_io()))
     }
 }

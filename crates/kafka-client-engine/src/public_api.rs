@@ -1,7 +1,11 @@
 //! Curated public re-exports for engine execution and observation.
 
 pub use crate::admin::{
-    AdminHandle, ClusterBroker, ClusterDescription, CreateTopic, CreateTopicConfig,
+    AdminHandle, ClusterBroker, ClusterDescription, CreatePartitionsAccepted,
+    CreatePartitionsAcceptedFaultKind, CreatePartitionsAdmissionError,
+    CreatePartitionsAdmissionErrorKind, CreatePartitionsDeliveryStatus, CreatePartitionsFailure,
+    CreatePartitionsFailureKind, CreatePartitionsObserver, CreatePartitionsObserverError,
+    CreatePartitionsOutcome, CreatePartitionsRequest, CreateTopic, CreateTopicConfig,
     CreateTopicError, CreateTopicResult, CreateTopicsAccepted, CreateTopicsAcceptedFaultKind,
     CreateTopicsAdmissionError, CreateTopicsAdmissionErrorKind, CreateTopicsDeliveryStatus,
     CreateTopicsFailure, CreateTopicsFailureKind, CreateTopicsObserver, CreateTopicsObserverError,
@@ -13,6 +17,7 @@ pub use crate::admin::{
     DescribeClusterAdmissionError, DescribeClusterAdmissionErrorKind, DescribeClusterBrokerError,
     DescribeClusterDeliveryStatus, DescribeClusterFailure, DescribeClusterFailureKind,
     DescribeClusterObserver, DescribeClusterObserverError, DescribeClusterOutcome,
+    PartitionIncrease, PartitionIncreaseError, PartitionIncreaseResult,
 };
 pub use crate::config::{EngineConfig, EngineProducerLimits};
 pub use crate::delivery::{

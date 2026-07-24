@@ -106,7 +106,7 @@ fn queued_and_taken_recovery_preserve_the_last_not_sent_boundary() {
 fn admitted() -> (
     DeleteTopicsHost,
     super::delete_host::DeleteTopicsAdmission,
-    super::AdminCompletionNotifier,
+    super::completion::AdminCompletionNotifier,
 ) {
     let (mut host, notifier) = delete_topics_host();
     let admission = host
@@ -134,7 +134,7 @@ fn assert_failure(
     assert_eq!(failure.delivery(), delivery);
 }
 
-fn stop(host: DeleteTopicsHost, notifier: super::AdminCompletionNotifier) {
+fn stop(host: DeleteTopicsHost, notifier: super::completion::AdminCompletionNotifier) {
     drop(host);
     stop_notifier(notifier);
 }

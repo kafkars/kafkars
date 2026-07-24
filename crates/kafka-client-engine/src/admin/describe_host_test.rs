@@ -126,7 +126,7 @@ fn deadline(tick: u64) -> OperationDeadline {
     )
 }
 
-fn stop(host: DescribeClusterHost, notifier: super::AdminCompletionNotifier) {
+fn stop(host: DescribeClusterHost, notifier: super::completion::AdminCompletionNotifier) {
     drop(host);
     stop_notifier(notifier);
 }

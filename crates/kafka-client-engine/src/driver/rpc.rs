@@ -3,6 +3,15 @@
 mod calls;
 #[cfg(test)]
 mod calls_test;
+mod create_partitions_calls;
+#[cfg(test)]
+mod create_partitions_calls_test;
+mod create_partitions_submission;
+#[cfg(test)]
+mod create_partitions_submission_test;
+mod create_partitions_terminal;
+#[cfg(test)]
+mod create_partitions_terminal_test;
 mod create_topics_calls;
 #[cfg(test)]
 mod create_topics_calls_test;
@@ -41,6 +50,9 @@ mod submission;
 mod submission_test;
 
 pub(crate) use calls::{ProduceCompletionFailure, TrackedProduceCalls};
+pub(crate) use create_partitions_calls::{
+    CreatePartitionsCompletionFailure, TrackedCreatePartitionsCalls,
+};
 pub(crate) use create_topics_calls::{CreateTopicsCompletionFailure, TrackedCreateTopicsCalls};
 pub(crate) use delete_topics_calls::{DeleteTopicsCompletionFailure, TrackedDeleteTopicsCalls};
 pub(crate) use describe_cluster_calls::{DescribeClusterCalls, DescribeClusterCompletionFailure};

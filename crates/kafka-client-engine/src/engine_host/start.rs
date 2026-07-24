@@ -9,8 +9,9 @@ use std::{
 use crate::{
     EngineConfig,
     admin::{
-        AdminCompletionNotifier, AdminCompletionPorts, CreateTopicsHost, CreateTopicsShardOwner,
+        CreatePartitionsHost, CreatePartitionsShardOwner, CreateTopicsHost, CreateTopicsShardOwner,
         DeleteTopicsHost, DeleteTopicsShardOwner, DescribeClusterHost, DescribeClusterShardOwner,
+        completion::{AdminCompletionNotifier, AdminCompletionPorts},
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
@@ -33,6 +34,7 @@ pub(crate) struct StartedEngineHost {
     pub(crate) create_topics_admission: crate::admin::CreateTopicsAdmissionPort,
     pub(crate) delete_topics_admission: crate::admin::DeleteTopicsAdmissionPort,
     pub(crate) describe_cluster_admission: crate::admin::DescribeClusterAdmissionPort,
+    pub(crate) create_partitions_admission: crate::admin::CreatePartitionsAdmissionPort,
     pub(crate) clock: Arc<MonotonicClock>,
     pub(crate) control: Arc<EngineHostControl>,
     pub(crate) lifecycle: Arc<EngineLifecycle>,
@@ -70,10 +72,12 @@ pub(crate) fn start(
         create_topics,
         delete_topics,
         describe_cluster,
+        create_partitions,
     } = admin_ports;
     let create_topics = CreateTopicsHost::new(create_topics);
     let delete_topics = DeleteTopicsHost::new(delete_topics);
     let describe_cluster = DescribeClusterHost::new(describe_cluster);
+    let create_partitions = CreatePartitionsHost::new(create_partitions);
     let producer = match ProducerHost::new(validated.host_limits) {
         Ok(producer) => producer,
         Err(error) => {
@@ -83,14 +87,9 @@ pub(crate) fn start(
             return cancel_start(sender, handle, EngineStartError::producer(&error));
         }
     };
-    if let Some(thread_id) = producer.notifier_thread_id() {
-        lifecycle.install_notifier_thread(thread_id);
-    }
+    install_notifier_threads(&lifecycle, &producer, &admin_notifier);
     let producer = ProducerShardOwner::new(producer, Arc::new(wake));
     let admission = producer.admission_port();
-    if let Some(thread_id) = admin_notifier.thread_id() {
-        lifecycle.install_notifier_thread(thread_id);
-    }
     let create_topics = CreateTopicsShardOwner::new(create_topics, Arc::new(driver.reactor_wake()));
     let create_topics_admission = create_topics.admission_port();
     let delete_topics = DeleteTopicsShardOwner::new(delete_topics, Arc::new(driver.reactor_wake()));
@@ -98,6 +97,9 @@ pub(crate) fn start(
     let describe_cluster =
         DescribeClusterShardOwner::new(describe_cluster, Arc::new(driver.reactor_wake()));
     let describe_cluster_admission = describe_cluster.admission_port();
+    let create_partitions =
+        CreatePartitionsShardOwner::new(create_partitions, Arc::new(driver.reactor_wake()));
+    let create_partitions_admission = create_partitions.admission_port();
     let produce_calls =
         crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
     let resources = EngineHostResources {
@@ -107,6 +109,7 @@ pub(crate) fn start(
         create_topics,
         delete_topics,
         describe_cluster,
+        create_partitions,
         clock: Arc::clone(&clock),
         control: Arc::clone(&control),
         budget: validated.turn_budget,
@@ -120,6 +123,9 @@ pub(crate) fn start(
         ),
         describe_cluster_calls: crate::driver::DescribeClusterCalls::new(
             crate::admin::DESCRIBE_CLUSTER_CAPACITY,
+        ),
+        create_partitions_calls: crate::driver::TrackedCreatePartitionsCalls::new(
+            crate::admin::CREATE_PARTITIONS_CAPACITY,
         ),
     };
     if let Err(error) = sender.send(resources) {
@@ -138,10 +144,24 @@ pub(crate) fn start(
         create_topics_admission,
         delete_topics_admission,
         describe_cluster_admission,
+        create_partitions_admission,
         clock,
         control,
         lifecycle,
     })
+}
+
+fn install_notifier_threads(
+    lifecycle: &EngineLifecycle,
+    producer: &ProducerHost,
+    admin: &AdminCompletionNotifier,
+) {
+    if let Some(thread_id) = producer.notifier_thread_id() {
+        lifecycle.install_notifier_thread(thread_id);
+    }
+    if let Some(thread_id) = admin.thread_id() {
+        lifecycle.install_notifier_thread(thread_id);
+    }
 }
 
 fn cancel_start(

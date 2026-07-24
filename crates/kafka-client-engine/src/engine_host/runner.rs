@@ -5,11 +5,15 @@ use std::{sync::Arc, time::Duration};
 use kafka_client_core::{Deadline, Moment};
 
 use crate::{
-    admin::{CreateTopicsShardOwner, DeleteTopicsShardOwner, DescribeClusterShardOwner},
+    admin::{
+        CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteTopicsShardOwner,
+        DescribeClusterShardOwner,
+    },
     clock::MonotonicClock,
     driver::{
-        DescribeClusterCalls, DriverOwner, DriverTurn, TrackedCreateTopicsCalls,
-        TrackedDeleteTopicsCalls, TrackedProduceCalls, TrackedProducerIdentityCalls,
+        DescribeClusterCalls, DriverOwner, DriverTurn, TrackedCreatePartitionsCalls,
+        TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls, TrackedProduceCalls,
+        TrackedProducerIdentityCalls,
     },
     producer::{
         host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
@@ -32,10 +36,11 @@ const SHUTDOWN_TURN_ATTEMPTS: usize = 64;
 pub(crate) struct EngineHostResources {
     pub(super) driver: Option<DriverOwner>,
     pub(super) producer: ProducerShardOwner,
-    pub(super) admin_notifier: crate::admin::AdminCompletionNotifier,
+    pub(super) admin_notifier: crate::admin::completion::AdminCompletionNotifier,
     pub(super) create_topics: CreateTopicsShardOwner,
     pub(super) delete_topics: DeleteTopicsShardOwner,
     pub(super) describe_cluster: DescribeClusterShardOwner,
+    pub(super) create_partitions: CreatePartitionsShardOwner,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) control: Arc<EngineHostControl>,
     pub(super) budget: ProducerTurnBudget,
@@ -44,6 +49,7 @@ pub(crate) struct EngineHostResources {
     pub(super) create_topics_calls: TrackedCreateTopicsCalls,
     pub(super) delete_topics_calls: TrackedDeleteTopicsCalls,
     pub(super) describe_cluster_calls: DescribeClusterCalls,
+    pub(super) create_partitions_calls: TrackedCreatePartitionsCalls,
 }
 
 impl Drop for EngineHostResources {
@@ -52,6 +58,7 @@ impl Drop for EngineHostResources {
         let _close_result = self.create_topics.admission_port().close_admission();
         let _close_result = self.delete_topics.admission_port().close_admission();
         let _close_result = self.describe_cluster.admission_port().close_admission();
+        let _close_result = self.create_partitions.admission_port().close_admission();
     }
 }
 

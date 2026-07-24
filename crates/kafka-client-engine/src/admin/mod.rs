@@ -1,6 +1,5 @@
 //! Concrete bounded admin owners without a generic state-machine framework.
-
-mod completion;
+pub(crate) mod completion;
 #[cfg(test)]
 mod completion_test;
 mod delete_error;
@@ -22,12 +21,19 @@ mod host;
 mod model;
 mod observer;
 mod outcome;
+mod partitions_error;
+mod partitions_handle;
+mod partitions_host;
+mod partitions_model;
+mod partitions_observer;
+mod partitions_outcome;
+mod partitions_shard;
 mod public_api;
 pub(crate) mod retention;
 mod shard;
 #[cfg(test)]
 mod test_support;
-
+pub use public_api::*;
 #[cfg(test)]
 mod delete_handle_test;
 #[cfg(test)]
@@ -57,12 +63,16 @@ mod model_test;
 #[cfg(test)]
 mod observer_test;
 #[cfg(test)]
+mod partitions_handle_test;
+#[cfg(test)]
+mod partitions_host_test;
+#[cfg(test)]
+mod partitions_model_test;
+#[cfg(test)]
+mod partitions_observer_test;
+#[cfg(test)]
+mod partitions_shard_test;
+#[cfg(test)]
 mod retention_test;
 #[cfg(test)]
 mod shard_test;
-
-pub(crate) use completion::{
-    AdminCompletionNotifier, AdminCompletionPorts, CreateTopicsPublisher, DeleteTopicsPublisher,
-    DescribeClusterPublisher,
-};
-pub use public_api::*;

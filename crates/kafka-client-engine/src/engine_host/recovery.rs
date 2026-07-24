@@ -23,6 +23,7 @@ pub(crate) fn recover(
     drop(resources.create_topics.terminal_host());
     drop(resources.delete_topics.terminal_host());
     drop(resources.describe_cluster.terminal_host());
+    drop(resources.create_partitions.terminal_host());
     if let Some(cleanup) = shutdown_driver(resources).err() {
         failure = failure.with_cleanup(cleanup);
     }
@@ -41,6 +42,9 @@ pub(crate) fn recover(
         .discard_after_driver_shutdown();
     resources
         .describe_cluster_calls
+        .discard_after_driver_shutdown();
+    resources
+        .create_partitions_calls
         .discard_after_driver_shutdown();
     #[cfg(test)]
     resources.control.record_recovery_driver_released();
@@ -77,6 +81,20 @@ pub(crate) fn recover(
         failure = failure.with_cleanup(EngineHostError::ProducerCleanup(error.into()));
     }
     drop(producer);
+    failure = recover_admin_operations(resources, failure);
+    if let Some(notifier) = resources.admin_notifier.take_join() {
+        notifiers.push(notifier);
+    }
+    EngineHostExit {
+        notifier: NotifierShutdownOwner::new(notifiers),
+        failure: Some(failure),
+    }
+}
+
+fn recover_admin_operations(
+    resources: &EngineHostResources,
+    mut failure: EngineHostError,
+) -> EngineHostError {
     let mut create_topics = resources.create_topics.terminal_host();
     if let Some(cleanup) = create_topics
         .recover_after_driver_shutdown()
@@ -104,11 +122,14 @@ pub(crate) fn recover(
         failure = failure.with_cleanup(cleanup);
     }
     drop(describe_cluster);
-    if let Some(notifier) = resources.admin_notifier.take_join() {
-        notifiers.push(notifier);
+    let mut create_partitions = resources.create_partitions.terminal_host();
+    if let Some(cleanup) = create_partitions
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::CreatePartitions)
+    {
+        failure = failure.with_cleanup(cleanup);
     }
-    EngineHostExit {
-        notifier: NotifierShutdownOwner::new(notifiers),
-        failure: Some(failure),
-    }
+    drop(create_partitions);
+    failure
 }

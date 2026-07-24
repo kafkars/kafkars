@@ -3,13 +3,16 @@
 use std::fmt;
 
 use crate::{
-    admin::{CreateTopicsHostError, DeleteTopicsHostError, DescribeClusterHostError},
+    admin::{
+        CreatePartitionsHostError, CreateTopicsHostError, DeleteTopicsHostError,
+        DescribeClusterHostError,
+    },
     clock::ClockError,
     completion::{CompletionRegistryError, NotifierJoinError},
     driver::{
-        CreateTopicsCompletionFailure, DeleteTopicsCompletionFailure,
-        DescribeClusterCompletionFailure, DriverOwnerError, ProduceCompletionFailure,
-        ProducerIdentityCompletionFailure,
+        CreatePartitionsCompletionFailure, CreateTopicsCompletionFailure,
+        DeleteTopicsCompletionFailure, DescribeClusterCompletionFailure, DriverOwnerError,
+        ProduceCompletionFailure, ProducerIdentityCompletionFailure,
     },
     producer::{
         ProducerHostInvariantError, ProducerIdentityHandoffError,
@@ -38,6 +41,9 @@ pub(crate) enum EngineHostError {
     DescribeCluster(DescribeClusterHostError),
     DescribeClusterCompletion(DescribeClusterCompletionFailure),
     DescribeClusterLockPoisoned,
+    CreatePartitions(CreatePartitionsHostError),
+    CreatePartitionsCompletion(CreatePartitionsCompletionFailure),
+    CreatePartitionsLockPoisoned,
     AdminCompletion(CompletionRegistryError),
     Driver(DriverOwnerError),
     DriverOwnerMissing,
@@ -47,6 +53,7 @@ pub(crate) enum EngineHostError {
     TrackedCreateTopicsCallsRemain(usize),
     TrackedDeleteTopicsCallsRemain(usize),
     DescribeClusterCallsRemain(usize),
+    TrackedCreatePartitionsCallsRemain(usize),
     HostPanicked,
     Notifier(NotifierJoinError),
     Recovery {
@@ -94,6 +101,13 @@ impl fmt::Display for EngineHostError {
             Self::DescribeClusterLockPoisoned => {
                 formatter.write_str("DescribeCluster host ownership lock is poisoned")
             }
+            Self::CreatePartitions(error) => {
+                write!(formatter, "CreatePartitions host failed: {error}")
+            }
+            Self::CreatePartitionsCompletion(error) => write!(formatter, "{error}"),
+            Self::CreatePartitionsLockPoisoned => {
+                formatter.write_str("CreatePartitions host ownership lock is poisoned")
+            }
             Self::AdminCompletion(error) => {
                 write!(
                     formatter,
@@ -129,6 +143,12 @@ impl fmt::Display for EngineHostError {
                 write!(
                     formatter,
                     "{count} DescribeCluster calls remain at terminal cleanup"
+                )
+            }
+            Self::TrackedCreatePartitionsCallsRemain(count) => {
+                write!(
+                    formatter,
+                    "{count} tracked CreatePartitions calls remain at terminal cleanup"
                 )
             }
             Self::HostPanicked => formatter.write_str("engine host thread panicked"),

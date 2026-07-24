@@ -63,6 +63,12 @@ fn verify_tracked_calls(resources: &EngineHostResources) -> Result<(), EngineHos
     if describe != 0 {
         return Err(EngineHostError::DescribeClusterCallsRemain(describe));
     }
+    let partitions = resources.create_partitions_calls.retained_count();
+    if partitions != 0 {
+        return Err(EngineHostError::TrackedCreatePartitionsCallsRemain(
+            partitions,
+        ));
+    }
     Ok(())
 }
 
@@ -83,6 +89,12 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
     if describe != 0 {
         return Err(EngineHostError::DescribeCluster(
             crate::admin::DescribeClusterHostError::Unsettled(describe),
+        ));
+    }
+    let partitions = resources.create_partitions.terminal_host().unsettled();
+    if partitions != 0 {
+        return Err(EngineHostError::CreatePartitions(
+            crate::admin::CreatePartitionsHostError::Unsettled(partitions),
         ));
     }
     Ok(())

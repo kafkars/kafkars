@@ -15,7 +15,7 @@ use crate::{
     completion::{CompletionId, CompletionRegistry, CompletionRegistryError},
 };
 
-use super::{CreateTopicsObserver, CreateTopicsPublisher};
+use super::{CreateTopicsObserver, completion::CreateTopicsPublisher};
 
 pub(crate) const CREATE_TOPICS_CAPACITY: usize = 32;
 pub(crate) const CREATE_TOPICS_RETAINED_BYTES: usize = 4 * 1024 * 1024;

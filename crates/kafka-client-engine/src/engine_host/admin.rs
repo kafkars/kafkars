@@ -1,5 +1,6 @@
 //! Declarative sequencing boundary for concrete admin operation owners.
 
+mod create_partitions;
 mod create_topics;
 mod delete_topics;
 mod describe_cluster;

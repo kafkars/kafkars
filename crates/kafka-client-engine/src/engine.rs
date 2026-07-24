@@ -22,6 +22,7 @@ struct EngineInner {
     create_topics_admission: crate::admin::CreateTopicsAdmissionPort,
     delete_topics_admission: crate::admin::DeleteTopicsAdmissionPort,
     describe_cluster_admission: crate::admin::DescribeClusterAdmissionPort,
+    create_partitions_admission: crate::admin::CreatePartitionsAdmissionPort,
     clock: Arc<crate::clock::MonotonicClock>,
     control: Arc<EngineHostControl>,
     lifecycle: Arc<EngineLifecycle>,
@@ -36,6 +37,7 @@ impl Engine {
             create_topics_admission,
             delete_topics_admission,
             describe_cluster_admission,
+            create_partitions_admission,
             clock,
             control,
             lifecycle,
@@ -47,6 +49,7 @@ impl Engine {
                 create_topics_admission,
                 delete_topics_admission,
                 describe_cluster_admission,
+                create_partitions_admission,
                 clock,
                 control,
                 lifecycle,
@@ -71,6 +74,7 @@ impl Engine {
             self.inner.create_topics_admission.clone(),
             self.inner.delete_topics_admission.clone(),
             self.inner.describe_cluster_admission.clone(),
+            self.inner.create_partitions_admission.clone(),
             Arc::clone(&self.inner.clock),
             lifetime,
         )
@@ -130,6 +134,7 @@ impl EngineInner {
         let _close_result = self.create_topics_admission.close_admission();
         let _close_result = self.delete_topics_admission.close_admission();
         let _close_result = self.describe_cluster_admission.close_admission();
+        let _close_result = self.create_partitions_admission.close_admission();
         self.lifecycle.request_and_wait(&self.control)
     }
 }
@@ -140,6 +145,7 @@ impl Drop for EngineInner {
         let _close_result = self.create_topics_admission.close_admission();
         let _close_result = self.delete_topics_admission.close_admission();
         let _close_result = self.describe_cluster_admission.close_admission();
+        let _close_result = self.create_partitions_admission.close_admission();
         self.lifecycle.request(&self.control);
     }
 }

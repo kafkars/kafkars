@@ -5,6 +5,7 @@ use std::cell::Cell;
 use kafka_client_core::{Deadline, Moment};
 
 use super::{
+    create_partitions::CreatePartitionsProgress,
     create_topics::CreateTopicsProgress,
     delete_topics::DeleteTopicsProgress,
     describe_cluster::DescribeClusterProgress,
@@ -26,6 +27,11 @@ fn saturated_create_lane_cannot_hide_runnable_delete_work() {
             next_deadline: Some(Deadline::from_tick(7)),
         },
         &DescribeClusterProgress {
+            unsettled: 0,
+            driver_progress: false,
+            next_deadline: None,
+        },
+        &CreatePartitionsProgress {
             unsettled: 0,
             driver_progress: false,
             next_deadline: None,
@@ -55,6 +61,11 @@ fn either_concrete_owner_prevents_false_shutdown_quiescence() {
                 driver_progress: false,
                 next_deadline: Some(Deadline::from_tick(7)),
             },
+            &CreatePartitionsProgress {
+                unsettled: 0,
+                driver_progress: false,
+                next_deadline: None,
+            },
         );
         assert_ne!(combined.unsettled, 0);
         assert_eq!(combined.next_deadline, Some(Deadline::from_tick(5)));
@@ -79,6 +90,11 @@ fn describe_cluster_owner_prevents_false_shutdown_quiescence() {
             driver_progress: false,
             next_deadline: Some(Deadline::from_tick(7)),
         },
+        &CreatePartitionsProgress {
+            unsettled: 0,
+            driver_progress: false,
+            next_deadline: None,
+        },
     );
     assert_eq!(combined.unsettled, 1);
     assert_eq!(combined.next_deadline, Some(Deadline::from_tick(7)));
@@ -102,10 +118,44 @@ fn saturated_delete_lane_cannot_hide_runnable_describe_cluster_work() {
             driver_progress: true,
             next_deadline: Some(Deadline::from_tick(4)),
         },
+        &CreatePartitionsProgress {
+            unsettled: 0,
+            driver_progress: false,
+            next_deadline: None,
+        },
     );
     assert_eq!(combined.unsettled, usize::MAX);
     assert!(combined.driver_progress);
     assert_eq!(combined.next_deadline, Some(Deadline::from_tick(4)));
+}
+
+#[test]
+fn create_partitions_owner_is_independent_and_prevents_false_quiescence() {
+    let combined = combine(
+        &CreateTopicsProgress {
+            unsettled: 0,
+            driver_progress: false,
+            next_deadline: None,
+        },
+        &DeleteTopicsProgress {
+            unsettled: 0,
+            driver_progress: false,
+            next_deadline: None,
+        },
+        &DescribeClusterProgress {
+            unsettled: usize::MAX,
+            driver_progress: false,
+            next_deadline: None,
+        },
+        &CreatePartitionsProgress {
+            unsettled: 1,
+            driver_progress: true,
+            next_deadline: Some(Deadline::from_tick(3)),
+        },
+    );
+    assert_eq!(combined.unsettled, usize::MAX);
+    assert!(combined.driver_progress);
+    assert_eq!(combined.next_deadline, Some(Deadline::from_tick(3)));
 }
 
 #[test]

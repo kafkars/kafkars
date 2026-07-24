@@ -6,7 +6,7 @@ use kafka_client_core::{Deadline, Moment};
 
 use super::{
     super::{EngineHostError, EngineHostResources},
-    create_topics, delete_topics, describe_cluster,
+    create_partitions, create_topics, delete_topics, describe_cluster,
 };
 
 pub(in crate::engine_host) struct AdminProgress {
@@ -33,7 +33,9 @@ pub(in crate::engine_host) fn drive(
         || clock.now().map_err(EngineHostError::Clock),
     )?;
     let describe = describe_cluster::drive(resources, describe_now)?;
-    Ok(combine(&create, &delete, &describe))
+    let partitions_now = clock.now().map_err(EngineHostError::Clock)?;
+    let partitions = create_partitions::drive(resources, partitions_now)?;
+    Ok(combine(&create, &delete, &describe, &partitions))
 }
 
 pub(super) fn drive_create_then_capture_delete(
@@ -60,18 +62,21 @@ pub(super) const fn combine(
     create: &create_topics::CreateTopicsProgress,
     delete: &delete_topics::DeleteTopicsProgress,
     describe: &describe_cluster::DescribeClusterProgress,
+    partitions: &create_partitions::CreatePartitionsProgress,
 ) -> AdminProgress {
     AdminProgress {
         unsettled: create
             .unsettled
             .saturating_add(delete.unsettled)
-            .saturating_add(describe.unsettled),
+            .saturating_add(describe.unsettled)
+            .saturating_add(partitions.unsettled),
         driver_progress: create.driver_progress
             || delete.driver_progress
-            || describe.driver_progress,
+            || describe.driver_progress
+            || partitions.driver_progress,
         next_deadline: earliest(
             earliest(create.next_deadline, delete.next_deadline),
-            describe.next_deadline,
+            earliest(describe.next_deadline, partitions.next_deadline),
         ),
     }
 }
@@ -82,7 +87,8 @@ pub(in crate::engine_host) fn apply_completions(
     let create = create_topics::apply_completions(resources)?;
     let delete = delete_topics::apply_completions(resources)?;
     let describe = describe_cluster::apply_completions(resources)?;
-    Ok(create || delete || describe)
+    let partitions = create_partitions::apply_completions(resources)?;
+    Ok(create || delete || describe || partitions)
 }
 
 #[cfg(test)]
