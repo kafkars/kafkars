@@ -24,11 +24,11 @@ fn partial_notifier_acquisition_joins_the_owner_already_taken() {
     });
     let producer = crate::completion::NotifierJoin::from_handle_for_test(producer_handle);
     let fallback = crate::completion::NotifierJoin::from_handle_for_test(admin_handle);
-    let admin = Err(EngineHostError::Admin(
+    let admin = Err(EngineHostError::CreateTopics(
         crate::admin::CreateTopicsHostError::Unsettled(1),
     ));
 
-    let (notifiers, failure) = collect_notification_joins(producer, admin, Some(fallback));
+    let (notifiers, failure) = collect_notification_joins(producer, [(admin, Some(fallback))]);
     assert_eq!(notifiers.len(), 2);
     assert!(failure.is_some());
     let mut owner = NotifierShutdownOwner::new(notifiers);

@@ -5,9 +5,12 @@ use std::{sync::Arc, time::Duration};
 use kafka_client_core::{Deadline, Moment};
 
 use crate::{
-    admin::CreateTopicsShardOwner,
+    admin::{CreateTopicsShardOwner, DeleteTopicsShardOwner},
     clock::MonotonicClock,
-    driver::{DriverOwner, DriverTurn, TrackedCreateTopicsCalls, TrackedProduceCalls},
+    driver::{
+        DriverOwner, DriverTurn, TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls,
+        TrackedProduceCalls,
+    },
     producer::{
         host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
         ingress::ProducerShardOwner,
@@ -29,18 +32,21 @@ const SHUTDOWN_TURN_ATTEMPTS: usize = 64;
 pub(crate) struct EngineHostResources {
     pub(super) driver: Option<DriverOwner>,
     pub(super) producer: ProducerShardOwner,
-    pub(super) admin: CreateTopicsShardOwner,
+    pub(super) create_topics: CreateTopicsShardOwner,
+    pub(super) delete_topics: DeleteTopicsShardOwner,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) control: Arc<EngineHostControl>,
     pub(super) budget: ProducerTurnBudget,
     pub(super) produce_calls: TrackedProduceCalls,
     pub(super) create_topics_calls: TrackedCreateTopicsCalls,
+    pub(super) delete_topics_calls: TrackedDeleteTopicsCalls,
 }
 
 impl Drop for EngineHostResources {
     fn drop(&mut self) {
         let _close_result = self.producer.close_admission();
-        let _close_result = self.admin.admission_port().close_admission();
+        let _close_result = self.create_topics.admission_port().close_admission();
+        let _close_result = self.delete_topics.admission_port().close_admission();
     }
 }
 
@@ -59,10 +65,9 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
         let producer_now = resources.clock.now().map_err(EngineHostError::Clock)?;
         let producer = produce_turn::drive(resources, producer_now)?;
         // Producer execution may encode, submit, and apply completions before
-        // admin receives its turn. Recapture time so CreateTopics never
-        // computes a broker timeout from a stale pre-producer observation.
-        let admin_now = resources.clock.now().map_err(EngineHostError::Clock)?;
-        let admin = admin::drive(resources, admin_now)?;
+        // admin receives its turn. Recapture time so admin operations never
+        // compute broker timeouts from a stale pre-producer observation.
+        let admin = admin::drive(resources)?;
         #[cfg(test)]
         if producer.driver_progress && resources.control.await_failure_after_produce_admission() {
             return Err(EngineHostError::ForcedTestFailure);
@@ -71,13 +76,14 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
         {
             break;
         }
+        let wait_now = resources.clock.now().map_err(EngineHostError::Clock)?;
         let wait = producer_wait(
-            admin_now,
+            wait_now,
             producer.outcome,
             driver_more_work || producer.driver_progress || admin.driver_progress,
         );
         let wait = admin.next_deadline.map_or(wait, |deadline| {
-            wait.min(duration_until(admin_now, deadline))
+            wait.min(duration_until(wait_now, deadline))
         });
         resources.control.record_driver_turn();
         let driver = resources

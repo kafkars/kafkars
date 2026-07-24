@@ -239,6 +239,18 @@ production = "crates/kafka-client-engine/src/driver/rpc/create_topics_terminal.r
 test = "crates/kafka-client-engine/src/driver/rpc/create_topics_terminal_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/delete_topics_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/delete_topics_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/delete_topics_terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/delete_topics_terminal_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/shutdown.rs"
 test = "crates/kafka-client-engine/src/driver/shutdown_test.rs"
 
@@ -555,6 +567,14 @@ production = "crates/kafka-client-engine/src/protocol/admin/result_budget.rs"
 test = "crates/kafka-client-engine/src/protocol/admin/result_budget_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/delete_topics.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/delete_topics_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/delete_topics_budget.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/delete_topics_budget_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/admin/timeout.rs"
 test = "crates/kafka-client-engine/src/protocol/admin/timeout_test.rs"
 
@@ -585,6 +605,30 @@ test = "crates/kafka-client-engine/src/admin/observer_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/admin/shard.rs"
 test = "crates/kafka-client-engine/src/admin/shard_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/delete_handle.rs"
+test = "crates/kafka-client-engine/src/admin/delete_handle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/delete_host.rs"
+test = "crates/kafka-client-engine/src/admin/delete_host_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/delete_model.rs"
+test = "crates/kafka-client-engine/src/admin/delete_model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/delete_observer.rs"
+test = "crates/kafka-client-engine/src/admin/delete_observer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/delete_shard.rs"
+test = "crates/kafka-client-engine/src/admin/delete_shard_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/admin/schedule.rs"
+test = "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-guardrails/src/invariant_registry/evidence.rs"
@@ -918,6 +962,7 @@ root = "crates/kafka-client-engine/src"
 method = "try_reserve"
 allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
+  "crates/kafka-client-engine/src/engine_host/admin/delete_topics.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
 
@@ -926,6 +971,7 @@ root = "crates/kafka-client-engine/src"
 method = "poll_next_ready"
 allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
+  "crates/kafka-client-engine/src/engine_host/admin/delete_topics.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
 
@@ -934,7 +980,9 @@ root = "crates/kafka-client-engine/src"
 method = "discard_settled"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
+  "crates/kafka-client-engine/src/engine_host/admin/delete_topics.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
 
@@ -943,6 +991,13 @@ root = "crates/kafka-client-engine/src"
 method = "submit_tracked_create_topics"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_delete_topics"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs",
 ]
 
 [[method_capabilities]]
@@ -957,6 +1012,7 @@ root = "crates/kafka-client-engine/src"
 method = "retained_count"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs",
   "crates/kafka-client-engine/src/engine_host/cleanup.rs",
 ]
 
@@ -1574,6 +1630,59 @@ field = "settled"
 allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs"]
 
 [[mutation_owners]]
+owner_type = "DeleteTopicsHost"
+field = "operations"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/delete_host.rs",
+  "crates/kafka-client-engine/src/admin/delete_host/admission.rs",
+  "crates/kafka-client-engine/src/admin/delete_host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DeleteTopicsHost"
+field = "completions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/delete_host.rs",
+  "crates/kafka-client-engine/src/admin/delete_host/admission.rs",
+  "crates/kafka-client-engine/src/admin/delete_host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DeleteTopicsHost"
+field = "retained_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/delete_host.rs",
+  "crates/kafka-client-engine/src/admin/delete_host/admission.rs",
+  "crates/kafka-client-engine/src/admin/delete_host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DeleteTopicsHost"
+field = "published_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/delete_host.rs",
+  "crates/kafka-client-engine/src/admin/delete_host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DeleteTopicsHost"
+field = "next_operation_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/delete_host.rs",
+  "crates/kafka-client-engine/src/admin/delete_host/admission.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedDeleteTopicsCalls"
+field = "calls"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs"]
+
+[[mutation_owners]]
+owner_type = "TrackedDeleteTopicsCalls"
+field = "settled"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs"]
+
+[[mutation_owners]]
 owner_type = "TrackedProduceCalls"
 field = "settled"
 allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/calls.rs"]
@@ -1834,6 +1943,38 @@ path = "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs"
 [[linear_owners]]
 owner_type = "SettledCreateTopicsCall"
 path = "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs"
+
+[[linear_owners]]
+owner_type = "DeleteTopicsHost"
+path = "crates/kafka-client-engine/src/admin/delete_host.rs"
+
+[[linear_owners]]
+owner_type = "DeleteTopicsOperation"
+path = "crates/kafka-client-engine/src/admin/delete_host.rs"
+
+[[linear_owners]]
+owner_type = "DeleteTopicsShardOwner"
+path = "crates/kafka-client-engine/src/admin/delete_shard.rs"
+
+[[linear_owners]]
+owner_type = "DeleteTopicsObserver"
+path = "crates/kafka-client-engine/src/admin/delete_observer.rs"
+
+[[linear_owners]]
+owner_type = "TrackedDeleteTopicsCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs"
+
+[[linear_owners]]
+owner_type = "TrackedDeleteTopicsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs"
+
+[[linear_owners]]
+owner_type = "DeleteTopicsCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs"
+
+[[linear_owners]]
+owner_type = "SettledDeleteTopicsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs"
 
 [[linear_owners]]
 owner_type = "NotifierShutdownOwner"

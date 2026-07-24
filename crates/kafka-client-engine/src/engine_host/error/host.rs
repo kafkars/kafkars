@@ -3,10 +3,13 @@
 use std::fmt;
 
 use crate::{
-    admin::CreateTopicsHostError,
+    admin::{CreateTopicsHostError, DeleteTopicsHostError},
     clock::ClockError,
     completion::NotifierJoinError,
-    driver::{CreateTopicsCompletionFailure, DriverOwnerError, ProduceCompletionFailure},
+    driver::{
+        CreateTopicsCompletionFailure, DeleteTopicsCompletionFailure, DriverOwnerError,
+        ProduceCompletionFailure,
+    },
     producer::{
         ProducerHostInvariantError, execution::PreparedProduceHandoffError,
         execution_stop::ProducerExecutionStopError, ingress::ProducerShardTerminalError,
@@ -22,14 +25,18 @@ pub(crate) enum EngineHostError {
     ProducerStop(ProducerExecutionStopError),
     ProducerCleanup(ProducerShardTerminalError),
     ProducerLockPoisoned,
-    Admin(CreateTopicsHostError),
+    CreateTopics(CreateTopicsHostError),
     CreateTopicsCompletion(CreateTopicsCompletionFailure),
-    AdminLockPoisoned,
+    CreateTopicsLockPoisoned,
+    DeleteTopics(DeleteTopicsHostError),
+    DeleteTopicsCompletion(DeleteTopicsCompletionFailure),
+    DeleteTopicsLockPoisoned,
     Driver(DriverOwnerError),
     DriverOwnerMissing,
     DriverStopped,
     TrackedProduceCallsRemain(usize),
     TrackedCreateTopicsCallsRemain(usize),
+    TrackedDeleteTopicsCallsRemain(usize),
     HostPanicked,
     Notifier(NotifierJoinError),
     Recovery {
@@ -56,10 +63,15 @@ impl fmt::Display for EngineHostError {
             Self::ProducerLockPoisoned => {
                 formatter.write_str("producer host ownership lock is poisoned")
             }
-            Self::Admin(error) => write!(formatter, "CreateTopics host failed: {error}"),
+            Self::CreateTopics(error) => write!(formatter, "CreateTopics host failed: {error}"),
             Self::CreateTopicsCompletion(error) => write!(formatter, "{error}"),
-            Self::AdminLockPoisoned => {
+            Self::CreateTopicsLockPoisoned => {
                 formatter.write_str("CreateTopics host ownership lock is poisoned")
+            }
+            Self::DeleteTopics(error) => write!(formatter, "DeleteTopics host failed: {error}"),
+            Self::DeleteTopicsCompletion(error) => write!(formatter, "{error}"),
+            Self::DeleteTopicsLockPoisoned => {
+                formatter.write_str("DeleteTopics host ownership lock is poisoned")
             }
             Self::Driver(error) => write!(formatter, "embedded driver failed: {error}"),
             Self::DriverOwnerMissing => formatter.write_str("embedded driver owner is unavailable"),
@@ -74,6 +86,12 @@ impl fmt::Display for EngineHostError {
                 write!(
                     formatter,
                     "{count} tracked CreateTopics calls remain at terminal cleanup"
+                )
+            }
+            Self::TrackedDeleteTopicsCallsRemain(count) => {
+                write!(
+                    formatter,
+                    "{count} tracked DeleteTopics calls remain at terminal cleanup"
                 )
             }
             Self::HostPanicked => formatter.write_str("engine host thread panicked"),

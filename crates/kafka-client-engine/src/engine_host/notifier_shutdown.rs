@@ -35,21 +35,24 @@ impl Drop for NotifierShutdownOwner {
 
 pub(super) fn collect_notification_joins(
     producer: NotifierJoin,
-    admin: Result<NotifierJoin, EngineHostError>,
-    admin_fallback: Option<NotifierJoin>,
+    admins: impl IntoIterator<Item = (Result<NotifierJoin, EngineHostError>, Option<NotifierJoin>)>,
 ) -> (Vec<NotifierJoin>, Option<EngineHostError>) {
-    let mut notifiers = Vec::with_capacity(2);
+    let mut notifiers = Vec::with_capacity(3);
     notifiers.push(producer);
-    match admin {
-        Ok(admin) => {
-            notifiers.push(admin);
-            (notifiers, None)
-        }
-        Err(error) => {
-            if let Some(admin) = admin_fallback {
-                notifiers.push(admin);
+    let mut failure: Option<EngineHostError> = None;
+    for (admin, fallback) in admins {
+        match admin {
+            Ok(admin) => notifiers.push(admin),
+            Err(error) => {
+                if let Some(admin) = fallback {
+                    notifiers.push(admin);
+                }
+                failure = Some(match failure {
+                    Some(primary) => primary.with_cleanup(error),
+                    None => error,
+                });
             }
-            (notifiers, Some(error))
         }
     }
+    (notifiers, failure)
 }

@@ -1,29 +1,32 @@
-//! Runtime-neutral public admission handle for concrete `CreateTopics` work.
+//! Runtime-neutral public handle retaining concrete admin admission ports.
 
 use std::{fmt, sync::Arc, time::Duration};
 
 use super::{
     CreateTopicsAdmissionError, CreateTopicsAdmissionErrorKind, CreateTopicsObserver,
-    CreateTopicsRequest, shard::CreateTopicsAdmissionPort,
+    CreateTopicsRequest, DeleteTopicsAdmissionPort, shard::CreateTopicsAdmissionPort,
 };
 use crate::clock::MonotonicClock;
 
-/// Cheaply cloneable handle to the one concrete admin shard.
+/// Cheaply cloneable handle to the concrete admin shards.
 #[derive(Clone)]
 pub struct AdminHandle {
-    admission: CreateTopicsAdmissionPort,
-    clock: Arc<MonotonicClock>,
+    pub(super) create_topics: CreateTopicsAdmissionPort,
+    pub(super) delete_topics: DeleteTopicsAdmissionPort,
+    pub(super) clock: Arc<MonotonicClock>,
     _lifetime: Arc<dyn Send + Sync>,
 }
 
 impl AdminHandle {
     pub(crate) fn new(
-        admission: CreateTopicsAdmissionPort,
+        create_topics: CreateTopicsAdmissionPort,
+        delete_topics: DeleteTopicsAdmissionPort,
         clock: Arc<MonotonicClock>,
         lifetime: Arc<dyn Send + Sync>,
     ) -> Self {
         Self {
-            admission,
+            create_topics,
+            delete_topics,
             clock,
             _lifetime: lifetime,
         }
@@ -54,7 +57,7 @@ impl AdminHandle {
             CreateTopicsAdmissionError::new(CreateTopicsAdmissionErrorKind::InvalidRequest)
         })?;
         let admission = self
-            .admission
+            .create_topics
             .try_admit(
                 capture.now(),
                 capture.operation_deadline(),

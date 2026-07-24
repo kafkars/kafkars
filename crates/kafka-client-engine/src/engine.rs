@@ -19,7 +19,8 @@ pub struct Engine {
 struct EngineInner {
     config: EngineConfig,
     admission: crate::producer::ingress::ProducerAdmissionPort,
-    admin_admission: crate::admin::CreateTopicsAdmissionPort,
+    create_topics_admission: crate::admin::CreateTopicsAdmissionPort,
+    delete_topics_admission: crate::admin::DeleteTopicsAdmissionPort,
     clock: Arc<crate::clock::MonotonicClock>,
     control: Arc<EngineHostControl>,
     lifecycle: Arc<EngineLifecycle>,
@@ -31,7 +32,8 @@ impl Engine {
         let validated = config.validate().map_err(EngineStartError::configuration)?;
         let StartedEngineHost {
             admission,
-            admin_admission,
+            create_topics_admission,
+            delete_topics_admission,
             clock,
             control,
             lifecycle,
@@ -40,7 +42,8 @@ impl Engine {
             inner: Arc::new(EngineInner {
                 config,
                 admission,
-                admin_admission,
+                create_topics_admission,
+                delete_topics_admission,
                 clock,
                 control,
                 lifecycle,
@@ -58,11 +61,12 @@ impl Engine {
         )
     }
 
-    /// Returns a runtime-neutral concrete admin handle.
+    /// Returns a runtime-neutral handle over concrete admin operations.
     pub fn admin(&self) -> AdminHandle {
         let lifetime: Arc<dyn Send + Sync> = self.inner.clone();
         AdminHandle::new(
-            self.inner.admin_admission.clone(),
+            self.inner.create_topics_admission.clone(),
+            self.inner.delete_topics_admission.clone(),
             Arc::clone(&self.inner.clock),
             lifetime,
         )
@@ -114,7 +118,8 @@ impl Engine {
 impl EngineInner {
     fn shutdown(&self) -> Result<(), EngineShutdownError> {
         let _close_result = self.admission.close_admission();
-        let _close_result = self.admin_admission.close_admission();
+        let _close_result = self.create_topics_admission.close_admission();
+        let _close_result = self.delete_topics_admission.close_admission();
         self.lifecycle.request_and_wait(&self.control)
     }
 }
@@ -122,7 +127,8 @@ impl EngineInner {
 impl Drop for EngineInner {
     fn drop(&mut self) {
         let _close_result = self.admission.close_admission();
-        let _close_result = self.admin_admission.close_admission();
+        let _close_result = self.create_topics_admission.close_admission();
+        let _close_result = self.delete_topics_admission.close_admission();
         self.lifecycle.request(&self.control);
     }
 }

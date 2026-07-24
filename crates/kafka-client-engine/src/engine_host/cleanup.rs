@@ -12,11 +12,22 @@ pub(super) fn begin_notification_shutdown(
         .begin_notification_shutdown()
         .map_err(EngineHostError::ProducerCleanup)?;
     drop(data);
-    let mut admin_host = resources.admin.terminal_host();
-    let admin = admin_host.stop_notifier().map_err(EngineHostError::Admin);
-    let fallback = admin_host.recover_notifier();
-    drop(admin_host);
-    Ok(collect_notification_joins(producer, admin, fallback))
+    let mut create_host = resources.create_topics.terminal_host();
+    let create = create_host
+        .stop_notifier()
+        .map_err(EngineHostError::CreateTopics);
+    let create_fallback = create_host.recover_notifier();
+    drop(create_host);
+    let mut delete_host = resources.delete_topics.terminal_host();
+    let delete = delete_host
+        .stop_notifier()
+        .map_err(EngineHostError::DeleteTopics);
+    let delete_fallback = delete_host.recover_notifier();
+    drop(delete_host);
+    Ok(collect_notification_joins(
+        producer,
+        [(create, create_fallback), (delete, delete_fallback)],
+    ))
 }
 
 /// Verifies every tracked call and operation before notifier stop.
@@ -45,14 +56,24 @@ fn verify_tracked_calls(resources: &EngineHostResources) -> Result<(), EngineHos
     if create != 0 {
         return Err(EngineHostError::TrackedCreateTopicsCallsRemain(create));
     }
+    let delete = resources.delete_topics_calls.retained_count();
+    if delete != 0 {
+        return Err(EngineHostError::TrackedDeleteTopicsCallsRemain(delete));
+    }
     Ok(())
 }
 
 fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), EngineHostError> {
-    let create = resources.admin.terminal_host().unsettled();
+    let create = resources.create_topics.terminal_host().unsettled();
     if create != 0 {
-        return Err(EngineHostError::Admin(
+        return Err(EngineHostError::CreateTopics(
             crate::admin::CreateTopicsHostError::Unsettled(create),
+        ));
+    }
+    let delete = resources.delete_topics.terminal_host().unsettled();
+    if delete != 0 {
+        return Err(EngineHostError::DeleteTopics(
+            crate::admin::DeleteTopicsHostError::Unsettled(delete),
         ));
     }
     Ok(())

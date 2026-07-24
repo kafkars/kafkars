@@ -8,30 +8,32 @@ use super::super::{EngineHostError, EngineHostResources};
 
 const CREATE_TOPICS_COMPLETION_BUDGET: usize = 16;
 
-pub(in crate::engine_host) struct AdminProgress {
-    pub(in crate::engine_host) unsettled: usize,
-    pub(in crate::engine_host) driver_progress: bool,
-    pub(in crate::engine_host) next_deadline: Option<Deadline>,
+pub(super) struct CreateTopicsProgress {
+    pub(super) unsettled: usize,
+    pub(super) driver_progress: bool,
+    pub(super) next_deadline: Option<Deadline>,
 }
 
-pub(in crate::engine_host) fn drive(
+pub(super) fn drive(
     resources: &mut EngineHostResources,
     now: Moment,
-) -> Result<AdminProgress, EngineHostError> {
+) -> Result<CreateTopicsProgress, EngineHostError> {
     let Some(permit) = resources.create_topics_calls.try_reserve() else {
-        return snapshot(&resources.admin);
+        return snapshot(&resources.create_topics);
     };
-    let mut host = match resources.admin.try_host() {
+    let mut host = match resources.create_topics.try_host() {
         Ok(host) => host,
-        Err(CreateTopicsShardLockError::Contended) => return Ok(AdminProgress::contended()),
+        Err(CreateTopicsShardLockError::Contended) => {
+            return Ok(CreateTopicsProgress::contended());
+        }
         Err(CreateTopicsShardLockError::Poisoned) => {
-            return Err(EngineHostError::AdminLockPoisoned);
+            return Err(EngineHostError::CreateTopicsLockPoisoned);
         }
     };
     if resources.control.shutdown_requested() {
-        resources.admin.close_locked(&mut host);
+        resources.create_topics.close_locked(&mut host);
     }
-    let turn = host.turn(now).map_err(EngineHostError::Admin)?;
+    let turn = host.turn(now).map_err(EngineHostError::CreateTopics)?;
     let driver_progress = match turn {
         CreateTopicsTurn::Idle => false,
         CreateTopicsTurn::Progress => true,
@@ -44,29 +46,29 @@ pub(in crate::engine_host) fn drive(
             match permit.submit(driver, operation_id, deadline, plan, retained_bytes, now) {
                 Ok(()) => host
                     .apply(operation_id, CreateTopicsInput::DriverAccepted)
-                    .map_err(EngineHostError::Admin)?,
+                    .map_err(EngineHostError::CreateTopics)?,
                 Err(rejection) => host
                     .apply(operation_id, rejection.core_input())
-                    .map_err(EngineHostError::Admin)?,
+                    .map_err(EngineHostError::CreateTopics)?,
             }
             true
         }
     };
-    Ok(AdminProgress {
+    Ok(CreateTopicsProgress {
         unsettled: host.unsettled(),
         driver_progress,
         next_deadline: host.next_deadline(),
     })
 }
 
-pub(in crate::engine_host) fn apply_completions(
+pub(super) fn apply_completions(
     resources: &mut EngineHostResources,
 ) -> Result<bool, EngineHostError> {
-    let mut host = match resources.admin.try_host() {
+    let mut host = match resources.create_topics.try_host() {
         Ok(host) => host,
         Err(CreateTopicsShardLockError::Contended) => return Ok(false),
         Err(CreateTopicsShardLockError::Poisoned) => {
-            return Err(EngineHostError::AdminLockPoisoned);
+            return Err(EngineHostError::CreateTopicsLockPoisoned);
         }
     };
     let mut progress = false;
@@ -79,11 +81,11 @@ pub(in crate::engine_host) fn apply_completions(
             break;
         };
         let operation_id = settled.operation_id();
-        let input = settled.take_input().ok_or(EngineHostError::Admin(
+        let input = settled.take_input().ok_or(EngineHostError::CreateTopics(
             crate::admin::CreateTopicsHostError::MissingTerminal,
         ))?;
         host.apply(operation_id, input)
-            .map_err(EngineHostError::Admin)?;
+            .map_err(EngineHostError::CreateTopics)?;
         resources.create_topics_calls.discard_settled();
         progress = true;
     }
@@ -91,24 +93,26 @@ pub(in crate::engine_host) fn apply_completions(
 }
 
 fn snapshot(
-    admin: &crate::admin::CreateTopicsShardOwner,
-) -> Result<AdminProgress, EngineHostError> {
-    let host = match admin.try_host() {
+    owner: &crate::admin::CreateTopicsShardOwner,
+) -> Result<CreateTopicsProgress, EngineHostError> {
+    let host = match owner.try_host() {
         Ok(host) => host,
-        Err(CreateTopicsShardLockError::Contended) => return Ok(AdminProgress::contended()),
+        Err(CreateTopicsShardLockError::Contended) => {
+            return Ok(CreateTopicsProgress::contended());
+        }
         Err(CreateTopicsShardLockError::Poisoned) => {
-            return Err(EngineHostError::AdminLockPoisoned);
+            return Err(EngineHostError::CreateTopicsLockPoisoned);
         }
     };
-    Ok(AdminProgress {
+    Ok(CreateTopicsProgress {
         unsettled: host.unsettled(),
         driver_progress: false,
         next_deadline: host.next_deadline(),
     })
 }
 
-impl AdminProgress {
-    pub(in crate::engine_host) const fn contended() -> Self {
+impl CreateTopicsProgress {
+    pub(super) const fn contended() -> Self {
         Self {
             unsettled: usize::MAX,
             driver_progress: false,

@@ -57,10 +57,17 @@ impl EngineStartError {
         Self::new(EngineStartErrorKind::Producer, error.to_string())
     }
 
-    pub(super) fn admin(error: &std::io::Error) -> Self {
+    pub(super) fn create_topics(error: &std::io::Error) -> Self {
         Self::new(
             EngineStartErrorKind::Admin,
             format!("failed to start CreateTopics completion notifier: {error}"),
+        )
+    }
+
+    pub(super) fn delete_topics(error: &std::io::Error) -> Self {
+        Self::new(
+            EngineStartErrorKind::Admin,
+            format!("failed to start DeleteTopics completion notifier: {error}"),
         )
     }
 

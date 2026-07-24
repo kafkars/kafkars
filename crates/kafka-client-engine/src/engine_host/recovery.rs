@@ -20,7 +20,8 @@ pub(crate) fn recover(
     let mut failure = primary;
     // Fence application admission before any execution owner is quiesced.
     drop(resources.producer.terminal_data());
-    drop(resources.admin.terminal_host());
+    drop(resources.create_topics.terminal_host());
+    drop(resources.delete_topics.terminal_host());
     if let Some(cleanup) = shutdown_driver(resources).err() {
         failure = failure.with_cleanup(cleanup);
     }
@@ -30,6 +31,9 @@ pub(crate) fn recover(
     resources.produce_calls.discard_after_driver_shutdown();
     resources
         .create_topics_calls
+        .discard_after_driver_shutdown();
+    resources
+        .delete_topics_calls
         .discard_after_driver_shutdown();
     #[cfg(test)]
     resources.control.record_recovery_driver_released();
@@ -58,7 +62,7 @@ pub(crate) fn recover(
         failure = failure.with_cleanup(cleanup);
     }
     let recovery = producer.recover_notifier();
-    let mut notifiers = Vec::with_capacity(2);
+    let mut notifiers = Vec::with_capacity(3);
     if let Some(notifier) = recovery.notifier {
         notifiers.push(notifier);
     }
@@ -66,18 +70,30 @@ pub(crate) fn recover(
         failure = failure.with_cleanup(EngineHostError::ProducerCleanup(error.into()));
     }
     drop(producer);
-    let mut admin = resources.admin.terminal_host();
-    if let Some(cleanup) = admin
+    let mut create_topics = resources.create_topics.terminal_host();
+    if let Some(cleanup) = create_topics
         .recover_after_driver_shutdown()
         .err()
-        .map(EngineHostError::Admin)
+        .map(EngineHostError::CreateTopics)
     {
         failure = failure.with_cleanup(cleanup);
     }
-    if let Some(notifier) = admin.recover_notifier() {
+    if let Some(notifier) = create_topics.recover_notifier() {
         notifiers.push(notifier);
     }
-    drop(admin);
+    drop(create_topics);
+    let mut delete_topics = resources.delete_topics.terminal_host();
+    if let Some(cleanup) = delete_topics
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::DeleteTopics)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    if let Some(notifier) = delete_topics.recover_notifier() {
+        notifiers.push(notifier);
+    }
+    drop(delete_topics);
     EngineHostExit {
         notifier: NotifierShutdownOwner::new(notifiers),
         failure: Some(failure),

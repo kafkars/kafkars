@@ -5,7 +5,10 @@ pub use crate::admin::{
     CreateTopicsAccepted, CreateTopicsAcceptedFaultKind, CreateTopicsAdmissionError,
     CreateTopicsAdmissionErrorKind, CreateTopicsDeliveryStatus, CreateTopicsFailure,
     CreateTopicsFailureKind, CreateTopicsObserver, CreateTopicsObserverError, CreateTopicsOutcome,
-    CreateTopicsRequest,
+    CreateTopicsRequest, DeleteTopicError, DeleteTopicResult, DeleteTopicsAccepted,
+    DeleteTopicsAcceptedFaultKind, DeleteTopicsAdmissionError, DeleteTopicsAdmissionErrorKind,
+    DeleteTopicsDeliveryStatus, DeleteTopicsFailure, DeleteTopicsFailureKind, DeleteTopicsObserver,
+    DeleteTopicsObserverError, DeleteTopicsOutcome, DeleteTopicsRequest,
 };
 pub use crate::config::{EngineConfig, EngineProducerLimits};
 pub use crate::delivery::{
