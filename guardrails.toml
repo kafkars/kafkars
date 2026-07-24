@@ -945,6 +945,42 @@ production = "crates/kafka-client-engine/src/consumer/assigned_topics/prepared.r
 test = "crates/kafka-client-engine/src/consumer/assigned_topics/prepared_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/delivery_ownership.rs"
+test = "crates/kafka-client-core/src/consumer/delivery_ownership_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_owner.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_owner_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_owner_admission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_owner_close_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_owner_effect_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_owner_fault.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_owner_fault_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_owner_model.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_owner_model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_owner_pending_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_owner_turn.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_owner_turn_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/fetch_store.rs"
 test = "crates/kafka-client-engine/src/consumer/fetch_store_test.rs"
 
@@ -2112,17 +2148,159 @@ allowed_paths = [
 [[call_capabilities]]
 root = "crates/kafka-client-engine/src"
 call = "DirectFetchExecutor::create_unbound"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
+]
 
 [[call_capabilities]]
 root = "crates/kafka-client-engine/src"
 call = "AssignedCloseSlot::create_for_assigned_owner"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
+]
 
 [[call_capabilities]]
 root = "crates/kafka-client-engine/src"
 call = "FetchAttemptDeadline::capture_for_fetch"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_owner.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_owner_fault.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_owner_model.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_owner_turn.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/clock"
@@ -2235,6 +2413,7 @@ owner_type = "AssignedConsumerMachine"
 field = "assignment"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/close.rs",
+  "crates/kafka-client-core/src/consumer/delivery_ownership.rs",
   "crates/kafka-client-core/src/consumer/fetch_transition.rs",
   "crates/kafka-client-core/src/consumer/machine.rs",
   "crates/kafka-client-core/src/consumer/position_ownership.rs",
@@ -3410,6 +3589,103 @@ owner_type = "AssignedTimers"
 path = "crates/kafka-client-engine/src/consumer/assigned_timers.rs"
 
 [[linear_owners]]
+owner_type = "AssignedConsumerOwner"
+path = "crates/kafka-client-engine/src/consumer/assigned_owner.rs"
+
+[[linear_owners]]
+owner_type = "PendingPosition"
+path = "crates/kafka-client-engine/src/consumer/assigned_owner_model.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerOwnerFault"
+path = "crates/kafka-client-engine/src/consumer/assigned_owner_fault.rs"
+
+[[mutation_owners]]
+owner_type = "AssignedConsumerOwner"
+field = "machine"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_turn.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AssignedConsumerOwner"
+field = "close"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AssignedConsumerOwner"
+field = "effects"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_turn.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AssignedConsumerOwner"
+field = "raw_position_deadlines"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AssignedConsumerOwner"
+field = "pending_positions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AssignedConsumerOwner"
+field = "pending_fetches"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AssignedConsumerOwner"
+field = "fault"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_turn.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AssignedConsumerOwner"
+field = "reclaim_faults"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AssignedConsumerOwner"
+field = "reclaim_overflow"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
+]
+
+[[linear_owners]]
 owner_type = "PositionResolutionRequest"
 path = "crates/kafka-client-engine/src/driver/rpc/list_offsets_admission.rs"
 
@@ -3761,6 +4037,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/fetch_execution/apply.rs",
   "crates/kafka-client-engine/src/consumer/fetch_execution/control.rs",
   "crates/kafka-client-engine/src/consumer/fetch_execution/delivery.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/executor.rs",
   "crates/kafka-client-engine/src/consumer/fetch_execution/settlement.rs",
   "crates/kafka-client-engine/src/consumer/fetch_execution/terminal.rs",
 ]

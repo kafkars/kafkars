@@ -81,7 +81,10 @@ fn checked_in_close_slot_policy_is_exact() {
         .filter(|rule| rule.call == "AssignedCloseSlot::create_for_assigned_owner")
         .collect::<Vec<_>>();
     assert_eq!(constructors.len(), 1);
-    assert!(constructors[0].allowed_paths.is_empty());
+    assert_eq!(
+        constructors[0].allowed_paths,
+        ["crates/kafka-client-engine/src/consumer/assigned_owner.rs"]
+    );
 }
 
 #[test]
@@ -159,14 +162,14 @@ fn fixture_rejects_allocation_runtime_and_sibling_capabilities() {
 }
 
 #[test]
-fn fixture_rejects_constructor_use_before_the_owner_exists() {
+fn fixture_rejects_constructor_use_outside_the_owner() {
     let root = fixture_files("consumer_assigned_close_slot_ownership").0;
     let violations = call_capability_violations(
         &root,
         &[CallCapabilityRule {
             root: "src".into(),
             call: "AssignedCloseSlot::create_for_assigned_owner".into(),
-            allowed_paths: Vec::new(),
+            allowed_paths: vec!["src/assigned_owner.rs".into()],
         }],
     );
     assert!(violations.iter().any(|violation| {

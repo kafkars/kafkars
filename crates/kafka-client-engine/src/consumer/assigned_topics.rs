@@ -10,11 +10,11 @@ use std::{collections::BTreeMap, sync::Arc};
 pub(super) use prepared::PreparedAssignedTopicsReplacement;
 
 /// Bounds topic identities, retained names, and one current assignment.
-#[expect(
-    clippy::struct_field_names,
-    reason = "the max prefix keeps four independent hard bounds explicit at every use site"
-)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[allow(
+    clippy::struct_field_names,
+    reason = "each field names one explicit maximum resource dimension"
+)]
 pub(super) struct AssignedTopicLimits {
     max_retained_topics: usize,
     max_partitions: usize,
@@ -35,6 +35,10 @@ impl AssignedTopicLimits {
             max_topic_name_bytes,
             max_retained_name_bytes,
         }
+    }
+
+    pub(super) const fn max_partitions(self) -> usize {
+        self.max_partitions
     }
 }
 

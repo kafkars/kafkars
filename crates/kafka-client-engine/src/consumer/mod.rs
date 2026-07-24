@@ -6,6 +6,30 @@ mod assigned_close_error;
 mod assigned_close_slot;
 #[cfg(test)]
 mod assigned_close_slot_test;
+mod assigned_owner;
+mod assigned_owner_admission;
+#[cfg(test)]
+mod assigned_owner_admission_test;
+mod assigned_owner_close;
+#[cfg(test)]
+mod assigned_owner_close_test;
+mod assigned_owner_effect;
+#[cfg(test)]
+mod assigned_owner_effect_test;
+mod assigned_owner_fault;
+#[cfg(test)]
+mod assigned_owner_fault_test;
+mod assigned_owner_model;
+#[cfg(test)]
+mod assigned_owner_model_test;
+mod assigned_owner_pending;
+#[cfg(test)]
+mod assigned_owner_pending_test;
+#[cfg(test)]
+mod assigned_owner_test;
+mod assigned_owner_turn;
+#[cfg(test)]
+mod assigned_owner_turn_test;
 mod assigned_timer_model;
 mod assigned_timers;
 #[cfg(test)]

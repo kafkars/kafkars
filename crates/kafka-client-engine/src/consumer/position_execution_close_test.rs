@@ -23,7 +23,7 @@ fn close_supersedes_backpressured_position_before_zero_call_capacity() {
     else {
         panic!("lookup must retain its prepared owner");
     };
-    assert_eq!(executor.retained_count(), 0);
+    assert_eq!(executor.retained_positions(), 0);
 
     let close = machine
         .apply(AssignedConsumerInput::BeginClose)
@@ -46,7 +46,7 @@ fn close_supersedes_backpressured_position_before_zero_call_capacity() {
             .unwrap_or_else(|error| panic!("settle close-fenced lookup: {error:?}")),
         PositionSubmission::Settled(None)
     ));
-    assert_eq!(executor.retained_count(), 0);
+    assert_eq!(executor.retained_positions(), 0);
 
     shutdown(&mut driver);
 }

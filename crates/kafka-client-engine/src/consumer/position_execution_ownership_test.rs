@@ -34,7 +34,7 @@ fn superseded_prepared_lookup_settles_before_zero_call_capacity() {
             .unwrap_or_else(|error| panic!("settle superseded lookup: {error:?}")),
         PositionSubmission::Settled(None)
     ));
-    assert_eq!(executor.retained_count(), 0);
+    assert_eq!(executor.retained_positions(), 0);
     shutdown(&mut driver);
 }
 
@@ -78,7 +78,7 @@ fn future_position_error_returns_the_exact_prepared_owner_before_capacity() {
         }
     );
     assert_eq!(prepared.fence(), future_fence);
-    assert_eq!(executor.retained_count(), 0);
+    assert_eq!(executor.retained_positions(), 0);
     shutdown(&mut driver);
 }
 
@@ -110,7 +110,7 @@ fn cross_partition_error_returns_the_exact_prepared_owner_before_capacity() {
         }
     );
     assert_eq!(prepared.fence(), other_fence);
-    assert_eq!(executor.retained_count(), 0);
+    assert_eq!(executor.retained_positions(), 0);
     shutdown(&mut driver);
 }
 
@@ -133,6 +133,6 @@ fn exact_active_lookup_still_backpressures_with_its_owner() {
         panic!("active lookup must reach bounded call capacity");
     };
     assert_eq!(prepared.fence(), expected);
-    assert_eq!(executor.retained_count(), 0);
+    assert_eq!(executor.retained_positions(), 0);
     shutdown(&mut driver);
 }

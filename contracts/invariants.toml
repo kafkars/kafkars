@@ -365,7 +365,7 @@ evidence = [
 [[invariant]]
 id = "CON-04"
 title = "Direct Fetch execution is ordered and bounded"
-statement = "One unique direct-consumer Fetch executor accepts only a linear internal-attempt deadline bound to the exact prepared fence, reconciles that fence against core ownership, and checks its original absolute deadline before reserving retained-output count and bytes, then attempts bounded tracked-call admission without inventing retry policy. Backpressure returns the exact prepared owner and releases its exact reservation; superseded queued work settles without spending store or driver capacity, while future or cross-partition ownership becomes a frozen invariant fault. Terminal handling normalizes through the protocol reservation, applies the exact fact to core, authorizes or discards store ownership according to core's ordered effects, and only then confirms the exact route capability. Stale terminals cannot publish delivery, and every store, core, completion, or confirmation inconsistency freezes all executor surfaces while retaining linear owners until post-driver-shutdown recovery. Production executor construction and internal deadline capture remain forbidden until one concrete direct-consumer owner binds the core machine, position executor, and Fetch executor into one lifecycle."
+statement = "One unique direct-consumer Fetch executor accepts only a linear internal-attempt deadline bound to the exact prepared fence, reconciles that fence against core ownership, and checks its original absolute deadline before reserving retained-output count and bytes, then attempts bounded tracked-call admission without inventing retry policy. Backpressure returns the exact prepared owner and releases its exact reservation; superseded queued work settles without spending store or driver capacity, while future or cross-partition ownership becomes a frozen invariant fault. Terminal handling normalizes through the protocol reservation, applies the exact fact to core, authorizes or discards store ownership according to core's ordered effects, and only then confirms the exact route capability. Stale terminals cannot publish delivery, and every store, core, completion, or confirmation inconsistency freezes all executor surfaces while retaining linear owners until post-driver-shutdown recovery. The concrete AssignedConsumerOwner exclusively constructs the core, topic, timer, position, Fetch, and close owners around one Arc monotonic clock; derives a checked 2P+1 FIFO bound from replacement and close effect maxima; fallibly preallocates raw, position, Fetch, and reclaim storage; and borrows DriverOwner only during one bounded turn. Position and Fetch each own an independent call_capacity bound, so the aggregate retains at most 2 * call_capacity accepted driver calls. It interprets one FIFO head without overtaking, leaves Fetch ControlPending unchanged without false progress, captures each Fetch deadline at exact effect interpretation, expires prepared position work before driver capacity, recaptures Moment at each later stage, retains every faulted linear owner, and schedules the minimum retained deadline only while healthy. Delivery exposure waits behind ordered effects and open close admission, asks core whether assignment and position still own the authorized delivery while ignoring its settled Fetch revision, reclaims every stale FIFO entry until active or empty, and retains external leases through close."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/consumer/fetch_state_test.rs::active_fetch_query_fences_paused_sought_and_reassigned_work",
@@ -384,12 +384,22 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/fetch_execution/prepared_test.rs::deadline_captured_for_another_fetch_revision_cannot_prepare_this_effect",
   "crates/kafka-client-engine/src/consumer/fetch_execution/settlement_test.rs::unexpected_core_rejection_retains_store_and_route_ownership_until_shutdown",
   "crates/kafka-client-engine/src/consumer/fetch_execution/fault_test.rs::completion_corruption_freezes_every_surface_and_recovers_exact_owners",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_model_test.rs::effect_capacity_is_checked_two_partitions_plus_one",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_effect_test.rs::all_partition_effects_transfer_without_pending_queue_deadlock",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_effect_test.rs::fetch_control_pending_keeps_the_exact_fifo_head_and_other_mechanisms_unchanged",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_turn_test.rs::unresolved_control_pending_reports_no_turn_progress_until_restored",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_pending_test.rs::elapsed_pending_position_settles_before_driver_capacity",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_effect_test.rs::next_deadline_is_the_minimum_and_faults_disable_wake_scheduling",
+  "crates/kafka-client-core/src/consumer/delivery_ownership_test.rs::settled_fetch_revision_is_ignored_while_position_epoch_remains_active",
+  "crates/kafka-client-core/src/consumer/delivery_ownership_test.rs::pause_and_seek_supersede_authorized_delivery_position_epochs",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close_test.rs::ready_delivery_is_reclaimed_after_pause_or_seek_position_fence",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close_test.rs::stale_ready_entries_are_skipped_until_the_active_fifo_delivery",
 ]
 
 [[invariant]]
 id = "CON-05"
 title = "Direct-consumer close is one-way, fenced, and core-completed"
-statement = "After engine terminal-capacity reservation, the first BeginClose allocates one core-owned close identity and emits AcceptClose before permanently closing assignment and control admission. It preflights every assigned partition fence, then emits one final Suspend followed by Revoke in original assignment order without Fetch work. An unassigned close succeeds without inventing assignment identity and blocks every future assignment. The engine may report only an exact CloseDrained fact after cleanup; core alone emits CompleteClose exactly once, while early, mismatched, repeated-drain, and repeated-begin inputs cannot select another terminal outcome."
+statement = "After engine terminal-capacity reservation, the first BeginClose allocates one core-owned close identity and emits AcceptClose before permanently closing assignment and control admission. It preflights every assigned partition fence, then emits one final Suspend followed by Revoke in original assignment order without Fetch work. An unassigned close succeeds without inventing assignment identity and blocks every future assignment. AssignedConsumerOwner reserves its fixed slot before core admission and rolls reservation back on rejection, applies ordered cleanup through Fetch first, reclaims unread ready deliveries, waits for every external delivery lease and accepted call, timer, prepared owner, effect, and retained byte to drain, then supplies the exact accepted identity. Core alone emits CompleteClose exactly once, while early, mismatched, repeated-drain, and repeated-begin inputs cannot select another terminal outcome."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/consumer/close_test.rs::close_accepts_then_suspends_and_revokes_in_assignment_order",
@@ -400,6 +410,9 @@ evidence = [
   "crates/kafka-client-core/src/consumer/close_completion_test.rs::unassigned_close_permanently_closes_and_completes_without_assignment_identity",
   "crates/kafka-client-core/src/consumer/close_completion_test.rs::drain_before_acceptance_is_rejected_without_closing_admission",
   "crates/kafka-client-engine/src/consumer/position_execution_close_test.rs::close_supersedes_backpressured_position_before_zero_call_capacity",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_admission_test.rs::close_reserves_before_core_acceptance_and_rolls_back_core_rejection",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close_test.rs::unread_ready_delivery_is_reclaimed_during_close",
+  "crates/kafka-client-engine/src/consumer/assigned_owner_close_test.rs::external_delivery_lease_delays_close_until_reclaimed",
 ]
 
 [[invariant]]

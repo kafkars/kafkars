@@ -9,6 +9,6 @@ pub use super::identity::{AssignedConsumerCloseId, AssignmentEpoch, FetchRevisio
 pub use super::input::AssignedConsumerInput;
 pub use super::machine::AssignedConsumerMachine;
 pub use super::model::{
-    AssignedPartition, AssignedTopicPartition, FetchFence, FetchOwnership, FetchRecords,
-    NextFetchOffset, PositionFence, PositionOwnership, StartPosition,
+    AssignedPartition, AssignedTopicPartition, DeliveryOwnership, FetchFence, FetchOwnership,
+    FetchRecords, NextFetchOffset, PositionFence, PositionOwnership, StartPosition,
 };

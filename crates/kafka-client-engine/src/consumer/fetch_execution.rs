@@ -67,6 +67,7 @@ pub(crate) use executor::DirectFetchExecutor;
     )
 )]
 pub(crate) use fault::FetchExecutionError;
+pub(crate) use fault::FetchReclaimFailure;
 #[cfg_attr(
     not(test),
     allow(
@@ -75,3 +76,7 @@ pub(crate) use fault::FetchExecutionError;
     )
 )]
 pub(crate) use prepared::{PrepareFetchError, PreparedFetchExecution};
+#[cfg(test)]
+pub(super) use settlement_test::{
+    TerminalFixture as FetchTerminalFixture, install as install_terminal_for_test,
+};

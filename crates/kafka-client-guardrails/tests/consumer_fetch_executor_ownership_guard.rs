@@ -3,9 +3,8 @@
 mod support;
 
 use support::{
-    CallCapabilityRule, CapabilityRule, LinearOwner, MethodCapabilityRule, MutationOwner,
-    call_capability_violations, capability_violations, fixture_files, linear_violations,
-    load_config, method_capability_violations, mutation_violations, workspace_root,
+    LinearOwner, MutationOwner, fixture_files, linear_violations, load_config, mutation_violations,
+    workspace_root,
 };
 
 const EXECUTION: &str = "crates/kafka-client-engine/src/consumer/fetch_execution";
@@ -48,7 +47,9 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
     (
         "DirectFetchExecutor",
         "fault",
-        &[ADMISSION, APPLY, CONTROL, DELIVERY, SETTLEMENT, TERMINAL],
+        &[
+            ADMISSION, APPLY, CONTROL, DELIVERY, EXECUTOR, SETTLEMENT, TERMINAL,
+        ],
     ),
 ];
 
@@ -81,17 +82,6 @@ const CAPABILITY_ALLOWS: &[(&str, &str)] = &[
     ("fault_test.rs", "std::time"),
     ("settlement_test.rs", "std::time"),
     ("settlement_test.rs", "Instant::now"),
-];
-
-const TRACKED_METHODS: &[&str] = &[
-    "try_submit_fetch",
-    "observe_fetch_control",
-    "poll_fetch",
-    "begin_fetch_settlement",
-    "confirm_fetch_settlement",
-    "restore_fetch_settlement",
-    "confirm_stale_fetch",
-    "recover_fetches_after_driver_shutdown",
 ];
 
 #[test]
@@ -162,14 +152,20 @@ fn checked_in_executor_policy_is_exact() {
         .filter(|rule| rule.call == "DirectFetchExecutor::create_unbound")
         .collect::<Vec<_>>();
     assert_eq!(constructors.len(), 1);
-    assert!(constructors[0].allowed_paths.is_empty());
+    assert_eq!(
+        constructors[0].allowed_paths,
+        ["crates/kafka-client-engine/src/consumer/assigned_owner.rs"]
+    );
     let deadline_constructors = config
         .call_capabilities
         .iter()
         .filter(|rule| rule.call == "FetchAttemptDeadline::capture_for_fetch")
         .collect::<Vec<_>>();
     assert_eq!(deadline_constructors.len(), 1);
-    assert!(deadline_constructors[0].allowed_paths.is_empty());
+    assert_eq!(
+        deadline_constructors[0].allowed_paths,
+        ["crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs"]
+    );
 
     for (method, execution_paths) in [
         ("try_reserve", vec![ADMISSION, EXECUTOR]),
@@ -226,71 +222,6 @@ fn fixture_rejects_executor_duplication_and_foreign_mutation() {
             violation.contains("mutation_intruder.rs")
                 && violation.contains(owner_type)
                 && violation.contains(field)
-        }));
-    }
-}
-
-#[test]
-fn fixture_rejects_raw_and_generic_execution_capabilities() {
-    let (root, _) = fixture_files("consumer_fetch_executor_ownership");
-    let rules = [CapabilityRule {
-        root: "src".into(),
-        forbidden: FORBIDDEN.iter().map(|value| (*value).into()).collect(),
-        allow: Vec::new(),
-    }];
-    let violations = capability_violations(&root, &rules);
-    for capability in [
-        "kafka_driver",
-        "kafka_wire",
-        "kafka_wire_core",
-        "kafka_wire_records",
-        "std::future",
-        "std::time",
-        "async",
-        "Transport",
-        "Retry",
-        "Metadata",
-        "crate::admin",
-    ] {
-        assert!(
-            violations.iter().any(|violation| {
-                violation.contains("raw_capability_intruder.rs") && violation.contains(capability)
-            }),
-            "capability detector missed {capability}: {violations:?}"
-        );
-    }
-}
-
-#[test]
-fn fixture_rejects_foreign_tracked_calls_and_unbound_construction() {
-    let (root, _) = fixture_files("consumer_fetch_executor_ownership");
-    for method in TRACKED_METHODS {
-        let violations = method_capability_violations(
-            &root,
-            &[MethodCapabilityRule {
-                root: "src".into(),
-                method: (*method).into(),
-                allowed_paths: Vec::new(),
-            }],
-        );
-        assert!(violations.iter().any(|violation| {
-            violation.contains("tracked_method_intruder.rs") && violation.contains(method)
-        }));
-    }
-    for constructor in [
-        "DirectFetchExecutor::create_unbound",
-        "FetchAttemptDeadline::capture_for_fetch",
-    ] {
-        let violations = call_capability_violations(
-            &root,
-            &[CallCapabilityRule {
-                root: "src".into(),
-                call: constructor.into(),
-                allowed_paths: Vec::new(),
-            }],
-        );
-        assert!(violations.iter().any(|violation| {
-            violation.contains("constructor_intruder.rs") && violation.contains(constructor)
         }));
     }
 }

@@ -143,6 +143,15 @@ pub enum FetchOwnership {
     Superseded,
 }
 
+/// Directional ownership of one already-authorized retained delivery.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DeliveryOwnership {
+    /// The delivery belongs to the current assignment and position epoch.
+    Active,
+    /// Assignment or position control terminally superseded the delivery.
+    Superseded,
+}
+
 impl FetchFence {
     pub(crate) const fn new(position: PositionFence, revision: FetchRevision) -> Self {
         Self { position, revision }

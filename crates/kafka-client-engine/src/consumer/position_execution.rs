@@ -75,13 +75,6 @@ pub(crate) enum PositionExecutionError {
 }
 
 /// Result of one preflighted attempt to hand work to the bounded call owner.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "direct-consumer host integration will retain backpressured ownership"
-    )
-)]
 pub(crate) enum PositionSubmission {
     Accepted,
     Backpressured(PreparedPositionResolution),
@@ -158,7 +151,7 @@ impl PositionResolutionExecutor {
         }
     }
 
-    pub(crate) fn retained_count(&self) -> usize {
+    pub(crate) fn retained_positions(&self) -> usize {
         self.calls.retained_count()
     }
 

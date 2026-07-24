@@ -1,6 +1,7 @@
 //! Deterministic direct-assignment consumer ownership and fetch-position policy.
 
 mod close;
+mod delivery_ownership;
 mod effect;
 mod error;
 mod exports;
@@ -27,6 +28,8 @@ mod close_completion_test;
 mod close_test;
 #[cfg(test)]
 mod control_test;
+#[cfg(test)]
+mod delivery_ownership_test;
 #[cfg(test)]
 mod fetch_delivery_test;
 #[cfg(test)]

@@ -37,7 +37,7 @@ fn full_registry_returns_the_unconsumed_prepared_lookup() {
         panic!("second lookup must remain owned");
     };
     drop(unconsumed);
-    assert_eq!(executor.retained_count(), 1);
+    assert_eq!(executor.retained_positions(), 1);
 
     drop(executor);
     shutdown(&mut driver);
@@ -67,7 +67,7 @@ fn elapsed_local_admission_preserves_core_deadline_precedence() {
             failure: PositionResolutionFailure::DeadlineElapsed,
         }]
     );
-    assert_eq!(executor.retained_count(), 0);
+    assert_eq!(executor.retained_positions(), 0);
     shutdown(&mut driver);
 }
 
@@ -78,7 +78,7 @@ fn terminal_ownership_is_released_only_after_core_accepts_the_fact() {
     let mut executor = PositionResolutionExecutor::new(1);
     executor.install_terminal_for_test(fence, Moment::from_tick(5));
 
-    assert_eq!(executor.retained_count(), 1);
+    assert_eq!(executor.retained_positions(), 1);
     let transition = executor
         .poll(&mut machine, Moment::from_tick(6))
         .unwrap_or_else(|error| panic!("apply terminal: {error:?}"))
@@ -90,7 +90,7 @@ fn terminal_ownership_is_released_only_after_core_accepts_the_fact() {
             failure: PositionResolutionFailure::AttemptFailed,
         }]
     );
-    assert_eq!(executor.retained_count(), 0);
+    assert_eq!(executor.retained_positions(), 0);
 }
 
 #[test]
@@ -116,7 +116,7 @@ fn superseded_terminal_drains_without_mutating_new_position_state() {
             .unwrap_or_else(|error| panic!("drain stale terminal: {error:?}"))
             .is_none()
     );
-    assert_eq!(executor.retained_count(), 0);
+    assert_eq!(executor.retained_positions(), 0);
 }
 
 #[test]
@@ -132,7 +132,7 @@ fn unexpected_core_rejection_keeps_settled_ownership_for_recovery() {
             kafka_client_core::AssignedConsumerMachineError::NoAssignment
         ))
     ));
-    assert_eq!(executor.retained_count(), 1);
+    assert_eq!(executor.retained_positions(), 1);
 }
 
 #[test]
@@ -155,7 +155,7 @@ fn completion_corruption_is_fatal_until_post_driver_recovery() {
         executor.recover_positions_after_driver_shutdown(),
         Some(failure)
     );
-    assert_eq!(executor.retained_count(), 0);
+    assert_eq!(executor.retained_positions(), 0);
 }
 
 pub(super) fn assignment(

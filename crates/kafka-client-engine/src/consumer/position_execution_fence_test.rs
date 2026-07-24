@@ -34,7 +34,7 @@ fn newer_position_terminal_is_invariant_and_remains_owned() {
             }
         )) if active == active_fence && supplied == newer
     ));
-    assert_eq!(executor.retained_count(), 1);
+    assert_eq!(executor.retained_positions(), 1);
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn future_assignment_terminal_is_invariant_and_remains_owned() {
         )) if active == active_fence.assignment_epoch()
             && supplied == future.assignment_epoch()
     ));
-    assert_eq!(executor.retained_count(), 1);
+    assert_eq!(executor.retained_positions(), 1);
 }
 
 #[test]
@@ -84,7 +84,7 @@ fn exact_fence_late_terminal_after_deadline_is_drained_and_released() {
         executor.poll(&mut machine, Moment::from_tick(22)),
         Ok(None)
     ));
-    assert_eq!(executor.retained_count(), 0);
+    assert_eq!(executor.retained_positions(), 0);
 }
 
 fn assignment() -> (PositionFence, AssignedConsumerMachine) {

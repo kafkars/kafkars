@@ -171,7 +171,7 @@ fn unexpected_core_rejection_retains_store_and_route_ownership_until_shutdown() 
     assert_eq!(completion, None);
 }
 
-pub(super) fn install(
+pub(in crate::consumer) fn install(
     executor: &mut DirectFetchExecutor,
     prepared: PreparedFetchExecution,
     fixture: TerminalFixture,
@@ -203,7 +203,7 @@ pub(super) fn install(
     }
 }
 
-pub(super) enum TerminalFixture {
+pub(in crate::consumer) enum TerminalFixture {
     Success(Option<Bytes>),
     Broker(i16),
     RouteUnavailable,

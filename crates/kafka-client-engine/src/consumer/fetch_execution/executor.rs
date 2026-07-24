@@ -71,4 +71,9 @@ impl DirectFetchExecutor {
     pub(crate) fn tracked_calls_for_test(&mut self) -> &mut TrackedFetchCalls {
         &mut self.calls
     }
+
+    #[cfg(test)]
+    pub(crate) fn install_fault_for_test(&mut self) {
+        self.fault = Some(RetainedFetchFault::Staged);
+    }
 }
