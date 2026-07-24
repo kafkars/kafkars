@@ -6,6 +6,7 @@ mod assigned_close;
 mod assignment;
 mod checkpoint;
 mod control;
+mod event;
 mod group;
 mod offset_reset;
 mod record;
@@ -17,6 +18,11 @@ pub use assigned_close::CloseAssignedConsumer;
 pub use assignment::{StartPosition, TopicPartition};
 pub use checkpoint::Checkpoint;
 pub use control::ConsumerControl;
+pub use event::{
+    AssignedConsumerEvent, AssignedConsumerFetchFailureKind, AssignedConsumerFetchFence,
+    AssignedConsumerFetchThrottleFailureKind, AssignedConsumerPositionFence,
+    AssignedConsumerPositionResolutionFailureKind,
+};
 pub use group::{Commit, Consumer, ConsumerBuilder, NextBatch};
 pub use offset_reset::OffsetReset;
 pub use record::{ConsumerHeader, ConsumerRecord, ConsumerRecords};
@@ -32,6 +38,8 @@ mod assigned_test;
 mod assignment_test;
 #[cfg(test)]
 mod checkpoint_test;
+#[cfg(test)]
+mod event_test;
 #[cfg(test)]
 mod record_batch_test;
 #[cfg(test)]

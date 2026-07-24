@@ -26,9 +26,12 @@ pub use admin::{
 };
 pub use client::{Client, ClientBuilder, Shutdown};
 pub use consumer::{
-    AssignedConsumer, AssignedConsumerBuilder, Checkpoint, CloseAssignedConsumer, Commit, Consumer,
-    ConsumerBuilder, ConsumerControl, ConsumerHeader, ConsumerRecord, ConsumerRecords, NextBatch,
-    OffsetReset, RecordBatch, StartPosition, TopicPartition,
+    AssignedConsumer, AssignedConsumerBuilder, AssignedConsumerEvent,
+    AssignedConsumerFetchFailureKind, AssignedConsumerFetchFence,
+    AssignedConsumerFetchThrottleFailureKind, AssignedConsumerPositionFence,
+    AssignedConsumerPositionResolutionFailureKind, Checkpoint, CloseAssignedConsumer, Commit,
+    Consumer, ConsumerBuilder, ConsumerControl, ConsumerHeader, ConsumerRecord, ConsumerRecords,
+    NextBatch, OffsetReset, RecordBatch, StartPosition, TopicPartition,
 };
 pub use error::{DeliveryStatus, ErrorKind, KafkaError};
 pub use operation::Operation;

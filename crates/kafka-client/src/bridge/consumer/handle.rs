@@ -13,6 +13,8 @@ use super::{
     close::AssignedConsumerClose,
     control::{try_pause, try_resume_captured, try_seek_captured},
     control_result::{translate_assigned_control_admission, translate_missing_assignment},
+    event::translate_assigned_event,
+    event_result::translate_assigned_event_observation,
     result::translate_assigned_consumer_claim,
 };
 
@@ -104,6 +106,16 @@ impl AssignedConsumerEngine {
             .try_take_batch()
             .map(|batch| batch.map(AssignedConsumerBatch::from_engine))
             .map_err(translate_assigned_batch_observation)
+    }
+
+    /// Transfers one retained failure event without waiting or starting work.
+    pub(crate) fn try_take_event(
+        &mut self,
+    ) -> Result<Option<crate::consumer::AssignedConsumerEvent>, KafkaError> {
+        self.handle
+            .try_take_event()
+            .map(|event| event.map(translate_assigned_event))
+            .map_err(translate_assigned_event_observation)
     }
 
     /// Attempts bounded close without consuming this capability on rejection.

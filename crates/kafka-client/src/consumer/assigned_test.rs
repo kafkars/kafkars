@@ -2,7 +2,10 @@
 
 use std::time::Duration;
 
-use super::{AssignedConsumer, CloseAssignedConsumer, RecordBatch, StartPosition, TopicPartition};
+use super::{
+    AssignedConsumer, AssignedConsumerEvent, CloseAssignedConsumer, RecordBatch, StartPosition,
+    TopicPartition,
+};
 use crate::{Client, ErrorKind};
 
 macro_rules! assert_not_impl {
@@ -144,6 +147,18 @@ fn batch_observation_is_immediate_and_timeout_free() {
 }
 
 #[test]
+fn event_observation_is_immediate_and_timeout_free() {
+    fn require_take(
+        _take: fn(
+            &mut AssignedConsumer,
+        ) -> Result<Option<AssignedConsumerEvent>, crate::KafkaError>,
+    ) {
+    }
+
+    require_take(AssignedConsumer::try_take_event);
+}
+
+#[test]
 fn immediate_batch_observation_does_not_start_fetch_work() {
     let client = Client::builder()
         .bootstrap_servers(["127.0.0.1:1"])
@@ -164,6 +179,32 @@ fn immediate_batch_observation_does_not_start_fetch_work() {
     consumer
         .try_close()
         .unwrap_or_else(|error| panic!("admit close after observation: {error}"))
+        .wait()
+        .unwrap_or_else(|error| panic!("observe close: {error}"));
+}
+
+#[test]
+fn immediate_event_observation_drains_without_reopening_close() {
+    let client = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .build()
+        .unwrap_or_else(|error| panic!("start client: {error}"));
+    let mut consumer = client
+        .assigned_consumer()
+        .build()
+        .unwrap_or_else(|error| panic!("claim assigned consumer: {error}"));
+    let close = consumer
+        .try_close()
+        .unwrap_or_else(|error| panic!("admit close: {error}"));
+
+    assert!(
+        consumer
+            .try_take_event()
+            .unwrap_or_else(|error| panic!("drain retained events: {error}"))
+            .is_none()
+    );
+
+    close
         .wait()
         .unwrap_or_else(|error| panic!("observe close: {error}"));
 }

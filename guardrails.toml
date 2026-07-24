@@ -1369,6 +1369,14 @@ production = "crates/kafka-client/src/bridge/consumer/batch_result.rs"
 test = "crates/kafka-client/src/bridge/consumer/batch_result_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client/src/bridge/consumer/event.rs"
+test = "crates/kafka-client/src/bridge/consumer/event_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/consumer/event_result.rs"
+test = "crates/kafka-client/src/bridge/consumer/event_result_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client/src/bridge/consumer/close.rs"
 test = "crates/kafka-client/src/bridge/consumer/close_test.rs"
 
@@ -1491,6 +1499,10 @@ test = "crates/kafka-client/src/consumer/record_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/consumer/record_batch.rs"
 test = "crates/kafka-client/src/consumer/record_batch_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/consumer/event.rs"
+test = "crates/kafka-client/src/consumer/event_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/producer/close.rs"
@@ -6147,6 +6159,10 @@ path = "crates/kafka-client/src/consumer/assigned.rs"
 [[linear_owners]]
 owner_type = "RecordBatch"
 path = "crates/kafka-client/src/consumer/record_batch.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerEvent"
+path = "crates/kafka-client/src/consumer/event.rs"
 
 [[linear_owners]]
 owner_type = "CloseAssignedConsumer"

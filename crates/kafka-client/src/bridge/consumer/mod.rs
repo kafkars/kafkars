@@ -7,6 +7,8 @@ mod batch_result;
 mod close;
 mod control;
 mod control_result;
+mod event;
+mod event_result;
 mod handle;
 mod result;
 
@@ -30,6 +32,10 @@ mod close_test;
 mod control_result_test;
 #[cfg(test)]
 mod control_test;
+#[cfg(test)]
+mod event_result_test;
+#[cfg(test)]
+mod event_test;
 #[cfg(test)]
 mod handle_test;
 #[cfg(test)]

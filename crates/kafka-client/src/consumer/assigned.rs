@@ -2,7 +2,9 @@
 
 use crate::bridge::consumer::AssignedConsumerEngine;
 
-use super::{CloseAssignedConsumer, RecordBatch, StartPosition, TopicPartition};
+use super::{
+    AssignedConsumerEvent, CloseAssignedConsumer, RecordBatch, StartPosition, TopicPartition,
+};
 
 /// Consumer whose positions are controlled directly rather than by a group.
 ///
@@ -74,6 +76,14 @@ impl AssignedConsumer {
         self.engine
             .try_take_batch()
             .map(|batch| batch.map(RecordBatch::from_bridge))
+    }
+
+    /// Takes one retained failure event when immediately available.
+    ///
+    /// This call has no timeout, starts no Fetch work, and remains usable while
+    /// already-retained events drain after close admission.
+    pub fn try_take_event(&mut self) -> Result<Option<AssignedConsumerEvent>, crate::KafkaError> {
+        self.engine.try_take_event()
     }
 
     /// Attempts to close this consumer and returns the sole terminal observer.
