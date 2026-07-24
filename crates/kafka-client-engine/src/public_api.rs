@@ -30,6 +30,7 @@ pub use crate::admin::{
     PartitionIncreaseResult, TopicDescription, TopicPartitionDescription,
 };
 pub use crate::config::{EngineConfig, EngineProducerLimits, ProducerCompression};
+pub use crate::consumer::{AssignedConsumerClaimError, AssignedConsumerHandle};
 pub use crate::delivery::{
     ProducerDeliveryFailure, ProducerDeliveryFailureKind, ProducerDeliveryStatus,
     ProducerRecordMetadata,

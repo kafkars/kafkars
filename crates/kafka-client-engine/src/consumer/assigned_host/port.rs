@@ -13,14 +13,10 @@ use super::super::{
 use super::{
     reclaim::AssignedConsumerReclaimRejection,
     result::{AssignedConsumerAccepted, AssignedConsumerPortError},
-    shard::{AssignedConsumerPort, AssignedConsumerShardLockError},
+    shard::AssignedConsumerPort,
 };
 
 impl AssignedConsumerPort {
-    pub(crate) fn close_assigned_admission(&self) -> Result<(), AssignedConsumerShardLockError> {
-        self.shared.close_assigned_admission()
-    }
-
     pub(crate) fn replace_assignment(
         &self,
         entries: Vec<AssignedPartitionInput>,

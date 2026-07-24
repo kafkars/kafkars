@@ -1,9 +1,12 @@
 //! Crate-private assigned-consumer capabilities exposed to the engine host.
 
+pub use super::assigned_host::{AssignedConsumerClaimError, AssignedConsumerHandle};
+
 pub(crate) use super::{
     assigned_host::{
-        AssignedConsumerPort, AssignedConsumerShardLockError, AssignedConsumerShardOwner,
-        AssignedConsumerShardWake, AssignedConsumerShardWakeError, AssignedConsumerShutdownStart,
+        AssignedConsumerAdmissionCloser, AssignedConsumerClaimSlot, AssignedConsumerPort,
+        AssignedConsumerShardLockError, AssignedConsumerShardOwner, AssignedConsumerShardWake,
+        AssignedConsumerShardWakeError, AssignedConsumerShutdownStart,
         build_first_assigned_consumer,
     },
     assigned_owner::AssignedConsumerOwner,

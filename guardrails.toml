@@ -953,6 +953,14 @@ production = "crates/kafka-client-engine/src/consumer/assigned_close_slot.rs"
 test = "crates/kafka-client-engine/src/consumer/assigned_close_slot_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/claim.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/claim_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/assigned_host/handle.rs"
+test = "crates/kafka-client-engine/src/consumer/assigned_host/handle_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/assigned_event.rs"
 test = "crates/kafka-client-engine/src/consumer/assigned_event_test.rs"
 
@@ -2547,6 +2555,13 @@ allowed_paths = [
 
 [[call_capabilities]]
 root = "crates/kafka-client-engine/src"
+call = "AssignedConsumerClaimSlot::create_for_engine"
+allowed_paths = [
+  "crates/kafka-client-engine/src/engine.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
 call = "FetchAttemptDeadline::capture_for_fetch"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
@@ -2724,6 +2739,40 @@ forbidden = [
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/assigned_host.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/claim.rs"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Metadata",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/assigned_host/handle.rs"
 forbidden = [
   "kafka_driver",
   "kafka_wire",
@@ -4259,6 +4308,18 @@ owner_type = "AssignedConsumerPort"
 path = "crates/kafka-client-engine/src/consumer/assigned_host/shard.rs"
 
 [[linear_owners]]
+owner_type = "AssignedConsumerClaimSlot"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/claim.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerAdmissionCloser"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/claim.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerHandle"
+path = "crates/kafka-client-engine/src/consumer/assigned_host/handle.rs"
+
+[[linear_owners]]
 owner_type = "AssignedConsumerAccepted"
 path = "crates/kafka-client-engine/src/consumer/assigned_host/result.rs"
 
@@ -4282,6 +4343,13 @@ owner_type = "AssignedConsumerShardState"
 field = "admission_closed"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_host/state.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AssignedConsumerClaimSlot"
+field = "port"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/assigned_host/claim.rs",
 ]
 
 [[mutation_owners]]

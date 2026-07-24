@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use crate::{
-    AdminHandle, EngineConfig, ProducerHandle,
+    AdminHandle, AssignedConsumerClaimError, AssignedConsumerHandle, EngineConfig, ProducerHandle,
     engine_host::{
         EngineHostControl, EngineLifecycle, EngineShutdownError, EngineStartError,
         StartedEngineHost, start as start_host,
@@ -25,7 +25,8 @@ struct EngineInner {
     create_partitions_admission: crate::admin::CreatePartitionsAdmissionPort,
     describe_topics_admission: crate::admin::DescribeTopicsAdmissionPort,
     describe_configs_admission: crate::admin::DescribeConfigsAdmissionPort,
-    assigned_consumer: crate::consumer::AssignedConsumerPort,
+    assigned_consumer: crate::consumer::AssignedConsumerClaimSlot,
+    assigned_consumer_admission: crate::consumer::AssignedConsumerAdmissionCloser,
     clock: Arc<crate::clock::MonotonicClock>,
     control: Arc<EngineHostControl>,
     lifecycle: Arc<EngineLifecycle>,
@@ -48,6 +49,8 @@ impl Engine {
             control,
             lifecycle,
         } = start_host(&config, validated)?;
+        let (assigned_consumer, assigned_consumer_admission) =
+            crate::consumer::AssignedConsumerClaimSlot::create_for_engine(assigned_consumer);
         Ok(Self {
             inner: Arc::new(EngineInner {
                 config,
@@ -59,6 +62,7 @@ impl Engine {
                 describe_topics_admission,
                 describe_configs_admission,
                 assigned_consumer,
+                assigned_consumer_admission,
                 clock,
                 control,
                 lifecycle,
@@ -91,6 +95,14 @@ impl Engine {
             Arc::clone(&self.inner.clock),
             lifetime,
         )
+    }
+
+    /// Claims the host's sole directly assigned consumer.
+    pub fn claim_assigned_consumer(
+        &self,
+    ) -> Result<AssignedConsumerHandle, AssignedConsumerClaimError> {
+        let lifetime: Arc<dyn Send + Sync> = self.inner.clone();
+        self.inner.assigned_consumer.claim(lifetime)
     }
 
     /// Returns immutable engine configuration.
@@ -150,7 +162,7 @@ impl EngineInner {
         let _close_result = self.create_partitions_admission.close_admission();
         let _close_result = self.describe_topics_admission.close_admission();
         let _close_result = self.describe_configs_admission.close_admission();
-        let _close_result = self.assigned_consumer.close_assigned_admission();
+        let _close_result = self.assigned_consumer_admission.close();
         self.lifecycle.request_and_wait(&self.control)
     }
 }
@@ -164,7 +176,7 @@ impl Drop for EngineInner {
         let _close_result = self.create_partitions_admission.close_admission();
         let _close_result = self.describe_topics_admission.close_admission();
         let _close_result = self.describe_configs_admission.close_admission();
-        let _close_result = self.assigned_consumer.close_assigned_admission();
+        let _close_result = self.assigned_consumer_admission.close();
         self.lifecycle.request(&self.control);
     }
 }
