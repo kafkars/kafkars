@@ -280,6 +280,8 @@ evidence = [
   "crates/kafka-client-core/src/consumer/position_test.rs::older_fetch_revision_cannot_advance_the_active_execution",
   "crates/kafka-client-core/src/consumer/position_test.rs::offset_regression_rejects_without_consuming_fetch_revision",
   "crates/kafka-client-core/src/consumer/position_state_test.rs::fetch_revision_exhaustion_preserves_the_active_fetch_and_offset",
+  "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls_test.rs::superseded_accepted_call_drains_before_releasing_capacity",
+  "crates/kafka-client-engine/src/consumer/position_execution_test.rs::superseded_terminal_drains_without_mutating_new_position_state",
 ]
 
 [[invariant]]
@@ -300,8 +302,8 @@ evidence = [
 
 [[invariant]]
 id = "DL-01"
-title = "Producer policy consumes one absolute deadline"
-statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant, accepted operation bindings retain that pair unchanged, core rejects already elapsed work, queued compression or submission expiry reproduces the exact core deadline fact, and identity-request deadline completion cannot be erased by an earlier transport category."
+title = "Client policy consumes one absolute deadline"
+statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant, accepted operation and direct-consumer bindings retain that pair unchanged, generated request timeout fields derive only from the remaining core deadline while the original transport instant is unchanged, core rejects already elapsed work, queued compression or submission expiry reproduces the exact core deadline fact, and identity-request deadline completion cannot be erased by an earlier transport category."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/clock/monotonic_test.rs::deadline_capture_uses_one_boundary_observation",
@@ -317,6 +319,9 @@ evidence = [
   "crates/kafka-client-core/src/producer/idempotence_fencing_test.rs::identity_deadline_fences_atomically_without_timing_out_later_batches",
   "crates/kafka-client-engine/src/driver/rpc/init_producer_id_calls_test.rs::driver_deadline_remains_an_explicit_core_fact",
   "crates/kafka-client-engine/src/producer/compression/pool_test.rs::due_deadline_fences_the_exact_late_worker_result",
+  "crates/kafka-client-engine/src/protocol/request_timeout_test.rs::millisecond_ceiling_keeps_the_original_transport_instant_unchanged",
+  "crates/kafka-client-engine/src/consumer/position_execution_test.rs::deadline_pair_mismatch_is_an_invariant_not_a_core_attempt_failure",
+  "crates/kafka-client-engine/src/consumer/position_execution_test.rs::elapsed_local_admission_preserves_core_deadline_precedence",
 ]
 
 [[invariant]]

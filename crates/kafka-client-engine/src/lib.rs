@@ -13,6 +13,14 @@ mod admin;
 mod clock;
 mod completion;
 mod config;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "direct-consumer host integration follows this concrete executor"
+    )
+)]
+mod consumer;
 mod delivery;
 mod delivery_error;
 mod delivery_observer;

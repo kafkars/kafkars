@@ -22,8 +22,10 @@ mod describe_configs_values;
 pub(crate) mod describe_topics;
 mod describe_topics_budget;
 pub(crate) mod describe_topics_response;
+mod request_timeout_error;
+#[cfg(test)]
+mod request_timeout_error_test;
 mod result_budget;
-mod timeout;
 
 #[cfg(test)]
 mod create_partitions_budget_test;
@@ -55,5 +57,3 @@ mod describe_topics_response_test;
 mod describe_topics_test;
 #[cfg(test)]
 mod result_budget_test;
-#[cfg(test)]
-mod timeout_test;

@@ -13,6 +13,11 @@ use super::{ListOffsetsOutcome, NormalizedListOffsetsResponse, ResolvedPosition}
 /// Structural or scalar response facts unsafe to bind to a position fence.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ListOffsetsResponseFailure {
+    /// The driver selected a version outside the generated message range.
+    UnsupportedApiVersion {
+        /// Exact selected Kafka API version.
+        actual: i16,
+    },
     /// Kafka supplied a negative throttle duration.
     NegativeThrottleTime {
         /// Exact invalid duration.
@@ -64,13 +69,23 @@ pub(crate) enum ListOffsetsResponseFailure {
 pub(crate) fn normalize_list_offsets_response(
     topic: &str,
     partition: PartitionIndex,
+    selected_version: i16,
     response: &ListOffsetsResponse,
 ) -> Result<NormalizedListOffsetsResponse, ListOffsetsResponseFailure> {
-    let throttle_time_ms = u32::try_from(response.throttle_time_ms).map_err(|_| {
-        ListOffsetsResponseFailure::NegativeThrottleTime {
-            actual: response.throttle_time_ms,
-        }
-    })?;
+    if !(1..=11).contains(&selected_version) {
+        return Err(ListOffsetsResponseFailure::UnsupportedApiVersion {
+            actual: selected_version,
+        });
+    }
+    let throttle_time_ms = if selected_version == 1 {
+        0
+    } else {
+        u32::try_from(response.throttle_time_ms).map_err(|_| {
+            ListOffsetsResponseFailure::NegativeThrottleTime {
+                actual: response.throttle_time_ms,
+            }
+        })?
+    };
     let topic_response = matching_topic(topic, &response.topics)?;
     let expected_partition = i32::try_from(partition.get()).map_err(|_| {
         ListOffsetsResponseFailure::RequestedPartitionOutOfRange {
@@ -90,7 +105,7 @@ pub(crate) fn normalize_list_offsets_response(
         });
     };
     let timestamp_ms = optional_timestamp(partition_response.timestamp)?;
-    let leader_epoch = optional_leader_epoch(partition_response.leader_epoch)?;
+    let leader_epoch = optional_leader_epoch(selected_version, partition_response.leader_epoch)?;
     Ok(NormalizedListOffsetsResponse::new(
         throttle_time_ms,
         ListOffsetsOutcome::Resolved(ResolvedPosition::new(
@@ -148,7 +163,13 @@ fn optional_timestamp(value: i64) -> Result<Option<i64>, ListOffsetsResponseFail
     }
 }
 
-fn optional_leader_epoch(value: i32) -> Result<Option<i32>, ListOffsetsResponseFailure> {
+fn optional_leader_epoch(
+    selected_version: i16,
+    value: i32,
+) -> Result<Option<i32>, ListOffsetsResponseFailure> {
+    if selected_version < 4 {
+        return Ok(None);
+    }
     match value {
         -1 => Ok(None),
         0.. => Ok(Some(value)),

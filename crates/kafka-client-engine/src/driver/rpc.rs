@@ -64,16 +64,21 @@ mod init_producer_id_calls_test;
 mod init_producer_id_submission;
 #[cfg(test)]
 mod init_producer_id_submission_test;
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "direct-consumer host integration follows this tracked RPC seam"
-    )
-)]
+mod list_offsets_admission;
+#[cfg(test)]
+mod list_offsets_admission_test;
+mod list_offsets_calls;
+#[cfg(test)]
+mod list_offsets_calls_test;
+mod list_offsets_fence;
+#[cfg(test)]
+mod list_offsets_fence_test;
 mod list_offsets_submission;
 #[cfg(test)]
 mod list_offsets_submission_test;
+mod list_offsets_terminal;
+#[cfg(test)]
+mod list_offsets_terminal_test;
 mod submission;
 #[cfg(test)]
 mod submission_test;
@@ -89,4 +94,8 @@ pub(crate) use describe_topics_calls::{DescribeTopicsCalls, DescribeTopicsComple
 pub(crate) use init_producer_id_calls::{
     ProducerIdentityCompletionFailure, TrackedProducerIdentityCalls,
 };
+pub(crate) use list_offsets_admission::{
+    PositionAdmissionFailure, PositionRequestPreparationError, PositionResolutionRequest,
+};
+pub(crate) use list_offsets_calls::{PositionCompletionFailure, TrackedPositionCalls};
 pub(crate) use submission::ProduceSubmitError;

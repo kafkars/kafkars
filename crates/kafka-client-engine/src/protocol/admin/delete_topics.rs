@@ -5,7 +5,7 @@ use kafka_wire::{
     DeleteTopicsRequest, DeleteTopicsResponse, delete_topics_response::DeletableTopicResult,
 };
 
-pub(crate) use super::timeout::{
+pub(crate) use super::request_timeout_error::{
     AdminRequestDeadlineError as DeleteTopicsRequestError, remaining_timeout_ms,
 };
 

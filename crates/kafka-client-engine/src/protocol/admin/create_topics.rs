@@ -7,7 +7,7 @@ use kafka_wire::{
     create_topics_response::CreatableTopicResult,
 };
 
-pub(crate) use super::timeout::{
+pub(crate) use super::request_timeout_error::{
     AdminRequestDeadlineError as CreateTopicsRequestError, remaining_timeout_ms,
 };
 

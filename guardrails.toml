@@ -825,8 +825,8 @@ production = "crates/kafka-client-engine/src/protocol/admin/describe_topics_resp
 test = "crates/kafka-client-engine/src/protocol/admin/describe_topics_response_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/protocol/admin/timeout.rs"
-test = "crates/kafka-client-engine/src/protocol/admin/timeout_test.rs"
+production = "crates/kafka-client-engine/src/protocol/request_timeout.rs"
+test = "crates/kafka-client-engine/src/protocol/request_timeout_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/consumer/list_offsets_request.rs"
@@ -835,6 +835,34 @@ test = "crates/kafka-client-engine/src/protocol/consumer/list_offsets_request_te
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/consumer/list_offsets_response.rs"
 test = "crates/kafka-client-engine/src/protocol/consumer/list_offsets_response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/list_offsets_time.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/list_offsets_time_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/request_timeout_error.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/request_timeout_error_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/list_offsets_admission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/list_offsets_admission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/list_offsets_fence.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/list_offsets_fence_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/list_offsets_terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/list_offsets_terminal_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/position_execution.rs"
+test = "crates/kafka-client-engine/src/consumer/position_execution_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/error/host.rs"
@@ -1285,6 +1313,24 @@ forbidden = [
   "Retry",
 ]
 
+# Direct-consumer execution may use the engine driver port, never raw driver,
+# wire, clock acquisition, sibling policy, or a generic async mechanism.
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/position_execution.rs"
+forbidden = [
+  "crate::admin",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "std::future",
+  "std::time",
+  "Instant::now",
+  "Future",
+  "Transport",
+  "Retry",
+]
+
 # Generated Fetch DTOs and record bytes remain in one bounded protocol seam.
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/protocol/fetch"
@@ -1416,6 +1462,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "try_reserve"
 allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/position_execution.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_partitions.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/delete_topics.rs",
@@ -1428,6 +1475,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "poll_next_ready"
 allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/position_execution.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_partitions.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/delete_topics.rs",
@@ -1440,11 +1488,13 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "discard_settled"
 allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/position_execution.rs",
   "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/describe_topics_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_partitions.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/delete_topics.rs",
@@ -1483,6 +1533,20 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
+method = "submit_tracked_list_offsets"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/list_offsets_admission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "recover_positions_after_driver_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/position_execution.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
 method = "discard_after_driver_shutdown"
 allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/recovery.rs",
@@ -1492,11 +1556,13 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "retained_count"
 allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/position_execution.rs",
   "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/describe_topics_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs",
   "crates/kafka-client-engine/src/engine_host/cleanup.rs",
 ]
 
@@ -2652,6 +2718,31 @@ field = "admission_closed"
 allowed_paths = ["crates/kafka-client-engine/src/producer/ingress/shard.rs"]
 
 [[mutation_owners]]
+owner_type = "TrackedPositionCalls"
+field = "calls"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs"]
+
+[[mutation_owners]]
+owner_type = "TrackedPositionCalls"
+field = "settled"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs"]
+
+[[mutation_owners]]
+owner_type = "TrackedPositionCalls"
+field = "completion_failure"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs"]
+
+[[mutation_owners]]
+owner_type = "TrackedPositionCall"
+field = "stale"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs"]
+
+[[mutation_owners]]
+owner_type = "SettledPositionCall"
+field = "stale"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs"]
+
+[[mutation_owners]]
 owner_type = "VirtualBatch"
 field = "members"
 allowed_paths = [
@@ -2677,6 +2768,30 @@ allowed_paths = [
 ]
 
 # Lifecycle and accounting owners must not be duplicated accidentally.
+[[linear_owners]]
+owner_type = "PreparedPositionResolution"
+path = "crates/kafka-client-engine/src/consumer/position_execution.rs"
+
+[[linear_owners]]
+owner_type = "PositionResolutionExecutor"
+path = "crates/kafka-client-engine/src/consumer/position_execution.rs"
+
+[[linear_owners]]
+owner_type = "PositionResolutionRequest"
+path = "crates/kafka-client-engine/src/driver/rpc/list_offsets_admission.rs"
+
+[[linear_owners]]
+owner_type = "PositionCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs"
+
+[[linear_owners]]
+owner_type = "SettledPositionCall"
+path = "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs"
+
+[[linear_owners]]
+owner_type = "TrackedPositionCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs"
+
 [[linear_owners]]
 owner_type = "CreateTopicsMachine"
 path = "crates/kafka-client-core/src/admin/machine.rs"

@@ -11,6 +11,8 @@ use super::{
     normalize_list_offsets_response,
 };
 
+const SELECTED_VERSION: i16 = 11;
+
 fn partition_response(
     partition_index: i32,
     error_code: i16,
@@ -42,8 +44,13 @@ fn response(topics: Vec<ListOffsetsTopicResponse>) -> ListOffsetsResponse {
 fn normalize(
     response: &ListOffsetsResponse,
 ) -> Result<ListOffsetsOutcome, ListOffsetsResponseFailure> {
-    normalize_list_offsets_response("audit", PartitionIndex::from_raw(3), response)
-        .map(NormalizedListOffsetsResponse::outcome)
+    normalize_list_offsets_response(
+        "audit",
+        PartitionIndex::from_raw(3),
+        SELECTED_VERSION,
+        response,
+    )
+    .map(NormalizedListOffsetsResponse::outcome)
 }
 
 #[test]
@@ -90,8 +97,13 @@ fn positive_throttle_is_retained_for_success_and_broker_error() {
         vec![partition_response(3, 0, 42)],
     )]);
     success.throttle_time_ms = 47;
-    let success = normalize_list_offsets_response("audit", PartitionIndex::from_raw(3), &success)
-        .unwrap_or_else(|error| panic!("throttled success: {error:?}"));
+    let success = normalize_list_offsets_response(
+        "audit",
+        PartitionIndex::from_raw(3),
+        SELECTED_VERSION,
+        &success,
+    )
+    .unwrap_or_else(|error| panic!("throttled success: {error:?}"));
     assert_eq!(success.throttle_time_ms(), 47);
     assert!(matches!(success.outcome(), ListOffsetsOutcome::Resolved(_)));
 
@@ -100,9 +112,13 @@ fn positive_throttle_is_retained_for_success_and_broker_error() {
         vec![partition_response(3, -32_000, -1)],
     )]);
     broker_error.throttle_time_ms = 91;
-    let broker_error =
-        normalize_list_offsets_response("audit", PartitionIndex::from_raw(3), &broker_error)
-            .unwrap_or_else(|error| panic!("throttled broker error: {error:?}"));
+    let broker_error = normalize_list_offsets_response(
+        "audit",
+        PartitionIndex::from_raw(3),
+        SELECTED_VERSION,
+        &broker_error,
+    )
+    .unwrap_or_else(|error| panic!("throttled broker error: {error:?}"));
     assert_eq!(broker_error.throttle_time_ms(), 91);
     assert!(matches!(
         broker_error.outcome(),
@@ -177,6 +193,7 @@ fn invalid_success_ranges_and_negative_throttle_are_not_bound() {
         normalize_list_offsets_response(
             "audit",
             PartitionIndex::from_raw(i32::MAX as u32 + 1),
+            SELECTED_VERSION,
             &response(vec![topic_response(
                 "audit",
                 vec![partition_response(3, 0, 1)],
@@ -214,4 +231,55 @@ fn invalid_success_ranges_and_negative_throttle_are_not_bound() {
         )])),
         Err(ListOffsetsResponseFailure::InvalidLeaderEpoch { actual: -2 })
     );
+}
+
+#[test]
+fn selected_version_controls_absent_throttle_and_leader_epoch_fields() {
+    let mut selected = partition_response(3, 0, 42);
+    selected.leader_epoch = 7;
+    let mut response = response(vec![topic_response("audit", vec![selected])]);
+    response.throttle_time_ms = 91;
+
+    let v1 = normalize_list_offsets_response("audit", PartitionIndex::from_raw(3), 1, &response)
+        .unwrap_or_else(|error| panic!("valid v1 response: {error:?}"));
+    let ListOffsetsOutcome::Resolved(v1_position) = v1.outcome() else {
+        panic!("v1 success became broker error");
+    };
+    assert_eq!(v1.throttle_time_ms(), 0);
+    assert_eq!(v1_position.leader_epoch(), None);
+
+    let v3 = normalize_list_offsets_response("audit", PartitionIndex::from_raw(3), 3, &response)
+        .unwrap_or_else(|error| panic!("valid v3 response: {error:?}"));
+    let ListOffsetsOutcome::Resolved(v3_position) = v3.outcome() else {
+        panic!("v3 success became broker error");
+    };
+    assert_eq!(v3.throttle_time_ms(), 91);
+    assert_eq!(v3_position.leader_epoch(), None);
+
+    let v4 = normalize_list_offsets_response("audit", PartitionIndex::from_raw(3), 4, &response)
+        .unwrap_or_else(|error| panic!("valid v4 response: {error:?}"));
+    let ListOffsetsOutcome::Resolved(v4_position) = v4.outcome() else {
+        panic!("v4 success became broker error");
+    };
+    assert_eq!(v4.throttle_time_ms(), 91);
+    assert_eq!(v4_position.leader_epoch(), Some(7));
+}
+
+#[test]
+fn selected_version_must_fit_the_generated_list_offsets_range() {
+    let response = response(vec![topic_response(
+        "audit",
+        vec![partition_response(3, 0, 42)],
+    )]);
+    for actual in [0, 12, i16::MAX] {
+        assert_eq!(
+            normalize_list_offsets_response(
+                "audit",
+                PartitionIndex::from_raw(3),
+                actual,
+                &response,
+            ),
+            Err(ListOffsetsResponseFailure::UnsupportedApiVersion { actual })
+        );
+    }
 }

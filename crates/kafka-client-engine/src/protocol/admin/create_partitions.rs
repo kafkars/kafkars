@@ -7,7 +7,7 @@ use kafka_wire::{
     create_partitions_response::CreatePartitionsTopicResult,
 };
 
-pub(crate) use super::timeout::{
+pub(crate) use super::request_timeout_error::{
     AdminRequestDeadlineError as CreatePartitionsRequestError, remaining_timeout_ms,
 };
 
