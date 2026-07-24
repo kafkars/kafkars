@@ -7,6 +7,8 @@ use kafka_wire::{
 
 use super::{FetchDecodeLimits, FetchResponseFailure, normalize_one_partition_fetch_response};
 
+const SELECTED_VERSION: i16 = 12;
+
 fn partition(index: i32, error_code: i16) -> PartitionData {
     let mut partition = PartitionData::default();
     partition.partition_index = index;
@@ -28,7 +30,41 @@ fn response(topics: Vec<FetchableTopicResponse>) -> WireFetchResponse {
 }
 
 fn normalize(response: WireFetchResponse) -> Result<super::FetchResponse, FetchResponseFailure> {
-    normalize_one_partition_fetch_response("events", 3, response, FetchDecodeLimits::default())
+    normalize_one_partition_fetch_response(
+        "events",
+        3,
+        SELECTED_VERSION,
+        response,
+        FetchDecodeLimits::default(),
+    )
+}
+
+#[test]
+fn selected_version_must_preserve_name_routing_and_fetch_semantics() {
+    for actual in [i16::MIN, 3, 13, i16::MAX] {
+        assert_eq!(
+            normalize_one_partition_fetch_response(
+                "events",
+                3,
+                actual,
+                response(vec![topic("events", vec![partition(3, 0)])]),
+                FetchDecodeLimits::default(),
+            ),
+            Err(FetchResponseFailure::UnsupportedApiVersion { actual })
+        );
+    }
+    for selected_version in [4, 12] {
+        assert!(
+            normalize_one_partition_fetch_response(
+                "events",
+                3,
+                selected_version,
+                response(vec![topic("events", vec![partition(3, 0)])]),
+                FetchDecodeLimits::default(),
+            )
+            .is_ok()
+        );
+    }
 }
 
 #[test]
@@ -88,6 +124,7 @@ fn missing_duplicate_and_unexpected_partitions_never_correlate() {
         normalize_one_partition_fetch_response(
             "events",
             i32::MAX as u32 + 1,
+            SELECTED_VERSION,
             response(vec![topic("events", vec![partition(3, 0)])]),
             FetchDecodeLimits::default(),
         ),
@@ -107,6 +144,7 @@ fn correlated_shape_still_uses_the_existing_bounded_decoder() {
         normalize_one_partition_fetch_response(
             "events",
             3,
+            SELECTED_VERSION,
             response(vec![topic("events", vec![partition(3, 0)])]),
             limits,
         ),

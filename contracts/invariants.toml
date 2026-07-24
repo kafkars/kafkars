@@ -278,6 +278,22 @@ evidence = [
 ]
 
 [[invariant]]
+id = "CON-03"
+title = "Direct Fetch protocol is bounded and version-fenced"
+statement = "The first direct-consumer Fetch seam builds one name-routed normal-consumer partition request with exact Kafka sentinels, validates isolation and byte settings, and requires the driver-selected version to remain within v4-v12 before response correlation. It rejects missing, duplicate, or unexpected topic-partition results before bounded normalization, preserves exact signed broker codes and throttle observations, delegates RecordBatch decoding, CRC, and compression to kafka-wire-records, and cumulatively bounds generated storage, decoded records, headers, batches, transactions, and retained payload bytes."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/protocol/fetch/request_test.rs::request_uses_generated_v12_name_and_exact_consumer_sentinels",
+  "crates/kafka-client-engine/src/protocol/fetch/request_test.rs::both_kafka_isolation_levels_are_represented_exactly",
+  "crates/kafka-client-engine/src/protocol/fetch/response_test.rs::selected_version_must_preserve_name_routing_and_fetch_semantics",
+  "crates/kafka-client-engine/src/protocol/fetch/response_test.rs::missing_duplicate_and_unexpected_topics_never_correlate",
+  "crates/kafka-client-engine/src/protocol/fetch/response_test.rs::missing_duplicate_and_unexpected_partitions_never_correlate",
+  "crates/kafka-client-engine/src/protocol/fetch/decode_test.rs::wire_records_remains_the_compression_and_crc_authority",
+  "crates/kafka-client-engine/src/protocol/fetch/limits_test.rs::record_and_header_counts_accumulate_across_batches",
+  "crates/kafka-client-engine/src/protocol/fetch/decode_next_test.rs::compressed_batches_share_exact_cumulative_retained_payload_budget",
+]
+
+[[invariant]]
 id = "DL-01"
 title = "Producer policy consumes one absolute deadline"
 statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant, accepted operation bindings retain that pair unchanged, core rejects already elapsed work, queued compression or submission expiry reproduces the exact core deadline fact, and identity-request deadline completion cannot be erased by an earlier transport category."
