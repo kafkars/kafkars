@@ -43,6 +43,10 @@ fn implementation_glob_fixture_is_rejected_but_facade_reexport_is_allowed() {
             .any(|value| value.contains("implementation.rs"))
     );
     assert!(!violations.iter().any(|value| value.contains("lib.rs")));
+    assert!(!violations.iter().any(|value| value.contains("curated")));
+    assert!(violations.iter().any(|value| value.contains("broad")));
+    assert!(violations.iter().any(|value| value.contains("in_crate")));
+    assert!(violations.iter().any(|value| value.contains("super_scope")));
 }
 
 #[test]

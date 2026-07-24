@@ -31,7 +31,7 @@ struct GlobImportVisitor {
 
 impl<'ast> Visit<'ast> for GlobImportVisitor {
     fn visit_item_use(&mut self, item: &'ast ItemUse) {
-        if has_glob(&item.tree) && !(self.facade && matches!(item.vis, Visibility::Public(_))) {
+        if has_glob(&item.tree) && !allowed_facade_reexport(self.facade, item) {
             self.violations.push(format!(
                 "{} contains a glob import outside a public facade re-export",
                 self.path
@@ -39,6 +39,28 @@ impl<'ast> Visit<'ast> for GlobImportVisitor {
         }
         syn::visit::visit_item_use(self, item);
     }
+}
+
+fn allowed_facade_reexport(facade: bool, item: &ItemUse) -> bool {
+    if !facade {
+        return false;
+    }
+    if matches!(item.vis, Visibility::Public(_)) {
+        return true;
+    }
+    let Visibility::Restricted(restricted) = &item.vis else {
+        return false;
+    };
+    restricted.in_token.is_none()
+        && restricted.path.is_ident("crate")
+        && is_curated_exports_glob(&item.tree)
+}
+
+fn is_curated_exports_glob(tree: &UseTree) -> bool {
+    let UseTree::Path(path) = tree else {
+        return false;
+    };
+    path.ident == "exports" && matches!(path.tree.as_ref(), UseTree::Glob(_))
 }
 
 fn has_glob(tree: &UseTree) -> bool {
