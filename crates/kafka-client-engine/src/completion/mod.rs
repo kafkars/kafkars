@@ -12,6 +12,8 @@ mod notifier_queue_test;
 mod notifier_test;
 mod observer;
 mod publish_ticket;
+#[cfg(test)]
+mod publish_ticket_test;
 mod registry;
 mod settlement;
 mod shared_notifier;

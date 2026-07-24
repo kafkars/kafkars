@@ -187,6 +187,10 @@ production = "crates/kafka-client-engine/src/completion/observer.rs"
 test = "crates/kafka-client-engine/src/completion/observer_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/completion/publish_ticket.rs"
+test = "crates/kafka-client-engine/src/completion/publish_ticket_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/completion/registry.rs"
 test = "crates/kafka-client-engine/src/completion/registry_test.rs"
 
@@ -1470,6 +1474,11 @@ field = "handle"
 allowed_paths = ["crates/kafka-client-engine/src/completion/notifier.rs"]
 
 [[mutation_owners]]
+owner_type = "AdminCompletionNotifier"
+field = "worker"
+allowed_paths = ["crates/kafka-client-engine/src/admin/completion.rs"]
+
+[[mutation_owners]]
 owner_type = "BatchTimers"
 field = "active"
 allowed_paths = ["crates/kafka-client-engine/src/clock/timer.rs"]
@@ -2230,6 +2239,30 @@ path = "crates/kafka-client-engine/src/completion/notifier.rs"
 [[linear_owners]]
 owner_type = "NotifierJoin"
 path = "crates/kafka-client-engine/src/completion/notifier.rs"
+
+[[linear_owners]]
+owner_type = "PublishTicket"
+path = "crates/kafka-client-engine/src/completion/publish_ticket.rs"
+
+[[linear_owners]]
+owner_type = "SharedNotifier"
+path = "crates/kafka-client-engine/src/completion/shared_notifier.rs"
+
+[[linear_owners]]
+owner_type = "SharedPublishPort"
+path = "crates/kafka-client-engine/src/completion/shared_notifier.rs"
+
+[[linear_owners]]
+owner_type = "AdminCompletionNotifier"
+path = "crates/kafka-client-engine/src/admin/completion.rs"
+
+[[linear_owners]]
+owner_type = "AdminCompletionPorts"
+path = "crates/kafka-client-engine/src/admin/completion.rs"
+
+[[linear_owners]]
+owner_type = "AdminPublishTicket"
+path = "crates/kafka-client-engine/src/admin/completion.rs"
 
 [[linear_owners]]
 owner_type = "MonotonicClock"
