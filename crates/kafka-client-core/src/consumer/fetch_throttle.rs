@@ -27,6 +27,10 @@ impl FetchThrottle {
         self.next_offset
     }
 
+    pub(super) const fn fence(&self) -> FetchFence {
+        self.fence
+    }
+
     pub(super) const fn deadline(&self) -> Deadline {
         self.deadline
     }

@@ -2,13 +2,43 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerMachineError, AssignedTopicPartition, FetchFailure,
-    FetchFence, FetchRecords, FetchRevision, FetchThrottleFailure, NextFetchOffset, PositionFence,
+    FetchFence, FetchOwnership, FetchRecords, FetchRevision, FetchThrottleFailure, NextFetchOffset,
+    PositionFence,
     fetch_throttle::FetchThrottle,
     position_state::{PartitionPosition, PositionPhase},
 };
 use crate::Moment;
 
 impl PartitionPosition {
+    pub(super) fn fetch_ownership(
+        &self,
+        supplied: FetchFence,
+    ) -> Result<FetchOwnership, AssignedConsumerMachineError> {
+        match &self.phase {
+            PositionPhase::Fetching { fence, .. } if *fence == supplied => {
+                Ok(FetchOwnership::Active)
+            }
+            PositionPhase::Fetching { fence, .. } if supplied.revision() < fence.revision() => {
+                Ok(FetchOwnership::Superseded)
+            }
+            PositionPhase::FetchThrottled(throttle)
+                if supplied.revision() < throttle.fence().revision() =>
+            {
+                Ok(FetchOwnership::Superseded)
+            }
+            PositionPhase::FetchFailed(last_issued)
+                if supplied.revision() <= last_issued.revision() =>
+            {
+                Ok(FetchOwnership::Superseded)
+            }
+            PositionPhase::Fetching { .. }
+            | PositionPhase::FetchThrottled(_)
+            | PositionPhase::FetchFailed(_)
+            | PositionPhase::Resolution(_)
+            | PositionPhase::Ready(_) => Err(AssignedConsumerMachineError::StaleFetch { supplied }),
+        }
+    }
+
     pub(super) fn advance(
         &mut self,
         supplied: FetchFence,
@@ -44,7 +74,7 @@ impl PartitionPosition {
                 deadline,
             }
         } else {
-            self.phase = PositionPhase::FetchFailed;
+            self.phase = PositionPhase::FetchFailed(supplied);
             AssignedConsumerEffect::FetchThrottleFailed {
                 fence: supplied,
                 failure: FetchThrottleFailure::DeadlineOverflow,
@@ -72,7 +102,7 @@ impl PartitionPosition {
         if fence != supplied {
             return Err(AssignedConsumerMachineError::StaleFetch { supplied });
         }
-        self.phase = PositionPhase::FetchFailed;
+        self.phase = PositionPhase::FetchFailed(supplied);
         Ok(AssignedConsumerEffect::FetchFailed {
             fence: supplied,
             failure,
@@ -105,7 +135,7 @@ impl PartitionPosition {
             }
             PositionPhase::Resolution(_)
             | PositionPhase::Fetching { .. }
-            | PositionPhase::FetchFailed => Ok(None),
+            | PositionPhase::FetchFailed(_) => Ok(None),
         }
     }
 

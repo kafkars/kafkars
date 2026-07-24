@@ -341,6 +341,29 @@ evidence = [
 ]
 
 [[invariant]]
+id = "CON-04"
+title = "Direct Fetch execution is ordered and bounded"
+statement = "One unique direct-consumer Fetch executor reconciles each prepared fence against core ownership and checks its original absolute deadline before reserving retained-output count and bytes, then attempts bounded tracked-call admission without inventing retry policy. Backpressure returns the exact prepared owner and releases its exact reservation; superseded queued work settles without spending store or driver capacity, while future or cross-partition ownership becomes a frozen invariant fault. Terminal handling normalizes through the protocol reservation, applies the exact fact to core, authorizes or discards store ownership according to core's ordered effects, and only then confirms the exact route capability. Stale terminals cannot publish delivery, and every store, core, completion, or confirmation inconsistency freezes all executor surfaces while retaining linear owners until post-driver-shutdown recovery. Production construction remains forbidden until one concrete direct-consumer owner binds the core machine, position executor, and Fetch executor into one lifecycle."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/consumer/fetch_state_test.rs::active_fetch_query_fences_paused_sought_and_reassigned_work",
+  "crates/kafka-client-core/src/consumer/fetch_state_test.rs::armed_throttle_fence_cannot_be_forged_into_fetch_ready_ownership",
+  "crates/kafka-client-engine/src/consumer/fetch_store_test.rs::count_and_bytes_are_reserved_atomically_before_driver_admission",
+  "crates/kafka-client-engine/src/consumer/fetch_store_test.rs::deliverable_bytes_stay_hidden_and_charged_until_exact_authorization_and_reclaim",
+  "crates/kafka-client-engine/src/consumer/fetch_store_test.rs::equal_sized_cross_wired_stage_returns_the_intact_proof_and_outcome",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/admission_test.rs::elapsed_deadline_settles_before_zero_store_and_call_capacity",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/admission_test.rs::backpressured_fetch_superseded_before_retry_settles_without_driver_admission",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/admission_test.rs::unavailable_output_capacity_returns_the_exact_prepared_fetch",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/admission_test.rs::call_capacity_backpressure_rolls_back_output_reservation_and_returns_prepared",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/settlement_test.rs::deliverable_is_authorized_before_progress_and_reclaimed_explicitly",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/settlement_test.rs::exact_broker_and_driver_failures_release_output_capacity_without_retry",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/stale_test.rs::core_confirmed_stale_delivery_is_never_published_before_route_confirmation",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/prepared_test.rs::future_fetch_fence_is_retained_as_a_fault_instead_of_discarded",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/settlement_test.rs::unexpected_core_rejection_retains_store_and_route_ownership_until_shutdown",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/fault_test.rs::completion_corruption_freezes_every_surface_and_recovers_exact_owners",
+]
+
+[[invariant]]
 id = "DL-01"
 title = "Client policy consumes one absolute deadline"
 statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant, accepted operation and direct-consumer bindings retain that pair unchanged, generated request timeout fields derive only from the remaining core deadline while the original transport instant is unchanged, core rejects already elapsed work, queued compression or submission expiry reproduces the exact core deadline fact, and identity-request deadline completion cannot be erased by an earlier transport category."

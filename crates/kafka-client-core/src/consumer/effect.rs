@@ -35,7 +35,7 @@ pub enum FetchFailure {
     DriverRejected,
     /// Transport ownership terminated without a response.
     Transport,
-    /// Kafka returned one exact nonzero signed partition error code.
+    /// Kafka returned one exact nonzero signed Fetch error code.
     Broker(NonZeroI16),
     /// The selected Fetch version cannot preserve required semantics.
     Compatibility,

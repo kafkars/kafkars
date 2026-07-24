@@ -5,9 +5,8 @@ use core::mem::size_of;
 use bytes::Bytes;
 
 use super::{
-    FetchBatch, FetchHeader, FetchOutputReservation, FetchProducerIdentity, FetchRecord,
-    FetchTimestampType,
-    retention::{FetchRetentionFailure, settle},
+    FetchBatch, FetchHeader, FetchProducerIdentity, FetchRecord, FetchTimestampType,
+    retention::{FetchReservationDomain, FetchRetentionFailure, settle},
 };
 
 #[test]
@@ -20,12 +19,12 @@ fn exact_charge_counts_descriptor_capacity_and_visible_byte_spans() {
         + 5
         + 5
         + 7;
-    let charge = settle(
-        FetchOutputReservation::from_acquired_capacity(expected),
-        &batches,
-    )
-    .unwrap_or_else(|(failure, _)| panic!("exact reservation: {failure:?}"));
+    let domain = super::retention::FetchReservationDomain::create_store_domain();
+    let (proof, reservation) = domain.issue_pair(9, expected);
+    let charge = settle(reservation, &batches)
+        .unwrap_or_else(|(failure, _)| panic!("exact reservation: {failure:?}"));
 
+    assert!(charge.same_reservation(&proof));
     assert_eq!(charge.reserved_bytes(), expected);
     assert_eq!(charge.retained_bytes(), expected);
     assert_eq!(charge.unused_bytes(), 0);
@@ -34,7 +33,8 @@ fn exact_charge_counts_descriptor_capacity_and_visible_byte_spans() {
 #[test]
 fn insufficient_capacity_returns_the_same_reservation_for_release() {
     let batches = vec![batch()];
-    let reservation = FetchOutputReservation::from_acquired_capacity(1);
+    let domain = FetchReservationDomain::create_store_domain();
+    let (_, reservation) = domain.issue_pair(0, 1);
     let Err((failure, reservation)) = settle(reservation, &batches) else {
         panic!("one byte cannot retain batch");
     };

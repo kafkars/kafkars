@@ -67,10 +67,6 @@ impl PartitionFetchRequest {
         self.decode_limits
     }
 
-    #[allow(
-        dead_code,
-        reason = "the direct-consumer executor consumes isolation after the tracked-call seam"
-    )]
     pub(crate) const fn is_read_uncommitted(&self) -> bool {
         self.settings.is_read_uncommitted()
     }
@@ -112,13 +108,7 @@ impl FetchAdmissionFailure {
 pub(crate) enum FetchAdmissionFailureSource {
     DeadlineElapsed,
     Request(FetchRequestFailure),
-    Driver(
-        #[allow(
-            dead_code,
-            reason = "the direct-consumer executor classifies driver rejection in the next layer"
-        )]
-        FetchSubmitError,
-    ),
+    Driver(FetchSubmitError),
 }
 
 /// Result of a capacity-preflighted attempt to submit one exact Fetch.

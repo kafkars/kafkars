@@ -2,8 +2,8 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerMachineError, AssignedPartition,
-    AssignedTopicPartition, AssignmentEpoch, FetchFailure, FetchFence, FetchRecords,
-    NextFetchOffset, PositionFence, StartPosition, position_state::PartitionPosition,
+    AssignedTopicPartition, AssignmentEpoch, FetchFailure, FetchFence, FetchOwnership,
+    FetchRecords, NextFetchOffset, PositionFence, StartPosition, position_state::PartitionPosition,
 };
 use crate::{Deadline, Moment};
 
@@ -15,6 +15,24 @@ pub(super) struct AssignedPartitionState {
 }
 
 impl AssignedPartitionState {
+    pub(super) fn fetch_ownership(
+        &self,
+        fence: FetchFence,
+    ) -> Result<FetchOwnership, AssignedConsumerMachineError> {
+        let supplied = fence.position();
+        let active = self.position_fence(supplied.assignment_epoch());
+        if supplied.position_epoch() < active.position_epoch() {
+            return Ok(FetchOwnership::Superseded);
+        }
+        if supplied.position_epoch() > active.position_epoch() {
+            return Err(AssignedConsumerMachineError::StalePosition { active, supplied });
+        }
+        if self.paused {
+            return Err(AssignedConsumerMachineError::StaleFetch { supplied: fence });
+        }
+        self.position.fetch_ownership(fence)
+    }
+
     pub(super) fn new(
         assignment_epoch: AssignmentEpoch,
         assigned: AssignedPartition,

@@ -1,28 +1,76 @@
 //! Linear hard reservation and exact charge for retained Fetch output.
 
 use core::mem::size_of;
+use std::sync::Arc;
 
 use bytes::Bytes;
 
 use super::model::{FetchBatch, FetchHeader, FetchRecord};
+
+/// Sole non-clone owner allowed to issue reservations within one store domain.
+#[derive(Debug)]
+pub(crate) struct FetchReservationDomain {
+    identity: Arc<()>,
+}
+
+impl FetchReservationDomain {
+    /// Creates one unforgeable in-process reservation domain.
+    pub(crate) fn create_store_domain() -> Self {
+        Self {
+            identity: Arc::new(()),
+        }
+    }
+
+    /// Issues the only two tokens for one store-local reservation.
+    pub(crate) fn issue_pair(
+        &self,
+        sequence: u64,
+        bytes: usize,
+    ) -> (FetchOutputReservation, FetchOutputReservation) {
+        let token = || FetchOutputReservation {
+            domain: Arc::clone(&self.identity),
+            sequence,
+            bytes,
+        };
+        (token(), token())
+    }
+}
 
 /// Capacity acquired before one Fetch may retain an oversized first batch.
 ///
 /// This bounds the stable, publishable application-data graph. Generated
 /// response DTOs and temporary decoded records are a separate scratch domain
 /// bounded by [`super::FetchDecodeLimits`].
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub(crate) struct FetchOutputReservation {
+    domain: Arc<()>,
+    sequence: u64,
     bytes: usize,
 }
 
+impl PartialEq for FetchOutputReservation {
+    fn eq(&self, other: &Self) -> bool {
+        self.same_reservation(other)
+    }
+}
+
+impl Eq for FetchOutputReservation {}
+
 impl FetchOutputReservation {
-    /// Records capacity already removed from the consumer retained-byte owner.
-    ///
-    /// The executor must acquire this capacity from its hard response limit,
-    /// never from Kafka's soft `max_bytes` or `partition_max_bytes` fields.
-    pub(crate) const fn from_acquired_capacity(bytes: usize) -> Self {
-        Self { bytes }
+    /// Reports whether this token belongs to one exact reservation.
+    pub(crate) fn same_reservation(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.domain, &other.domain)
+            && self.sequence == other.sequence
+            && self.bytes == other.bytes
+    }
+
+    /// Reports whether this token belongs to the owner's private domain.
+    pub(crate) fn same_domain(&self, owner: &FetchReservationDomain) -> bool {
+        Arc::ptr_eq(&self.domain, &owner.identity)
+    }
+
+    pub(crate) const fn sequence(&self) -> u64 {
+        self.sequence
     }
 
     /// Returns the hard capacity held by this linear token.
@@ -36,13 +84,32 @@ impl FetchOutputReservation {
 /// Like `kafka-wire`'s `RetainedSize`, this counts descriptor capacity and
 /// visible byte spans. It deliberately does not estimate unique backing-store
 /// capacity or process RSS.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub(super) struct FetchRetainedCharge {
+    domain: Arc<()>,
+    sequence: u64,
     reserved_bytes: usize,
     retained_bytes: usize,
 }
 
+impl PartialEq for FetchRetainedCharge {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.domain, &other.domain)
+            && self.sequence == other.sequence
+            && self.reserved_bytes == other.reserved_bytes
+            && self.retained_bytes == other.retained_bytes
+    }
+}
+
+impl Eq for FetchRetainedCharge {}
+
 impl FetchRetainedCharge {
+    pub(super) fn same_reservation(&self, reservation: &FetchOutputReservation) -> bool {
+        Arc::ptr_eq(&self.domain, &reservation.domain)
+            && self.sequence == reservation.sequence
+            && self.reserved_bytes == reservation.bytes
+    }
+
     pub(super) const fn reserved_bytes(&self) -> usize {
         self.reserved_bytes
     }
@@ -88,6 +155,8 @@ pub(super) fn settle(
         ));
     }
     Ok(FetchRetainedCharge {
+        domain: reservation.domain,
+        sequence: reservation.sequence,
         reserved_bytes: reservation.bytes,
         retained_bytes,
     })

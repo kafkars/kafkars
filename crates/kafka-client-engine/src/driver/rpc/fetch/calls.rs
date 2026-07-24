@@ -183,6 +183,11 @@ impl TrackedFetchCalls {
         let fence = request.fence();
         self.completion_failure = Some(FetchCompletionFailure::new(Some(request), fence, source));
     }
+
+    #[cfg(test)]
+    pub(crate) fn install_consumed_completion_for_test(&mut self, request: PartitionFetchRequest) {
+        self.install_completion_failure_for_test(request, kafka_driver::CompletionError::Consumed);
+    }
 }
 
 fn settled_poll(settled: &SettledFetchCall) -> FetchPoll {

@@ -3,8 +3,7 @@
 mod support;
 
 use support::{
-    CallCapabilityRule, LinearOwner, call_capability_violations, fixture_files, linear_violations,
-    load_config, rust_files, workspace_root,
+    LinearOwner, fixture_files, linear_violations, load_config, rust_files, workspace_root,
 };
 
 const RETAINED_TYPES: [(&str, &str); 12] = [
@@ -61,36 +60,4 @@ fn retained_fetch_fixture_rejects_clone_and_copy() {
             );
         }
     }
-}
-
-#[test]
-fn hard_reservation_constructor_has_no_unbacked_production_caller() {
-    let workspace = workspace_root();
-    let config = load_config(&workspace);
-    let rules = config
-        .call_capabilities
-        .iter()
-        .filter(|rule| rule.call == "FetchOutputReservation::from_acquired_capacity")
-        .collect::<Vec<_>>();
-    assert_eq!(rules.len(), 1, "hard reservation needs one call guard");
-    assert!(
-        rules[0].allowed_paths.is_empty(),
-        "a concrete capacity owner has not landed yet"
-    );
-
-    let root = fixture_files("consumer_fetch_ownership").0;
-    let violations = call_capability_violations(
-        &root,
-        &[CallCapabilityRule {
-            root: "src".into(),
-            call: "FetchOutputReservation::from_acquired_capacity".into(),
-            allowed_paths: Vec::new(),
-        }],
-    );
-    assert!(
-        violations
-            .iter()
-            .any(|value| value.contains("reservation_intruder.rs")),
-        "unbacked reservation construction escaped: {violations:?}"
-    );
 }

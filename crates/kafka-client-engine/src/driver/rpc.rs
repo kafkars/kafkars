@@ -95,23 +95,12 @@ pub(crate) use delete_topics_calls::{DeleteTopicsCompletionFailure, TrackedDelet
 pub(crate) use describe_cluster_calls::{DescribeClusterCalls, DescribeClusterCompletionFailure};
 pub(crate) use describe_configs_calls::{DescribeConfigsCalls, DescribeConfigsCompletionFailure};
 pub(crate) use describe_topics_calls::{DescribeTopicsCalls, DescribeTopicsCompletionFailure};
-#[cfg_attr(
-    not(test),
-    expect(unused_imports, reason = "awaiting direct-consumer executor")
-)]
-#[cfg_attr(
-    test,
-    allow(
-        unused_imports,
-        reason = "tracked Fetch calls land before the direct-consumer executor"
-    )
-)]
 pub(crate) use fetch::{
-    FetchAdmissionFailure, FetchAdmissionFailureSource, FetchBeginSettlementError,
-    FetchCallAdmission, FetchCompletionFailure, FetchCompletionObservation, FetchConfirmationError,
-    FetchControlPending, FetchPoll, FetchRecovery, FetchRequestPreparationError, FetchRestoreError,
-    FetchRestoreFailure, FetchTerminal, PartitionFetchRequest, StaleFetchConfirmationError,
-    StaleFetchDrains, TrackedFetchCalls,
+    FetchBeginSettlementError, FetchCallAdmission, FetchCompletionObservation,
+    FetchConfirmationError, FetchControlPending, FetchPoll, FetchRecovery,
+    FetchRequestPreparationError, FetchTerminal, PartitionFetchRequest,
+    StaleFetchConfirmationError, TrackedFetchCalls, classify_fetch_admission,
+    classify_fetch_request_error,
 };
 pub(crate) use init_producer_id_calls::{
     ProducerIdentityCompletionFailure, TrackedProducerIdentityCalls,

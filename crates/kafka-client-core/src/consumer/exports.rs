@@ -8,6 +8,6 @@ pub use super::error::AssignedConsumerMachineError;
 pub use super::input::AssignedConsumerInput;
 pub use super::machine::AssignedConsumerMachine;
 pub use super::model::{
-    AssignedPartition, AssignedTopicPartition, AssignmentEpoch, FetchFence, FetchRecords,
-    FetchRevision, NextFetchOffset, PositionEpoch, PositionFence, StartPosition,
+    AssignedPartition, AssignedTopicPartition, AssignmentEpoch, FetchFence, FetchOwnership,
+    FetchRecords, FetchRevision, NextFetchOffset, PositionEpoch, PositionFence, StartPosition,
 };

@@ -93,8 +93,16 @@ impl RetainedFetchOutcome {
         self.throttle_ticks
     }
 
+    pub(crate) fn matches_reservation(&self, reservation: &FetchOutputReservation) -> bool {
+        self.charge.same_reservation(reservation)
+    }
+
     pub(crate) const fn outcome(&self) -> &FetchOutcome {
         &self.outcome
+    }
+
+    pub(crate) const fn reserved_bytes(&self) -> usize {
+        self.charge.reserved_bytes()
     }
 
     pub(crate) const fn retained_bytes(&self) -> usize {

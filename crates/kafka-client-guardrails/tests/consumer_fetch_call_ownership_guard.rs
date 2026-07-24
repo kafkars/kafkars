@@ -82,15 +82,36 @@ const MUTATION_OWNERS: &[(&str, &str, &[&str])] = &[
     ("TrackedFetchCall", "request", &[CALLS, SETTLEMENT_OWNER]),
     ("SettledFetchCall", "terminal", &[SETTLEMENT]),
 ];
-const OWNER_METHODS: &[&str] = &[
-    "try_submit_fetch",
-    "observe_fetch_control",
-    "poll_fetch",
-    "begin_fetch_settlement",
-    "confirm_fetch_settlement",
-    "restore_fetch_settlement",
-    "confirm_stale_fetch",
-    "recover_fetches_after_driver_shutdown",
+const OWNER_METHODS: &[(&str, &[&str])] = &[
+    (
+        "try_submit_fetch",
+        &["crates/kafka-client-engine/src/consumer/fetch_execution/admission.rs"],
+    ),
+    (
+        "observe_fetch_control",
+        &["crates/kafka-client-engine/src/consumer/fetch_execution/control.rs"],
+    ),
+    (
+        "poll_fetch",
+        &["crates/kafka-client-engine/src/consumer/fetch_execution/settlement.rs"],
+    ),
+    (
+        "begin_fetch_settlement",
+        &["crates/kafka-client-engine/src/consumer/fetch_execution/settlement.rs"],
+    ),
+    (
+        "confirm_fetch_settlement",
+        &["crates/kafka-client-engine/src/consumer/fetch_execution/apply.rs"],
+    ),
+    ("restore_fetch_settlement", &[]),
+    (
+        "confirm_stale_fetch",
+        &["crates/kafka-client-engine/src/consumer/fetch_execution/settlement.rs"],
+    ),
+    (
+        "recover_fetches_after_driver_shutdown",
+        &["crates/kafka-client-engine/src/consumer/fetch_execution/delivery.rs"],
+    ),
 ];
 
 #[test]
@@ -125,18 +146,23 @@ fn checked_in_fetch_call_owners_are_narrow_and_linear() {
 }
 
 #[test]
-fn checked_in_fetch_executor_methods_have_no_undeclared_caller() {
+fn checked_in_fetch_executor_methods_have_exact_callers() {
     let config = load_config(&workspace_root());
-    for method in OWNER_METHODS {
+    for (method, allowed_paths) in OWNER_METHODS {
         let rules = config
             .method_capabilities
             .iter()
             .filter(|rule| rule.method == *method)
             .collect::<Vec<_>>();
         assert_eq!(rules.len(), 1, "{method} needs one method capability");
-        assert!(
-            rules[0].allowed_paths.is_empty(),
-            "{method} must remain uncalled until the executor is registered"
+        assert_eq!(
+            rules[0]
+                .allowed_paths
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            *allowed_paths,
+            "{method} has an unexpected executor caller"
         );
     }
 }

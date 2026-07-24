@@ -3,7 +3,7 @@
 use kafka_client_core::FetchFence;
 
 #[cfg(test)]
-use super::settlement::SettledFetchCall;
+use bytes::Bytes;
 
 use super::{
     calls::TrackedFetchCalls,
@@ -14,6 +14,9 @@ use super::{
     stale::FetchRecovery,
     terminal::FetchTerminal,
 };
+
+#[cfg(test)]
+use super::settlement::SettledFetchCall;
 
 impl TrackedFetchCalls {
     pub(crate) fn begin_fetch_settlement(
@@ -151,6 +154,80 @@ impl TrackedFetchCalls {
 
     #[cfg(test)]
     pub(crate) fn install_terminal_for_test(&mut self, terminal: FetchTerminal) {
+        self.settled = Some(SettledFetchCall::live(terminal, None));
+    }
+
+    #[cfg(test)]
+    pub(crate) fn install_success_terminal_for_test(
+        &mut self,
+        request: super::admission::PartitionFetchRequest,
+        observed_at: kafka_client_core::Moment,
+        selected_version: i16,
+        partition_index: i32,
+        records: Option<Bytes>,
+    ) {
+        let mut partition = kafka_wire::fetch_response::PartitionData::default();
+        partition.partition_index = partition_index;
+        partition.records = records;
+        let mut topic = kafka_wire::fetch_response::FetchableTopicResponse::default();
+        topic.topic = request.topic().into();
+        topic.partitions = vec![partition];
+        let mut response = kafka_wire::FetchResponse::default();
+        response.responses = vec![topic];
+        self.install_terminal_result_for_test(
+            request,
+            observed_at,
+            Some(selected_version),
+            Ok(response),
+        );
+    }
+
+    #[cfg(test)]
+    pub(crate) fn install_broker_terminal_for_test(
+        &mut self,
+        request: super::admission::PartitionFetchRequest,
+        observed_at: kafka_client_core::Moment,
+        selected_version: i16,
+        code: i16,
+    ) {
+        let mut response = kafka_wire::FetchResponse::default();
+        response.error_code = code;
+        self.install_terminal_result_for_test(
+            request,
+            observed_at,
+            Some(selected_version),
+            Ok(response),
+        );
+    }
+
+    #[cfg(test)]
+    pub(crate) fn install_route_unavailable_terminal_for_test(
+        &mut self,
+        request: super::admission::PartitionFetchRequest,
+        observed_at: kafka_client_core::Moment,
+    ) {
+        self.install_terminal_result_for_test(
+            request,
+            observed_at,
+            None,
+            Err(kafka_driver::RequestError::RouteUnavailable),
+        );
+    }
+
+    #[cfg(test)]
+    fn install_terminal_result_for_test(
+        &mut self,
+        request: super::admission::PartitionFetchRequest,
+        observed_at: kafka_client_core::Moment,
+        selected_version: Option<i16>,
+        result: Result<kafka_wire::FetchResponse, kafka_driver::RequestError>,
+    ) {
+        let terminal = super::terminal::retain_fetch_terminal(
+            request,
+            observed_at,
+            selected_version.map(kafka_driver::ApiVersion::new),
+            result,
+        );
         self.settled = Some(SettledFetchCall::live(terminal, None));
     }
 }

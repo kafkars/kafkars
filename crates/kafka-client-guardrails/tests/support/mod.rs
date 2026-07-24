@@ -2,6 +2,7 @@
 
 #![allow(dead_code, unused_imports)]
 
+mod async_capability;
 mod authority;
 mod call_capability;
 mod capability;

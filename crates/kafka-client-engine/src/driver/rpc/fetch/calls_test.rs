@@ -137,7 +137,7 @@ fn completion_corruption_recovers_the_exact_prepared_request_after_shutdown() {
         .err()
         .unwrap_or_else(|| panic!("completion corruption must remain fatal"));
     assert_eq!(observation.fence(), fences[0]);
-    assert_eq!(observation.source(), CompletionError::Consumed);
+    assert!(observation.is_consumed());
     assert_eq!(calls.retained_count(), 1);
     let (requests, recovered_failure) = calls.recover_fetches_after_driver_shutdown().into_parts();
     assert_eq!(requests.len(), 1);

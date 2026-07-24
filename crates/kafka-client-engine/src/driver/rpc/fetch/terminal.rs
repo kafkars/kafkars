@@ -77,7 +77,7 @@ impl FetchCompletionFailure {
     pub(crate) const fn observation(&self) -> FetchCompletionObservation {
         FetchCompletionObservation {
             fence: self.fence,
-            source: self.source,
+            kind: FetchCompletionKind::from_driver(self.source),
         }
     }
 
@@ -87,11 +87,28 @@ impl FetchCompletionFailure {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum FetchCompletionKind {
+    Closed,
+    Consumed,
+    Unknown,
+}
+
+impl FetchCompletionKind {
+    const fn from_driver(source: CompletionError) -> Self {
+        match source {
+            CompletionError::Closed => Self::Closed,
+            CompletionError::Consumed => Self::Consumed,
+            _ => Self::Unknown,
+        }
+    }
+}
+
 /// Copyable reactor observation while failure ownership remains retained.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct FetchCompletionObservation {
     fence: FetchFence,
-    source: CompletionError,
+    kind: FetchCompletionKind,
 }
 
 impl FetchCompletionObservation {
@@ -99,8 +116,8 @@ impl FetchCompletionObservation {
         self.fence
     }
 
-    pub(crate) const fn source(self) -> CompletionError {
-        self.source
+    pub(crate) const fn is_consumed(self) -> bool {
+        matches!(self.kind, FetchCompletionKind::Consumed)
     }
 }
 

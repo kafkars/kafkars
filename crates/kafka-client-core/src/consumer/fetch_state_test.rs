@@ -2,11 +2,82 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
-    AssignedConsumerMachineError, FetchRecords, FetchThrottleFailure, StartPosition,
+    AssignedConsumerMachineError, FetchOwnership, FetchRecords, FetchThrottleFailure,
+    StartPosition,
     assignment_test::{assign_at, assigned, offset},
     fetch_throttle_test::{advance_with_throttle, first_fetch},
 };
 use crate::{Deadline, Moment};
+
+#[test]
+fn active_fetch_query_fences_paused_sought_and_reassigned_work() {
+    let mut machine = AssignedConsumerMachine::new();
+    let active = first_fetch(&mut machine);
+    assert_eq!(machine.fetch_ownership(active), Ok(FetchOwnership::Active));
+
+    machine
+        .apply(AssignedConsumerInput::Pause {
+            assignment_epoch: active.position().assignment_epoch(),
+            partition: active.position().partition(),
+        })
+        .unwrap_or_else(|error| panic!("pause active Fetch: {error}"));
+    assert_eq!(
+        machine.fetch_ownership(active),
+        Ok(FetchOwnership::Superseded)
+    );
+
+    let resumed = machine
+        .apply(AssignedConsumerInput::Resume {
+            assignment_epoch: active.position().assignment_epoch(),
+            partition: active.position().partition(),
+            now: Moment::from_tick(1),
+            resolution_deadline: Deadline::from_tick(100),
+        })
+        .unwrap_or_else(|error| panic!("resume active Fetch: {error}"));
+    let [
+        AssignedConsumerEffect::FetchReady {
+            fence: replacement, ..
+        },
+    ] = resumed.effects()
+    else {
+        panic!("resume must issue a replacement Fetch");
+    };
+    assert_eq!(
+        machine.fetch_ownership(active),
+        Ok(FetchOwnership::Superseded)
+    );
+    assert_eq!(
+        machine.fetch_ownership(*replacement),
+        Ok(FetchOwnership::Active)
+    );
+
+    assign_at(
+        &mut machine,
+        vec![assigned(2, 0, StartPosition::Offset(offset(1)))],
+        Moment::from_tick(2),
+        Deadline::from_tick(100),
+    );
+    assert_eq!(
+        machine.fetch_ownership(*replacement),
+        Ok(FetchOwnership::Superseded)
+    );
+}
+
+#[test]
+fn armed_throttle_fence_cannot_be_forged_into_fetch_ready_ownership() {
+    let mut machine = AssignedConsumerMachine::new();
+    let completed = first_fetch(&mut machine);
+    let armed = advance_with_throttle(&mut machine, completed, 12, 10, 5);
+
+    assert_eq!(
+        machine.fetch_ownership(completed),
+        Ok(FetchOwnership::Superseded)
+    );
+    assert_eq!(
+        machine.fetch_ownership(armed),
+        Err(AssignedConsumerMachineError::StaleFetch { supplied: armed })
+    );
+}
 
 #[test]
 fn seek_and_assignment_replacement_fence_old_fetch_throttle_timers() {

@@ -2,11 +2,43 @@
 
 use super::{
     AssignedConsumerMachine, AssignedConsumerMachineError, AssignedConsumerTransition,
-    FetchFailure, FetchFence, FetchRecords, NextFetchOffset,
+    FetchFailure, FetchFence, FetchOwnership, FetchRecords, NextFetchOffset,
 };
 use crate::Moment;
 
 impl AssignedConsumerMachine {
+    /// Reports whether one exact Fetch still owns the active partition execution.
+    ///
+    /// Interpreters use this query before acquiring bytes or transport
+    /// ownership for work that may have waited outside the machine.
+    pub fn fetch_ownership(
+        &self,
+        fence: FetchFence,
+    ) -> Result<FetchOwnership, AssignedConsumerMachineError> {
+        let position = fence.position();
+        let assignment = self
+            .assignment
+            .as_ref()
+            .ok_or(AssignedConsumerMachineError::NoAssignment)?;
+        if position.assignment_epoch() < assignment.epoch {
+            return Ok(FetchOwnership::Superseded);
+        }
+        if position.assignment_epoch() > assignment.epoch {
+            return Err(AssignedConsumerMachineError::StaleAssignment {
+                active: assignment.epoch,
+                supplied: position.assignment_epoch(),
+            });
+        }
+        assignment
+            .partitions
+            .iter()
+            .find(|state| state.partition == position.partition())
+            .ok_or(AssignedConsumerMachineError::UnknownPartition {
+                partition: position.partition(),
+            })?
+            .fetch_ownership(fence)
+    }
+
     pub(super) fn fetch_advanced(
         &mut self,
         fence: FetchFence,

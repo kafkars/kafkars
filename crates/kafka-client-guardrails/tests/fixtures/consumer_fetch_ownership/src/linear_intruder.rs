@@ -35,3 +35,21 @@ struct FetchOutputReservation;
 
 #[derive(Clone, Copy)]
 struct FetchRetainedCharge;
+
+#[derive(Clone, Copy)]
+struct FetchReservationDomain;
+
+#[derive(Clone, Copy)]
+struct FetchStoreReservation;
+
+#[derive(Clone, Copy)]
+struct FetchStageProof;
+
+#[derive(Clone, Copy)]
+struct FetchSlot;
+
+#[derive(Clone, Copy)]
+struct FetchDeliveryStore;
+
+#[derive(Clone, Copy)]
+struct FetchDelivery;

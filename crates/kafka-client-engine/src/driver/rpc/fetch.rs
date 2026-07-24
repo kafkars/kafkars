@@ -6,6 +6,16 @@ mod admission_test;
 mod calls;
 #[cfg(test)]
 mod calls_test;
+mod failure;
+#[cfg(test)]
+mod failure_admission_test;
+#[cfg(test)]
+mod failure_driver_test;
+mod failure_wire;
+#[cfg(test)]
+mod failure_wire_decode_test;
+#[cfg(test)]
+mod failure_wire_encode_test;
 mod fence;
 #[cfg(test)]
 mod fence_test;
@@ -30,13 +40,12 @@ mod terminal;
 mod terminal_test;
 
 pub(crate) use admission::{
-    FetchAdmissionFailure, FetchAdmissionFailureSource, FetchCallAdmission,
-    FetchRequestPreparationError, PartitionFetchRequest,
+    FetchCallAdmission, FetchRequestPreparationError, PartitionFetchRequest,
 };
 pub(crate) use calls::TrackedFetchCalls;
+pub(crate) use failure::{classify_fetch_admission, classify_fetch_request_error};
 pub(crate) use settlement::{
-    FetchBeginSettlementError, FetchConfirmationError, FetchPoll, FetchRestoreError,
-    FetchRestoreFailure, StaleFetchConfirmationError,
+    FetchBeginSettlementError, FetchConfirmationError, FetchPoll, StaleFetchConfirmationError,
 };
-pub(crate) use stale::{FetchControlPending, FetchRecovery, StaleFetchDrains};
-pub(crate) use terminal::{FetchCompletionFailure, FetchCompletionObservation, FetchTerminal};
+pub(crate) use stale::{FetchControlPending, FetchRecovery};
+pub(crate) use terminal::{FetchCompletionObservation, FetchTerminal};

@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-use super::{CapabilityRule, WalkScope, display_path, read, rust_files_under};
+use super::{CapabilityRule, WalkScope, async_capability, display_path, read, rust_files_under};
 use syn::visit::Visit;
 use syn::{Block, File, Item, ItemMod, ItemUse, Stmt, UseTree};
 
@@ -88,6 +88,9 @@ fn inspect_file(
         .unwrap_or_else(|error| panic!("parse {}: {error}", display_path(root, path)));
     let mut collector = CapabilityCollector::default();
     collector.visit_file(&syntax);
+    if async_capability::contains_async(&syntax) {
+        collector.paths.insert("async".into());
+    }
 
     let relative = display_path(root, path);
     for observed in &collector.paths {

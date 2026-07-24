@@ -913,6 +913,42 @@ production = "crates/kafka-client-engine/src/consumer/position_execution.rs"
 test = "crates/kafka-client-engine/src/consumer/position_execution_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/fetch_store.rs"
+test = "crates/kafka-client-engine/src/consumer/fetch_store_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/fetch_store/delivery.rs"
+test = "crates/kafka-client-engine/src/consumer/fetch_store/delivery_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/fetch_store/outcome.rs"
+test = "crates/kafka-client-engine/src/consumer/fetch_store/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/fetch_execution/admission.rs"
+test = "crates/kafka-client-engine/src/consumer/fetch_execution/admission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/fetch_execution/apply.rs"
+test = "crates/kafka-client-engine/src/consumer/fetch_execution/stale_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/fetch_execution/control.rs"
+test = "crates/kafka-client-engine/src/consumer/fetch_execution/control_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/fetch_execution/fault.rs"
+test = "crates/kafka-client-engine/src/consumer/fetch_execution/fault_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/fetch_execution/prepared.rs"
+test = "crates/kafka-client-engine/src/consumer/fetch_execution/prepared_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/fetch_execution/settlement.rs"
+test = "crates/kafka-client-engine/src/consumer/fetch_execution/settlement_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/error/host.rs"
 test = "crates/kafka-client-engine/src/engine_host/error/host_test.rs"
 
@@ -1421,6 +1457,37 @@ forbidden = [
   "Retry",
 ]
 
+# Concrete direct-Fetch execution uses the engine port without acquiring raw
+# protocol, transport, clock, async, metadata, or sibling-domain authority.
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/fetch_execution"
+forbidden = [
+  "crate::admin",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "std::future",
+  "std::time",
+  "Instant::now",
+  "Future",
+  "async",
+  "Transport",
+  "Retry",
+  "Metadata",
+]
+allow = [
+  { path = "crates/kafka-client-engine/src/consumer/fetch_execution/admission_test.rs", capability = "std::time", reason = "Test-only absolute deadlines exercise pre-admission expiry without granting production clock ownership." },
+  { path = "crates/kafka-client-engine/src/consumer/fetch_execution/admission_test.rs", capability = "Instant::now", reason = "Test-only absolute deadlines exercise pre-admission expiry without granting production clock ownership." },
+  { path = "crates/kafka-client-engine/src/consumer/fetch_execution/control_test.rs", capability = "std::time", reason = "Test-only live driver deadlines prove control fencing without granting production clock ownership." },
+  { path = "crates/kafka-client-engine/src/consumer/fetch_execution/control_test.rs", capability = "Instant::now", reason = "Test-only live driver deadlines prove control fencing without granting production clock ownership." },
+  { path = "crates/kafka-client-engine/src/consumer/fetch_execution/fault_test.rs", capability = "std::time", reason = "Test-only driver timeout duration exercises explicit shutdown recovery without production clock ownership." },
+  { path = "crates/kafka-client-engine/src/consumer/fetch_execution/settlement_test.rs", capability = "std::time", reason = "Test-only absolute driver deadlines exercise terminal settlement without granting production clock ownership." },
+  { path = "crates/kafka-client-engine/src/consumer/fetch_execution/settlement_test.rs", capability = "Instant::now", reason = "Test-only absolute driver deadlines exercise terminal settlement without granting production clock ownership." },
+]
+
 # Generated Fetch DTOs and record bytes remain in one bounded protocol seam.
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/protocol/fetch"
@@ -1552,6 +1619,9 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "try_reserve"
 allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_execution/admission.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/executor.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_store.rs",
   "crates/kafka-client-engine/src/consumer/position_execution.rs",
   "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_partitions.rs",
@@ -1642,28 +1712,45 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
+method = "issue_pair"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_store.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
 method = "try_submit_fetch"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_execution/admission.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "observe_fetch_control"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_execution/control.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "poll_fetch"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_execution/settlement.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "begin_fetch_settlement"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_execution/settlement.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "confirm_fetch_settlement"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_execution/apply.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
@@ -1673,12 +1760,16 @@ allowed_paths = []
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "confirm_stale_fetch"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_execution/settlement.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "recover_fetches_after_driver_shutdown"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_execution/delivery.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
@@ -1705,6 +1796,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "retained_count"
 allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_execution/executor.rs",
   "crates/kafka-client-engine/src/consumer/position_execution.rs",
   "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/create_partitions_calls.rs",
@@ -1771,7 +1863,14 @@ allowed_paths = [
 
 [[call_capabilities]]
 root = "crates/kafka-client-engine/src"
-call = "FetchOutputReservation::from_acquired_capacity"
+call = "FetchReservationDomain::create_store_domain"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_store.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "DirectFetchExecutor::create_unbound"
 allowed_paths = []
 
 [[capability_rules]]
@@ -1884,6 +1983,7 @@ allowed_paths = [
 owner_type = "AssignedConsumerMachine"
 field = "assignment"
 allowed_paths = [
+  "crates/kafka-client-core/src/consumer/fetch_transition.rs",
   "crates/kafka-client-core/src/consumer/machine.rs",
   "crates/kafka-client-core/src/consumer/transition.rs",
 ]
@@ -3218,8 +3318,155 @@ owner_type = "FetchOutputReservation"
 path = "crates/kafka-client-engine/src/protocol/fetch/retention.rs"
 
 [[linear_owners]]
+owner_type = "FetchReservationDomain"
+path = "crates/kafka-client-engine/src/protocol/fetch/retention.rs"
+
+[[linear_owners]]
 owner_type = "FetchRetainedCharge"
 path = "crates/kafka-client-engine/src/protocol/fetch/retention.rs"
+
+[[linear_owners]]
+owner_type = "FetchStoreReservation"
+path = "crates/kafka-client-engine/src/consumer/fetch_store.rs"
+
+[[linear_owners]]
+owner_type = "FetchStageProof"
+path = "crates/kafka-client-engine/src/consumer/fetch_store.rs"
+
+[[linear_owners]]
+owner_type = "FetchSlot"
+path = "crates/kafka-client-engine/src/consumer/fetch_store.rs"
+
+[[linear_owners]]
+owner_type = "FetchDeliveryStore"
+path = "crates/kafka-client-engine/src/consumer/fetch_store.rs"
+
+[[linear_owners]]
+owner_type = "FetchDelivery"
+path = "crates/kafka-client-engine/src/consumer/fetch_store/delivery.rs"
+
+[[linear_owners]]
+owner_type = "PreparedFetchExecution"
+path = "crates/kafka-client-engine/src/consumer/fetch_execution/prepared.rs"
+
+[[linear_owners]]
+owner_type = "FetchSubmission"
+path = "crates/kafka-client-engine/src/consumer/fetch_execution/admission.rs"
+
+[[linear_owners]]
+owner_type = "ActiveFetchReservation"
+path = "crates/kafka-client-engine/src/consumer/fetch_execution/executor.rs"
+
+[[linear_owners]]
+owner_type = "ExecutorSeal"
+path = "crates/kafka-client-engine/src/consumer/fetch_execution/executor.rs"
+
+[[linear_owners]]
+owner_type = "DirectFetchExecutor"
+path = "crates/kafka-client-engine/src/consumer/fetch_execution/executor.rs"
+
+[[linear_owners]]
+owner_type = "RetainedFetchFault"
+path = "crates/kafka-client-engine/src/consumer/fetch_execution/fault.rs"
+
+[[linear_owners]]
+owner_type = "FetchReclaimFailure"
+path = "crates/kafka-client-engine/src/consumer/fetch_execution/fault.rs"
+
+[[linear_owners]]
+owner_type = "FetchShutdownRecovery"
+path = "crates/kafka-client-engine/src/consumer/fetch_execution/fault.rs"
+
+[[linear_owners]]
+owner_type = "FetchTerminalFact"
+path = "crates/kafka-client-engine/src/consumer/fetch_execution/terminal.rs"
+
+[[mutation_owners]]
+owner_type = "DirectFetchExecutor"
+field = "calls"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_execution/admission.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/apply.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/control.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/delivery.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/executor.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/settlement.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DirectFetchExecutor"
+field = "store"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_execution/admission.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/apply.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/control.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/delivery.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/executor.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DirectFetchExecutor"
+field = "active"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_execution/admission.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/executor.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DirectFetchExecutor"
+field = "fault"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_execution/admission.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/apply.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/control.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/delivery.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/settlement.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "FetchDeliveryStore"
+field = "next_sequence"
+allowed_paths = ["crates/kafka-client-engine/src/consumer/fetch_store.rs"]
+
+[[mutation_owners]]
+owner_type = "FetchDeliveryStore"
+field = "next_authorization"
+allowed_paths = ["crates/kafka-client-engine/src/consumer/fetch_store/delivery.rs"]
+
+[[mutation_owners]]
+owner_type = "FetchDeliveryStore"
+field = "used_bytes"
+allowed_paths = ["crates/kafka-client-engine/src/consumer/fetch_store.rs"]
+
+[[mutation_owners]]
+owner_type = "FetchDeliveryStore"
+field = "slots"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/fetch_store.rs",
+  "crates/kafka-client-engine/src/consumer/fetch_store/delivery.rs",
+]
+
+[[mutation_owners]]
+owner_type = "FetchSlot"
+field = "charged_bytes"
+allowed_paths = ["crates/kafka-client-engine/src/consumer/fetch_store.rs"]
+
+[[mutation_owners]]
+owner_type = "FetchSlot"
+field = "provenance"
+allowed_paths = ["crates/kafka-client-engine/src/consumer/fetch_store.rs"]
+
+[[mutation_owners]]
+owner_type = "FetchSlot"
+field = "outcome"
+allowed_paths = ["crates/kafka-client-engine/src/consumer/fetch_store.rs"]
+
+[[mutation_owners]]
+owner_type = "FetchSlot"
+field = "state"
+allowed_paths = ["crates/kafka-client-engine/src/consumer/fetch_store.rs"]
 
 [[linear_owners]]
 owner_type = "CreateTopicsHost"

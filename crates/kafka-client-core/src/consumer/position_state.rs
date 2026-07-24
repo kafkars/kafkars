@@ -24,7 +24,7 @@ pub(super) enum PositionPhase {
         next_offset: NextFetchOffset,
     },
     FetchThrottled(FetchThrottle),
-    FetchFailed,
+    FetchFailed(FetchFence),
 }
 
 impl PartitionPosition {
@@ -70,7 +70,7 @@ impl PartitionPosition {
             PositionPhase::Ready(_)
             | PositionPhase::Fetching { .. }
             | PositionPhase::FetchThrottled(_)
-            | PositionPhase::FetchFailed => return Ok(None),
+            | PositionPhase::FetchFailed(_) => return Ok(None),
         };
         self.apply_resolution_activation(activation, fence, partition)
     }
@@ -135,7 +135,7 @@ impl PartitionPosition {
             }
             PositionPhase::Ready(_)
             | PositionPhase::FetchThrottled(_)
-            | PositionPhase::FetchFailed => {}
+            | PositionPhase::FetchFailed(_) => {}
         }
         self.epoch = next;
         self.next_fetch_revision = FetchRevision::initial();

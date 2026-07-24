@@ -14,16 +14,28 @@ mod batch_model;
 mod decode;
 mod exports;
 mod failure;
+#[cfg(test)]
+pub(crate) mod fixture;
 mod limits;
 mod model;
 mod outcome;
+mod outcome_failure;
+#[cfg(test)]
+mod outcome_failure_test;
 mod outcome_normalize;
 mod outcome_retain;
+mod record_failure;
+#[cfg(test)]
+mod record_failure_test;
 mod request;
 mod response;
 mod retention;
 
 pub(crate) use exports::*;
+#[cfg(test)]
+pub(crate) use fixture::{
+    encoded_data_batch_for_test, retained_broker_failure_for_test, retained_success_for_test,
+};
 
 #[cfg(test)]
 mod batch_identity_test;

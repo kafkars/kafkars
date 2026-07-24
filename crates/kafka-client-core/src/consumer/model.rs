@@ -195,6 +195,15 @@ pub struct FetchFence {
     revision: FetchRevision,
 }
 
+/// Deterministic ownership of one prepared Fetch fence.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FetchOwnership {
+    /// The exact Fetch still owns one active partition execution.
+    Active,
+    /// A directionally newer assignment, position, or Fetch superseded it.
+    Superseded,
+}
+
 impl FetchFence {
     pub(crate) const fn new(position: PositionFence, revision: FetchRevision) -> Self {
         Self { position, revision }
