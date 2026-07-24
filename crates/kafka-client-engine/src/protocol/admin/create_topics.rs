@@ -1,34 +1,15 @@
 //! Generated `CreateTopics` construction and ordered response normalization.
 
-use kafka_client_core::{CreateTopicOutcome, CreateTopicsPlan, Deadline, Moment};
+use kafka_client_core::{CreateTopicOutcome, CreateTopicsPlan};
 use kafka_wire::{
     CreateTopicsRequest, CreateTopicsResponse,
     create_topics_request::{CreatableTopic, CreatableTopicConfig},
     create_topics_response::CreatableTopicResult,
 };
 
-/// Request construction failure before any driver ownership.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CreateTopicsRequestError {
-    /// A deadline adapter supplied an impossible negative broker timeout.
-    NegativeTimeout,
-    /// The original absolute deadline has already elapsed.
-    DeadlineElapsed,
-}
-
-/// Derives Kafka's millisecond broker timeout from the remaining original deadline.
-pub(crate) fn remaining_timeout_ms(
-    now: Moment,
-    deadline: Deadline,
-) -> Result<i32, CreateTopicsRequestError> {
-    let remaining = deadline
-        .tick()
-        .checked_sub(now.tick())
-        .filter(|remaining| *remaining > 0)
-        .ok_or(CreateTopicsRequestError::DeadlineElapsed)?;
-    let milliseconds = remaining.saturating_add(999_999) / 1_000_000;
-    Ok(i32::try_from(milliseconds).unwrap_or(i32::MAX))
-}
+pub(crate) use super::timeout::{
+    AdminRequestDeadlineError as CreateTopicsRequestError, remaining_timeout_ms,
+};
 
 /// Invalid generated response shape for the requested topic set.
 #[derive(Debug, Clone, PartialEq, Eq)]
