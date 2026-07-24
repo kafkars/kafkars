@@ -37,7 +37,7 @@ pub(super) fn collect_notification_joins(
     producer: NotifierJoin,
     admins: impl IntoIterator<Item = (Result<NotifierJoin, EngineHostError>, Option<NotifierJoin>)>,
 ) -> (Vec<NotifierJoin>, Option<EngineHostError>) {
-    let mut notifiers = Vec::with_capacity(3);
+    let mut notifiers = Vec::with_capacity(4);
     notifiers.push(producer);
     let mut failure: Option<EngineHostError> = None;
     for (admin, fallback) in admins {

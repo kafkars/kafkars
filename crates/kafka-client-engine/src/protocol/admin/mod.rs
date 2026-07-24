@@ -3,6 +3,7 @@
 pub(crate) mod create_topics;
 pub(crate) mod delete_topics;
 mod delete_topics_budget;
+pub(crate) mod describe_cluster;
 mod result_budget;
 mod timeout;
 
@@ -12,6 +13,8 @@ mod create_topics_test;
 mod delete_topics_budget_test;
 #[cfg(test)]
 mod delete_topics_test;
+#[cfg(test)]
+mod describe_cluster_test;
 #[cfg(test)]
 mod result_budget_test;
 #[cfg(test)]

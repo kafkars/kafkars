@@ -979,6 +979,7 @@ method = "try_reserve"
 allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/delete_topics.rs",
+  "crates/kafka-client-engine/src/engine_host/admin/describe_cluster.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
 
@@ -988,6 +989,7 @@ method = "poll_next_ready"
 allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/delete_topics.rs",
+  "crates/kafka-client-engine/src/engine_host/admin/describe_cluster.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
 
@@ -997,8 +999,10 @@ method = "discard_settled"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs",
   "crates/kafka-client-engine/src/engine_host/admin/create_topics.rs",
   "crates/kafka-client-engine/src/engine_host/admin/delete_topics.rs",
+  "crates/kafka-client-engine/src/engine_host/admin/describe_cluster.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
 
@@ -1029,6 +1033,7 @@ method = "retained_count"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/create_topics_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/delete_topics_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/describe_cluster_calls.rs",
   "crates/kafka-client-engine/src/engine_host/cleanup.rs",
 ]
 
@@ -1065,6 +1070,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "join_off_notifier"
 allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/admin_start.rs",
   "crates/kafka-client-engine/src/engine_host/notifier_shutdown.rs",
   "crates/kafka-client-engine/src/engine_host/start.rs",
 ]

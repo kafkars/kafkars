@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     EngineConfig,
-    admin::{CreateTopicsHost, CreateTopicsShardOwner, DeleteTopicsHost, DeleteTopicsShardOwner},
+    admin::{CreateTopicsShardOwner, DeleteTopicsShardOwner, DescribeClusterShardOwner},
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
     driver::DriverOwner,
@@ -20,7 +20,7 @@ use crate::{
 
 use super::{
     EngineHostControl, EngineHostError, EngineHostExit, EngineHostResources, EngineLifecycle,
-    EngineStartError, recover, run,
+    EngineStartError, admin_start::AdminHosts, recover, run,
 };
 
 const HOST_THREAD_NAME: &str = "kafka-client-engine";
@@ -29,6 +29,7 @@ pub(crate) struct StartedEngineHost {
     pub(crate) admission: ProducerAdmissionPort,
     pub(crate) create_topics_admission: crate::admin::CreateTopicsAdmissionPort,
     pub(crate) delete_topics_admission: crate::admin::DeleteTopicsAdmissionPort,
+    pub(crate) describe_cluster_admission: crate::admin::DescribeClusterAdmissionPort,
     pub(crate) clock: Arc<MonotonicClock>,
     pub(crate) control: Arc<EngineHostControl>,
     pub(crate) lifecycle: Arc<EngineLifecycle>,
@@ -56,33 +57,22 @@ pub(crate) fn start(
     let clock = Arc::new(MonotonicClock::new());
     let wake = driver.reactor_wake();
     let control = Arc::new(EngineHostControl::new(wake.clone()));
-    let mut create_topics = match CreateTopicsHost::new() {
-        Ok(owner) => owner,
-        Err(error) => {
-            return cancel_start(sender, handle, EngineStartError::create_topics(&error));
-        }
-    };
-    let mut delete_topics = match DeleteTopicsHost::new() {
-        Ok(owner) => owner,
-        Err(error) => {
-            if let Some(notifier) = create_topics.recover_notifier() {
-                let _join_result = notifier.join_off_notifier();
-            }
-            return cancel_start(sender, handle, EngineStartError::delete_topics(&error));
-        }
+    let mut admin = match AdminHosts::start() {
+        Ok(admin) => admin,
+        Err(error) => return cancel_start(sender, handle, error),
     };
     let producer = match ProducerHost::new(validated.host_limits) {
         Ok(producer) => producer,
         Err(error) => {
-            if let Some(notifier) = create_topics.recover_notifier() {
-                let _join_result = notifier.join_off_notifier();
-            }
-            if let Some(notifier) = delete_topics.recover_notifier() {
-                let _join_result = notifier.join_off_notifier();
-            }
+            admin.join_notifiers();
             return cancel_start(sender, handle, EngineStartError::producer(&error));
         }
     };
+    let AdminHosts {
+        create_topics,
+        delete_topics,
+        describe_cluster,
+    } = admin;
     if let Some(thread_id) = producer.notifier_thread_id() {
         lifecycle.install_notifier_thread(thread_id);
     }
@@ -98,6 +88,12 @@ pub(crate) fn start(
     }
     let delete_topics = DeleteTopicsShardOwner::new(delete_topics, Arc::new(driver.reactor_wake()));
     let delete_topics_admission = delete_topics.admission_port();
+    if let Some(thread_id) = describe_cluster.notifier_thread_id() {
+        lifecycle.install_notifier_thread(thread_id);
+    }
+    let describe_cluster =
+        DescribeClusterShardOwner::new(describe_cluster, Arc::new(driver.reactor_wake()));
+    let describe_cluster_admission = describe_cluster.admission_port();
     let produce_calls =
         crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
     let resources = EngineHostResources {
@@ -105,6 +101,7 @@ pub(crate) fn start(
         producer,
         create_topics,
         delete_topics,
+        describe_cluster,
         clock: Arc::clone(&clock),
         control: Arc::clone(&control),
         budget: validated.turn_budget,
@@ -114,6 +111,9 @@ pub(crate) fn start(
         ),
         delete_topics_calls: crate::driver::TrackedDeleteTopicsCalls::new(
             crate::admin::DELETE_TOPICS_CAPACITY,
+        ),
+        describe_cluster_calls: crate::driver::DescribeClusterCalls::new(
+            crate::admin::DESCRIBE_CLUSTER_CAPACITY,
         ),
     };
     if let Err(error) = sender.send(resources) {
@@ -131,6 +131,7 @@ pub(crate) fn start(
         admission,
         create_topics_admission,
         delete_topics_admission,
+        describe_cluster_admission,
         clock,
         control,
         lifecycle,

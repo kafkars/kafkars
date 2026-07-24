@@ -22,6 +22,7 @@ pub(crate) fn recover(
     drop(resources.producer.terminal_data());
     drop(resources.create_topics.terminal_host());
     drop(resources.delete_topics.terminal_host());
+    drop(resources.describe_cluster.terminal_host());
     if let Some(cleanup) = shutdown_driver(resources).err() {
         failure = failure.with_cleanup(cleanup);
     }
@@ -34,6 +35,9 @@ pub(crate) fn recover(
         .discard_after_driver_shutdown();
     resources
         .delete_topics_calls
+        .discard_after_driver_shutdown();
+    resources
+        .describe_cluster_calls
         .discard_after_driver_shutdown();
     #[cfg(test)]
     resources.control.record_recovery_driver_released();
@@ -62,7 +66,7 @@ pub(crate) fn recover(
         failure = failure.with_cleanup(cleanup);
     }
     let recovery = producer.recover_notifier();
-    let mut notifiers = Vec::with_capacity(3);
+    let mut notifiers = Vec::with_capacity(4);
     if let Some(notifier) = recovery.notifier {
         notifiers.push(notifier);
     }
@@ -94,6 +98,18 @@ pub(crate) fn recover(
         notifiers.push(notifier);
     }
     drop(delete_topics);
+    let mut describe_cluster = resources.describe_cluster.terminal_host();
+    if let Some(cleanup) = describe_cluster
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::DescribeCluster)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    if let Some(notifier) = describe_cluster.recover_notifier() {
+        notifiers.push(notifier);
+    }
+    drop(describe_cluster);
     EngineHostExit {
         notifier: NotifierShutdownOwner::new(notifiers),
         failure: Some(failure),

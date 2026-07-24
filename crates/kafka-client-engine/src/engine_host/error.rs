@@ -71,6 +71,13 @@ impl EngineStartError {
         )
     }
 
+    pub(super) fn describe_cluster(error: &std::io::Error) -> Self {
+        Self::new(
+            EngineStartErrorKind::Admin,
+            format!("failed to start DescribeCluster completion notifier: {error}"),
+        )
+    }
+
     pub(super) fn host_thread(error: &std::io::Error) -> Self {
         Self::new(
             EngineStartErrorKind::HostThread,

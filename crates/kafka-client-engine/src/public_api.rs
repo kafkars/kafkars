@@ -1,14 +1,18 @@
 //! Curated public re-exports for engine execution and observation.
 
 pub use crate::admin::{
-    AdminHandle, CreateTopic, CreateTopicConfig, CreateTopicError, CreateTopicResult,
-    CreateTopicsAccepted, CreateTopicsAcceptedFaultKind, CreateTopicsAdmissionError,
-    CreateTopicsAdmissionErrorKind, CreateTopicsDeliveryStatus, CreateTopicsFailure,
-    CreateTopicsFailureKind, CreateTopicsObserver, CreateTopicsObserverError, CreateTopicsOutcome,
-    CreateTopicsRequest, DeleteTopicError, DeleteTopicResult, DeleteTopicsAccepted,
-    DeleteTopicsAcceptedFaultKind, DeleteTopicsAdmissionError, DeleteTopicsAdmissionErrorKind,
-    DeleteTopicsDeliveryStatus, DeleteTopicsFailure, DeleteTopicsFailureKind, DeleteTopicsObserver,
-    DeleteTopicsObserverError, DeleteTopicsOutcome, DeleteTopicsRequest,
+    AdminHandle, ClusterBroker, ClusterDescription, CreateTopic, CreateTopicConfig,
+    CreateTopicError, CreateTopicResult, CreateTopicsAccepted, CreateTopicsAcceptedFaultKind,
+    CreateTopicsAdmissionError, CreateTopicsAdmissionErrorKind, CreateTopicsDeliveryStatus,
+    CreateTopicsFailure, CreateTopicsFailureKind, CreateTopicsObserver, CreateTopicsObserverError,
+    CreateTopicsOutcome, CreateTopicsRequest, DeleteTopicError, DeleteTopicResult,
+    DeleteTopicsAccepted, DeleteTopicsAcceptedFaultKind, DeleteTopicsAdmissionError,
+    DeleteTopicsAdmissionErrorKind, DeleteTopicsDeliveryStatus, DeleteTopicsFailure,
+    DeleteTopicsFailureKind, DeleteTopicsObserver, DeleteTopicsObserverError, DeleteTopicsOutcome,
+    DeleteTopicsRequest, DescribeClusterAccepted, DescribeClusterAcceptedFaultKind,
+    DescribeClusterAdmissionError, DescribeClusterAdmissionErrorKind, DescribeClusterBrokerError,
+    DescribeClusterDeliveryStatus, DescribeClusterFailure, DescribeClusterFailureKind,
+    DescribeClusterObserver, DescribeClusterObserverError, DescribeClusterOutcome,
 };
 pub use crate::config::{EngineConfig, EngineProducerLimits};
 pub use crate::delivery::{

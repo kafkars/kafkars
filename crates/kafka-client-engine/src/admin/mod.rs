@@ -7,12 +7,19 @@ mod delete_model;
 mod delete_observer;
 mod delete_outcome;
 mod delete_shard;
+mod describe_error;
+mod describe_handle;
+mod describe_host;
+mod describe_observer;
+mod describe_outcome;
+mod describe_shard;
 mod error;
 mod handle;
 mod host;
 mod model;
 mod observer;
 mod outcome;
+mod public_api;
 pub(crate) mod retention;
 mod shard;
 
@@ -27,6 +34,16 @@ mod delete_observer_test;
 #[cfg(test)]
 mod delete_shard_test;
 #[cfg(test)]
+mod describe_handle_test;
+#[cfg(test)]
+mod describe_host_test;
+#[cfg(test)]
+mod describe_observer_test;
+#[cfg(test)]
+mod describe_outcome_test;
+#[cfg(test)]
+mod describe_shard_test;
+#[cfg(test)]
 mod handle_test;
 #[cfg(test)]
 mod host_test;
@@ -39,33 +56,4 @@ mod retention_test;
 #[cfg(test)]
 mod shard_test;
 
-pub use delete_error::{DeleteTopicsAdmissionError, DeleteTopicsAdmissionErrorKind};
-pub use delete_handle::{DeleteTopicsAccepted, DeleteTopicsAcceptedFaultKind};
-pub(crate) use delete_host::{
-    DELETE_TOPICS_CAPACITY, DeleteTopicsHost, DeleteTopicsHostError, DeleteTopicsTurn,
-};
-pub use delete_model::DeleteTopicsRequest;
-pub use delete_observer::DeleteTopicsObserver;
-pub use delete_outcome::{
-    DeleteTopicError, DeleteTopicResult, DeleteTopicsDeliveryStatus, DeleteTopicsFailure,
-    DeleteTopicsFailureKind, DeleteTopicsObserverError, DeleteTopicsOutcome,
-};
-pub(crate) use delete_shard::{
-    DeleteTopicsAdmissionPort, DeleteTopicsShardLockError, DeleteTopicsShardOwner,
-    DeleteTopicsShardWake, DeleteTopicsShardWakeError,
-};
-pub use error::{CreateTopicsAdmissionError, CreateTopicsAdmissionErrorKind};
-pub use handle::{AdminHandle, CreateTopicsAccepted, CreateTopicsAcceptedFaultKind};
-pub(crate) use host::{
-    CREATE_TOPICS_CAPACITY, CreateTopicsHost, CreateTopicsHostError, CreateTopicsTurn,
-};
-pub use model::{CreateTopic, CreateTopicConfig, CreateTopicsRequest};
-pub use observer::CreateTopicsObserver;
-pub use outcome::{
-    CreateTopicError, CreateTopicResult, CreateTopicsDeliveryStatus, CreateTopicsFailure,
-    CreateTopicsFailureKind, CreateTopicsObserverError, CreateTopicsOutcome,
-};
-pub(crate) use shard::{
-    CreateTopicsAdmissionPort, CreateTopicsShardLockError, CreateTopicsShardOwner,
-    CreateTopicsShardWake, CreateTopicsShardWakeError,
-};
+pub use public_api::*;

@@ -6,7 +6,7 @@ use kafka_client_core::{Deadline, Moment};
 
 use super::{
     super::{EngineHostError, EngineHostResources},
-    create_topics, delete_topics,
+    create_topics, delete_topics, describe_cluster,
 };
 
 pub(in crate::engine_host) struct AdminProgress {
@@ -18,7 +18,7 @@ pub(in crate::engine_host) struct AdminProgress {
 pub(in crate::engine_host) fn drive(
     resources: &mut EngineHostResources,
 ) -> Result<AdminProgress, EngineHostError> {
-    // Drive both concrete owners independently. Exhaustion or contention in
+    // Drive all concrete owners independently. Exhaustion or contention in
     // one tracked-call lane must not hide runnable work in the other.
     let clock = Arc::clone(&resources.clock);
     let create_now = clock.now().map_err(EngineHostError::Clock)?;
@@ -27,8 +27,13 @@ pub(in crate::engine_host) fn drive(
         |now| create_topics::drive(resources, now),
         || clock.now().map_err(EngineHostError::Clock),
     )?;
-    let delete = delete_topics::drive(resources, delete_now)?;
-    Ok(combine(&create, &delete))
+    let (delete, describe_now) = drive_delete_then_capture_describe(
+        delete_now,
+        |now| delete_topics::drive(resources, now),
+        || clock.now().map_err(EngineHostError::Clock),
+    )?;
+    let describe = describe_cluster::drive(resources, describe_now)?;
+    Ok(combine(&create, &delete, &describe))
 }
 
 pub(super) fn drive_create_then_capture_delete(
@@ -41,14 +46,33 @@ pub(super) fn drive_create_then_capture_delete(
     Ok((create, delete_now))
 }
 
+pub(super) fn drive_delete_then_capture_describe(
+    delete_now: Moment,
+    drive_delete: impl FnOnce(Moment) -> Result<delete_topics::DeleteTopicsProgress, EngineHostError>,
+    capture_describe_now: impl FnOnce() -> Result<Moment, EngineHostError>,
+) -> Result<(delete_topics::DeleteTopicsProgress, Moment), EngineHostError> {
+    let delete = drive_delete(delete_now)?;
+    let describe_now = capture_describe_now()?;
+    Ok((delete, describe_now))
+}
+
 pub(super) const fn combine(
     create: &create_topics::CreateTopicsProgress,
     delete: &delete_topics::DeleteTopicsProgress,
+    describe: &describe_cluster::DescribeClusterProgress,
 ) -> AdminProgress {
     AdminProgress {
-        unsettled: create.unsettled.saturating_add(delete.unsettled),
-        driver_progress: create.driver_progress || delete.driver_progress,
-        next_deadline: earliest(create.next_deadline, delete.next_deadline),
+        unsettled: create
+            .unsettled
+            .saturating_add(delete.unsettled)
+            .saturating_add(describe.unsettled),
+        driver_progress: create.driver_progress
+            || delete.driver_progress
+            || describe.driver_progress,
+        next_deadline: earliest(
+            earliest(create.next_deadline, delete.next_deadline),
+            describe.next_deadline,
+        ),
     }
 }
 
@@ -57,7 +81,8 @@ pub(in crate::engine_host) fn apply_completions(
 ) -> Result<bool, EngineHostError> {
     let create = create_topics::apply_completions(resources)?;
     let delete = delete_topics::apply_completions(resources)?;
-    Ok(create || delete)
+    let describe = describe_cluster::apply_completions(resources)?;
+    Ok(create || delete || describe)
 }
 
 #[cfg(test)]

@@ -13,6 +13,7 @@ use crate::clock::MonotonicClock;
 pub struct AdminHandle {
     pub(super) create_topics: CreateTopicsAdmissionPort,
     pub(super) delete_topics: DeleteTopicsAdmissionPort,
+    pub(super) describe_cluster: super::DescribeClusterAdmissionPort,
     pub(super) clock: Arc<MonotonicClock>,
     _lifetime: Arc<dyn Send + Sync>,
 }
@@ -21,12 +22,14 @@ impl AdminHandle {
     pub(crate) fn new(
         create_topics: CreateTopicsAdmissionPort,
         delete_topics: DeleteTopicsAdmissionPort,
+        describe_cluster: super::DescribeClusterAdmissionPort,
         clock: Arc<MonotonicClock>,
         lifetime: Arc<dyn Send + Sync>,
     ) -> Self {
         Self {
             create_topics,
             delete_topics,
+            describe_cluster,
             clock,
             _lifetime: lifetime,
         }

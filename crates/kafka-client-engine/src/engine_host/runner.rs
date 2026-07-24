@@ -5,11 +5,11 @@ use std::{sync::Arc, time::Duration};
 use kafka_client_core::{Deadline, Moment};
 
 use crate::{
-    admin::{CreateTopicsShardOwner, DeleteTopicsShardOwner},
+    admin::{CreateTopicsShardOwner, DeleteTopicsShardOwner, DescribeClusterShardOwner},
     clock::MonotonicClock,
     driver::{
-        DriverOwner, DriverTurn, TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls,
-        TrackedProduceCalls,
+        DescribeClusterCalls, DriverOwner, DriverTurn, TrackedCreateTopicsCalls,
+        TrackedDeleteTopicsCalls, TrackedProduceCalls,
     },
     producer::{
         host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
@@ -34,12 +34,14 @@ pub(crate) struct EngineHostResources {
     pub(super) producer: ProducerShardOwner,
     pub(super) create_topics: CreateTopicsShardOwner,
     pub(super) delete_topics: DeleteTopicsShardOwner,
+    pub(super) describe_cluster: DescribeClusterShardOwner,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) control: Arc<EngineHostControl>,
     pub(super) budget: ProducerTurnBudget,
     pub(super) produce_calls: TrackedProduceCalls,
     pub(super) create_topics_calls: TrackedCreateTopicsCalls,
     pub(super) delete_topics_calls: TrackedDeleteTopicsCalls,
+    pub(super) describe_cluster_calls: DescribeClusterCalls,
 }
 
 impl Drop for EngineHostResources {
@@ -47,6 +49,7 @@ impl Drop for EngineHostResources {
         let _close_result = self.producer.close_admission();
         let _close_result = self.create_topics.admission_port().close_admission();
         let _close_result = self.delete_topics.admission_port().close_admission();
+        let _close_result = self.describe_cluster.admission_port().close_admission();
     }
 }
 

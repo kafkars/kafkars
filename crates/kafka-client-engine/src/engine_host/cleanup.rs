@@ -24,9 +24,19 @@ pub(super) fn begin_notification_shutdown(
         .map_err(EngineHostError::DeleteTopics);
     let delete_fallback = delete_host.recover_notifier();
     drop(delete_host);
+    let mut describe_host = resources.describe_cluster.terminal_host();
+    let describe = describe_host
+        .stop_notifier()
+        .map_err(EngineHostError::DescribeCluster);
+    let describe_fallback = describe_host.recover_notifier();
+    drop(describe_host);
     Ok(collect_notification_joins(
         producer,
-        [(create, create_fallback), (delete, delete_fallback)],
+        [
+            (create, create_fallback),
+            (delete, delete_fallback),
+            (describe, describe_fallback),
+        ],
     ))
 }
 
@@ -60,6 +70,10 @@ fn verify_tracked_calls(resources: &EngineHostResources) -> Result<(), EngineHos
     if delete != 0 {
         return Err(EngineHostError::TrackedDeleteTopicsCallsRemain(delete));
     }
+    let describe = resources.describe_cluster_calls.retained_count();
+    if describe != 0 {
+        return Err(EngineHostError::DescribeClusterCallsRemain(describe));
+    }
     Ok(())
 }
 
@@ -74,6 +88,12 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
     if delete != 0 {
         return Err(EngineHostError::DeleteTopics(
             crate::admin::DeleteTopicsHostError::Unsettled(delete),
+        ));
+    }
+    let describe = resources.describe_cluster.terminal_host().unsettled();
+    if describe != 0 {
+        return Err(EngineHostError::DescribeCluster(
+            crate::admin::DescribeClusterHostError::Unsettled(describe),
         ));
     }
     Ok(())

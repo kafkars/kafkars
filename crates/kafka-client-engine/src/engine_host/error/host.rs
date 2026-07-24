@@ -3,12 +3,12 @@
 use std::fmt;
 
 use crate::{
-    admin::{CreateTopicsHostError, DeleteTopicsHostError},
+    admin::{CreateTopicsHostError, DeleteTopicsHostError, DescribeClusterHostError},
     clock::ClockError,
     completion::NotifierJoinError,
     driver::{
-        CreateTopicsCompletionFailure, DeleteTopicsCompletionFailure, DriverOwnerError,
-        ProduceCompletionFailure,
+        CreateTopicsCompletionFailure, DeleteTopicsCompletionFailure,
+        DescribeClusterCompletionFailure, DriverOwnerError, ProduceCompletionFailure,
     },
     producer::{
         ProducerHostInvariantError, execution::PreparedProduceHandoffError,
@@ -31,12 +31,16 @@ pub(crate) enum EngineHostError {
     DeleteTopics(DeleteTopicsHostError),
     DeleteTopicsCompletion(DeleteTopicsCompletionFailure),
     DeleteTopicsLockPoisoned,
+    DescribeCluster(DescribeClusterHostError),
+    DescribeClusterCompletion(DescribeClusterCompletionFailure),
+    DescribeClusterLockPoisoned,
     Driver(DriverOwnerError),
     DriverOwnerMissing,
     DriverStopped,
     TrackedProduceCallsRemain(usize),
     TrackedCreateTopicsCallsRemain(usize),
     TrackedDeleteTopicsCallsRemain(usize),
+    DescribeClusterCallsRemain(usize),
     HostPanicked,
     Notifier(NotifierJoinError),
     Recovery {
@@ -73,6 +77,13 @@ impl fmt::Display for EngineHostError {
             Self::DeleteTopicsLockPoisoned => {
                 formatter.write_str("DeleteTopics host ownership lock is poisoned")
             }
+            Self::DescribeCluster(error) => {
+                write!(formatter, "DescribeCluster host failed: {error}")
+            }
+            Self::DescribeClusterCompletion(error) => write!(formatter, "{error}"),
+            Self::DescribeClusterLockPoisoned => {
+                formatter.write_str("DescribeCluster host ownership lock is poisoned")
+            }
             Self::Driver(error) => write!(formatter, "embedded driver failed: {error}"),
             Self::DriverOwnerMissing => formatter.write_str("embedded driver owner is unavailable"),
             Self::DriverStopped => formatter.write_str("embedded driver stopped unexpectedly"),
@@ -92,6 +103,12 @@ impl fmt::Display for EngineHostError {
                 write!(
                     formatter,
                     "{count} tracked DeleteTopics calls remain at terminal cleanup"
+                )
+            }
+            Self::DescribeClusterCallsRemain(count) => {
+                write!(
+                    formatter,
+                    "{count} DescribeCluster calls remain at terminal cleanup"
                 )
             }
             Self::HostPanicked => formatter.write_str("engine host thread panicked"),

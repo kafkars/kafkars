@@ -2,6 +2,7 @@
 
 mod create_topics;
 mod delete_topics;
+mod describe_cluster;
 mod schedule;
 #[cfg(test)]
 mod schedule_test;
