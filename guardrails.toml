@@ -701,6 +701,10 @@ production = "crates/kafka-client-engine/src/protocol/fetch/batch.rs"
 test = "crates/kafka-client-engine/src/protocol/fetch/batch_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/fetch/batch_model.rs"
+test = "crates/kafka-client-engine/src/protocol/fetch/batch_model_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/fetch/decode.rs"
 test = "crates/kafka-client-engine/src/protocol/fetch/decode_test.rs"
 
@@ -2728,6 +2732,34 @@ path = "crates/kafka-client-engine/src/engine_host/runner.rs"
 [[linear_owners]]
 owner_type = "TrackedProduceCalls"
 path = "crates/kafka-client-engine/src/driver/rpc/calls.rs"
+
+[[linear_owners]]
+owner_type = "FetchResponse"
+path = "crates/kafka-client-engine/src/protocol/fetch/model.rs"
+
+[[linear_owners]]
+owner_type = "FetchTopic"
+path = "crates/kafka-client-engine/src/protocol/fetch/model.rs"
+
+[[linear_owners]]
+owner_type = "FetchPartition"
+path = "crates/kafka-client-engine/src/protocol/fetch/model.rs"
+
+[[linear_owners]]
+owner_type = "FetchEndpoint"
+path = "crates/kafka-client-engine/src/protocol/fetch/model.rs"
+
+[[linear_owners]]
+owner_type = "FetchBatch"
+path = "crates/kafka-client-engine/src/protocol/fetch/model.rs"
+
+[[linear_owners]]
+owner_type = "FetchRecord"
+path = "crates/kafka-client-engine/src/protocol/fetch/model.rs"
+
+[[linear_owners]]
+owner_type = "FetchHeader"
+path = "crates/kafka-client-engine/src/protocol/fetch/model.rs"
 
 [[linear_owners]]
 owner_type = "CreateTopicsHost"

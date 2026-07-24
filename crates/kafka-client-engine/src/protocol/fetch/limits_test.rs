@@ -62,24 +62,23 @@ fn record_and_header_counts_accumulate_across_batches() {
 }
 
 #[test]
-fn compressed_batches_reserve_decoder_worst_case_backing() {
+fn aborted_transaction_count_is_cumulative() {
     let response = FetchResponse::default();
-    let defaults = kafka_wire_records::RecordDecodeLimits::default();
-    let record_batch =
-        kafka_wire_records::RecordDecodeLimits::new(defaults.max_batch_bytes, 10, defaults.wire);
-    let mut limits = FetchDecodeLimits::new(record_batch);
-    limits.max_compressed_backing_bytes = 19;
+    let limits = FetchDecodeLimits {
+        max_aborted_transactions: 1,
+        ..FetchDecodeLimits::default()
+    };
     let mut budget = FetchBudget::start(&response, limits)
         .unwrap_or_else(|error| panic!("empty response budget: {error:?}"));
 
     budget
-        .add_batch(true)
-        .unwrap_or_else(|error| panic!("first compressed batch: {error:?}"));
+        .add_aborted_transactions(1)
+        .unwrap_or_else(|error| panic!("first aborted transaction: {error:?}"));
     assert_eq!(
-        budget.add_batch(true),
-        Err(FetchDecodeFailure::CompressedBackingBytes {
-            actual: 20,
-            limit: 19,
+        budget.add_aborted_transactions(1),
+        Err(FetchDecodeFailure::AbortedTransactionCount {
+            actual: 2,
+            limit: 1,
         })
     );
 }

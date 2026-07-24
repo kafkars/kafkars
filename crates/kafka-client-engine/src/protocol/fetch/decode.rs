@@ -7,7 +7,7 @@ use kafka_wire::{
 
 use super::{
     batch::decode_batches,
-    failure::FetchDecodeFailure,
+    failure::{FetchDecodeFailure, FetchPartitionOffset},
     limits::{FetchBudget, FetchDecodeLimits},
     model::{
         FetchAbortedTransaction, FetchEndpoint, FetchEpochEndOffset, FetchLeader, FetchPartition,
@@ -103,15 +103,35 @@ fn normalize_partition(
         value if value >= 0 => Some(value),
         actual => return Err(FetchDecodeFailure::InvalidPreferredReplica { actual }),
     };
-    let aborted_transactions = partition
-        .aborted_transactions
-        .unwrap_or_default()
+    let high_watermark = normalize_partition_offset(
+        partition.high_watermark,
+        FetchPartitionOffset::HighWatermark,
+    )?;
+    let last_stable_offset = normalize_partition_offset(
+        partition.last_stable_offset,
+        FetchPartitionOffset::LastStableOffset,
+    )?;
+    let log_start_offset = normalize_partition_offset(
+        partition.log_start_offset,
+        FetchPartitionOffset::LogStartOffset,
+    )?;
+    let aborted = partition.aborted_transactions.unwrap_or_default();
+    budget.add_aborted_transactions(aborted.len())?;
+    let aborted_transactions = aborted
         .into_iter()
-        .map(|transaction| FetchAbortedTransaction {
-            producer_id: transaction.producer_id,
-            first_offset: transaction.first_offset,
+        .map(|transaction| {
+            if transaction.producer_id < 0 || transaction.first_offset < 0 {
+                return Err(FetchDecodeFailure::InvalidAbortedTransaction {
+                    producer_id: transaction.producer_id,
+                    first_offset: transaction.first_offset,
+                });
+            }
+            Ok(FetchAbortedTransaction {
+                producer_id: transaction.producer_id,
+                first_offset: transaction.first_offset,
+            })
         })
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
     let batches = decode_batches(
         partition.records.unwrap_or_default(),
         topic_index,
@@ -121,9 +141,9 @@ fn normalize_partition(
     Ok(FetchPartition {
         index,
         error_code: partition.error_code,
-        high_watermark: partition.high_watermark,
-        last_stable_offset: partition.last_stable_offset,
-        log_start_offset: partition.log_start_offset,
+        high_watermark,
+        last_stable_offset,
+        log_start_offset,
         diverging_epoch,
         current_leader,
         snapshot_id,
@@ -185,5 +205,16 @@ fn normalize_leader(
             leader_id,
             leader_epoch,
         }),
+    }
+}
+
+fn normalize_partition_offset(
+    value: i64,
+    fact: FetchPartitionOffset,
+) -> Result<Option<i64>, FetchDecodeFailure> {
+    match value {
+        -1 => Ok(None),
+        value if value >= 0 => Ok(Some(value)),
+        actual => Err(FetchDecodeFailure::InvalidPartitionOffset { fact, actual }),
     }
 }

@@ -3,7 +3,7 @@
 use bytes::Bytes;
 
 /// One normalized generated Fetch response in broker order.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct FetchResponse {
     pub(crate) throttle_time_ms: u32,
     pub(crate) error_code: i16,
@@ -13,7 +13,7 @@ pub(crate) struct FetchResponse {
 }
 
 /// One topic result retaining its name bytes without generated protocol types.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct FetchTopic {
     pub(crate) name: Bytes,
     pub(crate) topic_id: [u8; 16],
@@ -21,13 +21,13 @@ pub(crate) struct FetchTopic {
 }
 
 /// One partition result and all broker facts required by later interpretation.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct FetchPartition {
     pub(crate) index: u32,
     pub(crate) error_code: i16,
-    pub(crate) high_watermark: i64,
-    pub(crate) last_stable_offset: i64,
-    pub(crate) log_start_offset: i64,
+    pub(crate) high_watermark: Option<i64>,
+    pub(crate) last_stable_offset: Option<i64>,
+    pub(crate) log_start_offset: Option<i64>,
     pub(crate) diverging_epoch: Option<FetchEpochEndOffset>,
     pub(crate) current_leader: Option<FetchLeader>,
     pub(crate) snapshot_id: Option<FetchEpochEndOffset>,
@@ -58,7 +58,7 @@ pub(crate) struct FetchAbortedTransaction {
 }
 
 /// One leader endpoint carried with a Fetch response.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct FetchEndpoint {
     pub(crate) node_id: i32,
     pub(crate) host: Bytes,
@@ -67,19 +67,27 @@ pub(crate) struct FetchEndpoint {
 }
 
 /// One retained Kafka record batch.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct FetchBatch {
     pub(crate) base_offset: i64,
     pub(crate) last_offset: i64,
+    pub(crate) next_offset: i64,
     pub(crate) partition_leader_epoch: Option<i32>,
     pub(crate) timestamp_type: FetchTimestampType,
-    pub(crate) max_timestamp: i64,
-    pub(crate) producer_id: Option<i64>,
-    pub(crate) producer_epoch: Option<i16>,
-    pub(crate) base_sequence: Option<i32>,
+    pub(crate) max_timestamp: Option<i64>,
+    pub(crate) producer: Option<FetchProducerIdentity>,
     pub(crate) is_transactional: bool,
     pub(crate) is_control: bool,
+    pub(crate) has_delete_horizon: bool,
     pub(crate) records: Vec<FetchRecord>,
+}
+
+/// One coherent idempotent producer tuple retained with a record batch.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct FetchProducerIdentity {
+    pub(crate) producer_id: i64,
+    pub(crate) producer_epoch: i16,
+    pub(crate) base_sequence: i32,
 }
 
 /// Whether a decoded timestamp was producer- or broker-assigned.
@@ -90,18 +98,18 @@ pub(crate) enum FetchTimestampType {
 }
 
 /// One retained record with absolute log coordinates.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct FetchRecord {
     pub(crate) attributes: i8,
     pub(crate) offset: i64,
-    pub(crate) timestamp: i64,
+    pub(crate) timestamp: Option<i64>,
     pub(crate) key: Option<Bytes>,
     pub(crate) value: Option<Bytes>,
     pub(crate) headers: Vec<FetchHeader>,
 }
 
 /// One duplicate-preserving, ordered Kafka record header.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct FetchHeader {
     pub(crate) key: Bytes,
     pub(crate) value: Option<Bytes>,

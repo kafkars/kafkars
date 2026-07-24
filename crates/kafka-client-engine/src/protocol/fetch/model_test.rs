@@ -9,7 +9,7 @@ fn null_empty_and_duplicate_headers_are_distinct_engine_values() {
     let record = FetchRecord {
         attributes: 0,
         offset: 4,
-        timestamp: 7,
+        timestamp: Some(7),
         key: None,
         value: Some(Bytes::new()),
         headers: vec![

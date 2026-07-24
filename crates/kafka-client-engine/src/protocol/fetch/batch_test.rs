@@ -1,70 +1,57 @@
-//! Semantic record-batch rejection after authoritative wire decoding.
+//! Ordered multi-batch offset fencing after authoritative wire decoding.
 
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use kafka_wire::FetchResponse;
-use kafka_wire_records::{Compression, Record, RecordBatch, TimestampType};
+use kafka_wire_records::{Compression, Record, RecordBatch, RecordEncodeLimits, TimestampType};
 
 use super::{
-    batch::normalize_batch,
+    batch::decode_batches,
     failure::FetchDecodeFailure,
     limits::{FetchBudget, FetchDecodeLimits},
 };
 
 #[test]
-fn negative_last_delta_and_out_of_range_records_are_rejected() {
-    let mut first_budget = budget();
-    let mut negative_delta = batch();
-    negative_delta.last_offset_delta = -1;
+fn batches_must_be_monotonic_and_non_overlapping() {
+    let encoded = encoded_batches(&[batch(10, 4), batch(14, 0)]);
+    let mut budget = test_budget();
     assert_eq!(
-        normalize_batch(negative_delta, &mut first_budget),
-        Err(FetchDecodeFailure::NegativeLastOffsetDelta { actual: -1 })
-    );
-
-    let mut second_budget = budget();
-    let mut outside = batch();
-    outside.records[0].offset_delta = 2;
-    assert!(matches!(
-        normalize_batch(outside, &mut second_budget),
-        Err(FetchDecodeFailure::RecordOffsetOutsideBatch {
-            offset: 12,
-            first: 10,
-            last: 10,
+        decode_batches(encoded, 2, 3, &mut budget),
+        Err(FetchDecodeFailure::BatchOffsetOverlap {
+            previous_last_offset: 14,
+            base_offset: 14,
         })
-    ));
-}
-
-#[test]
-fn negative_log_offsets_are_rejected_before_delivery() {
-    let mut budget = budget();
-    let mut negative = batch();
-    negative.base_offset = -1;
-    assert_eq!(
-        normalize_batch(negative, &mut budget),
-        Err(FetchDecodeFailure::NegativeBaseOffset { actual: -1 })
     );
 }
 
 #[test]
-fn absolute_timestamp_overflow_is_not_saturated() {
-    let mut budget = budget();
-    let mut batch = batch();
-    batch.base_timestamp = i64::MAX;
-    batch.records[0].timestamp_delta = 1;
-    assert_eq!(
-        normalize_batch(batch, &mut budget),
-        Err(FetchDecodeFailure::TimestampOverflow)
-    );
+fn separated_batches_preserve_their_next_offsets() {
+    let encoded = encoded_batches(&[batch(10, 2), batch(20, 0)]);
+    let mut budget = test_budget();
+    let batches = decode_batches(encoded, 0, 0, &mut budget)
+        .unwrap_or_else(|error| panic!("nonoverlapping batches: {error:?}"));
+    assert_eq!(batches[0].next_offset, 13);
+    assert_eq!(batches[1].next_offset, 21);
 }
 
-fn budget() -> FetchBudget {
+fn test_budget() -> FetchBudget {
     FetchBudget::start(&FetchResponse::default(), FetchDecodeLimits::default())
         .unwrap_or_else(|error| panic!("empty response budget: {error:?}"))
 }
 
-fn batch() -> RecordBatch {
+fn encoded_batches(batches: &[RecordBatch]) -> Bytes {
+    let mut encoded = BytesMut::new();
+    for batch in batches {
+        batch
+            .encode_into(&mut encoded, RecordEncodeLimits::default())
+            .unwrap_or_else(|error| panic!("test batch encoding: {error}"));
+    }
+    encoded.freeze()
+}
+
+fn batch(base_offset: i64, last_offset_delta: i32) -> RecordBatch {
     RecordBatch {
-        base_offset: 10,
-        last_offset_delta: 0,
+        base_offset,
+        last_offset_delta,
         partition_leader_epoch: -1,
         compression: Compression::None,
         timestamp_type: TimestampType::CreateTime,
@@ -81,7 +68,7 @@ fn batch() -> RecordBatch {
             timestamp_delta: 0,
             offset_delta: 0,
             key: None,
-            value: Some(Bytes::from_static(b"value")),
+            value: None,
             headers: Vec::new(),
         }],
     }

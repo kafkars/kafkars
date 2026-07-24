@@ -16,6 +16,7 @@ pub(crate) struct FetchDecodeLimits {
     pub(crate) max_batches: usize,
     pub(crate) max_records: usize,
     pub(crate) max_headers: usize,
+    pub(crate) max_aborted_transactions: usize,
     pub(crate) max_logical_record_bytes: usize,
     pub(crate) max_compressed_backing_bytes: usize,
     pub(crate) record_batch: RecordDecodeLimits,
@@ -32,6 +33,7 @@ impl FetchDecodeLimits {
             max_batches: 16_384,
             max_records: 1_000_000,
             max_headers: 4_000_000,
+            max_aborted_transactions: 1_000_000,
             max_logical_record_bytes: 128 * 1024 * 1024,
             max_compressed_backing_bytes: 128 * 1024 * 1024,
             record_batch,
@@ -52,6 +54,7 @@ pub(super) struct FetchBudget {
     batches: usize,
     records: usize,
     headers: usize,
+    aborted_transactions: usize,
     logical_record_bytes: usize,
     compressed_backing_bytes: usize,
 }
@@ -88,6 +91,7 @@ impl FetchBudget {
             batches: 0,
             records: 0,
             headers: 0,
+            aborted_transactions: 0,
             logical_record_bytes: 0,
             compressed_backing_bytes: 0,
         })
@@ -146,6 +150,18 @@ impl FetchBudget {
             logical_bytes,
             self.limits.max_logical_record_bytes,
             |actual, limit| FetchDecodeFailure::LogicalRecordBytes { actual, limit },
+        )
+    }
+
+    pub(super) fn add_aborted_transactions(
+        &mut self,
+        count: usize,
+    ) -> Result<(), FetchDecodeFailure> {
+        add_limited(
+            &mut self.aborted_transactions,
+            count,
+            self.limits.max_aborted_transactions,
+            |actual, limit| FetchDecodeFailure::AbortedTransactionCount { actual, limit },
         )
     }
 }

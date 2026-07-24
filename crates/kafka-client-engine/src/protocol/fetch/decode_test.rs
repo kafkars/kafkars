@@ -44,7 +44,7 @@ fn response_order_and_semantic_broker_facts_are_preserved() {
     assert_eq!(normalized.topics[0].topic_id, [0; 16]);
     assert_eq!(normalized.topics[0].partitions[0].index, 3);
     assert_eq!(normalized.topics[0].partitions[0].error_code, -321);
-    assert_eq!(normalized.topics[0].partitions[0].high_watermark, 90);
+    assert_eq!(normalized.topics[0].partitions[0].high_watermark, Some(90));
     assert_eq!(normalized.topics[0].partitions[1].index, 1);
     assert_eq!(normalized.topics[1].name, "alpha");
     assert_eq!(normalized.endpoints[0].host, "leader.local");
@@ -71,8 +71,8 @@ fn records_keep_offsets_nullability_and_duplicate_header_order() {
     assert_eq!(batch.timestamp_type, FetchTimestampType::Create);
     assert_eq!(records[0].offset, 40);
     assert_eq!(records[1].offset, 42);
-    assert_eq!(records[0].timestamp, 1_000);
-    assert_eq!(records[1].timestamp, 1_005);
+    assert_eq!(records[0].timestamp, Some(1_000));
+    assert_eq!(records[1].timestamp, Some(1_005));
     assert!(records[0].key.is_none());
     assert_eq!(records[0].value.as_deref(), Some(&b""[..]));
     assert_eq!(records[1].key.as_deref(), Some(&b""[..]));
@@ -87,20 +87,7 @@ fn records_keep_offsets_nullability_and_duplicate_header_order() {
 }
 
 #[test]
-fn wire_records_remains_the_compression_and_crc_authority() {
-    let compressed_response = response(vec![topic(
-        "compressed",
-        vec![partition(0, Some(record_bytes(Compression::Gzip)))],
-    )]);
-    let normalized = normalize_fetch_response(compressed_response, FetchDecodeLimits::default())
-        .unwrap_or_else(|error| panic!("wire-records should decode gzip: {error:?}"));
-    assert_eq!(
-        normalized.topics[0].partitions[0].batches[0].records[1].headers[0]
-            .value
-            .as_deref(),
-        Some(&b"first"[..])
-    );
-
+fn wire_records_remains_the_crc_authority() {
     let mut corrupt = BytesMut::from(record_bytes(Compression::None).as_ref());
     let last = corrupt.len() - 1;
     corrupt[last] ^= 0x80;
@@ -120,20 +107,7 @@ fn wire_records_remains_the_compression_and_crc_authority() {
 }
 
 #[test]
-fn malformed_facts_and_response_budgets_fail_only_normalization() {
-    let mut malformed = partition(0, None);
-    malformed.current_leader.leader_id = -2;
-    assert_eq!(
-        normalize_fetch_response(
-            response(vec![topic("bad", vec![malformed])]),
-            FetchDecodeLimits::default(),
-        ),
-        Err(FetchDecodeFailure::InvalidCurrentLeader {
-            leader_id: -2,
-            leader_epoch: -1,
-        })
-    );
-
+fn response_record_budget_fails_only_normalization() {
     let limits = FetchDecodeLimits {
         max_records: 1,
         ..FetchDecodeLimits::default()
@@ -153,20 +127,20 @@ fn malformed_facts_and_response_budgets_fail_only_normalization() {
     );
 }
 
-fn response(topics: Vec<FetchableTopicResponse>) -> WireFetchResponse {
+pub(super) fn response(topics: Vec<FetchableTopicResponse>) -> WireFetchResponse {
     let mut response = WireFetchResponse::default();
     response.responses = topics;
     response
 }
 
-fn topic(name: &str, partitions: Vec<PartitionData>) -> FetchableTopicResponse {
+pub(super) fn topic(name: &str, partitions: Vec<PartitionData>) -> FetchableTopicResponse {
     let mut topic = FetchableTopicResponse::default();
     topic.topic = name.into();
     topic.partitions = partitions;
     topic
 }
 
-fn partition(index: i32, records: Option<Bytes>) -> PartitionData {
+pub(super) fn partition(index: i32, records: Option<Bytes>) -> PartitionData {
     let mut partition = PartitionData::default();
     partition.partition_index = index;
     partition.records = records;
@@ -189,7 +163,7 @@ fn aborted(producer_id: i64, first_offset: i64) -> AbortedTransaction {
     transaction
 }
 
-fn record_bytes(compression: Compression) -> Bytes {
+pub(super) fn record_bytes(compression: Compression) -> Bytes {
     let batch = RecordBatch {
         base_offset: 40,
         last_offset_delta: 2,

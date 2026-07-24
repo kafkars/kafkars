@@ -9,6 +9,7 @@
 )]
 
 mod batch;
+mod batch_model;
 mod decode;
 mod failure;
 mod limits;
@@ -34,17 +35,23 @@ pub(crate) use limits::FetchDecodeLimits;
     reason = "the direct-consumer interpreter will consume this complete retained seam"
 )]
 pub(crate) use model::{
-    FetchBatch, FetchEndpoint, FetchHeader, FetchPartition, FetchRecord, FetchResponse,
-    FetchTimestampType, FetchTopic,
+    FetchBatch, FetchEndpoint, FetchHeader, FetchPartition, FetchProducerIdentity, FetchRecord,
+    FetchResponse, FetchTimestampType, FetchTopic,
 };
 
+#[cfg(test)]
+mod batch_model_test;
 #[cfg(test)]
 mod batch_test;
 #[cfg(test)]
 mod decode_test;
+#[cfg(test)]
+mod facts_test;
 #[cfg(test)]
 mod failure_test;
 #[cfg(test)]
 mod limits_test;
 #[cfg(test)]
 mod model_test;
+#[cfg(test)]
+mod pending_test;
