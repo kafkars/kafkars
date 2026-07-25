@@ -11,8 +11,8 @@ use crate::completion::NotifierJoin;
 
 use super::{
     EngineHostError, EngineHostExit, EngineLifecycle,
+    finalize::{finalize_exit, publish_caught},
     notifier_shutdown::NotifierShutdownOwner,
-    start::{finalize_exit, publish_caught},
 };
 
 #[test]

@@ -19,6 +19,9 @@ mod cleanup_test;
 mod control;
 mod describe_configs_start;
 mod error;
+mod finalize;
+#[cfg(test)]
+mod finalize_test;
 mod lifecycle;
 #[cfg(test)]
 mod lifecycle_test;
@@ -44,8 +47,6 @@ mod start;
 mod start_handoff;
 #[cfg(test)]
 mod start_handoff_test;
-#[cfg(test)]
-mod start_test;
 
 pub(crate) use control::EngineHostControl;
 #[cfg(test)]

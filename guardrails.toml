@@ -556,8 +556,8 @@ production = "crates/kafka-client-engine/src/engine_host/produce.rs"
 test = "crates/kafka-client-engine/src/engine_host/produce_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/engine_host/start.rs"
-test = "crates/kafka-client-engine/src/engine_host/start_test.rs"
+production = "crates/kafka-client-engine/src/engine_host/finalize.rs"
+test = "crates/kafka-client-engine/src/engine_host/finalize_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/start_handoff.rs"
@@ -3019,7 +3019,7 @@ method = "join_off_notifier"
 allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/notifier_shutdown.rs",
   "crates/kafka-client-engine/src/engine_host/notifier_start.rs",
-  "crates/kafka-client-engine/src/engine_host/start.rs",
+  "crates/kafka-client-engine/src/engine_host/finalize.rs",
 ]
 
 [[call_capabilities]]
