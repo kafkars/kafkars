@@ -24,6 +24,7 @@ pub(crate) use sync_request::{
 pub(crate) use sync_response::{ClassicSyncResponseFailure, normalize_classic_sync_response};
 pub(crate) use validation::{
     JOIN_MAX_VERSION as CLASSIC_JOIN_MAX_VERSION, JOIN_MIN_VERSION as CLASSIC_JOIN_MIN_VERSION,
+    MAX_MEMBER_PARTITIONS as CLASSIC_SYNC_MAX_MEMBER_PARTITIONS,
     SYNC_MAX_VERSION as CLASSIC_SYNC_MAX_VERSION, SYNC_MIN_VERSION as CLASSIC_SYNC_MIN_VERSION,
 };
 

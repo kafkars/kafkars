@@ -9,6 +9,11 @@ pub(super) const CANDIDATE: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_candidate.rs";
 pub(super) const EFFECT_ASSIGNMENT: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_assignment.rs";
+pub(super) const ASSIGNMENT_DECODE: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_assignment_decode.rs";
+pub(super) const ASSIGNMENT_DECODE_TEST: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_assignment_decode_test.rs";
+pub(super) const ASSIGNMENT_DECODE_CALL: &str = "decode_classic_group_assignment";
 pub(super) const CAPABILITY_PATHS: &[&str] = &[
     CATALOG,
     CATALOG_ASSIGNMENT,
@@ -25,6 +30,7 @@ pub(super) const LINEAR: &[(&str, &str)] = &[
     ("CandidateMember", CANDIDATE),
     ("PreparedClassicGroupInstall", EFFECT_ASSIGNMENT),
     ("PreparedClassicGroupRevoke", EFFECT_ASSIGNMENT),
+    ("ClassicGroupAssignmentDecodeFailure", ASSIGNMENT_DECODE),
 ];
 pub(super) const CATALOG_FIELDS: &[(&str, &[&str])] = &[
     ("next_member_id", &[CATALOG, CATALOG_ASSIGNMENT]),
@@ -86,6 +92,32 @@ pub(super) const FORBIDDEN: &[&str] = &[
     "crate::driver",
     "crate::producer",
     "crate::protocol",
+    "crate::transaction",
+    "kafka_driver",
+    "kafka_wire",
+    "kafka_wire_core",
+    "kafka_wire_records",
+    "std::future",
+    "std::net",
+    "std::thread",
+    "std::time",
+    "Condvar",
+    "Instant::now",
+    "Mutex",
+    "RwLock",
+    "Future",
+    "async",
+    "Callback",
+    "Metadata",
+    "Transport",
+    "Retry",
+];
+pub(super) const DECODE_FORBIDDEN: &[&str] = &[
+    "crate::admin",
+    "crate::clock",
+    "crate::completion",
+    "crate::driver",
+    "crate::producer",
     "crate::transaction",
     "kafka_driver",
     "kafka_wire",

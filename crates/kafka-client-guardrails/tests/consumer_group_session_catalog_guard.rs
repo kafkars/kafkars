@@ -5,19 +5,27 @@ mod expectations;
 mod support;
 
 use support::{
-    AuthorityToken, CapabilityRule, LinearOwner, MethodCapabilityRule, MutationOwner,
-    authority_token_violations, capability_violations, fixture_files, linear_violations,
-    load_config, method_capability_violations, mutation_violations, workspace_root,
+    AuthorityToken, CallCapabilityRule, CapabilityRule, LinearOwner, MethodCapabilityRule,
+    MutationOwner, authority_token_violations, call_capability_violations, capability_violations,
+    fixture_files, linear_violations, load_config, method_capability_violations,
+    mutation_violations, workspace_root,
 };
 
 use expectations::{
-    AUTHORITIES, CANDIDATE, CAPABILITY_PATHS, CATALOG_FIELDS, FORBIDDEN, LINEAR, METHODS,
-    OWNER_FIELDS,
+    ASSIGNMENT_DECODE, ASSIGNMENT_DECODE_CALL, ASSIGNMENT_DECODE_TEST, AUTHORITIES, CANDIDATE,
+    CAPABILITY_PATHS, CATALOG_FIELDS, DECODE_FORBIDDEN, FORBIDDEN, LINEAR, METHODS, OWNER_FIELDS,
 };
 
 #[test]
 fn checked_in_classic_group_engine_policy_is_exact() {
     let config = load_config(&workspace_root());
+    let decode_mirrors = config
+        .test_mirrors
+        .iter()
+        .filter(|rule| rule.production == ASSIGNMENT_DECODE)
+        .collect::<Vec<_>>();
+    assert_eq!(decode_mirrors.len(), 1);
+    assert_eq!(decode_mirrors[0].test, ASSIGNMENT_DECODE_TEST);
     for (owner_type, path) in LINEAR {
         let rules = config
             .linear_owners
@@ -68,6 +76,29 @@ fn checked_in_classic_group_engine_policy_is_exact() {
         );
         assert!(rules[0].allow.is_empty());
     }
+    let decode_capabilities = config
+        .capability_rules
+        .iter()
+        .filter(|rule| rule.root == ASSIGNMENT_DECODE)
+        .collect::<Vec<_>>();
+    assert_eq!(decode_capabilities.len(), 1);
+    assert_eq!(
+        decode_capabilities[0]
+            .forbidden
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        DECODE_FORBIDDEN
+    );
+    assert!(decode_capabilities[0].allow.is_empty());
+    let decode_callers = config
+        .call_capabilities
+        .iter()
+        .filter(|rule| rule.call == ASSIGNMENT_DECODE_CALL)
+        .collect::<Vec<_>>();
+    assert_eq!(decode_callers.len(), 1);
+    assert_eq!(decode_callers[0].root, "crates/kafka-client-engine/src");
+    assert!(decode_callers[0].allowed_paths.is_empty());
     for (method, allowed) in METHODS {
         let rules = config
             .method_capabilities
@@ -172,6 +203,25 @@ fn fixture_rejects_foreign_capabilities_and_install_or_revoke_callers() {
             "capability detector missed {capability}: {violations:?}"
         );
     }
+    let decode_violations = capability_violations(
+        &root,
+        &[CapabilityRule {
+            root: "src".into(),
+            forbidden: DECODE_FORBIDDEN
+                .iter()
+                .map(|value| (*value).into())
+                .collect(),
+            allow: Vec::new(),
+        }],
+    );
+    for capability in DECODE_FORBIDDEN {
+        assert!(
+            decode_violations.iter().any(|violation| {
+                violation.contains("capability_intruder.rs") && violation.contains(capability)
+            }),
+            "decode capability detector missed {capability}: {decode_violations:?}"
+        );
+    }
     for (method, _allowed) in METHODS {
         let violations = method_capability_violations(
             &root,
@@ -185,6 +235,17 @@ fn fixture_rejects_foreign_capabilities_and_install_or_revoke_callers() {
             violation.contains("method_intruder.rs") && violation.contains(method)
         }));
     }
+    let decode_call_violations = call_capability_violations(
+        &root,
+        &[CallCapabilityRule {
+            root: "src".into(),
+            call: ASSIGNMENT_DECODE_CALL.into(),
+            allowed_paths: Vec::new(),
+        }],
+    );
+    assert!(decode_call_violations.iter().any(|violation| {
+        violation.contains("call_intruder.rs") && violation.contains(ASSIGNMENT_DECODE_CALL)
+    }));
 }
 
 fn assert_mutations(rules: &[MutationOwner], owner: &str, expected: &[(&str, &[&str])]) {

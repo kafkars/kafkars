@@ -1,6 +1,7 @@
 //! Bounded classic-group identity and deterministic membership ownership.
 
 mod classic_group_assignment;
+mod classic_group_assignment_decode;
 mod classic_group_candidate;
 mod classic_group_candidate_prepare;
 mod classic_group_execution;
@@ -30,6 +31,10 @@ mod session_catalog_assignment;
 
 #[cfg(test)]
 mod classic_group_assignment_bounds_test;
+#[cfg(test)]
+mod classic_group_assignment_decode_subscription_test;
+#[cfg(test)]
+mod classic_group_assignment_decode_test;
 #[cfg(test)]
 mod classic_group_assignment_test;
 #[cfg(test)]

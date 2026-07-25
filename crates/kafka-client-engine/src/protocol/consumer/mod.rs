@@ -18,8 +18,8 @@ mod list_offsets_time;
 pub(crate) use super::request_timeout::remaining_timeout_ms;
 #[expect(unused_imports, reason = "awaiting classic-group membership executor")]
 pub(crate) use classic_group::{
-    CLASSIC_JOIN_MAX_VERSION, CLASSIC_JOIN_MIN_VERSION, CLASSIC_SYNC_MAX_VERSION,
-    CLASSIC_SYNC_MIN_VERSION, ClassicBrokerRejection, ClassicJoinOutcome,
+    CLASSIC_JOIN_MAX_VERSION, CLASSIC_JOIN_MIN_VERSION, CLASSIC_SYNC_MAX_MEMBER_PARTITIONS,
+    CLASSIC_SYNC_MAX_VERSION, CLASSIC_SYNC_MIN_VERSION, ClassicBrokerRejection, ClassicJoinOutcome,
     ClassicJoinRequestFailure, ClassicJoinResponseFailure, ClassicJoinedGroup, ClassicJoinedMember,
     ClassicJoinedRole, ClassicSyncMember, ClassicSyncOutcome, ClassicSyncRequestFailure,
     ClassicSyncResponseFailure, ClassicSyncTopic, NamedAssignmentPartition,

@@ -8115,6 +8115,10 @@ test = "crates/kafka-client-engine/src/consumer/group/classic_group_topics_test.
 production = "crates/kafka-client-engine/src/consumer/group/classic_group_assignment.rs"
 test = "crates/kafka-client-engine/src/consumer/group/classic_group_assignment_test.rs"
 
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_assignment_decode.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_assignment_decode_test.rs"
+
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/group/session_catalog.rs"
 forbidden = [
@@ -8325,6 +8329,40 @@ forbidden = [
   "Retry",
 ]
 
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_assignment_decode.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "decode_classic_group_assignment"
+allowed_paths = []
+
 [[mutation_owners]]
 owner_type = "GroupSessionCatalog"
 field = "next_member_id"
@@ -8395,6 +8433,10 @@ path = "crates/kafka-client-engine/src/consumer/group/classic_group_assignment.r
 [[linear_owners]]
 owner_type = "PreparedClassicGroupRevoke"
 path = "crates/kafka-client-engine/src/consumer/group/classic_group_assignment.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupAssignmentDecodeFailure"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_assignment_decode.rs"
 
 [[mutation_owners]]
 owner_type = "ClassicGroupOwner"

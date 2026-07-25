@@ -17,3 +17,6 @@ struct PreparedClassicGroupInstall;
 
 #[derive(Clone, Copy)]
 struct PreparedClassicGroupRevoke;
+
+#[derive(Clone, Copy)]
+struct ClassicGroupAssignmentDecodeFailure;

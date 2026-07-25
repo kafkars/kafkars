@@ -174,15 +174,23 @@ impl NamedAssignmentPartition {
         Self { topic, partition }
     }
 
+    #[cfg(test)]
+    pub(crate) const fn from_assignment_decode_parts_for_test(
+        topic: Arc<str>,
+        partition: i32,
+    ) -> Self {
+        Self { topic, partition }
+    }
+
     pub(crate) fn into_parts(self) -> (Arc<str>, i32) {
         (self.topic, self.partition)
     }
 
-    pub(super) fn topic(&self) -> &str {
+    pub(crate) fn topic(&self) -> &str {
         &self.topic
     }
 
-    pub(super) const fn partition(&self) -> i32 {
+    pub(crate) const fn partition(&self) -> i32 {
         self.partition
     }
 }
