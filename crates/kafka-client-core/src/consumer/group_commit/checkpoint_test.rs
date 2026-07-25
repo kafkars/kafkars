@@ -92,6 +92,17 @@ fn checkpoint_rejects_empty_duplicate_and_out_of_order_entries() {
     ));
 }
 
+#[test]
+fn checkpoint_exposes_actual_retained_entry_capacity_without_shrinking() {
+    let mut entries = Vec::with_capacity(9);
+    entries.push(entry(1, 0, 1, None));
+    let actual_capacity = entries.capacity();
+    let checkpoint = GroupCheckpoint::try_new(group(1), member(1), generation(1), entries)
+        .unwrap_or_else(|error| panic!("valid checkpoint: {error}"));
+
+    assert_eq!(checkpoint.entries_capacity(), actual_capacity);
+}
+
 fn entry(
     topic_id: u64,
     partition_index: u32,

@@ -43,9 +43,16 @@ pub use crate::consumer::{
     AssignedConsumerMachine, AssignedConsumerMachineError, AssignedConsumerTransition,
     AssignedPartition, AssignedTopicPartition, AssignmentEpoch, AssignmentGeneration,
     DeliveryOwnership, FetchFailure, FetchFence, FetchOwnership, FetchRecords, FetchRevision,
-    FetchThrottleFailure, GroupCheckpoint, GroupCheckpointEntry, GroupCheckpointEntryError,
-    GroupCheckpointError, GroupId, MemberId, NextFetchOffset, PositionEpoch, PositionFence,
-    PositionOwnership, PositionResolutionFailure, StartPosition,
+    FetchThrottleFailure, GroupAssignmentPartition, GroupCheckpoint, GroupCheckpointEntry,
+    GroupCheckpointEntryError, GroupCheckpointError, GroupId, GroupOffsetCommitAdmission,
+    GroupOffsetCommitAdmissionError, GroupOffsetCommitAdmissionErrorKind, GroupOffsetCommitBatch,
+    GroupOffsetCommitBrokerError, GroupOffsetCommitBrokerRejection, GroupOffsetCommitEffect,
+    GroupOffsetCommitFailure, GroupOffsetCommitFailureKind, GroupOffsetCommitInput,
+    GroupOffsetCommitMachine, GroupOffsetCommitMachineError, GroupOffsetCommitPartitionOutcome,
+    GroupOffsetCommitPartitionResult, GroupOffsetCommitState, GroupOffsetCommitTerminal,
+    GroupOffsetCommitTransition, LiveGroupAssignment, LiveGroupAssignmentError, MemberId,
+    NextFetchOffset, PositionEpoch, PositionFence, PositionOwnership, PositionResolutionFailure,
+    StartPosition,
 };
 pub use crate::operation::{ProducerOperation, ProducerOperationState};
 pub use crate::operation_outcome::{

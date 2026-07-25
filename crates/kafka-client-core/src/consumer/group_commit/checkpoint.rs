@@ -156,6 +156,11 @@ impl GroupCheckpoint {
     pub fn entries(&self) -> &[GroupCheckpointEntry] {
         &self.entries
     }
+
+    /// Returns actual retained entry-vector capacity for engine accounting.
+    pub fn entries_capacity(&self) -> usize {
+        self.entries.capacity()
+    }
 }
 
 /// Structural validation failure for a group checkpoint.

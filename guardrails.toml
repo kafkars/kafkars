@@ -152,6 +152,26 @@ production = "crates/kafka-client-core/src/consumer/group_commit/checkpoint.rs"
 test = "crates/kafka-client-core/src/consumer/group_commit/checkpoint_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/group_commit/assignment.rs"
+test = "crates/kafka-client-core/src/consumer/group_commit/assignment_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/group_commit/effect.rs"
+test = "crates/kafka-client-core/src/consumer/group_commit/effect_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/group_commit/input.rs"
+test = "crates/kafka-client-core/src/consumer/group_commit/input_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/group_commit/machine.rs"
+test = "crates/kafka-client-core/src/consumer/group_commit/machine_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/group_commit/outcome.rs"
+test = "crates/kafka-client-core/src/consumer/group_commit/outcome_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/machine.rs"
 test = "crates/kafka-client-core/src/consumer/assignment_test.rs"
 
@@ -1835,6 +1855,36 @@ forbidden = [
   "kafka_wire",
   "std::future",
   "std::time",
+]
+
+# Group commit owns only scalar assignment/checkpoint policy and terminal choice.
+[[capability_rules]]
+root = "crates/kafka-client-core/src/consumer/group_commit"
+forbidden = [
+  "AssignedConsumer",
+  "AssignedConsumerMachine",
+  "Callback",
+  "Clock",
+  "Coordinator",
+  "Engine",
+  "Future",
+  "Generated",
+  "GroupCoordinator",
+  "Metadata",
+  "Retry",
+  "String",
+  "Transport",
+  "Wire",
+  "async",
+  "async_std",
+  "bytes",
+  "kafka_client_engine",
+  "kafka_driver",
+  "kafka_wire",
+  "smol",
+  "std::future",
+  "std::time",
+  "tokio",
 ]
 
 # Simulation owns virtual time only and must remain reproducible.
@@ -4087,6 +4137,13 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "GroupOffsetCommitMachine"
+field = "state"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/group_commit/machine.rs",
+]
+
+[[mutation_owners]]
 owner_type = "StickyPartitioner"
 field = "current"
 allowed_paths = ["crates/kafka-client-core/src/producer/sticky.rs"]
@@ -5675,6 +5732,34 @@ path = "crates/kafka-client-core/src/admin/describe_configs_machine.rs"
 [[linear_owners]]
 owner_type = "IncrementalAlterConfigsMachine"
 path = "crates/kafka-client-core/src/admin/alter_configs/machine.rs"
+
+[[linear_owners]]
+owner_type = "LiveGroupAssignment"
+path = "crates/kafka-client-core/src/consumer/group_commit/assignment.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitAdmissionError"
+path = "crates/kafka-client-core/src/consumer/group_commit/assignment.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitEffect"
+path = "crates/kafka-client-core/src/consumer/group_commit/effect.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitAdmission"
+path = "crates/kafka-client-core/src/consumer/group_commit/effect.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitMachine"
+path = "crates/kafka-client-core/src/consumer/group_commit/machine.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitTerminal"
+path = "crates/kafka-client-core/src/consumer/group_commit/outcome.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitBrokerRejection"
+path = "crates/kafka-client-core/src/consumer/group_commit/outcome.rs"
 
 [[linear_owners]]
 owner_type = "StickyPartitioner"
