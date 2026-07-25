@@ -12,6 +12,12 @@ mod classic_group_execution_join_terminal;
 mod classic_group_execution_recovery;
 mod classic_group_execution_sync;
 mod classic_group_execution_sync_terminal;
+mod classic_group_heartbeat;
+mod classic_group_heartbeat_interpret;
+mod classic_group_heartbeat_prepare;
+mod classic_group_heartbeat_recovery;
+mod classic_group_heartbeat_settlement;
+mod classic_group_heartbeat_submission;
 mod classic_group_join;
 mod classic_group_join_call;
 mod classic_group_join_execution;
@@ -73,6 +79,18 @@ mod classic_group_execution_sync_test;
 #[cfg(test)]
 mod classic_group_execution_test;
 #[cfg(test)]
+mod classic_group_heartbeat_interpret_test;
+#[cfg(test)]
+mod classic_group_heartbeat_prepare_test;
+#[cfg(test)]
+mod classic_group_heartbeat_recovery_test;
+#[cfg(test)]
+mod classic_group_heartbeat_settlement_test;
+#[cfg(test)]
+mod classic_group_heartbeat_submission_test;
+#[cfg(test)]
+mod classic_group_heartbeat_test;
+#[cfg(test)]
 mod classic_group_join_call_test;
 #[cfg(test)]
 mod classic_group_join_execution_test;
@@ -88,6 +106,8 @@ mod classic_group_owner_follower_test;
 mod classic_group_owner_test;
 #[cfg(test)]
 mod classic_group_recovery_test;
+#[cfg(test)]
+mod classic_group_sync_heartbeat_test;
 #[cfg(test)]
 mod classic_group_sync_interpret_test;
 #[cfg(test)]

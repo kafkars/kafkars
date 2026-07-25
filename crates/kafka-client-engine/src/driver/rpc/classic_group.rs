@@ -1,8 +1,4 @@
-//! Declarative boundary for concrete classic Join and Sync call ownership.
-#![expect(
-    unused_imports,
-    reason = "classic membership executor consumes this closed raw-call API next"
-)]
+//! Declarative boundary for concrete classic Join, Sync, and Heartbeat call ownership.
 
 mod heartbeat_calls;
 #[cfg(test)]
@@ -55,56 +51,35 @@ mod sync_group_terminal_test;
 mod terminal_test_fixture;
 
 pub(crate) use heartbeat_calls::{
-    AcceptedClassicHeartbeatCall, ClassicHeartbeatCallPermit, ClassicHeartbeatCallReservationError,
+    AcceptedClassicHeartbeatCall, ClassicHeartbeatCallReservationError,
     TrackedClassicHeartbeatCalls,
 };
-pub(crate) use heartbeat_reconciliation::{
-    ClassicHeartbeatShutdownReconciliationError, ClassicHeartbeatShutdownReconciliationFailure,
-    RecoveredClassicHeartbeatOwnership,
-};
-pub(crate) use heartbeat_settlement::{
-    ClassicHeartbeatBeginError, ClassicHeartbeatConfirmationError,
-    ClassicHeartbeatConfirmationFailure, ClassicHeartbeatPoll, ClassicHeartbeatRestoreError,
-    ClassicHeartbeatRestoreFailure, RecoveredClassicHeartbeatConfirmation,
-};
+pub(crate) use heartbeat_reconciliation::RecoveredClassicHeartbeatOwnership;
+pub(crate) use heartbeat_settlement::{ClassicHeartbeatPoll, ClassicHeartbeatRestoreFailure};
 pub(crate) use heartbeat_settlement_owner::ClassicHeartbeatShutdownRecovery;
 pub(crate) use heartbeat_terminal::{
-    ClassicHeartbeatAdmissionFailure, ClassicHeartbeatCallKey, ClassicHeartbeatCompletionFailure,
-    ClassicHeartbeatCompletionObservation, ClassicHeartbeatTerminal, RecoveredClassicHeartbeatCall,
+    ClassicHeartbeatAdmissionFailure, ClassicHeartbeatCallKey, ClassicHeartbeatTerminal,
+};
+#[cfg(test)]
+pub(crate) use heartbeat_test_fixture::{
+    heartbeat_attempts, install_heartbeat_broker_rejection_terminal,
+    install_heartbeat_route_failure_terminal, install_heartbeat_success_terminal,
 };
 pub(crate) use join_group_calls::{
-    AcceptedJoinGroupCall, JoinGroupCallPermit, JoinGroupCallReservationError,
-    TrackedJoinGroupCalls,
+    AcceptedJoinGroupCall, JoinGroupCallReservationError, TrackedJoinGroupCalls,
 };
-pub(crate) use join_group_reconciliation::{
-    JoinGroupShutdownReconciliationError, JoinGroupShutdownReconciliationFailure,
-    RecoveredJoinGroupOwnership,
-};
-pub(crate) use join_group_settlement::{
-    JoinGroupBeginError, JoinGroupConfirmationError, JoinGroupConfirmationFailure, JoinGroupPoll,
-    JoinGroupRestoreError, JoinGroupRestoreFailure, RecoveredJoinGroupConfirmation,
-};
+pub(crate) use join_group_reconciliation::RecoveredJoinGroupOwnership;
+pub(crate) use join_group_settlement::{JoinGroupPoll, JoinGroupRestoreFailure};
 pub(crate) use join_group_settlement_owner::JoinGroupShutdownRecovery;
-pub(crate) use join_group_terminal::{
-    JoinGroupAdmissionFailure, JoinGroupCallKey, JoinGroupCompletionFailure,
-    JoinGroupCompletionObservation, JoinGroupTerminal, RecoveredJoinGroupCall,
-};
+pub(crate) use join_group_terminal::{JoinGroupCallKey, JoinGroupTerminal};
 pub(crate) use sync_group_calls::{
-    AcceptedSyncGroupCall, SyncGroupCallPermit, SyncGroupCallReservationError,
-    TrackedSyncGroupCalls,
+    AcceptedSyncGroupCall, SyncGroupCallReservationError, TrackedSyncGroupCalls,
 };
-pub(crate) use sync_group_reconciliation::{
-    RecoveredSyncGroupOwnership, SyncGroupShutdownReconciliationError,
-    SyncGroupShutdownReconciliationFailure,
-};
-pub(crate) use sync_group_settlement::{
-    RecoveredSyncGroupConfirmation, SyncGroupBeginError, SyncGroupConfirmationError,
-    SyncGroupConfirmationFailure, SyncGroupPoll, SyncGroupRestoreError, SyncGroupRestoreFailure,
-};
+pub(crate) use sync_group_reconciliation::RecoveredSyncGroupOwnership;
+pub(crate) use sync_group_settlement::{SyncGroupPoll, SyncGroupRestoreFailure};
 pub(crate) use sync_group_settlement_owner::SyncGroupShutdownRecovery;
 pub(crate) use sync_group_terminal::{
-    RecoveredSyncGroupCall, SyncGroupAdmissionFailure, SyncGroupCallKey,
-    SyncGroupCompletionFailure, SyncGroupCompletionObservation, SyncGroupTerminal,
+    SyncGroupAdmissionFailure, SyncGroupCallKey, SyncGroupTerminal,
 };
 #[cfg(test)]
 pub(crate) use terminal_test_fixture::{

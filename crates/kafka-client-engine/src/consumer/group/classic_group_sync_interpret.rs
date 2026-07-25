@@ -1,6 +1,6 @@
 //! Normalized Sync facts, deadline terminalization, and catalog installation.
 
-use kafka_client_core::{ClassicGroupEffect, ClassicGroupInput, Moment};
+use kafka_client_core::{ClassicGroupEffect, ClassicGroupInput, ClassicGroupPhase, Moment};
 
 use crate::{
     driver::classic_group::SyncGroupTerminal,
@@ -51,6 +51,9 @@ pub(super) fn interpret_sync(
     let Some(candidate) = entry.classic.pending() else {
         return Err(failure(terminal, SyncTerminal));
     };
+    if !entry.heartbeat.is_dormant() {
+        return Err(failure(terminal, SyncTerminal));
+    }
     let partitions = match decode_classic_group_assignment(&entry.catalog, candidate, partitions) {
         Ok(partitions) => partitions,
         Err(_error) => return Err(failure(terminal, SyncTerminal)),
@@ -69,32 +72,56 @@ pub(super) fn interpret_sync(
         }
     };
     let mut effects = transition.into_effects();
-    let (assignment, generation) = match effects.next() {
+    let first = effects.next();
+    if first.is_none()
+        && effects.next().is_none()
+        && entry.classic.machine().phase() == ClassicGroupPhase::Lost
+        && entry.classic.machine().live_assignment().is_none()
+        && entry.catalog.live_assignment().is_none()
+        && entry.heartbeat.is_dormant()
+    {
+        return stage_confirmation(entry, terminal);
+    }
+    let (assignment, generation, heartbeat) = match first {
         Some(ClassicGroupEffect::Install {
             assignment,
             classic_generation,
-            heartbeat: _heartbeat,
-        }) if effects.next().is_none() => (assignment, classic_generation),
+            heartbeat,
+        }) if effects.next().is_none()
+            && heartbeat.attempt().cycle() == cycle
+            && heartbeat.attempt().assignment_generation()
+                == assignment.assignment_generation() =>
+        {
+            (assignment, classic_generation, heartbeat)
+        }
         _ => return freeze_post_core(entry, terminal, SyncTerminal),
     };
-    match entry
-        .classic
-        .prepare_install(&mut entry.catalog, assignment, generation)
-    {
-        Ok(prepared) => prepared.commit(),
-        Err(install) => {
-            let kind = install.kind;
-            entry.fault = Some(ClassicGroupEntryFault::SyncInstall {
-                failure: install,
-                generation,
-                terminal,
-            });
-            return Err(SyncInterpretationFailure {
-                sync_failure_kind: ClassicGroupExecutionError::Assignment(kind),
-                restorable_sync_terminal: None,
-            });
-        }
-    }
+    let heartbeat_install = match entry.heartbeat.prepare_install(heartbeat) {
+        Ok(prepared) => prepared,
+        Err(_error) => return freeze_post_core(entry, terminal, SyncTerminal),
+    };
+    let catalog_install =
+        match entry
+            .classic
+            .prepare_install(&mut entry.catalog, assignment, generation)
+        {
+            Ok(prepared) => prepared,
+            Err(install) => {
+                drop(heartbeat_install);
+                let kind = install.kind;
+                entry.fault = Some(ClassicGroupEntryFault::SyncInstall {
+                    failure: install,
+                    generation,
+                    terminal,
+                });
+                return Err(SyncInterpretationFailure {
+                    sync_failure_kind: ClassicGroupExecutionError::Assignment(kind),
+                    restorable_sync_terminal: None,
+                });
+            }
+        };
+    catalog_install.commit();
+    heartbeat_install.commit();
     stage_confirmation(entry, terminal)
 }
 

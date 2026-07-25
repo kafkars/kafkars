@@ -76,6 +76,7 @@ impl GroupConsumerRegistry {
     pub(crate) fn turn(
         &mut self,
         now: Moment,
+        clock: &crate::clock::MonotonicClock,
         driver: &DriverOwner,
     ) -> Result<GroupConsumerRegistryTurn, GroupConsumerHostError> {
         let offset_commit = self
@@ -83,7 +84,7 @@ impl GroupConsumerRegistry {
             .turn(now, driver)
             .map_err(GroupConsumerHostError::from)?;
         let membership = self
-            .turn_membership(now, driver)
+            .turn_membership(now, clock, driver)
             .map_err(GroupConsumerHostError::membership)?;
         Ok(GroupConsumerRegistryTurn {
             progressed: membership == GroupConsumerMembershipTurn::Progress

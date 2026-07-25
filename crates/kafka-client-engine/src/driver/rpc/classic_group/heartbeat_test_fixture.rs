@@ -5,8 +5,39 @@ use kafka_client_core::{
     ClassicGroupTiming, ClassicHeartbeatAttempt, ClassicHeartbeatPolicy, Deadline, GroupId,
     MemberId, Moment,
 };
+use kafka_driver::RequestError;
+use kafka_wire::HeartbeatResponse;
 
-pub(super) fn heartbeat_attempts() -> (ClassicHeartbeatAttempt, ClassicHeartbeatAttempt) {
+use super::{ClassicHeartbeatCallKey, TrackedClassicHeartbeatCalls};
+
+pub(crate) fn install_heartbeat_success_terminal(
+    calls: &mut TrackedClassicHeartbeatCalls,
+    key: ClassicHeartbeatCallKey,
+    throttle_time_ms: i32,
+) {
+    let mut response = HeartbeatResponse::default();
+    response.throttle_time_ms = throttle_time_ms;
+    calls.install_terminal_for_test(key, Some(2), Ok(response));
+}
+
+pub(crate) fn install_heartbeat_broker_rejection_terminal(
+    calls: &mut TrackedClassicHeartbeatCalls,
+    key: ClassicHeartbeatCallKey,
+    error_code: i16,
+) {
+    let mut response = HeartbeatResponse::default();
+    response.error_code = error_code;
+    calls.install_terminal_for_test(key, Some(2), Ok(response));
+}
+
+pub(crate) fn install_heartbeat_route_failure_terminal(
+    calls: &mut TrackedClassicHeartbeatCalls,
+    key: ClassicHeartbeatCallKey,
+) {
+    calls.install_terminal_for_test(key, None, Err(RequestError::RouteUnavailable));
+}
+
+pub(crate) fn heartbeat_attempts() -> (ClassicHeartbeatAttempt, ClassicHeartbeatAttempt) {
     let mut machine = machine();
     machine
         .apply(ClassicGroupInput::Begin {

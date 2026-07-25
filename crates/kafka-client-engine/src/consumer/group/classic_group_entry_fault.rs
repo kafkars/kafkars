@@ -1,14 +1,16 @@
 //! One linear freeze point for a classic-group entry invariant failure.
 
-use kafka_client_core::{ClassicGeneration, MembershipCycle};
+use kafka_client_core::{ClassicGeneration, ClassicHeartbeatAttempt, MembershipCycle};
 
 use crate::driver::classic_group::{
+    ClassicHeartbeatAdmissionFailure, ClassicHeartbeatRestoreFailure, ClassicHeartbeatTerminal,
     JoinGroupRestoreFailure, JoinGroupTerminal, SyncGroupAdmissionFailure, SyncGroupRestoreFailure,
     SyncGroupTerminal,
 };
 
 use super::{
     classic_group_assignment::ClassicGroupAssignmentPreparationFailure,
+    classic_group_heartbeat::ClassicHeartbeatAcceptanceFailure,
     classic_group_join::ClassicGroupJoinSuccessor,
     classic_group_join_call::ClassicGroupJoinAcceptanceFailure,
     classic_group_sync::ClassicGroupSyncAcceptanceFailure,
@@ -40,6 +42,25 @@ pub(super) enum ClassicGroupEntryFault {
     SyncConfirmationTerminal(SyncGroupTerminal),
     SyncPostCore(SyncGroupTerminal),
     SyncRecoverySemantic(MembershipCycle),
+    HeartbeatAdmission(ClassicHeartbeatAdmissionFailure),
+    HeartbeatAcceptance(ClassicHeartbeatAcceptanceFailure),
+    HeartbeatTerminal(ClassicHeartbeatRestoreFailure),
+    HeartbeatPostCore(ClassicHeartbeatTerminal),
+    HeartbeatLocalRevoke {
+        failure: ClassicGroupAssignmentPreparationFailure,
+        generation: ClassicGeneration,
+    },
+    HeartbeatAdmissionRevoke {
+        failure: ClassicGroupAssignmentPreparationFailure,
+        generation: ClassicGeneration,
+        admission: ClassicHeartbeatAdmissionFailure,
+    },
+    HeartbeatTerminalRevoke {
+        failure: ClassicGroupAssignmentPreparationFailure,
+        generation: ClassicGeneration,
+        terminal: ClassicHeartbeatTerminal,
+    },
+    HeartbeatRecoverySemantic(ClassicHeartbeatAttempt),
 }
 
 impl ClassicGroupEntryFault {
@@ -92,6 +113,46 @@ impl ClassicGroupEntryFault {
             } => {
                 let _ = (failure, generation, terminal);
                 2
+            }
+            Self::HeartbeatAdmission(owner) => {
+                let _ = owner;
+                1
+            }
+            Self::HeartbeatAcceptance(owner) => owner.retained_owner_count(),
+            Self::HeartbeatTerminal(owner) => {
+                let _ = owner;
+                1
+            }
+            Self::HeartbeatPostCore(owner) => {
+                let _ = owner;
+                1
+            }
+            Self::HeartbeatLocalRevoke {
+                failure,
+                generation,
+            } => {
+                let _ = (failure, generation);
+                1
+            }
+            Self::HeartbeatAdmissionRevoke {
+                failure,
+                generation,
+                admission,
+            } => {
+                let _ = (failure, generation, admission);
+                2
+            }
+            Self::HeartbeatTerminalRevoke {
+                failure,
+                generation,
+                terminal,
+            } => {
+                let _ = (failure, generation, terminal);
+                2
+            }
+            Self::HeartbeatRecoverySemantic(attempt) => {
+                let _ = attempt;
+                1
             }
         }
     }

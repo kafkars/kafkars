@@ -61,7 +61,7 @@ fn closing_entry_revokes_its_exact_catalog_assignment() {
         .close_group(group_id)
         .unwrap_or_else(|error| panic!("close failed: {error:?}"));
 
-    assert_eq!(registry.membership_unsettled(), 1);
+    assert_eq!(registry.membership_unsettled(), 2);
     assert_eq!(
         registry.turn_local_membership(Moment::from_tick(1)),
         Ok(GroupConsumerMembershipTurn::Progress)
@@ -188,7 +188,11 @@ fn deferred_leader_does_not_starve_another_local_deadline() {
         .unwrap_or_else(|error| panic!("driver build failed: {error}"));
 
     assert_eq!(
-        registry.turn_membership(Moment::from_tick(capture.deadline().tick()), &driver),
+        registry.turn_membership(
+            Moment::from_tick(capture.deadline().tick()),
+            &MonotonicClock::new(),
+            &driver,
+        ),
         Ok(GroupConsumerMembershipTurn::Progress)
     );
     assert_eq!(

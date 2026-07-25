@@ -38,7 +38,7 @@ pub(super) fn install_follower(
     member: &str,
     generation: i32,
     partitions: Vec<GroupAssignmentPartition>,
-) {
+) -> kafka_client_core::ClassicHeartbeatSchedule {
     let cycle = begin(owner);
     let candidate = catalog
         .prepare_follower_cycle(cycle, Arc::from(member))
@@ -70,7 +70,7 @@ pub(super) fn install_follower(
     let ClassicGroupEffect::Install {
         assignment,
         classic_generation,
-        heartbeat: _heartbeat,
+        heartbeat,
     } = effect
     else {
         panic!("Install effect expected");
@@ -79,4 +79,5 @@ pub(super) fn install_follower(
         .prepare_install(catalog, assignment, classic_generation)
         .unwrap_or_else(|failure| panic!("install preparation failed: {:?}", failure.kind))
         .commit();
+    heartbeat
 }

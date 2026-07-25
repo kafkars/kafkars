@@ -20,3 +20,5 @@ struct ClassicSyncOutcome;
 struct PreparedClassicJoinGroupRequest;
 #[derive(Clone, Copy)]
 struct PreparedClassicSyncGroupRequest;
+#[derive(Clone, Copy)]
+struct PreparedClassicHeartbeatRequest;

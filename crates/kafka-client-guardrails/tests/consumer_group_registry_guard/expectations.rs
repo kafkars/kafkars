@@ -18,6 +18,10 @@ pub(super) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
         "entries",
         &[
             "registry.rs",
+            "classic_group_heartbeat_prepare.rs",
+            "classic_group_heartbeat_recovery.rs",
+            "classic_group_heartbeat_settlement.rs",
+            "classic_group_heartbeat_submission.rs",
             "classic_group_join_execution.rs",
             "classic_group_join_settlement.rs",
             "classic_group_recovery.rs",
@@ -60,12 +64,25 @@ pub(super) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
         ],
     ),
     (
+        "heartbeat_calls",
+        &[
+            "registry.rs",
+            "classic_group_heartbeat_recovery.rs",
+            "classic_group_heartbeat_settlement.rs",
+            "classic_group_heartbeat_submission.rs",
+        ],
+    ),
+    (
         "join_shutdown_recovery",
         &["registry.rs", "classic_group_recovery.rs"],
     ),
     (
         "sync_shutdown_recovery",
         &["registry.rs", "classic_group_recovery.rs"],
+    ),
+    (
+        "heartbeat_shutdown_recovery",
+        &["registry.rs", "classic_group_heartbeat_recovery.rs"],
     ),
     (
         "join_recovery_fault",
@@ -75,6 +92,10 @@ pub(super) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
         "sync_recovery_fault",
         &["registry.rs", "classic_group_recovery.rs"],
     ),
+    (
+        "heartbeat_recovery_fault",
+        &["registry.rs", "classic_group_heartbeat_recovery.rs"],
+    ),
 ];
 pub(super) const ENTRY_FIELDS: &[(&str, &[&str])] = &[
     ("state", &["registry_close.rs"]),
@@ -83,6 +104,10 @@ pub(super) const ENTRY_FIELDS: &[(&str, &[&str])] = &[
         &[
             "registry.rs",
             "registry_entry.rs",
+            "classic_group_heartbeat_prepare.rs",
+            "classic_group_heartbeat_recovery.rs",
+            "classic_group_heartbeat_settlement.rs",
+            "classic_group_heartbeat_submission.rs",
             "classic_group_join_execution.rs",
             "classic_group_join_settlement.rs",
             "classic_group_recovery.rs",
@@ -100,14 +125,23 @@ pub(super) const REGISTRY_DECLARED_FIELDS: &[&str] = &[
     "accepting",
     "join_calls",
     "sync_calls",
+    "heartbeat_calls",
     "join_shutdown_recovery",
     "sync_shutdown_recovery",
+    "heartbeat_shutdown_recovery",
     "join_recovery_fault",
     "sync_recovery_fault",
+    "heartbeat_recovery_fault",
     "offset_commits",
 ];
-pub(super) const ENTRY_DECLARED_FIELDS: &[&str] =
-    &["state", "catalog", "classic", "execution", "fault"];
+pub(super) const ENTRY_DECLARED_FIELDS: &[&str] = &[
+    "state",
+    "catalog",
+    "classic",
+    "execution",
+    "heartbeat",
+    "fault",
+];
 pub(super) const FORBIDDEN: &[&str] = &[
     "crate::driver",
     "crate::host",

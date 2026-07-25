@@ -26,8 +26,9 @@ impl GroupConsumerShardWake for NoopWake {
 #[test]
 fn one_idle_registry_turn_reports_exact_quiescence() {
     let (mut registry, mut driver) = setup();
+    let clock = crate::clock::MonotonicClock::new();
 
-    let progress = drive_registry(&mut registry, &driver, false, Moment::from_tick(0))
+    let progress = drive_registry(&mut registry, &clock, &driver, false, Moment::from_tick(0))
         .unwrap_or_else(|error| panic!("group turn: {error}"));
 
     assert_eq!(progress.unsettled, 0);
@@ -40,8 +41,9 @@ fn one_idle_registry_turn_reports_exact_quiescence() {
 #[test]
 fn shutdown_fences_registry_admission_before_the_bounded_turn() {
     let (mut registry, mut driver) = setup();
+    let clock = crate::clock::MonotonicClock::new();
 
-    let progress = drive_registry(&mut registry, &driver, true, Moment::from_tick(0))
+    let progress = drive_registry(&mut registry, &clock, &driver, true, Moment::from_tick(0))
         .unwrap_or_else(|error| panic!("group shutdown turn: {error}"));
 
     assert_eq!(progress.unsettled, 0);
@@ -86,7 +88,7 @@ fn shard_admission_deadline_is_scheduled_on_the_embedded_host_turn() {
     let mut driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver: {error}"));
 
-    let progress = drive_shard(&owner, &driver, false, due)
+    let progress = drive_shard(&owner, &clock, &driver, false, due)
         .unwrap_or_else(|error| panic!("group shard turn: {error}"));
 
     assert!(progress.progressed);
@@ -120,16 +122,14 @@ fn heartbeat_policy() -> ClassicHeartbeatPolicy {
 fn contended_group_shard_cannot_look_quiescent_to_shutdown() {
     let registry =
         GroupConsumerRegistry::start().unwrap_or_else(|error| panic!("group registry: {error}"));
-    let (owner, _port) = GroupConsumerShardOwner::new(
-        registry,
-        Arc::new(crate::clock::MonotonicClock::new()),
-        Arc::new(NoopWake),
-    );
+    let clock = Arc::new(crate::clock::MonotonicClock::new());
+    let (owner, _port) =
+        GroupConsumerShardOwner::new(registry, Arc::clone(&clock), Arc::new(NoopWake));
     let mut driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver: {error}"));
     let lock = owner.lock_registry_for_test();
 
-    let progress = drive_shard(&owner, &driver, true, Moment::from_tick(0))
+    let progress = drive_shard(&owner, &clock, &driver, true, Moment::from_tick(0))
         .unwrap_or_else(|error| panic!("contended turn failed: {error}"));
 
     assert_eq!(progress.unsettled, usize::MAX);

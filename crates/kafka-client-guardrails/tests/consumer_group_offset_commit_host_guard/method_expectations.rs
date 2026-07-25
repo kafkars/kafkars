@@ -41,6 +41,7 @@ pub(super) const CROSS_DOMAIN_METHODS: &[(&str, &[&str])] = &[
         &[
             "crates/kafka-client-engine/src/consumer/group/offset_commit/recovery.rs",
             "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
         ],
     ),
     (
@@ -48,6 +49,7 @@ pub(super) const CROSS_DOMAIN_METHODS: &[(&str, &[&str])] = &[
         &[
             "crates/kafka-client-engine/src/consumer/group/offset_commit/recovery_replay.rs",
             "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
         ],
     ),
     (
@@ -55,6 +57,7 @@ pub(super) const CROSS_DOMAIN_METHODS: &[(&str, &[&str])] = &[
         &[
             "crates/kafka-client-engine/src/consumer/group/offset_commit/recovery.rs",
             "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
         ],
     ),
 ];

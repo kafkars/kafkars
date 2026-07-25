@@ -198,6 +198,8 @@ pub(super) enum ClassicGroupExecutionError {
     CallCompletion,
     JoinTerminal,
     SyncTerminal,
+    HeartbeatState,
+    HeartbeatTerminal,
     FollowerJoin,
     Assignment(ClassicGroupAssignmentPreparationFailureKind),
     Core(ClassicGroupErrorKind),

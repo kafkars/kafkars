@@ -26,6 +26,7 @@ pub(super) fn drive(
         .ok_or(EngineHostError::DriverOwnerMissing)?;
     drive_shard(
         &resources.group_consumers,
+        &resources.clock,
         driver,
         resources.control.shutdown_requested(),
         stage_now,
@@ -34,6 +35,7 @@ pub(super) fn drive(
 
 pub(super) fn drive_shard(
     shard: &GroupConsumerShardOwner,
+    clock: &crate::clock::MonotonicClock,
     driver: &DriverOwner,
     shutdown: bool,
     stage_now: Moment,
@@ -50,11 +52,12 @@ pub(super) fn drive_shard(
             return Err(EngineHostError::GroupConsumerLockPoisoned);
         }
     };
-    drive_registry(&mut registry, driver, shutdown, stage_now)
+    drive_registry(&mut registry, clock, driver, shutdown, stage_now)
 }
 
 pub(super) fn drive_registry(
     registry: &mut GroupConsumerRegistry,
+    clock: &crate::clock::MonotonicClock,
     driver: &DriverOwner,
     shutdown: bool,
     stage_now: Moment,
@@ -63,7 +66,7 @@ pub(super) fn drive_registry(
         registry.close_admission();
     }
     let turn = registry
-        .turn(stage_now, driver)
+        .turn(stage_now, clock, driver)
         .map_err(EngineHostError::GroupConsumer)?;
     Ok(GroupConsumerProgress {
         unsettled: registry.unsettled(),

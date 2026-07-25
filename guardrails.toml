@@ -263,6 +263,18 @@ production = "crates/kafka-client-core/src/consumer/classic_group/transition_sup
 test = "crates/kafka-client-core/src/consumer/classic_group/transition_support_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/heartbeat.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/heartbeat_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/heartbeat_state.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/heartbeat_state_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/heartbeat_transition.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/heartbeat_transition_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/machine.rs"
 test = "crates/kafka-client-core/src/consumer/assignment_test.rs"
 
@@ -4458,6 +4470,20 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "ClassicHeartbeatState"
+field = "phase"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/heartbeat_state.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-core/src/consumer/classic_group"
+call = "ClassicHeartbeatAttempt::first"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/heartbeat_state.rs",
+]
+
+[[mutation_owners]]
 owner_type = "StickyPartitioner"
 field = "current"
 allowed_paths = ["crates/kafka-client-core/src/producer/sticky.rs"]
@@ -6120,6 +6146,10 @@ owner_type = "ClassicGroupMachine"
 path = "crates/kafka-client-core/src/consumer/classic_group/machine.rs"
 
 [[linear_owners]]
+owner_type = "ClassicHeartbeatState"
+path = "crates/kafka-client-core/src/consumer/classic_group/heartbeat_state.rs"
+
+[[linear_owners]]
 owner_type = "StickyPartitioner"
 path = "crates/kafka-client-core/src/producer/sticky.rs"
 
@@ -7294,6 +7324,14 @@ production = "crates/kafka-client-engine/src/protocol/consumer/classic_group/val
 test = "crates/kafka-client-engine/src/protocol/consumer/classic_group/validation_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/classic_group/heartbeat_request.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/classic_group/heartbeat_request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/classic_group/heartbeat_response.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/classic_group/heartbeat_response_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_request.rs"
 test = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_request_test.rs"
 
@@ -7357,6 +7395,10 @@ path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_requ
 owner_type = "PreparedClassicSyncGroupRequest"
 path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_request.rs"
 
+[[linear_owners]]
+owner_type = "PreparedClassicHeartbeatRequest"
+path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/heartbeat_request.rs"
+
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/protocol/consumer/classic_group"
 forbidden = [
@@ -7384,6 +7426,7 @@ forbidden = [
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/group"
 forbidden = [
+  "HeartbeatRequest",
   "JoinGroupRequest",
   "SyncGroupRequest",
 ]
@@ -7407,6 +7450,13 @@ root = "crates/kafka-client-engine/src"
 method = "into_generated_sync_group_request"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "into_generated_heartbeat_request"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs",
 ]
 
 [[test_mirrors]]
@@ -7730,6 +7780,7 @@ method = "pop_active"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/offset_commit/recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
 ]
 
 [[method_capabilities]]
@@ -7738,6 +7789,15 @@ method = "take_settled"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/offset_commit/recovery_replay.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "take_pending"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
 ]
 
 [[method_capabilities]]
@@ -7760,6 +7820,7 @@ method = "take_completion"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/offset_commit/recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
 ]
 
 [[method_capabilities]]
@@ -8792,6 +8853,10 @@ owner_type = "GroupConsumerRegistry"
 field = "entries"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_prepare.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_submission.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
@@ -8857,6 +8922,16 @@ allowed_paths = [
 
 [[mutation_owners]]
 owner_type = "GroupConsumerRegistry"
+field = "heartbeat_calls"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_submission.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
 field = "join_shutdown_recovery"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry.rs",
@@ -8869,6 +8944,14 @@ field = "sync_shutdown_recovery"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
+field = "heartbeat_shutdown_recovery"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
 ]
 
 [[mutation_owners]]
@@ -8888,6 +8971,14 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
+field = "heartbeat_recovery_fault"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
+]
+
+[[mutation_owners]]
 owner_type = "GroupConsumerEntry"
 field = "state"
 allowed_paths = [
@@ -8900,6 +8991,10 @@ field = "fault"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_entry.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_prepare.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_submission.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
@@ -8956,6 +9051,54 @@ test = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settl
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/heartbeat_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/heartbeat_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_reconciliation.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_reconciliation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_terminal_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_prepare.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_prepare_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_submission.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_interpret.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_interpret_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_settlement.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_settlement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery_test.rs"
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/driver/rpc/classic_group"
@@ -9178,6 +9321,173 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs",
 ]
 
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_classic_heartbeat"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "try_reserve_classic_heartbeat"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "poll_classic_heartbeat"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "begin_classic_heartbeat_settlement"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "restore_classic_heartbeat_settlement"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "confirm_classic_heartbeat_settlement"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "reconcile_classic_heartbeat_after_driver_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "confirm_classic_heartbeat_call_receipt"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "confirm_classic_heartbeat_route_token"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "consume_classic_heartbeat_shutdown_receipt"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_reconciliation.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "retained_classic_heartbeat_count"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "RecoveredClassicHeartbeatOwnership::seal_active"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_reconciliation.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "RecoveredClassicHeartbeatOwnership::seal_settled"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "RecoveredClassicHeartbeatOwnership::seal_pending"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "RecoveredClassicHeartbeatOwnership::seal_completion"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedClassicHeartbeatCalls"
+field = "calls"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedClassicHeartbeatCalls"
+field = "settled"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedClassicHeartbeatCalls"
+field = "pending_confirmation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedClassicHeartbeatCalls"
+field = "completion_failure"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicHeartbeatShutdownRecovery"
+field = "active"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicHeartbeatShutdownRecovery"
+field = "settled"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicHeartbeatShutdownRecovery"
+field = "pending"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicHeartbeatShutdownRecovery"
+field = "completion"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
+]
+
 [[linear_owners]]
 owner_type = "AcceptedJoinGroupCall"
 path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs"
@@ -9305,6 +9615,109 @@ path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_recon
 [[linear_owners]]
 owner_type = "SyncGroupShutdownReconciliationFailure"
 path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_reconciliation.rs"
+
+[[linear_owners]]
+owner_type = "TrackedClassicHeartbeatCall"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs"
+
+[[linear_owners]]
+owner_type = "AcceptedClassicHeartbeatCall"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs"
+
+[[linear_owners]]
+owner_type = "ClassicHeartbeatCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs"
+
+[[linear_owners]]
+owner_type = "TrackedClassicHeartbeatCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs"
+
+[[linear_owners]]
+owner_type = "SettledClassicHeartbeatCall"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement.rs"
+
+[[linear_owners]]
+owner_type = "PendingClassicHeartbeatConfirmation"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement.rs"
+
+[[linear_owners]]
+owner_type = "RecoveredClassicHeartbeatConfirmation"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement.rs"
+
+[[linear_owners]]
+owner_type = "ClassicHeartbeatConfirmationFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement.rs"
+
+[[linear_owners]]
+owner_type = "ClassicHeartbeatRestoreFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement.rs"
+
+[[linear_owners]]
+owner_type = "ClassicHeartbeatTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_terminal.rs"
+
+[[linear_owners]]
+owner_type = "ClassicHeartbeatAdmissionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_terminal.rs"
+
+[[linear_owners]]
+owner_type = "ClassicHeartbeatCompletionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_terminal.rs"
+
+[[linear_owners]]
+owner_type = "RecoveredClassicHeartbeatCall"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_terminal.rs"
+
+[[linear_owners]]
+owner_type = "ClassicHeartbeatShutdownRecovery"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs"
+
+[[linear_owners]]
+owner_type = "RecoveredClassicHeartbeatOwnership"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_reconciliation.rs"
+
+[[linear_owners]]
+owner_type = "ClassicHeartbeatShutdownReconciliationFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_reconciliation.rs"
+
+[[mutation_owners]]
+owner_type = "ClassicHeartbeatExecution"
+field = "heartbeat_execution_state"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat.rs",
+]
+
+[[linear_owners]]
+owner_type = "PreparedClassicHeartbeat"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat.rs"
+
+[[linear_owners]]
+owner_type = "ClassicHeartbeatDriverOwner"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat.rs"
+
+[[linear_owners]]
+owner_type = "ClassicHeartbeatAcceptanceFailure"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat.rs"
+
+[[linear_owners]]
+owner_type = "ClassicHeartbeatSuccessor"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat.rs"
+
+[[linear_owners]]
+owner_type = "ClassicHeartbeatExecutionState"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat.rs"
+
+[[linear_owners]]
+owner_type = "ClassicHeartbeatExecution"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat.rs"
+
+[[linear_owners]]
+owner_type = "PreparedClassicHeartbeatInstall"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat.rs"
+
+[[linear_owners]]
+owner_type = "ClassicHeartbeatInterpretationFailure"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_interpret.rs"
 
 # Classic membership execution owns deadline transfer and one synchronized
 # host-admission seam without admitting protocol or runtime policy.
@@ -9940,6 +10353,294 @@ forbidden = [
   "invalidate",
 ]
 
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+  "capture_deadline_after",
+  "DeadlineCapture",
+  "OperationDeadline::from_boundary_parts",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_prepare.rs"
+forbidden = [
+  "crate::admin",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+  "capture_deadline_after",
+  "DeadlineCapture",
+  "OperationDeadline::from_boundary_parts",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_submission.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+  "capture_deadline_after",
+  "DeadlineCapture",
+  "OperationDeadline::from_boundary_parts",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_interpret.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+  "capture_deadline_after",
+  "DeadlineCapture",
+  "OperationDeadline::from_boundary_parts",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_settlement.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+  "capture_deadline_after",
+  "DeadlineCapture",
+  "OperationDeadline::from_boundary_parts",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+  "capture_deadline_after",
+  "DeadlineCapture",
+  "OperationDeadline::from_boundary_parts",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "prepare_one_classic_heartbeat"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "expire_one_prepared_heartbeat"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_one_classic_heartbeat"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "settle_one_classic_heartbeat"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "recover_classic_heartbeats_after_driver_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "prepare_install"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "classic_heartbeat_request"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_prepare.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "interpret_heartbeat"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_settlement.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "normalize_classic_heartbeat_response"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_interpret.rs",
+]
+
 [[authority_tokens]]
 owner_type = "ClassicGroupJoinCallOwner"
 path = "crates/kafka-client-engine/src/consumer/group/classic_group_join_call.rs"
@@ -10298,6 +10999,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src/consumer/group"
 method = "retained_owner_count"
 allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_entry_fault.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
 ]
 
@@ -10684,7 +11386,8 @@ forbidden = [
   "Retry",
 ]
 allow = [
-  { path = "crates/kafka-client-engine/src/consumer/group/registry_membership.rs", capability = "crate::driver", reason = "The concrete membership scheduler passes the already-owned embedded driver into exactly one Join or Sync submission action per host turn." },
+  { path = "crates/kafka-client-engine/src/consumer/group/registry_membership.rs", capability = "crate::clock", reason = "The concrete membership scheduler passes the shared fixed-epoch clock only to core-authorized Heartbeat deadline mapping." },
+  { path = "crates/kafka-client-engine/src/consumer/group/registry_membership.rs", capability = "crate::driver", reason = "The concrete membership scheduler passes the already-owned embedded driver into exactly one Join, Sync, or Heartbeat submission action per host turn." },
 ]
 
 [[capability_rules]]

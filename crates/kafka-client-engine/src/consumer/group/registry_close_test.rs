@@ -66,7 +66,7 @@ fn whole_registry_close_fences_every_entry_and_global_host_once() {
         .finish_shutdown()
         .err()
         .unwrap_or_else(|| panic!("unsettled membership must block shutdown"));
-    let expected = GroupConsumerHostError::membership_unsettled(1);
+    let expected = GroupConsumerHostError::membership_unsettled(2);
     assert_eq!(shutdown_error, expected);
     assert_eq!(
         registry.turn_local_membership(Moment::from_tick(u64::MAX)),

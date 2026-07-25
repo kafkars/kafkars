@@ -134,7 +134,14 @@ pub(super) const METHODS: &[(&str, &str, &[&str])] = &[
         &[EXECUTION_RECOVERY, RECOVERY],
     ),
     (GROUP_ROOT, "has_entry_fault", &[REGISTRY, CYCLE, COMMIT]),
-    (GROUP_ROOT, "retained_owner_count", &[MEMBERSHIP]),
+    (
+        GROUP_ROOT,
+        "retained_owner_count",
+        &[
+            "crates/kafka-client-engine/src/consumer/group/classic_group_entry_fault.rs",
+            MEMBERSHIP,
+        ],
+    ),
 ];
 
 pub(super) const SHARED_METHODS: &[(&str, &str, &[&str])] = &[(

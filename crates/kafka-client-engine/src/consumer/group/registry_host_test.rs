@@ -5,7 +5,7 @@ use kafka_client_core::{
     Moment,
 };
 
-use crate::{EngineConfig, driver::DriverOwner};
+use crate::{EngineConfig, clock::MonotonicClock, driver::DriverOwner};
 
 use super::{
     classic_group_entry_fault::ClassicGroupEntryFault,
@@ -22,18 +22,23 @@ fn one_registry_turn_expires_one_queued_commit_at_its_original_deadline() {
     let accepted = registry
         .try_commit(group_id, deadline(7), checkpoint(&registry, group_id))
         .unwrap_or_else(|failure| panic!("commit admission: {:?}", failure.kind));
-    assert_eq!(registry.unsettled(), 1);
-    assert_eq!(registry.next_deadline(), Some(deadline(7).core()));
+    assert_eq!(registry.unsettled(), 2);
+    assert_eq!(
+        registry.next_deadline(),
+        registry
+            .entry(group_id)
+            .and_then(|entry| entry.heartbeat.next_deadline())
+    );
     let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver: {error}"));
 
     assert!(
         registry
-            .turn(Moment::from_tick(7), &driver)
+            .turn(Moment::from_tick(7), &MonotonicClock::new(), &driver)
             .unwrap_or_else(|error| panic!("registry turn: {error}"))
             .progressed
     );
-    assert_eq!(registry.unsettled(), 0);
+    assert_eq!(registry.unsettled(), 1);
     assert!(accepted.observer.wait().is_ok());
     registry.close_admission();
     super::registry_test_support::stop_registry(&mut registry);
@@ -64,7 +69,11 @@ fn offset_turn_runs_before_a_retained_membership_fault_is_reported() {
     let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver: {error}"));
 
-    assert!(registry.turn(Moment::from_tick(7), &driver).is_err());
+    assert!(
+        registry
+            .turn(Moment::from_tick(7), &MonotonicClock::new(), &driver)
+            .is_err()
+    );
     assert!(accepted.observer.wait().is_ok());
 
     clear_test_fault(&mut registry, group_id);

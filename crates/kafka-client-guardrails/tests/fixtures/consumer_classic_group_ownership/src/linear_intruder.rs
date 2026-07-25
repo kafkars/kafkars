@@ -30,3 +30,6 @@ struct ClassicGroupTransition;
 
 #[derive(Clone, Copy)]
 struct ClassicGroupMachine;
+
+#[derive(Clone, Copy)]
+struct ClassicHeartbeatState;

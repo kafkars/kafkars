@@ -163,8 +163,10 @@ pub(super) const CAPABILITIES: &[(&str, &[&str])] = &[
     (RECOVERY, &["crate::clock", "crate::protocol"]),
     (EXECUTION_RECOVERY, &["crate::clock", "crate::protocol"]),
 ];
-pub(super) const CAPABILITY_ALLOWS: &[(&str, &str)] =
-    &[(HANDOFF, "crate::driver"), (MEMBERSHIP, "crate::driver")];
+pub(super) const CAPABILITY_ALLOWS: &[(&str, &[&str])] = &[
+    (HANDOFF, &["crate::driver"]),
+    (MEMBERSHIP, &["crate::clock", "crate::driver"]),
+];
 
 pub(super) const BASE_FORBIDDEN: &[&str] = &[
     "crate::admin",
@@ -211,4 +213,12 @@ pub(super) const ENTRY_FAULT_VARIANTS: &[&str] = &[
     "SyncConfirmationTerminal",
     "SyncPostCore",
     "SyncRecoverySemantic",
+    "HeartbeatAdmission",
+    "HeartbeatAcceptance",
+    "HeartbeatTerminal",
+    "HeartbeatPostCore",
+    "HeartbeatLocalRevoke",
+    "HeartbeatAdmissionRevoke",
+    "HeartbeatTerminalRevoke",
+    "HeartbeatRecoverySemantic",
 ];

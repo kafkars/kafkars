@@ -81,17 +81,19 @@ fn checked_in_follower_capability_sets_are_exact() {
         assert_eq!(actual, expected, "{path} capability set");
         assert!(rules[0].allow.is_empty());
     }
-    for (path, capability) in CAPABILITY_ALLOWS {
+    for (path, expected_capabilities) in CAPABILITY_ALLOWS {
         let rules = config
             .capability_rules
             .iter()
             .filter(|rule| rule.root == *path)
             .collect::<Vec<_>>();
         assert_eq!(rules.len(), 1, "{path} needs one capability rule");
-        assert_eq!(rules[0].allow.len(), 1);
-        assert_eq!(rules[0].allow[0].path, *path);
-        assert_eq!(rules[0].allow[0].capability, *capability);
-        assert!(!rules[0].allow[0].reason.trim().is_empty());
+        assert_eq!(rules[0].allow.len(), expected_capabilities.len());
+        for (allow, capability) in rules[0].allow.iter().zip(*expected_capabilities) {
+            assert_eq!(allow.path, *path);
+            assert_eq!(allow.capability, *capability);
+            assert!(!allow.reason.trim().is_empty());
+        }
     }
 }
 

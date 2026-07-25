@@ -1,4 +1,4 @@
-//! Executable ownership boundary for classic Join and Sync protocol facts.
+//! Executable ownership boundary for classic Join, Sync, and Heartbeat protocol facts.
 
 mod support;
 
@@ -14,6 +14,8 @@ const JOIN_REQUEST: &str =
     "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_request.rs";
 const SYNC_REQUEST: &str =
     "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_request.rs";
+const HEARTBEAT_REQUEST: &str =
+    "crates/kafka-client-engine/src/protocol/consumer/classic_group/heartbeat_request.rs";
 const JOIN_CALLS: &str =
     "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs";
 const SYNC_CALLS: &str =
@@ -29,13 +31,18 @@ const LINEAR: &[(&str, &str)] = &[
     ("ClassicSyncOutcome", MODEL),
     ("PreparedClassicJoinGroupRequest", JOIN_REQUEST),
     ("PreparedClassicSyncGroupRequest", SYNC_REQUEST),
+    ("PreparedClassicHeartbeatRequest", HEARTBEAT_REQUEST),
 ];
 const METHODS: &[(&str, &str)] = &[
     ("into_sync_assignments", SYNC_REQUEST),
     ("into_generated_join_group_request", JOIN_CALLS),
     ("into_generated_sync_group_request", SYNC_CALLS),
+    (
+        "into_generated_heartbeat_request",
+        "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs",
+    ),
 ];
-const RAW_REQUESTS: &[&str] = &["JoinGroupRequest", "SyncGroupRequest"];
+const RAW_REQUESTS: &[&str] = &["HeartbeatRequest", "JoinGroupRequest", "SyncGroupRequest"];
 const FORBIDDEN: &[&str] = &[
     "crate::admin",
     "crate::clock",
@@ -196,6 +203,13 @@ fn builders_and_submission_permits_bind_the_opaque_request_owners() {
             "PreparedClassicSyncGroupRequest",
             "SyncGroupRequest",
             "into_generated_sync_group_request",
+        ),
+        (
+            HEARTBEAT_REQUEST,
+            "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs",
+            "PreparedClassicHeartbeatRequest",
+            "HeartbeatRequest",
+            "into_generated_heartbeat_request",
         ),
     ] {
         let request = compact(&read(&root.join(request_path)));

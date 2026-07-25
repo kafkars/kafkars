@@ -21,6 +21,9 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
     ("transition.rs", "transition_test.rs"),
     ("terminal_transition.rs", "terminal_transition_test.rs"),
     ("transition_support.rs", "transition_support_test.rs"),
+    ("heartbeat.rs", "heartbeat_test.rs"),
+    ("heartbeat_state.rs", "heartbeat_state_test.rs"),
+    ("heartbeat_transition.rs", "heartbeat_transition_test.rs"),
 ];
 
 pub(super) const IMMUTABLE_MACHINE_FIELDS: &[&str] = &["group_id", "timing"];
@@ -36,6 +39,7 @@ pub(super) const LINEAR: &[(&str, &str)] = &[
     ("ClassicGroupEffect", "effect.rs"),
     ("ClassicGroupTransition", "effect.rs"),
     ("ClassicGroupMachine", "machine.rs"),
+    ("ClassicHeartbeatState", "heartbeat_state.rs"),
 ];
 
 pub(super) const MACHINE_FIELDS: &[(&str, &[&str])] = &[

@@ -39,7 +39,7 @@ pub(super) fn install_session(registry: &mut GroupConsumerRegistry, group_id: Gr
         .catalog
         .topic_id("orders")
         .unwrap_or_else(|| panic!("registered topic expected"));
-    classic_group_test_support::install_follower(
+    let heartbeat = classic_group_test_support::install_follower(
         &mut entry.catalog,
         &mut entry.classic,
         "member-1",
@@ -49,6 +49,11 @@ pub(super) fn install_session(registry: &mut GroupConsumerRegistry, group_id: Gr
             PartitionIndex::from_raw(0),
         )],
     );
+    entry
+        .heartbeat
+        .prepare_install(heartbeat)
+        .unwrap_or_else(|error| panic!("heartbeat install failed: {error:?}"))
+        .commit();
 }
 
 pub(super) fn checkpoint(registry: &GroupConsumerRegistry, group_id: GroupId) -> GroupCheckpoint {

@@ -56,6 +56,21 @@ impl MonotonicClock {
         self.capture_deadline_at(boundary, timeout)
     }
 
+    /// Maps an existing core deadline through this clock's fixed epoch.
+    ///
+    /// This does not observe ambient time or reconstruct a relative timeout.
+    pub(crate) fn operation_deadline(
+        &self,
+        deadline: Deadline,
+    ) -> Result<OperationDeadline, ClockError> {
+        let offset = Duration::from_nanos(deadline.tick());
+        let transport = self
+            .epoch
+            .checked_add(offset)
+            .ok_or(ClockError::InstantOverflow)?;
+        Ok(OperationDeadline::from_boundary_parts(deadline, transport))
+    }
+
     pub(super) const fn from_epoch(epoch: Instant) -> Self {
         Self { epoch }
     }

@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use kafka_client_core::Moment;
+use kafka_client_core::{Deadline, Moment};
 
 use super::{
     ClockError, MonotonicClock,
@@ -49,6 +49,25 @@ fn deadline_capture_uses_one_boundary_observation() {
         panic!("small monotonic addition should be representable");
     };
     assert_eq!(capture.operation_deadline().transport(), expected_instant);
+}
+
+#[test]
+fn existing_core_deadline_maps_directly_through_the_fixed_epoch() {
+    let epoch = Instant::now();
+    let clock = MonotonicClock::from_epoch(epoch);
+    let deadline = Deadline::from_tick(47);
+
+    let mapped = clock
+        .operation_deadline(deadline)
+        .unwrap_or_else(|error| panic!("deadline mapping failed: {error}"));
+
+    assert_eq!(mapped.core(), deadline);
+    assert_eq!(
+        mapped.transport(),
+        epoch
+            .checked_add(Duration::from_nanos(47))
+            .unwrap_or_else(|| panic!("test instant must represent 47 nanoseconds"))
+    );
 }
 
 #[test]

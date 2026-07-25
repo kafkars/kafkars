@@ -5,8 +5,10 @@ use std::sync::Arc;
 use kafka_client_core::{ClassicGroupTiming, ClassicHeartbeatPolicy, GroupId};
 
 use crate::driver::classic_group::{
-    JoinGroupShutdownRecovery, RecoveredJoinGroupOwnership, RecoveredSyncGroupOwnership,
-    SyncGroupShutdownRecovery, TrackedJoinGroupCalls, TrackedSyncGroupCalls,
+    ClassicHeartbeatShutdownRecovery, JoinGroupShutdownRecovery,
+    RecoveredClassicHeartbeatOwnership, RecoveredJoinGroupOwnership, RecoveredSyncGroupOwnership,
+    SyncGroupShutdownRecovery, TrackedClassicHeartbeatCalls, TrackedJoinGroupCalls,
+    TrackedSyncGroupCalls,
 };
 
 use super::{
@@ -46,10 +48,13 @@ pub(crate) struct GroupConsumerRegistry {
     pub(super) accepting: bool,
     pub(super) join_calls: Option<TrackedJoinGroupCalls>,
     pub(super) sync_calls: Option<TrackedSyncGroupCalls>,
+    pub(super) heartbeat_calls: Option<TrackedClassicHeartbeatCalls>,
     pub(super) join_shutdown_recovery: Option<JoinGroupShutdownRecovery>,
     pub(super) sync_shutdown_recovery: Option<SyncGroupShutdownRecovery>,
+    pub(super) heartbeat_shutdown_recovery: Option<ClassicHeartbeatShutdownRecovery>,
     pub(super) join_recovery_fault: Option<RecoveredJoinGroupOwnership>,
     pub(super) sync_recovery_fault: Option<RecoveredSyncGroupOwnership>,
+    pub(super) heartbeat_recovery_fault: Option<RecoveredClassicHeartbeatOwnership>,
     pub(super) offset_commits: GroupOffsetCommitHost,
 }
 
@@ -63,6 +68,8 @@ impl GroupConsumerRegistry {
             .map_err(|_error| std::io::Error::other("JoinGroup call reservation failed"))?;
         let sync_calls = TrackedSyncGroupCalls::try_new(GROUP_CONSUMER_CAPACITY)
             .map_err(|_error| std::io::Error::other("SyncGroup call reservation failed"))?;
+        let heartbeat_calls = TrackedClassicHeartbeatCalls::try_new(GROUP_CONSUMER_CAPACITY)
+            .map_err(|_error| std::io::Error::other("Heartbeat call reservation failed"))?;
         Ok(Self {
             entries,
             next_group_id: GroupId::try_from_raw(1),
@@ -70,10 +77,13 @@ impl GroupConsumerRegistry {
             accepting: true,
             join_calls: Some(join_calls),
             sync_calls: Some(sync_calls),
+            heartbeat_calls: Some(heartbeat_calls),
             join_shutdown_recovery: None,
             sync_shutdown_recovery: None,
+            heartbeat_shutdown_recovery: None,
             join_recovery_fault: None,
             sync_recovery_fault: None,
+            heartbeat_recovery_fault: None,
             offset_commits: GroupOffsetCommitHost::start_group_offset_commit_host()?,
         })
     }

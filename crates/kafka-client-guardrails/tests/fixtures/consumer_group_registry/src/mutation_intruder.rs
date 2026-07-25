@@ -3,10 +3,13 @@
 struct GroupOffsetCommitHost;
 struct GroupSessionCatalog;
 struct ClassicGroupEntryFault;
+struct ClassicHeartbeatShutdownRecovery;
+struct RecoveredClassicHeartbeatOwnership;
 struct JoinGroupShutdownRecovery;
 struct RecoveredJoinGroupOwnership;
 struct RecoveredSyncGroupOwnership;
 struct SyncGroupShutdownRecovery;
+struct TrackedClassicHeartbeatCalls;
 struct TrackedJoinGroupCalls;
 struct TrackedSyncGroupCalls;
 
@@ -17,10 +20,13 @@ struct GroupConsumerRegistry {
     accepting: bool,
     join_calls: Option<TrackedJoinGroupCalls>,
     sync_calls: Option<TrackedSyncGroupCalls>,
+    heartbeat_calls: Option<TrackedClassicHeartbeatCalls>,
     join_shutdown_recovery: Option<JoinGroupShutdownRecovery>,
     sync_shutdown_recovery: Option<SyncGroupShutdownRecovery>,
+    heartbeat_shutdown_recovery: Option<ClassicHeartbeatShutdownRecovery>,
     join_recovery_fault: Option<RecoveredJoinGroupOwnership>,
     sync_recovery_fault: Option<RecoveredSyncGroupOwnership>,
+    heartbeat_recovery_fault: Option<RecoveredClassicHeartbeatOwnership>,
     offset_commits: GroupOffsetCommitHost,
 }
 
@@ -37,10 +43,13 @@ fn mutate_registry(owner: &mut GroupConsumerRegistry) {
     owner.accepting = false;
     let _joins = owner.join_calls.take();
     let _syncs = owner.sync_calls.take();
+    let _heartbeats = owner.heartbeat_calls.take();
     let _join_recovery = owner.join_shutdown_recovery.take();
     let _sync_recovery = owner.sync_shutdown_recovery.take();
+    let _heartbeat_recovery = owner.heartbeat_shutdown_recovery.take();
     let _join_fault = owner.join_recovery_fault.take();
     let _sync_fault = owner.sync_recovery_fault.take();
+    let _heartbeat_fault = owner.heartbeat_recovery_fault.take();
     let _borrow = &mut owner.offset_commits;
 }
 

@@ -3,7 +3,8 @@
 use kafka_client_core::ClassicGroupInput;
 
 use crate::driver::classic_group::{
-    JoinGroupShutdownRecovery, RecoveredJoinGroupOwnership, RecoveredSyncGroupOwnership,
+    ClassicHeartbeatShutdownRecovery, JoinGroupShutdownRecovery,
+    RecoveredClassicHeartbeatOwnership, RecoveredJoinGroupOwnership, RecoveredSyncGroupOwnership,
     SyncGroupShutdownRecovery,
 };
 
@@ -21,6 +22,7 @@ impl GroupConsumerRegistry {
     pub(super) fn recover_classic_calls_after_driver_shutdown(
         &mut self,
     ) -> Result<(), ClassicGroupExecutionError> {
+        self.recover_classic_heartbeats_after_driver_shutdown()?;
         if self.sync_recovery_fault.is_some() || self.join_recovery_fault.is_some() {
             return Err(ClassicGroupExecutionError::EntryFault);
         }
@@ -162,13 +164,18 @@ impl GroupConsumerRegistry {
 }
 
 pub(super) fn recovery_unsettled_count(
+    heartbeat: Option<&ClassicHeartbeatShutdownRecovery>,
     join: Option<&JoinGroupShutdownRecovery>,
     sync: Option<&SyncGroupShutdownRecovery>,
+    heartbeat_fault: Option<&RecoveredClassicHeartbeatOwnership>,
     join_fault: Option<&RecoveredJoinGroupOwnership>,
     sync_fault: Option<&RecoveredSyncGroupOwnership>,
 ) -> usize {
-    join.map_or(0, JoinGroupShutdownRecovery::retained_count)
+    heartbeat
+        .map_or(0, ClassicHeartbeatShutdownRecovery::retained_count)
+        .saturating_add(join.map_or(0, JoinGroupShutdownRecovery::retained_count))
         .saturating_add(sync.map_or(0, SyncGroupShutdownRecovery::retained_count))
+        .saturating_add(usize::from(heartbeat_fault.is_some()))
         .saturating_add(usize::from(join_fault.is_some()))
         .saturating_add(usize::from(sync_fault.is_some()))
 }
