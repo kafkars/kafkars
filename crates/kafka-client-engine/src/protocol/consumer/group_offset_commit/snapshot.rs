@@ -1,4 +1,4 @@
-//! Lossless construction of one prepared commit from pre-reserved result capacity.
+//! Lossless construction from pre-reserved prepared-entry and result capacity.
 
 use std::sync::Arc;
 
@@ -7,6 +7,7 @@ use kafka_client_core::GroupOffsetCommitEffect;
 use crate::clock::OperationDeadline;
 
 use super::{
+    entry_reservation::GroupOffsetCommitEntryReservation,
     model::{PreparedGroupOffsetCommit, PreparedGroupOffsetCommitEntry},
     preparation::{GroupOffsetCommitPreparationError, GroupOffsetCommitPreparationErrorKind},
     result_reservation::GroupOffsetCommitResultReservation,
@@ -24,6 +25,7 @@ impl PreparedGroupOffsetCommit {
         operation_deadline: OperationDeadline,
         session: ClassicGroupCommitSession,
         topic_names: Vec<GroupOffsetCommitTopicName>,
+        entry_reservation: GroupOffsetCommitEntryReservation,
         result_reservation: GroupOffsetCommitResultReservation,
     ) -> Result<Self, GroupOffsetCommitPreparationError> {
         Self::prepare(
@@ -31,31 +33,8 @@ impl PreparedGroupOffsetCommit {
             operation_deadline,
             session,
             topic_names,
+            entry_reservation,
             result_reservation,
-            None,
-        )
-    }
-
-    #[cfg(test)]
-    #[allow(
-        clippy::result_large_err,
-        reason = "preparation failure must return every exact linear input owner"
-    )]
-    pub(super) fn from_effect_with_entry_reservation_for_test(
-        effect: GroupOffsetCommitEffect,
-        operation_deadline: OperationDeadline,
-        session: ClassicGroupCommitSession,
-        topic_names: Vec<GroupOffsetCommitTopicName>,
-        result_reservation: GroupOffsetCommitResultReservation,
-        entry_reservation: usize,
-    ) -> Result<Self, GroupOffsetCommitPreparationError> {
-        Self::prepare(
-            effect,
-            operation_deadline,
-            session,
-            topic_names,
-            result_reservation,
-            Some(entry_reservation),
         )
     }
 
@@ -68,8 +47,8 @@ impl PreparedGroupOffsetCommit {
         operation_deadline: OperationDeadline,
         session: ClassicGroupCommitSession,
         topic_names: Vec<GroupOffsetCommitTopicName>,
+        entry_reservation: GroupOffsetCommitEntryReservation,
         result_reservation: GroupOffsetCommitResultReservation,
-        entry_reservation_override: Option<usize>,
     ) -> Result<Self, GroupOffsetCommitPreparationError> {
         let entry_count = match validate_group_offset_commit_inputs(
             &effect,
@@ -85,10 +64,25 @@ impl PreparedGroupOffsetCommit {
                     operation_deadline,
                     session,
                     topic_names,
+                    entry_reservation,
                     result_reservation,
                 ));
             }
         };
+        if entry_reservation.entry_count() != entry_count {
+            return Err(GroupOffsetCommitPreparationError::new(
+                GroupOffsetCommitPreparationErrorKind::EntryReservationMismatch {
+                    entries: entry_count,
+                    reserved: entry_reservation.entry_count(),
+                },
+                effect,
+                operation_deadline,
+                session,
+                topic_names,
+                entry_reservation,
+                result_reservation,
+            ));
+        }
         if result_reservation.entry_count() != entry_count {
             return Err(GroupOffsetCommitPreparationError::new(
                 GroupOffsetCommitPreparationErrorKind::ResultReservationMismatch {
@@ -99,6 +93,7 @@ impl PreparedGroupOffsetCommit {
                 operation_deadline,
                 session,
                 topic_names,
+                entry_reservation,
                 result_reservation,
             ));
         }
@@ -109,20 +104,21 @@ impl PreparedGroupOffsetCommit {
                 operation_deadline,
                 session,
                 topic_names,
+                entry_reservation,
                 result_reservation,
             ));
         };
-        let entry_reservation = entry_reservation_override.unwrap_or(entry_count);
         let (operation_id, entries) =
             match materialize_entries(&effect, &topic_names, entry_reservation) {
                 Ok(materialized) => materialized,
-                Err(kind) => {
+                Err((kind, entry_reservation)) => {
                     return Err(GroupOffsetCommitPreparationError::new(
                         kind,
                         effect,
                         operation_deadline,
                         session,
                         topic_names,
+                        entry_reservation,
                         result_reservation,
                     ));
                 }
@@ -144,40 +140,48 @@ impl PreparedGroupOffsetCommit {
 fn materialize_entries(
     effect: &GroupOffsetCommitEffect,
     topic_names: &[GroupOffsetCommitTopicName],
-    entry_reservation: usize,
+    entry_reservation: GroupOffsetCommitEntryReservation,
 ) -> Result<
     (
         kafka_client_core::OperationId,
         Vec<PreparedGroupOffsetCommitEntry>,
     ),
-    GroupOffsetCommitPreparationErrorKind,
+    (
+        GroupOffsetCommitPreparationErrorKind,
+        GroupOffsetCommitEntryReservation,
+    ),
 > {
+    let entry_count = entry_reservation.entry_count();
+    let mut entries = entry_reservation.into_entries();
     let GroupOffsetCommitEffect::Submit {
         operation_id,
         checkpoint,
         ..
     } = effect
     else {
-        return Err(GroupOffsetCommitPreparationErrorKind::UnexpectedEffect);
+        return Err((
+            GroupOffsetCommitPreparationErrorKind::UnexpectedEffect,
+            GroupOffsetCommitEntryReservation::recover_entries(entry_count, entries),
+        ));
     };
-    let mut entries = Vec::new();
-    entries
-        .try_reserve_exact(entry_reservation)
-        .map_err(|_| GroupOffsetCommitPreparationErrorKind::AllocationFailed)?;
     for entry in checkpoint.entries() {
         let Some(topic) = topic_names
             .iter()
             .find(|candidate| candidate.topic_id == entry.topic_id())
         else {
-            return Err(GroupOffsetCommitPreparationErrorKind::UnknownTopic(
-                entry.topic_id(),
+            return Err((
+                GroupOffsetCommitPreparationErrorKind::UnknownTopic(entry.topic_id()),
+                GroupOffsetCommitEntryReservation::recover_entries(entry_count, entries),
             ));
         };
         let Ok(partition_index) = i32::try_from(entry.partition().get()) else {
-            return Err(GroupOffsetCommitPreparationErrorKind::PartitionOutOfRange {
-                topic_id: entry.topic_id(),
-                partition: entry.partition(),
-            });
+            return Err((
+                GroupOffsetCommitPreparationErrorKind::PartitionOutOfRange {
+                    topic_id: entry.topic_id(),
+                    partition: entry.partition(),
+                },
+                GroupOffsetCommitEntryReservation::recover_entries(entry_count, entries),
+            ));
         };
         entries.push(PreparedGroupOffsetCommitEntry {
             topic_id: entry.topic_id(),

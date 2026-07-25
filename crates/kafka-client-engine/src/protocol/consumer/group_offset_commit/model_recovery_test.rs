@@ -36,10 +36,12 @@ fn deadline_generation_and_unknown_topic_failures_return_every_owner() {
             operation: Deadline::from_tick(101),
         }
     );
-    let (effect, returned, _session, topics, result_reservation) = error.into_parts();
+    let (effect, returned, _session, topics, entry_reservation, result_reservation) =
+        error.into_parts();
     assert!(matches!(effect, GroupOffsetCommitEffect::Submit { .. }));
     assert_eq!(returned, supplied);
     assert_eq!(topics.len(), 1);
+    assert_eq!(entry_reservation.entry_count(), 1);
     assert_eq!(result_reservation.entry_count(), 1);
 
     let (effect, deadline, _session, topics) = inputs(
@@ -94,10 +96,12 @@ fn unexpected_complete_effect_is_recovered_intact() {
         error.kind(),
         GroupOffsetCommitPreparationErrorKind::UnexpectedEffect
     );
-    let (effect, returned_deadline, _, topics, result_reservation) = error.into_parts();
+    let (effect, returned_deadline, _, topics, entry_reservation, result_reservation) =
+        error.into_parts();
     assert!(matches!(effect, GroupOffsetCommitEffect::Complete { .. }));
     assert_eq!(returned_deadline, deadline);
     assert!(topics.is_empty());
+    assert_eq!(entry_reservation.entry_count(), 0);
     assert_eq!(result_reservation.entry_count(), 0);
 }
 
@@ -106,7 +110,8 @@ fn assert_recovered(
     expected: GroupOffsetCommitPreparationErrorKind,
 ) {
     assert_eq!(error.kind(), expected);
-    let (effect, _deadline, _session, topics, result_reservation) = error.into_parts();
+    let (effect, _deadline, _session, topics, entry_reservation, result_reservation) =
+        error.into_parts();
     let GroupOffsetCommitEffect::Submit {
         operation_id,
         checkpoint,
@@ -117,6 +122,7 @@ fn assert_recovered(
     };
     assert_eq!(operation_id, OperationId::from_raw(9));
     assert!(!checkpoint.entries().is_empty());
+    assert_eq!(entry_reservation.entry_count(), checkpoint.entries().len());
     assert_eq!(result_reservation.entry_count(), checkpoint.entries().len());
     drop(topics);
 }

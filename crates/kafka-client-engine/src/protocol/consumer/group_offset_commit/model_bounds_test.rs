@@ -6,14 +6,14 @@ use kafka_client_core::{GroupOffsetCommitEffect, OperationId};
 
 use super::{
     model::PreparedGroupOffsetCommit,
-    model_test::{entry, inputs, prepare, reservation, topic},
+    model_test::{entry, entry_reservation, inputs, prepare, reservation, topic},
     preparation::{GroupOffsetCommitPreparationError, GroupOffsetCommitPreparationErrorKind},
     session::{MAX_GROUP_OFFSET_COMMIT_ID_BYTES, MAX_GROUP_OFFSET_COMMIT_TOPIC_BYTES},
     validation::MAX_GROUP_OFFSET_COMMIT_ENTRIES,
 };
 
 #[test]
-fn capacity_and_allocator_failures_are_distinct_and_recoverable() {
+fn collection_capacity_failures_are_distinct_and_recoverable() {
     let maximum_partition = u32::try_from(MAX_GROUP_OFFSET_COMMIT_ENTRIES)
         .unwrap_or_else(|_| panic!("bounded test partition count fits u32"));
     let entries = (0..=maximum_partition)
@@ -33,6 +33,7 @@ fn capacity_and_allocator_failures_are_distinct_and_recoverable() {
                 deadline,
                 session,
                 topics,
+                entry_reservation(MAX_GROUP_OFFSET_COMMIT_ENTRIES),
                 reservation(MAX_GROUP_OFFSET_COMMIT_ENTRIES),
             ),
             "entry capacity",
@@ -64,43 +65,13 @@ fn capacity_and_allocator_failures_are_distinct_and_recoverable() {
             limit: MAX_GROUP_OFFSET_COMMIT_ENTRIES,
         }
     );
-    let (effect, returned_deadline, _session, topic_names, result_reservation) = error.into_parts();
+    let (effect, returned_deadline, _session, topic_names, entry_reservation, result_reservation) =
+        error.into_parts();
     assert!(matches!(effect, GroupOffsetCommitEffect::Submit { .. }));
     assert_eq!(returned_deadline, deadline);
     assert_eq!(topic_names.len(), MAX_GROUP_OFFSET_COMMIT_ENTRIES + 1);
+    assert_eq!(entry_reservation.entry_count(), 1);
     assert_eq!(result_reservation.entry_count(), 1);
-
-    let (effect, deadline, session, topics) = inputs(
-        vec![entry(1, 0, 10, None)],
-        4,
-        Arc::from("readers"),
-        Arc::from("member-a"),
-        vec![topic(1, Arc::from("orders"))],
-    );
-    let result_reservation = reservation(1);
-    let reservation_pointer = result_reservation.outcomes_ptr_for_test();
-    let reservation_capacity = result_reservation.outcomes_capacity();
-    let error = result_error(
-        PreparedGroupOffsetCommit::from_effect_with_entry_reservation_for_test(
-            effect,
-            deadline,
-            session,
-            topics,
-            result_reservation,
-            usize::MAX,
-        ),
-        "entry allocator rejection",
-    );
-    assert_eq!(
-        error.kind(),
-        GroupOffsetCommitPreparationErrorKind::AllocationFailed
-    );
-    let (_effect, _deadline, _session, _topics, result_reservation) = error.into_parts();
-    assert_eq!(
-        result_reservation.outcomes_ptr_for_test(),
-        reservation_pointer
-    );
-    assert_eq!(result_reservation.outcomes_capacity(), reservation_capacity);
 }
 
 #[test]
@@ -195,7 +166,8 @@ fn assert_recovered(
     expected: GroupOffsetCommitPreparationErrorKind,
 ) {
     assert_eq!(error.kind(), expected);
-    let (effect, _deadline, _session, topics, result_reservation) = error.into_parts();
+    let (effect, _deadline, _session, topics, entry_reservation, result_reservation) =
+        error.into_parts();
     let GroupOffsetCommitEffect::Submit {
         operation_id,
         checkpoint,
@@ -206,6 +178,7 @@ fn assert_recovered(
     };
     assert_eq!(operation_id, OperationId::from_raw(9));
     assert!(!checkpoint.entries().is_empty());
+    assert!(entry_reservation.entry_count() <= MAX_GROUP_OFFSET_COMMIT_ENTRIES);
     assert!(result_reservation.entry_count() <= MAX_GROUP_OFFSET_COMMIT_ENTRIES);
     drop(topics);
 }

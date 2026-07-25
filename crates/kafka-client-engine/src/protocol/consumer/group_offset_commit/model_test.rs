@@ -11,6 +11,7 @@ use kafka_client_core::{
 use crate::clock::OperationDeadline;
 
 use super::{
+    entry_reservation::GroupOffsetCommitEntryReservation,
     model::{PreparedGroupOffsetCommit, PreparedGroupOffsetCommitEntry},
     preparation::GroupOffsetCommitPreparationError,
     result_reservation::GroupOffsetCommitResultReservation,
@@ -26,11 +27,26 @@ fn successful_snapshot_retains_exact_capacity_order_and_leader_epoch_requirement
         Arc::from("member-a"),
         vec![topic(1, Arc::from("orders"))],
     );
-    let prepared = prepare(effect, deadline, session, topics)
-        .unwrap_or_else(|error| panic!("valid prepared commit: {:?}", error.kind()));
+    let entry_reservation = entry_reservation(2);
+    let expected_entry_pointer = entry_reservation.entries_ptr_for_test();
+    let expected_entry_capacity = entry_reservation.entries_capacity();
+    let result_reservation = reservation(2);
+    let expected_result_pointer = result_reservation.outcomes_ptr_for_test();
+    let expected_result_capacity = result_reservation.outcomes_capacity();
+    let prepared = PreparedGroupOffsetCommit::from_effect(
+        effect,
+        deadline,
+        session,
+        topics,
+        entry_reservation,
+        result_reservation,
+    )
+    .unwrap_or_else(|error| panic!("valid prepared commit: {:?}", error.kind()));
     assert_eq!(prepared.operation_id(), OperationId::from_raw(9));
-    assert_eq!(prepared.entries_capacity(), 2);
-    assert_eq!(prepared.outcomes_capacity(), 2);
+    assert_eq!(prepared.entries_ptr_for_test(), expected_entry_pointer);
+    assert_eq!(prepared.entries_capacity(), expected_entry_capacity);
+    assert_eq!(prepared.outcomes_ptr_for_test(), expected_result_pointer);
+    assert_eq!(prepared.outcomes_capacity(), expected_result_capacity);
     assert!(prepared.requires_leader_epoch());
     assert_eq!(prepared.entries()[0].next_offset(), 10);
     assert_eq!(prepared.entries()[1].leader_epoch(), Some(7));
@@ -39,10 +55,15 @@ fn successful_snapshot_retains_exact_capacity_order_and_leader_epoch_requirement
         .checked_add("member-a".len())
         .and_then(|bytes| bytes.checked_add("orders".len()))
         .and_then(|bytes| {
-            bytes.checked_add(2usize.saturating_mul(size_of::<PreparedGroupOffsetCommitEntry>()))
+            bytes.checked_add(
+                expected_entry_capacity.saturating_mul(size_of::<PreparedGroupOffsetCommitEntry>()),
+            )
         })
         .and_then(|bytes| {
-            bytes.checked_add(2usize.saturating_mul(size_of::<GroupOffsetCommitPartitionOutcome>()))
+            bytes.checked_add(
+                expected_result_capacity
+                    .saturating_mul(size_of::<GroupOffsetCommitPartitionOutcome>()),
+            )
         });
     assert_eq!(prepared.retained_bytes(), expected_retained);
 }
@@ -82,8 +103,14 @@ pub(super) fn prepare(
         operation_deadline,
         session,
         topics,
+        entry_reservation(entry_count),
         reservation(entry_count),
     )
+}
+
+pub(super) fn entry_reservation(entry_count: usize) -> GroupOffsetCommitEntryReservation {
+    GroupOffsetCommitEntryReservation::try_new(entry_count)
+        .unwrap_or_else(|error| panic!("reserve exact test entry capacity: {error:?}"))
 }
 
 pub(super) fn reservation(entry_count: usize) -> GroupOffsetCommitResultReservation {

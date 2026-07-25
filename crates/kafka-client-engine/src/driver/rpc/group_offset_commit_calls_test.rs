@@ -15,8 +15,8 @@ use crate::{
     EngineConfig,
     clock::OperationDeadline,
     protocol::consumer::{
-        ClassicGroupCommitSession, GroupOffsetCommitResultReservation, GroupOffsetCommitTopicName,
-        PreparedGroupOffsetCommit,
+        ClassicGroupCommitSession, GroupOffsetCommitEntryReservation,
+        GroupOffsetCommitResultReservation, GroupOffsetCommitTopicName, PreparedGroupOffsetCommit,
     },
 };
 
@@ -92,6 +92,8 @@ fn driver_admission_failure_recovers_prepared_before_core_rejection() {
 }
 
 pub(super) fn prepared(operation: u64) -> PreparedGroupOffsetCommit {
+    let entry_reservation = GroupOffsetCommitEntryReservation::try_new(1)
+        .unwrap_or_else(|error| panic!("reserve entry capacity: {error:?}"));
     let result_reservation = GroupOffsetCommitResultReservation::try_new(1)
         .unwrap_or_else(|error| panic!("reserve result capacity: {error:?}"));
     let deadline = OperationDeadline::from_parts_for_test(
@@ -132,6 +134,7 @@ pub(super) fn prepared(operation: u64) -> PreparedGroupOffsetCommit {
             TopicId::from_raw(1),
             Arc::from("orders"),
         )],
+        entry_reservation,
         result_reservation,
     )
     .unwrap_or_else(|error| panic!("valid prepared commit: {:?}", error.kind()))

@@ -7,6 +7,9 @@ struct ClassicGroupCommitSession;
 struct PreparedGroupOffsetCommit;
 
 #[derive(Clone, Copy)]
+struct GroupOffsetCommitEntryReservation;
+
+#[derive(Clone, Copy)]
 struct GroupOffsetCommitResultReservation;
 
 #[derive(Clone, Copy)]

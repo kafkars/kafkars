@@ -15,7 +15,9 @@ const SETTLEMENT_PATH: &str =
     "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs";
 const SETTLEMENT_OWNER_PATH: &str =
     "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement_owner.rs";
-const LINEAR_OWNERS: [(&str, &str); 15] = [
+const SNAPSHOT_PATH: &str =
+    "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/snapshot.rs";
+const LINEAR_OWNERS: [(&str, &str); 16] = [
     (
         "ClassicGroupCommitSession",
         "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/session.rs",
@@ -23,6 +25,10 @@ const LINEAR_OWNERS: [(&str, &str); 15] = [
     (
         "PreparedGroupOffsetCommit",
         "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/model.rs",
+    ),
+    (
+        "GroupOffsetCommitEntryReservation",
+        "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/entry_reservation.rs",
     ),
     (
         "GroupOffsetCommitResultReservation",
@@ -110,6 +116,38 @@ fn route_token_discard_is_confined_to_settlement_owner() {
         !violations
             .iter()
             .any(|violation| violation.contains("settlement_owner.rs"))
+    );
+}
+
+#[test]
+fn entry_reservation_transfer_is_confined_to_snapshot_owner() {
+    let config = load_config(&workspace_root());
+    for method in ["into_entries", "recover_entries"] {
+        let rules = config
+            .method_capabilities
+            .iter()
+            .filter(|rule| rule.method == method)
+            .collect::<Vec<_>>();
+        assert_eq!(rules.len(), 1, "{method} needs one method capability");
+        assert_eq!(rules[0].allowed_paths, [SNAPSHOT_PATH]);
+    }
+
+    let (root, _) = fixture_files("consumer_group_offset_commit_ownership");
+    let fixture_rules = ["into_entries", "recover_entries"].map(|method| MethodCapabilityRule {
+        root: "src".into(),
+        method: method.into(),
+        allowed_paths: vec!["src/entry_reservation_owner.rs".into()],
+    });
+    let violations = method_capability_violations(&root, &fixture_rules);
+    for method in ["into_entries", "recover_entries"] {
+        assert!(violations.iter().any(|violation| {
+            violation.contains("entry_reservation_intruder.rs") && violation.contains(method)
+        }));
+    }
+    assert!(
+        !violations
+            .iter()
+            .any(|violation| violation.contains("entry_reservation_owner.rs"))
     );
 }
 

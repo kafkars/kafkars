@@ -117,6 +117,11 @@ impl PreparedGroupOffsetCommit {
     }
 
     #[cfg(test)]
+    pub(super) fn entries_ptr_for_test(&self) -> *const PreparedGroupOffsetCommitEntry {
+        self.entries.as_ptr()
+    }
+
+    #[cfg(test)]
     pub(super) fn outcomes_ptr_for_test(&self) -> *const GroupOffsetCommitPartitionOutcome {
         self.outcomes.as_ptr()
     }

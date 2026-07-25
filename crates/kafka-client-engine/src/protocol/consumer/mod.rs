@@ -13,7 +13,8 @@ mod list_offsets_time;
 pub(crate) use super::request_timeout::remaining_timeout_ms;
 #[expect(unused_imports, reason = "awaiting classic-group commit executor")]
 pub(crate) use group_offset_commit::{
-    ClassicGroupCommitSession, GroupOffsetCommitProtocolFailure,
+    ClassicGroupCommitSession, GroupOffsetCommitEntryReservation,
+    GroupOffsetCommitEntryReservationError, GroupOffsetCommitProtocolFailure,
     GroupOffsetCommitResultReservation, GroupOffsetCommitResultReservationError,
     GroupOffsetCommitTopicName, PreparedGroupOffsetCommit, group_offset_commit_request,
     normalize_group_offset_commit_response,

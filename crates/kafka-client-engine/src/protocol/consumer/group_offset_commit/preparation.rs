@@ -5,6 +5,7 @@ use kafka_client_core::{Deadline, GroupOffsetCommitEffect, PartitionIndex, Topic
 use crate::clock::OperationDeadline;
 
 use super::{
+    entry_reservation::GroupOffsetCommitEntryReservation,
     result_reservation::GroupOffsetCommitResultReservation,
     session::{ClassicGroupCommitSession, GroupOffsetCommitTopicName},
 };
@@ -43,7 +44,10 @@ pub(crate) enum GroupOffsetCommitPreparationErrorKind {
         entries: usize,
         reserved: usize,
     },
-    AllocationFailed,
+    EntryReservationMismatch {
+        entries: usize,
+        reserved: usize,
+    },
     EmptyTopicName,
     TopicNameTooLong {
         actual: usize,
@@ -68,6 +72,7 @@ pub(crate) struct GroupOffsetCommitPreparationError {
     operation_deadline: OperationDeadline,
     session: ClassicGroupCommitSession,
     topic_names: Vec<GroupOffsetCommitTopicName>,
+    entry_reservation: GroupOffsetCommitEntryReservation,
     result_reservation: GroupOffsetCommitResultReservation,
 }
 
@@ -78,6 +83,7 @@ impl GroupOffsetCommitPreparationError {
         operation_deadline: OperationDeadline,
         session: ClassicGroupCommitSession,
         topic_names: Vec<GroupOffsetCommitTopicName>,
+        entry_reservation: GroupOffsetCommitEntryReservation,
         result_reservation: GroupOffsetCommitResultReservation,
     ) -> Self {
         Self {
@@ -86,6 +92,7 @@ impl GroupOffsetCommitPreparationError {
             operation_deadline,
             session,
             topic_names,
+            entry_reservation,
             result_reservation,
         }
     }
@@ -101,6 +108,7 @@ impl GroupOffsetCommitPreparationError {
         OperationDeadline,
         ClassicGroupCommitSession,
         Vec<GroupOffsetCommitTopicName>,
+        GroupOffsetCommitEntryReservation,
         GroupOffsetCommitResultReservation,
     ) {
         (
@@ -108,6 +116,7 @@ impl GroupOffsetCommitPreparationError {
             self.operation_deadline,
             self.session,
             self.topic_names,
+            self.entry_reservation,
             self.result_reservation,
         )
     }

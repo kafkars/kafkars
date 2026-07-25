@@ -17,8 +17,8 @@ use kafka_wire_core::{DecodeError, EncodeError};
 use crate::{
     clock::OperationDeadline,
     protocol::consumer::{
-        ClassicGroupCommitSession, GroupOffsetCommitResultReservation, GroupOffsetCommitTopicName,
-        PreparedGroupOffsetCommit,
+        ClassicGroupCommitSession, GroupOffsetCommitEntryReservation,
+        GroupOffsetCommitResultReservation, GroupOffsetCommitTopicName, PreparedGroupOffsetCommit,
     },
 };
 
@@ -200,6 +200,8 @@ fn prepared() -> PreparedGroupOffsetCommit {
 }
 
 fn prepared_with_epoch(requires_epoch: bool) -> PreparedGroupOffsetCommit {
+    let entry_reservation = GroupOffsetCommitEntryReservation::try_new(2)
+        .unwrap_or_else(|error| panic!("reserve entry capacity: {error:?}"));
     let result_reservation = GroupOffsetCommitResultReservation::try_new(2)
         .unwrap_or_else(|error| panic!("reserve result capacity: {error:?}"));
     let deadline = OperationDeadline::from_parts_for_test(Deadline::from_tick(100), Instant::now());
@@ -234,6 +236,7 @@ fn prepared_with_epoch(requires_epoch: bool) -> PreparedGroupOffsetCommit {
             TopicId::from_raw(1),
             Arc::from("orders"),
         )],
+        entry_reservation,
         result_reservation,
     )
     .unwrap_or_else(|error| panic!("valid prepared commit: {:?}", error.kind()))

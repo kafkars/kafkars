@@ -7145,6 +7145,20 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs",
 ]
 
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "into_entries"
+allowed_paths = [
+  "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/snapshot.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "recover_entries"
+allowed_paths = [
+  "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/snapshot.rs",
+]
+
 [[mutation_owners]]
 owner_type = "TrackedGroupOffsetCommitCalls"
 field = "calls"
@@ -7182,6 +7196,10 @@ path = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/ses
 [[linear_owners]]
 owner_type = "PreparedGroupOffsetCommit"
 path = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/model.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitEntryReservation"
+path = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/entry_reservation.rs"
 
 [[linear_owners]]
 owner_type = "GroupOffsetCommitResultReservation"
