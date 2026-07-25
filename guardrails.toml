@@ -8830,6 +8830,10 @@ production = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group
 test = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_reconciliation.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_reconciliation_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_test.rs"
 
@@ -8844,6 +8848,10 @@ test = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_termi
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_reconciliation.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_reconciliation_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement.rs"
@@ -8890,6 +8898,18 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
+method = "reconcile_join_group_after_driver_shutdown"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "consume_join_group_shutdown_receipt"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_reconciliation.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
 method = "confirm_join_group_route_token"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs",
@@ -8911,6 +8931,18 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
+method = "reconcile_sync_group_after_driver_shutdown"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "consume_sync_group_shutdown_receipt"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_reconciliation.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
 method = "confirm_sync_group_route_token"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs",
@@ -8921,6 +8953,64 @@ root = "crates/kafka-client-engine/src"
 method = "submit_tracked_sync_group"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "RecoveredJoinGroupOwnership::seal_recovered_join_group_active"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_reconciliation.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "RecoveredJoinGroupOwnership::seal_recovered_join_group_settled"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "RecoveredJoinGroupOwnership::seal_recovered_join_group_pending"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "RecoveredJoinGroupOwnership::seal_recovered_join_group_completion"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "RecoveredSyncGroupOwnership::seal_recovered_sync_group_active"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_reconciliation.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "RecoveredSyncGroupOwnership::seal_recovered_sync_group_settled"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "RecoveredSyncGroupOwnership::seal_recovered_sync_group_pending"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "RecoveredSyncGroupOwnership::seal_recovered_sync_group_completion"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs",
 ]
 
 [[mutation_owners]]
@@ -9044,6 +9134,14 @@ owner_type = "JoinGroupShutdownRecovery"
 path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs"
 
 [[linear_owners]]
+owner_type = "RecoveredJoinGroupOwnership"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_reconciliation.rs"
+
+[[linear_owners]]
+owner_type = "JoinGroupShutdownReconciliationFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_reconciliation.rs"
+
+[[linear_owners]]
 owner_type = "AcceptedSyncGroupCall"
 path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs"
 
@@ -9098,6 +9196,14 @@ path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_termi
 [[linear_owners]]
 owner_type = "SyncGroupShutdownRecovery"
 path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs"
+
+[[linear_owners]]
+owner_type = "RecoveredSyncGroupOwnership"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_reconciliation.rs"
+
+[[linear_owners]]
+owner_type = "SyncGroupShutdownReconciliationFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_reconciliation.rs"
 
 # Classic membership execution owns deadline transfer and one synchronized
 # host-admission seam without admitting protocol or runtime policy.

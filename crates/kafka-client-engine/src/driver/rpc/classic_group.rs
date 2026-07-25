@@ -7,6 +7,9 @@
 mod join_group_calls;
 #[cfg(test)]
 mod join_group_calls_test;
+mod join_group_reconciliation;
+#[cfg(test)]
+mod join_group_reconciliation_test;
 mod join_group_settlement;
 mod join_group_settlement_owner;
 #[cfg(test)]
@@ -19,6 +22,9 @@ mod join_group_terminal_test;
 mod sync_group_calls;
 #[cfg(test)]
 mod sync_group_calls_test;
+mod sync_group_reconciliation;
+#[cfg(test)]
+mod sync_group_reconciliation_test;
 mod sync_group_settlement;
 mod sync_group_settlement_owner;
 #[cfg(test)]
@@ -33,6 +39,10 @@ pub(crate) use join_group_calls::{
     AcceptedJoinGroupCall, JoinGroupCallPermit, JoinGroupCallReservationError,
     TrackedJoinGroupCalls,
 };
+pub(crate) use join_group_reconciliation::{
+    JoinGroupShutdownReconciliationError, JoinGroupShutdownReconciliationFailure,
+    RecoveredJoinGroupOwnership,
+};
 pub(crate) use join_group_settlement::{
     JoinGroupBeginError, JoinGroupConfirmationError, JoinGroupConfirmationFailure, JoinGroupPoll,
     JoinGroupRestoreError, JoinGroupRestoreFailure, RecoveredJoinGroupConfirmation,
@@ -45,6 +55,10 @@ pub(crate) use join_group_terminal::{
 pub(crate) use sync_group_calls::{
     AcceptedSyncGroupCall, SyncGroupCallPermit, SyncGroupCallReservationError,
     TrackedSyncGroupCalls,
+};
+pub(crate) use sync_group_reconciliation::{
+    RecoveredSyncGroupOwnership, SyncGroupShutdownReconciliationError,
+    SyncGroupShutdownReconciliationFailure,
 };
 pub(crate) use sync_group_settlement::{
     RecoveredSyncGroupConfirmation, SyncGroupBeginError, SyncGroupConfirmationError,

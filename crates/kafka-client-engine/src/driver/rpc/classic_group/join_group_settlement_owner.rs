@@ -2,12 +2,13 @@
 
 use super::{
     join_group_calls::{AcceptedJoinGroupCall, TrackedJoinGroupCall, TrackedJoinGroupCalls},
+    join_group_reconciliation::RecoveredJoinGroupOwnership,
     join_group_settlement::{
         JoinGroupBeginError, JoinGroupConfirmationError, JoinGroupConfirmationFailure,
         JoinGroupRestoreError, JoinGroupRestoreFailure, PendingJoinGroupConfirmation,
         RecoveredJoinGroupConfirmation, SettledJoinGroupCall,
     },
-    join_group_terminal::{JoinGroupCompletionFailure, JoinGroupTerminal, RecoveredJoinGroupCall},
+    join_group_terminal::{JoinGroupCompletionFailure, JoinGroupTerminal},
 };
 
 /// Complete post-driver recovery of every retained Join call state.
@@ -25,22 +26,29 @@ impl JoinGroupShutdownRecovery {
         self.active.capacity()
     }
 
-    pub(crate) fn pop_active(&mut self) -> Option<RecoveredJoinGroupCall> {
+    pub(crate) fn pop_active(&mut self) -> Option<RecoveredJoinGroupOwnership> {
         self.active
             .pop()
             .map(TrackedJoinGroupCall::recover_after_driver_shutdown)
+            .map(RecoveredJoinGroupOwnership::seal_recovered_join_group_active)
     }
 
-    pub(crate) fn take_settled(&mut self) -> Option<JoinGroupTerminal> {
-        self.settled.take()
+    pub(crate) fn take_settled(&mut self) -> Option<RecoveredJoinGroupOwnership> {
+        self.settled
+            .take()
+            .map(RecoveredJoinGroupOwnership::seal_recovered_join_group_settled)
     }
 
-    pub(crate) fn take_pending(&mut self) -> Option<RecoveredJoinGroupConfirmation> {
-        self.pending.take()
+    pub(crate) fn take_pending(&mut self) -> Option<RecoveredJoinGroupOwnership> {
+        self.pending
+            .take()
+            .map(RecoveredJoinGroupOwnership::seal_recovered_join_group_pending)
     }
 
-    pub(crate) fn take_completion(&mut self) -> Option<JoinGroupCompletionFailure> {
-        self.completion.take()
+    pub(crate) fn take_completion(&mut self) -> Option<RecoveredJoinGroupOwnership> {
+        self.completion
+            .take()
+            .map(RecoveredJoinGroupOwnership::seal_recovered_join_group_completion)
     }
 
     pub(crate) fn is_empty(&self) -> bool {

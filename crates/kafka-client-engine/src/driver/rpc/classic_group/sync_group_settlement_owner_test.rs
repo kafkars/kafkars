@@ -132,7 +132,10 @@ fn shutdown_recovery_consumes_registry_and_reuses_preallocated_active_storage() 
     let failure = recovery
         .take_completion()
         .unwrap_or_else(|| panic!("completion ownership must recover"));
-    assert_eq!(failure.into_parts(), (key, CompletionError::Closed));
+    assert_eq!(failure.key(), key);
+    failure
+        .reconcile_sync_group_after_driver_shutdown(accepted(key))
+        .unwrap_or_else(|_failure| panic!("exact completion owner must reconcile"));
     assert!(recovery.is_empty());
 }
 
@@ -146,8 +149,10 @@ fn shutdown_recovery_preserves_settled_and_external_pending_ownership() {
         .take_settled()
         .unwrap_or_else(|| panic!("raw settled terminal must recover"));
     assert_eq!(settled.key(), settled_key);
-    assert_eq!(settled.selected_version(), Some(2));
     assert_eq!(settled_receipt.key(), settled_key);
+    settled
+        .reconcile_sync_group_after_driver_shutdown(settled_receipt)
+        .unwrap_or_else(|_failure| panic!("exact settled owner must reconcile"));
     assert!(settled_recovery.is_empty());
 
     let pending_key = key(2);
@@ -163,6 +168,9 @@ fn shutdown_recovery_preserves_settled_and_external_pending_ownership() {
     assert_eq!(pending.key(), external.key());
     assert_eq!(pending_receipt.key(), external.key());
     assert_eq!(external.selected_version(), Some(2));
+    pending
+        .reconcile_sync_group_after_driver_shutdown(pending_receipt)
+        .unwrap_or_else(|_failure| panic!("exact pending owner must reconcile"));
     assert!(pending_recovery.is_empty());
 }
 

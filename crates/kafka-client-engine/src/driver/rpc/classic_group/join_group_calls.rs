@@ -46,6 +46,12 @@ impl AcceptedJoinGroupCall {
         } = self;
     }
 
+    pub(super) fn consume_join_group_shutdown_receipt(self) {
+        let Self {
+            key: _recovered_key,
+        } = self;
+    }
+
     #[cfg(test)]
     pub(super) const fn from_key_for_test(key: JoinGroupCallKey) -> Self {
         Self::new(key)

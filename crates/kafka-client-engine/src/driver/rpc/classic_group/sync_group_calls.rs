@@ -46,6 +46,12 @@ impl AcceptedSyncGroupCall {
         } = self;
     }
 
+    pub(super) fn consume_sync_group_shutdown_receipt(self) {
+        let Self {
+            key: _recovered_key,
+        } = self;
+    }
+
     #[cfg(test)]
     pub(super) const fn from_key_for_test(key: SyncGroupCallKey) -> Self {
         Self::new(key)

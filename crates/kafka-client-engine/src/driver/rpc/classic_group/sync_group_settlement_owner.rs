@@ -2,12 +2,13 @@
 
 use super::{
     sync_group_calls::{AcceptedSyncGroupCall, TrackedSyncGroupCall, TrackedSyncGroupCalls},
+    sync_group_reconciliation::RecoveredSyncGroupOwnership,
     sync_group_settlement::{
         PendingSyncGroupConfirmation, RecoveredSyncGroupConfirmation, SettledSyncGroupCall,
         SyncGroupBeginError, SyncGroupConfirmationError, SyncGroupConfirmationFailure,
         SyncGroupRestoreError, SyncGroupRestoreFailure,
     },
-    sync_group_terminal::{RecoveredSyncGroupCall, SyncGroupCompletionFailure, SyncGroupTerminal},
+    sync_group_terminal::{SyncGroupCompletionFailure, SyncGroupTerminal},
 };
 
 /// Complete post-driver recovery of every retained Sync call state.
@@ -25,22 +26,29 @@ impl SyncGroupShutdownRecovery {
         self.active.capacity()
     }
 
-    pub(crate) fn pop_active(&mut self) -> Option<RecoveredSyncGroupCall> {
+    pub(crate) fn pop_active(&mut self) -> Option<RecoveredSyncGroupOwnership> {
         self.active
             .pop()
             .map(TrackedSyncGroupCall::recover_after_driver_shutdown)
+            .map(RecoveredSyncGroupOwnership::seal_recovered_sync_group_active)
     }
 
-    pub(crate) fn take_settled(&mut self) -> Option<SyncGroupTerminal> {
-        self.settled.take()
+    pub(crate) fn take_settled(&mut self) -> Option<RecoveredSyncGroupOwnership> {
+        self.settled
+            .take()
+            .map(RecoveredSyncGroupOwnership::seal_recovered_sync_group_settled)
     }
 
-    pub(crate) fn take_pending(&mut self) -> Option<RecoveredSyncGroupConfirmation> {
-        self.pending.take()
+    pub(crate) fn take_pending(&mut self) -> Option<RecoveredSyncGroupOwnership> {
+        self.pending
+            .take()
+            .map(RecoveredSyncGroupOwnership::seal_recovered_sync_group_pending)
     }
 
-    pub(crate) fn take_completion(&mut self) -> Option<SyncGroupCompletionFailure> {
-        self.completion.take()
+    pub(crate) fn take_completion(&mut self) -> Option<RecoveredSyncGroupOwnership> {
+        self.completion
+            .take()
+            .map(RecoveredSyncGroupOwnership::seal_recovered_sync_group_completion)
     }
 
     pub(crate) fn is_empty(&self) -> bool {
