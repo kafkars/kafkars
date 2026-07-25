@@ -1,0 +1,34 @@
+//! Deliberately cloneable classic Heartbeat RPC owners.
+
+#[derive(Clone, Copy)]
+struct TrackedClassicHeartbeatCall;
+#[derive(Clone, Copy)]
+struct AcceptedClassicHeartbeatCall;
+#[derive(Clone, Copy)]
+struct ClassicHeartbeatCallPermit;
+#[derive(Clone, Copy)]
+struct TrackedClassicHeartbeatCalls;
+#[derive(Clone, Copy)]
+struct SettledClassicHeartbeatCall;
+#[derive(Clone, Copy)]
+struct PendingClassicHeartbeatConfirmation;
+#[derive(Clone, Copy)]
+struct RecoveredClassicHeartbeatConfirmation;
+#[derive(Clone, Copy)]
+struct ClassicHeartbeatConfirmationFailure;
+#[derive(Clone, Copy)]
+struct ClassicHeartbeatRestoreFailure;
+#[derive(Clone, Copy)]
+struct ClassicHeartbeatTerminal;
+#[derive(Clone, Copy)]
+struct ClassicHeartbeatAdmissionFailure;
+#[derive(Clone, Copy)]
+struct ClassicHeartbeatCompletionFailure;
+#[derive(Clone, Copy)]
+struct RecoveredClassicHeartbeatCall;
+#[derive(Clone, Copy)]
+struct ClassicHeartbeatShutdownRecovery;
+#[derive(Clone, Copy)]
+struct RecoveredClassicHeartbeatOwnership;
+#[derive(Clone, Copy)]
+struct ClassicHeartbeatShutdownReconciliationFailure;
