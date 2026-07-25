@@ -17,6 +17,7 @@ use crate::{
     protocol::consumer::{
         ClassicGroupCommitSession, GroupOffsetCommitEntryReservation,
         GroupOffsetCommitResultReservation, GroupOffsetCommitTopicName, PreparedGroupOffsetCommit,
+        PreparedGroupOffsetCommitRequest, group_offset_commit_request,
     },
 };
 
@@ -30,9 +31,13 @@ fn exactly_eight_accepted_calls_occupy_the_configured_first_lane() {
         let permit = calls
             .try_reserve_group_commit()
             .unwrap_or_else(|| panic!("slot {operation} must be available"));
+        let prepared = prepared(operation);
+        let request = PreparedGroupOffsetCommitRequest::from_request_for_test(
+            group_offset_commit_request(&prepared),
+        );
         assert_eq!(
             permit
-                .submit(&owner, prepared(operation))
+                .submit_prebuilt(&owner, prepared, request)
                 .unwrap_or_else(|_| panic!("driver accepts call {operation}")),
             GroupOffsetCommitInput::DriverAccepted
         );
@@ -63,8 +68,12 @@ fn driver_admission_failure_recovers_prepared_before_core_rejection() {
     let permit = calls
         .try_reserve_group_commit()
         .unwrap_or_else(|| panic!("one slot"));
+    let prepared = prepared(12);
+    let request = PreparedGroupOffsetCommitRequest::from_request_for_test(
+        group_offset_commit_request(&prepared),
+    );
     let failure = result_error(
-        permit.submit(&owner, prepared(12)),
+        permit.submit_prebuilt(&owner, prepared, request),
         "closed driver rejects definitely unsent",
     );
     let (prepared, input, source) = failure.into_parts();

@@ -103,6 +103,10 @@ fn pre_driver_failures_are_not_sent_and_assign_one_terminal() {
             GroupOffsetCommitFailureKind::DriverRejected,
         ),
         (
+            GroupOffsetCommitInput::ExecutionUnavailable,
+            GroupOffsetCommitFailureKind::ExecutionUnavailable,
+        ),
+        (
             GroupOffsetCommitInput::DeadlineElapsed {
                 delivery: DeliveryStatus::NotSent,
             },

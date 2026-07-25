@@ -62,29 +62,13 @@ mod describe_topics_terminal_test;
     expect(dead_code, reason = "awaiting direct-consumer executor")
 )]
 mod fetch;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "awaiting classic-group commit executor")
-)]
 mod group_offset_commit_calls;
 #[cfg(test)]
 mod group_offset_commit_calls_test;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "awaiting classic-group commit executor")
-)]
 mod group_offset_commit_recovery;
 #[cfg(test)]
 mod group_offset_commit_recovery_test;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "awaiting classic-group commit executor")
-)]
 mod group_offset_commit_settlement;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "awaiting classic-group commit executor")
-)]
 mod group_offset_commit_settlement_owner;
 #[cfg(test)]
 mod group_offset_commit_settlement_owner_test;
@@ -145,6 +129,9 @@ pub(crate) use fetch::{
     StaleFetchConfirmationError, TrackedFetchCalls, classify_fetch_admission,
     classify_fetch_request_error,
 };
+pub(crate) use group_offset_commit_calls::TrackedGroupOffsetCommitCalls;
+pub(crate) use group_offset_commit_recovery::GroupOffsetCommitShutdownRecovery;
+pub(crate) use group_offset_commit_settlement::GroupOffsetCommitPoll;
 pub(crate) use incremental_alter_configs_calls::{
     IncrementalAlterConfigsCalls, IncrementalAlterConfigsCompletionFailure,
 };

@@ -7,6 +7,9 @@ struct ClassicGroupCommitSession;
 struct PreparedGroupOffsetCommit;
 
 #[derive(Clone, Copy)]
+struct PreparedGroupOffsetCommitRequest;
+
+#[derive(Clone, Copy)]
 struct GroupOffsetCommitEntryReservation;
 
 #[derive(Clone, Copy)]
@@ -22,7 +25,7 @@ struct GroupOffsetCommitCallPermit;
 struct TrackedGroupOffsetCommitCall;
 
 #[derive(Clone, Copy)]
-struct GroupOffsetCommitAdmissionFailure;
+struct GroupOffsetCommitPrebuiltAdmissionFailure;
 
 #[derive(Clone, Copy)]
 struct GroupOffsetCommitCompletionFailure;

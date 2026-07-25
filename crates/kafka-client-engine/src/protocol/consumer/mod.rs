@@ -14,10 +14,11 @@ pub(crate) use super::request_timeout::remaining_timeout_ms;
 #[expect(unused_imports, reason = "awaiting classic-group commit executor")]
 pub(crate) use group_offset_commit::{
     ClassicGroupCommitSession, GroupOffsetCommitEntryReservation,
-    GroupOffsetCommitEntryReservationError, GroupOffsetCommitProtocolFailure,
+    GroupOffsetCommitEntryReservationError, GroupOffsetCommitPreparationError,
+    GroupOffsetCommitProtocolFailure, GroupOffsetCommitRequestPreparationError,
     GroupOffsetCommitResultReservation, GroupOffsetCommitResultReservationError,
-    GroupOffsetCommitTopicName, PreparedGroupOffsetCommit, group_offset_commit_request,
-    normalize_group_offset_commit_response,
+    GroupOffsetCommitTopicName, PreparedGroupOffsetCommit, PreparedGroupOffsetCommitRequest,
+    group_offset_commit_request, normalize_group_offset_commit_response,
 };
 pub(crate) use list_offsets_model::{
     ListOffsetsIsolation, ListOffsetsOutcome, NormalizedListOffsetsResponse, ResolvedPosition,

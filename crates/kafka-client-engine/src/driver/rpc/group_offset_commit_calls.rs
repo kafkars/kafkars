@@ -4,13 +4,13 @@ use kafka_client_core::GroupOffsetCommitInput;
 use kafka_driver::RoutedCall;
 use kafka_wire::OffsetCommitResponse;
 
-use crate::protocol::consumer::{PreparedGroupOffsetCommit, group_offset_commit_request};
+use crate::protocol::consumer::{PreparedGroupOffsetCommit, PreparedGroupOffsetCommitRequest};
 
 use super::{
     super::DriverOwner,
     group_offset_commit_recovery::{
-        GroupOffsetCommitAdmissionFailure, GroupOffsetCommitCompletionFailure,
-        GroupOffsetCommitCompletionObservation, GroupOffsetCommitShutdownRecovery,
+        GroupOffsetCommitCompletionFailure, GroupOffsetCommitCompletionObservation,
+        GroupOffsetCommitPrebuiltAdmissionFailure, GroupOffsetCommitShutdownRecovery,
         RecoveredGroupOffsetCommitSettlement,
     },
     group_offset_commit_settlement::{
@@ -24,6 +24,14 @@ pub(super) struct TrackedGroupOffsetCommitCall {
     call: RoutedCall<OffsetCommitResponse>,
 }
 
+impl TrackedGroupOffsetCommitCall {
+    pub(super) fn into_prepared(self) -> PreparedGroupOffsetCommit {
+        let Self { prepared, call } = self;
+        drop(call);
+        prepared
+    }
+}
+
 /// Preflighted ownership of exactly one bounded group commit call slot.
 #[must_use = "a reserved group commit call slot must be submitted or released"]
 pub(crate) struct GroupOffsetCommitCallPermit<'a> {
@@ -31,28 +39,28 @@ pub(crate) struct GroupOffsetCommitCallPermit<'a> {
 }
 
 impl GroupOffsetCommitCallPermit<'_> {
-    /// Submits after the future group owner has checked the core deadline at
-    /// the immediate handoff boundary; this clock-free lane preserves only
-    /// the already-captured transport `Instant`.
+    /// Moves the already-built generated request across the driver boundary.
     #[allow(
         clippy::result_large_err,
-        reason = "driver rejection must return the exact prepared group commit owner"
+        reason = "driver rejection must return both exact prepared owners"
     )]
-    pub(crate) fn submit(
+    pub(crate) fn submit_prebuilt(
         self,
         driver: &DriverOwner,
         prepared: PreparedGroupOffsetCommit,
-    ) -> Result<GroupOffsetCommitInput, GroupOffsetCommitAdmissionFailure> {
-        let generated = group_offset_commit_request(&prepared);
+        request: PreparedGroupOffsetCommitRequest,
+    ) -> Result<GroupOffsetCommitInput, GroupOffsetCommitPrebuiltAdmissionFailure> {
         let call = match driver.submit_tracked_group_offset_commit(
             prepared.group().as_ref(),
-            generated,
+            request.into_generated_offset_commit_request(),
             prepared.operation_deadline().transport(),
             prepared.requires_leader_epoch(),
         ) {
             Ok(call) => call,
             Err(source) => {
-                return Err(GroupOffsetCommitAdmissionFailure::new(prepared, source));
+                return Err(GroupOffsetCommitPrebuiltAdmissionFailure::new(
+                    prepared, source,
+                ));
             }
         };
         self.calls
@@ -71,14 +79,22 @@ pub(crate) struct TrackedGroupOffsetCommitCalls {
 }
 
 impl TrackedGroupOffsetCommitCalls {
+    #[cfg(test)]
     pub(crate) fn new(capacity: usize) -> Self {
-        Self {
+        Self::try_new(capacity)
+            .unwrap_or_else(|_error| panic!("test group commit call reservation failed"))
+    }
+
+    pub(crate) fn try_new(capacity: usize) -> Result<Self, std::collections::TryReserveError> {
+        let mut calls = Vec::new();
+        calls.try_reserve_exact(capacity)?;
+        Ok(Self {
             capacity,
-            calls: Vec::with_capacity(capacity),
+            calls,
             settled: None,
             pending_confirmation: None,
             completion_failure: None,
-        }
+        })
     }
 
     pub(crate) fn try_reserve_group_commit(&mut self) -> Option<GroupOffsetCommitCallPermit<'_>> {
@@ -147,11 +163,7 @@ impl TrackedGroupOffsetCommitCalls {
     pub(crate) fn recover_group_commits_after_driver_shutdown(
         &mut self,
     ) -> GroupOffsetCommitShutdownRecovery {
-        let active = self
-            .calls
-            .drain(..)
-            .map(|tracked| tracked.prepared)
-            .collect();
+        let active = core::mem::take(&mut self.calls);
         let settled = self.settled.take().map(|settled| {
             let (operation_id, input) = settled.recover_group_commit_after_driver_shutdown();
             RecoveredGroupOffsetCommitSettlement::new(operation_id, input)
@@ -168,7 +180,7 @@ impl TrackedGroupOffsetCommitCalls {
     }
 
     #[cfg(test)]
-    pub(super) fn install_settlement_for_test(
+    pub(crate) fn install_settlement_for_test(
         &mut self,
         operation_id: kafka_client_core::OperationId,
         input: GroupOffsetCommitInput,

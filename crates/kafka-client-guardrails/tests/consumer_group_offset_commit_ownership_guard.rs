@@ -17,7 +17,7 @@ const SETTLEMENT_OWNER_PATH: &str =
     "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement_owner.rs";
 const SNAPSHOT_PATH: &str =
     "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/snapshot.rs";
-const LINEAR_OWNERS: [(&str, &str); 16] = [
+const LINEAR_OWNERS: [(&str, &str); 17] = [
     (
         "ClassicGroupCommitSession",
         "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/session.rs",
@@ -25,6 +25,10 @@ const LINEAR_OWNERS: [(&str, &str); 16] = [
     (
         "PreparedGroupOffsetCommit",
         "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/model.rs",
+    ),
+    (
+        "PreparedGroupOffsetCommitRequest",
+        "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/prepared_request.rs",
     ),
     (
         "GroupOffsetCommitEntryReservation",
@@ -41,7 +45,7 @@ const LINEAR_OWNERS: [(&str, &str); 16] = [
     ("GroupOffsetCommitCallPermit", CALL_PATH),
     ("TrackedGroupOffsetCommitCall", CALL_PATH),
     ("TrackedGroupOffsetCommitCalls", CALL_PATH),
-    ("GroupOffsetCommitAdmissionFailure", RECOVERY_PATH),
+    ("GroupOffsetCommitPrebuiltAdmissionFailure", RECOVERY_PATH),
     ("GroupOffsetCommitCompletionFailure", RECOVERY_PATH),
     ("GroupOffsetCommitCompletionRecovery", RECOVERY_PATH),
     ("RecoveredGroupOffsetCommitSettlement", RECOVERY_PATH),
@@ -122,7 +126,7 @@ fn route_token_discard_is_confined_to_settlement_owner() {
 #[test]
 fn entry_reservation_transfer_is_confined_to_snapshot_owner() {
     let config = load_config(&workspace_root());
-    for method in ["into_entries", "recover_entries"] {
+    for method in ["into_entries", "recover_group_offset_commit_entries"] {
         let rules = config
             .method_capabilities
             .iter()
@@ -133,13 +137,15 @@ fn entry_reservation_transfer_is_confined_to_snapshot_owner() {
     }
 
     let (root, _) = fixture_files("consumer_group_offset_commit_ownership");
-    let fixture_rules = ["into_entries", "recover_entries"].map(|method| MethodCapabilityRule {
-        root: "src".into(),
-        method: method.into(),
-        allowed_paths: vec!["src/entry_reservation_owner.rs".into()],
+    let fixture_rules = ["into_entries", "recover_group_offset_commit_entries"].map(|method| {
+        MethodCapabilityRule {
+            root: "src".into(),
+            method: method.into(),
+            allowed_paths: vec!["src/entry_reservation_owner.rs".into()],
+        }
     });
     let violations = method_capability_violations(&root, &fixture_rules);
-    for method in ["into_entries", "recover_entries"] {
+    for method in ["into_entries", "recover_group_offset_commit_entries"] {
         assert!(violations.iter().any(|violation| {
             violation.contains("entry_reservation_intruder.rs") && violation.contains(method)
         }));

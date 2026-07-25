@@ -166,6 +166,8 @@ pub enum GroupOffsetCommitFailureKind {
     DeadlineElapsed,
     /// The driver rejected the request before transport ownership.
     DriverRejected,
+    /// The engine failed before transport ownership despite reserved capacity.
+    ExecutionUnavailable,
     /// Driver-owned transport execution failed.
     Transport,
     /// The broker cannot represent the required commit semantics.

@@ -2,5 +2,5 @@
 
 fn steal<T>(reservation: T) {
     reservation.into_entries();
-    reservation.recover_entries();
+    reservation.recover_group_offset_commit_entries();
 }

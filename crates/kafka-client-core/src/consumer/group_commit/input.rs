@@ -13,6 +13,8 @@ pub enum GroupOffsetCommitInput {
     DriverAccepted,
     /// The driver rejected the request before transport ownership.
     DriverRejected,
+    /// The engine could not materialize an already capacity-reserved attempt.
+    ExecutionUnavailable,
     /// The original deadline elapsed with ownership-authoritative certainty.
     DeadlineElapsed {
         /// `NotSent` before admission or driver-authoritative certainty after it.

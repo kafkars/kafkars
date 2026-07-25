@@ -161,7 +161,10 @@ fn materialize_entries(
     else {
         return Err((
             GroupOffsetCommitPreparationErrorKind::UnexpectedEffect,
-            GroupOffsetCommitEntryReservation::recover_entries(entry_count, entries),
+            GroupOffsetCommitEntryReservation::recover_group_offset_commit_entries(
+                entry_count,
+                entries,
+            ),
         ));
     };
     for entry in checkpoint.entries() {
@@ -171,7 +174,10 @@ fn materialize_entries(
         else {
             return Err((
                 GroupOffsetCommitPreparationErrorKind::UnknownTopic(entry.topic_id()),
-                GroupOffsetCommitEntryReservation::recover_entries(entry_count, entries),
+                GroupOffsetCommitEntryReservation::recover_group_offset_commit_entries(
+                    entry_count,
+                    entries,
+                ),
             ));
         };
         let Ok(partition_index) = i32::try_from(entry.partition().get()) else {
@@ -180,7 +186,10 @@ fn materialize_entries(
                     topic_id: entry.topic_id(),
                     partition: entry.partition(),
                 },
-                GroupOffsetCommitEntryReservation::recover_entries(entry_count, entries),
+                GroupOffsetCommitEntryReservation::recover_group_offset_commit_entries(
+                    entry_count,
+                    entries,
+                ),
             ));
         };
         entries.push(PreparedGroupOffsetCommitEntry {

@@ -6,6 +6,7 @@
 mod entry_reservation;
 mod model;
 mod preparation;
+mod prepared_request;
 mod request;
 mod response;
 mod result_reservation;
@@ -17,6 +18,10 @@ pub(crate) use entry_reservation::{
     GroupOffsetCommitEntryReservation, GroupOffsetCommitEntryReservationError,
 };
 pub(crate) use model::PreparedGroupOffsetCommit;
+pub(crate) use preparation::GroupOffsetCommitPreparationError;
+pub(crate) use prepared_request::{
+    GroupOffsetCommitRequestPreparationError, PreparedGroupOffsetCommitRequest,
+};
 pub(crate) use request::group_offset_commit_request;
 pub(crate) use response::{
     GroupOffsetCommitProtocolFailure, normalize_group_offset_commit_response,
@@ -34,6 +39,8 @@ mod model_bounds_test;
 mod model_recovery_test;
 #[cfg(test)]
 mod model_test;
+#[cfg(test)]
+mod prepared_request_test;
 #[cfg(test)]
 mod request_test;
 #[cfg(test)]

@@ -86,7 +86,7 @@ impl GroupOffsetCommitEntryReservation {
         self.entries
     }
 
-    pub(super) fn recover_entries(
+    pub(super) fn recover_group_offset_commit_entries(
         entry_count: usize,
         mut entries: Vec<PreparedGroupOffsetCommitEntry>,
     ) -> Self {

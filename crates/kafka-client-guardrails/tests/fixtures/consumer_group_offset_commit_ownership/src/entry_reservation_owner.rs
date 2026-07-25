@@ -4,6 +4,6 @@ fn transfer<T>(reservation: T) {
     reservation.into_entries();
 }
 
-fn recover_entries<T>(reservation: T) {
-    reservation.recover_entries();
+fn recover<T>(reservation: T) {
+    reservation.recover_group_offset_commit_entries();
 }

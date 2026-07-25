@@ -5,17 +5,20 @@ use kafka_driver::CompletionError;
 
 use crate::protocol::consumer::PreparedGroupOffsetCommit;
 
-use super::group_offset_commit_submission::GroupOffsetCommitSubmitError;
+use super::{
+    group_offset_commit_calls::TrackedGroupOffsetCommitCall,
+    group_offset_commit_submission::GroupOffsetCommitSubmitError,
+};
 
-/// Definitely-unsent rejection retaining the exact prepared owner.
-#[must_use = "driver admission rejection still owns the prepared group commit"]
+/// Definitely-unsent rejection after moving one prebuilt generated request.
+#[must_use = "driver admission rejection still owns the prepared correlation owner"]
 #[derive(Debug)]
-pub(crate) struct GroupOffsetCommitAdmissionFailure {
+pub(crate) struct GroupOffsetCommitPrebuiltAdmissionFailure {
     prepared: PreparedGroupOffsetCommit,
     source: GroupOffsetCommitSubmitError,
 }
 
-impl GroupOffsetCommitAdmissionFailure {
+impl GroupOffsetCommitPrebuiltAdmissionFailure {
     pub(super) const fn new(
         prepared: PreparedGroupOffsetCommit,
         source: GroupOffsetCommitSubmitError,
@@ -46,10 +49,18 @@ pub(crate) struct GroupOffsetCommitCompletionObservation {
 }
 
 impl GroupOffsetCommitCompletionObservation {
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "future host diagnostics consume this observation")
+    )]
     pub(crate) const fn operation_id(self) -> OperationId {
         self.operation_id
     }
 
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "future host diagnostics consume this observation")
+    )]
     pub(crate) const fn source(self) -> CompletionError {
         self.source
     }
@@ -115,7 +126,7 @@ impl RecoveredGroupOffsetCommitSettlement {
 /// Complete post-driver recovery of every retained group commit state.
 #[must_use = "shutdown recovery retains accepted group commit ownership"]
 pub(crate) struct GroupOffsetCommitShutdownRecovery {
-    active: Vec<PreparedGroupOffsetCommit>,
+    active: Vec<TrackedGroupOffsetCommitCall>,
     settled: Option<RecoveredGroupOffsetCommitSettlement>,
     pending_operation_id: Option<OperationId>,
     completion: Option<GroupOffsetCommitCompletionRecovery>,
@@ -123,7 +134,7 @@ pub(crate) struct GroupOffsetCommitShutdownRecovery {
 
 impl GroupOffsetCommitShutdownRecovery {
     pub(super) const fn new(
-        active: Vec<PreparedGroupOffsetCommit>,
+        active: Vec<TrackedGroupOffsetCommitCall>,
         settled: Option<RecoveredGroupOffsetCommitSettlement>,
         pending_operation_id: Option<OperationId>,
         completion: Option<GroupOffsetCommitCompletionRecovery>,
@@ -136,6 +147,7 @@ impl GroupOffsetCommitShutdownRecovery {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn into_parts(
         self,
     ) -> (
@@ -145,11 +157,43 @@ impl GroupOffsetCommitShutdownRecovery {
         Option<GroupOffsetCommitCompletionRecovery>,
     ) {
         (
-            self.active,
+            self.active
+                .into_iter()
+                .map(TrackedGroupOffsetCommitCall::into_prepared)
+                .collect(),
             self.settled,
             self.pending_operation_id,
             self.completion,
         )
+    }
+
+    pub(crate) fn pop_active(&mut self) -> Option<PreparedGroupOffsetCommit> {
+        self.active
+            .pop()
+            .map(TrackedGroupOffsetCommitCall::into_prepared)
+    }
+
+    pub(crate) fn take_settled(&mut self) -> Option<RecoveredGroupOffsetCommitSettlement> {
+        self.settled.take()
+    }
+
+    pub(crate) const fn pending_operation_id(&self) -> Option<OperationId> {
+        self.pending_operation_id
+    }
+
+    pub(crate) fn clear_pending_operation_id(&mut self) {
+        self.pending_operation_id = None;
+    }
+
+    pub(crate) fn take_completion(&mut self) -> Option<GroupOffsetCommitCompletionRecovery> {
+        self.completion.take()
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.active.is_empty()
+            && self.settled.is_none()
+            && self.pending_operation_id.is_none()
+            && self.completion.is_none()
     }
 }
 

@@ -104,6 +104,10 @@ impl GroupOffsetCommitMachine {
                 GroupOffsetCommitFailureKind::DriverRejected,
                 DeliveryStatus::NotSent,
             ),
+            GroupOffsetCommitInput::ExecutionUnavailable => self.finish_failure(
+                GroupOffsetCommitFailureKind::ExecutionUnavailable,
+                DeliveryStatus::NotSent,
+            ),
             GroupOffsetCommitInput::DeadlineElapsed { delivery } => {
                 self.finish_failure(GroupOffsetCommitFailureKind::DeadlineElapsed, delivery)
             }
@@ -148,6 +152,7 @@ impl GroupOffsetCommitMachine {
                 GroupOffsetCommitState::AwaitingDriver,
                 GroupOffsetCommitInput::DriverAccepted
                 | GroupOffsetCommitInput::DriverRejected
+                | GroupOffsetCommitInput::ExecutionUnavailable
                 | GroupOffsetCommitInput::DeadlineElapsed {
                     delivery: DeliveryStatus::NotSent,
                 },

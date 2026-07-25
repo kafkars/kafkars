@@ -26,12 +26,13 @@ pub(crate) use rpc::{
     DescribeConfigsCalls, DescribeConfigsCompletionFailure, DescribeTopicsCalls,
     DescribeTopicsCompletionFailure, FetchBeginSettlementError, FetchCallAdmission,
     FetchCompletionObservation, FetchConfirmationError, FetchControlPending, FetchPoll,
-    FetchRecovery, FetchRequestPreparationError, FetchTerminal, IncrementalAlterConfigsCalls,
+    FetchRecovery, FetchRequestPreparationError, FetchTerminal, GroupOffsetCommitPoll,
+    GroupOffsetCommitShutdownRecovery, IncrementalAlterConfigsCalls,
     IncrementalAlterConfigsCompletionFailure, PartitionFetchRequest, PositionAdmissionFailure,
     PositionCompletionFailure, PositionRequestPreparationError, PositionResolutionRequest,
     ProduceCompletionFailure, ProducerIdentityCompletionFailure, StaleFetchConfirmationError,
     TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls,
-    TrackedFetchCalls, TrackedPositionCalls, TrackedProduceCalls, TrackedProducerIdentityCalls,
-    classify_fetch_admission, classify_fetch_request_error,
+    TrackedFetchCalls, TrackedGroupOffsetCommitCalls, TrackedPositionCalls, TrackedProduceCalls,
+    TrackedProducerIdentityCalls, classify_fetch_admission, classify_fetch_request_error,
 };
 pub(crate) use wake::{ReactorWake, ReactorWakeError};
