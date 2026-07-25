@@ -30,11 +30,12 @@ mod sync_group_terminal;
 mod sync_group_terminal_test;
 
 pub(crate) use join_group_calls::{
-    JoinGroupCallPermit, JoinGroupCallReservationError, TrackedJoinGroupCalls,
+    AcceptedJoinGroupCall, JoinGroupCallPermit, JoinGroupCallReservationError,
+    TrackedJoinGroupCalls,
 };
 pub(crate) use join_group_settlement::{
-    JoinGroupBeginError, JoinGroupConfirmationError, JoinGroupPoll, JoinGroupRestoreError,
-    JoinGroupRestoreFailure, RecoveredJoinGroupConfirmation,
+    JoinGroupBeginError, JoinGroupConfirmationError, JoinGroupConfirmationFailure, JoinGroupPoll,
+    JoinGroupRestoreError, JoinGroupRestoreFailure, RecoveredJoinGroupConfirmation,
 };
 pub(crate) use join_group_settlement_owner::JoinGroupShutdownRecovery;
 pub(crate) use join_group_terminal::{
@@ -42,11 +43,12 @@ pub(crate) use join_group_terminal::{
     JoinGroupCompletionObservation, JoinGroupTerminal, RecoveredJoinGroupCall,
 };
 pub(crate) use sync_group_calls::{
-    SyncGroupCallPermit, SyncGroupCallReservationError, TrackedSyncGroupCalls,
+    AcceptedSyncGroupCall, SyncGroupCallPermit, SyncGroupCallReservationError,
+    TrackedSyncGroupCalls,
 };
 pub(crate) use sync_group_settlement::{
-    RecoveredSyncGroupConfirmation, SyncGroupBeginError, SyncGroupConfirmationError, SyncGroupPoll,
-    SyncGroupRestoreError, SyncGroupRestoreFailure,
+    RecoveredSyncGroupConfirmation, SyncGroupBeginError, SyncGroupConfirmationError,
+    SyncGroupConfirmationFailure, SyncGroupPoll, SyncGroupRestoreError, SyncGroupRestoreFailure,
 };
 pub(crate) use sync_group_settlement_owner::SyncGroupShutdownRecovery;
 pub(crate) use sync_group_terminal::{

@@ -4,8 +4,8 @@ use kafka_driver::{ApiVersion, CompletionError};
 use kafka_wire::JoinGroupResponse;
 
 use super::{
-    join_group_calls::TrackedJoinGroupCalls,
-    join_group_settlement::{JoinGroupBeginError, JoinGroupPoll},
+    join_group_calls::{AcceptedJoinGroupCall, TrackedJoinGroupCalls},
+    join_group_settlement::{JoinGroupBeginError, JoinGroupConfirmationError, JoinGroupPoll},
     join_group_terminal::retain_join_group_terminal,
     join_group_terminal_test::{deadline, key, key_with_deadline},
 };
@@ -16,14 +16,16 @@ fn same_cycle_and_deadline_from_another_group_cannot_take_settlement() {
     let first = key_with_deadline(1, deadline);
     let second = key_with_deadline(2, deadline);
     let mut calls = terminal_calls(first);
+    let second_receipt = accepted(second);
 
     assert_eq!(
-        calls.begin_join_group_settlement(second).err(),
+        calls.begin_join_group_settlement(&second_receipt).err(),
         Some(JoinGroupBeginError::KeyMismatch {
             settled: first,
             supplied: second,
         })
     );
+    assert_eq!(second_receipt.key(), second);
     assert_eq!(
         calls.poll_join_group(),
         Ok(JoinGroupPoll::TerminalReady { key: first })
@@ -31,11 +33,38 @@ fn same_cycle_and_deadline_from_another_group_cannot_take_settlement() {
 }
 
 #[test]
+fn changed_deadline_receipt_cannot_take_settlement_and_remains_owned() {
+    let original_deadline = deadline();
+    let settled_key = key_with_deadline(1, original_deadline);
+    let changed_deadline = crate::clock::OperationDeadline::from_parts_for_test(
+        kafka_client_core::Deadline::from_tick(original_deadline.core().tick() + 1),
+        original_deadline.transport(),
+    );
+    let changed_key = key_with_deadline(1, changed_deadline);
+    let changed_receipt = accepted(changed_key);
+    let mut calls = terminal_calls(settled_key);
+
+    assert_eq!(
+        calls.begin_join_group_settlement(&changed_receipt).err(),
+        Some(JoinGroupBeginError::KeyMismatch {
+            settled: settled_key,
+            supplied: changed_key,
+        })
+    );
+    assert_eq!(changed_receipt.key(), changed_key);
+    assert_eq!(
+        calls.poll_join_group(),
+        Ok(JoinGroupPoll::TerminalReady { key: settled_key })
+    );
+}
+
+#[test]
 fn failed_interpretation_can_restore_the_exact_raw_terminal() {
     let key = key(1);
     let mut calls = terminal_calls(key);
+    let accepted = accepted(key);
     let terminal = calls
-        .begin_join_group_settlement(key)
+        .begin_join_group_settlement(&accepted)
         .unwrap_or_else(|error| panic!("test settlement must begin: {error:?}"));
 
     calls
@@ -43,12 +72,46 @@ fn failed_interpretation_can_restore_the_exact_raw_terminal() {
         .unwrap_or_else(|_failure| panic!("exact terminal must restore"));
 
     let terminal = calls
-        .begin_join_group_settlement(key)
+        .begin_join_group_settlement(&accepted)
         .unwrap_or_else(|error| panic!("restored settlement must begin: {error:?}"));
     assert_eq!(terminal.selected_version(), Some(3));
     calls
-        .confirm_join_group_settlement(key)
-        .unwrap_or_else(|error| panic!("exact route confirmation must finish: {error:?}"));
+        .confirm_join_group_settlement(accepted)
+        .unwrap_or_else(|_failure| panic!("exact route confirmation must finish"));
+    assert_eq!(calls.retained_join_group_count(), 0);
+}
+
+#[test]
+fn mismatched_confirmation_returns_the_receipt_without_mutating_pending_ownership() {
+    let pending_key = key(1);
+    let mut calls = terminal_calls(pending_key);
+    let exact_receipt = accepted(pending_key);
+    let _terminal = calls
+        .begin_join_group_settlement(&exact_receipt)
+        .unwrap_or_else(|error| panic!("test settlement must begin: {error:?}"));
+
+    let wrong_key = key(2);
+    let failure = calls
+        .confirm_join_group_settlement(accepted(wrong_key))
+        .err()
+        .unwrap_or_else(|| panic!("cross-group receipt must be fenced"));
+    let (wrong_receipt, error) = failure.into_parts();
+    assert_eq!(wrong_receipt.key(), wrong_key);
+    assert_eq!(
+        error,
+        JoinGroupConfirmationError::KeyMismatch {
+            pending: pending_key,
+            supplied: wrong_key,
+        }
+    );
+    assert_eq!(
+        calls.poll_join_group(),
+        Ok(JoinGroupPoll::ConfirmationPending { key: pending_key })
+    );
+
+    calls
+        .confirm_join_group_settlement(exact_receipt)
+        .unwrap_or_else(|_failure| panic!("exact receipt must confirm"));
     assert_eq!(calls.retained_join_group_count(), 0);
 }
 
@@ -76,6 +139,7 @@ fn shutdown_recovery_consumes_registry_and_reuses_preallocated_active_storage() 
 #[test]
 fn shutdown_recovery_preserves_settled_and_external_pending_ownership() {
     let settled_key = key(1);
+    let settled_receipt = accepted(settled_key);
     let settled_calls = terminal_calls(settled_key);
     let mut settled_recovery = settled_calls.recover_join_groups_after_driver_shutdown();
     let settled = settled_recovery
@@ -83,20 +147,27 @@ fn shutdown_recovery_preserves_settled_and_external_pending_ownership() {
         .unwrap_or_else(|| panic!("raw settled terminal must recover"));
     assert_eq!(settled.key(), settled_key);
     assert_eq!(settled.selected_version(), Some(3));
+    assert_eq!(settled_receipt.key(), settled_key);
     assert!(settled_recovery.is_empty());
 
     let pending_key = key(2);
     let mut pending_calls = terminal_calls(pending_key);
+    let pending_receipt = accepted(pending_key);
     let external = pending_calls
-        .begin_join_group_settlement(pending_key)
+        .begin_join_group_settlement(&pending_receipt)
         .unwrap_or_else(|error| panic!("test settlement must begin: {error:?}"));
     let mut pending_recovery = pending_calls.recover_join_groups_after_driver_shutdown();
     let pending = pending_recovery
         .take_pending()
         .unwrap_or_else(|| panic!("pending route owner must recover"));
     assert_eq!(pending.key(), external.key());
+    assert_eq!(pending_receipt.key(), external.key());
     assert_eq!(external.selected_version(), Some(3));
     assert!(pending_recovery.is_empty());
+}
+
+fn accepted(key: super::join_group_terminal::JoinGroupCallKey) -> AcceptedJoinGroupCall {
+    AcceptedJoinGroupCall::from_key_for_test(key)
 }
 
 fn terminal_calls(key: super::join_group_terminal::JoinGroupCallKey) -> TrackedJoinGroupCalls {

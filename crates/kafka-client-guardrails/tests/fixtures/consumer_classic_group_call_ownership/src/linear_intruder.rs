@@ -1,6 +1,8 @@
 //! Deliberately cloneable classic-group call lifecycle owners.
 
 #[derive(Clone, Copy)]
+struct AcceptedJoinGroupCall;
+#[derive(Clone, Copy)]
 struct JoinGroupCallPermit;
 #[derive(Clone, Copy)]
 struct TrackedJoinGroupCall;
@@ -12,6 +14,8 @@ struct SettledJoinGroupCall;
 struct PendingJoinGroupConfirmation;
 #[derive(Clone, Copy)]
 struct RecoveredJoinGroupConfirmation;
+#[derive(Clone, Copy)]
+struct JoinGroupConfirmationFailure;
 #[derive(Clone, Copy)]
 struct JoinGroupRestoreFailure;
 #[derive(Clone, Copy)]
@@ -25,6 +29,8 @@ struct RecoveredJoinGroupCall;
 #[derive(Clone, Copy)]
 struct JoinGroupShutdownRecovery;
 #[derive(Clone, Copy)]
+struct AcceptedSyncGroupCall;
+#[derive(Clone, Copy)]
 struct SyncGroupCallPermit;
 #[derive(Clone, Copy)]
 struct TrackedSyncGroupCall;
@@ -36,6 +42,8 @@ struct SettledSyncGroupCall;
 struct PendingSyncGroupConfirmation;
 #[derive(Clone, Copy)]
 struct RecoveredSyncGroupConfirmation;
+#[derive(Clone, Copy)]
+struct SyncGroupConfirmationFailure;
 #[derive(Clone, Copy)]
 struct SyncGroupRestoreFailure;
 #[derive(Clone, Copy)]

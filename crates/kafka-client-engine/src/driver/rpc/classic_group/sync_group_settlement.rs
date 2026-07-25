@@ -2,7 +2,10 @@
 
 use kafka_driver::RouteFailureToken;
 
-use super::sync_group_terminal::{SyncGroupCallKey, SyncGroupTerminal};
+use super::{
+    sync_group_calls::AcceptedSyncGroupCall,
+    sync_group_terminal::{SyncGroupCallKey, SyncGroupTerminal},
+};
 
 pub(super) struct SettledSyncGroupCall {
     terminal: SyncGroupTerminal,
@@ -110,6 +113,26 @@ pub(crate) enum SyncGroupConfirmationError {
         pending: SyncGroupCallKey,
         supplied: SyncGroupCallKey,
     },
+}
+
+/// Failed confirmation still owns the exact accepted-call receipt.
+#[must_use = "failed SyncGroup confirmation still owns its accepted-call receipt"]
+pub(crate) struct SyncGroupConfirmationFailure {
+    accepted: AcceptedSyncGroupCall,
+    error: SyncGroupConfirmationError,
+}
+
+impl SyncGroupConfirmationFailure {
+    pub(super) const fn new(
+        accepted: AcceptedSyncGroupCall,
+        error: SyncGroupConfirmationError,
+    ) -> Self {
+        Self { accepted, error }
+    }
+
+    pub(crate) fn into_parts(self) -> (AcceptedSyncGroupCall, SyncGroupConfirmationError) {
+        (self.accepted, self.error)
+    }
 }
 
 /// Failed restoration still owns the exact raw terminal.

@@ -25,6 +25,33 @@ impl TrackedSyncGroupCall {
     }
 }
 
+/// Linear proof that the driver accepted one exact Sync call.
+#[must_use = "an accepted SyncGroup call must settle or recover after driver shutdown"]
+pub(crate) struct AcceptedSyncGroupCall {
+    key: SyncGroupCallKey,
+}
+
+impl AcceptedSyncGroupCall {
+    const fn new(key: SyncGroupCallKey) -> Self {
+        Self { key }
+    }
+
+    pub(crate) const fn key(&self) -> SyncGroupCallKey {
+        self.key
+    }
+
+    pub(super) fn confirm_sync_group_call_receipt(self) {
+        let Self {
+            key: _confirmed_key,
+        } = self;
+    }
+
+    #[cfg(test)]
+    pub(super) const fn from_key_for_test(key: SyncGroupCallKey) -> Self {
+        Self::new(key)
+    }
+}
+
 /// Preflighted ownership of exactly one bounded Sync call slot.
 #[must_use = "a reserved SyncGroup call slot must be submitted or released"]
 pub(crate) struct SyncGroupCallPermit<'a> {
@@ -38,7 +65,7 @@ impl SyncGroupCallPermit<'_> {
         self,
         driver: &DriverOwner,
         request: SyncGroupRequest,
-    ) -> Result<SyncGroupCallKey, SyncGroupAdmissionFailure> {
+    ) -> Result<AcceptedSyncGroupCall, SyncGroupAdmissionFailure> {
         let call = driver
             .submit_tracked_sync_group(self.group, request, self.key.deadline().transport())
             .map_err(|source| SyncGroupAdmissionFailure::new(self.key, source))?;
@@ -46,7 +73,7 @@ impl SyncGroupCallPermit<'_> {
             key: self.key,
             call,
         });
-        Ok(self.key)
+        Ok(AcceptedSyncGroupCall::new(self.key))
     }
 }
 

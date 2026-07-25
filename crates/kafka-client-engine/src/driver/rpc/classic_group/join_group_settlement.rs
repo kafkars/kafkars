@@ -2,7 +2,10 @@
 
 use kafka_driver::RouteFailureToken;
 
-use super::join_group_terminal::{JoinGroupCallKey, JoinGroupTerminal};
+use super::{
+    join_group_calls::AcceptedJoinGroupCall,
+    join_group_terminal::{JoinGroupCallKey, JoinGroupTerminal},
+};
 
 pub(super) struct SettledJoinGroupCall {
     terminal: JoinGroupTerminal,
@@ -110,6 +113,26 @@ pub(crate) enum JoinGroupConfirmationError {
         pending: JoinGroupCallKey,
         supplied: JoinGroupCallKey,
     },
+}
+
+/// Failed confirmation still owns the exact accepted-call receipt.
+#[must_use = "failed JoinGroup confirmation still owns its accepted-call receipt"]
+pub(crate) struct JoinGroupConfirmationFailure {
+    accepted: AcceptedJoinGroupCall,
+    error: JoinGroupConfirmationError,
+}
+
+impl JoinGroupConfirmationFailure {
+    pub(super) const fn new(
+        accepted: AcceptedJoinGroupCall,
+        error: JoinGroupConfirmationError,
+    ) -> Self {
+        Self { accepted, error }
+    }
+
+    pub(crate) fn into_parts(self) -> (AcceptedJoinGroupCall, JoinGroupConfirmationError) {
+        (self.accepted, self.error)
+    }
 }
 
 /// Failed restoration still owns the exact raw terminal.

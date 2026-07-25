@@ -8810,6 +8810,13 @@ allow = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
+method = "confirm_join_group_call_receipt"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
 method = "confirm_join_group_route_token"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs",
@@ -8820,6 +8827,13 @@ root = "crates/kafka-client-engine/src"
 method = "submit_tracked_join_group"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "confirm_sync_group_call_receipt"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs",
 ]
 
 [[method_capabilities]]
@@ -8901,6 +8915,10 @@ allowed_paths = [
 ]
 
 [[linear_owners]]
+owner_type = "AcceptedJoinGroupCall"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs"
+
+[[linear_owners]]
 owner_type = "JoinGroupCallPermit"
 path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs"
 
@@ -8922,6 +8940,10 @@ path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settl
 
 [[linear_owners]]
 owner_type = "RecoveredJoinGroupConfirmation"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement.rs"
+
+[[linear_owners]]
+owner_type = "JoinGroupConfirmationFailure"
 path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement.rs"
 
 [[linear_owners]]
@@ -8949,6 +8971,10 @@ owner_type = "JoinGroupShutdownRecovery"
 path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs"
 
 [[linear_owners]]
+owner_type = "AcceptedSyncGroupCall"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs"
+
+[[linear_owners]]
 owner_type = "SyncGroupCallPermit"
 path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs"
 
@@ -8970,6 +8996,10 @@ path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settl
 
 [[linear_owners]]
 owner_type = "RecoveredSyncGroupConfirmation"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement.rs"
+
+[[linear_owners]]
+owner_type = "SyncGroupConfirmationFailure"
 path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement.rs"
 
 [[linear_owners]]

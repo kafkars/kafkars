@@ -5,7 +5,7 @@ mod support;
 use support::{
     CapabilityRule, LinearOwner, MethodCapabilityRule, MutationOwner, capability_violations,
     fixture_files, linear_violations, load_config, method_capability_violations,
-    mutation_violations, workspace_root,
+    mutation_violations, read, workspace_root,
 };
 
 const ROOT: &str = "crates/kafka-client-engine/src/driver/rpc/classic_group";
@@ -27,24 +27,28 @@ const SYNC_TERMINAL: &str =
     "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal.rs";
 
 const LINEAR: &[(&str, &str)] = &[
+    ("AcceptedJoinGroupCall", JOIN_CALLS),
     ("JoinGroupCallPermit", JOIN_CALLS),
     ("TrackedJoinGroupCall", JOIN_CALLS),
     ("TrackedJoinGroupCalls", JOIN_CALLS),
     ("SettledJoinGroupCall", JOIN_SETTLEMENT),
     ("PendingJoinGroupConfirmation", JOIN_SETTLEMENT),
     ("RecoveredJoinGroupConfirmation", JOIN_SETTLEMENT),
+    ("JoinGroupConfirmationFailure", JOIN_SETTLEMENT),
     ("JoinGroupRestoreFailure", JOIN_SETTLEMENT),
     ("JoinGroupTerminal", JOIN_TERMINAL),
     ("JoinGroupAdmissionFailure", JOIN_TERMINAL),
     ("JoinGroupCompletionFailure", JOIN_TERMINAL),
     ("RecoveredJoinGroupCall", JOIN_TERMINAL),
     ("JoinGroupShutdownRecovery", JOIN_OWNER),
+    ("AcceptedSyncGroupCall", SYNC_CALLS),
     ("SyncGroupCallPermit", SYNC_CALLS),
     ("TrackedSyncGroupCall", SYNC_CALLS),
     ("TrackedSyncGroupCalls", SYNC_CALLS),
     ("SettledSyncGroupCall", SYNC_SETTLEMENT),
     ("PendingSyncGroupConfirmation", SYNC_SETTLEMENT),
     ("RecoveredSyncGroupConfirmation", SYNC_SETTLEMENT),
+    ("SyncGroupConfirmationFailure", SYNC_SETTLEMENT),
     ("SyncGroupRestoreFailure", SYNC_SETTLEMENT),
     ("SyncGroupTerminal", SYNC_TERMINAL),
     ("SyncGroupAdmissionFailure", SYNC_TERMINAL),
@@ -102,8 +106,10 @@ const FORBIDDEN: &[&str] = &[
     "std::thread",
 ];
 const METHODS: &[(&str, &str)] = &[
+    ("confirm_join_group_call_receipt", JOIN_OWNER),
     ("confirm_join_group_route_token", JOIN_OWNER),
     ("submit_tracked_join_group", JOIN_CALLS),
+    ("confirm_sync_group_call_receipt", SYNC_OWNER),
     ("confirm_sync_group_route_token", SYNC_OWNER),
     ("submit_tracked_sync_group", SYNC_CALLS),
 ];
@@ -236,4 +242,37 @@ fn fixture_rejects_policy_runtime_and_second_token_release_owner() {
                 .any(|violation| violation.contains("method_owner.rs"))
         );
     }
+}
+
+#[test]
+fn submission_and_settlement_signatures_bind_the_linear_receipts() {
+    let root = workspace_root();
+    for (calls_path, owner_path, accepted, admission, begin, confirm) in [
+        (
+            JOIN_CALLS,
+            JOIN_OWNER,
+            "AcceptedJoinGroupCall",
+            "JoinGroupAdmissionFailure",
+            "begin_join_group_settlement",
+            "confirm_join_group_settlement",
+        ),
+        (
+            SYNC_CALLS,
+            SYNC_OWNER,
+            "AcceptedSyncGroupCall",
+            "SyncGroupAdmissionFailure",
+            "begin_sync_group_settlement",
+            "confirm_sync_group_settlement",
+        ),
+    ] {
+        let calls = compact(&read(&root.join(calls_path)));
+        assert!(calls.contains(&format!(")->Result<{accepted},{admission}>")));
+        let owner = compact(&read(&root.join(owner_path)));
+        assert!(owner.contains(&format!("{begin}(&mutself,accepted:&{accepted},)")));
+        assert!(owner.contains(&format!("{confirm}(&mutself,accepted:{accepted},)")));
+    }
+}
+
+fn compact(source: &str) -> String {
+    source.split_whitespace().collect()
 }

@@ -25,6 +25,33 @@ impl TrackedJoinGroupCall {
     }
 }
 
+/// Linear proof that the driver accepted one exact Join call.
+#[must_use = "an accepted JoinGroup call must settle or recover after driver shutdown"]
+pub(crate) struct AcceptedJoinGroupCall {
+    key: JoinGroupCallKey,
+}
+
+impl AcceptedJoinGroupCall {
+    const fn new(key: JoinGroupCallKey) -> Self {
+        Self { key }
+    }
+
+    pub(crate) const fn key(&self) -> JoinGroupCallKey {
+        self.key
+    }
+
+    pub(super) fn confirm_join_group_call_receipt(self) {
+        let Self {
+            key: _confirmed_key,
+        } = self;
+    }
+
+    #[cfg(test)]
+    pub(super) const fn from_key_for_test(key: JoinGroupCallKey) -> Self {
+        Self::new(key)
+    }
+}
+
 /// Preflighted ownership of exactly one bounded Join call slot.
 #[must_use = "a reserved JoinGroup call slot must be submitted or released"]
 pub(crate) struct JoinGroupCallPermit<'a> {
@@ -38,7 +65,7 @@ impl JoinGroupCallPermit<'_> {
         self,
         driver: &DriverOwner,
         request: JoinGroupRequest,
-    ) -> Result<JoinGroupCallKey, JoinGroupAdmissionFailure> {
+    ) -> Result<AcceptedJoinGroupCall, JoinGroupAdmissionFailure> {
         let call = driver
             .submit_tracked_join_group(self.group, request, self.key.deadline().transport())
             .map_err(|source| JoinGroupAdmissionFailure::new(self.key, source))?;
@@ -46,7 +73,7 @@ impl JoinGroupCallPermit<'_> {
             key: self.key,
             call,
         });
-        Ok(self.key)
+        Ok(AcceptedJoinGroupCall::new(self.key))
     }
 }
 

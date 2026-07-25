@@ -1,15 +1,13 @@
 //! Exact Join terminal handoff, restoration, confirmation, and shutdown recovery.
 
 use super::{
-    join_group_calls::{TrackedJoinGroupCall, TrackedJoinGroupCalls},
+    join_group_calls::{AcceptedJoinGroupCall, TrackedJoinGroupCall, TrackedJoinGroupCalls},
     join_group_settlement::{
-        JoinGroupBeginError, JoinGroupConfirmationError, JoinGroupRestoreError,
-        JoinGroupRestoreFailure, PendingJoinGroupConfirmation, RecoveredJoinGroupConfirmation,
-        SettledJoinGroupCall,
+        JoinGroupBeginError, JoinGroupConfirmationError, JoinGroupConfirmationFailure,
+        JoinGroupRestoreError, JoinGroupRestoreFailure, PendingJoinGroupConfirmation,
+        RecoveredJoinGroupConfirmation, SettledJoinGroupCall,
     },
-    join_group_terminal::{
-        JoinGroupCallKey, JoinGroupCompletionFailure, JoinGroupTerminal, RecoveredJoinGroupCall,
-    },
+    join_group_terminal::{JoinGroupCompletionFailure, JoinGroupTerminal, RecoveredJoinGroupCall},
 };
 
 /// Complete post-driver recovery of every retained Join call state.
@@ -56,8 +54,9 @@ impl JoinGroupShutdownRecovery {
 impl TrackedJoinGroupCalls {
     pub(crate) fn begin_join_group_settlement(
         &mut self,
-        supplied: JoinGroupCallKey,
+        accepted: &AcceptedJoinGroupCall,
     ) -> Result<JoinGroupTerminal, JoinGroupBeginError> {
+        let supplied = accepted.key();
         if let Some(pending) = &self.pending_confirmation {
             return Err(JoinGroupBeginError::ConfirmationPending {
                 pending: pending.key(),
@@ -82,21 +81,32 @@ impl TrackedJoinGroupCalls {
 
     pub(crate) fn confirm_join_group_settlement(
         &mut self,
-        supplied: JoinGroupCallKey,
-    ) -> Result<(), JoinGroupConfirmationError> {
+        accepted: AcceptedJoinGroupCall,
+    ) -> Result<(), JoinGroupConfirmationFailure> {
+        let supplied = accepted.key();
         let Some(pending) = self.pending_confirmation.as_ref() else {
-            return Err(JoinGroupConfirmationError::NoPending { supplied });
+            return Err(JoinGroupConfirmationFailure::new(
+                accepted,
+                JoinGroupConfirmationError::NoPending { supplied },
+            ));
         };
         if pending.key() != supplied {
-            return Err(JoinGroupConfirmationError::KeyMismatch {
-                pending: pending.key(),
-                supplied,
-            });
+            return Err(JoinGroupConfirmationFailure::new(
+                accepted,
+                JoinGroupConfirmationError::KeyMismatch {
+                    pending: pending.key(),
+                    supplied,
+                },
+            ));
         }
         let Some(pending) = self.pending_confirmation.take() else {
-            return Err(JoinGroupConfirmationError::NoPending { supplied });
+            return Err(JoinGroupConfirmationFailure::new(
+                accepted,
+                JoinGroupConfirmationError::NoPending { supplied },
+            ));
         };
         pending.confirm_join_group_route_token();
+        accepted.confirm_join_group_call_receipt();
         Ok(())
     }
 

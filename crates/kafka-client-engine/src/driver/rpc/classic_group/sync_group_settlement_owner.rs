@@ -1,15 +1,13 @@
 //! Exact Sync terminal handoff, restoration, confirmation, and shutdown recovery.
 
 use super::{
-    sync_group_calls::{TrackedSyncGroupCall, TrackedSyncGroupCalls},
+    sync_group_calls::{AcceptedSyncGroupCall, TrackedSyncGroupCall, TrackedSyncGroupCalls},
     sync_group_settlement::{
         PendingSyncGroupConfirmation, RecoveredSyncGroupConfirmation, SettledSyncGroupCall,
-        SyncGroupBeginError, SyncGroupConfirmationError, SyncGroupRestoreError,
-        SyncGroupRestoreFailure,
+        SyncGroupBeginError, SyncGroupConfirmationError, SyncGroupConfirmationFailure,
+        SyncGroupRestoreError, SyncGroupRestoreFailure,
     },
-    sync_group_terminal::{
-        RecoveredSyncGroupCall, SyncGroupCallKey, SyncGroupCompletionFailure, SyncGroupTerminal,
-    },
+    sync_group_terminal::{RecoveredSyncGroupCall, SyncGroupCompletionFailure, SyncGroupTerminal},
 };
 
 /// Complete post-driver recovery of every retained Sync call state.
@@ -56,8 +54,9 @@ impl SyncGroupShutdownRecovery {
 impl TrackedSyncGroupCalls {
     pub(crate) fn begin_sync_group_settlement(
         &mut self,
-        supplied: SyncGroupCallKey,
+        accepted: &AcceptedSyncGroupCall,
     ) -> Result<SyncGroupTerminal, SyncGroupBeginError> {
+        let supplied = accepted.key();
         if let Some(pending) = &self.pending_confirmation {
             return Err(SyncGroupBeginError::ConfirmationPending {
                 pending: pending.key(),
@@ -82,21 +81,32 @@ impl TrackedSyncGroupCalls {
 
     pub(crate) fn confirm_sync_group_settlement(
         &mut self,
-        supplied: SyncGroupCallKey,
-    ) -> Result<(), SyncGroupConfirmationError> {
+        accepted: AcceptedSyncGroupCall,
+    ) -> Result<(), SyncGroupConfirmationFailure> {
+        let supplied = accepted.key();
         let Some(pending) = self.pending_confirmation.as_ref() else {
-            return Err(SyncGroupConfirmationError::NoPending { supplied });
+            return Err(SyncGroupConfirmationFailure::new(
+                accepted,
+                SyncGroupConfirmationError::NoPending { supplied },
+            ));
         };
         if pending.key() != supplied {
-            return Err(SyncGroupConfirmationError::KeyMismatch {
-                pending: pending.key(),
-                supplied,
-            });
+            return Err(SyncGroupConfirmationFailure::new(
+                accepted,
+                SyncGroupConfirmationError::KeyMismatch {
+                    pending: pending.key(),
+                    supplied,
+                },
+            ));
         }
         let Some(pending) = self.pending_confirmation.take() else {
-            return Err(SyncGroupConfirmationError::NoPending { supplied });
+            return Err(SyncGroupConfirmationFailure::new(
+                accepted,
+                SyncGroupConfirmationError::NoPending { supplied },
+            ));
         };
         pending.confirm_sync_group_route_token();
+        accepted.confirm_sync_group_call_receipt();
         Ok(())
     }
 
