@@ -3,6 +3,11 @@
 mod calls;
 #[cfg(test)]
 mod calls_test;
+#[expect(
+    dead_code,
+    reason = "classic membership host integration follows its concrete call ownership"
+)]
+pub(crate) mod classic_group;
 mod create_partitions_calls;
 #[cfg(test)]
 mod create_partitions_calls_test;
@@ -98,10 +103,6 @@ mod init_producer_id_calls_test;
 mod init_producer_id_submission;
 #[cfg(test)]
 mod init_producer_id_submission_test;
-#[expect(
-    dead_code,
-    reason = "classic membership host integration follows the concrete driver seam"
-)]
 mod join_group_submission;
 #[cfg(test)]
 mod join_group_submission_test;
@@ -123,10 +124,6 @@ mod list_offsets_terminal_test;
 mod submission;
 #[cfg(test)]
 mod submission_test;
-#[expect(
-    dead_code,
-    reason = "classic membership host integration follows the concrete driver seam"
-)]
 mod sync_group_submission;
 #[cfg(test)]
 mod sync_group_submission_test;

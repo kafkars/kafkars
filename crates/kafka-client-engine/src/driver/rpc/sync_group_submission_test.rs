@@ -3,10 +3,11 @@
 use std::time::Instant;
 
 use kafka_driver::TrafficClass;
-use kafka_wire::SYNC_GROUP_API_DESCRIPTOR;
+use kafka_wire::{SYNC_GROUP_API_DESCRIPTOR, SyncGroupRequest};
 
 use super::sync_group_submission::{
-    SYNC_GROUP_MAX_VERSION, SYNC_GROUP_MIN_VERSION, sync_group_options,
+    SYNC_GROUP_MAX_VERSION, SYNC_GROUP_MIN_VERSION, SyncGroupSubmitError, sync_group_options,
+    sync_group_route,
 };
 
 #[test]
@@ -28,4 +29,16 @@ fn policy_window_is_an_exact_supported_subset_of_the_wire_descriptor() {
     assert!(supported.contains(SYNC_GROUP_MAX_VERSION));
     assert_eq!(SYNC_GROUP_MIN_VERSION.value(), 0);
     assert_eq!(SYNC_GROUP_MAX_VERSION.value(), 2);
+}
+
+#[test]
+fn coordinator_and_generated_request_group_spellings_must_match() {
+    let mut request = SyncGroupRequest::default();
+    request.group_id = "group-b".into();
+
+    assert!(matches!(
+        sync_group_route("group-a", &request),
+        Err(SyncGroupSubmitError::GroupMismatch)
+    ));
+    assert!(sync_group_route("group-b", &request).is_ok());
 }

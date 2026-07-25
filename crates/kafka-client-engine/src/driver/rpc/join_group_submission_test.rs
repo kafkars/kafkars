@@ -3,10 +3,11 @@
 use std::time::Instant;
 
 use kafka_driver::TrafficClass;
-use kafka_wire::JOIN_GROUP_API_DESCRIPTOR;
+use kafka_wire::{JOIN_GROUP_API_DESCRIPTOR, JoinGroupRequest};
 
 use super::join_group_submission::{
-    JOIN_GROUP_MAX_VERSION, JOIN_GROUP_MIN_VERSION, join_group_options,
+    JOIN_GROUP_MAX_VERSION, JOIN_GROUP_MIN_VERSION, JoinGroupSubmitError, join_group_options,
+    join_group_route,
 };
 
 #[test]
@@ -28,4 +29,16 @@ fn policy_window_is_an_exact_supported_subset_of_the_wire_descriptor() {
     assert!(supported.contains(JOIN_GROUP_MAX_VERSION));
     assert_eq!(JOIN_GROUP_MIN_VERSION.value(), 1);
     assert_eq!(JOIN_GROUP_MAX_VERSION.value(), 3);
+}
+
+#[test]
+fn coordinator_and_generated_request_group_spellings_must_match() {
+    let mut request = JoinGroupRequest::default();
+    request.group_id = "group-b".into();
+
+    assert!(matches!(
+        join_group_route("group-a", &request),
+        Err(JoinGroupSubmitError::GroupMismatch)
+    ));
+    assert!(join_group_route("group-b", &request).is_ok());
 }

@@ -8747,3 +8747,245 @@ path = "crates/kafka-client-engine/src/consumer/group/registry.rs"
 [[linear_owners]]
 owner_type = "GroupConsumerEntry"
 path = "crates/kafka-client-engine/src/consumer/group/registry_entry.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_terminal_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal_test.rs"
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/driver/rpc/classic_group"
+forbidden = [
+  "ClassicGroupEffect",
+  "ClassicGroupInput",
+  "ClassicGroupMachine",
+  "Instant::now",
+  "Retry",
+  "Route::Coordinator",
+  "async",
+  "crate::protocol",
+  "invalidate",
+  "normalize",
+  "std::future",
+  "std::net",
+  "std::thread",
+]
+allow = [
+  { path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_terminal_test.rs", capability = "Instant::now", reason = "Tests create an inert transport deadline without acquiring production clock authority." },
+  { path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal_test.rs", capability = "Instant::now", reason = "Tests create an inert transport deadline without acquiring production clock authority." },
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "confirm_join_group_route_token"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_join_group"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "confirm_sync_group_route_token"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_sync_group"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedJoinGroupCalls"
+field = "calls"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedJoinGroupCalls"
+field = "settled"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedJoinGroupCalls"
+field = "pending_confirmation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedJoinGroupCalls"
+field = "completion_failure"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedSyncGroupCalls"
+field = "calls"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedSyncGroupCalls"
+field = "settled"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedSyncGroupCalls"
+field = "pending_confirmation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedSyncGroupCalls"
+field = "completion_failure"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs",
+]
+
+[[linear_owners]]
+owner_type = "JoinGroupCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs"
+
+[[linear_owners]]
+owner_type = "TrackedJoinGroupCall"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs"
+
+[[linear_owners]]
+owner_type = "TrackedJoinGroupCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs"
+
+[[linear_owners]]
+owner_type = "SettledJoinGroupCall"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement.rs"
+
+[[linear_owners]]
+owner_type = "PendingJoinGroupConfirmation"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement.rs"
+
+[[linear_owners]]
+owner_type = "RecoveredJoinGroupConfirmation"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement.rs"
+
+[[linear_owners]]
+owner_type = "JoinGroupRestoreFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement.rs"
+
+[[linear_owners]]
+owner_type = "JoinGroupTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_terminal.rs"
+
+[[linear_owners]]
+owner_type = "JoinGroupAdmissionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_terminal.rs"
+
+[[linear_owners]]
+owner_type = "JoinGroupCompletionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_terminal.rs"
+
+[[linear_owners]]
+owner_type = "RecoveredJoinGroupCall"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_terminal.rs"
+
+[[linear_owners]]
+owner_type = "JoinGroupShutdownRecovery"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs"
+
+[[linear_owners]]
+owner_type = "SyncGroupCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs"
+
+[[linear_owners]]
+owner_type = "TrackedSyncGroupCall"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs"
+
+[[linear_owners]]
+owner_type = "TrackedSyncGroupCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs"
+
+[[linear_owners]]
+owner_type = "SettledSyncGroupCall"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement.rs"
+
+[[linear_owners]]
+owner_type = "PendingSyncGroupConfirmation"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement.rs"
+
+[[linear_owners]]
+owner_type = "RecoveredSyncGroupConfirmation"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement.rs"
+
+[[linear_owners]]
+owner_type = "SyncGroupRestoreFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement.rs"
+
+[[linear_owners]]
+owner_type = "SyncGroupTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal.rs"
+
+[[linear_owners]]
+owner_type = "SyncGroupAdmissionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal.rs"
+
+[[linear_owners]]
+owner_type = "SyncGroupCompletionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal.rs"
+
+[[linear_owners]]
+owner_type = "RecoveredSyncGroupCall"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal.rs"
+
+[[linear_owners]]
+owner_type = "SyncGroupShutdownRecovery"
+path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs"

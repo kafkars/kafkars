@@ -3,7 +3,7 @@
 use std::{error::Error, fmt, time::Instant};
 
 use kafka_driver::{
-    ApiVersion, CoordinatorKeyError, RequestOptions, RoutedCall, SubmitError, TrafficClass,
+    ApiVersion, CoordinatorKeyError, RequestOptions, Route, RoutedCall, SubmitError, TrafficClass,
 };
 use kafka_wire::{SyncGroupRequest, SyncGroupResponse};
 
@@ -19,6 +19,7 @@ pub(super) const SYNC_GROUP_MAX_VERSION: ApiVersion = ApiVersion::new(CLASSIC_SY
 /// Definitely-unsent failure before driver request ownership.
 #[derive(Debug)]
 pub(crate) enum SyncGroupSubmitError {
+    GroupMismatch,
     InvalidGroup(CoordinatorKeyError),
     Driver(SubmitError),
 }
@@ -26,6 +27,9 @@ pub(crate) enum SyncGroupSubmitError {
 impl fmt::Display for SyncGroupSubmitError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::GroupMismatch => {
+                write!(formatter, "SyncGroup route and request groups differ")
+            }
             Self::InvalidGroup(source) => {
                 write!(formatter, "invalid SyncGroup coordinator key: {source}")
             }
@@ -37,6 +41,7 @@ impl fmt::Display for SyncGroupSubmitError {
 impl Error for SyncGroupSubmitError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            Self::GroupMismatch => None,
             Self::InvalidGroup(source) => Some(source),
             Self::Driver(source) => Some(source),
         }
@@ -50,11 +55,21 @@ impl DriverOwner {
         request: SyncGroupRequest,
         deadline: Instant,
     ) -> Result<RoutedCall<SyncGroupResponse>, SyncGroupSubmitError> {
-        let route = group_coordinator_route(group).map_err(SyncGroupSubmitError::InvalidGroup)?;
+        let route = sync_group_route(group, &request)?;
         self.driver
             .request_tracked_with(route, request, sync_group_options(deadline))
             .map_err(SyncGroupSubmitError::Driver)
     }
+}
+
+pub(super) fn sync_group_route(
+    group: &str,
+    request: &SyncGroupRequest,
+) -> Result<Route, SyncGroupSubmitError> {
+    if request.group_id.as_str() != group {
+        return Err(SyncGroupSubmitError::GroupMismatch);
+    }
+    group_coordinator_route(group).map_err(SyncGroupSubmitError::InvalidGroup)
 }
 
 pub(super) const fn sync_group_options(deadline: Instant) -> RequestOptions {
