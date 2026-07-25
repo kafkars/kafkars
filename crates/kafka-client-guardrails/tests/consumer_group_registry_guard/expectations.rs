@@ -10,6 +10,7 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
     ("registry_entry.rs", "registry_entry_test.rs"),
     ("registry_commit.rs", "registry_commit_test.rs"),
     ("registry_close.rs", "registry_close_test.rs"),
+    ("registry_host.rs", "registry_host_test.rs"),
     ("registry_session.rs", "registry_session_test.rs"),
 ];
 pub(super) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
@@ -22,7 +23,12 @@ pub(super) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
     ("accepting", &["registry.rs", "registry_close.rs"]),
     (
         "offset_commits",
-        &["registry.rs", "registry_commit.rs", "registry_close.rs"],
+        &[
+            "registry.rs",
+            "registry_commit.rs",
+            "registry_close.rs",
+            "registry_host.rs",
+        ],
     ),
 ];
 pub(super) const ENTRY_FIELDS: &[(&str, &[&str])] = &[
@@ -59,4 +65,39 @@ pub(super) const FORBIDDEN: &[&str] = &[
     "pop",
     "clear",
     "drain",
+];
+pub(super) const REGISTRY_HOST_FORBIDDEN: &[&str] = &[
+    "crate::admin",
+    "crate::producer",
+    "crate::protocol",
+    "crate::transaction",
+    "kafka_driver",
+    "kafka_wire",
+    "kafka_wire_core",
+    "kafka_wire_records",
+    "tokio",
+    "async_std",
+    "smol",
+    "std::future",
+    "std::net",
+    "std::thread::spawn",
+    "std::time::Instant",
+    "std::time::SystemTime",
+    "Condvar",
+    "Instant::now",
+    "Mutex",
+    "RwLock",
+    "Future",
+    "Callback",
+    "Metadata",
+    "OperationDeadline",
+    "Retry",
+    "Route",
+    "Runtime",
+    "StartedEngineHost",
+    "TrafficClass",
+    "crate::Engine",
+    "crate::exports",
+    "async",
+    "invalidate",
 ];

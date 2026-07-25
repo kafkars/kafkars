@@ -14,6 +14,8 @@ pub(crate) struct EngineHostControl {
     #[cfg(test)]
     assigned_recovery_after_driver_release: AtomicBool,
     #[cfg(test)]
+    group_recovery_after_driver_release: AtomicBool,
+    #[cfg(test)]
     pause_after_produce_admission: AtomicBool,
     #[cfg(test)]
     produce_admission_paused: AtomicBool,
@@ -32,6 +34,8 @@ impl EngineHostControl {
             recovery_driver_released: AtomicBool::new(false),
             #[cfg(test)]
             assigned_recovery_after_driver_release: AtomicBool::new(false),
+            #[cfg(test)]
+            group_recovery_after_driver_release: AtomicBool::new(false),
             #[cfg(test)]
             pause_after_produce_admission: AtomicBool::new(false),
             #[cfg(test)]
@@ -103,14 +107,27 @@ impl EngineHostControl {
     }
 
     #[cfg(test)]
+    pub(super) fn record_group_recovery_started(&self) {
+        self.group_recovery_after_driver_release.store(
+            self.recovery_driver_released.load(Ordering::Acquire),
+            Ordering::Release,
+        );
+    }
+
+    #[cfg(test)]
     pub(crate) fn snapshot(&self) -> EngineHostSnapshot {
         EngineHostSnapshot {
             producer_turns: self.producer_turns.load(Ordering::Relaxed),
             driver_turns: self.driver_turns.load(Ordering::Relaxed),
             recovery_driver_released: self.recovery_driver_released.load(Ordering::Acquire),
-            assigned_recovery_after_driver_release: self
-                .assigned_recovery_after_driver_release
-                .load(Ordering::Acquire),
+            consumer_recovery: ConsumerRecoverySnapshot {
+                assigned_after_driver_release: self
+                    .assigned_recovery_after_driver_release
+                    .load(Ordering::Acquire),
+                group_after_driver_release: self
+                    .group_recovery_after_driver_release
+                    .load(Ordering::Acquire),
+            },
             produce_admission_paused: self.produce_admission_paused.load(Ordering::Acquire),
         }
     }
@@ -122,6 +139,13 @@ pub(crate) struct EngineHostSnapshot {
     pub(crate) producer_turns: u64,
     pub(crate) driver_turns: u64,
     pub(crate) recovery_driver_released: bool,
-    pub(crate) assigned_recovery_after_driver_release: bool,
+    pub(crate) consumer_recovery: ConsumerRecoverySnapshot,
     pub(crate) produce_admission_paused: bool,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct ConsumerRecoverySnapshot {
+    pub(crate) assigned_after_driver_release: bool,
+    pub(crate) group_after_driver_release: bool,
 }

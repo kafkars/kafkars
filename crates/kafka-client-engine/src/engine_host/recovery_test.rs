@@ -28,7 +28,7 @@ fn failed_runner_settles_accepted_work_and_closes_retained_handles() {
             .with_delivery_timeout(Duration::from_secs(1)),
     )
     .unwrap_or_else(|error| panic!("engine should start: {error}"));
-    assert_eq!(engine.completion_notifier_thread_count(), 3);
+    assert_eq!(engine.completion_notifier_thread_count(), 4);
     engine.pause_after_produce_admission();
     let producer = engine.producer();
     let accepted = admit(&producer, record(), Duration::from_secs(1));
@@ -40,7 +40,14 @@ fn failed_runner_settles_accepted_work_and_closes_retained_handles() {
     assert!(
         engine
             .host_snapshot()
-            .assigned_recovery_after_driver_release
+            .consumer_recovery
+            .assigned_after_driver_release
+    );
+    assert!(
+        engine
+            .host_snapshot()
+            .consumer_recovery
+            .group_after_driver_release
     );
 
     let Err(ProducerDeliveryError::Failed(failure)) = accepted.into_observer().wait() else {

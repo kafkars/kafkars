@@ -8,7 +8,8 @@ use crate::producer::host_turn::ProducerTurnOutcome;
 
 use super::{
     assigned_consumer::AssignedConsumerProgress,
-    runner::{assigned_consumer_wait, producer_wait},
+    group_consumer::GroupConsumerProgress,
+    runner::{assigned_consumer_wait, group_consumer_wait, producer_wait},
 };
 
 #[test]
@@ -95,6 +96,26 @@ fn assigned_contention_uses_the_liveness_cap_instead_of_spinning() {
     );
 }
 
+#[test]
+fn group_progress_requests_an_immediate_followup_turn() {
+    let progress = group_progress(None, true);
+
+    assert_eq!(
+        group_consumer_wait(Moment::from_tick(10), Duration::from_millis(100), &progress),
+        Duration::ZERO
+    );
+}
+
+#[test]
+fn group_deadline_can_preempt_other_domain_waits() {
+    let progress = group_progress(Some(Deadline::from_tick(30)), false);
+
+    assert_eq!(
+        group_consumer_wait(Moment::from_tick(10), Duration::from_nanos(80), &progress),
+        Duration::from_nanos(20)
+    );
+}
+
 const fn outcome(
     next_deadline: Option<Deadline>,
     runnable_work: bool,
@@ -123,5 +144,16 @@ const fn assigned_progress(
         blocked_work,
         next_deadline,
         close_completed: false,
+    }
+}
+
+const fn group_progress(
+    next_deadline: Option<Deadline>,
+    progressed: bool,
+) -> GroupConsumerProgress {
+    GroupConsumerProgress {
+        unsettled: 1,
+        progressed,
+        next_deadline,
     }
 }

@@ -32,7 +32,7 @@ pub(super) enum GroupConsumerRegistrationFailureKind {
 }
 
 /// Many bounded catalogs sharing one global bounded offset-commit host.
-pub(super) struct GroupConsumerRegistry {
+pub(crate) struct GroupConsumerRegistry {
     pub(super) entries: Vec<GroupConsumerEntry>,
     pub(super) next_group_id: Option<GroupId>,
     pub(super) retained_group_bytes: usize,
@@ -41,7 +41,7 @@ pub(super) struct GroupConsumerRegistry {
 }
 
 impl GroupConsumerRegistry {
-    pub(super) fn start() -> std::io::Result<Self> {
+    pub(crate) fn start() -> std::io::Result<Self> {
         let mut entries = Vec::new();
         entries
             .try_reserve_exact(GROUP_CONSUMER_CAPACITY)

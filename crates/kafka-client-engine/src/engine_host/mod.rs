@@ -22,6 +22,12 @@ mod error;
 mod finalize;
 #[cfg(test)]
 mod finalize_test;
+mod group_consumer;
+mod group_consumer_shutdown;
+#[cfg(test)]
+mod group_consumer_shutdown_test;
+#[cfg(test)]
+mod group_consumer_test;
 mod lifecycle;
 #[cfg(test)]
 mod lifecycle_test;

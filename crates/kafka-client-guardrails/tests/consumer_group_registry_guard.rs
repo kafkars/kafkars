@@ -14,7 +14,7 @@ use support::{
 
 use expectations::{
     ENTRY_FIELDS, ENTRY_PATH, FORBIDDEN, HOST_START_METHOD, MIRRORS, REGISTRY_FIELDS,
-    REGISTRY_PATH, ROOT,
+    REGISTRY_HOST_FORBIDDEN, REGISTRY_PATH, ROOT,
 };
 
 #[test]
@@ -48,6 +48,7 @@ fn checked_in_registry_capabilities_and_mirrors_are_exact() {
         "registry_entry.rs",
         "registry_commit.rs",
         "registry_close.rs",
+        "registry_host.rs",
         "registry_session.rs",
     ] {
         let path = format!("{ROOT}{file}");
@@ -57,7 +58,11 @@ fn checked_in_registry_capabilities_and_mirrors_are_exact() {
             .filter(|rule| rule.root == path)
             .collect::<Vec<_>>();
         assert_eq!(rules.len(), 1, "{path} needs one capability rule");
-        let mut expected = FORBIDDEN.to_vec();
+        let mut expected = if file == "registry_host.rs" {
+            REGISTRY_HOST_FORBIDDEN.to_vec()
+        } else {
+            FORBIDDEN.to_vec()
+        };
         if file == "registry_entry.rs" {
             expected.push("GroupOffsetCommitHost");
         }
@@ -167,6 +172,25 @@ fn fixture_rejects_clone_mutation_capability_and_per_entry_host() {
                 .iter()
                 .any(|violation| violation.contains(capability)),
             "capability detector missed {capability}: {violations:?}"
+        );
+    }
+    let host_violations = capability_violations(
+        &root,
+        &[CapabilityRule {
+            root: "src/capability_intruder.rs".into(),
+            forbidden: REGISTRY_HOST_FORBIDDEN
+                .iter()
+                .map(|capability| (*capability).to_owned())
+                .collect(),
+            allow: Vec::new(),
+        }],
+    );
+    for capability in REGISTRY_HOST_FORBIDDEN {
+        assert!(
+            host_violations
+                .iter()
+                .any(|violation| violation.contains(capability)),
+            "registry-host detector missed {capability}: {host_violations:?}"
         );
     }
     let constructor_violations = method_capability_violations(

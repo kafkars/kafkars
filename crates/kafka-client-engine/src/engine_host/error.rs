@@ -84,6 +84,13 @@ impl EngineStartError {
         )
     }
 
+    pub(super) fn group_consumer(error: &std::io::Error) -> Self {
+        Self::new(
+            EngineStartErrorKind::Consumer,
+            format!("failed to start group-consumer registry: {error}"),
+        )
+    }
+
     pub(super) fn host_thread(error: &std::io::Error) -> Self {
         Self::new(
             EngineStartErrorKind::HostThread,

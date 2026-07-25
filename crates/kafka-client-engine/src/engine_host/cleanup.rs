@@ -2,7 +2,10 @@
 
 use crate::completion::NotifierJoin;
 
-use super::{EngineHostError, EngineHostResources, notifier_shutdown::collect_notification_joins};
+use super::{
+    EngineHostError, EngineHostResources, group_consumer_shutdown,
+    notifier_shutdown::collect_notification_joins,
+};
 
 pub(super) fn begin_notification_shutdown(
     resources: &mut EngineHostResources,
@@ -22,11 +25,14 @@ pub(super) fn begin_notification_shutdown(
         .stop()
         .map_err(EngineHostError::AssignedConsumerCompletion);
     let assigned_consumer_fallback = resources.assigned_consumer_notifier.take_join();
+    let (group_consumer, group_consumer_fallback) =
+        group_consumer_shutdown::stop(&mut resources.group_consumers);
     Ok(collect_notification_joins(
         producer,
         [
             (admin, admin_fallback),
             (assigned_consumer, assigned_consumer_fallback),
+            (group_consumer, group_consumer_fallback),
         ],
     ))
 }

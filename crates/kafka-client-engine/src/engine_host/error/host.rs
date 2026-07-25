@@ -10,6 +10,7 @@ use crate::{
     completion::{CompletionRegistryError, NotifierJoinError},
     consumer::{
         AssignedConsumerFaultKind, AssignedConsumerOwnerError, AssignedConsumerRecoveryReport,
+        GroupConsumerHostError,
     },
     driver::{
         CreatePartitionsCompletionFailure, CreateTopicsCompletionFailure,
@@ -44,6 +45,7 @@ pub(crate) enum EngineHostError {
     AssignedConsumerUnsettled(usize),
     AssignedConsumerRecovery(Box<AssignedConsumerRecoveryReport>),
     AssignedConsumerCompletion(CompletionRegistryError),
+    GroupConsumer(GroupConsumerHostError),
     CreateTopics(CreateTopicsHostError),
     CreateTopicsCompletion(CreateTopicsCompletionFailure),
     CreateTopicsLockPoisoned,

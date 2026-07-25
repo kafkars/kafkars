@@ -112,7 +112,7 @@ pub(super) enum GroupOffsetCommitSettlementProvenance {
 
 /// Result of one bounded nonblocking host turn.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum GroupOffsetCommitTurn {
+pub(in crate::consumer::group) enum GroupOffsetCommitTurn {
     Idle,
     Progress,
 }
@@ -205,6 +205,10 @@ impl GroupOffsetCommitHost {
         self.completions
             .stop_notifier()
             .map_err(GroupOffsetCommitHostError::Completion)
+    }
+
+    pub(in crate::consumer::group) fn unsettled(&self) -> usize {
+        self.operations.len()
     }
 
     pub(super) fn actual_operation_bytes(

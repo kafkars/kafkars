@@ -576,6 +576,14 @@ production = "crates/kafka-client-engine/src/engine_host/assigned_consumer_wake.
 test = "crates/kafka-client-engine/src/engine_host/assigned_consumer_wake_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/group_consumer.rs"
+test = "crates/kafka-client-engine/src/engine_host/group_consumer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/group_consumer_shutdown.rs"
+test = "crates/kafka-client-engine/src/engine_host/group_consumer_shutdown_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/admission.rs"
 test = "crates/kafka-client-engine/src/producer/admission_test.rs"
 
@@ -4045,6 +4053,70 @@ forbidden = [
 ]
 
 [[capability_rules]]
+root = "crates/kafka-client-engine/src/engine_host/group_consumer.rs"
+forbidden = [
+  "crate::admin",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread::spawn",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Instant::now",
+  "Callback",
+  "Metadata",
+  "OperationDeadline",
+  "Retry",
+  "Route",
+  "Runtime",
+  "StartedEngineHost",
+  "TrafficClass",
+  "crate::Engine",
+  "crate::exports",
+  "async",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/engine_host/group_consumer_shutdown.rs"
+forbidden = [
+  "crate::admin",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Metadata",
+  "OperationDeadline",
+  "Retry",
+  "Route",
+  "Runtime",
+  "StartedEngineHost",
+  "TrafficClass",
+  "crate::Engine",
+  "crate::exports",
+  "async",
+  "invalidate",
+]
+
+[[capability_rules]]
 root = "crates/kafka-client-engine/src/clock"
 forbidden = [
   "std::thread",
@@ -7143,6 +7215,9 @@ forbidden = [
   "invalidate",
   "async",
 ]
+allow = [
+  { path = "crates/kafka-client-engine/src/consumer/group/offset_commit/notifier_lifecycle.rs", capability = "std::thread", reason = "The lifecycle seam exposes only the already-owned notifier ThreadId for reentrant-shutdown fencing; it cannot spawn or execute work." },
+]
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/prepared_request.rs"
@@ -7759,6 +7834,14 @@ test = "crates/kafka-client-engine/src/consumer/group/registry_close_test.rs"
 production = "crates/kafka-client-engine/src/consumer/group/registry_session.rs"
 test = "crates/kafka-client-engine/src/consumer/group/registry_session_test.rs"
 
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/registry_host.rs"
+test = "crates/kafka-client-engine/src/consumer/group/registry_host_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/offset_commit/notifier_lifecycle.rs"
+test = "crates/kafka-client-engine/src/consumer/group/offset_commit/notifier_lifecycle_test.rs"
+
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/group/registry.rs"
 forbidden = [
@@ -7930,6 +8013,84 @@ forbidden = [
   "drain",
 ]
 
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/registry_host.rs"
+forbidden = [
+  "crate::admin",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread::spawn",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "Callback",
+  "Metadata",
+  "OperationDeadline",
+  "Retry",
+  "Route",
+  "Runtime",
+  "StartedEngineHost",
+  "TrafficClass",
+  "crate::Engine",
+  "crate::exports",
+  "async",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/offset_commit/notifier_lifecycle.rs"
+forbidden = [
+  "crate::admin",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread::spawn",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "Callback",
+  "Metadata",
+  "OperationDeadline",
+  "Retry",
+  "Route",
+  "Runtime",
+  "StartedEngineHost",
+  "TrafficClass",
+  "crate::Engine",
+  "crate::exports",
+  "async",
+  "invalidate",
+]
+
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src/consumer/group"
 method = "start_group_offset_commit_host"
@@ -7975,6 +8136,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_commit.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_close.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_host.rs",
 ]
 
 [[mutation_owners]]

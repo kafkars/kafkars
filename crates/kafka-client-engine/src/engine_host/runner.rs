@@ -23,7 +23,7 @@ use crate::{
 };
 
 use super::{
-    EngineHostControl, EngineHostError, admin, assigned_consumer, cleanup,
+    EngineHostControl, EngineHostError, admin, assigned_consumer, cleanup, group_consumer,
     notifier_shutdown::NotifierShutdownOwner, produce_turn,
 };
 
@@ -47,6 +47,7 @@ pub(crate) struct EngineHostResources {
     pub(super) describe_configs: DescribeConfigsShardOwner,
     pub(super) incremental_alter_configs: IncrementalAlterConfigsShardOwner,
     pub(super) assigned_consumer: crate::consumer::AssignedConsumerShardOwner,
+    pub(super) group_consumers: crate::consumer::GroupConsumerRegistry,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) control: Arc<EngineHostControl>,
     pub(super) budget: ProducerTurnBudget,
@@ -75,6 +76,7 @@ impl Drop for EngineHostResources {
             .admission_port()
             .close_admission();
         let _close_result = self.assigned_consumer.close_assigned_admission();
+        self.group_consumers.close_admission();
     }
 }
 
@@ -98,6 +100,8 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
         let admin = admin::drive(resources)?;
         let assigned_now = resources.clock.now().map_err(EngineHostError::Clock)?;
         let assigned = assigned_consumer::drive(resources, assigned_now)?;
+        let group_now = resources.clock.now().map_err(EngineHostError::Clock)?;
+        let group = group_consumer::drive(resources, group_now)?;
         #[cfg(test)]
         if producer.driver_progress && resources.control.await_failure_after_produce_admission() {
             return Err(EngineHostError::ForcedTestFailure);
@@ -107,6 +111,7 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
             && admin.unsettled == 0
             && assigned.unsettled == 0
             && assigned.close_completed
+            && group.unsettled == 0
         {
             break;
         }
@@ -120,6 +125,7 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
             wait.min(duration_until(wait_now, deadline))
         });
         let wait = assigned_consumer_wait(wait_now, wait, &assigned);
+        let wait = group_consumer_wait(wait_now, wait, &group);
         resources.control.record_driver_turn();
         let driver = resources
             .driver
@@ -205,6 +211,19 @@ pub(super) fn assigned_consumer_wait(
     } else {
         wait
     }
+}
+
+pub(super) fn group_consumer_wait(
+    now: Moment,
+    current: Duration,
+    progress: &group_consumer::GroupConsumerProgress,
+) -> Duration {
+    if progress.progressed {
+        return Duration::ZERO;
+    }
+    progress.next_deadline.map_or(current, |deadline| {
+        current.min(duration_until(now, deadline))
+    })
 }
 
 fn duration_until(now: Moment, deadline: Deadline) -> Duration {

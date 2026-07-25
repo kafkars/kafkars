@@ -797,7 +797,7 @@ evidence = [
 [[invariant]]
 id = "SD-01"
 title = "Shutdown closes admission before draining"
-statement = "Shutdown closes producer admission before draining. Emergency recovery attempts the shared driver barrier, unconditionally drops the unique driver and every tracked Produce owner, then releases engine bytes and publishes conservative core fallback. Native compression workers and the Drop-backed notifier owner are joined during finalization before one shared report is retained."
+statement = "Shutdown closes producer and private consumer admission before draining. The privately hosted classic-group registry closes admission before its bounded turn, contributes its unsettled count to quiescence, and performs conservative recovery only after the unique driver owner is gone. Normal stop or fallback recovery transfers its exact bounded notifier owner to the common off-notifier finalizer. Emergency recovery attempts the shared driver barrier, unconditionally drops the unique driver and every tracked Produce owner, then releases engine bytes and publishes conservative core fallback. Native compression workers and every Drop-backed notifier owner are joined during finalization before one shared report is retained."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/execution_stop_test.rs::damaged_interpretation_still_settles_observers_conservatively",
@@ -808,6 +808,9 @@ evidence = [
   "crates/kafka-client-engine/src/engine_host/recovery_test.rs::failed_runner_settles_accepted_work_and_closes_retained_handles",
   "crates/kafka-client-engine/src/engine_host/finalize_test.rs::notifier_join_failure_appends_without_replacing_primary_failure",
   "crates/kafka-client-engine/src/engine_host/finalize_test.rs::finalizer_panic_still_publishes_a_terminal_report",
+  "crates/kafka-client-engine/src/engine_host/group_consumer_test.rs::shutdown_fences_registry_admission_before_the_bounded_turn",
+  "crates/kafka-client-engine/src/engine_host/group_consumer_shutdown_test.rs::failed_normal_stop_returns_the_exact_fallback_notifier_owner",
+  "crates/kafka-client-engine/src/consumer/group/offset_commit/notifier_lifecycle_test.rs::fallback_transfer_preserves_join_ownership_after_unsettled_stop",
   "crates/kafka-client-engine/src/driver/owner_test.rs::retained_explicit_shutdown_barrier_settles_with_the_reactor",
   "crates/kafka-client-engine/src/producer/compression/pool_test.rs::shutdown_joins_every_owned_native_worker",
 ]

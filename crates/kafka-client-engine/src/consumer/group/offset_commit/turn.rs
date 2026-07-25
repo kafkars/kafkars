@@ -10,7 +10,7 @@ use super::host::{
 };
 
 impl GroupOffsetCommitHost {
-    pub(super) fn turn(
+    pub(in crate::consumer::group) fn turn(
         &mut self,
         now: Moment,
         driver: &DriverOwner,
@@ -83,7 +83,7 @@ impl GroupOffsetCommitHost {
         }
     }
 
-    pub(super) fn next_deadline(&self) -> Option<kafka_client_core::Deadline> {
+    pub(in crate::consumer::group) fn next_deadline(&self) -> Option<kafka_client_core::Deadline> {
         self.operations
             .iter()
             .filter(|operation| {

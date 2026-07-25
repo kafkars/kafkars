@@ -27,18 +27,28 @@ fn partial_notifier_acquisition_joins_the_owner_already_taken() {
     let assigned_handle = std::thread::spawn(move || {
         worker_finished.store(true, Ordering::Release);
     });
+    let group_finished = Arc::new(AtomicBool::new(false));
+    let worker_finished = Arc::clone(&group_finished);
+    let group_handle = std::thread::spawn(move || {
+        worker_finished.store(true, Ordering::Release);
+    });
     let producer = crate::completion::NotifierJoin::from_handle_for_test(producer_handle);
     let admin_fallback = crate::completion::NotifierJoin::from_handle_for_test(admin_handle);
     let assigned = crate::completion::NotifierJoin::from_handle_for_test(assigned_handle);
+    let group = crate::completion::NotifierJoin::from_handle_for_test(group_handle);
     let admin = Err(EngineHostError::CreateTopics(
         crate::admin::CreateTopicsHostError::Unsettled(1),
     ));
 
     let (notifiers, failure) = collect_notification_joins(
         producer,
-        [(admin, Some(admin_fallback)), (Ok(assigned), None)],
+        [
+            (admin, Some(admin_fallback)),
+            (Ok(assigned), None),
+            (Ok(group), None),
+        ],
     );
-    assert_eq!(notifiers.len(), 3);
+    assert_eq!(notifiers.len(), 4);
     assert!(failure.is_some());
     let mut owner = NotifierShutdownOwner::new(notifiers);
     owner
@@ -47,4 +57,5 @@ fn partial_notifier_acquisition_joins_the_owner_already_taken() {
     assert!(producer_finished.load(Ordering::Acquire));
     assert!(admin_finished.load(Ordering::Acquire));
     assert!(assigned_finished.load(Ordering::Acquire));
+    assert!(group_finished.load(Ordering::Acquire));
 }

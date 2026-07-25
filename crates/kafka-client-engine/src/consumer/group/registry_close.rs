@@ -5,8 +5,8 @@ use kafka_client_core::GroupId;
 use crate::completion::NotifierJoin;
 
 use super::{
-    offset_commit::GroupOffsetCommitHostError, registry::GroupConsumerRegistry,
-    registry_entry::GroupConsumerEntryState,
+    registry::GroupConsumerRegistry, registry_entry::GroupConsumerEntryState,
+    registry_host::GroupConsumerHostError,
 };
 
 /// A requested group close could not move an active entry to closing.
@@ -30,7 +30,7 @@ impl GroupConsumerRegistry {
         Ok(())
     }
 
-    pub(super) fn close_admission(&mut self) {
+    pub(crate) fn close_admission(&mut self) {
         self.accepting = false;
         for entry in &mut self.entries {
             mark_closing(entry);
@@ -39,17 +39,19 @@ impl GroupConsumerRegistry {
         offset_commits.close_admission();
     }
 
-    pub(super) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), GroupOffsetCommitHostError> {
+    pub(crate) fn recover_after_driver_shutdown(&mut self) -> Result<(), GroupConsumerHostError> {
         self.close_admission();
         let offset_commits = &mut self.offset_commits;
-        offset_commits.recover_after_driver_shutdown()
+        offset_commits
+            .recover_after_driver_shutdown()
+            .map_err(GroupConsumerHostError::from)
     }
 
-    pub(super) fn finish_shutdown(&mut self) -> Result<NotifierJoin, GroupOffsetCommitHostError> {
+    pub(crate) fn finish_shutdown(&mut self) -> Result<NotifierJoin, GroupConsumerHostError> {
         let offset_commits = &mut self.offset_commits;
-        offset_commits.finish_shutdown()
+        offset_commits
+            .finish_shutdown()
+            .map_err(GroupConsumerHostError::from)
     }
 }
 

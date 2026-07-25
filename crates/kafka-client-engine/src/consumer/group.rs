@@ -1,26 +1,11 @@
 //! Bounded classic-group session identity without membership execution.
 
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "awaiting private group-consumer integration")
-)]
 mod offset_commit;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "awaiting private group-consumer integration")
-)]
 mod registry;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "awaiting private group-consumer integration")
-)]
 mod registry_close;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "awaiting private group-consumer integration")
-)]
 mod registry_commit;
 mod registry_entry;
+mod registry_host;
 #[cfg_attr(
     not(test),
     expect(dead_code, reason = "awaiting private group-consumer integration")
@@ -36,6 +21,8 @@ mod registry_commit_test;
 #[cfg(test)]
 mod registry_entry_test;
 #[cfg(test)]
+mod registry_host_test;
+#[cfg(test)]
 mod registry_session_test;
 #[cfg(test)]
 mod registry_test;
@@ -47,3 +34,6 @@ mod session_catalog_identity_test;
 mod session_catalog_prepared_test;
 #[cfg(test)]
 mod session_catalog_test;
+
+pub(crate) use registry::GroupConsumerRegistry;
+pub(crate) use registry_host::GroupConsumerHostError;

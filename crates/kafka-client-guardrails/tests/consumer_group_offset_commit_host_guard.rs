@@ -13,6 +13,10 @@ use support::{
 
 const PREFIX: &str = "crates/kafka-client-engine/src/consumer/group/offset_commit/";
 const HOST_PATH: &str = "crates/kafka-client-engine/src/consumer/group/offset_commit/host.rs";
+const NOTIFIER_LIFECYCLE_PATH: &str =
+    "crates/kafka-client-engine/src/consumer/group/offset_commit/notifier_lifecycle.rs";
+const NOTIFIER_IDENTITY_REASON: &str = "The lifecycle seam exposes only the already-owned notifier \
+    ThreadId for reentrant-shutdown fencing; it cannot spawn or execute work.";
 const LINEAR: &[&str] = &[
     "AcceptedGroupOffsetCommit",
     "GroupOffsetCommitOperation",
@@ -159,7 +163,10 @@ fn checked_in_host_capability_and_method_policy_is_exact() {
             .collect::<Vec<_>>(),
         FORBIDDEN
     );
-    assert!(capability.allow.is_empty());
+    assert_eq!(capability.allow.len(), 1);
+    assert_eq!(capability.allow[0].path, NOTIFIER_LIFECYCLE_PATH);
+    assert_eq!(capability.allow[0].capability, "std::thread");
+    assert_eq!(capability.allow[0].reason, NOTIFIER_IDENTITY_REASON);
     for (method, owner) in METHODS {
         let rules = config
             .method_capabilities

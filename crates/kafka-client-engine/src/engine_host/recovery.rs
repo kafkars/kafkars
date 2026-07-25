@@ -3,8 +3,8 @@
 use kafka_client_core::Moment;
 
 use super::{
-    EngineHostError, EngineHostExit, EngineHostResources, notifier_shutdown::NotifierShutdownOwner,
-    runner::shutdown_driver,
+    EngineHostError, EngineHostExit, EngineHostResources, group_consumer_shutdown,
+    notifier_shutdown::NotifierShutdownOwner, runner::shutdown_driver,
 };
 
 impl EngineHostResources {
@@ -17,21 +17,8 @@ pub(crate) fn recover(
     resources: &mut EngineHostResources,
     primary: EngineHostError,
 ) -> EngineHostExit {
-    let mut failure = primary;
     // Fence application admission before any execution owner is quiesced.
-    if let Err(cleanup) = resources.assigned_consumer.close_assigned_admission() {
-        failure = failure.with_cleanup(match cleanup {
-            crate::consumer::AssignedConsumerShardLockError::Poisoned => {
-                EngineHostError::AssignedConsumerLockPoisoned
-            }
-            crate::consumer::AssignedConsumerShardLockError::OwnerMissing => {
-                EngineHostError::AssignedConsumerOwnerMissing
-            }
-            crate::consumer::AssignedConsumerShardLockError::Contended => {
-                EngineHostError::AssignedConsumerUnsettled(usize::MAX)
-            }
-        });
-    }
+    let mut failure = close_consumer_admission(resources, primary);
     drop(resources.producer.terminal_data());
     drop(resources.create_topics.terminal_host());
     drop(resources.delete_topics.terminal_host());
@@ -75,6 +62,13 @@ pub(crate) fn recover(
         .discard_after_driver_shutdown();
     failure = recover_assigned_after_driver_shutdown(resources, failure);
     let assigned_consumer_notifier = resources.assigned_consumer_notifier.take_join();
+    #[cfg(test)]
+    resources.control.record_group_recovery_started();
+    let (group_consumer_notifier, group_consumer_failure) =
+        group_consumer_shutdown::recover_after_driver_shutdown(&mut resources.group_consumers);
+    if let Some(cleanup) = group_consumer_failure {
+        failure = failure.with_cleanup(cleanup);
+    }
 
     let mut producer = resources.producer.terminal_data();
     if let Some(cleanup) = producer
@@ -100,7 +94,7 @@ pub(crate) fn recover(
         failure = failure.with_cleanup(cleanup);
     }
     let recovery = producer.recover_notifier();
-    let mut notifiers = Vec::with_capacity(3);
+    let mut notifiers = Vec::with_capacity(4);
     if let Some(notifier) = recovery.notifier {
         notifiers.push(notifier);
     }
@@ -115,10 +109,34 @@ pub(crate) fn recover(
     if let Some(notifier) = assigned_consumer_notifier {
         notifiers.push(notifier);
     }
+    if let Some(notifier) = group_consumer_notifier {
+        notifiers.push(notifier);
+    }
     EngineHostExit {
         notifier: NotifierShutdownOwner::new(notifiers),
         failure: Some(failure),
     }
+}
+
+fn close_consumer_admission(
+    resources: &mut EngineHostResources,
+    mut failure: EngineHostError,
+) -> EngineHostError {
+    if let Err(cleanup) = resources.assigned_consumer.close_assigned_admission() {
+        failure = failure.with_cleanup(match cleanup {
+            crate::consumer::AssignedConsumerShardLockError::Poisoned => {
+                EngineHostError::AssignedConsumerLockPoisoned
+            }
+            crate::consumer::AssignedConsumerShardLockError::OwnerMissing => {
+                EngineHostError::AssignedConsumerOwnerMissing
+            }
+            crate::consumer::AssignedConsumerShardLockError::Contended => {
+                EngineHostError::AssignedConsumerUnsettled(usize::MAX)
+            }
+        });
+    }
+    resources.group_consumers.close_admission();
+    failure
 }
 
 fn recover_assigned_after_driver_shutdown(

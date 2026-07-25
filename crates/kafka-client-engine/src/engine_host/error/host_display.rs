@@ -58,6 +58,9 @@ impl fmt::Display for EngineHostError {
                     "assigned-consumer completion notifier failed: {error}"
                 )
             }
+            Self::GroupConsumer(error) => {
+                write!(formatter, "group-consumer registry failed: {error}")
+            }
             Self::CreateTopics(error) => write!(formatter, "CreateTopics host failed: {error}"),
             Self::CreateTopicsCompletion(error) => write!(formatter, "{error}"),
             Self::CreateTopicsLockPoisoned => {

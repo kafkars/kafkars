@@ -3,7 +3,9 @@
 use crate::{
     admin::AdminCompletionNotifier,
     completion::NotifierJoin,
-    consumer::{AssignedConsumerCompletionNotifier, AssignedConsumerCompletionPorts},
+    consumer::{
+        AssignedConsumerCompletionNotifier, AssignedConsumerCompletionPorts, GroupConsumerRegistry,
+    },
     producer::ProducerHost,
 };
 
@@ -25,11 +27,13 @@ pub(super) fn install_thread_ids(
     producer: &ProducerHost,
     admin: &AdminCompletionNotifier,
     assigned_consumer: &AssignedConsumerCompletionNotifier,
+    group_consumers: &GroupConsumerRegistry,
 ) {
     for thread_id in [
         producer.notifier_thread_id(),
         admin.thread_id(),
         assigned_consumer.thread_id(),
+        group_consumers.notifier_thread_id(),
     ]
     .into_iter()
     .flatten()

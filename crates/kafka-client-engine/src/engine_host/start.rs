@@ -15,6 +15,7 @@ use crate::{
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
+    consumer::GroupConsumerRegistry,
     driver::DriverOwner,
     producer::{ProducerHost, ingress::ProducerShardOwner},
 };
@@ -93,9 +94,18 @@ pub(crate) fn start(
     let create_partitions = CreatePartitionsHost::new(create_partitions);
     let describe_topics = DescribeTopicsHost::new(describe_topics);
     let incremental_alter_configs = IncrementalAlterConfigsHost::new(incremental_alter_configs);
+    let mut group_consumers = match GroupConsumerRegistry::start() {
+        Ok(registry) => registry,
+        Err(error) => {
+            notifier_start::join_acquired(admin_notifier.take_join());
+            notifier_start::join_acquired(assigned_consumer_notifier.take_join());
+            return cancel_start(sender, handle, EngineStartError::group_consumer(&error));
+        }
+    };
     let producer = match ProducerHost::new_with_compression_wake(validated.host_limits, &wake) {
         Ok(producer) => producer,
         Err(error) => {
+            notifier_start::join_acquired(group_consumers.take_notifier());
             notifier_start::join_acquired(admin_notifier.take_join());
             notifier_start::join_acquired(assigned_consumer_notifier.take_join());
             return cancel_start(sender, handle, EngineStartError::producer(&error));
@@ -106,6 +116,7 @@ pub(crate) fn start(
         &producer,
         &admin_notifier,
         &assigned_consumer_notifier,
+        &group_consumers,
     );
     let producer = ProducerShardOwner::new(producer, Arc::clone(&wake));
     let admission = producer.admission_port();
@@ -144,6 +155,7 @@ pub(crate) fn start(
         describe_configs: describe_configs.owner,
         incremental_alter_configs,
         assigned_consumer: assigned_consumer_owner,
+        group_consumers,
         clock: Arc::clone(&clock),
         control: Arc::clone(&control),
         budget: validated.turn_budget,

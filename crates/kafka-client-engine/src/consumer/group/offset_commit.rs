@@ -3,6 +3,7 @@
 mod admission;
 mod error;
 mod host;
+mod notifier_lifecycle;
 mod preparation;
 mod preparation_failure;
 mod publication;
@@ -17,7 +18,9 @@ pub(in crate::consumer::group) use admission::{
     GroupOffsetCommitAdmissionFailure, GroupOffsetCommitAdmissionFailureKind,
 };
 pub(in crate::consumer::group) use error::GroupOffsetCommitHostError;
-pub(in crate::consumer::group) use host::{AcceptedGroupOffsetCommit, GroupOffsetCommitHost};
+pub(in crate::consumer::group) use host::{
+    AcceptedGroupOffsetCommit, GroupOffsetCommitHost, GroupOffsetCommitTurn,
+};
 
 #[cfg(test)]
 mod admission_test;
@@ -25,6 +28,8 @@ mod admission_test;
 mod error_test;
 #[cfg(test)]
 mod host_test;
+#[cfg(test)]
+mod notifier_lifecycle_test;
 #[cfg(test)]
 mod preparation_failure_test;
 #[cfg(test)]
