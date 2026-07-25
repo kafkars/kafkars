@@ -22,8 +22,8 @@ fn stale_checkpoint_rejection_rolls_back_completion_and_bytes() {
         current.entries().to_vec(),
     )
     .unwrap_or_else(|error| panic!("stale checkpoint: {error}"));
-    let mut host =
-        GroupOffsetCommitHost::start().unwrap_or_else(|error| panic!("host start: {error}"));
+    let mut host = GroupOffsetCommitHost::start_group_offset_commit_host()
+        .unwrap_or_else(|error| panic!("host start: {error}"));
     let failure = host
         .try_admit(&catalog, deadline(40), stale)
         .err()

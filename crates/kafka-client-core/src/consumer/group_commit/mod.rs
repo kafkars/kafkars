@@ -7,6 +7,7 @@ mod identity;
 mod input;
 mod machine;
 mod outcome;
+mod validation;
 
 pub use assignment::{
     GroupAssignmentPartition, GroupOffsetCommitAdmissionError, GroupOffsetCommitAdmissionErrorKind,
@@ -29,6 +30,7 @@ pub use outcome::{
     GroupOffsetCommitFailure, GroupOffsetCommitFailureKind, GroupOffsetCommitPartitionOutcome,
     GroupOffsetCommitPartitionResult, GroupOffsetCommitTerminal,
 };
+pub use validation::validate_group_offset_commit_checkpoint;
 
 #[cfg(test)]
 mod admission_test;
@@ -46,3 +48,5 @@ mod input_test;
 mod machine_test;
 #[cfg(test)]
 mod outcome_test;
+#[cfg(test)]
+mod validation_test;

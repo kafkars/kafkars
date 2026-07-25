@@ -53,7 +53,7 @@ pub use crate::consumer::{
     GroupOffsetCommitPartitionResult, GroupOffsetCommitState, GroupOffsetCommitTerminal,
     GroupOffsetCommitTransition, LiveGroupAssignment, LiveGroupAssignmentError, MemberId,
     NextFetchOffset, PositionEpoch, PositionFence, PositionOwnership, PositionResolutionFailure,
-    StartPosition,
+    StartPosition, validate_group_offset_commit_checkpoint,
 };
 pub use crate::operation::{ProducerOperation, ProducerOperationState};
 pub use crate::operation_outcome::{

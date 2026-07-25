@@ -13,6 +13,12 @@ mod settlement;
 mod snapshot;
 mod turn;
 
+pub(in crate::consumer::group) use admission::{
+    GroupOffsetCommitAdmissionFailure, GroupOffsetCommitAdmissionFailureKind,
+};
+pub(in crate::consumer::group) use error::GroupOffsetCommitHostError;
+pub(in crate::consumer::group) use host::{AcceptedGroupOffsetCommit, GroupOffsetCommitHost};
+
 #[cfg(test)]
 mod admission_test;
 #[cfg(test)]

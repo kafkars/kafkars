@@ -5,7 +5,7 @@ use kafka_client_core::{GroupOffsetCommitInput, OperationId};
 use super::host::{GroupOffsetCommitAttempt, GroupOffsetCommitHost, GroupOffsetCommitHostError};
 
 impl GroupOffsetCommitHost {
-    pub(super) fn recover_after_driver_shutdown(
+    pub(in crate::consumer::group) fn recover_after_driver_shutdown(
         &mut self,
     ) -> Result<(), GroupOffsetCommitHostError> {
         self.close_admission();

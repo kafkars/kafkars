@@ -15,6 +15,7 @@ pub use super::group_commit::{
     GroupOffsetCommitMachineError, GroupOffsetCommitPartitionOutcome,
     GroupOffsetCommitPartitionResult, GroupOffsetCommitState, GroupOffsetCommitTerminal,
     GroupOffsetCommitTransition, LiveGroupAssignment, LiveGroupAssignmentError, MemberId,
+    validate_group_offset_commit_checkpoint,
 };
 pub use super::identity::{AssignedConsumerCloseId, AssignmentEpoch, FetchRevision, PositionEpoch};
 pub use super::input::AssignedConsumerInput;

@@ -1,6 +1,8 @@
 //! Atomic capacity reservation and catalog-fenced core admission.
 
-use kafka_client_core::{GroupCheckpoint, GroupOffsetCommitMachine};
+use kafka_client_core::{
+    GroupCheckpoint, GroupOffsetCommitMachine, validate_group_offset_commit_checkpoint,
+};
 
 use crate::{
     clock::OperationDeadline,
@@ -19,13 +21,13 @@ use super::{
 
 /// Local rejection retaining the exact linear checkpoint.
 #[must_use = "group offset commit rejection retains the caller checkpoint"]
-pub(super) struct GroupOffsetCommitAdmissionFailure {
-    pub(super) kind: GroupOffsetCommitAdmissionFailureKind,
-    pub(super) checkpoint: GroupCheckpoint,
+pub(in crate::consumer::group) struct GroupOffsetCommitAdmissionFailure {
+    pub(in crate::consumer::group) kind: GroupOffsetCommitAdmissionFailureKind,
+    pub(in crate::consumer::group) checkpoint: GroupCheckpoint,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum GroupOffsetCommitAdmissionFailureKind {
+pub(in crate::consumer::group) enum GroupOffsetCommitAdmissionFailureKind {
     Closed,
     Capacity,
     RetainedBytes,
@@ -45,7 +47,7 @@ struct ReservedAdmission {
 }
 
 impl GroupOffsetCommitHost {
-    pub(super) fn try_admit(
+    pub(in crate::consumer::group) fn try_admit(
         &mut self,
         catalog: &GroupSessionCatalog,
         deadline: OperationDeadline,
@@ -69,6 +71,14 @@ impl GroupOffsetCommitHost {
                 checkpoint,
             ));
         };
+        if let Err(kind) =
+            validate_group_offset_commit_checkpoint(catalog.live_assignment(), &checkpoint)
+        {
+            return Err(failure(
+                GroupOffsetCommitAdmissionFailureKind::Core(kind),
+                checkpoint,
+            ));
+        }
         let reserved = self.reserve_before_core(catalog, checkpoint)?;
         let admission = match GroupOffsetCommitMachine::try_admit(
             operation_id,

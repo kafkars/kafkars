@@ -4,8 +4,8 @@ use super::host::{GroupOffsetCommitHost, GroupOffsetCommitHostError};
 
 #[test]
 fn latched_fault_prevents_successful_notifier_shutdown() {
-    let mut host =
-        GroupOffsetCommitHost::start().unwrap_or_else(|error| panic!("host start: {error}"));
+    let mut host = GroupOffsetCommitHost::start_group_offset_commit_host()
+        .unwrap_or_else(|error| panic!("host start: {error}"));
     host.close_admission();
     host.fault = Some(GroupOffsetCommitHostError::ByteAccounting);
 

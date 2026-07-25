@@ -95,37 +95,6 @@ impl LiveGroupAssignment {
     pub fn partitions_capacity(&self) -> usize {
         self.partitions.capacity()
     }
-
-    pub(crate) fn contains(&self, partition: GroupAssignmentPartition) -> bool {
-        self.partitions.binary_search(&partition).is_ok()
-    }
-
-    pub(crate) fn validate_checkpoint(
-        &self,
-        checkpoint: &GroupCheckpoint,
-    ) -> Result<(), GroupOffsetCommitAdmissionErrorKind> {
-        if checkpoint.group_id() != self.group_id {
-            return Err(GroupOffsetCommitAdmissionErrorKind::GroupMismatch);
-        }
-        if checkpoint.member_id() != self.member_id {
-            return Err(GroupOffsetCommitAdmissionErrorKind::MemberMismatch);
-        }
-        if checkpoint.assignment_generation() != self.assignment_generation {
-            return Err(GroupOffsetCommitAdmissionErrorKind::GenerationMismatch);
-        }
-        if let Some(partition) = checkpoint
-            .entries()
-            .iter()
-            .map(|entry| GroupAssignmentPartition::new(entry.topic_id(), entry.partition()))
-            .find(|partition| !self.contains(*partition))
-        {
-            return Err(GroupOffsetCommitAdmissionErrorKind::UnassignedPartition {
-                topic_id: partition.topic_id(),
-                partition: partition.partition(),
-            });
-        }
-        Ok(())
-    }
 }
 
 /// Structural rejection of one live-assignment fact.

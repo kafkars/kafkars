@@ -9,7 +9,7 @@ use crate::completion::CompletionRegistryError;
 use super::super::session_catalog::GroupSessionCatalogError;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum GroupOffsetCommitHostError {
+pub(in crate::consumer::group) enum GroupOffsetCommitHostError {
     Machine(GroupOffsetCommitMachineError),
     Completion(CompletionRegistryError),
     Catalog(GroupSessionCatalogError),

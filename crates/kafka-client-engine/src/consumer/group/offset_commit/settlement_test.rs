@@ -13,8 +13,8 @@ use super::{
 #[test]
 fn driver_terminal_is_applied_before_route_confirmation_and_publication() {
     let catalog = catalog();
-    let mut host =
-        GroupOffsetCommitHost::start().unwrap_or_else(|error| panic!("host start: {error}"));
+    let mut host = GroupOffsetCommitHost::start_group_offset_commit_host()
+        .unwrap_or_else(|error| panic!("host start: {error}"));
     let admission = host
         .try_admit(&catalog, deadline(50), checkpoint(&catalog))
         .unwrap_or_else(|failure| panic!("admission failed: {:?}", failure.kind));

@@ -45,8 +45,8 @@ fn execution_unavailable_is_definitely_unsent_and_terminal() {
             .unwrap_or_else(|error| panic!("result reservation: {error:?}")),
     )
     .unwrap_or_else(|error| panic!("prepared: {:?}", error.kind()));
-    let mut host =
-        GroupOffsetCommitHost::start().unwrap_or_else(|error| panic!("host start: {error}"));
+    let mut host = GroupOffsetCommitHost::start_group_offset_commit_host()
+        .unwrap_or_else(|error| panic!("host start: {error}"));
 
     let outcome = host.settle_preparation_failure(
         operation_id,

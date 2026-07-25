@@ -13,8 +13,8 @@ use super::{
 fn deadline_before_driver_is_not_sent_and_publishes_once() {
     let catalog = catalog();
     let checkpoint = checkpoint(&catalog);
-    let mut host =
-        GroupOffsetCommitHost::start().unwrap_or_else(|error| panic!("host start: {error}"));
+    let mut host = GroupOffsetCommitHost::start_group_offset_commit_host()
+        .unwrap_or_else(|error| panic!("host start: {error}"));
     let admission = host
         .try_admit(&catalog, deadline(5), checkpoint)
         .unwrap_or_else(|failure| panic!("admission failed: {:?}", failure.kind));

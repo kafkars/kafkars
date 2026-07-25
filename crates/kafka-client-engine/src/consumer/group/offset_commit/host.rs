@@ -25,9 +25,9 @@ pub(super) const GROUP_OFFSET_COMMIT_RETAINED_BYTES: usize =
     GROUP_OFFSET_COMMIT_CAPACITY * GROUP_OFFSET_COMMIT_OPERATION_BYTES;
 
 /// Accepted observation lane plus an invariant fault discovered after admission.
-pub(super) struct AcceptedGroupOffsetCommit {
-    pub(super) observer: CompletionObserver<GroupOffsetCommitTerminal>,
-    pub(super) fault: Option<GroupOffsetCommitHostError>,
+pub(in crate::consumer::group) struct AcceptedGroupOffsetCommit {
+    pub(in crate::consumer::group) observer: CompletionObserver<GroupOffsetCommitTerminal>,
+    pub(in crate::consumer::group) fault: Option<GroupOffsetCommitHostError>,
 }
 
 pub(super) struct GroupOffsetCommitOperation {
@@ -118,7 +118,7 @@ pub(super) enum GroupOffsetCommitTurn {
 }
 
 /// Concrete private owner joining catalog, core, driver, bytes, and completion.
-pub(super) struct GroupOffsetCommitHost {
+pub(in crate::consumer::group) struct GroupOffsetCommitHost {
     pub(super) operations: Vec<GroupOffsetCommitOperation>,
     pub(super) calls: TrackedGroupOffsetCommitCalls,
     pub(super) completions: CompletionRegistry<GroupOffsetCommitTerminal>,
@@ -136,7 +136,7 @@ pub(super) struct GroupOffsetCommitHost {
 }
 
 impl GroupOffsetCommitHost {
-    pub(super) fn start() -> std::io::Result<Self> {
+    pub(in crate::consumer::group) fn start_group_offset_commit_host() -> std::io::Result<Self> {
         let mut operations = Vec::new();
         operations
             .try_reserve_exact(GROUP_OFFSET_COMMIT_CAPACITY)
@@ -170,7 +170,7 @@ impl GroupOffsetCommitHost {
         })
     }
 
-    pub(super) fn close_admission(&mut self) {
+    pub(in crate::consumer::group) fn close_admission(&mut self) {
         self.accepting = false;
     }
 
@@ -187,7 +187,9 @@ impl GroupOffsetCommitHost {
         self.effect_fault.is_some()
     }
 
-    pub(super) fn finish_shutdown(&mut self) -> Result<NotifierJoin, GroupOffsetCommitHostError> {
+    pub(in crate::consumer::group) fn finish_shutdown(
+        &mut self,
+    ) -> Result<NotifierJoin, GroupOffsetCommitHostError> {
         if self.accepting
             || !self.operations.is_empty()
             || self.calls.retained_group_commit_count() != 0

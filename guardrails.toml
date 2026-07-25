@@ -156,6 +156,10 @@ production = "crates/kafka-client-core/src/consumer/group_commit/assignment.rs"
 test = "crates/kafka-client-core/src/consumer/group_commit/assignment_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/group_commit/validation.rs"
+test = "crates/kafka-client-core/src/consumer/group_commit/validation_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/group_commit/effect.rs"
 test = "crates/kafka-client-core/src/consumer/group_commit/effect_test.rs"
 
@@ -7732,3 +7736,265 @@ method = "install_group_session_replacement"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/session_catalog_prepared.rs",
 ]
+
+# One bounded private group-consumer registry owns many session catalogs and
+# exactly one global group offset-commit host.
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/registry.rs"
+test = "crates/kafka-client-engine/src/consumer/group/registry_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/registry_entry.rs"
+test = "crates/kafka-client-engine/src/consumer/group/registry_entry_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/registry_commit.rs"
+test = "crates/kafka-client-engine/src/consumer/group/registry_commit_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/registry_close.rs"
+test = "crates/kafka-client-engine/src/consumer/group/registry_close_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/registry_session.rs"
+test = "crates/kafka-client-engine/src/consumer/group/registry_session_test.rs"
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/registry.rs"
+forbidden = [
+  "crate::driver",
+  "crate::host",
+  "crate::protocol",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Retry",
+  "invalidate",
+  "remove",
+  "swap_remove",
+  "retain",
+  "pop",
+  "clear",
+  "drain",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/registry_entry.rs"
+forbidden = [
+  "crate::driver",
+  "crate::host",
+  "crate::protocol",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Retry",
+  "invalidate",
+  "remove",
+  "swap_remove",
+  "retain",
+  "pop",
+  "clear",
+  "drain",
+  "GroupOffsetCommitHost",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/registry_commit.rs"
+forbidden = [
+  "crate::driver",
+  "crate::host",
+  "crate::protocol",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Retry",
+  "invalidate",
+  "remove",
+  "swap_remove",
+  "retain",
+  "pop",
+  "clear",
+  "drain",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/registry_close.rs"
+forbidden = [
+  "crate::driver",
+  "crate::host",
+  "crate::protocol",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Retry",
+  "invalidate",
+  "remove",
+  "swap_remove",
+  "retain",
+  "pop",
+  "clear",
+  "drain",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/registry_session.rs"
+forbidden = [
+  "crate::driver",
+  "crate::host",
+  "crate::protocol",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Retry",
+  "invalidate",
+  "remove",
+  "swap_remove",
+  "retain",
+  "pop",
+  "clear",
+  "drain",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "start_group_offset_commit_host"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
+field = "entries"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_close.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_session.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
+field = "next_group_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
+field = "retained_group_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
+field = "accepting"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_close.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
+field = "offset_commits"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_commit.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_close.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerEntry"
+field = "state"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_close.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerEntry"
+field = "catalog"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_entry.rs",
+]
+
+[[linear_owners]]
+owner_type = "GroupConsumerRegistry"
+path = "crates/kafka-client-engine/src/consumer/group/registry.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerEntry"
+path = "crates/kafka-client-engine/src/consumer/group/registry_entry.rs"

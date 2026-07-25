@@ -10,6 +10,7 @@ use super::{
     GroupOffsetCommitFailureKind, GroupOffsetCommitInput, GroupOffsetCommitMachineError,
     GroupOffsetCommitPartitionOutcome, GroupOffsetCommitState, GroupOffsetCommitTerminal,
     GroupOffsetCommitTransition, LiveGroupAssignment, assignment::reserve_expected_partitions,
+    validate_group_offset_commit_checkpoint,
 };
 
 /// Deterministic owner for one capacity-reserved group offset commit.
@@ -29,13 +30,7 @@ impl GroupOffsetCommitMachine {
         live_assignment: Option<&LiveGroupAssignment>,
         checkpoint: GroupCheckpoint,
     ) -> Result<GroupOffsetCommitAdmission, AdmissionError> {
-        let Some(assignment) = live_assignment else {
-            return Err(AdmissionError::new(
-                AdmissionErrorKind::AssignmentLost,
-                checkpoint,
-            ));
-        };
-        if let Err(kind) = assignment.validate_checkpoint(&checkpoint) {
+        if let Err(kind) = validate_group_offset_commit_checkpoint(live_assignment, &checkpoint) {
             return Err(AdmissionError::new(kind, checkpoint));
         }
         let mut expected = Vec::new();
