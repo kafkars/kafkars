@@ -2,7 +2,9 @@
 
 use std::time::Duration;
 
-use kafka_client_core::{ClassicGroupTiming, Deadline, GroupId, MembershipCycle};
+use kafka_client_core::{
+    ClassicGroupTiming, ClassicHeartbeatPolicy, Deadline, GroupId, MembershipCycle,
+};
 
 use crate::{
     clock::{MonotonicClock, OperationDeadline},
@@ -95,7 +97,9 @@ fn prepared_acceptance() -> (
     let group_id = GroupId::try_from_raw(7).unwrap_or_else(|| panic!("nonzero group identity"));
     let timing = ClassicGroupTiming::try_new(12_345, 54_321)
         .unwrap_or_else(|error| panic!("valid classic group timing: {error}"));
-    let mut owner = ClassicGroupOwner::new(group_id, timing);
+    let heartbeat = ClassicHeartbeatPolicy::try_new(1_000_000_000, 2_000_000_000)
+        .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}"));
+    let mut owner = ClassicGroupOwner::new(group_id, timing, heartbeat);
     let mut execution = new_classic_group_execution();
     let capture = MonotonicClock::new()
         .capture_deadline_after(Duration::from_secs(7))

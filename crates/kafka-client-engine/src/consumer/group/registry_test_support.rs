@@ -24,6 +24,7 @@ pub(super) fn register(registry: &mut GroupConsumerRegistry, group: &str) -> Gro
             Arc::from(group),
             vec![Arc::from("orders")],
             classic_group_test_support::timing(),
+            classic_group_test_support::heartbeat_policy(),
         )
         .unwrap_or_else(|failure| panic!("registration failed: {:?}", failure.kind))
 }

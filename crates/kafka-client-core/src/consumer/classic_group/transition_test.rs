@@ -6,9 +6,9 @@ use crate::{
 
 use super::{
     ClassicGeneration, ClassicGroupEffect, ClassicGroupErrorKind, ClassicGroupInput,
-    ClassicGroupMachine, ClassicGroupPhase, ClassicGroupTiming, ClassicJoinMember,
-    ClassicJoinMembers, ClassicProtocol, ClassicSubscription, JoinedMemberSlot, MemberRank,
-    MembershipCycle, TopicPartitionCount,
+    ClassicGroupMachine, ClassicGroupPhase, ClassicGroupTiming, ClassicHeartbeatPolicy,
+    ClassicJoinMember, ClassicJoinMembers, ClassicProtocol, ClassicSubscription, JoinedMemberSlot,
+    MemberRank, MembershipCycle, TopicPartitionCount,
 };
 
 #[test]
@@ -102,6 +102,7 @@ fn only_matching_sync_success_activates_one_assignment_generation() {
         Some(ClassicGroupEffect::Install {
             assignment,
             classic_generation,
+            ..
         }) if assignment.assignment_generation().get() == 1
             && classic_generation.get() == 11
     ));
@@ -265,6 +266,8 @@ fn machine() -> ClassicGroupMachine {
         GroupId::try_from_raw(1).unwrap_or_else(|| panic!("nonzero group")),
         ClassicGroupTiming::try_new(10_000, 30_000)
             .unwrap_or_else(|error| panic!("valid timing: {error}")),
+        ClassicHeartbeatPolicy::try_new(10, 20)
+            .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}")),
     )
 }
 

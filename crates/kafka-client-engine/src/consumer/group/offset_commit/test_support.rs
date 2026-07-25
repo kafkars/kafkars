@@ -23,7 +23,11 @@ pub(super) fn catalog() -> GroupSessionCatalog {
         &[Arc::from("orders")],
     )
     .unwrap_or_else(|error| panic!("catalog: {error:?}"));
-    let mut owner = ClassicGroupOwner::new(group_id, classic_group_test_support::timing());
+    let mut owner = ClassicGroupOwner::new(
+        group_id,
+        classic_group_test_support::timing(),
+        classic_group_test_support::heartbeat_policy(),
+    );
     classic_group_test_support::install_follower(
         &mut catalog,
         &mut owner,

@@ -35,6 +35,12 @@ impl ClassicGroupMachine {
         cycle: MembershipCycle,
     ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         validate_stage_cycle(self, ClassicGroupPhase::Stable, cycle)?;
+        self.revoke_stable_assignment()
+    }
+
+    pub(super) fn revoke_stable_assignment(
+        &mut self,
+    ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         if self.live_assignment.is_some() != self.live_generation.is_some() {
             return Err(ClassicGroupErrorKind::InvariantViolation);
         }
@@ -50,6 +56,7 @@ impl ClassicGroupMachine {
         self.active_cycle = None;
         self.deadline = None;
         self.clear_pending();
+        self.heartbeat.disarm();
         Ok(ClassicGroupTransition::one(ClassicGroupEffect::Revoke {
             assignment,
             classic_generation,
@@ -93,14 +100,16 @@ impl ClassicGroupMachine {
         self.active_cycle = None;
         self.deadline = None;
         self.clear_pending();
+        self.heartbeat.disarm();
         Ok(revoke.map_or_else(ClassicGroupTransition::none, ClassicGroupTransition::one))
     }
 
-    fn lose_cycle(&mut self) {
+    pub(super) fn lose_cycle(&mut self) {
         self.phase = ClassicGroupPhase::Lost;
         self.active_cycle = None;
         self.deadline = None;
         self.clear_pending();
+        self.heartbeat.disarm();
     }
 
     fn stage_failed(

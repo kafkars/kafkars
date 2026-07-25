@@ -20,7 +20,11 @@ fn owners() -> (GroupSessionCatalog, ClassicGroupOwner) {
             .unwrap_or_else(|error| panic!("catalog creation failed: {error:?}"));
     (
         catalog,
-        ClassicGroupOwner::new(group_id, classic_group_test_support::timing()),
+        ClassicGroupOwner::new(
+            group_id,
+            classic_group_test_support::timing(),
+            classic_group_test_support::heartbeat_policy(),
+        ),
     )
 }
 
@@ -60,6 +64,7 @@ fn unsubscribed_install_failure_retains_assignment_and_candidate() {
     let ClassicGroupEffect::Install {
         assignment,
         classic_generation,
+        heartbeat: _heartbeat,
     } = install
     else {
         panic!("Install expected");
@@ -114,6 +119,7 @@ fn dropping_prepared_install_preserves_candidate_catalog_and_cursors() {
     let ClassicGroupEffect::Install {
         assignment,
         classic_generation,
+        heartbeat: _heartbeat,
     } = effect
     else {
         panic!("Install expected");
@@ -197,7 +203,11 @@ fn foreign_lost_owner_cannot_authorize_another_groups_revoke() {
     let mut catalog_b =
         GroupSessionCatalog::try_new(group_b, Arc::from("payments"), &[Arc::from("payments")])
             .unwrap_or_else(|error| panic!("catalog creation failed: {error:?}"));
-    let mut owner_b = ClassicGroupOwner::new(group_b, classic_group_test_support::timing());
+    let mut owner_b = ClassicGroupOwner::new(
+        group_b,
+        classic_group_test_support::timing(),
+        classic_group_test_support::heartbeat_policy(),
+    );
     classic_group_test_support::install_follower(
         &mut catalog_b,
         &mut owner_b,

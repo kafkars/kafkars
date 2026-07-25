@@ -62,6 +62,7 @@ fn catalog_rejection_returns_the_exact_group_allocation() {
             group,
             vec![Arc::from("orders")],
             super::classic_group_test_support::timing(),
+            super::classic_group_test_support::heartbeat_policy(),
         )
         .err()
         .unwrap_or_else(|| panic!("empty group must be rejected"));
@@ -88,6 +89,7 @@ fn count_and_aggregate_group_name_bytes_have_exact_caps() {
             Arc::from("one-too-many"),
             vec![Arc::from("orders")],
             super::classic_group_test_support::timing(),
+            super::classic_group_test_support::heartbeat_policy(),
         )
         .err()
         .unwrap_or_else(|| panic!("entry capacity must reject"));
@@ -129,6 +131,7 @@ fn first_entry_fault_fences_registration_cycle_and_commit_admission() {
             Arc::from("other"),
             vec![Arc::from("orders")],
             super::classic_group_test_support::timing(),
+            super::classic_group_test_support::heartbeat_policy(),
         )
         .err()
         .unwrap_or_else(|| panic!("faulted registry must reject registration"));

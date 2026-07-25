@@ -4427,6 +4427,13 @@ allowed_paths = [
 
 [[mutation_owners]]
 owner_type = "ClassicGroupMachine"
+field = "pending_heartbeat_liveness"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicGroupMachine"
 field = "next_assignment_generation"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/classic_group/transition.rs",

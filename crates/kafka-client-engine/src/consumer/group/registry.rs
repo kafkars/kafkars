@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{ClassicGroupTiming, GroupId};
+use kafka_client_core::{ClassicGroupTiming, ClassicHeartbeatPolicy, GroupId};
 
 use crate::driver::classic_group::{
     JoinGroupShutdownRecovery, RecoveredJoinGroupOwnership, RecoveredSyncGroupOwnership,
@@ -83,6 +83,7 @@ impl GroupConsumerRegistry {
         group: Arc<str>,
         local_topics: Vec<Arc<str>>,
         timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
     ) -> Result<GroupId, GroupConsumerRegistrationFailure> {
         if !self.accepting {
             return Err(registration_failure(
@@ -112,7 +113,13 @@ impl GroupConsumerRegistry {
                 local_topics,
             ));
         };
-        let entry = match GroupConsumerEntry::try_new(group_id, &group, &local_topics, timing) {
+        let entry = match GroupConsumerEntry::try_new(
+            group_id,
+            &group,
+            &local_topics,
+            timing,
+            heartbeat_policy,
+        ) {
             Ok(entry) => entry,
             Err(error) => {
                 return Err(registration_failure(

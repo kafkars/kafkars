@@ -3,8 +3,9 @@
 use crate::{Deadline, GroupId, MemberId, Moment, TopicId};
 
 use super::{
-    ClassicGroupInput, ClassicGroupMachine, ClassicGroupPhase, ClassicJoinMember,
-    ClassicJoinMembers, ClassicSubscription, JoinedMemberSlot, MemberRank, MembershipCycle,
+    ClassicGroupInput, ClassicGroupMachine, ClassicGroupPhase, ClassicHeartbeatPolicy,
+    ClassicJoinMember, ClassicJoinMembers, ClassicSubscription, JoinedMemberSlot, MemberRank,
+    MembershipCycle,
     transition_support::{collect_group_topics, local_member_is_present, validate_active},
 };
 
@@ -85,6 +86,8 @@ fn machine() -> ClassicGroupMachine {
         GroupId::try_from_raw(1).unwrap_or_else(|| panic!("nonzero group")),
         super::ClassicGroupTiming::try_new(10_000, 30_000)
             .unwrap_or_else(|error| panic!("valid timing: {error}")),
+        ClassicHeartbeatPolicy::try_new(10, 20)
+            .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}")),
     )
 }
 

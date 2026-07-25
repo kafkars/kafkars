@@ -2,7 +2,7 @@
 
 use kafka_client_core::{
     ClassicGroupApplyError, ClassicGroupInput, ClassicGroupMachine, ClassicGroupPhase,
-    ClassicGroupTiming, ClassicGroupTransition, GroupId,
+    ClassicGroupTiming, ClassicGroupTransition, ClassicHeartbeatPolicy, GroupId,
 };
 
 use super::classic_group_candidate::ClassicGroupCycleCandidate;
@@ -14,9 +14,13 @@ pub(super) struct ClassicGroupOwner {
 }
 
 impl ClassicGroupOwner {
-    pub(super) const fn new(group_id: GroupId, timing: ClassicGroupTiming) -> Self {
+    pub(super) const fn new(
+        group_id: GroupId,
+        timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
+    ) -> Self {
         Self {
-            machine: ClassicGroupMachine::new(group_id, timing),
+            machine: ClassicGroupMachine::new(group_id, timing, heartbeat_policy),
             pending: None,
         }
     }

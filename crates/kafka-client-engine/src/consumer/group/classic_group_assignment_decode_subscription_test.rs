@@ -31,7 +31,11 @@ fn follower_after_foreign_topic() -> (GroupSessionCatalog, ClassicGroupCycleCand
     let mut catalog =
         GroupSessionCatalog::try_new(group_id(), Arc::from("workers"), &[Arc::from("orders")])
             .unwrap_or_else(|error| panic!("catalog creation failed: {error:?}"));
-    let mut owner = ClassicGroupOwner::new(group_id(), classic_group_test_support::timing());
+    let mut owner = ClassicGroupOwner::new(
+        group_id(),
+        classic_group_test_support::timing(),
+        classic_group_test_support::heartbeat_policy(),
+    );
     let cycle = classic_group_test_support::begin(&mut owner);
     let candidate = catalog
         .prepare_leader_cycle(
@@ -106,6 +110,7 @@ fn install_empty(
     let ClassicGroupEffect::Install {
         assignment,
         classic_generation,
+        heartbeat: _heartbeat,
     } = install
     else {
         panic!("install effect expected");

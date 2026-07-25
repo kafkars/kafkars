@@ -34,6 +34,16 @@ impl ClassicGroupMachine {
                 now,
                 partitions,
             } => self.sync_succeeded(cycle, now, partitions),
+            ClassicGroupInput::HeartbeatDue { attempt, now } => self.heartbeat_due(attempt, now),
+            ClassicGroupInput::HeartbeatSucceeded {
+                attempt,
+                now,
+                throttle_ticks,
+            } => self.heartbeat_succeeded(attempt, now, throttle_ticks),
+            ClassicGroupInput::HeartbeatFailed { attempt } => self.heartbeat_failed(attempt),
+            ClassicGroupInput::HeartbeatDeadlineElapsed { attempt, now } => {
+                self.heartbeat_deadline_elapsed(attempt, now)
+            }
             ClassicGroupInput::JoinFailed { cycle } => self.join_failed(cycle),
             ClassicGroupInput::PartitionCountsFailed { cycle } => {
                 self.partition_counts_failed(cycle)

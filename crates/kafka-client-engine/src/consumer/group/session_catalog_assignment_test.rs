@@ -19,7 +19,11 @@ fn owners() -> (GroupSessionCatalog, ClassicGroupOwner) {
             .unwrap_or_else(|error| panic!("catalog creation failed: {error:?}"));
     (
         catalog,
-        ClassicGroupOwner::new(group_id, super::classic_group_test_support::timing()),
+        ClassicGroupOwner::new(
+            group_id,
+            super::classic_group_test_support::timing(),
+            super::classic_group_test_support::heartbeat_policy(),
+        ),
     )
 }
 
@@ -64,6 +68,7 @@ fn install_moves_the_exact_core_assignment_and_advances_staged_identities() {
     let ClassicGroupEffect::Install {
         assignment,
         classic_generation,
+        heartbeat: _heartbeat,
     } = install
     else {
         panic!("Install expected");

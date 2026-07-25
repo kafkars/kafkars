@@ -11,6 +11,7 @@ use support::{
 
 use expectations::{
     FORBIDDEN, IMMUTABLE_MACHINE_FIELDS, LINEAR, MACHINE, MACHINE_FIELDS, MIRRORS, ROOT,
+    TRAILING_MACHINE_FIELDS,
 };
 
 #[test]
@@ -78,6 +79,7 @@ fn checked_in_classic_group_mutation_and_capability_policy_is_exact() {
             .iter()
             .copied()
             .chain(MACHINE_FIELDS.iter().map(|(field, _paths)| *field))
+            .chain(TRAILING_MACHINE_FIELDS.iter().copied())
             .map(str::to_owned)
             .collect::<Vec<_>>()
     );

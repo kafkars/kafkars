@@ -2,7 +2,7 @@
 
 use std::{sync::Arc, time::Duration};
 
-use kafka_client_core::{ClassicGroupTiming, Moment};
+use kafka_client_core::{ClassicGroupTiming, ClassicHeartbeatPolicy, Moment};
 
 use crate::{
     EngineConfig,
@@ -64,7 +64,12 @@ fn shard_admission_deadline_is_scheduled_on_the_embedded_host_turn() {
     let (owner, port) =
         GroupConsumerShardOwner::new(registry, Arc::clone(&clock), Arc::new(NoopWake));
     let group_id = port
-        .try_register(Arc::from("workers"), vec![Arc::from("orders")], timing())
+        .try_register(
+            Arc::from("workers"),
+            vec![Arc::from("orders")],
+            timing(),
+            heartbeat_policy(),
+        )
         .unwrap_or_else(|failure| panic!("registration failed: {:?}", failure.kind));
     let _admission = port
         .begin_cycle(group_id, Duration::from_nanos(1))
@@ -104,6 +109,11 @@ fn shard_admission_deadline_is_scheduled_on_the_embedded_host_turn() {
 fn timing() -> ClassicGroupTiming {
     ClassicGroupTiming::try_new(12_345, 54_321)
         .unwrap_or_else(|error| panic!("valid classic group timing: {error}"))
+}
+
+fn heartbeat_policy() -> ClassicHeartbeatPolicy {
+    ClassicHeartbeatPolicy::try_new(1_000_000_000, 2_000_000_000)
+        .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}"))
 }
 
 #[test]

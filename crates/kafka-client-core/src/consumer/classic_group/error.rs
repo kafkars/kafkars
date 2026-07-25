@@ -19,6 +19,10 @@ pub enum ClassicGroupErrorKind {
     DeadlineElapsed,
     /// A timer fact arrived before the original deadline.
     DeadlineNotElapsed,
+    /// A checked heartbeat cadence or attempt deadline could not be represented.
+    DeadlineOverflow,
+    /// A heartbeat fact does not own the current assignment and sequence.
+    HeartbeatMismatch,
     /// No later nonreused membership cycle can be represented.
     CycleExhausted,
     /// No later nonreused assignment generation can be represented.

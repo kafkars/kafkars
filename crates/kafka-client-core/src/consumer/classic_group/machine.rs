@@ -6,8 +6,8 @@ use crate::{
 };
 
 use super::{
-    ClassicGeneration, ClassicGroupPhase, ClassicGroupTiming, ClassicJoinMembers, JoinedMemberSlot,
-    MembershipCycle,
+    ClassicGeneration, ClassicGroupPhase, ClassicGroupTiming, ClassicHeartbeatPolicy,
+    ClassicJoinMembers, JoinedMemberSlot, MembershipCycle, heartbeat_state::ClassicHeartbeatState,
 };
 
 /// Deterministic owner for one group's classic Join and Sync lifecycle.
@@ -24,14 +24,20 @@ pub struct ClassicGroupMachine {
     pub(super) pending_members: Option<ClassicJoinMembers>,
     pub(super) pending_local_slot: Option<JoinedMemberSlot>,
     pub(super) pending_expected_assignment: Option<Vec<GroupAssignmentPartition>>,
+    pub(super) pending_heartbeat_liveness: Option<Deadline>,
     pub(super) next_assignment_generation: Option<AssignmentGeneration>,
     pub(super) live_generation: Option<ClassicGeneration>,
     pub(super) live_assignment: Option<LiveGroupAssignment>,
+    pub(super) heartbeat: ClassicHeartbeatState,
 }
 
 impl ClassicGroupMachine {
     /// Creates one dormant owner without consulting time or emitting effects.
-    pub const fn new(group_id: GroupId, timing: ClassicGroupTiming) -> Self {
+    pub const fn new(
+        group_id: GroupId,
+        timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
+    ) -> Self {
         Self {
             group_id,
             timing,
@@ -44,9 +50,11 @@ impl ClassicGroupMachine {
             pending_members: None,
             pending_local_slot: None,
             pending_expected_assignment: None,
+            pending_heartbeat_liveness: None,
             next_assignment_generation: Some(AssignmentGeneration::initial()),
             live_generation: None,
             live_assignment: None,
+            heartbeat: ClassicHeartbeatState::new(heartbeat_policy),
         }
     }
 

@@ -17,6 +17,7 @@ fn entry_owns_one_catalog_and_machine_with_the_same_identity() {
         &Arc::from("workers"),
         &[Arc::from("payments"), Arc::from("orders")],
         timing,
+        classic_group_test_support::heartbeat_policy(),
     )
     .unwrap_or_else(|error| panic!("entry creation failed: {error:?}"));
 

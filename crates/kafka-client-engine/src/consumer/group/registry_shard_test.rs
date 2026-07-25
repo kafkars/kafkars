@@ -33,6 +33,7 @@ fn terminal_registry_closes_admission_under_the_owner_lock() {
             Arc::from("workers"),
             vec![Arc::from("orders")],
             classic_group_test_support::timing(),
+            classic_group_test_support::heartbeat_policy(),
         )
         .err()
         .unwrap_or_else(|| panic!("terminal registry must reject admission"));

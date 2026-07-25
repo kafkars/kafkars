@@ -24,6 +24,7 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
 ];
 
 pub(super) const IMMUTABLE_MACHINE_FIELDS: &[&str] = &["group_id", "timing"];
+pub(super) const TRAILING_MACHINE_FIELDS: &[&str] = &["heartbeat"];
 
 pub(super) const LINEAR: &[(&str, &str)] = &[
     ("ClassicSubscription", "model.rs"),
@@ -47,6 +48,7 @@ pub(super) const MACHINE_FIELDS: &[(&str, &[&str])] = &[
     ("pending_members", &[TRANSITION]),
     ("pending_local_slot", &[TRANSITION]),
     ("pending_expected_assignment", &[TRANSITION]),
+    ("pending_heartbeat_liveness", &[TRANSITION]),
     (
         "next_assignment_generation",
         &[TRANSITION, TERMINAL_TRANSITION],

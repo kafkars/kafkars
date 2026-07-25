@@ -73,6 +73,7 @@ pub(super) fn interpret_sync(
         Some(ClassicGroupEffect::Install {
             assignment,
             classic_generation,
+            heartbeat: _heartbeat,
         }) if effects.next().is_none() => (assignment, classic_generation),
         _ => return freeze_post_core(entry, terminal, SyncTerminal),
     };

@@ -3,7 +3,8 @@
 use std::time::Duration;
 
 use kafka_client_core::{
-    ClassicGroupErrorKind, ClassicGroupPhase, ClassicGroupTiming, ClassicProtocol, GroupId,
+    ClassicGroupErrorKind, ClassicGroupPhase, ClassicGroupTiming, ClassicHeartbeatPolicy,
+    ClassicProtocol, GroupId,
 };
 
 use crate::clock::MonotonicClock;
@@ -90,10 +91,16 @@ fn owner() -> ClassicGroupOwner {
     ClassicGroupOwner::new(
         GroupId::try_from_raw(1).unwrap_or_else(|| panic!("nonzero group identity")),
         timing(),
+        heartbeat_policy(),
     )
 }
 
 fn timing() -> ClassicGroupTiming {
     ClassicGroupTiming::try_new(12_345, 54_321)
         .unwrap_or_else(|error| panic!("valid classic group timing: {error}"))
+}
+
+fn heartbeat_policy() -> ClassicHeartbeatPolicy {
+    ClassicHeartbeatPolicy::try_new(1_000_000_000, 2_000_000_000)
+        .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}"))
 }

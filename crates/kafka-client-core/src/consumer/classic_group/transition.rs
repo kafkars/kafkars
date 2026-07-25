@@ -60,6 +60,7 @@ impl ClassicGroupMachine {
         generation: ClassicGeneration,
     ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         let deadline = validate_active(self, ClassicGroupPhase::Joining, cycle, now)?;
+        let heartbeat_liveness = self.heartbeat_liveness_after(now)?;
         let effect = ClassicGroupEffect::Sync {
             group_id: self.group_id,
             cycle,
@@ -73,6 +74,7 @@ impl ClassicGroupMachine {
         self.pending_generation = Some(generation);
         self.pending_local_slot = None;
         self.pending_expected_assignment = None;
+        self.pending_heartbeat_liveness = Some(heartbeat_liveness);
         Ok(ClassicGroupTransition::one(effect))
     }
 
@@ -86,6 +88,7 @@ impl ClassicGroupMachine {
         members: ClassicJoinMembers,
     ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         let deadline = validate_active(self, ClassicGroupPhase::Joining, cycle, now)?;
+        let heartbeat_liveness = self.heartbeat_liveness_after(now)?;
         if !local_member_is_present(&members, local_slot, member_id) {
             return Err(ClassicGroupErrorKind::LocalMemberMissing);
         }
@@ -101,6 +104,7 @@ impl ClassicGroupMachine {
         self.pending_members = Some(members);
         self.pending_local_slot = Some(local_slot);
         self.pending_expected_assignment = None;
+        self.pending_heartbeat_liveness = Some(heartbeat_liveness);
         Ok(ClassicGroupTransition::one(effect))
     }
 
@@ -169,6 +173,19 @@ impl ClassicGroupMachine {
         let assignment_generation = self
             .next_assignment_generation
             .ok_or(ClassicGroupErrorKind::AssignmentGenerationExhausted)?;
+        let heartbeat_liveness = self
+            .pending_heartbeat_liveness
+            .ok_or(ClassicGroupErrorKind::InvariantViolation)?;
+        let Some(heartbeat) = self.heartbeat.prepare_activation(
+            cycle,
+            assignment_generation,
+            now,
+            heartbeat_liveness,
+        )?
+        else {
+            self.lose_cycle();
+            return Ok(ClassicGroupTransition::none());
+        };
         let (retained, effect_assignment) = crate::LiveGroupAssignment::try_new_pair(
             self.group_id,
             member_id,
@@ -182,9 +199,11 @@ impl ClassicGroupMachine {
         self.next_assignment_generation = assignment_generation.checked_next();
         self.live_generation = Some(classic_generation);
         self.live_assignment = Some(retained);
+        self.heartbeat.activate(heartbeat);
         Ok(ClassicGroupTransition::one(ClassicGroupEffect::Install {
             assignment: effect_assignment,
             classic_generation,
+            heartbeat,
         }))
     }
 
@@ -194,5 +213,12 @@ impl ClassicGroupMachine {
         self.pending_members = None;
         self.pending_local_slot = None;
         self.pending_expected_assignment = None;
+        self.pending_heartbeat_liveness = None;
+    }
+
+    fn heartbeat_liveness_after(&self, now: Moment) -> Result<Deadline, ClassicGroupErrorKind> {
+        let ticks = self.timing().session_timeout_ticks();
+        now.checked_deadline_after(ticks)
+            .ok_or(ClassicGroupErrorKind::DeadlineOverflow)
     }
 }

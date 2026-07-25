@@ -4,6 +4,9 @@ mod apply;
 mod assignment;
 mod effect;
 mod error;
+mod heartbeat;
+mod heartbeat_state;
+mod heartbeat_transition;
 mod identity;
 mod input;
 mod machine;
@@ -17,6 +20,7 @@ mod transition_support;
 pub use assignment::{ClassicAssignmentError, ClassicAssignmentPlan, ClassicMemberAssignment};
 pub use effect::{ClassicGroupEffect, ClassicGroupTransition};
 pub use error::{ClassicGroupApplyError, ClassicGroupErrorKind};
+pub use heartbeat::{ClassicHeartbeatAttempt, ClassicHeartbeatSchedule, ClassicHeartbeatSequence};
 pub use identity::{ClassicGeneration, JoinedMemberSlot, MemberRank, MembershipCycle};
 pub use input::ClassicGroupInput;
 pub use machine::ClassicGroupMachine;
@@ -26,7 +30,7 @@ pub use model::{
 };
 pub use timing::{
     CLASSIC_GROUP_TIMEOUT_MAX_MS, CLASSIC_GROUP_TIMEOUT_MIN_MS, ClassicGroupTiming,
-    ClassicGroupTimingError,
+    ClassicGroupTimingError, ClassicHeartbeatPolicy, ClassicHeartbeatPolicyError,
 };
 
 #[cfg(test)]
@@ -37,6 +41,12 @@ mod assignment_test;
 mod effect_test;
 #[cfg(test)]
 mod error_test;
+#[cfg(test)]
+mod heartbeat_state_test;
+#[cfg(test)]
+mod heartbeat_test;
+#[cfg(test)]
+mod heartbeat_transition_test;
 #[cfg(test)]
 mod identity_test;
 #[cfg(test)]

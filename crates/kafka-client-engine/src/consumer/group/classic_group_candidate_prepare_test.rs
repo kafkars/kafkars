@@ -83,7 +83,11 @@ fn invalid_leader_membership_is_atomic() {
 fn exhausted_member_cursor_preserves_joining_machine_and_catalog() {
     let mut catalog = catalog();
     catalog.set_identity_cursors_for_test(None, catalog.next_topic_id);
-    let mut owner = ClassicGroupOwner::new(group_id(), classic_group_test_support::timing());
+    let mut owner = ClassicGroupOwner::new(
+        group_id(),
+        classic_group_test_support::timing(),
+        classic_group_test_support::heartbeat_policy(),
+    );
     let cycle = classic_group_test_support::begin(&mut owner);
     let phase = owner.machine().phase();
     let topic_cursor = catalog.next_topic_id;
@@ -107,7 +111,11 @@ fn exhausted_foreign_topic_cursor_preserves_staged_members_and_owner() {
     let member_cursor = catalog.next_member_id;
     let retained_bytes = catalog.retained_topic_name_bytes();
     catalog.set_identity_cursors_for_test(member_cursor, None);
-    let mut owner = ClassicGroupOwner::new(group_id(), classic_group_test_support::timing());
+    let mut owner = ClassicGroupOwner::new(
+        group_id(),
+        classic_group_test_support::timing(),
+        classic_group_test_support::heartbeat_policy(),
+    );
     let cycle = classic_group_test_support::begin(&mut owner);
 
     let result = catalog.prepare_leader_cycle(

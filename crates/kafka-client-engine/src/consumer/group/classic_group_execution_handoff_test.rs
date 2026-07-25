@@ -2,7 +2,9 @@
 
 use std::time::Duration;
 
-use kafka_client_core::{ClassicGroupPhase, ClassicGroupTiming, ClassicProtocol, GroupId};
+use kafka_client_core::{
+    ClassicGroupPhase, ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicProtocol, GroupId,
+};
 
 use crate::{
     clock::{DeadlineCapture, MonotonicClock},
@@ -181,7 +183,7 @@ fn changed_deadline_recovery_receipt_rejects_without_mutation() {
 }
 
 fn owner() -> ClassicGroupOwner {
-    ClassicGroupOwner::new(group_id(1), timing())
+    ClassicGroupOwner::new(group_id(1), timing(), heartbeat_policy())
 }
 
 fn group_id(raw: u64) -> GroupId {
@@ -196,7 +198,7 @@ fn driver_owned(
     ClassicGroupExecution,
     RecoveredJoinGroupOwnership,
 ) {
-    let mut owner = ClassicGroupOwner::new(group_id, timing());
+    let mut owner = ClassicGroupOwner::new(group_id, timing(), heartbeat_policy());
     let mut execution = new_classic_group_execution();
     execution
         .begin(&mut owner, capture)
@@ -222,6 +224,11 @@ fn driver_owned(
 fn timing() -> ClassicGroupTiming {
     ClassicGroupTiming::try_new(12_345, 54_321)
         .unwrap_or_else(|error| panic!("valid classic group timing: {error}"))
+}
+
+fn heartbeat_policy() -> ClassicHeartbeatPolicy {
+    ClassicHeartbeatPolicy::try_new(1_000_000_000, 2_000_000_000)
+        .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}"))
 }
 
 fn close(owner: &mut ClassicGroupOwner, execution: &mut ClassicGroupExecution) {

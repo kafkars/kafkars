@@ -48,7 +48,12 @@ fn registration_preserves_exact_timing_and_one_boundary_deadline_capture() {
         GroupConsumerShardOwner::new(registry, Arc::clone(&clock), Arc::clone(&wake));
     let timing = classic_group_test_support::timing();
     let group_id = port
-        .try_register(Arc::from("workers"), vec![Arc::from("orders")], timing)
+        .try_register(
+            Arc::from("workers"),
+            vec![Arc::from("orders")],
+            timing,
+            classic_group_test_support::heartbeat_policy(),
+        )
         .unwrap_or_else(|failure| panic!("registration failed: {:?}", failure.kind));
     let before = clock
         .now()
@@ -107,6 +112,7 @@ fn post_commit_wake_failure_does_not_reclassify_cycle_as_rejected() {
             Arc::from("workers"),
             vec![Arc::from("orders")],
             classic_group_test_support::timing(),
+            classic_group_test_support::heartbeat_policy(),
         )
         .unwrap_or_else(|failure| panic!("registration failed: {:?}", failure.kind));
 
@@ -135,6 +141,7 @@ fn closed_port_returns_exact_registration_names_and_rejects_deadline_work() {
             Arc::from("workers"),
             vec![Arc::from("orders")],
             classic_group_test_support::timing(),
+            classic_group_test_support::heartbeat_policy(),
         )
         .err()
         .unwrap_or_else(|| panic!("closed registration must reject"));

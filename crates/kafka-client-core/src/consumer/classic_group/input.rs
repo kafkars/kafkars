@@ -3,7 +3,8 @@
 use crate::{Deadline, GroupAssignmentPartition, MemberId, Moment};
 
 use super::{
-    ClassicGeneration, ClassicJoinMembers, JoinedMemberSlot, MembershipCycle, TopicPartitionCount,
+    ClassicGeneration, ClassicHeartbeatAttempt, ClassicJoinMembers, JoinedMemberSlot,
+    MembershipCycle, TopicPartitionCount,
 };
 
 /// One explicit lifecycle fact with no protocol bytes or transport vocabulary.
@@ -59,6 +60,34 @@ pub enum ClassicGroupInput {
         now: Moment,
         /// Ordered unique assignment decoded by the engine.
         partitions: Vec<GroupAssignmentPartition>,
+    },
+    /// The exact assignment-fenced heartbeat cadence deadline elapsed.
+    HeartbeatDue {
+        /// Exact heartbeat identity awaiting submission.
+        attempt: ClassicHeartbeatAttempt,
+        /// Current monotonic observation proving cadence expiry.
+        now: Moment,
+    },
+    /// The exact heartbeat succeeded before its attempt deadline.
+    HeartbeatSucceeded {
+        /// Exact in-flight heartbeat identity.
+        attempt: ClassicHeartbeatAttempt,
+        /// Current monotonic response observation.
+        now: Moment,
+        /// Nonnegative broker throttle converted to deterministic ticks.
+        throttle_ticks: u64,
+    },
+    /// The exact heartbeat terminally failed without retry.
+    HeartbeatFailed {
+        /// Exact in-flight heartbeat identity.
+        attempt: ClassicHeartbeatAttempt,
+    },
+    /// The exact heartbeat attempt deadline elapsed.
+    HeartbeatDeadlineElapsed {
+        /// Exact in-flight heartbeat identity.
+        attempt: ClassicHeartbeatAttempt,
+        /// Current monotonic observation proving expiration.
+        now: Moment,
     },
     /// The exact Join attempt terminally failed without retry.
     JoinFailed {

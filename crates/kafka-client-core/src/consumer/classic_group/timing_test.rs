@@ -5,6 +5,7 @@ use crate::{Deadline, GroupId, Moment};
 use super::{
     CLASSIC_GROUP_TIMEOUT_MAX_MS, CLASSIC_GROUP_TIMEOUT_MIN_MS, ClassicGroupEffect,
     ClassicGroupInput, ClassicGroupMachine, ClassicGroupTiming, ClassicGroupTimingError,
+    ClassicHeartbeatPolicy,
 };
 
 #[test]
@@ -54,10 +55,21 @@ fn independent_protocol_fields_have_no_processing_lease_ordering() {
 }
 
 #[test]
+fn session_timeout_has_one_exact_nanosecond_tick_conversion() {
+    assert_eq!(timing(1, 1).session_timeout_ticks(), 1_000_000);
+    assert_eq!(
+        timing(CLASSIC_GROUP_TIMEOUT_MAX_MS, 1).session_timeout_ticks(),
+        CLASSIC_GROUP_TIMEOUT_MAX_MS * 1_000_000
+    );
+}
+
+#[test]
 fn machine_retains_and_emits_the_exact_timing_on_every_join_cycle() {
     let expected = timing(12_345, 54_321);
     let group_id = GroupId::try_from_raw(1).unwrap_or_else(|| panic!("nonzero group"));
-    let mut machine = ClassicGroupMachine::new(group_id, expected);
+    let heartbeat = ClassicHeartbeatPolicy::try_new(10, 20)
+        .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}"));
+    let mut machine = ClassicGroupMachine::new(group_id, expected, heartbeat);
 
     assert_eq!(machine.timing(), expected);
     let transition = machine

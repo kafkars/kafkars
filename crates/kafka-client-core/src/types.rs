@@ -16,17 +16,20 @@ impl OperationId {
     }
 }
 
-/// Absolute virtual-clock observation supplied by an effect interpreter.
+/// Absolute monotonic nanosecond observation supplied by an effect interpreter.
+///
+/// Production maps the engine's monotonic clock into this unit. Deterministic
+/// simulators use the same nanosecond unit without consulting an ambient clock.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Moment(u64);
 
 impl Moment {
-    /// Creates a moment from an absolute virtual-clock tick.
+    /// Creates a moment from an absolute monotonic nanosecond tick.
     pub const fn from_tick(tick: u64) -> Self {
         Self(tick)
     }
 
-    /// Returns the absolute virtual-clock tick.
+    /// Returns the absolute monotonic nanosecond tick.
     pub const fn tick(self) -> u64 {
         self.0
     }
@@ -40,17 +43,17 @@ impl Moment {
     }
 }
 
-/// Absolute virtual-clock tick owned by an operation.
+/// Absolute monotonic nanosecond tick owned by an operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Deadline(u64);
 
 impl Deadline {
-    /// Creates a deadline from an absolute virtual-clock tick.
+    /// Creates a deadline from an absolute monotonic nanosecond tick.
     pub const fn from_tick(tick: u64) -> Self {
         Self(tick)
     }
 
-    /// Returns the absolute virtual-clock tick.
+    /// Returns the absolute monotonic nanosecond tick.
     pub const fn tick(self) -> u64 {
         self.0
     }

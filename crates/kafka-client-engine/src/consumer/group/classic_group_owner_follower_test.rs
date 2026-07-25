@@ -20,7 +20,11 @@ use super::{
 #[test]
 fn follower_join_retains_candidate_and_prepares_the_exact_sync_fences() {
     let group_id = group_id();
-    let mut owner = ClassicGroupOwner::new(group_id, classic_group_test_support::timing());
+    let mut owner = ClassicGroupOwner::new(
+        group_id,
+        classic_group_test_support::timing(),
+        classic_group_test_support::heartbeat_policy(),
+    );
     let catalog = catalog(group_id);
     let cycle = classic_group_test_support::begin(&mut owner);
     let candidate = catalog
@@ -62,7 +66,11 @@ fn follower_join_retains_candidate_and_prepares_the_exact_sync_fences() {
 #[test]
 fn prevalidation_rejection_preserves_the_joining_owner_exactly() {
     let group_id = group_id();
-    let mut owner = ClassicGroupOwner::new(group_id, classic_group_test_support::timing());
+    let mut owner = ClassicGroupOwner::new(
+        group_id,
+        classic_group_test_support::timing(),
+        classic_group_test_support::heartbeat_policy(),
+    );
     let catalog = catalog(group_id);
     let active_cycle = classic_group_test_support::begin(&mut owner);
     let wrong_cycle = MembershipCycle::try_from_raw(active_cycle.get() + 1)
@@ -95,7 +103,11 @@ fn prevalidation_rejection_preserves_the_joining_owner_exactly() {
 #[test]
 fn postvalidation_core_rejection_retains_the_exact_candidate() {
     let group_id = group_id();
-    let mut owner = ClassicGroupOwner::new(group_id, classic_group_test_support::timing());
+    let mut owner = ClassicGroupOwner::new(
+        group_id,
+        classic_group_test_support::timing(),
+        classic_group_test_support::heartbeat_policy(),
+    );
     let catalog = catalog(group_id);
     let cycle = classic_group_test_support::begin(&mut owner);
     let candidate = catalog

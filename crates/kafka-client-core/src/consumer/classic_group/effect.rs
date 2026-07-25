@@ -3,7 +3,8 @@
 use crate::{Deadline, GroupId, LiveGroupAssignment, MemberId, TopicId};
 
 use super::{
-    ClassicAssignmentPlan, ClassicGeneration, ClassicGroupTiming, ClassicProtocol, MembershipCycle,
+    ClassicAssignmentPlan, ClassicGeneration, ClassicGroupTiming, ClassicHeartbeatAttempt,
+    ClassicHeartbeatSchedule, ClassicProtocol, MembershipCycle,
 };
 
 /// One bounded mechanism action carrying the original membership deadline.
@@ -52,6 +53,26 @@ pub enum ClassicGroupEffect {
         assignment: LiveGroupAssignment,
         /// Exact Kafka generation paired with the installed assignment.
         classic_generation: ClassicGeneration,
+        /// First exact heartbeat schedule owned by the installed assignment.
+        heartbeat: ClassicHeartbeatSchedule,
+    },
+    /// Arm one exact future heartbeat cadence deadline.
+    ArmHeartbeat {
+        /// Assignment-fenced heartbeat identity and due deadline.
+        schedule: ClassicHeartbeatSchedule,
+    },
+    /// Submit one exact heartbeat with a separately owned attempt deadline.
+    SubmitHeartbeat {
+        /// Stable engine-catalog group identity.
+        group_id: GroupId,
+        /// Exact assignment and sequence fence.
+        attempt: ClassicHeartbeatAttempt,
+        /// Joined local member identity.
+        member_id: MemberId,
+        /// Exact signed Kafka generation.
+        classic_generation: ClassicGeneration,
+        /// Absolute deadline for this heartbeat attempt.
+        deadline: Deadline,
     },
     /// Revokes the prior live assignment before replacement or close.
     Revoke {
