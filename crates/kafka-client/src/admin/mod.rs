@@ -1,5 +1,6 @@
 //! Declarative facade for concrete batched Kafka administration.
 
+mod alter_configs;
 mod batch_result;
 mod builder;
 mod configs;
@@ -18,6 +19,10 @@ mod partitions_builder;
 mod topic_description;
 mod topics_builder;
 
+pub use alter_configs::{
+    ConfigAlteration, ConfigAlterationOperation, IncrementalAlterConfigs,
+    IncrementalAlterConfigsBuilder, IncrementalAlterConfigsResult, TopicConfigAlterations,
+};
 pub use batch_result::BatchResult;
 pub use builder::CreateTopicsBuilder;
 pub use configs::{

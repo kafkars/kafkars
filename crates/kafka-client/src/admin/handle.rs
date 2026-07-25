@@ -4,11 +4,13 @@ use crate::bridge::admin::{
     AdminEngine, AdminRequest, DeleteAdminRequest, DescribeTopicsAdminRequest,
     PartitionsAdminRequest,
 };
+use crate::bridge::admin_alter_configs_request::IncrementalAlterConfigsAdminRequest;
 use crate::bridge::admin_configs_request::DescribeConfigsAdminRequest;
 
 use super::{
     CreatePartitionsBuilder, CreateTopicsBuilder, DeleteTopicsBuilder, DescribeClusterBuilder,
-    DescribeConfigsBuilder, DescribeTopicsBuilder, NewPartitions, NewTopic, TopicConfigQuery,
+    DescribeConfigsBuilder, DescribeTopicsBuilder, IncrementalAlterConfigsBuilder, NewPartitions,
+    NewTopic, TopicConfigAlterations, TopicConfigQuery,
 };
 
 /// Cheaply cloneable, thread-safe admin handle.
@@ -80,6 +82,23 @@ impl Admin {
     {
         let request = DescribeConfigsAdminRequest::from_topics(topics);
         DescribeConfigsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
+    }
+
+    /// Builds an inert ordered topic `IncrementalAlterConfigs` request.
+    ///
+    /// Empty or duplicate topics and keys remain inert input until
+    /// [`IncrementalAlterConfigsBuilder::submit`] captures the public absolute
+    /// deadline and attempts bounded engine admission.
+    pub fn incremental_alter_configs<I>(&self, topics: I) -> IncrementalAlterConfigsBuilder
+    where
+        I: IntoIterator<Item = TopicConfigAlterations>,
+    {
+        let request = IncrementalAlterConfigsAdminRequest::from_topics(topics);
+        IncrementalAlterConfigsBuilder::new(
+            self.engine.clone(),
+            request,
+            self.engine.default_timeout(),
+        )
     }
 
     /// Builds an inert automatic-assignment `CreatePartitions` request.

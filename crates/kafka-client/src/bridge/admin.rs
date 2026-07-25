@@ -14,6 +14,8 @@ use kafka_client_engine::{
 
 use crate::admin::{NewPartitions, NewTopic};
 
+use super::admin_alter_configs_operation::AdminIncrementalAlterConfigs;
+use super::admin_alter_configs_request::IncrementalAlterConfigsAdminRequest;
 use super::admin_configs_operation::AdminDescribeConfigs;
 use super::admin_configs_request::DescribeConfigsAdminRequest;
 use super::admin_delete_operation::AdminDeleteTopics;
@@ -67,6 +69,17 @@ impl AdminEngine {
         AdminDescribeConfigs::from_admission(
             self.handle
                 .try_describe_configs(request.into_engine(), timeout),
+        )
+    }
+
+    pub(crate) fn submit_incremental_alter_configs(
+        &self,
+        request: IncrementalAlterConfigsAdminRequest,
+        timeout: Duration,
+    ) -> AdminIncrementalAlterConfigs {
+        AdminIncrementalAlterConfigs::from_admission(
+            self.handle
+                .try_incremental_alter_configs(request.into_engine(), timeout),
         )
     }
 

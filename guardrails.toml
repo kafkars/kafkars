@@ -1488,6 +1488,18 @@ production = "crates/kafka-client/src/bridge/admin_topics_result.rs"
 test = "crates/kafka-client/src/bridge/admin_topics_result_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_alter_configs_request.rs"
+test = "crates/kafka-client/src/bridge/admin_alter_configs_request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_alter_configs_operation.rs"
+test = "crates/kafka-client/src/bridge/admin_alter_configs_operation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_alter_configs_result.rs"
+test = "crates/kafka-client/src/bridge/admin_alter_configs_result_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client/src/bridge/admin_configs_request.rs"
 test = "crates/kafka-client/src/bridge/admin_configs_request_test.rs"
 
@@ -1646,6 +1658,26 @@ test = "crates/kafka-client/src/admin/configs/result_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/admin/configs/operation.rs"
 test = "crates/kafka-client/src/admin/configs/operation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/alter_configs/alteration.rs"
+test = "crates/kafka-client/src/admin/alter_configs/alteration_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/alter_configs/topic.rs"
+test = "crates/kafka-client/src/admin/alter_configs/topic_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/alter_configs/builder.rs"
+test = "crates/kafka-client/src/admin/alter_configs/builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/alter_configs/result.rs"
+test = "crates/kafka-client/src/admin/alter_configs/result_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/alter_configs/operation.rs"
+test = "crates/kafka-client/src/admin/alter_configs/operation_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/admin/description.rs"
@@ -6557,16 +6589,32 @@ owner_type = "DescribeConfigsAdminRequest"
 path = "crates/kafka-client/src/bridge/admin_configs_request.rs"
 
 [[linear_owners]]
+owner_type = "IncrementalAlterConfigsAdminRequest"
+path = "crates/kafka-client/src/bridge/admin_alter_configs_request.rs"
+
+[[linear_owners]]
 owner_type = "AdminDescribeConfigs"
 path = "crates/kafka-client/src/bridge/admin_configs_operation.rs"
+
+[[linear_owners]]
+owner_type = "AdminIncrementalAlterConfigs"
+path = "crates/kafka-client/src/bridge/admin_alter_configs_operation.rs"
 
 [[linear_owners]]
 owner_type = "DescribeConfigsBuilder"
 path = "crates/kafka-client/src/admin/configs/builder.rs"
 
 [[linear_owners]]
+owner_type = "IncrementalAlterConfigsBuilder"
+path = "crates/kafka-client/src/admin/alter_configs/builder.rs"
+
+[[linear_owners]]
 owner_type = "DescribeConfigs"
 path = "crates/kafka-client/src/admin/configs/operation.rs"
+
+[[linear_owners]]
+owner_type = "IncrementalAlterConfigs"
+path = "crates/kafka-client/src/admin/alter_configs/operation.rs"
 
 [[linear_owners]]
 owner_type = "PartitionsAdminRequest"
