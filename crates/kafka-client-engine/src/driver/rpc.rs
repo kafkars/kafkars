@@ -62,6 +62,9 @@ mod describe_topics_terminal_test;
     expect(dead_code, reason = "awaiting direct-consumer executor")
 )]
 mod fetch;
+mod group_coordinator_route;
+#[cfg(test)]
+mod group_coordinator_route_test;
 mod group_offset_commit_calls;
 #[cfg(test)]
 mod group_offset_commit_calls_test;
@@ -95,6 +98,13 @@ mod init_producer_id_calls_test;
 mod init_producer_id_submission;
 #[cfg(test)]
 mod init_producer_id_submission_test;
+#[expect(
+    dead_code,
+    reason = "classic membership host integration follows the concrete driver seam"
+)]
+mod join_group_submission;
+#[cfg(test)]
+mod join_group_submission_test;
 mod list_offsets_admission;
 #[cfg(test)]
 mod list_offsets_admission_test;
@@ -113,6 +123,13 @@ mod list_offsets_terminal_test;
 mod submission;
 #[cfg(test)]
 mod submission_test;
+#[expect(
+    dead_code,
+    reason = "classic membership host integration follows the concrete driver seam"
+)]
+mod sync_group_submission;
+#[cfg(test)]
+mod sync_group_submission_test;
 pub(crate) use calls::{ProduceCompletionFailure, TrackedProduceCalls};
 pub(crate) use create_partitions_calls::{
     CreatePartitionsCompletionFailure, TrackedCreatePartitionsCalls,

@@ -3,12 +3,11 @@
 use std::{error::Error, fmt, time::Instant};
 
 use kafka_driver::{
-    ApiVersion, CoordinatorKey, CoordinatorKeyError, CoordinatorKind, RequestOptions, Route,
-    RoutedCall, SubmitError, TrafficClass,
+    ApiVersion, CoordinatorKeyError, RequestOptions, Route, RoutedCall, SubmitError, TrafficClass,
 };
 use kafka_wire::{OffsetCommitRequest, OffsetCommitResponse};
 
-use super::super::DriverOwner;
+use super::{super::DriverOwner, group_coordinator_route::group_coordinator_route};
 
 const GROUP_OFFSET_COMMIT_MIN_LEADER_EPOCH_VERSION: ApiVersion = ApiVersion::new(6);
 const GROUP_OFFSET_COMMIT_MAX_VERSION: ApiVersion = ApiVersion::new(9);
@@ -62,9 +61,7 @@ impl DriverOwner {
 pub(super) fn group_offset_commit_route(
     group: &str,
 ) -> Result<Route, GroupOffsetCommitSubmitError> {
-    let key = CoordinatorKey::new(CoordinatorKind::Group, group)
-        .map_err(GroupOffsetCommitSubmitError::InvalidGroup)?;
-    Ok(Route::Coordinator { key })
+    group_coordinator_route(group).map_err(GroupOffsetCommitSubmitError::InvalidGroup)
 }
 
 pub(super) const fn group_offset_commit_options(

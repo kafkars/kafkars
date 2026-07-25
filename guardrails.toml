@@ -7295,6 +7295,18 @@ production = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_subm
 test = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_submission_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_coordinator_route.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_coordinator_route_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/join_group_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/join_group_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/sync_group_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/sync_group_submission_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_terminal.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_terminal_test.rs"
 
