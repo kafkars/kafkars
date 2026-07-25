@@ -1,6 +1,8 @@
 //! Public one-shot assigned-consumer construction scenarios.
 
-use crate::{Client, ErrorKind};
+use std::time::{Duration, Instant};
+
+use crate::{AssignedConsumer, Client, CloseAssignedConsumer, ErrorKind};
 
 #[test]
 fn builders_are_inert_until_one_build_claims_the_engine_owner() {
@@ -18,9 +20,20 @@ fn builders_are_inert_until_one_build_claims_the_engine_owner() {
 
     assert!(matches!(second, Err(error) if error.kind() == ErrorKind::State));
     let mut first = first;
-    first
-        .try_close()
-        .unwrap_or_else(|error| panic!("admit assigned-consumer close: {error}"))
+    close_when_admitted(&mut first)
         .wait()
         .unwrap_or_else(|error| panic!("close assigned consumer: {error}"));
+}
+
+fn close_when_admitted(consumer: &mut AssignedConsumer) -> CloseAssignedConsumer {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        match consumer.try_close() {
+            Ok(close) => return close,
+            Err(error) if error.kind() == ErrorKind::Backpressure && Instant::now() < deadline => {
+                std::hint::spin_loop();
+            }
+            Err(error) => panic!("admit assigned-consumer close: {error}"),
+        }
+    }
 }

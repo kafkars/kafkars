@@ -8,6 +8,7 @@ mod exports;
 mod fetch_state;
 mod fetch_throttle;
 mod fetch_transition;
+mod group_commit;
 mod identity;
 mod input;
 mod machine;

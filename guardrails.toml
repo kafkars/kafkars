@@ -148,6 +148,10 @@ production = "crates/kafka-client-core/src/consumer/identity.rs"
 test = "crates/kafka-client-core/src/consumer/identity_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/group_commit/checkpoint.rs"
+test = "crates/kafka-client-core/src/consumer/group_commit/checkpoint_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/machine.rs"
 test = "crates/kafka-client-core/src/consumer/assignment_test.rs"
 
@@ -5671,6 +5675,10 @@ path = "crates/kafka-client-core/src/consumer/position_resolution.rs"
 [[linear_owners]]
 owner_type = "FetchThrottle"
 path = "crates/kafka-client-core/src/consumer/fetch_throttle.rs"
+
+[[linear_owners]]
+owner_type = "GroupCheckpoint"
+path = "crates/kafka-client-core/src/consumer/group_commit/checkpoint.rs"
 
 [[linear_owners]]
 owner_type = "ProducerMachine"
