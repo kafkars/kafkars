@@ -6931,3 +6931,306 @@ path = "crates/kafka-client-engine/src/admin/alter_configs/shard.rs"
 [[linear_owners]]
 owner_type = "IncrementalAlterConfigsObserver"
 path = "crates/kafka-client-engine/src/admin/alter_configs/observer.rs"
+
+# Classic-group commit protocol and tracked driver ownership remain local until
+# a bounded group-consumer host is deliberately integrated.
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/model.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/preparation.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/model_recovery_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/session.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/model_bounds_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/validation.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/validation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/snapshot.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/snapshot_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/result_reservation.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/result_reservation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/request.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/response.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_recovery.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_recovery_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement_owner.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement_owner_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_terminal_test.rs"
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs"
+forbidden = [
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Retry",
+  "invalidate",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_submission.rs"
+forbidden = [
+  "std::future",
+  "std::net",
+  "std::thread",
+  "Instant::now",
+  "Callback",
+  "Retry",
+  "invalidate",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_terminal.rs"
+forbidden = [
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Retry",
+  "invalidate",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_recovery.rs"
+forbidden = [
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Retry",
+  "invalidate",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs"
+forbidden = [
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Retry",
+  "invalidate",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement_owner.rs"
+forbidden = [
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Retry",
+  "invalidate",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/result_reservation.rs"
+forbidden = [
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Retry",
+  "invalidate",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/snapshot.rs"
+forbidden = [
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Retry",
+  "invalidate",
+  "async",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_group_offset_commit"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "try_reserve_group_commit"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "poll_group_commit"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "begin_group_commit_settlement"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "confirm_group_commit_settlement"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "restore_group_commit_settlement"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "recover_group_commits_after_driver_shutdown"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "confirm_group_commit_route_token"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement_owner.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "recover_group_commit_after_driver_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedGroupOffsetCommitCalls"
+field = "calls"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedGroupOffsetCommitCalls"
+field = "settled"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedGroupOffsetCommitCalls"
+field = "pending_confirmation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedGroupOffsetCommitCalls"
+field = "completion_failure"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs",
+]
+
+[[linear_owners]]
+owner_type = "ClassicGroupCommitSession"
+path = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/session.rs"
+
+[[linear_owners]]
+owner_type = "PreparedGroupOffsetCommit"
+path = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/model.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitResultReservation"
+path = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/result_reservation.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitPreparationError"
+path = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/preparation.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitCallPermit"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs"
+
+[[linear_owners]]
+owner_type = "TrackedGroupOffsetCommitCall"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitAdmissionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_recovery.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitCompletionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_recovery.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitCompletionRecovery"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_recovery.rs"
+
+[[linear_owners]]
+owner_type = "RecoveredGroupOffsetCommitSettlement"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_recovery.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitShutdownRecovery"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_recovery.rs"
+
+[[linear_owners]]
+owner_type = "SettledGroupOffsetCommitCall"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs"
+
+[[linear_owners]]
+owner_type = "PendingGroupOffsetCommitConfirmation"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitRestoreFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs"
+
+[[linear_owners]]
+owner_type = "TrackedGroupOffsetCommitCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs"

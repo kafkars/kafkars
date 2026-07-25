@@ -21,6 +21,14 @@ impl OperationDeadline {
         Self { core, transport }
     }
 
+    #[cfg(test)]
+    pub(crate) fn from_core_for_test(core: Deadline) -> Self {
+        Self {
+            core,
+            transport: Instant::now(),
+        }
+    }
+
     /// Returns the deterministic deadline consumed by core policy.
     pub(crate) const fn core(self) -> Deadline {
         self.core

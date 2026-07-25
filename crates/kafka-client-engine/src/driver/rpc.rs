@@ -62,6 +62,40 @@ mod describe_topics_terminal_test;
     expect(dead_code, reason = "awaiting direct-consumer executor")
 )]
 mod fetch;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "awaiting classic-group commit executor")
+)]
+mod group_offset_commit_calls;
+#[cfg(test)]
+mod group_offset_commit_calls_test;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "awaiting classic-group commit executor")
+)]
+mod group_offset_commit_recovery;
+#[cfg(test)]
+mod group_offset_commit_recovery_test;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "awaiting classic-group commit executor")
+)]
+mod group_offset_commit_settlement;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "awaiting classic-group commit executor")
+)]
+mod group_offset_commit_settlement_owner;
+#[cfg(test)]
+mod group_offset_commit_settlement_owner_test;
+#[cfg(test)]
+mod group_offset_commit_settlement_test;
+mod group_offset_commit_submission;
+#[cfg(test)]
+mod group_offset_commit_submission_test;
+mod group_offset_commit_terminal;
+#[cfg(test)]
+mod group_offset_commit_terminal_test;
 mod incremental_alter_configs_calls;
 #[cfg(test)]
 mod incremental_alter_configs_calls_test;
