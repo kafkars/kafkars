@@ -12,6 +12,8 @@ const LINEAR: &[(&str, &str)] = &[
     ("LiveGroupAssignment", "assignment.rs"),
     ("GroupCheckpoint", "checkpoint.rs"),
     ("GroupOffsetCommitAdmissionError", "assignment.rs"),
+    ("GroupOffsetCommitInput", "input.rs"),
+    ("GroupOffsetCommitApplyError", "input.rs"),
     ("GroupOffsetCommitEffect", "effect.rs"),
     ("GroupOffsetCommitAdmission", "effect.rs"),
     ("GroupOffsetCommitMachine", "machine.rs"),

@@ -5,11 +5,11 @@ use crate::{Deadline, DeliveryStatus, OperationId};
 use super::{
     GroupAssignmentPartition, GroupCheckpoint, GroupOffsetCommitAdmission,
     GroupOffsetCommitAdmissionError as AdmissionError,
-    GroupOffsetCommitAdmissionErrorKind as AdmissionErrorKind, GroupOffsetCommitBatch,
-    GroupOffsetCommitEffect, GroupOffsetCommitFailure, GroupOffsetCommitFailureKind,
-    GroupOffsetCommitInput, GroupOffsetCommitMachineError, GroupOffsetCommitPartitionOutcome,
-    GroupOffsetCommitState, GroupOffsetCommitTerminal, GroupOffsetCommitTransition,
-    LiveGroupAssignment, assignment::reserve_expected_partitions,
+    GroupOffsetCommitAdmissionErrorKind as AdmissionErrorKind, GroupOffsetCommitApplyError,
+    GroupOffsetCommitBatch, GroupOffsetCommitEffect, GroupOffsetCommitFailure,
+    GroupOffsetCommitFailureKind, GroupOffsetCommitInput, GroupOffsetCommitMachineError,
+    GroupOffsetCommitPartitionOutcome, GroupOffsetCommitState, GroupOffsetCommitTerminal,
+    GroupOffsetCommitTransition, LiveGroupAssignment, assignment::reserve_expected_partitions,
 };
 
 /// Deterministic owner for one capacity-reserved group offset commit.
@@ -90,56 +90,91 @@ impl GroupOffsetCommitMachine {
     pub fn apply(
         &mut self,
         input: GroupOffsetCommitInput,
-    ) -> Result<GroupOffsetCommitTransition, GroupOffsetCommitMachineError> {
-        if self.state == GroupOffsetCommitState::Completed {
-            return Err(GroupOffsetCommitMachineError::AlreadyCompleted);
+    ) -> Result<GroupOffsetCommitTransition, GroupOffsetCommitApplyError> {
+        if let Err(kind) = self.validate(&input) {
+            return Err(GroupOffsetCommitApplyError::new(kind, input));
         }
-        match input {
-            GroupOffsetCommitInput::DriverAccepted => self.driver_accepted(),
-            GroupOffsetCommitInput::DriverRejected => self.finish_awaiting(
+
+        let transition = match input {
+            GroupOffsetCommitInput::DriverAccepted => {
+                self.state = GroupOffsetCommitState::Submitted;
+                GroupOffsetCommitTransition::none()
+            }
+            GroupOffsetCommitInput::DriverRejected => self.finish_failure(
                 GroupOffsetCommitFailureKind::DriverRejected,
                 DeliveryStatus::NotSent,
             ),
-            GroupOffsetCommitInput::DeadlineElapsed { delivery } => self.deadline_elapsed(delivery),
+            GroupOffsetCommitInput::DeadlineElapsed { delivery } => {
+                self.finish_failure(GroupOffsetCommitFailureKind::DeadlineElapsed, delivery)
+            }
             GroupOffsetCommitInput::BrokerResponded {
                 throttle_time_ms,
                 outcomes,
             } => self.broker_responded(throttle_time_ms, outcomes),
             GroupOffsetCommitInput::ProtocolIncompatible { delivery } => {
-                self.finish_submitted(GroupOffsetCommitFailureKind::Compatibility, delivery)
+                self.finish_failure(GroupOffsetCommitFailureKind::Compatibility, delivery)
             }
-            GroupOffsetCommitInput::ResponseTooLarge => self.finish_submitted(
+            GroupOffsetCommitInput::ResponseTooLarge => self.finish_failure(
                 GroupOffsetCommitFailureKind::ResponseTooLarge,
                 DeliveryStatus::PossiblySent,
             ),
-            GroupOffsetCommitInput::InvalidResponse => self.finish_submitted(
+            GroupOffsetCommitInput::InvalidResponse => self.finish_failure(
                 GroupOffsetCommitFailureKind::InvalidResponse,
                 DeliveryStatus::PossiblySent,
             ),
             GroupOffsetCommitInput::TransportFailed { delivery } => {
-                self.finish_submitted(GroupOffsetCommitFailureKind::Transport, delivery)
+                self.finish_failure(GroupOffsetCommitFailureKind::Transport, delivery)
             }
-        }
+        };
+        Ok(transition)
     }
 
-    fn driver_accepted(
-        &mut self,
-    ) -> Result<GroupOffsetCommitTransition, GroupOffsetCommitMachineError> {
-        if self.state != GroupOffsetCommitState::AwaitingDriver {
-            return Err(GroupOffsetCommitMachineError::InvalidState);
+    fn validate(
+        &self,
+        input: &GroupOffsetCommitInput,
+    ) -> Result<(), GroupOffsetCommitMachineError> {
+        if self.state == GroupOffsetCommitState::Completed {
+            return Err(GroupOffsetCommitMachineError::AlreadyCompleted);
         }
-        self.state = GroupOffsetCommitState::Submitted;
-        Ok(GroupOffsetCommitTransition::none())
+
+        match (self.state, input) {
+            (
+                GroupOffsetCommitState::AwaitingDriver,
+                GroupOffsetCommitInput::DeadlineElapsed {
+                    delivery: DeliveryStatus::PossiblySent,
+                },
+            ) => Err(GroupOffsetCommitMachineError::InvalidDeliveryStatus),
+            (
+                GroupOffsetCommitState::AwaitingDriver,
+                GroupOffsetCommitInput::DriverAccepted
+                | GroupOffsetCommitInput::DriverRejected
+                | GroupOffsetCommitInput::DeadlineElapsed {
+                    delivery: DeliveryStatus::NotSent,
+                },
+            )
+            | (
+                GroupOffsetCommitState::Submitted,
+                GroupOffsetCommitInput::DeadlineElapsed { .. }
+                | GroupOffsetCommitInput::BrokerResponded { .. }
+                | GroupOffsetCommitInput::ProtocolIncompatible { .. }
+                | GroupOffsetCommitInput::ResponseTooLarge
+                | GroupOffsetCommitInput::InvalidResponse
+                | GroupOffsetCommitInput::TransportFailed { .. },
+            ) => Ok(()),
+            (GroupOffsetCommitState::AwaitingDriver | GroupOffsetCommitState::Submitted, _) => {
+                Err(GroupOffsetCommitMachineError::InvalidState)
+            }
+            (GroupOffsetCommitState::Completed, _) => {
+                Err(GroupOffsetCommitMachineError::AlreadyCompleted)
+            }
+        }
     }
 
     fn broker_responded(
         &mut self,
         throttle_time_ms: u32,
         outcomes: Vec<GroupOffsetCommitPartitionOutcome>,
-    ) -> Result<GroupOffsetCommitTransition, GroupOffsetCommitMachineError> {
-        if self.state != GroupOffsetCommitState::Submitted {
-            return Err(GroupOffsetCommitMachineError::InvalidState);
-        }
+    ) -> GroupOffsetCommitTransition {
         let correlated = self.expected.len() == outcomes.len()
             && self
                 .expected
@@ -150,64 +185,25 @@ impl GroupOffsetCommitMachine {
                         && expected.partition() == outcome.partition()
                 });
         if !correlated {
-            return Ok(self.finish(GroupOffsetCommitTerminal::Failed(
+            return self.finish(GroupOffsetCommitTerminal::Failed(
                 GroupOffsetCommitFailure::new(
                     GroupOffsetCommitFailureKind::InvalidResponse,
                     DeliveryStatus::PossiblySent,
                 ),
-            )));
+            ));
         }
         let terminal = GroupOffsetCommitBatch::new(throttle_time_ms, outcomes).into_terminal();
-        Ok(self.finish(terminal))
+        self.finish(terminal)
     }
 
-    fn deadline_elapsed(
-        &mut self,
-        delivery: DeliveryStatus,
-    ) -> Result<GroupOffsetCommitTransition, GroupOffsetCommitMachineError> {
-        match self.state {
-            GroupOffsetCommitState::AwaitingDriver => {
-                if delivery != DeliveryStatus::NotSent {
-                    return Err(GroupOffsetCommitMachineError::InvalidDeliveryStatus);
-                }
-                self.finish_awaiting(
-                    GroupOffsetCommitFailureKind::DeadlineElapsed,
-                    DeliveryStatus::NotSent,
-                )
-            }
-            GroupOffsetCommitState::Submitted => {
-                self.finish_submitted(GroupOffsetCommitFailureKind::DeadlineElapsed, delivery)
-            }
-            GroupOffsetCommitState::Completed => {
-                Err(GroupOffsetCommitMachineError::AlreadyCompleted)
-            }
-        }
-    }
-
-    fn finish_awaiting(
+    fn finish_failure(
         &mut self,
         kind: GroupOffsetCommitFailureKind,
         delivery: DeliveryStatus,
-    ) -> Result<GroupOffsetCommitTransition, GroupOffsetCommitMachineError> {
-        if self.state != GroupOffsetCommitState::AwaitingDriver {
-            return Err(GroupOffsetCommitMachineError::InvalidState);
-        }
-        Ok(self.finish(GroupOffsetCommitTerminal::Failed(
+    ) -> GroupOffsetCommitTransition {
+        self.finish(GroupOffsetCommitTerminal::Failed(
             GroupOffsetCommitFailure::new(kind, delivery),
-        )))
-    }
-
-    fn finish_submitted(
-        &mut self,
-        kind: GroupOffsetCommitFailureKind,
-        delivery: DeliveryStatus,
-    ) -> Result<GroupOffsetCommitTransition, GroupOffsetCommitMachineError> {
-        if self.state != GroupOffsetCommitState::Submitted {
-            return Err(GroupOffsetCommitMachineError::InvalidState);
-        }
-        Ok(self.finish(GroupOffsetCommitTerminal::Failed(
-            GroupOffsetCommitFailure::new(kind, delivery),
-        )))
+        ))
     }
 
     fn finish(&mut self, terminal: GroupOffsetCommitTerminal) -> GroupOffsetCommitTransition {

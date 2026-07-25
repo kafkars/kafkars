@@ -8,10 +8,11 @@ pub use super::error::AssignedConsumerMachineError;
 pub use super::group_commit::{
     AssignmentGeneration, GroupAssignmentPartition, GroupCheckpoint, GroupCheckpointEntry,
     GroupCheckpointEntryError, GroupCheckpointError, GroupId, GroupOffsetCommitAdmission,
-    GroupOffsetCommitAdmissionError, GroupOffsetCommitAdmissionErrorKind, GroupOffsetCommitBatch,
-    GroupOffsetCommitBrokerError, GroupOffsetCommitBrokerRejection, GroupOffsetCommitEffect,
-    GroupOffsetCommitFailure, GroupOffsetCommitFailureKind, GroupOffsetCommitInput,
-    GroupOffsetCommitMachine, GroupOffsetCommitMachineError, GroupOffsetCommitPartitionOutcome,
+    GroupOffsetCommitAdmissionError, GroupOffsetCommitAdmissionErrorKind,
+    GroupOffsetCommitApplyError, GroupOffsetCommitBatch, GroupOffsetCommitBrokerError,
+    GroupOffsetCommitBrokerRejection, GroupOffsetCommitEffect, GroupOffsetCommitFailure,
+    GroupOffsetCommitFailureKind, GroupOffsetCommitInput, GroupOffsetCommitMachine,
+    GroupOffsetCommitMachineError, GroupOffsetCommitPartitionOutcome,
     GroupOffsetCommitPartitionResult, GroupOffsetCommitState, GroupOffsetCommitTerminal,
     GroupOffsetCommitTransition, LiveGroupAssignment, LiveGroupAssignmentError, MemberId,
 };

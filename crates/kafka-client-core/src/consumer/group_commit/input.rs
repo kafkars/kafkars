@@ -63,6 +63,50 @@ pub enum GroupOffsetCommitMachineError {
     AlreadyCompleted,
 }
 
+/// Lossless rejection of one normalized state-machine fact.
+#[must_use = "rejected group offset commit input must be recovered or deliberately settled"]
+#[derive(Debug, Eq, PartialEq)]
+pub struct GroupOffsetCommitApplyError {
+    kind: GroupOffsetCommitMachineError,
+    input: GroupOffsetCommitInput,
+}
+
+impl GroupOffsetCommitApplyError {
+    pub(crate) const fn new(
+        kind: GroupOffsetCommitMachineError,
+        input: GroupOffsetCommitInput,
+    ) -> Self {
+        Self { kind, input }
+    }
+
+    /// Returns the semantic lifecycle rejection kind.
+    pub const fn kind(&self) -> GroupOffsetCommitMachineError {
+        self.kind
+    }
+
+    /// Borrows the exact rejected normalized fact.
+    pub const fn input(&self) -> &GroupOffsetCommitInput {
+        &self.input
+    }
+
+    /// Recovers the exact rejected normalized fact.
+    pub fn into_input(self) -> GroupOffsetCommitInput {
+        self.input
+    }
+}
+
+impl fmt::Display for GroupOffsetCommitApplyError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "group offset commit machine rejected fact: {:?}",
+            self.kind
+        )
+    }
+}
+
+impl std::error::Error for GroupOffsetCommitApplyError {}
+
 impl fmt::Display for GroupOffsetCommitMachineError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

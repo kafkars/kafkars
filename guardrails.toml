@@ -5742,6 +5742,14 @@ owner_type = "GroupOffsetCommitAdmissionError"
 path = "crates/kafka-client-core/src/consumer/group_commit/assignment.rs"
 
 [[linear_owners]]
+owner_type = "GroupOffsetCommitInput"
+path = "crates/kafka-client-core/src/consumer/group_commit/input.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetCommitApplyError"
+path = "crates/kafka-client-core/src/consumer/group_commit/input.rs"
+
+[[linear_owners]]
 owner_type = "GroupOffsetCommitEffect"
 path = "crates/kafka-client-core/src/consumer/group_commit/effect.rs"
 

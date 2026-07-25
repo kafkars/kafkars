@@ -7,6 +7,10 @@ struct GroupCheckpoint;
 #[derive(Clone, Copy)]
 struct GroupOffsetCommitAdmissionError;
 #[derive(Clone, Copy)]
+struct GroupOffsetCommitInput;
+#[derive(Clone, Copy)]
+struct GroupOffsetCommitApplyError;
+#[derive(Clone, Copy)]
 struct GroupOffsetCommitEffect;
 #[derive(Clone, Copy)]
 struct GroupOffsetCommitAdmission;

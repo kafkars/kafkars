@@ -19,7 +19,10 @@ pub use effect::{
     GroupOffsetCommitAdmission, GroupOffsetCommitEffect, GroupOffsetCommitTransition,
 };
 pub use identity::{AssignmentGeneration, GroupId, MemberId};
-pub use input::{GroupOffsetCommitInput, GroupOffsetCommitMachineError, GroupOffsetCommitState};
+pub use input::{
+    GroupOffsetCommitApplyError, GroupOffsetCommitInput, GroupOffsetCommitMachineError,
+    GroupOffsetCommitState,
+};
 pub use machine::GroupOffsetCommitMachine;
 pub use outcome::{
     GroupOffsetCommitBatch, GroupOffsetCommitBrokerError, GroupOffsetCommitBrokerRejection,
@@ -29,6 +32,8 @@ pub use outcome::{
 
 #[cfg(test)]
 mod admission_test;
+#[cfg(test)]
+mod apply_error_test;
 #[cfg(test)]
 mod assignment_test;
 #[cfg(test)]

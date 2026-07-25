@@ -57,11 +57,14 @@ fn mixed_response_is_broker_rejected_by_first_error_and_retains_partial_success(
         panic!("later rejection should remain available");
     };
     assert_eq!(later.code(), 71);
+    let Err(error) = machine.apply(GroupOffsetCommitInput::TransportFailed {
+        delivery: DeliveryStatus::NotSent,
+    }) else {
+        panic!("terminal machine must reject another fact");
+    };
     assert_eq!(
-        machine.apply(GroupOffsetCommitInput::TransportFailed {
-            delivery: DeliveryStatus::NotSent,
-        }),
-        Err(GroupOffsetCommitMachineError::AlreadyCompleted)
+        error.kind(),
+        GroupOffsetCommitMachineError::AlreadyCompleted
     );
 }
 
@@ -114,9 +117,12 @@ fn pre_driver_failures_are_not_sent_and_assign_one_terminal() {
             kind,
             DeliveryStatus::NotSent,
         );
+        let Err(error) = machine.apply(GroupOffsetCommitInput::DriverAccepted) else {
+            panic!("terminal machine must reject driver acceptance");
+        };
         assert_eq!(
-            machine.apply(GroupOffsetCommitInput::DriverAccepted),
-            Err(GroupOffsetCommitMachineError::AlreadyCompleted)
+            error.kind(),
+            GroupOffsetCommitMachineError::AlreadyCompleted
         );
     }
 }
@@ -133,18 +139,6 @@ fn deadline_after_driver_acceptance_preserves_timeout_kind_and_certainty() {
             delivery,
         );
     }
-}
-
-#[test]
-fn pre_driver_deadline_rejects_impossible_possibly_sent_fact_without_mutation() {
-    let (mut machine, _submit) = admitted_machine();
-    assert_eq!(
-        machine.apply(GroupOffsetCommitInput::DeadlineElapsed {
-            delivery: DeliveryStatus::PossiblySent,
-        }),
-        Err(GroupOffsetCommitMachineError::InvalidDeliveryStatus)
-    );
-    assert_eq!(machine.state(), GroupOffsetCommitState::AwaitingDriver);
 }
 
 #[test]
