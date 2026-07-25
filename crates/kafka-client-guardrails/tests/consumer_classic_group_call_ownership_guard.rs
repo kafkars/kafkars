@@ -25,6 +25,8 @@ const SYNC_OWNER: &str =
     "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs";
 const SYNC_TERMINAL: &str =
     "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal.rs";
+const HEARTBEAT_TEST_FIXTURE: &str =
+    "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_test_fixture.rs";
 
 const LINEAR: &[(&str, &str)] = &[
     ("AcceptedJoinGroupCall", JOIN_CALLS),
@@ -156,10 +158,14 @@ fn checked_in_classic_group_call_policy_is_exact() {
             .collect::<Vec<_>>(),
         FORBIDDEN
     );
-    assert_eq!(rules[0].allow.len(), 4);
+    assert_eq!(rules[0].allow.len(), 9);
     for (allow, (expected_path, capability)) in rules[0].allow.iter().zip([
         (JOIN_CALLS, "crate::protocol"),
         (SYNC_CALLS, "crate::protocol"),
+        (
+            "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs",
+            "crate::protocol",
+        ),
         (
             "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_terminal_test.rs",
             "Instant::now",
@@ -168,6 +174,13 @@ fn checked_in_classic_group_call_policy_is_exact() {
             "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal_test.rs",
             "Instant::now",
         ),
+        (
+            "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_terminal_test.rs",
+            "Instant::now",
+        ),
+        (HEARTBEAT_TEST_FIXTURE, "ClassicGroupEffect"),
+        (HEARTBEAT_TEST_FIXTURE, "ClassicGroupInput"),
+        (HEARTBEAT_TEST_FIXTURE, "ClassicGroupMachine"),
     ]) {
         assert_eq!(allow.path, expected_path);
         assert_eq!(allow.capability, capability);

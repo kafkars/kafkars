@@ -4,6 +4,23 @@
     reason = "classic membership executor consumes this closed raw-call API next"
 )]
 
+mod heartbeat_calls;
+#[cfg(test)]
+mod heartbeat_calls_test;
+mod heartbeat_reconciliation;
+#[cfg(test)]
+mod heartbeat_reconciliation_test;
+mod heartbeat_settlement;
+mod heartbeat_settlement_owner;
+#[cfg(test)]
+mod heartbeat_settlement_owner_test;
+#[cfg(test)]
+mod heartbeat_settlement_test;
+mod heartbeat_terminal;
+#[cfg(test)]
+mod heartbeat_terminal_test;
+#[cfg(test)]
+mod heartbeat_test_fixture;
 mod join_group_calls;
 #[cfg(test)]
 mod join_group_calls_test;
@@ -37,6 +54,24 @@ mod sync_group_terminal_test;
 #[cfg(test)]
 mod terminal_test_fixture;
 
+pub(crate) use heartbeat_calls::{
+    AcceptedClassicHeartbeatCall, ClassicHeartbeatCallPermit, ClassicHeartbeatCallReservationError,
+    TrackedClassicHeartbeatCalls,
+};
+pub(crate) use heartbeat_reconciliation::{
+    ClassicHeartbeatShutdownReconciliationError, ClassicHeartbeatShutdownReconciliationFailure,
+    RecoveredClassicHeartbeatOwnership,
+};
+pub(crate) use heartbeat_settlement::{
+    ClassicHeartbeatBeginError, ClassicHeartbeatConfirmationError,
+    ClassicHeartbeatConfirmationFailure, ClassicHeartbeatPoll, ClassicHeartbeatRestoreError,
+    ClassicHeartbeatRestoreFailure, RecoveredClassicHeartbeatConfirmation,
+};
+pub(crate) use heartbeat_settlement_owner::ClassicHeartbeatShutdownRecovery;
+pub(crate) use heartbeat_terminal::{
+    ClassicHeartbeatAdmissionFailure, ClassicHeartbeatCallKey, ClassicHeartbeatCompletionFailure,
+    ClassicHeartbeatCompletionObservation, ClassicHeartbeatTerminal, RecoveredClassicHeartbeatCall,
+};
 pub(crate) use join_group_calls::{
     AcceptedJoinGroupCall, JoinGroupCallPermit, JoinGroupCallReservationError,
     TrackedJoinGroupCalls,

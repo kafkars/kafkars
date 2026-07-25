@@ -88,6 +88,9 @@ mod group_offset_commit_submission_test;
 mod group_offset_commit_terminal;
 #[cfg(test)]
 mod group_offset_commit_terminal_test;
+mod heartbeat_submission;
+#[cfg(test)]
+mod heartbeat_submission_test;
 mod incremental_alter_configs_calls;
 #[cfg(test)]
 mod incremental_alter_configs_calls_test;

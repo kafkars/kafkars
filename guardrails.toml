@@ -3112,6 +3112,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/cleanup.rs",
   "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs",
   "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
 ]
 
@@ -8976,8 +8977,13 @@ forbidden = [
 allow = [
   { path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs", capability = "crate::protocol", reason = "The exact Join call permit is the sole production boundary allowed to consume the opaque prepared protocol request." },
   { path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs", capability = "crate::protocol", reason = "The exact Sync call permit is the sole production boundary allowed to consume the opaque prepared protocol request." },
+  { path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs", capability = "crate::protocol", reason = "The exact Heartbeat call permit is the sole production boundary allowed to consume the opaque prepared protocol request." },
   { path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_terminal_test.rs", capability = "Instant::now", reason = "Tests create an inert transport deadline without acquiring production clock authority." },
   { path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal_test.rs", capability = "Instant::now", reason = "Tests create an inert transport deadline without acquiring production clock authority." },
+  { path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_terminal_test.rs", capability = "Instant::now", reason = "Tests create an inert transport deadline without acquiring production clock authority." },
+  { path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_test_fixture.rs", capability = "ClassicGroupEffect", reason = "This cfg(test)-only fixture interprets exact core effects to derive two distinct real Heartbeat attempt identities." },
+  { path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_test_fixture.rs", capability = "ClassicGroupInput", reason = "This cfg(test)-only fixture drives explicit deterministic core inputs to derive real Heartbeat attempt identities." },
+  { path = "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_test_fixture.rs", capability = "ClassicGroupMachine", reason = "This cfg(test)-only fixture owns an isolated deterministic machine solely to derive real Heartbeat attempt identities." },
 ]
 
 [[method_capabilities]]

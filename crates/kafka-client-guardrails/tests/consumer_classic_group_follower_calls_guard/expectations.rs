@@ -140,5 +140,10 @@ pub(super) const METHODS: &[(&str, &str, &[&str])] = &[
 pub(super) const SHARED_METHODS: &[(&str, &str, &[&str])] = &[(
     ENGINE_ROOT,
     "retained_count",
-    &[JOIN_SETTLEMENT_OWNER, SYNC_SETTLEMENT_OWNER, RECOVERY],
+    &[
+        JOIN_SETTLEMENT_OWNER,
+        SYNC_SETTLEMENT_OWNER,
+        "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
+        RECOVERY,
+    ],
 )];
