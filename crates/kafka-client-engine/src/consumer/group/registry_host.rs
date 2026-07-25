@@ -78,13 +78,13 @@ impl GroupConsumerRegistry {
         now: Moment,
         driver: &DriverOwner,
     ) -> Result<GroupConsumerRegistryTurn, GroupConsumerHostError> {
-        let membership = self
-            .turn_membership(now)
-            .map_err(GroupConsumerHostError::membership)?;
         let offset_commit = self
             .offset_commits
             .turn(now, driver)
             .map_err(GroupConsumerHostError::from)?;
+        let membership = self
+            .turn_membership(now, driver)
+            .map_err(GroupConsumerHostError::membership)?;
         Ok(GroupConsumerRegistryTurn {
             progressed: membership == GroupConsumerMembershipTurn::Progress
                 || offset_commit == GroupOffsetCommitTurn::Progress,

@@ -5,6 +5,8 @@ pub(super) const CATALOG_ASSIGNMENT: &str =
     "crates/kafka-client-engine/src/consumer/group/session_catalog_assignment.rs";
 pub(super) const OWNER: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_owner.rs";
+pub(super) const FOLLOWER_OWNER: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_owner_follower.rs";
 pub(super) const CANDIDATE: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_candidate.rs";
 pub(super) const EFFECT_ASSIGNMENT: &str =
@@ -14,6 +16,8 @@ pub(super) const ASSIGNMENT_DECODE: &str =
 pub(super) const ASSIGNMENT_DECODE_TEST: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_assignment_decode_test.rs";
 pub(super) const ASSIGNMENT_DECODE_CALL: &str = "decode_classic_group_assignment";
+pub(super) const SYNC_INTERPRET: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs";
 pub(super) const CAPABILITY_PATHS: &[&str] = &[
     CATALOG,
     CATALOG_ASSIGNMENT,
@@ -40,7 +44,8 @@ pub(super) const CATALOG_FIELDS: &[(&str, &[&str])] = &[
     ("topics_by_id", &[CATALOG, CATALOG_ASSIGNMENT]),
     ("current", &[CATALOG_ASSIGNMENT]),
 ];
-pub(super) const OWNER_FIELDS: &[(&str, &[&str])] = &[("pending", &[OWNER, EFFECT_ASSIGNMENT])];
+pub(super) const OWNER_FIELDS: &[(&str, &[&str])] =
+    &[("pending", &[OWNER, FOLLOWER_OWNER, EFFECT_ASSIGNMENT])];
 pub(super) const METHODS: &[(&str, &str)] = &[
     ("commit_classic_group_install", EFFECT_ASSIGNMENT),
     ("commit_classic_group_revoke", EFFECT_ASSIGNMENT),

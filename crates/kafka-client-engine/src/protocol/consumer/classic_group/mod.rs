@@ -19,7 +19,8 @@ pub(crate) use model::{
     NamedAssignmentPartition,
 };
 pub(crate) use sync_request::{
-    ClassicSyncRequestFailure, PreparedClassicSyncGroupRequest, classic_sync_group_request,
+    ClassicSyncRequestFailure, PreparedClassicSyncGroupRequest,
+    classic_follower_sync_group_request, classic_sync_group_request,
 };
 pub(crate) use sync_response::{ClassicSyncResponseFailure, normalize_classic_sync_response};
 pub(crate) use validation::{

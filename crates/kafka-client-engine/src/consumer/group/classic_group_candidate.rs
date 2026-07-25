@@ -131,6 +131,10 @@ impl ClassicGroupCycleCandidate {
         self.local_catalog_member_id
     }
 
+    pub(super) fn local_member(&self) -> &Arc<str> {
+        &self.local_kafka_member
+    }
+
     pub(super) const fn local_slot(&self) -> Option<JoinedMemberSlot> {
         self.local_joined_slot
     }

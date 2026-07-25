@@ -1,21 +1,16 @@
 //! Lossless Join transfer through the execution owner's guarded state operations.
 
+use crate::driver::classic_group::{AcceptedJoinGroupCall, JoinGroupCallKey};
+
 use super::{
     classic_group_execution::{ClassicGroupExecution, ClassicGroupExecutionError},
     classic_group_join::{
         ClassicGroupExecutionState, ClassicGroupJoinDriverAcceptance, ClassicGroupJoinHandoff,
-        ClassicGroupJoinTracking,
     },
+    classic_group_join_call::{ClassicGroupJoinAcceptanceFailure, ClassicGroupJoinCallOwner},
 };
 
 impl ClassicGroupExecution {
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "consumed by the next Join protocol execution slice"
-        )
-    )]
     pub(super) fn begin_join_handoff(
         &mut self,
     ) -> Result<ClassicGroupJoinHandoff, ClassicGroupExecutionError> {
@@ -29,13 +24,6 @@ impl ClassicGroupExecution {
         Ok(handoff)
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "consumed by the next Join protocol execution slice"
-        )
-    )]
     pub(super) fn restore_join(
         &mut self,
         handoff: ClassicGroupJoinHandoff,
@@ -56,61 +44,26 @@ impl ClassicGroupExecution {
         }
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "consumed by the next Join protocol execution slice"
-        )
-    )]
     pub(super) fn confirm_join_driver_owned(
         &mut self,
         acceptance: ClassicGroupJoinDriverAcceptance,
-    ) -> Result<
-        ClassicGroupJoinTracking,
-        (ClassicGroupExecutionError, ClassicGroupJoinDriverAcceptance),
-    > {
+        accepted: AcceptedJoinGroupCall,
+    ) -> Result<(), ClassicGroupJoinAcceptanceFailure> {
+        let identity = acceptance.identity();
+        let expected_key =
+            JoinGroupCallKey::new(identity.group_id(), identity.cycle(), identity.deadline());
         let state = self.borrow_execution_state();
         let matches = matches!(
             state,
             ClassicGroupExecutionState::JoinHandoff(identity)
                 if *identity == acceptance.identity()
-        );
+        ) && accepted.key() == expected_key;
         if !matches {
-            return Err((ClassicGroupExecutionError::HandoffMismatch, acceptance));
+            return Err(ClassicGroupJoinAcceptanceFailure::new(acceptance, accepted));
         }
         let (driver_owned, tracking) = acceptance.into_driver_owners();
-        self.set_execution_state(ClassicGroupExecutionState::JoinDriverOwned(driver_owned));
-        Ok(tracking)
-    }
-
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "consumed by Join protocol shutdown recovery once that slice lands"
-        )
-    )]
-    pub(super) fn recover_join_after_driver_shutdown(
-        &mut self,
-        tracking: ClassicGroupJoinTracking,
-    ) -> Result<(), (ClassicGroupExecutionError, ClassicGroupJoinTracking)> {
-        let state = self.borrow_execution_state();
-        let matches = matches!(
-            state,
-            ClassicGroupExecutionState::JoinDriverOwned(driver_owned)
-                if driver_owned.identity() == tracking.identity()
-        );
-        if !matches {
-            return Err((ClassicGroupExecutionError::HandoffMismatch, tracking));
-        }
-        let state = self.replace_execution_state(ClassicGroupExecutionState::Idle);
-        let ClassicGroupExecutionState::JoinDriverOwned(driver_owned) = state else {
-            self.set_execution_state(state);
-            return Err((ClassicGroupExecutionError::HandoffMismatch, tracking));
-        };
-        self.set_execution_state(ClassicGroupExecutionState::PreparedJoin(
-            driver_owned.into_prepared(),
+        self.set_execution_state(ClassicGroupExecutionState::JoinDriverOwned(
+            ClassicGroupJoinCallOwner::new(driver_owned, tracking, accepted),
         ));
         Ok(())
     }

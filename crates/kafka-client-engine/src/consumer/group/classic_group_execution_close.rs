@@ -16,7 +16,8 @@ impl ClassicGroupExecution {
         catalog: &mut GroupSessionCatalog,
     ) -> Result<ClassicGroupCloseProgress, ClassicGroupExecutionError> {
         match self.borrow_execution_state() {
-            ClassicGroupExecutionState::JoinDriverOwned(driver_owned) => {
+            ClassicGroupExecutionState::JoinDriverOwned(driver_owned)
+            | ClassicGroupExecutionState::LeaderDeferred(driver_owned) => {
                 return if owner.machine().group_id() == driver_owned.identity().group_id()
                     && owner.machine().active_cycle() == Some(driver_owned.identity().cycle())
                 {
@@ -25,8 +26,14 @@ impl ClassicGroupExecution {
                     Err(ClassicGroupExecutionError::HandoffMismatch)
                 };
             }
-            ClassicGroupExecutionState::JoinHandoff(_) => {
+            ClassicGroupExecutionState::JoinHandoff(_)
+            | ClassicGroupExecutionState::SyncHandoff(_) => {
                 return Err(ClassicGroupExecutionError::HandoffIncomplete);
+            }
+            ClassicGroupExecutionState::JoinConfirmationPending { .. }
+            | ClassicGroupExecutionState::SyncDriverOwned(_)
+            | ClassicGroupExecutionState::SyncConfirmationPending(_) => {
+                return Ok(ClassicGroupCloseProgress::DriverOwned);
             }
             ClassicGroupExecutionState::CloseFault {
                 revoke_failure_kind,
@@ -39,7 +46,9 @@ impl ClassicGroupExecution {
             {
                 return Ok(ClassicGroupCloseProgress::AlreadyClosed);
             }
-            ClassicGroupExecutionState::Idle | ClassicGroupExecutionState::PreparedJoin(_) => {}
+            ClassicGroupExecutionState::Idle
+            | ClassicGroupExecutionState::PreparedJoin(_)
+            | ClassicGroupExecutionState::PreparedSync(_) => {}
         }
         let transition = owner
             .apply(ClassicGroupInput::Close)

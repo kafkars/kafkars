@@ -72,6 +72,29 @@ pub(crate) fn classic_sync_group_request(
         assignment.assignment = wire_assignment;
         assignments.push(assignment);
     }
+    Ok(PreparedClassicSyncGroupRequest {
+        request: sync_request(group, local_member, generation, assignments),
+    })
+}
+
+/// Builds the exact empty-plan request emitted for a dynamic follower.
+pub(crate) fn classic_follower_sync_group_request(
+    group: &str,
+    local_member: &str,
+    generation: ClassicGeneration,
+) -> Result<PreparedClassicSyncGroupRequest, ClassicSyncRequestFailure> {
+    validate_inputs(group, local_member, &[], &[], &[])?;
+    Ok(PreparedClassicSyncGroupRequest {
+        request: sync_request(group, local_member, generation, Vec::new()),
+    })
+}
+
+fn sync_request(
+    group: &str,
+    local_member: &str,
+    generation: ClassicGeneration,
+    assignments: Vec<SyncGroupRequestAssignment>,
+) -> SyncGroupRequest {
     let mut request = SyncGroupRequest::default();
     request.group_id = group.into();
     request.generation_id = generation.get();
@@ -80,7 +103,7 @@ pub(crate) fn classic_sync_group_request(
     request.protocol_type = None;
     request.protocol_name = None;
     request.assignments = assignments;
-    Ok(PreparedClassicSyncGroupRequest { request })
+    request
 }
 
 fn validate_inputs(

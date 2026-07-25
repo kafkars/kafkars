@@ -145,6 +145,7 @@ fn shutdown_recovery_preserves_settled_and_external_pending_ownership() {
     let settled_receipt = accepted(settled_key);
     let settled_calls = terminal_calls(settled_key);
     let mut settled_recovery = settled_calls.recover_sync_groups_after_driver_shutdown();
+    assert_eq!(settled_recovery.retained_count(), 1);
     let settled = settled_recovery
         .take_settled()
         .unwrap_or_else(|| panic!("raw settled terminal must recover"));
@@ -162,6 +163,7 @@ fn shutdown_recovery_preserves_settled_and_external_pending_ownership() {
         .begin_sync_group_settlement(&pending_receipt)
         .unwrap_or_else(|error| panic!("test settlement must begin: {error:?}"));
     let mut pending_recovery = pending_calls.recover_sync_groups_after_driver_shutdown();
+    assert_eq!(pending_recovery.retained_count(), 1);
     let pending = pending_recovery
         .take_pending()
         .unwrap_or_else(|| panic!("pending route owner must recover"));

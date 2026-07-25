@@ -13,8 +13,8 @@ use support::{
 };
 
 use expectations::{
-    ENTRY_FIELDS, ENTRY_PATH, FORBIDDEN, HOST_START_METHOD, MIRRORS, REGISTRY_FIELDS,
-    REGISTRY_HOST_FORBIDDEN, REGISTRY_PATH, ROOT,
+    ENTRY_DECLARED_FIELDS, ENTRY_FIELDS, ENTRY_PATH, FORBIDDEN, HOST_START_METHOD, MIRRORS,
+    REGISTRY_DECLARED_FIELDS, REGISTRY_FIELDS, REGISTRY_HOST_FORBIDDEN, REGISTRY_PATH, ROOT,
 };
 
 #[test]
@@ -74,7 +74,14 @@ fn checked_in_registry_capabilities_and_mirrors_are_exact() {
                 .collect::<Vec<_>>(),
             expected
         );
-        assert!(rules[0].allow.is_empty());
+        if file == "registry.rs" {
+            assert_eq!(rules[0].allow.len(), 1);
+            assert_eq!(rules[0].allow[0].path, REGISTRY_PATH);
+            assert_eq!(rules[0].allow[0].capability, "crate::driver");
+            assert!(!rules[0].allow[0].reason.trim().is_empty());
+        } else {
+            assert!(rules[0].allow.is_empty());
+        }
     }
     for (production, test) in MIRRORS {
         let production = format!("{ROOT}{production}");
@@ -104,6 +111,24 @@ fn entry_cannot_own_an_offset_commit_host() {
     let source = std::fs::read_to_string(workspace_root().join(ENTRY_PATH))
         .unwrap_or_else(|error| panic!("read registry entry: {error}"));
     assert!(!source.contains("GroupOffsetCommitHost"));
+}
+
+#[test]
+fn registry_and_entry_fields_are_exact() {
+    assert_eq!(
+        declared_fields(REGISTRY_PATH, "GroupConsumerRegistry"),
+        REGISTRY_DECLARED_FIELDS
+            .iter()
+            .map(|field| (*field).to_owned())
+            .collect()
+    );
+    assert_eq!(
+        declared_fields(ENTRY_PATH, "GroupConsumerEntry"),
+        ENTRY_DECLARED_FIELDS
+            .iter()
+            .map(|field| (*field).to_owned())
+            .collect()
+    );
 }
 
 #[test]
@@ -243,4 +268,23 @@ fn assert_exact_mutations(rules: &[MutationOwner], owner_type: &str, expected: &
             *files
         );
     }
+}
+
+fn declared_fields(path: &str, owner_type: &str) -> BTreeSet<String> {
+    let source = std::fs::read_to_string(workspace_root().join(path))
+        .unwrap_or_else(|error| panic!("read {path}: {error}"));
+    let syntax = syn::parse_file(&source).unwrap_or_else(|error| panic!("parse {path}: {error}"));
+    syntax
+        .items
+        .iter()
+        .find_map(|item| match item {
+            syn::Item::Struct(item) if item.ident == owner_type => Some(
+                item.fields
+                    .iter()
+                    .filter_map(|field| field.ident.as_ref().map(ToString::to_string))
+                    .collect(),
+            ),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("{path} does not declare {owner_type}"))
 }

@@ -4,11 +4,21 @@ use std::time::Duration;
 
 use kafka_client_core::{ClassicGroupPhase, Moment};
 
-use crate::clock::MonotonicClock;
+use crate::{
+    EngineConfig,
+    clock::MonotonicClock,
+    driver::{
+        DriverOwner,
+        classic_group::{AcceptedJoinGroupCall, JoinGroupCallKey, RecoveredJoinGroupOwnership},
+    },
+};
 
 use super::{
     classic_group_assignment::ClassicGroupAssignmentPreparationFailureKind,
     classic_group_execution::ClassicGroupExecutionError,
+    classic_group_join::ClassicGroupExecutionState,
+    classic_group_join_settlement::ClassicGroupJoinSettlementTurn,
+    classic_group_join_settlement_test::leader_join_terminal,
     registry_membership::GroupConsumerMembershipTurn,
     registry_test_support::{install_session, register, started_registry, stop_registry},
 };
@@ -30,12 +40,12 @@ fn one_due_local_cycle_expires_per_membership_turn() {
     let due = Moment::from_tick(capture.deadline().tick());
 
     assert_eq!(
-        registry.turn_membership(due),
+        registry.turn_local_membership(due),
         Ok(GroupConsumerMembershipTurn::Progress)
     );
     assert_eq!(registry.membership_unsettled(), 1);
     assert_eq!(
-        registry.turn_membership(due),
+        registry.turn_local_membership(due),
         Ok(GroupConsumerMembershipTurn::Progress)
     );
     assert_eq!(registry.membership_unsettled(), 0);
@@ -53,7 +63,7 @@ fn closing_entry_revokes_its_exact_catalog_assignment() {
 
     assert_eq!(registry.membership_unsettled(), 1);
     assert_eq!(
-        registry.turn_membership(Moment::from_tick(1)),
+        registry.turn_local_membership(Moment::from_tick(1)),
         Ok(GroupConsumerMembershipTurn::Progress)
     );
     let entry = registry
@@ -84,16 +94,21 @@ fn driver_owned_join_blocks_close_without_local_deadline_mutation() {
         .execution
         .begin_join_handoff()
         .unwrap_or_else(|error| panic!("handoff failed: {error:?}"));
-    let tracking = entry
+    let identity = handoff.identity();
+    let key = JoinGroupCallKey::new(identity.group_id(), identity.cycle(), identity.deadline());
+    entry
         .execution
-        .confirm_join_driver_owned(handoff.into_driver_acceptance())
-        .unwrap_or_else(|(error, _acceptance)| panic!("driver confirmation failed: {error:?}"));
+        .confirm_join_driver_owned(
+            handoff.into_driver_acceptance(),
+            AcceptedJoinGroupCall::from_key_for_test(key),
+        )
+        .unwrap_or_else(|_failure| panic!("driver confirmation failed"));
     registry
         .close_group(group_id)
         .unwrap_or_else(|error| panic!("close failed: {error:?}"));
 
     assert_eq!(
-        registry.turn_membership(Moment::from_tick(capture.deadline().tick())),
+        registry.turn_local_membership(Moment::from_tick(capture.deadline().tick())),
         Ok(GroupConsumerMembershipTurn::Blocked)
     );
     let entry = registry
@@ -109,8 +124,8 @@ fn driver_owned_join_blocks_close_without_local_deadline_mutation() {
         .unwrap_or_else(|| panic!("registered entry expected"));
     entry
         .execution
-        .recover_join_after_driver_shutdown(tracking)
-        .unwrap_or_else(|(error, _tracking)| panic!("driver recovery failed: {error:?}"));
+        .reconcile_join_after_driver_shutdown(RecoveredJoinGroupOwnership::active_for_test(key))
+        .unwrap_or_else(|(error, _recovered)| panic!("driver recovery failed: {error:?}"));
     stop_registry(&mut registry);
 }
 
@@ -152,5 +167,53 @@ fn close_mismatch_retains_the_exact_revoke_effect_in_the_execution_owner() {
         .unwrap_or_else(|error| panic!("retained revoke retry failed: {error:?}"));
     assert!(first_entry.catalog.live_assignment().is_none());
     assert!(second_entry.catalog.live_assignment().is_some());
+    stop_registry(&mut registry);
+}
+
+#[test]
+fn deferred_leader_does_not_starve_another_local_deadline() {
+    let (mut registry, leader_group, _identity) = leader_join_terminal();
+    assert_eq!(
+        registry.settle_one_classic_join(Moment::from_tick(1)),
+        Ok(ClassicGroupJoinSettlementTurn::Blocked)
+    );
+    let local_group = register(&mut registry, "local");
+    let capture = MonotonicClock::new()
+        .capture_deadline_after(Duration::from_nanos(1))
+        .unwrap_or_else(|error| panic!("deadline capture failed: {error}"));
+    registry
+        .try_begin_classic_cycle(local_group, capture)
+        .unwrap_or_else(|error| panic!("local cycle begin failed: {error:?}"));
+    let mut driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver build failed: {error}"));
+
+    assert_eq!(
+        registry.turn_membership(Moment::from_tick(capture.deadline().tick()), &driver),
+        Ok(GroupConsumerMembershipTurn::Progress)
+    );
+    assert_eq!(
+        registry
+            .entry(local_group)
+            .unwrap_or_else(|| panic!("local entry expected"))
+            .classic
+            .machine()
+            .phase(),
+        ClassicGroupPhase::Lost
+    );
+    assert!(matches!(
+        registry
+            .entry(leader_group)
+            .unwrap_or_else(|| panic!("leader entry expected"))
+            .execution
+            .borrow_execution_state(),
+        ClassicGroupExecutionState::LeaderDeferred(_)
+    ));
+
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("driver shutdown failed: {error}"));
+    registry
+        .recover_classic_calls_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("classic call recovery failed: {error:?}"));
     stop_registry(&mut registry);
 }

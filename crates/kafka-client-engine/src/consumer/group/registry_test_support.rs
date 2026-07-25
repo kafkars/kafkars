@@ -83,7 +83,7 @@ pub(super) fn stop_registry(registry: &mut GroupConsumerRegistry) {
     let turn_limit = registry.entries.len().saturating_add(1);
     for _turn in 0..turn_limit {
         match registry
-            .turn_membership(Moment::from_tick(u64::MAX))
+            .turn_local_membership(Moment::from_tick(u64::MAX))
             .unwrap_or_else(|error| panic!("membership stop failed: {error:?}"))
         {
             GroupConsumerMembershipTurn::Progress => {}

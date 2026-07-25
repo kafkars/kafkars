@@ -1,13 +1,22 @@
 //! Bounded registration, lossless rejection, and identity scenarios.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
+
+use kafka_client_core::MembershipCycle;
+
+use crate::clock::MonotonicClock;
 
 use super::{
+    classic_group_entry_fault::ClassicGroupEntryFault,
     registry::{
         GROUP_CONSUMER_CAPACITY, GROUP_CONSUMER_RETAINED_NAME_BYTES,
         GroupConsumerRegistrationFailureKind,
     },
-    registry_test_support::{register, started_registry, stop_registry},
+    registry_commit::GroupConsumerCommitFailureKind,
+    registry_cycle::GroupConsumerCycleAdmissionError,
+    registry_test_support::{
+        checkpoint, deadline, install_session, register, started_registry, stop_registry,
+    },
     session_catalog::{GroupSessionCatalogError, MAX_KAFKA_GROUP_STRING_BYTES},
 };
 
@@ -98,4 +107,54 @@ fn count_and_aggregate_group_name_bytes_have_exact_caps() {
         GROUP_CONSUMER_RETAINED_NAME_BYTES
     );
     stop_registry(&mut byte_registry);
+}
+
+#[test]
+fn first_entry_fault_fences_registration_cycle_and_commit_admission() {
+    let mut registry = started_registry();
+    let group_id = register(&mut registry, "workers");
+    install_session(&mut registry, group_id);
+    let checkpoint = checkpoint(&registry, group_id);
+    let cycle = MembershipCycle::try_from_raw(99)
+        .unwrap_or_else(|| panic!("nonzero fault correlation cycle"));
+    registry
+        .entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .unwrap_or_else(|| panic!("registered entry expected"))
+        .fault = Some(ClassicGroupEntryFault::SyncRecoverySemantic(cycle));
+
+    let registration = registry
+        .try_register(
+            Arc::from("other"),
+            vec![Arc::from("orders")],
+            super::classic_group_test_support::timing(),
+        )
+        .err()
+        .unwrap_or_else(|| panic!("faulted registry must reject registration"));
+    assert_eq!(
+        registration.kind,
+        GroupConsumerRegistrationFailureKind::EntryFault
+    );
+    let capture = MonotonicClock::new()
+        .capture_deadline_after(Duration::from_secs(1))
+        .unwrap_or_else(|error| panic!("deadline capture failed: {error}"));
+    assert_eq!(
+        registry.try_begin_classic_cycle(group_id, capture),
+        Err(GroupConsumerCycleAdmissionError::EntryFault)
+    );
+    let commit = registry
+        .try_commit(group_id, deadline(100), checkpoint)
+        .err()
+        .unwrap_or_else(|| panic!("faulted registry must reject commit"));
+    assert_eq!(commit.kind, GroupConsumerCommitFailureKind::EntryFault);
+
+    let fault = registry
+        .entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .and_then(|entry| entry.fault.take())
+        .unwrap_or_else(|| panic!("fault owner expected"));
+    assert_eq!(fault.retained_owner_count(), 1);
+    stop_registry(&mut registry);
 }

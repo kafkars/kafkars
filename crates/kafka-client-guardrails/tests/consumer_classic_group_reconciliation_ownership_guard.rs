@@ -16,6 +16,8 @@ const SYNC_RECONCILIATION: &str =
     "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_reconciliation.rs";
 const SYNC_OWNER: &str =
     "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs";
+const EXECUTION_RECOVERY: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs";
 
 const LINEAR: &[(&str, &str)] = &[
     ("RecoveredJoinGroupOwnership", JOIN_RECONCILIATION),
@@ -66,12 +68,18 @@ const CONSTRUCTORS: &[(&str, &[&str])] = &[
 ];
 
 const METHODS: &[(&str, &[&str])] = &[
-    ("reconcile_join_group_after_driver_shutdown", &[]),
+    (
+        "reconcile_join_group_after_driver_shutdown",
+        &[EXECUTION_RECOVERY],
+    ),
     (
         "consume_join_group_shutdown_receipt",
         &[JOIN_RECONCILIATION],
     ),
-    ("reconcile_sync_group_after_driver_shutdown", &[]),
+    (
+        "reconcile_sync_group_after_driver_shutdown",
+        &[EXECUTION_RECOVERY],
+    ),
     (
         "consume_sync_group_shutdown_receipt",
         &[SYNC_RECONCILIATION],

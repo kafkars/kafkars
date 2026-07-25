@@ -53,7 +53,7 @@ impl AcceptedSyncGroupCall {
     }
 
     #[cfg(test)]
-    pub(super) const fn from_key_for_test(key: SyncGroupCallKey) -> Self {
+    pub(crate) const fn from_key_for_test(key: SyncGroupCallKey) -> Self {
         Self::new(key)
     }
 }

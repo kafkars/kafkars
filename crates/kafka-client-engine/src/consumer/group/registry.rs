@@ -4,6 +4,11 @@ use std::sync::Arc;
 
 use kafka_client_core::{ClassicGroupTiming, GroupId};
 
+use crate::driver::classic_group::{
+    JoinGroupShutdownRecovery, RecoveredJoinGroupOwnership, RecoveredSyncGroupOwnership,
+    SyncGroupShutdownRecovery, TrackedJoinGroupCalls, TrackedSyncGroupCalls,
+};
+
 use super::{
     offset_commit::GroupOffsetCommitHost,
     registry_entry::GroupConsumerEntry,
@@ -26,6 +31,7 @@ pub(super) struct GroupConsumerRegistrationFailure {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum GroupConsumerRegistrationFailureKind {
     Closed,
+    EntryFault,
     Capacity,
     RetainedBytes,
     IdentityExhausted,
@@ -38,6 +44,12 @@ pub(crate) struct GroupConsumerRegistry {
     pub(super) next_group_id: Option<GroupId>,
     pub(super) retained_group_bytes: usize,
     pub(super) accepting: bool,
+    pub(super) join_calls: Option<TrackedJoinGroupCalls>,
+    pub(super) sync_calls: Option<TrackedSyncGroupCalls>,
+    pub(super) join_shutdown_recovery: Option<JoinGroupShutdownRecovery>,
+    pub(super) sync_shutdown_recovery: Option<SyncGroupShutdownRecovery>,
+    pub(super) join_recovery_fault: Option<RecoveredJoinGroupOwnership>,
+    pub(super) sync_recovery_fault: Option<RecoveredSyncGroupOwnership>,
     pub(super) offset_commits: GroupOffsetCommitHost,
 }
 
@@ -47,11 +59,21 @@ impl GroupConsumerRegistry {
         entries
             .try_reserve_exact(GROUP_CONSUMER_CAPACITY)
             .map_err(|_error| std::io::Error::other("group consumer entry reservation failed"))?;
+        let join_calls = TrackedJoinGroupCalls::try_new(GROUP_CONSUMER_CAPACITY)
+            .map_err(|_error| std::io::Error::other("JoinGroup call reservation failed"))?;
+        let sync_calls = TrackedSyncGroupCalls::try_new(GROUP_CONSUMER_CAPACITY)
+            .map_err(|_error| std::io::Error::other("SyncGroup call reservation failed"))?;
         Ok(Self {
             entries,
             next_group_id: GroupId::try_from_raw(1),
             retained_group_bytes: 0,
             accepting: true,
+            join_calls: Some(join_calls),
+            sync_calls: Some(sync_calls),
+            join_shutdown_recovery: None,
+            sync_shutdown_recovery: None,
+            join_recovery_fault: None,
+            sync_recovery_fault: None,
             offset_commits: GroupOffsetCommitHost::start_group_offset_commit_host()?,
         })
     }
@@ -65,6 +87,13 @@ impl GroupConsumerRegistry {
         if !self.accepting {
             return Err(registration_failure(
                 GroupConsumerRegistrationFailureKind::Closed,
+                group,
+                local_topics,
+            ));
+        }
+        if self.has_entry_fault() {
+            return Err(registration_failure(
+                GroupConsumerRegistrationFailureKind::EntryFault,
                 group,
                 local_topics,
             ));
@@ -124,6 +153,10 @@ impl GroupConsumerRegistry {
 
     pub(super) const fn retained_group_bytes(&self) -> usize {
         self.retained_group_bytes
+    }
+
+    pub(super) fn has_entry_fault(&self) -> bool {
+        self.entries.iter().any(|entry| entry.fault.is_some())
     }
 }
 

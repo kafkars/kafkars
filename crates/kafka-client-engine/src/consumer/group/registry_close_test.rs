@@ -69,7 +69,7 @@ fn whole_registry_close_fences_every_entry_and_global_host_once() {
     let expected = GroupConsumerHostError::membership_unsettled(1);
     assert_eq!(shutdown_error, expected);
     assert_eq!(
-        registry.turn_membership(Moment::from_tick(u64::MAX)),
+        registry.turn_local_membership(Moment::from_tick(u64::MAX)),
         Ok(GroupConsumerMembershipTurn::Progress)
     );
     let join = registry

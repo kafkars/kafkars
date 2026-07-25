@@ -75,10 +75,16 @@ impl ClassicGroupExecution {
         now: Moment,
     ) -> Result<bool, ClassicGroupExecutionError> {
         let deadline = match &self.classic_execution_state {
-            ClassicGroupExecutionState::Idle | ClassicGroupExecutionState::CloseFault { .. } => {
+            ClassicGroupExecutionState::Idle
+            | ClassicGroupExecutionState::JoinConfirmationPending { .. }
+            | ClassicGroupExecutionState::SyncHandoff(_)
+            | ClassicGroupExecutionState::SyncDriverOwned(_)
+            | ClassicGroupExecutionState::SyncConfirmationPending(_)
+            | ClassicGroupExecutionState::CloseFault { .. } => {
                 return Ok(false);
             }
-            ClassicGroupExecutionState::JoinDriverOwned(driver_owned) => {
+            ClassicGroupExecutionState::JoinDriverOwned(driver_owned)
+            | ClassicGroupExecutionState::LeaderDeferred(driver_owned) => {
                 return if owner.machine().group_id() == driver_owned.identity().group_id()
                     && owner.machine().active_cycle() == Some(driver_owned.identity().cycle())
                 {
@@ -91,6 +97,7 @@ impl ClassicGroupExecution {
                 return Err(ClassicGroupExecutionError::HandoffIncomplete);
             }
             ClassicGroupExecutionState::PreparedJoin(prepared) => prepared.deadline(),
+            ClassicGroupExecutionState::PreparedSync(prepared) => prepared.deadline(),
         };
         if !deadline.core().is_elapsed_at(now) {
             return Ok(false);
@@ -112,9 +119,15 @@ impl ClassicGroupExecution {
     pub(super) const fn next_deadline(&self) -> Option<Deadline> {
         match &self.classic_execution_state {
             ClassicGroupExecutionState::PreparedJoin(prepared) => Some(prepared.deadline().core()),
+            ClassicGroupExecutionState::PreparedSync(prepared) => Some(prepared.deadline().core()),
             ClassicGroupExecutionState::Idle
             | ClassicGroupExecutionState::JoinHandoff(_)
             | ClassicGroupExecutionState::JoinDriverOwned(_)
+            | ClassicGroupExecutionState::JoinConfirmationPending { .. }
+            | ClassicGroupExecutionState::LeaderDeferred(_)
+            | ClassicGroupExecutionState::SyncHandoff(_)
+            | ClassicGroupExecutionState::SyncDriverOwned(_)
+            | ClassicGroupExecutionState::SyncConfirmationPending(_)
             | ClassicGroupExecutionState::CloseFault { .. } => None,
         }
     }
@@ -141,7 +154,6 @@ impl ClassicGroupExecution {
         self.classic_execution_state = state;
     }
 
-    #[cfg(test)]
     pub(super) const fn prepared_join(&self) -> Option<&PreparedClassicGroupJoin> {
         match &self.classic_execution_state {
             ClassicGroupExecutionState::PreparedJoin(prepared) => Some(prepared),
@@ -173,12 +185,21 @@ pub(super) enum ClassicGroupExecutionError {
     Occupied,
     MissingCycle,
     JoinNotPrepared,
+    SyncNotPrepared,
     CloseNotFaulted,
     HandoffIncomplete,
     HandoffMismatch,
     UnexpectedBeginEffect,
     UnexpectedCloseEffect,
     UnexpectedDeadlineEffect,
+    JoinRequest,
+    CallRegistryUnavailable,
+    CallIdentityMismatch,
+    CallCompletion,
+    JoinTerminal,
+    SyncTerminal,
+    FollowerJoin,
     Assignment(ClassicGroupAssignmentPreparationFailureKind),
     Core(ClassicGroupErrorKind),
+    EntryFault,
 }

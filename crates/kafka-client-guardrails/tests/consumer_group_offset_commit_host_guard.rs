@@ -2,6 +2,8 @@
 
 mod support;
 
+#[path = "consumer_group_offset_commit_host_guard/method_expectations.rs"]
+mod method_expectations;
 #[path = "consumer_group_offset_commit_host_guard/mutation_expectations.rs"]
 mod mutation_expectations;
 
@@ -35,41 +37,6 @@ const SPLIT_MIRRORS: &[(&str, &str)] = &[
     ("settlement.rs", "settlement_test.rs"),
     ("snapshot.rs", "snapshot_test.rs"),
 ];
-const METHODS: &[(&str, &str)] = &[
-    ("try_reserve_group_commit", "turn.rs"),
-    ("poll_group_commit", "turn.rs"),
-    ("begin_group_commit_settlement", "settlement.rs"),
-    ("confirm_group_commit_settlement", "settlement.rs"),
-    ("restore_group_commit_settlement", "settlement.rs"),
-    ("recover_group_commits_after_driver_shutdown", "recovery.rs"),
-    ("submit_prebuilt", "turn.rs"),
-    ("pop_active", "recovery.rs"),
-    ("take_settled", "recovery_replay.rs"),
-    ("pending_operation_id", "recovery_replay.rs"),
-    ("clear_pending_operation_id", "recovery_replay.rs"),
-    ("take_completion", "recovery.rs"),
-    ("settle_preparation_failure", "preparation.rs"),
-    ("retain_preparation_fault", "preparation.rs"),
-    ("replay_recovered_settlements", "recovery.rs"),
-    ("recover_pending_confirmation", "recovery.rs"),
-    ("settle_transport_owned_failure", "recovery.rs"),
-];
-const DRIVER_METHODS: &[(&str, &str)] = &[(
-    "into_generated_offset_commit_request",
-    "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs",
-)];
-const MULTI_OWNER_METHODS: &[(&str, &[&str])] = &[
-    (
-        "replace_attempt",
-        &[
-            "recovery.rs",
-            "recovery_replay.rs",
-            "settlement.rs",
-            "turn.rs",
-        ],
-    ),
-    ("replace_terminal", &["publication.rs", "settlement.rs"]),
-];
 const FORBIDDEN: &[&str] = &[
     "kafka_driver",
     "kafka_wire",
@@ -83,6 +50,8 @@ const FORBIDDEN: &[&str] = &[
     "invalidate",
     "async",
 ];
+
+use method_expectations::{CROSS_DOMAIN_METHODS, DRIVER_METHODS, METHODS, MULTI_OWNER_METHODS};
 
 #[test]
 fn checked_in_host_owners_are_linear_and_mutation_scoped() {
@@ -202,6 +171,23 @@ fn checked_in_host_capability_and_method_policy_is_exact() {
                 .collect::<Vec<_>>()
         );
     }
+    for (method, owners) in CROSS_DOMAIN_METHODS {
+        let rules = config
+            .method_capabilities
+            .iter()
+            .filter(|rule| rule.method == *method)
+            .collect::<Vec<_>>();
+        assert_eq!(rules.len(), 1, "{method} needs one method rule");
+        assert_eq!(rules[0].root, "crates/kafka-client-engine/src");
+        assert_eq!(
+            rules[0]
+                .allowed_paths
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            *owners
+        );
+    }
 }
 
 #[test]
@@ -276,6 +262,7 @@ fn negative_fixture_rejects_every_privileged_method() {
         .map(|(method, _)| *method)
         .chain(DRIVER_METHODS.iter().map(|(method, _)| *method))
         .chain(MULTI_OWNER_METHODS.iter().map(|(method, _)| *method))
+        .chain(CROSS_DOMAIN_METHODS.iter().map(|(method, _)| *method))
     {
         let violations = method_capability_violations(
             &root,

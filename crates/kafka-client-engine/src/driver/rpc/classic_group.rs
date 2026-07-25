@@ -34,6 +34,8 @@ mod sync_group_settlement_test;
 mod sync_group_terminal;
 #[cfg(test)]
 mod sync_group_terminal_test;
+#[cfg(test)]
+mod terminal_test_fixture;
 
 pub(crate) use join_group_calls::{
     AcceptedJoinGroupCall, JoinGroupCallPermit, JoinGroupCallReservationError,
@@ -68,4 +70,9 @@ pub(crate) use sync_group_settlement_owner::SyncGroupShutdownRecovery;
 pub(crate) use sync_group_terminal::{
     RecoveredSyncGroupCall, SyncGroupAdmissionFailure, SyncGroupCallKey,
     SyncGroupCompletionFailure, SyncGroupCompletionObservation, SyncGroupTerminal,
+};
+#[cfg(test)]
+pub(crate) use terminal_test_fixture::{
+    install_follower_join_terminal, install_leader_join_terminal, install_malformed_sync_terminal,
+    install_sync_assignment_terminal,
 };

@@ -47,15 +47,7 @@ impl ClassicGroupOwner {
         &mut self,
         candidate: ClassicGroupCycleCandidate,
     ) -> Result<(), ClassicGroupCandidateOwnershipError> {
-        if self.machine.phase() != ClassicGroupPhase::Joining {
-            return Err(ClassicGroupCandidateOwnershipError::Phase);
-        }
-        if self.machine.active_cycle() != Some(candidate.cycle()) {
-            return Err(ClassicGroupCandidateOwnershipError::Cycle);
-        }
-        if self.pending.is_some() {
-            return Err(ClassicGroupCandidateOwnershipError::Occupied);
-        }
+        self.validate_candidate(&candidate)?;
         self.pending = Some(candidate);
         Ok(())
     }

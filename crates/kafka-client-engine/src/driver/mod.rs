@@ -20,10 +20,6 @@ pub(crate) use delivery::{request_failure_delivery, request_failure_kind};
 pub(crate) use endpoint::EndpointError;
 pub(crate) use error::DriverOwnerError;
 pub(crate) use owner::{DriverOwner, DriverTurn};
-#[expect(
-    unused_imports,
-    reason = "classic membership executor consumes this raw-call module next"
-)]
 pub(crate) use rpc::classic_group;
 pub(crate) use rpc::{
     CreatePartitionsCompletionFailure, CreateTopicsCompletionFailure,

@@ -4,11 +4,26 @@ mod classic_group_assignment;
 mod classic_group_assignment_decode;
 mod classic_group_candidate;
 mod classic_group_candidate_prepare;
+mod classic_group_entry_fault;
 mod classic_group_execution;
 mod classic_group_execution_close;
 mod classic_group_execution_handoff;
+mod classic_group_execution_join_terminal;
+mod classic_group_execution_recovery;
+mod classic_group_execution_sync;
+mod classic_group_execution_sync_terminal;
 mod classic_group_join;
+mod classic_group_join_call;
+mod classic_group_join_execution;
+mod classic_group_join_interpret;
+mod classic_group_join_settlement;
 mod classic_group_owner;
+mod classic_group_owner_follower;
+mod classic_group_recovery;
+mod classic_group_sync;
+mod classic_group_sync_interpret;
+mod classic_group_sync_settlement;
+mod classic_group_sync_submission;
 mod classic_group_topics;
 mod offset_commit;
 mod registry;
@@ -42,15 +57,45 @@ mod classic_group_candidate_prepare_test;
 #[cfg(test)]
 mod classic_group_candidate_test;
 #[cfg(test)]
+mod classic_group_entry_fault_test;
+#[cfg(test)]
 mod classic_group_execution_close_test;
 #[cfg(test)]
 mod classic_group_execution_handoff_test;
 #[cfg(test)]
+mod classic_group_execution_join_terminal_test;
+#[cfg(test)]
+mod classic_group_execution_recovery_test;
+#[cfg(test)]
+mod classic_group_execution_sync_terminal_test;
+#[cfg(test)]
+mod classic_group_execution_sync_test;
+#[cfg(test)]
 mod classic_group_execution_test;
+#[cfg(test)]
+mod classic_group_join_call_test;
+#[cfg(test)]
+mod classic_group_join_execution_test;
+#[cfg(test)]
+mod classic_group_join_interpret_test;
+#[cfg(test)]
+mod classic_group_join_settlement_test;
 #[cfg(test)]
 mod classic_group_join_test;
 #[cfg(test)]
+mod classic_group_owner_follower_test;
+#[cfg(test)]
 mod classic_group_owner_test;
+#[cfg(test)]
+mod classic_group_recovery_test;
+#[cfg(test)]
+mod classic_group_sync_interpret_test;
+#[cfg(test)]
+mod classic_group_sync_settlement_test;
+#[cfg(test)]
+mod classic_group_sync_submission_test;
+#[cfg(test)]
+mod classic_group_sync_test;
 #[cfg(test)]
 mod classic_group_test_support;
 #[cfg(test)]

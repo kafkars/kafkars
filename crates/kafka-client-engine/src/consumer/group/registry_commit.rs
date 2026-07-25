@@ -23,6 +23,7 @@ pub(super) struct GroupConsumerCommitFailure {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum GroupConsumerCommitFailureKind {
     RegistryClosed,
+    EntryFault,
     UnknownGroup,
     GroupClosing,
     OffsetCommit(GroupOffsetCommitAdmissionFailureKind),
@@ -38,6 +39,12 @@ impl GroupConsumerRegistry {
         if !self.accepting {
             return Err(commit_failure(
                 GroupConsumerCommitFailureKind::RegistryClosed,
+                checkpoint,
+            ));
+        }
+        if self.has_entry_fault() {
+            return Err(commit_failure(
+                GroupConsumerCommitFailureKind::EntryFault,
                 checkpoint,
             ));
         }

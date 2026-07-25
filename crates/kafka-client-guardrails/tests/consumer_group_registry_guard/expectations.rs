@@ -18,6 +18,11 @@ pub(super) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
         "entries",
         &[
             "registry.rs",
+            "classic_group_join_execution.rs",
+            "classic_group_join_settlement.rs",
+            "classic_group_recovery.rs",
+            "classic_group_sync_settlement.rs",
+            "classic_group_sync_submission.rs",
             "registry_close.rs",
             "registry_cycle.rs",
             "registry_membership.rs",
@@ -36,8 +41,73 @@ pub(super) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
             "registry_host.rs",
         ],
     ),
+    (
+        "join_calls",
+        &[
+            "registry.rs",
+            "classic_group_join_execution.rs",
+            "classic_group_join_settlement.rs",
+            "classic_group_recovery.rs",
+        ],
+    ),
+    (
+        "sync_calls",
+        &[
+            "registry.rs",
+            "classic_group_sync_settlement.rs",
+            "classic_group_sync_submission.rs",
+            "classic_group_recovery.rs",
+        ],
+    ),
+    (
+        "join_shutdown_recovery",
+        &["registry.rs", "classic_group_recovery.rs"],
+    ),
+    (
+        "sync_shutdown_recovery",
+        &["registry.rs", "classic_group_recovery.rs"],
+    ),
+    (
+        "join_recovery_fault",
+        &["registry.rs", "classic_group_recovery.rs"],
+    ),
+    (
+        "sync_recovery_fault",
+        &["registry.rs", "classic_group_recovery.rs"],
+    ),
 ];
-pub(super) const ENTRY_FIELDS: &[(&str, &[&str])] = &[("state", &["registry_close.rs"])];
+pub(super) const ENTRY_FIELDS: &[(&str, &[&str])] = &[
+    ("state", &["registry_close.rs"]),
+    (
+        "fault",
+        &[
+            "registry.rs",
+            "registry_entry.rs",
+            "classic_group_join_execution.rs",
+            "classic_group_join_settlement.rs",
+            "classic_group_recovery.rs",
+            "classic_group_sync_submission.rs",
+            "classic_group_sync_settlement.rs",
+            "classic_group_sync_interpret.rs",
+            "registry_membership.rs",
+        ],
+    ),
+];
+pub(super) const REGISTRY_DECLARED_FIELDS: &[&str] = &[
+    "entries",
+    "next_group_id",
+    "retained_group_bytes",
+    "accepting",
+    "join_calls",
+    "sync_calls",
+    "join_shutdown_recovery",
+    "sync_shutdown_recovery",
+    "join_recovery_fault",
+    "sync_recovery_fault",
+    "offset_commits",
+];
+pub(super) const ENTRY_DECLARED_FIELDS: &[&str] =
+    &["state", "catalog", "classic", "execution", "fault"];
 pub(super) const FORBIDDEN: &[&str] = &[
     "crate::driver",
     "crate::host",

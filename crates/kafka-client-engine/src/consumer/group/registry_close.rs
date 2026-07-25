@@ -41,7 +41,10 @@ impl GroupConsumerRegistry {
 
     pub(crate) fn recover_after_driver_shutdown(&mut self) -> Result<(), GroupConsumerHostError> {
         self.close_admission();
-        let membership = self.recover_local_membership().err();
+        let membership = match self.recover_classic_calls_after_driver_shutdown() {
+            Ok(()) => self.recover_local_membership().err(),
+            Err(error) => Some(error),
+        };
         let offset_commits = &mut self.offset_commits;
         let offset_commit = offset_commits
             .recover_after_driver_shutdown()
@@ -69,7 +72,7 @@ impl GroupConsumerRegistry {
     ) -> Result<(), super::classic_group_execution::ClassicGroupExecutionError> {
         let turn_limit = self.entries.len().saturating_add(1);
         for _turn in 0..turn_limit {
-            match self.turn_membership(Moment::from_tick(u64::MAX))? {
+            match self.turn_local_membership(Moment::from_tick(u64::MAX))? {
                 GroupConsumerMembershipTurn::Progress => {}
                 GroupConsumerMembershipTurn::Idle | GroupConsumerMembershipTurn::Blocked => {
                     break;

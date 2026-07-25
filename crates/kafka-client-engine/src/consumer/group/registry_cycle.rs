@@ -9,6 +9,7 @@ use super::{classic_group_execution::ClassicGroupExecutionError, registry::Group
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum GroupConsumerCycleAdmissionError {
     RegistryClosed,
+    EntryFault,
     UnknownGroup,
     GroupClosing,
     Execution(ClassicGroupExecutionError),
@@ -22,6 +23,9 @@ impl GroupConsumerRegistry {
     ) -> Result<MembershipCycle, GroupConsumerCycleAdmissionError> {
         if !self.accepting {
             return Err(GroupConsumerCycleAdmissionError::RegistryClosed);
+        }
+        if self.has_entry_fault() {
+            return Err(GroupConsumerCycleAdmissionError::EntryFault);
         }
         let Some(entry) = self
             .entries

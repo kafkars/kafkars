@@ -8,6 +8,16 @@ pub(super) const EXECUTION_CLOSE: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_execution_close.rs";
 pub(super) const EXECUTION_HANDOFF: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_execution_handoff.rs";
+pub(super) const EXECUTION_JOIN_TERMINAL: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_execution_join_terminal.rs";
+pub(super) const EXECUTION_RECOVERY: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs";
+pub(super) const EXECUTION_SYNC: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync.rs";
+pub(super) const EXECUTION_SYNC_TERMINAL: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync_terminal.rs";
+pub(super) const JOIN_EXECUTION: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs";
 pub(super) const JOIN: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs";
 pub(super) const SHARD: &str = "crates/kafka-client-engine/src/consumer/group/registry_shard.rs";
 
@@ -112,18 +122,41 @@ pub(super) const METHODS: &[(&str, &[&str])] = &[
         "try_begin_classic_cycle",
         &["crates/kafka-client-engine/src/consumer/group/registry_port.rs"],
     ),
-    ("into_driver_acceptance", &[]),
-    ("confirm_join_driver_owned", &[]),
-    ("recover_join_after_driver_shutdown", &[]),
+    ("into_driver_acceptance", &[JOIN_EXECUTION]),
+    ("confirm_join_driver_owned", &[JOIN_EXECUTION]),
     (
         "borrow_execution_state",
-        &[EXECUTION_CLOSE, EXECUTION_HANDOFF],
+        &[
+            EXECUTION_CLOSE,
+            EXECUTION_HANDOFF,
+            EXECUTION_JOIN_TERMINAL,
+            EXECUTION_RECOVERY,
+            EXECUTION_SYNC,
+            EXECUTION_SYNC_TERMINAL,
+        ],
     ),
     (
         "replace_execution_state",
-        &[EXECUTION_CLOSE, EXECUTION_HANDOFF],
+        &[
+            EXECUTION_CLOSE,
+            EXECUTION_HANDOFF,
+            EXECUTION_JOIN_TERMINAL,
+            EXECUTION_RECOVERY,
+            EXECUTION_SYNC,
+            EXECUTION_SYNC_TERMINAL,
+        ],
     ),
-    ("set_execution_state", &[EXECUTION_CLOSE, EXECUTION_HANDOFF]),
+    (
+        "set_execution_state",
+        &[
+            EXECUTION_CLOSE,
+            EXECUTION_HANDOFF,
+            EXECUTION_JOIN_TERMINAL,
+            EXECUTION_RECOVERY,
+            EXECUTION_SYNC,
+            EXECUTION_SYNC_TERMINAL,
+        ],
+    ),
 ];
 
 pub(super) const CAPABILITY_PATHS: &[&str] = &[

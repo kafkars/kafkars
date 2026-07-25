@@ -94,7 +94,7 @@ impl RecoveredSyncGroupOwnership {
     }
 
     #[cfg(test)]
-    pub(super) const fn active_for_test(key: SyncGroupCallKey) -> Self {
+    pub(crate) const fn active_for_test(key: SyncGroupCallKey) -> Self {
         Self::seal_recovered_sync_group_active(RecoveredSyncGroupCall::new(key))
     }
 }

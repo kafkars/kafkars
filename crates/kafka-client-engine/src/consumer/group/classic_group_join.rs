@@ -6,6 +6,12 @@ use kafka_client_core::{
 };
 
 use super::classic_group_assignment::ClassicGroupAssignmentPreparationFailureKind;
+use super::{
+    classic_group_join_call::ClassicGroupJoinCallOwner,
+    classic_group_sync::{
+        ClassicGroupSyncDriverOwner, ClassicGroupSyncIdentity, PreparedClassicGroupSync,
+    },
+};
 
 use crate::clock::OperationDeadline;
 
@@ -53,12 +59,30 @@ pub(super) enum ClassicGroupExecutionState {
     Idle,
     PreparedJoin(PreparedClassicGroupJoin),
     JoinHandoff(ClassicGroupJoinIdentity),
-    JoinDriverOwned(ClassicGroupJoinIntegrationOwner),
+    JoinDriverOwned(ClassicGroupJoinCallOwner),
+    JoinConfirmationPending {
+        call: ClassicGroupJoinCallOwner,
+        successor: ClassicGroupJoinSuccessor,
+    },
+    LeaderDeferred(ClassicGroupJoinCallOwner),
+    PreparedSync(PreparedClassicGroupSync),
+    SyncHandoff(ClassicGroupSyncIdentity),
+    SyncDriverOwned(ClassicGroupSyncDriverOwner),
+    SyncConfirmationPending(ClassicGroupSyncDriverOwner),
     CloseFault {
         revoke_assignment: LiveGroupAssignment,
         revoke_generation: ClassicGeneration,
         revoke_failure_kind: ClassicGroupAssignmentPreparationFailureKind,
     },
+}
+
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the successor transfers one exact linear prepared Sync without another allocation"
+)]
+pub(super) enum ClassicGroupJoinSuccessor {
+    Idle,
+    Sync(PreparedClassicGroupSync),
 }
 
 impl PreparedClassicGroupJoin {
@@ -138,13 +162,6 @@ impl ClassicGroupJoinHandoff {
         self.handed_off_join.identity()
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "called only by the reviewed Join protocol submission seam"
-        )
-    )]
     pub(super) fn into_driver_acceptance(self) -> ClassicGroupJoinDriverAcceptance {
         ClassicGroupJoinDriverAcceptance {
             accepted_join: self.handed_off_join,

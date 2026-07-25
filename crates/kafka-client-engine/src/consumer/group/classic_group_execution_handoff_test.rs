@@ -4,11 +4,13 @@ use std::time::Duration;
 
 use kafka_client_core::{ClassicGroupPhase, ClassicGroupTiming, ClassicProtocol, GroupId};
 
-use crate::clock::{DeadlineCapture, MonotonicClock};
+use crate::{
+    clock::{DeadlineCapture, MonotonicClock},
+    driver::classic_group::{AcceptedJoinGroupCall, JoinGroupCallKey, RecoveredJoinGroupOwnership},
+};
 
 use super::{
     classic_group_execution::{ClassicGroupExecution, new_classic_group_execution},
-    classic_group_join::ClassicGroupJoinTracking,
     classic_group_owner::ClassicGroupOwner,
 };
 
@@ -25,10 +27,12 @@ fn accepted_driver_ownership_disarms_local_deadline_expiration() {
     let handoff = execution
         .begin_join_handoff()
         .unwrap_or_else(|error| panic!("handoff failed: {error:?}"));
+    let identity = handoff.identity();
     let acceptance = handoff.into_driver_acceptance();
-    let tracking = execution
-        .confirm_join_driver_owned(acceptance)
-        .unwrap_or_else(|(error, _acceptance)| panic!("driver confirmation failed: {error:?}"));
+    let key = JoinGroupCallKey::new(identity.group_id(), identity.cycle(), identity.deadline());
+    execution
+        .confirm_join_driver_owned(acceptance, AcceptedJoinGroupCall::from_key_for_test(key))
+        .unwrap_or_else(|_failure| panic!("driver confirmation failed"));
 
     assert_eq!(execution.next_deadline(), None);
     assert_eq!(execution.unsettled(), 1);
@@ -40,13 +44,16 @@ fn accepted_driver_ownership_disarms_local_deadline_expiration() {
         Ok(false)
     );
     assert_eq!(owner.machine().phase(), ClassicGroupPhase::Joining);
-    assert_eq!(tracking.identity().group_id(), owner.machine().group_id());
-    assert_eq!(tracking.identity().protocol(), ClassicProtocol::Range);
-    assert_eq!(tracking.identity().timing(), owner.machine().timing());
-    assert_eq!(tracking.identity().deadline(), capture.operation_deadline());
+    let retained = execution
+        .join_call()
+        .unwrap_or_else(|| panic!("accepted Join owner expected"));
+    assert_eq!(retained.identity().group_id(), owner.machine().group_id());
+    assert_eq!(retained.identity().protocol(), ClassicProtocol::Range);
+    assert_eq!(retained.identity().timing(), owner.machine().timing());
+    assert_eq!(retained.identity().deadline(), capture.operation_deadline());
     execution
-        .recover_join_after_driver_shutdown(tracking)
-        .unwrap_or_else(|(error, _tracking)| panic!("driver recovery failed: {error:?}"));
+        .reconcile_join_after_driver_shutdown(RecoveredJoinGroupOwnership::active_for_test(key))
+        .unwrap_or_else(|(error, _recovered)| panic!("driver recovery failed: {error:?}"));
 }
 
 #[test]
@@ -88,14 +95,16 @@ fn driver_shutdown_rearms_the_exact_original_join_deadline() {
     let handoff = execution
         .begin_join_handoff()
         .unwrap_or_else(|error| panic!("handoff failed: {error:?}"));
+    let identity = handoff.identity();
     let acceptance = handoff.into_driver_acceptance();
-    let tracking = execution
-        .confirm_join_driver_owned(acceptance)
-        .unwrap_or_else(|(error, _acceptance)| panic!("driver confirmation failed: {error:?}"));
+    let key = JoinGroupCallKey::new(identity.group_id(), identity.cycle(), identity.deadline());
+    execution
+        .confirm_join_driver_owned(acceptance, AcceptedJoinGroupCall::from_key_for_test(key))
+        .unwrap_or_else(|_failure| panic!("driver confirmation failed"));
 
     execution
-        .recover_join_after_driver_shutdown(tracking)
-        .unwrap_or_else(|(error, _tracking)| panic!("driver recovery failed: {error:?}"));
+        .reconcile_join_after_driver_shutdown(RecoveredJoinGroupOwnership::active_for_test(key))
+        .unwrap_or_else(|(error, _recovered)| panic!("driver recovery failed: {error:?}"));
 
     assert_eq!(execution.next_deadline(), Some(capture.deadline()));
     assert_eq!(execution.unsettled(), 1);
@@ -106,12 +115,13 @@ fn cross_group_recovery_receipt_rejects_without_mutating_either_owner() {
     let capture = MonotonicClock::new()
         .capture_deadline_after(Duration::from_secs(1))
         .unwrap_or_else(|error| panic!("deadline capture failed: {error}"));
-    let (mut first_owner, mut first_execution, first_tracking) = driver_owned(group_id(1), capture);
-    let (mut second_owner, mut second_execution, second_tracking) =
+    let (mut first_owner, mut first_execution, first_recovered) =
+        driver_owned(group_id(1), capture);
+    let (mut second_owner, mut second_execution, second_recovered) =
         driver_owned(group_id(2), capture);
 
-    let (error, second_tracking) = first_execution
-        .recover_join_after_driver_shutdown(second_tracking)
+    let (error, second_recovered) = first_execution
+        .reconcile_join_after_driver_shutdown(second_recovered)
         .err()
         .unwrap_or_else(|| panic!("cross-group recovery must reject"));
 
@@ -121,13 +131,13 @@ fn cross_group_recovery_receipt_rejects_without_mutating_either_owner() {
     );
     assert_eq!(first_execution.next_deadline(), None);
     assert_eq!(first_execution.unsettled(), 1);
-    assert_eq!(second_tracking.identity().group_id(), group_id(2));
+    assert_eq!(second_recovered.key().group_id(), group_id(2));
     first_execution
-        .recover_join_after_driver_shutdown(first_tracking)
-        .unwrap_or_else(|(error, _tracking)| panic!("first recovery failed: {error:?}"));
+        .reconcile_join_after_driver_shutdown(first_recovered)
+        .unwrap_or_else(|(error, _recovered)| panic!("first recovery failed: {error:?}"));
     second_execution
-        .recover_join_after_driver_shutdown(second_tracking)
-        .unwrap_or_else(|(error, _tracking)| panic!("second recovery failed: {error:?}"));
+        .reconcile_join_after_driver_shutdown(second_recovered)
+        .unwrap_or_else(|(error, _recovered)| panic!("second recovery failed: {error:?}"));
     close(&mut first_owner, &mut first_execution);
     close(&mut second_owner, &mut second_execution);
 }
@@ -141,13 +151,13 @@ fn changed_deadline_recovery_receipt_rejects_without_mutation() {
     let second_capture = clock
         .capture_deadline_after(Duration::from_secs(2))
         .unwrap_or_else(|error| panic!("second deadline capture failed: {error}"));
-    let (mut first_owner, mut first_execution, first_tracking) =
+    let (mut first_owner, mut first_execution, first_recovered) =
         driver_owned(group_id(1), first_capture);
-    let (mut second_owner, mut second_execution, second_tracking) =
+    let (mut second_owner, mut second_execution, second_recovered) =
         driver_owned(group_id(1), second_capture);
 
-    let (error, second_tracking) = first_execution
-        .recover_join_after_driver_shutdown(second_tracking)
+    let (error, second_recovered) = first_execution
+        .reconcile_join_after_driver_shutdown(second_recovered)
         .err()
         .unwrap_or_else(|| panic!("changed-deadline recovery must reject"));
 
@@ -157,15 +167,15 @@ fn changed_deadline_recovery_receipt_rejects_without_mutation() {
     );
     assert_eq!(first_execution.next_deadline(), None);
     assert_eq!(
-        second_tracking.identity().deadline(),
+        second_recovered.key().deadline(),
         second_capture.operation_deadline()
     );
     first_execution
-        .recover_join_after_driver_shutdown(first_tracking)
-        .unwrap_or_else(|(error, _tracking)| panic!("first recovery failed: {error:?}"));
+        .reconcile_join_after_driver_shutdown(first_recovered)
+        .unwrap_or_else(|(error, _recovered)| panic!("first recovery failed: {error:?}"));
     second_execution
-        .recover_join_after_driver_shutdown(second_tracking)
-        .unwrap_or_else(|(error, _tracking)| panic!("second recovery failed: {error:?}"));
+        .reconcile_join_after_driver_shutdown(second_recovered)
+        .unwrap_or_else(|(error, _recovered)| panic!("second recovery failed: {error:?}"));
     close(&mut first_owner, &mut first_execution);
     close(&mut second_owner, &mut second_execution);
 }
@@ -184,7 +194,7 @@ fn driver_owned(
 ) -> (
     ClassicGroupOwner,
     ClassicGroupExecution,
-    ClassicGroupJoinTracking,
+    RecoveredJoinGroupOwnership,
 ) {
     let mut owner = ClassicGroupOwner::new(group_id, timing());
     let mut execution = new_classic_group_execution();
@@ -194,10 +204,19 @@ fn driver_owned(
     let handoff = execution
         .begin_join_handoff()
         .unwrap_or_else(|error| panic!("handoff failed: {error:?}"));
-    let tracking = execution
-        .confirm_join_driver_owned(handoff.into_driver_acceptance())
-        .unwrap_or_else(|(error, _acceptance)| panic!("driver confirmation failed: {error:?}"));
-    (owner, execution, tracking)
+    let identity = handoff.identity();
+    let key = JoinGroupCallKey::new(identity.group_id(), identity.cycle(), identity.deadline());
+    execution
+        .confirm_join_driver_owned(
+            handoff.into_driver_acceptance(),
+            AcceptedJoinGroupCall::from_key_for_test(key),
+        )
+        .unwrap_or_else(|_failure| panic!("driver confirmation failed"));
+    (
+        owner,
+        execution,
+        RecoveredJoinGroupOwnership::active_for_test(key),
+    )
 }
 
 fn timing() -> ClassicGroupTiming {

@@ -94,7 +94,7 @@ impl RecoveredJoinGroupOwnership {
     }
 
     #[cfg(test)]
-    pub(super) const fn active_for_test(key: JoinGroupCallKey) -> Self {
+    pub(crate) const fn active_for_test(key: JoinGroupCallKey) -> Self {
         Self::seal_recovered_join_group_active(RecoveredJoinGroupCall::new(key))
     }
 }

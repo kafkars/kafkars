@@ -53,7 +53,7 @@ impl AcceptedJoinGroupCall {
     }
 
     #[cfg(test)]
-    pub(super) const fn from_key_for_test(key: JoinGroupCallKey) -> Self {
+    pub(crate) const fn from_key_for_test(key: JoinGroupCallKey) -> Self {
         Self::new(key)
     }
 }

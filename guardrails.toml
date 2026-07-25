@@ -3110,6 +3110,9 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls.rs",
   "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls.rs",
   "crates/kafka-client-engine/src/engine_host/cleanup.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs",
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
 ]
 
 [[method_capabilities]]
@@ -7718,6 +7721,7 @@ root = "crates/kafka-client-engine/src"
 method = "pop_active"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/offset_commit/recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
 ]
 
 [[method_capabilities]]
@@ -7725,6 +7729,7 @@ root = "crates/kafka-client-engine/src"
 method = "take_settled"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/offset_commit/recovery_replay.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
 ]
 
 [[method_capabilities]]
@@ -7746,6 +7751,7 @@ root = "crates/kafka-client-engine/src"
 method = "take_completion"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/offset_commit/recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
 ]
 
 [[method_capabilities]]
@@ -8361,7 +8367,9 @@ forbidden = [
 [[call_capabilities]]
 root = "crates/kafka-client-engine/src"
 call = "decode_classic_group_assignment"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs",
+]
 
 [[mutation_owners]]
 owner_type = "GroupSessionCatalog"
@@ -8443,6 +8451,7 @@ owner_type = "ClassicGroupOwner"
 field = "pending"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_owner.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_owner_follower.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_assignment.rs",
 ]
 
@@ -8543,6 +8552,9 @@ forbidden = [
   "pop",
   "clear",
   "drain",
+]
+allow = [
+  { path = "crates/kafka-client-engine/src/consumer/group/registry.rs", capability = "crate::driver", reason = "The bounded group registry is the sole composition join point that owns the opaque tracked JoinGroup and SyncGroup call registries." },
 ]
 
 [[capability_rules]]
@@ -8772,6 +8784,11 @@ owner_type = "GroupConsumerRegistry"
 field = "entries"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_submission.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_close.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_cycle.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
@@ -8811,10 +8828,77 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
+field = "join_calls"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
+field = "sync_calls"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_submission.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
+field = "join_shutdown_recovery"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
+field = "sync_shutdown_recovery"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
+field = "join_recovery_fault"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
+field = "sync_recovery_fault"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+]
+
+[[mutation_owners]]
 owner_type = "GroupConsumerEntry"
 field = "state"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry_close.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerEntry"
+field = "fault"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_entry.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_submission.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
 ]
 
 [[linear_owners]]
@@ -8899,7 +8983,9 @@ allowed_paths = [
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "reconcile_join_group_after_driver_shutdown"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
@@ -8932,7 +9018,9 @@ allowed_paths = [
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "reconcile_sync_group_after_driver_shutdown"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
@@ -9224,6 +9312,66 @@ production = "crates/kafka-client-engine/src/consumer/group/classic_group_join.r
 test = "crates/kafka-client-engine/src/consumer/group/classic_group_join_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_join_call.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_join_call_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_join_interpret.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_join_interpret_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_owner_follower.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_owner_follower_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_sync.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_submission.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_recovery_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_entry_fault.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_entry_fault_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_join_terminal.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_join_terminal_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync_terminal.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync_terminal_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/group/registry_cycle.rs"
 test = "crates/kafka-client-engine/src/consumer/group/registry_cycle_test.rs"
 
@@ -9246,6 +9394,899 @@ test = "crates/kafka-client-engine/src/consumer/group/registry_wake_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/group_consumer_wake.rs"
 test = "crates/kafka-client-engine/src/engine_host/group_consumer_wake_test.rs"
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_join_call.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_join_terminal.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_owner_follower.rs"
+forbidden = [
+  "crate::admin",
+  "crate::completion",
+  "crate::driver",
+  "crate::host",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_sync.rs"
+forbidden = [
+  "crate::admin",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_join_interpret.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_entry_fault.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_submission.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync_terminal.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::host",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[authority_tokens]]
+owner_type = "ClassicGroupJoinCallOwner"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join_call.rs"
+fields = [
+  "integration_for_join_call",
+  "tracking_for_join_call",
+  "accepted_join_call_receipt",
+]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_call.rs",
+]
+
+[[authority_tokens]]
+owner_type = "ClassicGroupJoinAcceptanceFailure"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join_call.rs"
+fields = ["rejected_join_acceptance", "unrestored_join_receipt"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_call.rs",
+]
+
+[[authority_tokens]]
+owner_type = "PreparedClassicGroupSync"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_sync.rs"
+fields = ["prepared_sync_identity", "pending_sync_request"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync.rs",
+]
+
+[[authority_tokens]]
+owner_type = "ClassicGroupSyncDriverOwner"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_sync.rs"
+fields = ["driver_sync_identity", "accepted_sync_receipt"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync.rs",
+]
+
+[[authority_tokens]]
+owner_type = "ClassicGroupSyncAcceptanceFailure"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_sync.rs"
+fields = ["rejected_sync_identity", "unrestored_sync_receipt"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync.rs",
+]
+
+[[authority_tokens]]
+owner_type = "SyncInterpretationFailure"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs"
+fields = ["sync_failure_kind", "restorable_sync_terminal"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs",
+]
+
+[[linear_owners]]
+owner_type = "ClassicGroupJoinCallOwner"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join_call.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupJoinAcceptanceFailure"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join_call.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupJoinSuccessor"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
+
+[[linear_owners]]
+owner_type = "PreparedClassicGroupSync"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_sync.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupSyncDriverOwner"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_sync.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupSyncAcceptanceFailure"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_sync.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupEntryFault"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_entry_fault.rs"
+
+[[linear_owners]]
+owner_type = "SyncInterpretationFailure"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs"
+
+[[linear_owners]]
+owner_type = "JoinRecoveryState"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs"
+
+[[linear_owners]]
+owner_type = "SyncRecoveryFailure"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs"
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "classic_join_group_request"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "normalize_classic_join_response"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_interpret.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "classic_follower_sync_group_request"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_owner_follower.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
+call = "normalize_classic_sync_response"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+call = "recovery_unsettled_count"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "apply_follower_join"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_interpret.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "submit_one_classic_join"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "settle_one_classic_join"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "defer_join_leader"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "stage_join_confirmation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "confirm_join"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "join_call"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "join_is_deferred"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "try_reserve_join_group"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "poll_join_group"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "begin_join_group_settlement"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "restore_join_group_settlement"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "confirm_join_group_settlement"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_join_terminal.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "submit_one_classic_sync"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "settle_one_classic_sync"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "prepared_sync"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "begin_sync_handoff"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "confirm_sync_driver_owned"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "finish_sync_submission_failure"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "sync_driver_owner"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "stage_sync_confirmation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "confirm_sync"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "try_reserve_sync_group"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "poll_sync_group"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "begin_sync_group_settlement"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "restore_sync_group_settlement"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "confirm_sync_group_settlement"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync_terminal.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "recover_classic_calls_after_driver_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_close.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "reconcile_join_after_driver_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "reconcile_sync_after_driver_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "inspect_sync_after_driver_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "has_entry_fault"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_cycle.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_commit.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "retained_owner_count"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
 
 [[authority_tokens]]
 owner_type = "PreparedClassicGroupJoin"
@@ -9382,17 +10423,16 @@ allowed_paths = [
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src/consumer/group"
 method = "into_driver_acceptance"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src/consumer/group"
 method = "confirm_join_driver_owned"
-allowed_paths = []
-
-[[method_capabilities]]
-root = "crates/kafka-client-engine/src/consumer/group"
-method = "recover_join_after_driver_shutdown"
-allowed_paths = []
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src/consumer/group"
@@ -9400,6 +10440,10 @@ method = "borrow_execution_state"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_close.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_handoff.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_join_terminal.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync_terminal.rs",
 ]
 
 [[method_capabilities]]
@@ -9408,6 +10452,10 @@ method = "replace_execution_state"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_close.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_handoff.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_join_terminal.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync_terminal.rs",
 ]
 
 [[method_capabilities]]
@@ -9416,6 +10464,10 @@ method = "set_execution_state"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_close.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_handoff.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_join_terminal.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync_terminal.rs",
 ]
 
 [[capability_rules]]
@@ -9516,6 +10568,9 @@ forbidden = [
   "Transport",
   "Retry",
 ]
+allow = [
+  { path = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_handoff.rs", capability = "crate::driver", reason = "The execution handoff compares the accepted driver JoinGroup receipt against one whole expected JoinGroup key before installing the linear call owner." },
+]
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
@@ -9614,6 +10669,9 @@ forbidden = [
   "Metadata",
   "Transport",
   "Retry",
+]
+allow = [
+  { path = "crates/kafka-client-engine/src/consumer/group/registry_membership.rs", capability = "crate::driver", reason = "The concrete membership scheduler passes the already-owned embedded driver into exactly one Join or Sync submission action per host turn." },
 ]
 
 [[capability_rules]]

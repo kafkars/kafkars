@@ -23,8 +23,9 @@ pub(crate) use classic_group::{
     ClassicJoinRequestFailure, ClassicJoinResponseFailure, ClassicJoinedGroup, ClassicJoinedMember,
     ClassicJoinedRole, ClassicSyncMember, ClassicSyncOutcome, ClassicSyncRequestFailure,
     ClassicSyncResponseFailure, ClassicSyncTopic, NamedAssignmentPartition,
-    PreparedClassicJoinGroupRequest, PreparedClassicSyncGroupRequest, classic_join_group_request,
-    classic_sync_group_request, normalize_classic_join_response, normalize_classic_sync_response,
+    PreparedClassicJoinGroupRequest, PreparedClassicSyncGroupRequest,
+    classic_follower_sync_group_request, classic_join_group_request, classic_sync_group_request,
+    normalize_classic_join_response, normalize_classic_sync_response,
 };
 #[expect(unused_imports, reason = "awaiting classic-group commit executor")]
 pub(crate) use group_offset_commit::{
