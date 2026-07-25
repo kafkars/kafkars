@@ -19,6 +19,7 @@ pub(super) const GROUP_CONSUMER_RETAINED_NAME_BYTES: usize =
 pub(super) struct GroupConsumerRegistrationFailure {
     pub(super) kind: GroupConsumerRegistrationFailureKind,
     pub(super) group: Arc<str>,
+    pub(super) local_topics: Vec<Arc<str>>,
 }
 
 /// Bounded local reason a group catalog could not be registered.
@@ -58,31 +59,36 @@ impl GroupConsumerRegistry {
     pub(super) fn try_register(
         &mut self,
         group: Arc<str>,
+        local_topics: Vec<Arc<str>>,
     ) -> Result<GroupId, GroupConsumerRegistrationFailure> {
         if !self.accepting {
             return Err(registration_failure(
                 GroupConsumerRegistrationFailureKind::Closed,
                 group,
+                local_topics,
             ));
         }
         if self.entries.len() == GROUP_CONSUMER_CAPACITY {
             return Err(registration_failure(
                 GroupConsumerRegistrationFailureKind::Capacity,
                 group,
+                local_topics,
             ));
         }
         let Some(group_id) = self.next_group_id else {
             return Err(registration_failure(
                 GroupConsumerRegistrationFailureKind::IdentityExhausted,
                 group,
+                local_topics,
             ));
         };
-        let entry = match GroupConsumerEntry::try_new(group_id, Arc::clone(&group)) {
+        let entry = match GroupConsumerEntry::try_new(group_id, &group, &local_topics) {
             Ok(entry) => entry,
             Err(error) => {
                 return Err(registration_failure(
                     GroupConsumerRegistrationFailureKind::Catalog(error),
                     group,
+                    local_topics,
                 ));
             }
         };
@@ -92,6 +98,7 @@ impl GroupConsumerRegistry {
                 return Err(registration_failure(
                     GroupConsumerRegistrationFailureKind::RetainedBytes,
                     group,
+                    local_topics,
                 ));
             }
         };
@@ -122,6 +129,11 @@ impl GroupConsumerRegistry {
 fn registration_failure(
     kind: GroupConsumerRegistrationFailureKind,
     group: Arc<str>,
+    local_topics: Vec<Arc<str>>,
 ) -> GroupConsumerRegistrationFailure {
-    GroupConsumerRegistrationFailure { kind, group }
+    GroupConsumerRegistrationFailure {
+        kind,
+        group,
+        local_topics,
+    }
 }

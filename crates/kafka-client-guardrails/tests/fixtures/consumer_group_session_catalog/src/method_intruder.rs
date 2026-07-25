@@ -4,6 +4,10 @@ struct SiblingGroupOwner;
 
 impl SiblingGroupOwner {
     fn violate(&mut self) {
-        self.install_group_session_replacement();
+        self.commit_classic_group_install();
+        self.commit_classic_group_revoke();
+        self.from_prepared_member();
+        self.try_from_prepared_cycle();
+        self.into_catalog_install();
     }
 }

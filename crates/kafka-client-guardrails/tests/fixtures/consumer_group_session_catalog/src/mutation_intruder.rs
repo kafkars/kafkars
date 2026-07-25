@@ -9,6 +9,11 @@ struct GroupSessionCatalog {
     current: Option<u64>,
 }
 
+struct ClassicGroupOwner {
+    machine: u64,
+    pending: Option<u64>,
+}
+
 impl GroupSessionCatalog {
     fn replace(&mut self) {
         self.next_member_id = 2;
@@ -17,5 +22,12 @@ impl GroupSessionCatalog {
         self.topics_by_name.clear();
         self.topics_by_id.clear();
         self.current = Some(1);
+    }
+}
+
+impl ClassicGroupOwner {
+    fn intrude(&mut self) {
+        self.machine = 2;
+        self.pending = Some(1);
     }
 }

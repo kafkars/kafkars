@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{AssignmentGeneration, GroupId};
+use kafka_client_core::GroupId;
 
 use super::{
-    session_catalog::{GroupSessionCatalog, GroupSessionCatalogError, GroupSessionPartition},
-    session_catalog_prepared::PreparedGroupSessionReplacement,
+    classic_group_owner::ClassicGroupOwner,
+    session_catalog::{GroupSessionCatalog, GroupSessionCatalogError},
 };
 
 /// Whether one retained group can still admit new operations.
@@ -20,16 +20,19 @@ pub(super) enum GroupConsumerEntryState {
 pub(super) struct GroupConsumerEntry {
     pub(super) state: GroupConsumerEntryState,
     pub(super) catalog: GroupSessionCatalog,
+    pub(super) classic: ClassicGroupOwner,
 }
 
 impl GroupConsumerEntry {
     pub(super) fn try_new(
         group_id: GroupId,
-        group: Arc<str>,
+        group: &Arc<str>,
+        local_topics: &[Arc<str>],
     ) -> Result<Self, GroupSessionCatalogError> {
         Ok(Self {
             state: GroupConsumerEntryState::Active,
-            catalog: GroupSessionCatalog::try_new(group_id, group)?,
+            catalog: GroupSessionCatalog::try_new(group_id, Arc::clone(group), local_topics)?,
+            classic: ClassicGroupOwner::new(group_id),
         })
     }
 
@@ -44,32 +47,4 @@ impl GroupConsumerEntry {
     pub(super) const fn is_active(&self) -> bool {
         matches!(self.state, GroupConsumerEntryState::Active)
     }
-
-    pub(super) fn prepare_replacement(
-        &mut self,
-        member: Arc<str>,
-        classic_generation: i32,
-        assignment_generation: AssignmentGeneration,
-        partitions: Vec<GroupSessionPartition>,
-    ) -> Result<PreparedGroupSessionReplacement<'_>, GroupConsumerEntrySessionError> {
-        if !self.is_active() {
-            return Err(GroupConsumerEntrySessionError::Closing);
-        }
-        let catalog = &mut self.catalog;
-        catalog
-            .prepare_replacement(
-                member,
-                classic_generation,
-                assignment_generation,
-                partitions,
-            )
-            .map_err(GroupConsumerEntrySessionError::Catalog)
-    }
-}
-
-/// Session replacement failure preserving the entry lifecycle decision.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum GroupConsumerEntrySessionError {
-    Closing,
-    Catalog(GroupSessionCatalogError),
 }

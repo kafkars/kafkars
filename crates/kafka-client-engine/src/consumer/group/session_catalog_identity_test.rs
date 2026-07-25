@@ -1,85 +1,48 @@
-//! Group-session identity exhaustion and retained-binding scenarios.
+//! Exhausted classic-group identity cursor scenarios.
 
 use std::sync::Arc;
 
-use kafka_client_core::{AssignmentGeneration, GroupId, MemberId, PartitionIndex, TopicId};
+use kafka_client_core::{GroupId, MemberId, MembershipCycle, TopicId};
 
-use super::session_catalog::{
-    GroupSessionCatalog, GroupSessionCatalogError, GroupSessionPartition,
+use super::{
+    classic_group_candidate::ClassicGroupCycleCandidateError, session_catalog::GroupSessionCatalog,
 };
 
-fn generation(value: u64) -> AssignmentGeneration {
-    AssignmentGeneration::try_from_raw(value)
-        .unwrap_or_else(|| panic!("test assignment generation must be nonzero"))
-}
-
 fn catalog() -> GroupSessionCatalog {
-    let group_id =
-        GroupId::try_from_raw(19).unwrap_or_else(|| panic!("test group identity must be nonzero"));
-    GroupSessionCatalog::try_new(group_id, Arc::from("group"))
+    let group_id = GroupId::try_from_raw(19).unwrap_or_else(|| panic!("nonzero group identity"));
+    GroupSessionCatalog::try_new(group_id, Arc::from("group"), &[Arc::from("orders")])
         .unwrap_or_else(|error| panic!("catalog creation failed: {error:?}"))
 }
 
-fn partition(topic: &str, index: u32) -> GroupSessionPartition {
-    GroupSessionPartition::new(Arc::from(topic), PartitionIndex::from_raw(index))
-}
-
 #[test]
-fn member_identity_exhaustion_does_not_install_a_session() {
+fn exhausted_member_cursor_rejects_without_topic_or_assignment_mutation() {
     let mut catalog = catalog();
-    catalog.set_identity_cursors_for_test(None, Some(TopicId::from_raw(1)));
+    catalog.set_identity_cursors_for_test(None, Some(TopicId::from_raw(2)));
+
     assert!(matches!(
-        catalog.prepare_replacement(Arc::from("member"), 0, generation(1), Vec::new()),
-        Err(GroupSessionCatalogError::MemberIdentityExhausted)
+        catalog.prepare_follower_cycle(MembershipCycle::initial(), Arc::from("member")),
+        Err(ClassicGroupCycleCandidateError::MemberIdentityExhausted)
     ));
+    assert_eq!(catalog.retained_topic_count(), 1);
+    assert_eq!(catalog.topic_id("orders"), Some(TopicId::from_raw(1)));
     assert!(catalog.live_assignment().is_none());
-    assert_eq!(catalog.retained_topic_count(), 0);
 }
 
 #[test]
-fn exhausted_topic_cursor_still_allows_retained_binding_reuse() {
+fn final_member_identity_can_be_staged_without_wrapping() {
     let mut catalog = catalog();
     catalog.set_identity_cursors_for_test(
-        MemberId::try_from_raw(1),
-        Some(TopicId::from_raw(u64::MAX)),
+        MemberId::try_from_raw(u64::MAX),
+        Some(TopicId::from_raw(2)),
     );
-    catalog
-        .prepare_replacement(
-            Arc::from("member-1"),
-            1,
-            generation(1),
-            vec![partition("last", 0)],
-        )
-        .unwrap_or_else(|error| panic!("last topic identity failed: {error:?}"))
-        .commit();
-    let first_member = catalog.current_member_id();
-    assert!(matches!(
-        catalog.prepare_replacement(
-            Arc::from("member-2"),
-            2,
-            generation(2),
-            vec![partition("overflow", 0)]
-        ),
-        Err(GroupSessionCatalogError::TopicIdentityExhausted)
-    ));
-    assert_eq!(catalog.current_member_id(), first_member);
-    assert_eq!(catalog.classic_generation(), Some(1));
+    let candidate = catalog
+        .prepare_follower_cycle(MembershipCycle::initial(), Arc::from("member"))
+        .unwrap_or_else(|error| panic!("final identity should stage: {error:?}"));
 
-    catalog
-        .prepare_replacement(
-            Arc::from("member-2"),
-            2,
-            generation(2),
-            vec![partition("last", 8)],
-        )
-        .unwrap_or_else(|error| panic!("retained topic reuse failed: {error:?}"))
-        .commit();
-    let assignment = catalog
-        .live_assignment()
-        .unwrap_or_else(|| panic!("assignment expected"));
     assert_eq!(
-        assignment.partitions()[0].topic_id(),
-        TopicId::from_raw(u64::MAX)
+        candidate.local_member_id(),
+        MemberId::try_from_raw(u64::MAX).unwrap_or_else(|| panic!("nonzero member identity"))
     );
-    assert_eq!(assignment.partitions()[0].partition().get(), 8);
+    assert_eq!(candidate.next_member_id_after_install(), None);
+    assert_eq!(catalog.next_member_id, MemberId::try_from_raw(u64::MAX));
 }

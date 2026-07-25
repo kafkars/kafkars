@@ -31,10 +31,7 @@ pub(super) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
         ],
     ),
 ];
-pub(super) const ENTRY_FIELDS: &[(&str, &[&str])] = &[
-    ("state", &["registry_close.rs"]),
-    ("catalog", &["registry_entry.rs"]),
-];
+pub(super) const ENTRY_FIELDS: &[(&str, &[&str])] = &[("state", &["registry_close.rs"])];
 pub(super) const FORBIDDEN: &[&str] = &[
     "crate::driver",
     "crate::host",

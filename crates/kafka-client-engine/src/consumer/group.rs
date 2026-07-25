@@ -1,5 +1,10 @@
-//! Bounded classic-group session identity without membership execution.
+//! Bounded classic-group identity and deterministic membership ownership.
 
+mod classic_group_assignment;
+mod classic_group_candidate;
+mod classic_group_candidate_prepare;
+mod classic_group_owner;
+mod classic_group_topics;
 mod offset_commit;
 mod registry;
 mod registry_close;
@@ -12,8 +17,22 @@ mod registry_host;
 )]
 mod registry_session;
 mod session_catalog;
-mod session_catalog_prepared;
+mod session_catalog_assignment;
 
+#[cfg(test)]
+mod classic_group_assignment_bounds_test;
+#[cfg(test)]
+mod classic_group_assignment_test;
+#[cfg(test)]
+mod classic_group_candidate_prepare_test;
+#[cfg(test)]
+mod classic_group_candidate_test;
+#[cfg(test)]
+mod classic_group_owner_test;
+#[cfg(test)]
+mod classic_group_test_support;
+#[cfg(test)]
+mod classic_group_topics_test;
 #[cfg(test)]
 mod registry_close_test;
 #[cfg(test)]
@@ -29,9 +48,9 @@ mod registry_test;
 #[cfg(test)]
 mod registry_test_support;
 #[cfg(test)]
-mod session_catalog_identity_test;
+mod session_catalog_assignment_test;
 #[cfg(test)]
-mod session_catalog_prepared_test;
+mod session_catalog_identity_test;
 #[cfg(test)]
 mod session_catalog_test;
 

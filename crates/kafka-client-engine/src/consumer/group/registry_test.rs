@@ -49,7 +49,7 @@ fn catalog_rejection_returns_the_exact_group_allocation() {
     let group: Arc<str> = Arc::from("");
     let retained = Arc::clone(&group);
     let failure = registry
-        .try_register(group)
+        .try_register(group, vec![Arc::from("orders")])
         .err()
         .unwrap_or_else(|| panic!("empty group must be rejected"));
 
@@ -58,6 +58,7 @@ fn catalog_rejection_returns_the_exact_group_allocation() {
         GroupConsumerRegistrationFailureKind::Catalog(GroupSessionCatalogError::EmptyGroup)
     );
     assert!(Arc::ptr_eq(&failure.group, &retained));
+    assert_eq!(failure.local_topics, vec![Arc::<str>::from("orders")]);
     assert_eq!(registry.registered_group_count(), 0);
     assert_eq!(registry.retained_group_bytes(), 0);
     stop_registry(&mut registry);
@@ -70,7 +71,7 @@ fn count_and_aggregate_group_name_bytes_have_exact_caps() {
         register(&mut count_registry, &format!("group-{index}"));
     }
     let count_failure = count_registry
-        .try_register(Arc::from("one-too-many"))
+        .try_register(Arc::from("one-too-many"), vec![Arc::from("orders")])
         .err()
         .unwrap_or_else(|| panic!("entry capacity must reject"));
     assert_eq!(

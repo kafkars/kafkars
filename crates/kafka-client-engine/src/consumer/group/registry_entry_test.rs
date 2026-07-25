@@ -1,35 +1,31 @@
-//! Linear entry ownership and session installation scenarios.
+//! Linear entry ownership of catalog and deterministic membership policy.
 
 use std::sync::Arc;
 
-use kafka_client_core::{AssignmentGeneration, GroupId, PartitionIndex};
+use kafka_client_core::{ClassicGroupPhase, GroupId, TopicId};
 
-use super::{registry_entry::GroupConsumerEntry, session_catalog::GroupSessionPartition};
+use super::registry_entry::GroupConsumerEntry;
 
 #[test]
-fn entry_owns_one_catalog_without_an_execution_host() {
+fn entry_owns_one_catalog_and_machine_with_the_same_identity() {
     let group_id =
         GroupId::try_from_raw(17).unwrap_or_else(|| panic!("group identity must be nonzero"));
-    let generation = AssignmentGeneration::try_from_raw(3)
-        .unwrap_or_else(|| panic!("assignment generation must be nonzero"));
-    let mut entry = GroupConsumerEntry::try_new(group_id, Arc::from("workers"))
-        .unwrap_or_else(|error| panic!("entry creation failed: {error:?}"));
-
-    entry
-        .prepare_replacement(
-            Arc::from("member-a"),
-            9,
-            generation,
-            vec![GroupSessionPartition::new(
-                Arc::from("orders"),
-                PartitionIndex::from_raw(2),
-            )],
-        )
-        .unwrap_or_else(|error| panic!("session staging failed: {error:?}"))
-        .commit();
+    let entry = GroupConsumerEntry::try_new(
+        group_id,
+        &Arc::from("workers"),
+        &[Arc::from("payments"), Arc::from("orders")],
+    )
+    .unwrap_or_else(|error| panic!("entry creation failed: {error:?}"));
 
     assert_eq!(entry.group_id(), group_id);
     assert_eq!(entry.group_bytes(), "workers".len());
     assert!(entry.is_active());
-    assert_eq!(entry.catalog.assignment_generation(), Some(generation));
+    assert_eq!(entry.catalog.local_subscription().len(), 2);
+    assert_eq!(entry.catalog.topic_id("orders"), Some(TopicId::from_raw(1)));
+    assert_eq!(
+        entry.catalog.topic_id("payments"),
+        Some(TopicId::from_raw(2))
+    );
+    assert_eq!(entry.classic.machine().group_id(), group_id);
+    assert_eq!(entry.classic.machine().phase(), ClassicGroupPhase::Dormant);
 }

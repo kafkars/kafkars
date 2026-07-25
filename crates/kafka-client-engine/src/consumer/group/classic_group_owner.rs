@@ -1,0 +1,73 @@
+//! Unique engine ownership of one deterministic classic-group machine.
+
+use kafka_client_core::{
+    ClassicGroupApplyError, ClassicGroupInput, ClassicGroupMachine, ClassicGroupPhase,
+    ClassicGroupTransition, GroupId,
+};
+
+use super::classic_group_candidate::ClassicGroupCycleCandidate;
+
+/// One per-entry deterministic membership owner.
+pub(super) struct ClassicGroupOwner {
+    machine: ClassicGroupMachine,
+    pub(super) pending: Option<ClassicGroupCycleCandidate>,
+}
+
+impl ClassicGroupOwner {
+    pub(super) const fn new(group_id: GroupId) -> Self {
+        Self {
+            machine: ClassicGroupMachine::new(group_id),
+            pending: None,
+        }
+    }
+
+    pub(super) const fn machine(&self) -> &ClassicGroupMachine {
+        &self.machine
+    }
+
+    pub(super) fn apply(
+        &mut self,
+        input: ClassicGroupInput,
+    ) -> Result<ClassicGroupTransition, ClassicGroupApplyError> {
+        let transition = self.machine.apply(input)?;
+        if matches!(
+            self.machine.phase(),
+            ClassicGroupPhase::Lost | ClassicGroupPhase::Closed
+        ) {
+            self.pending = None;
+        }
+        Ok(transition)
+    }
+
+    pub(super) const fn is_dormant(&self) -> bool {
+        matches!(self.machine.phase(), ClassicGroupPhase::Dormant)
+    }
+
+    pub(super) fn stage_candidate(
+        &mut self,
+        candidate: ClassicGroupCycleCandidate,
+    ) -> Result<(), ClassicGroupCandidateOwnershipError> {
+        if self.machine.phase() != ClassicGroupPhase::Joining {
+            return Err(ClassicGroupCandidateOwnershipError::Phase);
+        }
+        if self.machine.active_cycle() != Some(candidate.cycle()) {
+            return Err(ClassicGroupCandidateOwnershipError::Cycle);
+        }
+        if self.pending.is_some() {
+            return Err(ClassicGroupCandidateOwnershipError::Occupied);
+        }
+        self.pending = Some(candidate);
+        Ok(())
+    }
+
+    pub(super) fn pending(&self) -> Option<&ClassicGroupCycleCandidate> {
+        self.pending.as_ref()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ClassicGroupCandidateOwnershipError {
+    Phase,
+    Cycle,
+    Occupied,
+}

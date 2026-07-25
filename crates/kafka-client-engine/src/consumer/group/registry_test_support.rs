@@ -3,13 +3,13 @@
 use std::sync::Arc;
 
 use kafka_client_core::{
-    AssignmentGeneration, Deadline, GroupCheckpoint, GroupCheckpointEntry, GroupId, PartitionIndex,
-    TopicId,
+    Deadline, GroupAssignmentPartition, GroupCheckpoint, GroupCheckpointEntry, GroupId,
+    PartitionIndex, TopicId,
 };
 
 use crate::clock::OperationDeadline;
 
-use super::{registry::GroupConsumerRegistry, session_catalog::GroupSessionPartition};
+use super::{classic_group_test_support, registry::GroupConsumerRegistry};
 
 pub(super) fn started_registry() -> GroupConsumerRegistry {
     GroupConsumerRegistry::start().unwrap_or_else(|error| panic!("registry start failed: {error}"))
@@ -17,26 +17,30 @@ pub(super) fn started_registry() -> GroupConsumerRegistry {
 
 pub(super) fn register(registry: &mut GroupConsumerRegistry, group: &str) -> GroupId {
     registry
-        .try_register(Arc::from(group))
+        .try_register(Arc::from(group), vec![Arc::from("orders")])
         .unwrap_or_else(|failure| panic!("registration failed: {:?}", failure.kind))
 }
 
 pub(super) fn install_session(registry: &mut GroupConsumerRegistry, group_id: GroupId) {
-    let generation = AssignmentGeneration::try_from_raw(1)
-        .unwrap_or_else(|| panic!("assignment generation must be nonzero"));
-    registry
-        .prepare_session_replacement(
-            group_id,
-            Arc::from("member-1"),
-            7,
-            generation,
-            vec![GroupSessionPartition::new(
-                Arc::from("orders"),
-                PartitionIndex::from_raw(0),
-            )],
-        )
-        .unwrap_or_else(|error| panic!("session replacement failed: {error:?}"))
-        .commit();
+    let entry = registry
+        .entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .unwrap_or_else(|| panic!("registered group expected"));
+    let topic_id = entry
+        .catalog
+        .topic_id("orders")
+        .unwrap_or_else(|| panic!("registered topic expected"));
+    classic_group_test_support::install_follower(
+        &mut entry.catalog,
+        &mut entry.classic,
+        "member-1",
+        7,
+        vec![GroupAssignmentPartition::new(
+            topic_id,
+            PartitionIndex::from_raw(0),
+        )],
+    );
 }
 
 pub(super) fn checkpoint(registry: &GroupConsumerRegistry, group_id: GroupId) -> GroupCheckpoint {

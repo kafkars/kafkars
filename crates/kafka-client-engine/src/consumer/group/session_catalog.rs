@@ -1,31 +1,13 @@
-//! Sole ownership of one classic-group spelling and committed assignment facts.
+//! Sole ownership of durable topic spellings and committed assignment facts.
 
 use std::{collections::BTreeMap, sync::Arc};
 
-use kafka_client_core::{
-    AssignmentGeneration, GroupId, LiveGroupAssignment, MemberId, PartitionIndex, TopicId,
-};
+use kafka_client_core::{GroupId, LiveGroupAssignment, MemberId, TopicId};
 
-use super::session_catalog_prepared::PreparedGroupSessionReplacement;
-
-pub(super) const MAX_GROUP_SESSION_PARTITIONS: usize = 64;
 pub(super) const MAX_GROUP_SESSION_TOPICS: usize = 64;
 pub(super) const MAX_GROUP_SESSION_TOPIC_BYTES: usize = 249;
 pub(super) const MAX_GROUP_SESSION_TOPIC_NAME_BYTES: usize = 16 * 1024;
 pub(super) const MAX_KAFKA_GROUP_STRING_BYTES: usize = i16::MAX as usize;
-
-/// Exact topic spelling and partition reported by group membership.
-#[derive(Debug)]
-pub(super) struct GroupSessionPartition {
-    pub(super) topic: Arc<str>,
-    pub(super) partition: PartitionIndex,
-}
-
-impl GroupSessionPartition {
-    pub(super) const fn new(topic: Arc<str>, partition: PartitionIndex) -> Self {
-        Self { topic, partition }
-    }
-}
 
 pub(super) struct CurrentGroupSession {
     pub(super) member_id: MemberId,
@@ -41,18 +23,13 @@ pub(super) enum GroupSessionCatalogError {
     GroupBytes { actual: usize, limit: usize },
     EmptyMember,
     MemberBytes { actual: usize, limit: usize },
-    NegativeClassicGeneration { value: i32 },
-    PartitionCapacity { actual: usize, limit: usize },
-    PartitionOutOfRange { partition: PartitionIndex },
     EmptyTopic,
     TopicBytes { actual: usize, limit: usize },
     RetainedTopicCapacity { actual: usize, limit: usize },
     RetainedTopicBytes { actual: usize, limit: usize },
     RetainedTopicBytesOverflow,
-    RetainedTopicCountOverflow,
-    MemberIdentityExhausted,
+    DuplicateTopic,
     TopicIdentityExhausted,
-    Assignment(kafka_client_core::LiveGroupAssignmentError),
     Allocation,
     UnknownTopic(TopicId),
 }
@@ -66,6 +43,7 @@ pub(super) struct GroupSessionCatalog {
     pub(super) retained_topic_name_bytes: usize,
     pub(super) topics_by_name: BTreeMap<Arc<str>, TopicId>,
     pub(super) topics_by_id: BTreeMap<TopicId, Arc<str>>,
+    local_subscription: Vec<TopicId>,
     pub(super) current: Option<CurrentGroupSession>,
 }
 
@@ -73,6 +51,7 @@ impl GroupSessionCatalog {
     pub(super) fn try_new(
         group_id: GroupId,
         group: Arc<str>,
+        local_topics: &[Arc<str>],
     ) -> Result<Self, GroupSessionCatalogError> {
         validate_kafka_string(&group, GroupSessionCatalogError::EmptyGroup, |actual| {
             GroupSessionCatalogError::GroupBytes {
@@ -80,32 +59,57 @@ impl GroupSessionCatalog {
                 limit: MAX_KAFKA_GROUP_STRING_BYTES,
             }
         })?;
+        if local_topics.len() > MAX_GROUP_SESSION_TOPICS {
+            return Err(GroupSessionCatalogError::RetainedTopicCapacity {
+                actual: local_topics.len(),
+                limit: MAX_GROUP_SESSION_TOPICS,
+            });
+        }
+        let mut ordered = Vec::new();
+        ordered
+            .try_reserve_exact(local_topics.len())
+            .map_err(|_error| GroupSessionCatalogError::Allocation)?;
+        ordered.extend(local_topics.iter().cloned());
+        ordered.sort_unstable_by(|left, right| left.as_ref().cmp(right.as_ref()));
+        if ordered.windows(2).any(|pair| pair[0] == pair[1]) {
+            return Err(GroupSessionCatalogError::DuplicateTopic);
+        }
+        let mut topics_by_name = BTreeMap::new();
+        let mut topics_by_id = BTreeMap::new();
+        let mut local_subscription = Vec::new();
+        local_subscription
+            .try_reserve_exact(ordered.len())
+            .map_err(|_error| GroupSessionCatalogError::Allocation)?;
+        let mut next_topic_id = Some(TopicId::from_raw(1));
+        let mut retained_topic_name_bytes = 0usize;
+        for topic in ordered {
+            validate_topic(&topic)?;
+            retained_topic_name_bytes = retained_topic_name_bytes
+                .checked_add(topic.len())
+                .ok_or(GroupSessionCatalogError::RetainedTopicBytesOverflow)?;
+            if retained_topic_name_bytes > MAX_GROUP_SESSION_TOPIC_NAME_BYTES {
+                return Err(GroupSessionCatalogError::RetainedTopicBytes {
+                    actual: retained_topic_name_bytes,
+                    limit: MAX_GROUP_SESSION_TOPIC_NAME_BYTES,
+                });
+            }
+            let topic_id = next_topic_id.ok_or(GroupSessionCatalogError::TopicIdentityExhausted)?;
+            next_topic_id = topic_id.get().checked_add(1).map(TopicId::from_raw);
+            topics_by_name.insert(Arc::clone(&topic), topic_id);
+            topics_by_id.insert(topic_id, topic);
+            local_subscription.push(topic_id);
+        }
         Ok(Self {
             group_id,
             group,
             next_member_id: MemberId::try_from_raw(1),
-            next_topic_id: Some(TopicId::from_raw(1)),
-            retained_topic_name_bytes: 0,
-            topics_by_name: BTreeMap::new(),
-            topics_by_id: BTreeMap::new(),
+            next_topic_id,
+            retained_topic_name_bytes,
+            topics_by_name,
+            topics_by_id,
+            local_subscription,
             current: None,
         })
-    }
-
-    pub(super) fn prepare_replacement(
-        &mut self,
-        member: Arc<str>,
-        classic_generation: i32,
-        assignment_generation: AssignmentGeneration,
-        partitions: Vec<GroupSessionPartition>,
-    ) -> Result<PreparedGroupSessionReplacement<'_>, GroupSessionCatalogError> {
-        PreparedGroupSessionReplacement::prepare(
-            self,
-            member,
-            classic_generation,
-            assignment_generation,
-            partitions,
-        )
     }
 
     pub(super) const fn group_id(&self) -> GroupId {
@@ -130,11 +134,6 @@ impl GroupSessionCatalog {
             .map(|current| current.classic_generation)
     }
 
-    pub(super) fn assignment_generation(&self) -> Option<AssignmentGeneration> {
-        self.live_assignment()
-            .map(LiveGroupAssignment::assignment_generation)
-    }
-
     pub(super) fn live_assignment(&self) -> Option<&LiveGroupAssignment> {
         self.current.as_ref().map(|current| &current.assignment)
     }
@@ -148,30 +147,20 @@ impl GroupSessionCatalog {
             .ok_or(GroupSessionCatalogError::UnknownTopic(topic_id))
     }
 
+    pub(super) fn topic_id(&self, topic: &str) -> Option<TopicId> {
+        self.topics_by_name.get(topic).copied()
+    }
+
+    pub(super) fn local_subscription(&self) -> &[TopicId] {
+        &self.local_subscription
+    }
+
     pub(super) fn retained_topic_count(&self) -> usize {
         self.topics_by_id.len()
     }
 
     pub(super) const fn retained_topic_name_bytes(&self) -> usize {
         self.retained_topic_name_bytes
-    }
-
-    pub(super) fn install_group_session_replacement(
-        &mut self,
-        staged_topics: BTreeMap<Arc<str>, TopicId>,
-        next_member_id: Option<MemberId>,
-        next_topic_id: Option<TopicId>,
-        retained_topic_name_bytes: usize,
-        current: CurrentGroupSession,
-    ) {
-        for (name, topic_id) in staged_topics {
-            self.topics_by_name.insert(Arc::clone(&name), topic_id);
-            self.topics_by_id.insert(topic_id, name);
-        }
-        self.next_member_id = next_member_id;
-        self.next_topic_id = next_topic_id;
-        self.retained_topic_name_bytes = retained_topic_name_bytes;
-        self.current = Some(current);
     }
 
     #[cfg(test)]
@@ -183,6 +172,19 @@ impl GroupSessionCatalog {
         self.next_member_id = member;
         self.next_topic_id = topic;
     }
+}
+
+pub(super) fn validate_topic(topic: &str) -> Result<(), GroupSessionCatalogError> {
+    if topic.is_empty() {
+        return Err(GroupSessionCatalogError::EmptyTopic);
+    }
+    if topic.len() > MAX_GROUP_SESSION_TOPIC_BYTES {
+        return Err(GroupSessionCatalogError::TopicBytes {
+            actual: topic.len(),
+            limit: MAX_GROUP_SESSION_TOPIC_BYTES,
+        });
+    }
+    Ok(())
 }
 
 pub(super) fn validate_kafka_string(

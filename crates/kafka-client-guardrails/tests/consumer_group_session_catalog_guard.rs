@@ -1,115 +1,87 @@
-//! Ownership and capability ratchets for classic-group session identity.
+//! Ownership and capability ratchets for classic-group engine identity.
 
+#[path = "consumer_group_session_catalog_guard/expectations.rs"]
+mod expectations;
 mod support;
 
 use support::{
-    CapabilityRule, LinearOwner, MethodCapabilityRule, MutationOwner, capability_violations,
-    fixture_files, linear_violations, load_config, method_capability_violations,
-    mutation_violations, workspace_root,
+    AuthorityToken, CapabilityRule, LinearOwner, MethodCapabilityRule, MutationOwner,
+    authority_token_violations, capability_violations, fixture_files, linear_violations,
+    load_config, method_capability_violations, mutation_violations, workspace_root,
 };
 
-const OWNER: &str = "GroupSessionCatalog";
-const PATH: &str = "crates/kafka-client-engine/src/consumer/group/session_catalog.rs";
-const PREPARED: &str = "crates/kafka-client-engine/src/consumer/group/session_catalog_prepared.rs";
-const METHOD_ROOT: &str = "crates/kafka-client-engine/src";
-const INSTALL_METHOD: &str = "install_group_session_replacement";
-const LINEAR: &[(&str, &str)] = &[(OWNER, PATH), ("PreparedGroupSessionReplacement", PREPARED)];
-const FIELDS: &[&str] = &[
-    "next_member_id",
-    "next_topic_id",
-    "retained_topic_name_bytes",
-    "topics_by_name",
-    "topics_by_id",
-    "current",
-];
-const FORBIDDEN: &[&str] = &[
-    "crate::admin",
-    "crate::clock",
-    "crate::completion",
-    "crate::driver",
-    "crate::producer",
-    "crate::protocol",
-    "crate::transaction",
-    "kafka_driver",
-    "kafka_wire",
-    "kafka_wire_core",
-    "kafka_wire_records",
-    "std::future",
-    "std::net",
-    "std::thread",
-    "std::time",
-    "Condvar",
-    "Instant::now",
-    "Mutex",
-    "RwLock",
-    "Future",
-    "async",
-    "Callback",
-    "Metadata",
-    "Transport",
-    "Retry",
-];
+use expectations::{
+    AUTHORITIES, CANDIDATE, CAPABILITY_PATHS, CATALOG_FIELDS, FORBIDDEN, LINEAR, METHODS,
+    OWNER_FIELDS,
+};
 
 #[test]
-fn checked_in_group_session_catalog_policy_is_exact() {
+fn checked_in_classic_group_engine_policy_is_exact() {
     let config = load_config(&workspace_root());
     for (owner_type, path) in LINEAR {
-        let linear = config
+        let rules = config
             .linear_owners
             .iter()
             .filter(|rule| rule.owner_type == *owner_type)
             .collect::<Vec<_>>();
-        assert_eq!(linear.len(), 1);
-        assert_eq!(linear[0].path, *path);
+        assert_eq!(rules.len(), 1, "{owner_type} needs one linear rule");
+        assert_eq!(rules[0].path, *path);
     }
-
-    for field in FIELDS {
-        let mutations = config
-            .mutation_owners
+    assert_mutations(
+        &config.mutation_owners,
+        "GroupSessionCatalog",
+        CATALOG_FIELDS,
+    );
+    assert_mutations(&config.mutation_owners, "ClassicGroupOwner", OWNER_FIELDS);
+    for (owner_type, fields) in AUTHORITIES {
+        let rules = config
+            .authority_tokens
             .iter()
-            .filter(|rule| rule.owner_type == OWNER && rule.field == *field)
+            .filter(|rule| rule.owner_type == *owner_type)
             .collect::<Vec<_>>();
-        assert_eq!(mutations.len(), 1, "{field} needs one mutation rule");
-        assert_eq!(mutations[0].allowed_paths, [PATH]);
+        assert_eq!(rules.len(), 1, "{owner_type} needs one authority rule");
+        assert_eq!(rules[0].path, CANDIDATE);
+        assert_eq!(
+            rules[0]
+                .fields
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            *fields
+        );
+        assert_eq!(rules[0].allowed_paths, [CANDIDATE]);
     }
-
-    for path in [PATH, PREPARED] {
-        let capabilities = config
+    for path in CAPABILITY_PATHS {
+        let rules = config
             .capability_rules
             .iter()
-            .filter(|rule| rule.root == path)
+            .filter(|rule| rule.root == *path)
             .collect::<Vec<_>>();
-        assert_eq!(capabilities.len(), 1);
+        assert_eq!(rules.len(), 1, "{path} needs one capability rule");
         assert_eq!(
-            capabilities[0]
+            rules[0]
                 .forbidden
                 .iter()
                 .map(String::as_str)
                 .collect::<Vec<_>>(),
-            FORBIDDEN,
+            FORBIDDEN
         );
-        assert!(capabilities[0].allow.is_empty());
+        assert!(rules[0].allow.is_empty());
     }
-
-    let installers = config
-        .method_capabilities
-        .iter()
-        .filter(|rule| rule.method == INSTALL_METHOD)
-        .collect::<Vec<_>>();
-    assert_eq!(installers.len(), 1);
-    assert_eq!(installers[0].root, METHOD_ROOT);
-    assert_eq!(
-        installers[0]
-            .allowed_paths
+    for (method, allowed) in METHODS {
+        let rules = config
+            .method_capabilities
             .iter()
-            .map(String::as_str)
-            .collect::<Vec<_>>(),
-        [PREPARED],
-    );
+            .filter(|rule| rule.method == *method)
+            .collect::<Vec<_>>();
+        assert_eq!(rules.len(), 1, "{method} needs one caller rule");
+        assert_eq!(rules[0].root, "crates/kafka-client-engine/src");
+        assert_eq!(rules[0].allowed_paths, [*allowed]);
+    }
 }
 
 #[test]
-fn fixture_rejects_cloneable_catalog_and_foreign_field_mutation() {
+fn fixture_rejects_cloneable_owners_and_foreign_mutation() {
     let (root, files) = fixture_files("consumer_group_session_catalog");
     let linear_rules = LINEAR
         .iter()
@@ -118,35 +90,70 @@ fn fixture_rejects_cloneable_catalog_and_foreign_field_mutation() {
             path: "src/linear_intruder.rs".into(),
         })
         .collect::<Vec<_>>();
-    let linear = linear_violations(&root, &files, &linear_rules);
+    let violations = linear_violations(&root, &files, &linear_rules);
     for (owner_type, _path) in LINEAR {
         for derived in ["derives Clone", "derives Copy"] {
-            assert!(linear.iter().any(|violation| {
-                violation.contains(owner_type) && violation.contains(derived)
-            }));
+            assert!(
+                violations
+                    .iter()
+                    .any(|violation| violation.contains(owner_type) && violation.contains(derived))
+            );
         }
     }
-
-    let mutation_rules = FIELDS
+    let mutations = CATALOG_FIELDS
         .iter()
-        .map(|field| MutationOwner {
-            owner_type: OWNER.into(),
+        .map(|(field, _paths)| MutationOwner {
+            owner_type: "GroupSessionCatalog".into(),
             field: (*field).into(),
             allowed_paths: Vec::new(),
         })
+        .chain(OWNER_FIELDS.iter().map(|(field, _paths)| MutationOwner {
+            owner_type: "ClassicGroupOwner".into(),
+            field: (*field).into(),
+            allowed_paths: Vec::new(),
+        }))
         .collect::<Vec<_>>();
-    let mutations = mutation_violations(&root, &files, &mutation_rules);
-    for field in FIELDS {
-        assert!(mutations.iter().any(|violation| {
-            violation.contains("mutation_intruder.rs")
-                && violation.contains(OWNER)
-                && violation.contains(field)
+    let violations = mutation_violations(&root, &files, &mutations);
+    for (field, _paths) in CATALOG_FIELDS.iter().chain(OWNER_FIELDS) {
+        assert!(violations.iter().any(
+            |violation| violation.contains("mutation_intruder.rs") && violation.contains(field)
+        ));
+    }
+}
+
+#[test]
+fn fixture_rejects_foreign_candidate_construction_and_field_mutation() {
+    let (root, files) = fixture_files("consumer_group_session_catalog");
+    let rules = AUTHORITIES
+        .iter()
+        .map(|(owner_type, fields)| AuthorityToken {
+            owner_type: (*owner_type).into(),
+            path: "src/authority_owner.rs".into(),
+            fields: fields.iter().map(|field| (*field).into()).collect(),
+            allowed_paths: vec!["src/authority_owner.rs".into()],
+        })
+        .collect::<Vec<_>>();
+    let violations = authority_token_violations(&root, &files, &rules);
+    for (owner_type, _fields) in AUTHORITIES {
+        assert!(violations.iter().any(|violation| {
+            violation.contains("authority_intruder.rs")
+                && violation.contains(owner_type)
+                && violation.contains("constructs authority")
+        }));
+    }
+    for field in [
+        "ordering_rank",
+        "member_cursor_after_install",
+        "foreign_topic_bindings",
+    ] {
+        assert!(violations.iter().any(|violation| {
+            violation.contains("authority_intruder.rs") && violation.contains(field)
         }));
     }
 }
 
 #[test]
-fn fixture_rejects_protocol_execution_runtime_and_sibling_policy() {
+fn fixture_rejects_foreign_capabilities_and_install_or_revoke_callers() {
     let (root, _files) = fixture_files("consumer_group_session_catalog");
     let violations = capability_violations(
         &root,
@@ -158,26 +165,46 @@ fn fixture_rejects_protocol_execution_runtime_and_sibling_policy() {
     );
     for capability in FORBIDDEN {
         assert!(
-            violations.iter().any(|violation| {
-                violation.contains("capability_intruder.rs") && violation.contains(capability)
-            }),
+            violations
+                .iter()
+                .any(|violation| violation.contains("capability_intruder.rs")
+                    && violation.contains(capability)),
             "capability detector missed {capability}: {violations:?}"
         );
     }
+    for (method, _allowed) in METHODS {
+        let violations = method_capability_violations(
+            &root,
+            &[MethodCapabilityRule {
+                root: "src".into(),
+                method: (*method).into(),
+                allowed_paths: Vec::new(),
+            }],
+        );
+        assert!(violations.iter().any(|violation| {
+            violation.contains("method_intruder.rs") && violation.contains(method)
+        }));
+    }
 }
 
-#[test]
-fn fixture_rejects_sibling_catalog_installation() {
-    let (root, _files) = fixture_files("consumer_group_session_catalog");
-    let violations = method_capability_violations(
-        &root,
-        &[MethodCapabilityRule {
-            root: "src".into(),
-            method: INSTALL_METHOD.into(),
-            allowed_paths: Vec::new(),
-        }],
+fn assert_mutations(rules: &[MutationOwner], owner: &str, expected: &[(&str, &[&str])]) {
+    for (field, paths) in expected {
+        let matches = rules
+            .iter()
+            .filter(|rule| rule.owner_type == owner && rule.field == *field)
+            .collect::<Vec<_>>();
+        assert_eq!(matches.len(), 1, "{owner}.{field} needs one rule");
+        assert_eq!(
+            matches[0]
+                .allowed_paths
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            *paths
+        );
+    }
+    assert_eq!(
+        rules.iter().filter(|rule| rule.owner_type == owner).count(),
+        expected.len()
     );
-    assert!(violations.iter().any(|violation| {
-        violation.contains("method_intruder.rs") && violation.contains(INSTALL_METHOD)
-    }));
 }
