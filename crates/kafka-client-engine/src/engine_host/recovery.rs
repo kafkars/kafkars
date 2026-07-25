@@ -39,6 +39,7 @@ pub(crate) fn recover(
     drop(resources.create_partitions.terminal_host());
     drop(resources.describe_topics.terminal_host());
     drop(resources.describe_configs.terminal_host());
+    drop(resources.incremental_alter_configs.terminal_host());
     if let Some(cleanup) = shutdown_driver(resources).err() {
         failure = failure.with_cleanup(cleanup);
     }
@@ -68,6 +69,9 @@ pub(crate) fn recover(
         .discard_after_driver_shutdown();
     resources
         .describe_configs_calls
+        .discard_after_driver_shutdown();
+    resources
+        .incremental_alter_configs_calls
         .discard_after_driver_shutdown();
     failure = recover_assigned_after_driver_shutdown(resources, failure);
     let assigned_consumer_notifier = resources.assigned_consumer_notifier.take_join();
@@ -203,5 +207,14 @@ fn recover_admin_operations(
         failure = failure.with_cleanup(cleanup);
     }
     drop(describe_configs);
+    let mut incremental_alter_configs = resources.incremental_alter_configs.terminal_host();
+    if let Some(cleanup) = incremental_alter_configs
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::IncrementalAlterConfigs)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    drop(incremental_alter_configs);
     failure
 }

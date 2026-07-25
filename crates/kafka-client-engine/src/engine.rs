@@ -25,6 +25,7 @@ struct EngineInner {
     create_partitions_admission: crate::admin::CreatePartitionsAdmissionPort,
     describe_topics_admission: crate::admin::DescribeTopicsAdmissionPort,
     describe_configs_admission: crate::admin::DescribeConfigsAdmissionPort,
+    incremental_alter_configs_admission: crate::admin::IncrementalAlterConfigsAdmissionPort,
     assigned_consumer: crate::consumer::AssignedConsumerClaimSlot,
     assigned_consumer_admission: crate::consumer::AssignedConsumerAdmissionCloser,
     clock: Arc<crate::clock::MonotonicClock>,
@@ -44,6 +45,7 @@ impl Engine {
             create_partitions_admission,
             describe_topics_admission,
             describe_configs_admission,
+            incremental_alter_configs_admission,
             assigned_consumer,
             clock,
             control,
@@ -61,6 +63,7 @@ impl Engine {
                 create_partitions_admission,
                 describe_topics_admission,
                 describe_configs_admission,
+                incremental_alter_configs_admission,
                 assigned_consumer,
                 assigned_consumer_admission,
                 clock,
@@ -91,6 +94,7 @@ impl Engine {
                 create_partitions: self.inner.create_partitions_admission.clone(),
                 describe_topics: self.inner.describe_topics_admission.clone(),
                 describe_configs: self.inner.describe_configs_admission.clone(),
+                incremental_alter_configs: self.inner.incremental_alter_configs_admission.clone(),
             },
             Arc::clone(&self.inner.clock),
             lifetime,
@@ -162,6 +166,7 @@ impl EngineInner {
         let _close_result = self.create_partitions_admission.close_admission();
         let _close_result = self.describe_topics_admission.close_admission();
         let _close_result = self.describe_configs_admission.close_admission();
+        let _close_result = self.incremental_alter_configs_admission.close_admission();
         let _close_result = self.assigned_consumer_admission.close();
         self.lifecycle.request_and_wait(&self.control)
     }
@@ -176,6 +181,7 @@ impl Drop for EngineInner {
         let _close_result = self.create_partitions_admission.close_admission();
         let _close_result = self.describe_topics_admission.close_admission();
         let _close_result = self.describe_configs_admission.close_admission();
+        let _close_result = self.incremental_alter_configs_admission.close_admission();
         let _close_result = self.assigned_consumer_admission.close();
         self.lifecycle.request(&self.control);
     }

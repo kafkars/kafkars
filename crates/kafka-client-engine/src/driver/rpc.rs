@@ -62,10 +62,6 @@ mod describe_topics_terminal_test;
     expect(dead_code, reason = "awaiting direct-consumer executor")
 )]
 mod fetch;
-#[expect(
-    dead_code,
-    reason = "tracked IncrementalAlterConfigs execution precedes host scheduling"
-)]
 mod incremental_alter_configs_calls;
 #[cfg(test)]
 mod incremental_alter_configs_calls_test;
@@ -114,6 +110,9 @@ pub(crate) use fetch::{
     FetchRequestPreparationError, FetchTerminal, PartitionFetchRequest,
     StaleFetchConfirmationError, TrackedFetchCalls, classify_fetch_admission,
     classify_fetch_request_error,
+};
+pub(crate) use incremental_alter_configs_calls::{
+    IncrementalAlterConfigsCalls, IncrementalAlterConfigsCompletionFailure,
 };
 pub(crate) use init_producer_id_calls::{
     ProducerIdentityCompletionFailure, TrackedProducerIdentityCalls,

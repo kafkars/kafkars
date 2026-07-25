@@ -6,6 +6,9 @@ mod delete_topics;
 mod describe_cluster;
 mod describe_configs;
 mod describe_topics;
+mod incremental_alter_configs;
+#[cfg(test)]
+mod incremental_alter_configs_schedule_test;
 mod schedule;
 #[cfg(test)]
 mod schedule_test;

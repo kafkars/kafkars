@@ -1,18 +1,19 @@
 //! Declarative facade for bounded topic `IncrementalAlterConfigs` ownership.
 
 mod error;
+mod handle;
 mod host;
 mod model;
 mod observer;
 mod outcome;
 mod shard;
 
-pub(crate) use error::{
-    IncrementalAlterConfigsAdmissionErrorKind, IncrementalAlterConfigsHostError,
+pub(crate) use error::IncrementalAlterConfigsHostError;
+pub use error::{IncrementalAlterConfigsAdmissionError, IncrementalAlterConfigsAdmissionErrorKind};
+pub use handle::{IncrementalAlterConfigsAccepted, IncrementalAlterConfigsAcceptedFaultKind};
+pub(crate) use host::{
+    INCREMENTAL_ALTER_CONFIGS_CAPACITY, IncrementalAlterConfigsHost, IncrementalAlterConfigsTurn,
 };
-#[cfg(test)]
-pub(crate) use host::IncrementalAlterConfigsTurn;
-pub(crate) use host::{INCREMENTAL_ALTER_CONFIGS_CAPACITY, IncrementalAlterConfigsHost};
 pub use model::{
     IncrementalAlterConfigsRequest, IncrementalConfigAlteration, IncrementalConfigOperation,
     TopicConfigAlterations,
@@ -24,6 +25,13 @@ pub use outcome::{
     IncrementalAlterConfigsFailureKind, IncrementalAlterConfigsObserverError,
     IncrementalAlterConfigsOutcome, IncrementalAlterConfigsResult,
 };
+pub(crate) use shard::{
+    IncrementalAlterConfigsAdmissionPort, IncrementalAlterConfigsShardLockError,
+    IncrementalAlterConfigsShardOwner, IncrementalAlterConfigsShardWake,
+    IncrementalAlterConfigsShardWakeError,
+};
+#[cfg(test)]
+mod handle_test;
 #[cfg(test)]
 mod host_test;
 #[cfg(test)]

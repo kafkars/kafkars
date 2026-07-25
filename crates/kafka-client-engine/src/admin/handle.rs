@@ -16,6 +16,7 @@ pub(crate) struct AdminAdmissionPorts {
     pub(crate) create_partitions: super::CreatePartitionsAdmissionPort,
     pub(crate) describe_topics: super::DescribeTopicsAdmissionPort,
     pub(crate) describe_configs: super::DescribeConfigsAdmissionPort,
+    pub(crate) incremental_alter_configs: super::IncrementalAlterConfigsAdmissionPort,
 }
 
 /// Cheaply cloneable handle to the concrete admin shards.
@@ -27,6 +28,7 @@ pub struct AdminHandle {
     pub(super) create_partitions: super::CreatePartitionsAdmissionPort,
     pub(super) describe_topics: super::DescribeTopicsAdmissionPort,
     pub(super) describe_configs: super::DescribeConfigsAdmissionPort,
+    pub(super) incremental_alter_configs: super::IncrementalAlterConfigsAdmissionPort,
     pub(super) clock: Arc<MonotonicClock>,
     _lifetime: Arc<dyn Send + Sync>,
 }
@@ -44,6 +46,7 @@ impl AdminHandle {
             create_partitions: ports.create_partitions,
             describe_topics: ports.describe_topics,
             describe_configs: ports.describe_configs,
+            incremental_alter_configs: ports.incremental_alter_configs,
             clock,
             _lifetime: lifetime,
         }

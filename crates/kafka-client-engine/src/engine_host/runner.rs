@@ -8,12 +8,13 @@ use crate::{
     admin::{
         CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteTopicsShardOwner,
         DescribeClusterShardOwner, DescribeConfigsShardOwner, DescribeTopicsShardOwner,
+        IncrementalAlterConfigsShardOwner,
     },
     clock::MonotonicClock,
     driver::{
         DescribeClusterCalls, DescribeConfigsCalls, DescribeTopicsCalls, DriverOwner, DriverTurn,
-        TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls,
-        TrackedProduceCalls, TrackedProducerIdentityCalls,
+        IncrementalAlterConfigsCalls, TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls,
+        TrackedDeleteTopicsCalls, TrackedProduceCalls, TrackedProducerIdentityCalls,
     },
     producer::{
         host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
@@ -44,6 +45,7 @@ pub(crate) struct EngineHostResources {
     pub(super) create_partitions: CreatePartitionsShardOwner,
     pub(super) describe_topics: DescribeTopicsShardOwner,
     pub(super) describe_configs: DescribeConfigsShardOwner,
+    pub(super) incremental_alter_configs: IncrementalAlterConfigsShardOwner,
     pub(super) assigned_consumer: crate::consumer::AssignedConsumerShardOwner,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) control: Arc<EngineHostControl>,
@@ -56,6 +58,7 @@ pub(crate) struct EngineHostResources {
     pub(super) create_partitions_calls: TrackedCreatePartitionsCalls,
     pub(super) describe_topics_calls: DescribeTopicsCalls,
     pub(super) describe_configs_calls: DescribeConfigsCalls,
+    pub(super) incremental_alter_configs_calls: IncrementalAlterConfigsCalls,
 }
 
 impl Drop for EngineHostResources {
@@ -67,6 +70,10 @@ impl Drop for EngineHostResources {
         let _close_result = self.create_partitions.admission_port().close_admission();
         let _close_result = self.describe_topics.admission_port().close_admission();
         let _close_result = self.describe_configs.admission_port().close_admission();
+        let _close_result = self
+            .incremental_alter_configs
+            .admission_port()
+            .close_admission();
         let _close_result = self.assigned_consumer.close_assigned_admission();
     }
 }

@@ -53,6 +53,8 @@ mod engine_admin_notifier_test;
 #[cfg(test)]
 mod engine_driver_test;
 #[cfg(test)]
+mod engine_incremental_alter_configs_test;
+#[cfg(test)]
 mod engine_test;
 #[cfg(test)]
 mod flush_error_test;

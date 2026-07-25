@@ -3,13 +3,15 @@
 mod support;
 
 use support::{
-    LinearOwner, MutationOwner, fixture_files, linear_violations, load_config, mutation_violations,
-    workspace_root,
+    LinearOwner, MethodCapabilityRule, MutationOwner, fixture_files, linear_violations,
+    load_config, method_capability_violations, mutation_violations, workspace_root,
 };
 
 const HOST_PATH: &str = "crates/kafka-client-engine/src/admin/alter_configs/host.rs";
 const ADMISSION_PATH: &str = "crates/kafka-client-engine/src/admin/alter_configs/host/admission.rs";
 const TERMINAL_PATH: &str = "crates/kafka-client-engine/src/admin/alter_configs/host/terminal.rs";
+const EXECUTION_PATH: &str =
+    "crates/kafka-client-engine/src/engine_host/admin/incremental_alter_configs.rs";
 const LINEAR_OWNERS: [(&str, &str); 5] = [
     ("IncrementalAlterConfigsHost", HOST_PATH),
     ("IncrementalAlterConfigsOperation", HOST_PATH),
@@ -49,6 +51,39 @@ fn incremental_engine_owners_are_registered_at_their_exact_modules() {
         "handoff",
         &[HOST_PATH],
     );
+}
+
+#[test]
+fn tracked_call_execution_is_confined_to_the_concrete_host_turn() {
+    let config = load_config(&workspace_root());
+    for method in ["try_reserve", "poll_next_ready", "discard_settled"] {
+        let rule = config
+            .method_capabilities
+            .iter()
+            .find(|rule| rule.method == method)
+            .unwrap_or_else(|| panic!("{method} needs one capability rule"));
+        assert!(
+            rule.allowed_paths.iter().any(|path| path == EXECUTION_PATH),
+            "{method} must name the concrete incremental host turn"
+        );
+    }
+
+    let (root, _files) = fixture_files("incremental_alter_configs_engine_ownership");
+    let rules =
+        ["try_reserve", "poll_next_ready", "discard_settled"].map(|method| MethodCapabilityRule {
+            root: "src".to_owned(),
+            method: method.to_owned(),
+            allowed_paths: vec!["src/execution_owner.rs".to_owned()],
+        });
+    let violations = method_capability_violations(&root, &rules);
+    for method in ["try_reserve", "poll_next_ready", "discard_settled"] {
+        assert!(violations.iter().any(|violation| {
+            violation.contains("execution_intruder.rs") && violation.contains(method)
+        }));
+        assert!(!violations.iter().any(|violation| {
+            violation.contains("execution_owner.rs") && violation.contains(method)
+        }));
+    }
 }
 
 #[test]

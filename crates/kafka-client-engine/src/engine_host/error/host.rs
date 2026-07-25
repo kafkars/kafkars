@@ -4,6 +4,7 @@ use crate::{
     admin::{
         CreatePartitionsHostError, CreateTopicsHostError, DeleteTopicsHostError,
         DescribeClusterHostError, DescribeConfigsHostError, DescribeTopicsHostError,
+        IncrementalAlterConfigsHostError,
     },
     clock::ClockError,
     completion::{CompletionRegistryError, NotifierJoinError},
@@ -14,7 +15,8 @@ use crate::{
         CreatePartitionsCompletionFailure, CreateTopicsCompletionFailure,
         DeleteTopicsCompletionFailure, DescribeClusterCompletionFailure,
         DescribeConfigsCompletionFailure, DescribeTopicsCompletionFailure, DriverOwnerError,
-        ProduceCompletionFailure, ProducerIdentityCompletionFailure,
+        IncrementalAlterConfigsCompletionFailure, ProduceCompletionFailure,
+        ProducerIdentityCompletionFailure,
     },
     producer::{
         ProducerHostInvariantError, ProducerIdentityHandoffError,
@@ -60,6 +62,9 @@ pub(crate) enum EngineHostError {
     DescribeConfigs(DescribeConfigsHostError),
     DescribeConfigsCompletion(DescribeConfigsCompletionFailure),
     DescribeConfigsLockPoisoned,
+    IncrementalAlterConfigs(IncrementalAlterConfigsHostError),
+    IncrementalAlterConfigsCompletion(IncrementalAlterConfigsCompletionFailure),
+    IncrementalAlterConfigsLockPoisoned,
     AdminCompletion(CompletionRegistryError),
     Driver(DriverOwnerError),
     DriverOwnerMissing,
@@ -72,6 +77,7 @@ pub(crate) enum EngineHostError {
     TrackedCreatePartitionsCallsRemain(usize),
     DescribeTopicsCallsRemain(usize),
     DescribeConfigsCallsRemain(usize),
+    IncrementalAlterConfigsCallsRemain(usize),
     HostPanicked,
     Notifier(NotifierJoinError),
     Recovery {

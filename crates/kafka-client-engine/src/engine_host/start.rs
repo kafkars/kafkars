@@ -12,7 +12,7 @@ use crate::{
         AdminCompletionNotifier, AdminCompletionPorts, CreatePartitionsHost,
         CreatePartitionsShardOwner, CreateTopicsHost, CreateTopicsShardOwner, DeleteTopicsHost,
         DeleteTopicsShardOwner, DescribeClusterHost, DescribeClusterShardOwner, DescribeTopicsHost,
-        DescribeTopicsShardOwner,
+        DescribeTopicsShardOwner, IncrementalAlterConfigsHost, IncrementalAlterConfigsShardOwner,
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
@@ -85,13 +85,14 @@ pub(crate) fn start(
         create_partitions,
         describe_topics,
         describe_configs,
-        incremental_alter_configs: _incremental_alter_configs,
+        incremental_alter_configs,
     } = admin_ports;
     let create_topics = CreateTopicsHost::new(create_topics);
     let delete_topics = DeleteTopicsHost::new(delete_topics);
     let describe_cluster = DescribeClusterHost::new(describe_cluster);
     let create_partitions = CreatePartitionsHost::new(create_partitions);
     let describe_topics = DescribeTopicsHost::new(describe_topics);
+    let incremental_alter_configs = IncrementalAlterConfigsHost::new(incremental_alter_configs);
     let producer = match ProducerHost::new_with_compression_wake(validated.host_limits, &wake) {
         Ok(producer) => producer,
         Err(error) => {
@@ -123,6 +124,11 @@ pub(crate) fn start(
     let describe_topics_admission = describe_topics.admission_port();
     let describe_configs =
         describe_configs_start::start(describe_configs, Arc::new(driver.reactor_wake()));
+    let incremental_alter_configs = IncrementalAlterConfigsShardOwner::new(
+        incremental_alter_configs,
+        Arc::new(driver.reactor_wake()),
+    );
+    let incremental_alter_configs_admission = incremental_alter_configs.admission_port();
     let produce_calls =
         crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
     let resources = EngineHostResources {
@@ -136,6 +142,7 @@ pub(crate) fn start(
         create_partitions,
         describe_topics,
         describe_configs: describe_configs.owner,
+        incremental_alter_configs,
         assigned_consumer: assigned_consumer_owner,
         clock: Arc::clone(&clock),
         control: Arc::clone(&control),
@@ -158,6 +165,9 @@ pub(crate) fn start(
             crate::admin::DESCRIBE_TOPICS_CAPACITY,
         ),
         describe_configs_calls: describe_configs.calls,
+        incremental_alter_configs_calls: crate::driver::IncrementalAlterConfigsCalls::new(
+            crate::admin::INCREMENTAL_ALTER_CONFIGS_CAPACITY,
+        ),
     };
     if let Err(error) = sender.send(resources) {
         control.request_shutdown();
@@ -178,6 +188,7 @@ pub(crate) fn start(
         create_partitions_admission,
         describe_topics_admission,
         describe_configs_admission: describe_configs.admission,
+        incremental_alter_configs_admission,
         assigned_consumer,
         clock,
         control,

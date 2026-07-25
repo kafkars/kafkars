@@ -94,6 +94,13 @@ impl fmt::Display for EngineHostError {
             Self::DescribeConfigsLockPoisoned => {
                 formatter.write_str("DescribeConfigs host ownership lock is poisoned")
             }
+            Self::IncrementalAlterConfigs(error) => {
+                write!(formatter, "IncrementalAlterConfigs host failed: {error}")
+            }
+            Self::IncrementalAlterConfigsCompletion(error) => write!(formatter, "{error}"),
+            Self::IncrementalAlterConfigsLockPoisoned => {
+                formatter.write_str("IncrementalAlterConfigs host ownership lock is poisoned")
+            }
             Self::AdminCompletion(error) => {
                 write!(
                     formatter,
@@ -147,6 +154,12 @@ impl fmt::Display for EngineHostError {
                 write!(
                     formatter,
                     "{count} DescribeConfigs calls remain at terminal cleanup"
+                )
+            }
+            Self::IncrementalAlterConfigsCallsRemain(count) => {
+                write!(
+                    formatter,
+                    "{count} IncrementalAlterConfigs calls remain at terminal cleanup"
                 )
             }
             Self::HostPanicked => formatter.write_str("engine host thread panicked"),

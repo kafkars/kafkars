@@ -6,9 +6,13 @@ use kafka_client_core::IncrementalAlterConfigsMachineError;
 
 use crate::completion::CompletionRegistryError;
 
-/// Definitely-unsent rejection before an incremental configuration operation exists.
+/// Stable category for a request that never crossed admission.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum IncrementalAlterConfigsAdmissionErrorKind {
+pub enum IncrementalAlterConfigsAdmissionErrorKind {
+    /// The request violates deterministic validation.
+    InvalidRequest,
+    /// The requested timeout cannot become an absolute deadline.
+    InvalidDeadline,
     /// The concrete operation vector has no free slot.
     Capacity,
     /// Admin admission has closed.
@@ -23,6 +27,35 @@ pub(crate) enum IncrementalAlterConfigsAdmissionErrorKind {
     RetainedBytes,
 }
 
+/// Immediate definitely-unsent `IncrementalAlterConfigs` rejection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct IncrementalAlterConfigsAdmissionError {
+    kind: IncrementalAlterConfigsAdmissionErrorKind,
+}
+
+impl IncrementalAlterConfigsAdmissionError {
+    pub(crate) const fn new(kind: IncrementalAlterConfigsAdmissionErrorKind) -> Self {
+        Self { kind }
+    }
+
+    /// Returns the stable rejection category.
+    pub const fn kind(self) -> IncrementalAlterConfigsAdmissionErrorKind {
+        self.kind
+    }
+}
+
+impl fmt::Display for IncrementalAlterConfigsAdmissionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "IncrementalAlterConfigs admission failed: {:?}",
+            self.kind
+        )
+    }
+}
+
+impl std::error::Error for IncrementalAlterConfigsAdmissionError {}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum IncrementalAlterConfigsHostError {
     Machine(IncrementalAlterConfigsMachineError),
@@ -33,6 +66,7 @@ pub(crate) enum IncrementalAlterConfigsHostError {
     SubmissionMismatch,
     InvalidHandoff,
     ByteAccounting,
+    Unsettled(usize),
     Wake,
 }
 

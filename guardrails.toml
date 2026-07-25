@@ -2592,6 +2592,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/admin/describe_cluster.rs",
   "crates/kafka-client-engine/src/engine_host/admin/describe_configs.rs",
   "crates/kafka-client-engine/src/engine_host/admin/describe_topics.rs",
+  "crates/kafka-client-engine/src/engine_host/admin/incremental_alter_configs.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
 
@@ -2613,6 +2614,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/admin/describe_cluster.rs",
   "crates/kafka-client-engine/src/engine_host/admin/describe_configs.rs",
   "crates/kafka-client-engine/src/engine_host/admin/describe_topics.rs",
+  "crates/kafka-client-engine/src/engine_host/admin/incremental_alter_configs.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
 
@@ -2635,6 +2637,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/admin/describe_cluster.rs",
   "crates/kafka-client-engine/src/engine_host/admin/describe_configs.rs",
   "crates/kafka-client-engine/src/engine_host/admin/describe_topics.rs",
+  "crates/kafka-client-engine/src/engine_host/admin/incremental_alter_configs.rs",
   "crates/kafka-client-engine/src/engine_host/produce.rs",
 ]
 
@@ -6687,6 +6690,10 @@ path = "crates/kafka-client-engine/src/admin/configs/shard.rs"
 [[linear_owners]]
 owner_type = "DescribeConfigsObserver"
 path = "crates/kafka-client-engine/src/admin/configs/observer.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/alter_configs/handle.rs"
+test = "crates/kafka-client-engine/src/admin/alter_configs/handle_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/admin/alter_configs/model.rs"

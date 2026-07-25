@@ -6,6 +6,7 @@ use crate::{
         CreateTopicsShardWakeError, DeleteTopicsShardWake, DeleteTopicsShardWakeError,
         DescribeClusterShardWake, DescribeClusterShardWakeError, DescribeConfigsShardWake,
         DescribeConfigsShardWakeError, DescribeTopicsShardWake, DescribeTopicsShardWakeError,
+        IncrementalAlterConfigsShardWake, IncrementalAlterConfigsShardWakeError,
     },
     driver::ReactorWake,
 };
@@ -49,5 +50,12 @@ impl DescribeConfigsShardWake for ReactorWake {
     fn wake(&self) -> Result<(), DescribeConfigsShardWakeError> {
         self.request()
             .map_err(|error| DescribeConfigsShardWakeError::from_io(error.into_io()))
+    }
+}
+
+impl IncrementalAlterConfigsShardWake for ReactorWake {
+    fn wake(&self) -> Result<(), IncrementalAlterConfigsShardWakeError> {
+        self.request()
+            .map_err(|error| IncrementalAlterConfigsShardWakeError::from_io(error.into_io()))
     }
 }

@@ -6,7 +6,7 @@ use super::{
     create_partitions::CreatePartitionsProgress, create_topics::CreateTopicsProgress,
     delete_topics::DeleteTopicsProgress, describe_cluster::DescribeClusterProgress,
     describe_configs::DescribeConfigsProgress, describe_topics::DescribeTopicsProgress,
-    schedule::combine,
+    incremental_alter_configs::IncrementalAlterConfigsProgress, schedule::combine,
 };
 
 #[test]
@@ -34,6 +34,7 @@ fn saturated_create_lane_cannot_hide_runnable_delete_work() {
         },
         &idle_topics(),
         &idle_configs(),
+        &idle_alter_configs(),
     );
     assert_eq!(combined.unsettled, usize::MAX);
     assert!(combined.driver_progress);
@@ -66,6 +67,7 @@ fn either_concrete_owner_prevents_false_shutdown_quiescence() {
             },
             &idle_topics(),
             &idle_configs(),
+            &idle_alter_configs(),
         );
         assert_ne!(combined.unsettled, 0);
         assert_eq!(combined.next_deadline, Some(Deadline::from_tick(5)));
@@ -97,6 +99,7 @@ fn describe_cluster_owner_prevents_false_shutdown_quiescence() {
         },
         &idle_topics(),
         &idle_configs(),
+        &idle_alter_configs(),
     );
     assert_eq!(combined.unsettled, 1);
     assert_eq!(combined.next_deadline, Some(Deadline::from_tick(7)));
@@ -127,6 +130,7 @@ fn saturated_delete_lane_cannot_hide_runnable_describe_cluster_work() {
         },
         &idle_topics(),
         &idle_configs(),
+        &idle_alter_configs(),
     );
     assert_eq!(combined.unsettled, usize::MAX);
     assert!(combined.driver_progress);
@@ -158,6 +162,7 @@ fn create_partitions_owner_is_independent_and_prevents_false_quiescence() {
         },
         &idle_topics(),
         &idle_configs(),
+        &idle_alter_configs(),
     );
     assert_eq!(combined.unsettled, usize::MAX);
     assert!(combined.driver_progress);
@@ -193,6 +198,7 @@ fn describe_topics_owner_is_independent_and_prevents_false_quiescence() {
             next_deadline: Some(Deadline::from_tick(2)),
         },
         &idle_configs(),
+        &idle_alter_configs(),
     );
     assert_eq!(combined.unsettled, usize::MAX);
     assert!(combined.driver_progress);
@@ -228,6 +234,7 @@ fn describe_configs_owner_is_independent_and_prevents_false_quiescence() {
             driver_progress: true,
             next_deadline: Some(Deadline::from_tick(2)),
         },
+        &idle_alter_configs(),
     );
     assert_eq!(combined.unsettled, 1);
     assert!(combined.driver_progress);
@@ -244,6 +251,14 @@ const fn idle_topics() -> DescribeTopicsProgress {
 
 const fn idle_configs() -> DescribeConfigsProgress {
     DescribeConfigsProgress {
+        unsettled: 0,
+        driver_progress: false,
+        next_deadline: None,
+    }
+}
+
+const fn idle_alter_configs() -> IncrementalAlterConfigsProgress {
+    IncrementalAlterConfigsProgress {
         unsettled: 0,
         driver_progress: false,
         next_deadline: None,

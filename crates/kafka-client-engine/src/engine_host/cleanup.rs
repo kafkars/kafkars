@@ -119,6 +119,12 @@ fn verify_tracked_calls(resources: &EngineHostResources) -> Result<(), EngineHos
     if configs != 0 {
         return Err(EngineHostError::DescribeConfigsCallsRemain(configs));
     }
+    let alter_configs = resources.incremental_alter_configs_calls.retained_count();
+    if alter_configs != 0 {
+        return Err(EngineHostError::IncrementalAlterConfigsCallsRemain(
+            alter_configs,
+        ));
+    }
     Ok(())
 }
 
@@ -157,6 +163,15 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
     if configs != 0 {
         return Err(EngineHostError::DescribeConfigs(
             crate::admin::DescribeConfigsHostError::Unsettled(configs),
+        ));
+    }
+    let alter_configs = resources
+        .incremental_alter_configs
+        .terminal_host()
+        .unsettled();
+    if alter_configs != 0 {
+        return Err(EngineHostError::IncrementalAlterConfigs(
+            crate::admin::IncrementalAlterConfigsHostError::Unsettled(alter_configs),
         ));
     }
     Ok(())
