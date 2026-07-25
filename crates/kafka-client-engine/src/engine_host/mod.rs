@@ -28,6 +28,9 @@ mod group_consumer_shutdown;
 mod group_consumer_shutdown_test;
 #[cfg(test)]
 mod group_consumer_test;
+mod group_consumer_wake;
+#[cfg(test)]
+mod group_consumer_wake_test;
 mod lifecycle;
 #[cfg(test)]
 mod lifecycle_test;

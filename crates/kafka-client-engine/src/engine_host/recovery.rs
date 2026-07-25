@@ -65,7 +65,7 @@ pub(crate) fn recover(
     #[cfg(test)]
     resources.control.record_group_recovery_started();
     let (group_consumer_notifier, group_consumer_failure) =
-        group_consumer_shutdown::recover_after_driver_shutdown(&mut resources.group_consumers);
+        group_consumer_shutdown::recover_after_driver_shutdown(&resources.group_consumers);
     if let Some(cleanup) = group_consumer_failure {
         failure = failure.with_cleanup(cleanup);
     }

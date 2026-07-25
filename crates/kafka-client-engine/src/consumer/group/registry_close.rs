@@ -1,12 +1,12 @@
 //! Per-group close fences and whole-registry shutdown ownership.
 
-use kafka_client_core::GroupId;
+use kafka_client_core::{GroupId, Moment};
 
 use crate::completion::NotifierJoin;
 
 use super::{
     registry::GroupConsumerRegistry, registry_entry::GroupConsumerEntryState,
-    registry_host::GroupConsumerHostError,
+    registry_host::GroupConsumerHostError, registry_membership::GroupConsumerMembershipTurn,
 };
 
 /// A requested group close could not move an active entry to closing.
@@ -41,17 +41,42 @@ impl GroupConsumerRegistry {
 
     pub(crate) fn recover_after_driver_shutdown(&mut self) -> Result<(), GroupConsumerHostError> {
         self.close_admission();
+        let membership = self.recover_local_membership().err();
         let offset_commits = &mut self.offset_commits;
-        offset_commits
+        let offset_commit = offset_commits
             .recover_after_driver_shutdown()
-            .map_err(GroupConsumerHostError::from)
+            .err()
+            .map(GroupConsumerHostError::from);
+        membership.map_or_else(
+            || offset_commit.map_or(Ok(()), Err),
+            |error| Err(GroupConsumerHostError::membership(error)),
+        )
     }
 
     pub(crate) fn finish_shutdown(&mut self) -> Result<NotifierJoin, GroupConsumerHostError> {
+        let membership = self.membership_unsettled();
+        if membership != 0 {
+            return Err(GroupConsumerHostError::membership_unsettled(membership));
+        }
         let offset_commits = &mut self.offset_commits;
         offset_commits
             .finish_shutdown()
             .map_err(GroupConsumerHostError::from)
+    }
+
+    fn recover_local_membership(
+        &mut self,
+    ) -> Result<(), super::classic_group_execution::ClassicGroupExecutionError> {
+        let turn_limit = self.entries.len().saturating_add(1);
+        for _turn in 0..turn_limit {
+            match self.turn_membership(Moment::from_tick(u64::MAX))? {
+                GroupConsumerMembershipTurn::Progress => {}
+                GroupConsumerMembershipTurn::Idle | GroupConsumerMembershipTurn::Blocked => {
+                    break;
+                }
+            }
+        }
+        Ok(())
     }
 }
 

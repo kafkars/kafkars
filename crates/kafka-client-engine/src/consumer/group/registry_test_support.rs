@@ -3,13 +3,16 @@
 use std::sync::Arc;
 
 use kafka_client_core::{
-    Deadline, GroupAssignmentPartition, GroupCheckpoint, GroupCheckpointEntry, GroupId,
+    Deadline, GroupAssignmentPartition, GroupCheckpoint, GroupCheckpointEntry, GroupId, Moment,
     PartitionIndex, TopicId,
 };
 
 use crate::clock::OperationDeadline;
 
-use super::{classic_group_test_support, registry::GroupConsumerRegistry};
+use super::{
+    classic_group_test_support, registry::GroupConsumerRegistry,
+    registry_membership::GroupConsumerMembershipTurn,
+};
 
 pub(super) fn started_registry() -> GroupConsumerRegistry {
     GroupConsumerRegistry::start().unwrap_or_else(|error| panic!("registry start failed: {error}"))
@@ -77,6 +80,20 @@ pub(super) fn deadline(tick: u64) -> OperationDeadline {
 
 pub(super) fn stop_registry(registry: &mut GroupConsumerRegistry) {
     registry.close_admission();
+    let turn_limit = registry.entries.len().saturating_add(1);
+    for _turn in 0..turn_limit {
+        match registry
+            .turn_membership(Moment::from_tick(u64::MAX))
+            .unwrap_or_else(|error| panic!("membership stop failed: {error:?}"))
+        {
+            GroupConsumerMembershipTurn::Progress => {}
+            GroupConsumerMembershipTurn::Idle => break,
+            GroupConsumerMembershipTurn::Blocked => {
+                panic!("driver-owned membership must be recovered before test stop")
+            }
+        }
+    }
+    assert_eq!(registry.membership_unsettled(), 0);
     let join = registry
         .finish_shutdown()
         .unwrap_or_else(|error| panic!("finish shutdown failed: {error}"));

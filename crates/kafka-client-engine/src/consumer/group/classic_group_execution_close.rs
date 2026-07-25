@@ -1,0 +1,108 @@
+//! Local close policy using the execution owner's guarded state operations.
+
+use kafka_client_core::{ClassicGroupEffect, ClassicGroupInput, ClassicGroupPhase};
+
+use super::{
+    classic_group_execution::{ClassicGroupExecution, ClassicGroupExecutionError},
+    classic_group_join::ClassicGroupExecutionState,
+    classic_group_owner::ClassicGroupOwner,
+    session_catalog::GroupSessionCatalog,
+};
+
+impl ClassicGroupExecution {
+    pub(super) fn close_if_local(
+        &mut self,
+        owner: &mut ClassicGroupOwner,
+        catalog: &mut GroupSessionCatalog,
+    ) -> Result<ClassicGroupCloseProgress, ClassicGroupExecutionError> {
+        match self.borrow_execution_state() {
+            ClassicGroupExecutionState::JoinDriverOwned(driver_owned) => {
+                return if owner.machine().group_id() == driver_owned.identity().group_id()
+                    && owner.machine().active_cycle() == Some(driver_owned.identity().cycle())
+                {
+                    Ok(ClassicGroupCloseProgress::DriverOwned)
+                } else {
+                    Err(ClassicGroupExecutionError::HandoffMismatch)
+                };
+            }
+            ClassicGroupExecutionState::JoinHandoff(_) => {
+                return Err(ClassicGroupExecutionError::HandoffIncomplete);
+            }
+            ClassicGroupExecutionState::CloseFault {
+                revoke_failure_kind,
+                ..
+            } => {
+                return Err(ClassicGroupExecutionError::Assignment(*revoke_failure_kind));
+            }
+            ClassicGroupExecutionState::Idle
+                if owner.machine().phase() == ClassicGroupPhase::Closed =>
+            {
+                return Ok(ClassicGroupCloseProgress::AlreadyClosed);
+            }
+            ClassicGroupExecutionState::Idle | ClassicGroupExecutionState::PreparedJoin(_) => {}
+        }
+        let transition = owner
+            .apply(ClassicGroupInput::Close)
+            .map_err(|error| ClassicGroupExecutionError::Core(error.kind()))?;
+        match transition.into_effects().next() {
+            None => {}
+            Some(ClassicGroupEffect::Revoke {
+                assignment,
+                classic_generation,
+            }) => match owner.prepare_revoke(catalog, assignment, classic_generation) {
+                Ok(prepared) => prepared.commit(),
+                Err(failure) => {
+                    let kind = failure.kind;
+                    self.set_execution_state(ClassicGroupExecutionState::CloseFault {
+                        revoke_assignment: failure.assignment,
+                        revoke_generation: classic_generation,
+                        revoke_failure_kind: kind,
+                    });
+                    return Err(ClassicGroupExecutionError::Assignment(kind));
+                }
+            },
+            Some(_) => return Err(ClassicGroupExecutionError::UnexpectedCloseEffect),
+        }
+        self.set_execution_state(ClassicGroupExecutionState::Idle);
+        Ok(ClassicGroupCloseProgress::Progress)
+    }
+
+    pub(super) fn retry_close_fault(
+        &mut self,
+        owner: &ClassicGroupOwner,
+        catalog: &mut GroupSessionCatalog,
+    ) -> Result<(), ClassicGroupExecutionError> {
+        let state = self.replace_execution_state(ClassicGroupExecutionState::Idle);
+        let ClassicGroupExecutionState::CloseFault {
+            revoke_assignment,
+            revoke_generation,
+            revoke_failure_kind: _,
+        } = state
+        else {
+            self.set_execution_state(state);
+            return Err(ClassicGroupExecutionError::CloseNotFaulted);
+        };
+        match owner.prepare_revoke(catalog, revoke_assignment, revoke_generation) {
+            Ok(prepared) => {
+                prepared.commit();
+                Ok(())
+            }
+            Err(failure) => {
+                let kind = failure.kind;
+                self.set_execution_state(ClassicGroupExecutionState::CloseFault {
+                    revoke_assignment: failure.assignment,
+                    revoke_generation,
+                    revoke_failure_kind: kind,
+                });
+                Err(ClassicGroupExecutionError::Assignment(kind))
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ClassicGroupCloseProgress {
+    AlreadyClosed,
+    Progress,
+    DriverOwned,
+}

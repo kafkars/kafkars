@@ -47,7 +47,7 @@ pub(crate) struct EngineHostResources {
     pub(super) describe_configs: DescribeConfigsShardOwner,
     pub(super) incremental_alter_configs: IncrementalAlterConfigsShardOwner,
     pub(super) assigned_consumer: crate::consumer::AssignedConsumerShardOwner,
-    pub(super) group_consumers: crate::consumer::GroupConsumerRegistry,
+    pub(super) group_consumers: crate::consumer::GroupConsumerShardOwner,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) control: Arc<EngineHostControl>,
     pub(super) budget: ProducerTurnBudget,
@@ -221,9 +221,14 @@ pub(super) fn group_consumer_wait(
     if progress.progressed {
         return Duration::ZERO;
     }
-    progress.next_deadline.map_or(current, |deadline| {
+    let wait = progress.next_deadline.map_or(current, |deadline| {
         current.min(duration_until(now, deadline))
-    })
+    });
+    if progress.blocked_work {
+        wait.min(BLOCKED_RETRY_DELAY)
+    } else {
+        wait
+    }
 }
 
 fn duration_until(now: Moment, deadline: Deadline) -> Duration {

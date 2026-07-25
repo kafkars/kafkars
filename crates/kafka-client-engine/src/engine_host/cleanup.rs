@@ -26,7 +26,7 @@ pub(super) fn begin_notification_shutdown(
         .map_err(EngineHostError::AssignedConsumerCompletion);
     let assigned_consumer_fallback = resources.assigned_consumer_notifier.take_join();
     let (group_consumer, group_consumer_fallback) =
-        group_consumer_shutdown::stop(&mut resources.group_consumers);
+        group_consumer_shutdown::stop(&resources.group_consumers);
     Ok(collect_notification_joins(
         producer,
         [

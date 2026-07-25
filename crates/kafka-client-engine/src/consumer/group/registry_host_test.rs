@@ -25,6 +25,7 @@ fn one_registry_turn_expires_one_queued_commit_at_its_original_deadline() {
         registry
             .turn(Moment::from_tick(7), &driver)
             .unwrap_or_else(|error| panic!("registry turn: {error}"))
+            .progressed
     );
     assert_eq!(registry.unsettled(), 0);
     assert!(accepted.observer.wait().is_ok());

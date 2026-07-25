@@ -8702,6 +8702,8 @@ field = "entries"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_close.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_cycle.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_session.rs",
 ]
 
@@ -8993,3 +8995,544 @@ path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_termi
 [[linear_owners]]
 owner_type = "SyncGroupShutdownRecovery"
 path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs"
+
+# Classic membership execution owns deadline transfer and one synchronized
+# host-admission seam without admitting protocol or runtime policy.
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_execution.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_close.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_close_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_handoff.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_handoff_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_join_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/registry_cycle.rs"
+test = "crates/kafka-client-engine/src/consumer/group/registry_cycle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/registry_membership.rs"
+test = "crates/kafka-client-engine/src/consumer/group/registry_membership_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/registry_port.rs"
+test = "crates/kafka-client-engine/src/consumer/group/registry_port_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/registry_shard.rs"
+test = "crates/kafka-client-engine/src/consumer/group/registry_shard_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/registry_wake.rs"
+test = "crates/kafka-client-engine/src/consumer/group/registry_wake_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/group_consumer_wake.rs"
+test = "crates/kafka-client-engine/src/engine_host/group_consumer_wake_test.rs"
+
+[[authority_tokens]]
+owner_type = "PreparedClassicGroupJoin"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
+fields = ["prepared_join_identity"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs",
+]
+
+[[authority_tokens]]
+owner_type = "ClassicGroupJoinHandoff"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
+fields = ["handed_off_join"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs",
+]
+
+[[authority_tokens]]
+owner_type = "ClassicGroupJoinDriverAcceptance"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
+fields = ["accepted_join"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs",
+]
+
+[[authority_tokens]]
+owner_type = "ClassicGroupJoinTracking"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
+fields = ["tracked_join_identity"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs",
+]
+
+[[authority_tokens]]
+owner_type = "ClassicGroupJoinIntegrationOwner"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
+fields = ["driver_owned_join"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs",
+]
+
+[[authority_tokens]]
+owner_type = "ClassicGroupExecution"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_execution.rs"
+fields = ["classic_execution_state"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution.rs",
+]
+
+[[authority_tokens]]
+owner_type = "GroupConsumerShardState"
+path = "crates/kafka-client-engine/src/consumer/group/registry_shard.rs"
+fields = [
+  "registry_owner",
+  "admission_fence",
+  "reactor_wake",
+]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_shard.rs",
+]
+
+[[linear_owners]]
+owner_type = "PreparedClassicGroupJoin"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupJoinHandoff"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupJoinDriverAcceptance"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupJoinTracking"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupJoinIntegrationOwner"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupExecutionState"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupExecution"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_execution.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerShardState"
+path = "crates/kafka-client-engine/src/consumer/group/registry_shard.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerShardOwner"
+path = "crates/kafka-client-engine/src/consumer/group/registry_shard.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerCycleAdmission"
+path = "crates/kafka-client-engine/src/consumer/group/registry_port.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerPortRegistrationFailure"
+path = "crates/kafka-client-engine/src/consumer/group/registry_port.rs"
+
+[[mutation_owners]]
+owner_type = "ClassicGroupExecution"
+field = "classic_execution_state"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerShardState"
+field = "registry_owner"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_shard.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerShardState"
+field = "admission_fence"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_shard.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "try_begin_classic_cycle"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_port.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "into_driver_acceptance"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "confirm_join_driver_owned"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "recover_join_after_driver_shutdown"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "borrow_execution_state"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_close.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_handoff.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "replace_execution_state"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_close.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_handoff.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "set_execution_state"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_close.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_handoff.rs",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_execution.rs"
+forbidden = [
+  "crate::admin",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_close.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_handoff.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
+forbidden = [
+  "crate::admin",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/registry_cycle.rs"
+forbidden = [
+  "crate::admin",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/registry_membership.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/registry_port.rs"
+forbidden = [
+  "crate::admin",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/registry_shard.rs"
+forbidden = [
+  "crate::admin",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/registry_wake.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/engine_host/group_consumer_wake.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+]

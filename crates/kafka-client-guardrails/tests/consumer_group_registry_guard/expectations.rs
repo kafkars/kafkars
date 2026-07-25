@@ -16,7 +16,13 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
 pub(super) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
     (
         "entries",
-        &["registry.rs", "registry_close.rs", "registry_session.rs"],
+        &[
+            "registry.rs",
+            "registry_close.rs",
+            "registry_cycle.rs",
+            "registry_membership.rs",
+            "registry_session.rs",
+        ],
     ),
     ("next_group_id", &["registry.rs"]),
     ("retained_group_bytes", &["registry.rs"]),

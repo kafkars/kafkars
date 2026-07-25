@@ -2,30 +2,55 @@
 
 use kafka_client_core::{Deadline, Moment};
 
-use crate::{consumer::GroupConsumerRegistry, driver::DriverOwner};
+use crate::{
+    consumer::{GroupConsumerRegistry, GroupConsumerShardLockError, GroupConsumerShardOwner},
+    driver::DriverOwner,
+};
 
 use super::{EngineHostError, EngineHostResources};
 
 pub(super) struct GroupConsumerProgress {
     pub(super) unsettled: usize,
     pub(super) progressed: bool,
+    pub(super) blocked_work: bool,
     pub(super) next_deadline: Option<Deadline>,
 }
 
 pub(super) fn drive(
-    resources: &mut EngineHostResources,
+    resources: &EngineHostResources,
     stage_now: Moment,
 ) -> Result<GroupConsumerProgress, EngineHostError> {
     let driver = resources
         .driver
         .as_ref()
         .ok_or(EngineHostError::DriverOwnerMissing)?;
-    drive_registry(
-        &mut resources.group_consumers,
+    drive_shard(
+        &resources.group_consumers,
         driver,
         resources.control.shutdown_requested(),
         stage_now,
     )
+}
+
+pub(super) fn drive_shard(
+    shard: &GroupConsumerShardOwner,
+    driver: &DriverOwner,
+    shutdown: bool,
+    stage_now: Moment,
+) -> Result<GroupConsumerProgress, EngineHostError> {
+    if shutdown {
+        shard.close_admission();
+    }
+    let mut registry = match shard.try_registry() {
+        Ok(registry) => registry,
+        Err(GroupConsumerShardLockError::Contended) => {
+            return Ok(GroupConsumerProgress::contended());
+        }
+        Err(GroupConsumerShardLockError::Poisoned) => {
+            return Err(EngineHostError::GroupConsumerLockPoisoned);
+        }
+    };
+    drive_registry(&mut registry, driver, shutdown, stage_now)
 }
 
 pub(super) fn drive_registry(
@@ -37,12 +62,24 @@ pub(super) fn drive_registry(
     if shutdown {
         registry.close_admission();
     }
-    let progressed = registry
+    let turn = registry
         .turn(stage_now, driver)
         .map_err(EngineHostError::GroupConsumer)?;
     Ok(GroupConsumerProgress {
         unsettled: registry.unsettled(),
-        progressed,
+        progressed: turn.progressed,
+        blocked_work: turn.blocked_work,
         next_deadline: registry.next_deadline(),
     })
+}
+
+impl GroupConsumerProgress {
+    const fn contended() -> Self {
+        Self {
+            unsettled: usize::MAX,
+            progressed: false,
+            blocked_work: true,
+            next_deadline: None,
+        }
+    }
 }

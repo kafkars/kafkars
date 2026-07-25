@@ -5,6 +5,7 @@ use std::sync::Arc;
 use kafka_client_core::{ClassicGroupTiming, GroupId};
 
 use super::{
+    classic_group_execution::{ClassicGroupExecution, new_classic_group_execution},
     classic_group_owner::ClassicGroupOwner,
     session_catalog::{GroupSessionCatalog, GroupSessionCatalogError},
 };
@@ -21,6 +22,7 @@ pub(super) struct GroupConsumerEntry {
     pub(super) state: GroupConsumerEntryState,
     pub(super) catalog: GroupSessionCatalog,
     pub(super) classic: ClassicGroupOwner,
+    pub(super) execution: ClassicGroupExecution,
 }
 
 impl GroupConsumerEntry {
@@ -34,6 +36,7 @@ impl GroupConsumerEntry {
             state: GroupConsumerEntryState::Active,
             catalog: GroupSessionCatalog::try_new(group_id, Arc::clone(group), local_topics)?,
             classic: ClassicGroupOwner::new(group_id, timing),
+            execution: new_classic_group_execution(),
         })
     }
 

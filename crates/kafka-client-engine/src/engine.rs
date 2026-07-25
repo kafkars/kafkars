@@ -28,6 +28,7 @@ struct EngineInner {
     incremental_alter_configs_admission: crate::admin::IncrementalAlterConfigsAdmissionPort,
     assigned_consumer: crate::consumer::AssignedConsumerClaimSlot,
     assigned_consumer_admission: crate::consumer::AssignedConsumerAdmissionCloser,
+    group_consumer: crate::consumer::GroupConsumerPort,
     clock: Arc<crate::clock::MonotonicClock>,
     control: Arc<EngineHostControl>,
     lifecycle: Arc<EngineLifecycle>,
@@ -47,6 +48,7 @@ impl Engine {
             describe_configs_admission,
             incremental_alter_configs_admission,
             assigned_consumer,
+            group_consumer,
             clock,
             control,
             lifecycle,
@@ -66,6 +68,7 @@ impl Engine {
                 incremental_alter_configs_admission,
                 assigned_consumer,
                 assigned_consumer_admission,
+                group_consumer,
                 clock,
                 control,
                 lifecycle,
@@ -168,6 +171,7 @@ impl EngineInner {
         let _close_result = self.describe_configs_admission.close_admission();
         let _close_result = self.incremental_alter_configs_admission.close_admission();
         let _close_result = self.assigned_consumer_admission.close();
+        self.group_consumer.close_admission();
         self.lifecycle.request_and_wait(&self.control)
     }
 }
@@ -183,6 +187,7 @@ impl Drop for EngineInner {
         let _close_result = self.describe_configs_admission.close_admission();
         let _close_result = self.incremental_alter_configs_admission.close_admission();
         let _close_result = self.assigned_consumer_admission.close();
+        self.group_consumer.close_admission();
         self.lifecycle.request(&self.control);
     }
 }

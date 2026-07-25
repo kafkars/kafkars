@@ -46,6 +46,7 @@ pub(crate) enum EngineHostError {
     AssignedConsumerRecovery(Box<AssignedConsumerRecoveryReport>),
     AssignedConsumerCompletion(CompletionRegistryError),
     GroupConsumer(GroupConsumerHostError),
+    GroupConsumerLockPoisoned,
     CreateTopics(CreateTopicsHostError),
     CreateTopicsCompletion(CreateTopicsCompletionFailure),
     CreateTopicsLockPoisoned,

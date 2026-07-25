@@ -12,7 +12,7 @@ use crate::{
         IncrementalAlterConfigsAdmissionPort,
     },
     clock::MonotonicClock,
-    consumer::AssignedConsumerPort,
+    consumer::{AssignedConsumerPort, GroupConsumerPort},
     producer::ingress::ProducerAdmissionPort,
 };
 
@@ -28,6 +28,7 @@ pub(crate) struct StartedEngineHost {
     pub(crate) describe_configs_admission: DescribeConfigsAdmissionPort,
     pub(crate) incremental_alter_configs_admission: IncrementalAlterConfigsAdmissionPort,
     pub(crate) assigned_consumer: AssignedConsumerPort,
+    pub(crate) group_consumer: GroupConsumerPort,
     pub(crate) clock: Arc<MonotonicClock>,
     pub(crate) control: Arc<EngineHostControl>,
     pub(crate) lifecycle: Arc<EngineLifecycle>,

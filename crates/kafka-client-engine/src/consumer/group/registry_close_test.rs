@@ -1,11 +1,13 @@
 //! Per-group close isolation and whole-registry shutdown scenarios.
 
-use kafka_client_core::GroupOffsetCommitAdmissionErrorKind;
+use kafka_client_core::{GroupOffsetCommitAdmissionErrorKind, Moment};
 
 use super::{
     offset_commit::GroupOffsetCommitAdmissionFailureKind,
     registry_close::GroupConsumerCloseError,
     registry_commit::GroupConsumerCommitFailureKind,
+    registry_host::GroupConsumerHostError,
+    registry_membership::GroupConsumerMembershipTurn,
     registry_test_support::{
         checkpoint, deadline, install_session, register, started_registry, stop_registry,
     },
@@ -59,6 +61,16 @@ fn whole_registry_close_fences_every_entry_and_global_host_once() {
     assert_eq!(
         registry.close_group(group_id),
         Err(GroupConsumerCloseError::AlreadyClosing)
+    );
+    let shutdown_error = registry
+        .finish_shutdown()
+        .err()
+        .unwrap_or_else(|| panic!("unsettled membership must block shutdown"));
+    let expected = GroupConsumerHostError::membership_unsettled(1);
+    assert_eq!(shutdown_error, expected);
+    assert_eq!(
+        registry.turn_membership(Moment::from_tick(u64::MAX)),
+        Ok(GroupConsumerMembershipTurn::Progress)
     );
     let join = registry
         .finish_shutdown()

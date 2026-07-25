@@ -74,4 +74,7 @@ mod position_prepare_error;
 #[cfg(test)]
 mod position_prepare_error_test;
 pub use exports::*;
-pub(crate) use group::{GroupConsumerHostError, GroupConsumerRegistry};
+pub(crate) use group::{
+    GroupConsumerHostError, GroupConsumerPort, GroupConsumerRegistry, GroupConsumerShardLockError,
+    GroupConsumerShardOwner, GroupConsumerShardWake, GroupConsumerShardWakeError,
+};

@@ -15,7 +15,7 @@ use crate::{
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
-    consumer::GroupConsumerRegistry,
+    consumer::{GroupConsumerRegistry, GroupConsumerShardOwner},
     driver::DriverOwner,
     producer::{ProducerHost, ingress::ProducerShardOwner},
 };
@@ -118,6 +118,8 @@ pub(crate) fn start(
         &assigned_consumer_notifier,
         &group_consumers,
     );
+    let (group_consumers, group_consumer) =
+        GroupConsumerShardOwner::new(group_consumers, Arc::clone(&clock), Arc::clone(&wake));
     let producer = ProducerShardOwner::new(producer, Arc::clone(&wake));
     let admission = producer.admission_port();
     let create_topics = CreateTopicsShardOwner::new(create_topics, Arc::new(driver.reactor_wake()));
@@ -202,6 +204,7 @@ pub(crate) fn start(
         describe_configs_admission: describe_configs.admission,
         incremental_alter_configs_admission,
         assigned_consumer,
+        group_consumer,
         clock,
         control,
         lifecycle,
