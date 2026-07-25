@@ -548,7 +548,7 @@ evidence = [
 [[invariant]]
 id = "CON-08"
 title = "Classic Join and Sync are cycle- and assignment-fenced"
-statement = "One uniquely owned deterministic classic-group machine admits at most one nonreused Join and Sync cycle at a time. One original absolute deadline crosses that cycle, and only an exact due observation may expire it. Join success never activates an assignment: followers emit an empty Sync plan, while leaders require a bounded scalar, dynamic-member, non-rack-aware Range plan and may install only the exact local assignment computed by core. Only matching Sync success installs the exact live member, signed Kafka generation, ordered assignment, and nonreused core assignment generation. Explicit matching assignment loss revokes the prior assignment and Kafka-generation pair before another Join may begin. Stale, out-of-phase, stage-delayed, and failed cycle facts cannot mutate or install the live session."
+statement = "One uniquely owned deterministic classic-group machine admits at most one nonreused Join and Sync cycle at a time. One original absolute deadline crosses that cycle, and only an exact due observation may expire it. Join success never activates an assignment: followers emit an empty Sync plan, while leaders require a bounded scalar, dynamic-member, non-rack-aware Range plan and may install only the exact local assignment computed by core. Dynamic Range Join uses one wire-owned v0 subscription across the exact v1-v3 outer API window; bounded successful leader responses become engine-owned member and topic facts, while signed broker errors remain exact. Sync correlates every core plan slot and topic identity before emitting wire-owned v0 assignments across the exact v0-v2 outer API window. Successful Sync normalization preserves valid wire order for later catalog canonicalization while rejecting negative partitions and duplicate topics or partitions. Only matching Sync success installs the exact live member, signed Kafka generation, ordered assignment, and nonreused core assignment generation. Explicit matching assignment loss revokes the prior assignment and Kafka-generation pair before another Join may begin. Stale, out-of-phase, stage-delayed, and failed cycle facts cannot mutate or install the live session."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/consumer/classic_group/transition_test.rs::start_emits_one_join_for_the_exact_cycle_without_activating_assignment",
@@ -564,6 +564,13 @@ evidence = [
   "crates/kafka-client-core/src/consumer/classic_group/transition_test.rs::second_join_cycle_cannot_reuse_the_first_cycle_or_assignment_generation",
   "crates/kafka-client-core/src/consumer/classic_group/assignment_test.rs::range_splits_eight_partitions_across_three_ranked_members",
   "crates/kafka-client-core/src/consumer/classic_group/assignment_test.rs::range_uses_each_topics_subscriber_denominator",
+  "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_request_test.rs::request_is_dynamic_range_with_one_v0_subscription",
+  "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_test.rs::exact_versions_throttles_and_signed_broker_codes_are_preserved",
+  "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_test.rs::leader_success_returns_ordered_owned_candidate_parts",
+  "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_request_test.rs::leader_plan_is_correlated_by_slot_and_topic_identity",
+  "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_assignment_test.rs::maximum_accepted_assignment_round_trips_through_the_decode_bound",
+  "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_response_test.rs::wire_order_is_preserved_for_later_catalog_canonicalization",
+  "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_response_test.rs::exact_versions_throttles_and_signed_broker_codes_are_preserved",
 ]
 
 [[invariant]]

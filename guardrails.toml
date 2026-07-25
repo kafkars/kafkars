@@ -7267,8 +7267,104 @@ path = "crates/kafka-client-engine/src/admin/alter_configs/shard.rs"
 owner_type = "IncrementalAlterConfigsObserver"
 path = "crates/kafka-client-engine/src/admin/alter_configs/observer.rs"
 
-# Classic-group commit protocol, tracked driver calls, and the private bounded
-# host retain exact ownership until the public group consumer integrates them.
+# Classic-group membership and commit protocol seams, tracked driver calls, and
+# the private bounded host retain exact ownership until the public group
+# consumer integrates them.
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/classic_group/model.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/classic_group/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/classic_group/validation.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/classic_group/validation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_request.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_members.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_members_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_request.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_assignment.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_assignment_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_response.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_response_test.rs"
+
+[[linear_owners]]
+owner_type = "ClassicJoinedMember"
+path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/model.rs"
+
+[[linear_owners]]
+owner_type = "ClassicJoinedRole"
+path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/model.rs"
+
+[[linear_owners]]
+owner_type = "ClassicJoinedGroup"
+path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/model.rs"
+
+[[linear_owners]]
+owner_type = "ClassicJoinOutcome"
+path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/model.rs"
+
+[[linear_owners]]
+owner_type = "ClassicSyncMember"
+path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/model.rs"
+
+[[linear_owners]]
+owner_type = "ClassicSyncTopic"
+path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/model.rs"
+
+[[linear_owners]]
+owner_type = "NamedAssignmentPartition"
+path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/model.rs"
+
+[[linear_owners]]
+owner_type = "ClassicSyncOutcome"
+path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/model.rs"
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/protocol/consumer/classic_group"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::consumer",
+  "crate::driver",
+  "crate::producer",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire_records",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "async",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "Retry",
+  "RwLock",
+  "Transport",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "into_sync_assignments"
+allowed_paths = [
+  "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_request.rs",
+]
+
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/entry_reservation.rs"
 test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/entry_reservation_test.rs"

@@ -7,12 +7,14 @@ use kafka_driver::{
 };
 use kafka_wire::{SyncGroupRequest, SyncGroupResponse};
 
+use crate::protocol::consumer::{CLASSIC_SYNC_MAX_VERSION, CLASSIC_SYNC_MIN_VERSION};
+
 use super::{super::DriverOwner, group_coordinator_route::group_coordinator_route};
 
 // v2 is the last version before group_instance_id introduces static-membership
 // semantics that deterministic membership policy deliberately defers.
-pub(super) const SYNC_GROUP_MIN_VERSION: ApiVersion = ApiVersion::new(0);
-pub(super) const SYNC_GROUP_MAX_VERSION: ApiVersion = ApiVersion::new(2);
+pub(super) const SYNC_GROUP_MIN_VERSION: ApiVersion = ApiVersion::new(CLASSIC_SYNC_MIN_VERSION);
+pub(super) const SYNC_GROUP_MAX_VERSION: ApiVersion = ApiVersion::new(CLASSIC_SYNC_MAX_VERSION);
 
 /// Definitely-unsent failure before driver request ownership.
 #[derive(Debug)]

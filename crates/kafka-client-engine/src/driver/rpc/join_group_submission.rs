@@ -7,13 +7,15 @@ use kafka_driver::{
 };
 use kafka_wire::{JoinGroupRequest, JoinGroupResponse};
 
+use crate::protocol::consumer::{CLASSIC_JOIN_MAX_VERSION, CLASSIC_JOIN_MIN_VERSION};
+
 use super::{super::DriverOwner, group_coordinator_route::group_coordinator_route};
 
 // v1 carries the separate rebalance timeout. v3 is the last version before the
 // MEMBER_ID_REQUIRED handshake that deterministic membership policy does not
 // yet own.
-pub(super) const JOIN_GROUP_MIN_VERSION: ApiVersion = ApiVersion::new(1);
-pub(super) const JOIN_GROUP_MAX_VERSION: ApiVersion = ApiVersion::new(3);
+pub(super) const JOIN_GROUP_MIN_VERSION: ApiVersion = ApiVersion::new(CLASSIC_JOIN_MIN_VERSION);
+pub(super) const JOIN_GROUP_MAX_VERSION: ApiVersion = ApiVersion::new(CLASSIC_JOIN_MAX_VERSION);
 
 /// Definitely-unsent failure before driver request ownership.
 #[derive(Debug)]

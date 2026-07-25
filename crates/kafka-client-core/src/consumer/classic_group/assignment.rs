@@ -68,8 +68,8 @@ impl ClassicAssignmentPlan {
         &self.assignments
     }
 
-    /// Removes the complete linear plan for mechanism translation.
-    pub fn into_entries(self) -> Vec<ClassicMemberAssignment> {
+    /// Removes the complete linear plan for one Sync request translation.
+    pub fn into_sync_assignments(self) -> Vec<ClassicMemberAssignment> {
         self.assignments
     }
 }
