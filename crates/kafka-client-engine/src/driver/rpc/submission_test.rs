@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use kafka_client_core::{DeliveryStatus, ProducerAttemptFailureKind};
-use kafka_driver::{ApiVersion, RoutedCall, SubmitError, TrafficClass};
+use kafka_driver::{ApiKey, ApiVersion, RoutedCall, SubmitError, TrafficClass};
 use kafka_wire::{ProduceRequest, ProduceResponse};
 
 use crate::EngineConfig;
@@ -69,6 +69,11 @@ fn immediate_driver_rejections_are_normalized_without_retry_policy() {
     let full = ProduceSubmitError::Driver(SubmitError::Full);
     let wake = ProduceSubmitError::Driver(SubmitError::Wake(std::io::Error::other("wake")));
     let closed = ProduceSubmitError::Driver(SubmitError::Closed);
+    let invalid_bounds = ProduceSubmitError::Driver(SubmitError::VersionBoundsInvalid {
+        api_key: ApiKey::new(0),
+        minimum: ApiVersion::new(13),
+        maximum: ApiVersion::new(12),
+    });
 
     assert_eq!(
         full.failure_kind(),
@@ -79,6 +84,11 @@ fn immediate_driver_rejections_are_normalized_without_retry_policy() {
         ProducerAttemptFailureKind::ConnectionUnavailable
     );
     assert_eq!(closed.failure_kind(), ProducerAttemptFailureKind::Permanent);
+    assert_eq!(invalid_bounds.delivery(), DeliveryStatus::NotSent);
+    assert_eq!(
+        invalid_bounds.failure_kind(),
+        ProducerAttemptFailureKind::Permanent
+    );
 }
 
 fn assert_tracked_produce(_call: &RoutedCall<ProduceResponse>) {}

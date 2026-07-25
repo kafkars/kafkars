@@ -40,7 +40,10 @@ impl ProduceSubmitError {
             Self::Driver(SubmitError::Full) => ProducerAttemptFailureKind::LocalCapacity,
             Self::Driver(SubmitError::Wake(_)) => ProducerAttemptFailureKind::ConnectionUnavailable,
             Self::Driver(
-                SubmitError::Closed | SubmitError::IdentityExhausted | SubmitError::ForeignDriver,
+                SubmitError::Closed
+                | SubmitError::IdentityExhausted
+                | SubmitError::ForeignDriver
+                | SubmitError::VersionBoundsInvalid { .. },
             ) => ProducerAttemptFailureKind::Permanent,
         }
     }

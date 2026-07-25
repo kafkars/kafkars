@@ -77,3 +77,22 @@ fn unavailable_v2_fenced_view_is_definitely_unsent_compatibility() {
         }
     );
 }
+
+#[test]
+fn invalid_version_bounds_are_definitely_unsent_compatibility() {
+    assert_eq!(
+        normalize_terminal(
+            128 * 1024,
+            true,
+            false,
+            Err(RequestError::VersionBoundsInvalid {
+                api_key: ApiKey::new(60),
+                minimum: ApiVersion::new(2),
+                maximum: ApiVersion::new(1),
+            }),
+        ),
+        DescribeClusterInput::ProtocolIncompatible {
+            delivery: DeliveryStatus::NotSent,
+        }
+    );
+}
