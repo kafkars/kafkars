@@ -68,6 +68,7 @@ mod fetch_store;
 mod fetch_store_domain_test;
 #[cfg(test)]
 mod fetch_store_test;
+mod group;
 mod position_execution;
 mod position_prepare_error;
 #[cfg(test)]

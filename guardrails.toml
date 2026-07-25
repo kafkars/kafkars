@@ -7234,3 +7234,129 @@ path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement
 [[linear_owners]]
 owner_type = "TrackedGroupOffsetCommitCalls"
 path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls.rs"
+
+# Classic-group session identity is bounded state, not protocol or execution.
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/session_catalog.rs"
+test = "crates/kafka-client-engine/src/consumer/group/session_catalog_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/session_catalog_prepared.rs"
+test = "crates/kafka-client-engine/src/consumer/group/session_catalog_prepared_test.rs"
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/session_catalog.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/session_catalog_prepared.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
+[[mutation_owners]]
+owner_type = "GroupSessionCatalog"
+field = "next_member_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/session_catalog.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupSessionCatalog"
+field = "next_topic_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/session_catalog.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupSessionCatalog"
+field = "retained_topic_name_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/session_catalog.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupSessionCatalog"
+field = "topics_by_name"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/session_catalog.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupSessionCatalog"
+field = "topics_by_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/session_catalog.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupSessionCatalog"
+field = "current"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/session_catalog.rs",
+]
+
+[[linear_owners]]
+owner_type = "GroupSessionCatalog"
+path = "crates/kafka-client-engine/src/consumer/group/session_catalog.rs"
+
+[[linear_owners]]
+owner_type = "PreparedGroupSessionReplacement"
+path = "crates/kafka-client-engine/src/consumer/group/session_catalog_prepared.rs"
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "install_group_session_replacement"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/session_catalog_prepared.rs",
+]
