@@ -32,6 +32,24 @@ pub(crate) enum ClassicSyncRequestFailure {
     Encode(EncodeError),
 }
 
+/// Linear ownership of one validated generated classic Sync request.
+#[must_use = "a prepared classic Sync request must be submitted or deliberately released"]
+pub(crate) struct PreparedClassicSyncGroupRequest {
+    request: SyncGroupRequest,
+}
+
+impl PreparedClassicSyncGroupRequest {
+    /// Transfers the generated request at the tracked driver-call boundary.
+    pub(crate) fn into_generated_sync_group_request(self) -> SyncGroupRequest {
+        self.request
+    }
+
+    #[cfg(test)]
+    pub(super) const fn request_for_test(&self) -> &SyncGroupRequest {
+        &self.request
+    }
+}
+
 /// Builds one v0-v2-compatible dynamic Range `SyncGroup` request.
 pub(crate) fn classic_sync_group_request(
     group: &str,
@@ -40,7 +58,7 @@ pub(crate) fn classic_sync_group_request(
     plan: ClassicAssignmentPlan,
     members: &[ClassicSyncMember],
     topics: &[ClassicSyncTopic],
-) -> Result<SyncGroupRequest, ClassicSyncRequestFailure> {
+) -> Result<PreparedClassicSyncGroupRequest, ClassicSyncRequestFailure> {
     validate_inputs(group, local_member, plan.entries(), members, topics)?;
     let mut assignments = Vec::new();
     assignments
@@ -62,7 +80,7 @@ pub(crate) fn classic_sync_group_request(
     request.protocol_type = None;
     request.protocol_name = None;
     request.assignments = assignments;
-    Ok(request)
+    Ok(PreparedClassicSyncGroupRequest { request })
 }
 
 fn validate_inputs(

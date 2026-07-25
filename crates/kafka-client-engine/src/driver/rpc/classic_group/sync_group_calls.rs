@@ -1,9 +1,9 @@
 //! Bounded active and terminal ownership for concrete tracked `SyncGroup` calls.
 
 use kafka_driver::RoutedCall;
-use kafka_wire::{SyncGroupRequest, SyncGroupResponse};
+use kafka_wire::SyncGroupResponse;
 
-use crate::driver::DriverOwner;
+use crate::{driver::DriverOwner, protocol::consumer::PreparedClassicSyncGroupRequest};
 
 use super::{
     sync_group_settlement::{PendingSyncGroupConfirmation, SettledSyncGroupCall, SyncGroupPoll},
@@ -64,10 +64,14 @@ impl SyncGroupCallPermit<'_> {
     pub(crate) fn submit(
         self,
         driver: &DriverOwner,
-        request: SyncGroupRequest,
+        request: PreparedClassicSyncGroupRequest,
     ) -> Result<AcceptedSyncGroupCall, SyncGroupAdmissionFailure> {
         let call = driver
-            .submit_tracked_sync_group(self.group, request, self.key.deadline().transport())
+            .submit_tracked_sync_group(
+                self.group,
+                request.into_generated_sync_group_request(),
+                self.key.deadline().transport(),
+            )
             .map_err(|source| SyncGroupAdmissionFailure::new(self.key, source))?;
         self.calls.push(TrackedSyncGroupCall {
             key: self.key,

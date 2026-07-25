@@ -27,13 +27,31 @@ pub(crate) enum ClassicJoinRequestFailure {
     Encode(EncodeError),
 }
 
+/// Linear ownership of one validated generated classic Join request.
+#[must_use = "a prepared classic Join request must be submitted or deliberately released"]
+pub(crate) struct PreparedClassicJoinGroupRequest {
+    request: JoinGroupRequest,
+}
+
+impl PreparedClassicJoinGroupRequest {
+    /// Transfers the generated request at the tracked driver-call boundary.
+    pub(crate) fn into_generated_join_group_request(self) -> JoinGroupRequest {
+        self.request
+    }
+
+    #[cfg(test)]
+    pub(super) const fn request_for_test(&self) -> &JoinGroupRequest {
+        &self.request
+    }
+}
+
 /// Builds one v1-v3-compatible dynamic Range `JoinGroup` request.
 pub(crate) fn classic_join_group_request(
     group: &str,
     member: Option<&str>,
     topics: &[Arc<str>],
     timing: ClassicGroupTiming,
-) -> Result<JoinGroupRequest, ClassicJoinRequestFailure> {
+) -> Result<PreparedClassicJoinGroupRequest, ClassicJoinRequestFailure> {
     validate_inputs(group, member, topics)?;
     let mut subscription_topics = Vec::new();
     subscription_topics
@@ -68,7 +86,7 @@ pub(crate) fn classic_join_group_request(
     request.protocol_type = PROTOCOL_TYPE.into();
     request.protocols = protocols;
     request.reason = None;
-    Ok(request)
+    Ok(PreparedClassicJoinGroupRequest { request })
 }
 
 fn validate_inputs(

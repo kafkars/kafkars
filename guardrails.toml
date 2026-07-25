@@ -7338,6 +7338,14 @@ path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/model.rs"
 owner_type = "ClassicSyncOutcome"
 path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/model.rs"
 
+[[linear_owners]]
+owner_type = "PreparedClassicJoinGroupRequest"
+path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_request.rs"
+
+[[linear_owners]]
+owner_type = "PreparedClassicSyncGroupRequest"
+path = "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_request.rs"
+
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/protocol/consumer/classic_group"
 forbidden = [
@@ -7362,11 +7370,32 @@ forbidden = [
   "Transport",
 ]
 
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group"
+forbidden = [
+  "JoinGroupRequest",
+  "SyncGroupRequest",
+]
+
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "into_sync_assignments"
 allowed_paths = [
   "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_request.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "into_generated_join_group_request"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "into_generated_sync_group_request"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs",
 ]
 
 [[test_mirrors]]
@@ -8804,6 +8833,8 @@ forbidden = [
   "std::thread",
 ]
 allow = [
+  { path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs", capability = "crate::protocol", reason = "The exact Join call permit is the sole production boundary allowed to consume the opaque prepared protocol request." },
+  { path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs", capability = "crate::protocol", reason = "The exact Sync call permit is the sole production boundary allowed to consume the opaque prepared protocol request." },
   { path = "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_terminal_test.rs", capability = "Instant::now", reason = "Tests create an inert transport deadline without acquiring production clock authority." },
   { path = "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal_test.rs", capability = "Instant::now", reason = "Tests create an inert transport deadline without acquiring production clock authority." },
 ]

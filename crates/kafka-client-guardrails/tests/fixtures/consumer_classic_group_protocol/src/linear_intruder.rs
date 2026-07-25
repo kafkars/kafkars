@@ -16,3 +16,7 @@ struct ClassicSyncTopic;
 struct NamedAssignmentPartition;
 #[derive(Clone, Copy)]
 struct ClassicSyncOutcome;
+#[derive(Clone, Copy)]
+struct PreparedClassicJoinGroupRequest;
+#[derive(Clone, Copy)]
+struct PreparedClassicSyncGroupRequest;

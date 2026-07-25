@@ -44,7 +44,7 @@ fn maximum_accepted_assignment_round_trips_through_the_decode_bound() {
         .zip(topics)
         .map(|(topic_id, topic)| ClassicSyncTopic::new(topic_id, topic))
         .collect::<Vec<_>>();
-    let request = classic_sync_group_request(
+    let prepared = classic_sync_group_request(
         "workers",
         "member-a",
         ClassicGeneration::try_from_raw(7).unwrap_or_else(|| panic!("generation")),
@@ -53,6 +53,7 @@ fn maximum_accepted_assignment_round_trips_through_the_decode_bound() {
         &topic_map,
     )
     .unwrap_or_else(|error| panic!("maximum Sync request failed: {error:?}"));
+    let request = prepared.request_for_test();
     let mut response = SyncGroupResponse::default();
     response.assignment = request.assignments[0].assignment.clone();
     assert_eq!(response.assignment.len(), MAX_INNER_PAYLOAD_BYTES);

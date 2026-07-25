@@ -26,9 +26,10 @@ fn timing() -> ClassicGroupTiming {
 
 #[test]
 fn request_is_dynamic_range_with_one_v0_subscription() {
-    let request =
+    let prepared =
         classic_join_group_request("workers", None, &topics(&["orders", "payments"]), timing())
             .unwrap_or_else(|error| panic!("Join request failed: {error:?}"));
+    let request = prepared.request_for_test();
 
     assert_eq!(request.group_id.as_str(), "workers");
     assert_eq!(request.member_id.as_str(), "");
@@ -61,9 +62,10 @@ fn request_is_dynamic_range_with_one_v0_subscription() {
 
 #[test]
 fn generated_request_round_trips_at_both_exact_driver_bounds() {
-    let request =
+    let prepared =
         classic_join_group_request("workers", Some("member-a"), &topics(&["orders"]), timing())
             .unwrap_or_else(|error| panic!("Join request failed: {error:?}"));
+    let request = prepared.request_for_test();
 
     for version in [ApiVersion::new(1), ApiVersion::new(3)] {
         assert!(
@@ -82,7 +84,7 @@ fn generated_request_round_trips_at_both_exact_driver_bounds() {
         decoder
             .finish()
             .unwrap_or_else(|error| panic!("Join trailing bytes: {error}"));
-        assert_eq!(decoded, request);
+        assert_eq!(&decoded, request);
     }
 }
 
@@ -91,8 +93,9 @@ fn exact_timing_bounds_round_trip_unchanged() {
     let timing =
         ClassicGroupTiming::try_new(CLASSIC_GROUP_TIMEOUT_MIN_MS, CLASSIC_GROUP_TIMEOUT_MAX_MS)
             .unwrap_or_else(|error| panic!("timing failed: {error}"));
-    let request = classic_join_group_request("workers", None, &topics(&["orders"]), timing)
+    let prepared = classic_join_group_request("workers", None, &topics(&["orders"]), timing)
         .unwrap_or_else(|error| panic!("Join request failed: {error:?}"));
+    let request = prepared.request_for_test();
     let version = ApiVersion::new(3);
     let mut encoded = BytesMut::new();
     request
@@ -114,17 +117,17 @@ fn exact_timing_bounds_round_trip_unchanged() {
 fn structural_rejection_precedes_generated_request_ownership() {
     let duplicate = topics(&["orders", "orders"]);
     assert_eq!(
-        classic_join_group_request("workers", None, &duplicate, timing()),
-        Err(ClassicJoinRequestFailure::DuplicateTopic)
+        classic_join_group_request("workers", None, &duplicate, timing()).err(),
+        Some(ClassicJoinRequestFailure::DuplicateTopic)
     );
     let unordered = topics(&["payments", "orders"]);
     assert_eq!(
-        classic_join_group_request("workers", None, &unordered, timing()),
-        Err(ClassicJoinRequestFailure::OutOfOrderTopic)
+        classic_join_group_request("workers", None, &unordered, timing()).err(),
+        Some(ClassicJoinRequestFailure::OutOfOrderTopic)
     );
     assert_eq!(
-        classic_join_group_request("workers", Some(""), &[], timing()),
-        Err(ClassicJoinRequestFailure::InvalidMember)
+        classic_join_group_request("workers", Some(""), &[], timing()).err(),
+        Some(ClassicJoinRequestFailure::InvalidMember)
     );
 }
 
@@ -140,14 +143,14 @@ fn topic_count_and_spelling_bounds_are_exact() {
     let mut oversized = maximum;
     oversized.push(Arc::from("topic-64"));
     assert_eq!(
-        classic_join_group_request("workers", None, &oversized, timing()),
-        Err(ClassicJoinRequestFailure::TopicCount {
+        classic_join_group_request("workers", None, &oversized, timing()).err(),
+        Some(ClassicJoinRequestFailure::TopicCount {
             actual: MAX_TOPICS + 1,
             limit: MAX_TOPICS,
         })
     );
     assert_eq!(
-        classic_join_group_request("workers", None, &[Arc::from("x".repeat(250))], timing(),),
-        Err(ClassicJoinRequestFailure::InvalidTopic)
+        classic_join_group_request("workers", None, &[Arc::from("x".repeat(250))], timing(),).err(),
+        Some(ClassicJoinRequestFailure::InvalidTopic)
     );
 }

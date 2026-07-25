@@ -90,7 +90,7 @@ fn leader_plan() -> ClassicAssignmentPlan {
 
 #[test]
 fn follower_request_has_an_empty_assignment_plan() {
-    let request = classic_sync_group_request(
+    let prepared = classic_sync_group_request(
         "workers",
         "member-b",
         generation(),
@@ -99,6 +99,7 @@ fn follower_request_has_an_empty_assignment_plan() {
         &[],
     )
     .unwrap_or_else(|error| panic!("follower Sync failed: {error:?}"));
+    let request = prepared.request_for_test();
     assert_eq!(request.group_id.as_str(), "workers");
     assert_eq!(request.member_id.as_str(), "member-b");
     assert_eq!(request.generation_id, 7);
@@ -110,7 +111,7 @@ fn follower_request_has_an_empty_assignment_plan() {
 
 #[test]
 fn leader_plan_is_correlated_by_slot_and_topic_identity() {
-    let request = classic_sync_group_request(
+    let prepared = classic_sync_group_request(
         "workers",
         "member-a",
         generation(),
@@ -125,6 +126,7 @@ fn leader_plan_is_correlated_by_slot_and_topic_identity() {
         )],
     )
     .unwrap_or_else(|error| panic!("leader Sync failed: {error:?}"));
+    let request = prepared.request_for_test();
     assert_eq!(request.assignments.len(), 2);
     assert_eq!(request.assignments[0].member_id.as_str(), "member-a");
     assert_eq!(request.assignments[1].member_id.as_str(), "member-b");
@@ -148,7 +150,7 @@ fn leader_plan_is_correlated_by_slot_and_topic_identity() {
 
 #[test]
 fn generated_request_round_trips_at_both_exact_driver_bounds() {
-    let request = classic_sync_group_request(
+    let prepared = classic_sync_group_request(
         "workers",
         "member-b",
         generation(),
@@ -157,6 +159,7 @@ fn generated_request_round_trips_at_both_exact_driver_bounds() {
         &[],
     )
     .unwrap_or_else(|error| panic!("Sync request failed: {error:?}"));
+    let request = prepared.request_for_test();
     for version in [ApiVersion::new(0), ApiVersion::new(2)] {
         assert!(
             SYNC_GROUP_API_DESCRIPTOR
@@ -174,7 +177,7 @@ fn generated_request_round_trips_at_both_exact_driver_bounds() {
         decoder
             .finish()
             .unwrap_or_else(|error| panic!("Sync trailing bytes: {error}"));
-        assert_eq!(decoded, request);
+        assert_eq!(&decoded, request);
     }
 }
 
@@ -192,8 +195,8 @@ fn member_and_topic_correlations_are_exact() {
         )],
     );
     assert_eq!(
-        missing,
-        Err(ClassicSyncRequestFailure::MissingMember(slot(2)))
+        missing.err(),
+        Some(ClassicSyncRequestFailure::MissingMember(slot(2)))
     );
     let duplicate = classic_sync_group_request(
         "workers",
@@ -210,8 +213,8 @@ fn member_and_topic_correlations_are_exact() {
         )],
     );
     assert_eq!(
-        duplicate,
-        Err(ClassicSyncRequestFailure::DuplicateMemberSlot(slot(1)))
+        duplicate.err(),
+        Some(ClassicSyncRequestFailure::DuplicateMemberSlot(slot(1)))
     );
     let topic = classic_sync_group_request(
         "workers",
@@ -225,8 +228,8 @@ fn member_and_topic_correlations_are_exact() {
         &[],
     );
     assert_eq!(
-        topic,
-        Err(ClassicSyncRequestFailure::MissingTopic(TopicId::from_raw(
+        topic.err(),
+        Some(ClassicSyncRequestFailure::MissingTopic(TopicId::from_raw(
             1
         )))
     );
@@ -242,7 +245,8 @@ fn follower_rejects_an_unowned_assignment_mapping() {
             follower_plan(),
             &[ClassicSyncMember::new(slot(1), Arc::from("member-b"))],
             &[],
-        ),
-        Err(ClassicSyncRequestFailure::UnexpectedMember(slot(1)))
+        )
+        .err(),
+        Some(ClassicSyncRequestFailure::UnexpectedMember(slot(1)))
     );
 }

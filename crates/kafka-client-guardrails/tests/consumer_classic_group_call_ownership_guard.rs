@@ -156,13 +156,21 @@ fn checked_in_classic_group_call_policy_is_exact() {
             .collect::<Vec<_>>(),
         FORBIDDEN
     );
-    assert_eq!(rules[0].allow.len(), 2);
-    for (allow, expected_path) in rules[0].allow.iter().zip([
-        "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_terminal_test.rs",
-        "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal_test.rs",
+    assert_eq!(rules[0].allow.len(), 4);
+    for (allow, (expected_path, capability)) in rules[0].allow.iter().zip([
+        (JOIN_CALLS, "crate::protocol"),
+        (SYNC_CALLS, "crate::protocol"),
+        (
+            "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_terminal_test.rs",
+            "Instant::now",
+        ),
+        (
+            "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal_test.rs",
+            "Instant::now",
+        ),
     ]) {
         assert_eq!(allow.path, expected_path);
-        assert_eq!(allow.capability, "Instant::now");
+        assert_eq!(allow.capability, capability);
         assert!(!allow.reason.trim().is_empty());
     }
     for (method, path) in METHODS {

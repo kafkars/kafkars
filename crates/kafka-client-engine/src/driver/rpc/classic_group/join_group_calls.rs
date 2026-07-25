@@ -1,9 +1,9 @@
 //! Bounded active and terminal ownership for concrete tracked `JoinGroup` calls.
 
 use kafka_driver::RoutedCall;
-use kafka_wire::{JoinGroupRequest, JoinGroupResponse};
+use kafka_wire::JoinGroupResponse;
 
-use crate::driver::DriverOwner;
+use crate::{driver::DriverOwner, protocol::consumer::PreparedClassicJoinGroupRequest};
 
 use super::{
     join_group_settlement::{JoinGroupPoll, PendingJoinGroupConfirmation, SettledJoinGroupCall},
@@ -64,10 +64,14 @@ impl JoinGroupCallPermit<'_> {
     pub(crate) fn submit(
         self,
         driver: &DriverOwner,
-        request: JoinGroupRequest,
+        request: PreparedClassicJoinGroupRequest,
     ) -> Result<AcceptedJoinGroupCall, JoinGroupAdmissionFailure> {
         let call = driver
-            .submit_tracked_join_group(self.group, request, self.key.deadline().transport())
+            .submit_tracked_join_group(
+                self.group,
+                request.into_generated_join_group_request(),
+                self.key.deadline().transport(),
+            )
             .map_err(|source| JoinGroupAdmissionFailure::new(self.key, source))?;
         self.calls.push(TrackedJoinGroupCall {
             key: self.key,
