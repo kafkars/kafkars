@@ -1,5 +1,6 @@
 //! Deterministic direct-assignment consumer ownership and fetch-position policy.
 
+mod classic_group;
 mod close;
 mod delivery_ownership;
 mod effect;

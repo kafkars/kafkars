@@ -546,6 +546,27 @@ evidence = [
 ]
 
 [[invariant]]
+id = "CON-08"
+title = "Classic Join and Sync are cycle- and assignment-fenced"
+statement = "One uniquely owned deterministic classic-group machine admits at most one nonreused Join and Sync cycle at a time. One original absolute deadline crosses that cycle, and only an exact due observation may expire it. Join success never activates an assignment: followers emit an empty Sync plan, while leaders require a bounded scalar, dynamic-member, non-rack-aware Range plan and may install only the exact local assignment computed by core. Only matching Sync success installs the exact live member, signed Kafka generation, ordered assignment, and nonreused core assignment generation. Explicit matching assignment loss revokes the prior assignment and Kafka-generation pair before another Join may begin. Stale, out-of-phase, stage-delayed, and failed cycle facts cannot mutate or install the live session."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/consumer/classic_group/transition_test.rs::start_emits_one_join_for_the_exact_cycle_without_activating_assignment",
+  "crates/kafka-client-core/src/consumer/classic_group/transition_test.rs::matching_join_success_emits_sync_without_activating_assignment",
+  "crates/kafka-client-core/src/consumer/classic_group/transition_test.rs::leader_join_requires_core_owned_range_plan_before_sync",
+  "crates/kafka-client-core/src/consumer/classic_group/leader_fencing_test.rs::leader_sync_rejects_a_local_assignment_different_from_the_core_plan",
+  "crates/kafka-client-core/src/consumer/classic_group/leader_fencing_test.rs::partition_count_failure_is_stage_fenced_from_join_and_sync",
+  "crates/kafka-client-core/src/consumer/classic_group/transition_test.rs::only_matching_sync_success_activates_one_assignment_generation",
+  "crates/kafka-client-core/src/consumer/classic_group/transition_test.rs::stale_and_out_of_phase_join_or_sync_facts_reject_without_mutation",
+  "crates/kafka-client-core/src/consumer/classic_group/terminal_transition_test.rs::failed_join_or_sync_never_installs_a_live_assignment",
+  "crates/kafka-client-core/src/consumer/classic_group/terminal_transition_test.rs::delayed_join_failure_cannot_kill_the_same_cycles_sync_stage",
+  "crates/kafka-client-core/src/consumer/classic_group/terminal_transition_test.rs::deadline_fires_only_at_the_original_absolute_moment",
+  "crates/kafka-client-core/src/consumer/classic_group/transition_test.rs::second_join_cycle_cannot_reuse_the_first_cycle_or_assignment_generation",
+  "crates/kafka-client-core/src/consumer/classic_group/assignment_test.rs::range_splits_eight_partitions_across_three_ranked_members",
+  "crates/kafka-client-core/src/consumer/classic_group/assignment_test.rs::range_uses_each_topics_subscriber_denominator",
+]
+
+[[invariant]]
 id = "DL-01"
 title = "Client policy consumes one absolute deadline"
 statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant. Public operations capture at their public boundary, while engine-owned background Fetch captures at the exact internal-attempt boundary and fence rather than borrowing a later recv observation timeout. Accepted operation and direct-consumer bindings retain that pair unchanged, generated request timeout fields derive only from the remaining core deadline while the original transport instant is unchanged, core rejects already elapsed work, queued compression or submission expiry reproduces the exact core deadline fact, and identity-request deadline completion cannot be erased by an earlier transport category."

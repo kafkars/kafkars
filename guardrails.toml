@@ -176,6 +176,54 @@ production = "crates/kafka-client-core/src/consumer/group_commit/outcome.rs"
 test = "crates/kafka-client-core/src/consumer/group_commit/outcome_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/identity.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/identity_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/model.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/assignment.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/assignment_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/apply.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/apply_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/input.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/input_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/effect.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/effect_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/error.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/error_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/machine.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/machine_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/range_validation.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/range_validation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/transition.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/transition_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/terminal_transition_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/transition_support.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/transition_support_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/machine.rs"
 test = "crates/kafka-client-core/src/consumer/assignment_test.rs"
 
@@ -1897,6 +1945,55 @@ forbidden = [
   "std::future",
   "std::time",
   "tokio",
+]
+
+# Classic Join/Sync owns only bounded scalar membership and Range decisions.
+[[capability_rules]]
+root = "crates/kafka-client-core/src/consumer/classic_group"
+forbidden = [
+  "crate::admin",
+  "crate::exports",
+  "crate::producer",
+  "crate::public_api",
+  "crate::transaction",
+  "AssignedConsumerMachine",
+  "Callback",
+  "Clock",
+  "Engine",
+  "Future",
+  "Generated",
+  "HashMap",
+  "HashSet",
+  "Metadata",
+  "OperationDeadline",
+  "Retry",
+  "Runtime",
+  "String",
+  "Transport",
+  "Wire",
+  "async",
+  "async_std",
+  "bytes",
+  "kafka_client",
+  "kafka_client_engine",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "smol",
+  "std::env",
+  "std::fs",
+  "std::future",
+  "std::io",
+  "std::net",
+  "std::os",
+  "std::process",
+  "std::sync",
+  "std::thread",
+  "std::time",
+  "str",
+  "tokio",
+  "u8",
 ]
 
 # Simulation owns virtual time only and must remain reproducible.
@@ -4220,6 +4317,97 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "ClassicGroupMachine"
+field = "phase"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
+  "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicGroupMachine"
+field = "next_cycle"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
+  "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicGroupMachine"
+field = "active_cycle"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
+  "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicGroupMachine"
+field = "deadline"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
+  "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicGroupMachine"
+field = "pending_member_id"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicGroupMachine"
+field = "pending_generation"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicGroupMachine"
+field = "pending_members"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicGroupMachine"
+field = "pending_local_slot"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicGroupMachine"
+field = "pending_expected_assignment"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicGroupMachine"
+field = "next_assignment_generation"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
+  "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicGroupMachine"
+field = "live_generation"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
+  "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicGroupMachine"
+field = "live_assignment"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
+  "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs",
+]
+
+[[mutation_owners]]
 owner_type = "StickyPartitioner"
 field = "current"
 allowed_paths = ["crates/kafka-client-core/src/producer/sticky.rs"]
@@ -5844,6 +6032,42 @@ path = "crates/kafka-client-core/src/consumer/group_commit/outcome.rs"
 [[linear_owners]]
 owner_type = "GroupOffsetCommitBrokerRejection"
 path = "crates/kafka-client-core/src/consumer/group_commit/outcome.rs"
+
+[[linear_owners]]
+owner_type = "ClassicSubscription"
+path = "crates/kafka-client-core/src/consumer/classic_group/model.rs"
+
+[[linear_owners]]
+owner_type = "ClassicJoinMember"
+path = "crates/kafka-client-core/src/consumer/classic_group/model.rs"
+
+[[linear_owners]]
+owner_type = "ClassicJoinMembers"
+path = "crates/kafka-client-core/src/consumer/classic_group/model.rs"
+
+[[linear_owners]]
+owner_type = "ClassicAssignmentPlan"
+path = "crates/kafka-client-core/src/consumer/classic_group/assignment.rs"
+
+[[linear_owners]]
+owner_type = "ClassicMemberAssignment"
+path = "crates/kafka-client-core/src/consumer/classic_group/assignment.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupInput"
+path = "crates/kafka-client-core/src/consumer/classic_group/input.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupEffect"
+path = "crates/kafka-client-core/src/consumer/classic_group/effect.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupTransition"
+path = "crates/kafka-client-core/src/consumer/classic_group/effect.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupMachine"
+path = "crates/kafka-client-core/src/consumer/classic_group/machine.rs"
 
 [[linear_owners]]
 owner_type = "StickyPartitioner"

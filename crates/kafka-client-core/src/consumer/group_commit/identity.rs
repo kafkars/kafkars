@@ -32,11 +32,22 @@ impl MemberId {
     }
 }
 
-/// Nonzero Kafka assignment generation or member epoch.
+/// Core-owned nonzero generation fencing one installed live assignment.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct AssignmentGeneration(u64);
 
 impl AssignmentGeneration {
+    pub(crate) const fn initial() -> Self {
+        Self(1)
+    }
+
+    pub(crate) const fn checked_next(self) -> Option<Self> {
+        match self.0.checked_add(1) {
+            Some(value) => Some(Self(value)),
+            None => None,
+        }
+    }
+
     /// Restores a validated nonzero assignment generation.
     pub const fn try_from_raw(value: u64) -> Option<Self> {
         if value == 0 { None } else { Some(Self(value)) }

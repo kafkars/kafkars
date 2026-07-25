@@ -50,19 +50,7 @@ impl LiveGroupAssignment {
         assignment_generation: AssignmentGeneration,
         partitions: Vec<GroupAssignmentPartition>,
     ) -> Result<Self, LiveGroupAssignmentError> {
-        for pair in partitions.windows(2) {
-            let previous = pair[0];
-            let current = pair[1];
-            if current == previous {
-                return Err(LiveGroupAssignmentError::DuplicatePartition {
-                    topic_id: current.topic_id(),
-                    partition: current.partition(),
-                });
-            }
-            if current < previous {
-                return Err(LiveGroupAssignmentError::OutOfOrder { previous, current });
-            }
-        }
+        validate_partitions(&partitions)?;
         Ok(Self {
             group_id,
             member_id,
@@ -95,11 +83,45 @@ impl LiveGroupAssignment {
     pub fn partitions_capacity(&self) -> usize {
         self.partitions.capacity()
     }
+
+    pub(crate) fn try_new_pair(
+        group_id: GroupId,
+        member_id: MemberId,
+        assignment_generation: AssignmentGeneration,
+        partitions: Vec<GroupAssignmentPartition>,
+    ) -> Result<(Self, Self), (LiveGroupAssignmentError, Vec<GroupAssignmentPartition>)> {
+        if let Err(error) = validate_partitions(&partitions) {
+            return Err((error, partitions));
+        }
+        let mut effect_partitions = Vec::new();
+        if effect_partitions
+            .try_reserve_exact(partitions.len())
+            .is_err()
+        {
+            return Err((LiveGroupAssignmentError::AllocationFailed, partitions));
+        }
+        effect_partitions.extend_from_slice(&partitions);
+        let retained = Self {
+            group_id,
+            member_id,
+            assignment_generation,
+            partitions,
+        };
+        let effect = Self {
+            group_id,
+            member_id,
+            assignment_generation,
+            partitions: effect_partitions,
+        };
+        Ok((retained, effect))
+    }
 }
 
-/// Structural rejection of one live-assignment fact.
+/// Construction rejection of one live-assignment fact.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LiveGroupAssignmentError {
+    /// A second bounded assignment copy could not be reserved.
+    AllocationFailed,
     /// One topic-partition appeared more than once.
     DuplicatePartition {
         /// Repeated topic identity.
@@ -194,4 +216,23 @@ pub(super) fn reserve_expected_partitions(
     count: usize,
 ) -> bool {
     expected.try_reserve_exact(count).is_ok()
+}
+
+fn validate_partitions(
+    partitions: &[GroupAssignmentPartition],
+) -> Result<(), LiveGroupAssignmentError> {
+    for pair in partitions.windows(2) {
+        let previous = pair[0];
+        let current = pair[1];
+        if current == previous {
+            return Err(LiveGroupAssignmentError::DuplicatePartition {
+                topic_id: current.topic_id(),
+                partition: current.partition(),
+            });
+        }
+        if current < previous {
+            return Err(LiveGroupAssignmentError::OutOfOrder { previous, current });
+        }
+    }
+    Ok(())
 }
