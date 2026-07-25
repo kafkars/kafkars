@@ -3,8 +3,8 @@
 use crate::{Deadline, GroupAssignmentPartition, MemberId, Moment};
 
 use super::{
-    ClassicGeneration, ClassicHeartbeatAttempt, ClassicJoinMembers, JoinedMemberSlot,
-    MembershipCycle, TopicPartitionCount,
+    ClassicBrokerError, ClassicGeneration, ClassicHeartbeatAttempt, ClassicJoinMembers,
+    ClassicRejoinSchedule, JoinedMemberSlot, MembershipCycle, TopicPartitionCount,
 };
 
 /// One explicit lifecycle fact with no protocol bytes or transport vocabulary.
@@ -77,6 +77,15 @@ pub enum ClassicGroupInput {
         /// Nonnegative broker throttle converted to deterministic ticks.
         throttle_ticks: u64,
     },
+    /// The exact heartbeat received one nonzero Kafka broker rejection.
+    HeartbeatRejected {
+        /// Exact in-flight heartbeat identity.
+        attempt: ClassicHeartbeatAttempt,
+        /// Current monotonic response observation.
+        now: Moment,
+        /// Exact nonzero Kafka error code.
+        error: ClassicBrokerError,
+    },
     /// The exact heartbeat terminally failed without retry.
     HeartbeatFailed {
         /// Exact in-flight heartbeat identity.
@@ -94,6 +103,15 @@ pub enum ClassicGroupInput {
         /// Exact cycle whose Join failed.
         cycle: MembershipCycle,
     },
+    /// The exact Join received one nonzero Kafka broker rejection.
+    JoinRejected {
+        /// Exact cycle whose Join was rejected.
+        cycle: MembershipCycle,
+        /// Current monotonic response observation.
+        now: Moment,
+        /// Exact nonzero Kafka error code.
+        error: ClassicBrokerError,
+    },
     /// Partition-count acquisition terminally failed without retry.
     PartitionCountsFailed {
         /// Exact leader cycle whose count acquisition failed.
@@ -103,6 +121,22 @@ pub enum ClassicGroupInput {
     SyncFailed {
         /// Exact cycle whose Sync failed.
         cycle: MembershipCycle,
+    },
+    /// The exact Sync received one nonzero Kafka broker rejection.
+    SyncRejected {
+        /// Exact cycle whose Sync was rejected.
+        cycle: MembershipCycle,
+        /// Current monotonic response observation.
+        now: Moment,
+        /// Exact nonzero Kafka error code.
+        error: ClassicBrokerError,
+    },
+    /// One exact pending recovery schedule reached its due deadline.
+    RejoinDue {
+        /// Full cycle or assignment-fenced schedule returned by the interpreter.
+        schedule: ClassicRejoinSchedule,
+        /// Current monotonic observation proving recovery is due.
+        now: Moment,
     },
     /// The stable assignment was explicitly lost before another cycle begins.
     AssignmentLost {

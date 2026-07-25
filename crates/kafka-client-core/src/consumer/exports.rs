@@ -2,12 +2,14 @@
 
 pub use super::classic_group::{
     CLASSIC_GROUP_TIMEOUT_MAX_MS, CLASSIC_GROUP_TIMEOUT_MIN_MS, ClassicAssignmentError,
-    ClassicAssignmentPlan, ClassicGeneration, ClassicGroupApplyError, ClassicGroupEffect,
-    ClassicGroupErrorKind, ClassicGroupInput, ClassicGroupMachine, ClassicGroupPhase,
-    ClassicGroupTiming, ClassicGroupTimingError, ClassicGroupTransition, ClassicHeartbeatAttempt,
-    ClassicHeartbeatPolicy, ClassicHeartbeatPolicyError, ClassicHeartbeatSchedule,
-    ClassicHeartbeatSequence, ClassicJoinMember, ClassicJoinMembers, ClassicJoinMembersError,
-    ClassicMemberAssignment, ClassicProtocol, ClassicSubscription, ClassicSubscriptionError,
+    ClassicAssignmentPlan, ClassicBrokerError, ClassicBrokerStage, ClassicCoordinatorRecovery,
+    ClassicGeneration, ClassicGroupApplyError, ClassicGroupEffect, ClassicGroupErrorKind,
+    ClassicGroupFatal, ClassicGroupFatalReason, ClassicGroupInput, ClassicGroupMachine,
+    ClassicGroupPhase, ClassicGroupTiming, ClassicGroupTimingError, ClassicGroupTransition,
+    ClassicHeartbeatAttempt, ClassicHeartbeatPolicy, ClassicHeartbeatPolicyError,
+    ClassicHeartbeatSchedule, ClassicHeartbeatSequence, ClassicJoinMember, ClassicJoinMembers,
+    ClassicJoinMembersError, ClassicMemberAssignment, ClassicProtocol, ClassicRejoinPolicy,
+    ClassicRejoinPolicyError, ClassicRejoinSchedule, ClassicSubscription, ClassicSubscriptionError,
     JoinedMemberSlot, MemberRank, MembershipCycle, TopicPartitionCount,
 };
 pub use super::effect::{

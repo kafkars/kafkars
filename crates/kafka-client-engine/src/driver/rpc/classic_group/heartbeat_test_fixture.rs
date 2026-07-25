@@ -2,8 +2,8 @@
 
 use kafka_client_core::{
     ClassicGeneration, ClassicGroupEffect, ClassicGroupInput, ClassicGroupMachine,
-    ClassicGroupTiming, ClassicHeartbeatAttempt, ClassicHeartbeatPolicy, Deadline, GroupId,
-    MemberId, Moment,
+    ClassicGroupTiming, ClassicHeartbeatAttempt, ClassicHeartbeatPolicy, ClassicRejoinPolicy,
+    Deadline, GroupId, MemberId, Moment,
 };
 use kafka_driver::RequestError;
 use kafka_wire::HeartbeatResponse;
@@ -104,5 +104,7 @@ fn machine() -> ClassicGroupMachine {
             .unwrap_or_else(|error| panic!("valid timing: {error}")),
         ClassicHeartbeatPolicy::try_new(10, 20)
             .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}")),
+        ClassicRejoinPolicy::try_new(30, 40)
+            .unwrap_or_else(|error| panic!("valid rejoin policy: {error:?}")),
     )
 }

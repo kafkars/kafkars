@@ -2,7 +2,7 @@
 
 use std::{sync::Arc, time::Duration};
 
-use kafka_client_core::{ClassicGroupTiming, ClassicHeartbeatPolicy, Moment};
+use kafka_client_core::{ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicRejoinPolicy, Moment};
 
 use crate::{
     EngineConfig,
@@ -71,6 +71,7 @@ fn shard_admission_deadline_is_scheduled_on_the_embedded_host_turn() {
             vec![Arc::from("orders")],
             timing(),
             heartbeat_policy(),
+            rejoin_policy(),
         )
         .unwrap_or_else(|failure| panic!("registration failed: {:?}", failure.kind));
     let _admission = port
@@ -116,6 +117,11 @@ fn timing() -> ClassicGroupTiming {
 fn heartbeat_policy() -> ClassicHeartbeatPolicy {
     ClassicHeartbeatPolicy::try_new(1_000_000_000, 2_000_000_000)
         .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}"))
+}
+
+fn rejoin_policy() -> ClassicRejoinPolicy {
+    ClassicRejoinPolicy::try_new(1_000_000_000, 30_000_000_000)
+        .unwrap_or_else(|error| panic!("valid rejoin policy: {error:?}"))
 }
 
 #[test]

@@ -31,6 +31,7 @@ fn waiting_owner_arms_the_earliest_cadence_or_liveness_deadline() {
         group_id,
         classic_group_test_support::timing(),
         classic_group_test_support::heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
     );
     let schedule =
         classic_group_test_support::install_follower(&mut catalog, &mut owner, "member", 7, vec![]);

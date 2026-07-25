@@ -27,6 +27,7 @@ pub(super) fn catalog() -> GroupSessionCatalog {
         group_id,
         classic_group_test_support::timing(),
         classic_group_test_support::heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
     );
     classic_group_test_support::install_follower(
         &mut catalog,

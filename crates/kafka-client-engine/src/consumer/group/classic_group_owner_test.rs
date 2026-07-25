@@ -16,6 +16,7 @@ fn entry_owns_one_dormant_machine_for_its_exact_group() {
         &[Arc::from("orders")],
         classic_group_test_support::timing(),
         classic_group_test_support::heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
     )
     .unwrap_or_else(|error| panic!("entry creation failed: {error:?}"));
 

@@ -9,7 +9,8 @@ use crate::clock::MonotonicClock;
 use super::{
     classic_group_execution::new_classic_group_execution,
     classic_group_execution_close::ClassicGroupCloseProgress,
-    classic_group_owner::ClassicGroupOwner, session_catalog::GroupSessionCatalog,
+    classic_group_owner::ClassicGroupOwner, classic_group_test_support,
+    session_catalog::GroupSessionCatalog,
 };
 
 #[test]
@@ -19,7 +20,12 @@ fn local_prepared_join_can_close_without_transport_or_lost_effects() {
         .unwrap_or_else(|error| panic!("valid classic group timing: {error}"));
     let heartbeat = ClassicHeartbeatPolicy::try_new(1_000_000_000, 2_000_000_000)
         .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}"));
-    let mut owner = ClassicGroupOwner::new(group_id, timing, heartbeat);
+    let mut owner = ClassicGroupOwner::new(
+        group_id,
+        timing,
+        heartbeat,
+        classic_group_test_support::rejoin_policy(),
+    );
     let mut catalog =
         GroupSessionCatalog::try_new(group_id, Arc::from("workers"), &[Arc::from("orders")])
             .unwrap_or_else(|error| panic!("catalog failed: {error:?}"));

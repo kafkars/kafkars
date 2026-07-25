@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use kafka_client_core::{
     ClassicGeneration, ClassicGroupEffect, ClassicGroupInput, ClassicGroupTiming,
-    ClassicHeartbeatPolicy, Deadline, GroupAssignmentPartition, MembershipCycle, Moment,
+    ClassicHeartbeatPolicy, ClassicRejoinPolicy, Deadline, GroupAssignmentPartition,
+    MembershipCycle, Moment,
 };
 
 use super::{classic_group_owner::ClassicGroupOwner, session_catalog::GroupSessionCatalog};
@@ -17,6 +18,11 @@ pub(super) fn timing() -> ClassicGroupTiming {
 pub(super) fn heartbeat_policy() -> ClassicHeartbeatPolicy {
     ClassicHeartbeatPolicy::try_new(1_000_000_000, 2_000_000_000)
         .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}"))
+}
+
+pub(super) fn rejoin_policy() -> ClassicRejoinPolicy {
+    ClassicRejoinPolicy::try_new(1_000_000_000, 30_000_000_000)
+        .unwrap_or_else(|error| panic!("valid rejoin policy: {error:?}"))
 }
 
 pub(super) fn begin(owner: &mut ClassicGroupOwner) -> MembershipCycle {

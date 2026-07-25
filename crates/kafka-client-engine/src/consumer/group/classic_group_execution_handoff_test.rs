@@ -14,6 +14,7 @@ use crate::{
 use super::{
     classic_group_execution::{ClassicGroupExecution, new_classic_group_execution},
     classic_group_owner::ClassicGroupOwner,
+    classic_group_test_support,
 };
 
 #[test]
@@ -183,7 +184,12 @@ fn changed_deadline_recovery_receipt_rejects_without_mutation() {
 }
 
 fn owner() -> ClassicGroupOwner {
-    ClassicGroupOwner::new(group_id(1), timing(), heartbeat_policy())
+    ClassicGroupOwner::new(
+        group_id(1),
+        timing(),
+        heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
+    )
 }
 
 fn group_id(raw: u64) -> GroupId {
@@ -198,7 +204,12 @@ fn driver_owned(
     ClassicGroupExecution,
     RecoveredJoinGroupOwnership,
 ) {
-    let mut owner = ClassicGroupOwner::new(group_id, timing(), heartbeat_policy());
+    let mut owner = ClassicGroupOwner::new(
+        group_id,
+        timing(),
+        heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
+    );
     let mut execution = new_classic_group_execution();
     execution
         .begin(&mut owner, capture)

@@ -87,6 +87,7 @@ fn exhausted_member_cursor_preserves_joining_machine_and_catalog() {
         group_id(),
         classic_group_test_support::timing(),
         classic_group_test_support::heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
     );
     let cycle = classic_group_test_support::begin(&mut owner);
     let phase = owner.machine().phase();
@@ -115,6 +116,7 @@ fn exhausted_foreign_topic_cursor_preserves_staged_members_and_owner() {
         group_id(),
         classic_group_test_support::timing(),
         classic_group_test_support::heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
     );
     let cycle = classic_group_test_support::begin(&mut owner);
 

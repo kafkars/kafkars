@@ -31,7 +31,10 @@ fn follower_plan() -> ClassicAssignmentPlan {
     let heartbeat =
         kafka_client_core::ClassicHeartbeatPolicy::try_new(1_000_000_000, 2_000_000_000)
             .unwrap_or_else(|error| panic!("heartbeat policy: {error}"));
-    let mut machine = kafka_client_core::ClassicGroupMachine::new(group_id, timing, heartbeat);
+    let rejoin = kafka_client_core::ClassicRejoinPolicy::try_new(1_000_000_000, 30_000_000_000)
+        .unwrap_or_else(|error| panic!("rejoin policy: {error:?}"));
+    let mut machine =
+        kafka_client_core::ClassicGroupMachine::new(group_id, timing, heartbeat, rejoin);
     let cycle = machine
         .apply(kafka_client_core::ClassicGroupInput::Begin {
             now: Moment::from_tick(1),

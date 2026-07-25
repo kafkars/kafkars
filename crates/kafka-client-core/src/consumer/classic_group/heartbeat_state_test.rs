@@ -75,6 +75,8 @@ fn sync_after_join_anchored_liveness_loses_without_partial_install() {
         ClassicGroupTiming::try_new(1, 30_000)
             .unwrap_or_else(|error| panic!("valid timing: {error}")),
         policy(10, 20),
+        super::ClassicRejoinPolicy::try_new(5, 50)
+            .unwrap_or_else(|error| panic!("valid rejoin policy: {error:?}")),
     );
     machine
         .apply(ClassicGroupInput::Begin {

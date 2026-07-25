@@ -12,6 +12,7 @@ use crate::clock::MonotonicClock;
 use super::{
     classic_group_execution::{ClassicGroupExecutionError, new_classic_group_execution},
     classic_group_owner::ClassicGroupOwner,
+    classic_group_test_support,
 };
 
 #[test]
@@ -92,6 +93,7 @@ fn owner() -> ClassicGroupOwner {
         GroupId::try_from_raw(1).unwrap_or_else(|| panic!("nonzero group identity")),
         timing(),
         heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
     )
 }
 

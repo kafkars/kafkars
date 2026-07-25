@@ -2,7 +2,8 @@
 
 use kafka_client_core::{
     ClassicGroupApplyError, ClassicGroupInput, ClassicGroupMachine, ClassicGroupPhase,
-    ClassicGroupTiming, ClassicGroupTransition, ClassicHeartbeatPolicy, GroupId,
+    ClassicGroupTiming, ClassicGroupTransition, ClassicHeartbeatPolicy, ClassicRejoinPolicy,
+    GroupId,
 };
 
 use super::classic_group_candidate::ClassicGroupCycleCandidate;
@@ -18,9 +19,10 @@ impl ClassicGroupOwner {
         group_id: GroupId,
         timing: ClassicGroupTiming,
         heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
     ) -> Self {
         Self {
-            machine: ClassicGroupMachine::new(group_id, timing, heartbeat_policy),
+            machine: ClassicGroupMachine::new(group_id, timing, heartbeat_policy, rejoin_policy),
             pending: None,
         }
     }

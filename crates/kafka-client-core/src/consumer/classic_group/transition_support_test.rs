@@ -88,6 +88,8 @@ fn machine() -> ClassicGroupMachine {
             .unwrap_or_else(|error| panic!("valid timing: {error}")),
         ClassicHeartbeatPolicy::try_new(10, 20)
             .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}")),
+        super::ClassicRejoinPolicy::try_new(5, 50)
+            .unwrap_or_else(|error| panic!("valid rejoin policy: {error:?}")),
     )
 }
 

@@ -2,7 +2,7 @@
 
 use crate::{Deadline, Moment};
 
-use super::{ClassicGroupInput, MembershipCycle};
+use super::{ClassicBrokerError, ClassicGroupInput, MembershipCycle};
 
 #[test]
 fn begin_retains_the_public_boundary_deadline_and_observation() {
@@ -30,6 +30,25 @@ fn deadline_expiration_is_fenced_to_one_exact_cycle() {
         ClassicGroupInput::DeadlineElapsed {
             cycle,
             now: Moment::from_tick(11),
+        }
+    );
+}
+
+#[test]
+fn join_rejection_retains_cycle_observation_and_exact_signed_error() {
+    let cycle = MembershipCycle::initial();
+    let error =
+        ClassicBrokerError::try_from_code(-123).unwrap_or_else(|| panic!("nonzero broker error"));
+    assert_eq!(
+        ClassicGroupInput::JoinRejected {
+            cycle,
+            now: Moment::from_tick(17),
+            error,
+        },
+        ClassicGroupInput::JoinRejected {
+            cycle,
+            now: Moment::from_tick(17),
+            error,
         }
     );
 }

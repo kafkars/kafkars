@@ -23,6 +23,7 @@ fn owners() -> (GroupSessionCatalog, ClassicGroupOwner) {
             group_id,
             super::classic_group_test_support::timing(),
             super::classic_group_test_support::heartbeat_policy(),
+            super::classic_group_test_support::rejoin_policy(),
         ),
     )
 }

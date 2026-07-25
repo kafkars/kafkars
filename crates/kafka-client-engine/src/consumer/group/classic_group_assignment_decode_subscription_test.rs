@@ -35,6 +35,7 @@ fn follower_after_foreign_topic() -> (GroupSessionCatalog, ClassicGroupCycleCand
         group_id(),
         classic_group_test_support::timing(),
         classic_group_test_support::heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
     );
     let cycle = classic_group_test_support::begin(&mut owner);
     let candidate = catalog

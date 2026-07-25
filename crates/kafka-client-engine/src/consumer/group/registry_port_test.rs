@@ -53,6 +53,7 @@ fn registration_preserves_exact_timing_and_one_boundary_deadline_capture() {
             vec![Arc::from("orders")],
             timing,
             classic_group_test_support::heartbeat_policy(),
+            classic_group_test_support::rejoin_policy(),
         )
         .unwrap_or_else(|failure| panic!("registration failed: {:?}", failure.kind));
     let before = clock
@@ -80,6 +81,10 @@ fn registration_preserves_exact_timing_and_one_boundary_deadline_capture() {
         .prepared_join()
         .unwrap_or_else(|| panic!("prepared Join expected"));
     assert_eq!(entry.classic.machine().timing(), timing);
+    assert_eq!(
+        entry.classic.machine().rejoin_policy(),
+        classic_group_test_support::rejoin_policy()
+    );
     assert_eq!(prepared.timing(), timing);
     let deadline = entry
         .execution
@@ -113,6 +118,7 @@ fn post_commit_wake_failure_does_not_reclassify_cycle_as_rejected() {
             vec![Arc::from("orders")],
             classic_group_test_support::timing(),
             classic_group_test_support::heartbeat_policy(),
+            classic_group_test_support::rejoin_policy(),
         )
         .unwrap_or_else(|failure| panic!("registration failed: {:?}", failure.kind));
 
@@ -142,6 +148,7 @@ fn closed_port_returns_exact_registration_names_and_rejects_deadline_work() {
             vec![Arc::from("orders")],
             classic_group_test_support::timing(),
             classic_group_test_support::heartbeat_policy(),
+            classic_group_test_support::rejoin_policy(),
         )
         .err()
         .unwrap_or_else(|| panic!("closed registration must reject"));

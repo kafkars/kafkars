@@ -275,6 +275,26 @@ production = "crates/kafka-client-core/src/consumer/classic_group/heartbeat_tran
 test = "crates/kafka-client-core/src/consumer/classic_group/heartbeat_transition_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/recovery/broker_error.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/recovery/broker_error_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/recovery/error_disposition.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/recovery/error_disposition_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/recovery/rejection_transition.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/recovery/rejection_transition_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/machine.rs"
 test = "crates/kafka-client-core/src/consumer/assignment_test.rs"
 
@@ -4377,6 +4397,7 @@ field = "phase"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
   "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs",
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition.rs",
 ]
 
 [[mutation_owners]]
@@ -4385,6 +4406,7 @@ field = "next_cycle"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
   "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs",
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition.rs",
 ]
 
 [[mutation_owners]]
@@ -4393,6 +4415,7 @@ field = "active_cycle"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
   "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs",
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition.rs",
 ]
 
 [[mutation_owners]]
@@ -4401,6 +4424,7 @@ field = "deadline"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
   "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs",
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition.rs",
 ]
 
 [[mutation_owners]]
@@ -4467,6 +4491,22 @@ field = "live_assignment"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
   "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicGroupMachine"
+field = "pending_rejoin"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/transition.rs",
+  "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs",
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicGroupMachine"
+field = "fatal"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition.rs",
 ]
 
 [[mutation_owners]]

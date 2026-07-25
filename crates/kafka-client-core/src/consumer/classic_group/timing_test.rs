@@ -69,7 +69,9 @@ fn machine_retains_and_emits_the_exact_timing_on_every_join_cycle() {
     let group_id = GroupId::try_from_raw(1).unwrap_or_else(|| panic!("nonzero group"));
     let heartbeat = ClassicHeartbeatPolicy::try_new(10, 20)
         .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}"));
-    let mut machine = ClassicGroupMachine::new(group_id, expected, heartbeat);
+    let rejoin = super::ClassicRejoinPolicy::try_new(5, 50)
+        .unwrap_or_else(|error| panic!("valid rejoin policy: {error:?}"));
+    let mut machine = ClassicGroupMachine::new(group_id, expected, heartbeat, rejoin);
 
     assert_eq!(machine.timing(), expected);
     let transition = machine

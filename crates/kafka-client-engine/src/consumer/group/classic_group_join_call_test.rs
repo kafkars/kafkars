@@ -18,6 +18,7 @@ use super::{
     },
     classic_group_join_call::{ClassicGroupJoinAcceptanceFailure, ClassicGroupJoinCallOwner},
     classic_group_owner::ClassicGroupOwner,
+    classic_group_test_support,
 };
 
 macro_rules! assert_not_impl {
@@ -99,7 +100,12 @@ fn prepared_acceptance() -> (
         .unwrap_or_else(|error| panic!("valid classic group timing: {error}"));
     let heartbeat = ClassicHeartbeatPolicy::try_new(1_000_000_000, 2_000_000_000)
         .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}"));
-    let mut owner = ClassicGroupOwner::new(group_id, timing, heartbeat);
+    let mut owner = ClassicGroupOwner::new(
+        group_id,
+        timing,
+        heartbeat,
+        classic_group_test_support::rejoin_policy(),
+    );
     let mut execution = new_classic_group_execution();
     let capture = MonotonicClock::new()
         .capture_deadline_after(Duration::from_secs(7))

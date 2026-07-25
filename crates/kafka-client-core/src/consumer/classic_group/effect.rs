@@ -3,8 +3,9 @@
 use crate::{Deadline, GroupId, LiveGroupAssignment, MemberId, TopicId};
 
 use super::{
-    ClassicAssignmentPlan, ClassicGeneration, ClassicGroupTiming, ClassicHeartbeatAttempt,
-    ClassicHeartbeatSchedule, ClassicProtocol, MembershipCycle,
+    ClassicAssignmentPlan, ClassicCoordinatorRecovery, ClassicGeneration, ClassicGroupFatal,
+    ClassicGroupTiming, ClassicHeartbeatAttempt, ClassicHeartbeatSchedule, ClassicProtocol,
+    ClassicRejoinSchedule, MembershipCycle,
 };
 
 /// One bounded mechanism action carrying the original membership deadline.
@@ -81,32 +82,52 @@ pub enum ClassicGroupEffect {
         /// Exact Kafka generation paired with the revoked assignment.
         classic_generation: ClassicGeneration,
     },
+    /// Arms one exact recovery deadline and reports coordinator ownership needs.
+    ArmRejoin {
+        /// Cycle or assignment-fenced recovery schedule.
+        schedule: ClassicRejoinSchedule,
+        /// Opaque coordinator recovery need for the interpreter.
+        coordinator: ClassicCoordinatorRecovery,
+    },
+    /// Reports that this machine retained a terminal membership cause.
+    Fatal {
+        /// Exact cycle-fenced terminal state.
+        fatal: ClassicGroupFatal,
+    },
 }
 
-/// Zero or one action from one deterministic input.
+/// Zero, one, or two ordered actions from one deterministic input.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ClassicGroupTransition {
-    effect: Option<ClassicGroupEffect>,
+    effects: [Option<ClassicGroupEffect>; 2],
 }
 
 impl ClassicGroupTransition {
     pub(crate) const fn none() -> Self {
-        Self { effect: None }
+        Self {
+            effects: [None, None],
+        }
     }
 
     pub(crate) const fn one(effect: ClassicGroupEffect) -> Self {
         Self {
-            effect: Some(effect),
+            effects: [Some(effect), None],
         }
     }
 
-    /// Iterates over the optional mechanism action.
-    pub fn effects(&self) -> impl Iterator<Item = &ClassicGroupEffect> {
-        self.effect.iter()
+    pub(crate) const fn two(first: ClassicGroupEffect, second: ClassicGroupEffect) -> Self {
+        Self {
+            effects: [Some(first), Some(second)],
+        }
     }
 
-    /// Moves the optional mechanism action to the interpreter.
+    /// Iterates over the bounded ordered mechanism actions.
+    pub fn effects(&self) -> impl Iterator<Item = &ClassicGroupEffect> {
+        self.effects.iter().flatten()
+    }
+
+    /// Moves the bounded ordered mechanism actions to the interpreter.
     pub fn into_effects(self) -> impl Iterator<Item = ClassicGroupEffect> {
-        self.effect.into_iter()
+        self.effects.into_iter().flatten()
     }
 }

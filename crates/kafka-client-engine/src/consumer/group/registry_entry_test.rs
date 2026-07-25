@@ -18,6 +18,7 @@ fn entry_owns_one_catalog_and_machine_with_the_same_identity() {
         &[Arc::from("payments"), Arc::from("orders")],
         timing,
         classic_group_test_support::heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
     )
     .unwrap_or_else(|error| panic!("entry creation failed: {error:?}"));
 
@@ -32,5 +33,9 @@ fn entry_owns_one_catalog_and_machine_with_the_same_identity() {
     );
     assert_eq!(entry.classic.machine().group_id(), group_id);
     assert_eq!(entry.classic.machine().timing(), timing);
+    assert_eq!(
+        entry.classic.machine().rejoin_policy(),
+        classic_group_test_support::rejoin_policy()
+    );
     assert_eq!(entry.classic.machine().phase(), ClassicGroupPhase::Dormant);
 }

@@ -24,6 +24,7 @@ fn follower_join_retains_candidate_and_prepares_the_exact_sync_fences() {
         group_id,
         classic_group_test_support::timing(),
         classic_group_test_support::heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
     );
     let catalog = catalog(group_id);
     let cycle = classic_group_test_support::begin(&mut owner);
@@ -70,6 +71,7 @@ fn prevalidation_rejection_preserves_the_joining_owner_exactly() {
         group_id,
         classic_group_test_support::timing(),
         classic_group_test_support::heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
     );
     let catalog = catalog(group_id);
     let active_cycle = classic_group_test_support::begin(&mut owner);
@@ -107,6 +109,7 @@ fn postvalidation_core_rejection_retains_the_exact_candidate() {
         group_id,
         classic_group_test_support::timing(),
         classic_group_test_support::heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
     );
     let catalog = catalog(group_id);
     let cycle = classic_group_test_support::begin(&mut owner);

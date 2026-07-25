@@ -12,6 +12,7 @@ mod input;
 mod machine;
 mod model;
 mod range_validation;
+mod recovery;
 mod terminal_transition;
 mod timing;
 mod transition;
@@ -27,6 +28,10 @@ pub use machine::ClassicGroupMachine;
 pub use model::{
     ClassicGroupPhase, ClassicJoinMember, ClassicJoinMembers, ClassicJoinMembersError,
     ClassicProtocol, ClassicSubscription, ClassicSubscriptionError, TopicPartitionCount,
+};
+pub use recovery::{
+    ClassicBrokerError, ClassicBrokerStage, ClassicCoordinatorRecovery, ClassicGroupFatal,
+    ClassicGroupFatalReason, ClassicRejoinPolicy, ClassicRejoinPolicyError, ClassicRejoinSchedule,
 };
 pub use timing::{
     CLASSIC_GROUP_TIMEOUT_MAX_MS, CLASSIC_GROUP_TIMEOUT_MIN_MS, ClassicGroupTiming,

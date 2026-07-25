@@ -6,8 +6,9 @@ use crate::{
 };
 
 use super::{
-    ClassicGeneration, ClassicGroupPhase, ClassicGroupTiming, ClassicHeartbeatPolicy,
-    ClassicJoinMembers, JoinedMemberSlot, MembershipCycle, heartbeat_state::ClassicHeartbeatState,
+    ClassicGeneration, ClassicGroupFatal, ClassicGroupPhase, ClassicGroupTiming,
+    ClassicHeartbeatPolicy, ClassicJoinMembers, ClassicRejoinPolicy, ClassicRejoinSchedule,
+    JoinedMemberSlot, MembershipCycle, heartbeat_state::ClassicHeartbeatState,
 };
 
 /// Deterministic owner for one group's classic Join and Sync lifecycle.
@@ -15,6 +16,7 @@ use super::{
 pub struct ClassicGroupMachine {
     pub(super) group_id: GroupId,
     timing: ClassicGroupTiming,
+    rejoin_policy: ClassicRejoinPolicy,
     pub(super) phase: ClassicGroupPhase,
     pub(super) next_cycle: Option<MembershipCycle>,
     pub(super) active_cycle: Option<MembershipCycle>,
@@ -28,6 +30,8 @@ pub struct ClassicGroupMachine {
     pub(super) next_assignment_generation: Option<AssignmentGeneration>,
     pub(super) live_generation: Option<ClassicGeneration>,
     pub(super) live_assignment: Option<LiveGroupAssignment>,
+    pub(super) pending_rejoin: Option<ClassicRejoinSchedule>,
+    pub(super) fatal: Option<ClassicGroupFatal>,
     pub(super) heartbeat: ClassicHeartbeatState,
 }
 
@@ -37,10 +41,12 @@ impl ClassicGroupMachine {
         group_id: GroupId,
         timing: ClassicGroupTiming,
         heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
     ) -> Self {
         Self {
             group_id,
             timing,
+            rejoin_policy,
             phase: ClassicGroupPhase::Dormant,
             next_cycle: Some(MembershipCycle::initial()),
             active_cycle: None,
@@ -54,6 +60,8 @@ impl ClassicGroupMachine {
             next_assignment_generation: Some(AssignmentGeneration::initial()),
             live_generation: None,
             live_assignment: None,
+            pending_rejoin: None,
+            fatal: None,
             heartbeat: ClassicHeartbeatState::new(heartbeat_policy),
         }
     }
@@ -66,6 +74,11 @@ impl ClassicGroupMachine {
     /// Returns the immutable timeout policy emitted for every membership cycle.
     pub const fn timing(&self) -> ClassicGroupTiming {
         self.timing
+    }
+
+    /// Returns the immutable positive internal rejoin policy.
+    pub const fn rejoin_policy(&self) -> ClassicRejoinPolicy {
+        self.rejoin_policy
     }
 
     /// Returns the current lifecycle phase.
@@ -91,5 +104,15 @@ impl ClassicGroupMachine {
     /// Returns the exact Kafka generation paired with the live assignment.
     pub const fn live_generation(&self) -> Option<ClassicGeneration> {
         self.live_generation
+    }
+
+    /// Returns the exact pending rejoin schedule, if recovery is waiting.
+    pub const fn pending_rejoin(&self) -> Option<ClassicRejoinSchedule> {
+        self.pending_rejoin
+    }
+
+    /// Returns the retained terminal cause after membership becomes fatal.
+    pub const fn fatal(&self) -> Option<ClassicGroupFatal> {
+        self.fatal
     }
 }

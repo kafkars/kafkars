@@ -2,7 +2,9 @@
 
 use std::{sync::Arc, time::Duration};
 
-use kafka_client_core::{ClassicGroupTiming, ClassicHeartbeatPolicy, GroupId, MembershipCycle};
+use kafka_client_core::{
+    ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicRejoinPolicy, GroupId, MembershipCycle,
+};
 
 use crate::clock::{ClockError, DeadlineCapture, MonotonicClock};
 
@@ -26,6 +28,7 @@ impl GroupConsumerPort {
         local_topics: Vec<Arc<str>>,
         timing: ClassicGroupTiming,
         heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
     ) -> Result<GroupId, GroupConsumerPortRegistrationFailure> {
         if self.shared.admission_is_closed() {
             return Err(registration_failure(
@@ -52,7 +55,7 @@ impl GroupConsumerPort {
             ));
         }
         registry
-            .try_register(group, local_topics, timing, heartbeat_policy)
+            .try_register(group, local_topics, timing, heartbeat_policy, rejoin_policy)
             .map_err(|failure| GroupConsumerPortRegistrationFailure {
                 kind: GroupConsumerPortRegistrationFailureKind::registry(failure.kind),
                 group: failure.group,

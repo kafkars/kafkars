@@ -23,6 +23,8 @@ pub enum ClassicGroupErrorKind {
     DeadlineOverflow,
     /// A heartbeat fact does not own the current assignment and sequence.
     HeartbeatMismatch,
+    /// A due fact does not own the currently pending recovery schedule.
+    RejoinMismatch,
     /// No later nonreused membership cycle can be represented.
     CycleExhausted,
     /// No later nonreused assignment generation can be represented.

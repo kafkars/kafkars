@@ -1,0 +1,132 @@
+//! Stage-aware broker rejection transitions into rejoin or fatal state.
+
+use crate::{AssignmentGeneration, Moment};
+
+use super::super::transition_support::validate_stage_cycle;
+use super::{
+    ClassicBrokerError, ClassicBrokerStage, ClassicGroupEffect, ClassicGroupErrorKind,
+    ClassicGroupFatal, ClassicGroupFatalReason, ClassicGroupMachine, ClassicGroupPhase,
+    ClassicGroupTransition, ClassicHeartbeatAttempt, ClassicRejoinSchedule, MembershipCycle,
+    error_disposition::{ClassicErrorDisposition, disposition},
+};
+
+impl ClassicGroupMachine {
+    pub(in crate::consumer::classic_group) fn join_rejected(
+        &mut self,
+        cycle: MembershipCycle,
+        now: Moment,
+        error: ClassicBrokerError,
+    ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
+        validate_stage_cycle(self, ClassicGroupPhase::Joining, cycle)?;
+        Ok(self.stage_rejected(ClassicBrokerStage::Join, cycle, None, now, error))
+    }
+
+    pub(in crate::consumer::classic_group) fn sync_rejected(
+        &mut self,
+        cycle: MembershipCycle,
+        now: Moment,
+        error: ClassicBrokerError,
+    ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
+        validate_stage_cycle(self, ClassicGroupPhase::Syncing, cycle)?;
+        Ok(self.stage_rejected(ClassicBrokerStage::Sync, cycle, None, now, error))
+    }
+
+    pub(in crate::consumer::classic_group) fn heartbeat_rejected(
+        &mut self,
+        attempt: ClassicHeartbeatAttempt,
+        now: Moment,
+        error: ClassicBrokerError,
+    ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
+        self.validate_heartbeat_assignment(attempt)?;
+        let followup = self.rejection_followup(
+            ClassicBrokerStage::Heartbeat,
+            attempt.cycle(),
+            Some(attempt.assignment_generation()),
+            now,
+            error,
+        );
+        self.heartbeat.failed(attempt)?;
+        let revoke = self.take_stable_revoke()?;
+        Ok(match followup {
+            RejectionFollowup::Rejoin {
+                schedule,
+                coordinator,
+            } => {
+                self.wait_to_rejoin(schedule);
+                ClassicGroupTransition::two(
+                    revoke,
+                    ClassicGroupEffect::ArmRejoin {
+                        schedule,
+                        coordinator,
+                    },
+                )
+            }
+            RejectionFollowup::Fatal(fatal) => {
+                self.retain_fatal(fatal);
+                ClassicGroupTransition::two(revoke, ClassicGroupEffect::Fatal { fatal })
+            }
+        })
+    }
+
+    fn stage_rejected(
+        &mut self,
+        stage: ClassicBrokerStage,
+        cycle: MembershipCycle,
+        assignment_generation: Option<AssignmentGeneration>,
+        now: Moment,
+        error: ClassicBrokerError,
+    ) -> ClassicGroupTransition {
+        match self.rejection_followup(stage, cycle, assignment_generation, now, error) {
+            RejectionFollowup::Rejoin {
+                schedule,
+                coordinator,
+            } => {
+                self.wait_to_rejoin(schedule);
+                ClassicGroupTransition::one(ClassicGroupEffect::ArmRejoin {
+                    schedule,
+                    coordinator,
+                })
+            }
+            RejectionFollowup::Fatal(fatal) => self.finish_fatal(fatal),
+        }
+    }
+
+    fn rejection_followup(
+        &self,
+        stage: ClassicBrokerStage,
+        cycle: MembershipCycle,
+        assignment_generation: Option<AssignmentGeneration>,
+        now: Moment,
+        error: ClassicBrokerError,
+    ) -> RejectionFollowup {
+        match disposition(stage, error) {
+            ClassicErrorDisposition::Fatal => RejectionFollowup::Fatal(ClassicGroupFatal::new(
+                cycle,
+                assignment_generation,
+                ClassicGroupFatalReason::Broker { stage, error },
+            )),
+            ClassicErrorDisposition::Rejoin(coordinator) => {
+                let Some(due) = now.checked_deadline_after(self.rejoin_policy().backoff_ticks())
+                else {
+                    return RejectionFollowup::Fatal(ClassicGroupFatal::new(
+                        cycle,
+                        assignment_generation,
+                        ClassicGroupFatalReason::ScheduleDeadlineOverflow,
+                    ));
+                };
+                RejectionFollowup::Rejoin {
+                    schedule: ClassicRejoinSchedule::new(cycle, assignment_generation, due),
+                    coordinator,
+                }
+            }
+        }
+    }
+}
+
+enum RejectionFollowup {
+    Rejoin {
+        schedule: ClassicRejoinSchedule,
+        coordinator: super::ClassicCoordinatorRecovery,
+    },
+    Fatal(ClassicGroupFatal),
+}

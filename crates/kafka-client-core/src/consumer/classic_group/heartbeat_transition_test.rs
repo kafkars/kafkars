@@ -284,5 +284,7 @@ fn machine(policy: ClassicHeartbeatPolicy) -> ClassicGroupMachine {
         ClassicGroupTiming::try_new(10_000, 30_000)
             .unwrap_or_else(|error| panic!("valid group timing: {error}")),
         policy,
+        super::ClassicRejoinPolicy::try_new(5, 50)
+            .unwrap_or_else(|error| panic!("valid rejoin policy: {error:?}")),
     )
 }

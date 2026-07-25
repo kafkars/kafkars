@@ -14,6 +14,8 @@ struct ClassicGroupMachine {
     next_assignment_generation: usize,
     live_generation: usize,
     live_assignment: usize,
+    pending_rejoin: usize,
+    fatal: usize,
 }
 
 fn mutate_outside_transition(owner: &mut ClassicGroupMachine) {
@@ -30,4 +32,6 @@ fn mutate_outside_transition(owner: &mut ClassicGroupMachine) {
     owner.next_assignment_generation = 1;
     owner.live_generation = 1;
     owner.live_assignment = 1;
+    owner.pending_rejoin = 1;
+    owner.fatal = 1;
 }

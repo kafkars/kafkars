@@ -6,6 +6,8 @@ pub(super) const TRANSITION: &str =
     "crates/kafka-client-core/src/consumer/classic_group/transition.rs";
 pub(super) const TERMINAL_TRANSITION: &str =
     "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs";
+pub(super) const REJOIN_TRANSITION: &str =
+    "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition.rs";
 
 pub(super) const MIRRORS: &[(&str, &str)] = &[
     ("identity.rs", "identity_test.rs"),
@@ -24,9 +26,23 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
     ("heartbeat.rs", "heartbeat_test.rs"),
     ("heartbeat_state.rs", "heartbeat_state_test.rs"),
     ("heartbeat_transition.rs", "heartbeat_transition_test.rs"),
+    ("recovery/broker_error.rs", "recovery/broker_error_test.rs"),
+    (
+        "recovery/error_disposition.rs",
+        "recovery/error_disposition_test.rs",
+    ),
+    ("recovery/rejoin.rs", "recovery/rejoin_test.rs"),
+    (
+        "recovery/rejection_transition.rs",
+        "recovery/rejection_transition_test.rs",
+    ),
+    (
+        "recovery/rejoin_transition.rs",
+        "recovery/rejoin_transition_test.rs",
+    ),
 ];
 
-pub(super) const IMMUTABLE_MACHINE_FIELDS: &[&str] = &["group_id", "timing"];
+pub(super) const IMMUTABLE_MACHINE_FIELDS: &[&str] = &["group_id", "timing", "rejoin_policy"];
 pub(super) const TRAILING_MACHINE_FIELDS: &[&str] = &["heartbeat"];
 
 pub(super) const LINEAR: &[(&str, &str)] = &[
@@ -43,10 +59,22 @@ pub(super) const LINEAR: &[(&str, &str)] = &[
 ];
 
 pub(super) const MACHINE_FIELDS: &[(&str, &[&str])] = &[
-    ("phase", &[TRANSITION, TERMINAL_TRANSITION]),
-    ("next_cycle", &[TRANSITION, TERMINAL_TRANSITION]),
-    ("active_cycle", &[TRANSITION, TERMINAL_TRANSITION]),
-    ("deadline", &[TRANSITION, TERMINAL_TRANSITION]),
+    (
+        "phase",
+        &[TRANSITION, TERMINAL_TRANSITION, REJOIN_TRANSITION],
+    ),
+    (
+        "next_cycle",
+        &[TRANSITION, TERMINAL_TRANSITION, REJOIN_TRANSITION],
+    ),
+    (
+        "active_cycle",
+        &[TRANSITION, TERMINAL_TRANSITION, REJOIN_TRANSITION],
+    ),
+    (
+        "deadline",
+        &[TRANSITION, TERMINAL_TRANSITION, REJOIN_TRANSITION],
+    ),
     ("pending_member_id", &[TRANSITION]),
     ("pending_generation", &[TRANSITION]),
     ("pending_members", &[TRANSITION]),
@@ -59,6 +87,11 @@ pub(super) const MACHINE_FIELDS: &[(&str, &[&str])] = &[
     ),
     ("live_generation", &[TRANSITION, TERMINAL_TRANSITION]),
     ("live_assignment", &[TRANSITION, TERMINAL_TRANSITION]),
+    (
+        "pending_rejoin",
+        &[TRANSITION, TERMINAL_TRANSITION, REJOIN_TRANSITION],
+    ),
+    ("fatal", &[REJOIN_TRANSITION]),
 ];
 
 pub(super) const FORBIDDEN: &[&str] = &[

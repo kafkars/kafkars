@@ -11,13 +11,18 @@ fn construction_is_dormant_timeless_and_assignment_free() {
         .unwrap_or_else(|error| panic!("valid timing: {error}"));
     let heartbeat = ClassicHeartbeatPolicy::try_new(10, 20)
         .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}"));
-    let machine = ClassicGroupMachine::new(group_id, timing, heartbeat);
+    let rejoin = super::ClassicRejoinPolicy::try_new(5, 50)
+        .unwrap_or_else(|error| panic!("valid rejoin policy: {error:?}"));
+    let machine = ClassicGroupMachine::new(group_id, timing, heartbeat, rejoin);
 
     assert_eq!(machine.group_id(), group_id);
     assert_eq!(machine.timing(), timing);
     assert_eq!(machine.phase(), ClassicGroupPhase::Dormant);
     assert_eq!(machine.active_cycle(), None);
     assert_eq!(machine.deadline(), None);
+    assert_eq!(machine.rejoin_policy(), rejoin);
+    assert_eq!(machine.pending_rejoin(), None);
+    assert_eq!(machine.fatal(), None);
     assert_eq!(machine.live_assignment(), None);
     assert_eq!(machine.live_generation(), None);
 }

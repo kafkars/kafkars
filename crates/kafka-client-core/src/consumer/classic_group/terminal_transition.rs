@@ -41,6 +41,18 @@ impl ClassicGroupMachine {
     pub(super) fn revoke_stable_assignment(
         &mut self,
     ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
+        let revoke = self.take_stable_revoke()?;
+        self.phase = ClassicGroupPhase::Lost;
+        self.active_cycle = None;
+        self.deadline = None;
+        self.clear_pending();
+        self.heartbeat.disarm();
+        Ok(ClassicGroupTransition::one(revoke))
+    }
+
+    pub(super) fn take_stable_revoke(
+        &mut self,
+    ) -> Result<ClassicGroupEffect, ClassicGroupErrorKind> {
         if self.live_assignment.is_some() != self.live_generation.is_some() {
             return Err(ClassicGroupErrorKind::InvariantViolation);
         }
@@ -52,15 +64,10 @@ impl ClassicGroupMachine {
             .live_generation
             .take()
             .ok_or(ClassicGroupErrorKind::InvariantViolation)?;
-        self.phase = ClassicGroupPhase::Lost;
-        self.active_cycle = None;
-        self.deadline = None;
-        self.clear_pending();
-        self.heartbeat.disarm();
-        Ok(ClassicGroupTransition::one(ClassicGroupEffect::Revoke {
+        Ok(ClassicGroupEffect::Revoke {
             assignment,
             classic_generation,
-        }))
+        })
     }
 
     pub(super) fn deadline_elapsed(
@@ -99,6 +106,7 @@ impl ClassicGroupMachine {
         self.next_assignment_generation = None;
         self.active_cycle = None;
         self.deadline = None;
+        self.pending_rejoin = None;
         self.clear_pending();
         self.heartbeat.disarm();
         Ok(revoke.map_or_else(ClassicGroupTransition::none, ClassicGroupTransition::one))
@@ -108,6 +116,7 @@ impl ClassicGroupMachine {
         self.phase = ClassicGroupPhase::Lost;
         self.active_cycle = None;
         self.deadline = None;
+        self.pending_rejoin = None;
         self.clear_pending();
         self.heartbeat.disarm();
     }

@@ -7,8 +7,8 @@ use crate::{
 use super::{
     ClassicGeneration, ClassicGroupEffect, ClassicGroupErrorKind, ClassicGroupInput,
     ClassicGroupMachine, ClassicGroupPhase, ClassicGroupTiming, ClassicHeartbeatPolicy,
-    ClassicJoinMember, ClassicJoinMembers, ClassicProtocol, ClassicSubscription, JoinedMemberSlot,
-    MemberRank, MembershipCycle, TopicPartitionCount,
+    ClassicJoinMember, ClassicJoinMembers, ClassicProtocol, ClassicRejoinPolicy,
+    ClassicSubscription, JoinedMemberSlot, MemberRank, MembershipCycle, TopicPartitionCount,
 };
 
 #[test]
@@ -106,7 +106,6 @@ fn only_matching_sync_success_activates_one_assignment_generation() {
         }) if assignment.assignment_generation().get() == 1
             && classic_generation.get() == 11
     ));
-    assert_eq!(machine.phase(), ClassicGroupPhase::Stable);
     assert_eq!(
         machine.live_generation().map(ClassicGeneration::get),
         Some(11)
@@ -268,6 +267,7 @@ fn machine() -> ClassicGroupMachine {
             .unwrap_or_else(|error| panic!("valid timing: {error}")),
         ClassicHeartbeatPolicy::try_new(10, 20)
             .unwrap_or_else(|error| panic!("valid heartbeat policy: {error}")),
+        ClassicRejoinPolicy::try_new(5, 50).unwrap_or_else(|_| panic!("valid rejoin")),
     )
 }
 

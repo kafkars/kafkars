@@ -75,7 +75,7 @@ impl ClassicGroupMachine {
         self.revoke_stable_assignment()
     }
 
-    fn validate_heartbeat_assignment(
+    pub(super) fn validate_heartbeat_assignment(
         &self,
         attempt: ClassicHeartbeatAttempt,
     ) -> Result<(), ClassicGroupErrorKind> {

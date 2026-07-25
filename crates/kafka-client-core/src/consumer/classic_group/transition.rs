@@ -28,6 +28,14 @@ impl ClassicGroupMachine {
         ) {
             return Err(ClassicGroupErrorKind::InvalidPhase);
         }
+        self.start_cycle(now, deadline)
+    }
+
+    pub(super) fn start_cycle(
+        &mut self,
+        now: Moment,
+        deadline: Deadline,
+    ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         if deadline.is_elapsed_at(now) {
             return Err(ClassicGroupErrorKind::DeadlineElapsed);
         }
@@ -48,6 +56,7 @@ impl ClassicGroupMachine {
         self.next_cycle = cycle.checked_next();
         self.active_cycle = Some(cycle);
         self.deadline = Some(deadline);
+        self.pending_rejoin = None;
         self.clear_pending();
         Ok(ClassicGroupTransition::one(join))
     }

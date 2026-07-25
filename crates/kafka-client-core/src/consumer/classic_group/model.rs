@@ -26,8 +26,12 @@ pub enum ClassicGroupPhase {
     Syncing,
     /// Matching Sync success installed the live assignment.
     Stable,
+    /// One exact recovery schedule is waiting for its due observation.
+    WaitingToRejoin,
     /// The active cycle or assignment was terminally lost.
     Lost,
+    /// Membership cannot recover without an explicit replacement owner.
+    Fatal,
     /// Admission is permanently closed.
     Closed,
 }

@@ -24,6 +24,7 @@ fn owners() -> (GroupSessionCatalog, ClassicGroupOwner) {
             group_id,
             classic_group_test_support::timing(),
             classic_group_test_support::heartbeat_policy(),
+            classic_group_test_support::rejoin_policy(),
         ),
     )
 }
@@ -207,6 +208,7 @@ fn foreign_lost_owner_cannot_authorize_another_groups_revoke() {
         group_b,
         classic_group_test_support::timing(),
         classic_group_test_support::heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
     );
     classic_group_test_support::install_follower(
         &mut catalog_b,
