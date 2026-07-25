@@ -4,13 +4,13 @@ use crate::{Deadline, GroupId, Moment};
 
 use super::{
     ClassicGroupEffect, ClassicGroupErrorKind, ClassicGroupInput, ClassicGroupMachine,
-    ClassicGroupPhase,
+    ClassicGroupPhase, ClassicGroupTiming,
 };
 
 #[test]
 fn begin_dispatches_to_the_join_transition() {
     let group = GroupId::try_from_raw(1).unwrap_or_else(|| panic!("nonzero group"));
-    let mut machine = ClassicGroupMachine::new(group);
+    let mut machine = ClassicGroupMachine::new(group, timing());
     let transition = machine
         .apply(ClassicGroupInput::Begin {
             now: Moment::from_tick(1),
@@ -28,7 +28,7 @@ fn begin_dispatches_to_the_join_transition() {
 #[test]
 fn elapsed_start_emits_no_join() {
     let group = GroupId::try_from_raw(1).unwrap_or_else(|| panic!("nonzero group"));
-    let mut machine = ClassicGroupMachine::new(group);
+    let mut machine = ClassicGroupMachine::new(group, timing());
     let error = machine
         .apply(ClassicGroupInput::Begin {
             now: Moment::from_tick(10),
@@ -39,4 +39,9 @@ fn elapsed_start_emits_no_join() {
 
     assert_eq!(error.kind(), ClassicGroupErrorKind::DeadlineElapsed);
     assert_eq!(machine.phase(), ClassicGroupPhase::Dormant);
+}
+
+fn timing() -> ClassicGroupTiming {
+    ClassicGroupTiming::try_new(10_000, 30_000)
+        .unwrap_or_else(|error| panic!("valid timing: {error}"))
 }

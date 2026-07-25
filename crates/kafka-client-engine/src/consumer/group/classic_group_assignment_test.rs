@@ -18,7 +18,10 @@ fn owners() -> (GroupSessionCatalog, ClassicGroupOwner) {
     let catalog =
         GroupSessionCatalog::try_new(group_id, Arc::from("workers"), &[Arc::from("orders")])
             .unwrap_or_else(|error| panic!("catalog creation failed: {error:?}"));
-    (catalog, ClassicGroupOwner::new(group_id))
+    (
+        catalog,
+        ClassicGroupOwner::new(group_id, classic_group_test_support::timing()),
+    )
 }
 
 #[test]
@@ -194,7 +197,7 @@ fn foreign_lost_owner_cannot_authorize_another_groups_revoke() {
     let mut catalog_b =
         GroupSessionCatalog::try_new(group_b, Arc::from("payments"), &[Arc::from("payments")])
             .unwrap_or_else(|error| panic!("catalog creation failed: {error:?}"));
-    let mut owner_b = ClassicGroupOwner::new(group_b);
+    let mut owner_b = ClassicGroupOwner::new(group_b, classic_group_test_support::timing());
     classic_group_test_support::install_follower(
         &mut catalog_b,
         &mut owner_b,

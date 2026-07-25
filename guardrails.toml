@@ -219,6 +219,10 @@ production = "crates/kafka-client-core/src/consumer/classic_group/model.rs"
 test = "crates/kafka-client-core/src/consumer/classic_group/model_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/timing.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/timing_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/classic_group/assignment.rs"
 test = "crates/kafka-client-core/src/consumer/classic_group/assignment_test.rs"
 

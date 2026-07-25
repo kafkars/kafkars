@@ -2,6 +2,9 @@
 
 use std::sync::Arc;
 
+use kafka_client_core::{
+    CLASSIC_GROUP_TIMEOUT_MAX_MS, CLASSIC_GROUP_TIMEOUT_MIN_MS, ClassicGroupTiming,
+};
 use kafka_wire::{
     JOIN_GROUP_API_DESCRIPTOR, JoinGroupRequest, decode_consumer_protocol_subscription,
 };
@@ -16,16 +19,16 @@ fn topics(values: &[&str]) -> Vec<Arc<str>> {
     values.iter().copied().map(Arc::from).collect()
 }
 
+fn timing() -> ClassicGroupTiming {
+    ClassicGroupTiming::try_new(10_000, 30_000)
+        .unwrap_or_else(|error| panic!("timing failed: {error}"))
+}
+
 #[test]
 fn request_is_dynamic_range_with_one_v0_subscription() {
-    let request = classic_join_group_request(
-        "workers",
-        None,
-        &topics(&["orders", "payments"]),
-        10_000,
-        30_000,
-    )
-    .unwrap_or_else(|error| panic!("Join request failed: {error:?}"));
+    let request =
+        classic_join_group_request("workers", None, &topics(&["orders", "payments"]), timing())
+            .unwrap_or_else(|error| panic!("Join request failed: {error:?}"));
 
     assert_eq!(request.group_id.as_str(), "workers");
     assert_eq!(request.member_id.as_str(), "");
@@ -58,14 +61,9 @@ fn request_is_dynamic_range_with_one_v0_subscription() {
 
 #[test]
 fn generated_request_round_trips_at_both_exact_driver_bounds() {
-    let request = classic_join_group_request(
-        "workers",
-        Some("member-a"),
-        &topics(&["orders"]),
-        10_000,
-        30_000,
-    )
-    .unwrap_or_else(|error| panic!("Join request failed: {error:?}"));
+    let request =
+        classic_join_group_request("workers", Some("member-a"), &topics(&["orders"]), timing())
+            .unwrap_or_else(|error| panic!("Join request failed: {error:?}"));
 
     for version in [ApiVersion::new(1), ApiVersion::new(3)] {
         assert!(
@@ -89,28 +87,44 @@ fn generated_request_round_trips_at_both_exact_driver_bounds() {
 }
 
 #[test]
+fn exact_timing_bounds_round_trip_unchanged() {
+    let timing =
+        ClassicGroupTiming::try_new(CLASSIC_GROUP_TIMEOUT_MIN_MS, CLASSIC_GROUP_TIMEOUT_MAX_MS)
+            .unwrap_or_else(|error| panic!("timing failed: {error}"));
+    let request = classic_join_group_request("workers", None, &topics(&["orders"]), timing)
+        .unwrap_or_else(|error| panic!("Join request failed: {error:?}"));
+    let version = ApiVersion::new(3);
+    let mut encoded = BytesMut::new();
+    request
+        .encode_into(&mut encoded, version)
+        .unwrap_or_else(|error| panic!("Join encode failed: {error}"));
+    let mut decoder = Decoder::new(encoded.freeze(), DecodeLimits::default())
+        .unwrap_or_else(|error| panic!("decoder failed: {error}"));
+    let decoded = JoinGroupRequest::decode(&mut decoder, version)
+        .unwrap_or_else(|error| panic!("Join decode failed: {error}"));
+    decoder
+        .finish()
+        .unwrap_or_else(|error| panic!("Join trailing bytes: {error}"));
+
+    assert_eq!(decoded.session_timeout_ms, 1);
+    assert_eq!(decoded.rebalance_timeout_ms, i32::MAX);
+}
+
+#[test]
 fn structural_rejection_precedes_generated_request_ownership() {
     let duplicate = topics(&["orders", "orders"]);
     assert_eq!(
-        classic_join_group_request("workers", None, &duplicate, 1, 1),
+        classic_join_group_request("workers", None, &duplicate, timing()),
         Err(ClassicJoinRequestFailure::DuplicateTopic)
     );
     let unordered = topics(&["payments", "orders"]);
     assert_eq!(
-        classic_join_group_request("workers", None, &unordered, 1, 1),
+        classic_join_group_request("workers", None, &unordered, timing()),
         Err(ClassicJoinRequestFailure::OutOfOrderTopic)
     );
     assert_eq!(
-        classic_join_group_request("workers", Some(""), &[], 1, 1),
+        classic_join_group_request("workers", Some(""), &[], timing()),
         Err(ClassicJoinRequestFailure::InvalidMember)
-    );
-    assert_eq!(
-        classic_join_group_request("workers", None, &[], 0, 1),
-        Err(ClassicJoinRequestFailure::InvalidSessionTimeout(0))
-    );
-    assert_eq!(
-        classic_join_group_request("workers", None, &[], 1, -1),
-        Err(ClassicJoinRequestFailure::InvalidRebalanceTimeout(-1))
     );
 }
 
@@ -120,20 +134,20 @@ fn topic_count_and_spelling_bounds_are_exact() {
         .map(|index| Arc::<str>::from(format!("topic-{index:02}")))
         .collect::<Vec<_>>();
     assert!(
-        classic_join_group_request("workers", None, &maximum, 1, 1).is_ok(),
+        classic_join_group_request("workers", None, &maximum, timing()).is_ok(),
         "the exact topic bound should be accepted"
     );
     let mut oversized = maximum;
     oversized.push(Arc::from("topic-64"));
     assert_eq!(
-        classic_join_group_request("workers", None, &oversized, 1, 1),
+        classic_join_group_request("workers", None, &oversized, timing()),
         Err(ClassicJoinRequestFailure::TopicCount {
             actual: MAX_TOPICS + 1,
             limit: MAX_TOPICS,
         })
     );
     assert_eq!(
-        classic_join_group_request("workers", None, &[Arc::from("x".repeat(250))], 1, 1),
+        classic_join_group_request("workers", None, &[Arc::from("x".repeat(250))], timing(),),
         Err(ClassicJoinRequestFailure::InvalidTopic)
     );
 }

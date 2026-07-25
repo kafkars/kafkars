@@ -10,6 +10,7 @@ mod machine;
 mod model;
 mod range_validation;
 mod terminal_transition;
+mod timing;
 mod transition;
 mod transition_support;
 
@@ -22,6 +23,10 @@ pub use machine::ClassicGroupMachine;
 pub use model::{
     ClassicGroupPhase, ClassicJoinMember, ClassicJoinMembers, ClassicJoinMembersError,
     ClassicProtocol, ClassicSubscription, ClassicSubscriptionError, TopicPartitionCount,
+};
+pub use timing::{
+    CLASSIC_GROUP_TIMEOUT_MAX_MS, CLASSIC_GROUP_TIMEOUT_MIN_MS, ClassicGroupTiming,
+    ClassicGroupTimingError,
 };
 
 #[cfg(test)]
@@ -46,6 +51,8 @@ mod model_test;
 mod range_validation_test;
 #[cfg(test)]
 mod terminal_transition_test;
+#[cfg(test)]
+mod timing_test;
 #[cfg(test)]
 mod transition_support_test;
 #[cfg(test)]

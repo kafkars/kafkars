@@ -2,7 +2,9 @@
 
 use crate::{Deadline, GroupId, LiveGroupAssignment, MemberId, TopicId};
 
-use super::{ClassicAssignmentPlan, ClassicGeneration, ClassicProtocol, MembershipCycle};
+use super::{
+    ClassicAssignmentPlan, ClassicGeneration, ClassicGroupTiming, ClassicProtocol, MembershipCycle,
+};
 
 /// One bounded mechanism action carrying the original membership deadline.
 #[derive(Debug, Eq, PartialEq)]
@@ -15,6 +17,8 @@ pub enum ClassicGroupEffect {
         cycle: MembershipCycle,
         /// Core-selected classic assignment protocol.
         protocol: ClassicProtocol,
+        /// Immutable positive wire-representable Join timeout policy.
+        timing: ClassicGroupTiming,
         /// Original absolute deadline.
         deadline: Deadline,
     },

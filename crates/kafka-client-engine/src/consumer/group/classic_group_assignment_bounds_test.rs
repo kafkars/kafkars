@@ -25,7 +25,7 @@ fn stable_effect(
     let catalog =
         GroupSessionCatalog::try_new(group_id, Arc::from("workers"), &[Arc::from("orders")])
             .unwrap_or_else(|error| panic!("catalog creation failed: {error:?}"));
-    let mut owner = ClassicGroupOwner::new(group_id);
+    let mut owner = ClassicGroupOwner::new(group_id, classic_group_test_support::timing());
     let cycle = classic_group_test_support::begin(&mut owner);
     let candidate = catalog
         .prepare_follower_cycle(cycle, Arc::from("member-a"))

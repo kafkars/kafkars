@@ -41,6 +41,7 @@ impl ClassicGroupMachine {
             group_id: self.group_id,
             cycle,
             protocol: ClassicProtocol::Range,
+            timing: self.timing(),
             deadline,
         };
         self.phase = ClassicGroupPhase::Joining;

@@ -6,8 +6,9 @@ use crate::{
 
 use super::{
     ClassicGeneration, ClassicGroupEffect, ClassicGroupErrorKind, ClassicGroupInput,
-    ClassicGroupMachine, ClassicGroupPhase, ClassicJoinMember, ClassicJoinMembers, ClassicProtocol,
-    ClassicSubscription, JoinedMemberSlot, MemberRank, MembershipCycle, TopicPartitionCount,
+    ClassicGroupMachine, ClassicGroupPhase, ClassicGroupTiming, ClassicJoinMember,
+    ClassicJoinMembers, ClassicProtocol, ClassicSubscription, JoinedMemberSlot, MemberRank,
+    MembershipCycle, TopicPartitionCount,
 };
 
 #[test]
@@ -260,7 +261,11 @@ fn begin(machine: &mut ClassicGroupMachine, deadline: u64) -> super::ClassicGrou
 }
 
 fn machine() -> ClassicGroupMachine {
-    ClassicGroupMachine::new(GroupId::try_from_raw(1).unwrap_or_else(|| panic!("nonzero group")))
+    ClassicGroupMachine::new(
+        GroupId::try_from_raw(1).unwrap_or_else(|| panic!("nonzero group")),
+        ClassicGroupTiming::try_new(10_000, 30_000)
+            .unwrap_or_else(|error| panic!("valid timing: {error}")),
+    )
 }
 
 fn assigned(topic_id: u64, partition: u32) -> GroupAssignmentPartition {

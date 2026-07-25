@@ -2,7 +2,10 @@
 
 use crate::{Deadline, GroupId};
 
-use super::{ClassicGroupEffect, ClassicGroupTransition, ClassicProtocol, MembershipCycle};
+use super::{
+    ClassicGroupEffect, ClassicGroupTiming, ClassicGroupTransition, ClassicProtocol,
+    MembershipCycle,
+};
 
 #[test]
 fn transition_owns_one_effect_without_a_dynamic_effect_queue() {
@@ -12,6 +15,8 @@ fn transition_owns_one_effect_without_a_dynamic_effect_queue() {
         group_id,
         cycle,
         protocol: ClassicProtocol::Range,
+        timing: ClassicGroupTiming::try_new(10_000, 30_000)
+            .unwrap_or_else(|error| panic!("valid timing: {error}")),
         deadline: Deadline::from_tick(9),
     };
     let effects = ClassicGroupTransition::one(first)

@@ -49,7 +49,11 @@ fn catalog_rejection_returns_the_exact_group_allocation() {
     let group: Arc<str> = Arc::from("");
     let retained = Arc::clone(&group);
     let failure = registry
-        .try_register(group, vec![Arc::from("orders")])
+        .try_register(
+            group,
+            vec![Arc::from("orders")],
+            super::classic_group_test_support::timing(),
+        )
         .err()
         .unwrap_or_else(|| panic!("empty group must be rejected"));
 
@@ -71,7 +75,11 @@ fn count_and_aggregate_group_name_bytes_have_exact_caps() {
         register(&mut count_registry, &format!("group-{index}"));
     }
     let count_failure = count_registry
-        .try_register(Arc::from("one-too-many"), vec![Arc::from("orders")])
+        .try_register(
+            Arc::from("one-too-many"),
+            vec![Arc::from("orders")],
+            super::classic_group_test_support::timing(),
+        )
         .err()
         .unwrap_or_else(|| panic!("entry capacity must reject"));
     assert_eq!(

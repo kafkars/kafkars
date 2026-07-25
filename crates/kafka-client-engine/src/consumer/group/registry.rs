@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::GroupId;
+use kafka_client_core::{ClassicGroupTiming, GroupId};
 
 use super::{
     offset_commit::GroupOffsetCommitHost,
@@ -60,6 +60,7 @@ impl GroupConsumerRegistry {
         &mut self,
         group: Arc<str>,
         local_topics: Vec<Arc<str>>,
+        timing: ClassicGroupTiming,
     ) -> Result<GroupId, GroupConsumerRegistrationFailure> {
         if !self.accepting {
             return Err(registration_failure(
@@ -82,7 +83,7 @@ impl GroupConsumerRegistry {
                 local_topics,
             ));
         };
-        let entry = match GroupConsumerEntry::try_new(group_id, &group, &local_topics) {
+        let entry = match GroupConsumerEntry::try_new(group_id, &group, &local_topics, timing) {
             Ok(entry) => entry,
             Err(error) => {
                 return Err(registration_failure(

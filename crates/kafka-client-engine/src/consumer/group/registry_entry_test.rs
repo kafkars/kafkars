@@ -4,16 +4,19 @@ use std::sync::Arc;
 
 use kafka_client_core::{ClassicGroupPhase, GroupId, TopicId};
 
+use super::classic_group_test_support;
 use super::registry_entry::GroupConsumerEntry;
 
 #[test]
 fn entry_owns_one_catalog_and_machine_with_the_same_identity() {
     let group_id =
         GroupId::try_from_raw(17).unwrap_or_else(|| panic!("group identity must be nonzero"));
+    let timing = classic_group_test_support::timing();
     let entry = GroupConsumerEntry::try_new(
         group_id,
         &Arc::from("workers"),
         &[Arc::from("payments"), Arc::from("orders")],
+        timing,
     )
     .unwrap_or_else(|error| panic!("entry creation failed: {error:?}"));
 
@@ -27,5 +30,6 @@ fn entry_owns_one_catalog_and_machine_with_the_same_identity() {
         Some(TopicId::from_raw(2))
     );
     assert_eq!(entry.classic.machine().group_id(), group_id);
+    assert_eq!(entry.classic.machine().timing(), timing);
     assert_eq!(entry.classic.machine().phase(), ClassicGroupPhase::Dormant);
 }

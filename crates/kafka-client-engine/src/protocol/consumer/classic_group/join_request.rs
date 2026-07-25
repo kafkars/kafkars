@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use kafka_client_core::ClassicGroupTiming;
 use kafka_wire::{
     ConsumerProtocolSubscription, JoinGroupRequest, encode_consumer_protocol_subscription,
     join_group_request::JoinGroupRequestProtocol,
@@ -18,8 +19,6 @@ use super::validation::{
 pub(crate) enum ClassicJoinRequestFailure {
     InvalidGroup,
     InvalidMember,
-    InvalidSessionTimeout(i32),
-    InvalidRebalanceTimeout(i32),
     TopicCount { actual: usize, limit: usize },
     InvalidTopic,
     DuplicateTopic,
@@ -33,16 +32,9 @@ pub(crate) fn classic_join_group_request(
     group: &str,
     member: Option<&str>,
     topics: &[Arc<str>],
-    session_timeout_ms: i32,
-    rebalance_timeout_ms: i32,
+    timing: ClassicGroupTiming,
 ) -> Result<JoinGroupRequest, ClassicJoinRequestFailure> {
-    validate_inputs(
-        group,
-        member,
-        topics,
-        session_timeout_ms,
-        rebalance_timeout_ms,
-    )?;
+    validate_inputs(group, member, topics)?;
     let mut subscription_topics = Vec::new();
     subscription_topics
         .try_reserve_exact(topics.len())
@@ -69,8 +61,8 @@ pub(crate) fn classic_join_group_request(
 
     let mut request = JoinGroupRequest::default();
     request.group_id = group.into();
-    request.session_timeout_ms = session_timeout_ms;
-    request.rebalance_timeout_ms = rebalance_timeout_ms;
+    request.session_timeout_ms = timing.session_timeout_ms();
+    request.rebalance_timeout_ms = timing.rebalance_timeout_ms();
     request.member_id = member.unwrap_or_default().into();
     request.group_instance_id = None;
     request.protocol_type = PROTOCOL_TYPE.into();
@@ -83,24 +75,12 @@ fn validate_inputs(
     group: &str,
     member: Option<&str>,
     topics: &[Arc<str>],
-    session_timeout_ms: i32,
-    rebalance_timeout_ms: i32,
 ) -> Result<(), ClassicJoinRequestFailure> {
     if !valid_kafka_string(group) {
         return Err(ClassicJoinRequestFailure::InvalidGroup);
     }
     if member.is_some_and(|value| !valid_kafka_string(value)) {
         return Err(ClassicJoinRequestFailure::InvalidMember);
-    }
-    if session_timeout_ms <= 0 {
-        return Err(ClassicJoinRequestFailure::InvalidSessionTimeout(
-            session_timeout_ms,
-        ));
-    }
-    if rebalance_timeout_ms <= 0 {
-        return Err(ClassicJoinRequestFailure::InvalidRebalanceTimeout(
-            rebalance_timeout_ms,
-        ));
     }
     if topics.len() > MAX_TOPICS {
         return Err(ClassicJoinRequestFailure::TopicCount {

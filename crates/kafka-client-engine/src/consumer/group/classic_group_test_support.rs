@@ -3,11 +3,16 @@
 use std::sync::Arc;
 
 use kafka_client_core::{
-    ClassicGeneration, ClassicGroupEffect, ClassicGroupInput, Deadline, GroupAssignmentPartition,
-    MembershipCycle, Moment,
+    ClassicGeneration, ClassicGroupEffect, ClassicGroupInput, ClassicGroupTiming, Deadline,
+    GroupAssignmentPartition, MembershipCycle, Moment,
 };
 
 use super::{classic_group_owner::ClassicGroupOwner, session_catalog::GroupSessionCatalog};
+
+pub(super) fn timing() -> ClassicGroupTiming {
+    ClassicGroupTiming::try_new(10_000, 30_000)
+        .unwrap_or_else(|error| panic!("valid classic group timing: {error}"))
+}
 
 pub(super) fn begin(owner: &mut ClassicGroupOwner) -> MembershipCycle {
     owner

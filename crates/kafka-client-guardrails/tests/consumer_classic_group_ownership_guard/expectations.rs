@@ -10,6 +10,7 @@ pub(super) const TERMINAL_TRANSITION: &str =
 pub(super) const MIRRORS: &[(&str, &str)] = &[
     ("identity.rs", "identity_test.rs"),
     ("model.rs", "model_test.rs"),
+    ("timing.rs", "timing_test.rs"),
     ("assignment.rs", "assignment_test.rs"),
     ("apply.rs", "apply_test.rs"),
     ("input.rs", "input_test.rs"),
@@ -21,6 +22,8 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
     ("terminal_transition.rs", "terminal_transition_test.rs"),
     ("transition_support.rs", "transition_support_test.rs"),
 ];
+
+pub(super) const IMMUTABLE_MACHINE_FIELDS: &[&str] = &["group_id", "timing"];
 
 pub(super) const LINEAR: &[(&str, &str)] = &[
     ("ClassicSubscription", "model.rs"),

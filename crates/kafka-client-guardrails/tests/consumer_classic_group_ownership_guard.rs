@@ -9,7 +9,9 @@ use support::{
     linear_violations, load_config, mutation_violations, workspace_root,
 };
 
-use expectations::{FORBIDDEN, LINEAR, MACHINE, MACHINE_FIELDS, MIRRORS, ROOT};
+use expectations::{
+    FORBIDDEN, IMMUTABLE_MACHINE_FIELDS, LINEAR, MACHINE, MACHINE_FIELDS, MIRRORS, ROOT,
+};
 
 #[test]
 fn checked_in_classic_group_mirrors_and_linear_owners_are_exact() {
@@ -72,7 +74,9 @@ fn checked_in_classic_group_mutation_and_capability_policy_is_exact() {
     assert_eq!(actual_fields, expected_fields);
     assert_eq!(
         declared_machine_fields(),
-        std::iter::once("group_id")
+        IMMUTABLE_MACHINE_FIELDS
+            .iter()
+            .copied()
             .chain(MACHINE_FIELDS.iter().map(|(field, _paths)| *field))
             .map(str::to_owned)
             .collect::<Vec<_>>()

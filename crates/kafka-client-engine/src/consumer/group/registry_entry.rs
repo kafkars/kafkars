@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::GroupId;
+use kafka_client_core::{ClassicGroupTiming, GroupId};
 
 use super::{
     classic_group_owner::ClassicGroupOwner,
@@ -28,11 +28,12 @@ impl GroupConsumerEntry {
         group_id: GroupId,
         group: &Arc<str>,
         local_topics: &[Arc<str>],
+        timing: ClassicGroupTiming,
     ) -> Result<Self, GroupSessionCatalogError> {
         Ok(Self {
             state: GroupConsumerEntryState::Active,
             catalog: GroupSessionCatalog::try_new(group_id, Arc::clone(group), local_topics)?,
-            classic: ClassicGroupOwner::new(group_id),
+            classic: ClassicGroupOwner::new(group_id, timing),
         })
     }
 

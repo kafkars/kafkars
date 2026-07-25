@@ -102,7 +102,11 @@ fn begin(machine: &mut ClassicGroupMachine) -> MembershipCycle {
 }
 
 fn machine() -> ClassicGroupMachine {
-    ClassicGroupMachine::new(GroupId::try_from_raw(1).unwrap_or_else(|| panic!("nonzero group")))
+    ClassicGroupMachine::new(
+        GroupId::try_from_raw(1).unwrap_or_else(|| panic!("nonzero group")),
+        super::ClassicGroupTiming::try_new(10_000, 30_000)
+            .unwrap_or_else(|error| panic!("valid timing: {error}")),
+    )
 }
 
 fn assigned(topic_id: u64, partition: u32) -> GroupAssignmentPartition {

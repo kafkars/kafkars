@@ -17,7 +17,11 @@ pub(super) fn started_registry() -> GroupConsumerRegistry {
 
 pub(super) fn register(registry: &mut GroupConsumerRegistry, group: &str) -> GroupId {
     registry
-        .try_register(Arc::from(group), vec![Arc::from("orders")])
+        .try_register(
+            Arc::from(group),
+            vec![Arc::from("orders")],
+            classic_group_test_support::timing(),
+        )
         .unwrap_or_else(|failure| panic!("registration failed: {:?}", failure.kind))
 }
 

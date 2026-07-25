@@ -17,7 +17,10 @@ fn owners() -> (GroupSessionCatalog, ClassicGroupOwner) {
     let catalog =
         GroupSessionCatalog::try_new(group_id, Arc::from("workers"), &[Arc::from("orders")])
             .unwrap_or_else(|error| panic!("catalog creation failed: {error:?}"));
-    (catalog, ClassicGroupOwner::new(group_id))
+    (
+        catalog,
+        ClassicGroupOwner::new(group_id, super::classic_group_test_support::timing()),
+    )
 }
 
 #[test]

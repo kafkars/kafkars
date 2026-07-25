@@ -6,13 +6,15 @@ use crate::{
 };
 
 use super::{
-    ClassicGeneration, ClassicGroupPhase, ClassicJoinMembers, JoinedMemberSlot, MembershipCycle,
+    ClassicGeneration, ClassicGroupPhase, ClassicGroupTiming, ClassicJoinMembers, JoinedMemberSlot,
+    MembershipCycle,
 };
 
 /// Deterministic owner for one group's classic Join and Sync lifecycle.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ClassicGroupMachine {
     pub(super) group_id: GroupId,
+    timing: ClassicGroupTiming,
     pub(super) phase: ClassicGroupPhase,
     pub(super) next_cycle: Option<MembershipCycle>,
     pub(super) active_cycle: Option<MembershipCycle>,
@@ -29,9 +31,10 @@ pub struct ClassicGroupMachine {
 
 impl ClassicGroupMachine {
     /// Creates one dormant owner without consulting time or emitting effects.
-    pub const fn new(group_id: GroupId) -> Self {
+    pub const fn new(group_id: GroupId, timing: ClassicGroupTiming) -> Self {
         Self {
             group_id,
+            timing,
             phase: ClassicGroupPhase::Dormant,
             next_cycle: Some(MembershipCycle::initial()),
             active_cycle: None,
@@ -50,6 +53,11 @@ impl ClassicGroupMachine {
     /// Returns the stable engine-catalog group identity.
     pub const fn group_id(&self) -> GroupId {
         self.group_id
+    }
+
+    /// Returns the immutable timeout policy emitted for every membership cycle.
+    pub const fn timing(&self) -> ClassicGroupTiming {
+        self.timing
     }
 
     /// Returns the current lifecycle phase.
