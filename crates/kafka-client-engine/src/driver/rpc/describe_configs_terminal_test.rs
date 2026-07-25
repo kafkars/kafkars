@@ -4,7 +4,7 @@ use kafka_client_core::{
     DeliveryStatus, DescribeConfigResult, DescribeConfigsInput, DescribeConfigsPlan,
     DescribeConfigsResourceQuery,
 };
-use kafka_driver::{ApiVersion, CallFailure, Delivery, RequestError};
+use kafka_driver::{ApiKey, ApiVersion, CallFailure, Delivery, RequestError};
 use kafka_wire::{
     DescribeConfigsResponse,
     describe_configs_response::{DescribeConfigsResourceResult, DescribeConfigsResult},
@@ -128,21 +128,30 @@ fn request_bytes_cannot_inflate_the_response_capacity() {
 
 #[test]
 fn version_failure_preserves_driver_authoritative_delivery() {
-    let input = normalize_terminal(
-        &plan(),
-        LARGE_BUDGET,
-        None,
-        Err(RequestError::UnsupportedVersion {
+    let api_key = ApiKey::new(32);
+    for failure in [
+        RequestError::UnsupportedVersion {
             message: "DescribeConfigs request",
             version: ApiVersion::new(0),
-        }),
-    );
-    assert_eq!(
-        input,
-        DescribeConfigsInput::ProtocolIncompatible {
-            delivery: DeliveryStatus::NotSent
-        }
-    );
+        },
+        RequestError::VersionFloorUnavailable {
+            api_key,
+            minimum: ApiVersion::new(1),
+            negotiated_maximum: ApiVersion::new(0),
+        },
+        RequestError::VersionBoundsInvalid {
+            api_key,
+            minimum: ApiVersion::new(4),
+            maximum: ApiVersion::new(1),
+        },
+    ] {
+        assert_eq!(
+            normalize_terminal(&plan(), LARGE_BUDGET, None, Err(failure)),
+            DescribeConfigsInput::ProtocolIncompatible {
+                delivery: DeliveryStatus::NotSent
+            }
+        );
+    }
 }
 
 #[test]

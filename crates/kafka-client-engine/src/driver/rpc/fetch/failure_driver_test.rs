@@ -112,6 +112,16 @@ fn version_and_api_failures_are_compatibility() {
             maximum: ApiVersion::new(12),
             negotiated_minimum: ApiVersion::new(13),
         },
+        RequestError::VersionFloorUnavailable {
+            api_key,
+            minimum: ApiVersion::new(4),
+            negotiated_maximum: ApiVersion::new(3),
+        },
+        RequestError::VersionBoundsInvalid {
+            api_key,
+            minimum: ApiVersion::new(4),
+            maximum: ApiVersion::new(3),
+        },
     ];
     for failure in failures {
         assert_eq!(classify(&failure), FetchFailure::Compatibility);

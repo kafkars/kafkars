@@ -37,10 +37,6 @@ impl DescribeClusterCallPermit<'_> {
         include_fenced_brokers: bool,
         include_authorized_operations: bool,
     ) -> Result<(), DescribeClusterAdmissionFailure> {
-        DescribeClusterAdmissionFailure::validate_options(
-            include_fenced_brokers,
-            include_authorized_operations,
-        )?;
         let request =
             describe_cluster_request(include_fenced_brokers, include_authorized_operations);
         let call = driver.submit_describe_cluster(
@@ -99,36 +95,18 @@ impl Error for DescribeClusterCompletionFailure {
 }
 
 #[derive(Debug)]
-pub(crate) enum DescribeClusterAdmissionFailure {
-    DriverRejected,
-    Compatibility,
-}
+pub(crate) struct DescribeClusterAdmissionFailure;
 
 impl DescribeClusterAdmissionFailure {
-    pub(super) const fn validate_options(
-        include_fenced_brokers: bool,
-        _include_authorized_operations: bool,
-    ) -> Result<(), Self> {
-        if include_fenced_brokers {
-            Err(Self::Compatibility)
-        } else {
-            Ok(())
-        }
-    }
-
     pub(crate) const fn into_core_input(self) -> DescribeClusterInput {
-        match self {
-            Self::DriverRejected => DescribeClusterInput::DriverRejected,
-            Self::Compatibility => DescribeClusterInput::ProtocolIncompatible {
-                delivery: kafka_client_core::DeliveryStatus::NotSent,
-            },
-        }
+        let Self = self;
+        DescribeClusterInput::DriverRejected
     }
 }
 
 impl From<DescribeClusterSubmitError> for DescribeClusterAdmissionFailure {
     fn from(_error: DescribeClusterSubmitError) -> Self {
-        Self::DriverRejected
+        Self
     }
 }
 

@@ -10,6 +10,7 @@ use kafka_wire::{DescribeClusterRequest, DescribeClusterResponse};
 use super::super::DriverOwner;
 
 const DESCRIBE_CLUSTER_MAX_VERSION: ApiVersion = ApiVersion::new(2);
+const DESCRIBE_CLUSTER_FENCED_BROKERS_VERSION: ApiVersion = ApiVersion::new(2);
 
 /// Definitely-unsent failure before driver request ownership.
 #[derive(Debug)]
@@ -38,15 +39,19 @@ impl DriverOwner {
         &self,
         request: DescribeClusterRequest,
         deadline: Instant,
-        _include_fenced_brokers: bool,
-        _include_authorized_operations: bool,
+        include_fenced_brokers: bool,
+        include_authorized_operations: bool,
     ) -> Result<Call<Result<DescribeClusterResponse, RequestError>>, DescribeClusterSubmitError>
     {
         self.driver
             .request_with(
                 describe_cluster_route(),
                 request,
-                describe_cluster_options(deadline, false, false),
+                describe_cluster_options(
+                    deadline,
+                    include_fenced_brokers,
+                    include_authorized_operations,
+                ),
             )
             .map_err(|source| DescribeClusterSubmitError { source })
     }
@@ -58,10 +63,15 @@ pub(super) const fn describe_cluster_route() -> Route {
 
 pub(super) const fn describe_cluster_options(
     deadline: Instant,
-    _include_fenced_brokers: bool,
+    include_fenced_brokers: bool,
     _include_authorized_operations: bool,
 ) -> RequestOptions {
-    RequestOptions::new(deadline)
+    let options = RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Interactive)
-        .with_maximum_version(DESCRIBE_CLUSTER_MAX_VERSION)
+        .with_maximum_version(DESCRIBE_CLUSTER_MAX_VERSION);
+    if include_fenced_brokers {
+        options.with_minimum_version(DESCRIBE_CLUSTER_FENCED_BROKERS_VERSION)
+    } else {
+        options
+    }
 }

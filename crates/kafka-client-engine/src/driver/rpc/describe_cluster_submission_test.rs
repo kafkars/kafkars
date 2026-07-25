@@ -17,16 +17,17 @@ fn describe_cluster_uses_interactive_lane_original_deadline_and_v2_ceiling() {
         options.maximum_version(),
         Some(kafka_driver::ApiVersion::new(2))
     );
+    assert_eq!(options.minimum_version(), None);
     assert_eq!(
-        describe_cluster_options(deadline, true, false).maximum_version(),
+        describe_cluster_options(deadline, true, false).minimum_version(),
         Some(kafka_driver::ApiVersion::new(2))
     );
     assert_eq!(
-        describe_cluster_options(deadline, false, true).maximum_version(),
-        Some(kafka_driver::ApiVersion::new(2))
+        describe_cluster_options(deadline, false, true).minimum_version(),
+        None
     );
     assert_eq!(
-        describe_cluster_options(deadline, true, true).maximum_version(),
+        describe_cluster_options(deadline, true, true).minimum_version(),
         Some(kafka_driver::ApiVersion::new(2))
     );
 }

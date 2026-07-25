@@ -79,5 +79,7 @@ const fn is_compatibility_failure(error: &RequestError) -> bool {
             | RequestError::UnsupportedVersion { .. }
             | RequestError::ApiUnavailable { .. }
             | RequestError::VersionLimitUnavailable { .. }
+            | RequestError::VersionFloorUnavailable { .. }
+            | RequestError::VersionBoundsInvalid { .. }
     )
 }

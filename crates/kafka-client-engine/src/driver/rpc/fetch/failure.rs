@@ -27,7 +27,9 @@ pub(crate) fn classify_fetch_request_error(failure: &RequestError) -> FetchFailu
         RequestError::Decode(failure) => classify_wire_decode_error(failure),
         RequestError::UnsupportedVersion { .. }
         | RequestError::ApiUnavailable { .. }
-        | RequestError::VersionLimitUnavailable { .. } => FetchFailure::Compatibility,
+        | RequestError::VersionLimitUnavailable { .. }
+        | RequestError::VersionFloorUnavailable { .. }
+        | RequestError::VersionBoundsInvalid { .. } => FetchFailure::Compatibility,
         RequestError::ResponseCapacityReached { .. }
         | RequestError::IdentityConflict
         | RequestError::DeadlineOverflow

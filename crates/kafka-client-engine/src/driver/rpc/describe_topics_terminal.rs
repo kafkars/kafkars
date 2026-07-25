@@ -28,7 +28,11 @@ pub(super) fn normalize_terminal(
         // This adapter builds one internally bounded Metadata request. Its only
         // negotiated-version encode failure is the required false
         // AllowAutoTopicCreation field on Metadata versions below v4.
-        Err(RequestError::Encode(_)) => {
+        Err(
+            RequestError::Encode(_)
+            | RequestError::VersionFloorUnavailable { .. }
+            | RequestError::VersionBoundsInvalid { .. },
+        ) => {
             return DescribeTopicsInput::ProtocolIncompatible;
         }
         Err(error) => {

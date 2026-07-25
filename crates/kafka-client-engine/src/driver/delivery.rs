@@ -29,6 +29,8 @@ pub(crate) const fn request_failure_kind(error: &RequestError) -> ProducerAttemp
         | RequestError::UnsupportedVersion { .. }
         | RequestError::ApiUnavailable { .. }
         | RequestError::VersionLimitUnavailable { .. }
+        | RequestError::VersionFloorUnavailable { .. }
+        | RequestError::VersionBoundsInvalid { .. }
         | RequestError::IdentityConflict
         | RequestError::DeadlineOverflow
         | RequestError::CoordinatorCapacityReached { .. }

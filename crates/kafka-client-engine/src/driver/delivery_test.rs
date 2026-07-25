@@ -2,8 +2,8 @@
 
 use kafka_client_core::{DeliveryStatus, ProducerAttemptFailureKind};
 use kafka_driver::{
-    CallFailure, ConnectionCloseReason, Delivery, NegotiationFailure, RequestError,
-    TransportFailure,
+    ApiKey, ApiVersion, CallFailure, ConnectionCloseReason, Delivery, NegotiationFailure,
+    RequestError, TransportFailure,
 };
 
 use super::delivery::{request_failure_delivery, request_failure_kind};
@@ -14,6 +14,29 @@ fn local_driver_failures_remain_definitely_not_sent() {
         request_failure_delivery(&RequestError::RouteUnavailable),
         DeliveryStatus::NotSent
     );
+}
+
+#[test]
+fn version_floor_and_bounds_failures_are_definitely_unsent_and_permanent() {
+    let api_key = ApiKey::new(3);
+    for error in [
+        RequestError::VersionFloorUnavailable {
+            api_key,
+            minimum: ApiVersion::new(4),
+            negotiated_maximum: ApiVersion::new(3),
+        },
+        RequestError::VersionBoundsInvalid {
+            api_key,
+            minimum: ApiVersion::new(4),
+            maximum: ApiVersion::new(3),
+        },
+    ] {
+        assert_eq!(request_failure_delivery(&error), DeliveryStatus::NotSent);
+        assert_eq!(
+            request_failure_kind(&error),
+            ProducerAttemptFailureKind::Permanent
+        );
+    }
 }
 
 #[test]

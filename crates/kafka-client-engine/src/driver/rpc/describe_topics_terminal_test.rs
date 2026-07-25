@@ -1,7 +1,7 @@
 //! Semantic normalization scenarios for transient Metadata call terminals.
 
 use kafka_client_core::{DeliveryStatus, DescribeTopicsInput, DescribeTopicsPlan};
-use kafka_driver::{CallFailure, Delivery, RequestError};
+use kafka_driver::{ApiKey, CallFailure, Delivery, RequestError};
 use kafka_wire::{MetadataResponse, metadata_response::MetadataResponseTopic};
 use kafka_wire_core::{ApiVersion, EncodeError};
 
@@ -68,6 +68,28 @@ fn old_broker_auto_creation_field_failure_is_local_compatibility() {
         })),
     );
     assert_eq!(input, DescribeTopicsInput::ProtocolIncompatible);
+}
+
+#[test]
+fn version_floor_and_bounds_fail_before_metadata_transport() {
+    let api_key = ApiKey::new(3);
+    for failure in [
+        RequestError::VersionFloorUnavailable {
+            api_key,
+            minimum: ApiVersion::new(4),
+            negotiated_maximum: ApiVersion::new(3),
+        },
+        RequestError::VersionBoundsInvalid {
+            api_key,
+            minimum: ApiVersion::new(4),
+            maximum: ApiVersion::new(3),
+        },
+    ] {
+        assert_eq!(
+            normalize_terminal(&plan(), 128 * 1024, Err(failure)),
+            DescribeTopicsInput::ProtocolIncompatible
+        );
+    }
 }
 
 fn plan() -> DescribeTopicsPlan {

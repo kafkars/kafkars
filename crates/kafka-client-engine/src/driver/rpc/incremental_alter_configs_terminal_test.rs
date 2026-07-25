@@ -127,6 +127,16 @@ fn protocol_compatibility_failures_preserve_driver_certainty() {
             maximum: ApiVersion::new(1),
             negotiated_minimum: ApiVersion::new(2),
         },
+        RequestError::VersionFloorUnavailable {
+            api_key: ApiKey::new(44),
+            minimum: ApiVersion::new(1),
+            negotiated_maximum: ApiVersion::new(0),
+        },
+        RequestError::VersionBoundsInvalid {
+            api_key: ApiKey::new(44),
+            minimum: ApiVersion::new(1),
+            maximum: ApiVersion::new(0),
+        },
     ];
     for failure in failures {
         assert_eq!(
