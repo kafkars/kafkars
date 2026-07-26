@@ -141,6 +141,7 @@ impl ClassicGroupPositionExecution {
             self,
             supplied,
             expected_deadline,
+            now,
             machine,
             correlation,
             accepted,
@@ -174,6 +175,7 @@ pub(super) fn stage_terminal_effect(
     execution: &mut ClassicGroupPositionExecution,
     supplied: kafka_client_core::GroupPositionFence,
     expected_deadline: kafka_client_core::Deadline,
+    observed_at: Moment,
     machine: kafka_client_core::GroupPositionBootstrapMachine,
     correlation: GroupOffsetFetchCorrelation,
     accepted: GroupPositionOffsetFetchAccepted,
@@ -188,7 +190,7 @@ pub(super) fn stage_terminal_effect(
         }) => {
             execution.set(ClassicGroupPositionExecutionState::ConfirmationPending(
                 ClassicGroupPositionConfirmationPending::new(
-                    ClassicGroupPositionCompleted::new(machine, terminal),
+                    ClassicGroupPositionCompleted::new(machine, terminal, observed_at),
                     accepted,
                 ),
             ));

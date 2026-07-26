@@ -4,7 +4,7 @@
 use kafka_client_core::GroupPositionBootstrapState;
 use kafka_client_core::{
     GroupPositionBootstrapMachine, GroupPositionBootstrapTerminal, GroupPositionFence,
-    GroupPositionPartitionFact,
+    GroupPositionPartitionFact, Moment,
 };
 
 use crate::{
@@ -162,26 +162,29 @@ impl ClassicGroupPositionDriverOwned {
 
 /// Core terminal already applied exactly once and retained for later activation.
 #[must_use = "a completed position bootstrap must be consumed by a later owner"]
-pub(in crate::consumer::group) struct ClassicGroupPositionCompleted {
-    machine: GroupPositionBootstrapMachine,
-    terminal: GroupPositionBootstrapTerminal,
-}
+pub(in crate::consumer::group) struct ClassicGroupPositionCompleted(
+    GroupPositionBootstrapMachine,
+    GroupPositionBootstrapTerminal,
+    Moment,
+);
 
 impl ClassicGroupPositionCompleted {
     pub(super) const fn new(
         machine: GroupPositionBootstrapMachine,
         terminal: GroupPositionBootstrapTerminal,
+        observed_at: Moment,
     ) -> Self {
-        Self { machine, terminal }
+        Self(machine, terminal, observed_at)
     }
-
     pub(in crate::consumer::group) const fn fence(&self) -> GroupPositionFence {
-        self.machine.fence()
+        self.0.fence()
     }
-
-    #[cfg(test)]
     pub(in crate::consumer::group) const fn terminal(&self) -> &GroupPositionBootstrapTerminal {
-        &self.terminal
+        &self.1
+    }
+    /// Returns when the terminal fact entered deterministic position policy.
+    pub(in crate::consumer::group) const fn observed_at(&self) -> Moment {
+        self.2
     }
 
     pub(super) fn into_parts(
@@ -189,8 +192,9 @@ impl ClassicGroupPositionCompleted {
     ) -> (
         GroupPositionBootstrapMachine,
         GroupPositionBootstrapTerminal,
+        Moment,
     ) {
-        (self.machine, self.terminal)
+        (self.0, self.1, self.2)
     }
 }
 

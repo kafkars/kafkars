@@ -9,6 +9,8 @@ use support::{
 };
 
 const ROOT: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_position";
+const ACTIVATION: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_position/activation.rs";
 const STATE: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_position/state.rs";
 const EXECUTION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_position/state_execution.rs";
@@ -207,4 +209,34 @@ fn host_order_is_commit_then_membership_then_one_position_action() {
         .find("submit_one_classic_group_position")
         .unwrap_or_else(|| panic!("position submission expected"));
     assert!(settlement < submission);
+}
+
+#[test]
+fn activation_preserves_position_time_without_claiming_fetch_attempt_time() {
+    let root = workspace_root();
+    let activation = read(&root.join(ACTIVATION));
+    for required in [
+        "prepare_classic_group_fetch_activation",
+        "InstallResolvedAssignment::new",
+        "completed.observed_at()",
+        "throttle_ticks",
+    ] {
+        assert!(
+            activation.contains(required),
+            "activation handoff lost {required}"
+        );
+    }
+    for forbidden in [
+        "FetchAttemptDeadline",
+        "capture_for_fetch",
+        "MonotonicClock",
+        "OperationDeadline",
+        "DeadlineCapture",
+        "Instant",
+    ] {
+        assert!(
+            !activation.contains(forbidden),
+            "position activation stole later Fetch time capability {forbidden}"
+        );
+    }
 }

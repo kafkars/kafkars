@@ -74,8 +74,9 @@ fn empty_assignment_completes_ready_without_rpc_ownership() {
     let ClassicGroupPositionPreparation::Complete(completed) = prepared else {
         panic!("empty assignment must not create RPC ownership");
     };
-    let (machine, terminal) = completed.into_parts();
+    let (machine, terminal, observed_at) = completed.into_parts();
     assert_eq!(machine.state(), GroupPositionBootstrapState::Completed);
+    assert_eq!(observed_at, Moment::from_tick(5));
     assert!(matches!(
         terminal,
         GroupPositionBootstrapTerminal::Ready(batch) if batch.facts().is_empty()

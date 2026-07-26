@@ -91,7 +91,7 @@ impl ClassicGroupPositionExecution {
                 terminal,
             }) => {
                 self.set(ClassicGroupPositionExecutionState::Complete(
-                    ClassicGroupPositionCompleted::new(machine, terminal),
+                    ClassicGroupPositionCompleted::new(machine, terminal, now),
                 ));
                 drop((correlation, accepted, result_buffer));
                 if fence != supplied {

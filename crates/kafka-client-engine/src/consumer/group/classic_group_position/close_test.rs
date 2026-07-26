@@ -238,6 +238,6 @@ fn install_completed_position(
     entry_mut(registry, group_id)
         .position
         .set(ClassicGroupPositionExecutionState::Complete(
-            ClassicGroupPositionCompleted::new(machine, terminal),
+            ClassicGroupPositionCompleted::new(machine, terminal, Moment::from_tick(1)),
         ));
 }

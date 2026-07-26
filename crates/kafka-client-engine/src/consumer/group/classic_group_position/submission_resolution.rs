@@ -122,7 +122,7 @@ impl ClassicGroupPositionExecution {
                 terminal,
             }) => {
                 self.set(ClassicGroupPositionExecutionState::Complete(
-                    ClassicGroupPositionCompleted::new(machine, terminal),
+                    ClassicGroupPositionCompleted::new(machine, terminal, now),
                 ));
                 if fence != supplied {
                     return Err(ClassicGroupPositionRejectionFailure::in_execution(

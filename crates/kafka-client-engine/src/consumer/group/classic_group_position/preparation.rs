@@ -122,6 +122,7 @@ pub(in crate::consumer::group) fn prepare_classic_group_position(
         protocol,
         fence,
         operation_deadline,
+        now,
         result_buffer,
         transition.into_effect(),
     )
@@ -132,6 +133,7 @@ fn finish_preparation(
     protocol: RequiredProtocol,
     fence: kafka_client_core::GroupPositionFence,
     operation_deadline: OperationDeadline,
+    observed_at: Moment,
     result_buffer: Vec<GroupPositionPartitionFact>,
     effect: Option<GroupPositionBootstrapEffect>,
 ) -> Result<ClassicGroupPositionPreparation, ClassicGroupPositionPreparationError> {
@@ -185,7 +187,7 @@ fn finish_preparation(
                 return mismatch(ClassicGroupPositionPreparationMismatch::EmptyAssignmentTerminal);
             }
             Ok(ClassicGroupPositionPreparation::Complete(
-                ClassicGroupPositionCompleted::new(machine, terminal),
+                ClassicGroupPositionCompleted::new(machine, terminal, observed_at),
             ))
         }
         (RequiredProtocol::NoRequest, Some(GroupPositionBootstrapEffect::FetchOffsets { .. })) => {

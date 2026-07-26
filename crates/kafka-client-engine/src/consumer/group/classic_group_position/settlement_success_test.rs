@@ -37,6 +37,7 @@ fn success_preserves_request_order_offsets_and_throttle() {
     let GroupPositionBootstrapTerminal::Ready(batch) = completed.terminal() else {
         panic!("ready position expected");
     };
+    assert_eq!(completed.observed_at(), Moment::from_tick(50));
     assert_eq!(batch.throttle_time_ms(), 19);
     assert_eq!(batch.facts()[0].partition().partition().get(), 0);
     assert_eq!(batch.facts()[1].partition().partition().get(), 1);

@@ -81,6 +81,7 @@ fn confirmation_pending_keeps_applied_terminal_until_exact_confirmation() {
     let (completed, accepted) = pending.into_parts();
     assert_eq!(accepted.fence(), fence);
     assert_eq!(completed.fence(), fence);
+    assert_eq!(completed.observed_at(), Moment::from_tick(1));
     assert!(matches!(
         completed.terminal(),
         kafka_client_core::GroupPositionBootstrapTerminal::Ready(batch)
@@ -99,8 +100,9 @@ fn confirmation_pending_keeps_applied_terminal_until_exact_confirmation() {
     else {
         panic!("complete state expected");
     };
-    let (machine, terminal) = completed.into_parts();
+    let (machine, terminal, observed_at) = completed.into_parts();
     assert_eq!(machine.fence(), fence);
+    assert_eq!(observed_at, Moment::from_tick(1));
     assert!(matches!(
         terminal,
         kafka_client_core::GroupPositionBootstrapTerminal::Ready(batch)
@@ -166,7 +168,7 @@ fn completed() -> ClassicGroupPositionCompleted {
     else {
         panic!("empty position must complete locally");
     };
-    ClassicGroupPositionCompleted::new(machine, terminal)
+    ClassicGroupPositionCompleted::new(machine, terminal, Moment::from_tick(1))
 }
 
 fn position_fence() -> GroupPositionFence {

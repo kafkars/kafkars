@@ -50,6 +50,7 @@ fn core_terminal_mismatch_freezes_applied_terminal_and_receipt() {
         &mut entry.position,
         fixture.fence,
         fixture.deadline.core(),
+        Moment::from_tick(50),
         machine,
         correlation,
         accepted,

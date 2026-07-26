@@ -53,8 +53,8 @@ impl ClassicGroupPositionExecution {
                 return Ok(ClassicGroupPositionCloseTurn::Idle);
             }
             ClassicGroupPositionExecutionState::Complete(completed) => {
-                let (machine, terminal) = completed.into_parts();
-                drop((machine, terminal));
+                let (machine, terminal, observed_at) = completed.into_parts();
+                drop((machine, terminal, observed_at));
                 return Ok(ClassicGroupPositionCloseTurn::Progress);
             }
             ClassicGroupPositionExecutionState::DriverOwned(owner) => {
@@ -118,7 +118,7 @@ impl ClassicGroupPositionExecution {
                 terminal,
             }) => {
                 self.set(ClassicGroupPositionExecutionState::Complete(
-                    ClassicGroupPositionCompleted::new(machine, terminal),
+                    ClassicGroupPositionCompleted::new(machine, terminal, now),
                 ));
                 drop((correlation, request, result_buffer));
                 if effect_fence != fence {

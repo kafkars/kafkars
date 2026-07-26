@@ -1,5 +1,6 @@
 //! Declarative facade for classic-group committed-position execution ownership.
 
+mod activation;
 mod close;
 mod preparation;
 mod preparation_input;
@@ -17,6 +18,16 @@ mod submission_resolution;
 mod terminal_application;
 mod terminal_normalization;
 
+#[cfg_attr(
+    not(test),
+    expect(
+        unused_imports,
+        reason = "awaiting the classic-group Fetch composition owner"
+    )
+)]
+pub(super) use activation::{
+    ClassicGroupPositionActivationError, prepare_classic_group_fetch_activation,
+};
 pub(super) use close::ClassicGroupPositionCloseTurn;
 #[cfg(test)]
 pub(super) use preparation::CLASSIC_GROUP_POSITION_REQUEST_RETAINED_BYTES;
@@ -44,6 +55,8 @@ pub(super) use submission::{
 };
 pub(super) use terminal_application::ClassicGroupPositionTerminalApplicationFailure;
 
+#[cfg(test)]
+mod activation_test;
 #[cfg(test)]
 mod close_blocked_test;
 #[cfg(test)]

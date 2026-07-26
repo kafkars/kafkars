@@ -43,10 +43,10 @@ fn active_driver_call_recovers_to_one_local_completion() {
         .registry
         .recover_classic_group_positions_after_driver_shutdown()
         .unwrap_or_else(|error| panic!("repeated recovery: {error:?}"));
-    assert!(matches!(
-        position_state(&fixture),
-        ClassicGroupPositionExecutionState::Complete(_)
-    ));
+    let ClassicGroupPositionExecutionState::Complete(completed) = position_state(&fixture) else {
+        panic!("completed recovery expected");
+    };
+    assert_eq!(completed.observed_at(), Moment::from_tick(u64::MAX));
     stop_registry(&mut fixture.registry);
 }
 
@@ -75,10 +75,10 @@ fn confirmation_pending_receipt_recovers_to_complete() {
         .registry
         .recover_classic_group_positions_after_driver_shutdown()
         .unwrap_or_else(|error| panic!("pending recovery: {error:?}"));
-    assert!(matches!(
-        position_state(&fixture),
-        ClassicGroupPositionExecutionState::Complete(_)
-    ));
+    let ClassicGroupPositionExecutionState::Complete(completed) = position_state(&fixture) else {
+        panic!("completed recovery expected");
+    };
+    assert_eq!(completed.observed_at(), Moment::from_tick(50));
     stop_registry(&mut fixture.registry);
 }
 

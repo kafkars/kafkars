@@ -9934,6 +9934,10 @@ production = "crates/kafka-client-engine/src/consumer/group/session_catalog_assi
 test = "crates/kafka-client-engine/src/consumer/group/session_catalog_assignment_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_position/activation.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_position/activation_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/group/classic_group_owner.rs"
 test = "crates/kafka-client-engine/src/consumer/group/classic_group_owner_test.rs"
 
