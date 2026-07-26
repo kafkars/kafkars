@@ -27,6 +27,8 @@ mod broker_error_test;
 #[cfg(test)]
 mod error_disposition_test;
 #[cfg(test)]
+mod rejection_deadline_test;
+#[cfg(test)]
 mod rejection_transition_test;
 #[cfg(test)]
 mod rejoin_test;

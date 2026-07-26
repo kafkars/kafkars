@@ -18,6 +18,9 @@ impl ClassicGroupMachine {
         error: ClassicBrokerError,
     ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         validate_stage_cycle(self, ClassicGroupPhase::Joining, cycle)?;
+        if self.stage_deadline_is_elapsed(now)? {
+            return self.deadline_elapsed(cycle, now);
+        }
         Ok(self.stage_rejected(ClassicBrokerStage::Join, cycle, None, now, error))
     }
 
@@ -28,6 +31,9 @@ impl ClassicGroupMachine {
         error: ClassicBrokerError,
     ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         validate_stage_cycle(self, ClassicGroupPhase::Syncing, cycle)?;
+        if self.stage_deadline_is_elapsed(now)? {
+            return self.deadline_elapsed(cycle, now);
+        }
         Ok(self.stage_rejected(ClassicBrokerStage::Sync, cycle, None, now, error))
     }
 
@@ -38,6 +44,9 @@ impl ClassicGroupMachine {
         error: ClassicBrokerError,
     ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         self.validate_heartbeat_assignment(attempt)?;
+        if self.heartbeat.attempt_deadline_is_elapsed(attempt, now)? {
+            return self.heartbeat_deadline_elapsed(attempt, now);
+        }
         let followup = self.rejection_followup(
             ClassicBrokerStage::Heartbeat,
             attempt.cycle(),
@@ -66,6 +75,13 @@ impl ClassicGroupMachine {
                 ClassicGroupTransition::two(revoke, ClassicGroupEffect::Fatal { fatal })
             }
         })
+    }
+
+    fn stage_deadline_is_elapsed(&self, now: Moment) -> Result<bool, ClassicGroupErrorKind> {
+        let deadline = self
+            .deadline()
+            .ok_or(ClassicGroupErrorKind::InvariantViolation)?;
+        Ok(deadline.is_elapsed_at(now))
     }
 
     fn stage_rejected(

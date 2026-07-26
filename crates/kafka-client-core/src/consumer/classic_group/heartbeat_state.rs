@@ -140,6 +140,15 @@ impl ClassicHeartbeatState {
         Ok(())
     }
 
+    pub(super) fn attempt_deadline_is_elapsed(
+        &self,
+        attempt: ClassicHeartbeatAttempt,
+        now: Moment,
+    ) -> Result<bool, ClassicGroupErrorKind> {
+        let (deadline, _sent_at) = self.require_inflight(attempt)?;
+        Ok(deadline.is_elapsed_at(now))
+    }
+
     pub(super) fn deadline_elapsed(
         &mut self,
         attempt: ClassicHeartbeatAttempt,

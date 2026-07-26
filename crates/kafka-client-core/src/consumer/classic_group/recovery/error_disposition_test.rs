@@ -40,13 +40,13 @@ fn join_rejoins_only_for_dynamic_v1_through_v3_recoverable_errors() {
 #[test]
 fn sync_and_heartbeat_share_generation_fenced_rejoin_errors() {
     for stage in [ClassicBrokerStage::Sync, ClassicBrokerStage::Heartbeat] {
-        for code in [22, 25, 27] {
+        for code in [14, 22, 25, 27] {
             assert_rejoin(stage, code, ClassicCoordinatorRecovery::Retain);
         }
         for code in [15, 16] {
             assert_rejoin(stage, code, ClassicCoordinatorRecovery::Rediscover);
         }
-        for code in [14, 30, 79, 82, -1, 1234] {
+        for code in [30, 79, 82, -1, 1234] {
             assert_fatal(stage, code);
         }
     }

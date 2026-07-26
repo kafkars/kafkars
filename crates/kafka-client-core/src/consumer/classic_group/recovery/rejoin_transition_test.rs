@@ -1,6 +1,6 @@
 //! Exact due-fence and fresh internal rejoin deadline evidence.
 
-use crate::{Deadline, GroupId, Moment};
+use crate::{AssignmentGeneration, Deadline, GroupId, Moment};
 
 use super::{
     ClassicBrokerError, ClassicGroupEffect, ClassicGroupErrorKind, ClassicGroupFatal,
@@ -64,9 +64,60 @@ fn stale_schedule_rejects_without_displacing_the_pending_fence() {
 }
 
 #[test]
-fn due_rejoin_deadline_overflow_enters_retained_fatal_state() {
+fn changed_assignment_generation_alone_cannot_take_the_pending_rejoin() {
     let mut machine = machine();
     let cycle = begin(&mut machine, 100);
+    let schedule = reject_join(&mut machine, cycle, 10, 14);
+    let changed = ClassicRejoinSchedule::new(
+        schedule.cycle(),
+        Some(
+            AssignmentGeneration::try_from_raw(1)
+                .unwrap_or_else(|| panic!("nonzero assignment generation")),
+        ),
+        schedule.due(),
+    );
+    let error = machine
+        .apply(ClassicGroupInput::RejoinDue {
+            schedule: changed,
+            now: Moment::from_tick(15),
+        })
+        .err()
+        .unwrap_or_else(|| panic!("changed assignment fence must reject"));
+    assert_eq!(error.kind(), ClassicGroupErrorKind::RejoinMismatch);
+    assert_eq!(machine.pending_rejoin(), Some(schedule));
+    assert_eq!(machine.phase(), ClassicGroupPhase::WaitingToRejoin);
+}
+
+#[test]
+fn exhausted_cycle_enters_one_retained_fatal_state_when_rejoin_is_due() {
+    let mut machine = machine();
+    let cycle = begin(&mut machine, 100);
+    let schedule = reject_join(&mut machine, cycle, 10, 14);
+    machine.next_cycle = None;
+    let transition = machine
+        .apply(ClassicGroupInput::RejoinDue {
+            schedule,
+            now: Moment::from_tick(schedule.due().tick()),
+        })
+        .unwrap_or_else(|error| panic!("exhaustion is retained: {error}"));
+    let mut effects = transition.effects();
+    assert!(matches!(
+        effects.next(),
+        Some(ClassicGroupEffect::Fatal { fatal })
+            if fatal.reason() == ClassicGroupFatalReason::CycleExhausted
+    ));
+    assert!(effects.next().is_none());
+    assert_eq!(machine.phase(), ClassicGroupPhase::Fatal);
+    assert_eq!(
+        machine.fatal().map(ClassicGroupFatal::reason),
+        Some(ClassicGroupFatalReason::CycleExhausted)
+    );
+}
+
+#[test]
+fn due_rejoin_deadline_overflow_enters_retained_fatal_state() {
+    let mut machine = machine();
+    let cycle = begin(&mut machine, u64::MAX);
     let schedule = reject_join(&mut machine, cycle, u64::MAX - 5, 14);
     let transition = machine
         .apply(ClassicGroupInput::RejoinDue {
@@ -84,6 +135,43 @@ fn due_rejoin_deadline_overflow_enters_retained_fatal_state() {
         machine.fatal().map(ClassicGroupFatal::reason),
         Some(ClassicGroupFatalReason::AttemptDeadlineOverflow)
     );
+}
+
+#[test]
+fn close_while_waiting_discards_the_pending_schedule_without_an_effect() {
+    let mut machine = machine();
+    let cycle = begin(&mut machine, 100);
+    reject_join(&mut machine, cycle, 10, 14);
+    let transition = machine
+        .apply(ClassicGroupInput::Close)
+        .unwrap_or_else(|error| panic!("valid close: {error}"));
+    assert!(transition.effects().next().is_none());
+    assert_eq!(machine.phase(), ClassicGroupPhase::Closed);
+    assert_eq!(machine.pending_rejoin(), None);
+    assert_eq!(machine.fatal(), None);
+}
+
+#[test]
+fn close_from_fatal_retains_the_exact_diagnostic_without_an_effect() {
+    let mut machine = machine();
+    let cycle = begin(&mut machine, 100);
+    let transition = machine
+        .apply(ClassicGroupInput::JoinRejected {
+            cycle,
+            now: Moment::from_tick(10),
+            error: broker_error(1234),
+        })
+        .unwrap_or_else(|error| panic!("valid fatal rejection: {error}"));
+    let Some(ClassicGroupEffect::Fatal { fatal }) = transition.effects().next() else {
+        panic!("Fatal expected");
+    };
+    let fatal = *fatal;
+    let close = machine
+        .apply(ClassicGroupInput::Close)
+        .unwrap_or_else(|error| panic!("valid close: {error}"));
+    assert!(close.effects().next().is_none());
+    assert_eq!(machine.phase(), ClassicGroupPhase::Closed);
+    assert_eq!(machine.fatal(), Some(fatal));
 }
 
 fn reject_join(

@@ -664,19 +664,29 @@ evidence = [
 [[invariant]]
 id = "CON-10"
 title = "Classic broker rejections recover under exact fences"
-statement = "Core preserves every nonzero signed Kafka error code and alone maps it by Join, Sync, or Heartbeat stage. Dynamic Join v1 through v3 treats MEMBER_ID_REQUIRED and every unlisted or unknown error as fatal. Recoverable errors arm one positive-backoff schedule fenced by the rejected membership cycle and, for Heartbeat, the live assignment generation; coordinator rediscovery is emitted only as an opaque interpreter need. A stable rejection revokes its exact assignment before ArmRejoin or Fatal. Only the exact due schedule allocates the next nonreused cycle and a fresh internal absolute deadline; stale or early due facts cannot mutate the machine, and deadline overflow is retained as fatal state."
+statement = "Core preserves every nonzero signed Kafka error code and alone maps it by Join, Sync, or Heartbeat stage; COORDINATOR_LOAD_IN_PROGRESS is recoverable with the retained coordinator in all three stages, while dynamic Join v1 through v3 treats MEMBER_ID_REQUIRED and every unlisted or unknown error as fatal. Phase, cycle, and heartbeat-attempt fences are validated before time precedence, so stale facts cannot mutate the machine. Before its deadline, a recoverable rejection arms one positive-backoff schedule fenced by the rejected membership cycle and, for Heartbeat, the live assignment generation; coordinator rediscovery remains an opaque interpreter need, and a stable rejection revokes its exact assignment before ArmRejoin or Fatal. At or after the original Join or Sync cycle deadline, rejection follows ordinary terminal cycle loss; at or after the exact Heartbeat attempt deadline, it emits only the exact assignment revocation. Only the exact due schedule allocates the next nonreused cycle and a fresh internal absolute deadline; cycle or deadline exhaustion is retained as fatal state, Close discards a pending rejoin, and a retained fatal diagnostic survives Close."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/consumer/classic_group/recovery/broker_error_test.rs::success_is_reserved_while_known_and_future_rejections_round_trip",
   "crates/kafka-client-core/src/consumer/classic_group/recovery/error_disposition_test.rs::join_rejoins_only_for_dynamic_v1_through_v3_recoverable_errors",
   "crates/kafka-client-core/src/consumer/classic_group/recovery/error_disposition_test.rs::sync_and_heartbeat_share_generation_fenced_rejoin_errors",
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejection_deadline_test.rs::join_rejection_uses_policy_before_but_loses_at_the_cycle_deadline",
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejection_deadline_test.rs::sync_rejection_uses_policy_before_but_loses_at_the_cycle_deadline",
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejection_deadline_test.rs::heartbeat_rejection_rejoins_before_but_only_revokes_at_its_attempt_deadline",
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejection_deadline_test.rs::stale_phase_cycle_and_attempt_rejections_do_not_spend_deadline_ownership",
   "crates/kafka-client-core/src/consumer/classic_group/recovery/rejection_transition_test.rs::member_id_required_is_fatal_for_dynamic_join_versions_one_through_three",
   "crates/kafka-client-core/src/consumer/classic_group/recovery/rejection_transition_test.rs::unrepresentable_rejoin_due_is_retained_as_fatal_state",
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejection_transition_test.rs::sync_load_in_progress_arms_one_cycle_fenced_retained_rejoin",
   "crates/kafka-client-core/src/consumer/classic_group/recovery/rejection_transition_test.rs::heartbeat_rejoin_revokes_before_arming_an_assignment_fenced_schedule",
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejection_transition_test.rs::heartbeat_rediscovery_revokes_before_one_exactly_fenced_rejoin",
   "crates/kafka-client-core/src/consumer/classic_group/recovery/rejection_transition_test.rs::fatal_heartbeat_revokes_before_retaining_the_exact_unknown_error",
   "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition_test.rs::exact_due_schedule_starts_a_fresh_cycle_and_fresh_absolute_deadline",
   "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition_test.rs::stale_schedule_rejects_without_displacing_the_pending_fence",
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition_test.rs::changed_assignment_generation_alone_cannot_take_the_pending_rejoin",
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition_test.rs::exhausted_cycle_enters_one_retained_fatal_state_when_rejoin_is_due",
   "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition_test.rs::due_rejoin_deadline_overflow_enters_retained_fatal_state",
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition_test.rs::close_while_waiting_discards_the_pending_schedule_without_an_effect",
+  "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition_test.rs::close_from_fatal_retains_the_exact_diagnostic_without_an_effect",
 ]
 
 [[invariant]]

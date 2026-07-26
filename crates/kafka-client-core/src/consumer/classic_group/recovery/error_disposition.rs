@@ -31,10 +31,8 @@ pub(super) const fn disposition(
     error: ClassicBrokerError,
 ) -> ClassicErrorDisposition {
     match (stage, error.code()) {
-        (
-            ClassicBrokerStage::Join,
-            COORDINATOR_LOAD_IN_PROGRESS | UNKNOWN_MEMBER_ID | REBALANCE_IN_PROGRESS,
-        )
+        (_, COORDINATOR_LOAD_IN_PROGRESS)
+        | (ClassicBrokerStage::Join, UNKNOWN_MEMBER_ID | REBALANCE_IN_PROGRESS)
         | (
             ClassicBrokerStage::Sync | ClassicBrokerStage::Heartbeat,
             ILLEGAL_GENERATION | UNKNOWN_MEMBER_ID | REBALANCE_IN_PROGRESS,
