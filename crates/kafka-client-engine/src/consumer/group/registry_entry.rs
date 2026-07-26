@@ -9,6 +9,7 @@ use super::{
     classic_group_execution::{ClassicGroupExecution, new_classic_group_execution},
     classic_group_heartbeat::ClassicHeartbeatExecution,
     classic_group_owner::ClassicGroupOwner,
+    classic_group_rejoin::ClassicGroupRejoinExecution,
     session_catalog::{GroupSessionCatalog, GroupSessionCatalogError},
 };
 
@@ -26,6 +27,7 @@ pub(super) struct GroupConsumerEntry {
     pub(super) classic: ClassicGroupOwner,
     pub(super) execution: ClassicGroupExecution,
     pub(super) heartbeat: ClassicHeartbeatExecution,
+    pub(super) rejoin: ClassicGroupRejoinExecution,
     pub(super) fault: Option<ClassicGroupEntryFault>,
 }
 
@@ -44,6 +46,7 @@ impl GroupConsumerEntry {
             classic: ClassicGroupOwner::new(group_id, timing, heartbeat_policy, rejoin_policy),
             execution: new_classic_group_execution(),
             heartbeat: ClassicHeartbeatExecution::new(),
+            rejoin: ClassicGroupRejoinExecution::new(),
             fault: None,
         })
     }

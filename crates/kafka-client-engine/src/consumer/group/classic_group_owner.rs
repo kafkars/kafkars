@@ -38,7 +38,10 @@ impl ClassicGroupOwner {
         let transition = self.machine.apply(input)?;
         if matches!(
             self.machine.phase(),
-            ClassicGroupPhase::Lost | ClassicGroupPhase::Closed
+            ClassicGroupPhase::WaitingToRejoin
+                | ClassicGroupPhase::Lost
+                | ClassicGroupPhase::Fatal
+                | ClassicGroupPhase::Closed
         ) {
             self.pending = None;
         }

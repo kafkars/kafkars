@@ -206,6 +206,7 @@ pub(super) const ENTRY_FAULT_VARIANTS: &[&str] = &[
     "JoinSuccessor",
     "JoinSuccessorRestore",
     "JoinPostCore",
+    "RejoinPostCore",
     "SyncAcceptance",
     "SyncSubmission",
     "SyncTerminal",

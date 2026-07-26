@@ -26,6 +26,9 @@ mod classic_group_join_settlement;
 mod classic_group_owner;
 mod classic_group_owner_follower;
 mod classic_group_recovery;
+mod classic_group_rejoin;
+mod classic_group_rejoin_due;
+mod classic_group_rejoin_fault;
 mod classic_group_sync;
 mod classic_group_sync_interpret;
 mod classic_group_sync_settlement;
@@ -56,6 +59,8 @@ mod classic_group_assignment_bounds_test;
 mod classic_group_assignment_decode_subscription_test;
 #[cfg(test)]
 mod classic_group_assignment_decode_test;
+#[cfg(test)]
+mod classic_group_assignment_rejoin_test;
 #[cfg(test)]
 mod classic_group_assignment_test;
 #[cfg(test)]
@@ -106,6 +111,16 @@ mod classic_group_owner_follower_test;
 mod classic_group_owner_test;
 #[cfg(test)]
 mod classic_group_recovery_test;
+#[cfg(test)]
+mod classic_group_rejoin_due_test;
+#[cfg(test)]
+mod classic_group_rejoin_fault_test;
+#[cfg(test)]
+mod classic_group_rejoin_outcome_test;
+#[cfg(test)]
+mod classic_group_rejoin_test;
+#[cfg(test)]
+mod classic_group_rejoin_test_support;
 #[cfg(test)]
 mod classic_group_sync_heartbeat_test;
 #[cfg(test)]

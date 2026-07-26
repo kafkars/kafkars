@@ -25,6 +25,7 @@ pub(super) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
             "classic_group_join_execution.rs",
             "classic_group_join_settlement.rs",
             "classic_group_recovery.rs",
+            "classic_group_rejoin_due.rs",
             "classic_group_sync_settlement.rs",
             "classic_group_sync_submission.rs",
             "registry_close.rs",
@@ -111,6 +112,7 @@ pub(super) const ENTRY_FIELDS: &[(&str, &[&str])] = &[
             "classic_group_join_execution.rs",
             "classic_group_join_settlement.rs",
             "classic_group_recovery.rs",
+            "classic_group_rejoin_due.rs",
             "classic_group_sync_submission.rs",
             "classic_group_sync_settlement.rs",
             "classic_group_sync_interpret.rs",
@@ -140,6 +142,7 @@ pub(super) const ENTRY_DECLARED_FIELDS: &[&str] = &[
     "classic",
     "execution",
     "heartbeat",
+    "rejoin",
     "fault",
 ];
 pub(super) const FORBIDDEN: &[&str] = &[

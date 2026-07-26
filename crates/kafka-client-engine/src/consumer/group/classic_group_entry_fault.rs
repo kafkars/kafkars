@@ -13,6 +13,7 @@ use super::{
     classic_group_heartbeat::ClassicHeartbeatAcceptanceFailure,
     classic_group_join::ClassicGroupJoinSuccessor,
     classic_group_join_call::ClassicGroupJoinAcceptanceFailure,
+    classic_group_rejoin_fault::ClassicRejoinPostCore,
     classic_group_sync::ClassicGroupSyncAcceptanceFailure,
 };
 
@@ -31,6 +32,7 @@ pub(super) enum ClassicGroupEntryFault {
         failure: JoinGroupRestoreFailure,
     },
     JoinPostCore(JoinGroupTerminal),
+    RejoinPostCore(ClassicRejoinPostCore),
     SyncAcceptance(ClassicGroupSyncAcceptanceFailure),
     SyncSubmission(SyncGroupAdmissionFailure),
     SyncTerminal(SyncGroupRestoreFailure),
@@ -64,7 +66,7 @@ pub(super) enum ClassicGroupEntryFault {
 }
 
 impl ClassicGroupEntryFault {
-    pub(super) const fn retained_owner_count(&self) -> usize {
+    pub(super) fn retained_owner_count(&self) -> usize {
         match self {
             Self::JoinAcceptance(owner) => {
                 let _ = owner;
@@ -86,6 +88,7 @@ impl ClassicGroupEntryFault {
                 let _ = owner;
                 1
             }
+            Self::RejoinPostCore(owner) => owner.retained_owner_count(),
             Self::SyncAcceptance(owner) => {
                 let _ = owner;
                 1

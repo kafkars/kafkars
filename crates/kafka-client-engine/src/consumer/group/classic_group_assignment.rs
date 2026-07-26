@@ -118,7 +118,10 @@ impl ClassicGroupOwner {
         }
         if !matches!(
             self.machine().phase(),
-            ClassicGroupPhase::Lost | ClassicGroupPhase::Closed
+            ClassicGroupPhase::WaitingToRejoin
+                | ClassicGroupPhase::Lost
+                | ClassicGroupPhase::Fatal
+                | ClassicGroupPhase::Closed
         ) {
             return Err(failure(MachinePhase, assignment));
         }

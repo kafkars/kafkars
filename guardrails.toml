@@ -8900,6 +8900,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_due.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_sync_submission.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_close.rs",
@@ -9038,6 +9039,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_due.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_sync_submission.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs",
@@ -9758,6 +9760,206 @@ path = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat.rs
 [[linear_owners]]
 owner_type = "ClassicHeartbeatInterpretationFailure"
 path = "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_interpret.rs"
+
+# Classic rejoin scheduling retains one exact core schedule and freezes every
+# post-core effect until the host can preserve or stage it without reinvention.
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_due.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_due_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_fault.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_fault_test.rs"
+
+[[authority_tokens]]
+owner_type = "ClassicGroupRejoinExecution"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin.rs"
+fields = ["rejoin_execution_state"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin.rs",
+]
+
+[[authority_tokens]]
+owner_type = "PendingClassicRejoinJoin"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_fault.rs"
+fields = ["pending_rejoin_group_id", "pending_rejoin_cycle", "pending_rejoin_protocol", "pending_rejoin_timing", "pending_rejoin_deadline"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_fault.rs",
+]
+
+[[authority_tokens]]
+owner_type = "ClassicRejoinPostCore"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_fault.rs"
+fields = ["post_core_rejoin_join", "post_core_rejoin_other", "post_core_rejoin_failure"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_fault.rs",
+]
+
+[[linear_owners]]
+owner_type = "ClassicGroupRejoinState"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupRejoinExecution"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin.rs"
+
+[[linear_owners]]
+owner_type = "PreparedClassicRejoinInstall"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin.rs"
+
+[[linear_owners]]
+owner_type = "PendingClassicRejoinJoin"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_fault.rs"
+
+[[linear_owners]]
+owner_type = "ClassicRejoinPostCore"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_fault.rs"
+
+[[mutation_owners]]
+owner_type = "ClassicGroupRejoinExecution"
+field = "rejoin_execution_state"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "prepare_one_classic_rejoin"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "prepare_rejoin_install"
+allowed_paths = []
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "clear_rejoin_exact"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_due.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "stage_rejoin_join"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_due.rs",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::driver",
+  "crate::host",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_due.rs"
+forbidden = [
+  "crate::admin",
+  "crate::completion",
+  "crate::driver",
+  "crate::host",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "DeadlineCapture",
+  "capture_deadline_after",
+  "Duration",
+  "OperationDeadline::from_boundary_parts",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_rejoin_fault.rs"
+forbidden = [
+  "crate::admin",
+  "crate::completion",
+  "crate::driver",
+  "crate::host",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+  "DeadlineCapture",
+  "capture_deadline_after",
+  "Duration",
+  "OperationDeadline",
+]
 
 # Classic membership execution owns deadline transfer and one synchronized
 # host-admission seam without admitting protocol or runtime policy.

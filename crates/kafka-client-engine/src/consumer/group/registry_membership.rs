@@ -16,6 +16,7 @@ use super::{
     classic_group_join_execution::ClassicGroupJoinSubmissionTurn,
     classic_group_join_settlement::ClassicGroupJoinSettlementTurn,
     classic_group_recovery::recovery_unsettled_count,
+    classic_group_rejoin_due::ClassicGroupRejoinDueTurn,
     classic_group_sync_settlement::ClassicGroupSyncSettlementTurn,
     classic_group_sync_submission::ClassicGroupSyncSubmissionTurn,
     registry::GroupConsumerRegistry,
@@ -55,6 +56,9 @@ impl GroupConsumerRegistry {
         let local = self.turn_local_membership(now)?;
         if local != GroupConsumerMembershipTurn::Idle {
             return Ok(local);
+        }
+        if self.prepare_one_classic_rejoin(now, clock)? == ClassicGroupRejoinDueTurn::Progress {
+            return Ok(GroupConsumerMembershipTurn::Progress);
         }
         if self.prepare_one_classic_heartbeat(now, clock)?
             == ClassicHeartbeatPreparationTurn::Progress
@@ -113,6 +117,12 @@ impl GroupConsumerRegistry {
                         .heartbeat
                         .clear_local()
                         .map_err(|_error| ClassicGroupExecutionError::HeartbeatState)?;
+                    if let Some(schedule) = entry.rejoin.schedule() {
+                        entry
+                            .rejoin
+                            .clear_rejoin_exact(schedule)
+                            .map_err(|_error| ClassicGroupExecutionError::RejoinState)?;
+                    }
                     return Ok(GroupConsumerMembershipTurn::Progress);
                 }
                 ClassicGroupCloseProgress::DriverOwned => driver_owned_close = true,
@@ -121,9 +131,23 @@ impl GroupConsumerRegistry {
                         .heartbeat
                         .clear_local()
                         .map_err(|_error| ClassicGroupExecutionError::HeartbeatState)?;
+                    if let Some(schedule) = entry.rejoin.schedule() {
+                        entry
+                            .rejoin
+                            .clear_rejoin_exact(schedule)
+                            .map_err(|_error| ClassicGroupExecutionError::RejoinState)?;
+                    }
                     return Ok(GroupConsumerMembershipTurn::Progress);
                 }
-                ClassicGroupCloseProgress::AlreadyClosed => {}
+                ClassicGroupCloseProgress::AlreadyClosed => {
+                    if let Some(schedule) = entry.rejoin.schedule() {
+                        entry
+                            .rejoin
+                            .clear_rejoin_exact(schedule)
+                            .map_err(|_error| ClassicGroupExecutionError::RejoinState)?;
+                        return Ok(GroupConsumerMembershipTurn::Progress);
+                    }
+                }
             }
         }
         if self.expire_one_prepared_heartbeat(now)? {
@@ -178,14 +202,14 @@ impl GroupConsumerRegistry {
         self.entries
             .iter()
             .filter_map(|entry| {
-                match (
+                [
                     entry.execution.next_deadline(),
                     entry.heartbeat.next_deadline(),
-                ) {
-                    (Some(membership), Some(heartbeat)) => Some(membership.min(heartbeat)),
-                    (Some(deadline), None) | (None, Some(deadline)) => Some(deadline),
-                    (None, None) => None,
-                }
+                    entry.rejoin.next_deadline(),
+                ]
+                .into_iter()
+                .flatten()
+                .min()
             })
             .min()
     }
@@ -197,15 +221,19 @@ impl GroupConsumerEntry {
             return fault
                 .retained_owner_count()
                 .saturating_add(self.execution.unsettled())
-                .saturating_add(self.heartbeat.unsettled());
+                .saturating_add(self.heartbeat.unsettled())
+                .saturating_add(self.rejoin.unsettled());
         }
         if self.state == GroupConsumerEntryState::Closing
             && self.classic.machine().phase() != ClassicGroupPhase::Closed
         {
-            return 1usize.saturating_add(self.heartbeat.unsettled());
+            return 1usize
+                .saturating_add(self.heartbeat.unsettled())
+                .saturating_add(self.rejoin.unsettled());
         }
         self.execution
             .unsettled()
             .saturating_add(self.heartbeat.unsettled())
+            .saturating_add(self.rejoin.unsettled())
     }
 }

@@ -139,6 +139,24 @@ impl ClassicGroupExecution {
         ))
     }
 
+    pub(super) const fn is_idle(&self) -> bool {
+        matches!(
+            self.classic_execution_state,
+            ClassicGroupExecutionState::Idle
+        )
+    }
+
+    pub(super) fn stage_rejoin_join(
+        &mut self,
+        prepared: PreparedClassicGroupJoin,
+    ) -> Result<(), (ClassicGroupExecutionError, PreparedClassicGroupJoin)> {
+        if !self.is_idle() {
+            return Err((ClassicGroupExecutionError::Occupied, prepared));
+        }
+        self.classic_execution_state = ClassicGroupExecutionState::PreparedJoin(prepared);
+        Ok(())
+    }
+
     pub(super) const fn borrow_execution_state(&self) -> &ClassicGroupExecutionState {
         &self.classic_execution_state
     }
@@ -200,6 +218,8 @@ pub(super) enum ClassicGroupExecutionError {
     SyncTerminal,
     HeartbeatState,
     HeartbeatTerminal,
+    RejoinState,
+    RejoinPostCore,
     FollowerJoin,
     Assignment(ClassicGroupAssignmentPreparationFailureKind),
     Core(ClassicGroupErrorKind),
