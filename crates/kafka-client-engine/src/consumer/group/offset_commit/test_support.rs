@@ -13,6 +13,14 @@ use super::super::{
     classic_group_owner::ClassicGroupOwner, classic_group_test_support,
     session_catalog::GroupSessionCatalog,
 };
+use super::host::GroupOffsetCommitHost;
+
+pub(in crate::consumer::group) fn admission_usage(host: &GroupOffsetCommitHost) -> (usize, usize) {
+    (
+        host.retained_bytes,
+        host.completions.unsettled_len() + host.completions.published_or_reclaiming_len(),
+    )
+}
 
 pub(super) fn catalog() -> GroupSessionCatalog {
     let group_id =

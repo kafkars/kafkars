@@ -47,6 +47,6 @@ mod settlement_test;
 #[cfg(test)]
 mod snapshot_test;
 #[cfg(test)]
-mod test_support;
+pub(in crate::consumer::group) mod test_support;
 #[cfg(test)]
 mod turn_test;

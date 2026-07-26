@@ -32,3 +32,9 @@ struct GroupConsumerCycleAdmission;
 
 #[derive(Clone, Copy)]
 struct GroupConsumerPortRegistrationFailure;
+
+#[derive(Clone, Copy)]
+struct GroupConsumerCommitAdmission;
+
+#[derive(Clone, Copy)]
+struct GroupConsumerCommitPortFailure;

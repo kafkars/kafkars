@@ -38,6 +38,7 @@ mod offset_commit;
 mod registry;
 mod registry_close;
 mod registry_commit;
+mod registry_commit_port;
 mod registry_cycle;
 mod registry_entry;
 mod registry_host;
@@ -137,6 +138,8 @@ mod classic_group_test_support;
 mod classic_group_topics_test;
 #[cfg(test)]
 mod registry_close_test;
+#[cfg(test)]
+mod registry_commit_port_test;
 #[cfg(test)]
 mod registry_commit_test;
 #[cfg(test)]

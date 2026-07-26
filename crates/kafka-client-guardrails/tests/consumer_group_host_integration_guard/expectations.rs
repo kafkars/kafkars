@@ -35,6 +35,7 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
         "classic_group_execution_handoff_test.rs",
     ),
     ("classic_group_join.rs", "classic_group_join_test.rs"),
+    ("registry_commit_port.rs", "registry_commit_port_test.rs"),
     ("registry_cycle.rs", "registry_cycle_test.rs"),
     ("registry_membership.rs", "registry_membership_test.rs"),
     ("registry_port.rs", "registry_port_test.rs"),
@@ -59,6 +60,14 @@ pub(super) const LINEAR: &[(&str, &str)] = &[
     (
         "GroupConsumerPortRegistrationFailure",
         "crates/kafka-client-engine/src/consumer/group/registry_port.rs",
+    ),
+    (
+        "GroupConsumerCommitAdmission",
+        "crates/kafka-client-engine/src/consumer/group/registry_commit_port.rs",
+    ),
+    (
+        "GroupConsumerCommitPortFailure",
+        "crates/kafka-client-engine/src/consumer/group/registry_commit_port.rs",
     ),
 ];
 
@@ -165,6 +174,7 @@ pub(super) const CAPABILITY_PATHS: &[&str] = &[
     EXECUTION_HANDOFF,
     JOIN,
     "crates/kafka-client-engine/src/consumer/group/registry_cycle.rs",
+    "crates/kafka-client-engine/src/consumer/group/registry_commit_port.rs",
     "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
     "crates/kafka-client-engine/src/consumer/group/registry_port.rs",
     SHARD,

@@ -9455,6 +9455,10 @@ production = "crates/kafka-client-engine/src/consumer/group/registry_commit.rs"
 test = "crates/kafka-client-engine/src/consumer/group/registry_commit_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/registry_commit_port.rs"
+test = "crates/kafka-client-engine/src/consumer/group/registry_commit_port_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/group/registry_close.rs"
 test = "crates/kafka-client-engine/src/consumer/group/registry_close_test.rs"
 
@@ -12190,6 +12194,14 @@ path = "crates/kafka-client-engine/src/consumer/group/registry_port.rs"
 owner_type = "GroupConsumerPortRegistrationFailure"
 path = "crates/kafka-client-engine/src/consumer/group/registry_port.rs"
 
+[[linear_owners]]
+owner_type = "GroupConsumerCommitAdmission"
+path = "crates/kafka-client-engine/src/consumer/group/registry_commit_port.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerCommitPortFailure"
+path = "crates/kafka-client-engine/src/consumer/group/registry_commit_port.rs"
+
 [[mutation_owners]]
 owner_type = "ClassicGroupExecution"
 field = "classic_execution_state"
@@ -12475,6 +12487,39 @@ allow = [
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/group/registry_port.rs"
+forbidden = [
+  "crate::admin",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Metadata",
+  "Transport",
+  "Retry",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/registry_commit_port.rs"
 forbidden = [
   "crate::admin",
   "crate::completion",
