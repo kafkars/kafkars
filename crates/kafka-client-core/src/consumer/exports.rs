@@ -1,5 +1,8 @@
 //! Curated direct-assignment policy exports.
 
+pub use super::assignment_retirement::{
+    RetireAssignment, RetireAssignmentError, RetireAssignmentErrorKind,
+};
 pub use super::classic_group::{
     CLASSIC_GROUP_TIMEOUT_MAX_MS, CLASSIC_GROUP_TIMEOUT_MIN_MS, ClassicAssignmentError,
     ClassicAssignmentPlan, ClassicBrokerError, ClassicBrokerStage, ClassicCoordinatorRecovery,

@@ -93,8 +93,8 @@ pub use crate::consumer::{
     JoinedMemberSlot, LiveGroupAssignment, LiveGroupAssignmentError, MemberId, MemberRank,
     MembershipCycle, NextFetchOffset, PositionEpoch, PositionFence, PositionOwnership,
     PositionResolutionAttemptFailure, PositionResolutionFailure, ReadIsolation,
-    ResolvedAssignedPartition, StartPosition, TopicPartitionCount,
-    validate_group_offset_commit_checkpoint,
+    ResolvedAssignedPartition, RetireAssignment, RetireAssignmentError, RetireAssignmentErrorKind,
+    StartPosition, TopicPartitionCount, validate_group_offset_commit_checkpoint,
 };
 pub use crate::operation::{ProducerOperation, ProducerOperationState};
 pub use crate::operation_outcome::{

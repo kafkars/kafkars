@@ -1,5 +1,7 @@
 //! Deterministic direct-assignment consumer ownership and fetch-position policy.
 
+mod assignment_retirement;
+mod assignment_retirement_transition;
 mod classic_group;
 mod close;
 mod delivery_ownership;
@@ -27,6 +29,10 @@ mod transition;
 
 pub use exports::*;
 
+#[cfg(test)]
+mod assignment_retirement_test;
+#[cfg(test)]
+mod assignment_retirement_transition_test;
 #[cfg(test)]
 mod assignment_test;
 #[cfg(test)]

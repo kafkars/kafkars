@@ -323,6 +323,14 @@ production = "crates/kafka-client-core/src/consumer/machine.rs"
 test = "crates/kafka-client-core/src/consumer/assignment_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/assignment_retirement.rs"
+test = "crates/kafka-client-core/src/consumer/assignment_retirement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/assignment_retirement_transition.rs"
+test = "crates/kafka-client-core/src/consumer/assignment_retirement_transition_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/close.rs"
 test = "crates/kafka-client-core/src/consumer/close_test.rs"
 
@@ -2488,6 +2496,57 @@ forbidden = [
   "GroupPositionBootstrapMachine",
   "PositionResolution",
   "StartPosition",
+  "Callback",
+  "Clock",
+  "Future",
+  "Runtime",
+  "async",
+  "kafka_client_engine",
+  "kafka_driver",
+  "kafka_wire",
+  "std::future",
+  "std::time",
+]
+
+# Assignment retirement owns only an optional epoch fence and ordered revokes.
+[[capability_rules]]
+root = "crates/kafka-client-core/src/consumer/assignment_retirement.rs"
+forbidden = [
+  "Deadline",
+  "crate::Deadline",
+  "Moment",
+  "crate::Moment",
+  "OperationDeadline",
+  "crate::consumer::group_position",
+  "GroupPositionBootstrapMachine",
+  "Byte",
+  "Bytes",
+  "u8",
+  "Callback",
+  "Clock",
+  "Future",
+  "Runtime",
+  "async",
+  "kafka_client_engine",
+  "kafka_driver",
+  "kafka_wire",
+  "std::future",
+  "std::time",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-core/src/consumer/assignment_retirement_transition.rs"
+forbidden = [
+  "Deadline",
+  "crate::Deadline",
+  "Moment",
+  "crate::Moment",
+  "OperationDeadline",
+  "crate::consumer::group_position",
+  "GroupPositionBootstrapMachine",
+  "Byte",
+  "Bytes",
+  "u8",
   "Callback",
   "Clock",
   "Future",
@@ -5371,6 +5430,7 @@ allowed_paths = [
 owner_type = "AssignedConsumerMachine"
 field = "assignment"
 allowed_paths = [
+  "crates/kafka-client-core/src/consumer/assignment_retirement_transition.rs",
   "crates/kafka-client-core/src/consumer/close.rs",
   "crates/kafka-client-core/src/consumer/delivery_ownership.rs",
   "crates/kafka-client-core/src/consumer/fetch_transition.rs",
@@ -7138,6 +7198,14 @@ path = "crates/kafka-client-core/src/consumer/position_resolution.rs"
 [[linear_owners]]
 owner_type = "FetchThrottle"
 path = "crates/kafka-client-core/src/consumer/fetch_throttle.rs"
+
+[[linear_owners]]
+owner_type = "RetireAssignment"
+path = "crates/kafka-client-core/src/consumer/assignment_retirement.rs"
+
+[[linear_owners]]
+owner_type = "RetireAssignmentError"
+path = "crates/kafka-client-core/src/consumer/assignment_retirement.rs"
 
 [[linear_owners]]
 owner_type = "InstallResolvedAssignment"
