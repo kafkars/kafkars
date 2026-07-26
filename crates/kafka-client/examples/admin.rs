@@ -54,3 +54,22 @@ async fn create_partitions() -> Result<(), KafkaError> {
     assert_eq!(result.entries().len(), 2);
     Ok(())
 }
+
+#[allow(dead_code)]
+async fn list_visible_topics() -> Result<(), KafkaError> {
+    let client = Client::builder()
+        .bootstrap_servers(["localhost:9092"])
+        .build()?;
+    let result = client
+        .admin()
+        .list_topics()
+        .include_internal(false)
+        .submit()
+        .await?;
+    for (name, description) in result.entries() {
+        if let Ok(description) = description {
+            assert_eq!(name.as_str(), description.name());
+        }
+    }
+    Ok(())
+}

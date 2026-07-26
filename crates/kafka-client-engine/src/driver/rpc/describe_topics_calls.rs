@@ -33,7 +33,7 @@ impl DescribeTopicsCallPermit<'_> {
         plan: DescribeTopicsPlan,
         retained_bytes: usize,
     ) -> Result<(), DescribeTopicsAdmissionFailure> {
-        let request = describe_topics_request(plan.topics().iter().map(String::as_str));
+        let request = describe_topics_request(&plan);
         let call = driver.submit_describe_topics(request, deadline.transport())?;
         self.calls.push(DescribeTopicsCall {
             operation_id,

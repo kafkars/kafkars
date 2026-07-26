@@ -53,7 +53,11 @@ mod partitions_transition_test;
 #[cfg(test)]
 mod topic_description_test;
 #[cfg(test)]
+mod topics_list_transition_test;
+#[cfg(test)]
 mod topics_model_test;
+#[cfg(test)]
+mod topics_outcome_test;
 #[cfg(test)]
 mod topics_transition_test;
 #[cfg(test)]

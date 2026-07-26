@@ -27,14 +27,15 @@ fn results_return_in_request_order_with_sorted_partitions_and_exact_codes() {
         panic!("expected per-topic results");
     };
     assert_eq!(outcomes[0].topic(), "orders");
-    let (_, DescribeTopicResult::Described(description)) = outcomes[0].clone().into_parts() else {
+    let (_, _, DescribeTopicResult::Described(description)) = outcomes[0].clone().into_parts()
+    else {
         panic!("orders should be described");
     };
     assert_eq!(description.topic_id(), Some([9; 16]));
     assert_eq!(description.partitions()[0].partition_index(), 0);
     assert_eq!(description.partitions()[1].partition_index(), 2);
     assert_eq!(description.partitions()[1].error_code(), Some(-811));
-    let (_, DescribeTopicResult::Failed(error)) = outcomes[1].clone().into_parts() else {
+    let (_, _, DescribeTopicResult::Failed(error)) = outcomes[1].clone().into_parts() else {
         panic!("audit should retain its broker failure");
     };
     assert_eq!(error.code(), -731);
@@ -52,7 +53,8 @@ fn zero_topic_id_sentinel_becomes_none_without_leaking_wire_uuid() {
     let DescribeTopicsInput::BrokerResponded { outcomes } = input else {
         panic!("expected results");
     };
-    let (_, DescribeTopicResult::Described(description)) = outcomes[0].clone().into_parts() else {
+    let (_, _, DescribeTopicResult::Described(description)) = outcomes[0].clone().into_parts()
+    else {
         panic!("orders should be described");
     };
     assert_eq!(description.topic_id(), None);

@@ -9,7 +9,8 @@ use kafka_wire::{MetadataRequest, MetadataResponse};
 
 use super::super::DriverOwner;
 
-const DESCRIBE_TOPICS_MAX_VERSION: ApiVersion = ApiVersion::new(13);
+pub(super) const DESCRIBE_TOPICS_MIN_VERSION: ApiVersion = ApiVersion::new(4);
+pub(super) const DESCRIBE_TOPICS_MAX_VERSION: ApiVersion = ApiVersion::new(13);
 
 /// Definitely-unsent failure before driver request ownership.
 #[derive(Debug)]
@@ -56,5 +57,6 @@ pub(super) const fn describe_topics_route() -> Route {
 pub(super) const fn describe_topics_options(deadline: Instant) -> RequestOptions {
     RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Interactive)
+        .with_minimum_version(DESCRIBE_TOPICS_MIN_VERSION)
         .with_maximum_version(DESCRIBE_TOPICS_MAX_VERSION)
 }

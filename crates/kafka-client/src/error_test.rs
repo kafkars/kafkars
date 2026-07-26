@@ -18,6 +18,7 @@ fn non_producer_error_has_no_delivery_certainty() {
 
     assert_eq!(error.delivery_status(), None);
     assert_eq!(error.broker_code(), None);
+    assert_eq!(error.is_internal_topic(), None);
     assert!(!error.diagnostic_truncated());
 }
 
@@ -35,4 +36,12 @@ fn bounded_broker_diagnostics_preserve_truncation() {
         .with_diagnostic_truncated(true);
 
     assert!(error.diagnostic_truncated());
+}
+
+#[test]
+fn topic_scoped_error_preserves_internal_marker() {
+    let error =
+        KafkaError::new(ErrorKind::Broker, "internal topic error").with_internal_topic(true);
+
+    assert_eq!(error.is_internal_topic(), Some(true));
 }

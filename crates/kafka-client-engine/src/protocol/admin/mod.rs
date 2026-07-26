@@ -11,10 +11,12 @@ mod describe_configs_budget;
 mod describe_configs_model;
 pub(crate) mod describe_configs_response;
 mod describe_configs_values;
+mod describe_topic_value;
 pub(crate) mod describe_topics;
 mod describe_topics_budget;
 pub(crate) mod describe_topics_response;
 pub(crate) mod incremental_alter_configs;
+mod list_topics_response;
 mod request_timeout_error;
 #[cfg(test)]
 mod request_timeout_error_test;
@@ -43,10 +45,14 @@ mod describe_configs_test;
 #[cfg(test)]
 mod describe_configs_values_test;
 #[cfg(test)]
+mod describe_topic_value_test;
+#[cfg(test)]
 mod describe_topics_budget_test;
 #[cfg(test)]
 mod describe_topics_response_test;
 #[cfg(test)]
 mod describe_topics_test;
+#[cfg(test)]
+mod list_topics_response_test;
 #[cfg(test)]
 mod result_budget_test;

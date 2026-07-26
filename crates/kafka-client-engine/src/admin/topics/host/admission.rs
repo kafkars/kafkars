@@ -7,9 +7,10 @@ use kafka_client_core::{
 
 use crate::{clock::OperationDeadline, completion::CompletionRegistryError};
 
+use super::super::limits::DESCRIBE_TOPICS_RETAINED_BYTES;
 use super::{
-    DESCRIBE_TOPICS_RETAINED_BYTES, DescribeTopicsAdmission, DescribeTopicsHost,
-    DescribeTopicsHostError, DescribeTopicsOperation, DescribeTopicsSubmission,
+    DescribeTopicsAdmission, DescribeTopicsHost, DescribeTopicsHostError, DescribeTopicsOperation,
+    DescribeTopicsSubmission,
 };
 use crate::admin::{DescribeTopicsAdmissionErrorKind, DescribeTopicsObserver};
 

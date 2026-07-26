@@ -24,8 +24,9 @@ pub use admin::{
     CreatePartitionsBuilder, CreateTopics, CreateTopicsBuilder, DeleteTopics, DeleteTopicsBuilder,
     DescribeCluster, DescribeClusterBuilder, DescribeConfigs, DescribeConfigsBuilder,
     DescribeConfigsResult, DescribeTopics, DescribeTopicsBuilder, IncrementalAlterConfigs,
-    IncrementalAlterConfigsBuilder, IncrementalAlterConfigsResult, NewPartitions, NewTopic,
-    TopicConfigAlterations, TopicConfigQuery, TopicDescription, TopicPartitionDescription,
+    IncrementalAlterConfigsBuilder, IncrementalAlterConfigsResult, ListTopics, ListTopicsBuilder,
+    NewPartitions, NewTopic, TopicConfigAlterations, TopicConfigQuery, TopicDescription,
+    TopicPartitionDescription,
 };
 pub use client::{Client, ClientBuilder, Shutdown};
 pub use consumer::{

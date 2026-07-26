@@ -54,12 +54,12 @@ pub(super) fn translate_observation(
             topics
                 .into_iter()
                 .map(|topic| {
-                    let (name, result) = topic.into_parts();
+                    let (name, internal, result) = topic.into_parts();
                     (
                         name,
                         result
                             .map(translate_description)
-                            .map_err(translate_topic_error),
+                            .map_err(|error| translate_topic_error(error, internal)),
                     )
                 })
                 .collect(),
@@ -115,7 +115,7 @@ pub(super) fn translate_failure_parts(
             "DescribeTopics response exceeded its admitted retained-result budget".to_owned()
         }
         DescribeTopicsFailureKind::Compatibility => {
-            "broker cannot disable topic auto-creation for DescribeTopics".to_owned()
+            "broker cannot represent DescribeTopics read-only query policy".to_owned()
         }
         _ => format!("DescribeTopics failed: {failure:?}"),
     };
@@ -124,8 +124,12 @@ pub(super) fn translate_failure_parts(
         .with_delivery_status(translate_delivery(delivery))
 }
 
-fn translate_topic_error(error: EngineTopicError) -> KafkaError {
-    partition_error(error.code())
+fn translate_topic_error(error: EngineTopicError, internal: bool) -> KafkaError {
+    topic_error(error.code(), internal)
+}
+
+pub(super) fn topic_error(code: i16, internal: bool) -> KafkaError {
+    partition_error(code).with_internal_topic(internal)
 }
 
 pub(super) fn partition_error(code: i16) -> KafkaError {

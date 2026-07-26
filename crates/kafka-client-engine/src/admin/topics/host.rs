@@ -18,9 +18,7 @@ use crate::{
 use crate::admin::DescribeTopicsPublisher;
 
 use super::DescribeTopicsObserver;
-
-pub(crate) const DESCRIBE_TOPICS_CAPACITY: usize = 32;
-pub(crate) const DESCRIBE_TOPICS_RETAINED_BYTES: usize = 4 * 1024 * 1024;
+use super::limits::DESCRIBE_TOPICS_CAPACITY;
 
 pub(crate) struct DescribeTopicsAdmission {
     pub(crate) observer: DescribeTopicsObserver,

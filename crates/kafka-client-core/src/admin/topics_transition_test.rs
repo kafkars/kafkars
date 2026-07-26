@@ -37,11 +37,13 @@ fn ordered_terminal_is_single_assignment_and_lossless() {
         .unwrap_or_else(|error| panic!("driver acceptance should succeed: {error}"));
     let code = NonZeroI16::new(-321).unwrap_or_else(|| panic!("code is nonzero"));
     let outcomes = vec![
-        DescribeTopicOutcome::described(
-            "orders",
-            TopicDescription::new("orders".to_owned(), None, false, Vec::new()),
-        ),
-        DescribeTopicOutcome::failed("audit", DescribeTopicBrokerError::new(code)),
+        DescribeTopicOutcome::described(TopicDescription::new(
+            "orders".to_owned(),
+            None,
+            false,
+            Vec::new(),
+        )),
+        DescribeTopicOutcome::failed("audit", false, DescribeTopicBrokerError::new(code)),
     ];
     let terminal = machine
         .apply(DescribeTopicsInput::BrokerResponded { outcomes })
@@ -142,10 +144,12 @@ fn response_must_match_request_count_and_order() {
     machine
         .apply(DescribeTopicsInput::DriverAccepted)
         .unwrap_or_else(|error| panic!("driver acceptance should succeed: {error}"));
-    let wrong = vec![DescribeTopicOutcome::described(
-        "audit",
-        TopicDescription::new("audit".to_owned(), None, false, Vec::new()),
-    )];
+    let wrong = vec![DescribeTopicOutcome::described(TopicDescription::new(
+        "audit".to_owned(),
+        None,
+        false,
+        Vec::new(),
+    ))];
     assert_eq!(
         machine.apply(DescribeTopicsInput::BrokerResponded { outcomes: wrong }),
         Err(DescribeTopicsMachineError::OutcomeCountMismatch)

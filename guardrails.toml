@@ -379,6 +379,10 @@ production = "crates/kafka-client-core/src/admin/topics_model.rs"
 test = "crates/kafka-client-core/src/admin/topics_model_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/topics_outcome.rs"
+test = "crates/kafka-client-core/src/admin/topics_outcome_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/admin/topics_transition.rs"
 test = "crates/kafka-client-core/src/admin/topics_transition_test.rs"
 
@@ -1079,8 +1083,16 @@ production = "crates/kafka-client-engine/src/protocol/admin/describe_topics_budg
 test = "crates/kafka-client-engine/src/protocol/admin/describe_topics_budget_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/describe_topic_value.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/describe_topic_value_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/admin/describe_topics_response.rs"
 test = "crates/kafka-client-engine/src/protocol/admin/describe_topics_response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/list_topics_response.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/list_topics_response_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/request_timeout.rs"
@@ -1427,8 +1439,16 @@ production = "crates/kafka-client-engine/src/admin/topics/model.rs"
 test = "crates/kafka-client-engine/src/admin/topics/model_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/topics/limits.rs"
+test = "crates/kafka-client-engine/src/admin/topics/limits_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/admin/topics/outcome.rs"
 test = "crates/kafka-client-engine/src/admin/topics/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/topics/outcome/translate.rs"
+test = "crates/kafka-client-engine/src/admin/topics/outcome/translate_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/admin/topics/host.rs"
@@ -1781,6 +1801,14 @@ test = "crates/kafka-client/src/admin/describe_cluster_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/admin/describe_topics.rs"
 test = "crates/kafka-client/src/admin/describe_topics_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/list_topics_builder.rs"
+test = "crates/kafka-client/src/admin/list_topics_builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/list_topics.rs"
+test = "crates/kafka-client/src/admin/list_topics_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/admin/topics_builder.rs"
@@ -4325,6 +4353,13 @@ allow = [
 root = "crates/kafka-client/src/admin"
 forbidden = [
   "kafka_client_engine",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client/src"
+method = "with_include_internal"
+allowed_paths = [
+  "crates/kafka-client/src/admin/list_topics_builder.rs",
 ]
 
 # Load-bearing state fields have one deliberately small mutation surface.
@@ -7096,6 +7131,30 @@ path = "crates/kafka-client/src/admin/describe_builder.rs"
 [[linear_owners]]
 owner_type = "DescribeCluster"
 path = "crates/kafka-client/src/admin/describe_cluster.rs"
+
+[[linear_owners]]
+owner_type = "DescribeTopicsAdminRequest"
+path = "crates/kafka-client/src/bridge/admin.rs"
+
+[[linear_owners]]
+owner_type = "AdminDescribeTopics"
+path = "crates/kafka-client/src/bridge/admin_topics_operation.rs"
+
+[[linear_owners]]
+owner_type = "DescribeTopicsBuilder"
+path = "crates/kafka-client/src/admin/topics_builder.rs"
+
+[[linear_owners]]
+owner_type = "DescribeTopics"
+path = "crates/kafka-client/src/admin/describe_topics.rs"
+
+[[linear_owners]]
+owner_type = "ListTopicsBuilder"
+path = "crates/kafka-client/src/admin/list_topics_builder.rs"
+
+[[linear_owners]]
+owner_type = "ListTopics"
+path = "crates/kafka-client/src/admin/list_topics.rs"
 
 [[linear_owners]]
 owner_type = "DescribeConfigsAdminRequest"

@@ -109,6 +109,17 @@ impl DescribeTopicsAdminRequest {
             inner: EngineDescribeTopicsRequest::new(topics.into_iter().map(Into::into).collect()),
         }
     }
+
+    pub(crate) const fn all(include_internal: bool) -> Self {
+        Self {
+            inner: EngineDescribeTopicsRequest::all(include_internal),
+        }
+    }
+
+    pub(crate) fn with_include_internal(mut self, include_internal: bool) -> Self {
+        self.inner = EngineDescribeTopicsRequest::all(include_internal);
+        self
+    }
 }
 
 impl std::fmt::Debug for DescribeTopicsAdminRequest {

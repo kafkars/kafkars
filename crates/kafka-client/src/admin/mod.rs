@@ -13,36 +13,16 @@ mod describe_cluster;
 mod describe_topics;
 mod description;
 mod handle;
+mod list_topics;
+mod list_topics_builder;
 mod new_partitions;
 mod new_topic;
 mod partitions_builder;
+mod public_api;
 mod topic_description;
 mod topics_builder;
 
-pub use alter_configs::{
-    ConfigAlteration, ConfigAlterationOperation, IncrementalAlterConfigs,
-    IncrementalAlterConfigsBuilder, IncrementalAlterConfigsResult, TopicConfigAlterations,
-};
-pub use batch_result::BatchResult;
-pub use builder::CreateTopicsBuilder;
-pub use configs::{
-    ConfigEntry, ConfigSynonym, DescribeConfigs, DescribeConfigsBuilder, DescribeConfigsResult,
-    TopicConfigQuery,
-};
-pub use create_partitions::CreatePartitions;
-pub use create_topics::CreateTopics;
-pub use delete_builder::DeleteTopicsBuilder;
-pub use delete_topics::DeleteTopics;
-pub use describe_builder::DescribeClusterBuilder;
-pub use describe_cluster::DescribeCluster;
-pub use describe_topics::DescribeTopics;
-pub use description::{ClusterBroker, ClusterDescription};
-pub use handle::Admin;
-pub use new_partitions::NewPartitions;
-pub use new_topic::NewTopic;
-pub use partitions_builder::CreatePartitionsBuilder;
-pub use topic_description::{TopicDescription, TopicPartitionDescription};
-pub use topics_builder::DescribeTopicsBuilder;
+pub use public_api::*;
 
 #[cfg(test)]
 mod batch_result_test;
@@ -66,6 +46,10 @@ mod describe_topics_test;
 mod description_test;
 #[cfg(test)]
 mod handle_test;
+#[cfg(test)]
+mod list_topics_builder_test;
+#[cfg(test)]
+mod list_topics_test;
 #[cfg(test)]
 mod new_partitions_test;
 #[cfg(test)]

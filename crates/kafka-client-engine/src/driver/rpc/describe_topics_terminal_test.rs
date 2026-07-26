@@ -71,6 +71,20 @@ fn old_broker_auto_creation_field_failure_is_local_compatibility() {
 }
 
 #[test]
+fn all_topic_read_only_policy_failure_is_local_compatibility() {
+    let input = normalize_terminal(
+        &DescribeTopicsPlan::all(false),
+        4 * 1024 * 1024,
+        Err(RequestError::Encode(EncodeError::FieldNotRepresentable {
+            message: "MetadataRequest",
+            field: "AllowAutoTopicCreation",
+            version: ApiVersion::new(3),
+        })),
+    );
+    assert_eq!(input, DescribeTopicsInput::ProtocolIncompatible);
+}
+
+#[test]
 fn version_floor_and_bounds_fail_before_metadata_transport() {
     let api_key = ApiKey::new(3);
     for failure in [

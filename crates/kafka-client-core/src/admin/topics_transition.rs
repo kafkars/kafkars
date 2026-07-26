@@ -2,8 +2,8 @@
 
 use super::{
     DescribeTopicOutcome, DescribeTopicsEffect, DescribeTopicsFailure, DescribeTopicsInput,
-    DescribeTopicsMachine, DescribeTopicsMachineError, DescribeTopicsState, DescribeTopicsTerminal,
-    DescribeTopicsTransition,
+    DescribeTopicsMachine, DescribeTopicsMachineError, DescribeTopicsSelection,
+    DescribeTopicsState, DescribeTopicsTerminal, DescribeTopicsTransition,
 };
 
 impl DescribeTopicsMachine {
@@ -82,12 +82,15 @@ impl DescribeTopicsMachine {
 
     fn broker_responded(
         &mut self,
-        outcomes: Vec<DescribeTopicOutcome>,
+        mut outcomes: Vec<DescribeTopicOutcome>,
     ) -> Result<DescribeTopicsTransition, DescribeTopicsMachineError> {
         if self.state != DescribeTopicsState::Submitted {
             return Err(DescribeTopicsMachineError::InvalidState);
         }
         self.validate_outcomes(&outcomes)?;
+        if !self.plan.selection().includes_internal_topics() {
+            outcomes.retain(|outcome| !outcome.is_internal());
+        }
         Ok(self.finish(DescribeTopicsTerminal::Topics(outcomes)))
     }
 
@@ -162,17 +165,20 @@ impl DescribeTopicsMachine {
         &self,
         outcomes: &[DescribeTopicOutcome],
     ) -> Result<(), DescribeTopicsMachineError> {
-        if self.plan.topics().len() != outcomes.len() {
-            return Err(DescribeTopicsMachineError::OutcomeCountMismatch);
-        }
-        if self
-            .plan
-            .topics()
-            .iter()
-            .zip(outcomes)
-            .any(|(topic, outcome)| topic != outcome.topic())
-        {
-            return Err(DescribeTopicsMachineError::OutcomeTopicMismatch);
+        match self.plan.selection() {
+            DescribeTopicsSelection::Named(topics) => {
+                if topics.len() != outcomes.len() {
+                    return Err(DescribeTopicsMachineError::OutcomeCountMismatch);
+                }
+                if topics
+                    .iter()
+                    .zip(outcomes)
+                    .any(|(topic, outcome)| topic != outcome.topic())
+                {
+                    return Err(DescribeTopicsMachineError::OutcomeTopicMismatch);
+                }
+            }
+            DescribeTopicsSelection::All { .. } => validate_all_outcomes(outcomes)?,
         }
         Ok(())
     }
@@ -184,4 +190,24 @@ impl DescribeTopicsMachine {
             terminal,
         })
     }
+}
+
+fn validate_all_outcomes(
+    outcomes: &[DescribeTopicOutcome],
+) -> Result<(), DescribeTopicsMachineError> {
+    if outcomes.iter().any(|outcome| outcome.topic().is_empty()) {
+        return Err(DescribeTopicsMachineError::EmptyOutcomeTopic);
+    }
+    for pair in outcomes.windows(2) {
+        match pair[0].topic().as_bytes().cmp(pair[1].topic().as_bytes()) {
+            core::cmp::Ordering::Less => {}
+            core::cmp::Ordering::Equal => {
+                return Err(DescribeTopicsMachineError::DuplicateOutcomeTopic);
+            }
+            core::cmp::Ordering::Greater => {
+                return Err(DescribeTopicsMachineError::OutcomeTopicOrder);
+            }
+        }
+    }
+    Ok(())
 }

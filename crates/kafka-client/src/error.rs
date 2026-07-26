@@ -49,6 +49,7 @@ pub struct KafkaError {
     message: String,
     delivery_status: Option<DeliveryStatus>,
     broker_code: Option<i16>,
+    internal_topic: Option<bool>,
     diagnostic_truncated: bool,
 }
 
@@ -60,6 +61,7 @@ impl KafkaError {
             message: message.into(),
             delivery_status: None,
             broker_code: None,
+            internal_topic: None,
             diagnostic_truncated: false,
         }
     }
@@ -72,6 +74,11 @@ impl KafkaError {
 
     pub(crate) fn with_broker_code(mut self, broker_code: Option<i16>) -> Self {
         self.broker_code = broker_code;
+        self
+    }
+
+    pub(crate) const fn with_internal_topic(mut self, internal: bool) -> Self {
+        self.internal_topic = Some(internal);
         self
     }
 
@@ -93,6 +100,11 @@ impl KafkaError {
     /// Returns Kafka's exact protocol error code when supplied by a broker.
     pub const fn broker_code(&self) -> Option<i16> {
         self.broker_code
+    }
+
+    /// Returns Kafka's internal-topic marker for a topic-scoped error.
+    pub const fn is_internal_topic(&self) -> Option<bool> {
+        self.internal_topic
     }
 
     /// Returns whether a broker diagnostic was shortened to a bounded prefix.

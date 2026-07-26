@@ -6,8 +6,8 @@ use kafka_client_engine::{
 };
 
 use super::admin_topics_result::{
-    partition_error, translate_accepted_fault, translate_admission_kind, translate_failure_parts,
-    translate_observer_error,
+    partition_error, topic_error, translate_accepted_fault, translate_admission_kind,
+    translate_failure_parts, translate_observer_error,
 };
 use crate::{DeliveryStatus, ErrorKind};
 
@@ -78,4 +78,12 @@ fn old_broker_policy_failure_maps_to_public_compatibility() {
         compatibility.delivery_status(),
         Some(DeliveryStatus::NotSent)
     );
+}
+
+#[test]
+fn failed_topic_retains_internal_marker_and_exact_signed_code() {
+    let error = topic_error(-731, true);
+    assert_eq!(error.kind(), ErrorKind::Broker);
+    assert_eq!(error.broker_code(), Some(-731));
+    assert_eq!(error.is_internal_topic(), Some(true));
 }

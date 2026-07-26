@@ -2,7 +2,7 @@
 
 use crate::KafkaError;
 
-/// Ordered per-resource outcomes for one batched admin operation.
+/// Deterministically ordered per-resource outcomes for one admin operation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BatchResult<K, V> {
     entries: Vec<(K, Result<V, KafkaError>)>,
@@ -13,12 +13,12 @@ impl<K, V> BatchResult<K, V> {
         Self { entries }
     }
 
-    /// Returns outcomes in original request order.
+    /// Returns outcomes in the operation's documented deterministic order.
     pub fn entries(&self) -> &[(K, Result<V, KafkaError>)] {
         &self.entries
     }
 
-    /// Consumes the result into outcomes in original request order.
+    /// Consumes outcomes in the operation's documented deterministic order.
     pub fn into_entries(self) -> Vec<(K, Result<V, KafkaError>)> {
         self.entries
     }

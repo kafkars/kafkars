@@ -23,7 +23,7 @@ impl DescribeTopicBrokerError {
     }
 }
 
-/// Per-topic result retained in original request order.
+/// Per-topic result retained in policy-defined deterministic order.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DescribeTopicResult {
     /// Kafka returned one structural topic description.
@@ -36,34 +36,46 @@ pub enum DescribeTopicResult {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DescribeTopicOutcome {
     topic: String,
+    internal: bool,
     result: DescribeTopicResult,
 }
 
 impl DescribeTopicOutcome {
     /// Creates a successful per-topic result.
-    pub fn described(topic: impl Into<String>, description: TopicDescription) -> Self {
+    pub fn described(description: TopicDescription) -> Self {
         Self {
-            topic: topic.into(),
+            topic: description.name().to_owned(),
+            internal: description.is_internal(),
             result: DescribeTopicResult::Described(description),
         }
     }
 
     /// Creates a failed per-topic result.
-    pub fn failed(topic: impl Into<String>, error: DescribeTopicBrokerError) -> Self {
+    pub fn failed(
+        topic: impl Into<String>,
+        internal: bool,
+        error: DescribeTopicBrokerError,
+    ) -> Self {
         Self {
             topic: topic.into(),
+            internal,
             result: DescribeTopicResult::Failed(error),
         }
     }
 
-    /// Returns the requested topic name.
+    /// Returns the normalized topic name.
     pub fn topic(&self) -> &str {
         &self.topic
     }
 
+    /// Returns whether Kafka marks this topic as internal.
+    pub const fn is_internal(&self) -> bool {
+        self.internal
+    }
+
     /// Consumes this ordered outcome into adapter-owned parts.
-    pub fn into_parts(self) -> (String, DescribeTopicResult) {
-        (self.topic, self.result)
+    pub fn into_parts(self) -> (String, bool, DescribeTopicResult) {
+        (self.topic, self.internal, self.result)
     }
 }
 

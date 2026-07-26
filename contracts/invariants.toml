@@ -138,7 +138,7 @@ evidence = [
   "crates/kafka-client-engine/src/protocol/admin/describe_topics_response_test.rs::zero_topic_id_sentinel_becomes_none_without_leaking_wire_uuid",
   "crates/kafka-client-engine/src/protocol/admin/describe_topics_response_test.rs::top_level_v13_error_remains_a_whole_operation_broker_rejection",
   "crates/kafka-client-engine/src/protocol/admin/describe_topics_response_test.rs::retained_result_must_fit_the_accepted_operation_reservation",
-  "crates/kafka-client-engine/src/driver/rpc/describe_topics_submission_test.rs::describe_topics_uses_interactive_lane_original_deadline_and_v13_ceiling",
+  "crates/kafka-client-engine/src/driver/rpc/describe_topics_submission_test.rs::describe_topics_uses_interactive_lane_deadline_and_exact_version_window",
   "crates/kafka-client-engine/src/driver/rpc/describe_topics_terminal_test.rs::driver_deadline_remains_timeout_with_authoritative_certainty",
   "crates/kafka-client-engine/src/driver/rpc/describe_topics_terminal_test.rs::old_broker_auto_creation_field_failure_is_local_compatibility",
   "crates/kafka-client-engine/src/driver/rpc/describe_topics_terminal_test.rs::malformed_and_valid_over_budget_responses_remain_distinct",
@@ -146,7 +146,7 @@ evidence = [
   "crates/kafka-client-engine/src/admin/topics/host_test.rs::terminal_bytes_remain_reserved_until_observer_reclamation",
   "crates/kafka-client-engine/src/admin/topics/host_test.rs::recovery_after_submission_handoff_is_conservatively_possibly_sent",
   "crates/kafka-client-engine/src/admin/completion_test.rs::describe_topics_is_included_in_the_closed_shared_capacity_equation",
-  "crates/kafka-client-engine/src/admin/topics/outcome_test.rs::topic_and_partition_codes_cross_the_engine_boundary_exactly",
+  "crates/kafka-client-engine/src/admin/topics/outcome/translate_test.rs::topic_and_partition_codes_cross_the_engine_boundary_exactly",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::describe_topics_owner_is_independent_and_prevents_false_quiescence",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_time_test.rs::describe_topics_uses_time_recaptured_after_describe_cluster_work",
   "crates/kafka-client/src/admin/topics_builder_test.rs::empty_zero_deadline_builder_is_inert_until_submit",
@@ -248,6 +248,33 @@ evidence = [
   "crates/kafka-client/src/bridge/admin_alter_configs_result_test.rs::every_admission_observer_and_accepted_fault_category_is_stable",
   "crates/kafka-client/src/bridge/admin_alter_configs_result_test.rs::topic_diagnostic_code_delivery_empty_message_and_truncation_remain_exact",
   "crates/kafka-client/src/bridge/admin_alter_configs_result_test.rs::every_terminal_failure_preserves_category_and_driver_delivery",
+]
+
+[[invariant]]
+id = "ADM-10"
+title = "ListTopics is an explicit bounded all-topic description query"
+statement = "ListTopics reuses the one concrete DescribeTopics policy, host, completion registry, notifier, and plain AnyBroker Metadata call without creating a generic admin executor or second metadata authority. Its explicit All selection cannot be confused with an empty named batch; core alone validates that every normalized topic name is nonempty and that all-topic outcomes are unique and in strict UTF-8 byte-lexicographic order, filters broker-marked internal topics according to the inert builder's default-false option, preserves internal status even for exact signed per-topic broker errors, and assigns one terminal outcome. Engine admission reserves the existing complete four-MiB DescribeTopics envelope before machine construction, so one all-topic result has a checked aggregate topic-name, topic-owner, partition, and replica bound and naturally backpressures peers until observer reclamation. The borrowed generated-response charge pass completes before normalized String or Vec allocation. The generated Metadata request uses nullable Topics, disables auto-creation and both authorization expansions, and reports only topics visible to the authenticated principal. It uses the existing Interactive Route::AnyBroker call, original public absolute deadline, and exact v4-v13 negotiation window; an older broker fails at the declared version floor as definitely-unsent Compatibility without an empty-array or auto-create fallback. The curated Rust facade exposes one inert ListTopicsBuilder and one named runtime-neutral Future plus blocking wait over the existing BatchResult<String, TopicDescription> terminal, without retry, invalidation, callbacks, an async runtime, generated types, or driver types."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/admin/topics_model_test.rs::all_topics_is_explicit_and_retains_internal_policy",
+  "crates/kafka-client-core/src/admin/topics_list_transition_test.rs::all_topics_filtering_is_core_owned_and_terminal_once",
+  "crates/kafka-client-core/src/admin/topics_list_transition_test.rs::all_topics_can_retain_internal_successes_and_failures",
+  "crates/kafka-client-core/src/admin/topics_list_transition_test.rs::all_topics_rejects_empty_duplicate_and_nonlexicographic_names",
+  "crates/kafka-client-core/src/admin/topics_outcome_test.rs::failed_outcome_retains_exact_internal_and_broker_facts",
+  "crates/kafka-client-engine/src/protocol/admin/describe_topics_test.rs::all_topic_request_is_nullable_and_never_requests_authorization_expansion",
+  "crates/kafka-client-engine/src/protocol/admin/describe_topics_test.rs::all_topic_query_never_falls_back_for_older_metadata_versions",
+  "crates/kafka-client-engine/src/protocol/admin/list_topics_response_test.rs::all_topics_are_byte_sorted_and_retain_internal_error_facts",
+  "crates/kafka-client-engine/src/protocol/admin/list_topics_response_test.rs::all_topics_rejects_missing_empty_and_duplicate_names_before_terminal_copy",
+  "crates/kafka-client-engine/src/protocol/admin/list_topics_response_test.rs::all_topics_uses_the_accepted_aggregate_result_envelope",
+  "crates/kafka-client-engine/src/admin/topics/model_test.rs::all_topic_request_reserves_the_complete_host_envelope",
+  "crates/kafka-client-engine/src/admin/topics/host_test.rs::all_topic_reservation_backpressures_another_operation_until_reclaimed",
+  "crates/kafka-client-engine/src/admin/topics/outcome/translate_test.rs::internal_status_crosses_success_and_failure_translation",
+  "crates/kafka-client-engine/src/driver/rpc/describe_topics_submission_test.rs::policy_window_is_an_exact_supported_subset_of_the_wire_descriptor",
+  "crates/kafka-client-engine/src/driver/rpc/describe_topics_terminal_test.rs::all_topic_read_only_policy_failure_is_local_compatibility",
+  "crates/kafka-client/src/admin/list_topics_builder_test.rs::zero_deadline_and_internal_option_remain_inert_until_submit",
+  "crates/kafka-client/src/admin/list_topics_test.rs::list_topics_is_a_named_send_future",
+  "crates/kafka-client/src/bridge/admin_topics_result_test.rs::failed_topic_retains_internal_marker_and_exact_signed_code",
+  "crates/kafka-client/src/error_test.rs::topic_scoped_error_preserves_internal_marker",
 ]
 
 [[invariant]]

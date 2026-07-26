@@ -1,11 +1,11 @@
-//! Engine-owned terminal representation for one ordered `DescribeTopics` batch.
+//! Engine-owned terminal representation for one ordered `DescribeTopics` query.
 
 use core::fmt;
 
-use kafka_client_core::{
-    DeliveryStatus as CoreDeliveryStatus, DescribeTopicResult as CoreTopicResult,
-    DescribeTopicsFailureKind as CoreFailureKind, DescribeTopicsTerminal,
-};
+mod translate;
+pub(crate) use translate::translate_terminal;
+#[cfg(test)]
+mod translate_test;
 
 /// Stable admin delivery certainty independent of core types.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -16,7 +16,7 @@ pub enum DescribeTopicsDeliveryStatus {
     PossiblySent,
 }
 
-/// Exact broker rejection for one requested topic.
+/// Exact broker rejection for one normalized topic.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DescribeTopicError {
     code: i16,
@@ -67,7 +67,7 @@ impl TopicPartitionDescription {
     }
 }
 
-/// Stable description of one requested topic.
+/// Stable description of one normalized topic.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TopicDescription {
     name: String,
@@ -90,17 +90,18 @@ impl TopicDescription {
     }
 }
 
-/// One per-topic terminal in original request order.
+/// One per-topic terminal in policy-defined deterministic order.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DescribeTopicResult {
     topic: String,
+    internal: bool,
     result: Result<TopicDescription, DescribeTopicError>,
 }
 
 impl DescribeTopicResult {
     /// Consumes the ordered result into stable adapter-owned parts.
-    pub fn into_parts(self) -> (String, Result<TopicDescription, DescribeTopicError>) {
-        (self.topic, self.result)
+    pub fn into_parts(self) -> (String, bool, Result<TopicDescription, DescribeTopicError>) {
+        (self.topic, self.internal, self.result)
     }
 }
 
@@ -170,68 +171,3 @@ impl fmt::Display for DescribeTopicsObserverError {
 }
 
 impl std::error::Error for DescribeTopicsObserverError {}
-
-pub(crate) fn translate_terminal(terminal: DescribeTopicsTerminal) -> DescribeTopicsOutcome {
-    match terminal {
-        DescribeTopicsTerminal::Topics(outcomes) => DescribeTopicsOutcome::Topics(
-            outcomes
-                .into_iter()
-                .map(|outcome| {
-                    let (topic, result) = outcome.into_parts();
-                    let result = match result {
-                        CoreTopicResult::Described(description) => {
-                            Ok(translate_description(description))
-                        }
-                        CoreTopicResult::Failed(error) => {
-                            Err(DescribeTopicError { code: error.code() })
-                        }
-                    };
-                    DescribeTopicResult { topic, result }
-                })
-                .collect(),
-        ),
-        DescribeTopicsTerminal::Failed(failure) => {
-            let kind = match failure.kind() {
-                CoreFailureKind::DeadlineElapsed => DescribeTopicsFailureKind::DeadlineElapsed,
-                CoreFailureKind::DriverRejected => DescribeTopicsFailureKind::DriverRejected,
-                CoreFailureKind::Transport => DescribeTopicsFailureKind::Transport,
-                CoreFailureKind::Broker(code) => DescribeTopicsFailureKind::Broker(code.get()),
-                CoreFailureKind::ResponseTooLarge => DescribeTopicsFailureKind::ResponseTooLarge,
-                CoreFailureKind::Compatibility => DescribeTopicsFailureKind::Compatibility,
-                CoreFailureKind::InvalidResponse => DescribeTopicsFailureKind::InvalidResponse,
-            };
-            DescribeTopicsOutcome::Failed(DescribeTopicsFailure {
-                kind,
-                delivery: match failure.delivery() {
-                    CoreDeliveryStatus::NotSent => DescribeTopicsDeliveryStatus::NotSent,
-                    CoreDeliveryStatus::PossiblySent => DescribeTopicsDeliveryStatus::PossiblySent,
-                },
-            })
-        }
-    }
-}
-
-fn translate_description(description: kafka_client_core::TopicDescription) -> TopicDescription {
-    let (name, topic_id, internal, partitions) = description.into_parts();
-    TopicDescription {
-        name,
-        topic_id,
-        internal,
-        partitions: partitions
-            .into_iter()
-            .map(|partition| {
-                let (partition_index, error_code, leader_id, leader_epoch, replicas, isr, offline) =
-                    partition.into_parts();
-                TopicPartitionDescription {
-                    partition_index,
-                    error_code,
-                    leader_id,
-                    leader_epoch,
-                    replicas,
-                    in_sync_replicas: isr,
-                    offline_replicas: offline,
-                }
-            })
-            .collect(),
-    }
-}

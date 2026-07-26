@@ -65,7 +65,9 @@ pub use super::topics_machine::{
     DescribeTopicsEffect, DescribeTopicsInput, DescribeTopicsMachine, DescribeTopicsMachineError,
     DescribeTopicsState, DescribeTopicsTransition,
 };
-pub use super::topics_model::{DescribeTopicsPlan, DescribeTopicsPlanError};
+pub use super::topics_model::{
+    DescribeTopicsPlan, DescribeTopicsPlanError, DescribeTopicsSelection,
+};
 pub use super::topics_outcome::{
     DescribeTopicBrokerError, DescribeTopicOutcome, DescribeTopicResult, DescribeTopicsFailure,
     DescribeTopicsFailureKind, DescribeTopicsTerminal,

@@ -8,7 +8,7 @@ use crate::clock::OperationDeadline;
 
 use super::{
     DescribeTopicsDeliveryStatus, DescribeTopicsFailureKind, DescribeTopicsHost,
-    DescribeTopicsOutcome, DescribeTopicsTurn, host::DESCRIBE_TOPICS_RETAINED_BYTES,
+    DescribeTopicsOutcome, DescribeTopicsTurn, limits::DESCRIBE_TOPICS_RETAINED_BYTES,
 };
 use crate::admin::test_support::{describe_topics_host, stop_notifier};
 
@@ -208,6 +208,39 @@ fn retained_byte_limit_rejects_before_completion_reservation() {
         rejection,
         Err(super::DescribeTopicsAdmissionErrorKind::RetainedBytes)
     ));
+    stop(host, notifier);
+}
+
+#[test]
+fn all_topic_reservation_backpressures_another_operation_until_reclaimed() {
+    let (mut host, notifier) = describe_topics_host();
+    let admission = host
+        .try_admit(
+            kafka_client_core::Moment::from_tick(1),
+            deadline(10),
+            DescribeTopicsPlan::all(false),
+            DESCRIBE_TOPICS_RETAINED_BYTES,
+        )
+        .unwrap_or_else(|error| panic!("admit bounded all-topic query: {error:?}"));
+    assert!(matches!(
+        host.try_admit(
+            kafka_client_core::Moment::from_tick(1),
+            deadline(10),
+            plan(),
+            1,
+        ),
+        Err(super::DescribeTopicsAdmissionErrorKind::RetainedBytes)
+    ));
+    host.recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("recover queued all-topic query: {error}"));
+    let _outcome = admission
+        .observer
+        .wait()
+        .unwrap_or_else(|error| panic!("observe recovered query: {error}"));
+    let _progress = host
+        .turn(kafka_client_core::Moment::from_tick(2))
+        .unwrap_or_else(|error| panic!("reclaim all-topic bytes: {error}"));
+    assert_eq!(host.retained_bytes_for_test(), 0);
     stop(host, notifier);
 }
 

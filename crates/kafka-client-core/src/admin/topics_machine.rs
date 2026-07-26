@@ -40,7 +40,7 @@ pub enum DescribeTopicsInput {
     },
     /// Reports ordered protocol-normalized per-topic results.
     BrokerResponded {
-        /// Outcomes in original request order.
+        /// Outcomes in the plan selection's deterministic order.
         outcomes: Vec<DescribeTopicOutcome>,
     },
     /// Reports a top-level broker rejection from Metadata v13 or newer.
@@ -144,8 +144,14 @@ pub enum DescribeTopicsMachineError {
     AlreadyCompleted,
     /// The normalized response has a different number of topics.
     OutcomeCountMismatch,
-    /// A normalized response is not in original request order.
+    /// A named response is not in original caller order.
     OutcomeTopicMismatch,
+    /// An all-topic response contains an empty topic name.
+    EmptyOutcomeTopic,
+    /// An all-topic response contains a duplicate topic name.
+    DuplicateOutcomeTopic,
+    /// An all-topic response is not in strict UTF-8 byte order.
+    OutcomeTopicOrder,
 }
 
 impl fmt::Display for DescribeTopicsMachineError {

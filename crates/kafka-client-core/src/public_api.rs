@@ -25,7 +25,7 @@ pub use crate::admin::{
     DescribeConfigsTransition, DescribeTopicBrokerError, DescribeTopicOutcome, DescribeTopicResult,
     DescribeTopicsEffect, DescribeTopicsFailure, DescribeTopicsFailureKind, DescribeTopicsInput,
     DescribeTopicsMachine, DescribeTopicsMachineError, DescribeTopicsPlan, DescribeTopicsPlanError,
-    DescribeTopicsState, DescribeTopicsTerminal, DescribeTopicsTransition,
+    DescribeTopicsSelection, DescribeTopicsState, DescribeTopicsTerminal, DescribeTopicsTransition,
     IncrementalAlterConfigBrokerError, IncrementalAlterConfigOutcome, IncrementalAlterConfigResult,
     IncrementalAlterConfigsBatch, IncrementalAlterConfigsEffect, IncrementalAlterConfigsFailure,
     IncrementalAlterConfigsFailureKind, IncrementalAlterConfigsInput,
