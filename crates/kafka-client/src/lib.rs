@@ -2,9 +2,9 @@
 //!
 //! Immediate explicit-partition producer admission, stage-aware cancellation,
 //! flush observation, atomic close-and-drain, batched topic mutation, and
-//! bounded topic description, committed group-offset listing, configuration
-//! description, and incremental configuration alteration form the implemented
-//! vertical slices. Later API domains remain design probes.
+//! bounded topic description, committed group-offset listing and deletion,
+//! configuration description, and incremental configuration alteration form
+//! the implemented vertical slices. Later API domains remain design probes.
 
 #![forbid(unsafe_code)]
 
@@ -21,13 +21,14 @@ mod transaction;
 pub use admin::{
     Admin, BatchResult, ClusterBroker, ClusterDescription, ConfigAlteration,
     ConfigAlterationOperation, ConfigEntry, ConfigSynonym, ConsumerGroupOffset, CreatePartitions,
-    CreatePartitionsBuilder, CreateTopics, CreateTopicsBuilder, DeleteTopics, DeleteTopicsBuilder,
-    DescribeCluster, DescribeClusterBuilder, DescribeConfigs, DescribeConfigsBuilder,
-    DescribeConfigsResult, DescribeTopics, DescribeTopicsBuilder, IncrementalAlterConfigs,
-    IncrementalAlterConfigsBuilder, IncrementalAlterConfigsResult, ListConsumerGroupOffsets,
-    ListConsumerGroupOffsetsBuilder, ListConsumerGroupOffsetsResult, ListTopics, ListTopicsBuilder,
-    NewPartitions, NewTopic, TopicConfigAlterations, TopicConfigQuery, TopicDescription,
-    TopicPartitionDescription,
+    CreatePartitionsBuilder, CreateTopics, CreateTopicsBuilder, DeleteConsumerGroupOffsets,
+    DeleteConsumerGroupOffsetsBuilder, DeleteConsumerGroupOffsetsResult, DeleteTopics,
+    DeleteTopicsBuilder, DescribeCluster, DescribeClusterBuilder, DescribeConfigs,
+    DescribeConfigsBuilder, DescribeConfigsResult, DescribeTopics, DescribeTopicsBuilder,
+    IncrementalAlterConfigs, IncrementalAlterConfigsBuilder, IncrementalAlterConfigsResult,
+    ListConsumerGroupOffsets, ListConsumerGroupOffsetsBuilder, ListConsumerGroupOffsetsResult,
+    ListTopics, ListTopicsBuilder, NewPartitions, NewTopic, TopicConfigAlterations,
+    TopicConfigQuery, TopicDescription, TopicPartitionDescription,
 };
 pub use client::{Client, ClientBuilder, Shutdown};
 pub use consumer::{

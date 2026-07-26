@@ -1,16 +1,18 @@
 //! Cloneable public admin handle over the private engine bridge.
 
+use crate::TopicPartition;
 use crate::bridge::admin::{AdminEngine, AdminRequest, DeleteAdminRequest, PartitionsAdminRequest};
 use crate::bridge::admin_alter_configs_request::IncrementalAlterConfigsAdminRequest;
 use crate::bridge::admin_configs_request::DescribeConfigsAdminRequest;
+use crate::bridge::admin_group_offset_delete_request::DeleteConsumerGroupOffsetsAdminRequest;
 use crate::bridge::admin_group_offsets_request::ListConsumerGroupOffsetsAdminRequest;
 use crate::bridge::admin_topics_request::DescribeTopicsAdminRequest;
 
 use super::{
-    CreatePartitionsBuilder, CreateTopicsBuilder, DeleteTopicsBuilder, DescribeClusterBuilder,
-    DescribeConfigsBuilder, DescribeTopicsBuilder, IncrementalAlterConfigsBuilder,
-    ListConsumerGroupOffsetsBuilder, ListTopicsBuilder, NewPartitions, NewTopic,
-    TopicConfigAlterations, TopicConfigQuery,
+    CreatePartitionsBuilder, CreateTopicsBuilder, DeleteConsumerGroupOffsetsBuilder,
+    DeleteTopicsBuilder, DescribeClusterBuilder, DescribeConfigsBuilder, DescribeTopicsBuilder,
+    IncrementalAlterConfigsBuilder, ListConsumerGroupOffsetsBuilder, ListTopicsBuilder,
+    NewPartitions, NewTopic, TopicConfigAlterations, TopicConfigQuery,
 };
 
 /// Cheaply cloneable, thread-safe admin handle.
@@ -90,6 +92,31 @@ impl Admin {
     ) -> ListConsumerGroupOffsetsBuilder {
         let request = ListConsumerGroupOffsetsAdminRequest::new(group_id.into());
         ListConsumerGroupOffsetsBuilder::new(
+            self.engine.clone(),
+            request,
+            self.engine.default_timeout(),
+        )
+    }
+
+    /// Builds an inert caller-ordered committed-offset deletion for one group.
+    ///
+    /// [`TopicPartition::start_at`](crate::TopicPartition::start_at) is
+    /// assignment-only and causes a definitely-unsent configuration rejection
+    /// at [`DeleteConsumerGroupOffsetsBuilder::submit`]. No timeout starts and
+    /// no operation is admitted before that submission boundary.
+    pub fn delete_consumer_group_offsets<I>(
+        &self,
+        group_id: impl Into<String>,
+        targets: I,
+    ) -> DeleteConsumerGroupOffsetsBuilder
+    where
+        I: IntoIterator<Item = TopicPartition>,
+    {
+        let request = DeleteConsumerGroupOffsetsAdminRequest::new(
+            group_id.into(),
+            targets.into_iter().collect(),
+        );
+        DeleteConsumerGroupOffsetsBuilder::new(
             self.engine.clone(),
             request,
             self.engine.default_timeout(),

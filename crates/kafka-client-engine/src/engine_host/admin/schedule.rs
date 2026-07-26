@@ -6,8 +6,9 @@ use kafka_client_core::{Deadline, Moment};
 
 use super::{
     super::{EngineHostError, EngineHostResources},
-    create_partitions, create_topics, delete_topics, describe_cluster, describe_configs,
-    describe_topics, incremental_alter_configs, list_consumer_group_offsets,
+    create_partitions, create_topics, delete_consumer_group_offsets, delete_topics,
+    describe_cluster, describe_configs, describe_topics, incremental_alter_configs,
+    list_consumer_group_offsets,
 };
 
 pub(in crate::engine_host) struct AdminProgress {
@@ -49,7 +50,13 @@ pub(in crate::engine_host) fn drive(
         |now| incremental_alter_configs::drive(resources, now),
         || clock.now().map_err(EngineHostError::Clock),
     )?;
-    let group_offsets = list_consumer_group_offsets::drive(resources, group_offsets_now)?;
+    let (group_offsets, group_offset_delete_now) = drive_group_offsets_then_capture_delete(
+        group_offsets_now,
+        |now| list_consumer_group_offsets::drive(resources, now),
+        || clock.now().map_err(EngineHostError::Clock),
+    )?;
+    let group_offset_delete =
+        delete_consumer_group_offsets::drive(resources, group_offset_delete_now)?;
     Ok(combine(
         &create,
         &delete,
@@ -59,7 +66,29 @@ pub(in crate::engine_host) fn drive(
         &configs,
         &alter_configs,
         &group_offsets,
+        &group_offset_delete,
     ))
+}
+
+pub(super) fn drive_group_offsets_then_capture_delete(
+    group_offsets_now: Moment,
+    drive_group_offsets: impl FnOnce(
+        Moment,
+    ) -> Result<
+        list_consumer_group_offsets::ListConsumerGroupOffsetsProgress,
+        EngineHostError,
+    >,
+    capture_delete_now: impl FnOnce() -> Result<Moment, EngineHostError>,
+) -> Result<
+    (
+        list_consumer_group_offsets::ListConsumerGroupOffsetsProgress,
+        Moment,
+    ),
+    EngineHostError,
+> {
+    let group_offsets = drive_group_offsets(group_offsets_now)?;
+    let delete_now = capture_delete_now()?;
+    Ok((group_offsets, delete_now))
 }
 
 pub(super) fn drive_create_then_capture_delete(
@@ -129,6 +158,7 @@ pub(super) const fn combine(
     configs: &describe_configs::DescribeConfigsProgress,
     alter_configs: &incremental_alter_configs::IncrementalAlterConfigsProgress,
     group_offsets: &list_consumer_group_offsets::ListConsumerGroupOffsetsProgress,
+    group_offset_delete: &delete_consumer_group_offsets::DeleteConsumerGroupOffsetsProgress,
 ) -> AdminProgress {
     AdminProgress {
         unsettled: create
@@ -139,7 +169,8 @@ pub(super) const fn combine(
             .saturating_add(topics.unsettled)
             .saturating_add(configs.unsettled)
             .saturating_add(alter_configs.unsettled)
-            .saturating_add(group_offsets.unsettled),
+            .saturating_add(group_offsets.unsettled)
+            .saturating_add(group_offset_delete.unsettled),
         driver_progress: create.driver_progress
             || delete.driver_progress
             || describe.driver_progress
@@ -147,14 +178,18 @@ pub(super) const fn combine(
             || topics.driver_progress
             || configs.driver_progress
             || alter_configs.driver_progress
-            || group_offsets.driver_progress,
+            || group_offsets.driver_progress
+            || group_offset_delete.driver_progress,
         next_deadline: earliest(
             earliest(create.next_deadline, delete.next_deadline),
             earliest(
                 earliest(describe.next_deadline, partitions.next_deadline),
                 earliest(
                     earliest(topics.next_deadline, configs.next_deadline),
-                    earliest(alter_configs.next_deadline, group_offsets.next_deadline),
+                    earliest(
+                        earliest(alter_configs.next_deadline, group_offsets.next_deadline),
+                        group_offset_delete.next_deadline,
+                    ),
                 ),
             ),
         ),

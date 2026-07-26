@@ -6,7 +6,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use crate::{KafkaError, bridge::producer_barrier::ProducerBarrier as BridgeFlush};
+use crate::{KafkaError, bridge::producer::ProducerBarrier as BridgeFlush};
 
 /// Barrier over records accepted before `Producer::flush` was called.
 ///

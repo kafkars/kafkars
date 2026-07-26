@@ -1,4 +1,4 @@
-//! Facade-owned direct-assignment and initial-position values.
+//! Facade-owned topic-partition identity and direct-assignment position values.
 
 /// Initial position for one directly assigned topic-partition.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -11,7 +11,11 @@ pub enum StartPosition {
     Offset(i64),
 }
 
-/// One facade-owned Kafka topic-partition prepared for direct assignment.
+/// One Kafka topic-partition identity with an optional direct-assignment start.
+///
+/// The identity is shared by consumer and admin APIs. Operations unrelated to
+/// direct assignment reject a configured [`StartPosition`] rather than
+/// silently discarding it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TopicPartition {
     topic: String,

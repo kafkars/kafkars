@@ -9,7 +9,7 @@ use std::{
 
 use kafka_client_engine::{Engine, EngineConfig};
 
-use super::producer::ProducerEngine;
+use super::handle::ProducerEngine;
 use crate::{DeliveryStatus, ErrorKind, Record, silent_broker_test::SilentBroker};
 
 #[test]
@@ -64,10 +64,7 @@ fn polling_after_terminal_observation_is_a_safe_state_error() {
     assert_eq!(second_error.delivery_status(), None);
 }
 
-fn accepted_delivery(
-    engine: &Engine,
-    timeout: Duration,
-) -> super::producer_delivery::ProducerDelivery {
+fn accepted_delivery(engine: &Engine, timeout: Duration) -> super::delivery::ProducerDelivery {
     let producer = ProducerEngine::new(engine.producer(), timeout);
     let mut record = Record::to("orders")
         .partition(0)

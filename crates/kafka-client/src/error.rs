@@ -66,7 +66,7 @@ impl KafkaError {
         }
     }
 
-    /// Attaches producer delivery certainty.
+    /// Attaches operation delivery certainty.
     pub fn with_delivery_status(mut self, status: DeliveryStatus) -> Self {
         self.delivery_status = Some(status);
         self
@@ -92,7 +92,7 @@ impl KafkaError {
         self.kind
     }
 
-    /// Returns producer delivery certainty when relevant.
+    /// Returns operation delivery certainty when relevant.
     pub const fn delivery_status(&self) -> Option<DeliveryStatus> {
         self.delivery_status
     }

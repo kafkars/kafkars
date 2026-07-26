@@ -7,6 +7,7 @@ use kafka_client_core::{Deadline, Moment};
 use super::{
     create_partitions::CreatePartitionsProgress,
     create_topics::CreateTopicsProgress,
+    delete_consumer_group_offsets::DeleteConsumerGroupOffsetsProgress,
     delete_topics::DeleteTopicsProgress,
     describe_cluster::DescribeClusterProgress,
     describe_configs::DescribeConfigsProgress,
@@ -31,6 +32,7 @@ fn group_offsets_owner_is_independent_and_prevents_false_quiescence() {
             driver_progress: true,
             next_deadline: Some(Deadline::from_tick(3)),
         },
+        &idle_group_offset_delete(),
     );
     assert_eq!(combined.unsettled, 1);
     assert!(combined.driver_progress);
@@ -106,6 +108,14 @@ const fn idle_configs() -> DescribeConfigsProgress {
 
 const fn idle_alter_configs() -> IncrementalAlterConfigsProgress {
     IncrementalAlterConfigsProgress {
+        unsettled: 0,
+        driver_progress: false,
+        next_deadline: None,
+    }
+}
+
+const fn idle_group_offset_delete() -> DeleteConsumerGroupOffsetsProgress {
+    DeleteConsumerGroupOffsetsProgress {
         unsettled: 0,
         driver_progress: false,
         next_deadline: None,

@@ -10,8 +10,8 @@ use std::{
 use kafka_client_engine::{Engine, EngineConfig};
 
 use super::{
-    producer::ProducerEngine,
-    producer_barrier::{BarrierKind, ProducerBarrier},
+    barrier::{BarrierKind, ProducerBarrier},
+    handle::ProducerEngine,
 };
 use crate::{ErrorKind, KafkaError};
 

@@ -28,6 +28,7 @@ pub(crate) fn recover(
     drop(resources.describe_configs.terminal_host());
     drop(resources.incremental_alter_configs.terminal_host());
     drop(resources.list_consumer_group_offsets.terminal_host());
+    drop(resources.delete_consumer_group_offsets.terminal_host());
     if let Some(cleanup) = shutdown_driver(resources).err() {
         failure = failure.with_cleanup(cleanup);
     }

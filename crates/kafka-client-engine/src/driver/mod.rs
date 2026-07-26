@@ -37,4 +37,8 @@ pub(crate) use rpc::{
     TrackedFetchCalls, TrackedGroupOffsetCommitCalls, TrackedPositionCalls, TrackedProduceCalls,
     TrackedProducerIdentityCalls, classify_fetch_admission, classify_fetch_request_error,
 };
+pub(crate) use rpc::{
+    GroupOffsetDeleteCall, GroupOffsetDeleteDriverFailureKind, GroupOffsetDeleteTerminal,
+    GroupOffsetDeleteTerminalFact,
+};
 pub(crate) use wake::{ReactorWake, ReactorWakeError};

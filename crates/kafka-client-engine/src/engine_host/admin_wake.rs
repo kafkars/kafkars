@@ -3,11 +3,13 @@
 use crate::{
     admin::{
         CreatePartitionsShardWake, CreatePartitionsShardWakeError, CreateTopicsShardWake,
-        CreateTopicsShardWakeError, DeleteTopicsShardWake, DeleteTopicsShardWakeError,
-        DescribeClusterShardWake, DescribeClusterShardWakeError, DescribeConfigsShardWake,
-        DescribeConfigsShardWakeError, DescribeTopicsShardWake, DescribeTopicsShardWakeError,
-        IncrementalAlterConfigsShardWake, IncrementalAlterConfigsShardWakeError,
-        ListConsumerGroupOffsetsShardWake, ListConsumerGroupOffsetsShardWakeError,
+        CreateTopicsShardWakeError, DeleteConsumerGroupOffsetsShardWake,
+        DeleteConsumerGroupOffsetsShardWakeError, DeleteTopicsShardWake,
+        DeleteTopicsShardWakeError, DescribeClusterShardWake, DescribeClusterShardWakeError,
+        DescribeConfigsShardWake, DescribeConfigsShardWakeError, DescribeTopicsShardWake,
+        DescribeTopicsShardWakeError, IncrementalAlterConfigsShardWake,
+        IncrementalAlterConfigsShardWakeError, ListConsumerGroupOffsetsShardWake,
+        ListConsumerGroupOffsetsShardWakeError,
     },
     driver::ReactorWake,
 };
@@ -65,5 +67,12 @@ impl ListConsumerGroupOffsetsShardWake for ReactorWake {
     fn wake(&self) -> Result<(), ListConsumerGroupOffsetsShardWakeError> {
         self.request()
             .map_err(|error| ListConsumerGroupOffsetsShardWakeError::from_io(error.into_io()))
+    }
+}
+
+impl DeleteConsumerGroupOffsetsShardWake for ReactorWake {
+    fn wake(&self) -> Result<(), DeleteConsumerGroupOffsetsShardWakeError> {
+        self.request()
+            .map_err(|error| DeleteConsumerGroupOffsetsShardWakeError::from_io(error.into_io()))
     }
 }

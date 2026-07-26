@@ -78,5 +78,14 @@ pub(in crate::engine_host) fn recover_operations(
         failure = failure.with_cleanup(cleanup);
     }
     drop(list_consumer_group_offsets);
+    let mut delete_consumer_group_offsets = resources.delete_consumer_group_offsets.terminal_host();
+    if let Some(cleanup) = delete_consumer_group_offsets
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::DeleteConsumerGroupOffsets)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    drop(delete_consumer_group_offsets);
     failure
 }

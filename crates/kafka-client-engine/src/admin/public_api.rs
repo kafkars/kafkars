@@ -60,6 +60,23 @@ pub(crate) use super::describe_shard::{
     DescribeClusterShardWake, DescribeClusterShardWakeError,
 };
 pub use super::error::{CreateTopicsAdmissionError, CreateTopicsAdmissionErrorKind};
+pub(crate) use super::group_offset_delete::{
+    DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY, DeleteConsumerGroupOffsetsAdmissionPort,
+    DeleteConsumerGroupOffsetsHost, DeleteConsumerGroupOffsetsHostError,
+    DeleteConsumerGroupOffsetsShardLockError, DeleteConsumerGroupOffsetsShardOwner,
+    DeleteConsumerGroupOffsetsShardWake, DeleteConsumerGroupOffsetsShardWakeError,
+    DeleteConsumerGroupOffsetsTurn,
+};
+pub use super::group_offset_delete::{
+    DeleteConsumerGroupOffsetBrokerError, DeleteConsumerGroupOffsetResult,
+    DeleteConsumerGroupOffsetTarget, DeleteConsumerGroupOffsetsAccepted,
+    DeleteConsumerGroupOffsetsAcceptedFaultKind, DeleteConsumerGroupOffsetsAdmissionError,
+    DeleteConsumerGroupOffsetsAdmissionErrorKind, DeleteConsumerGroupOffsetsBatch,
+    DeleteConsumerGroupOffsetsDeliveryStatus, DeleteConsumerGroupOffsetsFailure,
+    DeleteConsumerGroupOffsetsFailureKind, DeleteConsumerGroupOffsetsObserver,
+    DeleteConsumerGroupOffsetsObserverError, DeleteConsumerGroupOffsetsOutcome,
+    DeleteConsumerGroupOffsetsRequest,
+};
 pub use super::group_offsets::{
     GroupOffsetBrokerError, GroupOffsetDescription, GroupOffsetResult,
     ListConsumerGroupOffsetsAccepted, ListConsumerGroupOffsetsAcceptedFaultKind,

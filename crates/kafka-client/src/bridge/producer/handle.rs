@@ -9,8 +9,6 @@ use kafka_client_engine::{
 
 use crate::{
     bridge::{
-        producer_barrier::{BarrierKind, ProducerBarrier},
-        producer_delivery::ProducerDelivery,
         producer_result::admission::{
             ProducerAdmissionRejection, translate_accepted_fault, translate_admission_error,
             translate_capture_error,
@@ -18,6 +16,11 @@ use crate::{
         producer_result::{close::translate_close_admission, flush::translate_flush_admission},
     },
     record::{Header, Record, RecordParts},
+};
+
+use super::{
+    barrier::{BarrierKind, ProducerBarrier},
+    delivery::ProducerDelivery,
 };
 
 /// Cloneable facade-to-engine producer owner with one compiled timeout.

@@ -88,6 +88,15 @@ mod group_offset_commit_submission_test;
 mod group_offset_commit_terminal;
 #[cfg(test)]
 mod group_offset_commit_terminal_test;
+mod group_offset_delete_call;
+#[cfg(test)]
+mod group_offset_delete_call_test;
+mod group_offset_delete_submission;
+#[cfg(test)]
+mod group_offset_delete_submission_test;
+mod group_offset_delete_terminal;
+#[cfg(test)]
+mod group_offset_delete_terminal_test;
 mod group_offsets_call;
 #[cfg(test)]
 mod group_offsets_call_test;
@@ -158,6 +167,10 @@ pub(crate) use fetch::{
 pub(crate) use group_offset_commit_calls::TrackedGroupOffsetCommitCalls;
 pub(crate) use group_offset_commit_recovery::GroupOffsetCommitShutdownRecovery;
 pub(crate) use group_offset_commit_settlement::GroupOffsetCommitPoll;
+pub(crate) use group_offset_delete_call::GroupOffsetDeleteCall;
+pub(crate) use group_offset_delete_terminal::{
+    GroupOffsetDeleteDriverFailureKind, GroupOffsetDeleteTerminal, GroupOffsetDeleteTerminalFact,
+};
 pub(crate) use group_offsets_call::GroupOffsetsCall;
 pub(crate) use group_offsets_terminal::{
     GroupOffsetsDriverFailureKind, GroupOffsetsTerminal, GroupOffsetsTerminalFact,

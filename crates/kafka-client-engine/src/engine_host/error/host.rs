@@ -2,9 +2,10 @@
 
 use crate::{
     admin::{
-        CreatePartitionsHostError, CreateTopicsHostError, DeleteTopicsHostError,
-        DescribeClusterHostError, DescribeConfigsHostError, DescribeTopicsHostError,
-        IncrementalAlterConfigsHostError, ListConsumerGroupOffsetsHostError,
+        CreatePartitionsHostError, CreateTopicsHostError, DeleteConsumerGroupOffsetsHostError,
+        DeleteTopicsHostError, DescribeClusterHostError, DescribeConfigsHostError,
+        DescribeTopicsHostError, IncrementalAlterConfigsHostError,
+        ListConsumerGroupOffsetsHostError,
     },
     clock::ClockError,
     completion::{CompletionRegistryError, NotifierJoinError},
@@ -70,6 +71,8 @@ pub(crate) enum EngineHostError {
     IncrementalAlterConfigsLockPoisoned,
     ListConsumerGroupOffsets(ListConsumerGroupOffsetsHostError),
     ListConsumerGroupOffsetsLockPoisoned,
+    DeleteConsumerGroupOffsets(DeleteConsumerGroupOffsetsHostError),
+    DeleteConsumerGroupOffsetsLockPoisoned,
     AdminCompletion(CompletionRegistryError),
     Driver(DriverOwnerError),
     DriverOwnerMissing,

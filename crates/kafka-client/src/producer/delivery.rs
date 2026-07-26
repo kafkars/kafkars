@@ -6,9 +6,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use crate::{
-    KafkaError, RecordMetadata, bridge::producer_delivery::ProducerDelivery as BridgeDelivery,
-};
+use crate::{KafkaError, RecordMetadata, bridge::producer::ProducerDelivery as BridgeDelivery};
 
 use super::CancellationOutcome;
 

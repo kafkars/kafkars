@@ -1,0 +1,11 @@
+//! Allowed retained-byte mutation fixture.
+
+struct DeleteConsumerGroupOffsetsHost {
+    retained_bytes: usize,
+}
+
+impl DeleteConsumerGroupOffsetsHost {
+    fn release(&mut self) {
+        self.retained_bytes -= 1;
+    }
+}

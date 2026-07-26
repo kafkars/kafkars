@@ -4,6 +4,7 @@ use kafka_client_core::Deadline;
 
 use super::{
     create_partitions::CreatePartitionsProgress, create_topics::CreateTopicsProgress,
+    delete_consumer_group_offsets::DeleteConsumerGroupOffsetsProgress,
     delete_topics::DeleteTopicsProgress, describe_cluster::DescribeClusterProgress,
     describe_configs::DescribeConfigsProgress, describe_topics::DescribeTopicsProgress,
     incremental_alter_configs::IncrementalAlterConfigsProgress,
@@ -37,6 +38,7 @@ fn saturated_create_lane_cannot_hide_runnable_delete_work() {
         &idle_configs(),
         &idle_alter_configs(),
         &idle_group_offsets(),
+        &idle_group_offset_delete(),
     );
     assert_eq!(combined.unsettled, usize::MAX);
     assert!(combined.driver_progress);
@@ -71,6 +73,7 @@ fn either_concrete_owner_prevents_false_shutdown_quiescence() {
             &idle_configs(),
             &idle_alter_configs(),
             &idle_group_offsets(),
+            &idle_group_offset_delete(),
         );
         assert_ne!(combined.unsettled, 0);
         assert_eq!(combined.next_deadline, Some(Deadline::from_tick(5)));
@@ -104,6 +107,7 @@ fn describe_cluster_owner_prevents_false_shutdown_quiescence() {
         &idle_configs(),
         &idle_alter_configs(),
         &idle_group_offsets(),
+        &idle_group_offset_delete(),
     );
     assert_eq!(combined.unsettled, 1);
     assert_eq!(combined.next_deadline, Some(Deadline::from_tick(7)));
@@ -136,6 +140,7 @@ fn saturated_delete_lane_cannot_hide_runnable_describe_cluster_work() {
         &idle_configs(),
         &idle_alter_configs(),
         &idle_group_offsets(),
+        &idle_group_offset_delete(),
     );
     assert_eq!(combined.unsettled, usize::MAX);
     assert!(combined.driver_progress);
@@ -169,6 +174,7 @@ fn create_partitions_owner_is_independent_and_prevents_false_quiescence() {
         &idle_configs(),
         &idle_alter_configs(),
         &idle_group_offsets(),
+        &idle_group_offset_delete(),
     );
     assert_eq!(combined.unsettled, usize::MAX);
     assert!(combined.driver_progress);
@@ -206,6 +212,7 @@ fn describe_topics_owner_is_independent_and_prevents_false_quiescence() {
         &idle_configs(),
         &idle_alter_configs(),
         &idle_group_offsets(),
+        &idle_group_offset_delete(),
     );
     assert_eq!(combined.unsettled, usize::MAX);
     assert!(combined.driver_progress);
@@ -243,6 +250,7 @@ fn describe_configs_owner_is_independent_and_prevents_false_quiescence() {
         },
         &idle_alter_configs(),
         &idle_group_offsets(),
+        &idle_group_offset_delete(),
     );
     assert_eq!(combined.unsettled, 1);
     assert!(combined.driver_progress);
@@ -275,6 +283,14 @@ const fn idle_alter_configs() -> IncrementalAlterConfigsProgress {
 
 const fn idle_group_offsets() -> ListConsumerGroupOffsetsProgress {
     ListConsumerGroupOffsetsProgress {
+        unsettled: 0,
+        driver_progress: false,
+        next_deadline: None,
+    }
+}
+
+const fn idle_group_offset_delete() -> DeleteConsumerGroupOffsetsProgress {
+    DeleteConsumerGroupOffsetsProgress {
         unsettled: 0,
         driver_progress: false,
         next_deadline: None,

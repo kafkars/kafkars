@@ -16,4 +16,8 @@ fn concrete_admin_diagnostics_never_collapse_into_a_generic_owner() {
         EngineHostError::ListConsumerGroupOffsetsLockPoisoned.to_string(),
         "ListConsumerGroupOffsets host ownership lock is poisoned"
     );
+    assert_eq!(
+        EngineHostError::DeleteConsumerGroupOffsetsLockPoisoned.to_string(),
+        "DeleteConsumerGroupOffsets host ownership lock is poisoned"
+    );
 }

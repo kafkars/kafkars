@@ -6,7 +6,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use crate::{KafkaError, bridge::producer_barrier::ProducerBarrier as BridgeClose};
+use crate::{KafkaError, bridge::producer::ProducerBarrier as BridgeClose};
 
 /// Atomic first-success producer fence and drain barrier.
 ///

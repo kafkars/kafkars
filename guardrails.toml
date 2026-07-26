@@ -1763,16 +1763,16 @@ production = "crates/kafka-client/src/bridge/producer_result/delivery.rs"
 test = "crates/kafka-client/src/bridge/producer_result/delivery_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/producer.rs"
-test = "crates/kafka-client/src/bridge/producer_test.rs"
+production = "crates/kafka-client/src/bridge/producer/handle.rs"
+test = "crates/kafka-client/src/bridge/producer/handle_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/producer_delivery.rs"
-test = "crates/kafka-client/src/bridge/producer_delivery_test.rs"
+production = "crates/kafka-client/src/bridge/producer/delivery.rs"
+test = "crates/kafka-client/src/bridge/producer/delivery_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/producer_barrier.rs"
-test = "crates/kafka-client/src/bridge/producer_barrier_test.rs"
+production = "crates/kafka-client/src/bridge/producer/barrier.rs"
+test = "crates/kafka-client/src/bridge/producer/barrier_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/bridge/producer_result/flush.rs"
@@ -2860,6 +2860,8 @@ forbidden = [
 allow = [
   { path = "crates/kafka-client-engine/src/admin/group_offsets/host.rs", capability = "crate::driver", reason = "The concrete owner retains exactly one accepted OffsetFetch call beside its core machine until terminal settlement or shutdown recovery." },
   { path = "crates/kafka-client-engine/src/admin/group_offsets/host/response.rs", capability = "crate::driver", reason = "The concrete response seam exhaustively translates borrowed driver terminal facts before the core accepts a terminal outcome." },
+  { path = "crates/kafka-client-engine/src/admin/group_offset_delete/host.rs", capability = "crate::driver", reason = "The concrete owner retains exactly one accepted OffsetDelete call beside its core machine until terminal settlement or shutdown recovery." },
+  { path = "crates/kafka-client-engine/src/admin/group_offset_delete/host/response.rs", capability = "crate::driver", reason = "The concrete response seam exhaustively translates borrowed OffsetDelete terminal facts before core accepts the destructive terminal." },
 ]
 
 # Reactor-driving driver adapters never touch observer locks or wakers.
@@ -2935,6 +2937,13 @@ root = "crates/kafka-client-engine/src"
 method = "submit_tracked_group_offsets"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/group_offsets_call.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_group_offset_delete"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_call.rs",
 ]
 
 [[method_capabilities]]
@@ -7152,11 +7161,11 @@ path = "crates/kafka-client-engine/src/producer/boundary/prepare.rs"
 
 [[linear_owners]]
 owner_type = "ProducerDelivery"
-path = "crates/kafka-client/src/bridge/producer_delivery.rs"
+path = "crates/kafka-client/src/bridge/producer/delivery.rs"
 
 [[linear_owners]]
 owner_type = "ProducerBarrier"
-path = "crates/kafka-client/src/bridge/producer_barrier.rs"
+path = "crates/kafka-client/src/bridge/producer/barrier.rs"
 
 [[linear_owners]]
 owner_type = "Delivery"
@@ -7636,6 +7645,106 @@ path = "crates/kafka-client-engine/src/admin/group_offsets/host.rs"
 [[linear_owners]]
 owner_type = "ListConsumerGroupOffsetsShardOwner"
 path = "crates/kafka-client-engine/src/admin/group_offsets/shard.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offset_delete/error.rs"
+test = "crates/kafka-client-engine/src/admin/group_offset_delete/error_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offset_delete/handle.rs"
+test = "crates/kafka-client-engine/src/admin/group_offset_delete/handle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offset_delete/host.rs"
+test = "crates/kafka-client-engine/src/admin/group_offset_delete/host_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offset_delete/model.rs"
+test = "crates/kafka-client-engine/src/admin/group_offset_delete/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offset_delete/observer.rs"
+test = "crates/kafka-client-engine/src/admin/group_offset_delete/observer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offset_delete/outcome.rs"
+test = "crates/kafka-client-engine/src/admin/group_offset_delete/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offset_delete/shard.rs"
+test = "crates/kafka-client-engine/src/admin/group_offset_delete/shard_test.rs"
+
+[[mutation_owners]]
+owner_type = "DeleteConsumerGroupOffsetsHost"
+field = "operations"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DeleteConsumerGroupOffsetsHost"
+field = "completions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DeleteConsumerGroupOffsetsHost"
+field = "retained_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DeleteConsumerGroupOffsetsHost"
+field = "published_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DeleteConsumerGroupOffsetsHost"
+field = "next_operation_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host/admission.rs",
+]
+
+[[mutation_owners]]
+owner_type = "DeleteConsumerGroupOffsetsOperation"
+field = "handoff"
+allowed_paths = ["crates/kafka-client-engine/src/admin/group_offset_delete/host.rs"]
+
+[[linear_owners]]
+owner_type = "DeleteConsumerGroupOffsetsHost"
+path = "crates/kafka-client-engine/src/admin/group_offset_delete/host.rs"
+
+[[linear_owners]]
+owner_type = "DeleteConsumerGroupOffsetsOperation"
+path = "crates/kafka-client-engine/src/admin/group_offset_delete/host.rs"
+
+[[linear_owners]]
+owner_type = "DeleteConsumerGroupOffsetsSubmission"
+path = "crates/kafka-client-engine/src/admin/group_offset_delete/host.rs"
+
+[[linear_owners]]
+owner_type = "DeleteConsumerGroupOffsetsShardOwner"
+path = "crates/kafka-client-engine/src/admin/group_offset_delete/shard.rs"
+
+[[linear_owners]]
+owner_type = "DeleteConsumerGroupOffsetsObserver"
+path = "crates/kafka-client-engine/src/admin/group_offset_delete/observer.rs"
+
+[[linear_owners]]
+owner_type = "DeleteConsumerGroupOffsetsAccepted"
+path = "crates/kafka-client-engine/src/admin/group_offset_delete/handle.rs"
 
 # Classic-group membership and commit protocol seams, tracked driver calls, and
 # the private bounded host retain exact ownership until the public group
@@ -8603,6 +8712,105 @@ path = "crates/kafka-client-engine/src/driver/rpc/group_offsets_terminal.rs"
 [[linear_owners]]
 owner_type = "RecoveredGroupOffsetsCall"
 path = "crates/kafka-client-engine/src/driver/rpc/group_offsets_terminal.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offset_delete/model.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offset_delete/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offset_delete/correlation.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offset_delete/correlation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offset_delete/request.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offset_delete/request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offset_delete/response.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offset_delete/response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offset_delete/retention.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offset_delete/retention_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_call.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_call_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_terminal_test.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetDeleteCall"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_call.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetDeleteCallAdmissionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_call.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetDeleteTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_terminal.rs"
+
+[[linear_owners]]
+owner_type = "RecoveredGroupOffsetDeleteCall"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_terminal.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/admin/delete_consumer_group_offsets.rs"
+test = "crates/kafka-client-engine/src/engine_host/admin/delete_consumer_group_offsets_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/delete_consumer_group_offsets.rs"
+test = "crates/kafka-client/src/admin/delete_consumer_group_offsets_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/delete_consumer_group_offsets_builder.rs"
+test = "crates/kafka-client/src/admin/delete_consumer_group_offsets_builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/delete_consumer_group_offsets_result.rs"
+test = "crates/kafka-client/src/admin/delete_consumer_group_offsets_result_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_group_offset_delete_request.rs"
+test = "crates/kafka-client/src/bridge/admin_group_offset_delete_request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_group_offset_delete_operation.rs"
+test = "crates/kafka-client/src/bridge/admin_group_offset_delete_operation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_group_offset_delete_result.rs"
+test = "crates/kafka-client/src/bridge/admin_group_offset_delete_result_test.rs"
+
+[[linear_owners]]
+owner_type = "DeleteConsumerGroupOffsetsAdminRequest"
+path = "crates/kafka-client/src/bridge/admin_group_offset_delete_request.rs"
+
+[[linear_owners]]
+owner_type = "AdminDeleteConsumerGroupOffsets"
+path = "crates/kafka-client/src/bridge/admin_group_offset_delete_operation.rs"
+
+[[linear_owners]]
+owner_type = "DeleteConsumerGroupOffsetsBuilder"
+path = "crates/kafka-client/src/admin/delete_consumer_group_offsets_builder.rs"
+
+[[linear_owners]]
+owner_type = "DeleteConsumerGroupOffsets"
+path = "crates/kafka-client/src/admin/delete_consumer_group_offsets.rs"
+
+[[method_capabilities]]
+root = "crates/kafka-client/src"
+method = "try_delete_consumer_group_offsets"
+allowed_paths = [
+  "crates/kafka-client/src/bridge/admin.rs",
+]
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/group/session_catalog_assignment.rs"

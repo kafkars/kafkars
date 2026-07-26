@@ -7,7 +7,8 @@ use std::{
 
 use crate::{
     admin::{
-        CreatePartitionsAdmissionPort, CreateTopicsAdmissionPort, DeleteTopicsAdmissionPort,
+        CreatePartitionsAdmissionPort, CreateTopicsAdmissionPort,
+        DeleteConsumerGroupOffsetsAdmissionPort, DeleteTopicsAdmissionPort,
         DescribeClusterAdmissionPort, DescribeConfigsAdmissionPort, DescribeTopicsAdmissionPort,
         IncrementalAlterConfigsAdmissionPort, ListConsumerGroupOffsetsAdmissionPort,
     },
@@ -28,6 +29,7 @@ pub(crate) struct StartedEngineHost {
     pub(crate) describe_configs_admission: DescribeConfigsAdmissionPort,
     pub(crate) incremental_alter_configs_admission: IncrementalAlterConfigsAdmissionPort,
     pub(crate) list_consumer_group_offsets_admission: ListConsumerGroupOffsetsAdmissionPort,
+    pub(crate) delete_consumer_group_offsets_admission: DeleteConsumerGroupOffsetsAdmissionPort,
     pub(crate) assigned_consumer: AssignedConsumerPort,
     pub(crate) group_consumer: GroupConsumerPort,
     pub(crate) clock: Arc<MonotonicClock>,

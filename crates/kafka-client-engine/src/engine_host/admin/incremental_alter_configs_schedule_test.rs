@@ -4,6 +4,7 @@ use kafka_client_core::Deadline;
 
 use super::{
     create_partitions::CreatePartitionsProgress, create_topics::CreateTopicsProgress,
+    delete_consumer_group_offsets::DeleteConsumerGroupOffsetsProgress,
     delete_topics::DeleteTopicsProgress, describe_cluster::DescribeClusterProgress,
     describe_configs::DescribeConfigsProgress, describe_topics::DescribeTopicsProgress,
     incremental_alter_configs::IncrementalAlterConfigsProgress,
@@ -50,6 +51,11 @@ fn incremental_alter_configs_owner_is_independent_and_prevents_false_quiescence(
             next_deadline: Some(Deadline::from_tick(1)),
         },
         &ListConsumerGroupOffsetsProgress {
+            unsettled: 0,
+            driver_progress: false,
+            next_deadline: None,
+        },
+        &DeleteConsumerGroupOffsetsProgress {
             unsettled: 0,
             driver_progress: false,
             next_deadline: None,

@@ -1,5 +1,4 @@
 //! Declarative facade for concrete batched Kafka administration.
-
 mod alter_configs;
 mod batch_result;
 mod builder;
@@ -8,6 +7,9 @@ mod consumer_group_offset;
 mod create_partitions;
 mod create_topics;
 mod delete_builder;
+mod delete_consumer_group_offsets;
+mod delete_consumer_group_offsets_builder;
+mod delete_consumer_group_offsets_result;
 mod delete_topics;
 mod describe_builder;
 mod describe_cluster;
@@ -25,9 +27,7 @@ mod partitions_builder;
 mod public_api;
 mod topic_description;
 mod topics_builder;
-
 pub use public_api::*;
-
 #[cfg(test)]
 mod batch_result_test;
 #[cfg(test)]
@@ -40,6 +40,12 @@ mod create_partitions_test;
 mod create_topics_test;
 #[cfg(test)]
 mod delete_builder_test;
+#[cfg(test)]
+mod delete_consumer_group_offsets_builder_test;
+#[cfg(test)]
+mod delete_consumer_group_offsets_result_test;
+#[cfg(test)]
+mod delete_consumer_group_offsets_test;
 #[cfg(test)]
 mod delete_topics_test;
 #[cfg(test)]
