@@ -14,6 +14,7 @@ mod describe_machine;
 mod describe_outcome;
 mod describe_transition;
 mod exports;
+mod group_offsets;
 mod machine;
 mod model;
 mod outcome;

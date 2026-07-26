@@ -407,6 +407,22 @@ production = "crates/kafka-client-core/src/admin/alter_configs/transition.rs"
 test = "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/group_offsets/model.rs"
+test = "crates/kafka-client-core/src/admin/group_offsets/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/group_offsets/outcome.rs"
+test = "crates/kafka-client-core/src/admin/group_offsets/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/group_offsets/machine.rs"
+test = "crates/kafka-client-core/src/admin/group_offsets/machine_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/group_offsets/transition.rs"
+test = "crates/kafka-client-core/src/admin/group_offsets/transition_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/producer/sticky.rs"
 test = "crates/kafka-client-core/src/producer/sticky_test.rs"
 
@@ -4420,6 +4436,14 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "ListConsumerGroupOffsetsMachine"
+field = "state"
+allowed_paths = [
+  "crates/kafka-client-core/src/admin/group_offsets/machine.rs",
+  "crates/kafka-client-core/src/admin/group_offsets/transition.rs",
+]
+
+[[mutation_owners]]
 owner_type = "GroupOffsetCommitMachine"
 field = "state"
 allowed_paths = [
@@ -6147,6 +6171,10 @@ path = "crates/kafka-client-core/src/admin/describe_configs_machine.rs"
 [[linear_owners]]
 owner_type = "IncrementalAlterConfigsMachine"
 path = "crates/kafka-client-core/src/admin/alter_configs/machine.rs"
+
+[[linear_owners]]
+owner_type = "ListConsumerGroupOffsetsMachine"
+path = "crates/kafka-client-core/src/admin/group_offsets/machine.rs"
 
 [[linear_owners]]
 owner_type = "LiveGroupAssignment"
