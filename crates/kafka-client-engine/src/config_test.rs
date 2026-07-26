@@ -4,7 +4,10 @@ use std::time::Duration;
 
 use kafka_client_core::{ProducerRetryPolicy, ProducerRetryPolicyError};
 
-use crate::{EngineConfig, EngineProducerLimits, ProducerCompression, config::EngineConfigError};
+use crate::{
+    ConsumerReadIsolation, EngineConfig, EngineProducerLimits, ProducerCompression,
+    config::EngineConfigError,
+};
 
 #[test]
 fn provisional_defaults_are_explicit_and_bounded() {
@@ -17,6 +20,10 @@ fn provisional_defaults_are_explicit_and_bounded() {
     assert_eq!(config.admin_timeout(), Duration::from_secs(30));
     assert_eq!(config.producer_compression(), ProducerCompression::None);
     assert_eq!(
+        config.assigned_consumer_read_isolation(),
+        ConsumerReadIsolation::ReadUncommitted
+    );
+    assert_eq!(
         validated.host_limits.compression,
         kafka_client_core::CompressionPolicy::None
     );
@@ -25,6 +32,18 @@ fn provisional_defaults_are_explicit_and_bounded() {
         ProducerRetryPolicy::try_fixed(3, 100_000_000)
             .unwrap_or_else(|error| panic!("default retry failed: {error}"))
     );
+}
+
+#[test]
+fn assigned_consumer_read_isolation_is_closed_and_immutable_before_start() {
+    let config = EngineConfig::new(vec!["broker.test:9092".to_owned()])
+        .with_assigned_consumer_read_isolation(ConsumerReadIsolation::ReadCommitted);
+
+    assert_eq!(
+        config.assigned_consumer_read_isolation(),
+        ConsumerReadIsolation::ReadCommitted
+    );
+    assert!(config.validate().is_ok());
 }
 
 #[test]

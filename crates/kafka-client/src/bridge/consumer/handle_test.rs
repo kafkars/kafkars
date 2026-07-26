@@ -5,7 +5,7 @@ use crate::{ErrorKind, producer::Compression};
 
 #[test]
 fn bridge_claims_once_and_observes_real_close() {
-    let engine = ClientEngine::start(vec![String::from("127.0.0.1:1")], Compression::None)
+    let engine = ClientEngine::start(vec![String::from("127.0.0.1:1")], Compression::None, None)
         .unwrap_or_else(|error| panic!("start engine: {error}"));
     let mut consumer = engine
         .claim_assigned_consumer()

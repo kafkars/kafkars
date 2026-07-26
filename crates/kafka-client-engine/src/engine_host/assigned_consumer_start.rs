@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 
+use kafka_client_core::ReadIsolation;
+
 use crate::{
     clock::MonotonicClock,
     consumer::{
@@ -13,6 +15,7 @@ use crate::{
 };
 
 pub(super) fn start_assigned_consumer(
+    read_isolation: ReadIsolation,
     clock: Arc<MonotonicClock>,
     wake: Arc<ReactorWake>,
     close_publisher: AssignedConsumerClosePublisher,
@@ -20,6 +23,7 @@ pub(super) fn start_assigned_consumer(
     event_publisher: AssignedConsumerEventPublisher,
 ) -> Result<(AssignedConsumerShardOwner, AssignedConsumerPort), AssignedConsumerOwnerBuildError> {
     build_first_assigned_consumer(
+        read_isolation,
         clock,
         wake,
         close_publisher,

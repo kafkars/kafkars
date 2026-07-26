@@ -683,6 +683,10 @@ production = "crates/kafka-client-engine/src/config/producer_limits.rs"
 test = "crates/kafka-client-engine/src/config/producer_limits_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/config/validation.rs"
+test = "crates/kafka-client-engine/src/config/validation_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine.rs"
 test = "crates/kafka-client-engine/src/engine_test.rs"
 
@@ -829,6 +833,10 @@ test = "crates/kafka-client-engine/src/producer/compression/pool_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/config/compression.rs"
 test = "crates/kafka-client-engine/src/config/compression_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/config/read_isolation.rs"
+test = "crates/kafka-client-engine/src/config/read_isolation_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/execution/next_submission.rs"
@@ -1837,6 +1845,10 @@ test = "crates/kafka-client/src/consumer/assignment_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/consumer/assigned_builder.rs"
 test = "crates/kafka-client/src/consumer/assigned_builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/consumer/read_isolation.rs"
+test = "crates/kafka-client/src/consumer/read_isolation_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/consumer/assigned_build_error.rs"

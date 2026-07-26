@@ -51,7 +51,9 @@ pub use crate::admin::{
     ListConsumerGroupOffsetsRequest, PartitionIncrease, PartitionIncreaseError,
     PartitionIncreaseResult, TopicConfigAlterations, TopicDescription, TopicPartitionDescription,
 };
-pub use crate::config::{EngineConfig, EngineProducerLimits, ProducerCompression};
+pub use crate::config::{
+    ConsumerReadIsolation, EngineConfig, EngineProducerLimits, ProducerCompression,
+};
 pub use crate::consumer::{
     AssignedConsumerAcceptedFaultKind, AssignedConsumerAssignment,
     AssignedConsumerAssignmentCapture, AssignedConsumerAssignmentEpoch,

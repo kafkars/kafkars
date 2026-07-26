@@ -1,9 +1,11 @@
 //! Facade-owned engine lifetime and private child-handle construction.
 
 use kafka_client_engine::{
-    Engine, EngineConfig, EngineStartErrorKind, ProducerCompression as EngineCompression,
+    ConsumerReadIsolation as EngineReadIsolation, Engine, EngineConfig, EngineStartErrorKind,
+    ProducerCompression as EngineCompression,
 };
 
+use crate::consumer::ReadIsolation;
 use crate::error::{ErrorKind, KafkaError};
 use crate::producer::Compression;
 
@@ -18,9 +20,16 @@ impl ClientEngine {
     pub(crate) fn start(
         bootstrap_servers: Vec<String>,
         compression: Compression,
+        assigned_consumer_read_isolation: Option<ReadIsolation>,
     ) -> Result<Self, KafkaError> {
         let config = EngineConfig::new(bootstrap_servers)
             .with_producer_compression(engine_compression(compression));
+        let config = match assigned_consumer_read_isolation {
+            Some(read_isolation) => {
+                config.with_assigned_consumer_read_isolation(engine_read_isolation(read_isolation))
+            }
+            None => config,
+        };
         let inner = Engine::start(config).map_err(|error| {
             let kind = match error.kind() {
                 EngineStartErrorKind::Configuration => ErrorKind::Configuration,
@@ -59,6 +68,13 @@ impl ClientEngine {
         &self,
     ) -> Result<super::consumer::AssignedConsumerEngine, KafkaError> {
         super::consumer::AssignedConsumerEngine::claim(&self.inner)
+    }
+}
+
+pub(super) const fn engine_read_isolation(read_isolation: ReadIsolation) -> EngineReadIsolation {
+    match read_isolation {
+        ReadIsolation::ReadUncommitted => EngineReadIsolation::ReadUncommitted,
+        ReadIsolation::ReadCommitted => EngineReadIsolation::ReadCommitted,
     }
 }
 

@@ -2,21 +2,28 @@
 
 use std::time::Duration;
 
-use kafka_client_core::{
-    ByteCount, ProducerBatchPolicy, ProducerRetryPolicy, ProducerRetryPolicyError,
-};
+use kafka_client_core::{ByteCount, ProducerBatchPolicy, ProducerRetryPolicy};
 
-use crate::producer::{ProducerHostLimitError, ProducerHostLimits, host_turn::ProducerTurnBudget};
+use crate::producer::{ProducerHostLimits, host_turn::ProducerTurnBudget};
 
 mod compression;
 #[cfg(test)]
 mod compression_test;
 mod producer_limits;
+mod read_isolation;
+mod validation;
 pub use compression::ProducerCompression;
 pub use producer_limits::EngineProducerLimits;
+pub use read_isolation::ConsumerReadIsolation;
+pub(crate) use validation::EngineConfigError;
+use validation::duration_ticks;
 
 #[cfg(test)]
 mod producer_limits_test;
+#[cfg(test)]
+mod read_isolation_test;
+#[cfg(test)]
+mod validation_test;
 
 const DEFAULT_DELIVERY_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_ADMIN_TIMEOUT: Duration = Duration::from_secs(30);
@@ -33,6 +40,7 @@ pub struct EngineConfig {
     admin_timeout: Duration,
     producer_limits: EngineProducerLimits,
     producer_compression: ProducerCompression,
+    assigned_consumer_read_isolation: ConsumerReadIsolation,
     producer_retry_max: u32,
     producer_retry_backoff: Duration,
 }
@@ -46,6 +54,7 @@ impl EngineConfig {
             admin_timeout: DEFAULT_ADMIN_TIMEOUT,
             producer_limits: EngineProducerLimits::default(),
             producer_compression: ProducerCompression::None,
+            assigned_consumer_read_isolation: ConsumerReadIsolation::default(),
             producer_retry_max: DEFAULT_PRODUCER_RETRIES,
             producer_retry_backoff: DEFAULT_PRODUCER_RETRY_BACKOFF,
         }
@@ -82,6 +91,16 @@ impl EngineConfig {
         self
     }
 
+    /// Selects immutable record visibility for the sole assigned consumer.
+    #[must_use]
+    pub const fn with_assigned_consumer_read_isolation(
+        mut self,
+        read_isolation: ConsumerReadIsolation,
+    ) -> Self {
+        self.assigned_consumer_read_isolation = read_isolation;
+        self
+    }
+
     /// Replaces bounded definitely-unsent retry intent.
     #[must_use]
     pub const fn with_producer_retry(mut self, max_retries: u32, backoff: Duration) -> Self {
@@ -113,6 +132,11 @@ impl EngineConfig {
     /// Returns the configured producer compression policy.
     pub const fn producer_compression(&self) -> ProducerCompression {
         self.producer_compression
+    }
+
+    /// Returns immutable record visibility for the sole assigned consumer.
+    pub const fn assigned_consumer_read_isolation(&self) -> ConsumerReadIsolation {
+        self.assigned_consumer_read_isolation
     }
 
     pub(crate) fn validate(&self) -> Result<ValidatedEngineConfig, EngineConfigError> {
@@ -207,23 +231,4 @@ impl EngineConfig {
 pub(crate) struct ValidatedEngineConfig {
     pub(crate) host_limits: ProducerHostLimits,
     pub(crate) turn_budget: ProducerTurnBudget,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum EngineConfigError {
-    EmptyBootstrap,
-    ZeroDeliveryTimeout,
-    ZeroAdminTimeout,
-    DurationOverflow,
-    RetainedBytes,
-    BatchBytes,
-    CompressionBytes,
-    BatchPolicy,
-    RetryPolicy(ProducerRetryPolicyError),
-    Producer(ProducerHostLimitError),
-    TurnBudget,
-}
-
-fn duration_ticks(duration: Duration) -> Result<u64, EngineConfigError> {
-    u64::try_from(duration.as_nanos()).map_err(|_| EngineConfigError::DurationOverflow)
 }

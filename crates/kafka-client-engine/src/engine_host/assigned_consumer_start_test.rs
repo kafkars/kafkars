@@ -2,6 +2,8 @@
 
 use std::{sync::Arc, time::Duration};
 
+use kafka_client_core::ReadIsolation;
+
 use crate::{
     EngineConfig, clock::MonotonicClock, consumer::AssignedConsumerCompletionNotifier,
     driver::DriverOwner,
@@ -17,6 +19,7 @@ fn startup_constructs_one_idle_owner_and_one_nonclone_port() {
     let (mut notifier, publishers) = AssignedConsumerCompletionNotifier::start()
         .unwrap_or_else(|error| panic!("assigned-consumer notifier: {error}"));
     let (owner, _port) = start_assigned_consumer(
+        ReadIsolation::ReadUncommitted,
         clock,
         Arc::new(driver.reactor_wake()),
         publishers.close,

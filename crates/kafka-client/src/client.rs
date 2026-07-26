@@ -2,7 +2,7 @@
 
 use crate::admin::Admin;
 use crate::bridge::ClientEngine;
-use crate::consumer::{AssignedConsumerBuilder, ConsumerBuilder};
+use crate::consumer::{AssignedConsumerBuilder, ConsumerBuilder, ReadIsolation};
 use crate::error::{ErrorKind, KafkaError};
 use crate::operation::Operation;
 use crate::producer::Compression;
@@ -15,6 +15,7 @@ pub struct ClientBuilder {
     bootstrap_servers: Vec<String>,
     client_id: Option<String>,
     producer_compression: Compression,
+    assigned_consumer_read_isolation: Option<ReadIsolation>,
 }
 
 impl ClientBuilder {
@@ -41,6 +42,13 @@ impl ClientBuilder {
         self
     }
 
+    /// Selects immutable record visibility for this client's assigned consumer.
+    #[must_use]
+    pub const fn assigned_consumer_read_isolation(mut self, read_isolation: ReadIsolation) -> Self {
+        self.assigned_consumer_read_isolation = Some(read_isolation);
+        self
+    }
+
     /// Validates local configuration and starts the default host.
     pub fn build(self) -> Result<Client, KafkaError> {
         if self.bootstrap_servers.is_empty() {
@@ -50,7 +58,11 @@ impl ClientBuilder {
             ));
         }
 
-        let engine = ClientEngine::start(self.bootstrap_servers, self.producer_compression)?;
+        let engine = ClientEngine::start(
+            self.bootstrap_servers,
+            self.producer_compression,
+            self.assigned_consumer_read_isolation,
+        )?;
         Ok(Client {
             engine,
             client_id: self.client_id,

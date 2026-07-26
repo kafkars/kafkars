@@ -1,4 +1,4 @@
-//! First direct-consumer slice compiles one bounded read-uncommitted lifecycle.
+//! First direct-consumer slice compiles one bounded immutable-isolation lifecycle.
 
 use std::{sync::Arc, time::Duration};
 
@@ -32,6 +32,7 @@ const FETCH_REQUEST_BYTES: u32 = 1024 * 1024;
 const FETCH_OUTPUT_BYTES: usize = 1024 * 1024;
 
 pub(crate) fn build_first_assigned_consumer<W>(
+    read_isolation: ReadIsolation,
     clock: Arc<MonotonicClock>,
     wake: Arc<W>,
     close_publisher: AssignedConsumerClosePublisher,
@@ -42,7 +43,7 @@ where
     W: AssignedConsumerShardWake,
 {
     let settings = AssignedConsumerOwnerSettings::new(
-        ReadIsolation::ReadUncommitted,
+        read_isolation,
         FetchRequestSettings::new(500, 1, FETCH_REQUEST_BYTES, FETCH_REQUEST_BYTES, 0),
         FetchDecodeLimits::default(),
         Duration::from_secs(30),

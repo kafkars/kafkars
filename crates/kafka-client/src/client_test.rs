@@ -1,6 +1,6 @@
 //! Tests for facade-owned client construction and configuration views.
 
-use crate::{Client, Compression, ErrorKind};
+use crate::{Client, Compression, ErrorKind, ReadIsolation};
 
 #[test]
 fn client_retains_facade_configuration_across_clones() {
@@ -32,6 +32,17 @@ fn client_builder_accepts_each_closed_producer_compression_choice() {
         let client = Client::builder()
             .bootstrap_servers(["127.0.0.1:1"])
             .producer_compression(compression)
+            .build();
+        assert!(client.is_ok());
+    }
+}
+
+#[test]
+fn client_builder_accepts_each_closed_assigned_read_isolation_choice() {
+    for read_isolation in [ReadIsolation::ReadUncommitted, ReadIsolation::ReadCommitted] {
+        let client = Client::builder()
+            .bootstrap_servers(["127.0.0.1:1"])
+            .assigned_consumer_read_isolation(read_isolation)
             .build();
         assert!(client.is_ok());
     }

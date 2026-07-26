@@ -2,7 +2,7 @@
 
 use std::{sync::Arc, time::Duration};
 
-use kafka_client_core::{PartitionIndex, StartPosition};
+use kafka_client_core::{PartitionIndex, ReadIsolation, StartPosition};
 
 use crate::{
     EngineConfig,
@@ -185,6 +185,7 @@ fn setup() -> (
     let (notifier, publishers) = AssignedConsumerCompletionNotifier::start()
         .unwrap_or_else(|error| panic!("assigned-consumer notifier: {error}"));
     let (owner, port) = start_assigned_consumer(
+        ReadIsolation::ReadUncommitted,
         Arc::clone(&clock),
         Arc::new(driver.reactor_wake()),
         publishers.close,

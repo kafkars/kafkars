@@ -37,8 +37,8 @@ pub use consumer::{
     AssignedConsumerFetchThrottleFailureKind, AssignedConsumerPositionFence,
     AssignedConsumerPositionResolutionFailureKind, Checkpoint, CloseAssignedConsumer, Commit,
     Consumer, ConsumerBuilder, ConsumerControl, ConsumerHeader, ConsumerRecord, ConsumerRecords,
-    NextAssignedEvent, NextBatch, OffsetReset, RecordBatch, RecvAssignedBatch, StartPosition,
-    TopicPartition,
+    NextAssignedEvent, NextBatch, OffsetReset, ReadIsolation, RecordBatch, RecvAssignedBatch,
+    StartPosition, TopicPartition,
 };
 pub use error::{DeliveryStatus, ErrorKind, KafkaError};
 pub use operation::Operation;

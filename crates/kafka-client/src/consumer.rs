@@ -12,6 +12,7 @@ mod control;
 mod event;
 mod group;
 mod offset_reset;
+mod read_isolation;
 mod record;
 mod record_batch;
 
@@ -31,6 +32,7 @@ pub use event::{
 };
 pub use group::{Commit, Consumer, ConsumerBuilder, NextBatch};
 pub use offset_reset::OffsetReset;
+pub use read_isolation::ReadIsolation;
 pub use record::{ConsumerHeader, ConsumerRecord, ConsumerRecords};
 pub use record_batch::RecordBatch;
 
@@ -52,6 +54,8 @@ mod assignment_test;
 mod checkpoint_test;
 #[cfg(test)]
 mod event_test;
+#[cfg(test)]
+mod read_isolation_test;
 #[cfg(test)]
 mod record_batch_test;
 #[cfg(test)]
