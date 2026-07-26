@@ -139,7 +139,15 @@ impl GroupPositionOffsetFetchConfirmationFailure {
 /// Failed restoration still owns the exact raw terminal.
 #[must_use = "failed restoration still owns the group position terminal"]
 pub(crate) struct GroupPositionOffsetFetchRestoreFailure {
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "entry fault retains the exact raw terminal")
+    )]
     terminal: GroupPositionOffsetFetchTerminal,
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "entry fault retains the exact restoration cause")
+    )]
     error: GroupPositionOffsetFetchRestoreError,
 }
 
@@ -151,6 +159,7 @@ impl GroupPositionOffsetFetchRestoreFailure {
         Self { terminal, error }
     }
 
+    #[cfg(test)]
     pub(crate) fn into_parts(
         self,
     ) -> (

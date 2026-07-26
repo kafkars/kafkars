@@ -934,7 +934,7 @@ evidence = [
 [[invariant]]
 id = "CON-12"
 title = "Assigned group offset bootstrap is explicit and exactly correlated"
-statement = "The classic-group position bootstrap protocol seam retains one exact group spelling and caller-ordered explicit assigned topic-partition correlation separately from one linear generated request owner. An empty assignment is an allocation-free local no-request outcome and can never become Kafka's nullable all-topics query. Nonempty request construction uses fallible exact reservations and fallible string copies, exposes the generated wrapper's exact retained heap charge, and rejects a charge above the caller-supplied byte limit before returning Prepared. It delegates encoding to kafka-wire across exactly OffsetFetch v2-v9, selects the legacy v2-v7 or modern v8-v9 generated schema, names exactly one explicit group and explicit topic-partitions, and fixes require_stable false. Response normalization accepts only the driver-selected schema branch and exactly one matching modern group, requires nonnegative representable throttle, rejects missing, duplicate, unexpected, cross-group, malformed, and version-unrepresentable facts before result allocation, restores values to caller assignment order, preserves nullable metadata and every exact signed group or partition error, and maps only Kafka's -1 committed-offset and leader-epoch sentinels to absence. Generated OffsetFetch DTOs remain confined to the protocol and future driver boundary; no admin policy, deterministic core policy, driver submission, retry, coordinator cache, invalidation, callback, async runtime, or unsafe code enters this seam."
+statement = "The classic-group position bootstrap protocol seam retains one exact group spelling and caller-ordered explicit assigned topic-partition correlation separately from one linear generated request owner. An empty assignment is an allocation-free local no-request outcome and can never become Kafka's nullable all-topics query. Nonempty request construction uses fallible exact reservations and fallible string copies, exposes the generated wrapper's exact retained heap charge, and rejects a charge above the caller-supplied byte limit before returning Prepared. It delegates encoding to kafka-wire across exactly OffsetFetch v2-v9, selects the legacy v2-v7 or modern v8-v9 generated schema, names exactly one explicit group and explicit topic-partitions, and fixes require_stable false. Response normalization accepts only the driver-selected schema branch and exactly one matching modern group, requires nonnegative representable throttle, rejects missing, duplicate, unexpected, cross-group, malformed, and version-unrepresentable facts before result allocation, restores values to caller assignment order, preserves nullable metadata and every exact signed group or partition error, and maps only Kafka's -1 committed-offset and leader-epoch sentinels to absence. Generated OffsetFetch DTOs remain confined to the protocol and driver boundary; no admin policy, deterministic core policy, driver submission, retry, coordinator cache, invalidation, callback, async runtime, or unsafe code enters this seam."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/preparation_test.rs::empty_assignment_is_an_explicit_local_no_request",
@@ -947,6 +947,29 @@ evidence = [
   "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/response_validation_test.rs::modern_group_cardinality_and_spelling_are_strict",
   "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/response_validation_test.rs::missing_duplicate_and_unexpected_identities_are_rejected",
   "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/response_validation_test.rs::malformed_or_version_unrepresentable_values_are_rejected",
+]
+
+[[invariant]]
+id = "CON-13"
+title = "Classic group position execution preserves one bounded owner"
+statement = "The hosted classic-group position executor preserves one exact group-position core owner, assignment fence, original absolute deadline, explicit ordered OffsetFetch request, tracked driver receipt, route confirmation, and terminal result through preparation, bounded admission, submission, settlement, confirmation, completion, close, and post-driver recovery. Empty assignments complete without RPC ownership. Nonempty submission is gated by the exact confirmed Sync route. Elapsed prepared work settles before tracked-call capacity can block it. The driver adapter routes through the existing group-coordinator authority and accepts, restores, confirms, or recovers only the exactly correlated owner. Successful results preserve request order, offsets, and throttle. A completed position bootstrap is explicitly consumed after assignment loss before another membership cycle can join. Shutdown reconciliation consumes every retained position and membership owner to quiescence, while distinct ownership-reconciliation failures remain distinguishable."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/state_test.rs::every_position_stage_retains_one_exact_linear_owner",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/preparation_test.rs::empty_assignment_completes_ready_without_rpc_ownership",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/submission_test.rs::sync_confirmation_is_a_hard_submission_gate",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/submission_test.rs::capacity_returns_the_exact_prepared_request_and_blocks",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/submission_test.rs::acceptance_retains_receipt_beside_submitted_core",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/settlement_success_test.rs::success_preserves_request_order_offsets_and_throttle",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/settlement_confirmation_test.rs::exact_confirmation_consumes_route_and_receipt_then_installs_complete",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/recovery_test.rs::active_driver_call_recovers_to_one_local_completion",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/recovery_test.rs::completion_reconciliation_failure_retains_distinct_source",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/close_test.rs::driver_shutdown_recovery_stages_complete_then_local_close_consumes_it",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/close_test.rs::complete_close_explicitly_consumes_the_internal_terminal",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/close_test.rs::completed_lost_assignment_retires_before_the_next_rejoin_cycle",
+  "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/submission_test.rs::route_is_the_existing_group_coordinator_authority",
+  "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/calls_test.rs::accepted_receipt_matches_the_registry_owner_and_shutdown_recovers_the_key",
+  "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/settlement_owner_test.rs::raw_terminal_restores_and_confirms_only_against_the_exact_accepted_receipt",
 ]
 
 [[invariant]]
@@ -974,6 +997,8 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/position_prepare_error_test.rs::deadline_pair_mismatch_is_an_invariant_not_a_core_attempt_failure",
   "crates/kafka-client-engine/src/consumer/position_execution/owner_test.rs::elapsed_local_admission_preserves_core_deadline_precedence",
   "crates/kafka-client-engine/src/consumer/fetch_execution/deadline_test.rs::one_internal_attempt_capture_preserves_its_fence_and_both_absolute_deadlines",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/preparation_test.rs::nonempty_preparation_preserves_core_order_fence_and_original_deadline",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/submission_test.rs::elapsed_prepared_request_settles_before_saturated_capacity",
 ]
 
 [[invariant]]
@@ -1216,6 +1241,7 @@ evidence = [
   "crates/kafka-client-engine/src/engine_host/group_consumer_shutdown_test.rs::terminal_shard_stop_returns_the_exact_notifier_owner",
   "crates/kafka-client-engine/src/consumer/group/registry_close_test.rs::whole_registry_close_fences_every_entry_and_global_host_once",
   "crates/kafka-client-engine/src/consumer/group/registry_membership_test.rs::closing_entry_revokes_its_exact_catalog_assignment",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/close_test.rs::shutdown_recovery_quiesces_two_position_and_two_membership_actions",
   "crates/kafka-client-engine/src/consumer/group/offset_commit/notifier_lifecycle_test.rs::fallback_transfer_preserves_join_ownership_after_unsettled_stop",
   "crates/kafka-client-engine/src/driver/owner_test.rs::retained_explicit_shutdown_barrier_settles_with_the_reactor",
   "crates/kafka-client-engine/src/producer/compression/pool_test.rs::shutdown_joins_every_owned_native_worker",

@@ -1,7 +1,8 @@
 //! Atomic catalog and Heartbeat installation from one normalized Sync assignment.
 
 use kafka_client_core::{
-    ClassicGroupEffect, ClassicGroupInput, ClassicGroupPhase, MembershipCycle, Moment,
+    ClassicGroupEffect, ClassicGroupInput, ClassicGroupPhase, ClassicGroupTransition,
+    MembershipCycle, Moment,
 };
 
 use crate::{
@@ -12,6 +13,10 @@ use super::{
     classic_group_assignment_decode::decode_classic_group_assignment,
     classic_group_entry_fault::ClassicGroupEntryFault,
     classic_group_execution::ClassicGroupExecutionError,
+    classic_group_position::{
+        ClassicGroupPositionExecutionState, ClassicGroupPositionPreparation,
+        prepare_classic_group_position,
+    },
     classic_group_sync_interpret::{
         SyncInterpretationFailure, failure, freeze_post_core, stage_confirmation,
     },
@@ -29,29 +34,7 @@ pub(super) fn install_sync_assignment(
     terminal: SyncGroupTerminal,
     partitions: Vec<NamedAssignmentPartition>,
 ) -> Result<(), SyncInterpretationFailure> {
-    let Some(candidate) = entry.classic.pending() else {
-        return Err(failure(terminal, SyncTerminal));
-    };
-    if !entry.heartbeat.is_dormant() {
-        return Err(failure(terminal, SyncTerminal));
-    }
-    let partitions = match decode_classic_group_assignment(&entry.catalog, candidate, partitions) {
-        Ok(partitions) => partitions,
-        Err(_error) => return Err(failure(terminal, SyncTerminal)),
-    };
-    let transition = match entry.classic.apply(ClassicGroupInput::SyncSucceeded {
-        cycle,
-        now,
-        partitions,
-    }) {
-        Ok(transition) => transition,
-        Err(error) => {
-            return Err(failure(
-                terminal,
-                ClassicGroupExecutionError::Core(error.kind()),
-            ));
-        }
-    };
+    let (terminal, transition) = apply_sync_success(entry, cycle, now, terminal, partitions)?;
     let mut effects = transition.into_effects();
     let first = effects.next();
     if first.is_none()
@@ -81,6 +64,22 @@ pub(super) fn install_sync_assignment(
         Ok(prepared) => prepared,
         Err(_error) => return freeze_post_core(entry, terminal, SyncTerminal),
     };
+    let position_install = match prepare_classic_group_position(
+        &entry.catalog,
+        cycle,
+        &assignment,
+        terminal.key().deadline(),
+        now,
+    ) {
+        Ok(prepared) => prepared,
+        Err(error) => {
+            drop(heartbeat_install);
+            entry.fault = Some(ClassicGroupEntryFault::SyncPositionPreparation { terminal, error });
+            return Err(SyncInterpretationFailure::post_core(
+                ClassicGroupExecutionError::PositionPreparation,
+            ));
+        }
+    };
     let catalog_install =
         match entry
             .classic
@@ -102,7 +101,55 @@ pub(super) fn install_sync_assignment(
         };
     catalog_install.commit();
     heartbeat_install.commit();
+    entry.position.set(match position_install {
+        ClassicGroupPositionPreparation::Prepared(prepared) => {
+            ClassicGroupPositionExecutionState::Prepared(prepared)
+        }
+        ClassicGroupPositionPreparation::Complete(completed) => {
+            ClassicGroupPositionExecutionState::Complete(completed)
+        }
+    });
     stage_confirmation(entry, terminal)
+}
+
+#[expect(
+    clippy::result_large_err,
+    reason = "the error retains the exact linear generated terminal without another allocation"
+)]
+fn apply_sync_success(
+    entry: &mut GroupConsumerEntry,
+    cycle: MembershipCycle,
+    now: Moment,
+    terminal: SyncGroupTerminal,
+    partitions: Vec<NamedAssignmentPartition>,
+) -> Result<(SyncGroupTerminal, ClassicGroupTransition), SyncInterpretationFailure> {
+    let Some(candidate) = entry.classic.pending() else {
+        return Err(failure(terminal, SyncTerminal));
+    };
+    if !entry.heartbeat.is_dormant() {
+        return Err(failure(terminal, SyncTerminal));
+    }
+    if !entry.position.is_dormant() {
+        return Err(failure(terminal, SyncTerminal));
+    }
+    let partitions = match decode_classic_group_assignment(&entry.catalog, candidate, partitions) {
+        Ok(partitions) => partitions,
+        Err(_error) => return Err(failure(terminal, SyncTerminal)),
+    };
+    let transition = match entry.classic.apply(ClassicGroupInput::SyncSucceeded {
+        cycle,
+        now,
+        partitions,
+    }) {
+        Ok(transition) => transition,
+        Err(error) => {
+            return Err(failure(
+                terminal,
+                ClassicGroupExecutionError::Core(error.kind()),
+            ));
+        }
+    };
+    Ok((terminal, transition))
 }
 
 use ClassicGroupExecutionError::SyncTerminal;

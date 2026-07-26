@@ -20,6 +20,8 @@ pub(crate) use delivery::{request_failure_delivery, request_failure_kind};
 pub(crate) use endpoint::EndpointError;
 pub(crate) use error::DriverOwnerError;
 pub(crate) use owner::{DriverOwner, DriverTurn};
+#[cfg(test)]
+pub(crate) use rpc::GroupPositionOffsetFetchTestPartition;
 pub(crate) use rpc::classic_group;
 pub(crate) use rpc::{
     CreatePartitionsCompletionFailure, CreateTopicsCompletionFailure,
@@ -51,16 +53,18 @@ pub(crate) use rpc::{
 };
 #[expect(
     unused_imports,
-    reason = "temporary handoff surface for the adjacent group position execution slice"
+    reason = "one closed position RPC adapter surface serves execution and ownership tests"
 )]
 pub(crate) use rpc::{
     GroupPositionOffsetFetchAccepted, GroupPositionOffsetFetchAdmission,
     GroupPositionOffsetFetchAdmissionFailure, GroupPositionOffsetFetchBeginError,
     GroupPositionOffsetFetchCompletionFailureKind, GroupPositionOffsetFetchCompletionObservation,
-    GroupPositionOffsetFetchConfirmationFailure, GroupPositionOffsetFetchKey,
+    GroupPositionOffsetFetchCompletionRecovery, GroupPositionOffsetFetchConfirmationFailure,
+    GroupPositionOffsetFetchDriverFailureKind, GroupPositionOffsetFetchKey,
     GroupPositionOffsetFetchPoll, GroupPositionOffsetFetchRestoreFailure,
     GroupPositionOffsetFetchReturn, GroupPositionOffsetFetchReturnReason,
     GroupPositionOffsetFetchShutdownRecovery, GroupPositionOffsetFetchSubmitError,
-    GroupPositionOffsetFetchTerminal, TrackedGroupPositionOffsetFetchCalls,
+    GroupPositionOffsetFetchTerminal, GroupPositionOffsetFetchTerminalFact,
+    TrackedGroupPositionOffsetFetchCalls,
 };
 pub(crate) use wake::{ReactorWake, ReactorWakeError};

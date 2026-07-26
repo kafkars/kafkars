@@ -36,6 +36,7 @@ mod classic_group_partition_count_recovery;
 mod classic_group_partition_count_settlement;
 mod classic_group_partition_count_submission;
 mod classic_group_partition_counts;
+mod classic_group_position;
 mod classic_group_recovery;
 mod classic_group_rediscovery;
 mod classic_group_rediscovery_execution;
@@ -228,7 +229,6 @@ mod session_catalog_assignment_test;
 mod session_catalog_identity_test;
 #[cfg(test)]
 mod session_catalog_test;
-
 pub(crate) use registry::GroupConsumerRegistry;
 pub(crate) use registry_host::GroupConsumerHostError;
 pub(crate) use registry_port::GroupConsumerPort;

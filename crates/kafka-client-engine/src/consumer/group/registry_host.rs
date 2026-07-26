@@ -8,6 +8,7 @@ use crate::{completion::NotifierJoin, driver::DriverOwner};
 
 use super::{
     classic_group_execution::ClassicGroupExecutionError,
+    classic_group_position::GroupConsumerPositionTurn,
     offset_commit::{GroupOffsetCommitHostError, GroupOffsetCommitTurn},
     registry::GroupConsumerRegistry,
     registry_membership::GroupConsumerMembershipTurn,
@@ -86,17 +87,25 @@ impl GroupConsumerRegistry {
         let membership = self
             .turn_membership(now, clock, driver)
             .map_err(GroupConsumerHostError::membership)?;
+        let position = self
+            .turn_position(now, driver)
+            .map_err(GroupConsumerHostError::membership)?;
         Ok(GroupConsumerRegistryTurn {
             progressed: membership == GroupConsumerMembershipTurn::Progress
+                || position == GroupConsumerPositionTurn::Progress
                 || offset_commit == GroupOffsetCommitTurn::Progress,
-            blocked_work: membership == GroupConsumerMembershipTurn::Blocked,
+            blocked_work: membership == GroupConsumerMembershipTurn::Blocked
+                || position == GroupConsumerPositionTurn::Blocked,
         })
     }
 
     pub(crate) fn next_deadline(&self) -> Option<Deadline> {
         match (
             self.membership_next_deadline(),
-            self.offset_commits.next_deadline(),
+            min_deadline(
+                self.position_next_deadline(),
+                self.offset_commits.next_deadline(),
+            ),
         ) {
             (Some(membership), Some(offset)) => Some(membership.min(offset)),
             (Some(deadline), None) | (None, Some(deadline)) => Some(deadline),
@@ -105,7 +114,9 @@ impl GroupConsumerRegistry {
     }
 
     pub(crate) fn unsettled(&self) -> usize {
-        self.membership_unsettled() + self.offset_commits.unsettled()
+        self.membership_unsettled()
+            .saturating_add(self.position_unsettled())
+            .saturating_add(self.offset_commits.unsettled())
     }
 
     pub(crate) fn notifier_thread_id(&self) -> Option<ThreadId> {
@@ -114,5 +125,13 @@ impl GroupConsumerRegistry {
 
     pub(crate) fn take_notifier(&mut self) -> Option<NotifierJoin> {
         self.offset_commits.take_notifier()
+    }
+}
+
+fn min_deadline(first: Option<Deadline>, second: Option<Deadline>) -> Option<Deadline> {
+    match (first, second) {
+        (Some(first), Some(second)) => Some(first.min(second)),
+        (Some(deadline), None) | (None, Some(deadline)) => Some(deadline),
+        (None, None) => None,
     }
 }

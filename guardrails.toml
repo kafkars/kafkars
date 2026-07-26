@@ -3538,6 +3538,93 @@ allowed_paths = [
 ]
 
 [[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "close_position_if_local"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/close.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "expire_prepared_if_due"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_position"
+method = "begin_handoff"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "try_submit_group_position_offset_fetch"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "restore_prepared"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_position"
+method = "confirm_driver_owned"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "finish_driver_rejected"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "apply_raw_terminal"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "confirm_terminal_settlement"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "recover_key_after_driver_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_recovery.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "recover_terminal_after_driver_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_recovery.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "recover_confirmation_after_driver_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_recovery.rs",
+]
+
+[[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "poll_next_ready"
 allowed_paths = [
@@ -6476,6 +6563,13 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "ClassicGroupPositionExecution"
+field = "state"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/state_execution.rs",
+]
+
+[[mutation_owners]]
 owner_type = "AssignedTimers"
 field = "entries"
 allowed_paths = [
@@ -6671,6 +6765,35 @@ path = "crates/kafka-client-engine/src/consumer/position_execution/owner.rs"
 [[linear_owners]]
 owner_type = "PositionResolutionExecutor"
 path = "crates/kafka-client-engine/src/consumer/position_execution/owner.rs"
+
+# Classic-group position bootstrap owns one linear assignment-fenced lifecycle.
+[[linear_owners]]
+owner_type = "ClassicGroupPositionPrepared"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_position/state.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupPositionHandoff"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_position/state.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupPositionDriverOwned"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_position/state.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupPositionCompleted"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_position/state.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupPositionConfirmationPending"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_position/state.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupPositionExecutionState"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_position/state_execution.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupPositionExecution"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_position/state_execution.rs"
 
 [[linear_owners]]
 owner_type = "AssignedTimers"
@@ -8991,6 +9114,19 @@ allow = [
   { path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/submission_test.rs", capability = "Instant::now", reason = "The option test supplies a sentinel absolute transport deadline and verifies it remains unchanged." },
 ]
 
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_position"
+forbidden = [
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "tokio",
+  "async",
+]
+
 [[mutation_owners]]
 owner_type = "TrackedGroupPositionOffsetFetchCalls"
 field = "calls"
@@ -9405,6 +9541,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/offset_commit/recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_recovery.rs",
 ]
 
 [[method_capabilities]]
@@ -9414,6 +9551,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/offset_commit/recovery_replay.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_recovery.rs",
 ]
 
 [[method_capabilities]]
@@ -9445,6 +9583,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/offset_commit/recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_recovery.rs",
 ]
 
 [[method_capabilities]]
@@ -10721,6 +10860,9 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_settlement.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_submission.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_submission.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_execution.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
@@ -10797,6 +10939,17 @@ allowed_paths = [
 
 [[mutation_owners]]
 owner_type = "GroupConsumerRegistry"
+field = "position_calls"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_membership_observation.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_submission.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
 field = "coordinator_invalidations"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry.rs",
@@ -10841,6 +10994,15 @@ allowed_paths = [
 
 [[mutation_owners]]
 owner_type = "GroupConsumerRegistry"
+field = "position_shutdown_recovery"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_membership_observation.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_recovery.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
 field = "join_recovery_fault"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry.rs",
@@ -10861,6 +11023,15 @@ field = "heartbeat_recovery_fault"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistry"
+field = "position_recovery_fault"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_membership_observation.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_recovery.rs",
 ]
 
 [[mutation_owners]]
@@ -10894,6 +11065,8 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_sync_install.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_submission.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
 ]
 

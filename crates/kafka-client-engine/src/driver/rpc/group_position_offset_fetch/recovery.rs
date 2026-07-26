@@ -142,10 +142,19 @@ impl GroupPositionOffsetFetchShutdownRecovery {
         self.completion.take()
     }
 
+    #[cfg(test)]
     pub(crate) fn is_empty(&self) -> bool {
         self.active.is_empty()
             && self.settled.is_none()
             && self.pending_fence.is_none()
             && self.completion.is_none()
+    }
+
+    pub(crate) fn retained_count(&self) -> usize {
+        self.active
+            .len()
+            .saturating_add(usize::from(self.settled.is_some()))
+            .saturating_add(usize::from(self.pending_fence.is_some()))
+            .saturating_add(usize::from(self.completion.is_some()))
     }
 }

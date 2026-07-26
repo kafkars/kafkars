@@ -65,6 +65,7 @@ fn due_rejoin_index(entries: &[GroupConsumerEntry], now: Moment) -> Option<usize
 fn is_exact_due_state(entry: &GroupConsumerEntry, schedule: ClassicRejoinSchedule) -> bool {
     entry.execution.is_idle()
         && entry.heartbeat.is_dormant()
+        && entry.position.is_dormant()
         && entry.catalog.live_assignment().is_none()
         && entry.classic.pending().is_none()
         && entry.classic.machine().phase() == ClassicGroupPhase::WaitingToRejoin

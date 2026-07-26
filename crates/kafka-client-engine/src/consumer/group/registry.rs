@@ -11,8 +11,12 @@ use crate::driver::classic_group::{
     SyncGroupShutdownRecovery, TrackedClassicHeartbeatCalls, TrackedJoinGroupCalls,
     TrackedSyncGroupCalls,
 };
+use crate::driver::{
+    GroupPositionOffsetFetchShutdownRecovery, TrackedGroupPositionOffsetFetchCalls,
+};
 
 use super::{
+    classic_group_position::ClassicGroupPositionRecoveryFault,
     offset_commit::GroupOffsetCommitHost,
     registry_entry::GroupConsumerEntry,
     session_catalog::{GroupSessionCatalogError, MAX_KAFKA_GROUP_STRING_BYTES},
@@ -50,15 +54,18 @@ pub(crate) struct GroupConsumerRegistry {
     pub(super) join_calls: Option<TrackedJoinGroupCalls>,
     pub(super) sync_calls: Option<TrackedSyncGroupCalls>,
     pub(super) heartbeat_calls: Option<TrackedClassicHeartbeatCalls>,
+    pub(super) position_calls: Option<TrackedGroupPositionOffsetFetchCalls>,
     pub(super) coordinator_invalidations: Option<ClassicCoordinatorInvalidations>,
     pub(super) join_shutdown_recovery: Option<JoinGroupShutdownRecovery>,
     pub(super) sync_shutdown_recovery: Option<SyncGroupShutdownRecovery>,
     pub(super) heartbeat_shutdown_recovery: Option<ClassicHeartbeatShutdownRecovery>,
+    pub(super) position_shutdown_recovery: Option<GroupPositionOffsetFetchShutdownRecovery>,
     pub(super) coordinator_invalidation_shutdown_recovery:
         Option<ClassicCoordinatorInvalidationShutdownRecovery>,
     pub(super) join_recovery_fault: Option<RecoveredJoinGroupOwnership>,
     pub(super) sync_recovery_fault: Option<RecoveredSyncGroupOwnership>,
     pub(super) heartbeat_recovery_fault: Option<RecoveredClassicHeartbeatOwnership>,
+    pub(super) position_recovery_fault: Option<ClassicGroupPositionRecoveryFault>,
     pub(super) offset_commits: GroupOffsetCommitHost,
 }
 
@@ -74,6 +81,8 @@ impl GroupConsumerRegistry {
             .map_err(|_error| std::io::Error::other("SyncGroup call reservation failed"))?;
         let heartbeat_calls = TrackedClassicHeartbeatCalls::try_new(GROUP_CONSUMER_CAPACITY)
             .map_err(|_error| std::io::Error::other("Heartbeat call reservation failed"))?;
+        let position_calls = TrackedGroupPositionOffsetFetchCalls::try_new(GROUP_CONSUMER_CAPACITY)
+            .map_err(|_error| std::io::Error::other("group position call reservation failed"))?;
         let coordinator_invalidations = ClassicCoordinatorInvalidations::try_new(
             GROUP_CONSUMER_CAPACITY,
         )
@@ -86,14 +95,17 @@ impl GroupConsumerRegistry {
             join_calls: Some(join_calls),
             sync_calls: Some(sync_calls),
             heartbeat_calls: Some(heartbeat_calls),
+            position_calls: Some(position_calls),
             coordinator_invalidations: Some(coordinator_invalidations),
             join_shutdown_recovery: None,
             sync_shutdown_recovery: None,
             heartbeat_shutdown_recovery: None,
+            position_shutdown_recovery: None,
             coordinator_invalidation_shutdown_recovery: None,
             join_recovery_fault: None,
             sync_recovery_fault: None,
             heartbeat_recovery_fault: None,
+            position_recovery_fault: None,
             offset_commits: GroupOffsetCommitHost::start_group_offset_commit_host()?,
         })
     }

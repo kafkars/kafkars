@@ -156,6 +156,7 @@ pub(super) const METHODS: &[(&str, &[&str])] = &[
             "crates/kafka-client-engine/src/consumer/group/offset_commit/recovery.rs",
             "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
             "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_recovery.rs",
         ],
     ),
     (
@@ -164,6 +165,7 @@ pub(super) const METHODS: &[(&str, &[&str])] = &[
             "crates/kafka-client-engine/src/consumer/group/offset_commit/recovery_replay.rs",
             "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
             "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_recovery.rs",
         ],
     ),
     (
@@ -179,6 +181,7 @@ pub(super) const METHODS: &[(&str, &[&str])] = &[
             "crates/kafka-client-engine/src/consumer/group/offset_commit/recovery.rs",
             "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
             "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_position/registry_recovery.rs",
         ],
     ),
 ];

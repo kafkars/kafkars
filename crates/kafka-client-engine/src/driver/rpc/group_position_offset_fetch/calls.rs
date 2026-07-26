@@ -63,7 +63,7 @@ impl TrackedGroupPositionOffsetFetchCalls {
         })
     }
 
-    pub(crate) fn try_submit(
+    pub(crate) fn try_submit_group_position_offset_fetch(
         &mut self,
         driver: &DriverOwner,
         key: GroupPositionOffsetFetchKey,

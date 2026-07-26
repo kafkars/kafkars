@@ -10,6 +10,7 @@ use super::{
     classic_group_assignment::ClassicGroupAssignmentPreparationFailureKind,
     classic_group_join::{ClassicGroupExecutionState, PreparedClassicGroupJoin},
     classic_group_owner::ClassicGroupOwner,
+    classic_group_position::ClassicGroupPositionExecutionError,
 };
 
 /// Separate mechanism ownership for one deterministic membership cycle.
@@ -128,6 +129,10 @@ impl ClassicGroupExecution {
         Ok(true)
     }
 
+    #[expect(
+        clippy::result_large_err,
+        reason = "rejected rejoin staging returns the exact linear prepared Join without allocation"
+    )]
     pub(super) fn stage_rejoin_join(
         &mut self,
         prepared: PreparedClassicGroupJoin,
@@ -191,6 +196,11 @@ pub(super) enum ClassicGroupExecutionError {
     LeaderPartitionCounts,
     PartitionCountsPostCore,
     Assignment(ClassicGroupAssignmentPreparationFailureKind),
+    PositionPreparation,
+    PositionCallsUnavailable,
+    PositionPending,
+    PositionDuplicateFence(kafka_client_core::GroupPositionFence),
+    Position(ClassicGroupPositionExecutionError),
     Core(ClassicGroupErrorKind),
     EntryFault,
 }

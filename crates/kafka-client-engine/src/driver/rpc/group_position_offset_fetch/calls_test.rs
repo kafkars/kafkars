@@ -37,7 +37,7 @@ fn duplicate_precedes_capacity_and_returns_both_exact_pre_driver_owners() {
     );
 
     let GroupPositionOffsetFetchAdmission::Returned(returned) =
-        calls.try_submit(&owner, key(1, 200), "readers", request())
+        calls.try_submit_group_position_offset_fetch(&owner, key(1, 200), "readers", request())
     else {
         panic!("same fence must be returned as a duplicate");
     };
@@ -51,7 +51,7 @@ fn duplicate_precedes_capacity_and_returns_both_exact_pre_driver_owners() {
     assert_eq!(reason, GroupPositionOffsetFetchReturnReason::DuplicateFence);
 
     let GroupPositionOffsetFetchAdmission::Returned(returned) =
-        calls.try_submit(&owner, key(2, 300), "readers", request())
+        calls.try_submit_group_position_offset_fetch(&owner, key(2, 300), "readers", request())
     else {
         panic!("another fence must observe retained capacity");
     };
@@ -70,7 +70,7 @@ fn accepted_receipt_matches_the_registry_owner_and_shutdown_recovers_the_key() {
     let mut owner = owner();
     let mut calls = TrackedGroupPositionOffsetFetchCalls::new(8);
     let GroupPositionOffsetFetchAdmission::Accepted(accepted) =
-        calls.try_submit(&owner, key(3, 100), "readers", request())
+        calls.try_submit_group_position_offset_fetch(&owner, key(3, 100), "readers", request())
     else {
         panic!("live driver must accept one position request");
     };
@@ -102,7 +102,7 @@ fn closed_driver_rejection_returns_the_exact_key_without_retaining_a_call() {
     shutdown(&mut owner);
     let mut calls = TrackedGroupPositionOffsetFetchCalls::new(8);
     let GroupPositionOffsetFetchAdmission::Rejected(failure) =
-        calls.try_submit(&owner, key(4, 123), "readers", request())
+        calls.try_submit_group_position_offset_fetch(&owner, key(4, 123), "readers", request())
     else {
         panic!("closed driver must reject definitely unsent");
     };

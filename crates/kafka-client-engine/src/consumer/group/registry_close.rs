@@ -57,7 +57,9 @@ impl GroupConsumerRegistry {
     }
 
     pub(crate) fn finish_shutdown(&mut self) -> Result<NotifierJoin, GroupConsumerHostError> {
-        let membership = self.membership_unsettled();
+        let membership = self
+            .membership_unsettled()
+            .saturating_add(self.position_unsettled());
         if membership != 0 {
             return Err(GroupConsumerHostError::membership_unsettled(membership));
         }
@@ -70,7 +72,7 @@ impl GroupConsumerRegistry {
     fn recover_local_membership(
         &mut self,
     ) -> Result<(), super::classic_group_execution::ClassicGroupExecutionError> {
-        let turn_limit = self.entries.len().saturating_add(1);
+        let turn_limit = self.entries.len().saturating_mul(2).saturating_add(1);
         for _turn in 0..turn_limit {
             match self.turn_local_membership(Moment::from_tick(u64::MAX))? {
                 GroupConsumerMembershipTurn::Progress => {}
@@ -78,6 +80,16 @@ impl GroupConsumerRegistry {
                     break;
                 }
             }
+        }
+        if self.position_unsettled() != 0 {
+            return Err(
+                super::classic_group_execution::ClassicGroupExecutionError::PositionPending,
+            );
+        }
+        if self.membership_unsettled() != 0 {
+            return Err(
+                super::classic_group_execution::ClassicGroupExecutionError::HandoffIncomplete,
+            );
         }
         Ok(())
     }

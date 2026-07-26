@@ -6,14 +6,48 @@ use crate::driver::classic_group::{
     ClassicCoordinatorInvalidationShutdownRecovery, ClassicCoordinatorInvalidations,
     TrackedClassicHeartbeatCalls, TrackedJoinGroupCalls, TrackedSyncGroupCalls,
 };
+use crate::driver::{
+    GroupPositionOffsetFetchShutdownRecovery, TrackedGroupPositionOffsetFetchCalls,
+};
 
 use super::{
+    classic_group_position::ClassicGroupPositionRecoveryFault,
     classic_group_recovery::recovery_unsettled_count,
     registry::GroupConsumerRegistry,
     registry_entry::{GroupConsumerEntry, GroupConsumerEntryState},
 };
 
 impl GroupConsumerRegistry {
+    pub(super) fn position_unsettled(&self) -> usize {
+        let entries = self
+            .entries
+            .iter()
+            .map(|entry| entry.position.unsettled())
+            .sum::<usize>();
+        entries
+            .saturating_add(self.position_calls.as_ref().map_or(
+                0,
+                TrackedGroupPositionOffsetFetchCalls::retained_group_position_offset_fetch_count,
+            ))
+            .saturating_add(
+                self.position_shutdown_recovery
+                    .as_ref()
+                    .map_or(0, GroupPositionOffsetFetchShutdownRecovery::retained_count),
+            )
+            .saturating_add(
+                self.position_recovery_fault
+                    .as_ref()
+                    .map_or(0, ClassicGroupPositionRecoveryFault::retained_owner_count),
+            )
+    }
+
+    pub(super) fn position_next_deadline(&self) -> Option<kafka_client_core::Deadline> {
+        self.entries
+            .iter()
+            .filter_map(|entry| entry.position.next_deadline())
+            .min()
+    }
+
     pub(super) fn membership_unsettled(&self) -> usize {
         let entries: usize = self
             .entries

@@ -22,6 +22,7 @@ impl GroupConsumerRegistry {
     pub(super) fn recover_classic_calls_after_driver_shutdown(
         &mut self,
     ) -> Result<(), ClassicGroupExecutionError> {
+        self.recover_classic_group_positions_after_driver_shutdown()?;
         self.recover_classic_partition_counts_after_driver_shutdown()?;
         self.recover_classic_heartbeats_after_driver_shutdown()?;
         if self.sync_recovery_fault.is_some() || self.join_recovery_fault.is_some() {

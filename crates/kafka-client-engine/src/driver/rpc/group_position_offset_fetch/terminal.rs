@@ -1,9 +1,30 @@
 //! Raw versioned `OffsetFetch` terminal retained for the execution owner.
 
-use kafka_driver::{ApiVersion, RequestError};
+use kafka_driver::{ApiVersion, CallFailure, RequestError};
 use kafka_wire::OffsetFetchResponse;
 
 use super::key::GroupPositionOffsetFetchKey;
+
+/// Stable engine-local classification without exposing driver error variants.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum GroupPositionOffsetFetchDriverFailureKind {
+    DeadlineElapsed,
+    Compatibility,
+    InvalidResponse,
+    Transport,
+}
+
+/// Borrowed response or closed driver failure fact for consumer interpretation.
+#[derive(Clone, Copy)]
+pub(crate) enum GroupPositionOffsetFetchTerminalFact<'a> {
+    Response {
+        selected_version: Option<i16>,
+        response: &'a OffsetFetchResponse,
+    },
+    Failed {
+        kind: GroupPositionOffsetFetchDriverFailureKind,
+    },
+}
 
 /// Uninterpreted response or driver-authoritative request failure.
 #[must_use = "a raw group position terminal owns an unsettled assignment request"]
@@ -18,22 +39,16 @@ impl GroupPositionOffsetFetchTerminal {
         &self.key
     }
 
-    pub(crate) const fn selected_version(&self) -> Option<i16> {
-        self.selected_version
-    }
-
-    pub(crate) const fn result(&self) -> &Result<OffsetFetchResponse, RequestError> {
-        &self.result
-    }
-
-    pub(crate) fn into_parts(
-        self,
-    ) -> (
-        GroupPositionOffsetFetchKey,
-        Option<i16>,
-        Result<OffsetFetchResponse, RequestError>,
-    ) {
-        (self.key, self.selected_version, self.result)
+    pub(crate) fn fact(&self) -> GroupPositionOffsetFetchTerminalFact<'_> {
+        match &self.result {
+            Ok(response) => GroupPositionOffsetFetchTerminalFact::Response {
+                selected_version: self.selected_version,
+                response,
+            },
+            Err(error) => GroupPositionOffsetFetchTerminalFact::Failed {
+                kind: failure_kind(error),
+            },
+        }
     }
 }
 
@@ -46,5 +61,28 @@ pub(super) fn retain_group_position_offset_fetch_terminal(
         key,
         selected_version: selected_version.map(ApiVersion::value),
         result,
+    }
+}
+
+fn failure_kind(error: &RequestError) -> GroupPositionOffsetFetchDriverFailureKind {
+    match error {
+        RequestError::Rejected {
+            failure: CallFailure::DeadlineExceeded,
+            ..
+        } => GroupPositionOffsetFetchDriverFailureKind::DeadlineElapsed,
+        RequestError::Rejected {
+            failure: CallFailure::CorrelationMismatch { .. },
+            ..
+        }
+        | RequestError::Decode(_) => GroupPositionOffsetFetchDriverFailureKind::InvalidResponse,
+        RequestError::Encode(_)
+        | RequestError::UnsupportedVersion { .. }
+        | RequestError::ApiUnavailable { .. }
+        | RequestError::VersionLimitUnavailable { .. }
+        | RequestError::VersionFloorUnavailable { .. }
+        | RequestError::VersionBoundsInvalid { .. } => {
+            GroupPositionOffsetFetchDriverFailureKind::Compatibility
+        }
+        _ => GroupPositionOffsetFetchDriverFailureKind::Transport,
     }
 }

@@ -24,6 +24,10 @@ impl ClassicGroupExecution {
         Ok(handoff)
     }
 
+    #[expect(
+        clippy::result_large_err,
+        reason = "failed restoration returns the exact linear Join handoff without allocation"
+    )]
     pub(super) fn restore_join(
         &mut self,
         handoff: ClassicGroupJoinHandoff,

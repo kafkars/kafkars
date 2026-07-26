@@ -14,6 +14,7 @@ use super::{
     classic_group_join_settlement::ClassicGroupJoinSettlementTurn,
     classic_group_partition_count_settlement::ClassicGroupPartitionCountSettlementTurn,
     classic_group_partition_count_submission::ClassicGroupPartitionCountSubmissionTurn,
+    classic_group_position::ClassicGroupPositionCloseTurn,
     classic_group_rediscovery_execution::{
         ClassicCoordinatorInvalidationTurn, ClassicCoordinatorInvalidationTurn::Blocked,
     },
@@ -21,7 +22,7 @@ use super::{
     classic_group_sync_settlement::ClassicGroupSyncSettlementTurn,
     classic_group_sync_submission::ClassicGroupSyncSubmissionTurn,
     registry::GroupConsumerRegistry,
-    registry_entry::GroupConsumerEntryState,
+    registry_entry::{GroupConsumerEntry, GroupConsumerEntryState},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -123,6 +124,16 @@ impl GroupConsumerRegistry {
             if entry.state != GroupConsumerEntryState::Closing {
                 continue;
             }
+            match close_entry_position(entry, now)? {
+                ClassicGroupPositionCloseTurn::Progress => {
+                    return Ok(GroupConsumerMembershipTurn::Progress);
+                }
+                ClassicGroupPositionCloseTurn::Blocked => {
+                    driver_owned_close = true;
+                    continue;
+                }
+                ClassicGroupPositionCloseTurn::Idle => {}
+            }
             if entry.heartbeat.blocks_close() {
                 driver_owned_close = true;
                 continue;
@@ -170,6 +181,24 @@ impl GroupConsumerRegistry {
                 }
             }
         }
+        for entry in &mut self.entries {
+            if entry.state != GroupConsumerEntryState::Active
+                || entry.catalog.live_assignment().is_some()
+                || entry.classic.machine().live_assignment().is_some()
+                || entry.position.is_dormant()
+            {
+                continue;
+            }
+            match close_entry_position(entry, now)? {
+                ClassicGroupPositionCloseTurn::Progress => {
+                    return Ok(GroupConsumerMembershipTurn::Progress);
+                }
+                ClassicGroupPositionCloseTurn::Blocked => {
+                    driver_owned_close = true;
+                }
+                ClassicGroupPositionCloseTurn::Idle => {}
+            }
+        }
         if self.expire_one_prepared_heartbeat(now)? {
             return Ok(GroupConsumerMembershipTurn::Progress);
         }
@@ -183,5 +212,23 @@ impl GroupConsumerRegistry {
         } else {
             GroupConsumerMembershipTurn::Idle
         })
+    }
+}
+
+fn close_entry_position(
+    entry: &mut GroupConsumerEntry,
+    now: Moment,
+) -> Result<ClassicGroupPositionCloseTurn, ClassicGroupExecutionError> {
+    match entry.position.close_position_if_local(now) {
+        Ok(turn) => Ok(turn),
+        Err(failure) => {
+            let error = failure.error();
+            entry.fault = Some(
+                super::classic_group_entry_fault::ClassicGroupEntryFault::PositionRejection(
+                    failure,
+                ),
+            );
+            Err(ClassicGroupExecutionError::Position(error))
+        }
     }
 }

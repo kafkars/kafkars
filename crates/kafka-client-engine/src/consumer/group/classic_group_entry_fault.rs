@@ -2,11 +2,14 @@
 
 use kafka_client_core::{ClassicGeneration, ClassicHeartbeatAttempt, MembershipCycle};
 
-use crate::driver::classic_group::{
-    ClassicCoordinatorInvalidationInstallFailure, ClassicCoordinatorInvalidationTerminalFailure,
-    ClassicHeartbeatAdmissionFailure, ClassicHeartbeatRestoreFailure, ClassicHeartbeatTerminal,
-    JoinGroupRestoreFailure, JoinGroupTerminal, SyncGroupAdmissionFailure, SyncGroupRestoreFailure,
-    SyncGroupTerminal,
+use crate::driver::{
+    GroupPositionOffsetFetchRestoreFailure, GroupPositionOffsetFetchTerminal,
+    classic_group::{
+        ClassicCoordinatorInvalidationInstallFailure,
+        ClassicCoordinatorInvalidationTerminalFailure, ClassicHeartbeatAdmissionFailure,
+        ClassicHeartbeatRestoreFailure, ClassicHeartbeatTerminal, JoinGroupRestoreFailure,
+        JoinGroupTerminal, SyncGroupAdmissionFailure, SyncGroupRestoreFailure, SyncGroupTerminal,
+    },
 };
 
 use super::{
@@ -15,6 +18,11 @@ use super::{
     classic_group_join::ClassicGroupJoinSuccessor,
     classic_group_join_call::ClassicGroupJoinAcceptanceFailure,
     classic_group_partition_count_failure::ClassicGroupPartitionCountFault,
+    classic_group_position::{
+        ClassicGroupPositionAcceptanceFailure, ClassicGroupPositionExecutionError,
+        ClassicGroupPositionPreparationError, ClassicGroupPositionRejectionFailure,
+        ClassicGroupPositionTerminalApplicationFailure,
+    },
     classic_group_rejection_fault::ClassicRejectionPostCore,
     classic_group_rejoin_fault::ClassicRejoinPostCore,
     classic_group_sync::ClassicGroupSyncAcceptanceFailure,
@@ -45,6 +53,10 @@ pub(super) enum ClassicGroupEntryFault {
         generation: ClassicGeneration,
         terminal: SyncGroupTerminal,
     },
+    SyncPositionPreparation {
+        terminal: SyncGroupTerminal,
+        error: ClassicGroupPositionPreparationError,
+    },
     SyncConfirmationTerminal(SyncGroupTerminal),
     SyncPostCore(SyncGroupTerminal),
     SyncRejectionPostCore {
@@ -52,6 +64,18 @@ pub(super) enum ClassicGroupEntryFault {
         terminal: SyncGroupTerminal,
     },
     SyncRecoverySemantic(MembershipCycle),
+    PositionAcceptance(ClassicGroupPositionAcceptanceFailure),
+    PositionRejection(ClassicGroupPositionRejectionFailure),
+    PositionSubmission {
+        fence: kafka_client_core::GroupPositionFence,
+        error: ClassicGroupPositionExecutionError,
+    },
+    PositionDuplicateFence(kafka_client_core::GroupPositionFence),
+    PositionTerminalRestore(GroupPositionOffsetFetchRestoreFailure),
+    PositionTerminalPostCore {
+        failure: ClassicGroupPositionTerminalApplicationFailure,
+        terminal: GroupPositionOffsetFetchTerminal,
+    },
     HeartbeatAdmission(ClassicHeartbeatAdmissionFailure),
     HeartbeatAcceptance(ClassicHeartbeatAcceptanceFailure),
     HeartbeatTerminal(ClassicHeartbeatRestoreFailure),
@@ -109,11 +133,22 @@ impl ClassicGroupEntryFault {
                 .retained_owner_count()
                 .saturating_add(retained_one(terminal)),
             Self::SyncRecoverySemantic(owner) => retained_one(owner),
+            Self::PositionAcceptance(owner) => owner.retained_owner_count(),
+            Self::PositionRejection(owner) => owner.retained_owner_count(),
+            Self::PositionSubmission { fence, error } => retained_one_with_guard(fence, error),
+            Self::PositionDuplicateFence(fence) => retained_one(fence),
+            Self::PositionTerminalRestore(owner) => retained_one(owner),
+            Self::PositionTerminalPostCore { failure, terminal } => {
+                retained_pair(failure, terminal)
+            }
             Self::SyncInstall {
                 failure,
                 generation,
                 terminal,
             } => retained_guarded_pair(failure, generation, terminal),
+            Self::SyncPositionPreparation { terminal, error } => {
+                retained_one_with_guard(terminal, error)
+            }
             Self::HeartbeatAdmission(owner) => retained_one(owner),
             Self::HeartbeatAcceptance(owner) => owner.retained_owner_count(),
             Self::HeartbeatTerminal(owner) => retained_one(owner),
