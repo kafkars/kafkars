@@ -25,6 +25,7 @@ mod client;
 pub(crate) mod consumer;
 pub(crate) mod producer;
 pub(crate) mod producer_result;
+pub(crate) mod transaction;
 pub(crate) use client::ClientEngine;
 #[cfg(test)]
 mod admin_alter_configs_operation_test;

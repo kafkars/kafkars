@@ -28,7 +28,6 @@ mod driver;
 mod engine;
 mod engine_debug;
 mod engine_host;
-#[cfg_attr(not(test), expect(dead_code, reason = "private pre-facade slice"))]
 mod engine_transaction;
 #[cfg(test)]
 mod engine_transaction_test;
@@ -44,7 +43,6 @@ mod flush_observer;
 mod producer;
 mod protocol;
 mod public_api;
-#[cfg_attr(not(test), expect(dead_code, reason = "private pre-facade slice"))]
 mod transaction;
 pub use public_api::*;
 #[cfg(test)]

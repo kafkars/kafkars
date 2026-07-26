@@ -6,7 +6,8 @@ use kafka_client_core::TransactionInitializationPlan;
 
 use super::{
     TransactionInitializationAccepted, TransactionInitializationAdmissionError,
-    TransactionInitializationAdmissionErrorKind, TransactionInitializationRequest,
+    TransactionInitializationAdmissionErrorKind, TransactionInitializationCapture,
+    TransactionInitializationCaptureError, TransactionInitializationRequest,
     outcome::accepted_fault, shard::TransactionInitializationShardState,
 };
 
@@ -20,72 +21,23 @@ impl TransactionInitializationAdmissionPort {
         Self { shared }
     }
 
-    pub(crate) fn try_initialize(
+    pub(crate) fn capture(
         &self,
-        request: TransactionInitializationRequest,
         operation_timeout: Duration,
         lifetime: Arc<dyn Send + Sync>,
-    ) -> Result<TransactionInitializationAccepted, TransactionInitializationAdmissionError> {
-        let capture = match self
+    ) -> Result<TransactionInitializationCapture, TransactionInitializationCaptureError> {
+        let deadline = self
             .shared
             .clock()
             .capture_deadline_after(operation_timeout)
-        {
-            Ok(capture) if !operation_timeout.is_zero() => capture,
-            Ok(_) | Err(_) => {
-                return Err(TransactionInitializationAdmissionError::new(
-                    TransactionInitializationAdmissionErrorKind::InvalidOperationDeadline,
-                    request,
-                ));
-            }
-        };
-        let plan = match validate(&request) {
-            Ok(plan) => plan,
-            Err(kind) => return Err(TransactionInitializationAdmissionError::new(kind, request)),
-        };
-        if self.shared.is_closed() {
-            return Err(TransactionInitializationAdmissionError::new(
-                TransactionInitializationAdmissionErrorKind::Closed,
-                request,
-            ));
-        }
-        let mut host = match self.shared.try_host() {
-            Ok(host) => host,
-            Err(std::sync::TryLockError::WouldBlock) => {
-                return Err(TransactionInitializationAdmissionError::new(
-                    TransactionInitializationAdmissionErrorKind::Contended,
-                    request,
-                ));
-            }
-            Err(std::sync::TryLockError::Poisoned(_)) => {
-                return Err(TransactionInitializationAdmissionError::new(
-                    TransactionInitializationAdmissionErrorKind::HostUnavailable,
-                    request,
-                ));
-            }
-        };
-        let mut admission = match host.try_admit(
-            capture.now(),
-            capture.operation_deadline(),
-            request,
-            plan,
+            .ok()
+            .filter(|_capture| !operation_timeout.is_zero())
+            .ok_or(TransactionInitializationCaptureError::InvalidOperationDeadline)?;
+        Ok(TransactionInitializationCapture::new(
+            Arc::clone(&self.shared),
+            deadline,
             lifetime,
-        ) {
-            Ok(admission) => admission,
-            Err((kind, request)) => {
-                return Err(TransactionInitializationAdmissionError::new(kind, request));
-            }
-        };
-        drop(host);
-        if self.shared.wake().request().is_err() {
-            admission
-                .fault
-                .get_or_insert(super::TransactionInitializationHostError::Wake);
-        }
-        Ok(TransactionInitializationAccepted {
-            observer: admission.observer,
-            fault: admission.fault.map(accepted_fault),
-        })
+        ))
     }
 
     pub(crate) fn close_admission(&self) {
@@ -94,6 +46,61 @@ impl TransactionInitializationAdmissionPort {
             host.close_admission();
         }
     }
+}
+
+pub(super) fn try_initialize_captured(
+    shared: &TransactionInitializationShardState,
+    capture: crate::clock::DeadlineCapture,
+    request: TransactionInitializationRequest,
+    lifetime: Arc<dyn Send + Sync>,
+) -> Result<TransactionInitializationAccepted, TransactionInitializationAdmissionError> {
+    let plan = match validate(&request) {
+        Ok(plan) => plan,
+        Err(kind) => return Err(TransactionInitializationAdmissionError::new(kind, request)),
+    };
+    if shared.is_closed() {
+        return Err(TransactionInitializationAdmissionError::new(
+            TransactionInitializationAdmissionErrorKind::Closed,
+            request,
+        ));
+    }
+    let mut host = match shared.try_host() {
+        Ok(host) => host,
+        Err(std::sync::TryLockError::WouldBlock) => {
+            return Err(TransactionInitializationAdmissionError::new(
+                TransactionInitializationAdmissionErrorKind::Contended,
+                request,
+            ));
+        }
+        Err(std::sync::TryLockError::Poisoned(_)) => {
+            return Err(TransactionInitializationAdmissionError::new(
+                TransactionInitializationAdmissionErrorKind::HostUnavailable,
+                request,
+            ));
+        }
+    };
+    let mut admission = match host.try_admit(
+        capture.now(),
+        capture.operation_deadline(),
+        request,
+        plan,
+        lifetime,
+    ) {
+        Ok(admission) => admission,
+        Err((kind, request)) => {
+            return Err(TransactionInitializationAdmissionError::new(kind, request));
+        }
+    };
+    drop(host);
+    if shared.wake().request().is_err() {
+        admission
+            .fault
+            .get_or_insert(super::TransactionInitializationHostError::Wake);
+    }
+    Ok(TransactionInitializationAccepted {
+        observer: admission.observer,
+        fault: admission.fault.map(accepted_fault),
+    })
 }
 
 pub(super) fn validate(

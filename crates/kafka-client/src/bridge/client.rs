@@ -63,6 +63,13 @@ impl ClientEngine {
         super::admin::AdminEngine::new(self.inner.admin(), self.inner.config().admin_timeout())
     }
 
+    /// Returns the private transaction initializer retaining engine defaults.
+    pub(crate) fn transactional_producer(
+        &self,
+    ) -> super::transaction::TransactionalProducerInitializer {
+        super::transaction::TransactionalProducerInitializer::new(self.inner.clone())
+    }
+
     /// Claims the engine's sole directly assigned consumer.
     pub(crate) fn claim_assigned_consumer(
         &self,

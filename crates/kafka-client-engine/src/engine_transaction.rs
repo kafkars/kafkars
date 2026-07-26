@@ -4,21 +4,18 @@ use std::time::Duration;
 
 use crate::{
     Engine,
-    transaction::{
-        TransactionInitializationAccepted, TransactionInitializationAdmissionError,
-        TransactionInitializationRequest,
-    },
+    transaction::{TransactionInitializationCapture, TransactionInitializationCaptureError},
 };
 
 impl Engine {
-    pub(crate) fn try_initialize_transactional_owner(
+    /// Captures one absolute initialization deadline before request conversion.
+    pub fn capture_transactional_owner_initialization(
         &self,
-        request: TransactionInitializationRequest,
         operation_timeout: Duration,
-    ) -> Result<TransactionInitializationAccepted, TransactionInitializationAdmissionError> {
+    ) -> Result<TransactionInitializationCapture, TransactionInitializationCaptureError> {
         let lifetime: std::sync::Arc<dyn Send + Sync> = self.inner.clone();
         self.inner
             .transaction_initialization
-            .try_initialize(request, operation_timeout, lifetime)
+            .capture(operation_timeout, lifetime)
     }
 }

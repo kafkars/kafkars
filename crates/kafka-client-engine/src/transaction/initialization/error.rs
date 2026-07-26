@@ -8,20 +8,43 @@ use crate::completion::CompletionRegistryError;
 
 use super::TransactionInitializationRequest;
 
+/// Failure to capture the public operation deadline.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum TransactionInitializationAdmissionErrorKind {
-    InvalidRequest,
+pub enum TransactionInitializationCaptureError {
+    /// The requested duration cannot form one positive absolute deadline.
     InvalidOperationDeadline,
+}
+
+impl fmt::Display for TransactionInitializationCaptureError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("transaction initialization deadline is invalid")
+    }
+}
+
+impl std::error::Error for TransactionInitializationCaptureError {}
+
+/// Local rejection before the driver owns transaction initialization.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TransactionInitializationAdmissionErrorKind {
+    /// The transactional ID or broker timeout is invalid.
+    InvalidRequest,
+    /// The bounded owner lock is currently contended.
     Contended,
+    /// Engine shutdown has closed initialization admission.
     Closed,
+    /// The bounded operation or terminal registry is full.
     Capacity,
+    /// The bounded transactional-ID envelope is exhausted.
     RetainedBytes,
+    /// The engine's nonreused identity space is exhausted.
     IdentityExhausted,
+    /// The concrete transaction host is unavailable.
     HostUnavailable,
 }
 
+/// Local admission rejection retaining the exact engine request.
 #[must_use = "local rejection retains the exact caller input"]
-pub(crate) struct TransactionInitializationAdmissionError {
+pub struct TransactionInitializationAdmissionError {
     kind: TransactionInitializationAdmissionErrorKind,
     request: TransactionInitializationRequest,
 }
@@ -34,11 +57,13 @@ impl TransactionInitializationAdmissionError {
         Self { kind, request }
     }
 
-    pub(crate) const fn kind(&self) -> TransactionInitializationAdmissionErrorKind {
+    /// Returns the stable rejection category.
+    pub const fn kind(&self) -> TransactionInitializationAdmissionErrorKind {
         self.kind
     }
 
-    pub(crate) fn into_request(self) -> TransactionInitializationRequest {
+    /// Returns the exact request rejected before driver ownership.
+    pub fn into_request(self) -> TransactionInitializationRequest {
         self.request
     }
 }
@@ -52,6 +77,18 @@ impl fmt::Debug for TransactionInitializationAdmissionError {
             .finish()
     }
 }
+
+impl fmt::Display for TransactionInitializationAdmissionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let kind = self.kind;
+        write!(
+            formatter,
+            "transaction initialization admission failed: {kind:?}"
+        )
+    }
+}
+
+impl std::error::Error for TransactionInitializationAdmissionError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum TransactionInitializationHostError {

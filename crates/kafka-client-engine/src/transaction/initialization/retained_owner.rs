@@ -6,7 +6,7 @@ use kafka_client_core::TransactionalOwnerId;
 
 use super::{
     TransactionInitializationOutcome, TransactionalOwnerHandle,
-    outcome::{TransactionInitializationFailure, release_owner},
+    outcome::TransactionInitializationFailure, owner::release_owner,
 };
 
 pub(super) enum RetainedTransactionInitializationOutcome {

@@ -719,6 +719,10 @@ production = "crates/kafka-client-engine/src/config/producer_limits.rs"
 test = "crates/kafka-client-engine/src/config/producer_limits_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/config/transaction.rs"
+test = "crates/kafka-client-engine/src/config/transaction_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/config/validation.rs"
 test = "crates/kafka-client-engine/src/config/validation_test.rs"
 
@@ -2305,6 +2309,10 @@ production = "crates/kafka-client-engine/src/transaction/initialization/outcome.
 test = "crates/kafka-client-engine/src/transaction/initialization/outcome_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/transaction/initialization/owner.rs"
+test = "crates/kafka-client-engine/src/transaction/initialization/owner_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/transaction/initialization/retained_owner.rs"
 test = "crates/kafka-client-engine/src/transaction/initialization/retained_owner_test.rs"
 
@@ -2338,7 +2346,7 @@ path = "crates/kafka-client-engine/src/transaction/initialization/observer.rs"
 
 [[linear_owners]]
 owner_type = "TransactionalOwnerHandle"
-path = "crates/kafka-client-engine/src/transaction/initialization/outcome.rs"
+path = "crates/kafka-client-engine/src/transaction/initialization/owner.rs"
 
 [[linear_owners]]
 owner_type = "RetainedTransactionalOwner"
@@ -13167,3 +13175,89 @@ method = "try_alter_consumer_group_offsets"
 allowed_paths = [
   "crates/kafka-client/src/bridge/admin.rs",
 ]
+
+# Transaction initialization reaches the curated engine only through one
+# capture-first private bridge and retains linear ownership at every layer.
+[[capability_rules]]
+root = "crates/kafka-client/src/transaction"
+forbidden = [
+  "kafka_client_engine",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client/src"
+method = "capture_transactional_owner_initialization"
+allowed_paths = [
+  "crates/kafka-client/src/bridge/transaction/handle.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client/src"
+method = "initialize_transactional_owner"
+allowed_paths = [
+  "crates/kafka-client/src/bridge/transaction/handle.rs",
+]
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/transaction/initialization/capture.rs"
+test = "crates/kafka-client-engine/src/transaction/initialization/capture_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/transaction/builder.rs"
+test = "crates/kafka-client/src/transaction/builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/transaction/identity.rs"
+test = "crates/kafka-client/src/transaction/identity_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/transaction/initialization.rs"
+test = "crates/kafka-client/src/transaction/initialization_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/transaction/producer.rs"
+test = "crates/kafka-client/src/transaction/producer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/transaction/handle.rs"
+test = "crates/kafka-client/src/bridge/transaction/handle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/transaction/operation.rs"
+test = "crates/kafka-client/src/bridge/transaction/operation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/transaction/owner.rs"
+test = "crates/kafka-client/src/bridge/transaction/owner_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/transaction/result.rs"
+test = "crates/kafka-client/src/bridge/transaction/result_test.rs"
+
+[[linear_owners]]
+owner_type = "TransactionInitializationCapture"
+path = "crates/kafka-client-engine/src/transaction/initialization/capture.rs"
+
+[[linear_owners]]
+owner_type = "TransactionalProducerInitializer"
+path = "crates/kafka-client/src/bridge/transaction/handle.rs"
+
+[[linear_owners]]
+owner_type = "TransactionInitialization"
+path = "crates/kafka-client/src/bridge/transaction/operation.rs"
+
+[[linear_owners]]
+owner_type = "TransactionalProducerEngine"
+path = "crates/kafka-client/src/bridge/transaction/owner.rs"
+
+[[linear_owners]]
+owner_type = "TransactionalProducerBuilder"
+path = "crates/kafka-client/src/transaction/builder.rs"
+
+[[linear_owners]]
+owner_type = "InitializeTransactionalProducer"
+path = "crates/kafka-client/src/transaction/initialization.rs"
+
+[[linear_owners]]
+owner_type = "TransactionalProducer"
+path = "crates/kafka-client/src/transaction/producer.rs"

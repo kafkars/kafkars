@@ -3,8 +3,9 @@
 //! Immediate explicit-partition producer admission, stage-aware cancellation,
 //! flush observation, atomic close-and-drain, batched topic mutation, and
 //! bounded topic description, committed group-offset listing and deletion,
-//! committed group-offset alteration, configuration description, and
-//! incremental configuration alteration form the implemented vertical slices.
+//! committed group-offset alteration, configuration description, incremental
+//! configuration alteration, and
+//! transactional-owner initialization form the implemented vertical slices.
 //! Later API domains remain design probes.
 
 #![forbid(unsafe_code)]
@@ -50,8 +51,8 @@ pub use producer::{
 };
 pub use record::{Header, Record};
 pub use transaction::{
-    AbortTransaction, BeginTransaction, BeginTransactionProducer, CommitTransaction, Transaction,
-    TransactionalProducer, TransactionalProducerBuilder,
+    InitializeTransactionalProducer, TransactionalProducer, TransactionalProducerBuilder,
+    TransactionalProducerIdentity,
 };
 
 #[cfg(test)]

@@ -11,6 +11,7 @@ mod compression;
 mod compression_test;
 mod producer_limits;
 mod read_isolation;
+mod transaction;
 mod validation;
 pub use compression::ProducerCompression;
 pub use producer_limits::EngineProducerLimits;
@@ -22,6 +23,8 @@ use validation::duration_ticks;
 mod producer_limits_test;
 #[cfg(test)]
 mod read_isolation_test;
+#[cfg(test)]
+mod transaction_test;
 #[cfg(test)]
 mod validation_test;
 

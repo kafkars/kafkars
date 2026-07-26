@@ -1146,7 +1146,7 @@ evidence = [
 [[invariant]]
 id = "TXN-00"
 title = "Transaction initialization is owner-fenced and terminal"
-statement = "One deterministic transaction-initialization machine retains a scalar engine owner fence, validated broker transaction timeout, and one original absolute operation deadline; admits only one driver attempt; assigns exactly one terminal; distinguishes definitely-unsent pre-driver rejection from driver-owned certainty; preserves exact signed broker and fencing facts; and accepts only nonnegative broker producer identities. The private engine atomically reserves bounded completion and transactional-id bytes, uses generated InitProducerId on kafka-driver's transaction-coordinator route with Interactive traffic and the unchanged deadline, transfers a successful identity and retained transactional-id into one unique idle owner handle, and reclaims that owner on explicit close, drop, or shutdown without retry, a coordinator cache, another encoder, callback, generic executor, or async runtime."
+statement = "One deterministic transaction-initialization machine retains a scalar engine owner fence, validated broker transaction timeout, and one original absolute operation deadline; admits only one driver attempt; assigns exactly one terminal; distinguishes definitely-unsent pre-driver rejection from driver-owned certainty; preserves exact signed broker and fencing facts; and accepts only nonnegative broker producer identities. The engine atomically reserves bounded completion and transactional-id bytes, uses generated InitProducerId on kafka-driver's transaction-coordinator route with Interactive traffic and the unchanged deadline, transfers a successful identity and retained transactional-id into one unique idle owner handle, and reclaims that owner on explicit close, drop, or shutdown. The curated Rust facade removes every ready-success transaction probe, captures the initialization deadline before request conversion, preserves engine-owned defaults and distinct broker-timeout intent, exhaustively translates delivery certainty, fencing, exact broker codes, admission, observation, and accepted faults, and exposes one named non-clone Future and blocking wait yielding a unique Send but non-Clone and non-Sync identity, activity, and close owner. This slice adds no retry, coordinator cache, another encoder, callback, generic executor, async runtime, begin, send, commit, or abort surface."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/transaction/initialization/transition_test.rs::submit_preserves_owner_plan_and_original_absolute_deadline",
@@ -1161,14 +1161,23 @@ evidence = [
   "crates/kafka-client-engine/src/transaction/initialization/host_test.rs::admission_reserves_terminal_and_transactional_id_envelope_before_acceptance",
   "crates/kafka-client-engine/src/transaction/initialization/port_test.rs::validation_rejects_hostile_string_capacity_without_losing_caller_ownership",
   "crates/kafka-client-engine/src/transaction/initialization/host_test.rs::elapsed_original_operation_deadline_never_needs_driver_submission",
-  "crates/kafka-client-engine/src/transaction/initialization/outcome_test.rs::explicit_close_releases_the_unique_owner_once",
-  "crates/kafka-client-engine/src/transaction/initialization/outcome_test.rs::drop_releases_the_unique_owner_once",
+  "crates/kafka-client-engine/src/transaction/initialization/owner_test.rs::explicit_close_releases_the_unique_owner_once",
+  "crates/kafka-client-engine/src/transaction/initialization/owner_test.rs::initialized_owner_is_sendable_linear_and_not_shared",
+  "crates/kafka-client-engine/src/transaction/initialization/owner_test.rs::drop_releases_the_unique_owner_once",
   "crates/kafka-client-engine/src/transaction/initialization/retained_owner_test.rs::unobserved_payload_drop_releases_the_live_owner",
   "crates/kafka-client-engine/src/transaction/initialization/retained_owner_test.rs::observation_transfers_release_and_lifetime_into_the_unique_handle",
   "crates/kafka-client-engine/src/transaction/initialization/host_test.rs::shutdown_fences_live_owner_and_reclaims_its_byte_envelope_before_handle_drop",
   "crates/kafka-client-engine/src/transaction/initialization/host_test.rs::abandoned_success_releases_its_live_owner_without_engine_shutdown",
   "crates/kafka-client-engine/src/transaction/initialization/host_test.rs::unobserved_success_keeps_engine_lifetime_only_on_the_external_observer",
   "crates/kafka-client-engine/src/engine_transaction_test.rs::local_rejection_returns_the_exact_transaction_request",
+  "crates/kafka-client/src/transaction/builder_test.rs::initialization_deadline_is_captured_before_request_validation",
+  "crates/kafka-client/src/transaction/builder_test.rs::broker_timeout_remains_distinct_from_operation_deadline",
+  "crates/kafka-client/src/transaction/initialization_test.rs::named_initialization_is_one_sendable_observer",
+  "crates/kafka-client/src/transaction/producer_test.rs::initialized_owner_is_sendable_unique_and_not_shared",
+  "crates/kafka-client/src/transaction/producer_test.rs::initialized_owner_exposes_only_idle_identity_and_close",
+  "crates/kafka-client/src/bridge/transaction/result_test.rs::every_local_rejection_category_maps_without_hidden_retry_policy",
+  "crates/kafka-client/src/bridge/transaction/result_test.rs::terminal_failures_preserve_certainty_fencing_and_exact_broker_code",
+  "crates/kafka-client/src/bridge/transaction/result_test.rs::observer_and_accepted_faults_remain_stable_internal_categories",
 ]
 
 [[invariant]]

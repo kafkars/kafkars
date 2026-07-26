@@ -15,6 +15,13 @@ const RETAINED_OWNER_PATH: &str =
     "crates/kafka-client-engine/src/transaction/initialization/retained_owner.rs";
 const RETAINED_OWNER_TEST: &str =
     "crates/kafka-client-engine/src/transaction/initialization/retained_owner_test.rs";
+const CAPTURE: &str = "TransactionInitializationCapture";
+const CAPTURE_PATH: &str = "crates/kafka-client-engine/src/transaction/initialization/capture.rs";
+const CAPTURE_TEST: &str =
+    "crates/kafka-client-engine/src/transaction/initialization/capture_test.rs";
+const OWNER: &str = "TransactionalOwnerHandle";
+const OWNER_PATH: &str = "crates/kafka-client-engine/src/transaction/initialization/owner.rs";
+const OWNER_TEST: &str = "crates/kafka-client-engine/src/transaction/initialization/owner_test.rs";
 const FORBIDDEN: &[&str] = &[
     "crate::admin",
     "crate::consumer",
@@ -51,6 +58,34 @@ fn checked_in_transaction_execution_owners_and_capabilities_are_exact() {
             mirror.production == RETAINED_OWNER_PATH && mirror.test == RETAINED_OWNER_TEST
         }),
         "retained owner needs one sibling test mirror"
+    );
+    let capture = config
+        .linear_owners
+        .iter()
+        .filter(|rule| rule.owner_type == CAPTURE)
+        .collect::<Vec<_>>();
+    assert_eq!(capture.len(), 1);
+    assert_eq!(capture[0].path, CAPTURE_PATH);
+    assert!(
+        config
+            .test_mirrors
+            .iter()
+            .any(|mirror| { mirror.production == CAPTURE_PATH && mirror.test == CAPTURE_TEST }),
+        "deadline capture needs one sibling test mirror"
+    );
+    let owner = config
+        .linear_owners
+        .iter()
+        .filter(|rule| rule.owner_type == OWNER)
+        .collect::<Vec<_>>();
+    assert_eq!(owner.len(), 1);
+    assert_eq!(owner[0].path, OWNER_PATH);
+    assert!(
+        config
+            .test_mirrors
+            .iter()
+            .any(|mirror| { mirror.production == OWNER_PATH && mirror.test == OWNER_TEST }),
+        "transactional owner needs one sibling test mirror"
     );
 
     for field in ["operations", "live_owners", "retained_bytes", "accepting"] {

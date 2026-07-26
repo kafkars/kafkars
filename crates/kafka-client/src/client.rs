@@ -118,7 +118,10 @@ impl Client {
         &self,
         transactional_id: impl Into<String>,
     ) -> TransactionalProducerBuilder {
-        TransactionalProducerBuilder::new(self.clone(), transactional_id.into())
+        TransactionalProducerBuilder::new(
+            self.engine.transactional_producer(),
+            transactional_id.into(),
+        )
     }
 
     /// Initiates graceful client shutdown.

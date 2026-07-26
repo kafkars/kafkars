@@ -1,151 +1,120 @@
-//! Stable terminal values and unique retained transactional-owner handle.
-
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-    mpsc::{SyncSender, TrySendError},
-};
+//! Stable terminal values for transaction initialization.
 
 use kafka_client_core::{
     DeliveryStatus, TransactionInitializationBrokerCategory,
     TransactionInitializationFailureKind as CoreFailureKind, TransactionInitializationTerminal,
-    TransactionalOwnerId,
 };
 
 use super::{
     RetainedTransactionInitializationOutcome, TransactionInitializationHostError,
-    TransactionInitializationObserver,
+    TransactionInitializationObserver, TransactionalOwnerHandle,
 };
 
+/// Advisory fault reported only after initialization was accepted.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum TransactionInitializationAcceptedFaultKind {
+pub enum TransactionInitializationAcceptedFaultKind {
+    /// The operation was accepted but the advisory host wake failed.
     Wake,
+    /// The operation was accepted but its owner reported an invariant fault.
     HostInvariant,
 }
 
+/// Accepted initialization with one sole terminal observer.
+#[derive(Debug)]
 #[must_use = "accepted initialization retains its sole terminal observer"]
-pub(crate) struct TransactionInitializationAccepted {
+pub struct TransactionInitializationAccepted {
     pub(super) observer: TransactionInitializationObserver,
     pub(super) fault: Option<TransactionInitializationAcceptedFaultKind>,
 }
 
 impl TransactionInitializationAccepted {
-    pub(crate) const fn fault(&self) -> Option<TransactionInitializationAcceptedFaultKind> {
+    /// Returns an advisory post-acceptance host diagnostic.
+    pub const fn fault(&self) -> Option<TransactionInitializationAcceptedFaultKind> {
         self.fault
     }
 
-    pub(crate) fn into_observer(self) -> TransactionInitializationObserver {
+    /// Transfers the sole terminal observer.
+    pub fn into_observer(self) -> TransactionInitializationObserver {
         self.observer
     }
 }
 
+/// Delivery certainty for a failed initialization attempt.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum TransactionInitializationDeliveryStatus {
+pub enum TransactionInitializationDeliveryStatus {
+    /// The request definitely did not enter transport ownership.
     NotSent,
+    /// Kafka may have observed the request.
     PossiblySent,
 }
 
+/// Stable semantic category for a terminal initialization failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum TransactionInitializationFailureKind {
+pub enum TransactionInitializationFailureKind {
+    /// The original absolute operation deadline elapsed.
     DeadlineElapsed,
+    /// Bounded driver admission rejected before transport ownership.
     DriverRejected,
+    /// Transport failed after accepting the request.
     Transport,
-    Broker { code: i16, fenced: bool },
+    /// Kafka returned an exact signed broker code and optional fencing fact.
+    Broker {
+        /// Kafka's exact signed protocol error code.
+        code: i16,
+        /// Whether core classified the broker response as fencing.
+        fenced: bool,
+    },
+    /// The broker response violated the transaction initialization contract.
     InvalidResponse,
 }
 
+/// One terminal initialization failure with authoritative delivery certainty.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct TransactionInitializationFailure {
+pub struct TransactionInitializationFailure {
     pub(crate) kind: TransactionInitializationFailureKind,
     pub(crate) delivery: TransactionInitializationDeliveryStatus,
 }
 
-pub(crate) enum TransactionInitializationOutcome {
+impl TransactionInitializationFailure {
+    /// Returns the stable failure category.
+    pub const fn kind(self) -> TransactionInitializationFailureKind {
+        self.kind
+    }
+
+    /// Returns authoritative delivery certainty.
+    pub const fn delivery(self) -> TransactionInitializationDeliveryStatus {
+        self.delivery
+    }
+}
+
+/// Exactly one engine-owned terminal initialization decision.
+#[derive(Debug)]
+pub enum TransactionInitializationOutcome {
+    /// Kafka initialized one unique idle owner.
     Initialized(TransactionalOwnerHandle),
+    /// Initialization failed without producing an owner.
     Failed(TransactionInitializationFailure),
 }
 
-/// Unique idle transactional owner; close and drop both release host ownership.
-#[must_use = "the transactional owner remains fenced until closed or dropped"]
-pub(crate) struct TransactionalOwnerHandle {
-    owner_id: TransactionalOwnerId,
-    transactional_id: Option<String>,
-    producer_id: i64,
-    producer_epoch: i16,
-    active: Arc<AtomicBool>,
-    release: SyncSender<TransactionalOwnerId>,
-    _lifetime: Arc<dyn Send + Sync>,
+/// Failure to observe a named initialization completion.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TransactionInitializationObserverError {
+    /// This linear observer already consumed its terminal.
+    AlreadyObserved,
+    /// The observer generation is no longer live.
+    Stale,
 }
 
-impl TransactionalOwnerHandle {
-    pub(super) const fn new(
-        owner_id: TransactionalOwnerId,
-        transactional_id: String,
-        producer_id: i64,
-        producer_epoch: i16,
-        active: Arc<AtomicBool>,
-        release: SyncSender<TransactionalOwnerId>,
-        lifetime: Arc<dyn Send + Sync>,
-    ) -> Self {
-        Self {
-            owner_id,
-            transactional_id: Some(transactional_id),
-            producer_id,
-            producer_epoch,
-            active,
-            release,
-            _lifetime: lifetime,
-        }
-    }
-
-    pub(crate) fn transactional_id(&self) -> &str {
-        self.transactional_id.as_deref().unwrap_or("")
-    }
-
-    pub(crate) const fn producer_id(&self) -> i64 {
-        self.producer_id
-    }
-
-    pub(crate) const fn producer_epoch(&self) -> i16 {
-        self.producer_epoch
-    }
-
-    pub(crate) fn is_active(&self) -> bool {
-        self.active.load(Ordering::Acquire)
-    }
-
-    pub(crate) fn close(mut self) {
-        self.release();
-    }
-
-    fn release(&mut self) {
-        let Some(transactional_id) = self.transactional_id.take() else {
-            return;
-        };
-        drop(transactional_id);
-        release_owner(self.owner_id, &self.active, &self.release);
+impl std::fmt::Display for TransactionInitializationObserverError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::AlreadyObserved => "transaction initialization was already observed",
+            Self::Stale => "transaction initialization observer is stale",
+        })
     }
 }
 
-impl Drop for TransactionalOwnerHandle {
-    fn drop(&mut self) {
-        self.release();
-    }
-}
-
-pub(super) fn release_owner(
-    owner_id: TransactionalOwnerId,
-    active: &AtomicBool,
-    release: &SyncSender<TransactionalOwnerId>,
-) {
-    active.store(false, Ordering::Release);
-    match release.try_send(owner_id) {
-        Ok(()) | Err(TrySendError::Disconnected(_)) => {}
-        Err(TrySendError::Full(_)) => {
-            debug_assert!(false, "owner-release capacity equals owner capacity");
-        }
-    }
-}
+impl std::error::Error for TransactionInitializationObserverError {}
 
 pub(super) fn failed_retained_outcome(
     terminal: TransactionInitializationTerminal,

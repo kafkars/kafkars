@@ -1,18 +1,19 @@
-//! Compile-checked transactional-producer API sketch.
+//! Compile-checked transactional-owner initialization.
 
 use kafka_client::{Client, KafkaError};
 
 fn main() {}
 
 #[allow(dead_code)]
-async fn transact() -> Result<(), KafkaError> {
+async fn initialize_transactional_owner() -> Result<(), KafkaError> {
     let client = Client::builder()
         .bootstrap_servers(["localhost:9092"])
         .build()?;
-    let mut producer = client
+    let producer = client
         .transactional_producer("invoice-worker-v1")
         .build()
         .await?;
-    let transaction = producer.begin().await?;
-    transaction.commit().await
+    let _identity = producer.identity();
+    producer.close();
+    Ok(())
 }

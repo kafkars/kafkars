@@ -2,13 +2,14 @@
 
 /// Exact caller input returned intact when local admission rejects it.
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) struct TransactionInitializationRequest {
+pub struct TransactionInitializationRequest {
     transactional_id: String,
     transaction_timeout_ms: u32,
 }
 
 impl TransactionInitializationRequest {
-    pub(crate) const fn new(transactional_id: String, transaction_timeout_ms: u32) -> Self {
+    /// Creates one engine-owned request without validating policy.
+    pub const fn new(transactional_id: String, transaction_timeout_ms: u32) -> Self {
         Self {
             transactional_id,
             transaction_timeout_ms,
@@ -27,7 +28,8 @@ impl TransactionInitializationRequest {
         self.transactional_id.capacity()
     }
 
-    pub(crate) fn into_parts(self) -> (String, u32) {
+    /// Returns the exact transactional ID and broker timeout.
+    pub fn into_parts(self) -> (String, u32) {
         (self.transactional_id, self.transaction_timeout_ms)
     }
 }

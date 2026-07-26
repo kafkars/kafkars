@@ -1,13 +1,18 @@
-//! Declarative facade for private transactional execution ownership.
+//! Declarative facade for transactional execution ownership.
 
 mod initialization;
 
-#[cfg(test)]
-pub(crate) use initialization::TransactionInitializationAdmissionErrorKind;
+pub use initialization::{
+    TransactionInitializationAccepted, TransactionInitializationAcceptedFaultKind,
+    TransactionInitializationAdmissionError, TransactionInitializationAdmissionErrorKind,
+    TransactionInitializationCapture, TransactionInitializationCaptureError,
+    TransactionInitializationDeliveryStatus, TransactionInitializationFailure,
+    TransactionInitializationFailureKind, TransactionInitializationObserver,
+    TransactionInitializationObserverError, TransactionInitializationOutcome,
+    TransactionInitializationRequest, TransactionalOwnerHandle,
+};
 pub(crate) use initialization::{
-    TransactionInitializationAccepted, TransactionInitializationAdmissionError,
     TransactionInitializationAdmissionPort, TransactionInitializationHost,
-    TransactionInitializationHostError, TransactionInitializationRequest,
-    TransactionInitializationShardLockError, TransactionInitializationShardOwner,
-    TransactionInitializationTurn,
+    TransactionInitializationHostError, TransactionInitializationShardLockError,
+    TransactionInitializationShardOwner, TransactionInitializationTurn,
 };

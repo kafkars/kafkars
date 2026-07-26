@@ -1,62 +1,71 @@
-//! Unique transactional-owner close, drop, and shutdown fencing.
+//! Core-to-engine transaction initialization terminal translation.
 
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-    mpsc::sync_channel,
+use std::{num::NonZeroI16, sync::Arc};
+
+use kafka_client_core::{
+    Deadline, Moment, OperationId, TransactionInitializationBrokerCategory,
+    TransactionInitializationBrokerFailure, TransactionInitializationEffect,
+    TransactionInitializationInput, TransactionInitializationMachine,
+    TransactionInitializationPlan, TransactionalOwnerId,
 };
 
-use kafka_client_core::TransactionalOwnerId;
-
-use super::TransactionalOwnerHandle;
-
-#[test]
-fn explicit_close_releases_the_unique_owner_once() {
-    let (sender, receiver) = sync_channel(1);
-    let active = Arc::new(AtomicBool::new(true));
-    let handle = TransactionalOwnerHandle::new(
-        TransactionalOwnerId::from_raw(7),
-        "writer".to_owned(),
-        41,
-        3,
-        Arc::clone(&active),
-        sender,
-        Arc::new(()),
-    );
-    assert_eq!(handle.transactional_id(), "writer");
-    assert_eq!((handle.producer_id(), handle.producer_epoch()), (41, 3));
-    assert!(handle.is_active());
-    handle.close();
-    assert!(!active.load(Ordering::Acquire));
-    assert_eq!(
-        receiver
-            .try_recv()
-            .map(kafka_client_core::TransactionalOwnerId::get),
-        Ok(7)
-    );
-    assert!(receiver.try_recv().is_err());
-}
+use super::{
+    TransactionInitializationDeliveryStatus, TransactionInitializationFailureKind,
+    TransactionInitializationOutcome, outcome::failed_retained_outcome,
+};
 
 #[test]
-fn drop_releases_the_unique_owner_once() {
-    let (sender, receiver) = sync_channel(1);
-    let active = Arc::new(AtomicBool::new(true));
-    let handle = TransactionalOwnerHandle::new(
-        TransactionalOwnerId::from_raw(8),
-        "writer".to_owned(),
-        42,
-        4,
-        Arc::clone(&active),
-        sender,
-        Arc::new(()),
+fn core_terminal_translation_retains_exact_broker_code_fencing_and_delivery() {
+    let owner = TransactionalOwnerId::from_raw(7);
+    let plan = TransactionInitializationPlan::new(60_000)
+        .unwrap_or_else(|error| panic!("valid transaction plan: {error}"));
+    let mut machine = TransactionInitializationMachine::new(
+        owner,
+        OperationId::from_raw(11),
+        Deadline::from_tick(20),
+        plan,
     );
-    drop(handle);
-    assert!(!active.load(Ordering::Acquire));
+    machine
+        .apply(
+            owner,
+            TransactionInitializationInput::Start {
+                now: Moment::from_tick(1),
+            },
+        )
+        .unwrap_or_else(|error| panic!("start initialization: {error}"));
+    machine
+        .apply(owner, TransactionInitializationInput::DriverAccepted)
+        .unwrap_or_else(|error| panic!("driver accepts initialization: {error}"));
+    let broker = TransactionInitializationBrokerFailure::new(
+        NonZeroI16::new(-47).unwrap_or_else(|| panic!("nonzero broker code")),
+        TransactionInitializationBrokerCategory::Fenced,
+    );
+    let transition = machine
+        .apply(
+            owner,
+            TransactionInitializationInput::BrokerRejected { failure: broker },
+        )
+        .unwrap_or_else(|error| panic!("broker rejection settles initialization: {error}"));
+    let terminal = match transition.into_effect() {
+        Some(TransactionInitializationEffect::Complete { terminal, .. }) => terminal,
+        effect => panic!("expected terminal completion, got {effect:?}"),
+    };
+    let retained = failed_retained_outcome(terminal)
+        .unwrap_or_else(|| panic!("failed core terminal must translate"));
+    let TransactionInitializationOutcome::Failed(failure) = retained.into_observed(Arc::new(()))
+    else {
+        panic!("failed core terminal became initialized");
+    };
+
     assert_eq!(
-        receiver
-            .try_recv()
-            .map(kafka_client_core::TransactionalOwnerId::get),
-        Ok(8)
+        failure.kind(),
+        TransactionInitializationFailureKind::Broker {
+            code: -47,
+            fenced: true,
+        }
     );
-    assert!(receiver.try_recv().is_err());
+    assert_eq!(
+        failure.delivery(),
+        TransactionInitializationDeliveryStatus::PossiblySent
+    );
 }
