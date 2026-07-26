@@ -1,6 +1,6 @@
 //! Direct Heartbeat normalization-to-core policy scenarios.
 
-use kafka_client_core::{ClassicGroupPhase, Moment};
+use kafka_client_core::{ClassicBrokerStage, ClassicGroupFatalReason, ClassicGroupPhase, Moment};
 
 use crate::driver::classic_group::install_heartbeat_broker_rejection_terminal;
 
@@ -14,10 +14,64 @@ use super::{
 };
 
 #[test]
-fn exact_broker_rejection_becomes_conservative_core_loss() {
+fn generation_rejection_revokes_and_arms_the_exact_retained_rejoin() {
     let (mut registry, group_id, key) = prepared_heartbeat();
     make_driver_owned(&mut registry, group_id, key);
     install_heartbeat_broker_rejection_terminal(heartbeat_calls(&mut registry), key, 25);
+    let successor = interpret_rejection(&mut registry, group_id, key);
+
+    assert!(matches!(successor, ClassicHeartbeatSuccessor::Dormant));
+    let entry = registry
+        .entry(group_id)
+        .unwrap_or_else(|| panic!("entry expected"));
+    assert_eq!(
+        entry.classic.machine().phase(),
+        ClassicGroupPhase::WaitingToRejoin
+    );
+    assert_eq!(
+        entry.rejoin.schedule(),
+        entry.classic.machine().pending_rejoin()
+    );
+    assert!(entry.catalog.live_assignment().is_none());
+
+    confirm_terminal(&mut registry, group_id);
+    stop_registry(&mut registry);
+}
+
+#[test]
+fn unknown_heartbeat_code_revokes_and_becomes_the_exact_core_fatal() {
+    let (mut registry, group_id, key) = prepared_heartbeat();
+    make_driver_owned(&mut registry, group_id, key);
+    install_heartbeat_broker_rejection_terminal(heartbeat_calls(&mut registry), key, 1_236);
+    let successor = interpret_rejection(&mut registry, group_id, key);
+
+    assert!(matches!(successor, ClassicHeartbeatSuccessor::Dormant));
+    let entry = registry
+        .entry(group_id)
+        .unwrap_or_else(|| panic!("entry expected"));
+    let fatal = entry
+        .classic
+        .machine()
+        .fatal()
+        .unwrap_or_else(|| panic!("fatal broker fact expected"));
+    let ClassicGroupFatalReason::Broker { stage, error } = fatal.reason() else {
+        panic!("broker fatal expected");
+    };
+    assert_eq!(stage, ClassicBrokerStage::Heartbeat);
+    assert_eq!(error.code(), 1_236);
+    assert_eq!(entry.classic.machine().phase(), ClassicGroupPhase::Fatal);
+    assert!(entry.catalog.live_assignment().is_none());
+    assert!(entry.rejoin.is_dormant());
+
+    confirm_terminal(&mut registry, group_id);
+    stop_registry(&mut registry);
+}
+
+fn interpret_rejection(
+    registry: &mut super::registry::GroupConsumerRegistry,
+    group_id: kafka_client_core::GroupId,
+    key: crate::driver::classic_group::ClassicHeartbeatCallKey,
+) -> ClassicHeartbeatSuccessor {
     let (entries, calls) = (&mut registry.entries, &mut registry.heartbeat_calls);
     let entry = entries
         .iter_mut()
@@ -34,15 +88,24 @@ fn exact_broker_rejection_becomes_conservative_core_loss() {
         .begin_classic_heartbeat_settlement(accepted)
         .unwrap_or_else(|error| panic!("Heartbeat settlement failed: {error:?}"));
     let now = Moment::from_tick(key.deadline().core().tick() - 1);
-
-    assert!(matches!(
-        interpret_heartbeat(entry, now, &terminal),
-        Ok(ClassicHeartbeatSuccessor::Dormant)
-    ));
-    assert_eq!(entry.classic.machine().phase(), ClassicGroupPhase::Lost);
-    assert!(entry.catalog.live_assignment().is_none());
-
+    let successor = interpret_heartbeat(entry, now, &terminal)
+        .unwrap_or_else(|_error| panic!("broker rejection interpretation failed"));
     drop(terminal);
+    successor
+}
+
+fn confirm_terminal(
+    registry: &mut super::registry::GroupConsumerRegistry,
+    group_id: kafka_client_core::GroupId,
+) {
+    let (entries, calls) = (&mut registry.entries, &mut registry.heartbeat_calls);
+    let entry = entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .unwrap_or_else(|| panic!("entry expected"));
+    let calls = calls
+        .as_mut()
+        .unwrap_or_else(|| panic!("Heartbeat calls expected"));
     let state = entry
         .heartbeat
         .replace(ClassicHeartbeatExecutionState::Dormant);
@@ -52,5 +115,4 @@ fn exact_broker_rejection_becomes_conservative_core_loss() {
     calls
         .confirm_classic_heartbeat_settlement(owner.into_accepted())
         .unwrap_or_else(|_failure| panic!("exact confirmation must succeed"));
-    stop_registry(&mut registry);
 }

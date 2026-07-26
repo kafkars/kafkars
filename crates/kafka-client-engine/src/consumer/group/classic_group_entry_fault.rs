@@ -13,16 +13,13 @@ use super::{
     classic_group_heartbeat::ClassicHeartbeatAcceptanceFailure,
     classic_group_join::ClassicGroupJoinSuccessor,
     classic_group_join_call::ClassicGroupJoinAcceptanceFailure,
+    classic_group_rejection_fault::ClassicRejectionPostCore,
     classic_group_rejoin_fault::ClassicRejoinPostCore,
     classic_group_sync::ClassicGroupSyncAcceptanceFailure,
 };
 
 /// One first-fault owner; a faulted entry cannot attempt another membership action.
 #[must_use = "a classic-group entry fault retains linear ownership until shutdown"]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "fault variants retain exact linear generated owners without another allocation"
-)]
 pub(super) enum ClassicGroupEntryFault {
     JoinAcceptance(ClassicGroupJoinAcceptanceFailure),
     JoinTerminal(JoinGroupRestoreFailure),
@@ -32,6 +29,10 @@ pub(super) enum ClassicGroupEntryFault {
         failure: JoinGroupRestoreFailure,
     },
     JoinPostCore(JoinGroupTerminal),
+    JoinRejectionPostCore {
+        rejection: ClassicRejectionPostCore,
+        terminal: JoinGroupTerminal,
+    },
     RejoinPostCore(ClassicRejoinPostCore),
     SyncAcceptance(ClassicGroupSyncAcceptanceFailure),
     SyncSubmission(SyncGroupAdmissionFailure),
@@ -43,11 +44,19 @@ pub(super) enum ClassicGroupEntryFault {
     },
     SyncConfirmationTerminal(SyncGroupTerminal),
     SyncPostCore(SyncGroupTerminal),
+    SyncRejectionPostCore {
+        rejection: ClassicRejectionPostCore,
+        terminal: SyncGroupTerminal,
+    },
     SyncRecoverySemantic(MembershipCycle),
     HeartbeatAdmission(ClassicHeartbeatAdmissionFailure),
     HeartbeatAcceptance(ClassicHeartbeatAcceptanceFailure),
     HeartbeatTerminal(ClassicHeartbeatRestoreFailure),
     HeartbeatPostCore(ClassicHeartbeatTerminal),
+    HeartbeatRejectionPostCore {
+        rejection: ClassicRejectionPostCore,
+        terminal: ClassicHeartbeatTerminal,
+    },
     HeartbeatLocalRevoke {
         failure: ClassicGroupAssignmentPreparationFailure,
         generation: ClassicGeneration,
@@ -68,95 +77,77 @@ pub(super) enum ClassicGroupEntryFault {
 impl ClassicGroupEntryFault {
     pub(super) fn retained_owner_count(&self) -> usize {
         match self {
-            Self::JoinAcceptance(owner) => {
-                let _ = owner;
-                1
-            }
-            Self::JoinTerminal(owner) => {
-                let _ = owner;
-                1
-            }
-            Self::JoinSuccessor(owner) => {
-                let _ = owner;
-                1
-            }
-            Self::JoinSuccessorRestore { successor, failure } => {
-                let _ = (successor, failure);
-                2
-            }
-            Self::JoinPostCore(owner) => {
-                let _ = owner;
-                1
-            }
+            Self::JoinAcceptance(owner) => retained_one(owner),
+            Self::JoinTerminal(owner) => retained_one(owner),
+            Self::JoinSuccessor(owner) => retained_one(owner),
+            Self::JoinSuccessorRestore { successor, failure } => retained_pair(successor, failure),
+            Self::JoinPostCore(owner) => retained_one(owner),
+            Self::JoinRejectionPostCore {
+                rejection,
+                terminal,
+            } => rejection
+                .retained_owner_count()
+                .saturating_add(retained_one(terminal)),
             Self::RejoinPostCore(owner) => owner.retained_owner_count(),
-            Self::SyncAcceptance(owner) => {
-                let _ = owner;
-                1
-            }
-            Self::SyncSubmission(owner) => {
-                let _ = owner;
-                1
-            }
-            Self::SyncTerminal(owner) => {
-                let _ = owner;
-                1
-            }
+            Self::SyncAcceptance(owner) => retained_one(owner),
+            Self::SyncSubmission(owner) => retained_one(owner),
+            Self::SyncTerminal(owner) => retained_one(owner),
             Self::SyncConfirmationTerminal(owner) | Self::SyncPostCore(owner) => {
-                let _ = owner;
-                1
+                retained_one(owner)
             }
-            Self::SyncRecoverySemantic(owner) => {
-                let _ = owner;
-                1
-            }
+            Self::SyncRejectionPostCore {
+                rejection,
+                terminal,
+            } => rejection
+                .retained_owner_count()
+                .saturating_add(retained_one(terminal)),
+            Self::SyncRecoverySemantic(owner) => retained_one(owner),
             Self::SyncInstall {
                 failure,
                 generation,
                 terminal,
-            } => {
-                let _ = (failure, generation, terminal);
-                2
-            }
-            Self::HeartbeatAdmission(owner) => {
-                let _ = owner;
-                1
-            }
+            } => retained_guarded_pair(failure, generation, terminal),
+            Self::HeartbeatAdmission(owner) => retained_one(owner),
             Self::HeartbeatAcceptance(owner) => owner.retained_owner_count(),
-            Self::HeartbeatTerminal(owner) => {
-                let _ = owner;
-                1
-            }
-            Self::HeartbeatPostCore(owner) => {
-                let _ = owner;
-                1
-            }
+            Self::HeartbeatTerminal(owner) => retained_one(owner),
+            Self::HeartbeatPostCore(owner) => retained_one(owner),
+            Self::HeartbeatRejectionPostCore {
+                rejection,
+                terminal,
+            } => rejection
+                .retained_owner_count()
+                .saturating_add(retained_one(terminal)),
             Self::HeartbeatLocalRevoke {
                 failure,
                 generation,
-            } => {
-                let _ = (failure, generation);
-                1
-            }
+            } => retained_one_with_guard(failure, generation),
             Self::HeartbeatAdmissionRevoke {
                 failure,
                 generation,
                 admission,
-            } => {
-                let _ = (failure, generation, admission);
-                2
-            }
+            } => retained_guarded_pair(failure, generation, admission),
             Self::HeartbeatTerminalRevoke {
                 failure,
                 generation,
                 terminal,
-            } => {
-                let _ = (failure, generation, terminal);
-                2
-            }
-            Self::HeartbeatRecoverySemantic(attempt) => {
-                let _ = attempt;
-                1
-            }
+            } => retained_guarded_pair(failure, generation, terminal),
+            Self::HeartbeatRecoverySemantic(attempt) => retained_one(attempt),
         }
     }
+}
+
+const fn retained_one<T>(_owner: &T) -> usize {
+    1
+}
+
+const fn retained_pair<T, U>(_first: &T, _second: &U) -> usize {
+    2
+}
+
+const fn retained_one_with_guard<T, U>(_owner: &T, _guard: &U) -> usize {
+    1
+}
+
+const fn retained_guarded_pair<T, U, V>(_first: &T, _guard: &U, _second: &V) -> usize {
+    2
 }

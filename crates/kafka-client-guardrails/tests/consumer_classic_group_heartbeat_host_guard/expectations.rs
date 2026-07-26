@@ -69,7 +69,7 @@ pub(super) const METHODS: &[(&str, &[&str])] = &[
     ),
     (
         "prepare_install",
-        &["crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs"],
+        &["crates/kafka-client-engine/src/consumer/group/classic_group_sync_install.rs"],
     ),
 ];
 

@@ -834,7 +834,7 @@ evidence = [
 [[invariant]]
 id = "CON-10"
 title = "Classic broker rejections recover under exact fences"
-statement = "Core preserves every nonzero signed Kafka error code and alone maps it by Join, Sync, or Heartbeat stage; COORDINATOR_LOAD_IN_PROGRESS is recoverable with the retained coordinator in all three stages, while dynamic Join v1 through v3 treats MEMBER_ID_REQUIRED and every unlisted or unknown error as fatal. Phase, cycle, and heartbeat-attempt fences are validated before time precedence, so stale facts cannot mutate the machine. Before its deadline, a recoverable rejection arms one positive-backoff schedule fenced by the rejected membership cycle and, for Heartbeat, the live assignment generation; coordinator rediscovery remains an opaque interpreter need, and a stable rejection revokes its exact assignment before ArmRejoin or Fatal. At or after the original Join or Sync cycle deadline, rejection follows ordinary terminal cycle loss; at or after the exact Heartbeat attempt deadline, it emits only the exact assignment revocation. Only the exact due schedule allocates the next nonreused cycle and a fresh internal absolute deadline; cycle or deadline exhaustion is retained as fatal state, Close discards a pending rejoin, and a retained fatal diagnostic survives Close."
+statement = "Core preserves every nonzero signed Kafka error code and alone maps it by Join, Sync, or Heartbeat stage; COORDINATOR_LOAD_IN_PROGRESS is recoverable with the retained coordinator in all three stages, while dynamic Join v1 through v3 treats MEMBER_ID_REQUIRED and every unlisted or unknown error as fatal. Phase, cycle, and heartbeat-attempt fences are validated before time precedence, so stale facts cannot mutate the machine. Before its deadline, a recoverable rejection arms one positive-backoff schedule fenced by the rejected membership cycle and, for Heartbeat, the live assignment generation; the engine atomically installs core-authorized Retain schedules, applies exact fatal outcomes, and preserves any Rediscover effect beside its raw terminal and route evidence until token-preserving invalidation exists. A stable rejection revokes its exact assignment before ArmRejoin or Fatal, while deferred Rediscover cannot partially revoke engine catalog state. At or after the original Join or Sync cycle deadline, rejection follows ordinary terminal cycle loss; at or after the exact Heartbeat attempt deadline, it emits only the exact assignment revocation. Only the exact due schedule allocates the next nonreused cycle and a fresh internal absolute deadline; cycle or deadline exhaustion is retained as fatal state, Close discards a pending rejoin, and a retained fatal diagnostic survives Close."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/consumer/classic_group/recovery/broker_error_test.rs::success_is_reserved_while_known_and_future_rejections_round_trip",
@@ -857,6 +857,14 @@ evidence = [
   "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition_test.rs::due_rejoin_deadline_overflow_enters_retained_fatal_state",
   "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition_test.rs::close_while_waiting_discards_the_pending_schedule_without_an_effect",
   "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition_test.rs::close_from_fatal_retains_the_exact_diagnostic_without_an_effect",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_interpret_test.rs::load_in_progress_arms_the_exact_retained_coordinator_rejoin",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_interpret_test.rs::unknown_join_code_becomes_the_exact_core_fatal",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret_test.rs::load_in_progress_arms_the_exact_retained_coordinator_rejoin",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret_test.rs::unknown_sync_code_becomes_the_exact_core_fatal",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_interpret_test.rs::generation_rejection_revokes_and_arms_the_exact_retained_rejoin",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_interpret_test.rs::unknown_heartbeat_code_revokes_and_becomes_the_exact_core_fatal",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_rejection_install_test.rs::rediscovery_is_retained_without_attempting_driver_invalidation",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_rejection_test.rs::rediscovery_retains_both_effects_without_partially_revoking_the_catalog",
 ]
 
 [[invariant]]

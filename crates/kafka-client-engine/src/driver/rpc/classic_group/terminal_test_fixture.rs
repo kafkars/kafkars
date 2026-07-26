@@ -25,6 +25,16 @@ pub(crate) fn install_leader_join_terminal(
     calls.install_terminal_for_test(key, Some(3), Ok(response));
 }
 
+pub(crate) fn install_join_broker_rejection_terminal(
+    calls: &mut TrackedJoinGroupCalls,
+    key: JoinGroupCallKey,
+    error_code: i16,
+) {
+    let mut response = JoinGroupResponse::default();
+    response.error_code = error_code;
+    calls.install_terminal_for_test(key, Some(3), Ok(response));
+}
+
 pub(crate) fn install_sync_assignment_terminal(
     calls: &mut TrackedSyncGroupCalls,
     key: SyncGroupCallKey,
@@ -51,6 +61,16 @@ pub(crate) fn install_malformed_sync_terminal(
 ) {
     let mut response = SyncGroupResponse::default();
     response.assignment = Bytes::from_static(b"not an assignment");
+    calls.install_terminal_for_test(key, Some(2), Ok(response));
+}
+
+pub(crate) fn install_sync_broker_rejection_terminal(
+    calls: &mut TrackedSyncGroupCalls,
+    key: SyncGroupCallKey,
+    error_code: i16,
+) {
+    let mut response = SyncGroupResponse::default();
+    response.error_code = error_code;
     calls.install_terminal_for_test(key, Some(2), Ok(response));
 }
 

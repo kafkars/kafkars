@@ -115,6 +115,7 @@ pub(super) const ENTRY_FIELDS: &[(&str, &[&str])] = &[
             "classic_group_rejoin_due.rs",
             "classic_group_sync_submission.rs",
             "classic_group_sync_settlement.rs",
+            "classic_group_sync_install.rs",
             "classic_group_sync_interpret.rs",
             "registry_membership.rs",
         ],

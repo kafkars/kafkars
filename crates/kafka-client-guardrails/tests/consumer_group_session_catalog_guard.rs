@@ -14,7 +14,7 @@ use support::{
 use expectations::{
     ASSIGNMENT_DECODE, ASSIGNMENT_DECODE_CALL, ASSIGNMENT_DECODE_TEST, AUTHORITIES, CANDIDATE,
     CAPABILITY_PATHS, CATALOG_FIELDS, DECODE_FORBIDDEN, FORBIDDEN, LINEAR, METHODS, OWNER_FIELDS,
-    SYNC_INTERPRET,
+    SYNC_INSTALL,
 };
 
 #[test]
@@ -99,7 +99,7 @@ fn checked_in_classic_group_engine_policy_is_exact() {
         .collect::<Vec<_>>();
     assert_eq!(decode_callers.len(), 1);
     assert_eq!(decode_callers[0].root, "crates/kafka-client-engine/src");
-    assert_eq!(decode_callers[0].allowed_paths, [SYNC_INTERPRET]);
+    assert_eq!(decode_callers[0].allowed_paths, [SYNC_INSTALL]);
     for (method, allowed) in METHODS {
         let rules = config
             .method_capabilities

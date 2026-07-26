@@ -17,3 +17,8 @@ struct ClassicRejoinPostCore {
     post_core_rejoin_other: usize,
     post_core_rejoin_failure: usize,
 }
+
+struct ClassicRejectionPostCore {
+    post_core_rejection_effects: usize,
+    post_core_rejection_failure: usize,
+}

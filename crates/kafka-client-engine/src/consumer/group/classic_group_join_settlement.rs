@@ -83,6 +83,13 @@ impl GroupConsumerRegistry {
                 entry.fault = Some(ClassicGroupEntryFault::JoinPostCore(terminal));
                 Err(error)
             }
+            Err(JoinInterpretationFailure::PostCoreRejection(rejection)) => {
+                entry.fault = Some(ClassicGroupEntryFault::JoinRejectionPostCore {
+                    rejection,
+                    terminal,
+                });
+                Err(ClassicGroupExecutionError::RejoinPostCore)
+            }
         }
     }
 }

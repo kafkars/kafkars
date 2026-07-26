@@ -11,6 +11,8 @@ use super::{
     classic_group_execution::ClassicGroupExecutionError,
     classic_group_join::ClassicGroupJoinSuccessor,
     classic_group_owner_follower::ClassicGroupFollowerJoinError,
+    classic_group_rejection_fault::ClassicRejectionPostCore,
+    classic_group_rejection_install::{exact_broker_error, install_stage_rejection},
     registry_entry::GroupConsumerEntry,
 };
 
@@ -26,8 +28,13 @@ pub(super) enum JoinInterpretation {
 pub(super) enum JoinInterpretationFailure {
     Restore(ClassicGroupExecutionError),
     PostCore(ClassicGroupExecutionError),
+    PostCoreRejection(ClassicRejectionPostCore),
 }
 
+#[expect(
+    clippy::result_large_err,
+    reason = "the error retains exact post-core effects without allocating or erasing recovery state"
+)]
 pub(super) fn interpret_join(
     entry: &mut GroupConsumerEntry,
     now: Moment,
@@ -47,9 +54,12 @@ pub(super) fn interpret_join(
         .ok_or(restore(ClassicGroupExecutionError::JoinTerminal))?;
     let outcome = normalize_classic_join_response(version, response)
         .map_err(|_error| restore(ClassicGroupExecutionError::JoinTerminal))?;
-    let ClassicJoinOutcome::Joined(joined) = outcome else {
-        apply_join_failure(entry, cycle)?;
-        return Ok(JoinInterpretation::Confirm(ClassicGroupJoinSuccessor::Idle));
+    let joined = match outcome {
+        ClassicJoinOutcome::Rejected(rejection) => {
+            apply_join_rejection(entry, cycle, now, rejection)?;
+            return Ok(JoinInterpretation::Confirm(ClassicGroupJoinSuccessor::Idle));
+        }
+        ClassicJoinOutcome::Joined(joined) => joined,
     };
     if !entry.is_active() {
         apply_join_failure(entry, cycle)?;
@@ -78,6 +88,29 @@ pub(super) fn interpret_join(
     ))
 }
 
+#[expect(
+    clippy::result_large_err,
+    reason = "the error retains exact post-core effects without allocating or erasing recovery state"
+)]
+fn apply_join_rejection(
+    entry: &mut GroupConsumerEntry,
+    cycle: kafka_client_core::MembershipCycle,
+    now: Moment,
+    rejection: crate::protocol::consumer::ClassicBrokerRejection,
+) -> Result<(), JoinInterpretationFailure> {
+    let error =
+        exact_broker_error(rejection).ok_or(restore(ClassicGroupExecutionError::JoinTerminal))?;
+    let transition = entry
+        .classic
+        .apply(ClassicGroupInput::JoinRejected { cycle, now, error })
+        .map_err(|error| restore(ClassicGroupExecutionError::Core(error.kind())))?;
+    install_stage_rejection(entry, transition).map_err(JoinInterpretationFailure::PostCoreRejection)
+}
+
+#[expect(
+    clippy::result_large_err,
+    reason = "the error retains exact post-core effects without allocating or erasing recovery state"
+)]
 fn apply_join_failure(
     entry: &mut GroupConsumerEntry,
     cycle: kafka_client_core::MembershipCycle,
@@ -89,6 +122,10 @@ fn apply_join_failure(
     )
 }
 
+#[expect(
+    clippy::result_large_err,
+    reason = "the error retains exact post-core effects without allocating or erasing recovery state"
+)]
 fn apply_join_deadline(
     entry: &mut GroupConsumerEntry,
     cycle: kafka_client_core::MembershipCycle,
@@ -101,6 +138,10 @@ fn apply_join_deadline(
     )
 }
 
+#[expect(
+    clippy::result_large_err,
+    reason = "the error retains exact post-core effects without allocating or erasing recovery state"
+)]
 fn apply_terminal(
     entry: &mut GroupConsumerEntry,
     input: ClassicGroupInput,

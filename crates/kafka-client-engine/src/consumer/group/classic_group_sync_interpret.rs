@@ -1,6 +1,6 @@
-//! Normalized Sync facts, deadline terminalization, and catalog installation.
+//! Normalized Sync terminal dispatch, deadline settlement, and restoration.
 
-use kafka_client_core::{ClassicGroupEffect, ClassicGroupInput, ClassicGroupPhase, Moment};
+use kafka_client_core::{ClassicGroupInput, Moment};
 
 use crate::{
     driver::classic_group::SyncGroupTerminal,
@@ -8,9 +8,11 @@ use crate::{
 };
 
 use super::{
-    classic_group_assignment_decode::decode_classic_group_assignment,
     classic_group_entry_fault::ClassicGroupEntryFault,
-    classic_group_execution::ClassicGroupExecutionError, registry_entry::GroupConsumerEntry,
+    classic_group_execution::ClassicGroupExecutionError,
+    classic_group_sync_install::install_sync_assignment,
+    classic_group_sync_rejection::{ClassicSyncRejectionFailure, apply_sync_rejection},
+    registry_entry::GroupConsumerEntry,
 };
 
 pub(super) struct SyncInterpretationFailure {
@@ -21,6 +23,13 @@ pub(super) struct SyncInterpretationFailure {
 impl SyncInterpretationFailure {
     pub(super) fn into_parts(self) -> (ClassicGroupExecutionError, Option<SyncGroupTerminal>) {
         (self.sync_failure_kind, self.restorable_sync_terminal)
+    }
+
+    pub(super) const fn post_core(sync_failure_kind: ClassicGroupExecutionError) -> Self {
+        Self {
+            sync_failure_kind,
+            restorable_sync_terminal: None,
+        }
     }
 }
 
@@ -45,84 +54,29 @@ pub(super) fn interpret_sync(
         Ok(outcome) => outcome,
         Err(kind) => return Err(failure(terminal, kind)),
     };
-    let Some(ClassicSyncOutcome::Assigned { partitions, .. }) = outcome else {
-        return apply_or_freeze(entry, terminal, ClassicGroupInput::SyncFailed { cycle });
-    };
-    let Some(candidate) = entry.classic.pending() else {
-        return Err(failure(terminal, SyncTerminal));
-    };
-    if !entry.heartbeat.is_dormant() {
-        return Err(failure(terminal, SyncTerminal));
-    }
-    let partitions = match decode_classic_group_assignment(&entry.catalog, candidate, partitions) {
-        Ok(partitions) => partitions,
-        Err(_error) => return Err(failure(terminal, SyncTerminal)),
-    };
-    let transition = match entry.classic.apply(ClassicGroupInput::SyncSucceeded {
-        cycle,
-        now,
-        partitions,
-    }) {
-        Ok(transition) => transition,
-        Err(error) => {
-            return Err(failure(
-                terminal,
-                ClassicGroupExecutionError::Core(error.kind()),
-            ));
+    let partitions = match outcome {
+        Some(ClassicSyncOutcome::Rejected(rejection)) => {
+            return match apply_sync_rejection(entry, cycle, now, rejection) {
+                Ok(()) => stage_confirmation(entry, terminal),
+                Err(ClassicSyncRejectionFailure::Restorable(kind)) => Err(failure(terminal, kind)),
+                Err(ClassicSyncRejectionFailure::PostCore(rejection)) => {
+                    entry.fault = Some(ClassicGroupEntryFault::SyncRejectionPostCore {
+                        rejection,
+                        terminal,
+                    });
+                    Err(SyncInterpretationFailure {
+                        sync_failure_kind: ClassicGroupExecutionError::RejoinPostCore,
+                        restorable_sync_terminal: None,
+                    })
+                }
+            };
+        }
+        Some(ClassicSyncOutcome::Assigned { partitions, .. }) => partitions,
+        None => {
+            return apply_or_freeze(entry, terminal, ClassicGroupInput::SyncFailed { cycle });
         }
     };
-    let mut effects = transition.into_effects();
-    let first = effects.next();
-    if first.is_none()
-        && effects.next().is_none()
-        && entry.classic.machine().phase() == ClassicGroupPhase::Lost
-        && entry.classic.machine().live_assignment().is_none()
-        && entry.catalog.live_assignment().is_none()
-        && entry.heartbeat.is_dormant()
-    {
-        return stage_confirmation(entry, terminal);
-    }
-    let (assignment, generation, heartbeat) = match first {
-        Some(ClassicGroupEffect::Install {
-            assignment,
-            classic_generation,
-            heartbeat,
-        }) if effects.next().is_none()
-            && heartbeat.attempt().cycle() == cycle
-            && heartbeat.attempt().assignment_generation()
-                == assignment.assignment_generation() =>
-        {
-            (assignment, classic_generation, heartbeat)
-        }
-        _ => return freeze_post_core(entry, terminal, SyncTerminal),
-    };
-    let heartbeat_install = match entry.heartbeat.prepare_install(heartbeat) {
-        Ok(prepared) => prepared,
-        Err(_error) => return freeze_post_core(entry, terminal, SyncTerminal),
-    };
-    let catalog_install =
-        match entry
-            .classic
-            .prepare_install(&mut entry.catalog, assignment, generation)
-        {
-            Ok(prepared) => prepared,
-            Err(install) => {
-                drop(heartbeat_install);
-                let kind = install.kind;
-                entry.fault = Some(ClassicGroupEntryFault::SyncInstall {
-                    failure: install,
-                    generation,
-                    terminal,
-                });
-                return Err(SyncInterpretationFailure {
-                    sync_failure_kind: ClassicGroupExecutionError::Assignment(kind),
-                    restorable_sync_terminal: None,
-                });
-            }
-        };
-    catalog_install.commit();
-    heartbeat_install.commit();
-    stage_confirmation(entry, terminal)
+    install_sync_assignment(entry, cycle, now, terminal, partitions)
 }
 
 fn normalize_terminal(
@@ -165,7 +119,7 @@ fn apply_or_freeze(
     clippy::result_large_err,
     reason = "failure returns the exact linear generated terminal when restoration is possible"
 )]
-fn stage_confirmation(
+pub(super) fn stage_confirmation(
     entry: &mut GroupConsumerEntry,
     terminal: SyncGroupTerminal,
 ) -> Result<(), SyncInterpretationFailure> {
@@ -185,7 +139,7 @@ fn stage_confirmation(
     clippy::result_large_err,
     reason = "failure retains the exact linear generated terminal in the entry fault"
 )]
-fn freeze_post_core(
+pub(super) fn freeze_post_core(
     entry: &mut GroupConsumerEntry,
     terminal: SyncGroupTerminal,
     kind: ClassicGroupExecutionError,
@@ -197,7 +151,7 @@ fn freeze_post_core(
     })
 }
 
-fn failure(
+pub(super) fn failure(
     terminal: SyncGroupTerminal,
     kind: ClassicGroupExecutionError,
 ) -> SyncInterpretationFailure {

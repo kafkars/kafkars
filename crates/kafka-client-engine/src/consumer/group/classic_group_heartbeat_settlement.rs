@@ -99,6 +99,13 @@ fn settle_terminal(
             entry.fault = Some(ClassicGroupEntryFault::HeartbeatPostCore(terminal));
             Err(kind)
         }
+        Err(ClassicHeartbeatInterpretationFailure::PostCoreRejection(rejection)) => {
+            entry.fault = Some(ClassicGroupEntryFault::HeartbeatRejectionPostCore {
+                rejection,
+                terminal,
+            });
+            Err(ClassicGroupExecutionError::RejoinPostCore)
+        }
         Err(ClassicHeartbeatInterpretationFailure::Revoke {
             failure,
             generation,

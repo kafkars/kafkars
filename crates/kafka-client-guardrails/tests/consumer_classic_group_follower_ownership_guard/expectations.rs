@@ -27,6 +27,8 @@ pub(super) const SYNC_SETTLEMENT: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs";
 pub(super) const SYNC_INTERPRET: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs";
+pub(super) const SYNC_INSTALL: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_sync_install.rs";
 pub(super) const SYNC_TERMINAL: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync_terminal.rs";
 pub(super) const RECOVERY: &str =
@@ -85,6 +87,10 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
     (
         "classic_group_sync_interpret.rs",
         "classic_group_sync_interpret_test.rs",
+    ),
+    (
+        "classic_group_sync_install.rs",
+        "classic_group_sync_install_test.rs",
     ),
     (
         "classic_group_execution_recovery.rs",
@@ -159,6 +165,7 @@ pub(super) const CAPABILITIES: &[(&str, &[&str])] = &[
     (SYNC_SUBMISSION, &["crate::clock", "crate::protocol"]),
     (SYNC_SETTLEMENT, &["crate::clock"]),
     (SYNC_INTERPRET, &["crate::clock"]),
+    (SYNC_INSTALL, &["crate::clock"]),
     (SYNC_TERMINAL, &["crate::clock", "crate::protocol"]),
     (RECOVERY, &["crate::clock", "crate::protocol"]),
     (EXECUTION_RECOVERY, &["crate::clock", "crate::protocol"]),
@@ -206,6 +213,7 @@ pub(super) const ENTRY_FAULT_VARIANTS: &[&str] = &[
     "JoinSuccessor",
     "JoinSuccessorRestore",
     "JoinPostCore",
+    "JoinRejectionPostCore",
     "RejoinPostCore",
     "SyncAcceptance",
     "SyncSubmission",
@@ -213,11 +221,13 @@ pub(super) const ENTRY_FAULT_VARIANTS: &[&str] = &[
     "SyncInstall",
     "SyncConfirmationTerminal",
     "SyncPostCore",
+    "SyncRejectionPostCore",
     "SyncRecoverySemantic",
     "HeartbeatAdmission",
     "HeartbeatAcceptance",
     "HeartbeatTerminal",
     "HeartbeatPostCore",
+    "HeartbeatRejectionPostCore",
     "HeartbeatLocalRevoke",
     "HeartbeatAdmissionRevoke",
     "HeartbeatTerminalRevoke",

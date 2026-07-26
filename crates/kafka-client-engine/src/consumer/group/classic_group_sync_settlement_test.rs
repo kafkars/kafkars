@@ -180,6 +180,8 @@ pub(super) fn install_malformed_terminal(
     );
 }
 
-fn sync_key(identity: super::classic_group_sync::ClassicGroupSyncIdentity) -> SyncGroupCallKey {
+pub(super) fn sync_key(
+    identity: super::classic_group_sync::ClassicGroupSyncIdentity,
+) -> SyncGroupCallKey {
     SyncGroupCallKey::new(identity.group_id(), identity.cycle(), identity.deadline())
 }

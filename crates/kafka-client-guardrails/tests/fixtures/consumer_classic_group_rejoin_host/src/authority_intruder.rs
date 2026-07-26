@@ -1,7 +1,8 @@
 //! Deliberate foreign construction and mutation of classic rejoin authorities.
 
 use crate::authority_owner::{
-    ClassicGroupRejoinExecution, ClassicRejoinPostCore, PendingClassicRejoinJoin,
+    ClassicGroupRejoinExecution, ClassicRejectionPostCore, ClassicRejoinPostCore,
+    PendingClassicRejoinJoin,
 };
 
 fn steal() {
@@ -23,4 +24,9 @@ fn steal() {
         post_core_rejoin_failure: 1,
     };
     fault.post_core_rejoin_failure = 2;
+    let mut rejection = ClassicRejectionPostCore {
+        post_core_rejection_effects: 1,
+        post_core_rejection_failure: 1,
+    };
+    rejection.post_core_rejection_failure = 2;
 }

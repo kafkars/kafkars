@@ -10,3 +10,7 @@ struct PreparedClassicRejoinInstall;
 struct PendingClassicRejoinJoin;
 #[derive(Clone, Copy)]
 struct ClassicRejoinPostCore;
+#[derive(Clone, Copy)]
+struct ClassicRejectionPostCore;
+#[derive(Clone, Copy)]
+struct ClassicSyncRejectionFailure;

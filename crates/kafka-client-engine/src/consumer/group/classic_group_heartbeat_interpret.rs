@@ -15,18 +15,26 @@ use super::{
     classic_group_assignment::ClassicGroupAssignmentPreparationFailure,
     classic_group_execution::ClassicGroupExecutionError,
     classic_group_heartbeat::ClassicHeartbeatSuccessor,
-    classic_group_heartbeat_prepare::commit_revoke, registry_entry::GroupConsumerEntry,
+    classic_group_heartbeat_prepare::commit_revoke,
+    classic_group_heartbeat_rejection::install_heartbeat_rejection,
+    classic_group_rejection_fault::ClassicRejectionPostCore,
+    classic_group_rejection_install::exact_broker_error, registry_entry::GroupConsumerEntry,
 };
 
 pub(super) enum ClassicHeartbeatInterpretationFailure {
     Restorable(ClassicGroupExecutionError),
     PostCore(ClassicGroupExecutionError),
+    PostCoreRejection(ClassicRejectionPostCore),
     Revoke {
         failure: ClassicGroupAssignmentPreparationFailure,
         generation: ClassicGeneration,
     },
 }
 
+#[expect(
+    clippy::result_large_err,
+    reason = "the error retains exact post-core effects without allocating or erasing recovery state"
+)]
 pub(super) fn interpret_heartbeat(
     entry: &mut GroupConsumerEntry,
     now: Moment,
@@ -72,7 +80,29 @@ pub(super) fn interpret_heartbeat(
                     )
                 })?
         }
-        Some(ClassicHeartbeatOutcome::Rejected(_)) | None => entry
+        Some(ClassicHeartbeatOutcome::Rejected(rejection)) => {
+            let error = exact_broker_error(rejection).ok_or(
+                ClassicHeartbeatInterpretationFailure::Restorable(
+                    ClassicGroupExecutionError::HeartbeatTerminal,
+                ),
+            )?;
+            let transition = entry
+                .classic
+                .apply(ClassicGroupInput::HeartbeatRejected {
+                    attempt: key.attempt(),
+                    now,
+                    error,
+                })
+                .map_err(|error| {
+                    ClassicHeartbeatInterpretationFailure::Restorable(
+                        ClassicGroupExecutionError::Core(error.kind()),
+                    )
+                })?;
+            install_heartbeat_rejection(entry, transition)
+                .map_err(ClassicHeartbeatInterpretationFailure::PostCoreRejection)?;
+            return Ok(ClassicHeartbeatSuccessor::Dormant);
+        }
+        None => entry
             .classic
             .apply(ClassicGroupInput::HeartbeatFailed {
                 attempt: key.attempt(),
@@ -86,6 +116,10 @@ pub(super) fn interpret_heartbeat(
     interpret_terminal_transition(entry, key.attempt(), transition)
 }
 
+#[expect(
+    clippy::result_large_err,
+    reason = "the error retains exact post-core effects without allocating or erasing recovery state"
+)]
 fn interpret_terminal_transition(
     entry: &mut GroupConsumerEntry,
     attempt: kafka_client_core::ClassicHeartbeatAttempt,
@@ -140,6 +174,10 @@ fn successor_matches(
             .is_some_and(|next| successor.attempt().sequence().get() == next)
 }
 
+#[expect(
+    clippy::result_large_err,
+    reason = "the error retains exact post-core effects without allocating or erasing recovery state"
+)]
 fn commit_terminal_loss(
     entry: &mut GroupConsumerEntry,
     transition: ClassicGroupTransition,

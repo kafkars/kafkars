@@ -16,6 +16,7 @@ mod classic_group_heartbeat;
 mod classic_group_heartbeat_interpret;
 mod classic_group_heartbeat_prepare;
 mod classic_group_heartbeat_recovery;
+mod classic_group_heartbeat_rejection;
 mod classic_group_heartbeat_settlement;
 mod classic_group_heartbeat_submission;
 mod classic_group_join;
@@ -26,11 +27,15 @@ mod classic_group_join_settlement;
 mod classic_group_owner;
 mod classic_group_owner_follower;
 mod classic_group_recovery;
+mod classic_group_rejection_fault;
+mod classic_group_rejection_install;
 mod classic_group_rejoin;
 mod classic_group_rejoin_due;
 mod classic_group_rejoin_fault;
 mod classic_group_sync;
+mod classic_group_sync_install;
 mod classic_group_sync_interpret;
+mod classic_group_sync_rejection;
 mod classic_group_sync_settlement;
 mod classic_group_sync_submission;
 mod classic_group_topics;
@@ -91,6 +96,8 @@ mod classic_group_heartbeat_prepare_test;
 #[cfg(test)]
 mod classic_group_heartbeat_recovery_test;
 #[cfg(test)]
+mod classic_group_heartbeat_rejection_test;
+#[cfg(test)]
 mod classic_group_heartbeat_settlement_test;
 #[cfg(test)]
 mod classic_group_heartbeat_submission_test;
@@ -113,6 +120,10 @@ mod classic_group_owner_test;
 #[cfg(test)]
 mod classic_group_recovery_test;
 #[cfg(test)]
+mod classic_group_rejection_fault_test;
+#[cfg(test)]
+mod classic_group_rejection_install_test;
+#[cfg(test)]
 mod classic_group_rejoin_due_test;
 #[cfg(test)]
 mod classic_group_rejoin_fault_test;
@@ -125,7 +136,11 @@ mod classic_group_rejoin_test_support;
 #[cfg(test)]
 mod classic_group_sync_heartbeat_test;
 #[cfg(test)]
+mod classic_group_sync_install_test;
+#[cfg(test)]
 mod classic_group_sync_interpret_test;
+#[cfg(test)]
+mod classic_group_sync_rejection_test;
 #[cfg(test)]
 mod classic_group_sync_settlement_test;
 #[cfg(test)]

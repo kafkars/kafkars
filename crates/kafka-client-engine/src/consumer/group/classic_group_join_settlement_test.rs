@@ -184,7 +184,8 @@ pub(super) fn leader_join_terminal() -> (GroupConsumerRegistry, GroupId, Classic
     (registry, group_id, identity)
 }
 
-fn prepared_join_terminal() -> (GroupConsumerRegistry, GroupId, ClassicGroupJoinIdentity) {
+pub(super) fn prepared_join_terminal() -> (GroupConsumerRegistry, GroupId, ClassicGroupJoinIdentity)
+{
     let mut registry = started_registry();
     let group_id = register(&mut registry, "workers");
     let entry = registry

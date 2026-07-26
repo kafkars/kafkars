@@ -16,8 +16,8 @@ pub(super) const ASSIGNMENT_DECODE: &str =
 pub(super) const ASSIGNMENT_DECODE_TEST: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_assignment_decode_test.rs";
 pub(super) const ASSIGNMENT_DECODE_CALL: &str = "decode_classic_group_assignment";
-pub(super) const SYNC_INTERPRET: &str =
-    "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs";
+pub(super) const SYNC_INSTALL: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_sync_install.rs";
 pub(super) const CAPABILITY_PATHS: &[&str] = &[
     CATALOG,
     CATALOG_ASSIGNMENT,

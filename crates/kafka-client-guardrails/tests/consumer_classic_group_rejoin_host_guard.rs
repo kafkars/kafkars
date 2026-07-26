@@ -5,13 +5,14 @@ mod expectations;
 mod support;
 
 use support::{
-    AuthorityToken, CapabilityRule, LinearOwner, MethodCapabilityRule, MutationOwner,
-    authority_token_violations, capability_violations, fixture_files, linear_violations,
-    load_config, method_capability_violations, mutation_violations, workspace_root,
+    AuthorityToken, CallCapabilityRule, CapabilityRule, LinearOwner, MethodCapabilityRule,
+    MutationOwner, authority_token_violations, call_capability_violations, capability_violations,
+    fixture_files, linear_violations, load_config, method_capability_violations,
+    mutation_violations, workspace_root,
 };
 
 use expectations::{
-    AUTHORITIES, CAPABILITIES, FIXTURE_FORBIDDEN, LINEAR, METHODS, MIRRORS, MUTATION,
+    AUTHORITIES, CALLS, CAPABILITIES, FIXTURE_FORBIDDEN, LINEAR, METHODS, MIRRORS, MUTATION,
 };
 
 #[test]
@@ -66,6 +67,16 @@ fn checked_in_rejoin_calls_and_capabilities_are_exact() {
             .filter(|rule| rule.method == *method)
             .collect::<Vec<_>>();
         assert_eq!(rules.len(), 1, "{method} needs one method rule");
+        assert_eq!(rules[0].root, expectations::GROUP_ROOT);
+        assert_eq!(strings(&rules[0].allowed_paths), *allowed_paths);
+    }
+    for (call, allowed_paths) in CALLS {
+        let rules = config
+            .call_capabilities
+            .iter()
+            .filter(|rule| rule.call == *call)
+            .collect::<Vec<_>>();
+        assert_eq!(rules.len(), 1, "{call} needs one call rule");
         assert_eq!(rules[0].root, expectations::GROUP_ROOT);
         assert_eq!(strings(&rules[0].allowed_paths), *allowed_paths);
     }
@@ -151,17 +162,29 @@ fn fixture_rejects_unauthorized_methods_and_runtime_capabilities() {
         assert!(violations.iter().any(|violation| {
             violation.contains("method_intruder.rs") && violation.contains(method)
         }));
-        if *method == "prepare_rejoin_install" {
-            assert!(violations.iter().any(|violation| {
-                violation.contains("method_owner.rs") && violation.contains(method)
-            }));
-        } else {
-            assert!(
-                !violations
-                    .iter()
-                    .any(|violation| violation.contains("method_owner.rs"))
-            );
-        }
+        assert!(
+            !violations
+                .iter()
+                .any(|violation| violation.contains("method_owner.rs"))
+        );
+    }
+    for (call, _allowed_paths) in CALLS {
+        let violations = call_capability_violations(
+            &root,
+            &[CallCapabilityRule {
+                root: "src".into(),
+                call: (*call).into(),
+                allowed_paths: vec!["src/call_owner.rs".into()],
+            }],
+        );
+        assert!(violations.iter().any(|violation| {
+            violation.contains("call_intruder.rs") && violation.contains(call)
+        }));
+        assert!(
+            !violations
+                .iter()
+                .any(|violation| violation.contains("call_owner.rs"))
+        );
     }
     let violations = capability_violations(
         &root,

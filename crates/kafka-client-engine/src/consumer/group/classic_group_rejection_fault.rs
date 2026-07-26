@@ -1,0 +1,69 @@
+//! Linear retention of exact core effects after broker-rejection policy advances.
+
+use kafka_client_core::{ClassicGeneration, ClassicGroupEffect, LiveGroupAssignment};
+
+use super::classic_group_assignment::ClassicGroupAssignmentPreparationFailureKind;
+
+/// Exact core effects retained when the engine cannot complete their installation.
+#[must_use = "post-core rejection effects remain owned until shutdown recovery"]
+pub(super) struct ClassicRejectionPostCore {
+    post_core_rejection_effects: [Option<ClassicGroupEffect>; 2],
+    post_core_rejection_failure: ClassicRejectionInstallFailure,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ClassicRejectionInstallFailure {
+    EffectShape,
+    MachineState,
+    RejoinState,
+    CoordinatorRediscovery,
+    Assignment(ClassicGroupAssignmentPreparationFailureKind),
+}
+
+impl ClassicRejectionPostCore {
+    pub(super) const fn new(
+        effects: [Option<ClassicGroupEffect>; 2],
+        failure: ClassicRejectionInstallFailure,
+    ) -> Self {
+        Self {
+            post_core_rejection_effects: effects,
+            post_core_rejection_failure: failure,
+        }
+    }
+
+    pub(super) fn heartbeat(
+        assignment: LiveGroupAssignment,
+        generation: ClassicGeneration,
+        followup: ClassicGroupEffect,
+        failure: ClassicRejectionInstallFailure,
+    ) -> Self {
+        Self::new(
+            [
+                Some(ClassicGroupEffect::Revoke {
+                    assignment,
+                    classic_generation: generation,
+                }),
+                Some(followup),
+            ],
+            failure,
+        )
+    }
+
+    pub(super) fn retained_owner_count(&self) -> usize {
+        self.post_core_rejection_effects
+            .iter()
+            .filter(|effect| effect.is_some())
+            .count()
+            .max(1)
+    }
+
+    #[cfg(test)]
+    pub(super) const fn effects(&self) -> &[Option<ClassicGroupEffect>; 2] {
+        &self.post_core_rejection_effects
+    }
+
+    #[cfg(test)]
+    pub(super) const fn failure(&self) -> ClassicRejectionInstallFailure {
+        self.post_core_rejection_failure
+    }
+}
