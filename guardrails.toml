@@ -9938,6 +9938,91 @@ production = "crates/kafka-client-engine/src/consumer/group/classic_group_positi
 test = "crates/kafka-client-engine/src/consumer/group/classic_group_position/activation_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner_test.rs"
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch"
+forbidden = [
+  "crate::clock",
+  "crate::driver",
+  "crate::protocol",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "FetchAttemptDeadline",
+  "OperationDeadline",
+  "MonotonicClock",
+  "DirectFetchExecutor",
+  "AssignedTimers",
+  "AssignedConsumerDelivery",
+  "FetchDelivery",
+  "FetchDeliveryStore",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "tokio",
+  "async",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch"
+method = "prepare_classic_group_fetch_activation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch"
+method = "install_resolved_assignment"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs",
+]
+
+[[linear_owners]]
+owner_type = "ClassicGroupFetchBinding"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupFetchActivation"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupFetchActivationFault"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupFetchActivationFailure"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupFetchActivationError"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupFetchOwner"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs"
+
+[[mutation_owners]]
+owner_type = "ClassicGroupFetchOwner"
+field = "activation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicGroupFetchOwner"
+field = "fault"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs",
+]
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/group/classic_group_owner.rs"
 test = "crates/kafka-client-engine/src/consumer/group/classic_group_owner_test.rs"
 

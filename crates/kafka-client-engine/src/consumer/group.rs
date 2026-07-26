@@ -14,6 +14,8 @@ mod classic_group_execution_partition_counts;
 mod classic_group_execution_recovery;
 mod classic_group_execution_sync;
 mod classic_group_execution_sync_terminal;
+#[cfg_attr(not(test), expect(dead_code, reason = "awaiting Fetch host"))]
+mod classic_group_fetch;
 mod classic_group_heartbeat;
 mod classic_group_heartbeat_interpret;
 mod classic_group_heartbeat_prepare;

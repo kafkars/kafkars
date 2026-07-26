@@ -10,7 +10,7 @@ use kafka_client_core::{
 
 use super::{
     ClassicGroupPositionActivationError, ClassicGroupPositionCompleted,
-    prepare_classic_group_fetch_activation,
+    prepare_classic_group_fetch_activation, test_support::completed_ready,
 };
 
 #[test]
@@ -94,42 +94,6 @@ fn only_core_ready_terminals_can_cross_the_fetch_handoff() {
         prepare_classic_group_fetch_activation(&completed, position_fence(7)).err(),
         Some(ClassicGroupPositionActivationError::TerminalNotReady)
     );
-}
-
-fn completed_ready(
-    fence: GroupPositionFence,
-    observed_at: Moment,
-    batch: GroupPositionBatch,
-) -> ClassicGroupPositionCompleted {
-    let partitions = batch.facts().iter().map(|fact| fact.partition()).collect();
-    let mut machine =
-        GroupPositionBootstrapMachine::try_new(fence, Deadline::from_tick(100), partitions)
-            .unwrap_or_else(|error| panic!("position machine: {error}"));
-    let start = machine
-        .apply(GroupPositionBootstrapInput::Start {
-            fence,
-            now: Moment::from_tick(1),
-        })
-        .unwrap_or_else(|error| panic!("position start: {error}"));
-    assert!(matches!(
-        start.into_effect(),
-        Some(GroupPositionBootstrapEffect::FetchOffsets { .. })
-    ));
-    machine
-        .apply(GroupPositionBootstrapInput::DriverAccepted { fence })
-        .unwrap_or_else(|error| panic!("position acceptance: {error}"));
-    let transition = machine
-        .apply(GroupPositionBootstrapInput::OffsetsFetched {
-            fence,
-            now: observed_at,
-            batch,
-        })
-        .unwrap_or_else(|error| panic!("position terminal: {error}"));
-    let Some(GroupPositionBootstrapEffect::Complete { terminal, .. }) = transition.into_effect()
-    else {
-        panic!("position completion expected");
-    };
-    ClassicGroupPositionCompleted::new(machine, terminal, observed_at)
 }
 
 fn committed(topic: u64, partition: u32, offset: i64) -> GroupPositionPartitionFact {

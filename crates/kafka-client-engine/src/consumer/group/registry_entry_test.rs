@@ -38,4 +38,6 @@ fn entry_owns_one_catalog_and_machine_with_the_same_identity() {
         classic_group_test_support::rejoin_policy()
     );
     assert_eq!(entry.classic.machine().phase(), ClassicGroupPhase::Dormant);
+    assert!(entry.fetch.activation().is_none());
+    assert!(entry.fetch.fault().is_none());
 }

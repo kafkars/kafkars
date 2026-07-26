@@ -7,6 +7,7 @@ use kafka_client_core::{ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicRejoi
 use super::{
     classic_group_entry_fault::ClassicGroupEntryFault,
     classic_group_execution::{ClassicGroupExecution, new_classic_group_execution},
+    classic_group_fetch::ClassicGroupFetchOwner,
     classic_group_heartbeat::ClassicHeartbeatExecution,
     classic_group_owner::ClassicGroupOwner,
     classic_group_position::ClassicGroupPositionExecution,
@@ -28,6 +29,7 @@ pub(super) struct GroupConsumerEntry {
     pub(super) catalog: GroupSessionCatalog,
     pub(super) classic: ClassicGroupOwner,
     pub(super) execution: ClassicGroupExecution,
+    pub(super) fetch: ClassicGroupFetchOwner,
     pub(super) heartbeat: ClassicHeartbeatExecution,
     pub(super) position: ClassicGroupPositionExecution,
     pub(super) rejoin: ClassicGroupRejoinExecution,
@@ -49,6 +51,7 @@ impl GroupConsumerEntry {
             catalog: GroupSessionCatalog::try_new(group_id, Arc::clone(group), local_topics)?,
             classic: ClassicGroupOwner::new(group_id, timing, heartbeat_policy, rejoin_policy),
             execution: new_classic_group_execution(),
+            fetch: ClassicGroupFetchOwner::new(),
             heartbeat: ClassicHeartbeatExecution::new(),
             position: ClassicGroupPositionExecution::new(),
             rejoin: ClassicGroupRejoinExecution::new(),

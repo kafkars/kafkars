@@ -204,6 +204,7 @@ pub(super) const ENTRY_DECLARED_FIELDS: &[&str] = &[
     "catalog",
     "classic",
     "execution",
+    "fetch",
     "heartbeat",
     "position",
     "rejoin",

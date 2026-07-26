@@ -18,13 +18,6 @@ mod submission_resolution;
 mod terminal_application;
 mod terminal_normalization;
 
-#[cfg_attr(
-    not(test),
-    expect(
-        unused_imports,
-        reason = "awaiting the classic-group Fetch composition owner"
-    )
-)]
 pub(super) use activation::{
     ClassicGroupPositionActivationError, prepare_classic_group_fetch_activation,
 };
@@ -89,3 +82,5 @@ mod submission_test;
 mod sync_install_failure_test;
 #[cfg(test)]
 mod terminal_application_test;
+#[cfg(test)]
+pub(in crate::consumer::group) mod test_support;

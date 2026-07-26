@@ -979,6 +979,19 @@ evidence = [
 ]
 
 [[invariant]]
+id = "CON-14"
+title = "Classic group Fetch activation consumes one exact position owner"
+statement = "Each retained classic-group entry owns one group-specific AssignedConsumerMachine behind one non-clone activation owner. The owner accepts one confirmed ClassicGroupPositionCompleted only while dormant, requires the exact current GroupPositionFence through the existing pure handoff, installs the resulting deadline-free resolved assignment exactly once, and retains both the position fence and resulting nonreused AssignmentEpoch beside the uninterpreted ordered core transition. A stale fence, non-ready terminal, allocation or throttle conversion failure, already-active owner, or deterministic install rejection returns the exact completed position owner and any rejected InstallResolvedAssignment without mutating the owner. An impossible successful install without an assignment epoch is post-core corruption, not rejection: the sole owner retains both the completed position and mutated transition in an explicit fault. This slice owns no Fetch attempt deadline, timer, transport, wire or driver value, delivery port, callback, async runtime, or public API."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner_test.rs::one_confirmed_position_installs_one_machine_and_retains_exact_binding",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner_test.rs::active_owner_rejects_a_second_completed_position_without_reinstallation",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation_test.rs::stale_position_fence_returns_the_exact_completed_owner_without_mutation",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation_test.rs::core_rejection_returns_both_exact_linear_inputs_and_leaves_owner_dormant",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation_test.rs::post_core_fault_type_retains_both_mutated_owners_without_a_returned_rejection",
+]
+
+[[invariant]]
 id = "DL-01"
 title = "Client policy consumes one absolute deadline"
 statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant. Public operations capture at their public boundary, while engine-owned background Fetch captures at the exact internal-attempt boundary and fence rather than borrowing a later recv observation timeout. Accepted operation and direct-consumer bindings retain that pair unchanged, generated request timeout fields derive only from the remaining core deadline while the original transport instant is unchanged, core rejects already elapsed work, queued compression or submission expiry reproduces the exact core deadline fact, and identity-request deadline completion cannot be erased by an earlier transport category."
