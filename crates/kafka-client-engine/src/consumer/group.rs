@@ -9,6 +9,8 @@ mod classic_group_execution;
 mod classic_group_execution_close;
 mod classic_group_execution_handoff;
 mod classic_group_execution_join_terminal;
+mod classic_group_execution_observation;
+mod classic_group_execution_partition_counts;
 mod classic_group_execution_recovery;
 mod classic_group_execution_sync;
 mod classic_group_execution_sync_terminal;
@@ -27,6 +29,13 @@ mod classic_group_join_interpret;
 mod classic_group_join_settlement;
 mod classic_group_owner;
 mod classic_group_owner_follower;
+mod classic_group_owner_leader;
+mod classic_group_partition_count_call;
+mod classic_group_partition_count_failure;
+mod classic_group_partition_count_recovery;
+mod classic_group_partition_count_settlement;
+mod classic_group_partition_count_submission;
+mod classic_group_partition_counts;
 mod classic_group_recovery;
 mod classic_group_rediscovery;
 mod classic_group_rediscovery_execution;
@@ -88,6 +97,10 @@ mod classic_group_execution_handoff_test;
 #[cfg(test)]
 mod classic_group_execution_join_terminal_test;
 #[cfg(test)]
+mod classic_group_execution_observation_test;
+#[cfg(test)]
+mod classic_group_execution_partition_counts_test;
+#[cfg(test)]
 mod classic_group_execution_recovery_test;
 #[cfg(test)]
 mod classic_group_execution_sync_terminal_test;
@@ -124,7 +137,21 @@ mod classic_group_join_test;
 #[cfg(test)]
 mod classic_group_owner_follower_test;
 #[cfg(test)]
+mod classic_group_owner_leader_test;
+#[cfg(test)]
 mod classic_group_owner_test;
+#[cfg(test)]
+mod classic_group_partition_count_call_test;
+#[cfg(test)]
+mod classic_group_partition_count_failure_test;
+#[cfg(test)]
+mod classic_group_partition_count_recovery_test;
+#[cfg(test)]
+mod classic_group_partition_count_settlement_test;
+#[cfg(test)]
+mod classic_group_partition_count_submission_test;
+#[cfg(test)]
+mod classic_group_partition_counts_test;
 #[cfg(test)]
 mod classic_group_recovery_test;
 #[cfg(test)]

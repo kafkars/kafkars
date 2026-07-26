@@ -109,6 +109,7 @@ fn routed_fetch() -> RoutedFetch {
     let mut broker = broker::RoutedBroker::new();
     let mut driver = DriverOwner::build(&EngineConfig::new(vec![broker.endpoint()]))
         .unwrap_or_else(|error| panic!("build routed Fetch driver: {error}"));
+    broker::RoutedBroker::await_seed(&mut driver);
     broker.install_cluster(&mut driver);
 
     let effect = assignment_effect(3);

@@ -18,7 +18,6 @@ use super::{
 pub(super) enum ClassicGroupJoinSettlementTurn {
     Idle,
     Progress,
-    Blocked,
 }
 
 impl GroupConsumerRegistry {
@@ -43,9 +42,6 @@ impl GroupConsumerRegistry {
             .iter()
             .position(|entry| entry.group_id() == key.group_id())
             .ok_or(ClassicGroupExecutionError::CallIdentityMismatch)?;
-        if self.entries[index].execution.join_is_deferred() {
-            return Ok(ClassicGroupJoinSettlementTurn::Blocked);
-        }
         let calls = self
             .join_calls
             .as_mut()
@@ -80,11 +76,6 @@ impl GroupConsumerRegistry {
         match interpret_join(entry, now, &terminal) {
             Ok(JoinInterpretation::Confirm(successor)) => {
                 stage_successor(entry, calls, terminal, successor)
-            }
-            Ok(JoinInterpretation::DeferLeader) => {
-                restore_terminal(entry, calls, terminal)?;
-                entry.execution.defer_join_leader()?;
-                Ok(ClassicGroupJoinSettlementTurn::Blocked)
             }
             Err(JoinInterpretationFailure::Restore(error)) => {
                 restore_terminal(entry, calls, terminal)?;

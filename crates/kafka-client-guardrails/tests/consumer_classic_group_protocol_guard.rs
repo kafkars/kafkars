@@ -42,7 +42,17 @@ const METHODS: &[(&str, &str)] = &[
         "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_calls.rs",
     ),
 ];
-const RAW_REQUESTS: &[&str] = &["HeartbeatRequest", "JoinGroupRequest", "SyncGroupRequest"];
+const RAW_REQUESTS: &[&str] = &[
+    "HeartbeatRequest",
+    "JoinGroupRequest",
+    "MetadataRequest",
+    "MetadataRequestTopic",
+    "MetadataResponse",
+    "MetadataResponsePartition",
+    "MetadataResponseTopic",
+    "SyncGroupRequest",
+    "TopicView",
+];
 const FORBIDDEN: &[&str] = &[
     "crate::admin",
     "crate::clock",

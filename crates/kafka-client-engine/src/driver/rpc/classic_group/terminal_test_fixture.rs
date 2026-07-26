@@ -25,6 +25,15 @@ pub(crate) fn install_leader_join_terminal(
     calls.install_terminal_for_test(key, Some(3), Ok(response));
 }
 
+pub(crate) fn install_empty_leader_join_terminal(
+    calls: &mut TrackedJoinGroupCalls,
+    key: JoinGroupCallKey,
+) {
+    let mut response = join_response("member-a", "member-a");
+    response.members = vec![join_member("member-a", &[])];
+    calls.install_terminal_for_test(key, Some(3), Ok(response));
+}
+
 pub(crate) fn install_join_broker_rejection_terminal(
     calls: &mut TrackedJoinGroupCalls,
     key: JoinGroupCallKey,

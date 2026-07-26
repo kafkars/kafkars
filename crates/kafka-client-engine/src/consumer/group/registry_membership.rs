@@ -12,6 +12,8 @@ use super::{
     classic_group_heartbeat_submission::ClassicHeartbeatSubmissionTurn,
     classic_group_join_execution::ClassicGroupJoinSubmissionTurn,
     classic_group_join_settlement::ClassicGroupJoinSettlementTurn,
+    classic_group_partition_count_settlement::ClassicGroupPartitionCountSettlementTurn,
+    classic_group_partition_count_submission::ClassicGroupPartitionCountSubmissionTurn,
     classic_group_rediscovery_execution::{
         ClassicCoordinatorInvalidationTurn, ClassicCoordinatorInvalidationTurn::Blocked,
     },
@@ -51,13 +53,17 @@ impl GroupConsumerRegistry {
         if self.settle_one_classic_sync(now)? == ClassicGroupSyncSettlementTurn::Progress {
             return Ok(GroupConsumerMembershipTurn::Progress);
         }
-        let join_blocked = match self.settle_one_classic_join(now)? {
+        match self.settle_one_classic_join(now)? {
             ClassicGroupJoinSettlementTurn::Progress => {
                 return Ok(GroupConsumerMembershipTurn::Progress);
             }
-            ClassicGroupJoinSettlementTurn::Blocked => true,
-            ClassicGroupJoinSettlementTurn::Idle => false,
-        };
+            ClassicGroupJoinSettlementTurn::Idle => {}
+        }
+        if self.settle_one_classic_partition_count(now)?
+            == ClassicGroupPartitionCountSettlementTurn::Progress
+        {
+            return Ok(GroupConsumerMembershipTurn::Progress);
+        }
         let local = self.turn_local_membership(now)?;
         if local != GroupConsumerMembershipTurn::Idle {
             return Ok(local);
@@ -77,6 +83,13 @@ impl GroupConsumerRegistry {
             ClassicHeartbeatSubmissionTurn::Blocked => true,
             ClassicHeartbeatSubmissionTurn::Idle => false,
         };
+        let partition_count_blocked = match self.submit_one_classic_partition_count(driver)? {
+            ClassicGroupPartitionCountSubmissionTurn::Progress => {
+                return Ok(GroupConsumerMembershipTurn::Progress);
+            }
+            ClassicGroupPartitionCountSubmissionTurn::Blocked => true,
+            ClassicGroupPartitionCountSubmissionTurn::Idle => false,
+        };
         let sync_blocked = match self.submit_one_classic_sync(driver)? {
             ClassicGroupSyncSubmissionTurn::Progress => {
                 return Ok(GroupConsumerMembershipTurn::Progress);
@@ -86,7 +99,10 @@ impl GroupConsumerRegistry {
         };
         Ok(match self.submit_one_classic_join(driver)? {
             ClassicGroupJoinSubmissionTurn::Idle
-                if rediscovery_blocked || join_blocked || heartbeat_blocked || sync_blocked =>
+                if rediscovery_blocked
+                    || partition_count_blocked
+                    || heartbeat_blocked
+                    || sync_blocked =>
             {
                 GroupConsumerMembershipTurn::Blocked
             }

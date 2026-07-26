@@ -146,6 +146,12 @@ impl ClassicGroupCycleCandidate {
             .map(|member| &member.kafka_member_spelling)
     }
 
+    pub(super) fn sync_members(&self) -> impl Iterator<Item = (JoinedMemberSlot, &Arc<str>)> {
+        self.ranked_members
+            .iter()
+            .map(|member| (member.joined_slot, &member.kafka_member_spelling))
+    }
+
     pub(super) fn topic_name<'a>(
         &'a self,
         catalog: &'a GroupSessionCatalog,

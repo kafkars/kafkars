@@ -8,21 +8,18 @@ use crate::{
 };
 
 use super::{
+    classic_group_candidate::JoinedGroupMember,
     classic_group_execution::ClassicGroupExecutionError,
     classic_group_join::ClassicGroupJoinSuccessor,
     classic_group_owner_follower::ClassicGroupFollowerJoinError,
+    classic_group_owner_leader::ClassicGroupLeaderJoinError,
     classic_group_rejection_fault::ClassicRejectionPostCore,
     classic_group_rejection_install::{exact_broker_error, install_stage_rejection},
     registry_entry::GroupConsumerEntry,
 };
 
-#[expect(
-    clippy::large_enum_variant,
-    reason = "the interpretation returns one exact linear successor without another allocation"
-)]
 pub(super) enum JoinInterpretation {
     Confirm(ClassicGroupJoinSuccessor),
-    DeferLeader,
 }
 
 pub(super) enum JoinInterpretationFailure {
@@ -66,8 +63,20 @@ pub(super) fn interpret_join(
         return Ok(JoinInterpretation::Confirm(ClassicGroupJoinSuccessor::Idle));
     }
     let (_throttle, generation, member, role) = joined.into_parts();
-    if role.into_leader_members().is_some() {
-        return Ok(JoinInterpretation::DeferLeader);
+    if let Some(members) = role.into_leader_members() {
+        let members = prepare_leader_members(members)
+            .map_err(|()| restore(ClassicGroupExecutionError::LeaderJoin))?;
+        let candidate = entry
+            .catalog
+            .prepare_leader_cycle(cycle, member, members)
+            .map_err(|_error| restore(ClassicGroupExecutionError::LeaderJoin))?;
+        let prepared = entry
+            .classic
+            .apply_leader_join(candidate, generation, now, terminal.key().deadline())
+            .map_err(|error| classify_leader_join_failure(&error))?;
+        return Ok(JoinInterpretation::Confirm(
+            ClassicGroupJoinSuccessor::PartitionCounts(prepared),
+        ));
     }
     let candidate = entry
         .catalog
@@ -86,6 +95,35 @@ pub(super) fn interpret_join(
     Ok(JoinInterpretation::Confirm(
         ClassicGroupJoinSuccessor::Sync(prepared),
     ))
+}
+
+fn prepare_leader_members(
+    joined: Vec<crate::protocol::consumer::ClassicJoinedMember>,
+) -> Result<Vec<JoinedGroupMember>, ()> {
+    let mut members = Vec::new();
+    members
+        .try_reserve_exact(joined.len())
+        .map_err(|_error| ())?;
+    members.extend(joined.into_iter().map(|joined| {
+        let (slot, member, topics) = joined.into_parts();
+        JoinedGroupMember::new(slot, member, topics)
+    }));
+    Ok(members)
+}
+
+fn classify_leader_join_failure(error: &ClassicGroupLeaderJoinError) -> JoinInterpretationFailure {
+    match error {
+        ClassicGroupLeaderJoinError::Candidate(_)
+        | ClassicGroupLeaderJoinError::CandidateFacts(_)
+        | ClassicGroupLeaderJoinError::MissingLocalSlot => {
+            restore(ClassicGroupExecutionError::LeaderJoin)
+        }
+        ClassicGroupLeaderJoinError::Core(_)
+        | ClassicGroupLeaderJoinError::UnexpectedCountEffect
+        | ClassicGroupLeaderJoinError::CountStorage => {
+            post_core(ClassicGroupExecutionError::LeaderJoin)
+        }
+    }
 }
 
 #[expect(

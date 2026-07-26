@@ -14,6 +14,7 @@ use super::{
     classic_group_heartbeat::ClassicHeartbeatAcceptanceFailure,
     classic_group_join::ClassicGroupJoinSuccessor,
     classic_group_join_call::ClassicGroupJoinAcceptanceFailure,
+    classic_group_partition_count_failure::ClassicGroupPartitionCountFault,
     classic_group_rejection_fault::ClassicRejectionPostCore,
     classic_group_rejoin_fault::ClassicRejoinPostCore,
     classic_group_sync::ClassicGroupSyncAcceptanceFailure,
@@ -35,6 +36,7 @@ pub(super) enum ClassicGroupEntryFault {
         terminal: JoinGroupTerminal,
     },
     RejoinPostCore(ClassicRejoinPostCore),
+    PartitionCount(ClassicGroupPartitionCountFault),
     SyncAcceptance(ClassicGroupSyncAcceptanceFailure),
     SyncSubmission(SyncGroupAdmissionFailure),
     SyncTerminal(SyncGroupRestoreFailure),
@@ -93,6 +95,7 @@ impl ClassicGroupEntryFault {
                 .retained_owner_count()
                 .saturating_add(retained_one(terminal)),
             Self::RejoinPostCore(owner) => owner.retained_owner_count(),
+            Self::PartitionCount(fault) => retained_one(fault),
             Self::SyncAcceptance(owner) => retained_one(owner),
             Self::SyncSubmission(owner) => retained_one(owner),
             Self::SyncTerminal(owner) => retained_one(owner),

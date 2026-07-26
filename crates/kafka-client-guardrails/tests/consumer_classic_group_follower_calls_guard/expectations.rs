@@ -69,11 +69,9 @@ pub(super) const METHODS: &[(&str, &str, &[&str])] = &[
     (GROUP_ROOT, "apply_follower_join", &[JOIN_INTERPRET]),
     (GROUP_ROOT, "submit_one_classic_join", &[MEMBERSHIP]),
     (GROUP_ROOT, "settle_one_classic_join", &[MEMBERSHIP]),
-    (GROUP_ROOT, "defer_join_leader", &[JOIN_SETTLEMENT]),
     (GROUP_ROOT, "stage_join_confirmation", &[JOIN_SETTLEMENT]),
     (GROUP_ROOT, "confirm_join", &[JOIN_SETTLEMENT]),
     (GROUP_ROOT, "join_call", &[JOIN_SETTLEMENT]),
-    (GROUP_ROOT, "join_is_deferred", &[JOIN_SETTLEMENT]),
     (ENGINE_ROOT, "try_reserve_join_group", &[JOIN_EXECUTION]),
     (ENGINE_ROOT, "poll_join_group", &[JOIN_SETTLEMENT]),
     (

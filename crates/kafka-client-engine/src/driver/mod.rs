@@ -33,6 +33,8 @@ pub(crate) use rpc::{
     IncrementalAlterConfigsCompletionFailure, PartitionFetchRequest, PositionAdmissionFailure,
     PositionCompletionFailure, PositionRequestPreparationError, PositionResolutionRequest,
     ProduceCompletionFailure, ProducerIdentityCompletionFailure, StaleFetchConfirmationError,
+    TopicPartitionCountAdmissionFailure, TopicPartitionCountAdmissionFailureKind,
+    TopicPartitionCountCall, TopicPartitionCountFact, TopicPartitionCountFailure,
     TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls,
     TrackedFetchCalls, TrackedGroupOffsetCommitCalls, TrackedPositionCalls, TrackedProduceCalls,
     TrackedProducerIdentityCalls, TransactionInitCall, TransactionInitDriverFailureKind,

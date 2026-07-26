@@ -1,7 +1,7 @@
 //! Sole construction and state-mutation owner for one pending classic Join.
 
 use kafka_client_core::{
-    ClassicGroupEffect, ClassicGroupErrorKind, ClassicGroupInput, Deadline, MembershipCycle, Moment,
+    ClassicGroupEffect, ClassicGroupErrorKind, ClassicGroupInput, MembershipCycle, Moment,
 };
 
 use crate::clock::DeadlineCapture;
@@ -77,14 +77,14 @@ impl ClassicGroupExecution {
         let deadline = match &self.classic_execution_state {
             ClassicGroupExecutionState::Idle
             | ClassicGroupExecutionState::JoinConfirmationPending { .. }
+            | ClassicGroupExecutionState::PartitionCountsPostCore { .. }
             | ClassicGroupExecutionState::SyncHandoff(_)
             | ClassicGroupExecutionState::SyncDriverOwned(_)
             | ClassicGroupExecutionState::SyncConfirmationPending(_)
             | ClassicGroupExecutionState::CloseFault { .. } => {
                 return Ok(false);
             }
-            ClassicGroupExecutionState::JoinDriverOwned(driver_owned)
-            | ClassicGroupExecutionState::LeaderDeferred(driver_owned) => {
+            ClassicGroupExecutionState::JoinDriverOwned(driver_owned) => {
                 return if owner.machine().group_id() == driver_owned.identity().group_id()
                     && owner.machine().active_cycle() == Some(driver_owned.identity().cycle())
                 {
@@ -93,10 +93,22 @@ impl ClassicGroupExecution {
                     Err(ClassicGroupExecutionError::HandoffMismatch)
                 };
             }
-            ClassicGroupExecutionState::JoinHandoff(_) => {
+            ClassicGroupExecutionState::PartitionCountDriverOwned { call, .. }
+            | ClassicGroupExecutionState::PartitionCountCompletionFault { call, .. } => {
+                return if owner.machine().group_id() == call.identity().group_id()
+                    && owner.machine().active_cycle() == Some(call.identity().cycle())
+                {
+                    Ok(false)
+                } else {
+                    Err(ClassicGroupExecutionError::HandoffMismatch)
+                };
+            }
+            ClassicGroupExecutionState::JoinHandoff(_)
+            | ClassicGroupExecutionState::PartitionCountHandoff { .. } => {
                 return Err(ClassicGroupExecutionError::HandoffIncomplete);
             }
             ClassicGroupExecutionState::PreparedJoin(prepared) => prepared.deadline(),
+            ClassicGroupExecutionState::PreparedPartitionCounts(prepared) => prepared.deadline(),
             ClassicGroupExecutionState::PreparedSync(prepared) => prepared.deadline(),
         };
         if !deadline.core().is_elapsed_at(now) {
@@ -114,36 +126,6 @@ impl ClassicGroupExecution {
         }
         self.classic_execution_state = ClassicGroupExecutionState::Idle;
         Ok(true)
-    }
-
-    pub(super) const fn next_deadline(&self) -> Option<Deadline> {
-        match &self.classic_execution_state {
-            ClassicGroupExecutionState::PreparedJoin(prepared) => Some(prepared.deadline().core()),
-            ClassicGroupExecutionState::PreparedSync(prepared) => Some(prepared.deadline().core()),
-            ClassicGroupExecutionState::Idle
-            | ClassicGroupExecutionState::JoinHandoff(_)
-            | ClassicGroupExecutionState::JoinDriverOwned(_)
-            | ClassicGroupExecutionState::JoinConfirmationPending { .. }
-            | ClassicGroupExecutionState::LeaderDeferred(_)
-            | ClassicGroupExecutionState::SyncHandoff(_)
-            | ClassicGroupExecutionState::SyncDriverOwned(_)
-            | ClassicGroupExecutionState::SyncConfirmationPending(_)
-            | ClassicGroupExecutionState::CloseFault { .. } => None,
-        }
-    }
-
-    pub(super) fn unsettled(&self) -> usize {
-        usize::from(!matches!(
-            &self.classic_execution_state,
-            ClassicGroupExecutionState::Idle
-        ))
-    }
-
-    pub(super) const fn is_idle(&self) -> bool {
-        matches!(
-            self.classic_execution_state,
-            ClassicGroupExecutionState::Idle
-        )
     }
 
     pub(super) fn stage_rejoin_join(
@@ -170,31 +152,6 @@ impl ClassicGroupExecution {
 
     pub(super) fn set_execution_state(&mut self, state: ClassicGroupExecutionState) {
         self.classic_execution_state = state;
-    }
-
-    pub(super) const fn prepared_join(&self) -> Option<&PreparedClassicGroupJoin> {
-        match &self.classic_execution_state {
-            ClassicGroupExecutionState::PreparedJoin(prepared) => Some(prepared),
-            _ => None,
-        }
-    }
-
-    #[cfg(test)]
-    pub(super) const fn close_fault(
-        &self,
-    ) -> Option<(
-        &kafka_client_core::LiveGroupAssignment,
-        kafka_client_core::ClassicGeneration,
-        ClassicGroupAssignmentPreparationFailureKind,
-    )> {
-        match &self.classic_execution_state {
-            ClassicGroupExecutionState::CloseFault {
-                revoke_assignment,
-                revoke_generation,
-                revoke_failure_kind,
-            } => Some((revoke_assignment, *revoke_generation, *revoke_failure_kind)),
-            _ => None,
-        }
     }
 }
 
@@ -227,6 +184,12 @@ pub(super) enum ClassicGroupExecutionError {
     CoordinatorInvalidationAdmission,
     CoordinatorInvalidationTerminal,
     FollowerJoin,
+    LeaderJoin,
+    PartitionCountsNotPrepared,
+    PartitionCountFence,
+    PartitionCountTerminal,
+    LeaderPartitionCounts,
+    PartitionCountsPostCore,
     Assignment(ClassicGroupAssignmentPreparationFailureKind),
     Core(ClassicGroupErrorKind),
     EntryFault,

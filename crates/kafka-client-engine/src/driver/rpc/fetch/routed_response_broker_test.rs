@@ -48,6 +48,25 @@ impl RoutedBroker {
         format!("127.0.0.1:{}", self.port)
     }
 
+    pub(super) fn await_seed(driver: &mut DriverOwner) {
+        for _turn in 0..32 {
+            drive(driver, Duration::from_millis(100), "resolve bootstrap seed");
+            let snapshot = driver
+                .driver
+                .snapshot()
+                .unwrap_or_else(|error| panic!("request bootstrap snapshot: {error}"));
+            drive(driver, Duration::ZERO, "capture bootstrap snapshot");
+            match snapshot.try_result() {
+                Some(Ok(Ok(snapshot))) if snapshot.seed().is_some() => return,
+                Some(Ok(Ok(_snapshot))) => {}
+                Some(Ok(Err(error))) => panic!("build bootstrap snapshot: {error}"),
+                Some(Err(error)) => panic!("observe bootstrap snapshot: {error}"),
+                None => {}
+            }
+        }
+        panic!("driver did not install the expected bootstrap seed")
+    }
+
     pub(super) fn install_cluster(&mut self, driver: &mut DriverOwner) {
         let mut seed = accept_after_driving(&self.listener, driver);
         complete_negotiation(&mut seed, driver);
@@ -126,12 +145,14 @@ fn respond_metadata(
     response.brokers.push(broker(port));
     response.controller_id = 1;
     if include_partition {
-        let mut partition = MetadataResponsePartition::default();
-        partition.partition_index = 3;
-        partition.leader_id = 1;
         let mut topic = MetadataResponseTopic::default();
         topic.name = Some(StrBytes::from("events"));
-        topic.partitions.push(partition);
+        for partition_index in 0..=3 {
+            let mut partition = MetadataResponsePartition::default();
+            partition.partition_index = partition_index;
+            partition.leader_id = if partition_index == 3 { 1 } else { -1 };
+            topic.partitions.push(partition);
+        }
         response.topics.push(topic);
     }
     write_response::<MetadataRequest, _>(

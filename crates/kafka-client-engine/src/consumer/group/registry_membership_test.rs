@@ -171,11 +171,15 @@ fn close_mismatch_retains_the_exact_revoke_effect_in_the_execution_owner() {
 }
 
 #[test]
-fn deferred_leader_does_not_starve_another_local_deadline() {
+fn prepared_leader_counts_do_not_starve_another_local_deadline() {
     let (mut registry, leader_group, _identity) = leader_join_terminal();
     assert_eq!(
         registry.settle_one_classic_join(Moment::from_tick(1)),
-        Ok(ClassicGroupJoinSettlementTurn::Blocked)
+        Ok(ClassicGroupJoinSettlementTurn::Progress)
+    );
+    assert_eq!(
+        registry.settle_one_classic_join(Moment::from_tick(2)),
+        Ok(ClassicGroupJoinSettlementTurn::Progress)
     );
     let local_group = register(&mut registry, "local");
     let capture = MonotonicClock::new()
@@ -210,7 +214,7 @@ fn deferred_leader_does_not_starve_another_local_deadline() {
             .unwrap_or_else(|| panic!("leader entry expected"))
             .execution
             .borrow_execution_state(),
-        ClassicGroupExecutionState::LeaderDeferred(_)
+        ClassicGroupExecutionState::PreparedPartitionCounts(_)
     ));
 
     driver

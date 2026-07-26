@@ -23,7 +23,6 @@ pub(super) enum ClassicGroupSyncRecovery {
 )]
 enum JoinRecoveryState {
     DriverOwned,
-    LeaderDeferred,
     Confirmation(ClassicGroupJoinSuccessor),
 }
 
@@ -64,9 +63,6 @@ impl ClassicGroupExecution {
             ClassicGroupExecutionState::JoinDriverOwned(call) => {
                 (call, JoinRecoveryState::DriverOwned)
             }
-            ClassicGroupExecutionState::LeaderDeferred(call) => {
-                (call, JoinRecoveryState::LeaderDeferred)
-            }
             ClassicGroupExecutionState::JoinConfirmationPending { call, successor } => {
                 (call, JoinRecoveryState::Confirmation(successor))
             }
@@ -92,10 +88,13 @@ impl ClassicGroupExecution {
                     JoinRecoveryState::Confirmation(ClassicGroupJoinSuccessor::Idle) => {
                         ClassicGroupExecutionState::Idle
                     }
+                    JoinRecoveryState::Confirmation(
+                        ClassicGroupJoinSuccessor::PartitionCounts(prepared),
+                    ) => ClassicGroupExecutionState::PreparedPartitionCounts(prepared),
                     JoinRecoveryState::Confirmation(ClassicGroupJoinSuccessor::Sync(prepared)) => {
                         ClassicGroupExecutionState::PreparedSync(prepared)
                     }
-                    JoinRecoveryState::DriverOwned | JoinRecoveryState::LeaderDeferred => {
+                    JoinRecoveryState::DriverOwned => {
                         ClassicGroupExecutionState::PreparedJoin(integration.into_prepared())
                     }
                 });
@@ -162,7 +161,6 @@ impl ClassicGroupExecution {
                 ClassicGroupExecutionState::JoinConfirmationPending { call, successor }
             }
             JoinRecoveryState::DriverOwned => ClassicGroupExecutionState::JoinDriverOwned(call),
-            JoinRecoveryState::LeaderDeferred => ClassicGroupExecutionState::LeaderDeferred(call),
         });
     }
 

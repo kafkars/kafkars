@@ -12,25 +12,9 @@ impl ClassicGroupExecution {
     pub(super) const fn join_call(&self) -> Option<&ClassicGroupJoinCallOwner> {
         match self.borrow_execution_state() {
             ClassicGroupExecutionState::JoinDriverOwned(call)
-            | ClassicGroupExecutionState::LeaderDeferred(call)
             | ClassicGroupExecutionState::JoinConfirmationPending { call, .. } => Some(call),
             _ => None,
         }
-    }
-
-    pub(super) const fn join_is_deferred(&self) -> bool {
-        let state = self.borrow_execution_state();
-        matches!(state, ClassicGroupExecutionState::LeaderDeferred(_))
-    }
-
-    pub(super) fn defer_join_leader(&mut self) -> Result<(), ClassicGroupExecutionError> {
-        let state = self.replace_execution_state(ClassicGroupExecutionState::Idle);
-        let ClassicGroupExecutionState::JoinDriverOwned(call) = state else {
-            self.set_execution_state(state);
-            return Err(ClassicGroupExecutionError::HandoffMismatch);
-        };
-        self.set_execution_state(ClassicGroupExecutionState::LeaderDeferred(call));
-        Ok(())
     }
 
     #[expect(
@@ -67,6 +51,9 @@ impl ClassicGroupExecution {
             Ok(()) => {
                 self.set_execution_state(match successor {
                     ClassicGroupJoinSuccessor::Idle => ClassicGroupExecutionState::Idle,
+                    ClassicGroupJoinSuccessor::PartitionCounts(prepared) => {
+                        ClassicGroupExecutionState::PreparedPartitionCounts(prepared)
+                    }
                     ClassicGroupJoinSuccessor::Sync(prepared) => {
                         ClassicGroupExecutionState::PreparedSync(prepared)
                     }

@@ -4,11 +4,9 @@ fn intrude(owner: &mut Owner) {
     owner.apply_follower_join();
     owner.submit_one_classic_join();
     owner.settle_one_classic_join();
-    owner.defer_join_leader();
     owner.stage_join_confirmation();
     owner.confirm_join();
     owner.join_call();
-    owner.join_is_deferred();
     owner.try_reserve_join_group();
     owner.poll_join_group();
     owner.begin_join_group_settlement();
@@ -51,11 +49,9 @@ methods!(
     apply_follower_join,
     submit_one_classic_join,
     settle_one_classic_join,
-    defer_join_leader,
     stage_join_confirmation,
     confirm_join,
     join_call,
-    join_is_deferred,
     try_reserve_join_group,
     poll_join_group,
     begin_join_group_settlement,

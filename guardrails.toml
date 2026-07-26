@@ -3625,6 +3625,8 @@ allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/recovery.rs",
   "crates/kafka-client-engine/src/transaction/initialization/host/recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_call.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_recovery.rs",
 ]
 
 [[method_capabilities]]
@@ -8562,7 +8564,13 @@ root = "crates/kafka-client-engine/src/consumer/group"
 forbidden = [
   "HeartbeatRequest",
   "JoinGroupRequest",
+  "MetadataRequest",
+  "MetadataRequestTopic",
+  "MetadataResponse",
+  "MetadataResponsePartition",
+  "MetadataResponseTopic",
   "SyncGroupRequest",
+  "TopicView",
 ]
 
 [[method_capabilities]]
@@ -9885,6 +9893,7 @@ field = "pending"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_owner.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_owner_follower.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_owner_leader.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_assignment.rs",
 ]
 
@@ -10227,6 +10236,9 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_submission.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_submission.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_execution.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
@@ -10388,6 +10400,9 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_submission.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_failure.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_settlement.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_execution.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_transfer.rs",
@@ -11867,6 +11882,46 @@ production = "crates/kafka-client-engine/src/consumer/group/classic_group_owner_
 test = "crates/kafka-client-engine/src/consumer/group/classic_group_owner_follower_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_owner_leader.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_owner_leader_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_counts.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_counts_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_call.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_call_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_failure.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_failure_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_recovery.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_recovery_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_settlement.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_settlement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_submission.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_partition_counts.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_partition_counts_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_observation.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_observation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/topic_view.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/topic_view_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/group/classic_group_sync.rs"
 test = "crates/kafka-client-engine/src/consumer/group/classic_group_sync_test.rs"
 
@@ -12071,6 +12126,40 @@ forbidden = [
   "async",
   "Callback",
   "Metadata",
+  "Transport",
+  "Retry",
+  "Route",
+  "invalidate",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/driver/rpc/topic_view.rs"
+forbidden = [
+  "crate::admin",
+  "crate::completion",
+  "crate::consumer",
+  "crate::host",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_client_core",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "Condvar",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "MetadataRequest",
+  "MetadataResponse",
   "Transport",
   "Retry",
   "Route",
@@ -12818,6 +12907,30 @@ allowed_paths = [
 ]
 
 [[authority_tokens]]
+owner_type = "PreparedClassicGroupPartitionCounts"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_counts.rs"
+fields = ["partition_count_cycle", "partition_count_topics", "partition_count_values", "partition_count_metadata_generation", "partition_count_deadline"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_counts.rs",
+]
+
+[[authority_tokens]]
+owner_type = "TopicPartitionCountCall"
+path = "crates/kafka-client-engine/src/driver/rpc/topic_view.rs"
+fields = ["topic_view_topic", "topic_view_driver_call"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/topic_view.rs",
+]
+
+[[authority_tokens]]
+owner_type = "ClassicGroupPartitionCountCall"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_call.rs"
+fields = ["partition_count_identity", "partition_count_topic", "partition_count_driver_call"]
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_call.rs",
+]
+
+[[authority_tokens]]
 owner_type = "ClassicGroupSyncDriverOwner"
 path = "crates/kafka-client-engine/src/consumer/group/classic_group_sync.rs"
 fields = ["driver_sync_identity", "accepted_sync_receipt"]
@@ -12856,6 +12969,32 @@ path = "crates/kafka-client-engine/src/consumer/group/classic_group_join.rs"
 [[linear_owners]]
 owner_type = "PreparedClassicGroupSync"
 path = "crates/kafka-client-engine/src/consumer/group/classic_group_sync.rs"
+
+[[linear_owners]]
+owner_type = "PreparedClassicGroupPartitionCounts"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_counts.rs"
+
+[[linear_owners]]
+owner_type = "TopicPartitionCountCall"
+path = "crates/kafka-client-engine/src/driver/rpc/topic_view.rs"
+
+[[linear_owners]]
+owner_type = "ClassicGroupPartitionCountCall"
+path = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_call.rs"
+
+[[mutation_owners]]
+owner_type = "PreparedClassicGroupPartitionCounts"
+field = "partition_count_values"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_counts.rs",
+]
+
+[[mutation_owners]]
+owner_type = "PreparedClassicGroupPartitionCounts"
+field = "partition_count_metadata_generation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_counts.rs",
+]
 
 [[linear_owners]]
 owner_type = "ClassicGroupSyncDriverOwner"
@@ -12904,6 +13043,13 @@ allowed_paths = [
 
 [[call_capabilities]]
 root = "crates/kafka-client-engine/src"
+call = "classic_sync_group_request"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_owner_leader.rs",
+]
+
+[[call_capabilities]]
+root = "crates/kafka-client-engine/src"
 call = "normalize_classic_sync_response"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs",
@@ -12925,6 +13071,91 @@ allowed_paths = [
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src/consumer/group"
+method = "apply_leader_join"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_interpret.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "apply_leader_partition_counts"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_partition_counts.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "begin_partition_count_handoff"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "prepared_partition_counts"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_settlement.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "restore_partition_count_handoff"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "confirm_partition_count_driver_owned"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "fail_prepared_partition_counts"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_submission.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "complete_partition_counts"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_settlement.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "recover_partition_count_after_driver_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_recovery.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "recover_classic_partition_counts_after_driver_shutdown"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "settle_one_classic_partition_count"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
+method = "submit_one_classic_partition_count"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group"
 method = "submit_one_classic_join"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
@@ -12935,13 +13166,6 @@ root = "crates/kafka-client-engine/src/consumer/group"
 method = "settle_one_classic_join"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
-]
-
-[[method_capabilities]]
-root = "crates/kafka-client-engine/src/consumer/group"
-method = "defer_join_leader"
-allowed_paths = [
-  "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
 ]
 
 [[method_capabilities]]
@@ -12961,13 +13185,6 @@ allowed_paths = [
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src/consumer/group"
 method = "join_call"
-allowed_paths = [
-  "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
-]
-
-[[method_capabilities]]
-root = "crates/kafka-client-engine/src/consumer/group"
-method = "join_is_deferred"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs",
 ]
@@ -13312,9 +13529,13 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_close.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_handoff.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_join_terminal.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_observation.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_partition_counts.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync_terminal.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_settlement.rs",
 ]
 
 [[method_capabilities]]
@@ -13324,9 +13545,12 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_close.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_handoff.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_join_terminal.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_partition_counts.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync_terminal.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_settlement.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_transfer.rs",
 ]
 
@@ -13337,9 +13561,13 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_close.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_handoff.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_join_terminal.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_execution_partition_counts.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync_terminal.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_failure.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_recovery.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_settlement.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_transfer.rs",
 ]
 

@@ -16,8 +16,7 @@ impl ClassicGroupExecution {
         catalog: &mut GroupSessionCatalog,
     ) -> Result<ClassicGroupCloseProgress, ClassicGroupExecutionError> {
         match self.borrow_execution_state() {
-            ClassicGroupExecutionState::JoinDriverOwned(driver_owned)
-            | ClassicGroupExecutionState::LeaderDeferred(driver_owned) => {
+            ClassicGroupExecutionState::JoinDriverOwned(driver_owned) => {
                 return if owner.machine().group_id() == driver_owned.identity().group_id()
                     && owner.machine().active_cycle() == Some(driver_owned.identity().cycle())
                 {
@@ -26,7 +25,18 @@ impl ClassicGroupExecution {
                     Err(ClassicGroupExecutionError::HandoffMismatch)
                 };
             }
+            ClassicGroupExecutionState::PartitionCountDriverOwned { call, .. }
+            | ClassicGroupExecutionState::PartitionCountCompletionFault { call, .. } => {
+                return if owner.machine().group_id() == call.identity().group_id()
+                    && owner.machine().active_cycle() == Some(call.identity().cycle())
+                {
+                    Ok(ClassicGroupCloseProgress::DriverOwned)
+                } else {
+                    Err(ClassicGroupExecutionError::HandoffMismatch)
+                };
+            }
             ClassicGroupExecutionState::JoinHandoff(_)
+            | ClassicGroupExecutionState::PartitionCountHandoff { .. }
             | ClassicGroupExecutionState::SyncHandoff(_) => {
                 return Err(ClassicGroupExecutionError::HandoffIncomplete);
             }
@@ -41,6 +51,9 @@ impl ClassicGroupExecution {
             } => {
                 return Err(ClassicGroupExecutionError::Assignment(*revoke_failure_kind));
             }
+            ClassicGroupExecutionState::PartitionCountsPostCore { .. } => {
+                return Err(ClassicGroupExecutionError::PartitionCountsPostCore);
+            }
             ClassicGroupExecutionState::Idle
                 if owner.machine().phase() == ClassicGroupPhase::Closed =>
             {
@@ -48,6 +61,7 @@ impl ClassicGroupExecution {
             }
             ClassicGroupExecutionState::Idle
             | ClassicGroupExecutionState::PreparedJoin(_)
+            | ClassicGroupExecutionState::PreparedPartitionCounts(_)
             | ClassicGroupExecutionState::PreparedSync(_) => {}
         }
         let transition = owner

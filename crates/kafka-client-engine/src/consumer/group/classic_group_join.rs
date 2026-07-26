@@ -8,6 +8,10 @@ use kafka_client_core::{
 use super::classic_group_assignment::ClassicGroupAssignmentPreparationFailureKind;
 use super::{
     classic_group_join_call::ClassicGroupJoinCallOwner,
+    classic_group_partition_count_call::{
+        ClassicGroupPartitionCountCall, ClassicGroupPartitionCountCallIdentity,
+    },
+    classic_group_partition_counts::PreparedClassicGroupPartitionCounts,
     classic_group_sync::{
         ClassicGroupSyncDriverOwner, ClassicGroupSyncIdentity, PreparedClassicGroupSync,
     },
@@ -64,7 +68,22 @@ pub(super) enum ClassicGroupExecutionState {
         call: ClassicGroupJoinCallOwner,
         successor: ClassicGroupJoinSuccessor,
     },
-    LeaderDeferred(ClassicGroupJoinCallOwner),
+    PreparedPartitionCounts(PreparedClassicGroupPartitionCounts),
+    PartitionCountHandoff {
+        prepared: PreparedClassicGroupPartitionCounts,
+        identity: ClassicGroupPartitionCountCallIdentity,
+    },
+    PartitionCountDriverOwned {
+        prepared: PreparedClassicGroupPartitionCounts,
+        call: ClassicGroupPartitionCountCall,
+    },
+    PartitionCountCompletionFault {
+        prepared: PreparedClassicGroupPartitionCounts,
+        call: ClassicGroupPartitionCountCall,
+    },
+    PartitionCountsPostCore {
+        _retained_partition_counts: PreparedClassicGroupPartitionCounts,
+    },
     PreparedSync(PreparedClassicGroupSync),
     SyncHandoff(ClassicGroupSyncIdentity),
     SyncDriverOwned(ClassicGroupSyncDriverOwner),
@@ -76,12 +95,9 @@ pub(super) enum ClassicGroupExecutionState {
     },
 }
 
-#[expect(
-    clippy::large_enum_variant,
-    reason = "the successor transfers one exact linear prepared Sync without another allocation"
-)]
 pub(super) enum ClassicGroupJoinSuccessor {
     Idle,
+    PartitionCounts(PreparedClassicGroupPartitionCounts),
     Sync(PreparedClassicGroupSync),
 }
 

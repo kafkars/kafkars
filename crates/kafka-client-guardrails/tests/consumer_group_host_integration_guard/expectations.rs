@@ -10,6 +10,16 @@ pub(super) const EXECUTION_HANDOFF: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_execution_handoff.rs";
 pub(super) const EXECUTION_JOIN_TERMINAL: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_execution_join_terminal.rs";
+pub(super) const EXECUTION_OBSERVATION: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_execution_observation.rs";
+pub(super) const EXECUTION_PARTITION_COUNTS: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_execution_partition_counts.rs";
+pub(super) const PARTITION_COUNT_FAILURE: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_failure.rs";
+pub(super) const PARTITION_COUNT_RECOVERY: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_recovery.rs";
+pub(super) const PARTITION_COUNT_SETTLEMENT: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_settlement.rs";
 pub(super) const EXECUTION_RECOVERY: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs";
 pub(super) const EXECUTION_SYNC: &str =
@@ -35,6 +45,30 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
     (
         "classic_group_execution_handoff.rs",
         "classic_group_execution_handoff_test.rs",
+    ),
+    (
+        "classic_group_execution_partition_counts.rs",
+        "classic_group_execution_partition_counts_test.rs",
+    ),
+    (
+        "classic_group_execution_observation.rs",
+        "classic_group_execution_observation_test.rs",
+    ),
+    (
+        "classic_group_partition_count_submission.rs",
+        "classic_group_partition_count_submission_test.rs",
+    ),
+    (
+        "classic_group_partition_count_failure.rs",
+        "classic_group_partition_count_failure_test.rs",
+    ),
+    (
+        "classic_group_partition_count_recovery.rs",
+        "classic_group_partition_count_recovery_test.rs",
+    ),
+    (
+        "classic_group_partition_count_settlement.rs",
+        "classic_group_partition_count_settlement_test.rs",
     ),
     ("classic_group_join.rs", "classic_group_join_test.rs"),
     ("registry_commit_port.rs", "registry_commit_port_test.rs"),
@@ -141,9 +175,13 @@ pub(super) const METHODS: &[(&str, &[&str])] = &[
             EXECUTION_CLOSE,
             EXECUTION_HANDOFF,
             EXECUTION_JOIN_TERMINAL,
+            EXECUTION_OBSERVATION,
+            EXECUTION_PARTITION_COUNTS,
             EXECUTION_RECOVERY,
             EXECUTION_SYNC,
             EXECUTION_SYNC_TERMINAL,
+            PARTITION_COUNT_RECOVERY,
+            PARTITION_COUNT_SETTLEMENT,
         ],
     ),
     (
@@ -152,9 +190,12 @@ pub(super) const METHODS: &[(&str, &[&str])] = &[
             EXECUTION_CLOSE,
             EXECUTION_HANDOFF,
             EXECUTION_JOIN_TERMINAL,
+            EXECUTION_PARTITION_COUNTS,
             EXECUTION_RECOVERY,
             EXECUTION_SYNC,
             EXECUTION_SYNC_TERMINAL,
+            PARTITION_COUNT_RECOVERY,
+            PARTITION_COUNT_SETTLEMENT,
             REDISCOVERY_TRANSFER,
         ],
     ),
@@ -164,9 +205,13 @@ pub(super) const METHODS: &[(&str, &[&str])] = &[
             EXECUTION_CLOSE,
             EXECUTION_HANDOFF,
             EXECUTION_JOIN_TERMINAL,
+            EXECUTION_PARTITION_COUNTS,
             EXECUTION_RECOVERY,
             EXECUTION_SYNC,
             EXECUTION_SYNC_TERMINAL,
+            PARTITION_COUNT_FAILURE,
+            PARTITION_COUNT_RECOVERY,
+            PARTITION_COUNT_SETTLEMENT,
             REDISCOVERY_TRANSFER,
         ],
     ),

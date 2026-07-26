@@ -13,11 +13,15 @@ use super::{
 };
 
 #[test]
-fn mismatched_leader_recovery_restores_the_exact_deferred_state() {
+#[expect(
+    clippy::maybe_infinite_iter,
+    reason = "the flagged cycle calls return fixed scalar fences and perform no iteration"
+)]
+fn mismatched_leader_recovery_restores_the_exact_count_successor() {
     let (mut registry, group_id, identity) = leader_join_terminal();
     assert_eq!(
         registry.settle_one_classic_join(Moment::from_tick(1)),
-        Ok(ClassicGroupJoinSettlementTurn::Blocked)
+        Ok(ClassicGroupJoinSettlementTurn::Progress)
     );
     let calls = registry
         .join_calls
@@ -25,8 +29,8 @@ fn mismatched_leader_recovery_restores_the_exact_deferred_state() {
         .unwrap_or_else(|| panic!("Join calls expected"));
     let mut recovery = calls.recover_join_groups_after_driver_shutdown();
     let exact = recovery
-        .take_settled()
-        .unwrap_or_else(|| panic!("settled Join recovery expected"));
+        .take_pending()
+        .unwrap_or_else(|| panic!("pending Join recovery expected"));
     let wrong_group = GroupId::try_from_raw(group_id.get() + 1)
         .unwrap_or_else(|| panic!("different group identity"));
     let wrong_key = JoinGroupCallKey::new(wrong_group, identity.cycle(), identity.deadline());
@@ -47,8 +51,12 @@ fn mismatched_leader_recovery_restores_the_exact_deferred_state() {
     assert_eq!(wrong.key(), wrong_key);
     assert!(matches!(
         entry.execution.borrow_execution_state(),
-        ClassicGroupExecutionState::LeaderDeferred(call)
-            if call.identity() == identity
+        ClassicGroupExecutionState::JoinConfirmationPending {
+            call,
+            successor: ClassicGroupJoinSuccessor::PartitionCounts(prepared),
+        } if call.identity() == identity
+            && prepared.cycle() == identity.cycle()
+            && prepared.deadline() == identity.deadline()
     ));
     drop(wrong);
 
@@ -58,8 +66,9 @@ fn mismatched_leader_recovery_restores_the_exact_deferred_state() {
         .unwrap_or_else(|(error, _recovered)| panic!("exact leader recovery failed: {error:?}"));
     assert!(matches!(
         entry.execution.borrow_execution_state(),
-        ClassicGroupExecutionState::PreparedJoin(prepared)
-            if prepared.identity() == identity
+        ClassicGroupExecutionState::PreparedPartitionCounts(prepared)
+            if prepared.cycle() == identity.cycle()
+                && prepared.deadline() == identity.deadline()
     ));
     stop_registry(&mut registry);
 }

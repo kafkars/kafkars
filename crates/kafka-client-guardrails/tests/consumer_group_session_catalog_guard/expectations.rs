@@ -7,6 +7,8 @@ pub(super) const OWNER: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_owner.rs";
 pub(super) const FOLLOWER_OWNER: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_owner_follower.rs";
+pub(super) const LEADER_OWNER: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_owner_leader.rs";
 pub(super) const CANDIDATE: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_candidate.rs";
 pub(super) const EFFECT_ASSIGNMENT: &str =
@@ -44,8 +46,10 @@ pub(super) const CATALOG_FIELDS: &[(&str, &[&str])] = &[
     ("topics_by_id", &[CATALOG, CATALOG_ASSIGNMENT]),
     ("current", &[CATALOG_ASSIGNMENT]),
 ];
-pub(super) const OWNER_FIELDS: &[(&str, &[&str])] =
-    &[("pending", &[OWNER, FOLLOWER_OWNER, EFFECT_ASSIGNMENT])];
+pub(super) const OWNER_FIELDS: &[(&str, &[&str])] = &[(
+    "pending",
+    &[OWNER, FOLLOWER_OWNER, LEADER_OWNER, EFFECT_ASSIGNMENT],
+)];
 pub(super) const METHODS: &[(&str, &str)] = &[
     ("commit_classic_group_install", EFFECT_ASSIGNMENT),
     ("commit_classic_group_revoke", EFFECT_ASSIGNMENT),
