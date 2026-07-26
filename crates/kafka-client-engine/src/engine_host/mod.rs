@@ -4,6 +4,7 @@ mod admin;
 #[cfg(test)]
 mod admin_test;
 mod admin_wake;
+mod admission_close;
 mod assigned_consumer;
 mod assigned_consumer_start;
 #[cfg(test)]

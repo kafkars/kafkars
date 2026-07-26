@@ -64,19 +64,7 @@ pub(crate) struct EngineHostResources {
 
 impl Drop for EngineHostResources {
     fn drop(&mut self) {
-        let _close_result = self.producer.close_admission();
-        let _close_result = self.create_topics.admission_port().close_admission();
-        let _close_result = self.delete_topics.admission_port().close_admission();
-        let _close_result = self.describe_cluster.admission_port().close_admission();
-        let _close_result = self.create_partitions.admission_port().close_admission();
-        let _close_result = self.describe_topics.admission_port().close_admission();
-        let _close_result = self.describe_configs.admission_port().close_admission();
-        let _close_result = self
-            .incremental_alter_configs
-            .admission_port()
-            .close_admission();
-        let _close_result = self.assigned_consumer.close_assigned_admission();
-        self.group_consumers.close_admission();
+        super::admission_close::close_all(self);
     }
 }
 

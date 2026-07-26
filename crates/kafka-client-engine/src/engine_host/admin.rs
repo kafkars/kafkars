@@ -9,6 +9,7 @@ mod describe_topics;
 mod incremental_alter_configs;
 #[cfg(test)]
 mod incremental_alter_configs_schedule_test;
+pub(super) mod recovery;
 mod schedule;
 #[cfg(test)]
 mod schedule_test;
