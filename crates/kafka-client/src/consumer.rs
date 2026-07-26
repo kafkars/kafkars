@@ -1,6 +1,7 @@
 //! Declarative facade for group and directly assigned consumer ownership.
 
 mod assigned;
+mod assigned_build_error;
 mod assigned_builder;
 mod assigned_close;
 mod assigned_next_event;
@@ -15,6 +16,7 @@ mod record;
 mod record_batch;
 
 pub use assigned::AssignedConsumer;
+pub use assigned_build_error::AssignedConsumerBuildError;
 pub use assigned_builder::AssignedConsumerBuilder;
 pub use assigned_close::CloseAssignedConsumer;
 pub use assigned_next_event::NextAssignedEvent;
@@ -32,6 +34,8 @@ pub use offset_reset::OffsetReset;
 pub use record::{ConsumerHeader, ConsumerRecord, ConsumerRecords};
 pub use record_batch::RecordBatch;
 
+#[cfg(test)]
+mod assigned_build_error_test;
 #[cfg(test)]
 mod assigned_builder_test;
 #[cfg(test)]

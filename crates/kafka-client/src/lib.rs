@@ -32,7 +32,7 @@ pub use admin::{
 };
 pub use client::{Client, ClientBuilder, Shutdown};
 pub use consumer::{
-    AssignedConsumer, AssignedConsumerBuilder, AssignedConsumerEvent,
+    AssignedConsumer, AssignedConsumerBuildError, AssignedConsumerBuilder, AssignedConsumerEvent,
     AssignedConsumerFetchFailureKind, AssignedConsumerFetchFence,
     AssignedConsumerFetchThrottleFailureKind, AssignedConsumerPositionFence,
     AssignedConsumerPositionResolutionFailureKind, Checkpoint, CloseAssignedConsumer, Commit,

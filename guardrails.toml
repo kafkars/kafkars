@@ -1823,6 +1823,10 @@ production = "crates/kafka-client/src/consumer/assigned_builder.rs"
 test = "crates/kafka-client/src/consumer/assigned_builder_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client/src/consumer/assigned_build_error.rs"
+test = "crates/kafka-client/src/consumer/assigned_build_error_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client/src/consumer/assigned_close.rs"
 test = "crates/kafka-client/src/consumer/assigned_close_test.rs"
 
@@ -9021,6 +9025,10 @@ path = "crates/kafka-client/src/admin/delete_consumer_group_offsets_builder.rs"
 [[linear_owners]]
 owner_type = "DeleteConsumerGroupOffsets"
 path = "crates/kafka-client/src/admin/delete_consumer_group_offsets.rs"
+
+[[linear_owners]]
+owner_type = "AssignedConsumerBuildError"
+path = "crates/kafka-client/src/consumer/assigned_build_error.rs"
 
 [[method_capabilities]]
 root = "crates/kafka-client/src"
