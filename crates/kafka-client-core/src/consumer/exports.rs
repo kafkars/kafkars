@@ -28,6 +28,16 @@ pub use super::group_commit::{
     GroupOffsetCommitTransition, LiveGroupAssignment, LiveGroupAssignmentError, MemberId,
     validate_group_offset_commit_checkpoint,
 };
+pub use super::group_position::{
+    GroupPositionBatch, GroupPositionBootstrapApplyError, GroupPositionBootstrapBuildError,
+    GroupPositionBootstrapBuildErrorKind, GroupPositionBootstrapEffect,
+    GroupPositionBootstrapFailure, GroupPositionBootstrapFailureKind,
+    GroupPositionBootstrapFetchFailure, GroupPositionBootstrapInput, GroupPositionBootstrapMachine,
+    GroupPositionBootstrapMachineError, GroupPositionBootstrapMissingOffsets,
+    GroupPositionBootstrapPartitionRejection, GroupPositionBootstrapState,
+    GroupPositionBootstrapTerminal, GroupPositionBootstrapTransition, GroupPositionBrokerError,
+    GroupPositionFence, GroupPositionPartitionFact, GroupPositionPartitionResult,
+};
 pub use super::identity::{AssignedConsumerCloseId, AssignmentEpoch, FetchRevision, PositionEpoch};
 pub use super::input::AssignedConsumerInput;
 pub use super::machine::AssignedConsumerMachine;

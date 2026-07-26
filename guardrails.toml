@@ -211,6 +211,30 @@ production = "crates/kafka-client-core/src/consumer/group_commit/outcome.rs"
 test = "crates/kafka-client-core/src/consumer/group_commit/outcome_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/group_position/model.rs"
+test = "crates/kafka-client-core/src/consumer/group_position/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/group_position/machine.rs"
+test = "crates/kafka-client-core/src/consumer/group_position/machine_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/group_position/input.rs"
+test = "crates/kafka-client-core/src/consumer/group_position/failure_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/group_position/effect.rs"
+test = "crates/kafka-client-core/src/consumer/group_position/transition_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/group_position/outcome.rs"
+test = "crates/kafka-client-core/src/consumer/group_position/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/group_position/transition.rs"
+test = "crates/kafka-client-core/src/consumer/group_position/rejection_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/classic_group/identity.rs"
 test = "crates/kafka-client-core/src/consumer/classic_group/identity_test.rs"
 
@@ -2451,6 +2475,42 @@ forbidden = [
   "kafka_wire",
   "smol",
   "std::future",
+  "std::time",
+  "tokio",
+]
+
+# Group position bootstrap owns scalar OffsetFetch policy, never execution.
+[[capability_rules]]
+root = "crates/kafka-client-core/src/consumer/group_position"
+forbidden = [
+  "crate::operation",
+  "AssignedConsumer",
+  "AssignedConsumerMachine",
+  "Callback",
+  "Clock",
+  "Coordinator",
+  "Engine",
+  "FetchFence",
+  "FetchReady",
+  "Future",
+  "Generated",
+  "Metadata",
+  "PositionFence",
+  "PositionResolution",
+  "Retry",
+  "Runtime",
+  "String",
+  "Wire",
+  "async",
+  "async_std",
+  "bytes",
+  "kafka_client_engine",
+  "kafka_driver",
+  "kafka_wire",
+  "smol",
+  "std::future",
+  "std::io",
+  "std::net",
   "std::time",
   "tokio",
 ]
@@ -5092,6 +5152,20 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "GroupPositionBootstrapMachine"
+field = "state"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/group_position/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupPositionBootstrapMachine"
+field = "request_partitions"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/group_position/transition.rs",
+]
+
+[[mutation_owners]]
 owner_type = "ClassicGroupMachine"
 field = "phase"
 allowed_paths = [
@@ -6899,6 +6973,46 @@ path = "crates/kafka-client-core/src/consumer/group_commit/outcome.rs"
 [[linear_owners]]
 owner_type = "GroupOffsetCommitBrokerRejection"
 path = "crates/kafka-client-core/src/consumer/group_commit/outcome.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionBootstrapBuildError"
+path = "crates/kafka-client-core/src/consumer/group_position/model.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionBatch"
+path = "crates/kafka-client-core/src/consumer/group_position/model.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionBootstrapInput"
+path = "crates/kafka-client-core/src/consumer/group_position/input.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionBootstrapApplyError"
+path = "crates/kafka-client-core/src/consumer/group_position/input.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionBootstrapEffect"
+path = "crates/kafka-client-core/src/consumer/group_position/effect.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionBootstrapTransition"
+path = "crates/kafka-client-core/src/consumer/group_position/effect.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionBootstrapMachine"
+path = "crates/kafka-client-core/src/consumer/group_position/machine.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionBootstrapMissingOffsets"
+path = "crates/kafka-client-core/src/consumer/group_position/outcome.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionBootstrapPartitionRejection"
+path = "crates/kafka-client-core/src/consumer/group_position/outcome.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionBootstrapTerminal"
+path = "crates/kafka-client-core/src/consumer/group_position/outcome.rs"
 
 [[linear_owners]]
 owner_type = "ClassicSubscription"

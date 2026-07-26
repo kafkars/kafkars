@@ -10,6 +10,7 @@ mod fetch_state;
 mod fetch_throttle;
 mod fetch_transition;
 mod group_commit;
+mod group_position;
 mod identity;
 mod input;
 mod machine;

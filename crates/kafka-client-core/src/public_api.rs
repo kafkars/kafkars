@@ -81,10 +81,18 @@ pub use crate::consumer::{
     GroupOffsetCommitFailureKind, GroupOffsetCommitInput, GroupOffsetCommitMachine,
     GroupOffsetCommitMachineError, GroupOffsetCommitPartitionOutcome,
     GroupOffsetCommitPartitionResult, GroupOffsetCommitState, GroupOffsetCommitTerminal,
-    GroupOffsetCommitTransition, JoinedMemberSlot, LiveGroupAssignment, LiveGroupAssignmentError,
-    MemberId, MemberRank, MembershipCycle, NextFetchOffset, PositionEpoch, PositionFence,
-    PositionOwnership, PositionResolutionAttemptFailure, PositionResolutionFailure, ReadIsolation,
-    StartPosition, TopicPartitionCount, validate_group_offset_commit_checkpoint,
+    GroupOffsetCommitTransition, GroupPositionBatch, GroupPositionBootstrapApplyError,
+    GroupPositionBootstrapBuildError, GroupPositionBootstrapBuildErrorKind,
+    GroupPositionBootstrapEffect, GroupPositionBootstrapFailure, GroupPositionBootstrapFailureKind,
+    GroupPositionBootstrapFetchFailure, GroupPositionBootstrapInput, GroupPositionBootstrapMachine,
+    GroupPositionBootstrapMachineError, GroupPositionBootstrapMissingOffsets,
+    GroupPositionBootstrapPartitionRejection, GroupPositionBootstrapState,
+    GroupPositionBootstrapTerminal, GroupPositionBootstrapTransition, GroupPositionBrokerError,
+    GroupPositionFence, GroupPositionPartitionFact, GroupPositionPartitionResult, JoinedMemberSlot,
+    LiveGroupAssignment, LiveGroupAssignmentError, MemberId, MemberRank, MembershipCycle,
+    NextFetchOffset, PositionEpoch, PositionFence, PositionOwnership,
+    PositionResolutionAttemptFailure, PositionResolutionFailure, ReadIsolation, StartPosition,
+    TopicPartitionCount, validate_group_offset_commit_checkpoint,
 };
 pub use crate::operation::{ProducerOperation, ProducerOperationState};
 pub use crate::operation_outcome::{

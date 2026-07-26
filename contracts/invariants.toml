@@ -901,6 +901,24 @@ evidence = [
 ]
 
 [[invariant]]
+id = "CON-11"
+title = "Group position bootstrap is assignment-fenced and atomic"
+statement = "One deterministic core-only GroupPositionBootstrapMachine owns the exact GroupId, MembershipCycle, MemberId, and AssignmentGeneration fence, one original absolute deadline, and a strictly ordered unique assignment through one OffsetFetch decision. A pre-deadline empty assignment completes locally with zero throttle and no request effect. A nonempty assignment emits one ordered FetchOffsets effect and every started path reaches at most one Complete effect: pre-driver rejection, original-deadline expiry, exact signed group rejection, exact signed partition rejection, transport failure, compatibility failure, malformed response, over-budget response, committed positions, or missing committed positions. Only a matching fence and exactly correlated request-order batch can settle the owner; stale and invalid-lifecycle facts are returned losslessly without mutation, while observations at or after the original deadline deterministically fail as DeadlineElapsed. All-committed facts retain NextFetchOffset and broker throttle in a Ready terminal without activating live Fetch. The first slice implements Error semantics directly: any missing committed offset fails the complete assignment atomically, and any partition broker rejection dominates Missing while retaining the full ordered batch and throttle. The owner has no AssignedConsumerMachine, FetchReady, driver or wire type, bytes, clock, I/O, async runtime, retry, generic operation abstraction, or end-user kafka-client-rs facade."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/consumer/group_position/transition_test.rs::empty_assignment_completes_locally_without_offset_fetch",
+  "crates/kafka-client-core/src/consumer/group_position/transition_test.rs::one_original_deadline_and_exact_fence_cross_the_only_offset_fetch",
+  "crates/kafka-client-core/src/consumer/group_position/transition_test.rs::invalid_lifecycle_fact_returns_losslessly_without_mutation",
+  "crates/kafka-client-core/src/consumer/group_position/transition_test.rs::committed_offsets_and_throttle_settle_ready_in_assignment_order",
+  "crates/kafka-client-core/src/consumer/group_position/transition_test.rs::missing_offsets_under_error_fail_the_complete_assignment_atomically",
+  "crates/kafka-client-core/src/consumer/group_position/failure_test.rs::stale_facts_return_losslessly_without_mutating_active_bootstrap",
+  "crates/kafka-client-core/src/consumer/group_position/failure_test.rs::original_deadline_precedes_late_success_and_terminalizes_once",
+  "crates/kafka-client-core/src/consumer/group_position/failure_test.rs::every_started_driver_failure_has_one_terminal_decision",
+  "crates/kafka-client-core/src/consumer/group_position/rejection_test.rs::group_and_partition_rejections_preserve_exact_signed_codes",
+  "crates/kafka-client-core/src/consumer/group_position/rejection_test.rs::partition_rejection_dominates_missing_and_preserves_the_full_ordered_batch",
+]
+
+[[invariant]]
 id = "DL-01"
 title = "Client policy consumes one absolute deadline"
 statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant. Public operations capture at their public boundary, while engine-owned background Fetch captures at the exact internal-attempt boundary and fence rather than borrowing a later recv observation timeout. Accepted operation and direct-consumer bindings retain that pair unchanged, generated request timeout fields derive only from the remaining core deadline while the original transport instant is unchanged, core rejects already elapsed work, queued compression or submission expiry reproduces the exact core deadline fact, and identity-request deadline completion cannot be erased by an earlier transport category."
