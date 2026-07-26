@@ -4,7 +4,7 @@ use crate::completion::NotifierJoin;
 
 use super::{
     EngineHostError, EngineHostResources, group_consumer_shutdown,
-    notifier_shutdown::collect_notification_joins,
+    notifier_shutdown::collect_notification_joins, transaction_shutdown,
 };
 
 pub(super) fn begin_notification_shutdown(
@@ -27,12 +27,15 @@ pub(super) fn begin_notification_shutdown(
     let assigned_consumer_fallback = resources.assigned_consumer_notifier.take_join();
     let (group_consumer, group_consumer_fallback) =
         group_consumer_shutdown::stop(&resources.group_consumers);
+    let (transaction, transaction_fallback) =
+        transaction_shutdown::stop(&resources.transaction_initialization);
     Ok(collect_notification_joins(
         producer,
         [
             (admin, admin_fallback),
             (assigned_consumer, assigned_consumer_fallback),
             (group_consumer, group_consumer_fallback),
+            (transaction, transaction_fallback),
         ],
     ))
 }
@@ -44,6 +47,7 @@ pub(super) fn prepare_notification_stop(
     verify_tracked_calls(resources)?;
     verify_admin_operations(resources)?;
     verify_assigned_consumer(resources)?;
+    transaction_shutdown::verify(&resources.transaction_initialization)?;
     let mut data = resources.producer.terminal_data();
     let release = data.verify_release_before_completion();
     let failure = release.err().map(EngineHostError::ProducerCleanup);

@@ -4,7 +4,7 @@ use kafka_client_core::Moment;
 
 use super::{
     EngineHostError, EngineHostExit, EngineHostResources, admin, group_consumer_shutdown,
-    notifier_shutdown::NotifierShutdownOwner, runner::shutdown_driver,
+    notifier_shutdown::NotifierShutdownOwner, runner::shutdown_driver, transaction_shutdown,
 };
 
 impl EngineHostResources {
@@ -13,12 +13,20 @@ impl EngineHostResources {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "recovery ordering is one auditable linear shutdown sequence"
+)]
 pub(crate) fn recover(
     resources: &mut EngineHostResources,
     primary: EngineHostError,
 ) -> EngineHostExit {
     // Fence application admission before any execution owner is quiesced.
     let mut failure = close_consumer_admission(resources, primary);
+    resources
+        .transaction_initialization
+        .admission_port()
+        .close_admission();
     drop(resources.producer.terminal_data());
     drop(resources.create_topics.terminal_host());
     drop(resources.delete_topics.terminal_host());
@@ -30,6 +38,7 @@ pub(crate) fn recover(
     drop(resources.list_consumer_group_offsets.terminal_host());
     drop(resources.delete_consumer_group_offsets.terminal_host());
     drop(resources.alter_consumer_group_offsets.terminal_host());
+    drop(resources.transaction_initialization.terminal_host());
     if let Some(cleanup) = shutdown_driver(resources).err() {
         failure = failure.with_cleanup(cleanup);
     }
@@ -72,6 +81,11 @@ pub(crate) fn recover(
     if let Some(cleanup) = group_consumer_failure {
         failure = failure.with_cleanup(cleanup);
     }
+    let (transaction_notifier, transaction_failure) =
+        transaction_shutdown::recover_after_driver_shutdown(&resources.transaction_initialization);
+    if let Some(cleanup) = transaction_failure {
+        failure = failure.with_cleanup(cleanup);
+    }
 
     let mut producer = resources.producer.terminal_data();
     if let Some(cleanup) = producer
@@ -97,7 +111,7 @@ pub(crate) fn recover(
         failure = failure.with_cleanup(cleanup);
     }
     let recovery = producer.recover_notifier();
-    let mut notifiers = Vec::with_capacity(4);
+    let mut notifiers = Vec::with_capacity(5);
     if let Some(notifier) = recovery.notifier {
         notifiers.push(notifier);
     }
@@ -113,6 +127,9 @@ pub(crate) fn recover(
         notifiers.push(notifier);
     }
     if let Some(notifier) = group_consumer_notifier {
+        notifiers.push(notifier);
+    }
+    if let Some(notifier) = transaction_notifier {
         notifiers.push(notifier);
     }
     EngineHostExit {

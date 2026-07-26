@@ -64,6 +64,12 @@ impl fmt::Display for EngineHostError {
             Self::GroupConsumerLockPoisoned => {
                 formatter.write_str("group-consumer registry ownership lock is poisoned")
             }
+            Self::TransactionInitialization(error) => {
+                write!(formatter, "transaction initialization failed: {error}")
+            }
+            Self::TransactionInitializationLockPoisoned => {
+                formatter.write_str("transaction initialization ownership lock is poisoned")
+            }
             Self::CreateTopics(error) => write!(formatter, "CreateTopics host failed: {error}"),
             Self::CreateTopicsCompletion(error) => write!(formatter, "{error}"),
             Self::CreateTopicsLockPoisoned => {

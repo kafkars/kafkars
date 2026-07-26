@@ -60,6 +60,12 @@ mod start;
 mod start_handoff;
 #[cfg(test)]
 mod start_handoff_test;
+mod thread_start;
+#[cfg(test)]
+mod thread_start_test;
+mod transaction;
+mod transaction_shutdown;
+mod transaction_start;
 
 pub(crate) use control::EngineHostControl;
 #[cfg(test)]
@@ -69,7 +75,6 @@ pub use error::{
     EngineShutdownError, EngineShutdownErrorKind, EngineStartError, EngineStartErrorKind,
 };
 pub(crate) use lifecycle::EngineLifecycle;
-pub(crate) use recovery::recover;
 pub(crate) use runner::{EngineHostExit, EngineHostResources, run};
 pub(crate) use start::start;
 pub(crate) use start_handoff::StartedEngineHost;

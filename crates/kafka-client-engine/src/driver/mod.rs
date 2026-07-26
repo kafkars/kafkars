@@ -35,7 +35,9 @@ pub(crate) use rpc::{
     ProduceCompletionFailure, ProducerIdentityCompletionFailure, StaleFetchConfirmationError,
     TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls,
     TrackedFetchCalls, TrackedGroupOffsetCommitCalls, TrackedPositionCalls, TrackedProduceCalls,
-    TrackedProducerIdentityCalls, classify_fetch_admission, classify_fetch_request_error,
+    TrackedProducerIdentityCalls, TransactionInitCall, TransactionInitDriverFailureKind,
+    TransactionInitTerminal, TransactionInitTerminalFact, classify_fetch_admission,
+    classify_fetch_request_error,
 };
 pub(crate) use rpc::{
     GroupOffsetAlterCall, GroupOffsetAlterDriverFailureKind, GroupOffsetAlterTerminal,

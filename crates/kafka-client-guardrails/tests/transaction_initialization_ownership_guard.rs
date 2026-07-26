@@ -33,6 +33,7 @@ const MIRRORS: &[(&str, &str)] = &[
 const FORBIDDEN: &[&str] = &[
     "crate::admin",
     "crate::consumer",
+    "crate::driver",
     "crate::producer",
     "Callback",
     "Clock",

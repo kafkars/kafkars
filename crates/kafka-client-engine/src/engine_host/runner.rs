@@ -21,11 +21,12 @@ use crate::{
         host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
         ingress::ProducerShardOwner,
     },
+    transaction::TransactionInitializationShardOwner,
 };
 
 use super::{
     EngineHostControl, EngineHostError, admin, assigned_consumer, cleanup, group_consumer,
-    notifier_shutdown::NotifierShutdownOwner, produce_turn,
+    notifier_shutdown::NotifierShutdownOwner, produce_turn, transaction,
 };
 
 // Admission and shutdown report wake failure without revoking ownership. Until
@@ -52,6 +53,7 @@ pub(crate) struct EngineHostResources {
     pub(super) alter_consumer_group_offsets: AlterConsumerGroupOffsetsShardOwner,
     pub(super) assigned_consumer: crate::consumer::AssignedConsumerShardOwner,
     pub(super) group_consumers: crate::consumer::GroupConsumerShardOwner,
+    pub(super) transaction_initialization: TransactionInitializationShardOwner,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) control: Arc<EngineHostControl>,
     pub(super) budget: ProducerTurnBudget,
@@ -94,6 +96,8 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
         let assigned = assigned_consumer::drive(resources, assigned_now)?;
         let group_now = resources.clock.now().map_err(EngineHostError::Clock)?;
         let group = group_consumer::drive(resources, group_now)?;
+        let transaction_now = resources.clock.now().map_err(EngineHostError::Clock)?;
+        let transaction = transaction::drive(resources, transaction_now)?;
         #[cfg(test)]
         if producer.driver_progress && resources.control.await_failure_after_produce_admission() {
             return Err(EngineHostError::ForcedTestFailure);
@@ -104,6 +108,7 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
             && assigned.unsettled == 0
             && assigned.close_completed
             && group.unsettled == 0
+            && transaction.unsettled == 0
         {
             break;
         }
@@ -111,13 +116,19 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
         let wait = producer_wait(
             wait_now,
             producer.outcome,
-            driver_more_work || producer.driver_progress || admin.driver_progress,
+            driver_more_work
+                || producer.driver_progress
+                || admin.driver_progress
+                || transaction.progressed,
         );
         let wait = admin.next_deadline.map_or(wait, |deadline| {
             wait.min(duration_until(wait_now, deadline))
         });
         let wait = assigned_consumer_wait(wait_now, wait, &assigned);
         let wait = group_consumer_wait(wait_now, wait, &group);
+        let wait = transaction.next_deadline.map_or(wait, |deadline| {
+            wait.min(duration_until(wait_now, deadline))
+        });
         resources.control.record_driver_turn();
         let driver = resources
             .driver

@@ -7,6 +7,7 @@ use crate::{
         AssignedConsumerCompletionNotifier, AssignedConsumerCompletionPorts, GroupConsumerRegistry,
     },
     producer::ProducerHost,
+    transaction::TransactionInitializationShardOwner,
 };
 
 use super::{EngineLifecycle, EngineStartError, notifier_shutdown::NotifierShutdownOwner};
@@ -28,12 +29,14 @@ pub(super) fn install_thread_ids(
     admin: &AdminCompletionNotifier,
     assigned_consumer: &AssignedConsumerCompletionNotifier,
     group_consumers: &GroupConsumerRegistry,
+    transaction_initialization: &TransactionInitializationShardOwner,
 ) {
     for thread_id in [
         producer.notifier_thread_id(),
         admin.thread_id(),
         assigned_consumer.thread_id(),
         group_consumers.notifier_thread_id(),
+        transaction_initialization.notifier_thread_id(),
     ]
     .into_iter()
     .flatten()

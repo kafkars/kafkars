@@ -10,14 +10,14 @@ use crate::{
     },
 };
 
-/// Cheaply cloneable owner of one embedded driver and producer host.
+/// Cheaply cloneable owner of one embedded driver and shared execution host.
 #[derive(Clone)]
 pub struct Engine {
-    inner: Arc<EngineInner>,
+    pub(crate) inner: Arc<EngineInner>,
 }
 
-struct EngineInner {
-    config: EngineConfig,
+pub(crate) struct EngineInner {
+    pub(crate) config: EngineConfig,
     admission: crate::producer::ingress::ProducerAdmissionPort,
     create_topics_admission: crate::admin::CreateTopicsAdmissionPort,
     delete_topics_admission: crate::admin::DeleteTopicsAdmissionPort,
@@ -32,6 +32,8 @@ struct EngineInner {
     assigned_consumer: crate::consumer::AssignedConsumerClaimSlot,
     assigned_consumer_admission: crate::consumer::AssignedConsumerAdmissionCloser,
     group_consumer: crate::consumer::GroupConsumerPort,
+    pub(crate) transaction_initialization:
+        crate::transaction::TransactionInitializationAdmissionPort,
     clock: Arc<crate::clock::MonotonicClock>,
     control: Arc<EngineHostControl>,
     lifecycle: Arc<EngineLifecycle>,
@@ -55,6 +57,7 @@ impl Engine {
             alter_consumer_group_offsets_admission,
             assigned_consumer,
             group_consumer,
+            transaction_initialization,
             clock,
             control,
             lifecycle,
@@ -78,6 +81,7 @@ impl Engine {
                 assigned_consumer,
                 assigned_consumer_admission,
                 group_consumer,
+                transaction_initialization,
                 clock,
                 control,
                 lifecycle,
@@ -205,6 +209,7 @@ impl EngineInner {
             .close_admission();
         let _close_result = self.assigned_consumer_admission.close();
         self.group_consumer.close_admission();
+        self.transaction_initialization.close_admission();
     }
 }
 
@@ -212,15 +217,6 @@ impl Drop for EngineInner {
     fn drop(&mut self) {
         self.close_admission();
         self.lifecycle.request(&self.control);
-    }
-}
-
-impl std::fmt::Debug for Engine {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("Engine")
-            .field("config", &self.inner.config)
-            .finish_non_exhaustive()
     }
 }
 

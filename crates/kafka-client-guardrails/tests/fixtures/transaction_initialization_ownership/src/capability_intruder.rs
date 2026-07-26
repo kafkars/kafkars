@@ -5,6 +5,7 @@ use std::{future::Future, time::Instant};
 fn intrude(
     _admin: crate::admin::Policy,
     _consumer: crate::consumer::Policy,
+    _driver_policy: crate::driver::Policy,
     _producer: crate::producer::Policy,
     _engine: kafka_client_engine::Engine,
     _engine_marker: Engine,

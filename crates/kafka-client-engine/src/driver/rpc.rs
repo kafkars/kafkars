@@ -160,6 +160,15 @@ mod submission_test;
 mod sync_group_submission;
 #[cfg(test)]
 mod sync_group_submission_test;
+mod transaction_init_call;
+#[cfg(test)]
+mod transaction_init_call_test;
+mod transaction_init_submission;
+#[cfg(test)]
+mod transaction_init_submission_test;
+mod transaction_init_terminal;
+#[cfg(test)]
+mod transaction_init_terminal_test;
 pub(crate) use calls::{ProduceCompletionFailure, TrackedProduceCalls};
 pub(crate) use create_partitions_calls::{
     CreatePartitionsCompletionFailure, TrackedCreatePartitionsCalls,
@@ -203,3 +212,7 @@ pub(crate) use list_offsets_admission::{
 };
 pub(crate) use list_offsets_calls::{PositionCompletionFailure, TrackedPositionCalls};
 pub(crate) use submission::ProduceSubmitError;
+pub(crate) use transaction_init_call::TransactionInitCall;
+pub(crate) use transaction_init_terminal::{
+    TransactionInitDriverFailureKind, TransactionInitTerminal, TransactionInitTerminalFact,
+};

@@ -25,6 +25,7 @@ use crate::{
         execution::PreparedProduceHandoffError, execution_stop::ProducerExecutionStopError,
         ingress::ProducerShardTerminalError,
     },
+    transaction::TransactionInitializationHostError,
 };
 
 #[derive(Debug)]
@@ -48,6 +49,8 @@ pub(crate) enum EngineHostError {
     AssignedConsumerCompletion(CompletionRegistryError),
     GroupConsumer(GroupConsumerHostError),
     GroupConsumerLockPoisoned,
+    TransactionInitialization(TransactionInitializationHostError),
+    TransactionInitializationLockPoisoned,
     CreateTopics(CreateTopicsHostError),
     CreateTopicsCompletion(CreateTopicsCompletionFailure),
     CreateTopicsLockPoisoned,

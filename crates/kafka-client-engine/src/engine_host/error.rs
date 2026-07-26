@@ -91,6 +91,13 @@ impl EngineStartError {
         )
     }
 
+    pub(super) fn transaction_notifier(error: &std::io::Error) -> Self {
+        Self::new(
+            EngineStartErrorKind::Producer,
+            format!("failed to start transaction completion notifier: {error}"),
+        )
+    }
+
     pub(super) fn host_thread(error: &std::io::Error) -> Self {
         Self::new(
             EngineStartErrorKind::HostThread,

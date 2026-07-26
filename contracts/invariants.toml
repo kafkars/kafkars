@@ -1142,7 +1142,7 @@ evidence = [
 [[invariant]]
 id = "TXN-00"
 title = "Transaction initialization is owner-fenced and terminal"
-statement = "One deterministic transaction-initialization machine retains a scalar engine owner fence, validated transaction timeout, and one original absolute deadline; admits only one driver attempt; assigns exactly one terminal; distinguishes definitely-unsent pre-driver rejection from driver-owned certainty; preserves exact signed broker and fencing facts; and accepts only nonnegative broker producer identities without retry or coordinator policy."
+statement = "One deterministic transaction-initialization machine retains a scalar engine owner fence, validated broker transaction timeout, and one original absolute operation deadline; admits only one driver attempt; assigns exactly one terminal; distinguishes definitely-unsent pre-driver rejection from driver-owned certainty; preserves exact signed broker and fencing facts; and accepts only nonnegative broker producer identities. The private engine atomically reserves bounded completion and transactional-id bytes, uses generated InitProducerId on kafka-driver's transaction-coordinator route with Interactive traffic and the unchanged deadline, transfers a successful identity and retained transactional-id into one unique idle owner handle, and reclaims that owner on explicit close, drop, or shutdown without retry, a coordinator cache, another encoder, callback, generic executor, or async runtime."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/transaction/initialization/transition_test.rs::submit_preserves_owner_plan_and_original_absolute_deadline",
@@ -1150,6 +1150,21 @@ evidence = [
   "crates/kafka-client-core/src/transaction/initialization/transition_test.rs::pre_driver_failures_are_definitely_unsent_and_terminal_once",
   "crates/kafka-client-core/src/transaction/initialization/transition_test.rs::submitted_failures_preserve_driver_certainty_and_exact_broker_fencing",
   "crates/kafka-client-core/src/transaction/initialization/transition_test.rs::broker_success_requires_nonnegative_identity_and_completes_once",
+  "crates/kafka-client-engine/src/protocol/transaction/init_producer_id_test.rs::request_retains_transaction_identity_timeout_and_initial_sentinels",
+  "crates/kafka-client-engine/src/protocol/transaction/init_producer_id_test.rs::response_preserves_identity_exact_codes_and_owner_fencing",
+  "crates/kafka-client-engine/src/driver/rpc/transaction_init_submission_test.rs::route_uses_the_driver_transaction_coordinator_authority",
+  "crates/kafka-client-engine/src/driver/rpc/transaction_init_submission_test.rs::options_preserve_original_deadline_interactive_lane_and_v5_ceiling",
+  "crates/kafka-client-engine/src/transaction/initialization/host_test.rs::admission_reserves_terminal_and_transactional_id_envelope_before_acceptance",
+  "crates/kafka-client-engine/src/transaction/initialization/port_test.rs::validation_rejects_hostile_string_capacity_without_losing_caller_ownership",
+  "crates/kafka-client-engine/src/transaction/initialization/host_test.rs::elapsed_original_operation_deadline_never_needs_driver_submission",
+  "crates/kafka-client-engine/src/transaction/initialization/outcome_test.rs::explicit_close_releases_the_unique_owner_once",
+  "crates/kafka-client-engine/src/transaction/initialization/outcome_test.rs::drop_releases_the_unique_owner_once",
+  "crates/kafka-client-engine/src/transaction/initialization/retained_owner_test.rs::unobserved_payload_drop_releases_the_live_owner",
+  "crates/kafka-client-engine/src/transaction/initialization/retained_owner_test.rs::observation_transfers_release_and_lifetime_into_the_unique_handle",
+  "crates/kafka-client-engine/src/transaction/initialization/host_test.rs::shutdown_fences_live_owner_and_reclaims_its_byte_envelope_before_handle_drop",
+  "crates/kafka-client-engine/src/transaction/initialization/host_test.rs::abandoned_success_releases_its_live_owner_without_engine_shutdown",
+  "crates/kafka-client-engine/src/transaction/initialization/host_test.rs::unobserved_success_keeps_engine_lifetime_only_on_the_external_observer",
+  "crates/kafka-client-engine/src/engine_transaction_test.rs::local_rejection_returns_the_exact_transaction_request",
 ]
 
 [[invariant]]

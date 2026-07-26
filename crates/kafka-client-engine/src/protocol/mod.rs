@@ -31,3 +31,4 @@ mod produce_test;
 mod request_timeout;
 #[cfg(test)]
 mod request_timeout_test;
+pub(crate) mod transaction;

@@ -1,9 +1,6 @@
 //! Leak-free resource handoff into one self-cleaning native host.
 
-use std::{
-    sync::{Arc, mpsc::sync_channel},
-    thread,
-};
+use std::sync::Arc;
 
 use crate::{
     EngineConfig,
@@ -19,7 +16,7 @@ use crate::{
     config::ValidatedEngineConfig,
     consumer::{GroupConsumerRegistry, GroupConsumerShardOwner},
     driver::DriverOwner,
-    producer::{ProducerHost, ingress::ProducerShardOwner},
+    producer::ingress::ProducerShardOwner,
 };
 
 use super::{
@@ -28,25 +25,17 @@ use super::{
     finalize::finish_host,
     notifier_start,
     start_handoff::{StartedEngineHost, cancel_start, join_cancelled},
+    thread_start, transaction_start,
 };
 
-const HOST_THREAD_NAME: &str = "kafka-client-engine";
-
+// Construction stays rollback-ordered so every resource has a visible reclamation owner.
 #[allow(clippy::too_many_lines)]
 pub(crate) fn start(
     config: &EngineConfig,
     validated: ValidatedEngineConfig,
 ) -> Result<StartedEngineHost, EngineStartError> {
     let lifecycle = Arc::new(EngineLifecycle::new());
-    let host_lifecycle = Arc::clone(&lifecycle);
-    let (sender, receiver) = sync_channel::<EngineHostResources>(1);
-    let handle = thread::Builder::new()
-        .name(HOST_THREAD_NAME.to_owned())
-        .spawn(move || match receiver.recv() {
-            Ok(resources) => finish_host(resources, &host_lifecycle),
-            Err(_) => host_lifecycle.publish(None),
-        })
-        .map_err(|error| EngineStartError::host_thread(&error))?;
+    let (sender, handle) = thread_start::start(&lifecycle)?;
 
     let driver = match DriverOwner::build(config) {
         Ok(driver) => driver,
@@ -112,21 +101,25 @@ pub(crate) fn start(
             return cancel_start(sender, handle, EngineStartError::group_consumer(&error));
         }
     };
-    let producer = match ProducerHost::new_with_compression_wake(validated.host_limits, &wake) {
-        Ok(producer) => producer,
-        Err(error) => {
-            notifier_start::join_acquired(group_consumers.take_notifier());
-            notifier_start::join_acquired(admin_notifier.take_join());
-            notifier_start::join_acquired(assigned_consumer_notifier.take_join());
-            return cancel_start(sender, handle, EngineStartError::producer(&error));
-        }
-    };
+    let (transaction_initialization, transaction_initialization_admission, producer) =
+        match transaction_start::start(
+            validated.host_limits,
+            Arc::clone(&clock),
+            &wake,
+            &mut group_consumers,
+            &mut admin_notifier,
+            &mut assigned_consumer_notifier,
+        ) {
+            Ok(resources) => resources,
+            Err(error) => return cancel_start(sender, handle, error),
+        };
     notifier_start::install_thread_ids(
         &lifecycle,
         &producer,
         &admin_notifier,
         &assigned_consumer_notifier,
         &group_consumers,
+        &transaction_initialization,
     );
     let (group_consumers, group_consumer) =
         GroupConsumerShardOwner::new(group_consumers, Arc::clone(&clock), Arc::clone(&wake));
@@ -185,6 +178,7 @@ pub(crate) fn start(
         alter_consumer_group_offsets: alter_consumer_group_offsets.owner,
         assigned_consumer: assigned_consumer_owner,
         group_consumers,
+        transaction_initialization,
         clock: Arc::clone(&clock),
         control: Arc::clone(&control),
         budget: validated.turn_budget,
@@ -232,6 +226,7 @@ pub(crate) fn start(
         alter_consumer_group_offsets_admission: alter_consumer_group_offsets.admission,
         assigned_consumer,
         group_consumer,
+        transaction_initialization: transaction_initialization_admission,
         clock,
         control,
         lifecycle,

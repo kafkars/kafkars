@@ -2,7 +2,9 @@
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-use super::{EngineHostError, EngineHostExit, EngineHostResources, EngineLifecycle, recover, run};
+use super::{
+    EngineHostError, EngineHostExit, EngineHostResources, EngineLifecycle, recovery::recover, run,
+};
 
 pub(super) fn finish_host(mut resources: EngineHostResources, lifecycle: &EngineLifecycle) {
     publish_caught(lifecycle, move || {

@@ -16,6 +16,7 @@ use crate::{
     clock::MonotonicClock,
     consumer::{AssignedConsumerPort, GroupConsumerPort},
     producer::ingress::ProducerAdmissionPort,
+    transaction::TransactionInitializationAdmissionPort,
 };
 
 use super::{EngineHostControl, EngineHostResources, EngineLifecycle, EngineStartError};
@@ -34,6 +35,7 @@ pub(crate) struct StartedEngineHost {
     pub(crate) alter_consumer_group_offsets_admission: AlterConsumerGroupOffsetsAdmissionPort,
     pub(crate) assigned_consumer: AssignedConsumerPort,
     pub(crate) group_consumer: GroupConsumerPort,
+    pub(crate) transaction_initialization: TransactionInitializationAdmissionPort,
     pub(crate) clock: Arc<MonotonicClock>,
     pub(crate) control: Arc<EngineHostControl>,
     pub(crate) lifecycle: Arc<EngineLifecycle>,
