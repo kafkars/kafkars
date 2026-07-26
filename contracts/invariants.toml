@@ -348,6 +348,34 @@ evidence = [
 ]
 
 [[invariant]]
+id = "ADM-13"
+title = "AlterConsumerGroupOffsets core and protocol contracts are exact"
+statement = "One deterministic AlterConsumerGroupOffsets machine validates one explicit bounded nonempty group identity and a nonempty caller-ordered set of unique topic-partitions with nonnegative next offsets, optional nonnegative leader epochs, and nullable bounded metadata; retains the original absolute deadline and exact plan across its only submission; accepts only identity-exact caller-ordered response facts; and assigns exactly one terminal outcome without retry. The engine protocol seam alone maps that plan to generated kafka-wire OffsetCommit values, writes the exact non-member generation, member, instance, and retention sentinels, preserves nullable metadata and absent leader epochs, uses an exact v2-v9 window with a v6 floor when any leader epoch is present, preserves nonnegative throttle and exact signed partition errors, proves temporary and future owned-result capacity before allocation, and rejects hostile count, topic, partition, duplicate, version, throttle, or retained-capacity shapes without binding a result to the wrong request. This invariant does not claim an engine host, driver call, completion port, scheduler stage, or public facade."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/admin/group_offset_alter/model_test.rs::plan_preserves_group_caller_order_offsets_epochs_and_nullable_metadata",
+  "crates/kafka-client-core/src/admin/group_offset_alter/model_test.rs::plan_rejects_invalid_offset_epoch_and_metadata_facts",
+  "crates/kafka-client-core/src/admin/group_offset_alter/model_test.rs::plan_rejects_empty_and_duplicate_target_batches",
+  "crates/kafka-client-core/src/admin/group_offset_alter/transition_test.rs::original_deadline_and_exact_plan_cross_the_only_submit_effect",
+  "crates/kafka-client-core/src/admin/group_offset_alter/transition_test.rs::ordered_mixed_terminal_is_single_assignment_and_lossless",
+  "crates/kafka-client-core/src/admin/group_offset_alter/transition_test.rs::count_or_order_mismatch_settles_invalid_once",
+  "crates/kafka-client-core/src/admin/group_offset_alter/transition_test.rs::deadlines_and_driver_ownership_preserve_certainty_without_retry",
+  "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/request_test.rs::request_groups_topics_and_writes_exact_non_member_sentinels",
+  "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/request_test.rs::v9_round_trip_preserves_optional_epoch_and_nullable_metadata",
+  "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/retention_test.rs::generated_request_peak_charges_owned_text_structures_and_sort_scratch",
+  "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/version_test.rs::ordinary_alterations_have_an_exact_v2_floor_and_v9_ceiling",
+  "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/version_test.rs::one_present_leader_epoch_raises_the_floor_to_v6",
+  "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/response_test.rs::response_is_restored_to_caller_order_with_exact_signed_codes",
+  "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/response_test.rs::selected_version_respects_v2_floor_v9_ceiling_and_epoch_floor",
+  "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/response_test.rs::throttle_is_absent_in_v2_and_nonnegative_after_v2",
+  "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/response_test.rs::ambiguous_or_unexpected_response_targets_never_correlate",
+  "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/response_test.rs::hostile_excess_partitions_are_rejected_before_correlation_allocation",
+  "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/response_test.rs::complete_future_allocation_charge_must_fit_before_correlation",
+  "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/shape_test.rs::empty_topics_partitions_and_negative_indices_are_rejected",
+  "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/shape_test.rs::excess_partition_count_stops_at_the_first_unadmitted_entry",
+]
+
+[[invariant]]
 id = "BAT-01"
 title = "Core owns batch readiness"
 statement = "Record-count and conservative encoded-size readiness are deterministic core decisions and terminal fan-out preserves batch membership order."

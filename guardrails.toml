@@ -9051,6 +9051,34 @@ production = "crates/kafka-client-engine/src/protocol/admin/group_offset_delete/
 test = "crates/kafka-client-engine/src/protocol/admin/group_offset_delete/retention_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/model.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/correlation.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/correlation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/request.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/response.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/retention.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/retention_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/shape.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/shape_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/version.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/version_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_call.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_call_test.rs"
 
