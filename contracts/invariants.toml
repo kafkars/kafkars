@@ -320,6 +320,23 @@ evidence = [
 ]
 
 [[invariant]]
+id = "ADM-12"
+title = "DeleteConsumerGroupOffsets is ordered, exact, and retry silent"
+statement = "One deterministic DeleteConsumerGroupOffsets machine validates one explicit bounded nonempty group identity and a nonempty caller-ordered set of unique valid topic-partitions, retains the original absolute deadline and exact plan across its only submission, and assigns exactly one terminal decision. Successful response facts must correlate exactly to caller order; count, topic, or partition drift settles as one PossiblySent invalid-response terminal. Kafka's exact signed top-level group error remains separate from exact signed per-partition errors. Pre-driver deadline or driver rejection remains definitely unsent, while driver-owned deadline, compatibility, and transport failures preserve authoritative delivery certainty and complete without retry, callback, async runtime, generated protocol type, driver type, coordinator cache, or generic admin executor."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/admin/group_offset_delete/model_test.rs::plan_preserves_explicit_group_and_caller_partition_order",
+  "crates/kafka-client-core/src/admin/group_offset_delete/model_test.rs::plan_rejects_empty_or_unrepresentable_group_identity",
+  "crates/kafka-client-core/src/admin/group_offset_delete/model_test.rs::plan_rejects_empty_invalid_or_duplicate_topic_partitions",
+  "crates/kafka-client-core/src/admin/group_offset_delete/outcome_test.rs::partition_failure_retains_identity_and_exact_signed_code",
+  "crates/kafka-client-core/src/admin/group_offset_delete/transition_test.rs::original_deadline_group_and_targets_cross_the_only_submit_effect",
+  "crates/kafka-client-core/src/admin/group_offset_delete/transition_test.rs::ordered_mixed_terminal_is_single_assignment_and_lossless",
+  "crates/kafka-client-core/src/admin/group_offset_delete/transition_test.rs::top_level_group_error_is_separate_exact_and_terminal",
+  "crates/kafka-client-core/src/admin/group_offset_delete/transition_test.rs::count_or_order_mismatch_settles_invalid_once",
+  "crates/kafka-client-core/src/admin/group_offset_delete/transition_test.rs::deadlines_and_driver_ownership_preserve_certainty_without_retry",
+]
+
+[[invariant]]
 id = "BAT-01"
 title = "Core owns batch readiness"
 statement = "Record-count and conservative encoded-size readiness are deterministic core decisions and terminal fan-out preserves batch membership order."

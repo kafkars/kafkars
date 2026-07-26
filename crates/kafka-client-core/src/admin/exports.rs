@@ -38,6 +38,16 @@ pub use super::describe_outcome::{
     ClusterBroker, ClusterDescription, DescribeClusterBrokerError, DescribeClusterFailure,
     DescribeClusterFailureKind, DescribeClusterTerminal,
 };
+pub use super::group_offset_delete::{
+    DeleteConsumerGroupOffsetBrokerError, DeleteConsumerGroupOffsetOutcome,
+    DeleteConsumerGroupOffsetResult, DeleteConsumerGroupOffsetTarget,
+    DeleteConsumerGroupOffsetsBatch, DeleteConsumerGroupOffsetsEffect,
+    DeleteConsumerGroupOffsetsFailure, DeleteConsumerGroupOffsetsFailureKind,
+    DeleteConsumerGroupOffsetsInput, DeleteConsumerGroupOffsetsMachine,
+    DeleteConsumerGroupOffsetsMachineError, DeleteConsumerGroupOffsetsPlan,
+    DeleteConsumerGroupOffsetsPlanError, DeleteConsumerGroupOffsetsState,
+    DeleteConsumerGroupOffsetsTerminal, DeleteConsumerGroupOffsetsTransition,
+};
 pub use super::group_offsets::{
     GroupOffsetBrokerError, GroupOffsetDescription, GroupOffsetOutcome, GroupOffsetResult,
     ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsEffect, ListConsumerGroupOffsetsFailure,
