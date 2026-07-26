@@ -183,7 +183,7 @@ evidence = [
   "crates/kafka-client-engine/src/driver/rpc/describe_configs_terminal_test.rs::version_failure_preserves_driver_authoritative_delivery",
   "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls_test.rs::accepted_call_occupies_the_only_slot_until_driver_shutdown",
   "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls_test.rs::zero_capacity_rejects_before_submission",
-  "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::describe_configs_owner_is_independent_and_prevents_false_quiescence",
+  "crates/kafka-client-engine/src/engine_host/admin/schedule_configs_test.rs::describe_configs_owner_is_independent_and_prevents_false_quiescence",
   "crates/kafka-client-engine/src/admin/completion_test.rs::describe_configs_is_included_in_the_closed_shared_capacity_equation",
   "crates/kafka-client/src/admin/configs/query_test.rs::strings_request_all_configs_and_explicit_keys_preserve_order",
   "crates/kafka-client/src/admin/configs/entry_test.rs::nullable_versioned_and_signed_configuration_facts_remain_exact",
@@ -342,15 +342,15 @@ evidence = [
   "crates/kafka-client-engine/src/admin/group_offset_delete/host_test.rs::admission_atomically_reserves_the_complete_four_mib_envelope",
   "crates/kafka-client-engine/src/admin/group_offset_delete/host_test.rs::untouched_and_handed_off_recovery_preserve_delivery_boundary",
   "crates/kafka-client-engine/src/admin/group_offset_delete/host_test.rs::expired_public_deadline_never_reaches_driver_handoff",
-  "crates/kafka-client-engine/src/admin/completion_test.rs::group_offset_delete_is_included_in_the_closed_shared_capacity_equation",
+  "crates/kafka-client-engine/src/admin/completion_group_offsets_test.rs::group_offset_delete_is_included_in_the_closed_shared_capacity_equation",
   "crates/kafka-client-engine/src/engine_host/admin/delete_consumer_group_offsets_schedule_test.rs::offset_deletion_is_independent_and_prevents_false_quiescence",
   "crates/kafka-client-engine/src/engine_host/admin/delete_consumer_group_offsets_schedule_test.rs::offset_deletion_uses_time_recaptured_after_offset_listing",
 ]
 
 [[invariant]]
 id = "ADM-13"
-title = "AlterConsumerGroupOffsets core and protocol contracts are exact"
-statement = "One deterministic AlterConsumerGroupOffsets machine validates one explicit bounded nonempty group identity and a nonempty caller-ordered set of unique topic-partitions with nonnegative next offsets, optional nonnegative leader epochs, and nullable bounded metadata; retains the original absolute deadline and exact plan across its only submission; accepts only identity-exact caller-ordered response facts; and assigns exactly one terminal outcome without retry. The engine protocol seam alone maps that plan to generated kafka-wire OffsetCommit values, writes the exact non-member generation, member, instance, and retention sentinels, preserves nullable metadata and absent leader epochs, uses an exact v2-v9 window with a v6 floor when any leader epoch is present, preserves nonnegative throttle and exact signed partition errors, proves temporary and future owned-result capacity before allocation, and rejects hostile count, topic, partition, duplicate, version, throttle, or retained-capacity shapes without binding a result to the wrong request. This invariant does not claim an engine host, driver call, completion port, scheduler stage, or public facade."
+title = "AlterConsumerGroupOffsets execution is bounded and exact"
+statement = "One deterministic AlterConsumerGroupOffsets machine validates one explicit bounded nonempty group identity and a nonempty caller-ordered set of unique topic-partitions with nonnegative next offsets, optional nonnegative leader epochs, and nullable bounded metadata; retains the original absolute deadline and exact plan across its only submission; accepts only identity-exact caller-ordered response facts; and assigns exactly one terminal outcome without retry. The concrete engine admission path captures the public absolute deadline before validation, returns the exact request on local rejection, and atomically reserves one completion cell plus a conservative four-MiB request, scratch, and result envelope before machine creation. Its sole tracked group-coordinator call uses generated kafka-wire OffsetCommit with Interactive traffic, exact non-member sentinels, the v2-v9 name-based window, and a v6 floor when any leader epoch is present. Driver-owned deadline, compatibility, transport, and malformed-response outcomes preserve authoritative delivery certainty; route evidence is released only after core accepts the terminal fact. Retained bytes survive off-reactor publication through observer reclamation, and the concrete owner participates independently in fresh-time scheduling, shutdown quiescence, post-driver recovery, and the exact tenth admin-notifier capacity. No retry, coordinator cache, invalidation policy, callback, generic executor, public facade, or async runtime is introduced."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/admin/group_offset_alter/model_test.rs::plan_preserves_group_caller_order_offsets_epochs_and_nullable_metadata",
@@ -373,6 +373,18 @@ evidence = [
   "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/response_test.rs::complete_future_allocation_charge_must_fit_before_correlation",
   "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/shape_test.rs::empty_topics_partitions_and_negative_indices_are_rejected",
   "crates/kafka-client-engine/src/protocol/admin/group_offset_alter/shape_test.rs::excess_partition_count_stops_at_the_first_unadmitted_entry",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/error_test.rs::admission_error_preserves_every_stable_category",
+  "crates/kafka-client-engine/src/engine_host/alter_consumer_group_offsets_start_test.rs::local_deadline_rejection_returns_the_exact_request",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host_test.rs::admission_atomically_reserves_the_complete_four_mib_envelope",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host_test.rs::metadata_heavy_generated_request_peak_is_rejected_before_reservation",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host/recovered_test.rs::recovered_call_remains_retained_when_core_rejects_terminal_fact",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host_test.rs::untouched_and_handed_off_recovery_preserve_delivery_boundary",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host_test.rs::expired_public_deadline_never_reaches_driver_handoff",
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_submission_test.rs::request_uses_one_absolute_deadline_and_exact_name_based_bounds",
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_terminal_test.rs::failures_preserve_delivery_certainty_and_stable_classification",
+  "crates/kafka-client-engine/src/admin/completion_group_offsets_test.rs::group_offset_alter_is_included_in_the_closed_shared_capacity_equation",
+  "crates/kafka-client-engine/src/engine_host/admin/alter_consumer_group_offsets_schedule_test.rs::offset_alteration_is_independent_and_prevents_false_quiescence",
+  "crates/kafka-client-engine/src/engine_host/admin/alter_consumer_group_offsets_schedule_test.rs::offset_alteration_uses_time_recaptured_after_offset_deletion",
 ]
 
 [[invariant]]

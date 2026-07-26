@@ -38,6 +38,10 @@ pub(crate) use rpc::{
     TrackedProducerIdentityCalls, classify_fetch_admission, classify_fetch_request_error,
 };
 pub(crate) use rpc::{
+    GroupOffsetAlterCall, GroupOffsetAlterDriverFailureKind, GroupOffsetAlterTerminal,
+    GroupOffsetAlterTerminalFact, RecoveredGroupOffsetAlterCall,
+};
+pub(crate) use rpc::{
     GroupOffsetDeleteCall, GroupOffsetDeleteDriverFailureKind, GroupOffsetDeleteTerminal,
     GroupOffsetDeleteTerminalFact,
 };

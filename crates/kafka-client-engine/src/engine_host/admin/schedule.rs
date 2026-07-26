@@ -6,9 +6,11 @@ use kafka_client_core::{Deadline, Moment};
 
 use super::{
     super::{EngineHostError, EngineHostResources},
-    create_partitions, create_topics, delete_consumer_group_offsets, delete_topics,
-    describe_cluster, describe_configs, describe_topics, incremental_alter_configs,
-    list_consumer_group_offsets,
+    alter_consumer_group_offsets, create_partitions, create_topics, delete_consumer_group_offsets,
+    delete_topics, describe_cluster, describe_configs, describe_topics,
+    group_offset_alter_schedule::drive_group_offset_delete_then_capture_alter,
+    incremental_alter_configs, list_consumer_group_offsets,
+    schedule_deadline::earliest,
 };
 
 pub(in crate::engine_host) struct AdminProgress {
@@ -55,8 +57,14 @@ pub(in crate::engine_host) fn drive(
         |now| list_consumer_group_offsets::drive(resources, now),
         || clock.now().map_err(EngineHostError::Clock),
     )?;
-    let group_offset_delete =
-        delete_consumer_group_offsets::drive(resources, group_offset_delete_now)?;
+    let (group_offset_delete, group_offset_alter_now) =
+        drive_group_offset_delete_then_capture_alter(
+            group_offset_delete_now,
+            |now| delete_consumer_group_offsets::drive(resources, now),
+            || clock.now().map_err(EngineHostError::Clock),
+        )?;
+    let group_offset_alter =
+        alter_consumer_group_offsets::drive(resources, group_offset_alter_now)?;
     Ok(combine(
         &create,
         &delete,
@@ -67,6 +75,7 @@ pub(in crate::engine_host) fn drive(
         &alter_configs,
         &group_offsets,
         &group_offset_delete,
+        &group_offset_alter,
     ))
 }
 
@@ -159,6 +168,7 @@ pub(super) const fn combine(
     alter_configs: &incremental_alter_configs::IncrementalAlterConfigsProgress,
     group_offsets: &list_consumer_group_offsets::ListConsumerGroupOffsetsProgress,
     group_offset_delete: &delete_consumer_group_offsets::DeleteConsumerGroupOffsetsProgress,
+    group_offset_alter: &alter_consumer_group_offsets::AlterConsumerGroupOffsetsProgress,
 ) -> AdminProgress {
     AdminProgress {
         unsettled: create
@@ -170,7 +180,8 @@ pub(super) const fn combine(
             .saturating_add(configs.unsettled)
             .saturating_add(alter_configs.unsettled)
             .saturating_add(group_offsets.unsettled)
-            .saturating_add(group_offset_delete.unsettled),
+            .saturating_add(group_offset_delete.unsettled)
+            .saturating_add(group_offset_alter.unsettled),
         driver_progress: create.driver_progress
             || delete.driver_progress
             || describe.driver_progress
@@ -179,7 +190,8 @@ pub(super) const fn combine(
             || configs.driver_progress
             || alter_configs.driver_progress
             || group_offsets.driver_progress
-            || group_offset_delete.driver_progress,
+            || group_offset_delete.driver_progress
+            || group_offset_alter.driver_progress,
         next_deadline: earliest(
             earliest(create.next_deadline, delete.next_deadline),
             earliest(
@@ -188,7 +200,10 @@ pub(super) const fn combine(
                     earliest(topics.next_deadline, configs.next_deadline),
                     earliest(
                         earliest(alter_configs.next_deadline, group_offsets.next_deadline),
-                        group_offset_delete.next_deadline,
+                        earliest(
+                            group_offset_delete.next_deadline,
+                            group_offset_alter.next_deadline,
+                        ),
                     ),
                 ),
             ),
@@ -217,15 +232,5 @@ impl AdminProgress {
             driver_progress: false,
             next_deadline: None,
         }
-    }
-}
-
-const fn earliest(left: Option<Deadline>, right: Option<Deadline>) -> Option<Deadline> {
-    match (left, right) {
-        (Some(left), Some(right)) if left.tick() <= right.tick() => Some(left),
-        (Some(_left), Some(right)) => Some(right),
-        (Some(left), None) => Some(left),
-        (None, Some(right)) => Some(right),
-        (None, None) => None,
     }
 }

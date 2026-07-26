@@ -5,6 +5,7 @@ use std::cell::Cell;
 use kafka_client_core::{Deadline, Moment};
 
 use super::{
+    alter_consumer_group_offsets::AlterConsumerGroupOffsetsProgress,
     create_partitions::CreatePartitionsProgress,
     create_topics::CreateTopicsProgress,
     delete_consumer_group_offsets::DeleteConsumerGroupOffsetsProgress,
@@ -33,6 +34,7 @@ fn group_offsets_owner_is_independent_and_prevents_false_quiescence() {
             next_deadline: Some(Deadline::from_tick(3)),
         },
         &idle_group_offset_delete(),
+        &idle_group_offset_alter(),
     );
     assert_eq!(combined.unsettled, 1);
     assert!(combined.driver_progress);
@@ -116,6 +118,14 @@ const fn idle_alter_configs() -> IncrementalAlterConfigsProgress {
 
 const fn idle_group_offset_delete() -> DeleteConsumerGroupOffsetsProgress {
     DeleteConsumerGroupOffsetsProgress {
+        unsettled: 0,
+        driver_progress: false,
+        next_deadline: None,
+    }
+}
+
+const fn idle_group_offset_alter() -> AlterConsumerGroupOffsetsProgress {
+    AlterConsumerGroupOffsetsProgress {
         unsettled: 0,
         driver_progress: false,
         next_deadline: None,

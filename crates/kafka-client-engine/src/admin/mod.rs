@@ -2,6 +2,8 @@
 mod alter_configs;
 mod completion;
 #[cfg(test)]
+mod completion_group_offsets_test;
+#[cfg(test)]
 mod completion_test;
 mod configs;
 mod delete_error;
@@ -19,6 +21,7 @@ mod describe_outcome;
 mod describe_shard;
 mod error;
 mod exports;
+mod group_offset_alter;
 mod group_offset_delete;
 mod group_offsets;
 mod handle;

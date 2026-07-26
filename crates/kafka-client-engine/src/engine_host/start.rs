@@ -24,7 +24,7 @@ use crate::{
 
 use super::{
     EngineHostControl, EngineHostResources, EngineLifecycle, EngineStartError,
-    assigned_consumer_start, describe_configs_start,
+    alter_consumer_group_offsets_start, assigned_consumer_start, describe_configs_start,
     finalize::finish_host,
     notifier_start,
     start_handoff::{StartedEngineHost, cancel_start, join_cancelled},
@@ -32,7 +32,6 @@ use super::{
 
 const HOST_THREAD_NAME: &str = "kafka-client-engine";
 
-// Construction stays rollback-ordered so every resource has a visible reclamation owner.
 #[allow(clippy::too_many_lines)]
 pub(crate) fn start(
     config: &EngineConfig,
@@ -93,6 +92,7 @@ pub(crate) fn start(
         incremental_alter_configs,
         list_consumer_group_offsets,
         delete_consumer_group_offsets,
+        alter_consumer_group_offsets,
     } = admin_ports;
     let create_topics = CreateTopicsHost::new(create_topics);
     let delete_topics = DeleteTopicsHost::new(delete_topics);
@@ -162,6 +162,10 @@ pub(crate) fn start(
         Arc::new(driver.reactor_wake()),
     );
     let delete_consumer_group_offsets_admission = delete_consumer_group_offsets.admission_port();
+    let alter_consumer_group_offsets = alter_consumer_group_offsets_start::start(
+        alter_consumer_group_offsets,
+        driver.reactor_wake(),
+    );
     let produce_calls =
         crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
     let resources = EngineHostResources {
@@ -178,6 +182,7 @@ pub(crate) fn start(
         incremental_alter_configs,
         list_consumer_group_offsets,
         delete_consumer_group_offsets,
+        alter_consumer_group_offsets: alter_consumer_group_offsets.owner,
         assigned_consumer: assigned_consumer_owner,
         group_consumers,
         clock: Arc::clone(&clock),
@@ -212,9 +217,6 @@ pub(crate) fn start(
         return Err(EngineStartError::handoff());
     }
 
-    // The host self-cleans and publishes a retained terminal report after
-    // joining its notifier. External shutdown observes that report, not this
-    // operating-system join token.
     drop(handle);
     Ok(StartedEngineHost {
         admission,
@@ -227,6 +229,7 @@ pub(crate) fn start(
         incremental_alter_configs_admission,
         list_consumer_group_offsets_admission,
         delete_consumer_group_offsets_admission,
+        alter_consumer_group_offsets_admission: alter_consumer_group_offsets.admission,
         assigned_consumer,
         group_consumer,
         clock,

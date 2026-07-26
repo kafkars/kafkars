@@ -7,10 +7,11 @@ use std::{
 
 use crate::{
     admin::{
-        CreatePartitionsAdmissionPort, CreateTopicsAdmissionPort,
-        DeleteConsumerGroupOffsetsAdmissionPort, DeleteTopicsAdmissionPort,
-        DescribeClusterAdmissionPort, DescribeConfigsAdmissionPort, DescribeTopicsAdmissionPort,
-        IncrementalAlterConfigsAdmissionPort, ListConsumerGroupOffsetsAdmissionPort,
+        AlterConsumerGroupOffsetsAdmissionPort, CreatePartitionsAdmissionPort,
+        CreateTopicsAdmissionPort, DeleteConsumerGroupOffsetsAdmissionPort,
+        DeleteTopicsAdmissionPort, DescribeClusterAdmissionPort, DescribeConfigsAdmissionPort,
+        DescribeTopicsAdmissionPort, IncrementalAlterConfigsAdmissionPort,
+        ListConsumerGroupOffsetsAdmissionPort,
     },
     clock::MonotonicClock,
     consumer::{AssignedConsumerPort, GroupConsumerPort},
@@ -30,6 +31,7 @@ pub(crate) struct StartedEngineHost {
     pub(crate) incremental_alter_configs_admission: IncrementalAlterConfigsAdmissionPort,
     pub(crate) list_consumer_group_offsets_admission: ListConsumerGroupOffsetsAdmissionPort,
     pub(crate) delete_consumer_group_offsets_admission: DeleteConsumerGroupOffsetsAdmissionPort,
+    pub(crate) alter_consumer_group_offsets_admission: AlterConsumerGroupOffsetsAdmissionPort,
     pub(crate) assigned_consumer: AssignedConsumerPort,
     pub(crate) group_consumer: GroupConsumerPort,
     pub(crate) clock: Arc<MonotonicClock>,

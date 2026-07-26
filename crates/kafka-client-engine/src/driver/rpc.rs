@@ -70,6 +70,15 @@ mod fetch;
 mod group_coordinator_route;
 #[cfg(test)]
 mod group_coordinator_route_test;
+mod group_offset_alter_call;
+#[cfg(test)]
+mod group_offset_alter_call_test;
+mod group_offset_alter_submission;
+#[cfg(test)]
+mod group_offset_alter_submission_test;
+mod group_offset_alter_terminal;
+#[cfg(test)]
+mod group_offset_alter_terminal_test;
 mod group_offset_commit_calls;
 #[cfg(test)]
 mod group_offset_commit_calls_test;
@@ -166,6 +175,11 @@ pub(crate) use fetch::{
     FetchRequestPreparationError, FetchTerminal, PartitionFetchRequest,
     StaleFetchConfirmationError, TrackedFetchCalls, classify_fetch_admission,
     classify_fetch_request_error,
+};
+pub(crate) use group_offset_alter_call::GroupOffsetAlterCall;
+pub(crate) use group_offset_alter_terminal::{
+    GroupOffsetAlterDriverFailureKind, GroupOffsetAlterTerminal, GroupOffsetAlterTerminalFact,
+    RecoveredGroupOffsetAlterCall,
 };
 pub(crate) use group_offset_commit_calls::TrackedGroupOffsetCommitCalls;
 pub(crate) use group_offset_commit_recovery::GroupOffsetCommitShutdownRecovery;

@@ -1,7 +1,14 @@
 //! Curated public re-exports for engine execution and observation.
 
 pub use crate::admin::{
-    AdminHandle, ClusterBroker, ClusterDescription, CreatePartitionsAccepted,
+    AdminHandle, AlterConsumerGroupOffsetBrokerError, AlterConsumerGroupOffsetResult,
+    AlterConsumerGroupOffsetTarget, AlterConsumerGroupOffsetsAccepted,
+    AlterConsumerGroupOffsetsAcceptedFaultKind, AlterConsumerGroupOffsetsAdmissionError,
+    AlterConsumerGroupOffsetsAdmissionErrorKind, AlterConsumerGroupOffsetsBatch,
+    AlterConsumerGroupOffsetsDeliveryStatus, AlterConsumerGroupOffsetsFailure,
+    AlterConsumerGroupOffsetsFailureKind, AlterConsumerGroupOffsetsObserver,
+    AlterConsumerGroupOffsetsObserverError, AlterConsumerGroupOffsetsOutcome,
+    AlterConsumerGroupOffsetsRequest, ClusterBroker, ClusterDescription, CreatePartitionsAccepted,
     CreatePartitionsAcceptedFaultKind, CreatePartitionsAdmissionError,
     CreatePartitionsAdmissionErrorKind, CreatePartitionsDeliveryStatus, CreatePartitionsFailure,
     CreatePartitionsFailureKind, CreatePartitionsObserver, CreatePartitionsObserverError,

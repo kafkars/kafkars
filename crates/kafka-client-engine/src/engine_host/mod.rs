@@ -5,6 +5,9 @@ mod admin;
 mod admin_test;
 mod admin_wake;
 mod admission_close;
+mod alter_consumer_group_offsets_start;
+#[cfg(test)]
+mod alter_consumer_group_offsets_start_test;
 mod assigned_consumer;
 mod assigned_consumer_start;
 #[cfg(test)]

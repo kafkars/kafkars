@@ -28,6 +28,7 @@ struct EngineInner {
     incremental_alter_configs_admission: crate::admin::IncrementalAlterConfigsAdmissionPort,
     list_consumer_group_offsets_admission: crate::admin::ListConsumerGroupOffsetsAdmissionPort,
     delete_consumer_group_offsets_admission: crate::admin::DeleteConsumerGroupOffsetsAdmissionPort,
+    alter_consumer_group_offsets_admission: crate::admin::AlterConsumerGroupOffsetsAdmissionPort,
     assigned_consumer: crate::consumer::AssignedConsumerClaimSlot,
     assigned_consumer_admission: crate::consumer::AssignedConsumerAdmissionCloser,
     group_consumer: crate::consumer::GroupConsumerPort,
@@ -51,6 +52,7 @@ impl Engine {
             incremental_alter_configs_admission,
             list_consumer_group_offsets_admission,
             delete_consumer_group_offsets_admission,
+            alter_consumer_group_offsets_admission,
             assigned_consumer,
             group_consumer,
             clock,
@@ -72,6 +74,7 @@ impl Engine {
                 incremental_alter_configs_admission,
                 list_consumer_group_offsets_admission,
                 delete_consumer_group_offsets_admission,
+                alter_consumer_group_offsets_admission,
                 assigned_consumer,
                 assigned_consumer_admission,
                 group_consumer,
@@ -111,6 +114,10 @@ impl Engine {
                 delete_consumer_group_offsets: self
                     .inner
                     .delete_consumer_group_offsets_admission
+                    .clone(),
+                alter_consumer_group_offsets: self
+                    .inner
+                    .alter_consumer_group_offsets_admission
                     .clone(),
             },
             Arc::clone(&self.inner.clock),
@@ -176,6 +183,11 @@ impl Engine {
 
 impl EngineInner {
     fn shutdown(&self) -> Result<(), EngineShutdownError> {
+        self.close_admission();
+        self.lifecycle.request_and_wait(&self.control)
+    }
+
+    fn close_admission(&self) {
         let _close_result = self.admission.close_admission();
         let _close_result = self.create_topics_admission.close_admission();
         let _close_result = self.delete_topics_admission.close_admission();
@@ -188,28 +200,17 @@ impl EngineInner {
         let _close_result = self
             .delete_consumer_group_offsets_admission
             .close_admission();
+        let _close_result = self
+            .alter_consumer_group_offsets_admission
+            .close_admission();
         let _close_result = self.assigned_consumer_admission.close();
         self.group_consumer.close_admission();
-        self.lifecycle.request_and_wait(&self.control)
     }
 }
 
 impl Drop for EngineInner {
     fn drop(&mut self) {
-        let _close_result = self.admission.close_admission();
-        let _close_result = self.create_topics_admission.close_admission();
-        let _close_result = self.delete_topics_admission.close_admission();
-        let _close_result = self.describe_cluster_admission.close_admission();
-        let _close_result = self.create_partitions_admission.close_admission();
-        let _close_result = self.describe_topics_admission.close_admission();
-        let _close_result = self.describe_configs_admission.close_admission();
-        let _close_result = self.incremental_alter_configs_admission.close_admission();
-        let _close_result = self.list_consumer_group_offsets_admission.close_admission();
-        let _close_result = self
-            .delete_consumer_group_offsets_admission
-            .close_admission();
-        let _close_result = self.assigned_consumer_admission.close();
-        self.group_consumer.close_admission();
+        self.close_admission();
         self.lifecycle.request(&self.control);
     }
 }

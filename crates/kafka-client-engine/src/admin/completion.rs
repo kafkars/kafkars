@@ -3,9 +3,10 @@
 use std::thread::ThreadId;
 
 use kafka_client_core::{
-    CreatePartitionsTerminal, CreateTopicsTerminal, DeleteConsumerGroupOffsetsTerminal,
-    DeleteTopicsTerminal, DescribeClusterTerminal, DescribeConfigsTerminal, DescribeTopicsTerminal,
-    IncrementalAlterConfigsTerminal, ListConsumerGroupOffsetsTerminal,
+    AlterConsumerGroupOffsetsTerminal, CreatePartitionsTerminal, CreateTopicsTerminal,
+    DeleteConsumerGroupOffsetsTerminal, DeleteTopicsTerminal, DescribeClusterTerminal,
+    DescribeConfigsTerminal, DescribeTopicsTerminal, IncrementalAlterConfigsTerminal,
+    ListConsumerGroupOffsetsTerminal,
 };
 
 use crate::completion::{
@@ -14,9 +15,9 @@ use crate::completion::{
 };
 
 use super::{
-    CREATE_PARTITIONS_CAPACITY, CREATE_TOPICS_CAPACITY, DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY,
-    DELETE_TOPICS_CAPACITY, DESCRIBE_CLUSTER_CAPACITY, DESCRIBE_CONFIGS_CAPACITY,
-    DESCRIBE_TOPICS_CAPACITY, INCREMENTAL_ALTER_CONFIGS_CAPACITY,
+    ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY, CREATE_PARTITIONS_CAPACITY, CREATE_TOPICS_CAPACITY,
+    DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY, DELETE_TOPICS_CAPACITY, DESCRIBE_CLUSTER_CAPACITY,
+    DESCRIBE_CONFIGS_CAPACITY, DESCRIBE_TOPICS_CAPACITY, INCREMENTAL_ALTER_CONFIGS_CAPACITY,
     LIST_CONSUMER_GROUP_OFFSETS_CAPACITY,
 };
 
@@ -29,7 +30,8 @@ const ADMIN_NOTIFICATION_CAPACITY: usize = CREATE_TOPICS_CAPACITY
     + DESCRIBE_CONFIGS_CAPACITY
     + INCREMENTAL_ALTER_CONFIGS_CAPACITY
     + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
-    + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY;
+    + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
+    + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY;
 
 /// Closed allocation-free set of terminal tickets accepted by the admin worker.
 pub(crate) enum AdminPublishTicket {
@@ -42,6 +44,7 @@ pub(crate) enum AdminPublishTicket {
     IncrementalAlterConfigs(PublishTicket<IncrementalAlterConfigsTerminal>),
     ListConsumerGroupOffsets(PublishTicket<ListConsumerGroupOffsetsTerminal>),
     DeleteConsumerGroupOffsets(PublishTicket<DeleteConsumerGroupOffsetsTerminal>),
+    AlterConsumerGroupOffsets(PublishTicket<AlterConsumerGroupOffsetsTerminal>),
 }
 
 impl NotificationTicket for AdminPublishTicket {
@@ -56,6 +59,7 @@ impl NotificationTicket for AdminPublishTicket {
             Self::IncrementalAlterConfigs(ticket) => ticket.publish(),
             Self::ListConsumerGroupOffsets(ticket) => ticket.publish(),
             Self::DeleteConsumerGroupOffsets(ticket) => ticket.publish(),
+            Self::AlterConsumerGroupOffsets(ticket) => ticket.publish(),
         }
     }
 }
@@ -76,6 +80,8 @@ pub(crate) type ListConsumerGroupOffsetsPublisher =
     SharedPublishPort<ListConsumerGroupOffsetsTerminal, AdminPublishTicket>;
 pub(crate) type DeleteConsumerGroupOffsetsPublisher =
     SharedPublishPort<DeleteConsumerGroupOffsetsTerminal, AdminPublishTicket>;
+pub(crate) type AlterConsumerGroupOffsetsPublisher =
+    SharedPublishPort<AlterConsumerGroupOffsetsTerminal, AdminPublishTicket>;
 
 /// Exact typed ports issued once with the shared worker.
 pub(crate) struct AdminCompletionPorts {
@@ -88,6 +94,7 @@ pub(crate) struct AdminCompletionPorts {
     pub(crate) incremental_alter_configs: IncrementalAlterConfigsPublisher,
     pub(crate) list_consumer_group_offsets: ListConsumerGroupOffsetsPublisher,
     pub(crate) delete_consumer_group_offsets: DeleteConsumerGroupOffsetsPublisher,
+    pub(crate) alter_consumer_group_offsets: AlterConsumerGroupOffsetsPublisher,
 }
 
 /// Unique lifecycle owner for the one shared admin notifier.
@@ -111,6 +118,8 @@ impl AdminCompletionNotifier {
                 .publish_port(AdminPublishTicket::ListConsumerGroupOffsets),
             delete_consumer_group_offsets: worker
                 .publish_port(AdminPublishTicket::DeleteConsumerGroupOffsets),
+            alter_consumer_group_offsets: worker
+                .publish_port(AdminPublishTicket::AlterConsumerGroupOffsets),
         };
         Ok((
             Self {

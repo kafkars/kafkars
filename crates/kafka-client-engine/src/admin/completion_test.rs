@@ -9,9 +9,10 @@ use std::{
 };
 
 use kafka_client_core::{
-    ClusterDescription, CreatePartitionsTerminal, CreateTopicsTerminal,
-    DeleteConsumerGroupOffsetsBatch, DeleteConsumerGroupOffsetsTerminal, DeleteTopicsTerminal,
-    DescribeClusterTerminal, DescribeConfigsBatch, DescribeConfigsTerminal, DescribeTopicsTerminal,
+    AlterConsumerGroupOffsetsBatch, AlterConsumerGroupOffsetsTerminal, ClusterDescription,
+    CreatePartitionsTerminal, CreateTopicsTerminal, DeleteConsumerGroupOffsetsBatch,
+    DeleteConsumerGroupOffsetsTerminal, DeleteTopicsTerminal, DescribeClusterTerminal,
+    DescribeConfigsBatch, DescribeConfigsTerminal, DescribeTopicsTerminal,
     IncrementalAlterConfigsBatch, IncrementalAlterConfigsTerminal, ListConsumerGroupOffsetsBatch,
     ListConsumerGroupOffsetsTerminal,
 };
@@ -19,9 +20,9 @@ use kafka_client_core::{
 use crate::completion::{CompletionRegistry, ReclaimStatus};
 
 use super::{
-    CREATE_PARTITIONS_CAPACITY, CREATE_TOPICS_CAPACITY, DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY,
-    DELETE_TOPICS_CAPACITY, DESCRIBE_CLUSTER_CAPACITY, DESCRIBE_CONFIGS_CAPACITY,
-    DESCRIBE_TOPICS_CAPACITY, INCREMENTAL_ALTER_CONFIGS_CAPACITY,
+    ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY, CREATE_PARTITIONS_CAPACITY, CREATE_TOPICS_CAPACITY,
+    DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY, DELETE_TOPICS_CAPACITY, DESCRIBE_CLUSTER_CAPACITY,
+    DESCRIBE_CONFIGS_CAPACITY, DESCRIBE_TOPICS_CAPACITY, INCREMENTAL_ALTER_CONFIGS_CAPACITY,
     LIST_CONSUMER_GROUP_OFFSETS_CAPACITY, completion::AdminCompletionNotifier,
     test_support::completion_owner,
 };
@@ -44,6 +45,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     let mut alter_configs = PendingTerminal::new(ports.incremental_alter_configs);
     let mut group_offsets = PendingTerminal::new(ports.list_consumer_group_offsets);
     let mut group_offset_delete = PendingTerminal::new(ports.delete_consumer_group_offsets);
+    let mut group_offset_alter = PendingTerminal::new(ports.alter_consumer_group_offsets);
 
     create.publish(CreateTopicsTerminal::Topics(Vec::new()));
     delete.publish(DeleteTopicsTerminal::Topics(Vec::new()));
@@ -67,6 +69,9 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     group_offset_delete.publish(DeleteConsumerGroupOffsetsTerminal::Deleted(
         DeleteConsumerGroupOffsetsBatch::new(0, Vec::new()),
     ));
+    group_offset_alter.publish(AlterConsumerGroupOffsetsTerminal::Altered(
+        AlterConsumerGroupOffsetsBatch::new(0, Vec::new()),
+    ));
 
     create.observe_and_reclaim(worker);
     delete.observe_and_reclaim(worker);
@@ -77,6 +82,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     alter_configs.observe_and_reclaim(worker);
     group_offsets.observe_and_reclaim(worker);
     group_offset_delete.observe_and_reclaim(worker);
+    group_offset_alter.observe_and_reclaim(worker);
 
     let join = notifier
         .stop()
@@ -97,6 +103,7 @@ fn shared_capacity_is_the_sum_of_the_closed_admin_ticket_set() {
             + INCREMENTAL_ALTER_CONFIGS_CAPACITY
             + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
             + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
+            + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
     );
 }
 
@@ -112,6 +119,7 @@ fn describe_topics_is_included_in_the_closed_shared_capacity_equation() {
                 + INCREMENTAL_ALTER_CONFIGS_CAPACITY
                 + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
                 + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
         ),
         Some(DESCRIBE_TOPICS_CAPACITY)
     );
@@ -129,6 +137,7 @@ fn create_partitions_is_included_in_the_closed_shared_capacity_equation() {
                 + INCREMENTAL_ALTER_CONFIGS_CAPACITY
                 + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
                 + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
         ),
         Some(CREATE_PARTITIONS_CAPACITY)
     );
@@ -146,6 +155,7 @@ fn describe_configs_is_included_in_the_closed_shared_capacity_equation() {
                 + INCREMENTAL_ALTER_CONFIGS_CAPACITY
                 + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
                 + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
         ),
         Some(DESCRIBE_CONFIGS_CAPACITY)
     );
@@ -163,6 +173,7 @@ fn incremental_alter_configs_is_included_in_the_closed_shared_capacity_equation(
                 + DESCRIBE_CONFIGS_CAPACITY
                 + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
                 + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
         ),
         Some(INCREMENTAL_ALTER_CONFIGS_CAPACITY)
     );
@@ -180,25 +191,9 @@ fn group_offsets_is_included_in_the_closed_shared_capacity_equation() {
                 + DESCRIBE_CONFIGS_CAPACITY
                 + INCREMENTAL_ALTER_CONFIGS_CAPACITY
                 + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
         ),
         Some(LIST_CONSUMER_GROUP_OFFSETS_CAPACITY)
-    );
-}
-
-#[test]
-fn group_offset_delete_is_included_in_the_closed_shared_capacity_equation() {
-    assert_eq!(
-        AdminCompletionNotifier::capacity_for_test().checked_sub(
-            CREATE_TOPICS_CAPACITY
-                + DELETE_TOPICS_CAPACITY
-                + DESCRIBE_CLUSTER_CAPACITY
-                + CREATE_PARTITIONS_CAPACITY
-                + DESCRIBE_TOPICS_CAPACITY
-                + DESCRIBE_CONFIGS_CAPACITY
-                + INCREMENTAL_ALTER_CONFIGS_CAPACITY
-                + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
-        ),
-        Some(DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY)
     );
 }
 

@@ -119,6 +119,12 @@ impl fmt::Display for EngineHostError {
             Self::DeleteConsumerGroupOffsetsLockPoisoned => {
                 formatter.write_str("DeleteConsumerGroupOffsets host ownership lock is poisoned")
             }
+            Self::AlterConsumerGroupOffsets(error) => {
+                write!(formatter, "AlterConsumerGroupOffsets host failed: {error}")
+            }
+            Self::AlterConsumerGroupOffsetsLockPoisoned => {
+                formatter.write_str("AlterConsumerGroupOffsets host ownership lock is poisoned")
+            }
             Self::AdminCompletion(error) => {
                 write!(
                     formatter,

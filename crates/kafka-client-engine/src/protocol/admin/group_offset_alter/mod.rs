@@ -12,7 +12,10 @@ pub(crate) use model::{
     OffsetCommitPartitionRef, OffsetCommitPartitionResult, OffsetCommitTargetRef,
     ValidatedOffsetCommitResponse,
 };
-pub(crate) use response::GroupOffsetAlterProtocolFailure;
+pub(crate) use request::{GroupOffsetAlterRequestFailure, group_offset_alter_request};
+pub(crate) use response::{GroupOffsetAlterProtocolFailure, validate_group_offset_alter_response};
+pub(crate) use retention::generated_request_peak_charge;
+pub(crate) use version::{GROUP_OFFSET_ALTER_MAX_VERSION, group_offset_alter_minimum_version};
 
 #[cfg(test)]
 mod correlation_test;

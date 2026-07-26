@@ -198,6 +198,15 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
             crate::admin::DeleteConsumerGroupOffsetsHostError::Unsettled(group_offset_delete),
         ));
     }
+    let group_offset_alter = resources
+        .alter_consumer_group_offsets
+        .terminal_host()
+        .unsettled();
+    if group_offset_alter != 0 {
+        return Err(EngineHostError::AlterConsumerGroupOffsets(
+            crate::admin::AlterConsumerGroupOffsetsHostError::Unsettled(group_offset_alter),
+        ));
+    }
     Ok(())
 }
 

@@ -6,9 +6,9 @@ use kafka_client_core::{Deadline, Moment};
 
 use crate::{
     admin::{
-        CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner,
-        DeleteTopicsShardOwner, DescribeClusterShardOwner, DescribeConfigsShardOwner,
-        DescribeTopicsShardOwner, IncrementalAlterConfigsShardOwner,
+        AlterConsumerGroupOffsetsShardOwner, CreatePartitionsShardOwner, CreateTopicsShardOwner,
+        DeleteConsumerGroupOffsetsShardOwner, DeleteTopicsShardOwner, DescribeClusterShardOwner,
+        DescribeConfigsShardOwner, DescribeTopicsShardOwner, IncrementalAlterConfigsShardOwner,
         ListConsumerGroupOffsetsShardOwner,
     },
     clock::MonotonicClock,
@@ -49,6 +49,7 @@ pub(crate) struct EngineHostResources {
     pub(super) incremental_alter_configs: IncrementalAlterConfigsShardOwner,
     pub(super) list_consumer_group_offsets: ListConsumerGroupOffsetsShardOwner,
     pub(super) delete_consumer_group_offsets: DeleteConsumerGroupOffsetsShardOwner,
+    pub(super) alter_consumer_group_offsets: AlterConsumerGroupOffsetsShardOwner,
     pub(super) assigned_consumer: crate::consumer::AssignedConsumerShardOwner,
     pub(super) group_consumers: crate::consumer::GroupConsumerShardOwner,
     pub(super) clock: Arc<MonotonicClock>,

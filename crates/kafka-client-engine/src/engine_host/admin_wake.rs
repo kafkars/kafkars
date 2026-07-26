@@ -2,6 +2,7 @@
 
 use crate::{
     admin::{
+        AlterConsumerGroupOffsetsShardWake, AlterConsumerGroupOffsetsShardWakeError,
         CreatePartitionsShardWake, CreatePartitionsShardWakeError, CreateTopicsShardWake,
         CreateTopicsShardWakeError, DeleteConsumerGroupOffsetsShardWake,
         DeleteConsumerGroupOffsetsShardWakeError, DeleteTopicsShardWake,
@@ -74,5 +75,12 @@ impl DeleteConsumerGroupOffsetsShardWake for ReactorWake {
     fn wake(&self) -> Result<(), DeleteConsumerGroupOffsetsShardWakeError> {
         self.request()
             .map_err(|error| DeleteConsumerGroupOffsetsShardWakeError::from_io(error.into_io()))
+    }
+}
+
+impl AlterConsumerGroupOffsetsShardWake for ReactorWake {
+    fn wake(&self) -> Result<(), AlterConsumerGroupOffsetsShardWakeError> {
+        self.request()
+            .map_err(|error| AlterConsumerGroupOffsetsShardWakeError::from_io(error.into_io()))
     }
 }

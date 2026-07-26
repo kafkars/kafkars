@@ -3021,6 +3021,13 @@ allow = [
   { path = "crates/kafka-client-engine/src/admin/group_offsets/host/response.rs", capability = "crate::driver", reason = "The concrete response seam exhaustively translates borrowed driver terminal facts before the core accepts a terminal outcome." },
   { path = "crates/kafka-client-engine/src/admin/group_offset_delete/host.rs", capability = "crate::driver", reason = "The concrete owner retains exactly one accepted OffsetDelete call beside its core machine until terminal settlement or shutdown recovery." },
   { path = "crates/kafka-client-engine/src/admin/group_offset_delete/host/response.rs", capability = "crate::driver", reason = "The concrete response seam exhaustively translates borrowed OffsetDelete terminal facts before core accepts the destructive terminal." },
+  { path = "crates/kafka-client-engine/src/admin/group_offset_alter/host.rs", capability = "crate::driver", reason = "The concrete owner retains exactly one accepted non-member OffsetCommit call beside its core machine until terminal settlement or shutdown recovery." },
+  { path = "crates/kafka-client-engine/src/admin/group_offset_alter/host/model.rs", capability = "crate::driver", reason = "The exact OffsetCommit operation record retains caller-ordered targets, request and result capacities, accepted call, raw terminal, and recovered call until correlation-checked settlement." },
+  { path = "crates/kafka-client-engine/src/admin/group_offset_alter/host/recovered.rs", capability = "crate::driver", reason = "The exact recovered-call owner retains one linear driver token until core accepts both shutdown terminal facts." },
+  { path = "crates/kafka-client-engine/src/admin/group_offset_alter/host/response.rs", capability = "crate::driver", reason = "The concrete response seam exhaustively translates borrowed OffsetCommit terminal facts before core accepts the destructive terminal." },
+  { path = "crates/kafka-client-engine/src/admin/group_offset_alter/host/terminal/test_support.rs", capability = "crate::driver", reason = "The sibling test seam installs exact and mismatched recovered OffsetCommit calls to prove correlation-checked destructive settlement." },
+  { path = "crates/kafka-client-engine/src/admin/group_offset_alter/host/ownership_test.rs", capability = "crate::driver", reason = "The focused ownership scenarios build mismatched tracked OffsetCommit calls and raw terminals to prove caller order and capacity block foreign settlement." },
+  { path = "crates/kafka-client-engine/src/admin/group_offset_alter/host_test.rs", capability = "crate::driver", reason = "The focused host scenarios build one local driver owner and tracked OffsetCommit call to prove completion and shutdown ownership." },
 ]
 
 # Reactor-driving driver adapters never touch observer locks or wakers.
@@ -3103,6 +3110,13 @@ root = "crates/kafka-client-engine/src"
 method = "submit_tracked_group_offset_delete"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_call.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_group_offset_alter"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_call.rs",
 ]
 
 [[method_capabilities]]
@@ -8122,6 +8136,119 @@ path = "crates/kafka-client-engine/src/admin/group_offset_delete/observer.rs"
 owner_type = "DeleteConsumerGroupOffsetsAccepted"
 path = "crates/kafka-client-engine/src/admin/group_offset_delete/handle.rs"
 
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offset_alter/error.rs"
+test = "crates/kafka-client-engine/src/admin/group_offset_alter/error_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offset_alter/handle.rs"
+test = "crates/kafka-client-engine/src/admin/group_offset_alter/handle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offset_alter/host.rs"
+test = "crates/kafka-client-engine/src/admin/group_offset_alter/host_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offset_alter/model.rs"
+test = "crates/kafka-client-engine/src/admin/group_offset_alter/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offset_alter/observer.rs"
+test = "crates/kafka-client-engine/src/admin/group_offset_alter/observer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offset_alter/outcome.rs"
+test = "crates/kafka-client-engine/src/admin/group_offset_alter/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offset_alter/shard.rs"
+test = "crates/kafka-client-engine/src/admin/group_offset_alter/shard_test.rs"
+
+[[mutation_owners]]
+owner_type = "AlterConsumerGroupOffsetsHost"
+field = "operations"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host/terminal.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host/terminal/recovery.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host/terminal/test_support.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AlterConsumerGroupOffsetsHost"
+field = "completions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AlterConsumerGroupOffsetsHost"
+field = "retained_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AlterConsumerGroupOffsetsHost"
+field = "published_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AlterConsumerGroupOffsetsHost"
+field = "next_operation_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host.rs",
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host/admission.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AlterConsumerGroupOffsetsOperation"
+field = "handoff"
+allowed_paths = ["crates/kafka-client-engine/src/admin/group_offset_alter/host/model.rs"]
+
+[[mutation_owners]]
+owner_type = "AlterConsumerGroupOffsetsOperation"
+field = "recovered_call"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offset_alter/host/recovered.rs",
+]
+
+[[linear_owners]]
+owner_type = "AlterConsumerGroupOffsetsHost"
+path = "crates/kafka-client-engine/src/admin/group_offset_alter/host.rs"
+
+[[linear_owners]]
+owner_type = "AlterConsumerGroupOffsetsOperation"
+path = "crates/kafka-client-engine/src/admin/group_offset_alter/host/model.rs"
+
+[[linear_owners]]
+owner_type = "AlterConsumerGroupOffsetsSubmission"
+path = "crates/kafka-client-engine/src/admin/group_offset_alter/host/model.rs"
+
+[[linear_owners]]
+owner_type = "AlterConsumerGroupOffsetsShardOwner"
+path = "crates/kafka-client-engine/src/admin/group_offset_alter/shard.rs"
+
+[[linear_owners]]
+owner_type = "AlterConsumerGroupOffsetsObserver"
+path = "crates/kafka-client-engine/src/admin/group_offset_alter/observer.rs"
+
+[[linear_owners]]
+owner_type = "AlterConsumerGroupOffsetsAccepted"
+path = "crates/kafka-client-engine/src/admin/group_offset_alter/handle.rs"
+
+[[linear_owners]]
+owner_type = "AlterConsumerGroupOffsetsAdmissionError"
+path = "crates/kafka-client-engine/src/admin/group_offset_alter/error.rs"
+
 # Classic-group membership and commit protocol seams, tracked driver calls, and
 # the private bounded host retain exact ownership until the public group
 # consumer integrates them.
@@ -9166,8 +9293,52 @@ owner_type = "RecoveredGroupOffsetDeleteCall"
 path = "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_terminal.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_call.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_call_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_terminal_test.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetAlterCall"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_call.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetAlterCallAdmissionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_call.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetAlterTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_terminal.rs"
+
+[[linear_owners]]
+owner_type = "RecoveredGroupOffsetAlterCall"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_terminal.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/admin/delete_consumer_group_offsets.rs"
 test = "crates/kafka-client-engine/src/engine_host/admin/delete_consumer_group_offsets_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/admin/alter_consumer_group_offsets.rs"
+test = "crates/kafka-client-engine/src/engine_host/admin/alter_consumer_group_offsets_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/alter_consumer_group_offsets_start.rs"
+test = "crates/kafka-client-engine/src/engine_host/alter_consumer_group_offsets_start_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/admin/group_offset_alter_schedule.rs"
+test = "crates/kafka-client-engine/src/engine_host/admin/alter_consumer_group_offsets_schedule_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/admin/schedule_deadline.rs"
+test = "crates/kafka-client-engine/src/engine_host/admin/schedule_time_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/admin/delete_consumer_group_offsets.rs"
