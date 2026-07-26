@@ -28,7 +28,8 @@ mod resolved_assignment_install;
 mod transition;
 
 pub use exports::*;
-
+#[cfg(test)]
+mod assignment_retirement_input_test;
 #[cfg(test)]
 mod assignment_retirement_test;
 #[cfg(test)]

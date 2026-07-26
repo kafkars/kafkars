@@ -3,7 +3,8 @@
 use super::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
     AssignedConsumerMachineError, AssignedConsumerTransition, AssignedTopicPartition,
-    AssignmentEpoch, StartPosition, machine::DirectAssignment, position::AssignedPartitionState,
+    AssignmentEpoch, RetireAssignment, RetireAssignmentErrorKind, StartPosition,
+    machine::DirectAssignment, position::AssignedPartitionState,
 };
 use crate::{Deadline, Moment};
 
@@ -21,6 +22,9 @@ impl AssignedConsumerMachine {
                 now,
                 resolution_deadline,
             } => self.assign(partitions, now, resolution_deadline),
+            AssignedConsumerInput::RetireAssignment { assignment_epoch } => self
+                .retire_assignment(RetireAssignment::new(assignment_epoch))
+                .map_err(|error| reusable_retirement_error(error.kind())),
             AssignedConsumerInput::Pause {
                 assignment_epoch,
                 partition,
@@ -219,5 +223,14 @@ impl AssignedConsumerMachine {
             });
         }
         Ok(assignment)
+    }
+}
+
+const fn reusable_retirement_error(
+    kind: RetireAssignmentErrorKind,
+) -> AssignedConsumerMachineError {
+    match kind {
+        RetireAssignmentErrorKind::ConsumerClosed => AssignedConsumerMachineError::ConsumerClosed,
+        kind => AssignedConsumerMachineError::AssignmentRetirementRejected { kind },
     }
 }

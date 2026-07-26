@@ -35,6 +35,11 @@ pub enum AssignedConsumerInput {
         /// Explicit offsets need no resolution and therefore ignore this value.
         resolution_deadline: Deadline,
     },
+    /// Retires the exact optional assignment observed by classic-group ownership.
+    RetireAssignment {
+        /// Exact active epoch, or `None` only when no assignment was observed.
+        assignment_epoch: Option<AssignmentEpoch>,
+    },
     /// Fences and pauses one assigned partition.
     Pause {
         /// Assignment generation observed by the caller.

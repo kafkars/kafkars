@@ -1,7 +1,8 @@
 //! Exhaustive position-control error categories across private owner layers.
 
 use kafka_client_core::{
-    AssignedConsumerMachineError, AssignedTopicPartition, PartitionIndex, TopicId,
+    AssignedConsumerMachineError, AssignedTopicPartition, PartitionIndex,
+    RetireAssignmentErrorKind, TopicId,
 };
 
 use crate::{
@@ -45,6 +46,14 @@ fn private_position_rejections_translate_to_stable_categories() {
                 AssignedConsumerMachineError::UnknownPartition { partition: unknown },
             )),
             AssignedConsumerControlErrorKind::UnknownPartition,
+        ),
+        (
+            owner(AssignedConsumerOwnerError::Core(
+                AssignedConsumerMachineError::AssignmentRetirementRejected {
+                    kind: RetireAssignmentErrorKind::ConsumerClosed,
+                },
+            )),
+            AssignedConsumerControlErrorKind::InternalInvariant,
         ),
         (
             owner(AssignedConsumerOwnerError::ControlInput(

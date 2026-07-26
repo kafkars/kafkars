@@ -8,6 +8,8 @@ use support::{
 };
 
 const SHARED_ERROR: &str = "crates/kafka-client-core/src/consumer/error.rs";
+const SHARED_INPUT: &str = "crates/kafka-client-core/src/consumer/input.rs";
+const SHARED_TRANSITION: &str = "crates/kafka-client-core/src/consumer/transition.rs";
 const MODEL: &str = "crates/kafka-client-core/src/consumer/assignment_retirement.rs";
 const TRANSITION: &str =
     "crates/kafka-client-core/src/consumer/assignment_retirement_transition.rs";
@@ -53,12 +55,28 @@ fn checked_in_retirement_policy_is_exact() {
     let root = workspace_root();
     let config = load_config(&root);
     let shared_error = read(&root.join(SHARED_ERROR));
+    let shared_input = read(&root.join(SHARED_INPUT));
+    let shared_transition = read(&root.join(SHARED_TRANSITION));
     for retirement_only in ["AssignmentEpochMismatch", "EffectAllocationFailed"] {
         assert!(
             !shared_error.contains(retirement_only),
             "{retirement_only} must not expand the shared assigned-consumer error"
         );
     }
+    assert!(
+        shared_error.contains("AssignmentRetirementRejected"),
+        "shared error must wrap the canonical retirement rejection"
+    );
+    assert!(
+        shared_input.contains("RetireAssignment {")
+            && shared_input.contains("assignment_epoch: Option<AssignmentEpoch>"),
+        "shared input must expose exact optional assignment retirement"
+    );
+    assert!(
+        shared_transition.contains("AssignedConsumerInput::RetireAssignment")
+            && shared_transition.contains(".retire_assignment("),
+        "shared transition must delegate retirement to its sole mutation owner"
+    );
     for (production, test) in MIRRORS {
         let rules = config
             .test_mirrors

@@ -102,6 +102,7 @@ const fn core_error_kind(error: AssignedConsumerMachineError) -> AssignedConsume
         AssignedConsumerMachineError::CloseNotPending { .. }
         | AssignedConsumerMachineError::StaleClose { .. }
         | AssignedConsumerMachineError::CloseAlreadyCompleted { .. }
+        | AssignedConsumerMachineError::AssignmentRetirementRejected { .. }
         | AssignedConsumerMachineError::EmptyAssignment
         | AssignedConsumerMachineError::DuplicatePartition { .. }
         | AssignedConsumerMachineError::StalePosition { .. }

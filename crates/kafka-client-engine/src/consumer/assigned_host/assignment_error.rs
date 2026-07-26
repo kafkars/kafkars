@@ -113,6 +113,7 @@ const fn core_error_kind(
         AssignedConsumerMachineError::CloseNotPending { .. }
         | AssignedConsumerMachineError::StaleClose { .. }
         | AssignedConsumerMachineError::CloseAlreadyCompleted { .. }
+        | AssignedConsumerMachineError::AssignmentRetirementRejected { .. }
         | AssignedConsumerMachineError::NoAssignment
         | AssignedConsumerMachineError::StaleAssignment { .. }
         | AssignedConsumerMachineError::UnknownPartition { .. }

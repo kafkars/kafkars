@@ -4,7 +4,7 @@ use core::fmt;
 
 use super::{
     AssignedConsumerCloseId, AssignedTopicPartition, AssignmentEpoch, FetchFence, NextFetchOffset,
-    PositionFence,
+    PositionFence, RetireAssignmentErrorKind,
 };
 use crate::{Deadline, Moment};
 
@@ -39,6 +39,11 @@ pub enum AssignedConsumerMachineError {
     },
     /// No further assignment epoch is representable.
     AssignmentEpochExhausted,
+    /// Reusable assignment retirement was rejected by its canonical owner.
+    AssignmentRetirementRejected {
+        /// Exact deadline-free retirement rejection.
+        kind: RetireAssignmentErrorKind,
+    },
     /// Control or execution input arrived before assignment.
     NoAssignment,
     /// Input belongs to a superseded assignment.
@@ -145,6 +150,9 @@ impl fmt::Display for AssignedConsumerMachineError {
             }
             Self::AssignmentEpochExhausted => {
                 formatter.write_str("direct assignment epoch exhausted")
+            }
+            Self::AssignmentRetirementRejected { .. } => {
+                formatter.write_str("assignment retirement was rejected")
             }
             Self::NoAssignment => formatter.write_str("direct consumer has no assignment"),
             Self::StaleAssignment { .. } => {

@@ -1,7 +1,8 @@
 //! Exhaustive assignment-error category scenarios across private owner layers.
 
 use kafka_client_core::{
-    AssignedConsumerMachineError, AssignedTopicPartition, PartitionIndex, TopicId,
+    AssignedConsumerMachineError, AssignedTopicPartition, PartitionIndex,
+    RetireAssignmentErrorKind, TopicId,
 };
 
 use crate::{
@@ -50,6 +51,14 @@ fn private_assignment_rejections_translate_to_stable_categories() {
                 },
             )),
             AssignedConsumerTryReplaceAssignmentErrorKind::DuplicatePartition,
+        ),
+        (
+            owner(AssignedConsumerOwnerError::Core(
+                AssignedConsumerMachineError::AssignmentRetirementRejected {
+                    kind: RetireAssignmentErrorKind::ConsumerClosed,
+                },
+            )),
+            AssignedConsumerTryReplaceAssignmentErrorKind::InternalInvariant,
         ),
         (
             owner(AssignedConsumerOwnerError::Event(
