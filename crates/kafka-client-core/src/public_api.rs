@@ -113,4 +113,13 @@ pub use crate::producer_retry::{
     ProducerAttemptFailureKind, ProducerRetryPolicy, ProducerRetryPolicyError,
 };
 pub use crate::producer_transition_result::ProducerTransition;
+pub use crate::transaction::{
+    TransactionInitializationBrokerCategory, TransactionInitializationBrokerFailure,
+    TransactionInitializationEffect, TransactionInitializationFailure,
+    TransactionInitializationFailureKind, TransactionInitializationInput,
+    TransactionInitializationMachine, TransactionInitializationMachineError,
+    TransactionInitializationPlan, TransactionInitializationPlanError,
+    TransactionInitializationState, TransactionInitializationTerminal,
+    TransactionInitializationTransition, TransactionalOwnerId, TransactionalProducerIdentity,
+};
 pub use crate::types::{ByteCount, Deadline, Moment, OperationId};

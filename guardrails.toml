@@ -463,6 +463,22 @@ production = "crates/kafka-client-core/src/admin/group_offset_alter/transition.r
 test = "crates/kafka-client-core/src/admin/group_offset_alter/transition_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/transaction/initialization/machine.rs"
+test = "crates/kafka-client-core/src/transaction/initialization/machine_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/transaction/initialization/model.rs"
+test = "crates/kafka-client-core/src/transaction/initialization/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/transaction/initialization/outcome.rs"
+test = "crates/kafka-client-core/src/transaction/initialization/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/transaction/initialization/transition.rs"
+test = "crates/kafka-client-core/src/transaction/initialization/transition_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/admin/group_offsets/error.rs"
 test = "crates/kafka-client-engine/src/admin/group_offsets/error_test.rs"
 
@@ -2173,6 +2189,37 @@ forbidden = [
   "kafka_wire",
   "std::future",
   "std::time",
+]
+
+# Transaction initialization owns scalar policy only, never retained names or execution.
+[[capability_rules]]
+root = "crates/kafka-client-core/src/transaction"
+forbidden = [
+  "crate::admin",
+  "crate::consumer",
+  "crate::producer",
+  "Callback",
+  "Clock",
+  "Coordinator",
+  "Engine",
+  "Future",
+  "Generated",
+  "Metadata",
+  "Retry",
+  "Runtime",
+  "String",
+  "Transport",
+  "Wire",
+  "async",
+  "async_std",
+  "bytes",
+  "kafka_client_engine",
+  "kafka_driver",
+  "kafka_wire",
+  "smol",
+  "std::future",
+  "std::time",
+  "tokio",
 ]
 
 # Direct assignment owns no group, protocol, transport, or sibling policy.
@@ -6591,6 +6638,18 @@ path = "crates/kafka-client-core/src/admin/group_offset_delete/machine.rs"
 [[linear_owners]]
 owner_type = "AlterConsumerGroupOffsetsMachine"
 path = "crates/kafka-client-core/src/admin/group_offset_alter/machine.rs"
+
+[[linear_owners]]
+owner_type = "TransactionInitializationMachine"
+path = "crates/kafka-client-core/src/transaction/initialization/machine.rs"
+
+[[mutation_owners]]
+owner_type = "TransactionInitializationMachine"
+field = "state"
+allowed_paths = [
+  "crates/kafka-client-core/src/transaction/initialization/machine.rs",
+  "crates/kafka-client-core/src/transaction/initialization/transition.rs",
+]
 
 [[linear_owners]]
 owner_type = "LiveGroupAssignment"

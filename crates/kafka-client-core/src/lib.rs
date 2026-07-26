@@ -22,6 +22,7 @@ mod producer_retry;
 mod producer_transition;
 mod producer_transition_result;
 mod public_api;
+mod transaction;
 mod types;
 
 pub use public_api::*;

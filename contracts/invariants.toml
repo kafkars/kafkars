@@ -1128,6 +1128,19 @@ evidence = [
 ]
 
 [[invariant]]
+id = "TXN-00"
+title = "Transaction initialization is owner-fenced and terminal"
+statement = "One deterministic transaction-initialization machine retains a scalar engine owner fence, validated transaction timeout, and one original absolute deadline; admits only one driver attempt; assigns exactly one terminal; distinguishes definitely-unsent pre-driver rejection from driver-owned certainty; preserves exact signed broker and fencing facts; and accepts only nonnegative broker producer identities without retry or coordinator policy."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/transaction/initialization/transition_test.rs::submit_preserves_owner_plan_and_original_absolute_deadline",
+  "crates/kafka-client-core/src/transaction/initialization/transition_test.rs::stale_owner_is_rejected_without_observing_or_mutating_lifecycle",
+  "crates/kafka-client-core/src/transaction/initialization/transition_test.rs::pre_driver_failures_are_definitely_unsent_and_terminal_once",
+  "crates/kafka-client-core/src/transaction/initialization/transition_test.rs::submitted_failures_preserve_driver_certainty_and_exact_broker_fencing",
+  "crates/kafka-client-core/src/transaction/initialization/transition_test.rs::broker_success_requires_nonnegative_identity_and_completes_once",
+]
+
+[[invariant]]
 id = "TXN-01"
 title = "Transactions are uniquely owned and epoch-fenced"
 statement = "One transactional producer has at most one active transaction, with distinct abort-required and fatal fenced outcomes."
