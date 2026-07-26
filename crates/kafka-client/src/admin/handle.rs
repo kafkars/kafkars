@@ -1,16 +1,16 @@
 //! Cloneable public admin handle over the private engine bridge.
 
-use crate::bridge::admin::{
-    AdminEngine, AdminRequest, DeleteAdminRequest, DescribeTopicsAdminRequest,
-    PartitionsAdminRequest,
-};
+use crate::bridge::admin::{AdminEngine, AdminRequest, DeleteAdminRequest, PartitionsAdminRequest};
 use crate::bridge::admin_alter_configs_request::IncrementalAlterConfigsAdminRequest;
 use crate::bridge::admin_configs_request::DescribeConfigsAdminRequest;
+use crate::bridge::admin_group_offsets_request::ListConsumerGroupOffsetsAdminRequest;
+use crate::bridge::admin_topics_request::DescribeTopicsAdminRequest;
 
 use super::{
     CreatePartitionsBuilder, CreateTopicsBuilder, DeleteTopicsBuilder, DescribeClusterBuilder,
     DescribeConfigsBuilder, DescribeTopicsBuilder, IncrementalAlterConfigsBuilder,
-    ListTopicsBuilder, NewPartitions, NewTopic, TopicConfigAlterations, TopicConfigQuery,
+    ListConsumerGroupOffsetsBuilder, ListTopicsBuilder, NewPartitions, NewTopic,
+    TopicConfigAlterations, TopicConfigQuery,
 };
 
 /// Cheaply cloneable, thread-safe admin handle.
@@ -77,6 +77,23 @@ impl Admin {
     pub fn list_topics(&self) -> ListTopicsBuilder {
         let request = DescribeTopicsAdminRequest::all(false);
         ListTopicsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
+    }
+
+    /// Builds an inert all-partition committed-offset query for one group.
+    ///
+    /// Stable offsets are not required by default. No timeout starts and no
+    /// operation is admitted until [`ListConsumerGroupOffsetsBuilder::submit`]
+    /// is called.
+    pub fn list_consumer_group_offsets(
+        &self,
+        group_id: impl Into<String>,
+    ) -> ListConsumerGroupOffsetsBuilder {
+        let request = ListConsumerGroupOffsetsAdminRequest::new(group_id.into());
+        ListConsumerGroupOffsetsBuilder::new(
+            self.engine.clone(),
+            request,
+            self.engine.default_timeout(),
+        )
     }
 
     /// Builds an inert ordered topic `DescribeConfigs` request.

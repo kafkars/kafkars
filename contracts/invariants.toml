@@ -278,6 +278,48 @@ evidence = [
 ]
 
 [[invariant]]
+id = "ADM-11"
+title = "ListConsumerGroupOffsets is bounded, exact, and coordinator routed"
+statement = "One capacity-reserved ListConsumerGroupOffsets machine validates one explicit nonempty group identity and stable-read intent, retains the original absolute deadline, emits one concrete submission, assigns exactly one terminal decision, requires unique strict topic-byte and partition order, preserves nullable committed offset, leader epoch, and metadata facts plus exact signed group and partition broker codes, and distinguishes definitely-unsent admission or pre-driver deadline failure from driver-owned delivery certainty without retry. Its concrete engine owner atomically reserves one completion cell and a combined four-MiB request, normalized-result, and temporary-sort envelope before machine construction; retains the one generated response and opaque route receipt until deterministic terminal acceptance; publishes off-reactor; and releases the reservation only after observer reclamation. The generated kafka-wire OffsetFetch adapter sends nullable all-topic selection, negotiates exactly v2-v9 with require_stable raising the floor to v7, selects the legacy or exactly matching modern group envelope, converts only Kafka's -1 committed-offset and leader-epoch sentinels to absence, validates and charges before allocating one borrowed sort, and never re-encodes protocol fields independently. One singular kafka-driver GroupOffsetsCall uses the existing group-coordinator route, Interactive traffic, and unchanged absolute transport deadline; retains selected-version and route evidence; and reports neutral deadline, compatibility, invalid-response, and transport facts with driver-authoritative delivery certainty. One explicit fair EngineHost stage recaptures time, drives and polls the concrete owner, participates in deadline parking and shutdown quiescence, and recovers only after driver destruction. The curated Rust facade exposes an inert ListConsumerGroupOffsets builder, explicit submit boundary, named runtime-neutral Future plus blocking wait, throttle observation, and ordinary BatchResult topic-partition entries without a callback, async runtime, generic admin executor, coordinator cache, invalidation policy, generated type, driver type, or core type."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/admin/group_offsets/model_test.rs::plan_preserves_explicit_group_and_stability_intent",
+  "crates/kafka-client-core/src/admin/group_offsets/model_test.rs::plan_rejects_empty_or_unrepresentable_group_identity",
+  "crates/kafka-client-core/src/admin/group_offsets/transition_test.rs::original_deadline_group_and_stability_cross_the_only_submit_effect",
+  "crates/kafka-client-core/src/admin/group_offsets/transition_test.rs::ordered_mixed_terminal_is_single_assignment_and_lossless",
+  "crates/kafka-client-core/src/admin/group_offsets/transition_test.rs::malformed_or_duplicate_partition_facts_settle_invalid_once",
+  "crates/kafka-client-core/src/admin/group_offsets/transition_test.rs::deadlines_and_driver_ownership_preserve_certainty_without_retry",
+  "crates/kafka-client-engine/src/protocol/admin/group_offsets/request_test.rs::legacy_versions_encode_one_group_with_nullable_all_topics",
+  "crates/kafka-client-engine/src/protocol/admin/group_offsets/request_test.rs::modern_versions_encode_one_matching_group_with_nullable_all_topics",
+  "crates/kafka-client-engine/src/protocol/admin/group_offsets/request_test.rs::stable_queries_have_an_exact_v7_floor_and_v9_ceiling",
+  "crates/kafka-client-engine/src/protocol/admin/group_offsets/response_test.rs::legacy_and_modern_top_level_errors_remain_exact_and_separate",
+  "crates/kafka-client-engine/src/protocol/admin/group_offsets/response_test.rs::complete_future_allocation_charge_must_fit_before_materialization",
+  "crates/kafka-client-engine/src/protocol/admin/group_offsets/entries_test.rs::reverse_ordered_hostile_shape_uses_one_charged_sort_and_restores_order",
+  "crates/kafka-client-engine/src/protocol/admin/group_offsets/retention_test.rs::every_entry_charges_owned_output_and_temporary_sort_storage",
+  "crates/kafka-client-engine/src/driver/rpc/group_offsets_submission_test.rs::route_is_the_existing_validated_group_coordinator_authority",
+  "crates/kafka-client-engine/src/driver/rpc/group_offsets_submission_test.rs::ordinary_and_stable_queries_have_exact_version_bounds",
+  "crates/kafka-client-engine/src/driver/rpc/group_offsets_terminal_test.rs::failures_are_neutral_and_preserve_driver_authoritative_delivery",
+  "crates/kafka-client-engine/src/driver/rpc/group_offsets_call_test.rs::completion_fault_is_yielded_once_and_is_not_recovered_as_active",
+  "crates/kafka-client-engine/src/admin/group_offsets/host_test.rs::one_query_atomically_reserves_the_complete_four_mib_envelope",
+  "crates/kafka-client-engine/src/admin/group_offsets/host_test.rs::handed_off_operation_leaves_deadline_parking_to_the_driver",
+  "crates/kafka-client-engine/src/admin/group_offsets/host_test.rs::abandoned_observer_retains_bytes_until_terminal_publication_is_reclaimed",
+  "crates/kafka-client-engine/src/admin/group_offsets/host_test.rs::recovery_distinguishes_untouched_from_handed_off_ownership",
+  "crates/kafka-client-engine/src/admin/group_offsets/host_test.rs::expired_call_boundary_deadline_never_reaches_driver_handoff",
+  "crates/kafka-client-engine/src/admin/group_offsets/handle_test.rs::accepted_faults_never_revoke_group_offset_ownership",
+  "crates/kafka-client-engine/src/admin/completion_test.rs::group_offsets_is_included_in_the_closed_shared_capacity_equation",
+  "crates/kafka-client-engine/src/admin/group_offsets/outcome_test.rs::throttle_order_nullable_values_and_partition_error_translate_exactly",
+  "crates/kafka-client-engine/src/engine_host/admin/list_consumer_group_offsets_test.rs::group_offsets_owner_is_independent_and_prevents_false_quiescence",
+  "crates/kafka-client-engine/src/engine_host/admin/list_consumer_group_offsets_test.rs::group_offsets_uses_time_recaptured_after_prior_admin_work",
+  "crates/kafka-client-engine/src/engine_list_consumer_group_offsets_test.rs::admitted_group_offset_query_reaches_one_host_terminal",
+  "crates/kafka-client/src/admin/list_consumer_group_offsets_builder_test.rs::zero_deadline_and_stability_option_remain_inert_until_submit",
+  "crates/kafka-client/src/admin/list_consumer_group_offsets_test.rs::operation_is_a_named_send_future",
+  "crates/kafka-client/src/admin/list_consumer_group_offsets_result_test.rs::result_preserves_throttle_and_engine_supplied_order",
+  "crates/kafka-client/src/bridge/admin_group_offsets_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
+  "crates/kafka-client/src/bridge/admin_group_offsets_operation_test.rs::private_operation_is_a_send_future_without_a_runtime",
+  "crates/kafka-client/src/bridge/admin_group_offsets_result_test.rs::whole_and_partition_broker_codes_remain_exact_and_signed",
+]
+
+[[invariant]]
 id = "BAT-01"
 title = "Core owns batch readiness"
 statement = "Record-count and conservative encoded-size readiness are deterministic core decisions and terminal fan-out preserves batch membership order."

@@ -3,6 +3,7 @@
 use super::{
     CreatePartitionsHost, CreateTopicsHost, DeleteTopicsHost, DescribeClusterHost,
     DescribeConfigsHost, DescribeTopicsHost, IncrementalAlterConfigsHost,
+    ListConsumerGroupOffsetsHost,
     completion::{AdminCompletionNotifier, AdminCompletionPorts},
 };
 
@@ -41,6 +42,15 @@ pub(super) fn incremental_alter_configs_host()
     let (notifier, ports) = completion_owner();
     (
         IncrementalAlterConfigsHost::new(ports.incremental_alter_configs),
+        notifier,
+    )
+}
+
+pub(super) fn list_consumer_group_offsets_host()
+-> (ListConsumerGroupOffsetsHost, AdminCompletionNotifier) {
+    let (notifier, ports) = completion_owner();
+    (
+        ListConsumerGroupOffsetsHost::new(ports.list_consumer_group_offsets),
         notifier,
     )
 }

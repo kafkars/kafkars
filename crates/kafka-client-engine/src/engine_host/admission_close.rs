@@ -23,6 +23,10 @@ pub(super) fn close_all(resources: &mut EngineHostResources) {
         .incremental_alter_configs
         .admission_port()
         .close_admission();
+    let _close_result = resources
+        .list_consumer_group_offsets
+        .admission_port()
+        .close_admission();
     let _close_result = resources.assigned_consumer.close_assigned_admission();
     resources.group_consumers.close_admission();
 }

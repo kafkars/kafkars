@@ -11,11 +11,15 @@ pub(crate) mod admin_delete_operation;
 pub(crate) mod admin_delete_result;
 pub(crate) mod admin_describe_operation;
 pub(crate) mod admin_describe_result;
+pub(crate) mod admin_group_offsets_operation;
+pub(crate) mod admin_group_offsets_request;
+pub(crate) mod admin_group_offsets_result;
 pub(crate) mod admin_operation;
 pub(crate) mod admin_partitions_operation;
 pub(crate) mod admin_partitions_result;
 pub(crate) mod admin_result;
 pub(crate) mod admin_topics_operation;
+pub(crate) mod admin_topics_request;
 pub(crate) mod admin_topics_result;
 mod client;
 pub(crate) mod consumer;
@@ -45,6 +49,12 @@ mod admin_describe_operation_test;
 #[cfg(test)]
 mod admin_describe_result_test;
 #[cfg(test)]
+mod admin_group_offsets_operation_test;
+#[cfg(test)]
+mod admin_group_offsets_request_test;
+#[cfg(test)]
+mod admin_group_offsets_result_test;
+#[cfg(test)]
 mod admin_operation_test;
 #[cfg(test)]
 mod admin_partitions_operation_test;
@@ -56,6 +66,8 @@ mod admin_result_test;
 mod admin_test;
 #[cfg(test)]
 mod admin_topics_operation_test;
+#[cfg(test)]
+mod admin_topics_request_test;
 #[cfg(test)]
 mod admin_topics_result_test;
 #[cfg(test)]

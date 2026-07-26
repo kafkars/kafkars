@@ -26,6 +26,7 @@ struct EngineInner {
     describe_topics_admission: crate::admin::DescribeTopicsAdmissionPort,
     describe_configs_admission: crate::admin::DescribeConfigsAdmissionPort,
     incremental_alter_configs_admission: crate::admin::IncrementalAlterConfigsAdmissionPort,
+    list_consumer_group_offsets_admission: crate::admin::ListConsumerGroupOffsetsAdmissionPort,
     assigned_consumer: crate::consumer::AssignedConsumerClaimSlot,
     assigned_consumer_admission: crate::consumer::AssignedConsumerAdmissionCloser,
     group_consumer: crate::consumer::GroupConsumerPort,
@@ -47,6 +48,7 @@ impl Engine {
             describe_topics_admission,
             describe_configs_admission,
             incremental_alter_configs_admission,
+            list_consumer_group_offsets_admission,
             assigned_consumer,
             group_consumer,
             clock,
@@ -66,6 +68,7 @@ impl Engine {
                 describe_topics_admission,
                 describe_configs_admission,
                 incremental_alter_configs_admission,
+                list_consumer_group_offsets_admission,
                 assigned_consumer,
                 assigned_consumer_admission,
                 group_consumer,
@@ -98,6 +101,10 @@ impl Engine {
                 describe_topics: self.inner.describe_topics_admission.clone(),
                 describe_configs: self.inner.describe_configs_admission.clone(),
                 incremental_alter_configs: self.inner.incremental_alter_configs_admission.clone(),
+                list_consumer_group_offsets: self
+                    .inner
+                    .list_consumer_group_offsets_admission
+                    .clone(),
             },
             Arc::clone(&self.inner.clock),
             lifetime,
@@ -170,6 +177,7 @@ impl EngineInner {
         let _close_result = self.describe_topics_admission.close_admission();
         let _close_result = self.describe_configs_admission.close_admission();
         let _close_result = self.incremental_alter_configs_admission.close_admission();
+        let _close_result = self.list_consumer_group_offsets_admission.close_admission();
         let _close_result = self.assigned_consumer_admission.close();
         self.group_consumer.close_admission();
         self.lifecycle.request_and_wait(&self.control)
@@ -186,6 +194,7 @@ impl Drop for EngineInner {
         let _close_result = self.describe_topics_admission.close_admission();
         let _close_result = self.describe_configs_admission.close_admission();
         let _close_result = self.incremental_alter_configs_admission.close_admission();
+        let _close_result = self.list_consumer_group_offsets_admission.close_admission();
         let _close_result = self.assigned_consumer_admission.close();
         self.group_consumer.close_admission();
         self.lifecycle.request(&self.control);

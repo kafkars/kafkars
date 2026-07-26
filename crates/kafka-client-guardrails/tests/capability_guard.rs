@@ -3,9 +3,9 @@
 mod support;
 
 use support::{
-    CapabilityRule, MethodCapabilityRule, call_capability_violations, capability_violations,
-    fixture_files, glob_import_violations, load_config, method_capability_violations, rust_files,
-    workspace_root,
+    CapabilityAllow, CapabilityRule, MethodCapabilityRule, call_capability_violations,
+    capability_violations, fixture_files, glob_import_violations, load_config,
+    method_capability_violations, rust_files, workspace_root,
 };
 
 #[test]
@@ -217,6 +217,36 @@ fn engine_admin_rejects_transport_and_sibling_policy_imports() {
     assert!(
         !violations.iter().any(|value| value.contains("allowed.rs")),
         "domain-neutral admin policy was rejected: {violations:?}"
+    );
+}
+
+#[test]
+fn engine_admin_driver_exception_is_exact_file() {
+    let (root, _) = fixture_files("engine_admin_boundary");
+    let violations = capability_violations(
+        &root,
+        &[CapabilityRule {
+            root: "src/admin".to_owned(),
+            forbidden: vec!["crate::driver".to_owned()],
+            allow: vec![CapabilityAllow {
+                path: "src/admin/driver_owner.rs".to_owned(),
+                capability: "crate::driver".to_owned(),
+                reason: "The fixture owner models one reviewed concrete handoff.".to_owned(),
+            }],
+        }],
+    );
+
+    assert!(
+        !violations
+            .iter()
+            .any(|value| value.contains("driver_owner.rs")),
+        "exact owner exception was rejected: {violations:?}"
+    );
+    assert!(
+        violations
+            .iter()
+            .any(|value| value.contains("driver_intruder.rs")),
+        "exact owner exception leaked to a sibling: {violations:?}"
     );
 }
 

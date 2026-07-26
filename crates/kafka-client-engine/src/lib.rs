@@ -55,6 +55,8 @@ mod engine_driver_test;
 #[cfg(test)]
 mod engine_incremental_alter_configs_test;
 #[cfg(test)]
+mod engine_list_consumer_group_offsets_test;
+#[cfg(test)]
 mod engine_test;
 #[cfg(test)]
 mod flush_error_test;

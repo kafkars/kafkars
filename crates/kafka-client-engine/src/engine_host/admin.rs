@@ -9,6 +9,9 @@ mod describe_topics;
 mod incremental_alter_configs;
 #[cfg(test)]
 mod incremental_alter_configs_schedule_test;
+mod list_consumer_group_offsets;
+#[cfg(test)]
+mod list_consumer_group_offsets_test;
 pub(super) mod recovery;
 mod schedule;
 #[cfg(test)]

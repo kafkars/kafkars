@@ -7,7 +7,7 @@ use kafka_client_core::{Deadline, Moment};
 use super::{
     super::{EngineHostError, EngineHostResources},
     create_partitions, create_topics, delete_topics, describe_cluster, describe_configs,
-    describe_topics, incremental_alter_configs,
+    describe_topics, incremental_alter_configs, list_consumer_group_offsets,
 };
 
 pub(in crate::engine_host) struct AdminProgress {
@@ -20,7 +20,7 @@ pub(in crate::engine_host) fn drive(
     resources: &mut EngineHostResources,
 ) -> Result<AdminProgress, EngineHostError> {
     // Drive all concrete owners independently. Exhaustion or contention in
-    // one tracked-call lane must not hide runnable work in the other.
+    // one owner must not hide runnable work in another.
     let clock = Arc::clone(&resources.clock);
     let create_now = clock.now().map_err(EngineHostError::Clock)?;
     let (create, delete_now) = drive_create_then_capture_delete(
@@ -44,7 +44,12 @@ pub(in crate::engine_host) fn drive(
     let partitions_now = clock.now().map_err(EngineHostError::Clock)?;
     let partitions = create_partitions::drive(resources, partitions_now)?;
     let alter_configs_now = clock.now().map_err(EngineHostError::Clock)?;
-    let alter_configs = incremental_alter_configs::drive(resources, alter_configs_now)?;
+    let (alter_configs, group_offsets_now) = drive_alter_configs_then_capture_group_offsets(
+        alter_configs_now,
+        |now| incremental_alter_configs::drive(resources, now),
+        || clock.now().map_err(EngineHostError::Clock),
+    )?;
+    let group_offsets = list_consumer_group_offsets::drive(resources, group_offsets_now)?;
     Ok(combine(
         &create,
         &delete,
@@ -53,6 +58,7 @@ pub(in crate::engine_host) fn drive(
         &topics,
         &configs,
         &alter_configs,
+        &group_offsets,
     ))
 }
 
@@ -89,6 +95,31 @@ pub(super) fn drive_describe_then_capture_topics(
     Ok((describe, topics_now))
 }
 
+pub(super) fn drive_alter_configs_then_capture_group_offsets(
+    alter_configs_now: Moment,
+    drive_alter_configs: impl FnOnce(
+        Moment,
+    ) -> Result<
+        incremental_alter_configs::IncrementalAlterConfigsProgress,
+        EngineHostError,
+    >,
+    capture_group_offsets_now: impl FnOnce() -> Result<Moment, EngineHostError>,
+) -> Result<
+    (
+        incremental_alter_configs::IncrementalAlterConfigsProgress,
+        Moment,
+    ),
+    EngineHostError,
+> {
+    let alter_configs = drive_alter_configs(alter_configs_now)?;
+    let group_offsets_now = capture_group_offsets_now()?;
+    Ok((alter_configs, group_offsets_now))
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the fixed closed admin-owner set stays explicit at its only aggregation boundary"
+)]
 pub(super) const fn combine(
     create: &create_topics::CreateTopicsProgress,
     delete: &delete_topics::DeleteTopicsProgress,
@@ -97,6 +128,7 @@ pub(super) const fn combine(
     topics: &describe_topics::DescribeTopicsProgress,
     configs: &describe_configs::DescribeConfigsProgress,
     alter_configs: &incremental_alter_configs::IncrementalAlterConfigsProgress,
+    group_offsets: &list_consumer_group_offsets::ListConsumerGroupOffsetsProgress,
 ) -> AdminProgress {
     AdminProgress {
         unsettled: create
@@ -106,21 +138,23 @@ pub(super) const fn combine(
             .saturating_add(partitions.unsettled)
             .saturating_add(topics.unsettled)
             .saturating_add(configs.unsettled)
-            .saturating_add(alter_configs.unsettled),
+            .saturating_add(alter_configs.unsettled)
+            .saturating_add(group_offsets.unsettled),
         driver_progress: create.driver_progress
             || delete.driver_progress
             || describe.driver_progress
             || partitions.driver_progress
             || topics.driver_progress
             || configs.driver_progress
-            || alter_configs.driver_progress,
+            || alter_configs.driver_progress
+            || group_offsets.driver_progress,
         next_deadline: earliest(
             earliest(create.next_deadline, delete.next_deadline),
             earliest(
                 earliest(describe.next_deadline, partitions.next_deadline),
                 earliest(
                     earliest(topics.next_deadline, configs.next_deadline),
-                    alter_configs.next_deadline,
+                    earliest(alter_configs.next_deadline, group_offsets.next_deadline),
                 ),
             ),
         ),

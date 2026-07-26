@@ -180,6 +180,15 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
             crate::admin::IncrementalAlterConfigsHostError::Unsettled(alter_configs),
         ));
     }
+    let group_offsets = resources
+        .list_consumer_group_offsets
+        .terminal_host()
+        .unsettled();
+    if group_offsets != 0 {
+        return Err(EngineHostError::ListConsumerGroupOffsets(
+            crate::admin::ListConsumerGroupOffsetsHostError::Unsettled(group_offsets),
+        ));
+    }
     Ok(())
 }
 

@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use crate::bridge::admin::{AdminEngine, DescribeTopicsAdminRequest};
+use crate::bridge::{admin::AdminEngine, admin_topics_request::DescribeTopicsAdminRequest};
 
 use super::DescribeTopics;
 

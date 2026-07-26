@@ -107,6 +107,12 @@ impl fmt::Display for EngineHostError {
             Self::IncrementalAlterConfigsLockPoisoned => {
                 formatter.write_str("IncrementalAlterConfigs host ownership lock is poisoned")
             }
+            Self::ListConsumerGroupOffsets(error) => {
+                write!(formatter, "ListConsumerGroupOffsets host failed: {error}")
+            }
+            Self::ListConsumerGroupOffsetsLockPoisoned => {
+                formatter.write_str("ListConsumerGroupOffsets host ownership lock is poisoned")
+            }
             Self::AdminCompletion(error) => {
                 write!(
                     formatter,

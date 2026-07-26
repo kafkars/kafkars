@@ -12,6 +12,7 @@ use crate::{
         CreatePartitionsShardOwner, CreateTopicsHost, CreateTopicsShardOwner, DeleteTopicsHost,
         DeleteTopicsShardOwner, DescribeClusterHost, DescribeClusterShardOwner, DescribeTopicsHost,
         DescribeTopicsShardOwner, IncrementalAlterConfigsHost, IncrementalAlterConfigsShardOwner,
+        ListConsumerGroupOffsetsHost, ListConsumerGroupOffsetsShardOwner,
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
@@ -87,6 +88,7 @@ pub(crate) fn start(
         describe_topics,
         describe_configs,
         incremental_alter_configs,
+        list_consumer_group_offsets,
     } = admin_ports;
     let create_topics = CreateTopicsHost::new(create_topics);
     let delete_topics = DeleteTopicsHost::new(delete_topics);
@@ -94,6 +96,8 @@ pub(crate) fn start(
     let create_partitions = CreatePartitionsHost::new(create_partitions);
     let describe_topics = DescribeTopicsHost::new(describe_topics);
     let incremental_alter_configs = IncrementalAlterConfigsHost::new(incremental_alter_configs);
+    let list_consumer_group_offsets =
+        ListConsumerGroupOffsetsHost::new(list_consumer_group_offsets);
     let mut group_consumers = match GroupConsumerRegistry::start() {
         Ok(registry) => registry,
         Err(error) => {
@@ -142,6 +146,11 @@ pub(crate) fn start(
         Arc::new(driver.reactor_wake()),
     );
     let incremental_alter_configs_admission = incremental_alter_configs.admission_port();
+    let list_consumer_group_offsets = ListConsumerGroupOffsetsShardOwner::new(
+        list_consumer_group_offsets,
+        Arc::new(driver.reactor_wake()),
+    );
+    let list_consumer_group_offsets_admission = list_consumer_group_offsets.admission_port();
     let produce_calls =
         crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
     let resources = EngineHostResources {
@@ -156,6 +165,7 @@ pub(crate) fn start(
         describe_topics,
         describe_configs: describe_configs.owner,
         incremental_alter_configs,
+        list_consumer_group_offsets,
         assigned_consumer: assigned_consumer_owner,
         group_consumers,
         clock: Arc::clone(&clock),
@@ -203,6 +213,7 @@ pub(crate) fn start(
         describe_topics_admission,
         describe_configs_admission: describe_configs.admission,
         incremental_alter_configs_admission,
+        list_consumer_group_offsets_admission,
         assigned_consumer,
         group_consumer,
         clock,

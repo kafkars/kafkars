@@ -19,6 +19,7 @@ mod describe_outcome;
 mod describe_shard;
 mod error;
 mod exports;
+mod group_offsets;
 mod handle;
 mod host;
 mod model;

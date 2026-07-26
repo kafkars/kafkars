@@ -4,7 +4,7 @@ use crate::{
     admin::{
         CreatePartitionsHostError, CreateTopicsHostError, DeleteTopicsHostError,
         DescribeClusterHostError, DescribeConfigsHostError, DescribeTopicsHostError,
-        IncrementalAlterConfigsHostError,
+        IncrementalAlterConfigsHostError, ListConsumerGroupOffsetsHostError,
     },
     clock::ClockError,
     completion::{CompletionRegistryError, NotifierJoinError},
@@ -68,6 +68,8 @@ pub(crate) enum EngineHostError {
     IncrementalAlterConfigs(IncrementalAlterConfigsHostError),
     IncrementalAlterConfigsCompletion(IncrementalAlterConfigsCompletionFailure),
     IncrementalAlterConfigsLockPoisoned,
+    ListConsumerGroupOffsets(ListConsumerGroupOffsetsHostError),
+    ListConsumerGroupOffsetsLockPoisoned,
     AdminCompletion(CompletionRegistryError),
     Driver(DriverOwnerError),
     DriverOwnerMissing,

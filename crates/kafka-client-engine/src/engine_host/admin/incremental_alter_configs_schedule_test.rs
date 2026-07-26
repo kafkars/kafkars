@@ -6,7 +6,8 @@ use super::{
     create_partitions::CreatePartitionsProgress, create_topics::CreateTopicsProgress,
     delete_topics::DeleteTopicsProgress, describe_cluster::DescribeClusterProgress,
     describe_configs::DescribeConfigsProgress, describe_topics::DescribeTopicsProgress,
-    incremental_alter_configs::IncrementalAlterConfigsProgress, schedule::combine,
+    incremental_alter_configs::IncrementalAlterConfigsProgress,
+    list_consumer_group_offsets::ListConsumerGroupOffsetsProgress, schedule::combine,
 };
 
 #[test]
@@ -47,6 +48,11 @@ fn incremental_alter_configs_owner_is_independent_and_prevents_false_quiescence(
             unsettled: 1,
             driver_progress: true,
             next_deadline: Some(Deadline::from_tick(1)),
+        },
+        &ListConsumerGroupOffsetsProgress {
+            unsettled: 0,
+            driver_progress: false,
+            next_deadline: None,
         },
     );
     assert_eq!(combined.unsettled, 1);

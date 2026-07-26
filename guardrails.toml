@@ -423,6 +423,22 @@ production = "crates/kafka-client-core/src/admin/group_offsets/transition.rs"
 test = "crates/kafka-client-core/src/admin/group_offsets/transition_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offsets/error.rs"
+test = "crates/kafka-client-engine/src/admin/group_offsets/error_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offsets/model.rs"
+test = "crates/kafka-client-engine/src/admin/group_offsets/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offsets/observer.rs"
+test = "crates/kafka-client-engine/src/admin/group_offsets/observer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offsets/outcome.rs"
+test = "crates/kafka-client-engine/src/admin/group_offsets/outcome_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/producer/sticky.rs"
 test = "crates/kafka-client-core/src/producer/sticky_test.rs"
 
@@ -1547,6 +1563,10 @@ production = "crates/kafka-client-engine/src/engine_host/admin/schedule.rs"
 test = "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/admin/list_consumer_group_offsets.rs"
+test = "crates/kafka-client-engine/src/engine_host/admin/list_consumer_group_offsets_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-guardrails/src/invariant_registry/evidence.rs"
 test = "crates/kafka-client-guardrails/src/invariant_registry/evidence_test.rs"
 
@@ -1659,6 +1679,18 @@ production = "crates/kafka-client/src/bridge/admin_describe_result.rs"
 test = "crates/kafka-client/src/bridge/admin_describe_result_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_group_offsets_operation.rs"
+test = "crates/kafka-client/src/bridge/admin_group_offsets_operation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_group_offsets_request.rs"
+test = "crates/kafka-client/src/bridge/admin_group_offsets_request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_group_offsets_result.rs"
+test = "crates/kafka-client/src/bridge/admin_group_offsets_result_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client/src/bridge/admin_partitions_operation.rs"
 test = "crates/kafka-client/src/bridge/admin_partitions_operation_test.rs"
 
@@ -1673,6 +1705,10 @@ test = "crates/kafka-client/src/bridge/admin_topics_operation_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/bridge/admin_topics_result.rs"
 test = "crates/kafka-client/src/bridge/admin_topics_result_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_topics_request.rs"
+test = "crates/kafka-client/src/bridge/admin_topics_request_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/bridge/admin_alter_configs_request.rs"
@@ -1795,6 +1831,10 @@ production = "crates/kafka-client/src/admin/builder.rs"
 test = "crates/kafka-client/src/admin/builder_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client/src/admin/consumer_group_offset.rs"
+test = "crates/kafka-client/src/admin/consumer_group_offset_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client/src/admin/create_topics.rs"
 test = "crates/kafka-client/src/admin/create_topics_test.rs"
 
@@ -1817,6 +1857,18 @@ test = "crates/kafka-client/src/admin/describe_cluster_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client/src/admin/describe_topics.rs"
 test = "crates/kafka-client/src/admin/describe_topics_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/list_consumer_group_offsets.rs"
+test = "crates/kafka-client/src/admin/list_consumer_group_offsets_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/list_consumer_group_offsets_builder.rs"
+test = "crates/kafka-client/src/admin/list_consumer_group_offsets_builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/list_consumer_group_offsets_result.rs"
+test = "crates/kafka-client/src/admin/list_consumer_group_offsets_result_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/admin/list_topics_builder.rs"
@@ -2789,6 +2841,10 @@ forbidden = [
   "Transport",
   "Retry",
 ]
+allow = [
+  { path = "crates/kafka-client-engine/src/admin/group_offsets/host.rs", capability = "crate::driver", reason = "The concrete owner retains exactly one accepted OffsetFetch call beside its core machine until terminal settlement or shutdown recovery." },
+  { path = "crates/kafka-client-engine/src/admin/group_offsets/host/response.rs", capability = "crate::driver", reason = "The concrete response seam exhaustively translates borrowed driver terminal facts before the core accepts a terminal outcome." },
+]
 
 # Reactor-driving driver adapters never touch observer locks or wakers.
 [[capability_rules]]
@@ -2856,6 +2912,13 @@ root = "crates/kafka-client-engine/src"
 method = "take_next_driver_submission"
 allowed_paths = [
   "crates/kafka-client-engine/src/producer/ingress/data.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_group_offsets"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/group_offsets_call.rs",
 ]
 
 [[method_capabilities]]
@@ -4376,6 +4439,13 @@ root = "crates/kafka-client/src"
 method = "with_include_internal"
 allowed_paths = [
   "crates/kafka-client/src/admin/list_topics_builder.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client/src"
+method = "with_require_stable"
+allowed_paths = [
+  "crates/kafka-client/src/admin/list_consumer_group_offsets_builder.rs",
 ]
 
 # Load-bearing state fields have one deliberately small mutation surface.
@@ -7153,6 +7223,22 @@ owner_type = "AdminDescribeCluster"
 path = "crates/kafka-client/src/bridge/admin_describe_operation.rs"
 
 [[linear_owners]]
+owner_type = "ListConsumerGroupOffsetsAdminRequest"
+path = "crates/kafka-client/src/bridge/admin_group_offsets_request.rs"
+
+[[linear_owners]]
+owner_type = "AdminListConsumerGroupOffsets"
+path = "crates/kafka-client/src/bridge/admin_group_offsets_operation.rs"
+
+[[linear_owners]]
+owner_type = "ListConsumerGroupOffsetsBuilder"
+path = "crates/kafka-client/src/admin/list_consumer_group_offsets_builder.rs"
+
+[[linear_owners]]
+owner_type = "ListConsumerGroupOffsets"
+path = "crates/kafka-client/src/admin/list_consumer_group_offsets.rs"
+
+[[linear_owners]]
 owner_type = "DescribeClusterBuilder"
 path = "crates/kafka-client/src/admin/describe_builder.rs"
 
@@ -7162,7 +7248,7 @@ path = "crates/kafka-client/src/admin/describe_cluster.rs"
 
 [[linear_owners]]
 owner_type = "DescribeTopicsAdminRequest"
-path = "crates/kafka-client/src/bridge/admin.rs"
+path = "crates/kafka-client/src/bridge/admin_topics_request.rs"
 
 [[linear_owners]]
 owner_type = "AdminDescribeTopics"
@@ -7352,6 +7438,18 @@ production = "crates/kafka-client-engine/src/admin/alter_configs/handle.rs"
 test = "crates/kafka-client-engine/src/admin/alter_configs/handle_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offsets/handle.rs"
+test = "crates/kafka-client-engine/src/admin/group_offsets/handle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offsets/host.rs"
+test = "crates/kafka-client-engine/src/admin/group_offsets/host_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/group_offsets/shard.rs"
+test = "crates/kafka-client-engine/src/admin/group_offsets/shard_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/admin/alter_configs/model.rs"
 test = "crates/kafka-client-engine/src/admin/alter_configs/model_test.rs"
 
@@ -7438,6 +7536,78 @@ path = "crates/kafka-client-engine/src/admin/alter_configs/shard.rs"
 [[linear_owners]]
 owner_type = "IncrementalAlterConfigsObserver"
 path = "crates/kafka-client-engine/src/admin/alter_configs/observer.rs"
+
+[[linear_owners]]
+owner_type = "ListConsumerGroupOffsetsObserver"
+path = "crates/kafka-client-engine/src/admin/group_offsets/observer.rs"
+
+[[linear_owners]]
+owner_type = "ListConsumerGroupOffsetsAccepted"
+path = "crates/kafka-client-engine/src/admin/group_offsets/handle.rs"
+
+[[mutation_owners]]
+owner_type = "ListConsumerGroupOffsetsHost"
+field = "operations"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offsets/host.rs",
+  "crates/kafka-client-engine/src/admin/group_offsets/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/group_offsets/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ListConsumerGroupOffsetsHost"
+field = "completions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offsets/host.rs",
+  "crates/kafka-client-engine/src/admin/group_offsets/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/group_offsets/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ListConsumerGroupOffsetsHost"
+field = "retained_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offsets/host.rs",
+  "crates/kafka-client-engine/src/admin/group_offsets/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/group_offsets/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ListConsumerGroupOffsetsHost"
+field = "published_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offsets/host.rs",
+  "crates/kafka-client-engine/src/admin/group_offsets/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ListConsumerGroupOffsetsHost"
+field = "next_operation_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/group_offsets/host.rs",
+  "crates/kafka-client-engine/src/admin/group_offsets/host/admission.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ListConsumerGroupOffsetsOperation"
+field = "handoff"
+allowed_paths = ["crates/kafka-client-engine/src/admin/group_offsets/host.rs"]
+
+[[linear_owners]]
+owner_type = "ListConsumerGroupOffsetsHost"
+path = "crates/kafka-client-engine/src/admin/group_offsets/host.rs"
+
+[[linear_owners]]
+owner_type = "ListConsumerGroupOffsetsOperation"
+path = "crates/kafka-client-engine/src/admin/group_offsets/host.rs"
+
+[[linear_owners]]
+owner_type = "ListConsumerGroupOffsetsSubmission"
+path = "crates/kafka-client-engine/src/admin/group_offsets/host.rs"
+
+[[linear_owners]]
+owner_type = "ListConsumerGroupOffsetsShardOwner"
+path = "crates/kafka-client-engine/src/admin/group_offsets/shard.rs"
 
 # Classic-group membership and commit protocol seams, tracked driver calls, and
 # the private bounded host retain exact ownership until the public group
@@ -8350,6 +8520,61 @@ forbidden = [
   "Transport",
   "Retry",
 ]
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offsets/model.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offsets/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offsets/entries.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offsets/entries_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offsets/request.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offsets/request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offsets/response.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offsets/response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offsets/retention.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offsets/retention_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/group_offsets/shape.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/group_offsets/shape_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offsets_call.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offsets_call_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offsets_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offsets_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_offsets_terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_offsets_terminal_test.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetsRequest"
+path = "crates/kafka-client-engine/src/protocol/admin/group_offsets/request.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offsets_call.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetsCallAdmissionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offsets_call.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetsTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offsets_terminal.rs"
+
+[[linear_owners]]
+owner_type = "RecoveredGroupOffsetsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offsets_terminal.rs"
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/group/session_catalog_assignment.rs"

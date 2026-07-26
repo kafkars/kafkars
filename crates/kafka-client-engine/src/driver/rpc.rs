@@ -88,6 +88,15 @@ mod group_offset_commit_submission_test;
 mod group_offset_commit_terminal;
 #[cfg(test)]
 mod group_offset_commit_terminal_test;
+mod group_offsets_call;
+#[cfg(test)]
+mod group_offsets_call_test;
+mod group_offsets_submission;
+#[cfg(test)]
+mod group_offsets_submission_test;
+mod group_offsets_terminal;
+#[cfg(test)]
+mod group_offsets_terminal_test;
 mod heartbeat_submission;
 #[cfg(test)]
 mod heartbeat_submission_test;
@@ -149,6 +158,10 @@ pub(crate) use fetch::{
 pub(crate) use group_offset_commit_calls::TrackedGroupOffsetCommitCalls;
 pub(crate) use group_offset_commit_recovery::GroupOffsetCommitShutdownRecovery;
 pub(crate) use group_offset_commit_settlement::GroupOffsetCommitPoll;
+pub(crate) use group_offsets_call::GroupOffsetsCall;
+pub(crate) use group_offsets_terminal::{
+    GroupOffsetsDriverFailureKind, GroupOffsetsTerminal, GroupOffsetsTerminalFact,
+};
 pub(crate) use incremental_alter_configs_calls::{
     IncrementalAlterConfigsCalls, IncrementalAlterConfigsCompletionFailure,
 };

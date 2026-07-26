@@ -15,6 +15,14 @@ mod describe_topic_value;
 pub(crate) mod describe_topics;
 mod describe_topics_budget;
 pub(crate) mod describe_topics_response;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "group-offset host integration follows this protocol slice"
+    )
+)]
+pub(crate) mod group_offsets;
 pub(crate) mod incremental_alter_configs;
 mod list_topics_response;
 mod request_timeout_error;

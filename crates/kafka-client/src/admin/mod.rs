@@ -4,6 +4,7 @@ mod alter_configs;
 mod batch_result;
 mod builder;
 mod configs;
+mod consumer_group_offset;
 mod create_partitions;
 mod create_topics;
 mod delete_builder;
@@ -13,6 +14,9 @@ mod describe_cluster;
 mod describe_topics;
 mod description;
 mod handle;
+mod list_consumer_group_offsets;
+mod list_consumer_group_offsets_builder;
+mod list_consumer_group_offsets_result;
 mod list_topics;
 mod list_topics_builder;
 mod new_partitions;
@@ -28,6 +32,8 @@ pub use public_api::*;
 mod batch_result_test;
 #[cfg(test)]
 mod builder_test;
+#[cfg(test)]
+mod consumer_group_offset_test;
 #[cfg(test)]
 mod create_partitions_test;
 #[cfg(test)]
@@ -46,6 +52,12 @@ mod describe_topics_test;
 mod description_test;
 #[cfg(test)]
 mod handle_test;
+#[cfg(test)]
+mod list_consumer_group_offsets_builder_test;
+#[cfg(test)]
+mod list_consumer_group_offsets_result_test;
+#[cfg(test)]
+mod list_consumer_group_offsets_test;
 #[cfg(test)]
 mod list_topics_builder_test;
 #[cfg(test)]

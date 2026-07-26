@@ -8,7 +8,7 @@ use crate::{
     admin::{
         CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteTopicsShardOwner,
         DescribeClusterShardOwner, DescribeConfigsShardOwner, DescribeTopicsShardOwner,
-        IncrementalAlterConfigsShardOwner,
+        IncrementalAlterConfigsShardOwner, ListConsumerGroupOffsetsShardOwner,
     },
     clock::MonotonicClock,
     driver::{
@@ -46,6 +46,7 @@ pub(crate) struct EngineHostResources {
     pub(super) describe_topics: DescribeTopicsShardOwner,
     pub(super) describe_configs: DescribeConfigsShardOwner,
     pub(super) incremental_alter_configs: IncrementalAlterConfigsShardOwner,
+    pub(super) list_consumer_group_offsets: ListConsumerGroupOffsetsShardOwner,
     pub(super) assigned_consumer: crate::consumer::AssignedConsumerShardOwner,
     pub(super) group_consumers: crate::consumer::GroupConsumerShardOwner,
     pub(super) clock: Arc<MonotonicClock>,

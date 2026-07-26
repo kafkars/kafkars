@@ -9,7 +9,7 @@ use crate::{
     admin::{
         CreatePartitionsAdmissionPort, CreateTopicsAdmissionPort, DeleteTopicsAdmissionPort,
         DescribeClusterAdmissionPort, DescribeConfigsAdmissionPort, DescribeTopicsAdmissionPort,
-        IncrementalAlterConfigsAdmissionPort,
+        IncrementalAlterConfigsAdmissionPort, ListConsumerGroupOffsetsAdmissionPort,
     },
     clock::MonotonicClock,
     consumer::{AssignedConsumerPort, GroupConsumerPort},
@@ -27,6 +27,7 @@ pub(crate) struct StartedEngineHost {
     pub(crate) describe_topics_admission: DescribeTopicsAdmissionPort,
     pub(crate) describe_configs_admission: DescribeConfigsAdmissionPort,
     pub(crate) incremental_alter_configs_admission: IncrementalAlterConfigsAdmissionPort,
+    pub(crate) list_consumer_group_offsets_admission: ListConsumerGroupOffsetsAdmissionPort,
     pub(crate) assigned_consumer: AssignedConsumerPort,
     pub(crate) group_consumer: GroupConsumerPort,
     pub(crate) clock: Arc<MonotonicClock>,
