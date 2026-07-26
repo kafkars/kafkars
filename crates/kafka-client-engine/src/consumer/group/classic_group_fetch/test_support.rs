@@ -1,14 +1,21 @@
-//! Shared completed-position fixtures for group Fetch activation tests.
+//! Shared catalog, deadline, and completed-position fixtures for group Fetch tests.
+
+use std::sync::Arc;
 
 use kafka_client_core::{
-    AssignmentGeneration, GroupAssignmentPartition, GroupId, GroupPositionBatch,
+    AssignmentGeneration, Deadline, GroupAssignmentPartition, GroupId, GroupPositionBatch,
     GroupPositionFence, GroupPositionPartitionFact, MemberId, MembershipCycle, Moment,
     NextFetchOffset, PartitionIndex, TopicId,
 };
 
-use super::super::classic_group_position::{
-    ClassicGroupPositionCompleted, test_support::completed_ready as completed_position_ready,
+use super::super::{
+    classic_group_position::{
+        ClassicGroupPositionCompleted, test_support::completed_ready as completed_position_ready,
+    },
+    session_catalog::GroupSessionCatalog,
 };
+
+pub(super) const ATTEMPT_TIMEOUT_TICKS: u64 = 30_000_000_000;
 
 pub(super) fn completed_ready(
     fence: GroupPositionFence,
@@ -41,4 +48,22 @@ pub(super) fn position_fence(generation: u64) -> GroupPositionFence {
         AssignmentGeneration::try_from_raw(generation)
             .unwrap_or_else(|| panic!("assignment generation")),
     )
+}
+
+pub(super) fn catalog(topics: &[&str]) -> GroupSessionCatalog {
+    let topics = topics
+        .iter()
+        .map(|topic| Arc::<str>::from(*topic))
+        .collect::<Vec<_>>();
+    GroupSessionCatalog::try_new(
+        GroupId::try_from_raw(3).unwrap_or_else(|| panic!("group identity")),
+        Arc::from("workers"),
+        &topics,
+    )
+    .unwrap_or_else(|error| panic!("catalog: {error:?}"))
+}
+
+pub(super) fn assert_attempt_deadline(deadline: Deadline, before: Moment, after: Moment) {
+    assert!(deadline.tick() >= before.tick() + ATTEMPT_TIMEOUT_TICKS);
+    assert!(deadline.tick() <= after.tick() + ATTEMPT_TIMEOUT_TICKS);
 }

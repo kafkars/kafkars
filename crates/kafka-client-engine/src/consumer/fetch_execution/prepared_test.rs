@@ -69,6 +69,58 @@ fn deadline_captured_for_another_fetch_revision_cannot_prepare_this_effect() {
 }
 
 #[test]
+fn lossless_preparation_failure_returns_the_exact_captured_attempt() {
+    let (first, mut machine) = assignment(3, Deadline::from_tick(100));
+    let first_fence = fetch_fence(first);
+    let transition = machine
+        .apply(AssignedConsumerInput::FetchAdvanced {
+            fence: first_fence,
+            records: FetchRecords::NoApplicationRecords,
+            next_offset: offset(11),
+            now: Moment::from_tick(1),
+            throttle_ticks: 0,
+        })
+        .unwrap_or_else(|error| panic!("advance Fetch revision: {error}"));
+    let [second] = transition.effects() else {
+        panic!("one next FetchReady effect");
+    };
+    let second_fence = fetch_fence(*second);
+    let captured_operation = operation_deadline(100);
+    let attempt = FetchAttemptDeadline::from_parts_for_test(first_fence, captured_operation);
+    let failure = PreparedFetchExecution::new_retaining_attempt(
+        *second,
+        "events".to_owned(),
+        FetchRequestSettings::new(500, 1, 1_048_576, 1_048_576, 0),
+        FetchDecodeLimits::default(),
+        attempt,
+        4_096,
+    )
+    .err()
+    .unwrap_or_else(|| panic!("cross-wired attempt deadline must be returned"));
+
+    assert_eq!(
+        failure.error(),
+        PrepareFetchError::DeadlineFenceMismatch {
+            effect: second_fence,
+            captured: first_fence,
+        }
+    );
+    assert_eq!(failure.attempt().fence(), first_fence);
+    assert_eq!(failure.attempt().operation(), captured_operation);
+    let (error, attempt) = failure.into_parts();
+    assert_eq!(
+        error,
+        PrepareFetchError::DeadlineFenceMismatch {
+            effect: second_fence,
+            captured: first_fence,
+        }
+    );
+    let (returned_fence, returned_operation) = attempt.into_parts_for_test();
+    assert_eq!(returned_fence, first_fence);
+    assert_eq!(returned_operation, captured_operation);
+}
+
+#[test]
 fn future_fetch_fence_is_retained_as_a_fault_instead_of_discarded() {
     let (active, mut lagging) = assignment(3, Deadline::from_tick(100));
     let active_fence = fetch_fence(active);

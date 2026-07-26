@@ -46,23 +46,16 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
         ],
     ),
 ];
+const CLAIM_TRANSFERS: &[&str] = &[
+    "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
+    "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs",
+];
 const METHODS: &[(&str, &[&str])] = &[
     ("install_replacement_claims", &[PREPARED]),
     ("install_partition_claim", &[PREPARED]),
-    (
-        "commit_event_claims",
-        &[
-            "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
-            "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
-        ],
-    ),
-    (
-        "rollback_event_claims",
-        &[
-            "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
-            "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
-        ],
-    ),
+    ("commit_event_claims", CLAIM_TRANSFERS),
+    ("rollback_event_claims", CLAIM_TRANSFERS),
     (
         "take_event",
         &[
@@ -75,7 +68,10 @@ const METHODS: &[(&str, &[&str])] = &[
     ("retain_terminal", &[OWNER_EVENT]),
     (
         "observe_effect",
-        &["crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs"],
+        &[
+            "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/prepare.rs",
+        ],
     ),
 ];
 const METHOD_ROOT: &str = "crates/kafka-client-engine/src";

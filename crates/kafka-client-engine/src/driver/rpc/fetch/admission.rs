@@ -30,6 +30,28 @@ pub(crate) struct PartitionFetchRequest {
 }
 
 impl PartitionFetchRequest {
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the prepared Fetch owner carries every exact execution fact"
+    )]
+    pub(crate) fn from_fetch_ready_parts(
+        fence: FetchFence,
+        next_offset: NextFetchOffset,
+        topic: String,
+        settings: FetchRequestSettings,
+        decode_limits: FetchDecodeLimits,
+        operation_deadline: OperationDeadline,
+    ) -> Self {
+        Self {
+            fence,
+            next_offset,
+            topic,
+            settings,
+            decode_limits,
+            operation_deadline,
+        }
+    }
+
     pub(crate) fn from_effect(
         effect: AssignedConsumerEffect,
         topic: String,

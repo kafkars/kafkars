@@ -12,6 +12,8 @@ const ROOT: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_
 const ACTIVATION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation.rs";
 const OWNER: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs";
+const PREPARE: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/prepare.rs";
 const ENTRY: &str = "crates/kafka-client-engine/src/consumer/group/registry_entry.rs";
 const LINEAR: &[(&str, &str)] = &[
     ("ClassicGroupFetchBinding", ACTIVATION),
@@ -76,12 +78,17 @@ fn checked_in_group_fetch_activation_policy_is_exact() {
             .filter(|rule| rule.owner_type == "ClassicGroupFetchOwner" && rule.field == field)
             .collect::<Vec<_>>();
         assert_eq!(rules.len(), 1, "{field} needs one mutation rule");
-        assert_eq!(rules[0].allowed_paths, [OWNER]);
+        let expected = if field == "activation" {
+            vec![OWNER]
+        } else {
+            vec![OWNER, PREPARE]
+        };
+        assert_eq!(rules[0].allowed_paths, expected);
     }
     let capabilities = config
         .capability_rules
         .iter()
-        .filter(|rule| rule.root == ROOT)
+        .filter(|rule| rule.root == ACTIVATION)
         .collect::<Vec<_>>();
     assert_eq!(capabilities.len(), 1);
     assert_eq!(
@@ -92,12 +99,6 @@ fn checked_in_group_fetch_activation_policy_is_exact() {
             .collect::<Vec<_>>(),
         FORBIDDEN
     );
-    let decorative_failure_capabilities = config
-        .capability_rules
-        .iter()
-        .filter(|rule| rule.root == OWNER)
-        .collect::<Vec<_>>();
-    assert!(decorative_failure_capabilities.is_empty());
     for method in METHODS {
         let rules = config
             .method_capabilities
@@ -190,7 +191,7 @@ fn fixtures_reject_runtime_transport_and_activation_authority_theft() {
 }
 
 #[test]
-fn sole_owner_constructs_and_installs_without_interpreting_fetch_effects() {
+fn sole_owner_preflights_installs_and_moves_ordered_effects_without_attempt_capture() {
     let root = workspace_root();
     let owner = read(&root.join(OWNER));
     assert!(
@@ -198,9 +199,13 @@ fn sole_owner_constructs_and_installs_without_interpreting_fetch_effects() {
         "activation owner may not abandon post-core owners through process failure"
     );
     for required in [
-        "AssignedConsumerMachine::new()",
+        "AssignedConsumerMachine::with_read_isolation",
         "prepare_classic_group_fetch_activation",
+        "preflight_activation_capacity",
+        "prepare_replacement",
         "install_resolved_assignment",
+        "commit_event_claims",
+        "transition.into_effects()",
         "ClassicGroupFetchBinding::new",
         "ClassicGroupFetchActivation::new",
     ] {
@@ -209,8 +214,9 @@ fn sole_owner_constructs_and_installs_without_interpreting_fetch_effects() {
     for forbidden in [
         "FetchAttemptDeadline",
         "capture_for_fetch",
-        "DirectFetchExecutor",
-        "AssignedTimers",
+        "DriverOwner",
+        ".submit(",
+        ".poll(",
         "AssignedConsumerDelivery",
         "FetchDelivery",
         "FetchDeliveryStore",
@@ -221,5 +227,8 @@ fn sole_owner_constructs_and_installs_without_interpreting_fetch_effects() {
         );
     }
     let entry = read(&root.join(ENTRY));
-    assert_eq!(entry.matches("ClassicGroupFetchOwner::new()").count(), 1);
+    assert_eq!(
+        entry.matches("ClassicGroupFetchOwner::try_new()").count(),
+        1
+    );
 }

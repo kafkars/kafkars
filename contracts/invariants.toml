@@ -980,8 +980,8 @@ evidence = [
 
 [[invariant]]
 id = "CON-14"
-title = "Classic group Fetch activation consumes one exact position owner"
-statement = "Each retained classic-group entry owns one group-specific AssignedConsumerMachine behind one non-clone activation owner. The owner accepts one confirmed ClassicGroupPositionCompleted only while dormant, requires the exact current GroupPositionFence through the existing pure handoff, installs the resulting deadline-free resolved assignment exactly once, and retains both the position fence and resulting nonreused AssignmentEpoch beside the uninterpreted ordered core transition. A stale fence, non-ready terminal, allocation or throttle conversion failure, already-active owner, or deterministic install rejection returns the exact completed position owner and any rejected InstallResolvedAssignment without mutating the owner. An impossible successful install without an assignment epoch is post-core corruption, not rejection: the sole owner retains both the completed position and mutated transition in an explicit fault. This slice owns no Fetch attempt deadline, timer, transport, wire or driver value, delivery port, callback, async runtime, or public API."
+title = "Classic group Fetch activation and preparation preserve bounded exact ownership"
+statement = "Each retained classic-group entry owns one group-specific AssignedConsumerMachine, fixed first-slice effect and prepared FIFOs, terminal-event claims, throttle timers, and one private direct Fetch executor behind one non-clone owner. Before installing one confirmed ClassicGroupPositionCompleted, the owner requires the exact current GroupPositionFence and preflights every effect, prepared, and terminal-event slot needed after mutation. Successful install commits exact claims, retains the position and nonreused assignment fences, and moves the core transition into one ordered FIFO without a fallible allocation. Pre-core capacity, catalog, handoff, or deterministic rejection returns the exact copied owners; an impossible post-core epoch, effect-count, or event-claim mismatch retains the completed position and transition explicitly. One front ArmFetchThrottle arms the existing absolute broker-observation deadline without starting an attempt. One exact front FetchReady first checks prepared capacity, then captures one fence-bound 30-second attempt deadline, fallibly copies the durable catalog topic spelling, and creates the existing bounded PreparedFetchExecution. Post-capture catalog or structural failure retains that original attempt beside the unchanged FIFO head, while ordinary prepared saturation reports backpressure without fault or deadline capture. Control observes the private executor first, reports ControlPending without false progress, then fences timers, prepared ownership, event claims, and the exact control head in order. Faulted owners expose no scheduling deadline. This slice performs no DriverOwner submission or poll, adds no metadata authority, wire or generated type, public port or admission, callback, async runtime, or unsafe code."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner_test.rs::one_confirmed_position_installs_one_machine_and_retains_exact_binding",
@@ -989,6 +989,16 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation_test.rs::stale_position_fence_returns_the_exact_completed_owner_without_mutation",
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation_test.rs::core_rejection_returns_both_exact_linear_inputs_and_leaves_owner_dormant",
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation_test.rs::post_core_fault_type_retains_both_mutated_owners_without_a_returned_rejection",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation_test.rs::preflight_capacity_returns_copied_input_before_machine_or_claim_mutation",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/model_test.rs::first_slice_reserves_every_pre_core_fifo_and_event_owner",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/prepare_ready_test.rs::exact_front_fetch_ready_captures_now_and_prepares_catalog_facts_fifo",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/prepare_ready_test.rs::catalog_failure_retains_exact_effect_and_original_captured_attempt",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/prepare_backpressure_test.rs::prepared_saturation_blocks_without_fault_then_same_head_proceeds_once",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/prepare_control_test.rs::positive_activation_throttle_arms_observation_deadline_without_attempt_capture",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/prepare_control_test.rs::control_fences_armed_timer_before_consuming_exact_effect",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/prepare_control_test.rs::faulted_owner_suppresses_retained_timer_deadline",
+  "crates/kafka-client-engine/src/consumer/fetch_execution/prepared_test.rs::lossless_preparation_failure_returns_the_exact_captured_attempt",
+  "crates/kafka-client-engine/src/consumer/group/session_catalog_test.rs::fetch_preparation_copies_one_exact_catalog_spelling_fallibly",
 ]
 
 [[invariant]]

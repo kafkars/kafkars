@@ -147,6 +147,19 @@ impl GroupSessionCatalog {
             .ok_or(GroupSessionCatalogError::UnknownTopic(topic_id))
     }
 
+    pub(super) fn copy_topic_name(
+        &self,
+        topic_id: TopicId,
+    ) -> Result<String, GroupSessionCatalogError> {
+        let topic = self.topic_name(topic_id)?;
+        let mut copied = String::new();
+        copied
+            .try_reserve_exact(topic.len())
+            .map_err(|_error| GroupSessionCatalogError::Allocation)?;
+        copied.push_str(topic);
+        Ok(copied)
+    }
+
     pub(super) fn topic_id(&self, topic: &str) -> Option<TopicId> {
         self.topics_by_name.get(topic).copied()
     }

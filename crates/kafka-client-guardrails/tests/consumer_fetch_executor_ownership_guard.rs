@@ -85,6 +85,10 @@ const CAPABILITY_ALLOWS: &[(&str, &str)] = &[
 ];
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one policy test compares every checked-in ownership and capability rule"
+)]
 fn checked_in_executor_policy_is_exact() {
     let config = load_config(&workspace_root());
     for (owner_type, path) in LINEAR {
@@ -154,7 +158,10 @@ fn checked_in_executor_policy_is_exact() {
     assert_eq!(constructors.len(), 1);
     assert_eq!(
         constructors[0].allowed_paths,
-        ["crates/kafka-client-engine/src/consumer/assigned_owner.rs"]
+        [
+            "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs",
+        ]
     );
     let deadline_constructors = config
         .call_capabilities
@@ -164,7 +171,10 @@ fn checked_in_executor_policy_is_exact() {
     assert_eq!(deadline_constructors.len(), 1);
     assert_eq!(
         deadline_constructors[0].allowed_paths,
-        ["crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs"]
+        [
+            "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/prepare.rs",
+        ]
     );
 
     for (method, execution_paths) in [

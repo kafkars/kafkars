@@ -111,3 +111,20 @@ fn empty_local_subscription_is_a_valid_dormant_registration() {
     assert_eq!(catalog.next_topic_id, Some(TopicId::from_raw(1)));
     assert!(catalog.live_assignment().is_none());
 }
+
+#[test]
+fn fetch_preparation_copies_one_exact_catalog_spelling_fallibly() {
+    let catalog =
+        GroupSessionCatalog::try_new(group_id(), Arc::from("workers"), &[Arc::from("payments")])
+            .unwrap_or_else(|error| panic!("catalog creation failed: {error:?}"));
+
+    let copied = catalog
+        .copy_topic_name(TopicId::from_raw(1))
+        .unwrap_or_else(|error| panic!("topic copy failed: {error:?}"));
+    assert_eq!(copied, "payments");
+    assert_eq!(copied.capacity(), "payments".len());
+    assert_eq!(
+        catalog.copy_topic_name(TopicId::from_raw(9)),
+        Err(GroupSessionCatalogError::UnknownTopic(TopicId::from_raw(9)))
+    );
+}

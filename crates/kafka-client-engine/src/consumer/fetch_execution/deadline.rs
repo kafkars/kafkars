@@ -27,18 +27,17 @@ impl FetchAttemptDeadline {
         })
     }
 
-    pub(super) fn bind(
-        self,
-        effect: FetchFence,
-    ) -> Result<OperationDeadline, FetchAttemptDeadlineMismatch> {
-        if self.fence == effect {
-            Ok(self.operation)
-        } else {
-            Err(FetchAttemptDeadlineMismatch {
-                effect,
-                captured: self.fence,
-            })
-        }
+    pub(crate) const fn fence(&self) -> FetchFence {
+        self.fence
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn operation(&self) -> OperationDeadline {
+        self.operation
+    }
+
+    pub(super) const fn into_operation(self) -> OperationDeadline {
+        self.operation
     }
 
     #[cfg(test)]
@@ -53,11 +52,4 @@ impl FetchAttemptDeadline {
     pub(crate) const fn into_parts_for_test(self) -> (FetchFence, OperationDeadline) {
         (self.fence, self.operation)
     }
-}
-
-/// Evidence that a deadline was captured for a different Fetch revision.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) struct FetchAttemptDeadlineMismatch {
-    pub(super) effect: FetchFence,
-    pub(super) captured: FetchFence,
 }

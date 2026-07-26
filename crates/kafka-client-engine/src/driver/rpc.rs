@@ -184,10 +184,9 @@ pub(crate) use describe_configs_calls::{DescribeConfigsCalls, DescribeConfigsCom
 pub(crate) use describe_topics_calls::{DescribeTopicsCalls, DescribeTopicsCompletionFailure};
 pub(crate) use fetch::{
     FetchBeginSettlementError, FetchCallAdmission, FetchCompletionObservation,
-    FetchConfirmationError, FetchControlPending, FetchPoll, FetchRecovery,
-    FetchRequestPreparationError, FetchTerminal, PartitionFetchRequest,
-    StaleFetchConfirmationError, TrackedFetchCalls, classify_fetch_admission,
-    classify_fetch_request_error,
+    FetchConfirmationError, FetchControlPending, FetchPoll, FetchRecovery, FetchTerminal,
+    PartitionFetchRequest, StaleFetchConfirmationError, TrackedFetchCalls,
+    classify_fetch_admission, classify_fetch_request_error,
 };
 pub(crate) use group_offset_alter_call::GroupOffsetAlterCall;
 pub(crate) use group_offset_alter_terminal::{

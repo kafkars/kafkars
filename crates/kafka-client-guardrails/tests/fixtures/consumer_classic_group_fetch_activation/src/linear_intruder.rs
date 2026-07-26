@@ -12,3 +12,9 @@ struct ClassicGroupFetchActivationFailure;
 struct ClassicGroupFetchActivationError;
 #[derive(Clone, Copy)]
 struct ClassicGroupFetchOwner;
+#[derive(Clone, Copy)]
+struct ClassicGroupFetchOwnerFault;
+#[derive(Clone, Copy)]
+struct ClassicGroupFetchPrepareFailure;
+#[derive(Clone, Copy)]
+struct PrepareFetchFailure;

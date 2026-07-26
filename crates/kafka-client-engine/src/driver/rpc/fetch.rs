@@ -39,9 +39,7 @@ mod terminal;
 #[cfg(test)]
 mod terminal_test;
 
-pub(crate) use admission::{
-    FetchCallAdmission, FetchRequestPreparationError, PartitionFetchRequest,
-};
+pub(crate) use admission::{FetchCallAdmission, PartitionFetchRequest};
 pub(crate) use calls::TrackedFetchCalls;
 pub(crate) use failure::{classify_fetch_admission, classify_fetch_request_error};
 pub(crate) use settlement::{

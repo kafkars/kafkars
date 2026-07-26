@@ -9,6 +9,8 @@ use super::{
     super::classic_group_position::ClassicGroupPositionActivationError,
     ClassicGroupFetchActivationErrorKind, ClassicGroupFetchActivationFailureKind,
     ClassicGroupFetchActivationFault, ClassicGroupFetchOwner, ClassicGroupFetchPostCoreFaultKind,
+    ClassicGroupFetchPreflightError,
+    owner::FIRST_GROUP_FETCH_PARTITIONS,
     test_support::{committed, completed_ready, position_fence},
 };
 
@@ -20,7 +22,8 @@ fn stale_position_fence_returns_the_exact_completed_owner_without_mutation() {
         0,
         vec![committed(2, 1, 17)],
     );
-    let mut owner = ClassicGroupFetchOwner::new();
+    let mut owner =
+        ClassicGroupFetchOwner::try_new().unwrap_or_else(|error| panic!("Fetch owner: {error:?}"));
     let failure = owner
         .try_activate(completed, position_fence(8))
         .err()
@@ -51,7 +54,8 @@ fn stale_position_fence_returns_the_exact_completed_owner_without_mutation() {
 fn core_rejection_returns_both_exact_linear_inputs_and_leaves_owner_dormant() {
     let observed_at = Moment::from_tick(u64::MAX - 500_000);
     let completed = completed_ready(position_fence(7), observed_at, 1, vec![committed(2, 1, 17)]);
-    let mut owner = ClassicGroupFetchOwner::new();
+    let mut owner =
+        ClassicGroupFetchOwner::try_new().unwrap_or_else(|error| panic!("Fetch owner: {error:?}"));
     let failure = owner
         .try_activate(completed, position_fence(7))
         .err()
@@ -118,4 +122,52 @@ fn post_core_fault_type_retains_both_mutated_owners_without_a_returned_rejection
             ClassicGroupFetchPostCoreFaultKind::MissingAssignmentEpoch
         )
     );
+}
+
+#[test]
+fn preflight_capacity_returns_copied_input_before_machine_or_claim_mutation() {
+    let fence = position_fence(7);
+    let facts = (0..=FIRST_GROUP_FETCH_PARTITIONS)
+        .map(|partition| {
+            committed(
+                2,
+                u32::try_from(partition).unwrap_or_else(|error| panic!("partition fits: {error}")),
+                i64::try_from(partition).unwrap_or_else(|error| panic!("offset fits: {error}")),
+            )
+        })
+        .collect();
+    let completed = completed_ready(fence, Moment::from_tick(41), 0, facts);
+    let mut owner =
+        ClassicGroupFetchOwner::try_new().unwrap_or_else(|error| panic!("Fetch owner: {error:?}"));
+
+    let failure = owner
+        .try_activate(completed, fence)
+        .err()
+        .unwrap_or_else(|| panic!("oversized activation must reject"))
+        .into_returned()
+        .unwrap_or_else(|| panic!("preflight must return exact owners"));
+
+    assert_eq!(
+        failure.kind(),
+        ClassicGroupFetchActivationFailureKind::Preflight(
+            ClassicGroupFetchPreflightError::PreparedCapacity {
+                actual: FIRST_GROUP_FETCH_PARTITIONS + 1,
+                limit: FIRST_GROUP_FETCH_PARTITIONS,
+            }
+        )
+    );
+    assert_eq!(failure.completed().fence(), fence);
+    assert_eq!(
+        failure
+            .rejected_input()
+            .unwrap_or_else(|| panic!("copied input retained"))
+            .partitions()
+            .len(),
+        FIRST_GROUP_FETCH_PARTITIONS + 1
+    );
+    assert_eq!(owner.machine_assignment_epoch(), None);
+    assert_eq!(owner.effect_count_for_test(), 0);
+    assert_eq!(owner.events.retained(), (0, 0));
+    assert!(owner.activation().is_none());
+    assert!(owner.fault().is_none());
 }

@@ -75,7 +75,7 @@ pub(crate) use fault::FetchReclaimFailure;
         reason = "the direct-consumer host will consume this concrete executor facade"
     )
 )]
-pub(crate) use prepared::{PrepareFetchError, PreparedFetchExecution};
+pub(crate) use prepared::{PrepareFetchError, PrepareFetchFailure, PreparedFetchExecution};
 #[cfg(test)]
 pub(super) use settlement_test::{
     TerminalFixture as FetchTerminalFixture, install as install_terminal_for_test,

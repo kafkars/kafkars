@@ -17,7 +17,8 @@ fn one_confirmed_position_installs_one_machine_and_retains_exact_binding() {
         0,
         vec![committed(2, 1, 17), committed(2, 4, 23)],
     );
-    let mut owner = ClassicGroupFetchOwner::new();
+    let mut owner =
+        ClassicGroupFetchOwner::try_new().unwrap_or_else(|error| panic!("Fetch owner: {error:?}"));
 
     owner
         .try_activate(completed, fence)
@@ -30,15 +31,11 @@ fn one_confirmed_position_installs_one_machine_and_retains_exact_binding() {
     assert_eq!(binding.position_fence(), fence);
     assert_eq!(binding.assignment_epoch().get(), 1);
     assert_eq!(
-        activation.transition().assignment_epoch(),
-        Some(binding.assignment_epoch())
-    );
-    assert_eq!(
         owner.machine_assignment_epoch(),
         Some(binding.assignment_epoch())
     );
-    assert_eq!(activation.transition().effects().len(), 2);
-    assert!(activation.transition().effects().iter().all(|effect| {
+    assert_eq!(owner.effect_count_for_test(), 2);
+    assert!(owner.effects.iter().all(|effect| {
         matches!(
             effect,
             AssignedConsumerEffect::FetchReady { fence, .. }
@@ -50,7 +47,8 @@ fn one_confirmed_position_installs_one_machine_and_retains_exact_binding() {
 #[test]
 fn active_owner_rejects_a_second_completed_position_without_reinstallation() {
     let fence = position_fence(7);
-    let mut owner = ClassicGroupFetchOwner::new();
+    let mut owner =
+        ClassicGroupFetchOwner::try_new().unwrap_or_else(|error| panic!("Fetch owner: {error:?}"));
     owner
         .try_activate(
             completed_ready(fence, Moment::from_tick(41), 0, vec![committed(2, 1, 17)]),

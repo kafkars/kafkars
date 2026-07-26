@@ -16,9 +16,10 @@ use crate::driver::{
 };
 
 use super::{
+    classic_group_fetch::ClassicGroupFetchBuildError,
     classic_group_position::ClassicGroupPositionRecoveryFault,
     offset_commit::GroupOffsetCommitHost,
-    registry_entry::GroupConsumerEntry,
+    registry_entry::{GroupConsumerEntry, GroupConsumerEntryBuildError},
     session_catalog::{GroupSessionCatalogError, MAX_KAFKA_GROUP_STRING_BYTES},
 };
 
@@ -43,6 +44,7 @@ pub(super) enum GroupConsumerRegistrationFailureKind {
     RetainedBytes,
     IdentityExhausted,
     Catalog(GroupSessionCatalogError),
+    Fetch(ClassicGroupFetchBuildError),
 }
 
 /// Many bounded catalogs sharing one global bounded offset-commit host.
@@ -155,9 +157,16 @@ impl GroupConsumerRegistry {
             rejoin_policy,
         ) {
             Ok(entry) => entry,
-            Err(error) => {
+            Err(GroupConsumerEntryBuildError::Catalog(error)) => {
                 return Err(registration_failure(
                     GroupConsumerRegistrationFailureKind::Catalog(error),
+                    group,
+                    local_topics,
+                ));
+            }
+            Err(GroupConsumerEntryBuildError::Fetch(error)) => {
+                return Err(registration_failure(
+                    GroupConsumerRegistrationFailureKind::Fetch(error),
                     group,
                     local_topics,
                 ));
