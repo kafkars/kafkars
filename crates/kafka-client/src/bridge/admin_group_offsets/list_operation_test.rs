@@ -8,7 +8,7 @@ use std::{
     time::Duration,
 };
 
-use super::admin_group_offsets_operation::AdminListConsumerGroupOffsets;
+use super::list_operation::AdminListConsumerGroupOffsets;
 use crate::{
     ErrorKind, KafkaError,
     admin::{BatchResult, ListConsumerGroupOffsetsResult},

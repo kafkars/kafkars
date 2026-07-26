@@ -6,7 +6,7 @@ use kafka_client_engine::{
     ListConsumerGroupOffsetsObserverError,
 };
 
-use super::admin_group_offsets_result::{
+use super::list_result::{
     partition_error, translate_accepted_fault, translate_admission_kind, translate_failure_parts,
     translate_observer_error,
 };

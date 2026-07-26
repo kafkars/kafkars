@@ -13,8 +13,9 @@ use kafka_client_engine::{
 use crate::{
     DeliveryStatus, ErrorKind, KafkaError, TopicPartition,
     admin::{BatchResult, ConsumerGroupOffset, ListConsumerGroupOffsetsResult},
-    bridge::admin_group_offsets_operation::AdminListConsumerGroupOffsetsResult,
 };
+
+use super::list_operation::AdminListConsumerGroupOffsetsResult;
 
 pub(super) fn translate_admission_error(
     error: ListConsumerGroupOffsetsAdmissionError,

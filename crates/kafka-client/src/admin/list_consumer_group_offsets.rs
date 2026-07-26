@@ -6,7 +6,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use crate::{KafkaError, bridge::admin_group_offsets_operation::AdminListConsumerGroupOffsets};
+use crate::{KafkaError, bridge::admin_group_offsets::AdminListConsumerGroupOffsets};
 
 use super::ListConsumerGroupOffsetsResult;
 

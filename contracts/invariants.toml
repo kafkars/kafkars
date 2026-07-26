@@ -314,9 +314,9 @@ evidence = [
   "crates/kafka-client/src/admin/list_consumer_group_offsets_builder_test.rs::zero_deadline_and_stability_option_remain_inert_until_submit",
   "crates/kafka-client/src/admin/list_consumer_group_offsets_test.rs::operation_is_a_named_send_future",
   "crates/kafka-client/src/admin/list_consumer_group_offsets_result_test.rs::result_preserves_throttle_and_engine_supplied_order",
-  "crates/kafka-client/src/bridge/admin_group_offsets_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
-  "crates/kafka-client/src/bridge/admin_group_offsets_operation_test.rs::private_operation_is_a_send_future_without_a_runtime",
-  "crates/kafka-client/src/bridge/admin_group_offsets_result_test.rs::whole_and_partition_broker_codes_remain_exact_and_signed",
+  "crates/kafka-client/src/bridge/admin_group_offsets/list_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
+  "crates/kafka-client/src/bridge/admin_group_offsets/list_operation_test.rs::private_operation_is_a_send_future_without_a_runtime",
+  "crates/kafka-client/src/bridge/admin_group_offsets/list_result_test.rs::whole_and_partition_broker_codes_remain_exact_and_signed",
 ]
 
 [[invariant]]
@@ -350,7 +350,7 @@ evidence = [
 [[invariant]]
 id = "ADM-13"
 title = "AlterConsumerGroupOffsets execution is bounded and exact"
-statement = "One deterministic AlterConsumerGroupOffsets machine validates one explicit bounded nonempty group identity and a nonempty caller-ordered set of unique topic-partitions with nonnegative next offsets, optional nonnegative leader epochs, and nullable bounded metadata; retains the original absolute deadline and exact plan across its only submission; accepts only identity-exact caller-ordered response facts; and assigns exactly one terminal outcome without retry. The concrete engine admission path captures the public absolute deadline before validation, returns the exact request on local rejection, and atomically reserves one completion cell plus a conservative four-MiB request, scratch, and result envelope before machine creation. Its sole tracked group-coordinator call uses generated kafka-wire OffsetCommit with Interactive traffic, exact non-member sentinels, the v2-v9 name-based window, and a v6 floor when any leader epoch is present. Driver-owned deadline, compatibility, transport, and malformed-response outcomes preserve authoritative delivery certainty; route evidence is released only after core accepts the terminal fact. Retained bytes survive off-reactor publication through observer reclamation, and the concrete owner participates independently in fresh-time scheduling, shutdown quiescence, post-driver recovery, and the exact tenth admin-notifier capacity. No retry, coordinator cache, invalidation policy, callback, generic executor, public facade, or async runtime is introduced."
+statement = "One deterministic AlterConsumerGroupOffsets machine validates one explicit bounded nonempty group identity and a nonempty caller-ordered set of unique topic-partitions with nonnegative next offsets, optional nonnegative leader epochs, and nullable bounded metadata; retains the original absolute deadline and exact plan across its only submission; accepts only identity-exact caller-ordered response facts; and assigns exactly one terminal outcome without retry. The concrete engine admission path captures the public absolute deadline before validation, returns the exact request on local rejection, and atomically reserves one completion cell plus a conservative four-MiB request, scratch, and result envelope before machine creation. Its sole tracked group-coordinator call uses generated kafka-wire OffsetCommit with Interactive traffic, exact non-member sentinels, the v2-v9 name-based window, and a v6 floor when any leader epoch is present. Driver-owned deadline, compatibility, transport, and malformed-response outcomes preserve authoritative delivery certainty; route evidence is released only after core accepts the terminal fact. Retained bytes survive off-reactor publication through observer reclamation, and the concrete owner participates independently in fresh-time scheduling, shutdown quiescence, post-driver recovery, and the exact tenth admin-notifier capacity. The curated Rust facade retains inert caller order, nullable metadata, and timeout intent until submit; its private bridge owns the sole engine admission call and exhaustively translates definitely-unsent admission, exact signed partition codes, whole-operation delivery certainty, and observer failures into stable public values. No retry, coordinator cache, invalidation policy, callback, generic executor, or async runtime is introduced."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/admin/group_offset_alter/model_test.rs::plan_preserves_group_caller_order_offsets_epochs_and_nullable_metadata",
@@ -385,6 +385,10 @@ evidence = [
   "crates/kafka-client-engine/src/admin/completion_group_offsets_test.rs::group_offset_alter_is_included_in_the_closed_shared_capacity_equation",
   "crates/kafka-client-engine/src/engine_host/admin/alter_consumer_group_offsets_schedule_test.rs::offset_alteration_is_independent_and_prevents_false_quiescence",
   "crates/kafka-client-engine/src/engine_host/admin/alter_consumer_group_offsets_schedule_test.rs::offset_alteration_uses_time_recaptured_after_offset_deletion",
+  "crates/kafka-client/src/admin/group_offsets/alteration_test.rs::offset_epoch_and_nullable_metadata_remain_exact_and_inert",
+  "crates/kafka-client/src/admin/group_offsets/alter_builder_test.rs::duplicate_targets_are_rejected_definitely_unsent_only_at_submit",
+  "crates/kafka-client/src/admin/group_offsets/alter_result_test.rs::result_preserves_throttle_caller_order_and_exact_partition_failure",
+  "crates/kafka-client/src/bridge/admin_group_offsets/alter_result_test.rs::whole_failures_and_partition_codes_preserve_delivery_certainty",
 ]
 
 [[invariant]]

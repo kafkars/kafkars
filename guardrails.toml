@@ -1787,16 +1787,16 @@ production = "crates/kafka-client/src/bridge/admin_describe_result.rs"
 test = "crates/kafka-client/src/bridge/admin_describe_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_group_offsets_operation.rs"
-test = "crates/kafka-client/src/bridge/admin_group_offsets_operation_test.rs"
+production = "crates/kafka-client/src/bridge/admin_group_offsets/list_operation.rs"
+test = "crates/kafka-client/src/bridge/admin_group_offsets/list_operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_group_offsets_request.rs"
-test = "crates/kafka-client/src/bridge/admin_group_offsets_request_test.rs"
+production = "crates/kafka-client/src/bridge/admin_group_offsets/list_request.rs"
+test = "crates/kafka-client/src/bridge/admin_group_offsets/list_request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_group_offsets_result.rs"
-test = "crates/kafka-client/src/bridge/admin_group_offsets_result_test.rs"
+production = "crates/kafka-client/src/bridge/admin_group_offsets/list_result.rs"
+test = "crates/kafka-client/src/bridge/admin_group_offsets/list_result_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/bridge/admin_partitions_operation.rs"
@@ -1951,8 +1951,8 @@ production = "crates/kafka-client/src/admin/builder.rs"
 test = "crates/kafka-client/src/admin/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/consumer_group_offset.rs"
-test = "crates/kafka-client/src/admin/consumer_group_offset_test.rs"
+production = "crates/kafka-client/src/admin/group_offsets/offset.rs"
+test = "crates/kafka-client/src/admin/group_offsets/offset_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client/src/admin/create_topics.rs"
@@ -7834,11 +7834,11 @@ path = "crates/kafka-client/src/bridge/admin_describe_operation.rs"
 
 [[linear_owners]]
 owner_type = "ListConsumerGroupOffsetsAdminRequest"
-path = "crates/kafka-client/src/bridge/admin_group_offsets_request.rs"
+path = "crates/kafka-client/src/bridge/admin_group_offsets/list_request.rs"
 
 [[linear_owners]]
 owner_type = "AdminListConsumerGroupOffsets"
-path = "crates/kafka-client/src/bridge/admin_group_offsets_operation.rs"
+path = "crates/kafka-client/src/bridge/admin_group_offsets/list_operation.rs"
 
 [[linear_owners]]
 owner_type = "ListConsumerGroupOffsetsBuilder"
@@ -13115,4 +13115,55 @@ forbidden = [
   "Metadata",
   "Transport",
   "Retry",
+]
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/group_offsets/alteration.rs"
+test = "crates/kafka-client/src/admin/group_offsets/alteration_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/group_offsets/alter_operation.rs"
+test = "crates/kafka-client/src/admin/group_offsets/alter_operation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/group_offsets/alter_builder.rs"
+test = "crates/kafka-client/src/admin/group_offsets/alter_builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/group_offsets/alter_result.rs"
+test = "crates/kafka-client/src/admin/group_offsets/alter_result_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_group_offsets/alter_request.rs"
+test = "crates/kafka-client/src/bridge/admin_group_offsets/alter_request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_group_offsets/alter_operation.rs"
+test = "crates/kafka-client/src/bridge/admin_group_offsets/alter_operation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_group_offsets/alter_result.rs"
+test = "crates/kafka-client/src/bridge/admin_group_offsets/alter_result_test.rs"
+
+[[linear_owners]]
+owner_type = "AlterConsumerGroupOffsetsAdminRequest"
+path = "crates/kafka-client/src/bridge/admin_group_offsets/alter_request.rs"
+
+[[linear_owners]]
+owner_type = "AdminAlterConsumerGroupOffsets"
+path = "crates/kafka-client/src/bridge/admin_group_offsets/alter_operation.rs"
+
+[[linear_owners]]
+owner_type = "AlterConsumerGroupOffsetsBuilder"
+path = "crates/kafka-client/src/admin/group_offsets/alter_builder.rs"
+
+[[linear_owners]]
+owner_type = "AlterConsumerGroupOffsets"
+path = "crates/kafka-client/src/admin/group_offsets/alter_operation.rs"
+
+[[method_capabilities]]
+root = "crates/kafka-client/src"
+method = "try_alter_consumer_group_offsets"
+allowed_paths = [
+  "crates/kafka-client/src/bridge/admin.rs",
 ]

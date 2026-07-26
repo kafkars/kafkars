@@ -10,7 +10,6 @@ pub use super::configs::{
     ConfigEntry, ConfigSynonym, DescribeConfigs, DescribeConfigsBuilder, DescribeConfigsResult,
     TopicConfigQuery,
 };
-pub use super::consumer_group_offset::ConsumerGroupOffset;
 pub use super::create_partitions::CreatePartitions;
 pub use super::create_topics::CreateTopics;
 pub use super::delete_builder::DeleteTopicsBuilder;
@@ -22,6 +21,10 @@ pub use super::describe_builder::DescribeClusterBuilder;
 pub use super::describe_cluster::DescribeCluster;
 pub use super::describe_topics::DescribeTopics;
 pub use super::description::{ClusterBroker, ClusterDescription};
+pub use super::group_offsets::{
+    AlterConsumerGroupOffsets, AlterConsumerGroupOffsetsBuilder, AlterConsumerGroupOffsetsResult,
+    ConsumerGroupOffset, ConsumerGroupOffsetAlteration,
+};
 pub use super::handle::Admin;
 pub use super::list_consumer_group_offsets::ListConsumerGroupOffsets;
 pub use super::list_consumer_group_offsets_builder::ListConsumerGroupOffsetsBuilder;

@@ -1,6 +1,6 @@
 //! Inert group-offset bridge request scenarios.
 
-use super::admin_group_offsets_request::ListConsumerGroupOffsetsAdminRequest;
+use super::list_request::ListConsumerGroupOffsetsAdminRequest;
 
 #[test]
 fn request_is_linear_sendable_and_retains_group_identity() {

@@ -14,7 +14,7 @@ use kafka_client_engine::{
 
 use crate::{ErrorKind, KafkaError, admin::ListConsumerGroupOffsetsResult};
 
-use super::admin_group_offsets_result::{
+use super::list_result::{
     translate_accepted_fault, translate_admission_error, translate_observation,
 };
 

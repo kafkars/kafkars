@@ -20,8 +20,10 @@ use super::admin_configs_request::DescribeConfigsAdminRequest;
 use super::admin_delete_operation::AdminDeleteTopics;
 use super::admin_group_offset_delete_operation::AdminDeleteConsumerGroupOffsets;
 use super::admin_group_offset_delete_request::DeleteConsumerGroupOffsetsAdminRequest;
-use super::admin_group_offsets_operation::AdminListConsumerGroupOffsets;
-use super::admin_group_offsets_request::ListConsumerGroupOffsetsAdminRequest;
+use super::admin_group_offsets::{
+    AdminAlterConsumerGroupOffsets, AdminListConsumerGroupOffsets,
+    AlterConsumerGroupOffsetsAdminRequest, ListConsumerGroupOffsetsAdminRequest,
+};
 use super::admin_operation::AdminCreateTopics;
 use super::admin_partitions_operation::AdminCreatePartitions;
 use super::admin_topics_operation::AdminDescribeTopics;
@@ -109,6 +111,17 @@ impl AdminEngine {
         AdminDeleteConsumerGroupOffsets::from_admission(
             self.handle
                 .try_delete_consumer_group_offsets(request.into_engine(), timeout),
+        )
+    }
+
+    pub(crate) fn submit_alter_consumer_group_offsets(
+        &self,
+        request: AlterConsumerGroupOffsetsAdminRequest,
+        timeout: Duration,
+    ) -> AdminAlterConsumerGroupOffsets {
+        AdminAlterConsumerGroupOffsets::from_admission(
+            self.handle
+                .try_alter_consumer_group_offsets(request.into_engine(), timeout),
         )
     }
 

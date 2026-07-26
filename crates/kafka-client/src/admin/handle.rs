@@ -5,12 +5,15 @@ use crate::bridge::admin::{AdminEngine, AdminRequest, DeleteAdminRequest, Partit
 use crate::bridge::admin_alter_configs_request::IncrementalAlterConfigsAdminRequest;
 use crate::bridge::admin_configs_request::DescribeConfigsAdminRequest;
 use crate::bridge::admin_group_offset_delete_request::DeleteConsumerGroupOffsetsAdminRequest;
-use crate::bridge::admin_group_offsets_request::ListConsumerGroupOffsetsAdminRequest;
+use crate::bridge::admin_group_offsets::{
+    AlterConsumerGroupOffsetsAdminRequest, ListConsumerGroupOffsetsAdminRequest,
+};
 use crate::bridge::admin_topics_request::DescribeTopicsAdminRequest;
 
 use super::{
-    CreatePartitionsBuilder, CreateTopicsBuilder, DeleteConsumerGroupOffsetsBuilder,
-    DeleteTopicsBuilder, DescribeClusterBuilder, DescribeConfigsBuilder, DescribeTopicsBuilder,
+    AlterConsumerGroupOffsetsBuilder, ConsumerGroupOffsetAlteration, CreatePartitionsBuilder,
+    CreateTopicsBuilder, DeleteConsumerGroupOffsetsBuilder, DeleteTopicsBuilder,
+    DescribeClusterBuilder, DescribeConfigsBuilder, DescribeTopicsBuilder,
     IncrementalAlterConfigsBuilder, ListConsumerGroupOffsetsBuilder, ListTopicsBuilder,
     NewPartitions, NewTopic, TopicConfigAlterations, TopicConfigQuery,
 };
@@ -117,6 +120,30 @@ impl Admin {
             targets.into_iter().collect(),
         );
         DeleteConsumerGroupOffsetsBuilder::new(
+            self.engine.clone(),
+            request,
+            self.engine.default_timeout(),
+        )
+    }
+
+    /// Builds an inert caller-ordered committed-offset alteration for one group.
+    ///
+    /// Invalid offsets, epochs, identities, and duplicate topic-partitions
+    /// remain inert until [`AlterConsumerGroupOffsetsBuilder::submit`] captures
+    /// the public absolute deadline and attempts bounded engine admission.
+    pub fn alter_consumer_group_offsets<I>(
+        &self,
+        group_id: impl Into<String>,
+        alterations: I,
+    ) -> AlterConsumerGroupOffsetsBuilder
+    where
+        I: IntoIterator<Item = ConsumerGroupOffsetAlteration>,
+    {
+        let request = AlterConsumerGroupOffsetsAdminRequest::new(
+            group_id.into(),
+            alterations.into_iter().collect(),
+        );
+        AlterConsumerGroupOffsetsBuilder::new(
             self.engine.clone(),
             request,
             self.engine.default_timeout(),

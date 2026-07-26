@@ -21,7 +21,7 @@ impl ListConsumerGroupOffsetsAdminRequest {
         self
     }
 
-    pub(super) fn into_engine(self) -> EngineRequest {
+    pub(in crate::bridge) fn into_engine(self) -> EngineRequest {
         EngineRequest::new(self.group_id, self.require_stable)
     }
 }

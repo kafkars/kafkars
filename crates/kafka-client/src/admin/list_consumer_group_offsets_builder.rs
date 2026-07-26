@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use crate::bridge::{
-    admin::AdminEngine, admin_group_offsets_request::ListConsumerGroupOffsetsAdminRequest,
+    admin::AdminEngine, admin_group_offsets::ListConsumerGroupOffsetsAdminRequest,
 };
 
 use super::ListConsumerGroupOffsets;
