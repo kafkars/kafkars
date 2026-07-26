@@ -2,12 +2,11 @@
 
 use std::{sync::Arc, time::Duration};
 
+use kafka_client_core::ReadIsolation;
+
 use crate::{
     clock::MonotonicClock,
-    protocol::{
-        consumer::ListOffsetsIsolation,
-        fetch::{FetchDecodeLimits, FetchRequestSettings},
-    },
+    protocol::fetch::{FetchDecodeLimits, FetchRequestSettings},
 };
 
 use super::super::{
@@ -43,7 +42,7 @@ where
     W: AssignedConsumerShardWake,
 {
     let settings = AssignedConsumerOwnerSettings::new(
-        ListOffsetsIsolation::ReadUncommitted,
+        ReadIsolation::ReadUncommitted,
         FetchRequestSettings::new(500, 1, FETCH_REQUEST_BYTES, FETCH_REQUEST_BYTES, 0),
         FetchDecodeLimits::default(),
         Duration::from_secs(30),

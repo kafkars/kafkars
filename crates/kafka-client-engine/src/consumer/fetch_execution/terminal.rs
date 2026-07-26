@@ -7,8 +7,7 @@ use kafka_client_core::{
 use crate::{
     driver::{FetchTerminal, PartitionFetchRequest, classify_fetch_request_error},
     protocol::fetch::{
-        FetchOutcomeFailureClass, classify_fetch_outcome_failure,
-        normalize_read_uncommitted_fetch_outcome,
+        FetchOutcomeFailureClass, classify_fetch_outcome_failure, normalize_fetch_outcome,
     },
 };
 
@@ -54,7 +53,16 @@ impl DirectFetchExecutor {
                         FetchFailure::Compatibility,
                     );
                 };
-                let normalized = normalize_read_uncommitted_fetch_outcome(
+                let Some(isolation) = request.isolation() else {
+                    return self.rollback_terminal(
+                        request,
+                        proof,
+                        output,
+                        FetchFailure::Compatibility,
+                    );
+                };
+                let normalized = normalize_fetch_outcome(
+                    isolation,
                     request.topic(),
                     request.fence().position().partition().partition().get(),
                     request.next_offset().get(),

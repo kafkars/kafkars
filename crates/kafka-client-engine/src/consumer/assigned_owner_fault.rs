@@ -14,7 +14,7 @@ use super::{
     assigned_event::AssignedConsumerEventStoreError,
     assigned_owner_model::PendingPosition,
     assigned_timer_model::AssignedTimerError,
-    assigned_topics::AssignedTopicsError,
+    assigned_topics::{AssignedTopicCopyError, AssignedTopicsError},
     fetch_execution::{FetchExecutionError, PrepareFetchError, PreparedFetchExecution},
     fetch_store::FetchDelivery,
     position_execution::PositionExecutionError,
@@ -129,4 +129,13 @@ pub(super) enum AssignedConsumerEffectFailure {
         expected: PositionFence,
         supplied: PositionFence,
     },
+}
+
+impl From<AssignedTopicCopyError> for AssignedConsumerEffectFailure {
+    fn from(error: AssignedTopicCopyError) -> Self {
+        match error {
+            AssignedTopicCopyError::Lookup(error) => Self::Topic(error),
+            AssignedTopicCopyError::Allocation => Self::Allocation,
+        }
+    }
 }

@@ -9,7 +9,10 @@ use crate::{
     driver::DriverOwner,
     protocol::{
         consumer::remaining_timeout_ms,
-        fetch::{FetchDecodeLimits, FetchRequestFailure, FetchRequestSettings, fetch_request},
+        fetch::{
+            FetchDecodeLimits, FetchIsolation, FetchRequestFailure, FetchRequestSettings,
+            fetch_request,
+        },
     },
 };
 
@@ -67,8 +70,8 @@ impl PartitionFetchRequest {
         self.decode_limits
     }
 
-    pub(crate) const fn is_read_uncommitted(&self) -> bool {
-        self.settings.is_read_uncommitted()
+    pub(crate) const fn isolation(&self) -> Option<FetchIsolation> {
+        self.settings.isolation()
     }
 }
 

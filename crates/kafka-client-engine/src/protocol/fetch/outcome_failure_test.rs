@@ -30,6 +30,7 @@ fn response_shape_and_semantic_failures_are_invalid() {
         FetchOutcomeFailure::Response(FetchResponseFailure::TopicNameMismatch),
         FetchOutcomeFailure::Response(FetchResponseFailure::PartitionCount { actual: 2 }),
         FetchOutcomeFailure::Response(FetchResponseFailure::PartitionIndexMismatch { actual: 2 }),
+        decode(FetchDecodeFailure::MissingLastStableOffset),
     ];
     for failure in failures {
         assert_eq!(
@@ -76,6 +77,7 @@ fn stable_retention_and_decoder_bounds_are_response_too_large() {
             actual: 2,
             limit: 1,
         }),
+        decode(FetchDecodeFailure::ReadCommittedScratch { required: 2 }),
         decode(FetchDecodeFailure::AccountingOverflow),
         decode(FetchDecodeFailure::RecordBatch {
             topic: 0,

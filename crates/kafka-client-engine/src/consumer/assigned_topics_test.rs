@@ -132,6 +132,24 @@ fn identity_exhaustion_and_unknown_lookup_are_explicit() {
 }
 
 #[test]
+fn copied_request_name_preserves_catalog_spelling_and_unknown_identity() {
+    let assignment = AssignedTopics::from_initial_for_test(
+        vec![entry(Arc::from("orders"), 0, StartPosition::Beginning)],
+        limits(1, 1),
+    )
+    .unwrap_or_else(|error| panic!("assignment failed: {error:?}"));
+    let topic_id = assignment.partitions()[0].partition().topic_id();
+
+    assert_eq!(assignment.copy_name(topic_id).as_deref(), Ok("orders"));
+    assert_eq!(
+        assignment.copy_name(TopicId::from_raw(99)),
+        Err(super::assigned_topics::AssignedTopicCopyError::Lookup(
+            AssignedTopicsError::UnknownTopic(TopicId::from_raw(99))
+        ))
+    );
+}
+
+#[test]
 fn topic_validation_and_duplicate_partition_policy_are_not_reimplemented() {
     let assignment = AssignedTopics::from_initial_for_test(
         vec![

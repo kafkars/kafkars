@@ -7,18 +7,19 @@ use kafka_wire::FetchResponse as WireFetchResponse;
 use crate::protocol::consumer::throttle_ticks;
 
 use super::{
-    FetchBrokerLevel, FetchDecodeLimits, FetchOutcomeFailure, FetchOutputReservation,
-    RejectedFetchOutcome, RetainedFetchOutcome,
+    FetchBrokerLevel, FetchDecodeLimits, FetchIsolation, FetchOutcomeFailure,
+    FetchOutputReservation, RejectedFetchOutcome, RetainedFetchOutcome,
     outcome::reject,
     outcome_retain::{retain_broker, retain_success},
+    read_committed::filter_read_committed,
     response::{correlate_partition, normalize_correlated_response, validate_selected_version},
 };
 
-/// Settles one raw no-session, read-uncommitted Fetch response.
+/// Settles one raw no-session Fetch response under its admitted isolation.
 ///
 /// Version and scalar broker failures are observed before success-only record
-/// decoding. Aborted-transaction markers remain uninterpreted; read-committed
-/// execution requires a separate filtering policy. Temporary wire and decoded
+/// decoding. Read-committed filtering is response-local and preserves complete
+/// batch progress after hiding aborted records. Temporary wire and decoded
 /// storage is bounded independently by `limits`; `reservation` is the
 /// pre-acquired hard ceiling for the final outcome and is settled before that
 /// outcome can escape this function.
@@ -26,7 +27,8 @@ use super::{
     clippy::too_many_arguments,
     reason = "the explicit terminal context prevents hidden correlation and budget authority"
 )]
-pub(crate) fn normalize_read_uncommitted_fetch_outcome(
+pub(crate) fn normalize_fetch_outcome(
+    isolation: FetchIsolation,
     topic: &str,
     partition: u32,
     requested_offset: i64,
@@ -82,11 +84,19 @@ pub(crate) fn normalize_read_uncommitted_fetch_outcome(
             reservation,
         ));
     };
-    let normalized = match normalize_correlated_response(response, limits) {
+    let mut normalized = match normalize_correlated_response(response, limits) {
         Ok(response) => response,
         Err(failure) => {
             return Err(reject(FetchOutcomeFailure::Response(failure), reservation));
         }
     };
+    if isolation == FetchIsolation::ReadCommitted {
+        if let Err(failure) = filter_read_committed(&mut normalized) {
+            return Err(reject(
+                FetchOutcomeFailure::Response(super::FetchResponseFailure::Decode(failure)),
+                reservation,
+            ));
+        }
+    }
     retain_success(requested_offset, throttle_ticks, normalized, reservation)
 }

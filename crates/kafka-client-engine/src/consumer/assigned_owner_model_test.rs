@@ -1,10 +1,35 @@
 //! Construction-bound scenarios for the assigned-owner model.
 
+use kafka_client_core::ReadIsolation;
+
 use super::{
-    assigned_owner_model::{AssignedConsumerOwnerBuildError, AssignedConsumerOwnerLimits},
+    assigned_owner_model::{
+        AssignedConsumerOwnerBuildError, AssignedConsumerOwnerLimits, fetch_isolation,
+        position_isolation,
+    },
     assigned_owner_test::{OUTPUT_BYTES, limits},
     assigned_topics::AssignedTopicLimits,
 };
+
+#[test]
+fn core_read_isolation_maps_exhaustively_at_protocol_boundaries() {
+    assert_eq!(
+        position_isolation(ReadIsolation::ReadUncommitted),
+        crate::protocol::consumer::ListOffsetsIsolation::ReadUncommitted
+    );
+    assert_eq!(
+        position_isolation(ReadIsolation::ReadCommitted),
+        crate::protocol::consumer::ListOffsetsIsolation::ReadCommitted
+    );
+    assert_eq!(
+        fetch_isolation(ReadIsolation::ReadUncommitted),
+        crate::protocol::fetch::FetchIsolation::ReadUncommitted
+    );
+    assert_eq!(
+        fetch_isolation(ReadIsolation::ReadCommitted),
+        crate::protocol::fetch::FetchIsolation::ReadCommitted
+    );
+}
 
 #[test]
 fn effect_capacity_is_checked_two_partitions_plus_one() {

@@ -17,6 +17,7 @@ fn partition_offset_facts_accept_only_minus_one_as_absent() {
     let partition = &normalized.topics[0].partitions[0];
     assert_eq!(partition.last_stable_offset, None);
     assert_eq!(partition.log_start_offset, None);
+    assert!(partition.aborted_transactions.is_empty());
 
     for (fact, mutate) in [
         (
@@ -34,6 +35,22 @@ fn partition_offset_facts_accept_only_minus_one_as_absent() {
         assert_eq!(
             normalize_fetch_response(response(partition), limits()),
             Err(FetchDecodeFailure::InvalidPartitionOffset { fact, actual: -2 })
+        );
+    }
+}
+
+#[test]
+fn nullable_and_empty_aborted_transaction_facts_normalize_identically() {
+    for aborted_transactions in [None, Some(Vec::new())] {
+        let mut partition = PartitionData::default();
+        partition.aborted_transactions = aborted_transactions;
+        let normalized = normalize_fetch_response(response(partition), limits())
+            .unwrap_or_else(|error| panic!("nullable aborted transactions: {error:?}"));
+
+        assert!(
+            normalized.topics[0].partitions[0]
+                .aborted_transactions
+                .is_empty()
         );
     }
 }

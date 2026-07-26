@@ -36,3 +36,4 @@ pub use super::model::{
     AssignedPartition, AssignedTopicPartition, DeliveryOwnership, FetchFence, FetchOwnership,
     FetchRecords, NextFetchOffset, PositionFence, PositionOwnership, StartPosition,
 };
+pub use super::read_isolation::ReadIsolation;

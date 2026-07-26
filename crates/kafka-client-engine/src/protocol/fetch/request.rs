@@ -5,6 +5,8 @@ use kafka_wire::{
     fetch_request::{FetchPartition, FetchTopic},
 };
 
+use super::isolation::FetchIsolation;
+
 /// First generated Fetch version that represents isolation and request max bytes.
 pub(crate) const FETCH_NAME_ROUTE_MIN_VERSION: i16 = 4;
 
@@ -69,9 +71,24 @@ impl FetchRequestSettings {
         }
     }
 
-    /// Reports whether this request may expose uncommitted transaction records.
-    pub(crate) const fn is_read_uncommitted(self) -> bool {
-        self.isolation_level == 0
+    /// Replaces raw configuration with one core-selected isolation policy.
+    pub(crate) const fn with_isolation(self, isolation: FetchIsolation) -> Self {
+        Self {
+            max_wait_ms: self.max_wait_ms,
+            min_bytes: self.min_bytes,
+            max_bytes: self.max_bytes,
+            partition_max_bytes: self.partition_max_bytes,
+            isolation_level: isolation.wire_value(),
+        }
+    }
+
+    /// Returns the closed isolation represented by validated settings.
+    pub(crate) const fn isolation(self) -> Option<FetchIsolation> {
+        match self.isolation_level {
+            0 => Some(FetchIsolation::ReadUncommitted),
+            1 => Some(FetchIsolation::ReadCommitted),
+            _ => None,
+        }
     }
 }
 

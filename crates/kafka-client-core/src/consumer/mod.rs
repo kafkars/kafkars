@@ -18,6 +18,7 @@ mod position;
 mod position_ownership;
 mod position_resolution;
 mod position_state;
+mod read_isolation;
 mod transition;
 
 pub use exports::*;
@@ -48,6 +49,8 @@ mod position_ownership_test;
 mod position_state_test;
 #[cfg(test)]
 mod position_test;
+#[cfg(test)]
+mod read_isolation_test;
 #[cfg(test)]
 mod resolution_test;
 #[cfg(test)]

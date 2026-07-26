@@ -226,6 +226,7 @@ fn expected_paths(field: &str) -> Vec<String> {
             "crates/kafka-client-engine/src/consumer/assigned_owner_close.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_status.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_turn.rs",
         ],
         "events" => &[

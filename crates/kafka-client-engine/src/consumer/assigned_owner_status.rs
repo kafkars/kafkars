@@ -1,5 +1,7 @@
 //! Scalar scheduling and close-retention observations for the host join point.
 
+use kafka_client_core::ReadIsolation;
+
 use super::{assigned_close_error::AssignedCloseSlotPhase, assigned_owner::AssignedConsumerOwner};
 
 /// Scalar pre-release context retained before abnormal owner consumption.
@@ -15,6 +17,10 @@ pub(crate) struct AssignedConsumerRecoveryAudit {
 }
 
 impl AssignedConsumerOwner {
+    pub(super) const fn read_isolation(&self) -> ReadIsolation {
+        self.machine.read_isolation()
+    }
+
     /// Reports whether core close admission has left the sole vacant phase.
     pub(crate) fn close_started(&self) -> bool {
         self.close.phase() != AssignedCloseSlotPhase::Vacant

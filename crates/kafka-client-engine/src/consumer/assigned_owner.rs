@@ -85,7 +85,7 @@ impl AssignedConsumerOwner {
             .try_reserve_exact(limits.delivery_capacity)
             .map_err(|_error| AssignedConsumerOwnerBuildError::Allocation)?;
         Ok(Self {
-            machine: AssignedConsumerMachine::new(),
+            machine: AssignedConsumerMachine::with_read_isolation(settings.read_isolation),
             topics: AssignedTopics::new(limits.topic_limits),
             timers: AssignedTimers::new(limits.partition_capacity),
             positions: PositionResolutionExecutor::new(limits.call_capacity),

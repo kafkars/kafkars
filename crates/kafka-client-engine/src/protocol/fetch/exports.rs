@@ -6,6 +6,7 @@
 )]
 pub(crate) use super::{
     failure::FetchDecodeFailure,
+    isolation::FetchIsolation,
     limits::FetchDecodeLimits,
     model::{
         FetchBatch, FetchEndpoint, FetchHeader, FetchPartition, FetchProducerIdentity, FetchRecord,
@@ -16,7 +17,7 @@ pub(crate) use super::{
         RejectedFetchOutcome, RetainedFetchOutcome,
     },
     outcome_failure::{FetchOutcomeFailureClass, classify_fetch_outcome_failure},
-    outcome_normalize::normalize_read_uncommitted_fetch_outcome,
+    outcome_normalize::normalize_fetch_outcome,
     request::{
         FETCH_NAME_ROUTE_MAX_VERSION, FETCH_NAME_ROUTE_MIN_VERSION, FetchRequestFailure,
         FetchRequestSettings, fetch_request,

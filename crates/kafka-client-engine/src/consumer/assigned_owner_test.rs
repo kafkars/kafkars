@@ -2,16 +2,13 @@
 
 use std::{sync::Arc, time::Duration};
 
-use kafka_client_core::{PartitionIndex, StartPosition};
+use kafka_client_core::{PartitionIndex, ReadIsolation, StartPosition};
 
 use crate::{
     EngineConfig,
     clock::MonotonicClock,
     driver::DriverOwner,
-    protocol::{
-        consumer::ListOffsetsIsolation,
-        fetch::{FetchDecodeLimits, FetchRequestSettings},
-    },
+    protocol::fetch::{FetchDecodeLimits, FetchRequestSettings},
 };
 
 use super::{
@@ -81,7 +78,7 @@ impl Drop for AssignedConsumerNotifierGuard {
 
 pub(super) fn settings() -> AssignedConsumerOwnerSettings {
     AssignedConsumerOwnerSettings::new(
-        ListOffsetsIsolation::ReadUncommitted,
+        ReadIsolation::ReadUncommitted,
         FetchRequestSettings::new(500, 1, 1_048_576, 1_048_576, 0),
         FetchDecodeLimits::default(),
         Duration::from_secs(30),

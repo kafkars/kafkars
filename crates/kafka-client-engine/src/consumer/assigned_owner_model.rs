@@ -2,14 +2,14 @@
 
 use std::time::Duration;
 
-use kafka_client_core::{AssignedConsumerMachineError, Deadline, PositionFence};
+use kafka_client_core::{AssignedConsumerMachineError, Deadline, PositionFence, ReadIsolation};
 
 use crate::{
     clock::ClockError,
     completion::CompletionRegistryError,
     protocol::{
         consumer::ListOffsetsIsolation,
-        fetch::{FetchDecodeLimits, FetchRequestSettings},
+        fetch::{FetchDecodeLimits, FetchIsolation, FetchRequestSettings},
     },
 };
 
@@ -86,7 +86,7 @@ impl AssignedConsumerOwnerLimits {
 /// Immutable execution policy already compiled outside this owner.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct AssignedConsumerOwnerSettings {
-    pub(super) position_isolation: ListOffsetsIsolation,
+    pub(super) read_isolation: ReadIsolation,
     pub(super) fetch_settings: FetchRequestSettings,
     pub(super) fetch_decode_limits: FetchDecodeLimits,
     pub(super) fetch_attempt_timeout: Duration,
@@ -95,14 +95,14 @@ pub(super) struct AssignedConsumerOwnerSettings {
 
 impl AssignedConsumerOwnerSettings {
     pub(super) const fn new(
-        position_isolation: ListOffsetsIsolation,
+        read_isolation: ReadIsolation,
         fetch_settings: FetchRequestSettings,
         fetch_decode_limits: FetchDecodeLimits,
         fetch_attempt_timeout: Duration,
         due_timer_budget: usize,
     ) -> Self {
         Self {
-            position_isolation,
+            read_isolation,
             fetch_settings,
             fetch_decode_limits,
             fetch_attempt_timeout,
@@ -185,4 +185,18 @@ impl AssignedConsumerTurn {
 
 pub(super) fn minimum_deadline(current: Option<Deadline>, candidate: Deadline) -> Option<Deadline> {
     Some(current.map_or(candidate, |present| present.min(candidate)))
+}
+
+pub(super) const fn position_isolation(isolation: ReadIsolation) -> ListOffsetsIsolation {
+    match isolation {
+        ReadIsolation::ReadUncommitted => ListOffsetsIsolation::ReadUncommitted,
+        ReadIsolation::ReadCommitted => ListOffsetsIsolation::ReadCommitted,
+    }
+}
+
+pub(super) const fn fetch_isolation(isolation: ReadIsolation) -> FetchIsolation {
+    match isolation {
+        ReadIsolation::ReadUncommitted => FetchIsolation::ReadUncommitted,
+        ReadIsolation::ReadCommitted => FetchIsolation::ReadCommitted,
+    }
 }

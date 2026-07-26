@@ -59,9 +59,16 @@ fn both_kafka_isolation_levels_are_represented_exactly() {
         let request = fetch_request("events", 0, 0, configured)
             .unwrap_or_else(|error| panic!("valid isolation level: {error:?}"));
         assert_eq!(request.isolation_level, isolation_level);
-        assert_eq!(configured.is_read_uncommitted(), isolation_level == 0);
+        assert_eq!(
+            configured.isolation(),
+            Some(if isolation_level == 0 {
+                super::FetchIsolation::ReadUncommitted
+            } else {
+                super::FetchIsolation::ReadCommitted
+            })
+        );
     }
-    assert!(!settings(2).is_read_uncommitted());
+    assert_eq!(settings(2).isolation(), None);
     assert_eq!(
         fetch_request("events", 0, 0, settings(2)),
         Err(FetchRequestFailure::InvalidIsolationLevel { actual: 2 })

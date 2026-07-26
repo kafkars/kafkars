@@ -2,7 +2,7 @@
 
 use super::{
     AssignedConsumerMachineError, AssignedPartition, AssignedTopicPartition, AssignmentEpoch,
-    close::AssignedConsumerCloseState, position::AssignedPartitionState,
+    ReadIsolation, close::AssignedConsumerCloseState, position::AssignedPartitionState,
 };
 
 /// Deterministic owner of direct-assignment epochs and fetch positions.
@@ -11,16 +11,28 @@ pub struct AssignedConsumerMachine {
     pub(super) next_epoch: AssignmentEpoch,
     pub(super) assignment: Option<DirectAssignment>,
     pub(super) close_state: AssignedConsumerCloseState,
+    read_isolation: ReadIsolation,
 }
 
 impl AssignedConsumerMachine {
     /// Creates an unassigned direct consumer.
     pub const fn new() -> Self {
+        Self::with_read_isolation(ReadIsolation::ReadUncommitted)
+    }
+
+    /// Creates an unassigned direct consumer with immutable record visibility.
+    pub const fn with_read_isolation(read_isolation: ReadIsolation) -> Self {
         Self {
             next_epoch: AssignmentEpoch::initial(),
             assignment: None,
             close_state: AssignedConsumerCloseState::Open,
+            read_isolation,
         }
+    }
+
+    /// Returns the immutable application-record visibility policy.
+    pub const fn read_isolation(&self) -> ReadIsolation {
+        self.read_isolation
     }
 
     /// Returns the retained assignment epoch, when one has been installed.

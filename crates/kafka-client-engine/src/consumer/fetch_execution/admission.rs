@@ -44,9 +44,6 @@ impl DirectFetchExecutor {
                 return Err(FetchExecutionError::Core(error));
             }
         };
-        if !prepared.request.is_read_uncommitted() {
-            return self.settle_unadmitted(machine, prepared, FetchFailure::Compatibility);
-        }
         if prepared
             .request
             .operation_deadline()

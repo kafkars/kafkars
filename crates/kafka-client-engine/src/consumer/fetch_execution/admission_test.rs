@@ -4,8 +4,8 @@ use std::time::{Duration, Instant};
 
 use kafka_client_core::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine, AssignedPartition,
-    AssignedTopicPartition, Deadline, FetchFailure, FetchOwnership, Moment, NextFetchOffset,
-    PartitionIndex, StartPosition, TopicId,
+    AssignedTopicPartition, Deadline, FetchFailure, Moment, NextFetchOffset, PartitionIndex,
+    StartPosition, TopicId,
 };
 
 use crate::{
@@ -48,7 +48,7 @@ fn non_fetch_effect_is_rejected_as_caller_invariant_misuse() {
 }
 
 #[test]
-fn read_committed_settles_compatibility_before_output_or_call_capacity() {
+fn read_committed_reaches_bounded_output_admission() {
     let (effect, mut machine) = assignment(3, Deadline::from_tick(100));
     let fence = fetch_fence(effect);
     let prepared = PreparedFetchExecution::new(
@@ -65,21 +65,11 @@ fn read_committed_settles_compatibility_before_output_or_call_capacity() {
 
     let submission = executor
         .submit(&driver, &mut machine, prepared, Moment::from_tick(0))
-        .unwrap_or_else(|error| panic!("settle read-committed Fetch: {error:?}"));
-    let FetchSubmission::Settled(Some(transition)) = submission else {
-        panic!("read-committed Fetch must settle through core");
+        .unwrap_or_else(|error| panic!("admit read-committed Fetch: {error:?}"));
+    let FetchSubmission::Backpressured(prepared) = submission else {
+        panic!("read-committed Fetch must reach bounded output admission");
     };
-    assert_eq!(
-        transition.effects(),
-        &[AssignedConsumerEffect::FetchFailed {
-            fence,
-            failure: FetchFailure::Compatibility,
-        }]
-    );
-    assert_eq!(
-        machine.fetch_ownership(fence),
-        Ok(FetchOwnership::Superseded)
-    );
+    assert_eq!(prepared.fence(), fence);
     assert_eq!(executor.retained(), (0, 0, 0));
     shutdown(&mut driver);
 }

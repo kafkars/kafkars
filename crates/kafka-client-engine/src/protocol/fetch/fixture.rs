@@ -10,8 +10,8 @@ use kafka_wire_records::{
 };
 
 use super::{
-    FetchDecodeLimits, FetchOutputReservation, RetainedFetchOutcome,
-    normalize_read_uncommitted_fetch_outcome,
+    FetchDecodeLimits, FetchIsolation, FetchOutputReservation, RetainedFetchOutcome,
+    normalize_fetch_outcome,
 };
 
 const SELECTED_VERSION: i16 = 12;
@@ -53,7 +53,8 @@ fn normalize(
     response: WireFetchResponse,
     reservation: FetchOutputReservation,
 ) -> RetainedFetchOutcome {
-    normalize_read_uncommitted_fetch_outcome(
+    normalize_fetch_outcome(
+        FetchIsolation::ReadUncommitted,
         topic,
         partition,
         requested_offset,

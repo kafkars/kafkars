@@ -2,6 +2,8 @@
 
 use kafka_wire_records::RecordError;
 
+use super::control_record::FetchControlRecordFailure;
+
 /// Partition offset fact whose only absent sentinel is exactly `-1`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum FetchPartitionOffset {
@@ -129,6 +131,22 @@ pub(crate) enum FetchDecodeFailure {
     InvalidAbortedTransaction {
         producer_id: i64,
         first_offset: i64,
+    },
+    ReadCommittedScratch {
+        required: usize,
+    },
+    MissingLastStableOffset,
+    AbortedTransactionAtOrAfterLastStableOffset {
+        first_offset: i64,
+        last_stable_offset: i64,
+    },
+    BatchAtOrAfterLastStableOffset {
+        last_offset: i64,
+        last_stable_offset: i64,
+    },
+    ControlRecord(FetchControlRecordFailure),
+    UnsupportedControlRecordType {
+        actual: i16,
     },
     RecordOffsetOutsideBatch {
         offset: i64,

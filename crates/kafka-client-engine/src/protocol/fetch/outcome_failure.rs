@@ -60,6 +60,7 @@ fn classify_decode_failure(failure: &FetchDecodeFailure) -> FetchOutcomeFailureC
         | FetchDecodeFailure::RecordCount { .. }
         | FetchDecodeFailure::HeaderCount { .. }
         | FetchDecodeFailure::AbortedTransactionCount { .. }
+        | FetchDecodeFailure::ReadCommittedScratch { .. }
         | FetchDecodeFailure::LogicalRecordBytes { .. }
         | FetchDecodeFailure::AdditionalRetainedPayloadBytes { .. }
         | FetchDecodeFailure::AccountingOverflow => FetchOutcomeFailureClass::ResponseTooLarge,
@@ -88,6 +89,11 @@ fn classify_decode_failure(failure: &FetchDecodeFailure) -> FetchOutcomeFailureC
         | FetchDecodeFailure::TransactionalIdentityMissing
         | FetchDecodeFailure::NonTransactionalControlIdentity
         | FetchDecodeFailure::InvalidAbortedTransaction { .. }
+        | FetchDecodeFailure::MissingLastStableOffset
+        | FetchDecodeFailure::AbortedTransactionAtOrAfterLastStableOffset { .. }
+        | FetchDecodeFailure::BatchAtOrAfterLastStableOffset { .. }
+        | FetchDecodeFailure::ControlRecord(_)
+        | FetchDecodeFailure::UnsupportedControlRecordType { .. }
         | FetchDecodeFailure::RecordOffsetOutsideBatch { .. }
         | FetchDecodeFailure::RecordOffsetsNotIncreasing { .. } => {
             FetchOutcomeFailureClass::InvalidResponse

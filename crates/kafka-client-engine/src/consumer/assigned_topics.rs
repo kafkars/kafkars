@@ -56,6 +56,13 @@ pub(crate) enum AssignedTopicsError {
     UnknownTopic(TopicId),
 }
 
+/// Failure to copy one retained topic into exact request ownership.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum AssignedTopicCopyError {
+    Lookup(AssignedTopicsError),
+    Allocation,
+}
+
 /// Sole owner of retained names, stable identities, and the current assignment.
 #[derive(Debug)]
 pub(super) struct AssignedTopics {
@@ -118,6 +125,18 @@ impl AssignedTopics {
         self.by_id
             .get(&topic_id)
             .ok_or(AssignedTopicsError::UnknownTopic(topic_id))
+    }
+
+    pub(super) fn copy_name(&self, topic_id: TopicId) -> Result<String, AssignedTopicCopyError> {
+        let name = self
+            .name(topic_id)
+            .map_err(AssignedTopicCopyError::Lookup)?;
+        let mut owned = String::new();
+        owned
+            .try_reserve_exact(name.len())
+            .map_err(|_error| AssignedTopicCopyError::Allocation)?;
+        owned.push_str(name);
+        Ok(owned)
     }
 
     pub(super) fn control_partition(

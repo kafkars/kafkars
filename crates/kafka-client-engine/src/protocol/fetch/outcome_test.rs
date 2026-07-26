@@ -8,8 +8,8 @@ use kafka_wire::{
 use kafka_wire_records::{RecordBatch, RecordEncodeLimits};
 
 use super::{
-    FetchDecodeLimits, FetchRetentionFailure, batch_model_test::batch,
-    normalize_read_uncommitted_fetch_outcome, retention::FetchReservationDomain,
+    FetchDecodeLimits, FetchIsolation, FetchRetentionFailure, batch_model_test::batch,
+    normalize_fetch_outcome, retention::FetchReservationDomain,
 };
 
 pub(super) const TOPIC: &str = "events";
@@ -91,7 +91,8 @@ pub(super) fn normalize_with(
 ) -> Result<super::RetainedFetchOutcome, super::RejectedFetchOutcome> {
     let domain = FetchReservationDomain::create_store_domain();
     let (_, reservation) = domain.issue_pair(0, reserved_bytes);
-    normalize_read_uncommitted_fetch_outcome(
+    normalize_fetch_outcome(
+        FetchIsolation::ReadUncommitted,
         TOPIC,
         PARTITION,
         requested_offset,

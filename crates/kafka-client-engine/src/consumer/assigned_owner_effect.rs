@@ -6,7 +6,7 @@ use super::{
     assigned_owner::AssignedConsumerOwner,
     assigned_owner_event::is_terminal_event,
     assigned_owner_fault::{AssignedConsumerEffectFailure, AssignedConsumerOwnerFault},
-    assigned_owner_model::PendingPosition,
+    assigned_owner_model::{PendingPosition, fetch_isolation, position_isolation},
     fetch_execution::{FetchAttemptDeadline, FetchExecutionError, PreparedFetchExecution},
     position_execution::PreparedPositionResolution,
 };
@@ -123,11 +123,14 @@ impl AssignedConsumerOwner {
                 supplied: retained.fence,
             });
         }
-        let topic = self.copy_topic(fence.partition().topic_id())?;
+        let topic = self
+            .topics
+            .copy_name(fence.partition().topic_id())
+            .map_err(AssignedConsumerEffectFailure::from)?;
         let prepared = PreparedPositionResolution::new(
             effect,
             topic,
-            self.settings.position_isolation,
+            position_isolation(self.read_isolation()),
             retained.deadline,
         )
         .map_err(AssignedConsumerEffectFailure::PositionPreparation)?;
@@ -153,11 +156,16 @@ impl AssignedConsumerOwner {
             self.settings.fetch_attempt_timeout,
         )
         .map_err(AssignedConsumerEffectFailure::Clock)?;
-        let topic = self.copy_topic(fence.position().partition().topic_id())?;
+        let topic = self
+            .topics
+            .copy_name(fence.position().partition().topic_id())
+            .map_err(AssignedConsumerEffectFailure::from)?;
         let prepared = PreparedFetchExecution::new(
             effect,
             topic,
-            self.settings.fetch_settings,
+            self.settings
+                .fetch_settings
+                .with_isolation(fetch_isolation(self.read_isolation())),
             self.settings.fetch_decode_limits,
             attempt,
             self.limits.hard_fetch_output_bytes,
@@ -165,22 +173,6 @@ impl AssignedConsumerOwner {
         .map_err(AssignedConsumerEffectFailure::FetchPreparation)?;
         self.pending_fetches.push_back(prepared);
         Ok(())
-    }
-
-    fn copy_topic(
-        &self,
-        topic_id: kafka_client_core::TopicId,
-    ) -> Result<String, AssignedConsumerEffectFailure> {
-        let name = self
-            .topics
-            .name(topic_id)
-            .map_err(AssignedConsumerEffectFailure::Topic)?;
-        let mut owned = String::new();
-        owned
-            .try_reserve_exact(name.len())
-            .map_err(|_error| AssignedConsumerEffectFailure::Allocation)?;
-        owned.push_str(name);
-        Ok(owned)
     }
 
     fn reconcile_pending_positions(&mut self) -> bool {
