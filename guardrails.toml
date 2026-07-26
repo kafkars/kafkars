@@ -8794,6 +8794,163 @@ owner_type = "GroupOffsetFetchRequest"
 path = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/request.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/admission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/admission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/calls.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/calls_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/key.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/key_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/recovery.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/recovery_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/settlement.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/settlement_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/settlement_owner.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/settlement_owner_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/terminal_test.rs"
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch"
+forbidden = [
+  "crate::admin",
+  "crate::operation",
+  "Callback",
+  "CoordinatorKind::Transaction",
+  "Executor",
+  "GroupOffsetsCall",
+  "GroupOffsetsRequest",
+  "Instant::now",
+  "Metadata",
+  "OperationId",
+  "Retry",
+  "Route::AnyBroker",
+  "Route::PartitionLeader",
+  "TrafficClass::Bulk",
+  "TrafficClass::LongPoll",
+  "async",
+  "invalidate",
+  "kafka_client_rs",
+  "require_stable",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "tokio",
+]
+allow = [
+  { path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/calls_test.rs", capability = "Instant::now", reason = "Test-only paired deadline fixtures need a concrete transport Instant while production accepts only the supplied OperationDeadline." },
+  { path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/key_test.rs", capability = "Instant::now", reason = "The key test proves exact transport-Instant retention without allowing production to recapture time." },
+  { path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/submission_test.rs", capability = "Instant::now", reason = "The option test supplies a sentinel absolute transport deadline and verifies it remains unchanged." },
+]
+
+[[mutation_owners]]
+owner_type = "TrackedGroupPositionOffsetFetchCalls"
+field = "calls"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedGroupPositionOffsetFetchCalls"
+field = "settled"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedGroupPositionOffsetFetchCalls"
+field = "pending_confirmation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/settlement_owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TrackedGroupPositionOffsetFetchCalls"
+field = "completion_failure"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/settlement_owner.rs",
+]
+
+[[linear_owners]]
+owner_type = "GroupPositionOffsetFetchKey"
+path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/key.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionOffsetFetchAccepted"
+path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/admission.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionOffsetFetchReturn"
+path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/admission.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionOffsetFetchAdmissionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/admission.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionOffsetFetchAdmission"
+path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/admission.rs"
+
+[[linear_owners]]
+owner_type = "TrackedGroupPositionOffsetFetchCall"
+path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/calls.rs"
+
+[[linear_owners]]
+owner_type = "TrackedGroupPositionOffsetFetchCalls"
+path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/calls.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionOffsetFetchTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/terminal.rs"
+
+[[linear_owners]]
+owner_type = "SettledGroupPositionOffsetFetchCall"
+path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/settlement.rs"
+
+[[linear_owners]]
+owner_type = "PendingGroupPositionOffsetFetchConfirmation"
+path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/settlement.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionOffsetFetchConfirmationFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/settlement.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionOffsetFetchRestoreFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/settlement.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionOffsetFetchCompletionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/recovery.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionOffsetFetchCompletionRecovery"
+path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/recovery.rs"
+
+[[linear_owners]]
+owner_type = "GroupPositionOffsetFetchShutdownRecovery"
+path = "crates/kafka-client-engine/src/driver/rpc/group_position_offset_fetch/recovery.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/entry_reservation.rs"
 test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/entry_reservation_test.rs"
 

@@ -115,6 +115,11 @@ mod group_offsets_submission_test;
 mod group_offsets_terminal;
 #[cfg(test)]
 mod group_offsets_terminal_test;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "awaiting group position bootstrap executor")
+)]
+mod group_position_offset_fetch;
 mod heartbeat_submission;
 #[cfg(test)]
 mod heartbeat_submission_test;
@@ -203,6 +208,16 @@ pub(crate) use group_offset_delete_terminal::{
 pub(crate) use group_offsets_call::GroupOffsetsCall;
 pub(crate) use group_offsets_terminal::{
     GroupOffsetsDriverFailureKind, GroupOffsetsTerminal, GroupOffsetsTerminalFact,
+};
+pub(crate) use group_position_offset_fetch::{
+    GroupPositionOffsetFetchAccepted, GroupPositionOffsetFetchAdmission,
+    GroupPositionOffsetFetchAdmissionFailure, GroupPositionOffsetFetchBeginError,
+    GroupPositionOffsetFetchCompletionFailureKind, GroupPositionOffsetFetchCompletionObservation,
+    GroupPositionOffsetFetchConfirmationFailure, GroupPositionOffsetFetchKey,
+    GroupPositionOffsetFetchPoll, GroupPositionOffsetFetchRestoreFailure,
+    GroupPositionOffsetFetchReturn, GroupPositionOffsetFetchReturnReason,
+    GroupPositionOffsetFetchShutdownRecovery, GroupPositionOffsetFetchSubmitError,
+    GroupPositionOffsetFetchTerminal, TrackedGroupPositionOffsetFetchCalls,
 };
 pub(crate) use incremental_alter_configs_calls::{
     IncrementalAlterConfigsCalls, IncrementalAlterConfigsCompletionFailure,

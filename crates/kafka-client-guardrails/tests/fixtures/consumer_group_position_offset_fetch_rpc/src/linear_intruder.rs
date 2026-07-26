@@ -1,0 +1,32 @@
+//! Forbidden cloneable group position RPC owners.
+
+#[derive(Clone, Copy)]
+struct GroupPositionOffsetFetchKey;
+#[derive(Clone, Copy)]
+struct GroupPositionOffsetFetchAccepted;
+#[derive(Clone, Copy)]
+struct GroupPositionOffsetFetchReturn;
+#[derive(Clone, Copy)]
+struct GroupPositionOffsetFetchAdmissionFailure;
+#[derive(Clone, Copy)]
+struct GroupPositionOffsetFetchAdmission;
+#[derive(Clone, Copy)]
+struct TrackedGroupPositionOffsetFetchCall;
+#[derive(Clone, Copy)]
+struct TrackedGroupPositionOffsetFetchCalls;
+#[derive(Clone, Copy)]
+struct GroupPositionOffsetFetchTerminal;
+#[derive(Clone, Copy)]
+struct SettledGroupPositionOffsetFetchCall;
+#[derive(Clone, Copy)]
+struct PendingGroupPositionOffsetFetchConfirmation;
+#[derive(Clone, Copy)]
+struct GroupPositionOffsetFetchConfirmationFailure;
+#[derive(Clone, Copy)]
+struct GroupPositionOffsetFetchRestoreFailure;
+#[derive(Clone, Copy)]
+struct GroupPositionOffsetFetchCompletionFailure;
+#[derive(Clone, Copy)]
+struct GroupPositionOffsetFetchCompletionRecovery;
+#[derive(Clone, Copy)]
+struct GroupPositionOffsetFetchShutdownRecovery;

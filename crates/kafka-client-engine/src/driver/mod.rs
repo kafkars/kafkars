@@ -49,4 +49,18 @@ pub(crate) use rpc::{
     GroupOffsetDeleteCall, GroupOffsetDeleteDriverFailureKind, GroupOffsetDeleteTerminal,
     GroupOffsetDeleteTerminalFact,
 };
+#[expect(
+    unused_imports,
+    reason = "temporary handoff surface for the adjacent group position execution slice"
+)]
+pub(crate) use rpc::{
+    GroupPositionOffsetFetchAccepted, GroupPositionOffsetFetchAdmission,
+    GroupPositionOffsetFetchAdmissionFailure, GroupPositionOffsetFetchBeginError,
+    GroupPositionOffsetFetchCompletionFailureKind, GroupPositionOffsetFetchCompletionObservation,
+    GroupPositionOffsetFetchConfirmationFailure, GroupPositionOffsetFetchKey,
+    GroupPositionOffsetFetchPoll, GroupPositionOffsetFetchRestoreFailure,
+    GroupPositionOffsetFetchReturn, GroupPositionOffsetFetchReturnReason,
+    GroupPositionOffsetFetchShutdownRecovery, GroupPositionOffsetFetchSubmitError,
+    GroupPositionOffsetFetchTerminal, TrackedGroupPositionOffsetFetchCalls,
+};
 pub(crate) use wake::{ReactorWake, ReactorWakeError};
