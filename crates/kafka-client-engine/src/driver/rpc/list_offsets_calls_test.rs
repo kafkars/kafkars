@@ -147,8 +147,7 @@ fn completion_fault_remains_owned_until_driver_shutdown_recovery() {
         .poll_next_ready(Moment::from_tick(8))
         .err()
         .unwrap_or_else(|| panic!("completion fault must remain fatal"));
-    assert_eq!(failure.fence(), fence);
-    assert_eq!(failure.source(), CompletionError::Consumed);
+    assert_eq!(failure.details(), (fence, CompletionError::Consumed));
     assert_eq!(calls.retained_count(), 1);
 
     assert_eq!(

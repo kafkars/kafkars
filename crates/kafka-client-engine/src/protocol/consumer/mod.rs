@@ -46,7 +46,6 @@ pub(crate) use list_offsets_model::{
 #[cfg(test)]
 pub(crate) use list_offsets_request::ListOffsetsRequestFailure;
 pub(crate) use list_offsets_request::list_offsets_request;
-#[cfg(test)]
 pub(crate) use list_offsets_response::ListOffsetsResponseFailure;
 pub(crate) use list_offsets_response::normalize_list_offsets_response;
 pub(crate) use list_offsets_time::throttle_ticks;

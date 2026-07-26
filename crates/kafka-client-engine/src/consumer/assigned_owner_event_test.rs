@@ -4,7 +4,7 @@ use std::{sync::Arc, time::Duration};
 
 use kafka_client_core::{
     AssignedConsumerEffect, FetchFailure, FetchFence, FetchThrottleFailure, NextFetchOffset,
-    PositionFence, PositionResolutionFailure, StartPosition,
+    PositionFence, PositionResolutionAttemptFailure, PositionResolutionFailure, StartPosition,
 };
 
 use super::{
@@ -44,7 +44,9 @@ fn terminal_failure_effects_transfer_to_exact_fifo_events() {
         .effects
         .push_back(AssignedConsumerEffect::PositionResolutionFailed {
             fence: position,
-            failure: PositionResolutionFailure::AttemptFailed,
+            failure: PositionResolutionFailure::Attempt(
+                PositionResolutionAttemptFailure::Transport,
+            ),
         });
     owner
         .effects
@@ -153,7 +155,9 @@ fn assert_position_event(event: Option<AssignedConsumerEvent>, fence: PositionFe
         Some(AssignedConsumerEvent::PositionResolutionFailed {
             topic,
             fence: actual,
-            failure: PositionResolutionFailure::AttemptFailed,
+            failure: PositionResolutionFailure::Attempt(
+                PositionResolutionAttemptFailure::Transport,
+            ),
         }) if topic.as_ref() == "orders" && actual == fence
     ));
 }

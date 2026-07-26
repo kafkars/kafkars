@@ -40,8 +40,23 @@ pub(super) const fn translate_position_failure(
         EnginePositionFailure::DeadlineElapsed => {
             AssignedConsumerPositionResolutionFailureKind::DeadlineElapsed
         }
-        EnginePositionFailure::AttemptFailed => {
-            AssignedConsumerPositionResolutionFailureKind::AttemptFailed
+        EnginePositionFailure::DriverRejected => {
+            AssignedConsumerPositionResolutionFailureKind::DriverRejected
+        }
+        EnginePositionFailure::Transport => {
+            AssignedConsumerPositionResolutionFailureKind::Transport
+        }
+        EnginePositionFailure::Broker(code) => {
+            AssignedConsumerPositionResolutionFailureKind::Broker(code)
+        }
+        EnginePositionFailure::Compatibility => {
+            AssignedConsumerPositionResolutionFailureKind::Compatibility
+        }
+        EnginePositionFailure::InvalidResponse => {
+            AssignedConsumerPositionResolutionFailureKind::InvalidResponse
+        }
+        EnginePositionFailure::ResponseTooLarge => {
+            AssignedConsumerPositionResolutionFailureKind::ResponseTooLarge
         }
         EnginePositionFailure::ThrottleDeadlineOverflow => {
             AssignedConsumerPositionResolutionFailureKind::ThrottleDeadlineOverflow

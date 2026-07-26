@@ -3,7 +3,7 @@
 use super::{
     AssignedConsumerEffect, AssignedConsumerMachineError, AssignedPartition,
     AssignedTopicPartition, AssignmentEpoch, FetchFailure, FetchFence, FetchRecords,
-    NextFetchOffset, PositionEpoch, PositionFence, StartPosition,
+    NextFetchOffset, PositionEpoch, PositionFence, PositionResolutionAttemptFailure, StartPosition,
     position_state::PartitionPosition,
 };
 use crate::{Deadline, Moment};
@@ -119,9 +119,10 @@ impl AssignedPartitionState {
         &mut self,
         fence: PositionFence,
         now: Moment,
+        failure: PositionResolutionAttemptFailure,
     ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
         self.ensure_position_fence(fence)?;
-        self.position.fail(fence, now)
+        self.position.fail(fence, now, failure)
     }
 
     pub(super) fn position_resolution_deadline_elapsed(

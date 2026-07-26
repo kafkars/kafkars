@@ -2,8 +2,8 @@
 
 use kafka_client_core::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine, AssignedPartition,
-    AssignedTopicPartition, Deadline, Moment, PartitionIndex, PositionFence, StartPosition,
-    TopicId,
+    AssignedTopicPartition, Deadline, Moment, PartitionIndex, PositionFence,
+    PositionResolutionAttemptFailure, StartPosition, TopicId,
 };
 use kafka_driver::{ApiVersion, RequestError};
 use kafka_wire::{
@@ -75,29 +75,36 @@ fn absent_or_incompatible_selected_version_fails_the_exact_fence() {
             AssignedConsumerInput::PositionResolutionFailed {
                 fence,
                 now: Moment::from_tick(9),
+                failure: PositionResolutionAttemptFailure::Compatibility,
             }
         );
     }
 }
 
 #[test]
-fn broker_transport_and_structural_failures_share_core_owned_precedence() {
+fn list_offsets_failures_preserve_semantic_categories_and_exact_broker_code() {
     let fence = fence();
     let failures = [
         (
             Some(ApiVersion::new(11)),
             Err(RequestError::RouteUnavailable),
+            PositionResolutionAttemptFailure::Transport,
         ),
         (
             Some(ApiVersion::new(11)),
             Ok(success_response("wrong-topic", 3, 0)),
+            PositionResolutionAttemptFailure::InvalidResponse,
         ),
         (
             Some(ApiVersion::new(11)),
-            Ok(broker_error_response("orders", 3)),
+            Ok(broker_error_response("orders", 3, -42)),
+            PositionResolutionAttemptFailure::Broker(
+                core::num::NonZeroI16::new(-42)
+                    .unwrap_or_else(|| panic!("negative broker code is nonzero")),
+            ),
         ),
     ];
-    for (selected, result) in failures {
+    for (selected, result, failure) in failures {
         assert_eq!(
             normalize_position_terminal(
                 fence,
@@ -111,6 +118,7 @@ fn broker_transport_and_structural_failures_share_core_owned_precedence() {
             AssignedConsumerInput::PositionResolutionFailed {
                 fence,
                 now: Moment::from_tick(13),
+                failure,
             }
         );
     }
@@ -138,8 +146,8 @@ fn success_response(topic: &str, partition: i32, throttle_time_ms: i32) -> ListO
     response(topic, partition, throttle_time_ms, 0)
 }
 
-fn broker_error_response(topic: &str, partition: i32) -> ListOffsetsResponse {
-    response(topic, partition, 0, 6)
+fn broker_error_response(topic: &str, partition: i32, code: i16) -> ListOffsetsResponse {
+    response(topic, partition, 0, code)
 }
 
 fn response(

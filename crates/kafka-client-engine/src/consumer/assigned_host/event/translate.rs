@@ -1,7 +1,8 @@
 //! Exhaustive translation from retained core facts into stable named events.
 
 use kafka_client_core::{
-    FetchFailure, FetchFence, FetchThrottleFailure, PositionFence, PositionResolutionFailure,
+    FetchFailure, FetchFence, FetchThrottleFailure, PositionFence,
+    PositionResolutionAttemptFailure, PositionResolutionFailure,
 };
 
 use super::super::super::assigned_event::AssignedConsumerEvent as RetainedEvent;
@@ -27,9 +28,29 @@ pub(in crate::consumer::assigned_host) fn translate_retained_event(
                     PositionResolutionFailure::DeadlineElapsed => {
                         AssignedConsumerPositionResolutionFailureKind::DeadlineElapsed
                     }
-                    PositionResolutionFailure::AttemptFailed => {
-                        AssignedConsumerPositionResolutionFailureKind::AttemptFailed
-                    }
+                    PositionResolutionFailure::Attempt(attempt) => match attempt {
+                        PositionResolutionAttemptFailure::DeadlineElapsed => {
+                            AssignedConsumerPositionResolutionFailureKind::DeadlineElapsed
+                        }
+                        PositionResolutionAttemptFailure::DriverRejected => {
+                            AssignedConsumerPositionResolutionFailureKind::DriverRejected
+                        }
+                        PositionResolutionAttemptFailure::Transport => {
+                            AssignedConsumerPositionResolutionFailureKind::Transport
+                        }
+                        PositionResolutionAttemptFailure::Broker(code) => {
+                            AssignedConsumerPositionResolutionFailureKind::Broker(code.get())
+                        }
+                        PositionResolutionAttemptFailure::Compatibility => {
+                            AssignedConsumerPositionResolutionFailureKind::Compatibility
+                        }
+                        PositionResolutionAttemptFailure::InvalidResponse => {
+                            AssignedConsumerPositionResolutionFailureKind::InvalidResponse
+                        }
+                        PositionResolutionAttemptFailure::ResponseTooLarge => {
+                            AssignedConsumerPositionResolutionFailureKind::ResponseTooLarge
+                        }
+                    },
                     PositionResolutionFailure::ThrottleDeadlineOverflow => {
                         AssignedConsumerPositionResolutionFailureKind::ThrottleDeadlineOverflow
                     }

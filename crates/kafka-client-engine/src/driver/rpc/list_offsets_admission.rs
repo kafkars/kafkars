@@ -1,6 +1,9 @@
 //! Exact deadline pairing and local admission for one position lookup.
 
-use kafka_client_core::{AssignedConsumerEffect, Deadline, Moment, PositionFence, StartPosition};
+use kafka_client_core::{
+    AssignedConsumerEffect, Deadline, Moment, PositionFence, PositionResolutionAttemptFailure,
+    StartPosition,
+};
 use kafka_driver::RoutedCall;
 use kafka_wire::ListOffsetsResponse;
 
@@ -79,8 +82,14 @@ pub(super) fn submit_position_request(
     request: PositionResolutionRequest,
     now: Moment,
 ) -> Result<AcceptedPositionCall, PositionAdmissionFailure> {
-    let timeout_ms = remaining_timeout_ms(now, request.operation_deadline.core())
-        .map_err(|_error| PositionAdmissionFailure::new(request.fence, now))?;
+    let timeout_ms =
+        remaining_timeout_ms(now, request.operation_deadline.core()).map_err(|_error| {
+            PositionAdmissionFailure::new(
+                request.fence,
+                now,
+                PositionResolutionAttemptFailure::DeadlineElapsed,
+            )
+        })?;
     let partition = request.fence.partition().partition();
     let generated = list_offsets_request(
         &request.topic,
@@ -89,9 +98,20 @@ pub(super) fn submit_position_request(
         request.isolation,
         timeout_ms,
     )
-    .map_err(|_error| PositionAdmissionFailure::new(request.fence, now))?;
-    let partition_index = i32::try_from(partition.get())
-        .map_err(|_| PositionAdmissionFailure::new(request.fence, now))?;
+    .map_err(|_error| {
+        PositionAdmissionFailure::new(
+            request.fence,
+            now,
+            PositionResolutionAttemptFailure::DriverRejected,
+        )
+    })?;
+    let partition_index = i32::try_from(partition.get()).map_err(|_| {
+        PositionAdmissionFailure::new(
+            request.fence,
+            now,
+            PositionResolutionAttemptFailure::DriverRejected,
+        )
+    })?;
     let call = driver
         .submit_tracked_list_offsets(
             &request.topic,
@@ -99,7 +119,13 @@ pub(super) fn submit_position_request(
             generated,
             request.operation_deadline.transport(),
         )
-        .map_err(|_error| PositionAdmissionFailure::new(request.fence, now))?;
+        .map_err(|_error| {
+            PositionAdmissionFailure::new(
+                request.fence,
+                now,
+                PositionResolutionAttemptFailure::DriverRejected,
+            )
+        })?;
     Ok(AcceptedPositionCall {
         fence: request.fence,
         topic: request.topic,
@@ -115,9 +141,13 @@ pub(crate) struct PositionAdmissionFailure {
 }
 
 impl PositionAdmissionFailure {
-    pub(super) fn new(fence: PositionFence, now: Moment) -> Self {
+    pub(super) fn new(
+        fence: PositionFence,
+        now: Moment,
+        failure: PositionResolutionAttemptFailure,
+    ) -> Self {
         Self {
-            terminal: PositionResolutionTerminal::failed(fence, now),
+            terminal: PositionResolutionTerminal::failed(fence, now, failure),
         }
     }
 

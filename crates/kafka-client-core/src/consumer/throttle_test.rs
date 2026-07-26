@@ -2,7 +2,8 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
-    AssignedConsumerMachineError, PositionFence, PositionResolutionFailure, StartPosition,
+    AssignedConsumerMachineError, PositionFence, PositionResolutionAttemptFailure,
+    PositionResolutionFailure, StartPosition,
     assignment_test::{assign_at, assigned, offset},
 };
 use crate::{Deadline, Moment};
@@ -90,6 +91,7 @@ fn throttle_deadline_overflow_is_terminal_and_failed_state_is_inert_until_seek()
         machine.apply(AssignedConsumerInput::PositionResolutionFailed {
             fence,
             now: Moment::from_tick(u64::MAX - 1),
+            failure: PositionResolutionAttemptFailure::Transport,
         }),
         Err(AssignedConsumerMachineError::PositionResolutionNotPending { fence })
     );

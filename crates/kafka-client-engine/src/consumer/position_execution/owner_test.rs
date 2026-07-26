@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use kafka_client_core::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine, AssignedPartition,
     AssignedTopicPartition, Deadline, Moment, PartitionIndex, PositionFence,
-    PositionResolutionFailure, StartPosition, TopicId,
+    PositionResolutionAttemptFailure, PositionResolutionFailure, StartPosition, TopicId,
 };
 
 use crate::{EngineConfig, clock::OperationDeadline, driver::DriverOwner};
@@ -87,7 +87,9 @@ fn terminal_ownership_is_released_only_after_core_accepts_the_fact() {
         transition.effects(),
         &[AssignedConsumerEffect::PositionResolutionFailed {
             fence,
-            failure: PositionResolutionFailure::AttemptFailed,
+            failure: PositionResolutionFailure::Attempt(
+                PositionResolutionAttemptFailure::Transport,
+            ),
         }]
     );
     assert_eq!(executor.retained_positions(), 0);
@@ -149,8 +151,7 @@ fn completion_corruption_is_fatal_until_post_driver_recovery() {
     let PositionExecutionError::Completion(failure) = error else {
         panic!("completion corruption must retain its own category");
     };
-    assert_eq!(failure.fence(), fence);
-    assert!(failure.is_consumed());
+    assert!(failure.is_consumed_at(fence));
     assert_eq!(
         executor.release_position_calls_after_driver_shutdown(),
         Some(failure)

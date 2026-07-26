@@ -2,7 +2,8 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerMachineError, AssignedTopicPartition, FetchFence,
-    FetchRevision, NextFetchOffset, PositionEpoch, PositionFence, PositionOwnership, StartPosition,
+    FetchRevision, NextFetchOffset, PositionEpoch, PositionFence, PositionOwnership,
+    PositionResolutionAttemptFailure, StartPosition,
     fetch_throttle::FetchThrottle,
     position_resolution::{PositionResolution, ResolutionActivation},
 };
@@ -113,8 +114,10 @@ impl PartitionPosition {
         &mut self,
         fence: PositionFence,
         now: Moment,
+        failure: PositionResolutionAttemptFailure,
     ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
-        self.resolution_mut(fence)?.terminal_failure(fence, now)
+        self.resolution_mut(fence)?
+            .terminal_failure(fence, now, failure)
     }
 
     pub(super) fn resolution_deadline_elapsed(

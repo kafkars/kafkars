@@ -2,7 +2,8 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
-    AssignedConsumerMachineError, PositionFence, PositionResolutionFailure, StartPosition,
+    AssignedConsumerMachineError, PositionFence, PositionResolutionAttemptFailure,
+    PositionResolutionFailure, StartPosition,
     assignment_test::{assign_at, assigned, offset, partition},
 };
 use crate::{Deadline, Moment};
@@ -54,6 +55,7 @@ fn already_elapsed_resolution_settles_terminally_without_interpreter_work() {
         machine.apply(AssignedConsumerInput::PositionResolutionFailed {
             fence: *fence,
             now: Moment::from_tick(41),
+            failure: PositionResolutionAttemptFailure::Transport,
         }),
         Err(AssignedConsumerMachineError::PositionResolutionNotPending { fence: *fence })
     );
@@ -85,13 +87,16 @@ fn result_and_failure_observations_apply_core_owned_deadline_precedence() {
         .apply(AssignedConsumerInput::PositionResolutionFailed {
             fence: before_fence,
             now: Moment::from_tick(99),
+            failure: PositionResolutionAttemptFailure::Transport,
         })
         .unwrap_or_else(|error| panic!("failure before deadline: {error}"));
     assert_eq!(
         before.effects(),
         &[AssignedConsumerEffect::PositionResolutionFailed {
             fence: before_fence,
-            failure: PositionResolutionFailure::AttemptFailed,
+            failure: PositionResolutionFailure::Attempt(
+                PositionResolutionAttemptFailure::Transport
+            ),
         }]
     );
 
@@ -101,6 +106,7 @@ fn result_and_failure_observations_apply_core_owned_deadline_precedence() {
         .apply(AssignedConsumerInput::PositionResolutionFailed {
             fence: at_fence,
             now: Moment::from_tick(100),
+            failure: PositionResolutionAttemptFailure::InvalidResponse,
         })
         .unwrap_or_else(|error| panic!("failure at deadline: {error}"));
     assert!(matches!(
@@ -152,6 +158,7 @@ fn wrong_phase_terminals_are_inert_and_seek_remains_the_only_local_recovery() {
         .apply(AssignedConsumerInput::PositionResolutionFailed {
             fence,
             now: Moment::from_tick(10),
+            failure: PositionResolutionAttemptFailure::Transport,
         })
         .unwrap_or_else(|error| panic!("terminal resolution failure: {error}"));
 
@@ -221,6 +228,7 @@ fn pause_and_reassignment_fence_every_old_resolution_terminal() {
         AssignedConsumerInput::PositionResolutionFailed {
             fence: old_fence,
             now: Moment::from_tick(1),
+            failure: PositionResolutionAttemptFailure::Transport,
         },
         AssignedConsumerInput::PositionResolutionDeadlineElapsed {
             fence: old_fence,
@@ -266,6 +274,7 @@ fn pause_and_reassignment_fence_every_old_resolution_terminal() {
         machine.apply(AssignedConsumerInput::PositionResolutionFailed {
             fence: *resumed_fence,
             now: Moment::from_tick(4),
+            failure: PositionResolutionAttemptFailure::Transport,
         }),
         Err(AssignedConsumerMachineError::StaleAssignment { .. })
     ));

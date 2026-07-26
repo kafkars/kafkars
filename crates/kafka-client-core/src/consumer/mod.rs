@@ -15,6 +15,7 @@ mod input;
 mod machine;
 mod model;
 mod position;
+mod position_failure;
 mod position_ownership;
 mod position_resolution;
 mod position_state;
@@ -43,6 +44,10 @@ mod fetch_throttle_test;
 mod identity_test;
 #[cfg(test)]
 mod model_test;
+#[cfg(test)]
+mod position_failure_test;
+#[cfg(test)]
+mod position_failure_transition_test;
 #[cfg(test)]
 mod position_ownership_test;
 #[cfg(test)]

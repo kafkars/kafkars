@@ -2,7 +2,7 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerMachineError, NextFetchOffset, PositionFence,
-    PositionOwnership, PositionResolutionFailure, StartPosition,
+    PositionOwnership, PositionResolutionAttemptFailure, PositionResolutionFailure, StartPosition,
 };
 use crate::{Deadline, Moment};
 
@@ -126,6 +126,7 @@ impl PositionResolution {
         &mut self,
         fence: PositionFence,
         now: Moment,
+        attempt_failure: PositionResolutionAttemptFailure,
     ) -> Result<AssignedConsumerEffect, AssignedConsumerMachineError> {
         let ResolutionState::Resolving { deadline, .. } = self.state else {
             return Err(AssignedConsumerMachineError::PositionResolutionNotPending { fence });
@@ -133,7 +134,7 @@ impl PositionResolution {
         let failure = if deadline.is_elapsed_at(now) {
             PositionResolutionFailure::DeadlineElapsed
         } else {
-            PositionResolutionFailure::AttemptFailed
+            PositionResolutionFailure::Attempt(attempt_failure)
         };
         Ok(self.fail(fence, failure))
     }

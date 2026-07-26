@@ -133,6 +133,9 @@ mod list_offsets_admission_test;
 mod list_offsets_calls;
 #[cfg(test)]
 mod list_offsets_calls_test;
+mod list_offsets_failure;
+#[cfg(test)]
+mod list_offsets_failure_test;
 mod list_offsets_fence;
 #[cfg(test)]
 mod list_offsets_fence_test;

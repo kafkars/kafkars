@@ -14,7 +14,6 @@ pub use super::classic_group::{
 };
 pub use super::effect::{
     AssignedConsumerEffect, AssignedConsumerTransition, FetchFailure, FetchThrottleFailure,
-    PositionResolutionFailure,
 };
 pub use super::error::AssignedConsumerMachineError;
 pub use super::group_commit::{
@@ -36,4 +35,5 @@ pub use super::model::{
     AssignedPartition, AssignedTopicPartition, DeliveryOwnership, FetchFence, FetchOwnership,
     FetchRecords, NextFetchOffset, PositionFence, PositionOwnership, StartPosition,
 };
+pub use super::position_failure::{PositionResolutionAttemptFailure, PositionResolutionFailure};
 pub use super::read_isolation::ReadIsolation;

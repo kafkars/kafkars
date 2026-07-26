@@ -84,18 +84,13 @@ pub(crate) struct PositionCompletionFailure {
 
 impl PositionCompletionFailure {
     #[cfg(test)]
-    pub(crate) const fn fence(self) -> PositionFence {
-        self.fence
+    pub(crate) const fn details(self) -> (PositionFence, CompletionError) {
+        (self.fence, self.source)
     }
 
     #[cfg(test)]
-    pub(crate) const fn source(self) -> CompletionError {
-        self.source
-    }
-
-    #[cfg(test)]
-    pub(crate) const fn is_consumed(self) -> bool {
-        matches!(self.source, CompletionError::Consumed)
+    pub(crate) fn is_consumed_at(self, fence: PositionFence) -> bool {
+        self.fence == fence && matches!(self.source, CompletionError::Consumed)
     }
 }
 
@@ -218,7 +213,11 @@ impl TrackedPositionCalls {
     #[cfg(test)]
     pub(crate) fn install_terminal_for_test(&mut self, fence: PositionFence, now: Moment) {
         self.settled = Some(SettledPositionCall {
-            terminal: PositionResolutionTerminal::failed(fence, now),
+            terminal: PositionResolutionTerminal::failed(
+                fence,
+                now,
+                kafka_client_core::PositionResolutionAttemptFailure::Transport,
+            ),
             route_token: None,
             stale: false,
         });

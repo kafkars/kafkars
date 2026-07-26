@@ -4,7 +4,8 @@ use std::time::{Duration, Instant};
 
 use kafka_client_core::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine, AssignedPartition,
-    AssignedTopicPartition, Deadline, Moment, PartitionIndex, StartPosition, TopicId,
+    AssignedTopicPartition, Deadline, Moment, PartitionIndex, PositionResolutionAttemptFailure,
+    StartPosition, TopicId,
 };
 
 use crate::{EngineConfig, clock::OperationDeadline};
@@ -59,6 +60,7 @@ fn elapsed_deadline_fails_before_request_or_driver_ownership() {
         AssignedConsumerInput::PositionResolutionFailed {
             fence,
             now: Moment::from_tick(20),
+            failure: PositionResolutionAttemptFailure::DeadlineElapsed,
         }
     );
     driver
@@ -87,6 +89,7 @@ fn invalid_catalog_topic_is_a_fenced_attempt_failure() {
         AssignedConsumerInput::PositionResolutionFailed {
             fence,
             now: Moment::from_tick(1),
+            failure: PositionResolutionAttemptFailure::DriverRejected,
         }
     );
     driver

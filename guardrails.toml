@@ -315,6 +315,10 @@ production = "crates/kafka-client-core/src/consumer/position_resolution.rs"
 test = "crates/kafka-client-core/src/consumer/resolution_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/position_failure.rs"
+test = "crates/kafka-client-core/src/consumer/position_failure_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/fetch_throttle.rs"
 test = "crates/kafka-client-core/src/consumer/fetch_throttle_test.rs"
 
@@ -1197,6 +1201,10 @@ test = "crates/kafka-client-engine/src/driver/rpc/list_offsets_calls_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/list_offsets_fence.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/list_offsets_fence_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/list_offsets_failure.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/list_offsets_failure_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/list_offsets_terminal.rs"

@@ -51,7 +51,7 @@ fn terminal_effects_transfer_exact_claims_into_fifo_events() {
         "positions",
         AssignedConsumerEffect::PositionResolutionFailed {
             fence: position,
-            failure: PositionResolutionFailure::AttemptFailed,
+            failure: PositionResolutionFailure::DeadlineElapsed,
         },
     );
     retain(
@@ -77,7 +77,7 @@ fn terminal_effects_transfer_exact_claims_into_fifo_events() {
         Some(AssignedConsumerEvent::PositionResolutionFailed {
             topic: Arc::from("positions"),
             fence: position,
-            failure: PositionResolutionFailure::AttemptFailed,
+            failure: PositionResolutionFailure::DeadlineElapsed,
         })
     );
     assert_eq!(
@@ -128,7 +128,7 @@ fn stale_terminal_fence_cannot_consume_active_claim() {
             Arc::from("orders"),
             AssignedConsumerEffect::PositionResolutionFailed {
                 fence: stale,
-                failure: PositionResolutionFailure::AttemptFailed,
+                failure: PositionResolutionFailure::DeadlineElapsed,
             },
         )
         .err()
@@ -162,7 +162,7 @@ fn ready_events_backpressure_new_claims_until_observed() {
         "orders",
         AssignedConsumerEffect::PositionResolutionFailed {
             fence,
-            failure: PositionResolutionFailure::AttemptFailed,
+            failure: PositionResolutionFailure::DeadlineElapsed,
         },
     );
 
@@ -234,7 +234,7 @@ fn post_driver_recovery_counts_and_releases_all_event_ownership() {
         "orders",
         AssignedConsumerEffect::PositionResolutionFailed {
             fence,
-            failure: PositionResolutionFailure::AttemptFailed,
+            failure: PositionResolutionFailure::DeadlineElapsed,
         },
     );
 

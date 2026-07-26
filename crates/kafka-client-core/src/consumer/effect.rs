@@ -1,23 +1,12 @@
 //! Ordered direct-consumer actions for a future engine fetch interpreter.
 
-use core::num::NonZeroI16;
-
 use super::{
     AssignedConsumerCloseId, AssignedTopicPartition, AssignmentEpoch, FetchFence, NextFetchOffset,
-    PositionFence, StartPosition,
+    PositionFence, PositionResolutionFailure, StartPosition,
 };
 use crate::Deadline;
 
-/// Terminal reason one position-resolution attempt cannot become fetch-ready.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum PositionResolutionFailure {
-    /// The supplied public operation deadline elapsed.
-    DeadlineElapsed,
-    /// The interpreter reported terminal resolution failure.
-    AttemptFailed,
-    /// The positive throttle duration could not become an absolute deadline.
-    ThrottleDeadlineOverflow,
-}
+use core::num::NonZeroI16;
 
 /// Terminal reason successful Fetch progress cannot schedule its next fetch.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

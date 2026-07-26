@@ -1,6 +1,8 @@
 //! Semantic settlement of one versioned, fenced `ListOffsets` terminal.
 
-use kafka_client_core::{AssignedConsumerInput, Moment, NextFetchOffset, PositionFence};
+use kafka_client_core::{
+    AssignedConsumerInput, Moment, NextFetchOffset, PositionFence, PositionResolutionAttemptFailure,
+};
 use kafka_driver::{ApiVersion, RequestError};
 use kafka_wire::ListOffsetsResponse;
 
@@ -22,15 +24,19 @@ enum PositionResolutionOutcome {
         next_offset: NextFetchOffset,
         throttle_ticks: u64,
     },
-    Failed,
+    Failed(PositionResolutionAttemptFailure),
 }
 
 impl PositionResolutionTerminal {
-    pub(crate) const fn failed(fence: PositionFence, now: Moment) -> Self {
+    pub(crate) const fn failed(
+        fence: PositionFence,
+        now: Moment,
+        failure: PositionResolutionAttemptFailure,
+    ) -> Self {
         Self {
             fence,
             now,
-            outcome: PositionResolutionOutcome::Failed,
+            outcome: PositionResolutionOutcome::Failed(failure),
         }
     }
 
@@ -49,10 +55,13 @@ impl PositionResolutionTerminal {
                 now: self.now,
                 throttle_ticks,
             },
-            PositionResolutionOutcome::Failed => AssignedConsumerInput::PositionResolutionFailed {
-                fence: self.fence,
-                now: self.now,
-            },
+            PositionResolutionOutcome::Failed(failure) => {
+                AssignedConsumerInput::PositionResolutionFailed {
+                    fence: self.fence,
+                    now: self.now,
+                    failure,
+                }
+            }
         }
     }
 }
@@ -65,28 +74,61 @@ pub(super) fn normalize_position_terminal(
     selected_version: Option<ApiVersion>,
     result: Result<ListOffsetsResponse, RequestError>,
 ) -> PositionResolutionTerminal {
-    let Ok(response) = result else {
-        return PositionResolutionTerminal::failed(fence, now);
+    let response = match result {
+        Ok(response) => response,
+        Err(failure) => {
+            return PositionResolutionTerminal::failed(
+                fence,
+                now,
+                super::list_offsets_failure::classify_request_error(&failure),
+            );
+        }
     };
     let Some(selected_version) = selected_version else {
-        return PositionResolutionTerminal::failed(fence, now);
+        return PositionResolutionTerminal::failed(
+            fence,
+            now,
+            PositionResolutionAttemptFailure::Compatibility,
+        );
     };
     if selected_version.value() < minimum_version(isolation) {
-        return PositionResolutionTerminal::failed(fence, now);
+        return PositionResolutionTerminal::failed(
+            fence,
+            now,
+            PositionResolutionAttemptFailure::Compatibility,
+        );
     }
-    let Ok(normalized) = normalize_list_offsets_response(
+    let normalized = match normalize_list_offsets_response(
         topic,
         fence.partition().partition(),
         selected_version.value(),
         &response,
-    ) else {
-        return PositionResolutionTerminal::failed(fence, now);
+    ) {
+        Ok(normalized) => normalized,
+        Err(failure) => {
+            return PositionResolutionTerminal::failed(
+                fence,
+                now,
+                super::list_offsets_failure::classify_response_failure(failure),
+            );
+        }
     };
-    let ListOffsetsOutcome::Resolved(position) = normalized.outcome() else {
-        return PositionResolutionTerminal::failed(fence, now);
+    let position = match normalized.outcome() {
+        ListOffsetsOutcome::Resolved(position) => position,
+        ListOffsetsOutcome::BrokerError { code } => {
+            return PositionResolutionTerminal::failed(
+                fence,
+                now,
+                PositionResolutionAttemptFailure::Broker(code),
+            );
+        }
     };
     let Some(throttle_ticks) = throttle_ticks(normalized.throttle_time_ms()) else {
-        return PositionResolutionTerminal::failed(fence, now);
+        return PositionResolutionTerminal::failed(
+            fence,
+            now,
+            PositionResolutionAttemptFailure::InvalidResponse,
+        );
     };
     PositionResolutionTerminal {
         fence,

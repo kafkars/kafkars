@@ -2,7 +2,7 @@
 
 use super::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
-    AssignedConsumerMachineError, FetchRecords, StartPosition,
+    AssignedConsumerMachineError, FetchRecords, PositionResolutionAttemptFailure, StartPosition,
     assignment_test::{assign, assigned, offset, partition},
 };
 use crate::{Deadline, Moment};
@@ -121,6 +121,7 @@ fn seek_orders_fence_before_replacement_and_rejects_old_work() {
         AssignedConsumerInput::PositionResolutionFailed {
             fence: old_fence,
             now: Moment::from_tick(2),
+            failure: PositionResolutionAttemptFailure::Transport,
         },
         AssignedConsumerInput::PositionResolutionDeadlineElapsed {
             fence: old_fence,

@@ -15,19 +15,47 @@ use crate::consumer::{
 };
 
 #[test]
-fn position_and_throttle_categories_translate_without_fallbacks() {
-    assert_eq!(
-        translate_position_failure(EnginePositionFailure::DeadlineElapsed),
-        AssignedConsumerPositionResolutionFailureKind::DeadlineElapsed
-    );
-    assert_eq!(
-        translate_position_failure(EnginePositionFailure::AttemptFailed),
-        AssignedConsumerPositionResolutionFailureKind::AttemptFailed
-    );
-    assert_eq!(
-        translate_position_failure(EnginePositionFailure::ThrottleDeadlineOverflow),
-        AssignedConsumerPositionResolutionFailureKind::ThrottleDeadlineOverflow
-    );
+fn every_position_category_and_signed_broker_code_translate_exactly() {
+    for (engine, facade) in [
+        (
+            EnginePositionFailure::DeadlineElapsed,
+            AssignedConsumerPositionResolutionFailureKind::DeadlineElapsed,
+        ),
+        (
+            EnginePositionFailure::DriverRejected,
+            AssignedConsumerPositionResolutionFailureKind::DriverRejected,
+        ),
+        (
+            EnginePositionFailure::Transport,
+            AssignedConsumerPositionResolutionFailureKind::Transport,
+        ),
+        (
+            EnginePositionFailure::Broker(-42),
+            AssignedConsumerPositionResolutionFailureKind::Broker(-42),
+        ),
+        (
+            EnginePositionFailure::Compatibility,
+            AssignedConsumerPositionResolutionFailureKind::Compatibility,
+        ),
+        (
+            EnginePositionFailure::InvalidResponse,
+            AssignedConsumerPositionResolutionFailureKind::InvalidResponse,
+        ),
+        (
+            EnginePositionFailure::ResponseTooLarge,
+            AssignedConsumerPositionResolutionFailureKind::ResponseTooLarge,
+        ),
+        (
+            EnginePositionFailure::ThrottleDeadlineOverflow,
+            AssignedConsumerPositionResolutionFailureKind::ThrottleDeadlineOverflow,
+        ),
+    ] {
+        assert_eq!(translate_position_failure(engine), facade);
+    }
+}
+
+#[test]
+fn throttle_category_translates_without_fallbacks() {
     assert_eq!(
         translate_fetch_throttle_failure(EngineFetchThrottleFailure::DeadlineOverflow),
         AssignedConsumerFetchThrottleFailureKind::DeadlineOverflow

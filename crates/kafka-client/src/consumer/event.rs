@@ -79,8 +79,18 @@ impl AssignedConsumerFetchFence {
 pub enum AssignedConsumerPositionResolutionFailureKind {
     /// The original resolution deadline elapsed.
     DeadlineElapsed,
-    /// The concrete position lookup failed terminally.
-    AttemptFailed,
+    /// The engine driver rejected permanent request ownership.
+    DriverRejected,
+    /// Transport ownership terminated without a response.
+    Transport,
+    /// Kafka returned one exact nonzero signed error code.
+    Broker(i16),
+    /// The selected `ListOffsets` version could not preserve requested semantics.
+    Compatibility,
+    /// The correlated response was structurally or semantically invalid.
+    InvalidResponse,
+    /// The generated or decoded response exceeded a configured bound.
+    ResponseTooLarge,
     /// A positive broker throttle could not become an absolute deadline.
     ThrottleDeadlineOverflow,
 }

@@ -240,7 +240,9 @@ fn rejected_and_rolled_back_preparations_preserve_existing_claims() {
         .rollback_event_claims();
     let terminal = AssignedConsumerEffect::PositionResolutionFailed {
         fence,
-        failure: kafka_client_core::PositionResolutionFailure::AttemptFailed,
+        failure: kafka_client_core::PositionResolutionFailure::Attempt(
+            kafka_client_core::PositionResolutionAttemptFailure::Transport,
+        ),
     };
     let error = store
         .prepare_replacement(1)

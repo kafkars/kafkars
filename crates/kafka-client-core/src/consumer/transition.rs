@@ -3,7 +3,7 @@
 use super::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine,
     AssignedConsumerMachineError, AssignedConsumerTransition, AssignedTopicPartition,
-    AssignmentEpoch, machine::DirectAssignment, position::AssignedPartitionState,
+    AssignmentEpoch, StartPosition, machine::DirectAssignment, position::AssignedPartitionState,
 };
 use crate::{Deadline, Moment};
 
@@ -37,17 +37,13 @@ impl AssignedConsumerMachine {
                 position,
                 now,
                 resolution_deadline,
-            } => {
-                self.ensure_open()?;
-                let assignment = self.assignment_mut(assignment_epoch)?;
-                let effects = assignment.find_mut(partition)?.seek(
-                    assignment_epoch,
-                    position,
-                    now,
-                    resolution_deadline,
-                )?;
-                Ok(AssignedConsumerTransition::new(assignment_epoch, effects))
-            }
+            } => self.seek(
+                assignment_epoch,
+                partition,
+                position,
+                now,
+                resolution_deadline,
+            ),
             AssignedConsumerInput::PositionResolved {
                 fence,
                 next_offset,
@@ -66,11 +62,15 @@ impl AssignedConsumerMachine {
                     vec![effect],
                 ))
             }
-            AssignedConsumerInput::PositionResolutionFailed { fence, now } => {
+            AssignedConsumerInput::PositionResolutionFailed {
+                fence,
+                now,
+                failure,
+            } => {
                 let assignment = self.assignment_mut(fence.assignment_epoch())?;
                 let effect = assignment
                     .find_mut(fence.partition())?
-                    .position_resolution_failed(fence, now)?;
+                    .position_resolution_failed(fence, now, failure)?;
                 Ok(AssignedConsumerTransition::new(
                     fence.assignment_epoch(),
                     vec![effect],
@@ -186,6 +186,22 @@ impl AssignedConsumerMachine {
             epoch,
             effect.into_iter().collect(),
         ))
+    }
+
+    fn seek(
+        &mut self,
+        epoch: AssignmentEpoch,
+        partition: AssignedTopicPartition,
+        position: StartPosition,
+        now: Moment,
+        deadline: Deadline,
+    ) -> Result<AssignedConsumerTransition, AssignedConsumerMachineError> {
+        self.ensure_open()?;
+        let effects = self
+            .assignment_mut(epoch)?
+            .find_mut(partition)?
+            .seek(epoch, position, now, deadline)?;
+        Ok(AssignedConsumerTransition::new(epoch, effects))
     }
 
     pub(super) fn assignment_mut(

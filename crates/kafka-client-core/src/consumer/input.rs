@@ -6,7 +6,8 @@
 
 use super::{
     AssignedConsumerCloseId, AssignedPartition, AssignedTopicPartition, AssignmentEpoch,
-    FetchFailure, FetchFence, FetchRecords, NextFetchOffset, PositionFence, StartPosition,
+    FetchFailure, FetchFence, FetchRecords, NextFetchOffset, PositionFence,
+    PositionResolutionAttemptFailure, StartPosition,
 };
 use crate::{Deadline, Moment};
 
@@ -86,6 +87,8 @@ pub enum AssignedConsumerInput {
         fence: PositionFence,
         /// Monotonic observation used for deadline precedence.
         now: Moment,
+        /// Exact semantic terminal fact observed by the engine.
+        failure: PositionResolutionAttemptFailure,
     },
     /// Reports that one exact position-resolution deadline elapsed.
     PositionResolutionDeadlineElapsed {
