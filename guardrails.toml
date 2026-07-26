@@ -8716,6 +8716,84 @@ allowed_paths = [
 ]
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/model.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/preparation.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/preparation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/request.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/response.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/response_validation.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/response_validation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/response_view.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/response_view_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/retention.rs"
+test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/retention_test.rs"
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch"
+forbidden = [
+  "crate::admin",
+  "crate::consumer",
+  "crate::driver",
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire_records",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Retry",
+  "invalidate",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer"
+forbidden = [
+  "OffsetFetchRequest",
+  "OffsetFetchRequestGroup",
+  "OffsetFetchRequestTopic",
+  "OffsetFetchRequestTopics",
+  "OffsetFetchResponse",
+  "OffsetFetchResponseGroup",
+  "OffsetFetchResponsePartition",
+  "OffsetFetchResponsePartitions",
+  "OffsetFetchResponseTopic",
+  "OffsetFetchResponseTopics",
+]
+
+[[linear_owners]]
+owner_type = "GroupOffsetFetchCorrelation"
+path = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/model.rs"
+
+[[linear_owners]]
+owner_type = "PreparedGroupOffsetFetch"
+path = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/preparation.rs"
+
+[[linear_owners]]
+owner_type = "PreparedGroupOffsetFetchRequest"
+path = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/preparation.rs"
+
+[[linear_owners]]
+owner_type = "GroupOffsetFetchRequest"
+path = "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/request.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/entry_reservation.rs"
 test = "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/entry_reservation_test.rs"
 

@@ -919,6 +919,24 @@ evidence = [
 ]
 
 [[invariant]]
+id = "CON-12"
+title = "Assigned group offset bootstrap is explicit and exactly correlated"
+statement = "The classic-group position bootstrap protocol seam retains one exact group spelling and caller-ordered explicit assigned topic-partition correlation separately from one linear generated request owner. An empty assignment is an allocation-free local no-request outcome and can never become Kafka's nullable all-topics query. Nonempty request construction uses fallible exact reservations and fallible string copies, exposes the generated wrapper's exact retained heap charge, and rejects a charge above the caller-supplied byte limit before returning Prepared. It delegates encoding to kafka-wire across exactly OffsetFetch v2-v9, selects the legacy v2-v7 or modern v8-v9 generated schema, names exactly one explicit group and explicit topic-partitions, and fixes require_stable false. Response normalization accepts only the driver-selected schema branch and exactly one matching modern group, requires nonnegative representable throttle, rejects missing, duplicate, unexpected, cross-group, malformed, and version-unrepresentable facts before result allocation, restores values to caller assignment order, preserves nullable metadata and every exact signed group or partition error, and maps only Kafka's -1 committed-offset and leader-epoch sentinels to absence. Generated OffsetFetch DTOs remain confined to the protocol and future driver boundary; no admin policy, deterministic core policy, driver submission, retry, coordinator cache, invalidation, callback, async runtime, or unsafe code enters this seam."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/preparation_test.rs::empty_assignment_is_an_explicit_local_no_request",
+  "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/preparation_test.rs::request_charge_is_exactly_exposed_and_enforced",
+  "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/request_test.rs::every_legacy_version_encodes_only_explicit_assigned_partitions",
+  "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/request_test.rs::every_modern_version_encodes_one_explicit_matching_group",
+  "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/request_test.rs::request_support_is_exactly_v2_through_v9",
+  "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/response_test.rs::legacy_results_restore_caller_order_and_preserve_exact_values",
+  "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/response_test.rs::exact_signed_legacy_and_modern_group_errors_remain_top_level",
+  "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/response_validation_test.rs::modern_group_cardinality_and_spelling_are_strict",
+  "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/response_validation_test.rs::missing_duplicate_and_unexpected_identities_are_rejected",
+  "crates/kafka-client-engine/src/protocol/consumer/group_offset_fetch/response_validation_test.rs::malformed_or_version_unrepresentable_values_are_rejected",
+]
+
+[[invariant]]
 id = "DL-01"
 title = "Client policy consumes one absolute deadline"
 statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant. Public operations capture at their public boundary, while engine-owned background Fetch captures at the exact internal-attempt boundary and fence rather than borrowing a later recv observation timeout. Accepted operation and direct-consumer bindings retain that pair unchanged, generated request timeout fields derive only from the remaining core deadline while the original transport instant is unchanged, core rejects already elapsed work, queued compression or submission expiry reproduces the exact core deadline fact, and identity-request deadline completion cannot be erased by an earlier transport category."

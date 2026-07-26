@@ -10,6 +10,14 @@ mod classic_group;
     expect(dead_code, reason = "awaiting classic-group commit executor")
 )]
 mod group_offset_commit;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "awaiting classic-group position bootstrap executor"
+    )
+)]
+mod group_offset_fetch;
 mod list_offsets_model;
 mod list_offsets_request;
 mod list_offsets_response;
@@ -39,6 +47,17 @@ pub(crate) use group_offset_commit::{
     GroupOffsetCommitResultReservation, GroupOffsetCommitResultReservationError,
     GroupOffsetCommitTopicName, PreparedGroupOffsetCommit, PreparedGroupOffsetCommitRequest,
     group_offset_commit_request, normalize_group_offset_commit_response,
+};
+#[expect(
+    unused_imports,
+    reason = "awaiting classic-group position bootstrap executor"
+)]
+pub(crate) use group_offset_fetch::{
+    GroupOffsetFetchCorrelation, GroupOffsetFetchPartitionValueRef, GroupOffsetFetchPreparation,
+    GroupOffsetFetchProtocolFailure, GroupOffsetFetchRequest,
+    GroupOffsetFetchRequestPreparationFailure, GroupOffsetFetchTopic, NormalizedGroupOffsetFetch,
+    PreparedGroupOffsetFetch, PreparedGroupOffsetFetchRequest,
+    normalize_group_offset_fetch_response, prepare_group_offset_fetch_request,
 };
 pub(crate) use list_offsets_model::{
     ListOffsetsIsolation, ListOffsetsOutcome, NormalizedListOffsetsResponse, ResolvedPosition,
