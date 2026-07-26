@@ -32,10 +32,14 @@ pub(super) const CYCLE: &str = "crates/kafka-client-engine/src/consumer/group/re
 pub(super) const COMMIT: &str = "crates/kafka-client-engine/src/consumer/group/registry_commit.rs";
 pub(super) const MEMBERSHIP: &str =
     "crates/kafka-client-engine/src/consumer/group/registry_membership.rs";
+pub(super) const MEMBERSHIP_OBSERVATION: &str =
+    "crates/kafka-client-engine/src/consumer/group/registry_membership_observation.rs";
 pub(super) const JOIN_SETTLEMENT_OWNER: &str =
     "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs";
 pub(super) const SYNC_SETTLEMENT_OWNER: &str =
     "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs";
+pub(super) const COORDINATOR_INVALIDATION: &str =
+    "crates/kafka-client-engine/src/driver/rpc/classic_group/coordinator_invalidation.rs";
 
 pub(super) const CALLS: &[(&str, &str, &[&str])] = &[
     (ENGINE_ROOT, "classic_join_group_request", &[JOIN_EXECUTION]),
@@ -54,7 +58,11 @@ pub(super) const CALLS: &[(&str, &str, &[&str])] = &[
         "normalize_classic_sync_response",
         &[SYNC_INTERPRET],
     ),
-    (GROUP_ROOT, "recovery_unsettled_count", &[MEMBERSHIP]),
+    (
+        GROUP_ROOT,
+        "recovery_unsettled_count",
+        &[MEMBERSHIP_OBSERVATION],
+    ),
 ];
 
 pub(super) const METHODS: &[(&str, &str, &[&str])] = &[
@@ -139,7 +147,7 @@ pub(super) const METHODS: &[(&str, &str, &[&str])] = &[
         "retained_owner_count",
         &[
             "crates/kafka-client-engine/src/consumer/group/classic_group_entry_fault.rs",
-            MEMBERSHIP,
+            MEMBERSHIP_OBSERVATION,
         ],
     ),
 ];
@@ -152,5 +160,7 @@ pub(super) const SHARED_METHODS: &[(&str, &str, &[&str])] = &[(
         SYNC_SETTLEMENT_OWNER,
         "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_settlement_owner.rs",
         RECOVERY,
+        MEMBERSHIP_OBSERVATION,
+        COORDINATOR_INVALIDATION,
     ],
 )];

@@ -10,6 +10,8 @@ pub(super) const TERMINAL: &str =
     "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_terminal.rs";
 pub(super) const RECONCILIATION: &str =
     "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_reconciliation.rs";
+pub(super) const INVALIDATION_TRANSFER: &str =
+    "crates/kafka-client-engine/src/driver/rpc/classic_group/coordinator_invalidation_transfer.rs";
 
 pub(super) const LINEAR: &[(&str, &str)] = &[
     ("TrackedClassicHeartbeatCall", CALLS),
@@ -47,7 +49,7 @@ pub(super) const MUTATIONS: &[(&str, &str, &[&str])] = &[
     (
         "TrackedClassicHeartbeatCalls",
         "pending_confirmation",
-        &[CALLS, SETTLEMENT_OWNER],
+        &[CALLS, SETTLEMENT_OWNER, INVALIDATION_TRANSFER],
     ),
     (
         "TrackedClassicHeartbeatCalls",
@@ -131,7 +133,10 @@ pub(super) const METHODS: &[(&str, &[&str])] = &[
     ),
     (
         "confirm_classic_heartbeat_call_receipt",
-        &[SETTLEMENT_OWNER],
+        &[
+            SETTLEMENT_OWNER,
+            "crates/kafka-client-engine/src/driver/rpc/classic_group/coordinator_invalidation_transfer.rs",
+        ],
     ),
     ("confirm_classic_heartbeat_route_token", &[SETTLEMENT_OWNER]),
     (
@@ -142,7 +147,7 @@ pub(super) const METHODS: &[(&str, &[&str])] = &[
         "retained_classic_heartbeat_count",
         &[
             CALLS,
-            "crates/kafka-client-engine/src/consumer/group/registry_membership.rs",
+            "crates/kafka-client-engine/src/consumer/group/registry_membership_observation.rs",
         ],
     ),
     (

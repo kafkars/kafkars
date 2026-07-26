@@ -16,7 +16,7 @@ pub(super) enum ClassicRejectionInstallFailure {
     EffectShape,
     MachineState,
     RejoinState,
-    CoordinatorRediscovery,
+    RediscoveryState,
     Assignment(ClassicGroupAssignmentPreparationFailureKind),
 }
 
@@ -55,11 +55,6 @@ impl ClassicRejectionPostCore {
             .filter(|effect| effect.is_some())
             .count()
             .max(1)
-    }
-
-    #[cfg(test)]
-    pub(super) const fn effects(&self) -> &[Option<ClassicGroupEffect>; 2] {
-        &self.post_core_rejection_effects
     }
 
     #[cfg(test)]

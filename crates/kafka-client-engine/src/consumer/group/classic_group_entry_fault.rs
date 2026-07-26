@@ -3,6 +3,7 @@
 use kafka_client_core::{ClassicGeneration, ClassicHeartbeatAttempt, MembershipCycle};
 
 use crate::driver::classic_group::{
+    ClassicCoordinatorInvalidationInstallFailure, ClassicCoordinatorInvalidationTerminalFailure,
     ClassicHeartbeatAdmissionFailure, ClassicHeartbeatRestoreFailure, ClassicHeartbeatTerminal,
     JoinGroupRestoreFailure, JoinGroupTerminal, SyncGroupAdmissionFailure, SyncGroupRestoreFailure,
     SyncGroupTerminal,
@@ -72,6 +73,9 @@ pub(super) enum ClassicGroupEntryFault {
         terminal: ClassicHeartbeatTerminal,
     },
     HeartbeatRecoverySemantic(ClassicHeartbeatAttempt),
+    CoordinatorInvalidationInstall(ClassicCoordinatorInvalidationInstallFailure),
+    CoordinatorInvalidationTerminal(ClassicCoordinatorInvalidationTerminalFailure),
+    CoordinatorInvalidationGate,
 }
 
 impl ClassicGroupEntryFault {
@@ -132,6 +136,9 @@ impl ClassicGroupEntryFault {
                 terminal,
             } => retained_guarded_pair(failure, generation, terminal),
             Self::HeartbeatRecoverySemantic(attempt) => retained_one(attempt),
+            Self::CoordinatorInvalidationInstall(owner) => retained_one(owner),
+            Self::CoordinatorInvalidationTerminal(failure) => retained_one(failure),
+            Self::CoordinatorInvalidationGate => 1,
         }
     }
 }

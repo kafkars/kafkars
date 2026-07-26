@@ -232,4 +232,7 @@ pub(super) const ENTRY_FAULT_VARIANTS: &[&str] = &[
     "HeartbeatAdmissionRevoke",
     "HeartbeatTerminalRevoke",
     "HeartbeatRecoverySemantic",
+    "CoordinatorInvalidationInstall",
+    "CoordinatorInvalidationTerminal",
+    "CoordinatorInvalidationGate",
 ];

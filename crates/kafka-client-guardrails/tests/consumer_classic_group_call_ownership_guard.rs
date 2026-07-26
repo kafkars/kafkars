@@ -1,120 +1,18 @@
 //! Executable ownership boundary for raw classic Join and Sync driver calls.
 
+#[path = "consumer_classic_group_call_ownership_guard/expectations.rs"]
+mod expectations;
 mod support;
 
+use expectations::{
+    FORBIDDEN, HEARTBEAT_TEST_FIXTURE, INVALIDATION_DRIVE, JOIN_CALLS, JOIN_OWNER, LINEAR, METHODS,
+    MUTATIONS, ROOT, SYNC_CALLS, SYNC_OWNER,
+};
 use support::{
     CapabilityRule, LinearOwner, MethodCapabilityRule, MutationOwner, capability_violations,
     fixture_files, linear_violations, load_config, method_capability_violations,
     mutation_violations, read, workspace_root,
 };
-
-const ROOT: &str = "crates/kafka-client-engine/src/driver/rpc/classic_group";
-const JOIN_CALLS: &str =
-    "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_calls.rs";
-const JOIN_SETTLEMENT: &str =
-    "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement.rs";
-const JOIN_OWNER: &str =
-    "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_settlement_owner.rs";
-const JOIN_TERMINAL: &str =
-    "crates/kafka-client-engine/src/driver/rpc/classic_group/join_group_terminal.rs";
-const SYNC_CALLS: &str =
-    "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_calls.rs";
-const SYNC_SETTLEMENT: &str =
-    "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement.rs";
-const SYNC_OWNER: &str =
-    "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_settlement_owner.rs";
-const SYNC_TERMINAL: &str =
-    "crates/kafka-client-engine/src/driver/rpc/classic_group/sync_group_terminal.rs";
-const HEARTBEAT_TEST_FIXTURE: &str =
-    "crates/kafka-client-engine/src/driver/rpc/classic_group/heartbeat_test_fixture.rs";
-
-const LINEAR: &[(&str, &str)] = &[
-    ("AcceptedJoinGroupCall", JOIN_CALLS),
-    ("JoinGroupCallPermit", JOIN_CALLS),
-    ("TrackedJoinGroupCall", JOIN_CALLS),
-    ("TrackedJoinGroupCalls", JOIN_CALLS),
-    ("SettledJoinGroupCall", JOIN_SETTLEMENT),
-    ("PendingJoinGroupConfirmation", JOIN_SETTLEMENT),
-    ("RecoveredJoinGroupConfirmation", JOIN_SETTLEMENT),
-    ("JoinGroupConfirmationFailure", JOIN_SETTLEMENT),
-    ("JoinGroupRestoreFailure", JOIN_SETTLEMENT),
-    ("JoinGroupTerminal", JOIN_TERMINAL),
-    ("JoinGroupAdmissionFailure", JOIN_TERMINAL),
-    ("JoinGroupCompletionFailure", JOIN_TERMINAL),
-    ("RecoveredJoinGroupCall", JOIN_TERMINAL),
-    ("JoinGroupShutdownRecovery", JOIN_OWNER),
-    ("AcceptedSyncGroupCall", SYNC_CALLS),
-    ("SyncGroupCallPermit", SYNC_CALLS),
-    ("TrackedSyncGroupCall", SYNC_CALLS),
-    ("TrackedSyncGroupCalls", SYNC_CALLS),
-    ("SettledSyncGroupCall", SYNC_SETTLEMENT),
-    ("PendingSyncGroupConfirmation", SYNC_SETTLEMENT),
-    ("RecoveredSyncGroupConfirmation", SYNC_SETTLEMENT),
-    ("SyncGroupConfirmationFailure", SYNC_SETTLEMENT),
-    ("SyncGroupRestoreFailure", SYNC_SETTLEMENT),
-    ("SyncGroupTerminal", SYNC_TERMINAL),
-    ("SyncGroupAdmissionFailure", SYNC_TERMINAL),
-    ("SyncGroupCompletionFailure", SYNC_TERMINAL),
-    ("RecoveredSyncGroupCall", SYNC_TERMINAL),
-    ("SyncGroupShutdownRecovery", SYNC_OWNER),
-];
-const MUTATIONS: &[(&str, &str, &[&str])] = &[
-    ("TrackedJoinGroupCalls", "calls", &[JOIN_CALLS, JOIN_OWNER]),
-    (
-        "TrackedJoinGroupCalls",
-        "settled",
-        &[JOIN_CALLS, JOIN_OWNER],
-    ),
-    (
-        "TrackedJoinGroupCalls",
-        "pending_confirmation",
-        &[JOIN_CALLS, JOIN_OWNER],
-    ),
-    (
-        "TrackedJoinGroupCalls",
-        "completion_failure",
-        &[JOIN_CALLS, JOIN_OWNER],
-    ),
-    ("TrackedSyncGroupCalls", "calls", &[SYNC_CALLS, SYNC_OWNER]),
-    (
-        "TrackedSyncGroupCalls",
-        "settled",
-        &[SYNC_CALLS, SYNC_OWNER],
-    ),
-    (
-        "TrackedSyncGroupCalls",
-        "pending_confirmation",
-        &[SYNC_CALLS, SYNC_OWNER],
-    ),
-    (
-        "TrackedSyncGroupCalls",
-        "completion_failure",
-        &[SYNC_CALLS, SYNC_OWNER],
-    ),
-];
-const FORBIDDEN: &[&str] = &[
-    "ClassicGroupEffect",
-    "ClassicGroupInput",
-    "ClassicGroupMachine",
-    "Instant::now",
-    "Retry",
-    "Route::Coordinator",
-    "async",
-    "crate::protocol",
-    "invalidate",
-    "normalize",
-    "std::future",
-    "std::net",
-    "std::thread",
-];
-const METHODS: &[(&str, &str)] = &[
-    ("confirm_join_group_call_receipt", JOIN_OWNER),
-    ("confirm_join_group_route_token", JOIN_OWNER),
-    ("submit_tracked_join_group", JOIN_CALLS),
-    ("confirm_sync_group_call_receipt", SYNC_OWNER),
-    ("confirm_sync_group_route_token", SYNC_OWNER),
-    ("submit_tracked_sync_group", SYNC_CALLS),
-];
 
 #[test]
 fn checked_in_classic_group_call_policy_is_exact() {
@@ -158,7 +56,7 @@ fn checked_in_classic_group_call_policy_is_exact() {
             .collect::<Vec<_>>(),
         FORBIDDEN
     );
-    assert_eq!(rules[0].allow.len(), 9);
+    assert_eq!(rules[0].allow.len(), 10);
     for (allow, (expected_path, capability)) in rules[0].allow.iter().zip([
         (JOIN_CALLS, "crate::protocol"),
         (SYNC_CALLS, "crate::protocol"),
@@ -181,19 +79,27 @@ fn checked_in_classic_group_call_policy_is_exact() {
         (HEARTBEAT_TEST_FIXTURE, "ClassicGroupEffect"),
         (HEARTBEAT_TEST_FIXTURE, "ClassicGroupInput"),
         (HEARTBEAT_TEST_FIXTURE, "ClassicGroupMachine"),
+        (INVALIDATION_DRIVE, "invalidate"),
     ]) {
         assert_eq!(allow.path, expected_path);
         assert_eq!(allow.capability, capability);
         assert!(!allow.reason.trim().is_empty());
     }
-    for (method, path) in METHODS {
+    for (method, paths) in METHODS {
         let rules = config
             .method_capabilities
             .iter()
             .filter(|rule| rule.method == *method)
             .collect::<Vec<_>>();
         assert_eq!(rules.len(), 1, "{method} needs one method rule");
-        assert_eq!(rules[0].allowed_paths, [*path]);
+        assert_eq!(
+            rules[0]
+                .allowed_paths
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            *paths
+        );
     }
 }
 
@@ -247,7 +153,7 @@ fn fixture_rejects_policy_runtime_and_second_token_release_owner() {
             violation.contains("capability_intruder.rs") && violation.contains(capability)
         }));
     }
-    for (method, _path) in METHODS {
+    for (method, _paths) in METHODS {
         let rules = [MethodCapabilityRule {
             root: "src".into(),
             method: (*method).into(),

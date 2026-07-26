@@ -59,7 +59,7 @@ impl GroupConsumerRegistry {
             }
         }
         self.join_shutdown_recovery = None;
-        Ok(())
+        self.recover_classic_coordinator_invalidations_after_driver_shutdown()
     }
 
     #[expect(

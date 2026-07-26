@@ -15,6 +15,7 @@ use super::{
     classic_group_heartbeat_interpret::{
         ClassicHeartbeatInterpretationFailure, interpret_heartbeat,
     },
+    classic_group_rediscovery_transfer::confirm_heartbeat_rediscovery,
     registry::GroupConsumerRegistry,
     registry_entry::GroupConsumerEntry,
 };
@@ -59,7 +60,17 @@ impl GroupConsumerRegistry {
             return Err(ClassicGroupExecutionError::CallIdentityMismatch);
         }
         if matches!(poll, ClassicHeartbeatPoll::ConfirmationPending { .. }) {
-            confirm_heartbeat(entry, calls)?;
+            if entry.rediscovery.awaits_route_transfer() {
+                let permit = self
+                    .coordinator_invalidations
+                    .as_mut()
+                    .ok_or(ClassicGroupExecutionError::CallRegistryUnavailable)?
+                    .try_reserve(key.group_id())
+                    .map_err(|_error| ClassicGroupExecutionError::CoordinatorInvalidationReserve)?;
+                confirm_heartbeat_rediscovery(entry, calls, permit)?;
+            } else {
+                confirm_heartbeat(entry, calls)?;
+            }
             return Ok(ClassicHeartbeatSettlementTurn::Progress);
         }
         if !matches!(

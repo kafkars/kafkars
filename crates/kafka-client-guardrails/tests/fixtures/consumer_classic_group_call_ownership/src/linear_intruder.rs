@@ -56,3 +56,17 @@ struct SyncGroupCompletionFailure;
 struct RecoveredSyncGroupCall;
 #[derive(Clone, Copy)]
 struct SyncGroupShutdownRecovery;
+#[derive(Clone, Copy)]
+struct PendingClassicCoordinatorInvalidation;
+#[derive(Clone, Copy)]
+struct ClassicCoordinatorInvalidationState;
+#[derive(Clone, Copy)]
+struct ClassicCoordinatorInvalidationPermit;
+#[derive(Clone, Copy)]
+struct ClassicCoordinatorInvalidations;
+#[derive(Clone, Copy)]
+struct ClassicCoordinatorInvalidationInstallFailure;
+#[derive(Clone, Copy)]
+struct ClassicCoordinatorInvalidationAdmissionFailure;
+#[derive(Clone, Copy)]
+struct ClassicCoordinatorInvalidationShutdownRecovery;

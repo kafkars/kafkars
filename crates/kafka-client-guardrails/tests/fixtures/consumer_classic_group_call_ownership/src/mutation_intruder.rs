@@ -31,3 +31,13 @@ impl TrackedSyncGroupCalls {
         self.completion_failure += 1;
     }
 }
+
+struct ClassicCoordinatorInvalidations {
+    entries: usize,
+}
+
+impl ClassicCoordinatorInvalidations {
+    fn steal(&mut self) {
+        self.entries += 1;
+    }
+}

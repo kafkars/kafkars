@@ -1,5 +1,20 @@
 //! Declarative boundary for concrete classic Join, Sync, and Heartbeat call ownership.
 
+mod coordinator_invalidation;
+mod coordinator_invalidation_admission;
+#[cfg(test)]
+mod coordinator_invalidation_admission_test;
+mod coordinator_invalidation_drive;
+#[cfg(test)]
+mod coordinator_invalidation_drive_test;
+mod coordinator_invalidation_recovery;
+#[cfg(test)]
+mod coordinator_invalidation_recovery_test;
+#[cfg(test)]
+mod coordinator_invalidation_test;
+mod coordinator_invalidation_transfer;
+#[cfg(test)]
+mod coordinator_invalidation_transfer_test;
 mod heartbeat_calls;
 #[cfg(test)]
 mod heartbeat_calls_test;
@@ -50,6 +65,14 @@ mod sync_group_terminal_test;
 #[cfg(test)]
 mod terminal_test_fixture;
 
+pub(crate) use coordinator_invalidation::{
+    ClassicCoordinatorInvalidationInstallFailure, ClassicCoordinatorInvalidationPermission,
+    ClassicCoordinatorInvalidationPermit, ClassicCoordinatorInvalidationPoll,
+    ClassicCoordinatorInvalidationTerminalFailure, ClassicCoordinatorInvalidations,
+    PendingClassicCoordinatorInvalidation,
+};
+pub(crate) use coordinator_invalidation_admission::ClassicCoordinatorInvalidationAdmissionFailureKind;
+pub(crate) use coordinator_invalidation_recovery::ClassicCoordinatorInvalidationShutdownRecovery;
 pub(crate) use heartbeat_calls::{
     AcceptedClassicHeartbeatCall, ClassicHeartbeatCallReservationError,
     TrackedClassicHeartbeatCalls,

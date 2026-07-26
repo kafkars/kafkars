@@ -54,6 +54,7 @@ impl GroupConsumerRegistry {
 fn due_rejoin_index(entries: &[GroupConsumerEntry], now: Moment) -> Option<usize> {
     entries.iter().position(|entry| {
         entry.state == GroupConsumerEntryState::Active
+            && !entry.rediscovery.blocks_join()
             && entry
                 .rejoin
                 .schedule()
@@ -68,6 +69,7 @@ fn is_exact_due_state(entry: &GroupConsumerEntry, schedule: ClassicRejoinSchedul
         && entry.classic.pending().is_none()
         && entry.classic.machine().phase() == ClassicGroupPhase::WaitingToRejoin
         && entry.classic.machine().pending_rejoin() == Some(schedule)
+        && !entry.rediscovery.blocks_join()
 }
 
 fn apply_due_transition(

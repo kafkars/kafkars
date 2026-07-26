@@ -1,12 +1,10 @@
 //! Join-stage Retain, Fatal, and deferred Rediscover installation scenarios.
 
 use kafka_client_core::{
-    ClassicBrokerError, ClassicCoordinatorRecovery, ClassicGroupEffect, ClassicGroupInput,
-    ClassicGroupPhase, GroupId, Moment,
+    ClassicBrokerError, ClassicGroupInput, ClassicGroupPhase, GroupId, Moment,
 };
 
 use super::{
-    classic_group_rejection_fault::ClassicRejectionInstallFailure,
     classic_group_rejection_install::install_stage_rejection, classic_group_test_support,
     registry_entry::GroupConsumerEntry,
 };
@@ -45,26 +43,20 @@ fn unknown_rejection_accepts_only_the_exact_core_fatal() {
 }
 
 #[test]
-fn rediscovery_is_retained_without_attempting_driver_invalidation() {
+fn rediscovery_installs_the_schedule_and_blocks_join_until_route_transfer() {
     let mut entry = entry();
     let cycle = classic_group_test_support::begin(&mut entry.classic);
     let transition = rejection(&mut entry, cycle, 15);
-    let fault = install_stage_rejection(&mut entry, transition)
-        .err()
-        .unwrap_or_else(|| panic!("rediscovery must remain deferred"));
+
+    install_stage_rejection(&mut entry, transition)
+        .unwrap_or_else(|_fault| panic!("rediscovery installation failed"));
 
     assert_eq!(
-        fault.failure(),
-        ClassicRejectionInstallFailure::CoordinatorRediscovery
+        entry.rejoin.schedule(),
+        entry.classic.machine().pending_rejoin()
     );
-    assert!(matches!(
-        &fault.effects()[0],
-        Some(ClassicGroupEffect::ArmRejoin {
-            coordinator: ClassicCoordinatorRecovery::Rediscover,
-            ..
-        })
-    ));
-    assert!(entry.rejoin.is_dormant());
+    assert!(entry.rediscovery.blocks_join());
+    assert!(entry.rediscovery.awaits_route_transfer());
 }
 
 fn rejection(

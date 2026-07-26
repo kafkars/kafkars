@@ -14,3 +14,9 @@ struct ClassicRejoinPostCore;
 struct ClassicRejectionPostCore;
 #[derive(Clone, Copy)]
 struct ClassicSyncRejectionFailure;
+#[derive(Clone, Copy)]
+struct ClassicCoordinatorRediscoveryState;
+#[derive(Clone, Copy)]
+struct ClassicCoordinatorRediscovery;
+#[derive(Clone, Copy)]
+struct PreparedClassicCoordinatorRediscovery;

@@ -1,19 +1,15 @@
-//! Atomic Heartbeat rejection installation and Rediscover deferral scenarios.
+//! Atomic Heartbeat rejection revocation and Rediscover installation scenarios.
 
-use kafka_client_core::{
-    ClassicBrokerError, ClassicCoordinatorRecovery, ClassicGroupEffect, ClassicGroupInput, GroupId,
-    Moment,
-};
+use kafka_client_core::{ClassicBrokerError, ClassicGroupInput, GroupId, Moment};
 
 use super::{
     classic_group_heartbeat::ClassicHeartbeatExecutionState,
-    classic_group_heartbeat_rejection::install_heartbeat_rejection,
-    classic_group_rejection_fault::ClassicRejectionInstallFailure, classic_group_test_support,
+    classic_group_heartbeat_rejection::install_heartbeat_rejection, classic_group_test_support,
     registry_entry::GroupConsumerEntry,
 };
 
 #[test]
-fn rediscovery_retains_both_effects_without_partially_revoking_the_catalog() {
+fn rediscovery_revokes_then_blocks_join_until_route_transfer() {
     let mut entry = stable_entry();
     let ClassicHeartbeatExecutionState::Waiting(schedule) = entry.heartbeat.state() else {
         panic!("heartbeat schedule expected");
@@ -37,30 +33,19 @@ fn rediscovery_retains_both_effects_without_partially_revoking_the_catalog() {
         })
         .unwrap_or_else(|error| panic!("heartbeat rejection failed: {error}"));
 
-    let fault = install_heartbeat_rejection(&mut entry, transition)
-        .err()
-        .unwrap_or_else(|| panic!("rediscovery must remain deferred"));
+    install_heartbeat_rejection(&mut entry, transition)
+        .unwrap_or_else(|_fault| panic!("rediscovery installation failed"));
 
+    assert!(entry.catalog.live_assignment().is_none());
     assert_eq!(
-        fault.failure(),
-        ClassicRejectionInstallFailure::CoordinatorRediscovery
+        entry.rejoin.schedule(),
+        entry.classic.machine().pending_rejoin()
     );
-    assert!(matches!(
-        &fault.effects()[0],
-        Some(ClassicGroupEffect::Revoke { .. })
-    ));
-    assert!(matches!(
-        &fault.effects()[1],
-        Some(ClassicGroupEffect::ArmRejoin {
-            coordinator: ClassicCoordinatorRecovery::Rediscover,
-            ..
-        })
-    ));
-    assert!(entry.catalog.live_assignment().is_some());
-    assert!(entry.rejoin.is_dormant());
+    assert!(entry.rediscovery.blocks_join());
+    assert!(entry.rediscovery.awaits_route_transfer());
 }
 
-fn stable_entry() -> GroupConsumerEntry {
+pub(super) fn stable_entry() -> GroupConsumerEntry {
     let group_id =
         GroupId::try_from_raw(78).unwrap_or_else(|| panic!("nonzero group identity expected"));
     let mut entry = GroupConsumerEntry::try_new(

@@ -167,3 +167,43 @@ fn one_due_schedule_is_staged_per_turn() {
     );
     stop_registry(&mut registry);
 }
+
+#[test]
+fn rediscovery_hides_an_elapsed_rejoin_until_driver_terminal_permission() {
+    let mut registry = started_registry();
+    let group_id = register(&mut registry, "workers");
+    let schedule = arm_rejoin(&mut registry, group_id, 10);
+    let entry = entry_mut(&mut registry, group_id);
+    entry
+        .rediscovery
+        .prepare_rediscovery_install()
+        .unwrap_or_else(|error| panic!("rediscovery install failed: {error:?}"))
+        .commit();
+    entry
+        .rediscovery
+        .confirm_rediscovery_transfer()
+        .unwrap_or_else(|error| panic!("route transfer failed: {error:?}"));
+
+    assert_eq!(registry.membership_next_deadline(), None);
+    assert_eq!(
+        registry.prepare_one_classic_rejoin(
+            Moment::from_tick(schedule.due().tick()),
+            &MonotonicClock::new(),
+        ),
+        Ok(ClassicGroupRejoinDueTurn::Idle)
+    );
+
+    entry_mut(&mut registry, group_id)
+        .rediscovery
+        .permit_rejoin()
+        .unwrap_or_else(|error| panic!("driver terminal permission failed: {error:?}"));
+    assert_eq!(registry.membership_next_deadline(), Some(schedule.due()));
+    assert_eq!(
+        registry.prepare_one_classic_rejoin(
+            Moment::from_tick(schedule.due().tick()),
+            &MonotonicClock::new(),
+        ),
+        Ok(ClassicGroupRejoinDueTurn::Progress)
+    );
+    stop_registry(&mut registry);
+}

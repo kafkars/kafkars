@@ -1,11 +1,8 @@
 //! One bounded per-entry membership timeout or close transition per registry turn.
 
-use kafka_client_core::{ClassicGroupPhase, Moment};
+use kafka_client_core::Moment;
 
-use crate::driver::{
-    DriverOwner,
-    classic_group::{TrackedClassicHeartbeatCalls, TrackedJoinGroupCalls, TrackedSyncGroupCalls},
-};
+use crate::driver::DriverOwner;
 
 use super::{
     classic_group_execution::ClassicGroupExecutionError,
@@ -15,12 +12,14 @@ use super::{
     classic_group_heartbeat_submission::ClassicHeartbeatSubmissionTurn,
     classic_group_join_execution::ClassicGroupJoinSubmissionTurn,
     classic_group_join_settlement::ClassicGroupJoinSettlementTurn,
-    classic_group_recovery::recovery_unsettled_count,
+    classic_group_rediscovery_execution::{
+        ClassicCoordinatorInvalidationTurn, ClassicCoordinatorInvalidationTurn::Blocked,
+    },
     classic_group_rejoin_due::ClassicGroupRejoinDueTurn,
     classic_group_sync_settlement::ClassicGroupSyncSettlementTurn,
     classic_group_sync_submission::ClassicGroupSyncSubmissionTurn,
     registry::GroupConsumerRegistry,
-    registry_entry::{GroupConsumerEntry, GroupConsumerEntryState},
+    registry_entry::GroupConsumerEntryState,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -29,7 +28,6 @@ pub(super) enum GroupConsumerMembershipTurn {
     Progress,
     Blocked,
 }
-
 impl GroupConsumerRegistry {
     pub(super) fn turn_membership(
         &mut self,
@@ -40,6 +38,13 @@ impl GroupConsumerRegistry {
         if self.entries.iter().any(|entry| entry.fault.is_some()) {
             return Err(ClassicGroupExecutionError::EntryFault);
         }
+        let rediscovery_blocked = match self.drive_one_classic_coordinator_invalidation(driver)? {
+            ClassicCoordinatorInvalidationTurn::Progress => {
+                return Ok(GroupConsumerMembershipTurn::Progress);
+            }
+            Blocked => true,
+            ClassicCoordinatorInvalidationTurn::Idle => false,
+        };
         if self.settle_one_classic_heartbeat(now)? == ClassicHeartbeatSettlementTurn::Progress {
             return Ok(GroupConsumerMembershipTurn::Progress);
         }
@@ -81,7 +86,7 @@ impl GroupConsumerRegistry {
         };
         Ok(match self.submit_one_classic_join(driver)? {
             ClassicGroupJoinSubmissionTurn::Idle
-                if join_blocked || heartbeat_blocked || sync_blocked =>
+                if rediscovery_blocked || join_blocked || heartbeat_blocked || sync_blocked =>
             {
                 GroupConsumerMembershipTurn::Blocked
             }
@@ -90,7 +95,6 @@ impl GroupConsumerRegistry {
             ClassicGroupJoinSubmissionTurn::Blocked => GroupConsumerMembershipTurn::Blocked,
         })
     }
-
     pub(super) fn turn_local_membership(
         &mut self,
         now: Moment,
@@ -163,77 +167,5 @@ impl GroupConsumerRegistry {
         } else {
             GroupConsumerMembershipTurn::Idle
         })
-    }
-
-    pub(super) fn membership_unsettled(&self) -> usize {
-        let entries: usize = self
-            .entries
-            .iter()
-            .map(GroupConsumerEntry::membership_unsettled)
-            .sum();
-        let joins = self
-            .join_calls
-            .as_ref()
-            .map_or(0, TrackedJoinGroupCalls::retained_join_group_count);
-        let syncs = self
-            .sync_calls
-            .as_ref()
-            .map_or(0, TrackedSyncGroupCalls::retained_sync_group_count);
-        let heartbeats = self.heartbeat_calls.as_ref().map_or(
-            0,
-            TrackedClassicHeartbeatCalls::retained_classic_heartbeat_count,
-        );
-        let recovery = recovery_unsettled_count(
-            self.heartbeat_shutdown_recovery.as_ref(),
-            self.join_shutdown_recovery.as_ref(),
-            self.sync_shutdown_recovery.as_ref(),
-            self.heartbeat_recovery_fault.as_ref(),
-            self.join_recovery_fault.as_ref(),
-            self.sync_recovery_fault.as_ref(),
-        );
-        entries
-            .saturating_add(joins)
-            .saturating_add(syncs)
-            .saturating_add(heartbeats)
-            .saturating_add(recovery)
-    }
-
-    pub(super) fn membership_next_deadline(&self) -> Option<kafka_client_core::Deadline> {
-        self.entries
-            .iter()
-            .filter_map(|entry| {
-                [
-                    entry.execution.next_deadline(),
-                    entry.heartbeat.next_deadline(),
-                    entry.rejoin.next_deadline(),
-                ]
-                .into_iter()
-                .flatten()
-                .min()
-            })
-            .min()
-    }
-}
-
-impl GroupConsumerEntry {
-    fn membership_unsettled(&self) -> usize {
-        if let Some(fault) = &self.fault {
-            return fault
-                .retained_owner_count()
-                .saturating_add(self.execution.unsettled())
-                .saturating_add(self.heartbeat.unsettled())
-                .saturating_add(self.rejoin.unsettled());
-        }
-        if self.state == GroupConsumerEntryState::Closing
-            && self.classic.machine().phase() != ClassicGroupPhase::Closed
-        {
-            return 1usize
-                .saturating_add(self.heartbeat.unsettled())
-                .saturating_add(self.rejoin.unsettled());
-        }
-        self.execution
-            .unsettled()
-            .saturating_add(self.heartbeat.unsettled())
-            .saturating_add(self.rejoin.unsettled())
     }
 }

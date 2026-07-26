@@ -7,6 +7,7 @@ use crate::driver::classic_group::{SyncGroupPoll, SyncGroupTerminal, TrackedSync
 use super::{
     classic_group_entry_fault::ClassicGroupEntryFault,
     classic_group_execution::ClassicGroupExecutionError,
+    classic_group_rediscovery_transfer::confirm_sync_rediscovery,
     classic_group_sync_interpret::interpret_sync, registry::GroupConsumerRegistry,
     registry_entry::GroupConsumerEntry,
 };
@@ -53,7 +54,17 @@ impl GroupConsumerRegistry {
             return Err(ClassicGroupExecutionError::CallIdentityMismatch);
         }
         if matches!(poll, SyncGroupPoll::ConfirmationPending { .. }) {
-            entry.execution.confirm_sync(calls)?;
+            if entry.rediscovery.awaits_route_transfer() {
+                let permit = self
+                    .coordinator_invalidations
+                    .as_mut()
+                    .ok_or(ClassicGroupExecutionError::CallRegistryUnavailable)?
+                    .try_reserve(key.group_id())
+                    .map_err(|_error| ClassicGroupExecutionError::CoordinatorInvalidationReserve)?;
+                confirm_sync_rediscovery(entry, calls, permit)?;
+            } else {
+                entry.execution.confirm_sync(calls)?;
+            }
             return Ok(ClassicGroupSyncSettlementTurn::Progress);
         }
         let terminal = calls

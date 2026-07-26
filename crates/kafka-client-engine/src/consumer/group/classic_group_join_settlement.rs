@@ -9,6 +9,7 @@ use super::{
     classic_group_execution::ClassicGroupExecutionError,
     classic_group_join::ClassicGroupJoinSuccessor,
     classic_group_join_interpret::{JoinInterpretation, JoinInterpretationFailure, interpret_join},
+    classic_group_rediscovery_transfer::confirm_join_rediscovery,
     registry::GroupConsumerRegistry,
     registry_entry::GroupConsumerEntry,
 };
@@ -59,7 +60,17 @@ impl GroupConsumerRegistry {
             return Err(ClassicGroupExecutionError::CallIdentityMismatch);
         }
         if matches!(poll, JoinGroupPoll::ConfirmationPending { .. }) {
-            entry.execution.confirm_join(calls)?;
+            if entry.rediscovery.awaits_route_transfer() {
+                let permit = self
+                    .coordinator_invalidations
+                    .as_mut()
+                    .ok_or(ClassicGroupExecutionError::CallRegistryUnavailable)?
+                    .try_reserve(key.group_id())
+                    .map_err(|_error| ClassicGroupExecutionError::CoordinatorInvalidationReserve)?;
+                confirm_join_rediscovery(entry, calls, permit)?;
+            } else {
+                entry.execution.confirm_join(calls)?;
+            }
             return Ok(ClassicGroupJoinSettlementTurn::Progress);
         }
         let terminal = match calls.begin_join_group_settlement(accepted) {

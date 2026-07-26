@@ -1,6 +1,6 @@
 //! Two-phase ownership of raw `SyncGroup` terminals and coordinator route tokens.
 
-use kafka_driver::RouteFailureToken;
+use kafka_driver::{RouteFailureToken, RouteKind};
 
 use super::{
     sync_group_calls::AcceptedSyncGroupCall,
@@ -62,6 +62,25 @@ impl PendingSyncGroupConfirmation {
         drop(self.route_token);
     }
 
+    pub(super) fn route_token_kind(&self) -> Option<RouteKind> {
+        self.route_token.as_ref().map(RouteFailureToken::kind)
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "failure returns the exact linear pending confirmation for restoration"
+    )]
+    pub(super) fn into_rediscovery_route_token(self) -> Result<RouteFailureToken, Self> {
+        let Self { key, route_token } = self;
+        match route_token {
+            Some(route_token) => Ok(route_token),
+            None => Err(Self {
+                key,
+                route_token: None,
+            }),
+        }
+    }
+
     pub(super) fn recover_after_driver_shutdown(self) -> RecoveredSyncGroupConfirmation {
         drop(self.route_token);
         RecoveredSyncGroupConfirmation { key: self.key }
@@ -112,6 +131,13 @@ pub(crate) enum SyncGroupConfirmationError {
     KeyMismatch {
         pending: SyncGroupCallKey,
         supplied: SyncGroupCallKey,
+    },
+    RouteTokenUnavailable {
+        pending: SyncGroupCallKey,
+    },
+    RouteTokenKind {
+        pending: SyncGroupCallKey,
+        observed: RouteKind,
     },
 }
 

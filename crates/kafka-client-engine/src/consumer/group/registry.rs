@@ -5,6 +5,7 @@ use std::sync::Arc;
 use kafka_client_core::{ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicRejoinPolicy, GroupId};
 
 use crate::driver::classic_group::{
+    ClassicCoordinatorInvalidationShutdownRecovery, ClassicCoordinatorInvalidations,
     ClassicHeartbeatShutdownRecovery, JoinGroupShutdownRecovery,
     RecoveredClassicHeartbeatOwnership, RecoveredJoinGroupOwnership, RecoveredSyncGroupOwnership,
     SyncGroupShutdownRecovery, TrackedClassicHeartbeatCalls, TrackedJoinGroupCalls,
@@ -49,9 +50,12 @@ pub(crate) struct GroupConsumerRegistry {
     pub(super) join_calls: Option<TrackedJoinGroupCalls>,
     pub(super) sync_calls: Option<TrackedSyncGroupCalls>,
     pub(super) heartbeat_calls: Option<TrackedClassicHeartbeatCalls>,
+    pub(super) coordinator_invalidations: Option<ClassicCoordinatorInvalidations>,
     pub(super) join_shutdown_recovery: Option<JoinGroupShutdownRecovery>,
     pub(super) sync_shutdown_recovery: Option<SyncGroupShutdownRecovery>,
     pub(super) heartbeat_shutdown_recovery: Option<ClassicHeartbeatShutdownRecovery>,
+    pub(super) coordinator_invalidation_shutdown_recovery:
+        Option<ClassicCoordinatorInvalidationShutdownRecovery>,
     pub(super) join_recovery_fault: Option<RecoveredJoinGroupOwnership>,
     pub(super) sync_recovery_fault: Option<RecoveredSyncGroupOwnership>,
     pub(super) heartbeat_recovery_fault: Option<RecoveredClassicHeartbeatOwnership>,
@@ -70,6 +74,10 @@ impl GroupConsumerRegistry {
             .map_err(|_error| std::io::Error::other("SyncGroup call reservation failed"))?;
         let heartbeat_calls = TrackedClassicHeartbeatCalls::try_new(GROUP_CONSUMER_CAPACITY)
             .map_err(|_error| std::io::Error::other("Heartbeat call reservation failed"))?;
+        let coordinator_invalidations = ClassicCoordinatorInvalidations::try_new(
+            GROUP_CONSUMER_CAPACITY,
+        )
+        .map_err(|_error| std::io::Error::other("coordinator invalidation reservation failed"))?;
         Ok(Self {
             entries,
             next_group_id: GroupId::try_from_raw(1),
@@ -78,9 +86,11 @@ impl GroupConsumerRegistry {
             join_calls: Some(join_calls),
             sync_calls: Some(sync_calls),
             heartbeat_calls: Some(heartbeat_calls),
+            coordinator_invalidations: Some(coordinator_invalidations),
             join_shutdown_recovery: None,
             sync_shutdown_recovery: None,
             heartbeat_shutdown_recovery: None,
+            coordinator_invalidation_shutdown_recovery: None,
             join_recovery_fault: None,
             sync_recovery_fault: None,
             heartbeat_recovery_fault: None,

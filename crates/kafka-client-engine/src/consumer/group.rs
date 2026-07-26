@@ -17,6 +17,7 @@ mod classic_group_heartbeat_interpret;
 mod classic_group_heartbeat_prepare;
 mod classic_group_heartbeat_recovery;
 mod classic_group_heartbeat_rejection;
+mod classic_group_heartbeat_rejection_install;
 mod classic_group_heartbeat_settlement;
 mod classic_group_heartbeat_submission;
 mod classic_group_join;
@@ -27,6 +28,10 @@ mod classic_group_join_settlement;
 mod classic_group_owner;
 mod classic_group_owner_follower;
 mod classic_group_recovery;
+mod classic_group_rediscovery;
+mod classic_group_rediscovery_execution;
+mod classic_group_rediscovery_recovery;
+mod classic_group_rediscovery_transfer;
 mod classic_group_rejection_fault;
 mod classic_group_rejection_install;
 mod classic_group_rejoin;
@@ -48,6 +53,7 @@ mod registry_cycle;
 mod registry_entry;
 mod registry_host;
 mod registry_membership;
+mod registry_membership_observation;
 mod registry_port;
 #[cfg_attr(
     not(test),
@@ -96,6 +102,8 @@ mod classic_group_heartbeat_prepare_test;
 #[cfg(test)]
 mod classic_group_heartbeat_recovery_test;
 #[cfg(test)]
+mod classic_group_heartbeat_rejection_install_test;
+#[cfg(test)]
 mod classic_group_heartbeat_rejection_test;
 #[cfg(test)]
 mod classic_group_heartbeat_settlement_test;
@@ -119,6 +127,14 @@ mod classic_group_owner_follower_test;
 mod classic_group_owner_test;
 #[cfg(test)]
 mod classic_group_recovery_test;
+#[cfg(test)]
+mod classic_group_rediscovery_execution_test;
+#[cfg(test)]
+mod classic_group_rediscovery_recovery_test;
+#[cfg(test)]
+mod classic_group_rediscovery_test;
+#[cfg(test)]
+mod classic_group_rediscovery_transfer_test;
 #[cfg(test)]
 mod classic_group_rejection_fault_test;
 #[cfg(test)]
@@ -163,6 +179,8 @@ mod registry_cycle_test;
 mod registry_entry_test;
 #[cfg(test)]
 mod registry_host_test;
+#[cfg(test)]
+mod registry_membership_observation_test;
 #[cfg(test)]
 mod registry_membership_test;
 #[cfg(test)]

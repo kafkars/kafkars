@@ -12,7 +12,7 @@ use support::{
 };
 
 use expectations::{
-    AUTHORITIES, CALLS, CAPABILITIES, FIXTURE_FORBIDDEN, LINEAR, METHODS, MIRRORS, MUTATION,
+    AUTHORITIES, CALLS, CAPABILITIES, FIXTURE_FORBIDDEN, LINEAR, METHODS, MIRRORS, MUTATIONS,
 };
 
 #[test]
@@ -38,14 +38,15 @@ fn checked_in_rejoin_ownership_and_mirrors_are_exact() {
         assert_eq!(strings(&rules[0].fields), *fields);
         assert_eq!(strings(&rules[0].allowed_paths), *allowed_paths);
     }
-    let (owner_type, field, allowed_paths) = MUTATION;
-    let rules = config
-        .mutation_owners
-        .iter()
-        .filter(|rule| rule.owner_type == owner_type && rule.field == field)
-        .collect::<Vec<_>>();
-    assert_eq!(rules.len(), 1);
-    assert_eq!(strings(&rules[0].allowed_paths), allowed_paths);
+    for (owner_type, field, allowed_paths) in MUTATIONS {
+        let rules = config
+            .mutation_owners
+            .iter()
+            .filter(|rule| rule.owner_type == *owner_type && rule.field == *field)
+            .collect::<Vec<_>>();
+        assert_eq!(rules.len(), 1);
+        assert_eq!(strings(&rules[0].allowed_paths), *allowed_paths);
+    }
     for (production, test) in MIRRORS {
         let rules = config
             .test_mirrors
@@ -110,19 +111,20 @@ fn fixture_rejects_clone_copy_foreign_mutation_and_authority_theft() {
             }));
         }
     }
-    let (owner_type, field, _allowed_paths) = MUTATION;
-    let violations = mutation_violations(
-        &root,
-        &files,
-        &[MutationOwner {
-            owner_type: owner_type.into(),
-            field: field.into(),
-            allowed_paths: Vec::new(),
-        }],
-    );
-    assert!(violations.iter().any(|violation| {
-        violation.contains("mutation_intruder.rs") && violation.contains(field)
-    }));
+    for (owner_type, field, _allowed_paths) in MUTATIONS {
+        let violations = mutation_violations(
+            &root,
+            &files,
+            &[MutationOwner {
+                owner_type: (*owner_type).into(),
+                field: (*field).into(),
+                allowed_paths: Vec::new(),
+            }],
+        );
+        assert!(violations.iter().any(|violation| {
+            violation.contains("mutation_intruder.rs") && violation.contains(field)
+        }));
+    }
     let authorities = AUTHORITIES
         .iter()
         .map(

@@ -1,6 +1,6 @@
 //! Two-phase ownership of raw `JoinGroup` terminals and coordinator route tokens.
 
-use kafka_driver::RouteFailureToken;
+use kafka_driver::{RouteFailureToken, RouteKind};
 
 use super::{
     join_group_calls::AcceptedJoinGroupCall,
@@ -62,6 +62,25 @@ impl PendingJoinGroupConfirmation {
         drop(self.route_token);
     }
 
+    pub(super) fn route_token_kind(&self) -> Option<RouteKind> {
+        self.route_token.as_ref().map(RouteFailureToken::kind)
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "failure returns the exact linear pending confirmation for restoration"
+    )]
+    pub(super) fn into_rediscovery_route_token(self) -> Result<RouteFailureToken, Self> {
+        let Self { key, route_token } = self;
+        match route_token {
+            Some(route_token) => Ok(route_token),
+            None => Err(Self {
+                key,
+                route_token: None,
+            }),
+        }
+    }
+
     pub(super) fn recover_after_driver_shutdown(self) -> RecoveredJoinGroupConfirmation {
         drop(self.route_token);
         RecoveredJoinGroupConfirmation { key: self.key }
@@ -112,6 +131,13 @@ pub(crate) enum JoinGroupConfirmationError {
     KeyMismatch {
         pending: JoinGroupCallKey,
         supplied: JoinGroupCallKey,
+    },
+    RouteTokenUnavailable {
+        pending: JoinGroupCallKey,
+    },
+    RouteTokenKind {
+        pending: JoinGroupCallKey,
+        observed: RouteKind,
     },
 }
 
