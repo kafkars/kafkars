@@ -331,6 +331,14 @@ production = "crates/kafka-client-core/src/consumer/position.rs"
 test = "crates/kafka-client-core/src/consumer/control_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/resolved_assignment.rs"
+test = "crates/kafka-client-core/src/consumer/resolved_assignment_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/resolved_assignment_install.rs"
+test = "crates/kafka-client-core/src/consumer/resolved_assignment_install_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/position_ownership.rs"
 test = "crates/kafka-client-core/src/consumer/position_ownership_test.rs"
 
@@ -2443,6 +2451,49 @@ forbidden = [
   "crate::admin",
   "crate::producer",
   "crate::transaction",
+  "kafka_driver",
+  "kafka_wire",
+  "std::future",
+  "std::time",
+]
+
+# Resolved assignment installation owns only scalar offsets and Fetch activation.
+[[capability_rules]]
+root = "crates/kafka-client-core/src/consumer/resolved_assignment.rs"
+forbidden = [
+  "Deadline",
+  "crate::Deadline",
+  "crate::consumer::group_position",
+  "GroupPositionBootstrapMachine",
+  "PositionResolution",
+  "StartPosition",
+  "Callback",
+  "Clock",
+  "Future",
+  "Runtime",
+  "async",
+  "kafka_client_engine",
+  "kafka_driver",
+  "kafka_wire",
+  "std::future",
+  "std::time",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-core/src/consumer/resolved_assignment_install.rs"
+forbidden = [
+  "Deadline",
+  "crate::Deadline",
+  "crate::consumer::group_position",
+  "GroupPositionBootstrapMachine",
+  "PositionResolution",
+  "StartPosition",
+  "Callback",
+  "Clock",
+  "Future",
+  "Runtime",
+  "async",
+  "kafka_client_engine",
   "kafka_driver",
   "kafka_wire",
   "std::future",
@@ -5312,6 +5363,7 @@ owner_type = "AssignedConsumerMachine"
 field = "next_epoch"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/machine.rs",
+  "crates/kafka-client-core/src/consumer/resolved_assignment_install.rs",
   "crates/kafka-client-core/src/consumer/transition.rs",
 ]
 
@@ -5324,6 +5376,7 @@ allowed_paths = [
   "crates/kafka-client-core/src/consumer/fetch_transition.rs",
   "crates/kafka-client-core/src/consumer/machine.rs",
   "crates/kafka-client-core/src/consumer/position_ownership.rs",
+  "crates/kafka-client-core/src/consumer/resolved_assignment_install.rs",
   "crates/kafka-client-core/src/consumer/transition.rs",
 ]
 
@@ -7085,6 +7138,18 @@ path = "crates/kafka-client-core/src/consumer/position_resolution.rs"
 [[linear_owners]]
 owner_type = "FetchThrottle"
 path = "crates/kafka-client-core/src/consumer/fetch_throttle.rs"
+
+[[linear_owners]]
+owner_type = "InstallResolvedAssignment"
+path = "crates/kafka-client-core/src/consumer/resolved_assignment.rs"
+
+[[linear_owners]]
+owner_type = "InstallResolvedAssignmentError"
+path = "crates/kafka-client-core/src/consumer/resolved_assignment.rs"
+
+[[linear_owners]]
+owner_type = "PreparedResolvedAssignment"
+path = "crates/kafka-client-core/src/consumer/resolved_assignment_install.rs"
 
 [[linear_owners]]
 owner_type = "GroupCheckpoint"

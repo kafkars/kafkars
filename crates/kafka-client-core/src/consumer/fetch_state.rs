@@ -7,9 +7,27 @@ use super::{
     fetch_throttle::FetchThrottle,
     position_state::{PartitionPosition, PositionPhase},
 };
-use crate::Moment;
+use crate::{Deadline, Moment};
 
 impl PartitionPosition {
+    pub(super) fn start_resolved_assignment_fetch(
+        &mut self,
+        position: PositionFence,
+        next_offset: NextFetchOffset,
+        throttle_deadline: Option<Deadline>,
+    ) -> AssignedConsumerEffect {
+        let revision = FetchRevision::initial();
+        let next_revision = FetchRevision::after_initial();
+        let fence = FetchFence::new(position, revision);
+        match throttle_deadline {
+            Some(deadline) => {
+                self.install_throttle(fence, next_revision, next_offset, deadline);
+                AssignedConsumerEffect::ArmFetchThrottle { fence, deadline }
+            }
+            None => self.install_fetch(fence, next_revision, next_offset),
+        }
+    }
+
     pub(super) fn fetch_ownership(
         &self,
         supplied: FetchFence,

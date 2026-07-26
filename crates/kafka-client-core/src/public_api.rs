@@ -88,11 +88,13 @@ pub use crate::consumer::{
     GroupPositionBootstrapMachineError, GroupPositionBootstrapMissingOffsets,
     GroupPositionBootstrapPartitionRejection, GroupPositionBootstrapState,
     GroupPositionBootstrapTerminal, GroupPositionBootstrapTransition, GroupPositionBrokerError,
-    GroupPositionFence, GroupPositionPartitionFact, GroupPositionPartitionResult, JoinedMemberSlot,
-    LiveGroupAssignment, LiveGroupAssignmentError, MemberId, MemberRank, MembershipCycle,
-    NextFetchOffset, PositionEpoch, PositionFence, PositionOwnership,
-    PositionResolutionAttemptFailure, PositionResolutionFailure, ReadIsolation, StartPosition,
-    TopicPartitionCount, validate_group_offset_commit_checkpoint,
+    GroupPositionFence, GroupPositionPartitionFact, GroupPositionPartitionResult,
+    InstallResolvedAssignment, InstallResolvedAssignmentError, InstallResolvedAssignmentErrorKind,
+    JoinedMemberSlot, LiveGroupAssignment, LiveGroupAssignmentError, MemberId, MemberRank,
+    MembershipCycle, NextFetchOffset, PositionEpoch, PositionFence, PositionOwnership,
+    PositionResolutionAttemptFailure, PositionResolutionFailure, ReadIsolation,
+    ResolvedAssignedPartition, StartPosition, TopicPartitionCount,
+    validate_group_offset_commit_checkpoint,
 };
 pub use crate::operation::{ProducerOperation, ProducerOperationState};
 pub use crate::operation_outcome::{

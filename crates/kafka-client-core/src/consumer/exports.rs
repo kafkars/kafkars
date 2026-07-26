@@ -47,3 +47,7 @@ pub use super::model::{
 };
 pub use super::position_failure::{PositionResolutionAttemptFailure, PositionResolutionFailure};
 pub use super::read_isolation::ReadIsolation;
+pub use super::resolved_assignment::{
+    InstallResolvedAssignment, InstallResolvedAssignmentError, InstallResolvedAssignmentErrorKind,
+    ResolvedAssignedPartition,
+};

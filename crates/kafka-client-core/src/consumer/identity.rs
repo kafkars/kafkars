@@ -78,6 +78,10 @@ impl FetchRevision {
         Self(1)
     }
 
+    pub(crate) const fn after_initial() -> Self {
+        Self(2)
+    }
+
     pub(crate) const fn checked_next(self) -> Option<Self> {
         match self.0.checked_add(1) {
             Some(value) => Some(Self(value)),

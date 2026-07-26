@@ -21,6 +21,8 @@ mod position_ownership;
 mod position_resolution;
 mod position_state;
 mod read_isolation;
+mod resolved_assignment;
+mod resolved_assignment_install;
 mod transition;
 
 pub use exports::*;
@@ -59,6 +61,12 @@ mod position_test;
 mod read_isolation_test;
 #[cfg(test)]
 mod resolution_test;
+#[cfg(test)]
+mod resolved_assignment_install_test;
+#[cfg(test)]
+mod resolved_assignment_rejection_test;
+#[cfg(test)]
+mod resolved_assignment_test;
 #[cfg(test)]
 mod throttle_test;
 #[cfg(test)]
