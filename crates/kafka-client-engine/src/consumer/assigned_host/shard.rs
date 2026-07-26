@@ -15,7 +15,11 @@ use super::super::{
     },
 };
 use super::{
-    completion::{AssignedConsumerClosePublisher, AssignedConsumerRecvPublisher},
+    completion::{
+        AssignedConsumerClosePublisher, AssignedConsumerEventPublisher,
+        AssignedConsumerRecvPublisher,
+    },
+    next_event::AssignedConsumerEventWait,
     recv::AssignedConsumerRecvWait,
     state::AssignedConsumerShardState,
     wake::AssignedConsumerShardWake,
@@ -42,6 +46,7 @@ impl AssignedConsumerShardOwner {
         wake: Arc<W>,
         close_publisher: AssignedConsumerClosePublisher,
         recv_publisher: AssignedConsumerRecvPublisher,
+        event_publisher: AssignedConsumerEventPublisher,
     ) -> Result<(Self, AssignedConsumerPort), AssignedConsumerOwnerBuildError>
     where
         W: AssignedConsumerShardWake,
@@ -53,6 +58,7 @@ impl AssignedConsumerShardOwner {
             clock,
             wake,
             recv_publisher,
+            event_publisher,
         ));
         Ok((
             Self {
@@ -82,6 +88,7 @@ impl AssignedConsumerShardOwner {
             clock,
             wake,
             publishers.recv,
+            publishers.event,
         ));
         Ok((
             Self {
@@ -136,6 +143,11 @@ impl AssignedConsumerShardOwner {
     pub(crate) fn notify_recv_change(&self) {
         self.shared
             .request_recv_notification(AssignedConsumerRecvWait::Change);
+    }
+
+    pub(crate) fn notify_event_change(&self) {
+        self.shared
+            .request_event_notification(AssignedConsumerEventWait::Change);
     }
 
     #[cfg(test)]

@@ -21,6 +21,7 @@ fn startup_constructs_one_idle_owner_and_one_nonclone_port() {
         Arc::new(driver.reactor_wake()),
         publishers.close,
         publishers.recv,
+        publishers.event,
     )
     .unwrap_or_else(|error| panic!("assigned consumer: {error:?}"));
 

@@ -189,6 +189,7 @@ fn setup() -> (
         Arc::new(driver.reactor_wake()),
         publishers.close,
         publishers.recv,
+        publishers.event,
     )
     .unwrap_or_else(|error| panic!("assigned consumer: {error:?}"));
     (driver, clock, owner, port, notifier)

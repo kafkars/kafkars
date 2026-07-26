@@ -17,7 +17,10 @@ use super::super::{
     assigned_topics::AssignedTopicLimits,
 };
 use super::{
-    completion::{AssignedConsumerClosePublisher, AssignedConsumerRecvPublisher},
+    completion::{
+        AssignedConsumerClosePublisher, AssignedConsumerEventPublisher,
+        AssignedConsumerRecvPublisher,
+    },
     shard::{AssignedConsumerPort, AssignedConsumerShardOwner},
     wake::AssignedConsumerShardWake,
 };
@@ -34,6 +37,7 @@ pub(crate) fn build_first_assigned_consumer<W>(
     wake: Arc<W>,
     close_publisher: AssignedConsumerClosePublisher,
     recv_publisher: AssignedConsumerRecvPublisher,
+    event_publisher: AssignedConsumerEventPublisher,
 ) -> Result<(AssignedConsumerShardOwner, AssignedConsumerPort), AssignedConsumerOwnerBuildError>
 where
     W: AssignedConsumerShardWake,
@@ -60,5 +64,6 @@ where
         wake,
         close_publisher,
         recv_publisher,
+        event_publisher,
     )
 }

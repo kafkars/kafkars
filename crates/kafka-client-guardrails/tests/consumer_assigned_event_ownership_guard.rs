@@ -69,6 +69,7 @@ const METHODS: &[(&str, &[&str])] = &[
             OWNER_EVENT,
             PORT,
             "crates/kafka-client-engine/src/consumer/assigned_host/handle.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_host/next_event/port.rs",
         ],
     ),
     ("retain_terminal", &[OWNER_EVENT]),

@@ -17,6 +17,7 @@ fn first_slice_builds_one_idle_bounded_owner() {
         Arc::new(CountingWake::default()),
         publishers.close,
         publishers.recv,
+        publishers.event,
     )
     .unwrap_or_else(|error| panic!("first assigned consumer: {error:?}"));
 

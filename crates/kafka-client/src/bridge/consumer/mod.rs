@@ -10,6 +10,8 @@ mod control_result;
 mod event;
 mod event_result;
 mod handle;
+mod next_event;
+mod next_event_result;
 mod recv;
 mod recv_result;
 mod result;
@@ -19,6 +21,7 @@ pub(crate) use batch::{
 };
 pub(crate) use close::AssignedConsumerClose;
 pub(crate) use handle::AssignedConsumerEngine;
+pub(crate) use next_event::AssignedConsumerNextEvent;
 pub(crate) use recv::AssignedConsumerRecv;
 
 #[cfg(test)]
@@ -41,6 +44,10 @@ mod event_result_test;
 mod event_test;
 #[cfg(test)]
 mod handle_test;
+#[cfg(test)]
+mod next_event_result_test;
+#[cfg(test)]
+mod next_event_test;
 #[cfg(test)]
 mod recv_result_test;
 #[cfg(test)]

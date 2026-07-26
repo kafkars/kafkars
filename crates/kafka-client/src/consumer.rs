@@ -3,6 +3,7 @@
 mod assigned;
 mod assigned_builder;
 mod assigned_close;
+mod assigned_next_event;
 mod assigned_recv;
 mod assignment;
 mod checkpoint;
@@ -16,6 +17,7 @@ mod record_batch;
 pub use assigned::AssignedConsumer;
 pub use assigned_builder::AssignedConsumerBuilder;
 pub use assigned_close::CloseAssignedConsumer;
+pub use assigned_next_event::NextAssignedEvent;
 pub use assigned_recv::RecvAssignedBatch;
 pub use assignment::{StartPosition, TopicPartition};
 pub use checkpoint::Checkpoint;
@@ -34,6 +36,8 @@ pub use record_batch::RecordBatch;
 mod assigned_builder_test;
 #[cfg(test)]
 mod assigned_close_test;
+#[cfg(test)]
+mod assigned_next_event_test;
 #[cfg(test)]
 mod assigned_recv_test;
 #[cfg(test)]

@@ -18,20 +18,25 @@ use super::super::{
 };
 use super::{
     close_observer::AssignedConsumerCloseObserver,
-    completion::AssignedConsumerRecvPublisher,
+    completion::{AssignedConsumerEventPublisher, AssignedConsumerRecvPublisher},
     delivery::AssignedConsumerDelivery,
+    next_event::AssignedConsumerEventSignal,
     reclaim::AssignedConsumerReclaimRejection,
     recv::{AssignedConsumerRecvSignal, AssignedConsumerRecvWait},
     shard::AssignedConsumerShardLockError,
     wake::AssignedConsumerShardWake,
 };
 
+type OwnerGuard<'a> = MutexGuard<'a, Option<AssignedConsumerOwner>>;
+
 pub(super) struct AssignedConsumerShardState {
     owner: Mutex<Option<AssignedConsumerOwner>>,
     pub(super) clock: Arc<MonotonicClock>,
     pub(super) wake: Arc<dyn AssignedConsumerShardWake>,
     pub(super) recv_signal: Arc<AssignedConsumerRecvSignal>,
+    pub(super) event_signal: Arc<AssignedConsumerEventSignal>,
     recv_publisher: AssignedConsumerRecvPublisher,
+    event_publisher: AssignedConsumerEventPublisher,
     admission_closed: AtomicBool,
 }
 
@@ -41,13 +46,16 @@ impl AssignedConsumerShardState {
         clock: Arc<MonotonicClock>,
         wake: Arc<dyn AssignedConsumerShardWake>,
         recv_publisher: AssignedConsumerRecvPublisher,
+        event_publisher: AssignedConsumerEventPublisher,
     ) -> Self {
         Self {
             owner: Mutex::new(Some(owner)),
             clock,
             wake,
             recv_signal: Arc::new(AssignedConsumerRecvSignal::new()),
+            event_signal: Arc::new(AssignedConsumerEventSignal::new()),
             recv_publisher,
+            event_publisher,
             admission_closed: AtomicBool::new(false),
         }
     }
@@ -61,7 +69,7 @@ impl AssignedConsumerShardState {
         match self.owner() {
             Ok(guard) => self.finish_owner_lock(guard, Ok(()), AssignedConsumerRecvWait::Change),
             Err(error) => {
-                self.request_recv_notification(AssignedConsumerRecvWait::Change);
+                self.request_observation_change_notifications();
                 Err(error)
             }
         }
@@ -178,7 +186,7 @@ impl AssignedConsumerShardState {
         if returned_to_owner {
             let _wake = self.wake.request_assigned_turn();
         }
-        self.request_recv_notification(AssignedConsumerRecvWait::Unlock);
+        self.request_observation_unlock_notifications();
     }
 
     /// Consumes the failed owner after the caller has destroyed the unique driver.
@@ -210,24 +218,19 @@ impl AssignedConsumerShardState {
     }
 
     #[cfg(test)]
-    pub(super) fn lock_for_test(&self) -> MutexGuard<'_, Option<AssignedConsumerOwner>> {
-        match self.owner.lock() {
-            Ok(guard) => guard,
-            Err(poisoned) => poisoned.into_inner(),
-        }
+    pub(super) fn lock_for_test(&self) -> OwnerGuard<'_> {
+        self.owner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
-    pub(super) fn owner(
-        &self,
-    ) -> Result<MutexGuard<'_, Option<AssignedConsumerOwner>>, AssignedConsumerShardLockError> {
+    pub(super) fn owner(&self) -> Result<OwnerGuard<'_>, AssignedConsumerShardLockError> {
         self.owner
             .lock()
             .map_err(|_poisoned| AssignedConsumerShardLockError::Poisoned)
     }
 
-    pub(super) fn try_owner(
-        &self,
-    ) -> Result<MutexGuard<'_, Option<AssignedConsumerOwner>>, AssignedConsumerShardLockError> {
+    pub(super) fn try_owner(&self) -> Result<OwnerGuard<'_>, AssignedConsumerShardLockError> {
         match self.owner.try_lock() {
             Ok(guard) => Ok(guard),
             Err(TryLockError::WouldBlock) => Err(AssignedConsumerShardLockError::Contended),

@@ -5,8 +5,9 @@ use std::sync::Arc;
 use crate::{
     clock::MonotonicClock,
     consumer::{
-        AssignedConsumerClosePublisher, AssignedConsumerOwnerBuildError, AssignedConsumerPort,
-        AssignedConsumerRecvPublisher, AssignedConsumerShardOwner, build_first_assigned_consumer,
+        AssignedConsumerClosePublisher, AssignedConsumerEventPublisher,
+        AssignedConsumerOwnerBuildError, AssignedConsumerPort, AssignedConsumerRecvPublisher,
+        AssignedConsumerShardOwner, build_first_assigned_consumer,
     },
     driver::ReactorWake,
 };
@@ -16,6 +17,13 @@ pub(super) fn start_assigned_consumer(
     wake: Arc<ReactorWake>,
     close_publisher: AssignedConsumerClosePublisher,
     recv_publisher: AssignedConsumerRecvPublisher,
+    event_publisher: AssignedConsumerEventPublisher,
 ) -> Result<(AssignedConsumerShardOwner, AssignedConsumerPort), AssignedConsumerOwnerBuildError> {
-    build_first_assigned_consumer(clock, wake, close_publisher, recv_publisher)
+    build_first_assigned_consumer(
+        clock,
+        wake,
+        close_publisher,
+        recv_publisher,
+        event_publisher,
+    )
 }

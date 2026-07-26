@@ -26,7 +26,7 @@ fn one_claim_transfers_the_port_and_rejects_every_later_claim() {
         slot.claim(lifetime).err(),
         Some(AssignedConsumerClaimError::AlreadyClaimed)
     );
-    assert!(handle.begin_close_for_test().is_ok());
+    assert!(handle.port.begin_close().is_ok());
 }
 
 #[test]
@@ -43,7 +43,7 @@ fn retained_closer_fences_admission_after_the_port_transfers() {
         .unwrap_or_else(|error| panic!("close admission: {error:?}"));
 
     assert!(matches!(
-        handle.begin_close_for_test(),
+        handle.port.begin_close(),
         Err(AssignedConsumerPortError::Closed)
     ));
 }
@@ -74,7 +74,7 @@ fn failed_second_engine_claim_leaves_the_live_handle_operational() {
         engine.claim_assigned_consumer().err(),
         Some(AssignedConsumerClaimError::AlreadyClaimed)
     );
-    assert!(handle.begin_close_for_test().is_ok());
+    assert!(handle.port.begin_close().is_ok());
     assert!(engine.shutdown().is_ok());
 }
 

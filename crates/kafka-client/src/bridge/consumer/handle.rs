@@ -15,6 +15,7 @@ use super::{
     control_result::{translate_assigned_control_admission, translate_missing_assignment},
     event::translate_assigned_event,
     event_result::translate_assigned_event_observation,
+    next_event::AssignedConsumerNextEvent,
     recv::AssignedConsumerRecv,
     result::translate_assigned_consumer_claim,
 };
@@ -117,6 +118,11 @@ impl AssignedConsumerEngine {
             .try_take_event()
             .map(|event| event.map(translate_assigned_event))
             .map_err(translate_assigned_event_observation)
+    }
+
+    /// Waits only for one already-retained failure event.
+    pub(crate) fn next_event(&mut self) -> AssignedConsumerNextEvent<'_> {
+        AssignedConsumerNextEvent::from_engine(self.handle.next_event())
     }
 
     /// Waits only for an already-authorized delivery.

@@ -58,6 +58,7 @@ pub(super) fn drive_shard(
         || result.is_err()
     {
         shard.notify_recv_change();
+        shard.notify_event_change();
     }
     result
 }

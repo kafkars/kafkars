@@ -9,7 +9,8 @@ pub use super::assigned_host::{
     AssignedConsumerControlError, AssignedConsumerControlErrorKind, AssignedConsumerEvent,
     AssignedConsumerFetchFailure, AssignedConsumerFetchFailureKind, AssignedConsumerFetchFence,
     AssignedConsumerFetchThrottleFailure, AssignedConsumerFetchThrottleFailureKind,
-    AssignedConsumerHandle, AssignedConsumerHeader, AssignedConsumerPartition,
+    AssignedConsumerHandle, AssignedConsumerHeader, AssignedConsumerNextEvent,
+    AssignedConsumerNextEventError, AssignedConsumerNextEventErrorKind, AssignedConsumerPartition,
     AssignedConsumerPartitionInputError, AssignedConsumerPartitionInputErrorKind,
     AssignedConsumerPositionFence, AssignedConsumerPositionResolutionFailure,
     AssignedConsumerPositionResolutionFailureKind, AssignedConsumerRecord, AssignedConsumerRecords,
@@ -23,7 +24,7 @@ pub use super::assigned_host::{
 };
 pub(crate) use super::assigned_host::{
     AssignedConsumerClosePublisher, AssignedConsumerCompletionNotifier,
-    AssignedConsumerCompletionPorts, AssignedConsumerRecvPublisher,
+    AssignedConsumerCompletionPorts, AssignedConsumerEventPublisher, AssignedConsumerRecvPublisher,
 };
 
 pub(crate) use super::{

@@ -25,8 +25,7 @@ impl AssignedConsumerPort {
                 Ok(mut guard) => {
                     let result = self.probe_recv(&mut guard, registration, Some(context));
                     drop(guard);
-                    self.shared
-                        .request_recv_notification(AssignedConsumerRecvWait::Unlock);
+                    self.shared.request_observation_unlock_notifications();
                     return result;
                 }
                 Err(AssignedConsumerShardLockError::Contended) => {
@@ -63,8 +62,7 @@ impl AssignedConsumerPort {
             match self.probe_recv(&mut guard, registration, None) {
                 Poll::Ready(result) => {
                     drop(guard);
-                    self.shared
-                        .request_recv_notification(AssignedConsumerRecvWait::Unlock);
+                    self.shared.request_observation_unlock_notifications();
                     return result;
                 }
                 Poll::Pending => {
@@ -72,8 +70,7 @@ impl AssignedConsumerPort {
                         return Err(AssignedConsumerRecvError::internal_invariant());
                     };
                     drop(guard);
-                    self.shared
-                        .request_recv_notification(AssignedConsumerRecvWait::Unlock);
+                    self.shared.request_observation_unlock_notifications();
                     self.shared.recv_signal.wait(id).map_err(translate_signal)?;
                 }
             }

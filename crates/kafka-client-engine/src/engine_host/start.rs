@@ -67,6 +67,7 @@ pub(crate) fn start(
             Arc::clone(&wake),
             assigned_publishers.close,
             assigned_publishers.recv,
+            assigned_publishers.event,
         ) {
             Ok(owner) => owner,
             Err(error) => {

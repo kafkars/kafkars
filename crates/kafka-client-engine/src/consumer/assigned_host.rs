@@ -45,6 +45,7 @@ mod event_port_test;
 mod handle;
 #[cfg(test)]
 mod handle_test;
+mod next_event;
 mod owner_control;
 #[cfg(test)]
 mod owner_control_test;
@@ -86,7 +87,7 @@ pub(crate) use close_observer::AssignedConsumerCloseTerminal;
 pub use close_observer::{AssignedConsumerCloseObserver, AssignedConsumerCloseObserverError};
 pub(crate) use completion::{
     AssignedConsumerClosePublisher, AssignedConsumerCompletionNotifier,
-    AssignedConsumerCompletionPorts, AssignedConsumerRecvPublisher,
+    AssignedConsumerCompletionPorts, AssignedConsumerEventPublisher, AssignedConsumerRecvPublisher,
 };
 pub(crate) use control::AssignedConsumerControlInputError;
 pub use control::{
@@ -110,6 +111,9 @@ pub use event::{
     AssignedConsumerTryTakeEventError, AssignedConsumerTryTakeEventErrorKind,
 };
 pub use handle::AssignedConsumerHandle;
+pub use next_event::{
+    AssignedConsumerNextEvent, AssignedConsumerNextEventError, AssignedConsumerNextEventErrorKind,
+};
 pub use recv::{AssignedConsumerRecv, AssignedConsumerRecvError, AssignedConsumerRecvErrorKind};
 pub use result::{
     AssignedConsumerAcceptedFaultKind, AssignedConsumerTryCloseAccepted,

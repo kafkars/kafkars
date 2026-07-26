@@ -13,6 +13,7 @@ use super::{
     control_result::{AssignedConsumerControlAccepted, AssignedConsumerControlError},
     delivery::{AssignedConsumerBatch, AssignedConsumerTryTakeBatchError},
     event::{AssignedConsumerEvent, AssignedConsumerTryTakeEventError},
+    next_event::AssignedConsumerNextEvent,
     recv::AssignedConsumerRecv,
     result::{AssignedConsumerTryCloseAccepted, AssignedConsumerTryCloseError},
     shard::AssignedConsumerPort,
@@ -44,6 +45,13 @@ impl AssignedConsumerHandle {
     /// This operation creates no Fetch attempt or application timeout.
     pub fn recv(&mut self) -> AssignedConsumerRecv<'_> {
         AssignedConsumerRecv::new(self)
+    }
+
+    /// Waits for one already-retained assigned-consumer failure event.
+    ///
+    /// This operation creates no Fetch attempt, deadline, or reactor work.
+    pub fn next_event(&mut self) -> AssignedConsumerNextEvent<'_> {
+        AssignedConsumerNextEvent::new(self)
     }
 
     /// Attempts an immediate, all-or-nothing replacement of every partition.
@@ -186,9 +194,8 @@ impl AssignedConsumerHandle {
         self.port
             .take_named_delivery()
             .map(|delivery| {
-                delivery.map(|delivery| {
-                    AssignedConsumerBatch::new(delivery, Arc::clone(&self.port.shared))
-                })
+                delivery
+                    .map(|batch| AssignedConsumerBatch::new(batch, Arc::clone(&self.port.shared)))
             })
             .map_err(|error| AssignedConsumerTryTakeBatchError::from_port(&error))
     }
@@ -213,16 +220,6 @@ impl AssignedConsumerHandle {
             .begin_close()
             .map(AssignedConsumerTryCloseAccepted::from_port)
             .map_err(|error| AssignedConsumerTryCloseError::from_port(&error))
-    }
-
-    #[cfg(test)]
-    pub(crate) fn begin_close_for_test(
-        &self,
-    ) -> Result<
-        super::result::AssignedConsumerAccepted<super::AssignedConsumerCloseObserver>,
-        super::result::AssignedConsumerPortError,
-    > {
-        self.port.begin_close()
     }
 }
 
