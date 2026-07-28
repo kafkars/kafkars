@@ -7,6 +7,7 @@ use kafka_client_core::{
     CreateTopicsTerminal, DeleteConsumerGroupOffsetsTerminal, DeleteTopicsTerminal,
     DescribeClusterTerminal, DescribeConfigsTerminal, DescribeTopicsTerminal,
     IncrementalAlterConfigsTerminal, ListConsumerGroupOffsetsTerminal,
+    ListPartitionReassignmentsTerminal,
 };
 
 use crate::completion::{
@@ -19,6 +20,7 @@ use super::{
     CREATE_TOPICS_CAPACITY, DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY, DELETE_TOPICS_CAPACITY,
     DESCRIBE_CLUSTER_CAPACITY, DESCRIBE_CONFIGS_CAPACITY, DESCRIBE_TOPICS_CAPACITY,
     INCREMENTAL_ALTER_CONFIGS_CAPACITY, LIST_CONSUMER_GROUP_OFFSETS_CAPACITY,
+    LIST_PARTITION_REASSIGNMENTS_CAPACITY,
 };
 
 const ADMIN_NOTIFIER_THREAD: &str = "kafka-client-admin-completion-notifier";
@@ -32,7 +34,8 @@ const ADMIN_NOTIFICATION_CAPACITY: usize = CREATE_TOPICS_CAPACITY
     + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
     + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
     + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
-    + ADMIN_LIST_OFFSETS_CAPACITY;
+    + ADMIN_LIST_OFFSETS_CAPACITY
+    + LIST_PARTITION_REASSIGNMENTS_CAPACITY;
 
 /// Closed allocation-free set of terminal tickets accepted by the admin worker.
 pub(crate) enum AdminPublishTicket {
@@ -47,6 +50,7 @@ pub(crate) enum AdminPublishTicket {
     DeleteConsumerGroupOffsets(PublishTicket<DeleteConsumerGroupOffsetsTerminal>),
     AlterConsumerGroupOffsets(PublishTicket<AlterConsumerGroupOffsetsTerminal>),
     AdminListOffsets(PublishTicket<AdminListOffsetsTerminal>),
+    ListPartitionReassignments(PublishTicket<ListPartitionReassignmentsTerminal>),
 }
 
 impl NotificationTicket for AdminPublishTicket {
@@ -63,6 +67,7 @@ impl NotificationTicket for AdminPublishTicket {
             Self::DeleteConsumerGroupOffsets(ticket) => ticket.publish(),
             Self::AlterConsumerGroupOffsets(ticket) => ticket.publish(),
             Self::AdminListOffsets(ticket) => ticket.publish(),
+            Self::ListPartitionReassignments(ticket) => ticket.publish(),
         }
     }
 }
@@ -87,6 +92,8 @@ pub(crate) type AlterConsumerGroupOffsetsPublisher =
     SharedPublishPort<AlterConsumerGroupOffsetsTerminal, AdminPublishTicket>;
 pub(crate) type AdminListOffsetsPublisher =
     SharedPublishPort<AdminListOffsetsTerminal, AdminPublishTicket>;
+pub(crate) type ListPartitionReassignmentsPublisher =
+    SharedPublishPort<ListPartitionReassignmentsTerminal, AdminPublishTicket>;
 
 /// Exact typed ports issued once with the shared worker.
 pub(crate) struct AdminCompletionPorts {
@@ -101,6 +108,7 @@ pub(crate) struct AdminCompletionPorts {
     pub(crate) delete_consumer_group_offsets: DeleteConsumerGroupOffsetsPublisher,
     pub(crate) alter_consumer_group_offsets: AlterConsumerGroupOffsetsPublisher,
     pub(crate) admin_list_offsets: AdminListOffsetsPublisher,
+    pub(crate) list_partition_reassignments: ListPartitionReassignmentsPublisher,
 }
 
 /// Unique lifecycle owner for the one shared admin notifier.
@@ -127,6 +135,8 @@ impl AdminCompletionNotifier {
             alter_consumer_group_offsets: worker
                 .publish_port(AdminPublishTicket::AlterConsumerGroupOffsets),
             admin_list_offsets: worker.publish_port(AdminPublishTicket::AdminListOffsets),
+            list_partition_reassignments: worker
+                .publish_port(AdminPublishTicket::ListPartitionReassignments),
         };
         Ok((
             Self {

@@ -24,6 +24,7 @@ mod list_topics;
 mod list_topics_builder;
 mod new_partitions;
 mod new_topic;
+mod partition_reassignments;
 mod partitions_builder;
 mod public_api;
 mod topic_description;

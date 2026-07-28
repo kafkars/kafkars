@@ -1,79 +1,24 @@
 //! Fair reactor-native execution and ordered terminal shutdown.
 
-use std::{sync::Arc, time::Duration};
+mod resources;
+
+use std::time::Duration;
 
 use kafka_client_core::{Deadline, Moment};
 
-use crate::{
-    admin::{
-        AdminListOffsetsShardOwner, AlterConsumerGroupOffsetsShardOwner,
-        CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner,
-        DeleteTopicsShardOwner, DescribeClusterShardOwner, DescribeConfigsShardOwner,
-        DescribeTopicsShardOwner, IncrementalAlterConfigsShardOwner,
-        ListConsumerGroupOffsetsShardOwner,
-    },
-    clock::MonotonicClock,
-    driver::{
-        DescribeClusterCalls, DescribeConfigsCalls, DescribeTopicsCalls, DriverOwner, DriverTurn,
-        IncrementalAlterConfigsCalls, TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls,
-        TrackedDeleteTopicsCalls, TrackedProduceCalls, TrackedProducerIdentityCalls,
-    },
-    producer::{
-        host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
-        ingress::ProducerShardOwner,
-    },
-    transaction::TransactionInitializationShardOwner,
-};
+use crate::{driver::DriverTurn, producer::host_turn::ProducerTurnOutcome};
 
 use super::{
-    EngineHostControl, EngineHostError, admin, assigned_consumer, cleanup, group_consumer,
+    EngineHostError, admin, assigned_consumer, cleanup, group_consumer,
     notifier_shutdown::NotifierShutdownOwner, produce_turn, transaction,
 };
+
+pub(crate) use resources::EngineHostResources;
 
 // Wake failure cannot revoke ownership; the park cap preserves deadline and shutdown liveness.
 const HOST_PARK_LIMIT: Duration = Duration::from_millis(100);
 const BLOCKED_RETRY_DELAY: Duration = HOST_PARK_LIMIT;
 const SHUTDOWN_TURN_ATTEMPTS: usize = 64;
-pub(crate) struct EngineHostResources {
-    pub(super) driver: Option<DriverOwner>,
-    pub(super) producer: ProducerShardOwner,
-    pub(super) admin_notifier: crate::admin::AdminCompletionNotifier,
-    pub(super) assigned_consumer_notifier: crate::consumer::AssignedConsumerCompletionNotifier,
-    pub(super) create_topics: CreateTopicsShardOwner,
-    pub(super) delete_topics: DeleteTopicsShardOwner,
-    pub(super) describe_cluster: DescribeClusterShardOwner,
-    pub(super) create_partitions: CreatePartitionsShardOwner,
-    pub(super) describe_topics: DescribeTopicsShardOwner,
-    pub(super) describe_configs: DescribeConfigsShardOwner,
-    pub(super) incremental_alter_configs: IncrementalAlterConfigsShardOwner,
-    pub(super) list_consumer_group_offsets: ListConsumerGroupOffsetsShardOwner,
-    pub(super) delete_consumer_group_offsets: DeleteConsumerGroupOffsetsShardOwner,
-    pub(super) alter_consumer_group_offsets: AlterConsumerGroupOffsetsShardOwner,
-    pub(super) list_offsets: AdminListOffsetsShardOwner,
-    pub(super) assigned_consumer: crate::consumer::AssignedConsumerShardOwner,
-    pub(super) group_consumers: crate::consumer::GroupConsumerShardOwner,
-    pub(super) transaction_initialization: TransactionInitializationShardOwner,
-    pub(super) clock: Arc<MonotonicClock>,
-    pub(super) control: Arc<EngineHostControl>,
-    pub(super) budget: ProducerTurnBudget,
-    pub(super) produce_calls: TrackedProduceCalls,
-    pub(super) producer_identity_calls: TrackedProducerIdentityCalls,
-    pub(super) producer_partitioning_call: Option<super::produce::ProducerPartitioningCall>,
-    pub(super) create_topics_calls: TrackedCreateTopicsCalls,
-    pub(super) delete_topics_calls: TrackedDeleteTopicsCalls,
-    pub(super) describe_cluster_calls: DescribeClusterCalls,
-    pub(super) create_partitions_calls: TrackedCreatePartitionsCalls,
-    pub(super) describe_topics_calls: DescribeTopicsCalls,
-    pub(super) describe_configs_calls: DescribeConfigsCalls,
-    pub(super) incremental_alter_configs_calls: IncrementalAlterConfigsCalls,
-}
-
-impl Drop for EngineHostResources {
-    fn drop(&mut self) {
-        super::admission_close::close_all(self);
-    }
-}
-
 pub(crate) struct EngineHostExit {
     pub(super) notifier: NotifierShutdownOwner,
     pub(super) failure: Option<EngineHostError>,

@@ -1,18 +1,18 @@
 //! Leak-free resource handoff into one self-cleaning native host.
 
+mod admin_hosts;
 mod list_offsets;
+mod list_partition_reassignments;
 
 use std::sync::Arc;
 
 use crate::{
     EngineConfig,
     admin::{
-        AdminCompletionNotifier, AdminCompletionPorts, CreatePartitionsHost,
-        CreatePartitionsShardOwner, CreateTopicsHost, CreateTopicsShardOwner,
-        DeleteConsumerGroupOffsetsHost, DeleteConsumerGroupOffsetsShardOwner, DeleteTopicsHost,
-        DeleteTopicsShardOwner, DescribeClusterHost, DescribeClusterShardOwner, DescribeTopicsHost,
-        DescribeTopicsShardOwner, IncrementalAlterConfigsHost, IncrementalAlterConfigsShardOwner,
-        ListConsumerGroupOffsetsHost, ListConsumerGroupOffsetsShardOwner,
+        AdminCompletionNotifier, CreatePartitionsShardOwner, CreateTopicsShardOwner,
+        DeleteConsumerGroupOffsetsShardOwner, DeleteTopicsShardOwner, DescribeClusterShardOwner,
+        DescribeTopicsShardOwner, IncrementalAlterConfigsShardOwner,
+        ListConsumerGroupOffsetsShardOwner,
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
@@ -29,6 +29,7 @@ use super::{
     start_handoff::{StartedEngineHost, cancel_start, join_cancelled},
     thread_start, transaction_start,
 };
+use admin_hosts::StartedAdminHosts;
 
 #[allow(clippy::too_many_lines)]
 pub(crate) fn start(
@@ -72,7 +73,7 @@ pub(crate) fn start(
             return cancel_start(sender, handle, EngineStartError::admin_notifier(&error));
         }
     };
-    let AdminCompletionPorts {
+    let StartedAdminHosts {
         create_topics,
         delete_topics,
         describe_cluster,
@@ -84,17 +85,8 @@ pub(crate) fn start(
         delete_consumer_group_offsets,
         alter_consumer_group_offsets,
         admin_list_offsets,
-    } = admin_ports;
-    let create_topics = CreateTopicsHost::new(create_topics);
-    let delete_topics = DeleteTopicsHost::new(delete_topics);
-    let describe_cluster = DescribeClusterHost::new(describe_cluster);
-    let create_partitions = CreatePartitionsHost::new(create_partitions);
-    let describe_topics = DescribeTopicsHost::new(describe_topics);
-    let incremental_alter_configs = IncrementalAlterConfigsHost::new(incremental_alter_configs);
-    let list_consumer_group_offsets =
-        ListConsumerGroupOffsetsHost::new(list_consumer_group_offsets);
-    let delete_consumer_group_offsets =
-        DeleteConsumerGroupOffsetsHost::new(delete_consumer_group_offsets);
+        list_partition_reassignments,
+    } = admin_hosts::start(admin_ports);
     let mut group_consumers = match GroupConsumerRegistry::start() {
         Ok(registry) => registry,
         Err(error) => {
@@ -162,6 +154,8 @@ pub(crate) fn start(
         driver.reactor_wake(),
     );
     let list_offsets = list_offsets::start(admin_list_offsets, driver.reactor_wake());
+    let list_partition_reassignments =
+        list_partition_reassignments::start(list_partition_reassignments, driver.reactor_wake());
     let produce_calls =
         crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
     let resources = EngineHostResources {
@@ -180,6 +174,7 @@ pub(crate) fn start(
         delete_consumer_group_offsets,
         alter_consumer_group_offsets: alter_consumer_group_offsets.owner,
         list_offsets: list_offsets.owner,
+        list_partition_reassignments: list_partition_reassignments.owner,
         assigned_consumer: assigned_consumer_owner,
         group_consumers,
         transaction_initialization,
@@ -230,6 +225,7 @@ pub(crate) fn start(
         delete_consumer_group_offsets_admission,
         alter_consumer_group_offsets_admission: alter_consumer_group_offsets.admission,
         list_offsets_admission: list_offsets.admission,
+        list_partition_reassignments_admission: list_partition_reassignments.admission,
         assigned_consumer,
         group_consumer,
         transaction_initialization: transaction_initialization_admission,

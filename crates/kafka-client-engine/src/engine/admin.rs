@@ -32,6 +32,10 @@ impl Engine {
                     .alter_consumer_group_offsets_admission
                     .clone(),
                 list_offsets: self.inner.list_offsets_admission.clone(),
+                list_partition_reassignments: self
+                    .inner
+                    .list_partition_reassignments_admission
+                    .clone(),
             },
             Arc::clone(&self.inner.clock),
             lifetime,
@@ -56,5 +60,8 @@ impl EngineInner {
             .alter_consumer_group_offsets_admission
             .close_admission();
         let _close_result = self.list_offsets_admission.close_admission();
+        let _close_result = self
+            .list_partition_reassignments_admission
+            .close_admission();
     }
 }

@@ -105,5 +105,21 @@ pub(in crate::engine_host) fn recover_operations(
         failure = failure.with_cleanup(cleanup);
     }
     drop(list_offsets);
+    recover_listing(resources, failure)
+}
+
+fn recover_listing(
+    resources: &EngineHostResources,
+    mut failure: EngineHostError,
+) -> EngineHostError {
+    let mut listing = resources.list_partition_reassignments.terminal_host();
+    if let Some(cleanup) = listing
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::ListPartitionReassignments)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    drop(listing);
     failure
 }

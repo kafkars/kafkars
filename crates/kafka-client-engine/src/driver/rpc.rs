@@ -1,4 +1,4 @@
-//! Declarative boundary for concrete generated RPC ownership.
+//! Concrete generated RPC ownership and closed exports.
 
 pub(crate) mod admin_list_offsets_call;
 #[cfg(test)]
@@ -66,6 +66,7 @@ mod describe_topics_submission_test;
 mod describe_topics_terminal;
 #[cfg(test)]
 mod describe_topics_terminal_test;
+mod exports;
 #[cfg_attr(not(test), expect(dead_code, reason = "awaiting consumer executor"))]
 mod fetch;
 mod group_coordinator_route;
@@ -156,6 +157,18 @@ mod list_offsets_submission_test;
 mod list_offsets_terminal;
 #[cfg(test)]
 mod list_offsets_terminal_test;
+mod list_partition_reassignments_call;
+#[cfg(test)]
+mod list_partition_reassignments_call_test;
+mod list_partition_reassignments_submission;
+#[cfg(test)]
+mod list_partition_reassignments_submission_test;
+mod list_partition_reassignments_terminal;
+#[cfg(test)]
+mod list_partition_reassignments_terminal_test;
+mod reassignment_controller_refresh;
+#[cfg(test)]
+mod reassignment_controller_refresh_test;
 mod submission;
 #[cfg(test)]
 mod submission_test;
@@ -172,41 +185,19 @@ mod transaction_init_submission_test;
 mod transaction_init_terminal;
 #[cfg(test)]
 mod transaction_init_terminal_test;
-pub(crate) use admin_list_offsets_call::AdminListOffsetsCall;
-pub(crate) use calls::{ProduceCompletionFailure, TrackedProduceCalls};
-pub(crate) use create_partitions_calls::{
-    CreatePartitionsCompletionFailure, TrackedCreatePartitionsCalls,
-};
-pub(crate) use create_topics_calls::{CreateTopicsCompletionFailure, TrackedCreateTopicsCalls};
-pub(crate) use delete_topics_calls::{DeleteTopicsCompletionFailure, TrackedDeleteTopicsCalls};
-pub(crate) use describe_cluster_calls::{DescribeClusterCalls, DescribeClusterCompletionFailure};
-pub(crate) use describe_configs_calls::{DescribeConfigsCalls, DescribeConfigsCompletionFailure};
-pub(crate) use describe_topics_calls::{DescribeTopicsCalls, DescribeTopicsCompletionFailure};
-pub(crate) use fetch::{
-    FetchBeginSettlementError, FetchCallAdmission, FetchCompletionObservation,
-    FetchConfirmationError, FetchControlPending, FetchPoll, FetchRecovery, FetchTerminal,
-    PartitionFetchRequest, StaleFetchConfirmationError, TrackedFetchCalls,
-    classify_fetch_admission, classify_fetch_request_error,
-};
-pub(crate) use group_offset_alter_call::GroupOffsetAlterCall;
-pub(crate) use group_offset_alter_terminal::{
-    GroupOffsetAlterDriverFailureKind, GroupOffsetAlterTerminal, GroupOffsetAlterTerminalFact,
-    RecoveredGroupOffsetAlterCall,
-};
-pub(crate) use group_offset_commit_calls::TrackedGroupOffsetCommitCalls;
-pub(crate) use group_offset_commit_recovery::GroupOffsetCommitShutdownRecovery;
-pub(crate) use group_offset_commit_settlement::GroupOffsetCommitPoll;
-pub(crate) use group_offset_delete_call::GroupOffsetDeleteCall;
-pub(crate) use group_offset_delete_terminal::{
-    GroupOffsetDeleteDriverFailureKind, GroupOffsetDeleteTerminal, GroupOffsetDeleteTerminalFact,
-};
-pub(crate) use group_offsets_call::GroupOffsetsCall;
-pub(crate) use group_offsets_terminal::{
-    GroupOffsetsDriverFailureKind, GroupOffsetsTerminal, GroupOffsetsTerminalFact,
-};
 #[cfg(test)]
-pub(crate) use group_position_offset_fetch::GroupPositionOffsetFetchTestPartition;
-pub(crate) use group_position_offset_fetch::{
+pub(crate) use exports::GroupPositionOffsetFetchTestPartition;
+pub(crate) use exports::{
+    AdminListOffsetsCall, CreatePartitionsCompletionFailure, CreateTopicsCompletionFailure,
+    DeleteTopicsCompletionFailure, DescribeClusterCalls, DescribeClusterCompletionFailure,
+    DescribeConfigsCalls, DescribeConfigsCompletionFailure, DescribeTopicsCalls,
+    DescribeTopicsCompletionFailure, FetchBeginSettlementError, FetchCallAdmission,
+    FetchCompletionObservation, FetchConfirmationError, FetchControlPending, FetchPoll,
+    FetchRecovery, FetchTerminal, GroupOffsetAlterCall, GroupOffsetAlterDriverFailureKind,
+    GroupOffsetAlterTerminal, GroupOffsetAlterTerminalFact, GroupOffsetCommitPoll,
+    GroupOffsetCommitShutdownRecovery, GroupOffsetDeleteCall, GroupOffsetDeleteDriverFailureKind,
+    GroupOffsetDeleteTerminal, GroupOffsetDeleteTerminalFact, GroupOffsetsCall,
+    GroupOffsetsDriverFailureKind, GroupOffsetsTerminal, GroupOffsetsTerminalFact,
     GroupPositionOffsetFetchAccepted, GroupPositionOffsetFetchAdmission,
     GroupPositionOffsetFetchAdmissionFailure, GroupPositionOffsetFetchBeginError,
     GroupPositionOffsetFetchCompletionFailureKind, GroupPositionOffsetFetchCompletionObservation,
@@ -216,25 +207,19 @@ pub(crate) use group_position_offset_fetch::{
     GroupPositionOffsetFetchReturn, GroupPositionOffsetFetchReturnReason,
     GroupPositionOffsetFetchShutdownRecovery, GroupPositionOffsetFetchSubmitError,
     GroupPositionOffsetFetchTerminal, GroupPositionOffsetFetchTerminalFact,
-    TrackedGroupPositionOffsetFetchCalls,
-};
-pub(crate) use incremental_alter_configs_calls::{
     IncrementalAlterConfigsCalls, IncrementalAlterConfigsCompletionFailure,
-};
-pub(crate) use init_producer_id_calls::{
-    ProducerIdentityCompletionFailure, TrackedProducerIdentityCalls,
-};
-pub(crate) use list_offsets_admission::{
-    PositionAdmissionFailure, PositionRequestPreparationError, PositionResolutionRequest,
-};
-pub(crate) use list_offsets_calls::{PositionCompletionFailure, TrackedPositionCalls};
-pub(crate) use submission::ProduceSubmitError;
-pub(crate) use topic_view::{
-    ProducerTopicViewCall, TopicPartitionCountAdmissionFailure,
+    ListPartitionReassignmentsCall, ListPartitionReassignmentsDriverFailureKind,
+    ListPartitionReassignmentsRawTerminal, ListPartitionReassignmentsTerminalFact,
+    PartitionFetchRequest, PositionAdmissionFailure, PositionCompletionFailure,
+    PositionRequestPreparationError, PositionResolutionRequest, ProduceCompletionFailure,
+    ProduceSubmitError, ProducerIdentityCompletionFailure, ProducerTopicViewCall,
+    RecoveredGroupOffsetAlterCall, RecoveredListPartitionReassignmentsCall,
+    StaleFetchConfirmationError, TopicPartitionCountAdmissionFailure,
     TopicPartitionCountAdmissionFailureKind, TopicPartitionCountCall, TopicPartitionCountFact,
-    TopicPartitionCountFailure,
-};
-pub(crate) use transaction_init_call::TransactionInitCall;
-pub(crate) use transaction_init_terminal::{
-    TransactionInitDriverFailureKind, TransactionInitTerminal, TransactionInitTerminalFact,
+    TopicPartitionCountFailure, TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls,
+    TrackedDeleteTopicsCalls, TrackedFetchCalls, TrackedGroupOffsetCommitCalls,
+    TrackedGroupPositionOffsetFetchCalls, TrackedPositionCalls, TrackedProduceCalls,
+    TrackedProducerIdentityCalls, TransactionInitCall, TransactionInitDriverFailureKind,
+    TransactionInitTerminal, TransactionInitTerminalFact, classify_fetch_admission,
+    classify_fetch_request_error,
 };

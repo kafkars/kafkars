@@ -127,6 +127,23 @@ pub use super::list_offsets::{
     AdminListOffsetsObserver, AdminListOffsetsObserverError, AdminListOffsetsOutcome,
     AdminListOffsetsRequest, AdminListOffsetsRequestSpec, AdminListOffsetsRequestTarget,
 };
+pub(crate) use super::list_partition_reassignments::{
+    LIST_PARTITION_REASSIGNMENTS_CAPACITY, ListPartitionReassignmentsAdmissionPort,
+    ListPartitionReassignmentsHost, ListPartitionReassignmentsHostError,
+    ListPartitionReassignmentsShardLockError, ListPartitionReassignmentsShardOwner,
+    ListPartitionReassignmentsShardWake, ListPartitionReassignmentsShardWakeError,
+    ListPartitionReassignmentsTurn,
+};
+pub use super::list_partition_reassignments::{
+    ListPartitionReassignmentTarget, ListPartitionReassignmentsAccepted,
+    ListPartitionReassignmentsAcceptedFaultKind, ListPartitionReassignmentsAdmissionError,
+    ListPartitionReassignmentsAdmissionErrorKind, ListPartitionReassignmentsBatch,
+    ListPartitionReassignmentsBrokerError, ListPartitionReassignmentsDeliveryStatus,
+    ListPartitionReassignmentsFailure, ListPartitionReassignmentsFailureKind,
+    ListPartitionReassignmentsObserver, ListPartitionReassignmentsObserverError,
+    ListPartitionReassignmentsOutcome, ListPartitionReassignmentsRequest,
+    ListPartitionReassignmentsRequestSelection, PartitionReassignment, PartitionReassignmentResult,
+};
 pub use super::model::{CreateTopic, CreateTopicConfig, CreateTopicsRequest};
 pub use super::observer::CreateTopicsObserver;
 pub use super::outcome::{

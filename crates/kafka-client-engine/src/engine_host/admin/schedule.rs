@@ -10,6 +10,7 @@ use super::{
     delete_topics, describe_cluster, describe_configs, describe_topics,
     group_offset_alter_schedule::drive_group_offset_delete_then_capture_alter,
     incremental_alter_configs, list_consumer_group_offsets, list_offsets, list_offsets_schedule,
+    list_partition_reassignments,
     schedule_deadline::earliest,
 };
 
@@ -79,6 +80,9 @@ pub(in crate::engine_host) fn drive(
         &group_offset_alter,
     );
     list_offsets_schedule::extend(&mut progress, &list_offsets_progress);
+    let listing_now = clock.now().map_err(EngineHostError::Clock)?;
+    let listing = list_partition_reassignments::drive(resources, listing_now)?;
+    list_offsets_schedule::extend_partition_reassignments(&mut progress, &listing);
     Ok(progress)
 }
 
@@ -225,15 +229,4 @@ pub(in crate::engine_host) fn apply_completions(
     let configs = describe_configs::apply_completions(resources)?;
     let alter_configs = incremental_alter_configs::apply_completions(resources)?;
     Ok(create || delete || describe || partitions || topics || configs || alter_configs)
-}
-
-#[cfg(test)]
-impl AdminProgress {
-    pub(in crate::engine_host) const fn contended() -> Self {
-        Self {
-            unsettled: usize::MAX,
-            driver_progress: false,
-            next_deadline: None,
-        }
-    }
 }

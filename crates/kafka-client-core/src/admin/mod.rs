@@ -18,6 +18,7 @@ mod group_offset_alter;
 mod group_offset_delete;
 mod group_offsets;
 mod list_offsets;
+mod list_partition_reassignments;
 mod machine;
 mod model;
 mod outcome;

@@ -11,7 +11,8 @@ use crate::{
         DescribeConfigsShardWake, DescribeConfigsShardWakeError, DescribeTopicsShardWake,
         DescribeTopicsShardWakeError, IncrementalAlterConfigsShardWake,
         IncrementalAlterConfigsShardWakeError, ListConsumerGroupOffsetsShardWake,
-        ListConsumerGroupOffsetsShardWakeError,
+        ListConsumerGroupOffsetsShardWakeError, ListPartitionReassignmentsShardWake,
+        ListPartitionReassignmentsShardWakeError,
     },
     driver::ReactorWake,
 };
@@ -90,5 +91,12 @@ impl AdminListOffsetsShardWake for ReactorWake {
     fn wake(&self) -> Result<(), AdminListOffsetsShardWakeError> {
         self.request()
             .map_err(|error| AdminListOffsetsShardWakeError::from_io(error.into_io()))
+    }
+}
+
+impl ListPartitionReassignmentsShardWake for ReactorWake {
+    fn wake(&self) -> Result<(), ListPartitionReassignmentsShardWakeError> {
+        self.request()
+            .map_err(|error| ListPartitionReassignmentsShardWakeError::from_io(error.into_io()))
     }
 }

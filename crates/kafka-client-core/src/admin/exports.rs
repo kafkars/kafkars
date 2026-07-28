@@ -74,6 +74,17 @@ pub use super::list_offsets::{
     AdminListOffsetsPlanError, AdminListOffsetsState, AdminListOffsetsTerminal,
     AdminListOffsetsTransition,
 };
+pub use super::list_partition_reassignments::{
+    LIST_PARTITION_REASSIGNMENTS_DIAGNOSTIC_BYTES, ListPartitionReassignmentTarget,
+    ListPartitionReassignmentsBatch, ListPartitionReassignmentsBrokerError,
+    ListPartitionReassignmentsEffect, ListPartitionReassignmentsFailure,
+    ListPartitionReassignmentsFailureKind, ListPartitionReassignmentsInput,
+    ListPartitionReassignmentsMachine, ListPartitionReassignmentsMachineError,
+    ListPartitionReassignmentsPlan, ListPartitionReassignmentsPlanError,
+    ListPartitionReassignmentsSelection, ListPartitionReassignmentsState,
+    ListPartitionReassignmentsTerminal, ListPartitionReassignmentsTransition,
+    PartitionReassignment, PartitionReassignmentOutcome,
+};
 pub use super::machine::{
     CreateTopicsEffect, CreateTopicsInput, CreateTopicsMachine, CreateTopicsMachineError,
     CreateTopicsState, CreateTopicsTransition,

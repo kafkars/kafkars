@@ -27,6 +27,7 @@ mod list_offsets;
 mod list_offsets_schedule;
 #[cfg(test)]
 mod list_offsets_schedule_test;
+mod list_partition_reassignments;
 pub(super) mod recovery;
 mod schedule;
 #[cfg(test)]

@@ -33,9 +33,10 @@ pub use admin::{
     DescribeTopics, DescribeTopicsBuilder, IncrementalAlterConfigs, IncrementalAlterConfigsBuilder,
     IncrementalAlterConfigsResult, ListConsumerGroupOffsets, ListConsumerGroupOffsetsBuilder,
     ListConsumerGroupOffsetsResult, ListOffsets, ListOffsetsBuilder, ListOffsetsQuery,
-    ListOffsetsResult, ListOffsetsResultInfo, ListTopics, ListTopicsBuilder, NewPartitions,
-    NewTopic, OffsetSpec, TopicConfigAlterations, TopicConfigQuery, TopicDescription,
-    TopicPartitionDescription,
+    ListOffsetsResult, ListOffsetsResultInfo, ListPartitionReassignments,
+    ListPartitionReassignmentsBuilder, ListPartitionReassignmentsResult, ListTopics,
+    ListTopicsBuilder, NewPartitions, NewTopic, OffsetSpec, PartitionReassignment,
+    TopicConfigAlterations, TopicConfigQuery, TopicDescription, TopicPartitionDescription,
 };
 pub use client::{Client, ClientBuilder};
 pub use consumer::{

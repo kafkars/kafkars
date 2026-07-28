@@ -15,6 +15,7 @@ pub(crate) mod admin_group_offset_delete_request;
 pub(crate) mod admin_group_offset_delete_result;
 pub(crate) mod admin_group_offsets;
 pub(crate) mod admin_list_offsets;
+pub(crate) mod admin_list_partition_reassignments;
 pub(crate) mod admin_operation;
 pub(crate) mod admin_partitions_operation;
 pub(crate) mod admin_partitions_result;

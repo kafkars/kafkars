@@ -2,6 +2,8 @@
 mod alter_configs;
 mod completion;
 #[cfg(test)]
+mod completion_capacity_test;
+#[cfg(test)]
 mod completion_group_offsets_test;
 #[cfg(test)]
 mod completion_test;
@@ -27,6 +29,7 @@ mod group_offsets;
 mod handle;
 mod host;
 mod list_offsets;
+mod list_partition_reassignments;
 mod model;
 mod observer;
 mod outcome;

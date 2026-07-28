@@ -1,5 +1,7 @@
 //! Exact terminal verification and notifier handoff for every concrete owner.
 
+mod list_partition_reassignments;
+
 use crate::completion::NotifierJoin;
 
 use super::{
@@ -217,6 +219,7 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
             crate::admin::AdminListOffsetsHostError::Unsettled(list_offsets),
         ));
     }
+    list_partition_reassignments::verify(resources)?;
     Ok(())
 }
 

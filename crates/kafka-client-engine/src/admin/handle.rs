@@ -21,6 +21,7 @@ pub(crate) struct AdminAdmissionPorts {
     pub(crate) delete_consumer_group_offsets: super::DeleteConsumerGroupOffsetsAdmissionPort,
     pub(crate) alter_consumer_group_offsets: super::AlterConsumerGroupOffsetsAdmissionPort,
     pub(crate) list_offsets: super::AdminListOffsetsAdmissionPort,
+    pub(crate) list_partition_reassignments: super::ListPartitionReassignmentsAdmissionPort,
 }
 
 /// Cheaply cloneable handle to the concrete admin shards.
@@ -37,6 +38,7 @@ pub struct AdminHandle {
     pub(super) delete_consumer_group_offsets: super::DeleteConsumerGroupOffsetsAdmissionPort,
     pub(super) alter_consumer_group_offsets: super::AlterConsumerGroupOffsetsAdmissionPort,
     pub(super) list_offsets: super::AdminListOffsetsAdmissionPort,
+    pub(super) list_partition_reassignments: super::ListPartitionReassignmentsAdmissionPort,
     pub(super) clock: Arc<MonotonicClock>,
     _lifetime: Arc<dyn Send + Sync>,
 }
@@ -59,6 +61,7 @@ impl AdminHandle {
             delete_consumer_group_offsets: ports.delete_consumer_group_offsets,
             alter_consumer_group_offsets: ports.alter_consumer_group_offsets,
             list_offsets: ports.list_offsets,
+            list_partition_reassignments: ports.list_partition_reassignments,
             clock,
             _lifetime: lifetime,
         }

@@ -36,6 +36,10 @@ pub(super) fn close_all(resources: &mut EngineHostResources) {
         .admission_port()
         .close_admission();
     let _close_result = resources.list_offsets.admission_port().close_admission();
+    let _close_result = resources
+        .list_partition_reassignments
+        .admission_port()
+        .close_admission();
     let _close_result = resources.assigned_consumer.close_assigned_admission();
     resources.group_consumers.close_admission();
     resources

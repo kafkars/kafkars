@@ -25,3 +25,23 @@ fn extension_preserves_bounded_progress_and_the_earliest_deadline() {
     assert!(progress.driver_progress);
     assert_eq!(progress.next_deadline, Some(Deadline::from_tick(19)));
 }
+
+#[test]
+fn partition_listing_extension_preserves_bounded_progress_and_deadline() {
+    let mut progress = AdminProgress {
+        unsettled: 5,
+        driver_progress: false,
+        next_deadline: Some(Deadline::from_tick(29)),
+    };
+    let listing = super::list_partition_reassignments::ListPartitionReassignmentsProgress {
+        unsettled: 3,
+        driver_progress: true,
+        next_deadline: Some(Deadline::from_tick(17)),
+    };
+
+    super::list_offsets_schedule::extend_partition_reassignments(&mut progress, &listing);
+
+    assert_eq!(progress.unsettled, 8);
+    assert!(progress.driver_progress);
+    assert_eq!(progress.next_deadline, Some(Deadline::from_tick(17)));
+}

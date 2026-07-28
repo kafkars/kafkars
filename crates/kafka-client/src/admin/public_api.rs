@@ -37,6 +37,10 @@ pub use super::list_topics::ListTopics;
 pub use super::list_topics_builder::ListTopicsBuilder;
 pub use super::new_partitions::NewPartitions;
 pub use super::new_topic::NewTopic;
+pub use super::partition_reassignments::{
+    ListPartitionReassignments, ListPartitionReassignmentsBuilder,
+    ListPartitionReassignmentsResult, PartitionReassignment,
+};
 pub use super::partitions_builder::CreatePartitionsBuilder;
 pub use super::topic_description::{TopicDescription, TopicPartitionDescription};
 pub use super::topics_builder::DescribeTopicsBuilder;

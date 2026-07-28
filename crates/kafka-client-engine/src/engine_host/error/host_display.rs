@@ -137,6 +137,12 @@ impl fmt::Display for EngineHostError {
             Self::AdminListOffsetsLockPoisoned => {
                 formatter.write_str("Admin ListOffsets host ownership lock is poisoned")
             }
+            Self::ListPartitionReassignments(error) => {
+                write!(formatter, "ListPartitionReassignments host failed: {error}")
+            }
+            Self::ListPartitionReassignmentsLockPoisoned => {
+                formatter.write_str("ListPartitionReassignments host ownership lock is poisoned")
+            }
             Self::AdminCompletion(error) => {
                 write!(
                     formatter,
