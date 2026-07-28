@@ -37,6 +37,8 @@ pub enum AssignedConsumerMachineError {
         /// Duplicated partition.
         partition: AssignedTopicPartition,
     },
+    /// One atomic control batch could not reserve its complete plan and effects.
+    ControlAllocationFailed,
     /// No further assignment epoch is representable.
     AssignmentEpochExhausted,
     /// Reusable assignment retirement was rejected by its canonical owner.
@@ -66,6 +68,11 @@ pub enum AssignedConsumerMachineError {
     /// No further fetch revision is representable.
     FetchRevisionExhausted {
         /// Partition whose fetch identity could not advance.
+        partition: AssignedTopicPartition,
+    },
+    /// Group-owned resume found no retained position it may reactivate.
+    PositionNotRetained {
+        /// Partition whose current phase cannot be resumed without resolution.
         partition: AssignedTopicPartition,
     },
     /// A resolution input belongs to older partition state.
@@ -148,6 +155,9 @@ impl fmt::Display for AssignedConsumerMachineError {
             Self::DuplicatePartition { .. } => {
                 formatter.write_str("direct assignment contains a duplicate partition")
             }
+            Self::ControlAllocationFailed => {
+                formatter.write_str("assigned-consumer control allocation failed")
+            }
             Self::AssignmentEpochExhausted => {
                 formatter.write_str("direct assignment epoch exhausted")
             }
@@ -166,6 +176,9 @@ impl fmt::Display for AssignedConsumerMachineError {
             }
             Self::FetchRevisionExhausted { .. } => {
                 formatter.write_str("partition fetch revision exhausted")
+            }
+            Self::PositionNotRetained { .. } => {
+                formatter.write_str("partition has no retained resumable position")
             }
             Self::StalePosition { .. } => {
                 formatter.write_str("position result belongs to superseded partition state")

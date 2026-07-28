@@ -93,6 +93,20 @@ impl core::fmt::Debug for GroupConsumerHandle {
 }
 
 impl GroupConsumerHandle {
+    #[cfg(test)]
+    pub(crate) fn from_registered_for_test(
+        port: GroupConsumerPort,
+        lifetime: Arc<dyn Send + Sync>,
+        group_id: kafka_client_core::GroupId,
+    ) -> Self {
+        Self {
+            group_id,
+            port,
+            lifetime,
+            _not_sync: PhantomData,
+        }
+    }
+
     pub(crate) fn try_register(
         port: GroupConsumerPort,
         lifetime: Arc<dyn Send + Sync>,

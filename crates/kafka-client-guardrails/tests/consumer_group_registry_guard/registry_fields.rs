@@ -28,6 +28,7 @@ pub(crate) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
             "registry_event.rs",
             "registry_graceful_revocation.rs",
             "registry_close.rs",
+            "registry_control.rs",
             "registry_cycle.rs",
             "registry_delivery.rs",
             "registry_fetch.rs",

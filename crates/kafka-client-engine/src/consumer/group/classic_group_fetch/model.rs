@@ -63,6 +63,7 @@ pub(in crate::consumer::group) enum ClassicGroupFetchCapturedFailure {
 /// Stable reason an already-applied transition could not enter the effect FIFO.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(in crate::consumer::group) enum ClassicGroupFetchTransitionFailure {
+    ControlInvariant,
     EffectCapacity { actual: usize, limit: usize },
     RetirementControls,
 }

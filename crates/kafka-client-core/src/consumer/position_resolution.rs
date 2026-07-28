@@ -3,16 +3,17 @@
 use super::{
     AssignedConsumerEffect, AssignedConsumerMachineError, NextFetchOffset, PositionFence,
     PositionOwnership, PositionResolutionAttemptFailure, PositionResolutionFailure, StartPosition,
+    position::RetainedResolutionActivation,
 };
 use crate::{Deadline, Moment};
 
 #[derive(Debug)]
 pub(super) struct PositionResolution {
-    state: ResolutionState,
+    pub(in crate::consumer) state: ResolutionState,
 }
 
 #[derive(Clone, Copy, Debug)]
-enum ResolutionState {
+pub(in crate::consumer) enum ResolutionState {
     Awaiting(StartPosition),
     Resolving {
         position: StartPosition,
@@ -86,6 +87,32 @@ impl PositionResolution {
             }
             ResolutionState::Resolving { .. } | ResolutionState::Failed => {
                 ResolutionActivation::None
+            }
+        }
+    }
+
+    pub(super) fn install_retained_activation(
+        &mut self,
+        activation: RetainedResolutionActivation,
+    ) -> AssignedConsumerEffect {
+        match activation {
+            RetainedResolutionActivation::DeadlineElapsed { fence } => {
+                self.fail(fence, PositionResolutionFailure::DeadlineElapsed)
+            }
+            RetainedResolutionActivation::Resolve {
+                fence,
+                position,
+                deadline,
+            } => {
+                self.state = ResolutionState::Resolving { position, deadline };
+                AssignedConsumerEffect::ResolvePosition {
+                    fence,
+                    position,
+                    deadline,
+                }
+            }
+            RetainedResolutionActivation::ArmThrottle { fence, deadline } => {
+                AssignedConsumerEffect::ArmPositionThrottle { fence, deadline }
             }
         }
     }

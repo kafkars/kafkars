@@ -17,6 +17,7 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
     ("registry_registration.rs", "registry_test.rs"),
     ("registry_entry.rs", "registry_entry_test.rs"),
     ("registry_acknowledge.rs", "registry_acknowledge_test.rs"),
+    ("registry_control.rs", "registry_control_test.rs"),
     ("registry_commit.rs", "registry_commit_test.rs"),
     ("registry_close.rs", "registry_close_test.rs"),
     ("registry_close_port.rs", "registry_close_port_test.rs"),

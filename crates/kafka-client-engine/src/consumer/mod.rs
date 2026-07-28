@@ -72,6 +72,9 @@ mod group_acknowledge;
 mod group_batch;
 mod group_close;
 mod group_commit;
+mod group_control;
+#[cfg(test)]
+mod group_control_test;
 mod group_event;
 mod group_recv;
 #[cfg(test)]

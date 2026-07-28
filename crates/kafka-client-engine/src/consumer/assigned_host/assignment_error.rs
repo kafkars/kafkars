@@ -107,7 +107,8 @@ const fn core_error_kind(
         AssignedConsumerMachineError::DuplicatePartition { .. } => {
             AssignedConsumerTryReplaceAssignmentErrorKind::DuplicatePartition
         }
-        AssignedConsumerMachineError::AssignmentEpochExhausted => {
+        AssignedConsumerMachineError::ControlAllocationFailed
+        | AssignedConsumerMachineError::AssignmentEpochExhausted => {
             AssignedConsumerTryReplaceAssignmentErrorKind::ResourceExhausted
         }
         AssignedConsumerMachineError::CloseNotPending { .. }
@@ -119,6 +120,7 @@ const fn core_error_kind(
         | AssignedConsumerMachineError::UnknownPartition { .. }
         | AssignedConsumerMachineError::PositionEpochExhausted { .. }
         | AssignedConsumerMachineError::FetchRevisionExhausted { .. }
+        | AssignedConsumerMachineError::PositionNotRetained { .. }
         | AssignedConsumerMachineError::StalePosition { .. }
         | AssignedConsumerMachineError::PositionResolutionNotPending { .. }
         | AssignedConsumerMachineError::PositionResolutionDeadlineNotElapsed { .. }

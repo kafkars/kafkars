@@ -49,6 +49,7 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
 const CLAIM_TRANSFERS: &[&str] = &[
     "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
     "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/control.rs",
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs",
 ];
 const METHODS: &[(&str, &[&str])] = &[

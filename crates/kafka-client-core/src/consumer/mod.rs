@@ -2,6 +2,7 @@
 
 mod assignment_retirement;
 mod assignment_retirement_transition;
+mod batch_control;
 mod classic_group;
 mod close;
 mod delivery_ownership;
@@ -36,6 +37,8 @@ mod assignment_retirement_test;
 mod assignment_retirement_transition_test;
 #[cfg(test)]
 mod assignment_test;
+#[cfg(test)]
+mod batch_control_test;
 #[cfg(test)]
 mod close_completion_test;
 #[cfg(test)]

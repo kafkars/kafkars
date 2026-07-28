@@ -68,6 +68,7 @@ mod registry_close;
 mod registry_close_port;
 mod registry_commit;
 mod registry_commit_port;
+mod registry_control;
 mod registry_cycle;
 mod registry_delivery;
 mod registry_delivery_error;
@@ -238,6 +239,8 @@ mod registry_commit_port_test;
 #[cfg(test)]
 mod registry_commit_test;
 #[cfg(test)]
+mod registry_control_test;
+#[cfg(test)]
 mod registry_cycle_test;
 #[cfg(test)]
 mod registry_delivery_test;
@@ -276,7 +279,7 @@ mod session_catalog_identity_test;
 #[cfg(test)]
 mod session_catalog_test;
 pub(in crate::consumer) use classic_group_fetch::{
-    ClassicGroupFetchDelivery, ClassicGroupFetchDeliveryError,
+    ClassicGroupFetchControlError, ClassicGroupFetchDelivery, ClassicGroupFetchDeliveryError,
 };
 pub(in crate::consumer) use classic_group_graceful_revocation::ClassicGroupRevocationAcknowledgeError;
 pub(in crate::consumer) use classic_group_leave::{
@@ -291,6 +294,9 @@ pub(in crate::consumer) use registry_close_port::{
     GroupConsumerCloseObservation, GroupConsumerCloseObservationError, GroupConsumerClosePortError,
 };
 pub(in crate::consumer) use registry_commit_port::GroupConsumerCommitPortErrorCategory;
+pub(in crate::consumer) use registry_control::{
+    GroupConsumerControlPortAccepted, GroupConsumerControlPortError,
+};
 pub(in crate::consumer) use registry_delivery::GroupConsumerDeliveryPortError;
 pub(in crate::consumer) use registry_delivery_error::GroupConsumerDeliveryError;
 pub(in crate::consumer) use registry_event::GroupConsumerEventPortError;

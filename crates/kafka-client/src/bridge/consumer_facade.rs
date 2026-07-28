@@ -10,6 +10,7 @@ pub(crate) mod group_consumer_close;
 pub(crate) mod group_consumer_close_admission;
 pub(crate) mod group_consumer_commit;
 pub(crate) mod group_consumer_commit_admission;
+pub(crate) mod group_consumer_control;
 #[path = "group_consumer_event.rs"]
 pub(crate) mod group_consumer_event;
 pub(crate) mod group_consumer_event_observation;
@@ -36,6 +37,8 @@ mod group_consumer_close_test;
 mod group_consumer_commit_admission_test;
 #[cfg(test)]
 mod group_consumer_commit_test;
+#[cfg(test)]
+mod group_consumer_control_test;
 #[cfg(test)]
 mod group_consumer_rebalance_event_test;
 #[cfg(test)]

@@ -1,6 +1,7 @@
 //! Declarative facade for assignment-fenced classic-group Fetch activation ownership.
 
 mod activation;
+mod control;
 mod delivery;
 mod model;
 mod owner;
@@ -14,6 +15,8 @@ mod turn_model;
 
 #[cfg(test)]
 mod activation_test;
+#[cfg(test)]
+mod control_test;
 #[cfg(test)]
 mod delivery_test;
 #[cfg(test)]
@@ -44,6 +47,8 @@ pub(super) use activation::{
     ClassicGroupFetchActivationErrorKind, ClassicGroupFetchActivationFailureKind,
     ClassicGroupFetchActivationFault, ClassicGroupFetchPostCoreFaultKind,
 };
+pub(super) use control::ClassicGroupFetchControlAccepted;
+pub(in crate::consumer) use control::ClassicGroupFetchControlError;
 pub(super) use delivery::ClassicGroupFetchReclaimError;
 pub(in crate::consumer) use delivery::{ClassicGroupFetchDelivery, ClassicGroupFetchDeliveryError};
 pub(super) use model::{

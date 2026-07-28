@@ -11,6 +11,8 @@ use support::{
 const ENGINE_ROOT: &str = "crates/kafka-client-engine/src";
 const GROUP_FETCH_ROOT: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch";
 const OWNER: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs";
+const CONTROL: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/control.rs";
 const OWNER_OBSERVATION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner_observation.rs";
 const MODEL: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/model.rs";
@@ -68,6 +70,7 @@ const MUTATIONS: &[(&str, &[&str])] = &[
         "fault",
         &[
             OWNER,
+            CONTROL,
             OWNER_OBSERVATION,
             PREPARE,
             RETIREMENT,
@@ -76,7 +79,10 @@ const MUTATIONS: &[(&str, &[&str])] = &[
             DELIVERY,
         ],
     ),
-    ("effects", &[OWNER, PREPARE, RETIREMENT, TURN, DELIVERY]),
+    (
+        "effects",
+        &[OWNER, CONTROL, PREPARE, RETIREMENT, TURN, DELIVERY],
+    ),
     (
         "pending_fetches",
         &[OWNER, OWNER_OBSERVATION, PREPARE, TURN],

@@ -12,6 +12,8 @@ const ROOT: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_
 const ACTIVATION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation.rs";
 const OWNER: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs";
+const CONTROL: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/control.rs";
 const OWNER_OBSERVATION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner_observation.rs";
 const PREPARE: &str =
@@ -92,6 +94,7 @@ fn checked_in_group_fetch_activation_policy_is_exact() {
         } else {
             vec![
                 OWNER,
+                CONTROL,
                 OWNER_OBSERVATION,
                 PREPARE,
                 RETIREMENT,

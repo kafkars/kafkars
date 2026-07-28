@@ -60,8 +60,8 @@ excluded_roots = ["crates/kafka-client-guardrails/tests/fixtures"]
 baseline = [
   { path = "crates/kafka-client-core/src/producer/mod.rs", lines = 89, reason = "the declarative producer facade names bounded waiting admission, promotion, terminal policy, and their sibling evidence" },
   { path = "crates/kafka-client-engine/src/admin/describe_outcome.rs", lines = 243, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/consumer/group.rs", lines = 313, reason = "the declarative classic-group facade names the complete sibling production and unit-test surface, including consumed close, sequential missing-offset reset, one-shot failure observation, and split delivery errors required by executable mirror policy" },
-  { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 92, reason = "the declarative consumer facade directly registers every sibling assigned and hosted-group unit-test module plus the narrow registration engine leaf, including consumed close, required by source-shape policy" },
+  { path = "crates/kafka-client-engine/src/consumer/group.rs", lines = 319, reason = "the declarative classic-group facade names the complete sibling production and unit-test surface, including consumed close, sequential missing-offset reset, one-shot failure observation, and split delivery errors required by executable mirror policy" },
+  { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 95, reason = "the declarative consumer facade directly registers every sibling assigned and hosted-group unit-test module plus the narrow registration engine leaf, including consumed close, required by source-shape policy" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_assignment_test.rs", lines = 517, reason = "the assignment evidence proves atomic processing, Fetch, catalog, and core ownership across installation and revocation failures" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/delivery.rs", lines = 270, reason = "one linear delivery owner correlates catalog, assignment, processing, and exact retained byte-lease fences" },
   { path = "crates/kafka-client-engine/src/consumer/group/registry_delivery.rs", lines = 256, reason = "the registry transfer seam applies processing progress, transfers one-shot position failures, and reclaims every rejected or stale exact Fetch byte lease after its error vocabulary moved to a sibling" },
@@ -73,8 +73,9 @@ baseline = [
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs", lines = 280, reason = "EndTxn retains exact response correlation, causal coordinator invalidation, deadline fencing, and retry-safety evidence in one terminal owner" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs", lines = 242, reason = "the transaction-initialization settlement seam preserves its public failure taxonomy and installs the lifecycle execution before publishing the unique owner" },
   { path = "crates/kafka-client-guardrails/tests/consumer_assigned_host_ownership_guard.rs", lines = 308, reason = "the exact post-driver recovery authority set remains one guard scenario across assigned and hosted Fetch owners" },
-  { path = "crates/kafka-client-guardrails/tests/consumer_classic_group_fetch_preparation_guard.rs", lines = 303, reason = "the exact Fetch mutation and attempt-authority policy remains one guard scenario across preparation, turn, recovery, and delivery" },
-  { path = "crates/kafka-client-guardrails/tests/consumer_group_registry_guard.rs", lines = 301, reason = "the focused historical owner exceeds its design target; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafka-client-guardrails/tests/consumer_classic_group_fetch_preparation_guard.rs", lines = 309, reason = "the exact Fetch mutation and attempt-authority policy remains one guard scenario across preparation, turn, recovery, and delivery" },
+  { path = "crates/kafka-client-core/src/consumer/mod.rs", lines = 83, reason = "the declarative core consumer facade names atomic batch control and its sibling evidence beside direct-assignment policy" },
+  { path = "crates/kafka-client-guardrails/tests/consumer_group_registry_guard.rs", lines = 305, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
 ]
 allow = []
 
@@ -4410,14 +4411,14 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "install_replacement_claims"
 allowed_paths = [
-  "crates/kafka-client-engine/src/consumer/assigned_event/prepared.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_event/prepared/commit.rs",
 ]
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
 method = "install_partition_claim"
 allowed_paths = [
-  "crates/kafka-client-engine/src/consumer/assigned_event/prepared.rs",
+  "crates/kafka-client-engine/src/consumer/assigned_event/prepared/commit.rs",
 ]
 
 [[method_capabilities]]
@@ -4426,6 +4427,7 @@ method = "commit_event_claims"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/control.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs",
 ]
 
@@ -4435,6 +4437,7 @@ method = "rollback_event_claims"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/assigned_owner_admission.rs",
   "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/control.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs",
 ]
 
@@ -7469,7 +7472,7 @@ path = "crates/kafka-client-engine/src/consumer/assigned_host/event/model.rs"
 
 [[linear_owners]]
 owner_type = "PreparedEventClaims"
-path = "crates/kafka-client-engine/src/consumer/assigned_event/prepared.rs"
+path = "crates/kafka-client-engine/src/consumer/assigned_event/prepared/model.rs"
 
 [[mutation_owners]]
 owner_type = "AssignedConsumerEventStore"
@@ -8087,7 +8090,7 @@ path = "crates/kafka-client-core/src/consumer/machine.rs"
 
 [[linear_owners]]
 owner_type = "AssignedPartitionState"
-path = "crates/kafka-client-core/src/consumer/position.rs"
+path = "crates/kafka-client-core/src/consumer/position/state.rs"
 
 [[linear_owners]]
 owner_type = "PartitionPosition"
@@ -11202,6 +11205,7 @@ owner_type = "ClassicGroupFetchOwner"
 field = "fault"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/control.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner_observation.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/prepare.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/retirement.rs",
@@ -11215,6 +11219,7 @@ owner_type = "ClassicGroupFetchOwner"
 field = "effects"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/control.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/prepare.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/retirement.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/turn.rs",
@@ -12634,6 +12639,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/registry_event.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_graceful_revocation.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_close.rs",
+  "crates/kafka-client-engine/src/consumer/group/registry_control.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_cycle.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_delivery.rs",
   "crates/kafka-client-engine/src/consumer/group/registry_fetch.rs",
@@ -17834,6 +17840,245 @@ forbidden = [
   "std::thread",
   "std::time::Instant",
   "std::time::SystemTime",
+  "Callback",
+  "Retry",
+  "async",
+]
+
+# Hosted pause and resume validate one complete caller-ordered target batch,
+# mutate only the assignment-fenced Fetch owner, and expose no wake capability.
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/control.rs"
+test = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/control_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group/registry_control.rs"
+test = "crates/kafka-client-engine/src/consumer/group/registry_control_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group_control.rs"
+test = "crates/kafka-client-engine/src/consumer/group_control_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group_control/resume_capture.rs"
+test = "crates/kafka-client-engine/src/consumer/group_control/resume_capture_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_control.rs"
+test = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_control_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/consumer/group_control.rs"
+test = "crates/kafka-client/src/consumer/group_control_test.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerPartition"
+path = "crates/kafka-client-engine/src/consumer/group_control/partition.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerControlError"
+path = "crates/kafka-client-engine/src/consumer/group_control/error.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerResumeCapture"
+path = "crates/kafka-client-engine/src/consumer/group_control/resume_capture.rs"
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group_control"
+method = "capture_group_resume_deadline"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group_control/resume_capture.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/consumer/group_control"
+method = "resume_captured"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group_control/resume_capture.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client/src"
+method = "pause"
+allowed_paths = [
+  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_control.rs",
+  "crates/kafka-client/src/consumer/group_control.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client/src"
+method = "resume"
+allowed_paths = [
+  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_control.rs",
+  "crates/kafka-client/src/consumer/group_control.rs",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/control.rs"
+forbidden = [
+  "crate::driver",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "AssignedConsumerOwner",
+  "PositionResolutionExecutor",
+  "CompletionRegistry",
+  "AssignedConsumerPort",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "tokio",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group/registry_control.rs"
+forbidden = [
+  "crate::driver",
+  "crate::host",
+  "crate::protocol",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Retry",
+  "invalidate",
+  "remove",
+  "swap_remove",
+  "retain",
+  "pop",
+  "clear",
+  "drain",
+]
+allow = [
+  { path = "crates/kafka-client-engine/src/consumer/group/registry_control.rs", capability = "std::time", reason = "The resume port accepts only the fixed engine timeout duration and delegates the sole monotonic observation to its retained clock." },
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group_control/operation.rs"
+forbidden = [
+  "crate::admin",
+  "crate::clock",
+  "crate::completion",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "AssignedConsumerMachine",
+  "AssignedConsumerInput",
+  "AssignedConsumerEffect",
+  "ClassicGroupFetch",
+  "GroupConsumerBatch",
+  "GroupConsumerRegistry",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "CompletionRegistry",
+  "Metadata",
+  "OperationDeadline",
+  "Retry",
+  "Transport",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client-engine/src/consumer/group_control/resume_capture.rs"
+forbidden = [
+  "crate::admin",
+  "crate::driver",
+  "crate::producer",
+  "crate::protocol",
+  "crate::transaction",
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Condvar",
+  "Instant::now",
+  "Mutex",
+  "RwLock",
+  "Future",
+  "async",
+  "Callback",
+  "Retry",
+  "capture_deadline_after",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_control.rs"
+forbidden = [
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client/src/consumer/group_control.rs"
+forbidden = [
+  "kafka_client_core",
+  "kafka_client_engine",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
   "Callback",
   "Retry",
   "async",

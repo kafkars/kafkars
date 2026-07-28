@@ -48,6 +48,7 @@ fn checked_in_registry_capabilities_and_mirrors_are_exact() {
         "registry.rs",
         "registry_entry.rs",
         "registry_acknowledge.rs",
+        "registry_control.rs",
         "registry_commit.rs",
         "registry_close.rs",
         "registry_close_port.rs",
@@ -80,6 +81,9 @@ fn checked_in_registry_capabilities_and_mirrors_are_exact() {
         match file {
             "registry.rs" => {
                 assert_exact_allow(&rules[0].allow, REGISTRY_PATH, "crate::driver");
+            }
+            "registry_control.rs" => {
+                assert_exact_allow(&rules[0].allow, &path, "std::time");
             }
             "registry_close.rs" => {
                 assert_exact_allow(&rules[0].allow, &path, "remove");

@@ -5,6 +5,7 @@ use super::{
     FetchRevision, NextFetchOffset, PositionEpoch, PositionFence, PositionOwnership,
     PositionResolutionAttemptFailure, StartPosition,
     fetch_throttle::FetchThrottle,
+    position::{RetainedResolutionActivation, RetainedResolutionPlan},
     position_resolution::{PositionResolution, ResolutionActivation},
 };
 use crate::{Deadline, Moment};
@@ -92,6 +93,28 @@ impl PartitionPosition {
             | PositionPhase::FetchFailed(_) => return Ok(None),
         };
         self.apply_resolution_activation(activation, fence, partition)
+    }
+
+    pub(in crate::consumer) fn plan_retained_resolution_activation(
+        &self,
+        fence: PositionFence,
+        now: Moment,
+        deadline: Deadline,
+    ) -> Option<RetainedResolutionPlan> {
+        let PositionPhase::Resolution(resolution) = &self.phase else {
+            return None;
+        };
+        resolution.plan_retained_activation(fence, now, deadline)
+    }
+
+    pub(in crate::consumer) fn install_retained_resolution_activation(
+        &mut self,
+        activation: RetainedResolutionActivation,
+    ) -> AssignedConsumerEffect {
+        let PositionPhase::Resolution(resolution) = &mut self.phase else {
+            unreachable!("retained resolution plan preserves its preflighted phase");
+        };
+        resolution.install_retained_activation(activation)
     }
 
     pub(super) fn resolve(

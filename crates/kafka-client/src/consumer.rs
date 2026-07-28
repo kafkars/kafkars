@@ -18,6 +18,7 @@ mod group_close;
 mod group_close_error;
 mod group_commit;
 mod group_commit_error;
+mod group_control;
 mod group_event;
 mod group_handle;
 mod group_next_event;
@@ -95,6 +96,8 @@ mod group_close_test;
 mod group_commit_error_test;
 #[cfg(test)]
 mod group_commit_test;
+#[cfg(test)]
+mod group_control_test;
 #[cfg(test)]
 mod group_event_test;
 #[cfg(test)]
