@@ -1,5 +1,18 @@
 //! Curated public and crate-private admin re-exports.
 
+pub(crate) use super::alter_client_quotas::{
+    ALTER_CLIENT_QUOTAS_CAPACITY, AlterClientQuotasAdmissionPort, AlterClientQuotasHost,
+    AlterClientQuotasHostError, AlterClientQuotasShardLockError, AlterClientQuotasShardOwner,
+    AlterClientQuotasShardWake, AlterClientQuotasShardWakeError, AlterClientQuotasTurn,
+};
+pub use super::alter_client_quotas::{
+    AlterClientQuotaBrokerError, AlterClientQuotaEntity, AlterClientQuotaEntityComponent,
+    AlterClientQuotaEntry, AlterClientQuotaOperation, AlterClientQuotaOutcome,
+    AlterClientQuotasAccepted, AlterClientQuotasAcceptedFaultKind, AlterClientQuotasAdmissionError,
+    AlterClientQuotasAdmissionErrorKind, AlterClientQuotasBatch, AlterClientQuotasDeliveryStatus,
+    AlterClientQuotasFailure, AlterClientQuotasFailureKind, AlterClientQuotasObserver,
+    AlterClientQuotasObserverError, AlterClientQuotasOutcome, AlterClientQuotasRequest,
+};
 pub(crate) use super::alter_configs::{
     INCREMENTAL_ALTER_CONFIGS_CAPACITY, IncrementalAlterConfigsAdmissionPort,
     IncrementalAlterConfigsHost, IncrementalAlterConfigsHostError,

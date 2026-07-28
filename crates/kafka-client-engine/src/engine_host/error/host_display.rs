@@ -95,6 +95,12 @@ impl fmt::Display for EngineHostError {
             Self::DescribeClientQuotasLockPoisoned => {
                 formatter.write_str("DescribeClientQuotas host ownership lock is poisoned")
             }
+            Self::AlterClientQuotas(error) => {
+                write!(formatter, "AlterClientQuotas host failed: {error}")
+            }
+            Self::AlterClientQuotasLockPoisoned => {
+                formatter.write_str("AlterClientQuotas host ownership lock is poisoned")
+            }
             Self::CreateAcls(error) => {
                 write!(formatter, "CreateAcls host failed: {error}")
             }

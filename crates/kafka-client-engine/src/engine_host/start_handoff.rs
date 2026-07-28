@@ -7,12 +7,13 @@ use std::{
 
 use crate::{
     admin::{
-        AdminListOffsetsAdmissionPort, AlterConsumerGroupOffsetsAdmissionPort,
-        AlterPartitionReassignmentsAdmissionPort, AlterReplicaLogDirsAdmissionPort,
-        CreateAclsAdmissionPort, CreatePartitionsAdmissionPort, CreateTopicsAdmissionPort,
-        DeleteAclsAdmissionPort, DeleteConsumerGroupOffsetsAdmissionPort,
-        DeleteConsumerGroupsAdmissionPort, DeleteRecordsAdmissionPort, DeleteTopicsAdmissionPort,
-        DescribeAclsAdmissionPort, DescribeClientQuotasAdmissionPort, DescribeClusterAdmissionPort,
+        AdminListOffsetsAdmissionPort, AlterClientQuotasAdmissionPort,
+        AlterConsumerGroupOffsetsAdmissionPort, AlterPartitionReassignmentsAdmissionPort,
+        AlterReplicaLogDirsAdmissionPort, CreateAclsAdmissionPort, CreatePartitionsAdmissionPort,
+        CreateTopicsAdmissionPort, DeleteAclsAdmissionPort,
+        DeleteConsumerGroupOffsetsAdmissionPort, DeleteConsumerGroupsAdmissionPort,
+        DeleteRecordsAdmissionPort, DeleteTopicsAdmissionPort, DescribeAclsAdmissionPort,
+        DescribeClientQuotasAdmissionPort, DescribeClusterAdmissionPort,
         DescribeConfigsAdmissionPort, DescribeConsumerGroupsAdmissionPort,
         DescribeLogDirsAdmissionPort, DescribeTopicsAdmissionPort, ElectLeadersAdmissionPort,
         IncrementalAlterConfigsAdmissionPort, ListConsumerGroupOffsetsAdmissionPort,
@@ -36,6 +37,7 @@ pub(crate) struct StartedEngineHost {
     pub(crate) delete_records_admission: DeleteRecordsAdmissionPort,
     pub(crate) describe_acls_admission: DescribeAclsAdmissionPort,
     pub(crate) describe_client_quotas_admission: DescribeClientQuotasAdmissionPort,
+    pub(crate) alter_client_quotas_admission: AlterClientQuotasAdmissionPort,
     pub(crate) describe_cluster_admission: DescribeClusterAdmissionPort,
     pub(crate) describe_consumer_groups_admission: DescribeConsumerGroupsAdmissionPort,
     pub(crate) describe_log_dirs_admission: DescribeLogDirsAdmissionPort,

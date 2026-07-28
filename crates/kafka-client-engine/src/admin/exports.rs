@@ -1,10 +1,11 @@
 //! Curated crate-private admin execution exports.
 
 pub(crate) use super::completion::{
-    AdminAlterReplicaLogDirsPublisher, AdminCompletionNotifier, AdminCompletionPorts,
-    AdminCreateAclsPublisher, AdminDeleteAclsPublisher, AdminDescribeAclsPublisher,
-    AdminDescribeClientQuotasPublisher, AdminDescribeConsumerGroupsPublisher,
-    AdminDescribeLogDirsPublisher, AdminListConsumerGroupsPublisher, AdminListOffsetsPublisher,
+    AdminAlterClientQuotasPublisher, AdminAlterReplicaLogDirsPublisher, AdminCompletionNotifier,
+    AdminCompletionPorts, AdminCreateAclsPublisher, AdminDeleteAclsPublisher,
+    AdminDescribeAclsPublisher, AdminDescribeClientQuotasPublisher,
+    AdminDescribeConsumerGroupsPublisher, AdminDescribeLogDirsPublisher,
+    AdminListConsumerGroupsPublisher, AdminListOffsetsPublisher,
     AlterConsumerGroupOffsetsPublisher, AlterPartitionReassignmentsPublisher,
     CreatePartitionsPublisher, CreateTopicsPublisher, DeleteConsumerGroupOffsetsPublisher,
     DeleteConsumerGroupsPublisher, DeleteRecordsPublisher, DeleteTopicsPublisher,

@@ -10,7 +10,8 @@ use std::sync::Arc;
 use crate::{
     EngineConfig,
     admin::{
-        AdminCompletionNotifier, AlterReplicaLogDirsShardOwner, CreateAclsShardOwner,
+        AdminCompletionNotifier, AlterClientQuotasShardOwner, AlterReplicaLogDirsShardOwner,
+        CreateAclsShardOwner,
         CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteAclsShardOwner,
         DeleteConsumerGroupOffsetsShardOwner, DeleteConsumerGroupsShardOwner,
         DeleteRecordsShardOwner, DeleteTopicsShardOwner, DescribeAclsShardOwner,
@@ -87,6 +88,7 @@ pub(crate) fn start(
         delete_records,
         describe_acls,
         describe_client_quotas,
+        alter_client_quotas,
         describe_cluster,
         describe_consumer_groups,
         describe_log_dirs,
@@ -160,6 +162,9 @@ pub(crate) fn start(
         Arc::new(driver.reactor_wake()),
     );
     let describe_client_quotas_admission = describe_client_quotas.admission_port();
+    let alter_client_quotas =
+        AlterClientQuotasShardOwner::new(alter_client_quotas, Arc::new(driver.reactor_wake()));
+    let alter_client_quotas_admission = alter_client_quotas.admission_port();
     let describe_cluster =
         DescribeClusterShardOwner::new(describe_cluster, Arc::new(driver.reactor_wake()));
     let describe_cluster_admission = describe_cluster.admission_port();
@@ -231,6 +236,7 @@ pub(crate) fn start(
         delete_records,
         describe_acls,
         describe_client_quotas,
+        alter_client_quotas,
         describe_cluster,
         describe_consumer_groups,
         describe_log_dirs,
@@ -294,6 +300,7 @@ pub(crate) fn start(
         delete_records_admission,
         describe_acls_admission,
         describe_client_quotas_admission,
+        alter_client_quotas_admission,
         describe_cluster_admission,
         describe_consumer_groups_admission,
         describe_log_dirs_admission,

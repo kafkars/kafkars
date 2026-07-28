@@ -1,5 +1,6 @@
 //! Declarative facade for concrete batched Kafka administration.
 mod acls;
+mod alter_client_quotas;
 mod alter_configs;
 mod alter_replica_log_dirs;
 mod batch_result;

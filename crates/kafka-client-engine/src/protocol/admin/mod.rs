@@ -1,5 +1,6 @@
 //! Generated-message adaptation for concrete Kafka admin operations.
 
+pub(crate) mod alter_client_quotas;
 pub(crate) mod alter_partition_reassignments;
 pub(crate) mod alter_replica_log_dirs;
 pub(crate) mod create_acls;

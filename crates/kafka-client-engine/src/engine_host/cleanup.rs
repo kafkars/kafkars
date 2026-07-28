@@ -204,6 +204,12 @@ fn verify_admin_topic_operations(resources: &EngineHostResources) -> Result<(), 
             crate::admin::DescribeClientQuotasHostError::Unsettled(described_client_quotas),
         ));
     }
+    let altered_client_quotas = resources.alter_client_quotas.terminal_host().unsettled();
+    if altered_client_quotas != 0 {
+        return Err(EngineHostError::AlterClientQuotas(
+            crate::admin::AlterClientQuotasHostError::Unsettled(altered_client_quotas),
+        ));
+    }
     let created_acls = resources.create_acls.terminal_host().unsettled();
     if created_acls != 0 {
         return Err(EngineHostError::CreateAcls(

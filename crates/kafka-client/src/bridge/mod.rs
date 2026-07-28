@@ -35,6 +35,7 @@ pub(crate) mod admin_result;
 pub(crate) mod admin_topics_operation;
 pub(crate) mod admin_topics_request;
 pub(crate) mod admin_topics_result;
+pub(crate) mod alter_client_quotas;
 mod client;
 pub(crate) mod client_shutdown;
 pub(crate) mod consumer;

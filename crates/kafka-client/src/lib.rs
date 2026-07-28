@@ -23,11 +23,13 @@ mod transaction;
 
 pub use admin::{
     AccessControlEntry, AclBinding, AclBindingFilter, AclOperation, AclPatternType,
-    AclPermissionType, AclResourceType, Admin, AlterConsumerGroupOffsets,
-    AlterConsumerGroupOffsetsBuilder, AlterConsumerGroupOffsetsResult, AlterPartitionReassignments,
+    AclPermissionType, AclResourceType, Admin, AlterClientQuotas, AlterClientQuotasBuilder,
+    AlterClientQuotasResult, AlterConsumerGroupOffsets, AlterConsumerGroupOffsetsBuilder,
+    AlterConsumerGroupOffsetsResult, AlterPartitionReassignments,
     AlterPartitionReassignmentsBuilder, AlterPartitionReassignmentsResult, AlterReplicaLogDirs,
     AlterReplicaLogDirsBuilder, AlterReplicaLogDirsResult, BatchResult,
-    ClassicConsumerGroupDetails, ClassicConsumerGroupMemberDetails, ClientQuotaEntityComponent,
+    ClassicConsumerGroupDetails, ClassicConsumerGroupMemberDetails, ClientQuotaAlteration,
+    ClientQuotaAlterationOperation, ClientQuotaEntity, ClientQuotaEntityComponent,
     ClientQuotaEntry, ClientQuotaFilterComponent, ClientQuotaMatch, ClientQuotaValue,
     ClusterBroker, ClusterDescription, ConfigAlteration, ConfigAlterationOperation, ConfigEntry,
     ConfigSynonym, ConsumerGroupAssignment, ConsumerGroupDescription,

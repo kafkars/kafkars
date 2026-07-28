@@ -4,6 +4,10 @@ pub use super::acls::{
     AccessControlEntry, AclBinding, AclBindingFilter, AclOperation, AclPatternType,
     AclPermissionType, AclResourceType, ResourcePattern,
 };
+pub use super::alter_client_quotas::{
+    AlterClientQuotas, AlterClientQuotasBuilder, AlterClientQuotasResult, ClientQuotaAlteration,
+    ClientQuotaAlterationOperation, ClientQuotaEntity,
+};
 pub use super::alter_configs::{
     ConfigAlteration, ConfigAlterationOperation, IncrementalAlterConfigs,
     IncrementalAlterConfigsBuilder, IncrementalAlterConfigsResult, TopicConfigAlterations,

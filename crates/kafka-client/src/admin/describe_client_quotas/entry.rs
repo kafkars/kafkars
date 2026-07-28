@@ -17,6 +17,16 @@ impl ClientQuotaEntityComponent {
         }
     }
 
+    /// Identifies one explicitly named entity component.
+    pub fn named(entity_type: impl Into<String>, entity_name: impl Into<String>) -> Self {
+        Self::new(entity_type.into(), Some(entity_name.into()))
+    }
+
+    /// Identifies Kafka's unnamed default entity for one component type.
+    pub fn default_entity(entity_type: impl Into<String>) -> Self {
+        Self::new(entity_type.into(), None)
+    }
+
     /// Returns Kafka's entity-type name.
     pub fn entity_type(&self) -> &str {
         &self.entity_type

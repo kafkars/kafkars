@@ -1,5 +1,6 @@
 //! Declarative sequencing boundary for concrete admin operation owners.
 
+mod alter_client_quotas;
 mod alter_consumer_group_offsets;
 #[cfg(test)]
 mod alter_consumer_group_offsets_schedule_test;

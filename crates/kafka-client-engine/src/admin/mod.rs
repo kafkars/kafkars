@@ -1,4 +1,5 @@
 //! Concrete bounded admin owners without a generic state-machine framework.
+mod alter_client_quotas;
 mod alter_configs;
 mod alter_partition_reassignments;
 mod alter_replica_log_dirs;

@@ -1,5 +1,6 @@
 //! Deterministic policy for concrete Kafka admin operations.
 
+mod alter_client_quotas;
 mod alter_configs;
 mod alter_partition_reassignments;
 mod alter_replica_log_dirs;
