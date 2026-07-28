@@ -17,6 +17,7 @@ mod delete_consumer_group_offsets_test;
 mod delete_topics;
 mod describe_cluster;
 mod describe_configs;
+mod describe_log_dirs;
 mod describe_topics;
 mod group_offset_alter_schedule;
 mod incremental_alter_configs;

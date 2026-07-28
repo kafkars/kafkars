@@ -23,6 +23,7 @@ pub(crate) struct AdminAdmissionPorts {
     pub(crate) list_offsets: super::AdminListOffsetsAdmissionPort,
     pub(crate) list_partition_reassignments: super::ListPartitionReassignmentsAdmissionPort,
     pub(crate) alter_partition_reassignments: super::AlterPartitionReassignmentsAdmissionPort,
+    pub(crate) describe_log_dirs: super::DescribeLogDirsAdmissionPort,
     pub(crate) alter_replica_log_dirs: super::AlterReplicaLogDirsAdmissionPort,
 }
 
@@ -42,6 +43,7 @@ pub struct AdminHandle {
     pub(super) list_offsets: super::AdminListOffsetsAdmissionPort,
     pub(super) list_partition_reassignments: super::ListPartitionReassignmentsAdmissionPort,
     pub(super) alter_partition_reassignments: super::AlterPartitionReassignmentsAdmissionPort,
+    pub(super) describe_log_dirs: super::DescribeLogDirsAdmissionPort,
     pub(super) alter_replica_log_dirs: super::AlterReplicaLogDirsAdmissionPort,
     pub(super) clock: Arc<MonotonicClock>,
     _lifetime: Arc<dyn Send + Sync>,
@@ -67,6 +69,7 @@ impl AdminHandle {
             list_offsets: ports.list_offsets,
             list_partition_reassignments: ports.list_partition_reassignments,
             alter_partition_reassignments: ports.alter_partition_reassignments,
+            describe_log_dirs: ports.describe_log_dirs,
             alter_replica_log_dirs: ports.alter_replica_log_dirs,
             clock,
             _lifetime: lifetime,

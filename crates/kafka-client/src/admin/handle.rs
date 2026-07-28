@@ -1,5 +1,6 @@
 //! Cloneable public admin handle over the private engine bridge.
 
+mod describe_log_dirs;
 mod list_offsets;
 mod partition_reassignments;
 

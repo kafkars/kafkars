@@ -76,6 +76,11 @@ mod describe_configs_submission_test;
 mod describe_configs_terminal;
 #[cfg(test)]
 mod describe_configs_terminal_test;
+mod describe_log_dirs_call;
+mod describe_log_dirs_submission;
+#[cfg(test)]
+mod describe_log_dirs_submission_test;
+mod describe_log_dirs_terminal;
 mod describe_topics_calls;
 #[cfg(test)]
 mod describe_topics_calls_test;
@@ -214,5 +219,10 @@ pub(crate) use alter_replica_log_dirs_call::AlterReplicaLogDirsCall;
 pub(crate) use alter_replica_log_dirs_terminal::{
     AlterReplicaLogDirsDriverFailureKind, AlterReplicaLogDirsRawTerminal,
     AlterReplicaLogDirsTerminalFact, RecoveredAlterReplicaLogDirsCall,
+};
+pub(crate) use describe_log_dirs_call::DescribeLogDirsCall;
+pub(crate) use describe_log_dirs_terminal::{
+    DescribeLogDirsDriverFailureKind, DescribeLogDirsRawTerminal, DescribeLogDirsTerminalFact,
+    RecoveredDescribeLogDirsCall,
 };
 pub(crate) use exports::ProduceSubmitError;

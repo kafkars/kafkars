@@ -9,6 +9,7 @@ pub(crate) mod admin_configs_request;
 pub(crate) mod admin_configs_result;
 pub(crate) mod admin_delete_operation;
 pub(crate) mod admin_delete_result;
+pub(crate) mod admin_describe_log_dirs;
 pub(crate) mod admin_describe_operation;
 pub(crate) mod admin_describe_result;
 pub(crate) mod admin_group_offset_delete_operation;

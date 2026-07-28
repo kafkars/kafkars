@@ -12,6 +12,7 @@ mod describe_configs_model;
 mod describe_configs_outcome;
 mod describe_configs_transition;
 mod describe_configs_value;
+mod describe_log_dirs;
 mod describe_machine;
 mod describe_outcome;
 mod describe_transition;

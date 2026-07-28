@@ -2,7 +2,7 @@
 
 pub(crate) use super::completion::{
     AdminAlterReplicaLogDirsPublisher, AdminCompletionNotifier, AdminCompletionPorts,
-    AdminListOffsetsPublisher, AlterConsumerGroupOffsetsPublisher,
+    AdminDescribeLogDirsPublisher, AdminListOffsetsPublisher, AlterConsumerGroupOffsetsPublisher,
     AlterPartitionReassignmentsPublisher, CreatePartitionsPublisher, CreateTopicsPublisher,
     DeleteConsumerGroupOffsetsPublisher, DeleteTopicsPublisher, DescribeClusterPublisher,
     DescribeConfigsPublisher, DescribeTopicsPublisher, IncrementalAlterConfigsPublisher,

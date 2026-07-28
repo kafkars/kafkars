@@ -20,6 +20,7 @@ mod delete_shard;
 mod describe_error;
 mod describe_handle;
 mod describe_host;
+mod describe_log_dirs;
 mod describe_observer;
 mod describe_outcome;
 mod describe_shard;

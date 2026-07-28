@@ -12,8 +12,8 @@ use crate::{
     admin::{
         AdminCompletionNotifier, AlterReplicaLogDirsShardOwner, CreatePartitionsShardOwner,
         CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner, DeleteTopicsShardOwner,
-        DescribeClusterShardOwner, DescribeTopicsShardOwner, IncrementalAlterConfigsShardOwner,
-        ListConsumerGroupOffsetsShardOwner,
+        DescribeClusterShardOwner, DescribeLogDirsShardOwner, DescribeTopicsShardOwner,
+        IncrementalAlterConfigsShardOwner, ListConsumerGroupOffsetsShardOwner,
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
@@ -87,6 +87,7 @@ pub(crate) fn start(
         admin_list_offsets,
         list_partition_reassignments,
         alter_partition_reassignments,
+        describe_log_dirs,
         alter_replica_log_dirs,
     } = admin_hosts::start(admin_ports);
     let mut group_consumers = match GroupConsumerRegistry::start() {
@@ -160,6 +161,9 @@ pub(crate) fn start(
         list_partition_reassignments::start(list_partition_reassignments, driver.reactor_wake());
     let alter_partition_reassignments =
         alter_partition_reassignments::start(alter_partition_reassignments, driver.reactor_wake());
+    let describe_log_dirs =
+        DescribeLogDirsShardOwner::new(describe_log_dirs, Arc::new(driver.reactor_wake()));
+    let describe_log_dirs_admission = describe_log_dirs.admission_port();
     let alter_replica_log_dirs =
         AlterReplicaLogDirsShardOwner::new(alter_replica_log_dirs, Arc::new(driver.reactor_wake()));
     let alter_replica_log_dirs_admission = alter_replica_log_dirs.admission_port();
@@ -183,6 +187,7 @@ pub(crate) fn start(
         list_offsets: list_offsets.owner,
         list_partition_reassignments: list_partition_reassignments.owner,
         alter_partition_reassignments: alter_partition_reassignments.owner,
+        describe_log_dirs,
         alter_replica_log_dirs,
         assigned_consumer: assigned_consumer_owner,
         group_consumers,
@@ -235,6 +240,7 @@ pub(crate) fn start(
         list_offsets_admission: list_offsets.admission,
         list_partition_reassignments_admission: list_partition_reassignments.admission,
         alter_partition_reassignments_admission: alter_partition_reassignments.admission,
+        describe_log_dirs_admission,
         alter_replica_log_dirs_admission,
         assigned_consumer,
         group_consumer,

@@ -80,6 +80,20 @@ pub use super::describe_handle::{DescribeClusterAccepted, DescribeClusterAccepte
 pub(crate) use super::describe_host::{
     DESCRIBE_CLUSTER_CAPACITY, DescribeClusterHost, DescribeClusterHostError, DescribeClusterTurn,
 };
+pub(crate) use super::describe_log_dirs::{
+    DESCRIBE_LOG_DIRS_CAPACITY, DescribeLogDirsAdmissionPort, DescribeLogDirsHost,
+    DescribeLogDirsHostError, DescribeLogDirsShardLockError, DescribeLogDirsShardOwner,
+    DescribeLogDirsShardWake, DescribeLogDirsShardWakeError, DescribeLogDirsTurn,
+};
+pub use super::describe_log_dirs::{
+    DescribeLogDirDescription, DescribeLogDirEngineBrokerError, DescribeLogDirEngineOutcome,
+    DescribeLogDirsAccepted, DescribeLogDirsAcceptedFaultKind, DescribeLogDirsAdmissionError,
+    DescribeLogDirsAdmissionErrorKind, DescribeLogDirsBrokerFailure,
+    DescribeLogDirsBrokerFailureKind, DescribeLogDirsDeliveryStatus, DescribeLogDirsEngineBatch,
+    DescribeLogDirsEngineBrokerOutcome, DescribeLogDirsEngineBrokerResult, DescribeLogDirsFailure,
+    DescribeLogDirsObserver, DescribeLogDirsObserverError, DescribeLogDirsOutcome,
+    DescribeLogDirsReplicaInfo, DescribeLogDirsRequest,
+};
 pub use super::describe_observer::DescribeClusterObserver;
 pub use super::describe_outcome::{
     ClusterBroker, ClusterDescription, DescribeClusterBrokerError, DescribeClusterDeliveryStatus,

@@ -23,6 +23,10 @@ pub use super::delete_consumer_group_offsets_result::DeleteConsumerGroupOffsetsR
 pub use super::delete_topics::DeleteTopics;
 pub use super::describe_builder::DescribeClusterBuilder;
 pub use super::describe_cluster::DescribeCluster;
+pub use super::describe_log_dirs::{
+    DescribeLogDirs, DescribeLogDirsBuilder, DescribeLogDirsResult, LogDirDescription,
+    LogDirReplica,
+};
 pub use super::describe_topics::DescribeTopics;
 pub use super::description::{ClusterBroker, ClusterDescription};
 pub use super::group_offsets::{

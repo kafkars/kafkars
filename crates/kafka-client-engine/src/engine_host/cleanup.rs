@@ -227,6 +227,12 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
     }
     list_partition_reassignments::verify(resources)?;
     alter_partition_reassignments::verify(resources)?;
+    let described_log_dirs = resources.describe_log_dirs.terminal_host().unsettled();
+    if described_log_dirs != 0 {
+        return Err(EngineHostError::DescribeLogDirs(
+            crate::admin::DescribeLogDirsHostError::Unsettled(described_log_dirs),
+        ));
+    }
     let altered_log_dirs = resources.alter_replica_log_dirs.terminal_host().unsettled();
     if altered_log_dirs != 0 {
         return Err(EngineHostError::AlterReplicaLogDirs(

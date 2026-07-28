@@ -49,6 +49,14 @@ pub use super::describe_configs_outcome::{
     DescribeConfigsFailure, DescribeConfigsFailureKind, DescribeConfigsTerminal,
 };
 pub use super::describe_configs_value::{DescribeConfigEntry, DescribeConfigSynonym};
+pub use super::describe_log_dirs::{
+    AdminDescribeLogDirsBatch, AdminDescribeLogDirsBrokerError, AdminDescribeLogDirsBrokerOutcome,
+    AdminDescribeLogDirsBrokerResult, AdminDescribeLogDirsEffect, AdminDescribeLogDirsFailure,
+    AdminDescribeLogDirsFailureKind, AdminDescribeLogDirsInput, AdminDescribeLogDirsMachine,
+    AdminDescribeLogDirsMachineError, AdminDescribeLogDirsPlan, AdminDescribeLogDirsPlanError,
+    AdminDescribeLogDirsState, AdminDescribeLogDirsTerminal, AdminDescribeLogDirsTransition,
+    AdminLogDirDescription, AdminLogDirOutcome, AdminLogDirReplicaInfo, AdminLogDirResult,
+};
 pub use super::describe_machine::{
     DescribeClusterEffect, DescribeClusterInput, DescribeClusterMachine,
     DescribeClusterMachineError, DescribeClusterState, DescribeClusterTransition,

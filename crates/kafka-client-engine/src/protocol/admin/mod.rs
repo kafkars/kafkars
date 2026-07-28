@@ -13,6 +13,7 @@ mod describe_configs_budget;
 mod describe_configs_model;
 pub(crate) mod describe_configs_response;
 mod describe_configs_values;
+pub(crate) mod describe_log_dirs;
 mod describe_topic_value;
 pub(crate) mod describe_topics;
 mod describe_topics_budget;

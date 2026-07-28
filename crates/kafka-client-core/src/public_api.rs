@@ -1,14 +1,19 @@
 //! Curated public re-exports for deterministic client policy.
 
 pub use crate::admin::{
+    AdminDescribeLogDirsBatch, AdminDescribeLogDirsBrokerError, AdminDescribeLogDirsBrokerOutcome,
+    AdminDescribeLogDirsBrokerResult, AdminDescribeLogDirsEffect, AdminDescribeLogDirsFailure,
+    AdminDescribeLogDirsFailureKind, AdminDescribeLogDirsInput, AdminDescribeLogDirsMachine,
+    AdminDescribeLogDirsMachineError, AdminDescribeLogDirsPlan, AdminDescribeLogDirsPlanError,
+    AdminDescribeLogDirsState, AdminDescribeLogDirsTerminal, AdminDescribeLogDirsTransition,
     AdminListOffset, AdminListOffsetBrokerError, AdminListOffsetOutcome, AdminListOffsetResult,
     AdminListOffsetSpec, AdminListOffsetTarget, AdminListOffsetsBatch, AdminListOffsetsEffect,
     AdminListOffsetsFailure, AdminListOffsetsFailureKind, AdminListOffsetsInput,
     AdminListOffsetsMachine, AdminListOffsetsMachineError, AdminListOffsetsPlan,
     AdminListOffsetsPlanError, AdminListOffsetsState, AdminListOffsetsTerminal,
-    AdminListOffsetsTransition, AlterConsumerGroupOffsetBrokerError,
-    AlterConsumerGroupOffsetOutcome, AlterConsumerGroupOffsetResult,
-    AlterConsumerGroupOffsetTarget, AlterConsumerGroupOffsetsBatch,
+    AdminListOffsetsTransition, AdminLogDirDescription, AdminLogDirOutcome, AdminLogDirReplicaInfo,
+    AdminLogDirResult, AlterConsumerGroupOffsetBrokerError, AlterConsumerGroupOffsetOutcome,
+    AlterConsumerGroupOffsetResult, AlterConsumerGroupOffsetTarget, AlterConsumerGroupOffsetsBatch,
     AlterConsumerGroupOffsetsEffect, AlterConsumerGroupOffsetsFailure,
     AlterConsumerGroupOffsetsFailureKind, AlterConsumerGroupOffsetsInput,
     AlterConsumerGroupOffsetsMachine, AlterConsumerGroupOffsetsMachineError,

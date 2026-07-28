@@ -45,6 +45,10 @@ pub(super) fn close_all(resources: &mut EngineHostResources) {
         .admission_port()
         .close_admission();
     let _close_result = resources
+        .describe_log_dirs
+        .admission_port()
+        .close_admission();
+    let _close_result = resources
         .alter_replica_log_dirs
         .admission_port()
         .close_admission();

@@ -13,6 +13,7 @@ mod delete_consumer_group_offsets_result;
 mod delete_topics;
 mod describe_builder;
 mod describe_cluster;
+mod describe_log_dirs;
 mod describe_topics;
 mod description;
 mod group_offsets;

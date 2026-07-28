@@ -21,6 +21,7 @@ use super::admin_alter_replica_log_dirs::{
 use super::admin_configs_operation::AdminDescribeConfigs;
 use super::admin_configs_request::DescribeConfigsAdminRequest;
 use super::admin_delete_operation::AdminDeleteTopics;
+use super::admin_describe_log_dirs::{AdminDescribeLogDirs, DescribeLogDirsAdminRequest};
 use super::admin_group_offset_delete_operation::AdminDeleteConsumerGroupOffsets;
 use super::admin_group_offset_delete_request::DeleteConsumerGroupOffsetsAdminRequest;
 use super::admin_group_offsets::{
@@ -59,6 +60,17 @@ impl AdminEngine {
         AdminAlterReplicaLogDirs::from_admission(
             self.handle
                 .try_alter_replica_log_dirs(request.into_engine(), timeout),
+        )
+    }
+
+    pub(crate) fn submit_describe_log_dirs(
+        &self,
+        request: DescribeLogDirsAdminRequest,
+        timeout: Duration,
+    ) -> AdminDescribeLogDirs {
+        AdminDescribeLogDirs::from_admission(
+            self.handle
+                .try_describe_log_dirs(request.into_engine(), timeout),
         )
     }
 

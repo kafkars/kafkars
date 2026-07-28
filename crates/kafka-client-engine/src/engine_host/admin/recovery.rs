@@ -130,6 +130,15 @@ fn recover_listing(
         failure = failure.with_cleanup(cleanup);
     }
     drop(alteration);
+    let mut describe_log_dirs = resources.describe_log_dirs.terminal_host();
+    if let Some(cleanup) = describe_log_dirs
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::DescribeLogDirs)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    drop(describe_log_dirs);
     let mut alter_replica_log_dirs = resources.alter_replica_log_dirs.terminal_host();
     if let Some(cleanup) = alter_replica_log_dirs
         .recover_after_driver_shutdown()
