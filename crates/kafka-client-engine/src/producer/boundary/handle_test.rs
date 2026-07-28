@@ -210,6 +210,33 @@ fn captured_admission_keeps_the_original_deadline_across_adapter_work() {
 }
 
 #[test]
+fn captured_waiting_admission_keeps_the_original_deadline_and_separate_capacity() {
+    let (owner, handle, wake) = setup();
+    let capture = handle
+        .capture_send(ProducerSendOptions::new(Duration::from_secs(30)))
+        .unwrap_or_else(|error| panic!("ordinary boundary capture should succeed: {error}"));
+    let original_deadline = capture.absolute_deadline();
+
+    std::thread::sleep(Duration::from_millis(2));
+    let accepted = handle
+        .send_captured(capture, record())
+        .unwrap_or_else(|error| panic!("explicit record should enter bounded waiting: {error:?}"));
+
+    let data = host(&owner);
+    assert_eq!(data.shard_stats().host.waiting.records, 1);
+    assert_eq!(data.shard_stats().host.store.records, 0);
+    assert_eq!(
+        data.bound_deadline(OperationId::from_raw(1))
+            .unwrap_or_else(|| panic!("waiting operation should retain its internal deadline"))
+            .transport(),
+        original_deadline
+    );
+    assert_eq!(wake.count(), 1);
+    drop(data);
+    drop(accepted.into_observer());
+}
+
+#[test]
 fn absent_timestamp_defaults_inside_engine_and_restores_as_absent() {
     let stored = record().into_stored(PartitionIndex::from_raw(3), 1_234);
     let (_, timestamp_ms, _, _, _) = stored.into_parts();

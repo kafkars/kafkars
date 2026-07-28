@@ -75,7 +75,10 @@ fn failed_close_capacity_leaves_the_fast_fence_open() {
     let mut guard = owner
         .try_data()
         .unwrap_or_else(|error| panic!("test should fill terminal capacity: {error:?}"));
-    let capacity = valid_limits().completion_capacity;
+    let limits = valid_limits();
+    let capacity = limits
+        .completion_capacity
+        .saturating_add(limits.waiting_record_capacity);
     let reservations: Vec<_> = (0..capacity)
         .map(|_| {
             guard

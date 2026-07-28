@@ -48,6 +48,7 @@ fn completion_rejection_returns_the_exact_record_before_store_reservation() {
     limits.batch_capacity = 1;
     limits.timer_capacity = 1;
     limits.batch_policy = single_record_with_linger();
+    let waiting_capacity = limits.waiting_record_capacity;
     let mut host = start(limits);
     let admitted = admit(
         &mut host,
@@ -55,6 +56,13 @@ fn completion_rejection_returns_the_exact_record_before_store_reservation() {
         Deadline::from_tick(20),
         record("first"),
     );
+    let reservations: Vec<_> = (0..waiting_capacity)
+        .map(|_| {
+            host.completions.reserve().unwrap_or_else(|error| {
+                panic!("waiting completion reservation should fit: {error}")
+            })
+        })
+        .collect();
     let topic: Arc<str> = Arc::from("second");
     let rejected = reject_result(host.try_admit_explicit(
         Moment::from_tick(0),
@@ -68,6 +76,10 @@ fn completion_rejection_returns_the_exact_record_before_store_reservation() {
     );
     assert!(Arc::ptr_eq(rejected.into_record().topic(), &topic));
     assert_eq!(host.stats().store.records, 1);
+    for (completion_id, observer) in reservations {
+        assert_eq!(host.completions.rollback_reservation(completion_id), Ok(()));
+        drop(observer);
+    }
     drop(admitted);
 }
 

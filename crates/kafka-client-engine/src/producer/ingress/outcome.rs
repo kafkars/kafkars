@@ -1,5 +1,8 @@
 //! Ownership-aware outcomes from synchronized producer admission.
 
+mod debug;
+mod waiting;
+
 use std::sync::Arc;
 
 use kafka_client_core::OperationId;
@@ -9,12 +12,13 @@ use crate::{ProducerDeliveryObserver, producer::ProducerHostInvariantError};
 use super::{
     super::{
         ProducerRecord, ProducerRejectionReason, admission::AdmittedExplicit,
-        admission::ProducerAdmissionFailure,
+        admission::ProducerAdmissionFailure, waiting::WaitingToken,
     },
     ProducerShardWakeError,
     cancellation::ProducerCancellationPort,
     shard::ProducerShardState,
 };
+pub(in crate::producer::ingress) use waiting::classify_waiting_admission;
 
 /// Committed admission retaining terminal observation, identity, and execution fault.
 ///
@@ -24,6 +28,7 @@ use super::{
 pub(crate) struct ProducerPortAccepted {
     observer: ProducerDeliveryObserver,
     operation_id: Option<OperationId>,
+    waiting: Option<(kafka_client_core::ProducerWaiterId, Arc<WaitingToken>)>,
     fault: Result<(), ProducerPortAcceptedFault>,
 }
 
@@ -35,6 +40,14 @@ impl ProducerPortAccepted {
                 .with_cancellation(ProducerCancellationPort::new(
                     Arc::downgrade(shared),
                     operation_id,
+                ));
+        } else if let Some((waiter_id, token)) = &self.waiting {
+            self.observer = self
+                .observer
+                .with_cancellation(ProducerCancellationPort::new_waiting(
+                    Arc::downgrade(shared),
+                    *waiter_id,
+                    Arc::clone(token),
                 ));
         }
         self
@@ -51,21 +64,14 @@ impl ProducerPortAccepted {
     }
 
     pub(super) fn with_wake(mut self, wake: Result<(), ProducerShardWakeError>) -> Self {
+        self.apply_wake(wake);
+        self
+    }
+
+    pub(super) fn apply_wake(&mut self, wake: Result<(), ProducerShardWakeError>) {
         if self.fault.is_ok() {
             self.fault = wake.map_err(ProducerPortAcceptedFault::Wake);
         }
-        self
-    }
-}
-
-impl std::fmt::Debug for ProducerPortAccepted {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProducerPortAccepted")
-            .field("observer", &self.observer)
-            .field("operation_id", &self.operation_id)
-            .field("fault", &self.fault)
-            .finish()
     }
 }
 
@@ -137,6 +143,7 @@ pub(super) fn classify_admission(
     match result {
         Ok(admitted) => Ok(ProducerPortAccepted {
             operation_id: Some(admitted.operation_id()),
+            waiting: None,
             observer: admitted.into_delivery_observer(),
             fault: Ok(()),
         }),
@@ -165,6 +172,7 @@ pub(super) fn classify_admission(
             Ok(ProducerPortAccepted {
                 observer: ProducerDeliveryObserver::from_completion(observer),
                 operation_id,
+                waiting: None,
                 fault: Err(ProducerPortAcceptedFault::HostInvariant(error)),
             })
         }

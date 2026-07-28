@@ -74,13 +74,22 @@ pub(super) struct RecordStore {
 
 impl RecordStore {
     pub(super) const fn new(max_records: usize, max_bytes: usize) -> Self {
+        Self::new_with_topic_limits(max_records, max_bytes, max_records, max_bytes)
+    }
+
+    pub(super) const fn new_with_topic_limits(
+        max_records: usize,
+        max_bytes: usize,
+        max_topics: usize,
+        max_topic_bytes: usize,
+    ) -> Self {
         Self {
             max_records,
             max_bytes,
             next_payload_id: Some(PayloadId::from_raw(1)),
             used_bytes: 0,
             slots: BTreeMap::new(),
-            topics: TopicCatalog::new(),
+            topics: TopicCatalog::new(max_topics, max_topic_bytes),
         }
     }
 

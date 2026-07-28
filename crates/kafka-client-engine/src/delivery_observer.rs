@@ -45,6 +45,12 @@ impl ProducerDeliveryObserver {
         self
     }
 
+    pub(crate) fn disarm_drop_cancellation(&mut self) {
+        if let Some(cancellation) = &mut self.cancellation {
+            cancellation.disarm_abandonment();
+        }
+    }
+
     /// Attempts stage-aware cancellation without waiting or restarting time.
     pub fn try_cancel(&self) -> Result<ProducerCancelAccepted, ProducerCancelError> {
         self.cancellation
@@ -56,8 +62,12 @@ impl ProducerDeliveryObserver {
     }
 
     /// Blocks on the same terminal cell used by `Future::poll`.
-    pub fn wait(self) -> ProducerDeliveryResult {
-        match self.inner.wait() {
+    pub fn wait(mut self) -> ProducerDeliveryResult {
+        let result = self.inner.wait();
+        if let Some(cancellation) = &mut self.cancellation {
+            cancellation.complete_observation();
+        }
+        match result {
             Ok(terminal) => translate_terminal(terminal),
             Err(error) => Err(observer_error(error)),
         }
@@ -71,8 +81,18 @@ impl Future for ProducerDeliveryObserver {
         let this = self.get_mut();
         match Pin::new(&mut this.inner).poll(context) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(Ok(terminal)) => Poll::Ready(translate_terminal(terminal)),
-            Poll::Ready(Err(error)) => Poll::Ready(Err(observer_error(error))),
+            Poll::Ready(Ok(terminal)) => {
+                if let Some(cancellation) = &mut this.cancellation {
+                    cancellation.complete_observation();
+                }
+                Poll::Ready(translate_terminal(terminal))
+            }
+            Poll::Ready(Err(error)) => {
+                if let Some(cancellation) = &mut this.cancellation {
+                    cancellation.complete_observation();
+                }
+                Poll::Ready(Err(observer_error(error)))
+            }
         }
     }
 }

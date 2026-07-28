@@ -95,7 +95,10 @@ fn producer_close_fences_records_flushes_and_repeated_close() {
 #[test]
 fn close_capacity_failure_leaves_record_and_flush_admission_running() {
     let mut data = ProducerShardData::new(start(valid_limits()));
-    let capacity = valid_limits().completion_capacity;
+    let limits = valid_limits();
+    let capacity = limits
+        .completion_capacity
+        .saturating_add(limits.waiting_record_capacity);
     let reservations: Vec<_> = (0..capacity)
         .map(|_| {
             data.host

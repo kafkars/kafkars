@@ -137,6 +137,7 @@ const fn outcome(
         submission_expiries: 0,
         completion_retries: 0,
         reclaim_attempts: 0,
+        waiting_admissions: 0,
         next_deadline,
         runnable_work,
         blocked_work,

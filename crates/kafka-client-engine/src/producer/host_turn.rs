@@ -12,6 +12,7 @@ pub(crate) struct ProducerTurnBudget {
     submission_expiries: usize,
     completion_retries: usize,
     reclaim_attempts: usize,
+    waiting_admissions: usize,
 }
 
 impl ProducerTurnBudget {
@@ -22,12 +23,14 @@ impl ProducerTurnBudget {
         submission_expiries: usize,
         completion_retries: usize,
         reclaim_attempts: usize,
+        waiting_admissions: usize,
     ) -> Option<Self> {
         if batch_timers == 0
             || prepared_effects == 0
             || submission_expiries == 0
             || completion_retries == 0
             || reclaim_attempts == 0
+            || waiting_admissions == 0
         {
             return None;
         }
@@ -37,6 +40,7 @@ impl ProducerTurnBudget {
             submission_expiries,
             completion_retries,
             reclaim_attempts,
+            waiting_admissions,
         })
     }
 }
@@ -49,6 +53,7 @@ pub(crate) struct ProducerTurnOutcome {
     pub(crate) submission_expiries: usize,
     pub(crate) completion_retries: usize,
     pub(crate) reclaim_attempts: usize,
+    pub(crate) waiting_admissions: usize,
     pub(crate) next_deadline: Option<Deadline>,
     pub(crate) runnable_work: bool,
     pub(crate) blocked_work: bool,
@@ -69,13 +74,17 @@ impl ProducerHost {
             return Err(error);
         }
         let batch_timers = self.fire_due(now, budget.batch_timers)?;
+        let waiting = self.drive_waiting(now, budget.waiting_admissions)?;
         let compression_expiries = self.fire_due_compression(now, budget.submission_expiries)?;
         let prepared_effects = self.drive_prepared(now, budget.prepared_effects)?;
         let submission_expiries = compression_expiries
             .saturating_add(self.fire_due_submissions(now, budget.submission_expiries)?);
         let completion_retries = self.retry_terminal_backlog(budget.completion_retries)?;
         let reclaim = self.reclaim_many(now, budget.reclaim_attempts)?;
-        let next_deadline = min_deadline(self.next_deadline(), pending_submission_deadline(self));
+        let next_deadline = min_deadline(
+            min_deadline(self.next_deadline(), pending_submission_deadline(self)),
+            self.waiting_next_deadline(),
+        );
         let due_remains = next_deadline.is_some_and(|deadline| deadline.is_elapsed_at(now));
         let compressed_pending = self.pending_effects().iter().copied().any(|effect| {
             matches!(
@@ -94,9 +103,11 @@ impl ProducerHost {
         let completion_blocked = !self.terminal_backlog.is_empty();
         let runnable_work = due_remains
             || prepared_remains
+            || (waiting.progressed == budget.waiting_admissions && !waiting.blocked)
             || (reclaim.attempts == budget.reclaim_attempts && !reclaim.blocked);
         let blocked_work = completion_blocked
             || reclaim.blocked
+            || waiting.blocked
             || (compressed_pending && self.compression_saturated);
         Ok(ProducerTurnOutcome {
             batch_timers,
@@ -104,6 +115,7 @@ impl ProducerHost {
             submission_expiries,
             completion_retries,
             reclaim_attempts: reclaim.attempts,
+            waiting_admissions: waiting.progressed,
             next_deadline,
             runnable_work,
             blocked_work,

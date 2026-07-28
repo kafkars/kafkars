@@ -1,8 +1,10 @@
 //! Immediate non-owning access to stage-aware producer cancellation.
 
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 
-use kafka_client_core::{OperationId, ProducerCancellationOutcome as CoreCancellationOutcome};
+use kafka_client_core::{
+    OperationId, ProducerCancellationOutcome as CoreCancellationOutcome, ProducerWaiterId,
+};
 
 use super::{ProducerShardLockError, ProducerShardWakeError, shard::ProducerShardState};
 use crate::producer::cancellation::{ProducerHostCancelAccepted, ProducerHostCancelError};
@@ -10,15 +12,45 @@ use crate::producer::cancellation::{ProducerHostCancelAccepted, ProducerHostCanc
 /// Weak operation capability retained by the sole delivery observer.
 pub(crate) struct ProducerCancellationPort {
     shared: Weak<ProducerShardState>,
-    operation_id: OperationId,
+    target: ProducerCancellationTarget,
+    abandonment_armed: bool,
+}
+
+enum ProducerCancellationTarget {
+    Active(OperationId),
+    Waiting {
+        waiter_id: ProducerWaiterId,
+        token: Arc<crate::producer::waiting::WaitingToken>,
+    },
 }
 
 impl ProducerCancellationPort {
     pub(super) const fn new(shared: Weak<ProducerShardState>, operation_id: OperationId) -> Self {
         Self {
             shared,
-            operation_id,
+            target: ProducerCancellationTarget::Active(operation_id),
+            abandonment_armed: false,
         }
+    }
+
+    pub(super) fn new_waiting(
+        shared: Weak<ProducerShardState>,
+        waiter_id: ProducerWaiterId,
+        token: Arc<crate::producer::waiting::WaitingToken>,
+    ) -> Self {
+        Self {
+            shared,
+            target: ProducerCancellationTarget::Waiting { waiter_id, token },
+            abandonment_armed: true,
+        }
+    }
+
+    pub(crate) const fn complete_observation(&mut self) {
+        self.abandonment_armed = false;
+    }
+
+    pub(crate) const fn disarm_abandonment(&mut self) {
+        self.abandonment_armed = false;
     }
 
     pub(crate) fn try_cancel(&self) -> Result<ProducerPortCancelAccepted, ProducerPortCancelError> {
@@ -35,7 +67,14 @@ impl ProducerCancellationPort {
                 return Err(ProducerPortCancelError::HostUnavailable);
             }
         };
-        let accepted = classify(data.try_cancel(self.operation_id))?;
+        let accepted = match &self.target {
+            ProducerCancellationTarget::Active(operation_id) => {
+                classify(data.try_cancel(*operation_id))?
+            }
+            ProducerCancellationTarget::Waiting { waiter_id, token } => {
+                classify_waiting(data.try_cancel_waiter(*waiter_id, token))?
+            }
+        };
         drop(data);
         if accepted.needs_wake() {
             Ok(accepted.with_wake(shared.wake()))
@@ -49,8 +88,27 @@ impl std::fmt::Debug for ProducerCancellationPort {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("ProducerCancellationPort")
-            .field("operation_id", &self.operation_id)
+            .field(
+                "waiting",
+                &matches!(self.target, ProducerCancellationTarget::Waiting { .. }),
+            )
             .finish_non_exhaustive()
+    }
+}
+
+impl Drop for ProducerCancellationPort {
+    fn drop(&mut self) {
+        if !self.abandonment_armed {
+            return;
+        }
+        let ProducerCancellationTarget::Waiting { token, .. } = &self.target else {
+            return;
+        };
+        if token.request_abandonment() {
+            if let Some(shared) = self.shared.upgrade() {
+                let _wake_result = shared.wake();
+            }
+        }
     }
 }
 
@@ -110,6 +168,26 @@ fn classify(
     match result {
         Ok(accepted) => Ok(ProducerPortCancelAccepted {
             outcome: accepted.outcome(),
+            fault: None,
+        }),
+        Err(ProducerHostCancelError::HostUnavailable(_)) => {
+            Err(ProducerPortCancelError::HostUnavailable)
+        }
+        Err(ProducerHostCancelError::ExecutionGenerationExhausted) => {
+            Err(ProducerPortCancelError::ExecutionGenerationExhausted)
+        }
+        Err(ProducerHostCancelError::Invariant(error)) => {
+            Err(ProducerPortCancelError::InternalInvariant(error))
+        }
+    }
+}
+
+fn classify_waiting(
+    result: Result<CoreCancellationOutcome, ProducerHostCancelError>,
+) -> Result<ProducerPortCancelAccepted, ProducerPortCancelError> {
+    match result {
+        Ok(outcome) => Ok(ProducerPortCancelAccepted {
+            outcome,
             fault: None,
         }),
         Err(ProducerHostCancelError::HostUnavailable(_)) => {

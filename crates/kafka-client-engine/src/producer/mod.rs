@@ -30,6 +30,7 @@ mod terminal;
 mod terminal_backlog;
 mod terminal_publication;
 mod topic_catalog;
+mod waiting;
 pub use exports::*;
 #[cfg(test)]
 mod admission_test;
@@ -77,3 +78,5 @@ mod terminal_test;
 pub(crate) mod test_identity;
 #[cfg(test)]
 mod topic_catalog_test;
+#[cfg(test)]
+mod waiting_test;

@@ -59,6 +59,7 @@ excluded_roots = ["crates/kafka-client-guardrails/tests/fixtures"]
 [budgets]
 baseline = [
   { path = "crates/kafka-client-core/src/producer/mod.rs", lines = 89, reason = "the declarative producer facade names bounded waiting admission, promotion, terminal policy, and their sibling evidence" },
+  { path = "crates/kafka-client-engine/src/producer/mod.rs", lines = 82, reason = "the declarative producer facade names bounded explicit waiting and its sibling recovery evidence" },
 ]
 allow = []
 
@@ -5924,6 +5925,9 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/reclaim_turn.rs",
   "crates/kafka-client-engine/src/producer/shutdown.rs",
   "crates/kafka-client-engine/src/producer/cancellation/host.rs",
+  "crates/kafka-client-engine/src/producer/waiting/admission.rs",
+  "crates/kafka-client-engine/src/producer/waiting/settlement.rs",
+  "crates/kafka-client-engine/src/producer/waiting/turn.rs",
 ]
 
 [[mutation_owners]]
@@ -6425,6 +6429,9 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/host/driver_input.rs",
   "crates/kafka-client-engine/src/producer/cancellation/revision.rs",
   "crates/kafka-client-engine/src/producer/shutdown.rs",
+  "crates/kafka-client-engine/src/producer/waiting/admission.rs",
+  "crates/kafka-client-engine/src/producer/waiting/settlement.rs",
+  "crates/kafka-client-engine/src/producer/waiting/turn.rs",
 ]
 
 [[mutation_owners]]
@@ -6440,6 +6447,8 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/shutdown.rs",
   "crates/kafka-client-engine/src/producer/terminal_publication.rs",
   "crates/kafka-client-engine/src/producer/terminal_publication/validation.rs",
+  "crates/kafka-client-engine/src/producer/waiting/admission.rs",
+  "crates/kafka-client-engine/src/producer/waiting/settlement.rs",
 ]
 
 [[mutation_owners]]
@@ -6557,6 +6566,9 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/shutdown.rs",
   "crates/kafka-client-engine/src/producer/terminal_publication.rs",
   "crates/kafka-client-engine/src/producer/terminal_publication/validation.rs",
+  "crates/kafka-client-engine/src/producer/waiting/admission.rs",
+  "crates/kafka-client-engine/src/producer/waiting/settlement.rs",
+  "crates/kafka-client-engine/src/producer/waiting/turn.rs",
 ]
 
 [[mutation_owners]]

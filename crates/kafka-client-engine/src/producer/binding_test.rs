@@ -163,6 +163,51 @@ fn exact_removal_rejects_a_different_completion_generation() {
     stop(registry);
 }
 
+#[test]
+fn waiting_terminal_origin_shares_the_existing_binding_bound_without_growth() {
+    let Ok(mut registry) = CompletionRegistry::new(3, 3) else {
+        panic!("notifier should start")
+    };
+    let first = reserve(&mut registry);
+    let second = reserve(&mut registry);
+    let active = reserve(&mut registry);
+    let first_operation = OperationId::from_raw(1);
+    let second_operation = OperationId::from_raw(2);
+    let active_operation = OperationId::from_raw(3);
+    let mut bindings = OperationBindings::new(3);
+
+    assert_eq!(
+        bindings.bind_waiting(first_operation, first.id, deadline(50)),
+        Ok(())
+    );
+    assert_eq!(
+        bindings.bind_waiting(second_operation, second.id, deadline(51)),
+        Ok(())
+    );
+    assert_eq!(
+        bindings.bind(active_operation, active.id, deadline(52)),
+        Ok(())
+    );
+    let allocation = bindings.allocation_capacity();
+    assert_eq!(bindings.mark_waiting_terminal(first_operation), Ok(()));
+    assert_eq!(bindings.mark_waiting_terminal(second_operation), Ok(()));
+    assert_eq!(bindings.waiting_terminal_len(), 2);
+    assert_eq!(bindings.allocation_capacity(), allocation);
+    assert_eq!(
+        bindings.mark_waiting_terminal(active_operation),
+        Err(OperationBindingError::NotWaitingOperation)
+    );
+
+    assert_eq!(bindings.remove_exact(first_operation, first.id), Ok(()));
+    assert_eq!(bindings.waiting_terminal_len(), 1);
+    assert_eq!(bindings.allocation_capacity(), allocation);
+
+    rollback(&mut registry, first);
+    rollback(&mut registry, second);
+    rollback(&mut registry, active);
+    stop(registry);
+}
+
 fn deadline(tick: u64) -> OperationDeadline {
     OperationDeadline::from_parts_for_test(Deadline::from_tick(tick), Instant::now())
 }

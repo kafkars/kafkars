@@ -48,8 +48,22 @@ pub(crate) struct ProducerStore {
 impl ProducerStore {
     /// Creates an empty producer store with explicit count and byte bounds.
     pub(crate) const fn new(limits: ProducerStoreLimits) -> Self {
+        Self::new_with_topic_limits(limits, limits.records, limits.bytes)
+    }
+
+    /// Creates a store whose producer-lifetime topic identities have independent bounds.
+    pub(crate) const fn new_with_topic_limits(
+        limits: ProducerStoreLimits,
+        max_topics: usize,
+        max_topic_bytes: usize,
+    ) -> Self {
         Self {
-            records: RecordStore::new(limits.records, limits.bytes),
+            records: RecordStore::new_with_topic_limits(
+                limits.records,
+                limits.bytes,
+                max_topics,
+                max_topic_bytes,
+            ),
             batches: BatchStore::new(limits.batches),
         }
     }
@@ -122,6 +136,20 @@ impl ProducerStore {
 
     pub(super) fn topic_count(&self) -> usize {
         self.records.topic_count()
+    }
+
+    pub(super) fn retain_waiting_topic(
+        &mut self,
+        topic: std::sync::Arc<str>,
+    ) -> Result<kafka_client_core::TopicId, ProducerStoreError> {
+        self.records.topics.acquire(topic)
+    }
+
+    pub(super) fn release_waiting_topic(
+        &mut self,
+        topic_id: kafka_client_core::TopicId,
+    ) -> Result<(), ProducerStoreError> {
+        self.records.topics.release(topic_id)
     }
 }
 

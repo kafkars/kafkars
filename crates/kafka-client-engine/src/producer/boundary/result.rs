@@ -24,7 +24,21 @@ impl ProducerTrySendAccepted {
     }
 
     pub(super) fn from_port(accepted: ProducerPortAccepted) -> Self {
-        let (observer, _operation_id, fault) = accepted.into_parts();
+        Self::from_port_with_drop_cancellation(accepted, false)
+    }
+
+    pub(super) fn from_waiting_port(accepted: ProducerPortAccepted) -> Self {
+        Self::from_port_with_drop_cancellation(accepted, true)
+    }
+
+    fn from_port_with_drop_cancellation(
+        accepted: ProducerPortAccepted,
+        drop_cancels_waiting: bool,
+    ) -> Self {
+        let (mut observer, _operation_id, fault) = accepted.into_parts();
+        if !drop_cancels_waiting {
+            observer.disarm_drop_cancellation();
+        }
         Self {
             observer,
             fault: fault.err().map(ProducerAcceptedFault::from_port),

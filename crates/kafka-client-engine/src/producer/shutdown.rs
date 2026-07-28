@@ -47,8 +47,9 @@ impl Error for ProducerTerminalCleanupError {}
 
 impl ProducerHost {
     /// Permanently closes core admission before terminal host drain.
-    pub(crate) const fn close_admission(&mut self) {
+    pub(crate) fn close_admission(&mut self) {
         self.core.close_admission();
+        self.waiting_policy.close();
     }
 
     /// Returns accepted operations that still owe terminal publication.
@@ -102,6 +103,12 @@ impl ProducerHost {
         self.compression_saturated = false;
         self.execution.clear_terminal();
         self.reclaimer.clear_terminal();
+        self.waiting.clear_terminal();
+        while let Some(waiter) = self.waiting_policy.front() {
+            let removed = self.waiting_policy.remove(waiter.id());
+            debug_assert!(removed.is_some());
+        }
+        self.waiting_policy.close();
         self.store.clear_terminal();
         let mut core = self.core_config.machine();
         core.close_admission();
@@ -155,6 +162,8 @@ impl ProducerHost {
             .saturating_add(stats.pending_effects)
             .saturating_add(stats.compression_jobs)
             .saturating_add(stats.compression_bytes)
+            .saturating_add(stats.waiting.records)
+            .saturating_add(usize::try_from(stats.waiting.bytes.get()).unwrap_or(usize::MAX))
             .saturating_add(core_bytes)
     }
 
@@ -184,6 +193,9 @@ impl ProducerHost {
             && stats.compression_jobs == 0
             && stats.compression_bytes == 0
             && stats.terminal_backlog == 0
+            && stats.waiting.records == 0
+            && stats.waiting.bytes == kafka_client_core::ByteCount::new(0)
+            && stats.waiting.terminal_bindings == 0
             && stats.core_retained_bytes == kafka_client_core::ByteCount::new(0)
             && stats.core_completion_slots == 0
             && stats.core_flush_slots == 0

@@ -1,5 +1,7 @@
 //! Public immediate-admission handle over one synchronized producer shard.
 
+mod waiting;
+
 use std::sync::Arc;
 
 use super::super::ingress::ProducerAdmissionPort;

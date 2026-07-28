@@ -1,15 +1,13 @@
 //! Synchronized capacity and ownership for one explicit-partition producer host.
 
+mod config;
 mod driver_input;
 #[cfg(test)]
 mod driver_input_test;
 mod observation;
 #[cfg(test)]
 mod test_support;
-use kafka_client_core::{
-    ByteCount, CompressionPolicy, ProducerBatchPolicy, ProducerEffect, ProducerMachine,
-    ProducerRetryPolicy,
-};
+use kafka_client_core::{ByteCount, ProducerEffect, ProducerMachine, ProducerWaitingQueue};
 
 use crate::{clock::BatchTimers, completion::CompletionRegistry};
 
@@ -23,7 +21,9 @@ use super::{
     reclaim::CompletionReclaimer,
     terminal::ProducerTerminal,
     terminal_backlog::OrderedTerminalBacklog,
+    waiting::{ProducerWaitingStats, model::ProducerWaitingStore},
 };
+use config::ProducerCoreConfig;
 
 #[path = "host_limits.rs"]
 mod limits;
@@ -46,6 +46,7 @@ pub(crate) struct ProducerHostStats {
     pub(crate) compression_jobs: usize,
     pub(crate) compression_bytes: usize,
     pub(crate) terminal_backlog: usize,
+    pub(crate) waiting: ProducerWaitingStats,
     pub(crate) healthy: bool,
 }
 
@@ -53,27 +54,6 @@ pub(crate) struct ProducerHostStats {
 pub(super) enum ProducerHostHealth {
     Healthy,
     Poisoned(ProducerHostInvariantError),
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(super) struct ProducerCoreConfig {
-    retained_bytes: ByteCount,
-    completion_capacity: usize,
-    batch_policy: ProducerBatchPolicy,
-    retry_policy: ProducerRetryPolicy,
-    compression: CompressionPolicy,
-}
-
-impl ProducerCoreConfig {
-    pub(super) const fn machine(self) -> ProducerMachine {
-        ProducerMachine::with_batch_retry_and_compression_policy(
-            self.retained_bytes,
-            self.completion_capacity,
-            self.batch_policy,
-            self.retry_policy,
-            self.compression,
-        )
-    }
 }
 
 #[derive(Debug)]
@@ -91,6 +71,8 @@ pub(crate) struct ProducerHost {
     pub(super) compression_saturated: bool,
     pub(super) pending_effects: Vec<ProducerEffect>,
     pub(super) terminal_backlog: OrderedTerminalBacklog,
+    pub(super) waiting_policy: ProducerWaitingQueue,
+    pub(super) waiting: ProducerWaitingStore,
     pub(super) effect_capacity: usize,
     pub(super) health: ProducerHostHealth,
     #[cfg(test)]
@@ -118,10 +100,15 @@ impl ProducerHost {
     where
         W: super::ingress::ProducerShardWake,
     {
-        let retained_bytes = limits.validate()?.retained_bytes();
+        let validated = limits.validate()?;
+        let retained_bytes = validated.retained_bytes();
+        let waiting_bytes = validated.waiting_bytes();
+        let total_completion_capacity = validated.total_completion_capacity();
+        let total_retained_bytes = validated.total_retained_bytes();
         let core_config = ProducerCoreConfig {
             retained_bytes,
-            completion_capacity: limits.completion_capacity,
+            completion_capacity: total_completion_capacity,
+            flush_capacity: limits.completion_capacity,
             batch_policy: limits.batch_policy,
             retry_policy: limits.retry_policy,
             compression: limits.compression,
@@ -136,18 +123,22 @@ impl ProducerHost {
             wake,
         )
         .map_err(ProducerHostStartError::Compression)?;
-        let completions = CompletionRegistry::start(limits.completion_capacity)
+        let completions = CompletionRegistry::start(total_completion_capacity)
             .map_err(ProducerHostStartError::Notifier)?;
         Ok(Self {
             core,
             core_config,
-            store: ProducerStore::new(ProducerStoreLimits {
-                records: limits.record_capacity,
-                bytes: limits.retained_bytes,
-                batches: limits.batch_capacity,
-            }),
+            store: ProducerStore::new_with_topic_limits(
+                ProducerStoreLimits {
+                    records: limits.record_capacity,
+                    bytes: limits.retained_bytes,
+                    batches: limits.batch_capacity,
+                },
+                total_completion_capacity,
+                total_retained_bytes,
+            ),
             completions,
-            bindings: OperationBindings::new(limits.completion_capacity),
+            bindings: OperationBindings::new(total_completion_capacity),
             flush_bindings: FlushBindings::new(limits.completion_capacity),
             reclaimer: CompletionReclaimer::new(),
             timers: BatchTimers::new(limits.timer_capacity),
@@ -160,9 +151,14 @@ impl ProducerHost {
             ),
             compression,
             compression_saturated: false,
-            pending_effects: Vec::with_capacity(limits.completion_capacity),
-            terminal_backlog: OrderedTerminalBacklog::new(limits.completion_capacity),
-            effect_capacity: limits.completion_capacity,
+            pending_effects: Vec::with_capacity(total_completion_capacity),
+            terminal_backlog: OrderedTerminalBacklog::new(total_completion_capacity),
+            waiting_policy: ProducerWaitingQueue::new(
+                limits.waiting_record_capacity,
+                waiting_bytes,
+            ),
+            waiting: ProducerWaitingStore::new(limits.waiting_record_capacity),
+            effect_capacity: total_completion_capacity,
             health: ProducerHostHealth::Healthy,
             #[cfg(test)]
             terminal_publish_faults: std::collections::VecDeque::new(),
@@ -194,6 +190,7 @@ impl ProducerHost {
             compression_jobs: self.compression.retained_jobs(),
             compression_bytes: self.compression.retained_bytes(),
             terminal_backlog: self.terminal_backlog.len(),
+            waiting: self.waiting_stats(),
             healthy: self.health == ProducerHostHealth::Healthy,
         }
     }

@@ -58,6 +58,14 @@ impl ProducerShardData {
         self.host.try_cancel_operation(operation_id)
     }
 
+    pub(super) fn try_cancel_waiter(
+        &mut self,
+        waiter_id: kafka_client_core::ProducerWaiterId,
+        token: &std::sync::Arc<crate::producer::waiting::WaitingToken>,
+    ) -> Result<kafka_client_core::ProducerCancellationOutcome, ProducerHostCancelError> {
+        self.host.try_cancel_waiter(waiter_id, token)
+    }
+
     pub(super) fn try_admit_flush(
         &mut self,
         now: Moment,

@@ -404,7 +404,7 @@ evidence = [
 [[invariant]]
 id = "BND-01"
 title = "Retained producer bytes are bounded"
-statement = "Application records, compression jobs, compression results, and encoded batches have explicit count and byte limits; admission preserves provenance and releases each reservation exactly once."
+statement = "Active and waiting application records, compression jobs, compression results, and encoded batches have explicit count and byte limits; admission preserves provenance and releases each reservation exactly once."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/record_store_test.rs::count_and_bytes_are_reserved_before_core_admission",
@@ -412,12 +412,13 @@ evidence = [
   "crates/kafka-client-engine/src/producer/execution_test.rs::encoded_capacity_failure_becomes_a_core_owned_not_sent_outcome",
   "crates/kafka-client-engine/src/producer/execution/materialization_test.rs::prepared_entry_count_bound_rejects_without_accounting_drift",
   "crates/kafka-client-engine/src/producer/compression/pool_test.rs::one_bounded_slot_returns_the_second_linear_job",
+  "crates/kafka-client-engine/src/producer/waiting_test.rs::saturated_active_partition_still_accepts_and_promotes_one_waiter",
 ]
 
 [[invariant]]
 id = "CAN-01"
 title = "Cancellation is stage-aware"
-statement = "Cancellation is an immediate core decision: open and generation-fenced pre-driver work, including worker-owned compression, revokes its exact retained mechanisms and terminates NotSent; driver-owned work returns TooLate without mutation, terminal observation remains authoritative, and observer drop remains abandonment."
+statement = "Cancellation is an immediate core decision: waiting, open, and generation-fenced pre-driver work, including worker-owned compression, revokes its exact retained mechanisms and terminates NotSent; driver-owned work returns TooLate without mutation, terminal observation remains authoritative, waiting-observer drop requests exact pre-promotion cancellation, and active-observer drop remains abandonment."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/producer/cancellation_test.rs::open_member_cancellation_releases_exact_resources_and_remains_terminal",
@@ -433,6 +434,7 @@ evidence = [
   "crates/kafka-client-engine/src/producer/ingress/cancellation_test.rs::cancellation_terminal_backpressure_preserves_abandon_reclaim",
   "crates/kafka-client/src/producer/cancellation_test.rs::cancellation_preserves_the_terminal_observer_and_repeated_requests_reach_core",
   "crates/kafka-client-engine/src/producer/compression/pool_test.rs::explicit_cancellation_fences_a_completed_but_unapplied_generation",
+  "crates/kafka-client-engine/src/producer/waiting_test.rs::dropping_waiting_observer_requests_exact_not_sent_cancellation",
 ]
 
 [[invariant]]
@@ -466,6 +468,7 @@ evidence = [
   "crates/kafka-client-engine/src/producer/reclaim_test.rs::registry_retry_never_emits_a_second_core_input",
   "crates/kafka-client-engine/src/producer/reclaim_turn_test.rs::observed_completion_reuses_only_a_new_completion_generation",
   "crates/kafka-client-engine/src/producer/reclaim_turn_test.rs::locked_cell_retry_does_not_repeat_the_core_reclaim_input",
+  "crates/kafka-client-engine/src/producer/waiting_test.rs::timeout_releases_waiting_count_and_bytes_before_terminal_reclaim",
   "crates/kafka-client-engine/src/delivery_observer_test.rs::wait_and_future_observe_the_same_terminal_cell",
 ]
 
@@ -1073,6 +1076,7 @@ evidence = [
   "crates/kafka-client-core/src/producer/execution_stop_test.rs::execution_loss_does_not_repeat_an_unreclaimed_terminal",
   "crates/kafka-client-core/src/producer/execution_stop_capacity_test.rs::execution_loss_uses_the_combined_record_and_flush_bound",
   "crates/kafka-client-core/src/producer/waiting_input_test.rs::execution_stop_settles_waiting_without_payload_release_before_flush",
+  "crates/kafka-client-engine/src/producer/waiting_test.rs::close_and_shutdown_fence_promotion_and_settle_not_sent",
 ]
 
 [[invariant]]
@@ -1096,6 +1100,7 @@ statement = "A flush becomes observable only after every included record termina
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/producer/terminal_publication_test.rs::flush_publication_stays_behind_retained_record_terminal_under_notifier_backpressure",
+  "crates/kafka-client-engine/src/producer/waiting_test.rs::waiting_deadline_publication_stays_before_its_flush_terminal",
 ]
 
 [[invariant]]
@@ -1193,6 +1198,7 @@ evidence = [
   "crates/kafka-client-engine/src/producer/admission_test.rs::non_ready_admission_synchronizes_core_store_timer_and_observer",
   "crates/kafka-client-engine/src/producer/execution_turn_test.rs::materialization_capacity_failure_is_a_core_owned_terminal_fact",
   "crates/kafka-client-core/src/completion_test.rs::terminal_completion_is_exactly_once",
+  "crates/kafka-client-engine/src/producer/boundary/handle_test.rs::captured_waiting_admission_keeps_the_original_deadline_and_separate_capacity",
 ]
 
 [[invariant]]
@@ -1276,6 +1282,7 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/group/registry_close_test.rs::whole_registry_close_fences_every_entry_and_global_host_once",
   "crates/kafka-client-engine/src/consumer/group/registry_membership_test.rs::closing_entry_revokes_its_exact_catalog_assignment",
   "crates/kafka-client-engine/src/consumer/group/classic_group_position/close_test.rs::shutdown_recovery_quiesces_two_position_and_two_membership_actions",
+  "crates/kafka-client-engine/src/producer/waiting/recovery_test.rs::waiting_settlement_damage_still_publishes_execution_unavailable",
   "crates/kafka-client-engine/src/consumer/group/offset_commit/notifier_lifecycle_test.rs::fallback_transfer_preserves_join_ownership_after_unsettled_stop",
   "crates/kafka-client-engine/src/driver/owner_test.rs::retained_explicit_shutdown_barrier_settles_with_the_reactor",
   "crates/kafka-client-engine/src/producer/compression/pool_test.rs::shutdown_joins_every_owned_native_worker",

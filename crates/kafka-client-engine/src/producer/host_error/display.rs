@@ -64,6 +64,12 @@ impl fmt::Display for ProducerHostInvariantError {
             Self::UnexpectedDriverInput => {
                 formatter.write_str("producer driver bridge received a non-driver input")
             }
+            Self::WaitingOwnership => {
+                formatter.write_str("producer waiting policy and byte ownership diverged")
+            }
+            Self::WaitingToken => {
+                formatter.write_str("producer waiting admission token was poisoned")
+            }
             #[cfg(test)]
             Self::ForcedTerminalInterpretation => {
                 formatter.write_str("forced terminal producer interpretation failure")

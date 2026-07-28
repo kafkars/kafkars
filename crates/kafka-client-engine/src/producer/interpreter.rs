@@ -7,6 +7,22 @@ use kafka_client_core::{Moment, ProducerInput, ProducerTransition};
 use super::{ProducerHost, ProducerHostInvariantError};
 
 impl ProducerHost {
+    /// Interprets a transition whose closed effects require no clock observation.
+    pub(super) fn interpret_time_free_transition(
+        &mut self,
+        transition: ProducerTransition,
+    ) -> Result<(), ProducerHostInvariantError> {
+        let effects = transition.into_effects();
+        for (index, effect) in effects.iter().copied().enumerate() {
+            if let Err(error) = self.interpret_time_free_effect(effect) {
+                let first = self.poison(error);
+                self.retain_terminal_tail(&effects[index + 1..]);
+                return Err(first);
+            }
+        }
+        Ok(())
+    }
+
     pub(super) fn interpret_transition(
         &mut self,
         now: Moment,

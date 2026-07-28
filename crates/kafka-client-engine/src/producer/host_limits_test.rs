@@ -4,9 +4,11 @@ use kafka_client_core::{
     ByteCount, Deadline, Moment, ProducerBatchPolicy, ProducerInput, ProducerRetryPolicy,
     execution_stop_effect_capacity, producer_transition_effect_capacity,
 };
+use std::sync::Arc;
 
 use super::{
     ProducerHost, ProducerHostLimitError, ProducerHostLimits, ProducerHostStartError,
+    ProducerStoreError,
     admission_test::{admit, record},
 };
 
@@ -30,6 +32,36 @@ fn valid_limits_construct_one_synchronized_host() {
 }
 
 #[test]
+fn topic_identity_capacity_covers_active_and_waiting_admissions() {
+    let Ok(batch_policy) = ProducerBatchPolicy::try_new(1, ByteCount::new(64), 100) else {
+        panic!("test policy should be valid")
+    };
+    let mut limits = valid_limits();
+    limits.completion_capacity = 1;
+    limits.record_capacity = 1;
+    limits.batch_capacity = 1;
+    limits.timer_capacity = 1;
+    limits.waiting_record_capacity = 2;
+    limits.batch_policy = batch_policy;
+    let mut host = start(limits);
+
+    for topic in ["orders", "payments", "refunds"] {
+        let id = host
+            .store
+            .retain_waiting_topic(Arc::from(topic))
+            .unwrap_or_else(|error| panic!("{topic} identity should fit: {error}"));
+        host.store
+            .release_waiting_topic(id)
+            .unwrap_or_else(|error| panic!("{topic} identity should release: {error}"));
+    }
+
+    assert_eq!(
+        host.store.retain_waiting_topic(Arc::from("shipments")),
+        Err(ProducerStoreError::TopicIdentityExhausted)
+    );
+}
+
+#[test]
 fn zero_and_mismatched_admission_capacities_are_rejected() {
     let mut zero_bytes = valid_limits();
     zero_bytes.retained_bytes = 0;
@@ -40,6 +72,20 @@ fn zero_and_mismatched_admission_capacities_are_rejected() {
     assert_limit(
         zero_completions,
         ProducerHostLimitError::ZeroCompletionCapacity,
+    );
+
+    let mut zero_waiting_records = valid_limits();
+    zero_waiting_records.waiting_record_capacity = 0;
+    assert_limit(
+        zero_waiting_records,
+        ProducerHostLimitError::ZeroWaitingRecordCapacity,
+    );
+
+    let mut zero_waiting_bytes = valid_limits();
+    zero_waiting_bytes.waiting_byte_capacity = 0;
+    assert_limit(
+        zero_waiting_bytes,
+        ProducerHostLimitError::ZeroWaitingByteCapacity,
     );
 
     let mut mismatched = valid_limits();
@@ -111,8 +157,12 @@ fn validated_limits_cover_the_maximal_core_stop_shape() {
         .core
         .apply(ProducerInput::ExecutionUnavailable)
         .unwrap_or_else(|error| panic!("maximal terminal plan should succeed: {error}"));
+    let total_completion_capacity = limits
+        .completion_capacity
+        .checked_add(limits.waiting_record_capacity)
+        .unwrap_or_else(|| panic!("validated total completion capacity must be representable"));
     let transition_capacity =
-        producer_transition_effect_capacity(limits.record_capacity, limits.completion_capacity)
+        producer_transition_effect_capacity(total_completion_capacity, limits.completion_capacity)
             .unwrap_or_else(|| panic!("validated host capacity must be representable"));
     assert_eq!(
         transition.effects().len(),
@@ -130,10 +180,11 @@ fn validated_limits_cover_the_maximal_core_stop_shape() {
 #[test]
 fn combined_transition_capacity_overflow_is_rejected_before_allocation() {
     let mut limits = valid_limits();
-    limits.completion_capacity = usize::MAX;
-    limits.record_capacity = usize::MAX;
-    limits.batch_capacity = usize::MAX;
-    limits.timer_capacity = usize::MAX;
+    limits.completion_capacity = usize::MAX - 1;
+    limits.waiting_record_capacity = 1;
+    limits.record_capacity = usize::MAX - 1;
+    limits.batch_capacity = usize::MAX - 1;
+    limits.timer_capacity = usize::MAX - 1;
 
     assert_eq!(
         execution_stop_effect_capacity(limits.record_capacity, limits.completion_capacity),
@@ -146,6 +197,27 @@ fn combined_transition_capacity_overflow_is_rejected_before_allocation() {
     assert_limit(limits, ProducerHostLimitError::TransitionCapacityOverflow);
 }
 
+#[test]
+fn combined_record_capacity_overflow_is_rejected_before_allocation() {
+    let mut limits = valid_limits();
+    limits.completion_capacity = usize::MAX;
+    limits.waiting_record_capacity = 1;
+    limits.record_capacity = usize::MAX;
+    limits.batch_capacity = usize::MAX;
+    limits.timer_capacity = usize::MAX;
+
+    assert_limit(limits, ProducerHostLimitError::TotalRecordCapacityOverflow);
+}
+
+#[test]
+fn combined_retained_byte_capacity_overflow_is_rejected_before_allocation() {
+    let mut limits = valid_limits();
+    limits.retained_bytes = usize::MAX;
+    limits.waiting_byte_capacity = 1;
+
+    assert_limit(limits, ProducerHostLimitError::TotalRetainedBytesOverflow);
+}
+
 pub(crate) fn valid_limits() -> ProducerHostLimits {
     let Ok(batch_policy) = ProducerBatchPolicy::try_new(2, ByteCount::new(64), 100) else {
         panic!("test policy should be valid")
@@ -153,6 +225,8 @@ pub(crate) fn valid_limits() -> ProducerHostLimits {
     ProducerHostLimits {
         retained_bytes: 128,
         completion_capacity: 2,
+        waiting_record_capacity: 2,
+        waiting_byte_capacity: 128,
         record_capacity: 2,
         batch_capacity: 2,
         timer_capacity: 2,

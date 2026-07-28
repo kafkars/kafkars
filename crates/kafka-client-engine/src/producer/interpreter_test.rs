@@ -30,6 +30,8 @@ fn generated_accumulation_waits_until_the_whole_admission_transition_drains() {
     let limits = ProducerHostLimits {
         retained_bytes: 64,
         completion_capacity: 1,
+        waiting_record_capacity: 1,
+        waiting_byte_capacity: 64,
         record_capacity: 1,
         batch_capacity: 1,
         timer_capacity: 1,

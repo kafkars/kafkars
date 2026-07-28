@@ -11,6 +11,8 @@ struct OperationBinding {
     operation_id: OperationId,
     completion_id: CompletionId,
     deadline: OperationDeadline,
+    waiting_origin: bool,
+    waiting_terminal: bool,
 }
 
 /// Failure to mutate producer operation execution ownership.
@@ -26,6 +28,8 @@ pub(crate) enum OperationBindingError {
     UnknownOperation,
     /// Removal named the right operation but the wrong completion generation.
     CompletionMismatch,
+    /// The operation was not accepted through bounded waiting ownership.
+    NotWaitingOperation,
 }
 
 impl fmt::Display for OperationBindingError {
@@ -36,6 +40,7 @@ impl fmt::Display for OperationBindingError {
             Self::DuplicateCompletion => "engine completion already belongs to an operation",
             Self::UnknownOperation => "producer operation owns no completion binding",
             Self::CompletionMismatch => "producer operation owns a different completion generation",
+            Self::NotWaitingOperation => "producer operation did not originate in waiting",
         })
     }
 }
@@ -65,6 +70,26 @@ impl OperationBindings {
         completion_id: CompletionId,
         deadline: OperationDeadline,
     ) -> Result<(), OperationBindingError> {
+        self.bind_with_origin(operation_id, completion_id, deadline, false)
+    }
+
+    /// Associates an operation accepted through bounded waiting ownership.
+    pub(crate) fn bind_waiting(
+        &mut self,
+        operation_id: OperationId,
+        completion_id: CompletionId,
+        deadline: OperationDeadline,
+    ) -> Result<(), OperationBindingError> {
+        self.bind_with_origin(operation_id, completion_id, deadline, true)
+    }
+
+    fn bind_with_origin(
+        &mut self,
+        operation_id: OperationId,
+        completion_id: CompletionId,
+        deadline: OperationDeadline,
+        waiting_origin: bool,
+    ) -> Result<(), OperationBindingError> {
         let index = match self.operation_index(operation_id) {
             Ok(_) => return Err(OperationBindingError::DuplicateOperation),
             Err(index) => index,
@@ -85,9 +110,34 @@ impl OperationBindings {
                 operation_id,
                 completion_id,
                 deadline,
+                waiting_origin,
+                waiting_terminal: false,
             },
         );
         Ok(())
+    }
+
+    /// Marks one waiting-origin association terminal until exact reclaim.
+    pub(crate) fn mark_waiting_terminal(
+        &mut self,
+        operation_id: OperationId,
+    ) -> Result<(), OperationBindingError> {
+        let index = self
+            .operation_index(operation_id)
+            .map_err(|_| OperationBindingError::UnknownOperation)?;
+        if !self.entries[index].waiting_origin {
+            return Err(OperationBindingError::NotWaitingOperation);
+        }
+        self.entries[index].waiting_terminal = true;
+        Ok(())
+    }
+
+    /// Returns waiting-origin terminal associations retained until reclaim.
+    pub(crate) fn waiting_terminal_len(&self) -> usize {
+        self.entries
+            .iter()
+            .filter(|binding| binding.waiting_terminal)
+            .count()
     }
 
     /// Returns the exact completion generation bound to an operation.
@@ -152,5 +202,10 @@ impl OperationBindings {
     fn operation_index(&self, operation_id: OperationId) -> Result<usize, usize> {
         self.entries
             .binary_search_by_key(&operation_id, |binding| binding.operation_id)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn allocation_capacity(&self) -> usize {
+        self.entries.capacity()
     }
 }

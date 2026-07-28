@@ -13,12 +13,13 @@ use super::{
 
 #[test]
 fn every_stage_requires_an_explicit_nonzero_budget() {
-    assert!(ProducerTurnBudget::try_new(1, 1, 1, 1, 1).is_some());
-    assert!(ProducerTurnBudget::try_new(0, 1, 1, 1, 1).is_none());
-    assert!(ProducerTurnBudget::try_new(1, 0, 1, 1, 1).is_none());
-    assert!(ProducerTurnBudget::try_new(1, 1, 0, 1, 1).is_none());
-    assert!(ProducerTurnBudget::try_new(1, 1, 1, 0, 1).is_none());
-    assert!(ProducerTurnBudget::try_new(1, 1, 1, 1, 0).is_none());
+    assert!(ProducerTurnBudget::try_new(1, 1, 1, 1, 1, 1).is_some());
+    assert!(ProducerTurnBudget::try_new(0, 1, 1, 1, 1, 1).is_none());
+    assert!(ProducerTurnBudget::try_new(1, 0, 1, 1, 1, 1).is_none());
+    assert!(ProducerTurnBudget::try_new(1, 1, 0, 1, 1, 1).is_none());
+    assert!(ProducerTurnBudget::try_new(1, 1, 1, 0, 1, 1).is_none());
+    assert!(ProducerTurnBudget::try_new(1, 1, 1, 1, 0, 1).is_none());
+    assert!(ProducerTurnBudget::try_new(1, 1, 1, 1, 1, 0).is_none());
 }
 
 #[test]
@@ -133,7 +134,7 @@ fn poisoned_host_returns_the_same_invariant_without_running_stages() {
 }
 
 fn one_each() -> ProducerTurnBudget {
-    ProducerTurnBudget::try_new(1, 1, 1, 1, 1)
+    ProducerTurnBudget::try_new(1, 1, 1, 1, 1, 1)
         .unwrap_or_else(|| panic!("one is a valid stage budget"))
 }
 

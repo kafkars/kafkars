@@ -206,8 +206,8 @@ fn admit_identity_pending(producer: &ProducerShardOwner) -> ProducerDeliveryObse
     let mut data = producer
         .try_data()
         .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
-    let budget =
-        ProducerTurnBudget::try_new(1, 1, 1, 1, 1).unwrap_or_else(|| panic!("nonzero turn budget"));
+    let budget = ProducerTurnBudget::try_new(1, 1, 1, 1, 1, 1)
+        .unwrap_or_else(|| panic!("nonzero turn budget"));
     data.turn(Moment::from_tick(1), budget)
         .unwrap_or_else(|error| panic!("prepare identity request: {error}"));
     drop(data);
@@ -238,8 +238,8 @@ fn admit_prepared(producer: &ProducerShardOwner, topic: &str) -> ProducerDeliver
     let mut data = producer
         .try_data()
         .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
-    let budget =
-        ProducerTurnBudget::try_new(1, 1, 1, 1, 1).unwrap_or_else(|| panic!("nonzero turn budget"));
+    let budget = ProducerTurnBudget::try_new(1, 1, 1, 1, 1, 1)
+        .unwrap_or_else(|| panic!("nonzero turn budget"));
     data.turn(Moment::from_tick(1), budget)
         .unwrap_or_else(|error| panic!("materialize Produce batch: {error}"));
     crate::producer::test_identity::acquire_shard_if_pending(&mut data, Moment::from_tick(1));

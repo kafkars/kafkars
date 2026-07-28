@@ -134,7 +134,7 @@ fn admin_timeout_is_engine_owned_and_validated() {
 
 #[test]
 fn zero_capacity_is_rejected_before_host_startup() {
-    let limits = EngineProducerLimits::new(0, 1, 1, 1, Duration::from_millis(1));
+    let limits = EngineProducerLimits::new(0, 1, 1, 1, 1, 1, Duration::from_millis(1));
     let config =
         EngineConfig::new(vec!["broker.test:9092".to_owned()]).with_producer_limits(limits);
 
@@ -143,7 +143,7 @@ fn zero_capacity_is_rejected_before_host_startup() {
 
 #[test]
 fn compiler_preserves_accepted_capacity() {
-    let limits = EngineProducerLimits::new(4_096, 11, 3, 2_048, Duration::from_millis(7));
+    let limits = EngineProducerLimits::new(4_096, 11, 5, 2_000, 3, 2_048, Duration::from_millis(7));
     let config =
         EngineConfig::new(vec!["broker.test:9092".to_owned()]).with_producer_limits(limits);
     let validated = config
@@ -152,5 +152,7 @@ fn compiler_preserves_accepted_capacity() {
 
     assert_eq!(validated.host_limits.record_capacity, 11);
     assert_eq!(validated.host_limits.completion_capacity, 11);
+    assert_eq!(validated.host_limits.waiting_record_capacity, 5);
+    assert_eq!(validated.host_limits.waiting_byte_capacity, 2_000);
     assert_eq!(validated.host_limits.batch_policy.max_records(), 3);
 }

@@ -164,7 +164,25 @@ fn map_host_rejection(reason: ProducerRejectionReason) -> ProducerTrySendErrorKi
             ProducerTrySendErrorKind::DeadlineElapsed
         }
         ProducerRejectionReason::HostPoisoned(_) => ProducerTrySendErrorKind::HostPoisoned,
-        ProducerRejectionReason::Core(
+        ProducerRejectionReason::Waiting(
+            kafka_client_core::ProducerWaitingAdmissionError::Closed,
+        ) => ProducerTrySendErrorKind::Closed,
+        ProducerRejectionReason::Waiting(
+            kafka_client_core::ProducerWaitingAdmissionError::DeadlineElapsed,
+        ) => ProducerTrySendErrorKind::DeadlineElapsed,
+        ProducerRejectionReason::Waiting(
+            kafka_client_core::ProducerWaitingAdmissionError::RecordCapacity,
+        ) => ProducerTrySendErrorKind::RecordCapacity,
+        ProducerRejectionReason::Waiting(
+            kafka_client_core::ProducerWaitingAdmissionError::ByteCapacity,
+        ) => ProducerTrySendErrorKind::ByteCapacity,
+        ProducerRejectionReason::Waiting(
+            kafka_client_core::ProducerWaitingAdmissionError::ByteCountOverflow,
+        ) => ProducerTrySendErrorKind::RecordSizeUnrepresentable,
+        ProducerRejectionReason::Waiting(
+            kafka_client_core::ProducerWaitingAdmissionError::IdentityExhausted,
+        )
+        | ProducerRejectionReason::Core(
             AdmissionRejection::IdentityExhausted | AdmissionRejection::BatchIdentityExhausted,
         )
         | ProducerRejectionReason::Store(

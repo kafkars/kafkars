@@ -12,6 +12,8 @@ use crate::producer::host_error::ProducerHostLimitError;
 pub(crate) struct ProducerHostLimits {
     pub(crate) retained_bytes: usize,
     pub(crate) completion_capacity: usize,
+    pub(crate) waiting_record_capacity: usize,
+    pub(crate) waiting_byte_capacity: usize,
     pub(crate) record_capacity: usize,
     pub(crate) batch_capacity: usize,
     pub(crate) timer_capacity: usize,
@@ -29,11 +31,26 @@ pub(crate) struct ProducerHostLimits {
 #[must_use = "validated producer capacities must be started or deliberately discarded"]
 pub(crate) struct ValidatedProducerHostLimits {
     retained_bytes: ByteCount,
+    waiting_bytes: ByteCount,
+    total_completion_capacity: usize,
+    total_retained_bytes: usize,
 }
 
 impl ValidatedProducerHostLimits {
-    pub(super) const fn retained_bytes(self) -> ByteCount {
+    pub(super) const fn retained_bytes(&self) -> ByteCount {
         self.retained_bytes
+    }
+
+    pub(super) const fn waiting_bytes(&self) -> ByteCount {
+        self.waiting_bytes
+    }
+
+    pub(super) const fn total_completion_capacity(&self) -> usize {
+        self.total_completion_capacity
+    }
+
+    pub(super) const fn total_retained_bytes(&self) -> usize {
+        self.total_retained_bytes
     }
 }
 
@@ -45,6 +62,20 @@ impl ProducerHostLimits {
         if self.completion_capacity == 0 {
             return Err(ProducerHostLimitError::ZeroCompletionCapacity);
         }
+        if self.waiting_record_capacity == 0 {
+            return Err(ProducerHostLimitError::ZeroWaitingRecordCapacity);
+        }
+        if self.waiting_byte_capacity == 0 {
+            return Err(ProducerHostLimitError::ZeroWaitingByteCapacity);
+        }
+        let total_completion_capacity = self
+            .completion_capacity
+            .checked_add(self.waiting_record_capacity)
+            .ok_or(ProducerHostLimitError::TotalRecordCapacityOverflow)?;
+        let total_retained_bytes = self
+            .retained_bytes
+            .checked_add(self.waiting_byte_capacity)
+            .ok_or(ProducerHostLimitError::TotalRetainedBytesOverflow)?;
         if self.record_capacity != self.completion_capacity {
             return Err(ProducerHostLimitError::RecordCompletionMismatch);
         }
@@ -54,7 +85,7 @@ impl ProducerHostLimits {
         if self.timer_capacity < self.batch_capacity {
             return Err(ProducerHostLimitError::InsufficientTimerCapacity);
         }
-        producer_transition_effect_capacity(self.record_capacity, self.completion_capacity)
+        producer_transition_effect_capacity(total_completion_capacity, self.completion_capacity)
             .ok_or(ProducerHostLimitError::TransitionCapacityOverflow)?;
         if self.encoded_byte_capacity == 0 {
             return Err(ProducerHostLimitError::ZeroEncodedByteCapacity);
@@ -91,8 +122,13 @@ impl ProducerHostLimits {
         }
         let bytes = u64::try_from(self.retained_bytes)
             .map_err(|_| ProducerHostLimitError::RetainedBytesOutOfRange)?;
+        let waiting_bytes = u64::try_from(self.waiting_byte_capacity)
+            .map_err(|_| ProducerHostLimitError::WaitingBytesOutOfRange)?;
         Ok(ValidatedProducerHostLimits {
             retained_bytes: ByteCount::new(bytes),
+            waiting_bytes: ByteCount::new(waiting_bytes),
+            total_completion_capacity,
+            total_retained_bytes,
         })
     }
 }

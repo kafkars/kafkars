@@ -18,6 +18,11 @@ use super::{
 pub(crate) enum ProducerHostLimitError {
     ZeroRetainedBytes,
     ZeroCompletionCapacity,
+    ZeroWaitingRecordCapacity,
+    ZeroWaitingByteCapacity,
+    TotalRecordCapacityOverflow,
+    TotalRetainedBytesOverflow,
+    WaitingBytesOutOfRange,
     RecordCompletionMismatch,
     InsufficientBatchCapacity,
     InsufficientTimerCapacity,
@@ -36,6 +41,17 @@ impl fmt::Display for ProducerHostLimitError {
         formatter.write_str(match self {
             Self::ZeroRetainedBytes => "producer retained-byte capacity must be nonzero",
             Self::ZeroCompletionCapacity => "producer completion capacity must be nonzero",
+            Self::ZeroWaitingRecordCapacity => "producer waiting record capacity must be nonzero",
+            Self::ZeroWaitingByteCapacity => "producer waiting byte capacity must be nonzero",
+            Self::TotalRecordCapacityOverflow => {
+                "active and waiting producer record capacities overflow"
+            }
+            Self::TotalRetainedBytesOverflow => {
+                "active and waiting producer byte capacities overflow"
+            }
+            Self::WaitingBytesOutOfRange => {
+                "producer waiting-byte capacity exceeds the core byte domain"
+            }
             Self::RecordCompletionMismatch => {
                 "producer record and completion capacities must match"
             }
@@ -117,6 +133,7 @@ pub(crate) enum ProducerRejectionReason {
     Completion(CompletionRegistryError),
     Store(ProducerStoreError),
     Core(AdmissionRejection),
+    Waiting(kafka_client_core::ProducerWaitingAdmissionError),
     HostPoisoned(ProducerHostInvariantError),
 }
 
@@ -142,6 +159,8 @@ pub(crate) enum ProducerHostInvariantError {
     TerminalBacklogCapacity,
     MissingFlushIdentity,
     UnexpectedDriverInput,
+    WaitingOwnership,
+    WaitingToken,
     #[cfg(test)]
     ForcedTerminalInterpretation,
     #[cfg(test)]

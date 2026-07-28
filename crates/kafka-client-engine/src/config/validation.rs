@@ -51,6 +51,7 @@ impl EngineConfig {
             DEFAULT_TURN_BUDGET,
             DEFAULT_TURN_BUDGET,
             DEFAULT_TURN_BUDGET,
+            DEFAULT_TURN_BUDGET,
         ) else {
             return Err(EngineConfigError::TurnBudget);
         };
@@ -64,6 +65,8 @@ impl EngineConfig {
         let limits = self.producer_limits();
         let _retained_bytes =
             u64::try_from(limits.retained_bytes()).map_err(|_| EngineConfigError::RetainedBytes)?;
+        let _waiting_bytes =
+            u64::try_from(limits.waiting_bytes()).map_err(|_| EngineConfigError::RetainedBytes)?;
         let batch_bytes =
             u64::try_from(limits.batch_bytes()).map_err(|_| EngineConfigError::BatchBytes)?;
         let linger_ticks = duration_ticks(limits.linger())?;
@@ -93,6 +96,8 @@ impl EngineConfig {
         Ok(ProducerHostLimits {
             retained_bytes: limits.retained_bytes(),
             completion_capacity: limits.in_flight_records(),
+            waiting_record_capacity: limits.waiting_records(),
+            waiting_byte_capacity: limits.waiting_bytes(),
             record_capacity: limits.in_flight_records(),
             batch_capacity: limits.in_flight_records(),
             timer_capacity: limits.in_flight_records(),

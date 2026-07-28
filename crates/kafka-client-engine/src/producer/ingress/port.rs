@@ -1,5 +1,7 @@
 //! Immediate ownership-transfer admission into one synchronized producer shard.
 
+mod waiting;
+
 use std::sync::Arc;
 
 use kafka_client_core::{AdmissionRejection, Moment};

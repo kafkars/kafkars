@@ -190,15 +190,26 @@ fn locked_cell_retry_does_not_repeat_the_core_reclaim_input() {
     );
     assert_eq!(host.stats().core_completion_slots, 0);
     assert_eq!(host.bindings.completion(operation_id), Some(completion_id));
-    let Ok((spare_id, spare_observer)) = host.completions.reserve() else {
-        panic!("unrelated spare completion should remain available")
-    };
+    let limits = valid_limits();
+    let spare_capacity = limits
+        .completion_capacity
+        .saturating_add(limits.waiting_record_capacity)
+        .saturating_sub(1);
+    let spares: Vec<_> = (0..spare_capacity)
+        .map(|_| {
+            host.completions
+                .reserve()
+                .unwrap_or_else(|error| panic!("unrelated spare completion should fit: {error}"))
+        })
+        .collect();
     assert!(matches!(
         host.completions.reserve(),
         Err(CompletionRegistryError::Full)
     ));
-    assert_eq!(host.completions.rollback_reservation(spare_id), Ok(()));
-    drop(spare_observer);
+    for (spare_id, spare_observer) in spares {
+        assert_eq!(host.completions.rollback_reservation(spare_id), Ok(()));
+        drop(spare_observer);
+    }
     assert!(release.send(()).is_ok());
     assert!(lock.join().is_ok());
 

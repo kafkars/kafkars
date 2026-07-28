@@ -52,6 +52,7 @@ fn pending_flush_completes_only_after_earlier_record_terminal_decision() {
 fn shared_completion_capacity_rejects_flush_before_core_acceptance() {
     let limits = valid_limits();
     let capacity = limits.completion_capacity;
+    let waiting_capacity = limits.waiting_record_capacity;
     let mut host = start(limits);
     let records: Vec<_> = (0..capacity)
         .map(|_| {
@@ -63,6 +64,13 @@ fn shared_completion_capacity_rejects_flush_before_core_acceptance() {
             )
         })
         .collect();
+    let reservations: Vec<_> = (0..waiting_capacity)
+        .map(|_| {
+            host.completions.reserve().unwrap_or_else(|error| {
+                panic!("waiting completion reservation should fit: {error}")
+            })
+        })
+        .collect();
 
     assert!(matches!(
         host.try_admit_flush(Moment::from_tick(1)),
@@ -71,17 +79,29 @@ fn shared_completion_capacity_rejects_flush_before_core_acceptance() {
         ))
     ));
     assert_eq!(host.core.flush_slots(), 0);
+    for (completion_id, observer) in reservations {
+        assert_eq!(host.completions.rollback_reservation(completion_id), Ok(()));
+        drop(observer);
+    }
     drop(records);
 }
 
 #[test]
 fn retained_flushes_block_record_admission_until_exact_reclamation() {
     let limits = valid_limits();
+    let waiting_capacity = limits.waiting_record_capacity;
     let mut host = start(limits);
     let flushes: Vec<_> = (0..limits.completion_capacity)
         .map(|_| {
             host.try_admit_flush(Moment::from_tick(0))
                 .unwrap_or_else(|error| panic!("flush should be accepted: {error:?}"))
+        })
+        .collect();
+    let reservations: Vec<_> = (0..waiting_capacity)
+        .map(|_| {
+            host.completions.reserve().unwrap_or_else(|error| {
+                panic!("waiting completion reservation should fit: {error}")
+            })
         })
         .collect();
 
@@ -119,5 +139,9 @@ fn retained_flushes_block_record_admission_until_exact_reclamation() {
         record("orders"),
     );
     assert_eq!(host.stats().core_completion_slots, 1);
+    for (completion_id, observer) in reservations {
+        assert_eq!(host.completions.rollback_reservation(completion_id), Ok(()));
+        drop(observer);
+    }
     drop((record, flushes));
 }

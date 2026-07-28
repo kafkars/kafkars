@@ -2,7 +2,7 @@
 
 use std::{error::Error, fmt};
 
-use kafka_client_core::{Moment, ProducerInput};
+use kafka_client_core::{Moment, ProducerInput, ProducerWaitingTerminal};
 
 use crate::completion::{CompletionId, CompletionRegistryError};
 
@@ -65,6 +65,10 @@ impl ProducerHost {
         now: Moment,
     ) -> Result<(), ProducerExecutionStopError> {
         self.core.close_admission();
+        self.waiting_policy.close();
+        if let Err(error) = self.settle_all_waiting_for_stop() {
+            return self.publish_fallback_after(error);
+        }
         if let Some(primary) = self.poison_reason() {
             return self.publish_fallback_after(primary);
         }
@@ -88,6 +92,15 @@ impl ProducerHost {
         let interpreted = self.interpret_transition(now, transition);
         if let Err(error) = interpreted {
             return self.publish_fallback_after(error);
+        }
+        Ok(())
+    }
+
+    fn settle_all_waiting_for_stop(&mut self) -> Result<(), ProducerHostInvariantError> {
+        while let Some(waiter) = self.waiting_policy.front() {
+            if !self.settle_waiter(waiter.id(), ProducerWaitingTerminal::Closed)? {
+                return Err(self.poison(ProducerHostInvariantError::WaitingOwnership));
+            }
         }
         Ok(())
     }
