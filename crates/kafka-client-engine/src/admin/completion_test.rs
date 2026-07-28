@@ -18,8 +18,9 @@ use kafka_client_core::{
     CreatePartitionsTerminal, CreateTopicsTerminal, DeleteConsumerGroupOffsetsBatch,
     DeleteConsumerGroupOffsetsTerminal, DeleteConsumerGroupsBatch, DeleteConsumerGroupsTerminal,
     DeleteRecordsBatch, DeleteRecordsTerminal, DeleteTopicsTerminal, DescribeClusterTerminal,
-    DescribeConfigsBatch, DescribeConfigsTerminal, DescribeTopicsTerminal, ElectLeadersBatch,
-    ElectLeadersTerminal, IncrementalAlterConfigsBatch, IncrementalAlterConfigsTerminal,
+    DescribeAclsBatch, DescribeAclsTerminal, DescribeConfigsBatch, DescribeConfigsTerminal,
+    DescribeTopicsTerminal, ElectLeadersBatch, ElectLeadersTerminal, IncrementalAlterConfigsBatch,
+    IncrementalAlterConfigsTerminal,
     ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsTerminal,
     ListPartitionReassignmentsBatch, ListPartitionReassignmentsTerminal,
     RemoveConsumerGroupMembersBatch, RemoveConsumerGroupMembersTerminal,
@@ -48,6 +49,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     let mut group_offsets = PendingTerminal::new(ports.list_consumer_group_offsets);
     let mut group_offset_delete = PendingTerminal::new(ports.delete_consumer_group_offsets);
     let mut group_deletions = PendingTerminal::new(ports.delete_consumer_groups);
+    let mut acl_descriptions = PendingTerminal::new(ports.describe_acls);
     let mut group_offset_alter = PendingTerminal::new(ports.alter_consumer_group_offsets);
     let mut list_offsets = PendingTerminal::new(ports.admin_list_offsets);
     let mut reassignments = PendingTerminal::new(ports.list_partition_reassignments);
@@ -85,6 +87,10 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     group_deletions.publish(DeleteConsumerGroupsTerminal::Deleted(
         DeleteConsumerGroupsBatch::new(0, Vec::new()),
     ));
+    acl_descriptions.publish(DescribeAclsTerminal::Described(DescribeAclsBatch::new(
+        0,
+        Vec::new(),
+    )));
     group_offset_alter.publish(AlterConsumerGroupOffsetsTerminal::Altered(
         AlterConsumerGroupOffsetsBatch::new(0, Vec::new()),
     ));
@@ -131,6 +137,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     group_offsets.observe_and_reclaim(worker);
     group_offset_delete.observe_and_reclaim(worker);
     group_deletions.observe_and_reclaim(worker);
+    acl_descriptions.observe_and_reclaim(worker);
     group_offset_alter.observe_and_reclaim(worker);
     list_offsets.observe_and_reclaim(worker);
     reassignments.observe_and_reclaim(worker);

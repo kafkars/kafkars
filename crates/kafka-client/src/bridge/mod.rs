@@ -11,6 +11,7 @@ pub(crate) mod admin_delete_consumer_groups;
 pub(crate) mod admin_delete_operation;
 pub(crate) mod admin_delete_records;
 pub(crate) mod admin_delete_result;
+pub(crate) mod admin_describe_acls;
 pub(crate) mod admin_describe_consumer_groups;
 pub(crate) mod admin_describe_log_dirs;
 pub(crate) mod admin_describe_operation;

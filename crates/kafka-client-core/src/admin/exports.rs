@@ -29,12 +29,12 @@ pub use super::alter_replica_log_dirs::{
     AlterReplicaLogDirsTransition,
 };
 pub use super::delete_consumer_groups::{
-    DeleteConsumerGroupsBatch, DeleteConsumerGroupsBrokerError, DeleteConsumerGroupsEffect,
-    DeleteConsumerGroupsFailure, DeleteConsumerGroupsFailureKind, DeleteConsumerGroupsInput,
-    DeleteConsumerGroupsMachine, DeleteConsumerGroupsMachineError, DeleteConsumerGroupsOutcome,
-    DeleteConsumerGroupsPlan, DeleteConsumerGroupsPlanError, DeleteConsumerGroupsResult,
-    DeleteConsumerGroupsState, DeleteConsumerGroupsTarget, DeleteConsumerGroupsTerminal,
-    DeleteConsumerGroupsTransition, DELETE_CONSUMER_GROUPS_DIAGNOSTIC_BYTES,
+    DELETE_CONSUMER_GROUPS_DIAGNOSTIC_BYTES, DeleteConsumerGroupsBatch,
+    DeleteConsumerGroupsBrokerError, DeleteConsumerGroupsEffect, DeleteConsumerGroupsFailure,
+    DeleteConsumerGroupsFailureKind, DeleteConsumerGroupsInput, DeleteConsumerGroupsMachine,
+    DeleteConsumerGroupsMachineError, DeleteConsumerGroupsOutcome, DeleteConsumerGroupsPlan,
+    DeleteConsumerGroupsPlanError, DeleteConsumerGroupsResult, DeleteConsumerGroupsState,
+    DeleteConsumerGroupsTarget, DeleteConsumerGroupsTerminal, DeleteConsumerGroupsTransition,
 };
 pub use super::delete_machine::{
     DeleteTopicsEffect, DeleteTopicsInput, DeleteTopicsMachine, DeleteTopicsMachineError,
@@ -51,6 +51,12 @@ pub use super::delete_records::{
     DeleteRecordsOutcome, DeleteRecordsPlan, DeleteRecordsPlanError, DeleteRecordsResult,
     DeleteRecordsState, DeleteRecordsTarget, DeleteRecordsTerminal, DeleteRecordsTransition,
     DeletedRecords,
+};
+pub use super::describe_acls::{
+    DESCRIBE_ACLS_DIAGNOSTIC_BYTES, DescribeAclBinding, DescribeAclsBatch, DescribeAclsBrokerError,
+    DescribeAclsEffect, DescribeAclsFailure, DescribeAclsFailureKind, DescribeAclsFilter,
+    DescribeAclsInput, DescribeAclsMachine, DescribeAclsMachineError, DescribeAclsPlan,
+    DescribeAclsPlanError, DescribeAclsState, DescribeAclsTerminal, DescribeAclsTransition,
 };
 pub use super::describe_configs_machine::{
     DescribeConfigsEffect, DescribeConfigsInput, DescribeConfigsMachine,

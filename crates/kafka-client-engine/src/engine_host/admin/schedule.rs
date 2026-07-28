@@ -96,6 +96,8 @@ pub(in crate::engine_host) fn drive(
     let group_descriptions = describe_consumer_groups::drive(resources, describe_groups_now)?;
     let member_removals = remove_consumer_group_members::drive(resources, remove_members_now)?;
     let group_deletions = delete_consumer_groups::drive(resources, delete_groups_now)?;
+    let describe_acls_now = clock.now().map_err(EngineHostError::Clock)?;
+    let acl_descriptions = describe_acls::drive(resources, describe_acls_now)?;
     let list_groups_now = clock.now().map_err(EngineHostError::Clock)?;
     let group_listings = list_consumer_groups::drive(resources, list_groups_now)?;
     let describe_log_dirs_now = clock.now().map_err(EngineHostError::Clock)?;
@@ -135,6 +137,7 @@ const fn extend_with_log_dir_operations(
         group_descriptions: &describe_consumer_groups::DescribeConsumerGroupsProgress,
         member_removals: &remove_consumer_group_members::RemoveConsumerGroupMembersProgress,
         group_deletions: &delete_consumer_groups::DeleteConsumerGroupsProgress,
+        acl_descriptions: &describe_acls::DescribeAclsProgress,
     }
 }
 

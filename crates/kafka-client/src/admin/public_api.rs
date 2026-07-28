@@ -28,6 +28,7 @@ pub use super::delete_records::{
     DeleteRecordsTarget,
 };
 pub use super::delete_topics::DeleteTopics;
+pub use super::describe_acls::{DescribeAcls, DescribeAclsBuilder, DescribeAclsResult};
 pub use super::describe_builder::DescribeClusterBuilder;
 pub use super::describe_cluster::DescribeCluster;
 pub use super::describe_consumer_groups::{

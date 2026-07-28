@@ -12,6 +12,7 @@ use crate::bridge::admin_alter_replica_log_dirs::AlterReplicaLogDirsAdminRequest
 use crate::bridge::admin_configs_request::DescribeConfigsAdminRequest;
 use crate::bridge::admin_delete_consumer_groups::DeleteConsumerGroupsAdminRequest;
 use crate::bridge::admin_delete_records::DeleteRecordsAdminRequest;
+use crate::bridge::admin_describe_acls::DescribeAclsAdminRequest;
 use crate::bridge::admin_describe_consumer_groups::DescribeConsumerGroupsAdminRequest;
 use crate::bridge::admin_elect_leaders::ElectLeadersAdminRequest;
 use crate::bridge::admin_group_offset_delete_request::DeleteConsumerGroupOffsetsAdminRequest;
@@ -24,10 +25,11 @@ use super::{
     AlterConsumerGroupOffsetsBuilder, AlterReplicaLogDirsBuilder, ConsumerGroupOffsetAlteration,
     CreatePartitionsBuilder, CreateTopicsBuilder, DeleteConsumerGroupOffsetsBuilder,
     DeleteConsumerGroupsBuilder, DeleteRecordsBuilder, DeleteRecordsTarget, DeleteTopicsBuilder,
-    DescribeClusterBuilder, DescribeConfigsBuilder, DescribeConsumerGroupsBuilder,
-    DescribeTopicsBuilder, ElectLeadersBuilder, IncrementalAlterConfigsBuilder,
-    ListConsumerGroupOffsetsBuilder, ListConsumerGroupsBuilder, ListTopicsBuilder, NewPartitions,
-    NewTopic, ReplicaLogDirAssignment, TopicConfigAlterations, TopicConfigQuery,
+    DescribeAclsBuilder, DescribeClusterBuilder, DescribeConfigsBuilder,
+    DescribeConsumerGroupsBuilder, DescribeTopicsBuilder, ElectLeadersBuilder,
+    IncrementalAlterConfigsBuilder, ListConsumerGroupOffsetsBuilder, ListConsumerGroupsBuilder,
+    ListTopicsBuilder, NewPartitions, NewTopic, ReplicaLogDirAssignment, TopicConfigAlterations,
+    TopicConfigQuery,
 };
 
 /// Cheaply cloneable, thread-safe admin handle.
@@ -39,6 +41,15 @@ pub struct Admin {
 impl Admin {
     pub(crate) const fn new(engine: AdminEngine) -> Self {
         Self { engine }
+    }
+
+    /// Builds an inert ACL description selected by one exact filter.
+    ///
+    /// No timeout starts and no operation is admitted until
+    /// [`DescribeAclsBuilder::submit`] is called.
+    pub fn describe_acls(&self, filter: super::AclBindingFilter) -> DescribeAclsBuilder {
+        let request = DescribeAclsAdminRequest::new(filter);
+        DescribeAclsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
     }
 
     /// Builds inert caller-ordered broker-local replica log-directory assignments.

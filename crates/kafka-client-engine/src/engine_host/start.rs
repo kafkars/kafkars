@@ -13,10 +13,10 @@ use crate::{
         AdminCompletionNotifier, AlterReplicaLogDirsShardOwner, CreatePartitionsShardOwner,
         CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner,
         DeleteConsumerGroupsShardOwner, DeleteRecordsShardOwner, DeleteTopicsShardOwner,
-        DescribeClusterShardOwner, DescribeConsumerGroupsShardOwner, DescribeLogDirsShardOwner,
-        DescribeTopicsShardOwner, ElectLeadersShardOwner, IncrementalAlterConfigsShardOwner,
-        ListConsumerGroupOffsetsShardOwner, ListConsumerGroupsShardOwner,
-        RemoveConsumerGroupMembersShardOwner,
+        DescribeAclsShardOwner, DescribeClusterShardOwner, DescribeConsumerGroupsShardOwner,
+        DescribeLogDirsShardOwner, DescribeTopicsShardOwner, ElectLeadersShardOwner,
+        IncrementalAlterConfigsShardOwner, ListConsumerGroupOffsetsShardOwner,
+        ListConsumerGroupsShardOwner, RemoveConsumerGroupMembersShardOwner,
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
@@ -137,6 +137,8 @@ pub(crate) fn start(
     let delete_records =
         DeleteRecordsShardOwner::new(delete_records, Arc::new(driver.reactor_wake()));
     let delete_records_admission = delete_records.admission_port();
+    let describe_acls = DescribeAclsShardOwner::new(describe_acls, Arc::new(driver.reactor_wake()));
+    let describe_acls_admission = describe_acls.admission_port();
     let describe_cluster =
         DescribeClusterShardOwner::new(describe_cluster, Arc::new(driver.reactor_wake()));
     let describe_cluster_admission = describe_cluster.admission_port();
@@ -206,6 +208,7 @@ pub(crate) fn start(
         delete_records,
         describe_consumer_groups,
         delete_consumer_groups,
+        describe_acls,
         create_partitions,
         describe_topics,
         describe_configs: describe_configs.owner,
@@ -263,6 +266,7 @@ pub(crate) fn start(
         delete_topics_admission,
         delete_consumer_groups_admission,
         delete_records_admission,
+        describe_acls_admission,
         describe_cluster_admission,
         create_partitions_admission,
         describe_topics_admission,

@@ -4,10 +4,10 @@ use crate::admin::{
     AdminCompletionPorts, AdminListOffsetsPublisher, AlterConsumerGroupOffsetsPublisher,
     AlterPartitionReassignmentsPublisher, AlterReplicaLogDirsHost, CreatePartitionsHost,
     CreateTopicsHost, DeleteConsumerGroupOffsetsHost, DeleteConsumerGroupsHost, DeleteRecordsHost,
-    DeleteTopicsHost, DescribeClusterHost, DescribeConfigsPublisher, DescribeConsumerGroupsHost,
-    DescribeLogDirsHost, DescribeTopicsHost, ElectLeadersHost, IncrementalAlterConfigsHost,
-    ListConsumerGroupOffsetsHost, ListConsumerGroupsHost, ListPartitionReassignmentsPublisher,
-    RemoveConsumerGroupMembersHost,
+    DeleteTopicsHost, DescribeAclsHost, DescribeClusterHost, DescribeConfigsPublisher,
+    DescribeConsumerGroupsHost, DescribeLogDirsHost, DescribeTopicsHost, ElectLeadersHost,
+    IncrementalAlterConfigsHost, ListConsumerGroupOffsetsHost, ListConsumerGroupsHost,
+    ListPartitionReassignmentsPublisher, RemoveConsumerGroupMembersHost,
 };
 
 pub(super) struct StartedAdminHosts {
@@ -15,6 +15,7 @@ pub(super) struct StartedAdminHosts {
     pub(super) delete_topics: DeleteTopicsHost,
     pub(super) delete_consumer_groups: DeleteConsumerGroupsHost,
     pub(super) delete_records: DeleteRecordsHost,
+    pub(super) describe_acls: DescribeAclsHost,
     pub(super) describe_cluster: DescribeClusterHost,
     pub(super) create_partitions: CreatePartitionsHost,
     pub(super) describe_topics: DescribeTopicsHost,
@@ -40,6 +41,7 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
         delete_topics,
         delete_consumer_groups,
         delete_records,
+        describe_acls,
         describe_cluster,
         create_partitions,
         describe_topics,
@@ -63,6 +65,7 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
         delete_topics: DeleteTopicsHost::new(delete_topics),
         delete_consumer_groups: DeleteConsumerGroupsHost::new(delete_consumer_groups),
         delete_records: DeleteRecordsHost::new(delete_records),
+        describe_acls: DescribeAclsHost::new(describe_acls),
         describe_cluster: DescribeClusterHost::new(describe_cluster),
         create_partitions: CreatePartitionsHost::new(create_partitions),
         describe_topics: DescribeTopicsHost::new(describe_topics),

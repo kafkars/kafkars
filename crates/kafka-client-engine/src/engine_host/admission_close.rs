@@ -12,6 +12,7 @@ pub(super) fn close_all(resources: &mut EngineHostResources) {
         .admission_port()
         .close_admission();
     let _close_result = resources
+    let _close_result = resources.describe_acls.admission_port().close_admission();
         .create_partitions
         .admission_port()
         .close_admission();

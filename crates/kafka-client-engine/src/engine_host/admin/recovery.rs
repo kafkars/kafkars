@@ -33,6 +33,10 @@ pub(in crate::engine_host) fn recover_operations(
         failure = failure.with_cleanup(cleanup);
     }
     drop(describe_cluster);
+    let mut describe_acls = resources.describe_acls.terminal_host();
+    if let Some(cleanup) = describe_acls
+        .map(EngineHostError::DescribeAcls)
+    drop(describe_acls);
     let mut create_partitions = resources.create_partitions.terminal_host();
     if let Some(cleanup) = create_partitions
         .recover_after_driver_shutdown()

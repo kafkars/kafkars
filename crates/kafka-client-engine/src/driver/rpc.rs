@@ -68,6 +68,11 @@ mod delete_topics_submission_test;
 mod delete_topics_terminal;
 #[cfg(test)]
 mod delete_topics_terminal_test;
+mod describe_acls_call;
+mod describe_acls_submission;
+#[cfg(test)]
+mod describe_acls_submission_test;
+mod describe_acls_terminal;
 mod describe_cluster_calls;
 #[cfg(test)]
 mod describe_cluster_calls_test;
@@ -261,6 +266,11 @@ pub(crate) use delete_records_call::DeleteRecordsCall;
 pub(crate) use delete_records_terminal::{
     DeleteRecordsDriverFailureKind, DeleteRecordsRawTerminal, DeleteRecordsTerminalFact,
     RecoveredDeleteRecordsCall,
+};
+pub(crate) use describe_acls_call::DescribeAclsCall;
+pub(crate) use describe_acls_terminal::{
+    DescribeAclsDriverFailureKind, DescribeAclsRawTerminal, DescribeAclsTerminalFact,
+    RecoveredDescribeAclsCall,
 };
 pub(crate) use describe_consumer_groups_call::DescribeConsumerGroupsCall;
 pub(crate) use describe_consumer_groups_terminal::{

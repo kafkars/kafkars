@@ -25,6 +25,7 @@ use super::admin_delete_consumer_groups::{
 };
 use super::admin_delete_operation::AdminDeleteTopics;
 use super::admin_delete_records::{AdminDeleteRecords, DeleteRecordsAdminRequest};
+use super::admin_describe_acls::{AdminDescribeAcls, DescribeAclsAdminRequest};
 use super::admin_describe_consumer_groups::{
     AdminDescribeConsumerGroups, DescribeConsumerGroupsAdminRequest,
 };
@@ -129,6 +130,19 @@ impl AdminEngine {
             self.handle
                 .try_delete_consumer_groups(request.into_engine(), timeout),
         )
+    }
+
+    pub(crate) fn submit_describe_acls(
+        &self,
+        request: DescribeAclsAdminRequest,
+        deadline: Instant,
+    ) -> AdminDescribeAcls {
+        let request = request.into_engine();
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return AdminDescribeAcls::deadline_elapsed();
+        }
+        AdminDescribeAcls::from_admission(self.handle.try_describe_acls(request, remaining))
     }
 
     pub(crate) fn submit_describe_topics(

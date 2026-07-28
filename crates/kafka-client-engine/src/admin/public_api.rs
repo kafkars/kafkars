@@ -102,6 +102,18 @@ pub(crate) use super::delete_shard::{
     DeleteTopicsAdmissionPort, DeleteTopicsShardLockError, DeleteTopicsShardOwner,
     DeleteTopicsShardWake, DeleteTopicsShardWakeError,
 };
+pub(crate) use super::describe_acls::{
+    DESCRIBE_ACLS_CAPACITY, DescribeAclsAdmissionPort, DescribeAclsHost, DescribeAclsHostError,
+    DescribeAclsShardLockError, DescribeAclsShardOwner, DescribeAclsShardWake,
+    DescribeAclsShardWakeError, DescribeAclsTurn,
+};
+pub use super::describe_acls::{
+    DescribeAclBinding, DescribeAclsAccepted, DescribeAclsAcceptedFaultKind,
+    DescribeAclsAdmissionError, DescribeAclsAdmissionErrorKind, DescribeAclsBatch,
+    DescribeAclsBrokerError, DescribeAclsDeliveryStatus, DescribeAclsFailure,
+    DescribeAclsFailureKind, DescribeAclsFilter, DescribeAclsObserver, DescribeAclsObserverError,
+    DescribeAclsOutcome, DescribeAclsRequest,
+};
 pub use super::describe_consumer_groups::{
     ClassicConsumerGroupDetails, ClassicConsumerGroupMemberDetails, ConsumerGroupAssignment,
     ConsumerGroupBrokerError, ConsumerGroupDescription, ConsumerGroupDescriptionDetails,

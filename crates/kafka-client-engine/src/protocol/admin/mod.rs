@@ -9,6 +9,7 @@ pub(crate) mod delete_groups;
 pub(crate) mod delete_records;
 pub(crate) mod delete_topics;
 mod delete_topics_budget;
+pub(crate) mod describe_acls;
 pub(crate) mod describe_cluster;
 pub(crate) mod describe_configs;
 mod describe_configs_budget;

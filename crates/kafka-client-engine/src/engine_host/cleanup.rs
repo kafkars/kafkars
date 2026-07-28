@@ -165,6 +165,9 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
             crate::admin::DescribeClusterHostError::Unsettled(describe),
         ));
     }
+    let described_acls = resources.describe_acls.terminal_host().unsettled();
+        return Err(EngineHostError::DescribeAcls(
+            crate::admin::DescribeAclsHostError::Unsettled(described_acls),
     let partitions = resources.create_partitions.terminal_host().unsettled();
     if partitions != 0 {
         return Err(EngineHostError::CreatePartitions(

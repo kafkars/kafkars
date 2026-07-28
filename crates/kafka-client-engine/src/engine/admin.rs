@@ -15,6 +15,7 @@ impl Engine {
                 create_topics: self.inner.create_topics_admission.clone(),
                 delete_topics: self.inner.delete_topics_admission.clone(),
                 delete_records: self.inner.delete_records_admission.clone(),
+                describe_acls: self.inner.describe_acls_admission.clone(),
                 describe_cluster: self.inner.describe_cluster_admission.clone(),
                 create_partitions: self.inner.create_partitions_admission.clone(),
                 describe_topics: self.inner.describe_topics_admission.clone(),
@@ -63,6 +64,7 @@ impl EngineInner {
         let _close_result = self.create_topics_admission.close_admission();
         let _close_result = self.delete_topics_admission.close_admission();
         let _close_result = self.delete_records_admission.close_admission();
+        let _close_result = self.describe_acls_admission.close_admission();
         let _close_result = self.describe_cluster_admission.close_admission();
         let _close_result = self.create_partitions_admission.close_admission();
         let _close_result = self.describe_topics_admission.close_admission();

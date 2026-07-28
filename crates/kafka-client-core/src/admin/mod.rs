@@ -9,6 +9,7 @@ mod delete_model;
 mod delete_outcome;
 mod delete_records;
 mod delete_transition;
+mod describe_acls;
 mod describe_configs_machine;
 mod describe_configs_model;
 mod describe_configs_outcome;
