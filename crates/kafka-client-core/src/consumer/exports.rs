@@ -11,9 +11,15 @@ pub use super::classic_group::{
     ClassicGroupPhase, ClassicGroupTiming, ClassicGroupTimingError, ClassicGroupTransition,
     ClassicHeartbeatAttempt, ClassicHeartbeatPolicy, ClassicHeartbeatPolicyError,
     ClassicHeartbeatSchedule, ClassicHeartbeatSequence, ClassicJoinMember, ClassicJoinMembers,
-    ClassicJoinMembersError, ClassicMemberAssignment, ClassicProtocol, ClassicRejoinPolicy,
-    ClassicRejoinPolicyError, ClassicRejoinSchedule, ClassicSubscription, ClassicSubscriptionError,
-    JoinedMemberSlot, MemberRank, MembershipCycle, TopicPartitionCount,
+    ClassicJoinMembersError, ClassicMemberAssignment, ClassicProcessingLease,
+    ClassicProcessingLeaseEffect, ClassicProcessingLeaseError, ClassicProcessingLeaseExpiration,
+    ClassicProcessingLeaseExpirationReason, ClassicProcessingLeaseFence,
+    ClassicProcessingLeaseInput, ClassicProcessingLeasePolicy, ClassicProcessingLeasePolicyError,
+    ClassicProcessingLeaseSchedule, ClassicProcessingLeaseTransition, ClassicProtocol,
+    ClassicRejoinPolicy, ClassicRejoinPolicyError, ClassicRejoinSchedule, ClassicSubscription,
+    ClassicSubscriptionError, JoinedMemberSlot, MemberRank, MembershipCycle,
+    PreparedClassicProcessingLeaseActivation, PreparedClassicProcessingLeaseRevocation,
+    TopicPartitionCount,
 };
 pub use super::effect::{
     AssignedConsumerEffect, AssignedConsumerTransition, FetchFailure, FetchThrottleFailure,

@@ -306,6 +306,10 @@ production = "crates/kafka-client-core/src/consumer/classic_group/heartbeat_tran
 test = "crates/kafka-client-core/src/consumer/classic_group/heartbeat_transition_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/consumer/classic_group/processing_lease.rs"
+test = "crates/kafka-client-core/src/consumer/classic_group/processing_lease_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/consumer/classic_group/recovery/broker_error.rs"
 test = "crates/kafka-client-core/src/consumer/classic_group/recovery/broker_error_test.rs"
 
@@ -10842,6 +10846,18 @@ allowed_paths = [
 ]
 
 [[linear_owners]]
+owner_type = "ClassicProcessingLease"
+path = "crates/kafka-client-core/src/consumer/classic_group/processing_lease/machine.rs"
+
+[[linear_owners]]
+owner_type = "PreparedClassicProcessingLeaseActivation"
+path = "crates/kafka-client-core/src/consumer/classic_group/processing_lease/machine.rs"
+
+[[linear_owners]]
+owner_type = "PreparedClassicProcessingLeaseRevocation"
+path = "crates/kafka-client-core/src/consumer/classic_group/processing_lease/machine.rs"
+
+[[linear_owners]]
 owner_type = "ClassicGroupFetchBinding"
 path = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation.rs"
 
@@ -11414,6 +11430,13 @@ field = "next_member_id"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/session_catalog.rs",
   "crates/kafka-client-engine/src/consumer/group/session_catalog_assignment.rs",
+]
+
+[[mutation_owners]]
+owner_type = "ClassicProcessingLease"
+field = "state"
+allowed_paths = [
+  "crates/kafka-client-core/src/consumer/classic_group/processing_lease/machine.rs",
 ]
 
 [[mutation_owners]]

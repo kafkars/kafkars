@@ -11,6 +11,7 @@ mod identity;
 mod input;
 mod machine;
 mod model;
+mod processing_lease;
 mod range_validation;
 mod recovery;
 mod terminal_transition;
@@ -29,6 +30,7 @@ pub use model::{
     ClassicGroupPhase, ClassicJoinMember, ClassicJoinMembers, ClassicJoinMembersError,
     ClassicProtocol, ClassicSubscription, ClassicSubscriptionError, TopicPartitionCount,
 };
+pub use processing_lease::*;
 pub use recovery::{
     ClassicBrokerError, ClassicBrokerStage, ClassicCoordinatorRecovery, ClassicGroupFatal,
     ClassicGroupFatalReason, ClassicRejoinPolicy, ClassicRejoinPolicyError, ClassicRejoinSchedule,
@@ -62,6 +64,10 @@ mod leader_fencing_test;
 mod machine_test;
 #[cfg(test)]
 mod model_test;
+#[cfg(test)]
+mod processing_lease_preparation_test;
+#[cfg(test)]
+mod processing_lease_test;
 #[cfg(test)]
 mod range_validation_test;
 #[cfg(test)]
