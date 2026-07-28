@@ -44,6 +44,7 @@ pub(super) fn close_all(resources: &mut EngineHostResources) {
         .alter_partition_reassignments
         .admission_port()
         .close_admission();
+    let _close_result = resources.elect_leaders.admission_port().close_admission();
     let _close_result = resources
         .describe_log_dirs
         .admission_port()

@@ -43,6 +43,7 @@ pub(crate) fn recover(
     drop(resources.alter_partition_reassignments.terminal_host());
     drop(resources.describe_log_dirs.terminal_host());
     drop(resources.alter_replica_log_dirs.terminal_host());
+    drop(resources.elect_leaders.terminal_host());
     drop(resources.delete_records.terminal_host());
     drop(resources.transaction_initialization.terminal_host());
     if let Some(cleanup) = shutdown_driver(resources).err() {

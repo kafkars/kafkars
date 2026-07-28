@@ -5,7 +5,8 @@ use crate::admin::{
     AlterPartitionReassignmentsPublisher, AlterReplicaLogDirsHost, CreatePartitionsHost,
     CreateTopicsHost, DeleteConsumerGroupOffsetsHost, DeleteRecordsHost, DeleteTopicsHost,
     DescribeClusterHost, DescribeConfigsPublisher, DescribeLogDirsHost, DescribeTopicsHost,
-    IncrementalAlterConfigsHost, ListConsumerGroupOffsetsHost, ListPartitionReassignmentsPublisher,
+    ElectLeadersHost, IncrementalAlterConfigsHost, ListConsumerGroupOffsetsHost,
+    ListPartitionReassignmentsPublisher,
 };
 
 pub(super) struct StartedAdminHosts {
@@ -25,6 +26,7 @@ pub(super) struct StartedAdminHosts {
     pub(super) alter_partition_reassignments: AlterPartitionReassignmentsPublisher,
     pub(super) describe_log_dirs: DescribeLogDirsHost,
     pub(super) alter_replica_log_dirs: AlterReplicaLogDirsHost,
+    pub(super) elect_leaders: ElectLeadersHost,
 }
 
 pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
@@ -45,6 +47,7 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
         alter_partition_reassignments,
         describe_log_dirs,
         alter_replica_log_dirs,
+        elect_leaders,
     } = ports;
     StartedAdminHosts {
         create_topics: CreateTopicsHost::new(create_topics),
@@ -65,5 +68,6 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
         alter_partition_reassignments,
         describe_log_dirs: DescribeLogDirsHost::new(describe_log_dirs),
         alter_replica_log_dirs: AlterReplicaLogDirsHost::new(alter_replica_log_dirs),
+        elect_leaders: ElectLeadersHost::new(elect_leaders),
     }
 }

@@ -26,6 +26,7 @@ pub(crate) struct AdminAdmissionPorts {
     pub(crate) alter_partition_reassignments: super::AlterPartitionReassignmentsAdmissionPort,
     pub(crate) describe_log_dirs: super::DescribeLogDirsAdmissionPort,
     pub(crate) alter_replica_log_dirs: super::AlterReplicaLogDirsAdmissionPort,
+    pub(crate) elect_leaders: super::ElectLeadersAdmissionPort,
 }
 
 /// Cheaply cloneable handle to the concrete admin shards.
@@ -47,6 +48,7 @@ pub struct AdminHandle {
     pub(super) alter_partition_reassignments: super::AlterPartitionReassignmentsAdmissionPort,
     pub(super) describe_log_dirs: super::DescribeLogDirsAdmissionPort,
     pub(super) alter_replica_log_dirs: super::AlterReplicaLogDirsAdmissionPort,
+    pub(super) elect_leaders: super::ElectLeadersAdmissionPort,
     pub(super) clock: Arc<MonotonicClock>,
     _lifetime: Arc<dyn Send + Sync>,
 }
@@ -74,6 +76,7 @@ impl AdminHandle {
             alter_partition_reassignments: ports.alter_partition_reassignments,
             describe_log_dirs: ports.describe_log_dirs,
             alter_replica_log_dirs: ports.alter_replica_log_dirs,
+            elect_leaders: ports.elect_leaders,
             clock,
             _lifetime: lifetime,
         }

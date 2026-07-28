@@ -17,6 +17,7 @@ mod describe_cluster;
 mod describe_log_dirs;
 mod describe_topics;
 mod description;
+mod elect_leaders;
 mod group_offsets;
 mod handle;
 mod list_consumer_group_offsets;

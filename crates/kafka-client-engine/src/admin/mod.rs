@@ -25,6 +25,7 @@ mod describe_log_dirs;
 mod describe_observer;
 mod describe_outcome;
 mod describe_shard;
+mod elect_leaders;
 mod error;
 mod exports;
 mod group_offset_alter;

@@ -16,9 +16,10 @@ use kafka_client_core::{
     CreatePartitionsTerminal, CreateTopicsTerminal, DeleteConsumerGroupOffsetsBatch,
     DeleteConsumerGroupOffsetsTerminal, DeleteRecordsBatch, DeleteRecordsTerminal,
     DeleteTopicsTerminal, DescribeClusterTerminal, DescribeConfigsBatch, DescribeConfigsTerminal,
-    DescribeTopicsTerminal, IncrementalAlterConfigsBatch, IncrementalAlterConfigsTerminal,
-    ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsTerminal,
-    ListPartitionReassignmentsBatch, ListPartitionReassignmentsTerminal,
+    DescribeTopicsTerminal, ElectLeadersBatch, ElectLeadersTerminal, IncrementalAlterConfigsBatch,
+    IncrementalAlterConfigsTerminal, ListConsumerGroupOffsetsBatch,
+    ListConsumerGroupOffsetsTerminal, ListPartitionReassignmentsBatch,
+    ListPartitionReassignmentsTerminal,
 };
 
 use crate::completion::{CompletionRegistry, ReclaimStatus};
@@ -47,6 +48,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     let mut list_offsets = PendingTerminal::new(ports.admin_list_offsets);
     let mut reassignments = PendingTerminal::new(ports.list_partition_reassignments);
     let mut alterations = PendingTerminal::new(ports.alter_partition_reassignments);
+    let mut elections = PendingTerminal::new(ports.elect_leaders);
     let mut record_deletions = PendingTerminal::new(ports.delete_records);
     let mut log_directories = PendingTerminal::new(ports.describe_log_dirs);
     let mut log_dir_alterations = PendingTerminal::new(ports.alter_replica_log_dirs);
@@ -85,6 +87,10 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     alterations.publish(AlterPartitionReassignmentsTerminal::Altered(
         AlterPartitionReassignmentsBatch::new(0, Vec::new()),
     ));
+    elections.publish(ElectLeadersTerminal::Elected(ElectLeadersBatch::new(
+        0,
+        Vec::new(),
+    )));
     record_deletions.publish(DeleteRecordsTerminal::Deleted(DeleteRecordsBatch::new(
         0,
         Vec::new(),
@@ -109,6 +115,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     list_offsets.observe_and_reclaim(worker);
     reassignments.observe_and_reclaim(worker);
     alterations.observe_and_reclaim(worker);
+    elections.observe_and_reclaim(worker);
     record_deletions.observe_and_reclaim(worker);
     log_directories.observe_and_reclaim(worker);
     log_dir_alterations.observe_and_reclaim(worker);

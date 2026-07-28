@@ -9,8 +9,8 @@ use crate::{
         CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner,
         DeleteRecordsShardOwner, DeleteTopicsShardOwner, DescribeClusterShardOwner,
         DescribeConfigsShardOwner, DescribeLogDirsShardOwner, DescribeTopicsShardOwner,
-        IncrementalAlterConfigsShardOwner, ListConsumerGroupOffsetsShardOwner,
-        ListPartitionReassignmentsShardOwner,
+        ElectLeadersShardOwner, IncrementalAlterConfigsShardOwner,
+        ListConsumerGroupOffsetsShardOwner, ListPartitionReassignmentsShardOwner,
     },
     clock::MonotonicClock,
     driver::{
@@ -46,6 +46,7 @@ pub(crate) struct EngineHostResources {
     pub(in super::super) alter_partition_reassignments: AlterPartitionReassignmentsShardOwner,
     pub(in super::super) describe_log_dirs: DescribeLogDirsShardOwner,
     pub(in super::super) alter_replica_log_dirs: AlterReplicaLogDirsShardOwner,
+    pub(in super::super) elect_leaders: ElectLeadersShardOwner,
     pub(in super::super) assigned_consumer: crate::consumer::AssignedConsumerShardOwner,
     pub(in super::super) group_consumers: crate::consumer::GroupConsumerShardOwner,
     pub(in super::super) transaction_initialization: TransactionInitializationShardOwner,

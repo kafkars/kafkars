@@ -23,6 +23,7 @@ use super::admin_configs_request::DescribeConfigsAdminRequest;
 use super::admin_delete_operation::AdminDeleteTopics;
 use super::admin_delete_records::{AdminDeleteRecords, DeleteRecordsAdminRequest};
 use super::admin_describe_log_dirs::{AdminDescribeLogDirs, DescribeLogDirsAdminRequest};
+use super::admin_elect_leaders::{AdminElectLeaders, ElectLeadersAdminRequest};
 use super::admin_group_offset_delete_operation::AdminDeleteConsumerGroupOffsets;
 use super::admin_group_offset_delete_request::DeleteConsumerGroupOffsetsAdminRequest;
 use super::admin_group_offsets::{
@@ -171,6 +172,17 @@ impl AdminEngine {
     ) -> AdminCreatePartitions {
         AdminCreatePartitions::from_admission(
             self.handle.try_create_partitions(request.inner, timeout),
+        )
+    }
+
+    pub(crate) fn submit_elect_leaders(
+        &self,
+        request: ElectLeadersAdminRequest,
+        timeout: Duration,
+    ) -> AdminElectLeaders {
+        AdminElectLeaders::from_admission(
+            self.handle
+                .try_elect_leaders(request.into_engine(), timeout),
         )
     }
 }

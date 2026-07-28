@@ -95,6 +95,11 @@ mod describe_topics_submission_test;
 mod describe_topics_terminal;
 #[cfg(test)]
 mod describe_topics_terminal_test;
+mod elect_leaders_call;
+mod elect_leaders_submission;
+#[cfg(test)]
+mod elect_leaders_submission_test;
+mod elect_leaders_terminal;
 pub(super) mod exports;
 #[cfg_attr(not(test), expect(dead_code, reason = "awaiting consumer executor"))]
 mod fetch;
@@ -234,5 +239,10 @@ pub(crate) use describe_log_dirs_call::DescribeLogDirsCall;
 pub(crate) use describe_log_dirs_terminal::{
     DescribeLogDirsDriverFailureKind, DescribeLogDirsRawTerminal, DescribeLogDirsTerminalFact,
     RecoveredDescribeLogDirsCall,
+};
+pub(crate) use elect_leaders_call::ElectLeadersCall;
+pub(crate) use elect_leaders_terminal::{
+    ElectLeadersDriverFailureKind, ElectLeadersTerminal, ElectLeadersTerminalFact,
+    RecoveredElectLeadersCall,
 };
 pub(crate) use exports::ProduceSubmitError;

@@ -20,6 +20,7 @@ mod describe_cluster;
 mod describe_configs;
 mod describe_log_dirs;
 mod describe_topics;
+mod elect_leaders;
 mod group_offset_alter_schedule;
 mod incremental_alter_configs;
 #[cfg(test)]

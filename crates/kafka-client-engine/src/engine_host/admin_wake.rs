@@ -11,9 +11,10 @@ use crate::{
         DeleteRecordsShardWakeError, DeleteTopicsShardWake, DeleteTopicsShardWakeError,
         DescribeClusterShardWake, DescribeClusterShardWakeError, DescribeConfigsShardWake,
         DescribeConfigsShardWakeError, DescribeTopicsShardWake, DescribeTopicsShardWakeError,
-        IncrementalAlterConfigsShardWake, IncrementalAlterConfigsShardWakeError,
-        ListConsumerGroupOffsetsShardWake, ListConsumerGroupOffsetsShardWakeError,
-        ListPartitionReassignmentsShardWake, ListPartitionReassignmentsShardWakeError,
+        ElectLeadersShardWake, ElectLeadersShardWakeError, IncrementalAlterConfigsShardWake,
+        IncrementalAlterConfigsShardWakeError, ListConsumerGroupOffsetsShardWake,
+        ListConsumerGroupOffsetsShardWakeError, ListPartitionReassignmentsShardWake,
+        ListPartitionReassignmentsShardWakeError,
     },
     driver::ReactorWake,
 };
@@ -113,5 +114,11 @@ impl AlterPartitionReassignmentsShardWake for ReactorWake {
     fn wake(&self) -> Result<(), AlterPartitionReassignmentsShardWakeError> {
         self.request()
             .map_err(|error| AlterPartitionReassignmentsShardWakeError::from_io(error.into_io()))
+    }
+}
+impl ElectLeadersShardWake for ReactorWake {
+    fn wake(&self) -> Result<(), ElectLeadersShardWakeError> {
+        self.request()
+            .map_err(|error| ElectLeadersShardWakeError::from_io(error.into_io()))
     }
 }

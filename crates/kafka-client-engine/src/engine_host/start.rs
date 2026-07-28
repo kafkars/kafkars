@@ -13,7 +13,7 @@ use crate::{
         AdminCompletionNotifier, AlterReplicaLogDirsShardOwner, CreatePartitionsShardOwner,
         CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner, DeleteRecordsShardOwner,
         DeleteTopicsShardOwner, DescribeClusterShardOwner, DescribeLogDirsShardOwner,
-        DescribeTopicsShardOwner, IncrementalAlterConfigsShardOwner,
+        DescribeTopicsShardOwner, ElectLeadersShardOwner, IncrementalAlterConfigsShardOwner,
         ListConsumerGroupOffsetsShardOwner,
     },
     clock::MonotonicClock,
@@ -171,6 +171,8 @@ pub(crate) fn start(
     let alter_replica_log_dirs =
         AlterReplicaLogDirsShardOwner::new(alter_replica_log_dirs, Arc::new(driver.reactor_wake()));
     let alter_replica_log_dirs_admission = alter_replica_log_dirs.admission_port();
+    let elect_leaders = ElectLeadersShardOwner::new(elect_leaders, Arc::new(driver.reactor_wake()));
+    let elect_leaders_admission = elect_leaders.admission_port();
     let produce_calls =
         crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
     let resources = EngineHostResources {
@@ -194,6 +196,7 @@ pub(crate) fn start(
         alter_partition_reassignments: alter_partition_reassignments.owner,
         describe_log_dirs,
         alter_replica_log_dirs,
+        elect_leaders,
         assigned_consumer: assigned_consumer_owner,
         group_consumers,
         transaction_initialization,
@@ -248,6 +251,7 @@ pub(crate) fn start(
         alter_partition_reassignments_admission: alter_partition_reassignments.admission,
         describe_log_dirs_admission,
         alter_replica_log_dirs_admission,
+        elect_leaders_admission,
         assigned_consumer,
         group_consumer,
         transaction_initialization: transaction_initialization_admission,

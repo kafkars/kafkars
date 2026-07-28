@@ -33,6 +33,9 @@ pub use super::describe_log_dirs::{
 };
 pub use super::describe_topics::DescribeTopics;
 pub use super::description::{ClusterBroker, ClusterDescription};
+pub use super::elect_leaders::{
+    ElectLeaders, ElectLeadersBuilder, ElectLeadersResult, LeaderElectionTarget, LeaderElectionType,
+};
 pub use super::group_offsets::{
     AlterConsumerGroupOffsets, AlterConsumerGroupOffsetsBuilder, AlterConsumerGroupOffsetsResult,
     ConsumerGroupOffset, ConsumerGroupOffsetAlteration,

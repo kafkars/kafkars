@@ -72,6 +72,13 @@ pub use super::describe_outcome::{
     ClusterBroker, ClusterDescription, DescribeClusterBrokerError, DescribeClusterFailure,
     DescribeClusterFailureKind, DescribeClusterTerminal,
 };
+pub use super::elect_leaders::{
+    ElectLeadersBatch, ElectLeadersEffect, ElectLeadersFailure, ElectLeadersFailureKind,
+    ElectLeadersInput, ElectLeadersMachine, ElectLeadersMachineError, ElectLeadersPlan,
+    ElectLeadersPlanError, ElectLeadersState, ElectLeadersTerminal, ElectLeadersTransition,
+    LeaderElectionBrokerError, LeaderElectionOutcome, LeaderElectionResult, LeaderElectionTarget,
+    LeaderElectionType,
+};
 pub use super::group_offset_alter::{
     AlterConsumerGroupOffsetBrokerError, AlterConsumerGroupOffsetOutcome,
     AlterConsumerGroupOffsetResult, AlterConsumerGroupOffsetTarget, AlterConsumerGroupOffsetsBatch,

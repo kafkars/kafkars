@@ -10,6 +10,7 @@ use crate::bridge::admin_alter_configs_request::IncrementalAlterConfigsAdminRequ
 use crate::bridge::admin_alter_replica_log_dirs::AlterReplicaLogDirsAdminRequest;
 use crate::bridge::admin_configs_request::DescribeConfigsAdminRequest;
 use crate::bridge::admin_delete_records::DeleteRecordsAdminRequest;
+use crate::bridge::admin_elect_leaders::ElectLeadersAdminRequest;
 use crate::bridge::admin_group_offset_delete_request::DeleteConsumerGroupOffsetsAdminRequest;
 use crate::bridge::admin_group_offsets::{
     AlterConsumerGroupOffsetsAdminRequest, ListConsumerGroupOffsetsAdminRequest,
@@ -20,9 +21,9 @@ use super::{
     AlterConsumerGroupOffsetsBuilder, AlterReplicaLogDirsBuilder, ConsumerGroupOffsetAlteration,
     CreatePartitionsBuilder, CreateTopicsBuilder, DeleteConsumerGroupOffsetsBuilder,
     DeleteRecordsBuilder, DeleteRecordsTarget, DeleteTopicsBuilder, DescribeClusterBuilder,
-    DescribeConfigsBuilder, DescribeTopicsBuilder, IncrementalAlterConfigsBuilder,
-    ListConsumerGroupOffsetsBuilder, ListTopicsBuilder, NewPartitions, NewTopic,
-    ReplicaLogDirAssignment, TopicConfigAlterations, TopicConfigQuery,
+    DescribeConfigsBuilder, DescribeTopicsBuilder, ElectLeadersBuilder,
+    IncrementalAlterConfigsBuilder, ListConsumerGroupOffsetsBuilder, ListTopicsBuilder,
+    NewPartitions, NewTopic, ReplicaLogDirAssignment, TopicConfigAlterations, TopicConfigQuery,
 };
 
 /// Cheaply cloneable, thread-safe admin handle.
@@ -83,6 +84,22 @@ impl Admin {
     {
         let request = DeleteRecordsAdminRequest::new(targets.into_iter().collect());
         DeleteRecordsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
+    }
+
+    /// Builds an inert caller-ordered selected-partition leader election.
+    pub fn elect_leaders<I>(
+        &self,
+        election_type: LeaderElectionType,
+        targets: I,
+    ) -> ElectLeadersBuilder
+    where
+        I: IntoIterator<Item = LeaderElectionTarget>,
+    {
+        ElectLeadersBuilder::new(
+            self.engine.clone(),
+            ElectLeadersAdminRequest::new(election_type, targets.into_iter().collect()),
+            self.engine.default_timeout(),
+        )
     }
 
     /// Builds an inert broker-endpoint `DescribeCluster` request.

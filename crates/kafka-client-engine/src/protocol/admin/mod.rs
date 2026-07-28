@@ -20,6 +20,7 @@ pub(crate) mod describe_topics;
 mod describe_topics_budget;
 pub(crate) mod describe_topics_response;
 #[cfg_attr(not(test), expect(dead_code, reason = "offset alter host follows"))]
+pub(crate) mod elect_leaders;
 pub(crate) mod group_offset_alter;
 #[cfg_attr(
     not(test),

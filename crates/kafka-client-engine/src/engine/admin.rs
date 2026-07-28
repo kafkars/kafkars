@@ -43,6 +43,7 @@ impl Engine {
                     .clone(),
                 describe_log_dirs: self.inner.describe_log_dirs_admission.clone(),
                 alter_replica_log_dirs: self.inner.alter_replica_log_dirs_admission.clone(),
+                elect_leaders: self.inner.elect_leaders_admission.clone(),
             },
             Arc::clone(&self.inner.clock),
             lifetime,
@@ -76,5 +77,6 @@ impl EngineInner {
             .close_admission();
         let _close_result = self.describe_log_dirs_admission.close_admission();
         let _close_result = self.alter_replica_log_dirs_admission.close_admission();
+        let _close_result = self.elect_leaders_admission.close_admission();
     }
 }

@@ -117,6 +117,18 @@ pub(crate) use super::describe_shard::{
     DescribeClusterAdmissionPort, DescribeClusterShardLockError, DescribeClusterShardOwner,
     DescribeClusterShardWake, DescribeClusterShardWakeError,
 };
+pub(crate) use super::elect_leaders::{
+    ELECT_LEADERS_CAPACITY, ElectLeadersAdmissionPort, ElectLeadersHost, ElectLeadersHostError,
+    ElectLeadersShardLockError, ElectLeadersShardOwner, ElectLeadersShardWake,
+    ElectLeadersShardWakeError, ElectLeadersTurn,
+};
+pub use super::elect_leaders::{
+    ElectLeadersAccepted, ElectLeadersAcceptedFaultKind, ElectLeadersAdmissionError,
+    ElectLeadersAdmissionErrorKind, ElectLeadersBatch, ElectLeadersDeliveryStatus,
+    ElectLeadersFailure, ElectLeadersFailureKind, ElectLeadersObserver, ElectLeadersObserverError,
+    ElectLeadersOutcome, ElectLeadersRequest, LeaderElectionBrokerError, LeaderElectionResult,
+    LeaderElectionTarget, LeaderElectionType,
+};
 pub use super::error::{CreateTopicsAdmissionError, CreateTopicsAdmissionErrorKind};
 pub(crate) use super::group_offset_alter::{
     ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY, AlterConsumerGroupOffsetsAdmissionPort,
