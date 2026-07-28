@@ -51,6 +51,7 @@ pub struct KafkaError {
     broker_code: Option<i16>,
     internal_topic: Option<bool>,
     diagnostic_truncated: bool,
+    transaction_abort_required: bool,
 }
 
 impl KafkaError {
@@ -63,6 +64,7 @@ impl KafkaError {
             broker_code: None,
             internal_topic: None,
             diagnostic_truncated: false,
+            transaction_abort_required: false,
         }
     }
 
@@ -84,6 +86,11 @@ impl KafkaError {
 
     pub(crate) const fn with_diagnostic_truncated(mut self, truncated: bool) -> Self {
         self.diagnostic_truncated = truncated;
+        self
+    }
+
+    pub(crate) const fn with_transaction_abort_required(mut self) -> Self {
+        self.transaction_abort_required = true;
         self
     }
 
@@ -110,6 +117,11 @@ impl KafkaError {
     /// Returns whether a broker diagnostic was shortened to a bounded prefix.
     pub const fn diagnostic_truncated(&self) -> bool {
         self.diagnostic_truncated
+    }
+
+    /// Returns whether the active transaction must now be aborted.
+    pub const fn requires_transaction_abort(&self) -> bool {
+        self.transaction_abort_required
     }
 }
 

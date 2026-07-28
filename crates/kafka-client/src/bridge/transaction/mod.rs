@@ -1,15 +1,18 @@
-//! Declarative private bridge for transaction initialization and owner lifetime.
+//! Declarative private bridge for transaction initialization, lifecycle, and send.
 
 mod handle;
 mod lifecycle;
 mod operation;
 mod owner;
 mod result;
+mod send;
+mod send_result;
 
 pub(crate) use handle::TransactionalProducerInitializer;
 pub(crate) use lifecycle::{TransactionEndEngine, TransactionEngine};
 pub(crate) use operation::TransactionInitialization;
 pub(crate) use owner::TransactionalProducerEngine;
+pub(crate) use send::TransactionSendEngine;
 
 #[cfg(test)]
 mod handle_test;
@@ -21,3 +24,7 @@ mod operation_test;
 mod owner_test;
 #[cfg(test)]
 mod result_test;
+#[cfg(test)]
+mod send_result_test;
+#[cfg(test)]
+mod send_test;

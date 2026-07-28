@@ -2,7 +2,12 @@
 
 use std::time::Duration;
 
-use super::{AbortTransaction, CommitTransaction, Transaction, TransactionEndAdmissionError};
+use crate::Record;
+
+use super::{
+    AbortTransaction, CommitTransaction, SendTransactionRecord, Transaction,
+    TransactionEndAdmissionError, TransactionSendAdmissionError,
+};
 
 macro_rules! assert_not_impl {
     ($type:ty: $trait:path) => {
@@ -39,8 +44,20 @@ fn active_transaction_is_linear_and_end_rejection_retains_it() {
             -> Result<AbortTransaction<'producer>, TransactionEndAdmissionError<'producer>>,
     ) {
     }
+    fn require_send<'send, 'producer>(
+        _method: fn(
+            &'send mut Transaction<'producer>,
+            Record,
+            Duration,
+        ) -> Result<
+            SendTransactionRecord<'send, 'producer>,
+            TransactionSendAdmissionError,
+        >,
+    ) {
+    }
 
     require_wake_status(Transaction::begin_wake_failed);
+    require_send(Transaction::send);
     require_commit(Transaction::commit);
     require_abort(Transaction::abort);
     assert_not_impl!(Transaction<'static>: Clone);

@@ -4,8 +4,8 @@
 //! flush observation, atomic close-and-drain, batched topic mutation, and
 //! bounded topic description, committed group-offset listing and deletion,
 //! committed group-offset alteration, configuration description, incremental
-//! configuration alteration, and
-//! transactional-owner initialization form the implemented vertical slices.
+//! configuration alteration, and transactional-owner initialization with
+//! explicit begin, record send, commit, and abort form the implemented slices.
 //! Later API domains remain design probes.
 
 #![forbid(unsafe_code)]
@@ -62,9 +62,9 @@ pub use record::{Header, Record};
 pub use security::{Sasl, SaslMechanism, Security, Tls};
 pub use shutdown::Shutdown;
 pub use transaction::{
-    AbortTransaction, CommitTransaction, InitializeTransactionalProducer, Transaction,
-    TransactionEndAdmissionError, TransactionalProducer, TransactionalProducerBuilder,
-    TransactionalProducerIdentity,
+    AbortTransaction, CommitTransaction, InitializeTransactionalProducer, SendTransactionRecord,
+    Transaction, TransactionEndAdmissionError, TransactionSendAdmissionError,
+    TransactionalProducer, TransactionalProducerBuilder, TransactionalProducerIdentity,
 };
 
 #[cfg(test)]

@@ -16,10 +16,12 @@ use kafka_client_core::{
 
 use crate::{
     completion::CompletionObserver,
+    producer::{ProducerSendCapture, ProducerSendCaptureError},
     transaction::initialization::{
         TransactionLifecycleControlAccepted, TransactionLifecycleControlError,
-        TransactionLifecycleControlPort,
+        TransactionLifecycleControlPort, TransactionSendControlError,
     },
+    transaction::send::{TransactionSendAccepted, TransactionSendInput},
 };
 
 /// Unique idle transactional owner; close and drop both request host cleanup.
@@ -98,6 +100,27 @@ impl TransactionalOwnerHandle {
         TransactionLifecycleControlError,
     > {
         self.control.begin(self.owner_id)
+    }
+
+    pub(crate) fn capture_send(
+        &self,
+        timeout: Duration,
+    ) -> Result<ProducerSendCapture, ProducerSendCaptureError> {
+        self.control.capture_send(timeout)
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "public owner rejection returns the exact caller-owned record"
+    )]
+    pub(crate) fn send(
+        &self,
+        input: TransactionSendInput,
+    ) -> Result<
+        TransactionLifecycleControlAccepted<TransactionSendAccepted>,
+        TransactionSendControlError,
+    > {
+        self.control.send(self.owner_id, input)
     }
 
     pub(crate) fn commit(

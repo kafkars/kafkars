@@ -54,8 +54,8 @@ impl fmt::Debug for TransactionBeginAccepted<'_> {
 /// Opaque non-clone token for exactly one active transaction epoch.
 #[must_use = "commit, abort, or drop the active transaction token"]
 pub struct TransactionToken<'owner> {
-    owner: &'owner mut TransactionalOwnerHandle,
-    epoch: TransactionEpoch,
+    pub(super) owner: &'owner mut TransactionalOwnerHandle,
+    pub(super) epoch: TransactionEpoch,
     armed: bool,
 }
 

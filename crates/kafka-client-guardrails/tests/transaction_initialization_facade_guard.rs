@@ -40,6 +40,7 @@ const METHODS: &[&str] = &[
 const LIFECYCLE_METHODS: &[&str] = &["begin", "send", "send_offsets", "commit", "abort"];
 const PUBLIC_LIFECYCLE: &[(&str, &str)] = &[
     ("TransactionalProducer", "begin"),
+    ("Transaction", "send"),
     ("Transaction", "commit"),
     ("Transaction", "abort"),
 ];

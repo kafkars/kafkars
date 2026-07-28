@@ -20,8 +20,11 @@ pub use initialization::{
     TransactionInitializationCaptureError, TransactionInitializationDeliveryStatus,
     TransactionInitializationFailure, TransactionInitializationFailureKind,
     TransactionInitializationObserver, TransactionInitializationObserverError,
-    TransactionInitializationOutcome, TransactionInitializationRequest, TransactionToken,
-    TransactionalOwnerHandle,
+    TransactionInitializationOutcome, TransactionInitializationRequest, TransactionSendAccepted,
+    TransactionSendAdmissionError, TransactionSendAdmissionErrorKind, TransactionSendConsequence,
+    TransactionSendDeliveryStatus, TransactionSendFailure, TransactionSendFailureKind,
+    TransactionSendMetadata, TransactionSendObserver, TransactionSendObserverError,
+    TransactionSendOutcome, TransactionToken, TransactionalOwnerHandle,
 };
 pub(crate) use initialization::{
     TransactionInitializationAdmissionPort, TransactionInitializationHost,

@@ -6,7 +6,16 @@ use kafka_client_core::{
     TransactionEndMode, TransactionEpoch, TransactionLifecycleTerminal, TransactionalOwnerId,
 };
 
-use crate::{clock::OperationDeadline, completion::CompletionObserver};
+use crate::{
+    clock::OperationDeadline,
+    completion::CompletionObserver,
+    producer::{ProducerSendCapture, ProducerSendCaptureError},
+    transaction::{
+        TransactionExecutionSendAdmissionError, TransactionExecutionSendAdmissionErrorKind,
+        TransactionLifecycleHostError,
+        send::{TransactionSendAccepted as InternalTransactionSendAccepted, TransactionSendInput},
+    },
+};
 
 use super::shard::TransactionInitializationShardState;
 
@@ -16,12 +25,48 @@ pub(crate) enum TransactionLifecycleControlError {
     Contended,
     Closed,
     StaleOwner,
-    Host(crate::transaction::TransactionLifecycleHostError),
+    Host(TransactionLifecycleHostError),
 }
 
 pub(crate) struct TransactionLifecycleControlAccepted<T> {
     pub(crate) value: T,
     pub(crate) wake_failed: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum TransactionSendControlErrorKind {
+    Contended,
+    Closed,
+    Admission(TransactionExecutionSendAdmissionErrorKind),
+}
+
+pub(crate) struct TransactionSendControlError {
+    kind: TransactionSendControlErrorKind,
+    input: TransactionSendInput,
+}
+
+impl TransactionSendControlError {
+    pub(super) const fn local(
+        kind: TransactionSendControlErrorKind,
+        input: TransactionSendInput,
+    ) -> Self {
+        Self { kind, input }
+    }
+
+    pub(super) fn admission(error: TransactionExecutionSendAdmissionError) -> Self {
+        Self {
+            kind: TransactionSendControlErrorKind::Admission(error.kind()),
+            input: error.into_input(),
+        }
+    }
+
+    pub(crate) const fn kind(&self) -> TransactionSendControlErrorKind {
+        self.kind
+    }
+
+    pub(crate) fn into_input(self) -> TransactionSendInput {
+        self.input
+    }
 }
 
 pub(crate) struct TransactionOwnerLossSignal {
@@ -49,6 +94,32 @@ impl TransactionLifecycleControlPort {
         let epoch = self.shared.try_begin(owner_id)?;
         Ok(TransactionLifecycleControlAccepted {
             value: epoch,
+            wake_failed: self.shared.wake().request().is_err(),
+        })
+    }
+
+    pub(crate) fn capture_send(
+        &self,
+        timeout: Duration,
+    ) -> Result<ProducerSendCapture, ProducerSendCaptureError> {
+        ProducerSendCapture::capture_transaction(self.shared.clock(), timeout)
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "control rejection returns the exact caller-owned transactional record"
+    )]
+    pub(crate) fn send(
+        &self,
+        owner_id: TransactionalOwnerId,
+        input: TransactionSendInput,
+    ) -> Result<
+        TransactionLifecycleControlAccepted<InternalTransactionSendAccepted>,
+        TransactionSendControlError,
+    > {
+        let accepted = self.shared.try_send(owner_id, input)?;
+        Ok(TransactionLifecycleControlAccepted {
+            value: accepted,
             wake_failed: self.shared.wake().request().is_err(),
         })
     }

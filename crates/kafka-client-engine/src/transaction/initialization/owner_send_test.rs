@@ -1,0 +1,128 @@
+//! Public transactional record-send admission and ownership scenarios.
+
+use std::time::Duration;
+
+use bytes::Bytes;
+
+use super::{TransactionSendAdmissionErrorKind, host_test::Fixture};
+use crate::producer::PublicProducerRecord as ProducerRecord;
+
+#[test]
+fn zero_timeout_returns_the_exact_original_record_before_validation() {
+    let fixture = Fixture::new();
+    let mut owner = fixture.initialize(41);
+    let mut transaction = owner
+        .begin_transaction()
+        .unwrap_or_else(|error| panic!("begin transaction: {error:?}"))
+        .into_transaction();
+    let value = Bytes::from_static(b"same-allocation");
+    let Err(error) = transaction.send(
+        ProducerRecord::to("").partition(-1).value(value.clone()),
+        Duration::ZERO,
+    ) else {
+        panic!("zero-timeout transactional send was unexpectedly admitted");
+    };
+
+    assert_eq!(
+        error.kind(),
+        TransactionSendAdmissionErrorKind::InvalidDeadline
+    );
+    let record = error.into_record();
+    assert_eq!(record.topic(), "");
+    assert_eq!(record.explicit_partition(), Some(-1));
+    assert_eq!(record.value_bytes(), Some(&value));
+}
+
+#[test]
+fn local_validation_returns_the_exact_original_record() {
+    let fixture = Fixture::new();
+    let mut owner = fixture.initialize(41);
+    let mut transaction = owner
+        .begin_transaction()
+        .unwrap_or_else(|error| panic!("begin transaction: {error:?}"))
+        .into_transaction();
+    let value = Bytes::from_static(b"same-allocation");
+    let Err(error) = transaction.send(
+        ProducerRecord::to("orders")
+            .partition(-1)
+            .value(value.clone()),
+        Duration::from_secs(5),
+    ) else {
+        panic!("negative transactional partition was unexpectedly accepted");
+    };
+
+    assert_eq!(
+        error.kind(),
+        TransactionSendAdmissionErrorKind::NegativeExplicitPartition
+    );
+    assert_eq!(error.record().value_bytes(), Some(&value));
+    assert_eq!(error.into_record().topic(), "orders");
+}
+
+#[test]
+fn explicit_capture_precedes_record_translation_and_is_consumed_by_admission() {
+    let fixture = Fixture::new();
+    let mut owner = fixture.initialize(41);
+    let mut transaction = owner
+        .begin_transaction()
+        .unwrap_or_else(|error| panic!("begin transaction: {error:?}"))
+        .into_transaction();
+    let capture = transaction
+        .capture_send(Duration::from_secs(5))
+        .unwrap_or_else(|error| panic!("capture transactional send: {error:?}"));
+    let value = Bytes::from_static(b"same-allocation");
+    let Err(error) = transaction.send_captured(
+        ProducerRecord::to("orders")
+            .partition(-1)
+            .value(value.clone()),
+        capture,
+    ) else {
+        panic!("captured negative transactional partition was unexpectedly accepted");
+    };
+
+    assert_eq!(
+        error.kind(),
+        TransactionSendAdmissionErrorKind::NegativeExplicitPartition
+    );
+    assert_eq!(error.into_record().value_bytes(), Some(&value));
+}
+
+#[test]
+fn automatic_partition_send_crosses_acceptance_without_local_rejection() {
+    let fixture = Fixture::new();
+    let mut owner = fixture.initialize(41);
+    let mut transaction = owner
+        .begin_transaction()
+        .unwrap_or_else(|error| panic!("begin transaction: {error:?}"))
+        .into_transaction();
+    let accepted = transaction
+        .send(
+            ProducerRecord::to("orders").value(Bytes::from_static(b"value")),
+            Duration::from_secs(5),
+        )
+        .unwrap_or_else(|error| panic!("automatic route is resolved after acceptance: {error:?}"));
+
+    assert!(!accepted.wake_failed());
+    drop(accepted.into_observer());
+}
+
+#[test]
+fn accepted_send_returns_one_token_borrowing_observer() {
+    let fixture = Fixture::new();
+    let mut owner = fixture.initialize(41);
+    let mut transaction = owner
+        .begin_transaction()
+        .unwrap_or_else(|error| panic!("begin transaction: {error:?}"))
+        .into_transaction();
+    let accepted = transaction
+        .send(
+            ProducerRecord::to("orders")
+                .partition(2)
+                .value(Bytes::from_static(b"value")),
+            Duration::from_secs(5),
+        )
+        .unwrap_or_else(|error| panic!("send admission: {error:?}"));
+
+    assert!(!accepted.wake_failed());
+    drop(accepted.into_observer());
+}

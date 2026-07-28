@@ -14,11 +14,15 @@ use crate::{
     clock::{MonotonicClock, OperationDeadline},
     completion::CompletionObserver,
     driver::ReactorWake,
+    transaction::send::{
+        TransactionSendAccepted as InternalTransactionSendAccepted, TransactionSendInput,
+    },
 };
 
 use super::{
     TransactionInitializationAdmissionPort, TransactionInitializationHost,
-    TransactionLifecycleControlError, TransactionOwnerLossSignal,
+    TransactionLifecycleControlError, TransactionOwnerLossSignal, TransactionSendControlError,
+    TransactionSendControlErrorKind,
 };
 
 pub(super) struct TransactionInitializationShardState {
@@ -146,6 +150,40 @@ impl TransactionInitializationShardState {
     {
         let mut host = self.try_control_host()?;
         host.end_lifecycle(owner_id, epoch, mode, deadline)
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "shard rejection returns the exact caller-owned transactional record"
+    )]
+    pub(super) fn try_send(
+        &self,
+        owner_id: TransactionalOwnerId,
+        input: TransactionSendInput,
+    ) -> Result<InternalTransactionSendAccepted, TransactionSendControlError> {
+        if self.is_closed() {
+            return Err(TransactionSendControlError::local(
+                TransactionSendControlErrorKind::Closed,
+                input,
+            ));
+        }
+        let mut host = match self.try_host() {
+            Ok(host) => host,
+            Err(TryLockError::WouldBlock) => {
+                return Err(TransactionSendControlError::local(
+                    TransactionSendControlErrorKind::Contended,
+                    input,
+                ));
+            }
+            Err(TryLockError::Poisoned(_)) => {
+                return Err(TransactionSendControlError::local(
+                    TransactionSendControlErrorKind::Closed,
+                    input,
+                ));
+            }
+        };
+        host.try_send(owner_id, input)
+            .map_err(TransactionSendControlError::admission)
     }
 
     pub(super) fn enqueue_owner_loss(&self, signal: TransactionOwnerLossSignal) {

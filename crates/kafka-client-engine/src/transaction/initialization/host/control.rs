@@ -6,7 +6,14 @@ use kafka_client_core::{
     TransactionEndMode, TransactionEpoch, TransactionLifecycleTerminal, TransactionalOwnerId,
 };
 
-use crate::{clock::OperationDeadline, completion::CompletionObserver};
+use crate::{
+    clock::OperationDeadline,
+    completion::CompletionObserver,
+    transaction::{
+        TransactionExecutionSendAdmissionError,
+        send::{TransactionSendAccepted, TransactionSendInput},
+    },
+};
 
 use super::TransactionInitializationHost;
 use crate::transaction::initialization::{
@@ -40,6 +47,28 @@ impl TransactionInitializationHost {
         self.execution(owner_id)?
             .end(epoch, mode, deadline)
             .map_err(TransactionLifecycleControlError::Host)
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "host rejection returns the exact caller-owned transactional record"
+    )]
+    pub(in crate::transaction) fn try_send(
+        &mut self,
+        owner_id: TransactionalOwnerId,
+        input: TransactionSendInput,
+    ) -> Result<TransactionSendAccepted, TransactionExecutionSendAdmissionError> {
+        let Some(execution) = self
+            .executions
+            .iter_mut()
+            .find(|execution| execution.owns(owner_id))
+        else {
+            return Err(TransactionExecutionSendAdmissionError::new(
+                crate::transaction::TransactionExecutionSendAdmissionErrorKind::StaleOwner,
+                input,
+            ));
+        };
+        execution.try_send(owner_id, input)
     }
 
     pub(super) fn owner_loss_one(

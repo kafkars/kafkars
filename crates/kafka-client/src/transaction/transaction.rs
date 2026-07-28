@@ -2,9 +2,12 @@
 
 use std::time::Duration;
 
-use crate::bridge::transaction::TransactionEngine;
+use crate::{Record, bridge::transaction::TransactionEngine};
 
-use super::{AbortTransaction, CommitTransaction, TransactionEndAdmissionError};
+use super::{
+    AbortTransaction, CommitTransaction, SendTransactionRecord, TransactionEndAdmissionError,
+    TransactionSendAdmissionError,
+};
 
 /// Opaque active transaction that exclusively borrows its producer.
 ///
@@ -24,6 +27,28 @@ impl<'producer> Transaction<'producer> {
     /// Reports an advisory reactor-wake failure after accepted begin.
     pub const fn begin_wake_failed(&self) -> bool {
         self.inner.begin_wake_failed()
+    }
+
+    /// Attempts to admit one record into this transaction.
+    ///
+    /// On rejection, [`TransactionSendAdmissionError`] returns the original
+    /// record. On acceptance, the named observer exclusively reborrows this
+    /// transaction until that observer is consumed or dropped. An explicit
+    /// partition bypasses metadata lookup; otherwise the producer's keyed or
+    /// sticky partition policy selects the route under this call's deadline.
+    #[expect(
+        clippy::result_large_err,
+        reason = "pre-admission rejection returns the exact bytes-native record"
+    )]
+    pub fn send<'send>(
+        &'send mut self,
+        record: Record,
+        timeout: Duration,
+    ) -> Result<SendTransactionRecord<'send, 'producer>, TransactionSendAdmissionError> {
+        self.inner
+            .send(record, timeout)
+            .map(SendTransactionRecord::from_bridge)
+            .map_err(|(record, error)| TransactionSendAdmissionError::new(record, error))
     }
 
     /// Attempts to commit this exact active transaction.

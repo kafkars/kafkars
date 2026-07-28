@@ -2321,8 +2321,8 @@ forbidden = [
   "tokio",
 ]
 
-# Private transaction initialization owns policy execution without borrowing a
-# sibling domain, generated messages, or driver routing outside their seams.
+# Private transaction execution owns policy without borrowing sibling domains,
+# generated messages, or driver routing outside the explicit send seams.
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/transaction"
 forbidden = [
@@ -2344,18 +2344,52 @@ forbidden = [
   "Transport",
 ]
 allow = [
-  { path = "crates/kafka-client-engine/src/transaction/execution/turn.rs", capability = "crate::driver", reason = "The unique execution wrapper drives only its installed lifecycle through the embedded driver owner." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host.rs", capability = "crate::driver", reason = "The concrete transaction owner retains exactly one accepted call beside its core machine." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host_test.rs", capability = "crate::driver", reason = "The focused lifecycle fixture embeds the reviewed driver owner to exercise exact begin, end, and owner-loss hosting." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs", capability = "crate::driver", reason = "The concrete terminal seam exhaustively translates borrowed driver facts before core settlement." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host/turn.rs", capability = "crate::driver", reason = "The concrete host turn submits one core-authorized request through the sanctioned adapter." },
+  { path = "crates/kafka-client-engine/src/transaction/initialization/control.rs", capability = "crate::producer", reason = "The initialized owner captures the public send deadline at the call boundary before transferring exact record ownership." },
+  { path = "crates/kafka-client-engine/src/transaction/initialization/owner.rs", capability = "crate::producer", reason = "The public initialized owner exposes only the producer send capture needed by its transactional record boundary." },
+  { path = "crates/kafka-client-engine/src/transaction/initialization/owner_send.rs", capability = "crate::producer", reason = "The public transactional send boundary converts one exact producer record into the retained internal input." },
+  { path = "crates/kafka-client-engine/src/transaction/initialization/owner_send_test.rs", capability = "crate::producer", reason = "The focused public-boundary tests construct exact producer records and verify rejection recovery." },
+  { path = "crates/kafka-client-engine/src/transaction/initialization/send_admission.rs", capability = "crate::producer", reason = "Stable send admission errors retain the exact public producer record and translate its boundary validation." },
+  { path = "crates/kafka-client-engine/src/transaction/initialization/send_failure_mapping.rs", capability = "crate::driver", reason = "The public outcome seam exhaustively translates closed transactional Produce driver failures into stable send facts." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/shard.rs", capability = "crate::driver", reason = "The synchronized owner adapts only the domain-neutral reactor wake mechanism." },
   { path = "crates/kafka-client-engine/src/transaction/lifecycle/driver_port.rs", capability = "crate::driver", reason = "The lifecycle adapter retains one concrete EndTxn call and its route evidence through deterministic settlement." },
+  { path = "crates/kafka-client-engine/src/transaction/lifecycle/enrollment.rs", capability = "crate::producer", reason = "The aggregate transfers one exact transactional materialization batch into bounded partition enrollment ownership." },
   { path = "crates/kafka-client-engine/src/transaction/partition_enrollment/driver_port.rs", capability = "crate::driver", reason = "The concrete enrollment adapter retains one tracked AddPartitionsToTxn call and its route evidence through exact-epoch settlement." },
+  { path = "crates/kafka-client-engine/src/transaction/partition_enrollment/admission.rs", capability = "crate::producer", reason = "Exact local enrollment admission retains the future transactional Produce batch without rebuilding its target or identity." },
+  { path = "crates/kafka-client-engine/src/transaction/partition_enrollment/host.rs", capability = "crate::producer", reason = "The bounded enrollment owner retains at most one exact transactional materialization batch and terminal slot." },
+  { path = "crates/kafka-client-engine/src/transaction/partition_enrollment/host_support_test.rs", capability = "crate::producer", reason = "The enrollment fixtures construct exact transactional materialization batches to test ownership transfer." },
   { path = "crates/kafka-client-engine/src/transaction/partition_enrollment/model.rs", capability = "crate::producer", reason = "The explicit enrollment fence and every rejection preserve the exact transactional materialization batch for later handoff or reclaim." },
   { path = "crates/kafka-client-engine/src/transaction/partition_enrollment/settlement.rs", capability = "crate::producer", reason = "Deterministic enrollment settlement transfers the exact retained batch into one enrolled, rejected, abort-required, or fatal terminal." },
+  { path = "crates/kafka-client-engine/src/transaction/execution/test_support.rs", capability = "crate::driver", reason = "The focused execution fixture owns one local driver and exact transactional Produce facts for deterministic send tests." },
+  { path = "crates/kafka-client-engine/src/transaction/execution/test_support.rs", capability = "crate::producer", reason = "The focused execution fixture constructs exact public and materialization records for admission and recovery tests." },
+  { path = "crates/kafka-client-engine/src/transaction/execution/turn.rs", capability = "crate::driver", reason = "The unique execution wrapper drives its fixed send owner before the ordinary lifecycle through the embedded driver." },
+  { path = "crates/kafka-client-engine/src/transaction/send/automatic.rs", capability = "crate::driver", reason = "The automatic transactional send state owns exactly one deadline-bound topic-view lookup before partition sequence acquisition." },
+  { path = "crates/kafka-client-engine/src/transaction/send/automatic.rs", capability = "crate::producer", reason = "The resolved automatic target becomes one exact transactional materialization batch only after partition and sequence ownership are fixed." },
+  { path = "crates/kafka-client-engine/src/transaction/send/aggregate.rs", capability = "crate::driver", reason = "The fixed send owner delegates enrollment progress to the installed lifecycle without acquiring a second driver owner." },
+  { path = "crates/kafka-client-engine/src/transaction/send/aggregate.rs", capability = "crate::producer", reason = "The lifecycle aggregate transfers one exact accepted materialization batch through enrollment and sequence settlement." },
+  { path = "crates/kafka-client-engine/src/transaction/send/input.rs", capability = "crate::producer", reason = "The linear unresolved send retains the original public record beside one prepared materialization record until catalog and lifecycle acceptance." },
+  { path = "crates/kafka-client-engine/src/transaction/send/model.rs", capability = "crate::driver", reason = "Private send terminals retain the closed transactional Produce failure fact without exposing driver ownership." },
+  { path = "crates/kafka-client-engine/src/transaction/send/owner.rs", capability = "crate::producer", reason = "The fixed send owner constructs one aggregate transactional batch only after lifecycle and sequence acceptance." },
+  { path = "crates/kafka-client-engine/src/transaction/send/partitioning.rs", capability = "crate::driver", reason = "The automatic-routing adapter exhaustively normalizes the bounded driver topic-view failure domain into transaction-local facts." },
+  { path = "crates/kafka-client-engine/src/transaction/send/partitioning.rs", capability = "crate::producer", reason = "Transactional routing deliberately reuses the ordinary producer's closed partition-lookup failure semantics without acquiring its state owner." },
+  { path = "crates/kafka-client-engine/src/transaction/send/port.rs", capability = "crate::driver", reason = "The sanctioned Produce adapter retains one tracked transactional call and its evidence through deterministic settlement." },
+  { path = "crates/kafka-client-engine/src/transaction/send/produce_settlement.rs", capability = "crate::driver", reason = "The deterministic Produce settlement seam borrows only closed transactional Produce facts and exact attempt evidence before core authorizes route replacement or terminal sequence settlement." },
+  { path = "crates/kafka-client-engine/src/transaction/send/failure_test.rs", capability = "crate::driver", reason = "The terminal-consequence tests construct exact driver Produce failures and verify healthy, abort-required, and fatal settlement." },
+  { path = "crates/kafka-client-engine/src/transaction/send/test_support.rs", capability = "crate::producer", reason = "The send fixture retains exact transactional materialization batches across its fake lifecycle aggregate." },
+  { path = "crates/kafka-client-engine/src/transaction/send/test_support/aggregate.rs", capability = "crate::driver", reason = "The fake lifecycle aggregate borrows the fixture's one real driver solely to exercise deterministic turn and shutdown behavior." },
+  { path = "crates/kafka-client-engine/src/transaction/send/test_support/aggregate.rs", capability = "crate::producer", reason = "The fake lifecycle aggregate retains exact transactional materialization batches across enrollment and send settlement." },
+  { path = "crates/kafka-client-engine/src/transaction/send/test_support/fixtures.rs", capability = "crate::driver", reason = "The focused send fixtures construct exact driver Produce failure facts and a local driver owner." },
+  { path = "crates/kafka-client-engine/src/transaction/send/test_support/fixtures.rs", capability = "crate::producer", reason = "The focused send fixtures construct exact public and materialization records for deterministic admission." },
   { path = "crates/kafka-client-engine/src/transaction/send/test_support/produce_port.rs", capability = "crate::driver", reason = "The scripted test port retains exact driver Produce terminal evidence through observation and discard." },
   { path = "crates/kafka-client-engine/src/transaction/send/terminal.rs", capability = "crate::driver", reason = "Closed driver Produce facts map exhaustively into sequence and lifecycle outcomes." },
+  { path = "crates/kafka-client-engine/src/transaction/send/turn.rs", capability = "crate::driver", reason = "The send-first turn owns the concrete Produce handoff after exact enrollment and materialization." },
+  { path = "crates/kafka-client-engine/src/transaction/send/turn.rs", capability = "crate::producer", reason = "Configured materialization consumes the exact enrolled batch under its original deadline and sequence lease." },
+  { path = "crates/kafka-client-engine/src/transaction/send/turn/execution.rs", capability = "crate::driver", reason = "The execution transition borrows the unique driver only while handing one enrolled, materialized Produce attempt to the sanctioned port." },
+  { path = "crates/kafka-client-engine/src/transaction/send/turn/execution.rs", capability = "crate::producer", reason = "The execution transition retains and materializes the exact enrolled transactional batch under its original deadline and sequence lease." },
+  { path = "crates/kafka-client-engine/src/transaction/send/turn/retry.rs", capability = "crate::driver", reason = "The retry transition observes causal route invalidation and admits only the replacement attempt authorized by core." },
   { path = "crates/kafka-client-engine/src/transaction/send/turn_test.rs", capability = "crate::driver", reason = "The send-turn tests drive the exact fixed owner with one local driver and verify progress ordering." },
   { path = "crates/kafka-client-engine/src/transaction/send/turn_retry_test.rs", capability = "crate::driver", reason = "The route-retry tests construct exact driver terminals and route-refresh states to verify bounded causal replacement." },
   { path = "crates/kafka-client-engine/src/transaction/send/turn_retry_fencing_test.rs", capability = "crate::driver", reason = "The retry-safety tests construct exact driver fencing and correlation facts to prove they never authorize replacement." },
@@ -2432,6 +2466,14 @@ production = "crates/kafka-client-engine/src/producer/boundary/transaction_recor
 test = "crates/kafka-client-engine/src/producer/boundary/transaction_record_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/transaction/initialization/owner_send.rs"
+test = "crates/kafka-client-engine/src/transaction/initialization/owner_send_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/transaction/initialization/send_outcome.rs"
+test = "crates/kafka-client-engine/src/transaction/initialization/send_outcome_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/transaction/send/owner.rs"
 test = "crates/kafka-client-engine/src/transaction/send/turn_test.rs"
 
@@ -2458,6 +2500,22 @@ test = "crates/kafka-client-engine/src/driver/rpc/transaction_produce/call_test.
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/transaction_produce/normalize.rs"
 test = "crates/kafka-client-engine/src/driver/rpc/transaction_produce/normalize_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/transaction/send.rs"
+test = "crates/kafka-client/src/bridge/transaction/send_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/transaction/send_result.rs"
+test = "crates/kafka-client/src/bridge/transaction/send_result_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/transaction/send.rs"
+test = "crates/kafka-client/src/transaction/send_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/transaction/send_error.rs"
+test = "crates/kafka-client/src/transaction/send_error_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-core/src/transaction/lifecycle/ending.rs"
@@ -2556,6 +2614,22 @@ owner_type = "TransactionSequenceMachine"
 path = "crates/kafka-client-core/src/transaction/sequencing/machine.rs"
 
 [[linear_owners]]
+owner_type = "TransactionSendAccepted"
+path = "crates/kafka-client-engine/src/transaction/initialization/owner_send.rs"
+
+[[linear_owners]]
+owner_type = "TransactionSendAdmissionError"
+path = "crates/kafka-client-engine/src/transaction/initialization/send_admission.rs"
+
+[[linear_owners]]
+owner_type = "TransactionSendObserver"
+path = "crates/kafka-client-engine/src/transaction/initialization/send_observer.rs"
+
+[[linear_owners]]
+owner_type = "TransactionSendControlError"
+path = "crates/kafka-client-engine/src/transaction/initialization/control.rs"
+
+[[linear_owners]]
 owner_type = "TransactionSendOwner"
 path = "crates/kafka-client-engine/src/transaction/send/owner.rs"
 
@@ -2622,6 +2696,18 @@ path = "crates/kafka-client-engine/src/driver/rpc/transaction_produce/call.rs"
 [[linear_owners]]
 owner_type = "TransactionProduceTerminal"
 path = "crates/kafka-client-engine/src/driver/rpc/transaction_produce/model.rs"
+
+[[linear_owners]]
+owner_type = "TransactionSendEngine"
+path = "crates/kafka-client/src/bridge/transaction/send.rs"
+
+[[linear_owners]]
+owner_type = "SendTransactionRecord"
+path = "crates/kafka-client/src/transaction/send.rs"
+
+[[linear_owners]]
+owner_type = "TransactionSendAdmissionError"
+path = "crates/kafka-client/src/transaction/send_error.rs"
 
 [[linear_owners]]
 owner_type = "TransactionInitializationRequest"
@@ -2772,15 +2858,6 @@ production = "crates/kafka-client/src/transaction/transaction.rs"
 test = "crates/kafka-client/src/transaction/transaction_test.rs"
 
 [[mutation_owners]]
-owner_type = "TransactionLifecycleMachine"
-field = "state"
-allowed_paths = [
-  "crates/kafka-client-core/src/transaction/lifecycle/machine.rs",
-  "crates/kafka-client-core/src/transaction/lifecycle/ending.rs",
-  "crates/kafka-client-core/src/transaction/lifecycle/transition.rs",
-]
-
-[[mutation_owners]]
 owner_type = "TransactionSequenceMachine"
 field = "state"
 allowed_paths = [
@@ -2867,24 +2944,6 @@ allowed_paths = [
   "crates/kafka-client-core/src/transaction/lifecycle/machine.rs",
   "crates/kafka-client-core/src/transaction/lifecycle/ending.rs",
   "crates/kafka-client-core/src/transaction/lifecycle/send_transition.rs",
-  "crates/kafka-client-core/src/transaction/lifecycle/transition.rs",
-]
-
-[[mutation_owners]]
-owner_type = "TransactionLifecycleMachine"
-field = "active_epoch"
-allowed_paths = [
-  "crates/kafka-client-core/src/transaction/lifecycle/machine.rs",
-  "crates/kafka-client-core/src/transaction/lifecycle/ending.rs",
-  "crates/kafka-client-core/src/transaction/lifecycle/transition.rs",
-]
-
-[[mutation_owners]]
-owner_type = "TransactionLifecycleMachine"
-field = "pending_end"
-allowed_paths = [
-  "crates/kafka-client-core/src/transaction/lifecycle/machine.rs",
-  "crates/kafka-client-core/src/transaction/lifecycle/ending.rs",
   "crates/kafka-client-core/src/transaction/lifecycle/transition.rs",
 ]
 
@@ -8478,10 +8537,6 @@ path = "crates/kafka-client-engine/src/clock/monotonic.rs"
 [[linear_owners]]
 owner_type = "BatchTimers"
 path = "crates/kafka-client-engine/src/clock/timer.rs"
-
-[[linear_owners]]
-owner_type = "MaterializedProduce"
-path = "crates/kafka-client-engine/src/protocol/produce.rs"
 
 [[linear_owners]]
 owner_type = "MaterializedProduce"
