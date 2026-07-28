@@ -229,6 +229,23 @@ fn captured_waiting_admission_keeps_the_original_deadline_and_separate_capacity(
 }
 
 #[test]
+fn captured_automatic_send_enters_the_same_bounded_waiting_owner() {
+    let (owner, handle, wake) = setup();
+    let capture = handle
+        .capture_send(ProducerSendOptions::new(Duration::from_secs(30)))
+        .unwrap_or_else(|error| panic!("automatic send boundary should succeed: {error}"));
+    let automatic = ProducerRecord::to("orders").value(Bytes::from_static(b"value"));
+
+    let accepted = handle
+        .send_captured(capture, automatic)
+        .unwrap_or_else(|error| panic!("automatic send should enter waiting: {error:?}"));
+
+    assert_eq!(host(&owner).shard_stats().host.waiting.records, 1);
+    assert_eq!(wake.count(), 1);
+    drop(accepted.into_observer());
+}
+
+#[test]
 fn absent_timestamp_defaults_inside_engine_and_restores_as_absent() {
     let stored = record().into_stored(Some(PartitionIndex::from_raw(3)), 1_234);
     let (_, timestamp_ms, _, _, _) = stored.into_parts();

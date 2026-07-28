@@ -8,6 +8,7 @@ mod flush;
 mod handle;
 mod metadata;
 mod rejection;
+mod send;
 
 pub use cancellation::CancellationOutcome;
 pub use close::CloseProducer;
@@ -17,6 +18,7 @@ pub use flush::Flush;
 pub use handle::{Producer, ProducerBuilder};
 pub use metadata::RecordMetadata;
 pub use rejection::TrySendError;
+pub use send::Send;
 
 #[cfg(test)]
 mod cancellation_test;
@@ -34,3 +36,5 @@ mod handle_test;
 mod metadata_test;
 #[cfg(test)]
 mod rejection_test;
+#[cfg(test)]
+mod send_test;

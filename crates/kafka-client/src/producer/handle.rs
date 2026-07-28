@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::{ErrorKind, KafkaError, Record, bridge::producer::ProducerEngine};
 
-use super::{CloseProducer, Delivery, Flush, TrySendError};
+use super::{CloseProducer, Delivery, Flush, Send, TrySendError};
 
 /// Builder for a bounded, batch-native producer.
 #[derive(Debug, Clone)]
@@ -55,6 +55,15 @@ pub struct Producer {
 }
 
 impl Producer {
+    /// Sends one record through bounded FIFO waiting admission.
+    ///
+    /// The public deadline starts before record conversion. Local waiting has
+    /// independent configured count and byte bounds; the client never retries
+    /// `try_send` or polls the shard lock in a loop.
+    pub fn send(&self, record: Record) -> Send {
+        Send::from_bridge(self.engine.send(record))
+    }
+
     /// Atomically closes admission and drains work accepted before this call.
     ///
     /// The first accepted close fences all clone-shared producer handles.

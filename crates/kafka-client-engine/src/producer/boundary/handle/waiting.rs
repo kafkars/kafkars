@@ -2,12 +2,12 @@
 
 use super::ProducerHandle;
 use crate::producer::boundary::{
-    ProducerSendCapture, ProducerTrySendAccepted, ProducerTrySendError, prepare::prepare_explicit,
+    ProducerSendCapture, ProducerTrySendAccepted, ProducerTrySendError, prepare::prepare_waiting,
     record::ProducerRecord,
 };
 
 impl ProducerHandle {
-    /// Enqueues one explicit-partition call in the bounded FIFO waiting partition.
+    /// Enqueues one explicit-or-automatic call in the bounded FIFO waiting partition.
     ///
     /// This is a single admission attempt, never a retry loop. The returned
     /// observer owns cancellation-before-promotion and ordinary delivery after
@@ -21,7 +21,7 @@ impl ProducerHandle {
         capture: ProducerSendCapture,
         record: ProducerRecord,
     ) -> Result<ProducerTrySendAccepted, ProducerTrySendError> {
-        let prepared = prepare_explicit(capture, record)?;
+        let prepared = prepare_waiting(capture, record)?;
         let (attempted_at, deadline, stored) = prepared.into_parts();
         match self.port.admit_waiting(attempted_at, deadline, stored) {
             Ok(accepted) => Ok(ProducerTrySendAccepted::from_waiting_port(accepted)),

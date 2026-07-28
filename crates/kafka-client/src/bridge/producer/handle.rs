@@ -21,6 +21,7 @@ use crate::{
 use super::{
     barrier::{BarrierKind, ProducerBarrier},
     delivery::ProducerDelivery,
+    send::ProducerSend,
 };
 
 /// Cloneable facade-to-engine producer owner with one compiled timeout.
@@ -98,6 +99,33 @@ impl ProducerEngine {
                 ))
             }
             Err(error) => Err(translate_admission_error(error)),
+        }
+    }
+
+    /// Captures the call boundary and enters bounded FIFO waiting ownership.
+    pub(crate) fn send(&self, record: Record) -> ProducerSend {
+        let capture = match self.handle.capture_send(self.options) {
+            Ok(capture) => capture,
+            Err(error) => {
+                let (_record, error) = translate_capture_error(record, error).into_parts();
+                return ProducerSend::ready(error);
+            }
+        };
+        let topic = record.topic().to_owned();
+        let engine_record = into_engine_record(record);
+        match self.handle.send_captured(capture, engine_record) {
+            Ok(accepted) => {
+                let diagnostic = accepted.fault().map(translate_accepted_fault);
+                ProducerSend::accepted(ProducerDelivery::new(
+                    topic,
+                    accepted.into_observer(),
+                    diagnostic,
+                ))
+            }
+            Err(error) => {
+                let (_record, error) = translate_admission_error(error).into_parts();
+                ProducerSend::ready(error)
+            }
         }
     }
 }
