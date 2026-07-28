@@ -2,7 +2,7 @@
 
 use kafka_client_core::{DeliveryStatus, GroupOffsetCommitInput, Moment};
 
-use crate::driver::{DriverOwner, GroupOffsetCommitPoll};
+use crate::driver::{DriverOwner, GroupOffsetCommitPoll, GroupOffsetCommitRefreshPoll};
 
 use super::host::{
     GroupOffsetCommitAttempt, GroupOffsetCommitHost, GroupOffsetCommitHostError,
@@ -52,6 +52,34 @@ impl GroupOffsetCommitHost {
         }
         match self.calls.poll_group_commit() {
             Ok(GroupOffsetCommitPoll::TerminalReady { operation_id }) => {
+                let deadline = self
+                    .operations
+                    .iter()
+                    .find(|operation| operation.operation_id == operation_id)
+                    .map(|operation| operation.deadline.core())
+                    .ok_or(GroupOffsetCommitHostError::UnknownOperation)?;
+                if deadline.is_elapsed_at(now) {
+                    if !self
+                        .calls
+                        .expire_group_commit_coordinator_refresh(operation_id)
+                    {
+                        return Err(GroupOffsetCommitHostError::Settlement);
+                    }
+                } else {
+                    match self
+                        .calls
+                        .poll_group_commit_coordinator_refresh(operation_id, driver)
+                    {
+                        Some(GroupOffsetCommitRefreshPoll::Ready) => {}
+                        Some(GroupOffsetCommitRefreshPoll::Submitted) => {
+                            return Ok(GroupOffsetCommitTurn::Progress);
+                        }
+                        Some(GroupOffsetCommitRefreshPoll::Pending) => {
+                            return Ok(GroupOffsetCommitTurn::Idle);
+                        }
+                        None => return Err(GroupOffsetCommitHostError::Settlement),
+                    }
+                }
                 self.settle_driver_terminal(operation_id)?;
                 return Ok(GroupOffsetCommitTurn::Progress);
             }
@@ -86,9 +114,7 @@ impl GroupOffsetCommitHost {
     pub(in crate::consumer::group) fn next_deadline(&self) -> Option<kafka_client_core::Deadline> {
         self.operations
             .iter()
-            .filter(|operation| {
-                matches!(operation.attempt, Some(GroupOffsetCommitAttempt::Queued(_)))
-            })
+            .filter(|operation| operation.attempt.is_some())
             .map(|operation| operation.deadline.core())
             .min()
     }

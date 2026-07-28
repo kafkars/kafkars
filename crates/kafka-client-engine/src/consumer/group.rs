@@ -254,6 +254,7 @@ pub(in crate::consumer) use classic_group_fetch::{
     ClassicGroupFetchDelivery, ClassicGroupFetchDeliveryError,
 };
 pub(crate) use registry::GroupConsumerRegistry;
+pub(in crate::consumer) use registry_commit_port::GroupConsumerCommitPortErrorCategory;
 pub(in crate::consumer) use registry_delivery::{
     GroupConsumerDeliveryError, GroupConsumerDeliveryPortError,
 };

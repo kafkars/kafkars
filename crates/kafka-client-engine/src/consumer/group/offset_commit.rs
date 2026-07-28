@@ -18,9 +18,20 @@ pub(in crate::consumer::group) use admission::{
     GroupOffsetCommitAdmissionFailure, GroupOffsetCommitAdmissionFailureKind,
 };
 pub(in crate::consumer::group) use error::GroupOffsetCommitHostError;
-pub(in crate::consumer::group) use host::{
-    AcceptedGroupOffsetCommit, GroupOffsetCommitHost, GroupOffsetCommitTurn,
-};
+pub(in crate::consumer) use host::AcceptedGroupOffsetCommit;
+pub(in crate::consumer::group) use host::{GroupOffsetCommitHost, GroupOffsetCommitTurn};
+
+impl AcceptedGroupOffsetCommit {
+    pub(in crate::consumer) const fn host_faulted(&self) -> bool {
+        self.fault.is_some()
+    }
+
+    pub(in crate::consumer) fn into_observer(
+        self,
+    ) -> crate::completion::CompletionObserver<kafka_client_core::GroupOffsetCommitTerminal> {
+        self.observer
+    }
+}
 
 #[cfg(test)]
 mod admission_test;

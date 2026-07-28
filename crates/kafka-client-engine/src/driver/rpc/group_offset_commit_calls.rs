@@ -14,7 +14,8 @@ use super::{
         RecoveredGroupOffsetCommitSettlement,
     },
     group_offset_commit_settlement::{
-        GroupOffsetCommitPoll, PendingGroupOffsetCommitConfirmation, SettledGroupOffsetCommitCall,
+        GroupOffsetCommitPoll, GroupOffsetCommitRefreshPoll, PendingGroupOffsetCommitConfirmation,
+        SettledGroupOffsetCommitCall,
     },
     group_offset_commit_terminal::normalize_group_offset_commit_terminal,
 };
@@ -115,6 +116,32 @@ impl TrackedGroupOffsetCommitCalls {
             .saturating_add(usize::from(self.settled.is_some()))
             .saturating_add(usize::from(self.pending_confirmation.is_some()))
             .saturating_add(usize::from(self.completion_failure.is_some()))
+    }
+
+    pub(crate) fn poll_group_commit_coordinator_refresh(
+        &mut self,
+        operation_id: kafka_client_core::OperationId,
+        driver: &DriverOwner,
+    ) -> Option<GroupOffsetCommitRefreshPoll> {
+        self.settled
+            .as_mut()
+            .filter(|settled| settled.operation_id() == operation_id)
+            .map(|settled| settled.poll_coordinator_refresh(driver))
+    }
+
+    pub(crate) fn expire_group_commit_coordinator_refresh(
+        &mut self,
+        operation_id: kafka_client_core::OperationId,
+    ) -> bool {
+        let Some(settled) = self
+            .settled
+            .as_mut()
+            .filter(|settled| settled.operation_id() == operation_id)
+        else {
+            return false;
+        };
+        settled.expire_coordinator_refresh();
+        true
     }
 
     pub(crate) fn poll_group_commit(

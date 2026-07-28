@@ -2,7 +2,9 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{GroupCheckpoint, GroupCheckpointEntry, GroupPositionFence};
+use kafka_client_core::{
+    GroupCheckpoint, GroupCheckpointEntry, GroupPositionFence, PartitionIndex, TopicId,
+};
 
 use crate::consumer::group::ClassicGroupFetchDelivery;
 
@@ -18,6 +20,13 @@ pub struct GroupConsumerCheckpoint {
     next_offset: i64,
     _position_fence: GroupPositionFence,
     checkpoint: GroupCheckpoint,
+}
+
+/// Exact stable and catalog identities retained across public commit admission.
+pub(in crate::consumer) struct GroupConsumerCheckpointObservation {
+    checkpoint: GroupConsumerCheckpoint,
+    pub(in crate::consumer) topic_id: TopicId,
+    pub(in crate::consumer) partition_id: PartitionIndex,
 }
 
 impl GroupConsumerCheckpoint {
@@ -36,9 +45,98 @@ impl GroupConsumerCheckpoint {
         self.next_offset
     }
 
+    pub(in crate::consumer) fn try_into_commit_parts(
+        self,
+    ) -> Result<(GroupConsumerCheckpointObservation, GroupCheckpoint), Self> {
+        let entry = self
+            .checkpoint
+            .entries()
+            .first()
+            .unwrap_or_else(|| unreachable!("public checkpoint retains one entry"));
+        let mut entries = Vec::new();
+        if entries
+            .try_reserve_exact(self.checkpoint.entries().len())
+            .is_err()
+        {
+            return Err(self);
+        }
+        entries.extend_from_slice(self.checkpoint.entries());
+        let submission = GroupCheckpoint::try_new(
+            self.checkpoint.group_id(),
+            self.checkpoint.member_id(),
+            self.checkpoint.assignment_generation(),
+            entries,
+        )
+        .unwrap_or_else(|error| {
+            unreachable!("the exact admitted checkpoint copy remains structurally valid: {error}")
+        });
+        Ok((
+            GroupConsumerCheckpointObservation {
+                topic_id: entry.topic_id(),
+                partition_id: entry.partition(),
+                checkpoint: self,
+            },
+            submission,
+        ))
+    }
+
     #[cfg(test)]
     pub(in crate::consumer) fn into_core(self) -> GroupCheckpoint {
         self.checkpoint
+    }
+
+    #[cfg(test)]
+    pub(in crate::consumer) fn storage_identity(
+        &self,
+    ) -> (*const str, *const GroupCheckpointEntry) {
+        (Arc::as_ptr(&self.topic), self.checkpoint.entries().as_ptr())
+    }
+
+    #[cfg(test)]
+    pub(in crate::consumer) fn from_test_parts(
+        topic: Arc<str>,
+        partition: i32,
+        next_offset: i64,
+        position_fence: GroupPositionFence,
+        checkpoint: GroupCheckpoint,
+    ) -> Self {
+        Self {
+            topic,
+            partition,
+            next_offset,
+            _position_fence: position_fence,
+            checkpoint,
+        }
+    }
+}
+
+impl GroupConsumerCheckpointObservation {
+    pub(in crate::consumer) fn topic(&self) -> &Arc<str> {
+        &self.checkpoint.topic
+    }
+
+    pub(in crate::consumer) const fn partition(&self) -> i32 {
+        self.checkpoint.partition
+    }
+
+    pub(in crate::consumer) fn into_checkpoint(self) -> GroupConsumerCheckpoint {
+        self.checkpoint
+    }
+
+    #[cfg(test)]
+    pub(in crate::consumer) fn from_checkpoint(checkpoint: GroupConsumerCheckpoint) -> Self {
+        let (observation, submission) = checkpoint
+            .try_into_commit_parts()
+            .unwrap_or_else(|_checkpoint| panic!("test checkpoint copy"));
+        drop(submission);
+        observation
+    }
+
+    #[cfg(test)]
+    pub(in crate::consumer) fn storage_identity(
+        &self,
+    ) -> (*const str, *const GroupCheckpointEntry) {
+        self.checkpoint.storage_identity()
     }
 }
 

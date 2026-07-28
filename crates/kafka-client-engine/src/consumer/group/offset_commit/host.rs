@@ -25,7 +25,7 @@ pub(super) const GROUP_OFFSET_COMMIT_RETAINED_BYTES: usize =
     GROUP_OFFSET_COMMIT_CAPACITY * GROUP_OFFSET_COMMIT_OPERATION_BYTES;
 
 /// Accepted observation lane plus an invariant fault discovered after admission.
-pub(in crate::consumer::group) struct AcceptedGroupOffsetCommit {
+pub(in crate::consumer) struct AcceptedGroupOffsetCommit {
     pub(in crate::consumer::group) observer: CompletionObserver<GroupOffsetCommitTerminal>,
     pub(in crate::consumer::group) fault: Option<GroupOffsetCommitHostError>,
 }

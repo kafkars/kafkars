@@ -478,9 +478,36 @@ evidence = [
 [[invariant]]
 id = "CON-01"
 title = "Consumer checkpoints are assignment-fenced next offsets"
-statement = "A checkpoint records the next offset and cannot commit or deliver after its assignment epoch is superseded."
-status = "planned"
-milestone = "direct-and-group-consumer"
+statement = "One linear hosted classic-group checkpoint owns the exact group, member, assignment generation, caller-ordered topic-partition next offsets, and optional leader epoch authorized by delivery. Public Consumer::try_commit moves that checkpoint once and passes one explicit timeout to the private engine call, whose port captures one absolute deadline before lock, closed, contention, validation, or deterministic admission. Pre-admission rejection returns the exact checkpoint without spending terminal ownership. Acceptance has already reserved fixed terminal-completion and retained-byte capacity, owns one named runtime-neutral Future plus blocking wait over the same terminal, and keeps one accepted commit owed after assignment loss, handle or group close, or observer drop. Static classic identity remains governed by CON-17. Successful, exact signed per-partition broker rejection, deadline, driver-rejected, execution-unavailable, transport, compatibility, malformed-response, and over-budget terminals preserve retry checkpoint ownership when authoritative and never strengthen delivery certainty. Observer lifecycle failure cannot manufacture checkpoint recovery. No acknowledgment, control, seek, revocation, explicit close, transactional offset transfer, KIP-848 policy, callback, async runtime, coordinator cache, retry clock, generated type, or driver type crosses the Rust facade."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/consumer/group_commit/checkpoint_test.rs::checkpoint_binds_ordered_entries_to_one_assignment",
+  "crates/kafka-client-core/src/consumer/group_commit/admission_test.rs::stale_lost_or_unassigned_checkpoints_reject_locally_and_remain_linear",
+  "crates/kafka-client-core/src/consumer/group_commit/admission_test.rs::later_assignment_loss_does_not_erase_an_admitted_terminal_obligation",
+  "crates/kafka-client-core/src/consumer/group_commit/machine_test.rs::mixed_response_is_broker_rejected_by_first_error_and_retains_partial_success",
+  "crates/kafka-client-core/src/consumer/group_commit/machine_test.rs::deadline_after_driver_acceptance_preserves_timeout_kind_and_certainty",
+  "crates/kafka-client-core/src/consumer/group_commit/machine_test.rs::submitted_nontransport_failures_keep_exact_categories_and_certainty",
+  "crates/kafka-client-core/src/consumer/group_commit/machine_test.rs::transport_terminal_preserves_driver_certainty_without_retry",
+  "crates/kafka-client-engine/src/consumer/group/registry_commit_port_test.rs::deadline_capture_precedes_closed_admission_and_preserves_checkpoint",
+  "crates/kafka-client-engine/src/consumer/group/registry_commit_port_test.rs::contended_rejection_returns_exact_checkpoint_without_spending_capacity",
+  "crates/kafka-client-engine/src/consumer/group/registry_commit_port_test.rs::accepted_observer_and_original_deadline_survive_advisory_wake_failure",
+  "crates/kafka-client-engine/src/consumer/group/registry_commit_port_test.rs::observer_drop_abandons_observation_without_cancelling_commit",
+  "crates/kafka-client-engine/src/consumer/group/offset_commit/admission_test.rs::admission_reserves_terminal_result_bytes_and_original_deadline",
+  "crates/kafka-client-engine/src/consumer/group/offset_commit/rollback_test.rs::stale_checkpoint_rejection_rolls_back_completion_and_bytes",
+  "crates/kafka-client-engine/src/consumer/group/offset_commit/settlement_test.rs::driver_terminal_is_applied_before_route_confirmation_and_publication",
+  "crates/kafka-client-engine/src/consumer/group/offset_commit/settlement_test.rs::original_deadline_escapes_coordinator_refresh_before_terminal_settlement",
+  "crates/kafka-client-engine/src/consumer/group/offset_commit/publication_test.rs::observed_terminal_reclaims_the_exact_operation_charge",
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_calls_test.rs::deadline_expiry_preserves_the_exact_settled_broker_input",
+  "crates/kafka-client-engine/src/consumer/group_commit/admission_test.rs::capture_failure_precedes_closed_admission_and_returns_the_exact_checkpoint",
+  "crates/kafka-client-engine/src/consumer/group_commit/admission_test.rs::accepted_wake_fault_retains_the_sole_terminal_observer",
+  "crates/kafka-client-engine/src/consumer/group_commit/observer_test.rs::future_poll_observes_the_same_recovered_terminal_as_blocking_wait",
+  "crates/kafka-client-engine/src/consumer/group_commit/outcome_test.rs::broker_rejection_preserves_exact_signed_code_and_partition_correlation",
+  "crates/kafka-client-engine/src/consumer/group_commit/outcome_test.rs::whole_operation_failure_preserves_category_and_delivery_certainty",
+  "crates/kafka-client-engine/src/consumer/group_commit/outcome_test.rs::impossible_terminal_identity_is_an_observer_invariant_error",
+  "crates/kafka-client/src/consumer/group_commit_test.rs::accepted_commit_is_send_future_with_blocking_and_advisory_observation",
+  "crates/kafka-client/src/consumer/group_commit_error_test.rs::rejection_exposes_and_returns_the_exact_checkpoint",
+  "crates/kafka-client/src/consumer/group_commit_error_test.rs::terminal_error_exposes_and_returns_the_exact_retry_checkpoint",
+]
 
 [[invariant]]
 id = "CON-02"
@@ -1032,7 +1059,7 @@ evidence = [
 [[invariant]]
 id = "CON-16"
 title = "Classic group delivery is processing-fenced and loss-recoverable"
-statement = "Each installed classic-group assignment atomically arms one independent application-processing lease fenced by GroupId, nonreused MembershipCycle, and AssignmentGeneration. The public builder owns a positive nanosecond-representable duration with a 300-second default; membership-start deadline capture precedes validation and conversion, and pre-core rejection returns the exact builder. Progress before the lease boundary replaces the deadline, while progress at the boundary or deadline overflow retains exact assignment loss until matching revocation. The registry transfers only one already-authorized Fetch byte lease whose catalog, membership, assignment generation, and assigned-consumer epoch agree, takes fresh monotonic time only after acquiring that lease, and applies processing progress before external transfer. Clock, progress, or expiration failure reclaims the exact delivery; due processing loss runs before membership Heartbeat and uses one shared prepared processing, Fetch, and catalog revocation seam. A retained entry fault fences only that entry while unrelated groups remain schedulable. Immediate observation transfers one linear batch whose Drop reclaims the byte lease; consuming the batch yields one independently owned non-clone assignment-fenced checkpoint. The named runtime-neutral receive operation owns one bounded generation registration per group, arms before probing, rearms for semantic change without a missed-wake gap, invokes application wakers only on a dedicated off-reactor notifier, and treats Drop as observation abandonment rather than cancellation. This slice keeps read-uncommitted Fetch and missing-offset failure as fixed defaults and introduces no configurable isolation or reset, acknowledgement, commit, control, seek, graceful revocation, explicit close, callback, async runtime, or unsafe code."
+statement = "Each installed classic-group assignment atomically arms one independent application-processing lease fenced by GroupId, nonreused MembershipCycle, and AssignmentGeneration. The public builder owns a positive nanosecond-representable duration with a 300-second default; membership-start deadline capture precedes validation and conversion, and pre-core rejection returns the exact builder. Progress before the lease boundary replaces the deadline, while progress at the boundary or deadline overflow retains exact assignment loss until matching revocation. The registry transfers only one already-authorized Fetch byte lease whose catalog, membership, assignment generation, and assigned-consumer epoch agree, takes fresh monotonic time only after acquiring that lease, and applies processing progress before external transfer. Clock, progress, or expiration failure reclaims the exact delivery; due processing loss runs before membership Heartbeat and uses one shared prepared processing, Fetch, and catalog revocation seam. A retained entry fault fences only that entry while unrelated groups remain schedulable. Immediate observation transfers one linear batch whose Drop reclaims the byte lease; consuming the batch yields one independently owned non-clone assignment-fenced checkpoint. The named runtime-neutral receive operation owns one bounded generation registration per group, arms before probing, rearms for semantic change without a missed-wake gap, invokes application wakers only on a dedicated off-reactor notifier, and treats Drop as observation abandonment rather than cancellation. This slice keeps read-uncommitted Fetch and missing-offset failure as fixed defaults and introduces no configurable isolation or reset, acknowledgement, control, seek, graceful revocation, explicit close, callback, async runtime, or unsafe code. Commit behavior is enforced by CON-01."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/consumer/classic_group/processing_lease_test.rs::activation_and_progress_replace_one_exact_deadline",

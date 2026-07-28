@@ -1,0 +1,125 @@
+//! Exact hosted checkpoint commit facade policy expectations.
+
+pub(super) const MIRRORS: &[(&str, &str)] = &[
+    (
+        "crates/kafka-client-engine/src/consumer/group_commit/admission.rs",
+        "crates/kafka-client-engine/src/consumer/group_commit/admission_test.rs",
+    ),
+    (
+        "crates/kafka-client-engine/src/consumer/group_commit/observer.rs",
+        "crates/kafka-client-engine/src/consumer/group_commit/observer_test.rs",
+    ),
+    (
+        "crates/kafka-client-engine/src/consumer/group_commit/outcome.rs",
+        "crates/kafka-client-engine/src/consumer/group_commit/outcome_test.rs",
+    ),
+    (
+        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint.rs",
+        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint_test.rs",
+    ),
+    (
+        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs",
+        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_test.rs",
+    ),
+    (
+        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission.rs",
+        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission_test.rs",
+    ),
+    (
+        "crates/kafka-client/src/consumer/group_commit.rs",
+        "crates/kafka-client/src/consumer/group_commit_test.rs",
+    ),
+    (
+        "crates/kafka-client/src/consumer/group_commit_error.rs",
+        "crates/kafka-client/src/consumer/group_commit_error_test.rs",
+    ),
+];
+pub(super) const LINEAR: &[(&str, &str)] = &[
+    (
+        "GroupConsumerCommitAdmissionError",
+        "crates/kafka-client-engine/src/consumer/group_commit/admission.rs",
+    ),
+    (
+        "GroupConsumerCommitAccepted",
+        "crates/kafka-client-engine/src/consumer/group_commit/admission.rs",
+    ),
+    (
+        "GroupConsumerCommitObserver",
+        "crates/kafka-client-engine/src/consumer/group_commit/observer.rs",
+    ),
+    (
+        "GroupConsumerCheckpointObservation",
+        "crates/kafka-client-engine/src/consumer/group_batch/checkpoint.rs",
+    ),
+    (
+        "CoordinatorRefresh",
+        "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs",
+    ),
+    (
+        "Checkpoint",
+        "crates/kafka-client/src/consumer/checkpoint.rs",
+    ),
+    (
+        "GroupConsumerCheckpoint",
+        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint.rs",
+    ),
+    (
+        "CommitConsumerCheckpoint",
+        "crates/kafka-client/src/consumer/group_commit.rs",
+    ),
+    (
+        "ConsumerCommitAdmissionError",
+        "crates/kafka-client/src/consumer/group_commit_error.rs",
+    ),
+    (
+        "ConsumerCommitError",
+        "crates/kafka-client/src/consumer/group_commit_error.rs",
+    ),
+    (
+        "GroupConsumerCommit",
+        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs",
+    ),
+    (
+        "GroupConsumerCommitError",
+        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs",
+    ),
+];
+pub(super) const MUTATION_FIXTURE: &[(&str, &str)] = &[
+    ("CommitConsumerCheckpoint", "inner"),
+    ("GroupConsumerCommit", "inner"),
+];
+pub(super) const BRIDGE_FORBIDDEN: &[&str] = &[
+    "kafka_client_core",
+    "kafka_driver",
+    "kafka_wire",
+    "kafka_wire_core",
+    "kafka_wire_records",
+    "tokio",
+    "async_std",
+    "smol",
+    "std::net",
+    "std::thread",
+    "std::time::Instant",
+    "std::time::SystemTime",
+    "Callback",
+    "Retry",
+    "async",
+];
+pub(super) const PUBLIC_FORBIDDEN: &[&str] = &[
+    "kafka_client_core",
+    "kafka_client_engine",
+    "kafka_driver",
+    "kafka_wire",
+    "kafka_wire_core",
+    "kafka_wire_records",
+    "tokio",
+    "async_std",
+    "smol",
+    "std::net",
+    "std::thread",
+    "std::time::Instant",
+    "std::time::SystemTime",
+    "Callback",
+    "Retry",
+    "async",
+];

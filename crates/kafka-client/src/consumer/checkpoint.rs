@@ -17,6 +17,10 @@ impl Checkpoint {
         Self { inner }
     }
 
+    pub(crate) fn into_bridge(self) -> GroupConsumerCheckpoint {
+        self.inner
+    }
+
     /// Returns the retained Kafka topic name.
     pub fn topic(&self) -> &str {
         self.inner.topic()

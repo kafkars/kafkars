@@ -21,7 +21,10 @@ use crate::{
     },
 };
 
-use super::{super::DriverOwner, group_offset_commit_calls::TrackedGroupOffsetCommitCalls};
+use super::{
+    super::DriverOwner, group_offset_commit_calls::TrackedGroupOffsetCommitCalls,
+    group_offset_commit_settlement_test::broker_rejection,
+};
 
 #[test]
 fn exactly_eight_accepted_calls_occupy_the_configured_first_lane() {
@@ -98,6 +101,21 @@ fn driver_admission_failure_recovers_prepared_before_core_rejection() {
         )
     ));
     assert_eq!(calls.retained_group_commit_count(), 0);
+}
+
+#[test]
+fn deadline_expiry_preserves_the_exact_settled_broker_input() {
+    let operation_id = OperationId::from_raw(21);
+    let input = broker_rejection(16);
+    let mut calls = TrackedGroupOffsetCommitCalls::new(1);
+    calls.install_settlement_for_test(operation_id, input);
+
+    assert!(!calls.expire_group_commit_coordinator_refresh(OperationId::from_raw(22)));
+    assert!(calls.expire_group_commit_coordinator_refresh(operation_id));
+    let input = calls
+        .begin_group_commit_settlement(operation_id)
+        .unwrap_or_else(|error| panic!("begin exact settlement: {error:?}"));
+    assert_eq!(input, broker_rejection(16));
 }
 
 pub(super) fn prepared(operation: u64) -> PreparedGroupOffsetCommit {

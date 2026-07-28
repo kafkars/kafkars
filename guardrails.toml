@@ -60,8 +60,8 @@ excluded_roots = ["crates/kafka-client-guardrails/tests/fixtures"]
 baseline = [
   { path = "crates/kafka-client-core/src/producer/mod.rs", lines = 89, reason = "the declarative producer facade names bounded waiting admission, promotion, terminal policy, and their sibling evidence" },
   { path = "crates/kafka-client-engine/src/admin/describe_outcome.rs", lines = 243, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client-engine/src/consumer/group.rs", lines = 275, reason = "the declarative classic-group facade names the complete sibling production and unit-test surface required by executable mirror policy" },
-  { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 88, reason = "the declarative consumer facade directly registers every sibling assigned and hosted-group unit-test module required by source-shape policy" },
+  { path = "crates/kafka-client-engine/src/consumer/group.rs", lines = 276, reason = "the declarative classic-group facade names the complete sibling production and unit-test surface required by executable mirror policy" },
+  { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 89, reason = "the declarative consumer facade directly registers every sibling assigned and hosted-group unit-test module required by source-shape policy" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_assignment.rs", lines = 253, reason = "one atomic assignment seam prepares processing, Fetch, and catalog ownership before committing their shared revoke or install" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_assignment_test.rs", lines = 517, reason = "the assignment evidence proves atomic processing, Fetch, catalog, and core ownership across installation and revocation failures" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/delivery.rs", lines = 270, reason = "one linear delivery owner correlates catalog, assignment, processing, and exact retained byte-lease fences" },
@@ -3296,6 +3296,7 @@ forbidden = [
 allow = [
   { path = "crates/kafka-client-engine/src/silent_broker_test.rs", capability = "std::net", reason = "A silent loopback listener makes driver deadline evidence deterministic without production socket ownership." },
   { path = "crates/kafka-client-engine/src/driver/rpc/fetch/routed_response_broker_test.rs", capability = "std::net", reason = "One test-only loopback Kafka fixture proves real driver route-token ownership without exposing sockets to production or scenario code." },
+  { path = "crates/kafka-client-engine/src/consumer/group_commit/observer_test.rs", capability = "std::sync::mpsc::channel", reason = "A test-only channel records one off-thread wake so Future observation can be proven against the same recovered terminal as blocking wait." },
 ]
 
 # Generated admin DTOs remain in one protocol seam without transport policy.
@@ -10235,6 +10236,9 @@ forbidden = [
   "invalidate",
   "async",
 ]
+allow = [
+  { path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs", capability = "invalidate", reason = "A correlated coordinator rejection consumes its retained route-failure token through the driver-owned causal invalidation barrier before terminal publication." },
+]
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement_owner.rs"
@@ -11645,10 +11649,6 @@ path = "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_terminal.rs
 [[linear_owners]]
 owner_type = "RecoveredGroupOffsetAlterCall"
 path = "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_terminal.rs"
-
-[[linear_owners]]
-owner_type = "GroupConsumerCheckpoint"
-path = "crates/kafka-client/src/bridge/group_consumer_checkpoint.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/admin/delete_consumer_group_offsets.rs"
@@ -16507,6 +16507,7 @@ root = "crates/kafka-client-engine/src"
 method = "invalidate"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/classic_group/coordinator_invalidation_drive.rs",
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs",
   "crates/kafka-client-engine/src/driver/rpc/reassignment_controller_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs",
@@ -16980,4 +16981,195 @@ root = "crates/kafka-client/src"
 method = "try_alter_partition_reassignments"
 allowed_paths = [
   "crates/kafka-client/src/bridge/admin_partition_reassignments/engine.rs",
+]
+# Hosted checkpoint commit preserves one exact linear checkpoint through the
+# public facade and private bridge without acquiring clock or execution policy.
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group_commit/admission.rs"
+test = "crates/kafka-client-engine/src/consumer/group_commit/admission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group_commit/observer.rs"
+test = "crates/kafka-client-engine/src/consumer/group_commit/observer_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group_commit/outcome.rs"
+test = "crates/kafka-client-engine/src/consumer/group_commit/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint.rs"
+test = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs"
+test = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission.rs"
+test = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/consumer/group_commit.rs"
+test = "crates/kafka-client/src/consumer/group_commit_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/consumer/group_commit_error.rs"
+test = "crates/kafka-client/src/consumer/group_commit_error_test.rs"
+
+[[linear_owners]]
+owner_type = "Checkpoint"
+path = "crates/kafka-client/src/consumer/checkpoint.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerCommitAdmissionError"
+path = "crates/kafka-client-engine/src/consumer/group_commit/admission.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerCommitAccepted"
+path = "crates/kafka-client-engine/src/consumer/group_commit/admission.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerCommitObserver"
+path = "crates/kafka-client-engine/src/consumer/group_commit/observer.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerCheckpointObservation"
+path = "crates/kafka-client-engine/src/consumer/group_batch/checkpoint.rs"
+
+[[linear_owners]]
+owner_type = "CoordinatorRefresh"
+path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerCheckpoint"
+path = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint.rs"
+
+[[linear_owners]]
+owner_type = "CommitConsumerCheckpoint"
+path = "crates/kafka-client/src/consumer/group_commit.rs"
+
+[[linear_owners]]
+owner_type = "ConsumerCommitAdmissionError"
+path = "crates/kafka-client/src/consumer/group_commit_error.rs"
+
+[[linear_owners]]
+owner_type = "ConsumerCommitError"
+path = "crates/kafka-client/src/consumer/group_commit_error.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerCommit"
+path = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerCommitError"
+path = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs"
+
+[[method_capabilities]]
+root = "crates/kafka-client/src"
+method = "try_commit"
+allowed_paths = [
+  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission.rs",
+  "crates/kafka-client/src/consumer/group_commit.rs",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client/src/consumer/group_commit.rs"
+forbidden = [
+  "kafka_client_core",
+  "kafka_client_engine",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client/src/consumer/group_commit_error.rs"
+forbidden = [
+  "kafka_client_core",
+  "kafka_client_engine",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint.rs"
+forbidden = [
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs"
+forbidden = [
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission.rs"
+forbidden = [
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Retry",
+  "async",
 ]

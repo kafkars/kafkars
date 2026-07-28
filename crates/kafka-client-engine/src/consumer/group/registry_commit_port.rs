@@ -7,7 +7,7 @@ use kafka_client_core::{GroupCheckpoint, GroupId};
 use crate::clock::{ClockError, DeadlineCapture};
 
 use super::{
-    offset_commit::AcceptedGroupOffsetCommit,
+    offset_commit::{AcceptedGroupOffsetCommit, GroupOffsetCommitAdmissionFailureKind},
     registry_commit::{GroupConsumerCommitFailure, GroupConsumerCommitFailureKind},
     registry_port::GroupConsumerPort,
     registry_shard::GroupConsumerShardLockError,
@@ -15,13 +15,20 @@ use super::{
 };
 
 impl GroupConsumerPort {
-    pub(in crate::consumer::group) fn try_commit(
+    pub(in crate::consumer) fn capture_commit_deadline(
+        &self,
+        timeout: Duration,
+    ) -> Result<DeadlineCapture, ClockError> {
+        self.clock.capture_deadline_after(timeout)
+    }
+
+    pub(in crate::consumer) fn try_commit(
         &self,
         group_id: GroupId,
         timeout: Duration,
         checkpoint: GroupCheckpoint,
     ) -> Result<GroupConsumerCommitAdmission, GroupConsumerCommitPortFailure> {
-        let capture = match self.clock.capture_deadline_after(timeout) {
+        let capture = match self.capture_commit_deadline(timeout) {
             Ok(capture) => capture,
             Err(error) => {
                 return Err(GroupConsumerCommitPortFailure::new(
@@ -33,7 +40,7 @@ impl GroupConsumerPort {
         self.admit_captured_commit(group_id, capture, checkpoint)
     }
 
-    fn admit_captured_commit(
+    pub(in crate::consumer) fn admit_captured_commit(
         &self,
         group_id: GroupId,
         capture: DeadlineCapture,
@@ -73,7 +80,7 @@ impl GroupConsumerPort {
 
 /// Accepted terminal observer plus an advisory post-admission wake fault.
 #[must_use = "accepted commit admission retains its terminal observer"]
-pub(super) struct GroupConsumerCommitAdmission {
+pub(in crate::consumer) struct GroupConsumerCommitAdmission {
     accepted: AcceptedGroupOffsetCommit,
     wake: Option<GroupConsumerShardWakeError>,
 }
@@ -91,11 +98,16 @@ impl GroupConsumerCommitAdmission {
     ) {
         (self.accepted, self.wake)
     }
+
+    pub(in crate::consumer) fn into_public_parts(self) -> (AcceptedGroupOffsetCommit, bool) {
+        let (accepted, wake) = self.into_parts();
+        (accepted, wake.is_some())
+    }
 }
 
 /// Port-local rejection retaining the exact caller checkpoint.
 #[must_use = "commit rejection retains the exact caller checkpoint"]
-pub(super) struct GroupConsumerCommitPortFailure {
+pub(in crate::consumer) struct GroupConsumerCommitPortFailure {
     pub(super) kind: GroupConsumerCommitPortFailureKind,
     checkpoint: GroupCheckpoint,
 }
@@ -112,9 +124,76 @@ impl GroupConsumerCommitPortFailure {
         }
     }
 
-    pub(super) fn into_checkpoint(self) -> GroupCheckpoint {
+    pub(in crate::consumer) fn into_checkpoint(self) -> GroupCheckpoint {
         self.checkpoint
     }
+
+    pub(in crate::consumer) const fn public_category(
+        &self,
+    ) -> GroupConsumerCommitPortErrorCategory {
+        match self.kind {
+            GroupConsumerCommitPortFailureKind::Clock(_) => {
+                GroupConsumerCommitPortErrorCategory::InvalidDeadline
+            }
+            GroupConsumerCommitPortFailureKind::Closed
+            | GroupConsumerCommitPortFailureKind::Registry(
+                GroupConsumerCommitFailureKind::RegistryClosed
+                | GroupConsumerCommitFailureKind::OffsetCommit(
+                    GroupOffsetCommitAdmissionFailureKind::Closed,
+                ),
+            ) => GroupConsumerCommitPortErrorCategory::Closed,
+            GroupConsumerCommitPortFailureKind::Lock(GroupConsumerShardLockError::Contended) => {
+                GroupConsumerCommitPortErrorCategory::Contended
+            }
+            GroupConsumerCommitPortFailureKind::Registry(
+                GroupConsumerCommitFailureKind::UnknownGroup
+                | GroupConsumerCommitFailureKind::GroupClosing,
+            ) => GroupConsumerCommitPortErrorCategory::GroupUnavailable,
+            GroupConsumerCommitPortFailureKind::Registry(
+                GroupConsumerCommitFailureKind::OffsetCommit(
+                    GroupOffsetCommitAdmissionFailureKind::Capacity
+                    | GroupOffsetCommitAdmissionFailureKind::RetainedBytes
+                    | GroupOffsetCommitAdmissionFailureKind::ResultCapacity
+                    | GroupOffsetCommitAdmissionFailureKind::SnapshotCapacity
+                    | GroupOffsetCommitAdmissionFailureKind::Core(
+                        kafka_client_core::GroupOffsetCommitAdmissionErrorKind::AllocationFailed,
+                    ),
+                ),
+            ) => GroupConsumerCommitPortErrorCategory::Backpressure,
+            GroupConsumerCommitPortFailureKind::Registry(
+                GroupConsumerCommitFailureKind::OffsetCommit(
+                    GroupOffsetCommitAdmissionFailureKind::Core(
+                        kafka_client_core::GroupOffsetCommitAdmissionErrorKind::AssignmentLost
+                        | kafka_client_core::GroupOffsetCommitAdmissionErrorKind::GroupMismatch
+                        | kafka_client_core::GroupOffsetCommitAdmissionErrorKind::MemberMismatch
+                        | kafka_client_core::GroupOffsetCommitAdmissionErrorKind::GenerationMismatch
+                        | kafka_client_core::GroupOffsetCommitAdmissionErrorKind::UnassignedPartition {
+                            ..
+                        },
+                    ),
+                ),
+            ) => GroupConsumerCommitPortErrorCategory::StaleCheckpoint,
+            GroupConsumerCommitPortFailureKind::Lock(GroupConsumerShardLockError::Poisoned)
+            | GroupConsumerCommitPortFailureKind::Registry(
+                GroupConsumerCommitFailureKind::EntryFault
+                | GroupConsumerCommitFailureKind::OffsetCommit(
+                    GroupOffsetCommitAdmissionFailureKind::HostUnavailable,
+                ),
+            ) => GroupConsumerCommitPortErrorCategory::HostUnavailable,
+        }
+    }
+}
+
+/// Stable public classification of one pre-admission commit rejection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(in crate::consumer) enum GroupConsumerCommitPortErrorCategory {
+    InvalidDeadline,
+    Closed,
+    Contended,
+    GroupUnavailable,
+    Backpressure,
+    StaleCheckpoint,
+    HostUnavailable,
 }
 
 /// Clock, admission-fence, shard, or concrete registry rejection.

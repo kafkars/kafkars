@@ -12,5 +12,6 @@ pub(crate) mod test_support;
 
 pub use batch::GroupConsumerBatch;
 pub use checkpoint::GroupConsumerCheckpoint;
+pub(in crate::consumer) use checkpoint::GroupConsumerCheckpointObservation;
 pub use error::{GroupConsumerTryTakeBatchError, GroupConsumerTryTakeBatchErrorKind};
 pub use record::{GroupConsumerHeader, GroupConsumerRecord, GroupConsumerRecords};

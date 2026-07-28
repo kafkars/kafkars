@@ -37,6 +37,14 @@ pub use super::group_batch::{
     GroupConsumerBatch, GroupConsumerCheckpoint, GroupConsumerHeader, GroupConsumerRecord,
     GroupConsumerRecords, GroupConsumerTryTakeBatchError, GroupConsumerTryTakeBatchErrorKind,
 };
+pub use super::group_commit::{
+    GroupConsumerCommitAccepted, GroupConsumerCommitAdmissionError,
+    GroupConsumerCommitAdmissionErrorKind, GroupConsumerCommitBatch,
+    GroupConsumerCommitBrokerError, GroupConsumerCommitDeliveryStatus, GroupConsumerCommitFailure,
+    GroupConsumerCommitFailureKind, GroupConsumerCommitObserver, GroupConsumerCommitObserverError,
+    GroupConsumerCommitOutcome, GroupConsumerCommitPartitionOutcome,
+    GroupConsumerCommitPartitionResult,
+};
 pub use super::group_event::{
     GroupConsumerAssignment, GroupConsumerAssignmentPartition, GroupConsumerMetadata,
     GroupConsumerState, GroupConsumerStateError, GroupConsumerStateErrorKind,

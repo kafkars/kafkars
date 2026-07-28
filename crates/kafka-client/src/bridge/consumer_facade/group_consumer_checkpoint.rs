@@ -1,4 +1,4 @@
-//! Private facade translation over one exact group-consumer checkpoint.
+//! Private facade translation over one exact classic-group checkpoint.
 
 use kafka_client_engine::GroupConsumerCheckpoint as EngineCheckpoint;
 
@@ -22,6 +22,10 @@ impl GroupConsumerCheckpoint {
 
     pub(crate) fn next_offset(&self) -> i64 {
         self.inner.next_offset()
+    }
+
+    pub(crate) fn into_engine(self) -> EngineCheckpoint {
+        self.inner
     }
 }
 
