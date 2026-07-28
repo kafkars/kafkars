@@ -149,8 +149,18 @@ fn host_with_policy(
         completion
             .lifecycle_publisher()
             .unwrap_or_else(|error| panic!("publisher remains active: {error:?}")),
+        completion
+            .send_publisher()
+            .unwrap_or_else(|error| panic!("send publisher remains active: {error:?}")),
     );
-    let host = TransactionLifecycleHost::try_new(parts, retry_policy)
+    let limits = super::TransactionExecutionLimits::try_new_with_retry_policy(
+        8,
+        1024,
+        kafka_client_core::CompressionPolicy::None,
+        retry_policy,
+    )
+    .unwrap_or_else(|| panic!("limits"));
+    let host = TransactionLifecycleHost::try_new(parts, limits)
         .unwrap_or_else(|(error, _parts)| panic!("transaction lifecycle starts: {error:?}"));
     (host, active, receiver, completion)
 }

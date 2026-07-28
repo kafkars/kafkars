@@ -8,7 +8,7 @@ use std::sync::{
 
 use kafka_client_core::TransactionalOwnerId;
 
-use crate::transaction::completion::TransactionLifecyclePublisher;
+use crate::transaction::completion::{TransactionLifecyclePublisher, TransactionSendPublisher};
 
 pub(in crate::transaction) struct TransactionalOwnerParts {
     owner_id: TransactionalOwnerId,
@@ -18,10 +18,15 @@ pub(in crate::transaction) struct TransactionalOwnerParts {
     active: Arc<AtomicBool>,
     release: SyncSender<TransactionalOwnerId>,
     lifecycle_publisher: Option<TransactionLifecyclePublisher>,
+    send_publisher: Option<TransactionSendPublisher>,
     release_armed: bool,
 }
 
 impl TransactionalOwnerParts {
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "constructor explicitly transfers the closed execution capability set"
+    )]
     pub(in crate::transaction) fn new(
         owner_id: TransactionalOwnerId,
         transactional_id: Arc<str>,
@@ -30,6 +35,7 @@ impl TransactionalOwnerParts {
         active: Arc<AtomicBool>,
         release: SyncSender<TransactionalOwnerId>,
         lifecycle_publisher: TransactionLifecyclePublisher,
+        send_publisher: TransactionSendPublisher,
     ) -> Self {
         Self {
             owner_id,
@@ -39,6 +45,7 @@ impl TransactionalOwnerParts {
             active,
             release,
             lifecycle_publisher: Some(lifecycle_publisher),
+            send_publisher: Some(send_publisher),
             release_armed: true,
         }
     }
@@ -51,6 +58,10 @@ impl TransactionalOwnerParts {
         self.transactional_id
             .as_deref()
             .unwrap_or_else(|| unreachable!("execution owner retains its transactional ID"))
+    }
+
+    pub(in crate::transaction) fn transactional_id_arc(&self) -> Option<Arc<str>> {
+        self.transactional_id.as_ref().map(Arc::clone)
     }
 
     pub(in crate::transaction) const fn producer_id(&self) -> i64 {
@@ -69,6 +80,12 @@ impl TransactionalOwnerParts {
             .unwrap_or_else(|| unreachable!("execution owner retains its completion port"))
     }
 
+    pub(in crate::transaction) fn take_send_publisher(&mut self) -> TransactionSendPublisher {
+        self.send_publisher
+            .take()
+            .unwrap_or_else(|| unreachable!("execution owner retains its send completion port"))
+    }
+
     pub(in crate::transaction) fn release(mut self) {
         self.release_inner();
     }
@@ -78,6 +95,7 @@ impl TransactionalOwnerParts {
         self.active.store(false, Ordering::Release);
         drop(self.transactional_id.take());
         drop(self.lifecycle_publisher.take());
+        drop(self.send_publisher.take());
     }
 
     fn release_inner(&mut self) {

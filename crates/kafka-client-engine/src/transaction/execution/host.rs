@@ -1,30 +1,59 @@
-//! One installed transaction lifecycle behind its exact initialized owner.
+//! One installed transaction lifecycle composed with one fixed send slot.
 
 use kafka_client_core::{
-    ProducerRetryPolicy, TransactionEndMode, TransactionEpoch, TransactionLifecycleTerminal,
-    TransactionalOwnerId,
+    TransactionEndMode, TransactionEpoch, TransactionLifecycleTerminal, TransactionalOwnerId,
 };
 
 use crate::{
     clock::OperationDeadline,
     completion::CompletionObserver,
     transaction::{
-        TransactionLifecycleHostError, initialization::TransactionalOwnerParts,
-        lifecycle::TransactionLifecycleHost,
+        TransactionExecutionLimits, TransactionLifecycleHost, TransactionLifecycleHostError,
+        initialization::TransactionalOwnerParts,
+        send::{
+            TransactionSendAccepted, TransactionSendInput, TransactionSendOwner,
+            TransactionSendRequest,
+        },
     },
+};
+
+use super::{
+    model::{TransactionExecutionSendAdmissionError, TransactionExecutionSendAdmissionErrorKind},
+    topic_catalog::TransactionTopicCatalog,
 };
 
 /// Unique execution owner installed after producer identity initialization.
 pub(crate) struct TransactionExecutionHost {
     pub(super) lifecycle: TransactionLifecycleHost,
+    pub(super) send: TransactionSendOwner,
+    pub(super) topics: TransactionTopicCatalog,
+    retained_record_byte_limit: usize,
+    max_wire_batch_bytes: usize,
 }
 
 impl TransactionExecutionHost {
     pub(in crate::transaction) fn try_new(
         parts: TransactionalOwnerParts,
-        retry_policy: ProducerRetryPolicy,
+        limits: TransactionExecutionLimits,
     ) -> Result<Self, (TransactionLifecycleHostError, TransactionalOwnerParts)> {
-        TransactionLifecycleHost::try_new(parts, retry_policy).map(|lifecycle| Self { lifecycle })
+        let topics = TransactionTopicCatalog::new(
+            limits.partition_capacity(),
+            limits.retained_topic_bytes(),
+        );
+        TransactionLifecycleHost::try_new(parts, limits).map(|mut lifecycle| {
+            let send_publisher = lifecycle.take_send_publisher();
+            Self {
+                lifecycle,
+                send: TransactionSendOwner::new(
+                    limits.compression(),
+                    limits.partition_capacity(),
+                    send_publisher,
+                ),
+                topics,
+                retained_record_byte_limit: limits.retained_record_bytes(),
+                max_wire_batch_bytes: limits.max_wire_batch_bytes(),
+            }
+        })
     }
 
     pub(crate) fn owns(&self, owner_id: TransactionalOwnerId) -> bool {
@@ -59,15 +88,90 @@ impl TransactionExecutionHost {
         self.lifecycle.idle_owner_lost()
     }
 
+    #[expect(
+        clippy::result_large_err,
+        reason = "send rejection returns the exact caller-owned transactional record"
+    )]
+    pub(crate) fn try_send(
+        &mut self,
+        owner_id: TransactionalOwnerId,
+        input: TransactionSendInput,
+    ) -> Result<TransactionSendAccepted, TransactionExecutionSendAdmissionError> {
+        if !self.owns(owner_id) {
+            return Err(TransactionExecutionSendAdmissionError::new(
+                TransactionExecutionSendAdmissionErrorKind::StaleOwner,
+                input,
+            ));
+        }
+        let retained_source_bytes = input.retained_source_bytes();
+        if retained_source_bytes > self.retained_record_byte_limit {
+            return Err(TransactionExecutionSendAdmissionError::new(
+                TransactionExecutionSendAdmissionErrorKind::RetainedRecordBytes {
+                    actual: retained_source_bytes,
+                    limit: self.retained_record_byte_limit,
+                },
+                input,
+            ));
+        }
+        let prepared_topic = match self.topics.prepare(input.canonical_topic()) {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                return Err(TransactionExecutionSendAdmissionError::new(
+                    error.into(),
+                    input,
+                ));
+            }
+        };
+        let request = match TransactionSendRequest::try_prepare(
+            input,
+            prepared_topic.topic_id(),
+            self.max_wire_batch_bytes,
+        ) {
+            Ok(request) => request,
+            Err(input) => {
+                return Err(TransactionExecutionSendAdmissionError::new(
+                    TransactionExecutionSendAdmissionErrorKind::Allocation,
+                    input,
+                ));
+            }
+        };
+        match self.send.try_send(&mut self.lifecycle, request) {
+            Ok(accepted) => {
+                self.topics.commit(prepared_topic);
+                Ok(accepted)
+            }
+            Err(failure) => {
+                let kind = TransactionExecutionSendAdmissionErrorKind::Send(failure.kind());
+                Err(TransactionExecutionSendAdmissionError::new(
+                    kind,
+                    failure.into_input(),
+                ))
+            }
+        }
+    }
+
     pub(crate) fn next_deadline(&self) -> Option<kafka_client_core::Deadline> {
-        self.lifecycle.next_deadline()
+        [self.send.next_deadline(), self.lifecycle.next_deadline()]
+            .into_iter()
+            .flatten()
+            .min()
     }
 
     pub(crate) fn unsettled(&self) -> usize {
-        self.lifecycle.unsettled()
+        self.send.unsettled() + self.lifecycle.unsettled()
     }
 
     pub(crate) fn is_closed(&self) -> bool {
-        self.lifecycle.is_closed()
+        self.lifecycle.is_closed() && self.send.is_releasable_after_owner_close()
+    }
+
+    #[cfg(test)]
+    pub(super) fn settle_pending_enrolled_for_test(&mut self) {
+        self.lifecycle.settle_pending_enrolled_for_test();
+    }
+
+    #[cfg(test)]
+    pub(super) fn topic_id_for_test(&self, topic: &str) -> Option<kafka_client_core::TopicId> {
+        self.topics.topic_id(topic)
     }
 }

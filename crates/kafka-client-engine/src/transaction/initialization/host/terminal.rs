@@ -119,6 +119,7 @@ impl TransactionInitializationHost {
                 let active = Arc::new(AtomicBool::new(true));
                 let owner_id = self.operations[index].owner_id;
                 let publisher = self.completion_owner.lifecycle_publisher()?;
+                let send_publisher = self.completion_owner.send_publisher()?;
                 let parts = TransactionalOwnerParts::new(
                     owner_id,
                     Arc::clone(&transactional_id),
@@ -127,9 +128,10 @@ impl TransactionInitializationHost {
                     Arc::clone(&active),
                     self.release_sender.clone(),
                     publisher,
+                    send_publisher,
                 );
                 let execution =
-                    match TransactionExecutionHost::try_new(parts, self.execution_retry_policy) {
+                    match TransactionExecutionHost::try_new(parts, self.execution_limits) {
                         Ok(execution) => execution,
                         Err((_error, parts)) => {
                             parts.discard_uninstalled();

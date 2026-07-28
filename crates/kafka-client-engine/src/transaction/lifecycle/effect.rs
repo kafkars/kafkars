@@ -10,6 +10,14 @@ use crate::clock::OperationDeadline;
 use super::host::{PendingEndOperation, TransactionLifecycleHost, TransactionLifecycleHostError};
 
 impl TransactionLifecycleHost {
+    pub(super) fn apply(
+        &mut self,
+        input: TransactionLifecycleInput,
+    ) -> Result<(), TransactionLifecycleHostError> {
+        let transition = self.machine.apply(self.owner_id()?, input)?;
+        self.interpret(transition.into_effect(), None)
+    }
+
     pub(super) fn interpret(
         &mut self,
         effect: Option<TransactionLifecycleEffect>,
@@ -42,6 +50,7 @@ impl TransactionLifecycleHost {
                 owner_lost,
                 ..
             }) => {
+                self.sequencing.fence();
                 if let Some(operation_id) = operation_id {
                     let pending = self.pending()?;
                     if pending.operation_id != Some(operation_id) {

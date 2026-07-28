@@ -10,8 +10,8 @@ use crate::{
     driver::ReactorWake,
     producer::{ProducerHost, ProducerHostLimits},
     transaction::{
-        TransactionInitializationAdmissionPort, TransactionInitializationHost,
-        TransactionInitializationShardOwner,
+        TransactionExecutionLimits, TransactionInitializationAdmissionPort,
+        TransactionInitializationHost, TransactionInitializationShardOwner,
     },
 };
 
@@ -32,14 +32,23 @@ pub(super) fn start(
     ),
     EngineStartError,
 > {
-    let mut transaction =
-        match TransactionInitializationHost::start_with_retry_policy(limits.retry_policy) {
-            Ok(host) => host,
-            Err(error) => {
-                rollback(None, group_consumers, admin, assigned);
-                return Err(EngineStartError::transaction_notifier(&error));
-            }
-        };
+    let transaction_limits = TransactionExecutionLimits::try_new_with_bounds(
+        limits.batch_capacity,
+        limits.retained_bytes,
+        limits.retained_bytes,
+        limits.max_wire_batch_bytes,
+        limits.compression,
+        limits.retry_policy,
+    )
+    .unwrap_or_else(|| unreachable!("validated producer limits are nonzero"));
+    let mut transaction = match TransactionInitializationHost::start_with_limits(transaction_limits)
+    {
+        Ok(host) => host,
+        Err(error) => {
+            rollback(None, group_consumers, admin, assigned);
+            return Err(EngineStartError::transaction_notifier(&error));
+        }
+    };
     match ProducerHost::new_with_compression_wake(limits, wake) {
         Ok(producer) => {
             let (owner, admission) = shard(transaction, clock, Arc::clone(wake));

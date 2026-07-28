@@ -5,8 +5,12 @@ mod execution;
 mod initialization;
 mod lifecycle;
 pub(crate) mod partition_enrollment;
+pub(crate) mod send;
 
-pub(crate) use execution::TransactionExecutionHost;
+pub(crate) use execution::{
+    TransactionExecutionHost, TransactionExecutionSendAdmissionError,
+    TransactionExecutionSendAdmissionErrorKind,
+};
 pub use initialization::{
     TransactionBeginAccepted, TransactionControlError, TransactionControlErrorKind,
     TransactionEndAccepted, TransactionEndAdmissionError, TransactionEndObserver,
@@ -24,4 +28,8 @@ pub(crate) use initialization::{
     TransactionInitializationHostError, TransactionInitializationShardLockError,
     TransactionInitializationShardOwner, TransactionInitializationTurn,
 };
-pub(crate) use lifecycle::{TransactionLifecycleHostError, TransactionLifecycleTurn};
+pub(in crate::transaction) use lifecycle::TransactionSendReplacement;
+pub(crate) use lifecycle::{
+    TransactionExecutionLimits, TransactionLifecycleHost, TransactionLifecycleHostError,
+    TransactionLifecycleTurn,
+};

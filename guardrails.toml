@@ -64,6 +64,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/producer/materialization.rs", lines = 242, reason = "ordinary and transactional Produce share one bounded materialization owner for exact record bytes, compression, identity, and sequence facts" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions.rs", lines = 268, reason = "AddPartitionsToTxn retains exact response correlation, coordinator-refresh eligibility, and retry-safety evidence in one terminal owner" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs", lines = 280, reason = "EndTxn retains exact response correlation, causal coordinator invalidation, deadline fencing, and retry-safety evidence in one terminal owner" },
+  { path = "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs", lines = 242, reason = "the transaction-initialization settlement seam preserves its public failure taxonomy and installs the lifecycle execution before publishing the unique owner" },
 ]
 allow = []
 
@@ -2353,6 +2354,11 @@ allow = [
   { path = "crates/kafka-client-engine/src/transaction/partition_enrollment/driver_port.rs", capability = "crate::driver", reason = "The concrete enrollment adapter retains one tracked AddPartitionsToTxn call and its route evidence through exact-epoch settlement." },
   { path = "crates/kafka-client-engine/src/transaction/partition_enrollment/model.rs", capability = "crate::producer", reason = "The explicit enrollment fence and every rejection preserve the exact transactional materialization batch for later handoff or reclaim." },
   { path = "crates/kafka-client-engine/src/transaction/partition_enrollment/settlement.rs", capability = "crate::producer", reason = "Deterministic enrollment settlement transfers the exact retained batch into one enrolled, rejected, abort-required, or fatal terminal." },
+  { path = "crates/kafka-client-engine/src/transaction/send/test_support/produce_port.rs", capability = "crate::driver", reason = "The scripted test port retains exact driver Produce terminal evidence through observation and discard." },
+  { path = "crates/kafka-client-engine/src/transaction/send/terminal.rs", capability = "crate::driver", reason = "Closed driver Produce facts map exhaustively into sequence and lifecycle outcomes." },
+  { path = "crates/kafka-client-engine/src/transaction/send/turn_test.rs", capability = "crate::driver", reason = "The send-turn tests drive the exact fixed owner with one local driver and verify progress ordering." },
+  { path = "crates/kafka-client-engine/src/transaction/send/turn_retry_test.rs", capability = "crate::driver", reason = "The route-retry tests construct exact driver terminals and route-refresh states to verify bounded causal replacement." },
+  { path = "crates/kafka-client-engine/src/transaction/send/turn_retry_fencing_test.rs", capability = "crate::driver", reason = "The retry-safety tests construct exact driver fencing and correlation facts to prove they never authorize replacement." },
 ]
 
 [[capability_rules]]
@@ -2424,6 +2430,14 @@ test = "crates/kafka-client-engine/src/protocol/transaction/add_partitions_to_tx
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/boundary/transaction_record.rs"
 test = "crates/kafka-client-engine/src/producer/boundary/transaction_record_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/transaction/send/owner.rs"
+test = "crates/kafka-client-engine/src/transaction/send/turn_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/transaction/send/automatic.rs"
+test = "crates/kafka-client-engine/src/transaction/send/automatic_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/transaction/partition_enrollment/host.rs"
@@ -2540,6 +2554,34 @@ test = "crates/kafka-client-engine/src/engine_host/thread_start_test.rs"
 [[linear_owners]]
 owner_type = "TransactionSequenceMachine"
 path = "crates/kafka-client-core/src/transaction/sequencing/machine.rs"
+
+[[linear_owners]]
+owner_type = "TransactionSendOwner"
+path = "crates/kafka-client-engine/src/transaction/send/owner.rs"
+
+[[linear_owners]]
+owner_type = "TransactionSendInput"
+path = "crates/kafka-client-engine/src/transaction/send/input.rs"
+
+[[linear_owners]]
+owner_type = "TransactionSendRequest"
+path = "crates/kafka-client-engine/src/transaction/send/input.rs"
+
+[[linear_owners]]
+owner_type = "TransactionSendAdmissionFailure"
+path = "crates/kafka-client-engine/src/transaction/send/input.rs"
+
+[[linear_owners]]
+owner_type = "TransactionSendAccepted"
+path = "crates/kafka-client-engine/src/transaction/send/model.rs"
+
+[[linear_owners]]
+owner_type = "PendingTransactionSend"
+path = "crates/kafka-client-engine/src/transaction/send/turn.rs"
+
+[[linear_owners]]
+owner_type = "TransactionSendSlot"
+path = "crates/kafka-client-engine/src/transaction/send/turn.rs"
 
 [[linear_owners]]
 owner_type = "TransactionPartitionEnrollmentOwner"
@@ -2757,6 +2799,37 @@ owner_type = "TransactionSequenceMachine"
 field = "leases"
 allowed_paths = [
   "crates/kafka-client-core/src/transaction/sequencing/machine.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionSendOwner"
+field = "slot"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/send/automatic.rs",
+  "crates/kafka-client-engine/src/transaction/send/completion.rs",
+  "crates/kafka-client-engine/src/transaction/send/owner.rs",
+  "crates/kafka-client-engine/src/transaction/send/produce_settlement.rs",
+  "crates/kafka-client-engine/src/transaction/send/recovery.rs",
+  "crates/kafka-client-engine/src/transaction/send/settlement.rs",
+  "crates/kafka-client-engine/src/transaction/send/turn.rs",
+  "crates/kafka-client-engine/src/transaction/send/turn/execution.rs",
+  "crates/kafka-client-engine/src/transaction/send/turn/retry.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionSendOwner"
+field = "completions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/send/completion.rs",
+  "crates/kafka-client-engine/src/transaction/send/owner.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionSendOwner"
+field = "reclaim_pending"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/send/completion.rs",
+  "crates/kafka-client-engine/src/transaction/send/owner.rs",
 ]
 
 [[mutation_owners]]
@@ -4352,6 +4425,7 @@ method = "discard_after_driver_shutdown"
 allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/produce/partitioning.rs",
   "crates/kafka-client-engine/src/engine_host/recovery.rs",
+  "crates/kafka-client-engine/src/transaction/send/recovery.rs",
   "crates/kafka-client-engine/src/transaction/initialization/host/recovery.rs",
   "crates/kafka-client-engine/src/transaction/lifecycle/driver_port.rs",
   "crates/kafka-client-engine/src/transaction/lifecycle/recovery.rs",
@@ -16057,6 +16131,27 @@ owner_type = "AlterPartitionReassignmentsHost"
 field = "health"
 allowed_paths = [
   "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/admission.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionTopicCatalog"
+field = "next_topic_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/execution/topic_catalog.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionTopicCatalog"
+field = "retained_topic_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/execution/topic_catalog.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionTopicCatalog"
+field = "entries"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/execution/topic_catalog.rs",
 ]
 
 [[linear_owners]]

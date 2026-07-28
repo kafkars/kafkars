@@ -5,6 +5,13 @@ use kafka_client_core::TransactionEndOutcome;
 use super::host::{TransactionLifecycleHost, TransactionLifecycleHostError};
 
 impl TransactionLifecycleHost {
+    pub(crate) fn recover_enrollment_after_driver_shutdown(&mut self) {
+        self.enrollment.recover_after_driver_shutdown();
+        if self.enrollment.has_fatal_terminal() {
+            self.sequencing.fence();
+        }
+    }
+
     pub(in crate::transaction) fn recover_end_after_driver_shutdown(
         &mut self,
     ) -> Result<(), TransactionLifecycleHostError> {

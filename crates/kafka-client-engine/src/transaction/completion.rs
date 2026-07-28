@@ -1,4 +1,4 @@
-//! One bounded notifier worker shared by initialization and lifecycle ends.
+//! One bounded notifier worker shared by transaction initialization and execution.
 
 use std::thread::ThreadId;
 
@@ -9,16 +9,19 @@ use crate::completion::{
     SharedPublishPort,
 };
 
-use super::initialization::RetainedTransactionInitializationOutcome;
+use super::{
+    initialization::RetainedTransactionInitializationOutcome, send::TransactionSendTerminal,
+};
 
 pub(super) const TRANSACTION_OWNER_CAPACITY: usize = 8;
 const TRANSACTION_NOTIFICATION_CAPACITY: usize =
-    TRANSACTION_OWNER_CAPACITY + TRANSACTION_OWNER_CAPACITY;
+    TRANSACTION_OWNER_CAPACITY + TRANSACTION_OWNER_CAPACITY + TRANSACTION_OWNER_CAPACITY;
 const TRANSACTION_NOTIFIER_THREAD: &str = "kafka-client-transaction-completion-notifier";
 
 pub(super) enum TransactionPublishTicket {
     Initialization(PublishTicket<RetainedTransactionInitializationOutcome>),
     LifecycleEnd(PublishTicket<TransactionLifecycleTerminal>),
+    Send(PublishTicket<TransactionSendTerminal>),
 }
 
 impl NotificationTicket for TransactionPublishTicket {
@@ -26,6 +29,7 @@ impl NotificationTicket for TransactionPublishTicket {
         match self {
             Self::Initialization(ticket) => ticket.publish(),
             Self::LifecycleEnd(ticket) => ticket.publish(),
+            Self::Send(ticket) => ticket.publish(),
         }
     }
 }
@@ -34,6 +38,8 @@ pub(super) type TransactionInitializationPublisher =
     SharedPublishPort<RetainedTransactionInitializationOutcome, TransactionPublishTicket>;
 pub(super) type TransactionLifecyclePublisher =
     SharedPublishPort<TransactionLifecycleTerminal, TransactionPublishTicket>;
+pub(super) type TransactionSendPublisher =
+    SharedPublishPort<TransactionSendTerminal, TransactionPublishTicket>;
 
 pub(super) struct TransactionCompletionOwner {
     worker: Option<SharedNotifier<TransactionPublishTicket>>,
@@ -64,6 +70,15 @@ impl TransactionCompletionOwner {
         self.worker
             .as_ref()
             .map(|worker| worker.publish_port(TransactionPublishTicket::LifecycleEnd))
+            .ok_or(CompletionRegistryError::NotifierStopped)
+    }
+
+    pub(super) fn send_publisher(
+        &self,
+    ) -> Result<TransactionSendPublisher, CompletionRegistryError> {
+        self.worker
+            .as_ref()
+            .map(|worker| worker.publish_port(TransactionPublishTicket::Send))
             .ok_or(CompletionRegistryError::NotifierStopped)
     }
 

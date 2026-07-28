@@ -1,8 +1,9 @@
-//! Begin, explicit end, and owner-loss admission transitions.
+//! Begin, send, explicit end, and owner-loss admission transitions.
 
 use kafka_client_core::{
     OperationId, TransactionEndMode, TransactionEpoch, TransactionLifecycleEffect,
-    TransactionLifecycleInput, TransactionLifecycleTerminal,
+    TransactionLifecycleInput, TransactionLifecycleTerminal, TransactionSendId,
+    TransactionSendOutcome,
 };
 
 use crate::{clock::OperationDeadline, completion::CompletionObserver};
@@ -11,13 +12,42 @@ use super::host::{PendingEndOperation, TransactionLifecycleHost, TransactionLife
 
 impl TransactionLifecycleHost {
     pub(crate) fn begin(&mut self) -> Result<TransactionEpoch, TransactionLifecycleHostError> {
+        self.preflight_sequence_activation()?;
+        self.enrollment.preflight_activate_epoch()?;
         let transition = self
             .machine
             .apply(self.owner_id()?, TransactionLifecycleInput::Begin)?;
         let Some(TransactionLifecycleEffect::Began { epoch, .. }) = transition.into_effect() else {
             return Err(TransactionLifecycleHostError::UnexpectedEffect);
         };
+        if self.enrollment.activate_epoch(epoch).is_err() {
+            unreachable!("successful enrollment preflight makes activation infallible");
+        }
+        if self.sequencing.activate(epoch).is_err() {
+            unreachable!("successful sequencing preflight makes activation infallible");
+        }
         Ok(epoch)
+    }
+
+    pub(crate) fn accept_send(
+        &mut self,
+        epoch: TransactionEpoch,
+        send_id: TransactionSendId,
+    ) -> Result<(), TransactionLifecycleHostError> {
+        self.apply(TransactionLifecycleInput::SendAccepted { epoch, send_id })
+    }
+
+    pub(crate) fn settle_send(
+        &mut self,
+        epoch: TransactionEpoch,
+        send_id: TransactionSendId,
+        outcome: TransactionSendOutcome,
+    ) -> Result<(), TransactionLifecycleHostError> {
+        self.apply(TransactionLifecycleInput::SendSettled {
+            epoch,
+            send_id,
+            outcome,
+        })
     }
 
     pub(crate) fn commit(
@@ -49,7 +79,30 @@ impl TransactionLifecycleHost {
         let transition = self
             .machine
             .apply(self.owner_id()?, TransactionLifecycleInput::OwnerLost)?;
-        self.interpret(transition.into_effect(), Some(deadline))
+        let effect = transition.into_effect();
+        if matches!(
+            effect,
+            Some(TransactionLifecycleEffect::CancelOutstanding { .. })
+        ) {
+            let epoch = self
+                .machine
+                .active_epoch()
+                .ok_or(TransactionLifecycleHostError::MissingEndOperation)?;
+            self.pending_end = Some(PendingEndOperation {
+                operation_id: None,
+                completion_id: None,
+                epoch,
+                mode: TransactionEndMode::Abort,
+                deadline,
+                ready: false,
+                call: None,
+                terminal: None,
+                retry_not_before: None,
+                retries_started: 0,
+            });
+            return Ok(());
+        }
+        self.interpret(effect, Some(deadline))
     }
 
     pub(crate) fn idle_owner_lost(&mut self) -> Result<(), TransactionLifecycleHostError> {

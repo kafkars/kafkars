@@ -152,10 +152,16 @@ impl TransactionLifecycleHost {
             .as_ref()
             .map(|pending| pending.epoch)
             .ok_or(TransactionLifecycleHostError::MissingEndOperation)?;
+        if outcome == TransactionEndOutcome::Succeeded {
+            self.preflight_epoch_release(epoch)?;
+        }
         let transition = self.machine.apply(
             self.owner_id()?,
             TransactionLifecycleInput::EndSettled { epoch, outcome },
         )?;
+        if outcome == TransactionEndOutcome::Succeeded {
+            self.release_epoch(epoch)?;
+        }
         self.interpret(transition.into_effect(), None)
     }
 }

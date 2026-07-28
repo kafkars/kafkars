@@ -17,16 +17,19 @@ use std::sync::{
 };
 
 use kafka_client_core::{
-    OperationId, ProducerRetryPolicy, TransactionInitializationMachine,
-    TransactionInitializationState, TransactionalOwnerId,
+    OperationId, TransactionInitializationMachine, TransactionInitializationState,
+    TransactionalOwnerId,
 };
+
+#[cfg(test)]
+use kafka_client_core::{CompressionPolicy, ProducerRetryPolicy};
 
 use crate::{
     clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry, CompletionRegistryError, NotifierJoin},
     driver::{TransactionInitCall, TransactionInitTerminal},
     transaction::{
-        TransactionExecutionHost,
+        TransactionExecutionHost, TransactionExecutionLimits,
         completion::{
             TRANSACTION_OWNER_CAPACITY, TransactionCompletionOwner,
             TransactionInitializationPublisher,
@@ -86,7 +89,7 @@ pub(crate) struct TransactionInitializationHost {
     published_bytes: Vec<(CompletionId, usize)>,
     live_owners: Vec<LiveTransactionalOwner>,
     executions: Vec<TransactionExecutionHost>,
-    execution_retry_policy: ProducerRetryPolicy,
+    execution_limits: TransactionExecutionLimits,
     release_sender: SyncSender<TransactionalOwnerId>,
     release_receiver: Receiver<TransactionalOwnerId>,
     owner_loss_sender: SyncSender<TransactionOwnerLossSignal>,
@@ -102,8 +105,24 @@ impl TransactionInitializationHost {
         Self::start_with_retry_policy(ProducerRetryPolicy::none())
     }
 
+    #[cfg(test)]
     pub(crate) fn start_with_retry_policy(
         execution_retry_policy: ProducerRetryPolicy,
+    ) -> std::io::Result<Self> {
+        let execution_limits = TransactionExecutionLimits::try_new_with_bounds(
+            TRANSACTION_OWNER_CAPACITY,
+            TRANSACTION_INITIALIZATION_OPERATION_BYTES,
+            TRANSACTION_INITIALIZATION_OPERATION_BYTES,
+            TRANSACTION_INITIALIZATION_OPERATION_BYTES,
+            CompressionPolicy::None,
+            execution_retry_policy,
+        )
+        .unwrap_or_else(|| unreachable!("focused transaction limits are nonzero"));
+        Self::start_with_limits(execution_limits)
+    }
+
+    pub(crate) fn start_with_limits(
+        execution_limits: TransactionExecutionLimits,
     ) -> std::io::Result<Self> {
         let (release_sender, release_receiver) =
             std::sync::mpsc::sync_channel(TRANSACTION_INITIALIZATION_CAPACITY);
@@ -126,7 +145,7 @@ impl TransactionInitializationHost {
             published_bytes: Vec::with_capacity(TRANSACTION_INITIALIZATION_CAPACITY),
             live_owners: Vec::with_capacity(TRANSACTION_INITIALIZATION_CAPACITY),
             executions: Vec::with_capacity(TRANSACTION_OWNER_CAPACITY),
-            execution_retry_policy,
+            execution_limits,
             release_sender,
             release_receiver,
             owner_loss_sender,

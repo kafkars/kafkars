@@ -24,6 +24,15 @@ impl TransactionLifecycleHost {
         now: Moment,
         driver: &DriverOwner,
     ) -> Result<TransactionLifecycleTurn, TransactionLifecycleHostError> {
+        let enrollment = self.enrollment.turn(now, driver);
+        if self.enrollment.has_fatal_terminal() {
+            self.sequencing.fence();
+        }
+        if enrollment
+            == crate::transaction::partition_enrollment::TransactionPartitionEnrollmentTurn::Progress
+        {
+            return Ok(TransactionLifecycleTurn::Progress);
+        }
         self.turn_with_at(now, &mut DriverTransactionEndPort { driver })
     }
 }
