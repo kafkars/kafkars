@@ -3,7 +3,7 @@
 use crate::{
     admin::{
         AdminListOffsetsHostError, AlterConsumerGroupOffsetsHostError,
-        AlterPartitionReassignmentsHostError, AlterReplicaLogDirsHostError,
+        AlterPartitionReassignmentsHostError, AlterReplicaLogDirsHostError, CreateAclsHostError,
         CreatePartitionsHostError, CreateTopicsHostError, DeleteConsumerGroupOffsetsHostError,
         DeleteConsumerGroupsHostError, DeleteRecordsHostError, DeleteTopicsHostError,
         DescribeAclsHostError, DescribeClusterHostError, DescribeConfigsHostError,
@@ -67,6 +67,8 @@ pub(crate) enum EngineHostError {
     DeleteRecordsLockPoisoned,
     DescribeAcls(DescribeAclsHostError),
     DescribeAclsLockPoisoned,
+    CreateAcls(CreateAclsHostError),
+    CreateAclsLockPoisoned,
     DescribeCluster(DescribeClusterHostError),
     DescribeClusterCompletion(DescribeClusterCompletionFailure),
     DescribeClusterLockPoisoned,

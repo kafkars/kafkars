@@ -20,6 +20,7 @@ use super::admin_alter_replica_log_dirs::{
 };
 use super::admin_configs_operation::AdminDescribeConfigs;
 use super::admin_configs_request::DescribeConfigsAdminRequest;
+use super::admin_create_acls::{AdminCreateAcls, CreateAclsAdminRequest};
 use super::admin_delete_consumer_groups::{
     AdminDeleteConsumerGroups, DeleteConsumerGroupsAdminRequest,
 };
@@ -130,6 +131,16 @@ impl AdminEngine {
             self.handle
                 .try_delete_consumer_groups(request.into_engine(), timeout),
         )
+    }
+
+    pub(crate) fn submit_create_acls(
+        &self,
+        request: CreateAclsAdminRequest,
+        deadline: Instant,
+    ) -> AdminCreateAcls {
+        AdminCreateAcls::submit_with(request, deadline, |request, remaining| {
+            self.handle.try_create_acls(request, remaining)
+        })
     }
 
     pub(crate) fn submit_describe_acls(

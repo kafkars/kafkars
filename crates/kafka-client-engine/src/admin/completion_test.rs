@@ -28,10 +28,11 @@ use kafka_client_core::{
 
 use crate::completion::{CompletionRegistry, ReclaimStatus};
 
-use super::test_support::completion_owner;
+use super::{CREATE_ACLS_CAPACITY, test_support::completion_owner};
 
 #[test]
 fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
+    assert_eq!(CREATE_ACLS_CAPACITY, 16);
     let reactor = std::thread::current().id();
     let (mut notifier, ports) = completion_owner();
     let worker = notifier

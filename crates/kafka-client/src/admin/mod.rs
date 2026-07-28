@@ -4,6 +4,7 @@ mod alter_replica_log_dirs;
 mod batch_result;
 mod builder;
 mod configs;
+mod create_acls;
 mod create_partitions;
 mod create_topics;
 mod delete_builder;

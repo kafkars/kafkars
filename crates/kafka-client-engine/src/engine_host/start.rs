@@ -10,8 +10,8 @@ use std::sync::Arc;
 use crate::{
     EngineConfig,
     admin::{
-        AdminCompletionNotifier, AlterReplicaLogDirsShardOwner, CreatePartitionsShardOwner,
-        CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner,
+        AdminCompletionNotifier, AlterReplicaLogDirsShardOwner, CreateAclsShardOwner,
+        CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner,
         DeleteConsumerGroupsShardOwner, DeleteRecordsShardOwner, DeleteTopicsShardOwner,
         DescribeAclsShardOwner, DescribeClusterShardOwner, DescribeConsumerGroupsShardOwner,
         DescribeLogDirsShardOwner, DescribeTopicsShardOwner, ElectLeadersShardOwner,
@@ -127,6 +127,8 @@ pub(crate) fn start(
     let admission = producer.admission_port();
     let create_topics = CreateTopicsShardOwner::new(create_topics, Arc::new(driver.reactor_wake()));
     let create_topics_admission = create_topics.admission_port();
+    let create_acls = CreateAclsShardOwner::new(create_acls, Arc::new(driver.reactor_wake()));
+    let create_acls_admission = create_acls.admission_port();
     let delete_topics = DeleteTopicsShardOwner::new(delete_topics, Arc::new(driver.reactor_wake()));
     let delete_topics_admission = delete_topics.admission_port();
     let delete_consumer_groups = DeleteConsumerGroupsShardOwner::new(
@@ -209,6 +211,7 @@ pub(crate) fn start(
         describe_consumer_groups,
         delete_consumer_groups,
         describe_acls,
+        create_acls,
         create_partitions,
         describe_topics,
         describe_configs: describe_configs.owner,
@@ -263,6 +266,7 @@ pub(crate) fn start(
     Ok(StartedEngineHost {
         admission,
         create_topics_admission,
+        create_acls_admission,
         delete_topics_admission,
         delete_consumer_groups_admission,
         delete_records_admission,

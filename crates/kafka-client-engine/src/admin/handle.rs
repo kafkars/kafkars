@@ -11,6 +11,7 @@ use crate::clock::MonotonicClock;
 /// Closed set of concrete admin admission capabilities retained by one handle.
 pub(crate) struct AdminAdmissionPorts {
     pub(crate) create_topics: CreateTopicsAdmissionPort,
+    pub(crate) create_acls: super::CreateAclsAdmissionPort,
     pub(crate) delete_topics: DeleteTopicsAdmissionPort,
     pub(crate) delete_records: super::DeleteRecordsAdmissionPort,
     pub(crate) describe_acls: super::DescribeAclsAdmissionPort,
@@ -38,6 +39,7 @@ pub(crate) struct AdminAdmissionPorts {
 #[derive(Clone)]
 pub struct AdminHandle {
     pub(super) create_topics: CreateTopicsAdmissionPort,
+    pub(super) create_acls: super::CreateAclsAdmissionPort,
     pub(super) delete_topics: DeleteTopicsAdmissionPort,
     pub(super) delete_records: super::DeleteRecordsAdmissionPort,
     pub(super) describe_acls: super::DescribeAclsAdmissionPort,
@@ -71,6 +73,7 @@ impl AdminHandle {
     ) -> Self {
         Self {
             create_topics: ports.create_topics,
+            create_acls: ports.create_acls,
             delete_topics: ports.delete_topics,
             delete_records: ports.delete_records,
             describe_acls: ports.describe_acls,

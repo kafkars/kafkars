@@ -13,6 +13,8 @@ use kafka_client_core::{
     ListPartitionReassignmentsTerminal, RemoveConsumerGroupMembersTerminal,
 };
 
+use super::CreateAclsOutcome;
+
 use crate::completion::{
     CompletionRegistryError, NotificationTicket, NotifierJoin, PublishTicket, SharedNotifier,
     SharedPublishPort,
@@ -20,7 +22,7 @@ use crate::completion::{
 
 use super::{
     ADMIN_LIST_OFFSETS_CAPACITY, ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY,
-    ALTER_PARTITION_REASSIGNMENTS_CAPACITY, ALTER_REPLICA_LOG_DIRS_CAPACITY,
+    ALTER_PARTITION_REASSIGNMENTS_CAPACITY, ALTER_REPLICA_LOG_DIRS_CAPACITY, CREATE_ACLS_CAPACITY,
     CREATE_PARTITIONS_CAPACITY, CREATE_TOPICS_CAPACITY, DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY,
     DELETE_CONSUMER_GROUPS_CAPACITY, DELETE_RECORDS_CAPACITY, DELETE_TOPICS_CAPACITY,
     DESCRIBE_ACLS_CAPACITY, DESCRIBE_CLUSTER_CAPACITY, DESCRIBE_CONFIGS_CAPACITY,
@@ -52,7 +54,8 @@ const ADMIN_NOTIFICATION_CAPACITY: usize = CREATE_TOPICS_CAPACITY
     + REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY
     + DESCRIBE_LOG_DIRS_CAPACITY
     + ALTER_REPLICA_LOG_DIRS_CAPACITY
-    + DESCRIBE_ACLS_CAPACITY;
+    + DESCRIBE_ACLS_CAPACITY
+    + CREATE_ACLS_CAPACITY;
 
 /// Closed allocation-free set of terminal tickets accepted by the admin worker.
 pub(crate) enum AdminPublishTicket {
@@ -78,6 +81,7 @@ pub(crate) enum AdminPublishTicket {
     DescribeLogDirs(PublishTicket<AdminDescribeLogDirsTerminal>),
     AlterReplicaLogDirs(PublishTicket<AlterReplicaLogDirsTerminal>),
     DescribeAcls(PublishTicket<DescribeAclsTerminal>),
+    CreateAcls(PublishTicket<CreateAclsOutcome>),
 }
 
 impl NotificationTicket for AdminPublishTicket {
@@ -105,6 +109,7 @@ impl NotificationTicket for AdminPublishTicket {
             Self::DescribeLogDirs(ticket) => ticket.publish(),
             Self::AlterReplicaLogDirs(ticket) => ticket.publish(),
             Self::DescribeAcls(ticket) => ticket.publish(),
+            Self::CreateAcls(ticket) => ticket.publish(),
         }
     }
 }
@@ -150,6 +155,7 @@ pub(crate) type AdminAlterReplicaLogDirsPublisher =
     SharedPublishPort<AlterReplicaLogDirsTerminal, AdminPublishTicket>;
 pub(crate) type AdminDescribeAclsPublisher =
     SharedPublishPort<DescribeAclsTerminal, AdminPublishTicket>;
+pub(crate) type AdminCreateAclsPublisher = SharedPublishPort<CreateAclsOutcome, AdminPublishTicket>;
 
 /// Exact typed ports issued once with the shared worker.
 pub(crate) struct AdminCompletionPorts {
@@ -175,6 +181,7 @@ pub(crate) struct AdminCompletionPorts {
     pub(crate) describe_log_dirs: AdminDescribeLogDirsPublisher,
     pub(crate) alter_replica_log_dirs: AdminAlterReplicaLogDirsPublisher,
     pub(crate) describe_acls: AdminDescribeAclsPublisher,
+    pub(crate) create_acls: AdminCreateAclsPublisher,
 }
 
 /// Unique lifecycle owner for the one shared admin notifier.
@@ -216,6 +223,7 @@ impl AdminCompletionNotifier {
             describe_log_dirs: worker.publish_port(AdminPublishTicket::DescribeLogDirs),
             alter_replica_log_dirs: worker.publish_port(AdminPublishTicket::AlterReplicaLogDirs),
             describe_acls: worker.publish_port(AdminPublishTicket::DescribeAcls),
+            create_acls: worker.publish_port(AdminPublishTicket::CreateAcls),
         };
         Ok((
             Self {

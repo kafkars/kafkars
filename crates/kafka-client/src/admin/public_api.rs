@@ -14,6 +14,10 @@ pub use super::configs::{
     ConfigEntry, ConfigSynonym, DescribeConfigs, DescribeConfigsBuilder, DescribeConfigsResult,
     TopicConfigQuery,
 };
+pub use super::create_acls::{
+    CreateAclBrokerError, CreateAclOutcome, CreateAclResult, CreateAcls, CreateAclsBuilder,
+    CreateAclsResult,
+};
 pub use super::create_partitions::CreatePartitions;
 pub use super::create_topics::CreateTopics;
 pub use super::delete_builder::DeleteTopicsBuilder;

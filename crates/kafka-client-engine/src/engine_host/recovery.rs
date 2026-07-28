@@ -33,6 +33,7 @@ pub(crate) fn recover(
     drop(resources.delete_consumer_groups.terminal_host());
     drop(resources.describe_cluster.terminal_host());
     drop(resources.describe_acls.terminal_host());
+    drop(resources.create_acls.terminal_host());
     drop(resources.create_partitions.terminal_host());
     drop(resources.describe_topics.terminal_host());
     drop(resources.describe_configs.terminal_host());

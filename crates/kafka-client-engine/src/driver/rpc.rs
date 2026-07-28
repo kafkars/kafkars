@@ -31,6 +31,11 @@ mod classic_group_leave_failure;
 #[cfg(test)]
 mod classic_group_leave_failure_test;
 mod classic_group_position_reset_adapter;
+mod create_acls_call;
+mod create_acls_submission;
+#[cfg(test)]
+mod create_acls_submission_test;
+mod create_acls_terminal;
 mod create_partitions_calls;
 #[cfg(test)]
 mod create_partitions_calls_test;
@@ -256,6 +261,11 @@ pub(crate) use alter_replica_log_dirs_call::AlterReplicaLogDirsCall;
 pub(crate) use alter_replica_log_dirs_terminal::{
     AlterReplicaLogDirsDriverFailureKind, AlterReplicaLogDirsRawTerminal,
     AlterReplicaLogDirsTerminalFact, RecoveredAlterReplicaLogDirsCall,
+};
+pub(crate) use create_acls_call::CreateAclsCall;
+pub(crate) use create_acls_terminal::{
+    CreateAclsDriverFailureKind, CreateAclsRawTerminal, CreateAclsTerminalFact,
+    RecoveredCreateAclsCall,
 };
 pub(crate) use delete_consumer_groups_call::DeleteConsumerGroupsCall;
 pub(crate) use delete_consumer_groups_terminal::{

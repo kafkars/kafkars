@@ -10,6 +10,7 @@ use crate::bridge::admin::{AdminEngine, AdminRequest, DeleteAdminRequest, Partit
 use crate::bridge::admin_alter_configs_request::IncrementalAlterConfigsAdminRequest;
 use crate::bridge::admin_alter_replica_log_dirs::AlterReplicaLogDirsAdminRequest;
 use crate::bridge::admin_configs_request::DescribeConfigsAdminRequest;
+use crate::bridge::admin_create_acls::CreateAclsAdminRequest;
 use crate::bridge::admin_delete_consumer_groups::DeleteConsumerGroupsAdminRequest;
 use crate::bridge::admin_delete_records::DeleteRecordsAdminRequest;
 use crate::bridge::admin_describe_acls::DescribeAclsAdminRequest;
@@ -23,13 +24,13 @@ use crate::bridge::admin_topics_request::DescribeTopicsAdminRequest;
 
 use super::{
     AlterConsumerGroupOffsetsBuilder, AlterReplicaLogDirsBuilder, ConsumerGroupOffsetAlteration,
-    CreatePartitionsBuilder, CreateTopicsBuilder, DeleteConsumerGroupOffsetsBuilder,
-    DeleteConsumerGroupsBuilder, DeleteRecordsBuilder, DeleteRecordsTarget, DeleteTopicsBuilder,
-    DescribeAclsBuilder, DescribeClusterBuilder, DescribeConfigsBuilder,
-    DescribeConsumerGroupsBuilder, DescribeTopicsBuilder, ElectLeadersBuilder,
-    IncrementalAlterConfigsBuilder, ListConsumerGroupOffsetsBuilder, ListConsumerGroupsBuilder,
-    ListTopicsBuilder, NewPartitions, NewTopic, ReplicaLogDirAssignment, TopicConfigAlterations,
-    TopicConfigQuery,
+    CreateAclsBuilder, CreatePartitionsBuilder, CreateTopicsBuilder,
+    DeleteConsumerGroupOffsetsBuilder, DeleteConsumerGroupsBuilder, DeleteRecordsBuilder,
+    DeleteRecordsTarget, DeleteTopicsBuilder, DescribeAclsBuilder, DescribeClusterBuilder,
+    DescribeConfigsBuilder, DescribeConsumerGroupsBuilder, DescribeTopicsBuilder,
+    ElectLeadersBuilder, IncrementalAlterConfigsBuilder, ListConsumerGroupOffsetsBuilder,
+    ListConsumerGroupsBuilder, ListTopicsBuilder, NewPartitions, NewTopic, ReplicaLogDirAssignment,
+    TopicConfigAlterations, TopicConfigQuery,
 };
 
 /// Cheaply cloneable, thread-safe admin handle.
@@ -41,6 +42,18 @@ pub struct Admin {
 impl Admin {
     pub(crate) const fn new(engine: AdminEngine) -> Self {
         Self { engine }
+    }
+
+    /// Builds inert caller-ordered ACL creation intent.
+    ///
+    /// No timeout starts and no operation is admitted until
+    /// [`CreateAclsBuilder::submit`] is called.
+    pub fn create_acls<I>(&self, bindings: I) -> CreateAclsBuilder
+    where
+        I: IntoIterator<Item = super::AclBinding>,
+    {
+        let request = CreateAclsAdminRequest::new(bindings.into_iter().collect());
+        CreateAclsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
     }
 
     /// Builds an inert ACL description selected by one exact filter.

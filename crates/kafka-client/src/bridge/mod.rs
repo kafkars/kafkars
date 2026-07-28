@@ -7,6 +7,7 @@ pub(crate) mod admin_alter_replica_log_dirs;
 pub(crate) mod admin_configs_operation;
 pub(crate) mod admin_configs_request;
 pub(crate) mod admin_configs_result;
+pub(crate) mod admin_create_acls;
 pub(crate) mod admin_delete_consumer_groups;
 pub(crate) mod admin_delete_operation;
 pub(crate) mod admin_delete_records;

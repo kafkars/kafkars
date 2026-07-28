@@ -13,6 +13,7 @@ impl Engine {
         AdminHandle::new(
             crate::admin::AdminAdmissionPorts {
                 create_topics: self.inner.create_topics_admission.clone(),
+                create_acls: self.inner.create_acls_admission.clone(),
                 delete_topics: self.inner.delete_topics_admission.clone(),
                 delete_records: self.inner.delete_records_admission.clone(),
                 describe_acls: self.inner.describe_acls_admission.clone(),
@@ -62,6 +63,7 @@ impl Engine {
 impl EngineInner {
     pub(super) fn close_admin_admission(&self) {
         let _close_result = self.create_topics_admission.close_admission();
+        let _close_result = self.create_acls_admission.close_admission();
         let _close_result = self.delete_topics_admission.close_admission();
         let _close_result = self.delete_records_admission.close_admission();
         let _close_result = self.describe_acls_admission.close_admission();

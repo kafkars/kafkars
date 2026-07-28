@@ -2,6 +2,7 @@
 
 pub(crate) mod alter_partition_reassignments;
 pub(crate) mod alter_replica_log_dirs;
+pub(crate) mod create_acls;
 pub(crate) mod create_partitions;
 mod create_partitions_budget;
 pub(crate) mod create_topics;

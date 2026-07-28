@@ -2,16 +2,18 @@
 
 use crate::admin::{
     AdminCompletionPorts, AdminListOffsetsPublisher, AlterConsumerGroupOffsetsPublisher,
-    AlterPartitionReassignmentsPublisher, AlterReplicaLogDirsHost, CreatePartitionsHost,
-    CreateTopicsHost, DeleteConsumerGroupOffsetsHost, DeleteConsumerGroupsHost, DeleteRecordsHost,
-    DeleteTopicsHost, DescribeAclsHost, DescribeClusterHost, DescribeConfigsPublisher,
-    DescribeConsumerGroupsHost, DescribeLogDirsHost, DescribeTopicsHost, ElectLeadersHost,
-    IncrementalAlterConfigsHost, ListConsumerGroupOffsetsHost, ListConsumerGroupsHost,
-    ListPartitionReassignmentsPublisher, RemoveConsumerGroupMembersHost,
+    AlterPartitionReassignmentsPublisher, AlterReplicaLogDirsHost, CreateAclsHost,
+    CreatePartitionsHost, CreateTopicsHost, DeleteConsumerGroupOffsetsHost,
+    DeleteConsumerGroupsHost, DeleteRecordsHost, DeleteTopicsHost, DescribeAclsHost,
+    DescribeClusterHost, DescribeConfigsPublisher, DescribeConsumerGroupsHost, DescribeLogDirsHost,
+    DescribeTopicsHost, ElectLeadersHost, IncrementalAlterConfigsHost,
+    ListConsumerGroupOffsetsHost, ListConsumerGroupsHost, ListPartitionReassignmentsPublisher,
+    RemoveConsumerGroupMembersHost,
 };
 
 pub(super) struct StartedAdminHosts {
     pub(super) create_topics: CreateTopicsHost,
+    pub(super) create_acls: CreateAclsHost,
     pub(super) delete_topics: DeleteTopicsHost,
     pub(super) delete_consumer_groups: DeleteConsumerGroupsHost,
     pub(super) delete_records: DeleteRecordsHost,
@@ -38,6 +40,7 @@ pub(super) struct StartedAdminHosts {
 pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
     let AdminCompletionPorts {
         create_topics,
+        create_acls,
         delete_topics,
         delete_consumer_groups,
         delete_records,
@@ -62,6 +65,7 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
     } = ports;
     StartedAdminHosts {
         create_topics: CreateTopicsHost::new(create_topics),
+        create_acls: CreateAclsHost::new(create_acls),
         delete_topics: DeleteTopicsHost::new(delete_topics),
         delete_consumer_groups: DeleteConsumerGroupsHost::new(delete_consumer_groups),
         delete_records: DeleteRecordsHost::new(delete_records),

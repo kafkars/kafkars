@@ -77,7 +77,8 @@ pub(crate) use rpc::exports::{
 };
 pub(crate) use rpc::{
     AlterReplicaLogDirsCall, AlterReplicaLogDirsDriverFailureKind, AlterReplicaLogDirsRawTerminal,
-    AlterReplicaLogDirsTerminalFact, DeleteConsumerGroupsCall,
+    AlterReplicaLogDirsTerminalFact, CreateAclsCall, CreateAclsDriverFailureKind,
+    CreateAclsRawTerminal, CreateAclsTerminalFact, DeleteConsumerGroupsCall,
     DeleteConsumerGroupsDriverFailureKind, DeleteConsumerGroupsRawTerminal,
     DeleteConsumerGroupsTerminalFact, DeleteRecordsCall, DeleteRecordsDriverFailureKind,
     DeleteRecordsRawTerminal, DeleteRecordsTerminalFact, DescribeAclsCall,
@@ -88,7 +89,7 @@ pub(crate) use rpc::{
     ElectLeadersCall, ElectLeadersDriverFailureKind, ElectLeadersTerminal,
     ElectLeadersTerminalFact, ListConsumerGroupsCall, ListConsumerGroupsDriverFailureKind,
     ListConsumerGroupsRawTerminal, ListConsumerGroupsRawTerminalFact,
-    RecoveredAlterReplicaLogDirsCall, RecoveredDeleteConsumerGroupsCall,
+    RecoveredAlterReplicaLogDirsCall, RecoveredCreateAclsCall, RecoveredDeleteConsumerGroupsCall,
     RecoveredDeleteRecordsCall, RecoveredDescribeAclsCall, RecoveredDescribeConsumerGroupsCall,
     RecoveredDescribeLogDirsCall, RecoveredElectLeadersCall,
     RecoveredRemoveConsumerGroupMembersCall, RemoveConsumerGroupMembersCall,

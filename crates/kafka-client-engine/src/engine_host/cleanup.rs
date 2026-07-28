@@ -168,6 +168,9 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
     let described_acls = resources.describe_acls.terminal_host().unsettled();
         return Err(EngineHostError::DescribeAcls(
             crate::admin::DescribeAclsHostError::Unsettled(described_acls),
+    let created_acls = resources.create_acls.terminal_host().unsettled();
+        return Err(EngineHostError::CreateAcls(
+            crate::admin::CreateAclsHostError::Unsettled(created_acls),
     let partitions = resources.create_partitions.terminal_host().unsettled();
     if partitions != 0 {
         return Err(EngineHostError::CreatePartitions(

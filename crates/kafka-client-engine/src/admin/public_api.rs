@@ -60,6 +60,17 @@ pub use super::configs::{
     DescribeConfigsObserver, DescribeConfigsObserverError, DescribeConfigsOutcome,
     DescribeConfigsRequest, DescribeConfigsResourceQuery,
 };
+pub(crate) use super::create_acls::{
+    CREATE_ACLS_CAPACITY, CreateAclsAdmissionPort, CreateAclsHost, CreateAclsHostError,
+    CreateAclsShardLockError, CreateAclsShardOwner, CreateAclsShardWake, CreateAclsShardWakeError,
+    CreateAclsTurn,
+};
+pub use super::create_acls::{
+    CreateAclBinding, CreateAclBrokerError, CreateAclOutcome, CreateAclResult, CreateAclsAccepted,
+    CreateAclsAcceptedFaultKind, CreateAclsAdmissionError, CreateAclsAdmissionErrorKind,
+    CreateAclsBatch, CreateAclsDeliveryStatus, CreateAclsFailure, CreateAclsFailureKind,
+    CreateAclsObserver, CreateAclsObserverError, CreateAclsOutcome, CreateAclsRequest,
+};
 pub(crate) use super::delete_consumer_groups::{
     DELETE_CONSUMER_GROUPS_CAPACITY, DeleteConsumerGroupsAdmissionPort, DeleteConsumerGroupsHost,
     DeleteConsumerGroupsHostError, DeleteConsumerGroupsShardLockError,

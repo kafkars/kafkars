@@ -89,6 +89,12 @@ impl fmt::Display for EngineHostError {
             Self::DescribeAclsLockPoisoned => {
                 formatter.write_str("DescribeAcls host ownership lock is poisoned")
             }
+            Self::CreateAcls(error) => {
+                write!(formatter, "CreateAcls host failed: {error}")
+            }
+            Self::CreateAclsLockPoisoned => {
+                formatter.write_str("CreateAcls host ownership lock is poisoned")
+            }
             Self::DescribeCluster(error) => {
                 write!(formatter, "DescribeCluster host failed: {error}")
             }

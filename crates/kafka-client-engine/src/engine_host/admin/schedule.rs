@@ -7,9 +7,9 @@ use kafka_client_core::{Deadline, Moment};
 use super::{
     super::{EngineHostError, EngineHostResources},
     alter_consumer_group_offsets, alter_partition_reassignments, alter_replica_log_dirs,
-    create_partitions, create_topics, delete_consumer_group_offsets, delete_records, delete_topics,
-    describe_cluster, describe_configs, describe_consumer_groups, describe_log_dirs,
-    describe_topics, elect_leaders,
+    create_acls, create_partitions, create_topics, delete_consumer_group_offsets, delete_records,
+    delete_topics, describe_cluster, describe_configs, describe_consumer_groups,
+    describe_log_dirs, describe_topics, elect_leaders,
     group_offset_alter_schedule::drive_group_offset_delete_then_capture_alter,
     incremental_alter_configs, list_consumer_group_offsets, list_consumer_groups, list_offsets,
     list_offsets_schedule, list_partition_reassignments, remove_consumer_group_members,
@@ -98,6 +98,8 @@ pub(in crate::engine_host) fn drive(
     let group_deletions = delete_consumer_groups::drive(resources, delete_groups_now)?;
     let describe_acls_now = clock.now().map_err(EngineHostError::Clock)?;
     let acl_descriptions = describe_acls::drive(resources, describe_acls_now)?;
+    let create_acls_now = clock.now().map_err(EngineHostError::Clock)?;
+    let acl_creations = create_acls::drive(resources, create_acls_now)?;
     let list_groups_now = clock.now().map_err(EngineHostError::Clock)?;
     let group_listings = list_consumer_groups::drive(resources, list_groups_now)?;
     let describe_log_dirs_now = clock.now().map_err(EngineHostError::Clock)?;
@@ -138,6 +140,7 @@ const fn extend_with_log_dir_operations(
         member_removals: &remove_consumer_group_members::RemoveConsumerGroupMembersProgress,
         group_deletions: &delete_consumer_groups::DeleteConsumerGroupsProgress,
         acl_descriptions: &describe_acls::DescribeAclsProgress,
+        acl_creations: &create_acls::CreateAclsProgress,
     }
 }
 

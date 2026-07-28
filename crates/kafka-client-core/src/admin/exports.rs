@@ -28,6 +28,13 @@ pub use super::alter_replica_log_dirs::{
     AlterReplicaLogDirsPlanError, AlterReplicaLogDirsState, AlterReplicaLogDirsTerminal,
     AlterReplicaLogDirsTransition,
 };
+pub use super::create_acls::{
+    CREATE_ACLS_DIAGNOSTIC_BYTES, CreateAclBinding, CreateAclBrokerError, CreateAclResult,
+    CreateAclsBatch, CreateAclsEffect, CreateAclsFailure, CreateAclsFailureKind, CreateAclsInput,
+    CreateAclsMachine, CreateAclsMachineError, CreateAclsPlan, CreateAclsPlanError,
+    CreateAclsRoute, CreateAclsState, CreateAclsTerminal, CreateAclsTransition,
+    MAX_CREATE_ACLS_BINDINGS,
+};
 pub use super::delete_consumer_groups::{
     DELETE_CONSUMER_GROUPS_DIAGNOSTIC_BYTES, DeleteConsumerGroupsBatch,
     DeleteConsumerGroupsBrokerError, DeleteConsumerGroupsEffect, DeleteConsumerGroupsFailure,

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::{
     admin::{
         AdminListOffsetsShardOwner, AlterConsumerGroupOffsetsShardOwner,
-        AlterPartitionReassignmentsShardOwner, AlterReplicaLogDirsShardOwner,
+        AlterPartitionReassignmentsShardOwner, AlterReplicaLogDirsShardOwner, CreateAclsShardOwner,
         CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner,
         DeleteConsumerGroupsShardOwner, DeleteRecordsShardOwner, DeleteTopicsShardOwner,
         DescribeAclsShardOwner, DescribeClusterShardOwner, DescribeConfigsShardOwner,
@@ -33,6 +33,7 @@ pub(crate) struct EngineHostResources {
     pub(in super::super) assigned_consumer_notifier:
         crate::consumer::AssignedConsumerCompletionNotifier,
     pub(in super::super) create_topics: CreateTopicsShardOwner,
+    pub(in super::super) create_acls: CreateAclsShardOwner,
     pub(in super::super) delete_topics: DeleteTopicsShardOwner,
     pub(in super::super) delete_consumer_groups: DeleteConsumerGroupsShardOwner,
     pub(in super::super) delete_records: DeleteRecordsShardOwner,

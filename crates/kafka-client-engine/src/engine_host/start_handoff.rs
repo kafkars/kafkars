@@ -9,7 +9,7 @@ use crate::{
     admin::{
         AdminListOffsetsAdmissionPort, AlterConsumerGroupOffsetsAdmissionPort,
         AlterPartitionReassignmentsAdmissionPort, AlterReplicaLogDirsAdmissionPort,
-        CreatePartitionsAdmissionPort, CreateTopicsAdmissionPort,
+        CreateAclsAdmissionPort, CreatePartitionsAdmissionPort, CreateTopicsAdmissionPort,
         DeleteConsumerGroupOffsetsAdmissionPort, DeleteConsumerGroupsAdmissionPort,
         DeleteRecordsAdmissionPort, DeleteTopicsAdmissionPort, DescribeAclsAdmissionPort,
         DescribeClusterAdmissionPort, DescribeConfigsAdmissionPort,
@@ -29,6 +29,7 @@ use super::{EngineHostControl, EngineHostResources, EngineLifecycle, EngineStart
 pub(crate) struct StartedEngineHost {
     pub(crate) admission: ProducerAdmissionPort,
     pub(crate) create_topics_admission: CreateTopicsAdmissionPort,
+    pub(crate) create_acls_admission: CreateAclsAdmissionPort,
     pub(crate) delete_topics_admission: DeleteTopicsAdmissionPort,
     pub(crate) delete_consumer_groups_admission: DeleteConsumerGroupsAdmissionPort,
     pub(crate) delete_records_admission: DeleteRecordsAdmissionPort,
