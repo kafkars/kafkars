@@ -183,6 +183,11 @@ impl ClassicGroupFetchOwner {
             match prepared.reconcile_ownership(&self.machine) {
                 Ok(Some(prepared)) => self.pending_fetches.push_back(prepared),
                 Ok(None) => {}
+                Err((kafka_client_core::AssignedConsumerMachineError::NoAssignment, _prepared)) => {
+                    // Assignment retirement precedes reconciliation of its
+                    // queued local Fetch preparations. Those preparations are
+                    // now directionally superseded by the close fence.
+                }
                 Err((error, prepared)) => {
                     self.fault = Some(ClassicGroupFetchOwnerFault::Pending {
                         error,

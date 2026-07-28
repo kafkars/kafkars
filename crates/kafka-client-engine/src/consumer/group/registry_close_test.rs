@@ -4,7 +4,7 @@ use kafka_client_core::{GroupOffsetCommitAdmissionErrorKind, Moment};
 
 use super::{
     offset_commit::GroupOffsetCommitAdmissionFailureKind,
-    registry_close::GroupConsumerCloseError,
+    registry_close::GroupRegistryCloseError,
     registry_commit::GroupConsumerCommitFailureKind,
     registry_host_error::GroupConsumerHostError,
     registry_membership::GroupConsumerMembershipTurn,
@@ -60,7 +60,7 @@ fn whole_registry_close_fences_every_entry_and_global_host_once() {
     assert!(registry.entries.iter().all(|entry| !entry.is_active()));
     assert_eq!(
         registry.close_group(group_id),
-        Err(GroupConsumerCloseError::AlreadyClosing)
+        Err(GroupRegistryCloseError::AlreadyClosing)
     );
     let shutdown_error = registry
         .finish_shutdown()

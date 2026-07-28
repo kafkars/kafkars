@@ -4,9 +4,10 @@ use std::time::{Duration, Instant};
 
 use kafka_driver::CompletionError;
 
-use crate::{EngineConfig, driver::DriverOwner};
-
-use super::GroupOffsetsCall;
+use crate::{
+    EngineConfig,
+    driver::{DriverOwner, GroupOffsetsCall},
+};
 
 #[test]
 fn completion_fault_is_yielded_once_and_is_not_recovered_as_active() {

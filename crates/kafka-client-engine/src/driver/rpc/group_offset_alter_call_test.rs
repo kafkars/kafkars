@@ -5,9 +5,10 @@ use std::time::{Duration, Instant};
 use kafka_client_core::{AlterConsumerGroupOffsetTarget, AlterConsumerGroupOffsetsPlan};
 use kafka_driver::CompletionError;
 
-use crate::{EngineConfig, driver::DriverOwner};
-
-use super::GroupOffsetAlterCall;
+use crate::{
+    EngineConfig,
+    driver::{DriverOwner, GroupOffsetAlterCall},
+};
 
 #[test]
 fn completion_fault_remains_recoverable_after_driver_shutdown() {

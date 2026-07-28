@@ -21,6 +21,10 @@ mod calls;
 mod calls_test;
 #[expect(dead_code, reason = "classic membership integration follows its owner")]
 pub(crate) mod classic_group;
+mod classic_group_leave_adapter;
+mod classic_group_leave_failure;
+#[cfg(test)]
+mod classic_group_leave_failure_test;
 mod create_partitions_calls;
 #[cfg(test)]
 mod create_partitions_calls_test;
@@ -75,7 +79,7 @@ mod describe_topics_submission_test;
 mod describe_topics_terminal;
 #[cfg(test)]
 mod describe_topics_terminal_test;
-mod exports;
+pub(super) mod exports;
 #[cfg_attr(not(test), expect(dead_code, reason = "awaiting consumer executor"))]
 mod fetch;
 mod group_coordinator_route;
@@ -148,6 +152,9 @@ mod init_producer_id_submission_test;
 mod join_group_submission;
 #[cfg(test)]
 mod join_group_submission_test;
+mod leave_group_submission;
+#[cfg(test)]
+mod leave_group_submission_test;
 mod list_offsets_admission;
 #[cfg(test)]
 mod list_offsets_admission_test;
@@ -196,45 +203,4 @@ mod transaction_init_terminal;
 #[cfg(test)]
 mod transaction_init_terminal_test;
 pub(crate) mod transaction_produce;
-#[cfg(test)]
-pub(crate) use exports::GroupPositionOffsetFetchTestPartition;
-pub(crate) use exports::{
-    AdminListOffsetsCall, AdminListOffsetsDriverFailureKind, AdminListOffsetsTerminal,
-    AdminListOffsetsTerminalFact, AlterPartitionReassignmentsCall,
-    AlterPartitionReassignmentsDriverFailureKind, AlterPartitionReassignmentsTerminal,
-    AlterPartitionReassignmentsTerminalFact, CreatePartitionsCompletionFailure,
-    CreateTopicsCompletionFailure, DeleteTopicsCompletionFailure, DescribeClusterCalls,
-    DescribeClusterCompletionFailure, DescribeConfigsCalls, DescribeConfigsCompletionFailure,
-    DescribeTopicsCalls, DescribeTopicsCompletionFailure, FetchBeginSettlementError,
-    FetchCallAdmission, FetchCompletionObservation, FetchConfirmationError, FetchControlPending,
-    FetchPoll, FetchRecovery, FetchTerminal, GroupOffsetAlterCall,
-    GroupOffsetAlterDriverFailureKind, GroupOffsetAlterTerminal, GroupOffsetAlterTerminalFact,
-    GroupOffsetCommitPoll, GroupOffsetCommitRefreshPoll, GroupOffsetCommitShutdownRecovery,
-    GroupOffsetDeleteCall, GroupOffsetDeleteDriverFailureKind, GroupOffsetDeleteTerminal,
-    GroupOffsetDeleteTerminalFact, GroupOffsetsCall, GroupOffsetsDriverFailureKind,
-    GroupOffsetsTerminal, GroupOffsetsTerminalFact, GroupPositionOffsetFetchAccepted,
-    GroupPositionOffsetFetchAdmission, GroupPositionOffsetFetchAdmissionFailure,
-    GroupPositionOffsetFetchBeginError, GroupPositionOffsetFetchCompletionFailureKind,
-    GroupPositionOffsetFetchCompletionObservation, GroupPositionOffsetFetchCompletionRecovery,
-    GroupPositionOffsetFetchConfirmationFailure, GroupPositionOffsetFetchDriverFailureKind,
-    GroupPositionOffsetFetchKey, GroupPositionOffsetFetchPoll,
-    GroupPositionOffsetFetchRestoreFailure, GroupPositionOffsetFetchReturn,
-    GroupPositionOffsetFetchReturnReason, GroupPositionOffsetFetchShutdownRecovery,
-    GroupPositionOffsetFetchSubmitError, GroupPositionOffsetFetchTerminal,
-    GroupPositionOffsetFetchTerminalFact, IncrementalAlterConfigsCalls,
-    IncrementalAlterConfigsCompletionFailure, ListPartitionReassignmentsCall,
-    ListPartitionReassignmentsDriverFailureKind, ListPartitionReassignmentsRawTerminal,
-    ListPartitionReassignmentsTerminalFact, PartitionFetchRequest, PositionAdmissionFailure,
-    PositionCompletionFailure, PositionRequestPreparationError, PositionResolutionRequest,
-    ProduceCompletionFailure, ProduceSubmitError, ProducerIdentityCompletionFailure,
-    ProducerTopicViewCall, RecoveredAdminListOffsetsCall, RecoveredAlterPartitionReassignmentsCall,
-    RecoveredGroupOffsetAlterCall, RecoveredListPartitionReassignmentsCall,
-    StaleFetchConfirmationError, TopicPartitionCountAdmissionFailure,
-    TopicPartitionCountAdmissionFailureKind, TopicPartitionCountCall, TopicPartitionCountFact,
-    TopicPartitionCountFailure, TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls,
-    TrackedDeleteTopicsCalls, TrackedFetchCalls, TrackedGroupOffsetCommitCalls,
-    TrackedGroupPositionOffsetFetchCalls, TrackedPositionCalls, TrackedProduceCalls,
-    TrackedProducerIdentityCalls, TransactionInitCall, TransactionInitDriverFailureKind,
-    TransactionInitTerminal, TransactionInitTerminalFact, classify_fetch_admission,
-    classify_fetch_request_error,
-};
+pub(crate) use exports::ProduceSubmitError;

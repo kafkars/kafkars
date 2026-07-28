@@ -24,12 +24,14 @@ pub(crate) use endpoint::EndpointError;
 pub(crate) use error::DriverOwnerError;
 pub(crate) use owner::{DriverOwner, DriverTurn};
 #[cfg(test)]
-pub(crate) use rpc::GroupPositionOffsetFetchTestPartition;
-pub(crate) use rpc::{
+pub(crate) use rpc::exports::GroupPositionOffsetFetchTestPartition;
+pub(crate) use rpc::exports::{
     AdminListOffsetsCall, AdminListOffsetsDriverFailureKind, AdminListOffsetsTerminal,
     AdminListOffsetsTerminalFact, AlterPartitionReassignmentsCall,
     AlterPartitionReassignmentsDriverFailureKind, AlterPartitionReassignmentsTerminal,
-    AlterPartitionReassignmentsTerminalFact, CreatePartitionsCompletionFailure,
+    AlterPartitionReassignmentsTerminalFact, ClassicGroupLeaveCall,
+    ClassicGroupLeaveCompletionError, ClassicGroupLeaveDriverFailureKind,
+    ClassicGroupLeaveResolution, ClassicGroupLeaveRoute, CreatePartitionsCompletionFailure,
     CreateTopicsCompletionFailure, DeleteTopicsCompletionFailure, DescribeClusterCalls,
     DescribeClusterCompletionFailure, DescribeConfigsCalls, DescribeConfigsCompletionFailure,
     DescribeTopicsCalls, DescribeTopicsCompletionFailure, FetchBeginSettlementError,
@@ -53,14 +55,13 @@ pub(crate) use rpc::{
     TrackedDeleteTopicsCalls, TrackedFetchCalls, TrackedGroupOffsetCommitCalls,
     TrackedPositionCalls, TrackedProduceCalls, TrackedProducerIdentityCalls, TransactionInitCall,
     TransactionInitDriverFailureKind, TransactionInitTerminal, TransactionInitTerminalFact,
-    classic_group, classify_fetch_admission, classify_fetch_request_error, transaction_control,
-    transaction_produce,
+    classify_fetch_admission, classify_fetch_request_error,
 };
 #[expect(
     unused_imports,
     reason = "one closed position RPC adapter surface serves execution and ownership tests"
 )]
-pub(crate) use rpc::{
+pub(crate) use rpc::exports::{
     GroupPositionOffsetFetchAccepted, GroupPositionOffsetFetchAdmission,
     GroupPositionOffsetFetchAdmissionFailure, GroupPositionOffsetFetchBeginError,
     GroupPositionOffsetFetchCompletionFailureKind, GroupPositionOffsetFetchCompletionObservation,
@@ -72,5 +73,6 @@ pub(crate) use rpc::{
     GroupPositionOffsetFetchTerminal, GroupPositionOffsetFetchTerminalFact,
     TrackedGroupPositionOffsetFetchCalls,
 };
+pub(crate) use rpc::{classic_group, transaction_control, transaction_produce};
 pub(crate) use security::{EngineSecurityError, ValidatedSecurity, validate as validate_security};
 pub(crate) use wake::{ReactorWake, ReactorWakeError};

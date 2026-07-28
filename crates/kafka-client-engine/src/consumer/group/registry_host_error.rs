@@ -3,8 +3,8 @@
 use super::{
     classic_group_execution::ClassicGroupExecutionError,
     classic_group_graceful_revocation::ClassicGroupRevocationHostError,
-    offset_commit::GroupOffsetCommitHostError, registry_fetch::GroupConsumerFetchError,
-    registry_processing::GroupConsumerProcessingError,
+    offset_commit::GroupOffsetCommitHostError, registry_close::GroupConsumerRemovalError,
+    registry_fetch::GroupConsumerFetchError, registry_processing::GroupConsumerProcessingError,
 };
 
 /// Concrete private group-host failure without widening operation internals.
@@ -20,6 +20,7 @@ enum GroupConsumerHostErrorKind {
     Fetch(GroupConsumerFetchError),
     Processing(GroupConsumerProcessingError),
     GracefulRevocation(ClassicGroupRevocationHostError),
+    Close(GroupConsumerRemovalError),
     MembershipUnsettled(usize),
     FetchUnsettled(usize),
     ProcessingUnsettled(usize),
@@ -74,6 +75,12 @@ impl GroupConsumerHostError {
             kind: GroupConsumerHostErrorKind::GracefulRevocationUnsettled(count),
         }
     }
+
+    pub(super) const fn close(error: GroupConsumerRemovalError) -> Self {
+        Self {
+            kind: GroupConsumerHostErrorKind::Close(error),
+        }
+    }
 }
 
 impl core::fmt::Display for GroupConsumerHostError {
@@ -94,6 +101,9 @@ impl core::fmt::Display for GroupConsumerHostError {
                 formatter,
                 "classic group graceful revocation failed: {error:?}"
             ),
+            GroupConsumerHostErrorKind::Close(error) => {
+                write!(formatter, "classic group close removal failed: {error:?}")
+            }
             GroupConsumerHostErrorKind::MembershipUnsettled(count) => {
                 write!(
                     formatter,

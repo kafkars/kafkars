@@ -14,9 +14,9 @@ use kafka_wire::{
 
 use crate::{EngineConfig, clock::OperationDeadline, protocol::produce::MaterializedProduce};
 
-use crate::driver::DriverOwner;
+use crate::driver::{DriverOwner, TrackedProduceCalls};
 
-use super::{TrackedProduceCalls, calls::normalized_terminal_input};
+use super::calls::normalized_terminal_input;
 
 #[test]
 fn permits_preflight_the_exact_bounded_owner() {

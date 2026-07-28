@@ -16,6 +16,8 @@ pub(super) const RECOVERY: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs";
 pub(super) const MEMBERSHIP: &str =
     "crates/kafka-client-engine/src/consumer/group/registry_membership.rs";
+pub(super) const MEMBERSHIP_LOCAL: &str =
+    "crates/kafka-client-engine/src/consumer/group/registry_membership/local.rs";
 
 pub(super) const LINEAR: &[(&str, &str)] = &[
     ("PreparedClassicHeartbeat", HEARTBEAT),
@@ -57,7 +59,7 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
 
 pub(super) const METHODS: &[(&str, &[&str])] = &[
     ("prepare_one_classic_heartbeat", &[MEMBERSHIP]),
-    ("expire_one_prepared_heartbeat", &[MEMBERSHIP]),
+    ("expire_one_prepared_heartbeat", &[MEMBERSHIP_LOCAL]),
     ("submit_one_classic_heartbeat", &[MEMBERSHIP]),
     ("settle_one_classic_heartbeat", &[MEMBERSHIP]),
     (

@@ -12,6 +12,8 @@ mod consumer_batch;
 mod event;
 mod group;
 mod group_build_error;
+mod group_close;
+mod group_close_error;
 mod group_commit;
 mod group_commit_error;
 mod group_event;
@@ -41,6 +43,8 @@ pub use event::{
 };
 pub use group::ConsumerBuilder;
 pub use group_build_error::ConsumerBuildError;
+pub use group_close::CloseConsumer;
+pub use group_close_error::ConsumerCloseAdmissionError;
 pub use group_commit::CommitConsumerCheckpoint;
 pub use group_commit_error::{ConsumerCommitAdmissionError, ConsumerCommitError};
 pub use group_event::{ConsumerAssignment, ConsumerAssignmentPartition, GroupMetadata};
@@ -76,6 +80,10 @@ mod consumer_batch_test;
 mod event_test;
 #[cfg(test)]
 mod group_build_error_test;
+#[cfg(test)]
+mod group_close_error_test;
+#[cfg(test)]
+mod group_close_test;
 #[cfg(test)]
 mod group_commit_error_test;
 #[cfg(test)]

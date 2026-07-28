@@ -11,7 +11,7 @@ pub(crate) struct PendingClassicCoordinatorInvalidation {
 }
 
 impl PendingClassicCoordinatorInvalidation {
-    pub(super) const fn new(group_id: GroupId, route_token: RouteFailureToken) -> Self {
+    pub(crate) const fn new(group_id: GroupId, route_token: RouteFailureToken) -> Self {
         Self {
             group_id,
             route_token,
@@ -152,6 +152,10 @@ impl ClassicCoordinatorInvalidationInstallFailure {
         let group_id = self.pending.group_id();
         drop(self.pending);
         group_id
+    }
+
+    pub(crate) fn discard(self) {
+        drop(self);
     }
 }
 

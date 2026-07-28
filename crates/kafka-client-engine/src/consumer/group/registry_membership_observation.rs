@@ -44,6 +44,9 @@ impl GroupConsumerRegistry {
     pub(super) fn position_next_deadline(&self) -> Option<kafka_client_core::Deadline> {
         self.entries
             .iter()
+            .filter(|entry| {
+                entry.fault.is_none() || entry.state == GroupConsumerEntryState::Closing
+            })
             .filter_map(|entry| entry.position.next_deadline())
             .min()
     }
@@ -97,6 +100,9 @@ impl GroupConsumerRegistry {
     pub(super) fn membership_next_deadline(&self) -> Option<kafka_client_core::Deadline> {
         self.entries
             .iter()
+            .filter(|entry| {
+                entry.fault.is_none() || entry.state == GroupConsumerEntryState::Closing
+            })
             .filter_map(|entry| {
                 let route_blocked = entry.rediscovery.blocks_join()
                     || self
@@ -106,6 +112,7 @@ impl GroupConsumerRegistry {
                 [
                     entry.execution.next_deadline(),
                     entry.heartbeat.next_deadline(),
+                    entry.leave.next_deadline(),
                     if route_blocked {
                         None
                     } else {
@@ -127,6 +134,7 @@ impl GroupConsumerEntry {
                 .retained_owner_count()
                 .saturating_add(self.execution.unsettled())
                 .saturating_add(self.heartbeat.unsettled())
+                .saturating_add(self.leave.unsettled())
                 .saturating_add(self.rejoin.unsettled())
                 .saturating_add(self.rediscovery.unsettled());
         }
@@ -135,12 +143,14 @@ impl GroupConsumerEntry {
         {
             return 1usize
                 .saturating_add(self.heartbeat.unsettled())
+                .saturating_add(self.leave.unsettled())
                 .saturating_add(self.rejoin.unsettled())
                 .saturating_add(self.rediscovery.unsettled());
         }
         self.execution
             .unsettled()
             .saturating_add(self.heartbeat.unsettled())
+            .saturating_add(self.leave.unsettled())
             .saturating_add(self.rejoin.unsettled())
             .saturating_add(self.rediscovery.unsettled())
     }

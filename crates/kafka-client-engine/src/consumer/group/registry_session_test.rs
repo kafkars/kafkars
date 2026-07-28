@@ -6,7 +6,7 @@ use kafka_client_core::{ClassicGroupInput, Deadline, GroupId, JoinedMemberSlot, 
 
 use super::{
     classic_group_candidate::JoinedGroupMember,
-    registry_close::GroupConsumerCloseError,
+    registry_close::GroupRegistryCloseError,
     registry_session::GroupConsumerSessionFailure,
     registry_test_support::{register, started_registry, stop_registry},
 };
@@ -100,7 +100,7 @@ fn unknown_and_closing_groups_cannot_stage_membership() {
     assert_eq!(registry.close_group(group_id), Ok(()));
     assert_eq!(
         registry.close_group(group_id),
-        Err(GroupConsumerCloseError::AlreadyClosing)
+        Err(GroupRegistryCloseError::AlreadyClosing)
     );
     assert_eq!(
         registry

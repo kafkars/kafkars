@@ -69,6 +69,7 @@ mod fetch_store_domain_test;
 mod fetch_store_test;
 mod group;
 mod group_batch;
+mod group_close;
 mod group_commit;
 mod group_event;
 mod group_recv;

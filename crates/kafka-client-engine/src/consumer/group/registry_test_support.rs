@@ -128,6 +128,33 @@ pub(crate) fn fetch_unsettled(registry: &GroupConsumerRegistry) -> usize {
     registry.fetch_unsettled()
 }
 
+pub(crate) fn drive_group_close_for_public_test(registry: &mut GroupConsumerRegistry) -> bool {
+    let mut progressed = false;
+    for _turn in 0..16 {
+        match registry
+            .turn_graceful_revocation(Moment::from_tick(u64::MAX))
+            .unwrap_or_else(|error| panic!("revocation close turn: {error:?}"))
+        {
+            super::classic_group_graceful_revocation::ClassicGroupRevocationTurn::Progress => {
+                progressed = true;
+                continue;
+            }
+            super::classic_group_graceful_revocation::ClassicGroupRevocationTurn::Idle => {}
+        }
+        match registry
+            .turn_local_membership(Moment::from_tick(u64::MAX))
+            .unwrap_or_else(|error| panic!("membership close turn: {error:?}"))
+        {
+            GroupConsumerMembershipTurn::Progress => progressed = true,
+            GroupConsumerMembershipTurn::Idle | GroupConsumerMembershipTurn::Blocked => break,
+        }
+    }
+    registry
+        .remove_one_closed_group()
+        .unwrap_or_else(|error| panic!("close removal: {error:?}"))
+        || progressed
+}
+
 pub(super) fn checkpoint(registry: &GroupConsumerRegistry, group_id: GroupId) -> GroupCheckpoint {
     let entry = registry
         .entry(group_id)

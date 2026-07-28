@@ -24,6 +24,7 @@ pub(crate) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
             "classic_group_rejoin_due.rs",
             "classic_group_sync_settlement.rs",
             "classic_group_sync_submission.rs",
+            "classic_group_leave/turn.rs",
             "registry_event.rs",
             "registry_graceful_revocation.rs",
             "registry_close.rs",
@@ -31,7 +32,7 @@ pub(crate) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
             "registry_delivery.rs",
             "registry_fetch.rs",
             "registry_fetch_recovery.rs",
-            "registry_membership.rs",
+            "registry_membership/local.rs",
             "registry_processing.rs",
             "registry_session.rs",
             "registry_unregister.rs",
@@ -46,6 +47,7 @@ pub(crate) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
         &[
             "registry.rs",
             "registry_registration.rs",
+            "registry_close.rs",
             "registry_fetch_recovery.rs",
             "registry_unregister.rs",
         ],
@@ -106,6 +108,7 @@ pub(crate) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
             "classic_group_rediscovery_execution.rs",
             "classic_group_rediscovery_recovery.rs",
             "classic_group_sync_settlement.rs",
+            "classic_group_leave/turn.rs",
         ],
     ),
     (

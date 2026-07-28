@@ -6,11 +6,12 @@ use kafka_client_core::{AdminListOffsetSpec, AdminListOffsetTarget, ReadIsolatio
 use kafka_driver::{ApiVersion, CompletionError};
 use kafka_wire::ListOffsetsResponse;
 
-use crate::{EngineConfig, driver::DriverOwner};
-
-use super::{
-    AdminListOffsetsCall, admin_list_offsets_terminal::retain_admin_list_offsets_terminal,
+use crate::{
+    EngineConfig,
+    driver::{AdminListOffsetsCall, DriverOwner},
 };
+
+use super::admin_list_offsets_terminal::retain_admin_list_offsets_terminal;
 
 #[test]
 fn completion_fault_retains_the_accepted_call_for_recovery() {

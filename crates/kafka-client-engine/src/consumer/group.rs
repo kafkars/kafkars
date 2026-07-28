@@ -30,6 +30,7 @@ mod classic_group_join_call;
 mod classic_group_join_execution;
 mod classic_group_join_interpret;
 mod classic_group_join_settlement;
+mod classic_group_leave;
 mod classic_group_owner;
 mod classic_group_owner_follower;
 mod classic_group_owner_leader;
@@ -60,6 +61,7 @@ mod classic_group_topics;
 mod offset_commit;
 mod registry;
 mod registry_close;
+mod registry_close_port;
 mod registry_commit;
 mod registry_commit_port;
 mod registry_cycle;
@@ -215,6 +217,10 @@ mod classic_group_test_support;
 #[cfg(test)]
 mod classic_group_topics_test;
 #[cfg(test)]
+mod registry_close_port_test;
+#[cfg(test)]
+mod registry_close_removal_test;
+#[cfg(test)]
 mod registry_close_test;
 #[cfg(test)]
 mod registry_commit_port_test;
@@ -262,7 +268,16 @@ pub(in crate::consumer) use classic_group_fetch::{
     ClassicGroupFetchDelivery, ClassicGroupFetchDeliveryError,
 };
 pub(in crate::consumer) use classic_group_graceful_revocation::ClassicGroupRevocationAcknowledgeError;
+pub(in crate::consumer) use classic_group_leave::{
+    GroupConsumerCloseCompletion, GroupConsumerCloseCompletionObservation,
+    GroupConsumerCloseTerminal, GroupConsumerCloseTerminalFailure,
+    GroupConsumerCloseTerminalFailureKind,
+};
 pub(crate) use registry::GroupConsumerRegistry;
+pub(in crate::consumer) use registry_close::GroupRegistryCloseError;
+pub(in crate::consumer) use registry_close_port::{
+    GroupConsumerCloseObservation, GroupConsumerCloseObservationError, GroupConsumerClosePortError,
+};
 pub(in crate::consumer) use registry_commit_port::GroupConsumerCommitPortErrorCategory;
 pub(in crate::consumer) use registry_delivery::{
     GroupConsumerDeliveryError, GroupConsumerDeliveryPortError,
@@ -279,7 +294,7 @@ pub(crate) use registry_shard::{GroupConsumerShardLockError, GroupConsumerShardO
 pub(in crate::consumer) use registry_state::GroupConsumerStatePortError;
 #[cfg(test)]
 pub(crate) use registry_test_support::{
-    fetch_unsettled as group_fetch_unsettled_for_public_test,
+    drive_group_close_for_public_test, fetch_unsettled as group_fetch_unsettled_for_public_test,
     install_ready_group_delivery as install_ready_group_delivery_for_public_test,
     install_session as install_group_session_for_public_test,
     started_registry as started_group_registry_for_public_test,

@@ -29,7 +29,7 @@ impl GroupConsumerRegistry {
         driver: &DriverOwner,
     ) -> Result<GroupConsumerFetchTurn, GroupConsumerFetchError> {
         for entry in &mut self.entries {
-            if entry.fault.is_some() {
+            if !entry.is_active() || entry.fault.is_some() {
                 continue;
             }
             match transfer_completed_position(

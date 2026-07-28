@@ -11,6 +11,11 @@ pub(crate) use super::alter_partition_reassignments_terminal::{
     AlterPartitionReassignmentsTerminalFact, RecoveredAlterPartitionReassignmentsCall,
 };
 pub(crate) use super::calls::{ProduceCompletionFailure, TrackedProduceCalls};
+pub(crate) use super::classic_group_leave_adapter::{
+    ClassicGroupLeaveCall, ClassicGroupLeaveCompletionError, ClassicGroupLeaveResolution,
+    ClassicGroupLeaveRoute,
+};
+pub(crate) use super::classic_group_leave_failure::ClassicGroupLeaveDriverFailureKind;
 pub(crate) use super::create_partitions_calls::{
     CreatePartitionsCompletionFailure, TrackedCreatePartitionsCalls,
 };

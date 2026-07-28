@@ -5,6 +5,8 @@ pub(crate) mod group_consumer;
 #[path = "group_consumer_batch.rs"]
 pub(crate) mod group_consumer_batch;
 pub(crate) mod group_consumer_checkpoint;
+pub(crate) mod group_consumer_close;
+pub(crate) mod group_consumer_close_admission;
 pub(crate) mod group_consumer_commit;
 pub(crate) mod group_consumer_commit_admission;
 #[path = "group_consumer_event.rs"]
@@ -23,6 +25,10 @@ pub(crate) mod group_consumer_registration_result;
 
 #[cfg(test)]
 mod group_consumer_checkpoint_test;
+#[cfg(test)]
+mod group_consumer_close_admission_test;
+#[cfg(test)]
+mod group_consumer_close_test;
 #[cfg(test)]
 mod group_consumer_commit_admission_test;
 #[cfg(test)]

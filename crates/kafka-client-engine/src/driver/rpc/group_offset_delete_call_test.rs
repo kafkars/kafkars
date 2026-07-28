@@ -5,10 +5,10 @@ use std::time::{Duration, Instant};
 use kafka_driver::CompletionError;
 
 use crate::{
-    EngineConfig, driver::DriverOwner, protocol::admin::group_offset_delete::OffsetDeleteTargetRef,
+    EngineConfig,
+    driver::{DriverOwner, GroupOffsetDeleteCall},
+    protocol::admin::group_offset_delete::OffsetDeleteTargetRef,
 };
-
-use super::GroupOffsetDeleteCall;
 
 #[test]
 fn completion_fault_is_yielded_once_and_not_recovered_as_active() {

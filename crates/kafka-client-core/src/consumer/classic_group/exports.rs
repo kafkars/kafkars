@@ -18,7 +18,14 @@ pub use super::{
         ClassicGroupPhase, ClassicJoinMember, ClassicJoinMembers, ClassicJoinMembersError,
         ClassicProtocol, ClassicSubscription, ClassicSubscriptionError, TopicPartitionCount,
     },
-    processing_lease::*,
+    processing_lease::{
+        ClassicProcessingLease, ClassicProcessingLeaseEffect, ClassicProcessingLeaseError,
+        ClassicProcessingLeaseExpiration, ClassicProcessingLeaseExpirationReason,
+        ClassicProcessingLeaseFence, ClassicProcessingLeaseInput, ClassicProcessingLeasePolicy,
+        ClassicProcessingLeasePolicyError, ClassicProcessingLeaseSchedule,
+        ClassicProcessingLeaseTransition, PreparedClassicProcessingLeaseActivation,
+        PreparedClassicProcessingLeaseRevocation,
+    },
     recovery::{
         ClassicBrokerError, ClassicBrokerStage, ClassicCoordinatorRecovery, ClassicGroupFatal,
         ClassicGroupFatalReason, ClassicRejoinPolicy, ClassicRejoinPolicyError,

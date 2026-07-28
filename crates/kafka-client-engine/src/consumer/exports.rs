@@ -40,6 +40,10 @@ pub use super::group_batch::{
     GroupConsumerBatch, GroupConsumerCheckpoint, GroupConsumerHeader, GroupConsumerRecord,
     GroupConsumerRecords, GroupConsumerTryTakeBatchError, GroupConsumerTryTakeBatchErrorKind,
 };
+pub use super::group_close::{
+    GroupConsumerClose, GroupConsumerCloseAdmissionError, GroupConsumerCloseAdmissionErrorKind,
+    GroupConsumerCloseError, GroupConsumerCloseErrorKind,
+};
 pub use super::group_commit::{
     GroupConsumerCommitAccepted, GroupConsumerCommitAdmissionError,
     GroupConsumerCommitAdmissionErrorKind, GroupConsumerCommitBatch,

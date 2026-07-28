@@ -83,6 +83,10 @@ impl GroupConsumerRegistry {
             .iter_mut()
             .find(|entry| entry.group_id() == group_id)
             .ok_or(ClassicGroupExecutionError::CallIdentityMismatch)?;
+        if entry.leave.owns_coordinator_invalidation() {
+            let _completed = entry.leave.complete_coordinator_invalidation(result);
+            return Ok(());
+        }
         match result {
             Ok(
                 ClassicCoordinatorInvalidationPermission::Applied

@@ -7,7 +7,6 @@
 //! configuration alteration, and transactional-owner initialization with
 //! explicit begin, record send, commit, and abort form the implemented slices.
 //! Later API domains remain design probes.
-
 #![forbid(unsafe_code)]
 
 mod admin;
@@ -46,12 +45,13 @@ pub use consumer::{
     AssignedConsumerFetchFailureKind, AssignedConsumerFetchFence,
     AssignedConsumerFetchThrottleFailureKind, AssignedConsumerPositionFence,
     AssignedConsumerPositionResolutionFailureKind, Checkpoint, CloseAssignedConsumer,
-    CommitConsumerCheckpoint, Consumer, ConsumerAssignment, ConsumerAssignmentPartition,
-    ConsumerBatch, ConsumerBuildError, ConsumerBuilder, ConsumerCommitAdmissionError,
-    ConsumerCommitError, ConsumerEvent, ConsumerHeader, ConsumerRecord, ConsumerRecords,
-    ConsumerRevocation, GroupConsumerHeader, GroupConsumerRecord, GroupConsumerRecords,
-    GroupMetadata, NextAssignedEvent, NextConsumerEvent, OffsetReset, ReadIsolation, RecordBatch,
-    RecvAssignedBatch, RecvConsumerBatch, StartPosition, TopicPartition,
+    CloseConsumer, CommitConsumerCheckpoint, Consumer, ConsumerAssignment,
+    ConsumerAssignmentPartition, ConsumerBatch, ConsumerBuildError, ConsumerBuilder,
+    ConsumerCloseAdmissionError, ConsumerCommitAdmissionError, ConsumerCommitError, ConsumerEvent,
+    ConsumerHeader, ConsumerRecord, ConsumerRecords, ConsumerRevocation, GroupConsumerHeader,
+    GroupConsumerRecord, GroupConsumerRecords, GroupMetadata, NextAssignedEvent, NextConsumerEvent,
+    OffsetReset, ReadIsolation, RecordBatch, RecvAssignedBatch, RecvConsumerBatch, StartPosition,
+    TopicPartition,
 };
 pub use error::{DeliveryStatus, ErrorKind, KafkaError};
 pub use producer::{

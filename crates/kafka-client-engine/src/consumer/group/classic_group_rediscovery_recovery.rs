@@ -37,6 +37,9 @@ impl GroupConsumerRegistry {
         self.coordinator_invalidation_shutdown_recovery = None;
 
         for entry in &mut self.entries {
+            entry
+                .leave
+                .clear_coordinator_invalidation_after_driver_shutdown();
             let Some(fault) = entry.fault.take() else {
                 entry.rediscovery.clear_rediscovery_after_driver_shutdown();
                 continue;

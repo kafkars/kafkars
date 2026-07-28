@@ -72,12 +72,16 @@ impl GroupConsumerRegistry {
         let fetch = self
             .turn_fetch(clock, driver)
             .map_err(GroupConsumerHostError::fetch)?;
+        let close = self
+            .remove_one_closed_group()
+            .map_err(GroupConsumerHostError::close)?;
         Ok(GroupConsumerRegistryTurn {
             progressed: membership == GroupConsumerMembershipTurn::Progress
                 || position == GroupConsumerPositionTurn::Progress
                 || fetch == GroupConsumerFetchTurn::Progress
                 || processing == GroupConsumerProcessingTurn::Progress
-                || offset_commit == GroupOffsetCommitTurn::Progress,
+                || offset_commit == GroupOffsetCommitTurn::Progress
+                || close,
             blocked_work: membership == GroupConsumerMembershipTurn::Blocked
                 || position == GroupConsumerPositionTurn::Blocked
                 || fetch == GroupConsumerFetchTurn::Blocked,

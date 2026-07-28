@@ -1,33 +1,85 @@
 //! Per-group close fences and whole-registry shutdown ownership.
 
-use kafka_client_core::{GroupId, Moment};
+use std::sync::Arc;
 
-use crate::completion::NotifierJoin;
+use kafka_client_core::{ClassicGroupPhase, GroupId, Moment};
+
+use crate::{clock::OperationDeadline, completion::NotifierJoin};
 
 use super::{
-    registry::GroupConsumerRegistry, registry_entry::GroupConsumerEntryState,
-    registry_host_error::GroupConsumerHostError, registry_membership::GroupConsumerMembershipTurn,
+    classic_group_leave::GroupConsumerCloseCompletion, registry::GroupConsumerRegistry,
+    registry_entry::GroupConsumerEntryState, registry_host_error::GroupConsumerHostError,
+    registry_membership::GroupConsumerMembershipTurn,
 };
 
 /// A requested group close could not move an active entry to closing.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum GroupConsumerCloseError {
+pub(in crate::consumer) enum GroupRegistryCloseError {
     UnknownGroup,
     AlreadyClosing,
+    EntryFault,
+}
+
+/// Exact invariant preventing physical release of a drained group entry.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum GroupConsumerRemovalError {
+    RetainedBytesInvariant,
+    TerminalInvariant,
 }
 
 impl GroupConsumerRegistry {
-    pub(super) fn close_group(&mut self, group_id: GroupId) -> Result<(), GroupConsumerCloseError> {
+    pub(super) fn close_group(&mut self, group_id: GroupId) -> Result<(), GroupRegistryCloseError> {
         let entry = self
             .entries
             .iter_mut()
             .find(|entry| entry.group_id() == group_id)
-            .ok_or(GroupConsumerCloseError::UnknownGroup)?;
+            .ok_or(GroupRegistryCloseError::UnknownGroup)?;
         if !entry.is_active() {
-            return Err(GroupConsumerCloseError::AlreadyClosing);
+            return Err(GroupRegistryCloseError::AlreadyClosing);
         }
         mark_closing(entry);
         Ok(())
+    }
+
+    pub(super) fn close_group_explicit(
+        &mut self,
+        group_id: GroupId,
+        deadline: OperationDeadline,
+        completion: Arc<GroupConsumerCloseCompletion>,
+    ) -> Result<(), GroupRegistryCloseError> {
+        let entry = self
+            .entries
+            .iter_mut()
+            .find(|entry| entry.group_id() == group_id)
+            .ok_or(GroupRegistryCloseError::UnknownGroup)?;
+        if entry.state != GroupConsumerEntryState::Active {
+            return Err(GroupRegistryCloseError::AlreadyClosing);
+        }
+        if entry.leave.begin(deadline, completion).is_err() {
+            return Err(GroupRegistryCloseError::EntryFault);
+        }
+        mark_closing(entry);
+        Ok(())
+    }
+
+    /// Physically releases at most one fully drained explicit-close entry.
+    pub(super) fn remove_one_closed_group(&mut self) -> Result<bool, GroupConsumerRemovalError> {
+        let Some(index) = self.entries.iter().position(group_close_is_drained) else {
+            return Ok(false);
+        };
+        let bytes = self.entries[index].group_bytes();
+        let retained_group_bytes = self
+            .retained_group_bytes
+            .checked_sub(bytes)
+            .ok_or(GroupConsumerRemovalError::RetainedBytesInvariant)?;
+        let mut removed = self.entries.remove(index);
+        debug_assert_eq!(removed.group_bytes(), bytes);
+        if !removed.leave.publish_terminal() {
+            self.entries.insert(index, removed);
+            return Err(GroupConsumerRemovalError::TerminalInvariant);
+        }
+        self.retained_group_bytes = retained_group_bytes;
+        Ok(true)
     }
 
     pub(crate) fn close_admission(&mut self) {
@@ -41,6 +93,7 @@ impl GroupConsumerRegistry {
 
     pub(crate) fn recover_after_driver_shutdown(&mut self) -> Result<(), GroupConsumerHostError> {
         self.close_admission();
+        self.recover_classic_group_leaves_after_driver_shutdown();
         let membership = match self.recover_classic_calls_after_driver_shutdown() {
             Ok(()) => self.recover_local_membership().err(),
             Err(error) => Some(error),
@@ -60,6 +113,10 @@ impl GroupConsumerRegistry {
     }
 
     pub(crate) fn finish_shutdown(&mut self) -> Result<NotifierJoin, GroupConsumerHostError> {
+        while self
+            .remove_one_closed_group()
+            .map_err(GroupConsumerHostError::close)?
+        {}
         let membership = self
             .membership_unsettled()
             .saturating_add(self.position_unsettled());
@@ -125,4 +182,21 @@ impl GroupConsumerRegistry {
 fn mark_closing(entry: &mut super::registry_entry::GroupConsumerEntry) {
     entry.state = GroupConsumerEntryState::Closing;
     let _lost = entry.revocation.lose_owner();
+}
+
+fn group_close_is_drained(entry: &super::registry_entry::GroupConsumerEntry) -> bool {
+    entry.state == GroupConsumerEntryState::Closing
+        && entry.classic.machine().phase() == ClassicGroupPhase::Closed
+        && entry.classic.pending().is_none()
+        && entry.catalog.live_assignment().is_none()
+        && entry.execution.is_idle()
+        && entry.heartbeat.is_dormant()
+        && entry.position.is_dormant()
+        && entry.processing_lease.active_schedule().is_none()
+        && entry.processing_lease.pending_expiration().is_none()
+        && entry.rejoin.is_dormant()
+        && !entry.rediscovery.blocks_join()
+        && entry.fetch.is_idle()
+        && entry.leave.allows_local_close()
+        && entry.revocation.is_dormant()
 }

@@ -5,9 +5,11 @@ use std::time::{Duration, Instant};
 use kafka_client_core::{Deadline, ListPartitionReassignmentsPlan, Moment};
 use kafka_driver::CompletionError;
 
-use crate::{EngineConfig, clock::OperationDeadline, driver::DriverOwner};
-
-use super::ListPartitionReassignmentsCall;
+use crate::{
+    EngineConfig,
+    clock::OperationDeadline,
+    driver::{DriverOwner, ListPartitionReassignmentsCall},
+};
 
 #[test]
 fn completion_fault_remains_recoverable_after_driver_shutdown() {

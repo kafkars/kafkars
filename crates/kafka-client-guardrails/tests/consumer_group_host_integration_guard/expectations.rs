@@ -26,6 +26,8 @@ pub(super) const EXECUTION_SYNC: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync.rs";
 pub(super) const EXECUTION_SYNC_TERMINAL: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync_terminal.rs";
+pub(super) const LEAVE_TURN: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_leave/turn.rs";
 pub(super) const REDISCOVERY_TRANSFER: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_transfer.rs";
 pub(super) const JOIN_EXECUTION: &str =
@@ -186,6 +188,7 @@ pub(super) const METHODS: &[(&str, &[&str])] = &[
             EXECUTION_RECOVERY,
             EXECUTION_SYNC,
             EXECUTION_SYNC_TERMINAL,
+            LEAVE_TURN,
             PARTITION_COUNT_RECOVERY,
             PARTITION_COUNT_SETTLEMENT,
         ],

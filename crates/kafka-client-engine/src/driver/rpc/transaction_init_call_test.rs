@@ -1,6 +1,6 @@
 //! Transaction initialization call ownership shape.
 
-use super::TransactionInitCall;
+use crate::driver::TransactionInitCall;
 
 #[test]
 fn call_owner_is_linear_at_the_adapter_boundary() {

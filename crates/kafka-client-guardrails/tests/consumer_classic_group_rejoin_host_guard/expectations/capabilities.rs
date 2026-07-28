@@ -15,6 +15,8 @@ const REDISCOVERY_RECOVERY: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_recovery.rs";
 const REDISCOVERY_TRANSFER: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_transfer.rs";
+const LEAVE_TURN: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_leave/turn.rs";
 const HEARTBEAT_REJECTION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_rejection.rs";
 const HEARTBEAT_REJECTION_INSTALL: &str =
@@ -26,6 +28,8 @@ const JOIN_INTERPRET: &str =
 const SYNC_REJECTION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_sync_rejection.rs";
 const MEMBERSHIP: &str = "crates/kafka-client-engine/src/consumer/group/registry_membership.rs";
+const MEMBERSHIP_LOCAL: &str =
+    "crates/kafka-client-engine/src/consumer/group/registry_membership/local.rs";
 const MEMBERSHIP_OBSERVATION: &str =
     "crates/kafka-client-engine/src/consumer/group/registry_membership_observation.rs";
 
@@ -35,13 +39,16 @@ pub(crate) const METHODS: &[(&str, &[&str])] = &[
         "prepare_rejoin_install",
         &[REJECTION_INSTALL, HEARTBEAT_REJECTION_INSTALL],
     ),
-    ("clear_rejoin_exact", &[DUE, MEMBERSHIP]),
+    ("clear_rejoin_exact", &[DUE, MEMBERSHIP_LOCAL]),
     ("stage_rejoin_join", &[DUE]),
     (
         "prepare_rediscovery_install",
         &[REJECTION_INSTALL, HEARTBEAT_REJECTION_INSTALL],
     ),
-    ("confirm_rediscovery_transfer", &[REDISCOVERY_TRANSFER]),
+    (
+        "confirm_rediscovery_transfer",
+        &[REDISCOVERY_TRANSFER, LEAVE_TURN],
+    ),
     ("permit_rejoin", &[REDISCOVERY_EXECUTION]),
     (
         "clear_rediscovery_after_driver_shutdown",

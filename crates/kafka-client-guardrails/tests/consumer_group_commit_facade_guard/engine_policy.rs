@@ -12,8 +12,8 @@ const INVALIDATE_REASON: &str = "A correlated coordinator rejection consumes its
 fn engine_channel_invalidation_and_facade_baselines_are_exact() {
     let config = load_config(&workspace_root());
     for (path, lines) in [
-        ("crates/kafka-client-engine/src/consumer/group.rs", 287),
-        ("crates/kafka-client-engine/src/consumer/mod.rs", 89),
+        ("crates/kafka-client-engine/src/consumer/group.rs", 302),
+        ("crates/kafka-client-engine/src/consumer/mod.rs", 90),
     ] {
         let baselines = config
             .budgets

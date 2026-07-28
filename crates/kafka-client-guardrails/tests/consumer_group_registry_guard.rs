@@ -13,8 +13,9 @@ use support::{
 };
 
 use expectations::{
-    ENTRY_DECLARED_FIELDS, ENTRY_FIELDS, ENTRY_PATH, FORBIDDEN, HOST_START_METHOD, MIRRORS,
-    REGISTRY_DECLARED_FIELDS, REGISTRY_FIELDS, REGISTRY_HOST_FORBIDDEN, REGISTRY_PATH, ROOT,
+    CLOSE_PORT_FORBIDDEN, ENTRY_DECLARED_FIELDS, ENTRY_FIELDS, ENTRY_PATH, FORBIDDEN,
+    HOST_START_METHOD, MIRRORS, REGISTRY_DECLARED_FIELDS, REGISTRY_FIELDS, REGISTRY_HOST_FORBIDDEN,
+    REGISTRY_PATH, ROOT,
 };
 
 #[test]
@@ -48,6 +49,7 @@ fn checked_in_registry_capabilities_and_mirrors_are_exact() {
         "registry_entry.rs",
         "registry_commit.rs",
         "registry_close.rs",
+        "registry_close_port.rs",
         "registry_host.rs",
         "registry_session.rs",
     ] {
@@ -58,10 +60,10 @@ fn checked_in_registry_capabilities_and_mirrors_are_exact() {
             .filter(|rule| rule.root == path)
             .collect::<Vec<_>>();
         assert_eq!(rules.len(), 1, "{path} needs one capability rule");
-        let mut expected = if file == "registry_host.rs" {
-            REGISTRY_HOST_FORBIDDEN.to_vec()
-        } else {
-            FORBIDDEN.to_vec()
+        let mut expected = match file {
+            "registry_close_port.rs" => CLOSE_PORT_FORBIDDEN.to_vec(),
+            "registry_host.rs" => REGISTRY_HOST_FORBIDDEN.to_vec(),
+            _ => FORBIDDEN.to_vec(),
         };
         if file == "registry_entry.rs" {
             expected.push("GroupOffsetCommitHost");
@@ -74,13 +76,14 @@ fn checked_in_registry_capabilities_and_mirrors_are_exact() {
                 .collect::<Vec<_>>(),
             expected
         );
-        if file == "registry.rs" {
-            assert_eq!(rules[0].allow.len(), 1);
-            assert_eq!(rules[0].allow[0].path, REGISTRY_PATH);
-            assert_eq!(rules[0].allow[0].capability, "crate::driver");
-            assert!(!rules[0].allow[0].reason.trim().is_empty());
-        } else {
-            assert!(rules[0].allow.is_empty());
+        match file {
+            "registry.rs" => {
+                assert_exact_allow(&rules[0].allow, REGISTRY_PATH, "crate::driver");
+            }
+            "registry_close.rs" => {
+                assert_exact_allow(&rules[0].allow, &path, "remove");
+            }
+            _ => assert!(rules[0].allow.is_empty()),
         }
     }
     for (production, test) in MIRRORS {
@@ -104,6 +107,13 @@ fn checked_in_registry_capabilities_and_mirrors_are_exact() {
         "crates/kafka-client-engine/src/consumer/group"
     );
     assert_eq!(constructors[0].allowed_paths, [REGISTRY_PATH]);
+}
+
+fn assert_exact_allow(rules: &[support::CapabilityAllow], path: &str, capability: &str) {
+    assert_eq!(rules.len(), 1, "{path} needs one capability allowance");
+    assert_eq!(rules[0].path, path);
+    assert_eq!(rules[0].capability, capability);
+    assert!(!rules[0].reason.trim().is_empty());
 }
 
 #[test]

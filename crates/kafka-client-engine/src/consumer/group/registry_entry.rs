@@ -13,6 +13,7 @@ use super::{
     classic_group_fetch::{ClassicGroupFetchBuildError, ClassicGroupFetchOwner},
     classic_group_graceful_revocation::ClassicGroupRevocationOwner,
     classic_group_heartbeat::ClassicHeartbeatExecution,
+    classic_group_leave::ClassicGroupLeaveOwner,
     classic_group_owner::ClassicGroupOwner,
     classic_group_position::ClassicGroupPositionExecution,
     classic_group_rediscovery::ClassicCoordinatorRediscovery,
@@ -42,6 +43,7 @@ pub(super) struct GroupConsumerEntry {
     pub(super) execution: ClassicGroupExecution,
     pub(super) fetch: ClassicGroupFetchOwner,
     pub(super) heartbeat: ClassicHeartbeatExecution,
+    pub(super) leave: ClassicGroupLeaveOwner,
     pub(super) position: ClassicGroupPositionExecution,
     pub(super) processing_lease: ClassicProcessingLease,
     pub(super) rejoin: ClassicGroupRejoinExecution,
@@ -119,6 +121,7 @@ impl GroupConsumerEntry {
             fetch: ClassicGroupFetchOwner::try_new()
                 .map_err(GroupConsumerEntryBuildError::Fetch)?,
             heartbeat: ClassicHeartbeatExecution::new(),
+            leave: ClassicGroupLeaveOwner::new(),
             position: ClassicGroupPositionExecution::new(),
             processing_lease: ClassicProcessingLease::new(processing_policy),
             rejoin: ClassicGroupRejoinExecution::new(),
