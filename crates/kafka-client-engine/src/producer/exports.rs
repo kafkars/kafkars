@@ -1,5 +1,6 @@
 //! Curated producer execution exports.
 
+pub(crate) use super::boundary::TransactionRecordViewError;
 pub use super::boundary::{
     ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerBatchSendCapture,
     ProducerCancelAccepted, ProducerCancelError, ProducerCancelErrorKind, ProducerCancelFault,

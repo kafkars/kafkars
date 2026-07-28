@@ -17,26 +17,42 @@ fn local_driver_failures_remain_definitely_not_sent() {
 }
 
 #[test]
-fn version_floor_and_bounds_failures_are_definitely_unsent_and_permanent() {
+fn negotiated_version_failures_are_definitely_unsent_and_compatible() {
     let api_key = ApiKey::new(3);
     for error in [
+        RequestError::ApiUnavailable { api_key },
+        RequestError::VersionLimitUnavailable {
+            api_key,
+            maximum: ApiVersion::new(3),
+            negotiated_minimum: ApiVersion::new(4),
+        },
         RequestError::VersionFloorUnavailable {
             api_key,
             minimum: ApiVersion::new(4),
             negotiated_maximum: ApiVersion::new(3),
         },
-        RequestError::VersionBoundsInvalid {
-            api_key,
-            minimum: ApiVersion::new(4),
-            maximum: ApiVersion::new(3),
-        },
     ] {
         assert_eq!(request_failure_delivery(&error), DeliveryStatus::NotSent);
         assert_eq!(
             request_failure_kind(&error),
-            ProducerAttemptFailureKind::Permanent
+            ProducerAttemptFailureKind::Compatibility
         );
     }
+}
+
+#[test]
+fn invalid_caller_version_bounds_remain_an_internal_permanent_failure() {
+    let error = RequestError::VersionBoundsInvalid {
+        api_key: ApiKey::new(0),
+        minimum: ApiVersion::new(13),
+        maximum: ApiVersion::new(12),
+    };
+
+    assert_eq!(request_failure_delivery(&error), DeliveryStatus::NotSent);
+    assert_eq!(
+        request_failure_kind(&error),
+        ProducerAttemptFailureKind::Permanent
+    );
 }
 
 #[test]

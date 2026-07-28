@@ -13,8 +13,8 @@ use super::super::record::{
 /// One ordered Kafka header with a non-null name and nullable bytes.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ProducerHeader {
-    name: String,
-    value: Option<Bytes>,
+    pub(super) name: String,
+    pub(super) value: Option<Bytes>,
 }
 
 impl ProducerHeader {
@@ -48,12 +48,12 @@ impl ProducerHeader {
 /// One engine-owned bytes-native record before producer admission.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ProducerRecord {
-    topic: Arc<str>,
-    partition: Option<i32>,
-    timestamp_ms: Option<i64>,
-    key: Option<Bytes>,
-    value: Option<Bytes>,
-    headers: Vec<ProducerHeader>,
+    pub(super) topic: Arc<str>,
+    pub(super) partition: Option<i32>,
+    pub(super) timestamp_ms: Option<i64>,
+    pub(super) key: Option<Bytes>,
+    pub(super) value: Option<Bytes>,
+    pub(super) headers: Vec<ProducerHeader>,
 }
 
 impl ProducerRecord {

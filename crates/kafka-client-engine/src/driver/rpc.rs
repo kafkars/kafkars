@@ -195,6 +195,7 @@ mod transaction_init_submission_test;
 mod transaction_init_terminal;
 #[cfg(test)]
 mod transaction_init_terminal_test;
+pub(crate) mod transaction_produce;
 #[cfg(test)]
 pub(crate) use exports::GroupPositionOffsetFetchTestPartition;
 pub(crate) use exports::{

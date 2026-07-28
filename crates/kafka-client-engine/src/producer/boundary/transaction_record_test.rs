@@ -1,0 +1,89 @@
+//! Transactional public-record validation and shared-view scenarios.
+
+#![expect(
+    clippy::expect_used,
+    reason = "test assertions intentionally fail immediately when fixture construction is invalid"
+)]
+
+use bytes::Bytes;
+use kafka_client_core::PartitionIndex;
+
+use super::{
+    PublicProducerHeader as ProducerHeader, PublicProducerRecord as ProducerRecord,
+    TransactionRecordViewError,
+};
+
+#[test]
+fn transactional_view_preserves_one_explicit_route_and_materialization_view() {
+    let value = Bytes::from_static(b"value");
+    let view = ProducerRecord::to("orders")
+        .partition(3)
+        .timestamp_milliseconds(71)
+        .key(Bytes::from_static(b"key"))
+        .value(value.clone())
+        .header(ProducerHeader::new("trace", Bytes::from_static(b"abc")))
+        .header(ProducerHeader::null("nullable"))
+        .transaction_view(99)
+        .expect("valid transactional record");
+    let (topic, partition, materialization, retained_bytes) = view.into_parts();
+    let (timestamp, key, actual_value, headers) = materialization.into_parts();
+
+    assert_eq!(&*topic, "orders");
+    assert_eq!(partition.map(PartitionIndex::get), Some(3));
+    assert_eq!(timestamp, 71);
+    assert_eq!(key, Some(Bytes::from_static(b"key")));
+    assert_eq!(actual_value, Some(value));
+    assert!(retained_bytes >= "orders".len() + 3 + 5 + 5 + 3 + 8);
+    let mut headers = headers.into_iter();
+    assert_eq!(
+        headers
+            .next()
+            .map(super::super::materialization::MaterializationHeader::into_parts),
+        Some((
+            Bytes::from_static(b"trace"),
+            Some(Bytes::from_static(b"abc"))
+        ))
+    );
+    assert_eq!(
+        headers
+            .next()
+            .map(super::super::materialization::MaterializationHeader::into_parts),
+        Some((Bytes::from_static(b"nullable"), None))
+    );
+    assert!(headers.next().is_none());
+}
+
+#[test]
+fn transactional_view_uses_the_boundary_default_timestamp() {
+    let view = ProducerRecord::to("orders")
+        .partition(0)
+        .transaction_view(1234)
+        .expect("valid transactional record");
+    let (_, partition, materialization, _) = view.into_parts();
+
+    assert_eq!(partition, Some(PartitionIndex::from_raw(0)));
+    assert_eq!(materialization.timestamp_ms_for_protocol(), 1234);
+}
+
+#[test]
+fn transactional_view_accepts_automatic_and_rejects_invalid_routes() {
+    assert_eq!(
+        ProducerRecord::to("")
+            .partition(0)
+            .transaction_view(1)
+            .expect_err("empty topic"),
+        TransactionRecordViewError::EmptyTopic
+    );
+    let (_, partition, _, _) = ProducerRecord::to("orders")
+        .transaction_view(1)
+        .expect("automatic partitioning remains unresolved")
+        .into_parts();
+    assert_eq!(partition, None);
+    assert_eq!(
+        ProducerRecord::to("orders")
+            .partition(-1)
+            .transaction_view(1)
+            .expect_err("negative explicit partition"),
+        TransactionRecordViewError::NegativeExplicitPartition
+    );
+}

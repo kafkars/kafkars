@@ -95,12 +95,24 @@ impl ProducerSendCapture {
         })
     }
 
+    pub(crate) fn capture_transaction(
+        clock: &MonotonicClock,
+        timeout: Duration,
+    ) -> Result<Self, ProducerSendCaptureError> {
+        if timeout.is_zero() {
+            return Err(ProducerSendCaptureError::new(
+                ProducerSendCaptureErrorKind::DeadlineUnrepresentable,
+            ));
+        }
+        Self::capture(clock, ProducerSendOptions::new(timeout))
+    }
+
     /// Returns the original absolute monotonic deadline reserved for driver handoff.
     pub const fn absolute_deadline(&self) -> Instant {
         self.deadline.operation_deadline().transport()
     }
 
-    pub(super) const fn into_parts(self) -> (DeadlineCapture, i64) {
+    pub(crate) const fn into_parts(self) -> (DeadlineCapture, i64) {
         (self.deadline, self.default_timestamp_ms)
     }
 }

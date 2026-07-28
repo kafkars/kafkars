@@ -54,6 +54,7 @@ pub(crate) use rpc::{
     TrackedPositionCalls, TrackedProduceCalls, TrackedProducerIdentityCalls, TransactionInitCall,
     TransactionInitDriverFailureKind, TransactionInitTerminal, TransactionInitTerminalFact,
     classic_group, classify_fetch_admission, classify_fetch_request_error, transaction_control,
+    transaction_produce,
 };
 #[expect(
     unused_imports,

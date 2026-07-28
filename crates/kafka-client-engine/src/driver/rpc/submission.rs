@@ -11,7 +11,8 @@ use kafka_wire::{ProduceRequest, ProduceResponse};
 
 use super::super::DriverOwner;
 
-const PRODUCE_NAME_ROUTE_MAX_VERSION: ApiVersion = ApiVersion::new(12);
+const PRODUCE_MIN_VERSION: ApiVersion = ApiVersion::new(3);
+const PRODUCE_MAX_VERSION: ApiVersion = ApiVersion::new(12);
 
 /// Definitely-unsent rejection before the driver accepted request ownership.
 #[derive(Debug)]
@@ -96,5 +97,6 @@ impl DriverOwner {
 pub(super) const fn produce_options(deadline: Instant) -> RequestOptions {
     RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Bulk)
-        .with_maximum_version(PRODUCE_NAME_ROUTE_MAX_VERSION)
+        .with_minimum_version(PRODUCE_MIN_VERSION)
+        .with_maximum_version(PRODUCE_MAX_VERSION)
 }

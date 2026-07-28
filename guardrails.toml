@@ -61,6 +61,7 @@ baseline = [
   { path = "crates/kafka-client-core/src/producer/mod.rs", lines = 89, reason = "the declarative producer facade names bounded waiting admission, promotion, terminal policy, and their sibling evidence" },
   { path = "crates/kafka-client-engine/src/admin/describe_outcome.rs", lines = 243, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/producer/mod.rs", lines = 82, reason = "the declarative producer facade names bounded explicit waiting and its sibling recovery evidence" },
+  { path = "crates/kafka-client-engine/src/producer/materialization.rs", lines = 242, reason = "ordinary and transactional Produce share one bounded materialization owner for exact record bytes, compression, identity, and sequence facts" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs", lines = 280, reason = "EndTxn retains exact response correlation, causal coordinator invalidation, deadline fencing, and retry-safety evidence in one terminal owner" },
 ]
 allow = []
@@ -2394,6 +2395,34 @@ production = "crates/kafka-client-core/src/transaction/sequencing/model.rs"
 test = "crates/kafka-client-core/src/transaction/sequencing/model_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/produce/request.rs"
+test = "crates/kafka-client-engine/src/protocol/produce/request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/produce/materialization.rs"
+test = "crates/kafka-client-engine/src/protocol/produce/materialization_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/transaction/add_partitions_to_txn_request.rs"
+test = "crates/kafka-client-engine/src/protocol/transaction/add_partitions_to_txn_request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/transaction/add_partitions_to_txn_response.rs"
+test = "crates/kafka-client-engine/src/protocol/transaction/add_partitions_to_txn_response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/producer/boundary/transaction_record.rs"
+test = "crates/kafka-client-engine/src/producer/boundary/transaction_record_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/transaction_produce/call.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/transaction_produce/call_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/transaction_produce/normalize.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/transaction_produce/normalize_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/transaction/lifecycle/ending.rs"
 test = "crates/kafka-client-core/src/transaction/lifecycle/ending_test.rs"
 
@@ -2488,6 +2517,14 @@ test = "crates/kafka-client-engine/src/engine_host/thread_start_test.rs"
 [[linear_owners]]
 owner_type = "TransactionSequenceMachine"
 path = "crates/kafka-client-core/src/transaction/sequencing/machine.rs"
+
+[[linear_owners]]
+owner_type = "TransactionProduceCall"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_produce/call.rs"
+
+[[linear_owners]]
+owner_type = "TransactionProduceTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_produce/model.rs"
 
 [[linear_owners]]
 owner_type = "TransactionInitializationRequest"
@@ -3859,6 +3896,7 @@ root = "crates/kafka-client-engine/src"
 method = "submit_tracked_produce"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/transaction_produce/call.rs",
 ]
 
 [[method_capabilities]]
@@ -4298,6 +4336,7 @@ root = "crates/kafka-client-engine/src"
 method = "topic_owner"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/calls.rs",
+  "crates/kafka-client-engine/src/driver/rpc/transaction_produce/call.rs",
 ]
 
 [[method_capabilities]]
@@ -8311,6 +8350,10 @@ path = "crates/kafka-client-engine/src/clock/timer.rs"
 [[linear_owners]]
 owner_type = "MaterializedProduce"
 path = "crates/kafka-client-engine/src/protocol/produce.rs"
+
+[[linear_owners]]
+owner_type = "MaterializedProduce"
+path = "crates/kafka-client-engine/src/protocol/produce/request.rs"
 
 [[linear_owners]]
 owner_type = "ProducerStore"
@@ -15588,6 +15631,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/classic_group/coordinator_invalidation_drive.rs",
   "crates/kafka-client-engine/src/driver/rpc/reassignment_controller_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs",
+  "crates/kafka-client-engine/src/driver/rpc/transaction_produce/route_refresh.rs",
 ]
 
 # Partition-reassignment listing preserves one absolute deadline, exact caller

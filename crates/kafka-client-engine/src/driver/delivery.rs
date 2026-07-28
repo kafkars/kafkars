@@ -20,16 +20,16 @@ pub(crate) const fn request_failure_kind(error: &RequestError) -> ProducerAttemp
             ProducerAttemptFailureKind::LocalCapacity
         }
         RequestError::RouteUnavailable => ProducerAttemptFailureKind::RouteUnavailable,
+        RequestError::UnsupportedVersion { .. }
+        | RequestError::ApiUnavailable { .. }
+        | RequestError::VersionLimitUnavailable { .. }
+        | RequestError::VersionFloorUnavailable { .. } => ProducerAttemptFailureKind::Compatibility,
         RequestError::Rejected { failure, delivery } => rejected_failure_kind(*failure, *delivery),
         // The public driver surface does not yet expose the sanitized DNS
         // variant, so the engine cannot safely identify temporary failures.
         RequestError::NameResolutionFailed { .. }
         | RequestError::Encode(_)
         | RequestError::Decode(_)
-        | RequestError::UnsupportedVersion { .. }
-        | RequestError::ApiUnavailable { .. }
-        | RequestError::VersionLimitUnavailable { .. }
-        | RequestError::VersionFloorUnavailable { .. }
         | RequestError::VersionBoundsInvalid { .. }
         | RequestError::IdentityConflict
         | RequestError::DeadlineOverflow

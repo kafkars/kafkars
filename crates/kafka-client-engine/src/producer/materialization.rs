@@ -7,7 +7,10 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use kafka_client_core::{ProducerIdentity, ProducerSequenceLease};
+use kafka_client_core::{
+    ProducerIdentity, ProducerSequenceLease, TransactionSequenceLease,
+    TransactionalProducerIdentity,
+};
 
 /// One header transferred from engine retention to protocol materialization.
 #[derive(Debug, Eq, PartialEq)]
@@ -59,6 +62,11 @@ impl MaterializationRecord {
         self.timestamp_ms
     }
 
+    /// Borrows the serialized key bytes used by deterministic partition policy.
+    pub(crate) fn key_bytes(&self) -> Option<&Bytes> {
+        self.key.as_ref()
+    }
+
     /// Consumes the record into the protocol adapter's mechanical fields.
     pub(crate) fn into_parts(
         self,
@@ -82,6 +90,71 @@ pub(crate) struct MaterializationBatch {
     source_retained_bytes: usize,
     identity: ProducerIdentity,
     sequence: ProducerSequenceLease,
+}
+
+/// One transactional batch whose identity and sequence were fenced before encoding.
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct TransactionalMaterializationBatch {
+    topic: Arc<str>,
+    partition: i32,
+    records: Vec<MaterializationRecord>,
+    max_batch_bytes: usize,
+    identity: TransactionalProducerIdentity,
+    sequence: TransactionSequenceLease,
+}
+
+impl TransactionalMaterializationBatch {
+    pub(crate) fn new(
+        topic: impl Into<Arc<str>>,
+        partition: i32,
+        records: Vec<MaterializationRecord>,
+        max_batch_bytes: usize,
+        identity: TransactionalProducerIdentity,
+        sequence: TransactionSequenceLease,
+    ) -> Self {
+        Self {
+            topic: topic.into(),
+            partition,
+            records,
+            max_batch_bytes,
+            identity,
+            sequence,
+        }
+    }
+
+    /// Borrows the exact name used by partition enrollment and Produce routing.
+    pub(crate) fn topic(&self) -> &Arc<str> {
+        &self.topic
+    }
+
+    /// Returns the exact partition used by enrollment, sequencing, and Produce.
+    pub(crate) const fn partition(&self) -> i32 {
+        self.partition
+    }
+
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        Arc<str>,
+        i32,
+        Vec<MaterializationRecord>,
+        usize,
+        TransactionalProducerIdentity,
+        TransactionSequenceLease,
+    ) {
+        (
+            self.topic,
+            self.partition,
+            self.records,
+            self.max_batch_bytes,
+            self.identity,
+            self.sequence,
+        )
+    }
+
+    pub(crate) const fn identity(&self) -> TransactionalProducerIdentity {
+        self.identity
+    }
 }
 
 impl MaterializationBatch {

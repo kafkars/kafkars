@@ -11,6 +11,7 @@ mod handle;
 mod prepare;
 mod record;
 mod result;
+mod transaction_record;
 
 pub use batch_result::{ProducerTrySendBatch, ProducerTrySendBatchError};
 pub use cancellation::{
@@ -28,6 +29,7 @@ pub use flush_result::ProducerTryFlushAccepted;
 pub use handle::ProducerHandle;
 pub use record::{ProducerHeader as PublicProducerHeader, ProducerRecord as PublicProducerRecord};
 pub use result::{ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerTrySendAccepted};
+pub(crate) use transaction_record::TransactionRecordViewError;
 
 #[cfg(test)]
 mod batch_result_test;
@@ -49,3 +51,5 @@ mod flush_result_test;
 mod handle_test;
 #[cfg(test)]
 mod prepare_test;
+#[cfg(test)]
+mod transaction_record_test;
