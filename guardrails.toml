@@ -3423,6 +3423,11 @@ allow = [
   { path = "crates/kafka-client-engine/src/admin/list_partition_reassignments/host/terminal.rs", capability = "crate::driver", reason = "The concrete terminal seam correlation-checks one retained ListPartitionReassignments call, advances its causal controller refresh, and releases route evidence only after deterministic settlement or post-driver recovery." },
   { path = "crates/kafka-client-engine/src/admin/list_partition_reassignments/host/terminal/test_support.rs", capability = "crate::driver", reason = "The sibling test seam installs one explicit recovered ListPartitionReassignments call to prove it survives core rejection." },
   { path = "crates/kafka-client-engine/src/admin/list_partition_reassignments/host/terminal/recovery_test.rs", capability = "crate::driver", reason = "The focused recovery scenarios build local calls and raw terminals to prove exact ListPartitionReassignments evidence survives completion faults and shutdown." },
+  { path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host.rs", capability = "crate::driver", reason = "The concrete owner retains exact accepted, raw, and recovered AlterPartitionReassignments evidence beside its deterministic machine until settlement." },
+  { path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/recovered.rs", capability = "crate::driver", reason = "The shutdown seam correlation-checks the exact destructive call before converting retained driver ownership into a terminal fact." },
+  { path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/response.rs", capability = "crate::driver", reason = "The concrete response seam exhaustively translates borrowed AlterPartitionReassignments driver facts before core accepts a terminal outcome." },
+  { path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/terminal.rs", capability = "crate::driver", reason = "The terminal seam retains exact call evidence and completes causal controller refresh before publishing a code-41 broker failure." },
+  { path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host_test.rs", capability = "crate::driver", reason = "The focused ownership scenarios build exact and mismatched calls to prove completion-fault recovery and correlation fences." },
 ]
 
 # Reactor-driving driver adapters never touch observer locks or wakers.
@@ -3944,6 +3949,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_call.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_recovery.rs",
+  "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassignments_terminal.rs",
   "crates/kafka-client-engine/src/driver/rpc/list_partition_reassignments_terminal.rs",
 ]
 
@@ -15475,4 +15481,241 @@ root = "crates/kafka-client/src"
 method = "try_list_partition_reassignments"
 allowed_paths = [
   "crates/kafka-client/src/bridge/admin_list_partition_reassignments/engine.rs",
+]
+
+# Partition-reassignment alteration preserves one public absolute deadline,
+# exact caller intent, capacity evidence, destructive delivery certainty, and
+# causal controller refresh through one bounded terminal observer.
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/alter_partition_reassignments/machine.rs"
+test = "crates/kafka-client-core/src/admin/alter_partition_reassignments/machine_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/alter_partition_reassignments/model.rs"
+test = "crates/kafka-client-core/src/admin/alter_partition_reassignments/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/alter_partition_reassignments/outcome.rs"
+test = "crates/kafka-client-core/src/admin/alter_partition_reassignments/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/alter_partition_reassignments/transition.rs"
+test = "crates/kafka-client-core/src/admin/alter_partition_reassignments/transition_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host.rs"
+test = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/model.rs"
+test = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/outcome.rs"
+test = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/alter_partition_reassignments/request.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/alter_partition_reassignments/request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/alter_partition_reassignments/response.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/alter_partition_reassignments/response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/alter_partition_reassignments/response/correlation.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/alter_partition_reassignments/response/correlation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/alter_partition_reassignments/version.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/alter_partition_reassignments/version_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassignments_call.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassignments_call_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassignments_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassignments_submission_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassignments_terminal.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassignments_terminal_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/partition_reassignments/alter_builder.rs"
+test = "crates/kafka-client/src/admin/partition_reassignments/alter_builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/partition_reassignments/alter_operation.rs"
+test = "crates/kafka-client/src/admin/partition_reassignments/alter_operation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/partition_reassignments/alter_result.rs"
+test = "crates/kafka-client/src/admin/partition_reassignments/alter_result_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/partition_reassignments/change.rs"
+test = "crates/kafka-client/src/admin/partition_reassignments/change_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_operation.rs"
+test = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_operation_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_request.rs"
+test = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_result.rs"
+test = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_result_test.rs"
+
+[[mutation_owners]]
+owner_type = "AlterPartitionReassignmentsMachine"
+field = "state"
+allowed_paths = [
+  "crates/kafka-client-core/src/admin/alter_partition_reassignments/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AlterPartitionReassignmentsHost"
+field = "operations"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host.rs",
+  "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/recovered.rs",
+  "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AlterPartitionReassignmentsHost"
+field = "completions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AlterPartitionReassignmentsHost"
+field = "retained_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AlterPartitionReassignmentsHost"
+field = "published_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AlterPartitionReassignmentsHost"
+field = "next_operation_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/admission.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AlterPartitionReassignmentsHost"
+field = "reclaim_pending"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AlterPartitionReassignmentsHost"
+field = "accepting"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AlterPartitionReassignmentsHost"
+field = "health"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/admission.rs",
+]
+
+[[linear_owners]]
+owner_type = "AlterPartitionReassignmentsMachine"
+path = "crates/kafka-client-core/src/admin/alter_partition_reassignments/machine.rs"
+
+[[linear_owners]]
+owner_type = "AlterPartitionReassignmentsHost"
+path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host.rs"
+
+[[linear_owners]]
+owner_type = "AlterPartitionReassignmentsOperation"
+path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host.rs"
+
+[[linear_owners]]
+owner_type = "AlterPartitionReassignmentsSubmission"
+path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host.rs"
+
+[[linear_owners]]
+owner_type = "AlterPartitionReassignmentsShardOwner"
+path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/shard.rs"
+
+[[linear_owners]]
+owner_type = "AlterPartitionReassignmentsObserver"
+path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/observer.rs"
+
+[[linear_owners]]
+owner_type = "AlterPartitionReassignmentsAccepted"
+path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/handle.rs"
+
+[[linear_owners]]
+owner_type = "StartedAlterPartitionReassignments"
+path = "crates/kafka-client-engine/src/engine_host/start/alter_partition_reassignments.rs"
+
+[[linear_owners]]
+owner_type = "AlterPartitionReassignmentsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassignments_call.rs"
+
+[[linear_owners]]
+owner_type = "AlterPartitionReassignmentsEvidence"
+path = "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassignments_call/evidence.rs"
+
+[[linear_owners]]
+owner_type = "AlterPartitionReassignmentsCallAdmissionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassignments_call.rs"
+
+[[linear_owners]]
+owner_type = "AlterPartitionReassignmentsTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassignments_terminal.rs"
+
+[[linear_owners]]
+owner_type = "RecoveredAlterPartitionReassignmentsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassignments_terminal.rs"
+
+[[linear_owners]]
+owner_type = "AlterPartitionReassignmentsAdminRequest"
+path = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_request.rs"
+
+[[linear_owners]]
+owner_type = "AdminAlterPartitionReassignments"
+path = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_operation.rs"
+
+[[linear_owners]]
+owner_type = "AlterPartitionReassignmentsBuilder"
+path = "crates/kafka-client/src/admin/partition_reassignments/alter_builder.rs"
+
+[[linear_owners]]
+owner_type = "AlterPartitionReassignments"
+path = "crates/kafka-client/src/admin/partition_reassignments/alter_operation.rs"
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_alter_partition_reassignments"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassignments_call.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client/src"
+method = "try_alter_partition_reassignments"
+allowed_paths = [
+  "crates/kafka-client/src/bridge/admin_partition_reassignments/engine.rs",
 ]

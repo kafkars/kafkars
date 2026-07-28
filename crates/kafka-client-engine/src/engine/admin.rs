@@ -36,6 +36,10 @@ impl Engine {
                     .inner
                     .list_partition_reassignments_admission
                     .clone(),
+                alter_partition_reassignments: self
+                    .inner
+                    .alter_partition_reassignments_admission
+                    .clone(),
             },
             Arc::clone(&self.inner.clock),
             lifetime,
@@ -62,6 +66,9 @@ impl EngineInner {
         let _close_result = self.list_offsets_admission.close_admission();
         let _close_result = self
             .list_partition_reassignments_admission
+            .close_admission();
+        let _close_result = self
+            .alter_partition_reassignments_admission
             .close_admission();
     }
 }

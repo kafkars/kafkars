@@ -1,5 +1,6 @@
 //! Concrete bounded admin owners without a generic state-machine framework.
 mod alter_configs;
+mod alter_partition_reassignments;
 mod completion;
 #[cfg(test)]
 mod completion_capacity_test;

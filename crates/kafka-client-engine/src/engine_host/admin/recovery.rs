@@ -121,5 +121,14 @@ fn recover_listing(
         failure = failure.with_cleanup(cleanup);
     }
     drop(listing);
+    let mut alteration = resources.alter_partition_reassignments.terminal_host();
+    if let Some(cleanup) = alteration
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::AlterPartitionReassignments)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    drop(alteration);
     failure
 }

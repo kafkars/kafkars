@@ -1,6 +1,7 @@
 //! Leak-free resource handoff into one self-cleaning native host.
 
 mod admin_hosts;
+mod alter_partition_reassignments;
 mod list_offsets;
 mod list_partition_reassignments;
 
@@ -38,7 +39,6 @@ pub(crate) fn start(
 ) -> Result<StartedEngineHost, EngineStartError> {
     let lifecycle = Arc::new(EngineLifecycle::new());
     let (sender, handle) = thread_start::start(&lifecycle)?;
-
     let driver = match DriverOwner::build(config) {
         Ok(driver) => driver,
         Err(error) => return cancel_start(sender, handle, EngineStartError::driver(&error)),
@@ -86,6 +86,7 @@ pub(crate) fn start(
         alter_consumer_group_offsets,
         admin_list_offsets,
         list_partition_reassignments,
+        alter_partition_reassignments,
     } = admin_hosts::start(admin_ports);
     let mut group_consumers = match GroupConsumerRegistry::start() {
         Ok(registry) => registry,
@@ -156,6 +157,8 @@ pub(crate) fn start(
     let list_offsets = list_offsets::start(admin_list_offsets, driver.reactor_wake());
     let list_partition_reassignments =
         list_partition_reassignments::start(list_partition_reassignments, driver.reactor_wake());
+    let alter_partition_reassignments =
+        alter_partition_reassignments::start(alter_partition_reassignments, driver.reactor_wake());
     let produce_calls =
         crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
     let resources = EngineHostResources {
@@ -175,6 +178,7 @@ pub(crate) fn start(
         alter_consumer_group_offsets: alter_consumer_group_offsets.owner,
         list_offsets: list_offsets.owner,
         list_partition_reassignments: list_partition_reassignments.owner,
+        alter_partition_reassignments: alter_partition_reassignments.owner,
         assigned_consumer: assigned_consumer_owner,
         group_consumers,
         transaction_initialization,
@@ -210,7 +214,6 @@ pub(crate) fn start(
         join_cancelled(handle);
         return Err(EngineStartError::handoff());
     }
-
     drop(handle);
     Ok(StartedEngineHost {
         admission,
@@ -226,6 +229,7 @@ pub(crate) fn start(
         alter_consumer_group_offsets_admission: alter_consumer_group_offsets.admission,
         list_offsets_admission: list_offsets.admission,
         list_partition_reassignments_admission: list_partition_reassignments.admission,
+        alter_partition_reassignments_admission: alter_partition_reassignments.admission,
         assigned_consumer,
         group_consumer,
         transaction_initialization: transaction_initialization_admission,

@@ -1,6 +1,7 @@
 //! Closed aggregation of Admin `ListOffsets` progress into the shared schedule.
 
 use super::{
+    alter_partition_reassignments::AlterPartitionReassignmentsProgress,
     list_offsets::AdminListOffsetsProgress,
     list_partition_reassignments::ListPartitionReassignmentsProgress, schedule::AdminProgress,
     schedule_deadline::earliest,
@@ -10,6 +11,15 @@ pub(super) const fn extend(progress: &mut AdminProgress, list_offsets: &AdminLis
     progress.unsettled = progress.unsettled.saturating_add(list_offsets.unsettled);
     progress.driver_progress = progress.driver_progress || list_offsets.driver_progress;
     progress.next_deadline = earliest(progress.next_deadline, list_offsets.next_deadline);
+}
+
+pub(super) const fn extend_partition_reassignment_alterations(
+    progress: &mut AdminProgress,
+    alteration: &AlterPartitionReassignmentsProgress,
+) {
+    progress.unsettled = progress.unsettled.saturating_add(alteration.unsettled);
+    progress.driver_progress = progress.driver_progress || alteration.driver_progress;
+    progress.next_deadline = earliest(progress.next_deadline, alteration.next_deadline);
 }
 
 pub(super) const fn extend_partition_reassignments(

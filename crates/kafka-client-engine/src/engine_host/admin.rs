@@ -5,6 +5,7 @@ mod alter_consumer_group_offsets;
 mod alter_consumer_group_offsets_schedule_test;
 #[cfg(test)]
 mod alter_consumer_group_offsets_test;
+mod alter_partition_reassignments;
 mod create_partitions;
 mod create_topics;
 mod delete_consumer_group_offsets;

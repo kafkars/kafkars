@@ -16,6 +16,23 @@ pub use super::alter_configs::{
     IncrementalAlterConfigsOutcome, IncrementalAlterConfigsRequest, IncrementalAlterConfigsResult,
     IncrementalConfigAlteration, IncrementalConfigOperation, TopicConfigAlterations,
 };
+pub(crate) use super::alter_partition_reassignments::{
+    ALTER_PARTITION_REASSIGNMENTS_CAPACITY, AlterPartitionReassignmentsAdmissionPort,
+    AlterPartitionReassignmentsHost, AlterPartitionReassignmentsHostError,
+    AlterPartitionReassignmentsShardLockError, AlterPartitionReassignmentsShardOwner,
+    AlterPartitionReassignmentsShardWake, AlterPartitionReassignmentsShardWakeError,
+    AlterPartitionReassignmentsTurn,
+};
+pub use super::alter_partition_reassignments::{
+    AlterPartitionReassignmentBrokerError, AlterPartitionReassignmentResult,
+    AlterPartitionReassignmentsAccepted, AlterPartitionReassignmentsAcceptedFaultKind,
+    AlterPartitionReassignmentsAdmissionError, AlterPartitionReassignmentsAdmissionErrorKind,
+    AlterPartitionReassignmentsBatch, AlterPartitionReassignmentsDeliveryStatus,
+    AlterPartitionReassignmentsFailure, AlterPartitionReassignmentsFailureKind,
+    AlterPartitionReassignmentsObserver, AlterPartitionReassignmentsObserverError,
+    AlterPartitionReassignmentsOutcome, AlterPartitionReassignmentsRequest,
+    PartitionReassignmentChange,
+};
 pub(crate) use super::configs::{
     DESCRIBE_CONFIGS_CAPACITY, DescribeConfigsAdmissionPort, DescribeConfigsHost,
     DescribeConfigsHostError, DescribeConfigsShardLockError, DescribeConfigsShardOwner,

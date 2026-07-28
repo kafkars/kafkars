@@ -4,6 +4,7 @@ use crate::{
     admin::{
         AdminListOffsetsShardWake, AdminListOffsetsShardWakeError,
         AlterConsumerGroupOffsetsShardWake, AlterConsumerGroupOffsetsShardWakeError,
+        AlterPartitionReassignmentsShardWake, AlterPartitionReassignmentsShardWakeError,
         CreatePartitionsShardWake, CreatePartitionsShardWakeError, CreateTopicsShardWake,
         CreateTopicsShardWakeError, DeleteConsumerGroupOffsetsShardWake,
         DeleteConsumerGroupOffsetsShardWakeError, DeleteTopicsShardWake,
@@ -98,5 +99,12 @@ impl ListPartitionReassignmentsShardWake for ReactorWake {
     fn wake(&self) -> Result<(), ListPartitionReassignmentsShardWakeError> {
         self.request()
             .map_err(|error| ListPartitionReassignmentsShardWakeError::from_io(error.into_io()))
+    }
+}
+
+impl AlterPartitionReassignmentsShardWake for ReactorWake {
+    fn wake(&self) -> Result<(), AlterPartitionReassignmentsShardWakeError> {
+        self.request()
+            .map_err(|error| AlterPartitionReassignmentsShardWakeError::from_io(error.into_io()))
     }
 }

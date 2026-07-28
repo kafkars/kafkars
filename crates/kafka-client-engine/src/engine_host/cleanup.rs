@@ -1,5 +1,6 @@
 //! Exact terminal verification and notifier handoff for every concrete owner.
 
+mod alter_partition_reassignments;
 mod list_partition_reassignments;
 
 use crate::completion::NotifierJoin;
@@ -220,6 +221,7 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
         ));
     }
     list_partition_reassignments::verify(resources)?;
+    alter_partition_reassignments::verify(resources)?;
     Ok(())
 }
 

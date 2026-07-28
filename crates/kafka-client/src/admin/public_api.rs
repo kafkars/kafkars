@@ -38,8 +38,10 @@ pub use super::list_topics_builder::ListTopicsBuilder;
 pub use super::new_partitions::NewPartitions;
 pub use super::new_topic::NewTopic;
 pub use super::partition_reassignments::{
-    ListPartitionReassignments, ListPartitionReassignmentsBuilder,
-    ListPartitionReassignmentsResult, PartitionReassignment,
+    AlterPartitionReassignments, AlterPartitionReassignmentsBuilder,
+    AlterPartitionReassignmentsResult, ListPartitionReassignments,
+    ListPartitionReassignmentsBuilder, ListPartitionReassignmentsResult, PartitionReassignment,
+    PartitionReassignmentChange,
 };
 pub use super::partitions_builder::CreatePartitionsBuilder;
 pub use super::topic_description::{TopicDescription, TopicPartitionDescription};

@@ -14,7 +14,15 @@ pub use crate::admin::{
     AlterConsumerGroupOffsetsMachine, AlterConsumerGroupOffsetsMachineError,
     AlterConsumerGroupOffsetsPlan, AlterConsumerGroupOffsetsPlanError,
     AlterConsumerGroupOffsetsState, AlterConsumerGroupOffsetsTerminal,
-    AlterConsumerGroupOffsetsTransition, ClusterBroker, ClusterDescription, ConfigAlteration,
+    AlterConsumerGroupOffsetsTransition, AlterPartitionReassignment,
+    AlterPartitionReassignmentBrokerError, AlterPartitionReassignmentOutcome,
+    AlterPartitionReassignmentResult, AlterPartitionReassignmentsBatch,
+    AlterPartitionReassignmentsEffect, AlterPartitionReassignmentsFailure,
+    AlterPartitionReassignmentsFailureKind, AlterPartitionReassignmentsInput,
+    AlterPartitionReassignmentsMachine, AlterPartitionReassignmentsMachineError,
+    AlterPartitionReassignmentsPlan, AlterPartitionReassignmentsPlanError,
+    AlterPartitionReassignmentsState, AlterPartitionReassignmentsTerminal,
+    AlterPartitionReassignmentsTransition, ClusterBroker, ClusterDescription, ConfigAlteration,
     ConfigAlterationOperation, CreatePartitionsEffect, CreatePartitionsFailure,
     CreatePartitionsFailureKind, CreatePartitionsInput, CreatePartitionsMachine,
     CreatePartitionsMachineError, CreatePartitionsPlan, CreatePartitionsPlanError,
@@ -69,7 +77,8 @@ pub use crate::admin::{
     ListPartitionReassignmentsState, ListPartitionReassignmentsTerminal,
     ListPartitionReassignmentsTransition, PartitionIncreaseBrokerError, PartitionIncreaseOutcome,
     PartitionIncreaseResult, PartitionReassignment, PartitionReassignmentOutcome,
-    TopicConfigAlteration, TopicDescription, TopicPartitionDescription,
+    PartitionReassignmentTarget, TopicConfigAlteration, TopicDescription,
+    TopicPartitionDescription,
 };
 pub use crate::admission::AdmissionRejection;
 pub use crate::capacity::{ByteBudget, CapacityError};

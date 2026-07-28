@@ -9,6 +9,17 @@ pub use super::alter_configs::{
     IncrementalAlterConfigsPlan, IncrementalAlterConfigsPlanError, IncrementalAlterConfigsState,
     IncrementalAlterConfigsTerminal, IncrementalAlterConfigsTransition, TopicConfigAlteration,
 };
+pub use super::alter_partition_reassignments::{
+    AlterPartitionReassignment, AlterPartitionReassignmentBrokerError,
+    AlterPartitionReassignmentOutcome, AlterPartitionReassignmentResult,
+    AlterPartitionReassignmentsBatch, AlterPartitionReassignmentsEffect,
+    AlterPartitionReassignmentsFailure, AlterPartitionReassignmentsFailureKind,
+    AlterPartitionReassignmentsInput, AlterPartitionReassignmentsMachine,
+    AlterPartitionReassignmentsMachineError, AlterPartitionReassignmentsPlan,
+    AlterPartitionReassignmentsPlanError, AlterPartitionReassignmentsState,
+    AlterPartitionReassignmentsTerminal, AlterPartitionReassignmentsTransition,
+    PartitionReassignmentTarget,
+};
 pub use super::delete_machine::{
     DeleteTopicsEffect, DeleteTopicsInput, DeleteTopicsMachine, DeleteTopicsMachineError,
     DeleteTopicsState, DeleteTopicsTransition,

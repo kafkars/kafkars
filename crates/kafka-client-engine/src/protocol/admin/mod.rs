@@ -1,5 +1,6 @@
 //! Generated-message adaptation for concrete Kafka admin operations.
 
+pub(crate) mod alter_partition_reassignments;
 pub(crate) mod create_partitions;
 mod create_partitions_budget;
 pub(crate) mod create_topics;

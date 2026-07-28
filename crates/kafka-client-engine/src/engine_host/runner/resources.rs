@@ -5,9 +5,9 @@ use std::sync::Arc;
 use crate::{
     admin::{
         AdminListOffsetsShardOwner, AlterConsumerGroupOffsetsShardOwner,
-        CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner,
-        DeleteTopicsShardOwner, DescribeClusterShardOwner, DescribeConfigsShardOwner,
-        DescribeTopicsShardOwner, IncrementalAlterConfigsShardOwner,
+        AlterPartitionReassignmentsShardOwner, CreatePartitionsShardOwner, CreateTopicsShardOwner,
+        DeleteConsumerGroupOffsetsShardOwner, DeleteTopicsShardOwner, DescribeClusterShardOwner,
+        DescribeConfigsShardOwner, DescribeTopicsShardOwner, IncrementalAlterConfigsShardOwner,
         ListConsumerGroupOffsetsShardOwner, ListPartitionReassignmentsShardOwner,
     },
     clock::MonotonicClock,
@@ -40,6 +40,7 @@ pub(crate) struct EngineHostResources {
     pub(in super::super) alter_consumer_group_offsets: AlterConsumerGroupOffsetsShardOwner,
     pub(in super::super) list_offsets: AdminListOffsetsShardOwner,
     pub(in super::super) list_partition_reassignments: ListPartitionReassignmentsShardOwner,
+    pub(in super::super) alter_partition_reassignments: AlterPartitionReassignmentsShardOwner,
     pub(in super::super) assigned_consumer: crate::consumer::AssignedConsumerShardOwner,
     pub(in super::super) group_consumers: crate::consumer::GroupConsumerShardOwner,
     pub(in super::super) transaction_initialization: TransactionInitializationShardOwner,

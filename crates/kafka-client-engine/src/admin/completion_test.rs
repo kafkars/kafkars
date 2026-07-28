@@ -10,7 +10,8 @@ use std::{
 
 use kafka_client_core::{
     AdminListOffsetsBatch, AdminListOffsetsTerminal, AlterConsumerGroupOffsetsBatch,
-    AlterConsumerGroupOffsetsTerminal, ClusterDescription, CreatePartitionsTerminal,
+    AlterConsumerGroupOffsetsTerminal, AlterPartitionReassignmentsBatch,
+    AlterPartitionReassignmentsTerminal, ClusterDescription, CreatePartitionsTerminal,
     CreateTopicsTerminal, DeleteConsumerGroupOffsetsBatch, DeleteConsumerGroupOffsetsTerminal,
     DeleteTopicsTerminal, DescribeClusterTerminal, DescribeConfigsBatch, DescribeConfigsTerminal,
     DescribeTopicsTerminal, IncrementalAlterConfigsBatch, IncrementalAlterConfigsTerminal,
@@ -43,6 +44,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     let mut group_offset_alter = PendingTerminal::new(ports.alter_consumer_group_offsets);
     let mut list_offsets = PendingTerminal::new(ports.admin_list_offsets);
     let mut reassignments = PendingTerminal::new(ports.list_partition_reassignments);
+    let mut alterations = PendingTerminal::new(ports.alter_partition_reassignments);
 
     create.publish(CreateTopicsTerminal::Topics(Vec::new()));
     delete.publish(DeleteTopicsTerminal::Topics(Vec::new()));
@@ -75,6 +77,9 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     reassignments.publish(ListPartitionReassignmentsTerminal::Reassignments(
         ListPartitionReassignmentsBatch::new(0, Vec::new()),
     ));
+    alterations.publish(AlterPartitionReassignmentsTerminal::Altered(
+        AlterPartitionReassignmentsBatch::new(0, Vec::new()),
+    ));
 
     create.observe_and_reclaim(worker);
     delete.observe_and_reclaim(worker);
@@ -88,6 +93,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     group_offset_alter.observe_and_reclaim(worker);
     list_offsets.observe_and_reclaim(worker);
     reassignments.observe_and_reclaim(worker);
+    alterations.observe_and_reclaim(worker);
 
     let join = notifier
         .stop()

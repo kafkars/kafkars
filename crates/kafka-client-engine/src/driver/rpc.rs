@@ -7,6 +7,15 @@ pub(crate) mod admin_list_offsets_submission;
 #[cfg(test)]
 mod admin_list_offsets_submission_test;
 pub(crate) mod admin_list_offsets_terminal;
+mod alter_partition_reassignments_call;
+#[cfg(test)]
+mod alter_partition_reassignments_call_test;
+mod alter_partition_reassignments_submission;
+#[cfg(test)]
+mod alter_partition_reassignments_submission_test;
+mod alter_partition_reassignments_terminal;
+#[cfg(test)]
+mod alter_partition_reassignments_terminal_test;
 mod calls;
 #[cfg(test)]
 mod calls_test;
@@ -188,17 +197,19 @@ mod transaction_init_terminal_test;
 #[cfg(test)]
 pub(crate) use exports::GroupPositionOffsetFetchTestPartition;
 pub(crate) use exports::{
-    AdminListOffsetsCall, CreatePartitionsCompletionFailure, CreateTopicsCompletionFailure,
-    DeleteTopicsCompletionFailure, DescribeClusterCalls, DescribeClusterCompletionFailure,
-    DescribeConfigsCalls, DescribeConfigsCompletionFailure, DescribeTopicsCalls,
-    DescribeTopicsCompletionFailure, FetchBeginSettlementError, FetchCallAdmission,
-    FetchCompletionObservation, FetchConfirmationError, FetchControlPending, FetchPoll,
-    FetchRecovery, FetchTerminal, GroupOffsetAlterCall, GroupOffsetAlterDriverFailureKind,
-    GroupOffsetAlterTerminal, GroupOffsetAlterTerminalFact, GroupOffsetCommitPoll,
-    GroupOffsetCommitShutdownRecovery, GroupOffsetDeleteCall, GroupOffsetDeleteDriverFailureKind,
-    GroupOffsetDeleteTerminal, GroupOffsetDeleteTerminalFact, GroupOffsetsCall,
-    GroupOffsetsDriverFailureKind, GroupOffsetsTerminal, GroupOffsetsTerminalFact,
-    GroupPositionOffsetFetchAccepted, GroupPositionOffsetFetchAdmission,
+    AdminListOffsetsCall, AlterPartitionReassignmentsCall,
+    AlterPartitionReassignmentsDriverFailureKind, AlterPartitionReassignmentsTerminal,
+    AlterPartitionReassignmentsTerminalFact, CreatePartitionsCompletionFailure,
+    CreateTopicsCompletionFailure, DeleteTopicsCompletionFailure, DescribeClusterCalls,
+    DescribeClusterCompletionFailure, DescribeConfigsCalls, DescribeConfigsCompletionFailure,
+    DescribeTopicsCalls, DescribeTopicsCompletionFailure, FetchBeginSettlementError,
+    FetchCallAdmission, FetchCompletionObservation, FetchConfirmationError, FetchControlPending,
+    FetchPoll, FetchRecovery, FetchTerminal, GroupOffsetAlterCall,
+    GroupOffsetAlterDriverFailureKind, GroupOffsetAlterTerminal, GroupOffsetAlterTerminalFact,
+    GroupOffsetCommitPoll, GroupOffsetCommitShutdownRecovery, GroupOffsetDeleteCall,
+    GroupOffsetDeleteDriverFailureKind, GroupOffsetDeleteTerminal, GroupOffsetDeleteTerminalFact,
+    GroupOffsetsCall, GroupOffsetsDriverFailureKind, GroupOffsetsTerminal,
+    GroupOffsetsTerminalFact, GroupPositionOffsetFetchAccepted, GroupPositionOffsetFetchAdmission,
     GroupPositionOffsetFetchAdmissionFailure, GroupPositionOffsetFetchBeginError,
     GroupPositionOffsetFetchCompletionFailureKind, GroupPositionOffsetFetchCompletionObservation,
     GroupPositionOffsetFetchCompletionRecovery, GroupPositionOffsetFetchConfirmationFailure,
@@ -213,13 +224,13 @@ pub(crate) use exports::{
     PartitionFetchRequest, PositionAdmissionFailure, PositionCompletionFailure,
     PositionRequestPreparationError, PositionResolutionRequest, ProduceCompletionFailure,
     ProduceSubmitError, ProducerIdentityCompletionFailure, ProducerTopicViewCall,
-    RecoveredGroupOffsetAlterCall, RecoveredListPartitionReassignmentsCall,
-    StaleFetchConfirmationError, TopicPartitionCountAdmissionFailure,
-    TopicPartitionCountAdmissionFailureKind, TopicPartitionCountCall, TopicPartitionCountFact,
-    TopicPartitionCountFailure, TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls,
-    TrackedDeleteTopicsCalls, TrackedFetchCalls, TrackedGroupOffsetCommitCalls,
-    TrackedGroupPositionOffsetFetchCalls, TrackedPositionCalls, TrackedProduceCalls,
-    TrackedProducerIdentityCalls, TransactionInitCall, TransactionInitDriverFailureKind,
-    TransactionInitTerminal, TransactionInitTerminalFact, classify_fetch_admission,
-    classify_fetch_request_error,
+    RecoveredAlterPartitionReassignmentsCall, RecoveredGroupOffsetAlterCall,
+    RecoveredListPartitionReassignmentsCall, StaleFetchConfirmationError,
+    TopicPartitionCountAdmissionFailure, TopicPartitionCountAdmissionFailureKind,
+    TopicPartitionCountCall, TopicPartitionCountFact, TopicPartitionCountFailure,
+    TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls,
+    TrackedFetchCalls, TrackedGroupOffsetCommitCalls, TrackedGroupPositionOffsetFetchCalls,
+    TrackedPositionCalls, TrackedProduceCalls, TrackedProducerIdentityCalls, TransactionInitCall,
+    TransactionInitDriverFailureKind, TransactionInitTerminal, TransactionInitTerminalFact,
+    classify_fetch_admission, classify_fetch_request_error,
 };

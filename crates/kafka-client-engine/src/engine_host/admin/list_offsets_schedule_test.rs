@@ -45,3 +45,26 @@ fn partition_listing_extension_preserves_bounded_progress_and_deadline() {
     assert!(progress.driver_progress);
     assert_eq!(progress.next_deadline, Some(Deadline::from_tick(17)));
 }
+
+#[test]
+fn partition_alteration_extension_preserves_bounded_progress_and_deadline() {
+    let mut progress = AdminProgress {
+        unsettled: 4,
+        driver_progress: false,
+        next_deadline: Some(Deadline::from_tick(23)),
+    };
+    let alteration = super::alter_partition_reassignments::AlterPartitionReassignmentsProgress {
+        unsettled: 2,
+        driver_progress: true,
+        next_deadline: Some(Deadline::from_tick(13)),
+    };
+
+    super::list_offsets_schedule::extend_partition_reassignment_alterations(
+        &mut progress,
+        &alteration,
+    );
+
+    assert_eq!(progress.unsettled, 6);
+    assert!(progress.driver_progress);
+    assert_eq!(progress.next_deadline, Some(Deadline::from_tick(13)));
+}

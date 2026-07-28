@@ -6,8 +6,9 @@ use kafka_client_core::{Deadline, Moment};
 
 use super::{
     super::{EngineHostError, EngineHostResources},
-    alter_consumer_group_offsets, create_partitions, create_topics, delete_consumer_group_offsets,
-    delete_topics, describe_cluster, describe_configs, describe_topics,
+    alter_consumer_group_offsets, alter_partition_reassignments, create_partitions, create_topics,
+    delete_consumer_group_offsets, delete_topics, describe_cluster, describe_configs,
+    describe_topics,
     group_offset_alter_schedule::drive_group_offset_delete_then_capture_alter,
     incremental_alter_configs, list_consumer_group_offsets, list_offsets, list_offsets_schedule,
     list_partition_reassignments,
@@ -83,6 +84,9 @@ pub(in crate::engine_host) fn drive(
     let listing_now = clock.now().map_err(EngineHostError::Clock)?;
     let listing = list_partition_reassignments::drive(resources, listing_now)?;
     list_offsets_schedule::extend_partition_reassignments(&mut progress, &listing);
+    let alteration_now = clock.now().map_err(EngineHostError::Clock)?;
+    let alteration = alter_partition_reassignments::drive(resources, alteration_now)?;
+    list_offsets_schedule::extend_partition_reassignment_alterations(&mut progress, &alteration);
     Ok(progress)
 }
 
