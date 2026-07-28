@@ -62,6 +62,7 @@ baseline = [
   { path = "crates/kafka-client-engine/src/admin/describe_outcome.rs", lines = 243, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/producer/mod.rs", lines = 82, reason = "the declarative producer facade names bounded explicit waiting and its sibling recovery evidence" },
   { path = "crates/kafka-client-engine/src/producer/materialization.rs", lines = 242, reason = "ordinary and transactional Produce share one bounded materialization owner for exact record bytes, compression, identity, and sequence facts" },
+  { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions.rs", lines = 268, reason = "AddPartitionsToTxn retains exact response correlation, coordinator-refresh eligibility, and retry-safety evidence in one terminal owner" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs", lines = 280, reason = "EndTxn retains exact response correlation, causal coordinator invalidation, deadline fencing, and retry-safety evidence in one terminal owner" },
 ]
 allow = []
@@ -2349,6 +2350,9 @@ allow = [
   { path = "crates/kafka-client-engine/src/transaction/initialization/host/turn.rs", capability = "crate::driver", reason = "The concrete host turn submits one core-authorized request through the sanctioned adapter." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/shard.rs", capability = "crate::driver", reason = "The synchronized owner adapts only the domain-neutral reactor wake mechanism." },
   { path = "crates/kafka-client-engine/src/transaction/lifecycle/driver_port.rs", capability = "crate::driver", reason = "The lifecycle adapter retains one concrete EndTxn call and its route evidence through deterministic settlement." },
+  { path = "crates/kafka-client-engine/src/transaction/partition_enrollment/driver_port.rs", capability = "crate::driver", reason = "The concrete enrollment adapter retains one tracked AddPartitionsToTxn call and its route evidence through exact-epoch settlement." },
+  { path = "crates/kafka-client-engine/src/transaction/partition_enrollment/model.rs", capability = "crate::producer", reason = "The explicit enrollment fence and every rejection preserve the exact transactional materialization batch for later handoff or reclaim." },
+  { path = "crates/kafka-client-engine/src/transaction/partition_enrollment/settlement.rs", capability = "crate::producer", reason = "Deterministic enrollment settlement transfers the exact retained batch into one enrolled, rejected, abort-required, or fatal terminal." },
 ]
 
 [[capability_rules]]
@@ -2386,6 +2390,13 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs",
 ]
 
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_transaction_add_partitions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions.rs",
+]
+
 [[test_mirrors]]
 production = "crates/kafka-client-core/src/transaction/sequencing/machine.rs"
 test = "crates/kafka-client-core/src/transaction/sequencing/machine_test.rs"
@@ -2413,6 +2424,18 @@ test = "crates/kafka-client-engine/src/protocol/transaction/add_partitions_to_tx
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/producer/boundary/transaction_record.rs"
 test = "crates/kafka-client-engine/src/producer/boundary/transaction_record_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/transaction/partition_enrollment/host.rs"
+test = "crates/kafka-client-engine/src/transaction/partition_enrollment/host_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/transaction/partition_enrollment/model.rs"
+test = "crates/kafka-client-engine/src/transaction/partition_enrollment/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/driver/rpc/transaction_produce/call.rs"
@@ -2517,6 +2540,38 @@ test = "crates/kafka-client-engine/src/engine_host/thread_start_test.rs"
 [[linear_owners]]
 owner_type = "TransactionSequenceMachine"
 path = "crates/kafka-client-core/src/transaction/sequencing/machine.rs"
+
+[[linear_owners]]
+owner_type = "TransactionPartitionEnrollmentOwner"
+path = "crates/kafka-client-engine/src/transaction/partition_enrollment/host.rs"
+
+[[linear_owners]]
+owner_type = "PendingEnrollment"
+path = "crates/kafka-client-engine/src/transaction/partition_enrollment/host.rs"
+
+[[linear_owners]]
+owner_type = "TransactionPartitionEnrollmentAdmissionFailure"
+path = "crates/kafka-client-engine/src/transaction/partition_enrollment/model.rs"
+
+[[linear_owners]]
+owner_type = "TransactionPartitionEnrollmentFence"
+path = "crates/kafka-client-engine/src/transaction/partition_enrollment/model.rs"
+
+[[linear_owners]]
+owner_type = "TransactionPartitionEnrollmentTerminal"
+path = "crates/kafka-client-engine/src/transaction/partition_enrollment/model.rs"
+
+[[linear_owners]]
+owner_type = "TransactionAddPartitionsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions.rs"
+
+[[linear_owners]]
+owner_type = "TransactionAddPartitionsCallAdmissionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions.rs"
+
+[[linear_owners]]
+owner_type = "TransactionAddPartitionsTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions.rs"
 
 [[linear_owners]]
 owner_type = "TransactionProduceCall"
@@ -4300,6 +4355,9 @@ allowed_paths = [
   "crates/kafka-client-engine/src/transaction/initialization/host/recovery.rs",
   "crates/kafka-client-engine/src/transaction/lifecycle/driver_port.rs",
   "crates/kafka-client-engine/src/transaction/lifecycle/recovery.rs",
+  "crates/kafka-client-engine/src/transaction/partition_enrollment/driver_port.rs",
+  "crates/kafka-client-engine/src/transaction/partition_enrollment/settlement.rs",
+  "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_call.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_recovery.rs",
@@ -15630,6 +15688,7 @@ method = "invalidate"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/classic_group/coordinator_invalidation_drive.rs",
   "crates/kafka-client-engine/src/driver/rpc/reassignment_controller_refresh.rs",
+  "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs",
   "crates/kafka-client-engine/src/driver/rpc/transaction_produce/route_refresh.rs",
 ]

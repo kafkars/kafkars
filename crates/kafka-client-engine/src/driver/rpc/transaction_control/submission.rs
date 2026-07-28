@@ -6,7 +6,9 @@ use kafka_driver::{
     ApiVersion, CoordinatorKey, CoordinatorKeyError, CoordinatorKind, RequestOptions, Route,
     RoutedCall, SubmitError, TrafficClass,
 };
-use kafka_wire::{EndTxnRequest, EndTxnResponse};
+use kafka_wire::{
+    AddPartitionsToTxnRequest, AddPartitionsToTxnResponse, EndTxnRequest, EndTxnResponse,
+};
 
 use super::super::super::DriverOwner;
 
@@ -42,6 +44,19 @@ impl Error for TransactionControlSubmitError {
 }
 
 impl DriverOwner {
+    pub(super) fn submit_tracked_transaction_add_partitions(
+        &self,
+        transactional_id: &str,
+        request: AddPartitionsToTxnRequest,
+        deadline: Instant,
+    ) -> Result<RoutedCall<AddPartitionsToTxnResponse>, TransactionControlSubmitError> {
+        let route = transaction_control_route(transactional_id)
+            .map_err(TransactionControlSubmitError::InvalidTransactionalId)?;
+        self.driver
+            .request_tracked_with(route, request, transaction_control_options(deadline))
+            .map_err(TransactionControlSubmitError::Driver)
+    }
+
     pub(super) fn submit_tracked_transaction_end(
         &self,
         transactional_id: &str,

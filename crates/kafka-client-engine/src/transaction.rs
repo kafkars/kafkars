@@ -4,6 +4,7 @@ mod completion;
 mod execution;
 mod initialization;
 mod lifecycle;
+pub(crate) mod partition_enrollment;
 
 pub(crate) use execution::TransactionExecutionHost;
 pub use initialization::{
