@@ -3,11 +3,12 @@
 use std::thread::ThreadId;
 
 use kafka_client_core::{
-    AdminDescribeLogDirsTerminal, AdminListOffsetsTerminal, AlterConsumerGroupOffsetsTerminal,
-    AlterPartitionReassignmentsTerminal, AlterReplicaLogDirsTerminal, CreatePartitionsTerminal,
-    CreateTopicsTerminal, DeleteConsumerGroupOffsetsTerminal, DeleteRecordsTerminal,
-    DeleteTopicsTerminal, DescribeClusterTerminal, DescribeConfigsTerminal, DescribeTopicsTerminal,
-    ElectLeadersTerminal, IncrementalAlterConfigsTerminal, ListConsumerGroupOffsetsTerminal,
+    AdminDescribeLogDirsTerminal, AdminListConsumerGroupsTerminal, AdminListOffsetsTerminal,
+    AlterConsumerGroupOffsetsTerminal, AlterPartitionReassignmentsTerminal,
+    AlterReplicaLogDirsTerminal, CreatePartitionsTerminal, CreateTopicsTerminal,
+    DeleteConsumerGroupOffsetsTerminal, DeleteRecordsTerminal, DeleteTopicsTerminal,
+    DescribeClusterTerminal, DescribeConfigsTerminal, DescribeTopicsTerminal, ElectLeadersTerminal,
+    IncrementalAlterConfigsTerminal, ListConsumerGroupOffsetsTerminal,
     ListPartitionReassignmentsTerminal,
 };
 
@@ -23,7 +24,8 @@ use super::{
     DELETE_RECORDS_CAPACITY, DELETE_TOPICS_CAPACITY, DESCRIBE_CLUSTER_CAPACITY,
     DESCRIBE_CONFIGS_CAPACITY, DESCRIBE_LOG_DIRS_CAPACITY, DESCRIBE_TOPICS_CAPACITY,
     ELECT_LEADERS_CAPACITY, INCREMENTAL_ALTER_CONFIGS_CAPACITY,
-    LIST_CONSUMER_GROUP_OFFSETS_CAPACITY, LIST_PARTITION_REASSIGNMENTS_CAPACITY,
+    LIST_CONSUMER_GROUP_OFFSETS_CAPACITY, LIST_CONSUMER_GROUPS_CAPACITY,
+    LIST_PARTITION_REASSIGNMENTS_CAPACITY,
 };
 
 const ADMIN_NOTIFIER_THREAD: &str = "kafka-client-admin-completion-notifier";
@@ -42,6 +44,7 @@ const ADMIN_NOTIFICATION_CAPACITY: usize = CREATE_TOPICS_CAPACITY
     + ALTER_PARTITION_REASSIGNMENTS_CAPACITY
     + ELECT_LEADERS_CAPACITY
     + DELETE_RECORDS_CAPACITY
+    + LIST_CONSUMER_GROUPS_CAPACITY
     + DESCRIBE_LOG_DIRS_CAPACITY
     + ALTER_REPLICA_LOG_DIRS_CAPACITY;
 
@@ -62,6 +65,7 @@ pub(crate) enum AdminPublishTicket {
     AlterPartitionReassignments(PublishTicket<AlterPartitionReassignmentsTerminal>),
     ElectLeaders(PublishTicket<ElectLeadersTerminal>),
     DeleteRecords(PublishTicket<DeleteRecordsTerminal>),
+    ListConsumerGroups(PublishTicket<AdminListConsumerGroupsTerminal>),
     DescribeLogDirs(PublishTicket<AdminDescribeLogDirsTerminal>),
     AlterReplicaLogDirs(PublishTicket<AlterReplicaLogDirsTerminal>),
 }
@@ -84,6 +88,7 @@ impl NotificationTicket for AdminPublishTicket {
             Self::AlterPartitionReassignments(ticket) => ticket.publish(),
             Self::ElectLeaders(ticket) => ticket.publish(),
             Self::DeleteRecords(ticket) => ticket.publish(),
+            Self::ListConsumerGroups(ticket) => ticket.publish(),
             Self::DescribeLogDirs(ticket) => ticket.publish(),
             Self::AlterReplicaLogDirs(ticket) => ticket.publish(),
         }
@@ -117,6 +122,8 @@ pub(crate) type AlterPartitionReassignmentsPublisher =
 pub(crate) type ElectLeadersPublisher = SharedPublishPort<ElectLeadersTerminal, AdminPublishTicket>;
 pub(crate) type DeleteRecordsPublisher =
     SharedPublishPort<DeleteRecordsTerminal, AdminPublishTicket>;
+pub(crate) type AdminListConsumerGroupsPublisher =
+    SharedPublishPort<AdminListConsumerGroupsTerminal, AdminPublishTicket>;
 pub(crate) type AdminDescribeLogDirsPublisher =
     SharedPublishPort<AdminDescribeLogDirsTerminal, AdminPublishTicket>;
 pub(crate) type AdminAlterReplicaLogDirsPublisher =
@@ -139,6 +146,7 @@ pub(crate) struct AdminCompletionPorts {
     pub(crate) alter_partition_reassignments: AlterPartitionReassignmentsPublisher,
     pub(crate) elect_leaders: ElectLeadersPublisher,
     pub(crate) delete_records: DeleteRecordsPublisher,
+    pub(crate) list_consumer_groups: AdminListConsumerGroupsPublisher,
     pub(crate) describe_log_dirs: AdminDescribeLogDirsPublisher,
     pub(crate) alter_replica_log_dirs: AdminAlterReplicaLogDirsPublisher,
 }
@@ -173,6 +181,7 @@ impl AdminCompletionNotifier {
                 .publish_port(AdminPublishTicket::AlterPartitionReassignments),
             elect_leaders: worker.publish_port(AdminPublishTicket::ElectLeaders),
             delete_records: worker.publish_port(AdminPublishTicket::DeleteRecords),
+            list_consumer_groups: worker.publish_port(AdminPublishTicket::ListConsumerGroups),
             describe_log_dirs: worker.publish_port(AdminPublishTicket::DescribeLogDirs),
             alter_replica_log_dirs: worker.publish_port(AdminPublishTicket::AlterReplicaLogDirs),
         };

@@ -173,6 +173,12 @@ impl fmt::Display for EngineHostError {
             Self::AlterReplicaLogDirsLockPoisoned => {
                 formatter.write_str("AlterReplicaLogDirs host ownership lock is poisoned")
             }
+            Self::ListConsumerGroups(error) => {
+                write!(formatter, "ListConsumerGroups host failed: {error}")
+            }
+            Self::ListConsumerGroupsLockPoisoned => {
+                formatter.write_str("ListConsumerGroups host ownership lock is poisoned")
+            }
             Self::DeleteRecords(error) => {
                 write!(formatter, "DeleteRecords host failed: {error}")
             }

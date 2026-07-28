@@ -36,6 +36,7 @@ pub(crate) fn recover(
     drop(resources.describe_configs.terminal_host());
     drop(resources.incremental_alter_configs.terminal_host());
     drop(resources.list_consumer_group_offsets.terminal_host());
+    drop(resources.list_consumer_groups.terminal_host());
     drop(resources.delete_consumer_group_offsets.terminal_host());
     drop(resources.alter_consumer_group_offsets.terminal_host());
     drop(resources.list_offsets.terminal_host());

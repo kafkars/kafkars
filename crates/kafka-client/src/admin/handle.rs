@@ -22,8 +22,9 @@ use super::{
     CreatePartitionsBuilder, CreateTopicsBuilder, DeleteConsumerGroupOffsetsBuilder,
     DeleteRecordsBuilder, DeleteRecordsTarget, DeleteTopicsBuilder, DescribeClusterBuilder,
     DescribeConfigsBuilder, DescribeTopicsBuilder, ElectLeadersBuilder,
-    IncrementalAlterConfigsBuilder, ListConsumerGroupOffsetsBuilder, ListTopicsBuilder,
-    NewPartitions, NewTopic, ReplicaLogDirAssignment, TopicConfigAlterations, TopicConfigQuery,
+    IncrementalAlterConfigsBuilder, ListConsumerGroupOffsetsBuilder, ListConsumerGroupsBuilder,
+    ListTopicsBuilder, NewPartitions, NewTopic, ReplicaLogDirAssignment, TopicConfigAlterations,
+    TopicConfigQuery,
 };
 
 /// Cheaply cloneable, thread-safe admin handle.
@@ -147,6 +148,14 @@ impl Admin {
             request,
             self.engine.default_timeout(),
         )
+    }
+
+    /// Builds an inert cluster-wide consumer-group listing request.
+    ///
+    /// No timeout starts and no operation is admitted until
+    /// [`ListConsumerGroupsBuilder::submit`] is called.
+    pub fn list_consumer_groups(&self) -> ListConsumerGroupsBuilder {
+        ListConsumerGroupsBuilder::new(self.engine.clone(), self.engine.default_timeout())
     }
 
     /// Builds an inert caller-ordered committed-offset deletion for one group.

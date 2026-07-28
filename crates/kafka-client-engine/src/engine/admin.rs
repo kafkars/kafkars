@@ -24,6 +24,7 @@ impl Engine {
                     .inner
                     .list_consumer_group_offsets_admission
                     .clone(),
+                list_consumer_groups: self.inner.list_consumer_groups_admission.clone(),
                 delete_consumer_group_offsets: self
                     .inner
                     .delete_consumer_group_offsets_admission
@@ -62,6 +63,7 @@ impl EngineInner {
         let _close_result = self.describe_configs_admission.close_admission();
         let _close_result = self.incremental_alter_configs_admission.close_admission();
         let _close_result = self.list_consumer_group_offsets_admission.close_admission();
+        let _close_result = self.list_consumer_groups_admission.close_admission();
         let _close_result = self
             .delete_consumer_group_offsets_admission
             .close_admission();

@@ -201,6 +201,12 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
             crate::admin::ListConsumerGroupOffsetsHostError::Unsettled(group_offsets),
         ));
     }
+    let listed_groups = resources.list_consumer_groups.terminal_host().unsettled();
+    if listed_groups != 0 {
+        return Err(EngineHostError::ListConsumerGroups(
+            crate::admin::ListConsumerGroupsHostError::Unsettled(listed_groups),
+        ));
+    }
     let group_offset_delete = resources
         .delete_consumer_group_offsets
         .terminal_host()

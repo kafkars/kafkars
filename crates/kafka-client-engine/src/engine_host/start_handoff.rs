@@ -35,6 +35,7 @@ pub(crate) struct StartedEngineHost {
     pub(crate) describe_configs_admission: DescribeConfigsAdmissionPort,
     pub(crate) incremental_alter_configs_admission: IncrementalAlterConfigsAdmissionPort,
     pub(crate) list_consumer_group_offsets_admission: ListConsumerGroupOffsetsAdmissionPort,
+    pub(crate) list_consumer_groups_admission: crate::admin::ListConsumerGroupsAdmissionPort,
     pub(crate) delete_consumer_group_offsets_admission: DeleteConsumerGroupOffsetsAdmissionPort,
     pub(crate) alter_consumer_group_offsets_admission: AlterConsumerGroupOffsetsAdmissionPort,
     pub(crate) list_offsets_admission: AdminListOffsetsAdmissionPort,

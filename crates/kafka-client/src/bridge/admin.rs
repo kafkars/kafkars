@@ -30,6 +30,7 @@ use super::admin_group_offsets::{
     AdminAlterConsumerGroupOffsets, AdminListConsumerGroupOffsets,
     AlterConsumerGroupOffsetsAdminRequest, ListConsumerGroupOffsetsAdminRequest,
 };
+use super::admin_list_consumer_groups::AdminListConsumerGroups;
 use super::admin_operation::AdminCreateTopics;
 use super::admin_partitions_operation::AdminCreatePartitions;
 use super::admin_topics_operation::AdminDescribeTopics;
@@ -141,6 +142,10 @@ impl AdminEngine {
             self.handle
                 .try_list_consumer_group_offsets(request.into_engine(), timeout),
         )
+    }
+
+    pub(crate) fn submit_list_consumer_groups(&self, timeout: Duration) -> AdminListConsumerGroups {
+        AdminListConsumerGroups::from_admission(self.handle.try_list_consumer_groups(timeout))
     }
 
     pub(crate) fn submit_delete_consumer_group_offsets(

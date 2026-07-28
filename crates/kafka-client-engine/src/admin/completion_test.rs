@@ -9,8 +9,9 @@ use std::{
 };
 
 use kafka_client_core::{
-    AdminDescribeLogDirsBatch, AdminDescribeLogDirsTerminal, AdminListOffsetsBatch,
-    AdminListOffsetsTerminal, AlterConsumerGroupOffsetsBatch, AlterConsumerGroupOffsetsTerminal,
+    AdminDescribeLogDirsBatch, AdminDescribeLogDirsTerminal, AdminListConsumerGroupsBatch,
+    AdminListConsumerGroupsTerminal, AdminListOffsetsBatch, AdminListOffsetsTerminal,
+    AlterConsumerGroupOffsetsBatch, AlterConsumerGroupOffsetsTerminal,
     AlterPartitionReassignmentsBatch, AlterPartitionReassignmentsTerminal,
     AlterReplicaLogDirsBatch, AlterReplicaLogDirsTerminal, ClusterDescription,
     CreatePartitionsTerminal, CreateTopicsTerminal, DeleteConsumerGroupOffsetsBatch,
@@ -50,6 +51,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     let mut alterations = PendingTerminal::new(ports.alter_partition_reassignments);
     let mut elections = PendingTerminal::new(ports.elect_leaders);
     let mut record_deletions = PendingTerminal::new(ports.delete_records);
+    let mut group_listings = PendingTerminal::new(ports.list_consumer_groups);
     let mut log_directories = PendingTerminal::new(ports.describe_log_dirs);
     let mut log_dir_alterations = PendingTerminal::new(ports.alter_replica_log_dirs);
 
@@ -95,6 +97,9 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
         0,
         Vec::new(),
     )));
+    group_listings.publish(AdminListConsumerGroupsTerminal::Listed(
+        AdminListConsumerGroupsBatch::new(0, Vec::new(), Vec::new()),
+    ));
     log_directories.publish(AdminDescribeLogDirsTerminal::Described(
         AdminDescribeLogDirsBatch::new(0, Vec::new()),
     ));
@@ -117,6 +122,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     alterations.observe_and_reclaim(worker);
     elections.observe_and_reclaim(worker);
     record_deletions.observe_and_reclaim(worker);
+    group_listings.observe_and_reclaim(worker);
     log_directories.observe_and_reclaim(worker);
     log_dir_alterations.observe_and_reclaim(worker);
 

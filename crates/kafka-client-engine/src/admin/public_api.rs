@@ -184,6 +184,19 @@ pub use super::handle::{AdminHandle, CreateTopicsAccepted, CreateTopicsAcceptedF
 pub(crate) use super::host::{
     CREATE_TOPICS_CAPACITY, CreateTopicsHost, CreateTopicsHostError, CreateTopicsTurn,
 };
+pub use super::list_consumer_groups::{
+    ConsumerGroupListing, ListConsumerGroupsAccepted, ListConsumerGroupsAcceptedFaultKind,
+    ListConsumerGroupsAdmissionError, ListConsumerGroupsAdmissionErrorKind,
+    ListConsumerGroupsBatch, ListConsumerGroupsBrokerError, ListConsumerGroupsDeliveryStatus,
+    ListConsumerGroupsDiscoveryError, ListConsumerGroupsFailure, ListConsumerGroupsFailureKind,
+    ListConsumerGroupsObserver, ListConsumerGroupsObserverError, ListConsumerGroupsOutcome,
+};
+pub(crate) use super::list_consumer_groups::{
+    LIST_CONSUMER_GROUPS_CAPACITY, ListConsumerGroupsAdmissionPort, ListConsumerGroupsHost,
+    ListConsumerGroupsHostError, ListConsumerGroupsShardLockError, ListConsumerGroupsShardOwner,
+    ListConsumerGroupsShardWake, ListConsumerGroupsShardWakeError,
+    ListConsumerGroupsSubmissionKind, ListConsumerGroupsTurn,
+};
 pub(crate) use super::list_offsets::{
     ADMIN_LIST_OFFSETS_CAPACITY, AdminListOffsetsAdmissionPort, AdminListOffsetsHost,
     AdminListOffsetsHostError, AdminListOffsetsShardLockError, AdminListOffsetsShardOwner,

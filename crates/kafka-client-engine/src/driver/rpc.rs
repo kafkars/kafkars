@@ -176,6 +176,11 @@ mod join_group_submission_test;
 mod leave_group_submission;
 #[cfg(test)]
 mod leave_group_submission_test;
+mod list_consumer_groups_call;
+mod list_consumer_groups_submission;
+#[cfg(test)]
+mod list_consumer_groups_submission_test;
+mod list_consumer_groups_terminal;
 mod list_offsets_admission;
 #[cfg(test)]
 mod list_offsets_admission_test;
@@ -246,3 +251,8 @@ pub(crate) use elect_leaders_terminal::{
     RecoveredElectLeadersCall,
 };
 pub(crate) use exports::ProduceSubmitError;
+pub(crate) use list_consumer_groups_call::ListConsumerGroupsCall;
+pub(crate) use list_consumer_groups_terminal::{
+    ListConsumerGroupsDriverFailureKind, ListConsumerGroupsRawTerminal,
+    ListConsumerGroupsRawTerminalFact,
+};

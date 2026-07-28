@@ -14,7 +14,7 @@ use crate::{
         CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner, DeleteRecordsShardOwner,
         DeleteTopicsShardOwner, DescribeClusterShardOwner, DescribeLogDirsShardOwner,
         DescribeTopicsShardOwner, ElectLeadersShardOwner, IncrementalAlterConfigsShardOwner,
-        ListConsumerGroupOffsetsShardOwner,
+        ListConsumerGroupOffsetsShardOwner, ListConsumerGroupsShardOwner,
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
@@ -151,6 +151,9 @@ pub(crate) fn start(
         Arc::new(driver.reactor_wake()),
     );
     let list_consumer_group_offsets_admission = list_consumer_group_offsets.admission_port();
+    let list_consumer_groups =
+        ListConsumerGroupsShardOwner::new(list_consumer_groups, Arc::new(driver.reactor_wake()));
+    let list_consumer_groups_admission = list_consumer_groups.admission_port();
     let delete_consumer_group_offsets = DeleteConsumerGroupOffsetsShardOwner::new(
         delete_consumer_group_offsets,
         Arc::new(driver.reactor_wake()),
@@ -189,6 +192,7 @@ pub(crate) fn start(
         describe_configs: describe_configs.owner,
         incremental_alter_configs,
         list_consumer_group_offsets,
+        list_consumer_groups,
         delete_consumer_group_offsets,
         alter_consumer_group_offsets: alter_consumer_group_offsets.owner,
         list_offsets: list_offsets.owner,
@@ -244,6 +248,7 @@ pub(crate) fn start(
         describe_configs_admission: describe_configs.admission,
         incremental_alter_configs_admission,
         list_consumer_group_offsets_admission,
+        list_consumer_groups_admission,
         delete_consumer_group_offsets_admission,
         alter_consumer_group_offsets_admission: alter_consumer_group_offsets.admission,
         list_offsets_admission: list_offsets.admission,

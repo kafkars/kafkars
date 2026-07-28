@@ -33,6 +33,7 @@ mod group_offset_delete;
 mod group_offsets;
 mod handle;
 mod host;
+mod list_consumer_groups;
 mod list_offsets;
 mod list_partition_reassignments;
 mod model;

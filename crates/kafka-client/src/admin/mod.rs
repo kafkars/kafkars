@@ -23,6 +23,7 @@ mod handle;
 mod list_consumer_group_offsets;
 mod list_consumer_group_offsets_builder;
 mod list_consumer_group_offsets_result;
+mod list_consumer_groups;
 mod list_offsets;
 mod list_topics;
 mod list_topics_builder;

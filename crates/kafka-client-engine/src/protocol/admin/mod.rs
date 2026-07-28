@@ -39,6 +39,7 @@ pub(crate) mod group_offset_delete;
 )]
 pub(crate) mod group_offsets;
 pub(crate) mod incremental_alter_configs;
+pub(crate) mod list_consumer_groups;
 pub(crate) mod list_offsets;
 pub(crate) mod list_partition_reassignments;
 mod list_topics_response;

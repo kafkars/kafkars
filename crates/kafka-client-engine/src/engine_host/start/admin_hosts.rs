@@ -6,7 +6,7 @@ use crate::admin::{
     CreateTopicsHost, DeleteConsumerGroupOffsetsHost, DeleteRecordsHost, DeleteTopicsHost,
     DescribeClusterHost, DescribeConfigsPublisher, DescribeLogDirsHost, DescribeTopicsHost,
     ElectLeadersHost, IncrementalAlterConfigsHost, ListConsumerGroupOffsetsHost,
-    ListPartitionReassignmentsPublisher,
+    ListConsumerGroupsHost, ListPartitionReassignmentsPublisher,
 };
 
 pub(super) struct StartedAdminHosts {
@@ -19,6 +19,7 @@ pub(super) struct StartedAdminHosts {
     pub(super) describe_configs: DescribeConfigsPublisher,
     pub(super) incremental_alter_configs: IncrementalAlterConfigsHost,
     pub(super) list_consumer_group_offsets: ListConsumerGroupOffsetsHost,
+    pub(super) list_consumer_groups: ListConsumerGroupsHost,
     pub(super) delete_consumer_group_offsets: DeleteConsumerGroupOffsetsHost,
     pub(super) alter_consumer_group_offsets: AlterConsumerGroupOffsetsPublisher,
     pub(super) admin_list_offsets: AdminListOffsetsPublisher,
@@ -40,6 +41,7 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
         describe_configs,
         incremental_alter_configs,
         list_consumer_group_offsets,
+        list_consumer_groups,
         delete_consumer_group_offsets,
         alter_consumer_group_offsets,
         admin_list_offsets,
@@ -59,6 +61,7 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
         describe_configs,
         incremental_alter_configs: IncrementalAlterConfigsHost::new(incremental_alter_configs),
         list_consumer_group_offsets: ListConsumerGroupOffsetsHost::new(list_consumer_group_offsets),
+        list_consumer_groups: ListConsumerGroupsHost::new(list_consumer_groups),
         delete_consumer_group_offsets: DeleteConsumerGroupOffsetsHost::new(
             delete_consumer_group_offsets,
         ),

@@ -107,6 +107,14 @@ pub use super::group_offsets::{
     ListConsumerGroupOffsetsPlan, ListConsumerGroupOffsetsPlanError, ListConsumerGroupOffsetsState,
     ListConsumerGroupOffsetsTerminal, ListConsumerGroupOffsetsTransition,
 };
+pub use super::list_consumer_groups::{
+    AdminConsumerGroupListing, AdminListConsumerGroupsBatch, AdminListConsumerGroupsBrokerError,
+    AdminListConsumerGroupsBrokerOutcome, AdminListConsumerGroupsEffect,
+    AdminListConsumerGroupsFailure, AdminListConsumerGroupsFailureKind,
+    AdminListConsumerGroupsInput, AdminListConsumerGroupsMachine,
+    AdminListConsumerGroupsMachineError, AdminListConsumerGroupsState,
+    AdminListConsumerGroupsTerminal, AdminListConsumerGroupsTransition,
+};
 pub use super::list_offsets::{
     AdminListOffset, AdminListOffsetBrokerError, AdminListOffsetOutcome, AdminListOffsetResult,
     AdminListOffsetSpec, AdminListOffsetTarget, AdminListOffsetsBatch, AdminListOffsetsEffect,

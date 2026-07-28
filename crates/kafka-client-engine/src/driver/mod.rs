@@ -81,9 +81,11 @@ pub(crate) use rpc::{
     DeleteRecordsRawTerminal, DeleteRecordsTerminalFact, DescribeLogDirsCall,
     DescribeLogDirsDriverFailureKind, DescribeLogDirsRawTerminal, DescribeLogDirsTerminalFact,
     ElectLeadersCall, ElectLeadersDriverFailureKind, ElectLeadersTerminal,
-    ElectLeadersTerminalFact, RecoveredAlterReplicaLogDirsCall, RecoveredDeleteRecordsCall,
-    RecoveredDescribeLogDirsCall, RecoveredElectLeadersCall, classic_group, transaction_control,
-    transaction_offsets, transaction_produce,
+    ElectLeadersTerminalFact, ListConsumerGroupsCall, ListConsumerGroupsDriverFailureKind,
+    ListConsumerGroupsRawTerminal, ListConsumerGroupsRawTerminalFact,
+    RecoveredAlterReplicaLogDirsCall, RecoveredDeleteRecordsCall, RecoveredDescribeLogDirsCall,
+    RecoveredElectLeadersCall, classic_group, transaction_control, transaction_offsets,
+    transaction_produce,
 };
 pub(crate) use security::{EngineSecurityError, ValidatedSecurity, validate as validate_security};
 pub(crate) use wake::{ReactorWake, ReactorWakeError};
