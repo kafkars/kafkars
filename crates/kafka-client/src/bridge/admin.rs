@@ -15,6 +15,9 @@ use crate::admin::{NewPartitions, NewTopic};
 
 use super::admin_alter_configs_operation::AdminIncrementalAlterConfigs;
 use super::admin_alter_configs_request::IncrementalAlterConfigsAdminRequest;
+use super::admin_alter_replica_log_dirs::{
+    AdminAlterReplicaLogDirs, AlterReplicaLogDirsAdminRequest,
+};
 use super::admin_configs_operation::AdminDescribeConfigs;
 use super::admin_configs_request::DescribeConfigsAdminRequest;
 use super::admin_delete_operation::AdminDeleteTopics;
@@ -46,6 +49,17 @@ impl AdminEngine {
 
     pub(crate) const fn default_timeout(&self) -> Duration {
         self.default_timeout
+    }
+
+    pub(crate) fn submit_alter_replica_log_dirs(
+        &self,
+        request: AlterReplicaLogDirsAdminRequest,
+        timeout: Duration,
+    ) -> AdminAlterReplicaLogDirs {
+        AdminAlterReplicaLogDirs::from_admission(
+            self.handle
+                .try_alter_replica_log_dirs(request.into_engine(), timeout),
+        )
     }
 
     pub(crate) fn submit(&self, request: AdminRequest, timeout: Duration) -> AdminCreateTopics {

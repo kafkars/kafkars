@@ -10,9 +10,9 @@ use std::sync::Arc;
 use crate::{
     EngineConfig,
     admin::{
-        AdminCompletionNotifier, CreatePartitionsShardOwner, CreateTopicsShardOwner,
-        DeleteConsumerGroupOffsetsShardOwner, DeleteTopicsShardOwner, DescribeClusterShardOwner,
-        DescribeTopicsShardOwner, IncrementalAlterConfigsShardOwner,
+        AdminCompletionNotifier, AlterReplicaLogDirsShardOwner, CreatePartitionsShardOwner,
+        CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner, DeleteTopicsShardOwner,
+        DescribeClusterShardOwner, DescribeTopicsShardOwner, IncrementalAlterConfigsShardOwner,
         ListConsumerGroupOffsetsShardOwner,
     },
     clock::MonotonicClock,
@@ -87,6 +87,7 @@ pub(crate) fn start(
         admin_list_offsets,
         list_partition_reassignments,
         alter_partition_reassignments,
+        alter_replica_log_dirs,
     } = admin_hosts::start(admin_ports);
     let mut group_consumers = match GroupConsumerRegistry::start() {
         Ok(registry) => registry,
@@ -159,6 +160,9 @@ pub(crate) fn start(
         list_partition_reassignments::start(list_partition_reassignments, driver.reactor_wake());
     let alter_partition_reassignments =
         alter_partition_reassignments::start(alter_partition_reassignments, driver.reactor_wake());
+    let alter_replica_log_dirs =
+        AlterReplicaLogDirsShardOwner::new(alter_replica_log_dirs, Arc::new(driver.reactor_wake()));
+    let alter_replica_log_dirs_admission = alter_replica_log_dirs.admission_port();
     let produce_calls =
         crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
     let resources = EngineHostResources {
@@ -179,6 +183,7 @@ pub(crate) fn start(
         list_offsets: list_offsets.owner,
         list_partition_reassignments: list_partition_reassignments.owner,
         alter_partition_reassignments: alter_partition_reassignments.owner,
+        alter_replica_log_dirs,
         assigned_consumer: assigned_consumer_owner,
         group_consumers,
         transaction_initialization,
@@ -230,6 +235,7 @@ pub(crate) fn start(
         list_offsets_admission: list_offsets.admission,
         list_partition_reassignments_admission: list_partition_reassignments.admission,
         alter_partition_reassignments_admission: alter_partition_reassignments.admission,
+        alter_replica_log_dirs_admission,
         assigned_consumer,
         group_consumer,
         transaction_initialization: transaction_initialization_admission,

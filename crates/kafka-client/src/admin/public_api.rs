@@ -4,6 +4,10 @@ pub use super::alter_configs::{
     ConfigAlteration, ConfigAlterationOperation, IncrementalAlterConfigs,
     IncrementalAlterConfigsBuilder, IncrementalAlterConfigsResult, TopicConfigAlterations,
 };
+pub use super::alter_replica_log_dirs::{
+    AlterReplicaLogDirs, AlterReplicaLogDirsBuilder, AlterReplicaLogDirsResult,
+    ReplicaLogDirAssignment, TopicPartitionReplica,
+};
 pub use super::batch_result::BatchResult;
 pub use super::builder::CreateTopicsBuilder;
 pub use super::configs::{

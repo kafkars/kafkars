@@ -82,6 +82,8 @@ baseline = [
   { path = "crates/kafka-client/src/lib.rs", lines = 81, reason = "the focused historical owner exceeds its design target; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/driver/mod.rs", lines = 82, reason = "the focused historical owner exceeds its design target; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/turn.rs", lines = 252, reason = "the focused historical owner exceeds its design target; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafka-client-engine/src/protocol/admin/alter_replica_log_dirs/request.rs", lines = 286, reason = "the destructive request seam validates bounded assignments and groups caller intent into generated directory and topic ownership without transport policy" },
+  { path = "crates/kafka-client-engine/src/protocol/admin/alter_replica_log_dirs/response.rs", lines = 330, reason = "the destructive response seam validates shape, exact caller correlation, signed broker errors, and retained bytes before core settlement" },
   { path = "crates/kafka-client-core/src/consumer/mod.rs", lines = 83, reason = "the declarative core consumer facade names atomic batch control and its sibling evidence beside direct-assignment policy" },
   { path = "crates/kafka-client-guardrails/tests/consumer_group_registry_guard.rs", lines = 305, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
 ]
@@ -4022,6 +4024,8 @@ allow = [
   { path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/response.rs", capability = "crate::driver", reason = "The concrete response seam exhaustively translates borrowed AlterPartitionReassignments driver facts before core accepts a terminal outcome." },
   { path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/terminal.rs", capability = "crate::driver", reason = "The terminal seam retains exact call evidence and completes causal controller refresh before publishing a code-41 broker failure." },
   { path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host_test.rs", capability = "crate::driver", reason = "The focused ownership scenarios build exact and mismatched calls to prove completion-fault recovery and correlation fences." },
+  { path = "crates/kafka-client-engine/src/admin/alter_replica_log_dirs/host/recovery.rs", capability = "crate::driver", reason = "This exact adapter retains or translates driver evidence at the deterministic ownership boundary." },
+  { path = "crates/kafka-client-engine/src/admin/alter_replica_log_dirs/host/terminal/test_support.rs", capability = "crate::driver", reason = "The exact focused fixture constructs driver evidence to verify the reviewed ownership boundary." },
 ]
 
 # Reactor-driving driver adapters never touch observer locks or wakers.

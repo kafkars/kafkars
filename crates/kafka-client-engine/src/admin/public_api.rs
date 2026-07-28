@@ -33,6 +33,20 @@ pub use super::alter_partition_reassignments::{
     AlterPartitionReassignmentsOutcome, AlterPartitionReassignmentsRequest,
     PartitionReassignmentChange,
 };
+pub(crate) use super::alter_replica_log_dirs::{
+    ALTER_REPLICA_LOG_DIRS_CAPACITY, AlterReplicaLogDirsAdmissionPort, AlterReplicaLogDirsHost,
+    AlterReplicaLogDirsHostError, AlterReplicaLogDirsShardLockError, AlterReplicaLogDirsShardOwner,
+    AlterReplicaLogDirsShardWake, AlterReplicaLogDirsShardWakeError, AlterReplicaLogDirsTurn,
+};
+pub use super::alter_replica_log_dirs::{
+    AlterReplicaLogDirAssignment, AlterReplicaLogDirEngineBrokerError,
+    AlterReplicaLogDirEngineOutcome, AlterReplicaLogDirEngineResult, AlterReplicaLogDirsAccepted,
+    AlterReplicaLogDirsAcceptedFaultKind, AlterReplicaLogDirsAdmissionError,
+    AlterReplicaLogDirsAdmissionErrorKind, AlterReplicaLogDirsDeliveryStatus,
+    AlterReplicaLogDirsEngineBatch, AlterReplicaLogDirsFailure, AlterReplicaLogDirsFailureKind,
+    AlterReplicaLogDirsObserver, AlterReplicaLogDirsObserverError, AlterReplicaLogDirsOutcome,
+    AlterReplicaLogDirsRequest,
+};
 pub(crate) use super::configs::{
     DESCRIBE_CONFIGS_CAPACITY, DescribeConfigsAdmissionPort, DescribeConfigsHost,
     DescribeConfigsHostError, DescribeConfigsShardLockError, DescribeConfigsShardOwner,

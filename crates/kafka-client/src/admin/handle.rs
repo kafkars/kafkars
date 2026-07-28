@@ -6,6 +6,7 @@ mod partition_reassignments;
 use crate::TopicPartition;
 use crate::bridge::admin::{AdminEngine, AdminRequest, DeleteAdminRequest, PartitionsAdminRequest};
 use crate::bridge::admin_alter_configs_request::IncrementalAlterConfigsAdminRequest;
+use crate::bridge::admin_alter_replica_log_dirs::AlterReplicaLogDirsAdminRequest;
 use crate::bridge::admin_configs_request::DescribeConfigsAdminRequest;
 use crate::bridge::admin_group_offset_delete_request::DeleteConsumerGroupOffsetsAdminRequest;
 use crate::bridge::admin_group_offsets::{
@@ -14,11 +15,11 @@ use crate::bridge::admin_group_offsets::{
 use crate::bridge::admin_topics_request::DescribeTopicsAdminRequest;
 
 use super::{
-    AlterConsumerGroupOffsetsBuilder, ConsumerGroupOffsetAlteration, CreatePartitionsBuilder,
-    CreateTopicsBuilder, DeleteConsumerGroupOffsetsBuilder, DeleteTopicsBuilder,
-    DescribeClusterBuilder, DescribeConfigsBuilder, DescribeTopicsBuilder,
+    AlterConsumerGroupOffsetsBuilder, AlterReplicaLogDirsBuilder, ConsumerGroupOffsetAlteration,
+    CreatePartitionsBuilder, CreateTopicsBuilder, DeleteConsumerGroupOffsetsBuilder,
+    DeleteTopicsBuilder, DescribeClusterBuilder, DescribeConfigsBuilder, DescribeTopicsBuilder,
     IncrementalAlterConfigsBuilder, ListConsumerGroupOffsetsBuilder, ListTopicsBuilder,
-    NewPartitions, NewTopic, TopicConfigAlterations, TopicConfigQuery,
+    NewPartitions, NewTopic, ReplicaLogDirAssignment, TopicConfigAlterations, TopicConfigQuery,
 };
 
 /// Cheaply cloneable, thread-safe admin handle.
@@ -30,6 +31,18 @@ pub struct Admin {
 impl Admin {
     pub(crate) const fn new(engine: AdminEngine) -> Self {
         Self { engine }
+    }
+
+    /// Builds inert caller-ordered broker-local replica log-directory assignments.
+    ///
+    /// No timeout starts and no operation is admitted until
+    /// [`AlterReplicaLogDirsBuilder::submit`] is called.
+    pub fn alter_replica_log_dirs<I>(&self, assignments: I) -> AlterReplicaLogDirsBuilder
+    where
+        I: IntoIterator<Item = ReplicaLogDirAssignment>,
+    {
+        let request = AlterReplicaLogDirsAdminRequest::new(assignments.into_iter().collect());
+        AlterReplicaLogDirsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
     }
 
     /// Builds an inert ordered `CreateTopics` request.

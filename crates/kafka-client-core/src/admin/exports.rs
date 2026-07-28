@@ -20,6 +20,14 @@ pub use super::alter_partition_reassignments::{
     AlterPartitionReassignmentsTerminal, AlterPartitionReassignmentsTransition,
     PartitionReassignmentTarget,
 };
+pub use super::alter_replica_log_dirs::{
+    AlterReplicaLogDirAssignment, AlterReplicaLogDirBrokerError, AlterReplicaLogDirOutcome,
+    AlterReplicaLogDirResult, AlterReplicaLogDirsBatch, AlterReplicaLogDirsEffect,
+    AlterReplicaLogDirsFailure, AlterReplicaLogDirsFailureKind, AlterReplicaLogDirsInput,
+    AlterReplicaLogDirsMachine, AlterReplicaLogDirsMachineError, AlterReplicaLogDirsPlan,
+    AlterReplicaLogDirsPlanError, AlterReplicaLogDirsState, AlterReplicaLogDirsTerminal,
+    AlterReplicaLogDirsTransition,
+};
 pub use super::delete_machine::{
     DeleteTopicsEffect, DeleteTopicsInput, DeleteTopicsMachine, DeleteTopicsMachineError,
     DeleteTopicsState, DeleteTopicsTransition,

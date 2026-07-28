@@ -11,12 +11,13 @@ use std::{
 use kafka_client_core::{
     AdminListOffsetsBatch, AdminListOffsetsTerminal, AlterConsumerGroupOffsetsBatch,
     AlterConsumerGroupOffsetsTerminal, AlterPartitionReassignmentsBatch,
-    AlterPartitionReassignmentsTerminal, ClusterDescription, CreatePartitionsTerminal,
-    CreateTopicsTerminal, DeleteConsumerGroupOffsetsBatch, DeleteConsumerGroupOffsetsTerminal,
-    DeleteTopicsTerminal, DescribeClusterTerminal, DescribeConfigsBatch, DescribeConfigsTerminal,
-    DescribeTopicsTerminal, IncrementalAlterConfigsBatch, IncrementalAlterConfigsTerminal,
-    ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsTerminal,
-    ListPartitionReassignmentsBatch, ListPartitionReassignmentsTerminal,
+    AlterPartitionReassignmentsTerminal, AlterReplicaLogDirsBatch, AlterReplicaLogDirsTerminal,
+    ClusterDescription, CreatePartitionsTerminal, CreateTopicsTerminal,
+    DeleteConsumerGroupOffsetsBatch, DeleteConsumerGroupOffsetsTerminal, DeleteTopicsTerminal,
+    DescribeClusterTerminal, DescribeConfigsBatch, DescribeConfigsTerminal, DescribeTopicsTerminal,
+    IncrementalAlterConfigsBatch, IncrementalAlterConfigsTerminal, ListConsumerGroupOffsetsBatch,
+    ListConsumerGroupOffsetsTerminal, ListPartitionReassignmentsBatch,
+    ListPartitionReassignmentsTerminal,
 };
 
 use crate::completion::{CompletionRegistry, ReclaimStatus};
@@ -45,6 +46,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     let mut list_offsets = PendingTerminal::new(ports.admin_list_offsets);
     let mut reassignments = PendingTerminal::new(ports.list_partition_reassignments);
     let mut alterations = PendingTerminal::new(ports.alter_partition_reassignments);
+    let mut log_dir_alterations = PendingTerminal::new(ports.alter_replica_log_dirs);
 
     create.publish(CreateTopicsTerminal::Topics(Vec::new()));
     delete.publish(DeleteTopicsTerminal::Topics(Vec::new()));
@@ -80,6 +82,9 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     alterations.publish(AlterPartitionReassignmentsTerminal::Altered(
         AlterPartitionReassignmentsBatch::new(0, Vec::new()),
     ));
+    log_dir_alterations.publish(AlterReplicaLogDirsTerminal::Altered(
+        AlterReplicaLogDirsBatch::new(0, Vec::new()),
+    ));
 
     create.observe_and_reclaim(worker);
     delete.observe_and_reclaim(worker);
@@ -94,6 +99,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     list_offsets.observe_and_reclaim(worker);
     reassignments.observe_and_reclaim(worker);
     alterations.observe_and_reclaim(worker);
+    log_dir_alterations.observe_and_reclaim(worker);
 
     let join = notifier
         .stop()

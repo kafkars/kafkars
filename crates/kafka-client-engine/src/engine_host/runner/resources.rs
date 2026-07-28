@@ -5,9 +5,10 @@ use std::sync::Arc;
 use crate::{
     admin::{
         AdminListOffsetsShardOwner, AlterConsumerGroupOffsetsShardOwner,
-        AlterPartitionReassignmentsShardOwner, CreatePartitionsShardOwner, CreateTopicsShardOwner,
-        DeleteConsumerGroupOffsetsShardOwner, DeleteTopicsShardOwner, DescribeClusterShardOwner,
-        DescribeConfigsShardOwner, DescribeTopicsShardOwner, IncrementalAlterConfigsShardOwner,
+        AlterPartitionReassignmentsShardOwner, AlterReplicaLogDirsShardOwner,
+        CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner,
+        DeleteTopicsShardOwner, DescribeClusterShardOwner, DescribeConfigsShardOwner,
+        DescribeTopicsShardOwner, IncrementalAlterConfigsShardOwner,
         ListConsumerGroupOffsetsShardOwner, ListPartitionReassignmentsShardOwner,
     },
     clock::MonotonicClock,
@@ -41,6 +42,7 @@ pub(crate) struct EngineHostResources {
     pub(in super::super) list_offsets: AdminListOffsetsShardOwner,
     pub(in super::super) list_partition_reassignments: ListPartitionReassignmentsShardOwner,
     pub(in super::super) alter_partition_reassignments: AlterPartitionReassignmentsShardOwner,
+    pub(in super::super) alter_replica_log_dirs: AlterReplicaLogDirsShardOwner,
     pub(in super::super) assigned_consumer: crate::consumer::AssignedConsumerShardOwner,
     pub(in super::super) group_consumers: crate::consumer::GroupConsumerShardOwner,
     pub(in super::super) transaction_initialization: TransactionInitializationShardOwner,

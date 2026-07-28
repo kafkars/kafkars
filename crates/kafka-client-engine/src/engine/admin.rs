@@ -40,6 +40,7 @@ impl Engine {
                     .inner
                     .alter_partition_reassignments_admission
                     .clone(),
+                alter_replica_log_dirs: self.inner.alter_replica_log_dirs_admission.clone(),
             },
             Arc::clone(&self.inner.clock),
             lifetime,
@@ -70,5 +71,6 @@ impl EngineInner {
         let _close_result = self
             .alter_partition_reassignments_admission
             .close_admission();
+        let _close_result = self.alter_replica_log_dirs_admission.close_admission();
     }
 }

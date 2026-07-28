@@ -16,6 +16,11 @@ mod alter_partition_reassignments_submission_test;
 mod alter_partition_reassignments_terminal;
 #[cfg(test)]
 mod alter_partition_reassignments_terminal_test;
+mod alter_replica_log_dirs_call;
+mod alter_replica_log_dirs_submission;
+#[cfg(test)]
+mod alter_replica_log_dirs_submission_test;
+mod alter_replica_log_dirs_terminal;
 mod calls;
 #[cfg(test)]
 mod calls_test;
@@ -205,4 +210,9 @@ mod transaction_init_terminal;
 mod transaction_init_terminal_test;
 pub(crate) mod transaction_offsets;
 pub(crate) mod transaction_produce;
+pub(crate) use alter_replica_log_dirs_call::AlterReplicaLogDirsCall;
+pub(crate) use alter_replica_log_dirs_terminal::{
+    AlterReplicaLogDirsDriverFailureKind, AlterReplicaLogDirsRawTerminal,
+    AlterReplicaLogDirsTerminalFact, RecoveredAlterReplicaLogDirsCall,
+};
 pub(crate) use exports::ProduceSubmitError;

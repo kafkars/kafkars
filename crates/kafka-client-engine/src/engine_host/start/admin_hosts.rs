@@ -2,8 +2,8 @@
 
 use crate::admin::{
     AdminCompletionPorts, AdminListOffsetsPublisher, AlterConsumerGroupOffsetsPublisher,
-    AlterPartitionReassignmentsPublisher, CreatePartitionsHost, CreateTopicsHost,
-    DeleteConsumerGroupOffsetsHost, DeleteTopicsHost, DescribeClusterHost,
+    AlterPartitionReassignmentsPublisher, AlterReplicaLogDirsHost, CreatePartitionsHost,
+    CreateTopicsHost, DeleteConsumerGroupOffsetsHost, DeleteTopicsHost, DescribeClusterHost,
     DescribeConfigsPublisher, DescribeTopicsHost, IncrementalAlterConfigsHost,
     ListConsumerGroupOffsetsHost, ListPartitionReassignmentsPublisher,
 };
@@ -22,6 +22,7 @@ pub(super) struct StartedAdminHosts {
     pub(super) admin_list_offsets: AdminListOffsetsPublisher,
     pub(super) list_partition_reassignments: ListPartitionReassignmentsPublisher,
     pub(super) alter_partition_reassignments: AlterPartitionReassignmentsPublisher,
+    pub(super) alter_replica_log_dirs: AlterReplicaLogDirsHost,
 }
 
 pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
@@ -39,6 +40,7 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
         admin_list_offsets,
         list_partition_reassignments,
         alter_partition_reassignments,
+        alter_replica_log_dirs,
     } = ports;
     StartedAdminHosts {
         create_topics: CreateTopicsHost::new(create_topics),
@@ -56,5 +58,6 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
         admin_list_offsets,
         list_partition_reassignments,
         alter_partition_reassignments,
+        alter_replica_log_dirs: AlterReplicaLogDirsHost::new(alter_replica_log_dirs),
     }
 }

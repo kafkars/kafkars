@@ -6,9 +6,9 @@ use kafka_client_core::{Deadline, Moment};
 
 use super::{
     super::{EngineHostError, EngineHostResources},
-    alter_consumer_group_offsets, alter_partition_reassignments, create_partitions, create_topics,
-    delete_consumer_group_offsets, delete_topics, describe_cluster, describe_configs,
-    describe_topics,
+    alter_consumer_group_offsets, alter_partition_reassignments, alter_replica_log_dirs,
+    create_partitions, create_topics, delete_consumer_group_offsets, delete_topics,
+    describe_cluster, describe_configs, describe_topics,
     group_offset_alter_schedule::drive_group_offset_delete_then_capture_alter,
     incremental_alter_configs, list_consumer_group_offsets, list_offsets, list_offsets_schedule,
     list_partition_reassignments,
@@ -87,7 +87,28 @@ pub(in crate::engine_host) fn drive(
     let alteration_now = clock.now().map_err(EngineHostError::Clock)?;
     let alteration = alter_partition_reassignments::drive(resources, alteration_now)?;
     list_offsets_schedule::extend_partition_reassignment_alterations(&mut progress, &alteration);
-    Ok(progress)
+    let alter_log_dirs_now = clock.now().map_err(EngineHostError::Clock)?;
+    let log_directory_alterations = alter_replica_log_dirs::drive(resources, alter_log_dirs_now)?;
+    Ok(extend_with_alter_replica_log_dirs(
+        &progress,
+        &log_directory_alterations,
+    ))
+}
+
+const fn extend_with_alter_replica_log_dirs(
+    progress: &AdminProgress,
+    log_directory_alterations: &alter_replica_log_dirs::AlterReplicaLogDirsProgress,
+) -> AdminProgress {
+    AdminProgress {
+        unsettled: progress
+            .unsettled
+            .saturating_add(log_directory_alterations.unsettled),
+        driver_progress: progress.driver_progress || log_directory_alterations.driver_progress,
+        next_deadline: earliest(
+            progress.next_deadline,
+            log_directory_alterations.next_deadline,
+        ),
+    }
 }
 
 pub(super) fn drive_group_offsets_then_capture_delete(

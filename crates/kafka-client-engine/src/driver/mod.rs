@@ -76,7 +76,9 @@ pub(crate) use rpc::exports::{
     TrackedGroupPositionOffsetFetchCalls,
 };
 pub(crate) use rpc::{
-    classic_group, transaction_control, transaction_offsets, transaction_produce,
+    AlterReplicaLogDirsCall, AlterReplicaLogDirsDriverFailureKind, AlterReplicaLogDirsRawTerminal,
+    AlterReplicaLogDirsTerminalFact, RecoveredAlterReplicaLogDirsCall, classic_group,
+    transaction_control, transaction_offsets, transaction_produce,
 };
 pub(crate) use security::{EngineSecurityError, ValidatedSecurity, validate as validate_security};
 pub(crate) use wake::{ReactorWake, ReactorWakeError};

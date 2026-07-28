@@ -155,6 +155,12 @@ impl fmt::Display for EngineHostError {
             Self::AlterPartitionReassignmentsLockPoisoned => {
                 formatter.write_str("AlterPartitionReassignments host ownership lock is poisoned")
             }
+            Self::AlterReplicaLogDirs(error) => {
+                write!(formatter, "AlterReplicaLogDirs host failed: {error}")
+            }
+            Self::AlterReplicaLogDirsLockPoisoned => {
+                formatter.write_str("AlterReplicaLogDirs host ownership lock is poisoned")
+            }
             Self::AdminCompletion(error) => {
                 write!(
                     formatter,

@@ -24,10 +24,11 @@ mod transaction;
 pub use admin::{
     Admin, AlterConsumerGroupOffsets, AlterConsumerGroupOffsetsBuilder,
     AlterConsumerGroupOffsetsResult, AlterPartitionReassignments,
-    AlterPartitionReassignmentsBuilder, AlterPartitionReassignmentsResult, BatchResult,
-    ClusterBroker, ClusterDescription, ConfigAlteration, ConfigAlterationOperation, ConfigEntry,
-    ConfigSynonym, ConsumerGroupOffset, ConsumerGroupOffsetAlteration, CreatePartitions,
-    CreatePartitionsBuilder, CreateTopics, CreateTopicsBuilder, DeleteConsumerGroupOffsets,
+    AlterPartitionReassignmentsBuilder, AlterPartitionReassignmentsResult, AlterReplicaLogDirs,
+    AlterReplicaLogDirsBuilder, AlterReplicaLogDirsResult, BatchResult, ClusterBroker,
+    ClusterDescription, ConfigAlteration, ConfigAlterationOperation, ConfigEntry, ConfigSynonym,
+    ConsumerGroupOffset, ConsumerGroupOffsetAlteration, CreatePartitions, CreatePartitionsBuilder,
+    CreateTopics, CreateTopicsBuilder, DeleteConsumerGroupOffsets,
     DeleteConsumerGroupOffsetsBuilder, DeleteConsumerGroupOffsetsResult, DeleteTopics,
     DeleteTopicsBuilder, DescribeCluster, DescribeClusterBuilder, DescribeConfigs,
     DescribeConfigsBuilder, DescribeConfigsResult, DescribeTopics, DescribeTopicsBuilder,
@@ -36,8 +37,9 @@ pub use admin::{
     ListOffsets, ListOffsetsBuilder, ListOffsetsQuery, ListOffsetsResult, ListOffsetsResultInfo,
     ListPartitionReassignments, ListPartitionReassignmentsBuilder,
     ListPartitionReassignmentsResult, ListTopics, ListTopicsBuilder, NewPartitions, NewTopic,
-    OffsetSpec, PartitionReassignment, PartitionReassignmentChange, TopicConfigAlterations,
-    TopicConfigQuery, TopicDescription, TopicPartitionDescription,
+    OffsetSpec, PartitionReassignment, PartitionReassignmentChange, ReplicaLogDirAssignment,
+    TopicConfigAlterations, TopicConfigQuery, TopicDescription, TopicPartitionDescription,
+    TopicPartitionReplica,
 };
 pub use client::{Client, ClientBuilder};
 pub use consumer::{

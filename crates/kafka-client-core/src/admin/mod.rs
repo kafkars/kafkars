@@ -2,6 +2,7 @@
 
 mod alter_configs;
 mod alter_partition_reassignments;
+mod alter_replica_log_dirs;
 mod delete_machine;
 mod delete_model;
 mod delete_outcome;

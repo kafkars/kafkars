@@ -3,9 +3,10 @@
 use crate::{
     admin::{
         AdminListOffsetsHostError, AlterConsumerGroupOffsetsHostError,
-        AlterPartitionReassignmentsHostError, CreatePartitionsHostError, CreateTopicsHostError,
-        DeleteConsumerGroupOffsetsHostError, DeleteTopicsHostError, DescribeClusterHostError,
-        DescribeConfigsHostError, DescribeTopicsHostError, IncrementalAlterConfigsHostError,
+        AlterPartitionReassignmentsHostError, AlterReplicaLogDirsHostError,
+        CreatePartitionsHostError, CreateTopicsHostError, DeleteConsumerGroupOffsetsHostError,
+        DeleteTopicsHostError, DescribeClusterHostError, DescribeConfigsHostError,
+        DescribeTopicsHostError, IncrementalAlterConfigsHostError,
         ListConsumerGroupOffsetsHostError, ListPartitionReassignmentsHostError,
     },
     clock::ClockError,
@@ -86,6 +87,8 @@ pub(crate) enum EngineHostError {
     ListPartitionReassignmentsLockPoisoned,
     AlterPartitionReassignments(AlterPartitionReassignmentsHostError),
     AlterPartitionReassignmentsLockPoisoned,
+    AlterReplicaLogDirs(AlterReplicaLogDirsHostError),
+    AlterReplicaLogDirsLockPoisoned,
     AdminCompletion(CompletionRegistryError),
     Driver(DriverOwnerError),
     DriverOwnerMissing,
