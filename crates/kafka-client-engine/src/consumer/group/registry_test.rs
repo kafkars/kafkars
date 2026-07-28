@@ -114,21 +114,21 @@ fn count_and_aggregate_group_name_bytes_have_exact_caps() {
 }
 
 #[test]
-fn first_entry_fault_fences_registration_cycle_and_commit_admission() {
+fn one_entry_fault_fences_only_that_groups_cycle_and_commit_admission() {
     let mut registry = started_registry();
-    let group_id = register(&mut registry, "workers");
-    install_session(&mut registry, group_id);
-    let checkpoint = checkpoint(&registry, group_id);
+    let faulted_group = register(&mut registry, "workers");
+    install_session(&mut registry, faulted_group);
+    let faulted_checkpoint = checkpoint(&registry, faulted_group);
     let cycle = MembershipCycle::try_from_raw(99)
         .unwrap_or_else(|| panic!("nonzero fault correlation cycle"));
     registry
         .entries
         .iter_mut()
-        .find(|entry| entry.group_id() == group_id)
+        .find(|entry| entry.group_id() == faulted_group)
         .unwrap_or_else(|| panic!("registered entry expected"))
         .fault = Some(ClassicGroupEntryFault::SyncRecoverySemantic(cycle));
 
-    let registration = registry
+    let healthy_group = registry
         .try_register(
             Arc::from("other"),
             vec![Arc::from("orders")],
@@ -136,21 +136,30 @@ fn first_entry_fault_fences_registration_cycle_and_commit_admission() {
             super::classic_group_test_support::heartbeat_policy(),
             super::classic_group_test_support::rejoin_policy(),
         )
-        .err()
-        .unwrap_or_else(|| panic!("faulted registry must reject registration"));
-    assert_eq!(
-        registration.kind,
-        GroupConsumerRegistrationFailureKind::EntryFault
-    );
+        .unwrap_or_else(|failure| panic!("healthy registration failed: {:?}", failure.kind));
+    install_session(&mut registry, healthy_group);
+    let healthy_checkpoint = checkpoint(&registry, healthy_group);
+    let accepted_commit = registry
+        .try_commit(healthy_group, deadline(100), healthy_checkpoint)
+        .unwrap_or_else(|failure| panic!("healthy commit failed: {:?}", failure.kind));
+    let cycle_group = register(&mut registry, "cycle");
     let capture = MonotonicClock::new()
         .capture_deadline_after(Duration::from_secs(1))
         .unwrap_or_else(|error| panic!("deadline capture failed: {error}"));
+    assert!(
+        registry
+            .try_begin_classic_cycle(cycle_group, capture)
+            .is_ok()
+    );
+    let rejected_capture = MonotonicClock::new()
+        .capture_deadline_after(Duration::from_secs(1))
+        .unwrap_or_else(|error| panic!("deadline capture failed: {error}"));
     assert_eq!(
-        registry.try_begin_classic_cycle(group_id, capture),
+        registry.try_begin_classic_cycle(faulted_group, rejected_capture),
         Err(GroupConsumerCycleAdmissionError::EntryFault)
     );
     let commit = registry
-        .try_commit(group_id, deadline(100), checkpoint)
+        .try_commit(faulted_group, deadline(100), faulted_checkpoint)
         .err()
         .unwrap_or_else(|| panic!("faulted registry must reject commit"));
     assert_eq!(commit.kind, GroupConsumerCommitFailureKind::EntryFault);
@@ -158,9 +167,24 @@ fn first_entry_fault_fences_registration_cycle_and_commit_admission() {
     let fault = registry
         .entries
         .iter_mut()
-        .find(|entry| entry.group_id() == group_id)
+        .find(|entry| entry.group_id() == faulted_group)
         .and_then(|entry| entry.fault.take())
         .unwrap_or_else(|| panic!("fault owner expected"));
     assert_eq!(fault.retained_owner_count(), 1);
-    stop_registry(&mut registry);
+    registry
+        .recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("registry recovery: {error}"));
+    let terminal = accepted_commit
+        .observer
+        .wait()
+        .unwrap_or_else(|error| panic!("accepted commit terminal: {error}"));
+    assert!(matches!(
+        terminal,
+        kafka_client_core::GroupOffsetCommitTerminal::Failed(_)
+    ));
+    let join = registry
+        .finish_shutdown()
+        .unwrap_or_else(|error| panic!("registry finish: {error}"));
+    join.join_off_notifier()
+        .unwrap_or_else(|error| panic!("notifier join: {error}"));
 }

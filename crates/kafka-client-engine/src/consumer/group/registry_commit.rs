@@ -42,12 +42,6 @@ impl GroupConsumerRegistry {
                 checkpoint,
             ));
         }
-        if self.has_entry_fault() {
-            return Err(commit_failure(
-                GroupConsumerCommitFailureKind::EntryFault,
-                checkpoint,
-            ));
-        }
         let Some(entry) = self
             .entries
             .iter()
@@ -58,6 +52,12 @@ impl GroupConsumerRegistry {
                 checkpoint,
             ));
         };
+        if entry.fault.is_some() {
+            return Err(commit_failure(
+                GroupConsumerCommitFailureKind::EntryFault,
+                checkpoint,
+            ));
+        }
         if !entry.is_active() {
             return Err(commit_failure(
                 GroupConsumerCommitFailureKind::GroupClosing,

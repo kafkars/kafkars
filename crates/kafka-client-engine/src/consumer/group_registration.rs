@@ -5,9 +5,9 @@ use std::{cell::Cell, marker::PhantomData, sync::Arc, time::Duration};
 use kafka_client_core::{ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicRejoinPolicy};
 
 use super::{
-    GroupConsumerPort, GroupConsumerPortRegistrationCategory, GroupConsumerStartAccepted,
-    GroupConsumerStartCapture, GroupConsumerStartError,
-    group_registration_request::GroupConsumerRegistration,
+    GroupConsumerBatch, GroupConsumerPort, GroupConsumerPortRegistrationCategory,
+    GroupConsumerStartAccepted, GroupConsumerStartCapture, GroupConsumerStartError,
+    GroupConsumerTryTakeBatchError, group_registration_request::GroupConsumerRegistration,
 };
 
 const DEFAULT_SESSION_TIMEOUT_MS: u64 = 10_000;
@@ -180,6 +180,23 @@ impl GroupConsumerHandle {
         capture.admit(&self.port, self.group_id).map(|accepted| {
             GroupConsumerStartAccepted::new(accepted.entry_faulted(), accepted.wake_failed())
         })
+    }
+
+    /// Immediately transfers one already-authorized group Fetch delivery.
+    ///
+    /// This observation takes fresh time only to renew the application
+    /// processing lease. It starts no membership, Fetch, or public timeout.
+    pub fn try_take_batch(
+        &mut self,
+    ) -> Result<Option<GroupConsumerBatch>, GroupConsumerTryTakeBatchError> {
+        self.port
+            .try_take_delivery(self.group_id)
+            .map(|delivery| {
+                delivery.map(|delivery| {
+                    GroupConsumerBatch::new(delivery, self.port.clone(), Arc::clone(&self.lifetime))
+                })
+            })
+            .map_err(|error| GroupConsumerTryTakeBatchError::from_port(&error))
     }
 
     #[cfg(test)]

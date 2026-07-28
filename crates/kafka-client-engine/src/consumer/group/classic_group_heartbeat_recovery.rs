@@ -7,11 +7,13 @@ use crate::driver::classic_group::{
 };
 
 use super::{
+    classic_group_assignment::retire_and_revoke_classic_group_assignment,
     classic_group_entry_fault::ClassicGroupEntryFault,
     classic_group_execution::ClassicGroupExecutionError,
     classic_group_heartbeat::{
         ClassicHeartbeatDriverOwner, ClassicHeartbeatExecutionState, ClassicHeartbeatSuccessor,
     },
+    classic_group_heartbeat_prepare::map_revocation_kind,
     registry::GroupConsumerRegistry,
     registry_entry::GroupConsumerEntry,
 };
@@ -72,12 +74,11 @@ impl GroupConsumerRegistry {
         else {
             return Err((ClassicGroupExecutionError::CallIdentityMismatch, recovered));
         };
-        if entry.fault.is_some()
-            || entry
-                .heartbeat
-                .accepted()
-                .map(AcceptedClassicHeartbeatCall::key)
-                != Some(key)
+        if entry
+            .heartbeat
+            .accepted()
+            .map(AcceptedClassicHeartbeatCall::key)
+            != Some(key)
         {
             return Err((ClassicGroupExecutionError::CallIdentityMismatch, recovered));
         }
@@ -85,7 +86,7 @@ impl GroupConsumerRegistry {
             entry.heartbeat.state(),
             ClassicHeartbeatExecutionState::DriverOwned(_)
         );
-        if before_semantic {
+        if before_semantic && entry.fault.is_none() {
             if let Err(error) = apply_recovery_loss(entry, key.attempt()) {
                 return Err((error, recovered));
             }
@@ -121,21 +122,19 @@ fn apply_recovery_loss(
         entry.fault = Some(ClassicGroupEntryFault::HeartbeatRecoverySemantic(attempt));
         return Err(ClassicGroupExecutionError::HeartbeatTerminal);
     }
-    match entry
-        .classic
-        .prepare_revoke(&mut entry.catalog, assignment, classic_generation)
-    {
-        Ok(prepared) => {
-            prepared.commit();
-            Ok(())
-        }
+    match retire_and_revoke_classic_group_assignment(
+        &entry.classic,
+        &mut entry.catalog,
+        &mut entry.processing_lease,
+        &mut entry.fetch,
+        assignment,
+        classic_generation,
+    ) {
+        Ok(_retirement) => Ok(()),
         Err(failure) => {
             let kind = failure.kind;
-            entry.fault = Some(ClassicGroupEntryFault::HeartbeatLocalRevoke {
-                failure,
-                generation: classic_generation,
-            });
-            Err(ClassicGroupExecutionError::Assignment(kind))
+            entry.fault = Some(ClassicGroupEntryFault::HeartbeatLocalRevoke { failure });
+            Err(map_revocation_kind(kind))
         }
     }
 }

@@ -14,7 +14,6 @@ mod classic_group_execution_partition_counts;
 mod classic_group_execution_recovery;
 mod classic_group_execution_sync;
 mod classic_group_execution_sync_terminal;
-#[cfg_attr(not(test), expect(dead_code, reason = "awaiting Fetch host"))]
 mod classic_group_fetch;
 mod classic_group_heartbeat;
 mod classic_group_heartbeat_interpret;
@@ -62,11 +61,20 @@ mod registry_close;
 mod registry_commit;
 mod registry_commit_port;
 mod registry_cycle;
+mod registry_delivery;
 mod registry_entry;
+mod registry_fetch;
+mod registry_fetch_recovery;
 mod registry_host;
+mod registry_host_error;
 mod registry_membership;
 mod registry_membership_observation;
 mod registry_port;
+mod registry_port_registration;
+mod registry_processing;
+mod registry_recv_notification;
+mod registry_recv_port;
+mod registry_registration;
 mod registry_release_port;
 #[cfg_attr(
     not(test),
@@ -74,6 +82,7 @@ mod registry_release_port;
 )]
 mod registry_session;
 mod registry_shard;
+mod registry_state;
 mod registry_unregister;
 mod registry_wake;
 mod session_catalog;
@@ -208,7 +217,13 @@ mod registry_commit_test;
 #[cfg(test)]
 mod registry_cycle_test;
 #[cfg(test)]
+mod registry_delivery_test;
+#[cfg(test)]
 mod registry_entry_test;
+#[cfg(test)]
+mod registry_fetch_recovery_test;
+#[cfg(test)]
+mod registry_fetch_test;
 #[cfg(test)]
 mod registry_host_test;
 #[cfg(test)]
@@ -217,6 +232,8 @@ mod registry_membership_observation_test;
 mod registry_membership_test;
 #[cfg(test)]
 mod registry_port_test;
+#[cfg(test)]
+mod registry_processing_test;
 #[cfg(test)]
 mod registry_session_test;
 #[cfg(test)]
@@ -233,13 +250,26 @@ mod session_catalog_assignment_test;
 mod session_catalog_identity_test;
 #[cfg(test)]
 mod session_catalog_test;
+pub(in crate::consumer) use classic_group_fetch::{
+    ClassicGroupFetchDelivery, ClassicGroupFetchDeliveryError,
+};
 pub(crate) use registry::GroupConsumerRegistry;
-pub(crate) use registry_host::GroupConsumerHostError;
-pub(crate) use registry_port::GroupConsumerPort;
+pub(in crate::consumer) use registry_delivery::{
+    GroupConsumerDeliveryError, GroupConsumerDeliveryPortError,
+};
+pub(crate) use registry_host_error::GroupConsumerHostError;
 pub(crate) use registry_port::{
-    GroupConsumerCycleAdmission, GroupConsumerCyclePortErrorCategory,
+    GroupConsumerCycleAdmission, GroupConsumerCyclePortErrorCategory, GroupConsumerPort,
     GroupConsumerPortRegistrationCategory,
 };
 pub(crate) use registry_release_port::GroupConsumerPortDormantReleaseError;
 pub(crate) use registry_shard::{GroupConsumerShardLockError, GroupConsumerShardOwner};
+pub(in crate::consumer) use registry_state::GroupConsumerStatePortError;
+#[cfg(test)]
+pub(crate) use registry_test_support::{
+    fetch_unsettled as group_fetch_unsettled_for_public_test,
+    install_ready_group_delivery as install_ready_group_delivery_for_public_test,
+    install_session as install_group_session_for_public_test,
+    started_registry as started_group_registry_for_public_test,
+};
 pub(crate) use registry_wake::{GroupConsumerShardWake, GroupConsumerShardWakeError};

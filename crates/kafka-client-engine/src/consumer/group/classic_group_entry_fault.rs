@@ -1,6 +1,9 @@
 //! One linear freeze point for a classic-group entry invariant failure.
 
-use kafka_client_core::{ClassicGeneration, ClassicHeartbeatAttempt, MembershipCycle};
+use kafka_client_core::{
+    ClassicGeneration, ClassicGroupEffect, ClassicHeartbeatAttempt, ClassicProcessingLeaseError,
+    ClassicProcessingLeaseExpiration, LiveGroupAssignment, MembershipCycle,
+};
 
 use crate::driver::{
     GroupPositionOffsetFetchRestoreFailure, GroupPositionOffsetFetchTerminal,
@@ -13,7 +16,10 @@ use crate::driver::{
 };
 
 use super::{
-    classic_group_assignment::ClassicGroupAssignmentPreparationFailure,
+    classic_group_assignment::{
+        ClassicGroupAssignmentPreparationFailure, ClassicGroupRevocationFailure,
+    },
+    classic_group_fetch::{ClassicGroupFetchOwnerFaultKind, ClassicGroupFetchTransferError},
     classic_group_heartbeat::ClassicHeartbeatAcceptanceFailure,
     classic_group_join::ClassicGroupJoinSuccessor,
     classic_group_join_call::ClassicGroupJoinAcceptanceFailure,
@@ -57,6 +63,12 @@ pub(super) enum ClassicGroupEntryFault {
         terminal: SyncGroupTerminal,
         error: ClassicGroupPositionPreparationError,
     },
+    SyncProcessingLeaseActivation {
+        assignment: LiveGroupAssignment,
+        generation: ClassicGeneration,
+        terminal: SyncGroupTerminal,
+        error: ClassicProcessingLeaseError,
+    },
     SyncConfirmationTerminal(SyncGroupTerminal),
     SyncPostCore(SyncGroupTerminal),
     SyncRejectionPostCore {
@@ -76,6 +88,8 @@ pub(super) enum ClassicGroupEntryFault {
         failure: ClassicGroupPositionTerminalApplicationFailure,
         terminal: GroupPositionOffsetFetchTerminal,
     },
+    FetchTransfer(ClassicGroupFetchTransferError),
+    FetchOwner(ClassicGroupFetchOwnerFaultKind),
     HeartbeatAdmission(ClassicHeartbeatAdmissionFailure),
     HeartbeatAcceptance(ClassicHeartbeatAcceptanceFailure),
     HeartbeatTerminal(ClassicHeartbeatRestoreFailure),
@@ -85,20 +99,27 @@ pub(super) enum ClassicGroupEntryFault {
         terminal: ClassicHeartbeatTerminal,
     },
     HeartbeatLocalRevoke {
-        failure: ClassicGroupAssignmentPreparationFailure,
-        generation: ClassicGeneration,
+        failure: ClassicGroupRevocationFailure,
     },
     HeartbeatAdmissionRevoke {
-        failure: ClassicGroupAssignmentPreparationFailure,
-        generation: ClassicGeneration,
+        failure: ClassicGroupRevocationFailure,
         admission: ClassicHeartbeatAdmissionFailure,
     },
     HeartbeatTerminalRevoke {
-        failure: ClassicGroupAssignmentPreparationFailure,
-        generation: ClassicGeneration,
+        failure: ClassicGroupRevocationFailure,
         terminal: ClassicHeartbeatTerminal,
     },
     HeartbeatRecoverySemantic(ClassicHeartbeatAttempt),
+    ProcessingSemantic(ClassicProcessingLeaseExpiration),
+    ProcessingPostCore {
+        expiration: ClassicProcessingLeaseExpiration,
+        first: Option<ClassicGroupEffect>,
+        second: Option<ClassicGroupEffect>,
+    },
+    ProcessingRevoke {
+        expiration: ClassicProcessingLeaseExpiration,
+        failure: ClassicGroupRevocationFailure,
+    },
     CoordinatorInvalidationInstall(ClassicCoordinatorInvalidationInstallFailure),
     CoordinatorInvalidationTerminal(ClassicCoordinatorInvalidationTerminalFailure),
     CoordinatorInvalidationGate,
@@ -141,6 +162,8 @@ impl ClassicGroupEntryFault {
             Self::PositionTerminalPostCore { failure, terminal } => {
                 retained_pair(failure, terminal)
             }
+            Self::FetchTransfer(owner) => retained_one(owner),
+            Self::FetchOwner(owner) => retained_one(owner),
             Self::SyncInstall {
                 failure,
                 generation,
@@ -148,6 +171,15 @@ impl ClassicGroupEntryFault {
             } => retained_guarded_pair(failure, generation, terminal),
             Self::SyncPositionPreparation { terminal, error } => {
                 retained_one_with_guard(terminal, error)
+            }
+            Self::SyncProcessingLeaseActivation {
+                assignment,
+                generation,
+                terminal,
+                error,
+            } => {
+                let _ = error;
+                retained_guarded_pair(assignment, generation, terminal)
             }
             Self::HeartbeatAdmission(owner) => retained_one(owner),
             Self::HeartbeatAcceptance(owner) => owner.retained_owner_count(),
@@ -159,21 +191,22 @@ impl ClassicGroupEntryFault {
             } => rejection
                 .retained_owner_count()
                 .saturating_add(retained_one(terminal)),
-            Self::HeartbeatLocalRevoke {
-                failure,
-                generation,
-            } => retained_one_with_guard(failure, generation),
-            Self::HeartbeatAdmissionRevoke {
-                failure,
-                generation,
-                admission,
-            } => retained_guarded_pair(failure, generation, admission),
-            Self::HeartbeatTerminalRevoke {
-                failure,
-                generation,
-                terminal,
-            } => retained_guarded_pair(failure, generation, terminal),
+            Self::HeartbeatLocalRevoke { failure } => retained_one(failure),
+            Self::HeartbeatAdmissionRevoke { failure, admission } => {
+                retained_pair(failure, admission)
+            }
+            Self::HeartbeatTerminalRevoke { failure, terminal } => retained_pair(failure, terminal),
             Self::HeartbeatRecoverySemantic(attempt) => retained_one(attempt),
+            Self::ProcessingSemantic(owner) => retained_one(owner),
+            Self::ProcessingPostCore {
+                expiration,
+                first,
+                second,
+            } => retained_guarded_pair(expiration, first, second),
+            Self::ProcessingRevoke {
+                expiration,
+                failure,
+            } => retained_pair(expiration, failure),
             Self::CoordinatorInvalidationInstall(owner) => retained_one(owner),
             Self::CoordinatorInvalidationTerminal(failure) => retained_one(failure),
             Self::CoordinatorInvalidationGate => 1,

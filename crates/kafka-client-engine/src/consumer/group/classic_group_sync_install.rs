@@ -2,7 +2,7 @@
 
 use kafka_client_core::{
     ClassicGroupEffect, ClassicGroupInput, ClassicGroupPhase, ClassicGroupTransition,
-    MembershipCycle, Moment,
+    ClassicProcessingLeaseFence, MembershipCycle, Moment,
 };
 
 use crate::{
@@ -60,6 +60,11 @@ pub(super) fn install_sync_assignment(
         }
         _ => return freeze_post_core(entry, terminal, SyncTerminal),
     };
+    let processing_fence = ClassicProcessingLeaseFence::new(
+        entry.group_id(),
+        cycle,
+        assignment.assignment_generation(),
+    );
     let heartbeat_install = match entry.heartbeat.prepare_install(heartbeat) {
         Ok(prepared) => prepared,
         Err(_error) => return freeze_post_core(entry, terminal, SyncTerminal),
@@ -80,6 +85,24 @@ pub(super) fn install_sync_assignment(
             ));
         }
     };
+    let processing_install = match entry
+        .processing_lease
+        .prepare_activation(processing_fence, now)
+    {
+        Ok(prepared) => prepared,
+        Err(error) => {
+            drop(heartbeat_install);
+            entry.fault = Some(ClassicGroupEntryFault::SyncProcessingLeaseActivation {
+                assignment,
+                generation,
+                terminal,
+                error,
+            });
+            return Err(SyncInterpretationFailure::post_core(
+                ClassicGroupExecutionError::ProcessingLease(error),
+            ));
+        }
+    };
     let catalog_install =
         match entry
             .classic
@@ -87,6 +110,7 @@ pub(super) fn install_sync_assignment(
         {
             Ok(prepared) => prepared,
             Err(install) => {
+                drop(processing_install);
                 drop(heartbeat_install);
                 let kind = install.kind;
                 entry.fault = Some(ClassicGroupEntryFault::SyncInstall {
@@ -101,7 +125,13 @@ pub(super) fn install_sync_assignment(
         };
     catalog_install.commit();
     heartbeat_install.commit();
-    entry.position.set(match position_install {
+    let _transition = processing_install.commit();
+    install_position(entry, position_install);
+    stage_confirmation(entry, terminal)
+}
+
+fn install_position(entry: &mut GroupConsumerEntry, position: ClassicGroupPositionPreparation) {
+    entry.position.set(match position {
         ClassicGroupPositionPreparation::Prepared(prepared) => {
             ClassicGroupPositionExecutionState::Prepared(prepared)
         }
@@ -109,7 +139,6 @@ pub(super) fn install_sync_assignment(
             ClassicGroupPositionExecutionState::Complete(completed)
         }
     });
-    stage_confirmation(entry, terminal)
 }
 
 #[expect(

@@ -30,6 +30,10 @@ pub(super) fn begin_notification_shutdown(
     let assigned_consumer_fallback = resources.assigned_consumer_notifier.take_join();
     let (group_consumer, group_consumer_fallback) =
         group_consumer_shutdown::stop(&resources.group_consumers);
+    let group_consumer_recv = resources
+        .group_consumers
+        .stop_recv_notifier()
+        .ok_or(EngineHostError::GroupConsumerRecvNotifierUnavailable);
     let (transaction, transaction_fallback) =
         transaction_shutdown::stop(&resources.transaction_initialization);
     Ok(collect_notification_joins(
@@ -38,6 +42,7 @@ pub(super) fn begin_notification_shutdown(
             (admin, admin_fallback),
             (assigned_consumer, assigned_consumer_fallback),
             (group_consumer, group_consumer_fallback),
+            (group_consumer_recv, None),
             (transaction, transaction_fallback),
         ],
     ))

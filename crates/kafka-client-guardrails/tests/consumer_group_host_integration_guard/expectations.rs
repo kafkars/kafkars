@@ -74,7 +74,7 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
     ("registry_commit_port.rs", "registry_commit_port_test.rs"),
     ("registry_cycle.rs", "registry_cycle_test.rs"),
     ("registry_membership.rs", "registry_membership_test.rs"),
-    ("registry_port.rs", "registry_port_test.rs"),
+    ("registry_port_registration.rs", "registry_port_test.rs"),
     ("registry_shard.rs", "registry_shard_test.rs"),
     ("registry_wake.rs", "registry_wake_test.rs"),
 ];
@@ -95,7 +95,7 @@ pub(super) const LINEAR: &[(&str, &str)] = &[
     ),
     (
         "GroupConsumerPortRegistrationFailure",
-        "crates/kafka-client-engine/src/consumer/group/registry_port.rs",
+        "crates/kafka-client-engine/src/consumer/group/registry_port_registration.rs",
     ),
     (
         "GroupConsumerCommitAdmission",
@@ -157,7 +157,13 @@ pub(super) const AUTHORITIES: &[(&str, &str, &[&str], &[&str])] = &[
     (
         "GroupConsumerShardState",
         SHARD,
-        &["registry_owner", "admission_fence", "reactor_wake"],
+        &[
+            "registry_owner",
+            "admission_fence",
+            "reactor_wake",
+            "group_recv_signal",
+            "group_recv_publisher",
+        ],
         &[SHARD],
     ),
 ];

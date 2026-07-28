@@ -87,6 +87,10 @@ pub(crate) fn recover(
     if let Some(cleanup) = group_consumer_failure {
         failure = failure.with_cleanup(cleanup);
     }
+    let group_consumer_recv_notifier = resources.group_consumers.stop_recv_notifier();
+    if group_consumer_recv_notifier.is_none() {
+        failure = failure.with_cleanup(EngineHostError::GroupConsumerRecvNotifierUnavailable);
+    }
     let (transaction_notifier, transaction_failure) =
         transaction_shutdown::recover_after_driver_shutdown(&resources.transaction_initialization);
     if let Some(cleanup) = transaction_failure {
@@ -117,7 +121,7 @@ pub(crate) fn recover(
         failure = failure.with_cleanup(cleanup);
     }
     let recovery = producer.recover_notifier();
-    let mut notifiers = Vec::with_capacity(5);
+    let mut notifiers = Vec::with_capacity(6);
     if let Some(notifier) = recovery.notifier {
         notifiers.push(notifier);
     }
@@ -133,6 +137,9 @@ pub(crate) fn recover(
         notifiers.push(notifier);
     }
     if let Some(notifier) = group_consumer_notifier {
+        notifiers.push(notifier);
+    }
+    if let Some(notifier) = group_consumer_recv_notifier {
         notifiers.push(notifier);
     }
     if let Some(notifier) = transaction_notifier {

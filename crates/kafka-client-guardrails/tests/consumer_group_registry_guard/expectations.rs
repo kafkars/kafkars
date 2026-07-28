@@ -1,215 +1,25 @@
 //! Exact static policy expected for the bounded group registry.
 
+#[path = "entry_fields.rs"]
+mod entry_fields;
+#[path = "registry_fields.rs"]
+mod registry_fields;
+
+pub(super) use entry_fields::{ENTRY_DECLARED_FIELDS, ENTRY_FIELDS};
+pub(super) use registry_fields::{REGISTRY_DECLARED_FIELDS, REGISTRY_FIELDS};
+
 pub(super) const ROOT: &str = "crates/kafka-client-engine/src/consumer/group/";
 pub(super) const REGISTRY_PATH: &str = "crates/kafka-client-engine/src/consumer/group/registry.rs";
 pub(super) const ENTRY_PATH: &str =
     "crates/kafka-client-engine/src/consumer/group/registry_entry.rs";
 pub(super) const HOST_START_METHOD: &str = "start_group_offset_commit_host";
 pub(super) const MIRRORS: &[(&str, &str)] = &[
-    ("registry.rs", "registry_test.rs"),
+    ("registry_registration.rs", "registry_test.rs"),
     ("registry_entry.rs", "registry_entry_test.rs"),
     ("registry_commit.rs", "registry_commit_test.rs"),
     ("registry_close.rs", "registry_close_test.rs"),
     ("registry_host.rs", "registry_host_test.rs"),
     ("registry_session.rs", "registry_session_test.rs"),
-];
-pub(super) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
-    (
-        "entries",
-        &[
-            "registry.rs",
-            "classic_group_heartbeat_prepare.rs",
-            "classic_group_heartbeat_recovery.rs",
-            "classic_group_heartbeat_settlement.rs",
-            "classic_group_heartbeat_submission.rs",
-            "classic_group_join_execution.rs",
-            "classic_group_join_settlement.rs",
-            "classic_group_partition_count_recovery.rs",
-            "classic_group_partition_count_settlement.rs",
-            "classic_group_partition_count_submission.rs",
-            "classic_group_position/registry_recovery.rs",
-            "classic_group_position/registry_settlement.rs",
-            "classic_group_position/registry_submission.rs",
-            "classic_group_rediscovery_execution.rs",
-            "classic_group_rediscovery_recovery.rs",
-            "classic_group_recovery.rs",
-            "classic_group_rejoin_due.rs",
-            "classic_group_sync_settlement.rs",
-            "classic_group_sync_submission.rs",
-            "registry_close.rs",
-            "registry_cycle.rs",
-            "registry_membership.rs",
-            "registry_session.rs",
-        ],
-    ),
-    ("next_group_id", &["registry.rs"]),
-    ("retained_group_bytes", &["registry.rs"]),
-    ("accepting", &["registry.rs", "registry_close.rs"]),
-    (
-        "offset_commits",
-        &[
-            "registry.rs",
-            "registry_commit.rs",
-            "registry_close.rs",
-            "registry_host.rs",
-        ],
-    ),
-    (
-        "join_calls",
-        &[
-            "registry.rs",
-            "classic_group_join_execution.rs",
-            "classic_group_join_settlement.rs",
-            "classic_group_recovery.rs",
-        ],
-    ),
-    (
-        "sync_calls",
-        &[
-            "registry.rs",
-            "classic_group_sync_settlement.rs",
-            "classic_group_sync_submission.rs",
-            "classic_group_recovery.rs",
-        ],
-    ),
-    (
-        "heartbeat_calls",
-        &[
-            "registry.rs",
-            "classic_group_heartbeat_recovery.rs",
-            "classic_group_heartbeat_settlement.rs",
-            "classic_group_heartbeat_submission.rs",
-        ],
-    ),
-    (
-        "position_calls",
-        &[
-            "registry.rs",
-            "registry_membership_observation.rs",
-            "classic_group_position/registry_recovery.rs",
-            "classic_group_position/registry_settlement.rs",
-            "classic_group_position/registry_submission.rs",
-        ],
-    ),
-    (
-        "coordinator_invalidations",
-        &[
-            "registry.rs",
-            "classic_group_heartbeat_settlement.rs",
-            "classic_group_join_settlement.rs",
-            "classic_group_rediscovery_execution.rs",
-            "classic_group_rediscovery_recovery.rs",
-            "classic_group_sync_settlement.rs",
-        ],
-    ),
-    (
-        "coordinator_invalidation_shutdown_recovery",
-        &["registry.rs", "classic_group_rediscovery_recovery.rs"],
-    ),
-    (
-        "join_shutdown_recovery",
-        &["registry.rs", "classic_group_recovery.rs"],
-    ),
-    (
-        "sync_shutdown_recovery",
-        &["registry.rs", "classic_group_recovery.rs"],
-    ),
-    (
-        "heartbeat_shutdown_recovery",
-        &["registry.rs", "classic_group_heartbeat_recovery.rs"],
-    ),
-    (
-        "position_shutdown_recovery",
-        &[
-            "registry.rs",
-            "registry_membership_observation.rs",
-            "classic_group_position/registry_recovery.rs",
-        ],
-    ),
-    (
-        "join_recovery_fault",
-        &["registry.rs", "classic_group_recovery.rs"],
-    ),
-    (
-        "sync_recovery_fault",
-        &["registry.rs", "classic_group_recovery.rs"],
-    ),
-    (
-        "heartbeat_recovery_fault",
-        &["registry.rs", "classic_group_heartbeat_recovery.rs"],
-    ),
-    (
-        "position_recovery_fault",
-        &[
-            "registry.rs",
-            "registry_membership_observation.rs",
-            "classic_group_position/registry_recovery.rs",
-        ],
-    ),
-];
-pub(super) const ENTRY_FIELDS: &[(&str, &[&str])] = &[
-    ("state", &["registry_close.rs"]),
-    (
-        "fault",
-        &[
-            "registry.rs",
-            "registry_entry.rs",
-            "classic_group_heartbeat_prepare.rs",
-            "classic_group_heartbeat_recovery.rs",
-            "classic_group_heartbeat_settlement.rs",
-            "classic_group_heartbeat_submission.rs",
-            "classic_group_join_execution.rs",
-            "classic_group_join_settlement.rs",
-            "classic_group_partition_count_failure.rs",
-            "classic_group_partition_count_recovery.rs",
-            "classic_group_partition_count_settlement.rs",
-            "classic_group_rediscovery_execution.rs",
-            "classic_group_rediscovery_recovery.rs",
-            "classic_group_rediscovery_transfer.rs",
-            "classic_group_recovery.rs",
-            "classic_group_rejoin_due.rs",
-            "classic_group_sync_submission.rs",
-            "classic_group_sync_settlement.rs",
-            "classic_group_sync_install.rs",
-            "classic_group_sync_interpret.rs",
-            "classic_group_position/registry_settlement.rs",
-            "classic_group_position/registry_submission.rs",
-            "registry_membership.rs",
-        ],
-    ),
-];
-pub(super) const REGISTRY_DECLARED_FIELDS: &[&str] = &[
-    "entries",
-    "next_group_id",
-    "retained_group_bytes",
-    "accepting",
-    "join_calls",
-    "sync_calls",
-    "heartbeat_calls",
-    "position_calls",
-    "coordinator_invalidations",
-    "join_shutdown_recovery",
-    "sync_shutdown_recovery",
-    "heartbeat_shutdown_recovery",
-    "position_shutdown_recovery",
-    "coordinator_invalidation_shutdown_recovery",
-    "join_recovery_fault",
-    "sync_recovery_fault",
-    "heartbeat_recovery_fault",
-    "position_recovery_fault",
-    "offset_commits",
-];
-pub(super) const ENTRY_DECLARED_FIELDS: &[&str] = &[
-    "state",
-    "catalog",
-    "classic",
-    "execution",
-    "fetch",
-    "heartbeat",
-    "position",
-    "rejoin",
-    "rediscovery",
-    "fault",
 ];
 pub(super) const FORBIDDEN: &[&str] = &[
     "crate::driver",

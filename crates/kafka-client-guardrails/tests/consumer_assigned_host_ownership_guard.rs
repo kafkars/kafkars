@@ -117,26 +117,29 @@ const LINEAR: &[(&str, &str)] = &[
     ),
     ("StartedEngineHost", "engine_host/start_handoff.rs"),
 ];
-const METHODS: &[(&str, &str)] = &[
+const METHODS: &[(&str, &[&str])] = &[
     (
         "release_position_calls_after_driver_shutdown",
-        "consumer/assigned_owner_recovery.rs",
+        &["consumer/assigned_owner_recovery.rs"],
     ),
     (
         "release_fetch_executor_after_driver_shutdown",
-        "consumer/assigned_owner_recovery.rs",
+        &[
+            "consumer/assigned_owner_recovery.rs",
+            "consumer/group/classic_group_fetch/recovery.rs",
+        ],
     ),
     (
         "release_assigned_after_driver_shutdown",
-        "consumer/assigned_host/state.rs",
+        &["consumer/assigned_host/state.rs"],
     ),
     (
         "take_owner_for_post_driver_recovery",
-        "consumer/assigned_host/shard.rs",
+        &["consumer/assigned_host/shard.rs"],
     ),
     (
         "take_assigned_owner_after_driver_shutdown",
-        "engine_host/recovery.rs",
+        &["engine_host/recovery.rs"],
     ),
 ];
 const FORBIDDEN: &[&str] = &[
@@ -228,7 +231,13 @@ fn checked_in_mutation_and_recovery_policy_is_exact() {
             .collect::<Vec<_>>();
         assert_eq!(rules.len(), 1, "{method} needs one method rule");
         assert_eq!(rules[0].root, "crates/kafka-client-engine/src");
-        assert_eq!(rules[0].allowed_paths, [format!("{PREFIX}{allowed}")]);
+        assert_eq!(
+            rules[0].allowed_paths,
+            allowed
+                .iter()
+                .map(|path| format!("{PREFIX}{path}"))
+                .collect::<Vec<_>>()
+        );
     }
 }
 

@@ -9,6 +9,7 @@ use crate::driver::classic_group::{
 };
 
 use super::{
+    classic_group_assignment::retire_and_revoke_classic_group_assignment,
     classic_group_heartbeat::{
         ClassicHeartbeatDriverOwner, ClassicHeartbeatExecutionState, ClassicHeartbeatSuccessor,
         PreparedClassicHeartbeat,
@@ -256,9 +257,13 @@ pub(super) fn fail_live_attempt(
     else {
         panic!("Revoke expected");
     };
-    entry
-        .classic
-        .prepare_revoke(&mut entry.catalog, assignment, classic_generation)
-        .unwrap_or_else(|failure| panic!("revoke failed: {:?}", failure.kind))
-        .commit();
+    retire_and_revoke_classic_group_assignment(
+        &entry.classic,
+        &mut entry.catalog,
+        &mut entry.processing_lease,
+        &mut entry.fetch,
+        assignment,
+        classic_generation,
+    )
+    .unwrap_or_else(|failure| panic!("revoke failed: {:?}", failure.kind));
 }

@@ -18,6 +18,9 @@ struct TrackedGroupPositionOffsetFetchCalls;
 struct TrackedJoinGroupCalls;
 struct TrackedSyncGroupCalls;
 struct GroupPositionOffsetFetchShutdownRecovery;
+struct ClassicGroupFetchShutdownRecovery;
+struct GroupConsumerRecvNotificationResources;
+struct ClassicProcessingLease;
 
 struct GroupConsumerRegistry {
     entries: Vec<u64>,
@@ -39,13 +42,16 @@ struct GroupConsumerRegistry {
     sync_recovery_fault: Option<RecoveredSyncGroupOwnership>,
     heartbeat_recovery_fault: Option<RecoveredClassicHeartbeatOwnership>,
     position_recovery_fault: Option<ClassicGroupPositionRecoveryFault>,
+    fetch_shutdown_recoveries: Vec<ClassicGroupFetchShutdownRecovery>,
     offset_commits: GroupOffsetCommitHost,
+    recv_notifications: Option<GroupConsumerRecvNotificationResources>,
 }
 
 struct GroupConsumerEntry {
     state: u8,
     catalog: GroupSessionCatalog,
     position: ClassicGroupPositionExecution,
+    processing_lease: ClassicProcessingLease,
     fault: Option<ClassicGroupEntryFault>,
 }
 
@@ -68,12 +74,15 @@ fn mutate_registry(owner: &mut GroupConsumerRegistry) {
     let _sync_fault = owner.sync_recovery_fault.take();
     let _heartbeat_fault = owner.heartbeat_recovery_fault.take();
     let _position_fault = owner.position_recovery_fault.take();
+    owner.fetch_shutdown_recoveries.clear();
     let _borrow = &mut owner.offset_commits;
+    let _recv = owner.recv_notifications.take();
 }
 
 fn mutate_entry(owner: &mut GroupConsumerEntry) {
     owner.state = 1;
     let _borrow = &mut owner.catalog;
     let _position = &mut owner.position;
+    let _processing = &mut owner.processing_lease;
     owner.fault = None;
 }

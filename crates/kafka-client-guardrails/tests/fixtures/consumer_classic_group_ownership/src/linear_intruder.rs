@@ -33,3 +33,12 @@ struct ClassicGroupMachine;
 
 #[derive(Clone, Copy)]
 struct ClassicHeartbeatState;
+
+#[derive(Clone, Copy)]
+struct ClassicProcessingLease;
+
+#[derive(Clone, Copy)]
+struct PreparedClassicProcessingLeaseActivation;
+
+#[derive(Clone, Copy)]
+struct PreparedClassicProcessingLeaseRevocation;

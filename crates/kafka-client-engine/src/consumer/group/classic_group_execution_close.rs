@@ -1,9 +1,14 @@
 //! Local close policy using the execution owner's guarded state operations.
 
-use kafka_client_core::{ClassicGroupEffect, ClassicGroupInput, ClassicGroupPhase};
+use kafka_client_core::{
+    ClassicGroupEffect, ClassicGroupInput, ClassicGroupPhase, ClassicProcessingLease,
+};
 
 use super::{
+    classic_group_assignment::retire_and_revoke_classic_group_assignment,
     classic_group_execution::{ClassicGroupExecution, ClassicGroupExecutionError},
+    classic_group_fetch::ClassicGroupFetchOwner,
+    classic_group_heartbeat_prepare::map_revocation_kind,
     classic_group_join::ClassicGroupExecutionState,
     classic_group_owner::ClassicGroupOwner,
     session_catalog::GroupSessionCatalog,
@@ -14,6 +19,8 @@ impl ClassicGroupExecution {
         &mut self,
         owner: &mut ClassicGroupOwner,
         catalog: &mut GroupSessionCatalog,
+        processing_lease: &mut ClassicProcessingLease,
+        fetch: &mut ClassicGroupFetchOwner,
     ) -> Result<ClassicGroupCloseProgress, ClassicGroupExecutionError> {
         match self.borrow_execution_state() {
             ClassicGroupExecutionState::JoinDriverOwned(driver_owned) => {
@@ -45,11 +52,8 @@ impl ClassicGroupExecution {
             | ClassicGroupExecutionState::SyncConfirmationPending(_) => {
                 return Ok(ClassicGroupCloseProgress::DriverOwned);
             }
-            ClassicGroupExecutionState::CloseFault {
-                revoke_failure_kind,
-                ..
-            } => {
-                return Err(ClassicGroupExecutionError::Assignment(*revoke_failure_kind));
+            ClassicGroupExecutionState::CloseFault { revoke_failure } => {
+                return Err(map_revocation_kind(revoke_failure.kind));
             }
             ClassicGroupExecutionState::PartitionCountsPostCore { .. } => {
                 return Err(ClassicGroupExecutionError::PartitionCountsPostCore);
@@ -72,16 +76,21 @@ impl ClassicGroupExecution {
             Some(ClassicGroupEffect::Revoke {
                 assignment,
                 classic_generation,
-            }) => match owner.prepare_revoke(catalog, assignment, classic_generation) {
-                Ok(prepared) => prepared.commit(),
+            }) => match retire_and_revoke_classic_group_assignment(
+                owner,
+                catalog,
+                processing_lease,
+                fetch,
+                assignment,
+                classic_generation,
+            ) {
+                Ok(_retirement) => {}
                 Err(failure) => {
                     let kind = failure.kind;
                     self.set_execution_state(ClassicGroupExecutionState::CloseFault {
-                        revoke_assignment: failure.assignment,
-                        revoke_generation: classic_generation,
-                        revoke_failure_kind: kind,
+                        revoke_failure: failure,
                     });
-                    return Err(ClassicGroupExecutionError::Assignment(kind));
+                    return Err(map_revocation_kind(kind));
                 }
             },
             Some(_) => return Err(ClassicGroupExecutionError::UnexpectedCloseEffect),
@@ -94,30 +103,29 @@ impl ClassicGroupExecution {
         &mut self,
         owner: &ClassicGroupOwner,
         catalog: &mut GroupSessionCatalog,
+        processing_lease: &mut ClassicProcessingLease,
+        fetch: &mut ClassicGroupFetchOwner,
     ) -> Result<(), ClassicGroupExecutionError> {
         let state = self.replace_execution_state(ClassicGroupExecutionState::Idle);
-        let ClassicGroupExecutionState::CloseFault {
-            revoke_assignment,
-            revoke_generation,
-            revoke_failure_kind: _,
-        } = state
-        else {
+        let ClassicGroupExecutionState::CloseFault { revoke_failure } = state else {
             self.set_execution_state(state);
             return Err(ClassicGroupExecutionError::CloseNotFaulted);
         };
-        match owner.prepare_revoke(catalog, revoke_assignment, revoke_generation) {
-            Ok(prepared) => {
-                prepared.commit();
-                Ok(())
-            }
+        match retire_and_revoke_classic_group_assignment(
+            owner,
+            catalog,
+            processing_lease,
+            fetch,
+            revoke_failure.assignment,
+            revoke_failure.classic_generation,
+        ) {
+            Ok(_retirement) => Ok(()),
             Err(failure) => {
                 let kind = failure.kind;
                 self.set_execution_state(ClassicGroupExecutionState::CloseFault {
-                    revoke_assignment: failure.assignment,
-                    revoke_generation,
-                    revoke_failure_kind: kind,
+                    revoke_failure: failure,
                 });
-                Err(ClassicGroupExecutionError::Assignment(kind))
+                Err(map_revocation_kind(kind))
             }
         }
     }

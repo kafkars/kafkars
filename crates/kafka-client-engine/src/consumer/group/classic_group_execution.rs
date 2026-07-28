@@ -196,6 +196,8 @@ pub(super) enum ClassicGroupExecutionError {
     LeaderPartitionCounts,
     PartitionCountsPostCore,
     Assignment(ClassicGroupAssignmentPreparationFailureKind),
+    ProcessingLease(kafka_client_core::ClassicProcessingLeaseError),
+    FetchRetirement(super::classic_group_fetch::ClassicGroupFetchRetirementError),
     PositionPreparation,
     PositionCallsUnavailable,
     PositionPending,

@@ -26,6 +26,7 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
     ("heartbeat.rs", "heartbeat_test.rs"),
     ("heartbeat_state.rs", "heartbeat_state_test.rs"),
     ("heartbeat_transition.rs", "heartbeat_transition_test.rs"),
+    ("processing_lease.rs", "processing_lease_test.rs"),
     ("recovery/broker_error.rs", "recovery/broker_error_test.rs"),
     (
         "recovery/error_disposition.rs",
@@ -56,6 +57,15 @@ pub(super) const LINEAR: &[(&str, &str)] = &[
     ("ClassicGroupTransition", "effect.rs"),
     ("ClassicGroupMachine", "machine.rs"),
     ("ClassicHeartbeatState", "heartbeat_state.rs"),
+    ("ClassicProcessingLease", "processing_lease/machine.rs"),
+    (
+        "PreparedClassicProcessingLeaseActivation",
+        "processing_lease/machine.rs",
+    ),
+    (
+        "PreparedClassicProcessingLeaseRevocation",
+        "processing_lease/machine.rs",
+    ),
 ];
 
 pub(super) const MACHINE_FIELDS: &[(&str, &[&str])] = &[

@@ -26,6 +26,24 @@ pub(crate) use super::assigned_host::{
     AssignedConsumerClosePublisher, AssignedConsumerCompletionNotifier,
     AssignedConsumerCompletionPorts, AssignedConsumerEventPublisher, AssignedConsumerRecvPublisher,
 };
+pub(in crate::consumer) use super::group::GroupConsumerStatePortError;
+pub(crate) use super::group::{
+    GroupConsumerCycleAdmission, GroupConsumerCyclePortErrorCategory, GroupConsumerHostError,
+    GroupConsumerPort, GroupConsumerPortDormantReleaseError, GroupConsumerPortRegistrationCategory,
+    GroupConsumerRegistry, GroupConsumerShardLockError, GroupConsumerShardOwner,
+    GroupConsumerShardWake, GroupConsumerShardWakeError,
+};
+pub use super::group_batch::{
+    GroupConsumerBatch, GroupConsumerCheckpoint, GroupConsumerHeader, GroupConsumerRecord,
+    GroupConsumerRecords, GroupConsumerTryTakeBatchError, GroupConsumerTryTakeBatchErrorKind,
+};
+pub use super::group_event::{
+    GroupConsumerAssignment, GroupConsumerAssignmentPartition, GroupConsumerMetadata,
+    GroupConsumerState, GroupConsumerStateError, GroupConsumerStateErrorKind,
+};
+pub use super::group_recv::{
+    GroupConsumerRecv, GroupConsumerRecvError, GroupConsumerRecvErrorKind,
+};
 pub use super::group_registration::{
     GroupConsumerHandle, GroupConsumerRegistrationError, GroupConsumerRegistrationErrorKind,
 };

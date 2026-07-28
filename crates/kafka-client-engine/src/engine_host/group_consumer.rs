@@ -52,7 +52,13 @@ pub(super) fn drive_shard(
             return Err(EngineHostError::GroupConsumerLockPoisoned);
         }
     };
-    drive_registry(&mut registry, clock, driver, shutdown, stage_now)
+    let progress = drive_registry(&mut registry, clock, driver, shutdown, stage_now)?;
+    let notify_observation = progress.progressed;
+    drop(registry);
+    if notify_observation {
+        shard.notify_recv_change();
+    }
+    Ok(progress)
 }
 
 pub(super) fn drive_registry(

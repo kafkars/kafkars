@@ -6,6 +6,9 @@ use kafka_client_core::{
 };
 
 use super::{
+    classic_group_assignment::{
+        ClassicGroupRevocationFailureKind, retire_and_revoke_classic_group_assignment,
+    },
     classic_group_rejection_fault::{ClassicRejectionInstallFailure, ClassicRejectionPostCore},
     registry_entry::GroupConsumerEntry,
 };
@@ -29,24 +32,23 @@ pub(super) fn install_rejoin(
             return Err(post_rejoin(assignment, generation, schedule, RejoinState));
         }
     };
-    let prepared_revoke =
-        match entry
-            .classic
-            .prepare_revoke(&mut entry.catalog, assignment, generation)
-        {
-            Ok(prepared) => prepared,
-            Err(failure) => {
-                drop(prepared_rejoin);
-                let kind = failure.kind;
-                return Err(post_rejoin(
-                    failure.assignment,
-                    generation,
-                    schedule,
-                    Assignment(kind),
-                ));
-            }
-        };
-    prepared_revoke.commit();
+    if let Err(failure) = retire_and_revoke_classic_group_assignment(
+        &entry.classic,
+        &mut entry.catalog,
+        &mut entry.processing_lease,
+        &mut entry.fetch,
+        assignment,
+        generation,
+    ) {
+        drop(prepared_rejoin);
+        let kind = rejection_revocation_kind(failure.kind);
+        return Err(post_rejoin(
+            failure.assignment,
+            failure.classic_generation,
+            schedule,
+            kind,
+        ));
+    }
     prepared_rejoin.commit();
     Ok(())
 }
@@ -91,23 +93,24 @@ pub(super) fn install_rediscovery(
             ));
         }
     };
-    let prepared_revoke =
-        match entry
-            .classic
-            .prepare_revoke(&mut entry.catalog, assignment, generation)
-        {
-            Ok(prepared) => prepared,
-            Err(failure) => {
-                let kind = failure.kind;
-                return Err(post_rediscovery(
-                    failure.assignment,
-                    generation,
-                    schedule,
-                    Assignment(kind),
-                ));
-            }
-        };
-    prepared_revoke.commit();
+    if let Err(failure) = retire_and_revoke_classic_group_assignment(
+        &entry.classic,
+        &mut entry.catalog,
+        &mut entry.processing_lease,
+        &mut entry.fetch,
+        assignment,
+        generation,
+    ) {
+        drop(prepared_rejoin);
+        drop(prepared_rediscovery);
+        let kind = rejection_revocation_kind(failure.kind);
+        return Err(post_rediscovery(
+            failure.assignment,
+            failure.classic_generation,
+            schedule,
+            kind,
+        ));
+    }
     prepared_rejoin.commit();
     prepared_rediscovery.commit();
     Ok(())
@@ -126,23 +129,37 @@ pub(super) fn install_fatal(
     if !fatal_state_matches(entry, fatal) {
         return Err(post_fatal(assignment, generation, fatal, MachineState));
     }
-    match entry
-        .classic
-        .prepare_revoke(&mut entry.catalog, assignment, generation)
-    {
-        Ok(prepared) => {
-            prepared.commit();
-            Ok(())
-        }
+    match retire_and_revoke_classic_group_assignment(
+        &entry.classic,
+        &mut entry.catalog,
+        &mut entry.processing_lease,
+        &mut entry.fetch,
+        assignment,
+        generation,
+    ) {
+        Ok(_retirement) => Ok(()),
         Err(failure) => {
-            let kind = failure.kind;
+            let kind = rejection_revocation_kind(failure.kind);
             Err(post_fatal(
                 failure.assignment,
-                generation,
+                failure.classic_generation,
                 fatal,
-                Assignment(kind),
+                kind,
             ))
         }
+    }
+}
+
+const fn rejection_revocation_kind(
+    kind: ClassicGroupRevocationFailureKind,
+) -> ClassicRejectionInstallFailure {
+    match kind {
+        ClassicGroupRevocationFailureKind::Catalog(kind) => Assignment(kind),
+        ClassicGroupRevocationFailureKind::ProcessingLeaseCycleUnavailable => {
+            ProcessingLeaseCycleUnavailable
+        }
+        ClassicGroupRevocationFailureKind::ProcessingLease(error) => ProcessingLease(error),
+        ClassicGroupRevocationFailureKind::Fetch(error) => FetchRetirement(error),
     }
 }
 
@@ -209,4 +226,7 @@ fn post_rediscovery(
     )
 }
 
-use ClassicRejectionInstallFailure::{Assignment, MachineState, RediscoveryState, RejoinState};
+use ClassicRejectionInstallFailure::{
+    Assignment, FetchRetirement, MachineState, ProcessingLease, ProcessingLeaseCycleUnavailable,
+    RediscoveryState, RejoinState,
+};

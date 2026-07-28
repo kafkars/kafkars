@@ -1,6 +1,9 @@
 //! Bounded first-slice policy, progress, and lossless Fetch preparation faults.
 
-use kafka_client_core::{AssignedConsumerEffect, AssignedConsumerMachineError, Deadline};
+use kafka_client_core::{
+    AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachineError,
+    AssignedConsumerTransition, Deadline,
+};
 
 use crate::{
     clock::ClockError,
@@ -8,7 +11,8 @@ use crate::{
         assigned_event::AssignedConsumerEventStoreError,
         assigned_timer_model::AssignedTimerError,
         fetch_execution::{
-            FetchAttemptDeadline, FetchExecutionError, PrepareFetchError, PreparedFetchExecution,
+            FetchAttemptDeadline, FetchExecutionError, FetchReclaimFailure, PrepareFetchError,
+            PreparedFetchExecution,
         },
     },
 };
@@ -56,20 +60,36 @@ pub(in crate::consumer::group) enum ClassicGroupFetchCapturedFailure {
     Preparation(PrepareFetchError),
 }
 
+/// Stable reason an already-applied transition could not enter the effect FIFO.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(in crate::consumer::group) enum ClassicGroupFetchTransitionFailure {
+    EffectCapacity { actual: usize, limit: usize },
+    RetirementControls,
+}
+
 /// Stable observation of every retained group Fetch fault shape.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(in crate::consumer::group) enum ClassicGroupFetchOwnerFaultKind {
     Activation(ClassicGroupFetchPostCoreFaultKind),
+    Clock(ClockError),
     Effect(ClassicGroupFetchEffectFailure),
     Captured(ClassicGroupFetchCapturedFailure),
     Pending(AssignedConsumerMachineError),
+    Core(AssignedConsumerMachineError),
+    Transition(ClassicGroupFetchTransitionFailure),
+    TimerInput,
     Fetch(FetchExecutionError),
+    Delivery(AssignedConsumerMachineError),
+    DeliveryCatalog(GroupSessionCatalogError),
+    DeliveryPartition,
+    Reclaim,
 }
 
 /// Full linear owner retained after an invariant or execution failure.
 #[must_use = "group Fetch faults retain every exact linear owner until recovery"]
 pub(in crate::consumer::group) enum ClassicGroupFetchOwnerFault {
     Activation(ClassicGroupFetchActivationFault),
+    Clock(ClockError),
     Effect {
         effect: AssignedConsumerEffect,
         failure: ClassicGroupFetchEffectFailure,
@@ -83,17 +103,54 @@ pub(in crate::consumer::group) enum ClassicGroupFetchOwnerFault {
         error: AssignedConsumerMachineError,
         _prepared: PreparedFetchExecution,
     },
+    Core {
+        _input: AssignedConsumerInput,
+        error: AssignedConsumerMachineError,
+    },
+    Transition {
+        _transition: AssignedConsumerTransition,
+        failure: ClassicGroupFetchTransitionFailure,
+    },
+    UnexpectedTimerInput {
+        _input: AssignedConsumerInput,
+    },
     Fetch(FetchExecutionError),
+    Delivery {
+        error: AssignedConsumerMachineError,
+        _delivery: crate::consumer::fetch_store::FetchDelivery,
+    },
+    DeliveryCatalog {
+        error: GroupSessionCatalogError,
+        _delivery: crate::consumer::fetch_store::FetchDelivery,
+    },
+    DeliveryPartition {
+        _delivery: crate::consumer::fetch_store::FetchDelivery,
+    },
+    Reclaim {
+        _failure: FetchReclaimFailure,
+    },
 }
 
 impl ClassicGroupFetchOwnerFault {
-    pub(super) const fn kind(&self) -> ClassicGroupFetchOwnerFaultKind {
+    pub(in crate::consumer::group) const fn kind(&self) -> ClassicGroupFetchOwnerFaultKind {
         match self {
             Self::Activation(fault) => ClassicGroupFetchOwnerFaultKind::Activation(fault.kind()),
+            Self::Clock(error) => ClassicGroupFetchOwnerFaultKind::Clock(*error),
             Self::Effect { failure, .. } => ClassicGroupFetchOwnerFaultKind::Effect(*failure),
             Self::Captured { failure, .. } => ClassicGroupFetchOwnerFaultKind::Captured(*failure),
             Self::Pending { error, .. } => ClassicGroupFetchOwnerFaultKind::Pending(*error),
+            Self::Core { error, .. } => ClassicGroupFetchOwnerFaultKind::Core(*error),
+            Self::Transition { failure, .. } => {
+                ClassicGroupFetchOwnerFaultKind::Transition(*failure)
+            }
+            Self::UnexpectedTimerInput { .. } => ClassicGroupFetchOwnerFaultKind::TimerInput,
             Self::Fetch(error) => ClassicGroupFetchOwnerFaultKind::Fetch(*error),
+            Self::Delivery { error, .. } => ClassicGroupFetchOwnerFaultKind::Delivery(*error),
+            Self::DeliveryCatalog { error, .. } => {
+                ClassicGroupFetchOwnerFaultKind::DeliveryCatalog(*error)
+            }
+            Self::DeliveryPartition { .. } => ClassicGroupFetchOwnerFaultKind::DeliveryPartition,
+            Self::Reclaim { .. } => ClassicGroupFetchOwnerFaultKind::Reclaim,
         }
     }
 

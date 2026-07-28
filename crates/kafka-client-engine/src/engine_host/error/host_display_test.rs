@@ -46,3 +46,13 @@ fn group_consumer_failure_names_its_registry() {
         .join_off_notifier()
         .unwrap_or_else(|join_error| panic!("notifier join: {join_error}"));
 }
+
+#[test]
+fn group_consumer_recv_notifier_failure_names_its_domain() {
+    let error = EngineHostError::GroupConsumerRecvNotifierUnavailable;
+
+    assert_eq!(
+        error.to_string(),
+        "group-consumer receive notifier is unavailable"
+    );
+}

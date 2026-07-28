@@ -2,19 +2,20 @@
 
 use std::{sync::Arc, time::Duration};
 
-use kafka_client_core::{
-    ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicProcessingLeasePolicy, ClassicRejoinPolicy,
-    GroupId, MembershipCycle,
-};
+use kafka_client_core::{GroupId, MembershipCycle};
 
 use crate::clock::{ClockError, DeadlineCapture, MonotonicClock};
 
 use super::{
-    registry::GroupConsumerRegistrationFailureKind,
+    classic_group_execution::ClassicGroupExecutionError,
     registry_cycle::GroupConsumerCycleAdmissionError,
     registry_shard::{GroupConsumerShardLockError, GroupConsumerShardState},
     registry_wake::GroupConsumerShardWakeError,
 };
+
+pub(crate) use super::registry_port_registration::GroupConsumerPortRegistrationCategory;
+#[cfg(test)]
+pub(crate) use super::registry_port_registration::GroupConsumerPortRegistrationFailureKind;
 
 #[derive(Clone)]
 pub(crate) struct GroupConsumerPort {
@@ -23,71 +24,15 @@ pub(crate) struct GroupConsumerPort {
 }
 
 impl GroupConsumerPort {
-    pub(crate) fn try_register(
+    pub(in crate::consumer) fn capture_cycle_deadline(
         &self,
-        group: Arc<str>,
-        local_topics: Vec<Arc<str>>,
-        timing: ClassicGroupTiming,
-        heartbeat_policy: ClassicHeartbeatPolicy,
-        rejoin_policy: ClassicRejoinPolicy,
-    ) -> Result<GroupId, GroupConsumerPortRegistrationFailure> {
-        self.try_register_with_processing_policy(
-            group,
-            local_topics,
-            timing,
-            heartbeat_policy,
-            rejoin_policy,
-            super::registry_entry::default_classic_processing_lease_policy(),
-        )
+        timeout: Duration,
+    ) -> Result<DeadlineCapture, ClockError> {
+        self.clock.capture_deadline_after(timeout)
     }
 
-    pub(crate) fn try_register_with_processing_policy(
-        &self,
-        group: Arc<str>,
-        local_topics: Vec<Arc<str>>,
-        timing: ClassicGroupTiming,
-        heartbeat_policy: ClassicHeartbeatPolicy,
-        rejoin_policy: ClassicRejoinPolicy,
-        processing_policy: ClassicProcessingLeasePolicy,
-    ) -> Result<GroupId, GroupConsumerPortRegistrationFailure> {
-        if self.shared.admission_is_closed() {
-            return Err(registration_failure(
-                GroupConsumerPortRegistrationFailureKind::CLOSED,
-                group,
-                local_topics,
-            ));
-        }
-        let mut registry = match self.shared.try_registry() {
-            Ok(registry) => registry,
-            Err(error) => {
-                return Err(registration_failure(
-                    GroupConsumerPortRegistrationFailureKind::lock(error),
-                    group,
-                    local_topics,
-                ));
-            }
-        };
-        if self.shared.admission_is_closed() {
-            return Err(registration_failure(
-                GroupConsumerPortRegistrationFailureKind::CLOSED,
-                group,
-                local_topics,
-            ));
-        }
-        registry
-            .try_register_with_processing_policy(
-                group,
-                local_topics,
-                timing,
-                heartbeat_policy,
-                rejoin_policy,
-                processing_policy,
-            )
-            .map_err(|failure| GroupConsumerPortRegistrationFailure {
-                kind: GroupConsumerPortRegistrationFailureKind::registry(failure.kind),
-                group: failure.group,
-                local_topics: failure.local_topics,
-            })
+    pub(in crate::consumer) fn shares_registry_with(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.shared, &other.shared)
     }
 
     pub(crate) fn begin_cycle(
@@ -100,17 +45,6 @@ impl GroupConsumerPort {
             .capture_deadline_after(timeout)
             .map_err(GroupConsumerCyclePortError::clock)?;
         self.admit_captured_cycle(group_id, capture)
-    }
-
-    pub(in crate::consumer) fn capture_cycle_deadline(
-        &self,
-        timeout: Duration,
-    ) -> Result<DeadlineCapture, ClockError> {
-        self.clock.capture_deadline_after(timeout)
-    }
-
-    pub(in crate::consumer) fn shares_registry_with(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.shared, &other.shared)
     }
 
     pub(in crate::consumer) fn admit_captured_cycle(
@@ -162,12 +96,12 @@ impl GroupConsumerCycleAdmission {
         self.cycle
     }
 
-    pub(crate) const fn entry_faulted(&self) -> bool {
-        self.entry_faulted
-    }
-
     pub(crate) const fn wake_failed(&self) -> bool {
         self.wake.is_some()
+    }
+
+    pub(crate) const fn entry_faulted(&self) -> bool {
+        self.entry_faulted
     }
 }
 
@@ -230,9 +164,7 @@ impl GroupConsumerCyclePortError {
                 GroupConsumerCyclePortErrorCategory::Contended
             }
             GroupConsumerCyclePortErrorKind::Registry(
-                GroupConsumerCycleAdmissionError::Execution(
-                    super::classic_group_execution::ClassicGroupExecutionError::Occupied,
-                ),
+                GroupConsumerCycleAdmissionError::Execution(ClassicGroupExecutionError::Occupied),
             ) => GroupConsumerCyclePortErrorCategory::AlreadyStarted,
             GroupConsumerCyclePortErrorKind::Registry(
                 GroupConsumerCycleAdmissionError::UnknownGroup
@@ -261,112 +193,5 @@ impl core::fmt::Debug for GroupConsumerCyclePortError {
                 formatter.debug_tuple("Registry").field(&error).finish()
             }
         }
-    }
-}
-
-#[must_use = "registration rejection retains the exact caller-owned names"]
-pub(crate) struct GroupConsumerPortRegistrationFailure {
-    pub(crate) kind: GroupConsumerPortRegistrationFailureKind,
-    pub(crate) group: Arc<str>,
-    pub(crate) local_topics: Vec<Arc<str>>,
-}
-
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub(crate) struct GroupConsumerPortRegistrationFailureKind {
-    kind: GroupConsumerPortRegistrationFailureReason,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum GroupConsumerPortRegistrationFailureReason {
-    Closed,
-    Lock(GroupConsumerShardLockError),
-    Registry(GroupConsumerRegistrationFailureKind),
-}
-
-impl GroupConsumerPortRegistrationFailureKind {
-    pub(crate) const CLOSED: Self = Self {
-        kind: GroupConsumerPortRegistrationFailureReason::Closed,
-    };
-
-    const fn lock(error: GroupConsumerShardLockError) -> Self {
-        Self {
-            kind: GroupConsumerPortRegistrationFailureReason::Lock(error),
-        }
-    }
-
-    const fn registry(error: GroupConsumerRegistrationFailureKind) -> Self {
-        Self {
-            kind: GroupConsumerPortRegistrationFailureReason::Registry(error),
-        }
-    }
-
-    pub(crate) const fn public_category(self) -> GroupConsumerPortRegistrationCategory {
-        match self.kind {
-            GroupConsumerPortRegistrationFailureReason::Closed
-            | GroupConsumerPortRegistrationFailureReason::Registry(
-                GroupConsumerRegistrationFailureKind::Closed,
-            ) => GroupConsumerPortRegistrationCategory::Closed,
-            GroupConsumerPortRegistrationFailureReason::Registry(
-                GroupConsumerRegistrationFailureKind::Capacity
-                | GroupConsumerRegistrationFailureKind::RetainedBytes,
-            ) => GroupConsumerPortRegistrationCategory::Backpressure,
-            GroupConsumerPortRegistrationFailureReason::Lock(
-                GroupConsumerShardLockError::Contended,
-            ) => GroupConsumerPortRegistrationCategory::Contended,
-            GroupConsumerPortRegistrationFailureReason::Registry(
-                GroupConsumerRegistrationFailureKind::Catalog(
-                    super::session_catalog::GroupSessionCatalogError::EmptyGroup
-                    | super::session_catalog::GroupSessionCatalogError::GroupBytes { .. }
-                    | super::session_catalog::GroupSessionCatalogError::EmptyTopic
-                    | super::session_catalog::GroupSessionCatalogError::TopicBytes { .. }
-                    | super::session_catalog::GroupSessionCatalogError::RetainedTopicCapacity {
-                        ..
-                    }
-                    | super::session_catalog::GroupSessionCatalogError::RetainedTopicBytes { .. }
-                    | super::session_catalog::GroupSessionCatalogError::DuplicateTopic,
-                ),
-            ) => GroupConsumerPortRegistrationCategory::InvalidInput,
-            GroupConsumerPortRegistrationFailureReason::Lock(
-                GroupConsumerShardLockError::Poisoned,
-            )
-            | GroupConsumerPortRegistrationFailureReason::Registry(_) => {
-                GroupConsumerPortRegistrationCategory::InternalInvariant
-            }
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum GroupConsumerPortRegistrationCategory {
-    Closed,
-    Contended,
-    Backpressure,
-    InvalidInput,
-    InternalInvariant,
-}
-
-impl core::fmt::Debug for GroupConsumerPortRegistrationFailureKind {
-    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self.kind {
-            GroupConsumerPortRegistrationFailureReason::Closed => formatter.write_str("Closed"),
-            GroupConsumerPortRegistrationFailureReason::Lock(error) => {
-                formatter.debug_tuple("Lock").field(&error).finish()
-            }
-            GroupConsumerPortRegistrationFailureReason::Registry(error) => {
-                formatter.debug_tuple("Registry").field(&error).finish()
-            }
-        }
-    }
-}
-
-fn registration_failure(
-    kind: GroupConsumerPortRegistrationFailureKind,
-    group: Arc<str>,
-    local_topics: Vec<Arc<str>>,
-) -> GroupConsumerPortRegistrationFailure {
-    GroupConsumerPortRegistrationFailure {
-        kind,
-        group,
-        local_topics,
     }
 }

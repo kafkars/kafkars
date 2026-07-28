@@ -22,7 +22,7 @@ fn one_registry_turn_expires_one_queued_commit_at_its_original_deadline() {
     let accepted = registry
         .try_commit(group_id, deadline(7), checkpoint(&registry, group_id))
         .unwrap_or_else(|failure| panic!("commit admission: {:?}", failure.kind));
-    assert_eq!(registry.unsettled(), 2);
+    assert_eq!(registry.unsettled(), 3);
     assert_eq!(
         registry.next_deadline(),
         registry
@@ -38,7 +38,7 @@ fn one_registry_turn_expires_one_queued_commit_at_its_original_deadline() {
             .unwrap_or_else(|error| panic!("registry turn: {error}"))
             .progressed
     );
-    assert_eq!(registry.unsettled(), 1);
+    assert_eq!(registry.unsettled(), 2);
     assert!(accepted.observer.wait().is_ok());
     registry.close_admission();
     super::registry_test_support::stop_registry(&mut registry);
@@ -58,7 +58,7 @@ fn registry_exposes_one_transferable_notifier_identity() {
 }
 
 #[test]
-fn offset_turn_runs_before_a_retained_membership_fault_is_reported() {
+fn retained_membership_fault_does_not_stop_the_registry_host() {
     let mut registry = started_registry();
     let group_id = register(&mut registry, "group-a");
     install_session(&mut registry, group_id);
@@ -72,7 +72,8 @@ fn offset_turn_runs_before_a_retained_membership_fault_is_reported() {
     assert!(
         registry
             .turn(Moment::from_tick(7), &MonotonicClock::new(), &driver)
-            .is_err()
+            .unwrap_or_else(|error| panic!("isolated registry turn: {error}"))
+            .progressed
     );
     assert!(accepted.observer.wait().is_ok());
 
@@ -90,7 +91,9 @@ fn shutdown_recovery_terminalizes_accepted_commit_despite_entry_fault() {
         .unwrap_or_else(|failure| panic!("commit admission: {:?}", failure.kind));
     retain_test_fault(&mut registry, group_id);
 
-    assert!(registry.recover_after_driver_shutdown().is_err());
+    registry
+        .recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("isolated registry recovery: {error}"));
     let terminal = accepted
         .observer
         .wait()
@@ -101,7 +104,6 @@ fn shutdown_recovery_terminalizes_accepted_commit_despite_entry_fault() {
     assert_eq!(failure.kind(), GroupOffsetCommitFailureKind::DriverRejected);
     assert_eq!(failure.delivery(), DeliveryStatus::NotSent);
 
-    clear_test_fault(&mut registry, group_id);
     stop_registry(&mut registry);
 }
 

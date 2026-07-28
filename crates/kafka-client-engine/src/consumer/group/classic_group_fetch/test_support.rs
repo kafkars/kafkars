@@ -14,10 +14,17 @@ use super::super::{
     },
     session_catalog::GroupSessionCatalog,
 };
+use crate::{
+    clock::MonotonicClock,
+    consumer::fetch_execution::{FetchTerminalFixture, install_terminal_for_test},
+    protocol::fetch::fixture::encoded_delivery_batches_for_test,
+};
+
+use super::{ClassicGroupFetchFront, ClassicGroupFetchOwner};
 
 pub(super) const ATTEMPT_TIMEOUT_TICKS: u64 = 30_000_000_000;
 
-pub(super) fn completed_ready(
+pub(in crate::consumer::group) fn completed_ready(
     fence: GroupPositionFence,
     observed_at: Moment,
     throttle_time_ms: u32,
@@ -66,4 +73,42 @@ pub(super) fn catalog(topics: &[&str]) -> GroupSessionCatalog {
 pub(super) fn assert_attempt_deadline(deadline: Deadline, before: Moment, after: Moment) {
     assert!(deadline.tick() >= before.tick() + ATTEMPT_TIMEOUT_TICKS);
     assert!(deadline.tick() <= after.tick() + ATTEMPT_TIMEOUT_TICKS);
+}
+
+pub(in crate::consumer::group) fn install_ready_delivery_for_test(
+    owner: &mut ClassicGroupFetchOwner,
+    catalog: &GroupSessionCatalog,
+    first_offset: i64,
+) {
+    let front = owner.interpret_front_effect(catalog, &MonotonicClock::new());
+    assert_eq!(front, ClassicGroupFetchFront::Interpreted);
+    let prepared = owner
+        .pending_fetches
+        .pop_front()
+        .unwrap_or_else(|| panic!("prepared group Fetch"));
+    install_terminal_for_test(
+        &mut owner.fetches,
+        prepared,
+        FetchTerminalFixture::Success(Some(encoded_delivery_batches_for_test(first_offset))),
+    );
+    let transition = owner
+        .fetches
+        .poll(
+            &mut owner.machine,
+            Moment::from_tick(first_offset.unsigned_abs().saturating_add(1)),
+        )
+        .unwrap_or_else(|error| panic!("group Fetch settlement: {error:?}"))
+        .unwrap_or_else(|| panic!("group Fetch transition"));
+    owner.effects.extend(transition.into_effects());
+    while !owner.effects.is_empty() {
+        assert_eq!(
+            owner.interpret_front_effect(catalog, &MonotonicClock::new()),
+            ClassicGroupFetchFront::Interpreted,
+            "fault={:?} effect={:?}",
+            owner
+                .fault()
+                .map(super::model::ClassicGroupFetchOwnerFault::kind),
+            owner.front_effect_for_test(),
+        );
+    }
 }

@@ -70,6 +70,5 @@ fn is_pristine_registration(entry: &GroupConsumerEntry) -> bool {
         && entry.processing_lease.pending_expiration().is_none()
         && entry.rejoin.is_dormant()
         && !entry.rediscovery.blocks_join()
-        && entry.fetch.activation().is_none()
-        && entry.fetch.fault().is_none()
+        && entry.fetch.is_idle()
 }

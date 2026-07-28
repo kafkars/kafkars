@@ -88,13 +88,6 @@ pub(crate) struct NotifierJoin {
 
 impl NotifierJoin {
     /// Waits for notifier termination or returns ownership to its own thread.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "ownership-preserving self-join seam is exercised by contract tests"
-        )
-    )]
     pub(crate) fn join(mut self) -> NotifierJoinOutcome {
         let Some(handle) = self.handle.as_ref() else {
             return NotifierJoinOutcome::Joined(Ok(()));

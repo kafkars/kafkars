@@ -15,7 +15,7 @@ use super::{
         ClassicRejoinPostCore, ClassicRejoinPostCoreFailure, PendingClassicRejoinJoin,
     },
     registry::GroupConsumerRegistry,
-    registry_entry::{GroupConsumerEntry, GroupConsumerEntryState},
+    registry_entry::GroupConsumerEntry,
 };
 
 /// Result of inspecting the bounded registry for one due rejoin.
@@ -53,7 +53,7 @@ impl GroupConsumerRegistry {
 
 fn due_rejoin_index(entries: &[GroupConsumerEntry], now: Moment) -> Option<usize> {
     entries.iter().position(|entry| {
-        entry.state == GroupConsumerEntryState::Active
+        entry.is_active()
             && !entry.rediscovery.blocks_join()
             && entry
                 .rejoin

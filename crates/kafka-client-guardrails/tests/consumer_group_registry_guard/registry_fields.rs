@@ -1,0 +1,182 @@
+//! Exact mutation and declaration policy for registry-owned fields.
+
+pub(crate) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
+    (
+        "entries",
+        &[
+            "registry.rs",
+            "registry_registration.rs",
+            "classic_group_heartbeat_prepare.rs",
+            "classic_group_heartbeat_recovery.rs",
+            "classic_group_heartbeat_settlement.rs",
+            "classic_group_heartbeat_submission.rs",
+            "classic_group_join_execution.rs",
+            "classic_group_join_settlement.rs",
+            "classic_group_partition_count_recovery.rs",
+            "classic_group_partition_count_settlement.rs",
+            "classic_group_partition_count_submission.rs",
+            "classic_group_position/registry_recovery.rs",
+            "classic_group_position/registry_settlement.rs",
+            "classic_group_position/registry_submission.rs",
+            "classic_group_rediscovery_execution.rs",
+            "classic_group_rediscovery_recovery.rs",
+            "classic_group_recovery.rs",
+            "classic_group_rejoin_due.rs",
+            "classic_group_sync_settlement.rs",
+            "classic_group_sync_submission.rs",
+            "registry_close.rs",
+            "registry_cycle.rs",
+            "registry_delivery.rs",
+            "registry_fetch.rs",
+            "registry_fetch_recovery.rs",
+            "registry_membership.rs",
+            "registry_processing.rs",
+            "registry_session.rs",
+            "registry_unregister.rs",
+        ],
+    ),
+    (
+        "next_group_id",
+        &["registry.rs", "registry_registration.rs"],
+    ),
+    (
+        "retained_group_bytes",
+        &[
+            "registry.rs",
+            "registry_registration.rs",
+            "registry_fetch_recovery.rs",
+            "registry_unregister.rs",
+        ],
+    ),
+    ("accepting", &["registry.rs", "registry_close.rs"]),
+    (
+        "offset_commits",
+        &[
+            "registry.rs",
+            "registry_commit.rs",
+            "registry_close.rs",
+            "registry_host.rs",
+        ],
+    ),
+    (
+        "join_calls",
+        &[
+            "registry.rs",
+            "classic_group_join_execution.rs",
+            "classic_group_join_settlement.rs",
+            "classic_group_recovery.rs",
+        ],
+    ),
+    (
+        "sync_calls",
+        &[
+            "registry.rs",
+            "classic_group_sync_settlement.rs",
+            "classic_group_sync_submission.rs",
+            "classic_group_recovery.rs",
+        ],
+    ),
+    (
+        "heartbeat_calls",
+        &[
+            "registry.rs",
+            "classic_group_heartbeat_recovery.rs",
+            "classic_group_heartbeat_settlement.rs",
+            "classic_group_heartbeat_submission.rs",
+        ],
+    ),
+    (
+        "position_calls",
+        &[
+            "registry.rs",
+            "registry_membership_observation.rs",
+            "classic_group_position/registry_recovery.rs",
+            "classic_group_position/registry_settlement.rs",
+            "classic_group_position/registry_submission.rs",
+        ],
+    ),
+    (
+        "coordinator_invalidations",
+        &[
+            "registry.rs",
+            "classic_group_heartbeat_settlement.rs",
+            "classic_group_join_settlement.rs",
+            "classic_group_rediscovery_execution.rs",
+            "classic_group_rediscovery_recovery.rs",
+            "classic_group_sync_settlement.rs",
+        ],
+    ),
+    (
+        "coordinator_invalidation_shutdown_recovery",
+        &["registry.rs", "classic_group_rediscovery_recovery.rs"],
+    ),
+    (
+        "join_shutdown_recovery",
+        &["registry.rs", "classic_group_recovery.rs"],
+    ),
+    (
+        "sync_shutdown_recovery",
+        &["registry.rs", "classic_group_recovery.rs"],
+    ),
+    (
+        "heartbeat_shutdown_recovery",
+        &["registry.rs", "classic_group_heartbeat_recovery.rs"],
+    ),
+    (
+        "position_shutdown_recovery",
+        &[
+            "registry.rs",
+            "registry_membership_observation.rs",
+            "classic_group_position/registry_recovery.rs",
+        ],
+    ),
+    (
+        "join_recovery_fault",
+        &["registry.rs", "classic_group_recovery.rs"],
+    ),
+    (
+        "sync_recovery_fault",
+        &["registry.rs", "classic_group_recovery.rs"],
+    ),
+    (
+        "heartbeat_recovery_fault",
+        &["registry.rs", "classic_group_heartbeat_recovery.rs"],
+    ),
+    (
+        "position_recovery_fault",
+        &[
+            "registry.rs",
+            "registry_membership_observation.rs",
+            "classic_group_position/registry_recovery.rs",
+        ],
+    ),
+    (
+        "fetch_shutdown_recoveries",
+        &["registry.rs", "registry_fetch_recovery.rs"],
+    ),
+    ("recv_notifications", &["registry.rs", "registry_shard.rs"]),
+];
+
+pub(crate) const REGISTRY_DECLARED_FIELDS: &[&str] = &[
+    "entries",
+    "next_group_id",
+    "retained_group_bytes",
+    "accepting",
+    "join_calls",
+    "sync_calls",
+    "heartbeat_calls",
+    "position_calls",
+    "coordinator_invalidations",
+    "join_shutdown_recovery",
+    "sync_shutdown_recovery",
+    "heartbeat_shutdown_recovery",
+    "position_shutdown_recovery",
+    "coordinator_invalidation_shutdown_recovery",
+    "join_recovery_fault",
+    "sync_recovery_fault",
+    "heartbeat_recovery_fault",
+    "position_recovery_fault",
+    "fetch_shutdown_recoveries",
+    "offset_commits",
+    "recv_notifications",
+];

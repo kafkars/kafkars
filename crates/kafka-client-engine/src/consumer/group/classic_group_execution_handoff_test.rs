@@ -3,7 +3,8 @@
 use std::time::Duration;
 
 use kafka_client_core::{
-    ClassicGroupPhase, ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicProtocol, GroupId,
+    ClassicGroupPhase, ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicProcessingLease,
+    ClassicProtocol, GroupId,
 };
 
 use crate::{
@@ -13,8 +14,10 @@ use crate::{
 
 use super::{
     classic_group_execution::{ClassicGroupExecution, new_classic_group_execution},
+    classic_group_fetch::ClassicGroupFetchOwner,
     classic_group_owner::ClassicGroupOwner,
     classic_group_test_support,
+    registry_entry::default_classic_processing_lease_policy,
 };
 
 #[test]
@@ -251,6 +254,12 @@ fn close(owner: &mut ClassicGroupOwner, execution: &mut ClassicGroupExecution) {
     )
     .unwrap_or_else(|error| panic!("catalog failed: {error:?}"));
     execution
-        .close_if_local(owner, &mut catalog)
+        .close_if_local(
+            owner,
+            &mut catalog,
+            &mut ClassicProcessingLease::new(default_classic_processing_lease_policy()),
+            &mut ClassicGroupFetchOwner::try_new()
+                .unwrap_or_else(|error| panic!("Fetch owner: {error:?}")),
+        )
         .unwrap_or_else(|error| panic!("close failed: {error:?}"));
 }

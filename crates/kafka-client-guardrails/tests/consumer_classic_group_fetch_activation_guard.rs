@@ -12,8 +12,17 @@ const ROOT: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_
 const ACTIVATION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation.rs";
 const OWNER: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs";
+const OWNER_OBSERVATION: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner_observation.rs";
 const PREPARE: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/prepare.rs";
+const RETIREMENT: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/retirement.rs";
+const TURN: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/turn.rs";
+const RECOVERY: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/recovery.rs";
+const DELIVERY: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/delivery.rs";
 const ENTRY: &str = "crates/kafka-client-engine/src/consumer/group/registry_entry.rs";
 const LINEAR: &[(&str, &str)] = &[
     ("ClassicGroupFetchBinding", ACTIVATION),
@@ -79,9 +88,17 @@ fn checked_in_group_fetch_activation_policy_is_exact() {
             .collect::<Vec<_>>();
         assert_eq!(rules.len(), 1, "{field} needs one mutation rule");
         let expected = if field == "activation" {
-            vec![OWNER]
+            vec![OWNER, RETIREMENT, RECOVERY]
         } else {
-            vec![OWNER, PREPARE]
+            vec![
+                OWNER,
+                OWNER_OBSERVATION,
+                PREPARE,
+                RETIREMENT,
+                TURN,
+                RECOVERY,
+                DELIVERY,
+            ]
         };
         assert_eq!(rules[0].allowed_paths, expected);
     }

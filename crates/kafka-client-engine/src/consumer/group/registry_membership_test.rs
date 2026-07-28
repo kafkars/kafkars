@@ -14,7 +14,9 @@ use crate::{
 };
 
 use super::{
-    classic_group_assignment::ClassicGroupAssignmentPreparationFailureKind,
+    classic_group_assignment::{
+        ClassicGroupAssignmentPreparationFailureKind, ClassicGroupRevocationFailureKind,
+    },
     classic_group_execution::ClassicGroupExecutionError,
     classic_group_join::ClassicGroupExecutionState,
     classic_group_join_settlement::ClassicGroupJoinSettlementTurn,
@@ -141,9 +143,12 @@ fn close_mismatch_retains_the_exact_revoke_effect_in_the_execution_owner() {
     let second_entry = &mut second_entry[0];
 
     assert_eq!(
-        first_entry
-            .execution
-            .close_if_local(&mut first_entry.classic, &mut second_entry.catalog,),
+        first_entry.execution.close_if_local(
+            &mut first_entry.classic,
+            &mut second_entry.catalog,
+            &mut first_entry.processing_lease,
+            &mut first_entry.fetch,
+        ),
         Err(ClassicGroupExecutionError::Assignment(
             ClassicGroupAssignmentPreparationFailureKind::AssignmentMismatch,
         ))
@@ -157,13 +162,20 @@ fn close_mismatch_retains_the_exact_revoke_effect_in_the_execution_owner() {
     assert_eq!(generation.get(), 7);
     assert_eq!(
         kind,
-        ClassicGroupAssignmentPreparationFailureKind::AssignmentMismatch
+        ClassicGroupRevocationFailureKind::Catalog(
+            ClassicGroupAssignmentPreparationFailureKind::AssignmentMismatch
+        )
     );
     assert!(first_entry.catalog.live_assignment().is_some());
     assert!(second_entry.catalog.live_assignment().is_some());
     first_entry
         .execution
-        .retry_close_fault(&first_entry.classic, &mut first_entry.catalog)
+        .retry_close_fault(
+            &first_entry.classic,
+            &mut first_entry.catalog,
+            &mut first_entry.processing_lease,
+            &mut first_entry.fetch,
+        )
         .unwrap_or_else(|error| panic!("retained revoke retry failed: {error:?}"));
     assert!(first_entry.catalog.live_assignment().is_none());
     assert!(second_entry.catalog.live_assignment().is_some());

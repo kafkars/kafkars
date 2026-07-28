@@ -38,9 +38,6 @@ impl GroupConsumerRegistry {
         clock: &crate::clock::MonotonicClock,
         driver: &DriverOwner,
     ) -> Result<GroupConsumerMembershipTurn, ClassicGroupExecutionError> {
-        if self.entries.iter().any(|entry| entry.fault.is_some()) {
-            return Err(ClassicGroupExecutionError::EntryFault);
-        }
         let rediscovery_blocked = match self.drive_one_classic_coordinator_invalidation(driver)? {
             ClassicCoordinatorInvalidationTurn::Progress => {
                 return Ok(GroupConsumerMembershipTurn::Progress);
@@ -116,9 +113,6 @@ impl GroupConsumerRegistry {
         &mut self,
         now: Moment,
     ) -> Result<GroupConsumerMembershipTurn, ClassicGroupExecutionError> {
-        if self.entries.iter().any(|entry| entry.fault.is_some()) {
-            return Err(ClassicGroupExecutionError::EntryFault);
-        }
         let mut driver_owned_close = false;
         for entry in &mut self.entries {
             if entry.state != GroupConsumerEntryState::Closing {
@@ -139,10 +133,12 @@ impl GroupConsumerRegistry {
                 continue;
             }
             let heartbeat_was_local = entry.heartbeat.unsettled() != 0;
-            match entry
-                .execution
-                .close_if_local(&mut entry.classic, &mut entry.catalog)?
-            {
+            match entry.execution.close_if_local(
+                &mut entry.classic,
+                &mut entry.catalog,
+                &mut entry.processing_lease,
+                &mut entry.fetch,
+            )? {
                 ClassicGroupCloseProgress::Progress => {
                     entry
                         .heartbeat
@@ -183,6 +179,7 @@ impl GroupConsumerRegistry {
         }
         for entry in &mut self.entries {
             if entry.state != GroupConsumerEntryState::Active
+                || entry.fault.is_some()
                 || entry.catalog.live_assignment().is_some()
                 || entry.classic.machine().live_assignment().is_some()
                 || entry.position.is_dormant()
@@ -203,6 +200,9 @@ impl GroupConsumerRegistry {
             return Ok(GroupConsumerMembershipTurn::Progress);
         }
         for entry in &mut self.entries {
+            if entry.fault.is_some() {
+                continue;
+            }
             if entry.execution.expire_if_due(&mut entry.classic, now)? {
                 return Ok(GroupConsumerMembershipTurn::Progress);
             }

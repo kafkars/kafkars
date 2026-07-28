@@ -1,8 +1,13 @@
 //! Linear retention of exact core effects after broker-rejection policy advances.
 
-use kafka_client_core::{ClassicGeneration, ClassicGroupEffect, LiveGroupAssignment};
+use kafka_client_core::{
+    ClassicGeneration, ClassicGroupEffect, ClassicProcessingLeaseError, LiveGroupAssignment,
+};
 
-use super::classic_group_assignment::ClassicGroupAssignmentPreparationFailureKind;
+use super::{
+    classic_group_assignment::ClassicGroupAssignmentPreparationFailureKind,
+    classic_group_fetch::ClassicGroupFetchRetirementError,
+};
 
 /// Exact core effects retained when the engine cannot complete their installation.
 #[must_use = "post-core rejection effects remain owned until shutdown recovery"]
@@ -18,6 +23,9 @@ pub(super) enum ClassicRejectionInstallFailure {
     RejoinState,
     RediscoveryState,
     Assignment(ClassicGroupAssignmentPreparationFailureKind),
+    ProcessingLeaseCycleUnavailable,
+    ProcessingLease(ClassicProcessingLeaseError),
+    FetchRetirement(ClassicGroupFetchRetirementError),
 }
 
 impl ClassicRejectionPostCore {

@@ -64,6 +64,9 @@ impl fmt::Display for EngineHostError {
             Self::GroupConsumerLockPoisoned => {
                 formatter.write_str("group-consumer registry ownership lock is poisoned")
             }
+            Self::GroupConsumerRecvNotifierUnavailable => {
+                formatter.write_str("group-consumer receive notifier is unavailable")
+            }
             Self::TransactionInitialization(error) => {
                 write!(formatter, "transaction initialization failed: {error}")
             }

@@ -27,6 +27,7 @@ use super::{
         ClassicGroupFetchActivationFailure, ClassicGroupFetchActivationFault,
         ClassicGroupFetchBinding, ClassicGroupFetchPostCoreFaultKind,
     },
+    delivery::ClassicGroupFetchReclaimFault,
     model::{
         ClassicGroupFetchBuildError, ClassicGroupFetchOwnerFault, ClassicGroupFetchPreflightError,
     },
@@ -51,7 +52,7 @@ const FIRST_GROUP_FETCH_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(30);
 /// One group-specific deterministic Fetch policy owner.
 pub(in crate::consumer::group) struct ClassicGroupFetchOwner {
     pub(super) machine: AssignedConsumerMachine,
-    activation: Option<ClassicGroupFetchActivation>,
+    pub(super) activation: Option<ClassicGroupFetchActivation>,
     pub(super) timers: AssignedTimers,
     pub(super) fetches: DirectFetchExecutor,
     pub(super) events: AssignedConsumerEventStore,
@@ -64,17 +65,23 @@ pub(in crate::consumer::group) struct ClassicGroupFetchOwner {
     pub(super) effect_capacity: usize,
     pub(super) hard_fetch_output_bytes: usize,
     pub(super) fault: Option<ClassicGroupFetchOwnerFault>,
+    pub(super) reclaim_faults: Vec<ClassicGroupFetchReclaimFault>,
+    pub(super) reclaim_overflow: Option<ClassicGroupFetchReclaimFault>,
 }
 
 impl ClassicGroupFetchOwner {
     pub(in crate::consumer::group) fn try_new() -> Result<Self, ClassicGroupFetchBuildError> {
         let mut effects = VecDeque::new();
         let mut pending_fetches = VecDeque::new();
+        let mut reclaim_faults = Vec::new();
         effects
             .try_reserve_exact(FIRST_GROUP_FETCH_EFFECTS)
             .map_err(|_error| ClassicGroupFetchBuildError::Allocation)?;
         pending_fetches
             .try_reserve_exact(FIRST_GROUP_FETCH_PARTITIONS)
+            .map_err(|_error| ClassicGroupFetchBuildError::Allocation)?;
+        reclaim_faults
+            .try_reserve_exact(FIRST_GROUP_FETCH_DELIVERIES)
             .map_err(|_error| ClassicGroupFetchBuildError::Allocation)?;
         let events = AssignedConsumerEventStore::new(FIRST_GROUP_FETCH_PARTITIONS)
             .map_err(|_error| ClassicGroupFetchBuildError::Allocation)?;
@@ -104,6 +111,8 @@ impl ClassicGroupFetchOwner {
             effect_capacity: FIRST_GROUP_FETCH_EFFECTS,
             hard_fetch_output_bytes: FIRST_GROUP_FETCH_OUTPUT_BYTES,
             fault: None,
+            reclaim_faults,
+            reclaim_overflow: None,
         })
     }
 
@@ -116,7 +125,7 @@ impl ClassicGroupFetchOwner {
         completed: ClassicGroupPositionCompleted,
         current_fence: GroupPositionFence,
     ) -> Result<(), ClassicGroupFetchActivationError> {
-        if self.activation.is_some() || self.fault.is_some() {
+        if self.activation.is_some() || self.is_faulted() {
             return Err(ClassicGroupFetchActivationError::Returned(
                 ClassicGroupFetchActivationFailure::already_active(completed),
             ));
@@ -192,16 +201,6 @@ impl ClassicGroupFetchOwner {
         Ok(())
     }
 
-    pub(in crate::consumer::group) const fn activation(
-        &self,
-    ) -> Option<&ClassicGroupFetchActivation> {
-        self.activation.as_ref()
-    }
-
-    pub(in crate::consumer::group) const fn fault(&self) -> Option<&ClassicGroupFetchOwnerFault> {
-        self.fault.as_ref()
-    }
-
     fn preflight_activation_capacity(
         &self,
         partition_count: usize,
@@ -221,17 +220,5 @@ impl ClassicGroupFetchOwner {
             });
         }
         Ok(())
-    }
-
-    #[cfg(test)]
-    pub(in crate::consumer::group) const fn machine_assignment_epoch(
-        &self,
-    ) -> Option<kafka_client_core::AssignmentEpoch> {
-        self.machine.assignment_epoch()
-    }
-
-    #[cfg(test)]
-    pub(super) fn pop_prepared_for_test(&mut self) -> Option<PreparedFetchExecution> {
-        self.pending_fetches.pop_front()
     }
 }

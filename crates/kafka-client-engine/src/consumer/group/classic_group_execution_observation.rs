@@ -3,7 +3,7 @@
 use kafka_client_core::Deadline;
 
 #[cfg(test)]
-use super::classic_group_assignment::ClassicGroupAssignmentPreparationFailureKind;
+use super::classic_group_assignment::ClassicGroupRevocationFailureKind;
 use super::{
     classic_group_execution::ClassicGroupExecution,
     classic_group_join::{ClassicGroupExecutionState, PreparedClassicGroupJoin},
@@ -55,14 +55,14 @@ impl ClassicGroupExecution {
     ) -> Option<(
         &kafka_client_core::LiveGroupAssignment,
         kafka_client_core::ClassicGeneration,
-        ClassicGroupAssignmentPreparationFailureKind,
+        ClassicGroupRevocationFailureKind,
     )> {
         match self.borrow_execution_state() {
-            ClassicGroupExecutionState::CloseFault {
-                revoke_assignment,
-                revoke_generation,
-                revoke_failure_kind,
-            } => Some((revoke_assignment, *revoke_generation, *revoke_failure_kind)),
+            ClassicGroupExecutionState::CloseFault { revoke_failure } => Some((
+                &revoke_failure.assignment,
+                revoke_failure.classic_generation,
+                revoke_failure.kind,
+            )),
             _ => None,
         }
     }

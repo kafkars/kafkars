@@ -7,66 +7,11 @@ use kafka_client_core::{Deadline, Moment};
 use crate::{completion::NotifierJoin, driver::DriverOwner};
 
 use super::{
-    classic_group_execution::ClassicGroupExecutionError,
-    classic_group_position::GroupConsumerPositionTurn,
-    offset_commit::{GroupOffsetCommitHostError, GroupOffsetCommitTurn},
-    registry::GroupConsumerRegistry,
-    registry_membership::GroupConsumerMembershipTurn,
+    classic_group_position::GroupConsumerPositionTurn, offset_commit::GroupOffsetCommitTurn,
+    registry::GroupConsumerRegistry, registry_fetch::GroupConsumerFetchTurn,
+    registry_host_error::GroupConsumerHostError, registry_membership::GroupConsumerMembershipTurn,
+    registry_processing::GroupConsumerProcessingTurn,
 };
-
-/// Concrete private group-host failure without widening offset-owner internals.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct GroupConsumerHostError {
-    kind: GroupConsumerHostErrorKind,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum GroupConsumerHostErrorKind {
-    OffsetCommit(GroupOffsetCommitHostError),
-    Membership(ClassicGroupExecutionError),
-    MembershipUnsettled(usize),
-}
-
-impl GroupConsumerHostError {
-    pub(super) const fn membership(error: ClassicGroupExecutionError) -> Self {
-        Self {
-            kind: GroupConsumerHostErrorKind::Membership(error),
-        }
-    }
-
-    pub(super) const fn membership_unsettled(count: usize) -> Self {
-        Self {
-            kind: GroupConsumerHostErrorKind::MembershipUnsettled(count),
-        }
-    }
-}
-
-impl core::fmt::Display for GroupConsumerHostError {
-    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match &self.kind {
-            GroupConsumerHostErrorKind::OffsetCommit(error) => error.fmt(formatter),
-            GroupConsumerHostErrorKind::Membership(error) => {
-                write!(formatter, "classic membership execution failed: {error:?}")
-            }
-            GroupConsumerHostErrorKind::MembershipUnsettled(count) => {
-                write!(
-                    formatter,
-                    "{count} classic membership obligations remain unsettled"
-                )
-            }
-        }
-    }
-}
-
-impl std::error::Error for GroupConsumerHostError {}
-
-impl From<GroupOffsetCommitHostError> for GroupConsumerHostError {
-    fn from(error: GroupOffsetCommitHostError) -> Self {
-        Self {
-            kind: GroupConsumerHostErrorKind::OffsetCommit(error),
-        }
-    }
-}
 
 pub(crate) struct GroupConsumerRegistryTurn {
     pub(crate) progressed: bool,
@@ -84,18 +29,48 @@ impl GroupConsumerRegistry {
             .offset_commits
             .turn(now, driver)
             .map_err(GroupConsumerHostError::from)?;
-        let membership = self
-            .turn_membership(now, clock, driver)
-            .map_err(GroupConsumerHostError::membership)?;
-        let position = self
-            .turn_position(now, driver)
-            .map_err(GroupConsumerHostError::membership)?;
+        let fault_count = self.entry_fault_count();
+        let processing = match self.turn_processing(now) {
+            Ok(turn) => turn,
+            Err(_error) if self.entry_fault_count() > fault_count => {
+                GroupConsumerProcessingTurn::Progress
+            }
+            Err(error) => return Err(GroupConsumerHostError::processing(error)),
+        };
+        if processing == GroupConsumerProcessingTurn::Progress {
+            return Ok(GroupConsumerRegistryTurn {
+                progressed: true,
+                blocked_work: false,
+            });
+        }
+        let fault_count = self.entry_fault_count();
+        let membership = match self.turn_membership(now, clock, driver) {
+            Ok(turn) => turn,
+            Err(_error) if self.entry_fault_count() > fault_count => {
+                GroupConsumerMembershipTurn::Progress
+            }
+            Err(error) => return Err(GroupConsumerHostError::membership(error)),
+        };
+        let fault_count = self.entry_fault_count();
+        let position = match self.turn_position(now, driver) {
+            Ok(turn) => turn,
+            Err(_error) if self.entry_fault_count() > fault_count => {
+                GroupConsumerPositionTurn::Progress
+            }
+            Err(error) => return Err(GroupConsumerHostError::membership(error)),
+        };
+        let fetch = self
+            .turn_fetch(clock, driver)
+            .map_err(GroupConsumerHostError::fetch)?;
         Ok(GroupConsumerRegistryTurn {
             progressed: membership == GroupConsumerMembershipTurn::Progress
                 || position == GroupConsumerPositionTurn::Progress
+                || fetch == GroupConsumerFetchTurn::Progress
+                || processing == GroupConsumerProcessingTurn::Progress
                 || offset_commit == GroupOffsetCommitTurn::Progress,
             blocked_work: membership == GroupConsumerMembershipTurn::Blocked
-                || position == GroupConsumerPositionTurn::Blocked,
+                || position == GroupConsumerPositionTurn::Blocked
+                || fetch == GroupConsumerFetchTurn::Blocked,
         })
     }
 
@@ -104,7 +79,13 @@ impl GroupConsumerRegistry {
             self.membership_next_deadline(),
             min_deadline(
                 self.position_next_deadline(),
-                self.offset_commits.next_deadline(),
+                min_deadline(
+                    self.fetch_next_deadline(),
+                    min_deadline(
+                        self.processing_next_deadline(),
+                        self.offset_commits.next_deadline(),
+                    ),
+                ),
             ),
         ) {
             (Some(membership), Some(offset)) => Some(membership.min(offset)),
@@ -116,6 +97,8 @@ impl GroupConsumerRegistry {
     pub(crate) fn unsettled(&self) -> usize {
         self.membership_unsettled()
             .saturating_add(self.position_unsettled())
+            .saturating_add(self.fetch_unsettled())
+            .saturating_add(self.processing_unsettled())
             .saturating_add(self.offset_commits.unsettled())
     }
 

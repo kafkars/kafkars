@@ -2,14 +2,17 @@
 
 use std::{sync::Arc, time::Duration};
 
-use kafka_client_core::{ClassicGroupPhase, ClassicGroupTiming, ClassicHeartbeatPolicy, GroupId};
+use kafka_client_core::{
+    ClassicGroupPhase, ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicProcessingLease, GroupId,
+};
 
 use crate::clock::MonotonicClock;
 
 use super::{
     classic_group_execution::new_classic_group_execution,
     classic_group_execution_close::ClassicGroupCloseProgress,
-    classic_group_owner::ClassicGroupOwner, classic_group_test_support,
+    classic_group_fetch::ClassicGroupFetchOwner, classic_group_owner::ClassicGroupOwner,
+    classic_group_test_support, registry_entry::default_classic_processing_lease_policy,
     session_catalog::GroupSessionCatalog,
 };
 
@@ -38,7 +41,13 @@ fn local_prepared_join_can_close_without_transport_or_lost_effects() {
         .unwrap_or_else(|error| panic!("begin failed: {error:?}"));
 
     assert_eq!(
-        execution.close_if_local(&mut owner, &mut catalog),
+        execution.close_if_local(
+            &mut owner,
+            &mut catalog,
+            &mut ClassicProcessingLease::new(default_classic_processing_lease_policy()),
+            &mut ClassicGroupFetchOwner::try_new()
+                .unwrap_or_else(|error| panic!("Fetch owner: {error:?}")),
+        ),
         Ok(ClassicGroupCloseProgress::Progress)
     );
     assert_eq!(owner.machine().phase(), ClassicGroupPhase::Closed);

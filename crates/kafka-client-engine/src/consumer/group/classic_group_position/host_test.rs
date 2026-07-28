@@ -72,12 +72,22 @@ fn registry_deadline_and_unsettled_totals_include_prepared_position() {
         .heartbeat
         .next_deadline()
         .unwrap_or_else(|| panic!("heartbeat deadline expected"));
-    let expected = heartbeat_deadline.min(fixture.deadline.core());
+    let processing_deadline = entry
+        .processing_lease
+        .next_deadline()
+        .unwrap_or_else(|| panic!("processing deadline expected"));
+    let expected = heartbeat_deadline
+        .min(fixture.deadline.core())
+        .min(processing_deadline);
 
     assert_eq!(fixture.registry.position_unsettled(), 1);
     assert_eq!(
         fixture.registry.unsettled(),
-        fixture.registry.membership_unsettled().saturating_add(1)
+        fixture
+            .registry
+            .membership_unsettled()
+            .saturating_add(fixture.registry.processing_unsettled())
+            .saturating_add(1)
     );
     assert_eq!(fixture.registry.next_deadline(), Some(expected));
 

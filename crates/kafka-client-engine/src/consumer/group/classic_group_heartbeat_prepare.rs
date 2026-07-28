@@ -12,7 +12,8 @@ use crate::{
 
 use super::{
     classic_group_assignment::{
-        ClassicGroupAssignmentPreparationFailure, PreparedClassicGroupRevoke,
+        ClassicGroupRevocationFailure, ClassicGroupRevocationFailureKind,
+        retire_and_revoke_classic_group_assignment,
     },
     classic_group_entry_fault::ClassicGroupEntryFault,
     classic_group_execution::ClassicGroupExecutionError,
@@ -54,11 +55,12 @@ impl GroupConsumerRegistry {
         now: Moment,
     ) -> Result<bool, ClassicGroupExecutionError> {
         let Some(index) = self.entries.iter().position(|entry| {
-            matches!(
-                entry.heartbeat.state(),
-                ClassicHeartbeatExecutionState::Prepared(prepared)
-                    if prepared.key().deadline().core().is_elapsed_at(now)
-            )
+            entry.is_active()
+                && matches!(
+                    entry.heartbeat.state(),
+                    ClassicHeartbeatExecutionState::Prepared(prepared)
+                        if prepared.key().deadline().core().is_elapsed_at(now)
+                )
         }) else {
             return Ok(false);
         };
@@ -132,11 +134,8 @@ fn prepare_due_heartbeat(
         }) if effects.next().is_none() => {
             commit_revoke(entry, assignment, classic_generation).map_err(|failure| {
                 let kind = failure.kind;
-                entry.fault = Some(ClassicGroupEntryFault::HeartbeatLocalRevoke {
-                    failure,
-                    generation: classic_generation,
-                });
-                ClassicGroupExecutionError::Assignment(kind)
+                entry.fault = Some(ClassicGroupEntryFault::HeartbeatLocalRevoke { failure });
+                map_revocation_kind(kind)
             })?;
             entry.heartbeat.clear_local().map_err(map_heartbeat_state)
         }
@@ -173,25 +172,50 @@ pub(super) fn commit_local_loss(
     }
     commit_revoke(entry, assignment, classic_generation).map_err(|failure| {
         let kind = failure.kind;
-        entry.fault = Some(ClassicGroupEntryFault::HeartbeatLocalRevoke {
-            failure,
-            generation: classic_generation,
-        });
-        ClassicGroupExecutionError::Assignment(kind)
+        entry.fault = Some(ClassicGroupEntryFault::HeartbeatLocalRevoke { failure });
+        map_revocation_kind(kind)
     })
 }
 
+#[expect(
+    clippy::result_large_err,
+    reason = "the failure retains the exact assignment and generation for lossless recovery"
+)]
 pub(super) fn commit_revoke(
     entry: &mut GroupConsumerEntry,
     assignment: kafka_client_core::LiveGroupAssignment,
     generation: ClassicGeneration,
-) -> Result<(), ClassicGroupAssignmentPreparationFailure> {
-    entry
-        .classic
-        .prepare_revoke(&mut entry.catalog, assignment, generation)
-        .map(PreparedClassicGroupRevoke::commit)
+) -> Result<(), ClassicGroupRevocationFailure> {
+    retire_and_revoke_classic_group_assignment(
+        &entry.classic,
+        &mut entry.catalog,
+        &mut entry.processing_lease,
+        &mut entry.fetch,
+        assignment,
+        generation,
+    )
+    .map(|_retirement| ())
 }
 
 fn map_heartbeat_state(_error: ClassicHeartbeatExecutionError) -> ClassicGroupExecutionError {
     ClassicGroupExecutionError::HeartbeatState
+}
+
+pub(super) const fn map_revocation_kind(
+    kind: ClassicGroupRevocationFailureKind,
+) -> ClassicGroupExecutionError {
+    match kind {
+        ClassicGroupRevocationFailureKind::Catalog(kind) => {
+            ClassicGroupExecutionError::Assignment(kind)
+        }
+        ClassicGroupRevocationFailureKind::ProcessingLeaseCycleUnavailable => {
+            ClassicGroupExecutionError::MissingCycle
+        }
+        ClassicGroupRevocationFailureKind::ProcessingLease(error) => {
+            ClassicGroupExecutionError::ProcessingLease(error)
+        }
+        ClassicGroupRevocationFailureKind::Fetch(error) => {
+            ClassicGroupExecutionError::FetchRetirement(error)
+        }
+    }
 }

@@ -1,0 +1,197 @@
+//! Capture-independent port registration with lossless caller-name rejection.
+
+use std::sync::Arc;
+
+use kafka_client_core::{
+    ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicProcessingLeasePolicy, ClassicRejoinPolicy,
+    GroupId,
+};
+
+use super::{
+    registry::GroupConsumerRegistrationFailureKind,
+    registry_entry::default_classic_processing_lease_policy, registry_port::GroupConsumerPort,
+    registry_shard::GroupConsumerShardLockError, session_catalog::GroupSessionCatalogError,
+};
+
+impl GroupConsumerPort {
+    pub(crate) fn try_register(
+        &self,
+        group: Arc<str>,
+        local_topics: Vec<Arc<str>>,
+        timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
+    ) -> Result<GroupId, GroupConsumerPortRegistrationFailure> {
+        self.try_register_with_processing_policy(
+            group,
+            local_topics,
+            timing,
+            heartbeat_policy,
+            rejoin_policy,
+            default_classic_processing_lease_policy(),
+        )
+    }
+
+    pub(crate) fn try_register_with_processing_policy(
+        &self,
+        group: Arc<str>,
+        local_topics: Vec<Arc<str>>,
+        timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
+        processing_policy: ClassicProcessingLeasePolicy,
+    ) -> Result<GroupId, GroupConsumerPortRegistrationFailure> {
+        if self.shared.admission_is_closed() {
+            return Err(registration_failure(
+                GroupConsumerPortRegistrationFailureKind::CLOSED,
+                group,
+                local_topics,
+            ));
+        }
+        let mut registry = match self.shared.try_registry() {
+            Ok(registry) => registry,
+            Err(error) => {
+                return Err(registration_failure(
+                    GroupConsumerPortRegistrationFailureKind::lock(error),
+                    group,
+                    local_topics,
+                ));
+            }
+        };
+        if self.shared.admission_is_closed() {
+            return Err(registration_failure(
+                GroupConsumerPortRegistrationFailureKind::CLOSED,
+                group,
+                local_topics,
+            ));
+        }
+        registry
+            .try_register_with_processing_policy(
+                group,
+                local_topics,
+                timing,
+                heartbeat_policy,
+                rejoin_policy,
+                processing_policy,
+            )
+            .map_err(|failure| GroupConsumerPortRegistrationFailure {
+                kind: GroupConsumerPortRegistrationFailureKind::registry(failure.kind),
+                group: failure.group,
+                local_topics: failure.local_topics,
+            })
+    }
+}
+
+#[must_use = "registration rejection retains the exact caller-owned names"]
+pub(crate) struct GroupConsumerPortRegistrationFailure {
+    pub(crate) kind: GroupConsumerPortRegistrationFailureKind,
+    pub(crate) group: Arc<str>,
+    pub(crate) local_topics: Vec<Arc<str>>,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(crate) struct GroupConsumerPortRegistrationFailureKind {
+    kind: GroupConsumerPortRegistrationFailureReason,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum GroupConsumerPortRegistrationCategory {
+    Closed,
+    Contended,
+    Backpressure,
+    InvalidInput,
+    InternalInvariant,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum GroupConsumerPortRegistrationFailureReason {
+    Closed,
+    Lock(GroupConsumerShardLockError),
+    Registry(GroupConsumerRegistrationFailureKind),
+}
+
+impl GroupConsumerPortRegistrationFailureKind {
+    pub(crate) const CLOSED: Self = Self {
+        kind: GroupConsumerPortRegistrationFailureReason::Closed,
+    };
+
+    const fn lock(error: GroupConsumerShardLockError) -> Self {
+        Self {
+            kind: GroupConsumerPortRegistrationFailureReason::Lock(error),
+        }
+    }
+
+    const fn registry(error: GroupConsumerRegistrationFailureKind) -> Self {
+        Self {
+            kind: GroupConsumerPortRegistrationFailureReason::Registry(error),
+        }
+    }
+
+    pub(crate) const fn public_category(self) -> GroupConsumerPortRegistrationCategory {
+        match self.kind {
+            GroupConsumerPortRegistrationFailureReason::Closed
+            | GroupConsumerPortRegistrationFailureReason::Registry(
+                GroupConsumerRegistrationFailureKind::Closed,
+            ) => GroupConsumerPortRegistrationCategory::Closed,
+            GroupConsumerPortRegistrationFailureReason::Registry(
+                GroupConsumerRegistrationFailureKind::Capacity
+                | GroupConsumerRegistrationFailureKind::RetainedBytes,
+            ) => GroupConsumerPortRegistrationCategory::Backpressure,
+            GroupConsumerPortRegistrationFailureReason::Lock(
+                GroupConsumerShardLockError::Contended,
+            ) => GroupConsumerPortRegistrationCategory::Contended,
+            GroupConsumerPortRegistrationFailureReason::Registry(
+                GroupConsumerRegistrationFailureKind::Catalog(
+                    GroupSessionCatalogError::EmptyGroup
+                    | GroupSessionCatalogError::GroupBytes { .. }
+                    | GroupSessionCatalogError::EmptyTopic
+                    | GroupSessionCatalogError::TopicBytes { .. }
+                    | GroupSessionCatalogError::RetainedTopicCapacity { .. }
+                    | GroupSessionCatalogError::RetainedTopicBytes { .. }
+                    | GroupSessionCatalogError::DuplicateTopic,
+                ),
+            ) => GroupConsumerPortRegistrationCategory::InvalidInput,
+            GroupConsumerPortRegistrationFailureReason::Lock(
+                GroupConsumerShardLockError::Poisoned,
+            )
+            | GroupConsumerPortRegistrationFailureReason::Registry(
+                GroupConsumerRegistrationFailureKind::IdentityExhausted
+                | GroupConsumerRegistrationFailureKind::Fetch(_)
+                | GroupConsumerRegistrationFailureKind::Catalog(
+                    GroupSessionCatalogError::EmptyMember
+                    | GroupSessionCatalogError::MemberBytes { .. }
+                    | GroupSessionCatalogError::RetainedTopicBytesOverflow
+                    | GroupSessionCatalogError::TopicIdentityExhausted
+                    | GroupSessionCatalogError::Allocation
+                    | GroupSessionCatalogError::UnknownTopic(_),
+                ),
+            ) => GroupConsumerPortRegistrationCategory::InternalInvariant,
+        }
+    }
+}
+
+impl core::fmt::Debug for GroupConsumerPortRegistrationFailureKind {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self.kind {
+            GroupConsumerPortRegistrationFailureReason::Closed => formatter.write_str("Closed"),
+            GroupConsumerPortRegistrationFailureReason::Lock(error) => {
+                formatter.debug_tuple("Lock").field(&error).finish()
+            }
+            GroupConsumerPortRegistrationFailureReason::Registry(error) => {
+                formatter.debug_tuple("Registry").field(&error).finish()
+            }
+        }
+    }
+}
+
+fn registration_failure(
+    kind: GroupConsumerPortRegistrationFailureKind,
+    group: Arc<str>,
+    local_topics: Vec<Arc<str>>,
+) -> GroupConsumerPortRegistrationFailure {
+    GroupConsumerPortRegistrationFailure {
+        kind,
+        group,
+        local_topics,
+    }
+}

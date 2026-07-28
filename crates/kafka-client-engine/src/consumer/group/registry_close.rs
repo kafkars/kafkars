@@ -6,7 +6,7 @@ use crate::completion::NotifierJoin;
 
 use super::{
     registry::GroupConsumerRegistry, registry_entry::GroupConsumerEntryState,
-    registry_host::GroupConsumerHostError, registry_membership::GroupConsumerMembershipTurn,
+    registry_host_error::GroupConsumerHostError, registry_membership::GroupConsumerMembershipTurn,
 };
 
 /// A requested group close could not move an active entry to closing.
@@ -45,6 +45,9 @@ impl GroupConsumerRegistry {
             Ok(()) => self.recover_local_membership().err(),
             Err(error) => Some(error),
         };
+        if membership.is_none() {
+            self.recover_fetch_after_driver_shutdown();
+        }
         let offset_commits = &mut self.offset_commits;
         let offset_commit = offset_commits
             .recover_after_driver_shutdown()
@@ -62,6 +65,14 @@ impl GroupConsumerRegistry {
             .saturating_add(self.position_unsettled());
         if membership != 0 {
             return Err(GroupConsumerHostError::membership_unsettled(membership));
+        }
+        let fetch = self.fetch_unsettled();
+        if fetch != 0 {
+            return Err(GroupConsumerHostError::fetch_unsettled(fetch));
+        }
+        let processing = self.processing_unsettled();
+        if processing != 0 {
+            return Err(GroupConsumerHostError::processing_unsettled(processing));
         }
         let offset_commits = &mut self.offset_commits;
         offset_commits
@@ -86,7 +97,17 @@ impl GroupConsumerRegistry {
                 super::classic_group_execution::ClassicGroupExecutionError::PositionPending,
             );
         }
-        if self.membership_unsettled() != 0 {
+        let retained_entry_faults = self
+            .entries
+            .iter()
+            .filter_map(|entry| entry.fault.as_ref())
+            .map(super::classic_group_entry_fault::ClassicGroupEntryFault::retained_owner_count)
+            .sum::<usize>();
+        if self
+            .membership_unsettled()
+            .saturating_sub(retained_entry_faults)
+            != 0
+        {
             return Err(
                 super::classic_group_execution::ClassicGroupExecutionError::HandoffIncomplete,
             );

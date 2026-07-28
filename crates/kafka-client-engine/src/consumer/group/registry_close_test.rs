@@ -6,7 +6,7 @@ use super::{
     offset_commit::GroupOffsetCommitAdmissionFailureKind,
     registry_close::GroupConsumerCloseError,
     registry_commit::GroupConsumerCommitFailureKind,
-    registry_host::GroupConsumerHostError,
+    registry_host_error::GroupConsumerHostError,
     registry_membership::GroupConsumerMembershipTurn,
     registry_test_support::{
         checkpoint, deadline, install_session, register, started_registry, stop_registry,

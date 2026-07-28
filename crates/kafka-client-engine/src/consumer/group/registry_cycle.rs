@@ -24,9 +24,6 @@ impl GroupConsumerRegistry {
         if !self.accepting {
             return Err(GroupConsumerCycleAdmissionError::RegistryClosed);
         }
-        if self.has_entry_fault() {
-            return Err(GroupConsumerCycleAdmissionError::EntryFault);
-        }
         let Some(entry) = self
             .entries
             .iter_mut()
@@ -34,6 +31,9 @@ impl GroupConsumerRegistry {
         else {
             return Err(GroupConsumerCycleAdmissionError::UnknownGroup);
         };
+        if entry.fault.is_some() {
+            return Err(GroupConsumerCycleAdmissionError::EntryFault);
+        }
         if !entry.is_active() {
             return Err(GroupConsumerCycleAdmissionError::GroupClosing);
         }

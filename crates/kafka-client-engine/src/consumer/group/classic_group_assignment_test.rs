@@ -3,13 +3,25 @@
 use std::sync::Arc;
 
 use kafka_client_core::{
-    ClassicGeneration, ClassicGroupEffect, ClassicGroupInput, ClassicGroupPhase, Deadline,
-    GroupAssignmentPartition, GroupId, Moment, PartitionIndex, TopicId,
+    AssignmentGeneration, ClassicGeneration, ClassicGroupEffect, ClassicGroupInput,
+    ClassicGroupPhase, ClassicProcessingLease, ClassicProcessingLeaseError,
+    ClassicProcessingLeaseFence, ClassicProcessingLeasePolicy, Deadline, GroupAssignmentPartition,
+    GroupId, GroupPositionBatch, GroupPositionFence, GroupPositionPartitionFact, Moment,
+    NextFetchOffset, PartitionIndex, TopicId,
 };
 
 use super::{
-    classic_group_assignment::ClassicGroupAssignmentPreparationFailureKind,
-    classic_group_owner::ClassicGroupOwner, classic_group_test_support,
+    classic_group_assignment::{
+        ClassicGroupAssignmentPreparationFailureKind, ClassicGroupRevocationFailureKind,
+        retire_and_revoke_classic_group_assignment,
+    },
+    classic_group_fetch::{
+        ClassicGroupFetchOwner, ClassicGroupFetchRetirement, ClassicGroupFetchRetirementError,
+    },
+    classic_group_owner::ClassicGroupOwner,
+    classic_group_position::test_support::completed_ready,
+    classic_group_test_support,
+    registry_entry::DEFAULT_CLASSIC_PROCESSING_TIMEOUT_TICKS,
     session_catalog::GroupSessionCatalog,
 };
 
@@ -245,4 +257,261 @@ fn foreign_lost_owner_cannot_authorize_another_groups_revoke() {
     );
     assert_eq!(failure.assignment.group_id(), group_b);
     assert!(catalog_b.live_assignment().is_some());
+}
+
+#[test]
+fn shared_revoke_retires_exact_fetch_assignment_before_catalog_commit() {
+    let (mut catalog, mut owner) = owners();
+    let topic_id = catalog
+        .topic_id("orders")
+        .unwrap_or_else(|| panic!("orders topic identity"));
+    classic_group_test_support::install_follower(
+        &mut catalog,
+        &mut owner,
+        "member-a",
+        7,
+        vec![GroupAssignmentPartition::new(
+            topic_id,
+            PartitionIndex::from_raw(0),
+        )],
+    );
+    let mut fetch =
+        ClassicGroupFetchOwner::try_new().unwrap_or_else(|error| panic!("Fetch owner: {error:?}"));
+    activate_fetch(&catalog, &owner, &mut fetch, None);
+    let mut processing_lease = active_processing_lease(&catalog, &owner, None);
+    let assignment_epoch = fetch
+        .machine_assignment_epoch()
+        .unwrap_or_else(|| panic!("active Fetch assignment"));
+    let (assignment, generation) = lose_assignment(&mut owner);
+
+    let retirement = retire_and_revoke_classic_group_assignment(
+        &owner,
+        &mut catalog,
+        &mut processing_lease,
+        &mut fetch,
+        assignment,
+        generation,
+    )
+    .unwrap_or_else(|failure| panic!("shared revoke failed: {:?}", failure.kind));
+
+    assert!(matches!(
+        retirement,
+        ClassicGroupFetchRetirement::Retired {
+            assignment_epoch: retired,
+            controls: 1,
+            ..
+        } if retired == assignment_epoch
+    ));
+    assert!(catalog.live_assignment().is_none());
+    assert_eq!(processing_lease.next_deadline(), None);
+    assert!(fetch.activation().is_none());
+    assert_eq!(fetch.machine_assignment_epoch(), None);
+}
+
+#[test]
+fn fetch_retirement_failure_retains_exact_revoke_and_catalog_session() {
+    let (mut catalog, mut owner) = owners();
+    let topic_id = catalog
+        .topic_id("orders")
+        .unwrap_or_else(|| panic!("orders topic identity"));
+    classic_group_test_support::install_follower(
+        &mut catalog,
+        &mut owner,
+        "member-a",
+        7,
+        vec![GroupAssignmentPartition::new(
+            topic_id,
+            PartitionIndex::from_raw(0),
+        )],
+    );
+    let live_generation = catalog
+        .live_assignment()
+        .unwrap_or_else(|| panic!("catalog assignment"))
+        .assignment_generation();
+    let foreign_generation = AssignmentGeneration::try_from_raw(
+        live_generation
+            .get()
+            .checked_add(1)
+            .unwrap_or_else(|| panic!("test generation")),
+    )
+    .unwrap_or_else(|| panic!("foreign assignment generation"));
+    let mut fetch =
+        ClassicGroupFetchOwner::try_new().unwrap_or_else(|error| panic!("Fetch owner: {error:?}"));
+    activate_fetch(&catalog, &owner, &mut fetch, Some(foreign_generation));
+    let mut processing_lease = active_processing_lease(&catalog, &owner, None);
+    let (assignment, generation) = lose_assignment(&mut owner);
+
+    let failure = retire_and_revoke_classic_group_assignment(
+        &owner,
+        &mut catalog,
+        &mut processing_lease,
+        &mut fetch,
+        assignment,
+        generation,
+    )
+    .err()
+    .unwrap_or_else(|| panic!("foreign Fetch binding must reject revocation"));
+
+    assert!(matches!(
+        failure.kind,
+        ClassicGroupRevocationFailureKind::Fetch(
+            ClassicGroupFetchRetirementError::AssignmentIdentityMismatch { .. }
+        )
+    ));
+    assert_eq!(failure.classic_generation, generation);
+    assert_eq!(catalog.live_assignment(), Some(&failure.assignment));
+    assert!(fetch.activation().is_some());
+    assert!(fetch.fault().is_none());
+    assert!(processing_lease.next_deadline().is_some());
+}
+
+#[test]
+fn processing_fence_mismatch_preserves_fetch_and_catalog_before_retirement() {
+    let (mut catalog, mut owner) = owners();
+    let topic_id = catalog
+        .topic_id("orders")
+        .unwrap_or_else(|| panic!("orders topic identity"));
+    classic_group_test_support::install_follower(
+        &mut catalog,
+        &mut owner,
+        "member-a",
+        7,
+        vec![GroupAssignmentPartition::new(
+            topic_id,
+            PartitionIndex::from_raw(0),
+        )],
+    );
+    let live_generation = catalog
+        .live_assignment()
+        .unwrap_or_else(|| panic!("catalog assignment"))
+        .assignment_generation();
+    let foreign_generation = AssignmentGeneration::try_from_raw(
+        live_generation
+            .get()
+            .checked_add(1)
+            .unwrap_or_else(|| panic!("test generation")),
+    )
+    .unwrap_or_else(|| panic!("foreign assignment generation"));
+    let mut fetch =
+        ClassicGroupFetchOwner::try_new().unwrap_or_else(|error| panic!("Fetch owner: {error:?}"));
+    activate_fetch(&catalog, &owner, &mut fetch, None);
+    let mut processing_lease = active_processing_lease(&catalog, &owner, Some(foreign_generation));
+    let (assignment, generation) = lose_assignment(&mut owner);
+
+    let failure = retire_and_revoke_classic_group_assignment(
+        &owner,
+        &mut catalog,
+        &mut processing_lease,
+        &mut fetch,
+        assignment,
+        generation,
+    )
+    .err()
+    .unwrap_or_else(|| panic!("foreign processing fence must reject revocation"));
+
+    assert_eq!(
+        failure.kind,
+        ClassicGroupRevocationFailureKind::ProcessingLease(
+            ClassicProcessingLeaseError::FenceMismatch,
+        )
+    );
+    assert_eq!(catalog.live_assignment(), Some(&failure.assignment));
+    assert!(processing_lease.next_deadline().is_some());
+    assert!(fetch.activation().is_some());
+    assert!(fetch.fault().is_none());
+}
+
+fn activate_fetch(
+    catalog: &GroupSessionCatalog,
+    owner: &ClassicGroupOwner,
+    fetch: &mut ClassicGroupFetchOwner,
+    generation_override: Option<AssignmentGeneration>,
+) {
+    let assignment = catalog
+        .live_assignment()
+        .unwrap_or_else(|| panic!("catalog assignment"));
+    let fence = GroupPositionFence::new(
+        assignment.group_id(),
+        owner
+            .machine()
+            .active_cycle()
+            .unwrap_or_else(|| panic!("active membership cycle")),
+        assignment.member_id(),
+        generation_override.unwrap_or_else(|| assignment.assignment_generation()),
+    );
+    let facts = assignment
+        .partitions()
+        .iter()
+        .copied()
+        .map(|partition| {
+            GroupPositionPartitionFact::committed(
+                partition,
+                NextFetchOffset::try_from_raw(17)
+                    .unwrap_or_else(|| panic!("nonnegative next offset")),
+            )
+        })
+        .collect();
+    if fetch
+        .try_activate(
+            completed_ready(
+                fence,
+                Moment::from_tick(41),
+                GroupPositionBatch::new(0, facts),
+            ),
+            fence,
+        )
+        .is_err()
+    {
+        panic!("Fetch activation failed");
+    }
+}
+
+fn active_processing_lease(
+    catalog: &GroupSessionCatalog,
+    owner: &ClassicGroupOwner,
+    generation_override: Option<AssignmentGeneration>,
+) -> ClassicProcessingLease {
+    let policy = ClassicProcessingLeasePolicy::try_new(DEFAULT_CLASSIC_PROCESSING_TIMEOUT_TICKS)
+        .unwrap_or_else(|error| panic!("positive processing policy: {error}"));
+    let mut lease = ClassicProcessingLease::new(policy);
+    let assignment = catalog
+        .live_assignment()
+        .unwrap_or_else(|| panic!("catalog assignment"));
+    let cycle = owner
+        .machine()
+        .active_cycle()
+        .unwrap_or_else(|| panic!("active membership cycle"));
+    let fence = ClassicProcessingLeaseFence::new(
+        assignment.group_id(),
+        cycle,
+        generation_override.unwrap_or_else(|| assignment.assignment_generation()),
+    );
+    lease
+        .prepare_activation(fence, Moment::from_tick(3))
+        .unwrap_or_else(|error| panic!("processing activation failed: {error:?}"))
+        .commit();
+    lease
+}
+
+fn lose_assignment(
+    owner: &mut ClassicGroupOwner,
+) -> (kafka_client_core::LiveGroupAssignment, ClassicGeneration) {
+    let cycle = owner
+        .machine()
+        .active_cycle()
+        .unwrap_or_else(|| panic!("active membership cycle"));
+    let effect = owner
+        .apply(ClassicGroupInput::AssignmentLost { cycle })
+        .unwrap_or_else(|error| panic!("assignment loss failed: {error}"))
+        .into_effects()
+        .next()
+        .unwrap_or_else(|| panic!("Revoke expected"));
+    let ClassicGroupEffect::Revoke {
+        assignment,
+        classic_generation,
+    } = effect
+    else {
+        panic!("Revoke expected");
+    };
+    (assignment, classic_generation)
 }

@@ -56,13 +56,13 @@ impl ClassicGroupFetchOwner {
                     }
                 }
             }
+            AssignedConsumerEffect::AuthorizeFetchDelivery { .. } => Ok(()),
             AssignedConsumerEffect::AcceptClose { .. }
             | AssignedConsumerEffect::CompleteClose { .. }
             | AssignedConsumerEffect::ResolvePosition { .. }
             | AssignedConsumerEffect::PositionResolutionFailed { .. }
             | AssignedConsumerEffect::ArmPositionThrottle { .. }
             | AssignedConsumerEffect::FetchThrottleFailed { .. }
-            | AssignedConsumerEffect::AuthorizeFetchDelivery { .. }
             | AssignedConsumerEffect::FetchFailed { .. }
             | AssignedConsumerEffect::Revoke { .. }
             | AssignedConsumerEffect::Suspend { .. } => {

@@ -839,7 +839,7 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery_test.rs::mismatched_leader_recovery_restores_the_exact_count_successor",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery_test.rs::sync_driver_owned_shutdown_applies_the_core_failure_once",
   "crates/kafka-client-engine/src/consumer/group/classic_group_recovery_test.rs::sync_confirmation_shutdown_does_not_reapply_the_core_terminal",
-  "crates/kafka-client-engine/src/consumer/group/registry_test.rs::first_entry_fault_fences_registration_cycle_and_commit_admission",
+  "crates/kafka-client-engine/src/consumer/group/registry_test.rs::one_entry_fault_fences_only_that_groups_cycle_and_commit_admission",
   "crates/kafka-client-engine/src/consumer/group/registry_membership_test.rs::prepared_leader_counts_do_not_starve_another_local_deadline",
   "crates/kafka-client-engine/src/consumer/group/registry_host_test.rs::shutdown_recovery_terminalizes_accepted_commit_despite_entry_fault",
   "crates/kafka-client-engine/src/consumer/group/registry_port_test.rs::registration_preserves_exact_timing_and_one_boundary_deadline_capture",
@@ -1006,6 +1006,58 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/prepare_control_test.rs::faulted_owner_suppresses_retained_timer_deadline",
   "crates/kafka-client-engine/src/consumer/fetch_execution/prepared_test.rs::lossless_preparation_failure_returns_the_exact_captured_attempt",
   "crates/kafka-client-engine/src/consumer/group/session_catalog_test.rs::fetch_preparation_copies_one_exact_catalog_spelling_fallibly",
+]
+
+[[invariant]]
+id = "CON-15"
+title = "Classic group Fetch execution is hosted, fenced, and terminally recoverable"
+statement = "The bounded group registry transfers only one fully confirmed ClassicGroupPositionCompleted whose current membership, catalog assignment, and position fence agree, then drives the resulting private Fetch owner in explicit stage order. One hosted turn interprets at most one front effect, applies at most one due timer fact, polls at most one terminal, and submits at most one prepared request; each time-sensitive stage recaptures monotonic time and every backpressured, unavailable, or failed edge retains its exact owner. Every production classic assignment-loss path first prepares the catalog revoke, retires Fetch against that exact live assignment and queues the deterministic ordered Revoke controls, and commits the catalog only after retirement succeeds. Normal shutdown counts Fetch obligations beside membership and position, while successful post-driver recovery consumes terminal entries into startup-preallocated scalar audits after membership no longer needs their catalog or retirement authority. The hosted Fetch layer adds no callback, async runtime, retry policy, metadata authority, generated wire type, or unsafe code; public observation is a separate processing-fenced ownership layer."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/position_transfer_test.rs::confirmed_position_activates_fetch_exactly_once",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/position_transfer_test.rs::stale_completed_fence_restores_the_exact_position_owner",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/turn_test.rs::effects_end_the_turn_and_terminal_poll_precedes_the_next_submission",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/turn_test.rs::one_due_timer_input_precedes_poll_and_pending_submission",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/turn_test.rs::call_backpressure_restores_the_exact_prepared_owner_for_retry",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/retirement_test.rs::exact_loss_retires_before_catalog_revocation_and_queues_ordered_controls",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/retirement_test.rs::assignment_loss_reclaims_the_one_ready_delivery_before_quiescence",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_assignment_test.rs::shared_revoke_retires_exact_fetch_assignment_before_catalog_commit",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_assignment_test.rs::fetch_retirement_failure_retains_exact_revoke_and_catalog_session",
+  "crates/kafka-client-engine/src/consumer/group/registry_fetch_test.rs::confirmed_position_transfers_once_before_one_bounded_fetch_action",
+  "crates/kafka-client-engine/src/consumer/group/registry_fetch_test.rs::registry_aggregates_fetch_deadline_and_unsettled_ownership",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/recovery_test.rs::post_driver_recovery_reports_every_retained_group_fetch_owner",
+  "crates/kafka-client-engine/src/consumer/group/registry_fetch_recovery_test.rs::successful_post_driver_recovery_consumes_terminal_entries_into_reserved_fetch_reports",
+]
+
+[[invariant]]
+id = "CON-16"
+title = "Classic group delivery is processing-fenced and loss-recoverable"
+statement = "Each installed dynamic classic-group assignment atomically arms one independent application-processing lease fenced by GroupId, nonreused MembershipCycle, and AssignmentGeneration. The public builder owns a positive nanosecond-representable duration with a 300-second default; membership-start deadline capture precedes validation and conversion, and pre-core rejection returns the exact builder. Progress before the lease boundary replaces the deadline, while progress at the boundary or deadline overflow retains exact assignment loss until matching revocation. The registry transfers only one already-authorized Fetch byte lease whose catalog, membership, assignment generation, and assigned-consumer epoch agree, takes fresh monotonic time only after acquiring that lease, and applies processing progress before external transfer. Clock, progress, or expiration failure reclaims the exact delivery; due processing loss runs before membership Heartbeat and uses one shared prepared processing, Fetch, and catalog revocation seam. A retained entry fault fences only that entry while unrelated groups remain schedulable. Immediate observation transfers one linear batch whose Drop reclaims the byte lease; consuming the batch yields one independently owned non-clone assignment-fenced checkpoint. The named runtime-neutral receive operation owns one bounded generation registration per group, arms before probing, rearms for semantic change without a missed-wake gap, invokes application wakers only on a dedicated off-reactor notifier, and treats Drop as observation abandonment rather than cancellation. This slice keeps dynamic membership, read-uncommitted Fetch, and missing-offset failure as fixed defaults and introduces no static identity, configurable isolation or reset, acknowledgement, commit, control, seek, graceful revocation, explicit close, callback, async runtime, or unsafe code."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/consumer/classic_group/processing_lease_test.rs::activation_and_progress_replace_one_exact_deadline",
+  "crates/kafka-client-core/src/consumer/classic_group/processing_lease_test.rs::progress_at_the_deadline_expires_instead_of_resurrecting_assignment",
+  "crates/kafka-client-core/src/consumer/classic_group/processing_lease_test.rs::progress_deadline_overflow_conservatively_expires_assignment",
+  "crates/kafka-client-core/src/consumer/classic_group/processing_lease_preparation_test.rs::dropped_preparation_leaves_dormant_and_commit_arms_exact_schedule",
+  "crates/kafka-client-core/src/consumer/classic_group/processing_lease_preparation_test.rs::dropped_revocation_preserves_lease_and_commit_releases_it",
+  "crates/kafka-client-engine/src/consumer/group_registration_request_test.rs::request_defaults_and_processing_policy_remain_owned",
+  "crates/kafka-client-engine/src/consumer/group/registry_processing_test.rs::registered_processing_policy_arms_independently_of_session_and_heartbeat",
+  "crates/kafka-client-engine/src/consumer/group/registry_processing_test.rs::registry_observes_the_exact_processing_deadline_and_counts_its_owner",
+  "crates/kafka-client-engine/src/consumer/group/registry_processing_test.rs::host_runs_due_processing_loss_before_heartbeat_and_revokes_the_assignment",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/delivery_test.rs::exact_catalog_and_core_fences_transfer_one_ready_byte_lease",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/delivery_test.rs::assignment_loss_does_not_prevent_exact_external_lease_reclaim",
+  "crates/kafka-client-engine/src/consumer/group/registry_delivery_test.rs::port_transfers_and_reclaims_the_exact_fenced_byte_lease_after_close",
+  "crates/kafka-client-engine/src/consumer/group/registry_delivery_test.rs::boundary_delivery_is_reclaimed_and_queues_exact_processing_loss",
+  "crates/kafka-client-engine/src/consumer/group/registry_delivery_test.rs::overflowing_delivery_progress_reclaims_bytes_and_queues_assignment_loss",
+  "crates/kafka-client-engine/src/consumer/group/registry_host_test.rs::retained_membership_fault_does_not_stop_the_registry_host",
+  "crates/kafka-client-engine/src/consumer/group_batch/batch_test.rs::consuming_batch_yields_exact_core_checkpoint_and_reclaims_bytes",
+  "crates/kafka-client-engine/src/consumer/group_batch/batch_test.rs::contended_drop_waits_for_the_registry_then_reclaims_the_exact_lease",
+  "crates/kafka-client-engine/src/consumer/group_recv_test.rs::change_published_during_probe_rearm_remains_observable",
+  "crates/kafka-client-engine/src/consumer/group_recv_test.rs::pending_recv_wakes_only_on_the_group_notifier",
+  "crates/kafka-client-engine/src/consumer/group_recv_test.rs::drop_cancels_only_observation_and_preserves_ready_delivery",
+  "crates/kafka-client/src/consumer/group_test.rs::builder_and_unique_handle_expose_only_base_dynamic_group_capabilities",
+  "crates/kafka-client/src/consumer/consumer_batch_test.rs::batch_is_send_linear_iterable_and_yields_one_checkpoint",
+  "crates/kafka-client/src/consumer/group_recv_test.rs::recv_is_send_linear_and_borrows_the_unique_consumer",
 ]
 
 [[invariant]]

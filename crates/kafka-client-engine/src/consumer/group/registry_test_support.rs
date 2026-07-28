@@ -3,18 +3,21 @@
 use std::sync::Arc;
 
 use kafka_client_core::{
-    Deadline, GroupAssignmentPartition, GroupCheckpoint, GroupCheckpointEntry, GroupId, Moment,
-    PartitionIndex, TopicId,
+    ClassicProcessingLeaseFence, Deadline, GroupAssignmentPartition, GroupCheckpoint,
+    GroupCheckpointEntry, GroupId, GroupPositionFence, GroupPositionPartitionFact, Moment,
+    NextFetchOffset, PartitionIndex, TopicId,
 };
 
 use crate::clock::OperationDeadline;
 
 use super::{
-    classic_group_test_support, registry::GroupConsumerRegistry,
+    classic_group_fetch::{completed_ready, install_ready_delivery_for_test},
+    classic_group_test_support,
+    registry::GroupConsumerRegistry,
     registry_membership::GroupConsumerMembershipTurn,
 };
 
-pub(super) fn started_registry() -> GroupConsumerRegistry {
+pub(crate) fn started_registry() -> GroupConsumerRegistry {
     GroupConsumerRegistry::start().unwrap_or_else(|error| panic!("registry start failed: {error}"))
 }
 
@@ -30,7 +33,7 @@ pub(super) fn register(registry: &mut GroupConsumerRegistry, group: &str) -> Gro
         .unwrap_or_else(|failure| panic!("registration failed: {:?}", failure.kind))
 }
 
-pub(super) fn install_session(registry: &mut GroupConsumerRegistry, group_id: GroupId) {
+pub(crate) fn install_session(registry: &mut GroupConsumerRegistry, group_id: GroupId) {
     let entry = registry
         .entries
         .iter_mut()
@@ -55,6 +58,74 @@ pub(super) fn install_session(registry: &mut GroupConsumerRegistry, group_id: Gr
         .prepare_install(heartbeat)
         .unwrap_or_else(|error| panic!("heartbeat install failed: {error:?}"))
         .commit();
+    let assignment = entry
+        .catalog
+        .live_assignment()
+        .unwrap_or_else(|| panic!("live assignment expected"));
+    let cycle = entry
+        .classic
+        .machine()
+        .active_cycle()
+        .unwrap_or_else(|| panic!("active membership cycle expected"));
+    let fence =
+        ClassicProcessingLeaseFence::new(group_id, cycle, assignment.assignment_generation());
+    entry
+        .processing_lease
+        .prepare_activation(fence, Moment::from_tick(3))
+        .unwrap_or_else(|error| panic!("processing-lease activation failed: {error:?}"))
+        .commit();
+}
+
+pub(crate) fn install_ready_group_delivery(
+    registry: &mut GroupConsumerRegistry,
+    group_id: GroupId,
+    first_offset: i64,
+) {
+    let entry = registry
+        .entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .unwrap_or_else(|| panic!("registered group"));
+    let assignment = entry
+        .catalog
+        .live_assignment()
+        .unwrap_or_else(|| panic!("live assignment"));
+    let partition = assignment
+        .partitions()
+        .first()
+        .copied()
+        .unwrap_or_else(|| panic!("assigned partition"));
+    let fence = GroupPositionFence::new(
+        assignment.group_id(),
+        entry
+            .classic
+            .machine()
+            .active_cycle()
+            .unwrap_or_else(|| panic!("active membership cycle")),
+        assignment.member_id(),
+        assignment.assignment_generation(),
+    );
+    entry
+        .fetch
+        .try_activate(
+            completed_ready(
+                fence,
+                Moment::from_tick(41),
+                0,
+                vec![GroupPositionPartitionFact::committed(
+                    partition,
+                    NextFetchOffset::try_from_raw(first_offset)
+                        .unwrap_or_else(|| panic!("next Fetch offset")),
+                )],
+            ),
+            fence,
+        )
+        .unwrap_or_else(|_error| panic!("Fetch activation failed"));
+    install_ready_delivery_for_test(&mut entry.fetch, &entry.catalog, first_offset);
+}
+
+pub(crate) fn fetch_unsettled(registry: &GroupConsumerRegistry) -> usize {
+    registry.fetch_unsettled()
 }
 
 pub(super) fn checkpoint(registry: &GroupConsumerRegistry, group_id: GroupId) -> GroupCheckpoint {

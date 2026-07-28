@@ -10,12 +10,14 @@ use crate::driver::{
 };
 
 use super::{
+    classic_group_assignment::retire_and_revoke_classic_group_assignment,
     classic_group_entry_fault::ClassicGroupEntryFault,
     classic_group_execution::ClassicGroupExecutionError,
     classic_group_heartbeat::{
         ClassicHeartbeatAcceptanceFailure, ClassicHeartbeatDriverOwner,
         ClassicHeartbeatExecutionState, PreparedClassicHeartbeat,
     },
+    classic_group_heartbeat_prepare::map_revocation_kind,
     registry::GroupConsumerRegistry,
     registry_entry::GroupConsumerEntry,
 };
@@ -155,19 +157,22 @@ fn settle_admission_failure(
         entry.fault = Some(ClassicGroupEntryFault::HeartbeatAdmission(failure));
         return Err(ClassicGroupExecutionError::HeartbeatTerminal);
     }
-    match entry
-        .classic
-        .prepare_revoke(&mut entry.catalog, assignment, classic_generation)
-    {
-        Ok(prepared) => prepared.commit(),
+    match retire_and_revoke_classic_group_assignment(
+        &entry.classic,
+        &mut entry.catalog,
+        &mut entry.processing_lease,
+        &mut entry.fetch,
+        assignment,
+        classic_generation,
+    ) {
+        Ok(_retirement) => {}
         Err(revoke) => {
             let kind = revoke.kind;
             entry.fault = Some(ClassicGroupEntryFault::HeartbeatAdmissionRevoke {
                 failure: revoke,
-                generation: classic_generation,
                 admission: failure,
             });
-            return Err(ClassicGroupExecutionError::Assignment(kind));
+            return Err(map_revocation_kind(kind));
         }
     }
     entry.heartbeat.set(ClassicHeartbeatExecutionState::Dormant);

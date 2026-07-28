@@ -169,7 +169,10 @@ fn checked_in_recv_ownership_and_notification_factory_are_exact() {
     assert_eq!(factory[0].root, "crates/kafka-client-engine/src");
     assert_eq!(
         factory[0].allowed_paths,
-        ["crates/kafka-client-engine/src/consumer/assigned_host/completion.rs"]
+        [
+            "crates/kafka-client-engine/src/consumer/assigned_host/completion.rs",
+            "crates/kafka-client-engine/src/consumer/group_recv/completion.rs",
+        ]
     );
 }
 

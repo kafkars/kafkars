@@ -50,6 +50,7 @@ pub(crate) enum EngineHostError {
     AssignedConsumerCompletion(CompletionRegistryError),
     GroupConsumer(GroupConsumerHostError),
     GroupConsumerLockPoisoned,
+    GroupConsumerRecvNotifierUnavailable,
     TransactionInitialization(TransactionInitializationHostError),
     TransactionInitializationLockPoisoned,
     CreateTopics(CreateTopicsHostError),

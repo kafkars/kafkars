@@ -11,9 +11,18 @@ use support::{
 const ENGINE_ROOT: &str = "crates/kafka-client-engine/src";
 const GROUP_FETCH_ROOT: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch";
 const OWNER: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs";
+const OWNER_OBSERVATION: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner_observation.rs";
 const MODEL: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/model.rs";
 const PREPARE: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/prepare.rs";
+const RETIREMENT: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/retirement.rs";
+const TURN: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/turn.rs";
+const RECOVERY: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/recovery.rs";
+const DELIVERY: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/delivery.rs";
 const FETCH_PREPARED: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/prepared.rs";
 const COMMON_FORBIDDEN: &[&str] = &[
     "crate::driver",
@@ -55,9 +64,23 @@ const LINEAR: &[(&str, &str)] = &[
     ("PrepareFetchFailure", FETCH_PREPARED),
 ];
 const MUTATIONS: &[(&str, &[&str])] = &[
-    ("fault", &[OWNER, PREPARE]),
-    ("effects", &[OWNER, PREPARE]),
-    ("pending_fetches", &[OWNER, PREPARE]),
+    (
+        "fault",
+        &[
+            OWNER,
+            OWNER_OBSERVATION,
+            PREPARE,
+            RETIREMENT,
+            TURN,
+            RECOVERY,
+            DELIVERY,
+        ],
+    ),
+    ("effects", &[OWNER, PREPARE, RETIREMENT, TURN, DELIVERY]),
+    (
+        "pending_fetches",
+        &[OWNER, OWNER_OBSERVATION, PREPARE, TURN],
+    ),
 ];
 const CALLS: &[(&str, &[&str])] = &[
     (

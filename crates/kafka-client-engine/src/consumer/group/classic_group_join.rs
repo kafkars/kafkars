@@ -1,11 +1,8 @@
 //! Exact prepared Join transfer state between local scheduling and driver ownership.
 
-use kafka_client_core::{
-    ClassicGeneration, ClassicGroupTiming, ClassicProtocol, GroupId, LiveGroupAssignment,
-    MembershipCycle,
-};
+use kafka_client_core::{ClassicGroupTiming, ClassicProtocol, GroupId, MembershipCycle};
 
-use super::classic_group_assignment::ClassicGroupAssignmentPreparationFailureKind;
+use super::classic_group_assignment::ClassicGroupRevocationFailure;
 use super::{
     classic_group_join_call::ClassicGroupJoinCallOwner,
     classic_group_partition_count_call::{
@@ -89,9 +86,7 @@ pub(super) enum ClassicGroupExecutionState {
     SyncDriverOwned(ClassicGroupSyncDriverOwner),
     SyncConfirmationPending(ClassicGroupSyncDriverOwner),
     CloseFault {
-        revoke_assignment: LiveGroupAssignment,
-        revoke_generation: ClassicGeneration,
-        revoke_failure_kind: ClassicGroupAssignmentPreparationFailureKind,
+        revoke_failure: ClassicGroupRevocationFailure,
     },
 }
 

@@ -1,5 +1,4 @@
 //! Concrete direct-consumer effect execution without public API ownership.
-
 #[cfg(test)]
 mod assigned_close_composition_test;
 mod assigned_close_error;
@@ -69,8 +68,17 @@ mod fetch_store_domain_test;
 #[cfg(test)]
 mod fetch_store_test;
 mod group;
+mod group_batch;
+mod group_event;
+mod group_recv;
+#[cfg(test)]
+mod group_recv_test;
+#[cfg(test)]
+mod group_recv_test_support;
 mod group_registration;
 mod group_registration_request;
+#[cfg(test)]
+mod group_registration_request_test;
 mod group_release;
 mod group_start;
 mod position_execution;
@@ -78,9 +86,3 @@ mod position_prepare_error;
 #[cfg(test)]
 mod position_prepare_error_test;
 pub use exports::*;
-pub(crate) use group::{
-    GroupConsumerCycleAdmission, GroupConsumerCyclePortErrorCategory, GroupConsumerHostError,
-    GroupConsumerPort, GroupConsumerPortDormantReleaseError, GroupConsumerPortRegistrationCategory,
-    GroupConsumerRegistry, GroupConsumerShardLockError, GroupConsumerShardOwner,
-    GroupConsumerShardWake, GroupConsumerShardWakeError,
-};

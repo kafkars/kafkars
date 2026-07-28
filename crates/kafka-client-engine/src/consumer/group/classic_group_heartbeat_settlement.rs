@@ -15,6 +15,7 @@ use super::{
     classic_group_heartbeat_interpret::{
         ClassicHeartbeatInterpretationFailure, interpret_heartbeat,
     },
+    classic_group_heartbeat_prepare::map_revocation_kind,
     classic_group_rediscovery_transfer::confirm_heartbeat_rediscovery,
     registry::GroupConsumerRegistry,
     registry_entry::GroupConsumerEntry,
@@ -117,17 +118,11 @@ fn settle_terminal(
             });
             Err(ClassicGroupExecutionError::RejoinPostCore)
         }
-        Err(ClassicHeartbeatInterpretationFailure::Revoke {
-            failure,
-            generation,
-        }) => {
+        Err(ClassicHeartbeatInterpretationFailure::Revoke(failure)) => {
             let kind = failure.kind;
-            entry.fault = Some(ClassicGroupEntryFault::HeartbeatTerminalRevoke {
-                failure,
-                generation,
-                terminal,
-            });
-            Err(ClassicGroupExecutionError::Assignment(kind))
+            entry.fault =
+                Some(ClassicGroupEntryFault::HeartbeatTerminalRevoke { failure, terminal });
+            Err(map_revocation_kind(kind))
         }
     }
 }

@@ -27,9 +27,6 @@ pub(super) const RECOVERY: &str =
 pub(super) const EXECUTION_RECOVERY: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_execution_recovery.rs";
 pub(super) const CLOSE: &str = "crates/kafka-client-engine/src/consumer/group/registry_close.rs";
-pub(super) const REGISTRY: &str = "crates/kafka-client-engine/src/consumer/group/registry.rs";
-pub(super) const CYCLE: &str = "crates/kafka-client-engine/src/consumer/group/registry_cycle.rs";
-pub(super) const COMMIT: &str = "crates/kafka-client-engine/src/consumer/group/registry_commit.rs";
 pub(super) const MEMBERSHIP: &str =
     "crates/kafka-client-engine/src/consumer/group/registry_membership.rs";
 pub(super) const MEMBERSHIP_OBSERVATION: &str =
@@ -139,12 +136,12 @@ pub(super) const METHODS: &[(&str, &str, &[&str])] = &[
         "inspect_sync_after_driver_shutdown",
         &[EXECUTION_RECOVERY, RECOVERY],
     ),
-    (GROUP_ROOT, "has_entry_fault", &[REGISTRY, CYCLE, COMMIT]),
     (
         GROUP_ROOT,
         "retained_owner_count",
         &[
             "crates/kafka-client-engine/src/consumer/group/classic_group_entry_fault.rs",
+            CLOSE,
             MEMBERSHIP_OBSERVATION,
         ],
     ),

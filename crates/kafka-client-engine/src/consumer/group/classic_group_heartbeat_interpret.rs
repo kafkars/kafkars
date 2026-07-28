@@ -1,8 +1,6 @@
 //! Generated Heartbeat terminal normalization and deterministic loss policy.
 
-use kafka_client_core::{
-    ClassicGeneration, ClassicGroupEffect, ClassicGroupInput, ClassicGroupTransition, Moment,
-};
+use kafka_client_core::{ClassicGroupEffect, ClassicGroupInput, ClassicGroupTransition, Moment};
 
 use crate::{
     driver::classic_group::ClassicHeartbeatTerminal,
@@ -12,7 +10,7 @@ use crate::{
 };
 
 use super::{
-    classic_group_assignment::ClassicGroupAssignmentPreparationFailure,
+    classic_group_assignment::ClassicGroupRevocationFailure,
     classic_group_execution::ClassicGroupExecutionError,
     classic_group_heartbeat::ClassicHeartbeatSuccessor,
     classic_group_heartbeat_prepare::commit_revoke,
@@ -25,10 +23,7 @@ pub(super) enum ClassicHeartbeatInterpretationFailure {
     Restorable(ClassicGroupExecutionError),
     PostCore(ClassicGroupExecutionError),
     PostCoreRejection(ClassicRejectionPostCore),
-    Revoke {
-        failure: ClassicGroupAssignmentPreparationFailure,
-        generation: ClassicGeneration,
-    },
+    Revoke(ClassicGroupRevocationFailure),
 }
 
 #[expect(
@@ -146,10 +141,7 @@ fn interpret_terminal_transition(
             None,
         ) => match commit_revoke(entry, assignment, classic_generation) {
             Ok(()) => Ok(ClassicHeartbeatSuccessor::Dormant),
-            Err(failure) => Err(ClassicHeartbeatInterpretationFailure::Revoke {
-                failure,
-                generation: classic_generation,
-            }),
+            Err(failure) => Err(ClassicHeartbeatInterpretationFailure::Revoke(failure)),
         },
         _ => Err(ClassicHeartbeatInterpretationFailure::PostCore(
             ClassicGroupExecutionError::HeartbeatTerminal,
@@ -199,9 +191,6 @@ fn commit_terminal_loss(
     }
     match commit_revoke(entry, assignment, classic_generation) {
         Ok(()) => Ok(ClassicHeartbeatSuccessor::Dormant),
-        Err(failure) => Err(ClassicHeartbeatInterpretationFailure::Revoke {
-            failure,
-            generation: classic_generation,
-        }),
+        Err(failure) => Err(ClassicHeartbeatInterpretationFailure::Revoke(failure)),
     }
 }
