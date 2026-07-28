@@ -78,3 +78,6 @@ mod topic_partition_test;
 mod topic_partitions;
 #[cfg(test)]
 mod topic_partitions_test;
+mod waiting;
+#[cfg(test)]
+mod waiting_test;

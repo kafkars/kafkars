@@ -58,6 +58,7 @@ excluded_roots = ["crates/kafka-client-guardrails/tests/fixtures"]
 
 [budgets]
 baseline = [
+  { path = "crates/kafka-client-core/src/producer/mod.rs", lines = 83, reason = "the declarative producer facade names the complete deterministic producer state surface including bounded waiting and its evidence" },
 ]
 allow = []
 

@@ -101,7 +101,10 @@ pub use crate::operation_outcome::{
     DeliveryStatus, ProducerBatchSuccess, ProducerCancellationOutcome, ProducerCompletion,
     RecordMetadata, TerminalRelease, TransitionError,
 };
-pub use crate::producer::{AdmissionSequence, FlushId, FlushLedgerError, ProducerMachine};
+pub use crate::producer::{
+    AdmissionSequence, FlushId, FlushLedgerError, ProducerMachine, ProducerWaiter,
+    ProducerWaiterId, ProducerWaitingAdmissionError, ProducerWaitingQueue,
+};
 pub use crate::producer_broker_failure::{ProducerBrokerFailure, ProducerBrokerFailureKind};
 pub use crate::producer_effect::{
     AcknowledgementPolicy, CompressionPolicy, EXECUTION_STOP_EFFECTS_PER_FLUSH,

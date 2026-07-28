@@ -18,3 +18,6 @@ pub use super::topic_partition::{
 pub use super::topic_partitions::{
     TopicPartitionFacts, TopicPartitionFactsError, TopicPartitionSource,
 };
+pub use super::waiting::{
+    ProducerWaiter, ProducerWaiterId, ProducerWaitingAdmissionError, ProducerWaitingQueue,
+};
