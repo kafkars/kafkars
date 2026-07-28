@@ -3,9 +3,9 @@
 use crate::admin::{
     AdminCompletionPorts, AdminListOffsetsPublisher, AlterConsumerGroupOffsetsPublisher,
     AlterPartitionReassignmentsPublisher, AlterReplicaLogDirsHost, CreatePartitionsHost,
-    CreateTopicsHost, DeleteConsumerGroupOffsetsHost, DeleteRecordsHost, DeleteTopicsHost,
-    DescribeClusterHost, DescribeConfigsPublisher, DescribeConsumerGroupsHost, DescribeLogDirsHost,
-    DescribeTopicsHost, ElectLeadersHost, IncrementalAlterConfigsHost,
+    CreateTopicsHost, DeleteConsumerGroupOffsetsHost, DeleteConsumerGroupsHost, DeleteRecordsHost,
+    DeleteTopicsHost, DescribeClusterHost, DescribeConfigsPublisher, DescribeConsumerGroupsHost,
+    DescribeLogDirsHost, DescribeTopicsHost, ElectLeadersHost, IncrementalAlterConfigsHost,
     ListConsumerGroupOffsetsHost, ListConsumerGroupsHost, ListPartitionReassignmentsPublisher,
     RemoveConsumerGroupMembersHost,
 };
@@ -13,6 +13,7 @@ use crate::admin::{
 pub(super) struct StartedAdminHosts {
     pub(super) create_topics: CreateTopicsHost,
     pub(super) delete_topics: DeleteTopicsHost,
+    pub(super) delete_consumer_groups: DeleteConsumerGroupsHost,
     pub(super) delete_records: DeleteRecordsHost,
     pub(super) describe_cluster: DescribeClusterHost,
     pub(super) create_partitions: CreatePartitionsHost,
@@ -37,6 +38,7 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
     let AdminCompletionPorts {
         create_topics,
         delete_topics,
+        delete_consumer_groups,
         delete_records,
         describe_cluster,
         create_partitions,
@@ -59,6 +61,7 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
     StartedAdminHosts {
         create_topics: CreateTopicsHost::new(create_topics),
         delete_topics: DeleteTopicsHost::new(delete_topics),
+        delete_consumer_groups: DeleteConsumerGroupsHost::new(delete_consumer_groups),
         delete_records: DeleteRecordsHost::new(delete_records),
         describe_cluster: DescribeClusterHost::new(describe_cluster),
         create_partitions: CreatePartitionsHost::new(create_partitions),

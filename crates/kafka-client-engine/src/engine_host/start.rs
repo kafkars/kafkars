@@ -11,11 +11,12 @@ use crate::{
     EngineConfig,
     admin::{
         AdminCompletionNotifier, AlterReplicaLogDirsShardOwner, CreatePartitionsShardOwner,
-        CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner, DeleteRecordsShardOwner,
-        DeleteTopicsShardOwner, DescribeClusterShardOwner, DescribeConsumerGroupsShardOwner,
-        DescribeLogDirsShardOwner, DescribeTopicsShardOwner, ElectLeadersShardOwner,
-        IncrementalAlterConfigsShardOwner, ListConsumerGroupOffsetsShardOwner,
-        ListConsumerGroupsShardOwner, RemoveConsumerGroupMembersShardOwner,
+        CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner,
+        DeleteConsumerGroupsShardOwner, DeleteRecordsShardOwner, DeleteTopicsShardOwner,
+        DescribeClusterShardOwner, DescribeConsumerGroupsShardOwner, DescribeLogDirsShardOwner,
+        DescribeTopicsShardOwner, ElectLeadersShardOwner, IncrementalAlterConfigsShardOwner,
+        ListConsumerGroupOffsetsShardOwner, ListConsumerGroupsShardOwner,
+        RemoveConsumerGroupMembersShardOwner,
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
@@ -128,6 +129,11 @@ pub(crate) fn start(
     let create_topics_admission = create_topics.admission_port();
     let delete_topics = DeleteTopicsShardOwner::new(delete_topics, Arc::new(driver.reactor_wake()));
     let delete_topics_admission = delete_topics.admission_port();
+    let delete_consumer_groups = DeleteConsumerGroupsShardOwner::new(
+        delete_consumer_groups,
+        Arc::new(driver.reactor_wake()),
+    );
+    let delete_consumer_groups_admission = delete_consumer_groups.admission_port();
     let delete_records =
         DeleteRecordsShardOwner::new(delete_records, Arc::new(driver.reactor_wake()));
     let delete_records_admission = delete_records.admission_port();
@@ -199,6 +205,7 @@ pub(crate) fn start(
         describe_cluster,
         delete_records,
         describe_consumer_groups,
+        delete_consumer_groups,
         create_partitions,
         describe_topics,
         describe_configs: describe_configs.owner,
@@ -254,6 +261,7 @@ pub(crate) fn start(
         admission,
         create_topics_admission,
         delete_topics_admission,
+        delete_consumer_groups_admission,
         delete_records_admission,
         describe_cluster_admission,
         create_partitions_admission,

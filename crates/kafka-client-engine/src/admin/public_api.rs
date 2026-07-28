@@ -60,6 +60,20 @@ pub use super::configs::{
     DescribeConfigsObserver, DescribeConfigsObserverError, DescribeConfigsOutcome,
     DescribeConfigsRequest, DescribeConfigsResourceQuery,
 };
+pub(crate) use super::delete_consumer_groups::{
+    DELETE_CONSUMER_GROUPS_CAPACITY, DeleteConsumerGroupsAdmissionPort, DeleteConsumerGroupsHost,
+    DeleteConsumerGroupsHostError, DeleteConsumerGroupsShardLockError,
+    DeleteConsumerGroupsShardOwner, DeleteConsumerGroupsShardWake,
+    DeleteConsumerGroupsShardWakeError, DeleteConsumerGroupsTurn,
+};
+pub use super::delete_consumer_groups::{
+    DeleteConsumerGroupsAccepted, DeleteConsumerGroupsAcceptedFaultKind,
+    DeleteConsumerGroupsAdmissionError, DeleteConsumerGroupsAdmissionErrorKind,
+    DeleteConsumerGroupsDeliveryStatus, DeleteConsumerGroupsEngineBatch,
+    DeleteConsumerGroupsEngineBrokerError, DeleteConsumerGroupsEngineResult,
+    DeleteConsumerGroupsFailure, DeleteConsumerGroupsFailureKind, DeleteConsumerGroupsObserver,
+    DeleteConsumerGroupsObserverError, DeleteConsumerGroupsOutcome, DeleteConsumerGroupsRequest,
+};
 pub use super::delete_error::{DeleteTopicsAdmissionError, DeleteTopicsAdmissionErrorKind};
 pub use super::delete_handle::{DeleteTopicsAccepted, DeleteTopicsAcceptedFaultKind};
 pub(crate) use super::delete_host::{

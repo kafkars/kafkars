@@ -16,13 +16,13 @@ use kafka_client_core::{
     AlterPartitionReassignmentsBatch, AlterPartitionReassignmentsTerminal,
     AlterReplicaLogDirsBatch, AlterReplicaLogDirsTerminal, ClusterDescription,
     CreatePartitionsTerminal, CreateTopicsTerminal, DeleteConsumerGroupOffsetsBatch,
-    DeleteConsumerGroupOffsetsTerminal, DeleteRecordsBatch, DeleteRecordsTerminal,
-    DeleteTopicsTerminal, DescribeClusterTerminal, DescribeConfigsBatch, DescribeConfigsTerminal,
-    DescribeTopicsTerminal, ElectLeadersBatch, ElectLeadersTerminal, IncrementalAlterConfigsBatch,
-    IncrementalAlterConfigsTerminal, ListConsumerGroupOffsetsBatch,
-    ListConsumerGroupOffsetsTerminal, ListPartitionReassignmentsBatch,
-    ListPartitionReassignmentsTerminal, RemoveConsumerGroupMembersBatch,
-    RemoveConsumerGroupMembersTerminal,
+    DeleteConsumerGroupOffsetsTerminal, DeleteConsumerGroupsBatch, DeleteConsumerGroupsTerminal,
+    DeleteRecordsBatch, DeleteRecordsTerminal, DeleteTopicsTerminal, DescribeClusterTerminal,
+    DescribeConfigsBatch, DescribeConfigsTerminal, DescribeTopicsTerminal, ElectLeadersBatch,
+    ElectLeadersTerminal, IncrementalAlterConfigsBatch, IncrementalAlterConfigsTerminal,
+    ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsTerminal,
+    ListPartitionReassignmentsBatch, ListPartitionReassignmentsTerminal,
+    RemoveConsumerGroupMembersBatch, RemoveConsumerGroupMembersTerminal,
 };
 
 use crate::completion::{CompletionRegistry, ReclaimStatus};
@@ -47,6 +47,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     let mut alter_configs = PendingTerminal::new(ports.incremental_alter_configs);
     let mut group_offsets = PendingTerminal::new(ports.list_consumer_group_offsets);
     let mut group_offset_delete = PendingTerminal::new(ports.delete_consumer_group_offsets);
+    let mut group_deletions = PendingTerminal::new(ports.delete_consumer_groups);
     let mut group_offset_alter = PendingTerminal::new(ports.alter_consumer_group_offsets);
     let mut list_offsets = PendingTerminal::new(ports.admin_list_offsets);
     let mut reassignments = PendingTerminal::new(ports.list_partition_reassignments);
@@ -80,6 +81,9 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     ));
     group_offset_delete.publish(DeleteConsumerGroupOffsetsTerminal::Deleted(
         DeleteConsumerGroupOffsetsBatch::new(0, Vec::new()),
+    ));
+    group_deletions.publish(DeleteConsumerGroupsTerminal::Deleted(
+        DeleteConsumerGroupsBatch::new(0, Vec::new()),
     ));
     group_offset_alter.publish(AlterConsumerGroupOffsetsTerminal::Altered(
         AlterConsumerGroupOffsetsBatch::new(0, Vec::new()),
@@ -126,6 +130,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     alter_configs.observe_and_reclaim(worker);
     group_offsets.observe_and_reclaim(worker);
     group_offset_delete.observe_and_reclaim(worker);
+    group_deletions.observe_and_reclaim(worker);
     group_offset_alter.observe_and_reclaim(worker);
     list_offsets.observe_and_reclaim(worker);
     reassignments.observe_and_reclaim(worker);

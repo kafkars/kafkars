@@ -5,6 +5,7 @@ pub(crate) mod alter_replica_log_dirs;
 pub(crate) mod create_partitions;
 mod create_partitions_budget;
 pub(crate) mod create_topics;
+pub(crate) mod delete_groups;
 pub(crate) mod delete_records;
 pub(crate) mod delete_topics;
 mod delete_topics_budget;

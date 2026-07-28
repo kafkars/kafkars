@@ -6,9 +6,9 @@ pub(crate) use super::completion::{
     AdminListConsumerGroupsPublisher, AdminListOffsetsPublisher,
     AlterConsumerGroupOffsetsPublisher, AlterPartitionReassignmentsPublisher,
     CreatePartitionsPublisher, CreateTopicsPublisher, DeleteConsumerGroupOffsetsPublisher,
-    DeleteRecordsPublisher, DeleteTopicsPublisher, DescribeClusterPublisher,
-    DescribeConfigsPublisher, DescribeTopicsPublisher, ElectLeadersPublisher,
-    IncrementalAlterConfigsPublisher, ListConsumerGroupOffsetsPublisher,
+    DeleteConsumerGroupsPublisher, DeleteRecordsPublisher, DeleteTopicsPublisher,
+    DescribeClusterPublisher, DescribeConfigsPublisher, DescribeTopicsPublisher,
+    ElectLeadersPublisher, IncrementalAlterConfigsPublisher, ListConsumerGroupOffsetsPublisher,
     ListPartitionReassignmentsPublisher, RemoveConsumerGroupMembersPublisher,
 };
 pub(crate) use super::configs::DescribeConfigsRetention;

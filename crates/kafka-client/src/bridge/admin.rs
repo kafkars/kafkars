@@ -20,6 +20,9 @@ use super::admin_alter_replica_log_dirs::{
 };
 use super::admin_configs_operation::AdminDescribeConfigs;
 use super::admin_configs_request::DescribeConfigsAdminRequest;
+use super::admin_delete_consumer_groups::{
+    AdminDeleteConsumerGroups, DeleteConsumerGroupsAdminRequest,
+};
 use super::admin_delete_operation::AdminDeleteTopics;
 use super::admin_delete_records::{AdminDeleteRecords, DeleteRecordsAdminRequest};
 use super::admin_describe_consumer_groups::{
@@ -114,6 +117,17 @@ impl AdminEngine {
         AdminDeleteRecords::from_admission(
             self.handle
                 .try_delete_records(request.into_engine(), timeout),
+        )
+    }
+
+    pub(crate) fn submit_delete_consumer_groups(
+        &self,
+        request: DeleteConsumerGroupsAdminRequest,
+        timeout: Duration,
+    ) -> AdminDeleteConsumerGroups {
+        AdminDeleteConsumerGroups::from_admission(
+            self.handle
+                .try_delete_consumer_groups(request.into_engine(), timeout),
         )
     }
 

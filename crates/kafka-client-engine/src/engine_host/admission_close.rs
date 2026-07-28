@@ -7,6 +7,7 @@ pub(super) fn close_all(resources: &mut EngineHostResources) {
     let _close_result = resources.create_topics.admission_port().close_admission();
     let _close_result = resources.delete_topics.admission_port().close_admission();
     let _close_result = resources
+        .delete_consumer_groups
         .describe_cluster
         .admission_port()
         .close_admission();

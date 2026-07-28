@@ -10,6 +10,7 @@ use crate::bridge::admin::{AdminEngine, AdminRequest, DeleteAdminRequest, Partit
 use crate::bridge::admin_alter_configs_request::IncrementalAlterConfigsAdminRequest;
 use crate::bridge::admin_alter_replica_log_dirs::AlterReplicaLogDirsAdminRequest;
 use crate::bridge::admin_configs_request::DescribeConfigsAdminRequest;
+use crate::bridge::admin_delete_consumer_groups::DeleteConsumerGroupsAdminRequest;
 use crate::bridge::admin_delete_records::DeleteRecordsAdminRequest;
 use crate::bridge::admin_describe_consumer_groups::DescribeConsumerGroupsAdminRequest;
 use crate::bridge::admin_elect_leaders::ElectLeadersAdminRequest;
@@ -22,11 +23,11 @@ use crate::bridge::admin_topics_request::DescribeTopicsAdminRequest;
 use super::{
     AlterConsumerGroupOffsetsBuilder, AlterReplicaLogDirsBuilder, ConsumerGroupOffsetAlteration,
     CreatePartitionsBuilder, CreateTopicsBuilder, DeleteConsumerGroupOffsetsBuilder,
-    DeleteRecordsBuilder, DeleteRecordsTarget, DeleteTopicsBuilder, DescribeClusterBuilder,
-    DescribeConfigsBuilder, DescribeConsumerGroupsBuilder, DescribeTopicsBuilder,
-    ElectLeadersBuilder, IncrementalAlterConfigsBuilder, ListConsumerGroupOffsetsBuilder,
-    ListConsumerGroupsBuilder, ListTopicsBuilder, NewPartitions, NewTopic, ReplicaLogDirAssignment,
-    TopicConfigAlterations, TopicConfigQuery,
+    DeleteConsumerGroupsBuilder, DeleteRecordsBuilder, DeleteRecordsTarget, DeleteTopicsBuilder,
+    DescribeClusterBuilder, DescribeConfigsBuilder, DescribeConsumerGroupsBuilder,
+    DescribeTopicsBuilder, ElectLeadersBuilder, IncrementalAlterConfigsBuilder,
+    ListConsumerGroupOffsetsBuilder, ListConsumerGroupsBuilder, ListTopicsBuilder, NewPartitions,
+    NewTopic, ReplicaLogDirAssignment, TopicConfigAlterations, TopicConfigQuery,
 };
 
 /// Cheaply cloneable, thread-safe admin handle.
@@ -198,6 +199,24 @@ impl Admin {
             targets.into_iter().collect(),
         );
         DeleteConsumerGroupOffsetsBuilder::new(
+            self.engine.clone(),
+            request,
+            self.engine.default_timeout(),
+        )
+    }
+
+    /// Builds an inert caller-ordered consumer-group deletion request.
+    ///
+    /// No timeout starts and no destructive call is admitted until
+    /// [`DeleteConsumerGroupsBuilder::submit`] is called.
+    pub fn delete_consumer_groups<I, T>(&self, group_ids: I) -> DeleteConsumerGroupsBuilder
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<String>,
+    {
+        let request =
+            DeleteConsumerGroupsAdminRequest::new(group_ids.into_iter().map(Into::into).collect());
+        DeleteConsumerGroupsBuilder::new(
             self.engine.clone(),
             request,
             self.engine.default_timeout(),

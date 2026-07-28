@@ -10,6 +10,7 @@ mod delete_builder;
 mod delete_consumer_group_offsets;
 mod delete_consumer_group_offsets_builder;
 mod delete_consumer_group_offsets_result;
+mod delete_consumer_groups;
 mod delete_records;
 mod delete_topics;
 mod describe_builder;

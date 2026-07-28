@@ -14,6 +14,7 @@ mod delete_consumer_group_offsets;
 mod delete_consumer_group_offsets_schedule_test;
 #[cfg(test)]
 mod delete_consumer_group_offsets_test;
+mod delete_consumer_groups;
 mod delete_records;
 mod delete_topics;
 mod describe_cluster;

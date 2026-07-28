@@ -7,16 +7,17 @@ use crate::{
         AlterPartitionReassignmentsShardWake, AlterPartitionReassignmentsShardWakeError,
         CreatePartitionsShardWake, CreatePartitionsShardWakeError, CreateTopicsShardWake,
         CreateTopicsShardWakeError, DeleteConsumerGroupOffsetsShardWake,
-        DeleteConsumerGroupOffsetsShardWakeError, DeleteRecordsShardWake,
-        DeleteRecordsShardWakeError, DeleteTopicsShardWake, DeleteTopicsShardWakeError,
-        DescribeClusterShardWake, DescribeClusterShardWakeError, DescribeConfigsShardWake,
-        DescribeConfigsShardWakeError, DescribeConsumerGroupsShardWake,
-        DescribeConsumerGroupsShardWakeError, DescribeTopicsShardWake,
-        DescribeTopicsShardWakeError, ElectLeadersShardWake, ElectLeadersShardWakeError,
-        IncrementalAlterConfigsShardWake, IncrementalAlterConfigsShardWakeError,
-        ListConsumerGroupOffsetsShardWake, ListConsumerGroupOffsetsShardWakeError,
-        ListPartitionReassignmentsShardWake, ListPartitionReassignmentsShardWakeError,
-        RemoveConsumerGroupMembersShardWake, RemoveConsumerGroupMembersShardWakeError,
+        DeleteConsumerGroupOffsetsShardWakeError, DeleteConsumerGroupsShardWake,
+        DeleteConsumerGroupsShardWakeError, DeleteRecordsShardWake, DeleteRecordsShardWakeError,
+        DeleteTopicsShardWake, DeleteTopicsShardWakeError, DescribeClusterShardWake,
+        DescribeClusterShardWakeError, DescribeConfigsShardWake, DescribeConfigsShardWakeError,
+        DescribeConsumerGroupsShardWake, DescribeConsumerGroupsShardWakeError,
+        DescribeTopicsShardWake, DescribeTopicsShardWakeError, ElectLeadersShardWake,
+        ElectLeadersShardWakeError, IncrementalAlterConfigsShardWake,
+        IncrementalAlterConfigsShardWakeError, ListConsumerGroupOffsetsShardWake,
+        ListConsumerGroupOffsetsShardWakeError, ListPartitionReassignmentsShardWake,
+        ListPartitionReassignmentsShardWakeError, RemoveConsumerGroupMembersShardWake,
+        RemoveConsumerGroupMembersShardWakeError,
     },
     driver::ReactorWake,
 };
@@ -39,6 +40,13 @@ impl DeleteRecordsShardWake for ReactorWake {
     fn wake(&self) -> Result<(), DeleteRecordsShardWakeError> {
         self.request()
             .map_err(|error| DeleteRecordsShardWakeError::from_io(error.into_io()))
+    }
+}
+
+impl DeleteConsumerGroupsShardWake for ReactorWake {
+    fn wake(&self) -> Result<(), DeleteConsumerGroupsShardWakeError> {
+        self.request()
+            .map_err(|error| DeleteConsumerGroupsShardWakeError::from_io(error.into_io()))
     }
 }
 

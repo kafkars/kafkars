@@ -6,10 +6,11 @@ use kafka_client_core::{
     AdminDescribeConsumerGroupsTerminal, AdminDescribeLogDirsTerminal,
     AdminListConsumerGroupsTerminal, AdminListOffsetsTerminal, AlterConsumerGroupOffsetsTerminal,
     AlterPartitionReassignmentsTerminal, AlterReplicaLogDirsTerminal, CreatePartitionsTerminal,
-    CreateTopicsTerminal, DeleteConsumerGroupOffsetsTerminal, DeleteRecordsTerminal,
-    DeleteTopicsTerminal, DescribeClusterTerminal, DescribeConfigsTerminal, DescribeTopicsTerminal,
-    ElectLeadersTerminal, IncrementalAlterConfigsTerminal, ListConsumerGroupOffsetsTerminal,
-    ListPartitionReassignmentsTerminal, RemoveConsumerGroupMembersTerminal,
+    CreateTopicsTerminal, DeleteConsumerGroupOffsetsTerminal, DeleteConsumerGroupsTerminal,
+    DeleteRecordsTerminal, DeleteTopicsTerminal, DescribeClusterTerminal, DescribeConfigsTerminal,
+    DescribeTopicsTerminal, ElectLeadersTerminal, IncrementalAlterConfigsTerminal,
+    ListConsumerGroupOffsetsTerminal, ListPartitionReassignmentsTerminal,
+    RemoveConsumerGroupMembersTerminal,
 };
 
 use crate::completion::{
@@ -21,11 +22,12 @@ use super::{
     ADMIN_LIST_OFFSETS_CAPACITY, ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY,
     ALTER_PARTITION_REASSIGNMENTS_CAPACITY, ALTER_REPLICA_LOG_DIRS_CAPACITY,
     CREATE_PARTITIONS_CAPACITY, CREATE_TOPICS_CAPACITY, DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY,
-    DELETE_RECORDS_CAPACITY, DELETE_TOPICS_CAPACITY, DESCRIBE_CLUSTER_CAPACITY,
-    DESCRIBE_CONFIGS_CAPACITY, DESCRIBE_CONSUMER_GROUPS_CAPACITY, DESCRIBE_LOG_DIRS_CAPACITY,
-    DESCRIBE_TOPICS_CAPACITY, ELECT_LEADERS_CAPACITY, INCREMENTAL_ALTER_CONFIGS_CAPACITY,
-    LIST_CONSUMER_GROUP_OFFSETS_CAPACITY, LIST_CONSUMER_GROUPS_CAPACITY,
-    LIST_PARTITION_REASSIGNMENTS_CAPACITY, REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY,
+    DELETE_CONSUMER_GROUPS_CAPACITY, DELETE_RECORDS_CAPACITY, DELETE_TOPICS_CAPACITY,
+    DESCRIBE_CLUSTER_CAPACITY, DESCRIBE_CONFIGS_CAPACITY, DESCRIBE_CONSUMER_GROUPS_CAPACITY,
+    DESCRIBE_LOG_DIRS_CAPACITY, DESCRIBE_TOPICS_CAPACITY, ELECT_LEADERS_CAPACITY,
+    INCREMENTAL_ALTER_CONFIGS_CAPACITY, LIST_CONSUMER_GROUP_OFFSETS_CAPACITY,
+    LIST_CONSUMER_GROUPS_CAPACITY, LIST_PARTITION_REASSIGNMENTS_CAPACITY,
+    REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY,
 };
 
 const ADMIN_NOTIFIER_THREAD: &str = "kafka-client-admin-completion-notifier";
@@ -38,6 +40,7 @@ const ADMIN_NOTIFICATION_CAPACITY: usize = CREATE_TOPICS_CAPACITY
     + INCREMENTAL_ALTER_CONFIGS_CAPACITY
     + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
     + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
+    + DELETE_CONSUMER_GROUPS_CAPACITY
     + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
     + ADMIN_LIST_OFFSETS_CAPACITY
     + LIST_PARTITION_REASSIGNMENTS_CAPACITY
@@ -61,6 +64,7 @@ pub(crate) enum AdminPublishTicket {
     IncrementalAlterConfigs(PublishTicket<IncrementalAlterConfigsTerminal>),
     ListConsumerGroupOffsets(PublishTicket<ListConsumerGroupOffsetsTerminal>),
     DeleteConsumerGroupOffsets(PublishTicket<DeleteConsumerGroupOffsetsTerminal>),
+    DeleteConsumerGroups(PublishTicket<DeleteConsumerGroupsTerminal>),
     AlterConsumerGroupOffsets(PublishTicket<AlterConsumerGroupOffsetsTerminal>),
     AdminListOffsets(PublishTicket<AdminListOffsetsTerminal>),
     ListPartitionReassignments(PublishTicket<ListPartitionReassignmentsTerminal>),
@@ -86,6 +90,7 @@ impl NotificationTicket for AdminPublishTicket {
             Self::IncrementalAlterConfigs(ticket) => ticket.publish(),
             Self::ListConsumerGroupOffsets(ticket) => ticket.publish(),
             Self::DeleteConsumerGroupOffsets(ticket) => ticket.publish(),
+            Self::DeleteConsumerGroups(ticket) => ticket.publish(),
             Self::AlterConsumerGroupOffsets(ticket) => ticket.publish(),
             Self::AdminListOffsets(ticket) => ticket.publish(),
             Self::ListPartitionReassignments(ticket) => ticket.publish(),
@@ -117,6 +122,8 @@ pub(crate) type ListConsumerGroupOffsetsPublisher =
     SharedPublishPort<ListConsumerGroupOffsetsTerminal, AdminPublishTicket>;
 pub(crate) type DeleteConsumerGroupOffsetsPublisher =
     SharedPublishPort<DeleteConsumerGroupOffsetsTerminal, AdminPublishTicket>;
+pub(crate) type DeleteConsumerGroupsPublisher =
+    SharedPublishPort<DeleteConsumerGroupsTerminal, AdminPublishTicket>;
 pub(crate) type AlterConsumerGroupOffsetsPublisher =
     SharedPublishPort<AlterConsumerGroupOffsetsTerminal, AdminPublishTicket>;
 pub(crate) type AdminListOffsetsPublisher =
@@ -150,6 +157,7 @@ pub(crate) struct AdminCompletionPorts {
     pub(crate) incremental_alter_configs: IncrementalAlterConfigsPublisher,
     pub(crate) list_consumer_group_offsets: ListConsumerGroupOffsetsPublisher,
     pub(crate) delete_consumer_group_offsets: DeleteConsumerGroupOffsetsPublisher,
+    pub(crate) delete_consumer_groups: DeleteConsumerGroupsPublisher,
     pub(crate) alter_consumer_group_offsets: AlterConsumerGroupOffsetsPublisher,
     pub(crate) admin_list_offsets: AdminListOffsetsPublisher,
     pub(crate) list_partition_reassignments: ListPartitionReassignmentsPublisher,
@@ -184,6 +192,7 @@ impl AdminCompletionNotifier {
                 .publish_port(AdminPublishTicket::ListConsumerGroupOffsets),
             delete_consumer_group_offsets: worker
                 .publish_port(AdminPublishTicket::DeleteConsumerGroupOffsets),
+            delete_consumer_groups: worker.publish_port(AdminPublishTicket::DeleteConsumerGroups),
             alter_consumer_group_offsets: worker
                 .publish_port(AdminPublishTicket::AlterConsumerGroupOffsets),
             admin_list_offsets: worker.publish_port(AdminPublishTicket::AdminListOffsets),

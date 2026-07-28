@@ -30,6 +30,7 @@ pub(crate) fn recover(
     drop(resources.producer.terminal_data());
     drop(resources.create_topics.terminal_host());
     drop(resources.delete_topics.terminal_host());
+    drop(resources.delete_consumer_groups.terminal_host());
     drop(resources.describe_cluster.terminal_host());
     drop(resources.create_partitions.terminal_host());
     drop(resources.describe_topics.terminal_host());

@@ -247,6 +247,10 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
         return Err(EngineHostError::RemoveConsumerGroupMembers(
             crate::admin::RemoveConsumerGroupMembersHostError::Unsettled(
                 remove_consumer_group_members,
+    let delete_consumer_groups = resources.delete_consumer_groups.terminal_host().unsettled();
+    if delete_consumer_groups != 0 {
+        return Err(EngineHostError::DeleteConsumerGroups(
+            crate::admin::DeleteConsumerGroupsHostError::Unsettled(delete_consumer_groups),
             ),
         ));
     }

@@ -28,6 +28,14 @@ pub use super::alter_replica_log_dirs::{
     AlterReplicaLogDirsPlanError, AlterReplicaLogDirsState, AlterReplicaLogDirsTerminal,
     AlterReplicaLogDirsTransition,
 };
+pub use super::delete_consumer_groups::{
+    DeleteConsumerGroupsBatch, DeleteConsumerGroupsBrokerError, DeleteConsumerGroupsEffect,
+    DeleteConsumerGroupsFailure, DeleteConsumerGroupsFailureKind, DeleteConsumerGroupsInput,
+    DeleteConsumerGroupsMachine, DeleteConsumerGroupsMachineError, DeleteConsumerGroupsOutcome,
+    DeleteConsumerGroupsPlan, DeleteConsumerGroupsPlanError, DeleteConsumerGroupsResult,
+    DeleteConsumerGroupsState, DeleteConsumerGroupsTarget, DeleteConsumerGroupsTerminal,
+    DeleteConsumerGroupsTransition, DELETE_CONSUMER_GROUPS_DIAGNOSTIC_BYTES,
+};
 pub use super::delete_machine::{
     DeleteTopicsEffect, DeleteTopicsInput, DeleteTopicsMachine, DeleteTopicsMachineError,
     DeleteTopicsState, DeleteTopicsTransition,

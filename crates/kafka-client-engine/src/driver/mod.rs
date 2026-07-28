@@ -77,7 +77,9 @@ pub(crate) use rpc::exports::{
 };
 pub(crate) use rpc::{
     AlterReplicaLogDirsCall, AlterReplicaLogDirsDriverFailureKind, AlterReplicaLogDirsRawTerminal,
-    AlterReplicaLogDirsTerminalFact, DeleteRecordsCall, DeleteRecordsDriverFailureKind,
+    AlterReplicaLogDirsTerminalFact, DeleteConsumerGroupsCall,
+    DeleteConsumerGroupsDriverFailureKind, DeleteConsumerGroupsRawTerminal,
+    DeleteConsumerGroupsTerminalFact, DeleteRecordsCall, DeleteRecordsDriverFailureKind,
     DeleteRecordsRawTerminal, DeleteRecordsTerminalFact, DescribeConsumerGroupsCall,
     DescribeConsumerGroupsDriverFailureKind, DescribeConsumerGroupsTerminal,
     DescribeConsumerGroupsTerminalFact, DescribeLogDirsCall, DescribeLogDirsDriverFailureKind,
@@ -85,11 +87,12 @@ pub(crate) use rpc::{
     ElectLeadersDriverFailureKind, ElectLeadersTerminal, ElectLeadersTerminalFact,
     ListConsumerGroupsCall, ListConsumerGroupsDriverFailureKind, ListConsumerGroupsRawTerminal,
     ListConsumerGroupsRawTerminalFact, RecoveredAlterReplicaLogDirsCall,
-    RecoveredDeleteRecordsCall, RecoveredDescribeConsumerGroupsCall, RecoveredDescribeLogDirsCall,
-    RecoveredElectLeadersCall, RecoveredRemoveConsumerGroupMembersCall,
-    RemoveConsumerGroupMembersCall, RemoveConsumerGroupMembersDriverFailureKind,
-    RemoveConsumerGroupMembersTerminal, RemoveConsumerGroupMembersTerminalFact, classic_group,
-    transaction_control, transaction_offsets, transaction_produce,
+    RecoveredDeleteConsumerGroupsCall, RecoveredDeleteRecordsCall,
+    RecoveredDescribeConsumerGroupsCall, RecoveredDescribeLogDirsCall, RecoveredElectLeadersCall,
+    RecoveredRemoveConsumerGroupMembersCall, RemoveConsumerGroupMembersCall,
+    RemoveConsumerGroupMembersDriverFailureKind, RemoveConsumerGroupMembersTerminal,
+    RemoveConsumerGroupMembersTerminalFact, classic_group, transaction_control,
+    transaction_offsets, transaction_produce,
 };
 pub(crate) use security::{EngineSecurityError, ValidatedSecurity, validate as validate_security};
 pub(crate) use wake::{ReactorWake, ReactorWakeError};
