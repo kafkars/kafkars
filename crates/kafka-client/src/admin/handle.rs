@@ -1,5 +1,7 @@
 //! Cloneable public admin handle over the private engine bridge.
 
+mod list_offsets;
+
 use crate::TopicPartition;
 use crate::bridge::admin::{AdminEngine, AdminRequest, DeleteAdminRequest, PartitionsAdminRequest};
 use crate::bridge::admin_alter_configs_request::IncrementalAlterConfigsAdminRequest;

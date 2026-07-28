@@ -38,6 +38,7 @@ pub(crate) fn recover(
     drop(resources.list_consumer_group_offsets.terminal_host());
     drop(resources.delete_consumer_group_offsets.terminal_host());
     drop(resources.alter_consumer_group_offsets.terminal_host());
+    drop(resources.list_offsets.terminal_host());
     drop(resources.transaction_initialization.terminal_host());
     if let Some(cleanup) = shutdown_driver(resources).err() {
         failure = failure.with_cleanup(cleanup);

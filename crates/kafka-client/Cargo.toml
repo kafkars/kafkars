@@ -16,5 +16,9 @@ path = "src/lib.rs"
 bytes.workspace = true
 kafka-client-engine.workspace = true
 
+[dev-dependencies]
+kafka-wire.workspace = true
+kafka-wire-core.workspace = true
+
 [lints]
 workspace = true

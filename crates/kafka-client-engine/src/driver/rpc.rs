@@ -1,12 +1,16 @@
 //! Declarative boundary for concrete generated RPC ownership.
 
+pub(crate) mod admin_list_offsets_call;
+#[cfg(test)]
+mod admin_list_offsets_call_test;
+pub(crate) mod admin_list_offsets_submission;
+#[cfg(test)]
+mod admin_list_offsets_submission_test;
+pub(crate) mod admin_list_offsets_terminal;
 mod calls;
 #[cfg(test)]
 mod calls_test;
-#[expect(
-    dead_code,
-    reason = "classic membership host integration follows its concrete call ownership"
-)]
+#[expect(dead_code, reason = "classic membership integration follows its owner")]
 pub(crate) mod classic_group;
 mod create_partitions_calls;
 #[cfg(test)]
@@ -62,10 +66,7 @@ mod describe_topics_submission_test;
 mod describe_topics_terminal;
 #[cfg(test)]
 mod describe_topics_terminal_test;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "awaiting direct-consumer executor")
-)]
+#[cfg_attr(not(test), expect(dead_code, reason = "awaiting consumer executor"))]
 mod fetch;
 mod group_coordinator_route;
 #[cfg(test)]
@@ -171,6 +172,7 @@ mod transaction_init_submission_test;
 mod transaction_init_terminal;
 #[cfg(test)]
 mod transaction_init_terminal_test;
+pub(crate) use admin_list_offsets_call::AdminListOffsetsCall;
 pub(crate) use calls::{ProduceCompletionFailure, TrackedProduceCalls};
 pub(crate) use create_partitions_calls::{
     CreatePartitionsCompletionFailure, TrackedCreatePartitionsCalls,

@@ -1,5 +1,7 @@
 //! Leak-free resource handoff into one self-cleaning native host.
 
+mod list_offsets;
+
 use std::sync::Arc;
 
 use crate::{
@@ -28,7 +30,6 @@ use super::{
     thread_start, transaction_start,
 };
 
-// Construction stays rollback-ordered so every resource has a visible reclamation owner.
 #[allow(clippy::too_many_lines)]
 pub(crate) fn start(
     config: &EngineConfig,
@@ -82,6 +83,7 @@ pub(crate) fn start(
         list_consumer_group_offsets,
         delete_consumer_group_offsets,
         alter_consumer_group_offsets,
+        admin_list_offsets,
     } = admin_ports;
     let create_topics = CreateTopicsHost::new(create_topics);
     let delete_topics = DeleteTopicsHost::new(delete_topics);
@@ -159,6 +161,7 @@ pub(crate) fn start(
         alter_consumer_group_offsets,
         driver.reactor_wake(),
     );
+    let list_offsets = list_offsets::start(admin_list_offsets, driver.reactor_wake());
     let produce_calls =
         crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
     let resources = EngineHostResources {
@@ -176,6 +179,7 @@ pub(crate) fn start(
         list_consumer_group_offsets,
         delete_consumer_group_offsets,
         alter_consumer_group_offsets: alter_consumer_group_offsets.owner,
+        list_offsets: list_offsets.owner,
         assigned_consumer: assigned_consumer_owner,
         group_consumers,
         transaction_initialization,
@@ -225,6 +229,7 @@ pub(crate) fn start(
         list_consumer_group_offsets_admission,
         delete_consumer_group_offsets_admission,
         alter_consumer_group_offsets_admission: alter_consumer_group_offsets.admission,
+        list_offsets_admission: list_offsets.admission,
         assigned_consumer,
         group_consumer,
         transaction_initialization: transaction_initialization_admission,

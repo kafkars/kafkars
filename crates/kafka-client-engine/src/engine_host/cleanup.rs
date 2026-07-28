@@ -211,6 +211,12 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
             crate::admin::AlterConsumerGroupOffsetsHostError::Unsettled(group_offset_alter),
         ));
     }
+    let list_offsets = resources.list_offsets.terminal_host().unsettled();
+    if list_offsets != 0 {
+        return Err(EngineHostError::AdminListOffsets(
+            crate::admin::AdminListOffsetsHostError::Unsettled(list_offsets),
+        ));
+    }
     Ok(())
 }
 

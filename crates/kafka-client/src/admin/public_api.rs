@@ -29,6 +29,10 @@ pub use super::handle::Admin;
 pub use super::list_consumer_group_offsets::ListConsumerGroupOffsets;
 pub use super::list_consumer_group_offsets_builder::ListConsumerGroupOffsetsBuilder;
 pub use super::list_consumer_group_offsets_result::ListConsumerGroupOffsetsResult;
+pub use super::list_offsets::{
+    ListOffsets, ListOffsetsBuilder, ListOffsetsQuery, ListOffsetsResult, ListOffsetsResultInfo,
+    OffsetSpec,
+};
 pub use super::list_topics::ListTopics;
 pub use super::list_topics_builder::ListTopicsBuilder;
 pub use super::new_partitions::NewPartitions;

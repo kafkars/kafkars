@@ -17,6 +17,7 @@ mod exports;
 mod group_offset_alter;
 mod group_offset_delete;
 mod group_offsets;
+mod list_offsets;
 mod machine;
 mod model;
 mod outcome;

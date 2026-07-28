@@ -9,7 +9,7 @@ use super::{
     alter_consumer_group_offsets, create_partitions, create_topics, delete_consumer_group_offsets,
     delete_topics, describe_cluster, describe_configs, describe_topics,
     group_offset_alter_schedule::drive_group_offset_delete_then_capture_alter,
-    incremental_alter_configs, list_consumer_group_offsets,
+    incremental_alter_configs, list_consumer_group_offsets, list_offsets, list_offsets_schedule,
     schedule_deadline::earliest,
 };
 
@@ -22,8 +22,7 @@ pub(in crate::engine_host) struct AdminProgress {
 pub(in crate::engine_host) fn drive(
     resources: &mut EngineHostResources,
 ) -> Result<AdminProgress, EngineHostError> {
-    // Drive all concrete owners independently. Exhaustion or contention in
-    // one owner must not hide runnable work in another.
+    // Contention in one concrete owner must not hide runnable work in another.
     let clock = Arc::clone(&resources.clock);
     let create_now = clock.now().map_err(EngineHostError::Clock)?;
     let (create, delete_now) = drive_create_then_capture_delete(
@@ -65,7 +64,9 @@ pub(in crate::engine_host) fn drive(
         )?;
     let group_offset_alter =
         alter_consumer_group_offsets::drive(resources, group_offset_alter_now)?;
-    Ok(combine(
+    let list_offsets_now = clock.now().map_err(EngineHostError::Clock)?;
+    let list_offsets_progress = list_offsets::drive(resources, list_offsets_now)?;
+    let mut progress = combine(
         &create,
         &delete,
         &describe,
@@ -76,7 +77,9 @@ pub(in crate::engine_host) fn drive(
         &group_offsets,
         &group_offset_delete,
         &group_offset_alter,
-    ))
+    );
+    list_offsets_schedule::extend(&mut progress, &list_offsets_progress);
+    Ok(progress)
 }
 
 pub(super) fn drive_group_offsets_then_capture_delete(

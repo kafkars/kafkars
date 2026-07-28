@@ -2220,7 +2220,14 @@ allowed_external = []
 [[dependency_rules]]
 package = "kafka-client-rs"
 allowed_internal = ["kafka-client-engine"]
-allowed_external = ["bytes"]
+# The wire edges are test-only: the public loopback qualification harness
+# speaks generated Kafka frames while production remains isolated by the
+# facade dependency boundary guard.
+allowed_external = [
+  "bytes",
+  "kafka-wire",
+  "kafka-wire-core",
+]
 
 # Time, I/O, execution, and protocol bytes stay outside deterministic policy.
 [[capability_rules]]
@@ -3406,6 +3413,10 @@ allow = [
   { path = "crates/kafka-client-engine/src/admin/group_offset_alter/host/terminal/test_support.rs", capability = "crate::driver", reason = "The sibling test seam installs exact and mismatched recovered OffsetCommit calls to prove correlation-checked destructive settlement." },
   { path = "crates/kafka-client-engine/src/admin/group_offset_alter/host/ownership_test.rs", capability = "crate::driver", reason = "The focused ownership scenarios build mismatched tracked OffsetCommit calls and raw terminals to prove caller order and capacity block foreign settlement." },
   { path = "crates/kafka-client-engine/src/admin/group_offset_alter/host_test.rs", capability = "crate::driver", reason = "The focused host scenarios build one local driver owner and tracked OffsetCommit call to prove completion and shutdown ownership." },
+  { path = "crates/kafka-client-engine/src/admin/list_offsets/host.rs", capability = "crate::driver", reason = "The concrete owner retains one accepted ListOffsets call beside its deterministic machine until terminal settlement or shutdown recovery." },
+  { path = "crates/kafka-client-engine/src/admin/list_offsets/host/model.rs", capability = "crate::driver", reason = "The linear operation record retains one exact-target ListOffsets call, raw terminal, or recovered call beside its deterministic machine until correlation-checked settlement." },
+  { path = "crates/kafka-client-engine/src/admin/list_offsets/host/response.rs", capability = "crate::driver", reason = "The concrete response seam exhaustively translates borrowed ListOffsets driver facts before core accepts a terminal outcome." },
+  { path = "crates/kafka-client-engine/src/admin/list_offsets/host/terminal/terminal_test.rs", capability = "crate::driver", reason = "The sibling terminal scenarios build one local driver owner and recovered ListOffsets call to prove two-phase settlement." },
 ]
 
 # Reactor-driving driver adapters never touch observer locks or wakers.
@@ -8903,6 +8914,132 @@ path = "crates/kafka-client-engine/src/admin/group_offset_alter/handle.rs"
 [[linear_owners]]
 owner_type = "AlterConsumerGroupOffsetsAdmissionError"
 path = "crates/kafka-client-engine/src/admin/group_offset_alter/error.rs"
+
+# Admin ListOffsets retains caller order, one absolute deadline, exact target
+# correlation, driver ownership, and bounded completion capacity at every seam.
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/list_offsets/machine.rs"
+test = "crates/kafka-client-core/src/admin/list_offsets/machine_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/list_offsets/model.rs"
+test = "crates/kafka-client-core/src/admin/list_offsets/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/list_offsets/outcome.rs"
+test = "crates/kafka-client-core/src/admin/list_offsets/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/admin/list_offsets/transition.rs"
+test = "crates/kafka-client-core/src/admin/list_offsets/transition_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/list_offsets/host.rs"
+test = "crates/kafka-client-engine/src/admin/list_offsets/host_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/list_offsets/model.rs"
+test = "crates/kafka-client-engine/src/admin/list_offsets/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/admin/list_offsets/outcome.rs"
+test = "crates/kafka-client-engine/src/admin/list_offsets/outcome_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/engine_host/admin/list_offsets_schedule.rs"
+test = "crates/kafka-client-engine/src/engine_host/admin/list_offsets_schedule_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/list_offsets/request.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/list_offsets/request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/list_offsets/response.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/list_offsets/response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/admin/list_offsets/version.rs"
+test = "crates/kafka-client-engine/src/protocol/admin/list_offsets/version_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/admin_list_offsets_call.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/admin_list_offsets_call_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/admin_list_offsets_submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/admin_list_offsets_submission_test.rs"
+
+[[mutation_owners]]
+owner_type = "AdminListOffsetsHost"
+field = "operations"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/list_offsets/host.rs",
+  "crates/kafka-client-engine/src/admin/list_offsets/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/list_offsets/host/terminal.rs",
+  "crates/kafka-client-engine/src/admin/list_offsets/host/terminal/terminal_test.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AdminListOffsetsHost"
+field = "completions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/list_offsets/host.rs",
+  "crates/kafka-client-engine/src/admin/list_offsets/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/list_offsets/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AdminListOffsetsHost"
+field = "retained_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/list_offsets/host.rs",
+  "crates/kafka-client-engine/src/admin/list_offsets/host/admission.rs",
+  "crates/kafka-client-engine/src/admin/list_offsets/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AdminListOffsetsHost"
+field = "published_bytes"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/list_offsets/host.rs",
+  "crates/kafka-client-engine/src/admin/list_offsets/host/terminal.rs",
+]
+
+[[mutation_owners]]
+owner_type = "AdminListOffsetsHost"
+field = "next_operation_id"
+allowed_paths = [
+  "crates/kafka-client-engine/src/admin/list_offsets/host.rs",
+  "crates/kafka-client-engine/src/admin/list_offsets/host/admission.rs",
+]
+
+[[linear_owners]]
+owner_type = "AdminListOffsetsHost"
+path = "crates/kafka-client-engine/src/admin/list_offsets/host.rs"
+
+[[linear_owners]]
+owner_type = "AdminListOffsetsOperation"
+path = "crates/kafka-client-engine/src/admin/list_offsets/host/model.rs"
+
+[[linear_owners]]
+owner_type = "AdminListOffsetsSubmission"
+path = "crates/kafka-client-engine/src/admin/list_offsets/host/submission.rs"
+
+[[linear_owners]]
+owner_type = "AdminListOffsetsShardOwner"
+path = "crates/kafka-client-engine/src/admin/list_offsets/shard.rs"
+
+[[linear_owners]]
+owner_type = "AdminListOffsetsObserver"
+path = "crates/kafka-client-engine/src/admin/list_offsets/observer.rs"
+
+[[linear_owners]]
+owner_type = "AdminListOffsetsAccepted"
+path = "crates/kafka-client-engine/src/admin/list_offsets/handle.rs"
+
+[[linear_owners]]
+owner_type = "StartedAdminListOffsets"
+path = "crates/kafka-client-engine/src/engine_host/start/list_offsets.rs"
 
 # Classic-group membership and commit protocol seams, tracked driver calls, and
 # the private bounded host retain exact ownership until the public group
@@ -14908,6 +15045,45 @@ path = "crates/kafka-client/src/admin/group_offsets/alter_builder.rs"
 [[linear_owners]]
 owner_type = "AlterConsumerGroupOffsets"
 path = "crates/kafka-client/src/admin/group_offsets/alter_operation.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/list_offsets/query.rs"
+test = "crates/kafka-client/src/admin/list_offsets/query_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/list_offsets/spec.rs"
+test = "crates/kafka-client/src/admin/list_offsets/spec_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/admin/list_offsets/value.rs"
+test = "crates/kafka-client/src/admin/list_offsets/value_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/admin_list_offsets/request.rs"
+test = "crates/kafka-client/src/bridge/admin_list_offsets/request_test.rs"
+
+[[linear_owners]]
+owner_type = "ListOffsetsAdminRequest"
+path = "crates/kafka-client/src/bridge/admin_list_offsets/request.rs"
+
+[[linear_owners]]
+owner_type = "AdminListOffsets"
+path = "crates/kafka-client/src/bridge/admin_list_offsets/operation.rs"
+
+[[linear_owners]]
+owner_type = "ListOffsetsBuilder"
+path = "crates/kafka-client/src/admin/list_offsets/builder.rs"
+
+[[linear_owners]]
+owner_type = "ListOffsets"
+path = "crates/kafka-client/src/admin/list_offsets/operation.rs"
+
+[[method_capabilities]]
+root = "crates/kafka-client/src"
+method = "try_list_offsets"
+allowed_paths = [
+  "crates/kafka-client/src/bridge/admin_list_offsets/engine.rs",
+]
 
 [[method_capabilities]]
 root = "crates/kafka-client/src"

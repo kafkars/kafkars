@@ -1,7 +1,7 @@
 //! Shared-admin-notifier ownership helpers for concrete host scenarios.
 
 use super::{
-    AlterConsumerGroupOffsetsHost, CreatePartitionsHost, CreateTopicsHost,
+    AdminListOffsetsHost, AlterConsumerGroupOffsetsHost, CreatePartitionsHost, CreateTopicsHost,
     DeleteConsumerGroupOffsetsHost, DeleteTopicsHost, DescribeClusterHost, DescribeConfigsHost,
     DescribeTopicsHost, IncrementalAlterConfigsHost, ListConsumerGroupOffsetsHost,
     completion::{AdminCompletionNotifier, AdminCompletionPorts},
@@ -69,6 +69,14 @@ pub(super) fn alter_consumer_group_offsets_host()
     let (notifier, ports) = completion_owner();
     (
         AlterConsumerGroupOffsetsHost::new(ports.alter_consumer_group_offsets),
+        notifier,
+    )
+}
+
+pub(super) fn admin_list_offsets_host() -> (AdminListOffsetsHost, AdminCompletionNotifier) {
+    let (notifier, ports) = completion_owner();
+    (
+        AdminListOffsetsHost::new(ports.admin_list_offsets),
         notifier,
     )
 }

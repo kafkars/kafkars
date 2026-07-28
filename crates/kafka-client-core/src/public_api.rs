@@ -1,8 +1,14 @@
 //! Curated public re-exports for deterministic client policy.
 
 pub use crate::admin::{
-    AlterConsumerGroupOffsetBrokerError, AlterConsumerGroupOffsetOutcome,
-    AlterConsumerGroupOffsetResult, AlterConsumerGroupOffsetTarget, AlterConsumerGroupOffsetsBatch,
+    AdminListOffset, AdminListOffsetBrokerError, AdminListOffsetOutcome, AdminListOffsetResult,
+    AdminListOffsetSpec, AdminListOffsetTarget, AdminListOffsetsBatch, AdminListOffsetsEffect,
+    AdminListOffsetsFailure, AdminListOffsetsFailureKind, AdminListOffsetsInput,
+    AdminListOffsetsMachine, AdminListOffsetsMachineError, AdminListOffsetsPlan,
+    AdminListOffsetsPlanError, AdminListOffsetsState, AdminListOffsetsTerminal,
+    AdminListOffsetsTransition, AlterConsumerGroupOffsetBrokerError,
+    AlterConsumerGroupOffsetOutcome, AlterConsumerGroupOffsetResult,
+    AlterConsumerGroupOffsetTarget, AlterConsumerGroupOffsetsBatch,
     AlterConsumerGroupOffsetsEffect, AlterConsumerGroupOffsetsFailure,
     AlterConsumerGroupOffsetsFailureKind, AlterConsumerGroupOffsetsInput,
     AlterConsumerGroupOffsetsMachine, AlterConsumerGroupOffsetsMachineError,

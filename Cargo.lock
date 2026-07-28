@@ -157,6 +157,8 @@ version = "0.0.0"
 dependencies = [
  "bytes",
  "kafka-client-engine",
+ "kafka-wire",
+ "kafka-wire-core",
 ]
 
 [[package]]

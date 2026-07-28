@@ -6,9 +6,10 @@ use kafka_client_core::{Deadline, Moment};
 
 use crate::{
     admin::{
-        AlterConsumerGroupOffsetsShardOwner, CreatePartitionsShardOwner, CreateTopicsShardOwner,
-        DeleteConsumerGroupOffsetsShardOwner, DeleteTopicsShardOwner, DescribeClusterShardOwner,
-        DescribeConfigsShardOwner, DescribeTopicsShardOwner, IncrementalAlterConfigsShardOwner,
+        AdminListOffsetsShardOwner, AlterConsumerGroupOffsetsShardOwner,
+        CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner,
+        DeleteTopicsShardOwner, DescribeClusterShardOwner, DescribeConfigsShardOwner,
+        DescribeTopicsShardOwner, IncrementalAlterConfigsShardOwner,
         ListConsumerGroupOffsetsShardOwner,
     },
     clock::MonotonicClock,
@@ -29,9 +30,7 @@ use super::{
     notifier_shutdown::NotifierShutdownOwner, produce_turn, transaction,
 };
 
-// Admission and shutdown report wake failure without revoking ownership. Until
-// that path can synchronously terminalize, this cap preserves deadline and
-// shutdown liveness after an operating-system wake failure.
+// Wake failure cannot revoke ownership; the park cap preserves deadline and shutdown liveness.
 const HOST_PARK_LIMIT: Duration = Duration::from_millis(100);
 const BLOCKED_RETRY_DELAY: Duration = HOST_PARK_LIMIT;
 const SHUTDOWN_TURN_ATTEMPTS: usize = 64;
@@ -50,6 +49,7 @@ pub(crate) struct EngineHostResources {
     pub(super) list_consumer_group_offsets: ListConsumerGroupOffsetsShardOwner,
     pub(super) delete_consumer_group_offsets: DeleteConsumerGroupOffsetsShardOwner,
     pub(super) alter_consumer_group_offsets: AlterConsumerGroupOffsetsShardOwner,
+    pub(super) list_offsets: AdminListOffsetsShardOwner,
     pub(super) assigned_consumer: crate::consumer::AssignedConsumerShardOwner,
     pub(super) group_consumers: crate::consumer::GroupConsumerShardOwner,
     pub(super) transaction_initialization: TransactionInitializationShardOwner,

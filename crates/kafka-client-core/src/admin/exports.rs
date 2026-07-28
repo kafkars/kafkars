@@ -66,6 +66,14 @@ pub use super::group_offsets::{
     ListConsumerGroupOffsetsPlan, ListConsumerGroupOffsetsPlanError, ListConsumerGroupOffsetsState,
     ListConsumerGroupOffsetsTerminal, ListConsumerGroupOffsetsTransition,
 };
+pub use super::list_offsets::{
+    AdminListOffset, AdminListOffsetBrokerError, AdminListOffsetOutcome, AdminListOffsetResult,
+    AdminListOffsetSpec, AdminListOffsetTarget, AdminListOffsetsBatch, AdminListOffsetsEffect,
+    AdminListOffsetsFailure, AdminListOffsetsFailureKind, AdminListOffsetsInput,
+    AdminListOffsetsMachine, AdminListOffsetsMachineError, AdminListOffsetsPlan,
+    AdminListOffsetsPlanError, AdminListOffsetsState, AdminListOffsetsTerminal,
+    AdminListOffsetsTransition,
+};
 pub use super::machine::{
     CreateTopicsEffect, CreateTopicsInput, CreateTopicsMachine, CreateTopicsMachineError,
     CreateTopicsState, CreateTopicsTransition,

@@ -1,9 +1,11 @@
 //! Shared public owner of one reactor-native execution host.
 
+mod admin;
+
 use std::sync::Arc;
 
 use crate::{
-    AdminHandle, AssignedConsumerClaimError, AssignedConsumerHandle, EngineConfig, ProducerHandle,
+    AssignedConsumerClaimError, AssignedConsumerHandle, EngineConfig, ProducerHandle,
     engine_host::{
         EngineHostControl, EngineLifecycle, EngineShutdownError, EngineStartError,
         StartedEngineHost, start as start_host,
@@ -29,6 +31,7 @@ pub(crate) struct EngineInner {
     list_consumer_group_offsets_admission: crate::admin::ListConsumerGroupOffsetsAdmissionPort,
     delete_consumer_group_offsets_admission: crate::admin::DeleteConsumerGroupOffsetsAdmissionPort,
     alter_consumer_group_offsets_admission: crate::admin::AlterConsumerGroupOffsetsAdmissionPort,
+    list_offsets_admission: crate::admin::AdminListOffsetsAdmissionPort,
     assigned_consumer: crate::consumer::AssignedConsumerClaimSlot,
     assigned_consumer_admission: crate::consumer::AssignedConsumerAdmissionCloser,
     group_consumer: crate::consumer::GroupConsumerPort,
@@ -55,6 +58,7 @@ impl Engine {
             list_consumer_group_offsets_admission,
             delete_consumer_group_offsets_admission,
             alter_consumer_group_offsets_admission,
+            list_offsets_admission,
             assigned_consumer,
             group_consumer,
             transaction_initialization,
@@ -78,6 +82,7 @@ impl Engine {
                 list_consumer_group_offsets_admission,
                 delete_consumer_group_offsets_admission,
                 alter_consumer_group_offsets_admission,
+                list_offsets_admission,
                 assigned_consumer,
                 assigned_consumer_admission,
                 group_consumer,
@@ -96,36 +101,6 @@ impl Engine {
             self.inner.admission.clone(),
             Arc::clone(&self.inner.clock),
             self.inner.config.producer_limits().in_flight_records(),
-            lifetime,
-        )
-    }
-
-    /// Returns a runtime-neutral handle over concrete admin operations.
-    pub fn admin(&self) -> AdminHandle {
-        let lifetime: Arc<dyn Send + Sync> = self.inner.clone();
-        AdminHandle::new(
-            crate::admin::AdminAdmissionPorts {
-                create_topics: self.inner.create_topics_admission.clone(),
-                delete_topics: self.inner.delete_topics_admission.clone(),
-                describe_cluster: self.inner.describe_cluster_admission.clone(),
-                create_partitions: self.inner.create_partitions_admission.clone(),
-                describe_topics: self.inner.describe_topics_admission.clone(),
-                describe_configs: self.inner.describe_configs_admission.clone(),
-                incremental_alter_configs: self.inner.incremental_alter_configs_admission.clone(),
-                list_consumer_group_offsets: self
-                    .inner
-                    .list_consumer_group_offsets_admission
-                    .clone(),
-                delete_consumer_group_offsets: self
-                    .inner
-                    .delete_consumer_group_offsets_admission
-                    .clone(),
-                alter_consumer_group_offsets: self
-                    .inner
-                    .alter_consumer_group_offsets_admission
-                    .clone(),
-            },
-            Arc::clone(&self.inner.clock),
             lifetime,
         )
     }
@@ -200,20 +175,7 @@ impl EngineInner {
 
     fn close_admission(&self) {
         let _close_result = self.admission.close_admission();
-        let _close_result = self.create_topics_admission.close_admission();
-        let _close_result = self.delete_topics_admission.close_admission();
-        let _close_result = self.describe_cluster_admission.close_admission();
-        let _close_result = self.create_partitions_admission.close_admission();
-        let _close_result = self.describe_topics_admission.close_admission();
-        let _close_result = self.describe_configs_admission.close_admission();
-        let _close_result = self.incremental_alter_configs_admission.close_admission();
-        let _close_result = self.list_consumer_group_offsets_admission.close_admission();
-        let _close_result = self
-            .delete_consumer_group_offsets_admission
-            .close_admission();
-        let _close_result = self
-            .alter_consumer_group_offsets_admission
-            .close_admission();
+        self.close_admin_admission();
         let _close_result = self.assigned_consumer_admission.close();
         self.group_consumer.close_admission();
         self.transaction_initialization.close_admission();

@@ -23,6 +23,10 @@ mod incremental_alter_configs_schedule_test;
 mod list_consumer_group_offsets;
 #[cfg(test)]
 mod list_consumer_group_offsets_test;
+mod list_offsets;
+mod list_offsets_schedule;
+#[cfg(test)]
+mod list_offsets_schedule_test;
 pub(super) mod recovery;
 mod schedule;
 #[cfg(test)]

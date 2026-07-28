@@ -114,6 +114,19 @@ pub use super::handle::{AdminHandle, CreateTopicsAccepted, CreateTopicsAcceptedF
 pub(crate) use super::host::{
     CREATE_TOPICS_CAPACITY, CreateTopicsHost, CreateTopicsHostError, CreateTopicsTurn,
 };
+pub(crate) use super::list_offsets::{
+    ADMIN_LIST_OFFSETS_CAPACITY, AdminListOffsetsAdmissionPort, AdminListOffsetsHost,
+    AdminListOffsetsHostError, AdminListOffsetsShardLockError, AdminListOffsetsShardOwner,
+    AdminListOffsetsShardWake, AdminListOffsetsShardWakeError, AdminListOffsetsTurn,
+};
+pub use super::list_offsets::{
+    AdminListOffsetDescription, AdminListOffsetEngineBrokerError, AdminListOffsetEngineResult,
+    AdminListOffsetsAccepted, AdminListOffsetsAcceptedFaultKind, AdminListOffsetsAdmissionError,
+    AdminListOffsetsAdmissionErrorKind, AdminListOffsetsDeliveryStatus,
+    AdminListOffsetsEngineBatch, AdminListOffsetsFailure, AdminListOffsetsFailureKind,
+    AdminListOffsetsObserver, AdminListOffsetsObserverError, AdminListOffsetsOutcome,
+    AdminListOffsetsRequest, AdminListOffsetsRequestSpec, AdminListOffsetsRequestTarget,
+};
 pub use super::model::{CreateTopic, CreateTopicConfig, CreateTopicsRequest};
 pub use super::observer::CreateTopicsObserver;
 pub use super::outcome::{

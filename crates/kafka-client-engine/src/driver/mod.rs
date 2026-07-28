@@ -22,9 +22,13 @@ pub(crate) use error::DriverOwnerError;
 pub(crate) use owner::{DriverOwner, DriverTurn};
 #[cfg(test)]
 pub(crate) use rpc::GroupPositionOffsetFetchTestPartition;
+pub(crate) use rpc::admin_list_offsets_terminal::{
+    AdminListOffsetsDriverFailureKind, AdminListOffsetsTerminal, AdminListOffsetsTerminalFact,
+    RecoveredAdminListOffsetsCall,
+};
 pub(crate) use rpc::classic_group;
 pub(crate) use rpc::{
-    CreatePartitionsCompletionFailure, CreateTopicsCompletionFailure,
+    AdminListOffsetsCall, CreatePartitionsCompletionFailure, CreateTopicsCompletionFailure,
     DeleteTopicsCompletionFailure, DescribeClusterCalls, DescribeClusterCompletionFailure,
     DescribeConfigsCalls, DescribeConfigsCompletionFailure, DescribeTopicsCalls,
     DescribeTopicsCompletionFailure, FetchBeginSettlementError, FetchCallAdmission,

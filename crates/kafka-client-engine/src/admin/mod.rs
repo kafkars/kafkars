@@ -26,6 +26,7 @@ mod group_offset_delete;
 mod group_offsets;
 mod handle;
 mod host;
+mod list_offsets;
 mod model;
 mod observer;
 mod outcome;

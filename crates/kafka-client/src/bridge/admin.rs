@@ -32,7 +32,7 @@ use super::admin_topics_request::DescribeTopicsAdminRequest;
 /// Cloneable facade owner of the engine's concrete admin handle and default.
 #[derive(Debug, Clone)]
 pub(crate) struct AdminEngine {
-    handle: EngineAdminHandle,
+    pub(super) handle: EngineAdminHandle,
     default_timeout: Duration,
 }
 
