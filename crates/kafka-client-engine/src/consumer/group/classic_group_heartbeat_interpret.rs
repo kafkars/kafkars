@@ -93,7 +93,7 @@ pub(super) fn interpret_heartbeat(
                         ClassicGroupExecutionError::Core(error.kind()),
                     )
                 })?;
-            install_heartbeat_rejection(entry, transition)
+            install_heartbeat_rejection(entry, transition, now)
                 .map_err(ClassicHeartbeatInterpretationFailure::PostCoreRejection)?;
             return Ok(ClassicHeartbeatSuccessor::Dormant);
         }

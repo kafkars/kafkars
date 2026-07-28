@@ -90,6 +90,9 @@ impl GroupConsumerRegistry {
             ) => return Err(GroupConsumerStateSnapshotError::EntryFault),
         };
         let epoch = current.assignment.assignment_generation().get();
+        if !entry.catalog.events.is_confirmed(epoch) {
+            return Ok(None);
+        }
         let mut partitions = Vec::new();
         partitions
             .try_reserve_exact(current.assignment.partitions().len())

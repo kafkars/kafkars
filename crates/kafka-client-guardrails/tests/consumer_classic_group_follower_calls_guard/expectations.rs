@@ -20,6 +20,8 @@ pub(super) const SYNC_SUBMISSION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_sync_submission.rs";
 pub(super) const SYNC_SETTLEMENT: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs";
+pub(super) const CLASSIC_EVENT: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_event.rs";
 pub(super) const SYNC_INTERPRET: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs";
 pub(super) const SYNC_REQUEST: &str =
@@ -110,7 +112,11 @@ pub(super) const METHODS: &[(&str, &str, &[&str])] = &[
     ),
     (GROUP_ROOT, "sync_driver_owner", &[SYNC_SETTLEMENT]),
     (GROUP_ROOT, "stage_sync_confirmation", &[SYNC_INTERPRET]),
-    (GROUP_ROOT, "confirm_sync", &[SYNC_SETTLEMENT]),
+    (
+        GROUP_ROOT,
+        "confirm_sync",
+        &[CLASSIC_EVENT, SYNC_SETTLEMENT],
+    ),
     (ENGINE_ROOT, "try_reserve_sync_group", &[SYNC_SUBMISSION]),
     (ENGINE_ROOT, "poll_sync_group", &[SYNC_SETTLEMENT]),
     (

@@ -28,7 +28,7 @@ impl ClassicGroupFetchBinding {
         self.0
     }
 
-    pub(super) const fn assignment_epoch(&self) -> AssignmentEpoch {
+    pub(in crate::consumer::group) const fn assignment_epoch(&self) -> AssignmentEpoch {
         self.1
     }
 }
@@ -84,7 +84,7 @@ impl ClassicGroupFetchActivation {
         Self(binding)
     }
 
-    pub(super) const fn binding(&self) -> &ClassicGroupFetchBinding {
+    pub(in crate::consumer::group) const fn binding(&self) -> &ClassicGroupFetchBinding {
         &self.0
     }
 }

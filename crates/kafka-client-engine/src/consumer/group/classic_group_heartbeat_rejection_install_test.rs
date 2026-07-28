@@ -51,10 +51,17 @@ fn rediscovery_install_commits_revoke_rejoin_and_gate_together() {
     };
     assert!(effects.next().is_none());
 
-    install_rediscovery(&mut entry, assignment, classic_generation, schedule)
-        .unwrap_or_else(|_fault| panic!("rediscovery installation failed"));
+    install_rediscovery(
+        &mut entry,
+        assignment,
+        classic_generation,
+        schedule,
+        Moment::from_tick(schedule.due().tick()),
+    )
+    .unwrap_or_else(|fault| panic!("rediscovery installation failed: {:?}", fault.failure()));
 
-    assert!(entry.catalog.live_assignment().is_none());
+    assert!(entry.catalog.live_assignment().is_some());
+    assert!(!entry.revocation.is_dormant());
     assert_eq!(
         entry.rejoin.schedule(),
         entry.classic.machine().pending_rejoin()

@@ -5,6 +5,7 @@ mod classic_group_assignment_decode;
 mod classic_group_candidate;
 mod classic_group_candidate_prepare;
 mod classic_group_entry_fault;
+mod classic_group_event;
 mod classic_group_execution;
 mod classic_group_execution_close;
 mod classic_group_execution_handoff;
@@ -15,6 +16,7 @@ mod classic_group_execution_recovery;
 mod classic_group_execution_sync;
 mod classic_group_execution_sync_terminal;
 mod classic_group_fetch;
+mod classic_group_graceful_revocation;
 mod classic_group_heartbeat;
 mod classic_group_heartbeat_interpret;
 mod classic_group_heartbeat_prepare;
@@ -63,8 +65,10 @@ mod registry_commit_port;
 mod registry_cycle;
 mod registry_delivery;
 mod registry_entry;
+mod registry_event;
 mod registry_fetch;
 mod registry_fetch_recovery;
+mod registry_graceful_revocation;
 mod registry_host;
 mod registry_host_error;
 mod registry_membership;
@@ -104,6 +108,8 @@ mod classic_group_candidate_prepare_test;
 mod classic_group_candidate_test;
 #[cfg(test)]
 mod classic_group_entry_fault_test;
+#[cfg(test)]
+mod classic_group_event_test;
 #[cfg(test)]
 mod classic_group_execution_close_test;
 #[cfg(test)]
@@ -225,6 +231,8 @@ mod registry_fetch_recovery_test;
 #[cfg(test)]
 mod registry_fetch_test;
 #[cfg(test)]
+mod registry_graceful_revocation_test;
+#[cfg(test)]
 mod registry_host_test;
 #[cfg(test)]
 mod registry_membership_observation_test;
@@ -253,11 +261,14 @@ mod session_catalog_test;
 pub(in crate::consumer) use classic_group_fetch::{
     ClassicGroupFetchDelivery, ClassicGroupFetchDeliveryError,
 };
+pub(in crate::consumer) use classic_group_graceful_revocation::ClassicGroupRevocationAcknowledgeError;
 pub(crate) use registry::GroupConsumerRegistry;
 pub(in crate::consumer) use registry_commit_port::GroupConsumerCommitPortErrorCategory;
 pub(in crate::consumer) use registry_delivery::{
     GroupConsumerDeliveryError, GroupConsumerDeliveryPortError,
 };
+pub(in crate::consumer) use registry_event::GroupConsumerEventPortError;
+pub(in crate::consumer) use registry_graceful_revocation::GroupConsumerRevocationPortError;
 pub(crate) use registry_host_error::GroupConsumerHostError;
 pub(crate) use registry_port::{
     GroupConsumerCycleAdmission, GroupConsumerCyclePortErrorCategory, GroupConsumerPort,

@@ -158,8 +158,15 @@ pub(super) fn deadline(tick: u64) -> OperationDeadline {
 
 pub(super) fn stop_registry(registry: &mut GroupConsumerRegistry) {
     registry.close_admission();
-    let turn_limit = registry.entries.len().saturating_add(1);
+    let turn_limit = registry.entries.len().saturating_mul(3).saturating_add(1);
     for _turn in 0..turn_limit {
+        if registry
+            .turn_graceful_revocation(Moment::from_tick(u64::MAX))
+            .unwrap_or_else(|error| panic!("revocation stop failed: {error:?}"))
+            == super::classic_group_graceful_revocation::ClassicGroupRevocationTurn::Progress
+        {
+            continue;
+        }
         match registry
             .turn_local_membership(Moment::from_tick(u64::MAX))
             .unwrap_or_else(|error| panic!("membership stop failed: {error:?}"))
@@ -172,6 +179,10 @@ pub(super) fn stop_registry(registry: &mut GroupConsumerRegistry) {
         }
     }
     assert_eq!(registry.membership_unsettled(), 0);
+    if registry.fetch_unsettled() != 0 {
+        // Registry-only tests have no live embedded driver after local close.
+        registry.recover_fetch_after_driver_shutdown();
+    }
     let join = registry
         .finish_shutdown()
         .unwrap_or_else(|error| panic!("finish shutdown failed: {error}"));

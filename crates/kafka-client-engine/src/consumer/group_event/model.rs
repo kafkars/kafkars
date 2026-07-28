@@ -145,3 +145,20 @@ impl GroupConsumerState {
         (self.assignment, self.metadata)
     }
 }
+
+/// Application-visible classic-group assignment transition.
+///
+/// The bounded lifecycle retains the prior terminal transition followed by a
+/// current assignment. An unobserved assignment may be superseded by revoked or
+/// lost state for that exact epoch.
+#[derive(Debug, Eq, PartialEq)]
+pub enum GroupConsumerEvent {
+    /// A successful Sync response was installed and driver-confirmed.
+    PartitionsAssigned(GroupConsumerAssignment),
+    /// The named assignment entered bounded graceful release and may be
+    /// completed by its exact assignment epoch.
+    PartitionsRevoked(GroupConsumerAssignment),
+    /// The named assignment was retired; its epoch and every older checkpoint
+    /// are stale.
+    PartitionsLost(GroupConsumerAssignment),
+}

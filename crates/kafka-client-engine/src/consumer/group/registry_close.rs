@@ -74,6 +74,12 @@ impl GroupConsumerRegistry {
         if processing != 0 {
             return Err(GroupConsumerHostError::processing_unsettled(processing));
         }
+        let revocation = self.graceful_revocation_unsettled();
+        if revocation != 0 {
+            return Err(GroupConsumerHostError::graceful_revocation_unsettled(
+                revocation,
+            ));
+        }
         let offset_commits = &mut self.offset_commits;
         offset_commits
             .finish_shutdown()
@@ -118,4 +124,5 @@ impl GroupConsumerRegistry {
 
 fn mark_closing(entry: &mut super::registry_entry::GroupConsumerEntry) {
     entry.state = GroupConsumerEntryState::Closing;
+    let _lost = entry.revocation.lose_owner();
 }

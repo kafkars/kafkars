@@ -2,7 +2,7 @@
 
 use kafka_client_core::{
     ClassicCoordinatorRecovery, ClassicGeneration, ClassicGroupEffect, ClassicGroupFatal,
-    ClassicGroupPhase, ClassicRejoinSchedule, LiveGroupAssignment,
+    ClassicGroupPhase, ClassicRejoinSchedule, LiveGroupAssignment, Moment,
 };
 
 use super::{
@@ -11,6 +11,7 @@ use super::{
     },
     classic_group_rejection_fault::{ClassicRejectionInstallFailure, ClassicRejectionPostCore},
     registry_entry::GroupConsumerEntry,
+    registry_graceful_revocation::stage_classic_group_revocation,
 };
 
 #[expect(
@@ -22,6 +23,7 @@ pub(super) fn install_rejoin(
     assignment: LiveGroupAssignment,
     generation: ClassicGeneration,
     schedule: ClassicRejoinSchedule,
+    now: Moment,
 ) -> Result<(), ClassicRejectionPostCore> {
     if !waiting_state_matches(entry, schedule) {
         return Err(post_rejoin(assignment, generation, schedule, MachineState));
@@ -32,21 +34,21 @@ pub(super) fn install_rejoin(
             return Err(post_rejoin(assignment, generation, schedule, RejoinState));
         }
     };
-    if let Err(failure) = retire_and_revoke_classic_group_assignment(
-        &entry.classic,
+    if let Err((error, assignment)) = stage_classic_group_revocation(
         &mut entry.catalog,
-        &mut entry.processing_lease,
-        &mut entry.fetch,
+        &entry.fetch,
+        &mut entry.revocation,
         assignment,
         generation,
+        schedule.due(),
+        now,
     ) {
         drop(prepared_rejoin);
-        let kind = rejection_revocation_kind(failure.kind);
         return Err(post_rejoin(
-            failure.assignment,
-            failure.classic_generation,
+            assignment,
+            generation,
             schedule,
-            kind,
+            GracefulRevocation(error),
         ));
     }
     prepared_rejoin.commit();
@@ -62,6 +64,7 @@ pub(super) fn install_rediscovery(
     assignment: LiveGroupAssignment,
     generation: ClassicGeneration,
     schedule: ClassicRejoinSchedule,
+    now: Moment,
 ) -> Result<(), ClassicRejectionPostCore> {
     if !waiting_state_matches(entry, schedule) {
         return Err(post_rediscovery(
@@ -93,22 +96,22 @@ pub(super) fn install_rediscovery(
             ));
         }
     };
-    if let Err(failure) = retire_and_revoke_classic_group_assignment(
-        &entry.classic,
+    if let Err((error, assignment)) = stage_classic_group_revocation(
         &mut entry.catalog,
-        &mut entry.processing_lease,
-        &mut entry.fetch,
+        &entry.fetch,
+        &mut entry.revocation,
         assignment,
         generation,
+        schedule.due(),
+        now,
     ) {
         drop(prepared_rejoin);
         drop(prepared_rediscovery);
-        let kind = rejection_revocation_kind(failure.kind);
         return Err(post_rediscovery(
-            failure.assignment,
-            failure.classic_generation,
+            assignment,
+            generation,
             schedule,
-            kind,
+            GracefulRevocation(error),
         ));
     }
     prepared_rejoin.commit();
@@ -227,6 +230,6 @@ fn post_rediscovery(
 }
 
 use ClassicRejectionInstallFailure::{
-    Assignment, FetchRetirement, MachineState, ProcessingLease, ProcessingLeaseCycleUnavailable,
-    RediscoveryState, RejoinState,
+    Assignment, FetchRetirement, GracefulRevocation, MachineState, ProcessingLease,
+    ProcessingLeaseCycleUnavailable, RediscoveryState, RejoinState,
 };

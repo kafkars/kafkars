@@ -4,6 +4,8 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use kafka_client_core::{GroupId, LiveGroupAssignment, MemberId, TopicId};
 
+use super::classic_group_event::ClassicGroupEventStore;
+
 mod static_membership;
 #[cfg(test)]
 mod static_membership_test;
@@ -55,6 +57,7 @@ pub(super) struct GroupSessionCatalog {
     local_subscription: Vec<TopicId>,
     pub(super) current: Option<CurrentGroupSession>,
     pub(super) required_join_member: Option<RequiredJoinMember>,
+    pub(super) events: ClassicGroupEventStore,
 }
 
 impl GroupSessionCatalog {
@@ -121,6 +124,7 @@ impl GroupSessionCatalog {
             local_subscription,
             current: None,
             required_join_member: None,
+            events: ClassicGroupEventStore::new(),
         })
     }
 

@@ -1,8 +1,10 @@
 //! Closed failure categories for group-registry host turns and shutdown.
 
 use super::{
-    classic_group_execution::ClassicGroupExecutionError, offset_commit::GroupOffsetCommitHostError,
-    registry_fetch::GroupConsumerFetchError, registry_processing::GroupConsumerProcessingError,
+    classic_group_execution::ClassicGroupExecutionError,
+    classic_group_graceful_revocation::ClassicGroupRevocationHostError,
+    offset_commit::GroupOffsetCommitHostError, registry_fetch::GroupConsumerFetchError,
+    registry_processing::GroupConsumerProcessingError,
 };
 
 /// Concrete private group-host failure without widening operation internals.
@@ -17,9 +19,11 @@ enum GroupConsumerHostErrorKind {
     Membership(ClassicGroupExecutionError),
     Fetch(GroupConsumerFetchError),
     Processing(GroupConsumerProcessingError),
+    GracefulRevocation(ClassicGroupRevocationHostError),
     MembershipUnsettled(usize),
     FetchUnsettled(usize),
     ProcessingUnsettled(usize),
+    GracefulRevocationUnsettled(usize),
 }
 
 impl GroupConsumerHostError {
@@ -58,6 +62,18 @@ impl GroupConsumerHostError {
             kind: GroupConsumerHostErrorKind::ProcessingUnsettled(count),
         }
     }
+
+    pub(super) const fn graceful_revocation(error: ClassicGroupRevocationHostError) -> Self {
+        Self {
+            kind: GroupConsumerHostErrorKind::GracefulRevocation(error),
+        }
+    }
+
+    pub(super) const fn graceful_revocation_unsettled(count: usize) -> Self {
+        Self {
+            kind: GroupConsumerHostErrorKind::GracefulRevocationUnsettled(count),
+        }
+    }
 }
 
 impl core::fmt::Display for GroupConsumerHostError {
@@ -74,6 +90,10 @@ impl core::fmt::Display for GroupConsumerHostError {
                 formatter,
                 "classic group processing-liveness execution failed: {error:?}"
             ),
+            GroupConsumerHostErrorKind::GracefulRevocation(error) => write!(
+                formatter,
+                "classic group graceful revocation failed: {error:?}"
+            ),
             GroupConsumerHostErrorKind::MembershipUnsettled(count) => {
                 write!(
                     formatter,
@@ -89,6 +109,10 @@ impl core::fmt::Display for GroupConsumerHostError {
             GroupConsumerHostErrorKind::ProcessingUnsettled(count) => write!(
                 formatter,
                 "{count} classic group processing-liveness obligations remain unsettled"
+            ),
+            GroupConsumerHostErrorKind::GracefulRevocationUnsettled(count) => write!(
+                formatter,
+                "{count} classic group graceful-revocation obligations remain unsettled"
             ),
         }
     }

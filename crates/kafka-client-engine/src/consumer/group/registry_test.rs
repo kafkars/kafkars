@@ -159,6 +159,15 @@ fn confirmed_static_state_carries_the_configured_instance_identity() {
         )
         .unwrap_or_else(|failure| panic!("static registration failed: {:?}", failure.kind));
     install_session(&mut registry, group_id);
+    {
+        let entry = registry
+            .entries
+            .iter_mut()
+            .find(|entry| entry.group_id() == group_id)
+            .unwrap_or_else(|| panic!("registered entry expected"));
+        entry.catalog.stage_installed_assignment_event();
+        entry.catalog.confirm_sync_event();
+    }
 
     let state = registry
         .group_state(group_id)

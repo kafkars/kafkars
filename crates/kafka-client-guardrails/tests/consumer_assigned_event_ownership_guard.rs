@@ -63,6 +63,7 @@ const METHODS: &[(&str, &[&str])] = &[
             PORT,
             "crates/kafka-client-engine/src/consumer/assigned_host/handle.rs",
             "crates/kafka-client-engine/src/consumer/assigned_host/next_event/port.rs",
+            "crates/kafka-client-engine/src/consumer/group/registry_event.rs",
         ],
     ),
     ("retain_terminal", &[OWNER_EVENT]),

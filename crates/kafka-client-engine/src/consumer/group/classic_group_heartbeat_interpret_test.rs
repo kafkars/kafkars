@@ -32,7 +32,8 @@ fn generation_rejection_revokes_and_arms_the_exact_retained_rejoin() {
         entry.rejoin.schedule(),
         entry.classic.machine().pending_rejoin()
     );
-    assert!(entry.catalog.live_assignment().is_none());
+    assert!(entry.catalog.live_assignment().is_some());
+    assert!(!entry.revocation.is_dormant());
 
     confirm_terminal(&mut registry, group_id);
     stop_registry(&mut registry);
@@ -88,8 +89,12 @@ fn interpret_rejection(
         .begin_classic_heartbeat_settlement(accepted)
         .unwrap_or_else(|error| panic!("Heartbeat settlement failed: {error:?}"));
     let now = Moment::from_tick(key.deadline().core().tick() - 1);
-    let successor = interpret_heartbeat(entry, now, &terminal)
-        .unwrap_or_else(|_error| panic!("broker rejection interpretation failed"));
+    let successor = interpret_heartbeat(entry, now, &terminal).unwrap_or_else(|error| match error {
+        super::classic_group_heartbeat_interpret::ClassicHeartbeatInterpretationFailure::PostCoreRejection(
+            fault,
+        ) => panic!("broker rejection interpretation failed: {:?}", fault.failure()),
+        _ => panic!("broker rejection interpretation failed"),
+    });
     drop(terminal);
     successor
 }

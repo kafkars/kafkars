@@ -44,6 +44,14 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
         "recovery/rejoin_transition.rs",
         "recovery/rejoin_transition_test.rs",
     ),
+    (
+        "graceful_revocation/machine.rs",
+        "graceful_revocation/machine_test.rs",
+    ),
+    (
+        "graceful_revocation/model.rs",
+        "graceful_revocation/model_test.rs",
+    ),
 ];
 
 pub(super) const IMMUTABLE_MACHINE_FIELDS: &[&str] = &["group_id", "timing", "rejoin_policy"];
@@ -68,6 +76,10 @@ pub(super) const LINEAR: &[(&str, &str)] = &[
     (
         "PreparedClassicProcessingLeaseRevocation",
         "processing_lease/machine.rs",
+    ),
+    (
+        "ClassicGracefulRevocation",
+        "graceful_revocation/machine.rs",
     ),
 ];
 

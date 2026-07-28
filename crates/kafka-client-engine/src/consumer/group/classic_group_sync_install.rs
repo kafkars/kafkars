@@ -124,6 +124,7 @@ pub(super) fn install_sync_assignment(
             }
         };
     catalog_install.commit();
+    entry.catalog.stage_installed_assignment_event();
     heartbeat_install.commit();
     let _transition = processing_install.commit();
     install_position(entry, position_install);

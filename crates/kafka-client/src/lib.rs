@@ -48,10 +48,10 @@ pub use consumer::{
     AssignedConsumerPositionResolutionFailureKind, Checkpoint, CloseAssignedConsumer,
     CommitConsumerCheckpoint, Consumer, ConsumerAssignment, ConsumerAssignmentPartition,
     ConsumerBatch, ConsumerBuildError, ConsumerBuilder, ConsumerCommitAdmissionError,
-    ConsumerCommitError, ConsumerHeader, ConsumerRecord, ConsumerRecords, GroupConsumerHeader,
-    GroupConsumerRecord, GroupConsumerRecords, GroupMetadata, NextAssignedEvent, OffsetReset,
-    ReadIsolation, RecordBatch, RecvAssignedBatch, RecvConsumerBatch, StartPosition,
-    TopicPartition,
+    ConsumerCommitError, ConsumerEvent, ConsumerHeader, ConsumerRecord, ConsumerRecords,
+    ConsumerRevocation, GroupConsumerHeader, GroupConsumerRecord, GroupConsumerRecords,
+    GroupMetadata, NextAssignedEvent, NextConsumerEvent, OffsetReset, ReadIsolation, RecordBatch,
+    RecvAssignedBatch, RecvConsumerBatch, StartPosition, TopicPartition,
 };
 pub use error::{DeliveryStatus, ErrorKind, KafkaError};
 pub use producer::{

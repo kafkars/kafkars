@@ -7,6 +7,7 @@ use kafka_client_core::{Deadline, Moment};
 use crate::{completion::NotifierJoin, driver::DriverOwner};
 
 use super::{
+    classic_group_graceful_revocation::ClassicGroupRevocationTurn,
     classic_group_position::GroupConsumerPositionTurn, offset_commit::GroupOffsetCommitTurn,
     registry::GroupConsumerRegistry, registry_fetch::GroupConsumerFetchTurn,
     registry_host_error::GroupConsumerHostError, registry_membership::GroupConsumerMembershipTurn,
@@ -29,6 +30,15 @@ impl GroupConsumerRegistry {
             .offset_commits
             .turn(now, driver)
             .map_err(GroupConsumerHostError::from)?;
+        let revocation = self
+            .turn_graceful_revocation(now)
+            .map_err(GroupConsumerHostError::graceful_revocation)?;
+        if revocation == ClassicGroupRevocationTurn::Progress {
+            return Ok(GroupConsumerRegistryTurn {
+                progressed: true,
+                blocked_work: false,
+            });
+        }
         let fault_count = self.entry_fault_count();
         let processing = match self.turn_processing(now) {
             Ok(turn) => turn,
@@ -83,7 +93,10 @@ impl GroupConsumerRegistry {
                     self.fetch_next_deadline(),
                     min_deadline(
                         self.processing_next_deadline(),
-                        self.offset_commits.next_deadline(),
+                        min_deadline(
+                            self.graceful_revocation_next_deadline(),
+                            self.offset_commits.next_deadline(),
+                        ),
                     ),
                 ),
             ),
@@ -99,6 +112,7 @@ impl GroupConsumerRegistry {
             .saturating_add(self.position_unsettled())
             .saturating_add(self.fetch_unsettled())
             .saturating_add(self.processing_unsettled())
+            .saturating_add(self.graceful_revocation_unsettled())
             .saturating_add(self.offset_commits.unsettled())
     }
 

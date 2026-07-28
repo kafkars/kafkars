@@ -1,6 +1,8 @@
 //! Heartbeat rejection effect-shape dispatch into atomic recovery installation.
 
-use kafka_client_core::{ClassicCoordinatorRecovery, ClassicGroupEffect, ClassicGroupTransition};
+use kafka_client_core::{
+    ClassicCoordinatorRecovery, ClassicGroupEffect, ClassicGroupTransition, Moment,
+};
 
 use super::{
     classic_group_heartbeat_rejection_install::{
@@ -17,6 +19,7 @@ use super::{
 pub(super) fn install_heartbeat_rejection(
     entry: &mut GroupConsumerEntry,
     transition: ClassicGroupTransition,
+    now: Moment,
 ) -> Result<(), ClassicRejectionPostCore> {
     let effects = into_effects(transition);
     match effects {
@@ -29,7 +32,7 @@ pub(super) fn install_heartbeat_rejection(
                 schedule,
                 coordinator: ClassicCoordinatorRecovery::Retain,
             }),
-        ] => install_rejoin(entry, assignment, classic_generation, schedule),
+        ] => install_rejoin(entry, assignment, classic_generation, schedule, now),
         [
             Some(ClassicGroupEffect::Revoke {
                 assignment,
@@ -39,7 +42,7 @@ pub(super) fn install_heartbeat_rejection(
                 schedule,
                 coordinator: ClassicCoordinatorRecovery::Rediscover,
             }),
-        ] => install_rediscovery(entry, assignment, classic_generation, schedule),
+        ] => install_rediscovery(entry, assignment, classic_generation, schedule, now),
         [
             Some(ClassicGroupEffect::Revoke {
                 assignment,

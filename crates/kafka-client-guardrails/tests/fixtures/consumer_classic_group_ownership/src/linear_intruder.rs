@@ -42,3 +42,6 @@ struct PreparedClassicProcessingLeaseActivation;
 
 #[derive(Clone, Copy)]
 struct PreparedClassicProcessingLeaseRevocation;
+
+#[derive(Clone, Copy)]
+struct ClassicGracefulRevocation;

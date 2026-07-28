@@ -171,6 +171,7 @@ pub(super) const METHODS: &[(&str, &[&str])] = &[
     (
         "take_pending",
         &[
+            "crates/kafka-client-engine/src/consumer/group/classic_group_graceful_revocation/settlement.rs",
             "crates/kafka-client-engine/src/consumer/group/classic_group_recovery.rs",
             "crates/kafka-client-engine/src/consumer/group/classic_group_heartbeat_recovery.rs",
         ],

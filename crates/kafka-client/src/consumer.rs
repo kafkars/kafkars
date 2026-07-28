@@ -16,6 +16,8 @@ mod group_commit;
 mod group_commit_error;
 mod group_event;
 mod group_handle;
+mod group_next_event;
+mod group_rebalance_event;
 mod group_record;
 mod group_recv;
 mod offset_reset;
@@ -43,6 +45,8 @@ pub use group_commit::CommitConsumerCheckpoint;
 pub use group_commit_error::{ConsumerCommitAdmissionError, ConsumerCommitError};
 pub use group_event::{ConsumerAssignment, ConsumerAssignmentPartition, GroupMetadata};
 pub use group_handle::Consumer;
+pub use group_next_event::NextConsumerEvent;
+pub use group_rebalance_event::{ConsumerEvent, ConsumerRevocation};
 pub use group_record::{GroupConsumerHeader, GroupConsumerRecord, GroupConsumerRecords};
 pub use group_recv::RecvConsumerBatch;
 pub use offset_reset::OffsetReset;
@@ -78,6 +82,10 @@ mod group_commit_error_test;
 mod group_commit_test;
 #[cfg(test)]
 mod group_event_test;
+#[cfg(test)]
+mod group_next_event_test;
+#[cfg(test)]
+mod group_rebalance_event_test;
 #[cfg(test)]
 mod group_recv_test;
 #[cfg(test)]

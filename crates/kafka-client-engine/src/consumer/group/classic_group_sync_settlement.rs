@@ -65,6 +65,7 @@ impl GroupConsumerRegistry {
             } else {
                 entry.execution.confirm_sync(calls)?;
             }
+            entry.catalog.confirm_sync_event();
             return Ok(ClassicGroupSyncSettlementTurn::Progress);
         }
         let terminal = calls

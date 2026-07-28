@@ -1,17 +1,17 @@
 //! Exact preparation and infallible commit of core Install and Revoke effects.
 
 use kafka_client_core::{
-    ClassicGeneration, ClassicGroupPhase, ClassicProcessingLease, ClassicProcessingLeaseError,
-    LiveGroupAssignment, PartitionIndex,
+    ClassicGeneration, ClassicGroupPhase, ClassicProcessingLeaseError, LiveGroupAssignment,
+    PartitionIndex,
 };
 
 use super::{
-    classic_group_fetch::{
-        ClassicGroupFetchOwner, ClassicGroupFetchRetirement, ClassicGroupFetchRetirementError,
-    },
-    classic_group_owner::ClassicGroupOwner,
+    classic_group_fetch::ClassicGroupFetchRetirementError, classic_group_owner::ClassicGroupOwner,
     session_catalog::GroupSessionCatalog,
 };
+
+mod retirement;
+pub(super) use retirement::retire_and_revoke_classic_group_assignment;
 
 #[must_use = "a prepared classic-group install must be committed"]
 pub(super) struct PreparedClassicGroupInstall<'a> {
@@ -154,70 +154,6 @@ impl ClassicGroupOwner {
             classic_generation,
         })
     }
-}
-
-#[expect(
-    clippy::result_large_err,
-    reason = "rejection returns the exact linear assignment and generation without heap indirection"
-)]
-pub(super) fn retire_and_revoke_classic_group_assignment(
-    owner: &ClassicGroupOwner,
-    catalog: &mut GroupSessionCatalog,
-    processing_lease: &mut ClassicProcessingLease,
-    fetch: &mut ClassicGroupFetchOwner,
-    assignment: LiveGroupAssignment,
-    classic_generation: ClassicGeneration,
-) -> Result<ClassicGroupFetchRetirement, ClassicGroupRevocationFailure> {
-    let processing_fence = processing_lease
-        .active_schedule()
-        .map(kafka_client_core::ClassicProcessingLeaseSchedule::fence)
-        .or_else(|| {
-            processing_lease
-                .pending_expiration()
-                .map(|expiration| expiration.schedule().fence())
-        });
-    let prepared = owner
-        .prepare_revoke(catalog, assignment, classic_generation)
-        .map_err(|failure| ClassicGroupRevocationFailure {
-            kind: ClassicGroupRevocationFailureKind::Catalog(failure.kind),
-            assignment: failure.assignment,
-            classic_generation,
-        })?;
-    let Some(retained_processing_fence) = processing_fence else {
-        return Err(ClassicGroupRevocationFailure {
-            kind: ClassicGroupRevocationFailureKind::ProcessingLeaseCycleUnavailable,
-            assignment: prepared.assignment,
-            classic_generation: prepared.classic_generation,
-        });
-    };
-    let processing_fence = kafka_client_core::ClassicProcessingLeaseFence::new(
-        prepared.assignment.group_id(),
-        retained_processing_fence.cycle(),
-        prepared.assignment.assignment_generation(),
-    );
-    let processing_revocation = match processing_lease.prepare_revocation(processing_fence) {
-        Ok(prepared_revocation) => prepared_revocation,
-        Err(error) => {
-            return Err(ClassicGroupRevocationFailure {
-                kind: ClassicGroupRevocationFailureKind::ProcessingLease(error),
-                assignment: prepared.assignment,
-                classic_generation: prepared.classic_generation,
-            });
-        }
-    };
-    let retirement = match fetch.retire_for_assignment_loss(&prepared.assignment) {
-        Ok(retirement) => retirement,
-        Err(error) => {
-            return Err(ClassicGroupRevocationFailure {
-                kind: ClassicGroupRevocationFailureKind::Fetch(error),
-                assignment: prepared.assignment,
-                classic_generation: prepared.classic_generation,
-            });
-        }
-    };
-    let _transition = processing_revocation.commit();
-    prepared.commit();
-    Ok(retirement)
 }
 
 impl PreparedClassicGroupInstall<'_> {

@@ -7,6 +7,7 @@ use kafka_client_core::{
 use super::{
     classic_group_assignment::ClassicGroupAssignmentPreparationFailureKind,
     classic_group_fetch::ClassicGroupFetchRetirementError,
+    classic_group_graceful_revocation::ClassicGroupRevocationStageError,
 };
 
 /// Exact core effects retained when the engine cannot complete their installation.
@@ -22,6 +23,7 @@ pub(super) enum ClassicRejectionInstallFailure {
     MachineState,
     RejoinState,
     RediscoveryState,
+    GracefulRevocation(ClassicGroupRevocationStageError),
     Assignment(ClassicGroupAssignmentPreparationFailureKind),
     ProcessingLeaseCycleUnavailable,
     ProcessingLease(ClassicProcessingLeaseError),

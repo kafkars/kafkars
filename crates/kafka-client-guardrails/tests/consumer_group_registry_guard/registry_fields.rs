@@ -24,6 +24,8 @@ pub(crate) const REGISTRY_FIELDS: &[(&str, &[&str])] = &[
             "classic_group_rejoin_due.rs",
             "classic_group_sync_settlement.rs",
             "classic_group_sync_submission.rs",
+            "registry_event.rs",
+            "registry_graceful_revocation.rs",
             "registry_close.rs",
             "registry_cycle.rs",
             "registry_delivery.rs",

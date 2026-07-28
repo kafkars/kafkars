@@ -48,6 +48,15 @@ pub(crate) const ENTRY_FIELDS: &[(&str, &[&str])] = &[
             "registry_unregister.rs",
         ],
     ),
+    (
+        "revocation",
+        &[
+            "registry_entry.rs",
+            "classic_group_heartbeat_rejection_install.rs",
+            "registry_close.rs",
+            "registry_graceful_revocation.rs",
+        ],
+    ),
 ];
 
 pub(crate) const ENTRY_DECLARED_FIELDS: &[&str] = &[
@@ -59,6 +68,7 @@ pub(crate) const ENTRY_DECLARED_FIELDS: &[&str] = &[
     "heartbeat",
     "position",
     "processing_lease",
+    "revocation",
     "rejoin",
     "rediscovery",
     "fault",

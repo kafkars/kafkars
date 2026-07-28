@@ -16,7 +16,9 @@ use super::{
     },
     classic_group_heartbeat_prepare::ClassicHeartbeatPreparationTurn,
     classic_group_heartbeat_settlement::ClassicHeartbeatSettlementTurn,
-    registry_test_support::{install_session, register, started_registry, stop_registry},
+    registry_test_support::{
+        install_ready_group_delivery, install_session, register, started_registry, stop_registry,
+    },
 };
 
 #[test]
@@ -147,6 +149,16 @@ pub(super) fn prepared_heartbeat() -> (
     let mut registry = started_registry();
     let group_id = register(&mut registry, "workers");
     install_session(&mut registry, group_id);
+    install_ready_group_delivery(&mut registry, group_id, 17);
+    {
+        let entry = registry
+            .entries
+            .iter_mut()
+            .find(|entry| entry.group_id() == group_id)
+            .unwrap_or_else(|| panic!("entry expected"));
+        entry.catalog.stage_installed_assignment_event();
+        entry.catalog.confirm_sync_event();
+    }
     let schedule = match registry
         .entry(group_id)
         .unwrap_or_else(|| panic!("entry expected"))

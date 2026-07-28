@@ -3,6 +3,8 @@ mod apply;
 mod assignment;
 mod effect;
 mod error;
+mod exports;
+mod graceful_revocation;
 mod heartbeat;
 mod heartbeat_state;
 mod heartbeat_transition;
@@ -18,26 +20,7 @@ mod terminal_transition;
 mod timing;
 mod transition;
 mod transition_support;
-pub use assignment::{ClassicAssignmentError, ClassicAssignmentPlan, ClassicMemberAssignment};
-pub use effect::{ClassicGroupEffect, ClassicGroupTransition};
-pub use error::{ClassicGroupApplyError, ClassicGroupErrorKind};
-pub use heartbeat::{ClassicHeartbeatAttempt, ClassicHeartbeatSchedule, ClassicHeartbeatSequence};
-pub use identity::{ClassicGeneration, JoinedMemberSlot, MemberRank, MembershipCycle};
-pub use input::ClassicGroupInput;
-pub use machine::ClassicGroupMachine;
-pub use model::{
-    ClassicGroupPhase, ClassicJoinMember, ClassicJoinMembers, ClassicJoinMembersError,
-    ClassicProtocol, ClassicSubscription, ClassicSubscriptionError, TopicPartitionCount,
-};
-pub use processing_lease::*;
-pub use recovery::{
-    ClassicBrokerError, ClassicBrokerStage, ClassicCoordinatorRecovery, ClassicGroupFatal,
-    ClassicGroupFatalReason, ClassicRejoinPolicy, ClassicRejoinPolicyError, ClassicRejoinSchedule,
-};
-pub use timing::{
-    CLASSIC_GROUP_TIMEOUT_MAX_MS, CLASSIC_GROUP_TIMEOUT_MIN_MS, ClassicGroupTiming,
-    ClassicGroupTimingError, ClassicHeartbeatPolicy, ClassicHeartbeatPolicyError,
-};
+pub use exports::*;
 #[cfg(test)]
 mod apply_test;
 #[cfg(test)]

@@ -26,7 +26,10 @@ pub(crate) use super::assigned_host::{
     AssignedConsumerClosePublisher, AssignedConsumerCompletionNotifier,
     AssignedConsumerCompletionPorts, AssignedConsumerEventPublisher, AssignedConsumerRecvPublisher,
 };
-pub(in crate::consumer) use super::group::GroupConsumerStatePortError;
+pub(in crate::consumer) use super::group::{
+    ClassicGroupRevocationAcknowledgeError, GroupConsumerEventPortError,
+    GroupConsumerRevocationPortError, GroupConsumerStatePortError,
+};
 pub(crate) use super::group::{
     GroupConsumerCycleAdmission, GroupConsumerCyclePortErrorCategory, GroupConsumerHostError,
     GroupConsumerPort, GroupConsumerPortDormantReleaseError, GroupConsumerPortRegistrationCategory,
@@ -46,8 +49,12 @@ pub use super::group_commit::{
     GroupConsumerCommitPartitionResult,
 };
 pub use super::group_event::{
-    GroupConsumerAssignment, GroupConsumerAssignmentPartition, GroupConsumerMetadata,
+    GroupConsumerAssignment, GroupConsumerAssignmentPartition, GroupConsumerEvent,
+    GroupConsumerMetadata, GroupConsumerNextEvent, GroupConsumerNextEventError,
+    GroupConsumerNextEventErrorKind, GroupConsumerRevocationAcknowledgeError,
+    GroupConsumerRevocationAcknowledgeErrorKind, GroupConsumerRevocationControl,
     GroupConsumerState, GroupConsumerStateError, GroupConsumerStateErrorKind,
+    GroupConsumerTryTakeEventError, GroupConsumerTryTakeEventErrorKind,
 };
 pub use super::group_recv::{
     GroupConsumerRecv, GroupConsumerRecvError, GroupConsumerRecvErrorKind,
