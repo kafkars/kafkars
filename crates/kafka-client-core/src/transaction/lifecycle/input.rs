@@ -2,6 +2,7 @@
 
 use crate::{Moment, OperationId};
 
+use super::super::TransactionOffsetCommitConsequence;
 use super::{
     TransactionEndOutcome, TransactionEpoch, TransactionSendAttempt, TransactionSendAttemptFailure,
     TransactionSendId, TransactionSendIdentity, TransactionSendOutcome,
@@ -49,6 +50,13 @@ pub enum TransactionLifecycleInput {
         send_id: TransactionSendId,
         /// Effect on transaction health.
         outcome: TransactionSendOutcome,
+    },
+    /// Applies the health consequence of one driver-accepted offset transfer.
+    OffsetCommitSettled {
+        /// Active transaction fence.
+        epoch: TransactionEpoch,
+        /// Abort-only or permanently fatal consequence.
+        consequence: TransactionOffsetCommitConsequence,
     },
     /// Requests commit through one already-reserved public completion.
     Commit {

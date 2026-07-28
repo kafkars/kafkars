@@ -50,6 +50,14 @@ impl TransactionLifecycleHost {
         })
     }
 
+    pub(in crate::transaction) fn settle_offset_commit(
+        &mut self,
+        epoch: TransactionEpoch,
+        consequence: kafka_client_core::TransactionOffsetCommitConsequence,
+    ) -> Result<(), TransactionLifecycleHostError> {
+        self.apply(TransactionLifecycleInput::OffsetCommitSettled { epoch, consequence })
+    }
+
     pub(crate) fn commit(
         &mut self,
         epoch: TransactionEpoch,

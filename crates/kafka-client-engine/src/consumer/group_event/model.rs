@@ -110,6 +110,22 @@ impl GroupConsumerMetadata {
     pub const fn assignment_epoch(&self) -> u64 {
         self.assignment_epoch
     }
+
+    pub(crate) fn group_arc(&self) -> Arc<str> {
+        Arc::clone(&self.group)
+    }
+
+    pub(crate) fn member_arc(&self) -> Arc<str> {
+        Arc::clone(&self.member)
+    }
+
+    pub(crate) fn group_instance_id_arc(&self) -> Option<Arc<str>> {
+        self.group_instance_id.as_ref().map(Arc::clone)
+    }
+
+    pub(crate) const fn position_fence(&self) -> GroupPositionFence {
+        self._position_fence
+    }
 }
 
 /// One atomically observed confirmed membership and assignment.

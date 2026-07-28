@@ -13,6 +13,10 @@ use crate::{
     transaction::{
         TransactionExecutionSendAdmissionError, TransactionExecutionSendAdmissionErrorKind,
         TransactionLifecycleHostError,
+        offset_commit::{
+            TransactionOffsetCommitAccepted, TransactionOffsetCommitAdmissionError,
+            TransactionOffsetCommitAdmissionErrorKind, TransactionOffsetCommitRequest,
+        },
         send::{TransactionSendAccepted as InternalTransactionSendAccepted, TransactionSendInput},
     },
 };
@@ -43,6 +47,42 @@ pub(crate) enum TransactionSendControlErrorKind {
 pub(crate) struct TransactionSendControlError {
     kind: TransactionSendControlErrorKind,
     input: TransactionSendInput,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum TransactionOffsetCommitControlErrorKind {
+    Contended,
+    Closed,
+    Admission(TransactionOffsetCommitAdmissionErrorKind),
+}
+
+pub(crate) struct TransactionOffsetCommitControlError {
+    kind: TransactionOffsetCommitControlErrorKind,
+    input: TransactionOffsetCommitRequest,
+}
+
+impl TransactionOffsetCommitControlError {
+    pub(super) const fn local(
+        kind: TransactionOffsetCommitControlErrorKind,
+        input: TransactionOffsetCommitRequest,
+    ) -> Self {
+        Self { kind, input }
+    }
+
+    pub(super) fn admission(error: TransactionOffsetCommitAdmissionError) -> Self {
+        Self {
+            kind: TransactionOffsetCommitControlErrorKind::Admission(error.kind()),
+            input: error.into_input(),
+        }
+    }
+
+    pub(crate) const fn kind(&self) -> TransactionOffsetCommitControlErrorKind {
+        self.kind
+    }
+
+    pub(crate) fn into_input(self) -> TransactionOffsetCommitRequest {
+        self.input
+    }
 }
 
 impl TransactionSendControlError {
@@ -105,6 +145,15 @@ impl TransactionLifecycleControlPort {
         ProducerSendCapture::capture_transaction(self.shared.clock(), timeout)
     }
 
+    pub(crate) fn capture_offset_commit(&self, timeout: Duration) -> Option<OperationDeadline> {
+        self.shared
+            .clock()
+            .capture_deadline_after(timeout)
+            .ok()
+            .filter(|_| !timeout.is_zero())
+            .map(crate::clock::DeadlineCapture::operation_deadline)
+    }
+
     #[expect(
         clippy::result_large_err,
         reason = "control rejection returns the exact caller-owned transactional record"
@@ -118,6 +167,25 @@ impl TransactionLifecycleControlPort {
         TransactionSendControlError,
     > {
         let accepted = self.shared.try_send(owner_id, input)?;
+        Ok(TransactionLifecycleControlAccepted {
+            value: accepted,
+            wake_failed: self.shared.wake().request().is_err(),
+        })
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "control rejection returns the exact assignment-fenced offset request"
+    )]
+    pub(crate) fn send_offsets(
+        &self,
+        owner_id: TransactionalOwnerId,
+        input: TransactionOffsetCommitRequest,
+    ) -> Result<
+        TransactionLifecycleControlAccepted<TransactionOffsetCommitAccepted>,
+        TransactionOffsetCommitControlError,
+    > {
+        let accepted = self.shared.try_offset_commit(owner_id, input)?;
         Ok(TransactionLifecycleControlAccepted {
             value: accepted,
             wake_failed: self.shared.wake().request().is_err(),

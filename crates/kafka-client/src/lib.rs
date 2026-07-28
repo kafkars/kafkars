@@ -63,9 +63,10 @@ pub use record::{Header, Record};
 pub use security::{Sasl, SaslMechanism, Security, Tls};
 pub use shutdown::Shutdown;
 pub use transaction::{
-    AbortTransaction, CommitTransaction, InitializeTransactionalProducer, SendTransactionRecord,
-    Transaction, TransactionEndAdmissionError, TransactionSendAdmissionError,
-    TransactionalProducer, TransactionalProducerBuilder, TransactionalProducerIdentity,
+    AbortTransaction, CommitTransaction, InitializeTransactionalProducer, SendTransactionOffsets,
+    SendTransactionRecord, Transaction, TransactionEndAdmissionError,
+    TransactionOffsetsAdmissionError, TransactionSendAdmissionError, TransactionalProducer,
+    TransactionalProducerBuilder, TransactionalProducerIdentity,
 };
 
 #[cfg(test)]

@@ -2,11 +2,11 @@
 
 use std::time::Duration;
 
-use crate::{Record, bridge::transaction::TransactionEngine};
+use crate::{Checkpoint, GroupMetadata, Record, bridge::transaction::TransactionEngine};
 
 use super::{
-    AbortTransaction, CommitTransaction, SendTransactionRecord, TransactionEndAdmissionError,
-    TransactionSendAdmissionError,
+    AbortTransaction, CommitTransaction, SendTransactionOffsets, SendTransactionRecord,
+    TransactionEndAdmissionError, TransactionOffsetsAdmissionError, TransactionSendAdmissionError,
 };
 
 /// Opaque active transaction that exclusively borrows its producer.
@@ -49,6 +49,28 @@ impl<'producer> Transaction<'producer> {
             .send(record, timeout)
             .map(SendTransactionRecord::from_bridge)
             .map_err(|(record, error)| TransactionSendAdmissionError::new(record, error))
+    }
+
+    /// Attempts to transfer one assignment-fenced checkpoint into this transaction.
+    ///
+    /// Rejection returns both exact inputs. Acceptance exclusively reborrows
+    /// this transaction until the named terminal observer is consumed or dropped.
+    #[expect(
+        clippy::result_large_err,
+        reason = "pre-admission rejection returns the exact group metadata and assignment-fenced checkpoint"
+    )]
+    pub fn send_offsets<'send>(
+        &'send mut self,
+        metadata: GroupMetadata,
+        checkpoint: Checkpoint,
+        timeout: Duration,
+    ) -> Result<SendTransactionOffsets<'send, 'producer>, TransactionOffsetsAdmissionError> {
+        self.inner
+            .send_offsets(metadata, checkpoint, timeout)
+            .map(SendTransactionOffsets::from_bridge)
+            .map_err(|(metadata, checkpoint, error)| {
+                TransactionOffsetsAdmissionError::new(metadata, checkpoint, error)
+            })
     }
 
     /// Attempts to commit this exact active transaction.

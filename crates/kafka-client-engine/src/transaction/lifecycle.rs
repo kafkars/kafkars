@@ -7,6 +7,7 @@ mod effect;
 mod enrollment;
 mod host;
 mod limits;
+mod offset_commit;
 mod port;
 mod recovery;
 mod sequencing;

@@ -14,6 +14,7 @@ use crate::{
     clock::{MonotonicClock, OperationDeadline},
     completion::CompletionObserver,
     driver::ReactorWake,
+    transaction::offset_commit::{TransactionOffsetCommitAccepted, TransactionOffsetCommitRequest},
     transaction::send::{
         TransactionSendAccepted as InternalTransactionSendAccepted, TransactionSendInput,
     },
@@ -21,8 +22,9 @@ use crate::{
 
 use super::{
     TransactionInitializationAdmissionPort, TransactionInitializationHost,
-    TransactionLifecycleControlError, TransactionOwnerLossSignal, TransactionSendControlError,
-    TransactionSendControlErrorKind,
+    TransactionLifecycleControlError, TransactionOffsetCommitControlError,
+    TransactionOffsetCommitControlErrorKind, TransactionOwnerLossSignal,
+    TransactionSendControlError, TransactionSendControlErrorKind,
 };
 
 pub(super) struct TransactionInitializationShardState {
@@ -184,6 +186,40 @@ impl TransactionInitializationShardState {
         };
         host.try_send(owner_id, input)
             .map_err(TransactionSendControlError::admission)
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "shard rejection returns the exact assignment-fenced offset request"
+    )]
+    pub(super) fn try_offset_commit(
+        &self,
+        owner_id: TransactionalOwnerId,
+        input: TransactionOffsetCommitRequest,
+    ) -> Result<TransactionOffsetCommitAccepted, TransactionOffsetCommitControlError> {
+        if self.is_closed() {
+            return Err(TransactionOffsetCommitControlError::local(
+                TransactionOffsetCommitControlErrorKind::Closed,
+                input,
+            ));
+        }
+        let mut host = match self.try_host() {
+            Ok(host) => host,
+            Err(TryLockError::WouldBlock) => {
+                return Err(TransactionOffsetCommitControlError::local(
+                    TransactionOffsetCommitControlErrorKind::Contended,
+                    input,
+                ));
+            }
+            Err(TryLockError::Poisoned(_)) => {
+                return Err(TransactionOffsetCommitControlError::local(
+                    TransactionOffsetCommitControlErrorKind::Closed,
+                    input,
+                ));
+            }
+        };
+        host.try_offset_commit(owner_id, input)
+            .map_err(TransactionOffsetCommitControlError::admission)
     }
 
     pub(super) fn enqueue_owner_loss(&self, signal: TransactionOwnerLossSignal) {

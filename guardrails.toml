@@ -59,6 +59,7 @@ excluded_roots = ["crates/kafka-client-guardrails/tests/fixtures"]
 [budgets]
 baseline = [
   { path = "crates/kafka-client-core/src/producer/mod.rs", lines = 89, reason = "the declarative producer facade names bounded waiting admission, promotion, terminal policy, and their sibling evidence" },
+  { path = "crates/kafka-client-core/src/transaction/offset_commit/transition.rs", lines = 246, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/admin/describe_outcome.rs", lines = 243, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group.rs", lines = 326, reason = "the declarative classic-group facade names the complete sibling production and unit-test surface, including consumed close, sequential missing-offset reset, one-shot failure observation, and split delivery errors required by executable mirror policy" },
   { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 96, reason = "the declarative consumer facade directly registers every sibling assigned and hosted-group unit-test module plus the narrow registration engine leaf, including consumed close, required by source-shape policy" },
@@ -71,9 +72,15 @@ baseline = [
   { path = "crates/kafka-client-engine/src/producer/materialization.rs", lines = 242, reason = "ordinary and transactional Produce share one bounded materialization owner for exact record bytes, compression, identity, and sequence facts" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions.rs", lines = 268, reason = "AddPartitionsToTxn retains exact response correlation, coordinator-refresh eligibility, and retry-safety evidence in one terminal owner" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs", lines = 280, reason = "EndTxn retains exact response correlation, causal coordinator invalidation, deadline fencing, and retry-safety evidence in one terminal owner" },
-  { path = "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs", lines = 242, reason = "the transaction-initialization settlement seam preserves its public failure taxonomy and installs the lifecycle execution before publishing the unique owner" },
+  { path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets.rs", lines = 297, reason = "AddOffsetsToTxn retains one explicit call, causal coordinator refresh, terminal delivery, and abort-required ownership state machine" },
+  { path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit.rs", lines = 256, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs", lines = 244, reason = "the transaction-initialization settlement seam preserves its public failure taxonomy and installs the lifecycle execution before publishing the unique owner" },
+  { path = "crates/kafka-client-engine/src/transaction/initialization/shard.rs", lines = 247, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafka-client-engine/src/transaction/offset_commit/driver_evidence.rs", lines = 247, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-guardrails/tests/consumer_assigned_host_ownership_guard.rs", lines = 308, reason = "the exact post-driver recovery authority set remains one guard scenario across assigned and hosted Fetch owners" },
   { path = "crates/kafka-client-guardrails/tests/consumer_classic_group_fetch_preparation_guard.rs", lines = 309, reason = "the exact Fetch mutation and attempt-authority policy remains one guard scenario across preparation, turn, recovery, and delivery" },
+  { path = "crates/kafka-client/src/lib.rs", lines = 81, reason = "the focused historical owner exceeds its design target; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafka-client-engine/src/driver/mod.rs", lines = 82, reason = "the focused historical owner exceeds its design target; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/turn.rs", lines = 252, reason = "the focused historical owner exceeds its design target; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-core/src/consumer/mod.rs", lines = 83, reason = "the declarative core consumer facade names atomic batch control and its sibling evidence beside direct-assignment policy" },
   { path = "crates/kafka-client-guardrails/tests/consumer_group_registry_guard.rs", lines = 305, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
@@ -2392,11 +2399,18 @@ allow = [
   { path = "crates/kafka-client-engine/src/transaction/initialization/owner.rs", capability = "crate::producer", reason = "The public initialized owner exposes only the producer send capture needed by its transactional record boundary." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/owner_send.rs", capability = "crate::producer", reason = "The public transactional send boundary converts one exact producer record into the retained internal input." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/owner_send_test.rs", capability = "crate::producer", reason = "The focused public-boundary tests construct exact producer records and verify rejection recovery." },
+  { path = "crates/kafka-client-engine/src/transaction/initialization/offset_admission.rs", capability = "crate::consumer", reason = "Stable transactional-offset admission rejection retains the caller's exact group metadata and assignment-fenced checkpoint." },
+  { path = "crates/kafka-client-engine/src/transaction/initialization/owner_offsets.rs", capability = "crate::consumer", reason = "The initialized transaction owner transfers one exact group metadata and assignment-fenced checkpoint into offset admission." },
+  { path = "crates/kafka-client-engine/src/transaction/initialization/owner_offsets_test.rs", capability = "crate::consumer", reason = "Focused transactional-offset boundary tests construct exact group metadata and assignment-fenced checkpoints." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/send_admission.rs", capability = "crate::producer", reason = "Stable send admission errors retain the exact public producer record and translate its boundary validation." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/send_failure_mapping.rs", capability = "crate::driver", reason = "The public outcome seam exhaustively translates closed transactional Produce driver failures into stable send facts." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/shard.rs", capability = "crate::driver", reason = "The synchronized owner adapts only the domain-neutral reactor wake mechanism." },
   { path = "crates/kafka-client-engine/src/transaction/lifecycle/driver_port.rs", capability = "crate::driver", reason = "The lifecycle adapter retains one concrete EndTxn call and its route evidence through deterministic settlement." },
   { path = "crates/kafka-client-engine/src/transaction/lifecycle/enrollment.rs", capability = "crate::producer", reason = "The aggregate transfers one exact transactional materialization batch into bounded partition enrollment ownership." },
+  { path = "crates/kafka-client-engine/src/transaction/offset_commit/driver_evidence.rs", capability = "crate::driver", reason = "The offset-transfer evidence seam exhaustively translates tracked driver terminals before core settlement and explicit route discard." },
+  { path = "crates/kafka-client-engine/src/transaction/offset_commit/driver_port.rs", capability = "crate::driver", reason = "The concrete offset-transfer adapter retains one tracked AddOffsetsToTxn or TxnOffsetCommit call through terminal recovery." },
+  { path = "crates/kafka-client-engine/src/transaction/offset_commit/port.rs", capability = "crate::driver", reason = "The offset-transfer call poll receives only a turn-scoped DriverOwner reference so coordinator invalidation cannot escape unique host ownership." },
+  { path = "crates/kafka-client-engine/src/transaction/offset_commit/turn.rs", capability = "crate::driver", reason = "The unique offset-transfer turn hands one core-authorized stage to the concrete tracked-driver adapter." },
   { path = "crates/kafka-client-engine/src/transaction/partition_enrollment/driver_port.rs", capability = "crate::driver", reason = "The concrete enrollment adapter retains one tracked AddPartitionsToTxn call and its route evidence through exact-epoch settlement." },
   { path = "crates/kafka-client-engine/src/transaction/partition_enrollment/admission.rs", capability = "crate::producer", reason = "Exact local enrollment admission retains the future transactional Produce batch without rebuilding its target or identity." },
   { path = "crates/kafka-client-engine/src/transaction/partition_enrollment/host.rs", capability = "crate::producer", reason = "The bounded enrollment owner retains at most one exact transactional materialization batch and terminal slot." },
@@ -2957,6 +2971,7 @@ allowed_paths = [
   "crates/kafka-client-core/src/transaction/lifecycle/ending.rs",
   "crates/kafka-client-core/src/transaction/lifecycle/send_transition.rs",
   "crates/kafka-client-core/src/transaction/lifecycle/transition.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/offset_commit_settlement.rs",
 ]
 
 [[mutation_owners]]
@@ -16741,6 +16756,8 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/reassignment_controller_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs",
+  "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets_refresh.rs",
+  "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit_refresh.rs",
   "crates/kafka-client-engine/src/driver/rpc/transaction_produce/route_refresh.rs",
 ]
 
@@ -17108,6 +17125,14 @@ owner_type = "AlterPartitionReassignmentsHost"
 field = "health"
 allowed_paths = [
   "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/admission.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionOffsetCommitOwner"
+field = "reclaim_pending"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/offset_commit/completion.rs",
+  "crates/kafka-client-engine/src/transaction/offset_commit/owner.rs",
 ]
 
 [[mutation_owners]]
@@ -18521,4 +18546,353 @@ forbidden = [
   "Callback",
   "Retry",
   "async",
+]
+
+# Transactional checkpoint transfer captures once before translation, retains
+# both exact facade inputs on rejection, and exposes one linear observation.
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/transaction/offsets.rs"
+test = "crates/kafka-client/src/bridge/transaction/offsets_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/transaction/offsets.rs"
+test = "crates/kafka-client/src/transaction/offsets_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/transaction/offsets_error.rs"
+test = "crates/kafka-client/src/transaction/offsets_error_test.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetsEngine"
+path = "crates/kafka-client/src/bridge/transaction/offsets.rs"
+
+[[linear_owners]]
+owner_type = "SendTransactionOffsets"
+path = "crates/kafka-client/src/transaction/offsets.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetsAdmissionError"
+path = "crates/kafka-client/src/transaction/offsets_error.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetsCapture"
+path = "crates/kafka-client-engine/src/transaction/initialization/owner_offsets.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetsAccepted"
+path = "crates/kafka-client-engine/src/transaction/initialization/owner_offsets.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetsObserver"
+path = "crates/kafka-client-engine/src/transaction/initialization/offset_observer.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetsAdmissionError"
+path = "crates/kafka-client-engine/src/transaction/initialization/offset_admission.rs"
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/transaction"
+method = "capture_offsets"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/initialization/owner_offsets.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/transaction"
+method = "send_offsets_captured"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/initialization/owner_offsets.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/transaction"
+method = "capture_offset_commit"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/initialization/control.rs",
+  "crates/kafka-client-engine/src/transaction/initialization/owner.rs",
+  "crates/kafka-client-engine/src/transaction/initialization/owner_offsets.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/transaction"
+method = "send_offsets"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/initialization/control.rs",
+  "crates/kafka-client-engine/src/transaction/initialization/owner.rs",
+  "crates/kafka-client-engine/src/transaction/initialization/owner_offsets.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src/transaction"
+method = "try_offset_commit"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/execution/host.rs",
+  "crates/kafka-client-engine/src/transaction/initialization/host/control.rs",
+  "crates/kafka-client-engine/src/transaction/initialization/shard.rs",
+  "crates/kafka-client-engine/src/transaction/initialization/control.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client/src/transaction"
+method = "send_offsets"
+allowed_paths = [
+  "crates/kafka-client/src/transaction/transaction.rs",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client/src/bridge/transaction/offsets.rs"
+forbidden = [
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::net",
+  "std::thread",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "Callback",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client/src/bridge/transaction/offsets_result.rs"
+forbidden = [
+  "kafka_client_core",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client/src/transaction/offsets.rs"
+forbidden = [
+  "kafka_client_core",
+  "kafka_client_engine",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Retry",
+  "async",
+]
+
+[[capability_rules]]
+root = "crates/kafka-client/src/transaction/offsets_error.rs"
+forbidden = [
+  "kafka_client_core",
+  "kafka_client_engine",
+  "kafka_driver",
+  "kafka_wire",
+  "kafka_wire_core",
+  "kafka_wire_records",
+  "tokio",
+  "async_std",
+  "smol",
+  "std::future",
+  "std::net",
+  "std::thread",
+  "std::time",
+  "Callback",
+  "Retry",
+  "async",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_transaction_add_offsets"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets.rs",
+]
+
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_transaction_offset_commit"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit.rs",
+]
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/transaction/offset_commit/machine.rs"
+test = "crates/kafka-client-core/src/transaction/offset_commit/machine_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/transaction/offset_commit/model.rs"
+test = "crates/kafka-client-core/src/transaction/offset_commit/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/transaction/offset_commit/transition.rs"
+test = "crates/kafka-client-core/src/transaction/offset_commit/transition_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/transaction/add_offsets_to_txn.rs"
+test = "crates/kafka-client-engine/src/protocol/transaction/add_offsets_to_txn_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/transaction/txn_offset_commit_model.rs"
+test = "crates/kafka-client-engine/src/protocol/transaction/txn_offset_commit_model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/transaction/txn_offset_commit_request.rs"
+test = "crates/kafka-client-engine/src/protocol/transaction/txn_offset_commit_request_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/transaction/txn_offset_commit_response.rs"
+test = "crates/kafka-client-engine/src/protocol/transaction/txn_offset_commit_response_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/failure.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/failure_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit_refresh.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit_refresh_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit_target.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit_target_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/submission_test.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetCommitMachine"
+path = "crates/kafka-client-core/src/transaction/offset_commit/machine.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetCommitGroup"
+path = "crates/kafka-client-engine/src/transaction/offset_commit/input.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetCommitOffset"
+path = "crates/kafka-client-engine/src/transaction/offset_commit/input.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetCommitRequest"
+path = "crates/kafka-client-engine/src/transaction/offset_commit/input.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetCommitAccepted"
+path = "crates/kafka-client-engine/src/transaction/offset_commit/model.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetCommitAdmissionError"
+path = "crates/kafka-client-engine/src/transaction/offset_commit/model.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetCommitResult"
+path = "crates/kafka-client-engine/src/transaction/offset_commit/model.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetCommitOwner"
+path = "crates/kafka-client-engine/src/transaction/offset_commit/owner.rs"
+
+[[linear_owners]]
+owner_type = "PendingTransactionOffsetCommit"
+path = "crates/kafka-client-engine/src/transaction/offset_commit/turn.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetCommitSlot"
+path = "crates/kafka-client-engine/src/transaction/offset_commit/turn.rs"
+
+[[linear_owners]]
+owner_type = "TransactionAddOffsetsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets.rs"
+
+[[linear_owners]]
+owner_type = "TransactionAddOffsetsState"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets.rs"
+
+[[linear_owners]]
+owner_type = "TransactionAddOffsetsCallAdmissionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets.rs"
+
+[[linear_owners]]
+owner_type = "TransactionAddOffsetsTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets.rs"
+
+[[linear_owners]]
+owner_type = "RecoveredTransactionAddOffsetsCall"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets.rs"
+
+[[linear_owners]]
+owner_type = "TransactionCoordinatorRefresh"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets_refresh.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetCommitCall"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetCommitCallAdmissionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetCommitTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit.rs"
+
+[[linear_owners]]
+owner_type = "RecoveredTransactionOffsetCommitCall"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetCommitCallState"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit_refresh.rs"
+
+[[linear_owners]]
+owner_type = "GroupCoordinatorRefresh"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit_refresh.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOffsetCommitTarget"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit_target.rs"
+
+[[mutation_owners]]
+owner_type = "TransactionOffsetCommitOwner"
+field = "slot"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/offset_commit/completion.rs",
+  "crates/kafka-client-engine/src/transaction/offset_commit/owner.rs",
+  "crates/kafka-client-engine/src/transaction/offset_commit/recovery.rs",
+  "crates/kafka-client-engine/src/transaction/offset_commit/settlement.rs",
+  "crates/kafka-client-engine/src/transaction/offset_commit/turn.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionOffsetCommitOwner"
+field = "completions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/offset_commit/completion.rs",
+  "crates/kafka-client-engine/src/transaction/offset_commit/owner.rs",
 ]

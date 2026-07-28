@@ -152,6 +152,9 @@ fn host_with_policy(
         completion
             .send_publisher()
             .unwrap_or_else(|error| panic!("send publisher remains active: {error:?}")),
+        completion
+            .offset_commit_publisher()
+            .unwrap_or_else(|error| panic!("offset publisher remains active: {error:?}")),
     );
     let limits = super::TransactionExecutionLimits::try_new_with_retry_policy(
         8,

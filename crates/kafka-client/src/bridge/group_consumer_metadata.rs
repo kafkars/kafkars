@@ -32,4 +32,8 @@ impl GroupConsumerMetadata {
     pub(crate) fn group_instance_id(&self) -> Option<&str> {
         self.inner.group_instance_id()
     }
+
+    pub(crate) fn into_engine(self) -> EngineMetadata {
+        self.inner
+    }
 }

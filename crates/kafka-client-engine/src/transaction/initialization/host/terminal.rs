@@ -120,6 +120,7 @@ impl TransactionInitializationHost {
                 let owner_id = self.operations[index].owner_id;
                 let publisher = self.completion_owner.lifecycle_publisher()?;
                 let send_publisher = self.completion_owner.send_publisher()?;
+                let offset_commit_publisher = self.completion_owner.offset_commit_publisher()?;
                 let parts = TransactionalOwnerParts::new(
                     owner_id,
                     Arc::clone(&transactional_id),
@@ -129,6 +130,7 @@ impl TransactionInitializationHost {
                     self.release_sender.clone(),
                     publisher,
                     send_publisher,
+                    offset_commit_publisher,
                 );
                 let execution =
                     match TransactionExecutionHost::try_new(parts, self.execution_limits) {

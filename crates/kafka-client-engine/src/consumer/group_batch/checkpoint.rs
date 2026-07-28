@@ -49,6 +49,20 @@ impl GroupConsumerCheckpoint {
         self.position_fence
     }
 
+    pub(crate) fn transaction_offset(&self) -> (&Arc<str>, i32, i64, Option<i32>) {
+        let entry = self
+            .checkpoint
+            .entries()
+            .first()
+            .unwrap_or_else(|| unreachable!("public checkpoint retains one entry"));
+        (
+            &self.topic,
+            self.partition,
+            self.next_offset,
+            entry.leader_epoch(),
+        )
+    }
+
     pub(in crate::consumer) fn try_into_commit_parts(
         self,
     ) -> Result<(GroupConsumerCheckpointObservation, GroupCheckpoint), Self> {

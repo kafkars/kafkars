@@ -3,8 +3,8 @@
 use kafka_client_core::{
     OperationId, ProducerRetryPolicy, TransactionEndMode, TransactionEpoch,
     TransactionLifecycleMachine, TransactionLifecycleMachineError, TransactionLifecycleTerminal,
-    TransactionSequenceMachine, TransactionSequenceMachineError, TransactionSequenceState,
-    TransactionalProducerIdentity,
+    TransactionOffsetCommitMachineError, TransactionSequenceMachine,
+    TransactionSequenceMachineError, TransactionSequenceState, TransactionalProducerIdentity,
 };
 
 use std::sync::Arc;
@@ -43,6 +43,8 @@ pub(crate) enum TransactionLifecycleHostError {
     InvalidExecutionLimits,
     OperationIdentityExhausted,
     MissingEndOperation,
+    OffsetCommit(TransactionOffsetCommitMachineError),
+    OffsetCommitUnsettled,
     UnexpectedEffect,
 }
 

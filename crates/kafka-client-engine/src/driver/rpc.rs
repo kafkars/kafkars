@@ -203,5 +203,6 @@ mod transaction_init_submission_test;
 mod transaction_init_terminal;
 #[cfg(test)]
 mod transaction_init_terminal_test;
+pub(crate) mod transaction_offsets;
 pub(crate) mod transaction_produce;
 pub(crate) use exports::ProduceSubmitError;

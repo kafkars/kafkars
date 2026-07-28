@@ -71,6 +71,9 @@ impl Fixture {
             completion
                 .send_publisher()
                 .unwrap_or_else(|error| panic!("send publisher: {error:?}")),
+            completion
+                .offset_commit_publisher()
+                .unwrap_or_else(|error| panic!("offset publisher: {error:?}")),
         );
         let limits = TransactionExecutionLimits::try_new_with_producer_bounds(
             partition_capacity,

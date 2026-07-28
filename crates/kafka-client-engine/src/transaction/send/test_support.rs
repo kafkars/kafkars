@@ -59,6 +59,9 @@ impl FakeAggregate {
             completion
                 .send_publisher()
                 .unwrap_or_else(|error| panic!("send publisher: {error:?}")),
+            completion
+                .offset_commit_publisher()
+                .unwrap_or_else(|error| panic!("offset publisher: {error:?}")),
         );
         let mut host = TransactionLifecycleHost::try_new(
             parts,

@@ -44,6 +44,9 @@ impl TransactionLifecycleMachine {
                 send_id,
                 outcome,
             } => self.settle_send(epoch, send_id, outcome),
+            TransactionLifecycleInput::OffsetCommitSettled { epoch, consequence } => {
+                self.settle_offset_commit(epoch, consequence)
+            }
             TransactionLifecycleInput::Commit {
                 epoch,
                 operation_id,

@@ -1,7 +1,8 @@
 //! One installed transaction lifecycle composed with one fixed send slot.
 
 use kafka_client_core::{
-    TransactionEndMode, TransactionEpoch, TransactionLifecycleTerminal, TransactionalOwnerId,
+    TransactionEndMode, TransactionEpoch, TransactionLifecycleTerminal,
+    TransactionOffsetCommitEndBarrier, TransactionalOwnerId,
 };
 
 use crate::{
@@ -10,6 +11,11 @@ use crate::{
     transaction::{
         TransactionExecutionLimits, TransactionLifecycleHost, TransactionLifecycleHostError,
         initialization::TransactionalOwnerParts,
+        offset_commit::{
+            TransactionOffsetCommitAccepted, TransactionOffsetCommitAdmissionError,
+            TransactionOffsetCommitAdmissionErrorKind, TransactionOffsetCommitOwner,
+            TransactionOffsetCommitRequest,
+        },
         send::{
             TransactionSendAccepted, TransactionSendInput, TransactionSendOwner,
             TransactionSendRequest,
@@ -26,9 +32,11 @@ use super::{
 pub(crate) struct TransactionExecutionHost {
     pub(super) lifecycle: TransactionLifecycleHost,
     pub(super) send: TransactionSendOwner,
+    pub(super) offset_commit: TransactionOffsetCommitOwner,
     pub(super) topics: TransactionTopicCatalog,
     retained_record_byte_limit: usize,
     max_wire_batch_bytes: usize,
+    pub(super) owner_loss_pending: Option<OperationDeadline>,
 }
 
 impl TransactionExecutionHost {
@@ -42,6 +50,7 @@ impl TransactionExecutionHost {
         );
         TransactionLifecycleHost::try_new(parts, limits).map(|mut lifecycle| {
             let send_publisher = lifecycle.take_send_publisher();
+            let offset_commit_publisher = lifecycle.take_offset_commit_publisher();
             Self {
                 lifecycle,
                 send: TransactionSendOwner::new(
@@ -49,9 +58,16 @@ impl TransactionExecutionHost {
                     limits.partition_capacity(),
                     send_publisher,
                 ),
+                offset_commit: TransactionOffsetCommitOwner::new(
+                    limits.transaction_offset_count(),
+                    limits.transaction_offset_bytes(),
+                    limits.send_retry_policy(),
+                    offset_commit_publisher,
+                ),
                 topics,
                 retained_record_byte_limit: limits.retained_record_bytes(),
                 max_wire_batch_bytes: limits.max_wire_batch_bytes(),
+                owner_loss_pending: None,
             }
         })
     }
@@ -71,6 +87,12 @@ impl TransactionExecutionHost {
         deadline: OperationDeadline,
     ) -> Result<CompletionObserver<TransactionLifecycleTerminal>, TransactionLifecycleHostError>
     {
+        if !matches!(
+            self.offset_commit.preflight_end(epoch)?,
+            TransactionOffsetCommitEndBarrier::Ready
+        ) {
+            return Err(TransactionLifecycleHostError::OffsetCommitUnsettled);
+        }
         match mode {
             TransactionEndMode::Commit => self.lifecycle.commit(epoch, deadline),
             TransactionEndMode::Abort => self.lifecycle.abort(epoch, deadline),
@@ -81,6 +103,10 @@ impl TransactionExecutionHost {
         &mut self,
         deadline: OperationDeadline,
     ) -> Result<(), TransactionLifecycleHostError> {
+        if self.offset_commit.has_unsettled_barrier() {
+            self.owner_loss_pending.get_or_insert(deadline);
+            return Ok(());
+        }
         self.lifecycle.owner_lost(deadline)
     }
 
@@ -150,19 +176,52 @@ impl TransactionExecutionHost {
         }
     }
 
+    #[expect(
+        clippy::result_large_err,
+        reason = "offset rejection returns the exact assignment-fenced request"
+    )]
+    pub(crate) fn try_offset_commit(
+        &mut self,
+        request: TransactionOffsetCommitRequest,
+    ) -> Result<TransactionOffsetCommitAccepted, TransactionOffsetCommitAdmissionError> {
+        if !self.owns(request.owner_id()) {
+            return Err(TransactionOffsetCommitAdmissionError::new(
+                TransactionOffsetCommitAdmissionErrorKind::StaleOwner,
+                request,
+            ));
+        }
+        let identity = self
+            .lifecycle
+            .offset_commit_identity(request.owner_id(), request.epoch());
+        let Ok((transactional_id, producer)) = identity else {
+            return Err(TransactionOffsetCommitAdmissionError::new(
+                TransactionOffsetCommitAdmissionErrorKind::InvalidLifecycle,
+                request,
+            ));
+        };
+        self.offset_commit
+            .try_admit(request, transactional_id, producer)
+    }
+
     pub(crate) fn next_deadline(&self) -> Option<kafka_client_core::Deadline> {
-        [self.send.next_deadline(), self.lifecycle.next_deadline()]
-            .into_iter()
-            .flatten()
-            .min()
+        [
+            self.send.next_deadline(),
+            self.offset_commit.next_deadline(),
+            self.lifecycle.next_deadline(),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
     }
 
     pub(crate) fn unsettled(&self) -> usize {
-        self.send.unsettled() + self.lifecycle.unsettled()
+        self.send.unsettled() + self.offset_commit.unsettled() + self.lifecycle.unsettled()
     }
 
     pub(crate) fn is_closed(&self) -> bool {
-        self.lifecycle.is_closed() && self.send.is_releasable_after_owner_close()
+        self.lifecycle.is_closed()
+            && self.send.is_releasable_after_owner_close()
+            && self.offset_commit.is_releasable_after_owner_close()
     }
 
     #[cfg(test)]

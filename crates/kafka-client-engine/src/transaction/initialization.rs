@@ -9,9 +9,13 @@ mod error;
 mod host;
 mod model;
 mod observer;
+mod offset_admission;
+mod offset_observer;
+mod offset_outcome;
 mod outcome;
 mod owner;
 mod owner_control;
+mod owner_offsets;
 mod owner_parts;
 mod owner_send;
 mod port;
@@ -25,8 +29,9 @@ mod shard;
 pub use capture::TransactionInitializationCapture;
 pub(crate) use control::{
     TransactionLifecycleControlAccepted, TransactionLifecycleControlError,
-    TransactionLifecycleControlPort, TransactionOwnerLossSignal, TransactionSendControlError,
-    TransactionSendControlErrorKind,
+    TransactionLifecycleControlPort, TransactionOffsetCommitControlError,
+    TransactionOffsetCommitControlErrorKind, TransactionOwnerLossSignal,
+    TransactionSendControlError, TransactionSendControlErrorKind,
 };
 pub use control_error::{
     TransactionControlError, TransactionControlErrorKind, TransactionEndAdmissionError,
@@ -42,6 +47,14 @@ pub use error::{
 pub(crate) use host::{TransactionInitializationHost, TransactionInitializationTurn};
 pub use model::TransactionInitializationRequest;
 pub use observer::TransactionInitializationObserver;
+pub use offset_admission::{
+    TransactionOffsetsAdmissionError, TransactionOffsetsAdmissionErrorKind,
+};
+pub use offset_observer::{TransactionOffsetsObserver, TransactionOffsetsObserverError};
+pub use offset_outcome::{
+    TransactionOffsetsConsequence, TransactionOffsetsDeliveryStatus, TransactionOffsetsFailure,
+    TransactionOffsetsFailureKind, TransactionOffsetsOutcome, TransactionOffsetsStage,
+};
 pub use outcome::{
     TransactionInitializationAccepted, TransactionInitializationAcceptedFaultKind,
     TransactionInitializationDeliveryStatus, TransactionInitializationFailure,
@@ -50,6 +63,7 @@ pub use outcome::{
 };
 pub use owner::TransactionalOwnerHandle;
 pub use owner_control::{TransactionBeginAccepted, TransactionEndAccepted, TransactionToken};
+pub use owner_offsets::{TransactionOffsetsAccepted, TransactionOffsetsCapture};
 pub(in crate::transaction) use owner_parts::TransactionalOwnerParts;
 pub use owner_send::TransactionSendAccepted;
 pub(crate) use port::TransactionInitializationAdmissionPort;

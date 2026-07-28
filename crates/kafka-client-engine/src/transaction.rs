@@ -4,6 +4,7 @@ mod completion;
 mod execution;
 mod initialization;
 mod lifecycle;
+mod offset_commit;
 pub(crate) mod partition_enrollment;
 pub(crate) mod send;
 
@@ -20,11 +21,16 @@ pub use initialization::{
     TransactionInitializationCaptureError, TransactionInitializationDeliveryStatus,
     TransactionInitializationFailure, TransactionInitializationFailureKind,
     TransactionInitializationObserver, TransactionInitializationObserverError,
-    TransactionInitializationOutcome, TransactionInitializationRequest, TransactionSendAccepted,
-    TransactionSendAdmissionError, TransactionSendAdmissionErrorKind, TransactionSendConsequence,
-    TransactionSendDeliveryStatus, TransactionSendFailure, TransactionSendFailureKind,
-    TransactionSendMetadata, TransactionSendObserver, TransactionSendObserverError,
-    TransactionSendOutcome, TransactionToken, TransactionalOwnerHandle,
+    TransactionInitializationOutcome, TransactionInitializationRequest, TransactionOffsetsAccepted,
+    TransactionOffsetsAdmissionError, TransactionOffsetsAdmissionErrorKind,
+    TransactionOffsetsCapture, TransactionOffsetsConsequence, TransactionOffsetsDeliveryStatus,
+    TransactionOffsetsFailure, TransactionOffsetsFailureKind, TransactionOffsetsObserver,
+    TransactionOffsetsObserverError, TransactionOffsetsOutcome, TransactionOffsetsStage,
+    TransactionSendAccepted, TransactionSendAdmissionError, TransactionSendAdmissionErrorKind,
+    TransactionSendConsequence, TransactionSendDeliveryStatus, TransactionSendFailure,
+    TransactionSendFailureKind, TransactionSendMetadata, TransactionSendObserver,
+    TransactionSendObserverError, TransactionSendOutcome, TransactionToken,
+    TransactionalOwnerHandle,
 };
 pub(crate) use initialization::{
     TransactionInitializationAdmissionPort, TransactionInitializationHost,

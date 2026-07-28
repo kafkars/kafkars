@@ -44,7 +44,7 @@ pub struct GroupMetadata {
     generation_id: i32,
     assignment_epoch: u64,
     group_instance_id: Option<String>,
-    _transaction_metadata: Option<BridgeMetadata>,
+    transaction_metadata: Option<BridgeMetadata>,
 }
 
 impl GroupMetadata {
@@ -62,7 +62,7 @@ impl GroupMetadata {
             generation_id,
             assignment_epoch,
             group_instance_id,
-            _transaction_metadata: None,
+            transaction_metadata: None,
         }
     }
 
@@ -73,8 +73,12 @@ impl GroupMetadata {
             generation_id: inner.generation_id(),
             assignment_epoch: inner.assignment_epoch(),
             group_instance_id: inner.group_instance_id().map(str::to_owned),
-            _transaction_metadata: Some(inner),
+            transaction_metadata: Some(inner),
         }
+    }
+
+    pub(crate) fn bridge_clone(&self) -> Option<BridgeMetadata> {
+        self.transaction_metadata.clone()
     }
 
     /// Returns the exact Kafka group spelling.

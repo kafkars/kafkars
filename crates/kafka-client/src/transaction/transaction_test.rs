@@ -2,11 +2,12 @@
 
 use std::time::Duration;
 
-use crate::Record;
+use crate::{Checkpoint, GroupMetadata, Record};
 
 use super::{
-    AbortTransaction, CommitTransaction, SendTransactionRecord, Transaction,
-    TransactionEndAdmissionError, TransactionSendAdmissionError,
+    AbortTransaction, CommitTransaction, SendTransactionOffsets, SendTransactionRecord,
+    Transaction, TransactionEndAdmissionError, TransactionOffsetsAdmissionError,
+    TransactionSendAdmissionError,
 };
 
 macro_rules! assert_not_impl {
@@ -55,9 +56,22 @@ fn active_transaction_is_linear_and_end_rejection_retains_it() {
         >,
     ) {
     }
+    fn require_offsets<'send, 'producer>(
+        _method: fn(
+            &'send mut Transaction<'producer>,
+            GroupMetadata,
+            Checkpoint,
+            Duration,
+        ) -> Result<
+            SendTransactionOffsets<'send, 'producer>,
+            TransactionOffsetsAdmissionError,
+        >,
+    ) {
+    }
 
     require_wake_status(Transaction::begin_wake_failed);
     require_send(Transaction::send);
+    require_offsets(Transaction::send_offsets);
     require_commit(Transaction::commit);
     require_abort(Transaction::abort);
     assert_not_impl!(Transaction<'static>: Clone);

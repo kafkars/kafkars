@@ -2,6 +2,8 @@
 
 mod handle;
 mod lifecycle;
+mod offsets;
+mod offsets_result;
 mod operation;
 mod owner;
 mod result;
@@ -10,6 +12,7 @@ mod send_result;
 
 pub(crate) use handle::TransactionalProducerInitializer;
 pub(crate) use lifecycle::{TransactionEndEngine, TransactionEngine};
+pub(crate) use offsets::TransactionOffsetsEngine;
 pub(crate) use operation::TransactionInitialization;
 pub(crate) use owner::TransactionalProducerEngine;
 pub(crate) use send::TransactionSendEngine;
@@ -18,6 +21,8 @@ pub(crate) use send::TransactionSendEngine;
 mod handle_test;
 #[cfg(test)]
 mod lifecycle_test;
+#[cfg(test)]
+mod offsets_test;
 #[cfg(test)]
 mod operation_test;
 #[cfg(test)]

@@ -11,6 +11,10 @@ use crate::{
     completion::CompletionObserver,
     transaction::{
         TransactionExecutionSendAdmissionError,
+        offset_commit::{
+            TransactionOffsetCommitAccepted, TransactionOffsetCommitAdmissionError,
+            TransactionOffsetCommitAdmissionErrorKind, TransactionOffsetCommitRequest,
+        },
         send::{TransactionSendAccepted, TransactionSendInput},
     },
 };
@@ -69,6 +73,28 @@ impl TransactionInitializationHost {
             ));
         };
         execution.try_send(owner_id, input)
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "host rejection returns the exact assignment-fenced offset request"
+    )]
+    pub(in crate::transaction) fn try_offset_commit(
+        &mut self,
+        owner_id: TransactionalOwnerId,
+        input: TransactionOffsetCommitRequest,
+    ) -> Result<TransactionOffsetCommitAccepted, TransactionOffsetCommitAdmissionError> {
+        let Some(execution) = self
+            .executions
+            .iter_mut()
+            .find(|execution| execution.owns(owner_id))
+        else {
+            return Err(TransactionOffsetCommitAdmissionError::new(
+                TransactionOffsetCommitAdmissionErrorKind::StaleOwner,
+                input,
+            ));
+        };
+        execution.try_offset_commit(input)
     }
 
     pub(super) fn owner_loss_one(

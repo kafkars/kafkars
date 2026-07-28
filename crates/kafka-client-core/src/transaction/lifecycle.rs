@@ -5,6 +5,7 @@ mod ending;
 mod input;
 mod machine;
 mod model;
+mod offset_commit_settlement;
 mod send_transition;
 mod state;
 mod transition;
@@ -25,6 +26,8 @@ mod ending_test;
 mod machine_test;
 #[cfg(test)]
 mod model_test;
+#[cfg(test)]
+mod offset_commit_transition_test;
 #[cfg(test)]
 mod send_retry_safety_test;
 #[cfg(test)]

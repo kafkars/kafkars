@@ -8,7 +8,9 @@ use std::sync::{
 
 use kafka_client_core::TransactionalOwnerId;
 
-use crate::transaction::completion::{TransactionLifecyclePublisher, TransactionSendPublisher};
+use crate::transaction::completion::{
+    TransactionLifecyclePublisher, TransactionOffsetCommitPublisher, TransactionSendPublisher,
+};
 
 pub(in crate::transaction) struct TransactionalOwnerParts {
     owner_id: TransactionalOwnerId,
@@ -19,6 +21,7 @@ pub(in crate::transaction) struct TransactionalOwnerParts {
     release: SyncSender<TransactionalOwnerId>,
     lifecycle_publisher: Option<TransactionLifecyclePublisher>,
     send_publisher: Option<TransactionSendPublisher>,
+    offset_commit_publisher: Option<TransactionOffsetCommitPublisher>,
     release_armed: bool,
 }
 
@@ -36,6 +39,7 @@ impl TransactionalOwnerParts {
         release: SyncSender<TransactionalOwnerId>,
         lifecycle_publisher: TransactionLifecyclePublisher,
         send_publisher: TransactionSendPublisher,
+        offset_commit_publisher: TransactionOffsetCommitPublisher,
     ) -> Self {
         Self {
             owner_id,
@@ -46,6 +50,7 @@ impl TransactionalOwnerParts {
             release,
             lifecycle_publisher: Some(lifecycle_publisher),
             send_publisher: Some(send_publisher),
+            offset_commit_publisher: Some(offset_commit_publisher),
             release_armed: true,
         }
     }
@@ -86,6 +91,14 @@ impl TransactionalOwnerParts {
             .unwrap_or_else(|| unreachable!("execution owner retains its send completion port"))
     }
 
+    pub(in crate::transaction) fn take_offset_commit_publisher(
+        &mut self,
+    ) -> TransactionOffsetCommitPublisher {
+        self.offset_commit_publisher
+            .take()
+            .unwrap_or_else(|| unreachable!("execution owner retains its offset completion port"))
+    }
+
     pub(in crate::transaction) fn release(mut self) {
         self.release_inner();
     }
@@ -96,6 +109,7 @@ impl TransactionalOwnerParts {
         drop(self.transactional_id.take());
         drop(self.lifecycle_publisher.take());
         drop(self.send_publisher.take());
+        drop(self.offset_commit_publisher.take());
     }
 
     fn release_inner(&mut self) {

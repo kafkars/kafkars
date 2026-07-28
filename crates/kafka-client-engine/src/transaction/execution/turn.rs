@@ -5,7 +5,9 @@ use kafka_client_core::Moment;
 use crate::{
     driver::DriverOwner,
     transaction::{
-        TransactionLifecycleHostError, TransactionLifecycleTurn, send::TransactionSendTurn,
+        TransactionLifecycleHostError, TransactionLifecycleTurn,
+        offset_commit::{TransactionOffsetCommitHostError, TransactionOffsetCommitTurn},
+        send::TransactionSendTurn,
     },
 };
 
@@ -20,6 +22,21 @@ impl TransactionExecutionHost {
         if self.send.turn(&mut self.lifecycle, now, driver)? == TransactionSendTurn::Progress {
             return Ok(TransactionLifecycleTurn::Progress);
         }
+        if self
+            .offset_commit
+            .turn(&mut self.lifecycle, now, driver)
+            .map_err(offset_error)?
+            == TransactionOffsetCommitTurn::Progress
+        {
+            return Ok(TransactionLifecycleTurn::Progress);
+        }
+        if self.offset_commit.has_unsettled_barrier() {
+            return Ok(TransactionLifecycleTurn::Idle);
+        }
+        if let Some(deadline) = self.owner_loss_pending.take() {
+            self.lifecycle.owner_lost(deadline)?;
+            return Ok(TransactionLifecycleTurn::Progress);
+        }
         self.lifecycle.turn(now, driver)
     }
 
@@ -28,7 +45,16 @@ impl TransactionExecutionHost {
     ) -> Result<(), TransactionLifecycleHostError> {
         self.send
             .recover_after_driver_shutdown(&mut self.lifecycle)?;
+        self.offset_commit
+            .recover_after_driver_shutdown(&mut self.lifecycle)
+            .map_err(offset_error)?;
         self.send.publish_terminal_after_driver_shutdown()?;
+        self.offset_commit
+            .publish_terminal_after_driver_shutdown()
+            .map_err(offset_error)?;
+        if let Some(deadline) = self.owner_loss_pending.take() {
+            self.lifecycle.owner_lost(deadline)?;
+        }
         self.lifecycle.recover_end_after_driver_shutdown()
     }
 
@@ -48,4 +74,8 @@ impl TransactionExecutionHost {
         }
         self.lifecycle.turn(now, driver)
     }
+}
+
+const fn offset_error(_error: TransactionOffsetCommitHostError) -> TransactionLifecycleHostError {
+    TransactionLifecycleHostError::UnexpectedEffect
 }

@@ -19,8 +19,10 @@ use crate::{
     producer::{ProducerSendCapture, ProducerSendCaptureError},
     transaction::initialization::{
         TransactionLifecycleControlAccepted, TransactionLifecycleControlError,
-        TransactionLifecycleControlPort, TransactionSendControlError,
+        TransactionLifecycleControlPort, TransactionOffsetCommitControlError,
+        TransactionSendControlError,
     },
+    transaction::offset_commit::{TransactionOffsetCommitAccepted, TransactionOffsetCommitRequest},
     transaction::send::{TransactionSendAccepted, TransactionSendInput},
 };
 
@@ -109,6 +111,17 @@ impl TransactionalOwnerHandle {
         self.control.capture_send(timeout)
     }
 
+    pub(in crate::transaction) const fn owner_id(&self) -> TransactionalOwnerId {
+        self.owner_id
+    }
+
+    pub(crate) fn capture_offset_commit(
+        &self,
+        timeout: Duration,
+    ) -> Option<crate::clock::OperationDeadline> {
+        self.control.capture_offset_commit(timeout)
+    }
+
     #[expect(
         clippy::result_large_err,
         reason = "public owner rejection returns the exact caller-owned record"
@@ -121,6 +134,20 @@ impl TransactionalOwnerHandle {
         TransactionSendControlError,
     > {
         self.control.send(self.owner_id, input)
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "public owner rejection returns the exact assignment-fenced offset request"
+    )]
+    pub(crate) fn send_offsets(
+        &self,
+        input: TransactionOffsetCommitRequest,
+    ) -> Result<
+        TransactionLifecycleControlAccepted<TransactionOffsetCommitAccepted>,
+        TransactionOffsetCommitControlError,
+    > {
+        self.control.send_offsets(self.owner_id, input)
     }
 
     pub(crate) fn commit(

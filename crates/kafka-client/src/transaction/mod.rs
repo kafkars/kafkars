@@ -5,6 +5,8 @@ mod end;
 mod end_error;
 mod identity;
 mod initialization;
+mod offsets;
+mod offsets_error;
 mod producer;
 mod send;
 mod send_error;
@@ -19,6 +21,8 @@ pub use end::{AbortTransaction, CommitTransaction};
 pub use end_error::TransactionEndAdmissionError;
 pub use identity::TransactionalProducerIdentity;
 pub use initialization::InitializeTransactionalProducer;
+pub use offsets::SendTransactionOffsets;
+pub use offsets_error::TransactionOffsetsAdmissionError;
 pub use producer::TransactionalProducer;
 pub use send::SendTransactionRecord;
 pub use send_error::TransactionSendAdmissionError;
@@ -34,6 +38,10 @@ mod end_test;
 mod identity_test;
 #[cfg(test)]
 mod initialization_test;
+#[cfg(test)]
+mod offsets_error_test;
+#[cfg(test)]
+mod offsets_test;
 #[cfg(test)]
 mod producer_test;
 #[cfg(test)]

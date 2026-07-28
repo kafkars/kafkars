@@ -12,6 +12,8 @@ pub(crate) struct TransactionExecutionLimits {
     retained_topic_bytes: usize,
     retained_record_bytes: usize,
     max_wire_batch_bytes: usize,
+    transaction_offset_count: usize,
+    transaction_offset_bytes: usize,
     compression: CompressionPolicy,
     send_retry_policy: ProducerRetryPolicy,
 }
@@ -62,10 +64,39 @@ impl TransactionExecutionLimits {
         compression: CompressionPolicy,
         send_retry_policy: ProducerRetryPolicy,
     ) -> Option<Self> {
+        Self::try_new_with_offset_bounds(
+            partition_capacity,
+            retained_topic_bytes,
+            retained_record_bytes,
+            max_wire_batch_bytes,
+            partition_capacity,
+            retained_topic_bytes,
+            compression,
+            send_retry_policy,
+        )
+    }
+
+    /// Validates producer and transactional offset-transfer envelopes.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the closed limits constructor keeps each independent capacity explicit"
+    )]
+    pub(crate) const fn try_new_with_offset_bounds(
+        partition_capacity: usize,
+        retained_topic_bytes: usize,
+        retained_record_bytes: usize,
+        max_wire_batch_bytes: usize,
+        transaction_offset_count: usize,
+        transaction_offset_bytes: usize,
+        compression: CompressionPolicy,
+        send_retry_policy: ProducerRetryPolicy,
+    ) -> Option<Self> {
         if partition_capacity == 0
             || retained_topic_bytes == 0
             || retained_record_bytes == 0
             || max_wire_batch_bytes == 0
+            || transaction_offset_count == 0
+            || transaction_offset_bytes == 0
         {
             None
         } else {
@@ -74,6 +105,8 @@ impl TransactionExecutionLimits {
                 retained_topic_bytes,
                 retained_record_bytes,
                 max_wire_batch_bytes,
+                transaction_offset_count,
+                transaction_offset_bytes,
                 compression,
                 send_retry_policy,
             })
@@ -102,6 +135,14 @@ impl TransactionExecutionLimits {
 
     pub(in crate::transaction) const fn max_wire_batch_bytes(self) -> usize {
         self.max_wire_batch_bytes
+    }
+
+    pub(in crate::transaction) const fn transaction_offset_count(self) -> usize {
+        self.transaction_offset_count
+    }
+
+    pub(in crate::transaction) const fn transaction_offset_bytes(self) -> usize {
+        self.transaction_offset_bytes
     }
 
     pub(super) const fn enrollment(
