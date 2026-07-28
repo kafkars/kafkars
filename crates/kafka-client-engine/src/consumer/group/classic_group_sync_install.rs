@@ -15,7 +15,7 @@ use super::{
     classic_group_execution::ClassicGroupExecutionError,
     classic_group_position::{
         ClassicGroupPositionExecutionState, ClassicGroupPositionPreparation,
-        prepare_classic_group_position,
+        prepare_classic_group_position_with_policy,
     },
     classic_group_sync_interpret::{
         SyncInterpretationFailure, failure, freeze_post_core, stage_confirmation,
@@ -69,12 +69,13 @@ pub(super) fn install_sync_assignment(
         Ok(prepared) => prepared,
         Err(_error) => return freeze_post_core(entry, terminal, SyncTerminal),
     };
-    let position_install = match prepare_classic_group_position(
+    let position_install = match prepare_classic_group_position_with_policy(
         &entry.catalog,
         cycle,
         &assignment,
         terminal.key().deadline(),
         now,
+        entry.missing_offset_policy,
     ) {
         Ok(prepared) => prepared,
         Err(error) => {

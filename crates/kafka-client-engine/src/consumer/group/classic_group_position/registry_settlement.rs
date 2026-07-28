@@ -22,7 +22,7 @@ pub(in crate::consumer::group) enum ClassicGroupPositionSettlementTurn {
 }
 
 impl GroupConsumerRegistry {
-    pub(super) fn settle_one_classic_group_position(
+    pub(in crate::consumer::group) fn settle_one_classic_group_position(
         &mut self,
         now: Moment,
     ) -> Result<ClassicGroupPositionSettlementTurn, ClassicGroupExecutionError> {

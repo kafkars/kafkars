@@ -25,6 +25,7 @@ mod classic_group_leave_adapter;
 mod classic_group_leave_failure;
 #[cfg(test)]
 mod classic_group_leave_failure_test;
+mod classic_group_position_reset_adapter;
 mod create_partitions_calls;
 #[cfg(test)]
 mod create_partitions_calls_test;

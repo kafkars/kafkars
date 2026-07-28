@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use kafka_client_core::{
     ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicProcessingLease,
-    ClassicProcessingLeasePolicy, ClassicRejoinPolicy, GroupId, ReadIsolation,
+    ClassicProcessingLeasePolicy, ClassicRejoinPolicy, GroupId, GroupPositionMissingOffsetPolicy,
+    ReadIsolation,
 };
 
 use super::{
@@ -20,6 +21,7 @@ use super::{
     classic_group_rejoin::ClassicGroupRejoinExecution,
     session_catalog::{GroupSessionCatalog, GroupSessionCatalogError},
 };
+use crate::consumer::GroupConsumerPositionFailureKind;
 
 /// Whether one retained group can still admit new operations.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -44,8 +46,10 @@ pub(super) struct GroupConsumerEntry {
     pub(super) fetch: ClassicGroupFetchOwner,
     pub(super) heartbeat: ClassicHeartbeatExecution,
     pub(super) leave: ClassicGroupLeaveOwner,
+    pub(super) missing_offset_policy: GroupPositionMissingOffsetPolicy,
     pub(super) read_isolation: ReadIsolation,
     pub(super) position: ClassicGroupPositionExecution,
+    pub(super) position_failure_observation: Option<GroupConsumerPositionFailureKind>,
     pub(super) processing_lease: ClassicProcessingLease,
     pub(super) rejoin: ClassicGroupRejoinExecution,
     pub(super) rediscovery: ClassicCoordinatorRediscovery,
@@ -54,6 +58,19 @@ pub(super) struct GroupConsumerEntry {
 }
 
 impl GroupConsumerEntry {
+    pub(super) fn retain_position_failure_observation(
+        &mut self,
+        failure: GroupConsumerPositionFailureKind,
+    ) {
+        self.position_failure_observation = Some(failure);
+    }
+
+    pub(super) fn take_position_failure_observation(
+        &mut self,
+    ) -> Option<GroupConsumerPositionFailureKind> {
+        self.position_failure_observation.take()
+    }
+
     pub(super) fn try_new(
         group_id: GroupId,
         group: &Arc<str>,
@@ -90,6 +107,7 @@ impl GroupConsumerEntry {
             timing,
             heartbeat_policy,
             rejoin_policy,
+            GroupPositionMissingOffsetPolicy::Error,
             ReadIsolation::ReadUncommitted,
             processing_policy,
         )
@@ -107,6 +125,7 @@ impl GroupConsumerEntry {
         timing: ClassicGroupTiming,
         heartbeat_policy: ClassicHeartbeatPolicy,
         rejoin_policy: ClassicRejoinPolicy,
+        missing_offset_policy: GroupPositionMissingOffsetPolicy,
         read_isolation: ReadIsolation,
         processing_policy: ClassicProcessingLeasePolicy,
     ) -> Result<Self, GroupConsumerEntryBuildError> {
@@ -125,8 +144,10 @@ impl GroupConsumerEntry {
                 .map_err(GroupConsumerEntryBuildError::Fetch)?,
             heartbeat: ClassicHeartbeatExecution::new(),
             leave: ClassicGroupLeaveOwner::new(),
+            missing_offset_policy,
             read_isolation,
             position: ClassicGroupPositionExecution::new(),
+            position_failure_observation: None,
             processing_lease: ClassicProcessingLease::new(processing_policy),
             rejoin: ClassicGroupRejoinExecution::new(),
             rediscovery: ClassicCoordinatorRediscovery::new(),

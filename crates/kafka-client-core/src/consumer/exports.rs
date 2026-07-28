@@ -48,7 +48,11 @@ pub use super::group_position::{
     GroupPositionBootstrapMachineError, GroupPositionBootstrapMissingOffsets,
     GroupPositionBootstrapPartitionRejection, GroupPositionBootstrapState,
     GroupPositionBootstrapTerminal, GroupPositionBootstrapTransition, GroupPositionBrokerError,
-    GroupPositionFence, GroupPositionPartitionFact, GroupPositionPartitionResult,
+    GroupPositionFence, GroupPositionMissingOffsetPolicy, GroupPositionMissingOffsetReset,
+    GroupPositionPartitionFact, GroupPositionPartitionResult, GroupPositionResetApplyError,
+    GroupPositionResetEffect, GroupPositionResetFailure, GroupPositionResetInput,
+    GroupPositionResetMachine, GroupPositionResetMachineError, GroupPositionResetState,
+    GroupPositionResetTerminal, GroupPositionResetTransition,
 };
 pub use super::identity::{AssignedConsumerCloseId, AssignmentEpoch, FetchRevision, PositionEpoch};
 pub use super::input::AssignedConsumerInput;

@@ -41,6 +41,9 @@ mod classic_group_partition_count_settlement;
 mod classic_group_partition_count_submission;
 mod classic_group_partition_counts;
 mod classic_group_position;
+mod classic_group_position_reset;
+#[cfg(test)]
+mod classic_group_position_reset_test;
 mod classic_group_recovery;
 mod classic_group_rediscovery;
 mod classic_group_rediscovery_execution;
@@ -66,6 +69,7 @@ mod registry_commit;
 mod registry_commit_port;
 mod registry_cycle;
 mod registry_delivery;
+mod registry_delivery_error;
 mod registry_entry;
 mod registry_event;
 mod registry_fetch;
@@ -75,8 +79,12 @@ mod registry_host;
 mod registry_host_error;
 mod registry_membership;
 mod registry_membership_observation;
+#[cfg(test)]
+mod registry_missing_offset_test;
 mod registry_port;
 mod registry_port_registration;
+#[cfg(test)]
+mod registry_position_failure_observation_test;
 mod registry_processing;
 mod registry_recv_notification;
 mod registry_recv_port;
@@ -279,9 +287,8 @@ pub(in crate::consumer) use registry_close_port::{
     GroupConsumerCloseObservation, GroupConsumerCloseObservationError, GroupConsumerClosePortError,
 };
 pub(in crate::consumer) use registry_commit_port::GroupConsumerCommitPortErrorCategory;
-pub(in crate::consumer) use registry_delivery::{
-    GroupConsumerDeliveryError, GroupConsumerDeliveryPortError,
-};
+pub(in crate::consumer) use registry_delivery::GroupConsumerDeliveryPortError;
+pub(in crate::consumer) use registry_delivery_error::GroupConsumerDeliveryError;
 pub(in crate::consumer) use registry_event::GroupConsumerEventPortError;
 pub(in crate::consumer) use registry_graceful_revocation::GroupConsumerRevocationPortError;
 pub(crate) use registry_host_error::GroupConsumerHostError;

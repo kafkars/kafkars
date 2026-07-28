@@ -31,6 +31,7 @@ impl GroupConsumerRegistry {
         }
         if self.position_shutdown_recovery.is_none() {
             let Some(mut calls) = self.position_calls.take() else {
+                self.recover_classic_group_position_resets_after_driver_shutdown();
                 return Ok(());
             };
             self.position_shutdown_recovery =
@@ -44,7 +45,14 @@ impl GroupConsumerRegistry {
             }
         }
         self.position_shutdown_recovery = None;
+        self.recover_classic_group_position_resets_after_driver_shutdown();
         Ok(())
+    }
+
+    fn recover_classic_group_position_resets_after_driver_shutdown(&mut self) {
+        for entry in &mut self.entries {
+            entry.position.recover_reset_after_driver_shutdown();
+        }
     }
 
     fn take_next_position_recovery(&mut self) -> Option<NextPositionRecovery> {

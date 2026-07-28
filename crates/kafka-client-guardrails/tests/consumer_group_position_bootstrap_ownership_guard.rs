@@ -16,13 +16,31 @@ const LINEAR: &[(&str, &str)] = &[
     ("GroupPositionBootstrapEffect", "effect.rs"),
     ("GroupPositionBootstrapTransition", "effect.rs"),
     ("GroupPositionBootstrapMachine", "machine.rs"),
+    ("GroupPositionMissingOffsetReset", "missing_offset.rs"),
+    ("GroupPositionResetApplyError", "reset/error.rs"),
+    ("GroupPositionResetEffect", "reset/model.rs"),
+    ("GroupPositionResetFailure", "reset/model.rs"),
+    ("GroupPositionResetMachine", "reset/machine.rs"),
+    ("GroupPositionResetTerminal", "reset/model.rs"),
+    ("GroupPositionResetTransition", "reset/model.rs"),
     ("GroupPositionBootstrapMissingOffsets", "outcome.rs"),
     ("GroupPositionBootstrapPartitionRejection", "outcome.rs"),
     ("GroupPositionBootstrapTerminal", "outcome.rs"),
 ];
-const MUTATIONS: &[(&str, &str)] = &[
-    ("GroupPositionBootstrapMachine", "state"),
-    ("GroupPositionBootstrapMachine", "request_partitions"),
+const MUTATIONS: &[(&str, &str, &str)] = &[
+    ("GroupPositionBootstrapMachine", "state", "transition.rs"),
+    (
+        "GroupPositionBootstrapMachine",
+        "request_partitions",
+        "transition.rs",
+    ),
+    ("GroupPositionResetMachine", "state", "reset/transition.rs"),
+    ("GroupPositionResetMachine", "batch", "reset/transition.rs"),
+    (
+        "GroupPositionResetMachine",
+        "current_missing_index",
+        "reset/transition.rs",
+    ),
 ];
 const FORBIDDEN: &[&str] = &[
     "crate::operation",
@@ -69,14 +87,14 @@ fn checked_in_group_position_policy_is_exact() {
         assert_eq!(rules.len(), 1, "{owner_type} needs one linear owner");
         assert_eq!(rules[0].path, format!("{ROOT}/{file}"));
     }
-    for (owner_type, field) in MUTATIONS {
+    for (owner_type, field, file) in MUTATIONS {
         let rules = config
             .mutation_owners
             .iter()
             .filter(|rule| rule.owner_type == *owner_type && rule.field == *field)
             .collect::<Vec<_>>();
         assert_eq!(rules.len(), 1, "{owner_type}.{field} needs one owner");
-        assert_eq!(rules[0].allowed_paths, [format!("{ROOT}/transition.rs")]);
+        assert_eq!(rules[0].allowed_paths, [format!("{ROOT}/{file}")]);
     }
 
     let capabilities = config
@@ -117,14 +135,14 @@ fn fixture_rejects_cloneable_owners_and_foreign_mutation() {
 
     let mutations = MUTATIONS
         .iter()
-        .map(|(owner_type, field)| MutationOwner {
+        .map(|(owner_type, field, _file)| MutationOwner {
             owner_type: (*owner_type).into(),
             field: (*field).into(),
             allowed_paths: Vec::new(),
         })
         .collect::<Vec<_>>();
     let violations = mutation_violations(&root, &files, &mutations);
-    for (owner_type, field) in MUTATIONS {
+    for (owner_type, field, _file) in MUTATIONS {
         assert!(violations.iter().any(|violation| {
             violation.contains("mutation_intruder.rs")
                 && violation.contains(owner_type)

@@ -37,8 +37,9 @@ pub(crate) use super::group::{
     GroupConsumerShardWake, GroupConsumerShardWakeError,
 };
 pub use super::group_batch::{
-    GroupConsumerBatch, GroupConsumerCheckpoint, GroupConsumerHeader, GroupConsumerRecord,
-    GroupConsumerRecords, GroupConsumerTryTakeBatchError, GroupConsumerTryTakeBatchErrorKind,
+    GroupConsumerBatch, GroupConsumerCheckpoint, GroupConsumerHeader,
+    GroupConsumerPositionFailureKind, GroupConsumerRecord, GroupConsumerRecords,
+    GroupConsumerTryTakeBatchError, GroupConsumerTryTakeBatchErrorKind,
 };
 pub use super::group_close::{
     GroupConsumerClose, GroupConsumerCloseAdmissionError, GroupConsumerCloseAdmissionErrorKind,
@@ -66,7 +67,9 @@ pub use super::group_recv::{
 pub use super::group_registration::{
     GroupConsumerHandle, GroupConsumerRegistrationError, GroupConsumerRegistrationErrorKind,
 };
-pub use super::group_registration_request::GroupConsumerRegistration;
+pub use super::group_registration_request::{
+    GroupConsumerMissingOffsetPolicy, GroupConsumerRegistration,
+};
 pub use super::group_release::{
     GroupConsumerDormantReleaseError, GroupConsumerDormantReleaseErrorKind,
 };

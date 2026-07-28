@@ -2,7 +2,7 @@
 
 use std::{sync::Arc, time::Duration};
 
-use kafka_client_core::ClassicProcessingLeasePolicy;
+use kafka_client_core::{ClassicProcessingLeasePolicy, GroupPositionMissingOffsetPolicy};
 
 use crate::config::ConsumerReadIsolation;
 
@@ -12,6 +12,7 @@ type ValidatedGroupConsumerRegistration = (
     Arc<str>,
     Option<Arc<str>>,
     Vec<Arc<str>>,
+    GroupConsumerMissingOffsetPolicy,
     ConsumerReadIsolation,
     ClassicProcessingLeasePolicy,
 );
@@ -22,6 +23,7 @@ pub struct GroupConsumerRegistration {
     group: Arc<str>,
     group_instance_id: Option<Arc<str>>,
     topics: Vec<Arc<str>>,
+    missing_offset_policy: GroupConsumerMissingOffsetPolicy,
     read_isolation: ConsumerReadIsolation,
     processing_timeout: Duration,
 }
@@ -33,6 +35,7 @@ impl GroupConsumerRegistration {
             group,
             group_instance_id: None,
             topics,
+            missing_offset_policy: GroupConsumerMissingOffsetPolicy::Error,
             read_isolation: ConsumerReadIsolation::ReadUncommitted,
             processing_timeout: DEFAULT_PROCESSING_TIMEOUT,
         }
@@ -57,6 +60,20 @@ impl GroupConsumerRegistration {
     /// Returns the requested local topic subscription in caller order.
     pub fn topics(&self) -> &[Arc<str>] {
         &self.topics
+    }
+
+    /// Selects explicit missing-committed-offset behavior before registration.
+    pub const fn with_missing_offset_policy(
+        mut self,
+        policy: GroupConsumerMissingOffsetPolicy,
+    ) -> Self {
+        self.missing_offset_policy = policy;
+        self
+    }
+
+    /// Returns the immutable missing-offset policy carried into membership.
+    pub const fn missing_offset_policy(&self) -> GroupConsumerMissingOffsetPolicy {
+        self.missing_offset_policy
     }
 
     /// Selects immutable application-record visibility before registration.
@@ -98,8 +115,31 @@ impl GroupConsumerRegistration {
             self.group,
             self.group_instance_id,
             self.topics,
+            self.missing_offset_policy,
             self.read_isolation,
             processing_policy,
         ))
+    }
+}
+
+/// Missing committed-offset behavior fixed for one registered group.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum GroupConsumerMissingOffsetPolicy {
+    /// Fail the complete assignment atomically.
+    #[default]
+    Error,
+    /// Resolve each missing partition to Kafka's earliest available offset.
+    Earliest,
+    /// Resolve each missing partition to Kafka's latest available offset.
+    Latest,
+}
+
+impl GroupConsumerMissingOffsetPolicy {
+    pub(super) const fn into_core(self) -> GroupPositionMissingOffsetPolicy {
+        match self {
+            Self::Error => GroupPositionMissingOffsetPolicy::Error,
+            Self::Earliest => GroupPositionMissingOffsetPolicy::Earliest,
+            Self::Latest => GroupPositionMissingOffsetPolicy::Latest,
+        }
     }
 }

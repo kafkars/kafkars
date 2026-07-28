@@ -78,6 +78,7 @@ mod group_recv_test;
 #[cfg(test)]
 mod group_recv_test_support;
 mod group_registration;
+mod group_registration_engine;
 mod group_registration_request;
 #[cfg(test)]
 mod group_registration_request_test;

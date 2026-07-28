@@ -21,6 +21,8 @@ mod model_test;
 #[cfg(test)]
 mod owner_test;
 #[cfg(test)]
+mod position_failure_transfer_test;
+#[cfg(test)]
 mod position_transfer_test;
 #[cfg(test)]
 mod prepare_backpressure_test;

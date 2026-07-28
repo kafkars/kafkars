@@ -18,7 +18,6 @@ mod shutdown_test;
 mod wake;
 #[cfg(test)]
 mod wake_test;
-
 pub(crate) use delivery::{request_failure_delivery, request_failure_kind};
 pub(crate) use endpoint::EndpointError;
 pub(crate) use error::DriverOwnerError;
@@ -31,7 +30,9 @@ pub(crate) use rpc::exports::{
     AlterPartitionReassignmentsDriverFailureKind, AlterPartitionReassignmentsTerminal,
     AlterPartitionReassignmentsTerminalFact, ClassicGroupLeaveCall,
     ClassicGroupLeaveCompletionError, ClassicGroupLeaveDriverFailureKind,
-    ClassicGroupLeaveResolution, ClassicGroupLeaveRoute, CreatePartitionsCompletionFailure,
+    ClassicGroupLeaveResolution, ClassicGroupLeaveRoute, ClassicGroupPositionResetCall,
+    ClassicGroupPositionResetCompletionError, ClassicGroupPositionResetOutcome,
+    ClassicGroupPositionResetRoute, CreatePartitionsCompletionFailure,
     CreateTopicsCompletionFailure, DeleteTopicsCompletionFailure, DescribeClusterCalls,
     DescribeClusterCompletionFailure, DescribeConfigsCalls, DescribeConfigsCompletionFailure,
     DescribeTopicsCalls, DescribeTopicsCompletionFailure, FetchBeginSettlementError,
@@ -42,20 +43,21 @@ pub(crate) use rpc::exports::{
     GroupOffsetDeleteCall, GroupOffsetDeleteDriverFailureKind, GroupOffsetDeleteTerminal,
     GroupOffsetDeleteTerminalFact, GroupOffsetsCall, GroupOffsetsDriverFailureKind,
     GroupOffsetsTerminal, GroupOffsetsTerminalFact, IncrementalAlterConfigsCalls,
-    IncrementalAlterConfigsCompletionFailure, ListPartitionReassignmentsCall,
-    ListPartitionReassignmentsDriverFailureKind, ListPartitionReassignmentsRawTerminal,
-    ListPartitionReassignmentsTerminalFact, PartitionFetchRequest, PositionAdmissionFailure,
-    PositionCompletionFailure, PositionRequestPreparationError, PositionResolutionRequest,
-    ProduceCompletionFailure, ProducerIdentityCompletionFailure, ProducerTopicViewCall,
-    RecoveredAdminListOffsetsCall, RecoveredAlterPartitionReassignmentsCall,
-    RecoveredGroupOffsetAlterCall, RecoveredListPartitionReassignmentsCall,
-    StaleFetchConfirmationError, TopicPartitionCountAdmissionFailure,
-    TopicPartitionCountAdmissionFailureKind, TopicPartitionCountCall, TopicPartitionCountFact,
-    TopicPartitionCountFailure, TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls,
-    TrackedDeleteTopicsCalls, TrackedFetchCalls, TrackedGroupOffsetCommitCalls,
-    TrackedPositionCalls, TrackedProduceCalls, TrackedProducerIdentityCalls, TransactionInitCall,
-    TransactionInitDriverFailureKind, TransactionInitTerminal, TransactionInitTerminalFact,
-    classify_fetch_admission, classify_fetch_request_error,
+    IncrementalAlterConfigsCompletionFailure, ListOffsetsResolution,
+    ListPartitionReassignmentsCall, ListPartitionReassignmentsDriverFailureKind,
+    ListPartitionReassignmentsRawTerminal, ListPartitionReassignmentsTerminalFact,
+    PartitionFetchRequest, PositionAdmissionFailure, PositionCompletionFailure,
+    PositionRequestPreparationError, PositionResolutionRequest, ProduceCompletionFailure,
+    ProducerIdentityCompletionFailure, ProducerTopicViewCall, RecoveredAdminListOffsetsCall,
+    RecoveredAlterPartitionReassignmentsCall, RecoveredGroupOffsetAlterCall,
+    RecoveredListPartitionReassignmentsCall, StaleFetchConfirmationError,
+    TopicPartitionCountAdmissionFailure, TopicPartitionCountAdmissionFailureKind,
+    TopicPartitionCountCall, TopicPartitionCountFact, TopicPartitionCountFailure,
+    TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls,
+    TrackedFetchCalls, TrackedGroupOffsetCommitCalls, TrackedPositionCalls, TrackedProduceCalls,
+    TrackedProducerIdentityCalls, TransactionInitCall, TransactionInitDriverFailureKind,
+    TransactionInitTerminal, TransactionInitTerminalFact, classify_fetch_admission,
+    classify_fetch_request_error,
 };
 #[expect(
     unused_imports,

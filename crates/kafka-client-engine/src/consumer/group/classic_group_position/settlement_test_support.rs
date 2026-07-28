@@ -1,8 +1,8 @@
 //! Shared exact-owner fixtures for position terminal settlement tests.
 
-use kafka_client_core::{GroupId, GroupPositionFence, Moment};
+use kafka_client_core::{GroupId, GroupPositionFence, GroupPositionMissingOffsetPolicy, Moment};
 
-pub(super) use crate::driver::GroupPositionOffsetFetchTestPartition as PartitionValue;
+pub(in crate::consumer::group) use crate::driver::GroupPositionOffsetFetchTestPartition as PartitionValue;
 use crate::{
     clock::OperationDeadline,
     driver::{
@@ -21,15 +21,22 @@ use super::{
     ClassicGroupPositionExecutionState,
 };
 
-pub(super) struct PositionSettlementFixture {
-    pub(super) registry: GroupConsumerRegistry,
-    pub(super) group_id: GroupId,
-    pub(super) fence: GroupPositionFence,
-    pub(super) deadline: OperationDeadline,
+pub(in crate::consumer::group) struct PositionSettlementFixture {
+    pub(in crate::consumer::group) registry: GroupConsumerRegistry,
+    pub(in crate::consumer::group) group_id: GroupId,
+    pub(in crate::consumer::group) fence: GroupPositionFence,
+    pub(in crate::consumer::group) deadline: OperationDeadline,
 }
 
 pub(super) fn driver_owned_fixture(partitions: &[i32]) -> PositionSettlementFixture {
-    let mut fixture = prepared_fixture(partitions);
+    driver_owned_fixture_with_policy(partitions, GroupPositionMissingOffsetPolicy::Error)
+}
+
+pub(in crate::consumer::group) fn driver_owned_fixture_with_policy(
+    partitions: &[i32],
+    policy: GroupPositionMissingOffsetPolicy,
+) -> PositionSettlementFixture {
+    let mut fixture = prepared_fixture_with_policy(partitions, policy);
     let entry = fixture
         .registry
         .entries
@@ -51,7 +58,20 @@ pub(super) fn driver_owned_fixture(partitions: &[i32]) -> PositionSettlementFixt
 }
 
 pub(super) fn prepared_fixture(partitions: &[i32]) -> PositionSettlementFixture {
+    prepared_fixture_with_policy(partitions, GroupPositionMissingOffsetPolicy::Error)
+}
+
+pub(super) fn prepared_fixture_with_policy(
+    partitions: &[i32],
+    policy: GroupPositionMissingOffsetPolicy,
+) -> PositionSettlementFixture {
     let (mut registry, group_id, identity) = prepared_registry();
+    registry
+        .entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .unwrap_or_else(|| panic!("position entry expected"))
+        .missing_offset_policy = policy;
     make_sync_driver_owned(&mut registry, group_id, identity);
     install_assignment_terminal(&mut registry, identity, "orders", partitions);
     assert_eq!(
@@ -78,7 +98,7 @@ pub(super) fn prepared_fixture(partitions: &[i32]) -> PositionSettlementFixture 
     }
 }
 
-pub(super) fn install_legacy_terminal(
+pub(in crate::consumer::group) fn install_legacy_terminal(
     fixture: &mut PositionSettlementFixture,
     selected_version: Option<i16>,
     throttle_time_ms: i32,
@@ -114,7 +134,7 @@ pub(super) fn install_empty_terminal(
         );
 }
 
-pub(super) fn install_driver_failure(
+pub(in crate::consumer::group) fn install_driver_failure(
     fixture: &mut PositionSettlementFixture,
     kind: GroupPositionOffsetFetchDriverFailureKind,
 ) {

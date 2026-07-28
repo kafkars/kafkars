@@ -71,6 +71,10 @@ impl<'consumer> GroupConsumerRecv<'consumer> {
                     self.finish();
                     Err(GroupConsumerRecvError::host_unavailable())
                 }
+                GroupConsumerTryTakeBatchErrorKind::Position(kind) => {
+                    self.finish();
+                    Err(GroupConsumerRecvError::position(kind))
+                }
                 GroupConsumerTryTakeBatchErrorKind::InternalInvariant => {
                     self.finish();
                     Err(GroupConsumerRecvError::internal_invariant())

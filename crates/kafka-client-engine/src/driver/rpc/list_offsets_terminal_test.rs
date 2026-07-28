@@ -13,7 +13,9 @@ use kafka_wire::{
 
 use crate::protocol::consumer::ListOffsetsIsolation;
 
-use super::list_offsets_terminal::normalize_position_terminal;
+use super::list_offsets_terminal::{
+    ListOffsetsResolution, normalize_list_offsets_terminal, normalize_position_terminal,
+};
 
 #[test]
 fn selected_version_controls_isolation_and_throttle_meaning() {
@@ -122,6 +124,47 @@ fn list_offsets_failures_preserve_semantic_categories_and_exact_broker_code() {
             }
         );
     }
+}
+
+#[test]
+fn fence_independent_normalization_preserves_resolution_and_failure_facts() {
+    assert_eq!(
+        normalize_list_offsets_terminal(
+            "orders",
+            PartitionIndex::from_raw(3),
+            ListOffsetsIsolation::ReadUncommitted,
+            Some(ApiVersion::new(11)),
+            Ok(success_response("orders", 3, 47)),
+        ),
+        ListOffsetsResolution::Resolved {
+            next_offset: kafka_client_core::NextFetchOffset::try_from_raw(42)
+                .unwrap_or_else(|| panic!("valid offset")),
+            throttle_time_ms: 47,
+        }
+    );
+    assert_eq!(
+        normalize_list_offsets_terminal(
+            "orders",
+            PartitionIndex::from_raw(3),
+            ListOffsetsIsolation::ReadCommitted,
+            Some(ApiVersion::new(1)),
+            Ok(success_response("orders", 3, 0)),
+        ),
+        ListOffsetsResolution::Failed(PositionResolutionAttemptFailure::Compatibility)
+    );
+    assert_eq!(
+        normalize_list_offsets_terminal(
+            "orders",
+            PartitionIndex::from_raw(3),
+            ListOffsetsIsolation::ReadUncommitted,
+            Some(ApiVersion::new(11)),
+            Ok(broker_error_response("orders", 3, -42)),
+        ),
+        ListOffsetsResolution::Failed(PositionResolutionAttemptFailure::Broker(
+            core::num::NonZeroI16::new(-42)
+                .unwrap_or_else(|| panic!("negative broker code is nonzero")),
+        ))
+    );
 }
 
 fn fence() -> PositionFence {

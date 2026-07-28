@@ -80,7 +80,7 @@ pub struct GroupConsumerHandle {
     pub(super) group_id: kafka_client_core::GroupId,
     pub(super) port: GroupConsumerPort,
     pub(super) lifetime: Arc<dyn Send + Sync>,
-    _not_sync: PhantomData<Cell<()>>,
+    pub(super) _not_sync: PhantomData<Cell<()>>,
 }
 
 impl core::fmt::Debug for GroupConsumerHandle {
@@ -111,13 +111,19 @@ impl GroupConsumerHandle {
             DEFAULT_REJOIN_ATTEMPT_TIMEOUT_TICKS,
         )
         .unwrap_or_else(|_| unreachable!("fixed classic rejoin policy is valid"));
-        let (group, group_instance_id, topics, read_isolation, processing_policy) =
-            request.into_validated_parts().map_err(|request| {
-                GroupConsumerRegistrationError::new(
-                    GroupConsumerRegistrationErrorKind::InvalidInput,
-                    request,
-                )
-            })?;
+        let (
+            group,
+            group_instance_id,
+            topics,
+            missing_offset_policy,
+            read_isolation,
+            processing_policy,
+        ) = request.into_validated_parts().map_err(|request| {
+            GroupConsumerRegistrationError::new(
+                GroupConsumerRegistrationErrorKind::InvalidInput,
+                request,
+            )
+        })?;
         match port.try_register_with_configuration(
             group,
             group_instance_id,
@@ -125,6 +131,7 @@ impl GroupConsumerHandle {
             timing,
             heartbeat,
             rejoin,
+            missing_offset_policy.into_core(),
             read_isolation.core(),
             processing_policy,
         ) {
@@ -158,6 +165,7 @@ impl GroupConsumerHandle {
                     request = request.with_group_instance_id(group_instance_id);
                 }
                 let request = request
+                    .with_missing_offset_policy(missing_offset_policy)
                     .with_read_isolation(read_isolation)
                     .with_processing_timeout(Duration::from_nanos(
                         processing_policy.timeout_ticks(),
@@ -210,24 +218,5 @@ impl GroupConsumerHandle {
     #[cfg(test)]
     pub(crate) const fn group_id_for_test(&self) -> kafka_client_core::GroupId {
         self.group_id
-    }
-}
-
-impl crate::Engine {
-    /// Captures a group-start deadline before facade validation or conversion.
-    pub fn capture_group_consumer_start(
-        &self,
-        timeout: Duration,
-    ) -> Result<GroupConsumerStartCapture, GroupConsumerStartError> {
-        GroupConsumerStartCapture::capture(self.inner.group_consumer.clone(), timeout)
-    }
-
-    /// Registers one bounded classic-group owner without beginning membership.
-    pub fn register_group_consumer(
-        &self,
-        registration: GroupConsumerRegistration,
-    ) -> Result<GroupConsumerHandle, GroupConsumerRegistrationError> {
-        let lifetime: Arc<dyn Send + Sync> = self.inner.clone();
-        GroupConsumerHandle::try_register(self.inner.group_consumer.clone(), lifetime, registration)
     }
 }

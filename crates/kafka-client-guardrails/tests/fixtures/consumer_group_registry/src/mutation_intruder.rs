@@ -22,6 +22,7 @@ struct ClassicGroupFetchShutdownRecovery;
 struct GroupConsumerRecvNotificationResources;
 struct ClassicProcessingLease;
 struct ClassicGroupRevocationOwner;
+struct GroupConsumerPositionFailureKind;
 
 struct GroupConsumerRegistry {
     entries: Vec<u64>,
@@ -54,6 +55,7 @@ struct GroupConsumerEntry {
     position: ClassicGroupPositionExecution,
     processing_lease: ClassicProcessingLease,
     revocation: ClassicGroupRevocationOwner,
+    position_failure_observation: Option<GroupConsumerPositionFailureKind>,
     fault: Option<ClassicGroupEntryFault>,
 }
 
@@ -87,5 +89,6 @@ fn mutate_entry(owner: &mut GroupConsumerEntry) {
     let _position = &mut owner.position;
     let _processing = &mut owner.processing_lease;
     let _revocation = &mut owner.revocation;
+    owner.position_failure_observation = None;
     owner.fault = None;
 }

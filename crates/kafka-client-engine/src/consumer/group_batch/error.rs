@@ -5,6 +5,27 @@ use crate::consumer::group::{
     GroupConsumerShardLockError,
 };
 
+/// Stable group-position bootstrap or reset failure preserved at delivery.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GroupConsumerPositionFailureKind {
+    /// The configured Error policy found an assigned partition without an offset.
+    MissingOffset,
+    /// The original absolute position-bootstrap deadline elapsed.
+    DeadlineElapsed,
+    /// The driver rejected the position request before accepting transport ownership.
+    DriverRejected,
+    /// Transport failed after accepting the position request.
+    Transport,
+    /// Kafka rejected the group or one assigned partition with this exact signed code.
+    Broker(i16),
+    /// The broker cannot execute the selected position protocol shape.
+    Compatibility,
+    /// Kafka returned a structurally invalid position response.
+    InvalidResponse,
+    /// The position response exceeded its configured retained-byte limit.
+    ResponseTooLarge,
+}
+
 /// Stable reason an immediate group-batch observation could not complete.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GroupConsumerTryTakeBatchErrorKind {
@@ -20,6 +41,8 @@ pub enum GroupConsumerTryTakeBatchErrorKind {
     ProcessingExpired,
     /// The synchronized engine host cannot execute group-consumer work.
     HostUnavailable,
+    /// Group-position bootstrap or reset reached one exact terminal outcome.
+    Position(GroupConsumerPositionFailureKind),
     /// A non-semantic engine mechanism violated its ownership contract.
     InternalInvariant,
 }
@@ -76,6 +99,9 @@ const fn error_kind(error: &GroupConsumerDeliveryPortError) -> GroupConsumerTryT
         GroupConsumerDeliveryPortError::Registry(
             GroupConsumerDeliveryError::ProcessingExpired { .. },
         ) => GroupConsumerTryTakeBatchErrorKind::ProcessingExpired,
+        GroupConsumerDeliveryPortError::Registry(GroupConsumerDeliveryError::PositionFailure(
+            failure,
+        )) => GroupConsumerTryTakeBatchErrorKind::Position(*failure),
         GroupConsumerDeliveryPortError::Registry(
             GroupConsumerDeliveryError::Fetch(_)
             | GroupConsumerDeliveryError::Processing { .. }

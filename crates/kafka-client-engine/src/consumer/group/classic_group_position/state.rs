@@ -3,8 +3,7 @@
 #[cfg(test)]
 use kafka_client_core::GroupPositionBootstrapState;
 use kafka_client_core::{
-    GroupPositionBootstrapMachine, GroupPositionBootstrapTerminal, GroupPositionFence,
-    GroupPositionPartitionFact, Moment,
+    GroupPositionBootstrapMachine, GroupPositionFence, GroupPositionPartitionFact,
 };
 
 use crate::{
@@ -157,84 +156,5 @@ impl ClassicGroupPositionDriverOwned {
             self.accepted,
             self.result_buffer,
         )
-    }
-}
-
-/// Core terminal already applied exactly once and retained for later activation.
-#[must_use = "a completed position bootstrap must be consumed by a later owner"]
-pub(in crate::consumer::group) struct ClassicGroupPositionCompleted(
-    GroupPositionBootstrapMachine,
-    GroupPositionBootstrapTerminal,
-    Moment,
-);
-
-impl ClassicGroupPositionCompleted {
-    pub(super) const fn new(
-        machine: GroupPositionBootstrapMachine,
-        terminal: GroupPositionBootstrapTerminal,
-        observed_at: Moment,
-    ) -> Self {
-        Self(machine, terminal, observed_at)
-    }
-    pub(in crate::consumer::group) const fn fence(&self) -> GroupPositionFence {
-        self.0.fence()
-    }
-    pub(in crate::consumer::group) const fn terminal(&self) -> &GroupPositionBootstrapTerminal {
-        &self.1
-    }
-    /// Returns when the terminal fact entered deterministic position policy.
-    pub(in crate::consumer::group) const fn observed_at(&self) -> Moment {
-        self.2
-    }
-
-    pub(super) fn into_parts(
-        self,
-    ) -> (
-        GroupPositionBootstrapMachine,
-        GroupPositionBootstrapTerminal,
-        Moment,
-    ) {
-        (self.0, self.1, self.2)
-    }
-}
-
-/// Applied core terminal waiting only for exact RPC route confirmation.
-#[must_use = "a confirmation-pending position bootstrap still owns its receipt"]
-pub(in crate::consumer::group) struct ClassicGroupPositionConfirmationPending {
-    completed: ClassicGroupPositionCompleted,
-    accepted: GroupPositionOffsetFetchAccepted,
-}
-
-impl ClassicGroupPositionConfirmationPending {
-    pub(super) const fn new(
-        completed: ClassicGroupPositionCompleted,
-        accepted: GroupPositionOffsetFetchAccepted,
-    ) -> Self {
-        Self {
-            completed,
-            accepted,
-        }
-    }
-
-    pub(super) const fn fence(&self) -> GroupPositionFence {
-        self.completed.fence()
-    }
-
-    pub(super) const fn accepted(&self) -> &GroupPositionOffsetFetchAccepted {
-        &self.accepted
-    }
-
-    #[cfg(test)]
-    pub(super) const fn completed(&self) -> &ClassicGroupPositionCompleted {
-        &self.completed
-    }
-
-    pub(super) fn into_parts(
-        self,
-    ) -> (
-        ClassicGroupPositionCompleted,
-        GroupPositionOffsetFetchAccepted,
-    ) {
-        (self.completed, self.accepted)
     }
 }

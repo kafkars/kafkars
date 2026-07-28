@@ -26,8 +26,8 @@ use super::{
     classic_group_partition_count_failure::ClassicGroupPartitionCountFault,
     classic_group_position::{
         ClassicGroupPositionAcceptanceFailure, ClassicGroupPositionExecutionError,
-        ClassicGroupPositionPreparationError, ClassicGroupPositionRejectionFailure,
-        ClassicGroupPositionTerminalApplicationFailure,
+        ClassicGroupPositionFailure, ClassicGroupPositionPreparationError,
+        ClassicGroupPositionRejectionFailure, ClassicGroupPositionTerminalApplicationFailure,
     },
     classic_group_rejection_fault::ClassicRejectionPostCore,
     classic_group_rejoin_fault::ClassicRejoinPostCore,
@@ -88,6 +88,7 @@ pub(super) enum ClassicGroupEntryFault {
         failure: ClassicGroupPositionTerminalApplicationFailure,
         terminal: GroupPositionOffsetFetchTerminal,
     },
+    PositionFailure(ClassicGroupPositionFailure),
     FetchTransfer(ClassicGroupFetchTransferError),
     FetchOwner(ClassicGroupFetchOwnerFaultKind),
     HeartbeatAdmission(ClassicHeartbeatAdmissionFailure),
@@ -162,6 +163,7 @@ impl ClassicGroupEntryFault {
             Self::PositionTerminalPostCore { failure, terminal } => {
                 retained_pair(failure, terminal)
             }
+            Self::PositionFailure(failure) => failure.retained_owner_count(),
             Self::FetchTransfer(owner) => retained_one(owner),
             Self::FetchOwner(owner) => retained_one(owner),
             Self::SyncInstall {

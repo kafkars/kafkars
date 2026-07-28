@@ -10,6 +10,7 @@ use crate::{
 };
 
 use super::{
+    classic_group_entry_fault::ClassicGroupEntryFault,
     classic_group_leave::GroupConsumerCloseCompletion, registry_close::GroupRegistryCloseError,
     registry_entry::GroupConsumerEntryState, registry_port::GroupConsumerPort,
     registry_shard::GroupConsumerShardLockError, registry_wake::GroupConsumerShardWakeError,
@@ -77,6 +78,14 @@ impl GroupConsumerPort {
         };
         let observation = match registry.entry(group_id) {
             None => GroupConsumerCloseObservation::Complete,
+            Some(entry)
+                if entry.state == GroupConsumerEntryState::Closing
+                    && entry.fault.as_ref().is_some_and(|fault| {
+                        !matches!(fault, ClassicGroupEntryFault::PositionFailure(_))
+                    }) =>
+            {
+                GroupConsumerCloseObservation::Faulted
+            }
             Some(entry) if entry.state == GroupConsumerEntryState::Closing => {
                 GroupConsumerCloseObservation::Pending
             }

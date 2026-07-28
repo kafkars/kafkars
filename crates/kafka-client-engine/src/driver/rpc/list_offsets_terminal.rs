@@ -1,7 +1,8 @@
 //! Semantic settlement of one versioned, fenced `ListOffsets` terminal.
 
 use kafka_client_core::{
-    AssignedConsumerInput, Moment, NextFetchOffset, PositionFence, PositionResolutionAttemptFailure,
+    AssignedConsumerInput, Moment, NextFetchOffset, PartitionIndex, PositionFence,
+    PositionResolutionAttemptFailure,
 };
 use kafka_driver::{ApiVersion, RequestError};
 use kafka_wire::ListOffsetsResponse;
@@ -24,6 +25,18 @@ enum PositionResolutionOutcome {
         next_offset: NextFetchOffset,
         throttle_ticks: u64,
     },
+    Failed(PositionResolutionAttemptFailure),
+}
+
+/// Fence-independent normalized result of one exact `ListOffsets` response.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ListOffsetsResolution {
+    /// Kafka resolved the requested position and reported a nonnegative throttle.
+    Resolved {
+        next_offset: NextFetchOffset,
+        throttle_time_ms: u32,
+    },
+    /// Driver, protocol, or Kafka execution failed exactly once.
     Failed(PositionResolutionAttemptFailure),
 }
 
@@ -74,41 +87,69 @@ pub(super) fn normalize_position_terminal(
     selected_version: Option<ApiVersion>,
     result: Result<ListOffsetsResponse, RequestError>,
 ) -> PositionResolutionTerminal {
+    let normalized = normalize_list_offsets_terminal(
+        topic,
+        fence.partition().partition(),
+        isolation,
+        selected_version,
+        result,
+    );
+    let outcome = match normalized {
+        ListOffsetsResolution::Resolved {
+            next_offset,
+            throttle_time_ms,
+        } => {
+            let Some(throttle_ticks) = throttle_ticks(throttle_time_ms) else {
+                return PositionResolutionTerminal::failed(
+                    fence,
+                    now,
+                    PositionResolutionAttemptFailure::InvalidResponse,
+                );
+            };
+            PositionResolutionOutcome::Resolved {
+                next_offset,
+                throttle_ticks,
+            }
+        }
+        ListOffsetsResolution::Failed(failure) => PositionResolutionOutcome::Failed(failure),
+    };
+    PositionResolutionTerminal {
+        fence,
+        now,
+        outcome,
+    }
+}
+
+pub(crate) fn normalize_list_offsets_terminal(
+    topic: &str,
+    partition: PartitionIndex,
+    isolation: ListOffsetsIsolation,
+    selected_version: Option<ApiVersion>,
+    result: Result<ListOffsetsResponse, RequestError>,
+) -> ListOffsetsResolution {
     let response = match result {
         Ok(response) => response,
         Err(failure) => {
-            return PositionResolutionTerminal::failed(
-                fence,
-                now,
+            return ListOffsetsResolution::Failed(
                 super::list_offsets_failure::classify_request_error(&failure),
             );
         }
     };
     let Some(selected_version) = selected_version else {
-        return PositionResolutionTerminal::failed(
-            fence,
-            now,
-            PositionResolutionAttemptFailure::Compatibility,
-        );
+        return ListOffsetsResolution::Failed(PositionResolutionAttemptFailure::Compatibility);
     };
     if selected_version.value() < minimum_version(isolation) {
-        return PositionResolutionTerminal::failed(
-            fence,
-            now,
-            PositionResolutionAttemptFailure::Compatibility,
-        );
+        return ListOffsetsResolution::Failed(PositionResolutionAttemptFailure::Compatibility);
     }
     let normalized = match normalize_list_offsets_response(
         topic,
-        fence.partition().partition(),
+        partition,
         selected_version.value(),
         &response,
     ) {
         Ok(normalized) => normalized,
         Err(failure) => {
-            return PositionResolutionTerminal::failed(
-                fence,
-                now,
+            return ListOffsetsResolution::Failed(
                 super::list_offsets_failure::classify_response_failure(failure),
             );
         }
@@ -116,27 +157,12 @@ pub(super) fn normalize_position_terminal(
     let position = match normalized.outcome() {
         ListOffsetsOutcome::Resolved(position) => position,
         ListOffsetsOutcome::BrokerError { code } => {
-            return PositionResolutionTerminal::failed(
-                fence,
-                now,
-                PositionResolutionAttemptFailure::Broker(code),
-            );
+            return ListOffsetsResolution::Failed(PositionResolutionAttemptFailure::Broker(code));
         }
     };
-    let Some(throttle_ticks) = throttle_ticks(normalized.throttle_time_ms()) else {
-        return PositionResolutionTerminal::failed(
-            fence,
-            now,
-            PositionResolutionAttemptFailure::InvalidResponse,
-        );
-    };
-    PositionResolutionTerminal {
-        fence,
-        now,
-        outcome: PositionResolutionOutcome::Resolved {
-            next_offset: position.next_offset(),
-            throttle_ticks,
-        },
+    ListOffsetsResolution::Resolved {
+        next_offset: position.next_offset(),
+        throttle_time_ms: normalized.throttle_time_ms(),
     }
 }
 

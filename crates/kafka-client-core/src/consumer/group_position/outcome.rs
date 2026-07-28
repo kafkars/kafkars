@@ -1,6 +1,9 @@
 //! Atomic ready, missing-offset, rejection, and failure decisions.
 
-use super::{GroupPositionBatch, GroupPositionBrokerError, GroupPositionPartitionFact};
+use super::{
+    GroupPositionBatch, GroupPositionBrokerError, GroupPositionMissingOffsetReset,
+    GroupPositionPartitionFact,
+};
 
 /// Whole-bootstrap failure outside an exactly correlated partition batch.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -107,6 +110,8 @@ pub enum GroupPositionBootstrapTerminal {
     Ready(GroupPositionBatch),
     /// Error policy rejected one or more missing committed offsets atomically.
     MissingOffsets(GroupPositionBootstrapMissingOffsets),
+    /// Explicit earliest/latest policy requires bounded `ListOffsets` resolution.
+    ResetRequired(GroupPositionMissingOffsetReset),
     /// Kafka rejected at least one exactly correlated partition.
     PartitionRejected(GroupPositionBootstrapPartitionRejection),
     /// The complete bootstrap failed outside correlated partition results.

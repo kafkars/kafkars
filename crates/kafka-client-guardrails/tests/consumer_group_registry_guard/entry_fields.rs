@@ -32,6 +32,7 @@ pub(crate) const ENTRY_FIELDS: &[(&str, &[&str])] = &[
             "registry_processing.rs",
         ],
     ),
+    ("position_failure_observation", &["registry_entry.rs"]),
     (
         "processing_lease",
         &[
@@ -68,8 +69,10 @@ pub(crate) const ENTRY_DECLARED_FIELDS: &[&str] = &[
     "fetch",
     "heartbeat",
     "leave",
+    "missing_offset_policy",
     "read_isolation",
     "position",
+    "position_failure_observation",
     "processing_lease",
     "revocation",
     "rejoin",

@@ -6,7 +6,7 @@ use super::{
     GroupPositionBootstrapInput, GroupPositionBootstrapMachine, GroupPositionBootstrapMachineError,
     GroupPositionBootstrapMissingOffsets, GroupPositionBootstrapPartitionRejection,
     GroupPositionBootstrapState, GroupPositionBootstrapTerminal, GroupPositionBootstrapTransition,
-    GroupPositionPartitionResult,
+    GroupPositionMissingOffsetReset, GroupPositionPartitionResult,
 };
 
 impl GroupPositionBootstrapMachine {
@@ -149,9 +149,14 @@ impl GroupPositionBootstrapMachine {
             .iter()
             .position(|fact| fact.result() == GroupPositionPartitionResult::Missing)
         {
-            return self.finish(GroupPositionBootstrapTerminal::MissingOffsets(
-                GroupPositionBootstrapMissingOffsets::new(batch, index),
-            ));
+            return match self.missing_offset_policy.reset_position() {
+                None => self.finish(GroupPositionBootstrapTerminal::MissingOffsets(
+                    GroupPositionBootstrapMissingOffsets::new(batch, index),
+                )),
+                Some(position) => self.finish(GroupPositionBootstrapTerminal::ResetRequired(
+                    GroupPositionMissingOffsetReset::new(batch, index, position),
+                )),
+            };
         }
         self.finish(GroupPositionBootstrapTerminal::Ready(batch))
     }

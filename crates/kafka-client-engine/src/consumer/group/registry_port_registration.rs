@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use kafka_client_core::{
     ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicProcessingLeasePolicy, ClassicRejoinPolicy,
-    GroupId, ReadIsolation,
+    GroupId, GroupPositionMissingOffsetPolicy, ReadIsolation,
 };
 
 use super::{
@@ -48,6 +48,7 @@ impl GroupConsumerPort {
             timing,
             heartbeat_policy,
             rejoin_policy,
+            GroupPositionMissingOffsetPolicy::Error,
             ReadIsolation::ReadUncommitted,
             processing_policy,
         )
@@ -65,6 +66,7 @@ impl GroupConsumerPort {
         timing: ClassicGroupTiming,
         heartbeat_policy: ClassicHeartbeatPolicy,
         rejoin_policy: ClassicRejoinPolicy,
+        missing_offset_policy: GroupPositionMissingOffsetPolicy,
         read_isolation: ReadIsolation,
         processing_policy: ClassicProcessingLeasePolicy,
     ) -> Result<GroupId, GroupConsumerPortRegistrationFailure> {
@@ -103,6 +105,7 @@ impl GroupConsumerPort {
                 timing,
                 heartbeat_policy,
                 rejoin_policy,
+                missing_offset_policy,
                 read_isolation,
                 processing_policy,
             )

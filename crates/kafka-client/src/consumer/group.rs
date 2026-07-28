@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::bridge::ClientEngine;
 
-use super::{Consumer, ConsumerBuildError, ReadIsolation};
+use super::{Consumer, ConsumerBuildError, OffsetReset, ReadIsolation};
 
 const DEFAULT_MEMBERSHIP_START_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -15,6 +15,7 @@ pub struct ConsumerBuilder {
     group_id: String,
     group_instance_id: Option<String>,
     topics: Vec<String>,
+    offset_reset: OffsetReset,
     read_isolation: ReadIsolation,
     processing_timeout: Duration,
 }
@@ -26,6 +27,7 @@ impl ConsumerBuilder {
             group_id,
             group_instance_id: None,
             topics: Vec::new(),
+            offset_reset: OffsetReset::Error,
             read_isolation: ReadIsolation::ReadUncommitted,
             processing_timeout: Duration::from_secs(300),
         }
@@ -47,6 +49,14 @@ impl ConsumerBuilder {
         S: Into<String>,
     {
         self.topics = topics.into_iter().map(Into::into).collect();
+        self
+    }
+
+    /// Selects how an assigned partition without a committed offset starts.
+    ///
+    /// The default is [`OffsetReset::Error`].
+    pub const fn on_missing_offset(mut self, offset_reset: OffsetReset) -> Self {
+        self.offset_reset = offset_reset;
         self
     }
 
@@ -78,6 +88,11 @@ impl ConsumerBuilder {
     /// Returns the caller-ordered requested subscription.
     pub fn subscription(&self) -> &[String] {
         &self.topics
+    }
+
+    /// Returns the immutable missing-offset policy for this registration.
+    pub const fn offset_reset(&self) -> OffsetReset {
+        self.offset_reset
     }
 
     /// Returns the immutable record-visibility policy for this registration.
@@ -112,6 +127,7 @@ impl ConsumerBuilder {
             &self.group_id,
             self.group_instance_id.as_deref(),
             &self.topics,
+            self.offset_reset,
             self.read_isolation,
             self.processing_timeout,
         ) {

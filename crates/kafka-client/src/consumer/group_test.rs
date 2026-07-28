@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use super::{Consumer, ConsumerBuilder, ReadIsolation, RecvConsumerBatch};
+use super::{Consumer, ConsumerBuilder, OffsetReset, ReadIsolation, RecvConsumerBatch};
 use crate::{Client, ErrorKind};
 
 macro_rules! assert_not_impl {
@@ -26,11 +26,13 @@ fn builder_and_unique_handle_expose_static_identity_without_control_capabilities
         let builder = builder
             .group_instance_id("instance-a")
             .subscribe(["orders"])
+            .on_missing_offset(OffsetReset::Latest)
             .read_isolation(ReadIsolation::ReadCommitted)
             .processing_timeout(Duration::from_secs(41));
         let _: &str = builder.group_id();
         let _: Option<&str> = builder.selected_group_instance_id();
         let _: &[String] = builder.subscription();
+        let _: OffsetReset = builder.offset_reset();
         let _: ReadIsolation = builder.selected_read_isolation();
         let _: Duration = builder.selected_processing_timeout();
     }
@@ -68,6 +70,7 @@ fn static_identity_is_opt_in_and_exactly_recovered_on_invalid_registration() {
         .consumer("static-workers")
         .group_instance_id("")
         .subscribe(["orders"])
+        .on_missing_offset(OffsetReset::Latest)
         .read_isolation(ReadIsolation::ReadCommitted)
         .processing_timeout(Duration::from_secs(41))
         .build()
@@ -77,6 +80,7 @@ fn static_identity_is_opt_in_and_exactly_recovered_on_invalid_registration() {
     assert_eq!(rejected.builder().group_id(), "static-workers");
     assert_eq!(rejected.builder().selected_group_instance_id(), Some(""));
     assert_eq!(rejected.builder().subscription(), ["orders"]);
+    assert_eq!(rejected.builder().offset_reset(), OffsetReset::Latest);
     assert_eq!(
         rejected.builder().selected_read_isolation(),
         ReadIsolation::ReadCommitted
@@ -85,6 +89,32 @@ fn static_identity_is_opt_in_and_exactly_recovered_on_invalid_registration() {
         rejected.builder().selected_processing_timeout(),
         Duration::from_secs(41)
     );
+}
+
+#[test]
+fn offset_reset_defaults_to_error_and_retains_each_explicit_choice() {
+    let client = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .build()
+        .unwrap_or_else(|error| panic!("lazy client start: {error}"));
+    assert_eq!(
+        client.consumer("default-workers").offset_reset(),
+        OffsetReset::Error
+    );
+
+    for policy in [
+        OffsetReset::Error,
+        OffsetReset::Earliest,
+        OffsetReset::Latest,
+    ] {
+        assert_eq!(
+            client
+                .consumer("explicit-workers")
+                .on_missing_offset(policy)
+                .offset_reset(),
+            policy
+        );
+    }
 }
 
 #[test]

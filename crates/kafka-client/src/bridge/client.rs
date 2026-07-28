@@ -6,7 +6,7 @@ use kafka_client_engine::{
     ProducerCompression as EngineCompression,
 };
 
-use crate::consumer::ReadIsolation;
+use crate::consumer::{OffsetReset, ReadIsolation};
 use crate::error::{ErrorKind, KafkaError};
 use crate::producer::{Compression, ProducerLimits};
 use crate::security::{Sasl, SaslMechanism, Security};
@@ -118,6 +118,7 @@ impl ClientEngine {
         group: &str,
         group_instance_id: Option<&str>,
         topics: &[String],
+        offset_reset: OffsetReset,
         read_isolation: ReadIsolation,
         processing_timeout: std::time::Duration,
     ) -> Result<super::consumer_facade::group_consumer::GroupConsumerEngine, KafkaError> {
@@ -127,6 +128,7 @@ impl ClientEngine {
             group,
             group_instance_id,
             topics,
+            offset_reset,
             read_isolation,
             processing_timeout,
         )

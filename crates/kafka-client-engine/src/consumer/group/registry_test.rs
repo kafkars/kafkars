@@ -2,7 +2,7 @@
 
 use std::{sync::Arc, time::Duration};
 
-use kafka_client_core::{MembershipCycle, ReadIsolation};
+use kafka_client_core::{GroupPositionMissingOffsetPolicy, MembershipCycle, ReadIsolation};
 
 use crate::clock::MonotonicClock;
 
@@ -55,6 +55,10 @@ fn duplicate_group_spellings_receive_distinct_owner_identities() {
 
 #[test]
 fn registration_retains_read_isolation_per_entry() {
+    registration_retains_configuration_per_entry();
+}
+
+fn registration_retains_configuration_per_entry() {
     let mut registry = started_registry();
     let default_group = register(&mut registry, "default");
     let committed_group = registry
@@ -65,6 +69,7 @@ fn registration_retains_read_isolation_per_entry() {
             super::classic_group_test_support::timing(),
             super::classic_group_test_support::heartbeat_policy(),
             super::classic_group_test_support::rejoin_policy(),
+            GroupPositionMissingOffsetPolicy::Error,
             ReadIsolation::ReadCommitted,
             default_classic_processing_lease_policy(),
         )
@@ -162,6 +167,7 @@ fn aggregate_identity_budget_accepts_maximum_group_and_instance_for_every_entry(
                 super::classic_group_test_support::timing(),
                 super::classic_group_test_support::heartbeat_policy(),
                 super::classic_group_test_support::rejoin_policy(),
+                GroupPositionMissingOffsetPolicy::Error,
                 ReadIsolation::ReadUncommitted,
                 default_classic_processing_lease_policy(),
             )
@@ -190,6 +196,7 @@ fn confirmed_static_state_carries_the_configured_instance_identity() {
             super::classic_group_test_support::timing(),
             super::classic_group_test_support::heartbeat_policy(),
             super::classic_group_test_support::rejoin_policy(),
+            GroupPositionMissingOffsetPolicy::Error,
             ReadIsolation::ReadUncommitted,
             default_classic_processing_lease_policy(),
         )

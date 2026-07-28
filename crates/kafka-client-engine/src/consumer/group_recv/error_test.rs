@@ -1,6 +1,7 @@
 //! Stable group-receive error vocabulary evidence.
 
 use super::{GroupConsumerRecvError, GroupConsumerRecvErrorKind};
+use crate::consumer::GroupConsumerPositionFailureKind;
 
 #[test]
 fn receive_errors_preserve_stable_kind_and_display() {
@@ -12,4 +13,10 @@ fn receive_errors_preserve_stable_kind_and_display() {
         GroupConsumerRecvErrorKind::InternalInvariant
     );
     assert!(host.to_string().contains("HostUnavailable"));
+
+    let position = GroupConsumerRecvError::position(GroupConsumerPositionFailureKind::Broker(-91));
+    assert_eq!(
+        position.kind(),
+        GroupConsumerRecvErrorKind::Position(GroupConsumerPositionFailureKind::Broker(-91))
+    );
 }

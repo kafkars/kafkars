@@ -5,8 +5,8 @@ use std::sync::Arc;
 use kafka_client_core::{
     GroupId, GroupPositionBootstrapBuildErrorKind, GroupPositionBootstrapEffect,
     GroupPositionBootstrapInput, GroupPositionBootstrapMachine, GroupPositionBootstrapMachineError,
-    GroupPositionBootstrapTerminal, GroupPositionPartitionFact, LiveGroupAssignment,
-    MembershipCycle, Moment, PartitionIndex, TopicId,
+    GroupPositionBootstrapTerminal, GroupPositionMissingOffsetPolicy, GroupPositionPartitionFact,
+    LiveGroupAssignment, MembershipCycle, Moment, PartitionIndex, TopicId,
 };
 
 use crate::{
@@ -88,6 +88,24 @@ pub(in crate::consumer::group) fn prepare_classic_group_position(
     operation_deadline: OperationDeadline,
     now: Moment,
 ) -> Result<ClassicGroupPositionPreparation, ClassicGroupPositionPreparationError> {
+    prepare_classic_group_position_with_policy(
+        catalog,
+        cycle,
+        assignment,
+        operation_deadline,
+        now,
+        GroupPositionMissingOffsetPolicy::Error,
+    )
+}
+
+pub(in crate::consumer::group) fn prepare_classic_group_position_with_policy(
+    catalog: &GroupSessionCatalog,
+    cycle: MembershipCycle,
+    assignment: &LiveGroupAssignment,
+    operation_deadline: OperationDeadline,
+    now: Moment,
+    missing_offset_policy: GroupPositionMissingOffsetPolicy,
+) -> Result<ClassicGroupPositionPreparation, ClassicGroupPositionPreparationError> {
     let fence = kafka_client_core::GroupPositionFence::new(
         assignment.group_id(),
         cycle,
@@ -111,9 +129,13 @@ pub(in crate::consumer::group) fn prepare_classic_group_position(
     let protocol = require_protocol_shape(protocol, partitions.is_empty())?;
     let result_buffer = reserve_result_buffer(partitions.len())?;
 
-    let mut machine =
-        GroupPositionBootstrapMachine::try_new(fence, operation_deadline.core(), partitions)
-            .map_err(|error| ClassicGroupPositionPreparationError::CoreBuild(error.kind()))?;
+    let mut machine = GroupPositionBootstrapMachine::try_new_with_policy(
+        fence,
+        operation_deadline.core(),
+        partitions,
+        missing_offset_policy,
+    )
+    .map_err(|error| ClassicGroupPositionPreparationError::CoreBuild(error.kind()))?;
     let transition = machine
         .apply(GroupPositionBootstrapInput::Start { fence, now })
         .map_err(|error| ClassicGroupPositionPreparationError::CoreStart(error.kind()))?;
@@ -187,7 +209,12 @@ fn finish_preparation(
                 return mismatch(ClassicGroupPositionPreparationMismatch::EmptyAssignmentTerminal);
             }
             Ok(ClassicGroupPositionPreparation::Complete(
-                ClassicGroupPositionCompleted::new(machine, terminal, observed_at),
+                ClassicGroupPositionCompleted::new_with_operation_deadline(
+                    machine,
+                    terminal,
+                    observed_at,
+                    operation_deadline,
+                ),
             ))
         }
         (RequiredProtocol::NoRequest, Some(GroupPositionBootstrapEffect::FetchOffsets { .. })) => {

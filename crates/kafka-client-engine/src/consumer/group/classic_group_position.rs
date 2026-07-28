@@ -2,6 +2,7 @@
 
 mod activation;
 mod close;
+mod completion_state;
 mod preparation;
 mod preparation_input;
 mod recovery;
@@ -22,12 +23,17 @@ pub(super) use activation::{
     ClassicGroupPositionActivationError, prepare_classic_group_fetch_activation,
 };
 pub(super) use close::ClassicGroupPositionCloseTurn;
+pub(super) use completion_state::{
+    ClassicGroupPositionCompleted, ClassicGroupPositionConfirmationPending,
+};
 #[cfg(test)]
-pub(super) use preparation::CLASSIC_GROUP_POSITION_REQUEST_RETAINED_BYTES;
+pub(super) use preparation::{
+    CLASSIC_GROUP_POSITION_REQUEST_RETAINED_BYTES, prepare_classic_group_position,
+};
 pub(super) use preparation::{
     CLASSIC_GROUP_POSITION_RESULT_RETAINED_BYTES, ClassicGroupPositionPreparation,
     ClassicGroupPositionPreparationError, ClassicGroupPositionPreparationMismatch,
-    prepare_classic_group_position,
+    prepare_classic_group_position_with_policy,
 };
 pub(super) use recovery_fault::ClassicGroupPositionRecoveryFault;
 #[cfg(test)]
@@ -36,11 +42,10 @@ pub(super) use registry_settlement::ClassicGroupPositionSettlementTurn;
 pub(super) use registry_submission::ClassicGroupPositionSubmissionTurn;
 pub(super) use registry_turn::GroupConsumerPositionTurn;
 pub(super) use state::{
-    ClassicGroupPositionCompleted, ClassicGroupPositionConfirmationPending,
     ClassicGroupPositionDriverOwned, ClassicGroupPositionHandoff, ClassicGroupPositionPrepared,
 };
 pub(super) use state_execution::{
-    ClassicGroupPositionExecution, ClassicGroupPositionExecutionState,
+    ClassicGroupPositionExecution, ClassicGroupPositionExecutionState, ClassicGroupPositionFailure,
 };
 pub(super) use submission::{
     ClassicGroupPositionAcceptanceFailure, ClassicGroupPositionExecutionError,
@@ -71,7 +76,7 @@ mod settlement_failure_test;
 #[cfg(test)]
 mod settlement_success_test;
 #[cfg(test)]
-mod settlement_test_support;
+pub(in crate::consumer::group) mod settlement_test_support;
 #[cfg(test)]
 mod state_test;
 #[cfg(test)]

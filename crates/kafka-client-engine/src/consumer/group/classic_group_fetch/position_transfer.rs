@@ -53,10 +53,7 @@ pub(in crate::consumer::group) fn transfer_completed_position(
     position: &mut ClassicGroupPositionExecution,
     fetch: &mut ClassicGroupFetchOwner,
 ) -> Result<ClassicGroupFetchTransferTurn, ClassicGroupFetchTransferError> {
-    if !matches!(
-        position.state(),
-        ClassicGroupPositionExecutionState::Complete(_)
-    ) {
+    if !position.has_ready_bootstrap_terminal() {
         return Ok(ClassicGroupFetchTransferTurn::Idle);
     }
     let current_fence = current_position_fence(classic, catalog)

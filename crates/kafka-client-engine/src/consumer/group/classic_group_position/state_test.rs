@@ -100,7 +100,7 @@ fn confirmation_pending_keeps_applied_terminal_until_exact_confirmation() {
     else {
         panic!("complete state expected");
     };
-    let (machine, terminal, observed_at) = completed.into_parts();
+    let (machine, terminal, observed_at, _operation_deadline) = completed.into_parts();
     assert_eq!(machine.fence(), fence);
     assert_eq!(observed_at, Moment::from_tick(1));
     assert!(matches!(

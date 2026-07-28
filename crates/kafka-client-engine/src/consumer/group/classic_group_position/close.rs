@@ -53,8 +53,8 @@ impl ClassicGroupPositionExecution {
                 return Ok(ClassicGroupPositionCloseTurn::Idle);
             }
             ClassicGroupPositionExecutionState::Complete(completed) => {
-                let (machine, terminal, observed_at) = completed.into_parts();
-                drop((machine, terminal, observed_at));
+                let (machine, terminal, observed_at, operation_deadline) = completed.into_parts();
+                drop((machine, terminal, observed_at, operation_deadline));
                 return Ok(ClassicGroupPositionCloseTurn::Progress);
             }
             ClassicGroupPositionExecutionState::DriverOwned(owner) => {
@@ -66,6 +66,38 @@ impl ClassicGroupPositionExecution {
                     pending,
                 ));
                 return Ok(ClassicGroupPositionCloseTurn::Blocked);
+            }
+            ClassicGroupPositionExecutionState::ResetDriverOwned(owner) => {
+                self.set(ClassicGroupPositionExecutionState::ResetDriverOwned(owner));
+                return Ok(ClassicGroupPositionCloseTurn::Blocked);
+            }
+            ClassicGroupPositionExecutionState::ResetCompletionFault(fault) => {
+                self.set(ClassicGroupPositionExecutionState::ResetCompletionFault(
+                    fault,
+                ));
+                return Ok(ClassicGroupPositionCloseTurn::Blocked);
+            }
+            ClassicGroupPositionExecutionState::ResetTerminalFault(fault) => {
+                self.set(ClassicGroupPositionExecutionState::ResetTerminalFault(
+                    fault,
+                ));
+                return Ok(ClassicGroupPositionCloseTurn::Blocked);
+            }
+            ClassicGroupPositionExecutionState::ResetComplete(completed) => {
+                drop(completed);
+                return Ok(ClassicGroupPositionCloseTurn::Progress);
+            }
+            ClassicGroupPositionExecutionState::ResetPrepared(prepared) => {
+                let fence = prepared.reset.fence();
+                if let Err(error) = super::super::classic_group_position_reset::close_prepared_reset(
+                    self, prepared, now,
+                ) {
+                    return Err(ClassicGroupPositionRejectionFailure::in_execution(
+                        fence, error,
+                    ));
+                }
+                drop(self.replace(ClassicGroupPositionExecutionState::Dormant));
+                return Ok(ClassicGroupPositionCloseTurn::Progress);
             }
             ClassicGroupPositionExecutionState::Handoff(handoff) => {
                 let fence = handoff.fence();
@@ -118,7 +150,12 @@ impl ClassicGroupPositionExecution {
                 terminal,
             }) => {
                 self.set(ClassicGroupPositionExecutionState::Complete(
-                    ClassicGroupPositionCompleted::new(machine, terminal, now),
+                    ClassicGroupPositionCompleted::new_with_operation_deadline(
+                        machine,
+                        terminal,
+                        now,
+                        key.operation_deadline(),
+                    ),
                 ));
                 drop((correlation, request, result_buffer));
                 if effect_fence != fence {

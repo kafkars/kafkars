@@ -37,6 +37,16 @@ pub(in crate::consumer::group) enum ClassicGroupPositionExecutionError {
     TerminalEffect,
     CompletionFence,
     CompletionDeadline,
+    ResetNotRequired,
+    ResetNotPrepared,
+    ResetNotDriverOwned,
+    ResetCurrentFence,
+    ResetFence,
+    ResetDeadline,
+    ResetEffect,
+    ResetCore(kafka_client_core::GroupPositionResetMachineError),
+    ResetCatalog(super::super::session_catalog::GroupSessionCatalogError),
+    ResetCompletion(crate::driver::ClassicGroupPositionResetCompletionError),
 }
 
 enum ClassicGroupPositionAcceptanceFailureOwnership {

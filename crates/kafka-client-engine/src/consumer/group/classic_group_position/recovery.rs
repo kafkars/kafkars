@@ -91,7 +91,12 @@ impl ClassicGroupPositionExecution {
                 terminal,
             }) => {
                 self.set(ClassicGroupPositionExecutionState::Complete(
-                    ClassicGroupPositionCompleted::new(machine, terminal, now),
+                    ClassicGroupPositionCompleted::new_with_operation_deadline(
+                        machine,
+                        terminal,
+                        now,
+                        key.operation_deadline(),
+                    ),
                 ));
                 drop((correlation, accepted, result_buffer));
                 if fence != supplied {

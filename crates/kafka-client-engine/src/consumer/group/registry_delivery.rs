@@ -1,45 +1,19 @@
 //! Group-selected transfer and reclamation of one bounded Fetch byte lease.
 
 use kafka_client_core::{
-    ClassicProcessingLeaseEffect, ClassicProcessingLeaseError, ClassicProcessingLeaseExpiration,
-    ClassicProcessingLeaseFence, ClassicProcessingLeaseInput, GroupId,
+    ClassicProcessingLeaseEffect, ClassicProcessingLeaseFence, ClassicProcessingLeaseInput, GroupId,
 };
 
 use super::{
-    classic_group_fetch::{
-        ClassicGroupFetchDelivery, ClassicGroupFetchDeliveryError, ClassicGroupFetchReclaimError,
-    },
+    classic_group_fetch::{ClassicGroupFetchDelivery, ClassicGroupFetchReclaimError},
     registry::GroupConsumerRegistry,
+    registry_delivery_error::GroupConsumerDeliveryError,
     registry_entry::GroupConsumerEntryState,
     registry_port::GroupConsumerPort,
     registry_shard::GroupConsumerShardLockError,
     registry_wake::GroupConsumerShardWakeError,
 };
-use crate::clock::{ClockError, MonotonicClock};
-
-/// Stable registry-local reason one immediate delivery observation rejected.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(in crate::consumer) enum GroupConsumerDeliveryError {
-    UnknownGroup,
-    Closing,
-    EntryFault,
-    Fetch(ClassicGroupFetchDeliveryError),
-    Clock {
-        error: ClockError,
-        delivery_retained: bool,
-    },
-    Processing {
-        error: ClassicProcessingLeaseError,
-        delivery_retained: bool,
-    },
-    ProcessingEffect {
-        delivery_retained: bool,
-    },
-    ProcessingExpired {
-        expiration: ClassicProcessingLeaseExpiration,
-        delivery_retained: bool,
-    },
-}
+use crate::clock::MonotonicClock;
 
 /// Failure to return a lease before or after exact group-owner transfer.
 #[must_use = "a pre-transfer rejection still owns the exact group Fetch delivery"]
@@ -96,6 +70,9 @@ impl GroupConsumerRegistry {
         };
         if entry.state == GroupConsumerEntryState::Closing {
             return Err(GroupConsumerDeliveryError::Closing);
+        }
+        if let Some(failure) = entry.take_position_failure_observation() {
+            return Err(GroupConsumerDeliveryError::PositionFailure(failure));
         }
         if entry.fault.is_some() {
             return Err(GroupConsumerDeliveryError::EntryFault);

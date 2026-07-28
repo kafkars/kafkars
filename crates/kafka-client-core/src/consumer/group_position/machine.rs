@@ -5,7 +5,7 @@ use crate::Deadline;
 use super::super::group_commit::GroupAssignmentPartition;
 use super::{
     GroupPositionBootstrapBuildError, GroupPositionBootstrapBuildErrorKind,
-    GroupPositionBootstrapState, GroupPositionFence,
+    GroupPositionBootstrapState, GroupPositionFence, GroupPositionMissingOffsetPolicy,
 };
 
 /// Deterministic owner for one assignment-fenced position bootstrap.
@@ -15,6 +15,7 @@ pub struct GroupPositionBootstrapMachine {
     pub(super) deadline: Deadline,
     pub(super) expected: Vec<GroupAssignmentPartition>,
     pub(super) request_partitions: Vec<GroupAssignmentPartition>,
+    pub(super) missing_offset_policy: GroupPositionMissingOffsetPolicy,
     pub(super) state: GroupPositionBootstrapState,
 }
 
@@ -24,6 +25,21 @@ impl GroupPositionBootstrapMachine {
         fence: GroupPositionFence,
         deadline: Deadline,
         partitions: Vec<GroupAssignmentPartition>,
+    ) -> Result<Self, GroupPositionBootstrapBuildError> {
+        Self::try_new_with_policy(
+            fence,
+            deadline,
+            partitions,
+            GroupPositionMissingOffsetPolicy::Error,
+        )
+    }
+
+    /// Validates and retains one assignment plus explicit missing-offset policy.
+    pub fn try_new_with_policy(
+        fence: GroupPositionFence,
+        deadline: Deadline,
+        partitions: Vec<GroupAssignmentPartition>,
+        missing_offset_policy: GroupPositionMissingOffsetPolicy,
     ) -> Result<Self, GroupPositionBootstrapBuildError> {
         if let Err(kind) = validate_partitions(&partitions) {
             return Err(GroupPositionBootstrapBuildError::new(kind, partitions));
@@ -44,6 +60,7 @@ impl GroupPositionBootstrapMachine {
             deadline,
             expected: partitions,
             request_partitions,
+            missing_offset_policy,
             state: GroupPositionBootstrapState::Ready,
         })
     }
@@ -71,6 +88,11 @@ impl GroupPositionBootstrapMachine {
     /// Returns actual retained correlation storage for engine accounting.
     pub fn expected_capacity(&self) -> usize {
         self.expected.capacity()
+    }
+
+    /// Returns the immutable missing-offset policy for this assignment.
+    pub const fn missing_offset_policy(&self) -> GroupPositionMissingOffsetPolicy {
+        self.missing_offset_policy
     }
 }
 

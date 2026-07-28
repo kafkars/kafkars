@@ -16,6 +16,10 @@ pub(crate) use super::classic_group_leave_adapter::{
     ClassicGroupLeaveRoute,
 };
 pub(crate) use super::classic_group_leave_failure::ClassicGroupLeaveDriverFailureKind;
+pub(crate) use super::classic_group_position_reset_adapter::{
+    ClassicGroupPositionResetCall, ClassicGroupPositionResetCompletionError,
+    ClassicGroupPositionResetOutcome, ClassicGroupPositionResetRoute,
+};
 pub(crate) use super::create_partitions_calls::{
     CreatePartitionsCompletionFailure, TrackedCreatePartitionsCalls,
 };
@@ -82,6 +86,7 @@ pub(crate) use super::list_offsets_admission::{
     PositionAdmissionFailure, PositionRequestPreparationError, PositionResolutionRequest,
 };
 pub(crate) use super::list_offsets_calls::{PositionCompletionFailure, TrackedPositionCalls};
+pub(crate) use super::list_offsets_terminal::ListOffsetsResolution;
 pub(crate) use super::list_partition_reassignments_call::ListPartitionReassignmentsCall;
 pub(crate) use super::list_partition_reassignments_terminal::{
     ListPartitionReassignmentsDriverFailureKind, ListPartitionReassignmentsRawTerminal,
