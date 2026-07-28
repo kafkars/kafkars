@@ -120,6 +120,7 @@ pub(super) fn translate_failure_parts(
         DescribeClusterFailureKind::DriverRejected => ErrorKind::Backpressure,
         DescribeClusterFailureKind::Transport => ErrorKind::Transport,
         DescribeClusterFailureKind::Compatibility => ErrorKind::Compatibility,
+        DescribeClusterFailureKind::Authentication => ErrorKind::Access,
         DescribeClusterFailureKind::InvalidResponse => ErrorKind::Broker,
     };
     KafkaError::new(public, format!("DescribeCluster failed: {kind:?}"))

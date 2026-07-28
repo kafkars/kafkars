@@ -39,7 +39,7 @@ pub(crate) fn start(
 ) -> Result<StartedEngineHost, EngineStartError> {
     let lifecycle = Arc::new(EngineLifecycle::new());
     let (sender, handle) = thread_start::start(&lifecycle)?;
-    let driver = match DriverOwner::build(config) {
+    let driver = match DriverOwner::build_with_security(config, validated.security) {
         Ok(driver) => driver,
         Err(error) => return cancel_start(sender, handle, EngineStartError::driver(&error)),
     };

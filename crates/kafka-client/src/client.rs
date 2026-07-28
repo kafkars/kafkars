@@ -6,6 +6,7 @@ use crate::consumer::{AssignedConsumerBuilder, ConsumerBuilder, ReadIsolation};
 use crate::error::{ErrorKind, KafkaError};
 use crate::producer::{Compression, ProducerBuilder, ProducerLimits};
 use crate::readiness::Ready;
+use crate::security::Security;
 use crate::shutdown::Shutdown;
 use crate::transaction::TransactionalProducerBuilder;
 
@@ -14,6 +15,7 @@ use crate::transaction::TransactionalProducerBuilder;
 pub struct ClientBuilder {
     bootstrap_servers: Vec<String>,
     client_id: Option<String>,
+    security: Security,
     producer_compression: Compression,
     producer_limits: ProducerLimits,
     assigned_consumer_read_isolation: Option<ReadIsolation>,
@@ -33,6 +35,13 @@ impl ClientBuilder {
     /// Sets the client identifier reported to Kafka.
     pub fn client_id(mut self, client_id: impl Into<String>) -> Self {
         self.client_id = Some(client_id.into());
+        self
+    }
+
+    /// Selects transport encryption and broker authentication.
+    #[must_use]
+    pub fn security(mut self, security: Security) -> Self {
+        self.security = security;
         self
     }
 
@@ -68,6 +77,7 @@ impl ClientBuilder {
 
         let engine = ClientEngine::start(
             self.bootstrap_servers,
+            self.security,
             self.producer_compression,
             self.producer_limits,
             self.assigned_consumer_read_isolation,

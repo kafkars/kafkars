@@ -9,6 +9,9 @@ pub(crate) mod owner;
 #[cfg(test)]
 mod owner_test;
 mod rpc;
+mod security;
+#[cfg(test)]
+mod security_test;
 mod shutdown;
 #[cfg(test)]
 mod shutdown_test;
@@ -22,43 +25,35 @@ pub(crate) use error::DriverOwnerError;
 pub(crate) use owner::{DriverOwner, DriverTurn};
 #[cfg(test)]
 pub(crate) use rpc::GroupPositionOffsetFetchTestPartition;
-pub(crate) use rpc::admin_list_offsets_terminal::{
-    AdminListOffsetsDriverFailureKind, AdminListOffsetsTerminal, AdminListOffsetsTerminalFact,
-    RecoveredAdminListOffsetsCall,
-};
-pub(crate) use rpc::classic_group;
 pub(crate) use rpc::{
-    AdminListOffsetsCall, AlterPartitionReassignmentsCall,
+    AdminListOffsetsCall, AdminListOffsetsDriverFailureKind, AdminListOffsetsTerminal,
+    AdminListOffsetsTerminalFact, AlterPartitionReassignmentsCall,
     AlterPartitionReassignmentsDriverFailureKind, AlterPartitionReassignmentsTerminal,
     AlterPartitionReassignmentsTerminalFact, CreatePartitionsCompletionFailure,
     CreateTopicsCompletionFailure, DeleteTopicsCompletionFailure, DescribeClusterCalls,
     DescribeClusterCompletionFailure, DescribeConfigsCalls, DescribeConfigsCompletionFailure,
     DescribeTopicsCalls, DescribeTopicsCompletionFailure, FetchBeginSettlementError,
     FetchCallAdmission, FetchCompletionObservation, FetchConfirmationError, FetchControlPending,
-    FetchPoll, FetchRecovery, FetchTerminal, GroupOffsetCommitPoll,
-    GroupOffsetCommitShutdownRecovery, GroupOffsetsCall, GroupOffsetsDriverFailureKind,
-    GroupOffsetsTerminal, GroupOffsetsTerminalFact, IncrementalAlterConfigsCalls,
+    FetchPoll, FetchRecovery, FetchTerminal, GroupOffsetAlterCall,
+    GroupOffsetAlterDriverFailureKind, GroupOffsetAlterTerminal, GroupOffsetAlterTerminalFact,
+    GroupOffsetCommitPoll, GroupOffsetCommitShutdownRecovery, GroupOffsetDeleteCall,
+    GroupOffsetDeleteDriverFailureKind, GroupOffsetDeleteTerminal, GroupOffsetDeleteTerminalFact,
+    GroupOffsetsCall, GroupOffsetsDriverFailureKind, GroupOffsetsTerminal,
+    GroupOffsetsTerminalFact, IncrementalAlterConfigsCalls,
     IncrementalAlterConfigsCompletionFailure, ListPartitionReassignmentsCall,
     ListPartitionReassignmentsDriverFailureKind, ListPartitionReassignmentsRawTerminal,
     ListPartitionReassignmentsTerminalFact, PartitionFetchRequest, PositionAdmissionFailure,
     PositionCompletionFailure, PositionRequestPreparationError, PositionResolutionRequest,
     ProduceCompletionFailure, ProducerIdentityCompletionFailure, ProducerTopicViewCall,
-    RecoveredAlterPartitionReassignmentsCall, RecoveredListPartitionReassignmentsCall,
+    RecoveredAdminListOffsetsCall, RecoveredAlterPartitionReassignmentsCall,
+    RecoveredGroupOffsetAlterCall, RecoveredListPartitionReassignmentsCall,
     StaleFetchConfirmationError, TopicPartitionCountAdmissionFailure,
     TopicPartitionCountAdmissionFailureKind, TopicPartitionCountCall, TopicPartitionCountFact,
     TopicPartitionCountFailure, TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls,
     TrackedDeleteTopicsCalls, TrackedFetchCalls, TrackedGroupOffsetCommitCalls,
     TrackedPositionCalls, TrackedProduceCalls, TrackedProducerIdentityCalls, TransactionInitCall,
     TransactionInitDriverFailureKind, TransactionInitTerminal, TransactionInitTerminalFact,
-    classify_fetch_admission, classify_fetch_request_error,
-};
-pub(crate) use rpc::{
-    GroupOffsetAlterCall, GroupOffsetAlterDriverFailureKind, GroupOffsetAlterTerminal,
-    GroupOffsetAlterTerminalFact, RecoveredGroupOffsetAlterCall,
-};
-pub(crate) use rpc::{
-    GroupOffsetDeleteCall, GroupOffsetDeleteDriverFailureKind, GroupOffsetDeleteTerminal,
-    GroupOffsetDeleteTerminalFact,
+    classic_group, classify_fetch_admission, classify_fetch_request_error,
 };
 #[expect(
     unused_imports,
@@ -76,4 +71,5 @@ pub(crate) use rpc::{
     GroupPositionOffsetFetchTerminal, GroupPositionOffsetFetchTerminalFact,
     TrackedGroupPositionOffsetFetchCalls,
 };
+pub(crate) use security::{EngineSecurityError, ValidatedSecurity, validate as validate_security};
 pub(crate) use wake::{ReactorWake, ReactorWakeError};

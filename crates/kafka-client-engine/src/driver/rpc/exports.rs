@@ -1,6 +1,10 @@
 //! Closed re-exports for concrete driver RPC owners.
 
 pub(crate) use super::admin_list_offsets_call::AdminListOffsetsCall;
+pub(crate) use super::admin_list_offsets_terminal::{
+    AdminListOffsetsDriverFailureKind, AdminListOffsetsTerminal, AdminListOffsetsTerminalFact,
+    RecoveredAdminListOffsetsCall,
+};
 pub(crate) use super::alter_partition_reassignments_call::AlterPartitionReassignmentsCall;
 pub(crate) use super::alter_partition_reassignments_terminal::{
     AlterPartitionReassignmentsDriverFailureKind, AlterPartitionReassignmentsTerminal,

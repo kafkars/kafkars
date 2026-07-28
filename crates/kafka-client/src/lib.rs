@@ -19,6 +19,7 @@ mod operation;
 mod producer;
 mod readiness;
 mod record;
+mod security;
 mod shutdown;
 mod transaction;
 
@@ -58,6 +59,7 @@ pub use producer::{
 };
 pub use readiness::Ready;
 pub use record::{Header, Record};
+pub use security::{Sasl, SaslMechanism, Security, Tls};
 pub use shutdown::Shutdown;
 pub use transaction::{
     InitializeTransactionalProducer, TransactionalProducer, TransactionalProducerBuilder,

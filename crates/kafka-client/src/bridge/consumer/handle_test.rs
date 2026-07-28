@@ -1,12 +1,13 @@
 //! Private bridge claim and close lifecycle scenarios.
 
 use crate::bridge::ClientEngine;
-use crate::{ErrorKind, producer::Compression};
+use crate::{ErrorKind, Security, producer::Compression};
 
 #[test]
 fn bridge_claims_once_and_observes_real_close() {
     let engine = ClientEngine::start(
         vec![String::from("127.0.0.1:1")],
+        Security::plaintext(),
         Compression::None,
         crate::ProducerLimits::default(),
         None,

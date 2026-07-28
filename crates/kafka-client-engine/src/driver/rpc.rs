@@ -197,7 +197,8 @@ mod transaction_init_terminal_test;
 #[cfg(test)]
 pub(crate) use exports::GroupPositionOffsetFetchTestPartition;
 pub(crate) use exports::{
-    AdminListOffsetsCall, AlterPartitionReassignmentsCall,
+    AdminListOffsetsCall, AdminListOffsetsDriverFailureKind, AdminListOffsetsTerminal,
+    AdminListOffsetsTerminalFact, AlterPartitionReassignmentsCall,
     AlterPartitionReassignmentsDriverFailureKind, AlterPartitionReassignmentsTerminal,
     AlterPartitionReassignmentsTerminalFact, CreatePartitionsCompletionFailure,
     CreateTopicsCompletionFailure, DeleteTopicsCompletionFailure, DescribeClusterCalls,
@@ -224,13 +225,14 @@ pub(crate) use exports::{
     PartitionFetchRequest, PositionAdmissionFailure, PositionCompletionFailure,
     PositionRequestPreparationError, PositionResolutionRequest, ProduceCompletionFailure,
     ProduceSubmitError, ProducerIdentityCompletionFailure, ProducerTopicViewCall,
-    RecoveredAlterPartitionReassignmentsCall, RecoveredGroupOffsetAlterCall,
-    RecoveredListPartitionReassignmentsCall, StaleFetchConfirmationError,
-    TopicPartitionCountAdmissionFailure, TopicPartitionCountAdmissionFailureKind,
-    TopicPartitionCountCall, TopicPartitionCountFact, TopicPartitionCountFailure,
-    TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls, TrackedDeleteTopicsCalls,
-    TrackedFetchCalls, TrackedGroupOffsetCommitCalls, TrackedGroupPositionOffsetFetchCalls,
-    TrackedPositionCalls, TrackedProduceCalls, TrackedProducerIdentityCalls, TransactionInitCall,
-    TransactionInitDriverFailureKind, TransactionInitTerminal, TransactionInitTerminalFact,
-    classify_fetch_admission, classify_fetch_request_error,
+    RecoveredAdminListOffsetsCall, RecoveredAlterPartitionReassignmentsCall,
+    RecoveredGroupOffsetAlterCall, RecoveredListPartitionReassignmentsCall,
+    StaleFetchConfirmationError, TopicPartitionCountAdmissionFailure,
+    TopicPartitionCountAdmissionFailureKind, TopicPartitionCountCall, TopicPartitionCountFact,
+    TopicPartitionCountFailure, TrackedCreatePartitionsCalls, TrackedCreateTopicsCalls,
+    TrackedDeleteTopicsCalls, TrackedFetchCalls, TrackedGroupOffsetCommitCalls,
+    TrackedGroupPositionOffsetFetchCalls, TrackedPositionCalls, TrackedProduceCalls,
+    TrackedProducerIdentityCalls, TransactionInitCall, TransactionInitDriverFailureKind,
+    TransactionInitTerminal, TransactionInitTerminalFact, classify_fetch_admission,
+    classify_fetch_request_error,
 };

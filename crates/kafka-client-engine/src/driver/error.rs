@@ -4,11 +4,17 @@ use std::{error::Error, fmt};
 
 use kafka_driver::{BootstrapError, CompletionError, DriverBuildError, ReactorError, SubmitError};
 
+#[cfg(test)]
+use super::EngineSecurityError;
+
 use super::EndpointError;
 
 /// Why the engine could not acquire its unique embedded driver reactor.
 #[derive(Debug)]
 pub(crate) enum DriverOwnerError {
+    #[cfg(test)]
+    /// Direct test construction rejected the security configuration.
+    Security(EngineSecurityError),
     /// One configured bootstrap entry was not a driver endpoint.
     Endpoint {
         /// Zero-based position in the configured bootstrap sequence.
@@ -33,6 +39,8 @@ pub(crate) enum DriverOwnerError {
 impl fmt::Display for DriverOwnerError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            #[cfg(test)]
+            Self::Security(source) => write!(formatter, "invalid security configuration: {source}"),
             Self::Endpoint { index, source } => {
                 write!(
                     formatter,
@@ -58,6 +66,8 @@ impl fmt::Display for DriverOwnerError {
 impl Error for DriverOwnerError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            #[cfg(test)]
+            Self::Security(source) => Some(source),
             Self::Endpoint { source, .. } => Some(source),
             Self::Bootstrap(source) => Some(source),
             Self::Build(source) => Some(source),

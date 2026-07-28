@@ -81,7 +81,8 @@ pub use crate::admin::{
     TopicDescription, TopicPartitionDescription,
 };
 pub use crate::config::{
-    ConsumerReadIsolation, EngineConfig, EngineProducerLimits, ProducerCompression,
+    ConsumerReadIsolation, EngineConfig, EngineProducerLimits, EngineSasl, EngineSaslMechanism,
+    EngineSecurity, EngineTls, ProducerCompression,
 };
 pub use crate::consumer::{
     AssignedConsumerAcceptedFaultKind, AssignedConsumerAssignment,

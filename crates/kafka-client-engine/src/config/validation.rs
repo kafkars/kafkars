@@ -6,7 +6,10 @@ use kafka_client_core::{
     ByteCount, ProducerBatchPolicy, ProducerRetryPolicy, ProducerRetryPolicyError,
 };
 
-use crate::producer::{ProducerHostLimitError, ProducerHostLimits, host_turn::ProducerTurnBudget};
+use crate::{
+    driver::{EngineSecurityError, validate_security},
+    producer::{ProducerHostLimitError, ProducerHostLimits, host_turn::ProducerTurnBudget},
+};
 
 use super::{
     DEFAULT_COMPRESSION_WORKERS, DEFAULT_TURN_BUDGET, EngineConfig, ValidatedEngineConfig,
@@ -15,6 +18,7 @@ use super::{
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum EngineConfigError {
     EmptyBootstrap,
+    Security(EngineSecurityError),
     ZeroDeliveryTimeout,
     ZeroAdminTimeout,
     DurationOverflow,
@@ -32,6 +36,7 @@ impl EngineConfig {
         if self.bootstrap_servers().is_empty() {
             return Err(EngineConfigError::EmptyBootstrap);
         }
+        let security = validate_security(self.security()).map_err(EngineConfigError::Security)?;
         if self.delivery_timeout().is_zero() {
             return Err(EngineConfigError::ZeroDeliveryTimeout);
         }
@@ -58,6 +63,7 @@ impl EngineConfig {
         Ok(ValidatedEngineConfig {
             host_limits,
             turn_budget,
+            security,
         })
     }
 

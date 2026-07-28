@@ -2,12 +2,14 @@
 
 use kafka_client_engine::{
     ConsumerReadIsolation as EngineReadIsolation, Engine, EngineConfig, EngineProducerLimits,
-    EngineStartErrorKind, ProducerCompression as EngineCompression,
+    EngineSasl, EngineSecurity, EngineStartErrorKind, EngineTls,
+    ProducerCompression as EngineCompression,
 };
 
 use crate::consumer::ReadIsolation;
 use crate::error::{ErrorKind, KafkaError};
 use crate::producer::{Compression, ProducerLimits};
+use crate::security::{Sasl, SaslMechanism, Security};
 use crate::shutdown::Shutdown;
 
 /// Facade-owned handle that hides engine types from public modules.
@@ -19,13 +21,19 @@ pub(crate) struct ClientEngine {
 
 impl ClientEngine {
     /// Starts the engine from facade-owned configuration values.
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "the consuming client-builder boundary transfers its exact security owner"
+    )]
     pub(crate) fn start(
         bootstrap_servers: Vec<String>,
+        security: Security,
         compression: Compression,
         producer_limits: ProducerLimits,
         assigned_consumer_read_isolation: Option<ReadIsolation>,
     ) -> Result<Self, KafkaError> {
         let config = EngineConfig::new(bootstrap_servers)
+            .with_security(engine_security(&security))
             .with_producer_compression(engine_compression(compression))
             .with_producer_limits(engine_producer_limits(producer_limits));
         let config = match assigned_consumer_read_isolation {
@@ -91,6 +99,33 @@ impl ClientEngine {
         &self,
     ) -> Result<super::consumer::AssignedConsumerEngine, KafkaError> {
         super::consumer::AssignedConsumerEngine::claim(&self.inner)
+    }
+}
+
+pub(super) fn engine_security(security: &Security) -> EngineSecurity {
+    match security {
+        Security::Plaintext => EngineSecurity::plaintext(),
+        Security::Tls(tls) => EngineSecurity::tls(engine_tls(tls)),
+        Security::SaslPlaintext(sasl) => EngineSecurity::sasl_plaintext(engine_sasl(sasl)),
+        Security::SaslTls { tls, sasl } => {
+            EngineSecurity::sasl_tls(engine_tls(tls), engine_sasl(sasl))
+        }
+    }
+}
+
+fn engine_tls(tls: &crate::Tls) -> EngineTls {
+    tls.custom_roots_pem_bytes()
+        .map_or_else(EngineTls::system_roots, |pem| {
+            EngineTls::custom_roots_pem(pem.to_vec())
+        })
+}
+
+fn engine_sasl(sasl: &Sasl) -> EngineSasl {
+    let (username, password) = sasl.credentials();
+    match sasl.mechanism() {
+        SaslMechanism::Plain => EngineSasl::plain(username, password),
+        SaslMechanism::ScramSha256 => EngineSasl::scram_sha_256(username, password),
+        SaslMechanism::ScramSha512 => EngineSasl::scram_sha_512(username, password),
     }
 }
 

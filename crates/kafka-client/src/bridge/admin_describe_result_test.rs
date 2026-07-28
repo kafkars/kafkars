@@ -83,6 +83,16 @@ fn protocol_incompatibility_remains_definitely_unsent() {
 }
 
 #[test]
+fn authentication_rejection_maps_to_public_access() {
+    let failure = translate_failure_parts(
+        DescribeClusterFailureKind::Authentication,
+        DescribeClusterDeliveryStatus::NotSent,
+    );
+    assert_eq!(failure.kind(), ErrorKind::Access);
+    assert_eq!(failure.delivery_status(), Some(DeliveryStatus::NotSent));
+}
+
+#[test]
 fn observer_and_accepted_fault_categories_remain_distinct() {
     assert_eq!(
         translate_observer_error(DescribeClusterObserverError::AlreadyObserved).kind(),

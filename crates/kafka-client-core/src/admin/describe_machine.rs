@@ -53,6 +53,11 @@ pub enum DescribeClusterInput {
         /// Driver-authoritative delivery certainty.
         delivery: DeliveryStatus,
     },
+    /// Reports that SASL authentication failed before ordinary call admission.
+    AuthenticationFailed {
+        /// Driver-authoritative delivery certainty.
+        delivery: DeliveryStatus,
+    },
     /// Reports a malformed or over-budget broker response.
     InvalidResponse,
 }

@@ -169,6 +169,8 @@ pub enum DescribeClusterFailureKind {
     Transport,
     /// The broker cannot represent the explicitly requested cluster view.
     Compatibility,
+    /// SASL authentication rejected the connection before ordinary call admission.
+    Authentication,
     /// A broker response was malformed or exceeded the retained-result budget.
     InvalidResponse,
 }

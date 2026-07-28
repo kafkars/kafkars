@@ -7,12 +7,14 @@ mod compression;
 mod compression_test;
 mod producer_limits;
 mod read_isolation;
+mod security;
 mod transaction;
 mod validated;
 mod validation;
 pub use compression::ProducerCompression;
 pub use producer_limits::EngineProducerLimits;
 pub use read_isolation::ConsumerReadIsolation;
+pub use security::{EngineSasl, EngineSaslMechanism, EngineSecurity, EngineTls};
 pub(crate) use validated::ValidatedEngineConfig;
 pub(crate) use validation::EngineConfigError;
 
@@ -20,6 +22,8 @@ pub(crate) use validation::EngineConfigError;
 mod producer_limits_test;
 #[cfg(test)]
 mod read_isolation_test;
+#[cfg(test)]
+mod security_test;
 #[cfg(test)]
 mod transaction_test;
 #[cfg(test)]
@@ -41,6 +45,7 @@ pub struct EngineConfig {
     producer_limits: EngineProducerLimits,
     producer_compression: ProducerCompression,
     assigned_consumer_read_isolation: ConsumerReadIsolation,
+    security: EngineSecurity,
     producer_retry_max: u32,
     producer_retry_backoff: Duration,
 }
@@ -55,6 +60,7 @@ impl EngineConfig {
             producer_limits: EngineProducerLimits::default(),
             producer_compression: ProducerCompression::None,
             assigned_consumer_read_isolation: ConsumerReadIsolation::default(),
+            security: EngineSecurity::default(),
             producer_retry_max: DEFAULT_PRODUCER_RETRIES,
             producer_retry_backoff: DEFAULT_PRODUCER_RETRY_BACKOFF,
         }
@@ -101,6 +107,13 @@ impl EngineConfig {
         self
     }
 
+    /// Replaces the complete transport and broker-authentication policy.
+    #[must_use]
+    pub fn with_security(mut self, security: EngineSecurity) -> Self {
+        self.security = security;
+        self
+    }
+
     /// Replaces bounded definitely-unsent retry intent.
     #[must_use]
     pub const fn with_producer_retry(mut self, max_retries: u32, backoff: Duration) -> Self {
@@ -137,5 +150,10 @@ impl EngineConfig {
     /// Returns immutable record visibility for the sole assigned consumer.
     pub const fn assigned_consumer_read_isolation(&self) -> ConsumerReadIsolation {
         self.assigned_consumer_read_isolation
+    }
+
+    /// Returns the complete transport and broker-authentication policy.
+    pub const fn security(&self) -> &EngineSecurity {
+        &self.security
     }
 }

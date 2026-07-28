@@ -1,7 +1,10 @@
 //! Semantic normalization scenarios for `DescribeCluster` call terminals.
 
 use kafka_client_core::{DeliveryStatus, DescribeClusterInput};
-use kafka_driver::{ApiKey, ApiVersion, RequestError};
+use kafka_driver::{
+    ApiKey, ApiVersion, AuthenticationFailure, CallFailure, ConnectionCloseReason, Delivery,
+    RequestError,
+};
 use kafka_wire::DescribeClusterResponse;
 
 use super::describe_cluster_terminal::normalize_terminal;
@@ -92,6 +95,28 @@ fn invalid_version_bounds_are_definitely_unsent_compatibility() {
             }),
         ),
         DescribeClusterInput::ProtocolIncompatible {
+            delivery: DeliveryStatus::NotSent,
+        }
+    );
+}
+
+#[test]
+fn authentication_rejection_is_not_collapsed_into_transport() {
+    assert_eq!(
+        normalize_terminal(
+            128 * 1024,
+            false,
+            false,
+            Err(RequestError::Rejected {
+                failure: CallFailure::ConnectionClosed {
+                    reason: ConnectionCloseReason::AuthenticationFailed(
+                        AuthenticationFailure::Rejected,
+                    ),
+                },
+                delivery: Delivery::NotSent,
+            }),
+        ),
+        DescribeClusterInput::AuthenticationFailed {
             delivery: DeliveryStatus::NotSent,
         }
     );

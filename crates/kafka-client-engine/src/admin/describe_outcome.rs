@@ -132,6 +132,8 @@ pub enum DescribeClusterFailureKind {
     Transport,
     /// The broker cannot represent the explicitly requested protocol semantics.
     Compatibility,
+    /// SASL authentication rejected the connection before ordinary call admission.
+    Authentication,
     /// Broker response was malformed or exceeded its retained-result budget.
     InvalidResponse,
 }
@@ -213,6 +215,7 @@ pub(crate) fn translate_terminal(terminal: DescribeClusterTerminal) -> DescribeC
                     CoreFailureKind::DriverRejected => DescribeClusterFailureKind::DriverRejected,
                     CoreFailureKind::Transport => DescribeClusterFailureKind::Transport,
                     CoreFailureKind::Compatibility => DescribeClusterFailureKind::Compatibility,
+                    CoreFailureKind::Authentication => DescribeClusterFailureKind::Authentication,
                     CoreFailureKind::InvalidResponse => DescribeClusterFailureKind::InvalidResponse,
                 },
                 delivery: translate_delivery(failure.delivery()),

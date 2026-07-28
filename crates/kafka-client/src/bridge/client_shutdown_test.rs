@@ -3,12 +3,14 @@
 use std::thread;
 
 use super::client::ClientEngine;
+use crate::Security;
 use crate::producer::{Compression, ProducerLimits};
 
 #[test]
 fn concurrent_bridge_observers_receive_one_retained_shutdown_report() {
     let client = ClientEngine::start(
         vec!["127.0.0.1:1".to_owned()],
+        Security::plaintext(),
         Compression::None,
         ProducerLimits::default(),
         None,

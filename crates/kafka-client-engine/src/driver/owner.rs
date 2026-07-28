@@ -8,7 +8,7 @@ use kafka_driver::{
 
 use crate::EngineConfig;
 
-use super::{DriverOwnerError, ReactorWake, endpoint, shutdown::DriverShutdown};
+use super::{DriverOwnerError, ReactorWake, ValidatedSecurity, endpoint, shutdown::DriverShutdown};
 
 /// Driver-neutral outcome from one embedded reactor turn.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -32,7 +32,18 @@ pub(crate) struct DriverOwner {
 
 impl DriverOwner {
     /// Acquires one embedded driver reactor for configured logical endpoints.
+    #[cfg(test)]
     pub(crate) fn build(config: &EngineConfig) -> Result<Self, DriverOwnerError> {
+        let security = config.security();
+        let security = super::security::validate(security).map_err(DriverOwnerError::Security)?;
+        Self::build_with_security(config, security)
+    }
+
+    /// Acquires a reactor while consuming security validated at host admission.
+    pub(crate) fn build_with_security(
+        config: &EngineConfig,
+        security: ValidatedSecurity,
+    ) -> Result<Self, DriverOwnerError> {
         let limits = BootstrapLimits::default();
         let limit = limits.max_endpoints().get();
         if config.bootstrap_servers().len() > limit {
@@ -49,8 +60,7 @@ impl DriverOwner {
         }
         let bootstrap =
             BootstrapSet::try_from_iter(endpoints, limits).map_err(DriverOwnerError::Bootstrap)?;
-        let (driver, reactor) = Driver::builder()
-            .bootstrap(bootstrap)
+        let (driver, reactor) = super::security::builder(bootstrap, security)
             .build_reactor()
             .map_err(DriverOwnerError::Build)?;
         let wake = reactor.wake_handle();
