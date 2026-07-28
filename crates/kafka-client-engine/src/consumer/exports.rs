@@ -36,6 +36,9 @@ pub(crate) use super::group::{
     GroupConsumerRegistry, GroupConsumerShardLockError, GroupConsumerShardOwner,
     GroupConsumerShardWake, GroupConsumerShardWakeError,
 };
+pub use super::group_acknowledge::{
+    GroupConsumerAcknowledgeError, GroupConsumerAcknowledgeErrorKind,
+};
 pub use super::group_batch::{
     GroupConsumerBatch, GroupConsumerCheckpoint, GroupConsumerHeader,
     GroupConsumerPositionFailureKind, GroupConsumerRecord, GroupConsumerRecords,

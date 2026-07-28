@@ -68,6 +68,7 @@ mod fetch_store_domain_test;
 #[cfg(test)]
 mod fetch_store_test;
 mod group;
+mod group_acknowledge;
 mod group_batch;
 mod group_close;
 mod group_commit;

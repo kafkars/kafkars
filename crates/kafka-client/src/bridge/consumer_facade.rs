@@ -2,6 +2,7 @@
 
 #[path = "group_consumer.rs"]
 pub(crate) mod group_consumer;
+pub(crate) mod group_consumer_acknowledge;
 #[path = "group_consumer_batch.rs"]
 pub(crate) mod group_consumer_batch;
 pub(crate) mod group_consumer_checkpoint;
@@ -23,6 +24,8 @@ pub(crate) mod group_consumer_recv_result;
 pub(crate) mod group_consumer_registration;
 pub(crate) mod group_consumer_registration_result;
 
+#[cfg(test)]
+mod group_consumer_acknowledge_test;
 #[cfg(test)]
 mod group_consumer_checkpoint_test;
 #[cfg(test)]

@@ -18,7 +18,7 @@ pub struct GroupConsumerCheckpoint {
     topic: Arc<str>,
     partition: i32,
     next_offset: i64,
-    _position_fence: GroupPositionFence,
+    position_fence: GroupPositionFence,
     checkpoint: GroupCheckpoint,
 }
 
@@ -43,6 +43,10 @@ impl GroupConsumerCheckpoint {
     /// Returns the next offset to consume.
     pub const fn next_offset(&self) -> i64 {
         self.next_offset
+    }
+
+    pub(crate) const fn position_fence(&self) -> GroupPositionFence {
+        self.position_fence
     }
 
     pub(in crate::consumer) fn try_into_commit_parts(
@@ -104,7 +108,7 @@ impl GroupConsumerCheckpoint {
             topic,
             partition,
             next_offset,
-            _position_fence: position_fence,
+            position_fence,
             checkpoint,
         }
     }
@@ -175,7 +179,7 @@ pub(super) fn checkpoint_from_delivery(
         topic: Arc::clone(delivery.topic_arc()),
         partition: delivery.partition(),
         next_offset,
-        _position_fence: fence,
+        position_fence: fence,
         checkpoint,
     }
 }

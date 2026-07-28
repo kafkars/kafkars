@@ -11,6 +11,8 @@ mod checkpoint;
 mod consumer_batch;
 mod event;
 mod group;
+mod group_acknowledge;
+mod group_acknowledge_error;
 mod group_build_error;
 mod group_close;
 mod group_close_error;
@@ -42,6 +44,7 @@ pub use event::{
     AssignedConsumerPositionResolutionFailureKind,
 };
 pub use group::ConsumerBuilder;
+pub use group_acknowledge_error::ConsumerAcknowledgeError;
 pub use group_build_error::ConsumerBuildError;
 pub use group_close::CloseConsumer;
 pub use group_close_error::ConsumerCloseAdmissionError;
@@ -78,6 +81,10 @@ mod checkpoint_test;
 mod consumer_batch_test;
 #[cfg(test)]
 mod event_test;
+#[cfg(test)]
+mod group_acknowledge_error_test;
+#[cfg(test)]
+mod group_acknowledge_test;
 #[cfg(test)]
 mod group_build_error_test;
 #[cfg(test)]

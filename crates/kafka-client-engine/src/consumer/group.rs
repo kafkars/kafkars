@@ -63,6 +63,7 @@ mod classic_group_sync_submission;
 mod classic_group_topics;
 mod offset_commit;
 mod registry;
+mod registry_acknowledge;
 mod registry_close;
 mod registry_close_port;
 mod registry_commit;
@@ -225,6 +226,8 @@ mod classic_group_test_support;
 #[cfg(test)]
 mod classic_group_topics_test;
 #[cfg(test)]
+mod registry_acknowledge_test;
+#[cfg(test)]
 mod registry_close_port_test;
 #[cfg(test)]
 mod registry_close_removal_test;
@@ -282,6 +285,7 @@ pub(in crate::consumer) use classic_group_leave::{
     GroupConsumerCloseTerminalFailureKind,
 };
 pub(crate) use registry::GroupConsumerRegistry;
+pub(in crate::consumer) use registry_acknowledge::GroupConsumerAcknowledgePortError;
 pub(in crate::consumer) use registry_close::GroupRegistryCloseError;
 pub(in crate::consumer) use registry_close_port::{
     GroupConsumerCloseObservation, GroupConsumerCloseObservationError, GroupConsumerClosePortError,

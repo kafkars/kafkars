@@ -47,6 +47,7 @@ fn checked_in_registry_capabilities_and_mirrors_are_exact() {
     for file in [
         "registry.rs",
         "registry_entry.rs",
+        "registry_acknowledge.rs",
         "registry_commit.rs",
         "registry_close.rs",
         "registry_close_port.rs",

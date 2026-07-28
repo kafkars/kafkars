@@ -43,6 +43,7 @@ pub(crate) const ENTRY_FIELDS: &[(&str, &[&str])] = &[
             "classic_group_heartbeat_rejection_install.rs",
             "classic_group_heartbeat_submission.rs",
             "classic_group_sync_install.rs",
+            "registry_acknowledge.rs",
             "registry_delivery.rs",
             "registry_close.rs",
             "registry_membership/local.rs",
