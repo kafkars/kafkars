@@ -24,6 +24,7 @@ mod describe_log_dirs;
 mod describe_machine;
 mod describe_outcome;
 mod describe_transition;
+mod describe_user_scram_credentials;
 mod elect_leaders;
 mod exports;
 mod group_offset_alter;

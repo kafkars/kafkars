@@ -24,6 +24,7 @@ mod describe_cluster;
 mod describe_consumer_groups;
 mod describe_log_dirs;
 mod describe_topics;
+mod describe_user_scram_credentials;
 mod description;
 mod elect_leaders;
 mod group_offsets;

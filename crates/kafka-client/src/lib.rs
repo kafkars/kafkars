@@ -49,7 +49,8 @@ pub use admin::{
     DescribeClusterBuilder, DescribeConfigs, DescribeConfigsBuilder, DescribeConfigsResult,
     DescribeConsumerGroups, DescribeConsumerGroupsBuilder, DescribeConsumerGroupsResult,
     DescribeLogDirs, DescribeLogDirsBuilder, DescribeLogDirsResult, DescribeTopics,
-    DescribeTopicsBuilder, ElectLeaders, ElectLeadersBuilder, ElectLeadersResult,
+    DescribeTopicsBuilder, DescribeUserScramCredentials, DescribeUserScramCredentialsBuilder,
+    DescribeUserScramCredentialsResult, ElectLeaders, ElectLeadersBuilder, ElectLeadersResult,
     IncrementalAlterConfigs, IncrementalAlterConfigsBuilder, IncrementalAlterConfigsResult,
     LeaderElectionTarget, LeaderElectionType, ListConsumerGroupOffsets,
     ListConsumerGroupOffsetsBuilder, ListConsumerGroupOffsetsResult, ListConsumerGroups,
@@ -60,8 +61,8 @@ pub use admin::{
     LogDirReplica, NewPartitions, NewTopic, OffsetSpec, PartitionReassignment,
     PartitionReassignmentChange, RemoveConsumerGroupMembers, RemoveConsumerGroupMembersBuilder,
     RemoveConsumerGroupMembersResult, ReplicaLogDirAssignment, ResourcePattern,
-    TopicConfigAlterations, TopicConfigQuery, TopicDescription, TopicPartitionDescription,
-    TopicPartitionReplica,
+    ScramCredentialInfo, ScramMechanism, TopicConfigAlterations, TopicConfigQuery,
+    TopicDescription, TopicPartitionDescription, TopicPartitionReplica,
 };
 pub use client::{Client, ClientBuilder};
 pub use consumer::{

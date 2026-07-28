@@ -32,6 +32,7 @@ mod describe_log_dirs;
 mod describe_observer;
 mod describe_outcome;
 mod describe_shard;
+mod describe_user_scram_credentials;
 mod elect_leaders;
 mod error;
 mod exports;

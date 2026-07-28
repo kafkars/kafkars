@@ -17,8 +17,9 @@ use crate::{
         DeleteRecordsShardOwner, DeleteTopicsShardOwner, DescribeAclsShardOwner,
         DescribeClientQuotasShardOwner, DescribeClusterShardOwner,
         DescribeConsumerGroupsShardOwner, DescribeLogDirsShardOwner,
-        DescribeTopicsShardOwner, ElectLeadersShardOwner, IncrementalAlterConfigsShardOwner,
-        ListConsumerGroupOffsetsShardOwner, ListConsumerGroupsShardOwner,
+        DescribeTopicsShardOwner, DescribeUserScramCredentialsShardOwner, ElectLeadersShardOwner,
+        IncrementalAlterConfigsShardOwner, ListConsumerGroupOffsetsShardOwner,
+        ListConsumerGroupsShardOwner,
         RemoveConsumerGroupMembersShardOwner,
     },
     clock::MonotonicClock,
@@ -89,6 +90,7 @@ pub(crate) fn start(
         describe_acls,
         describe_client_quotas,
         alter_client_quotas,
+        describe_user_scram_credentials,
         describe_cluster,
         describe_consumer_groups,
         describe_log_dirs,
@@ -165,6 +167,12 @@ pub(crate) fn start(
     let alter_client_quotas =
         AlterClientQuotasShardOwner::new(alter_client_quotas, Arc::new(driver.reactor_wake()));
     let alter_client_quotas_admission = alter_client_quotas.admission_port();
+    let describe_user_scram_credentials = DescribeUserScramCredentialsShardOwner::new(
+        describe_user_scram_credentials,
+        Arc::new(driver.reactor_wake()),
+    );
+    let describe_user_scram_credentials_admission =
+        describe_user_scram_credentials.admission_port();
     let describe_cluster =
         DescribeClusterShardOwner::new(describe_cluster, Arc::new(driver.reactor_wake()));
     let describe_cluster_admission = describe_cluster.admission_port();
@@ -237,6 +245,7 @@ pub(crate) fn start(
         describe_acls,
         describe_client_quotas,
         alter_client_quotas,
+        describe_user_scram_credentials,
         describe_cluster,
         describe_consumer_groups,
         describe_log_dirs,
@@ -301,6 +310,7 @@ pub(crate) fn start(
         describe_acls_admission,
         describe_client_quotas_admission,
         alter_client_quotas_admission,
+        describe_user_scram_credentials_admission,
         describe_cluster_admission,
         describe_consumer_groups_admission,
         describe_log_dirs_admission,

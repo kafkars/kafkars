@@ -210,6 +210,17 @@ fn verify_admin_topic_operations(resources: &EngineHostResources) -> Result<(), 
             crate::admin::AlterClientQuotasHostError::Unsettled(altered_client_quotas),
         ));
     }
+    let described_scram_credentials = resources
+        .describe_user_scram_credentials
+        .terminal_host()
+        .unsettled();
+    if described_scram_credentials != 0 {
+        return Err(EngineHostError::DescribeUserScramCredentials(
+            crate::admin::DescribeUserScramCredentialsHostError::Unsettled(
+                described_scram_credentials,
+            ),
+        ));
+    }
     let created_acls = resources.create_acls.terminal_host().unsettled();
     if created_acls != 0 {
         return Err(EngineHostError::CreateAcls(

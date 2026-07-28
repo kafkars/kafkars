@@ -35,6 +35,10 @@ pub(super) fn close_all(resources: &mut EngineHostResources) {
         .alter_client_quotas
         .admission_port()
         .close_admission();
+    let _close_result = resources
+        .describe_user_scram_credentials
+        .admission_port()
+        .close_admission();
     let _close_result = resources.create_acls.admission_port().close_admission();
     let _close_result = resources.delete_acls.admission_port().close_admission();
     let _close_result = resources

@@ -213,6 +213,23 @@ pub(crate) use super::describe_shard::{
     DescribeClusterAdmissionPort, DescribeClusterShardLockError, DescribeClusterShardOwner,
     DescribeClusterShardWake, DescribeClusterShardWakeError,
 };
+pub(crate) use super::describe_user_scram_credentials::{
+    DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY, DescribeUserScramCredentialsAdmissionPort,
+    DescribeUserScramCredentialsHost, DescribeUserScramCredentialsHostError,
+    DescribeUserScramCredentialsShardLockError, DescribeUserScramCredentialsShardOwner,
+    DescribeUserScramCredentialsShardWake, DescribeUserScramCredentialsShardWakeError,
+    DescribeUserScramCredentialsTurn,
+};
+pub use super::describe_user_scram_credentials::{
+    DescribeUserScramCredentialInfo, DescribeUserScramCredentialOutcome,
+    DescribeUserScramCredentialsAccepted, DescribeUserScramCredentialsAcceptedFaultKind,
+    DescribeUserScramCredentialsAdmissionError, DescribeUserScramCredentialsAdmissionErrorKind,
+    DescribeUserScramCredentialsBatch, DescribeUserScramCredentialsBrokerError,
+    DescribeUserScramCredentialsDeliveryStatus, DescribeUserScramCredentialsFailure,
+    DescribeUserScramCredentialsFailureKind, DescribeUserScramCredentialsObserver,
+    DescribeUserScramCredentialsObserverError, DescribeUserScramCredentialsOutcome,
+    DescribeUserScramCredentialsRequest, DescribeUserScramCredentialsUserResult,
+};
 pub(crate) use super::elect_leaders::{
     ELECT_LEADERS_CAPACITY, ElectLeadersAdmissionPort, ElectLeadersHost, ElectLeadersHostError,
     ElectLeadersShardLockError, ElectLeadersShardOwner, ElectLeadersShardWake,

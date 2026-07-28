@@ -5,13 +5,14 @@ pub(crate) use super::completion::{
     AdminCompletionPorts, AdminCreateAclsPublisher, AdminDeleteAclsPublisher,
     AdminDescribeAclsPublisher, AdminDescribeClientQuotasPublisher,
     AdminDescribeConsumerGroupsPublisher, AdminDescribeLogDirsPublisher,
-    AdminListConsumerGroupsPublisher, AdminListOffsetsPublisher,
-    AlterConsumerGroupOffsetsPublisher, AlterPartitionReassignmentsPublisher,
-    CreatePartitionsPublisher, CreateTopicsPublisher, DeleteConsumerGroupOffsetsPublisher,
-    DeleteConsumerGroupsPublisher, DeleteRecordsPublisher, DeleteTopicsPublisher,
-    DescribeClusterPublisher, DescribeConfigsPublisher, DescribeTopicsPublisher,
-    ElectLeadersPublisher, IncrementalAlterConfigsPublisher, ListConsumerGroupOffsetsPublisher,
-    ListPartitionReassignmentsPublisher, RemoveConsumerGroupMembersPublisher,
+    AdminDescribeUserScramCredentialsPublisher, AdminListConsumerGroupsPublisher,
+    AdminListOffsetsPublisher, AlterConsumerGroupOffsetsPublisher,
+    AlterPartitionReassignmentsPublisher, CreatePartitionsPublisher, CreateTopicsPublisher,
+    DeleteConsumerGroupOffsetsPublisher, DeleteConsumerGroupsPublisher, DeleteRecordsPublisher,
+    DeleteTopicsPublisher, DescribeClusterPublisher, DescribeConfigsPublisher,
+    DescribeTopicsPublisher, ElectLeadersPublisher, IncrementalAlterConfigsPublisher,
+    ListConsumerGroupOffsetsPublisher, ListPartitionReassignmentsPublisher,
+    RemoveConsumerGroupMembersPublisher,
 };
 pub(crate) use super::configs::DescribeConfigsRetention;
 pub(crate) use super::handle::AdminAdmissionPorts;

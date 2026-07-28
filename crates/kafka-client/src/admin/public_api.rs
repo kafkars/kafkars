@@ -64,6 +64,10 @@ pub use super::describe_log_dirs::{
     LogDirReplica,
 };
 pub use super::describe_topics::DescribeTopics;
+pub use super::describe_user_scram_credentials::{
+    DescribeUserScramCredentials, DescribeUserScramCredentialsBuilder,
+    DescribeUserScramCredentialsResult, ScramCredentialInfo, ScramMechanism,
+};
 pub use super::description::{ClusterBroker, ClusterDescription};
 pub use super::elect_leaders::{
     ElectLeaders, ElectLeadersBuilder, ElectLeadersResult, LeaderElectionTarget, LeaderElectionType,

@@ -27,6 +27,7 @@ mod describe_configs;
 mod describe_consumer_groups;
 mod describe_log_dirs;
 mod describe_topics;
+mod describe_user_scram_credentials;
 mod elect_leaders;
 mod group_offset_alter_schedule;
 mod incremental_alter_configs;

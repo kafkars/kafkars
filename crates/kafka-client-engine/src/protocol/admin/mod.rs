@@ -26,6 +26,7 @@ mod describe_topic_value;
 pub(crate) mod describe_topics;
 mod describe_topics_budget;
 pub(crate) mod describe_topics_response;
+pub(crate) mod describe_user_scram_credentials;
 pub(crate) mod elect_leaders;
 #[cfg_attr(not(test), expect(dead_code, reason = "offset alter host follows"))]
 pub(crate) mod group_offset_alter;

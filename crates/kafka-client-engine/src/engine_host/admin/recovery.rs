@@ -99,6 +99,16 @@ fn recover_topic_operations(
         failure = failure.with_cleanup(cleanup);
     }
     drop(alter_client_quotas);
+    let mut describe_user_scram_credentials =
+        resources.describe_user_scram_credentials.terminal_host();
+    if let Some(cleanup) = describe_user_scram_credentials
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::DescribeUserScramCredentials)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    drop(describe_user_scram_credentials);
     let mut create_acls = resources.create_acls.terminal_host();
     if let Some(cleanup) = create_acls
         .recover_after_driver_shutdown()
