@@ -18,6 +18,7 @@ mod error;
 mod operation;
 mod producer;
 mod record;
+mod shutdown;
 mod transaction;
 
 pub use admin::{
@@ -33,7 +34,7 @@ pub use admin::{
     ListConsumerGroupOffsetsResult, ListTopics, ListTopicsBuilder, NewPartitions, NewTopic,
     TopicConfigAlterations, TopicConfigQuery, TopicDescription, TopicPartitionDescription,
 };
-pub use client::{Client, ClientBuilder, Shutdown};
+pub use client::{Client, ClientBuilder};
 pub use consumer::{
     AssignedConsumer, AssignedConsumerBuildError, AssignedConsumerBuilder, AssignedConsumerEvent,
     AssignedConsumerFetchFailureKind, AssignedConsumerFetchFence,
@@ -50,6 +51,7 @@ pub use producer::{
     ProducerLimits, RecordMetadata, Send, SendBatch, SendBatchResult, TrySendError,
 };
 pub use record::{Header, Record};
+pub use shutdown::Shutdown;
 pub use transaction::{
     InitializeTransactionalProducer, TransactionalProducer, TransactionalProducerBuilder,
     TransactionalProducerIdentity,
@@ -59,5 +61,7 @@ pub use transaction::{
 mod client_test;
 #[cfg(test)]
 mod error_test;
+#[cfg(test)]
+mod shutdown_test;
 #[cfg(test)]
 mod silent_broker_test;

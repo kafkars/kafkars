@@ -148,6 +148,12 @@ impl Engine {
         self.inner.shutdown()
     }
 
+    /// Permanently closes admission and requests host shutdown without waiting.
+    pub fn request_shutdown(&self) {
+        self.inner.close_admission();
+        self.inner.lifecycle.request(&self.inner.control);
+    }
+
     #[cfg(test)]
     pub(crate) fn host_snapshot(&self) -> crate::engine_host::EngineHostSnapshot {
         self.inner.control.snapshot()

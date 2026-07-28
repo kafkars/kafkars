@@ -4,8 +4,8 @@ use crate::admin::Admin;
 use crate::bridge::ClientEngine;
 use crate::consumer::{AssignedConsumerBuilder, ConsumerBuilder, ReadIsolation};
 use crate::error::{ErrorKind, KafkaError};
-use crate::operation::Operation;
 use crate::producer::{Compression, ProducerBuilder, ProducerLimits};
+use crate::shutdown::Shutdown;
 use crate::transaction::TransactionalProducerBuilder;
 
 /// Builder for one shared cluster, security, and execution context.
@@ -134,10 +134,6 @@ impl Client {
 
     /// Initiates graceful client shutdown.
     pub fn shutdown(&self) -> Shutdown {
-        let _ = &self.engine;
-        Operation::ready(Ok(()))
+        self.engine.shutdown()
     }
 }
-
-/// Graceful shutdown operation.
-pub type Shutdown = Operation<Result<(), KafkaError>>;

@@ -1737,6 +1737,18 @@ production = "crates/kafka-client/src/client.rs"
 test = "crates/kafka-client/src/client_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client/src/shutdown.rs"
+test = "crates/kafka-client/src/shutdown_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/client_shutdown.rs"
+test = "crates/kafka-client/src/bridge/client_shutdown_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/client_shutdown/state.rs"
+test = "crates/kafka-client/src/bridge/client_shutdown/state_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client/src/error.rs"
 test = "crates/kafka-client/src/error_test.rs"
 
@@ -5274,6 +5286,10 @@ allow = [
   { path = "crates/kafka-client/src/silent_broker_test.rs", capability = "std::net", reason = "A test-only silent loopback listener proves the public timeout translation without exposing a production test hook." },
   { path = "crates/kafka-client/src/silent_broker_test.rs", capability = "std::thread", reason = "The test broker completes negotiation off the client reactor and joins before the scenario exits." },
   { path = "crates/kafka-client/src/producer/send_batch_test.rs", capability = "std::thread", reason = "The public prefix-admission proof delays only its caller while retrying deliberately forced shard contention." },
+  { path = "crates/kafka-client/src/bridge/client_shutdown/state.rs", capability = "std::sync::Condvar", reason = "The bounded clone-shared shutdown terminal provides a runtime-neutral blocking adapter without borrowing an executor." },
+  { path = "crates/kafka-client/src/bridge/client_shutdown/state.rs", capability = "std::sync::Mutex", reason = "The facade retains one bounded shutdown phase and observer registry shared across client clones." },
+  { path = "crates/kafka-client/src/bridge/client_shutdown/state.rs", capability = "std::thread", reason = "One named native waiter observes engine termination and publishes user wakers away from reactor threads." },
+  { path = "crates/kafka-client/src/bridge/client_shutdown_test.rs", capability = "std::thread", reason = "The focused bridge scenario proves concurrent callers observe one retained shutdown terminal." },
 ]
 
 # Public admin vocabulary reaches execution only through its private bridge.

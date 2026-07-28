@@ -8,11 +8,13 @@ use kafka_client_engine::{
 use crate::consumer::ReadIsolation;
 use crate::error::{ErrorKind, KafkaError};
 use crate::producer::{Compression, ProducerLimits};
+use crate::shutdown::Shutdown;
 
 /// Facade-owned handle that hides engine types from public modules.
 #[derive(Debug, Clone)]
 pub(crate) struct ClientEngine {
     inner: Engine,
+    shutdown: super::client_shutdown::ClientShutdownOwner,
 }
 
 impl ClientEngine {
@@ -44,7 +46,8 @@ impl ClientEngine {
             };
             KafkaError::new(kind, error.to_string())
         })?;
-        Ok(Self { inner })
+        let shutdown = super::client_shutdown::ClientShutdownOwner::try_new(inner.clone())?;
+        Ok(Self { inner, shutdown })
     }
 
     /// Returns the validated logical bootstrap endpoints.
@@ -63,6 +66,11 @@ impl ClientEngine {
     /// Returns an admin bridge with the engine-owned default timeout.
     pub(crate) fn admin(&self) -> super::admin::AdminEngine {
         super::admin::AdminEngine::new(self.inner.admin(), self.inner.config().admin_timeout())
+    }
+
+    /// Starts or observes the one clone-shared terminal engine shutdown.
+    pub(crate) fn shutdown(&self) -> Shutdown {
+        Shutdown::from_bridge(self.shutdown.begin())
     }
 
     /// Returns the private transaction initializer retaining engine defaults.

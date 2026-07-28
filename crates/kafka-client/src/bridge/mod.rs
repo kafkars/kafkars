@@ -22,6 +22,7 @@ pub(crate) mod admin_topics_operation;
 pub(crate) mod admin_topics_request;
 pub(crate) mod admin_topics_result;
 mod client;
+pub(crate) mod client_shutdown;
 pub(crate) mod consumer;
 pub(crate) mod producer;
 pub(crate) mod producer_result;
@@ -69,5 +70,7 @@ mod admin_topics_operation_test;
 mod admin_topics_request_test;
 #[cfg(test)]
 mod admin_topics_result_test;
+#[cfg(test)]
+mod client_shutdown_test;
 #[cfg(test)]
 mod client_test;
