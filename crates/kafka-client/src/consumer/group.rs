@@ -1,33 +1,33 @@
-//! Provisional group-consumer construction and checkpoint operations.
+//! Bounded classic-group registration without premature delivery exposure.
 
-use crate::{
-    client::Client,
-    error::{ErrorKind, KafkaError},
-    operation::Operation,
-};
+use std::time::Duration;
 
-use super::{Checkpoint, ConsumerControl, OffsetReset, RecordBatch};
+use crate::bridge::ClientEngine;
 
-/// Builder for a group-managed consumer.
+use super::{Consumer, ConsumerBuildError};
+
+const DEFAULT_MEMBERSHIP_START_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Builder for one bounded group-consumer registration.
 #[derive(Debug, Clone)]
 pub struct ConsumerBuilder {
-    client: Client,
+    engine: ClientEngine,
     group_id: String,
     topics: Vec<String>,
-    offset_reset: OffsetReset,
+    processing_timeout: Duration,
 }
 
 impl ConsumerBuilder {
-    pub(crate) fn new(client: Client, group_id: String) -> Self {
+    pub(crate) fn new(engine: ClientEngine, group_id: String) -> Self {
         Self {
-            client,
+            engine,
             group_id,
             topics: Vec::new(),
-            offset_reset: OffsetReset::Error,
+            processing_timeout: Duration::from_secs(300),
         }
     }
 
-    /// Replaces the topic subscription.
+    /// Replaces the topic subscription retained by this registration.
     pub fn subscribe<I, S>(mut self, topics: I) -> Self
     where
         I: IntoIterator<Item = S>,
@@ -37,75 +37,54 @@ impl ConsumerBuilder {
         self
     }
 
-    /// Selects the explicit missing-offset policy.
-    pub const fn on_missing_offset(mut self, policy: OffsetReset) -> Self {
-        self.offset_reset = policy;
+    /// Selects the maximum interval between application progress observations;
+    /// defaults to 300 seconds independently of session and heartbeat timing.
+    pub const fn processing_timeout(mut self, processing_timeout: Duration) -> Self {
+        self.processing_timeout = processing_timeout;
         self
     }
 
-    /// Builds a uniquely controlled consumer.
-    pub fn build(self) -> Result<Consumer, KafkaError> {
-        if self.group_id.is_empty() {
-            return Err(KafkaError::new(
-                ErrorKind::Configuration,
-                "consumer group id must not be empty",
-            ));
-        }
-        if self.topics.is_empty() {
-            return Err(KafkaError::new(
-                ErrorKind::Configuration,
-                "consumer subscription must contain at least one topic",
-            ));
-        }
+    /// Returns the requested Kafka group spelling.
+    pub fn group_id(&self) -> &str {
+        &self.group_id
+    }
 
-        let _ = self.offset_reset;
+    /// Returns the caller-ordered requested subscription.
+    pub fn subscription(&self) -> &[String] {
+        &self.topics
+    }
+
+    /// Returns the requested application-processing timeout.
+    pub const fn selected_processing_timeout(&self) -> Duration {
+        self.processing_timeout
+    }
+
+    /// Registers this group and begins real hosted membership.
+    ///
+    /// The membership deadline is captured at this call boundary before
+    /// validation or name conversion. A true pre-core rejection releases the
+    /// fresh registration and returns this exact builder.
+    pub fn build(self) -> Result<Consumer, ConsumerBuildError> {
+        let capture = match self
+            .engine
+            .capture_group_consumer_start(DEFAULT_MEMBERSHIP_START_TIMEOUT)
+        {
+            Ok(capture) => capture,
+            Err(error) => return Err(ConsumerBuildError::new(self, error)),
+        };
+        let engine = match self.engine.register_group_consumer(
+            capture,
+            &self.group_id,
+            &self.topics,
+            self.processing_timeout,
+        ) {
+            Ok(engine) => engine,
+            Err(error) => return Err(ConsumerBuildError::new(self, error)),
+        };
         Ok(Consumer {
-            client: self.client,
+            engine,
             group_id: self.group_id,
             topics: self.topics,
-            control: ConsumerControl::default(),
         })
     }
 }
-
-/// Uniquely controlled group consumer.
-#[derive(Debug)]
-pub struct Consumer {
-    client: Client,
-    group_id: String,
-    topics: Vec<String>,
-    control: ConsumerControl,
-}
-
-impl Consumer {
-    /// Receives the next owned record batch.
-    pub fn next_batch(&mut self) -> NextBatch {
-        let _ = (&self.client, &self.topics);
-        Operation::ready(Ok(None))
-    }
-
-    /// Commits next offsets represented by a fenced checkpoint.
-    pub fn commit(&mut self, checkpoint: Checkpoint) -> Commit {
-        let Checkpoint {
-            group_id,
-            assignment_epoch: _,
-        } = checkpoint;
-        if group_id != self.group_id {
-            return Operation::ready(Err(KafkaError::new(
-                ErrorKind::State,
-                "checkpoint belongs to a different consumer group",
-            )));
-        }
-        Operation::ready(Ok(()))
-    }
-
-    /// Returns the thread-safe cross-thread control handle.
-    pub fn control(&self) -> ConsumerControl {
-        self.control.clone()
-    }
-}
-
-/// Next consumer batch operation.
-pub type NextBatch = Operation<Result<Option<RecordBatch>, KafkaError>>;
-/// Offset commit operation.
-pub type Commit = Operation<Result<(), KafkaError>>;

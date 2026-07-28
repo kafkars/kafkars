@@ -27,6 +27,7 @@ pub(crate) mod admin_topics_result;
 mod client;
 pub(crate) mod client_shutdown;
 pub(crate) mod consumer;
+pub(crate) mod consumer_facade;
 pub(crate) mod producer;
 pub(crate) mod producer_result;
 pub(crate) mod transaction;

@@ -125,7 +125,7 @@ impl Client {
 
     /// Begins construction of a uniquely controlled group consumer.
     pub fn consumer(&self, group_id: impl Into<String>) -> ConsumerBuilder {
-        ConsumerBuilder::new(self.clone(), group_id.into())
+        ConsumerBuilder::new(self.engine.clone(), group_id.into())
     }
 
     /// Begins construction of a directly assigned consumer.

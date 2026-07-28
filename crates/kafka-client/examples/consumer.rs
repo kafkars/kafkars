@@ -1,26 +1,26 @@
 //! Compile-checked group-consumer API sketch.
 
-use kafka_client::{Client, KafkaError, OffsetReset};
+use kafka_client::Client;
 
 fn main() {}
 
 #[allow(dead_code)]
-async fn consume() -> Result<(), KafkaError> {
+async fn consume() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::builder()
         .bootstrap_servers(["localhost:9092"])
         .build()?;
     let mut consumer = client
         .consumer("invoice-workers")
         .subscribe(["invoice-created"])
-        .on_missing_offset(OffsetReset::Earliest)
         .build()?;
 
-    while let Some(batch) = consumer.next_batch().await? {
+    while let Some(batch) = consumer.recv().await? {
         for record in batch.records() {
             let _value = record.value();
         }
-        let _next_offset = batch.checkpoint_next_offset();
+        let _checkpoint = batch.checkpoint();
     }
 
-    client.shutdown().await
+    client.shutdown().await?;
+    Ok(())
 }

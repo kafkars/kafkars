@@ -11590,6 +11590,10 @@ path = "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_terminal.rs
 owner_type = "RecoveredGroupOffsetAlterCall"
 path = "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_terminal.rs"
 
+[[linear_owners]]
+owner_type = "GroupConsumerCheckpoint"
+path = "crates/kafka-client/src/bridge/group_consumer_checkpoint.rs"
+
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/admin/delete_consumer_group_offsets.rs"
 test = "crates/kafka-client-engine/src/engine_host/admin/delete_consumer_group_offsets_test.rs"

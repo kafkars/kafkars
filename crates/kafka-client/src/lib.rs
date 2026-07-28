@@ -15,7 +15,6 @@ mod bridge;
 mod client;
 mod consumer;
 mod error;
-mod operation;
 mod producer;
 mod readiness;
 mod record;
@@ -46,13 +45,14 @@ pub use consumer::{
     AssignedConsumer, AssignedConsumerBuildError, AssignedConsumerBuilder, AssignedConsumerEvent,
     AssignedConsumerFetchFailureKind, AssignedConsumerFetchFence,
     AssignedConsumerFetchThrottleFailureKind, AssignedConsumerPositionFence,
-    AssignedConsumerPositionResolutionFailureKind, Checkpoint, CloseAssignedConsumer, Commit,
-    Consumer, ConsumerBuilder, ConsumerControl, ConsumerHeader, ConsumerRecord, ConsumerRecords,
-    NextAssignedEvent, NextBatch, OffsetReset, ReadIsolation, RecordBatch, RecvAssignedBatch,
-    StartPosition, TopicPartition,
+    AssignedConsumerPositionResolutionFailureKind, Checkpoint, CloseAssignedConsumer, Consumer,
+    ConsumerAssignment, ConsumerAssignmentPartition, ConsumerBatch, ConsumerBuildError,
+    ConsumerBuilder, ConsumerHeader, ConsumerRecord, ConsumerRecords, GroupConsumerHeader,
+    GroupConsumerRecord, GroupConsumerRecords, GroupMetadata, NextAssignedEvent, OffsetReset,
+    ReadIsolation, RecordBatch, RecvAssignedBatch, RecvConsumerBatch, StartPosition,
+    TopicPartition,
 };
 pub use error::{DeliveryStatus, ErrorKind, KafkaError};
-pub use operation::Operation;
 pub use producer::{
     CancellationOutcome, CloseProducer, Compression, Delivery, Flush, Producer, ProducerBuilder,
     ProducerLimits, RecordMetadata, Send, SendBatch, SendBatchResult, TrySendError,

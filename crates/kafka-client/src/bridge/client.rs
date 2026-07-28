@@ -2,7 +2,7 @@
 
 use kafka_client_engine::{
     ConsumerReadIsolation as EngineReadIsolation, Engine, EngineConfig, EngineProducerLimits,
-    EngineSasl, EngineSecurity, EngineStartErrorKind, EngineTls,
+    EngineSasl, EngineSecurity, EngineStartErrorKind, EngineTls, GroupConsumerStartCapture,
     ProducerCompression as EngineCompression,
 };
 
@@ -99,6 +99,33 @@ impl ClientEngine {
         &self,
     ) -> Result<super::consumer::AssignedConsumerEngine, KafkaError> {
         super::consumer::AssignedConsumerEngine::claim(&self.inner)
+    }
+
+    /// Captures the membership deadline before facade validation or conversion.
+    pub(crate) fn capture_group_consumer_start(
+        &self,
+        timeout: std::time::Duration,
+    ) -> Result<GroupConsumerStartCapture, KafkaError> {
+        self.inner.capture_group_consumer_start(timeout).map_err(
+            super::consumer_facade::group_consumer_registration_result::translate_group_start,
+        )
+    }
+
+    /// Registers one bounded dynamic classic-group owner and admits captured membership.
+    pub(crate) fn register_group_consumer(
+        &self,
+        capture: GroupConsumerStartCapture,
+        group: &str,
+        topics: &[String],
+        processing_timeout: std::time::Duration,
+    ) -> Result<super::consumer_facade::group_consumer::GroupConsumerEngine, KafkaError> {
+        super::consumer_facade::group_consumer::GroupConsumerEngine::register(
+            &self.inner,
+            capture,
+            group,
+            topics,
+            processing_timeout,
+        )
     }
 }
 

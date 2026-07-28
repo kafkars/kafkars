@@ -8,9 +8,14 @@ mod assigned_next_event;
 mod assigned_recv;
 mod assignment;
 mod checkpoint;
-mod control;
+mod consumer_batch;
 mod event;
 mod group;
+mod group_build_error;
+mod group_event;
+mod group_handle;
+mod group_record;
+mod group_recv;
 mod offset_reset;
 mod read_isolation;
 mod record;
@@ -24,13 +29,18 @@ pub use assigned_next_event::NextAssignedEvent;
 pub use assigned_recv::RecvAssignedBatch;
 pub use assignment::{StartPosition, TopicPartition};
 pub use checkpoint::Checkpoint;
-pub use control::ConsumerControl;
+pub use consumer_batch::ConsumerBatch;
 pub use event::{
     AssignedConsumerEvent, AssignedConsumerFetchFailureKind, AssignedConsumerFetchFence,
     AssignedConsumerFetchThrottleFailureKind, AssignedConsumerPositionFence,
     AssignedConsumerPositionResolutionFailureKind,
 };
-pub use group::{Commit, Consumer, ConsumerBuilder, NextBatch};
+pub use group::ConsumerBuilder;
+pub use group_build_error::ConsumerBuildError;
+pub use group_event::{ConsumerAssignment, ConsumerAssignmentPartition, GroupMetadata};
+pub use group_handle::Consumer;
+pub use group_record::{GroupConsumerHeader, GroupConsumerRecord, GroupConsumerRecords};
+pub use group_recv::RecvConsumerBatch;
 pub use offset_reset::OffsetReset;
 pub use read_isolation::ReadIsolation;
 pub use record::{ConsumerHeader, ConsumerRecord, ConsumerRecords};
@@ -53,7 +63,17 @@ mod assignment_test;
 #[cfg(test)]
 mod checkpoint_test;
 #[cfg(test)]
+mod consumer_batch_test;
+#[cfg(test)]
 mod event_test;
+#[cfg(test)]
+mod group_build_error_test;
+#[cfg(test)]
+mod group_event_test;
+#[cfg(test)]
+mod group_recv_test;
+#[cfg(test)]
+mod group_test;
 #[cfg(test)]
 mod read_isolation_test;
 #[cfg(test)]
