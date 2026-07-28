@@ -105,6 +105,37 @@ impl ProducerSendCapture {
     }
 }
 
+/// One non-cloneable batch call boundary shared by every record in that call.
+#[must_use = "a captured producer batch boundary must be consumed by one admission path"]
+#[derive(Debug)]
+pub struct ProducerBatchSendCapture {
+    deadline: DeadlineCapture,
+    default_timestamp_ms: i64,
+}
+
+impl ProducerBatchSendCapture {
+    pub(super) fn capture(
+        clock: &MonotonicClock,
+        options: ProducerSendOptions,
+    ) -> Result<Self, ProducerSendCaptureError> {
+        let single = ProducerSendCapture::capture(clock, options)?;
+        let (deadline, default_timestamp_ms) = single.into_parts();
+        Ok(Self {
+            deadline,
+            default_timestamp_ms,
+        })
+    }
+
+    /// Returns the one absolute monotonic deadline shared by the batch.
+    pub const fn absolute_deadline(&self) -> Instant {
+        self.deadline.operation_deadline().transport()
+    }
+
+    pub(super) const fn into_parts(self) -> (DeadlineCapture, i64) {
+        (self.deadline, self.default_timestamp_ms)
+    }
+}
+
 fn unix_timestamp_milliseconds() -> Option<i64> {
     let elapsed = SystemTime::now().duration_since(UNIX_EPOCH).ok()?;
     i64::try_from(elapsed.as_millis()).ok()

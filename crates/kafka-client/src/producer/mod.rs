@@ -10,6 +10,7 @@ mod limits;
 mod metadata;
 mod rejection;
 mod send;
+mod send_batch;
 
 pub use cancellation::CancellationOutcome;
 pub use close::CloseProducer;
@@ -21,6 +22,7 @@ pub use limits::ProducerLimits;
 pub use metadata::RecordMetadata;
 pub use rejection::TrySendError;
 pub use send::Send;
+pub use send_batch::{SendBatch, SendBatchResult};
 
 #[cfg(test)]
 mod cancellation_test;
@@ -40,5 +42,7 @@ mod limits_test;
 mod metadata_test;
 #[cfg(test)]
 mod rejection_test;
+#[cfg(test)]
+mod send_batch_test;
 #[cfg(test)]
 mod send_test;

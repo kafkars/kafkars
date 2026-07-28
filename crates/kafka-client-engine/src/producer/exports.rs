@@ -1,13 +1,14 @@
 //! Curated producer execution exports.
 
 pub use super::boundary::{
-    ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerCancelAccepted, ProducerCancelError,
-    ProducerCancelErrorKind, ProducerCancelFault, ProducerCancelFaultKind,
-    ProducerCancellationOutcome, ProducerHandle, ProducerSendCapture, ProducerSendCaptureError,
-    ProducerSendCaptureErrorKind, ProducerSendOptions, ProducerTryCloseAccepted,
-    ProducerTryCloseError, ProducerTryCloseErrorKind, ProducerTryFlushAccepted,
-    ProducerTryFlushError, ProducerTryFlushErrorKind, ProducerTrySendAccepted,
-    ProducerTrySendError, ProducerTrySendErrorKind, PublicProducerHeader, PublicProducerRecord,
+    ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerBatchSendCapture,
+    ProducerCancelAccepted, ProducerCancelError, ProducerCancelErrorKind, ProducerCancelFault,
+    ProducerCancelFaultKind, ProducerCancellationOutcome, ProducerHandle, ProducerSendCapture,
+    ProducerSendCaptureError, ProducerSendCaptureErrorKind, ProducerSendOptions,
+    ProducerTryCloseAccepted, ProducerTryCloseError, ProducerTryCloseErrorKind,
+    ProducerTryFlushAccepted, ProducerTryFlushError, ProducerTryFlushErrorKind,
+    ProducerTrySendAccepted, ProducerTrySendBatch, ProducerTrySendBatchError, ProducerTrySendError,
+    ProducerTrySendErrorKind, PublicProducerHeader, PublicProducerRecord,
 };
 pub(crate) use super::error::{ProducerAdmissionError, ProducerStoreError};
 pub(crate) use super::host::{ProducerHost, ProducerHostLimits};

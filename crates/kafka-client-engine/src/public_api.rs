@@ -96,13 +96,14 @@ pub use crate::engine_host::{
 pub use crate::flush_error::ProducerFlushError;
 pub use crate::flush_observer::{ProducerFlushObserver, ProducerFlushResult};
 pub use crate::producer::{
-    ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerCancelAccepted, ProducerCancelError,
-    ProducerCancelErrorKind, ProducerCancelFault, ProducerCancelFaultKind,
-    ProducerCancellationOutcome, ProducerHandle, ProducerSendCapture, ProducerSendCaptureError,
-    ProducerSendCaptureErrorKind, ProducerSendOptions, ProducerTryCloseAccepted,
-    ProducerTryCloseError, ProducerTryCloseErrorKind, ProducerTryFlushAccepted,
-    ProducerTryFlushError, ProducerTryFlushErrorKind, ProducerTrySendAccepted,
-    ProducerTrySendError, ProducerTrySendErrorKind, PublicProducerHeader as ProducerHeader,
+    ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerBatchSendCapture,
+    ProducerCancelAccepted, ProducerCancelError, ProducerCancelErrorKind, ProducerCancelFault,
+    ProducerCancelFaultKind, ProducerCancellationOutcome, ProducerHandle, ProducerSendCapture,
+    ProducerSendCaptureError, ProducerSendCaptureErrorKind, ProducerSendOptions,
+    ProducerTryCloseAccepted, ProducerTryCloseError, ProducerTryCloseErrorKind,
+    ProducerTryFlushAccepted, ProducerTryFlushError, ProducerTryFlushErrorKind,
+    ProducerTrySendAccepted, ProducerTrySendBatch, ProducerTrySendBatchError, ProducerTrySendError,
+    ProducerTrySendErrorKind, PublicProducerHeader as ProducerHeader,
     PublicProducerRecord as ProducerRecord,
 };
 pub use crate::transaction::{

@@ -13,8 +13,9 @@ use super::{
     ProducerShardLockError,
     flush_outcome::{ProducerPortFlushAccepted, ProducerPortFlushError, classify_flush},
     outcome::{
-        ProducerPortAccepted, ProducerPortAdmissionError, ProducerPortPoisonReason,
-        ProducerPortRejectionReason, classify_admission, poisoned_before, rejected,
+        ProducerPortAccepted, ProducerPortAdmissionError, ProducerPortBatchAdmission,
+        ProducerPortBatchRejection, ProducerPortPoisonReason, ProducerPortRejectionReason,
+        classify_admission, classify_waiting_admission, poisoned_before, rejected,
     },
     shard::ProducerShardState,
 };
@@ -88,6 +89,66 @@ impl ProducerAdmissionPort {
         Ok(accepted.with_wake(self.shared.wake()))
     }
 
+    /// Admits one ordered prefix under one shard lock and requests one host turn.
+    ///
+    /// The first record-level rejection stops admission. Its exact record and
+    /// every untouched suffix record remain caller-owned in original order.
+    pub(crate) fn try_admit_batch<I>(
+        &self,
+        attempted_at: Moment,
+        deadline: OperationDeadline,
+        records: I,
+    ) -> ProducerPortBatchAdmission
+    where
+        I: IntoIterator<Item = ProducerRecord>,
+    {
+        let mut records = records.into_iter().peekable();
+        if records.peek().is_none() {
+            return ProducerPortBatchAdmission::new(Vec::new(), None);
+        }
+        if self.shared.admission_is_closed() {
+            return reject_batch(records.collect(), closed);
+        }
+        let mut data = match self.shared.try_data() {
+            Ok(data) => data,
+            Err(ProducerShardLockError::Contended) => {
+                return reject_batch(records.collect(), |record| {
+                    rejected(record, ProducerPortRejectionReason::Contended)
+                });
+            }
+            Err(ProducerShardLockError::Poisoned) => {
+                return reject_batch(records.collect(), |record| {
+                    poisoned_before(record, ProducerPortPoisonReason::ShardLock)
+                });
+            }
+        };
+        let mut accepted = Vec::new();
+        let mut rejection = None;
+        while let Some(record) = records.next() {
+            let admission = if record.needs_partition() {
+                classify_waiting_admission(data.host.try_admit_waiting(
+                    attempted_at,
+                    deadline,
+                    record,
+                ))
+            } else {
+                classify_admission(data.try_admit_explicit(attempted_at, deadline, record))
+            };
+            match admission {
+                Ok(item) => accepted.push(item.with_cancellation(&self.shared)),
+                Err(error) => {
+                    rejection = Some(ProducerPortBatchRejection::new(error, records.collect()));
+                    break;
+                }
+            }
+        }
+        drop(data);
+        if let Some(first) = accepted.first_mut() {
+            first.apply_wake(self.shared.wake());
+        }
+        ProducerPortBatchAdmission::new(accepted, rejection)
+    }
+
     /// Attempts immediate flush admission with one shared completion reservation.
     pub(crate) fn try_admit_flush(
         &self,
@@ -143,6 +204,23 @@ fn closed(record: ProducerRecord) -> ProducerPortAdmissionError {
         record,
         ProducerPortRejectionReason::Host(ProducerRejectionReason::Core(
             AdmissionRejection::Closed,
+        )),
+    )
+}
+
+fn reject_batch(
+    records: Vec<ProducerRecord>,
+    classify: impl FnOnce(ProducerRecord) -> ProducerPortAdmissionError,
+) -> ProducerPortBatchAdmission {
+    let mut records = records.into_iter();
+    let first = records
+        .next()
+        .unwrap_or_else(|| unreachable!("batch rejection requires one record"));
+    ProducerPortBatchAdmission::new(
+        Vec::new(),
+        Some(ProducerPortBatchRejection::new(
+            classify(first),
+            records.collect(),
         )),
     )
 }

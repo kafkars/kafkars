@@ -3,24 +3,26 @@
 use std::time::Duration;
 
 use kafka_client_engine::{
-    ProducerHandle as EngineProducerHandle, ProducerHeader as EngineProducerHeader,
-    ProducerRecord as EngineProducerRecord, ProducerSendOptions as EngineProducerSendOptions,
+    ProducerHandle as EngineProducerHandle, ProducerSendOptions as EngineProducerSendOptions,
 };
 
 use crate::{
     bridge::{
         producer_result::admission::{
             ProducerAdmissionRejection, translate_accepted_fault, translate_admission_error,
+            translate_batch_admission_error, translate_batch_capture_error,
             translate_capture_error,
         },
         producer_result::{close::translate_close_admission, flush::translate_flush_admission},
     },
-    record::{Header, Record, RecordParts},
+    record::Record,
 };
 
 use super::{
     barrier::{BarrierKind, ProducerBarrier},
+    batch::ProducerBatch,
     delivery::ProducerDelivery,
+    into_engine_record, restore_rejected_record,
     send::ProducerSend,
 };
 
@@ -128,63 +130,58 @@ impl ProducerEngine {
             }
         }
     }
-}
 
-pub(crate) fn into_engine_record(record: Record) -> EngineProducerRecord {
-    let RecordParts {
-        topic,
-        partition,
-        timestamp_milliseconds,
-        key,
-        value,
-        headers,
-    } = record.into_parts();
-    let record = EngineProducerRecord::to(topic);
-    let record = match partition {
-        Some(partition) => record.partition(partition),
-        None => record,
-    };
-    let record = match timestamp_milliseconds {
-        Some(timestamp) => record.timestamp_milliseconds(timestamp),
-        None => record,
-    };
-    let record = match key {
-        Some(key) => record.key(key),
-        None => record,
-    };
-    let record = match value {
-        Some(value) => record.value(value),
-        None => record,
-    };
-    headers.into_iter().fold(record, |record, header| {
-        record.header(into_engine_header(header))
-    })
-}
-
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "a rejected engine record transfers ownership back to the facade"
-)]
-pub(crate) fn restore_rejected_record(record: EngineProducerRecord) -> Record {
-    let headers = record
-        .headers()
-        .iter()
-        .map(|header| Header::from_parts(header.name().to_owned(), header.value().cloned()))
-        .collect();
-    Record::from_parts(RecordParts {
-        topic: record.topic().to_owned(),
-        partition: record.explicit_partition(),
-        timestamp_milliseconds: record.timestamp(),
-        key: record.key_bytes().cloned(),
-        value: record.value_bytes().cloned(),
-        headers,
-    })
-}
-
-fn into_engine_header(header: Header) -> EngineProducerHeader {
-    let (name, value) = header.into_parts();
-    match value {
-        Some(value) => EngineProducerHeader::new(name, value),
-        None => EngineProducerHeader::null(name),
+    /// Captures one batch boundary before record conversion.
+    pub(crate) fn send_batch(&self, records: Vec<Record>) -> ProducerBatch {
+        let capture = match self.handle.capture_batch(self.options) {
+            Ok(capture) => capture,
+            Err(error) => {
+                return ProducerBatch::new(
+                    Vec::new(),
+                    Some(crate::TrySendError::new(
+                        records,
+                        translate_batch_capture_error(error),
+                    )),
+                );
+            }
+        };
+        if records.len() > self.handle.batch_admission_capacity() {
+            return ProducerBatch::new(
+                Vec::new(),
+                Some(crate::TrySendError::new(
+                    records,
+                    translate_batch_admission_error(
+                        kafka_client_engine::ProducerTrySendErrorKind::RecordCapacity,
+                        None,
+                    ),
+                )),
+            );
+        }
+        let topics = records
+            .iter()
+            .map(|record| record.topic().to_owned())
+            .collect::<Vec<_>>();
+        let engine_records = records.into_iter().map(into_engine_record).collect();
+        let (accepted, rejection) = self
+            .handle
+            .try_send_batch_captured(capture, engine_records)
+            .into_parts();
+        let deliveries = topics
+            .into_iter()
+            .zip(accepted)
+            .map(|(topic, accepted)| {
+                let diagnostic = accepted.fault().map(translate_accepted_fault);
+                ProducerDelivery::new(topic, accepted.into_observer(), diagnostic)
+            })
+            .collect();
+        let rejection = rejection.map(|error| {
+            let (kind, records, detail) = error.into_parts();
+            let records = records.into_iter().map(restore_rejected_record).collect();
+            crate::TrySendError::new(
+                records,
+                translate_batch_admission_error(kind, detail.as_deref()),
+            )
+        });
+        ProducerBatch::new(deliveries, rejection)
     }
 }

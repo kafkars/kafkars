@@ -72,6 +72,10 @@ impl ProducerTrySendError {
         self.detail.as_deref()
     }
 
+    pub(super) fn into_parts(self) -> (ProducerTrySendErrorKind, ProducerRecord, Option<String>) {
+        (self.kind, self.record, self.detail)
+    }
+
     pub(super) const fn with_record(
         kind: ProducerTrySendErrorKind,
         record: ProducerRecord,

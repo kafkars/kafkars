@@ -47,7 +47,7 @@ pub use error::{DeliveryStatus, ErrorKind, KafkaError};
 pub use operation::Operation;
 pub use producer::{
     CancellationOutcome, CloseProducer, Compression, Delivery, Flush, Producer, ProducerBuilder,
-    ProducerLimits, RecordMetadata, Send, TrySendError,
+    ProducerLimits, RecordMetadata, Send, SendBatch, SendBatchResult, TrySendError,
 };
 pub use record::{Header, Record};
 pub use transaction::{

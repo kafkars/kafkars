@@ -5,7 +5,7 @@ use std::time::Duration;
 use bytes::Bytes;
 use kafka_client_engine::{Engine, EngineConfig};
 
-use super::handle::{ProducerEngine, into_engine_record, restore_rejected_record};
+use super::{ProducerEngine, into_engine_record, restore_rejected_record};
 use crate::{
     DeliveryStatus, ErrorKind,
     record::{Header, Record, RecordParts},

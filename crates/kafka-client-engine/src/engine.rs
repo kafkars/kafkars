@@ -95,6 +95,7 @@ impl Engine {
         ProducerHandle::from_port(
             self.inner.admission.clone(),
             Arc::clone(&self.inner.clock),
+            self.inner.config.producer_limits().in_flight_records(),
             lifetime,
         )
     }

@@ -6,15 +6,16 @@ use std::sync::Arc;
 
 use super::super::ingress::ProducerAdmissionPort;
 use super::{
+    batch_result::{ProducerTrySendBatch, ProducerTrySendBatchError},
     capture::{
-        ProducerSendCapture, ProducerSendCaptureError, ProducerSendCaptureErrorKind,
-        ProducerSendOptions,
+        ProducerBatchSendCapture, ProducerSendCapture, ProducerSendCaptureError,
+        ProducerSendCaptureErrorKind, ProducerSendOptions,
     },
     close::{ProducerTryCloseAccepted, ProducerTryCloseError},
     error::{ProducerTrySendError, ProducerTrySendErrorKind},
     flush_error::ProducerTryFlushError,
     flush_result::ProducerTryFlushAccepted,
-    prepare::{prepare_explicit, prepare_waiting},
+    prepare::{prepare_batch, prepare_explicit, prepare_waiting},
     record::ProducerRecord,
     result::ProducerTrySendAccepted,
 };
@@ -25,6 +26,7 @@ use crate::clock::MonotonicClock;
 pub struct ProducerHandle {
     port: ProducerAdmissionPort,
     clock: Arc<MonotonicClock>,
+    batch_admission_capacity: usize,
     lifetime: Arc<dyn Send + Sync>,
 }
 
@@ -32,13 +34,20 @@ impl ProducerHandle {
     pub(crate) fn from_port(
         port: ProducerAdmissionPort,
         clock: Arc<MonotonicClock>,
+        batch_admission_capacity: usize,
         lifetime: Arc<dyn Send + Sync>,
     ) -> Self {
         Self {
             port,
             clock,
+            batch_admission_capacity,
             lifetime,
         }
+    }
+
+    /// Returns the maximum caller-owned record vector accepted by one batch call.
+    pub const fn batch_admission_capacity(&self) -> usize {
+        self.batch_admission_capacity
     }
 
     /// Captures time before a Rust facade converts its record.
@@ -47,6 +56,14 @@ impl ProducerHandle {
         options: ProducerSendOptions,
     ) -> Result<ProducerSendCapture, ProducerSendCaptureError> {
         ProducerSendCapture::capture(&self.clock, options)
+    }
+
+    /// Captures one boundary shared by every record in a batch call.
+    pub fn capture_batch(
+        &self,
+        options: ProducerSendOptions,
+    ) -> Result<ProducerBatchSendCapture, ProducerSendCaptureError> {
+        ProducerBatchSendCapture::capture(&self.clock, options)
     }
 
     /// Attempts one atomic explicit or automatic-partition admission without blocking.
@@ -103,6 +120,46 @@ impl ProducerHandle {
         }
     }
 
+    /// Admits one ordered explicit-or-automatic prefix under one shard lock.
+    ///
+    /// Validation precedes any admission. After validation, the first bounded
+    /// admission rejection stops the call; the exact rejected record and
+    /// untouched suffix remain in the returned batch error.
+    pub fn try_send_batch_captured(
+        &self,
+        capture: ProducerBatchSendCapture,
+        records: Vec<ProducerRecord>,
+    ) -> ProducerTrySendBatch {
+        let (attempted_at, deadline, records) = match prepare_batch(capture, records) {
+            Ok(prepared) => prepared.into_parts(),
+            Err(rejected) => {
+                let (kind, records) = rejected.into_parts();
+                return ProducerTrySendBatch::new(
+                    Vec::new(),
+                    Some(ProducerTrySendBatchError::from_parts(kind, records, None)),
+                );
+            }
+        };
+        let admitted = self.port.try_admit_batch(attempted_at, deadline, records);
+        let (accepted, rejection) = admitted.into_parts();
+        let accepted = accepted
+            .into_iter()
+            .map(ProducerTrySendAccepted::from_port)
+            .collect();
+        let rejection = rejection.map(|rejection| {
+            let (first, remaining) = rejection.into_parts();
+            let remaining = remaining
+                .into_iter()
+                .map(ProducerRecord::from_stored)
+                .collect();
+            ProducerTrySendBatchError::from_single(
+                ProducerTrySendError::from_port(first),
+                remaining,
+            )
+        });
+        ProducerTrySendBatch::new(accepted, rejection)
+    }
+
     /// Attempts one producer flush admission without blocking.
     pub fn try_flush(&self) -> Result<ProducerTryFlushAccepted, ProducerTryFlushError> {
         let now = self
@@ -146,6 +203,7 @@ impl std::fmt::Debug for ProducerHandle {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("ProducerHandle")
+            .field("batch_admission_capacity", &self.batch_admission_capacity)
             .field("host_retained", &Arc::strong_count(&self.lifetime))
             .finish_non_exhaustive()
     }

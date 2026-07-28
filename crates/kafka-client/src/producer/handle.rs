@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::{ErrorKind, KafkaError, Record, bridge::producer::ProducerEngine};
 
-use super::{CloseProducer, Delivery, Flush, Send, TrySendError};
+use super::{CloseProducer, Delivery, Flush, Send, SendBatch, TrySendError};
 
 /// Builder for a bounded, batch-native producer.
 #[derive(Debug, Clone)]
@@ -100,5 +100,15 @@ impl Producer {
                 let (record, error) = rejection.into_parts();
                 TrySendError::new(record, error)
             })
+    }
+
+    /// Admits an ordered record prefix through one batch-native boundary.
+    ///
+    /// All records are validated before admission. Thereafter, the first
+    /// bounded rejection stops the call. The returned named operation observes
+    /// every accepted-prefix delivery and retains the exact first rejected
+    /// record plus untouched suffix.
+    pub fn send_batch(&self, records: Vec<Record>) -> SendBatch {
+        SendBatch::from_bridge(self.engine.send_batch(records))
     }
 }

@@ -45,6 +45,17 @@ pub(crate) fn translate_capture_error(
     }
 }
 
+pub(crate) fn translate_batch_capture_error(error: EngineCaptureError) -> KafkaError {
+    admission_error(capture_error_kind(error.kind()), None)
+}
+
+pub(crate) fn translate_batch_admission_error(
+    kind: EngineTrySendErrorKind,
+    detail: Option<&str>,
+) -> KafkaError {
+    admission_error(kind, detail)
+}
+
 pub(crate) fn translate_accepted_fault(fault: &EngineAcceptedFault) -> KafkaError {
     KafkaError::new(accepted_fault_kind(fault.kind()), fault.to_string())
 }

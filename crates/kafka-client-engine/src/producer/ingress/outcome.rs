@@ -32,6 +32,52 @@ pub(crate) struct ProducerPortAccepted {
     fault: Result<(), ProducerPortAcceptedFault>,
 }
 
+/// One ordered prefix admitted under a single producer-shard lock.
+pub(crate) struct ProducerPortBatchAdmission {
+    accepted: Vec<ProducerPortAccepted>,
+    rejection: Option<ProducerPortBatchRejection>,
+}
+
+impl ProducerPortBatchAdmission {
+    pub(super) const fn new(
+        accepted: Vec<ProducerPortAccepted>,
+        rejection: Option<ProducerPortBatchRejection>,
+    ) -> Self {
+        Self {
+            accepted,
+            rejection,
+        }
+    }
+
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        Vec<ProducerPortAccepted>,
+        Option<ProducerPortBatchRejection>,
+    ) {
+        (self.accepted, self.rejection)
+    }
+}
+
+/// First record-level rejection and every record not attempted after it.
+pub(crate) struct ProducerPortBatchRejection {
+    first: ProducerPortAdmissionError,
+    remaining: Vec<ProducerRecord>,
+}
+
+impl ProducerPortBatchRejection {
+    pub(super) const fn new(
+        first: ProducerPortAdmissionError,
+        remaining: Vec<ProducerRecord>,
+    ) -> Self {
+        Self { first, remaining }
+    }
+
+    pub(crate) fn into_parts(self) -> (ProducerPortAdmissionError, Vec<ProducerRecord>) {
+        (self.first, self.remaining)
+    }
+}
+
 impl ProducerPortAccepted {
     pub(super) fn with_cancellation(mut self, shared: &Arc<ProducerShardState>) -> Self {
         if let Some(operation_id) = self.operation_id {

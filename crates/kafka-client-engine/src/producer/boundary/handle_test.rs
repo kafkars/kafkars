@@ -262,6 +262,7 @@ fn setup() -> (ProducerShardOwner, ProducerHandle, Arc<CountingWake>) {
     let handle = ProducerHandle::from_port(
         owner.admission_port(),
         Arc::new(MonotonicClock::new()),
+        valid_limits().record_capacity,
         Arc::new(()),
     );
     (owner, handle, wake)

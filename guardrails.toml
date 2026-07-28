@@ -5273,6 +5273,7 @@ forbidden = [
 allow = [
   { path = "crates/kafka-client/src/silent_broker_test.rs", capability = "std::net", reason = "A test-only silent loopback listener proves the public timeout translation without exposing a production test hook." },
   { path = "crates/kafka-client/src/silent_broker_test.rs", capability = "std::thread", reason = "The test broker completes negotiation off the client reactor and joins before the scenario exits." },
+  { path = "crates/kafka-client/src/producer/send_batch_test.rs", capability = "std::thread", reason = "The public prefix-admission proof delays only its caller while retrying deliberately forced shard contention." },
 ]
 
 # Public admin vocabulary reaches execution only through its private bridge.
