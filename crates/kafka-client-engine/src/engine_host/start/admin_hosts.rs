@@ -7,6 +7,7 @@ use crate::admin::{
     DescribeClusterHost, DescribeConfigsPublisher, DescribeConsumerGroupsHost, DescribeLogDirsHost,
     DescribeTopicsHost, ElectLeadersHost, IncrementalAlterConfigsHost,
     ListConsumerGroupOffsetsHost, ListConsumerGroupsHost, ListPartitionReassignmentsPublisher,
+    RemoveConsumerGroupMembersHost,
 };
 
 pub(super) struct StartedAdminHosts {
@@ -29,6 +30,7 @@ pub(super) struct StartedAdminHosts {
     pub(super) describe_log_dirs: DescribeLogDirsHost,
     pub(super) alter_replica_log_dirs: AlterReplicaLogDirsHost,
     pub(super) elect_leaders: ElectLeadersHost,
+    pub(super) remove_consumer_group_members: RemoveConsumerGroupMembersHost,
 }
 
 pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
@@ -52,6 +54,7 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
         describe_log_dirs,
         alter_replica_log_dirs,
         elect_leaders,
+        remove_consumer_group_members,
     } = ports;
     StartedAdminHosts {
         create_topics: CreateTopicsHost::new(create_topics),
@@ -75,5 +78,8 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
         describe_log_dirs: DescribeLogDirsHost::new(describe_log_dirs),
         alter_replica_log_dirs: AlterReplicaLogDirsHost::new(alter_replica_log_dirs),
         elect_leaders: ElectLeadersHost::new(elect_leaders),
+        remove_consumer_group_members: RemoveConsumerGroupMembersHost::new(
+            remove_consumer_group_members,
+        ),
     }
 }

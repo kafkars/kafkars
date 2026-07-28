@@ -33,6 +33,7 @@ mod partitions_machine;
 mod partitions_model;
 mod partitions_outcome;
 mod partitions_transition;
+mod remove_consumer_group_members;
 mod topic_description;
 mod topics_machine;
 mod topics_model;

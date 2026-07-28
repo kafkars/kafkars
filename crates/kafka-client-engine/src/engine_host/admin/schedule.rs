@@ -12,7 +12,7 @@ use super::{
     describe_topics, elect_leaders,
     group_offset_alter_schedule::drive_group_offset_delete_then_capture_alter,
     incremental_alter_configs, list_consumer_group_offsets, list_consumer_groups, list_offsets,
-    list_offsets_schedule, list_partition_reassignments,
+    list_offsets_schedule, list_partition_reassignments, remove_consumer_group_members,
     schedule_deadline::earliest,
 };
 
@@ -94,6 +94,7 @@ pub(in crate::engine_host) fn drive(
     let record_deletions = delete_records::drive(resources, delete_records_now)?;
     let describe_groups_now = clock.now().map_err(EngineHostError::Clock)?;
     let group_descriptions = describe_consumer_groups::drive(resources, describe_groups_now)?;
+    let member_removals = remove_consumer_group_members::drive(resources, remove_members_now)?;
     let list_groups_now = clock.now().map_err(EngineHostError::Clock)?;
     let group_listings = list_consumer_groups::drive(resources, list_groups_now)?;
     let describe_log_dirs_now = clock.now().map_err(EngineHostError::Clock)?;
@@ -131,6 +132,7 @@ const fn extend_with_log_dir_operations(
         elections: &elect_leaders::ElectLeadersProgress,
         group_listings: &list_consumer_groups::ListConsumerGroupsProgress,
         group_descriptions: &describe_consumer_groups::DescribeConsumerGroupsProgress,
+        member_removals: &remove_consumer_group_members::RemoveConsumerGroupMembersProgress,
     }
 }
 

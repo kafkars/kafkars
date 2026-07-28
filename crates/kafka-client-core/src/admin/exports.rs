@@ -171,6 +171,16 @@ pub use super::partitions_outcome::{
     CreatePartitionsFailure, CreatePartitionsFailureKind, CreatePartitionsTerminal,
     PartitionIncreaseBrokerError, PartitionIncreaseOutcome, PartitionIncreaseResult,
 };
+pub use super::remove_consumer_group_members::{
+    ConsumerGroupMemberRemoval, ConsumerGroupMemberRemovalBrokerError,
+    ConsumerGroupMemberRemovalOutcome, ConsumerGroupMemberRemovalResult,
+    RemoveConsumerGroupMembersBatch, RemoveConsumerGroupMembersEffect,
+    RemoveConsumerGroupMembersFailure, RemoveConsumerGroupMembersFailureKind,
+    RemoveConsumerGroupMembersInput, RemoveConsumerGroupMembersMachine,
+    RemoveConsumerGroupMembersMachineError, RemoveConsumerGroupMembersPlan,
+    RemoveConsumerGroupMembersPlanError, RemoveConsumerGroupMembersState,
+    RemoveConsumerGroupMembersTerminal, RemoveConsumerGroupMembersTransition,
+};
 pub use super::topic_description::{TopicDescription, TopicPartitionDescription};
 pub use super::topics_machine::{
     DescribeTopicsEffect, DescribeTopicsInput, DescribeTopicsMachine, DescribeTopicsMachineError,

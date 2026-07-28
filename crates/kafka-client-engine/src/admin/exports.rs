@@ -9,7 +9,7 @@ pub(crate) use super::completion::{
     DeleteRecordsPublisher, DeleteTopicsPublisher, DescribeClusterPublisher,
     DescribeConfigsPublisher, DescribeTopicsPublisher, ElectLeadersPublisher,
     IncrementalAlterConfigsPublisher, ListConsumerGroupOffsetsPublisher,
-    ListPartitionReassignmentsPublisher,
+    ListPartitionReassignmentsPublisher, RemoveConsumerGroupMembersPublisher,
 };
 pub(crate) use super::configs::DescribeConfigsRetention;
 pub(crate) use super::handle::AdminAdmissionPorts;

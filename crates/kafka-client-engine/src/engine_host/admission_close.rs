@@ -50,6 +50,10 @@ pub(super) fn close_all(resources: &mut EngineHostResources) {
         .close_admission();
     let _close_result = resources.elect_leaders.admission_port().close_admission();
     let _close_result = resources
+        .remove_consumer_group_members
+        .admission_port()
+        .close_admission();
+    let _close_result = resources
         .describe_consumer_groups
         .admission_port()
         .close_admission();

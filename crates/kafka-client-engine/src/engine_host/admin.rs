@@ -36,6 +36,7 @@ mod list_offsets_schedule;
 mod list_offsets_schedule_test;
 mod list_partition_reassignments;
 pub(super) mod recovery;
+mod remove_consumer_group_members;
 mod schedule;
 #[cfg(test)]
 mod schedule_configs_test;

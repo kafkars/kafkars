@@ -26,6 +26,7 @@ pub(crate) mod admin_operation;
 pub(crate) mod admin_partition_reassignments;
 pub(crate) mod admin_partitions_operation;
 pub(crate) mod admin_partitions_result;
+pub(crate) mod admin_remove_consumer_group_members;
 pub(crate) mod admin_result;
 pub(crate) mod admin_topics_operation;
 pub(crate) mod admin_topics_request;

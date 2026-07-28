@@ -15,7 +15,7 @@ use crate::{
         DeleteTopicsShardOwner, DescribeClusterShardOwner, DescribeConsumerGroupsShardOwner,
         DescribeLogDirsShardOwner, DescribeTopicsShardOwner, ElectLeadersShardOwner,
         IncrementalAlterConfigsShardOwner, ListConsumerGroupOffsetsShardOwner,
-        ListConsumerGroupsShardOwner,
+        ListConsumerGroupsShardOwner, RemoveConsumerGroupMembersShardOwner,
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
@@ -182,6 +182,11 @@ pub(crate) fn start(
     let alter_replica_log_dirs_admission = alter_replica_log_dirs.admission_port();
     let elect_leaders = ElectLeadersShardOwner::new(elect_leaders, Arc::new(driver.reactor_wake()));
     let elect_leaders_admission = elect_leaders.admission_port();
+    let remove_consumer_group_members = RemoveConsumerGroupMembersShardOwner::new(
+        remove_consumer_group_members,
+        Arc::new(driver.reactor_wake()),
+    );
+    let remove_consumer_group_members_admission = remove_consumer_group_members.admission_port();
     let produce_calls =
         crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
     let resources = EngineHostResources {
@@ -208,6 +213,7 @@ pub(crate) fn start(
         describe_log_dirs,
         alter_replica_log_dirs,
         elect_leaders,
+        remove_consumer_group_members,
         assigned_consumer: assigned_consumer_owner,
         group_consumers,
         transaction_initialization,
@@ -265,6 +271,7 @@ pub(crate) fn start(
         describe_log_dirs_admission,
         alter_replica_log_dirs_admission,
         elect_leaders_admission,
+        remove_consumer_group_members_admission,
         assigned_consumer,
         group_consumer,
         transaction_initialization: transaction_initialization_admission,

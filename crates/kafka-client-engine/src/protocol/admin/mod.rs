@@ -44,6 +44,7 @@ pub(crate) mod list_consumer_groups;
 pub(crate) mod list_offsets;
 pub(crate) mod list_partition_reassignments;
 mod list_topics_response;
+pub(crate) mod remove_consumer_group_members;
 mod request_timeout_error;
 #[cfg(test)]
 mod request_timeout_error_test;

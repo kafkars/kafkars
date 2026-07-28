@@ -36,6 +36,9 @@ use super::admin_group_offsets::{
 use super::admin_list_consumer_groups::AdminListConsumerGroups;
 use super::admin_operation::AdminCreateTopics;
 use super::admin_partitions_operation::AdminCreatePartitions;
+use super::admin_remove_consumer_group_members::{
+    AdminRemoveConsumerGroupMembers, RemoveConsumerGroupMembersAdminRequest,
+};
 use super::admin_topics_operation::AdminDescribeTopics;
 use super::admin_topics_request::DescribeTopicsAdminRequest;
 
@@ -202,6 +205,17 @@ impl AdminEngine {
         AdminElectLeaders::from_admission(
             self.handle
                 .try_elect_leaders(request.into_engine(), timeout),
+        )
+    }
+
+    pub(crate) fn submit_remove_consumer_group_members(
+        &self,
+        request: RemoveConsumerGroupMembersAdminRequest,
+        timeout: Duration,
+    ) -> AdminRemoveConsumerGroupMembers {
+        AdminRemoveConsumerGroupMembers::from_admission(
+            self.handle
+                .try_remove_consumer_group_members(request.into_engine(), timeout),
         )
     }
 }

@@ -33,6 +33,7 @@ mod new_topic;
 mod partition_reassignments;
 mod partitions_builder;
 mod public_api;
+mod remove_consumer_group_members;
 mod topic_description;
 mod topics_builder;
 pub use public_api::*;

@@ -42,6 +42,7 @@ mod observer;
 mod outcome;
 mod partitions;
 mod public_api;
+mod remove_consumer_group_members;
 pub(crate) mod retention;
 mod shard;
 #[cfg(test)]

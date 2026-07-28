@@ -9,7 +9,7 @@ use kafka_client_core::{
     CreateTopicsTerminal, DeleteConsumerGroupOffsetsTerminal, DeleteRecordsTerminal,
     DeleteTopicsTerminal, DescribeClusterTerminal, DescribeConfigsTerminal, DescribeTopicsTerminal,
     ElectLeadersTerminal, IncrementalAlterConfigsTerminal, ListConsumerGroupOffsetsTerminal,
-    ListPartitionReassignmentsTerminal,
+    ListPartitionReassignmentsTerminal, RemoveConsumerGroupMembersTerminal,
 };
 
 use crate::completion::{
@@ -25,7 +25,7 @@ use super::{
     DESCRIBE_CONFIGS_CAPACITY, DESCRIBE_CONSUMER_GROUPS_CAPACITY, DESCRIBE_LOG_DIRS_CAPACITY,
     DESCRIBE_TOPICS_CAPACITY, ELECT_LEADERS_CAPACITY, INCREMENTAL_ALTER_CONFIGS_CAPACITY,
     LIST_CONSUMER_GROUP_OFFSETS_CAPACITY, LIST_CONSUMER_GROUPS_CAPACITY,
-    LIST_PARTITION_REASSIGNMENTS_CAPACITY,
+    LIST_PARTITION_REASSIGNMENTS_CAPACITY, REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY,
 };
 
 const ADMIN_NOTIFIER_THREAD: &str = "kafka-client-admin-completion-notifier";
@@ -46,6 +46,7 @@ const ADMIN_NOTIFICATION_CAPACITY: usize = CREATE_TOPICS_CAPACITY
     + DELETE_RECORDS_CAPACITY
     + DESCRIBE_CONSUMER_GROUPS_CAPACITY
     + LIST_CONSUMER_GROUPS_CAPACITY
+    + REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY
     + DESCRIBE_LOG_DIRS_CAPACITY
     + ALTER_REPLICA_LOG_DIRS_CAPACITY;
 
@@ -68,6 +69,7 @@ pub(crate) enum AdminPublishTicket {
     DeleteRecords(PublishTicket<DeleteRecordsTerminal>),
     DescribeConsumerGroups(PublishTicket<AdminDescribeConsumerGroupsTerminal>),
     ListConsumerGroups(PublishTicket<AdminListConsumerGroupsTerminal>),
+    RemoveConsumerGroupMembers(PublishTicket<RemoveConsumerGroupMembersTerminal>),
     DescribeLogDirs(PublishTicket<AdminDescribeLogDirsTerminal>),
     AlterReplicaLogDirs(PublishTicket<AlterReplicaLogDirsTerminal>),
 }
@@ -92,6 +94,7 @@ impl NotificationTicket for AdminPublishTicket {
             Self::DeleteRecords(ticket) => ticket.publish(),
             Self::DescribeConsumerGroups(ticket) => ticket.publish(),
             Self::ListConsumerGroups(ticket) => ticket.publish(),
+            Self::RemoveConsumerGroupMembers(ticket) => ticket.publish(),
             Self::DescribeLogDirs(ticket) => ticket.publish(),
             Self::AlterReplicaLogDirs(ticket) => ticket.publish(),
         }
@@ -129,6 +132,8 @@ pub(crate) type AdminDescribeConsumerGroupsPublisher =
     SharedPublishPort<AdminDescribeConsumerGroupsTerminal, AdminPublishTicket>;
 pub(crate) type AdminListConsumerGroupsPublisher =
     SharedPublishPort<AdminListConsumerGroupsTerminal, AdminPublishTicket>;
+pub(crate) type RemoveConsumerGroupMembersPublisher =
+    SharedPublishPort<RemoveConsumerGroupMembersTerminal, AdminPublishTicket>;
 pub(crate) type AdminDescribeLogDirsPublisher =
     SharedPublishPort<AdminDescribeLogDirsTerminal, AdminPublishTicket>;
 pub(crate) type AdminAlterReplicaLogDirsPublisher =
@@ -153,6 +158,7 @@ pub(crate) struct AdminCompletionPorts {
     pub(crate) delete_records: DeleteRecordsPublisher,
     pub(crate) describe_consumer_groups: AdminDescribeConsumerGroupsPublisher,
     pub(crate) list_consumer_groups: AdminListConsumerGroupsPublisher,
+    pub(crate) remove_consumer_group_members: RemoveConsumerGroupMembersPublisher,
     pub(crate) describe_log_dirs: AdminDescribeLogDirsPublisher,
     pub(crate) alter_replica_log_dirs: AdminAlterReplicaLogDirsPublisher,
 }
@@ -190,6 +196,8 @@ impl AdminCompletionNotifier {
             describe_consumer_groups: worker
                 .publish_port(AdminPublishTicket::DescribeConsumerGroups),
             list_consumer_groups: worker.publish_port(AdminPublishTicket::ListConsumerGroups),
+            remove_consumer_group_members: worker
+                .publish_port(AdminPublishTicket::RemoveConsumerGroupMembers),
             describe_log_dirs: worker.publish_port(AdminPublishTicket::DescribeLogDirs),
             alter_replica_log_dirs: worker.publish_port(AdminPublishTicket::AlterReplicaLogDirs),
         };

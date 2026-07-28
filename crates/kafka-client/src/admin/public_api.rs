@@ -70,5 +70,9 @@ pub use super::partition_reassignments::{
     PartitionReassignmentChange,
 };
 pub use super::partitions_builder::CreatePartitionsBuilder;
+pub use super::remove_consumer_group_members::{
+    ConsumerGroupMemberRemoval, RemoveConsumerGroupMembers, RemoveConsumerGroupMembersBuilder,
+    RemoveConsumerGroupMembersResult,
+};
 pub use super::topic_description::{TopicDescription, TopicPartitionDescription};
 pub use super::topics_builder::DescribeTopicsBuilder;

@@ -109,7 +109,13 @@ pub use crate::admin::{
     ListPartitionReassignmentsOutcome, ListPartitionReassignmentsRequest,
     ListPartitionReassignmentsRequestSelection, PartitionIncrease, PartitionIncreaseError,
     PartitionIncreaseResult, PartitionReassignment, PartitionReassignmentChange,
-    PartitionReassignmentResult, TopicConfigAlterations, TopicDescription,
+    PartitionReassignmentResult, RemoveConsumerGroupMembersAccepted,
+    RemoveConsumerGroupMembersAcceptedFaultKind, RemoveConsumerGroupMembersAdmissionError,
+    RemoveConsumerGroupMembersAdmissionErrorKind, RemoveConsumerGroupMembersBatch,
+    RemoveConsumerGroupMembersDeliveryStatus, RemoveConsumerGroupMembersFailure,
+    RemoveConsumerGroupMembersFailureKind, RemoveConsumerGroupMembersObserver,
+    RemoveConsumerGroupMembersObserverError, RemoveConsumerGroupMembersOutcome,
+    RemoveConsumerGroupMembersRequest, TopicConfigAlterations, TopicDescription,
     TopicPartitionDescription,
 };
 pub use crate::config::{

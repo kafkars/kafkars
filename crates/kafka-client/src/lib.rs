@@ -43,8 +43,9 @@ pub use admin::{
     ListPartitionReassignments, ListPartitionReassignmentsBuilder,
     ListPartitionReassignmentsResult, ListTopics, ListTopicsBuilder, LogDirDescription,
     LogDirReplica, NewPartitions, NewTopic, OffsetSpec, PartitionReassignment,
-    PartitionReassignmentChange, ReplicaLogDirAssignment, TopicConfigAlterations, TopicConfigQuery,
-    TopicDescription, TopicPartitionDescription, TopicPartitionReplica,
+    PartitionReassignmentChange, RemoveConsumerGroupMembers, RemoveConsumerGroupMembersBuilder,
+    RemoveConsumerGroupMembersResult, ReplicaLogDirAssignment, TopicConfigAlterations,
+    TopicConfigQuery, TopicDescription, TopicPartitionDescription, TopicPartitionReplica,
 };
 pub use client::{Client, ClientBuilder};
 pub use consumer::{

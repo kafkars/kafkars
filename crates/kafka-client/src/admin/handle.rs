@@ -3,6 +3,7 @@
 mod describe_log_dirs;
 mod list_offsets;
 mod partition_reassignments;
+mod remove_consumer_group_members;
 
 use crate::TopicPartition;
 use crate::bridge::admin::{AdminEngine, AdminRequest, DeleteAdminRequest, PartitionsAdminRequest};

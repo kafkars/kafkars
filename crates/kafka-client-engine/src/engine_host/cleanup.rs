@@ -239,6 +239,17 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
             crate::admin::ElectLeadersHostError::Unsettled(elect_leaders),
         ));
     }
+    let remove_consumer_group_members = resources
+        .remove_consumer_group_members
+        .terminal_host()
+        .unsettled();
+    if remove_consumer_group_members != 0 {
+        return Err(EngineHostError::RemoveConsumerGroupMembers(
+            crate::admin::RemoveConsumerGroupMembersHostError::Unsettled(
+                remove_consumer_group_members,
+            ),
+        ));
+    }
     let described_groups = resources
         .describe_consumer_groups
         .terminal_host()

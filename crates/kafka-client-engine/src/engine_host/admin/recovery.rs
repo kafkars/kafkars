@@ -148,6 +148,15 @@ fn recover_listing(
         failure = failure.with_cleanup(cleanup);
     }
     drop(elect_leaders);
+    let mut remove_consumer_group_members = resources.remove_consumer_group_members.terminal_host();
+    if let Some(cleanup) = remove_consumer_group_members
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::RemoveConsumerGroupMembers)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    drop(remove_consumer_group_members);
     let mut describe_consumer_groups = resources.describe_consumer_groups.terminal_host();
     if let Some(cleanup) = describe_consumer_groups
         .recover_after_driver_shutdown()

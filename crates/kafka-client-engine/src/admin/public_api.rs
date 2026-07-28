@@ -264,6 +264,23 @@ pub use super::partitions::{
     CreatePartitionsOutcome, CreatePartitionsRequest, PartitionIncrease, PartitionIncreaseError,
     PartitionIncreaseResult,
 };
+pub use super::remove_consumer_group_members::{
+    ConsumerGroupMemberRemoval, ConsumerGroupMemberRemovalBrokerError,
+    ConsumerGroupMemberRemovalResult, RemoveConsumerGroupMembersAccepted,
+    RemoveConsumerGroupMembersAcceptedFaultKind, RemoveConsumerGroupMembersAdmissionError,
+    RemoveConsumerGroupMembersAdmissionErrorKind, RemoveConsumerGroupMembersBatch,
+    RemoveConsumerGroupMembersDeliveryStatus, RemoveConsumerGroupMembersFailure,
+    RemoveConsumerGroupMembersFailureKind, RemoveConsumerGroupMembersObserver,
+    RemoveConsumerGroupMembersObserverError, RemoveConsumerGroupMembersOutcome,
+    RemoveConsumerGroupMembersRequest,
+};
+pub(crate) use super::remove_consumer_group_members::{
+    REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY, RemoveConsumerGroupMembersAdmissionPort,
+    RemoveConsumerGroupMembersHost, RemoveConsumerGroupMembersHostError,
+    RemoveConsumerGroupMembersShardLockError, RemoveConsumerGroupMembersShardOwner,
+    RemoveConsumerGroupMembersShardWake, RemoveConsumerGroupMembersShardWakeError,
+    RemoveConsumerGroupMembersTurn,
+};
 pub(crate) use super::shard::{
     CreateTopicsAdmissionPort, CreateTopicsShardLockError, CreateTopicsShardOwner,
     CreateTopicsShardWake, CreateTopicsShardWakeError,

@@ -4031,6 +4031,7 @@ allow = [
   { path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host/terminal.rs", capability = "crate::driver", reason = "The terminal seam retains exact call evidence and completes causal controller refresh before publishing a code-41 broker failure." },
   { path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host_test.rs", capability = "crate::driver", reason = "The focused ownership scenarios build exact and mismatched calls to prove completion-fault recovery and correlation fences." },
   { path = "crates/kafka-client-engine/src/admin/elect_leaders/host/recovered.rs", capability = "crate::driver", reason = "The exact recovered ElectLeaders call owner retains one linear driver token until core accepts shutdown terminal facts." },
+  { path = "crates/kafka-client-engine/src/admin/remove_consumer_group_members/host/recovered.rs", capability = "crate::driver", reason = "The exact recovered RemoveConsumerGroupMembers call owner retains one linear driver token until core accepts shutdown terminal facts." },
   { path = "crates/kafka-client-engine/src/admin/alter_replica_log_dirs/host/recovery.rs", capability = "crate::driver", reason = "This exact adapter retains or translates driver evidence at the deterministic ownership boundary." },
   { path = "crates/kafka-client-engine/src/admin/alter_replica_log_dirs/host/terminal/test_support.rs", capability = "crate::driver", reason = "The exact focused fixture constructs driver evidence to verify the reviewed ownership boundary." },
   { path = "crates/kafka-client-engine/src/admin/delete_records/host/terminal/test_support.rs", capability = "crate::driver", reason = "The exact focused fixture constructs driver evidence to verify the reviewed ownership boundary." },
@@ -4038,6 +4039,7 @@ allow = [
   { path = "crates/kafka-client-engine/src/admin/describe_consumer_groups/host/terminal/test_support.rs", capability = "crate::driver", reason = "The exact focused fixture constructs driver evidence to verify the reviewed ownership boundary." },
   { path = "crates/kafka-client-engine/src/admin/list_consumer_groups/host/terminal/recovery_test.rs", capability = "crate::driver", reason = "The exact focused fixture constructs driver evidence to verify the reviewed ownership boundary." },
   { path = "crates/kafka-client-engine/src/admin/list_consumer_groups/host/terminal/test_support.rs", capability = "crate::driver", reason = "The exact focused fixture constructs driver evidence to verify the reviewed ownership boundary." },
+  { path = "crates/kafka-client-engine/src/admin/remove_consumer_group_members/host/terminal/test_support.rs", capability = "crate::driver", reason = "The exact focused fixture constructs driver evidence to verify the reviewed ownership boundary." },
 ]
 
 # Reactor-driving driver adapters never touch observer locks or wakers.

@@ -21,7 +21,8 @@ use kafka_client_core::{
     DescribeTopicsTerminal, ElectLeadersBatch, ElectLeadersTerminal, IncrementalAlterConfigsBatch,
     IncrementalAlterConfigsTerminal, ListConsumerGroupOffsetsBatch,
     ListConsumerGroupOffsetsTerminal, ListPartitionReassignmentsBatch,
-    ListPartitionReassignmentsTerminal,
+    ListPartitionReassignmentsTerminal, RemoveConsumerGroupMembersBatch,
+    RemoveConsumerGroupMembersTerminal,
 };
 
 use crate::completion::{CompletionRegistry, ReclaimStatus};
@@ -54,6 +55,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     let mut record_deletions = PendingTerminal::new(ports.delete_records);
     let mut group_descriptions = PendingTerminal::new(ports.describe_consumer_groups);
     let mut group_listings = PendingTerminal::new(ports.list_consumer_groups);
+    let mut member_removals = PendingTerminal::new(ports.remove_consumer_group_members);
     let mut log_directories = PendingTerminal::new(ports.describe_log_dirs);
     let mut log_dir_alterations = PendingTerminal::new(ports.alter_replica_log_dirs);
 
@@ -105,6 +107,9 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     group_listings.publish(AdminListConsumerGroupsTerminal::Listed(
         AdminListConsumerGroupsBatch::new(0, Vec::new(), Vec::new()),
     ));
+    member_removals.publish(RemoveConsumerGroupMembersTerminal::Removed(
+        RemoveConsumerGroupMembersBatch::new(0, Vec::new()),
+    ));
     log_directories.publish(AdminDescribeLogDirsTerminal::Described(
         AdminDescribeLogDirsBatch::new(0, Vec::new()),
     ));
@@ -129,6 +134,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     record_deletions.observe_and_reclaim(worker);
     group_descriptions.observe_and_reclaim(worker);
     group_listings.observe_and_reclaim(worker);
+    member_removals.observe_and_reclaim(worker);
     log_directories.observe_and_reclaim(worker);
     log_dir_alterations.observe_and_reclaim(worker);
 

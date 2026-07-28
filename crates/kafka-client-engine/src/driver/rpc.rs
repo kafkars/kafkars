@@ -216,6 +216,13 @@ mod list_partition_reassignments_terminal_test;
 mod reassignment_controller_refresh;
 #[cfg(test)]
 mod reassignment_controller_refresh_test;
+mod remove_consumer_group_members_call;
+mod remove_consumer_group_members_submission;
+#[cfg(test)]
+mod remove_consumer_group_members_submission_test;
+mod remove_consumer_group_members_terminal;
+#[cfg(test)]
+mod remove_consumer_group_members_terminal_test;
 mod submission;
 #[cfg(test)]
 mod submission_test;
@@ -265,4 +272,9 @@ pub(crate) use list_consumer_groups_call::ListConsumerGroupsCall;
 pub(crate) use list_consumer_groups_terminal::{
     ListConsumerGroupsDriverFailureKind, ListConsumerGroupsRawTerminal,
     ListConsumerGroupsRawTerminalFact,
+};
+pub(crate) use remove_consumer_group_members_call::RemoveConsumerGroupMembersCall;
+pub(crate) use remove_consumer_group_members_terminal::{
+    RecoveredRemoveConsumerGroupMembersCall, RemoveConsumerGroupMembersDriverFailureKind,
+    RemoveConsumerGroupMembersTerminal, RemoveConsumerGroupMembersTerminalFact,
 };

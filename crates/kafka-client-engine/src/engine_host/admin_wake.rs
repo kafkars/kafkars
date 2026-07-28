@@ -16,6 +16,7 @@ use crate::{
         IncrementalAlterConfigsShardWake, IncrementalAlterConfigsShardWakeError,
         ListConsumerGroupOffsetsShardWake, ListConsumerGroupOffsetsShardWakeError,
         ListPartitionReassignmentsShardWake, ListPartitionReassignmentsShardWakeError,
+        RemoveConsumerGroupMembersShardWake, RemoveConsumerGroupMembersShardWakeError,
     },
     driver::ReactorWake,
 };
@@ -128,5 +129,12 @@ impl ElectLeadersShardWake for ReactorWake {
     fn wake(&self) -> Result<(), ElectLeadersShardWakeError> {
         self.request()
             .map_err(|error| ElectLeadersShardWakeError::from_io(error.into_io()))
+    }
+}
+
+impl RemoveConsumerGroupMembersShardWake for ReactorWake {
+    fn wake(&self) -> Result<(), RemoveConsumerGroupMembersShardWakeError> {
+        self.request()
+            .map_err(|error| RemoveConsumerGroupMembersShardWakeError::from_io(error.into_io()))
     }
 }

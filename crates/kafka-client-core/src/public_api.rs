@@ -108,8 +108,13 @@ pub use crate::admin::{
     ListPartitionReassignmentsState, ListPartitionReassignmentsTerminal,
     ListPartitionReassignmentsTransition, PartitionIncreaseBrokerError, PartitionIncreaseOutcome,
     PartitionIncreaseResult, PartitionReassignment, PartitionReassignmentOutcome,
-    PartitionReassignmentTarget, TopicConfigAlteration, TopicDescription,
-    TopicPartitionDescription,
+    PartitionReassignmentTarget, RemoveConsumerGroupMembersBatch, RemoveConsumerGroupMembersEffect,
+    RemoveConsumerGroupMembersFailure, RemoveConsumerGroupMembersFailureKind,
+    RemoveConsumerGroupMembersInput, RemoveConsumerGroupMembersMachine,
+    RemoveConsumerGroupMembersMachineError, RemoveConsumerGroupMembersPlan,
+    RemoveConsumerGroupMembersPlanError, RemoveConsumerGroupMembersState,
+    RemoveConsumerGroupMembersTerminal, RemoveConsumerGroupMembersTransition,
+    TopicConfigAlteration, TopicDescription, TopicPartitionDescription,
 };
 pub use crate::admission::AdmissionRejection;
 pub use crate::capacity::{ByteBudget, CapacityError};

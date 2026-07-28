@@ -11,7 +11,7 @@ use crate::{
         DescribeConfigsShardOwner, DescribeConsumerGroupsShardOwner, DescribeLogDirsShardOwner,
         DescribeTopicsShardOwner, ElectLeadersShardOwner, IncrementalAlterConfigsShardOwner,
         ListConsumerGroupOffsetsShardOwner, ListConsumerGroupsShardOwner,
-        ListPartitionReassignmentsShardOwner,
+        ListPartitionReassignmentsShardOwner, RemoveConsumerGroupMembersShardOwner,
     },
     clock::MonotonicClock,
     driver::{
@@ -50,6 +50,7 @@ pub(crate) struct EngineHostResources {
     pub(in super::super) describe_log_dirs: DescribeLogDirsShardOwner,
     pub(in super::super) alter_replica_log_dirs: AlterReplicaLogDirsShardOwner,
     pub(in super::super) elect_leaders: ElectLeadersShardOwner,
+    pub(in super::super) remove_consumer_group_members: RemoveConsumerGroupMembersShardOwner,
     pub(in super::super) assigned_consumer: crate::consumer::AssignedConsumerShardOwner,
     pub(in super::super) group_consumers: crate::consumer::GroupConsumerShardOwner,
     pub(in super::super) transaction_initialization: TransactionInitializationShardOwner,

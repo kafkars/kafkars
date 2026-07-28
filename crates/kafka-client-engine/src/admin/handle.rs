@@ -29,6 +29,7 @@ pub(crate) struct AdminAdmissionPorts {
     pub(crate) describe_log_dirs: super::DescribeLogDirsAdmissionPort,
     pub(crate) alter_replica_log_dirs: super::AlterReplicaLogDirsAdmissionPort,
     pub(crate) elect_leaders: super::ElectLeadersAdmissionPort,
+    pub(crate) remove_consumer_group_members: super::RemoveConsumerGroupMembersAdmissionPort,
 }
 
 /// Cheaply cloneable handle to the concrete admin shards.
@@ -53,6 +54,7 @@ pub struct AdminHandle {
     pub(super) describe_log_dirs: super::DescribeLogDirsAdmissionPort,
     pub(super) alter_replica_log_dirs: super::AlterReplicaLogDirsAdmissionPort,
     pub(super) elect_leaders: super::ElectLeadersAdmissionPort,
+    pub(super) remove_consumer_group_members: super::RemoveConsumerGroupMembersAdmissionPort,
     pub(super) clock: Arc<MonotonicClock>,
     _lifetime: Arc<dyn Send + Sync>,
 }
@@ -83,6 +85,7 @@ impl AdminHandle {
             describe_log_dirs: ports.describe_log_dirs,
             alter_replica_log_dirs: ports.alter_replica_log_dirs,
             elect_leaders: ports.elect_leaders,
+            remove_consumer_group_members: ports.remove_consumer_group_members,
             clock,
             _lifetime: lifetime,
         }
