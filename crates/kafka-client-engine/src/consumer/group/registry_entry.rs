@@ -2,7 +2,10 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicRejoinPolicy, GroupId};
+use kafka_client_core::{
+    ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicProcessingLease,
+    ClassicProcessingLeasePolicy, ClassicRejoinPolicy, GroupId,
+};
 
 use super::{
     classic_group_entry_fault::ClassicGroupEntryFault,
@@ -39,6 +42,7 @@ pub(super) struct GroupConsumerEntry {
     pub(super) fetch: ClassicGroupFetchOwner,
     pub(super) heartbeat: ClassicHeartbeatExecution,
     pub(super) position: ClassicGroupPositionExecution,
+    pub(super) processing_lease: ClassicProcessingLease,
     pub(super) rejoin: ClassicGroupRejoinExecution,
     pub(super) rediscovery: ClassicCoordinatorRediscovery,
     pub(super) fault: Option<ClassicGroupEntryFault>,
@@ -53,6 +57,26 @@ impl GroupConsumerEntry {
         heartbeat_policy: ClassicHeartbeatPolicy,
         rejoin_policy: ClassicRejoinPolicy,
     ) -> Result<Self, GroupConsumerEntryBuildError> {
+        Self::try_new_with_processing_policy(
+            group_id,
+            group,
+            local_topics,
+            timing,
+            heartbeat_policy,
+            rejoin_policy,
+            default_classic_processing_lease_policy(),
+        )
+    }
+
+    pub(super) fn try_new_with_processing_policy(
+        group_id: GroupId,
+        group: &Arc<str>,
+        local_topics: &[Arc<str>],
+        timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
+        processing_policy: ClassicProcessingLeasePolicy,
+    ) -> Result<Self, GroupConsumerEntryBuildError> {
         Ok(Self {
             state: GroupConsumerEntryState::Active,
             catalog: GroupSessionCatalog::try_new(group_id, Arc::clone(group), local_topics)
@@ -63,6 +87,7 @@ impl GroupConsumerEntry {
                 .map_err(GroupConsumerEntryBuildError::Fetch)?,
             heartbeat: ClassicHeartbeatExecution::new(),
             position: ClassicGroupPositionExecution::new(),
+            processing_lease: ClassicProcessingLease::new(processing_policy),
             rejoin: ClassicGroupRejoinExecution::new(),
             rediscovery: ClassicCoordinatorRediscovery::new(),
             fault: None,
@@ -78,6 +103,16 @@ impl GroupConsumerEntry {
     }
 
     pub(super) const fn is_active(&self) -> bool {
-        matches!(self.state, GroupConsumerEntryState::Active)
+        matches!(self.state, GroupConsumerEntryState::Active) && self.fault.is_none()
+    }
+}
+
+/// Fixed private default used by legacy internal registration helpers.
+pub(super) const DEFAULT_CLASSIC_PROCESSING_TIMEOUT_TICKS: u64 = 300_000_000_000;
+
+pub(super) fn default_classic_processing_lease_policy() -> ClassicProcessingLeasePolicy {
+    match ClassicProcessingLeasePolicy::try_new(DEFAULT_CLASSIC_PROCESSING_TIMEOUT_TICKS) {
+        Ok(policy) => policy,
+        Err(_error) => unreachable!("the private processing timeout is positive"),
     }
 }

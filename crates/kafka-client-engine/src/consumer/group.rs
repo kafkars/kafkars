@@ -67,12 +67,14 @@ mod registry_host;
 mod registry_membership;
 mod registry_membership_observation;
 mod registry_port;
+mod registry_release_port;
 #[cfg_attr(
     not(test),
     expect(dead_code, reason = "awaiting private group-consumer integration")
 )]
 mod registry_session;
 mod registry_shard;
+mod registry_unregister;
 mod registry_wake;
 mod session_catalog;
 mod session_catalog_assignment;
@@ -234,5 +236,10 @@ mod session_catalog_test;
 pub(crate) use registry::GroupConsumerRegistry;
 pub(crate) use registry_host::GroupConsumerHostError;
 pub(crate) use registry_port::GroupConsumerPort;
+pub(crate) use registry_port::{
+    GroupConsumerCycleAdmission, GroupConsumerCyclePortErrorCategory,
+    GroupConsumerPortRegistrationCategory,
+};
+pub(crate) use registry_release_port::GroupConsumerPortDormantReleaseError;
 pub(crate) use registry_shard::{GroupConsumerShardLockError, GroupConsumerShardOwner};
 pub(crate) use registry_wake::{GroupConsumerShardWake, GroupConsumerShardWakeError};

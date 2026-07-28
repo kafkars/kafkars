@@ -26,6 +26,17 @@ pub(crate) use super::assigned_host::{
     AssignedConsumerClosePublisher, AssignedConsumerCompletionNotifier,
     AssignedConsumerCompletionPorts, AssignedConsumerEventPublisher, AssignedConsumerRecvPublisher,
 };
+pub use super::group_registration::{
+    GroupConsumerHandle, GroupConsumerRegistrationError, GroupConsumerRegistrationErrorKind,
+};
+pub use super::group_registration_request::GroupConsumerRegistration;
+pub use super::group_release::{
+    GroupConsumerDormantReleaseError, GroupConsumerDormantReleaseErrorKind,
+};
+pub use super::group_start::{
+    GroupConsumerStartAccepted, GroupConsumerStartCapture, GroupConsumerStartError,
+    GroupConsumerStartErrorKind,
+};
 
 pub(crate) use super::{
     assigned_host::{

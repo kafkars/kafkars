@@ -60,11 +60,15 @@ excluded_roots = ["crates/kafka-client-guardrails/tests/fixtures"]
 baseline = [
   { path = "crates/kafka-client-core/src/producer/mod.rs", lines = 89, reason = "the declarative producer facade names bounded waiting admission, promotion, terminal policy, and their sibling evidence" },
   { path = "crates/kafka-client-engine/src/admin/describe_outcome.rs", lines = 243, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafka-client-engine/src/consumer/group.rs", lines = 245, reason = "the focused historical owner exceeds its design target; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafka-client-engine/src/consumer/mod.rs", lines = 86, reason = "the focused historical owner exceeds its design target; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/producer/mod.rs", lines = 82, reason = "the declarative producer facade names bounded explicit waiting and its sibling recovery evidence" },
   { path = "crates/kafka-client-engine/src/producer/materialization.rs", lines = 242, reason = "ordinary and transactional Produce share one bounded materialization owner for exact record bytes, compression, identity, and sequence facts" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions.rs", lines = 268, reason = "AddPartitionsToTxn retains exact response correlation, coordinator-refresh eligibility, and retry-safety evidence in one terminal owner" },
   { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs", lines = 280, reason = "EndTxn retains exact response correlation, causal coordinator invalidation, deadline fencing, and retry-safety evidence in one terminal owner" },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs", lines = 242, reason = "the transaction-initialization settlement seam preserves its public failure taxonomy and installs the lifecycle execution before publishing the unique owner" },
+  { path = "crates/kafka-client-engine/src/consumer/group/registry.rs", lines = 248, reason = "the focused historical owner exceeds its design target; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafka-client-engine/src/consumer/group/registry_port.rs", lines = 372, reason = "the focused historical owner exceeds its design target; this exact measured baseline ratchets any further growth pending a focused split" },
 ]
 allow = []
 
@@ -11014,6 +11018,18 @@ production = "crates/kafka-client-engine/src/driver/rpc/group_offsets_terminal.r
 test = "crates/kafka-client-engine/src/driver/rpc/group_offsets_terminal_test.rs"
 
 [[linear_owners]]
+owner_type = "GroupConsumerRegistration"
+path = "crates/kafka-client-engine/src/consumer/group_registration_request.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerRegistrationError"
+path = "crates/kafka-client-engine/src/consumer/group_registration.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerHandle"
+path = "crates/kafka-client-engine/src/consumer/group_registration.rs"
+
+[[linear_owners]]
 owner_type = "GroupOffsetsRequest"
 path = "crates/kafka-client-engine/src/protocol/admin/group_offsets/request.rs"
 
@@ -11437,6 +11453,13 @@ owner_type = "ClassicProcessingLease"
 field = "state"
 allowed_paths = [
   "crates/kafka-client-core/src/consumer/classic_group/processing_lease/machine.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistration"
+field = "processing_timeout"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group_registration_request.rs",
 ]
 
 [[mutation_owners]]

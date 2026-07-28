@@ -94,6 +94,14 @@ impl GroupConsumerShardState {
         }
     }
 
+    pub(super) fn registry(
+        &self,
+    ) -> Result<MutexGuard<'_, GroupConsumerRegistry>, GroupConsumerShardLockError> {
+        self.registry_owner
+            .lock()
+            .map_err(|_error| GroupConsumerShardLockError::Poisoned)
+    }
+
     pub(super) fn request_turn(
         &self,
     ) -> Result<(), super::registry_wake::GroupConsumerShardWakeError> {

@@ -36,7 +36,7 @@ pub(crate) struct EngineInner {
     alter_partition_reassignments_admission: crate::admin::AlterPartitionReassignmentsAdmissionPort,
     assigned_consumer: crate::consumer::AssignedConsumerClaimSlot,
     assigned_consumer_admission: crate::consumer::AssignedConsumerAdmissionCloser,
-    group_consumer: crate::consumer::GroupConsumerPort,
+    pub(crate) group_consumer: crate::consumer::GroupConsumerPort,
     pub(crate) transaction_initialization:
         crate::transaction::TransactionInitializationAdmissionPort,
     clock: Arc<crate::clock::MonotonicClock>,

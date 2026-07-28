@@ -2,7 +2,10 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicRejoinPolicy, GroupId};
+use kafka_client_core::{
+    ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicProcessingLeasePolicy, ClassicRejoinPolicy,
+    GroupId,
+};
 
 use crate::driver::classic_group::{
     ClassicCoordinatorInvalidationShutdownRecovery, ClassicCoordinatorInvalidations,
@@ -19,7 +22,9 @@ use super::{
     classic_group_fetch::ClassicGroupFetchBuildError,
     classic_group_position::ClassicGroupPositionRecoveryFault,
     offset_commit::GroupOffsetCommitHost,
-    registry_entry::{GroupConsumerEntry, GroupConsumerEntryBuildError},
+    registry_entry::{
+        GroupConsumerEntry, GroupConsumerEntryBuildError, default_classic_processing_lease_policy,
+    },
     session_catalog::{GroupSessionCatalogError, MAX_KAFKA_GROUP_STRING_BYTES},
 };
 
@@ -120,6 +125,25 @@ impl GroupConsumerRegistry {
         heartbeat_policy: ClassicHeartbeatPolicy,
         rejoin_policy: ClassicRejoinPolicy,
     ) -> Result<GroupId, GroupConsumerRegistrationFailure> {
+        self.try_register_with_processing_policy(
+            group,
+            local_topics,
+            timing,
+            heartbeat_policy,
+            rejoin_policy,
+            default_classic_processing_lease_policy(),
+        )
+    }
+
+    pub(super) fn try_register_with_processing_policy(
+        &mut self,
+        group: Arc<str>,
+        local_topics: Vec<Arc<str>>,
+        timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
+        processing_policy: ClassicProcessingLeasePolicy,
+    ) -> Result<GroupId, GroupConsumerRegistrationFailure> {
         if !self.accepting {
             return Err(registration_failure(
                 GroupConsumerRegistrationFailureKind::Closed,
@@ -148,13 +172,14 @@ impl GroupConsumerRegistry {
                 local_topics,
             ));
         };
-        let entry = match GroupConsumerEntry::try_new(
+        let entry = match GroupConsumerEntry::try_new_with_processing_policy(
             group_id,
             &group,
             &local_topics,
             timing,
             heartbeat_policy,
             rejoin_policy,
+            processing_policy,
         ) {
             Ok(entry) => entry,
             Err(GroupConsumerEntryBuildError::Catalog(error)) => {

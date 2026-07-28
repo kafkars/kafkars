@@ -69,12 +69,18 @@ mod fetch_store_domain_test;
 #[cfg(test)]
 mod fetch_store_test;
 mod group;
+mod group_registration;
+mod group_registration_request;
+mod group_release;
+mod group_start;
 mod position_execution;
 mod position_prepare_error;
 #[cfg(test)]
 mod position_prepare_error_test;
 pub use exports::*;
 pub(crate) use group::{
-    GroupConsumerHostError, GroupConsumerPort, GroupConsumerRegistry, GroupConsumerShardLockError,
-    GroupConsumerShardOwner, GroupConsumerShardWake, GroupConsumerShardWakeError,
+    GroupConsumerCycleAdmission, GroupConsumerCyclePortErrorCategory, GroupConsumerHostError,
+    GroupConsumerPort, GroupConsumerPortDormantReleaseError, GroupConsumerPortRegistrationCategory,
+    GroupConsumerRegistry, GroupConsumerShardLockError, GroupConsumerShardOwner,
+    GroupConsumerShardWake, GroupConsumerShardWakeError,
 };

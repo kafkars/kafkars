@@ -3,7 +3,8 @@
 use std::{sync::Arc, time::Duration};
 
 use kafka_client_core::{
-    ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicRejoinPolicy, GroupId, MembershipCycle,
+    ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicProcessingLeasePolicy, ClassicRejoinPolicy,
+    GroupId, MembershipCycle,
 };
 
 use crate::clock::{ClockError, DeadlineCapture, MonotonicClock};
@@ -30,6 +31,25 @@ impl GroupConsumerPort {
         heartbeat_policy: ClassicHeartbeatPolicy,
         rejoin_policy: ClassicRejoinPolicy,
     ) -> Result<GroupId, GroupConsumerPortRegistrationFailure> {
+        self.try_register_with_processing_policy(
+            group,
+            local_topics,
+            timing,
+            heartbeat_policy,
+            rejoin_policy,
+            super::registry_entry::default_classic_processing_lease_policy(),
+        )
+    }
+
+    pub(crate) fn try_register_with_processing_policy(
+        &self,
+        group: Arc<str>,
+        local_topics: Vec<Arc<str>>,
+        timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
+        processing_policy: ClassicProcessingLeasePolicy,
+    ) -> Result<GroupId, GroupConsumerPortRegistrationFailure> {
         if self.shared.admission_is_closed() {
             return Err(registration_failure(
                 GroupConsumerPortRegistrationFailureKind::CLOSED,
@@ -55,7 +75,14 @@ impl GroupConsumerPort {
             ));
         }
         registry
-            .try_register(group, local_topics, timing, heartbeat_policy, rejoin_policy)
+            .try_register_with_processing_policy(
+                group,
+                local_topics,
+                timing,
+                heartbeat_policy,
+                rejoin_policy,
+                processing_policy,
+            )
             .map_err(|failure| GroupConsumerPortRegistrationFailure {
                 kind: GroupConsumerPortRegistrationFailureKind::registry(failure.kind),
                 group: failure.group,
@@ -75,7 +102,18 @@ impl GroupConsumerPort {
         self.admit_captured_cycle(group_id, capture)
     }
 
-    fn admit_captured_cycle(
+    pub(in crate::consumer) fn capture_cycle_deadline(
+        &self,
+        timeout: Duration,
+    ) -> Result<DeadlineCapture, ClockError> {
+        self.clock.capture_deadline_after(timeout)
+    }
+
+    pub(in crate::consumer) fn shares_registry_with(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.shared, &other.shared)
+    }
+
+    pub(in crate::consumer) fn admit_captured_cycle(
         &self,
         group_id: GroupId,
         capture: DeadlineCapture,
@@ -93,9 +131,15 @@ impl GroupConsumerPort {
         let cycle = registry
             .try_begin_classic_cycle(group_id, capture)
             .map_err(GroupConsumerCyclePortError::registry)?;
+        let entry_faulted = registry
+            .entries
+            .iter()
+            .find(|entry| entry.group_id() == group_id)
+            .is_some_and(|entry| entry.fault.is_some());
         drop(registry);
         Ok(GroupConsumerCycleAdmission {
             cycle,
+            entry_faulted,
             wake: self.shared.request_turn().err(),
         })
     }
@@ -109,12 +153,17 @@ impl GroupConsumerPort {
 #[must_use = "accepted membership retains any post-commit wake failure"]
 pub(crate) struct GroupConsumerCycleAdmission {
     cycle: MembershipCycle,
+    entry_faulted: bool,
     wake: Option<GroupConsumerShardWakeError>,
 }
 
 impl GroupConsumerCycleAdmission {
     pub(crate) const fn cycle(&self) -> MembershipCycle {
         self.cycle
+    }
+
+    pub(crate) const fn entry_faulted(&self) -> bool {
+        self.entry_faulted
     }
 
     pub(crate) const fn wake_failed(&self) -> bool {
@@ -133,6 +182,16 @@ enum GroupConsumerCyclePortErrorKind {
     Closed,
     Lock(GroupConsumerShardLockError),
     Registry(GroupConsumerCycleAdmissionError),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum GroupConsumerCyclePortErrorCategory {
+    InvalidTimeout,
+    Closed,
+    Contended,
+    AlreadyStarted,
+    GroupUnavailable,
+    InternalInvariant,
 }
 
 impl GroupConsumerCyclePortError {
@@ -155,6 +214,35 @@ impl GroupConsumerCyclePortError {
     const fn registry(error: GroupConsumerCycleAdmissionError) -> Self {
         Self {
             kind: GroupConsumerCyclePortErrorKind::Registry(error),
+        }
+    }
+
+    pub(crate) const fn public_category(self) -> GroupConsumerCyclePortErrorCategory {
+        match self.kind {
+            GroupConsumerCyclePortErrorKind::Clock(_) => {
+                GroupConsumerCyclePortErrorCategory::InvalidTimeout
+            }
+            GroupConsumerCyclePortErrorKind::Closed
+            | GroupConsumerCyclePortErrorKind::Registry(
+                GroupConsumerCycleAdmissionError::RegistryClosed,
+            ) => GroupConsumerCyclePortErrorCategory::Closed,
+            GroupConsumerCyclePortErrorKind::Lock(GroupConsumerShardLockError::Contended) => {
+                GroupConsumerCyclePortErrorCategory::Contended
+            }
+            GroupConsumerCyclePortErrorKind::Registry(
+                GroupConsumerCycleAdmissionError::Execution(
+                    super::classic_group_execution::ClassicGroupExecutionError::Occupied,
+                ),
+            ) => GroupConsumerCyclePortErrorCategory::AlreadyStarted,
+            GroupConsumerCyclePortErrorKind::Registry(
+                GroupConsumerCycleAdmissionError::UnknownGroup
+                | GroupConsumerCycleAdmissionError::GroupClosing,
+            ) => GroupConsumerCyclePortErrorCategory::GroupUnavailable,
+            GroupConsumerCyclePortErrorKind::Lock(GroupConsumerShardLockError::Poisoned)
+            | GroupConsumerCyclePortErrorKind::Registry(
+                GroupConsumerCycleAdmissionError::EntryFault
+                | GroupConsumerCycleAdmissionError::Execution(_),
+            ) => GroupConsumerCyclePortErrorCategory::InternalInvariant,
         }
     }
 }
@@ -211,6 +299,50 @@ impl GroupConsumerPortRegistrationFailureKind {
             kind: GroupConsumerPortRegistrationFailureReason::Registry(error),
         }
     }
+
+    pub(crate) const fn public_category(self) -> GroupConsumerPortRegistrationCategory {
+        match self.kind {
+            GroupConsumerPortRegistrationFailureReason::Closed
+            | GroupConsumerPortRegistrationFailureReason::Registry(
+                GroupConsumerRegistrationFailureKind::Closed,
+            ) => GroupConsumerPortRegistrationCategory::Closed,
+            GroupConsumerPortRegistrationFailureReason::Registry(
+                GroupConsumerRegistrationFailureKind::Capacity
+                | GroupConsumerRegistrationFailureKind::RetainedBytes,
+            ) => GroupConsumerPortRegistrationCategory::Backpressure,
+            GroupConsumerPortRegistrationFailureReason::Lock(
+                GroupConsumerShardLockError::Contended,
+            ) => GroupConsumerPortRegistrationCategory::Contended,
+            GroupConsumerPortRegistrationFailureReason::Registry(
+                GroupConsumerRegistrationFailureKind::Catalog(
+                    super::session_catalog::GroupSessionCatalogError::EmptyGroup
+                    | super::session_catalog::GroupSessionCatalogError::GroupBytes { .. }
+                    | super::session_catalog::GroupSessionCatalogError::EmptyTopic
+                    | super::session_catalog::GroupSessionCatalogError::TopicBytes { .. }
+                    | super::session_catalog::GroupSessionCatalogError::RetainedTopicCapacity {
+                        ..
+                    }
+                    | super::session_catalog::GroupSessionCatalogError::RetainedTopicBytes { .. }
+                    | super::session_catalog::GroupSessionCatalogError::DuplicateTopic,
+                ),
+            ) => GroupConsumerPortRegistrationCategory::InvalidInput,
+            GroupConsumerPortRegistrationFailureReason::Lock(
+                GroupConsumerShardLockError::Poisoned,
+            )
+            | GroupConsumerPortRegistrationFailureReason::Registry(_) => {
+                GroupConsumerPortRegistrationCategory::InternalInvariant
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum GroupConsumerPortRegistrationCategory {
+    Closed,
+    Contended,
+    Backpressure,
+    InvalidInput,
+    InternalInvariant,
 }
 
 impl core::fmt::Debug for GroupConsumerPortRegistrationFailureKind {
