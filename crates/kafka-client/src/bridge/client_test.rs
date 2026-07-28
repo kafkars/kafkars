@@ -3,11 +3,19 @@
 use kafka_client_engine::ConsumerReadIsolation as EngineReadIsolation;
 
 use super::client::{ClientEngine, engine_read_isolation};
-use crate::{ReadIsolation, producer::Compression};
+use crate::{
+    ReadIsolation,
+    producer::{Compression, ProducerLimits},
+};
 
 #[test]
 fn client_bridge_retains_validated_endpoints_and_builds_a_producer() {
-    let result = ClientEngine::start(vec!["127.0.0.1:1".to_owned()], Compression::None, None);
+    let result = ClientEngine::start(
+        vec!["127.0.0.1:1".to_owned()],
+        Compression::None,
+        ProducerLimits::default(),
+        None,
+    );
     let Ok(client) = result else {
         panic!("valid local engine configuration should start")
     };

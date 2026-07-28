@@ -1,13 +1,13 @@
 //! Facade-owned engine lifetime and private child-handle construction.
 
 use kafka_client_engine::{
-    ConsumerReadIsolation as EngineReadIsolation, Engine, EngineConfig, EngineStartErrorKind,
-    ProducerCompression as EngineCompression,
+    ConsumerReadIsolation as EngineReadIsolation, Engine, EngineConfig, EngineProducerLimits,
+    EngineStartErrorKind, ProducerCompression as EngineCompression,
 };
 
 use crate::consumer::ReadIsolation;
 use crate::error::{ErrorKind, KafkaError};
-use crate::producer::Compression;
+use crate::producer::{Compression, ProducerLimits};
 
 /// Facade-owned handle that hides engine types from public modules.
 #[derive(Debug, Clone)]
@@ -20,10 +20,12 @@ impl ClientEngine {
     pub(crate) fn start(
         bootstrap_servers: Vec<String>,
         compression: Compression,
+        producer_limits: ProducerLimits,
         assigned_consumer_read_isolation: Option<ReadIsolation>,
     ) -> Result<Self, KafkaError> {
         let config = EngineConfig::new(bootstrap_servers)
-            .with_producer_compression(engine_compression(compression));
+            .with_producer_compression(engine_compression(compression))
+            .with_producer_limits(engine_producer_limits(producer_limits));
         let config = match assigned_consumer_read_isolation {
             Some(read_isolation) => {
                 config.with_assigned_consumer_read_isolation(engine_read_isolation(read_isolation))
@@ -76,6 +78,20 @@ impl ClientEngine {
     ) -> Result<super::consumer::AssignedConsumerEngine, KafkaError> {
         super::consumer::AssignedConsumerEngine::claim(&self.inner)
     }
+}
+
+fn engine_producer_limits(limits: ProducerLimits) -> EngineProducerLimits {
+    let (retained, active, waiting, waiting_bytes, batch, batch_bytes, linger) =
+        limits.into_parts();
+    EngineProducerLimits::new(
+        retained,
+        active,
+        waiting,
+        waiting_bytes,
+        batch,
+        batch_bytes,
+        linger,
+    )
 }
 
 pub(super) const fn engine_read_isolation(read_isolation: ReadIsolation) -> EngineReadIsolation {

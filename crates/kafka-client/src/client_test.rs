@@ -1,6 +1,8 @@
 //! Tests for facade-owned client construction and configuration views.
 
-use crate::{Client, Compression, ErrorKind, ReadIsolation};
+use std::time::Duration;
+
+use crate::{Client, Compression, ErrorKind, ProducerLimits, ReadIsolation};
 
 #[test]
 fn client_retains_facade_configuration_across_clones() {
@@ -46,6 +48,17 @@ fn client_builder_accepts_each_closed_assigned_read_isolation_choice() {
             .build();
         assert!(client.is_ok());
     }
+}
+
+#[test]
+fn client_builder_translates_explicit_producer_limits_before_startup() {
+    let limits = ProducerLimits::new(4_096, 4, 3, 2_048, 2, 1_024, Duration::from_millis(7));
+    let client = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .producer_limits(limits)
+        .build();
+
+    assert!(client.is_ok());
 }
 
 #[test]

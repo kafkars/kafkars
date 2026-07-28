@@ -5,8 +5,7 @@ use crate::bridge::ClientEngine;
 use crate::consumer::{AssignedConsumerBuilder, ConsumerBuilder, ReadIsolation};
 use crate::error::{ErrorKind, KafkaError};
 use crate::operation::Operation;
-use crate::producer::Compression;
-use crate::producer::ProducerBuilder;
+use crate::producer::{Compression, ProducerBuilder, ProducerLimits};
 use crate::transaction::TransactionalProducerBuilder;
 
 /// Builder for one shared cluster, security, and execution context.
@@ -15,6 +14,7 @@ pub struct ClientBuilder {
     bootstrap_servers: Vec<String>,
     client_id: Option<String>,
     producer_compression: Compression,
+    producer_limits: ProducerLimits,
     assigned_consumer_read_isolation: Option<ReadIsolation>,
 }
 
@@ -42,6 +42,13 @@ impl ClientBuilder {
         self
     }
 
+    /// Sets independent active, waiting, and batch producer ownership bounds.
+    #[must_use]
+    pub const fn producer_limits(mut self, limits: ProducerLimits) -> Self {
+        self.producer_limits = limits;
+        self
+    }
+
     /// Selects immutable record visibility for this client's assigned consumer.
     #[must_use]
     pub const fn assigned_consumer_read_isolation(mut self, read_isolation: ReadIsolation) -> Self {
@@ -61,6 +68,7 @@ impl ClientBuilder {
         let engine = ClientEngine::start(
             self.bootstrap_servers,
             self.producer_compression,
+            self.producer_limits,
             self.assigned_consumer_read_isolation,
         )?;
         Ok(Client {
