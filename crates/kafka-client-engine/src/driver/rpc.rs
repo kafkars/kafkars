@@ -49,6 +49,11 @@ mod create_topics_submission_test;
 mod create_topics_terminal;
 #[cfg(test)]
 mod create_topics_terminal_test;
+mod delete_records_call;
+mod delete_records_submission;
+#[cfg(test)]
+mod delete_records_submission_test;
+mod delete_records_terminal;
 mod delete_topics_calls;
 #[cfg(test)]
 mod delete_topics_calls_test;
@@ -219,6 +224,11 @@ pub(crate) use alter_replica_log_dirs_call::AlterReplicaLogDirsCall;
 pub(crate) use alter_replica_log_dirs_terminal::{
     AlterReplicaLogDirsDriverFailureKind, AlterReplicaLogDirsRawTerminal,
     AlterReplicaLogDirsTerminalFact, RecoveredAlterReplicaLogDirsCall,
+};
+pub(crate) use delete_records_call::DeleteRecordsCall;
+pub(crate) use delete_records_terminal::{
+    DeleteRecordsDriverFailureKind, DeleteRecordsRawTerminal, DeleteRecordsTerminalFact,
+    RecoveredDeleteRecordsCall,
 };
 pub(crate) use describe_log_dirs_call::DescribeLogDirsCall;
 pub(crate) use describe_log_dirs_terminal::{

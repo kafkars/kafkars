@@ -239,6 +239,12 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
             crate::admin::AlterReplicaLogDirsHostError::Unsettled(altered_log_dirs),
         ));
     }
+    let delete_records = resources.delete_records.terminal_host().unsettled();
+    if delete_records != 0 {
+        return Err(EngineHostError::DeleteRecords(
+            crate::admin::DeleteRecordsHostError::Unsettled(delete_records),
+        ));
+    }
     Ok(())
 }
 

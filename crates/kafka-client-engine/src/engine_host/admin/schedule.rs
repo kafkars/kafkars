@@ -7,7 +7,7 @@ use kafka_client_core::{Deadline, Moment};
 use super::{
     super::{EngineHostError, EngineHostResources},
     alter_consumer_group_offsets, alter_partition_reassignments, alter_replica_log_dirs,
-    create_partitions, create_topics, delete_consumer_group_offsets, delete_topics,
+    create_partitions, create_topics, delete_consumer_group_offsets, delete_records, delete_topics,
     describe_cluster, describe_configs, describe_log_dirs, describe_topics,
     group_offset_alter_schedule::drive_group_offset_delete_then_capture_alter,
     incremental_alter_configs, list_consumer_group_offsets, list_offsets, list_offsets_schedule,
@@ -87,6 +87,8 @@ pub(in crate::engine_host) fn drive(
     let alteration_now = clock.now().map_err(EngineHostError::Clock)?;
     let alteration = alter_partition_reassignments::drive(resources, alteration_now)?;
     list_offsets_schedule::extend_partition_reassignment_alterations(&mut progress, &alteration);
+    let delete_records_now = clock.now().map_err(EngineHostError::Clock)?;
+    let record_deletions = delete_records::drive(resources, delete_records_now)?;
     let describe_log_dirs_now = clock.now().map_err(EngineHostError::Clock)?;
     let log_directories = describe_log_dirs::drive(resources, describe_log_dirs_now)?;
     let alter_log_dirs_now = clock.now().map_err(EngineHostError::Clock)?;
@@ -118,6 +120,7 @@ const fn extend_with_log_dir_operations(
                 log_directory_alterations.next_deadline,
             ),
         ),
+        record_deletions: &delete_records::DeleteRecordsProgress,
     }
 }
 

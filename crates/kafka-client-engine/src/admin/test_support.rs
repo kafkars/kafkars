@@ -2,8 +2,9 @@
 
 use super::{
     AdminListOffsetsHost, AlterConsumerGroupOffsetsHost, CreatePartitionsHost, CreateTopicsHost,
-    DeleteConsumerGroupOffsetsHost, DeleteTopicsHost, DescribeClusterHost, DescribeConfigsHost,
-    DescribeTopicsHost, IncrementalAlterConfigsHost, ListConsumerGroupOffsetsHost,
+    DeleteConsumerGroupOffsetsHost, DeleteRecordsHost, DeleteTopicsHost, DescribeClusterHost,
+    DescribeConfigsHost, DescribeTopicsHost, IncrementalAlterConfigsHost,
+    ListConsumerGroupOffsetsHost,
     completion::{AdminCompletionNotifier, AdminCompletionPorts},
 };
 
@@ -79,6 +80,11 @@ pub(super) fn admin_list_offsets_host() -> (AdminListOffsetsHost, AdminCompletio
         AdminListOffsetsHost::new(ports.admin_list_offsets),
         notifier,
     )
+}
+
+pub(super) fn delete_records_host() -> (DeleteRecordsHost, AdminCompletionNotifier) {
+    let (notifier, ports) = completion_owner();
+    (DeleteRecordsHost::new(ports.delete_records), notifier)
 }
 
 pub(super) fn completion_owner() -> (AdminCompletionNotifier, AdminCompletionPorts) {

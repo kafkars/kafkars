@@ -4031,6 +4031,7 @@ allow = [
   { path = "crates/kafka-client-engine/src/admin/alter_partition_reassignments/host_test.rs", capability = "crate::driver", reason = "The focused ownership scenarios build exact and mismatched calls to prove completion-fault recovery and correlation fences." },
   { path = "crates/kafka-client-engine/src/admin/alter_replica_log_dirs/host/recovery.rs", capability = "crate::driver", reason = "This exact adapter retains or translates driver evidence at the deterministic ownership boundary." },
   { path = "crates/kafka-client-engine/src/admin/alter_replica_log_dirs/host/terminal/test_support.rs", capability = "crate::driver", reason = "The exact focused fixture constructs driver evidence to verify the reviewed ownership boundary." },
+  { path = "crates/kafka-client-engine/src/admin/delete_records/host/terminal/test_support.rs", capability = "crate::driver", reason = "The exact focused fixture constructs driver evidence to verify the reviewed ownership boundary." },
 ]
 
 # Reactor-driving driver adapters never touch observer locks or wakers.

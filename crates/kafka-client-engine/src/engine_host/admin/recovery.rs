@@ -148,5 +148,14 @@ fn recover_listing(
         failure = failure.with_cleanup(cleanup);
     }
     drop(alter_replica_log_dirs);
+    let mut delete_records = resources.delete_records.terminal_host();
+    if let Some(cleanup) = delete_records
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::DeleteRecords)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    drop(delete_records);
     failure
 }

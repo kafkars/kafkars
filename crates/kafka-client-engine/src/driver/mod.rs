@@ -77,10 +77,11 @@ pub(crate) use rpc::exports::{
 };
 pub(crate) use rpc::{
     AlterReplicaLogDirsCall, AlterReplicaLogDirsDriverFailureKind, AlterReplicaLogDirsRawTerminal,
-    AlterReplicaLogDirsTerminalFact, DescribeLogDirsCall, DescribeLogDirsDriverFailureKind,
-    DescribeLogDirsRawTerminal, DescribeLogDirsTerminalFact, RecoveredAlterReplicaLogDirsCall,
-    RecoveredDescribeLogDirsCall, classic_group, transaction_control, transaction_offsets,
-    transaction_produce,
+    AlterReplicaLogDirsTerminalFact, DeleteRecordsCall, DeleteRecordsDriverFailureKind,
+    DeleteRecordsRawTerminal, DeleteRecordsTerminalFact, DescribeLogDirsCall,
+    DescribeLogDirsDriverFailureKind, DescribeLogDirsRawTerminal, DescribeLogDirsTerminalFact,
+    RecoveredAlterReplicaLogDirsCall, RecoveredDeleteRecordsCall, RecoveredDescribeLogDirsCall,
+    classic_group, transaction_control, transaction_offsets, transaction_produce,
 };
 pub(crate) use security::{EngineSecurityError, ValidatedSecurity, validate as validate_security};
 pub(crate) use wake::{ReactorWake, ReactorWakeError};

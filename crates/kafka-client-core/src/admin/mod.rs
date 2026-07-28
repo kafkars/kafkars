@@ -6,6 +6,7 @@ mod alter_replica_log_dirs;
 mod delete_machine;
 mod delete_model;
 mod delete_outcome;
+mod delete_records;
 mod delete_transition;
 mod describe_configs_machine;
 mod describe_configs_model;

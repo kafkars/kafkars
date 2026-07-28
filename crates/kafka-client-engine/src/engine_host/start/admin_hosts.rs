@@ -3,14 +3,15 @@
 use crate::admin::{
     AdminCompletionPorts, AdminListOffsetsPublisher, AlterConsumerGroupOffsetsPublisher,
     AlterPartitionReassignmentsPublisher, AlterReplicaLogDirsHost, CreatePartitionsHost,
-    CreateTopicsHost, DeleteConsumerGroupOffsetsHost, DeleteTopicsHost, DescribeClusterHost,
-    DescribeConfigsPublisher, DescribeLogDirsHost, DescribeTopicsHost, IncrementalAlterConfigsHost,
-    ListConsumerGroupOffsetsHost, ListPartitionReassignmentsPublisher,
+    CreateTopicsHost, DeleteConsumerGroupOffsetsHost, DeleteRecordsHost, DeleteTopicsHost,
+    DescribeClusterHost, DescribeConfigsPublisher, DescribeLogDirsHost, DescribeTopicsHost,
+    IncrementalAlterConfigsHost, ListConsumerGroupOffsetsHost, ListPartitionReassignmentsPublisher,
 };
 
 pub(super) struct StartedAdminHosts {
     pub(super) create_topics: CreateTopicsHost,
     pub(super) delete_topics: DeleteTopicsHost,
+    pub(super) delete_records: DeleteRecordsHost,
     pub(super) describe_cluster: DescribeClusterHost,
     pub(super) create_partitions: CreatePartitionsHost,
     pub(super) describe_topics: DescribeTopicsHost,
@@ -30,6 +31,7 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
     let AdminCompletionPorts {
         create_topics,
         delete_topics,
+        delete_records,
         describe_cluster,
         create_partitions,
         describe_topics,
@@ -47,6 +49,7 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
     StartedAdminHosts {
         create_topics: CreateTopicsHost::new(create_topics),
         delete_topics: DeleteTopicsHost::new(delete_topics),
+        delete_records: DeleteRecordsHost::new(delete_records),
         describe_cluster: DescribeClusterHost::new(describe_cluster),
         create_partitions: CreatePartitionsHost::new(create_partitions),
         describe_topics: DescribeTopicsHost::new(describe_topics),

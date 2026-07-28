@@ -71,6 +71,19 @@ pub use super::delete_outcome::{
     DeleteTopicError, DeleteTopicResult, DeleteTopicsDeliveryStatus, DeleteTopicsFailure,
     DeleteTopicsFailureKind, DeleteTopicsObserverError, DeleteTopicsOutcome,
 };
+pub(crate) use super::delete_records::{
+    DELETE_RECORDS_CAPACITY, DeleteRecordsAdmissionPort, DeleteRecordsHost, DeleteRecordsHostError,
+    DeleteRecordsShardLockError, DeleteRecordsShardOwner, DeleteRecordsShardWake,
+    DeleteRecordsShardWakeError, DeleteRecordsTurn,
+};
+pub use super::delete_records::{
+    DeleteRecordsAccepted, DeleteRecordsAcceptedFaultKind, DeleteRecordsAdmissionError,
+    DeleteRecordsAdmissionErrorKind, DeleteRecordsDeliveryStatus, DeleteRecordsDescription,
+    DeleteRecordsEngineBatch, DeleteRecordsEngineBrokerError, DeleteRecordsEngineResult,
+    DeleteRecordsFailure, DeleteRecordsFailureKind, DeleteRecordsObserver,
+    DeleteRecordsObserverError, DeleteRecordsOutcome, DeleteRecordsRequest,
+    DeleteRecordsRequestTarget,
+};
 pub(crate) use super::delete_shard::{
     DeleteTopicsAdmissionPort, DeleteTopicsShardLockError, DeleteTopicsShardOwner,
     DeleteTopicsShardWake, DeleteTopicsShardWakeError,

@@ -37,6 +37,13 @@ pub use super::delete_outcome::{
     DeleteTopicBrokerError, DeleteTopicOutcome, DeleteTopicResult, DeleteTopicsFailure,
     DeleteTopicsFailureKind, DeleteTopicsTerminal,
 };
+pub use super::delete_records::{
+    DeleteRecordsBatch, DeleteRecordsBrokerError, DeleteRecordsEffect, DeleteRecordsFailure,
+    DeleteRecordsFailureKind, DeleteRecordsInput, DeleteRecordsMachine, DeleteRecordsMachineError,
+    DeleteRecordsOutcome, DeleteRecordsPlan, DeleteRecordsPlanError, DeleteRecordsResult,
+    DeleteRecordsState, DeleteRecordsTarget, DeleteRecordsTerminal, DeleteRecordsTransition,
+    DeletedRecords,
+};
 pub use super::describe_configs_machine::{
     DescribeConfigsEffect, DescribeConfigsInput, DescribeConfigsMachine,
     DescribeConfigsMachineError, DescribeConfigsState, DescribeConfigsTransition,

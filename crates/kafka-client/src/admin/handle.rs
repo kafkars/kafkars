@@ -9,6 +9,7 @@ use crate::bridge::admin::{AdminEngine, AdminRequest, DeleteAdminRequest, Partit
 use crate::bridge::admin_alter_configs_request::IncrementalAlterConfigsAdminRequest;
 use crate::bridge::admin_alter_replica_log_dirs::AlterReplicaLogDirsAdminRequest;
 use crate::bridge::admin_configs_request::DescribeConfigsAdminRequest;
+use crate::bridge::admin_delete_records::DeleteRecordsAdminRequest;
 use crate::bridge::admin_group_offset_delete_request::DeleteConsumerGroupOffsetsAdminRequest;
 use crate::bridge::admin_group_offsets::{
     AlterConsumerGroupOffsetsAdminRequest, ListConsumerGroupOffsetsAdminRequest,
@@ -18,9 +19,10 @@ use crate::bridge::admin_topics_request::DescribeTopicsAdminRequest;
 use super::{
     AlterConsumerGroupOffsetsBuilder, AlterReplicaLogDirsBuilder, ConsumerGroupOffsetAlteration,
     CreatePartitionsBuilder, CreateTopicsBuilder, DeleteConsumerGroupOffsetsBuilder,
-    DeleteTopicsBuilder, DescribeClusterBuilder, DescribeConfigsBuilder, DescribeTopicsBuilder,
-    IncrementalAlterConfigsBuilder, ListConsumerGroupOffsetsBuilder, ListTopicsBuilder,
-    NewPartitions, NewTopic, ReplicaLogDirAssignment, TopicConfigAlterations, TopicConfigQuery,
+    DeleteRecordsBuilder, DeleteRecordsTarget, DeleteTopicsBuilder, DescribeClusterBuilder,
+    DescribeConfigsBuilder, DescribeTopicsBuilder, IncrementalAlterConfigsBuilder,
+    ListConsumerGroupOffsetsBuilder, ListTopicsBuilder, NewPartitions, NewTopic,
+    ReplicaLogDirAssignment, TopicConfigAlterations, TopicConfigQuery,
 };
 
 /// Cheaply cloneable, thread-safe admin handle.
@@ -69,6 +71,18 @@ impl Admin {
     {
         let request = DeleteAdminRequest::from_topics(topics);
         DeleteTopicsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
+    }
+
+    /// Builds an inert caller-ordered record-deletion request.
+    ///
+    /// No timeout starts and no destructive operation is admitted until
+    /// [`DeleteRecordsBuilder::submit`] is called.
+    pub fn delete_records<I>(&self, targets: I) -> DeleteRecordsBuilder
+    where
+        I: IntoIterator<Item = DeleteRecordsTarget>,
+    {
+        let request = DeleteRecordsAdminRequest::new(targets.into_iter().collect());
+        DeleteRecordsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
     }
 
     /// Builds an inert broker-endpoint `DescribeCluster` request.

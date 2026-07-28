@@ -20,6 +20,10 @@ pub use super::delete_builder::DeleteTopicsBuilder;
 pub use super::delete_consumer_group_offsets::DeleteConsumerGroupOffsets;
 pub use super::delete_consumer_group_offsets_builder::DeleteConsumerGroupOffsetsBuilder;
 pub use super::delete_consumer_group_offsets_result::DeleteConsumerGroupOffsetsResult;
+pub use super::delete_records::{
+    DeleteRecords, DeleteRecordsBuilder, DeleteRecordsResult, DeleteRecordsResultInfo,
+    DeleteRecordsTarget,
+};
 pub use super::delete_topics::DeleteTopics;
 pub use super::describe_builder::DescribeClusterBuilder;
 pub use super::describe_cluster::DescribeCluster;

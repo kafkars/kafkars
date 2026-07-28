@@ -21,6 +21,7 @@ use super::admin_alter_replica_log_dirs::{
 use super::admin_configs_operation::AdminDescribeConfigs;
 use super::admin_configs_request::DescribeConfigsAdminRequest;
 use super::admin_delete_operation::AdminDeleteTopics;
+use super::admin_delete_records::{AdminDeleteRecords, DeleteRecordsAdminRequest};
 use super::admin_describe_log_dirs::{AdminDescribeLogDirs, DescribeLogDirsAdminRequest};
 use super::admin_group_offset_delete_operation::AdminDeleteConsumerGroupOffsets;
 use super::admin_group_offset_delete_request::DeleteConsumerGroupOffsetsAdminRequest;
@@ -85,6 +86,18 @@ impl AdminEngine {
     ) -> AdminDeleteTopics {
         AdminDeleteTopics::from_admission(self.handle.try_delete_topics(request.inner, timeout))
     }
+
+    pub(crate) fn submit_delete_records(
+        &self,
+        request: DeleteRecordsAdminRequest,
+        timeout: Duration,
+    ) -> AdminDeleteRecords {
+        AdminDeleteRecords::from_admission(
+            self.handle
+                .try_delete_records(request.into_engine(), timeout),
+        )
+    }
+
     pub(crate) fn submit_describe_topics(
         &self,
         request: DescribeTopicsAdminRequest,

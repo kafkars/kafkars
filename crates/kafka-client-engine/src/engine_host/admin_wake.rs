@@ -7,13 +7,13 @@ use crate::{
         AlterPartitionReassignmentsShardWake, AlterPartitionReassignmentsShardWakeError,
         CreatePartitionsShardWake, CreatePartitionsShardWakeError, CreateTopicsShardWake,
         CreateTopicsShardWakeError, DeleteConsumerGroupOffsetsShardWake,
-        DeleteConsumerGroupOffsetsShardWakeError, DeleteTopicsShardWake,
-        DeleteTopicsShardWakeError, DescribeClusterShardWake, DescribeClusterShardWakeError,
-        DescribeConfigsShardWake, DescribeConfigsShardWakeError, DescribeTopicsShardWake,
-        DescribeTopicsShardWakeError, IncrementalAlterConfigsShardWake,
-        IncrementalAlterConfigsShardWakeError, ListConsumerGroupOffsetsShardWake,
-        ListConsumerGroupOffsetsShardWakeError, ListPartitionReassignmentsShardWake,
-        ListPartitionReassignmentsShardWakeError,
+        DeleteConsumerGroupOffsetsShardWakeError, DeleteRecordsShardWake,
+        DeleteRecordsShardWakeError, DeleteTopicsShardWake, DeleteTopicsShardWakeError,
+        DescribeClusterShardWake, DescribeClusterShardWakeError, DescribeConfigsShardWake,
+        DescribeConfigsShardWakeError, DescribeTopicsShardWake, DescribeTopicsShardWakeError,
+        IncrementalAlterConfigsShardWake, IncrementalAlterConfigsShardWakeError,
+        ListConsumerGroupOffsetsShardWake, ListConsumerGroupOffsetsShardWakeError,
+        ListPartitionReassignmentsShardWake, ListPartitionReassignmentsShardWakeError,
     },
     driver::ReactorWake,
 };
@@ -29,6 +29,13 @@ impl DeleteTopicsShardWake for ReactorWake {
     fn wake(&self) -> Result<(), DeleteTopicsShardWakeError> {
         self.request()
             .map_err(|error| DeleteTopicsShardWakeError::from_io(error.into_io()))
+    }
+}
+
+impl DeleteRecordsShardWake for ReactorWake {
+    fn wake(&self) -> Result<(), DeleteRecordsShardWakeError> {
+        self.request()
+            .map_err(|error| DeleteRecordsShardWakeError::from_io(error.into_io()))
     }
 }
 

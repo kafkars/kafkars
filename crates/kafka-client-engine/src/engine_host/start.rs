@@ -11,9 +11,10 @@ use crate::{
     EngineConfig,
     admin::{
         AdminCompletionNotifier, AlterReplicaLogDirsShardOwner, CreatePartitionsShardOwner,
-        CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner, DeleteTopicsShardOwner,
-        DescribeClusterShardOwner, DescribeLogDirsShardOwner, DescribeTopicsShardOwner,
-        IncrementalAlterConfigsShardOwner, ListConsumerGroupOffsetsShardOwner,
+        CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner, DeleteRecordsShardOwner,
+        DeleteTopicsShardOwner, DescribeClusterShardOwner, DescribeLogDirsShardOwner,
+        DescribeTopicsShardOwner, IncrementalAlterConfigsShardOwner,
+        ListConsumerGroupOffsetsShardOwner,
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
@@ -126,6 +127,9 @@ pub(crate) fn start(
     let create_topics_admission = create_topics.admission_port();
     let delete_topics = DeleteTopicsShardOwner::new(delete_topics, Arc::new(driver.reactor_wake()));
     let delete_topics_admission = delete_topics.admission_port();
+    let delete_records =
+        DeleteRecordsShardOwner::new(delete_records, Arc::new(driver.reactor_wake()));
+    let delete_records_admission = delete_records.admission_port();
     let describe_cluster =
         DescribeClusterShardOwner::new(describe_cluster, Arc::new(driver.reactor_wake()));
     let describe_cluster_admission = describe_cluster.admission_port();
@@ -177,6 +181,7 @@ pub(crate) fn start(
         create_topics,
         delete_topics,
         describe_cluster,
+        delete_records,
         create_partitions,
         describe_topics,
         describe_configs: describe_configs.owner,
@@ -229,6 +234,7 @@ pub(crate) fn start(
         admission,
         create_topics_admission,
         delete_topics_admission,
+        delete_records_admission,
         describe_cluster_admission,
         create_partitions_admission,
         describe_topics_admission,

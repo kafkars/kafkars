@@ -12,6 +12,7 @@ use crate::clock::MonotonicClock;
 pub(crate) struct AdminAdmissionPorts {
     pub(crate) create_topics: CreateTopicsAdmissionPort,
     pub(crate) delete_topics: DeleteTopicsAdmissionPort,
+    pub(crate) delete_records: super::DeleteRecordsAdmissionPort,
     pub(crate) describe_cluster: super::DescribeClusterAdmissionPort,
     pub(crate) create_partitions: super::CreatePartitionsAdmissionPort,
     pub(crate) describe_topics: super::DescribeTopicsAdmissionPort,
@@ -32,6 +33,7 @@ pub(crate) struct AdminAdmissionPorts {
 pub struct AdminHandle {
     pub(super) create_topics: CreateTopicsAdmissionPort,
     pub(super) delete_topics: DeleteTopicsAdmissionPort,
+    pub(super) delete_records: super::DeleteRecordsAdmissionPort,
     pub(super) describe_cluster: super::DescribeClusterAdmissionPort,
     pub(super) create_partitions: super::CreatePartitionsAdmissionPort,
     pub(super) describe_topics: super::DescribeTopicsAdmissionPort,
@@ -58,6 +60,7 @@ impl AdminHandle {
         Self {
             create_topics: ports.create_topics,
             delete_topics: ports.delete_topics,
+            delete_records: ports.delete_records,
             describe_cluster: ports.describe_cluster,
             create_partitions: ports.create_partitions,
             describe_topics: ports.describe_topics,
