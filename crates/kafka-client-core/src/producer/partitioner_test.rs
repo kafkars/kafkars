@@ -122,6 +122,18 @@ fn keyed_selection_retains_available_leader_facts() {
     assert_eq!(selected.leader_epoch().map(LeaderEpoch::get), Some(14));
 }
 
+#[test]
+fn keyed_selection_retains_a_leaderless_choice_when_no_route_is_available() {
+    let source = TestTopicSource::new(TopicMetadataGeneration::from_raw(23), count(12), &[]);
+
+    let selected = select_java_keyed_topic_partition(b"kafka", source.facts())
+        .unwrap_or_else(|error| panic!("leaderless logical selection remains valid: {error}"));
+    assert_eq!(selected.partition(), PartitionIndex::from_raw(4));
+    assert_eq!(selected.generation(), TopicMetadataGeneration::from_raw(23));
+    assert!(!selected.is_available());
+    assert_eq!(selected.leader_epoch(), None);
+}
+
 fn count(value: u32) -> PartitionCount {
     PartitionCount::try_from_raw(value)
         .unwrap_or_else(|| panic!("test partition count must be Java-representable"))

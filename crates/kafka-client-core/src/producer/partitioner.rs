@@ -77,9 +77,9 @@ pub fn select_java_keyed_partition(
 
 /// Selects a generation-stamped topic partition through the Java-compatible keyed path.
 ///
-/// Hashing uses the total logical count rather than the currently available
-/// subset. The returned selection records whether the borrowed metadata view
-/// currently knows a leader for the chosen logical partition.
+/// Hashing uses the total logical partition count, including partitions that
+/// currently have no known leader. The generation-stamped result retains that
+/// availability fact so routing can distinguish the leaderless selection.
 pub fn select_java_keyed_topic_partition(
     serialized_key: &[u8],
     facts: TopicPartitionFacts<'_>,
