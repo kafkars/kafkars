@@ -58,7 +58,10 @@ fn post_driver_recovery_reports_every_retained_group_fetch_owner() {
     );
     assert_eq!(recovery.effects(), 1);
     assert_eq!(recovery.prepared(), 0);
+    assert_eq!(recovery.raw_positions(), 0);
+    assert_eq!(recovery.prepared_positions(), 0);
     assert_eq!(recovery.timers(), 1);
+    assert_eq!(recovery.position_calls(), 0);
     assert_eq!(recovery.fetch_retained(), (0, 1, 4_096));
     assert_eq!(recovery.recovered_fetch_requests(), 0);
     assert_eq!(recovery.fetch_completion(), None);

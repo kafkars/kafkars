@@ -24,6 +24,7 @@ pub(crate) mod group_consumer_recv_result;
 #[path = "group_consumer_registration.rs"]
 pub(crate) mod group_consumer_registration;
 pub(crate) mod group_consumer_registration_result;
+pub(crate) mod group_consumer_seek;
 
 #[cfg(test)]
 mod group_consumer_acknowledge_test;
@@ -45,3 +46,5 @@ mod group_consumer_rebalance_event_test;
 mod group_consumer_recv_result_test;
 #[cfg(test)]
 mod group_consumer_registration_result_test;
+#[cfg(test)]
+mod group_consumer_seek_test;

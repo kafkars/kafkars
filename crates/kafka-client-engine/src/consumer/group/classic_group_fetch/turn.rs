@@ -14,6 +14,7 @@ use super::{
         ClassicGroupFetchFront, ClassicGroupFetchOwnerFault, ClassicGroupFetchTransitionFailure,
     },
     owner::ClassicGroupFetchOwner,
+    position_execution::ClassicGroupPositionStage,
     turn_model::ClassicGroupFetchTurn,
 };
 
@@ -27,6 +28,7 @@ impl ClassicGroupFetchOwner {
     ) -> ClassicGroupFetchTurn {
         let mut work = ClassicGroupFetchTurn::default();
         if self.is_faulted() {
+            self.settle_seek_host_unavailable();
             return work;
         }
         let blocked_front = match self.interpret_front_effect(catalog, clock) {
@@ -43,6 +45,7 @@ impl ClassicGroupFetchOwner {
             ClassicGroupFetchFront::Idle => false,
         };
         if self.is_faulted() {
+            self.settle_seek_host_unavailable();
             work.fault_retained = true;
             return work;
         }
@@ -54,9 +57,25 @@ impl ClassicGroupFetchOwner {
             return work;
         }
 
+        work.position_polled = matches!(
+            self.poll_seek_position(clock),
+            ClassicGroupPositionStage::Progressed
+        );
+        if self.is_faulted() || !self.effects.is_empty() {
+            return work;
+        }
+
         let effects_before_poll = self.effects.len();
         self.settle_one_fetch(clock, &mut work);
         if self.is_faulted() || self.effects.len() != effects_before_poll {
+            return work;
+        }
+
+        work.position_submitted = matches!(
+            self.submit_seek_position(clock, driver),
+            ClassicGroupPositionStage::Progressed
+        );
+        if self.is_faulted() || !self.effects.is_empty() {
             return work;
         }
 
@@ -83,6 +102,7 @@ impl ClassicGroupFetchOwner {
             Err(input) => {
                 self.fault =
                     Some(ClassicGroupFetchOwnerFault::UnexpectedTimerInput { _input: input });
+                self.settle_seek_host_unavailable();
                 work.fault_retained = true;
                 return false;
             }
@@ -97,6 +117,7 @@ impl ClassicGroupFetchOwner {
                     _input: retained,
                     error,
                 });
+                self.settle_seek_host_unavailable();
                 work.fault_retained = true;
                 false
             }
@@ -118,6 +139,7 @@ impl ClassicGroupFetchOwner {
             }
             Err(error) => {
                 self.fault = Some(ClassicGroupFetchOwnerFault::Fetch(error));
+                self.settle_seek_host_unavailable();
                 work.fault_retained = true;
             }
         }
@@ -152,6 +174,7 @@ impl ClassicGroupFetchOwner {
                 self.fault = Some(ClassicGroupFetchOwnerFault::Fetch(
                     FetchExecutionError::Faulted,
                 ));
+                self.settle_seek_host_unavailable();
                 work.fault_retained = true;
             }
             Ok(FetchSubmission::Settled(transition)) => {
@@ -163,6 +186,7 @@ impl ClassicGroupFetchOwner {
             }
             Err(error) => {
                 self.fault = Some(ClassicGroupFetchOwnerFault::Fetch(error));
+                self.settle_seek_host_unavailable();
                 work.fault_retained = true;
             }
         }
@@ -177,6 +201,7 @@ impl ClassicGroupFetchOwner {
             Ok(now) => Some(now),
             Err(error) => {
                 self.fault = Some(ClassicGroupFetchOwnerFault::Clock(error));
+                self.settle_seek_host_unavailable();
                 work.fault_retained = true;
                 None
             }
@@ -199,6 +224,7 @@ impl ClassicGroupFetchOwner {
                     limit,
                 },
             });
+            self.settle_seek_host_unavailable();
             work.fault_retained = true;
             return false;
         }
@@ -213,6 +239,10 @@ fn duplicate_due_input(
     input: AssignedConsumerInput,
 ) -> Result<(AssignedConsumerInput, AssignedConsumerInput), AssignedConsumerInput> {
     match input {
+        AssignedConsumerInput::PositionThrottleElapsed { fence, now } => Ok((
+            AssignedConsumerInput::PositionThrottleElapsed { fence, now },
+            AssignedConsumerInput::PositionThrottleElapsed { fence, now },
+        )),
         AssignedConsumerInput::FetchThrottleElapsed { fence, now } => Ok((
             AssignedConsumerInput::FetchThrottleElapsed { fence, now },
             AssignedConsumerInput::FetchThrottleElapsed { fence, now },

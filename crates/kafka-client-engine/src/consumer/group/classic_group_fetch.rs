@@ -5,11 +5,16 @@ mod control;
 mod delivery;
 mod model;
 mod owner;
+mod owner_build;
 mod owner_observation;
+mod position_execution;
+mod position_prepare;
 mod position_transfer;
 mod prepare;
 mod recovery;
 mod retirement;
+mod seek;
+mod seek_terminal;
 mod turn;
 mod turn_model;
 
@@ -22,7 +27,11 @@ mod delivery_test;
 #[cfg(test)]
 mod model_test;
 #[cfg(test)]
+mod owner_build_test;
+#[cfg(test)]
 mod owner_test;
+#[cfg(test)]
+mod position_execution_test;
 #[cfg(test)]
 mod position_failure_transfer_test;
 #[cfg(test)]
@@ -38,7 +47,13 @@ mod recovery_test;
 #[cfg(test)]
 mod retirement_test;
 #[cfg(test)]
+mod seek_terminal_test;
+#[cfg(test)]
+mod seek_test;
+#[cfg(test)]
 mod test_support;
+#[cfg(test)]
+mod turn_model_test;
 #[cfg(test)]
 mod turn_test;
 
@@ -65,6 +80,7 @@ pub(super) use position_transfer::{
 };
 pub(super) use recovery::ClassicGroupFetchShutdownRecovery;
 pub(super) use retirement::{ClassicGroupFetchRetirement, ClassicGroupFetchRetirementError};
+pub(super) use seek::{ClassicGroupFetchSeekError, ClassicGroupFetchSeekObservation};
 #[cfg(test)]
 pub(in crate::consumer::group) use test_support::{
     completed_ready, install_ready_delivery_for_test,

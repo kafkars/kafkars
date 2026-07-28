@@ -125,11 +125,13 @@ pub use crate::consumer::{
     GroupConsumerRegistrationError, GroupConsumerRegistrationErrorKind, GroupConsumerResumeCapture,
     GroupConsumerResumeCaptureError, GroupConsumerResumeCaptureErrorKind,
     GroupConsumerRevocationAcknowledgeError, GroupConsumerRevocationAcknowledgeErrorKind,
-    GroupConsumerRevocationControl, GroupConsumerStartAccepted, GroupConsumerStartCapture,
-    GroupConsumerStartError, GroupConsumerStartErrorKind, GroupConsumerState,
-    GroupConsumerStateError, GroupConsumerStateErrorKind, GroupConsumerTryTakeBatchError,
-    GroupConsumerTryTakeBatchErrorKind, GroupConsumerTryTakeEventError,
-    GroupConsumerTryTakeEventErrorKind,
+    GroupConsumerRevocationControl, GroupConsumerSeek, GroupConsumerSeekAdmissionError,
+    GroupConsumerSeekAdmissionErrorKind, GroupConsumerSeekCapture, GroupConsumerSeekError,
+    GroupConsumerSeekErrorKind, GroupConsumerSeekPosition, GroupConsumerStartAccepted,
+    GroupConsumerStartCapture, GroupConsumerStartError, GroupConsumerStartErrorKind,
+    GroupConsumerState, GroupConsumerStateError, GroupConsumerStateErrorKind,
+    GroupConsumerTryTakeBatchError, GroupConsumerTryTakeBatchErrorKind,
+    GroupConsumerTryTakeEventError, GroupConsumerTryTakeEventErrorKind,
 };
 pub use crate::delivery::{
     ProducerDeliveryFailure, ProducerDeliveryFailureKind, ProducerDeliveryStatus,

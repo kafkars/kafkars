@@ -18,8 +18,11 @@ pub(in crate::consumer::group) struct ClassicGroupFetchShutdownRecovery {
     activation: Option<(GroupPositionFence, AssignmentEpoch)>,
     machine_assignment: Option<AssignmentEpoch>,
     effects: usize,
+    raw_positions: usize,
+    prepared_positions: usize,
     prepared: usize,
     timers: usize,
+    position_calls: usize,
     fetch_calls: usize,
     fetch_deliveries: usize,
     fetch_bytes: usize,
@@ -44,10 +47,14 @@ impl ClassicGroupFetchOwner {
         let (fetch_calls, fetch_deliveries, _fetch_bytes) = self.fetches.retained();
         let (event_claims, event_ready) = self.events.retained();
         usize::from(self.activation.is_some())
+            .saturating_add(usize::from(self.seek.is_some()))
             .saturating_add(self.effects.len())
+            .saturating_add(self.raw_position_deadlines.len())
+            .saturating_add(self.pending_positions.len())
             .saturating_add(self.pending_fetches.len())
             .saturating_add(self.timers.timer_count())
             .saturating_add(fetch_calls)
+            .saturating_add(self.positions.retained_positions())
             .saturating_add(fetch_deliveries)
             .saturating_add(event_claims)
             .saturating_add(event_ready)
@@ -61,14 +68,18 @@ impl ClassicGroupFetchOwner {
     pub(in crate::consumer::group) fn release_after_driver_shutdown(
         mut self,
     ) -> ClassicGroupFetchShutdownRecovery {
+        self.settle_seek_driver_shutdown();
         let activation = self.activation.as_ref().map(|activation| {
             let binding = activation.binding();
             (binding.position_fence(), binding.assignment_epoch())
         });
         let machine_assignment = self.machine.assignment_epoch();
         let effects = self.effects.len();
+        let raw_positions = self.raw_position_deadlines.len();
+        let prepared_positions = self.pending_positions.len();
         let prepared = self.pending_fetches.len();
         let timers = self.timers.timer_count();
+        let position_calls = self.positions.retained_positions();
         let (fetch_calls, fetch_deliveries, fetch_bytes) = self.fetches.retained();
         let owner_fault = self.fault.as_ref().map(ClassicGroupFetchOwnerFault::kind);
         let reclaim_fault = self
@@ -79,6 +90,9 @@ impl ClassicGroupFetchOwner {
         let reclaim_faults = self.reclaim_faults.len();
         let reclaim_overflow = self.reclaim_overflow.is_some();
         let events = self.events.recover_after_driver_shutdown();
+        let _position_completion = self
+            .positions
+            .release_position_calls_after_driver_shutdown();
         let fetch = self.fetches.release_fetch_executor_after_driver_shutdown();
         let fetch_executor_faulted = fetch.had_fault();
         let (requests, fetch_completion) = fetch.into_driver_recovery().into_parts();
@@ -88,8 +102,11 @@ impl ClassicGroupFetchOwner {
             activation,
             machine_assignment,
             effects,
+            raw_positions,
+            prepared_positions,
             prepared,
             timers,
+            position_calls,
             fetch_calls,
             fetch_deliveries,
             fetch_bytes,
@@ -122,6 +139,18 @@ impl ClassicGroupFetchShutdownRecovery {
 
     pub(in crate::consumer::group) const fn prepared(&self) -> usize {
         self.prepared
+    }
+
+    pub(in crate::consumer::group) const fn prepared_positions(&self) -> usize {
+        self.prepared_positions
+    }
+
+    pub(in crate::consumer::group) const fn raw_positions(&self) -> usize {
+        self.raw_positions
+    }
+
+    pub(in crate::consumer::group) const fn position_calls(&self) -> usize {
+        self.position_calls
     }
 
     pub(in crate::consumer::group) const fn timers(&self) -> usize {

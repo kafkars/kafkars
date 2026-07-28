@@ -142,6 +142,21 @@ impl AssignedConsumerEventStore {
         self.ready.pop_front()
     }
 
+    pub(crate) fn discard_terminal(
+        &mut self,
+        effect: AssignedConsumerEffect,
+    ) -> Result<(), AssignedConsumerEventStoreError> {
+        let claim =
+            terminal_claim(effect).ok_or(AssignedConsumerEventStoreError::TransitionMismatch)?;
+        let index = self
+            .claims
+            .iter()
+            .position(|present| *present == claim)
+            .ok_or(AssignedConsumerEventStoreError::ClaimMissing)?;
+        self.claims.swap_remove(index);
+        Ok(())
+    }
+
     pub(crate) fn retained(&self) -> (usize, usize) {
         (self.claims.len(), self.ready.len())
     }

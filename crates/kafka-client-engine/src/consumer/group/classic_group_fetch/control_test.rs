@@ -1,11 +1,13 @@
 //! Atomic group Fetch pause and retained-position resume scenarios.
 
+use std::sync::Arc;
+
 use kafka_client_core::{
     AssignedConsumerEffect, AssignedTopicPartition, DeliveryOwnership, Moment, PartitionIndex,
-    TopicId,
+    StartPosition, TopicId,
 };
 
-use crate::clock::MonotonicClock;
+use crate::{clock::MonotonicClock, consumer::group_seek::GroupConsumerSeekCompletion};
 
 use super::{
     ClassicGroupFetchControlError, ClassicGroupFetchFront, ClassicGroupFetchOwner,
@@ -115,6 +117,67 @@ fn resume_requires_pause_controls_to_drain_then_restores_caller_order() {
         ] if second.position().partition() == partition(1)
             && first.position().partition() == partition(0)
     ));
+}
+
+#[test]
+fn symbolic_position_sought_while_paused_resumes_with_exact_new_boundary() {
+    let fence = position_fence(7);
+    let catalog = catalog(&["orders"]);
+    let mut owner =
+        ClassicGroupFetchOwner::try_new().unwrap_or_else(|error| panic!("Fetch owner: {error:?}"));
+    owner
+        .try_activate(
+            completed_ready(fence, Moment::from_tick(41), 0, vec![committed(1, 0, 17)]),
+            fence,
+        )
+        .unwrap_or_else(|error| panic!("Fetch activation: {:?}", error.kind()));
+    assert_eq!(
+        owner.interpret_front_effect(&catalog, &MonotonicClock::new()),
+        ClassicGroupFetchFront::Interpreted
+    );
+    owner
+        .pause_partitions(fence, &[partition(0)])
+        .unwrap_or_else(|error| panic!("pause: {error:?}"));
+    assert_eq!(
+        owner.interpret_front_effect(&catalog, &MonotonicClock::new()),
+        ClassicGroupFetchFront::Interpreted
+    );
+    owner
+        .seek_partition(
+            fence,
+            partition(0),
+            StartPosition::Beginning,
+            resolution_capture(),
+            Arc::new(GroupConsumerSeekCompletion::pending()),
+        )
+        .unwrap_or_else(|_error| panic!("paused seek"));
+    assert_eq!(
+        owner.interpret_front_effect(&catalog, &MonotonicClock::new()),
+        ClassicGroupFetchFront::Interpreted
+    );
+    let capture = resolution_capture();
+
+    let resumed = owner
+        .resume_partitions(fence, &[partition(0)], capture)
+        .unwrap_or_else(|error| panic!("symbolic resume: {error:?}"));
+
+    assert_eq!(resumed.effects(), 1);
+    assert!(matches!(
+        owner.front_effect_for_test(),
+        Some(AssignedConsumerEffect::ResolvePosition { deadline, .. })
+            if deadline == capture.deadline()
+    ));
+    assert_eq!(owner.raw_position_deadlines.len(), 1);
+    assert_eq!(
+        owner.interpret_front_effect(&catalog, &MonotonicClock::new()),
+        ClassicGroupFetchFront::Interpreted
+    );
+    assert!(owner.raw_position_deadlines.is_empty());
+    assert_eq!(owner.pending_positions.len(), 1);
+    assert_eq!(
+        owner.pending_positions[0].deadline,
+        capture.operation_deadline()
+    );
 }
 
 const fn partition(index: u32) -> AssignedTopicPartition {

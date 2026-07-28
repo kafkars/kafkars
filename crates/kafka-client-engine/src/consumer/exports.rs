@@ -82,6 +82,11 @@ pub use super::group_registration_request::{
 pub use super::group_release::{
     GroupConsumerDormantReleaseError, GroupConsumerDormantReleaseErrorKind,
 };
+pub use super::group_seek::{
+    GroupConsumerSeek, GroupConsumerSeekAdmissionError, GroupConsumerSeekAdmissionErrorKind,
+    GroupConsumerSeekCapture, GroupConsumerSeekError, GroupConsumerSeekErrorKind,
+    GroupConsumerSeekPosition,
+};
 pub use super::group_start::{
     GroupConsumerStartAccepted, GroupConsumerStartCapture, GroupConsumerStartError,
     GroupConsumerStartErrorKind,

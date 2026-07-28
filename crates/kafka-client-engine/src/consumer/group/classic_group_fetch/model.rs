@@ -9,11 +9,14 @@ use crate::{
     clock::ClockError,
     consumer::{
         assigned_event::AssignedConsumerEventStoreError,
+        assigned_owner_model::PendingPosition,
         assigned_timer_model::AssignedTimerError,
         fetch_execution::{
             FetchAttemptDeadline, FetchExecutionError, FetchReclaimFailure, PrepareFetchError,
             PreparedFetchExecution,
         },
+        position_execution::PositionExecutionError,
+        position_prepare_error::PreparePositionError,
     },
 };
 
@@ -51,6 +54,10 @@ pub(in crate::consumer::group) enum ClassicGroupFetchEffectFailure {
     Clock(ClockError),
     Timer(AssignedTimerError),
     Event(AssignedConsumerEventStoreError),
+    PositionCatalog(GroupSessionCatalogError),
+    PositionPreparation(PreparePositionError),
+    PositionCapacity,
+    PositionDeadlineMismatch,
 }
 
 /// Fallible post-capture work that still retains the original attempt boundary.
@@ -76,6 +83,8 @@ pub(in crate::consumer::group) enum ClassicGroupFetchOwnerFaultKind {
     Effect(ClassicGroupFetchEffectFailure),
     Captured(ClassicGroupFetchCapturedFailure),
     Pending(AssignedConsumerMachineError),
+    PendingPosition(AssignedConsumerMachineError),
+    Position,
     Core(AssignedConsumerMachineError),
     Transition(ClassicGroupFetchTransitionFailure),
     TimerInput,
@@ -88,6 +97,11 @@ pub(in crate::consumer::group) enum ClassicGroupFetchOwnerFaultKind {
 
 /// Full linear owner retained after an invariant or execution failure.
 #[must_use = "group Fetch faults retain every exact linear owner until recovery"]
+#[allow(
+    dead_code,
+    clippy::large_enum_variant,
+    reason = "fault variants retain exact linear owners for later shutdown recovery"
+)]
 pub(in crate::consumer::group) enum ClassicGroupFetchOwnerFault {
     Activation(ClassicGroupFetchActivationFault),
     Clock(ClockError),
@@ -104,6 +118,11 @@ pub(in crate::consumer::group) enum ClassicGroupFetchOwnerFault {
         error: AssignedConsumerMachineError,
         _prepared: PreparedFetchExecution,
     },
+    PendingPosition {
+        error: AssignedConsumerMachineError,
+        _pending: PendingPosition,
+    },
+    Position(PositionExecutionError),
     Core {
         _input: AssignedConsumerInput,
         error: AssignedConsumerMachineError,
@@ -140,6 +159,10 @@ impl ClassicGroupFetchOwnerFault {
             Self::Effect { failure, .. } => ClassicGroupFetchOwnerFaultKind::Effect(*failure),
             Self::Captured { failure, .. } => ClassicGroupFetchOwnerFaultKind::Captured(*failure),
             Self::Pending { error, .. } => ClassicGroupFetchOwnerFaultKind::Pending(*error),
+            Self::PendingPosition { error, .. } => {
+                ClassicGroupFetchOwnerFaultKind::PendingPosition(*error)
+            }
+            Self::Position(_) => ClassicGroupFetchOwnerFaultKind::Position,
             Self::Core { error, .. } => ClassicGroupFetchOwnerFaultKind::Core(*error),
             Self::Transition { failure, .. } => {
                 ClassicGroupFetchOwnerFaultKind::Transition(*failure)

@@ -25,6 +25,7 @@ mod group_next_event;
 mod group_rebalance_event;
 mod group_record;
 mod group_recv;
+mod group_seek;
 mod offset_reset;
 mod read_isolation;
 mod record;
@@ -57,6 +58,7 @@ pub use group_next_event::NextConsumerEvent;
 pub use group_rebalance_event::{ConsumerEvent, ConsumerRevocation};
 pub use group_record::{GroupConsumerHeader, GroupConsumerRecord, GroupConsumerRecords};
 pub use group_recv::RecvConsumerBatch;
+pub use group_seek::Seek;
 pub use offset_reset::OffsetReset;
 pub use read_isolation::ReadIsolation;
 pub use record::{ConsumerHeader, ConsumerRecord, ConsumerRecords};
@@ -106,6 +108,8 @@ mod group_next_event_test;
 mod group_rebalance_event_test;
 #[cfg(test)]
 mod group_recv_test;
+#[cfg(test)]
+mod group_seek_test;
 #[cfg(test)]
 mod group_test;
 #[cfg(test)]

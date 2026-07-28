@@ -546,6 +546,16 @@ evidence = [
   "crates/kafka-client/src/bridge/consumer_facade/group_consumer_control_test.rs::borrowed_targets_are_copied_in_order_without_position_policy",
   "crates/kafka-client/src/bridge/consumer_facade/group_consumer_control_test.rs::every_control_error_kind_has_one_stable_facade_category",
   "crates/kafka-client/src/consumer/group_control_test.rs::partition_controls_are_batch_synchronous_and_timeout_free",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/seek_test.rs::explicit_offset_completes_after_core_fences_old_fetch",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/seek_test.rs::paused_explicit_offset_stays_paused_and_completes_without_list_offsets",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/seek_terminal_test.rs::throttle_success_and_signed_broker_failure_are_terminal",
+  "crates/kafka-client-engine/src/consumer/group/registry_seek_test.rs::assignment_absence_rejects_before_completion_or_fetch_mutation",
+  "crates/kafka-client-engine/src/consumer/group/registry_seek_test.rs::current_assignment_translation_commits_explicit_offset_terminal",
+  "crates/kafka-client-engine/src/consumer/group_seek/completion_test.rs::first_terminal_wins_and_preserves_signed_broker_code",
+  "crates/kafka-client-engine/src/consumer/group_seek/operation_test.rs::seek_is_a_send_linear_future_with_the_same_blocking_outcome",
+  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_seek_test.rs::target_conversion_rejects_direct_assignment_policy_and_invalid_scalars",
+  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_seek_test.rs::every_terminal_kind_and_signed_code_have_one_stable_facade_category",
+  "crates/kafka-client/src/consumer/group_seek_test.rs::seek_is_a_send_linear_future_borrowing_the_unique_consumer",
   "crates/kafka-client-engine/src/consumer/assigned_host/control_handle_test.rs::retained_topic_translation_preserves_core_epoch_and_partition_fencing",
   "crates/kafka-client-engine/src/consumer/assigned_host/control_handle_test.rs::resume_and_seek_capture_deadlines_before_owner_contention",
   "crates/kafka-client-core/src/consumer/resolution_test.rs::result_and_failure_observations_apply_core_owned_deadline_precedence",
@@ -1234,6 +1244,8 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/fetch_execution/deadline_test.rs::one_internal_attempt_capture_preserves_its_fence_and_both_absolute_deadlines",
   "crates/kafka-client-engine/src/consumer/group/classic_group_position/preparation_test.rs::nonempty_preparation_preserves_core_order_fence_and_original_deadline",
   "crates/kafka-client-engine/src/consumer/group/classic_group_position/submission_test.rs::elapsed_prepared_request_settles_before_saturated_capacity",
+  "crates/kafka-client-engine/src/consumer/group_seek/admission_test.rs::capture_borrows_the_unique_handle_and_exposes_stable_rejection",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/seek_test.rs::active_symbolic_seek_retains_original_deadline_until_list_offsets_terminal",
 ]
 
 [[invariant]]

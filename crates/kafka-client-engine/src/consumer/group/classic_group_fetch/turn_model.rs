@@ -9,6 +9,8 @@
 pub(in crate::consumer::group) struct ClassicGroupFetchTurn {
     pub(super) effect_interpreted: bool,
     pub(super) timer_input_applied: bool,
+    pub(super) position_polled: bool,
+    pub(super) position_submitted: bool,
     pub(super) fetch_polled: bool,
     pub(super) fetch_submitted: bool,
     pub(super) blocked: bool,
@@ -20,6 +22,8 @@ impl ClassicGroupFetchTurn {
     pub(in crate::consumer::group) const fn progressed(self) -> bool {
         self.effect_interpreted
             || self.timer_input_applied
+            || self.position_polled
+            || self.position_submitted
             || self.fetch_polled
             || self.fetch_submitted
     }

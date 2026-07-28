@@ -51,7 +51,7 @@ pub use consumer::{
     ConsumerCommitError, ConsumerEvent, ConsumerHeader, ConsumerRecord, ConsumerRecords,
     ConsumerRevocation, GroupConsumerHeader, GroupConsumerRecord, GroupConsumerRecords,
     GroupMetadata, NextAssignedEvent, NextConsumerEvent, OffsetReset, ReadIsolation, RecordBatch,
-    RecvAssignedBatch, RecvConsumerBatch, StartPosition, TopicPartition,
+    RecvAssignedBatch, RecvConsumerBatch, Seek, StartPosition, TopicPartition,
 };
 pub use error::{DeliveryStatus, ErrorKind, KafkaError};
 pub use producer::{

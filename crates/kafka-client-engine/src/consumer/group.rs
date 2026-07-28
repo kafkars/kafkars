@@ -92,6 +92,7 @@ mod registry_recv_notification;
 mod registry_recv_port;
 mod registry_registration;
 mod registry_release_port;
+mod registry_seek;
 #[cfg_attr(
     not(test),
     expect(dead_code, reason = "awaiting private group-consumer integration")
@@ -263,6 +264,8 @@ mod registry_port_test;
 #[cfg(test)]
 mod registry_processing_test;
 #[cfg(test)]
+mod registry_seek_test;
+#[cfg(test)]
 mod registry_session_test;
 #[cfg(test)]
 mod registry_shard_test;
@@ -307,6 +310,10 @@ pub(crate) use registry_port::{
     GroupConsumerPortRegistrationCategory,
 };
 pub(crate) use registry_release_port::GroupConsumerPortDormantReleaseError;
+pub(in crate::consumer) use registry_seek::{
+    GroupConsumerSeekObservation, GroupConsumerSeekObservationError, GroupConsumerSeekPortError,
+    GroupConsumerSeekRegistryError,
+};
 pub(crate) use registry_shard::{GroupConsumerShardLockError, GroupConsumerShardOwner};
 pub(in crate::consumer) use registry_state::GroupConsumerStatePortError;
 #[cfg(test)]

@@ -9,9 +9,10 @@ use kafka_client_core::{
 use crate::{
     consumer::{
         assigned_event::AssignedConsumerEventStore,
-        assigned_owner_model::fetch_isolation,
+        assigned_owner_model::{PendingPosition, RawPositionDeadline},
         assigned_timers::AssignedTimers,
         fetch_execution::{DirectFetchExecutor, PreparedFetchExecution},
+        position_execution::PositionResolutionExecutor,
     },
     protocol::{
         consumer::CLASSIC_SYNC_MAX_MEMBER_PARTITIONS,
@@ -29,9 +30,8 @@ use super::{
         ClassicGroupFetchBinding, ClassicGroupFetchPostCoreFaultKind,
     },
     delivery::ClassicGroupFetchReclaimFault,
-    model::{
-        ClassicGroupFetchBuildError, ClassicGroupFetchOwnerFault, ClassicGroupFetchPreflightError,
-    },
+    model::{ClassicGroupFetchOwnerFault, ClassicGroupFetchPreflightError},
+    seek::ClassicGroupFetchSeek,
 };
 
 /// First private slice mirrors the direct consumer's current partition bound.
@@ -47,17 +47,17 @@ pub(super) const FIRST_GROUP_FETCH_DELIVERY_BYTES: usize = 1024 * 1024;
 /// First private slice mirrors the direct consumer's one-MiB per-Fetch output bound.
 pub(super) const FIRST_GROUP_FETCH_OUTPUT_BYTES: usize = 1024 * 1024;
 
-const FIRST_GROUP_FETCH_REQUEST_BYTES: u32 = 1024 * 1024;
-const FIRST_GROUP_FETCH_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(30);
-
 /// One group-specific deterministic Fetch policy owner.
 pub(in crate::consumer::group) struct ClassicGroupFetchOwner {
     pub(super) machine: AssignedConsumerMachine,
     pub(super) activation: Option<ClassicGroupFetchActivation>,
     pub(super) timers: AssignedTimers,
+    pub(super) positions: PositionResolutionExecutor,
     pub(super) fetches: DirectFetchExecutor,
     pub(super) events: AssignedConsumerEventStore,
     pub(super) effects: VecDeque<AssignedConsumerEffect>,
+    pub(super) raw_position_deadlines: VecDeque<RawPositionDeadline>,
+    pub(super) pending_positions: VecDeque<PendingPosition>,
     pub(super) pending_fetches: VecDeque<PreparedFetchExecution>,
     pub(super) fetch_settings: FetchRequestSettings,
     pub(super) fetch_decode_limits: FetchDecodeLimits,
@@ -67,64 +67,12 @@ pub(in crate::consumer::group) struct ClassicGroupFetchOwner {
     pub(super) effect_capacity: usize,
     pub(super) hard_fetch_output_bytes: usize,
     pub(super) fault: Option<ClassicGroupFetchOwnerFault>,
+    pub(super) seek: Option<ClassicGroupFetchSeek>,
     pub(super) reclaim_faults: Vec<ClassicGroupFetchReclaimFault>,
     pub(super) reclaim_overflow: Option<ClassicGroupFetchReclaimFault>,
 }
 
 impl ClassicGroupFetchOwner {
-    pub(in crate::consumer::group) fn try_new() -> Result<Self, ClassicGroupFetchBuildError> {
-        Self::try_new_with_read_isolation(ReadIsolation::ReadUncommitted)
-    }
-
-    pub(in crate::consumer::group) fn try_new_with_read_isolation(
-        read_isolation: ReadIsolation,
-    ) -> Result<Self, ClassicGroupFetchBuildError> {
-        let mut effects = VecDeque::new();
-        let mut pending_fetches = VecDeque::new();
-        let mut reclaim_faults = Vec::new();
-        effects
-            .try_reserve_exact(FIRST_GROUP_FETCH_EFFECTS)
-            .map_err(|_error| ClassicGroupFetchBuildError::Allocation)?;
-        pending_fetches
-            .try_reserve_exact(FIRST_GROUP_FETCH_PARTITIONS)
-            .map_err(|_error| ClassicGroupFetchBuildError::Allocation)?;
-        reclaim_faults
-            .try_reserve_exact(FIRST_GROUP_FETCH_DELIVERIES)
-            .map_err(|_error| ClassicGroupFetchBuildError::Allocation)?;
-        let events = AssignedConsumerEventStore::new(FIRST_GROUP_FETCH_PARTITIONS)
-            .map_err(|_error| ClassicGroupFetchBuildError::Allocation)?;
-        Ok(Self {
-            machine: AssignedConsumerMachine::with_read_isolation(read_isolation),
-            activation: None,
-            timers: AssignedTimers::new(FIRST_GROUP_FETCH_PARTITIONS),
-            fetches: DirectFetchExecutor::create_unbound(
-                FIRST_GROUP_FETCH_CALLS,
-                FIRST_GROUP_FETCH_DELIVERIES,
-                FIRST_GROUP_FETCH_DELIVERY_BYTES,
-            ),
-            events,
-            effects,
-            pending_fetches,
-            fetch_settings: FetchRequestSettings::new(
-                500,
-                1,
-                FIRST_GROUP_FETCH_REQUEST_BYTES,
-                FIRST_GROUP_FETCH_REQUEST_BYTES,
-                0,
-            )
-            .with_isolation(fetch_isolation(read_isolation)),
-            fetch_decode_limits: FetchDecodeLimits::default(),
-            fetch_attempt_timeout: FIRST_GROUP_FETCH_ATTEMPT_TIMEOUT,
-            read_isolation,
-            partition_capacity: FIRST_GROUP_FETCH_PARTITIONS,
-            effect_capacity: FIRST_GROUP_FETCH_EFFECTS,
-            hard_fetch_output_bytes: FIRST_GROUP_FETCH_OUTPUT_BYTES,
-            fault: None,
-            reclaim_faults,
-            reclaim_overflow: None,
-        })
-    }
-
     #[expect(
         clippy::result_large_err,
         reason = "the internal lossless boundary returns the exact completed position without hidden boxing"

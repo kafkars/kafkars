@@ -1,6 +1,6 @@
 //! Single-front FIFO interpretation at the group Fetch attempt boundary.
 
-use kafka_client_core::{AssignedConsumerEffect, Deadline};
+use kafka_client_core::AssignedConsumerEffect;
 
 use crate::{
     clock::MonotonicClock,
@@ -13,7 +13,7 @@ use super::{
     super::session_catalog::GroupSessionCatalog,
     model::{
         ClassicGroupFetchCapturedFailure, ClassicGroupFetchEffectFailure, ClassicGroupFetchFront,
-        ClassicGroupFetchOwnerFault, minimum_deadline,
+        ClassicGroupFetchOwnerFault,
     },
     owner::ClassicGroupFetchOwner,
 };
@@ -24,7 +24,8 @@ impl ClassicGroupFetchOwner {
         catalog: &GroupSessionCatalog,
         clock: &MonotonicClock,
     ) -> ClassicGroupFetchFront {
-        if self.fault.is_some() {
+        if self.is_faulted() {
+            self.settle_seek_host_unavailable();
             return ClassicGroupFetchFront::Idle;
         }
         let Some(effect) = self.effects.front().copied() else {
@@ -32,6 +33,9 @@ impl ClassicGroupFetchOwner {
         };
         if is_control(effect) {
             return self.interpret_control(effect);
+        }
+        if let Some(front) = self.interpret_position_effect(effect, catalog) {
+            return front;
         }
         let result = match effect {
             AssignedConsumerEffect::ArmFetchThrottle { fence, deadline } => self
@@ -52,6 +56,7 @@ impl ClassicGroupFetchOwner {
                             attempt,
                             failure,
                         });
+                        self.settle_seek_host_unavailable();
                         return ClassicGroupFetchFront::Idle;
                     }
                 }
@@ -59,15 +64,15 @@ impl ClassicGroupFetchOwner {
             AssignedConsumerEffect::AuthorizeFetchDelivery { .. } => Ok(()),
             AssignedConsumerEffect::AcceptClose { .. }
             | AssignedConsumerEffect::CompleteClose { .. }
-            | AssignedConsumerEffect::ResolvePosition { .. }
-            | AssignedConsumerEffect::PositionResolutionFailed { .. }
-            | AssignedConsumerEffect::ArmPositionThrottle { .. }
             | AssignedConsumerEffect::FetchThrottleFailed { .. }
             | AssignedConsumerEffect::FetchFailed { .. }
             | AssignedConsumerEffect::Revoke { .. }
             | AssignedConsumerEffect::Suspend { .. } => {
                 return ClassicGroupFetchFront::Idle;
             }
+            AssignedConsumerEffect::ResolvePosition { .. }
+            | AssignedConsumerEffect::PositionResolutionFailed { .. }
+            | AssignedConsumerEffect::ArmPositionThrottle { .. } => unreachable!(),
         };
         match result {
             Ok(()) => {
@@ -76,6 +81,7 @@ impl ClassicGroupFetchOwner {
                         effect,
                         failure: ClassicGroupFetchEffectFailure::Event(error),
                     });
+                    self.settle_seek_host_unavailable();
                     return ClassicGroupFetchFront::Idle;
                 }
                 self.effects.pop_front();
@@ -83,20 +89,10 @@ impl ClassicGroupFetchOwner {
             }
             Err(failure) => {
                 self.fault = Some(ClassicGroupFetchOwnerFault::Effect { effect, failure });
+                self.settle_seek_host_unavailable();
                 ClassicGroupFetchFront::Idle
             }
         }
-    }
-
-    pub(in crate::consumer::group) fn next_deadline(&self) -> Option<Deadline> {
-        if self.fault.is_some() {
-            return None;
-        }
-        let mut next = self.timers.next_deadline();
-        for pending in &self.pending_fetches {
-            next = minimum_deadline(next, pending.deadline());
-        }
-        next
     }
 
     #[allow(
@@ -156,11 +152,14 @@ impl ClassicGroupFetchOwner {
             }
             Err(error) => {
                 self.fault = Some(ClassicGroupFetchOwnerFault::Fetch(error));
+                self.settle_seek_host_unavailable();
                 return ClassicGroupFetchFront::Idle;
             }
         }
         self.timers.observe_control(effect);
-        if !self.reconcile_pending_fetches() {
+        self.positions.observe_control(effect);
+        self.reconcile_raw_position_deadlines(effect);
+        if !self.reconcile_pending_positions() || !self.reconcile_pending_fetches() {
             return ClassicGroupFetchFront::Idle;
         }
         if let Err(error) = self.events.observe_effect(effect) {
@@ -168,6 +167,7 @@ impl ClassicGroupFetchOwner {
                 effect,
                 failure: ClassicGroupFetchEffectFailure::Event(error),
             });
+            self.settle_seek_host_unavailable();
             return ClassicGroupFetchFront::Idle;
         }
         self.effects.pop_front();

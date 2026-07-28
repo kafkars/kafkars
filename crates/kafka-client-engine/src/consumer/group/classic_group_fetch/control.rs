@@ -4,7 +4,7 @@ use kafka_client_core::{
     AssignedConsumerMachineError, AssignedTopicPartition, AssignmentEpoch, GroupPositionFence,
 };
 
-use crate::clock::DeadlineCapture;
+use crate::{clock::DeadlineCapture, consumer::assigned_owner_model::RawPositionDeadline};
 
 use super::{
     model::{ClassicGroupFetchOwnerFault, ClassicGroupFetchTransitionFailure},
@@ -98,6 +98,14 @@ impl ClassicGroupFetchOwner {
         capture: DeadlineCapture,
     ) -> Result<ClassicGroupFetchControlAccepted, ClassicGroupFetchControlError> {
         let assignment_epoch = self.preflight_control(position_fence, partitions.len())?;
+        if self
+            .raw_position_deadlines
+            .len()
+            .saturating_add(partitions.len())
+            > self.partition_capacity
+        {
+            return Err(ClassicGroupFetchControlError::EffectCapacity);
+        }
         let event_claims = self
             .events
             .prepare_resume_partitions(partitions)
@@ -128,6 +136,15 @@ impl ClassicGroupFetchOwner {
             self.retain_control_fault(transition);
             return Ok(ClassicGroupFetchControlAccepted::retained_fault());
         }
+        for effect in transition.effects() {
+            if let kafka_client_core::AssignedConsumerEffect::ResolvePosition { fence, .. } = effect
+            {
+                self.raw_position_deadlines.push_back(RawPositionDeadline {
+                    fence: *fence,
+                    deadline: capture.operation_deadline(),
+                });
+            }
+        }
         Ok(self.append_control_transition(transition))
     }
 
@@ -149,7 +166,7 @@ impl ClassicGroupFetchOwner {
         {
             return Err(ClassicGroupFetchControlError::BindingMismatch);
         }
-        if !self.effects.is_empty() {
+        if !self.effects.is_empty() || self.seek.is_some() {
             return Err(ClassicGroupFetchControlError::Pending);
         }
         if self.effects.len().saturating_add(maximum_effects) > self.effect_capacity {

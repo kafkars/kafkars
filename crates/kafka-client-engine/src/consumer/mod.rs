@@ -87,6 +87,7 @@ mod group_registration_request;
 #[cfg(test)]
 mod group_registration_request_test;
 mod group_release;
+mod group_seek;
 mod group_start;
 mod position_execution;
 mod position_prepare_error;

@@ -113,6 +113,7 @@ impl ClassicGroupFetchOwner {
             });
         }
 
+        self.settle_seek_assignment_lost();
         let transition = match self.machine.apply(AssignedConsumerInput::RetireAssignment {
             assignment_epoch: Some(assignment_epoch),
         }) {
