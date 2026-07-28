@@ -184,6 +184,7 @@ pub(crate) fn start(
         budget: validated.turn_budget,
         produce_calls,
         producer_identity_calls: crate::driver::TrackedProducerIdentityCalls::new(),
+        producer_partitioning_call: None,
         create_topics_calls: crate::driver::TrackedCreateTopicsCalls::new(
             crate::admin::CREATE_TOPICS_CAPACITY,
         ),

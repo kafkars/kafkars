@@ -10,6 +10,9 @@ use support::{
 const ENGINE_ROOT: &str = "crates/kafka-client-engine/src";
 const TOPIC_VIEW_ADAPTER: &str =
     "crates/kafka-client-engine/src/driver/rpc/topic_view/partition_count.rs";
+const PRODUCER_TOPIC_VIEW_ADAPTER: &str =
+    "crates/kafka-client-engine/src/driver/rpc/topic_view/producer.rs";
+const TOPIC_VIEW_ADAPTERS: &[&str] = &[TOPIC_VIEW_ADAPTER, PRODUCER_TOPIC_VIEW_ADAPTER];
 const TOPIC_VIEW_CAPABILITY: &str = "kafka_driver::TopicView";
 const CALL_OWNER: &str = "TopicPartitionCountCall";
 const CALL_FIELDS: &[&str] = &["topic_view_topic", "topic_view_driver_call"];
@@ -46,30 +49,30 @@ fn checked_in_topic_view_call_is_linear_private_and_mirrored() {
 }
 
 #[test]
-fn live_topic_view_import_stays_in_the_exact_driver_rpc_adapter() {
+fn live_topic_view_import_stays_in_the_exact_driver_rpc_adapters() {
     let workspace = workspace_root();
-    let allow = workspace
-        .join(TOPIC_VIEW_ADAPTER)
-        .is_file()
-        .then(|| topic_view_allow(TOPIC_VIEW_ADAPTER));
+    let allow = TOPIC_VIEW_ADAPTERS
+        .iter()
+        .map(|path| topic_view_allow(path))
+        .collect();
     let violations = capability_violations(
         &workspace,
         &[CapabilityRule {
             root: ENGINE_ROOT.into(),
             forbidden: vec![TOPIC_VIEW_CAPABILITY.into()],
-            allow: allow.into_iter().collect(),
+            allow,
         }],
     );
 
     assert!(
         violations.is_empty(),
-        "driver TopicView escaped its exact adapter:\n{}",
+        "driver TopicView escaped its exact adapters:\n{}",
         violations.join("\n")
     );
 }
 
 #[test]
-fn fixture_rejects_topic_view_import_beside_the_exact_adapter() {
+fn fixture_rejects_topic_view_import_beside_the_exact_adapters() {
     let (root, _) = fixture_files("consumer_classic_group_topic_view");
     let violations = capability_violations(
         &root,
@@ -129,7 +132,8 @@ fn topic_view_allow(path: &str) -> CapabilityAllow {
     CapabilityAllow {
         path: path.into(),
         capability: TOPIC_VIEW_CAPABILITY.into(),
-        reason: "This sole adapter reduces the driver-owned immutable view to scalar client facts."
-            .into(),
+        reason:
+            "This exact RPC adapter reduces the driver-owned immutable view to client policy facts."
+                .into(),
     }
 }

@@ -7,7 +7,10 @@ mod materialization_view;
 #[cfg(test)]
 mod materialization_view_test;
 
-use kafka_client_core::{ByteCount, PayloadId};
+use kafka_client_core::{
+    ByteCount, PayloadId,
+    partitioning::{PartitionSelection, StickyPartitionError, TopicPartitionFacts},
+};
 
 use super::{
     ProducerAdmissionError, ProducerRecord, ProducerStoreError, batch_store::BatchStore,
@@ -150,6 +153,14 @@ impl ProducerStore {
         topic_id: kafka_client_core::TopicId,
     ) -> Result<(), ProducerStoreError> {
         self.records.topics.release(topic_id)
+    }
+
+    pub(in crate::producer) fn select_sticky_partition(
+        &mut self,
+        topic_id: kafka_client_core::TopicId,
+        facts: TopicPartitionFacts<'_>,
+    ) -> Result<Result<PartitionSelection, StickyPartitionError>, ProducerStoreError> {
+        self.records.topics.select_sticky(topic_id, facts)
     }
 }
 

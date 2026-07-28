@@ -37,6 +37,7 @@ pub(super) struct BatchRoute {
 pub(super) struct BatchMember {
     pub(super) operation_id: OperationId,
     pub(super) payload_id: PayloadId,
+    pub(super) sticky_unkeyed: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -54,11 +55,17 @@ struct BatchAccumulator {
     route: BatchRoute,
     state: BatchState,
     members: Vec<BatchMember>,
+    sticky_unkeyed_members: usize,
 }
 
 impl BatchAccumulator {
     fn remove(&mut self, index: usize) -> BatchMember {
-        self.members.remove(index)
+        let member = self.members.remove(index);
+        if member.sticky_unkeyed {
+            debug_assert!(self.sticky_unkeyed_members > 0);
+            self.sticky_unkeyed_members = self.sticky_unkeyed_members.saturating_sub(1);
+        }
+        member
     }
 }
 
@@ -88,12 +95,24 @@ impl BatchStore {
         }
     }
 
+    #[cfg(test)]
     pub(super) fn append(
         &mut self,
         batch_id: BatchId,
         operation_id: OperationId,
         payload_id: PayloadId,
         route: BatchRoute,
+    ) -> Result<(), ProducerStoreError> {
+        self.append_partitioned(batch_id, operation_id, payload_id, route, false)
+    }
+
+    pub(super) fn append_partitioned(
+        &mut self,
+        batch_id: BatchId,
+        operation_id: OperationId,
+        payload_id: PayloadId,
+        route: BatchRoute,
+        sticky_unkeyed: bool,
     ) -> Result<(), ProducerStoreError> {
         if self.operations.contains_key(&operation_id) {
             return Err(ProducerStoreError::DuplicateOperation);
@@ -115,16 +134,24 @@ impl BatchStore {
         let member = BatchMember {
             operation_id,
             payload_id,
+            sticky_unkeyed,
         };
-        self.batches
+        let batch = self
+            .batches
             .entry(batch_id)
             .or_insert_with(|| BatchAccumulator {
                 route,
                 state: BatchState::Open,
                 members: Vec::new(),
-            })
-            .members
-            .push(member);
+                sticky_unkeyed_members: 0,
+            });
+        if sticky_unkeyed {
+            batch.sticky_unkeyed_members = batch
+                .sticky_unkeyed_members
+                .checked_add(1)
+                .ok_or(ProducerStoreError::RetainedSizeOverflow)?;
+        }
+        batch.members.push(member);
         self.operations.insert(operation_id, batch_id);
         self.payloads.insert(payload_id, batch_id);
         Ok(())
@@ -191,7 +218,6 @@ impl BatchStore {
     pub(super) fn len(&self) -> usize {
         self.batches.len()
     }
-
     #[cfg(test)]
     pub(super) fn record_count(&self, batch_id: BatchId) -> Result<u32, ProducerStoreError> {
         let count = self

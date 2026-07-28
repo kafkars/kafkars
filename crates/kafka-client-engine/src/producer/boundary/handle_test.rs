@@ -102,26 +102,18 @@ fn explicit_try_send_captures_one_absolute_deadline_and_commits() {
 }
 
 #[test]
-fn missing_partition_is_rejected_after_deadline_capture_with_record_intact() {
-    let (_owner, handle, wake) = setup();
-    let record = ProducerRecord::to("orders")
-        .value(Bytes::from_static(b"value"))
-        .header(ProducerHeader::null("trace"));
-    let error = handle.try_send(record, ProducerSendOptions::new(Duration::from_millis(50)));
-    let Err(error) = error else {
-        panic!("automatic partitioning is not implemented in this slice")
-    };
+fn missing_partition_enters_bounded_automatic_waiting() {
+    let (owner, handle, wake) = setup();
+    let accepted = handle
+        .try_send(
+            ProducerRecord::to("orders").value(Bytes::from_static(b"value")),
+            ProducerSendOptions::new(Duration::from_millis(50)),
+        )
+        .unwrap_or_else(|error| panic!("automatic record should enter waiting: {error:?}"));
 
-    assert_eq!(
-        error.kind(),
-        ProducerTrySendErrorKind::MissingExplicitPartition
-    );
-    let record = error.into_record();
-    assert_eq!(record.topic(), "orders");
-    assert_eq!(record.value_bytes(), Some(&Bytes::from_static(b"value")));
-    assert_eq!(record.timestamp(), None);
-    assert_eq!(record.headers(), &[ProducerHeader::null("trace")]);
-    assert_eq!(wake.count(), 0);
+    assert_eq!(host(&owner).shard_stats().host.waiting.records, 1);
+    assert_eq!(wake.count(), 1);
+    drop(accepted.into_observer());
 }
 
 #[test]
@@ -238,11 +230,11 @@ fn captured_waiting_admission_keeps_the_original_deadline_and_separate_capacity(
 
 #[test]
 fn absent_timestamp_defaults_inside_engine_and_restores_as_absent() {
-    let stored = record().into_stored(PartitionIndex::from_raw(3), 1_234);
+    let stored = record().into_stored(Some(PartitionIndex::from_raw(3)), 1_234);
     let (_, timestamp_ms, _, _, _) = stored.into_parts();
     assert_eq!(timestamp_ms, 1_234);
 
-    let stored = record().into_stored(PartitionIndex::from_raw(3), 1_234);
+    let stored = record().into_stored(Some(PartitionIndex::from_raw(3)), 1_234);
     let restored = ProducerRecord::from_stored(stored);
     assert_eq!(restored.timestamp(), None);
 }

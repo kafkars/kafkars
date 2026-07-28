@@ -3898,6 +3898,7 @@ allowed_paths = [
 root = "crates/kafka-client-engine/src"
 method = "discard_after_driver_shutdown"
 allowed_paths = [
+  "crates/kafka-client-engine/src/engine_host/produce/partitioning.rs",
   "crates/kafka-client-engine/src/engine_host/recovery.rs",
   "crates/kafka-client-engine/src/transaction/initialization/host/recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_recovery.rs",
@@ -6430,6 +6431,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/cancellation/revision.rs",
   "crates/kafka-client-engine/src/producer/shutdown.rs",
   "crates/kafka-client-engine/src/producer/waiting/admission.rs",
+  "crates/kafka-client-engine/src/producer/waiting/partitioning.rs",
   "crates/kafka-client-engine/src/producer/waiting/settlement.rs",
   "crates/kafka-client-engine/src/producer/waiting/turn.rs",
 ]
@@ -6567,6 +6569,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/terminal_publication.rs",
   "crates/kafka-client-engine/src/producer/terminal_publication/validation.rs",
   "crates/kafka-client-engine/src/producer/waiting/admission.rs",
+  "crates/kafka-client-engine/src/producer/waiting/partitioning.rs",
   "crates/kafka-client-engine/src/producer/waiting/settlement.rs",
   "crates/kafka-client-engine/src/producer/waiting/turn.rs",
 ]

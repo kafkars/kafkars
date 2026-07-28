@@ -1,12 +1,13 @@
 //! Deterministic producer host ownership behind one shard lock.
 
-use kafka_client_core::Moment;
+use kafka_client_core::{Moment, partitioning::TopicPartitionSource};
 
 use crate::{
     clock::OperationDeadline,
     producer::{
         ProducerHost, ProducerHostInvariantError, ProducerIdentityHandoffError,
-        ProducerIdentitySubmission, ProducerRecord,
+        ProducerIdentitySubmission, ProducerPartitioningFailure, ProducerPartitioningRequest,
+        ProducerRecord,
         admission::{AdmittedExplicit, ProducerAdmissionFailure},
         cancellation::{ProducerHostCancelAccepted, ProducerHostCancelError},
         execution::{PreparedProduceHandoffError, PreparedProduceSubmission},
@@ -109,6 +110,35 @@ impl ProducerShardData {
         &mut self,
     ) -> Result<Option<ProducerIdentitySubmission>, ProducerIdentityHandoffError> {
         self.host.take_identity_submission()
+    }
+
+    pub(crate) fn take_partitioning_request(
+        &mut self,
+    ) -> Result<Option<ProducerPartitioningRequest>, ProducerHostInvariantError> {
+        self.host.take_partitioning_request()
+    }
+
+    pub(crate) fn restore_partitioning_request(
+        &mut self,
+        request: ProducerPartitioningRequest,
+    ) -> Result<(), ProducerHostInvariantError> {
+        self.host.restore_partitioning_request(request)
+    }
+
+    pub(crate) fn apply_partitioning_view(
+        &mut self,
+        request: ProducerPartitioningRequest,
+        source: &dyn TopicPartitionSource,
+    ) -> Result<bool, ProducerHostInvariantError> {
+        self.host.apply_partitioning_view(request, source)
+    }
+
+    pub(crate) fn apply_partitioning_failure(
+        &mut self,
+        request: ProducerPartitioningRequest,
+        failure: ProducerPartitioningFailure,
+    ) -> Result<bool, ProducerHostInvariantError> {
+        self.host.apply_partitioning_failure(request, failure)
     }
 
     /// Applies one transport-owned fact while this shard is locked.

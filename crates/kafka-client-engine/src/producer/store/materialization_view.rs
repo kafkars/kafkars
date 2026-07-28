@@ -20,7 +20,11 @@ impl ProducerStore {
         identity: ProducerIdentity,
         sequence: ProducerSequenceLease,
     ) -> Result<(MaterializationAttempt, MaterializationBatch), ProducerStoreError> {
-        self.batches.seal_for_materialization(execution)?;
+        if let Some(route) = self.batches.seal_for_materialization(execution)? {
+            self.records
+                .topics
+                .partition_batch_sealed(route.topic_id, route.partition)?;
+        }
         let (attempt, plan) = self.batches.begin_materialization(execution)?;
         let view = (|| {
             let partition = i32::try_from(plan.route.partition.get())

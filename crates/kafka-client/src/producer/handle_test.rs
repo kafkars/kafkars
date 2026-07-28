@@ -87,7 +87,7 @@ fn unrepresentable_delivery_timeout_is_rejected_when_the_producer_builds() {
 }
 
 #[test]
-fn try_send_rejection_returns_exact_nullable_ordered_bytes_storage() {
+fn negative_partition_rejection_returns_exact_nullable_ordered_bytes_storage() {
     let client = build_client();
     let result = client.producer().build();
     let Ok(producer) = result else {
@@ -96,7 +96,7 @@ fn try_send_rejection_returns_exact_nullable_ordered_bytes_storage() {
     let retained = Bytes::from(vec![9, 8, 7]);
     let record = Record::from_parts(RecordParts {
         topic: "orders".to_owned(),
-        partition: None,
+        partition: Some(-1),
         timestamp_milliseconds: Some(42),
         key: None,
         value: Some(Bytes::new()),
@@ -108,7 +108,7 @@ fn try_send_rejection_returns_exact_nullable_ordered_bytes_storage() {
     });
 
     let Err(rejection) = producer.try_send(record) else {
-        panic!("automatic partitioning must remain unavailable")
+        panic!("negative partition must be rejected")
     };
     assert_eq!(rejection.error().kind(), ErrorKind::InvalidRecord);
     assert_eq!(
@@ -119,7 +119,7 @@ fn try_send_rejection_returns_exact_nullable_ordered_bytes_storage() {
 
     assert_eq!(error.kind(), ErrorKind::InvalidRecord);
     assert_eq!(returned.topic(), "orders");
-    assert_eq!(returned.explicit_partition(), None);
+    assert_eq!(returned.explicit_partition(), Some(-1));
     assert_eq!(returned.timestamp(), Some(42));
     assert_eq!(returned.key_bytes(), None);
     assert_eq!(returned.value_bytes(), Some(&Bytes::new()));
@@ -129,6 +129,33 @@ fn try_send_rejection_returns_exact_nullable_ordered_bytes_storage() {
         returned.headers()[2].value().map(|bytes| bytes.as_ptr()),
         Some(retained.as_ptr())
     );
+}
+
+#[test]
+fn automatic_try_send_enters_bounded_partition_resolution() {
+    let client = build_client();
+    let producer = client
+        .producer()
+        .build()
+        .unwrap_or_else(|error| panic!("producer construction should remain local: {error}"));
+    let mut record = Record::to("orders").key("order-42").value("created");
+    let deadline = Instant::now() + Duration::from_secs(1);
+
+    let delivery = loop {
+        match producer.try_send(record) {
+            Ok(delivery) => break delivery,
+            Err(rejection) if rejection.error().kind() == ErrorKind::Backpressure => {
+                assert!(
+                    Instant::now() < deadline,
+                    "automatic record should enter waiting"
+                );
+                record = rejection.into_parts().0;
+                std::hint::spin_loop();
+            }
+            Err(rejection) => panic!("automatic record admission failed: {}", rejection.error()),
+        }
+    };
+    drop(delivery);
 }
 
 fn admit_with_backpressure_retry(

@@ -14,7 +14,7 @@ use super::{
     error::{ProducerTrySendError, ProducerTrySendErrorKind},
     flush_error::ProducerTryFlushError,
     flush_result::ProducerTryFlushAccepted,
-    prepare::prepare_explicit,
+    prepare::{prepare_explicit, prepare_waiting},
     record::ProducerRecord,
     result::ProducerTrySendAccepted,
 };
@@ -49,7 +49,7 @@ impl ProducerHandle {
         ProducerSendCapture::capture(&self.clock, options)
     }
 
-    /// Attempts one atomic explicit-partition admission without waiting.
+    /// Attempts one atomic explicit or automatic-partition admission without blocking.
     ///
     /// The monotonic deadline is captured before record validation, timestamp
     /// defaulting, or shard locking. Missing timestamps use Unix epoch
@@ -85,9 +85,19 @@ impl ProducerHandle {
         capture: ProducerSendCapture,
         record: ProducerRecord,
     ) -> Result<ProducerTrySendAccepted, ProducerTrySendError> {
-        let prepared = prepare_explicit(capture, record)?;
+        let explicit = record.explicit_partition().is_some();
+        let prepared = if explicit {
+            prepare_explicit(capture, record)
+        } else {
+            prepare_waiting(capture, record)
+        }?;
         let (attempted_at, deadline, stored) = prepared.into_parts();
-        match self.port.try_admit_explicit(attempted_at, deadline, stored) {
+        let admission = if explicit {
+            self.port.try_admit_explicit(attempted_at, deadline, stored)
+        } else {
+            self.port.try_admit_waiting(attempted_at, deadline, stored)
+        };
+        match admission {
             Ok(accepted) => Ok(ProducerTrySendAccepted::from_port(accepted)),
             Err(error) => Err(ProducerTrySendError::from_port(error)),
         }

@@ -58,6 +58,10 @@ impl ProducerHost {
             else {
                 break;
             };
+            if self.waiting.front_needs_partition(id)? {
+                blocked = true;
+                break;
+            }
             if self.promote_waiter(now, id)? {
                 progressed += 1;
             } else {

@@ -62,4 +62,37 @@ impl ProducerAdmissionPort {
         drop(data);
         Ok(accepted.with_wake(self.shared.wake()))
     }
+
+    /// Transfers one caller into the independently bounded FIFO waiting owner.
+    #[allow(
+        clippy::result_large_err,
+        reason = "ownership-preserving rejection returns the intact record"
+    )]
+    pub(crate) fn try_admit_waiting(
+        &self,
+        attempted_at: Moment,
+        deadline: OperationDeadline,
+        record: ProducerRecord,
+    ) -> Result<ProducerPortAccepted, ProducerPortAdmissionError> {
+        if self.shared.admission_is_closed() {
+            return Err(closed(record));
+        }
+        let mut data = match self.shared.try_data() {
+            Ok(data) => data,
+            Err(ProducerShardLockError::Contended) => {
+                return Err(rejected(record, ProducerPortRejectionReason::Contended));
+            }
+            Err(ProducerShardLockError::Poisoned) => {
+                return Err(poisoned_before(record, ProducerPortPoisonReason::ShardLock));
+            }
+        };
+        let accepted = classify_waiting_admission(data.host.try_admit_waiting(
+            attempted_at,
+            deadline,
+            record,
+        ))?
+        .with_cancellation(&self.shared);
+        drop(data);
+        Ok(accepted.with_wake(self.shared.wake()))
+    }
 }

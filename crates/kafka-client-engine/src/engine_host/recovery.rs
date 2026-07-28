@@ -51,6 +51,9 @@ pub(crate) fn recover(
     resources
         .producer_identity_calls
         .discard_after_driver_shutdown();
+    super::produce::discard_partitioning_after_driver_shutdown(
+        &mut resources.producer_partitioning_call,
+    );
     resources
         .create_topics_calls
         .discard_after_driver_shutdown();

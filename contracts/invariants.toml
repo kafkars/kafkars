@@ -1214,6 +1214,7 @@ evidence = [
   "crates/kafka-client-core/src/producer/partitioner_test.rs::serialized_key_length_rejects_values_outside_java_array_domain",
   "crates/kafka-client-core/src/producer/partitioner_test.rs::keyed_selection_uses_logical_count_instead_of_available_count",
   "crates/kafka-client-core/src/producer/partitioner_test.rs::keyed_selection_retains_available_leader_facts",
+  "crates/kafka-client-engine/src/producer/waiting/partitioning_test.rs::keyed_resolution_uses_java_hash_over_logical_domain",
 ]
 
 [[invariant]]
@@ -1231,6 +1232,7 @@ evidence = [
   "crates/kafka-client-core/src/producer/sticky_test.rs::metadata_loss_reselects_without_waiting_for_the_old_batch_to_seal",
   "crates/kafka-client-core/src/producer/sticky_test.rs::unavailable_topic_rejects_without_mutating_sticky_state",
   "crates/kafka-client-core/src/producer/sticky_test.rs::available_selection_uses_the_exact_indexed_fact_without_a_second_lookup",
+  "crates/kafka-client-engine/src/producer/waiting/partitioning_test.rs::unkeyed_partition_stays_sticky_until_the_batch_seals_then_advances",
 ]
 
 [[invariant]]

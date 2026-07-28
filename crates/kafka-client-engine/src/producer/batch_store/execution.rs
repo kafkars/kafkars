@@ -38,16 +38,16 @@ impl MaterializationAttempt {
 }
 
 impl BatchAccumulator {
-    fn seal(&mut self, execution: BatchExecutionId) -> Result<(), ProducerStoreError> {
+    fn seal(&mut self, execution: BatchExecutionId) -> Result<bool, ProducerStoreError> {
         match self.state {
             BatchState::Open => {
                 if execution.generation() != BatchExecutionGeneration::initial() {
                     return Err(ProducerStoreError::StaleBatchExecution);
                 }
                 self.state = BatchState::ReadyForMaterialization(execution);
-                Ok(())
+                Ok(true)
             }
-            BatchState::ReadyForMaterialization(current) if current == execution => Ok(()),
+            BatchState::ReadyForMaterialization(current) if current == execution => Ok(false),
             BatchState::ReadyForMaterialization(_)
             | BatchState::Materializing(_)
             | BatchState::Materialized(_)
@@ -120,12 +120,13 @@ impl BatchStore {
     pub(in crate::producer) fn seal_for_materialization(
         &mut self,
         execution: BatchExecutionId,
-    ) -> Result<(), ProducerStoreError> {
+    ) -> Result<Option<super::BatchRoute>, ProducerStoreError> {
         let batch = self
             .batches
             .get_mut(&execution.batch_id())
             .ok_or(ProducerStoreError::UnknownBatch)?;
-        batch.seal(execution)
+        let newly_sealed = batch.seal(execution)?;
+        Ok((newly_sealed && batch.sticky_unkeyed_members != 0).then_some(batch.route))
     }
 
     pub(in crate::producer) fn begin_materialization(

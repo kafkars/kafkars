@@ -21,3 +21,4 @@ pub(crate) use super::identity_submission::{
 pub(crate) use super::record::ProducerRecord;
 pub(crate) use super::store::{ProducerStore, ProducerStoreLimits, ProducerStoreStats};
 pub(crate) use super::terminal::ProducerTerminal;
+pub(crate) use super::waiting::{ProducerPartitioningFailure, ProducerPartitioningRequest};

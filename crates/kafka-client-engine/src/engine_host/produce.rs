@@ -1,5 +1,7 @@
 //! Atomic join between prepared producer ownership and tracked driver calls.
 
+mod partitioning;
+
 use kafka_client_core::{Moment, ProducerInput};
 
 use crate::{
@@ -8,6 +10,11 @@ use crate::{
 };
 
 use super::EngineHostError;
+
+pub(super) use partitioning::{
+    ProducerPartitioningCall, admit as admit_partitioning, apply_ready as apply_partitioning_ready,
+    discard_after_driver_shutdown as discard_partitioning_after_driver_shutdown,
+};
 
 /// Attempts the one lazy nontransactional identity acquisition.
 pub(super) fn admit_identity(

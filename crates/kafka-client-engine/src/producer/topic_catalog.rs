@@ -1,8 +1,11 @@
-//! Refcounted topic names and checked, never-reused deterministic identities.
+//! Producer-lifetime topic identities with active-record reference counts.
 
 use std::{collections::BTreeMap, sync::Arc};
 
-use kafka_client_core::TopicId;
+use kafka_client_core::partitioning::{
+    PartitionSelection, StickyPartitionError, StickyPartitioner, TopicPartitionFacts,
+};
+use kafka_client_core::{PartitionIndex, TopicId};
 
 use super::ProducerStoreError;
 
@@ -10,9 +13,10 @@ use super::ProducerStoreError;
 struct TopicEntry {
     id: TopicId,
     references: usize,
+    sticky: StickyPartitioner,
 }
 
-/// Stable identity owner for names retained by active producer records.
+/// Stable identity owner for names observed during one producer lifetime.
 #[derive(Debug)]
 pub(super) struct TopicCatalog {
     max_entries: usize,
@@ -61,8 +65,14 @@ impl TopicCatalog {
         }
         self.next_topic_id = id.get().checked_add(1).map(TopicId::from_raw);
         self.retained_bytes = retained_bytes;
-        self.by_name
-            .insert(Arc::clone(&name), TopicEntry { id, references: 1 });
+        self.by_name.insert(
+            Arc::clone(&name),
+            TopicEntry {
+                id,
+                references: 1,
+                sticky: StickyPartitioner::new(id.get().saturating_sub(1)),
+            },
+        );
         self.by_id.insert(id, name);
         Ok(id)
     }
@@ -85,6 +95,39 @@ impl TopicCatalog {
 
     pub(super) fn name(&self, id: TopicId) -> Result<&Arc<str>, ProducerStoreError> {
         self.by_id.get(&id).ok_or(ProducerStoreError::UnknownTopic)
+    }
+
+    pub(super) fn select_sticky(
+        &mut self,
+        id: TopicId,
+        facts: TopicPartitionFacts<'_>,
+    ) -> Result<Result<PartitionSelection, StickyPartitionError>, ProducerStoreError> {
+        let name = self
+            .by_id
+            .get(&id)
+            .ok_or(ProducerStoreError::UnknownTopic)?;
+        let entry = self
+            .by_name
+            .get_mut(name)
+            .ok_or(ProducerStoreError::UnknownTopic)?;
+        Ok(entry.sticky.select(facts))
+    }
+
+    pub(super) fn partition_batch_sealed(
+        &mut self,
+        id: TopicId,
+        partition: PartitionIndex,
+    ) -> Result<(), ProducerStoreError> {
+        let name = self
+            .by_id
+            .get(&id)
+            .ok_or(ProducerStoreError::UnknownTopic)?;
+        self.by_name
+            .get_mut(name)
+            .ok_or(ProducerStoreError::UnknownTopic)?
+            .sticky
+            .partition_batch_sealed(partition);
+        Ok(())
     }
 
     pub(super) fn clear_terminal(&mut self) {

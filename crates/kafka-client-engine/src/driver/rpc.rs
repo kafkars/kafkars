@@ -228,8 +228,9 @@ pub(crate) use list_offsets_admission::{
 pub(crate) use list_offsets_calls::{PositionCompletionFailure, TrackedPositionCalls};
 pub(crate) use submission::ProduceSubmitError;
 pub(crate) use topic_view::{
-    TopicPartitionCountAdmissionFailure, TopicPartitionCountAdmissionFailureKind,
-    TopicPartitionCountCall, TopicPartitionCountFact, TopicPartitionCountFailure,
+    ProducerTopicViewCall, TopicPartitionCountAdmissionFailure,
+    TopicPartitionCountAdmissionFailureKind, TopicPartitionCountCall, TopicPartitionCountFact,
+    TopicPartitionCountFailure,
 };
 pub(crate) use transaction_init_call::TransactionInitCall;
 pub(crate) use transaction_init_terminal::{

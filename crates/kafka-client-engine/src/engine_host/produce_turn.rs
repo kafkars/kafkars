@@ -45,18 +45,23 @@ pub(super) fn drive(
         &mut data,
         now,
     )?;
+    let partitioning_progress =
+        produce::admit_partitioning(driver, &mut resources.producer_partitioning_call, &mut data)?;
     let produce_progress =
         produce::admit_one(driver, &mut resources.produce_calls, &mut data, now)?;
     Ok(ProducerProgress {
         outcome: Some(outcome),
-        unsettled: data.unsettled_completions(),
-        driver_progress: identity_progress || produce_progress,
+        unsettled: data
+            .unsettled_completions()
+            .saturating_add(usize::from(resources.producer_partitioning_call.is_some())),
+        driver_progress: identity_progress || partitioning_progress || produce_progress,
     })
 }
 
 pub(super) fn apply_completions(
     producer: &ProducerShardOwner,
     identity_calls: &mut crate::driver::TrackedProducerIdentityCalls,
+    partitioning_call: &mut Option<produce::ProducerPartitioningCall>,
     calls: &mut crate::driver::TrackedProduceCalls,
     now: Moment,
 ) -> Result<bool, EngineHostError> {
@@ -68,8 +73,9 @@ pub(super) fn apply_completions(
         }
     };
     let identity = produce::apply_identity_ready(identity_calls, &mut data, now)?;
+    let partitioning = produce::apply_partitioning_ready(partitioning_call, &mut data)?;
     let produce = produce::apply_ready(calls, &mut data, now, PRODUCE_COMPLETION_BUDGET)?;
-    Ok(identity || produce)
+    Ok(identity || partitioning || produce)
 }
 
 impl ProducerProgress {

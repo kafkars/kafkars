@@ -176,6 +176,7 @@ impl ProducerHost {
             operation_id,
             record,
             topic_id,
+            partitioning: false,
             token: Arc::clone(&token),
         });
         let fault = self

@@ -136,7 +136,7 @@ impl ProducerRecord {
 
     pub(super) fn into_stored(
         self,
-        partition: PartitionIndex,
+        partition: Option<PartitionIndex>,
         default_timestamp_ms: i64,
     ) -> StoredProducerRecord {
         let defaulted_timestamp = self.timestamp_ms.is_none();
@@ -176,7 +176,7 @@ impl ProducerRecord {
             .collect();
         Self {
             topic,
-            partition: i32::try_from(partition.get()).ok(),
+            partition: partition.and_then(|partition| i32::try_from(partition.get()).ok()),
             timestamp_ms: (!defaulted_timestamp).then_some(timestamp_ms),
             key,
             value,

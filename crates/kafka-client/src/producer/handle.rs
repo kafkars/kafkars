@@ -75,9 +75,10 @@ impl Producer {
 
     /// Attempts immediate admission without waiting for local capacity.
     ///
-    /// The first vertical slice requires an explicit partition. Success
-    /// transfers ownership to the engine and returns the sole terminal
-    /// observer. Rejection returns the exact caller-owned record immediately.
+    /// Explicit partitions admit directly; records without one enter bounded
+    /// automatic partition resolution. Success transfers ownership to the
+    /// engine and returns the sole terminal observer. Rejection returns the
+    /// exact caller-owned record immediately.
     #[allow(
         clippy::result_large_err,
         reason = "pre-admission failure returns the exact bytes-native record"

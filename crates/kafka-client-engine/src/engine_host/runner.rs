@@ -35,7 +35,6 @@ use super::{
 const HOST_PARK_LIMIT: Duration = Duration::from_millis(100);
 const BLOCKED_RETRY_DELAY: Duration = HOST_PARK_LIMIT;
 const SHUTDOWN_TURN_ATTEMPTS: usize = 64;
-
 pub(crate) struct EngineHostResources {
     pub(super) driver: Option<DriverOwner>,
     pub(super) producer: ProducerShardOwner,
@@ -59,6 +58,7 @@ pub(crate) struct EngineHostResources {
     pub(super) budget: ProducerTurnBudget,
     pub(super) produce_calls: TrackedProduceCalls,
     pub(super) producer_identity_calls: TrackedProducerIdentityCalls,
+    pub(super) producer_partitioning_call: Option<super::produce::ProducerPartitioningCall>,
     pub(super) create_topics_calls: TrackedCreateTopicsCalls,
     pub(super) delete_topics_calls: TrackedDeleteTopicsCalls,
     pub(super) describe_cluster_calls: DescribeClusterCalls,
@@ -143,6 +143,7 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
         let completion_progress = produce_turn::apply_completions(
             &resources.producer,
             &mut resources.producer_identity_calls,
+            &mut resources.producer_partitioning_call,
             &mut resources.produce_calls,
             completion_now,
         )?;

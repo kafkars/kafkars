@@ -141,6 +141,12 @@ impl RecordStore {
                 record,
             ));
         };
+        let Some(partition) = record.selected_partition() else {
+            return Err(ProducerAdmissionError::new(
+                ProducerStoreError::InvalidPayloadState,
+                record,
+            ));
+        };
         let topic = std::sync::Arc::clone(record.topic());
         let topic_id = match self.topics.acquire(topic) {
             Ok(id) => id,
@@ -149,7 +155,7 @@ impl RecordStore {
         let facts = ExplicitRecord::new(
             payload_id,
             topic_id,
-            record.partition(),
+            partition,
             ByteCount::new(retained_u64),
         );
         self.next_payload_id = payload_id.get().checked_add(1).map(PayloadId::from_raw);

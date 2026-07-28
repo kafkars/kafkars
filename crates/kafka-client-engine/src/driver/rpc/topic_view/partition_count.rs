@@ -125,7 +125,7 @@ impl Error for TopicPartitionCountAdmissionFailure {
     }
 }
 
-const fn normalize_error(error: TopicViewError) -> TopicPartitionCountFailure {
+pub(super) const fn normalize_error(error: TopicViewError) -> TopicPartitionCountFailure {
     match error {
         TopicViewError::DeadlineExceeded => TopicPartitionCountFailure::Deadline,
         TopicViewError::Unavailable => TopicPartitionCountFailure::Unavailable,

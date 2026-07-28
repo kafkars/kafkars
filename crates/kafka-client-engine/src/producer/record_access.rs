@@ -38,7 +38,10 @@ impl RecordStore {
     ) -> Result<(TopicId, PartitionIndex), ProducerStoreError> {
         let slot = self.slot(payload_id)?;
         let record = self.record(payload_id)?;
-        Ok((slot.topic_id, record.partition()))
+        let partition = record
+            .selected_partition()
+            .ok_or(ProducerStoreError::InvalidPayloadState)?;
+        Ok((slot.topic_id, partition))
     }
 
     pub(super) fn record(

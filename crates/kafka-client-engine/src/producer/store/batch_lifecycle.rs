@@ -23,7 +23,8 @@ impl ProducerStore {
     ) -> Result<ByteCount, ProducerStoreError> {
         let (topic_id, partition) = self.records.route(payload_id)?;
         let retained = self.records.retained_bytes(payload_id)?;
-        self.batches.append(
+        let sticky_unkeyed = self.records.record(payload_id)?.is_automatic_unkeyed();
+        self.batches.append_partitioned(
             batch_id,
             operation_id,
             payload_id,
@@ -31,6 +32,7 @@ impl ProducerStore {
                 topic_id,
                 partition,
             },
+            sticky_unkeyed,
         )?;
         Ok(retained)
     }

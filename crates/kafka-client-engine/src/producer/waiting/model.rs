@@ -69,6 +69,7 @@ pub(super) struct WaitingEntry {
     pub(super) operation_id: OperationId,
     pub(super) record: ProducerRecord,
     pub(super) topic_id: kafka_client_core::TopicId,
+    pub(super) partitioning: bool,
     pub(super) token: Arc<WaitingToken>,
 }
 

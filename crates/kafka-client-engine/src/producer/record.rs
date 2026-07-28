@@ -1,5 +1,7 @@
 //! Bytes-native producer records retained exclusively by the engine.
 
+mod partitioning;
+
 use std::mem::size_of;
 use std::sync::{Arc, atomic::AtomicUsize};
 
@@ -94,7 +96,8 @@ impl ProducerHeader {
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct ProducerRecord {
     topic: Arc<str>,
-    partition: PartitionIndex,
+    partition: Option<PartitionIndex>,
+    automatic_partition: bool,
     timestamp_ms: i64,
     defaulted_timestamp: bool,
     key: Option<Bytes>,
@@ -104,7 +107,7 @@ pub(crate) struct ProducerRecord {
 
 pub(super) struct ProducerRecordParts {
     pub(super) topic: Arc<str>,
-    pub(super) partition: PartitionIndex,
+    pub(super) partition: Option<PartitionIndex>,
     pub(super) timestamp_ms: i64,
     pub(super) defaulted_timestamp: bool,
     pub(super) key: Option<Bytes>,
@@ -123,7 +126,8 @@ impl ProducerRecord {
     ) -> Self {
         Self {
             topic,
-            partition,
+            partition: Some(partition),
+            automatic_partition: false,
             timestamp_ms,
             defaulted_timestamp: false,
             key,
@@ -134,7 +138,7 @@ impl ProducerRecord {
 
     pub(super) const fn from_public(
         topic: Arc<str>,
-        partition: PartitionIndex,
+        partition: Option<PartitionIndex>,
         timestamp_ms: i64,
         defaulted_timestamp: bool,
         key: Option<Bytes>,
@@ -144,6 +148,7 @@ impl ProducerRecord {
         Self {
             topic,
             partition,
+            automatic_partition: partition.is_none(),
             timestamp_ms,
             defaulted_timestamp,
             key,
@@ -179,10 +184,6 @@ impl ProducerRecord {
         &self.topic
     }
 
-    pub(super) const fn partition(&self) -> PartitionIndex {
-        self.partition
-    }
-
     pub(super) fn materialization_view(&self) -> MaterializationRecord {
         let headers = self
             .headers
@@ -213,18 +214,6 @@ impl ProducerRecord {
             self.value,
             self.headers,
         )
-    }
-
-    pub(super) fn into_public_parts(self) -> ProducerRecordParts {
-        ProducerRecordParts {
-            topic: self.topic,
-            partition: self.partition,
-            timestamp_ms: self.timestamp_ms,
-            defaulted_timestamp: self.defaulted_timestamp,
-            key: self.key,
-            value: self.value,
-            headers: self.headers,
-        }
     }
 }
 
