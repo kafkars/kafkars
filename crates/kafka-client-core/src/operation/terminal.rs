@@ -23,7 +23,8 @@ impl ProducerOperation {
     ) -> Result<TerminalRelease, TransitionError> {
         match (self.state, delivery) {
             (
-                ProducerOperationState::Accumulating { .. }
+                ProducerOperationState::WaitingForCapacity { .. }
+                | ProducerOperationState::Accumulating { .. }
                 | ProducerOperationState::Materializing { .. }
                 | ProducerOperationState::AwaitingDriver { .. }
                 | ProducerOperationState::RetryWaiting { .. },
@@ -31,15 +32,13 @@ impl ProducerOperation {
             )
             | (ProducerOperationState::Submitted { .. }, _) => self.plan_finish(),
             (
-                ProducerOperationState::Accumulating { .. }
+                ProducerOperationState::WaitingForCapacity { .. }
+                | ProducerOperationState::Accumulating { .. }
                 | ProducerOperationState::Materializing { .. }
                 | ProducerOperationState::AwaitingDriver { .. }
                 | ProducerOperationState::RetryWaiting { .. },
                 DeliveryStatus::PossiblySent,
-            )
-            | (ProducerOperationState::WaitingForCapacity { .. }, _) => {
-                Err(TransitionError::InvalidState)
-            }
+            ) => Err(TransitionError::InvalidState),
             (ProducerOperationState::Completed, _) => Err(TransitionError::AlreadyCompleted),
         }
     }

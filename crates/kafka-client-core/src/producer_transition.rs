@@ -35,6 +35,20 @@ impl ProducerMachine {
                 deadline,
                 record,
             } => self.admit_explicit(now, deadline, record),
+            ProducerInput::AdmitWaiting {
+                now,
+                deadline,
+                retained_bytes,
+            } => self.admit_waiting(now, deadline, retained_bytes),
+            ProducerInput::PromoteWaiting {
+                operation_id,
+                now,
+                record,
+            } => self.promote_waiting(operation_id, now, record),
+            ProducerInput::WaitingTerminal {
+                operation_id,
+                terminal,
+            } => self.waiting_terminal(operation_id, terminal),
             ProducerInput::CancelRequested { operation_id } => self.cancel_requested(operation_id),
             ProducerInput::RecordAccumulated {
                 operation_id,

@@ -80,4 +80,10 @@ mod topic_partitions;
 mod topic_partitions_test;
 mod waiting;
 #[cfg(test)]
+mod waiting_input_test;
+mod waiting_promotion;
+#[cfg(test)]
 mod waiting_test;
+mod waiting_transition;
+#[cfg(test)]
+mod waiting_transition_test;

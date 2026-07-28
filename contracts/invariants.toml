@@ -425,6 +425,7 @@ evidence = [
   "crates/kafka-client-core/src/producer/cancellation_revision_test.rs::awaiting_driver_cancellation_restarts_survivors_at_a_new_generation",
   "crates/kafka-client-core/src/producer/cancellation_revision_test.rs::missing_materializing_sequence_lease_rejects_cancellation_without_mutation",
   "crates/kafka-client-core/src/producer/retry_cancellation_test.rs::missing_retry_sequence_lease_rejects_cancellation_without_mutation",
+  "crates/kafka-client-core/src/producer/waiting_input_test.rs::cancellation_input_settles_waiting_before_its_flush",
   "crates/kafka-client-engine/src/producer/cancellation/host_test.rs::open_cancellation_releases_before_cancelled_not_sent_terminal",
   "crates/kafka-client-engine/src/producer/cancellation/revision_test.rs::awaiting_driver_revision_revokes_unarmed_and_armed_ownership",
   "crates/kafka-client-engine/src/producer/cancellation/revision_test.rs::driver_accepted_marks_engine_submitted_before_too_late_decision",
@@ -1071,6 +1072,7 @@ evidence = [
   "crates/kafka-client-core/src/producer/execution_stop_test.rs::empty_execution_loss_is_idempotent_and_closes_admission",
   "crates/kafka-client-core/src/producer/execution_stop_test.rs::execution_loss_does_not_repeat_an_unreclaimed_terminal",
   "crates/kafka-client-core/src/producer/execution_stop_capacity_test.rs::execution_loss_uses_the_combined_record_and_flush_bound",
+  "crates/kafka-client-core/src/producer/waiting_input_test.rs::execution_stop_settles_waiting_without_payload_release_before_flush",
 ]
 
 [[invariant]]
@@ -1082,6 +1084,9 @@ evidence = [
   "crates/kafka-client-core/src/producer/flush_transition_test.rs::flush_includes_exactly_operations_accepted_before_its_barrier",
   "crates/kafka-client-core/src/producer/flush_transition_test.rs::overlapping_flushes_settle_in_barrier_order",
   "crates/kafka-client-core/src/producer/flush_transition_test.rs::terminal_decision_orders_flush_after_record_completion_effect",
+  "crates/kafka-client-core/src/producer/waiting_transition_test.rs::flush_excludes_waiting_operation_accepted_after_its_barrier",
+  "crates/kafka-client-core/src/producer/waiting_transition_test.rs::overlapping_flushes_wait_for_out_of_order_waiting_terminals",
+  "crates/kafka-client-core/src/producer/waiting_transition_test.rs::promotion_retains_the_waiting_identity_and_prior_flush_membership",
 ]
 
 [[invariant]]

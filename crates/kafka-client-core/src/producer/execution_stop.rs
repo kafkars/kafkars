@@ -50,6 +50,7 @@ impl ProducerMachine {
             .ok_or_else(invalid_state)?;
         let flush_effect_count = self.flushes.pending_len();
         let mut settlements = Vec::with_capacity(active_count);
+        let mut payload_operations = Vec::with_capacity(active_count);
         let mut seen = BTreeSet::new();
         let mut effects = Vec::with_capacity(effect_capacity);
 
@@ -76,6 +77,18 @@ impl ProducerMachine {
                     return Err(invalid_state());
                 }
                 settlements.push((member.operation_id, Settlement::Failed(delivery)));
+                payload_operations.push(member.operation_id);
+            }
+        }
+        for (operation_id, operation) in &self.operations {
+            if matches!(
+                operation.state(),
+                ProducerOperationState::WaitingForCapacity { .. }
+            ) {
+                if !seen.insert(*operation_id) {
+                    return Err(invalid_state());
+                }
+                settlements.push((*operation_id, Settlement::Failed(DeliveryStatus::NotSent)));
             }
         }
         if settlements.len() != active_count {
@@ -88,9 +101,9 @@ impl ProducerMachine {
                 .copied()
                 .map(|batch_id| ProducerEffect::ReleaseBatch { batch_id }),
         );
-        for (operation_id, _settlement) in &settlements {
+        for operation_id in payload_operations {
             let record = self
-                .record(*operation_id)
+                .record(operation_id)
                 .ok_or(ProducerMachineError::UnknownOperation)?;
             effects.push(ProducerEffect::ReleasePayload {
                 payload_id: record.payload_id(),

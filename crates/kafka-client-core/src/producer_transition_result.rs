@@ -6,6 +6,7 @@ use crate::{FlushId, OperationId, ProducerCancellationOutcome, ProducerEffect};
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ProducerTransition {
     effects: Vec<ProducerEffect>,
+    admission: Option<OperationId>,
     cancellation: Option<ProducerCancellationOutcome>,
 }
 
@@ -13,6 +14,7 @@ impl ProducerTransition {
     pub(crate) const fn none() -> Self {
         Self {
             effects: Vec::new(),
+            admission: None,
             cancellation: None,
         }
     }
@@ -20,6 +22,15 @@ impl ProducerTransition {
     pub(crate) fn from_effects(effects: Vec<ProducerEffect>) -> Self {
         Self {
             effects,
+            admission: None,
+            cancellation: None,
+        }
+    }
+
+    pub(crate) fn with_admission(operation_id: OperationId, effects: Vec<ProducerEffect>) -> Self {
+        Self {
+            effects,
+            admission: Some(operation_id),
             cancellation: None,
         }
     }
@@ -30,6 +41,7 @@ impl ProducerTransition {
     ) -> Self {
         Self {
             effects,
+            admission: None,
             cancellation: Some(cancellation),
         }
     }
@@ -46,21 +58,23 @@ impl ProducerTransition {
 
     /// Returns the operation accepted by an admission transition, when present.
     pub fn admitted_operation_id(&self) -> Option<OperationId> {
-        self.effects.iter().find_map(|effect| match effect {
-            ProducerEffect::AccumulateExplicit { operation_id, .. } => Some(*operation_id),
-            ProducerEffect::AcquireProducerIdentity { .. }
-            | ProducerEffect::ArmBatchTimer { .. }
-            | ProducerEffect::CancelBatchTimer { .. }
-            | ProducerEffect::MaterializeBatch { .. }
-            | ProducerEffect::ReviseBatchExecution { .. }
-            | ProducerEffect::RetryBatchExecution { .. }
-            | ProducerEffect::SubmitProduce { .. }
-            | ProducerEffect::RemoveBatchMember { .. }
-            | ProducerEffect::ReleaseBatch { .. }
-            | ProducerEffect::ReleasePayload { .. }
-            | ProducerEffect::Complete { .. }
-            | ProducerEffect::AcceptFlush { .. }
-            | ProducerEffect::CompleteFlush { .. } => None,
+        self.admission.or_else(|| {
+            self.effects.iter().find_map(|effect| match effect {
+                ProducerEffect::AccumulateExplicit { operation_id, .. } => Some(*operation_id),
+                ProducerEffect::AcquireProducerIdentity { .. }
+                | ProducerEffect::ArmBatchTimer { .. }
+                | ProducerEffect::CancelBatchTimer { .. }
+                | ProducerEffect::MaterializeBatch { .. }
+                | ProducerEffect::ReviseBatchExecution { .. }
+                | ProducerEffect::RetryBatchExecution { .. }
+                | ProducerEffect::SubmitProduce { .. }
+                | ProducerEffect::RemoveBatchMember { .. }
+                | ProducerEffect::ReleaseBatch { .. }
+                | ProducerEffect::ReleasePayload { .. }
+                | ProducerEffect::Complete { .. }
+                | ProducerEffect::AcceptFlush { .. }
+                | ProducerEffect::CompleteFlush { .. } => None,
+            })
         })
     }
 

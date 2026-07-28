@@ -130,24 +130,32 @@ impl ProducerMachine {
                 TransitionError::DeadlineNotElapsed,
             ));
         }
-        let batch_id = operation
-            .batch_id()
-            .ok_or(ProducerMachineError::UnknownBatch)?;
         match operation.state() {
+            ProducerOperationState::WaitingForCapacity { .. } => {
+                let effects = self.settle_waiting_operation(
+                    operation_id,
+                    super::lifecycle::Settlement::Expired,
+                    ProducerFailure::waiting_deadline_elapsed(),
+                )?;
+                Ok(ProducerTransition::from_effects(effects))
+            }
             ProducerOperationState::Accumulating { .. } => {
+                let batch_id = operation
+                    .batch_id()
+                    .ok_or(ProducerMachineError::UnknownBatch)?;
                 self.expire_open_members(batch_id, &[operation_id], false)
             }
             ProducerOperationState::Materializing { .. }
             | ProducerOperationState::AwaitingDriver { .. }
             | ProducerOperationState::RetryWaiting { .. } => {
+                let batch_id = operation
+                    .batch_id()
+                    .ok_or(ProducerMachineError::UnknownBatch)?;
                 self.settle_batch_failed(batch_id, ProducerFailure::deadline_elapsed())
             }
             ProducerOperationState::Submitted { .. } | ProducerOperationState::Completed => {
                 Ok(ProducerTransition::none())
             }
-            ProducerOperationState::WaitingForCapacity { .. } => Err(
-                ProducerMachineError::Transition(TransitionError::InvalidState),
-            ),
         }
     }
 

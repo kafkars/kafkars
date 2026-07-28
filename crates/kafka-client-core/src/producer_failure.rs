@@ -68,6 +68,11 @@ impl ProducerFailure {
         Self::new(ProducerFailureKind::Cancelled, DeliveryStatus::NotSent)
     }
 
+    /// Creates a terminal for a caller cancelled before active admission.
+    pub const fn waiting_cancelled() -> Self {
+        Self::new(ProducerFailureKind::Cancelled, DeliveryStatus::NotSent)
+    }
+
     pub(crate) const fn materialization_failed() -> Self {
         Self::new(
             ProducerFailureKind::MaterializationFailed,
@@ -103,6 +108,24 @@ impl ProducerFailure {
             ProducerFailureKind::DeadlineElapsed,
             DeliveryStatus::NotSent,
         )
+    }
+
+    /// Creates a terminal for a public deadline elapsed before active admission.
+    pub const fn waiting_deadline_elapsed() -> Self {
+        Self::new(
+            ProducerFailureKind::DeadlineElapsed,
+            DeliveryStatus::NotSent,
+        )
+    }
+
+    /// Creates a definitely-unsent terminal when partition metadata cannot
+    /// provide a usable route before active admission.
+    pub const fn metadata_unavailable(broker_code: Option<i16>) -> Self {
+        Self {
+            kind: ProducerFailureKind::Routing,
+            delivery: DeliveryStatus::NotSent,
+            broker_code,
+        }
     }
 
     /// Returns the core-owned semantic classification.

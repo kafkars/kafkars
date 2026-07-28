@@ -54,9 +54,17 @@ impl ProducerMachine {
             | ProducerOperationState::AwaitingDriver { batch_id, .. } => {
                 self.cancel_sealed_member(batch_id, operation_id)
             }
-            ProducerOperationState::WaitingForCapacity { .. } => Err(
-                ProducerMachineError::Transition(TransitionError::InvalidState),
-            ),
+            ProducerOperationState::WaitingForCapacity { .. } => {
+                let effects = self.settle_waiting_operation(
+                    operation_id,
+                    Settlement::Cancelled,
+                    ProducerFailure::waiting_cancelled(),
+                )?;
+                Ok(resolved(
+                    ProducerCancellationOutcome::CancelledNotSent,
+                    effects,
+                ))
+            }
         }
     }
 

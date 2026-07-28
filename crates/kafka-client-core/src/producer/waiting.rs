@@ -62,6 +62,22 @@ pub enum ProducerWaitingAdmissionError {
     IdentityExhausted,
 }
 
+/// Terminal fact for a record that never left bounded waiting ownership.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ProducerWaitingTerminal {
+    /// The caller cancelled before active producer admission.
+    Cancelled,
+    /// The original public deadline elapsed before active producer admission.
+    DeadlineElapsed,
+    /// Producer close or execution shutdown fenced promotion.
+    Closed,
+    /// Metadata could not provide a usable route before the original deadline.
+    MetadataUnavailable {
+        /// Exact signed broker code when metadata supplied one.
+        broker_code: Option<i16>,
+    },
+}
+
 /// Sole deterministic owner of waiting order, deadlines, count, and bytes.
 #[derive(Debug)]
 pub struct ProducerWaitingQueue {

@@ -50,6 +50,31 @@ pub enum ProducerInput {
         /// Opaque payload identity and validated explicit route.
         record: ExplicitRecord,
     },
+    /// Reserves one accepted record before automatic partitioning can promote it.
+    AdmitWaiting {
+        /// Current monotonic observation at the admission boundary.
+        now: Moment,
+        /// Absolute deadline captured at the public call boundary.
+        deadline: Deadline,
+        /// Bytes retained by the independently bounded waiting owner.
+        retained_bytes: ByteCount,
+    },
+    /// Transfers one exact waiting operation into active producer ownership.
+    PromoteWaiting {
+        /// Stable identity allocated when waiting ownership was accepted.
+        operation_id: OperationId,
+        /// Current monotonic observation at promotion.
+        now: Moment,
+        /// Opaque payload identity and selected explicit route.
+        record: ExplicitRecord,
+    },
+    /// Reports terminal settlement before a waiting record was promoted.
+    WaitingTerminal {
+        /// Stable identity allocated when waiting ownership was accepted.
+        operation_id: OperationId,
+        /// Core-owned semantic reason the waiting record settled.
+        terminal: crate::ProducerWaitingTerminal,
+    },
     /// Requests cancellation of one accepted producer operation.
     CancelRequested {
         /// Operation whose current ownership stage decides the outcome.

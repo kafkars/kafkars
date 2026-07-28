@@ -20,4 +20,5 @@ pub use super::topic_partitions::{
 };
 pub use super::waiting::{
     ProducerWaiter, ProducerWaiterId, ProducerWaitingAdmissionError, ProducerWaitingQueue,
+    ProducerWaitingTerminal,
 };

@@ -58,7 +58,7 @@ excluded_roots = ["crates/kafka-client-guardrails/tests/fixtures"]
 
 [budgets]
 baseline = [
-  { path = "crates/kafka-client-core/src/producer/mod.rs", lines = 83, reason = "the declarative producer facade names the complete deterministic producer state surface including bounded waiting and its evidence" },
+  { path = "crates/kafka-client-core/src/producer/mod.rs", lines = 89, reason = "the declarative producer facade names bounded waiting admission, promotion, terminal policy, and their sibling evidence" },
 ]
 allow = []
 
@@ -5617,12 +5617,16 @@ field = "next_operation_id"
 allowed_paths = [
   "crates/kafka-client-core/src/producer/machine.rs",
   "crates/kafka-client-core/src/producer/admission_batching.rs",
+  "crates/kafka-client-core/src/producer/waiting_transition.rs",
 ]
 
 [[mutation_owners]]
 owner_type = "ProducerMachine"
 field = "next_batch_id"
-allowed_paths = ["crates/kafka-client-core/src/producer/admission_batching.rs"]
+allowed_paths = [
+  "crates/kafka-client-core/src/producer/admission_batching.rs",
+  "crates/kafka-client-core/src/producer/waiting_promotion.rs",
+]
 
 [[mutation_owners]]
 owner_type = "ProducerMachine"
@@ -5630,6 +5634,7 @@ field = "byte_budget"
 allowed_paths = [
   "crates/kafka-client-core/src/producer/machine.rs",
   "crates/kafka-client-core/src/producer/lifecycle.rs",
+  "crates/kafka-client-core/src/producer/waiting_promotion.rs",
 ]
 
 [[mutation_owners]]
@@ -5638,6 +5643,7 @@ field = "completions"
 allowed_paths = [
   "crates/kafka-client-core/src/producer/machine.rs",
   "crates/kafka-client-core/src/producer/lifecycle.rs",
+  "crates/kafka-client-core/src/producer/waiting_transition.rs",
 ]
 
 [[mutation_owners]]
@@ -5649,6 +5655,8 @@ allowed_paths = [
   "crates/kafka-client-core/src/producer/machine.rs",
   "crates/kafka-client-core/src/producer/lifecycle.rs",
   "crates/kafka-client-core/src/producer/retry.rs",
+  "crates/kafka-client-core/src/producer/waiting_transition.rs",
+  "crates/kafka-client-core/src/producer/waiting_promotion.rs",
 ]
 
 [[mutation_owners]]
@@ -5657,6 +5665,7 @@ field = "records"
 allowed_paths = [
   "crates/kafka-client-core/src/producer/machine.rs",
   "crates/kafka-client-core/src/producer/lifecycle.rs",
+  "crates/kafka-client-core/src/producer/waiting_promotion.rs",
 ]
 
 [[mutation_owners]]
@@ -5667,6 +5676,7 @@ allowed_paths = [
   "crates/kafka-client-core/src/producer/batching.rs",
   "crates/kafka-client-core/src/producer/execution_stop.rs",
   "crates/kafka-client-core/src/producer/settlement.rs",
+  "crates/kafka-client-core/src/producer/waiting_promotion.rs",
 ]
 
 [[mutation_owners]]
@@ -5685,6 +5695,7 @@ allowed_paths = [
   "crates/kafka-client-core/src/producer/retry_timer.rs",
   "crates/kafka-client-core/src/producer/settlement.rs",
   "crates/kafka-client-core/src/producer/settlement_failure.rs",
+  "crates/kafka-client-core/src/producer/waiting_promotion.rs",
 ]
 
 [[mutation_owners]]

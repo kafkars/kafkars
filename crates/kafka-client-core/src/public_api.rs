@@ -103,7 +103,7 @@ pub use crate::operation_outcome::{
 };
 pub use crate::producer::{
     AdmissionSequence, FlushId, FlushLedgerError, ProducerMachine, ProducerWaiter,
-    ProducerWaiterId, ProducerWaitingAdmissionError, ProducerWaitingQueue,
+    ProducerWaiterId, ProducerWaitingAdmissionError, ProducerWaitingQueue, ProducerWaitingTerminal,
 };
 pub use crate::producer_broker_failure::{ProducerBrokerFailure, ProducerBrokerFailureKind};
 pub use crate::producer_effect::{

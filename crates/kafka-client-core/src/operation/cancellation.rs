@@ -7,12 +7,12 @@ use super::{ProducerOperation, ProducerOperationState};
 impl ProducerOperation {
     pub(crate) fn plan_cancel(&self) -> Result<TerminalRelease, TransitionError> {
         match self.state {
-            ProducerOperationState::Accumulating { .. }
+            ProducerOperationState::WaitingForCapacity { .. }
+            | ProducerOperationState::Accumulating { .. }
             | ProducerOperationState::Materializing { .. }
             | ProducerOperationState::AwaitingDriver { .. }
             | ProducerOperationState::RetryWaiting { .. } => self.plan_finish(),
-            ProducerOperationState::WaitingForCapacity { .. }
-            | ProducerOperationState::Submitted { .. } => Err(TransitionError::InvalidState),
+            ProducerOperationState::Submitted { .. } => Err(TransitionError::InvalidState),
             ProducerOperationState::Completed => Err(TransitionError::AlreadyCompleted),
         }
     }
