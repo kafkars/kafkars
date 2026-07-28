@@ -13,6 +13,8 @@ use super::{
     validation::{RANGE_PROTOCOL, valid_join_version, valid_kafka_string},
 };
 
+const MEMBER_ID_REQUIRED_ERROR_CODE: i16 = 79;
+
 /// Generated success facts that cannot safely enter candidate ownership.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ClassicJoinResponseFailure {
@@ -53,6 +55,17 @@ pub(crate) fn normalize_classic_join_response(
         ));
     }
     let throttle_time_ms = normalize_throttle(selected_version, response.throttle_time_ms)?;
+    if response.error_code == MEMBER_ID_REQUIRED_ERROR_CODE
+        && selected_version == super::validation::STATIC_JOIN_VERSION
+    {
+        let member = response.member_id.as_str();
+        if !valid_kafka_string(member) {
+            return Err(ClassicJoinResponseFailure::InvalidMember);
+        }
+        return Ok(ClassicJoinOutcome::MemberIdRequired {
+            member: Arc::from(member),
+        });
+    }
     if let Some(error_code) = NonZeroI16::new(response.error_code) {
         return Ok(ClassicJoinOutcome::Rejected(ClassicBrokerRejection::new(
             throttle_time_ms,
@@ -72,7 +85,11 @@ pub(crate) fn normalize_classic_join_response(
         return Err(ClassicJoinResponseFailure::InvalidLeader);
     }
     let role = if leader == member {
-        ClassicJoinedRole::leader(normalize_members(&response.members, member)?)
+        ClassicJoinedRole::leader(normalize_members(
+            &response.members,
+            member,
+            selected_version,
+        )?)
     } else {
         if !response.members.is_empty() {
             return Err(ClassicJoinResponseFailure::UnexpectedFollowerMembers);

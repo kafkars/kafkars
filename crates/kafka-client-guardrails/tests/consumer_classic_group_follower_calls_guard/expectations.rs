@@ -6,6 +6,8 @@ pub(super) const DRIVER_CLASSIC_ROOT: &str =
     "crates/kafka-client-engine/src/driver/rpc/classic_group";
 pub(super) const JOIN_EXECUTION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_join_execution.rs";
+pub(super) const JOIN_REQUEST: &str =
+    "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_request.rs";
 pub(super) const JOIN_SETTLEMENT: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_join_settlement.rs";
 pub(super) const JOIN_INTERPRET: &str =
@@ -20,6 +22,8 @@ pub(super) const SYNC_SETTLEMENT: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_sync_settlement.rs";
 pub(super) const SYNC_INTERPRET: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_sync_interpret.rs";
+pub(super) const SYNC_REQUEST: &str =
+    "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_request.rs";
 pub(super) const SYNC_TERMINAL: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_execution_sync_terminal.rs";
 pub(super) const RECOVERY: &str =
@@ -39,7 +43,11 @@ pub(super) const COORDINATOR_INVALIDATION: &str =
     "crates/kafka-client-engine/src/driver/rpc/classic_group/coordinator_invalidation.rs";
 
 pub(super) const CALLS: &[(&str, &str, &[&str])] = &[
-    (ENGINE_ROOT, "classic_join_group_request", &[JOIN_EXECUTION]),
+    (
+        ENGINE_ROOT,
+        "classic_join_group_request_with_instance",
+        &[JOIN_EXECUTION, JOIN_REQUEST],
+    ),
     (
         ENGINE_ROOT,
         "normalize_classic_join_response",
@@ -47,8 +55,8 @@ pub(super) const CALLS: &[(&str, &str, &[&str])] = &[
     ),
     (
         ENGINE_ROOT,
-        "classic_follower_sync_group_request",
-        &[OWNER_FOLLOWER],
+        "classic_follower_sync_group_request_with_instance",
+        &[OWNER_FOLLOWER, SYNC_REQUEST],
     ),
     (
         ENGINE_ROOT,
@@ -63,7 +71,11 @@ pub(super) const CALLS: &[(&str, &str, &[&str])] = &[
 ];
 
 pub(super) const METHODS: &[(&str, &str, &[&str])] = &[
-    (GROUP_ROOT, "apply_follower_join", &[JOIN_INTERPRET]),
+    (
+        GROUP_ROOT,
+        "apply_follower_join_with_instance",
+        &[JOIN_INTERPRET, OWNER_FOLLOWER],
+    ),
     (GROUP_ROOT, "submit_one_classic_join", &[MEMBERSHIP]),
     (GROUP_ROOT, "settle_one_classic_join", &[MEMBERSHIP]),
     (GROUP_ROOT, "stage_join_confirmation", &[JOIN_SETTLEMENT]),

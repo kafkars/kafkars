@@ -271,7 +271,7 @@ fn prepared_join_terminal_with_topics(
     (registry, group_id, identity)
 }
 
-fn entry(
+pub(super) fn entry(
     registry: &GroupConsumerRegistry,
     group_id: GroupId,
 ) -> &super::registry_entry::GroupConsumerEntry {

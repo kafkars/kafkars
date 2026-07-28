@@ -45,7 +45,8 @@ impl GroupOffsetCommitHost {
                     .classic_generation()
                     .ok_or(GroupOffsetCommitHostError::Preparation)?,
             ),
-        );
+        )
+        .with_group_instance_id(catalog.group_instance_id().cloned());
         let mut last_topic = None;
         for entry in checkpoint.entries() {
             if last_topic == Some(entry.topic_id()) {

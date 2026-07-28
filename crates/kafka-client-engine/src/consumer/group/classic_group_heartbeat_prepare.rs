@@ -1,5 +1,7 @@
 //! Core-authorized heartbeat scheduling, deadline mapping, and local loss.
 
+use std::sync::Arc;
+
 use kafka_client_core::{
     ClassicGeneration, ClassicGroupEffect, ClassicGroupInput, ClassicGroupTransition,
     ClassicHeartbeatAttempt, Moment,
@@ -7,7 +9,7 @@ use kafka_client_core::{
 
 use crate::{
     clock::MonotonicClock, driver::classic_group::ClassicHeartbeatCallKey,
-    protocol::consumer::classic_heartbeat_request,
+    protocol::consumer::classic_heartbeat_request_with_instance,
 };
 
 use super::{
@@ -116,7 +118,13 @@ fn prepare_due_heartbeat(
                 Err(_error) => return fail_prepared_heartbeat(entry, attempt),
             };
             let Some(request) = entry.catalog.current_member().and_then(|member| {
-                classic_heartbeat_request(entry.catalog.group(), member, classic_generation).ok()
+                classic_heartbeat_request_with_instance(
+                    entry.catalog.group(),
+                    member,
+                    entry.catalog.group_instance_id().map(Arc::as_ref),
+                    classic_generation,
+                )
+                .ok()
             }) else {
                 return fail_prepared_heartbeat(entry, attempt);
             };

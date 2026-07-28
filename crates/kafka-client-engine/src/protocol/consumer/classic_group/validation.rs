@@ -1,13 +1,16 @@
-//! Shared scalar and version checks for the narrow dynamic Range window.
+//! Shared scalar and version checks for dynamic and opt-in static Range membership.
 
 use kafka_wire_core::DecodeLimits;
 
 pub(crate) const JOIN_MIN_VERSION: i16 = 1;
 pub(crate) const JOIN_MAX_VERSION: i16 = 3;
+pub(crate) const STATIC_JOIN_VERSION: i16 = 5;
 pub(crate) const SYNC_MIN_VERSION: i16 = 0;
 pub(crate) const SYNC_MAX_VERSION: i16 = 2;
+pub(crate) const STATIC_SYNC_VERSION: i16 = 3;
 pub(crate) const HEARTBEAT_MIN_VERSION: i16 = 0;
 pub(crate) const HEARTBEAT_MAX_VERSION: i16 = 2;
+pub(crate) const STATIC_HEARTBEAT_VERSION: i16 = 3;
 pub(super) const INNER_SCHEMA_VERSION: i16 = 0;
 pub(super) const PROTOCOL_TYPE: &str = "consumer";
 pub(super) const RANGE_PROTOCOL: &str = "range";
@@ -34,11 +37,11 @@ pub(super) fn inner_decode_limits() -> DecodeLimits {
 }
 
 pub(super) fn valid_join_version(version: i16) -> bool {
-    (JOIN_MIN_VERSION..=JOIN_MAX_VERSION).contains(&version)
+    (JOIN_MIN_VERSION..=JOIN_MAX_VERSION).contains(&version) || version == STATIC_JOIN_VERSION
 }
 
 pub(super) fn valid_sync_version(version: i16) -> bool {
-    (SYNC_MIN_VERSION..=SYNC_MAX_VERSION).contains(&version)
+    (SYNC_MIN_VERSION..=SYNC_MAX_VERSION).contains(&version) || version == STATIC_SYNC_VERSION
 }
 
 pub(super) const fn valid_topic(topic: &str) -> bool {

@@ -225,6 +225,7 @@ pub(super) enum ClassicGroupCycleCandidateError {
     DuplicateSlot(JoinedMemberSlot),
     LocalMemberMissing,
     LocalSubscriptionMismatch,
+    RequiredMemberMismatch,
     TopicCapacity { actual: usize, limit: usize },
     TopicsPerMember { actual: usize, limit: usize },
     DuplicateTopic,

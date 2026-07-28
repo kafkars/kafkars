@@ -82,6 +82,34 @@ fn exact_versions_throttles_and_signed_broker_codes_are_preserved() {
 }
 
 #[test]
+fn v5_member_id_required_retains_the_broker_assigned_spelling() {
+    let mut raw = response("assigned-member", "ignored");
+    raw.error_code = 79;
+    raw.protocol_name = None;
+    let outcome = normalize_classic_join_response(5, &raw)
+        .unwrap_or_else(|error| panic!("static normalization: {error:?}"));
+    let ClassicJoinOutcome::MemberIdRequired { member } = outcome else {
+        panic!("member-id-required outcome expected");
+    };
+    assert_eq!(member.as_ref(), "assigned-member");
+}
+
+#[test]
+fn dynamic_member_id_required_remains_an_exact_broker_rejection() {
+    for version in 1..=3 {
+        let mut raw = response("", "");
+        raw.error_code = 79;
+        raw.protocol_name = None;
+        let outcome = normalize_classic_join_response(version, &raw)
+            .unwrap_or_else(|error| panic!("dynamic normalization: {error:?}"));
+        let ClassicJoinOutcome::Rejected(rejection) = outcome else {
+            panic!("dynamic MEMBER_ID_REQUIRED must remain rejected");
+        };
+        assert_eq!(rejection.error_code().get(), 79);
+    }
+}
+
+#[test]
 fn success_rejects_optional_protocol_inference_and_role_mismatch() {
     let mut raw = response("a", "b");
     raw.protocol_type = Some("consumer".into());

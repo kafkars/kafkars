@@ -19,6 +19,8 @@ pub enum ClassicGroupEffect {
         cycle: MembershipCycle,
         /// Core-selected classic assignment protocol.
         protocol: ClassicProtocol,
+        /// Assigned identity for a KIP-394 replacement, absent on initial Join.
+        member_id: Option<MemberId>,
         /// Immutable positive wire-representable Join timeout policy.
         timing: ClassicGroupTiming,
         /// Original absolute deadline.

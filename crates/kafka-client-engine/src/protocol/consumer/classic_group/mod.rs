@@ -13,12 +13,14 @@ mod validation;
 
 pub(crate) use heartbeat_request::{
     ClassicHeartbeatRequestFailure, PreparedClassicHeartbeatRequest, classic_heartbeat_request,
+    classic_heartbeat_request_with_instance,
 };
 pub(crate) use heartbeat_response::{
     ClassicHeartbeatOutcome, ClassicHeartbeatResponseFailure, normalize_classic_heartbeat_response,
 };
 pub(crate) use join_request::{
     ClassicJoinRequestFailure, PreparedClassicJoinGroupRequest, classic_join_group_request,
+    classic_join_group_request_with_instance,
 };
 pub(crate) use join_response::{ClassicJoinResponseFailure, normalize_classic_join_response};
 pub(crate) use model::{
@@ -28,7 +30,8 @@ pub(crate) use model::{
 };
 pub(crate) use sync_request::{
     ClassicSyncRequestFailure, PreparedClassicSyncGroupRequest,
-    classic_follower_sync_group_request, classic_sync_group_request,
+    classic_follower_sync_group_request, classic_follower_sync_group_request_with_instance,
+    classic_sync_group_request, classic_sync_group_request_with_instance,
 };
 pub(crate) use sync_response::{ClassicSyncResponseFailure, normalize_classic_sync_response};
 pub(crate) use validation::{
@@ -36,6 +39,9 @@ pub(crate) use validation::{
     HEARTBEAT_MIN_VERSION as CLASSIC_HEARTBEAT_MIN_VERSION,
     JOIN_MAX_VERSION as CLASSIC_JOIN_MAX_VERSION, JOIN_MIN_VERSION as CLASSIC_JOIN_MIN_VERSION,
     MAX_MEMBER_PARTITIONS as CLASSIC_SYNC_MAX_MEMBER_PARTITIONS,
+    STATIC_HEARTBEAT_VERSION as CLASSIC_STATIC_HEARTBEAT_VERSION,
+    STATIC_JOIN_VERSION as CLASSIC_STATIC_JOIN_VERSION,
+    STATIC_SYNC_VERSION as CLASSIC_STATIC_SYNC_VERSION,
     SYNC_MAX_VERSION as CLASSIC_SYNC_MAX_VERSION, SYNC_MIN_VERSION as CLASSIC_SYNC_MIN_VERSION,
 };
 

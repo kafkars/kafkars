@@ -108,8 +108,9 @@ impl GroupConsumerRegistry {
         }
         Ok(Some(GroupConsumerState::new(
             GroupConsumerAssignment::new(epoch, partitions),
-            GroupConsumerMetadata::new(
+            GroupConsumerMetadata::new_with_group_instance_id(
                 Arc::clone(entry.catalog.group()),
+                entry.catalog.group_instance_id().cloned(),
                 Arc::clone(&current.member),
                 current.classic_generation,
                 epoch,

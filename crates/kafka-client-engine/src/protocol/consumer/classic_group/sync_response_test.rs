@@ -67,7 +67,7 @@ fn success_returns_ordered_arc_shared_named_partitions() {
 
 #[test]
 fn exact_versions_throttles_and_signed_broker_codes_are_preserved() {
-    for version in [-1, 3] {
+    for version in [-1, 4] {
         assert_eq!(
             normalize_classic_sync_response(version, &response(Vec::new())),
             Err(ClassicSyncResponseFailure::UnsupportedApiVersion(version))

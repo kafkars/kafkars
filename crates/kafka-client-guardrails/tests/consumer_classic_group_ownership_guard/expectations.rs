@@ -8,6 +8,8 @@ pub(super) const TERMINAL_TRANSITION: &str =
     "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs";
 pub(super) const REJOIN_TRANSITION: &str =
     "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition.rs";
+pub(super) const MEMBER_ID_REQUIRED: &str =
+    "crates/kafka-client-core/src/consumer/classic_group/member_id_required.rs";
 
 pub(super) const MIRRORS: &[(&str, &str)] = &[
     ("identity.rs", "identity_test.rs"),
@@ -23,6 +25,7 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
     ("transition.rs", "transition_test.rs"),
     ("terminal_transition.rs", "terminal_transition_test.rs"),
     ("transition_support.rs", "transition_support_test.rs"),
+    ("member_id_required.rs", "member_id_required_test.rs"),
     ("heartbeat.rs", "heartbeat_test.rs"),
     ("heartbeat_state.rs", "heartbeat_state_test.rs"),
     ("heartbeat_transition.rs", "heartbeat_transition_test.rs"),
@@ -85,12 +88,18 @@ pub(super) const MACHINE_FIELDS: &[(&str, &[&str])] = &[
         "deadline",
         &[TRANSITION, TERMINAL_TRANSITION, REJOIN_TRANSITION],
     ),
-    ("pending_member_id", &[TRANSITION]),
-    ("pending_generation", &[TRANSITION]),
-    ("pending_members", &[TRANSITION]),
-    ("pending_local_slot", &[TRANSITION]),
-    ("pending_expected_assignment", &[TRANSITION]),
-    ("pending_heartbeat_liveness", &[TRANSITION]),
+    ("pending_member_id", &[MEMBER_ID_REQUIRED, TRANSITION]),
+    ("pending_generation", &[MEMBER_ID_REQUIRED, TRANSITION]),
+    ("pending_members", &[MEMBER_ID_REQUIRED, TRANSITION]),
+    ("pending_local_slot", &[MEMBER_ID_REQUIRED, TRANSITION]),
+    (
+        "pending_expected_assignment",
+        &[MEMBER_ID_REQUIRED, TRANSITION],
+    ),
+    (
+        "pending_heartbeat_liveness",
+        &[MEMBER_ID_REQUIRED, TRANSITION],
+    ),
     (
         "next_assignment_generation",
         &[TRANSITION, TERMINAL_TRANSITION],

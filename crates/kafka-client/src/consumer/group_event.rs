@@ -43,6 +43,7 @@ pub struct GroupMetadata {
     member_id: String,
     generation_id: i32,
     assignment_epoch: u64,
+    group_instance_id: Option<String>,
     _transaction_metadata: Option<BridgeMetadata>,
 }
 
@@ -53,12 +54,14 @@ impl GroupMetadata {
         member_id: String,
         generation_id: i32,
         assignment_epoch: u64,
+        group_instance_id: Option<String>,
     ) -> Self {
         Self {
             group_id,
             member_id,
             generation_id,
             assignment_epoch,
+            group_instance_id,
             _transaction_metadata: None,
         }
     }
@@ -69,6 +72,7 @@ impl GroupMetadata {
             member_id: inner.member().to_owned(),
             generation_id: inner.generation_id(),
             assignment_epoch: inner.assignment_epoch(),
+            group_instance_id: inner.group_instance_id().map(str::to_owned),
             _transaction_metadata: Some(inner),
         }
     }
@@ -91,6 +95,11 @@ impl GroupMetadata {
     /// Returns the nonreused local assignment fence current with this metadata.
     pub const fn assignment_epoch(&self) -> u64 {
         self.assignment_epoch
+    }
+
+    /// Returns the configured static member identity, when present.
+    pub fn group_instance_id(&self) -> Option<&str> {
+        self.group_instance_id.as_deref()
     }
 }
 

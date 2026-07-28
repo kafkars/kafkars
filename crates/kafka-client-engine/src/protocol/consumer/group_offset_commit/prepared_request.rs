@@ -94,6 +94,11 @@ impl PreparedGroupOffsetCommitRequest {
                 GroupOffsetCommitRequestPreparationError::ClassicGenerationOutOfRange
             })?;
         request.member_id = try_string(session.member.as_ref())?;
+        request.group_instance_id = session
+            .group_instance_id
+            .as_ref()
+            .map(|identity| try_string(identity.as_ref()))
+            .transpose()?;
         request.retention_time_ms = -1;
         request.topics = topics;
         let retained_bytes = request.retained_size().heap_bytes();

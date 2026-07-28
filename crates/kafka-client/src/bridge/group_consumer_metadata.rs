@@ -28,4 +28,8 @@ impl GroupConsumerMetadata {
     pub(crate) fn assignment_epoch(&self) -> u64 {
         self.inner.assignment_epoch()
     }
+
+    pub(crate) fn group_instance_id(&self) -> Option<&str> {
+        self.inner.group_instance_id()
+    }
 }

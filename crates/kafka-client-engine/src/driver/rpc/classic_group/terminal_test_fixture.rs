@@ -25,6 +25,17 @@ pub(crate) fn install_leader_join_terminal(
     calls.install_terminal_for_test(key, Some(3), Ok(response));
 }
 
+pub(crate) fn install_member_id_required_join_terminal(
+    calls: &mut TrackedJoinGroupCalls,
+    key: JoinGroupCallKey,
+    member: &str,
+) {
+    let mut response = JoinGroupResponse::default();
+    response.error_code = 79;
+    response.member_id = member.into();
+    calls.install_terminal_for_test(key, Some(5), Ok(response));
+}
+
 pub(crate) fn install_empty_leader_join_terminal(
     calls: &mut TrackedJoinGroupCalls,
     key: JoinGroupCallKey,

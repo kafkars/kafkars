@@ -7,7 +7,9 @@ use kafka_driver::{
 };
 use kafka_wire::{SyncGroupRequest, SyncGroupResponse};
 
-use crate::protocol::consumer::{CLASSIC_SYNC_MAX_VERSION, CLASSIC_SYNC_MIN_VERSION};
+use crate::protocol::consumer::{
+    CLASSIC_STATIC_SYNC_VERSION, CLASSIC_SYNC_MAX_VERSION, CLASSIC_SYNC_MIN_VERSION,
+};
 
 use super::{super::DriverOwner, group_coordinator_route::group_coordinator_route};
 
@@ -15,6 +17,8 @@ use super::{super::DriverOwner, group_coordinator_route::group_coordinator_route
 // semantics that deterministic membership policy deliberately defers.
 pub(super) const SYNC_GROUP_MIN_VERSION: ApiVersion = ApiVersion::new(CLASSIC_SYNC_MIN_VERSION);
 pub(super) const SYNC_GROUP_MAX_VERSION: ApiVersion = ApiVersion::new(CLASSIC_SYNC_MAX_VERSION);
+pub(super) const STATIC_SYNC_GROUP_VERSION: ApiVersion =
+    ApiVersion::new(CLASSIC_STATIC_SYNC_VERSION);
 
 /// Definitely-unsent failure before driver request ownership.
 #[derive(Debug)]
@@ -56,8 +60,13 @@ impl DriverOwner {
         deadline: Instant,
     ) -> Result<RoutedCall<SyncGroupResponse>, SyncGroupSubmitError> {
         let route = sync_group_route(group, &request)?;
+        let static_membership = request.group_instance_id.is_some();
         self.driver
-            .request_tracked_with(route, request, sync_group_options(deadline))
+            .request_tracked_with(
+                route,
+                request,
+                sync_group_options(deadline, static_membership),
+            )
             .map_err(SyncGroupSubmitError::Driver)
     }
 }
@@ -72,9 +81,18 @@ pub(super) fn sync_group_route(
     group_coordinator_route(group).map_err(SyncGroupSubmitError::InvalidGroup)
 }
 
-pub(super) const fn sync_group_options(deadline: Instant) -> RequestOptions {
-    RequestOptions::new(deadline)
-        .with_traffic_class(TrafficClass::Interactive)
-        .with_minimum_version(SYNC_GROUP_MIN_VERSION)
-        .with_maximum_version(SYNC_GROUP_MAX_VERSION)
+pub(super) const fn sync_group_options(
+    deadline: Instant,
+    static_membership: bool,
+) -> RequestOptions {
+    let options = RequestOptions::new(deadline).with_traffic_class(TrafficClass::Interactive);
+    if static_membership {
+        options
+            .with_minimum_version(STATIC_SYNC_GROUP_VERSION)
+            .with_maximum_version(STATIC_SYNC_GROUP_VERSION)
+    } else {
+        options
+            .with_minimum_version(SYNC_GROUP_MIN_VERSION)
+            .with_maximum_version(SYNC_GROUP_MAX_VERSION)
+    }
 }

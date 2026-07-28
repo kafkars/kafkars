@@ -117,6 +117,7 @@ impl ClassicJoinedGroup {
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum ClassicJoinOutcome {
     Rejected(ClassicBrokerRejection),
+    MemberIdRequired { member: Arc<str> },
     Joined(ClassicJoinedGroup),
 }
 

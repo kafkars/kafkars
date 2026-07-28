@@ -13,6 +13,7 @@ const DEFAULT_MEMBERSHIP_START_TIMEOUT: Duration = Duration::from_secs(30);
 pub struct ConsumerBuilder {
     engine: ClientEngine,
     group_id: String,
+    group_instance_id: Option<String>,
     topics: Vec<String>,
     processing_timeout: Duration,
 }
@@ -22,9 +23,19 @@ impl ConsumerBuilder {
         Self {
             engine,
             group_id,
+            group_instance_id: None,
             topics: Vec::new(),
             processing_timeout: Duration::from_secs(300),
         }
+    }
+
+    /// Selects one stable classic-group member identity for this registration.
+    ///
+    /// Omitting this option retains dynamic membership. The engine validates
+    /// the configured identity before registration transfers ownership.
+    pub fn group_instance_id(mut self, group_instance_id: impl Into<String>) -> Self {
+        self.group_instance_id = Some(group_instance_id.into());
+        self
     }
 
     /// Replaces the topic subscription retained by this registration.
@@ -49,6 +60,11 @@ impl ConsumerBuilder {
         &self.group_id
     }
 
+    /// Returns the requested static member identity, when configured.
+    pub fn selected_group_instance_id(&self) -> Option<&str> {
+        self.group_instance_id.as_deref()
+    }
+
     /// Returns the caller-ordered requested subscription.
     pub fn subscription(&self) -> &[String] {
         &self.topics
@@ -64,6 +80,10 @@ impl ConsumerBuilder {
     /// The membership deadline is captured at this call boundary before
     /// validation or name conversion. A true pre-core rejection releases the
     /// fresh registration and returns this exact builder.
+    #[expect(
+        clippy::result_large_err,
+        reason = "pre-admission rejection returns the exact consumed consumer builder"
+    )]
     pub fn build(self) -> Result<Consumer, ConsumerBuildError> {
         let capture = match self
             .engine
@@ -75,6 +95,7 @@ impl ConsumerBuilder {
         let engine = match self.engine.register_group_consumer(
             capture,
             &self.group_id,
+            self.group_instance_id.as_deref(),
             &self.topics,
             self.processing_timeout,
         ) {

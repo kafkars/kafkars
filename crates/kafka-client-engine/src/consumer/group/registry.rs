@@ -25,7 +25,7 @@ pub(super) use super::registry_registration::GroupConsumerRegistrationFailureKin
 
 pub(super) const GROUP_CONSUMER_CAPACITY: usize = 8;
 pub(super) const GROUP_CONSUMER_RETAINED_NAME_BYTES: usize =
-    GROUP_CONSUMER_CAPACITY * MAX_KAFKA_GROUP_STRING_BYTES;
+    GROUP_CONSUMER_CAPACITY * 2 * MAX_KAFKA_GROUP_STRING_BYTES;
 
 /// Many bounded catalogs sharing one global bounded offset-commit host.
 pub(crate) struct GroupConsumerRegistry {

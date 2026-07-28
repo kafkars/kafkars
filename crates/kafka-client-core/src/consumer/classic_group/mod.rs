@@ -1,5 +1,4 @@
 //! Deterministic classic consumer-group Join and Sync policy.
-
 mod apply;
 mod assignment;
 mod effect;
@@ -10,6 +9,7 @@ mod heartbeat_transition;
 mod identity;
 mod input;
 mod machine;
+mod member_id_required;
 mod model;
 mod processing_lease;
 mod range_validation;
@@ -18,7 +18,6 @@ mod terminal_transition;
 mod timing;
 mod transition;
 mod transition_support;
-
 pub use assignment::{ClassicAssignmentError, ClassicAssignmentPlan, ClassicMemberAssignment};
 pub use effect::{ClassicGroupEffect, ClassicGroupTransition};
 pub use error::{ClassicGroupApplyError, ClassicGroupErrorKind};
@@ -39,7 +38,6 @@ pub use timing::{
     CLASSIC_GROUP_TIMEOUT_MAX_MS, CLASSIC_GROUP_TIMEOUT_MIN_MS, ClassicGroupTiming,
     ClassicGroupTimingError, ClassicHeartbeatPolicy, ClassicHeartbeatPolicyError,
 };
-
 #[cfg(test)]
 mod apply_test;
 #[cfg(test)]
@@ -62,6 +60,8 @@ mod input_test;
 mod leader_fencing_test;
 #[cfg(test)]
 mod machine_test;
+#[cfg(test)]
+mod member_id_required_test;
 #[cfg(test)]
 mod model_test;
 #[cfg(test)]

@@ -4,6 +4,9 @@
 struct GroupSessionCatalog;
 
 #[derive(Clone, Copy)]
+struct RequiredJoinMember;
+
+#[derive(Clone, Copy)]
 struct ClassicGroupOwner;
 
 #[derive(Clone, Copy)]

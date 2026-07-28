@@ -12,6 +12,11 @@ impl ClassicGroupMachine {
     ) -> Result<ClassicGroupTransition, ClassicGroupApplyError> {
         let result = match input {
             ClassicGroupInput::Begin { now, deadline } => self.begin(now, deadline),
+            ClassicGroupInput::JoinMemberIdRequired {
+                cycle,
+                now,
+                assigned_member_id,
+            } => self.join_member_id_required(cycle, now, assigned_member_id),
             ClassicGroupInput::JoinFollower {
                 cycle,
                 now,

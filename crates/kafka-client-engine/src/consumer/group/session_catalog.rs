@@ -4,6 +4,12 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use kafka_client_core::{GroupId, LiveGroupAssignment, MemberId, TopicId};
 
+mod static_membership;
+#[cfg(test)]
+mod static_membership_test;
+
+pub(super) use static_membership::RequiredJoinMember;
+
 pub(super) const MAX_GROUP_SESSION_TOPICS: usize = 64;
 pub(super) const MAX_GROUP_SESSION_TOPIC_BYTES: usize = 249;
 pub(super) const MAX_GROUP_SESSION_TOPIC_NAME_BYTES: usize = 16 * 1024;
@@ -21,6 +27,8 @@ pub(super) struct CurrentGroupSession {
 pub(super) enum GroupSessionCatalogError {
     EmptyGroup,
     GroupBytes { actual: usize, limit: usize },
+    EmptyGroupInstance,
+    GroupInstanceBytes { actual: usize, limit: usize },
     EmptyMember,
     MemberBytes { actual: usize, limit: usize },
     EmptyTopic,
@@ -38,6 +46,7 @@ pub(super) enum GroupSessionCatalogError {
 pub(super) struct GroupSessionCatalog {
     group_id: GroupId,
     group: Arc<str>,
+    group_instance_id: Option<Arc<str>>,
     pub(super) next_member_id: Option<MemberId>,
     pub(super) next_topic_id: Option<TopicId>,
     pub(super) retained_topic_name_bytes: usize,
@@ -45,6 +54,7 @@ pub(super) struct GroupSessionCatalog {
     pub(super) topics_by_id: BTreeMap<TopicId, Arc<str>>,
     local_subscription: Vec<TopicId>,
     pub(super) current: Option<CurrentGroupSession>,
+    pub(super) required_join_member: Option<RequiredJoinMember>,
 }
 
 impl GroupSessionCatalog {
@@ -102,6 +112,7 @@ impl GroupSessionCatalog {
         Ok(Self {
             group_id,
             group,
+            group_instance_id: None,
             next_member_id: MemberId::try_from_raw(1),
             next_topic_id,
             retained_topic_name_bytes,
@@ -109,6 +120,7 @@ impl GroupSessionCatalog {
             topics_by_id,
             local_subscription,
             current: None,
+            required_join_member: None,
         })
     }
 

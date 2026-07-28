@@ -83,6 +83,7 @@ fn join_effect(
         group_id,
         cycle,
         protocol: ClassicProtocol::Range,
+        member_id: None,
         timing,
         deadline,
     }

@@ -7,6 +7,7 @@ struct GroupSessionCatalog {
     topics_by_name: Vec<u64>,
     topics_by_id: Vec<u64>,
     current: Option<u64>,
+    required_join_member: Option<u64>,
 }
 
 struct ClassicGroupOwner {
@@ -22,6 +23,7 @@ impl GroupSessionCatalog {
         self.topics_by_name.clear();
         self.topics_by_id.clear();
         self.current = Some(1);
+        self.required_join_member = Some(1);
     }
 }
 

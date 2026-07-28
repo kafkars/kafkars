@@ -24,7 +24,7 @@ fn success_preserves_nonnegative_throttle_without_generated_types() {
 #[test]
 fn exact_v0_v2_window_and_throttle_shape_are_enforced() {
     let response = HeartbeatResponse::default();
-    for version in [-1, 3] {
+    for version in [-1, 4] {
         assert_eq!(
             normalize_classic_heartbeat_response(version, &response),
             Err(ClassicHeartbeatResponseFailure::UnsupportedApiVersion(

@@ -6,7 +6,7 @@ use kafka_wire::HeartbeatResponse;
 
 use super::{
     ClassicBrokerRejection,
-    validation::{HEARTBEAT_MAX_VERSION, HEARTBEAT_MIN_VERSION},
+    validation::{HEARTBEAT_MAX_VERSION, HEARTBEAT_MIN_VERSION, STATIC_HEARTBEAT_VERSION},
 };
 
 /// One exact Heartbeat terminal without retry or membership policy.
@@ -29,7 +29,9 @@ pub(crate) fn normalize_classic_heartbeat_response(
     selected_version: i16,
     response: &HeartbeatResponse,
 ) -> Result<ClassicHeartbeatOutcome, ClassicHeartbeatResponseFailure> {
-    if !(HEARTBEAT_MIN_VERSION..=HEARTBEAT_MAX_VERSION).contains(&selected_version) {
+    if !(HEARTBEAT_MIN_VERSION..=HEARTBEAT_MAX_VERSION).contains(&selected_version)
+        && selected_version != STATIC_HEARTBEAT_VERSION
+    {
         return Err(ClassicHeartbeatResponseFailure::UnsupportedApiVersion(
             selected_version,
         ));

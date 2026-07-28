@@ -9,7 +9,10 @@ use kafka_wire::{HeartbeatRequest, HeartbeatResponse};
 
 use crate::{
     clock::OperationDeadline,
-    protocol::consumer::{CLASSIC_HEARTBEAT_MAX_VERSION, CLASSIC_HEARTBEAT_MIN_VERSION},
+    protocol::consumer::{
+        CLASSIC_HEARTBEAT_MAX_VERSION, CLASSIC_HEARTBEAT_MIN_VERSION,
+        CLASSIC_STATIC_HEARTBEAT_VERSION,
+    },
 };
 
 use super::{super::DriverOwner, group_coordinator_route::group_coordinator_route};
@@ -17,6 +20,8 @@ use super::{super::DriverOwner, group_coordinator_route::group_coordinator_route
 // v2 is the last version before group_instance_id introduces static membership.
 pub(super) const HEARTBEAT_MIN_VERSION: ApiVersion = ApiVersion::new(CLASSIC_HEARTBEAT_MIN_VERSION);
 pub(super) const HEARTBEAT_MAX_VERSION: ApiVersion = ApiVersion::new(CLASSIC_HEARTBEAT_MAX_VERSION);
+pub(super) const STATIC_HEARTBEAT_VERSION: ApiVersion =
+    ApiVersion::new(CLASSIC_STATIC_HEARTBEAT_VERSION);
 
 /// Definitely-unsent failure before driver request ownership.
 #[derive(Debug)]
@@ -58,8 +63,13 @@ impl DriverOwner {
         deadline: OperationDeadline,
     ) -> Result<RoutedCall<HeartbeatResponse>, ClassicHeartbeatSubmitError> {
         let route = classic_heartbeat_route(group, &request)?;
+        let static_membership = request.group_instance_id.is_some();
         self.driver
-            .request_tracked_with(route, request, classic_heartbeat_options(deadline))
+            .request_tracked_with(
+                route,
+                request,
+                classic_heartbeat_options(deadline, static_membership),
+            )
             .map_err(ClassicHeartbeatSubmitError::Driver)
     }
 }
@@ -74,9 +84,19 @@ pub(super) fn classic_heartbeat_route(
     group_coordinator_route(group).map_err(ClassicHeartbeatSubmitError::InvalidGroup)
 }
 
-pub(super) const fn classic_heartbeat_options(deadline: OperationDeadline) -> RequestOptions {
-    RequestOptions::new(deadline.transport())
-        .with_traffic_class(TrafficClass::Control)
-        .with_minimum_version(HEARTBEAT_MIN_VERSION)
-        .with_maximum_version(HEARTBEAT_MAX_VERSION)
+pub(super) const fn classic_heartbeat_options(
+    deadline: OperationDeadline,
+    static_membership: bool,
+) -> RequestOptions {
+    let options =
+        RequestOptions::new(deadline.transport()).with_traffic_class(TrafficClass::Control);
+    if static_membership {
+        options
+            .with_minimum_version(STATIC_HEARTBEAT_VERSION)
+            .with_maximum_version(STATIC_HEARTBEAT_VERSION)
+    } else {
+        options
+            .with_minimum_version(HEARTBEAT_MIN_VERSION)
+            .with_maximum_version(HEARTBEAT_MAX_VERSION)
+    }
 }

@@ -15,6 +15,7 @@ fn transition_owns_one_effect_without_a_dynamic_effect_queue() {
         group_id,
         cycle,
         protocol: ClassicProtocol::Range,
+        member_id: None,
         timing: ClassicGroupTiming::try_new(10_000, 30_000)
             .unwrap_or_else(|error| panic!("valid timing: {error}")),
         deadline: Deadline::from_tick(9),
@@ -33,6 +34,7 @@ fn transition_preserves_two_effect_order_without_a_dynamic_effect_queue() {
         group_id,
         cycle,
         protocol: ClassicProtocol::Range,
+        member_id: None,
         timing: ClassicGroupTiming::try_new(10_000, 30_000)
             .unwrap_or_else(|error| panic!("valid timing: {error}")),
         deadline: Deadline::from_tick(9),

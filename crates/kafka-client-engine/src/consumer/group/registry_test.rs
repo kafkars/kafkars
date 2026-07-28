@@ -14,6 +14,7 @@ use super::{
     },
     registry_commit::GroupConsumerCommitFailureKind,
     registry_cycle::GroupConsumerCycleAdmissionError,
+    registry_entry::default_classic_processing_lease_policy,
     registry_test_support::{
         checkpoint, deadline, install_session, register, started_registry, stop_registry,
     },
@@ -108,9 +109,63 @@ fn count_and_aggregate_group_name_bytes_have_exact_caps() {
     }
     assert_eq!(
         byte_registry.retained_group_bytes(),
-        GROUP_CONSUMER_RETAINED_NAME_BYTES
+        GROUP_CONSUMER_CAPACITY * MAX_KAFKA_GROUP_STRING_BYTES
     );
     stop_registry(&mut byte_registry);
+}
+
+#[test]
+fn aggregate_identity_budget_accepts_maximum_group_and_instance_for_every_entry() {
+    let mut registry = started_registry();
+    let maximum_group: Arc<str> = Arc::from("g".repeat(MAX_KAFKA_GROUP_STRING_BYTES));
+    let maximum_instance: Arc<str> = Arc::from("i".repeat(MAX_KAFKA_GROUP_STRING_BYTES));
+    for _index in 0..GROUP_CONSUMER_CAPACITY {
+        registry
+            .try_register_with_configuration(
+                Arc::clone(&maximum_group),
+                Some(Arc::clone(&maximum_instance)),
+                vec![Arc::from("orders")],
+                super::classic_group_test_support::timing(),
+                super::classic_group_test_support::heartbeat_policy(),
+                super::classic_group_test_support::rejoin_policy(),
+                default_classic_processing_lease_policy(),
+            )
+            .unwrap_or_else(|failure| {
+                panic!(
+                    "valid maximum group plus instance must fit aggregate budget: {:?}",
+                    failure.kind
+                )
+            });
+    }
+    assert_eq!(
+        registry.retained_group_bytes(),
+        GROUP_CONSUMER_RETAINED_NAME_BYTES
+    );
+    stop_registry(&mut registry);
+}
+
+#[test]
+fn confirmed_static_state_carries_the_configured_instance_identity() {
+    let mut registry = started_registry();
+    let group_id = registry
+        .try_register_with_configuration(
+            Arc::from("workers"),
+            Some(Arc::from("instance-a")),
+            vec![Arc::from("orders")],
+            super::classic_group_test_support::timing(),
+            super::classic_group_test_support::heartbeat_policy(),
+            super::classic_group_test_support::rejoin_policy(),
+            default_classic_processing_lease_policy(),
+        )
+        .unwrap_or_else(|failure| panic!("static registration failed: {:?}", failure.kind));
+    install_session(&mut registry, group_id);
+
+    let state = registry
+        .group_state(group_id)
+        .unwrap_or_else(|error| panic!("state snapshot failed: {error:?}"))
+        .unwrap_or_else(|| panic!("confirmed membership state expected"));
+    assert_eq!(state.metadata().group_instance_id(), Some("instance-a"));
+    stop_registry(&mut registry);
 }
 
 #[test]

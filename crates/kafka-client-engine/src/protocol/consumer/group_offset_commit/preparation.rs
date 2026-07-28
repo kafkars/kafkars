@@ -32,6 +32,11 @@ pub(crate) enum GroupOffsetCommitPreparationErrorKind {
         actual: usize,
         limit: usize,
     },
+    EmptyGroupInstance,
+    GroupInstanceTooLong {
+        actual: usize,
+        limit: usize,
+    },
     EntryCapacity {
         actual: usize,
         limit: usize,

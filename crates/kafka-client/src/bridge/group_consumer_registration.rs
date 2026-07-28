@@ -18,17 +18,21 @@ impl GroupConsumerEngine {
         engine: &SharedEngine,
         capture: GroupConsumerStartCapture,
         group: &str,
+        group_instance_id: Option<&str>,
         topics: &[String],
         processing_timeout: Duration,
     ) -> Result<Self, KafkaError> {
-        let registration = EngineGroupConsumerRegistration::new(
+        let mut registration = EngineGroupConsumerRegistration::new(
             Arc::<str>::from(group),
             topics
                 .iter()
                 .map(|topic| Arc::<str>::from(topic.as_str()))
                 .collect(),
-        )
-        .with_processing_timeout(processing_timeout);
+        );
+        if let Some(group_instance_id) = group_instance_id {
+            registration = registration.with_group_instance_id(Arc::<str>::from(group_instance_id));
+        }
+        let registration = registration.with_processing_timeout(processing_timeout);
         let mut handle = engine
             .register_group_consumer(registration)
             .map_err(|error| translate_group_registration(&error))?;

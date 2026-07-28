@@ -74,7 +74,7 @@ pub(super) const METHODS: &[(&str, &[&str])] = &[
 ];
 
 pub(super) const CALLS: &[(&str, &[&str])] = &[
-    ("classic_heartbeat_request", &[PREPARE]),
+    ("classic_heartbeat_request_with_instance", &[PREPARE]),
     ("interpret_heartbeat", &[SETTLEMENT]),
     ("normalize_classic_heartbeat_response", &[INTERPRET]),
 ];

@@ -23,6 +23,7 @@ use super::{
 pub(super) struct GroupConsumerRegistrationFailure {
     pub(super) kind: GroupConsumerRegistrationFailureKind,
     pub(super) group: Arc<str>,
+    pub(super) group_instance_id: Option<Arc<str>>,
     pub(super) local_topics: Vec<Arc<str>>,
 }
 
@@ -65,10 +66,36 @@ impl GroupConsumerRegistry {
         rejoin_policy: ClassicRejoinPolicy,
         processing_policy: ClassicProcessingLeasePolicy,
     ) -> Result<GroupId, GroupConsumerRegistrationFailure> {
+        self.try_register_with_configuration(
+            group,
+            None,
+            local_topics,
+            timing,
+            heartbeat_policy,
+            rejoin_policy,
+            processing_policy,
+        )
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one bounded registration forwards one explicit immutable identity and policy set"
+    )]
+    pub(super) fn try_register_with_configuration(
+        &mut self,
+        group: Arc<str>,
+        group_instance_id: Option<Arc<str>>,
+        local_topics: Vec<Arc<str>>,
+        timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
+        processing_policy: ClassicProcessingLeasePolicy,
+    ) -> Result<GroupId, GroupConsumerRegistrationFailure> {
         if !self.accepting {
             return Err(registration_failure(
                 GroupConsumerRegistrationFailureKind::Closed,
                 group,
+                group_instance_id,
                 local_topics,
             ));
         }
@@ -76,6 +103,7 @@ impl GroupConsumerRegistry {
             return Err(registration_failure(
                 GroupConsumerRegistrationFailureKind::Capacity,
                 group,
+                group_instance_id,
                 local_topics,
             ));
         }
@@ -83,12 +111,14 @@ impl GroupConsumerRegistry {
             return Err(registration_failure(
                 GroupConsumerRegistrationFailureKind::IdentityExhausted,
                 group,
+                group_instance_id,
                 local_topics,
             ));
         };
-        let entry = match GroupConsumerEntry::try_new_with_processing_policy(
+        let entry = match GroupConsumerEntry::try_new_with_configuration(
             group_id,
             &group,
+            group_instance_id.as_ref(),
             &local_topics,
             timing,
             heartbeat_policy,
@@ -100,6 +130,7 @@ impl GroupConsumerRegistry {
                 return Err(registration_failure(
                     GroupConsumerRegistrationFailureKind::Catalog(error),
                     group,
+                    group_instance_id,
                     local_topics,
                 ));
             }
@@ -107,6 +138,7 @@ impl GroupConsumerRegistry {
                 return Err(registration_failure(
                     GroupConsumerRegistrationFailureKind::Fetch(error),
                     group,
+                    group_instance_id,
                     local_topics,
                 ));
             }
@@ -117,6 +149,7 @@ impl GroupConsumerRegistry {
                 return Err(registration_failure(
                     GroupConsumerRegistrationFailureKind::RetainedBytes,
                     group,
+                    group_instance_id,
                     local_topics,
                 ));
             }
@@ -134,11 +167,13 @@ impl GroupConsumerRegistry {
 fn registration_failure(
     kind: GroupConsumerRegistrationFailureKind,
     group: Arc<str>,
+    group_instance_id: Option<Arc<str>>,
     local_topics: Vec<Arc<str>>,
 ) -> GroupConsumerRegistrationFailure {
     GroupConsumerRegistrationFailure {
         kind,
         group,
+        group_instance_id,
         local_topics,
     }
 }

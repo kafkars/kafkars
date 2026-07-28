@@ -1,7 +1,7 @@
 //! Foreign follower state and driver-call mutation forbidden by this fixture.
 
 fn intrude(owner: &mut Owner) {
-    owner.apply_follower_join();
+    owner.apply_follower_join_with_instance();
     owner.submit_one_classic_join();
     owner.settle_one_classic_join();
     owner.stage_join_confirmation();
@@ -46,7 +46,7 @@ macro_rules! methods {
 }
 
 methods!(
-    apply_follower_join,
+    apply_follower_join_with_instance,
     submit_one_classic_join,
     settle_one_classic_join,
     stage_join_confirmation,

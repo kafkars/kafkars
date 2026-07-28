@@ -15,6 +15,12 @@ pub enum ClassicGroupErrorKind {
     InvalidPhase,
     /// The input names a stale or future membership cycle.
     CycleMismatch,
+    /// `MEMBER_ID_REQUIRED` omitted its assigned nonempty member identity.
+    MissingAssignedMemberId,
+    /// One active cycle already consumed its sole assigned member identity.
+    DuplicateAssignedMemberId,
+    /// Join success did not match the identity assigned to its replacement.
+    AssignedMemberIdMismatch,
     /// Begin or a broker fact arrived after the original deadline.
     DeadlineElapsed,
     /// A timer fact arrived before the original deadline.

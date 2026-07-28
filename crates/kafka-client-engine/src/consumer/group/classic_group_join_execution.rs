@@ -7,7 +7,7 @@ use crate::{
         DriverOwner,
         classic_group::{JoinGroupCallKey, JoinGroupCallReservationError},
     },
-    protocol::consumer::classic_join_group_request,
+    protocol::consumer::classic_join_group_request_with_instance,
 };
 
 use super::{
@@ -96,9 +96,20 @@ fn prepare_join_request(
             .map_err(|_error| ClassicGroupExecutionError::JoinRequest)?;
         topics.push(Arc::clone(topic));
     }
-    classic_join_group_request(
+    let member = match prepared.member_id() {
+        Some(member_id) => Some(
+            entry
+                .catalog
+                .required_join_member_spelling(prepared.cycle(), member_id)
+                .map(Arc::as_ref)
+                .ok_or(ClassicGroupExecutionError::JoinRequest)?,
+        ),
+        None => entry.catalog.current_member().map(Arc::as_ref),
+    };
+    classic_join_group_request_with_instance(
         entry.catalog.group(),
-        entry.catalog.current_member().map(Arc::as_ref),
+        member,
+        entry.catalog.group_instance_id().map(Arc::as_ref),
         &topics,
         prepared.timing(),
     )

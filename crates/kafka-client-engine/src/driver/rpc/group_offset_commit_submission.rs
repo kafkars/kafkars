@@ -10,6 +10,7 @@ use kafka_wire::{OffsetCommitRequest, OffsetCommitResponse};
 use super::{super::DriverOwner, group_coordinator_route::group_coordinator_route};
 
 const GROUP_OFFSET_COMMIT_MIN_LEADER_EPOCH_VERSION: ApiVersion = ApiVersion::new(6);
+const GROUP_OFFSET_COMMIT_STATIC_MEMBERSHIP_VERSION: ApiVersion = ApiVersion::new(7);
 const GROUP_OFFSET_COMMIT_MAX_VERSION: ApiVersion = ApiVersion::new(9);
 
 /// Definitely-unsent failure before driver request ownership.
@@ -46,13 +47,14 @@ impl DriverOwner {
         request: OffsetCommitRequest,
         deadline: Instant,
         requires_leader_epoch: bool,
+        static_membership: bool,
     ) -> Result<RoutedCall<OffsetCommitResponse>, GroupOffsetCommitSubmitError> {
         let route = group_offset_commit_route(group)?;
         self.driver
             .request_tracked_with(
                 route,
                 request,
-                group_offset_commit_options(deadline, requires_leader_epoch),
+                group_offset_commit_options(deadline, requires_leader_epoch, static_membership),
             )
             .map_err(GroupOffsetCommitSubmitError::Driver)
     }
@@ -67,11 +69,14 @@ pub(super) fn group_offset_commit_route(
 pub(super) const fn group_offset_commit_options(
     deadline: Instant,
     requires_leader_epoch: bool,
+    static_membership: bool,
 ) -> RequestOptions {
     let options = RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Interactive)
         .with_maximum_version(GROUP_OFFSET_COMMIT_MAX_VERSION);
-    if requires_leader_epoch {
+    if static_membership {
+        options.with_minimum_version(GROUP_OFFSET_COMMIT_STATIC_MEMBERSHIP_VERSION)
+    } else if requires_leader_epoch {
         options.with_minimum_version(GROUP_OFFSET_COMMIT_MIN_LEADER_EPOCH_VERSION)
     } else {
         options

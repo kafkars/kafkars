@@ -2,7 +2,9 @@
 
 use kafka_client_core::{ClassicGeneration, ClassicGroupEffect, ClassicGroupInput, Moment};
 
-use crate::{clock::OperationDeadline, protocol::consumer::classic_follower_sync_group_request};
+use crate::{
+    clock::OperationDeadline, protocol::consumer::classic_follower_sync_group_request_with_instance,
+};
 
 use super::{
     classic_group_candidate::ClassicGroupCycleCandidate,
@@ -22,6 +24,18 @@ impl ClassicGroupOwner {
     pub(super) fn apply_follower_join(
         &mut self,
         group: &str,
+        candidate: ClassicGroupCycleCandidate,
+        generation: ClassicGeneration,
+        now: Moment,
+        deadline: OperationDeadline,
+    ) -> Result<PreparedClassicGroupSync, ClassicGroupFollowerJoinError> {
+        self.apply_follower_join_with_instance(group, None, candidate, generation, now, deadline)
+    }
+
+    pub(super) fn apply_follower_join_with_instance(
+        &mut self,
+        group: &str,
+        group_instance_id: Option<&str>,
         candidate: ClassicGroupCycleCandidate,
         generation: ClassicGeneration,
         now: Moment,
@@ -64,8 +78,13 @@ impl ClassicGroupOwner {
         if !exact {
             return Err(ClassicGroupFollowerJoinError::UnexpectedSyncEffect);
         }
-        let request = classic_follower_sync_group_request(group, &member, generation)
-            .map_err(|_error| ClassicGroupFollowerJoinError::SyncRequest)?;
+        let request = classic_follower_sync_group_request_with_instance(
+            group,
+            &member,
+            group_instance_id,
+            generation,
+        )
+        .map_err(|_error| ClassicGroupFollowerJoinError::SyncRequest)?;
         Ok(PreparedClassicGroupSync::new(
             ClassicGroupSyncIdentity::new(
                 self.machine().group_id(),

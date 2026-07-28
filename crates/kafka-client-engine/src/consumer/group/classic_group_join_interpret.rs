@@ -1,5 +1,7 @@
 //! Normalized Join facts and deterministic follower or deadline transitions.
 
+use std::sync::Arc;
+
 use kafka_client_core::{ClassicGroupInput, Moment};
 
 use crate::{
@@ -17,6 +19,12 @@ use super::{
     classic_group_rejection_install::{exact_broker_error, install_stage_rejection},
     registry_entry::GroupConsumerEntry,
 };
+
+mod member_id_required;
+#[cfg(test)]
+mod member_id_required_test;
+
+use member_id_required::prepare_member_id_required_join;
 
 pub(super) enum JoinInterpretation {
     Confirm(ClassicGroupJoinSuccessor),
@@ -52,6 +60,12 @@ pub(super) fn interpret_join(
     let outcome = normalize_classic_join_response(version, response)
         .map_err(|_error| restore(ClassicGroupExecutionError::JoinTerminal))?;
     let joined = match outcome {
+        ClassicJoinOutcome::MemberIdRequired { member } => {
+            let replacement = prepare_member_id_required_join(entry, cycle, now, terminal, member)?;
+            return Ok(JoinInterpretation::Confirm(
+                ClassicGroupJoinSuccessor::Join(replacement),
+            ));
+        }
         ClassicJoinOutcome::Rejected(rejection) => {
             apply_join_rejection(entry, cycle, now, rejection)?;
             return Ok(JoinInterpretation::Confirm(ClassicGroupJoinSuccessor::Idle));
@@ -84,8 +98,9 @@ pub(super) fn interpret_join(
         .map_err(|_error| restore(ClassicGroupExecutionError::FollowerJoin))?;
     let prepared = entry
         .classic
-        .apply_follower_join(
+        .apply_follower_join_with_instance(
             entry.catalog.group(),
+            entry.catalog.group_instance_id().map(Arc::as_ref),
             candidate,
             generation,
             now,

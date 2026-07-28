@@ -23,11 +23,18 @@ pub(in crate::consumer::group) fn admission_usage(host: &GroupOffsetCommitHost) 
 }
 
 pub(super) fn catalog() -> GroupSessionCatalog {
+    catalog_with_group_instance_id(None)
+}
+
+pub(super) fn catalog_with_group_instance_id(
+    group_instance_id: Option<Arc<str>>,
+) -> GroupSessionCatalog {
     let group_id =
         GroupId::try_from_raw(1).unwrap_or_else(|| panic!("group identity must be nonzero"));
-    let mut catalog = GroupSessionCatalog::try_new(
+    let mut catalog = GroupSessionCatalog::try_new_with_group_instance_id(
         group_id,
         Arc::from("invoice-workers"),
+        group_instance_id,
         &[Arc::from("orders")],
     )
     .unwrap_or_else(|error| panic!("catalog: {error:?}"));

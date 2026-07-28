@@ -51,6 +51,9 @@ impl ClassicGroupExecution {
             Ok(()) => {
                 self.set_execution_state(match successor {
                     ClassicGroupJoinSuccessor::Idle => ClassicGroupExecutionState::Idle,
+                    ClassicGroupJoinSuccessor::Join(prepared) => {
+                        ClassicGroupExecutionState::PreparedJoin(prepared)
+                    }
                     ClassicGroupJoinSuccessor::PartitionCounts(prepared) => {
                         ClassicGroupExecutionState::PreparedPartitionCounts(prepared)
                     }

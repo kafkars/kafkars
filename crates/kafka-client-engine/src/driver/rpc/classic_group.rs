@@ -108,6 +108,6 @@ pub(crate) use sync_group_terminal::{
 pub(crate) use terminal_test_fixture::{
     install_empty_leader_join_terminal, install_follower_join_terminal,
     install_join_broker_rejection_terminal, install_leader_join_terminal,
-    install_malformed_sync_terminal, install_sync_assignment_terminal,
-    install_sync_broker_rejection_terminal,
+    install_malformed_sync_terminal, install_member_id_required_join_terminal,
+    install_sync_assignment_terminal, install_sync_broker_rejection_terminal,
 };

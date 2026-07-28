@@ -1,6 +1,8 @@
 //! Exact policy expected for classic-group engine identity.
 
 pub(super) const CATALOG: &str = "crates/kafka-client-engine/src/consumer/group/session_catalog.rs";
+pub(super) const CATALOG_STATIC: &str =
+    "crates/kafka-client-engine/src/consumer/group/session_catalog/static_membership.rs";
 pub(super) const CATALOG_ASSIGNMENT: &str =
     "crates/kafka-client-engine/src/consumer/group/session_catalog_assignment.rs";
 pub(super) const OWNER: &str =
@@ -22,6 +24,7 @@ pub(super) const SYNC_INSTALL: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_sync_install.rs";
 pub(super) const CAPABILITY_PATHS: &[&str] = &[
     CATALOG,
+    CATALOG_STATIC,
     CATALOG_ASSIGNMENT,
     OWNER,
     CANDIDATE,
@@ -31,6 +34,7 @@ pub(super) const CAPABILITY_PATHS: &[&str] = &[
 ];
 pub(super) const LINEAR: &[(&str, &str)] = &[
     ("GroupSessionCatalog", CATALOG),
+    ("RequiredJoinMember", CATALOG_STATIC),
     ("ClassicGroupOwner", OWNER),
     ("ClassicGroupCycleCandidate", CANDIDATE),
     ("CandidateMember", CANDIDATE),
@@ -39,12 +43,19 @@ pub(super) const LINEAR: &[(&str, &str)] = &[
     ("ClassicGroupAssignmentDecodeFailure", ASSIGNMENT_DECODE),
 ];
 pub(super) const CATALOG_FIELDS: &[(&str, &[&str])] = &[
-    ("next_member_id", &[CATALOG, CATALOG_ASSIGNMENT]),
+    (
+        "next_member_id",
+        &[CATALOG, CATALOG_STATIC, CATALOG_ASSIGNMENT],
+    ),
     ("next_topic_id", &[CATALOG, CATALOG_ASSIGNMENT]),
     ("retained_topic_name_bytes", &[CATALOG, CATALOG_ASSIGNMENT]),
     ("topics_by_name", &[CATALOG, CATALOG_ASSIGNMENT]),
     ("topics_by_id", &[CATALOG, CATALOG_ASSIGNMENT]),
     ("current", &[CATALOG_ASSIGNMENT]),
+    (
+        "required_join_member",
+        &[CATALOG, CATALOG_STATIC, CATALOG_ASSIGNMENT],
+    ),
 ];
 pub(super) const OWNER_FIELDS: &[(&str, &[&str])] = &[(
     "pending",

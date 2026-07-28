@@ -44,6 +44,32 @@ fn dropped_follower_candidate_does_not_advance_member_or_topic_cursors() {
 }
 
 #[test]
+fn member_id_required_spelling_reuses_the_staged_catalog_identity() {
+    let mut catalog = catalog();
+    let cycle = MembershipCycle::initial();
+    let required = catalog
+        .prepare_required_join_member(cycle, Arc::from("assigned-member"))
+        .unwrap_or_else(|error| panic!("required member preparation: {error:?}"));
+    let required_id = required.member_id;
+    catalog.commit_required_join_member(required);
+
+    let candidate = catalog
+        .prepare_follower_cycle(cycle, Arc::from("assigned-member"))
+        .unwrap_or_else(|error| panic!("replacement candidate: {error:?}"));
+    assert_eq!(candidate.local_member_id(), required_id);
+    assert_eq!(
+        candidate
+            .next_member_id_after_install()
+            .map(kafka_client_core::MemberId::get),
+        required_id.get().checked_add(1)
+    );
+    assert!(matches!(
+        catalog.prepare_follower_cycle(cycle, Arc::from("different-member")),
+        Err(ClassicGroupCycleCandidateError::RequiredMemberMismatch)
+    ));
+}
+
+#[test]
 fn invalid_leader_membership_is_atomic() {
     let catalog = catalog();
     let mismatch = catalog.prepare_leader_cycle(

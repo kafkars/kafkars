@@ -116,6 +116,7 @@ impl ClientEngine {
         &self,
         capture: GroupConsumerStartCapture,
         group: &str,
+        group_instance_id: Option<&str>,
         topics: &[String],
         processing_timeout: std::time::Duration,
     ) -> Result<super::consumer_facade::group_consumer::GroupConsumerEngine, KafkaError> {
@@ -123,6 +124,7 @@ impl ClientEngine {
             &self.inner,
             capture,
             group,
+            group_instance_id,
             topics,
             processing_timeout,
         )

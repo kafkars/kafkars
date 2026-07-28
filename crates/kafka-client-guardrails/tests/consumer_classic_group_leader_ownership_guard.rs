@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use expectations::{
     ASSIGNMENT, CALL_FIELDS, CALL_OWNER, COUNT_CALL, COUNTS, FIELDS, FOLLOWER, GROUP_ROOT, LEADER,
-    METHODS, MIRRORS, OWNER, PREPARED,
+    METHODS, MIRRORS, OWNER, PREPARED, SYNC_REQUEST,
 };
 use support::{
     AuthorityToken, CallCapabilityRule, LinearOwner, MethodCapabilityRule, MutationOwner,
@@ -92,7 +92,11 @@ fn checked_in_leader_preparation_has_sibling_tests_and_narrow_calls() {
         assert_eq!(mirrors.len(), 1, "{production} needs one mirror");
         assert_eq!(mirrors[0].test, format!("{GROUP_ROOT}/{test}"));
     }
-    assert_call(&config, "classic_sync_group_request", LEADER);
+    assert_call(
+        &config,
+        "classic_sync_group_request_with_instance",
+        &[LEADER, SYNC_REQUEST],
+    );
     for (method, paths) in METHODS {
         assert_method(&config, method, paths);
     }
@@ -208,7 +212,7 @@ fn assert_capability_fixture(root: &Path) {
         root,
         &[CallCapabilityRule {
             root: "src".into(),
-            call: "classic_sync_group_request".into(),
+            call: "classic_sync_group_request_with_instance".into(),
             allowed_paths: Vec::new(),
         }],
     );
@@ -232,14 +236,21 @@ fn assert_capability_fixture(root: &Path) {
     }
 }
 
-fn assert_call(config: &support::GuardConfig, call: &str, path: &str) {
+fn assert_call(config: &support::GuardConfig, call: &str, paths: &[&str]) {
     let rules = config
         .call_capabilities
         .iter()
         .filter(|rule| rule.call == call)
         .collect::<Vec<_>>();
     assert_eq!(rules.len(), 1, "{call} needs one rule");
-    assert_eq!(rules[0].allowed_paths, [path]);
+    assert_eq!(
+        rules[0]
+            .allowed_paths
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        paths
+    );
 }
 
 fn assert_method(config: &support::GuardConfig, method: &str, paths: &[&str]) {

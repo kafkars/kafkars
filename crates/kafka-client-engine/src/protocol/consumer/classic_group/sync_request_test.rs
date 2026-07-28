@@ -14,10 +14,45 @@ use kafka_wire_core::{ApiVersion, BytesMut, DecodeLimits, Decoder, KafkaDecode, 
 
 use super::{
     ClassicSyncMember, ClassicSyncRequestFailure, ClassicSyncTopic, classic_sync_group_request,
+    classic_sync_group_request_with_instance, validation::STATIC_SYNC_VERSION,
 };
 
 fn slot(value: u32) -> JoinedMemberSlot {
     JoinedMemberSlot::try_from_raw(value).unwrap_or_else(|| panic!("slot"))
+}
+
+#[test]
+fn static_follower_request_carries_instance_and_round_trips_at_v3() {
+    let prepared = classic_sync_group_request_with_instance(
+        "workers",
+        "member-b",
+        Some("instance-b"),
+        generation(),
+        follower_plan(),
+        &[],
+        &[],
+    )
+    .unwrap_or_else(|error| panic!("static Sync: {error:?}"));
+    let request = prepared.request_for_test();
+    assert_eq!(
+        request
+            .group_instance_id
+            .as_ref()
+            .map(kafka_wire_core::StrBytes::as_str),
+        Some("instance-b")
+    );
+    let version = ApiVersion::new(STATIC_SYNC_VERSION);
+    let mut encoded = BytesMut::new();
+    request
+        .encode_into(&mut encoded, version)
+        .unwrap_or_else(|error| panic!("encode: {error}"));
+    let mut decoder = Decoder::new(encoded.freeze(), DecodeLimits::default())
+        .unwrap_or_else(|error| panic!("decoder: {error}"));
+    assert_eq!(
+        SyncGroupRequest::decode(&mut decoder, version)
+            .unwrap_or_else(|error| panic!("decode: {error}")),
+        *request
+    );
 }
 
 fn generation() -> ClassicGeneration {

@@ -5,11 +5,44 @@ use kafka_wire::{HEARTBEAT_API_DESCRIPTOR, HeartbeatRequest};
 use kafka_wire_core::{ApiVersion, BytesMut, DecodeLimits, Decoder, KafkaDecode, KafkaEncode};
 
 use super::{
-    ClassicHeartbeatRequestFailure, classic_heartbeat_request, validation::MAX_KAFKA_STRING_BYTES,
+    ClassicHeartbeatRequestFailure, classic_heartbeat_request,
+    classic_heartbeat_request_with_instance,
+    validation::{MAX_KAFKA_STRING_BYTES, STATIC_HEARTBEAT_VERSION},
 };
 
 fn generation(value: i32) -> ClassicGeneration {
     ClassicGeneration::try_from_raw(value).unwrap_or_else(|| panic!("nonnegative generation"))
+}
+
+#[test]
+fn static_request_carries_instance_and_round_trips_at_v3() {
+    let prepared = classic_heartbeat_request_with_instance(
+        "workers",
+        "member-a",
+        Some("instance-a"),
+        generation(17),
+    )
+    .unwrap_or_else(|error| panic!("static Heartbeat request: {error:?}"));
+    let request = prepared.request_for_test();
+    assert_eq!(
+        request
+            .group_instance_id
+            .as_ref()
+            .map(kafka_wire_core::StrBytes::as_str),
+        Some("instance-a")
+    );
+    let version = ApiVersion::new(STATIC_HEARTBEAT_VERSION);
+    let mut encoded = BytesMut::new();
+    request
+        .encode_into(&mut encoded, version)
+        .unwrap_or_else(|error| panic!("encode: {error}"));
+    let mut decoder = Decoder::new(encoded.freeze(), DecodeLimits::default())
+        .unwrap_or_else(|error| panic!("decoder: {error}"));
+    assert_eq!(
+        HeartbeatRequest::decode(&mut decoder, version)
+            .unwrap_or_else(|error| panic!("decode: {error}")),
+        *request
+    );
 }
 
 #[test]
@@ -63,19 +96,19 @@ fn group_and_member_bounds_are_exact() {
     let oversized = "x".repeat(MAX_KAFKA_STRING_BYTES + 1);
     assert_eq!(
         classic_heartbeat_request(&oversized, "member-a", generation(0)).err(),
-        Some(ClassicHeartbeatRequestFailure::InvalidGroup)
+        Some(ClassicHeartbeatRequestFailure::GroupName)
     );
     assert_eq!(
         classic_heartbeat_request("workers", &oversized, generation(0)).err(),
-        Some(ClassicHeartbeatRequestFailure::InvalidMember)
+        Some(ClassicHeartbeatRequestFailure::MemberId)
     );
     assert_eq!(
         classic_heartbeat_request("", "member-a", generation(0)).err(),
-        Some(ClassicHeartbeatRequestFailure::InvalidGroup)
+        Some(ClassicHeartbeatRequestFailure::GroupName)
     );
     assert_eq!(
         classic_heartbeat_request("workers", "", generation(0)).err(),
-        Some(ClassicHeartbeatRequestFailure::InvalidMember)
+        Some(ClassicHeartbeatRequestFailure::MemberId)
     );
 }
 

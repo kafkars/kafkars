@@ -12,11 +12,44 @@ use kafka_wire_core::{ApiVersion, BytesMut, DecodeLimits, Decoder, KafkaDecode, 
 
 use super::{
     ClassicJoinRequestFailure, classic_join_group_request,
-    validation::{INNER_SCHEMA_VERSION, MAX_TOPICS, RANGE_PROTOCOL},
+    classic_join_group_request_with_instance,
+    validation::{INNER_SCHEMA_VERSION, MAX_TOPICS, RANGE_PROTOCOL, STATIC_JOIN_VERSION},
 };
 
 fn topics(values: &[&str]) -> Vec<Arc<str>> {
     values.iter().copied().map(Arc::from).collect()
+}
+
+#[test]
+fn static_request_carries_instance_and_round_trips_at_v5() {
+    let prepared = classic_join_group_request_with_instance(
+        "workers",
+        Some("member-a"),
+        Some("instance-a"),
+        &topics(&["orders"]),
+        timing(),
+    )
+    .unwrap_or_else(|error| panic!("static Join: {error:?}"));
+    let request = prepared.request_for_test();
+    assert_eq!(
+        request
+            .group_instance_id
+            .as_ref()
+            .map(kafka_wire_core::StrBytes::as_str),
+        Some("instance-a")
+    );
+    let version = ApiVersion::new(STATIC_JOIN_VERSION);
+    let mut encoded = BytesMut::new();
+    request
+        .encode_into(&mut encoded, version)
+        .unwrap_or_else(|error| panic!("encode: {error}"));
+    let mut decoder = Decoder::new(encoded.freeze(), DecodeLimits::default())
+        .unwrap_or_else(|error| panic!("decoder: {error}"));
+    assert_eq!(
+        JoinGroupRequest::decode(&mut decoder, version)
+            .unwrap_or_else(|error| panic!("decode: {error}")),
+        *request
+    );
 }
 
 fn timing() -> ClassicGroupTiming {

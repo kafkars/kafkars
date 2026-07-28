@@ -6,19 +6,26 @@ use kafka_driver::TrafficClass;
 use kafka_wire::{JOIN_GROUP_API_DESCRIPTOR, JoinGroupRequest};
 
 use super::join_group_submission::{
-    JOIN_GROUP_MAX_VERSION, JOIN_GROUP_MIN_VERSION, JoinGroupSubmitError, join_group_options,
-    join_group_route,
+    JOIN_GROUP_MAX_VERSION, JOIN_GROUP_MIN_VERSION, JoinGroupSubmitError,
+    STATIC_JOIN_GROUP_VERSION, join_group_options, join_group_route,
 };
 
 #[test]
 fn options_preserve_deadline_lane_and_generated_version_bounds() {
     let deadline = Instant::now();
-    let options = join_group_options(deadline);
+    let options = join_group_options(deadline, false);
 
     assert_eq!(options.deadline(), deadline);
     assert_eq!(options.traffic_class(), TrafficClass::Interactive);
     assert_eq!(options.minimum_version(), Some(JOIN_GROUP_MIN_VERSION));
     assert_eq!(options.maximum_version(), Some(JOIN_GROUP_MAX_VERSION));
+}
+
+#[test]
+fn static_membership_uses_the_exact_v5_window() {
+    let options = join_group_options(Instant::now(), true);
+    assert_eq!(options.minimum_version(), Some(STATIC_JOIN_GROUP_VERSION));
+    assert_eq!(options.maximum_version(), Some(STATIC_JOIN_GROUP_VERSION));
 }
 
 #[test]

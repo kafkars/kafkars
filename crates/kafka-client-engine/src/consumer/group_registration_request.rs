@@ -6,12 +6,18 @@ use kafka_client_core::ClassicProcessingLeasePolicy;
 
 const DEFAULT_PROCESSING_TIMEOUT: Duration = Duration::from_secs(300);
 
-type ValidatedGroupConsumerRegistration = (Arc<str>, Vec<Arc<str>>, ClassicProcessingLeasePolicy);
+type ValidatedGroupConsumerRegistration = (
+    Arc<str>,
+    Option<Arc<str>>,
+    Vec<Arc<str>>,
+    ClassicProcessingLeasePolicy,
+);
 
 /// Exact caller-owned names for one bounded classic-group registration.
 #[derive(Debug)]
 pub struct GroupConsumerRegistration {
     group: Arc<str>,
+    group_instance_id: Option<Arc<str>>,
     topics: Vec<Arc<str>>,
     processing_timeout: Duration,
 }
@@ -21,9 +27,21 @@ impl GroupConsumerRegistration {
     pub fn new(group: Arc<str>, topics: Vec<Arc<str>>) -> Self {
         Self {
             group,
+            group_instance_id: None,
             topics,
             processing_timeout: DEFAULT_PROCESSING_TIMEOUT,
         }
+    }
+
+    /// Selects one stable classic-group member identity before registration.
+    pub fn with_group_instance_id(mut self, group_instance_id: Arc<str>) -> Self {
+        self.group_instance_id = Some(group_instance_id);
+        self
+    }
+
+    /// Returns the requested static member identity, when configured.
+    pub fn group_instance_id(&self) -> Option<&str> {
+        self.group_instance_id.as_deref()
     }
 
     /// Returns the requested Kafka group spelling.
@@ -58,6 +76,11 @@ impl GroupConsumerRegistration {
             Ok(policy) => policy,
             Err(_invalid) => return Err(self),
         };
-        Ok((self.group, self.topics, processing_policy))
+        Ok((
+            self.group,
+            self.group_instance_id,
+            self.topics,
+            processing_policy,
+        ))
     }
 }

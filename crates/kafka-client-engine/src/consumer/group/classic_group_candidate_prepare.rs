@@ -23,7 +23,24 @@ impl GroupSessionCatalog {
         local_member: Arc<str>,
     ) -> Result<ClassicGroupCycleCandidate, ClassicGroupCycleCandidateError> {
         validate_member(&local_member)?;
-        let (local_member_id, next_member_id) = allocate_member(self.next_member_id)?;
+        let (local_member_id, next_member_id) = match self.required_join_member.as_ref() {
+            Some(required)
+                if required.cycle == cycle && required.member.as_ref() == local_member.as_ref() =>
+            {
+                (
+                    required.member_id,
+                    required
+                        .member_id
+                        .get()
+                        .checked_add(1)
+                        .and_then(MemberId::try_from_raw),
+                )
+            }
+            Some(required) if required.cycle == cycle => {
+                return Err(ClassicGroupCycleCandidateError::RequiredMemberMismatch);
+            }
+            _ => allocate_member(self.next_member_id)?,
+        };
         ClassicGroupCycleCandidate::try_from_prepared_cycle(
             self,
             cycle,
@@ -77,15 +94,40 @@ impl GroupSessionCatalog {
         }
 
         let mut topics = PreparedCycleTopics::new(self);
-        let mut next_member_id = self.next_member_id;
+        let required = self
+            .required_join_member
+            .as_ref()
+            .filter(|required| required.cycle == cycle);
+        if required.is_some_and(|required| required.member.as_ref() != local_member.as_ref()) {
+            return Err(ClassicGroupCycleCandidateError::RequiredMemberMismatch);
+        }
+        let mut next_member_id = match required {
+            Some(required) => required
+                .member_id
+                .get()
+                .checked_add(1)
+                .and_then(MemberId::try_from_raw),
+            None => self.next_member_id,
+        };
         let mut members = Vec::new();
         members
             .try_reserve_exact(joined.len())
             .map_err(|_error| ClassicGroupCycleCandidateError::Allocation)?;
         let mut local = None;
         for (index, member) in joined.into_iter().enumerate() {
-            let (member_id, next) = allocate_member(next_member_id)?;
-            next_member_id = next;
+            let member_id = if member.member.as_ref() == local_member.as_ref() {
+                if let Some(required) = required {
+                    required.member_id
+                } else {
+                    let (member_id, next) = allocate_member(next_member_id)?;
+                    next_member_id = next;
+                    member_id
+                }
+            } else {
+                let (member_id, next) = allocate_member(next_member_id)?;
+                next_member_id = next;
+                member_id
+            };
             let rank = u32::try_from(index + 1)
                 .ok()
                 .and_then(MemberRank::try_from_raw)

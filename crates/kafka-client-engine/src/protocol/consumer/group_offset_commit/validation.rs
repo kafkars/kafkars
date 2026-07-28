@@ -105,6 +105,16 @@ fn validate_session(
             limit: MAX_GROUP_OFFSET_COMMIT_ID_BYTES,
         },
     )?;
+    if let Some(group_instance_id) = &session.group_instance_id {
+        validate_id(
+            group_instance_id,
+            GroupOffsetCommitPreparationErrorKind::EmptyGroupInstance,
+            |actual| GroupOffsetCommitPreparationErrorKind::GroupInstanceTooLong {
+                actual,
+                limit: MAX_GROUP_OFFSET_COMMIT_ID_BYTES,
+            },
+        )?;
+    }
     let Ok(classic_generation) = i32::try_from(session.classic_generation) else {
         return Err(GroupOffsetCommitPreparationErrorKind::ClassicGenerationOutOfRange);
     };

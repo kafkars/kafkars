@@ -52,6 +52,43 @@ fn generated_request_is_complete_and_exactly_charged_before_core_admission() {
     );
 }
 
+#[test]
+fn static_session_carries_instance_into_the_prebuilt_request() {
+    let session = ClassicGroupCommitSession::new(
+        group_id(1),
+        Arc::from("group"),
+        member_id(2),
+        Arc::from("member"),
+        generation(3),
+        4,
+    )
+    .with_group_instance_id(Some(Arc::from("instance-a")));
+    let checkpoint = GroupCheckpoint::try_new(
+        group_id(1),
+        member_id(2),
+        generation(3),
+        vec![entry(1, 0, 11)],
+    )
+    .unwrap_or_else(|error| panic!("checkpoint: {error}"));
+    let prepared = PreparedGroupOffsetCommitRequest::try_new(
+        &session,
+        &checkpoint,
+        &[GroupOffsetCommitTopicName::new(
+            TopicId::from_raw(1),
+            Arc::from("orders"),
+        )],
+    )
+    .unwrap_or_else(|error| panic!("request preparation: {error:?}"));
+    assert_eq!(
+        prepared
+            .request_for_test()
+            .group_instance_id
+            .as_ref()
+            .map(kafka_wire_core::StrBytes::as_str),
+        Some("instance-a")
+    );
+}
+
 fn entry(topic: u64, partition: u32, next_offset: i64) -> GroupCheckpointEntry {
     GroupCheckpointEntry::try_new(
         TopicId::from_raw(topic),

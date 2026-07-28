@@ -19,6 +19,7 @@ use super::validation::{
 pub(crate) enum ClassicJoinRequestFailure {
     InvalidGroup,
     InvalidMember,
+    InvalidGroupInstance,
     TopicCount { actual: usize, limit: usize },
     InvalidTopic,
     DuplicateTopic,
@@ -52,7 +53,18 @@ pub(crate) fn classic_join_group_request(
     topics: &[Arc<str>],
     timing: ClassicGroupTiming,
 ) -> Result<PreparedClassicJoinGroupRequest, ClassicJoinRequestFailure> {
-    validate_inputs(group, member, topics)?;
+    classic_join_group_request_with_instance(group, member, None, topics, timing)
+}
+
+/// Builds one Range `JoinGroup` request with an optional static identity.
+pub(crate) fn classic_join_group_request_with_instance(
+    group: &str,
+    member: Option<&str>,
+    group_instance_id: Option<&str>,
+    topics: &[Arc<str>],
+    timing: ClassicGroupTiming,
+) -> Result<PreparedClassicJoinGroupRequest, ClassicJoinRequestFailure> {
+    validate_inputs(group, member, group_instance_id, topics)?;
     let mut subscription_topics = Vec::new();
     subscription_topics
         .try_reserve_exact(topics.len())
@@ -82,7 +94,7 @@ pub(crate) fn classic_join_group_request(
     request.session_timeout_ms = timing.session_timeout_ms();
     request.rebalance_timeout_ms = timing.rebalance_timeout_ms();
     request.member_id = member.unwrap_or_default().into();
-    request.group_instance_id = None;
+    request.group_instance_id = group_instance_id.map(Into::into);
     request.protocol_type = PROTOCOL_TYPE.into();
     request.protocols = protocols;
     request.reason = None;
@@ -92,6 +104,7 @@ pub(crate) fn classic_join_group_request(
 fn validate_inputs(
     group: &str,
     member: Option<&str>,
+    group_instance_id: Option<&str>,
     topics: &[Arc<str>],
 ) -> Result<(), ClassicJoinRequestFailure> {
     if !valid_kafka_string(group) {
@@ -99,6 +112,9 @@ fn validate_inputs(
     }
     if member.is_some_and(|value| !valid_kafka_string(value)) {
         return Err(ClassicJoinRequestFailure::InvalidMember);
+    }
+    if group_instance_id.is_some_and(|value| !valid_kafka_string(value)) {
+        return Err(ClassicJoinRequestFailure::InvalidGroupInstance);
     }
     if topics.len() > MAX_TOPICS {
         return Err(ClassicJoinRequestFailure::TopicCount {

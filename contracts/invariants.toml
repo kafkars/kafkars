@@ -1032,7 +1032,7 @@ evidence = [
 [[invariant]]
 id = "CON-16"
 title = "Classic group delivery is processing-fenced and loss-recoverable"
-statement = "Each installed dynamic classic-group assignment atomically arms one independent application-processing lease fenced by GroupId, nonreused MembershipCycle, and AssignmentGeneration. The public builder owns a positive nanosecond-representable duration with a 300-second default; membership-start deadline capture precedes validation and conversion, and pre-core rejection returns the exact builder. Progress before the lease boundary replaces the deadline, while progress at the boundary or deadline overflow retains exact assignment loss until matching revocation. The registry transfers only one already-authorized Fetch byte lease whose catalog, membership, assignment generation, and assigned-consumer epoch agree, takes fresh monotonic time only after acquiring that lease, and applies processing progress before external transfer. Clock, progress, or expiration failure reclaims the exact delivery; due processing loss runs before membership Heartbeat and uses one shared prepared processing, Fetch, and catalog revocation seam. A retained entry fault fences only that entry while unrelated groups remain schedulable. Immediate observation transfers one linear batch whose Drop reclaims the byte lease; consuming the batch yields one independently owned non-clone assignment-fenced checkpoint. The named runtime-neutral receive operation owns one bounded generation registration per group, arms before probing, rearms for semantic change without a missed-wake gap, invokes application wakers only on a dedicated off-reactor notifier, and treats Drop as observation abandonment rather than cancellation. This slice keeps dynamic membership, read-uncommitted Fetch, and missing-offset failure as fixed defaults and introduces no static identity, configurable isolation or reset, acknowledgement, commit, control, seek, graceful revocation, explicit close, callback, async runtime, or unsafe code."
+statement = "Each installed classic-group assignment atomically arms one independent application-processing lease fenced by GroupId, nonreused MembershipCycle, and AssignmentGeneration. The public builder owns a positive nanosecond-representable duration with a 300-second default; membership-start deadline capture precedes validation and conversion, and pre-core rejection returns the exact builder. Progress before the lease boundary replaces the deadline, while progress at the boundary or deadline overflow retains exact assignment loss until matching revocation. The registry transfers only one already-authorized Fetch byte lease whose catalog, membership, assignment generation, and assigned-consumer epoch agree, takes fresh monotonic time only after acquiring that lease, and applies processing progress before external transfer. Clock, progress, or expiration failure reclaims the exact delivery; due processing loss runs before membership Heartbeat and uses one shared prepared processing, Fetch, and catalog revocation seam. A retained entry fault fences only that entry while unrelated groups remain schedulable. Immediate observation transfers one linear batch whose Drop reclaims the byte lease; consuming the batch yields one independently owned non-clone assignment-fenced checkpoint. The named runtime-neutral receive operation owns one bounded generation registration per group, arms before probing, rearms for semantic change without a missed-wake gap, invokes application wakers only on a dedicated off-reactor notifier, and treats Drop as observation abandonment rather than cancellation. This slice keeps read-uncommitted Fetch and missing-offset failure as fixed defaults and introduces no configurable isolation or reset, acknowledgement, commit, control, seek, graceful revocation, explicit close, callback, async runtime, or unsafe code."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/consumer/classic_group/processing_lease_test.rs::activation_and_progress_replace_one_exact_deadline",
@@ -1055,9 +1055,37 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/group_recv_test.rs::change_published_during_probe_rearm_remains_observable",
   "crates/kafka-client-engine/src/consumer/group_recv_test.rs::pending_recv_wakes_only_on_the_group_notifier",
   "crates/kafka-client-engine/src/consumer/group_recv_test.rs::drop_cancels_only_observation_and_preserves_ready_delivery",
-  "crates/kafka-client/src/consumer/group_test.rs::builder_and_unique_handle_expose_only_base_dynamic_group_capabilities",
+  "crates/kafka-client/src/consumer/group_test.rs::builder_and_unique_handle_expose_static_identity_without_control_capabilities",
   "crates/kafka-client/src/consumer/consumer_batch_test.rs::batch_is_send_linear_iterable_and_yields_one_checkpoint",
   "crates/kafka-client/src/consumer/group_recv_test.rs::recv_is_send_linear_and_borrows_the_unique_consumer",
+]
+
+[[invariant]]
+id = "CON-17"
+title = "Static classic membership is identity-bounded and same-deadline fenced"
+statement = "Static classic membership is opt-in and retains one nonempty bounded group-instance spelling in the engine session catalog without changing the dynamic-member default. Static Join uses exactly v5 and preserves the configured instance identity. A v5 MEMBER_ID_REQUIRED terminal stages one bounded broker-assigned member spelling, maps it to one nonreused scalar MemberId, and applies a deterministic same-cycle replacement Join under the original timing and absolute deadline; malformed, duplicate, stale, out-of-phase, expired, or mismatched handshakes cannot mutate or activate the session. The later successful Join must match that retained member identity. Static Sync and Heartbeat use exactly v3, while dynamic requests retain their existing windows and dynamic MEMBER_ID_REQUIRED remains an ordinary exact broker rejection. Confirmed GroupMetadata carries the configured instance identity into ordinary OffsetCommit, whose static session requires v7 without changing the v9 ceiling. No LeaveGroup, transactional offset transfer, callback, async runtime, retry clock, coordinator cache, or second identity owner is introduced."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/consumer/classic_group/member_id_required_test.rs::replacement_retains_cycle_identity_and_original_deadline_once",
+  "crates/kafka-client-core/src/consumer/classic_group/member_id_required_test.rs::malformed_stale_and_expired_replacements_are_rejected",
+  "crates/kafka-client-core/src/consumer/classic_group/member_id_required_test.rs::join_success_must_match_the_assigned_identity",
+  "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_request_test.rs::static_request_carries_instance_and_round_trips_at_v5",
+  "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_test.rs::v5_member_id_required_retains_the_broker_assigned_spelling",
+  "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_test.rs::dynamic_member_id_required_remains_an_exact_broker_rejection",
+  "crates/kafka-client-engine/src/protocol/consumer/classic_group/join_response_members_test.rs::v5_leader_accepts_bounded_static_member_identities",
+  "crates/kafka-client-engine/src/driver/rpc/join_group_submission_test.rs::static_membership_uses_the_exact_v5_window",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_join_interpret/member_id_required_test.rs::static_member_id_required_stages_one_same_cycle_same_deadline_replacement_join",
+  "crates/kafka-client-engine/src/consumer/group/classic_group_candidate_prepare_test.rs::member_id_required_spelling_reuses_the_staged_catalog_identity",
+  "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_request_test.rs::static_follower_request_carries_instance_and_round_trips_at_v3",
+  "crates/kafka-client-engine/src/driver/rpc/sync_group_submission_test.rs::static_membership_uses_the_exact_v3_window",
+  "crates/kafka-client-engine/src/protocol/consumer/classic_group/heartbeat_request_test.rs::static_request_carries_instance_and_round_trips_at_v3",
+  "crates/kafka-client-engine/src/driver/rpc/heartbeat_submission_test.rs::static_membership_uses_the_exact_v3_window",
+  "crates/kafka-client-engine/src/consumer/group/registry_test.rs::confirmed_static_state_carries_the_configured_instance_identity",
+  "crates/kafka-client-engine/src/consumer/group/offset_commit/snapshot_test.rs::static_snapshot_preserves_the_registered_instance_identity",
+  "crates/kafka-client-engine/src/protocol/consumer/group_offset_commit/prepared_request_test.rs::static_session_carries_instance_into_the_prebuilt_request",
+  "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_submission_test.rs::static_membership_requires_v7_without_changing_v9_ceiling",
+  "crates/kafka-client/src/consumer/group_test.rs::static_identity_is_opt_in_and_exactly_recovered_on_invalid_registration",
+  "crates/kafka-client/src/consumer/group_event_test.rs::group_metadata_retains_the_configured_static_identity",
 ]
 
 [[invariant]]

@@ -1,8 +1,9 @@
-//! Public dynamic classic-group registration ownership contract.
+//! Public classic-group registration and optional static-identity contract.
 
 use std::time::Duration;
 
 use super::{Consumer, ConsumerBuilder, RecvConsumerBatch};
+use crate::{Client, ErrorKind};
 
 macro_rules! assert_not_impl {
     ($type:ty: $trait:path) => {
@@ -19,13 +20,15 @@ macro_rules! assert_not_impl {
 }
 
 #[test]
-fn builder_and_unique_handle_expose_only_base_dynamic_group_capabilities() {
+fn builder_and_unique_handle_expose_static_identity_without_control_capabilities() {
     fn require_send<T: Send>() {}
     fn builder_contract(builder: ConsumerBuilder) {
         let builder = builder
+            .group_instance_id("instance-a")
             .subscribe(["orders"])
             .processing_timeout(Duration::from_secs(41));
         let _: &str = builder.group_id();
+        let _: Option<&str> = builder.selected_group_instance_id();
         let _: &[String] = builder.subscription();
         let _: Duration = builder.selected_processing_timeout();
     }
@@ -40,4 +43,39 @@ fn builder_and_unique_handle_expose_only_base_dynamic_group_capabilities() {
     assert_not_impl!(Consumer: Sync);
     let _ = builder_contract as fn(ConsumerBuilder);
     let _ = handle_contract as fn(&mut Consumer);
+}
+
+#[test]
+fn static_identity_is_opt_in_and_exactly_recovered_on_invalid_registration() {
+    let client = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .build()
+        .unwrap_or_else(|error| panic!("lazy client start: {error}"));
+    assert_eq!(
+        client
+            .consumer("dynamic-workers")
+            .selected_group_instance_id(),
+        None
+    );
+    let builder = client
+        .consumer("static-workers")
+        .group_instance_id("instance-a");
+    assert_eq!(builder.selected_group_instance_id(), Some("instance-a"));
+
+    let rejected = client
+        .consumer("static-workers")
+        .group_instance_id("")
+        .subscribe(["orders"])
+        .processing_timeout(Duration::from_secs(41))
+        .build()
+        .err()
+        .unwrap_or_else(|| panic!("empty static identity must reject"));
+    assert_eq!(rejected.error().kind(), ErrorKind::Configuration);
+    assert_eq!(rejected.builder().group_id(), "static-workers");
+    assert_eq!(rejected.builder().selected_group_instance_id(), Some(""));
+    assert_eq!(rejected.builder().subscription(), ["orders"]);
+    assert_eq!(
+        rejected.builder().selected_processing_timeout(),
+        Duration::from_secs(41)
+    );
 }

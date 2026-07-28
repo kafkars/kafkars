@@ -27,7 +27,8 @@ pub(crate) use super::request_timeout::remaining_timeout_ms;
 #[expect(unused_imports, reason = "awaiting classic-group membership executor")]
 pub(crate) use classic_group::{
     CLASSIC_HEARTBEAT_MAX_VERSION, CLASSIC_HEARTBEAT_MIN_VERSION, CLASSIC_JOIN_MAX_VERSION,
-    CLASSIC_JOIN_MIN_VERSION, CLASSIC_SYNC_MAX_MEMBER_PARTITIONS, CLASSIC_SYNC_MAX_VERSION,
+    CLASSIC_JOIN_MIN_VERSION, CLASSIC_STATIC_HEARTBEAT_VERSION, CLASSIC_STATIC_JOIN_VERSION,
+    CLASSIC_STATIC_SYNC_VERSION, CLASSIC_SYNC_MAX_MEMBER_PARTITIONS, CLASSIC_SYNC_MAX_VERSION,
     CLASSIC_SYNC_MIN_VERSION, ClassicBrokerRejection, ClassicHeartbeatOutcome,
     ClassicHeartbeatRequestFailure, ClassicHeartbeatResponseFailure, ClassicJoinOutcome,
     ClassicJoinRequestFailure, ClassicJoinResponseFailure, ClassicJoinedGroup, ClassicJoinedMember,
@@ -35,9 +36,11 @@ pub(crate) use classic_group::{
     ClassicSyncResponseFailure, ClassicSyncTopic, NamedAssignmentPartition,
     PreparedClassicHeartbeatRequest, PreparedClassicJoinGroupRequest,
     PreparedClassicSyncGroupRequest, classic_follower_sync_group_request,
-    classic_heartbeat_request, classic_join_group_request, classic_sync_group_request,
-    normalize_classic_heartbeat_response, normalize_classic_join_response,
-    normalize_classic_sync_response,
+    classic_follower_sync_group_request_with_instance, classic_heartbeat_request,
+    classic_heartbeat_request_with_instance, classic_join_group_request,
+    classic_join_group_request_with_instance, classic_sync_group_request,
+    classic_sync_group_request_with_instance, normalize_classic_heartbeat_response,
+    normalize_classic_join_response, normalize_classic_sync_response,
 };
 #[expect(unused_imports, reason = "awaiting classic-group commit executor")]
 pub(crate) use group_offset_commit::{

@@ -60,6 +60,7 @@ impl GroupConsumerAssignment {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroupConsumerMetadata {
     group: Arc<str>,
+    group_instance_id: Option<Arc<str>>,
     member: Arc<str>,
     generation_id: i32,
     assignment_epoch: u64,
@@ -67,8 +68,9 @@ pub struct GroupConsumerMetadata {
 }
 
 impl GroupConsumerMetadata {
-    pub(crate) const fn new(
+    pub(crate) const fn new_with_group_instance_id(
         group: Arc<str>,
+        group_instance_id: Option<Arc<str>>,
         member: Arc<str>,
         generation_id: i32,
         assignment_epoch: u64,
@@ -76,6 +78,7 @@ impl GroupConsumerMetadata {
     ) -> Self {
         Self {
             group,
+            group_instance_id,
             member,
             generation_id,
             assignment_epoch,
@@ -86,6 +89,11 @@ impl GroupConsumerMetadata {
     /// Returns the exact Kafka group spelling.
     pub fn group(&self) -> &str {
         &self.group
+    }
+
+    /// Returns the configured stable classic-group member identity, when present.
+    pub fn group_instance_id(&self) -> Option<&str> {
+        self.group_instance_id.as_deref()
     }
 
     /// Returns the broker-issued classic-group member identity.

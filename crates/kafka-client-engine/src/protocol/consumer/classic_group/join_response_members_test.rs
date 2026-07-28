@@ -44,6 +44,23 @@ fn leader_members_are_bounded_dynamic_and_uniquely_correlated() {
 }
 
 #[test]
+fn v5_leader_accepts_bounded_static_member_identities() {
+    let mut raw = response("a", "a");
+    raw.members = vec![member("a", &["orders"])];
+    raw.members[0].group_instance_id = Some("instance-a".into());
+    assert!(matches!(
+        normalize_classic_join_response(5, &raw),
+        Ok(ClassicJoinOutcome::Joined(_))
+    ));
+
+    raw.members[0].group_instance_id = Some("".into());
+    assert_eq!(
+        normalize_classic_join_response(5, &raw),
+        Err(ClassicJoinResponseFailure::StaticMember)
+    );
+}
+
+#[test]
 fn subscription_version_and_duplicate_topics_are_rejected() {
     let mut raw = response("a", "a");
     raw.members = vec![member("a", &["orders"])];

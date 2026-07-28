@@ -15,6 +15,8 @@ pub(super) const COUNT_SUBMISSION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_submission.rs";
 pub(super) const LEADER: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_owner_leader.rs";
+pub(super) const SYNC_REQUEST: &str =
+    "crates/kafka-client-engine/src/protocol/consumer/classic_group/sync_request.rs";
 pub(super) const EXECUTION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_execution_partition_counts.rs";
 pub(super) const STATE: &str =

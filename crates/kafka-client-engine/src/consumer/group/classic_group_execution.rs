@@ -48,6 +48,7 @@ impl ClassicGroupExecution {
                 group_id,
                 cycle,
                 protocol,
+                member_id: None,
                 timing,
                 deadline,
             }) if group_id == owner.machine().group_id()

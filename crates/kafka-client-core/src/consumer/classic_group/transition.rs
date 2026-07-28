@@ -49,6 +49,7 @@ impl ClassicGroupMachine {
             group_id: self.group_id,
             cycle,
             protocol: ClassicProtocol::Range,
+            member_id: None,
             timing: self.timing(),
             deadline,
         };
@@ -69,6 +70,7 @@ impl ClassicGroupMachine {
         generation: ClassicGeneration,
     ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         let deadline = validate_active(self, ClassicGroupPhase::Joining, cycle, now)?;
+        self.validate_join_member_id(member_id)?;
         let heartbeat_liveness = self.heartbeat_liveness_after(now)?;
         let effect = ClassicGroupEffect::Sync {
             group_id: self.group_id,
@@ -97,6 +99,7 @@ impl ClassicGroupMachine {
         members: ClassicJoinMembers,
     ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         let deadline = validate_active(self, ClassicGroupPhase::Joining, cycle, now)?;
+        self.validate_join_member_id(member_id)?;
         let heartbeat_liveness = self.heartbeat_liveness_after(now)?;
         if !local_member_is_present(&members, local_slot, member_id) {
             return Err(ClassicGroupErrorKind::LocalMemberMissing);

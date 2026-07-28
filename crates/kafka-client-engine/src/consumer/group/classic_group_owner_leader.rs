@@ -1,5 +1,7 @@
 //! Core-authorized classic-leader candidate, count, and Sync preparation.
 
+use std::sync::Arc;
+
 use kafka_client_core::{
     ClassicGeneration, ClassicGroupEffect, ClassicGroupInput, ClassicGroupPhase, Moment,
 };
@@ -7,7 +9,8 @@ use kafka_client_core::{
 use crate::{
     clock::OperationDeadline,
     protocol::consumer::{
-        ClassicSyncMember, ClassicSyncRequestFailure, ClassicSyncTopic, classic_sync_group_request,
+        ClassicSyncMember, ClassicSyncRequestFailure, ClassicSyncTopic,
+        classic_sync_group_request_with_instance,
     },
 };
 
@@ -132,9 +135,10 @@ impl ClassicGroupOwner {
             }
             _ => return Err(ClassicGroupLeaderCountError::UnexpectedSyncEffect),
         };
-        let request = classic_sync_group_request(
+        let request = classic_sync_group_request_with_instance(
             catalog.group(),
             &local_member,
+            catalog.group_instance_id().map(Arc::as_ref),
             generation,
             plan,
             &members,

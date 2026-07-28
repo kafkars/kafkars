@@ -18,9 +18,22 @@ fn assignment_retains_named_epoch_fence() {
 
 #[test]
 fn group_metadata_retains_dynamic_membership_facts() {
-    let metadata = GroupMetadata::from_parts("workers".into(), "member-1".into(), 7, 3);
+    let metadata = GroupMetadata::from_parts("workers".into(), "member-1".into(), 7, 3, None);
     assert_eq!(metadata.group_id(), "workers");
     assert_eq!(metadata.member_id(), "member-1");
     assert_eq!(metadata.generation_id(), 7);
     assert_eq!(metadata.assignment_epoch(), 3);
+    assert_eq!(metadata.group_instance_id(), None);
+}
+
+#[test]
+fn group_metadata_retains_the_configured_static_identity() {
+    let metadata = GroupMetadata::from_parts(
+        "workers".into(),
+        "member-1".into(),
+        7,
+        3,
+        Some("instance-a".into()),
+    );
+    assert_eq!(metadata.group_instance_id(), Some("instance-a"));
 }

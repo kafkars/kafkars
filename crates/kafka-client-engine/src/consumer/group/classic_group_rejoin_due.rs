@@ -90,6 +90,7 @@ fn apply_due_transition(
             group_id,
             cycle,
             protocol,
+            member_id: None,
             timing,
             deadline,
         }) => PendingClassicRejoinJoin::new(group_id, cycle, protocol, timing, deadline),

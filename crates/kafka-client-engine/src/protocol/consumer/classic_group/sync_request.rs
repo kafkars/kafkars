@@ -7,14 +7,21 @@ use kafka_wire_core::EncodeError;
 use super::{
     ClassicSyncMember, ClassicSyncTopic,
     sync_assignment::materialize_assignment,
-    validation::{MAX_MEMBERS, MAX_TOPICS, valid_kafka_string, valid_topic},
+    validation::{MAX_MEMBERS, MAX_TOPICS, valid_kafka_string},
 };
+
+mod plan_validation;
+#[cfg(test)]
+mod plan_validation_test;
+
+use plan_validation::{member_for_slot, validate_members, validate_topics};
 
 /// Local plan-correlation or encoding failure before driver ownership.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ClassicSyncRequestFailure {
     InvalidGroup,
     InvalidMember,
+    InvalidGroupInstance,
     MemberCount { actual: usize, limit: usize },
     TopicCount { actual: usize, limit: usize },
     InvalidMappedMember,
@@ -59,7 +66,35 @@ pub(crate) fn classic_sync_group_request(
     members: &[ClassicSyncMember],
     topics: &[ClassicSyncTopic],
 ) -> Result<PreparedClassicSyncGroupRequest, ClassicSyncRequestFailure> {
-    validate_inputs(group, local_member, plan.entries(), members, topics)?;
+    classic_sync_group_request_with_instance(
+        group,
+        local_member,
+        None,
+        generation,
+        plan,
+        members,
+        topics,
+    )
+}
+
+/// Builds one complete-plan request with an optional static identity.
+pub(crate) fn classic_sync_group_request_with_instance(
+    group: &str,
+    local_member: &str,
+    group_instance_id: Option<&str>,
+    generation: ClassicGeneration,
+    plan: ClassicAssignmentPlan,
+    members: &[ClassicSyncMember],
+    topics: &[ClassicSyncTopic],
+) -> Result<PreparedClassicSyncGroupRequest, ClassicSyncRequestFailure> {
+    validate_inputs(
+        group,
+        local_member,
+        group_instance_id,
+        plan.entries(),
+        members,
+        topics,
+    )?;
     let mut assignments = Vec::new();
     assignments
         .try_reserve_exact(plan.entries().len())
@@ -73,7 +108,13 @@ pub(crate) fn classic_sync_group_request(
         assignments.push(assignment);
     }
     Ok(PreparedClassicSyncGroupRequest {
-        request: sync_request(group, local_member, generation, assignments),
+        request: sync_request(
+            group,
+            local_member,
+            group_instance_id,
+            generation,
+            assignments,
+        ),
     })
 }
 
@@ -83,15 +124,32 @@ pub(crate) fn classic_follower_sync_group_request(
     local_member: &str,
     generation: ClassicGeneration,
 ) -> Result<PreparedClassicSyncGroupRequest, ClassicSyncRequestFailure> {
-    validate_inputs(group, local_member, &[], &[], &[])?;
+    classic_follower_sync_group_request_with_instance(group, local_member, None, generation)
+}
+
+/// Builds an empty-plan follower request with an optional static identity.
+pub(crate) fn classic_follower_sync_group_request_with_instance(
+    group: &str,
+    local_member: &str,
+    group_instance_id: Option<&str>,
+    generation: ClassicGeneration,
+) -> Result<PreparedClassicSyncGroupRequest, ClassicSyncRequestFailure> {
+    validate_inputs(group, local_member, group_instance_id, &[], &[], &[])?;
     Ok(PreparedClassicSyncGroupRequest {
-        request: sync_request(group, local_member, generation, Vec::new()),
+        request: sync_request(
+            group,
+            local_member,
+            group_instance_id,
+            generation,
+            Vec::new(),
+        ),
     })
 }
 
 fn sync_request(
     group: &str,
     local_member: &str,
+    group_instance_id: Option<&str>,
     generation: ClassicGeneration,
     assignments: Vec<SyncGroupRequestAssignment>,
 ) -> SyncGroupRequest {
@@ -99,7 +157,7 @@ fn sync_request(
     request.group_id = group.into();
     request.generation_id = generation.get();
     request.member_id = local_member.into();
-    request.group_instance_id = None;
+    request.group_instance_id = group_instance_id.map(Into::into);
     request.protocol_type = None;
     request.protocol_name = None;
     request.assignments = assignments;
@@ -109,6 +167,7 @@ fn sync_request(
 fn validate_inputs(
     group: &str,
     local_member: &str,
+    group_instance_id: Option<&str>,
     plan: &[kafka_client_core::ClassicMemberAssignment],
     members: &[ClassicSyncMember],
     topics: &[ClassicSyncTopic],
@@ -118,6 +177,9 @@ fn validate_inputs(
     }
     if !valid_kafka_string(local_member) {
         return Err(ClassicSyncRequestFailure::InvalidMember);
+    }
+    if group_instance_id.is_some_and(|value| !valid_kafka_string(value)) {
+        return Err(ClassicSyncRequestFailure::InvalidGroupInstance);
     }
     if members.len() > MAX_MEMBERS {
         return Err(ClassicSyncRequestFailure::MemberCount {
@@ -133,85 +195,4 @@ fn validate_inputs(
     }
     validate_members(plan, members, local_member)?;
     validate_topics(topics)
-}
-
-fn validate_members(
-    plan: &[kafka_client_core::ClassicMemberAssignment],
-    members: &[ClassicSyncMember],
-    local_member: &str,
-) -> Result<(), ClassicSyncRequestFailure> {
-    if plan.is_empty() {
-        return if members.is_empty() {
-            Ok(())
-        } else {
-            Err(ClassicSyncRequestFailure::UnexpectedMember(
-                members[0].slot(),
-            ))
-        };
-    }
-    for (index, member) in members.iter().enumerate() {
-        if !valid_kafka_string(member.member()) {
-            return Err(ClassicSyncRequestFailure::InvalidMappedMember);
-        }
-        if members[..index]
-            .iter()
-            .any(|prior| prior.slot() == member.slot())
-        {
-            return Err(ClassicSyncRequestFailure::DuplicateMemberSlot(
-                member.slot(),
-            ));
-        }
-        if members[..index]
-            .iter()
-            .any(|prior| prior.member() == member.member())
-        {
-            return Err(ClassicSyncRequestFailure::DuplicateMember);
-        }
-        if !plan.iter().any(|entry| entry.slot() == member.slot()) {
-            return Err(ClassicSyncRequestFailure::UnexpectedMember(member.slot()));
-        }
-    }
-    for entry in plan {
-        if !members.iter().any(|member| member.slot() == entry.slot()) {
-            return Err(ClassicSyncRequestFailure::MissingMember(entry.slot()));
-        }
-    }
-    if !members.iter().any(|member| member.member() == local_member) {
-        return Err(ClassicSyncRequestFailure::LocalMemberMissing);
-    }
-    Ok(())
-}
-
-fn validate_topics(topics: &[ClassicSyncTopic]) -> Result<(), ClassicSyncRequestFailure> {
-    for (index, topic) in topics.iter().enumerate() {
-        if !valid_topic(topic.topic()) {
-            return Err(ClassicSyncRequestFailure::InvalidMappedTopic);
-        }
-        if topics[..index]
-            .iter()
-            .any(|prior| prior.topic_id() == topic.topic_id())
-        {
-            return Err(ClassicSyncRequestFailure::DuplicateTopicId(
-                topic.topic_id(),
-            ));
-        }
-        if topics[..index]
-            .iter()
-            .any(|prior| prior.topic() == topic.topic())
-        {
-            return Err(ClassicSyncRequestFailure::DuplicateTopic);
-        }
-    }
-    Ok(())
-}
-
-fn member_for_slot(
-    members: &[ClassicSyncMember],
-    slot: JoinedMemberSlot,
-) -> Result<&str, ClassicSyncRequestFailure> {
-    members
-        .iter()
-        .find(|member| member.slot() == slot)
-        .map(ClassicSyncMember::member)
-        .ok_or(ClassicSyncRequestFailure::MissingMember(slot))
 }

@@ -25,6 +25,7 @@ impl GroupSessionCatalog {
         self.next_member_id = next_member_id;
         self.next_topic_id = next_topic_id;
         self.retained_topic_name_bytes = retained_topic_name_bytes;
+        self.required_join_member = None;
         self.current = Some(CurrentGroupSession {
             member_id: assignment.member_id(),
             member,

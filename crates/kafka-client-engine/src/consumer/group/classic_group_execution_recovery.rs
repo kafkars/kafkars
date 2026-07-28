@@ -88,6 +88,9 @@ impl ClassicGroupExecution {
                     JoinRecoveryState::Confirmation(ClassicGroupJoinSuccessor::Idle) => {
                         ClassicGroupExecutionState::Idle
                     }
+                    JoinRecoveryState::Confirmation(ClassicGroupJoinSuccessor::Join(prepared)) => {
+                        ClassicGroupExecutionState::PreparedJoin(prepared)
+                    }
                     JoinRecoveryState::Confirmation(
                         ClassicGroupJoinSuccessor::PartitionCounts(prepared),
                     ) => ClassicGroupExecutionState::PreparedPartitionCounts(prepared),

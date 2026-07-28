@@ -17,6 +17,15 @@ pub enum ClassicGroupInput {
         /// Original absolute membership deadline.
         deadline: Deadline,
     },
+    /// The broker assigned the identity required for a same-cycle KIP-394 Join replacement.
+    JoinMemberIdRequired {
+        /// Exact cycle that issued the rejected Join.
+        cycle: MembershipCycle,
+        /// Current monotonic observation.
+        now: Moment,
+        /// Broker-assigned identity, absent when the response was malformed.
+        assigned_member_id: Option<MemberId>,
+    },
     /// Join succeeded and this member is not the group leader.
     JoinFollower {
         /// Exact cycle that issued Join.

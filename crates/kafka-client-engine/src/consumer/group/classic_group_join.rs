@@ -1,9 +1,6 @@
 //! Exact prepared Join transfer state between local scheduling and driver ownership.
-
-use kafka_client_core::{ClassicGroupTiming, ClassicProtocol, GroupId, MembershipCycle};
-
-use super::classic_group_assignment::ClassicGroupRevocationFailure;
 use super::{
+    classic_group_assignment::ClassicGroupRevocationFailure,
     classic_group_join_call::ClassicGroupJoinCallOwner,
     classic_group_partition_count_call::{
         ClassicGroupPartitionCountCall, ClassicGroupPartitionCountCallIdentity,
@@ -13,8 +10,8 @@ use super::{
         ClassicGroupSyncDriverOwner, ClassicGroupSyncIdentity, PreparedClassicGroupSync,
     },
 };
-
 use crate::clock::OperationDeadline;
+use kafka_client_core::{ClassicGroupTiming, ClassicProtocol, GroupId, MemberId, MembershipCycle};
 
 /// Complete immutable identity of one core-emitted Join effect.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -22,6 +19,7 @@ pub(super) struct ClassicGroupJoinIdentity {
     group_identity: GroupId,
     join_cycle: MembershipCycle,
     selected_protocol: ClassicProtocol,
+    assigned_member_id: Option<MemberId>,
     group_timing: ClassicGroupTiming,
     absolute_deadline: OperationDeadline,
 }
@@ -92,6 +90,7 @@ pub(super) enum ClassicGroupExecutionState {
 
 pub(super) enum ClassicGroupJoinSuccessor {
     Idle,
+    Join(PreparedClassicGroupJoin),
     PartitionCounts(PreparedClassicGroupPartitionCounts),
     Sync(PreparedClassicGroupSync),
 }
@@ -104,11 +103,23 @@ impl PreparedClassicGroupJoin {
         timing: ClassicGroupTiming,
         deadline: OperationDeadline,
     ) -> Self {
+        Self::new_with_member_id(group_id, cycle, protocol, None, timing, deadline)
+    }
+
+    pub(super) const fn new_with_member_id(
+        group_id: GroupId,
+        cycle: MembershipCycle,
+        protocol: ClassicProtocol,
+        member_id: Option<MemberId>,
+        timing: ClassicGroupTiming,
+        deadline: OperationDeadline,
+    ) -> Self {
         Self {
             prepared_join_identity: ClassicGroupJoinIdentity {
                 group_identity: group_id,
                 join_cycle: cycle,
                 selected_protocol: protocol,
+                assigned_member_id: member_id,
                 group_timing: timing,
                 absolute_deadline: deadline,
             },
@@ -131,6 +142,10 @@ impl PreparedClassicGroupJoin {
         self.prepared_join_identity.protocol()
     }
 
+    pub(super) const fn member_id(&self) -> Option<MemberId> {
+        self.prepared_join_identity.member_id()
+    }
+
     pub(super) const fn timing(&self) -> ClassicGroupTiming {
         self.prepared_join_identity.timing()
     }
@@ -151,6 +166,10 @@ impl ClassicGroupJoinIdentity {
 
     pub(super) const fn protocol(self) -> ClassicProtocol {
         self.selected_protocol
+    }
+
+    pub(super) const fn member_id(self) -> Option<MemberId> {
+        self.assigned_member_id
     }
 
     pub(super) const fn timing(self) -> ClassicGroupTiming {

@@ -50,11 +50,14 @@ impl GroupOffsetCommitCallPermit<'_> {
         prepared: PreparedGroupOffsetCommit,
         request: PreparedGroupOffsetCommitRequest,
     ) -> Result<GroupOffsetCommitInput, GroupOffsetCommitPrebuiltAdmissionFailure> {
+        let request = request.into_generated_offset_commit_request();
+        let static_membership = request.group_instance_id.is_some();
         let call = match driver.submit_tracked_group_offset_commit(
             prepared.group().as_ref(),
-            request.into_generated_offset_commit_request(),
+            request,
             prepared.operation_deadline().transport(),
             prepared.requires_leader_epoch(),
+            static_membership,
         ) {
             Ok(call) => call,
             Err(source) => {

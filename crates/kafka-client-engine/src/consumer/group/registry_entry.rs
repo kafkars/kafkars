@@ -77,10 +77,41 @@ impl GroupConsumerEntry {
         rejoin_policy: ClassicRejoinPolicy,
         processing_policy: ClassicProcessingLeasePolicy,
     ) -> Result<Self, GroupConsumerEntryBuildError> {
+        Self::try_new_with_configuration(
+            group_id,
+            group,
+            None,
+            local_topics,
+            timing,
+            heartbeat_policy,
+            rejoin_policy,
+            processing_policy,
+        )
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one bounded entry receives one explicit immutable membership configuration"
+    )]
+    pub(super) fn try_new_with_configuration(
+        group_id: GroupId,
+        group: &Arc<str>,
+        group_instance_id: Option<&Arc<str>>,
+        local_topics: &[Arc<str>],
+        timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
+        processing_policy: ClassicProcessingLeasePolicy,
+    ) -> Result<Self, GroupConsumerEntryBuildError> {
         Ok(Self {
             state: GroupConsumerEntryState::Active,
-            catalog: GroupSessionCatalog::try_new(group_id, Arc::clone(group), local_topics)
-                .map_err(GroupConsumerEntryBuildError::Catalog)?,
+            catalog: GroupSessionCatalog::try_new_with_group_instance_id(
+                group_id,
+                Arc::clone(group),
+                group_instance_id.cloned(),
+                local_topics,
+            )
+            .map_err(GroupConsumerEntryBuildError::Catalog)?,
             classic: ClassicGroupOwner::new(group_id, timing, heartbeat_policy, rejoin_policy),
             execution: new_classic_group_execution(),
             fetch: ClassicGroupFetchOwner::try_new()
@@ -99,7 +130,7 @@ impl GroupConsumerEntry {
     }
 
     pub(super) fn group_bytes(&self) -> usize {
-        self.catalog.group().len()
+        self.catalog.retained_identity_bytes()
     }
 
     pub(super) const fn is_active(&self) -> bool {

@@ -41,10 +41,36 @@ impl GroupConsumerPort {
         rejoin_policy: ClassicRejoinPolicy,
         processing_policy: ClassicProcessingLeasePolicy,
     ) -> Result<GroupId, GroupConsumerPortRegistrationFailure> {
+        self.try_register_with_configuration(
+            group,
+            None,
+            local_topics,
+            timing,
+            heartbeat_policy,
+            rejoin_policy,
+            processing_policy,
+        )
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one bounded port admission forwards one explicit immutable identity and policy set"
+    )]
+    pub(crate) fn try_register_with_configuration(
+        &self,
+        group: Arc<str>,
+        group_instance_id: Option<Arc<str>>,
+        local_topics: Vec<Arc<str>>,
+        timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
+        processing_policy: ClassicProcessingLeasePolicy,
+    ) -> Result<GroupId, GroupConsumerPortRegistrationFailure> {
         if self.shared.admission_is_closed() {
             return Err(registration_failure(
                 GroupConsumerPortRegistrationFailureKind::CLOSED,
                 group,
+                group_instance_id,
                 local_topics,
             ));
         }
@@ -54,6 +80,7 @@ impl GroupConsumerPort {
                 return Err(registration_failure(
                     GroupConsumerPortRegistrationFailureKind::lock(error),
                     group,
+                    group_instance_id,
                     local_topics,
                 ));
             }
@@ -62,12 +89,14 @@ impl GroupConsumerPort {
             return Err(registration_failure(
                 GroupConsumerPortRegistrationFailureKind::CLOSED,
                 group,
+                group_instance_id,
                 local_topics,
             ));
         }
         registry
-            .try_register_with_processing_policy(
+            .try_register_with_configuration(
                 group,
+                group_instance_id,
                 local_topics,
                 timing,
                 heartbeat_policy,
@@ -77,6 +106,7 @@ impl GroupConsumerPort {
             .map_err(|failure| GroupConsumerPortRegistrationFailure {
                 kind: GroupConsumerPortRegistrationFailureKind::registry(failure.kind),
                 group: failure.group,
+                group_instance_id: failure.group_instance_id,
                 local_topics: failure.local_topics,
             })
     }
@@ -86,6 +116,7 @@ impl GroupConsumerPort {
 pub(crate) struct GroupConsumerPortRegistrationFailure {
     pub(crate) kind: GroupConsumerPortRegistrationFailureKind,
     pub(crate) group: Arc<str>,
+    pub(crate) group_instance_id: Option<Arc<str>>,
     pub(crate) local_topics: Vec<Arc<str>>,
 }
 
@@ -144,6 +175,8 @@ impl GroupConsumerPortRegistrationFailureKind {
                 GroupConsumerRegistrationFailureKind::Catalog(
                     GroupSessionCatalogError::EmptyGroup
                     | GroupSessionCatalogError::GroupBytes { .. }
+                    | GroupSessionCatalogError::EmptyGroupInstance
+                    | GroupSessionCatalogError::GroupInstanceBytes { .. }
                     | GroupSessionCatalogError::EmptyTopic
                     | GroupSessionCatalogError::TopicBytes { .. }
                     | GroupSessionCatalogError::RetainedTopicCapacity { .. }
@@ -187,11 +220,13 @@ impl core::fmt::Debug for GroupConsumerPortRegistrationFailureKind {
 fn registration_failure(
     kind: GroupConsumerPortRegistrationFailureKind,
     group: Arc<str>,
+    group_instance_id: Option<Arc<str>>,
     local_topics: Vec<Arc<str>>,
 ) -> GroupConsumerPortRegistrationFailure {
     GroupConsumerPortRegistrationFailure {
         kind,
         group,
+        group_instance_id,
         local_topics,
     }
 }

@@ -19,6 +19,7 @@ use super::{
 pub(super) fn normalize_members(
     members: &[JoinGroupResponseMember],
     local_member: &str,
+    selected_version: i16,
 ) -> Result<Vec<ClassicJoinedMember>, ClassicJoinResponseFailure> {
     if members.is_empty() || members.len() > MAX_MEMBERS {
         return Err(ClassicJoinResponseFailure::MemberCount {
@@ -26,7 +27,7 @@ pub(super) fn normalize_members(
             limit: MAX_MEMBERS,
         });
     }
-    let decoded = preflight_members(members)?;
+    let decoded = preflight_members(members, selected_version)?;
     if !members
         .iter()
         .any(|member| member.member_id.as_str() == local_member)
@@ -63,6 +64,7 @@ pub(super) fn normalize_members(
 
 fn preflight_members(
     members: &[JoinGroupResponseMember],
+    selected_version: i16,
 ) -> Result<Vec<ConsumerProtocolSubscription>, ClassicJoinResponseFailure> {
     let mut member_bytes = 0usize;
     let mut topic_bytes = 0usize;
@@ -71,7 +73,7 @@ fn preflight_members(
         .try_reserve_exact(members.len())
         .map_err(|_error| ClassicJoinResponseFailure::Allocation)?;
     for (index, member) in members.iter().enumerate() {
-        validate_outer_member(members, index)?;
+        validate_outer_member(members, index, selected_version)?;
         member_bytes = member_bytes
             .checked_add(member.member_id.len())
             .filter(|bytes| *bytes <= MAX_MEMBER_NAME_BYTES)
@@ -91,9 +93,19 @@ fn preflight_members(
 fn validate_outer_member(
     members: &[JoinGroupResponseMember],
     index: usize,
+    selected_version: i16,
 ) -> Result<(), ClassicJoinResponseFailure> {
     let member = &members[index];
-    if member.group_instance_id.is_some() {
+    if member.group_instance_id.is_some()
+        && selected_version != super::validation::STATIC_JOIN_VERSION
+    {
+        return Err(ClassicJoinResponseFailure::StaticMember);
+    }
+    if member
+        .group_instance_id
+        .as_ref()
+        .is_some_and(|identity| !valid_kafka_string(identity.as_str()))
+    {
         return Err(ClassicJoinResponseFailure::StaticMember);
     }
     if !valid_kafka_string(member.member_id.as_str()) {

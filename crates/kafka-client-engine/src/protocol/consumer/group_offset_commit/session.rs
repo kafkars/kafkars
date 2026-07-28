@@ -29,6 +29,7 @@ pub(crate) struct ClassicGroupCommitSession {
     pub(super) group: Arc<str>,
     pub(super) member_id: MemberId,
     pub(super) member: Arc<str>,
+    pub(super) group_instance_id: Option<Arc<str>>,
     pub(super) assignment_generation: AssignmentGeneration,
     pub(super) classic_generation: i64,
 }
@@ -47,8 +48,14 @@ impl ClassicGroupCommitSession {
             group,
             member_id,
             member,
+            group_instance_id: None,
             assignment_generation,
             classic_generation,
         }
+    }
+
+    pub(crate) fn with_group_instance_id(mut self, group_instance_id: Option<Arc<str>>) -> Self {
+        self.group_instance_id = group_instance_id;
+        self
     }
 }
