@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use crate::{Client, Compression, ErrorKind, ProducerLimits, ReadIsolation};
+use crate::{Client, Compression, DeliveryStatus, ErrorKind, ProducerLimits, ReadIsolation};
 
 #[test]
 fn client_retains_facade_configuration_across_clones() {
@@ -69,4 +69,24 @@ fn empty_bootstrap_set_is_rejected_in_the_facade() {
     };
 
     assert_eq!(error.kind(), ErrorKind::Configuration);
+}
+
+#[test]
+fn readiness_after_shutdown_is_immediately_definitely_unsent() {
+    let client = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .build()
+        .unwrap_or_else(|error| panic!("start facade client: {error}"));
+    let shutdown = client.shutdown();
+
+    let error = client
+        .ready()
+        .wait()
+        .err()
+        .unwrap_or_else(|| panic!("shutdown must fence readiness admission"));
+    assert_eq!(error.kind(), ErrorKind::State);
+    assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+    shutdown
+        .wait()
+        .unwrap_or_else(|error| panic!("finish client shutdown: {error}"));
 }

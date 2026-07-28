@@ -1,10 +1,11 @@
-//! Cluster-scoped client construction and child-handle ownership.
+//! Cluster-scoped client construction, readiness, and child-handle ownership.
 
 use crate::admin::Admin;
 use crate::bridge::ClientEngine;
 use crate::consumer::{AssignedConsumerBuilder, ConsumerBuilder, ReadIsolation};
 use crate::error::{ErrorKind, KafkaError};
 use crate::producer::{Compression, ProducerBuilder, ProducerLimits};
+use crate::readiness::Ready;
 use crate::shutdown::Shutdown;
 use crate::transaction::TransactionalProducerBuilder;
 
@@ -99,6 +100,12 @@ impl Client {
     /// Returns validated bootstrap endpoints.
     pub fn bootstrap_servers(&self) -> &[String] {
         self.engine.bootstrap_servers()
+    }
+
+    /// Probes broker readiness lazily through one bounded network operation.
+    /// The independent probe's deadline starts at this call boundary.
+    pub fn ready(&self) -> Ready {
+        Ready::from_bridge(self.engine.ready())
     }
 
     /// Begins construction of a thread-safe producer.

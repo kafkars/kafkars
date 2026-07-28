@@ -17,6 +17,7 @@ mod consumer;
 mod error;
 mod operation;
 mod producer;
+mod readiness;
 mod record;
 mod shutdown;
 mod transaction;
@@ -50,6 +51,7 @@ pub use producer::{
     CancellationOutcome, CloseProducer, Compression, Delivery, Flush, Producer, ProducerBuilder,
     ProducerLimits, RecordMetadata, Send, SendBatch, SendBatchResult, TrySendError,
 };
+pub use readiness::Ready;
 pub use record::{Header, Record};
 pub use shutdown::Shutdown;
 pub use transaction::{
@@ -61,6 +63,8 @@ pub use transaction::{
 mod client_test;
 #[cfg(test)]
 mod error_test;
+#[cfg(test)]
+mod readiness_test;
 #[cfg(test)]
 mod shutdown_test;
 #[cfg(test)]

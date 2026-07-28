@@ -68,6 +68,12 @@ impl ClientEngine {
         super::admin::AdminEngine::new(self.inner.admin(), self.inner.config().admin_timeout())
     }
 
+    /// Immediately admits one bounded point-in-time readiness probe.
+    pub(crate) fn ready(&self) -> super::admin_describe_operation::AdminDescribeCluster {
+        self.admin()
+            .submit_describe_cluster(self.inner.config().admin_timeout())
+    }
+
     /// Starts or observes the one clone-shared terminal engine shutdown.
     pub(crate) fn shutdown(&self) -> Shutdown {
         Shutdown::from_bridge(self.shutdown.begin())

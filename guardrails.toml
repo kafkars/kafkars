@@ -1737,6 +1737,10 @@ production = "crates/kafka-client/src/client.rs"
 test = "crates/kafka-client/src/client_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client/src/readiness.rs"
+test = "crates/kafka-client/src/readiness_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client/src/shutdown.rs"
 test = "crates/kafka-client/src/shutdown_test.rs"
 
@@ -8295,6 +8299,10 @@ path = "crates/kafka-client/src/admin/delete_topics.rs"
 [[linear_owners]]
 owner_type = "AdminDescribeCluster"
 path = "crates/kafka-client/src/bridge/admin_describe_operation.rs"
+
+[[linear_owners]]
+owner_type = "Ready"
+path = "crates/kafka-client/src/readiness.rs"
 
 [[linear_owners]]
 owner_type = "ListConsumerGroupOffsetsAdminRequest"
