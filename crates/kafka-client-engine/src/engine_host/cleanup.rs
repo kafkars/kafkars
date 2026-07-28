@@ -147,6 +147,12 @@ fn verify_tracked_calls(resources: &EngineHostResources) -> Result<(), EngineHos
 }
 
 fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), EngineHostError> {
+    verify_admin_topic_operations(resources)?;
+    verify_admin_group_operations(resources)?;
+    verify_admin_partition_operations(resources)
+}
+
+fn verify_admin_topic_operations(resources: &EngineHostResources) -> Result<(), EngineHostError> {
     let create = resources.create_topics.terminal_host().unsettled();
     if create != 0 {
         return Err(EngineHostError::CreateTopics(
@@ -165,12 +171,45 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
             crate::admin::DescribeClusterHostError::Unsettled(describe),
         ));
     }
+    let described_groups = resources
+        .describe_consumer_groups
+        .terminal_host()
+        .unsettled();
+    if described_groups != 0 {
+        return Err(EngineHostError::DescribeConsumerGroups(
+            crate::admin::DescribeConsumerGroupsHostError::Unsettled(described_groups),
+        ));
+    }
+    let described_log_dirs = resources.describe_log_dirs.terminal_host().unsettled();
+    if described_log_dirs != 0 {
+        return Err(EngineHostError::DescribeLogDirs(
+            crate::admin::DescribeLogDirsHostError::Unsettled(described_log_dirs),
+        ));
+    }
+    let altered_log_dirs = resources.alter_replica_log_dirs.terminal_host().unsettled();
+    if altered_log_dirs != 0 {
+        return Err(EngineHostError::AlterReplicaLogDirs(
+            crate::admin::AlterReplicaLogDirsHostError::Unsettled(altered_log_dirs),
+        ));
+    }
     let described_acls = resources.describe_acls.terminal_host().unsettled();
+    if described_acls != 0 {
         return Err(EngineHostError::DescribeAcls(
             crate::admin::DescribeAclsHostError::Unsettled(described_acls),
+        ));
+    }
     let created_acls = resources.create_acls.terminal_host().unsettled();
+    if created_acls != 0 {
         return Err(EngineHostError::CreateAcls(
             crate::admin::CreateAclsHostError::Unsettled(created_acls),
+        ));
+    }
+    let deleted_acls = resources.delete_acls.terminal_host().unsettled();
+    if deleted_acls != 0 {
+        return Err(EngineHostError::DeleteAcls(
+            crate::admin::DeleteAclsHostError::Unsettled(deleted_acls),
+        ));
+    }
     let partitions = resources.create_partitions.terminal_host().unsettled();
     if partitions != 0 {
         return Err(EngineHostError::CreatePartitions(
@@ -198,6 +237,10 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
             crate::admin::IncrementalAlterConfigsHostError::Unsettled(alter_configs),
         ));
     }
+    Ok(())
+}
+
+fn verify_admin_group_operations(resources: &EngineHostResources) -> Result<(), EngineHostError> {
     let group_offsets = resources
         .list_consumer_group_offsets
         .terminal_host()
@@ -231,6 +274,12 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
             crate::admin::AlterConsumerGroupOffsetsHostError::Unsettled(group_offset_alter),
         ));
     }
+    Ok(())
+}
+
+fn verify_admin_partition_operations(
+    resources: &EngineHostResources,
+) -> Result<(), EngineHostError> {
     let list_offsets = resources.list_offsets.terminal_host().unsettled();
     if list_offsets != 0 {
         return Err(EngineHostError::AdminListOffsets(
@@ -253,38 +302,19 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
         return Err(EngineHostError::RemoveConsumerGroupMembers(
             crate::admin::RemoveConsumerGroupMembersHostError::Unsettled(
                 remove_consumer_group_members,
-    let delete_consumer_groups = resources.delete_consumer_groups.terminal_host().unsettled();
-    if delete_consumer_groups != 0 {
-        return Err(EngineHostError::DeleteConsumerGroups(
-            crate::admin::DeleteConsumerGroupsHostError::Unsettled(delete_consumer_groups),
             ),
-        ));
-    }
-    let described_groups = resources
-        .describe_consumer_groups
-        .terminal_host()
-        .unsettled();
-    if described_groups != 0 {
-        return Err(EngineHostError::DescribeConsumerGroups(
-            crate::admin::DescribeConsumerGroupsHostError::Unsettled(described_groups),
-        ));
-    }
-    let described_log_dirs = resources.describe_log_dirs.terminal_host().unsettled();
-    if described_log_dirs != 0 {
-        return Err(EngineHostError::DescribeLogDirs(
-            crate::admin::DescribeLogDirsHostError::Unsettled(described_log_dirs),
-        ));
-    }
-    let altered_log_dirs = resources.alter_replica_log_dirs.terminal_host().unsettled();
-    if altered_log_dirs != 0 {
-        return Err(EngineHostError::AlterReplicaLogDirs(
-            crate::admin::AlterReplicaLogDirsHostError::Unsettled(altered_log_dirs),
         ));
     }
     let delete_records = resources.delete_records.terminal_host().unsettled();
     if delete_records != 0 {
         return Err(EngineHostError::DeleteRecords(
             crate::admin::DeleteRecordsHostError::Unsettled(delete_records),
+        ));
+    }
+    let delete_consumer_groups = resources.delete_consumer_groups.terminal_host().unsettled();
+    if delete_consumer_groups != 0 {
+        return Err(EngineHostError::DeleteConsumerGroups(
+            crate::admin::DeleteConsumerGroupsHostError::Unsettled(delete_consumer_groups),
         ));
     }
     Ok(())

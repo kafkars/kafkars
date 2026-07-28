@@ -6,6 +6,7 @@ pub(crate) mod create_acls;
 pub(crate) mod create_partitions;
 mod create_partitions_budget;
 pub(crate) mod create_topics;
+pub(crate) mod delete_acls;
 pub(crate) mod delete_groups;
 pub(crate) mod delete_records;
 pub(crate) mod delete_topics;
@@ -23,8 +24,8 @@ mod describe_topic_value;
 pub(crate) mod describe_topics;
 mod describe_topics_budget;
 pub(crate) mod describe_topics_response;
-#[cfg_attr(not(test), expect(dead_code, reason = "offset alter host follows"))]
 pub(crate) mod elect_leaders;
+#[cfg_attr(not(test), expect(dead_code, reason = "offset alter host follows"))]
 pub(crate) mod group_offset_alter;
 #[cfg_attr(
     not(test),

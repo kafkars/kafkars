@@ -94,19 +94,12 @@ fn completion_fault_retains_call_until_post_driver_recovery() {
     else {
         panic!("submission expected");
     };
-    let (operation_id, submitted_deadline, broker_id, selection, retained_limit) =
-        submission.into_parts();
+    let (operation_id, submitted_deadline, broker_id) = submission.into_parts();
     let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver owner: {error}"));
-    let call = DescribeLogDirsCall::submit(
-        &driver,
-        broker_id,
-        &selection,
-        retained_limit,
-        submitted_deadline.transport(),
-    )
-    .unwrap_or_else(|_error| panic!("accepted call"));
-    host.accept_call(operation_id, selection, call)
+    let call = DescribeLogDirsCall::submit(&driver, broker_id, submitted_deadline.transport())
+        .unwrap_or_else(|_error| panic!("accepted call"));
+    host.accept_call(operation_id, call)
         .unwrap_or_else(|error| panic!("host acceptance: {error}"));
     drop(driver);
 

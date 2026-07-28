@@ -71,6 +71,18 @@ pub use super::create_acls::{
     CreateAclsBatch, CreateAclsDeliveryStatus, CreateAclsFailure, CreateAclsFailureKind,
     CreateAclsObserver, CreateAclsObserverError, CreateAclsOutcome, CreateAclsRequest,
 };
+pub(crate) use super::delete_acls::{
+    DELETE_ACLS_CAPACITY, DeleteAclsAdmissionPort, DeleteAclsHost, DeleteAclsHostError,
+    DeleteAclsShardLockError, DeleteAclsShardOwner, DeleteAclsShardWake, DeleteAclsShardWakeError,
+    DeleteAclsTurn,
+};
+pub use super::delete_acls::{
+    DeleteAclBrokerError, DeleteAclFilterOutcome, DeleteAclFilterResult, DeleteAclMatchResult,
+    DeleteAclMatchingBinding, DeleteAclsAccepted, DeleteAclsAcceptedFaultKind,
+    DeleteAclsAdmissionError, DeleteAclsAdmissionErrorKind, DeleteAclsBatch,
+    DeleteAclsDeliveryStatus, DeleteAclsFailure, DeleteAclsFailureKind, DeleteAclsFilter,
+    DeleteAclsObserver, DeleteAclsObserverError, DeleteAclsOutcome, DeleteAclsRequest,
+};
 pub(crate) use super::delete_consumer_groups::{
     DELETE_CONSUMER_GROUPS_CAPACITY, DeleteConsumerGroupsAdmissionPort, DeleteConsumerGroupsHost,
     DeleteConsumerGroupsHostError, DeleteConsumerGroupsShardLockError,

@@ -7,9 +7,9 @@ use kafka_client_core::{Deadline, Moment};
 use super::{
     super::{EngineHostError, EngineHostResources},
     alter_consumer_group_offsets, alter_partition_reassignments, alter_replica_log_dirs,
-    create_acls, create_partitions, create_topics, delete_consumer_group_offsets, delete_records,
-    delete_topics, describe_cluster, describe_configs, describe_consumer_groups,
-    describe_log_dirs, describe_topics, elect_leaders,
+    create_acls, create_partitions, create_topics, delete_acls, delete_consumer_group_offsets,
+    delete_consumer_groups, delete_records, delete_topics, describe_acls, describe_cluster,
+    describe_configs, describe_consumer_groups, describe_log_dirs, describe_topics, elect_leaders,
     group_offset_alter_schedule::drive_group_offset_delete_then_capture_alter,
     incremental_alter_configs, list_consumer_group_offsets, list_consumer_groups, list_offsets,
     list_offsets_schedule, list_partition_reassignments, remove_consumer_group_members,
@@ -94,53 +94,128 @@ pub(in crate::engine_host) fn drive(
     let record_deletions = delete_records::drive(resources, delete_records_now)?;
     let describe_groups_now = clock.now().map_err(EngineHostError::Clock)?;
     let group_descriptions = describe_consumer_groups::drive(resources, describe_groups_now)?;
+    let remove_members_now = clock.now().map_err(EngineHostError::Clock)?;
     let member_removals = remove_consumer_group_members::drive(resources, remove_members_now)?;
+    let delete_groups_now = clock.now().map_err(EngineHostError::Clock)?;
     let group_deletions = delete_consumer_groups::drive(resources, delete_groups_now)?;
-    let describe_acls_now = clock.now().map_err(EngineHostError::Clock)?;
-    let acl_descriptions = describe_acls::drive(resources, describe_acls_now)?;
-    let create_acls_now = clock.now().map_err(EngineHostError::Clock)?;
-    let acl_creations = create_acls::drive(resources, create_acls_now)?;
     let list_groups_now = clock.now().map_err(EngineHostError::Clock)?;
     let group_listings = list_consumer_groups::drive(resources, list_groups_now)?;
     let describe_log_dirs_now = clock.now().map_err(EngineHostError::Clock)?;
     let log_directories = describe_log_dirs::drive(resources, describe_log_dirs_now)?;
     let alter_log_dirs_now = clock.now().map_err(EngineHostError::Clock)?;
     let log_directory_alterations = alter_replica_log_dirs::drive(resources, alter_log_dirs_now)?;
-    Ok(extend_with_log_dir_operations(
-        &progress,
+    let describe_acls_now = clock.now().map_err(EngineHostError::Clock)?;
+    let acl_descriptions = describe_acls::drive(resources, describe_acls_now)?;
+    let create_acls_now = clock.now().map_err(EngineHostError::Clock)?;
+    let acl_creations = create_acls::drive(resources, create_acls_now)?;
+    let delete_acls_now = clock.now().map_err(EngineHostError::Clock)?;
+    let acl_deletions = delete_acls::drive(resources, delete_acls_now)?;
+    let partition_progress =
+        extend_with_partition_operations(&progress, &elections, &record_deletions);
+    let group_progress = extend_with_group_operations(
+        &partition_progress,
+        &group_descriptions,
+        &member_removals,
+        &group_deletions,
+        &group_listings,
+    );
+    Ok(extend_with_broker_operations(
+        &group_progress,
         &log_directories,
         &log_directory_alterations,
+        &acl_descriptions,
+        &acl_creations,
+        &acl_deletions,
     ))
 }
 
-const fn extend_with_log_dir_operations(
+const fn extend_with_broker_operations(
     progress: &AdminProgress,
     log_directories: &describe_log_dirs::DescribeLogDirsProgress,
     log_directory_alterations: &alter_replica_log_dirs::AlterReplicaLogDirsProgress,
+    acl_descriptions: &describe_acls::DescribeAclsProgress,
+    acl_creations: &create_acls::CreateAclsProgress,
+    acl_deletions: &delete_acls::DeleteAclsProgress,
 ) -> AdminProgress {
     AdminProgress {
         unsettled: progress
             .unsettled
             .saturating_add(log_directories.unsettled)
-            .saturating_add(log_directory_alterations.unsettled),
+            .saturating_add(log_directory_alterations.unsettled)
+            .saturating_add(acl_descriptions.unsettled)
+            .saturating_add(acl_creations.unsettled)
+            .saturating_add(acl_deletions.unsettled),
         driver_progress: progress.driver_progress
             || log_directories.driver_progress
-            || log_directory_alterations.driver_progress,
+            || log_directory_alterations.driver_progress
+            || acl_descriptions.driver_progress
+            || acl_creations.driver_progress
+            || acl_deletions.driver_progress,
         next_deadline: earliest(
             progress.next_deadline,
             earliest(
                 log_directories.next_deadline,
-                log_directory_alterations.next_deadline,
+                earliest(
+                    log_directory_alterations.next_deadline,
+                    earliest(
+                        acl_descriptions.next_deadline,
+                        earliest(acl_creations.next_deadline, acl_deletions.next_deadline),
+                    ),
+                ),
             ),
         ),
-        record_deletions: &delete_records::DeleteRecordsProgress,
-        elections: &elect_leaders::ElectLeadersProgress,
-        group_listings: &list_consumer_groups::ListConsumerGroupsProgress,
-        group_descriptions: &describe_consumer_groups::DescribeConsumerGroupsProgress,
-        member_removals: &remove_consumer_group_members::RemoveConsumerGroupMembersProgress,
-        group_deletions: &delete_consumer_groups::DeleteConsumerGroupsProgress,
-        acl_descriptions: &describe_acls::DescribeAclsProgress,
-        acl_creations: &create_acls::CreateAclsProgress,
+    }
+}
+
+const fn extend_with_partition_operations(
+    progress: &AdminProgress,
+    elections: &elect_leaders::ElectLeadersProgress,
+    record_deletions: &delete_records::DeleteRecordsProgress,
+) -> AdminProgress {
+    AdminProgress {
+        unsettled: progress
+            .unsettled
+            .saturating_add(elections.unsettled)
+            .saturating_add(record_deletions.unsettled),
+        driver_progress: progress.driver_progress
+            || elections.driver_progress
+            || record_deletions.driver_progress,
+        next_deadline: earliest(
+            progress.next_deadline,
+            earliest(elections.next_deadline, record_deletions.next_deadline),
+        ),
+    }
+}
+
+const fn extend_with_group_operations(
+    progress: &AdminProgress,
+    group_descriptions: &describe_consumer_groups::DescribeConsumerGroupsProgress,
+    member_removals: &remove_consumer_group_members::RemoveConsumerGroupMembersProgress,
+    group_deletions: &delete_consumer_groups::DeleteConsumerGroupsProgress,
+    group_listings: &list_consumer_groups::ListConsumerGroupsProgress,
+) -> AdminProgress {
+    AdminProgress {
+        unsettled: progress
+            .unsettled
+            .saturating_add(group_descriptions.unsettled)
+            .saturating_add(member_removals.unsettled)
+            .saturating_add(group_deletions.unsettled)
+            .saturating_add(group_listings.unsettled),
+        driver_progress: progress.driver_progress
+            || group_descriptions.driver_progress
+            || member_removals.driver_progress
+            || group_deletions.driver_progress
+            || group_listings.driver_progress,
+        next_deadline: earliest(
+            progress.next_deadline,
+            earliest(
+                group_descriptions.next_deadline,
+                earliest(
+                    member_removals.next_deadline,
+                    earliest(group_deletions.next_deadline, group_listings.next_deadline),
+                ),
+            ),
+        ),
     }
 }
 

@@ -35,6 +35,14 @@ pub use super::create_acls::{
     CreateAclsRoute, CreateAclsState, CreateAclsTerminal, CreateAclsTransition,
     MAX_CREATE_ACLS_BINDINGS,
 };
+pub use super::delete_acls::{
+    DELETE_ACLS_DIAGNOSTIC_BYTES, DeleteAclBrokerError, DeleteAclFilterResult,
+    DeleteAclMatchResult, DeleteAclMatchingBinding, DeleteAclsBatch, DeleteAclsEffect,
+    DeleteAclsFailure, DeleteAclsFailureKind, DeleteAclsFilter, DeleteAclsInput, DeleteAclsMachine,
+    DeleteAclsMachineError, DeleteAclsPlan, DeleteAclsPlanError, DeleteAclsRoute, DeleteAclsState,
+    DeleteAclsTerminal, DeleteAclsTransition, MAX_DELETE_ACLS_FILTERS,
+    MAX_DELETE_ACLS_MATCHING_BINDINGS,
+};
 pub use super::delete_consumer_groups::{
     DELETE_CONSUMER_GROUPS_DIAGNOSTIC_BYTES, DeleteConsumerGroupsBatch,
     DeleteConsumerGroupsBrokerError, DeleteConsumerGroupsEffect, DeleteConsumerGroupsFailure,

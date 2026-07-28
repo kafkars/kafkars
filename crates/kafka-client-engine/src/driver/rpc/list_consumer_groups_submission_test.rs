@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use kafka_driver::{BrokerId, Route, TrafficClass};
+use kafka_driver::{Route, TrafficClass};
 
 use super::list_consumer_groups_submission::{
     list_consumer_groups_broker_options, list_consumer_groups_broker_route,
@@ -21,12 +21,8 @@ fn discovery_is_controller_routed_and_brokers_are_exact_with_one_deadline() {
         Some(kafka_driver::ApiVersion::new(2))
     );
 
-    assert_eq!(
-        list_consumer_groups_broker_route(7),
-        Ok(Route::Broker {
-            broker_id: BrokerId::new(7).unwrap_or_else(|error| panic!("broker: {error}")),
-        })
-    );
+    assert_eq!(list_consumer_groups_broker_route(7), Ok(Route::AnyBroker));
+    assert!(list_consumer_groups_broker_route(-1).is_err());
     let broker = list_consumer_groups_broker_options(deadline);
     assert_eq!(broker.deadline(), deadline);
     assert_eq!(broker.traffic_class(), TrafficClass::Interactive);

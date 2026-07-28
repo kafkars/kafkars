@@ -2,10 +2,7 @@
 
 use std::{error::Error, fmt, time::Instant};
 
-use kafka_driver::{
-    ApiVersion, BrokerId, BrokerIdError, RequestOptions, Route, RoutedCall, SubmitError,
-    TrafficClass,
-};
+use kafka_driver::{ApiVersion, RequestOptions, Route, RoutedCall, SubmitError, TrafficClass};
 use kafka_wire::{
     DescribeClusterRequest, DescribeClusterResponse, ListGroupsRequest, ListGroupsResponse,
 };
@@ -19,7 +16,7 @@ const LIST_GROUPS_MAX_VERSION: ApiVersion = ApiVersion::new(5);
 /// Definitely-unsent discovery or broker-route construction failure.
 #[derive(Debug)]
 pub(crate) enum ListConsumerGroupsSubmitError {
-    InvalidBroker(BrokerIdError),
+    InvalidBroker(InvalidBroker),
     Driver(SubmitError),
 }
 
@@ -85,10 +82,27 @@ pub(super) const fn list_consumer_groups_discovery_route() -> Route {
     Route::Controller
 }
 
-pub(super) fn list_consumer_groups_broker_route(broker_id: i32) -> Result<Route, BrokerIdError> {
-    Ok(Route::Broker {
-        broker_id: BrokerId::new(broker_id)?,
-    })
+pub(super) fn list_consumer_groups_broker_route(broker_id: i32) -> Result<Route, InvalidBroker> {
+    validate_broker_id(broker_id)?;
+    Ok(Route::AnyBroker)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct InvalidBroker(i32);
+
+impl fmt::Display for InvalidBroker {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "broker ID {} must be nonnegative", self.0)
+    }
+}
+
+impl Error for InvalidBroker {}
+
+const fn validate_broker_id(broker_id: i32) -> Result<(), InvalidBroker> {
+    if broker_id < 0 {
+        return Err(InvalidBroker(broker_id));
+    }
+    Ok(())
 }
 
 pub(super) const fn list_consumer_groups_discovery_options(deadline: Instant) -> RequestOptions {

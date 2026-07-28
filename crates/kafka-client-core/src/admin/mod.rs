@@ -4,6 +4,7 @@ mod alter_configs;
 mod alter_partition_reassignments;
 mod alter_replica_log_dirs;
 mod create_acls;
+mod delete_acls;
 mod delete_consumer_groups;
 mod delete_machine;
 mod delete_model;

@@ -2,7 +2,9 @@
 
 use std::time::{Duration, Instant};
 
-use kafka_client_core::{Deadline, ElectLeadersPlan, LeaderElectionType, Moment};
+use kafka_client_core::{
+    Deadline, ElectLeadersPlan, LeaderElectionTarget, LeaderElectionType, Moment,
+};
 use kafka_driver::{ApiVersion, CompletionError, TrafficClass};
 
 use crate::{EngineConfig, clock::OperationDeadline, driver::DriverOwner};
@@ -25,7 +27,11 @@ fn election_uses_original_deadline_interactive_lane_and_type_floor() {
 fn completion_fault_remains_recoverable_after_driver_shutdown() {
     let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver owner: {error}"));
-    let plan = ElectLeadersPlan::all(LeaderElectionType::Preferred);
+    let plan = ElectLeadersPlan::new(
+        LeaderElectionType::Preferred,
+        vec![LeaderElectionTarget::new("orders".to_owned(), 0)],
+    )
+    .unwrap_or_else(|error| panic!("plan: {error}"));
     let deadline = OperationDeadline::from_parts_for_test(
         Deadline::from_tick(10),
         Instant::now() + Duration::from_secs(1),

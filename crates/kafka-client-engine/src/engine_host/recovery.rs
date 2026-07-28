@@ -32,8 +32,12 @@ pub(crate) fn recover(
     drop(resources.delete_topics.terminal_host());
     drop(resources.delete_consumer_groups.terminal_host());
     drop(resources.describe_cluster.terminal_host());
+    drop(resources.describe_consumer_groups.terminal_host());
+    drop(resources.describe_log_dirs.terminal_host());
+    drop(resources.alter_replica_log_dirs.terminal_host());
     drop(resources.describe_acls.terminal_host());
     drop(resources.create_acls.terminal_host());
+    drop(resources.delete_acls.terminal_host());
     drop(resources.create_partitions.terminal_host());
     drop(resources.describe_topics.terminal_host());
     drop(resources.describe_configs.terminal_host());
@@ -45,9 +49,6 @@ pub(crate) fn recover(
     drop(resources.list_offsets.terminal_host());
     drop(resources.list_partition_reassignments.terminal_host());
     drop(resources.alter_partition_reassignments.terminal_host());
-    drop(resources.describe_consumer_groups.terminal_host());
-    drop(resources.describe_log_dirs.terminal_host());
-    drop(resources.alter_replica_log_dirs.terminal_host());
     drop(resources.elect_leaders.terminal_host());
     drop(resources.remove_consumer_group_members.terminal_host());
     drop(resources.delete_records.terminal_host());

@@ -10,17 +10,14 @@ use std::{
 
 use kafka_client_core::{
     AdminDescribeConsumerGroupsBatch, AdminDescribeConsumerGroupsTerminal,
-    AdminDescribeLogDirsBatch, AdminDescribeLogDirsTerminal, AdminListConsumerGroupsBatch,
-    AdminListConsumerGroupsTerminal, AdminListOffsetsBatch, AdminListOffsetsTerminal,
-    AlterConsumerGroupOffsetsBatch, AlterConsumerGroupOffsetsTerminal,
-    AlterPartitionReassignmentsBatch, AlterPartitionReassignmentsTerminal,
-    AlterReplicaLogDirsBatch, AlterReplicaLogDirsTerminal, ClusterDescription,
+    AdminListConsumerGroupsBatch, AdminListConsumerGroupsTerminal, AdminListOffsetsBatch,
+    AdminListOffsetsTerminal, AlterConsumerGroupOffsetsBatch, AlterConsumerGroupOffsetsTerminal,
+    AlterPartitionReassignmentsBatch, AlterPartitionReassignmentsTerminal, ClusterDescription,
     CreatePartitionsTerminal, CreateTopicsTerminal, DeleteConsumerGroupOffsetsBatch,
     DeleteConsumerGroupOffsetsTerminal, DeleteConsumerGroupsBatch, DeleteConsumerGroupsTerminal,
     DeleteRecordsBatch, DeleteRecordsTerminal, DeleteTopicsTerminal, DescribeClusterTerminal,
-    DescribeAclsBatch, DescribeAclsTerminal, DescribeConfigsBatch, DescribeConfigsTerminal,
-    DescribeTopicsTerminal, ElectLeadersBatch, ElectLeadersTerminal, IncrementalAlterConfigsBatch,
-    IncrementalAlterConfigsTerminal,
+    DescribeConfigsBatch, DescribeConfigsTerminal, DescribeTopicsTerminal, ElectLeadersBatch,
+    ElectLeadersTerminal, IncrementalAlterConfigsBatch, IncrementalAlterConfigsTerminal,
     ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsTerminal,
     ListPartitionReassignmentsBatch, ListPartitionReassignmentsTerminal,
     RemoveConsumerGroupMembersBatch, RemoveConsumerGroupMembersTerminal,
@@ -28,11 +25,28 @@ use kafka_client_core::{
 
 use crate::completion::{CompletionRegistry, ReclaimStatus};
 
-use super::{CREATE_ACLS_CAPACITY, test_support::completion_owner};
+use super::{
+    ADMIN_LIST_OFFSETS_CAPACITY, ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY,
+    ALTER_PARTITION_REASSIGNMENTS_CAPACITY, ALTER_REPLICA_LOG_DIRS_CAPACITY, CREATE_ACLS_CAPACITY,
+    CREATE_PARTITIONS_CAPACITY, CREATE_TOPICS_CAPACITY, DELETE_ACLS_CAPACITY,
+    DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY, DELETE_CONSUMER_GROUPS_CAPACITY,
+    DELETE_RECORDS_CAPACITY, DELETE_TOPICS_CAPACITY, DESCRIBE_ACLS_CAPACITY,
+    DESCRIBE_CLUSTER_CAPACITY, DESCRIBE_CONFIGS_CAPACITY, DESCRIBE_CONSUMER_GROUPS_CAPACITY,
+    DESCRIBE_LOG_DIRS_CAPACITY, DESCRIBE_TOPICS_CAPACITY, ELECT_LEADERS_CAPACITY,
+    INCREMENTAL_ALTER_CONFIGS_CAPACITY, LIST_CONSUMER_GROUP_OFFSETS_CAPACITY,
+    LIST_CONSUMER_GROUPS_CAPACITY, LIST_PARTITION_REASSIGNMENTS_CAPACITY,
+    REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY, completion::AdminCompletionNotifier,
+    test_support::completion_owner,
+};
+
+macro_rules! exercise_terminals {
+    ($worker:expr; $($publisher:expr => $terminal:expr),+ $(,)?) => {
+        $(exercise_terminal($publisher, $terminal, $worker);)+
+    };
+}
 
 #[test]
 fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
-    assert_eq!(CREATE_ACLS_CAPACITY, 16);
     let reactor = std::thread::current().id();
     let (mut notifier, ports) = completion_owner();
     let worker = notifier
@@ -40,116 +54,85 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
         .unwrap_or_else(|| panic!("shared admin notifier must own one worker"));
     assert_ne!(worker, reactor);
 
-    let mut create = PendingTerminal::new(ports.create_topics);
-    let mut delete = PendingTerminal::new(ports.delete_topics);
-    let mut describe = PendingTerminal::new(ports.describe_cluster);
-    let mut partitions = PendingTerminal::new(ports.create_partitions);
-    let mut topics = PendingTerminal::new(ports.describe_topics);
-    let mut configs = PendingTerminal::new(ports.describe_configs);
-    let mut alter_configs = PendingTerminal::new(ports.incremental_alter_configs);
-    let mut group_offsets = PendingTerminal::new(ports.list_consumer_group_offsets);
-    let mut group_offset_delete = PendingTerminal::new(ports.delete_consumer_group_offsets);
-    let mut group_deletions = PendingTerminal::new(ports.delete_consumer_groups);
-    let mut acl_descriptions = PendingTerminal::new(ports.describe_acls);
-    let mut group_offset_alter = PendingTerminal::new(ports.alter_consumer_group_offsets);
-    let mut list_offsets = PendingTerminal::new(ports.admin_list_offsets);
-    let mut reassignments = PendingTerminal::new(ports.list_partition_reassignments);
-    let mut alterations = PendingTerminal::new(ports.alter_partition_reassignments);
-    let mut elections = PendingTerminal::new(ports.elect_leaders);
-    let mut record_deletions = PendingTerminal::new(ports.delete_records);
-    let mut group_descriptions = PendingTerminal::new(ports.describe_consumer_groups);
-    let mut group_listings = PendingTerminal::new(ports.list_consumer_groups);
-    let mut member_removals = PendingTerminal::new(ports.remove_consumer_group_members);
-    let mut log_directories = PendingTerminal::new(ports.describe_log_dirs);
-    let mut log_dir_alterations = PendingTerminal::new(ports.alter_replica_log_dirs);
-
-    create.publish(CreateTopicsTerminal::Topics(Vec::new()));
-    delete.publish(DeleteTopicsTerminal::Topics(Vec::new()));
-    describe.publish(DescribeClusterTerminal::Cluster(ClusterDescription::new(
-        String::from("cluster"),
-        None,
-        Vec::new(),
-    )));
-    partitions.publish(CreatePartitionsTerminal::Topics(Vec::new()));
-    topics.publish(DescribeTopicsTerminal::Topics(Vec::new()));
-    configs.publish(DescribeConfigsTerminal::Configs(DescribeConfigsBatch::new(
-        0,
-        Vec::new(),
-    )));
-    alter_configs.publish(IncrementalAlterConfigsTerminal::Configs(
-        IncrementalAlterConfigsBatch::new(0, Vec::new()),
-    ));
-    group_offsets.publish(ListConsumerGroupOffsetsTerminal::Offsets(
-        ListConsumerGroupOffsetsBatch::new(0, Vec::new()),
-    ));
-    group_offset_delete.publish(DeleteConsumerGroupOffsetsTerminal::Deleted(
-        DeleteConsumerGroupOffsetsBatch::new(0, Vec::new()),
-    ));
-    group_deletions.publish(DeleteConsumerGroupsTerminal::Deleted(
-        DeleteConsumerGroupsBatch::new(0, Vec::new()),
-    ));
-    acl_descriptions.publish(DescribeAclsTerminal::Described(DescribeAclsBatch::new(
-        0,
-        Vec::new(),
-    )));
-    group_offset_alter.publish(AlterConsumerGroupOffsetsTerminal::Altered(
-        AlterConsumerGroupOffsetsBatch::new(0, Vec::new()),
-    ));
-    list_offsets.publish(AdminListOffsetsTerminal::Listed(
-        AdminListOffsetsBatch::new(0, Vec::new()),
-    ));
-    reassignments.publish(ListPartitionReassignmentsTerminal::Reassignments(
-        ListPartitionReassignmentsBatch::new(0, Vec::new()),
-    ));
-    alterations.publish(AlterPartitionReassignmentsTerminal::Altered(
-        AlterPartitionReassignmentsBatch::new(0, Vec::new()),
-    ));
-    elections.publish(ElectLeadersTerminal::Elected(ElectLeadersBatch::new(
-        0,
-        Vec::new(),
-    )));
-    record_deletions.publish(DeleteRecordsTerminal::Deleted(DeleteRecordsBatch::new(
-        0,
-        Vec::new(),
-    )));
-    group_descriptions.publish(AdminDescribeConsumerGroupsTerminal::Described(
-        AdminDescribeConsumerGroupsBatch::new(0, Vec::new()),
-    ));
-    group_listings.publish(AdminListConsumerGroupsTerminal::Listed(
-        AdminListConsumerGroupsBatch::new(0, Vec::new(), Vec::new()),
-    ));
-    member_removals.publish(RemoveConsumerGroupMembersTerminal::Removed(
-        RemoveConsumerGroupMembersBatch::new(0, Vec::new()),
-    ));
-    log_directories.publish(AdminDescribeLogDirsTerminal::Described(
-        AdminDescribeLogDirsBatch::new(0, Vec::new()),
-    ));
-    log_dir_alterations.publish(AlterReplicaLogDirsTerminal::Altered(
-        AlterReplicaLogDirsBatch::new(0, Vec::new()),
-    ));
-
-    create.observe_and_reclaim(worker);
-    delete.observe_and_reclaim(worker);
-    describe.observe_and_reclaim(worker);
-    partitions.observe_and_reclaim(worker);
-    topics.observe_and_reclaim(worker);
-    configs.observe_and_reclaim(worker);
-    alter_configs.observe_and_reclaim(worker);
-    group_offsets.observe_and_reclaim(worker);
-    group_offset_delete.observe_and_reclaim(worker);
-    group_deletions.observe_and_reclaim(worker);
-    acl_descriptions.observe_and_reclaim(worker);
-    group_offset_alter.observe_and_reclaim(worker);
-    list_offsets.observe_and_reclaim(worker);
-    reassignments.observe_and_reclaim(worker);
-    alterations.observe_and_reclaim(worker);
-    elections.observe_and_reclaim(worker);
-    record_deletions.observe_and_reclaim(worker);
-    group_descriptions.observe_and_reclaim(worker);
-    group_listings.observe_and_reclaim(worker);
-    member_removals.observe_and_reclaim(worker);
-    log_directories.observe_and_reclaim(worker);
-    log_dir_alterations.observe_and_reclaim(worker);
+    exercise_terminals! {
+        worker;
+        ports.create_topics => CreateTopicsTerminal::Topics(Vec::new()),
+        ports.delete_topics => DeleteTopicsTerminal::Topics(Vec::new()),
+        ports.describe_cluster => DescribeClusterTerminal::Cluster(ClusterDescription::new(
+            String::from("cluster"),
+            None,
+            Vec::new(),
+        )),
+        ports.create_partitions => CreatePartitionsTerminal::Topics(Vec::new()),
+        ports.describe_topics => DescribeTopicsTerminal::Topics(Vec::new()),
+        ports.describe_configs => DescribeConfigsTerminal::Configs(
+            DescribeConfigsBatch::new(0, Vec::new())
+        ),
+        ports.incremental_alter_configs => IncrementalAlterConfigsTerminal::Configs(
+            IncrementalAlterConfigsBatch::new(0, Vec::new())
+        ),
+        ports.list_consumer_group_offsets => ListConsumerGroupOffsetsTerminal::Offsets(
+            ListConsumerGroupOffsetsBatch::new(
+                0,
+                Vec::new(),
+            )
+        ),
+        ports.delete_consumer_group_offsets => DeleteConsumerGroupOffsetsTerminal::Deleted(
+            DeleteConsumerGroupOffsetsBatch::new(
+                0,
+                Vec::new(),
+            )
+        ),
+        ports.delete_consumer_groups => DeleteConsumerGroupsTerminal::Deleted(
+            DeleteConsumerGroupsBatch::new(0, Vec::new())
+        ),
+        ports.alter_consumer_group_offsets => AlterConsumerGroupOffsetsTerminal::Altered(
+            AlterConsumerGroupOffsetsBatch::new(
+                0,
+                Vec::new(),
+            )
+        ),
+        ports.admin_list_offsets => AdminListOffsetsTerminal::Listed(
+            AdminListOffsetsBatch::new(0, Vec::new())
+        ),
+        ports.list_partition_reassignments => ListPartitionReassignmentsTerminal::Reassignments(
+            ListPartitionReassignmentsBatch::new(
+                0,
+                Vec::new(),
+            )
+        ),
+        ports.alter_partition_reassignments => AlterPartitionReassignmentsTerminal::Altered(
+            AlterPartitionReassignmentsBatch::new(
+                0,
+                Vec::new(),
+            )
+        ),
+        ports.elect_leaders => ElectLeadersTerminal::Elected(
+            ElectLeadersBatch::new(0, Vec::new())
+        ),
+        ports.delete_records => DeleteRecordsTerminal::Deleted(
+            DeleteRecordsBatch::new(0, Vec::new())
+        ),
+        ports.describe_consumer_groups => AdminDescribeConsumerGroupsTerminal::Described(
+            AdminDescribeConsumerGroupsBatch::new(
+                0,
+                Vec::new(),
+            )
+        ),
+        ports.list_consumer_groups => AdminListConsumerGroupsTerminal::Listed(
+            AdminListConsumerGroupsBatch::new(
+                0,
+                Vec::new(),
+                Vec::new(),
+            )
+        ),
+        ports.remove_consumer_group_members => RemoveConsumerGroupMembersTerminal::Removed(
+            RemoveConsumerGroupMembersBatch::new(
+                0,
+                Vec::new(),
+            )
+        ),
+    }
 
     let join = notifier
         .stop()
@@ -157,6 +140,206 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     assert_eq!(join.join_off_notifier(), Ok(()));
 }
 
+fn exercise_terminal<T, P>(publisher: P, terminal: T, worker: ThreadId)
+where
+    T: Send + 'static,
+    P: crate::completion::CompletionPublisher<T>,
+{
+    let mut pending = PendingTerminal::new(publisher);
+    pending.publish(terminal);
+    pending.observe_and_reclaim(worker);
+}
+
+#[test]
+fn shared_capacity_is_the_sum_of_the_closed_admin_ticket_set() {
+    assert_eq!(
+        AdminCompletionNotifier::capacity_for_test(),
+        CREATE_TOPICS_CAPACITY
+            + DELETE_TOPICS_CAPACITY
+            + DESCRIBE_CLUSTER_CAPACITY
+            + CREATE_PARTITIONS_CAPACITY
+            + DESCRIBE_TOPICS_CAPACITY
+            + DESCRIBE_CONFIGS_CAPACITY
+            + INCREMENTAL_ALTER_CONFIGS_CAPACITY
+            + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
+            + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
+            + DELETE_CONSUMER_GROUPS_CAPACITY
+            + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
+            + ADMIN_LIST_OFFSETS_CAPACITY
+            + LIST_PARTITION_REASSIGNMENTS_CAPACITY
+            + ALTER_PARTITION_REASSIGNMENTS_CAPACITY
+            + ELECT_LEADERS_CAPACITY
+            + DELETE_RECORDS_CAPACITY
+            + DESCRIBE_CONSUMER_GROUPS_CAPACITY
+            + LIST_CONSUMER_GROUPS_CAPACITY
+            + REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY
+            + DESCRIBE_LOG_DIRS_CAPACITY
+            + ALTER_REPLICA_LOG_DIRS_CAPACITY
+            + DESCRIBE_ACLS_CAPACITY
+            + CREATE_ACLS_CAPACITY
+            + DELETE_ACLS_CAPACITY
+    );
+}
+
+#[test]
+fn describe_topics_is_included_in_the_closed_shared_capacity_equation() {
+    assert_eq!(
+        AdminCompletionNotifier::capacity_for_test().checked_sub(
+            CREATE_TOPICS_CAPACITY
+                + DELETE_TOPICS_CAPACITY
+                + DESCRIBE_CLUSTER_CAPACITY
+                + CREATE_PARTITIONS_CAPACITY
+                + DESCRIBE_CONFIGS_CAPACITY
+                + INCREMENTAL_ALTER_CONFIGS_CAPACITY
+                + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + DELETE_CONSUMER_GROUPS_CAPACITY
+                + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + ADMIN_LIST_OFFSETS_CAPACITY
+                + LIST_PARTITION_REASSIGNMENTS_CAPACITY
+                + ALTER_PARTITION_REASSIGNMENTS_CAPACITY
+                + ELECT_LEADERS_CAPACITY
+                + DELETE_RECORDS_CAPACITY
+                + DESCRIBE_CONSUMER_GROUPS_CAPACITY
+                + LIST_CONSUMER_GROUPS_CAPACITY
+                + REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY
+                + DESCRIBE_LOG_DIRS_CAPACITY
+                + ALTER_REPLICA_LOG_DIRS_CAPACITY
+                + DESCRIBE_ACLS_CAPACITY
+                + CREATE_ACLS_CAPACITY
+                + DELETE_ACLS_CAPACITY
+        ),
+        Some(DESCRIBE_TOPICS_CAPACITY)
+    );
+}
+
+#[test]
+fn create_partitions_is_included_in_the_closed_shared_capacity_equation() {
+    assert_eq!(
+        AdminCompletionNotifier::capacity_for_test().checked_sub(
+            CREATE_TOPICS_CAPACITY
+                + DELETE_TOPICS_CAPACITY
+                + DESCRIBE_CLUSTER_CAPACITY
+                + DESCRIBE_TOPICS_CAPACITY
+                + DESCRIBE_CONFIGS_CAPACITY
+                + INCREMENTAL_ALTER_CONFIGS_CAPACITY
+                + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + DELETE_CONSUMER_GROUPS_CAPACITY
+                + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + ADMIN_LIST_OFFSETS_CAPACITY
+                + LIST_PARTITION_REASSIGNMENTS_CAPACITY
+                + ALTER_PARTITION_REASSIGNMENTS_CAPACITY
+                + ELECT_LEADERS_CAPACITY
+                + DELETE_RECORDS_CAPACITY
+                + DESCRIBE_CONSUMER_GROUPS_CAPACITY
+                + LIST_CONSUMER_GROUPS_CAPACITY
+                + REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY
+                + DESCRIBE_LOG_DIRS_CAPACITY
+                + ALTER_REPLICA_LOG_DIRS_CAPACITY
+                + DESCRIBE_ACLS_CAPACITY
+                + CREATE_ACLS_CAPACITY
+                + DELETE_ACLS_CAPACITY
+        ),
+        Some(CREATE_PARTITIONS_CAPACITY)
+    );
+}
+
+#[test]
+fn describe_configs_is_included_in_the_closed_shared_capacity_equation() {
+    assert_eq!(
+        AdminCompletionNotifier::capacity_for_test().checked_sub(
+            CREATE_TOPICS_CAPACITY
+                + DELETE_TOPICS_CAPACITY
+                + DESCRIBE_CLUSTER_CAPACITY
+                + CREATE_PARTITIONS_CAPACITY
+                + DESCRIBE_TOPICS_CAPACITY
+                + INCREMENTAL_ALTER_CONFIGS_CAPACITY
+                + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + DELETE_CONSUMER_GROUPS_CAPACITY
+                + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + ADMIN_LIST_OFFSETS_CAPACITY
+                + LIST_PARTITION_REASSIGNMENTS_CAPACITY
+                + ALTER_PARTITION_REASSIGNMENTS_CAPACITY
+                + ELECT_LEADERS_CAPACITY
+                + DELETE_RECORDS_CAPACITY
+                + DESCRIBE_CONSUMER_GROUPS_CAPACITY
+                + LIST_CONSUMER_GROUPS_CAPACITY
+                + REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY
+                + DESCRIBE_LOG_DIRS_CAPACITY
+                + ALTER_REPLICA_LOG_DIRS_CAPACITY
+                + DESCRIBE_ACLS_CAPACITY
+                + CREATE_ACLS_CAPACITY
+                + DELETE_ACLS_CAPACITY
+        ),
+        Some(DESCRIBE_CONFIGS_CAPACITY)
+    );
+}
+
+#[test]
+fn incremental_alter_configs_is_included_in_the_closed_shared_capacity_equation() {
+    assert_eq!(
+        AdminCompletionNotifier::capacity_for_test().checked_sub(
+            CREATE_TOPICS_CAPACITY
+                + DELETE_TOPICS_CAPACITY
+                + DESCRIBE_CLUSTER_CAPACITY
+                + CREATE_PARTITIONS_CAPACITY
+                + DESCRIBE_TOPICS_CAPACITY
+                + DESCRIBE_CONFIGS_CAPACITY
+                + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + DELETE_CONSUMER_GROUPS_CAPACITY
+                + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + ADMIN_LIST_OFFSETS_CAPACITY
+                + LIST_PARTITION_REASSIGNMENTS_CAPACITY
+                + ALTER_PARTITION_REASSIGNMENTS_CAPACITY
+                + ELECT_LEADERS_CAPACITY
+                + DELETE_RECORDS_CAPACITY
+                + DESCRIBE_CONSUMER_GROUPS_CAPACITY
+                + LIST_CONSUMER_GROUPS_CAPACITY
+                + REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY
+                + DESCRIBE_LOG_DIRS_CAPACITY
+                + ALTER_REPLICA_LOG_DIRS_CAPACITY
+                + DESCRIBE_ACLS_CAPACITY
+                + CREATE_ACLS_CAPACITY
+                + DELETE_ACLS_CAPACITY
+        ),
+        Some(INCREMENTAL_ALTER_CONFIGS_CAPACITY)
+    );
+}
+
+#[test]
+fn group_offsets_is_included_in_the_closed_shared_capacity_equation() {
+    assert_eq!(
+        AdminCompletionNotifier::capacity_for_test().checked_sub(
+            CREATE_TOPICS_CAPACITY
+                + DELETE_TOPICS_CAPACITY
+                + DESCRIBE_CLUSTER_CAPACITY
+                + CREATE_PARTITIONS_CAPACITY
+                + DESCRIBE_TOPICS_CAPACITY
+                + DESCRIBE_CONFIGS_CAPACITY
+                + INCREMENTAL_ALTER_CONFIGS_CAPACITY
+                + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + DELETE_CONSUMER_GROUPS_CAPACITY
+                + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
+                + ADMIN_LIST_OFFSETS_CAPACITY
+                + LIST_PARTITION_REASSIGNMENTS_CAPACITY
+                + ALTER_PARTITION_REASSIGNMENTS_CAPACITY
+                + ELECT_LEADERS_CAPACITY
+                + DELETE_RECORDS_CAPACITY
+                + DESCRIBE_CONSUMER_GROUPS_CAPACITY
+                + LIST_CONSUMER_GROUPS_CAPACITY
+                + REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY
+                + DESCRIBE_LOG_DIRS_CAPACITY
+                + ALTER_REPLICA_LOG_DIRS_CAPACITY
+                + DESCRIBE_ACLS_CAPACITY
+                + CREATE_ACLS_CAPACITY
+                + DELETE_ACLS_CAPACITY
+        ),
+        Some(LIST_CONSUMER_GROUP_OFFSETS_CAPACITY)
+    );
+}
 struct PendingTerminal<T, P>
 where
     T: Send + 'static,

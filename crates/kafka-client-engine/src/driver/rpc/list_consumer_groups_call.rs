@@ -39,7 +39,10 @@ impl ListConsumerGroupsCall {
         deadline: Instant,
     ) -> Result<Self, ListConsumerGroupsCallAdmissionFailure> {
         let call = driver
-            .submit_tracked_list_consumer_groups_discovery(describe_cluster_request(), deadline)
+            .submit_tracked_list_consumer_groups_discovery(
+                describe_cluster_request(false, false),
+                deadline,
+            )
             .map_err(ListConsumerGroupsCallAdmissionFailure::new)?;
         Ok(Self {
             inner: Inner::Discovery(Some(call)),

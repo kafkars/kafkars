@@ -2,7 +2,7 @@
 
 mod describe_cluster_submit;
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use kafka_client_engine::{
     AdminHandle as EngineAdminHandle, CreatePartitionsRequest as EnginePartitionsRequest,
@@ -21,6 +21,7 @@ use super::admin_alter_replica_log_dirs::{
 use super::admin_configs_operation::AdminDescribeConfigs;
 use super::admin_configs_request::DescribeConfigsAdminRequest;
 use super::admin_create_acls::{AdminCreateAcls, CreateAclsAdminRequest};
+use super::admin_delete_acls::{AdminDeleteAcls, DeleteAclsAdminRequest};
 use super::admin_delete_consumer_groups::{
     AdminDeleteConsumerGroups, DeleteConsumerGroupsAdminRequest,
 };
@@ -77,28 +78,6 @@ impl AdminEngine {
         )
     }
 
-    pub(crate) fn submit_describe_consumer_groups(
-        &self,
-        request: DescribeConsumerGroupsAdminRequest,
-        timeout: Duration,
-    ) -> AdminDescribeConsumerGroups {
-        AdminDescribeConsumerGroups::from_admission(
-            self.handle
-                .try_describe_consumer_groups(request.into_engine(), timeout),
-        )
-    }
-
-    pub(crate) fn submit_describe_log_dirs(
-        &self,
-        request: DescribeLogDirsAdminRequest,
-        timeout: Duration,
-    ) -> AdminDescribeLogDirs {
-        AdminDescribeLogDirs::from_admission(
-            self.handle
-                .try_describe_log_dirs(request.into_engine(), timeout),
-        )
-    }
-
     pub(crate) fn submit(&self, request: AdminRequest, timeout: Duration) -> AdminCreateTopics {
         AdminCreateTopics::from_admission(self.handle.try_create_topics(request.inner, timeout))
     }
@@ -143,6 +122,16 @@ impl AdminEngine {
         })
     }
 
+    pub(crate) fn submit_delete_acls(
+        &self,
+        request: DeleteAclsAdminRequest,
+        deadline: Instant,
+    ) -> AdminDeleteAcls {
+        AdminDeleteAcls::submit_with(request, deadline, |request, remaining| {
+            self.handle.try_delete_acls(request, remaining)
+        })
+    }
+
     pub(crate) fn submit_describe_acls(
         &self,
         request: DescribeAclsAdminRequest,
@@ -154,6 +143,28 @@ impl AdminEngine {
             return AdminDescribeAcls::deadline_elapsed();
         }
         AdminDescribeAcls::from_admission(self.handle.try_describe_acls(request, remaining))
+    }
+
+    pub(crate) fn submit_describe_consumer_groups(
+        &self,
+        request: DescribeConsumerGroupsAdminRequest,
+        timeout: Duration,
+    ) -> AdminDescribeConsumerGroups {
+        AdminDescribeConsumerGroups::from_admission(
+            self.handle
+                .try_describe_consumer_groups(request.into_engine(), timeout),
+        )
+    }
+
+    pub(crate) fn submit_describe_log_dirs(
+        &self,
+        request: DescribeLogDirsAdminRequest,
+        timeout: Duration,
+    ) -> AdminDescribeLogDirs {
+        AdminDescribeLogDirs::from_admission(
+            self.handle
+                .try_describe_log_dirs(request.into_engine(), timeout),
+        )
     }
 
     pub(crate) fn submit_describe_topics(
@@ -235,7 +246,6 @@ impl AdminEngine {
             self.handle.try_create_partitions(request.inner, timeout),
         )
     }
-
     pub(crate) fn submit_elect_leaders(
         &self,
         request: ElectLeadersAdminRequest,

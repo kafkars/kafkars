@@ -40,7 +40,7 @@ pub(crate) fn normalize_list_consumer_groups_discovery(
     if response.throttle_time_ms < 0 {
         return Err(ListConsumerGroupsProtocolFailure::InvalidResponse);
     }
-    let input = normalize_describe_cluster_response(response, retained_bytes)
+    let input = normalize_describe_cluster_response(response, retained_bytes, false, false)
         .map_err(map_discovery_failure)?;
     match input {
         DescribeClusterInput::BrokerResponded { description } => {

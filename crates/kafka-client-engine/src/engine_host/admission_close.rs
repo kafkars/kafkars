@@ -8,12 +8,28 @@ pub(super) fn close_all(resources: &mut EngineHostResources) {
     let _close_result = resources.delete_topics.admission_port().close_admission();
     let _close_result = resources
         .delete_consumer_groups
+        .admission_port()
+        .close_admission();
+    let _close_result = resources
         .describe_cluster
         .admission_port()
         .close_admission();
     let _close_result = resources
+        .describe_consumer_groups
+        .admission_port()
+        .close_admission();
+    let _close_result = resources
+        .describe_log_dirs
+        .admission_port()
+        .close_admission();
+    let _close_result = resources
+        .alter_replica_log_dirs
+        .admission_port()
+        .close_admission();
     let _close_result = resources.describe_acls.admission_port().close_admission();
     let _close_result = resources.create_acls.admission_port().close_admission();
+    let _close_result = resources.delete_acls.admission_port().close_admission();
+    let _close_result = resources
         .create_partitions
         .admission_port()
         .close_admission();
@@ -54,18 +70,6 @@ pub(super) fn close_all(resources: &mut EngineHostResources) {
     let _close_result = resources.elect_leaders.admission_port().close_admission();
     let _close_result = resources
         .remove_consumer_group_members
-        .admission_port()
-        .close_admission();
-    let _close_result = resources
-        .describe_consumer_groups
-        .admission_port()
-        .close_admission();
-    let _close_result = resources
-        .describe_log_dirs
-        .admission_port()
-        .close_admission();
-    let _close_result = resources
-        .alter_replica_log_dirs
         .admission_port()
         .close_admission();
     let _close_result = resources.delete_records.admission_port().close_admission();

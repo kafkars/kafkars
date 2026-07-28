@@ -1,5 +1,9 @@
 //! Curated Rust administration re-exports.
 
+pub use super::acls::{
+    AccessControlEntry, AclBinding, AclBindingFilter, AclOperation, AclPatternType,
+    AclPermissionType, AclResourceType, ResourcePattern,
+};
 pub use super::alter_configs::{
     ConfigAlteration, ConfigAlterationOperation, IncrementalAlterConfigs,
     IncrementalAlterConfigsBuilder, IncrementalAlterConfigsResult, TopicConfigAlterations,
@@ -20,6 +24,10 @@ pub use super::create_acls::{
 };
 pub use super::create_partitions::CreatePartitions;
 pub use super::create_topics::CreateTopics;
+pub use super::delete_acls::{
+    DeleteAclBrokerError, DeleteAclFilterOutcome, DeleteAclFilterResult, DeleteAclMatchOutcome,
+    DeleteAclMatchResult, DeleteAcls, DeleteAclsBuilder, DeleteAclsResult,
+};
 pub use super::delete_builder::DeleteTopicsBuilder;
 pub use super::delete_consumer_group_offsets::DeleteConsumerGroupOffsets;
 pub use super::delete_consumer_group_offsets_builder::DeleteConsumerGroupOffsetsBuilder;

@@ -133,6 +133,7 @@ impl AlterPartitionReassignmentsShardWake for ReactorWake {
             .map_err(|error| AlterPartitionReassignmentsShardWakeError::from_io(error.into_io()))
     }
 }
+
 impl ElectLeadersShardWake for ReactorWake {
     fn wake(&self) -> Result<(), ElectLeadersShardWakeError> {
         self.request()

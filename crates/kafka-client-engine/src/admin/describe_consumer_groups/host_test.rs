@@ -2,9 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use kafka_client_core::{
-    AdminDescribeConsumerGroupsPlan, AdminDescribeConsumerGroupsScope, Deadline, Moment,
-};
+use kafka_client_core::{AdminDescribeConsumerGroupsPlan, Deadline, Moment};
 
 use crate::{
     EngineConfig,
@@ -20,66 +18,53 @@ use super::{
 };
 
 #[test]
-fn classic_and_modern_completion_faults_recover_after_driver_shutdown() {
-    for scope in [
-        AdminDescribeConsumerGroupsScope::ClassicOnly,
-        AdminDescribeConsumerGroupsScope::ModernFirst,
-    ] {
-        let (mut host, notifier) = host();
-        let deadline = deadline();
-        let plan =
-            AdminDescribeConsumerGroupsPlan::with_scope(vec!["workers".to_owned()], false, scope)
-                .unwrap_or_else(|error| panic!("plan: {error}"));
-        let admission = host
-            .try_admit(Moment::from_tick(1), deadline, plan)
-            .unwrap_or_else(|error| panic!("admission: {error:?}"));
-        let DescribeConsumerGroupsTurn::Submit(submission) = host
-            .turn(Moment::from_tick(2))
-            .unwrap_or_else(|error| panic!("submission turn: {error}"))
-        else {
-            panic!("submission expected");
-        };
-        let (
-            operation_id,
-            submitted_deadline,
-            group_id,
-            authorized,
-            call_kind,
-            scratch,
-            result_limit,
-        ) = submission.into_parts();
-        let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
-            .unwrap_or_else(|error| panic!("driver owner: {error}"));
-        let call = DescribeConsumerGroupsCall::submit(
-            &driver,
-            call_kind,
-            group_id,
-            authorized,
-            scratch,
-            result_limit,
-            submitted_deadline,
-        )
-        .unwrap_or_else(|_error| panic!("accepted call"));
-        host.accept_call(operation_id, call)
-            .unwrap_or_else(|error| panic!("host acceptance: {error}"));
-        drop(driver);
+fn modern_completion_fault_recovers_after_driver_shutdown() {
+    let (mut host, notifier) = host();
+    let deadline = deadline();
+    let plan = AdminDescribeConsumerGroupsPlan::new(vec!["workers".to_owned()], false)
+        .unwrap_or_else(|error| panic!("plan: {error}"));
+    let admission = host
+        .try_admit(Moment::from_tick(1), deadline, plan)
+        .unwrap_or_else(|error| panic!("admission: {error:?}"));
+    let DescribeConsumerGroupsTurn::Submit(submission) = host
+        .turn(Moment::from_tick(2))
+        .unwrap_or_else(|error| panic!("submission turn: {error}"))
+    else {
+        panic!("submission expected");
+    };
+    let (operation_id, submitted_deadline, group_id, authorized, call_kind, scratch, result_limit) =
+        submission.into_parts();
+    let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver owner: {error}"));
+    let call = DescribeConsumerGroupsCall::submit(
+        &driver,
+        call_kind,
+        group_id,
+        authorized,
+        scratch,
+        result_limit,
+        submitted_deadline,
+    )
+    .unwrap_or_else(|_error| panic!("accepted call"));
+    host.accept_call(operation_id, call)
+        .unwrap_or_else(|error| panic!("host acceptance: {error}"));
+    drop(driver);
 
-        assert!(matches!(
-            host.turn(Moment::from_tick(3)),
-            Err(DescribeConsumerGroupsHostError::CallCompletion)
-        ));
-        host.recover_after_driver_shutdown()
-            .unwrap_or_else(|error| panic!("post-driver recovery: {error}"));
-        assert_transport_failure(
-            admission
-                .observer
-                .wait()
-                .unwrap_or_else(|error| panic!("recovery observation: {error}")),
-        );
+    assert!(matches!(
+        host.turn(Moment::from_tick(3)),
+        Err(DescribeConsumerGroupsHostError::CallCompletion)
+    ));
+    host.recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("post-driver recovery: {error}"));
+    assert_transport_failure(
+        admission
+            .observer
+            .wait()
+            .unwrap_or_else(|error| panic!("recovery observation: {error}")),
+    );
 
-        drop(host);
-        stop_notifier(notifier);
-    }
+    drop(host);
+    stop_notifier(notifier);
 }
 
 fn assert_transport_failure(outcome: DescribeConsumerGroupsOutcome) {

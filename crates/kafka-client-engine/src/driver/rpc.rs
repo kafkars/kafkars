@@ -31,6 +31,13 @@ mod classic_group_leave_failure;
 #[cfg(test)]
 mod classic_group_leave_failure_test;
 mod classic_group_position_reset_adapter;
+mod consumer_group_describe_call;
+mod consumer_group_describe_submission;
+#[cfg(test)]
+mod consumer_group_describe_submission_test;
+mod consumer_group_describe_terminal;
+#[cfg(test)]
+mod consumer_group_describe_terminal_test;
 mod create_acls_call;
 mod create_acls_submission;
 #[cfg(test)]
@@ -54,6 +61,11 @@ mod create_topics_submission_test;
 mod create_topics_terminal;
 #[cfg(test)]
 mod create_topics_terminal_test;
+mod delete_acls_call;
+mod delete_acls_submission;
+#[cfg(test)]
+mod delete_acls_submission_test;
+mod delete_acls_terminal;
 mod delete_consumer_groups_call;
 mod delete_consumer_groups_submission;
 #[cfg(test)]
@@ -262,10 +274,18 @@ pub(crate) use alter_replica_log_dirs_terminal::{
     AlterReplicaLogDirsDriverFailureKind, AlterReplicaLogDirsRawTerminal,
     AlterReplicaLogDirsTerminalFact, RecoveredAlterReplicaLogDirsCall,
 };
+pub(crate) use consumer_group_describe_terminal::{
+    ConsumerGroupDescribeDriverFailureKind, ConsumerGroupDescribeTerminalFact,
+};
 pub(crate) use create_acls_call::CreateAclsCall;
 pub(crate) use create_acls_terminal::{
     CreateAclsDriverFailureKind, CreateAclsRawTerminal, CreateAclsTerminalFact,
     RecoveredCreateAclsCall,
+};
+pub(crate) use delete_acls_call::DeleteAclsCall;
+pub(crate) use delete_acls_terminal::{
+    DeleteAclsDriverFailureKind, DeleteAclsRawTerminal, DeleteAclsTerminalFact,
+    RecoveredDeleteAclsCall,
 };
 pub(crate) use delete_consumer_groups_call::DeleteConsumerGroupsCall;
 pub(crate) use delete_consumer_groups_terminal::{

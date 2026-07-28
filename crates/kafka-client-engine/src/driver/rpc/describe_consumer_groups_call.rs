@@ -73,8 +73,7 @@ impl DescribeConsumerGroupsCall {
                 };
                 DescribeConsumerGroupsCallInner::Consumer(call)
             }
-            AdminDescribeConsumerGroupsCallKind::Classic
-            | AdminDescribeConsumerGroupsCallKind::ClassicFallback => {
+            AdminDescribeConsumerGroupsCallKind::ClassicFallback => {
                 let request = describe_consumer_group_request(
                     evidence.group_id(),
                     evidence.include_authorized_operations(),

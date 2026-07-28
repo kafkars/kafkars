@@ -11,12 +11,13 @@ use crate::{
     EngineConfig,
     admin::{
         AdminCompletionNotifier, AlterReplicaLogDirsShardOwner, CreateAclsShardOwner,
-        CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner,
-        DeleteConsumerGroupsShardOwner, DeleteRecordsShardOwner, DeleteTopicsShardOwner,
-        DescribeAclsShardOwner, DescribeClusterShardOwner, DescribeConsumerGroupsShardOwner,
-        DescribeLogDirsShardOwner, DescribeTopicsShardOwner, ElectLeadersShardOwner,
-        IncrementalAlterConfigsShardOwner, ListConsumerGroupOffsetsShardOwner,
-        ListConsumerGroupsShardOwner, RemoveConsumerGroupMembersShardOwner,
+        CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteAclsShardOwner,
+        DeleteConsumerGroupOffsetsShardOwner, DeleteConsumerGroupsShardOwner,
+        DeleteRecordsShardOwner, DeleteTopicsShardOwner, DescribeAclsShardOwner,
+        DescribeClusterShardOwner, DescribeConsumerGroupsShardOwner, DescribeLogDirsShardOwner,
+        DescribeTopicsShardOwner, ElectLeadersShardOwner, IncrementalAlterConfigsShardOwner,
+        ListConsumerGroupOffsetsShardOwner, ListConsumerGroupsShardOwner,
+        RemoveConsumerGroupMembersShardOwner,
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
@@ -78,20 +79,29 @@ pub(crate) fn start(
     };
     let StartedAdminHosts {
         create_topics,
+        create_acls,
+        delete_acls,
         delete_topics,
+        delete_consumer_groups,
+        delete_records,
+        describe_acls,
         describe_cluster,
+        describe_consumer_groups,
+        describe_log_dirs,
+        alter_replica_log_dirs,
         create_partitions,
         describe_topics,
         describe_configs,
         incremental_alter_configs,
         list_consumer_group_offsets,
+        list_consumer_groups,
         delete_consumer_group_offsets,
         alter_consumer_group_offsets,
         admin_list_offsets,
         list_partition_reassignments,
         alter_partition_reassignments,
-        describe_log_dirs,
-        alter_replica_log_dirs,
+        elect_leaders,
+        remove_consumer_group_members,
     } = admin_hosts::start(admin_ports);
     let mut group_consumers = match GroupConsumerRegistry::start() {
         Ok(registry) => registry,
@@ -129,6 +139,8 @@ pub(crate) fn start(
     let create_topics_admission = create_topics.admission_port();
     let create_acls = CreateAclsShardOwner::new(create_acls, Arc::new(driver.reactor_wake()));
     let create_acls_admission = create_acls.admission_port();
+    let delete_acls = DeleteAclsShardOwner::new(delete_acls, Arc::new(driver.reactor_wake()));
+    let delete_acls_admission = delete_acls.admission_port();
     let delete_topics = DeleteTopicsShardOwner::new(delete_topics, Arc::new(driver.reactor_wake()));
     let delete_topics_admission = delete_topics.admission_port();
     let delete_consumer_groups = DeleteConsumerGroupsShardOwner::new(
@@ -144,6 +156,17 @@ pub(crate) fn start(
     let describe_cluster =
         DescribeClusterShardOwner::new(describe_cluster, Arc::new(driver.reactor_wake()));
     let describe_cluster_admission = describe_cluster.admission_port();
+    let describe_consumer_groups = DescribeConsumerGroupsShardOwner::new(
+        describe_consumer_groups,
+        Arc::new(driver.reactor_wake()),
+    );
+    let describe_consumer_groups_admission = describe_consumer_groups.admission_port();
+    let describe_log_dirs =
+        DescribeLogDirsShardOwner::new(describe_log_dirs, Arc::new(driver.reactor_wake()));
+    let describe_log_dirs_admission = describe_log_dirs.admission_port();
+    let alter_replica_log_dirs =
+        AlterReplicaLogDirsShardOwner::new(alter_replica_log_dirs, Arc::new(driver.reactor_wake()));
+    let alter_replica_log_dirs_admission = alter_replica_log_dirs.admission_port();
     let create_partitions =
         CreatePartitionsShardOwner::new(create_partitions, Arc::new(driver.reactor_wake()));
     let create_partitions_admission = create_partitions.admission_port();
@@ -179,17 +202,6 @@ pub(crate) fn start(
         list_partition_reassignments::start(list_partition_reassignments, driver.reactor_wake());
     let alter_partition_reassignments =
         alter_partition_reassignments::start(alter_partition_reassignments, driver.reactor_wake());
-    let describe_consumer_groups = DescribeConsumerGroupsShardOwner::new(
-        describe_consumer_groups,
-        Arc::new(driver.reactor_wake()),
-    );
-    let describe_consumer_groups_admission = describe_consumer_groups.admission_port();
-    let describe_log_dirs =
-        DescribeLogDirsShardOwner::new(describe_log_dirs, Arc::new(driver.reactor_wake()));
-    let describe_log_dirs_admission = describe_log_dirs.admission_port();
-    let alter_replica_log_dirs =
-        AlterReplicaLogDirsShardOwner::new(alter_replica_log_dirs, Arc::new(driver.reactor_wake()));
-    let alter_replica_log_dirs_admission = alter_replica_log_dirs.admission_port();
     let elect_leaders = ElectLeadersShardOwner::new(elect_leaders, Arc::new(driver.reactor_wake()));
     let elect_leaders_admission = elect_leaders.admission_port();
     let remove_consumer_group_members = RemoveConsumerGroupMembersShardOwner::new(
@@ -205,13 +217,16 @@ pub(crate) fn start(
         admin_notifier,
         assigned_consumer_notifier,
         create_topics,
-        delete_topics,
-        describe_cluster,
-        delete_records,
-        describe_consumer_groups,
-        delete_consumer_groups,
-        describe_acls,
         create_acls,
+        delete_acls,
+        delete_topics,
+        delete_consumer_groups,
+        delete_records,
+        describe_acls,
+        describe_cluster,
+        describe_consumer_groups,
+        describe_log_dirs,
+        alter_replica_log_dirs,
         create_partitions,
         describe_topics,
         describe_configs: describe_configs.owner,
@@ -223,8 +238,6 @@ pub(crate) fn start(
         list_offsets: list_offsets.owner,
         list_partition_reassignments: list_partition_reassignments.owner,
         alter_partition_reassignments: alter_partition_reassignments.owner,
-        describe_log_dirs,
-        alter_replica_log_dirs,
         elect_leaders,
         remove_consumer_group_members,
         assigned_consumer: assigned_consumer_owner,
@@ -267,11 +280,15 @@ pub(crate) fn start(
         admission,
         create_topics_admission,
         create_acls_admission,
+        delete_acls_admission,
         delete_topics_admission,
         delete_consumer_groups_admission,
         delete_records_admission,
         describe_acls_admission,
         describe_cluster_admission,
+        describe_consumer_groups_admission,
+        describe_log_dirs_admission,
+        alter_replica_log_dirs_admission,
         create_partitions_admission,
         describe_topics_admission,
         describe_configs_admission: describe_configs.admission,
@@ -283,9 +300,6 @@ pub(crate) fn start(
         list_offsets_admission: list_offsets.admission,
         list_partition_reassignments_admission: list_partition_reassignments.admission,
         alter_partition_reassignments_admission: alter_partition_reassignments.admission,
-        describe_consumer_groups_admission,
-        describe_log_dirs_admission,
-        alter_replica_log_dirs_admission,
         elect_leaders_admission,
         remove_consumer_group_members_admission,
         assigned_consumer,

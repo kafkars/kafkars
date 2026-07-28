@@ -137,7 +137,6 @@ impl DescribeLogDirsHost {
         if self.operations[index].handoff != DescribeLogDirsHandoff::HandedOff
             || self.operations[index].call.is_some()
             || self.operations[index].recovered_call.is_some()
-            || self.operations[index].current_selection.is_some()
             || self.operations[index].raw_terminal.is_some()
             || self.operations[index].terminal.is_some()
         {

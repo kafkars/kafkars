@@ -77,8 +77,10 @@ pub(crate) use rpc::exports::{
 };
 pub(crate) use rpc::{
     AlterReplicaLogDirsCall, AlterReplicaLogDirsDriverFailureKind, AlterReplicaLogDirsRawTerminal,
-    AlterReplicaLogDirsTerminalFact, CreateAclsCall, CreateAclsDriverFailureKind,
-    CreateAclsRawTerminal, CreateAclsTerminalFact, DeleteConsumerGroupsCall,
+    AlterReplicaLogDirsTerminalFact, ConsumerGroupDescribeDriverFailureKind,
+    ConsumerGroupDescribeTerminalFact, CreateAclsCall, CreateAclsDriverFailureKind,
+    CreateAclsRawTerminal, CreateAclsTerminalFact, DeleteAclsCall, DeleteAclsDriverFailureKind,
+    DeleteAclsRawTerminal, DeleteAclsTerminalFact, DeleteConsumerGroupsCall,
     DeleteConsumerGroupsDriverFailureKind, DeleteConsumerGroupsRawTerminal,
     DeleteConsumerGroupsTerminalFact, DeleteRecordsCall, DeleteRecordsDriverFailureKind,
     DeleteRecordsRawTerminal, DeleteRecordsTerminalFact, DescribeAclsCall,
@@ -89,13 +91,15 @@ pub(crate) use rpc::{
     ElectLeadersCall, ElectLeadersDriverFailureKind, ElectLeadersTerminal,
     ElectLeadersTerminalFact, ListConsumerGroupsCall, ListConsumerGroupsDriverFailureKind,
     ListConsumerGroupsRawTerminal, ListConsumerGroupsRawTerminalFact,
-    RecoveredAlterReplicaLogDirsCall, RecoveredCreateAclsCall, RecoveredDeleteConsumerGroupsCall,
-    RecoveredDeleteRecordsCall, RecoveredDescribeAclsCall, RecoveredDescribeConsumerGroupsCall,
-    RecoveredDescribeLogDirsCall, RecoveredElectLeadersCall,
+    RecoveredAlterReplicaLogDirsCall, RecoveredCreateAclsCall, RecoveredDeleteAclsCall,
+    RecoveredDeleteConsumerGroupsCall, RecoveredDeleteRecordsCall, RecoveredDescribeAclsCall,
+    RecoveredDescribeConsumerGroupsCall, RecoveredDescribeLogDirsCall, RecoveredElectLeadersCall,
     RecoveredRemoveConsumerGroupMembersCall, RemoveConsumerGroupMembersCall,
     RemoveConsumerGroupMembersDriverFailureKind, RemoveConsumerGroupMembersTerminal,
-    RemoveConsumerGroupMembersTerminalFact, classic_group, transaction_control,
-    transaction_offsets, transaction_produce,
+    RemoveConsumerGroupMembersTerminalFact,
+};
+pub(crate) use rpc::{
+    classic_group, transaction_control, transaction_offsets, transaction_produce,
 };
 pub(crate) use security::{EngineSecurityError, ValidatedSecurity, validate as validate_security};
 pub(crate) use wake::{ReactorWake, ReactorWakeError};

@@ -11,6 +11,7 @@ mod completion_group_offsets_test;
 mod completion_test;
 mod configs;
 mod create_acls;
+mod delete_acls;
 mod delete_consumer_groups;
 mod delete_error;
 mod delete_handle;

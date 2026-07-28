@@ -107,7 +107,6 @@ impl DescribeLogDirsHost {
             .take()
             .ok_or(DescribeLogDirsHostError::InvalidHandoff)?;
         recovered.seal();
-        self.operations[index].current_selection = None;
         self.install_effect(index, effect)
     }
 
