@@ -36,6 +36,7 @@ pub(crate) fn recover(
     drop(resources.describe_log_dirs.terminal_host());
     drop(resources.alter_replica_log_dirs.terminal_host());
     drop(resources.describe_acls.terminal_host());
+    drop(resources.describe_client_quotas.terminal_host());
     drop(resources.create_acls.terminal_host());
     drop(resources.delete_acls.terminal_host());
     drop(resources.create_partitions.terminal_host());

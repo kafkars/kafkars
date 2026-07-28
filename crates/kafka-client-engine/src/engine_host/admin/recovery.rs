@@ -81,6 +81,15 @@ fn recover_topic_operations(
         failure = failure.with_cleanup(cleanup);
     }
     drop(describe_acls);
+    let mut describe_client_quotas = resources.describe_client_quotas.terminal_host();
+    if let Some(cleanup) = describe_client_quotas
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::DescribeClientQuotas)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    drop(describe_client_quotas);
     let mut create_acls = resources.create_acls.terminal_host();
     if let Some(cleanup) = create_acls
         .recover_after_driver_shutdown()

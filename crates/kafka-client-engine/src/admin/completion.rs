@@ -7,10 +7,11 @@ use kafka_client_core::{
     AdminListConsumerGroupsTerminal, AdminListOffsetsTerminal, AlterConsumerGroupOffsetsTerminal,
     AlterPartitionReassignmentsTerminal, AlterReplicaLogDirsTerminal, CreatePartitionsTerminal,
     CreateTopicsTerminal, DeleteConsumerGroupOffsetsTerminal, DeleteConsumerGroupsTerminal,
-    DeleteRecordsTerminal, DeleteTopicsTerminal, DescribeAclsTerminal, DescribeClusterTerminal,
-    DescribeConfigsTerminal, DescribeTopicsTerminal, ElectLeadersTerminal,
-    IncrementalAlterConfigsTerminal, ListConsumerGroupOffsetsTerminal,
-    ListPartitionReassignmentsTerminal, RemoveConsumerGroupMembersTerminal,
+    DeleteRecordsTerminal, DeleteTopicsTerminal, DescribeAclsTerminal,
+    DescribeClientQuotasTerminal, DescribeClusterTerminal, DescribeConfigsTerminal,
+    DescribeTopicsTerminal, ElectLeadersTerminal, IncrementalAlterConfigsTerminal,
+    ListConsumerGroupOffsetsTerminal, ListPartitionReassignmentsTerminal,
+    RemoveConsumerGroupMembersTerminal,
 };
 
 use super::{CreateAclsOutcome, DeleteAclsOutcome};
@@ -26,11 +27,11 @@ use super::{
     CREATE_PARTITIONS_CAPACITY, CREATE_TOPICS_CAPACITY, DELETE_ACLS_CAPACITY,
     DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY, DELETE_CONSUMER_GROUPS_CAPACITY,
     DELETE_RECORDS_CAPACITY, DELETE_TOPICS_CAPACITY, DESCRIBE_ACLS_CAPACITY,
-    DESCRIBE_CLUSTER_CAPACITY, DESCRIBE_CONFIGS_CAPACITY, DESCRIBE_CONSUMER_GROUPS_CAPACITY,
-    DESCRIBE_LOG_DIRS_CAPACITY, DESCRIBE_TOPICS_CAPACITY, ELECT_LEADERS_CAPACITY,
-    INCREMENTAL_ALTER_CONFIGS_CAPACITY, LIST_CONSUMER_GROUP_OFFSETS_CAPACITY,
-    LIST_CONSUMER_GROUPS_CAPACITY, LIST_PARTITION_REASSIGNMENTS_CAPACITY,
-    REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY,
+    DESCRIBE_CLIENT_QUOTAS_CAPACITY, DESCRIBE_CLUSTER_CAPACITY, DESCRIBE_CONFIGS_CAPACITY,
+    DESCRIBE_CONSUMER_GROUPS_CAPACITY, DESCRIBE_LOG_DIRS_CAPACITY, DESCRIBE_TOPICS_CAPACITY,
+    ELECT_LEADERS_CAPACITY, INCREMENTAL_ALTER_CONFIGS_CAPACITY,
+    LIST_CONSUMER_GROUP_OFFSETS_CAPACITY, LIST_CONSUMER_GROUPS_CAPACITY,
+    LIST_PARTITION_REASSIGNMENTS_CAPACITY, REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY,
 };
 
 const ADMIN_NOTIFIER_THREAD: &str = "kafka-client-admin-completion-notifier";
@@ -56,6 +57,7 @@ const ADMIN_NOTIFICATION_CAPACITY: usize = CREATE_TOPICS_CAPACITY
     + DESCRIBE_LOG_DIRS_CAPACITY
     + ALTER_REPLICA_LOG_DIRS_CAPACITY
     + DESCRIBE_ACLS_CAPACITY
+    + DESCRIBE_CLIENT_QUOTAS_CAPACITY
     + CREATE_ACLS_CAPACITY
     + DELETE_ACLS_CAPACITY;
 
@@ -83,6 +85,7 @@ pub(crate) enum AdminPublishTicket {
     DescribeLogDirs(PublishTicket<AdminDescribeLogDirsTerminal>),
     AlterReplicaLogDirs(PublishTicket<AlterReplicaLogDirsTerminal>),
     DescribeAcls(PublishTicket<DescribeAclsTerminal>),
+    DescribeClientQuotas(PublishTicket<DescribeClientQuotasTerminal>),
     CreateAcls(PublishTicket<CreateAclsOutcome>),
     DeleteAcls(PublishTicket<DeleteAclsOutcome>),
 }
@@ -112,6 +115,7 @@ impl NotificationTicket for AdminPublishTicket {
             Self::DescribeLogDirs(ticket) => ticket.publish(),
             Self::AlterReplicaLogDirs(ticket) => ticket.publish(),
             Self::DescribeAcls(ticket) => ticket.publish(),
+            Self::DescribeClientQuotas(ticket) => ticket.publish(),
             Self::CreateAcls(ticket) => ticket.publish(),
             Self::DeleteAcls(ticket) => ticket.publish(),
         }
@@ -159,6 +163,8 @@ pub(crate) type AdminAlterReplicaLogDirsPublisher =
     SharedPublishPort<AlterReplicaLogDirsTerminal, AdminPublishTicket>;
 pub(crate) type AdminDescribeAclsPublisher =
     SharedPublishPort<DescribeAclsTerminal, AdminPublishTicket>;
+pub(crate) type AdminDescribeClientQuotasPublisher =
+    SharedPublishPort<DescribeClientQuotasTerminal, AdminPublishTicket>;
 pub(crate) type AdminCreateAclsPublisher = SharedPublishPort<CreateAclsOutcome, AdminPublishTicket>;
 pub(crate) type AdminDeleteAclsPublisher = SharedPublishPort<DeleteAclsOutcome, AdminPublishTicket>;
 
@@ -186,6 +192,7 @@ pub(crate) struct AdminCompletionPorts {
     pub(crate) describe_log_dirs: AdminDescribeLogDirsPublisher,
     pub(crate) alter_replica_log_dirs: AdminAlterReplicaLogDirsPublisher,
     pub(crate) describe_acls: AdminDescribeAclsPublisher,
+    pub(crate) describe_client_quotas: AdminDescribeClientQuotasPublisher,
     pub(crate) create_acls: AdminCreateAclsPublisher,
     pub(crate) delete_acls: AdminDeleteAclsPublisher,
 }
@@ -229,6 +236,7 @@ impl AdminCompletionNotifier {
             describe_log_dirs: worker.publish_port(AdminPublishTicket::DescribeLogDirs),
             alter_replica_log_dirs: worker.publish_port(AdminPublishTicket::AlterReplicaLogDirs),
             describe_acls: worker.publish_port(AdminPublishTicket::DescribeAcls),
+            describe_client_quotas: worker.publish_port(AdminPublishTicket::DescribeClientQuotas),
             create_acls: worker.publish_port(AdminPublishTicket::CreateAcls),
             delete_acls: worker.publish_port(AdminPublishTicket::DeleteAcls),
         };

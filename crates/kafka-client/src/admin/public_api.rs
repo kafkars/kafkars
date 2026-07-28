@@ -42,6 +42,11 @@ pub use super::delete_records::{
 pub use super::delete_topics::DeleteTopics;
 pub use super::describe_acls::{DescribeAcls, DescribeAclsBuilder, DescribeAclsResult};
 pub use super::describe_builder::DescribeClusterBuilder;
+pub use super::describe_client_quotas::{
+    ClientQuotaEntityComponent, ClientQuotaEntry, ClientQuotaFilterComponent, ClientQuotaMatch,
+    ClientQuotaValue, DescribeClientQuotas, DescribeClientQuotasBuilder,
+    DescribeClientQuotasResult,
+};
 pub use super::describe_cluster::DescribeCluster;
 pub use super::describe_consumer_groups::{
     ClassicConsumerGroupDetails, ClassicConsumerGroupMemberDetails, ConsumerGroupAssignment,

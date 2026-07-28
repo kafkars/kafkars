@@ -31,12 +31,12 @@ use super::{
     CREATE_PARTITIONS_CAPACITY, CREATE_TOPICS_CAPACITY, DELETE_ACLS_CAPACITY,
     DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY, DELETE_CONSUMER_GROUPS_CAPACITY,
     DELETE_RECORDS_CAPACITY, DELETE_TOPICS_CAPACITY, DESCRIBE_ACLS_CAPACITY,
-    DESCRIBE_CLUSTER_CAPACITY, DESCRIBE_CONFIGS_CAPACITY, DESCRIBE_CONSUMER_GROUPS_CAPACITY,
-    DESCRIBE_LOG_DIRS_CAPACITY, DESCRIBE_TOPICS_CAPACITY, ELECT_LEADERS_CAPACITY,
-    INCREMENTAL_ALTER_CONFIGS_CAPACITY, LIST_CONSUMER_GROUP_OFFSETS_CAPACITY,
-    LIST_CONSUMER_GROUPS_CAPACITY, LIST_PARTITION_REASSIGNMENTS_CAPACITY,
-    REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY, completion::AdminCompletionNotifier,
-    test_support::completion_owner,
+    DESCRIBE_CLIENT_QUOTAS_CAPACITY, DESCRIBE_CLUSTER_CAPACITY, DESCRIBE_CONFIGS_CAPACITY,
+    DESCRIBE_CONSUMER_GROUPS_CAPACITY, DESCRIBE_LOG_DIRS_CAPACITY, DESCRIBE_TOPICS_CAPACITY,
+    ELECT_LEADERS_CAPACITY, INCREMENTAL_ALTER_CONFIGS_CAPACITY,
+    LIST_CONSUMER_GROUP_OFFSETS_CAPACITY, LIST_CONSUMER_GROUPS_CAPACITY,
+    LIST_PARTITION_REASSIGNMENTS_CAPACITY, REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY,
+    completion::AdminCompletionNotifier, test_support::completion_owner,
 };
 
 macro_rules! exercise_terminals {
@@ -176,6 +176,7 @@ fn shared_capacity_is_the_sum_of_the_closed_admin_ticket_set() {
             + DESCRIBE_LOG_DIRS_CAPACITY
             + ALTER_REPLICA_LOG_DIRS_CAPACITY
             + DESCRIBE_ACLS_CAPACITY
+            + DESCRIBE_CLIENT_QUOTAS_CAPACITY
             + CREATE_ACLS_CAPACITY
             + DELETE_ACLS_CAPACITY
     );
@@ -206,6 +207,7 @@ fn describe_topics_is_included_in_the_closed_shared_capacity_equation() {
                 + DESCRIBE_LOG_DIRS_CAPACITY
                 + ALTER_REPLICA_LOG_DIRS_CAPACITY
                 + DESCRIBE_ACLS_CAPACITY
+                + DESCRIBE_CLIENT_QUOTAS_CAPACITY
                 + CREATE_ACLS_CAPACITY
                 + DELETE_ACLS_CAPACITY
         ),
@@ -238,6 +240,7 @@ fn create_partitions_is_included_in_the_closed_shared_capacity_equation() {
                 + DESCRIBE_LOG_DIRS_CAPACITY
                 + ALTER_REPLICA_LOG_DIRS_CAPACITY
                 + DESCRIBE_ACLS_CAPACITY
+                + DESCRIBE_CLIENT_QUOTAS_CAPACITY
                 + CREATE_ACLS_CAPACITY
                 + DELETE_ACLS_CAPACITY
         ),
@@ -270,6 +273,7 @@ fn describe_configs_is_included_in_the_closed_shared_capacity_equation() {
                 + DESCRIBE_LOG_DIRS_CAPACITY
                 + ALTER_REPLICA_LOG_DIRS_CAPACITY
                 + DESCRIBE_ACLS_CAPACITY
+                + DESCRIBE_CLIENT_QUOTAS_CAPACITY
                 + CREATE_ACLS_CAPACITY
                 + DELETE_ACLS_CAPACITY
         ),
@@ -302,6 +306,7 @@ fn incremental_alter_configs_is_included_in_the_closed_shared_capacity_equation(
                 + DESCRIBE_LOG_DIRS_CAPACITY
                 + ALTER_REPLICA_LOG_DIRS_CAPACITY
                 + DESCRIBE_ACLS_CAPACITY
+                + DESCRIBE_CLIENT_QUOTAS_CAPACITY
                 + CREATE_ACLS_CAPACITY
                 + DELETE_ACLS_CAPACITY
         ),
@@ -334,6 +339,7 @@ fn group_offsets_is_included_in_the_closed_shared_capacity_equation() {
                 + DESCRIBE_LOG_DIRS_CAPACITY
                 + ALTER_REPLICA_LOG_DIRS_CAPACITY
                 + DESCRIBE_ACLS_CAPACITY
+                + DESCRIBE_CLIENT_QUOTAS_CAPACITY
                 + CREATE_ACLS_CAPACITY
                 + DELETE_ACLS_CAPACITY
         ),

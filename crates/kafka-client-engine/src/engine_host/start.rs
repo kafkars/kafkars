@@ -14,7 +14,8 @@ use crate::{
         CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteAclsShardOwner,
         DeleteConsumerGroupOffsetsShardOwner, DeleteConsumerGroupsShardOwner,
         DeleteRecordsShardOwner, DeleteTopicsShardOwner, DescribeAclsShardOwner,
-        DescribeClusterShardOwner, DescribeConsumerGroupsShardOwner, DescribeLogDirsShardOwner,
+        DescribeClientQuotasShardOwner, DescribeClusterShardOwner,
+        DescribeConsumerGroupsShardOwner, DescribeLogDirsShardOwner,
         DescribeTopicsShardOwner, ElectLeadersShardOwner, IncrementalAlterConfigsShardOwner,
         ListConsumerGroupOffsetsShardOwner, ListConsumerGroupsShardOwner,
         RemoveConsumerGroupMembersShardOwner,
@@ -85,6 +86,7 @@ pub(crate) fn start(
         delete_consumer_groups,
         delete_records,
         describe_acls,
+        describe_client_quotas,
         describe_cluster,
         describe_consumer_groups,
         describe_log_dirs,
@@ -153,6 +155,11 @@ pub(crate) fn start(
     let delete_records_admission = delete_records.admission_port();
     let describe_acls = DescribeAclsShardOwner::new(describe_acls, Arc::new(driver.reactor_wake()));
     let describe_acls_admission = describe_acls.admission_port();
+    let describe_client_quotas = DescribeClientQuotasShardOwner::new(
+        describe_client_quotas,
+        Arc::new(driver.reactor_wake()),
+    );
+    let describe_client_quotas_admission = describe_client_quotas.admission_port();
     let describe_cluster =
         DescribeClusterShardOwner::new(describe_cluster, Arc::new(driver.reactor_wake()));
     let describe_cluster_admission = describe_cluster.admission_port();
@@ -223,6 +230,7 @@ pub(crate) fn start(
         delete_consumer_groups,
         delete_records,
         describe_acls,
+        describe_client_quotas,
         describe_cluster,
         describe_consumer_groups,
         describe_log_dirs,
@@ -285,6 +293,7 @@ pub(crate) fn start(
         delete_consumer_groups_admission,
         delete_records_admission,
         describe_acls_admission,
+        describe_client_quotas_admission,
         describe_cluster_admission,
         describe_consumer_groups_admission,
         describe_log_dirs_admission,

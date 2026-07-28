@@ -137,6 +137,21 @@ pub use super::describe_acls::{
     DescribeAclsFailureKind, DescribeAclsFilter, DescribeAclsObserver, DescribeAclsObserverError,
     DescribeAclsOutcome, DescribeAclsRequest,
 };
+pub(crate) use super::describe_client_quotas::{
+    DESCRIBE_CLIENT_QUOTAS_CAPACITY, DescribeClientQuotasAdmissionPort, DescribeClientQuotasHost,
+    DescribeClientQuotasHostError, DescribeClientQuotasShardLockError,
+    DescribeClientQuotasShardOwner, DescribeClientQuotasShardWake,
+    DescribeClientQuotasShardWakeError, DescribeClientQuotasTurn,
+};
+pub use super::describe_client_quotas::{
+    DescribeClientQuotaEntity, DescribeClientQuotaEntityComponent,
+    DescribeClientQuotaFilterComponent, DescribeClientQuotaMatch, DescribeClientQuotaValue,
+    DescribeClientQuotasAccepted, DescribeClientQuotasAcceptedFaultKind,
+    DescribeClientQuotasAdmissionError, DescribeClientQuotasAdmissionErrorKind,
+    DescribeClientQuotasBatch, DescribeClientQuotasBrokerError, DescribeClientQuotasDeliveryStatus,
+    DescribeClientQuotasFailure, DescribeClientQuotasFailureKind, DescribeClientQuotasObserver,
+    DescribeClientQuotasObserverError, DescribeClientQuotasOutcome, DescribeClientQuotasRequest,
+};
 pub use super::describe_consumer_groups::{
     ClassicConsumerGroupDetails, ClassicConsumerGroupMemberDetails, ConsumerGroupAssignment,
     ConsumerGroupBrokerError, ConsumerGroupDescription, ConsumerGroupDescriptionDetails,

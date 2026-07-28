@@ -39,6 +39,7 @@ mod client;
 pub(crate) mod client_shutdown;
 pub(crate) mod consumer;
 pub(crate) mod consumer_facade;
+pub(crate) mod describe_client_quotas;
 pub(crate) mod producer;
 pub(crate) mod producer_result;
 pub(crate) mod transaction;

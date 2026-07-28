@@ -20,6 +20,7 @@ mod delete_consumer_groups;
 mod delete_records;
 mod delete_topics;
 mod describe_acls;
+mod describe_client_quotas;
 mod describe_cluster;
 mod describe_configs;
 mod describe_consumer_groups;

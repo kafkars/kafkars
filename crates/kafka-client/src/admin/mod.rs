@@ -18,6 +18,7 @@ mod delete_records;
 mod delete_topics;
 mod describe_acls;
 mod describe_builder;
+mod describe_client_quotas;
 mod describe_cluster;
 mod describe_consumer_groups;
 mod describe_log_dirs;
