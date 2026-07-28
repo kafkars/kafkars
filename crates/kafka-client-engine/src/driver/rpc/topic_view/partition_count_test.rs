@@ -2,7 +2,7 @@
 
 use kafka_driver::SubmitError;
 
-use super::topic_view::{
+use super::{
     TopicPartitionCountAdmissionFailure, TopicPartitionCountAdmissionFailureKind,
     TopicPartitionCountFact, TopicPartitionCountFailure,
 };

@@ -8,7 +8,8 @@ use support::{
 };
 
 const ENGINE_ROOT: &str = "crates/kafka-client-engine/src";
-const TOPIC_VIEW_ADAPTER: &str = "crates/kafka-client-engine/src/driver/rpc/topic_view.rs";
+const TOPIC_VIEW_ADAPTER: &str =
+    "crates/kafka-client-engine/src/driver/rpc/topic_view/partition_count.rs";
 const TOPIC_VIEW_CAPABILITY: &str = "kafka_driver::TopicView";
 const CALL_OWNER: &str = "TopicPartitionCountCall";
 const CALL_FIELDS: &[&str] = &["topic_view_topic", "topic_view_driver_call"];
@@ -40,7 +41,7 @@ fn checked_in_topic_view_call_is_linear_private_and_mirrored() {
     assert_eq!(mirrors.len(), 1);
     assert_eq!(
         mirrors[0].test,
-        "crates/kafka-client-engine/src/driver/rpc/topic_view_test.rs"
+        "crates/kafka-client-engine/src/driver/rpc/topic_view/partition_count_test.rs"
     );
 }
 
@@ -75,14 +76,16 @@ fn fixture_rejects_topic_view_import_beside_the_exact_adapter() {
         &[CapabilityRule {
             root: "src".into(),
             forbidden: vec![TOPIC_VIEW_CAPABILITY.into()],
-            allow: vec![topic_view_allow("src/driver/rpc/topic_view.rs")],
+            allow: vec![topic_view_allow(
+                "src/driver/rpc/topic_view/partition_count.rs",
+            )],
         }],
     );
 
     assert!(
         !violations
             .iter()
-            .any(|violation| violation.contains("driver/rpc/topic_view.rs")),
+            .any(|violation| violation.contains("driver/rpc/topic_view/partition_count.rs")),
         "exact TopicView adapter was rejected: {violations:?}"
     );
     assert!(
@@ -112,9 +115,9 @@ fn fixture_rejects_cloneable_or_foreignly_forged_topic_view_call() {
         &files,
         &[AuthorityToken {
             owner_type: CALL_OWNER.into(),
-            path: "src/driver/rpc/topic_view.rs".into(),
+            path: "src/driver/rpc/topic_view/partition_count.rs".into(),
             fields: CALL_FIELDS.iter().map(|field| (*field).into()).collect(),
-            allowed_paths: vec!["src/driver/rpc/topic_view.rs".into()],
+            allowed_paths: vec!["src/driver/rpc/topic_view/partition_count.rs".into()],
         }],
     );
     assert!(authority.iter().any(|violation| {

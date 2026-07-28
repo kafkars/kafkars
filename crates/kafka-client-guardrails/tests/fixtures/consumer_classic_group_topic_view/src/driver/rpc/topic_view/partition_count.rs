@@ -1,4 +1,4 @@
-//! Sanctioned driver-owned immutable topic-view adapter.
+//! Sanctioned partition-count adapter over one driver-owned immutable topic view.
 
 use kafka_driver::TopicView;
 

@@ -1,6 +1,6 @@
 //! Deliberate foreign construction of the accepted topic-view call owner.
 
-use crate::driver::rpc::topic_view::TopicPartitionCountCall;
+use crate::driver::rpc::topic_view::partition_count::TopicPartitionCountCall;
 
 fn forge() -> TopicPartitionCountCall {
     TopicPartitionCountCall {

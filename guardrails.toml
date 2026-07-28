@@ -12792,8 +12792,8 @@ production = "crates/kafka-client-engine/src/consumer/group/classic_group_execut
 test = "crates/kafka-client-engine/src/consumer/group/classic_group_execution_observation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client-engine/src/driver/rpc/topic_view.rs"
-test = "crates/kafka-client-engine/src/driver/rpc/topic_view_test.rs"
+production = "crates/kafka-client-engine/src/driver/rpc/topic_view/partition_count.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/topic_view/partition_count_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/group/classic_group_sync.rs"
@@ -13007,7 +13007,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client-engine/src/driver/rpc/topic_view.rs"
+root = "crates/kafka-client-engine/src/driver/rpc/topic_view/partition_count.rs"
 forbidden = [
   "crate::admin",
   "crate::completion",
@@ -13790,10 +13790,10 @@ allowed_paths = [
 
 [[authority_tokens]]
 owner_type = "TopicPartitionCountCall"
-path = "crates/kafka-client-engine/src/driver/rpc/topic_view.rs"
+path = "crates/kafka-client-engine/src/driver/rpc/topic_view/partition_count.rs"
 fields = ["topic_view_topic", "topic_view_driver_call"]
 allowed_paths = [
-  "crates/kafka-client-engine/src/driver/rpc/topic_view.rs",
+  "crates/kafka-client-engine/src/driver/rpc/topic_view/partition_count.rs",
 ]
 
 [[authority_tokens]]
@@ -13850,7 +13850,7 @@ path = "crates/kafka-client-engine/src/consumer/group/classic_group_partition_co
 
 [[linear_owners]]
 owner_type = "TopicPartitionCountCall"
-path = "crates/kafka-client-engine/src/driver/rpc/topic_view.rs"
+path = "crates/kafka-client-engine/src/driver/rpc/topic_view/partition_count.rs"
 
 [[linear_owners]]
 owner_type = "ClassicGroupPartitionCountCall"

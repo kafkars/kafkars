@@ -162,8 +162,6 @@ mod sync_group_submission;
 #[cfg(test)]
 mod sync_group_submission_test;
 mod topic_view;
-#[cfg(test)]
-mod topic_view_test;
 mod transaction_init_call;
 #[cfg(test)]
 mod transaction_init_call_test;
