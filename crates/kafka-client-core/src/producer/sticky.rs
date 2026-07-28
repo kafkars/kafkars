@@ -61,6 +61,16 @@ impl StickyPartitioner {
             self.cursor = self.cursor.wrapping_add(1);
         }
     }
+
+    /// Advances only when the sealed batch owns the current sticky route.
+    ///
+    /// Explicit or keyed batches on another route cannot perturb unkeyed
+    /// selection state.
+    pub fn partition_batch_sealed(&mut self, partition: PartitionIndex) {
+        if self.current == Some(partition) {
+            self.batch_sealed();
+        }
+    }
 }
 
 /// Failure to select an unkeyed partition from current topic facts.

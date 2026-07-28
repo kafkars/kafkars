@@ -110,6 +110,29 @@ fn available_selection_uses_the_exact_indexed_fact_without_a_second_lookup() {
     assert!(!first_read.get());
 }
 
+#[test]
+fn only_the_current_sticky_partition_can_advance_on_batch_seal() {
+    let available = [partition(0, None), partition(2, None), partition(5, None)];
+    let source = source(1, &available);
+    let facts = source.facts();
+    let mut sticky = StickyPartitioner::new(1);
+
+    assert_eq!(
+        sticky.select(facts).map(PartitionSelection::partition),
+        Ok(index(2))
+    );
+    sticky.partition_batch_sealed(index(5));
+    assert_eq!(
+        sticky.select(facts).map(PartitionSelection::partition),
+        Ok(index(2))
+    );
+    sticky.partition_batch_sealed(index(2));
+    assert_eq!(
+        sticky.select(facts).map(PartitionSelection::partition),
+        Ok(index(5))
+    );
+}
+
 fn source(generation_value: u64, available: &[AvailablePartition]) -> TestTopicSource<'_> {
     TestTopicSource::new(generation(generation_value), count(6), available)
 }
