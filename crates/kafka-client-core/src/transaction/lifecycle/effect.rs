@@ -4,6 +4,7 @@ use crate::{OperationId, TransactionalOwnerId};
 
 use super::{
     TransactionEndMode, TransactionEndObservation, TransactionEpoch, TransactionLifecycleTerminal,
+    TransactionSendAttempt, TransactionSendId, TransactionSendIdentity,
 };
 
 /// One concrete mechanism request emitted by deterministic transaction policy.
@@ -15,6 +16,50 @@ pub enum TransactionLifecycleEffect {
         owner_id: TransactionalOwnerId,
         /// Nonreused active transaction fence.
         epoch: TransactionEpoch,
+    },
+    /// Publish the first transition into abort-required state.
+    AbortRequired {
+        /// Retained transactional-producer owner.
+        owner_id: TransactionalOwnerId,
+        /// Active transaction fence.
+        epoch: TransactionEpoch,
+    },
+    /// Replace one correlated broker-rejected execution after bounded backoff.
+    ReplaceSendAttempt {
+        /// Retained transactional-producer owner.
+        owner_id: TransactionalOwnerId,
+        /// Active transaction fence.
+        epoch: TransactionEpoch,
+        /// Stable accepted-send identity whose bytes remain mechanism-owned.
+        send_id: TransactionSendId,
+        /// Correlated execution generation that failed.
+        previous: TransactionSendAttempt,
+        /// Fresh generation authorized to reuse the exact immutable send shape.
+        replacement: TransactionSendAttempt,
+        /// Original producer, partition, sequence, and public deadline authority.
+        identity: TransactionSendIdentity,
+        /// Earliest absolute moment at which the replacement may execute.
+        not_before: crate::Deadline,
+    },
+    /// Terminally cancel accepted sends before submitting abort.
+    CancelOutstanding {
+        /// Retained transactional-producer owner.
+        owner_id: TransactionalOwnerId,
+        /// Active transaction fence.
+        epoch: TransactionEpoch,
+        /// Exact number of accepted sends still awaiting settlement.
+        outstanding_sends: usize,
+        /// Whether abort has a public terminal observer.
+        observation: TransactionEndObservation,
+    },
+    /// Terminally cancel a fatal owner's accepted sends before releasing it.
+    CancelFatalOutstanding {
+        /// Retained transactional-producer owner.
+        owner_id: TransactionalOwnerId,
+        /// Fatal transaction fence.
+        epoch: TransactionEpoch,
+        /// Exact number of accepted sends still awaiting settlement.
+        outstanding_sends: usize,
     },
     /// Submit the sole commit or abort request for this transaction.
     EndTransaction {
@@ -65,6 +110,10 @@ pub struct TransactionLifecycleTransition {
 }
 
 impl TransactionLifecycleTransition {
+    pub(super) const fn none() -> Self {
+        Self { effect: None }
+    }
+
     pub(super) const fn one(effect: TransactionLifecycleEffect) -> Self {
         Self {
             effect: Some(effect),

@@ -84,6 +84,22 @@ impl ProducerFailure {
         Self::new(ProducerFailureKind::Transport, delivery)
     }
 
+    pub(crate) const fn attempt(
+        failure: crate::ProducerAttemptFailureKind,
+        delivery: DeliveryStatus,
+    ) -> Self {
+        match failure {
+            crate::ProducerAttemptFailureKind::Compatibility => {
+                Self::new(ProducerFailureKind::Compatibility, delivery)
+            }
+            crate::ProducerAttemptFailureKind::LocalCapacity
+            | crate::ProducerAttemptFailureKind::RouteUnavailable
+            | crate::ProducerAttemptFailureKind::NameResolutionUnavailable
+            | crate::ProducerAttemptFailureKind::ConnectionUnavailable
+            | crate::ProducerAttemptFailureKind::Permanent => Self::transport(delivery),
+        }
+    }
+
     pub(crate) const fn producer_identity(broker_code: Option<core::num::NonZeroI16>) -> Self {
         Self {
             kind: ProducerFailureKind::ProducerIdentity,

@@ -24,14 +24,34 @@ impl TransactionLifecycleMachine {
         }
         match input {
             TransactionLifecycleInput::Begin => self.begin(),
+            TransactionLifecycleInput::SendAccepted { epoch, send_id } => {
+                self.accept_send(epoch, send_id)
+            }
+            TransactionLifecycleInput::SendPrepared {
+                epoch,
+                send_id,
+                identity,
+            } => self.prepare_send(epoch, send_id, identity),
+            TransactionLifecycleInput::SendAttemptFailed {
+                epoch,
+                send_id,
+                attempt,
+                now,
+                failure,
+            } => self.fail_send_attempt(epoch, send_id, attempt, now, failure),
+            TransactionLifecycleInput::SendSettled {
+                epoch,
+                send_id,
+                outcome,
+            } => self.settle_send(epoch, send_id, outcome),
             TransactionLifecycleInput::Commit {
                 epoch,
                 operation_id,
-            } => self.end(epoch, operation_id, TransactionEndMode::Commit),
+            } => self.commit(epoch, operation_id),
             TransactionLifecycleInput::Abort {
                 epoch,
                 operation_id,
-            } => self.end(epoch, operation_id, TransactionEndMode::Abort),
+            } => self.abort(epoch, operation_id),
             TransactionLifecycleInput::EndRetryableBrokerRejected { epoch } => {
                 self.retry_end(epoch)
             }
@@ -60,16 +80,23 @@ impl TransactionLifecycleMachine {
         ))
     }
 
-    fn end(
+    fn commit(
         &mut self,
         epoch: TransactionEpoch,
         operation_id: OperationId,
-        mode: TransactionEndMode,
     ) -> Result<TransactionLifecycleTransition, TransactionLifecycleMachineError> {
         self.require_epoch(epoch)?;
+        if self.state == TransactionLifecycleState::AbortRequired {
+            return Err(TransactionLifecycleMachineError::AbortRequired);
+        }
         self.require_state(TransactionLifecycleState::Active)?;
+        if !self.outstanding_sends.is_empty() {
+            return Err(TransactionLifecycleMachineError::OutstandingSends {
+                count: self.outstanding_sends.len(),
+            });
+        }
         self.pending_end = Some(PendingTransactionEnd {
-            mode,
+            mode: TransactionEndMode::Commit,
             operation_id: Some(operation_id),
         });
         Ok(self.submit_pending_end())

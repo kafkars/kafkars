@@ -11,4 +11,5 @@ fn new_machine_retains_one_idle_engine_owner() {
     assert_eq!(machine.owner_id(), owner);
     assert_eq!(machine.state(), TransactionLifecycleState::Idle);
     assert_eq!(machine.active_epoch(), None);
+    assert_eq!(machine.outstanding_send_count(), 0);
 }

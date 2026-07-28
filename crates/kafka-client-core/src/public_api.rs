@@ -160,7 +160,10 @@ pub use crate::transaction::{
     TransactionInitializationState, TransactionInitializationTerminal,
     TransactionInitializationTransition, TransactionLifecycleEffect, TransactionLifecycleInput,
     TransactionLifecycleMachine, TransactionLifecycleMachineError, TransactionLifecycleState,
-    TransactionLifecycleTerminal, TransactionLifecycleTransition, TransactionalOwnerId,
-    TransactionalProducerIdentity,
+    TransactionLifecycleTerminal, TransactionLifecycleTransition, TransactionPartition,
+    TransactionSendAttempt, TransactionSendAttemptFailure, TransactionSendId,
+    TransactionSendIdentity, TransactionSendOutcome, TransactionSequenceLease,
+    TransactionSequenceMachine, TransactionSequenceMachineError, TransactionSequenceSettlement,
+    TransactionSequenceState, TransactionalOwnerId, TransactionalProducerIdentity,
 };
 pub use crate::types::{ByteCount, Deadline, Moment, OperationId};

@@ -12,7 +12,12 @@ fn only_named_structural_availability_failures_are_transient() {
     ] {
         assert!(transient.is_structurally_transient());
     }
-    assert!(!ProducerAttemptFailureKind::Permanent.is_structurally_transient());
+    for permanent in [
+        ProducerAttemptFailureKind::Compatibility,
+        ProducerAttemptFailureKind::Permanent,
+    ] {
+        assert!(!permanent.is_structurally_transient());
+    }
 }
 
 #[test]

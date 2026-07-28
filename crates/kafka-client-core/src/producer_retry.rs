@@ -13,6 +13,8 @@ pub enum ProducerAttemptFailureKind {
     NameResolutionUnavailable,
     /// A usable connection generation was temporarily unavailable.
     ConnectionUnavailable,
+    /// The broker and generated Produce protocol share no safe version.
+    Compatibility,
     /// Retrying cannot repair the structural failure or is not yet supported.
     Permanent,
 }

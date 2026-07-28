@@ -46,15 +46,18 @@ impl ProducerBatchSuccess {
         }
     }
 
-    pub(crate) const fn base_offset(self) -> i64 {
+    /// Returns the first absolute Kafka offset assigned to the batch.
+    pub const fn base_offset(self) -> i64 {
         self.base_offset
     }
 
-    pub(crate) const fn append_timestamp(self) -> Option<i64> {
+    /// Returns Kafka's append timestamp when supplied by the broker.
+    pub const fn append_timestamp(self) -> Option<i64> {
         self.append_timestamp
     }
 
-    pub(crate) const fn leader_epoch(self) -> Option<i32> {
+    /// Returns Kafka's current leader epoch when supplied by the broker.
+    pub const fn leader_epoch(self) -> Option<i32> {
         self.leader_epoch
     }
 }

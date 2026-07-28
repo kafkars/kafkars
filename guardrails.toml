@@ -2386,6 +2386,14 @@ allowed_paths = [
 ]
 
 [[test_mirrors]]
+production = "crates/kafka-client-core/src/transaction/sequencing/machine.rs"
+test = "crates/kafka-client-core/src/transaction/sequencing/machine_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/transaction/sequencing/model.rs"
+test = "crates/kafka-client-core/src/transaction/sequencing/model_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-core/src/transaction/lifecycle/ending.rs"
 test = "crates/kafka-client-core/src/transaction/lifecycle/ending_test.rs"
 
@@ -2476,6 +2484,10 @@ test = "crates/kafka-client-engine/src/engine_transaction_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_host/thread_start.rs"
 test = "crates/kafka-client-engine/src/engine_host/thread_start_test.rs"
+
+[[linear_owners]]
+owner_type = "TransactionSequenceMachine"
+path = "crates/kafka-client-core/src/transaction/sequencing/machine.rs"
 
 [[linear_owners]]
 owner_type = "TransactionInitializationRequest"
@@ -2635,10 +2647,61 @@ allowed_paths = [
 ]
 
 [[mutation_owners]]
+owner_type = "TransactionSequenceMachine"
+field = "state"
+allowed_paths = [
+  "crates/kafka-client-core/src/transaction/sequencing/machine.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionSequenceMachine"
+field = "next_sequences"
+allowed_paths = [
+  "crates/kafka-client-core/src/transaction/sequencing/machine.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionSequenceMachine"
+field = "leases"
+allowed_paths = [
+  "crates/kafka-client-core/src/transaction/sequencing/machine.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionLifecycleMachine"
+field = "state"
+allowed_paths = [
+  "crates/kafka-client-core/src/transaction/lifecycle/machine.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/ending.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/send_transition.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/transition.rs",
+]
+
+[[mutation_owners]]
 owner_type = "TransactionLifecycleMachine"
 field = "next_epoch"
 allowed_paths = [
   "crates/kafka-client-core/src/transaction/lifecycle/machine.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionLifecycleMachine"
+field = "active_epoch"
+allowed_paths = [
+  "crates/kafka-client-core/src/transaction/lifecycle/machine.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/ending.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/send_transition.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionLifecycleMachine"
+field = "outstanding_sends"
+allowed_paths = [
+  "crates/kafka-client-core/src/transaction/lifecycle/machine.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/ending.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/send_transition.rs",
   "crates/kafka-client-core/src/transaction/lifecycle/transition.rs",
 ]
 
@@ -2657,6 +2720,16 @@ field = "pending_end"
 allowed_paths = [
   "crates/kafka-client-core/src/transaction/lifecycle/machine.rs",
   "crates/kafka-client-core/src/transaction/lifecycle/ending.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionLifecycleMachine"
+field = "pending_end"
+allowed_paths = [
+  "crates/kafka-client-core/src/transaction/lifecycle/machine.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/ending.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/send_transition.rs",
   "crates/kafka-client-core/src/transaction/lifecycle/transition.rs",
 ]
 

@@ -16,7 +16,12 @@ impl TransactionLifecycleHost {
         owner_loss_deadline: Option<OperationDeadline>,
     ) -> Result<(), TransactionLifecycleHostError> {
         match effect {
-            None => Ok(()),
+            None
+            | Some(
+                TransactionLifecycleEffect::AbortRequired { .. }
+                | TransactionLifecycleEffect::CancelOutstanding { .. }
+                | TransactionLifecycleEffect::CancelFatalOutstanding { .. },
+            ) => Ok(()),
             Some(TransactionLifecycleEffect::EndTransaction { .. }) => {
                 self.prepare_end(owner_loss_deadline)
             }
@@ -59,9 +64,10 @@ impl TransactionLifecycleHost {
                 self.pending_end = None;
                 Ok(())
             }
-            Some(TransactionLifecycleEffect::Began { .. }) => {
-                Err(TransactionLifecycleHostError::UnexpectedEffect)
-            }
+            Some(
+                TransactionLifecycleEffect::Began { .. }
+                | TransactionLifecycleEffect::ReplaceSendAttempt { .. },
+            ) => Err(TransactionLifecycleHostError::UnexpectedEffect),
         }
     }
 

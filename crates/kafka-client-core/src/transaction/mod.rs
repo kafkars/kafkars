@@ -2,6 +2,8 @@
 
 mod initialization;
 mod lifecycle;
+mod sequencing;
 
 pub use initialization::*;
 pub use lifecycle::*;
+pub use sequencing::*;

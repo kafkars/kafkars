@@ -1,14 +1,55 @@
 //! Normalized facts accepted by deterministic transaction lifecycle policy.
 
-use crate::OperationId;
+use crate::{Moment, OperationId};
 
-use super::{TransactionEndOutcome, TransactionEpoch};
+use super::{
+    TransactionEndOutcome, TransactionEpoch, TransactionSendAttempt, TransactionSendAttemptFailure,
+    TransactionSendId, TransactionSendIdentity, TransactionSendOutcome,
+};
 
 /// One external fact applied to a fenced transactional owner.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransactionLifecycleInput {
     /// Begins one local transaction without a broker request.
     Begin,
+    /// Records a send only after its terminal capacity has been reserved.
+    SendAccepted {
+        /// Active transaction fence.
+        epoch: TransactionEpoch,
+        /// Unique accepted-send fence.
+        send_id: TransactionSendId,
+    },
+    /// Retains the immutable idempotent shape before its first broker execution.
+    SendPrepared {
+        /// Active transaction fence.
+        epoch: TransactionEpoch,
+        /// Unique accepted-send fence.
+        send_id: TransactionSendId,
+        /// Exact producer, partition, sequence, and original deadline.
+        identity: TransactionSendIdentity,
+    },
+    /// Applies one correlated failed execution to bounded replacement policy.
+    SendAttemptFailed {
+        /// Active transaction fence.
+        epoch: TransactionEpoch,
+        /// Unique accepted-send fence.
+        send_id: TransactionSendId,
+        /// Exact execution generation that produced the failure.
+        attempt: TransactionSendAttempt,
+        /// Fresh monotonic observation captured by the effect interpreter.
+        now: Moment,
+        /// Closed failure shape considered for safe replacement.
+        failure: TransactionSendAttemptFailure,
+    },
+    /// Applies the terminal consequence of one accepted send.
+    SendSettled {
+        /// Active transaction fence.
+        epoch: TransactionEpoch,
+        /// Unique accepted-send fence.
+        send_id: TransactionSendId,
+        /// Effect on transaction health.
+        outcome: TransactionSendOutcome,
+    },
     /// Requests commit through one already-reserved public completion.
     Commit {
         /// Active transaction fence.

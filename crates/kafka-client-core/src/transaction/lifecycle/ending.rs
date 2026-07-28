@@ -1,4 +1,6 @@
-//! Owner loss, retry, and `EndTxn` settlement transitions.
+//! Abort draining, owner loss, and `EndTxn` settlement transitions.
+
+use crate::OperationId;
 
 use super::machine::PendingTransactionEnd;
 use super::{
@@ -8,6 +10,25 @@ use super::{
 };
 
 impl TransactionLifecycleMachine {
+    pub(super) fn abort(
+        &mut self,
+        epoch: TransactionEpoch,
+        operation_id: OperationId,
+    ) -> Result<TransactionLifecycleTransition, TransactionLifecycleMachineError> {
+        self.require_epoch(epoch)?;
+        if !matches!(
+            self.state,
+            TransactionLifecycleState::Active | TransactionLifecycleState::AbortRequired
+        ) {
+            return Err(self.invalid_state());
+        }
+        self.pending_end = Some(PendingTransactionEnd {
+            mode: TransactionEndMode::Abort,
+            operation_id: Some(operation_id),
+        });
+        Ok(self.begin_abort())
+    }
+
     pub(super) fn owner_lost(
         &mut self,
     ) -> Result<TransactionLifecycleTransition, TransactionLifecycleMachineError> {
@@ -21,28 +42,57 @@ impl TransactionLifecycleMachine {
                     },
                 ))
             }
-            TransactionLifecycleState::Active => {
+            TransactionLifecycleState::Active | TransactionLifecycleState::AbortRequired => {
                 self.owner_lost = true;
                 self.pending_end = Some(PendingTransactionEnd {
                     mode: TransactionEndMode::Abort,
                     operation_id: None,
                 });
-                Ok(self.submit_pending_end())
+                Ok(self.begin_abort())
             }
             TransactionLifecycleState::Fatal => {
                 self.owner_lost = true;
-                self.pending_end = None;
-                self.active_epoch = None;
-                self.state = TransactionLifecycleState::Closed;
-                Ok(TransactionLifecycleTransition::one(
-                    TransactionLifecycleEffect::ReleaseOwner {
-                        owner_id: self.owner_id,
-                    },
-                ))
+                if self.outstanding_sends.is_empty() {
+                    self.pending_end = None;
+                    self.active_epoch = None;
+                    self.state = TransactionLifecycleState::Closed;
+                    Ok(TransactionLifecycleTransition::one(
+                        TransactionLifecycleEffect::ReleaseOwner {
+                            owner_id: self.owner_id,
+                        },
+                    ))
+                } else {
+                    self.state = TransactionLifecycleState::DrainingFatal;
+                    Ok(TransactionLifecycleTransition::one(
+                        TransactionLifecycleEffect::CancelFatalOutstanding {
+                            owner_id: self.owner_id,
+                            epoch: self.current_epoch(),
+                            outstanding_sends: self.outstanding_sends.len(),
+                        },
+                    ))
+                }
             }
-            TransactionLifecycleState::EndingCommit
+            TransactionLifecycleState::DrainingFatal
+            | TransactionLifecycleState::DrainingAbort
+            | TransactionLifecycleState::EndingCommit
             | TransactionLifecycleState::EndingAbort
             | TransactionLifecycleState::Closed => Err(self.invalid_state()),
+        }
+    }
+
+    fn begin_abort(&mut self) -> TransactionLifecycleTransition {
+        let epoch = self.current_epoch();
+        let observation = self.pending_observation();
+        if self.outstanding_sends.is_empty() {
+            self.submit_pending_end()
+        } else {
+            self.state = TransactionLifecycleState::DrainingAbort;
+            TransactionLifecycleTransition::one(TransactionLifecycleEffect::CancelOutstanding {
+                owner_id: self.owner_id,
+                epoch,
+                outstanding_sends: self.outstanding_sends.len(),
+                observation,
+            })
         }
     }
 
@@ -100,6 +150,7 @@ impl TransactionLifecycleMachine {
             TransactionEndMode::Commit => TransactionLifecycleTerminal::Committed,
             TransactionEndMode::Abort => TransactionLifecycleTerminal::Aborted,
         };
+        self.outstanding_sends.clear();
         self.active_epoch = None;
         if let Some(operation_id) = pending.operation_id {
             self.state = TransactionLifecycleState::Idle;
@@ -112,6 +163,7 @@ impl TransactionLifecycleMachine {
                 },
             ))
         } else {
+            debug_assert_eq!(pending.mode, TransactionEndMode::Abort);
             self.state = TransactionLifecycleState::Closed;
             Ok(TransactionLifecycleTransition::one(
                 TransactionLifecycleEffect::ReleaseOwner {

@@ -61,6 +61,17 @@ fn unknown_broker_code_is_preserved_exactly() {
 }
 
 #[test]
+fn compatibility_attempt_preserves_semantics_and_authoritative_certainty() {
+    for delivery in [DeliveryStatus::NotSent, DeliveryStatus::PossiblySent] {
+        let failure =
+            ProducerFailure::attempt(crate::ProducerAttemptFailureKind::Compatibility, delivery);
+        assert_eq!(failure.kind(), ProducerFailureKind::Compatibility);
+        assert_eq!(failure.delivery(), delivery);
+        assert_eq!(failure.broker_code(), None);
+    }
+}
+
+#[test]
 fn execution_loss_preserves_the_reported_conservative_certainty() {
     for status in [DeliveryStatus::NotSent, DeliveryStatus::PossiblySent] {
         let failure = ProducerFailure::execution_unavailable(status);

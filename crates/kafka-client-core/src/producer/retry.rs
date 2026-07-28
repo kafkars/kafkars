@@ -34,7 +34,7 @@ impl ProducerMachine {
         if self.execution_is_current(execution) && delivery == DeliveryStatus::PossiblySent {
             return self.settle_uncertain_delivery(
                 execution.batch_id(),
-                ProducerFailure::transport(delivery),
+                ProducerFailure::attempt(failure, delivery),
             );
         }
         let transition = self.attempt_failed(
@@ -43,7 +43,7 @@ impl ProducerMachine {
             failure,
             delivery,
             BatchState::Submitted,
-            ProducerFailure::transport(delivery),
+            ProducerFailure::attempt(failure, delivery),
         )?;
         Ok(transition)
     }

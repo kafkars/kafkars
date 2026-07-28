@@ -72,8 +72,22 @@ const fn core_error_kind(error: TransactionLifecycleMachineError) -> Transaction
         TransactionLifecycleMachineError::EpochMismatch { .. } => {
             TransactionControlErrorKind::StaleTransaction
         }
+        TransactionLifecycleMachineError::OutstandingSends { .. } => {
+            TransactionControlErrorKind::OutstandingOperations
+        }
+        TransactionLifecycleMachineError::AbortRequired => {
+            TransactionControlErrorKind::AbortRequired
+        }
         TransactionLifecycleMachineError::EpochExhausted => {
             TransactionControlErrorKind::IdentityExhausted
+        }
+        TransactionLifecycleMachineError::DuplicateSend { .. }
+        | TransactionLifecycleMachineError::DuplicateSendPreparation { .. }
+        | TransactionLifecycleMachineError::SendNotPrepared { .. }
+        | TransactionLifecycleMachineError::SendAttemptMismatch { .. }
+        | TransactionLifecycleMachineError::SendAttemptExhausted
+        | TransactionLifecycleMachineError::UnknownSend { .. } => {
+            TransactionControlErrorKind::HostUnavailable
         }
     }
 }
@@ -82,10 +96,13 @@ const fn state_error_kind(state: TransactionLifecycleState) -> TransactionContro
     match state {
         TransactionLifecycleState::Idle => TransactionControlErrorKind::NotActive,
         TransactionLifecycleState::Active => TransactionControlErrorKind::AlreadyActive,
-        TransactionLifecycleState::EndingCommit | TransactionLifecycleState::EndingAbort => {
-            TransactionControlErrorKind::EndInProgress
+        TransactionLifecycleState::AbortRequired => TransactionControlErrorKind::AbortRequired,
+        TransactionLifecycleState::DrainingAbort
+        | TransactionLifecycleState::EndingCommit
+        | TransactionLifecycleState::EndingAbort => TransactionControlErrorKind::EndInProgress,
+        TransactionLifecycleState::Fatal | TransactionLifecycleState::DrainingFatal => {
+            TransactionControlErrorKind::Fenced
         }
-        TransactionLifecycleState::Fatal => TransactionControlErrorKind::Fenced,
         TransactionLifecycleState::Closed => TransactionControlErrorKind::Closed,
     }
 }
