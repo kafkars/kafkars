@@ -3,6 +3,9 @@
 mod driver_input;
 #[cfg(test)]
 mod driver_input_test;
+mod observation;
+#[cfg(test)]
+mod test_support;
 use kafka_client_core::{
     ByteCount, CompressionPolicy, ProducerBatchPolicy, ProducerEffect, ProducerMachine,
     ProducerRetryPolicy,
@@ -195,15 +198,6 @@ impl ProducerHost {
         }
     }
 
-    pub(crate) fn pending_effects(&self) -> &[ProducerEffect] {
-        &self.pending_effects
-    }
-
-    /// Reports the deterministic core's producer admission decision.
-    pub(crate) const fn admission_is_open(&self) -> bool {
-        self.core.admission_is_open()
-    }
-
     pub(super) const fn poison_reason(&self) -> Option<ProducerHostInvariantError> {
         match self.health {
             ProducerHostHealth::Healthy => None,
@@ -222,15 +216,5 @@ impl ProducerHost {
             }
             ProducerHostHealth::Poisoned(first) => first,
         }
-    }
-
-    #[cfg(test)]
-    pub(super) fn inject_post_acceptance_fault(&mut self, error: ProducerHostInvariantError) {
-        self.post_acceptance_fault = Some(error);
-    }
-
-    #[cfg(test)]
-    pub(super) fn take_post_acceptance_fault(&mut self) -> Option<ProducerHostInvariantError> {
-        self.post_acceptance_fault.take()
     }
 }

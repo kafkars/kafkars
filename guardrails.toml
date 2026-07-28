@@ -5905,6 +5905,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/producer/admission.rs",
   "crates/kafka-client-engine/src/producer/flush/admission.rs",
   "crates/kafka-client-engine/src/producer/host/driver_input.rs",
+  "crates/kafka-client-engine/src/producer/host/observation.rs",
   "crates/kafka-client-engine/src/producer/execution_stop.rs",
   "crates/kafka-client-engine/src/producer/execution_turn.rs",
   "crates/kafka-client-engine/src/producer/host.rs",
