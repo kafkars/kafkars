@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use kafka_client_core::{
     ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicProcessingLease,
-    ClassicProcessingLeasePolicy, ClassicRejoinPolicy, GroupId,
+    ClassicProcessingLeasePolicy, ClassicRejoinPolicy, GroupId, ReadIsolation,
 };
 
 use super::{
@@ -44,6 +44,7 @@ pub(super) struct GroupConsumerEntry {
     pub(super) fetch: ClassicGroupFetchOwner,
     pub(super) heartbeat: ClassicHeartbeatExecution,
     pub(super) leave: ClassicGroupLeaveOwner,
+    pub(super) read_isolation: ReadIsolation,
     pub(super) position: ClassicGroupPositionExecution,
     pub(super) processing_lease: ClassicProcessingLease,
     pub(super) rejoin: ClassicGroupRejoinExecution,
@@ -89,6 +90,7 @@ impl GroupConsumerEntry {
             timing,
             heartbeat_policy,
             rejoin_policy,
+            ReadIsolation::ReadUncommitted,
             processing_policy,
         )
     }
@@ -105,6 +107,7 @@ impl GroupConsumerEntry {
         timing: ClassicGroupTiming,
         heartbeat_policy: ClassicHeartbeatPolicy,
         rejoin_policy: ClassicRejoinPolicy,
+        read_isolation: ReadIsolation,
         processing_policy: ClassicProcessingLeasePolicy,
     ) -> Result<Self, GroupConsumerEntryBuildError> {
         Ok(Self {
@@ -118,10 +121,11 @@ impl GroupConsumerEntry {
             .map_err(GroupConsumerEntryBuildError::Catalog)?,
             classic: ClassicGroupOwner::new(group_id, timing, heartbeat_policy, rejoin_policy),
             execution: new_classic_group_execution(),
-            fetch: ClassicGroupFetchOwner::try_new()
+            fetch: ClassicGroupFetchOwner::try_new_with_read_isolation(read_isolation)
                 .map_err(GroupConsumerEntryBuildError::Fetch)?,
             heartbeat: ClassicHeartbeatExecution::new(),
             leave: ClassicGroupLeaveOwner::new(),
+            read_isolation,
             position: ClassicGroupPositionExecution::new(),
             processing_lease: ClassicProcessingLease::new(processing_policy),
             rejoin: ClassicGroupRejoinExecution::new(),

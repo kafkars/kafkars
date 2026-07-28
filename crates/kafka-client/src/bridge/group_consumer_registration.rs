@@ -7,11 +7,11 @@ use kafka_client_engine::{
     GroupConsumerRegistration as EngineGroupConsumerRegistration, GroupConsumerStartCapture,
 };
 
-use super::group_consumer::GroupConsumerEngine;
 use super::group_consumer_registration_result::{
     accepted_fault, translate_group_registration, translate_group_start,
 };
-use crate::{ErrorKind, KafkaError};
+use super::{super::client::engine_read_isolation, group_consumer::GroupConsumerEngine};
+use crate::{ErrorKind, KafkaError, ReadIsolation};
 
 impl GroupConsumerEngine {
     pub(crate) fn register(
@@ -20,6 +20,7 @@ impl GroupConsumerEngine {
         group: &str,
         group_instance_id: Option<&str>,
         topics: &[String],
+        read_isolation: ReadIsolation,
         processing_timeout: Duration,
     ) -> Result<Self, KafkaError> {
         let mut registration = EngineGroupConsumerRegistration::new(
@@ -32,7 +33,9 @@ impl GroupConsumerEngine {
         if let Some(group_instance_id) = group_instance_id {
             registration = registration.with_group_instance_id(Arc::<str>::from(group_instance_id));
         }
-        let registration = registration.with_processing_timeout(processing_timeout);
+        let registration = registration
+            .with_read_isolation(engine_read_isolation(read_isolation))
+            .with_processing_timeout(processing_timeout);
         let mut handle = engine
             .register_group_consumer(registration)
             .map_err(|error| translate_group_registration(&error))?;

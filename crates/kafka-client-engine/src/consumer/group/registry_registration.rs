@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use kafka_client_core::{
     ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicProcessingLeasePolicy, ClassicRejoinPolicy,
-    GroupId,
+    GroupId, ReadIsolation,
 };
 
 use super::{
@@ -73,6 +73,7 @@ impl GroupConsumerRegistry {
             timing,
             heartbeat_policy,
             rejoin_policy,
+            ReadIsolation::ReadUncommitted,
             processing_policy,
         )
     }
@@ -89,6 +90,7 @@ impl GroupConsumerRegistry {
         timing: ClassicGroupTiming,
         heartbeat_policy: ClassicHeartbeatPolicy,
         rejoin_policy: ClassicRejoinPolicy,
+        read_isolation: ReadIsolation,
         processing_policy: ClassicProcessingLeasePolicy,
     ) -> Result<GroupId, GroupConsumerRegistrationFailure> {
         if !self.accepting {
@@ -123,6 +125,7 @@ impl GroupConsumerRegistry {
             timing,
             heartbeat_policy,
             rejoin_policy,
+            read_isolation,
             processing_policy,
         ) {
             Ok(entry) => entry,

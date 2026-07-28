@@ -62,6 +62,7 @@ fn static_identity_bytes_are_reclaimed_only_after_physical_removal() {
             super::classic_group_test_support::timing(),
             super::classic_group_test_support::heartbeat_policy(),
             super::classic_group_test_support::rejoin_policy(),
+            kafka_client_core::ReadIsolation::ReadUncommitted,
             default_classic_processing_lease_policy(),
         )
         .unwrap_or_else(|failure| panic!("static registration: {:?}", failure.kind));

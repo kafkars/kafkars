@@ -9,12 +9,13 @@ use kafka_client_core::{
 use crate::{
     consumer::{
         assigned_event::AssignedConsumerEventStore,
+        assigned_owner_model::fetch_isolation,
         assigned_timers::AssignedTimers,
         fetch_execution::{DirectFetchExecutor, PreparedFetchExecution},
     },
     protocol::{
         consumer::CLASSIC_SYNC_MAX_MEMBER_PARTITIONS,
-        fetch::{FetchDecodeLimits, FetchIsolation, FetchRequestSettings},
+        fetch::{FetchDecodeLimits, FetchRequestSettings},
     },
 };
 
@@ -61,6 +62,7 @@ pub(in crate::consumer::group) struct ClassicGroupFetchOwner {
     pub(super) fetch_settings: FetchRequestSettings,
     pub(super) fetch_decode_limits: FetchDecodeLimits,
     pub(super) fetch_attempt_timeout: Duration,
+    pub(super) read_isolation: ReadIsolation,
     pub(super) partition_capacity: usize,
     pub(super) effect_capacity: usize,
     pub(super) hard_fetch_output_bytes: usize,
@@ -71,6 +73,12 @@ pub(in crate::consumer::group) struct ClassicGroupFetchOwner {
 
 impl ClassicGroupFetchOwner {
     pub(in crate::consumer::group) fn try_new() -> Result<Self, ClassicGroupFetchBuildError> {
+        Self::try_new_with_read_isolation(ReadIsolation::ReadUncommitted)
+    }
+
+    pub(in crate::consumer::group) fn try_new_with_read_isolation(
+        read_isolation: ReadIsolation,
+    ) -> Result<Self, ClassicGroupFetchBuildError> {
         let mut effects = VecDeque::new();
         let mut pending_fetches = VecDeque::new();
         let mut reclaim_faults = Vec::new();
@@ -86,7 +94,7 @@ impl ClassicGroupFetchOwner {
         let events = AssignedConsumerEventStore::new(FIRST_GROUP_FETCH_PARTITIONS)
             .map_err(|_error| ClassicGroupFetchBuildError::Allocation)?;
         Ok(Self {
-            machine: AssignedConsumerMachine::with_read_isolation(ReadIsolation::ReadUncommitted),
+            machine: AssignedConsumerMachine::with_read_isolation(read_isolation),
             activation: None,
             timers: AssignedTimers::new(FIRST_GROUP_FETCH_PARTITIONS),
             fetches: DirectFetchExecutor::create_unbound(
@@ -104,9 +112,10 @@ impl ClassicGroupFetchOwner {
                 FIRST_GROUP_FETCH_REQUEST_BYTES,
                 0,
             )
-            .with_isolation(FetchIsolation::ReadUncommitted),
+            .with_isolation(fetch_isolation(read_isolation)),
             fetch_decode_limits: FetchDecodeLimits::default(),
             fetch_attempt_timeout: FIRST_GROUP_FETCH_ATTEMPT_TIMEOUT,
+            read_isolation,
             partition_capacity: FIRST_GROUP_FETCH_PARTITIONS,
             effect_capacity: FIRST_GROUP_FETCH_EFFECTS,
             hard_fetch_output_bytes: FIRST_GROUP_FETCH_OUTPUT_BYTES,

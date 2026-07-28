@@ -118,6 +118,7 @@ impl ClientEngine {
         group: &str,
         group_instance_id: Option<&str>,
         topics: &[String],
+        read_isolation: ReadIsolation,
         processing_timeout: std::time::Duration,
     ) -> Result<super::consumer_facade::group_consumer::GroupConsumerEngine, KafkaError> {
         super::consumer_facade::group_consumer::GroupConsumerEngine::register(
@@ -126,6 +127,7 @@ impl ClientEngine {
             group,
             group_instance_id,
             topics,
+            read_isolation,
             processing_timeout,
         )
     }

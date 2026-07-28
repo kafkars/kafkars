@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use super::{Consumer, ConsumerBuilder, RecvConsumerBatch};
+use super::{Consumer, ConsumerBuilder, ReadIsolation, RecvConsumerBatch};
 use crate::{Client, ErrorKind};
 
 macro_rules! assert_not_impl {
@@ -26,10 +26,12 @@ fn builder_and_unique_handle_expose_static_identity_without_control_capabilities
         let builder = builder
             .group_instance_id("instance-a")
             .subscribe(["orders"])
+            .read_isolation(ReadIsolation::ReadCommitted)
             .processing_timeout(Duration::from_secs(41));
         let _: &str = builder.group_id();
         let _: Option<&str> = builder.selected_group_instance_id();
         let _: &[String] = builder.subscription();
+        let _: ReadIsolation = builder.selected_read_isolation();
         let _: Duration = builder.selected_processing_timeout();
     }
     fn handle_contract(consumer: &mut Consumer) {
@@ -66,6 +68,7 @@ fn static_identity_is_opt_in_and_exactly_recovered_on_invalid_registration() {
         .consumer("static-workers")
         .group_instance_id("")
         .subscribe(["orders"])
+        .read_isolation(ReadIsolation::ReadCommitted)
         .processing_timeout(Duration::from_secs(41))
         .build()
         .err()
@@ -75,7 +78,33 @@ fn static_identity_is_opt_in_and_exactly_recovered_on_invalid_registration() {
     assert_eq!(rejected.builder().selected_group_instance_id(), Some(""));
     assert_eq!(rejected.builder().subscription(), ["orders"]);
     assert_eq!(
+        rejected.builder().selected_read_isolation(),
+        ReadIsolation::ReadCommitted
+    );
+    assert_eq!(
         rejected.builder().selected_processing_timeout(),
         Duration::from_secs(41)
     );
+}
+
+#[test]
+fn read_isolation_defaults_to_uncommitted_and_retains_each_explicit_choice() {
+    let client = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .build()
+        .unwrap_or_else(|error| panic!("lazy client start: {error}"));
+    assert_eq!(
+        client.consumer("default-workers").selected_read_isolation(),
+        ReadIsolation::ReadUncommitted
+    );
+
+    for isolation in [ReadIsolation::ReadUncommitted, ReadIsolation::ReadCommitted] {
+        assert_eq!(
+            client
+                .consumer("explicit-workers")
+                .read_isolation(isolation)
+                .selected_read_isolation(),
+            isolation
+        );
+    }
 }

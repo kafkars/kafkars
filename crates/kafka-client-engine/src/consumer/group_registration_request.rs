@@ -4,12 +4,15 @@ use std::{sync::Arc, time::Duration};
 
 use kafka_client_core::ClassicProcessingLeasePolicy;
 
+use crate::config::ConsumerReadIsolation;
+
 const DEFAULT_PROCESSING_TIMEOUT: Duration = Duration::from_secs(300);
 
 type ValidatedGroupConsumerRegistration = (
     Arc<str>,
     Option<Arc<str>>,
     Vec<Arc<str>>,
+    ConsumerReadIsolation,
     ClassicProcessingLeasePolicy,
 );
 
@@ -19,6 +22,7 @@ pub struct GroupConsumerRegistration {
     group: Arc<str>,
     group_instance_id: Option<Arc<str>>,
     topics: Vec<Arc<str>>,
+    read_isolation: ConsumerReadIsolation,
     processing_timeout: Duration,
 }
 
@@ -29,6 +33,7 @@ impl GroupConsumerRegistration {
             group,
             group_instance_id: None,
             topics,
+            read_isolation: ConsumerReadIsolation::ReadUncommitted,
             processing_timeout: DEFAULT_PROCESSING_TIMEOUT,
         }
     }
@@ -52,6 +57,19 @@ impl GroupConsumerRegistration {
     /// Returns the requested local topic subscription in caller order.
     pub fn topics(&self) -> &[Arc<str>] {
         &self.topics
+    }
+
+    /// Selects immutable application-record visibility before registration.
+    ///
+    /// The default is [`ConsumerReadIsolation::ReadUncommitted`].
+    pub const fn with_read_isolation(mut self, read_isolation: ConsumerReadIsolation) -> Self {
+        self.read_isolation = read_isolation;
+        self
+    }
+
+    /// Returns the immutable application-record visibility for this group.
+    pub const fn read_isolation(&self) -> ConsumerReadIsolation {
+        self.read_isolation
     }
 
     /// Selects the application-processing liveness timeout.
@@ -80,6 +98,7 @@ impl GroupConsumerRegistration {
             self.group,
             self.group_instance_id,
             self.topics,
+            self.read_isolation,
             processing_policy,
         ))
     }

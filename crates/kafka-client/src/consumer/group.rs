@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::bridge::ClientEngine;
 
-use super::{Consumer, ConsumerBuildError};
+use super::{Consumer, ConsumerBuildError, ReadIsolation};
 
 const DEFAULT_MEMBERSHIP_START_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -15,6 +15,7 @@ pub struct ConsumerBuilder {
     group_id: String,
     group_instance_id: Option<String>,
     topics: Vec<String>,
+    read_isolation: ReadIsolation,
     processing_timeout: Duration,
 }
 
@@ -25,6 +26,7 @@ impl ConsumerBuilder {
             group_id,
             group_instance_id: None,
             topics: Vec::new(),
+            read_isolation: ReadIsolation::ReadUncommitted,
             processing_timeout: Duration::from_secs(300),
         }
     }
@@ -48,6 +50,14 @@ impl ConsumerBuilder {
         self
     }
 
+    /// Selects which transactional application records may be delivered.
+    ///
+    /// The default is [`ReadIsolation::ReadUncommitted`].
+    pub const fn read_isolation(mut self, read_isolation: ReadIsolation) -> Self {
+        self.read_isolation = read_isolation;
+        self
+    }
+
     /// Selects the maximum interval between application progress observations;
     /// defaults to 300 seconds independently of session and heartbeat timing.
     pub const fn processing_timeout(mut self, processing_timeout: Duration) -> Self {
@@ -68,6 +78,11 @@ impl ConsumerBuilder {
     /// Returns the caller-ordered requested subscription.
     pub fn subscription(&self) -> &[String] {
         &self.topics
+    }
+
+    /// Returns the immutable record-visibility policy for this registration.
+    pub const fn selected_read_isolation(&self) -> ReadIsolation {
+        self.read_isolation
     }
 
     /// Returns the requested application-processing timeout.
@@ -97,6 +112,7 @@ impl ConsumerBuilder {
             &self.group_id,
             self.group_instance_id.as_deref(),
             &self.topics,
+            self.read_isolation,
             self.processing_timeout,
         ) {
             Ok(engine) => engine,

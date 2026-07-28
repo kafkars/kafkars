@@ -82,6 +82,7 @@ fn prepared_static_join_terminal() -> (GroupConsumerRegistry, GroupId, ClassicGr
             crate::consumer::group::classic_group_test_support::timing(),
             crate::consumer::group::classic_group_test_support::heartbeat_policy(),
             crate::consumer::group::classic_group_test_support::rejoin_policy(),
+            kafka_client_core::ReadIsolation::ReadUncommitted,
             default_classic_processing_lease_policy(),
         )
         .unwrap_or_else(|failure| panic!("static registration failed: {:?}", failure.kind));

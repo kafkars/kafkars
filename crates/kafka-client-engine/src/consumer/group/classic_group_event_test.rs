@@ -125,6 +125,7 @@ fn confirmed_static_state_carries_the_configured_instance_identity() {
             super::classic_group_test_support::timing(),
             super::classic_group_test_support::heartbeat_policy(),
             super::classic_group_test_support::rejoin_policy(),
+            kafka_client_core::ReadIsolation::ReadUncommitted,
             super::registry_entry::default_classic_processing_lease_policy(),
         )
         .unwrap_or_else(|failure| panic!("static registration: {:?}", failure.kind));

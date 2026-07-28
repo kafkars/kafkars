@@ -2,7 +2,7 @@
 
 use std::{sync::Arc, time::Duration};
 
-use kafka_client_core::MembershipCycle;
+use kafka_client_core::{MembershipCycle, ReadIsolation};
 
 use crate::clock::MonotonicClock;
 
@@ -49,6 +49,40 @@ fn duplicate_group_spellings_receive_distinct_owner_identities() {
     assert_eq!(
         registry.retained_group_bytes(),
         2 * "same-kafka-group".len()
+    );
+    stop_registry(&mut registry);
+}
+
+#[test]
+fn registration_retains_read_isolation_per_entry() {
+    let mut registry = started_registry();
+    let default_group = register(&mut registry, "default");
+    let committed_group = registry
+        .try_register_with_configuration(
+            Arc::from("committed"),
+            None,
+            vec![Arc::from("orders")],
+            super::classic_group_test_support::timing(),
+            super::classic_group_test_support::heartbeat_policy(),
+            super::classic_group_test_support::rejoin_policy(),
+            ReadIsolation::ReadCommitted,
+            default_classic_processing_lease_policy(),
+        )
+        .unwrap_or_else(|failure| panic!("committed registration: {:?}", failure.kind));
+
+    assert_eq!(
+        registry
+            .entry(default_group)
+            .unwrap_or_else(|| panic!("default entry expected"))
+            .read_isolation,
+        ReadIsolation::ReadUncommitted
+    );
+    assert_eq!(
+        registry
+            .entry(committed_group)
+            .unwrap_or_else(|| panic!("committed entry expected"))
+            .read_isolation,
+        ReadIsolation::ReadCommitted
     );
     stop_registry(&mut registry);
 }
@@ -128,6 +162,7 @@ fn aggregate_identity_budget_accepts_maximum_group_and_instance_for_every_entry(
                 super::classic_group_test_support::timing(),
                 super::classic_group_test_support::heartbeat_policy(),
                 super::classic_group_test_support::rejoin_policy(),
+                ReadIsolation::ReadUncommitted,
                 default_classic_processing_lease_policy(),
             )
             .unwrap_or_else(|failure| {
@@ -155,6 +190,7 @@ fn confirmed_static_state_carries_the_configured_instance_identity() {
             super::classic_group_test_support::timing(),
             super::classic_group_test_support::heartbeat_policy(),
             super::classic_group_test_support::rejoin_policy(),
+            ReadIsolation::ReadUncommitted,
             default_classic_processing_lease_policy(),
         )
         .unwrap_or_else(|failure| panic!("static registration failed: {:?}", failure.kind));

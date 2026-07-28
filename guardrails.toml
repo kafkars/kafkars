@@ -12019,6 +12019,13 @@ allowed_paths = [
 
 [[mutation_owners]]
 owner_type = "GroupConsumerRegistration"
+field = "read_isolation"
+allowed_paths = [
+  "crates/kafka-client-engine/src/consumer/group_registration_request.rs",
+]
+
+[[mutation_owners]]
+owner_type = "GroupConsumerRegistration"
 field = "processing_timeout"
 allowed_paths = [
   "crates/kafka-client-engine/src/consumer/group_registration_request.rs",

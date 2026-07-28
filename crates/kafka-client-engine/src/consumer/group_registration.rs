@@ -111,7 +111,7 @@ impl GroupConsumerHandle {
             DEFAULT_REJOIN_ATTEMPT_TIMEOUT_TICKS,
         )
         .unwrap_or_else(|_| unreachable!("fixed classic rejoin policy is valid"));
-        let (group, group_instance_id, topics, processing_policy) =
+        let (group, group_instance_id, topics, read_isolation, processing_policy) =
             request.into_validated_parts().map_err(|request| {
                 GroupConsumerRegistrationError::new(
                     GroupConsumerRegistrationErrorKind::InvalidInput,
@@ -125,6 +125,7 @@ impl GroupConsumerHandle {
             timing,
             heartbeat,
             rejoin,
+            read_isolation.core(),
             processing_policy,
         ) {
             Ok(group_id) => Ok(Self {
@@ -156,9 +157,11 @@ impl GroupConsumerHandle {
                 if let Some(group_instance_id) = failure.group_instance_id {
                     request = request.with_group_instance_id(group_instance_id);
                 }
-                let request = request.with_processing_timeout(Duration::from_nanos(
-                    processing_policy.timeout_ticks(),
-                ));
+                let request = request
+                    .with_read_isolation(read_isolation)
+                    .with_processing_timeout(Duration::from_nanos(
+                        processing_policy.timeout_ticks(),
+                    ));
                 Err(GroupConsumerRegistrationError::new(kind, request))
             }
         }

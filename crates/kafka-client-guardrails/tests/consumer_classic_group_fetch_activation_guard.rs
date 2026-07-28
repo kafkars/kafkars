@@ -216,7 +216,9 @@ fn sole_owner_preflights_installs_and_moves_ordered_effects_without_attempt_capt
         "activation owner may not abandon post-core owners through process failure"
     );
     for required in [
-        "AssignedConsumerMachine::with_read_isolation",
+        "try_new_with_read_isolation",
+        "AssignedConsumerMachine::with_read_isolation(read_isolation)",
+        ".with_isolation(fetch_isolation(read_isolation))",
         "prepare_classic_group_fetch_activation",
         "preflight_activation_capacity",
         "prepare_replacement",
@@ -245,7 +247,9 @@ fn sole_owner_preflights_installs_and_moves_ordered_effects_without_attempt_capt
     }
     let entry = read(&root.join(ENTRY));
     assert_eq!(
-        entry.matches("ClassicGroupFetchOwner::try_new()").count(),
+        entry
+            .matches("ClassicGroupFetchOwner::try_new_with_read_isolation(read_isolation)")
+            .count(),
         1
     );
 }

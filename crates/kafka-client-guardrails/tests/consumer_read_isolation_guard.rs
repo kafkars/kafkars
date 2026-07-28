@@ -4,11 +4,16 @@ mod support;
 
 use support::{
     CallCapabilityRule, CapabilityRule, MutationOwner, call_capability_violations,
-    capability_violations, fixture_files, load_config, mutation_violations, rust_files,
+    capability_violations, fixture_files, load_config, mutation_violations, read, rust_files,
     workspace_root,
 };
 
 const FILTER: &str = "crates/kafka-client-engine/src/protocol/fetch/read_committed.rs";
+const GROUP_REGISTRATION: &str =
+    "crates/kafka-client-engine/src/consumer/group_registration_request.rs";
+const GROUP_ENTRY: &str = "crates/kafka-client-engine/src/consumer/group/registry_entry.rs";
+const GROUP_FETCH_OWNER: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs";
 const FORBIDDEN: &[&str] = &[
     "crate::admin",
     "crate::consumer",
@@ -35,6 +40,7 @@ const FORBIDDEN: &[&str] = &[
 fn checked_in_read_isolation_policy_is_exact() {
     let workspace = workspace_root();
     let config = load_config(&workspace);
+    let files = rust_files(&workspace, &config);
     for (production, test) in [
         (
             "crates/kafka-client-core/src/consumer/read_isolation.rs",
@@ -62,7 +68,7 @@ fn checked_in_read_isolation_policy_is_exact() {
         assert_eq!(rules[0].test, test);
     }
 
-    let mutation = config
+    let immutable_machine = config
         .mutation_owners
         .iter()
         .filter(|rule| {
@@ -70,12 +76,12 @@ fn checked_in_read_isolation_policy_is_exact() {
         })
         .collect::<Vec<_>>();
     assert!(
-        mutation.is_empty(),
+        immutable_machine.is_empty(),
         "immutable read isolation must not carry a decorative mutation permission"
     );
     let immutable = mutation_violations(
         &workspace,
-        &rust_files(&workspace, &config),
+        &files,
         &[MutationOwner {
             owner_type: "AssignedConsumerMachine".into(),
             field: "read_isolation".into(),
@@ -89,6 +95,29 @@ fn checked_in_read_isolation_policy_is_exact() {
                 .to_owned()
         ],
         "immutable read isolation gained a post-construction mutation"
+    );
+
+    let registration = config
+        .mutation_owners
+        .iter()
+        .filter(|rule| {
+            rule.owner_type == "GroupConsumerRegistration" && rule.field == "read_isolation"
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(registration.len(), 1);
+    assert_eq!(registration[0].allowed_paths, [GROUP_REGISTRATION]);
+    assert!(
+        mutation_violations(
+            &workspace,
+            &files,
+            &[MutationOwner {
+                owner_type: "GroupConsumerRegistration".into(),
+                field: "read_isolation".into(),
+                allowed_paths: vec![GROUP_REGISTRATION.into()],
+            }],
+        )
+        .is_empty(),
+        "registration read isolation escaped its sole inert configuration owner"
     );
 
     let capabilities = config
@@ -114,6 +143,37 @@ fn checked_in_read_isolation_policy_is_exact() {
         .collect::<Vec<_>>();
     assert_eq!(calls.len(), 1);
     assert_eq!(calls[0].allowed_paths, vec![FILTER.to_owned()]);
+}
+
+#[test]
+fn hosted_registration_isolation_is_non_decorative_and_immutable() {
+    let root = workspace_root();
+    let registration = read(&root.join(GROUP_REGISTRATION));
+    for token in [
+        "read_isolation: ConsumerReadIsolation",
+        "read_isolation: ConsumerReadIsolation::ReadUncommitted",
+        "self.read_isolation = read_isolation",
+        "self.read_isolation,",
+    ] {
+        assert!(registration.contains(token), "registration lost {token}");
+    }
+
+    let entry = read(&root.join(GROUP_ENTRY));
+    assert!(entry.contains("pub(super) read_isolation: ReadIsolation"));
+    assert_eq!(
+        entry
+            .matches("ClassicGroupFetchOwner::try_new_with_read_isolation(read_isolation)")
+            .count(),
+        1
+    );
+
+    let owner = read(&root.join(GROUP_FETCH_OWNER));
+    for token in [
+        "AssignedConsumerMachine::with_read_isolation(read_isolation)",
+        ".with_isolation(fetch_isolation(read_isolation))",
+    ] {
+        assert!(owner.contains(token), "hosted Fetch owner lost {token}");
+    }
 }
 
 #[test]

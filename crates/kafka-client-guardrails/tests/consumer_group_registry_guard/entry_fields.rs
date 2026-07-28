@@ -68,6 +68,7 @@ pub(crate) const ENTRY_DECLARED_FIELDS: &[&str] = &[
     "fetch",
     "heartbeat",
     "leave",
+    "read_isolation",
     "position",
     "processing_lease",
     "revocation",
