@@ -151,12 +151,16 @@ pub use crate::producer_retry::{
 };
 pub use crate::producer_transition_result::ProducerTransition;
 pub use crate::transaction::{
+    TransactionEndMode, TransactionEndObservation, TransactionEndOutcome, TransactionEpoch,
     TransactionInitializationBrokerCategory, TransactionInitializationBrokerFailure,
     TransactionInitializationEffect, TransactionInitializationFailure,
     TransactionInitializationFailureKind, TransactionInitializationInput,
     TransactionInitializationMachine, TransactionInitializationMachineError,
     TransactionInitializationPlan, TransactionInitializationPlanError,
     TransactionInitializationState, TransactionInitializationTerminal,
-    TransactionInitializationTransition, TransactionalOwnerId, TransactionalProducerIdentity,
+    TransactionInitializationTransition, TransactionLifecycleEffect, TransactionLifecycleInput,
+    TransactionLifecycleMachine, TransactionLifecycleMachineError, TransactionLifecycleState,
+    TransactionLifecycleTerminal, TransactionLifecycleTransition, TransactionalOwnerId,
+    TransactionalProducerIdentity,
 };
 pub use crate::types::{ByteCount, Deadline, Moment, OperationId};

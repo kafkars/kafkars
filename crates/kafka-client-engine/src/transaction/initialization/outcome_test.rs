@@ -1,6 +1,6 @@
 //! Core-to-engine transaction initialization terminal translation.
 
-use std::{num::NonZeroI16, sync::Arc};
+use std::num::NonZeroI16;
 
 use kafka_client_core::{
     Deadline, Moment, OperationId, TransactionInitializationBrokerCategory,
@@ -10,8 +10,8 @@ use kafka_client_core::{
 };
 
 use super::{
-    TransactionInitializationDeliveryStatus, TransactionInitializationFailureKind,
-    TransactionInitializationOutcome, outcome::failed_retained_outcome,
+    RetainedTransactionInitializationOutcome, TransactionInitializationDeliveryStatus,
+    TransactionInitializationFailureKind, outcome::failed_retained_outcome,
 };
 
 #[test]
@@ -52,8 +52,7 @@ fn core_terminal_translation_retains_exact_broker_code_fencing_and_delivery() {
     };
     let retained = failed_retained_outcome(terminal)
         .unwrap_or_else(|| panic!("failed core terminal must translate"));
-    let TransactionInitializationOutcome::Failed(failure) = retained.into_observed(Arc::new(()))
-    else {
+    let RetainedTransactionInitializationOutcome::Failed(failure) = retained else {
         panic!("failed core terminal became initialized");
     };
 

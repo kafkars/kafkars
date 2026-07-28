@@ -8,7 +8,8 @@ use super::{
     TransactionInitializationAccepted, TransactionInitializationAdmissionError,
     TransactionInitializationAdmissionErrorKind, TransactionInitializationCapture,
     TransactionInitializationCaptureError, TransactionInitializationRequest,
-    outcome::accepted_fault, shard::TransactionInitializationShardState,
+    TransactionLifecycleControlPort, outcome::accepted_fault,
+    shard::TransactionInitializationShardState,
 };
 
 #[derive(Clone)]
@@ -49,7 +50,7 @@ impl TransactionInitializationAdmissionPort {
 }
 
 pub(super) fn try_initialize_captured(
-    shared: &TransactionInitializationShardState,
+    shared: &Arc<TransactionInitializationShardState>,
     capture: crate::clock::DeadlineCapture,
     request: TransactionInitializationRequest,
     lifetime: Arc<dyn Send + Sync>,
@@ -85,6 +86,7 @@ pub(super) fn try_initialize_captured(
         request,
         plan,
         lifetime,
+        TransactionLifecycleControlPort::new(Arc::clone(shared)),
     ) {
         Ok(admission) => admission,
         Err((kind, request)) => {

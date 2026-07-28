@@ -1,10 +1,13 @@
 //! Sole engine owner of transaction initialization, bytes, calls, and completion.
 
 mod admission;
+mod control;
 mod owner;
 mod reclaim;
 mod recovery;
 mod terminal;
+#[cfg(test)]
+mod test_support;
 mod turn;
 
 use std::sync::{
@@ -14,22 +17,29 @@ use std::sync::{
 };
 
 use kafka_client_core::{
-    OperationId, TransactionInitializationMachine, TransactionInitializationState,
-    TransactionalOwnerId,
+    OperationId, ProducerRetryPolicy, TransactionInitializationMachine,
+    TransactionInitializationState, TransactionalOwnerId,
 };
 
 use crate::{
     clock::OperationDeadline,
-    completion::{CompletionId, CompletionRegistry, NotifierJoin},
+    completion::{CompletionId, CompletionRegistry, CompletionRegistryError, NotifierJoin},
     driver::{TransactionInitCall, TransactionInitTerminal},
+    transaction::{
+        TransactionExecutionHost,
+        completion::{
+            TRANSACTION_OWNER_CAPACITY, TransactionCompletionOwner,
+            TransactionInitializationPublisher,
+        },
+    },
 };
 
 use super::{
     RetainedTransactionInitializationOutcome, TransactionInitializationHostError,
-    TransactionInitializationRequest,
+    TransactionInitializationRequest, TransactionOwnerLossSignal,
 };
 
-pub(super) const TRANSACTION_INITIALIZATION_CAPACITY: usize = 8;
+pub(super) const TRANSACTION_INITIALIZATION_CAPACITY: usize = TRANSACTION_OWNER_CAPACITY;
 pub(super) const TRANSACTION_INITIALIZATION_OPERATION_BYTES: usize = 64 * 1024;
 const TRANSACTION_INITIALIZATION_RETAINED_BYTES: usize =
     TRANSACTION_INITIALIZATION_CAPACITY * TRANSACTION_INITIALIZATION_OPERATION_BYTES;
@@ -65,33 +75,62 @@ pub(super) struct LiveTransactionalOwner {
 
 pub(crate) struct TransactionInitializationHost {
     operations: Vec<TransactionInitializationOperation>,
-    completions: CompletionRegistry<RetainedTransactionInitializationOutcome>,
+    completions: CompletionRegistry<
+        RetainedTransactionInitializationOutcome,
+        TransactionInitializationPublisher,
+    >,
+    completion_owner: TransactionCompletionOwner,
     next_operation_id: Option<OperationId>,
     next_owner_id: Option<TransactionalOwnerId>,
     reclaim_pending: Option<CompletionId>,
     published_bytes: Vec<(CompletionId, usize)>,
     live_owners: Vec<LiveTransactionalOwner>,
+    executions: Vec<TransactionExecutionHost>,
+    execution_retry_policy: ProducerRetryPolicy,
     release_sender: SyncSender<TransactionalOwnerId>,
     release_receiver: Receiver<TransactionalOwnerId>,
+    owner_loss_sender: SyncSender<TransactionOwnerLossSignal>,
+    owner_loss_receiver: Receiver<TransactionOwnerLossSignal>,
     retained_bytes: usize,
     accepting: bool,
     health: Option<TransactionInitializationHostError>,
 }
 
 impl TransactionInitializationHost {
+    #[cfg(test)]
     pub(crate) fn start() -> std::io::Result<Self> {
+        Self::start_with_retry_policy(ProducerRetryPolicy::none())
+    }
+
+    pub(crate) fn start_with_retry_policy(
+        execution_retry_policy: ProducerRetryPolicy,
+    ) -> std::io::Result<Self> {
         let (release_sender, release_receiver) =
             std::sync::mpsc::sync_channel(TRANSACTION_INITIALIZATION_CAPACITY);
+        let (owner_loss_sender, owner_loss_receiver) =
+            std::sync::mpsc::sync_channel(TRANSACTION_INITIALIZATION_CAPACITY);
+        let completion_owner = TransactionCompletionOwner::start()?;
+        let publisher = completion_owner
+            .initialization_publisher()
+            .map_err(std::io::Error::other)?;
         Ok(Self {
             operations: Vec::with_capacity(TRANSACTION_INITIALIZATION_CAPACITY),
-            completions: CompletionRegistry::start(TRANSACTION_INITIALIZATION_CAPACITY)?,
+            completions: CompletionRegistry::with_publisher(
+                TRANSACTION_INITIALIZATION_CAPACITY,
+                publisher,
+            ),
+            completion_owner,
             next_operation_id: Some(OperationId::from_raw(1)),
             next_owner_id: Some(TransactionalOwnerId::from_raw(1)),
             reclaim_pending: None,
             published_bytes: Vec::with_capacity(TRANSACTION_INITIALIZATION_CAPACITY),
             live_owners: Vec::with_capacity(TRANSACTION_INITIALIZATION_CAPACITY),
+            executions: Vec::with_capacity(TRANSACTION_OWNER_CAPACITY),
+            execution_retry_policy,
             release_sender,
             release_receiver,
+            owner_loss_sender,
+            owner_loss_receiver,
             retained_bytes: 0,
             accepting: true,
             health: None,
@@ -104,25 +143,41 @@ impl TransactionInitializationHost {
 
     pub(crate) fn unsettled(&self) -> usize {
         self.operations.len()
+            + self
+                .executions
+                .iter()
+                .map(|execution| execution.unsettled().max(1))
+                .sum::<usize>()
     }
 
     pub(crate) fn next_deadline(&self) -> Option<kafka_client_core::Deadline> {
-        self.operations
+        let initialization = self
+            .operations
             .iter()
             .filter(|operation| {
                 operation.machine.state() == TransactionInitializationState::AwaitingDriver
                     && operation.call.is_none()
             })
             .map(|operation| operation.deadline.core())
-            .min()
+            .min();
+        let execution = self
+            .executions
+            .iter()
+            .filter_map(TransactionExecutionHost::next_deadline)
+            .min();
+        match (initialization, execution) {
+            (Some(left), Some(right)) => Some(left.min(right)),
+            (Some(deadline), None) | (None, Some(deadline)) => Some(deadline),
+            (None, None) => None,
+        }
     }
 
     pub(crate) fn notifier_thread_id(&self) -> Option<std::thread::ThreadId> {
-        self.completions.notifier_thread_id()
+        self.completion_owner.thread_id()
     }
 
     pub(crate) fn take_notifier(&mut self) -> Option<NotifierJoin> {
-        self.completions.take_notifier()
+        self.completion_owner.take_join()
     }
 
     pub(crate) fn finish_shutdown(
@@ -130,51 +185,17 @@ impl TransactionInitializationHost {
     ) -> Result<NotifierJoin, TransactionInitializationHostError> {
         self.close_admission();
         self.invalidate_live_owners()?;
-        if !self.operations.is_empty() {
+        if !self.operations.is_empty() || !self.executions.is_empty() {
             return Err(TransactionInitializationHostError::Unsettled(
-                self.operations.len(),
+                self.unsettled(),
             ));
         }
-        self.completions.stop_notifier().map_err(Into::into)
-    }
-
-    #[cfg(test)]
-    pub(super) const fn retained_bytes_for_test(&self) -> usize {
-        self.retained_bytes
-    }
-
-    #[cfg(test)]
-    pub(super) fn reclaim_for_test(&mut self) -> Result<bool, TransactionInitializationHostError> {
-        self.reclaim_one()
-    }
-
-    #[cfg(test)]
-    pub(super) fn release_owner_for_test(
-        &mut self,
-    ) -> Result<bool, TransactionInitializationHostError> {
-        self.release_one_owner()
-    }
-
-    #[cfg(test)]
-    pub(super) fn initialize_for_test(
-        &mut self,
-        producer_id: i64,
-        producer_epoch: i16,
-    ) -> Result<(), TransactionInitializationHostError> {
-        if self.operations.is_empty() {
-            return Err(TransactionInitializationHostError::UnknownOperation);
+        if self.completions.unsettled_len() != 0 {
+            return Err(TransactionInitializationHostError::Completion(
+                CompletionRegistryError::UnsettledCompletion,
+            ));
         }
-        self.apply(
-            0,
-            kafka_client_core::TransactionInitializationInput::DriverAccepted,
-        )?;
-        self.apply(
-            0,
-            kafka_client_core::TransactionInitializationInput::BrokerInitialized {
-                producer_id,
-                producer_epoch,
-            },
-        )
+        self.completion_owner.stop().map_err(Into::into)
     }
 }
 

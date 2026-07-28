@@ -1,45 +1,55 @@
-//! Host-retained success payload without a strong engine-lifetime cycle.
+//! Host-retained success payload that signals idle loss when unobserved.
 
-use std::sync::{Arc, atomic::AtomicBool, mpsc::SyncSender};
+use std::{
+    sync::{
+        Arc,
+        atomic::AtomicBool,
+        mpsc::{SyncSender, TrySendError},
+    },
+    time::Duration,
+};
 
 use kafka_client_core::TransactionalOwnerId;
 
 use super::{
-    TransactionInitializationOutcome, TransactionalOwnerHandle,
-    outcome::TransactionInitializationFailure, owner::release_owner,
+    TransactionInitializationOutcome, TransactionLifecycleControlPort, TransactionOwnerLossSignal,
+    TransactionalOwnerHandle, outcome::TransactionInitializationFailure,
 };
 
-pub(super) enum RetainedTransactionInitializationOutcome {
+pub(in crate::transaction) enum RetainedTransactionInitializationOutcome {
     Initialized(RetainedTransactionalOwner),
     Failed(TransactionInitializationFailure),
 }
 
-pub(super) struct RetainedTransactionalOwner {
+pub(in crate::transaction) struct RetainedTransactionalOwner {
     owner_id: TransactionalOwnerId,
-    transactional_id: String,
+    transactional_id: Option<Arc<str>>,
     producer_id: i64,
     producer_epoch: i16,
     active: Arc<AtomicBool>,
-    release: SyncSender<TransactionalOwnerId>,
+    owner_loss: SyncSender<TransactionOwnerLossSignal>,
+    owner_loss_timeout: Duration,
     armed: bool,
 }
 
 impl RetainedTransactionInitializationOutcome {
     pub(super) fn initialized(
         owner_id: TransactionalOwnerId,
-        transactional_id: String,
+        transactional_id: Arc<str>,
         producer_id: i64,
         producer_epoch: i16,
         active: Arc<AtomicBool>,
-        release: SyncSender<TransactionalOwnerId>,
+        owner_loss: SyncSender<TransactionOwnerLossSignal>,
+        owner_loss_timeout: Duration,
     ) -> Self {
         Self::Initialized(RetainedTransactionalOwner {
             owner_id,
-            transactional_id,
+            transactional_id: Some(transactional_id),
             producer_id,
             producer_epoch,
             active,
-            release,
+            owner_loss,
+            owner_loss_timeout,
             armed: true,
         })
     }
@@ -51,13 +61,14 @@ impl RetainedTransactionInitializationOutcome {
     pub(super) fn into_observed(
         self,
         lifetime: Arc<dyn Send + Sync>,
+        control: TransactionLifecycleControlPort,
     ) -> TransactionInitializationOutcome {
         match self {
             Self::Initialized(owner) => {
-                TransactionInitializationOutcome::Initialized(owner.into_handle(lifetime))
+                TransactionInitializationOutcome::Initialized(owner.into_handle(lifetime, control))
             }
             Self::Failed(failure) => {
-                drop(lifetime);
+                drop((lifetime, control));
                 TransactionInitializationOutcome::Failed(failure)
             }
         }
@@ -65,15 +76,22 @@ impl RetainedTransactionInitializationOutcome {
 }
 
 impl RetainedTransactionalOwner {
-    fn into_handle(mut self, lifetime: Arc<dyn Send + Sync>) -> TransactionalOwnerHandle {
+    fn into_handle(
+        mut self,
+        lifetime: Arc<dyn Send + Sync>,
+        control: TransactionLifecycleControlPort,
+    ) -> TransactionalOwnerHandle {
         self.armed = false;
         TransactionalOwnerHandle::new(
             self.owner_id,
-            std::mem::take(&mut self.transactional_id),
+            self.transactional_id
+                .take()
+                .unwrap_or_else(|| unreachable!("retained owner keeps its transactional ID")),
             self.producer_id,
             self.producer_epoch,
             Arc::clone(&self.active),
-            self.release.clone(),
+            control,
+            self.owner_loss_timeout,
             lifetime,
         )
     }
@@ -82,7 +100,16 @@ impl RetainedTransactionalOwner {
 impl Drop for RetainedTransactionalOwner {
     fn drop(&mut self) {
         if self.armed {
-            release_owner(self.owner_id, &self.active, &self.release);
+            let signal = TransactionOwnerLossSignal {
+                owner_id: self.owner_id,
+                deadline: None,
+            };
+            match self.owner_loss.try_send(signal) {
+                Ok(()) | Err(TrySendError::Disconnected(_)) => {}
+                Err(TrySendError::Full(_)) => {
+                    debug_assert!(false, "owner-loss capacity equals owner capacity");
+                }
+            }
         }
     }
 }

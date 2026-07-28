@@ -22,6 +22,12 @@ const CAPTURE_TEST: &str =
 const OWNER: &str = "TransactionalOwnerHandle";
 const OWNER_PATH: &str = "crates/kafka-client-engine/src/transaction/initialization/owner.rs";
 const OWNER_TEST: &str = "crates/kafka-client-engine/src/transaction/initialization/owner_test.rs";
+const LIFECYCLE_HOST: &str = "TransactionLifecycleHost";
+const LIFECYCLE_HOST_PATH: &str = "crates/kafka-client-engine/src/transaction/lifecycle/host.rs";
+const LIFECYCLE_HOST_TEST: &str =
+    "crates/kafka-client-engine/src/transaction/lifecycle/host_test.rs";
+const EXECUTION_HOST: &str = "TransactionExecutionHost";
+const EXECUTION_HOST_PATH: &str = "crates/kafka-client-engine/src/transaction/execution/host.rs";
 const FORBIDDEN: &[&str] = &[
     "crate::admin",
     "crate::consumer",
@@ -88,17 +94,9 @@ fn checked_in_transaction_execution_owners_and_capabilities_are_exact() {
         "transactional owner needs one sibling test mirror"
     );
 
-    for field in ["operations", "live_owners", "retained_bytes", "accepting"] {
-        assert_eq!(
-            config
-                .mutation_owners
-                .iter()
-                .filter(|rule| rule.owner_type == HOST && rule.field == field)
-                .count(),
-            1,
-            "{field} needs one mutation owner"
-        );
-    }
+    assert_lifecycle_owners(&config);
+
+    assert_host_fields(&config);
     let capabilities = config
         .capability_rules
         .iter()
@@ -113,6 +111,17 @@ fn checked_in_transaction_execution_owners_and_capabilities_are_exact() {
                 .any(|value| value == forbidden)
         );
     }
+    for path in [
+        "crates/kafka-client-engine/src/transaction/execution/turn.rs",
+        "crates/kafka-client-engine/src/transaction/lifecycle/driver_port.rs",
+    ] {
+        assert!(
+            capabilities[0]
+                .allow
+                .iter()
+                .any(|rule| rule.path == path && rule.capability == "crate::driver")
+        );
+    }
     let submission = config
         .method_capabilities
         .iter()
@@ -123,6 +132,46 @@ fn checked_in_transaction_execution_owners_and_capabilities_are_exact() {
         submission[0].allowed_paths,
         ["crates/kafka-client-engine/src/driver/rpc/transaction_init_call.rs"]
     );
+}
+
+fn assert_lifecycle_owners(config: &support::GuardConfig) {
+    for (owner_type, path) in [
+        (LIFECYCLE_HOST, LIFECYCLE_HOST_PATH),
+        (EXECUTION_HOST, EXECUTION_HOST_PATH),
+    ] {
+        assert_eq!(
+            config
+                .linear_owners
+                .iter()
+                .filter(|rule| rule.owner_type == owner_type && rule.path == path)
+                .count(),
+            1,
+            "{owner_type} needs one exact registration"
+        );
+    }
+    assert!(config.test_mirrors.iter().any(|mirror| {
+        mirror.production == LIFECYCLE_HOST_PATH && mirror.test == LIFECYCLE_HOST_TEST
+    }));
+}
+
+fn assert_host_fields(config: &support::GuardConfig) {
+    for field in [
+        "operations",
+        "executions",
+        "live_owners",
+        "retained_bytes",
+        "accepting",
+    ] {
+        assert_eq!(
+            config
+                .mutation_owners
+                .iter()
+                .filter(|rule| rule.owner_type == HOST && rule.field == field)
+                .count(),
+            1,
+            "{field} needs one mutation owner"
+        );
+    }
 }
 
 #[test]

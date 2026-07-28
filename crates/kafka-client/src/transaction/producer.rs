@@ -2,13 +2,13 @@
 
 use crate::bridge::transaction::TransactionalProducerEngine;
 
-use super::TransactionalProducerIdentity;
+use super::{Transaction, TransactionalProducerIdentity};
 
 /// Uniquely controlled initialized transactional producer.
 ///
-/// This first vertical slice exposes identity and lifecycle only. Beginning,
-/// sending, committing, and aborting transactions remain unavailable until
-/// their deterministic policy and execution owners land.
+/// The producer begins one linear transaction at a time. The returned
+/// [`Transaction`] exclusively borrows this owner through commit, abort, or
+/// active-token loss.
 #[must_use = "close or retain the transactional producer owner"]
 pub struct TransactionalProducer {
     engine: TransactionalProducerEngine,
@@ -32,6 +32,11 @@ impl TransactionalProducer {
     /// Returns whether the engine still recognizes this owner as active.
     pub fn is_active(&self) -> bool {
         self.engine.is_active()
+    }
+
+    /// Begins one transaction without exposing its internal epoch.
+    pub fn begin(&mut self) -> Result<Transaction<'_>, crate::KafkaError> {
+        self.engine.begin().map(Transaction::from_bridge)
     }
 
     /// Explicitly fences and releases this idle transactional owner.

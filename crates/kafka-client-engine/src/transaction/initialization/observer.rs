@@ -11,7 +11,7 @@ use crate::completion::{CompletionObserver, CompletionObserverError};
 
 use super::{
     RetainedTransactionInitializationOutcome, TransactionInitializationObserverError,
-    TransactionInitializationOutcome,
+    TransactionInitializationOutcome, TransactionLifecycleControlPort,
 };
 
 /// Single runtime-neutral observer for one accepted initialization.
@@ -19,16 +19,19 @@ use super::{
 pub struct TransactionInitializationObserver {
     inner: CompletionObserver<RetainedTransactionInitializationOutcome>,
     lifetime: Option<Arc<dyn Send + Sync>>,
+    control: Option<TransactionLifecycleControlPort>,
 }
 
 impl TransactionInitializationObserver {
     pub(super) const fn new(
         inner: CompletionObserver<RetainedTransactionInitializationOutcome>,
         lifetime: Arc<dyn Send + Sync>,
+        control: TransactionLifecycleControlPort,
     ) -> Self {
         Self {
             inner,
             lifetime: Some(lifetime),
+            control: Some(control),
         }
     }
 
@@ -41,7 +44,11 @@ impl TransactionInitializationObserver {
             .lifetime
             .take()
             .ok_or(TransactionInitializationObserverError::AlreadyObserved)?;
-        Ok(terminal.into_observed(lifetime))
+        let control = self
+            .control
+            .take()
+            .ok_or(TransactionInitializationObserverError::AlreadyObserved)?;
+        Ok(terminal.into_observed(lifetime, control))
     }
 }
 
@@ -57,10 +64,16 @@ impl Future for TransactionInitializationObserver {
                         TransactionInitializationObserverError::AlreadyObserved,
                     ));
                 };
-                Poll::Ready(Ok(terminal.into_observed(lifetime)))
+                let Some(control) = this.control.take() else {
+                    return Poll::Ready(Err(
+                        TransactionInitializationObserverError::AlreadyObserved,
+                    ));
+                };
+                Poll::Ready(Ok(terminal.into_observed(lifetime, control)))
             }
             Poll::Ready(Err(error)) => {
                 drop(this.lifetime.take());
+                drop(this.control.take());
                 Poll::Ready(Err(observer_error(error)))
             }
             Poll::Pending => Poll::Pending,

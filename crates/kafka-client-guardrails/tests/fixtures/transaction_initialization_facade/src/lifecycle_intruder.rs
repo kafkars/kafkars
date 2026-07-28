@@ -7,6 +7,8 @@ impl TransactionalProducer {
 
     pub fn send(&mut self) {}
 
+    pub fn send_offsets(&mut self) {}
+
     pub fn commit(&mut self) {}
 
     pub fn abort(&mut self) {}

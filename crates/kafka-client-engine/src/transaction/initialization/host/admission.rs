@@ -15,6 +15,7 @@ use super::{
 use crate::transaction::initialization::{
     TransactionInitializationAdmissionErrorKind, TransactionInitializationHostError,
     TransactionInitializationObserver, TransactionInitializationRequest,
+    TransactionLifecycleControlPort,
 };
 
 impl TransactionInitializationHost {
@@ -25,6 +26,7 @@ impl TransactionInitializationHost {
         request: TransactionInitializationRequest,
         plan: TransactionInitializationPlan,
         lifetime: std::sync::Arc<dyn Send + Sync>,
+        control: TransactionLifecycleControlPort,
     ) -> Result<
         TransactionInitializationAdmission,
         (
@@ -113,7 +115,7 @@ impl TransactionInitializationHost {
             self.health = Some(error);
         }
         Ok(TransactionInitializationAdmission {
-            observer: TransactionInitializationObserver::new(observer, lifetime),
+            observer: TransactionInitializationObserver::new(observer, lifetime, control),
             fault,
         })
     }
@@ -125,7 +127,7 @@ impl TransactionInitializationHost {
         if self.health.is_some() {
             return Some(TransactionInitializationAdmissionErrorKind::HostUnavailable);
         }
-        if self.operations.len() + self.live_owners.len() >= TRANSACTION_INITIALIZATION_CAPACITY {
+        if self.operations.len() + self.executions.len() >= TRANSACTION_INITIALIZATION_CAPACITY {
             return Some(TransactionInitializationAdmissionErrorKind::Capacity);
         }
         if self.next_operation_id.is_none() || self.next_owner_id.is_none() {

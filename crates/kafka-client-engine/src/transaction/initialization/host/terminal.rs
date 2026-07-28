@@ -1,6 +1,9 @@
 //! Driver fact normalization, core settlement, and terminal publication.
 
-use std::sync::{Arc, atomic::AtomicBool};
+use std::{
+    sync::{Arc, atomic::AtomicBool},
+    time::Duration,
+};
 
 use kafka_client_core::{
     TransactionInitializationBrokerCategory, TransactionInitializationBrokerFailure,
@@ -20,8 +23,10 @@ use super::{
     LiveTransactionalOwner, TRANSACTION_INITIALIZATION_OPERATION_BYTES,
     TransactionInitializationHost,
 };
+use crate::transaction::TransactionExecutionHost;
 use crate::transaction::initialization::{
     RetainedTransactionInitializationOutcome, TransactionInitializationHostError,
+    TransactionalOwnerParts,
 };
 
 impl TransactionInitializationHost {
@@ -109,9 +114,33 @@ impl TransactionInitializationHost {
                     .request
                     .take()
                     .ok_or(TransactionInitializationHostError::MissingTerminal)?;
-                let (transactional_id, _transaction_timeout_ms) = request.into_parts();
+                let (transactional_id, transaction_timeout_ms) = request.into_parts();
+                let transactional_id = Arc::<str>::from(transactional_id);
                 let active = Arc::new(AtomicBool::new(true));
                 let owner_id = self.operations[index].owner_id;
+                let publisher = self.completion_owner.lifecycle_publisher()?;
+                let parts = TransactionalOwnerParts::new(
+                    owner_id,
+                    Arc::clone(&transactional_id),
+                    identity.producer_id(),
+                    identity.producer_epoch(),
+                    Arc::clone(&active),
+                    self.release_sender.clone(),
+                    publisher,
+                );
+                let execution =
+                    match TransactionExecutionHost::try_new(parts, self.execution_retry_policy) {
+                        Ok(execution) => execution,
+                        Err((_error, parts)) => {
+                            parts.discard_uninstalled();
+                            self.operations[index].terminal = Some(
+                            crate::transaction::initialization::outcome::
+                                execution_unavailable_retained_outcome(),
+                        );
+                            return Ok(());
+                        }
+                    };
+                self.executions.push(execution);
                 self.live_owners.push(LiveTransactionalOwner {
                     owner_id,
                     active: Arc::clone(&active),
@@ -124,7 +153,8 @@ impl TransactionInitializationHost {
                         identity.producer_id(),
                         identity.producer_epoch(),
                         active,
-                        self.release_sender.clone(),
+                        self.owner_loss_sender.clone(),
+                        Duration::from_millis(u64::from(transaction_timeout_ms)),
                     ));
                 Ok(())
             }

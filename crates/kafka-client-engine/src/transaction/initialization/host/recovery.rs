@@ -58,6 +58,10 @@ impl TransactionInitializationHost {
                 }
             }
         }
+        for execution in &mut self.executions {
+            execution.recover_after_driver_shutdown()?;
+        }
+        self.executions.retain(|execution| !execution.is_closed());
         Ok(())
     }
 }

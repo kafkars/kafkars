@@ -27,12 +27,20 @@ fn initialized_owner_is_sendable_unique_and_not_shared() {
 }
 
 #[test]
-fn initialized_owner_exposes_only_idle_identity_and_close() {
+fn initialized_owner_exposes_identity_begin_and_close() {
     fn require_id(_method: fn(&TransactionalProducer) -> &str) {}
     fn require_active(_method: fn(&TransactionalProducer) -> bool) {}
+    fn require_begin(
+        _method: for<'producer> fn(
+            &'producer mut TransactionalProducer,
+        )
+            -> Result<super::Transaction<'producer>, crate::KafkaError>,
+    ) {
+    }
     fn require_close(_method: fn(TransactionalProducer)) {}
 
     require_id(TransactionalProducer::transactional_id);
     require_active(TransactionalProducer::is_active);
+    require_begin(TransactionalProducer::begin);
     require_close(TransactionalProducer::close);
 }

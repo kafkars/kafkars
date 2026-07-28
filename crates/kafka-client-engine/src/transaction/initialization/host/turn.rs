@@ -16,9 +16,21 @@ impl TransactionInitializationHost {
         if let Some(error) = self.health {
             return Err(error);
         }
-        if self.release_one_owner()? || self.reclaim_one()? || self.poll_one_call()? {
+        if self.owner_loss_one()?
+            || self.release_one_owner()?
+            || self.reclaim_one()?
+            || self.poll_one_call()?
+        {
             return Ok(TransactionInitializationTurn::Progress);
         }
+        for execution in &mut self.executions {
+            if execution.turn(now, driver)?
+                == crate::transaction::TransactionLifecycleTurn::Progress
+            {
+                return Ok(TransactionInitializationTurn::Progress);
+            }
+        }
+        self.executions.retain(|execution| !execution.is_closed());
         let Some(index) = self.operations.iter().position(|operation| {
             operation.machine.state() == TransactionInitializationState::AwaitingDriver
                 && operation.call.is_none()

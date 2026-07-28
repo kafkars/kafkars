@@ -7,6 +7,7 @@ use kafka_client_core::TransactionInitializationMachineError;
 use crate::completion::CompletionRegistryError;
 
 use super::TransactionInitializationRequest;
+use crate::transaction::TransactionLifecycleHostError;
 
 /// Failure to capture the public operation deadline.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -100,6 +101,7 @@ pub(crate) enum TransactionInitializationHostError {
     CallCompletion,
     ByteAccounting,
     OwnerRelease,
+    Lifecycle(TransactionLifecycleHostError),
     Wake,
     Unsettled(usize),
 }
@@ -113,6 +115,12 @@ impl From<TransactionInitializationMachineError> for TransactionInitializationHo
 impl From<CompletionRegistryError> for TransactionInitializationHostError {
     fn from(error: CompletionRegistryError) -> Self {
         Self::Completion(error)
+    }
+}
+
+impl From<TransactionLifecycleHostError> for TransactionInitializationHostError {
+    fn from(error: TransactionLifecycleHostError) -> Self {
+        Self::Lifecycle(error)
     }
 }
 

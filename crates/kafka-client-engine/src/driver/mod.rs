@@ -53,7 +53,7 @@ pub(crate) use rpc::{
     TrackedDeleteTopicsCalls, TrackedFetchCalls, TrackedGroupOffsetCommitCalls,
     TrackedPositionCalls, TrackedProduceCalls, TrackedProducerIdentityCalls, TransactionInitCall,
     TransactionInitDriverFailureKind, TransactionInitTerminal, TransactionInitTerminalFact,
-    classic_group, classify_fetch_admission, classify_fetch_request_error,
+    classic_group, classify_fetch_admission, classify_fetch_request_error, transaction_control,
 };
 #[expect(
     unused_imports,

@@ -61,6 +61,7 @@ baseline = [
   { path = "crates/kafka-client-core/src/producer/mod.rs", lines = 89, reason = "the declarative producer facade names bounded waiting admission, promotion, terminal policy, and their sibling evidence" },
   { path = "crates/kafka-client-engine/src/admin/describe_outcome.rs", lines = 243, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
   { path = "crates/kafka-client-engine/src/producer/mod.rs", lines = 82, reason = "the declarative producer facade names bounded explicit waiting and its sibling recovery evidence" },
+  { path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs", lines = 280, reason = "EndTxn retains exact response correlation, causal coordinator invalidation, deadline fencing, and retry-safety evidence in one terminal owner" },
 ]
 allow = []
 
@@ -2340,10 +2341,13 @@ forbidden = [
   "Transport",
 ]
 allow = [
+  { path = "crates/kafka-client-engine/src/transaction/execution/turn.rs", capability = "crate::driver", reason = "The unique execution wrapper drives only its installed lifecycle through the embedded driver owner." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host.rs", capability = "crate::driver", reason = "The concrete transaction owner retains exactly one accepted call beside its core machine." },
+  { path = "crates/kafka-client-engine/src/transaction/initialization/host_test.rs", capability = "crate::driver", reason = "The focused lifecycle fixture embeds the reviewed driver owner to exercise exact begin, end, and owner-loss hosting." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs", capability = "crate::driver", reason = "The concrete terminal seam exhaustively translates borrowed driver facts before core settlement." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/host/turn.rs", capability = "crate::driver", reason = "The concrete host turn submits one core-authorized request through the sanctioned adapter." },
   { path = "crates/kafka-client-engine/src/transaction/initialization/shard.rs", capability = "crate::driver", reason = "The synchronized owner adapts only the domain-neutral reactor wake mechanism." },
+  { path = "crates/kafka-client-engine/src/transaction/lifecycle/driver_port.rs", capability = "crate::driver", reason = "The lifecycle adapter retains one concrete EndTxn call and its route evidence through deterministic settlement." },
 ]
 
 [[capability_rules]]
@@ -2374,6 +2378,49 @@ allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/transaction_init_call.rs",
 ]
 
+[[method_capabilities]]
+root = "crates/kafka-client-engine/src"
+method = "submit_tracked_transaction_end"
+allowed_paths = [
+  "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs",
+]
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/transaction/lifecycle/ending.rs"
+test = "crates/kafka-client-core/src/transaction/lifecycle/ending_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/transaction/lifecycle/machine.rs"
+test = "crates/kafka-client-core/src/transaction/lifecycle/machine_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/transaction/lifecycle/model.rs"
+test = "crates/kafka-client-core/src/transaction/lifecycle/model_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-core/src/transaction/lifecycle/transition.rs"
+test = "crates/kafka-client-core/src/transaction/lifecycle/transition_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/transaction/broker_error.rs"
+test = "crates/kafka-client-engine/src/protocol/transaction/broker_error_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/protocol/transaction/end_txn.rs"
+test = "crates/kafka-client-engine/src/protocol/transaction/end_txn_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/transaction_control/end_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/transaction_control/failure.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/transaction_control/failure_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/driver/rpc/transaction_control/submission.rs"
+test = "crates/kafka-client-engine/src/driver/rpc/transaction_control/submission_test.rs"
+
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/protocol/transaction/init_producer_id.rs"
 test = "crates/kafka-client-engine/src/protocol/transaction/init_producer_id_test.rs"
@@ -2403,6 +2450,10 @@ production = "crates/kafka-client-engine/src/transaction/initialization/owner.rs
 test = "crates/kafka-client-engine/src/transaction/initialization/owner_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client-engine/src/transaction/initialization/owner_control.rs"
+test = "crates/kafka-client-engine/src/transaction/initialization/owner_control_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client-engine/src/transaction/initialization/retained_owner.rs"
 test = "crates/kafka-client-engine/src/transaction/initialization/retained_owner_test.rs"
 
@@ -2413,6 +2464,10 @@ test = "crates/kafka-client-engine/src/transaction/initialization/port_test.rs"
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/transaction/initialization/host.rs"
 test = "crates/kafka-client-engine/src/transaction/initialization/host_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/transaction/lifecycle/host.rs"
+test = "crates/kafka-client-engine/src/transaction/lifecycle/host_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/engine_transaction.rs"
@@ -2455,6 +2510,54 @@ owner_type = "TransactionInitializationShardOwner"
 path = "crates/kafka-client-engine/src/transaction/initialization/shard.rs"
 
 [[linear_owners]]
+owner_type = "TransactionBeginAccepted"
+path = "crates/kafka-client-engine/src/transaction/initialization/owner_control.rs"
+
+[[linear_owners]]
+owner_type = "TransactionToken"
+path = "crates/kafka-client-engine/src/transaction/initialization/owner_control.rs"
+
+[[linear_owners]]
+owner_type = "TransactionEndAccepted"
+path = "crates/kafka-client-engine/src/transaction/initialization/owner_control.rs"
+
+[[linear_owners]]
+owner_type = "TransactionEndAdmissionError"
+path = "crates/kafka-client-engine/src/transaction/initialization/control_error.rs"
+
+[[linear_owners]]
+owner_type = "TransactionEndObserver"
+path = "crates/kafka-client-engine/src/transaction/initialization/end_observer.rs"
+
+[[linear_owners]]
+owner_type = "TransactionalOwnerParts"
+path = "crates/kafka-client-engine/src/transaction/initialization/owner_parts.rs"
+
+[[linear_owners]]
+owner_type = "TransactionLifecycleControlAccepted"
+path = "crates/kafka-client-engine/src/transaction/initialization/control.rs"
+
+[[linear_owners]]
+owner_type = "TransactionOwnerLossSignal"
+path = "crates/kafka-client-engine/src/transaction/initialization/control.rs"
+
+[[linear_owners]]
+owner_type = "TransactionCompletionOwner"
+path = "crates/kafka-client-engine/src/transaction/completion.rs"
+
+[[linear_owners]]
+owner_type = "TransactionLifecycleHost"
+path = "crates/kafka-client-engine/src/transaction/lifecycle/host.rs"
+
+[[linear_owners]]
+owner_type = "TransactionExecutionHost"
+path = "crates/kafka-client-engine/src/transaction/execution/host.rs"
+
+[[linear_owners]]
+owner_type = "PendingEndOperation"
+path = "crates/kafka-client-engine/src/transaction/lifecycle/host.rs"
+
+[[linear_owners]]
 owner_type = "TransactionInitCall"
 path = "crates/kafka-client-engine/src/driver/rpc/transaction_init_call.rs"
 
@@ -2466,6 +2569,105 @@ path = "crates/kafka-client-engine/src/driver/rpc/transaction_init_call.rs"
 owner_type = "TransactionInitTerminal"
 path = "crates/kafka-client-engine/src/driver/rpc/transaction_init_terminal.rs"
 
+[[linear_owners]]
+owner_type = "TransactionLifecycleMachine"
+path = "crates/kafka-client-core/src/transaction/lifecycle/machine.rs"
+
+[[linear_owners]]
+owner_type = "TransactionEndCall"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs"
+
+[[linear_owners]]
+owner_type = "TransactionEndCallAdmissionFailure"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs"
+
+[[linear_owners]]
+owner_type = "TransactionEndTerminal"
+path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs"
+
+[[linear_owners]]
+owner_type = "TransactionEngine"
+path = "crates/kafka-client/src/bridge/transaction/lifecycle.rs"
+
+[[linear_owners]]
+owner_type = "TransactionEndEngine"
+path = "crates/kafka-client/src/bridge/transaction/lifecycle.rs"
+
+[[linear_owners]]
+owner_type = "Transaction"
+path = "crates/kafka-client/src/transaction/transaction.rs"
+
+[[linear_owners]]
+owner_type = "CommitTransaction"
+path = "crates/kafka-client/src/transaction/end.rs"
+
+[[linear_owners]]
+owner_type = "AbortTransaction"
+path = "crates/kafka-client/src/transaction/end.rs"
+
+[[linear_owners]]
+owner_type = "TransactionEndAdmissionError"
+path = "crates/kafka-client/src/transaction/end_error.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/bridge/transaction/lifecycle.rs"
+test = "crates/kafka-client/src/bridge/transaction/lifecycle_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/transaction/end.rs"
+test = "crates/kafka-client/src/transaction/end_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/transaction/end_error.rs"
+test = "crates/kafka-client/src/transaction/end_error_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client/src/transaction/transaction.rs"
+test = "crates/kafka-client/src/transaction/transaction_test.rs"
+
+[[mutation_owners]]
+owner_type = "TransactionLifecycleMachine"
+field = "state"
+allowed_paths = [
+  "crates/kafka-client-core/src/transaction/lifecycle/machine.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/ending.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionLifecycleMachine"
+field = "next_epoch"
+allowed_paths = [
+  "crates/kafka-client-core/src/transaction/lifecycle/machine.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionLifecycleMachine"
+field = "active_epoch"
+allowed_paths = [
+  "crates/kafka-client-core/src/transaction/lifecycle/machine.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/ending.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionLifecycleMachine"
+field = "pending_end"
+allowed_paths = [
+  "crates/kafka-client-core/src/transaction/lifecycle/machine.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/ending.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/transition.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionLifecycleMachine"
+field = "owner_lost"
+allowed_paths = [
+  "crates/kafka-client-core/src/transaction/lifecycle/machine.rs",
+  "crates/kafka-client-core/src/transaction/lifecycle/ending.rs",
+]
+
 [[mutation_owners]]
 owner_type = "TransactionInitializationHost"
 field = "operations"
@@ -2474,6 +2676,20 @@ allowed_paths = [
   "crates/kafka-client-engine/src/transaction/initialization/host/admission.rs",
   "crates/kafka-client-engine/src/transaction/initialization/host/recovery.rs",
   "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs",
+  "crates/kafka-client-engine/src/transaction/initialization/host/test_support.rs",
+]
+
+[[mutation_owners]]
+owner_type = "TransactionInitializationHost"
+field = "executions"
+allowed_paths = [
+  "crates/kafka-client-engine/src/transaction/initialization/host.rs",
+  "crates/kafka-client-engine/src/transaction/initialization/host/admission.rs",
+  "crates/kafka-client-engine/src/transaction/initialization/host/control.rs",
+  "crates/kafka-client-engine/src/transaction/initialization/host/recovery.rs",
+  "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs",
+  "crates/kafka-client-engine/src/transaction/initialization/host/test_support.rs",
+  "crates/kafka-client-engine/src/transaction/initialization/host/turn.rs",
 ]
 
 [[mutation_owners]]
@@ -3971,6 +4187,8 @@ allowed_paths = [
   "crates/kafka-client-engine/src/engine_host/produce/partitioning.rs",
   "crates/kafka-client-engine/src/engine_host/recovery.rs",
   "crates/kafka-client-engine/src/transaction/initialization/host/recovery.rs",
+  "crates/kafka-client-engine/src/transaction/lifecycle/driver_port.rs",
+  "crates/kafka-client-engine/src/transaction/lifecycle/recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_rediscovery_recovery.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_call.rs",
   "crates/kafka-client-engine/src/consumer/group/classic_group_partition_count_recovery.rs",
@@ -4038,6 +4256,7 @@ method = "publish_port"
 allowed_paths = [
   "crates/kafka-client-engine/src/admin/completion.rs",
   "crates/kafka-client-engine/src/consumer/assigned_host/completion.rs",
+  "crates/kafka-client-engine/src/transaction/completion.rs",
 ]
 
 [[method_capabilities]]
@@ -15295,6 +15514,7 @@ method = "invalidate"
 allowed_paths = [
   "crates/kafka-client-engine/src/driver/rpc/classic_group/coordinator_invalidation_drive.rs",
   "crates/kafka-client-engine/src/driver/rpc/reassignment_controller_refresh.rs",
+  "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs",
 ]
 
 # Partition-reassignment listing preserves one absolute deadline, exact caller

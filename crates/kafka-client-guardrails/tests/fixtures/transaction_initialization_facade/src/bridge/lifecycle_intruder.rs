@@ -7,6 +7,8 @@ impl TransactionalProducer {
 
     pub fn send(&mut self) {}
 
+    pub fn send_offsets(&mut self) {}
+
     pub fn commit(&mut self) {}
 
     pub fn abort(&mut self) {}
@@ -17,6 +19,8 @@ pub trait TransactionalProducerExt {
 
     fn send(&mut self);
 
+    fn send_offsets(&mut self);
+
     fn commit(&mut self);
 
     fn abort(&mut self);
@@ -26,6 +30,8 @@ impl TransactionalProducerExt for TransactionalProducer {
     fn begin(&mut self) {}
 
     fn send(&mut self) {}
+
+    fn send_offsets(&mut self) {}
 
     fn commit(&mut self) {}
 

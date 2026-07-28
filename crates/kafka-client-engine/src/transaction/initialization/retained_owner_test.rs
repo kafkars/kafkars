@@ -1,4 +1,4 @@
-//! Unobserved release and observed lifetime-transfer scenarios.
+//! Unobserved initialization success queues owner-loss cleanup.
 
 use std::sync::{
     Arc,
@@ -8,59 +8,28 @@ use std::sync::{
 
 use kafka_client_core::TransactionalOwnerId;
 
-use super::{RetainedTransactionInitializationOutcome, TransactionInitializationOutcome};
+use super::RetainedTransactionInitializationOutcome;
 
 #[test]
-fn unobserved_payload_drop_releases_the_live_owner() {
+fn unobserved_payload_queues_idle_owner_loss_without_releasing_execution() {
     let (sender, receiver) = sync_channel(1);
     let active = Arc::new(AtomicBool::new(true));
     let retained = RetainedTransactionInitializationOutcome::initialized(
         TransactionalOwnerId::from_raw(7),
-        "writer".to_owned(),
+        Arc::<str>::from("writer"),
         41,
         3,
         Arc::clone(&active),
         sender,
+        std::time::Duration::from_secs(45),
     );
+
     drop(retained);
-    assert!(!active.load(Ordering::Acquire));
-    assert_eq!(receiver.try_recv().map(TransactionalOwnerId::get), Ok(7));
-}
 
-#[test]
-fn observation_transfers_release_and_lifetime_into_the_unique_handle() {
-    let (sender, receiver) = sync_channel(1);
-    let active = Arc::new(AtomicBool::new(true));
-    let retained = RetainedTransactionInitializationOutcome::initialized(
-        TransactionalOwnerId::from_raw(8),
-        "writer".to_owned(),
-        42,
-        4,
-        Arc::clone(&active),
-        sender,
-    );
-    let lifetime_dropped = Arc::new(AtomicBool::new(false));
-    let lifetime: Arc<dyn Send + Sync> = Arc::new(LifetimeWitness {
-        dropped: Arc::clone(&lifetime_dropped),
-    });
-    let TransactionInitializationOutcome::Initialized(handle) = retained.into_observed(lifetime)
-    else {
-        panic!("retained success must become a unique handle");
-    };
-    assert!(receiver.try_recv().is_err());
-    assert!(!lifetime_dropped.load(Ordering::Acquire));
-    drop(handle);
-    assert!(!active.load(Ordering::Acquire));
-    assert!(lifetime_dropped.load(Ordering::Acquire));
-    assert_eq!(receiver.try_recv().map(TransactionalOwnerId::get), Ok(8));
-}
-
-struct LifetimeWitness {
-    dropped: Arc<AtomicBool>,
-}
-
-impl Drop for LifetimeWitness {
-    fn drop(&mut self) {
-        self.dropped.store(true, Ordering::Release);
-    }
+    assert!(active.load(Ordering::Acquire));
+    let signal = receiver
+        .try_recv()
+        .unwrap_or_else(|error| panic!("idle owner-loss signal: {error:?}"));
+    assert_eq!(signal.owner_id.get(), 7);
+    assert_eq!(signal.deadline, None);
 }

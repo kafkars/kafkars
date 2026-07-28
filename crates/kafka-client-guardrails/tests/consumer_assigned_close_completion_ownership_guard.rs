@@ -134,7 +134,8 @@ fn checked_in_publication_and_mutation_policy_is_exact() {
         publishers[0].allowed_paths,
         [
             "crates/kafka-client-engine/src/admin/completion.rs",
-            NOTIFIER
+            NOTIFIER,
+            "crates/kafka-client-engine/src/transaction/completion.rs",
         ]
     );
     let workers = config

@@ -185,6 +185,7 @@ mod sync_group_submission;
 #[cfg(test)]
 mod sync_group_submission_test;
 mod topic_view;
+pub(crate) mod transaction_control;
 mod transaction_init_call;
 #[cfg(test)]
 mod transaction_init_call_test;

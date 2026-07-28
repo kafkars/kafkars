@@ -130,11 +130,14 @@ pub use crate::producer::{
     PublicProducerRecord as ProducerRecord,
 };
 pub use crate::transaction::{
-    TransactionInitializationAccepted, TransactionInitializationAcceptedFaultKind,
-    TransactionInitializationAdmissionError, TransactionInitializationAdmissionErrorKind,
-    TransactionInitializationCapture, TransactionInitializationCaptureError,
-    TransactionInitializationDeliveryStatus, TransactionInitializationFailure,
-    TransactionInitializationFailureKind, TransactionInitializationObserver,
-    TransactionInitializationObserverError, TransactionInitializationOutcome,
-    TransactionInitializationRequest, TransactionalOwnerHandle,
+    TransactionBeginAccepted, TransactionControlError, TransactionControlErrorKind,
+    TransactionEndAccepted, TransactionEndAdmissionError, TransactionEndObserver,
+    TransactionEndObserverError, TransactionEndOutcome, TransactionInitializationAccepted,
+    TransactionInitializationAcceptedFaultKind, TransactionInitializationAdmissionError,
+    TransactionInitializationAdmissionErrorKind, TransactionInitializationCapture,
+    TransactionInitializationCaptureError, TransactionInitializationDeliveryStatus,
+    TransactionInitializationFailure, TransactionInitializationFailureKind,
+    TransactionInitializationObserver, TransactionInitializationObserverError,
+    TransactionInitializationOutcome, TransactionInitializationRequest, TransactionToken,
+    TransactionalOwnerHandle,
 };

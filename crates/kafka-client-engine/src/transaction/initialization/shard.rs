@@ -3,17 +3,30 @@
 use std::sync::{
     Arc, Mutex, MutexGuard, TryLockError,
     atomic::{AtomicBool, Ordering},
+    mpsc::{SyncSender, TrySendError},
 };
 
-use crate::{clock::MonotonicClock, driver::ReactorWake};
+use kafka_client_core::{
+    TransactionEndMode, TransactionEpoch, TransactionLifecycleTerminal, TransactionalOwnerId,
+};
 
-use super::{TransactionInitializationAdmissionPort, TransactionInitializationHost};
+use crate::{
+    clock::{MonotonicClock, OperationDeadline},
+    completion::CompletionObserver,
+    driver::ReactorWake,
+};
+
+use super::{
+    TransactionInitializationAdmissionPort, TransactionInitializationHost,
+    TransactionLifecycleControlError, TransactionOwnerLossSignal,
+};
 
 pub(super) struct TransactionInitializationShardState {
     host: Mutex<TransactionInitializationHost>,
     admission_closed: AtomicBool,
     clock: Arc<MonotonicClock>,
     wake: Arc<ReactorWake>,
+    owner_loss: SyncSender<TransactionOwnerLossSignal>,
 }
 
 pub(crate) struct TransactionInitializationShardOwner {
@@ -26,12 +39,14 @@ impl TransactionInitializationShardOwner {
         clock: Arc<MonotonicClock>,
         wake: Arc<ReactorWake>,
     ) -> Self {
+        let owner_loss = host.owner_loss_sender();
         Self {
             shared: Arc::new(TransactionInitializationShardState {
                 host: Mutex::new(host),
                 admission_closed: AtomicBool::new(false),
                 clock,
                 wake,
+                owner_loss,
             }),
         }
     }
@@ -111,5 +126,48 @@ impl TransactionInitializationShardState {
 
     pub(super) fn close(&self) {
         self.admission_closed.store(true, Ordering::Release);
+    }
+
+    pub(super) fn try_begin(
+        &self,
+        owner_id: TransactionalOwnerId,
+    ) -> Result<TransactionEpoch, TransactionLifecycleControlError> {
+        let mut host = self.try_control_host()?;
+        host.begin_lifecycle(owner_id)
+    }
+
+    pub(super) fn try_end(
+        &self,
+        owner_id: TransactionalOwnerId,
+        epoch: TransactionEpoch,
+        mode: TransactionEndMode,
+        deadline: OperationDeadline,
+    ) -> Result<CompletionObserver<TransactionLifecycleTerminal>, TransactionLifecycleControlError>
+    {
+        let mut host = self.try_control_host()?;
+        host.end_lifecycle(owner_id, epoch, mode, deadline)
+    }
+
+    pub(super) fn enqueue_owner_loss(&self, signal: TransactionOwnerLossSignal) {
+        match self.owner_loss.try_send(signal) {
+            Ok(()) | Err(TrySendError::Disconnected(_)) => {}
+            Err(TrySendError::Full(_)) => {
+                debug_assert!(false, "owner-loss capacity equals owner capacity");
+            }
+        }
+        let _wake = self.wake.request();
+    }
+
+    fn try_control_host(
+        &self,
+    ) -> Result<MutexGuard<'_, TransactionInitializationHost>, TransactionLifecycleControlError>
+    {
+        if self.is_closed() {
+            return Err(TransactionLifecycleControlError::Closed);
+        }
+        self.try_host().map_err(|error| match error {
+            TryLockError::WouldBlock => TransactionLifecycleControlError::Contended,
+            TryLockError::Poisoned(_) => TransactionLifecycleControlError::Closed,
+        })
     }
 }

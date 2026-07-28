@@ -66,6 +66,8 @@ pub enum TransactionInitializationFailureKind {
     },
     /// The broker response violated the transaction initialization contract.
     InvalidResponse,
+    /// The initialized identity could not be installed into bounded execution ownership.
+    ExecutionUnavailable,
 }
 
 /// One terminal initialization failure with authoritative delivery certainty.
@@ -155,6 +157,14 @@ pub(super) const fn accepted_fault(
         }
         _ => TransactionInitializationAcceptedFaultKind::HostInvariant,
     }
+}
+
+pub(super) const fn execution_unavailable_retained_outcome()
+-> RetainedTransactionInitializationOutcome {
+    RetainedTransactionInitializationOutcome::Failed(TransactionInitializationFailure {
+        kind: TransactionInitializationFailureKind::ExecutionUnavailable,
+        delivery: TransactionInitializationDeliveryStatus::PossiblySent,
+    })
 }
 
 const fn delivery(status: DeliveryStatus) -> TransactionInitializationDeliveryStatus {

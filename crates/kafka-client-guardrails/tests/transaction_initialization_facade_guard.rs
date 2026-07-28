@@ -37,7 +37,12 @@ const METHODS: &[&str] = &[
     "capture_transactional_owner_initialization",
     "initialize_transactional_owner",
 ];
-const UNLANDED_LIFECYCLE: &[&str] = &["begin", "send", "commit", "abort"];
+const LIFECYCLE_METHODS: &[&str] = &["begin", "send", "send_offsets", "commit", "abort"];
+const PUBLIC_LIFECYCLE: &[(&str, &str)] = &[
+    ("TransactionalProducer", "begin"),
+    ("Transaction", "commit"),
+    ("Transaction", "abort"),
+];
 
 #[test]
 fn checked_in_transaction_facade_ownership_is_exact() {
@@ -135,32 +140,40 @@ fn fixture_rejects_public_engine_import_and_second_submission_owner() {
 }
 
 #[test]
-fn public_transaction_lifecycle_waits_for_real_policy_owners() {
+fn public_transaction_lifecycle_has_exact_supported_owners() {
     let workspace = workspace_root();
     let live = rust_files_under(
         &workspace.join("crates/kafka-client/src"),
         WalkScope::Fixture,
     );
-    assert!(
-        public_lifecycle_methods(&live).is_empty(),
-        "unfinished transaction lifecycle entered the public facade"
-    );
+    let mut actual = public_lifecycle_methods(&live);
+    actual.sort();
+    let mut expected = PUBLIC_LIFECYCLE
+        .iter()
+        .map(|(owner, method)| ((*owner).to_owned(), (*method).to_owned()))
+        .collect::<Vec<_>>();
+    expected.sort();
+    assert_eq!(actual, expected, "public transaction lifecycle drifted");
 
     let (fixture, _) = fixture_files("transaction_initialization_facade");
     let violations = public_lifecycle_methods(&[fixture.join("src/lifecycle_intruder.rs")]);
-    for method in UNLANDED_LIFECYCLE {
+    for method in LIFECYCLE_METHODS {
         assert!(
-            violations.iter().any(|violation| violation == method),
+            violations
+                .iter()
+                .any(|(owner, violation)| owner == "TransactionalProducer" && violation == method),
             "negative fixture did not expose public {method}: {violations:?}"
         );
     }
 
     let outside = public_lifecycle_methods(&[fixture.join("src/bridge/lifecycle_intruder.rs")]);
-    for method in UNLANDED_LIFECYCLE {
+    for method in LIFECYCLE_METHODS {
         assert!(
             outside
                 .iter()
-                .filter(|violation| violation.as_str() == *method)
+                .filter(|(owner, violation)| {
+                    owner == "TransactionalProducer" && violation == method
+                })
                 .count()
                 >= 2,
             "outside inherent impl and public trait did not expose {method}: {outside:?}"
@@ -168,7 +181,7 @@ fn public_transaction_lifecycle_waits_for_real_policy_owners() {
     }
 }
 
-fn public_lifecycle_methods(files: &[std::path::PathBuf]) -> Vec<String> {
+fn public_lifecycle_methods(files: &[std::path::PathBuf]) -> Vec<(String, String)> {
     let mut methods = Vec::new();
     for file in files {
         let syntax = syn::parse_file(&read(file))
@@ -182,12 +195,12 @@ fn public_lifecycle_methods(files: &[std::path::PathBuf]) -> Vec<String> {
 }
 
 struct PublicLifecycleCollector<'a> {
-    methods: &'a mut Vec<String>,
+    methods: &'a mut Vec<(String, String)>,
 }
 
 impl<'ast> Visit<'ast> for PublicLifecycleCollector<'_> {
     fn visit_item_impl(&mut self, implementation: &'ast ItemImpl) {
-        if is_transactional_producer(&implementation.self_ty) {
+        if let Some(owner) = public_transaction_owner(&implementation.self_ty) {
             for item in &implementation.items {
                 let ImplItem::Fn(function) = item else {
                     continue;
@@ -196,9 +209,10 @@ impl<'ast> Visit<'ast> for PublicLifecycleCollector<'_> {
                     && matches!(function.vis, Visibility::Public(_));
                 let trait_method = implementation.trait_.is_some();
                 if (public_inherent || trait_method)
-                    && UNLANDED_LIFECYCLE.contains(&function.sig.ident.to_string().as_str())
+                    && LIFECYCLE_METHODS.contains(&function.sig.ident.to_string().as_str())
                 {
-                    self.methods.push(function.sig.ident.to_string());
+                    self.methods
+                        .push((owner.to_owned(), function.sig.ident.to_string()));
                 }
             }
         }
@@ -206,16 +220,16 @@ impl<'ast> Visit<'ast> for PublicLifecycleCollector<'_> {
     }
 }
 
-fn is_transactional_producer(target: &Type) -> bool {
+fn public_transaction_owner(target: &Type) -> Option<&'static str> {
     match target {
-        Type::Group(group) => is_transactional_producer(&group.elem),
-        Type::Paren(paren) => is_transactional_producer(&paren.elem),
-        Type::Path(path) => path
-            .path
-            .segments
-            .last()
-            .is_some_and(|segment| segment.ident == "TransactionalProducer"),
-        Type::Reference(reference) => is_transactional_producer(&reference.elem),
-        _ => false,
+        Type::Group(group) => public_transaction_owner(&group.elem),
+        Type::Paren(paren) => public_transaction_owner(&paren.elem),
+        Type::Path(path) => match path.path.segments.last()?.ident.to_string().as_str() {
+            "TransactionalProducer" => Some("TransactionalProducer"),
+            "Transaction" => Some("Transaction"),
+            _ => None,
+        },
+        Type::Reference(reference) => public_transaction_owner(&reference.elem),
+        _ => None,
     }
 }

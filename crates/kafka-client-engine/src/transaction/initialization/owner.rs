@@ -1,4 +1,4 @@
-//! Unique idle transactional-owner release capability.
+//! Public transactional-owner token backed by shard-owned execution.
 
 use std::{
     cell::Cell,
@@ -6,50 +6,69 @@ use std::{
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
-        mpsc::{SyncSender, TrySendError},
+    },
+    time::Duration,
+};
+
+use kafka_client_core::{
+    TransactionEndMode, TransactionEpoch, TransactionLifecycleTerminal, TransactionalOwnerId,
+};
+
+use crate::{
+    completion::CompletionObserver,
+    transaction::initialization::{
+        TransactionLifecycleControlAccepted, TransactionLifecycleControlError,
+        TransactionLifecycleControlPort,
     },
 };
 
-use kafka_client_core::TransactionalOwnerId;
-
-/// Unique idle transactional owner; close and drop both release host ownership.
+/// Unique idle transactional owner; close and drop both request host cleanup.
 #[must_use = "the transactional owner remains fenced until closed or dropped"]
 pub struct TransactionalOwnerHandle {
     owner_id: TransactionalOwnerId,
-    transactional_id: Option<String>,
+    transactional_id: Arc<str>,
     producer_id: i64,
     producer_epoch: i16,
     active: Arc<AtomicBool>,
-    release: SyncSender<TransactionalOwnerId>,
-    _lifetime: Arc<dyn Send + Sync>,
+    control: TransactionLifecycleControlPort,
+    owner_loss_timeout: Duration,
+    armed: bool,
+    lifetime: Arc<dyn Send + Sync>,
     _not_sync: PhantomData<Cell<()>>,
 }
 
 impl TransactionalOwnerHandle {
-    pub(super) const fn new(
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "constructor explicitly transfers the closed owner capability set"
+    )]
+    pub(in crate::transaction) const fn new(
         owner_id: TransactionalOwnerId,
-        transactional_id: String,
+        transactional_id: Arc<str>,
         producer_id: i64,
         producer_epoch: i16,
         active: Arc<AtomicBool>,
-        release: SyncSender<TransactionalOwnerId>,
+        control: TransactionLifecycleControlPort,
+        owner_loss_timeout: Duration,
         lifetime: Arc<dyn Send + Sync>,
     ) -> Self {
         Self {
             owner_id,
-            transactional_id: Some(transactional_id),
+            transactional_id,
             producer_id,
             producer_epoch,
             active,
-            release,
-            _lifetime: lifetime,
+            control,
+            owner_loss_timeout,
+            armed: true,
+            lifetime,
             _not_sync: PhantomData,
         }
     }
 
     /// Returns the exact stable transactional ID.
     pub fn transactional_id(&self) -> &str {
-        self.transactional_id.as_deref().unwrap_or("")
+        &self.transactional_id
     }
 
     /// Returns Kafka's broker-issued producer ID.
@@ -67,23 +86,70 @@ impl TransactionalOwnerHandle {
         self.active.load(Ordering::Acquire)
     }
 
-    /// Explicitly fences and releases this idle owner.
+    /// Requests host-owned fencing and cleanup for this owner.
     pub fn close(mut self) {
-        self.release();
+        self.lose_owner();
     }
 
-    fn release(&mut self) {
-        let Some(transactional_id) = self.transactional_id.take() else {
-            return;
-        };
-        drop(transactional_id);
-        release_owner(self.owner_id, &self.active, &self.release);
+    pub(crate) fn begin(
+        &self,
+    ) -> Result<
+        TransactionLifecycleControlAccepted<TransactionEpoch>,
+        TransactionLifecycleControlError,
+    > {
+        self.control.begin(self.owner_id)
+    }
+
+    pub(crate) fn commit(
+        &self,
+        epoch: TransactionEpoch,
+        timeout: Duration,
+    ) -> Result<
+        TransactionLifecycleControlAccepted<CompletionObserver<TransactionLifecycleTerminal>>,
+        TransactionLifecycleControlError,
+    > {
+        self.control
+            .end(self.owner_id, epoch, TransactionEndMode::Commit, timeout)
+    }
+
+    pub(crate) fn abort(
+        &self,
+        epoch: TransactionEpoch,
+        timeout: Duration,
+    ) -> Result<
+        TransactionLifecycleControlAccepted<CompletionObserver<TransactionLifecycleTerminal>>,
+        TransactionLifecycleControlError,
+    > {
+        self.control
+            .end(self.owner_id, epoch, TransactionEndMode::Abort, timeout)
+    }
+
+    pub(super) fn lose_owner(&mut self) {
+        if self.armed {
+            self.armed = false;
+            self.control
+                .owner_lost(self.owner_id, self.owner_loss_timeout);
+        }
+    }
+
+    pub(super) fn lifetime(&self) -> Arc<dyn Send + Sync> {
+        Arc::clone(&self.lifetime)
+    }
+
+    #[cfg(test)]
+    pub(super) const fn owner_id_for_test(&self) -> TransactionalOwnerId {
+        self.owner_id
+    }
+
+    #[cfg(test)]
+    pub(super) fn control_for_test(&self) -> TransactionLifecycleControlPort {
+        self.control.clone()
     }
 }
 
 impl Drop for TransactionalOwnerHandle {
     fn drop(&mut self) {
-        self.release();
+        self.lose_owner();
     }
 }
 
@@ -96,19 +162,5 @@ impl std::fmt::Debug for TransactionalOwnerHandle {
             .field("producer_epoch", &self.producer_epoch)
             .field("active", &self.is_active())
             .finish_non_exhaustive()
-    }
-}
-
-pub(super) fn release_owner(
-    owner_id: TransactionalOwnerId,
-    active: &AtomicBool,
-    release: &SyncSender<TransactionalOwnerId>,
-) {
-    active.store(false, Ordering::Release);
-    match release.try_send(owner_id) {
-        Ok(()) | Err(TrySendError::Disconnected(_)) => {}
-        Err(TrySendError::Full(_)) => {
-            debug_assert!(false, "owner-release capacity equals owner capacity");
-        }
     }
 }

@@ -1,6 +1,7 @@
 //! Exhaustive stable translation of transaction initialization outcomes.
 
 use kafka_client_engine::{
+    TransactionControlErrorKind, TransactionEndObserverError, TransactionEndOutcome,
     TransactionInitializationAcceptedFaultKind, TransactionInitializationAdmissionError,
     TransactionInitializationAdmissionErrorKind, TransactionInitializationCaptureError,
     TransactionInitializationDeliveryStatus, TransactionInitializationFailure,
@@ -10,7 +11,57 @@ use kafka_client_engine::{
 
 use crate::{DeliveryStatus, ErrorKind, KafkaError};
 
+use super::lifecycle::TransactionEndIntent;
 use super::{TransactionalProducerEngine, operation::TransactionInitializationResult};
+
+pub(super) fn translate_control_kind(kind: TransactionControlErrorKind) -> KafkaError {
+    let public = match kind {
+        TransactionControlErrorKind::InvalidDeadline => ErrorKind::Configuration,
+        TransactionControlErrorKind::Contended | TransactionControlErrorKind::Backpressure => {
+            ErrorKind::Backpressure
+        }
+        TransactionControlErrorKind::Closed
+        | TransactionControlErrorKind::StaleOwner
+        | TransactionControlErrorKind::AlreadyActive
+        | TransactionControlErrorKind::NotActive
+        | TransactionControlErrorKind::StaleTransaction
+        | TransactionControlErrorKind::OutstandingOperations
+        | TransactionControlErrorKind::AbortRequired
+        | TransactionControlErrorKind::EndInProgress => ErrorKind::State,
+        TransactionControlErrorKind::Fenced => ErrorKind::Fenced,
+        TransactionControlErrorKind::IdentityExhausted
+        | TransactionControlErrorKind::HostUnavailable => ErrorKind::Internal,
+    };
+    KafkaError::new(public, format!("transaction control rejected: {kind:?}"))
+}
+
+pub(super) fn translate_end_observation(
+    intent: TransactionEndIntent,
+    result: Result<TransactionEndOutcome, TransactionEndObserverError>,
+) -> Result<(), KafkaError> {
+    match result {
+        Ok(TransactionEndOutcome::Fatal) => Err(KafkaError::new(
+            ErrorKind::Fenced,
+            "transaction execution became permanently fenced",
+        )),
+        Ok(TransactionEndOutcome::Committed) if intent == TransactionEndIntent::Commit => Ok(()),
+        Ok(TransactionEndOutcome::Aborted) if intent == TransactionEndIntent::Abort => Ok(()),
+        Ok(TransactionEndOutcome::Committed | TransactionEndOutcome::Aborted) => {
+            Err(KafkaError::new(
+                ErrorKind::Internal,
+                "transaction end disposition mismatched",
+            ))
+        }
+        Err(TransactionEndObserverError::AlreadyObserved) => Err(KafkaError::new(
+            ErrorKind::State,
+            "transaction end was already observed",
+        )),
+        Err(TransactionEndObserverError::Stale) => Err(KafkaError::new(
+            ErrorKind::Internal,
+            "transaction end observer became stale",
+        )),
+    }
+}
 
 pub(super) fn translate_capture_error(error: TransactionInitializationCaptureError) -> KafkaError {
     match error {
@@ -94,6 +145,7 @@ pub(super) fn translate_failure_parts(
             Some(code),
         ),
         TransactionInitializationFailureKind::InvalidResponse => (ErrorKind::Broker, None),
+        TransactionInitializationFailureKind::ExecutionUnavailable => (ErrorKind::Internal, None),
     };
     KafkaError::new(
         public,

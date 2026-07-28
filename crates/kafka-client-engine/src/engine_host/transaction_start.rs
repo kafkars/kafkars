@@ -32,13 +32,14 @@ pub(super) fn start(
     ),
     EngineStartError,
 > {
-    let mut transaction = match TransactionInitializationHost::start() {
-        Ok(host) => host,
-        Err(error) => {
-            rollback(None, group_consumers, admin, assigned);
-            return Err(EngineStartError::transaction_notifier(&error));
-        }
-    };
+    let mut transaction =
+        match TransactionInitializationHost::start_with_retry_policy(limits.retry_policy) {
+            Ok(host) => host,
+            Err(error) => {
+                rollback(None, group_consumers, admin, assigned);
+                return Err(EngineStartError::transaction_notifier(&error));
+            }
+        };
     match ProducerHost::new_with_compression_wake(limits, wake) {
         Ok(producer) => {
             let (owner, admission) = shard(transaction, clock, Arc::clone(wake));

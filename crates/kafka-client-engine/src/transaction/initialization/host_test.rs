@@ -1,232 +1,207 @@
-//! Atomic admission, absolute-deadline, recovery, and byte-accounting scenarios.
+//! Production shard control from initialization through owner-loss cleanup.
 
-use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
-    time::Instant,
-};
+use std::{sync::Arc, time::Duration};
 
-use kafka_client_core::{Deadline, Moment, TransactionInitializationPlan};
-
-use crate::clock::OperationDeadline;
+use crate::{EngineConfig, clock::MonotonicClock, driver::DriverOwner};
 
 use super::{
-    TransactionInitializationDeliveryStatus, TransactionInitializationFailureKind,
-    TransactionInitializationHost, TransactionInitializationOutcome,
-    TransactionInitializationRequest, host::TRANSACTION_INITIALIZATION_OPERATION_BYTES,
+    TransactionInitializationAdmissionErrorKind, TransactionInitializationHost,
+    TransactionInitializationOutcome, TransactionInitializationRequest,
+    TransactionInitializationShardOwner, TransactionLifecycleControlError,
 };
 
 #[test]
-fn admission_reserves_terminal_and_transactional_id_envelope_before_acceptance() {
-    let mut host = TransactionInitializationHost::start()
-        .unwrap_or_else(|error| panic!("start transaction host: {error}"));
-    let admission = host
-        .try_admit(
-            Moment::from_tick(1),
-            deadline(10),
-            request(),
-            plan(),
-            std::sync::Arc::new(()),
-        )
-        .unwrap_or_else(|(error, _request)| panic!("admit transaction: {error:?}"));
-    assert!(admission.fault.is_none());
-    assert_eq!(host.unsettled(), 1);
-    assert_eq!(
-        host.retained_bytes_for_test(),
-        TRANSACTION_INITIALIZATION_OPERATION_BYTES
-    );
+fn initialized_owner_begins_and_admits_commit_with_an_original_deadline() {
+    let fixture = Fixture::new();
+    let owner = fixture.initialize(41);
 
-    host.recover_after_driver_shutdown()
-        .unwrap_or_else(|error| panic!("recover definitely-unsent request: {error}"));
-    let TransactionInitializationOutcome::Failed(failure) = admission
-        .observer
-        .wait()
-        .unwrap_or_else(|error| panic!("observe recovered terminal: {error}"))
-    else {
-        panic!("recovery must fail initialization");
-    };
-    assert_eq!(
-        (failure.kind, failure.delivery),
-        (
-            TransactionInitializationFailureKind::DriverRejected,
-            TransactionInitializationDeliveryStatus::NotSent,
-        )
-    );
-    let _reclaimed = host
-        .reclaim_for_test()
-        .unwrap_or_else(|error| panic!("reclaim terminal: {error}"));
-    assert_eq!(host.retained_bytes_for_test(), 0);
-    stop(host);
-}
+    assert_eq!(owner.transactional_id(), "invoice-writer");
+    assert_eq!((owner.producer_id(), owner.producer_epoch()), (41, 3));
+    assert!(owner.is_active());
+    let epoch = owner
+        .begin()
+        .unwrap_or_else(|error| panic!("initialized lifecycle begins: {error:?}"))
+        .value;
+    let accepted = owner
+        .commit(epoch, Duration::from_secs(4))
+        .unwrap_or_else(|error| {
+            panic!("commit reserves its terminal before acceptance: {error:?}")
+        });
 
-#[test]
-fn elapsed_original_operation_deadline_never_needs_driver_submission() {
-    let mut host = TransactionInitializationHost::start()
-        .unwrap_or_else(|error| panic!("start transaction host: {error}"));
-    let admission = host
-        .try_admit(
-            Moment::from_tick(10),
-            deadline(10),
-            request(),
-            plan(),
-            std::sync::Arc::new(()),
-        )
-        .unwrap_or_else(|(error, _request)| panic!("admit elapsed transaction: {error:?}"));
-    let TransactionInitializationOutcome::Failed(failure) = admission
-        .observer
-        .wait()
-        .unwrap_or_else(|error| panic!("observe elapsed terminal: {error}"))
-    else {
-        panic!("deadline terminal expected");
-    };
-    assert_eq!(
-        (failure.kind, failure.delivery),
-        (
-            TransactionInitializationFailureKind::DeadlineElapsed,
-            TransactionInitializationDeliveryStatus::NotSent,
-        )
-    );
-    stop(host);
-}
-
-#[test]
-fn shutdown_fences_live_owner_and_reclaims_its_byte_envelope_before_handle_drop() {
-    let mut host = TransactionInitializationHost::start()
-        .unwrap_or_else(|error| panic!("start transaction host: {error}"));
-    let admission = host
-        .try_admit(
-            Moment::from_tick(1),
-            deadline(10),
-            request(),
-            plan(),
-            std::sync::Arc::new(()),
-        )
-        .unwrap_or_else(|(error, _request)| panic!("admit transaction: {error:?}"));
-    host.initialize_for_test(41, 3)
-        .unwrap_or_else(|error| panic!("settle transaction identity: {error}"));
-    let TransactionInitializationOutcome::Initialized(handle) = admission
-        .observer
-        .wait()
-        .unwrap_or_else(|error| panic!("observe initialized owner: {error}"))
-    else {
-        panic!("broker identity must create a unique transactional owner");
-    };
-    assert!(handle.is_active());
-    assert_eq!(
-        host.retained_bytes_for_test(),
-        TRANSACTION_INITIALIZATION_OPERATION_BYTES
-    );
-
-    let join = host
-        .finish_shutdown()
-        .unwrap_or_else(|error| panic!("stop transaction host: {error}"));
-    assert!(!handle.is_active());
-    assert_eq!(host.retained_bytes_for_test(), 0);
-    drop(handle);
-    join.join_off_notifier()
-        .unwrap_or_else(|error| panic!("join transaction notifier: {error}"));
-}
-
-#[test]
-fn abandoned_success_releases_its_live_owner_without_engine_shutdown() {
-    let mut host = TransactionInitializationHost::start()
-        .unwrap_or_else(|error| panic!("start transaction host: {error}"));
-    let admission = host
-        .try_admit(
-            Moment::from_tick(1),
-            deadline(10),
-            request(),
-            plan(),
-            Arc::new(()),
-        )
-        .unwrap_or_else(|(error, _request)| panic!("admit transaction: {error:?}"));
-    host.initialize_for_test(41, 3)
-        .unwrap_or_else(|error| panic!("settle transaction identity: {error}"));
-    drop(admission.observer);
-    let wait_deadline = Instant::now() + std::time::Duration::from_secs(1);
-    while !host
-        .reclaim_for_test()
-        .unwrap_or_else(|error| panic!("reclaim abandoned success: {error}"))
-    {
-        assert!(
-            Instant::now() < wait_deadline,
-            "abandoned success should become reclaimable"
-        );
-        std::thread::yield_now();
-    }
+    assert!(!accepted.wake_failed);
     assert!(
-        host.release_owner_for_test()
-            .unwrap_or_else(|error| panic!("release abandoned owner: {error}"))
+        fixture
+            .shard
+            .try_host()
+            .unwrap_or_else(|error| panic!("host lock: {error:?}"))
+            .next_deadline()
+            .is_some()
     );
-    assert_eq!(host.retained_bytes_for_test(), 0);
-    stop(host);
 }
 
 #[test]
-fn unobserved_success_keeps_engine_lifetime_only_on_the_external_observer() {
-    let mut host = TransactionInitializationHost::start()
-        .unwrap_or_else(|error| panic!("start transaction host: {error}"));
-    let lifetime_dropped = Arc::new(AtomicBool::new(false));
-    let lifetime: Arc<dyn Send + Sync> = Arc::new(LifetimeWitness {
-        dropped: Arc::clone(&lifetime_dropped),
-    });
-    let admission = host
-        .try_admit(
-            Moment::from_tick(1),
-            deadline(10),
-            request(),
-            plan(),
-            lifetime,
-        )
-        .unwrap_or_else(|(error, _request)| panic!("admit transaction: {error:?}"));
-    host.initialize_for_test(41, 3)
-        .unwrap_or_else(|error| panic!("settle transaction identity: {error}"));
-    let join = host
-        .finish_shutdown()
-        .unwrap_or_else(|error| panic!("stop transaction host: {error}"));
-    assert!(!lifetime_dropped.load(Ordering::Acquire));
+fn control_reports_contended_closed_and_stale_without_hidden_queueing() {
+    let fixture = Fixture::new();
+    let owner = fixture.initialize(43);
+    let owner_id = owner.owner_id_for_test();
+    let control = owner.control_for_test();
 
-    drop(admission.observer);
-    assert!(lifetime_dropped.load(Ordering::Acquire));
-    join.join_off_notifier()
-        .unwrap_or_else(|error| panic!("join transaction notifier: {error}"));
-}
+    let lock = fixture
+        .shard
+        .try_host()
+        .unwrap_or_else(|error| panic!("hold host lock: {error:?}"));
+    assert!(matches!(
+        owner.begin(),
+        Err(TransactionLifecycleControlError::Contended)
+    ));
+    drop(lock);
 
-fn request() -> TransactionInitializationRequest {
-    TransactionInitializationRequest::new("invoice-writer".to_owned(), 45_000)
-}
-
-fn plan() -> TransactionInitializationPlan {
-    TransactionInitializationPlan::new(45_000)
-        .unwrap_or_else(|error| panic!("valid transaction plan: {error}"))
-}
-
-fn deadline(tick: u64) -> OperationDeadline {
-    OperationDeadline::from_parts_for_test(Deadline::from_tick(tick), Instant::now())
-}
-
-fn stop(mut host: TransactionInitializationHost) {
-    host.close_admission();
-    if host.unsettled() == 0 {
-        let join = host
-            .finish_shutdown()
-            .unwrap_or_else(|error| panic!("stop transaction notifier: {error}"));
-        join.join_off_notifier()
-            .unwrap_or_else(|error| panic!("join transaction notifier: {error}"));
-    } else if let Some(join) = host.take_notifier() {
-        join.join_off_notifier()
-            .unwrap_or_else(|error| panic!("join transaction notifier: {error}"));
+    owner.close();
+    {
+        let mut host = fixture
+            .shard
+            .try_host()
+            .unwrap_or_else(|error| panic!("cleanup host lock: {error:?}"));
+        assert!(
+            host.owner_loss_for_test()
+                .unwrap_or_else(|error| panic!("idle owner loss: {error:?}"))
+        );
+        assert!(
+            host.release_owner_for_test()
+                .unwrap_or_else(|error| panic!("execution release: {error:?}"))
+        );
+        host.prune_closed_lifecycles_for_test();
     }
+    assert!(matches!(
+        control.begin(owner_id),
+        Err(TransactionLifecycleControlError::StaleOwner)
+    ));
+
+    fixture.port.close_admission();
+    assert!(matches!(
+        control.begin(owner_id),
+        Err(TransactionLifecycleControlError::Closed)
+    ));
 }
 
-struct LifetimeWitness {
-    dropped: Arc<AtomicBool>,
+#[test]
+fn closed_lifecycle_still_reserves_its_slot_until_pruned() {
+    let fixture = Fixture::new();
+    let mut owners = Vec::new();
+    for producer_id in 1..=8 {
+        owners.push(fixture.initialize(producer_id));
+    }
+    assert_eq!(
+        fixture
+            .shard
+            .try_host()
+            .unwrap_or_else(|error| panic!("host lock: {error:?}"))
+            .lifecycle_count_for_test(),
+        8
+    );
+
+    owners.pop().unwrap_or_else(|| panic!("last owner")).close();
+    {
+        let mut host = fixture
+            .shard
+            .try_host()
+            .unwrap_or_else(|error| panic!("cleanup host lock: {error:?}"));
+        assert!(
+            host.owner_loss_for_test()
+                .unwrap_or_else(|error| panic!("idle owner loss: {error:?}"))
+        );
+        assert!(
+            host.release_owner_for_test()
+                .unwrap_or_else(|error| panic!("execution release: {error:?}"))
+        );
+    }
+    let Err(error) = fixture.try_initialize(90) else {
+        panic!("retained closed lifecycle unexpectedly released bounded capacity");
+    };
+    assert_eq!(error, TransactionInitializationAdmissionErrorKind::Capacity);
+
+    fixture
+        .shard
+        .try_host()
+        .unwrap_or_else(|error| panic!("prune host lock: {error:?}"))
+        .prune_closed_lifecycles_for_test();
+    assert_eq!(fixture.initialize(90).producer_id(), 90);
 }
 
-impl Drop for LifetimeWitness {
-    fn drop(&mut self) {
-        self.dropped.store(true, Ordering::Release);
+pub(super) struct Fixture {
+    _driver: DriverOwner,
+    shard: TransactionInitializationShardOwner,
+    port: super::TransactionInitializationAdmissionPort,
+}
+
+impl Fixture {
+    pub(super) fn new() -> Self {
+        let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+            .unwrap_or_else(|error| panic!("build embedded driver: {error}"));
+        let host = TransactionInitializationHost::start()
+            .unwrap_or_else(|error| panic!("start transaction host: {error}"));
+        let shard = TransactionInitializationShardOwner::new(
+            host,
+            Arc::new(MonotonicClock::new()),
+            Arc::new(driver.reactor_wake()),
+        );
+        let port = shard.admission_port();
+        Self {
+            _driver: driver,
+            shard,
+            port,
+        }
+    }
+
+    pub(super) fn initialize(&self, producer_id: i64) -> super::TransactionalOwnerHandle {
+        self.try_initialize(producer_id)
+            .unwrap_or_else(|kind| panic!("initialize owner: {kind:?}"))
+    }
+
+    fn try_initialize(
+        &self,
+        producer_id: i64,
+    ) -> Result<super::TransactionalOwnerHandle, TransactionInitializationAdmissionErrorKind> {
+        let accepted = self
+            .port
+            .capture(Duration::from_secs(5), Arc::new(()))
+            .unwrap_or_else(|error| panic!("capture deadline: {error:?}"))
+            .initialize_transactional_owner(TransactionInitializationRequest::new(
+                "invoice-writer".to_owned(),
+                45_000,
+            ))
+            .map_err(|error| error.kind())?;
+        self.shard
+            .try_host()
+            .unwrap_or_else(|error| panic!("host lock: {error:?}"))
+            .initialize_for_test(producer_id, 3)
+            .unwrap_or_else(|error| panic!("settle broker identity: {error:?}"));
+        let outcome = accepted
+            .into_observer()
+            .wait()
+            .unwrap_or_else(|error| panic!("observe initialization: {error:?}"));
+        let wait_deadline = std::time::Instant::now() + Duration::from_secs(1);
+        loop {
+            if self
+                .shard
+                .try_host()
+                .unwrap_or_else(|error| panic!("reclaim host lock: {error:?}"))
+                .reclaim_for_test()
+                .unwrap_or_else(|error| panic!("reclaim initialization: {error:?}"))
+            {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < wait_deadline,
+                "observed completion becomes reclaimable"
+            );
+            std::thread::yield_now();
+        }
+        match outcome {
+            TransactionInitializationOutcome::Initialized(owner) => Ok(owner),
+            TransactionInitializationOutcome::Failed(failure) => {
+                panic!("initialization failed: {:?}", failure.kind())
+            }
+        }
     }
 }

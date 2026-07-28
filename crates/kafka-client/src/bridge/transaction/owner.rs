@@ -4,7 +4,7 @@ use kafka_client_engine::TransactionalOwnerHandle;
 
 /// Private linear owner preventing engine types from entering public signatures.
 pub(crate) struct TransactionalProducerEngine {
-    handle: TransactionalOwnerHandle,
+    pub(super) handle: TransactionalOwnerHandle,
 }
 
 impl TransactionalProducerEngine {
