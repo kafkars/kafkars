@@ -12,9 +12,10 @@ use crate::{
     admin::{
         AdminCompletionNotifier, AlterReplicaLogDirsShardOwner, CreatePartitionsShardOwner,
         CreateTopicsShardOwner, DeleteConsumerGroupOffsetsShardOwner, DeleteRecordsShardOwner,
-        DeleteTopicsShardOwner, DescribeClusterShardOwner, DescribeLogDirsShardOwner,
-        DescribeTopicsShardOwner, ElectLeadersShardOwner, IncrementalAlterConfigsShardOwner,
-        ListConsumerGroupOffsetsShardOwner, ListConsumerGroupsShardOwner,
+        DeleteTopicsShardOwner, DescribeClusterShardOwner, DescribeConsumerGroupsShardOwner,
+        DescribeLogDirsShardOwner, DescribeTopicsShardOwner, ElectLeadersShardOwner,
+        IncrementalAlterConfigsShardOwner, ListConsumerGroupOffsetsShardOwner,
+        ListConsumerGroupsShardOwner,
     },
     clock::MonotonicClock,
     config::ValidatedEngineConfig,
@@ -168,6 +169,11 @@ pub(crate) fn start(
         list_partition_reassignments::start(list_partition_reassignments, driver.reactor_wake());
     let alter_partition_reassignments =
         alter_partition_reassignments::start(alter_partition_reassignments, driver.reactor_wake());
+    let describe_consumer_groups = DescribeConsumerGroupsShardOwner::new(
+        describe_consumer_groups,
+        Arc::new(driver.reactor_wake()),
+    );
+    let describe_consumer_groups_admission = describe_consumer_groups.admission_port();
     let describe_log_dirs =
         DescribeLogDirsShardOwner::new(describe_log_dirs, Arc::new(driver.reactor_wake()));
     let describe_log_dirs_admission = describe_log_dirs.admission_port();
@@ -187,6 +193,7 @@ pub(crate) fn start(
         delete_topics,
         describe_cluster,
         delete_records,
+        describe_consumer_groups,
         create_partitions,
         describe_topics,
         describe_configs: describe_configs.owner,
@@ -254,6 +261,7 @@ pub(crate) fn start(
         list_offsets_admission: list_offsets.admission,
         list_partition_reassignments_admission: list_partition_reassignments.admission,
         alter_partition_reassignments_admission: alter_partition_reassignments.admission,
+        describe_consumer_groups_admission,
         describe_log_dirs_admission,
         alter_replica_log_dirs_admission,
         elect_leaders_admission,

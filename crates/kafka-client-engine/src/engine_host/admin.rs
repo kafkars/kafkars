@@ -18,6 +18,7 @@ mod delete_records;
 mod delete_topics;
 mod describe_cluster;
 mod describe_configs;
+mod describe_consumer_groups;
 mod describe_log_dirs;
 mod describe_topics;
 mod elect_leaders;

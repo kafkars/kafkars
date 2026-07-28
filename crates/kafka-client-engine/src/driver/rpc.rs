@@ -81,6 +81,11 @@ mod describe_configs_submission_test;
 mod describe_configs_terminal;
 #[cfg(test)]
 mod describe_configs_terminal_test;
+mod describe_consumer_groups_call;
+mod describe_consumer_groups_submission;
+#[cfg(test)]
+mod describe_consumer_groups_submission_test;
+mod describe_consumer_groups_terminal;
 mod describe_log_dirs_call;
 mod describe_log_dirs_submission;
 #[cfg(test)]
@@ -239,6 +244,11 @@ pub(crate) use delete_records_call::DeleteRecordsCall;
 pub(crate) use delete_records_terminal::{
     DeleteRecordsDriverFailureKind, DeleteRecordsRawTerminal, DeleteRecordsTerminalFact,
     RecoveredDeleteRecordsCall,
+};
+pub(crate) use describe_consumer_groups_call::DescribeConsumerGroupsCall;
+pub(crate) use describe_consumer_groups_terminal::{
+    DescribeConsumerGroupsDriverFailureKind, DescribeConsumerGroupsTerminal,
+    DescribeConsumerGroupsTerminalFact, RecoveredDescribeConsumerGroupsCall,
 };
 pub(crate) use describe_log_dirs_call::DescribeLogDirsCall;
 pub(crate) use describe_log_dirs_terminal::{

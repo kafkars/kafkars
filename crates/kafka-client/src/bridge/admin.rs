@@ -22,6 +22,9 @@ use super::admin_configs_operation::AdminDescribeConfigs;
 use super::admin_configs_request::DescribeConfigsAdminRequest;
 use super::admin_delete_operation::AdminDeleteTopics;
 use super::admin_delete_records::{AdminDeleteRecords, DeleteRecordsAdminRequest};
+use super::admin_describe_consumer_groups::{
+    AdminDescribeConsumerGroups, DescribeConsumerGroupsAdminRequest,
+};
 use super::admin_describe_log_dirs::{AdminDescribeLogDirs, DescribeLogDirsAdminRequest};
 use super::admin_elect_leaders::{AdminElectLeaders, ElectLeadersAdminRequest};
 use super::admin_group_offset_delete_operation::AdminDeleteConsumerGroupOffsets;
@@ -63,6 +66,17 @@ impl AdminEngine {
         AdminAlterReplicaLogDirs::from_admission(
             self.handle
                 .try_alter_replica_log_dirs(request.into_engine(), timeout),
+        )
+    }
+
+    pub(crate) fn submit_describe_consumer_groups(
+        &self,
+        request: DescribeConsumerGroupsAdminRequest,
+        timeout: Duration,
+    ) -> AdminDescribeConsumerGroups {
+        AdminDescribeConsumerGroups::from_admission(
+            self.handle
+                .try_describe_consumer_groups(request.into_engine(), timeout),
         )
     }
 

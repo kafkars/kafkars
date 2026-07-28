@@ -27,6 +27,13 @@ pub use super::delete_records::{
 pub use super::delete_topics::DeleteTopics;
 pub use super::describe_builder::DescribeClusterBuilder;
 pub use super::describe_cluster::DescribeCluster;
+pub use super::describe_consumer_groups::{
+    ClassicConsumerGroupDetails, ClassicConsumerGroupMemberDetails, ConsumerGroupAssignment,
+    ConsumerGroupDescription, ConsumerGroupDescriptionDetails, ConsumerGroupMember,
+    ConsumerGroupMemberDetails, ConsumerGroupTopicPartitions, ConsumerProtocolGroupDetails,
+    ConsumerProtocolMemberDetails, DescribeConsumerGroups, DescribeConsumerGroupsBuilder,
+    DescribeConsumerGroupsResult,
+};
 pub use super::describe_log_dirs::{
     DescribeLogDirs, DescribeLogDirsBuilder, DescribeLogDirsResult, LogDirDescription,
     LogDirReplica,

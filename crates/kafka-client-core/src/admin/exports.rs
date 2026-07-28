@@ -56,6 +56,21 @@ pub use super::describe_configs_outcome::{
     DescribeConfigsFailure, DescribeConfigsFailureKind, DescribeConfigsTerminal,
 };
 pub use super::describe_configs_value::{DescribeConfigEntry, DescribeConfigSynonym};
+pub use super::describe_consumer_groups::{
+    AdminClassicConsumerGroupDetails, AdminClassicConsumerGroupMemberDetails,
+    AdminConsumerGroupAssignment, AdminConsumerGroupBrokerError, AdminConsumerGroupDescription,
+    AdminConsumerGroupDescriptionDetails, AdminConsumerGroupDescriptionMember,
+    AdminConsumerGroupDescriptionOutcome, AdminConsumerGroupDescriptionResult,
+    AdminConsumerGroupMemberDetails, AdminConsumerGroupTopicPartitions,
+    AdminDescribeConsumerGroupsBatch, AdminDescribeConsumerGroupsCallKind,
+    AdminDescribeConsumerGroupsEffect, AdminDescribeConsumerGroupsFailure,
+    AdminDescribeConsumerGroupsFailureKind, AdminDescribeConsumerGroupsInput,
+    AdminDescribeConsumerGroupsMachine, AdminDescribeConsumerGroupsMachineError,
+    AdminDescribeConsumerGroupsPlan, AdminDescribeConsumerGroupsPlanError,
+    AdminDescribeConsumerGroupsState, AdminDescribeConsumerGroupsTerminal,
+    AdminDescribeConsumerGroupsTransition, AdminModernConsumerGroupDetails,
+    AdminModernConsumerGroupMemberDetails,
+};
 pub use super::describe_log_dirs::{
     AdminDescribeLogDirsBatch, AdminDescribeLogDirsBrokerError, AdminDescribeLogDirsBrokerOutcome,
     AdminDescribeLogDirsBrokerResult, AdminDescribeLogDirsEffect, AdminDescribeLogDirsFailure,

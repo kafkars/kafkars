@@ -88,6 +88,25 @@ pub(crate) use super::delete_shard::{
     DeleteTopicsAdmissionPort, DeleteTopicsShardLockError, DeleteTopicsShardOwner,
     DeleteTopicsShardWake, DeleteTopicsShardWakeError,
 };
+pub use super::describe_consumer_groups::{
+    ClassicConsumerGroupDetails, ClassicConsumerGroupMemberDetails, ConsumerGroupAssignment,
+    ConsumerGroupBrokerError, ConsumerGroupDescription, ConsumerGroupDescriptionDetails,
+    ConsumerGroupDescriptionError, ConsumerGroupDescriptionMember, ConsumerGroupDescriptionResult,
+    ConsumerGroupMemberDetails, ConsumerGroupTopicPartitions, DescribeConsumerGroupsAccepted,
+    DescribeConsumerGroupsAcceptedFaultKind, DescribeConsumerGroupsAdmissionError,
+    DescribeConsumerGroupsAdmissionErrorKind, DescribeConsumerGroupsBatch,
+    DescribeConsumerGroupsDeliveryStatus, DescribeConsumerGroupsFailure,
+    DescribeConsumerGroupsFailureKind, DescribeConsumerGroupsObserver,
+    DescribeConsumerGroupsObserverError, DescribeConsumerGroupsOutcome,
+    DescribeConsumerGroupsRequest, ModernConsumerGroupDetails, ModernConsumerGroupMemberDetails,
+};
+pub(crate) use super::describe_consumer_groups::{
+    DESCRIBE_CONSUMER_GROUPS_CAPACITY, DescribeConsumerGroupsAdmissionPort,
+    DescribeConsumerGroupsHost, DescribeConsumerGroupsHostError,
+    DescribeConsumerGroupsShardLockError, DescribeConsumerGroupsShardOwner,
+    DescribeConsumerGroupsShardWake, DescribeConsumerGroupsShardWakeError,
+    DescribeConsumerGroupsTurn,
+};
 pub use super::describe_error::{DescribeClusterAdmissionError, DescribeClusterAdmissionErrorKind};
 pub use super::describe_handle::{DescribeClusterAccepted, DescribeClusterAcceptedFaultKind};
 pub(crate) use super::describe_host::{

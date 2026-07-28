@@ -4,9 +4,9 @@ use crate::admin::{
     AdminCompletionPorts, AdminListOffsetsPublisher, AlterConsumerGroupOffsetsPublisher,
     AlterPartitionReassignmentsPublisher, AlterReplicaLogDirsHost, CreatePartitionsHost,
     CreateTopicsHost, DeleteConsumerGroupOffsetsHost, DeleteRecordsHost, DeleteTopicsHost,
-    DescribeClusterHost, DescribeConfigsPublisher, DescribeLogDirsHost, DescribeTopicsHost,
-    ElectLeadersHost, IncrementalAlterConfigsHost, ListConsumerGroupOffsetsHost,
-    ListConsumerGroupsHost, ListPartitionReassignmentsPublisher,
+    DescribeClusterHost, DescribeConfigsPublisher, DescribeConsumerGroupsHost, DescribeLogDirsHost,
+    DescribeTopicsHost, ElectLeadersHost, IncrementalAlterConfigsHost,
+    ListConsumerGroupOffsetsHost, ListConsumerGroupsHost, ListPartitionReassignmentsPublisher,
 };
 
 pub(super) struct StartedAdminHosts {
@@ -25,6 +25,7 @@ pub(super) struct StartedAdminHosts {
     pub(super) admin_list_offsets: AdminListOffsetsPublisher,
     pub(super) list_partition_reassignments: ListPartitionReassignmentsPublisher,
     pub(super) alter_partition_reassignments: AlterPartitionReassignmentsPublisher,
+    pub(super) describe_consumer_groups: DescribeConsumerGroupsHost,
     pub(super) describe_log_dirs: DescribeLogDirsHost,
     pub(super) alter_replica_log_dirs: AlterReplicaLogDirsHost,
     pub(super) elect_leaders: ElectLeadersHost,
@@ -47,6 +48,7 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
         admin_list_offsets,
         list_partition_reassignments,
         alter_partition_reassignments,
+        describe_consumer_groups,
         describe_log_dirs,
         alter_replica_log_dirs,
         elect_leaders,
@@ -69,6 +71,7 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
         admin_list_offsets,
         list_partition_reassignments,
         alter_partition_reassignments,
+        describe_consumer_groups: DescribeConsumerGroupsHost::new(describe_consumer_groups),
         describe_log_dirs: DescribeLogDirsHost::new(describe_log_dirs),
         alter_replica_log_dirs: AlterReplicaLogDirsHost::new(alter_replica_log_dirs),
         elect_leaders: ElectLeadersHost::new(elect_leaders),

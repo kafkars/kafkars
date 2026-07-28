@@ -239,6 +239,15 @@ fn verify_admin_operations(resources: &EngineHostResources) -> Result<(), Engine
             crate::admin::ElectLeadersHostError::Unsettled(elect_leaders),
         ));
     }
+    let described_groups = resources
+        .describe_consumer_groups
+        .terminal_host()
+        .unsettled();
+    if described_groups != 0 {
+        return Err(EngineHostError::DescribeConsumerGroups(
+            crate::admin::DescribeConsumerGroupsHostError::Unsettled(described_groups),
+        ));
+    }
     let described_log_dirs = resources.describe_log_dirs.terminal_host().unsettled();
     if described_log_dirs != 0 {
         return Err(EngineHostError::DescribeLogDirs(

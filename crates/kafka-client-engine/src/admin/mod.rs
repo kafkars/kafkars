@@ -18,6 +18,7 @@ mod delete_observer;
 mod delete_outcome;
 mod delete_records;
 mod delete_shard;
+mod describe_consumer_groups;
 mod describe_error;
 mod describe_handle;
 mod describe_host;

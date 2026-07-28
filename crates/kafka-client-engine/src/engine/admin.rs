@@ -42,6 +42,7 @@ impl Engine {
                     .inner
                     .alter_partition_reassignments_admission
                     .clone(),
+                describe_consumer_groups: self.inner.describe_consumer_groups_admission.clone(),
                 describe_log_dirs: self.inner.describe_log_dirs_admission.clone(),
                 alter_replica_log_dirs: self.inner.alter_replica_log_dirs_admission.clone(),
                 elect_leaders: self.inner.elect_leaders_admission.clone(),
@@ -77,6 +78,7 @@ impl EngineInner {
         let _close_result = self
             .alter_partition_reassignments_admission
             .close_admission();
+        let _close_result = self.describe_consumer_groups_admission.close_admission();
         let _close_result = self.describe_log_dirs_admission.close_admission();
         let _close_result = self.alter_replica_log_dirs_admission.close_admission();
         let _close_result = self.elect_leaders_admission.close_admission();

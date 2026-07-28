@@ -161,6 +161,12 @@ impl fmt::Display for EngineHostError {
             Self::ElectLeadersLockPoisoned => {
                 formatter.write_str("ElectLeaders host ownership lock is poisoned")
             }
+            Self::DescribeConsumerGroups(error) => {
+                write!(formatter, "DescribeConsumerGroups host failed: {error}")
+            }
+            Self::DescribeConsumerGroupsLockPoisoned => {
+                formatter.write_str("DescribeConsumerGroups host ownership lock is poisoned")
+            }
             Self::DescribeLogDirs(error) => {
                 write!(formatter, "DescribeLogDirs host failed: {error}")
             }

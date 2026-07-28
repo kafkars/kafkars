@@ -8,7 +8,8 @@ use super::{
     super::{EngineHostError, EngineHostResources},
     alter_consumer_group_offsets, alter_partition_reassignments, alter_replica_log_dirs,
     create_partitions, create_topics, delete_consumer_group_offsets, delete_records, delete_topics,
-    describe_cluster, describe_configs, describe_log_dirs, describe_topics, elect_leaders,
+    describe_cluster, describe_configs, describe_consumer_groups, describe_log_dirs,
+    describe_topics, elect_leaders,
     group_offset_alter_schedule::drive_group_offset_delete_then_capture_alter,
     incremental_alter_configs, list_consumer_group_offsets, list_consumer_groups, list_offsets,
     list_offsets_schedule, list_partition_reassignments,
@@ -91,6 +92,8 @@ pub(in crate::engine_host) fn drive(
     let elections = elect_leaders::drive(resources, elect_leaders_now)?;
     let delete_records_now = clock.now().map_err(EngineHostError::Clock)?;
     let record_deletions = delete_records::drive(resources, delete_records_now)?;
+    let describe_groups_now = clock.now().map_err(EngineHostError::Clock)?;
+    let group_descriptions = describe_consumer_groups::drive(resources, describe_groups_now)?;
     let list_groups_now = clock.now().map_err(EngineHostError::Clock)?;
     let group_listings = list_consumer_groups::drive(resources, list_groups_now)?;
     let describe_log_dirs_now = clock.now().map_err(EngineHostError::Clock)?;
@@ -127,6 +130,7 @@ const fn extend_with_log_dir_operations(
         record_deletions: &delete_records::DeleteRecordsProgress,
         elections: &elect_leaders::ElectLeadersProgress,
         group_listings: &list_consumer_groups::ListConsumerGroupsProgress,
+        group_descriptions: &describe_consumer_groups::DescribeConsumerGroupsProgress,
     }
 }
 

@@ -42,6 +42,7 @@ pub(crate) fn recover(
     drop(resources.list_offsets.terminal_host());
     drop(resources.list_partition_reassignments.terminal_host());
     drop(resources.alter_partition_reassignments.terminal_host());
+    drop(resources.describe_consumer_groups.terminal_host());
     drop(resources.describe_log_dirs.terminal_host());
     drop(resources.alter_replica_log_dirs.terminal_host());
     drop(resources.elect_leaders.terminal_host());

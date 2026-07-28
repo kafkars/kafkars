@@ -10,6 +10,7 @@ use crate::bridge::admin_alter_configs_request::IncrementalAlterConfigsAdminRequ
 use crate::bridge::admin_alter_replica_log_dirs::AlterReplicaLogDirsAdminRequest;
 use crate::bridge::admin_configs_request::DescribeConfigsAdminRequest;
 use crate::bridge::admin_delete_records::DeleteRecordsAdminRequest;
+use crate::bridge::admin_describe_consumer_groups::DescribeConsumerGroupsAdminRequest;
 use crate::bridge::admin_elect_leaders::ElectLeadersAdminRequest;
 use crate::bridge::admin_group_offset_delete_request::DeleteConsumerGroupOffsetsAdminRequest;
 use crate::bridge::admin_group_offsets::{
@@ -21,10 +22,10 @@ use super::{
     AlterConsumerGroupOffsetsBuilder, AlterReplicaLogDirsBuilder, ConsumerGroupOffsetAlteration,
     CreatePartitionsBuilder, CreateTopicsBuilder, DeleteConsumerGroupOffsetsBuilder,
     DeleteRecordsBuilder, DeleteRecordsTarget, DeleteTopicsBuilder, DescribeClusterBuilder,
-    DescribeConfigsBuilder, DescribeTopicsBuilder, ElectLeadersBuilder,
-    IncrementalAlterConfigsBuilder, ListConsumerGroupOffsetsBuilder, ListConsumerGroupsBuilder,
-    ListTopicsBuilder, NewPartitions, NewTopic, ReplicaLogDirAssignment, TopicConfigAlterations,
-    TopicConfigQuery,
+    DescribeConfigsBuilder, DescribeConsumerGroupsBuilder, DescribeTopicsBuilder,
+    ElectLeadersBuilder, IncrementalAlterConfigsBuilder, ListConsumerGroupOffsetsBuilder,
+    ListConsumerGroupsBuilder, ListTopicsBuilder, NewPartitions, NewTopic, ReplicaLogDirAssignment,
+    TopicConfigAlterations, TopicConfigQuery,
 };
 
 /// Cheaply cloneable, thread-safe admin handle.
@@ -109,6 +110,25 @@ impl Admin {
     /// [`DescribeClusterBuilder::submit`] is called.
     pub fn describe_cluster(&self) -> DescribeClusterBuilder {
         DescribeClusterBuilder::new(self.engine.clone(), self.engine.default_timeout())
+    }
+
+    /// Builds an inert caller-ordered classic consumer-group description.
+    ///
+    /// Authorized operations are omitted by default. No timeout starts and no
+    /// operation is admitted until [`DescribeConsumerGroupsBuilder::submit`] is
+    /// called.
+    pub fn describe_consumer_groups<I, T>(&self, groups: I) -> DescribeConsumerGroupsBuilder
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<String>,
+    {
+        let request =
+            DescribeConsumerGroupsAdminRequest::new(groups.into_iter().map(Into::into).collect());
+        DescribeConsumerGroupsBuilder::new(
+            self.engine.clone(),
+            request,
+            self.engine.default_timeout(),
+        )
     }
 
     /// Builds an inert ordered name-based `DescribeTopics` request.

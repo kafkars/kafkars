@@ -1,7 +1,14 @@
 //! Curated public re-exports for deterministic client policy.
 
 pub use crate::admin::{
-    AdminDescribeLogDirsBatch, AdminDescribeLogDirsBrokerError, AdminDescribeLogDirsBrokerOutcome,
+    AdminDescribeConsumerGroupsBatch, AdminDescribeConsumerGroupsCallKind,
+    AdminDescribeConsumerGroupsEffect, AdminDescribeConsumerGroupsFailure,
+    AdminDescribeConsumerGroupsFailureKind, AdminDescribeConsumerGroupsInput,
+    AdminDescribeConsumerGroupsMachine, AdminDescribeConsumerGroupsMachineError,
+    AdminDescribeConsumerGroupsPlan, AdminDescribeConsumerGroupsPlanError,
+    AdminDescribeConsumerGroupsState, AdminDescribeConsumerGroupsTerminal,
+    AdminDescribeConsumerGroupsTransition, AdminDescribeLogDirsBatch,
+    AdminDescribeLogDirsBrokerError, AdminDescribeLogDirsBrokerOutcome,
     AdminDescribeLogDirsBrokerResult, AdminDescribeLogDirsEffect, AdminDescribeLogDirsFailure,
     AdminDescribeLogDirsFailureKind, AdminDescribeLogDirsInput, AdminDescribeLogDirsMachine,
     AdminDescribeLogDirsMachineError, AdminDescribeLogDirsPlan, AdminDescribeLogDirsPlanError,
