@@ -13,8 +13,9 @@ pub use machine::{
 pub use model::{ListConsumerGroupOffsetsPlan, ListConsumerGroupOffsetsPlanError};
 pub use outcome::{
     GroupOffsetBrokerError, GroupOffsetDescription, GroupOffsetOutcome, GroupOffsetResult,
-    ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsFailure,
+    ListConsumerGroupBatchOutcome, ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsFailure,
     ListConsumerGroupOffsetsFailureKind, ListConsumerGroupOffsetsTerminal,
+    ListConsumerGroupsOffsetsBatch,
 };
 
 #[cfg(test)]

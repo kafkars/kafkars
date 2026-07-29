@@ -1,4 +1,4 @@
-//! Exhaustive translation from borrowed wire facts into deterministic core input.
+//! Exhaustive singleton-response translation for singular and batched operations.
 
 use kafka_client_core::{
     GroupOffsetBrokerError, GroupOffsetDescription, GroupOffsetOutcome,
@@ -17,26 +17,29 @@ pub(super) fn terminal_input(
     terminal: &GroupOffsetsTerminal,
     group_id: &str,
     result_limit: usize,
-) -> ListConsumerGroupOffsetsInput {
+) -> (ListConsumerGroupOffsetsInput, usize) {
     match terminal.fact() {
         GroupOffsetsTerminalFact::Failed { kind, delivery } => match kind {
-            GroupOffsetsDriverFailureKind::DeadlineElapsed => {
-                ListConsumerGroupOffsetsInput::DriverDeadlineElapsed { delivery }
-            }
-            GroupOffsetsDriverFailureKind::Compatibility => {
-                ListConsumerGroupOffsetsInput::ProtocolIncompatible { delivery }
-            }
+            GroupOffsetsDriverFailureKind::DeadlineElapsed => (
+                ListConsumerGroupOffsetsInput::DriverDeadlineElapsed { delivery },
+                0,
+            ),
+            GroupOffsetsDriverFailureKind::Compatibility => (
+                ListConsumerGroupOffsetsInput::ProtocolIncompatible { delivery },
+                0,
+            ),
             GroupOffsetsDriverFailureKind::InvalidResponse => {
-                ListConsumerGroupOffsetsInput::InvalidResponse
+                (ListConsumerGroupOffsetsInput::InvalidResponse, 0)
             }
-            GroupOffsetsDriverFailureKind::Transport => {
-                ListConsumerGroupOffsetsInput::TransportFailed { delivery }
-            }
+            GroupOffsetsDriverFailureKind::Transport => (
+                ListConsumerGroupOffsetsInput::TransportFailed { delivery },
+                0,
+            ),
         },
         GroupOffsetsTerminalFact::Response {
             selected_version: None,
             ..
-        } => ListConsumerGroupOffsetsInput::InvalidResponse,
+        } => (ListConsumerGroupOffsetsInput::InvalidResponse, 0),
         GroupOffsetsTerminalFact::Response {
             selected_version: Some(selected_version),
             response,
@@ -46,15 +49,21 @@ pub(super) fn terminal_input(
             selected_version,
             result_limit,
         ) {
-            Ok(validated) => normalized_input(validated),
-            Err(error) => protocol_failure(error),
+            Ok(validated) => {
+                let retained_charge = validated.retained_charge();
+                (normalized_input(validated), retained_charge)
+            }
+            Err(error) => (protocol_failure(error), 0),
         },
     }
 }
 
 fn normalized_input(validated: ValidatedGroupOffsetsResponse<'_>) -> ListConsumerGroupOffsetsInput {
     if let Some(code) = validated.top_level_error() {
-        return ListConsumerGroupOffsetsInput::BrokerRejected { code };
+        return ListConsumerGroupOffsetsInput::BrokerRejected {
+            code,
+            throttle_time_ms: validated.throttle_time_ms(),
+        };
     }
     let throttle_time_ms = validated.throttle_time_ms();
     let outcomes = validated

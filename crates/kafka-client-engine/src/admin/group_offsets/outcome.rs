@@ -2,11 +2,8 @@
 
 use core::fmt;
 
-use kafka_client_core::{
-    DeliveryStatus as CoreDeliveryStatus, GroupOffsetResult as CoreOffsetResult,
-    ListConsumerGroupOffsetsFailureKind as CoreFailureKind,
-    ListConsumerGroupOffsetsTerminal as CoreTerminal,
-};
+mod translate;
+pub(crate) use translate::translate_terminal;
 
 /// Stable delivery certainty independent of core and driver types.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -80,6 +77,66 @@ impl ListConsumerGroupOffsetsBatch {
     }
 }
 
+/// Exact result for one consumer group in a caller-ordered batch operation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ListConsumerGroupBatchOutcome {
+    /// Kafka returned this group's ordered committed offsets.
+    Offsets {
+        /// Exact requested consumer-group identity.
+        group_id: String,
+        /// Ordered partition outcomes and this group's throttle.
+        offsets: ListConsumerGroupOffsetsBatch,
+    },
+    /// Kafka rejected this specific consumer group.
+    BrokerRejected {
+        /// Exact requested consumer-group identity.
+        group_id: String,
+        /// Kafka's exact signed nonzero group error code.
+        code: i16,
+    },
+}
+
+impl ListConsumerGroupBatchOutcome {
+    /// Returns the exact requested consumer-group identity.
+    pub fn group_id(&self) -> &str {
+        match self {
+            Self::Offsets { group_id, .. } | Self::BrokerRejected { group_id, .. } => group_id,
+        }
+    }
+
+    /// Consumes this outcome into its group and exact broker result.
+    pub fn into_parts(self) -> (String, Result<ListConsumerGroupOffsetsBatch, i16>) {
+        match self {
+            Self::Offsets { group_id, offsets } => (group_id, Ok(offsets)),
+            Self::BrokerRejected { group_id, code } => (group_id, Err(code)),
+        }
+    }
+}
+
+/// Caller-ordered outcomes plus maximum throttle across coordinator calls.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ListConsumerGroupsOffsetsBatch {
+    throttle_time_ms: u32,
+    outcomes: Vec<ListConsumerGroupBatchOutcome>,
+}
+
+impl ListConsumerGroupsOffsetsBatch {
+    /// Returns the maximum nonnegative throttle observed across calls.
+    pub const fn throttle_time_ms(&self) -> u32 {
+        self.throttle_time_ms
+    }
+
+    /// Returns exactly one outcome per requested group in caller order.
+    pub fn outcomes(&self) -> &[ListConsumerGroupBatchOutcome] {
+        &self.outcomes
+    }
+
+    /// Consumes the batch into maximum throttle and caller-ordered outcomes.
+    pub fn into_parts(self) -> (u32, Vec<ListConsumerGroupBatchOutcome>) {
+        (self.throttle_time_ms, self.outcomes)
+    }
+}
+
 /// Stable whole-operation failure category.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ListConsumerGroupOffsetsFailureKind {
@@ -123,6 +180,8 @@ impl ListConsumerGroupOffsetsFailure {
 pub enum ListConsumerGroupOffsetsOutcome {
     /// Ordered partition outcomes plus broker throttle.
     Offsets(ListConsumerGroupOffsetsBatch),
+    /// Every requested consumer group settled in caller order.
+    Batch(ListConsumerGroupsOffsetsBatch),
     /// Whole-operation failure.
     Failed(ListConsumerGroupOffsetsFailure),
 }
@@ -146,63 +205,3 @@ impl fmt::Display for ListConsumerGroupOffsetsObserverError {
 }
 
 impl std::error::Error for ListConsumerGroupOffsetsObserverError {}
-
-pub(crate) fn translate_terminal(terminal: CoreTerminal) -> ListConsumerGroupOffsetsOutcome {
-    match terminal {
-        CoreTerminal::Offsets(batch) => {
-            let (throttle_time_ms, outcomes) = batch.into_parts();
-            ListConsumerGroupOffsetsOutcome::Offsets(ListConsumerGroupOffsetsBatch {
-                throttle_time_ms,
-                offsets: outcomes
-                    .into_iter()
-                    .map(|outcome| {
-                        let (topic, partition, result) = outcome.into_parts();
-                        let result = match result {
-                            CoreOffsetResult::Described(description) => {
-                                let (offset, leader_epoch, metadata) = description.into_parts();
-                                Ok(GroupOffsetDescription {
-                                    offset,
-                                    leader_epoch,
-                                    metadata,
-                                })
-                            }
-                            CoreOffsetResult::Failed(error) => {
-                                Err(GroupOffsetBrokerError { code: error.code() })
-                            }
-                        };
-                        GroupOffsetResult {
-                            topic,
-                            partition,
-                            result,
-                        }
-                    })
-                    .collect(),
-            })
-        }
-        CoreTerminal::Failed(failure) => {
-            ListConsumerGroupOffsetsOutcome::Failed(ListConsumerGroupOffsetsFailure {
-                kind: failure_kind(failure.kind()),
-                delivery: delivery(failure.delivery()),
-            })
-        }
-    }
-}
-
-const fn failure_kind(kind: CoreFailureKind) -> ListConsumerGroupOffsetsFailureKind {
-    match kind {
-        CoreFailureKind::DeadlineElapsed => ListConsumerGroupOffsetsFailureKind::DeadlineElapsed,
-        CoreFailureKind::DriverRejected => ListConsumerGroupOffsetsFailureKind::DriverRejected,
-        CoreFailureKind::Transport => ListConsumerGroupOffsetsFailureKind::Transport,
-        CoreFailureKind::Broker(code) => ListConsumerGroupOffsetsFailureKind::Broker(code.get()),
-        CoreFailureKind::ResponseTooLarge => ListConsumerGroupOffsetsFailureKind::ResponseTooLarge,
-        CoreFailureKind::Compatibility => ListConsumerGroupOffsetsFailureKind::Compatibility,
-        CoreFailureKind::InvalidResponse => ListConsumerGroupOffsetsFailureKind::InvalidResponse,
-    }
-}
-
-const fn delivery(status: CoreDeliveryStatus) -> ListConsumerGroupOffsetsDeliveryStatus {
-    match status {
-        CoreDeliveryStatus::NotSent => ListConsumerGroupOffsetsDeliveryStatus::NotSent,
-        CoreDeliveryStatus::PossiblySent => ListConsumerGroupOffsetsDeliveryStatus::PossiblySent,
-    }
-}

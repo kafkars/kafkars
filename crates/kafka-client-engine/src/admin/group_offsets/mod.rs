@@ -17,13 +17,14 @@ pub(crate) use host::{
     LIST_CONSUMER_GROUP_OFFSETS_CAPACITY, ListConsumerGroupOffsetsHost,
     ListConsumerGroupOffsetsTurn,
 };
-pub use model::ListConsumerGroupOffsetsRequest;
+pub use model::{ListConsumerGroupOffsetsRequest, ListConsumerGroupsOffsetsRequest};
 pub use observer::ListConsumerGroupOffsetsObserver;
 pub use outcome::{
     GroupOffsetBrokerError, GroupOffsetDescription, GroupOffsetResult,
-    ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsDeliveryStatus,
-    ListConsumerGroupOffsetsFailure, ListConsumerGroupOffsetsFailureKind,
-    ListConsumerGroupOffsetsObserverError, ListConsumerGroupOffsetsOutcome,
+    ListConsumerGroupBatchOutcome, ListConsumerGroupOffsetsBatch,
+    ListConsumerGroupOffsetsDeliveryStatus, ListConsumerGroupOffsetsFailure,
+    ListConsumerGroupOffsetsFailureKind, ListConsumerGroupOffsetsObserverError,
+    ListConsumerGroupOffsetsOutcome, ListConsumerGroupsOffsetsBatch,
 };
 pub(crate) use shard::{
     ListConsumerGroupOffsetsAdmissionPort, ListConsumerGroupOffsetsShardLockError,

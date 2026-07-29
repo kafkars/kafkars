@@ -1,7 +1,10 @@
-//! Bounded ownership of accepted consumer-group offset machines and calls.
+//! Bounded ownership of singular and batched group-offset machines and calls.
 
 mod admission;
+mod operation;
 mod response;
+mod state;
+mod submission;
 mod terminal;
 
 use kafka_client_core::{
@@ -33,24 +36,6 @@ pub(crate) struct ListConsumerGroupOffsetsSubmission {
     result_limit: usize,
 }
 
-impl ListConsumerGroupOffsetsSubmission {
-    pub(crate) fn into_parts(
-        self,
-    ) -> (
-        OperationId,
-        OperationDeadline,
-        ListConsumerGroupOffsetsPlan,
-        usize,
-    ) {
-        (
-            self.operation_id,
-            self.deadline,
-            self.plan,
-            self.result_limit,
-        )
-    }
-}
-
 pub(crate) enum ListConsumerGroupOffsetsTurn {
     Idle,
     Progress,
@@ -67,11 +52,11 @@ enum ListConsumerGroupOffsetsHandoff {
 struct ListConsumerGroupOffsetsOperation {
     operation_id: OperationId,
     machine: ListConsumerGroupOffsetsMachine,
-    group_id: String,
+    active_plan: Option<ListConsumerGroupOffsetsPlan>,
     completion_id: CompletionId,
     deadline: OperationDeadline,
     retained_bytes: usize,
-    result_limit: usize,
+    remaining_result_bytes: usize,
     submission: Option<ListConsumerGroupOffsetsSubmission>,
     handoff: ListConsumerGroupOffsetsHandoff,
     call: Option<GroupOffsetsCall>,
@@ -168,28 +153,6 @@ impl ListConsumerGroupOffsetsHost {
         self.apply(operation_id, ListConsumerGroupOffsetsInput::DriverRejected)
     }
 
-    pub(crate) fn close_admission(&mut self) {
-        self.accepting = false;
-    }
-
-    pub(crate) fn unsettled(&self) -> usize {
-        self.operations.len()
-    }
-
-    pub(crate) fn next_deadline(&self) -> Option<kafka_client_core::Deadline> {
-        self.operations
-            .iter()
-            .filter(|operation| operation.submission.is_some())
-            .map(|operation| operation.deadline.core())
-            .min()
-    }
-
-    fn operation_index(&self, operation_id: OperationId) -> Option<usize> {
-        self.operations
-            .iter()
-            .position(|operation| operation.operation_id == operation_id)
-    }
-
     fn apply(
         &mut self,
         operation_id: OperationId,
@@ -207,22 +170,58 @@ impl ListConsumerGroupOffsetsHost {
         if accepted {
             self.operations[index].mark_submitted();
         }
-        if let Some(ListConsumerGroupOffsetsEffect::Complete { terminal, .. }) =
-            transition.into_effect()
-        {
-            self.operations[index].terminal = Some(terminal);
-            self.publish_terminal(index)?;
+        if let Some(effect) = transition.into_effect() {
+            self.install_effect(index, effect)?;
         }
         Ok(())
+    }
+
+    fn install_effect(
+        &mut self,
+        index: usize,
+        effect: ListConsumerGroupOffsetsEffect,
+    ) -> Result<(), ListConsumerGroupOffsetsHostError> {
+        match effect {
+            ListConsumerGroupOffsetsEffect::Submit {
+                operation_id,
+                deadline,
+                plan,
+            } => self.operations[index].install_submission(operation_id, deadline, plan),
+            ListConsumerGroupOffsetsEffect::Complete {
+                operation_id,
+                terminal,
+            } => {
+                self.operations[index].install_terminal(operation_id, terminal)?;
+                self.publish_terminal(index)
+            }
+        }
     }
 
     #[cfg(test)]
     pub(super) const fn retained_bytes_for_test(&self) -> usize {
         self.retained_bytes
     }
+
+    #[cfg(test)]
+    pub(super) fn apply_for_test(
+        &mut self,
+        operation_id: OperationId,
+        input: ListConsumerGroupOffsetsInput,
+        retained_bytes: usize,
+    ) -> Result<(), ListConsumerGroupOffsetsHostError> {
+        let index = self
+            .operation_index(operation_id)
+            .ok_or(ListConsumerGroupOffsetsHostError::UnknownOperation)?;
+        self.operations[index].debit_result_bytes(retained_bytes)?;
+        self.apply(operation_id, input)
+    }
 }
 
 impl ListConsumerGroupOffsetsOperation {
+    fn mark_untouched(&mut self) {
+        self.handoff = ListConsumerGroupOffsetsHandoff::Untouched;
+    }
+
     fn mark_handed_off(&mut self) {
         self.handoff = ListConsumerGroupOffsetsHandoff::HandedOff;
     }

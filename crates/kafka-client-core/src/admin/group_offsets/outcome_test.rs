@@ -2,6 +2,7 @@
 
 use core::num::NonZeroI16;
 
+use super::outcome::{ListConsumerGroupBatchOutcome, ListConsumerGroupsOffsetsBatch};
 use super::{
     GroupOffsetBrokerError, GroupOffsetDescription, GroupOffsetOutcome, GroupOffsetResult,
     ListConsumerGroupOffsetsBatch,
@@ -54,4 +55,32 @@ fn partition_failure_retains_identity_and_exact_signed_code() {
         panic!("partition must retain its broker failure");
     };
     assert_eq!(error.code(), -31_999);
+}
+
+#[test]
+fn multi_group_batch_retains_caller_order_and_maximum_throttle() {
+    assert!(
+        core::mem::size_of::<ListConsumerGroupBatchOutcome>() <= 8 * core::mem::size_of::<usize>()
+    );
+    let batch = ListConsumerGroupsOffsetsBatch::new(
+        83,
+        vec![
+            ListConsumerGroupBatchOutcome::broker_rejected(
+                "z-readers".to_owned(),
+                NonZeroI16::new(-719).unwrap_or_else(|| panic!("nonzero")),
+                83,
+            ),
+            ListConsumerGroupBatchOutcome::offsets(
+                "a-readers".to_owned(),
+                ListConsumerGroupOffsetsBatch::new(7, Vec::new()),
+            ),
+        ],
+    );
+
+    assert_eq!(batch.throttle_time_ms(), 83);
+    assert_eq!(batch.outcomes()[0].group_id(), "z-readers");
+    assert_eq!(batch.outcomes()[1].group_id(), "a-readers");
+    let (throttle_time_ms, outcomes) = batch.into_parts();
+    assert_eq!(throttle_time_ms, 83);
+    assert_eq!(outcomes.len(), 2);
 }

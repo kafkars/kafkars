@@ -1,4 +1,4 @@
-//! Scenarios for group-offset lifecycle construction.
+//! Scenarios for singular and batched group-offset lifecycle construction.
 
 use crate::{Deadline, OperationId};
 

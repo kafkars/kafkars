@@ -1,11 +1,14 @@
-//! Atomic group-offset lifecycle transitions and terminal assignment.
+//! Atomic singular and batched group-offset transitions and terminal assignment.
 
-use core::cmp::Ordering;
+mod batch;
+mod validation;
+
+#[cfg(test)]
+mod batch_test;
 
 use crate::DeliveryStatus;
 
 use super::{
-    GroupOffsetOutcome, GroupOffsetResult, ListConsumerGroupOffsetsBatch,
     ListConsumerGroupOffsetsEffect, ListConsumerGroupOffsetsFailure,
     ListConsumerGroupOffsetsFailureKind, ListConsumerGroupOffsetsInput,
     ListConsumerGroupOffsetsMachine, ListConsumerGroupOffsetsMachineError,
@@ -27,34 +30,37 @@ impl ListConsumerGroupOffsetsMachine {
             ListConsumerGroupOffsetsInput::DriverAccepted => self.driver_accepted(),
             ListConsumerGroupOffsetsInput::DriverRejected => self.finish_awaiting(
                 ListConsumerGroupOffsetsFailureKind::DriverRejected,
-                DeliveryStatus::NotSent,
+                self.current_unsent_delivery(),
             ),
             ListConsumerGroupOffsetsInput::DeadlineElapsed => self.finish_awaiting(
                 ListConsumerGroupOffsetsFailureKind::DeadlineElapsed,
-                DeliveryStatus::NotSent,
+                self.current_unsent_delivery(),
             ),
             ListConsumerGroupOffsetsInput::DriverDeadlineElapsed { delivery } => self
                 .finish_submitted(
                     ListConsumerGroupOffsetsFailureKind::DeadlineElapsed,
-                    delivery,
+                    self.aggregate_delivery(delivery),
                 ),
             ListConsumerGroupOffsetsInput::BrokerResponded { batch } => {
                 self.broker_responded(batch)
             }
-            ListConsumerGroupOffsetsInput::BrokerRejected { code } => self.finish_submitted(
-                ListConsumerGroupOffsetsFailureKind::Broker(code),
-                DeliveryStatus::PossiblySent,
-            ),
+            ListConsumerGroupOffsetsInput::BrokerRejected {
+                code,
+                throttle_time_ms,
+            } => self.broker_rejected(code, throttle_time_ms),
             ListConsumerGroupOffsetsInput::ResponseTooLarge => self.finish_submitted(
                 ListConsumerGroupOffsetsFailureKind::ResponseTooLarge,
                 DeliveryStatus::PossiblySent,
             ),
-            ListConsumerGroupOffsetsInput::ProtocolIncompatible { delivery } => {
-                self.finish_submitted(ListConsumerGroupOffsetsFailureKind::Compatibility, delivery)
-            }
-            ListConsumerGroupOffsetsInput::TransportFailed { delivery } => {
-                self.finish_submitted(ListConsumerGroupOffsetsFailureKind::Transport, delivery)
-            }
+            ListConsumerGroupOffsetsInput::ProtocolIncompatible { delivery } => self
+                .finish_submitted(
+                    ListConsumerGroupOffsetsFailureKind::Compatibility,
+                    self.aggregate_delivery(delivery),
+                ),
+            ListConsumerGroupOffsetsInput::TransportFailed { delivery } => self.finish_submitted(
+                ListConsumerGroupOffsetsFailureKind::Transport,
+                self.aggregate_delivery(delivery),
+            ),
             ListConsumerGroupOffsetsInput::InvalidResponse => self.finish_submitted(
                 ListConsumerGroupOffsetsFailureKind::InvalidResponse,
                 DeliveryStatus::PossiblySent,
@@ -77,12 +83,21 @@ impl ListConsumerGroupOffsetsMachine {
                 ),
             )));
         }
+        self.submit_current()
+    }
+
+    fn submit_current(
+        &mut self,
+    ) -> Result<ListConsumerGroupOffsetsTransition, ListConsumerGroupOffsetsMachineError> {
+        let Some(plan) = self.plan.singleton_at(self.next_group) else {
+            return Err(ListConsumerGroupOffsetsMachineError::InvalidState);
+        };
         self.state = ListConsumerGroupOffsetsState::AwaitingDriver;
         Ok(ListConsumerGroupOffsetsTransition::one(
             ListConsumerGroupOffsetsEffect::Submit {
                 operation_id: self.operation_id,
                 deadline: self.deadline,
-                plan: self.plan.clone(),
+                plan,
             },
         ))
     }
@@ -97,24 +112,6 @@ impl ListConsumerGroupOffsetsMachine {
         Ok(ListConsumerGroupOffsetsTransition::none())
     }
 
-    fn broker_responded(
-        &mut self,
-        batch: ListConsumerGroupOffsetsBatch,
-    ) -> Result<ListConsumerGroupOffsetsTransition, ListConsumerGroupOffsetsMachineError> {
-        if self.state != ListConsumerGroupOffsetsState::Submitted {
-            return Err(ListConsumerGroupOffsetsMachineError::InvalidState);
-        }
-        if !outcomes_are_normalized(batch.outcomes()) {
-            return Ok(self.finish(ListConsumerGroupOffsetsTerminal::Failed(
-                ListConsumerGroupOffsetsFailure::new(
-                    ListConsumerGroupOffsetsFailureKind::InvalidResponse,
-                    DeliveryStatus::PossiblySent,
-                ),
-            )));
-        }
-        Ok(self.finish(ListConsumerGroupOffsetsTerminal::Offsets(batch)))
-    }
-
     fn finish_awaiting(
         &mut self,
         kind: ListConsumerGroupOffsetsFailureKind,
@@ -124,6 +121,22 @@ impl ListConsumerGroupOffsetsMachine {
             return Err(ListConsumerGroupOffsetsMachineError::InvalidState);
         }
         Ok(self.finish_failure(kind, delivery))
+    }
+
+    const fn current_unsent_delivery(&self) -> DeliveryStatus {
+        if self.next_group == 0 {
+            DeliveryStatus::NotSent
+        } else {
+            DeliveryStatus::PossiblySent
+        }
+    }
+
+    const fn aggregate_delivery(&self, current: DeliveryStatus) -> DeliveryStatus {
+        if self.next_group == 0 {
+            current
+        } else {
+            DeliveryStatus::PossiblySent
+        }
     }
 
     fn finish_submitted(
@@ -157,28 +170,4 @@ impl ListConsumerGroupOffsetsMachine {
             terminal,
         })
     }
-}
-
-fn outcomes_are_normalized(outcomes: &[GroupOffsetOutcome]) -> bool {
-    if outcomes.iter().any(outcome_is_malformed) {
-        return false;
-    }
-    outcomes.windows(2).all(|pair| {
-        match pair[0].topic().as_bytes().cmp(pair[1].topic().as_bytes()) {
-            Ordering::Less => true,
-            Ordering::Equal => pair[0].partition() < pair[1].partition(),
-            Ordering::Greater => false,
-        }
-    })
-}
-
-fn outcome_is_malformed(outcome: &GroupOffsetOutcome) -> bool {
-    if outcome.topic().is_empty() || outcome.partition() < 0 {
-        return true;
-    }
-    let GroupOffsetResult::Described(description) = outcome.result() else {
-        return false;
-    };
-    description.offset().is_some_and(|offset| offset < 0)
-        || description.leader_epoch().is_some_and(|epoch| epoch < 0)
 }

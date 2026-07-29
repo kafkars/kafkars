@@ -11,8 +11,9 @@ use kafka_client_core::{
 };
 
 use super::{
-    ListConsumerGroupOffsetsDeliveryStatus, ListConsumerGroupOffsetsFailureKind,
-    ListConsumerGroupOffsetsOutcome, outcome::translate_terminal,
+    ListConsumerGroupBatchOutcome, ListConsumerGroupOffsetsDeliveryStatus,
+    ListConsumerGroupOffsetsFailureKind, ListConsumerGroupOffsetsOutcome,
+    outcome::translate_terminal,
 };
 
 #[test]
@@ -67,7 +68,10 @@ fn throttle_order_nullable_values_and_partition_error_translate_exactly() {
 #[test]
 fn top_level_group_error_and_delivery_translate_without_reclassification() {
     let code = NonZeroI16::new(-31_777).unwrap_or_else(|| panic!("code is nonzero"));
-    let terminal = terminal_from(CoreInput::BrokerRejected { code });
+    let terminal = terminal_from(CoreInput::BrokerRejected {
+        code,
+        throttle_time_ms: 0,
+    });
     let ListConsumerGroupOffsetsOutcome::Failed(failure) = translate_terminal(terminal) else {
         panic!("whole-operation failure expected");
     };
@@ -79,6 +83,50 @@ fn top_level_group_error_and_delivery_translate_without_reclassification() {
         failure.delivery(),
         ListConsumerGroupOffsetsDeliveryStatus::PossiblySent
     );
+}
+
+#[test]
+fn caller_order_and_per_group_rejection_translate_in_one_batch_terminal() {
+    let plan = CorePlan::new_batch(vec!["z-readers".to_owned(), "a-readers".to_owned()], true)
+        .unwrap_or_else(|error| panic!("valid batch plan: {error}"));
+    let mut machine = CoreMachine::new(OperationId::from_raw(31), Deadline::from_tick(40), plan);
+    machine
+        .apply(CoreInput::Start {
+            now: Moment::from_tick(1),
+        })
+        .and_then(|_| machine.apply(CoreInput::DriverAccepted))
+        .unwrap_or_else(|error| panic!("submit first call: {error}"));
+    machine
+        .apply(CoreInput::BrokerRejected {
+            code: NonZeroI16::new(-719).unwrap_or_else(|| panic!("nonzero")),
+            throttle_time_ms: 83,
+        })
+        .and_then(|_| machine.apply(CoreInput::DriverAccepted))
+        .unwrap_or_else(|error| panic!("submit second call: {error}"));
+    let transition = machine
+        .apply(CoreInput::BrokerResponded {
+            batch: CoreBatch::new(7, Vec::new()),
+        })
+        .unwrap_or_else(|error| panic!("settle second call: {error}"));
+    let Some(CoreEffect::Complete { terminal, .. }) = transition.into_effect() else {
+        panic!("batch terminal expected");
+    };
+
+    let ListConsumerGroupOffsetsOutcome::Batch(batch) = translate_terminal(terminal) else {
+        panic!("translated batch expected");
+    };
+    assert_eq!(batch.throttle_time_ms(), 83);
+    assert_eq!(batch.outcomes()[0].group_id(), "z-readers");
+    assert_eq!(batch.outcomes()[1].group_id(), "a-readers");
+    assert!(matches!(
+        &batch.outcomes()[0],
+        ListConsumerGroupBatchOutcome::BrokerRejected { code: -719, .. }
+    ));
+    assert!(matches!(
+        &batch.outcomes()[1],
+        ListConsumerGroupBatchOutcome::Offsets { offsets, .. }
+            if offsets.clone().into_parts().1.is_empty()
+    ));
 }
 
 fn terminal_from(input: CoreInput) -> CoreTerminal {

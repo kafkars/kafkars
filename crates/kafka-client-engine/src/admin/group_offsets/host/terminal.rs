@@ -1,8 +1,7 @@
-//! Call polling, deliberate route release, publication, reclamation, and recovery.
+//! Call polling, explicit batch re-arming, publication, reclamation, and recovery.
 
 use kafka_client_core::{
-    DeliveryStatus, ListConsumerGroupOffsetsEffect, ListConsumerGroupOffsetsInput,
-    ListConsumerGroupOffsetsState, Moment,
+    DeliveryStatus, ListConsumerGroupOffsetsInput, ListConsumerGroupOffsetsState, Moment,
 };
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
@@ -108,7 +107,7 @@ impl ListConsumerGroupOffsetsHost {
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), ListConsumerGroupOffsetsHostError> {
-        let input = {
+        let (input, retained_bytes) = {
             let operation = self
                 .operations
                 .get(index)
@@ -117,24 +116,24 @@ impl ListConsumerGroupOffsetsHost {
                 .raw_terminal
                 .as_ref()
                 .ok_or(ListConsumerGroupOffsetsHostError::MissingTerminal)?;
-            terminal_input(raw, &operation.group_id, operation.result_limit)
+            terminal_input(
+                raw,
+                operation.active_plan()?.group_id(),
+                operation.remaining_result_bytes,
+            )
         };
+        self.operations[index].debit_result_bytes(retained_bytes)?;
         let transition = self.operations[index].machine.apply(input)?;
         let raw = self.operations[index]
             .raw_terminal
             .take()
             .ok_or(ListConsumerGroupOffsetsHostError::MissingTerminal)?;
         raw.discard();
-        match transition.into_effect() {
-            Some(ListConsumerGroupOffsetsEffect::Complete {
-                operation_id,
-                terminal,
-            }) if operation_id == self.operations[index].operation_id => {
-                self.operations[index].terminal = Some(terminal);
-                self.publish_terminal(index)
-            }
-            _ => Err(ListConsumerGroupOffsetsHostError::MissingTerminal),
-        }
+        self.operations[index].active_plan = None;
+        let effect = transition
+            .into_effect()
+            .ok_or(ListConsumerGroupOffsetsHostError::MissingTerminal)?;
+        self.install_effect(index, effect)
     }
 
     pub(super) fn publish_terminal(

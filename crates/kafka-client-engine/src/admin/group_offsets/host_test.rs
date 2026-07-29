@@ -1,11 +1,15 @@
-//! Four-MiB admission, deadline, recovery, and reclamation scenarios.
+//! Retained-byte, deadline, batch re-arming, recovery, and reclamation scenarios.
 
 use std::time::Instant;
 
-use kafka_client_core::{ListConsumerGroupOffsetsPlan, Moment};
+use kafka_client_core::{
+    ListConsumerGroupOffsetsBatch as CoreOffsetsBatch, ListConsumerGroupOffsetsInput,
+    ListConsumerGroupOffsetsPlan, Moment,
+};
 
 use crate::clock::OperationDeadline;
 
+use super::ListConsumerGroupBatchOutcome;
 use super::{
     ListConsumerGroupOffsetsAdmissionErrorKind, ListConsumerGroupOffsetsDeliveryStatus,
     ListConsumerGroupOffsetsFailureKind, ListConsumerGroupOffsetsOutcome,
@@ -178,9 +182,107 @@ fn expired_call_boundary_deadline_never_reaches_driver_handoff() {
     crate::admin::test_support::stop_notifier(notifier);
 }
 
+#[test]
+fn one_batch_rearms_singleton_coordinator_submissions_and_debits_cumulative_results() {
+    let (mut host, notifier) = crate::admin::test_support::list_consumer_group_offsets_host();
+    let operation_deadline = deadline(50);
+    let admission = host
+        .try_admit(Moment::from_tick(1), operation_deadline, batch_plan())
+        .unwrap_or_else(|error| panic!("admit offset batch: {error:?}"));
+
+    let ListConsumerGroupOffsetsTurn::Submit(first) = host
+        .turn(Moment::from_tick(2))
+        .unwrap_or_else(|error| panic!("take first submission: {error}"))
+    else {
+        panic!("first singleton submission expected");
+    };
+    let (operation_id, first_deadline, first_plan, first_limit) = first.into_parts();
+    assert_eq!(first_deadline, operation_deadline);
+    assert_eq!(first_plan.group_ids(), ["z-readers"]);
+    host.apply_for_test(
+        operation_id,
+        ListConsumerGroupOffsetsInput::DriverAccepted,
+        0,
+    )
+    .unwrap_or_else(|error| panic!("accept first call: {error}"));
+    host.apply_for_test(
+        operation_id,
+        ListConsumerGroupOffsetsInput::BrokerRejected {
+            code: core::num::NonZeroI16::new(-719).unwrap_or_else(|| panic!("nonzero")),
+            throttle_time_ms: 41,
+        },
+        128,
+    )
+    .unwrap_or_else(|error| panic!("settle first call: {error}"));
+
+    let ListConsumerGroupOffsetsTurn::Submit(second) = host
+        .turn(Moment::from_tick(3))
+        .unwrap_or_else(|error| panic!("take second submission: {error}"))
+    else {
+        panic!("second singleton submission expected");
+    };
+    let (second_id, second_deadline, second_plan, second_limit) = second.into_parts();
+    assert_eq!(second_id, operation_id);
+    assert_eq!(second_deadline, first_deadline);
+    assert_eq!(second_plan.group_ids(), ["a-readers"]);
+    assert_eq!(second_limit, first_limit - 128);
+    host.apply_for_test(
+        operation_id,
+        ListConsumerGroupOffsetsInput::DriverAccepted,
+        0,
+    )
+    .and_then(|_| {
+        host.apply_for_test(
+            operation_id,
+            ListConsumerGroupOffsetsInput::BrokerResponded {
+                batch: CoreOffsetsBatch::new(17, Vec::new()),
+            },
+            96,
+        )
+    })
+    .unwrap_or_else(|error| panic!("settle second call: {error}"));
+
+    let ListConsumerGroupOffsetsOutcome::Batch(batch) = admission
+        .observer
+        .wait()
+        .unwrap_or_else(|error| panic!("observe offset batch: {error}"))
+    else {
+        panic!("batch terminal expected");
+    };
+    assert_eq!(batch.throttle_time_ms(), 41);
+    assert_eq!(batch.outcomes().len(), 2);
+    assert!(matches!(
+        &batch.outcomes()[0],
+        ListConsumerGroupBatchOutcome::BrokerRejected {
+            group_id,
+            code: -719,
+        } if group_id == "z-readers"
+    ));
+    assert!(matches!(
+        &batch.outcomes()[1],
+        ListConsumerGroupBatchOutcome::Offsets { group_id, .. }
+            if group_id == "a-readers"
+    ));
+
+    let _progress = host
+        .turn(Moment::from_tick(4))
+        .unwrap_or_else(|error| panic!("reclaim batch terminal: {error}"));
+    assert_eq!(host.retained_bytes_for_test(), 0);
+    drop(host);
+    crate::admin::test_support::stop_notifier(notifier);
+}
+
 fn plan() -> ListConsumerGroupOffsetsPlan {
     ListConsumerGroupOffsetsPlan::new("payments".to_owned(), true)
         .unwrap_or_else(|error| panic!("valid group-offset plan: {error}"))
+}
+
+fn batch_plan() -> ListConsumerGroupOffsetsPlan {
+    ListConsumerGroupOffsetsPlan::new_batch(
+        vec!["z-readers".to_owned(), "a-readers".to_owned()],
+        true,
+    )
+    .unwrap_or_else(|error| panic!("valid batch group-offset plan: {error}"))
 }
 
 fn deadline(tick: u64) -> OperationDeadline {

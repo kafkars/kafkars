@@ -1,4 +1,4 @@
-//! Scenarios for group-offset lifecycle and terminal single assignment.
+//! Scenarios for singular and batched group-offset lifecycle and terminal assignment.
 
 use core::num::NonZeroI16;
 
@@ -140,7 +140,10 @@ fn top_level_group_error_is_exact_and_terminal() {
     let mut machine = submitted_machine();
     let code = nonzero(-31_777);
     let transition = machine
-        .apply(ListConsumerGroupOffsetsInput::BrokerRejected { code })
+        .apply(ListConsumerGroupOffsetsInput::BrokerRejected {
+            code,
+            throttle_time_ms: 0,
+        })
         .unwrap_or_else(|error| panic!("group error should settle: {error}"));
 
     assert_failure(

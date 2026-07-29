@@ -5,7 +5,8 @@ use std::time::Duration;
 use kafka_client_engine::{
     GroupOffsetBrokerError as EngineBrokerError, GroupOffsetDescription as EngineOffsetDescription,
     ListConsumerGroupOffsetsAcceptedFaultKind, ListConsumerGroupOffsetsAdmissionError,
-    ListConsumerGroupOffsetsAdmissionErrorKind, ListConsumerGroupOffsetsDeliveryStatus,
+    ListConsumerGroupOffsetsAdmissionErrorKind,
+    ListConsumerGroupOffsetsBatch as EngineOffsetsBatch, ListConsumerGroupOffsetsDeliveryStatus,
     ListConsumerGroupOffsetsFailure, ListConsumerGroupOffsetsFailureKind,
     ListConsumerGroupOffsetsObserverError, ListConsumerGroupOffsetsOutcome,
 };
@@ -62,36 +63,43 @@ pub(super) fn translate_observation(
     result: Result<ListConsumerGroupOffsetsOutcome, ListConsumerGroupOffsetsObserverError>,
 ) -> AdminListConsumerGroupOffsetsResult {
     match result {
-        Ok(ListConsumerGroupOffsetsOutcome::Offsets(batch)) => {
-            let (throttle_time_ms, offsets) = batch.into_parts();
-            let entries = offsets
-                .into_iter()
-                .map(|offset| {
-                    let (topic, partition, result) = offset.into_parts();
-                    (
-                        TopicPartition::new(topic, partition),
-                        result
-                            .map(translate_offset)
-                            .map_err(translate_partition_error),
-                    )
-                })
-                .collect();
-            Ok(ListConsumerGroupOffsetsResult::new(
-                Duration::from_millis(u64::from(throttle_time_ms)),
-                BatchResult::new(entries),
-            ))
-        }
+        Ok(ListConsumerGroupOffsetsOutcome::Offsets(batch)) => Ok(translate_offsets_batch(batch)),
+        Ok(ListConsumerGroupOffsetsOutcome::Batch(_)) => Err(KafkaError::new(
+            ErrorKind::Internal,
+            "singular ListConsumerGroupOffsets received a batch terminal",
+        )
+        .with_delivery_status(DeliveryStatus::PossiblySent)),
         Ok(ListConsumerGroupOffsetsOutcome::Failed(failure)) => Err(translate_failure(failure)),
         Err(error) => Err(translate_observer_error(error)),
     }
 }
 
-fn translate_offset(offset: EngineOffsetDescription) -> ConsumerGroupOffset {
+pub(super) fn translate_offsets_batch(batch: EngineOffsetsBatch) -> ListConsumerGroupOffsetsResult {
+    let (throttle_time_ms, offsets) = batch.into_parts();
+    let entries = offsets
+        .into_iter()
+        .map(|offset| {
+            let (topic, partition, result) = offset.into_parts();
+            (
+                TopicPartition::new(topic, partition),
+                result
+                    .map(translate_offset)
+                    .map_err(translate_partition_error),
+            )
+        })
+        .collect();
+    ListConsumerGroupOffsetsResult::new(
+        Duration::from_millis(u64::from(throttle_time_ms)),
+        BatchResult::new(entries),
+    )
+}
+
+pub(super) fn translate_offset(offset: EngineOffsetDescription) -> ConsumerGroupOffset {
     let (committed_offset, leader_epoch, metadata) = offset.into_parts();
     ConsumerGroupOffset::new(committed_offset, leader_epoch, metadata)
 }
 
-fn translate_partition_error(error: EngineBrokerError) -> KafkaError {
+pub(super) fn translate_partition_error(error: EngineBrokerError) -> KafkaError {
     partition_error(error.code())
 }
 
@@ -104,7 +112,16 @@ pub(super) fn partition_error(code: i16) -> KafkaError {
     .with_delivery_status(DeliveryStatus::PossiblySent)
 }
 
-fn translate_failure(failure: ListConsumerGroupOffsetsFailure) -> KafkaError {
+pub(super) fn group_error(code: i16) -> KafkaError {
+    KafkaError::new(
+        ErrorKind::Broker,
+        format!("Kafka returned OffsetFetch group broker code {code}"),
+    )
+    .with_broker_code(Some(code))
+    .with_delivery_status(DeliveryStatus::PossiblySent)
+}
+
+pub(super) fn translate_failure(failure: ListConsumerGroupOffsetsFailure) -> KafkaError {
     translate_failure_parts(failure.kind(), failure.delivery())
 }
 

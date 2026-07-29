@@ -1,4 +1,4 @@
-//! Atomic completion and four-MiB envelope reservation before machine creation.
+//! Atomic completion and retained-byte reservation before group-offset machine creation.
 
 use core::mem::size_of;
 
@@ -35,7 +35,7 @@ impl ListConsumerGroupOffsetsHost {
         let operation_id = self
             .next_operation_id
             .ok_or(ListConsumerGroupOffsetsAdmissionErrorKind::IdentityExhausted)?;
-        let owner_charge = request_owner_charge(plan.group_id().len())
+        let owner_charge = request_owner_charge(&plan)
             .ok_or(ListConsumerGroupOffsetsAdmissionErrorKind::RetainedBytes)?;
         let result_limit = LIST_CONSUMER_GROUP_OFFSETS_RETAINED_BYTES
             .checked_sub(owner_charge)
@@ -50,22 +50,21 @@ impl ListConsumerGroupOffsetsHost {
 
         self.next_operation_id = operation_id.get().checked_add(1).map(OperationId::from_raw);
         self.retained_bytes = total_bytes;
-        let group_id = plan.group_id().to_owned();
         let mut operation = ListConsumerGroupOffsetsOperation {
             operation_id,
             machine: ListConsumerGroupOffsetsMachine::new(operation_id, deadline.core(), plan),
-            group_id,
+            active_plan: None,
             completion_id,
             deadline,
             retained_bytes: LIST_CONSUMER_GROUP_OFFSETS_RETAINED_BYTES,
-            result_limit,
+            remaining_result_bytes: result_limit,
             submission: None,
             handoff: ListConsumerGroupOffsetsHandoff::Untouched,
             call: None,
             raw_terminal: None,
             terminal: None,
         };
-        let start_result = start(&mut operation, now, deadline);
+        let start_result = start(&mut operation, now);
         let terminal_ready = matches!(start_result, Ok(true));
         let mut fault = start_result.err();
         if let Some(error) = fault {
@@ -88,7 +87,6 @@ impl ListConsumerGroupOffsetsHost {
 fn start(
     operation: &mut ListConsumerGroupOffsetsOperation,
     now: Moment,
-    deadline: OperationDeadline,
 ) -> Result<bool, ListConsumerGroupOffsetsHostError> {
     let transition = operation
         .machine
@@ -99,25 +97,14 @@ fn start(
             deadline: core_deadline,
             plan,
         }) => {
-            if operation_id != operation.operation_id || core_deadline != deadline.core() {
-                return Err(ListConsumerGroupOffsetsHostError::SubmissionMismatch);
-            }
-            operation.submission = Some(ListConsumerGroupOffsetsSubmission {
-                operation_id,
-                deadline,
-                plan,
-                result_limit: operation.result_limit,
-            });
+            operation.install_submission(operation_id, core_deadline, plan)?;
             Ok(false)
         }
         Some(ListConsumerGroupOffsetsEffect::Complete {
             operation_id,
             terminal,
         }) => {
-            if operation_id != operation.operation_id {
-                return Err(ListConsumerGroupOffsetsHostError::SubmissionMismatch);
-            }
-            operation.terminal = Some(terminal);
+            operation.install_terminal(operation_id, terminal)?;
             Ok(true)
         }
         None => Err(ListConsumerGroupOffsetsHostError::MissingSubmission),
@@ -131,10 +118,25 @@ fn reservation_error(error: CompletionRegistryError) -> ListConsumerGroupOffsets
     }
 }
 
-fn request_owner_charge(group_bytes: usize) -> Option<usize> {
+fn request_owner_charge(plan: &ListConsumerGroupOffsetsPlan) -> Option<usize> {
+    let group_text_bytes = plan
+        .group_ids()
+        .iter()
+        .try_fold(0usize, |total, group_id| total.checked_add(group_id.len()))?;
+    let group_entry_bytes = plan
+        .group_ids()
+        .len()
+        .checked_add(2)?
+        .checked_mul(size_of::<String>())?;
+    let duplicated_plan_bytes = group_text_bytes
+        .checked_mul(3)?
+        .checked_add(group_entry_bytes)?;
+    let batch_outcome_slots = plan
+        .group_ids()
+        .len()
+        .checked_mul(8usize.checked_mul(size_of::<usize>())?)?;
     size_of::<ListConsumerGroupOffsetsOperation>()
         .checked_add(size_of::<ListConsumerGroupOffsetsSubmission>())?
-        .checked_add(2usize.checked_mul(size_of::<ListConsumerGroupOffsetsPlan>())?)?
-        .checked_add(size_of::<String>())?
-        .checked_add(3usize.checked_mul(group_bytes)?)
+        .checked_add(duplicated_plan_bytes)
+        .and_then(|charge| charge.checked_add(batch_outcome_slots))
 }

@@ -1,11 +1,12 @@
-//! Single-owner lifecycle vocabulary for one consumer-group offset query.
+//! Single-owner lifecycle vocabulary for singular and batched group-offset queries.
 
-use core::{fmt, num::NonZeroI16};
+use core::{fmt, mem::size_of, num::NonZeroI16};
 
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
 use super::{
     ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsPlan, ListConsumerGroupOffsetsTerminal,
+    model::ListConsumerGroupOffsetsPlanShape, outcome::ListConsumerGroupBatchOutcome,
 };
 
 /// Current ownership stage for one consumer-group offset query.
@@ -49,6 +50,8 @@ pub enum ListConsumerGroupOffsetsInput {
     BrokerRejected {
         /// Kafka's exact nonzero signed error code.
         code: NonZeroI16,
+        /// Nonnegative throttle observed for this group response.
+        throttle_time_ms: u32,
     },
     /// Reports a structurally valid response exceeding retained capacity.
     ResponseTooLarge,
@@ -117,26 +120,52 @@ pub struct ListConsumerGroupOffsetsMachine {
     pub(crate) deadline: Deadline,
     pub(crate) plan: ListConsumerGroupOffsetsPlan,
     pub(crate) state: ListConsumerGroupOffsetsState,
+    pub(crate) next_group: usize,
+    pub(crate) maximum_throttle_time_ms: u32,
+    pub(crate) outcomes: Vec<ListConsumerGroupBatchOutcome>,
 }
 
 impl ListConsumerGroupOffsetsMachine {
     /// Creates one accepted operation after engine terminal reservation.
-    pub const fn new(
+    pub fn new(
         operation_id: OperationId,
         deadline: Deadline,
         plan: ListConsumerGroupOffsetsPlan,
     ) -> Self {
+        let outcomes = match plan.shape() {
+            ListConsumerGroupOffsetsPlanShape::Singular => Vec::new(),
+            ListConsumerGroupOffsetsPlanShape::Batch => {
+                let capacity = plan.group_ids().len();
+                debug_assert!(
+                    capacity
+                        .checked_mul(size_of::<ListConsumerGroupBatchOutcome>())
+                        .is_some()
+                );
+                Vec::with_capacity(capacity)
+            }
+        };
         Self {
             operation_id,
             deadline,
             plan,
             state: ListConsumerGroupOffsetsState::Ready,
+            next_group: 0,
+            maximum_throttle_time_ms: 0,
+            outcomes,
         }
     }
 
     /// Returns the current lifecycle stage.
     pub const fn state(&self) -> ListConsumerGroupOffsetsState {
         self.state
+    }
+
+    /// Returns the exact group currently awaiting or owned by the driver.
+    pub fn current_group_id(&self) -> Option<&str> {
+        self.plan
+            .group_ids()
+            .get(self.next_group)
+            .map(String::as_str)
     }
 }
 

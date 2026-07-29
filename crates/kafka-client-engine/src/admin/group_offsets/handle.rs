@@ -1,4 +1,4 @@
-//! Runtime-neutral admission of one concrete consumer-group offset query.
+//! Runtime-neutral admission of singular and batched group-offset queries.
 
 use std::{fmt, time::Duration};
 
@@ -7,6 +7,7 @@ use crate::admin::AdminHandle;
 use super::{
     ListConsumerGroupOffsetsAdmissionError, ListConsumerGroupOffsetsAdmissionErrorKind,
     ListConsumerGroupOffsetsObserver, ListConsumerGroupOffsetsRequest,
+    ListConsumerGroupsOffsetsRequest,
 };
 
 impl AdminHandle {
@@ -14,6 +15,41 @@ impl AdminHandle {
     pub fn try_list_consumer_group_offsets(
         &self,
         request: ListConsumerGroupOffsetsRequest,
+        timeout: Duration,
+    ) -> Result<ListConsumerGroupOffsetsAccepted, ListConsumerGroupOffsetsAdmissionError> {
+        let capture = self
+            .clock
+            .capture_deadline_after(timeout)
+            .map_err(|_error| {
+                ListConsumerGroupOffsetsAdmissionError::new(
+                    ListConsumerGroupOffsetsAdmissionErrorKind::InvalidDeadline,
+                )
+            })?;
+        if timeout.is_zero() {
+            return Err(ListConsumerGroupOffsetsAdmissionError::new(
+                ListConsumerGroupOffsetsAdmissionErrorKind::InvalidDeadline,
+            ));
+        }
+        let request = request.canonicalize();
+        let plan = request.into_plan().map_err(|_error| {
+            ListConsumerGroupOffsetsAdmissionError::new(
+                ListConsumerGroupOffsetsAdmissionErrorKind::InvalidRequest,
+            )
+        })?;
+        let admission = self
+            .list_consumer_group_offsets
+            .try_admit(capture.now(), capture.operation_deadline(), plan)
+            .map_err(ListConsumerGroupOffsetsAdmissionError::new)?;
+        Ok(ListConsumerGroupOffsetsAccepted {
+            observer: admission.observer,
+            fault: admission.fault.map(accepted_fault_kind),
+        })
+    }
+
+    /// Attempts one caller-ordered multi-group operation at one public boundary.
+    pub fn try_list_consumer_groups_offsets(
+        &self,
+        request: ListConsumerGroupsOffsetsRequest,
         timeout: Duration,
     ) -> Result<ListConsumerGroupOffsetsAccepted, ListConsumerGroupOffsetsAdmissionError> {
         let capture = self

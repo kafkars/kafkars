@@ -3,14 +3,19 @@
 mod alter_operation;
 mod alter_request;
 mod alter_result;
+mod list_groups_operation;
+mod list_groups_result;
 mod list_operation;
 mod list_request;
 mod list_result;
 
 pub(crate) use alter_operation::AdminAlterConsumerGroupOffsets;
 pub(crate) use alter_request::AlterConsumerGroupOffsetsAdminRequest;
+pub(crate) use list_groups_operation::AdminListConsumerGroupsOffsets;
 pub(crate) use list_operation::AdminListConsumerGroupOffsets;
-pub(crate) use list_request::ListConsumerGroupOffsetsAdminRequest;
+pub(crate) use list_request::{
+    ListConsumerGroupOffsetsAdminRequest, ListConsumerGroupsOffsetsAdminRequest,
+};
 
 #[cfg(test)]
 mod alter_operation_test;
