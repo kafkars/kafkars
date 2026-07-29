@@ -1,9 +1,14 @@
 //! Atomic `DescribeTopics` lifecycle transitions and terminal single assignment.
 
+mod validation;
+
+#[cfg(test)]
+mod topic_id_test;
+
 use super::{
-    DescribeTopicOutcome, DescribeTopicsEffect, DescribeTopicsFailure, DescribeTopicsInput,
-    DescribeTopicsMachine, DescribeTopicsMachineError, DescribeTopicsSelection,
-    DescribeTopicsState, DescribeTopicsTerminal, DescribeTopicsTransition,
+    DescribeTopicIdOutcome, DescribeTopicOutcome, DescribeTopicsEffect, DescribeTopicsFailure,
+    DescribeTopicsInput, DescribeTopicsMachine, DescribeTopicsMachineError,
+    DescribeTopicsSelection, DescribeTopicsState, DescribeTopicsTerminal, DescribeTopicsTransition,
 };
 
 impl DescribeTopicsMachine {
@@ -24,6 +29,9 @@ impl DescribeTopicsMachine {
                 self.driver_deadline_elapsed(delivery)
             }
             DescribeTopicsInput::BrokerResponded { outcomes } => self.broker_responded(outcomes),
+            DescribeTopicsInput::BrokerRespondedById { outcomes } => {
+                self.broker_responded_by_id(outcomes)
+            }
             DescribeTopicsInput::BrokerRejected { code } => self.broker_rejected(code),
             DescribeTopicsInput::ResponseTooLarge => self.response_too_large(),
             DescribeTopicsInput::ProtocolIncompatible => self.protocol_incompatible(),
@@ -94,6 +102,36 @@ impl DescribeTopicsMachine {
         Ok(self.finish(DescribeTopicsTerminal::Topics(outcomes)))
     }
 
+    fn broker_responded_by_id(
+        &mut self,
+        outcomes: Vec<DescribeTopicIdOutcome>,
+    ) -> Result<DescribeTopicsTransition, DescribeTopicsMachineError> {
+        if self.state != DescribeTopicsState::Submitted {
+            return Err(DescribeTopicsMachineError::InvalidState);
+        }
+        let DescribeTopicsSelection::Ids(topic_ids) = self.plan.selection() else {
+            return Err(DescribeTopicsMachineError::OutcomeSelectionMismatch);
+        };
+        if topic_ids.len() != outcomes.len() {
+            return Err(DescribeTopicsMachineError::OutcomeCountMismatch);
+        }
+        if topic_ids
+            .iter()
+            .zip(&outcomes)
+            .any(|(topic_id, outcome)| *topic_id != outcome.topic_id())
+        {
+            return Err(DescribeTopicsMachineError::OutcomeTopicIdMismatch);
+        }
+        if !self.plan.include_authorized_operations()
+            && outcomes
+                .iter()
+                .any(DescribeTopicIdOutcome::has_authorized_operations)
+        {
+            return Err(DescribeTopicsMachineError::UnexpectedAuthorizedOperations);
+        }
+        Ok(self.finish(DescribeTopicsTerminal::TopicIds(outcomes)))
+    }
+
     fn transport_failed(
         &mut self,
         delivery: crate::DeliveryStatus,
@@ -161,28 +199,6 @@ impl DescribeTopicsMachine {
         )))
     }
 
-    fn validate_outcomes(
-        &self,
-        outcomes: &[DescribeTopicOutcome],
-    ) -> Result<(), DescribeTopicsMachineError> {
-        match self.plan.selection() {
-            DescribeTopicsSelection::Named(topics) => {
-                if topics.len() != outcomes.len() {
-                    return Err(DescribeTopicsMachineError::OutcomeCountMismatch);
-                }
-                if topics
-                    .iter()
-                    .zip(outcomes)
-                    .any(|(topic, outcome)| topic != outcome.topic())
-                {
-                    return Err(DescribeTopicsMachineError::OutcomeTopicMismatch);
-                }
-            }
-            DescribeTopicsSelection::All { .. } => validate_all_outcomes(outcomes)?,
-        }
-        Ok(())
-    }
-
     fn finish(&mut self, terminal: DescribeTopicsTerminal) -> DescribeTopicsTransition {
         self.state = DescribeTopicsState::Completed;
         DescribeTopicsTransition::one(DescribeTopicsEffect::Complete {
@@ -190,24 +206,4 @@ impl DescribeTopicsMachine {
             terminal,
         })
     }
-}
-
-fn validate_all_outcomes(
-    outcomes: &[DescribeTopicOutcome],
-) -> Result<(), DescribeTopicsMachineError> {
-    if outcomes.iter().any(|outcome| outcome.topic().is_empty()) {
-        return Err(DescribeTopicsMachineError::EmptyOutcomeTopic);
-    }
-    for pair in outcomes.windows(2) {
-        match pair[0].topic().as_bytes().cmp(pair[1].topic().as_bytes()) {
-            core::cmp::Ordering::Less => {}
-            core::cmp::Ordering::Equal => {
-                return Err(DescribeTopicsMachineError::DuplicateOutcomeTopic);
-            }
-            core::cmp::Ordering::Greater => {
-                return Err(DescribeTopicsMachineError::OutcomeTopicOrder);
-            }
-        }
-    }
-    Ok(())
 }

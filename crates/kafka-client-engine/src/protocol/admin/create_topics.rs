@@ -1,9 +1,9 @@
 //! Generated `CreateTopics` construction and ordered response normalization.
 
-use kafka_client_core::{CreateTopicOutcome, CreateTopicsPlan};
+use kafka_client_core::{CreateTopicOutcome, CreateTopicPlacement, CreateTopicsPlan};
 use kafka_wire::{
     CreateTopicsRequest, CreateTopicsResponse,
-    create_topics_request::{CreatableTopic, CreatableTopicConfig},
+    create_topics_request::{CreatableReplicaAssignment, CreatableTopic, CreatableTopicConfig},
     create_topics_response::CreatableTopicResult,
 };
 
@@ -67,8 +67,28 @@ pub(crate) fn create_topics_request(
                 .collect();
             let mut wire_topic = CreatableTopic::default();
             wire_topic.name = topic.name().into();
-            wire_topic.num_partitions = topic.partitions();
-            wire_topic.replication_factor = topic.replication_factor();
+            match topic.placement() {
+                CreateTopicPlacement::Automatic {
+                    partitions,
+                    replication_factor,
+                } => {
+                    wire_topic.num_partitions = *partitions;
+                    wire_topic.replication_factor = *replication_factor;
+                }
+                CreateTopicPlacement::Manual { assignments, .. } => {
+                    wire_topic.num_partitions = -1;
+                    wire_topic.replication_factor = -1;
+                    wire_topic.assignments = assignments
+                        .iter()
+                        .map(|assignment| {
+                            let mut wire_assignment = CreatableReplicaAssignment::default();
+                            wire_assignment.partition_index = assignment.partition_index();
+                            wire_assignment.broker_ids = assignment.broker_ids().to_vec();
+                            wire_assignment
+                        })
+                        .collect();
+                }
+            }
             wire_topic.configs = configs;
             wire_topic
         })

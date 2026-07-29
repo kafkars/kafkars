@@ -1,7 +1,8 @@
 //! Generated `CreateTopics` request and response boundary scenarios.
 
 use kafka_client_core::{
-    CreateTopicConfig, CreateTopicResult, CreateTopicSpecification, CreateTopicsPlan,
+    CreateTopicConfig, CreateTopicReplicaAssignment, CreateTopicResult, CreateTopicSpecification,
+    CreateTopicsPlan,
 };
 use kafka_wire::{CreateTopicsResponse, create_topics_response::CreatableTopicResult};
 
@@ -43,6 +44,25 @@ fn response(topics: Vec<CreatableTopicResult>) -> CreateTopicsResponse {
     response
 }
 
+fn manual_plan() -> CreateTopicsPlan {
+    CreateTopicsPlan::new(
+        vec![CreateTopicSpecification::manual(
+            "placed",
+            vec![
+                CreateTopicReplicaAssignment::new(0, vec![7, 3]),
+                CreateTopicReplicaAssignment::new(1, vec![3, 9]),
+            ],
+            None,
+            vec![CreateTopicConfig::new(
+                "cleanup.policy",
+                Some("compact".to_owned()),
+            )],
+        )],
+        false,
+    )
+    .unwrap_or_else(|error| panic!("valid manual CreateTopics plan: {error}"))
+}
+
 #[test]
 fn generated_request_preserves_order_nullable_configs_and_broker_timeout() {
     let request = create_topics_request(&plan(), 12_345)
@@ -54,6 +74,7 @@ fn generated_request_preserves_order_nullable_configs_and_broker_timeout() {
     assert_eq!(request.topics[1].name.as_str(), "audit");
     assert_eq!(request.topics[0].num_partitions, 3);
     assert_eq!(request.topics[0].replication_factor, 2);
+    assert!(request.topics[0].assignments.is_empty());
     assert_eq!(request.topics[0].configs[0].name.as_str(), "cleanup.policy");
     assert!(matches!(
         request.topics[0].configs[0].value.as_ref(),
@@ -64,6 +85,22 @@ fn generated_request_preserves_order_nullable_configs_and_broker_timeout() {
         create_topics_request(&plan(), -1),
         Err(CreateTopicsRequestError::NegativeTimeout)
     );
+}
+
+#[test]
+fn generated_request_writes_manual_assignments_and_exact_sentinels() {
+    let request = create_topics_request(&manual_plan(), 4_321)
+        .unwrap_or_else(|error| panic!("valid generated manual request: {error:?}"));
+    let topic = &request.topics[0];
+    assert_eq!(topic.name.as_str(), "placed");
+    assert_eq!(topic.num_partitions, -1);
+    assert_eq!(topic.replication_factor, -1);
+    assert_eq!(topic.assignments.len(), 2);
+    assert_eq!(topic.assignments[0].partition_index, 0);
+    assert_eq!(topic.assignments[0].broker_ids, vec![7, 3]);
+    assert_eq!(topic.assignments[1].partition_index, 1);
+    assert_eq!(topic.assignments[1].broker_ids, vec![3, 9]);
+    assert_eq!(topic.configs[0].name.as_str(), "cleanup.policy");
 }
 
 #[test]

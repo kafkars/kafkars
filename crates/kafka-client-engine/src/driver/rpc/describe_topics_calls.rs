@@ -2,14 +2,20 @@
 
 use std::{error::Error, fmt};
 
-use kafka_client_core::{DescribeTopicsInput, DescribeTopicsPlan, OperationId};
-use kafka_driver::{Call, CompletionError, RequestError};
+use kafka_client_core::{
+    DescribeTopicsInput, DescribeTopicsPlan, DescribeTopicsSelection, OperationId,
+};
+use kafka_driver::{ApiVersion, Call, CompletionError, RequestError};
 use kafka_wire::MetadataResponse;
 
 use crate::{clock::OperationDeadline, protocol::admin::describe_topics::describe_topics_request};
 
 use super::{
-    super::DriverOwner, describe_topics_submission::DescribeTopicsSubmitError,
+    super::DriverOwner,
+    describe_topics_submission::{
+        DESCRIBE_TOPICS_AUTHORIZED_OPERATIONS_MIN_VERSION, DESCRIBE_TOPICS_ID_MIN_VERSION,
+        DESCRIBE_TOPICS_MIN_VERSION, DescribeTopicsSubmitError,
+    },
     describe_topics_terminal::normalize_terminal,
 };
 
@@ -34,7 +40,8 @@ impl DescribeTopicsCallPermit<'_> {
         retained_bytes: usize,
     ) -> Result<(), DescribeTopicsAdmissionFailure> {
         let request = describe_topics_request(&plan);
-        let call = driver.submit_describe_topics(request, deadline.transport())?;
+        let minimum_version = describe_topics_minimum_version(&plan);
+        let call = driver.submit_describe_topics(request, deadline.transport(), minimum_version)?;
         self.calls.push(DescribeTopicsCall {
             operation_id,
             plan,
@@ -42,6 +49,20 @@ impl DescribeTopicsCallPermit<'_> {
             call,
         });
         Ok(())
+    }
+}
+
+pub(super) const fn describe_topics_minimum_version(plan: &DescribeTopicsPlan) -> ApiVersion {
+    match plan.selection() {
+        DescribeTopicsSelection::Ids(_) => DESCRIBE_TOPICS_ID_MIN_VERSION,
+        DescribeTopicsSelection::Named(_) | DescribeTopicsSelection::All { .. }
+            if plan.include_authorized_operations() =>
+        {
+            DESCRIBE_TOPICS_AUTHORIZED_OPERATIONS_MIN_VERSION
+        }
+        DescribeTopicsSelection::Named(_) | DescribeTopicsSelection::All { .. } => {
+            DESCRIBE_TOPICS_MIN_VERSION
+        }
     }
 }
 

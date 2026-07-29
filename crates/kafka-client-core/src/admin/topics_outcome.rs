@@ -40,6 +40,49 @@ pub struct DescribeTopicOutcome {
     result: DescribeTopicResult,
 }
 
+/// One topic-ID-keyed per-resource result in caller order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DescribeTopicIdOutcome {
+    topic_id: [u8; 16],
+    result: DescribeTopicResult,
+}
+
+impl DescribeTopicIdOutcome {
+    /// Creates a successful result correlated to the exact requested topic ID.
+    pub fn described(topic_id: [u8; 16], description: TopicDescription) -> Self {
+        Self {
+            topic_id,
+            result: DescribeTopicResult::Described(description),
+        }
+    }
+
+    /// Creates a failed result correlated to the exact requested topic ID.
+    pub const fn failed(topic_id: [u8; 16], error: DescribeTopicBrokerError) -> Self {
+        Self {
+            topic_id,
+            result: DescribeTopicResult::Failed(error),
+        }
+    }
+
+    /// Returns the exact requested topic ID.
+    pub const fn topic_id(&self) -> [u8; 16] {
+        self.topic_id
+    }
+
+    pub(crate) const fn has_authorized_operations(&self) -> bool {
+        matches!(
+            &self.result,
+            DescribeTopicResult::Described(description)
+                if description.authorized_operations().is_some()
+        )
+    }
+
+    /// Consumes this ordered outcome into adapter-owned parts.
+    pub fn into_parts(self) -> ([u8; 16], DescribeTopicResult) {
+        (self.topic_id, self.result)
+    }
+}
+
 impl DescribeTopicOutcome {
     /// Creates a successful per-topic result.
     pub fn described(description: TopicDescription) -> Self {
@@ -71,6 +114,14 @@ impl DescribeTopicOutcome {
     /// Returns whether Kafka marks this topic as internal.
     pub const fn is_internal(&self) -> bool {
         self.internal
+    }
+
+    pub(crate) const fn has_authorized_operations(&self) -> bool {
+        matches!(
+            &self.result,
+            DescribeTopicResult::Described(description)
+                if description.authorized_operations().is_some()
+        )
     }
 
     /// Consumes this ordered outcome into adapter-owned parts.
@@ -178,6 +229,8 @@ impl DescribeTopicsFailure {
 pub enum DescribeTopicsTerminal {
     /// Ordered per-topic broker outcomes.
     Topics(Vec<DescribeTopicOutcome>),
+    /// Caller-ordered topic-ID-keyed broker outcomes.
+    TopicIds(Vec<DescribeTopicIdOutcome>),
     /// Whole-operation failure outside per-topic broker results.
     Failed(DescribeTopicsFailure),
 }

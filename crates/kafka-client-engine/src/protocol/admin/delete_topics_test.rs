@@ -2,10 +2,11 @@
 
 use kafka_client_core::{DeleteTopicResult, DeleteTopicsPlan};
 use kafka_wire::{DeleteTopicsResponse, delete_topics_response::DeletableTopicResult};
+use kafka_wire_core::Uuid;
 
 use super::delete_topics::{
     DeleteTopicsProtocolFailure, DeleteTopicsRequestError, delete_topics_request,
-    normalize_delete_topics_response_bounded,
+    normalize_delete_topic_ids_response_bounded, normalize_delete_topics_response_bounded,
 };
 
 fn plan() -> DeleteTopicsPlan {
@@ -21,10 +22,38 @@ fn result(topic: Option<&str>, error_code: i16, message: Option<&str>) -> Deleta
     result
 }
 
+fn id_result(
+    topic_id: [u8; 16],
+    topic: Option<&str>,
+    error_code: i16,
+    message: Option<&str>,
+) -> DeletableTopicResult {
+    let mut result = result(topic, error_code, message);
+    result.topic_id = Uuid::from_bytes(topic_id);
+    result
+}
+
 fn response(results: Vec<DeletableTopicResult>) -> DeleteTopicsResponse {
     let mut response = DeleteTopicsResponse::default();
     response.responses = results;
     response
+}
+
+#[test]
+fn generated_topic_id_request_uses_only_v6_identity_structs() {
+    let first = [1; 16];
+    let second = [2; 16];
+    let plan = DeleteTopicsPlan::by_ids(vec![first, second])
+        .unwrap_or_else(|error| panic!("valid topic-ID deletion plan: {error}"));
+    let request = delete_topics_request(&plan, 54_321)
+        .unwrap_or_else(|error| panic!("valid generated request: {error:?}"));
+    assert!(request.topic_names.is_empty());
+    assert_eq!(request.timeout_ms, 54_321);
+    assert_eq!(request.topics.len(), 2);
+    assert_eq!(request.topics[0].name, None);
+    assert_eq!(request.topics[0].topic_id, Uuid::from_bytes(first));
+    assert_eq!(request.topics[1].name, None);
+    assert_eq!(request.topics[1].topic_id, Uuid::from_bytes(second));
 }
 
 #[test]
@@ -97,5 +126,54 @@ fn oversized_unexpected_name_is_rejected_without_retaining_a_copy() {
     assert_eq!(
         normalize_delete_topics_response_bounded(&plan(), &unexpected, usize::MAX),
         Err(DeleteTopicsProtocolFailure::UnexpectedTopic)
+    );
+}
+
+#[test]
+fn topic_id_response_uses_ids_in_caller_order_and_accepts_null_names() {
+    let first = [1; 16];
+    let second = [2; 16];
+    let plan = DeleteTopicsPlan::by_ids(vec![first, second])
+        .unwrap_or_else(|error| panic!("valid topic-ID deletion plan: {error}"));
+    let response = response(vec![
+        id_result(second, None, -32_000, Some("future broker code")),
+        id_result(first, None, 0, None),
+    ]);
+    let outcomes = normalize_delete_topic_ids_response_bounded(&plan, &response, usize::MAX)
+        .unwrap_or_else(|error| panic!("correlatable topic-ID response: {error:?}"));
+    assert_eq!(outcomes[0].topic_id(), first);
+    assert!(matches!(
+        outcomes[0].clone().into_parts().1,
+        DeleteTopicResult::Deleted
+    ));
+    let (_, DeleteTopicResult::Failed(error)) = outcomes[1].clone().into_parts() else {
+        panic!("unknown broker code became a false success");
+    };
+    assert_eq!(outcomes[1].topic_id(), second);
+    assert_eq!(error.code(), -32_000);
+    assert_eq!(error.message(), Some("future broker code"));
+}
+
+#[test]
+fn topic_id_response_rejects_unknown_and_duplicate_ids_without_using_names() {
+    let first = [1; 16];
+    let second = [2; 16];
+    let plan = DeleteTopicsPlan::by_ids(vec![first, second])
+        .unwrap_or_else(|error| panic!("valid topic-ID deletion plan: {error}"));
+    let unknown = response(vec![
+        id_result(first, Some("wrong-name"), 0, None),
+        id_result([9; 16], None, 0, None),
+    ]);
+    assert_eq!(
+        normalize_delete_topic_ids_response_bounded(&plan, &unknown, usize::MAX),
+        Err(DeleteTopicsProtocolFailure::UnexpectedTopicId)
+    );
+    let duplicate = response(vec![
+        id_result(first, None, 0, None),
+        id_result(first, None, 0, None),
+    ]);
+    assert_eq!(
+        normalize_delete_topic_ids_response_bounded(&plan, &duplicate, usize::MAX),
+        Err(DeleteTopicsProtocolFailure::DuplicateTopicId)
     );
 }

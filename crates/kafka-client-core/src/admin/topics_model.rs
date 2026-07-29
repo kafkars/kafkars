@@ -8,6 +8,8 @@ use std::collections::BTreeSet;
 pub enum DescribeTopicsSelection {
     /// Describe these unique topic names in caller order.
     Named(Vec<String>),
+    /// Describe these unique nonzero topic IDs in caller order.
+    Ids(Vec<[u8; 16]>),
     /// Describe every topic visible to the authenticated principal.
     All {
         /// Whether core retains broker-marked internal topics in the terminal.
@@ -19,7 +21,7 @@ impl DescribeTopicsSelection {
     /// Returns whether an all-topic query retains broker-marked internal topics.
     pub const fn includes_internal_topics(&self) -> bool {
         match self {
-            Self::Named(_) => true,
+            Self::Named(_) | Self::Ids(_) => true,
             Self::All { include_internal } => *include_internal,
         }
     }
@@ -29,6 +31,7 @@ impl DescribeTopicsSelection {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DescribeTopicsPlan {
     selection: DescribeTopicsSelection,
+    include_authorized_operations: bool,
 }
 
 impl DescribeTopicsPlan {
@@ -48,6 +51,27 @@ impl DescribeTopicsPlan {
         }
         Ok(Self {
             selection: DescribeTopicsSelection::Named(topics),
+            include_authorized_operations: false,
+        })
+    }
+
+    /// Validates a nonempty batch of unique, nonzero topic IDs.
+    pub fn by_ids(topic_ids: Vec<[u8; 16]>) -> Result<Self, DescribeTopicsPlanError> {
+        if topic_ids.is_empty() {
+            return Err(DescribeTopicsPlanError::EmptyBatch);
+        }
+        let mut ids = BTreeSet::new();
+        for topic_id in &topic_ids {
+            if *topic_id == [0; 16] {
+                return Err(DescribeTopicsPlanError::ZeroTopicId);
+            }
+            if !ids.insert(*topic_id) {
+                return Err(DescribeTopicsPlanError::DuplicateTopicId);
+            }
+        }
+        Ok(Self {
+            selection: DescribeTopicsSelection::Ids(topic_ids),
+            include_authorized_operations: false,
         })
     }
 
@@ -55,12 +79,24 @@ impl DescribeTopicsPlan {
     pub const fn all(include_internal: bool) -> Self {
         Self {
             selection: DescribeTopicsSelection::All { include_internal },
+            include_authorized_operations: false,
         }
+    }
+
+    /// Selects whether Kafka should return the caller's topic authorization bitfield.
+    pub const fn with_authorized_operations(mut self, include: bool) -> Self {
+        self.include_authorized_operations = include;
+        self
     }
 
     /// Returns the exact query selection.
     pub const fn selection(&self) -> &DescribeTopicsSelection {
         &self.selection
+    }
+
+    /// Returns whether topic authorization bitfields were requested.
+    pub const fn include_authorized_operations(&self) -> bool {
+        self.include_authorized_operations
     }
 }
 
@@ -73,6 +109,10 @@ pub enum DescribeTopicsPlanError {
     EmptyTopicName,
     /// Topic names in one batch must be unique.
     DuplicateTopic,
+    /// The all-zero protocol sentinel is not a topic identity.
+    ZeroTopicId,
+    /// Topic IDs in one batch must be unique.
+    DuplicateTopicId,
 }
 
 impl fmt::Display for DescribeTopicsPlanError {
@@ -81,6 +121,8 @@ impl fmt::Display for DescribeTopicsPlanError {
             Self::EmptyBatch => "DescribeTopics batch is empty",
             Self::EmptyTopicName => "DescribeTopics topic name is empty",
             Self::DuplicateTopic => "DescribeTopics batch contains a duplicate topic",
+            Self::ZeroTopicId => "DescribeTopics topic ID is the all-zero sentinel",
+            Self::DuplicateTopicId => "DescribeTopics batch contains a duplicate topic ID",
         })
     }
 }

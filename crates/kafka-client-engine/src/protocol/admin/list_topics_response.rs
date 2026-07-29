@@ -26,7 +26,7 @@ pub(super) fn normalize_list_topics_response(
                 .name
                 .as_ref()
                 .ok_or(DescribeTopicsProtocolFailure::MissingTopicName)?;
-            normalize_topic(name.as_str(), topic)
+            normalize_topic(name.as_str(), topic, false)
         })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(DescribeTopicsInput::BrokerResponded { outcomes })

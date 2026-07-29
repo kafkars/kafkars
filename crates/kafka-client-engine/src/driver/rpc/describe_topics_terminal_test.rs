@@ -106,6 +106,21 @@ fn version_floor_and_bounds_fail_before_metadata_transport() {
     }
 }
 
+#[test]
+fn old_broker_cannot_silently_drop_requested_authorized_operations() {
+    let plan = plan().with_authorized_operations(true);
+    let input = normalize_terminal(
+        &plan,
+        128 * 1024,
+        Err(RequestError::VersionFloorUnavailable {
+            api_key: ApiKey::new(3),
+            minimum: ApiVersion::new(8),
+            negotiated_maximum: ApiVersion::new(7),
+        }),
+    );
+    assert_eq!(input, DescribeTopicsInput::ProtocolIncompatible);
+}
+
 fn plan() -> DescribeTopicsPlan {
     DescribeTopicsPlan::new(vec!["orders".to_owned()])
         .unwrap_or_else(|error| panic!("valid DescribeTopics plan: {error}"))

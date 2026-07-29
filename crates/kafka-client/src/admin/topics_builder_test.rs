@@ -9,6 +9,9 @@ use crate::{Client, DeliveryStatus, ErrorKind};
 fn describe_topics_builder_is_send_before_single_submission() {
     fn assert_send<T: Send>() {}
     assert_send::<DescribeTopicsBuilder>();
+    let option: fn(DescribeTopicsBuilder, bool) -> DescribeTopicsBuilder =
+        DescribeTopicsBuilder::include_authorized_operations;
+    let _ = option;
 }
 
 #[test]

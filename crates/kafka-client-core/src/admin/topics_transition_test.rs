@@ -157,6 +157,35 @@ fn response_must_match_request_count_and_order() {
 }
 
 #[test]
+fn response_cannot_smuggle_unrequested_authorized_operations() {
+    let mut machine = machine(20);
+    machine
+        .apply(DescribeTopicsInput::Start {
+            now: Moment::from_tick(1),
+        })
+        .unwrap_or_else(|error| panic!("start should succeed: {error}"));
+    machine
+        .apply(DescribeTopicsInput::DriverAccepted)
+        .unwrap_or_else(|error| panic!("driver acceptance should succeed: {error}"));
+    let outcomes = vec![
+        DescribeTopicOutcome::described(
+            TopicDescription::new("orders".to_owned(), None, false, Vec::new())
+                .with_authorized_operations(Some(0x21)),
+        ),
+        DescribeTopicOutcome::described(TopicDescription::new(
+            "audit".to_owned(),
+            None,
+            false,
+            Vec::new(),
+        )),
+    ];
+    assert_eq!(
+        machine.apply(DescribeTopicsInput::BrokerResponded { outcomes }),
+        Err(DescribeTopicsMachineError::UnexpectedAuthorizedOperations)
+    );
+}
+
+#[test]
 fn top_level_unknown_broker_code_is_terminal_and_exact() {
     let mut machine = machine(20);
     machine

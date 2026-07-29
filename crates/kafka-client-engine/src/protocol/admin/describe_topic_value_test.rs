@@ -12,8 +12,8 @@ fn success_derives_one_consistent_topic_name_and_internal_fact() {
     topic.is_internal = true;
     topic.partitions = vec![partition(1), partition(0)];
 
-    let outcome =
-        normalize_topic("orders", &topic).unwrap_or_else(|error| panic!("valid topic: {error:?}"));
+    let outcome = normalize_topic("orders", &topic, false)
+        .unwrap_or_else(|error| panic!("valid topic: {error:?}"));
     assert_eq!(outcome.topic(), "orders");
     assert!(outcome.is_internal());
     let (_, internal, DescribeTopicResult::Described(description)) = outcome.into_parts() else {
@@ -32,7 +32,7 @@ fn failure_preserves_internal_status_and_exact_signed_broker_code() {
     topic.is_internal = true;
     topic.error_code = -731;
 
-    let outcome = normalize_topic("consumer_offsets", &topic)
+    let outcome = normalize_topic("consumer_offsets", &topic, false)
         .unwrap_or_else(|error| panic!("valid broker failure: {error:?}"));
     let (name, internal, DescribeTopicResult::Failed(error)) = outcome.into_parts() else {
         panic!("broker failure expected");

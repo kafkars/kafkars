@@ -3,7 +3,8 @@
 use core::num::NonZeroI16;
 
 use super::{
-    DescribeTopicBrokerError, DescribeTopicOutcome, DescribeTopicResult, TopicDescription,
+    DescribeTopicBrokerError, DescribeTopicIdOutcome, DescribeTopicOutcome, DescribeTopicResult,
+    TopicDescription,
 };
 
 #[test]
@@ -38,4 +39,19 @@ fn failed_outcome_retains_exact_internal_and_broker_facts() {
     assert_eq!(topic, "consumer_offsets");
     assert!(internal);
     assert_eq!(error.code(), -731);
+}
+
+#[test]
+fn topic_id_outcome_keeps_requested_identity_independent_of_returned_name() {
+    let topic_id = [7; 16];
+    let outcome = DescribeTopicIdOutcome::described(
+        topic_id,
+        TopicDescription::new("orders".to_owned(), Some(topic_id), false, Vec::new()),
+    );
+    assert_eq!(outcome.topic_id(), topic_id);
+    let (actual, DescribeTopicResult::Described(description)) = outcome.into_parts() else {
+        panic!("description expected");
+    };
+    assert_eq!(actual, topic_id);
+    assert_eq!(description.name(), "orders");
 }

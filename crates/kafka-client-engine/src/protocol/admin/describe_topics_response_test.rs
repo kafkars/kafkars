@@ -61,6 +61,42 @@ fn zero_topic_id_sentinel_becomes_none_without_leaking_wire_uuid() {
 }
 
 #[test]
+fn requested_authorized_operations_preserve_raw_bits_and_unknown_sentinel() {
+    let plan = plan().with_authorized_operations(true);
+    let mut orders = described_topic("orders", [partition(0, 0)]);
+    orders.topic_authorized_operations = -1_234_567;
+    let mut audit = described_topic("audit", [partition(0, 0)]);
+    audit.topic_authorized_operations = i32::MIN;
+    let mut response = MetadataResponse::default();
+    response.topics = vec![audit, orders];
+    let input = normalize_describe_topics_response(&plan, &response, 128 * 1024)
+        .unwrap_or_else(|error| panic!("authorized response: {error:?}"));
+    let DescribeTopicsInput::BrokerResponded { outcomes } = input else {
+        panic!("topic outcomes expected");
+    };
+    let (_, _, DescribeTopicResult::Described(orders)) = outcomes[0].clone().into_parts() else {
+        panic!("orders description expected");
+    };
+    let (_, _, DescribeTopicResult::Described(audit)) = outcomes[1].clone().into_parts() else {
+        panic!("audit description expected");
+    };
+    assert_eq!(orders.authorized_operations(), Some(-1_234_567));
+    assert_eq!(audit.authorized_operations(), None);
+}
+
+#[test]
+fn unrequested_authorized_operations_are_rejected_before_core_ownership() {
+    let mut response = MetadataResponse::default();
+    let mut orders = described_topic("orders", [partition(0, 0)]);
+    orders.topic_authorized_operations = 0x21;
+    response.topics = vec![orders, failed_topic("audit", 3)];
+    assert_eq!(
+        normalize_describe_topics_response(&plan(), &response, 128 * 1024),
+        Err(DescribeTopicsProtocolFailure::UnexpectedAuthorizedOperations)
+    );
+}
+
+#[test]
 fn top_level_v13_error_remains_a_whole_operation_broker_rejection() {
     let mut response = MetadataResponse::default();
     response.error_code = -991;
@@ -95,6 +131,71 @@ fn retained_result_must_fit_the_accepted_operation_reservation() {
     assert_eq!(
         normalize_describe_topics_response(&plan(), &response, 1),
         Err(DescribeTopicsProtocolFailure::RetainedBytes)
+    );
+}
+
+#[test]
+fn topic_id_results_restore_caller_order_and_allow_null_name_on_failure() {
+    let first = [1; 16];
+    let second = [2; 16];
+    let plan = DescribeTopicsPlan::by_ids(vec![first, second])
+        .unwrap_or_else(|error| panic!("valid topic-ID plan: {error}"));
+    let mut described = described_topic("orders", [partition(0, 0)]);
+    described.topic_id = Uuid::from_bytes(first);
+    let mut failed = failed_topic("ignored", 3);
+    failed.name = None;
+    failed.topic_id = Uuid::from_bytes(second);
+    let mut response = MetadataResponse::default();
+    response.topics = vec![failed, described];
+
+    let input = normalize_describe_topics_response(&plan, &response, 128 * 1024)
+        .unwrap_or_else(|error| panic!("valid topic-ID response: {error:?}"));
+    let DescribeTopicsInput::BrokerRespondedById { outcomes } = input else {
+        panic!("expected topic-ID results");
+    };
+    assert!(
+        outcomes
+            .iter()
+            .map(|outcome| outcome.topic_id())
+            .eq([first, second])
+    );
+    let (_, DescribeTopicResult::Described(description)) = outcomes[0].clone().into_parts() else {
+        panic!("first ID should be described");
+    };
+    assert_eq!(description.name(), "orders");
+    assert_eq!(description.topic_id(), Some(first));
+    let (_, DescribeTopicResult::Failed(error)) = outcomes[1].clone().into_parts() else {
+        panic!("second ID should retain the broker error");
+    };
+    assert_eq!(error.code(), 3);
+}
+
+#[test]
+fn topic_id_response_rejects_zero_unexpected_and_duplicate_identities() {
+    let first = [1; 16];
+    let second = [2; 16];
+    let plan = DescribeTopicsPlan::by_ids(vec![first, second])
+        .unwrap_or_else(|error| panic!("valid topic-ID plan: {error}"));
+    let mut first_topic = described_topic("orders", [partition(0, 0)]);
+    first_topic.topic_id = Uuid::from_bytes(first);
+
+    let mut response = MetadataResponse::default();
+    response.topics = vec![first_topic.clone(), failed_topic("missing", 3)];
+    assert_eq!(
+        normalize_describe_topics_response(&plan, &response, 128 * 1024),
+        Err(DescribeTopicsProtocolFailure::ZeroTopicId)
+    );
+
+    response.topics[1].topic_id = Uuid::from_bytes([9; 16]);
+    assert_eq!(
+        normalize_describe_topics_response(&plan, &response, 128 * 1024),
+        Err(DescribeTopicsProtocolFailure::UnexpectedTopicId)
+    );
+
+    response.topics[1].topic_id = Uuid::from_bytes(first);
+    assert_eq!(
+        normalize_describe_topics_response(&plan, &response, 128 * 1024),
+        Err(DescribeTopicsProtocolFailure::DuplicateTopicId)
     );
 }
 

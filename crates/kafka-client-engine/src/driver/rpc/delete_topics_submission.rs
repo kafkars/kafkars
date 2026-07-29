@@ -1,4 +1,4 @@
-//! Controller-routed submission of one generated name-based `DeleteTopics` request.
+//! Controller-routed submission of generated name-or-topic-ID `DeleteTopics` requests.
 
 use std::{error::Error, fmt, time::Instant};
 
@@ -10,6 +10,7 @@ use super::super::DriverOwner;
 // Version 6 replaces name-only requests with name-or-ID structs. The public
 // model owns names only, so v5 is the newest correlation-safe representation.
 const DELETE_TOPICS_MAX_VERSION: ApiVersion = ApiVersion::new(5);
+const DELETE_TOPICS_TOPIC_ID_VERSION: ApiVersion = ApiVersion::new(6);
 
 /// Definitely-unsent failure before driver request ownership.
 #[derive(Debug)]
@@ -43,10 +44,32 @@ impl DriverOwner {
             .request_tracked_with(Route::Controller, request, delete_topics_options(deadline))
             .map_err(|source| DeleteTopicsSubmitError { source })
     }
+
+    /// Submits one topic-ID batch using exactly the first ID-aware version.
+    pub(crate) fn submit_tracked_delete_topics_by_id(
+        &self,
+        request: DeleteTopicsRequest,
+        deadline: Instant,
+    ) -> Result<RoutedCall<DeleteTopicsResponse>, DeleteTopicsSubmitError> {
+        self.driver
+            .request_tracked_with(
+                Route::Controller,
+                request,
+                delete_topics_by_id_options(deadline),
+            )
+            .map_err(|source| DeleteTopicsSubmitError { source })
+    }
 }
 
 pub(super) const fn delete_topics_options(deadline: Instant) -> RequestOptions {
     RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Interactive)
         .with_maximum_version(DELETE_TOPICS_MAX_VERSION)
+}
+
+pub(super) const fn delete_topics_by_id_options(deadline: Instant) -> RequestOptions {
+    RequestOptions::new(deadline)
+        .with_traffic_class(TrafficClass::Interactive)
+        .with_minimum_version(DELETE_TOPICS_TOPIC_ID_VERSION)
+        .with_maximum_version(DELETE_TOPICS_TOPIC_ID_VERSION)
 }

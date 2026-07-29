@@ -15,6 +15,14 @@ pub(super) fn ensure_result_fits(
     named_result_charge(topics, response).is_some_and(|charge| charge <= retained_bytes)
 }
 
+pub(super) fn ensure_topic_id_result_fits(
+    topic_ids: &[[u8; 16]],
+    response: &MetadataResponse,
+    retained_bytes: usize,
+) -> bool {
+    topic_id_result_charge(topic_ids, response).is_some_and(|charge| charge <= retained_bytes)
+}
+
 fn named_result_charge(topics: &[String], response: &MetadataResponse) -> Option<usize> {
     let mut charge = BASE_RESULT_BYTES;
     for requested in topics {
@@ -27,6 +35,22 @@ fn named_result_charge(topics: &[String], response: &MetadataResponse) -> Option
             continue;
         };
         charge = add_topic_charge(charge, requested, topic)?;
+    }
+    Some(charge)
+}
+
+fn topic_id_result_charge(topic_ids: &[[u8; 16]], response: &MetadataResponse) -> Option<usize> {
+    let mut charge = BASE_RESULT_BYTES;
+    for requested in topic_ids {
+        let Some(topic) = response
+            .topics
+            .iter()
+            .find(|topic| topic.topic_id.to_bytes() == *requested)
+        else {
+            continue;
+        };
+        let name = topic.name.as_ref().map_or("", |name| name.as_str());
+        charge = add_topic_charge(charge, name, topic)?;
     }
     Some(charge)
 }

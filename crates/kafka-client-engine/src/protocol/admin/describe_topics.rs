@@ -2,6 +2,7 @@
 
 use kafka_client_core::{DescribeTopicsPlan, DescribeTopicsSelection};
 use kafka_wire::{MetadataRequest, metadata_request::MetadataRequestTopic};
+use kafka_wire_core::Uuid;
 
 /// Builds one explicit topic selection without acquiring metadata-cache authority.
 ///
@@ -20,12 +21,23 @@ pub(crate) fn describe_topics_request(plan: &DescribeTopicsPlan) -> MetadataRequ
                 })
                 .collect(),
         ),
+        DescribeTopicsSelection::Ids(topic_ids) => Some(
+            topic_ids
+                .iter()
+                .map(|topic_id| {
+                    let mut requested = MetadataRequestTopic::default();
+                    requested.topic_id = Uuid::from_bytes(*topic_id);
+                    requested.name = None;
+                    requested
+                })
+                .collect(),
+        ),
         DescribeTopicsSelection::All { .. } => None,
     };
     let mut request = MetadataRequest::default();
     request.topics = topics;
     request.allow_auto_topic_creation = false;
     request.include_cluster_authorized_operations = false;
-    request.include_topic_authorized_operations = false;
+    request.include_topic_authorized_operations = plan.include_authorized_operations();
     request
 }

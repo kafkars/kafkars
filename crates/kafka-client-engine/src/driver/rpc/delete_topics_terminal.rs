@@ -5,7 +5,8 @@ use kafka_driver::RequestError;
 use kafka_wire::DeleteTopicsResponse;
 
 use crate::protocol::admin::delete_topics::{
-    DeleteTopicsProtocolFailure, normalize_delete_topics_response_bounded,
+    DeleteTopicsProtocolFailure, normalize_delete_topic_ids_response_bounded,
+    normalize_delete_topics_response_bounded,
 };
 
 pub(super) fn normalize_terminal(
@@ -14,7 +15,7 @@ pub(super) fn normalize_terminal(
     result: Result<DeleteTopicsResponse, RequestError>,
 ) -> Result<DeleteTopicsInput, DeleteTopicsProtocolFailure> {
     match result {
-        Ok(response) => {
+        Ok(response) if plan.topic_ids().is_empty() => {
             match normalize_delete_topics_response_bounded(plan, &response, retained_bytes) {
                 Ok(outcomes) => Ok(DeleteTopicsInput::BrokerResponded { outcomes }),
                 Err(DeleteTopicsProtocolFailure::RetainedBytes) => {
@@ -25,7 +26,28 @@ pub(super) fn normalize_terminal(
                     | DeleteTopicsProtocolFailure::MissingResponseName
                     | DeleteTopicsProtocolFailure::UnexpectedTopic
                     | DeleteTopicsProtocolFailure::MissingTopic
-                    | DeleteTopicsProtocolFailure::DuplicateTopic,
+                    | DeleteTopicsProtocolFailure::DuplicateTopic
+                    | DeleteTopicsProtocolFailure::UnexpectedTopicId
+                    | DeleteTopicsProtocolFailure::MissingTopicId
+                    | DeleteTopicsProtocolFailure::DuplicateTopicId,
+                ) => Ok(DeleteTopicsInput::InvalidResponse),
+            }
+        }
+        Ok(response) => {
+            match normalize_delete_topic_ids_response_bounded(plan, &response, retained_bytes) {
+                Ok(outcomes) => Ok(DeleteTopicsInput::BrokerRespondedById { outcomes }),
+                Err(DeleteTopicsProtocolFailure::RetainedBytes) => {
+                    Err(DeleteTopicsProtocolFailure::RetainedBytes)
+                }
+                Err(
+                    DeleteTopicsProtocolFailure::TopicCount { .. }
+                    | DeleteTopicsProtocolFailure::MissingResponseName
+                    | DeleteTopicsProtocolFailure::UnexpectedTopic
+                    | DeleteTopicsProtocolFailure::MissingTopic
+                    | DeleteTopicsProtocolFailure::DuplicateTopic
+                    | DeleteTopicsProtocolFailure::UnexpectedTopicId
+                    | DeleteTopicsProtocolFailure::MissingTopicId
+                    | DeleteTopicsProtocolFailure::DuplicateTopicId,
                 ) => Ok(DeleteTopicsInput::InvalidResponse),
             }
         }

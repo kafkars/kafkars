@@ -41,7 +41,11 @@ impl DeleteTopicsCallPermit<'_> {
     ) -> Result<(), DeleteTopicsAdmissionFailure> {
         let timeout_ms = remaining_timeout_ms(now, deadline.core())?;
         let request = delete_topics_request(&plan, timeout_ms)?;
-        let call = driver.submit_tracked_delete_topics(request, deadline.transport())?;
+        let call = if plan.topic_ids().is_empty() {
+            driver.submit_tracked_delete_topics(request, deadline.transport())?
+        } else {
+            driver.submit_tracked_delete_topics_by_id(request, deadline.transport())?
+        };
         self.calls.push(TrackedDeleteTopicsCall {
             operation_id,
             plan,

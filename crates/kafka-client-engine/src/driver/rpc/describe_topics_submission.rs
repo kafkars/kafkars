@@ -10,6 +10,8 @@ use kafka_wire::{MetadataRequest, MetadataResponse};
 use super::super::DriverOwner;
 
 pub(super) const DESCRIBE_TOPICS_MIN_VERSION: ApiVersion = ApiVersion::new(4);
+pub(super) const DESCRIBE_TOPICS_AUTHORIZED_OPERATIONS_MIN_VERSION: ApiVersion = ApiVersion::new(8);
+pub(super) const DESCRIBE_TOPICS_ID_MIN_VERSION: ApiVersion = ApiVersion::new(12);
 pub(super) const DESCRIBE_TOPICS_MAX_VERSION: ApiVersion = ApiVersion::new(13);
 
 /// Definitely-unsent failure before driver request ownership.
@@ -39,12 +41,13 @@ impl DriverOwner {
         &self,
         request: MetadataRequest,
         deadline: Instant,
+        minimum_version: ApiVersion,
     ) -> Result<Call<Result<MetadataResponse, RequestError>>, DescribeTopicsSubmitError> {
         self.driver
             .request_with(
                 describe_topics_route(),
                 request,
-                describe_topics_options(deadline),
+                describe_topics_options(deadline, minimum_version),
             )
             .map_err(|source| DescribeTopicsSubmitError { source })
     }
@@ -54,9 +57,12 @@ pub(super) const fn describe_topics_route() -> Route {
     Route::AnyBroker
 }
 
-pub(super) const fn describe_topics_options(deadline: Instant) -> RequestOptions {
+pub(super) const fn describe_topics_options(
+    deadline: Instant,
+    minimum_version: ApiVersion,
+) -> RequestOptions {
     RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Interactive)
-        .with_minimum_version(DESCRIBE_TOPICS_MIN_VERSION)
+        .with_minimum_version(minimum_version)
         .with_maximum_version(DESCRIBE_TOPICS_MAX_VERSION)
 }

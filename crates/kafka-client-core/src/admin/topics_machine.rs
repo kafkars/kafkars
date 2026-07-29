@@ -4,7 +4,9 @@ use core::{fmt, num::NonZeroI16};
 
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
-use super::{DescribeTopicOutcome, DescribeTopicsPlan, DescribeTopicsTerminal};
+use super::{
+    DescribeTopicIdOutcome, DescribeTopicOutcome, DescribeTopicsPlan, DescribeTopicsTerminal,
+};
 
 /// Current ownership stage for one `DescribeTopics` operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,6 +44,11 @@ pub enum DescribeTopicsInput {
     BrokerResponded {
         /// Outcomes in the plan selection's deterministic order.
         outcomes: Vec<DescribeTopicOutcome>,
+    },
+    /// Reports caller-ordered protocol-normalized topic-ID results.
+    BrokerRespondedById {
+        /// Outcomes keyed by the exact requested topic IDs.
+        outcomes: Vec<DescribeTopicIdOutcome>,
     },
     /// Reports a top-level broker rejection from Metadata v13 or newer.
     BrokerRejected {
@@ -146,12 +153,18 @@ pub enum DescribeTopicsMachineError {
     OutcomeCountMismatch,
     /// A named response is not in original caller order.
     OutcomeTopicMismatch,
+    /// A topic-ID response is not in original caller order.
+    OutcomeTopicIdMismatch,
+    /// The response-key shape does not match the request selection.
+    OutcomeSelectionMismatch,
     /// An all-topic response contains an empty topic name.
     EmptyOutcomeTopic,
     /// An all-topic response contains a duplicate topic name.
     DuplicateOutcomeTopic,
     /// An all-topic response is not in strict UTF-8 byte order.
     OutcomeTopicOrder,
+    /// Kafka supplied topic authorization bits that were not requested.
+    UnexpectedAuthorizedOperations,
 }
 
 impl fmt::Display for DescribeTopicsMachineError {

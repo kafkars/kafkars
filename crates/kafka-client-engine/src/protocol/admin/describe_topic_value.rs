@@ -3,7 +3,8 @@
 use core::num::NonZeroI16;
 
 use kafka_client_core::{
-    DescribeTopicBrokerError, DescribeTopicOutcome, TopicDescription, TopicPartitionDescription,
+    DescribeTopicBrokerError, DescribeTopicIdOutcome, DescribeTopicOutcome, TopicDescription,
+    TopicPartitionDescription,
 };
 use kafka_wire::metadata_response::{MetadataResponsePartition, MetadataResponseTopic};
 
@@ -12,7 +13,10 @@ use super::describe_topics_response::DescribeTopicsProtocolFailure;
 pub(super) fn normalize_topic(
     requested: &str,
     topic: &MetadataResponseTopic,
+    include_authorized_operations: bool,
 ) -> Result<DescribeTopicOutcome, DescribeTopicsProtocolFailure> {
+    let authorized_operations =
+        normalize_authorized_operations(topic, include_authorized_operations)?;
     if let Some(code) = NonZeroI16::new(topic.error_code) {
         return Ok(DescribeTopicOutcome::failed(
             canonical_string(requested),
@@ -20,6 +24,40 @@ pub(super) fn normalize_topic(
             DescribeTopicBrokerError::new(code),
         ));
     }
+    let description = normalize_description(requested, topic, authorized_operations)?;
+    Ok(DescribeTopicOutcome::described(description))
+}
+
+pub(super) fn normalize_topic_by_id(
+    requested_topic_id: [u8; 16],
+    topic: &MetadataResponseTopic,
+    include_authorized_operations: bool,
+) -> Result<DescribeTopicIdOutcome, DescribeTopicsProtocolFailure> {
+    let authorized_operations =
+        normalize_authorized_operations(topic, include_authorized_operations)?;
+    if let Some(code) = NonZeroI16::new(topic.error_code) {
+        return Ok(DescribeTopicIdOutcome::failed(
+            requested_topic_id,
+            DescribeTopicBrokerError::new(code),
+        ));
+    }
+    let Some(name) = topic.name.as_ref() else {
+        return Err(DescribeTopicsProtocolFailure::MissingTopicName);
+    };
+    if name.is_empty() {
+        return Err(DescribeTopicsProtocolFailure::EmptyTopicName);
+    }
+    Ok(DescribeTopicIdOutcome::described(
+        requested_topic_id,
+        normalize_description(name.as_str(), topic, authorized_operations)?,
+    ))
+}
+
+fn normalize_description(
+    name: &str,
+    topic: &MetadataResponseTopic,
+    authorized_operations: Option<i32>,
+) -> Result<TopicDescription, DescribeTopicsProtocolFailure> {
     let mut partitions = topic
         .partitions
         .iter()
@@ -32,14 +70,24 @@ pub(super) fn normalize_topic(
     {
         return Err(DescribeTopicsProtocolFailure::DuplicatePartition);
     }
-    let name = canonical_string(requested);
+    let name = canonical_string(name);
     let topic_id = (!topic.topic_id.is_zero()).then(|| topic.topic_id.to_bytes());
-    Ok(DescribeTopicOutcome::described(TopicDescription::new(
-        name,
-        topic_id,
-        topic.is_internal,
-        partitions,
-    )))
+    Ok(
+        TopicDescription::new(name, topic_id, topic.is_internal, partitions)
+            .with_authorized_operations(authorized_operations),
+    )
+}
+
+fn normalize_authorized_operations(
+    topic: &MetadataResponseTopic,
+    include: bool,
+) -> Result<Option<i32>, DescribeTopicsProtocolFailure> {
+    if !include && topic.topic_authorized_operations != i32::MIN {
+        return Err(DescribeTopicsProtocolFailure::UnexpectedAuthorizedOperations);
+    }
+    Ok(include
+        .then_some(topic.topic_authorized_operations)
+        .filter(|operations| *operations != i32::MIN))
 }
 
 fn normalize_partition(
