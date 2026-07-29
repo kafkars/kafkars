@@ -1,5 +1,6 @@
 //! Version, shape, correlation, and lossless response normalization scenarios.
 
+use kafka_client_core::{AdminDescribeLogDirsPartition, AdminDescribeLogDirsSelection};
 use kafka_wire::{
     DescribeLogDirsResponse,
     describe_log_dirs_response::{
@@ -8,8 +9,9 @@ use kafka_wire::{
 };
 
 use super::{
-    DescribeLogDirsResponseFailure, DescribeLogDirsSelectionRef, DescribeLogDirsTopicSelectionRef,
-    normalize_describe_log_dirs_response,
+    DescribeLogDirsResponseFailure, DescribeLogDirsSelectionRef,
+    DescribeLogDirsSelectionResponseFailure, DescribeLogDirsTopicSelectionRef,
+    normalize_describe_log_dirs_response, normalize_describe_log_dirs_response_for_selection,
 };
 
 #[test]
@@ -93,6 +95,46 @@ fn selected_response_must_be_a_subset_and_is_sorted_deterministically() {
             usize::MAX,
         ),
         Err(DescribeLogDirsResponseFailure::UnexpectedPartition { actual: 2 })
+    );
+}
+
+#[test]
+fn flat_core_selection_is_grouped_before_exact_response_correlation() {
+    let selection = AdminDescribeLogDirsSelection::Selected(vec![
+        AdminDescribeLogDirsPartition::new("orders".to_owned(), 3),
+        AdminDescribeLogDirsPartition::new("orders".to_owned(), 1),
+    ]);
+    let normalized = normalize_describe_log_dirs_response_for_selection(
+        &selection,
+        5,
+        &response(vec![log_dir(
+            "/data",
+            0,
+            vec![topic("orders", vec![partition(1)])],
+        )]),
+        usize::MAX,
+    )
+    .unwrap_or_else(|error| panic!("selected response: {error:?}"));
+    assert_eq!(normalized.log_dirs()[0].topics()[0].name(), "orders");
+    assert_eq!(
+        normalized.log_dirs()[0].topics()[0].partitions()[0].partition_index(),
+        1
+    );
+
+    assert_eq!(
+        normalize_describe_log_dirs_response_for_selection(
+            &selection,
+            5,
+            &response(vec![log_dir(
+                "/data",
+                0,
+                vec![topic("orders", vec![partition(2)])],
+            )]),
+            usize::MAX,
+        ),
+        Err(DescribeLogDirsSelectionResponseFailure::Response(
+            DescribeLogDirsResponseFailure::UnexpectedPartition { actual: 2 },
+        ))
     );
 }
 

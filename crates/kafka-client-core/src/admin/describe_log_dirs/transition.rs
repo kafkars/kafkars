@@ -80,6 +80,7 @@ impl AdminDescribeLogDirsMachine {
                 operation_id: self.operation_id,
                 deadline: self.deadline,
                 broker_id,
+                selection: self.plan.selection().clone(),
             },
         ))
     }

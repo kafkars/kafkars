@@ -4,7 +4,8 @@ use core::num::NonZeroI16;
 
 use kafka_client_core::{
     AdminDescribeLogDirsBrokerError, AdminDescribeLogDirsBrokerOutcome, AdminDescribeLogDirsInput,
-    AdminLogDirDescription, AdminLogDirOutcome, AdminLogDirReplicaInfo, DeliveryStatus,
+    AdminDescribeLogDirsSelection, AdminLogDirDescription, AdminLogDirOutcome,
+    AdminLogDirReplicaInfo, DeliveryStatus,
 };
 
 use crate::{
@@ -12,14 +13,16 @@ use crate::{
         DescribeLogDirsDriverFailureKind, DescribeLogDirsRawTerminal, DescribeLogDirsTerminalFact,
     },
     protocol::admin::describe_log_dirs::{
-        DescribeLogDirsResponseFailure, DescribeLogDirsSelectionRef, NormalizedDescribeLogDir,
-        NormalizedDescribeLogDirsResponse, normalize_describe_log_dirs_response,
+        DescribeLogDirsResponseFailure, DescribeLogDirsSelectionResponseFailure,
+        NormalizedDescribeLogDir, NormalizedDescribeLogDirsResponse,
+        normalize_describe_log_dirs_response_for_selection,
     },
 };
 
 pub(super) fn terminal_input(
     raw: &DescribeLogDirsRawTerminal,
     current_broker: i32,
+    selection: &AdminDescribeLogDirsSelection,
     retained_bytes: usize,
 ) -> (AdminDescribeLogDirsInput, usize) {
     match raw.fact() {
@@ -27,25 +30,30 @@ pub(super) fn terminal_input(
             broker_id,
             selected_version: Some(selected_version),
             response,
-        } if broker_id == current_broker => match normalize_describe_log_dirs_response(
-            DescribeLogDirsSelectionRef::AllTopics,
-            selected_version,
-            response,
-            retained_bytes,
-        ) {
-            Ok(normalized) => normalized_input(broker_id, normalized)
-                .unwrap_or((AdminDescribeLogDirsInput::ResponseTooLarge, 0)),
-            Err(DescribeLogDirsResponseFailure::RetainedBytes { .. }) => {
-                (AdminDescribeLogDirsInput::ResponseTooLarge, 0)
+        } if broker_id == current_broker => {
+            match normalize_describe_log_dirs_response_for_selection(
+                selection,
+                selected_version,
+                response,
+                retained_bytes,
+            ) {
+                Ok(normalized) => normalized_input(broker_id, normalized)
+                    .unwrap_or((AdminDescribeLogDirsInput::ResponseTooLarge, 0)),
+                Err(DescribeLogDirsSelectionResponseFailure::RetainedBytes)
+                | Err(DescribeLogDirsSelectionResponseFailure::Response(
+                    DescribeLogDirsResponseFailure::RetainedBytes { .. },
+                )) => (AdminDescribeLogDirsInput::ResponseTooLarge, 0),
+                Err(DescribeLogDirsSelectionResponseFailure::Response(
+                    DescribeLogDirsResponseFailure::UnsupportedApiVersion { .. },
+                )) => (
+                    AdminDescribeLogDirsInput::ProtocolIncompatible {
+                        delivery: DeliveryStatus::PossiblySent,
+                    },
+                    0,
+                ),
+                Err(_) => (AdminDescribeLogDirsInput::InvalidResponse, 0),
             }
-            Err(DescribeLogDirsResponseFailure::UnsupportedApiVersion { .. }) => (
-                AdminDescribeLogDirsInput::ProtocolIncompatible {
-                    delivery: DeliveryStatus::PossiblySent,
-                },
-                0,
-            ),
-            Err(_) => (AdminDescribeLogDirsInput::InvalidResponse, 0),
-        },
+        }
         DescribeLogDirsTerminalFact::Response {
             selected_version: None,
             ..

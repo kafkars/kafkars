@@ -271,8 +271,8 @@ pub(crate) use super::describe_log_dirs::{
 };
 pub use super::describe_log_dirs::{
     DescribeLogDirDescription, DescribeLogDirEngineBrokerError, DescribeLogDirEngineOutcome,
-    DescribeLogDirsAccepted, DescribeLogDirsAcceptedFaultKind, DescribeLogDirsAdmissionError,
-    DescribeLogDirsAdmissionErrorKind, DescribeLogDirsBrokerFailure,
+    DescribeLogDirTarget, DescribeLogDirsAccepted, DescribeLogDirsAcceptedFaultKind,
+    DescribeLogDirsAdmissionError, DescribeLogDirsAdmissionErrorKind, DescribeLogDirsBrokerFailure,
     DescribeLogDirsBrokerFailureKind, DescribeLogDirsDeliveryStatus, DescribeLogDirsEngineBatch,
     DescribeLogDirsEngineBrokerOutcome, DescribeLogDirsEngineBrokerResult, DescribeLogDirsFailure,
     DescribeLogDirsObserver, DescribeLogDirsObserverError, DescribeLogDirsOutcome,

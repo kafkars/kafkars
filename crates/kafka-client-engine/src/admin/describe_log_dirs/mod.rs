@@ -10,7 +10,7 @@ mod shard;
 
 pub use error::{DescribeLogDirsAdmissionError, DescribeLogDirsAdmissionErrorKind};
 pub use handle::{DescribeLogDirsAccepted, DescribeLogDirsAcceptedFaultKind};
-pub use model::DescribeLogDirsRequest;
+pub use model::{DescribeLogDirTarget, DescribeLogDirsRequest};
 pub use observer::DescribeLogDirsObserver;
 pub use outcome::{
     DescribeLogDirDescription, DescribeLogDirEngineBrokerError, DescribeLogDirEngineOutcome,
@@ -22,6 +22,7 @@ pub use outcome::{
 
 pub(crate) use error::DescribeLogDirsHostError;
 pub(crate) use host::{DESCRIBE_LOG_DIRS_CAPACITY, DescribeLogDirsHost, DescribeLogDirsTurn};
+pub(crate) use model::DescribeLogDirsPlanFailure;
 pub(crate) use shard::{
     DescribeLogDirsAdmissionPort, DescribeLogDirsShardLockError, DescribeLogDirsShardOwner,
     DescribeLogDirsShardWake, DescribeLogDirsShardWakeError,

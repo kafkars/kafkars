@@ -5,7 +5,8 @@ use core::fmt;
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
 use super::{
-    AdminDescribeLogDirsBrokerOutcome, AdminDescribeLogDirsPlan, AdminDescribeLogDirsTerminal,
+    AdminDescribeLogDirsBrokerOutcome, AdminDescribeLogDirsPlan, AdminDescribeLogDirsSelection,
+    AdminDescribeLogDirsTerminal,
 };
 
 /// Current ownership stage for one `DescribeLogDirs` operation.
@@ -66,7 +67,7 @@ pub enum AdminDescribeLogDirsInput {
 /// One concrete mechanism request emitted by core policy.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AdminDescribeLogDirsEffect {
-    /// Submit one all-topic log-directory query to an exact broker.
+    /// Submit one all-topic or selected-partition query to an exact broker.
     Submit {
         /// Stable identity reserved before machine construction.
         operation_id: OperationId,
@@ -74,6 +75,8 @@ pub enum AdminDescribeLogDirsEffect {
         deadline: Deadline,
         /// Exact requested broker identity.
         broker_id: i32,
+        /// Validated selection applied unchanged to this exact broker.
+        selection: AdminDescribeLogDirsSelection,
     },
     /// Publish the sole terminal decision.
     Complete {

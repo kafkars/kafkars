@@ -6,9 +6,10 @@ use crate::{
 };
 
 impl Admin {
-    /// Builds an inert caller-ordered all-log-directory query for selected brokers.
+    /// Builds an inert caller-ordered log-directory query for selected brokers.
     ///
-    /// No timeout starts and no operation is admitted until
+    /// By default every topic-partition on each broker is selected. No timeout
+    /// starts and no operation is admitted until
     /// [`DescribeLogDirsBuilder::submit`] is called.
     pub fn describe_log_dirs<I>(&self, broker_ids: I) -> DescribeLogDirsBuilder
     where

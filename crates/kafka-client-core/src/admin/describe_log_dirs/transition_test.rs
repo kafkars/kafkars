@@ -8,7 +8,8 @@ use super::{
     AdminDescribeLogDirsBrokerError, AdminDescribeLogDirsBrokerOutcome,
     AdminDescribeLogDirsBrokerResult, AdminDescribeLogDirsEffect, AdminDescribeLogDirsFailureKind,
     AdminDescribeLogDirsInput, AdminDescribeLogDirsMachine, AdminDescribeLogDirsMachineError,
-    AdminDescribeLogDirsPlan, AdminDescribeLogDirsTerminal,
+    AdminDescribeLogDirsPartition, AdminDescribeLogDirsPlan, AdminDescribeLogDirsSelection,
+    AdminDescribeLogDirsTerminal,
 };
 
 #[test]
@@ -66,6 +67,40 @@ fn exact_broker_calls_reuse_original_identity_deadline_and_preserve_caller_order
         batch.outcomes()[1].result(),
         AdminDescribeLogDirsBrokerResult::BrokerFailed(value) if value.code() == 56
     ));
+}
+
+#[test]
+fn selected_partition_intent_is_repeated_unchanged_for_each_exact_broker() {
+    let plan = AdminDescribeLogDirsPlan::selected(
+        vec![8, 3],
+        vec![
+            AdminDescribeLogDirsPartition::new("orders".to_owned(), 2),
+            AdminDescribeLogDirsPartition::new("audit".to_owned(), 0),
+            AdminDescribeLogDirsPartition::new("orders".to_owned(), 1),
+        ],
+    )
+    .unwrap_or_else(|error| panic!("valid plan: {error}"));
+    let mut machine =
+        AdminDescribeLogDirsMachine::new(OperationId::from_raw(23), Deadline::from_tick(100), plan);
+
+    let first = effect(
+        &mut machine,
+        AdminDescribeLogDirsInput::Start {
+            now: Moment::from_tick(1),
+        },
+    );
+    assert_selected_submit(first, 8);
+    machine
+        .apply(AdminDescribeLogDirsInput::DriverAccepted)
+        .unwrap_or_else(|error| panic!("accept first: {error}"));
+    let second = effect(
+        &mut machine,
+        AdminDescribeLogDirsInput::BrokerResponded {
+            throttle_time_ms: 0,
+            outcome: AdminDescribeLogDirsBrokerOutcome::described(8, Vec::new()),
+        },
+    );
+    assert_selected_submit(second, 3);
 }
 
 #[test]
@@ -190,6 +225,7 @@ fn assert_submit(effect: AdminDescribeLogDirsEffect, broker_id: i32) {
         operation_id,
         deadline,
         broker_id: actual,
+        selection,
     } = effect
     else {
         panic!("expected submit");
@@ -197,4 +233,24 @@ fn assert_submit(effect: AdminDescribeLogDirsEffect, broker_id: i32) {
     assert_eq!(operation_id, OperationId::from_raw(23));
     assert_eq!(deadline, Deadline::from_tick(100));
     assert_eq!(actual, broker_id);
+    assert_eq!(selection, AdminDescribeLogDirsSelection::AllTopics);
+}
+
+fn assert_selected_submit(effect: AdminDescribeLogDirsEffect, broker_id: i32) {
+    let AdminDescribeLogDirsEffect::Submit {
+        broker_id: actual,
+        selection: AdminDescribeLogDirsSelection::Selected(partitions),
+        ..
+    } = effect
+    else {
+        panic!("expected selected submit");
+    };
+    assert_eq!(actual, broker_id);
+    assert_eq!(
+        partitions
+            .iter()
+            .map(|partition| (partition.topic(), partition.partition()))
+            .collect::<Vec<_>>(),
+        vec![("orders", 2), ("audit", 0), ("orders", 1)]
+    );
 }

@@ -1,12 +1,30 @@
 //! Generated log-directory request construction scenarios.
 
+use kafka_client_core::{AdminDescribeLogDirsPartition, AdminDescribeLogDirsSelection};
 use kafka_wire::RetainedSize;
 use kafka_wire_core::{ApiVersion, BytesMut, KafkaEncode};
 
 use super::{
     DescribeLogDirsRequestFailure, DescribeLogDirsSelectionRef, DescribeLogDirsTopicSelectionRef,
-    describe_log_dirs_request,
+    describe_log_dirs_request, describe_log_dirs_request_for_selection,
 };
+
+#[test]
+fn flat_core_selection_groups_first_seen_topics_and_partition_order() {
+    let selection = AdminDescribeLogDirsSelection::Selected(vec![
+        AdminDescribeLogDirsPartition::new("orders".to_owned(), 3),
+        AdminDescribeLogDirsPartition::new("audit".to_owned(), 0),
+        AdminDescribeLogDirsPartition::new("orders".to_owned(), 1),
+    ]);
+    let request = describe_log_dirs_request_for_selection(&selection, usize::MAX)
+        .unwrap_or_else(|error| panic!("selected request: {error:?}"));
+    let topics = request.topics.expect("selected topics");
+    assert_eq!(topics.len(), 2);
+    assert_eq!(topics[0].topic.as_str(), "orders");
+    assert_eq!(topics[0].partitions, [3, 1]);
+    assert_eq!(topics[1].topic.as_str(), "audit");
+    assert_eq!(topics[1].partitions, [0]);
+}
 
 #[test]
 fn nullable_all_topics_and_explicit_selection_remain_distinct() {

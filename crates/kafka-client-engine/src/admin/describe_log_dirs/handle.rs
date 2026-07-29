@@ -6,7 +6,7 @@ use crate::admin::AdminHandle;
 
 use super::{
     DescribeLogDirsAdmissionError, DescribeLogDirsAdmissionErrorKind, DescribeLogDirsObserver,
-    DescribeLogDirsRequest,
+    DescribeLogDirsPlanFailure, DescribeLogDirsRequest,
 };
 
 impl AdminHandle {
@@ -29,9 +29,17 @@ impl AdminHandle {
                 DescribeLogDirsAdmissionErrorKind::InvalidDeadline,
             ));
         }
-        let plan = request.canonicalize().into_plan().map_err(|_error| {
-            DescribeLogDirsAdmissionError::new(DescribeLogDirsAdmissionErrorKind::InvalidRequest)
-        })?;
+        let plan = request
+            .canonicalize()
+            .into_plan()
+            .map_err(|error| match error {
+                DescribeLogDirsPlanFailure::Invalid(_error) => DescribeLogDirsAdmissionError::new(
+                    DescribeLogDirsAdmissionErrorKind::InvalidRequest,
+                ),
+                DescribeLogDirsPlanFailure::RetainedBytes => DescribeLogDirsAdmissionError::new(
+                    DescribeLogDirsAdmissionErrorKind::RetainedBytes,
+                ),
+            })?;
         let admission = self
             .describe_log_dirs
             .try_admit(capture.now(), capture.operation_deadline(), plan)

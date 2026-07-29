@@ -39,14 +39,21 @@ pub(super) fn drive(
         DescribeLogDirsTurn::Idle => false,
         DescribeLogDirsTurn::Progress => true,
         DescribeLogDirsTurn::Submit(submission) => {
-            let (operation_id, deadline, broker_id) = submission.into_parts();
+            let (operation_id, deadline, broker_id, selection, retained_limit) =
+                submission.into_parts();
             let driver = resources
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            match DescribeLogDirsCall::submit(driver, broker_id, deadline.transport()) {
+            match DescribeLogDirsCall::submit(
+                driver,
+                broker_id,
+                &selection,
+                retained_limit,
+                deadline.transport(),
+            ) {
                 Ok(call) => host
-                    .accept_call(operation_id, call)
+                    .accept_call(operation_id, selection, call)
                     .map_err(EngineHostError::DescribeLogDirs)?,
                 Err(rejection) => {
                     drop(rejection);

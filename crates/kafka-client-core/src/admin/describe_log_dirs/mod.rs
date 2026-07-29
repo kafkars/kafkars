@@ -11,7 +11,11 @@ pub use machine::{
     AdminDescribeLogDirsEffect, AdminDescribeLogDirsInput, AdminDescribeLogDirsMachine,
     AdminDescribeLogDirsMachineError, AdminDescribeLogDirsState, AdminDescribeLogDirsTransition,
 };
-pub use model::{AdminDescribeLogDirsPlan, AdminDescribeLogDirsPlanError};
+pub use model::{
+    ADMIN_DESCRIBE_LOG_DIRS_MAX_PARTITIONS, ADMIN_DESCRIBE_LOG_DIRS_MAX_TOPIC_BYTES,
+    ADMIN_DESCRIBE_LOG_DIRS_MAX_TOPICS, AdminDescribeLogDirsPartition, AdminDescribeLogDirsPlan,
+    AdminDescribeLogDirsPlanError, AdminDescribeLogDirsSelection,
+};
 pub use outcome::{
     AdminDescribeLogDirsBatch, AdminDescribeLogDirsBrokerOutcome, AdminDescribeLogDirsBrokerResult,
     AdminDescribeLogDirsFailure, AdminDescribeLogDirsFailureKind, AdminDescribeLogDirsTerminal,

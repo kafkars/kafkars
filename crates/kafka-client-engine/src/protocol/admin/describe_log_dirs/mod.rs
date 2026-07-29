@@ -4,6 +4,7 @@ mod model;
 mod request;
 mod response;
 mod retention;
+mod selection;
 mod version;
 
 pub(crate) use model::{
@@ -13,6 +14,10 @@ pub(crate) use model::{
 };
 pub(crate) use request::describe_log_dirs_request;
 pub(crate) use response::{DescribeLogDirsResponseFailure, normalize_describe_log_dirs_response};
+pub(crate) use selection::{
+    DescribeLogDirsSelectionResponseFailure, describe_log_dirs_request_for_selection,
+    normalize_describe_log_dirs_response_for_selection,
+};
 
 #[cfg(test)]
 pub(crate) use request::DescribeLogDirsRequestFailure;
