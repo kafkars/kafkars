@@ -14,7 +14,7 @@ use crate::clock::OperationDeadline;
 
 use super::{
     DescribeConfigsAdmissionErrorKind, DescribeConfigsHost, DescribeConfigsHostError,
-    DescribeConfigsRetention, host::DescribeConfigsAdmission, model::topic_plan_supported,
+    DescribeConfigsRetention, host::DescribeConfigsAdmission,
 };
 
 pub(crate) trait DescribeConfigsShardWake: Send + Sync + 'static {
@@ -63,9 +63,6 @@ impl DescribeConfigsAdmissionPort {
         plan: DescribeConfigsPlan,
         retention: DescribeConfigsRetention,
     ) -> Result<DescribeConfigsAdmission, DescribeConfigsAdmissionErrorKind> {
-        if !topic_plan_supported(&plan) {
-            return Err(DescribeConfigsAdmissionErrorKind::UnsupportedResource);
-        }
         if self.shared.admission_closed.load(Ordering::Acquire) {
             return Err(DescribeConfigsAdmissionErrorKind::Closed);
         }

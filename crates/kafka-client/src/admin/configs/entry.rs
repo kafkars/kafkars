@@ -33,7 +33,7 @@ impl ConfigSynonym {
     }
 }
 
-/// One Kafka topic configuration entry.
+/// One Kafka configuration entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigEntry {
     name: String,

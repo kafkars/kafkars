@@ -51,7 +51,7 @@ fn closed_port_rejects_without_reserving_terminal_capacity() {
 }
 
 #[test]
-fn broker_and_mixed_plans_never_reserve_terminal_or_retained_bytes() {
+fn generic_and_mixed_plans_reserve_one_bounded_operation() {
     let (host, notifier) = crate::admin::test_support::describe_configs_host();
     let owner = DescribeConfigsShardOwner::new(host, Arc::new(NoopWake));
     let port = owner.admission_port();
@@ -59,23 +59,27 @@ fn broker_and_mixed_plans_never_reserve_terminal_or_retained_bytes() {
         kafka_client_core::Deadline::from_tick(10),
         std::time::Instant::now() + std::time::Duration::from_secs(1),
     );
-    for plan in [plan(&[(4, "7")]), plan(&[(2, "orders"), (4, "7")])] {
-        assert!(matches!(
-            port.try_admit(
-                kafka_client_core::Moment::from_tick(1),
-                deadline,
-                plan,
-                DescribeConfigsRetention::from_parts(16 * 1024, 8 * 1024),
-            ),
-            Err(DescribeConfigsAdmissionErrorKind::UnsupportedResource)
-        ));
-        let host = owner
-            .try_host()
-            .unwrap_or_else(|error| panic!("inspect untouched host: {error:?}"));
-        assert_eq!(host.unsettled(), 0);
-        assert_eq!(host.retained_bytes_for_test(), 0);
-        drop(host);
-    }
+    let accepted = port
+        .try_admit(
+            kafka_client_core::Moment::from_tick(1),
+            deadline,
+            plan(&[
+                (4, "7"),
+                (2, "orders"),
+                (32, "orders-workers"),
+                (16, "telemetry"),
+                (64, "future-resource"),
+            ]),
+            DescribeConfigsRetention::from_parts(16 * 1024, 8 * 1024),
+        )
+        .unwrap_or_else(|error| panic!("admit generic DescribeConfigs: {error:?}"));
+    let host = owner
+        .try_host()
+        .unwrap_or_else(|error| panic!("inspect admitted host: {error:?}"));
+    assert_eq!(host.unsettled(), 1);
+    assert_eq!(host.retained_bytes_for_test(), 16 * 1024);
+    drop(host);
+    drop(accepted);
     drop(port);
     drop(owner);
     crate::admin::test_support::stop_notifier(notifier);

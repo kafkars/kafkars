@@ -1,11 +1,10 @@
-//! Engine-owned request values for bounded batches of topic `DescribeConfigs`.
+//! Engine-owned request values for bounded batches of resource-generic `DescribeConfigs`.
 
 use kafka_client_core::{
     DescribeConfigsPlan, DescribeConfigsPlanError,
     DescribeConfigsResourceQuery as CoreResourceQuery,
 };
 
-const TOPIC_RESOURCE_TYPE: i8 = 2;
 const RESULT_BYTES_PER_RESOURCE: usize = 256 * 1024;
 
 #[derive(Clone, Copy)]
@@ -148,10 +147,8 @@ impl DescribeConfigsRequest {
         })
     }
 
-    pub(crate) fn into_topic_plan(
-        self,
-    ) -> Result<DescribeConfigsPlan, DescribeConfigsRequestError> {
-        let plan = DescribeConfigsPlan::new(
+    pub(crate) fn into_plan(self) -> Result<DescribeConfigsPlan, DescribeConfigsRequestError> {
+        DescribeConfigsPlan::new(
             self.resources
                 .into_iter()
                 .map(DescribeConfigsResourceQuery::into_core)
@@ -159,23 +156,13 @@ impl DescribeConfigsRequest {
             self.include_synonyms,
             self.include_documentation,
         )
-        .map_err(DescribeConfigsRequestError::Invalid)?;
-        if !topic_plan_supported(&plan) {
-            return Err(DescribeConfigsRequestError::UnsupportedResource);
-        }
-        Ok(plan)
+        .map_err(DescribeConfigsRequestError::Invalid)
     }
 }
 
-pub(super) fn topic_plan_supported(plan: &DescribeConfigsPlan) -> bool {
-    plan.resources()
-        .iter()
-        .all(|resource| resource.resource_type() == TOPIC_RESOURCE_TYPE)
-}
-
+#[derive(Debug)]
 pub(crate) enum DescribeConfigsRequestError {
     Invalid(DescribeConfigsPlanError),
-    UnsupportedResource,
 }
 
 fn canonical_string(value: String) -> String {

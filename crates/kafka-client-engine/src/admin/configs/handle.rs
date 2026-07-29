@@ -1,4 +1,4 @@
-//! Runtime-neutral admission for concrete topic `DescribeConfigs` work.
+//! Runtime-neutral admission for concrete resource-generic `DescribeConfigs` work.
 
 use std::{fmt, time::Duration};
 
@@ -10,7 +10,7 @@ use super::{
 };
 
 impl AdminHandle {
-    /// Attempts immediate bounded topic-configuration admission.
+    /// Attempts immediate bounded configuration-resource admission.
     pub fn try_describe_configs(
         &self,
         request: DescribeConfigsRequest,
@@ -33,13 +33,10 @@ impl AdminHandle {
         let retention = request.retention().ok_or_else(|| {
             DescribeConfigsAdmissionError::new(DescribeConfigsAdmissionErrorKind::RetainedBytes)
         })?;
-        let plan = request.into_topic_plan().map_err(|error| {
+        let plan = request.into_plan().map_err(|error| {
             DescribeConfigsAdmissionError::new(match error {
                 DescribeConfigsRequestError::Invalid(_error) => {
                     DescribeConfigsAdmissionErrorKind::InvalidRequest
-                }
-                DescribeConfigsRequestError::UnsupportedResource => {
-                    DescribeConfigsAdmissionErrorKind::UnsupportedResource
                 }
             })
         })?;

@@ -1,4 +1,4 @@
-//! Stable immediate admission failures for topic `DescribeConfigs`.
+//! Stable immediate admission failures for resource-generic `DescribeConfigs`.
 
 use core::fmt;
 

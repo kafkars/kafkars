@@ -170,7 +170,7 @@ fn public_query_type_remains_distinct_from_core_policy_type() {
     let query = DescribeConfigsResourceQuery::new(2, "orders".to_owned(), None);
     assert!(
         super::DescribeConfigsRequest::new(vec![query], false, false)
-            .into_topic_plan()
+            .into_plan()
             .is_ok()
     );
 }
