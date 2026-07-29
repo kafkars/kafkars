@@ -1,4 +1,4 @@
-//! Engine-owned request values for automatic-assignment `CreatePartitions`.
+//! Engine-owned request values for automatic or explicit `CreatePartitions`.
 
 use kafka_client_core::{
     CreatePartitionsPlan, CreatePartitionsPlanError,
@@ -10,6 +10,7 @@ use kafka_client_core::{
 pub struct PartitionIncrease {
     topic: String,
     total_count: i32,
+    replica_assignments: Option<Vec<Vec<i32>>>,
 }
 
 impl PartitionIncrease {
@@ -18,6 +19,20 @@ impl PartitionIncrease {
         Self {
             topic: topic.into(),
             total_count,
+            replica_assignments: None,
+        }
+    }
+
+    /// Creates one increase with assignments for every new partition.
+    pub fn with_replica_assignments(
+        topic: impl Into<String>,
+        total_count: i32,
+        replica_assignments: Vec<Vec<i32>>,
+    ) -> Self {
+        Self {
+            topic: topic.into(),
+            total_count,
+            replica_assignments: Some(replica_assignments),
         }
     }
 }
@@ -30,7 +45,7 @@ pub struct CreatePartitionsRequest {
 }
 
 impl CreatePartitionsRequest {
-    /// Creates one ordered automatic-assignment batch.
+    /// Creates one ordered partition-increase batch.
     pub const fn new(topics: Vec<PartitionIncrease>) -> Self {
         Self {
             topics,
@@ -49,7 +64,14 @@ impl CreatePartitionsRequest {
         CreatePartitionsPlan::new(
             self.topics
                 .into_iter()
-                .map(|topic| CoreSpecification::new(topic.topic, topic.total_count))
+                .map(|topic| match topic.replica_assignments {
+                    Some(assignments) => CoreSpecification::with_replica_assignments(
+                        topic.topic,
+                        topic.total_count,
+                        assignments,
+                    ),
+                    None => CoreSpecification::new(topic.topic, topic.total_count),
+                })
                 .collect(),
             self.validate_only,
         )
@@ -58,26 +80,54 @@ impl CreatePartitionsRequest {
     pub(crate) fn canonicalize(mut self) -> Self {
         for topic in &mut self.topics {
             topic.topic = canonical_string(std::mem::take(&mut topic.topic));
+            if let Some(assignments) = &mut topic.replica_assignments {
+                for broker_ids in assignments.iter_mut() {
+                    *broker_ids = canonical_vec(std::mem::take(broker_ids));
+                }
+                *assignments = canonical_vec(std::mem::take(assignments));
+            }
         }
         self.topics = canonical_vec(self.topics);
         self
     }
 
     pub(crate) fn retained_charge(&self) -> Option<usize> {
-        let text_bytes = self
-            .topics
-            .iter()
-            .try_fold(0usize, |bytes, topic| bytes.checked_add(topic.topic.len()))?;
-        crate::admin::retention::request_charge(self.topics.len(), 0, text_bytes)
+        let mut text_bytes = 0usize;
+        let mut assignment_count = 0usize;
+        let mut broker_id_count = 0usize;
+        for topic in &self.topics {
+            text_bytes = text_bytes.checked_add(topic.topic.len())?;
+            if let Some(assignments) = &topic.replica_assignments {
+                assignment_count = assignment_count.checked_add(assignments.len())?;
+                for broker_ids in assignments {
+                    broker_id_count = broker_id_count.checked_add(broker_ids.len())?;
+                }
+            }
+        }
+        crate::admin::retention::request_with_assignments_charge(
+            self.topics.len(),
+            0,
+            assignment_count,
+            broker_id_count,
+            text_bytes,
+        )
     }
 
     #[cfg(test)]
     pub(super) fn storage_is_canonical(&self) -> bool {
         self.topics.capacity() == self.topics.len()
-            && self
-                .topics
-                .iter()
-                .all(|topic| topic.topic.capacity() == topic.topic.len())
+            && self.topics.iter().all(|topic| {
+                topic.topic.capacity() == topic.topic.len()
+                    && topic
+                        .replica_assignments
+                        .as_ref()
+                        .is_none_or(|assignments| {
+                            assignments.capacity() == assignments.len()
+                                && assignments
+                                    .iter()
+                                    .all(|broker_ids| broker_ids.capacity() == broker_ids.len())
+                        })
+            })
     }
 }
 

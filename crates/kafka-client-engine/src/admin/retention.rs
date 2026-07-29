@@ -21,7 +21,7 @@ pub(crate) fn request_charge(
         .checked_add(diagnostics)
 }
 
-pub(crate) fn create_topics_request_charge(
+pub(crate) fn request_with_assignments_charge(
     topic_count: usize,
     config_count: usize,
     assignment_count: usize,

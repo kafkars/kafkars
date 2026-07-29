@@ -217,7 +217,7 @@ impl CreateTopicsRequest {
                 }
             }
         }
-        super::retention::create_topics_request_charge(
+        super::retention::request_with_assignments_charge(
             self.topics.len(),
             config_count,
             assignment_count,

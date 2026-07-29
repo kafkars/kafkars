@@ -1,4 +1,4 @@
-//! Generated automatic-assignment request and response scenarios.
+//! Generated automatic and explicit-assignment request and response scenarios.
 
 use kafka_client_core::{
     CreatePartitionsPlan, CreatePartitionsSpecification, PartitionIncreaseResult,
@@ -21,6 +21,18 @@ fn plan() -> CreatePartitionsPlan {
         true,
     )
     .unwrap_or_else(|error| panic!("valid partition plan: {error}"))
+}
+
+fn explicit_plan() -> CreatePartitionsPlan {
+    CreatePartitionsPlan::new(
+        vec![CreatePartitionsSpecification::with_replica_assignments(
+            "orders".to_owned(),
+            8,
+            vec![vec![3, 1], vec![2, 4]],
+        )],
+        false,
+    )
+    .unwrap_or_else(|error| panic!("valid explicit partition plan: {error}"))
 }
 
 fn result(topic: &str, error_code: i16, message: Option<&str>) -> CreatePartitionsTopicResult {
@@ -50,6 +62,22 @@ fn request_uses_generated_automatic_assignments_and_original_options() {
         create_partitions_request(&plan(), -1),
         Err(CreatePartitionsRequestError::NegativeTimeout)
     );
+}
+
+#[test]
+fn request_preserves_explicit_assignment_and_broker_order() {
+    let request = create_partitions_request(&explicit_plan(), 4_321)
+        .unwrap_or_else(|error| panic!("valid generated request: {error:?}"));
+    let assignments = request.topics[0]
+        .assignments
+        .as_ref()
+        .unwrap_or_else(|| panic!("explicit assignments expected"));
+
+    assert_eq!(request.topics[0].count, 8);
+    assert_eq!(assignments.len(), 2);
+    assert_eq!(assignments[0].broker_ids, [3, 1]);
+    assert_eq!(assignments[1].broker_ids, [2, 4]);
+    assert!(!request.validate_only);
 }
 
 #[test]

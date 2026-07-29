@@ -6,7 +6,7 @@ use crate::bridge::admin::{AdminEngine, PartitionsAdminRequest};
 
 use super::CreatePartitions;
 
-/// Inert automatic-assignment partition-increase request.
+/// Inert automatic or explicit-placement partition-increase request.
 #[must_use = "call submit to admit the CreatePartitions operation"]
 pub struct CreatePartitionsBuilder {
     engine: AdminEngine,

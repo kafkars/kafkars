@@ -1,9 +1,9 @@
-//! Generated automatic-assignment `CreatePartitions` construction and correlation.
+//! Generated automatic or explicit `CreatePartitions` construction and correlation.
 
 use kafka_client_core::{CreatePartitionsPlan, PartitionIncreaseOutcome};
 use kafka_wire::{
     CreatePartitionsRequest, CreatePartitionsResponse,
-    create_partitions_request::CreatePartitionsTopic,
+    create_partitions_request::{CreatePartitionsAssignment, CreatePartitionsTopic},
     create_partitions_response::CreatePartitionsTopicResult,
 };
 
@@ -31,7 +31,7 @@ pub(crate) enum CreatePartitionsProtocolFailure {
     DuplicateTopic,
 }
 
-/// Builds generated API-key 37 input using broker-chosen assignments.
+/// Builds generated API-key 37 input with exact assignment nullability.
 pub(crate) fn create_partitions_request(
     plan: &CreatePartitionsPlan,
     timeout_ms: i32,
@@ -47,7 +47,16 @@ pub(crate) fn create_partitions_request(
             let mut generated = CreatePartitionsTopic::default();
             generated.name = topic.topic().into();
             generated.count = topic.total_count();
-            generated.assignments = None;
+            generated.assignments = topic.replica_assignments().map(|assignments| {
+                assignments
+                    .iter()
+                    .map(|broker_ids| {
+                        let mut assignment = CreatePartitionsAssignment::default();
+                        assignment.broker_ids.clone_from(broker_ids);
+                        assignment
+                    })
+                    .collect()
+            });
             generated
         })
         .collect();

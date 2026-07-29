@@ -1,4 +1,4 @@
-//! Concrete automatic-assignment `CreatePartitions` ownership domain.
+//! Concrete automatic or explicit-placement `CreatePartitions` ownership domain.
 mod error;
 mod handle;
 mod host;

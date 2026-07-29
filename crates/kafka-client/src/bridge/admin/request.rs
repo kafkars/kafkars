@@ -128,6 +128,11 @@ fn into_engine_topic(topic: NewTopic) -> EngineTopic {
 }
 
 fn into_engine_partitions(topic: NewPartitions) -> EnginePartitionIncrease {
-    let (name, total_count) = topic.into_parts();
-    EnginePartitionIncrease::new(name, total_count)
+    let (name, total_count, replica_assignments) = topic.into_parts();
+    match replica_assignments {
+        Some(assignments) => {
+            EnginePartitionIncrease::with_replica_assignments(name, total_count, assignments)
+        }
+        None => EnginePartitionIncrease::new(name, total_count),
+    }
 }
