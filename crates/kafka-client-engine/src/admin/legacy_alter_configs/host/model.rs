@@ -1,6 +1,6 @@
 //! Prepared API 33 request and exact driver-handoff ownership.
 
-use kafka_client_core::{LegacyAlterConfigsPlan, OperationId};
+use kafka_client_core::{LegacyAlterConfigsPlan, LegacyAlterConfigsRoute, OperationId};
 
 use crate::clock::OperationDeadline;
 
@@ -8,6 +8,7 @@ use crate::clock::OperationDeadline;
 pub(crate) struct LegacyAlterConfigsSubmission {
     pub(super) operation_id: OperationId,
     pub(super) deadline: OperationDeadline,
+    pub(super) route: LegacyAlterConfigsRoute,
     pub(super) plan: LegacyAlterConfigsPlan,
     pub(super) result_limit: usize,
 }
@@ -18,12 +19,14 @@ impl LegacyAlterConfigsSubmission {
     ) -> (
         OperationId,
         OperationDeadline,
+        LegacyAlterConfigsRoute,
         LegacyAlterConfigsPlan,
         usize,
     ) {
         (
             self.operation_id,
             self.deadline,
+            self.route,
             self.plan,
             self.result_limit,
         )

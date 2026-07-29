@@ -4,7 +4,10 @@ use core::fmt;
 
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
-use super::{LegacyAlterConfigsBatch, LegacyAlterConfigsPlan, LegacyAlterConfigsTerminal};
+use super::{
+    LegacyAlterConfigOutcome, LegacyAlterConfigsBatch, LegacyAlterConfigsPlan,
+    LegacyAlterConfigsRoute, LegacyAlterConfigsTerminal,
+};
 
 /// Current ownership stage for one legacy full-snapshot configuration operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,6 +71,8 @@ pub enum LegacyAlterConfigsEffect {
         operation_id: OperationId,
         /// Original public absolute deadline.
         deadline: Deadline,
+        /// Exact destination owned by this serial subplan.
+        route: LegacyAlterConfigsRoute,
         /// Ordered semantic request facts.
         plan: LegacyAlterConfigsPlan,
     },
@@ -109,6 +114,10 @@ pub struct LegacyAlterConfigsMachine {
     pub(crate) operation_id: OperationId,
     pub(crate) deadline: Deadline,
     pub(crate) plan: LegacyAlterConfigsPlan,
+    pub(crate) routes: Vec<LegacyAlterConfigsRoute>,
+    pub(crate) current_route: usize,
+    pub(crate) throttle_time_ms: u32,
+    pub(crate) outcomes: Vec<Option<LegacyAlterConfigOutcome>>,
     pub(crate) state: LegacyAlterConfigsState,
 }
 
@@ -123,6 +132,10 @@ impl LegacyAlterConfigsMachine {
             operation_id,
             deadline,
             plan,
+            routes: Vec::new(),
+            current_route: 0,
+            throttle_time_ms: 0,
+            outcomes: Vec::new(),
             state: LegacyAlterConfigsState::Ready,
         }
     }

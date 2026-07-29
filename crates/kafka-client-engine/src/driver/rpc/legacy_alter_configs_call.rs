@@ -2,7 +2,7 @@
 
 use std::{error::Error, fmt, time::Instant};
 
-use kafka_client_core::LegacyAlterConfigsPlan;
+use kafka_client_core::{LegacyAlterConfigsPlan, LegacyAlterConfigsRoute};
 use kafka_driver::{CompletionError, RoutedCall};
 use kafka_wire::AlterConfigsResponse;
 
@@ -26,12 +26,13 @@ pub(crate) struct LegacyAlterConfigsCall {
 impl LegacyAlterConfigsCall {
     pub(crate) fn submit(
         driver: &DriverOwner,
+        route: LegacyAlterConfigsRoute,
         plan: &LegacyAlterConfigsPlan,
         deadline: Instant,
     ) -> Result<Self, LegacyAlterConfigsCallAdmissionFailure> {
         let request = legacy_alter_configs_request(plan);
         let call = driver
-            .submit_tracked_legacy_alter_configs(request, deadline)
+            .submit_tracked_legacy_alter_configs(request, route, deadline)
             .map_err(LegacyAlterConfigsCallAdmissionFailure::Driver)?;
         Ok(Self { call: Some(call) })
     }

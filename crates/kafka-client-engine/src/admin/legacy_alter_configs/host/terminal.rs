@@ -1,9 +1,6 @@
 //! Call polling, publication, reclamation, and shutdown recovery.
 
-use kafka_client_core::{
-    DeliveryStatus, LegacyAlterConfigsEffect, LegacyAlterConfigsInput, LegacyAlterConfigsState,
-    Moment,
-};
+use kafka_client_core::{DeliveryStatus, LegacyAlterConfigsInput, LegacyAlterConfigsState, Moment};
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
@@ -13,6 +10,25 @@ use super::{
 };
 
 impl LegacyAlterConfigsHost {
+    #[cfg(test)]
+    pub(in crate::admin::legacy_alter_configs) fn apply_response_for_test(
+        &mut self,
+        operation_id: kafka_client_core::OperationId,
+        batch: kafka_client_core::LegacyAlterConfigsBatch,
+    ) -> Result<(), LegacyAlterConfigsHostError> {
+        let index = self
+            .operation_index(operation_id)
+            .ok_or(LegacyAlterConfigsHostError::UnknownOperation)?;
+        self.operations[index].remaining_result_bytes = self.operations[index]
+            .remaining_result_bytes
+            .checked_sub(self.operations[index].active_result_contribution)
+            .ok_or(LegacyAlterConfigsHostError::ByteAccounting)?;
+        self.apply(
+            operation_id,
+            LegacyAlterConfigsInput::BrokerResponded { batch },
+        )
+    }
+
     pub(super) fn poll_one_call(&mut self) -> Result<bool, LegacyAlterConfigsHostError> {
         let Some(index) = self
             .operations
@@ -100,7 +116,12 @@ impl LegacyAlterConfigsHost {
                 .raw_terminal
                 .as_ref()
                 .ok_or(LegacyAlterConfigsHostError::MissingTerminal)?;
-            terminal_input(raw, &operation.plan, operation.remaining_result_bytes)
+            terminal_input(
+                raw,
+                &operation.plan,
+                operation.active_result_limit,
+                operation.active_result_contribution,
+            )
         };
         self.operations[index].remaining_result_bytes = self.operations[index]
             .remaining_result_bytes
@@ -112,16 +133,10 @@ impl LegacyAlterConfigsHost {
             .take()
             .ok_or(LegacyAlterConfigsHostError::MissingTerminal)?;
         raw.discard();
-        match transition.into_effect() {
-            Some(LegacyAlterConfigsEffect::Complete {
-                operation_id,
-                terminal,
-            }) if operation_id == self.operations[index].operation_id => {
-                self.operations[index].terminal = Some(terminal);
-                self.publish_terminal(index)
-            }
-            _ => Err(LegacyAlterConfigsHostError::MissingTerminal),
-        }
+        let effect = transition
+            .into_effect()
+            .ok_or(LegacyAlterConfigsHostError::MissingTerminal)?;
+        self.apply_effect(index, Some(effect))
     }
 
     pub(super) fn publish_terminal(

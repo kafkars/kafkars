@@ -1,8 +1,12 @@
-//! Any-broker single-attempt submission policy for legacy resource configuration replacement.
+//! Route-exact single-attempt submission for legacy resource configuration replacement.
 
 use std::{error::Error, fmt, time::Instant};
 
-use kafka_driver::{ApiVersion, RequestOptions, Route, RoutedCall, SubmitError, TrafficClass};
+use kafka_client_core::LegacyAlterConfigsRoute;
+use kafka_driver::{
+    ApiVersion, BrokerId, BrokerIdError, RequestOptions, Route, RoutedCall, SubmitError,
+    TrafficClass,
+};
 use kafka_wire::{AlterConfigsRequest, AlterConfigsResponse};
 
 use super::super::DriverOwner;
@@ -12,23 +16,36 @@ const LEGACY_ALTER_CONFIGS_MAX_VERSION: ApiVersion = ApiVersion::new(2);
 
 /// Definitely-unsent failure before driver request ownership.
 #[derive(Debug)]
-pub(crate) struct LegacyAlterConfigsSubmitError {
-    source: SubmitError,
+pub(crate) enum LegacyAlterConfigsSubmitError {
+    InvalidBroker(BrokerIdError),
+    Driver(SubmitError),
 }
 
 impl fmt::Display for LegacyAlterConfigsSubmitError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "driver rejected legacy resource AlterConfigs request: {}",
-            self.source
-        )
+        match self {
+            Self::InvalidBroker(source) => {
+                write!(
+                    formatter,
+                    "invalid legacy AlterConfigs broker route: {source}"
+                )
+            }
+            Self::Driver(source) => {
+                write!(
+                    formatter,
+                    "driver rejected legacy resource AlterConfigs request: {source}"
+                )
+            }
+        }
     }
 }
 
 impl Error for LegacyAlterConfigsSubmitError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(&self.source)
+        match self {
+            Self::InvalidBroker(source) => Some(source),
+            Self::Driver(source) => Some(source),
+        }
     }
 }
 
@@ -36,20 +53,28 @@ impl DriverOwner {
     pub(crate) fn submit_tracked_legacy_alter_configs(
         &self,
         request: AlterConfigsRequest,
+        route: LegacyAlterConfigsRoute,
         deadline: Instant,
     ) -> Result<RoutedCall<AlterConfigsResponse>, LegacyAlterConfigsSubmitError> {
         self.driver
             .request_tracked_with(
-                legacy_alter_configs_route(),
+                legacy_alter_configs_route(route)?,
                 request,
                 legacy_alter_configs_options(deadline),
             )
-            .map_err(|source| LegacyAlterConfigsSubmitError { source })
+            .map_err(LegacyAlterConfigsSubmitError::Driver)
     }
 }
 
-pub(super) const fn legacy_alter_configs_route() -> Route {
-    Route::AnyBroker
+pub(super) fn legacy_alter_configs_route(
+    route: LegacyAlterConfigsRoute,
+) -> Result<Route, LegacyAlterConfigsSubmitError> {
+    match route {
+        LegacyAlterConfigsRoute::AnyBroker => Ok(Route::AnyBroker),
+        LegacyAlterConfigsRoute::ExactBroker(raw) => BrokerId::new(raw)
+            .map(|broker_id| Route::Broker { broker_id })
+            .map_err(LegacyAlterConfigsSubmitError::InvalidBroker),
+    }
 }
 
 pub(super) const fn legacy_alter_configs_options(deadline: Instant) -> RequestOptions {

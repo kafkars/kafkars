@@ -2,7 +2,7 @@
 
 use kafka_client_core::{
     LegacyAlterConfigsEffect, LegacyAlterConfigsInput, LegacyAlterConfigsMachine,
-    LegacyAlterConfigsPlan, Moment, OperationId,
+    LegacyAlterConfigsPlan, LegacyAlterConfigsRoute, Moment, OperationId,
 };
 
 use crate::{clock::OperationDeadline, completion::CompletionRegistryError};
@@ -39,6 +39,15 @@ impl LegacyAlterConfigsHost {
             .checked_add(retention.total())
             .filter(|total| *total <= LEGACY_ALTER_CONFIGS_RETAINED_BYTES)
             .ok_or(LegacyAlterConfigsAdmissionErrorKind::RetainedBytes)?;
+        let result_limit =
+            crate::admin::legacy_alter_configs::model::legacy_alter_configs_result_limit(&plan)
+                .filter(|limit| *limit <= retention.result_limit())
+                .ok_or(LegacyAlterConfigsAdmissionErrorKind::RetainedBytes)?;
+        let result_contribution =
+            crate::admin::legacy_alter_configs::model::legacy_alter_configs_result_contribution(
+                &plan,
+            )
+            .ok_or(LegacyAlterConfigsAdmissionErrorKind::RetainedBytes)?;
         let (completion_id, observer) = self.completions.reserve().map_err(reservation_error)?;
 
         self.next_operation_id = operation_id.get().checked_add(1).map(OperationId::from_raw);
@@ -51,7 +60,9 @@ impl LegacyAlterConfigsHost {
             completion_id,
             deadline,
             retained_bytes: retention.total(),
-            remaining_result_bytes: retention.result_limit(),
+            remaining_result_bytes: result_contribution,
+            active_result_limit: result_limit,
+            active_result_contribution: 0,
             submission: None,
             handoff: LegacyAlterConfigsHandoff::Untouched,
             call: None,
@@ -88,17 +99,13 @@ fn start(
         Some(LegacyAlterConfigsEffect::Submit {
             operation_id,
             deadline: core_deadline,
+            route,
             plan,
         }) => {
             if operation_id != operation.operation_id || core_deadline != deadline.core() {
                 return Err(LegacyAlterConfigsHostError::SubmissionMismatch);
             }
-            operation.submission = Some(LegacyAlterConfigsSubmission {
-                operation_id,
-                deadline,
-                plan,
-                result_limit: operation.remaining_result_bytes,
-            });
+            operation.prepare_submission(route, plan)?;
             Ok(false)
         }
         Some(LegacyAlterConfigsEffect::Complete {
@@ -119,5 +126,31 @@ fn reservation_error(error: CompletionRegistryError) -> LegacyAlterConfigsAdmiss
     match error {
         CompletionRegistryError::Full => LegacyAlterConfigsAdmissionErrorKind::Capacity,
         _ => LegacyAlterConfigsAdmissionErrorKind::HostUnavailable,
+    }
+}
+
+impl LegacyAlterConfigsOperation {
+    pub(super) fn prepare_submission(
+        &mut self,
+        route: LegacyAlterConfigsRoute,
+        plan: LegacyAlterConfigsPlan,
+    ) -> Result<(), LegacyAlterConfigsHostError> {
+        let result_limit = super::super::model::legacy_alter_configs_result_limit(&plan)
+            .ok_or(LegacyAlterConfigsHostError::ByteAccounting)?;
+        let contribution = super::super::model::legacy_alter_configs_result_contribution(&plan)
+            .filter(|bytes| *bytes <= self.remaining_result_bytes)
+            .ok_or(LegacyAlterConfigsHostError::ByteAccounting)?;
+        self.plan = plan.clone();
+        self.active_result_limit = result_limit;
+        self.active_result_contribution = contribution;
+        self.submission = Some(LegacyAlterConfigsSubmission {
+            operation_id: self.operation_id,
+            deadline: self.deadline,
+            route,
+            plan,
+            result_limit,
+        });
+        self.handoff = LegacyAlterConfigsHandoff::Untouched;
+        Ok(())
     }
 }

@@ -172,6 +172,31 @@ fn generic_plan_rejects_invalid_or_duplicate_exact_resource_identities() {
     );
 }
 
+#[test]
+fn broker_resource_names_are_canonical_nonnegative_i32_ids() {
+    for resource_type in [4, 8] {
+        for invalid_name in ["-1", "+1", "00", "01", " 1", "1 ", "1.0", "2147483648"] {
+            assert_eq!(
+                LegacyAlterConfigsPlan::for_resources(
+                    vec![resource(resource_type, invalid_name, Vec::new())],
+                    false,
+                ),
+                Err(LegacyAlterConfigsPlanError::InvalidBrokerResourceName)
+            );
+        }
+    }
+    assert!(
+        LegacyAlterConfigsPlan::for_resources(
+            vec![
+                resource(4, "0", Vec::new()),
+                resource(8, "2147483647", Vec::new()),
+            ],
+            false,
+        )
+        .is_ok()
+    );
+}
+
 fn topic(name: &str, configs: Vec<LegacyConfigEntry>) -> LegacyTopicConfigReplacement {
     LegacyTopicConfigReplacement::new(name.to_owned(), configs)
 }

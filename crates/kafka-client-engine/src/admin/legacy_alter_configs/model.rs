@@ -64,12 +64,13 @@ impl LegacyAlterConfigsRequest {
         let text_bytes = self.resources.iter().try_fold(0usize, |bytes, resource| {
             bytes.checked_add(resource.text_bytes()?)
         })?;
-        let resource_name_bytes = self.resources.iter().try_fold(0usize, |bytes, resource| {
-            bytes.checked_add(resource.resource_name_bytes())
-        })?;
         let request = request_charge(resource_count, config_count, text_bytes)?;
-        let result_limit = result_fixed_charge(resource_count, resource_name_bytes)?
-            .checked_add(resource_count.checked_mul(RESULT_DIAGNOSTIC_BYTES_PER_TOPIC)?)?;
+        let result_limit = result_limit_for_resources(
+            resource_count,
+            self.resources
+                .iter()
+                .map(LegacyConfigResourceReplacement::resource_name_bytes),
+        )?;
         Some(LegacyAlterConfigsRetention {
             total: request,
             result_limit,
@@ -97,6 +98,21 @@ impl LegacyAlterConfigsRequest {
                 .iter()
                 .all(LegacyConfigResourceReplacement::storage_is_canonical)
     }
+}
+
+pub(crate) fn legacy_alter_configs_result_limit(plan: &LegacyAlterConfigsPlan) -> Option<usize> {
+    result_limit_for_resources(
+        plan.resources().len(),
+        plan.resources()
+            .iter()
+            .map(|resource| resource.resource_name().len()),
+    )
+}
+
+pub(crate) fn legacy_alter_configs_result_contribution(
+    plan: &LegacyAlterConfigsPlan,
+) -> Option<usize> {
+    legacy_alter_configs_result_limit(plan)?.checked_sub(result_base_bytes()?)
 }
 
 #[derive(Clone, Copy)]
@@ -129,4 +145,17 @@ fn canonical_string(value: String) -> String {
 
 fn canonical_vec<T>(value: Vec<T>) -> Vec<T> {
     value.into_boxed_slice().into_vec()
+}
+
+fn result_base_bytes() -> Option<usize> {
+    result_fixed_charge(0, 0)
+}
+
+fn result_limit_for_resources(
+    resource_count: usize,
+    mut resource_name_bytes: impl Iterator<Item = usize>,
+) -> Option<usize> {
+    let resource_name_bytes = resource_name_bytes.try_fold(0usize, usize::checked_add)?;
+    result_fixed_charge(resource_count, resource_name_bytes)?
+        .checked_add(resource_count.checked_mul(RESULT_DIAGNOSTIC_BYTES_PER_TOPIC)?)
 }

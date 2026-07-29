@@ -38,6 +38,8 @@ struct LegacyAlterConfigsOperation {
     deadline: OperationDeadline,
     retained_bytes: usize,
     remaining_result_bytes: usize,
+    active_result_limit: usize,
+    active_result_contribution: usize,
     submission: Option<LegacyAlterConfigsSubmission>,
     handoff: LegacyAlterConfigsHandoff,
     call: Option<LegacyAlterConfigsCall>,
@@ -171,10 +173,44 @@ impl LegacyAlterConfigsHost {
         if accepted {
             self.operations[index].handoff = LegacyAlterConfigsHandoff::Submitted;
         }
-        if let Some(LegacyAlterConfigsEffect::Complete { terminal, .. }) = transition.into_effect()
-        {
-            self.operations[index].terminal = Some(terminal);
-            self.publish_terminal(index)?;
+        self.apply_effect(index, transition.into_effect())
+    }
+
+    pub(super) fn apply_effect(
+        &mut self,
+        index: usize,
+        effect: Option<LegacyAlterConfigsEffect>,
+    ) -> Result<(), LegacyAlterConfigsHostError> {
+        match effect {
+            Some(LegacyAlterConfigsEffect::Submit {
+                operation_id,
+                deadline,
+                route,
+                plan,
+            }) => {
+                if operation_id != self.operations[index].operation_id
+                    || deadline != self.operations[index].deadline.core()
+                {
+                    return Err(LegacyAlterConfigsHostError::SubmissionMismatch);
+                }
+                self.operations[index].prepare_submission(route, plan)?;
+            }
+            Some(LegacyAlterConfigsEffect::Complete {
+                operation_id,
+                terminal,
+            }) => {
+                if operation_id != self.operations[index].operation_id {
+                    return Err(LegacyAlterConfigsHostError::SubmissionMismatch);
+                }
+                if matches!(&terminal, LegacyAlterConfigsTerminal::Configs(_))
+                    && self.operations[index].remaining_result_bytes != 0
+                {
+                    return Err(LegacyAlterConfigsHostError::ByteAccounting);
+                }
+                self.operations[index].terminal = Some(terminal);
+                self.publish_terminal(index)?;
+            }
+            None => {}
         }
         Ok(())
     }
@@ -182,5 +218,14 @@ impl LegacyAlterConfigsHost {
     #[cfg(test)]
     pub(super) const fn retained_bytes_for_test(&self) -> usize {
         self.retained_bytes
+    }
+
+    #[cfg(test)]
+    pub(super) fn apply_input_for_test(
+        &mut self,
+        operation_id: OperationId,
+        input: LegacyAlterConfigsInput,
+    ) -> Result<(), LegacyAlterConfigsHostError> {
+        self.apply(operation_id, input)
     }
 }

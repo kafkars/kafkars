@@ -41,12 +41,12 @@ pub(super) fn drive(
         LegacyAlterConfigsTurn::Idle => false,
         LegacyAlterConfigsTurn::Progress => true,
         LegacyAlterConfigsTurn::Submit(submission) => {
-            let (operation_id, deadline, plan, _result_limit) = submission.into_parts();
+            let (operation_id, deadline, route, plan, _result_limit) = submission.into_parts();
             let driver = resources
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            match LegacyAlterConfigsCall::submit(driver, &plan, deadline.transport()) {
+            match LegacyAlterConfigsCall::submit(driver, route, &plan, deadline.transport()) {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::LegacyAlterConfigs)?,

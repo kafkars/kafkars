@@ -10,8 +10,8 @@ pub use machine::{
     LegacyAlterConfigsMachineError, LegacyAlterConfigsState, LegacyAlterConfigsTransition,
 };
 pub use model::{
-    LegacyAlterConfigsPlan, LegacyAlterConfigsPlanError, LegacyConfigEntry,
-    LegacyConfigResourceReplacement, LegacyTopicConfigReplacement,
+    LegacyAlterConfigsPlan, LegacyAlterConfigsPlanError, LegacyAlterConfigsRoute,
+    LegacyConfigEntry, LegacyConfigResourceReplacement, LegacyTopicConfigReplacement,
 };
 pub use outcome::{
     LegacyAlterConfigBrokerError, LegacyAlterConfigOutcome, LegacyAlterConfigResult,
@@ -23,5 +23,7 @@ pub use outcome::{
 mod model_test;
 #[cfg(test)]
 mod outcome_test;
+#[cfg(test)]
+mod routing_test;
 #[cfg(test)]
 mod transition_test;

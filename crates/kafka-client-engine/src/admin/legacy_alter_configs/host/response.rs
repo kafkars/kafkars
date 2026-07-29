@@ -16,6 +16,7 @@ pub(super) fn terminal_input(
     raw: &DriverTerminal,
     plan: &LegacyAlterConfigsPlan,
     retained_limit: usize,
+    retained_contribution: usize,
 ) -> (LegacyAlterConfigsInput, usize) {
     match raw.fact() {
         LegacyAlterConfigsTerminalFact::Response {
@@ -29,7 +30,7 @@ pub(super) fn terminal_input(
         ) {
             Ok(batch) => (
                 LegacyAlterConfigsInput::BrokerResponded { batch },
-                retained_limit,
+                retained_contribution,
             ),
             Err(error) => (protocol_failure(error), 0),
         },
