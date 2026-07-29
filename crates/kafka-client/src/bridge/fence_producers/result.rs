@@ -1,8 +1,10 @@
 //! Exhaustive stable translation of producer-fencing outcomes.
 
+use std::time::Duration;
+
 use crate::{
     DeliveryStatus as PublicDeliveryStatus, ErrorKind, KafkaError,
-    admin::{BatchResult, FencedProducerIdentity},
+    admin::{BatchResult, FenceProducersResult, FencedProducerIdentity},
 };
 
 use super::{
@@ -78,7 +80,7 @@ fn translate_batch(
     batch: Batch,
     mut prepared: PreparedFenceProducerResults,
 ) -> AdminFenceProducersResult {
-    let (_throttle_time_ms, items) = batch.into_parts();
+    let (throttle_time_ms, items) = batch.into_parts();
     if items.len() != prepared.expected
         || prepared
             .entries
@@ -91,7 +93,17 @@ fn translate_batch(
     for item in items {
         prepared.entries.push(translate_item(item));
     }
-    Ok(BatchResult::new(prepared.entries))
+    Ok(translate_batch_parts(throttle_time_ms, prepared.entries))
+}
+
+pub(super) fn translate_batch_parts(
+    throttle_time_ms: u32,
+    entries: Vec<(String, Result<FencedProducerIdentity, KafkaError>)>,
+) -> FenceProducersResult {
+    FenceProducersResult::new(
+        Duration::from_millis(u64::from(throttle_time_ms)),
+        BatchResult::new(entries),
+    )
 }
 
 fn translate_item(item: ItemResult) -> (String, Result<FencedProducerIdentity, KafkaError>) {

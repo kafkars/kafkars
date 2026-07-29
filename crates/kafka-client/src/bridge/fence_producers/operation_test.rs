@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{BatchResult, DeliveryStatus, ErrorKind};
+use crate::{BatchResult, DeliveryStatus, ErrorKind, admin::FenceProducersResult};
 
 use super::{operation::AdminFenceProducers, request::FenceProducersAdminRequest};
 
@@ -43,7 +43,8 @@ fn anchored_deadline_is_rechecked_after_public_result_preparation() {
 
 #[test]
 fn wait_and_future_share_one_linear_result_shape() {
-    let waited = AdminFenceProducers::ready_for_test(Ok(BatchResult::new(Vec::new())))
+    let ready = FenceProducersResult::new(Duration::ZERO, BatchResult::new(Vec::new()));
+    let waited = AdminFenceProducers::ready_for_test(Ok(ready))
         .wait()
         .unwrap_or_else(|error| panic!("ready wait should succeed: {error}"));
     assert!(waited.entries().is_empty());

@@ -8,10 +8,50 @@ use super::{
         ObserverError,
     },
     result::{
-        translate_accepted_fault, translate_admission_kind, translate_broker_error_code,
-        translate_failure_parts, translate_identity_parts, translate_observer_error,
+        translate_accepted_fault, translate_admission_kind, translate_batch_parts,
+        translate_broker_error_code, translate_failure_parts, translate_identity_parts,
+        translate_observer_error,
     },
 };
+
+#[test]
+fn throttle_and_caller_order_cross_the_bridge_exactly() {
+    let result = translate_batch_parts(
+        u32::MAX,
+        vec![
+            (
+                "first".to_owned(),
+                Ok(translate_identity_parts(i64::MAX, i16::MAX)),
+            ),
+            ("second".to_owned(), Err(translate_broker_error_code(-733))),
+        ],
+    );
+
+    assert_eq!(
+        result.throttle_time(),
+        std::time::Duration::from_millis(u64::from(u32::MAX))
+    );
+    let entries = result.producers().entries();
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].0, "first");
+    assert_eq!(
+        entries[0]
+            .1
+            .as_ref()
+            .unwrap_or_else(|error| panic!("identity expected: {error}"))
+            .producer_id(),
+        i64::MAX
+    );
+    assert_eq!(entries[1].0, "second");
+    assert_eq!(
+        entries[1]
+            .1
+            .as_ref()
+            .expect_err("broker rejection expected")
+            .broker_code(),
+        Some(-733)
+    );
+}
 
 #[test]
 fn signed_identity_crosses_the_bridge_exactly() {

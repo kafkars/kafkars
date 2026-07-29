@@ -1,9 +1,12 @@
 //! Force-termination operation and singleton-result translation scenarios.
 
-use std::future::Future;
+use std::{future::Future, time::Duration};
 
 use super::{ForceTerminateTransaction, operation::translate_fence_result};
-use crate::{BatchResult, DeliveryStatus, ErrorKind, KafkaError, admin::FencedProducerIdentity};
+use crate::{
+    BatchResult, DeliveryStatus, ErrorKind, KafkaError,
+    admin::{FenceProducersResult, FencedProducerIdentity},
+};
 
 #[test]
 fn force_terminate_transaction_is_a_named_send_future() {
@@ -13,7 +16,7 @@ fn force_terminate_transaction_is_a_named_send_future() {
 
 #[test]
 fn singleton_success_discards_only_the_fenced_identity() {
-    let result = BatchResult::new(vec![(
+    let result = fence_result(vec![(
         String::from("orders-writer"),
         Ok(FencedProducerIdentity::new(41, 3)),
     )]);
@@ -26,7 +29,7 @@ fn singleton_broker_failure_is_preserved_exactly() {
     let broker_error = KafkaError::new(ErrorKind::Broker, "transaction coordinator rejected fence")
         .with_broker_code(Some(-32_000))
         .with_delivery_status(DeliveryStatus::PossiblySent);
-    let result = BatchResult::new(vec![(
+    let result = fence_result(vec![(
         String::from("orders-writer"),
         Err(broker_error.clone()),
     )]);
@@ -49,9 +52,15 @@ fn non_singleton_terminal_is_an_internal_possibly_sent_failure() {
             ),
         ],
     ] {
-        let error = translate_fence_result(Ok(BatchResult::new(entries)))
+        let error = translate_fence_result(Ok(fence_result(entries)))
             .expect_err("non-singleton fencing terminal must fail");
         assert_eq!(error.kind(), ErrorKind::Internal);
         assert_eq!(error.delivery_status(), Some(DeliveryStatus::PossiblySent));
     }
+}
+
+fn fence_result(
+    entries: Vec<(String, Result<FencedProducerIdentity, KafkaError>)>,
+) -> FenceProducersResult {
+    FenceProducersResult::new(Duration::ZERO, BatchResult::new(entries))
 }
