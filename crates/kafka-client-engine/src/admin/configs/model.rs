@@ -7,6 +7,10 @@ use kafka_client_core::{
 
 const RESULT_BYTES_PER_RESOURCE: usize = 256 * 1024;
 
+pub(crate) const fn describe_configs_result_limit(resource_count: usize) -> Option<usize> {
+    resource_count.checked_mul(RESULT_BYTES_PER_RESOURCE)
+}
+
 #[derive(Clone, Copy)]
 pub(crate) struct DescribeConfigsRetention {
     total: usize,
@@ -140,7 +144,7 @@ impl DescribeConfigsRequest {
         })?;
         let request =
             crate::admin::retention::request_charge(resource_count, key_count, text_bytes)?;
-        let result_limit = resource_count.checked_mul(RESULT_BYTES_PER_RESOURCE)?;
+        let result_limit = describe_configs_result_limit(resource_count)?;
         Some(DescribeConfigsRetention {
             total: request.checked_add(result_limit)?,
             result_limit,

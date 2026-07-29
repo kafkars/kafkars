@@ -41,7 +41,7 @@ fn closed_port_rejects_without_reserving_terminal_capacity() {
             kafka_client_core::Moment::from_tick(1),
             deadline,
             plan,
-            DescribeConfigsRetention::from_parts(16 * 1024, 8 * 1024),
+            DescribeConfigsRetention::from_parts(16 * 1024, 256 * 1024),
         ),
         Err(DescribeConfigsAdmissionErrorKind::Closed)
     ));
@@ -70,7 +70,7 @@ fn generic_and_mixed_plans_reserve_one_bounded_operation() {
                 (16, "telemetry"),
                 (64, "future-resource"),
             ]),
-            DescribeConfigsRetention::from_parts(16 * 1024, 8 * 1024),
+            DescribeConfigsRetention::from_parts(16 * 1024, 256 * 1024),
         )
         .unwrap_or_else(|error| panic!("admit generic DescribeConfigs: {error:?}"));
     let host = owner

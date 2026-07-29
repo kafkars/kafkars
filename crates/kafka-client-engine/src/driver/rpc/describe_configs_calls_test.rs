@@ -2,7 +2,9 @@
 
 use std::time::{Duration, Instant};
 
-use kafka_client_core::{DescribeConfigsPlan, DescribeConfigsResourceQuery, OperationId};
+use kafka_client_core::{
+    DescribeConfigsPlan, DescribeConfigsResourceQuery, DescribeConfigsRoute, OperationId,
+};
 
 use crate::{EngineConfig, clock::OperationDeadline};
 
@@ -24,6 +26,7 @@ fn accepted_call_occupies_the_only_slot_until_driver_shutdown() {
                 kafka_client_core::Deadline::from_tick(u64::MAX),
                 Instant::now() + Duration::from_secs(1),
             ),
+            DescribeConfigsRoute::AnyBroker,
             plan(),
             256 * 1024,
         )

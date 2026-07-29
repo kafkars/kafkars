@@ -6,6 +6,8 @@ mod handle;
 mod handle_test;
 mod host;
 #[cfg(test)]
+mod host_routing_test;
+#[cfg(test)]
 mod host_test;
 mod model;
 #[cfg(test)]

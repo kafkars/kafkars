@@ -4,7 +4,10 @@ use core::fmt;
 
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
-use super::{DescribeConfigsBatch, DescribeConfigsPlan, DescribeConfigsTerminal};
+use super::{
+    DescribeConfigOutcome, DescribeConfigsBatch, DescribeConfigsPlan, DescribeConfigsRoute,
+    DescribeConfigsTerminal,
+};
 
 /// Current ownership stage for one `DescribeConfigs` operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,6 +71,8 @@ pub enum DescribeConfigsEffect {
         operation_id: OperationId,
         /// Original public absolute deadline.
         deadline: Deadline,
+        /// Exact destination owned by this serial subplan.
+        route: DescribeConfigsRoute,
         /// Ordered semantic request facts.
         plan: DescribeConfigsPlan,
     },
@@ -109,20 +114,26 @@ pub struct DescribeConfigsMachine {
     pub(crate) operation_id: OperationId,
     pub(crate) deadline: Deadline,
     pub(crate) plan: DescribeConfigsPlan,
+    pub(crate) routes: Vec<DescribeConfigsRoute>,
+    pub(crate) current_route: usize,
+    pub(crate) throttle_time_ms: u32,
+    pub(crate) outcomes: Vec<Option<DescribeConfigOutcome>>,
     pub(crate) state: DescribeConfigsState,
 }
 
 impl DescribeConfigsMachine {
     /// Creates one accepted operation after engine terminal reservation.
-    pub const fn new(
-        operation_id: OperationId,
-        deadline: Deadline,
-        plan: DescribeConfigsPlan,
-    ) -> Self {
+    pub fn new(operation_id: OperationId, deadline: Deadline, plan: DescribeConfigsPlan) -> Self {
+        let routes = plan.route_order();
+        let outcomes = vec![None; plan.resources().len()];
         Self {
             operation_id,
             deadline,
             plan,
+            routes,
+            current_route: 0,
+            throttle_time_ms: 0,
+            outcomes,
             state: DescribeConfigsState::Ready,
         }
     }
@@ -142,7 +153,7 @@ pub enum DescribeConfigsMachineError {
     AlreadyCompleted,
     /// The normalized response has a different resource count.
     OutcomeCountMismatch,
-    /// A normalized response is not in original resource order.
+    /// A normalized response names a resource outside the active route subplan.
     OutcomeResourceMismatch,
     /// Successful configuration entries do not match their query selection.
     ConfigurationCorrelationMismatch,

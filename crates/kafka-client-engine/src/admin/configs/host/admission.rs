@@ -44,7 +44,7 @@ impl DescribeConfigsHost {
             completion_id,
             deadline,
             retained_bytes: retention.total(),
-            result_limit: retention.result_limit(),
+            result_limit_remaining: retention.result_limit(),
             submission: None,
             terminal: None,
         };
@@ -78,13 +78,30 @@ fn start(
         .apply(DescribeConfigsInput::Start { now })?;
     match transition.into_effect() {
         Some(DescribeConfigsEffect::Submit {
-            operation_id, plan, ..
+            operation_id,
+            deadline: effect_deadline,
+            route,
+            plan,
         }) => {
+            if operation_id != operation.operation_id {
+                return Err(DescribeConfigsHostError::EffectIdentity);
+            }
+            if effect_deadline != deadline.core() {
+                return Err(DescribeConfigsHostError::EffectDeadline);
+            }
+            let result_limit =
+                super::super::model::describe_configs_result_limit(plan.resources().len())
+                    .ok_or(DescribeConfigsHostError::ByteAccounting)?;
+            operation.result_limit_remaining = operation
+                .result_limit_remaining
+                .checked_sub(result_limit)
+                .ok_or(DescribeConfigsHostError::ByteAccounting)?;
             operation.submission = Some(DescribeConfigsSubmission {
                 operation_id,
                 deadline,
+                route,
                 plan,
-                result_limit: operation.result_limit,
+                result_limit,
             });
             Ok(false)
         }

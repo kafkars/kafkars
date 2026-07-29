@@ -1,13 +1,14 @@
 //! Bounded ownership for accepted `DescribeConfigs` machines and terminal capacity.
 
 mod admission;
+mod submission;
 mod terminal;
 
 use core::fmt;
 
 use kafka_client_core::{
     DescribeConfigsEffect, DescribeConfigsInput, DescribeConfigsMachine,
-    DescribeConfigsMachineError, DescribeConfigsPlan, DescribeConfigsTerminal, Moment, OperationId,
+    DescribeConfigsMachineError, DescribeConfigsTerminal, Moment, OperationId,
 };
 
 use crate::{
@@ -17,6 +18,7 @@ use crate::{
 
 use super::DescribeConfigsObserver;
 use crate::admin::DescribeConfigsPublisher;
+pub(crate) use submission::DescribeConfigsSubmission;
 
 pub(crate) const DESCRIBE_CONFIGS_CAPACITY: usize = 16;
 pub(crate) const DESCRIBE_CONFIGS_RETAINED_BYTES: usize = 8 * 1024 * 1024;
@@ -24,24 +26,6 @@ pub(crate) const DESCRIBE_CONFIGS_RETAINED_BYTES: usize = 8 * 1024 * 1024;
 pub(crate) struct DescribeConfigsAdmission {
     pub(crate) observer: DescribeConfigsObserver,
     pub(crate) fault: Option<DescribeConfigsHostError>,
-}
-
-pub(crate) struct DescribeConfigsSubmission {
-    pub(crate) operation_id: OperationId,
-    pub(crate) deadline: OperationDeadline,
-    pub(crate) plan: DescribeConfigsPlan,
-    pub(crate) result_limit: usize,
-}
-
-impl DescribeConfigsSubmission {
-    pub(crate) fn into_parts(self) -> (OperationId, OperationDeadline, DescribeConfigsPlan, usize) {
-        (
-            self.operation_id,
-            self.deadline,
-            self.plan,
-            self.result_limit,
-        )
-    }
 }
 
 pub(crate) enum DescribeConfigsTurn {
@@ -56,7 +40,7 @@ pub(super) struct DescribeConfigsOperation {
     pub(super) completion_id: CompletionId,
     pub(super) deadline: OperationDeadline,
     pub(super) retained_bytes: usize,
-    pub(super) result_limit: usize,
+    pub(super) result_limit_remaining: usize,
     pub(super) submission: Option<DescribeConfigsSubmission>,
     pub(super) terminal: Option<DescribeConfigsTerminal>,
 }
@@ -124,9 +108,50 @@ impl DescribeConfigsHost {
             .operation_index(operation_id)
             .ok_or(DescribeConfigsHostError::UnknownOperation)?;
         let transition = self.operations[index].machine.apply(input)?;
-        if let Some(DescribeConfigsEffect::Complete { terminal, .. }) = transition.into_effect() {
-            self.operations[index].terminal = Some(terminal);
-            self.publish_terminal(index)?;
+        match transition.into_effect() {
+            Some(DescribeConfigsEffect::Submit {
+                operation_id: effect_id,
+                deadline,
+                route,
+                plan,
+            }) => {
+                if effect_id != operation_id {
+                    return Err(DescribeConfigsHostError::EffectIdentity);
+                }
+                if deadline != self.operations[index].deadline.core() {
+                    return Err(DescribeConfigsHostError::EffectDeadline);
+                }
+                let result_limit =
+                    super::model::describe_configs_result_limit(plan.resources().len())
+                        .ok_or(DescribeConfigsHostError::ByteAccounting)?;
+                self.operations[index].result_limit_remaining = self.operations[index]
+                    .result_limit_remaining
+                    .checked_sub(result_limit)
+                    .ok_or(DescribeConfigsHostError::ByteAccounting)?;
+                self.operations[index].submission = Some(DescribeConfigsSubmission {
+                    operation_id,
+                    deadline: self.operations[index].deadline,
+                    route,
+                    plan,
+                    result_limit,
+                });
+            }
+            Some(DescribeConfigsEffect::Complete {
+                operation_id: effect_id,
+                terminal,
+            }) => {
+                if effect_id != operation_id {
+                    return Err(DescribeConfigsHostError::EffectIdentity);
+                }
+                if matches!(&terminal, DescribeConfigsTerminal::Configs(_))
+                    && self.operations[index].result_limit_remaining != 0
+                {
+                    return Err(DescribeConfigsHostError::ByteAccounting);
+                }
+                self.operations[index].terminal = Some(terminal);
+                self.publish_terminal(index)?;
+            }
+            None => {}
         }
         Ok(())
     }
@@ -172,6 +197,8 @@ pub(crate) enum DescribeConfigsHostError {
     UnknownOperation,
     MissingSubmission,
     MissingTerminal,
+    EffectIdentity,
+    EffectDeadline,
     ByteAccounting,
     Unsettled(usize),
     Wake,

@@ -40,7 +40,7 @@ fn terminal_bytes_remain_reserved_until_observer_reclamation() {
             kafka_client_core::Moment::from_tick(1),
             deadline(10),
             plan(),
-            DescribeConfigsRetention::from_parts(16 * 1024, 8 * 1024),
+            DescribeConfigsRetention::from_parts(16 * 1024, 256 * 1024),
         )
         .unwrap_or_else(|error| panic!("admit DescribeConfigs: {error:?}"));
     let DescribeConfigsTurn::Submit(submission) = host
@@ -106,7 +106,7 @@ fn recovery_after_submission_handoff_is_conservatively_possibly_sent() {
             kafka_client_core::Moment::from_tick(1),
             deadline(10),
             plan(),
-            DescribeConfigsRetention::from_parts(16 * 1024, 8 * 1024),
+            DescribeConfigsRetention::from_parts(16 * 1024, 256 * 1024),
         )
         .unwrap_or_else(|error| panic!("admit DescribeConfigs: {error:?}"));
     let DescribeConfigsTurn::Submit(_submission) = host
@@ -144,7 +144,7 @@ fn recovery_of_untouched_submission_remains_not_sent() {
             kafka_client_core::Moment::from_tick(1),
             deadline(10),
             plan(),
-            DescribeConfigsRetention::from_parts(16 * 1024, 8 * 1024),
+            DescribeConfigsRetention::from_parts(16 * 1024, 256 * 1024),
         )
         .unwrap_or_else(|error| panic!("admit DescribeConfigs: {error:?}"));
     host.recover_after_driver_shutdown()

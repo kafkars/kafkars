@@ -65,14 +65,18 @@ impl DescribeConfigsMachine {
                 ),
             )));
         }
+        Ok(self.submit_current_route())
+    }
+
+    fn submit_current_route(&mut self) -> DescribeConfigsTransition {
+        let route = self.routes[self.current_route];
         self.state = DescribeConfigsState::AwaitingDriver;
-        Ok(DescribeConfigsTransition::one(
-            DescribeConfigsEffect::Submit {
-                operation_id: self.operation_id,
-                deadline: self.deadline,
-                plan: self.plan.clone(),
-            },
-        ))
+        DescribeConfigsTransition::one(DescribeConfigsEffect::Submit {
+            operation_id: self.operation_id,
+            deadline: self.deadline,
+            route,
+            plan: self.plan.subplan(route),
+        })
     }
 
     fn driver_accepted(
@@ -93,7 +97,21 @@ impl DescribeConfigsMachine {
             return Err(DescribeConfigsMachineError::InvalidState);
         }
         self.validate_batch(&batch)?;
-        Ok(self.finish(DescribeConfigsTerminal::Configs(batch)))
+        self.merge_batch(batch);
+        self.current_route = self.current_route.saturating_add(1);
+        if self.current_route < self.routes.len() {
+            return Ok(self.submit_current_route());
+        }
+        let resources = std::mem::take(&mut self.outcomes)
+            .into_iter()
+            .collect::<Option<Vec<_>>>()
+            .ok_or(DescribeConfigsMachineError::OutcomeCountMismatch)?;
+        Ok(
+            self.finish(DescribeConfigsTerminal::Configs(DescribeConfigsBatch::new(
+                self.throttle_time_ms,
+                resources,
+            ))),
+        )
     }
 
     fn finish_awaiting(
@@ -104,6 +122,7 @@ impl DescribeConfigsMachine {
         if self.state != DescribeConfigsState::AwaitingDriver {
             return Err(DescribeConfigsMachineError::InvalidState);
         }
+        let delivery = self.aggregate_delivery(delivery);
         Ok(self.finish(DescribeConfigsTerminal::Failed(
             DescribeConfigsFailure::new(kind, delivery),
         )))
@@ -117,19 +136,41 @@ impl DescribeConfigsMachine {
         if self.state != DescribeConfigsState::Submitted {
             return Err(DescribeConfigsMachineError::InvalidState);
         }
+        let delivery = self.aggregate_delivery(delivery);
         Ok(self.finish(DescribeConfigsTerminal::Failed(
             DescribeConfigsFailure::new(kind, delivery),
         )))
+    }
+
+    fn aggregate_delivery(&self, route_delivery: DeliveryStatus) -> DeliveryStatus {
+        if self.current_route > 0 && route_delivery == DeliveryStatus::NotSent {
+            DeliveryStatus::PossiblySent
+        } else {
+            route_delivery
+        }
     }
 
     fn validate_batch(
         &self,
         batch: &DescribeConfigsBatch,
     ) -> Result<(), DescribeConfigsMachineError> {
-        if batch.resources().len() != self.plan.resources().len() {
+        let route = self.routes[self.current_route];
+        let route_resource_count = self
+            .plan
+            .resources()
+            .iter()
+            .filter(|query| query.route() == route)
+            .count();
+        if batch.resources().len() != route_resource_count {
             return Err(DescribeConfigsMachineError::OutcomeCountMismatch);
         }
-        for (query, outcome) in self.plan.resources().iter().zip(batch.resources()) {
+        for (query, outcome) in self
+            .plan
+            .resources()
+            .iter()
+            .filter(|query| query.route() == route)
+            .zip(batch.resources())
+        {
             if query.resource_type() != outcome.resource_type()
                 || query.resource_name() != outcome.resource_name()
             {
@@ -140,6 +181,22 @@ impl DescribeConfigsMachine {
             }
         }
         Ok(())
+    }
+
+    fn merge_batch(&mut self, batch: DescribeConfigsBatch) {
+        let (throttle_time_ms, resources) = batch.into_parts();
+        self.throttle_time_ms = self.throttle_time_ms.max(throttle_time_ms);
+        let route = self.routes[self.current_route];
+        for ((position, _), outcome) in self
+            .plan
+            .resources()
+            .iter()
+            .enumerate()
+            .filter(|(_, query)| query.route() == route)
+            .zip(resources)
+        {
+            self.outcomes[position] = Some(outcome);
+        }
     }
 
     fn finish(&mut self, terminal: DescribeConfigsTerminal) -> DescribeConfigsTransition {

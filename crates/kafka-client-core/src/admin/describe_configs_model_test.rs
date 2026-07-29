@@ -1,6 +1,9 @@
 //! Scenarios for validated `DescribeConfigs` semantic input.
 
-use super::{DescribeConfigsPlan, DescribeConfigsPlanError, DescribeConfigsResourceQuery};
+use super::{
+    DescribeConfigsPlan, DescribeConfigsPlanError, DescribeConfigsResourceQuery,
+    DescribeConfigsRoute,
+};
 
 #[test]
 fn plan_preserves_order_flags_and_optional_key_selection() {
@@ -60,12 +63,69 @@ fn plan_rejects_empty_invalid_and_ambiguous_resource_queries() {
         Err(DescribeConfigsPlanError::DuplicateResource)
     );
     assert!(
-        DescribeConfigsPlan::new(
-            vec![query(2, "orders", None), query(4, "orders", None)],
-            false,
-            false,
-        )
-        .is_ok()
+        DescribeConfigsPlan::new(vec![query(4, "7", None), query(8, "7", None)], false, false,)
+            .is_ok()
+    );
+}
+
+#[test]
+fn broker_resource_names_are_canonical_nonnegative_i32_ids() {
+    for invalid in ["-1", "+1", " 1", "1 ", "01", "00", "2147483648", "broker-1"] {
+        for resource_type in [4, 8] {
+            assert_eq!(
+                DescribeConfigsPlan::new(vec![query(resource_type, invalid, None)], false, false,),
+                Err(DescribeConfigsPlanError::InvalidBrokerResourceName)
+            );
+        }
+    }
+    for valid in ["0", "7", "2147483647"] {
+        assert!(DescribeConfigsPlan::new(vec![query(4, valid, None)], false, false).is_ok());
+    }
+}
+
+#[test]
+fn route_plans_coalesce_by_first_seen_destination_and_preserve_resource_order() {
+    let plan = DescribeConfigsPlan::new(
+        vec![
+            query(4, "7", None),
+            query(2, "orders", None),
+            query(8, "7", None),
+            query(4, "3", None),
+            query(64, "future", None),
+            query(8, "3", None),
+        ],
+        true,
+        true,
+    )
+    .unwrap_or_else(|error| panic!("mixed route plan should validate: {error}"));
+    let routes = plan.route_order();
+    assert_eq!(
+        routes,
+        [
+            DescribeConfigsRoute::ExactBroker(7),
+            DescribeConfigsRoute::AnyBroker,
+            DescribeConfigsRoute::ExactBroker(3),
+        ]
+    );
+    assert_eq!(
+        names(&plan.subplan(DescribeConfigsRoute::ExactBroker(7))),
+        ["7", "7"]
+    );
+    assert_eq!(
+        names(&plan.subplan(DescribeConfigsRoute::AnyBroker)),
+        ["orders", "future"]
+    );
+    assert_eq!(
+        names(&plan.subplan(DescribeConfigsRoute::ExactBroker(3))),
+        ["3", "3"]
+    );
+    assert!(
+        plan.subplan(DescribeConfigsRoute::AnyBroker)
+            .include_synonyms()
+    );
+    assert!(
+        plan.subplan(DescribeConfigsRoute::AnyBroker)
+            .include_documentation()
     );
 }
 
@@ -102,4 +162,11 @@ fn query(
         resource_name.to_owned(),
         keys.map(|keys| keys.iter().map(|key| (*key).to_owned()).collect()),
     )
+}
+
+fn names(plan: &DescribeConfigsPlan) -> Vec<&str> {
+    plan.resources()
+        .iter()
+        .map(DescribeConfigsResourceQuery::resource_name)
+        .collect()
 }

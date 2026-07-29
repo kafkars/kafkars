@@ -73,9 +73,7 @@ mod topics_transition;
 mod transition;
 mod unregister_broker;
 mod update_features;
-
 pub use exports::*;
-
 #[cfg(test)]
 mod delete_model_test;
 #[cfg(test)]
@@ -84,6 +82,8 @@ mod delete_transition_test;
 mod describe_configs_model_test;
 #[cfg(test)]
 mod describe_configs_outcome_test;
+#[cfg(test)]
+mod describe_configs_transition_failure_test;
 #[cfg(test)]
 mod describe_configs_transition_test;
 #[cfg(test)]

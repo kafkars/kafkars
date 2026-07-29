@@ -3,6 +3,15 @@
 use core::fmt;
 use std::collections::BTreeSet;
 
+/// Driver-independent destination for one `DescribeConfigs` subplan.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DescribeConfigsRoute {
+    /// Submit resources whose Kafka semantics do not name an exact broker.
+    AnyBroker,
+    /// Submit broker and broker-logger resources to their canonical broker ID.
+    ExactBroker(i32),
+}
+
 /// One resource and optional ordered configuration-key selection.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DescribeConfigsResourceQuery {
@@ -39,6 +48,10 @@ impl DescribeConfigsResourceQuery {
     pub fn configuration_keys(&self) -> Option<&[String]> {
         self.configuration_keys.as_deref()
     }
+
+    pub(crate) fn route(&self) -> DescribeConfigsRoute {
+        route_for(self)
+    }
 }
 
 /// Ordered, validated policy input for one `DescribeConfigs` RPC.
@@ -67,6 +80,11 @@ impl DescribeConfigsPlan {
             if resource.resource_name.is_empty() {
                 return Err(DescribeConfigsPlanError::EmptyResourceName);
             }
+            if matches!(resource.resource_type, 4 | 8)
+                && canonical_broker_id(&resource.resource_name).is_none()
+            {
+                return Err(DescribeConfigsPlanError::InvalidBrokerResourceName);
+            }
             if !identities.insert((resource.resource_type, resource.resource_name.as_str())) {
                 return Err(DescribeConfigsPlanError::DuplicateResource);
             }
@@ -93,6 +111,54 @@ impl DescribeConfigsPlan {
     pub const fn include_documentation(&self) -> bool {
         self.include_documentation
     }
+
+    pub(crate) fn route_order(&self) -> Vec<DescribeConfigsRoute> {
+        let mut routes = Vec::new();
+        let mut seen = BTreeSet::new();
+        for resource in &self.resources {
+            let route = resource.route();
+            if seen.insert(route) {
+                routes.push(route);
+            }
+        }
+        routes
+    }
+
+    pub(crate) fn subplan(&self, route: DescribeConfigsRoute) -> Self {
+        Self {
+            resources: self
+                .resources
+                .iter()
+                .filter(|resource| resource.route() == route)
+                .cloned()
+                .collect(),
+            include_synonyms: self.include_synonyms,
+            include_documentation: self.include_documentation,
+        }
+    }
+}
+
+fn route_for(resource: &DescribeConfigsResourceQuery) -> DescribeConfigsRoute {
+    if matches!(resource.resource_type, 4 | 8) {
+        return DescribeConfigsRoute::ExactBroker(
+            canonical_broker_id(&resource.resource_name)
+                .expect("validated broker resource name must remain canonical"),
+        );
+    }
+    DescribeConfigsRoute::AnyBroker
+}
+
+fn canonical_broker_id(resource_name: &str) -> Option<i32> {
+    let bytes = resource_name.as_bytes();
+    if bytes == b"0" {
+        return Some(0);
+    }
+    if !matches!(bytes.first(), Some(b'1'..=b'9'))
+        || bytes.get(1..)?.iter().any(|byte| !byte.is_ascii_digit())
+    {
+        return None;
+    }
+    resource_name.parse().ok()
 }
 
 fn validate_keys(keys: Option<&[String]>) -> Result<(), DescribeConfigsPlanError> {
@@ -120,6 +186,8 @@ pub enum DescribeConfigsPlanError {
     InvalidResourceType,
     /// Resource names must not be empty.
     EmptyResourceName,
+    /// Broker and broker-logger names must be canonical nonnegative `i32` IDs.
+    InvalidBrokerResourceName,
     /// One type/name identity may occur only once.
     DuplicateResource,
     /// Selected configuration keys must not be empty.

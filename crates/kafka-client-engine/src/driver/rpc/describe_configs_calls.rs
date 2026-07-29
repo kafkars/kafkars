@@ -2,7 +2,9 @@
 
 use std::{error::Error, fmt};
 
-use kafka_client_core::{DescribeConfigsInput, DescribeConfigsPlan, OperationId};
+use kafka_client_core::{
+    DescribeConfigsInput, DescribeConfigsPlan, DescribeConfigsRoute, OperationId,
+};
 use kafka_driver::{CompletionError, RouteFailureToken, RoutedCall};
 use kafka_wire::DescribeConfigsResponse;
 
@@ -33,6 +35,7 @@ impl DescribeConfigsCallPermit<'_> {
         driver: &DriverOwner,
         operation_id: OperationId,
         deadline: OperationDeadline,
+        route: DescribeConfigsRoute,
         plan: DescribeConfigsPlan,
         result_limit: usize,
     ) -> Result<(), DescribeConfigsAdmissionFailure> {
@@ -60,7 +63,7 @@ impl DescribeConfigsCallPermit<'_> {
             plan.include_synonyms(),
             plan.include_documentation(),
         );
-        let call = driver.submit_tracked_describe_configs(request, deadline.transport())?;
+        let call = driver.submit_tracked_describe_configs(request, route, deadline.transport())?;
         self.calls.push(DescribeConfigsCall {
             operation_id,
             plan,

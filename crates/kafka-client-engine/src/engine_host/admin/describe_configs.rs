@@ -38,12 +38,12 @@ pub(super) fn drive(
         DescribeConfigsTurn::Idle => false,
         DescribeConfigsTurn::Progress => true,
         DescribeConfigsTurn::Submit(submission) => {
-            let (operation_id, deadline, plan, result_limit) = submission.into_parts();
+            let (operation_id, deadline, route, plan, result_limit) = submission.into_parts();
             let driver = resources
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            match permit.submit(driver, operation_id, deadline, plan, result_limit) {
+            match permit.submit(driver, operation_id, deadline, route, plan, result_limit) {
                 Ok(()) => host
                     .apply(operation_id, DescribeConfigsInput::DriverAccepted)
                     .map_err(EngineHostError::DescribeConfigs)?,
