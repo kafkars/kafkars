@@ -1,0 +1,92 @@
+//! RemoveRaftVoter outcome, error, and delivery translation tests.
+
+use crate::{DeliveryStatus, ErrorKind};
+
+use super::{
+    engine::{
+        AcceptedFaultKind, AdmissionErrorKind, DeliveryStatus as EngineDeliveryStatus, FailureKind,
+        ObserverError,
+    },
+    result::{
+        translate_accepted_fault, translate_admission_kind, translate_broker_error_parts,
+        translate_failure_parts, translate_observer_error, translate_success_parts,
+    },
+};
+
+#[test]
+fn success_preserves_kafka_throttle_observation() {
+    assert_eq!(
+        translate_success_parts(47).throttle_time(),
+        std::time::Duration::from_millis(47)
+    );
+}
+
+#[test]
+fn admission_categories_are_exhaustive_and_definitely_unsent() {
+    for (kind, expected) in [
+        (AdmissionErrorKind::InvalidRequest, ErrorKind::Configuration),
+        (
+            AdmissionErrorKind::InvalidDeadline,
+            ErrorKind::Configuration,
+        ),
+        (AdmissionErrorKind::Contended, ErrorKind::Backpressure),
+        (AdmissionErrorKind::Capacity, ErrorKind::Backpressure),
+        (AdmissionErrorKind::RetainedBytes, ErrorKind::Backpressure),
+        (AdmissionErrorKind::Closed, ErrorKind::State),
+        (AdmissionErrorKind::IdentityExhausted, ErrorKind::Internal),
+        (AdmissionErrorKind::HostUnavailable, ErrorKind::Internal),
+    ] {
+        let error = translate_admission_kind(kind);
+        assert_eq!(error.kind(), expected);
+        assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+    }
+}
+
+#[test]
+fn broker_error_preserves_exact_signed_code_delivery_and_truncation() {
+    let error = translate_broker_error_parts(53, -31999, Some("rejected"), true);
+
+    assert_eq!(error.kind(), ErrorKind::Broker);
+    assert_eq!(error.broker_code(), Some(-31999));
+    assert_eq!(error.delivery_status(), Some(DeliveryStatus::PossiblySent));
+    assert!(error.diagnostic_truncated());
+}
+
+#[test]
+fn mechanism_failures_preserve_category_and_delivery() {
+    for (kind, expected) in [
+        (FailureKind::DeadlineElapsed, ErrorKind::Timeout),
+        (FailureKind::DriverRejected, ErrorKind::Backpressure),
+        (FailureKind::Transport, ErrorKind::Transport),
+        (FailureKind::ResponseTooLarge, ErrorKind::Backpressure),
+        (FailureKind::Compatibility, ErrorKind::Compatibility),
+        (FailureKind::InvalidResponse, ErrorKind::Broker),
+    ] {
+        for (delivery, expected_delivery) in [
+            (EngineDeliveryStatus::NotSent, DeliveryStatus::NotSent),
+            (
+                EngineDeliveryStatus::PossiblySent,
+                DeliveryStatus::PossiblySent,
+            ),
+        ] {
+            let error = translate_failure_parts(kind, delivery);
+            assert_eq!(error.kind(), expected);
+            assert_eq!(error.delivery_status(), Some(expected_delivery));
+        }
+    }
+}
+
+#[test]
+fn accepted_and_observer_failures_keep_stable_categories() {
+    for fault in [AcceptedFaultKind::Wake, AcceptedFaultKind::HostInvariant] {
+        assert_eq!(translate_accepted_fault(fault).kind(), ErrorKind::Internal);
+    }
+    assert_eq!(
+        translate_observer_error(ObserverError::AlreadyObserved).kind(),
+        ErrorKind::State
+    );
+    assert_eq!(
+        translate_observer_error(ObserverError::Stale).kind(),
+        ErrorKind::Internal
+    );
+}
