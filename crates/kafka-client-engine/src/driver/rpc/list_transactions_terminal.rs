@@ -1,10 +1,10 @@
 //! Neutral borrowed terminal facts for discovery and exact-broker transaction listing.
 
-use kafka_client_core::DeliveryStatus;
+use kafka_client_core::{AdminListTransactionsPlan, DeliveryStatus};
 use kafka_driver::{ApiVersion, CallFailure, RequestError, RouteFailureToken};
 use kafka_wire::{DescribeClusterResponse, ListTransactionsResponse};
 
-use super::super::request_failure_delivery;
+use super::{super::request_failure_delivery, list_transactions_call::ListTransactionsCorrelation};
 
 /// Stable engine-local classification without exposing driver variants.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -49,6 +49,7 @@ enum Inner {
 pub(crate) struct ListTransactionsRawTerminal {
     inner: Inner,
     route_token: Option<RouteFailureToken>,
+    correlation: ListTransactionsCorrelation,
 }
 
 impl ListTransactionsRawTerminal {
@@ -82,9 +83,44 @@ impl ListTransactionsRawTerminal {
         }
     }
 
+    pub(crate) const fn retained_limit(&self) -> usize {
+        self.correlation.retained_limit()
+    }
+
+    pub(crate) fn matches_discovery(&self, retained_limit: usize) -> bool {
+        self.correlation.matches_discovery(retained_limit)
+    }
+
+    pub(crate) fn matches_broker(
+        &self,
+        broker_id: i32,
+        plan: &AdminListTransactionsPlan,
+        retained_limit: usize,
+    ) -> bool {
+        self.correlation
+            .matches_broker(broker_id, plan, retained_limit)
+    }
+
     /// Deliberately releases route evidence after deterministic settlement.
     pub(crate) fn discard(self) {
-        drop(self.route_token);
+        let Self {
+            inner,
+            route_token,
+            correlation,
+        } = self;
+        drop(inner);
+        drop(route_token);
+        drop(correlation);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn discovery_for_test(retained_limit: usize) -> Self {
+        retain_list_transactions_discovery_terminal(
+            None,
+            Ok(DescribeClusterResponse::default()),
+            None,
+            ListTransactionsCorrelation::discovery(retained_limit),
+        )
     }
 }
 
@@ -92,6 +128,7 @@ pub(super) fn retain_list_transactions_discovery_terminal(
     selected_version: Option<ApiVersion>,
     result: Result<DescribeClusterResponse, RequestError>,
     route_token: Option<RouteFailureToken>,
+    correlation: ListTransactionsCorrelation,
 ) -> ListTransactionsRawTerminal {
     ListTransactionsRawTerminal {
         inner: Inner::Discovery {
@@ -99,6 +136,7 @@ pub(super) fn retain_list_transactions_discovery_terminal(
             result,
         },
         route_token,
+        correlation,
     }
 }
 
@@ -107,6 +145,7 @@ pub(super) fn retain_list_transactions_broker_terminal(
     selected_version: Option<ApiVersion>,
     result: Result<ListTransactionsResponse, RequestError>,
     route_token: Option<RouteFailureToken>,
+    correlation: ListTransactionsCorrelation,
 ) -> ListTransactionsRawTerminal {
     ListTransactionsRawTerminal {
         inner: Inner::Broker {
@@ -115,6 +154,7 @@ pub(super) fn retain_list_transactions_broker_terminal(
             result,
         },
         route_token,
+        correlation,
     }
 }
 
@@ -138,22 +178,5 @@ fn failure_kind(error: &RequestError) -> ListTransactionsDriverFailureKind {
             ListTransactionsDriverFailureKind::Compatibility
         }
         _ => ListTransactionsDriverFailureKind::Transport,
-    }
-}
-
-/// Accepted ownership recovered only after driver shutdown.
-#[must_use = "recovered ListTransactions ownership still requires settlement"]
-pub(crate) struct RecoveredListTransactionsCall {
-    _private: (),
-}
-
-impl RecoveredListTransactionsCall {
-    pub(super) const fn new() -> Self {
-        Self { _private: () }
-    }
-
-    /// Consumes recovered ownership after core receives its terminal fact.
-    pub(crate) const fn seal(self) {
-        let Self { _private: () } = self;
     }
 }

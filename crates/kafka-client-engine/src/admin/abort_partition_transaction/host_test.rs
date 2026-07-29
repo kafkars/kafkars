@@ -8,7 +8,7 @@ use crate::{
     admin::{
         ABORT_PARTITION_TRANSACTION_CAPACITY, AbortPartitionTransactionAdmissionErrorKind,
         AbortPartitionTransactionDeliveryStatus, AbortPartitionTransactionFailureKind,
-        AbortPartitionTransactionOutcome, AbortPartitionTransactionTurn, AdminCompletionNotifier,
+        AbortPartitionTransactionOutcome, AdminCompletionNotifier,
         abort_partition_transaction::host::ABORT_PARTITION_TRANSACTION_RETAINED_BYTES,
     },
     clock::{MonotonicClock, OperationDeadline},
@@ -107,45 +107,31 @@ fn operation_count_is_bounded_at_sixteen() {
 }
 
 #[test]
-fn recovery_distinguishes_untouched_from_handed_off_delivery() {
-    for handed_off in [false, true] {
-        let (mut notifier, ports) = AdminCompletionNotifier::start().expect("completion notifier");
-        let mut host = AbortPartitionTransactionHost::new(ports.abort_partition_transaction);
-        let deadline = deadline();
-        let admission = host
-            .try_admit(Moment::from_tick(0), deadline, plan("orders"))
-            .expect("admit");
-        if handed_off {
-            let AbortPartitionTransactionTurn::Submit(_) =
-                host.turn(Moment::from_tick(0)).expect("take submission")
-            else {
-                panic!("submission expected");
-            };
-        }
+fn untouched_recovery_is_definitely_unsent() {
+    let (mut notifier, ports) = AdminCompletionNotifier::start().expect("completion notifier");
+    let mut host = AbortPartitionTransactionHost::new(ports.abort_partition_transaction);
+    let deadline = deadline();
+    let admission = host
+        .try_admit(Moment::from_tick(0), deadline, plan("orders"))
+        .expect("admit");
 
-        host.recover_after_driver_shutdown().expect("recover host");
-        let AbortPartitionTransactionOutcome::Failed(failure) =
-            admission.observer.wait().expect("observe")
-        else {
-            panic!("failure expected");
-        };
-        let expected = if handed_off {
-            (
-                AbortPartitionTransactionFailureKind::Transport,
-                AbortPartitionTransactionDeliveryStatus::PossiblySent,
-            )
-        } else {
-            (
-                AbortPartitionTransactionFailureKind::DriverRejected,
-                AbortPartitionTransactionDeliveryStatus::NotSent,
-            )
-        };
-        assert_eq!((failure.kind(), failure.delivery()), expected);
+    host.recover_after_driver_shutdown().expect("recover host");
+    let AbortPartitionTransactionOutcome::Failed(failure) =
+        admission.observer.wait().expect("observe")
+    else {
+        panic!("failure expected");
+    };
+    assert_eq!(
+        (failure.kind(), failure.delivery()),
+        (
+            AbortPartitionTransactionFailureKind::DriverRejected,
+            AbortPartitionTransactionDeliveryStatus::NotSent,
+        )
+    );
 
-        let _turn = host.turn(Moment::from_tick(0)).expect("reclaim terminal");
-        drop(host);
-        stop_notifier(&mut notifier);
-    }
+    let _turn = host.turn(Moment::from_tick(0)).expect("reclaim terminal");
+    drop(host);
+    stop_notifier(&mut notifier);
 }
 
 fn stop_notifier(notifier: &mut AdminCompletionNotifier) {

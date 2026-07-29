@@ -45,12 +45,13 @@ pub(super) fn drive(
         AdminListTransactionsTurn::Submit(submission) => {
             let (operation_id, deadline, kind) = submission.into_parts();
             let call = match kind {
-                AdminListTransactionsSubmissionKind::Discovery => {
+                AdminListTransactionsSubmissionKind::Discovery { retained_limit } => {
                     ListTransactionsCall::submit_discovery(
                         resources
                             .driver
                             .as_ref()
                             .ok_or(EngineHostError::DriverOwnerMissing)?,
+                        retained_limit,
                         deadline.transport(),
                     )
                 }
@@ -68,8 +69,15 @@ pub(super) fn drive(
                     let Ok((request, minimum_version)) =
                         list_transactions_request(protocol_plan, retained_limit)
                     else {
-                        host.reject_handoff(operation_id)
-                            .map_err(EngineHostError::AdminListTransactions)?;
+                        host.reject_handoff(
+                            operation_id,
+                            AdminListTransactionsSubmissionKind::Broker {
+                                broker_id,
+                                plan,
+                                retained_limit,
+                            },
+                        )
+                        .map_err(EngineHostError::AdminListTransactions)?;
                         return Ok(AdminListTransactionsProgress {
                             unsettled: host.unsettled(),
                             driver_progress: true,
@@ -83,6 +91,8 @@ pub(super) fn drive(
                     ListTransactionsCall::submit_broker(
                         driver,
                         broker_id,
+                        plan,
+                        retained_limit,
                         request,
                         minimum_version,
                         deadline.transport(),
@@ -94,8 +104,16 @@ pub(super) fn drive(
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::AdminListTransactions)?,
                 Err(rejection) => {
-                    drop(rejection.into_source());
-                    host.reject_handoff(operation_id)
+                    let (broker, retained_limit) = rejection.into_submission_evidence();
+                    let submission = broker.map_or(
+                        AdminListTransactionsSubmissionKind::Discovery { retained_limit },
+                        |(broker_id, plan)| AdminListTransactionsSubmissionKind::Broker {
+                            broker_id,
+                            plan,
+                            retained_limit,
+                        },
+                    );
+                    host.reject_handoff(operation_id, submission)
                         .map_err(EngineHostError::AdminListTransactions)?;
                 }
             }

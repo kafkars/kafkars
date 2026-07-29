@@ -41,24 +41,25 @@ pub(super) fn drive(
         DescribeClientQuotasTurn::Idle => false,
         DescribeClientQuotasTurn::Progress => true,
         DescribeClientQuotasTurn::Submit(submission) => {
-            let (operation_id, deadline, plan, retained_request_bytes) = submission.into_parts();
+            let (operation_id, deadline, plan, request_scratch_limit, result_limit) =
+                submission.into_parts();
             let driver = resources
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
             match DescribeClientQuotasCall::submit(
                 driver,
-                plan.components(),
-                plan.strict(),
-                retained_request_bytes,
+                plan,
+                request_scratch_limit,
+                result_limit,
                 deadline.transport(),
             ) {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::DescribeClientQuotas)?,
                 Err(rejection) => {
-                    drop(rejection);
-                    host.reject_handoff(operation_id)
+                    let (plan, request_scratch_limit, result_limit) = rejection.into_correlation();
+                    host.reject_handoff(operation_id, plan, request_scratch_limit, result_limit)
                         .map_err(EngineHostError::DescribeClientQuotas)?;
                 }
             }

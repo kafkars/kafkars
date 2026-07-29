@@ -65,6 +65,7 @@ impl ExpireDelegationTokenHost {
             submission: None,
             handoff: ExpireDelegationTokenHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

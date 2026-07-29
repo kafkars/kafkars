@@ -1,20 +1,39 @@
 //! Translation from raw driver and generated response facts into core input.
 
-use kafka_client_core::{DeliveryStatus, ElectLeadersInput, ElectLeadersPlan};
+use kafka_client_core::{DeliveryStatus, ElectLeadersInput, LeaderElectionTarget};
 
 use crate::{
     driver::{ElectLeadersDriverFailureKind, ElectLeadersTerminal, ElectLeadersTerminalFact},
     protocol::admin::elect_leaders::{
-        ElectLeadersProtocolFailure, LeaderElectionRef, ValidatedElectLeadersResponse,
-        validate_elect_leaders_response,
+        ElectLeadersProtocolFailure, ElectLeadersSelectionRef, LeaderElectionRef,
+        ValidatedElectLeadersResponse, validate_elect_leaders_response,
     },
 };
 
-pub(super) fn terminal_input(
-    terminal: &ElectLeadersTerminal,
-    plan: &ElectLeadersPlan,
+use super::ElectLeadersOperation;
+
+pub(super) fn operation_matches_correlation(
+    operation: &ElectLeadersOperation,
+    plan: &kafka_client_core::ElectLeadersPlan,
+    request_scratch_limit: usize,
     result_limit: usize,
-) -> ElectLeadersInput {
+) -> bool {
+    &operation.response_plan == plan
+        && operation.request_scratch_limit == request_scratch_limit
+        && operation.result_limit == result_limit
+}
+
+pub(super) fn call_matches_operation(operation: &ElectLeadersOperation) -> bool {
+    operation.call.as_ref().is_some_and(|call| {
+        call.matches_correlation(
+            &operation.response_plan,
+            operation.request_scratch_limit,
+            operation.result_limit,
+        )
+    })
+}
+
+pub(super) fn terminal_input(terminal: &ElectLeadersTerminal) -> ElectLeadersInput {
     match terminal.fact() {
         ElectLeadersTerminalFact::Failed { kind, delivery } => match kind {
             ElectLeadersDriverFailureKind::DeadlineElapsed => {
@@ -36,16 +55,23 @@ pub(super) fn terminal_input(
             selected_version: Some(selected_version),
             response,
         } => {
-            let targets = match change_refs(plan) {
-                Ok(targets) => targets,
-                Err(input) => return input,
+            let targets;
+            let selection = match terminal.plan().selection().selected_targets() {
+                None => ElectLeadersSelectionRef::AllPartitions,
+                Some(selected) => {
+                    targets = match change_refs(selected) {
+                        Ok(targets) => targets,
+                        Err(input) => return input,
+                    };
+                    ElectLeadersSelectionRef::Selected(&targets)
+                }
             };
             match validate_elect_leaders_response(
-                plan.election_type(),
-                &targets,
+                terminal.plan().election_type(),
+                selection,
                 response,
                 selected_version,
-                result_limit,
+                terminal.result_limit(),
             ) {
                 Ok(ValidatedElectLeadersResponse::BrokerRejected(error)) => {
                     ElectLeadersInput::BrokerRejected { error }
@@ -59,13 +85,15 @@ pub(super) fn terminal_input(
     }
 }
 
-fn change_refs(plan: &ElectLeadersPlan) -> Result<Vec<LeaderElectionRef<'_>>, ElectLeadersInput> {
+fn change_refs(
+    selected: &[LeaderElectionTarget],
+) -> Result<Vec<LeaderElectionRef<'_>>, ElectLeadersInput> {
     let mut targets = Vec::new();
     targets
-        .try_reserve_exact(plan.targets().len())
+        .try_reserve_exact(selected.len())
         .map_err(|_error| ElectLeadersInput::ResponseTooLarge)?;
     targets.extend(
-        plan.targets()
+        selected
             .iter()
             .map(|target| LeaderElectionRef::new(target.topic(), target.partition())),
     );

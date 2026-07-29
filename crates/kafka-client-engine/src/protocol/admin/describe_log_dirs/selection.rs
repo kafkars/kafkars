@@ -3,7 +3,10 @@
 use core::mem::size_of;
 
 use kafka_client_core::{AdminDescribeLogDirsPartition, AdminDescribeLogDirsSelection};
-use kafka_wire::{DescribeLogDirsRequest, DescribeLogDirsResponse};
+use kafka_wire::{
+    DescribeLogDirsRequest, DescribeLogDirsResponse,
+    describe_log_dirs_request::DescribableLogDirTopic,
+};
 
 use super::{
     DescribeLogDirsSelectionRef, DescribeLogDirsTopicSelectionRef,
@@ -24,6 +27,27 @@ pub(crate) enum DescribeLogDirsSelectionRequestFailure {
 pub(crate) enum DescribeLogDirsSelectionResponseFailure {
     RetainedBytes,
     Response(DescribeLogDirsResponseFailure),
+}
+
+/// Conservative peak for flat-selection grouping, request copying, and validation scratch.
+pub(crate) fn selection_request_peak_charge(
+    selection: &AdminDescribeLogDirsSelection,
+) -> Option<usize> {
+    let Some(selected) = selection.selected_partitions() else {
+        return Some(0);
+    };
+    let count = selected.len();
+    let structures = size_of::<SelectionGroup<'static>>()
+        .checked_add(size_of::<DescribeLogDirsTopicSelectionRef<'static>>())?
+        .checked_add(size_of::<DescribableLogDirTopic>())?
+        .checked_add(size_of::<&str>())?
+        .checked_add(size_of::<i32>().checked_mul(2)?)?
+        .checked_add(size_of::<(&str, i32)>())?;
+    selected
+        .iter()
+        .try_fold(count.checked_mul(structures)?, |bytes, partition| {
+            bytes.checked_add(partition.topic().len())
+        })
 }
 
 /// Builds one nullable all-topic or explicit selected-partition request.

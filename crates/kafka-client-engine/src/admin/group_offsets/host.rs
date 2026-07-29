@@ -7,6 +7,9 @@ mod state;
 mod submission;
 mod terminal;
 
+#[cfg(test)]
+mod ownership_test;
+
 use kafka_client_core::{
     ListConsumerGroupOffsetsEffect, ListConsumerGroupOffsetsInput, ListConsumerGroupOffsetsMachine,
     ListConsumerGroupOffsetsPlan, ListConsumerGroupOffsetsTerminal, Moment, OperationId,
@@ -16,7 +19,7 @@ use crate::{
     admin::ListConsumerGroupOffsetsPublisher,
     clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{GroupOffsetsCall, GroupOffsetsTerminal},
+    driver::{GroupOffsetsCall, GroupOffsetsTerminal, RecoveredGroupOffsetsCall},
 };
 
 use super::{ListConsumerGroupOffsetsHostError, ListConsumerGroupOffsetsObserver};
@@ -60,7 +63,9 @@ struct ListConsumerGroupOffsetsOperation {
     submission: Option<ListConsumerGroupOffsetsSubmission>,
     handoff: ListConsumerGroupOffsetsHandoff,
     call: Option<GroupOffsetsCall>,
+    recovered_call: Option<RecoveredGroupOffsetsCall>,
     raw_terminal: Option<GroupOffsetsTerminal>,
+    rejected_submission: Option<(ListConsumerGroupOffsetsPlan, usize)>,
     terminal: Option<ListConsumerGroupOffsetsTerminal>,
 }
 
@@ -121,36 +126,6 @@ impl ListConsumerGroupOffsetsHost {
             .ok_or(ListConsumerGroupOffsetsHostError::MissingSubmission)?;
         self.operations[index].mark_handed_off();
         Ok(ListConsumerGroupOffsetsTurn::Submit(submission))
-    }
-
-    pub(crate) fn accept_call(
-        &mut self,
-        operation_id: OperationId,
-        call: GroupOffsetsCall,
-    ) -> Result<(), ListConsumerGroupOffsetsHostError> {
-        let index = self
-            .operation_index(operation_id)
-            .ok_or(ListConsumerGroupOffsetsHostError::UnknownOperation)?;
-        if self.operations[index].handoff != ListConsumerGroupOffsetsHandoff::HandedOff
-            || self.operations[index].call.is_some()
-        {
-            return Err(ListConsumerGroupOffsetsHostError::InvalidHandoff);
-        }
-        self.operations[index].call = Some(call);
-        self.apply(operation_id, ListConsumerGroupOffsetsInput::DriverAccepted)
-    }
-
-    pub(crate) fn reject_handoff(
-        &mut self,
-        operation_id: OperationId,
-    ) -> Result<(), ListConsumerGroupOffsetsHostError> {
-        let index = self
-            .operation_index(operation_id)
-            .ok_or(ListConsumerGroupOffsetsHostError::UnknownOperation)?;
-        if self.operations[index].handoff != ListConsumerGroupOffsetsHandoff::HandedOff {
-            return Err(ListConsumerGroupOffsetsHostError::InvalidHandoff);
-        }
-        self.apply(operation_id, ListConsumerGroupOffsetsInput::DriverRejected)
     }
 
     fn apply(

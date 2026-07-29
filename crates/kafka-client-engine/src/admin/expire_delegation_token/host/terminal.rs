@@ -1,15 +1,17 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
-use kafka_client_core::{
-    DeliveryStatus, ExpireDelegationTokenEffect, ExpireDelegationTokenInput,
-    ExpireDelegationTokenState, Moment,
-};
+mod recovery;
+
+#[cfg(test)]
+mod test_support;
+
+use kafka_client_core::ExpireDelegationTokenEffect;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
 use super::{
-    ExpireDelegationTokenHandoff, ExpireDelegationTokenHost, ExpireDelegationTokenHostError,
-    ExpireDelegationTokenOperation, response::terminal_input,
+    ExpireDelegationTokenHost, ExpireDelegationTokenHostError, ExpireDelegationTokenOperation,
+    response::terminal_input,
 };
 
 impl ExpireDelegationTokenHost {
@@ -21,67 +23,23 @@ impl ExpireDelegationTokenHost {
         else {
             return Ok(false);
         };
-        let Some(terminal) = poll_call(&mut self.operations[index])? else {
+        let terminal = self.operations[index]
+            .call
+            .as_mut()
+            .ok_or(ExpireDelegationTokenHostError::InvalidHandoff)?
+            .try_terminal();
+        let Some(terminal) = terminal else {
             return Ok(false);
         };
-        store_raw_terminal(&mut self.operations[index], terminal);
-        self.settle_raw(index)?;
-        Ok(true)
-    }
-
-    pub(crate) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), ExpireDelegationTokenHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
+        match terminal {
+            Ok(terminal) => {
+                drop(self.operations[index].call.take());
+                self.operations[index].raw_terminal = Some(terminal);
+                self.settle_raw(index)?;
+                Ok(true)
             }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (ExpireDelegationTokenState::Ready, _) => self.apply(
-                    operation_id,
-                    ExpireDelegationTokenInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (
-                    ExpireDelegationTokenState::AwaitingDriver,
-                    ExpireDelegationTokenHandoff::Untouched,
-                ) => self.apply(operation_id, ExpireDelegationTokenInput::DriverRejected)?,
-                (
-                    ExpireDelegationTokenState::AwaitingDriver,
-                    ExpireDelegationTokenHandoff::HandedOff,
-                ) => {
-                    seal_call(take_call(&mut self.operations[0]));
-                    self.apply(operation_id, ExpireDelegationTokenInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        ExpireDelegationTokenInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (
-                    ExpireDelegationTokenState::Submitted,
-                    ExpireDelegationTokenHandoff::Submitted,
-                ) => {
-                    seal_call(take_call(&mut self.operations[0]));
-                    self.apply(
-                        operation_id,
-                        ExpireDelegationTokenInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (ExpireDelegationTokenState::Completed, _) => self.publish_terminal(0)?,
-                _ => return Err(ExpireDelegationTokenHostError::InvalidHandoff),
-            }
+            Err(_error) => Err(ExpireDelegationTokenHostError::CallCompletion),
         }
-        Ok(())
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), ExpireDelegationTokenHostError> {
@@ -151,37 +109,6 @@ impl ExpireDelegationTokenHost {
     }
 }
 
-fn poll_call(
-    operation: &mut ExpireDelegationTokenOperation,
-) -> Result<Option<crate::driver::ExpireDelegationTokenRawTerminal>, ExpireDelegationTokenHostError>
-{
-    let terminal = operation
-        .call
-        .as_mut()
-        .ok_or(ExpireDelegationTokenHostError::InvalidHandoff)?
-        .try_terminal();
-    let Some(terminal) = terminal else {
-        return Ok(None);
-    };
-    drop(operation.call.take());
-    terminal
-        .map(Some)
-        .map_err(|_error| ExpireDelegationTokenHostError::CallCompletion)
-}
-
-fn store_raw_terminal(
-    operation: &mut ExpireDelegationTokenOperation,
-    terminal: crate::driver::ExpireDelegationTokenRawTerminal,
-) {
-    operation.raw_terminal = Some(terminal);
-}
-
-fn take_call(
-    operation: &mut ExpireDelegationTokenOperation,
-) -> Option<crate::driver::ExpireDelegationTokenCall> {
-    operation.call.take()
-}
-
 fn settle_operation(
     operation: &mut ExpireDelegationTokenOperation,
 ) -> Result<(), ExpireDelegationTokenHostError> {
@@ -222,7 +149,10 @@ fn take_publishable_terminal(
     ),
     ExpireDelegationTokenHostError,
 > {
-    if operation.call.is_some() || operation.raw_terminal.is_some() {
+    if operation.call.is_some()
+        || operation.recovered_call.is_some()
+        || operation.raw_terminal.is_some()
+    {
         return Err(ExpireDelegationTokenHostError::InvalidHandoff);
     }
     let terminal = operation
@@ -237,16 +167,4 @@ fn restore_terminal(
     terminal: kafka_client_core::ExpireDelegationTokenTerminal,
 ) {
     operation.terminal = Some(terminal);
-}
-
-fn seal_call(call: Option<crate::driver::ExpireDelegationTokenCall>) {
-    if let Some(call) = call
-        && let Some(recovered) = call.recover_after_driver_shutdown()
-    {
-        seal_recovered_call(recovered);
-    }
-}
-
-fn seal_recovered_call(recovered: crate::driver::RecoveredExpireDelegationTokenCall) {
-    recovered.seal();
 }

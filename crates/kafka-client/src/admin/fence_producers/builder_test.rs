@@ -1,10 +1,10 @@
-//! Producer-fencing builder shape and call-boundary deadline tests.
+//! Producer-fencing builder shape and submission-boundary deadline tests.
 
 use std::time::{Duration, Instant};
 
 use super::{
     FenceProducersBuilder, FenceProducersResult,
-    builder::{CallDeadline, CallDeadlineError},
+    builder::{CallDeadlineError, SubmissionTimeout},
 };
 
 fn assert_send_sync<T: Send + Sync>() {}
@@ -16,18 +16,19 @@ fn builder_and_result_are_send_sync_without_runtime_types() {
 }
 
 #[test]
-fn collection_delay_and_replacement_timeout_remain_call_anchored() {
-    let boundary = Instant::now();
-    let deadline = CallDeadline::from_boundary(boundary, Duration::from_millis(10));
+fn inert_builder_delay_does_not_consume_the_submission_timeout() {
+    let builder_construction = Instant::now();
+    let submit_boundary = builder_construction + Duration::from_secs(60);
+    let timeout = SubmissionTimeout::new(Duration::from_millis(10));
 
     assert_eq!(
-        deadline.remaining_at(boundary + Duration::from_millis(4)),
-        Ok(Duration::from_millis(6))
+        timeout.capture_at(submit_boundary),
+        Ok(submit_boundary + Duration::from_millis(10))
     );
     assert_eq!(
-        deadline
-            .with_timeout(Duration::from_millis(3))
-            .remaining_at(boundary + Duration::from_millis(3)),
+        timeout
+            .with_timeout(Duration::ZERO)
+            .capture_at(submit_boundary),
         Err(CallDeadlineError::Elapsed)
     );
 }

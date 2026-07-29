@@ -1,15 +1,14 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
-use kafka_client_core::{
-    AdminListConsumerGroupsInput, AdminListConsumerGroupsState, DeliveryStatus, Moment,
-};
+mod recovery;
+#[cfg(test)]
+mod recovery_test;
+#[cfg(test)]
+mod test_support;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
-use super::{
-    ListConsumerGroupsHandoff, ListConsumerGroupsHost, ListConsumerGroupsHostError,
-    response::terminal_input,
-};
+use super::{ListConsumerGroupsHost, ListConsumerGroupsHostError, response::terminal_input};
 
 impl ListConsumerGroupsHost {
     pub(super) fn poll_one_call(&mut self) -> Result<bool, ListConsumerGroupsHostError> {
@@ -30,75 +29,15 @@ impl ListConsumerGroupsHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
             }
             Err(_) => Err(ListConsumerGroupsHostError::CallCompletion),
         }
-    }
-
-    pub(crate) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), ListConsumerGroupsHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (AdminListConsumerGroupsState::Ready, _) => self.apply(
-                    operation_id,
-                    AdminListConsumerGroupsInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (
-                    AdminListConsumerGroupsState::AwaitingDiscoveryDriver
-                    | AdminListConsumerGroupsState::AwaitingBrokerDriver,
-                    ListConsumerGroupsHandoff::Untouched,
-                ) => self.apply(operation_id, AdminListConsumerGroupsInput::DriverRejected)?,
-                (
-                    AdminListConsumerGroupsState::AwaitingDiscoveryDriver
-                    | AdminListConsumerGroupsState::AwaitingBrokerDriver,
-                    ListConsumerGroupsHandoff::HandedOff,
-                ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(operation_id, AdminListConsumerGroupsInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        AdminListConsumerGroupsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (
-                    AdminListConsumerGroupsState::DiscoverySubmitted
-                    | AdminListConsumerGroupsState::BrokerSubmitted,
-                    ListConsumerGroupsHandoff::Submitted,
-                ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        AdminListConsumerGroupsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (AdminListConsumerGroupsState::Completed, _) => {
-                    self.publish_terminal(0)?;
-                }
-                _ => return Err(ListConsumerGroupsHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), ListConsumerGroupsHostError> {
@@ -111,13 +50,17 @@ impl ListConsumerGroupsHost {
                 .raw_terminal
                 .as_ref()
                 .ok_or(ListConsumerGroupsHostError::MissingTerminal)?;
+            if !operation.matches_raw(raw) {
+                return Err(ListConsumerGroupsHostError::SubmissionMismatch);
+            }
             terminal_input(raw, operation.remaining_result_bytes)
         };
-        self.operations[index].remaining_result_bytes = self.operations[index]
+        let remaining_result_bytes = self.operations[index]
             .remaining_result_bytes
             .checked_sub(retained_bytes)
             .ok_or(ListConsumerGroupsHostError::ByteAccounting)?;
         let transition = self.operations[index].machine.apply(input)?;
+        self.operations[index].remaining_result_bytes = remaining_result_bytes;
         let raw = self.operations[index]
             .raw_terminal
             .take()
@@ -133,7 +76,10 @@ impl ListConsumerGroupsHost {
         &mut self,
         index: usize,
     ) -> Result<(), ListConsumerGroupsHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+            || self.operations[index].rejected_submission.is_some()
+        {
             return Err(ListConsumerGroupsHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -191,13 +137,5 @@ impl ListConsumerGroupsHost {
             .checked_sub(bytes)
             .ok_or(ListConsumerGroupsHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::ListConsumerGroupsCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

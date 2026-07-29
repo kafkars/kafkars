@@ -2,6 +2,7 @@
 
 use std::{error::Error, fmt, time::Instant};
 
+use kafka_client_core::RenewDelegationTokenPlan;
 use kafka_driver::{CompletionError, RoutedCall};
 use kafka_wire::RenewDelegationTokenResponse;
 
@@ -20,18 +21,23 @@ use super::{
 #[must_use = "an accepted RenewDelegationToken call must be terminally settled"]
 pub(crate) struct RenewDelegationTokenCall {
     call: Option<RoutedCall<RenewDelegationTokenResponse>>,
+    plan: Option<RenewDelegationTokenPlan>,
 }
 
 impl RenewDelegationTokenCall {
     pub(crate) fn submit(
         driver: &DriverOwner,
+        plan: RenewDelegationTokenPlan,
         request: PreparedRenewDelegationTokenRequest,
         deadline: Instant,
     ) -> Result<Self, RenewDelegationTokenCallAdmissionFailure> {
         let call = driver
             .submit_tracked_renew_delegation_token(request, deadline)
             .map_err(RenewDelegationTokenCallAdmissionFailure::Driver)?;
-        Ok(Self { call: Some(call) })
+        Ok(Self {
+            call: Some(call),
+            plan: Some(plan),
+        })
     }
 
     /// Extracts one ready raw terminal without releasing route evidence.
@@ -39,14 +45,16 @@ impl RenewDelegationTokenCall {
         &mut self,
     ) -> Option<Result<RenewDelegationTokenRawTerminal, CompletionError>> {
         let result = self.call.as_mut()?.try_result()?;
-        drop(self.call.take());
         match result {
             Ok(outcome) => {
+                let plan = self.plan.take()?;
+                drop(self.call.take());
                 let (result, selected_version, route_token) = outcome.into_parts();
                 Some(Ok(retain_renew_delegation_token_terminal(
                     selected_version,
                     result,
                     route_token,
+                    plan,
                 )))
             }
             Err(source) => Some(Err(source)),
@@ -54,13 +62,15 @@ impl RenewDelegationTokenCall {
     }
 
     /// Seals unresolved ownership only after the unique driver is gone.
-    pub(crate) fn recover_after_driver_shutdown(
-        mut self,
-    ) -> Option<RecoveredRenewDelegationTokenCall> {
-        self.call.take().map(|call| {
-            drop(call);
-            RecoveredRenewDelegationTokenCall
-        })
+    pub(crate) fn recover_after_driver_shutdown(self) -> Option<RecoveredRenewDelegationTokenCall> {
+        let Self { call, plan } = self;
+        match (call, plan) {
+            (Some(call), Some(plan)) => {
+                drop(call);
+                Some(RecoveredRenewDelegationTokenCall::new(plan))
+            }
+            _ => None,
+        }
     }
 }
 

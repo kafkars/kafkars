@@ -2,6 +2,7 @@
 
 mod admission;
 mod model;
+mod recovery;
 mod response;
 mod terminal;
 
@@ -45,6 +46,7 @@ struct DescribeStreamsGroupOperation {
     submission: Option<DescribeStreamsGroupSubmission>,
     handoff: DescribeStreamsGroupHandoff,
     call: Option<DescribeStreamsGroupCall>,
+    recovered_call: Option<crate::driver::RecoveredDescribeStreamsGroupCall>,
     raw_terminal: Option<DriverTerminal>,
     terminal: Option<DescribeStreamsGroupTerminal>,
 }
@@ -200,6 +202,7 @@ impl DescribeStreamsGroupHost {
                     || self.operations[index].submission.is_some()
                     || self.operations[index].active_plan.is_some()
                     || self.operations[index].call.is_some()
+                    || self.operations[index].recovered_call.is_some()
                     || self.operations[index].raw_terminal.is_some()
                 {
                     return Err(DescribeStreamsGroupHostError::SubmissionMismatch);

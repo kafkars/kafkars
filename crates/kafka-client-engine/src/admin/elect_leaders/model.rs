@@ -1,4 +1,4 @@
-//! Engine-owned canonical intent for selected partition leader elections.
+//! Engine-owned canonical intent for selected or cluster-wide leader elections.
 
 use core::mem::size_of;
 
@@ -41,9 +41,8 @@ impl LeaderElectionTarget {
         }
     }
 
-    fn canonicalize(mut self) -> Self {
-        self.topic = canonical_string(self.topic);
-        self
+    fn canonicalize(&mut self) {
+        self.topic = canonical_string(core::mem::take(&mut self.topic));
     }
 
     fn into_core(self) -> CoreTarget {
@@ -51,61 +50,101 @@ impl LeaderElectionTarget {
     }
 }
 
-/// One explicit election policy and nonempty caller-ordered target batch.
+/// Explicit engine request selection without empty-batch inference.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ElectLeadersRequestSelection {
+    /// Elect leaders for every partition in the cluster.
+    AllPartitions,
+    /// Elect leaders for one exact selected target batch.
+    Selected(Vec<LeaderElectionTarget>),
+}
+
+/// One explicit election policy and partition selection.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ElectLeadersRequest {
     election_type: LeaderElectionType,
-    targets: Vec<LeaderElectionTarget>,
+    selection: ElectLeadersRequestSelection,
 }
 
 impl ElectLeadersRequest {
-    /// Creates one inert request for validation at the public call boundary.
+    /// Creates selected-partition intent retained for source compatibility.
     pub const fn new(
+        election_type: LeaderElectionType,
+        targets: Vec<LeaderElectionTarget>,
+    ) -> Self {
+        Self::selected(election_type, targets)
+    }
+
+    /// Creates inert selected-partition intent for validation at the call boundary.
+    pub const fn selected(
         election_type: LeaderElectionType,
         targets: Vec<LeaderElectionTarget>,
     ) -> Self {
         Self {
             election_type,
-            targets,
+            selection: ElectLeadersRequestSelection::Selected(targets),
+        }
+    }
+
+    /// Creates inert cluster-wide intent for validation at the call boundary.
+    pub const fn all(election_type: LeaderElectionType) -> Self {
+        Self {
+            election_type,
+            selection: ElectLeadersRequestSelection::AllPartitions,
         }
     }
 
     pub(crate) fn canonicalize(mut self) -> Self {
-        self.targets = canonical_vec(
-            self.targets
-                .into_iter()
-                .map(LeaderElectionTarget::canonicalize)
-                .collect(),
-        );
+        if let ElectLeadersRequestSelection::Selected(targets) = &mut self.selection {
+            targets
+                .iter_mut()
+                .for_each(LeaderElectionTarget::canonicalize);
+            targets.shrink_to_fit();
+        }
         self
     }
 
     pub(crate) fn preparation_charge(&self) -> Option<usize> {
-        self.targets.iter().try_fold(
-            size_of::<Self>().checked_add(
-                self.targets
-                    .len()
-                    .checked_mul(size_of::<LeaderElectionTarget>())?,
-            )?,
-            |bytes, target| bytes.checked_add(target.topic.len()),
-        )
+        match &self.selection {
+            ElectLeadersRequestSelection::AllPartitions => Some(size_of::<Self>()),
+            ElectLeadersRequestSelection::Selected(targets) => targets.iter().try_fold(
+                size_of::<Self>().checked_add(
+                    targets
+                        .len()
+                        .checked_mul(size_of::<LeaderElectionTarget>())?,
+                )?,
+                |bytes, target| bytes.checked_add(target.topic.len()),
+            ),
+        }
     }
 
-    pub(crate) fn into_plan(self) -> Result<ElectLeadersPlan, ElectLeadersPlanError> {
-        ElectLeadersPlan::new(
-            self.election_type.into_core(),
-            self.targets
-                .into_iter()
-                .map(LeaderElectionTarget::into_core)
-                .collect(),
-        )
+    pub(crate) fn into_plan(self) -> Result<ElectLeadersPlan, ElectLeadersPlanFailure> {
+        match self.selection {
+            ElectLeadersRequestSelection::AllPartitions => {
+                Ok(ElectLeadersPlan::all(self.election_type.into_core()))
+            }
+            ElectLeadersRequestSelection::Selected(targets) => {
+                let mut selected = Vec::new();
+                selected
+                    .try_reserve_exact(targets.len())
+                    .map_err(|_error| ElectLeadersPlanFailure::RetainedBytes)?;
+                selected.extend(targets.into_iter().map(LeaderElectionTarget::into_core));
+                ElectLeadersPlan::selected(self.election_type.into_core(), selected)
+                    .map_err(ElectLeadersPlanFailure::Invalid)
+            }
+        }
     }
+}
+
+/// Request conversion failure before atomic host admission.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ElectLeadersPlanFailure {
+    /// Core rejected the selected target identities.
+    Invalid(ElectLeadersPlanError),
+    /// Canonical core ownership could not fit an allocation.
+    RetainedBytes,
 }
 
 fn canonical_string(value: String) -> String {
     value.into_boxed_str().into_string()
-}
-
-fn canonical_vec<T>(value: Vec<T>) -> Vec<T> {
-    value.into_boxed_slice().into_vec()
 }

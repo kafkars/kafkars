@@ -29,7 +29,6 @@ pub(crate) struct AdminDescribeTransactionsAdmission {
     pub(crate) fault: Option<AdminDescribeTransactionsHostError>,
 }
 
-/// One exact transactional ID ready for the engine's driver-admission stage.
 pub(crate) struct AdminDescribeTransactionsSubmission {
     operation_id: OperationId,
     deadline: OperationDeadline,
@@ -65,6 +64,7 @@ struct AdminDescribeTransactionsOperation {
     submission: Option<AdminDescribeTransactionsSubmission>,
     handoff: AdminDescribeTransactionsHandoff,
     call: Option<DescribeTransactionsCall>,
+    recovered_call: Option<crate::driver::RecoveredDescribeTransactionsCall>,
     raw_terminal: Option<DescribeTransactionsRawTerminal>,
     terminal: Option<AdminDescribeTransactionsTerminal>,
 }

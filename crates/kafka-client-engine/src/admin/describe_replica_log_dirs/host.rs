@@ -82,6 +82,7 @@ struct DescribeReplicaLogDirsOperation {
     current_replicas: Option<Vec<DescribeReplicaLogDirsReplica>>,
     handoff: DescribeReplicaLogDirsHandoff,
     call: Option<DescribeReplicaLogDirsCall>,
+    recovered_call: Option<crate::driver::RecoveredDescribeReplicaLogDirsCall>,
     raw_terminal: Option<DescribeReplicaLogDirsRawTerminal>,
     terminal: Option<DescribeReplicaLogDirsTerminal>,
 }

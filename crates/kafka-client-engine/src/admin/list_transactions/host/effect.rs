@@ -4,7 +4,8 @@ use kafka_client_core::AdminListTransactionsEffect;
 
 use super::{
     AdminListTransactionsHandoff, AdminListTransactionsHost, AdminListTransactionsHostError,
-    AdminListTransactionsSubmission, AdminListTransactionsSubmissionKind,
+    AdminListTransactionsOperation, AdminListTransactionsSubmission,
+    AdminListTransactionsSubmissionKind,
 };
 
 impl AdminListTransactionsHost {
@@ -22,7 +23,12 @@ impl AdminListTransactionsHost {
                 if deadline != self.operations[index].deadline.core() {
                     return Err(AdminListTransactionsHostError::SubmissionMismatch);
                 }
-                (operation_id, AdminListTransactionsSubmissionKind::Discovery)
+                (
+                    operation_id,
+                    AdminListTransactionsSubmissionKind::Discovery {
+                        retained_limit: self.operations[index].remaining_result_bytes,
+                    },
+                )
             }
             AdminListTransactionsEffect::SubmitBroker {
                 operation_id,
@@ -56,12 +62,19 @@ impl AdminListTransactionsHost {
         if effect_id != operation_id {
             return Err(AdminListTransactionsHostError::SubmissionMismatch);
         }
-        self.operations[index].submission = Some(AdminListTransactionsSubmission {
-            operation_id,
-            deadline: self.operations[index].deadline,
+        self.operations[index].prepare_submission(kind);
+        Ok(())
+    }
+}
+
+impl AdminListTransactionsOperation {
+    pub(super) fn prepare_submission(&mut self, kind: AdminListTransactionsSubmissionKind) {
+        self.active_submission = Some(kind.clone());
+        self.submission = Some(AdminListTransactionsSubmission {
+            operation_id: self.operation_id,
+            deadline: self.deadline,
             kind,
         });
-        self.operations[index].handoff = AdminListTransactionsHandoff::Untouched;
-        Ok(())
+        self.handoff = AdminListTransactionsHandoff::Untouched;
     }
 }

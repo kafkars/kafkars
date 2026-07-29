@@ -3,7 +3,7 @@
 use std::{error::Error, fmt};
 
 use kafka_client_core::{DeleteTopicsInput, OperationId};
-use kafka_driver::{CompletionError, RouteFailureToken, RoutedCall};
+use kafka_driver::{CompletionError, RoutedCall};
 use kafka_wire::DeleteTopicsResponse;
 
 use crate::{
@@ -14,7 +14,9 @@ use crate::{
 };
 
 use super::{
-    super::DriverOwner, delete_topics_submission::DeleteTopicsSubmitError,
+    super::DriverOwner,
+    delete_topics_refresh::{SettledDeleteTopicsCall, response_requires_controller_refresh},
+    delete_topics_submission::DeleteTopicsSubmitError,
     delete_topics_terminal::normalize_terminal,
 };
 
@@ -53,26 +55,6 @@ impl DeleteTopicsCallPermit<'_> {
             call,
         });
         Ok(())
-    }
-}
-
-pub(crate) struct SettledDeleteTopicsCall {
-    operation_id: OperationId,
-    input: Option<DeleteTopicsInput>,
-    route_token: Option<RouteFailureToken>,
-}
-
-impl SettledDeleteTopicsCall {
-    pub(crate) const fn operation_id(&self) -> OperationId {
-        self.operation_id
-    }
-
-    pub(crate) fn take_input(&mut self) -> Option<DeleteTopicsInput> {
-        self.input.take()
-    }
-
-    fn discard(self) {
-        drop(self.route_token);
     }
 }
 
@@ -189,17 +171,19 @@ impl TrackedDeleteTopicsCalls {
             source: Some(source),
         })?;
         let (result, _selected_version, route_token) = outcome.into_parts();
+        let broker_requires_controller_refresh = response_requires_controller_refresh(&result);
         let input = normalize_terminal(&call.plan, call.retained_bytes, result).map_err(
             |_retained_accounting| DeleteTopicsCompletionFailure {
                 operation_id: call.operation_id,
                 source: None,
             },
         )?;
-        self.settled = Some(SettledDeleteTopicsCall {
-            operation_id: call.operation_id,
-            input: Some(input),
+        self.settled = Some(SettledDeleteTopicsCall::new(
+            call.operation_id,
+            input,
             route_token,
-        });
+            broker_requires_controller_refresh,
+        ));
         Ok(self.settled.as_mut())
     }
 

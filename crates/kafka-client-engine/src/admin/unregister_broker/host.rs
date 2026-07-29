@@ -17,7 +17,10 @@ use crate::{
     admin::AdminUnregisterBrokerPublisher,
     clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{UnregisterBrokerCall, UnregisterBrokerRawTerminal},
+    driver::{
+        DriverOwner, RecoveredUnregisterBrokerCall, UnregisterBrokerCall,
+        UnregisterBrokerRawTerminal,
+    },
 };
 
 use super::{UnregisterBrokerHostError, UnregisterBrokerObserver};
@@ -46,6 +49,7 @@ struct UnregisterBrokerOperation {
     submission: Option<UnregisterBrokerSubmission>,
     handoff: UnregisterBrokerHandoff,
     call: Option<UnregisterBrokerCall>,
+    recovered_call: Option<RecoveredUnregisterBrokerCall>,
     raw_terminal: Option<UnregisterBrokerRawTerminal>,
     terminal: Option<UnregisterBrokerTerminal>,
 }
@@ -78,11 +82,12 @@ impl UnregisterBrokerHost {
     pub(crate) fn turn(
         &mut self,
         now: Moment,
+        driver: Option<&DriverOwner>,
     ) -> Result<UnregisterBrokerTurn, UnregisterBrokerHostError> {
         if let Some(error) = self.health {
             return Err(error);
         }
-        if self.reclaim_one()? || self.poll_one_call()? {
+        if self.reclaim_one()? || self.poll_one_call(driver)? {
             return Ok(UnregisterBrokerTurn::Progress);
         }
         let Some(index) = self
@@ -115,6 +120,7 @@ impl UnregisterBrokerHost {
             .ok_or(UnregisterBrokerHostError::UnknownOperation)?;
         if self.operations[index].handoff != UnregisterBrokerHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
         {
             return Err(UnregisterBrokerHostError::InvalidHandoff);
         }
@@ -129,7 +135,11 @@ impl UnregisterBrokerHost {
         let index = self
             .operation_index(operation_id)
             .ok_or(UnregisterBrokerHostError::UnknownOperation)?;
-        if self.operations[index].handoff != UnregisterBrokerHandoff::HandedOff {
+        if self.operations[index].handoff != UnregisterBrokerHandoff::HandedOff
+            || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(UnregisterBrokerHostError::InvalidHandoff);
         }
         self.apply(operation_id, UnregisterBrokerInput::DriverRejected)

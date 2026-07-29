@@ -66,6 +66,7 @@ pub(crate) enum UnregisterBrokerHostError {
     SubmissionMismatch,
     InvalidHandoff,
     CallCompletion,
+    DriverMissing,
     ByteAccounting,
     Unsettled(usize),
     Wake,

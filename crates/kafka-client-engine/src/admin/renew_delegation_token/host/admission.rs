@@ -64,6 +64,7 @@ impl RenewDelegationTokenHost {
             submission: None,
             handoff: RenewDelegationTokenHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

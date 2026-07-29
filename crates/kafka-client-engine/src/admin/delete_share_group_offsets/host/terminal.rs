@@ -31,9 +31,9 @@ impl DeleteShareGroupOffsetsHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
@@ -69,32 +69,64 @@ impl DeleteShareGroupOffsetsHost {
                     DeleteShareGroupOffsetsState::AwaitingDriver,
                     DeleteShareGroupOffsetsHandoff::HandedOff,
                 ) => {
-                    seal_call(self.operations[0].call.take());
+                    self.retain_recovered_call(0)?;
                     self.apply(operation_id, DeleteShareGroupOffsetsInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        DeleteShareGroupOffsetsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (
                     DeleteShareGroupOffsetsState::Submitted,
                     DeleteShareGroupOffsetsHandoff::Submitted,
                 ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        DeleteShareGroupOffsetsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.retain_recovered_call(0)?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (DeleteShareGroupOffsetsState::Completed, _) => self.publish_terminal(0)?,
                 _ => return Err(DeleteShareGroupOffsetsHostError::InvalidHandoff),
             }
         }
         Ok(())
+    }
+
+    fn retain_recovered_call(
+        &mut self,
+        index: usize,
+    ) -> Result<(), DeleteShareGroupOffsetsHostError> {
+        if self.operations[index].recovered_call.is_some() {
+            return Ok(());
+        }
+        if let Some(call) = self.operations[index].call.take() {
+            self.operations[index].recovered_call = call.recover_after_driver_shutdown();
+        }
+        self.operations[index]
+            .recovered_call
+            .as_ref()
+            .ok_or(DeleteShareGroupOffsetsHostError::InvalidHandoff)
+            .map(|_recovered| ())
+    }
+
+    pub(super) fn settle_recovered_transport(
+        &mut self,
+        index: usize,
+    ) -> Result<(), DeleteShareGroupOffsetsHostError> {
+        let transition = self.operations[index].machine.apply(
+            DeleteShareGroupOffsetsInput::TransportFailed {
+                delivery: DeliveryStatus::PossiblySent,
+            },
+        )?;
+        let terminal = match transition.into_effect() {
+            Some(DeleteShareGroupOffsetsEffect::Complete {
+                operation_id,
+                terminal,
+            }) if operation_id == self.operations[index].operation_id => terminal,
+            _ => return Err(DeleteShareGroupOffsetsHostError::MissingTerminal),
+        };
+        let recovered = self.operations[index]
+            .recovered_call
+            .take()
+            .ok_or(DeleteShareGroupOffsetsHostError::InvalidHandoff)?;
+        recovered.seal();
+        self.operations[index].terminal = Some(terminal);
+        self.publish_terminal(index)
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), DeleteShareGroupOffsetsHostError> {
@@ -135,7 +167,10 @@ impl DeleteShareGroupOffsetsHost {
         &mut self,
         index: usize,
     ) -> Result<(), DeleteShareGroupOffsetsHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(DeleteShareGroupOffsetsHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -193,13 +228,5 @@ impl DeleteShareGroupOffsetsHost {
             .checked_sub(bytes)
             .ok_or(DeleteShareGroupOffsetsHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::DeleteShareGroupOffsetsCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

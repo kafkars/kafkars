@@ -1,4 +1,4 @@
-//! Validated caller-ordered intent for one explicit leader-election type.
+//! Validated caller-ordered or cluster-wide leader-election intent.
 
 use core::fmt;
 use std::collections::BTreeSet;
@@ -42,12 +42,39 @@ impl LeaderElectionTarget {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElectLeadersPlan {
     election_type: LeaderElectionType,
-    targets: Vec<LeaderElectionTarget>,
+    selection: ElectLeadersSelection,
+}
+
+/// Explicit partition selection without conflating an empty batch with all partitions.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ElectLeadersSelection {
+    /// Elect leaders for every partition in the cluster.
+    AllPartitions,
+    /// Elect leaders for one validated nonempty caller-ordered target batch.
+    Selected(Vec<LeaderElectionTarget>),
+}
+
+impl ElectLeadersSelection {
+    /// Returns selected targets in caller order, or `None` for all partitions.
+    pub fn selected_targets(&self) -> Option<&[LeaderElectionTarget]> {
+        match self {
+            Self::AllPartitions => None,
+            Self::Selected(targets) => Some(targets),
+        }
+    }
 }
 
 impl ElectLeadersPlan {
-    /// Validates one nonempty, caller-ordered unique target set.
+    /// Validates one nonempty selected target batch.
     pub fn new(
+        election_type: LeaderElectionType,
+        targets: Vec<LeaderElectionTarget>,
+    ) -> Result<Self, ElectLeadersPlanError> {
+        Self::selected(election_type, targets)
+    }
+
+    /// Validates one nonempty, caller-ordered unique selected target batch.
+    pub fn selected(
         election_type: LeaderElectionType,
         targets: Vec<LeaderElectionTarget>,
     ) -> Result<Self, ElectLeadersPlanError> {
@@ -63,8 +90,16 @@ impl ElectLeadersPlan {
         }
         Ok(Self {
             election_type,
-            targets,
+            selection: ElectLeadersSelection::Selected(targets),
         })
+    }
+
+    /// Creates one explicit cluster-wide election plan.
+    pub const fn all(election_type: LeaderElectionType) -> Self {
+        Self {
+            election_type,
+            selection: ElectLeadersSelection::AllPartitions,
+        }
     }
 
     /// Returns the explicit election policy.
@@ -72,9 +107,18 @@ impl ElectLeadersPlan {
         self.election_type
     }
 
-    /// Returns targets in exact caller order.
+    /// Returns the explicit all-partitions or selected-partition intent.
+    pub const fn selection(&self) -> &ElectLeadersSelection {
+        &self.selection
+    }
+
+    /// Returns selected targets in exact caller order.
+    ///
+    /// This compatibility accessor is empty for an all-partitions plan. New
+    /// routing code must inspect [`Self::selection`] instead of inferring
+    /// selection semantics from this slice.
     pub fn targets(&self) -> &[LeaderElectionTarget] {
-        &self.targets
+        self.selection.selected_targets().unwrap_or(&[])
     }
 }
 

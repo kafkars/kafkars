@@ -1,4 +1,4 @@
-//! Inert producer-fencing intent with call-boundary timeout ownership.
+//! Inert producer-fencing intent with one submission boundary.
 
 use std::time::{Duration, Instant};
 
@@ -14,7 +14,7 @@ use super::FenceProducers;
 pub struct FenceProducersBuilder {
     engine: AdminEngine,
     request: FenceProducersAdminRequest,
-    deadline: CallDeadline,
+    timeout: SubmissionTimeout,
 }
 
 impl FenceProducersBuilder {
@@ -22,24 +22,26 @@ impl FenceProducersBuilder {
         engine: AdminEngine,
         request: FenceProducersAdminRequest,
         timeout: Duration,
-        boundary: Instant,
     ) -> Self {
         Self {
             engine,
             request,
-            deadline: CallDeadline::from_boundary(boundary, timeout),
+            timeout: SubmissionTimeout::new(timeout),
         }
     }
 
-    /// Replaces the timeout while retaining the original Admin call boundary.
+    /// Replaces the duration converted into an absolute deadline at submission.
     pub fn deadline_after(mut self, timeout: Duration) -> Self {
-        self.deadline = self.deadline.with_timeout(timeout);
+        self.timeout = self.timeout.with_timeout(timeout);
         self
     }
 
     /// Attempts bounded admission and returns one named terminal observer.
+    ///
+    /// This call is the public operation boundary. Its absolute deadline is
+    /// captured before public result preparation or engine admission.
     pub fn submit(self) -> FenceProducers {
-        let deadline = match self.deadline.deadline() {
+        let deadline = match self.timeout.capture() {
             Ok(deadline) => deadline,
             Err(CallDeadlineError::Elapsed) => {
                 return FenceProducers::from_bridge(AdminFenceProducers::deadline_elapsed());
@@ -57,46 +59,38 @@ impl std::fmt::Debug for FenceProducersBuilder {
         formatter
             .debug_struct("FenceProducersBuilder")
             .field("request", &self.request)
-            .field("timeout", &self.deadline.timeout)
+            .field("timeout", &self.timeout.timeout)
             .finish_non_exhaustive()
     }
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(super) struct CallDeadline {
-    boundary: Instant,
+pub(super) struct SubmissionTimeout {
     timeout: Duration,
 }
 
-impl CallDeadline {
-    pub(super) const fn from_boundary(boundary: Instant, timeout: Duration) -> Self {
-        Self { boundary, timeout }
+impl SubmissionTimeout {
+    pub(super) const fn new(timeout: Duration) -> Self {
+        Self { timeout }
     }
 
     pub(super) const fn with_timeout(self, timeout: Duration) -> Self {
-        Self { timeout, ..self }
+        Self { timeout }
     }
 
-    fn deadline(self) -> Result<Instant, CallDeadlineError> {
-        self.deadline_at(Instant::now())
+    fn capture(self) -> Result<Instant, CallDeadlineError> {
+        self.capture_at(Instant::now())
     }
 
-    fn deadline_at(self, now: Instant) -> Result<Instant, CallDeadlineError> {
-        let deadline = self
-            .boundary
+    pub(super) fn capture_at(self, boundary: Instant) -> Result<Instant, CallDeadlineError> {
+        let deadline = boundary
             .checked_add(self.timeout)
             .ok_or(CallDeadlineError::Overflow)?;
-        if deadline.saturating_duration_since(now).is_zero() {
+        if self.timeout.is_zero() {
             Err(CallDeadlineError::Elapsed)
         } else {
             Ok(deadline)
         }
-    }
-
-    #[cfg(test)]
-    pub(super) fn remaining_at(self, now: Instant) -> Result<Duration, CallDeadlineError> {
-        self.deadline_at(now)
-            .map(|deadline| deadline.saturating_duration_since(now))
     }
 }
 

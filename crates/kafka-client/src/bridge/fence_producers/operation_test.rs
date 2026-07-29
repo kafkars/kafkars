@@ -19,7 +19,7 @@ impl Wake for NoopWake {
 }
 
 #[test]
-fn elapsed_call_boundary_is_a_locally_ready_unsent_timeout() {
+fn elapsed_submission_boundary_is_a_locally_ready_unsent_timeout() {
     let error = AdminFenceProducers::deadline_elapsed()
         .wait()
         .expect_err("elapsed deadline must fail");
@@ -28,7 +28,7 @@ fn elapsed_call_boundary_is_a_locally_ready_unsent_timeout() {
 }
 
 #[test]
-fn anchored_deadline_is_rechecked_after_public_result_preparation() {
+fn captured_submission_deadline_is_rechecked_after_public_result_preparation() {
     let operation = AdminFenceProducers::submit_with(
         FenceProducersAdminRequest::new(vec!["orders-tx".to_owned()]),
         Instant::now() - Duration::from_millis(1),

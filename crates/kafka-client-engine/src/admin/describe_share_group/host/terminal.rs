@@ -1,5 +1,8 @@
 //! Call polling, publication, reclamation, and shutdown recovery.
 
+#[cfg(test)]
+mod terminal_test;
+
 use kafka_client_core::{DeliveryStatus, DescribeShareGroupInput, DescribeShareGroupState, Moment};
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
@@ -28,9 +31,9 @@ impl DescribeShareGroupHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
@@ -62,29 +65,54 @@ impl DescribeShareGroupHost {
                     self.apply(operation_id, DescribeShareGroupInput::DriverRejected)?
                 }
                 (DescribeShareGroupState::AwaitingDriver, DescribeShareGroupHandoff::HandedOff) => {
-                    seal_call(self.operations[0].call.take());
+                    self.retain_recovered_call(0)?;
                     self.apply(operation_id, DescribeShareGroupInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        DescribeShareGroupInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (DescribeShareGroupState::Submitted, DescribeShareGroupHandoff::Submitted) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        DescribeShareGroupInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.retain_recovered_call(0)?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (DescribeShareGroupState::Completed, _) => self.publish_terminal(0)?,
                 _ => return Err(DescribeShareGroupHostError::InvalidHandoff),
             }
         }
         Ok(())
+    }
+
+    fn retain_recovered_call(&mut self, index: usize) -> Result<(), DescribeShareGroupHostError> {
+        if self.operations[index].recovered_call.is_some() {
+            return Ok(());
+        }
+        if let Some(call) = self.operations[index].call.take() {
+            self.operations[index].recovered_call = call.recover_after_driver_shutdown();
+        }
+        self.operations[index]
+            .recovered_call
+            .as_ref()
+            .ok_or(DescribeShareGroupHostError::InvalidHandoff)
+            .map(|_recovered| ())
+    }
+
+    fn settle_recovered_transport(
+        &mut self,
+        index: usize,
+    ) -> Result<(), DescribeShareGroupHostError> {
+        let transition =
+            self.operations[index]
+                .machine
+                .apply(DescribeShareGroupInput::TransportFailed {
+                    delivery: DeliveryStatus::PossiblySent,
+                })?;
+        let effect = transition
+            .into_effect()
+            .ok_or(DescribeShareGroupHostError::MissingTerminal)?;
+        let recovered = self.operations[index]
+            .recovered_call
+            .take()
+            .ok_or(DescribeShareGroupHostError::InvalidHandoff)?;
+        recovered.seal();
+        self.install_effect(index, effect)
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), DescribeShareGroupHostError> {
@@ -121,7 +149,10 @@ impl DescribeShareGroupHost {
         &mut self,
         index: usize,
     ) -> Result<(), DescribeShareGroupHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(DescribeShareGroupHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -179,13 +210,5 @@ impl DescribeShareGroupHost {
             .checked_sub(bytes)
             .ok_or(DescribeShareGroupHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::DescribeShareGroupCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

@@ -147,6 +147,7 @@ pub(super) fn translate_broker_parts(
     KafkaError::new(ErrorKind::Broker, diagnostic)
         .with_broker_code(Some(code))
         .with_delivery_status(delivery)
+        .with_diagnostic_truncated(message_truncated)
 }
 
 const fn translate_delivery(delivery: DeliveryStatus) -> PublicDeliveryStatus {

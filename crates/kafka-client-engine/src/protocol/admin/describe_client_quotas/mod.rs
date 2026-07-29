@@ -2,6 +2,7 @@
 
 mod model;
 mod request;
+mod request_charge;
 mod response;
 mod retention;
 mod validation;
@@ -15,6 +16,7 @@ pub(crate) use model::{
 #[cfg(test)]
 pub(crate) use request::DescribeClientQuotasRequestFailure;
 pub(crate) use request::describe_client_quotas_request;
+pub(crate) use request_charge::plan_request_peak_charge;
 pub(crate) use response::{
     DescribeClientQuotasResponseFailure, normalize_describe_client_quotas_response,
 };

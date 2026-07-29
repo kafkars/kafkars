@@ -78,6 +78,7 @@ struct AdminDescribeProducersOperation {
     submission: Option<AdminDescribeProducersSubmission>,
     handoff: AdminDescribeProducersHandoff,
     call: Option<DescribeProducersCall>,
+    recovered_call: Option<crate::driver::RecoveredDescribeProducersCall>,
     raw_terminal: Option<DescribeProducersRawTerminal>,
     terminal: Option<AdminDescribeProducersTerminal>,
 }

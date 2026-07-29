@@ -29,7 +29,6 @@ fn recovered_call_remains_retained_when_core_rejects_terminal_fact() {
         ))
     ));
     assert!(host.recovered_call_matches_for_test(&plan, request_scratch_limit, result_limit));
-
     drop((admission, host));
     crate::admin::test_support::stop_notifier(notifier);
 }

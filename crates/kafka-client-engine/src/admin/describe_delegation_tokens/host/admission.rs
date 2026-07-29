@@ -58,7 +58,7 @@ impl DescribeDelegationTokensHost {
         self.retained_bytes = total_bytes;
         let mut operation = DescribeDelegationTokensOperation {
             operation_id,
-            correlation_plan: plan.clone(),
+            correlation_plan: Some(plan.clone()),
             machine: DescribeDelegationTokensMachine::new(operation_id, deadline.core(), plan),
             completion_id,
             deadline,
@@ -67,6 +67,7 @@ impl DescribeDelegationTokensHost {
             submission: None,
             handoff: DescribeDelegationTokensHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

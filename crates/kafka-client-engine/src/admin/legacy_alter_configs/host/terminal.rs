@@ -1,13 +1,18 @@
 //! Call polling, publication, reclamation, and shutdown recovery.
 
-use kafka_client_core::{DeliveryStatus, LegacyAlterConfigsInput, LegacyAlterConfigsState, Moment};
+mod recovery;
+
+#[cfg(test)]
+mod recovery_test;
+#[cfg(test)]
+mod test_support;
+
+#[cfg(test)]
+use kafka_client_core::LegacyAlterConfigsInput;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
-use super::{
-    LegacyAlterConfigsHandoff, LegacyAlterConfigsHost, LegacyAlterConfigsHostError,
-    response::terminal_input,
-};
+use super::{LegacyAlterConfigsHost, LegacyAlterConfigsHostError, response::terminal_input};
 
 impl LegacyAlterConfigsHost {
     #[cfg(test)]
@@ -47,63 +52,15 @@ impl LegacyAlterConfigsHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
             }
             Err(_error) => Err(LegacyAlterConfigsHostError::CallCompletion),
         }
-    }
-
-    pub(crate) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), LegacyAlterConfigsHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (LegacyAlterConfigsState::Ready, _) => self.apply(
-                    operation_id,
-                    LegacyAlterConfigsInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (LegacyAlterConfigsState::AwaitingDriver, LegacyAlterConfigsHandoff::Untouched) => {
-                    self.apply(operation_id, LegacyAlterConfigsInput::DriverRejected)?
-                }
-                (LegacyAlterConfigsState::AwaitingDriver, LegacyAlterConfigsHandoff::HandedOff) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(operation_id, LegacyAlterConfigsInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        LegacyAlterConfigsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (LegacyAlterConfigsState::Submitted, LegacyAlterConfigsHandoff::Submitted) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        LegacyAlterConfigsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (LegacyAlterConfigsState::Completed, _) => self.publish_terminal(0)?,
-                _ => return Err(LegacyAlterConfigsHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), LegacyAlterConfigsHostError> {
@@ -116,9 +73,11 @@ impl LegacyAlterConfigsHost {
                 .raw_terminal
                 .as_ref()
                 .ok_or(LegacyAlterConfigsHostError::MissingTerminal)?;
+            if !operation.matches_correlation(raw.route(), raw.plan()) {
+                return Err(LegacyAlterConfigsHostError::SubmissionMismatch);
+            }
             terminal_input(
                 raw,
-                &operation.plan,
                 operation.active_result_limit,
                 operation.active_result_contribution,
             )
@@ -143,7 +102,10 @@ impl LegacyAlterConfigsHost {
         &mut self,
         index: usize,
     ) -> Result<(), LegacyAlterConfigsHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(LegacyAlterConfigsHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -201,13 +163,5 @@ impl LegacyAlterConfigsHost {
             .checked_sub(bytes)
             .ok_or(LegacyAlterConfigsHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::LegacyAlterConfigsCall>) {
-    if let Some(call) = call
-        && let Some(recovered) = call.recover_after_driver_shutdown()
-    {
-        recovered.seal();
     }
 }

@@ -1,32 +1,37 @@
 //! Linear ownership of one accepted AnyBroker `AlterClientQuotas` call.
 
+mod evidence;
+
 use std::time::Instant;
 
 use kafka_client_core::{
     AlterClientQuotaEntry, AlterClientQuotaOperationKind, AlterClientQuotasPlan,
 };
 use kafka_driver::{CompletionError, RoutedCall};
-use kafka_wire::AlterClientQuotasResponse;
+use kafka_wire::{AlterClientQuotasRequest, AlterClientQuotasResponse};
 
 use crate::protocol::admin::alter_client_quotas::{
     AlterClientQuotaAlterationRef, AlterClientQuotaEntityComponentRef,
-    AlterClientQuotaOperationKindRef, AlterClientQuotaOperationRef, AlterClientQuotasRequestRef,
-    alter_client_quotas_request,
+    AlterClientQuotaOperationKindRef, AlterClientQuotaOperationRef,
+    AlterClientQuotasRequestFailure, AlterClientQuotasRequestRef, alter_client_quotas_request,
 };
 
 use super::{
     super::DriverOwner,
+    alter_client_quotas_submission::AlterClientQuotasSubmitError,
     alter_client_quotas_terminal::{
         AlterClientQuotasRawTerminal, RecoveredAlterClientQuotasCall,
         retain_alter_client_quotas_terminal,
     },
 };
 
+pub(super) use evidence::AlterClientQuotasEvidence;
+
 /// One accepted driver call retained beside its concrete admin owner.
 #[must_use = "an accepted AlterClientQuotas call must be terminally settled"]
 pub(crate) struct AlterClientQuotasCall {
     call: Option<RoutedCall<AlterClientQuotasResponse>>,
-    plan: Option<AlterClientQuotasPlan>,
+    evidence: Option<AlterClientQuotasEvidence>,
 }
 
 impl AlterClientQuotasCall {
@@ -36,25 +41,25 @@ impl AlterClientQuotasCall {
         retained_limit: usize,
         deadline: Instant,
     ) -> Result<Self, AlterClientQuotasCallAdmissionFailure> {
-        let entries = plan.entries();
-        let entity_refs =
-            prepare_entity_refs(entries).ok_or(AlterClientQuotasCallAdmissionFailure::Request)?;
-        let operation_refs = prepare_operation_refs(entries)
-            .ok_or(AlterClientQuotasCallAdmissionFailure::Request)?;
-        let alterations = prepare_alteration_refs(&entity_refs, &operation_refs)
-            .ok_or(AlterClientQuotasCallAdmissionFailure::Request)?;
-        let source = AlterClientQuotasRequestRef::new(&alterations, plan.validate_only());
-        let request = alter_client_quotas_request(source, retained_limit)
-            .map_err(|_source| AlterClientQuotasCallAdmissionFailure::Request)?;
-        drop(alterations);
-        drop(operation_refs);
-        drop(entity_refs);
-        let call = driver
-            .submit_alter_client_quotas(request, deadline)
-            .map_err(|_source| AlterClientQuotasCallAdmissionFailure::Driver)?;
+        let evidence = AlterClientQuotasEvidence::new(plan, retained_limit);
+        let request = match prepare_request(&evidence) {
+            Ok(request) => request,
+            Err(source) => {
+                return Err(AlterClientQuotasCallAdmissionFailure::new(source, evidence));
+            }
+        };
+        let call = match driver.submit_alter_client_quotas(request, deadline) {
+            Ok(call) => call,
+            Err(source) => {
+                return Err(AlterClientQuotasCallAdmissionFailure::new(
+                    AlterClientQuotasAdmissionSource::Driver(source),
+                    evidence,
+                ));
+            }
+        };
         Ok(Self {
             call: Some(call),
-            plan: Some(plan),
+            evidence: Some(evidence),
         })
     }
 
@@ -63,30 +68,60 @@ impl AlterClientQuotasCall {
         &mut self,
     ) -> Option<Result<AlterClientQuotasRawTerminal, CompletionError>> {
         let result = self.call.as_mut()?.try_result()?;
-        drop(self.call.take());
         match result {
             Ok(outcome) => {
+                let evidence = self.evidence.take()?;
+                drop(self.call.take());
                 let (result, selected_version, route_token) = outcome.into_parts();
                 Some(Ok(retain_alter_client_quotas_terminal(
                     selected_version,
                     result,
                     route_token,
-                    self.plan.take()?,
+                    evidence,
                 )))
             }
             Err(source) => Some(Err(source)),
         }
     }
 
-    /// Seals an unresolved call only after the unique driver is gone.
-    pub(crate) fn recover_after_driver_shutdown(self) -> Option<RecoveredAlterClientQuotasCall> {
-        let Self { call, plan } = self;
-        call.map(|call| {
-            drop(call);
-            drop(plan);
-            RecoveredAlterClientQuotasCall::new()
-        })
+    pub(crate) fn matches(
+        &self,
+        expected_plan: &AlterClientQuotasPlan,
+        expected_retained_limit: usize,
+    ) -> bool {
+        self.evidence
+            .as_ref()
+            .is_some_and(|evidence| evidence.matches(expected_plan, expected_retained_limit))
     }
+
+    /// Seals an unresolved call only after the unique driver is gone.
+    pub(crate) fn recover_after_driver_shutdown(
+        self,
+    ) -> Result<RecoveredAlterClientQuotasCall, Self> {
+        if self.call.is_none() || self.evidence.is_none() {
+            return Err(self);
+        }
+        let Self { call, evidence } = self;
+        drop(call);
+        Ok(RecoveredAlterClientQuotasCall::new(
+            evidence.unwrap_or_else(|| unreachable!("validated exact evidence")),
+        ))
+    }
+}
+
+fn prepare_request(
+    evidence: &AlterClientQuotasEvidence,
+) -> Result<AlterClientQuotasRequest, AlterClientQuotasAdmissionSource> {
+    let entries = evidence.plan().entries();
+    let entity_refs =
+        prepare_entity_refs(entries).ok_or(AlterClientQuotasAdmissionSource::Preparation)?;
+    let operation_refs =
+        prepare_operation_refs(entries).ok_or(AlterClientQuotasAdmissionSource::Preparation)?;
+    let alterations = prepare_alteration_refs(&entity_refs, &operation_refs)
+        .ok_or(AlterClientQuotasAdmissionSource::Preparation)?;
+    let source = AlterClientQuotasRequestRef::new(&alterations, evidence.plan().validate_only());
+    alter_client_quotas_request(source, evidence.retained_limit())
+        .map_err(AlterClientQuotasAdmissionSource::Request)
 }
 
 fn prepare_entity_refs(
@@ -152,9 +187,38 @@ fn prepare_alteration_refs<'a>(
     Some(alterations)
 }
 
-/// Definitely-unsent bounded-driver rejection.
+#[derive(Debug)]
+enum AlterClientQuotasAdmissionSource {
+    Preparation,
+    Request(AlterClientQuotasRequestFailure),
+    Driver(AlterClientQuotasSubmitError),
+}
+
+/// Definitely-unsent bounded-driver rejection retaining exact attempted evidence.
+#[derive(Debug)]
 #[must_use = "a rejected AlterClientQuotas call must become operation input"]
-pub(crate) enum AlterClientQuotasCallAdmissionFailure {
-    Request,
-    Driver,
+pub(crate) struct AlterClientQuotasCallAdmissionFailure {
+    source: AlterClientQuotasAdmissionSource,
+    evidence: AlterClientQuotasEvidence,
+}
+
+impl AlterClientQuotasCallAdmissionFailure {
+    const fn new(
+        source: AlterClientQuotasAdmissionSource,
+        evidence: AlterClientQuotasEvidence,
+    ) -> Self {
+        Self { source, evidence }
+    }
+
+    pub(crate) fn into_correlation(self) -> (AlterClientQuotasPlan, usize) {
+        let Self { source, evidence } = self;
+        match source {
+            AlterClientQuotasAdmissionSource::Preparation => {}
+            AlterClientQuotasAdmissionSource::Request(source) => {
+                let _ = source;
+            }
+            AlterClientQuotasAdmissionSource::Driver(source) => drop(source),
+        }
+        evidence.into_parts()
+    }
 }

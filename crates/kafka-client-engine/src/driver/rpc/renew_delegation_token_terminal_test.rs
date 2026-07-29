@@ -1,6 +1,6 @@
 //! Selected-version, response ownership, and driver-failure classification.
 
-use kafka_client_core::DeliveryStatus;
+use kafka_client_core::{DeliveryStatus, RenewDelegationTokenHmac, RenewDelegationTokenPlan};
 use kafka_driver::{ApiKey, ApiVersion, CallFailure, Delivery, RequestError};
 use kafka_wire::RenewDelegationTokenResponse;
 use kafka_wire_core::DecodeError;
@@ -19,6 +19,7 @@ fn response_fact_borrows_exact_selected_version_and_generated_response() {
             Some(ApiVersion::new(version)),
             Ok(response),
             None,
+            plan(),
         );
         let RenewDelegationTokenTerminalFact::Response {
             selected_version,
@@ -69,7 +70,7 @@ fn failures_preserve_delivery_certainty_and_stable_classification() {
         ),
     ];
     for (error, expected_kind, expected_delivery) in cases {
-        let terminal = retain_renew_delegation_token_terminal(None, Err(error), None);
+        let terminal = retain_renew_delegation_token_terminal(None, Err(error), None, plan());
         let RenewDelegationTokenTerminalFact::Failed { kind, delivery } = terminal.fact() else {
             panic!("failure expected");
         };
@@ -81,5 +82,12 @@ fn failures_preserve_delivery_certainty_and_stable_classification() {
 
 #[test]
 fn shutdown_recovery_token_seals_linearly() {
-    RecoveredRenewDelegationTokenCall.seal();
+    RecoveredRenewDelegationTokenCall::for_test(plan()).seal();
+}
+
+fn plan() -> RenewDelegationTokenPlan {
+    let hmac = RenewDelegationTokenHmac::new(vec![0xA5, 0x5A])
+        .unwrap_or_else(|error| panic!("valid bounded HMAC: {error}"));
+    RenewDelegationTokenPlan::new(hmac, Some(60_000))
+        .unwrap_or_else(|error| panic!("valid renewal plan: {error}"))
 }

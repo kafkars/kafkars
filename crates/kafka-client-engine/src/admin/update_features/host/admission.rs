@@ -59,6 +59,7 @@ impl UpdateFeaturesHost {
             submission: None,
             handoff: UpdateFeaturesHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

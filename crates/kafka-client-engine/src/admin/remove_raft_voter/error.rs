@@ -66,6 +66,7 @@ pub(crate) enum RemoveRaftVoterHostError {
     SubmissionMismatch,
     InvalidHandoff,
     CallCompletion,
+    DriverMissing,
     ByteAccounting,
     Unsettled(usize),
     Wake,

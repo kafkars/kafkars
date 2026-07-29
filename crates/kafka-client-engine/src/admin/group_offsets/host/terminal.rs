@@ -1,14 +1,11 @@
 //! Call polling, explicit batch re-arming, publication, reclamation, and recovery.
 
-use kafka_client_core::{
-    DeliveryStatus, ListConsumerGroupOffsetsInput, ListConsumerGroupOffsetsState, Moment,
-};
+mod recovery;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
 use super::{
-    ListConsumerGroupOffsetsHandoff, ListConsumerGroupOffsetsHost,
-    ListConsumerGroupOffsetsHostError, response::terminal_input,
+    ListConsumerGroupOffsetsHost, ListConsumerGroupOffsetsHostError, response::terminal_input,
 };
 
 impl ListConsumerGroupOffsetsHost {
@@ -30,9 +27,9 @@ impl ListConsumerGroupOffsetsHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
@@ -41,72 +38,10 @@ impl ListConsumerGroupOffsetsHost {
         }
     }
 
-    pub(crate) fn recover_after_driver_shutdown(
+    pub(super) fn settle_raw(
         &mut self,
+        index: usize,
     ) -> Result<(), ListConsumerGroupOffsetsHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (ListConsumerGroupOffsetsState::Ready, _) => self.apply(
-                    operation_id,
-                    ListConsumerGroupOffsetsInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (
-                    ListConsumerGroupOffsetsState::AwaitingDriver,
-                    ListConsumerGroupOffsetsHandoff::Untouched,
-                ) => self.apply(operation_id, ListConsumerGroupOffsetsInput::DriverRejected)?,
-                (
-                    ListConsumerGroupOffsetsState::AwaitingDriver,
-                    ListConsumerGroupOffsetsHandoff::HandedOff,
-                ) => {
-                    if let Some(call) = self.operations[0].call.take() {
-                        if let Some(recovered) = call.recover_after_driver_shutdown() {
-                            recovered.seal();
-                        }
-                    }
-                    self.apply(operation_id, ListConsumerGroupOffsetsInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        ListConsumerGroupOffsetsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (
-                    ListConsumerGroupOffsetsState::Submitted,
-                    ListConsumerGroupOffsetsHandoff::Submitted,
-                ) => {
-                    if let Some(call) = self.operations[0].call.take() {
-                        if let Some(recovered) = call.recover_after_driver_shutdown() {
-                            recovered.seal();
-                        }
-                    }
-                    self.apply(
-                        operation_id,
-                        ListConsumerGroupOffsetsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (ListConsumerGroupOffsetsState::Completed, _) => {
-                    self.publish_terminal(0)?;
-                }
-                _ => return Err(ListConsumerGroupOffsetsHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
-    }
-
-    fn settle_raw(&mut self, index: usize) -> Result<(), ListConsumerGroupOffsetsHostError> {
         let (input, retained_bytes) = {
             let operation = self
                 .operations
@@ -116,14 +51,17 @@ impl ListConsumerGroupOffsetsHost {
                 .raw_terminal
                 .as_ref()
                 .ok_or(ListConsumerGroupOffsetsHostError::MissingTerminal)?;
-            terminal_input(
-                raw,
-                operation.active_plan()?,
-                operation.remaining_result_bytes,
-            )
+            if !raw.matches_evidence(operation.active_plan()?, operation.remaining_result_bytes) {
+                return Err(ListConsumerGroupOffsetsHostError::SubmissionMismatch);
+            }
+            terminal_input(raw)
         };
-        self.operations[index].debit_result_bytes(retained_bytes)?;
+        let remaining_result_bytes = self.operations[index]
+            .remaining_result_bytes
+            .checked_sub(retained_bytes)
+            .ok_or(ListConsumerGroupOffsetsHostError::ByteAccounting)?;
         let transition = self.operations[index].machine.apply(input)?;
+        self.operations[index].remaining_result_bytes = remaining_result_bytes;
         let raw = self.operations[index]
             .raw_terminal
             .take()
@@ -140,7 +78,11 @@ impl ListConsumerGroupOffsetsHost {
         &mut self,
         index: usize,
     ) -> Result<(), ListConsumerGroupOffsetsHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+            || self.operations[index].rejected_submission.is_some()
+        {
             return Err(ListConsumerGroupOffsetsHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]

@@ -20,8 +20,6 @@ mod delete_acls;
 mod delete_consumer_group_offsets;
 #[cfg(test)]
 mod delete_consumer_group_offsets_schedule_test;
-#[cfg(test)]
-mod delete_consumer_group_offsets_test;
 mod delete_consumer_groups;
 mod delete_records;
 mod delete_share_group_offsets;

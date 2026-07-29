@@ -84,9 +84,9 @@ fn abandoned_observer_retains_bytes_until_terminal_publication_is_reclaimed() {
     else {
         panic!("submission expected");
     };
-    let (operation_id, _deadline, _plan, _result_limit) = submission.into_parts();
+    let (operation_id, _deadline, plan, result_limit) = submission.into_parts();
     drop(admission.observer);
-    host.reject_handoff(operation_id)
+    host.reject_handoff(operation_id, plan, result_limit)
         .unwrap_or_else(|error| panic!("publish rejected handoff: {error}"));
     assert_eq!(
         host.retained_bytes_for_test(),
@@ -106,50 +106,35 @@ fn abandoned_observer_retains_bytes_until_terminal_publication_is_reclaimed() {
 }
 
 #[test]
-fn recovery_distinguishes_untouched_from_handed_off_ownership() {
-    for handed_off in [false, true] {
-        let (mut host, notifier) = crate::admin::test_support::list_consumer_group_offsets_host();
-        let admission = host
-            .try_admit(Moment::from_tick(1), deadline(10), plan())
-            .unwrap_or_else(|error| panic!("admit group offsets: {error:?}"));
-        if handed_off {
-            let ListConsumerGroupOffsetsTurn::Submit(_submission) = host
-                .turn(Moment::from_tick(2))
-                .unwrap_or_else(|error| panic!("take group-offset submission: {error}"))
-            else {
-                panic!("submission expected");
-            };
-        }
+fn untouched_recovery_is_definitely_unsent() {
+    let (mut host, notifier) = crate::admin::test_support::list_consumer_group_offsets_host();
+    let admission = host
+        .try_admit(Moment::from_tick(1), deadline(10), plan())
+        .unwrap_or_else(|error| panic!("admit group offsets: {error:?}"));
 
-        host.recover_after_driver_shutdown()
-            .unwrap_or_else(|error| panic!("recover group-offset host: {error}"));
-        let ListConsumerGroupOffsetsOutcome::Failed(failure) = admission
-            .observer
-            .wait()
-            .unwrap_or_else(|error| panic!("observe recovery: {error}"))
-        else {
-            panic!("recovery failure expected");
-        };
-        let expected = if handed_off {
-            (
-                ListConsumerGroupOffsetsFailureKind::Transport,
-                ListConsumerGroupOffsetsDeliveryStatus::PossiblySent,
-            )
-        } else {
-            (
-                ListConsumerGroupOffsetsFailureKind::DriverRejected,
-                ListConsumerGroupOffsetsDeliveryStatus::NotSent,
-            )
-        };
-        assert_eq!((failure.kind(), failure.delivery()), expected);
-        let _progress = host
-            .turn(Moment::from_tick(3))
-            .unwrap_or_else(|error| panic!("reclaim group-offset terminal: {error}"));
-        assert_eq!(host.retained_bytes_for_test(), 0);
+    host.recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("recover group-offset host: {error}"));
+    let ListConsumerGroupOffsetsOutcome::Failed(failure) = admission
+        .observer
+        .wait()
+        .unwrap_or_else(|error| panic!("observe recovery: {error}"))
+    else {
+        panic!("recovery failure expected");
+    };
+    assert_eq!(
+        (failure.kind(), failure.delivery()),
+        (
+            ListConsumerGroupOffsetsFailureKind::DriverRejected,
+            ListConsumerGroupOffsetsDeliveryStatus::NotSent,
+        )
+    );
+    let _progress = host
+        .turn(Moment::from_tick(3))
+        .unwrap_or_else(|error| panic!("reclaim group-offset terminal: {error}"));
+    assert_eq!(host.retained_bytes_for_test(), 0);
 
-        drop(host);
-        crate::admin::test_support::stop_notifier(notifier);
-    }
+    drop(host);
+    crate::admin::test_support::stop_notifier(notifier);
 }
 
 #[test]
@@ -285,7 +270,7 @@ fn batch_plan() -> ListConsumerGroupOffsetsPlan {
     .unwrap_or_else(|error| panic!("valid batch group-offset plan: {error}"))
 }
 
-fn deadline(tick: u64) -> OperationDeadline {
+pub(super) fn deadline(tick: u64) -> OperationDeadline {
     OperationDeadline::from_parts_for_test(
         kafka_client_core::Deadline::from_tick(tick),
         Instant::now() + std::time::Duration::from_secs(1),

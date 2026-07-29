@@ -2,7 +2,10 @@
 
 use kafka_client_core::{CreatePartitionsInput, Deadline, Moment};
 
-use crate::admin::{CreatePartitionsShardLockError, CreatePartitionsTurn};
+use crate::{
+    admin::{CreatePartitionsShardLockError, CreatePartitionsTurn},
+    driver::CreatePartitionsControllerRefreshPoll,
+};
 
 use super::super::{EngineHostError, EngineHostResources};
 
@@ -80,6 +83,13 @@ pub(super) fn apply_completions(
         else {
             break;
         };
+        match settled.poll_controller_refresh(resources.driver.as_ref()) {
+            CreatePartitionsControllerRefreshPoll::Ready => {}
+            CreatePartitionsControllerRefreshPoll::Pending => break,
+            CreatePartitionsControllerRefreshPoll::DriverMissing => {
+                return Err(EngineHostError::DriverOwnerMissing);
+            }
+        }
         let operation_id = settled.operation_id();
         let input = settled
             .take_input()

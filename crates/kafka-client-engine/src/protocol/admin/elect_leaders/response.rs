@@ -1,5 +1,6 @@
 //! Bounded response validation and caller-order election correlation.
 
+mod all_partitions;
 mod correlation;
 
 use core::num::NonZeroI16;
@@ -8,8 +9,8 @@ use kafka_client_core::{ElectLeadersBatch, LeaderElectionBrokerError, LeaderElec
 use kafka_wire::ElectLeadersResponse;
 
 use super::{
-    LeaderElectionRef, ValidatedElectLeadersResponse, retention::result_charge,
-    version::validate_selected_version,
+    ElectLeadersSelectionRef, LeaderElectionRef, ValidatedElectLeadersResponse,
+    retention::result_charge, version::validate_selected_version,
 };
 use correlation::correlate_response;
 
@@ -26,6 +27,9 @@ pub(crate) enum ElectLeadersProtocolFailure {
     NegativeThrottleTime,
     TopicCount,
     PartitionCount,
+    EmptyTopic,
+    TopicNameTooLong,
+    EmptyTopicPartitions,
     UnexpectedTopic,
     MissingTopic,
     DuplicateTopic,
@@ -39,7 +43,7 @@ pub(crate) enum ElectLeadersProtocolFailure {
 /// Validates the selected version and generated response before owned copying.
 pub(crate) fn validate_elect_leaders_response(
     election_type: LeaderElectionType,
-    targets: &[LeaderElectionRef<'_>],
+    selection: ElectLeadersSelectionRef<'_>,
     response: &ElectLeadersResponse,
     selected_version: i16,
     result_limit: usize,
@@ -58,14 +62,21 @@ pub(crate) fn validate_elect_leaders_response(
         ensure_top_level_limit(&error, result_limit)?;
         return Ok(ValidatedElectLeadersResponse::BrokerRejected(error));
     }
-    let correlated = correlate_response(targets, response)?;
-    let diagnostic_bytes = correlated.diagnostic_bytes()?;
-    let charge = result_charge(targets.iter().copied(), diagnostic_bytes)
-        .ok_or(ElectLeadersProtocolFailure::RetainedBytes)?;
-    if charge > result_limit {
-        return Err(ElectLeadersProtocolFailure::RetainedBytes);
-    }
-    let outcomes = correlated.normalize(targets)?;
+    let outcomes = match selection {
+        ElectLeadersSelectionRef::Selected(targets) => {
+            let correlated = correlate_response(targets, response)?;
+            let diagnostic_bytes = correlated.diagnostic_bytes()?;
+            let charge = result_charge(targets.iter().copied(), diagnostic_bytes)
+                .ok_or(ElectLeadersProtocolFailure::RetainedBytes)?;
+            if charge > result_limit {
+                return Err(ElectLeadersProtocolFailure::RetainedBytes);
+            }
+            correlated.normalize(targets)?
+        }
+        ElectLeadersSelectionRef::AllPartitions => {
+            all_partitions::normalize(response, result_limit)?
+        }
+    };
     Ok(ValidatedElectLeadersResponse::Batch(
         ElectLeadersBatch::new(throttle_time_ms, outcomes),
     ))

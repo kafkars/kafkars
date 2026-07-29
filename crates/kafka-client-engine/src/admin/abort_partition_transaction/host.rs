@@ -21,7 +21,6 @@ use super::{AbortPartitionTransactionHostError, AbortPartitionTransactionObserve
 
 pub(crate) const ABORT_PARTITION_TRANSACTION_CAPACITY: usize = 16;
 pub(crate) const ABORT_PARTITION_TRANSACTION_RETAINED_BYTES: usize = 4 * 1024 * 1024;
-
 pub(crate) struct AbortPartitionTransactionAdmission {
     pub(crate) observer: AbortPartitionTransactionObserver,
     pub(crate) fault: Option<AbortPartitionTransactionHostError>,
@@ -69,6 +68,7 @@ struct AbortPartitionTransactionOperation {
     submission: Option<AbortPartitionTransactionSubmission>,
     handoff: AbortPartitionTransactionHandoff,
     call: Option<AbortPartitionTransactionCall>,
+    recovered_call: Option<crate::driver::RecoveredAbortPartitionTransactionCall>,
     raw_terminal: Option<AbortPartitionTransactionRawTerminal>,
     terminal: Option<AbortPartitionTransactionTerminal>,
 }

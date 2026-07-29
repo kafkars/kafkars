@@ -1,4 +1,4 @@
-//! Linear ownership of one accepted tracked AnyBroker voter removal.
+//! Linear ownership of one accepted tracked controller voter removal.
 
 use std::{error::Error, fmt};
 
@@ -22,19 +22,23 @@ use super::{
 #[must_use = "an accepted RemoveRaftVoter call must be terminally settled"]
 pub(crate) struct RemoveRaftVoterCall {
     call: Option<RoutedCall<RemoveRaftVoterResponse>>,
+    plan: Option<RemoveRaftVoterPlan>,
 }
 
 impl RemoveRaftVoterCall {
     pub(crate) fn submit(
         driver: &DriverOwner,
-        plan: &RemoveRaftVoterPlan,
+        plan: RemoveRaftVoterPlan,
         deadline: OperationDeadline,
     ) -> Result<Self, RemoveRaftVoterCallAdmissionFailure> {
-        let request = remove_raft_voter_request(plan);
+        let request = remove_raft_voter_request(&plan);
         let call = driver
             .submit_tracked_remove_raft_voter(request, deadline.transport())
             .map_err(RemoveRaftVoterCallAdmissionFailure::Driver)?;
-        Ok(Self { call: Some(call) })
+        Ok(Self {
+            call: Some(call),
+            plan: Some(plan),
+        })
     }
 
     /// Extracts one ready raw terminal without releasing its route evidence.
@@ -42,14 +46,16 @@ impl RemoveRaftVoterCall {
         &mut self,
     ) -> Option<Result<RemoveRaftVoterRawTerminal, CompletionError>> {
         let result = self.call.as_mut()?.try_result()?;
-        drop(self.call.take());
         match result {
             Ok(outcome) => {
+                let plan = self.plan.take()?;
+                drop(self.call.take());
                 let (result, selected_version, route_token) = outcome.into_parts();
                 Some(Ok(retain_remove_raft_voter_terminal(
                     selected_version,
                     result,
                     route_token,
+                    plan,
                 )))
             }
             Err(source) => Some(Err(source)),
@@ -57,11 +63,15 @@ impl RemoveRaftVoterCall {
     }
 
     /// Seals unresolved ownership only after the unique driver is gone.
-    pub(crate) fn recover_after_driver_shutdown(mut self) -> Option<RecoveredRemoveRaftVoterCall> {
-        self.call.take().map(|call| {
-            drop(call);
-            RecoveredRemoveRaftVoterCall
-        })
+    pub(crate) fn recover_after_driver_shutdown(self) -> Option<RecoveredRemoveRaftVoterCall> {
+        let Self { call, plan } = self;
+        match (call, plan) {
+            (Some(call), Some(plan)) => {
+                drop(call);
+                Some(RecoveredRemoveRaftVoterCall::new(plan))
+            }
+            _ => None,
+        }
     }
 }
 

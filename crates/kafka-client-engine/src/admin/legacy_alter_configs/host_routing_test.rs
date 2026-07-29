@@ -58,12 +58,13 @@ fn later_route_recovery_preserves_prior_possible_delivery_at_every_handoff_bound
             else {
                 panic!("second route expected");
             };
-            let (second_id, _deadline, second_route, _plan, _limit) = second.into_parts();
+            let (second_id, _deadline, second_route, second_plan, _limit) = second.into_parts();
             assert_eq!(second_route, LegacyAlterConfigsRoute::ExactBroker(1));
             if phase == LaterRoutePhase::Submitted {
                 host.apply_input_for_test(second_id, LegacyAlterConfigsInput::DriverAccepted)
                     .unwrap_or_else(|error| panic!("accept second route: {error}"));
             }
+            host.retain_recovered_call_for_test(second_route, second_plan);
         }
 
         host.recover_after_driver_shutdown()

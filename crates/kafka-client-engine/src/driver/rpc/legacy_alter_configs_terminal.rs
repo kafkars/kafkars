@@ -1,6 +1,6 @@
 //! Neutral terminal facts retaining route evidence for legacy resource configuration replacement.
 
-use kafka_client_core::DeliveryStatus;
+use kafka_client_core::{DeliveryStatus, LegacyAlterConfigsPlan, LegacyAlterConfigsRoute};
 use kafka_driver::{ApiVersion, CallFailure, RequestError, RouteFailureToken};
 use kafka_wire::AlterConfigsResponse;
 
@@ -33,6 +33,8 @@ pub(crate) struct LegacyAlterConfigsTerminal {
     selected_version: Option<i16>,
     result: Result<AlterConfigsResponse, RequestError>,
     route_token: Option<RouteFailureToken>,
+    route: LegacyAlterConfigsRoute,
+    plan: LegacyAlterConfigsPlan,
 }
 
 impl LegacyAlterConfigsTerminal {
@@ -49,15 +51,29 @@ impl LegacyAlterConfigsTerminal {
         }
     }
 
+    /// Returns the exact destination retained for deterministic correlation.
+    pub(crate) const fn route(&self) -> LegacyAlterConfigsRoute {
+        self.route
+    }
+
+    /// Returns the exact caller-ordered configuration plan sent on this route.
+    pub(crate) const fn plan(&self) -> &LegacyAlterConfigsPlan {
+        &self.plan
+    }
+
     /// Releases response and route evidence only after deterministic settlement.
     pub(crate) fn discard(self) {
         let Self {
             selected_version: _,
             result,
             route_token,
+            route,
+            plan,
         } = self;
         drop(result);
         drop(route_token);
+        let _ = route;
+        drop(plan);
     }
 }
 
@@ -65,11 +81,15 @@ pub(super) fn retain_legacy_alter_configs_terminal(
     selected_version: Option<ApiVersion>,
     result: Result<AlterConfigsResponse, RequestError>,
     route_token: Option<RouteFailureToken>,
+    route: LegacyAlterConfigsRoute,
+    plan: LegacyAlterConfigsPlan,
 ) -> LegacyAlterConfigsTerminal {
     LegacyAlterConfigsTerminal {
         selected_version: selected_version.map(ApiVersion::value),
         result,
         route_token,
+        route,
+        plan,
     }
 }
 
@@ -99,16 +119,35 @@ fn failure_kind(error: &RequestError) -> LegacyAlterConfigsDriverFailureKind {
 /// Accepted ownership recovered only after unique driver destruction.
 #[must_use = "recovered legacy AlterConfigs ownership still requires deterministic settlement"]
 pub(crate) struct RecoveredLegacyAlterConfigsCall {
-    _private: (),
+    route: LegacyAlterConfigsRoute,
+    plan: LegacyAlterConfigsPlan,
 }
 
 impl RecoveredLegacyAlterConfigsCall {
-    pub(super) const fn new() -> Self {
-        Self { _private: () }
+    pub(super) const fn new(route: LegacyAlterConfigsRoute, plan: LegacyAlterConfigsPlan) -> Self {
+        Self { route, plan }
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn for_test(
+        route: LegacyAlterConfigsRoute,
+        plan: LegacyAlterConfigsPlan,
+    ) -> Self {
+        Self { route, plan }
+    }
+
+    pub(crate) fn matches_correlation(
+        &self,
+        expected_route: LegacyAlterConfigsRoute,
+        expected_plan: &LegacyAlterConfigsPlan,
+    ) -> bool {
+        self.route == expected_route && &self.plan == expected_plan
     }
 
     /// Consumes recovered ownership after core receives its terminal fact.
-    pub(crate) const fn seal(self) {
-        let Self { _private: () } = self;
+    pub(crate) fn seal(self) {
+        let Self { route, plan } = self;
+        let _ = route;
+        drop(plan);
     }
 }

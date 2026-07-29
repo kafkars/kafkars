@@ -56,6 +56,7 @@ impl DescribeFeaturesHost {
             submission: None,
             handoff: DescribeFeaturesHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

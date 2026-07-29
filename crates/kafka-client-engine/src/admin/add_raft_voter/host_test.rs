@@ -27,15 +27,18 @@ fn admission_reserves_terminal_and_request_result_bytes_before_submission() {
     assert!(operation_bytes < ADD_RAFT_VOTER_RETAINED_BYTES);
 
     let AddRaftVoterTurn::Submit(submission) = host
-        .turn(capture.now())
+        .turn(capture.now(), None)
         .unwrap_or_else(|error| panic!("submission turn: {error}"))
     else {
         panic!("submission expected");
     };
-    let (_id, submitted_deadline, submitted_plan, result_limit) = submission.into_parts();
+    let (operation_id, submitted_deadline, submitted_plan, result_limit) = submission.into_parts();
     assert_eq!(submitted_deadline, capture.operation_deadline());
     assert_eq!(submitted_plan.voter_id(), 7);
     assert_eq!(result_limit, ADD_RAFT_VOTER_RESULT_BYTES);
+    drop(submitted_plan);
+    host.reject_handoff(operation_id)
+        .unwrap_or_else(|error| panic!("reject inspected handoff: {error}"));
 
     drop(admission.observer);
     host.recover_after_driver_shutdown()
@@ -55,10 +58,16 @@ fn dropping_observer_does_not_cancel_accepted_work() {
         .unwrap_or_else(|error| panic!("admit voter addition: {error:?}"));
     drop(admission.observer);
 
-    assert!(matches!(
-        host.turn(capture.now()),
-        Ok(AddRaftVoterTurn::Submit(_))
-    ));
+    let AddRaftVoterTurn::Submit(submission) = host
+        .turn(capture.now(), None)
+        .unwrap_or_else(|error| panic!("submission turn: {error}"))
+    else {
+        panic!("submission expected");
+    };
+    let (operation_id, _deadline, submitted_plan, _result_limit) = submission.into_parts();
+    drop(submitted_plan);
+    host.reject_handoff(operation_id)
+        .unwrap_or_else(|error| panic!("reject inspected handoff: {error}"));
     host.recover_after_driver_shutdown()
         .unwrap_or_else(|error| panic!("recover abandoned observation: {error}"));
     drop(host);
@@ -114,7 +123,7 @@ fn untouched_shutdown_is_definitely_unsent_and_reclaimable() {
     assert_eq!(failure.delivery(), AddRaftVoterDeliveryStatus::NotSent);
 
     let _progress = host
-        .turn(capture.now())
+        .turn(capture.now(), None)
         .unwrap_or_else(|error| panic!("reclaim turn: {error}"));
     assert_eq!(host.retained_bytes_for_test(), 0);
     drop(host);

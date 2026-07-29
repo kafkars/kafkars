@@ -4,8 +4,8 @@ use crate::DeliveryStatus;
 
 use super::{
     ElectLeadersBatch, ElectLeadersEffect, ElectLeadersFailure, ElectLeadersFailureKind,
-    ElectLeadersInput, ElectLeadersMachine, ElectLeadersMachineError, ElectLeadersState,
-    ElectLeadersTerminal, ElectLeadersTransition, LeaderElectionOutcome,
+    ElectLeadersInput, ElectLeadersMachine, ElectLeadersMachineError, ElectLeadersSelection,
+    ElectLeadersState, ElectLeadersTerminal, ElectLeadersTransition, LeaderElectionOutcome,
 };
 
 impl ElectLeadersMachine {
@@ -99,15 +99,16 @@ impl ElectLeadersMachine {
     }
 
     fn outcomes_match_plan(&self, outcomes: &[LeaderElectionOutcome]) -> bool {
-        self.plan.targets().len() == outcomes.len()
-            && self
-                .plan
-                .targets()
-                .iter()
-                .zip(outcomes)
-                .all(|(change, outcome)| {
-                    change.topic() == outcome.topic() && change.partition() == outcome.partition()
-                })
+        match self.plan.selection() {
+            ElectLeadersSelection::Selected(targets) => {
+                targets.len() == outcomes.len()
+                    && targets.iter().zip(outcomes).all(|(target, outcome)| {
+                        target.topic() == outcome.topic()
+                            && target.partition() == outcome.partition()
+                    })
+            }
+            ElectLeadersSelection::AllPartitions => all_outcomes_are_canonical(outcomes),
+        }
     }
 
     fn finish_awaiting(
@@ -149,4 +150,24 @@ impl ElectLeadersMachine {
             terminal,
         })
     }
+}
+
+fn all_outcomes_are_canonical(outcomes: &[LeaderElectionOutcome]) -> bool {
+    if outcomes.iter().any(|outcome| {
+        outcome.topic().is_empty()
+            || outcome.topic().len() > i16::MAX as usize
+            || outcome.partition() < 0
+    }) {
+        return false;
+    }
+    outcomes.windows(2).all(|pair| {
+        let [left, right] = pair else {
+            return false;
+        };
+        left.topic()
+            .as_bytes()
+            .cmp(right.topic().as_bytes())
+            .then_with(|| left.partition().cmp(&right.partition()))
+            .is_lt()
+    })
 }

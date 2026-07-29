@@ -1,6 +1,6 @@
 //! Neutral borrowed terminal facts for discovery and exact-broker calls.
 
-use kafka_client_core::DeliveryStatus;
+use kafka_client_core::{AdminGroupListingFilters, DeliveryStatus};
 use kafka_driver::{ApiVersion, CallFailure, RequestError, RouteFailureToken};
 use kafka_wire::{DescribeClusterResponse, ListGroupsResponse};
 
@@ -39,6 +39,8 @@ enum Inner {
     },
     Broker {
         broker_id: i32,
+        filters: AdminGroupListingFilters,
+        retained_limit: usize,
         selected_version: Option<i16>,
         result: Result<ListGroupsResponse, RequestError>,
     },
@@ -65,6 +67,7 @@ impl ListConsumerGroupsRawTerminal {
                 broker_id,
                 selected_version,
                 result: Ok(response),
+                ..
             } => ListConsumerGroupsRawTerminalFact::BrokerResponse {
                 broker_id: *broker_id,
                 selected_version: *selected_version,
@@ -82,9 +85,42 @@ impl ListConsumerGroupsRawTerminal {
         }
     }
 
+    pub(crate) fn matches_discovery(&self) -> bool {
+        matches!(self.inner, Inner::Discovery { .. })
+    }
+
+    pub(crate) fn matches_broker(
+        &self,
+        expected_broker_id: i32,
+        expected_filters: &AdminGroupListingFilters,
+        expected_retained_limit: usize,
+    ) -> bool {
+        matches!(
+            &self.inner,
+            Inner::Broker {
+                broker_id,
+                filters,
+                retained_limit,
+                ..
+            } if *broker_id == expected_broker_id
+                && filters == expected_filters
+                && *retained_limit == expected_retained_limit
+        )
+    }
+
     /// Deliberately releases route evidence after deterministic settlement.
     pub(crate) fn discard(self) {
-        drop(self.route_token);
+        let Self { inner, route_token } = self;
+        match inner {
+            Inner::Discovery { result, .. } => drop(result),
+            Inner::Broker {
+                filters, result, ..
+            } => {
+                drop(filters);
+                drop(result);
+            }
+        }
+        drop(route_token);
     }
 }
 
@@ -104,6 +140,8 @@ pub(super) fn retain_list_consumer_groups_discovery_terminal(
 
 pub(super) fn retain_list_consumer_groups_broker_terminal(
     broker_id: i32,
+    filters: AdminGroupListingFilters,
+    retained_limit: usize,
     selected_version: Option<ApiVersion>,
     result: Result<ListGroupsResponse, RequestError>,
     route_token: Option<RouteFailureToken>,
@@ -111,6 +149,8 @@ pub(super) fn retain_list_consumer_groups_broker_terminal(
     ListConsumerGroupsRawTerminal {
         inner: Inner::Broker {
             broker_id,
+            filters,
+            retained_limit,
             selected_version: selected_version.map(ApiVersion::value),
             result,
         },
@@ -141,19 +181,5 @@ fn failure_kind(error: &RequestError) -> ListConsumerGroupsDriverFailureKind {
     }
 }
 
-/// Accepted ownership recovered only after driver shutdown.
-#[must_use = "recovered ListConsumerGroups ownership still requires settlement"]
-pub(crate) struct RecoveredListConsumerGroupsCall {
-    _private: (),
-}
-
-impl RecoveredListConsumerGroupsCall {
-    pub(super) const fn new() -> Self {
-        Self { _private: () }
-    }
-
-    /// Consumes recovered ownership after core receives its terminal fact.
-    pub(crate) const fn seal(self) {
-        let Self { _private: () } = self;
-    }
-}
+#[cfg(test)]
+mod terminal_test;

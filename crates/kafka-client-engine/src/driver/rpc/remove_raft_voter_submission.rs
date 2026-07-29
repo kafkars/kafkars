@@ -1,4 +1,4 @@
-//! Single-attempt AnyBroker submission policy for Admin `RemoveRaftVoter`.
+//! Single-attempt controller submission policy for Admin `RemoveRaftVoter`.
 
 use std::{error::Error, fmt, time::Instant};
 
@@ -32,7 +32,7 @@ impl Error for RemoveRaftVoterSubmitError {
 }
 
 impl DriverOwner {
-    /// Submits one voter removal without retry or invalidation policy.
+    /// Submits one voter removal without automatic replay policy.
     pub(crate) fn submit_tracked_remove_raft_voter(
         &self,
         request: RemoveRaftVoterRequest,
@@ -49,7 +49,7 @@ impl DriverOwner {
 }
 
 pub(super) const fn remove_raft_voter_route() -> Route {
-    Route::AnyBroker
+    Route::Controller
 }
 
 pub(super) const fn remove_raft_voter_options(deadline: Instant) -> RequestOptions {

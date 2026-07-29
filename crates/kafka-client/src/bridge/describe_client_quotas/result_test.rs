@@ -84,6 +84,7 @@ fn broker_code_diagnostic_and_delivery_are_preserved() {
     assert_eq!(error.kind(), ErrorKind::Broker);
     assert_eq!(error.broker_code(), Some(-731));
     assert_eq!(error.delivery_status(), Some(DeliveryStatus::PossiblySent));
+    assert!(error.diagnostic_truncated());
     assert!(error.to_string().contains("denied"));
     assert!(error.to_string().contains("truncated"));
 }

@@ -8,19 +8,20 @@ use super::{
 #[test]
 fn request_preserves_unique_hmac_and_optional_period_without_leaking_secret() {
     let request = ExpireDelegationTokenRequest::new(
-        ExpireDelegationTokenHmac::new(b"expire-secret-must-not-leak".to_vec()),
+        ExpireDelegationTokenHmac::new(TEST_HMAC.to_vec()),
         Some(60_000),
     );
 
-    assert_eq!(request.hmac().as_bytes(), b"expire-secret-must-not-leak");
+    assert!(request.hmac().as_bytes() == TEST_HMAC);
     assert_eq!(request.expiry_period_ms(), Some(60_000));
     let debug = format!("{request:?}");
-    assert!(debug.contains("REDACTED"));
-    assert!(!debug.contains("expire-secret-must-not-leak"));
+    assert!(
+        debug == "ExpireDelegationTokenRequest { hmac: [REDACTED], expiry_period_ms: Some(60000) }"
+    );
 
     let (hmac, period) = request.into_parts();
     assert_eq!(period, Some(60_000));
-    assert_eq!(hmac.into_bytes(), b"expire-secret-must-not-leak");
+    assert!(hmac.into_bytes() == TEST_HMAC);
 }
 
 #[test]
@@ -68,8 +69,10 @@ fn captured_conversion_accepts_zero_but_rejects_empty_and_unrepresentable_values
 
 #[test]
 fn unique_hmac_zeroizes_without_exposing_bytes() {
-    let mut hmac = ExpireDelegationTokenHmac::new(b"ephemeral-secret".to_vec());
+    let mut hmac = ExpireDelegationTokenHmac::new(TEST_HMAC.to_vec());
     hmac.zeroize_for_test();
 
     assert!(hmac.as_bytes().is_empty());
 }
+
+const TEST_HMAC: &[u8] = &[0xA5, 0x5A, 0xC3, 0x3C];

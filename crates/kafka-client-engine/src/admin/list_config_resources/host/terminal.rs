@@ -1,16 +1,15 @@
 //! Call polling, publication, reclamation, and shutdown recovery.
 
-use kafka_client_core::{
-    DeliveryStatus, ListConfigResourcesEffect, ListConfigResourcesInput, ListConfigResourcesState,
-    Moment,
-};
+mod recovery;
+
+#[cfg(test)]
+mod test_support;
+
+use kafka_client_core::ListConfigResourcesEffect;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
-use super::{
-    ListConfigResourcesHandoff, ListConfigResourcesHost, ListConfigResourcesHostError,
-    response::terminal_input,
-};
+use super::{ListConfigResourcesHost, ListConfigResourcesHostError, response::terminal_input};
 
 impl ListConfigResourcesHost {
     pub(super) fn poll_one_call(&mut self) -> Result<bool, ListConfigResourcesHostError> {
@@ -31,69 +30,15 @@ impl ListConfigResourcesHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
             }
             Err(_error) => Err(ListConfigResourcesHostError::CallCompletion),
         }
-    }
-
-    pub(crate) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), ListConfigResourcesHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (ListConfigResourcesState::Ready, _) => self.apply(
-                    operation_id,
-                    ListConfigResourcesInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (
-                    ListConfigResourcesState::AwaitingDriver,
-                    ListConfigResourcesHandoff::Untouched,
-                ) => {
-                    self.apply(operation_id, ListConfigResourcesInput::DriverRejected)?;
-                }
-                (
-                    ListConfigResourcesState::AwaitingDriver,
-                    ListConfigResourcesHandoff::HandedOff,
-                ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(operation_id, ListConfigResourcesInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        ListConfigResourcesInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (ListConfigResourcesState::Submitted, ListConfigResourcesHandoff::Submitted) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        ListConfigResourcesInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (ListConfigResourcesState::Completed, _) => self.publish_terminal(0)?,
-                _ => return Err(ListConfigResourcesHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), ListConfigResourcesHostError> {
@@ -134,7 +79,10 @@ impl ListConfigResourcesHost {
         &mut self,
         index: usize,
     ) -> Result<(), ListConfigResourcesHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(ListConfigResourcesHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -192,13 +140,5 @@ impl ListConfigResourcesHost {
             .checked_sub(bytes)
             .ok_or(ListConfigResourcesHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::ListConfigResourcesCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

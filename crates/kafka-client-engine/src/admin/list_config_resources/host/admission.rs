@@ -59,6 +59,7 @@ impl ListConfigResourcesHost {
             submission: None,
             handoff: ListConfigResourcesHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

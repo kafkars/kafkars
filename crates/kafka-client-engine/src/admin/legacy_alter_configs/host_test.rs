@@ -1,4 +1,4 @@
-//! Bounded API 33 admission, recovery, and retained-byte scenarios.
+//! Bounded API 33 admission, handoff, and retained-byte scenarios.
 
 use std::time::Instant;
 
@@ -11,8 +11,8 @@ use crate::clock::OperationDeadline;
 
 use super::{
     LegacyAlterConfigsAdmissionErrorKind, LegacyAlterConfigsDeliveryStatus,
-    LegacyAlterConfigsFailureKind, LegacyAlterConfigsHost, LegacyAlterConfigsOutcome,
-    LegacyAlterConfigsTurn, host::LEGACY_ALTER_CONFIGS_CAPACITY,
+    LegacyAlterConfigsFailureKind, LegacyAlterConfigsHost, LegacyAlterConfigsHostError,
+    LegacyAlterConfigsOutcome, LegacyAlterConfigsTurn, host::LEGACY_ALTER_CONFIGS_CAPACITY,
     model::LegacyAlterConfigsRetention,
 };
 
@@ -81,7 +81,7 @@ fn operation_and_completion_capacity_reject_before_an_extra_machine() {
 }
 
 #[test]
-fn untouched_shutdown_recovery_is_definitely_not_sent() {
+fn rejected_handoff_requires_the_exact_route_and_ordered_plan() {
     let (mut notifier, ports) = crate::admin::test_support::completion_owner();
     let mut host = LegacyAlterConfigsHost::new(ports.legacy_alter_configs);
     let admission = host
@@ -92,15 +92,30 @@ fn untouched_shutdown_recovery_is_definitely_not_sent() {
             retention(16 * 1024),
         )
         .unwrap_or_else(|error| panic!("admit legacy configs: {error:?}"));
+    let LegacyAlterConfigsTurn::Submit(submission) = host
+        .turn(kafka_client_core::Moment::from_tick(2))
+        .unwrap_or_else(|error| panic!("take submission: {error}"))
+    else {
+        panic!("submission expected");
+    };
+    let (operation_id, _deadline, route, plan, _result_limit) = submission.into_parts();
 
-    host.recover_after_driver_shutdown()
-        .unwrap_or_else(|error| panic!("recover host: {error}"));
+    assert!(matches!(
+        host.reject_handoff(
+            operation_id,
+            LegacyAlterConfigsRoute::ExactBroker(7),
+            plan.clone(),
+        ),
+        Err(LegacyAlterConfigsHostError::SubmissionMismatch)
+    ));
+    host.reject_handoff(operation_id, route, plan)
+        .unwrap_or_else(|error| panic!("reject exact handoff: {error}"));
     let LegacyAlterConfigsOutcome::Failed(failure) = admission
         .observer
         .wait()
-        .unwrap_or_else(|error| panic!("observe recovery: {error}"))
+        .unwrap_or_else(|error| panic!("observe rejection: {error}"))
     else {
-        panic!("recovery failure expected");
+        panic!("driver rejection expected");
     };
     assert_eq!(
         (failure.kind(), failure.delivery()),

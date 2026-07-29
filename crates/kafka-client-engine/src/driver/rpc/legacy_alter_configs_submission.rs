@@ -3,10 +3,7 @@
 use std::{error::Error, fmt, time::Instant};
 
 use kafka_client_core::LegacyAlterConfigsRoute;
-use kafka_driver::{
-    ApiVersion, BrokerId, BrokerIdError, RequestOptions, Route, RoutedCall, SubmitError,
-    TrafficClass,
-};
+use kafka_driver::{ApiVersion, RequestOptions, Route, RoutedCall, SubmitError, TrafficClass};
 use kafka_wire::{AlterConfigsRequest, AlterConfigsResponse};
 
 use super::super::DriverOwner;
@@ -17,7 +14,7 @@ const LEGACY_ALTER_CONFIGS_MAX_VERSION: ApiVersion = ApiVersion::new(2);
 /// Definitely-unsent failure before driver request ownership.
 #[derive(Debug)]
 pub(crate) enum LegacyAlterConfigsSubmitError {
-    InvalidBroker(BrokerIdError),
+    InvalidBroker(InvalidBroker),
     Driver(SubmitError),
 }
 
@@ -71,10 +68,29 @@ pub(super) fn legacy_alter_configs_route(
 ) -> Result<Route, LegacyAlterConfigsSubmitError> {
     match route {
         LegacyAlterConfigsRoute::AnyBroker => Ok(Route::AnyBroker),
-        LegacyAlterConfigsRoute::ExactBroker(raw) => BrokerId::new(raw)
-            .map(|broker_id| Route::Broker { broker_id })
-            .map_err(LegacyAlterConfigsSubmitError::InvalidBroker),
+        LegacyAlterConfigsRoute::ExactBroker(raw) => {
+            validate_broker_id(raw).map_err(LegacyAlterConfigsSubmitError::InvalidBroker)?;
+            Ok(Route::AnyBroker)
+        }
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct InvalidBroker(i32);
+
+impl fmt::Display for InvalidBroker {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "broker ID {} must be nonnegative", self.0)
+    }
+}
+
+impl Error for InvalidBroker {}
+
+const fn validate_broker_id(broker_id: i32) -> Result<(), InvalidBroker> {
+    if broker_id < 0 {
+        return Err(InvalidBroker(broker_id));
+    }
+    Ok(())
 }
 
 pub(super) const fn legacy_alter_configs_options(deadline: Instant) -> RequestOptions {

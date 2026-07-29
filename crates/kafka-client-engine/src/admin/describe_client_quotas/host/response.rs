@@ -1,27 +1,101 @@
 //! Exhaustive normalized-protocol translation into deterministic core input.
 
-use core::num::NonZeroI16;
+mod model;
 
 use kafka_client_core::{
-    DeliveryStatus, DescribeClientQuotaEntity, DescribeClientQuotaEntityComponent,
-    DescribeClientQuotaValue, DescribeClientQuotasBatch, DescribeClientQuotasBrokerError,
-    DescribeClientQuotasInput,
+    DeliveryStatus, DescribeClientQuotasEffect, DescribeClientQuotasInput,
+    DescribeClientQuotasPlan, OperationId,
 };
 
 use crate::{
     driver::{
-        DescribeClientQuotasDriverFailureKind, DescribeClientQuotasRawTerminal,
-        DescribeClientQuotasTerminalFact,
+        DescribeClientQuotasCall, DescribeClientQuotasDriverFailureKind,
+        DescribeClientQuotasRawTerminal, DescribeClientQuotasTerminalFact,
     },
     protocol::admin::describe_client_quotas::{
-        DescribeClientQuotasResponseFailure, NormalizedClientQuotaEntry,
-        normalize_describe_client_quotas_response,
+        DescribeClientQuotasResponseFailure, normalize_describe_client_quotas_response,
     },
 };
 
+use super::{DescribeClientQuotasHandoff, DescribeClientQuotasHost, DescribeClientQuotasHostError};
+use model::normalized_input;
+
+impl DescribeClientQuotasHost {
+    pub(crate) fn accept_call(
+        &mut self,
+        operation_id: OperationId,
+        call: DescribeClientQuotasCall,
+    ) -> Result<(), DescribeClientQuotasHostError> {
+        let index = self
+            .operation_index(operation_id)
+            .ok_or(DescribeClientQuotasHostError::UnknownOperation)?;
+        let operation = &self.operations[index];
+        if operation.handoff != DescribeClientQuotasHandoff::HandedOff
+            || operation.call.is_some()
+            || operation.recovered_call.is_some()
+            || operation.raw_terminal.is_some()
+            || operation.rejected_submission.is_some()
+        {
+            return Err(DescribeClientQuotasHostError::InvalidHandoff);
+        }
+        let matches = call.matches(
+            &operation.plan,
+            operation.request_scratch_limit,
+            operation.result_limit,
+        );
+        self.operations[index].call = Some(call);
+        if !matches {
+            return Err(DescribeClientQuotasHostError::SubmissionMismatch);
+        }
+        self.apply(operation_id, DescribeClientQuotasInput::DriverAccepted)
+    }
+
+    pub(crate) fn reject_handoff(
+        &mut self,
+        operation_id: OperationId,
+        plan: DescribeClientQuotasPlan,
+        request_scratch_limit: usize,
+        result_limit: usize,
+    ) -> Result<(), DescribeClientQuotasHostError> {
+        let index = self
+            .operation_index(operation_id)
+            .ok_or(DescribeClientQuotasHostError::UnknownOperation)?;
+        let operation = &self.operations[index];
+        if operation.handoff != DescribeClientQuotasHandoff::HandedOff
+            || operation.call.is_some()
+            || operation.recovered_call.is_some()
+            || operation.raw_terminal.is_some()
+            || operation.rejected_submission.is_some()
+        {
+            return Err(DescribeClientQuotasHostError::InvalidHandoff);
+        }
+        let matches = operation.plan == plan
+            && operation.request_scratch_limit == request_scratch_limit
+            && operation.result_limit == result_limit;
+        self.operations[index].rejected_submission =
+            Some((plan, request_scratch_limit, result_limit));
+        if !matches {
+            return Err(DescribeClientQuotasHostError::SubmissionMismatch);
+        }
+        let transition = self.operations[index]
+            .machine
+            .apply(DescribeClientQuotasInput::DriverRejected)?;
+        let terminal = match transition.into_effect() {
+            Some(DescribeClientQuotasEffect::Complete {
+                operation_id: effect_id,
+                terminal,
+            }) if effect_id == operation_id => terminal,
+            Some(_) => return Err(DescribeClientQuotasHostError::SubmissionMismatch),
+            None => return Err(DescribeClientQuotasHostError::MissingTerminal),
+        };
+        drop(self.operations[index].rejected_submission.take());
+        self.operations[index].terminal = Some(terminal);
+        self.publish_terminal(index)
+    }
+}
+
 pub(super) fn terminal_input(
     raw: &DescribeClientQuotasRawTerminal,
-    retained_limit: usize,
 ) -> (DescribeClientQuotasInput, usize) {
     match raw.fact() {
         DescribeClientQuotasTerminalFact::Response {
@@ -31,7 +105,7 @@ pub(super) fn terminal_input(
             match normalize_describe_client_quotas_response(
                 selected_version,
                 response,
-                retained_limit,
+                raw.result_limit(),
             ) {
                 Ok(normalized) => {
                     let (
@@ -69,50 +143,6 @@ pub(super) fn terminal_input(
             (driver_failure(kind, delivery), 0)
         }
     }
-}
-
-fn normalized_input(
-    throttle_time_ms: u32,
-    error_code: i16,
-    error_message: Option<String>,
-    error_message_truncated: bool,
-    entries: Vec<NormalizedClientQuotaEntry>,
-) -> DescribeClientQuotasInput {
-    match NonZeroI16::new(error_code) {
-        Some(code) => DescribeClientQuotasInput::BrokerRejected {
-            error: DescribeClientQuotasBrokerError::new(
-                code,
-                error_message,
-                error_message_truncated,
-            ),
-        },
-        None => DescribeClientQuotasInput::BrokerResponded {
-            batch: DescribeClientQuotasBatch::new(
-                throttle_time_ms,
-                entries.into_iter().map(core_entry).collect(),
-            ),
-        },
-    }
-}
-
-fn core_entry(entry: NormalizedClientQuotaEntry) -> DescribeClientQuotaEntity {
-    let (components, values) = entry.into_parts();
-    DescribeClientQuotaEntity::new(
-        components
-            .into_iter()
-            .map(|component| {
-                let (entity_type, entity_name) = component.into_parts();
-                DescribeClientQuotaEntityComponent::new(entity_type, entity_name)
-            })
-            .collect(),
-        values
-            .into_iter()
-            .map(|value| {
-                let (key, value) = value.into_parts();
-                DescribeClientQuotaValue::new(key, value)
-            })
-            .collect(),
-    )
 }
 
 pub(super) const fn protocol_failure(

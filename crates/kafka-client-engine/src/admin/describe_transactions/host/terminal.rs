@@ -1,5 +1,8 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
+#[cfg(test)]
+mod test_support;
+
 use kafka_client_core::{
     AdminDescribeTransactionsInput, AdminDescribeTransactionsState, DeliveryStatus, Moment,
 };
@@ -30,9 +33,9 @@ impl AdminDescribeTransactionsHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
@@ -66,32 +69,64 @@ impl AdminDescribeTransactionsHost {
                     AdminDescribeTransactionsState::AwaitingDriver,
                     AdminDescribeTransactionsHandoff::HandedOff,
                 ) => {
-                    seal_call(self.operations[0].call.take());
+                    self.retain_recovered_call(0)?;
                     self.apply(operation_id, AdminDescribeTransactionsInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        AdminDescribeTransactionsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (
                     AdminDescribeTransactionsState::Submitted,
                     AdminDescribeTransactionsHandoff::Submitted,
                 ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        AdminDescribeTransactionsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.retain_recovered_call(0)?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (AdminDescribeTransactionsState::Completed, _) => self.publish_terminal(0)?,
                 _ => return Err(AdminDescribeTransactionsHostError::InvalidHandoff),
             }
         }
         Ok(())
+    }
+
+    fn retain_recovered_call(
+        &mut self,
+        index: usize,
+    ) -> Result<(), AdminDescribeTransactionsHostError> {
+        if self.operations[index].recovered_call.is_some() {
+            return Ok(());
+        }
+        if let Some(call) = self.operations[index].call.take() {
+            self.operations[index].recovered_call = call.recover_after_driver_shutdown();
+        }
+        self.operations[index]
+            .recovered_call
+            .as_ref()
+            .ok_or(AdminDescribeTransactionsHostError::InvalidHandoff)
+            .map(|_recovered| ())
+    }
+
+    pub(super) fn settle_recovered_transport(
+        &mut self,
+        index: usize,
+    ) -> Result<(), AdminDescribeTransactionsHostError> {
+        let transition = self.operations[index].machine.apply(
+            AdminDescribeTransactionsInput::TransportFailed {
+                delivery: DeliveryStatus::PossiblySent,
+            },
+        )?;
+        let terminal = match transition.into_effect() {
+            Some(kafka_client_core::AdminDescribeTransactionsEffect::Complete {
+                operation_id,
+                terminal,
+            }) if operation_id == self.operations[index].operation_id => terminal,
+            _ => return Err(AdminDescribeTransactionsHostError::MissingTerminal),
+        };
+        let recovered = self.operations[index]
+            .recovered_call
+            .take()
+            .ok_or(AdminDescribeTransactionsHostError::InvalidHandoff)?;
+        recovered.seal();
+        self.operations[index].terminal = Some(terminal);
+        self.publish_terminal(index)
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), AdminDescribeTransactionsHostError> {
@@ -130,7 +165,10 @@ impl AdminDescribeTransactionsHost {
         &mut self,
         index: usize,
     ) -> Result<(), AdminDescribeTransactionsHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(AdminDescribeTransactionsHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -188,13 +226,5 @@ impl AdminDescribeTransactionsHost {
             .checked_sub(bytes)
             .ok_or(AdminDescribeTransactionsHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::DescribeTransactionsCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

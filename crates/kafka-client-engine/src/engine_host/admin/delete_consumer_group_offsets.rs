@@ -1,11 +1,10 @@
 //! Bounded host turns for concrete consumer-group offset deletion.
 
-use kafka_client_core::{Deadline, DeleteConsumerGroupOffsetsPlan, Moment};
+use kafka_client_core::{Deadline, Moment};
 
 use crate::{
     admin::{DeleteConsumerGroupOffsetsShardLockError, DeleteConsumerGroupOffsetsTurn},
     driver::GroupOffsetDeleteCall,
-    protocol::admin::group_offset_delete::OffsetDeleteTargetRef,
 };
 
 use super::super::{EngineHostError, EngineHostResources};
@@ -46,28 +45,13 @@ pub(super) fn drive(
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            let Some(targets) = target_refs(&plan) else {
-                host.reject_handoff(operation_id)
-                    .map_err(EngineHostError::DeleteConsumerGroupOffsets)?;
-                return Ok(DeleteConsumerGroupOffsetsProgress {
-                    unsettled: host.unsettled(),
-                    driver_progress: true,
-                    next_deadline: host.next_deadline(),
-                });
-            };
-            match GroupOffsetDeleteCall::submit(
-                driver,
-                plan.group_id(),
-                &targets,
-                scratch_limit,
-                deadline.transport(),
-            ) {
+            match GroupOffsetDeleteCall::submit(driver, plan, scratch_limit, deadline.transport()) {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::DeleteConsumerGroupOffsets)?,
                 Err(rejection) => {
-                    drop(rejection);
-                    host.reject_handoff(operation_id)
+                    let (plan, result_limit) = rejection.into_submission_evidence();
+                    host.reject_handoff(operation_id, plan, result_limit)
                         .map_err(EngineHostError::DeleteConsumerGroupOffsets)?;
                 }
             }
@@ -79,19 +63,6 @@ pub(super) fn drive(
         driver_progress,
         next_deadline: host.next_deadline(),
     })
-}
-
-pub(super) fn target_refs(
-    plan: &DeleteConsumerGroupOffsetsPlan,
-) -> Option<Vec<OffsetDeleteTargetRef<'_>>> {
-    let mut targets = Vec::new();
-    targets.try_reserve_exact(plan.targets().len()).ok()?;
-    targets.extend(
-        plan.targets()
-            .iter()
-            .map(|target| OffsetDeleteTargetRef::new(target.topic(), target.partition())),
-    );
-    Some(targets)
 }
 
 impl DeleteConsumerGroupOffsetsProgress {

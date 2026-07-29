@@ -1,25 +1,29 @@
 //! Bounded ownership of accepted finalized-feature machines and concrete calls.
 
 mod admission;
+mod model;
 mod response;
 mod terminal;
 
 #[cfg(test)]
+mod ownership_test;
+#[cfg(test)]
 mod response_test;
 
 use kafka_client_core::{
-    Moment, OperationId, UpdateFeaturesEffect, UpdateFeaturesInput, UpdateFeaturesMachine,
-    UpdateFeaturesPlan, UpdateFeaturesTerminal,
+    Moment, OperationId, UpdateFeaturesEffect, UpdateFeaturesInput, UpdateFeaturesPlan,
+    UpdateFeaturesTerminal,
 };
 
 use crate::{
     admin::AdminUpdateFeaturesPublisher,
-    clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{UpdateFeaturesCall, UpdateFeaturesRawTerminal},
+    driver::UpdateFeaturesCall,
 };
 
 use super::{UpdateFeaturesHostError, UpdateFeaturesObserver};
+use model::{UpdateFeaturesHandoff, UpdateFeaturesOperation};
+pub(crate) use model::{UpdateFeaturesSubmission, UpdateFeaturesTurn};
 
 pub(crate) const UPDATE_FEATURES_CAPACITY: usize = 16;
 pub(crate) const UPDATE_FEATURES_RETAINED_BYTES: usize = 4 * 1024 * 1024;
@@ -27,53 +31,6 @@ pub(crate) const UPDATE_FEATURES_RETAINED_BYTES: usize = 4 * 1024 * 1024;
 pub(crate) struct UpdateFeaturesAdmission {
     pub(crate) observer: UpdateFeaturesObserver,
     pub(crate) fault: Option<UpdateFeaturesHostError>,
-}
-
-/// Exact validated core plan ready for protocol materialization and handoff.
-pub(crate) struct UpdateFeaturesSubmission {
-    operation_id: OperationId,
-    deadline: OperationDeadline,
-    plan: UpdateFeaturesPlan,
-    result_limit: usize,
-}
-
-impl UpdateFeaturesSubmission {
-    pub(crate) fn into_parts(self) -> (OperationId, OperationDeadline, UpdateFeaturesPlan, usize) {
-        (
-            self.operation_id,
-            self.deadline,
-            self.plan,
-            self.result_limit,
-        )
-    }
-}
-
-pub(crate) enum UpdateFeaturesTurn {
-    Idle,
-    Progress,
-    Submit(UpdateFeaturesSubmission),
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum UpdateFeaturesHandoff {
-    Untouched,
-    HandedOff,
-    Submitted,
-}
-
-struct UpdateFeaturesOperation {
-    operation_id: OperationId,
-    machine: UpdateFeaturesMachine,
-    response_plan: UpdateFeaturesPlan,
-    completion_id: CompletionId,
-    deadline: OperationDeadline,
-    retained_bytes: usize,
-    remaining_result_bytes: usize,
-    submission: Option<UpdateFeaturesSubmission>,
-    handoff: UpdateFeaturesHandoff,
-    call: Option<UpdateFeaturesCall>,
-    raw_terminal: Option<UpdateFeaturesRawTerminal>,
-    terminal: Option<UpdateFeaturesTerminal>,
 }
 
 pub(crate) struct UpdateFeaturesHost {
@@ -104,11 +61,12 @@ impl UpdateFeaturesHost {
     pub(crate) fn turn(
         &mut self,
         now: Moment,
+        driver: Option<&crate::driver::DriverOwner>,
     ) -> Result<UpdateFeaturesTurn, UpdateFeaturesHostError> {
         if let Some(error) = self.health {
             return Err(error);
         }
-        if self.reclaim_one()? || self.poll_one_call()? {
+        if self.reclaim_one()? || self.poll_one_call(driver)? {
             return Ok(UpdateFeaturesTurn::Progress);
         }
         let Some(index) = self
@@ -141,22 +99,39 @@ impl UpdateFeaturesHost {
             .ok_or(UpdateFeaturesHostError::UnknownOperation)?;
         if self.operations[index].handoff != UpdateFeaturesHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
         {
             return Err(UpdateFeaturesHostError::InvalidHandoff);
         }
         self.operations[index].call = Some(call);
+        let operation = &self.operations[index];
+        if !operation.call.as_ref().is_some_and(|call| {
+            call.matches_evidence(&operation.response_plan, operation.remaining_result_bytes)
+        }) {
+            return Err(UpdateFeaturesHostError::SubmissionMismatch);
+        }
         self.apply(operation_id, UpdateFeaturesInput::DriverAccepted)
     }
 
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,
+        plan: UpdateFeaturesPlan,
+        result_limit: usize,
     ) -> Result<(), UpdateFeaturesHostError> {
         let index = self
             .operation_index(operation_id)
             .ok_or(UpdateFeaturesHostError::UnknownOperation)?;
-        if self.operations[index].handoff != UpdateFeaturesHandoff::HandedOff {
+        let operation = &self.operations[index];
+        if operation.handoff != UpdateFeaturesHandoff::HandedOff
+            || operation.call.is_some()
+            || operation.recovered_call.is_some()
+            || operation.raw_terminal.is_some()
+        {
             return Err(UpdateFeaturesHostError::InvalidHandoff);
+        }
+        if operation.response_plan != plan || operation.remaining_result_bytes != result_limit {
+            return Err(UpdateFeaturesHostError::SubmissionMismatch);
         }
         self.apply(operation_id, UpdateFeaturesInput::DriverRejected)
     }

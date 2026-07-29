@@ -2,6 +2,7 @@
 
 use std::{error::Error, fmt, time::Instant};
 
+use kafka_client_core::DescribeDelegationTokensPlan;
 use kafka_driver::{CompletionError, RoutedCall};
 use kafka_wire::DescribeDelegationTokenResponse;
 
@@ -39,9 +40,9 @@ impl DescribeDelegationTokensCall {
         &mut self,
     ) -> Option<Result<DescribeDelegationTokensRawTerminal, CompletionError>> {
         let result = self.call.as_mut()?.try_result()?;
-        drop(self.call.take());
         match result {
             Ok(outcome) => {
+                drop(self.call.take());
                 let (result, selected_version, route_token) = outcome.into_parts();
                 Some(Ok(retain_describe_delegation_tokens_terminal(
                     selected_version,
@@ -55,11 +56,12 @@ impl DescribeDelegationTokensCall {
 
     /// Seals unresolved ownership only after the unique driver is gone.
     pub(crate) fn recover_after_driver_shutdown(
-        mut self,
+        self,
+        plan: DescribeDelegationTokensPlan,
     ) -> Option<RecoveredDescribeDelegationTokensCall> {
-        self.call.take().map(|call| {
+        self.call.map(|call| {
             drop(call);
-            RecoveredDescribeDelegationTokensCall
+            RecoveredDescribeDelegationTokensCall::new(plan)
         })
     }
 }

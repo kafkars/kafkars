@@ -11,7 +11,7 @@ use crate::{
 
 use super::{
     AdminListTransactionsAdmissionErrorKind, AdminListTransactionsDeliveryStatus,
-    AdminListTransactionsFailureKind, AdminListTransactionsOutcome,
+    AdminListTransactionsFailureKind, AdminListTransactionsHostError, AdminListTransactionsOutcome,
     AdminListTransactionsSubmissionKind, AdminListTransactionsTurn,
     host::ADMIN_LIST_TRANSACTIONS_RETAINED_BYTES,
 };
@@ -45,16 +45,76 @@ fn admission_reserves_terminal_and_full_envelope_before_discovery() {
     else {
         panic!("discovery submission expected");
     };
-    let (_operation_id, submitted_deadline, kind) = submission.into_parts();
+    let (operation_id, submitted_deadline, kind) = submission.into_parts();
     assert_eq!(submitted_deadline, capture.operation_deadline());
-    assert!(matches!(
-        kind,
-        AdminListTransactionsSubmissionKind::Discovery
-    ));
+    let AdminListTransactionsSubmissionKind::Discovery { retained_limit } = kind else {
+        panic!("discovery submission expected");
+    };
+    assert!(retained_limit < ADMIN_LIST_TRANSACTIONS_RETAINED_BYTES);
 
+    host.reject_handoff(
+        operation_id,
+        AdminListTransactionsSubmissionKind::Discovery { retained_limit },
+    )
+    .unwrap_or_else(|error| panic!("return exact rejected discovery: {error}"));
     drop(admission.observer);
-    host.recover_after_driver_shutdown()
-        .unwrap_or_else(|error| panic!("recover host: {error}"));
+    stop_notifier(&mut notifier);
+    let _ = host
+        .turn(capture.now())
+        .unwrap_or_else(|error| panic!("reclaim rejected discovery: {error}"));
+    assert_eq!(host.retained_bytes_for_test(), 0);
+    drop(host);
+}
+
+#[test]
+fn rejected_handoff_requires_the_exact_discovery_limit() {
+    let (mut notifier, ports) =
+        AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
+    let mut host = AdminListTransactionsHost::new(ports.list_transactions);
+    let capture = deadline();
+    let admission = host
+        .try_admit(capture.now(), capture.operation_deadline(), plan())
+        .unwrap_or_else(|error| panic!("admit ListTransactions: {error:?}"));
+    let AdminListTransactionsTurn::Submit(submission) = host
+        .turn(capture.now())
+        .unwrap_or_else(|error| panic!("submission turn: {error}"))
+    else {
+        panic!("discovery submission expected");
+    };
+    let (operation_id, _deadline, submission) = submission.into_parts();
+    let AdminListTransactionsSubmissionKind::Discovery { retained_limit } = submission else {
+        panic!("discovery submission expected");
+    };
+
+    assert!(matches!(
+        host.reject_handoff(
+            operation_id,
+            AdminListTransactionsSubmissionKind::Discovery {
+                retained_limit: retained_limit + 1,
+            },
+        ),
+        Err(AdminListTransactionsHostError::SubmissionMismatch)
+    ));
+    host.reject_handoff(
+        operation_id,
+        AdminListTransactionsSubmissionKind::Discovery { retained_limit },
+    )
+    .unwrap_or_else(|error| panic!("reject exact discovery: {error}"));
+    let AdminListTransactionsOutcome::Failed(failure) = admission
+        .observer
+        .wait()
+        .unwrap_or_else(|error| panic!("observe rejection: {error}"))
+    else {
+        panic!("failure expected");
+    };
+    assert_eq!(
+        (failure.kind(), failure.delivery()),
+        (
+            AdminListTransactionsFailureKind::DriverRejected,
+            AdminListTransactionsDeliveryStatus::NotSent,
+        )
+    );
+
     drop(host);
     stop_notifier(&mut notifier);
 }

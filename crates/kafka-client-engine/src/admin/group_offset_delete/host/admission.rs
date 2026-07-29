@@ -23,24 +23,6 @@ use crate::admin::group_offset_delete::{
     DeleteConsumerGroupOffsetsAdmissionErrorKind, DeleteConsumerGroupOffsetsObserver,
 };
 
-impl DeleteConsumerGroupOffsetsSubmission {
-    pub(crate) fn into_parts(
-        self,
-    ) -> (
-        OperationId,
-        OperationDeadline,
-        DeleteConsumerGroupOffsetsPlan,
-        usize,
-    ) {
-        (
-            self.operation_id,
-            self.deadline,
-            self.plan,
-            self.request_scratch_limit,
-        )
-    }
-}
-
 impl DeleteConsumerGroupOffsetsHost {
     pub(crate) fn try_admit(
         &mut self,
@@ -88,6 +70,7 @@ impl DeleteConsumerGroupOffsetsHost {
             submission: None,
             handoff: DeleteConsumerGroupOffsetsHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

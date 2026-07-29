@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use kafka_client_core::IncrementalAlterConfigsRoute;
-use kafka_driver::{BrokerId, Route, TrafficClass};
+use kafka_driver::{Route, TrafficClass};
 
 use super::incremental_alter_configs_submission::{
     incremental_alter_configs_options, incremental_alter_configs_route,
@@ -21,9 +21,7 @@ fn submission_preserves_route_interactive_lane_original_deadline_and_v1_ceiling(
     assert_eq!(
         incremental_alter_configs_route(IncrementalAlterConfigsRoute::ExactBroker(7))
             .unwrap_or_else(|error| panic!("exact broker route: {error}")),
-        Route::Broker {
-            broker_id: BrokerId::new(7).unwrap_or_else(|error| panic!("broker ID: {error}")),
-        }
+        Route::AnyBroker
     );
     assert!(
         incremental_alter_configs_route(IncrementalAlterConfigsRoute::ExactBroker(-1)).is_err()

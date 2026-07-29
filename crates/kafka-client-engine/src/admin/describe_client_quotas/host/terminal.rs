@@ -1,16 +1,15 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
-use kafka_client_core::{
-    DeliveryStatus, DescribeClientQuotasEffect, DescribeClientQuotasInput,
-    DescribeClientQuotasState, Moment,
-};
+mod recovery;
+
+#[cfg(test)]
+mod test_support;
+
+use kafka_client_core::DescribeClientQuotasEffect;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
-use super::{
-    DescribeClientQuotasHandoff, DescribeClientQuotasHost, DescribeClientQuotasHostError,
-    response::terminal_input,
-};
+use super::{DescribeClientQuotasHost, DescribeClientQuotasHostError, response::terminal_input};
 
 impl DescribeClientQuotasHost {
     pub(super) fn poll_one_call(&mut self) -> Result<bool, DescribeClientQuotasHostError> {
@@ -31,71 +30,15 @@ impl DescribeClientQuotasHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
             }
             Err(_error) => Err(DescribeClientQuotasHostError::CallCompletion),
         }
-    }
-
-    pub(crate) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), DescribeClientQuotasHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (DescribeClientQuotasState::Ready, _) => self.apply(
-                    operation_id,
-                    DescribeClientQuotasInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (
-                    DescribeClientQuotasState::AwaitingDriver,
-                    DescribeClientQuotasHandoff::Untouched,
-                ) => {
-                    self.apply(operation_id, DescribeClientQuotasInput::DriverRejected)?;
-                }
-                (
-                    DescribeClientQuotasState::AwaitingDriver,
-                    DescribeClientQuotasHandoff::HandedOff,
-                ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(operation_id, DescribeClientQuotasInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        DescribeClientQuotasInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (DescribeClientQuotasState::Submitted, DescribeClientQuotasHandoff::Submitted) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        DescribeClientQuotasInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (DescribeClientQuotasState::Completed, _) => {
-                    self.publish_terminal(0)?;
-                }
-                _ => return Err(DescribeClientQuotasHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), DescribeClientQuotasHostError> {
@@ -108,7 +51,14 @@ impl DescribeClientQuotasHost {
                 .raw_terminal
                 .as_ref()
                 .ok_or(DescribeClientQuotasHostError::MissingTerminal)?;
-            terminal_input(raw, operation.remaining_result_bytes)
+            if !raw.matches(
+                &operation.plan,
+                operation.request_scratch_limit,
+                operation.result_limit,
+            ) {
+                return Err(DescribeClientQuotasHostError::SubmissionMismatch);
+            }
+            terminal_input(raw)
         };
         self.operations[index].remaining_result_bytes = self.operations[index]
             .remaining_result_bytes
@@ -136,7 +86,11 @@ impl DescribeClientQuotasHost {
         &mut self,
         index: usize,
     ) -> Result<(), DescribeClientQuotasHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+            || self.operations[index].rejected_submission.is_some()
+        {
             return Err(DescribeClientQuotasHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -194,13 +148,5 @@ impl DescribeClientQuotasHost {
             .checked_sub(bytes)
             .ok_or(DescribeClientQuotasHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::DescribeClientQuotasCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

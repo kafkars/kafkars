@@ -57,10 +57,12 @@ pub(crate) use super::group_offset_commit_settlement::{
 pub(crate) use super::group_offset_delete_call::GroupOffsetDeleteCall;
 pub(crate) use super::group_offset_delete_terminal::{
     GroupOffsetDeleteDriverFailureKind, GroupOffsetDeleteTerminal, GroupOffsetDeleteTerminalFact,
+    RecoveredGroupOffsetDeleteCall,
 };
 pub(crate) use super::group_offsets_call::GroupOffsetsCall;
 pub(crate) use super::group_offsets_terminal::{
     GroupOffsetsDriverFailureKind, GroupOffsetsTerminal, GroupOffsetsTerminalFact,
+    RecoveredGroupOffsetsCall,
 };
 #[cfg(test)]
 pub(crate) use super::group_position_offset_fetch::GroupPositionOffsetFetchTestPartition;

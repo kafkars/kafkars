@@ -43,19 +43,25 @@ pub(super) fn drive(
         AlterUserScramCredentialsTurn::Idle => false,
         AlterUserScramCredentialsTurn::Progress => true,
         AlterUserScramCredentialsTurn::Submit(submission) => {
-            let (operation_id, deadline, plan, request) = submission.into_parts();
+            let (operation_id, deadline, plan, request, _prepared_request_bytes, result_limit) =
+                submission.into_parts();
             let driver = resources
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            match AlterUserScramCredentialsCall::submit(driver, plan, request, deadline.transport())
-            {
+            match AlterUserScramCredentialsCall::submit(
+                driver,
+                plan,
+                request,
+                result_limit,
+                deadline.transport(),
+            ) {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::AlterUserScramCredentials)?,
                 Err(rejection) => {
-                    drop(rejection);
-                    host.reject_handoff(operation_id)
+                    let (plan, prepared_request_bytes, result_limit) = rejection.into_correlation();
+                    host.reject_handoff(operation_id, plan, prepared_request_bytes, result_limit)
                         .map_err(EngineHostError::AlterUserScramCredentials)?;
                 }
             }

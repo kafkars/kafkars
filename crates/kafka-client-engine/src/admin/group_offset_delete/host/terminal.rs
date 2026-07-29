@@ -1,15 +1,16 @@
 //! Call polling, receipt release, publication, reclamation, and recovery.
 
-use kafka_client_core::{
-    DeleteConsumerGroupOffsetsEffect, DeleteConsumerGroupOffsetsInput,
-    DeleteConsumerGroupOffsetsState, DeliveryStatus, Moment,
-};
+mod recovery;
+
+#[cfg(test)]
+mod test_support;
+
+use kafka_client_core::DeleteConsumerGroupOffsetsEffect;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
 use super::{
-    DeleteConsumerGroupOffsetsHandoff, DeleteConsumerGroupOffsetsHost,
-    DeleteConsumerGroupOffsetsHostError, response::terminal_input,
+    DeleteConsumerGroupOffsetsHost, DeleteConsumerGroupOffsetsHostError, response::terminal_input,
 };
 
 impl DeleteConsumerGroupOffsetsHost {
@@ -31,85 +32,14 @@ impl DeleteConsumerGroupOffsetsHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
             }
             Err(_error) => Err(DeleteConsumerGroupOffsetsHostError::CallCompletion),
-        }
-    }
-
-    pub(crate) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), DeleteConsumerGroupOffsetsHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (DeleteConsumerGroupOffsetsState::Ready, _) => self.apply(
-                    operation_id,
-                    DeleteConsumerGroupOffsetsInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (
-                    DeleteConsumerGroupOffsetsState::AwaitingDriver,
-                    DeleteConsumerGroupOffsetsHandoff::Untouched,
-                ) => self.apply(
-                    operation_id,
-                    DeleteConsumerGroupOffsetsInput::DriverRejected,
-                )?,
-                (
-                    DeleteConsumerGroupOffsetsState::AwaitingDriver,
-                    DeleteConsumerGroupOffsetsHandoff::HandedOff,
-                ) => {
-                    self.recover_call(0);
-                    self.apply(
-                        operation_id,
-                        DeleteConsumerGroupOffsetsInput::DriverAccepted,
-                    )?;
-                    self.apply(
-                        operation_id,
-                        DeleteConsumerGroupOffsetsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (
-                    DeleteConsumerGroupOffsetsState::Submitted,
-                    DeleteConsumerGroupOffsetsHandoff::Submitted,
-                ) => {
-                    self.recover_call(0);
-                    self.apply(
-                        operation_id,
-                        DeleteConsumerGroupOffsetsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (DeleteConsumerGroupOffsetsState::Completed, _) => {
-                    self.publish_terminal(0)?;
-                }
-                _ => return Err(DeleteConsumerGroupOffsetsHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
-    }
-
-    fn recover_call(&mut self, index: usize) {
-        if let Some(call) = self.operations[index].call.take() {
-            if let Some(recovered) = call.recover_after_driver_shutdown() {
-                recovered.seal();
-            }
         }
     }
 
@@ -123,7 +53,10 @@ impl DeleteConsumerGroupOffsetsHost {
                 .raw_terminal
                 .as_ref()
                 .ok_or(DeleteConsumerGroupOffsetsHostError::MissingTerminal)?;
-            terminal_input(raw, &operation.response_plan, operation.result_limit)
+            if !raw.matches_evidence(&operation.response_plan, operation.result_limit) {
+                return Err(DeleteConsumerGroupOffsetsHostError::SubmissionMismatch);
+            }
+            terminal_input(raw)
         };
         let transition = self.operations[index].machine.apply(input)?;
         let raw = self.operations[index]
@@ -147,7 +80,10 @@ impl DeleteConsumerGroupOffsetsHost {
         &mut self,
         index: usize,
     ) -> Result<(), DeleteConsumerGroupOffsetsHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(DeleteConsumerGroupOffsetsHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]

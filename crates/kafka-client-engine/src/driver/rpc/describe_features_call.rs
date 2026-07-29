@@ -38,9 +38,9 @@ impl DescribeFeaturesCall {
         &mut self,
     ) -> Option<Result<DescribeFeaturesRawTerminal, CompletionError>> {
         let result = self.call.as_mut()?.try_result()?;
-        drop(self.call.take());
         match result {
             Ok(outcome) => {
+                drop(self.call.take());
                 let (result, selected_version, route_token) = outcome.into_parts();
                 Some(Ok(retain_describe_features_terminal(
                     selected_version,
@@ -53,10 +53,10 @@ impl DescribeFeaturesCall {
     }
 
     /// Seals unresolved ownership only after the unique driver is gone.
-    pub(crate) fn recover_after_driver_shutdown(mut self) -> Option<RecoveredDescribeFeaturesCall> {
-        self.call.take().map(|call| {
+    pub(crate) fn recover_after_driver_shutdown(self) -> Option<RecoveredDescribeFeaturesCall> {
+        self.call.map(|call| {
             drop(call);
-            RecoveredDescribeFeaturesCall
+            RecoveredDescribeFeaturesCall::new()
         })
     }
 }

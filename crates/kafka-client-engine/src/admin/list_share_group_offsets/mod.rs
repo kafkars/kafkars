@@ -38,6 +38,8 @@ pub(crate) use shard::{
 };
 
 #[cfg(test)]
+mod host_completion_test;
+#[cfg(test)]
 mod host_test;
 #[cfg(test)]
 mod model_test;

@@ -32,6 +32,7 @@ pub(crate) struct ElectLeadersSubmission {
     deadline: OperationDeadline,
     plan: ElectLeadersPlan,
     request_scratch_limit: usize,
+    result_limit: usize,
 }
 
 pub(crate) enum ElectLeadersTurn {
@@ -55,6 +56,7 @@ struct ElectLeadersOperation {
     deadline: OperationDeadline,
     retained_bytes: usize,
     result_limit: usize,
+    request_scratch_limit: usize,
     submission: Option<ElectLeadersSubmission>,
     handoff: ElectLeadersHandoff,
     call: Option<ElectLeadersCall>,
@@ -125,10 +127,15 @@ impl ElectLeadersHost {
             .ok_or(ElectLeadersHostError::UnknownOperation)?;
         if self.operations[index].handoff != ElectLeadersHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
         {
             return Err(ElectLeadersHostError::InvalidHandoff);
         }
         self.operations[index].call = Some(call);
+        if !response::call_matches_operation(&self.operations[index]) {
+            return Err(ElectLeadersHostError::SubmissionMismatch);
+        }
         self.apply(operation_id, ElectLeadersInput::DriverAccepted)?;
         self.operations[index].handoff = ElectLeadersHandoff::Submitted;
         Ok(())
@@ -137,12 +144,27 @@ impl ElectLeadersHost {
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,
+        plan: ElectLeadersPlan,
+        request_scratch_limit: usize,
+        result_limit: usize,
     ) -> Result<(), ElectLeadersHostError> {
         let index = self
             .operation_index(operation_id)
             .ok_or(ElectLeadersHostError::UnknownOperation)?;
-        if self.operations[index].handoff != ElectLeadersHandoff::HandedOff {
+        if self.operations[index].handoff != ElectLeadersHandoff::HandedOff
+            || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(ElectLeadersHostError::InvalidHandoff);
+        }
+        if !response::operation_matches_correlation(
+            &self.operations[index],
+            &plan,
+            request_scratch_limit,
+            result_limit,
+        ) {
+            return Err(ElectLeadersHostError::SubmissionMismatch);
         }
         self.apply(operation_id, ElectLeadersInput::DriverRejected)
     }
@@ -178,9 +200,16 @@ impl ElectLeadersHost {
             .operation_index(operation_id)
             .ok_or(ElectLeadersHostError::UnknownOperation)?;
         let transition = self.operations[index].machine.apply(input)?;
-        if let Some(ElectLeadersEffect::Complete { terminal, .. }) = transition.into_effect() {
-            self.operations[index].terminal = Some(terminal);
-            self.publish_terminal(index)?;
+        match transition.into_effect() {
+            Some(ElectLeadersEffect::Complete {
+                operation_id: completed_id,
+                terminal,
+            }) if completed_id == operation_id => {
+                self.operations[index].terminal = Some(terminal);
+                self.publish_terminal(index)?;
+            }
+            Some(_) => return Err(ElectLeadersHostError::SubmissionMismatch),
+            None => {}
         }
         Ok(())
     }

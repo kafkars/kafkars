@@ -1,6 +1,9 @@
 //! Bounded ownership of accepted SCRAM credential-alteration machines and calls.
 
 mod admission;
+mod model;
+#[cfg(test)]
+mod ownership_test;
 mod response;
 mod terminal;
 
@@ -9,19 +12,21 @@ mod response_test;
 
 use kafka_client_core::{
     AlterUserScramCredentialsEffect, AlterUserScramCredentialsInput,
-    AlterUserScramCredentialsMachine, AlterUserScramCredentialsPlan,
     AlterUserScramCredentialsTerminal, Moment, OperationId,
 };
 
 use crate::{
     admin::AdminAlterUserScramCredentialsPublisher,
-    clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{AlterUserScramCredentialsCall, AlterUserScramCredentialsRawTerminal},
-    protocol::admin::alter_user_scram_credentials::PreparedAlterUserScramCredentialsRequest,
+    driver::AlterUserScramCredentialsCall,
 };
 
 use super::{AlterUserScramCredentialsHostError, AlterUserScramCredentialsObserver};
+use model::{
+    AlterUserScramCredentialsBounds, AlterUserScramCredentialsHandoff,
+    AlterUserScramCredentialsOperation,
+};
+pub(crate) use model::{AlterUserScramCredentialsSubmission, AlterUserScramCredentialsTurn};
 
 pub(crate) const ALTER_USER_SCRAM_CREDENTIALS_CAPACITY: usize = 16;
 pub(crate) const ALTER_USER_SCRAM_CREDENTIALS_RETAINED_BYTES: usize = 4 * 1024 * 1024;
@@ -29,59 +34,6 @@ pub(crate) const ALTER_USER_SCRAM_CREDENTIALS_RETAINED_BYTES: usize = 4 * 1024 *
 pub(crate) struct AlterUserScramCredentialsAdmission {
     pub(crate) observer: AlterUserScramCredentialsObserver,
     pub(crate) fault: Option<AlterUserScramCredentialsHostError>,
-}
-
-/// One non-secret plan and prepared API-key 51 owner ready for handoff.
-pub(crate) struct AlterUserScramCredentialsSubmission {
-    operation_id: OperationId,
-    deadline: OperationDeadline,
-    plan: AlterUserScramCredentialsPlan,
-    prepared_request: PreparedAlterUserScramCredentialsRequest,
-}
-
-impl AlterUserScramCredentialsSubmission {
-    pub(crate) fn into_parts(
-        self,
-    ) -> (
-        OperationId,
-        OperationDeadline,
-        AlterUserScramCredentialsPlan,
-        PreparedAlterUserScramCredentialsRequest,
-    ) {
-        (
-            self.operation_id,
-            self.deadline,
-            self.plan,
-            self.prepared_request,
-        )
-    }
-}
-
-pub(crate) enum AlterUserScramCredentialsTurn {
-    Idle,
-    Progress,
-    Submit(AlterUserScramCredentialsSubmission),
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum AlterUserScramCredentialsHandoff {
-    Untouched,
-    HandedOff,
-    Submitted,
-}
-
-struct AlterUserScramCredentialsOperation {
-    operation_id: OperationId,
-    machine: AlterUserScramCredentialsMachine,
-    completion_id: CompletionId,
-    deadline: OperationDeadline,
-    retained_bytes: usize,
-    remaining_result_bytes: usize,
-    submission: Option<AlterUserScramCredentialsSubmission>,
-    handoff: AlterUserScramCredentialsHandoff,
-    call: Option<AlterUserScramCredentialsCall>,
-    raw_terminal: Option<AlterUserScramCredentialsRawTerminal>,
-    terminal: Option<AlterUserScramCredentialsTerminal>,
 }
 
 pub(crate) struct AlterUserScramCredentialsHost {
@@ -158,24 +110,60 @@ impl AlterUserScramCredentialsHost {
             .ok_or(AlterUserScramCredentialsHostError::UnknownOperation)?;
         if self.operations[index].handoff != AlterUserScramCredentialsHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+            || self.operations[index].rejected_submission.is_some()
         {
             return Err(AlterUserScramCredentialsHostError::InvalidHandoff);
         }
+        let matches = self.operations[index].matches_call(&call);
         self.operations[index].call = Some(call);
+        if !matches {
+            return Err(AlterUserScramCredentialsHostError::SubmissionMismatch);
+        }
         self.apply(operation_id, AlterUserScramCredentialsInput::DriverAccepted)
     }
 
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,
+        plan: kafka_client_core::AlterUserScramCredentialsPlan,
+        prepared_request_bytes: usize,
+        result_limit: usize,
     ) -> Result<(), AlterUserScramCredentialsHostError> {
         let index = self
             .operation_index(operation_id)
             .ok_or(AlterUserScramCredentialsHostError::UnknownOperation)?;
-        if self.operations[index].handoff != AlterUserScramCredentialsHandoff::HandedOff {
+        if self.operations[index].handoff != AlterUserScramCredentialsHandoff::HandedOff
+            || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+            || self.operations[index].rejected_submission.is_some()
+        {
             return Err(AlterUserScramCredentialsHostError::InvalidHandoff);
         }
-        self.apply(operation_id, AlterUserScramCredentialsInput::DriverRejected)
+        let bounds = AlterUserScramCredentialsBounds {
+            prepared_request_bytes,
+            result_limit,
+        };
+        let matches = self.operations[index].matches_submission(&plan, bounds);
+        self.operations[index].rejected_submission = Some((plan, bounds));
+        if !matches {
+            return Err(AlterUserScramCredentialsHostError::SubmissionMismatch);
+        }
+        let transition = self.operations[index]
+            .machine
+            .apply(AlterUserScramCredentialsInput::DriverRejected)?;
+        let terminal = match transition.into_effect() {
+            Some(AlterUserScramCredentialsEffect::Complete {
+                operation_id: effect_id,
+                terminal,
+            }) if effect_id == operation_id => terminal,
+            _ => return Err(AlterUserScramCredentialsHostError::MissingTerminal),
+        };
+        drop(self.operations[index].rejected_submission.take());
+        self.operations[index].terminal = Some(terminal);
+        self.publish_terminal(index)
     }
 
     pub(crate) fn close_admission(&mut self) {
@@ -217,17 +205,17 @@ impl AlterUserScramCredentialsHost {
         if accepted {
             self.operations[index].handoff = AlterUserScramCredentialsHandoff::Submitted;
         }
-        if let Some(AlterUserScramCredentialsEffect::Complete { terminal, .. }) =
-            transition.into_effect()
+        if let Some(AlterUserScramCredentialsEffect::Complete {
+            operation_id: effect_id,
+            terminal,
+        }) = transition.into_effect()
         {
+            if effect_id != operation_id {
+                return Err(AlterUserScramCredentialsHostError::SubmissionMismatch);
+            }
             self.operations[index].terminal = Some(terminal);
             self.publish_terminal(index)?;
         }
         Ok(())
-    }
-
-    #[cfg(test)]
-    pub(super) const fn retained_bytes_for_test(&self) -> usize {
-        self.retained_bytes
     }
 }

@@ -70,6 +70,7 @@ pub(crate) enum ElectLeadersHostError {
     UnknownOperation,
     MissingSubmission,
     MissingTerminal,
+    SubmissionMismatch,
     InvalidHandoff,
     CallCompletion,
     ByteAccounting,

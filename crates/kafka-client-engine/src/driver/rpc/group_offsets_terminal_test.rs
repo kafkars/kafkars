@@ -1,10 +1,11 @@
 //! Neutral selected-version and driver-failure classification scenarios.
 
-use kafka_client_core::DeliveryStatus;
+use kafka_client_core::{DeliveryStatus, ListConsumerGroupOffsetsPlan};
 use kafka_driver::{ApiKey, ApiVersion, CallFailure, Delivery, RequestError};
 use kafka_wire::OffsetFetchResponse;
 use kafka_wire_core::DecodeError;
 
+use super::group_offsets_call::GroupOffsetsEvidence;
 use super::group_offsets_terminal::{
     GroupOffsetsDriverFailureKind, GroupOffsetsTerminalFact, retain_group_offsets_terminal,
 };
@@ -13,7 +14,8 @@ use super::group_offsets_terminal::{
 fn response_fact_borrows_exact_selected_version_and_generated_response() {
     let mut response = OffsetFetchResponse::default();
     response.throttle_time_ms = 19;
-    let terminal = retain_group_offsets_terminal(Some(ApiVersion::new(9)), Ok(response), None);
+    let terminal =
+        retain_group_offsets_terminal(Some(ApiVersion::new(9)), Ok(response), None, evidence());
     let GroupOffsetsTerminalFact::Response {
         selected_version,
         response,
@@ -62,7 +64,7 @@ fn failures_are_neutral_and_preserve_driver_authoritative_delivery() {
         ),
     ];
     for (error, expected_kind, expected_delivery) in cases {
-        let terminal = retain_group_offsets_terminal(None, Err(error), None);
+        let terminal = retain_group_offsets_terminal(None, Err(error), None, evidence());
         let GroupOffsetsTerminalFact::Failed { kind, delivery } = terminal.fact() else {
             panic!("failure fact expected");
         };
@@ -70,4 +72,12 @@ fn failures_are_neutral_and_preserve_driver_authoritative_delivery() {
         assert_eq!(delivery, expected_delivery);
         terminal.discard();
     }
+}
+
+fn evidence() -> GroupOffsetsEvidence {
+    GroupOffsetsEvidence::new(
+        ListConsumerGroupOffsetsPlan::new("readers".to_owned(), true)
+            .unwrap_or_else(|error| panic!("valid plan: {error}")),
+        4096,
+    )
 }

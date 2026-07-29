@@ -1,6 +1,6 @@
 //! Neutral terminal facts for one tracked AnyBroker `DescribeClientQuotas` call.
 
-use kafka_client_core::DeliveryStatus;
+use kafka_client_core::{DeliveryStatus, DescribeClientQuotasPlan};
 use kafka_driver::{ApiVersion, CallFailure, RequestError, RouteFailureToken};
 use kafka_wire::DescribeClientQuotasResponse;
 
@@ -33,9 +33,43 @@ pub(crate) struct DescribeClientQuotasRawTerminal {
     selected_version: Option<i16>,
     result: Result<DescribeClientQuotasResponse, RequestError>,
     route_token: Option<RouteFailureToken>,
+    plan: DescribeClientQuotasPlan,
+    request_scratch_limit: usize,
+    result_limit: usize,
 }
 
 impl DescribeClientQuotasRawTerminal {
+    pub(crate) fn matches(
+        &self,
+        plan: &DescribeClientQuotasPlan,
+        request_scratch_limit: usize,
+        result_limit: usize,
+    ) -> bool {
+        self.plan == *plan
+            && self.request_scratch_limit == request_scratch_limit
+            && self.result_limit == result_limit
+    }
+
+    pub(crate) const fn result_limit(&self) -> usize {
+        self.result_limit
+    }
+
+    #[cfg(test)]
+    pub(crate) fn for_test(
+        plan: DescribeClientQuotasPlan,
+        request_scratch_limit: usize,
+        result_limit: usize,
+    ) -> Self {
+        retain_describe_client_quotas_terminal(
+            Some(ApiVersion::new(1)),
+            Ok(DescribeClientQuotasResponse::default()),
+            None,
+            plan,
+            request_scratch_limit,
+            result_limit,
+        )
+    }
+
     pub(crate) fn fact(&self) -> DescribeClientQuotasTerminalFact<'_> {
         match &self.result {
             Ok(response) => DescribeClientQuotasTerminalFact::Response {
@@ -55,9 +89,10 @@ impl DescribeClientQuotasRawTerminal {
             selected_version: _,
             result,
             route_token,
+            plan,
+            ..
         } = self;
-        drop(result);
-        drop(route_token);
+        drop((result, route_token, plan));
     }
 }
 
@@ -65,11 +100,17 @@ pub(super) fn retain_describe_client_quotas_terminal(
     selected_version: Option<ApiVersion>,
     result: Result<DescribeClientQuotasResponse, RequestError>,
     route_token: Option<RouteFailureToken>,
+    plan: DescribeClientQuotasPlan,
+    request_scratch_limit: usize,
+    result_limit: usize,
 ) -> DescribeClientQuotasRawTerminal {
     DescribeClientQuotasRawTerminal {
         selected_version: selected_version.map(ApiVersion::value),
         result,
         route_token,
+        plan,
+        request_scratch_limit,
+        result_limit,
     }
 }
 
@@ -99,16 +140,46 @@ fn failure_kind(error: &RequestError) -> DescribeClientQuotasDriverFailureKind {
 /// Accepted ownership recovered only after the unique driver is destroyed.
 #[must_use = "recovered DescribeClientQuotas ownership still requires core settlement"]
 pub(crate) struct RecoveredDescribeClientQuotasCall {
-    _private: (),
+    plan: DescribeClientQuotasPlan,
+    request_scratch_limit: usize,
+    result_limit: usize,
 }
 
 impl RecoveredDescribeClientQuotasCall {
-    pub(super) const fn new() -> Self {
-        Self { _private: () }
+    pub(super) const fn new(
+        plan: DescribeClientQuotasPlan,
+        request_scratch_limit: usize,
+        result_limit: usize,
+    ) -> Self {
+        Self {
+            plan,
+            request_scratch_limit,
+            result_limit,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn for_test(
+        plan: DescribeClientQuotasPlan,
+        request_scratch_limit: usize,
+        result_limit: usize,
+    ) -> Self {
+        Self::new(plan, request_scratch_limit, result_limit)
+    }
+
+    pub(crate) fn matches(
+        &self,
+        plan: &DescribeClientQuotasPlan,
+        request_scratch_limit: usize,
+        result_limit: usize,
+    ) -> bool {
+        self.plan == *plan
+            && self.request_scratch_limit == request_scratch_limit
+            && self.result_limit == result_limit
     }
 
     /// Consumes recovered ownership after core receives its terminal fact.
-    pub(crate) const fn seal(self) {
-        let Self { _private: () } = self;
+    pub(crate) fn seal(self) {
+        drop(self.plan);
     }
 }

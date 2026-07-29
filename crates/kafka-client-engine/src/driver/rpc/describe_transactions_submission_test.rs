@@ -1,9 +1,12 @@
-//! Admin `DescribeTransactions` transaction-coordinator route and v0 policy scenarios.
+//! Admin `DescribeTransactions` route, version, and call-ownership scenarios.
 
 use std::time::{Duration, Instant};
 
-use kafka_driver::{ApiVersion, CoordinatorKind, Route, TrafficClass};
+use kafka_driver::{ApiVersion, CompletionError, CoordinatorKind, Route, TrafficClass};
 
+use crate::{EngineConfig, driver::DriverOwner};
+
+use super::describe_transactions_call::DescribeTransactionsCall;
 use super::describe_transactions_submission::{
     describe_transactions_options, describe_transactions_route,
 };
@@ -29,4 +32,25 @@ fn options_preserve_original_deadline_interactive_lane_and_exact_v0() {
     assert_eq!(options.traffic_class(), TrafficClass::Interactive);
     assert_eq!(options.minimum_version(), Some(ApiVersion::new(0)));
     assert_eq!(options.maximum_version(), Some(ApiVersion::new(0)));
+}
+
+#[test]
+fn completion_fault_retains_the_accepted_call_for_recovery() {
+    let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver owner: {error}"));
+    let mut call = DescribeTransactionsCall::submit(
+        &driver,
+        "orders-writer",
+        Instant::now() + Duration::from_secs(1),
+    )
+    .unwrap_or_else(|_error| panic!("accepted call"));
+    drop(driver);
+
+    assert!(matches!(
+        call.try_terminal(),
+        Some(Err(CompletionError::Closed))
+    ));
+    call.recover_after_driver_shutdown()
+        .unwrap_or_else(|| panic!("completion fault must retain accepted call ownership"))
+        .seal();
 }

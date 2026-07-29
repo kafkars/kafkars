@@ -16,7 +16,10 @@ use crate::{
     admin::AdminRenewDelegationTokenPublisher,
     clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{RenewDelegationTokenCall, RenewDelegationTokenRawTerminal},
+    driver::{
+        RecoveredRenewDelegationTokenCall, RenewDelegationTokenCall,
+        RenewDelegationTokenRawTerminal,
+    },
     protocol::admin::renew_delegation_token::PreparedRenewDelegationTokenRequest,
 };
 
@@ -81,6 +84,7 @@ struct RenewDelegationTokenOperation {
     submission: Option<RenewDelegationTokenSubmission>,
     handoff: RenewDelegationTokenHandoff,
     call: Option<RenewDelegationTokenCall>,
+    recovered_call: Option<RecoveredRenewDelegationTokenCall>,
     raw_terminal: Option<RenewDelegationTokenRawTerminal>,
     terminal: Option<RenewDelegationTokenTerminal>,
 }
@@ -136,7 +140,11 @@ impl RenewDelegationTokenHost {
             self.apply(operation_id, RenewDelegationTokenInput::DeadlineElapsed)?;
             return Ok(RenewDelegationTokenTurn::Progress);
         }
-        let submission = take_submission_for_handoff(&mut self.operations[index])?;
+        let submission = self.operations[index]
+            .submission
+            .take()
+            .ok_or(RenewDelegationTokenHostError::MissingSubmission)?;
+        self.operations[index].handoff = RenewDelegationTokenHandoff::HandedOff;
         Ok(RenewDelegationTokenTurn::Submit(submission))
     }
 
@@ -148,7 +156,13 @@ impl RenewDelegationTokenHost {
         let index = self
             .operation_index(operation_id)
             .ok_or(RenewDelegationTokenHostError::UnknownOperation)?;
-        bind_call(&mut self.operations[index], call)?;
+        if self.operations[index].handoff != RenewDelegationTokenHandoff::HandedOff
+            || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+        {
+            return Err(RenewDelegationTokenHostError::InvalidHandoff);
+        }
+        self.operations[index].call = Some(call);
         self.apply(operation_id, RenewDelegationTokenInput::DriverAccepted)
     }
 
@@ -159,7 +173,11 @@ impl RenewDelegationTokenHost {
         let index = self
             .operation_index(operation_id)
             .ok_or(RenewDelegationTokenHostError::UnknownOperation)?;
-        if self.operations[index].handoff != RenewDelegationTokenHandoff::HandedOff {
+        if self.operations[index].handoff != RenewDelegationTokenHandoff::HandedOff
+            || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(RenewDelegationTokenHostError::InvalidHandoff);
         }
         self.apply(operation_id, RenewDelegationTokenInput::DriverRejected)
@@ -195,7 +213,18 @@ impl RenewDelegationTokenHost {
         let index = self
             .operation_index(operation_id)
             .ok_or(RenewDelegationTokenHostError::UnknownOperation)?;
-        if apply_input(&mut self.operations[index], input)? {
+        let accepted = matches!(&input, RenewDelegationTokenInput::DriverAccepted);
+        if accepted && self.operations[index].handoff != RenewDelegationTokenHandoff::HandedOff {
+            return Err(RenewDelegationTokenHostError::InvalidHandoff);
+        }
+        let transition = self.operations[index].machine.apply(input)?;
+        if accepted {
+            self.operations[index].handoff = RenewDelegationTokenHandoff::Submitted;
+        }
+        if let Some(RenewDelegationTokenEffect::Complete { terminal, .. }) =
+            transition.into_effect()
+        {
+            self.operations[index].terminal = Some(terminal);
             self.publish_terminal(index)?;
         }
         Ok(())
@@ -205,46 +234,4 @@ impl RenewDelegationTokenHost {
     pub(super) const fn retained_bytes_for_test(&self) -> usize {
         self.retained_bytes
     }
-}
-
-fn take_submission_for_handoff(
-    operation: &mut RenewDelegationTokenOperation,
-) -> Result<RenewDelegationTokenSubmission, RenewDelegationTokenHostError> {
-    let submission = operation
-        .submission
-        .take()
-        .ok_or(RenewDelegationTokenHostError::MissingSubmission)?;
-    operation.handoff = RenewDelegationTokenHandoff::HandedOff;
-    Ok(submission)
-}
-
-fn bind_call(
-    operation: &mut RenewDelegationTokenOperation,
-    call: RenewDelegationTokenCall,
-) -> Result<(), RenewDelegationTokenHostError> {
-    if operation.handoff != RenewDelegationTokenHandoff::HandedOff || operation.call.is_some() {
-        return Err(RenewDelegationTokenHostError::InvalidHandoff);
-    }
-    operation.call = Some(call);
-    Ok(())
-}
-
-fn apply_input(
-    operation: &mut RenewDelegationTokenOperation,
-    input: RenewDelegationTokenInput,
-) -> Result<bool, RenewDelegationTokenHostError> {
-    let accepted = matches!(&input, RenewDelegationTokenInput::DriverAccepted);
-    if accepted && operation.handoff != RenewDelegationTokenHandoff::HandedOff {
-        return Err(RenewDelegationTokenHostError::InvalidHandoff);
-    }
-    let machine = &mut operation.machine;
-    let transition = machine.apply(input)?;
-    if accepted {
-        operation.handoff = RenewDelegationTokenHandoff::Submitted;
-    }
-    if let Some(RenewDelegationTokenEffect::Complete { terminal, .. }) = transition.into_effect() {
-        operation.terminal = Some(terminal);
-        return Ok(true);
-    }
-    Ok(false)
 }

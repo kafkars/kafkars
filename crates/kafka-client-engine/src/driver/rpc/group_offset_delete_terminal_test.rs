@@ -1,10 +1,13 @@
 //! Selected-version and driver-authoritative failure classification scenarios.
 
-use kafka_client_core::DeliveryStatus;
+use kafka_client_core::{
+    DeleteConsumerGroupOffsetTarget, DeleteConsumerGroupOffsetsPlan, DeliveryStatus,
+};
 use kafka_driver::{ApiKey, ApiVersion, CallFailure, Delivery, RequestError};
 use kafka_wire::OffsetDeleteResponse;
 use kafka_wire_core::DecodeError;
 
+use super::group_offset_delete_call::GroupOffsetDeleteEvidence;
 use super::group_offset_delete_terminal::{
     GroupOffsetDeleteDriverFailureKind, GroupOffsetDeleteTerminalFact,
     RecoveredGroupOffsetDeleteCall, retain_group_offset_delete_terminal,
@@ -14,8 +17,12 @@ use super::group_offset_delete_terminal::{
 fn response_fact_borrows_exact_selected_version_and_generated_response() {
     let mut response = OffsetDeleteResponse::default();
     response.throttle_time_ms = 19;
-    let terminal =
-        retain_group_offset_delete_terminal(Some(ApiVersion::new(0)), Ok(response), None);
+    let terminal = retain_group_offset_delete_terminal(
+        Some(ApiVersion::new(0)),
+        Ok(response),
+        None,
+        evidence(),
+    );
     let GroupOffsetDeleteTerminalFact::Response {
         selected_version,
         response,
@@ -64,7 +71,7 @@ fn failures_preserve_delivery_certainty_and_stable_classification() {
         ),
     ];
     for (error, expected_kind, expected_delivery) in cases {
-        let terminal = retain_group_offset_delete_terminal(None, Err(error), None);
+        let terminal = retain_group_offset_delete_terminal(None, Err(error), None, evidence());
         let GroupOffsetDeleteTerminalFact::Failed { kind, delivery } = terminal.fact() else {
             panic!("failure fact expected");
         };
@@ -76,5 +83,16 @@ fn failures_preserve_delivery_certainty_and_stable_classification() {
 
 #[test]
 fn shutdown_recovery_token_seals_linearly() {
-    RecoveredGroupOffsetDeleteCall::new().seal();
+    RecoveredGroupOffsetDeleteCall::new(evidence()).seal();
+}
+
+fn evidence() -> GroupOffsetDeleteEvidence {
+    GroupOffsetDeleteEvidence::new(
+        DeleteConsumerGroupOffsetsPlan::new(
+            "readers".to_owned(),
+            vec![DeleteConsumerGroupOffsetTarget::new("orders".to_owned(), 0)],
+        )
+        .unwrap_or_else(|error| panic!("valid deletion plan: {error}")),
+        4096,
+    )
 }

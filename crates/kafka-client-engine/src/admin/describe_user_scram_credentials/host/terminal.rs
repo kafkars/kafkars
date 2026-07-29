@@ -1,15 +1,17 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
-use kafka_client_core::{
-    DeliveryStatus, DescribeUserScramCredentialsEffect, DescribeUserScramCredentialsInput,
-    DescribeUserScramCredentialsState, Moment,
-};
+mod recovery;
+
+#[cfg(test)]
+mod test_support;
+
+use kafka_client_core::DescribeUserScramCredentialsEffect;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
 use super::{
-    DescribeUserScramCredentialsHandoff, DescribeUserScramCredentialsHost,
-    DescribeUserScramCredentialsHostError, response::terminal_input,
+    DescribeUserScramCredentialsHost, DescribeUserScramCredentialsHostError,
+    response::terminal_input,
 };
 
 impl DescribeUserScramCredentialsHost {
@@ -31,9 +33,9 @@ impl DescribeUserScramCredentialsHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
@@ -42,72 +44,20 @@ impl DescribeUserScramCredentialsHost {
         }
     }
 
-    pub(crate) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), DescribeUserScramCredentialsHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (DescribeUserScramCredentialsState::Ready, _) => self.apply(
-                    operation_id,
-                    DescribeUserScramCredentialsInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (
-                    DescribeUserScramCredentialsState::AwaitingDriver,
-                    DescribeUserScramCredentialsHandoff::Untouched,
-                ) => {
-                    self.apply(
-                        operation_id,
-                        DescribeUserScramCredentialsInput::DriverRejected,
-                    )?;
-                }
-                (
-                    DescribeUserScramCredentialsState::AwaitingDriver,
-                    DescribeUserScramCredentialsHandoff::HandedOff,
-                ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        DescribeUserScramCredentialsInput::DriverAccepted,
-                    )?;
-                    self.apply(
-                        operation_id,
-                        DescribeUserScramCredentialsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (
-                    DescribeUserScramCredentialsState::Submitted,
-                    DescribeUserScramCredentialsHandoff::Submitted,
-                ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        DescribeUserScramCredentialsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (DescribeUserScramCredentialsState::Completed, _) => {
-                    self.publish_terminal(0)?;
-                }
-                _ => return Err(DescribeUserScramCredentialsHostError::InvalidHandoff),
+    fn settle_raw(&mut self, index: usize) -> Result<(), DescribeUserScramCredentialsHostError> {
+        {
+            let operation = self
+                .operations
+                .get(index)
+                .ok_or(DescribeUserScramCredentialsHostError::UnknownOperation)?;
+            let raw = operation
+                .raw_terminal
+                .as_ref()
+                .ok_or(DescribeUserScramCredentialsHostError::MissingTerminal)?;
+            if !operation.matches_raw(raw) {
+                return Err(DescribeUserScramCredentialsHostError::SubmissionMismatch);
             }
         }
-        Ok(())
-    }
-
-    fn settle_raw(&mut self, index: usize) -> Result<(), DescribeUserScramCredentialsHostError> {
         let (input, retained_bytes) = {
             let operation = self
                 .operations
@@ -117,35 +67,38 @@ impl DescribeUserScramCredentialsHost {
                 .raw_terminal
                 .as_ref()
                 .ok_or(DescribeUserScramCredentialsHostError::MissingTerminal)?;
-            terminal_input(raw, operation.remaining_result_bytes)
+            terminal_input(raw)
         };
-        self.operations[index].remaining_result_bytes = self.operations[index]
+        let remaining_result_bytes = self.operations[index]
             .remaining_result_bytes
             .checked_sub(retained_bytes)
             .ok_or(DescribeUserScramCredentialsHostError::ByteAccounting)?;
         let transition = self.operations[index].machine.apply(input)?;
+        let terminal = match transition.into_effect() {
+            Some(DescribeUserScramCredentialsEffect::Complete {
+                operation_id,
+                terminal,
+            }) if operation_id == self.operations[index].operation_id => terminal,
+            _ => return Err(DescribeUserScramCredentialsHostError::MissingTerminal),
+        };
+        self.operations[index].remaining_result_bytes = remaining_result_bytes;
         let raw = self.operations[index]
             .raw_terminal
             .take()
             .ok_or(DescribeUserScramCredentialsHostError::MissingTerminal)?;
         raw.discard();
-        match transition.into_effect() {
-            Some(DescribeUserScramCredentialsEffect::Complete {
-                operation_id,
-                terminal,
-            }) if operation_id == self.operations[index].operation_id => {
-                self.operations[index].terminal = Some(terminal);
-                self.publish_terminal(index)
-            }
-            _ => Err(DescribeUserScramCredentialsHostError::MissingTerminal),
-        }
+        self.operations[index].terminal = Some(terminal);
+        self.publish_terminal(index)
     }
 
     pub(super) fn publish_terminal(
         &mut self,
         index: usize,
     ) -> Result<(), DescribeUserScramCredentialsHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(DescribeUserScramCredentialsHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -203,13 +156,5 @@ impl DescribeUserScramCredentialsHost {
             .checked_sub(bytes)
             .ok_or(DescribeUserScramCredentialsHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::DescribeUserScramCredentialsCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

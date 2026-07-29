@@ -44,9 +44,9 @@ impl ListShareGroupOffsetsCall {
         &mut self,
     ) -> Option<Result<ListShareGroupOffsetsTerminal, CompletionError>> {
         let result = self.call.as_mut()?.try_result()?;
-        drop(self.call.take());
         match result {
             Ok(outcome) => {
+                drop(self.call.take());
                 let (result, selected_version, route_token) = outcome.into_parts();
                 Some(Ok(retain_list_share_group_offsets_terminal(
                     selected_version,

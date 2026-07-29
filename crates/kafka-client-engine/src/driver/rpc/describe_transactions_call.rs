@@ -39,9 +39,9 @@ impl DescribeTransactionsCall {
         &mut self,
     ) -> Option<Result<DescribeTransactionsRawTerminal, CompletionError>> {
         let result = self.call.as_mut()?.try_result()?;
-        drop(self.call.take());
         match result {
             Ok(outcome) => {
+                drop(self.call.take());
                 let (result, selected_version, route_token) = outcome.into_parts();
                 Some(Ok(retain_describe_transactions_terminal(
                     selected_version,
@@ -54,12 +54,10 @@ impl DescribeTransactionsCall {
     }
 
     /// Seals unresolved ownership only after the unique driver is gone.
-    pub(crate) fn recover_after_driver_shutdown(
-        mut self,
-    ) -> Option<RecoveredDescribeTransactionsCall> {
-        self.call.take().map(|call| {
+    pub(crate) fn recover_after_driver_shutdown(self) -> Option<RecoveredDescribeTransactionsCall> {
+        self.call.map(|call| {
             drop(call);
-            RecoveredDescribeTransactionsCall
+            RecoveredDescribeTransactionsCall::new()
         })
     }
 }

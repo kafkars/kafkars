@@ -46,13 +46,15 @@ pub(super) fn drive(
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            match LegacyAlterConfigsCall::submit(driver, route, &plan, deadline.transport()) {
+            match LegacyAlterConfigsCall::submit(driver, route, plan, deadline.transport()) {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::LegacyAlterConfigs)?,
-                Err(_rejection) => host
-                    .reject_handoff(operation_id)
-                    .map_err(EngineHostError::LegacyAlterConfigs)?,
+                Err(rejection) => {
+                    let (route, plan) = rejection.into_correlation();
+                    host.reject_handoff(operation_id, route, plan)
+                        .map_err(EngineHostError::LegacyAlterConfigs)?;
+                }
             }
             true
         }

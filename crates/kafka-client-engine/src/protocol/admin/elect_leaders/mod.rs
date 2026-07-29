@@ -9,7 +9,9 @@ mod version;
 pub(crate) use super::request_timeout_error::{
     AdminRequestDeadlineError as ElectLeadersDeadlineError, remaining_timeout_ms,
 };
-pub(crate) use model::{LeaderElectionRef, ValidatedElectLeadersResponse};
+pub(crate) use model::{
+    ElectLeadersSelectionRef, LeaderElectionRef, ValidatedElectLeadersResponse,
+};
 pub(crate) use request::{ElectLeadersRequestFailure, elect_leaders_request};
 pub(crate) use response::{ElectLeadersProtocolFailure, validate_elect_leaders_response};
 pub(crate) use retention::generated_request_peak_charge;

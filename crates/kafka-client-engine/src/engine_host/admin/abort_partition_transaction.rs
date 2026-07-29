@@ -48,7 +48,7 @@ pub(super) fn drive(
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            match AbortPartitionTransactionCall::submit(driver, &plan, deadline.transport()) {
+            match AbortPartitionTransactionCall::submit(driver, plan, deadline.transport()) {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::AbortPartitionTransaction)?,

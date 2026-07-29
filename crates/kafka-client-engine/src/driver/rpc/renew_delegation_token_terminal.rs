@@ -1,6 +1,6 @@
 //! Neutral terminal facts for one tracked delegation-token renewal.
 
-use kafka_client_core::DeliveryStatus;
+use kafka_client_core::{DeliveryStatus, RenewDelegationTokenPlan};
 use kafka_driver::{ApiVersion, CallFailure, RequestError, RouteFailureToken};
 use kafka_wire::RenewDelegationTokenResponse;
 
@@ -33,6 +33,7 @@ pub(crate) struct RenewDelegationTokenRawTerminal {
     selected_version: Option<i16>,
     result: Result<RenewDelegationTokenResponse, RequestError>,
     route_token: Option<RouteFailureToken>,
+    plan: RenewDelegationTokenPlan,
 }
 
 impl RenewDelegationTokenRawTerminal {
@@ -55,9 +56,11 @@ impl RenewDelegationTokenRawTerminal {
             selected_version: _,
             result,
             route_token,
+            plan,
         } = self;
         drop(result);
         drop(route_token);
+        drop(plan);
     }
 }
 
@@ -65,11 +68,13 @@ pub(super) fn retain_renew_delegation_token_terminal(
     selected_version: Option<ApiVersion>,
     result: Result<RenewDelegationTokenResponse, RequestError>,
     route_token: Option<RouteFailureToken>,
+    plan: RenewDelegationTokenPlan,
 ) -> RenewDelegationTokenRawTerminal {
     RenewDelegationTokenRawTerminal {
         selected_version: selected_version.map(ApiVersion::value),
         result,
         route_token,
+        plan,
     }
 }
 
@@ -98,11 +103,32 @@ fn failure_kind(error: &RequestError) -> RenewDelegationTokenDriverFailureKind {
 
 /// Accepted ownership recovered only after the unique driver is destroyed.
 #[must_use = "recovered RenewDelegationToken ownership still requires core settlement"]
-pub(crate) struct RecoveredRenewDelegationTokenCall;
+pub(crate) struct RecoveredRenewDelegationTokenCall {
+    plan: RenewDelegationTokenPlan,
+}
 
 impl RecoveredRenewDelegationTokenCall {
+    pub(super) const fn new(plan: RenewDelegationTokenPlan) -> Self {
+        Self { plan }
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn for_test(plan: RenewDelegationTokenPlan) -> Self {
+        Self { plan }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn matches_correlation_for_test(
+        &self,
+        expected_hmac: &[u8],
+        expected_period_ms: Option<i64>,
+    ) -> bool {
+        self.plan.hmac().as_bytes() == expected_hmac
+            && self.plan.renew_period_ms() == expected_period_ms
+    }
+
     /// Consumes recovered ownership after core receives its terminal fact.
-    pub(crate) const fn seal(self) {
-        let Self = self;
+    pub(crate) fn seal(self) {
+        drop(self.plan);
     }
 }

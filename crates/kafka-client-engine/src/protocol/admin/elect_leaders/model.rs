@@ -23,6 +23,13 @@ impl<'a> LeaderElectionRef<'a> {
     }
 }
 
+/// Kafka's nullable partition selection without conflating empty with all partitions.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ElectLeadersSelectionRef<'a> {
+    AllPartitions,
+    Selected(&'a [LeaderElectionRef<'a>]),
+}
+
 pub(crate) const fn election_type_code(election_type: LeaderElectionType) -> i8 {
     match election_type {
         LeaderElectionType::Preferred => 0,

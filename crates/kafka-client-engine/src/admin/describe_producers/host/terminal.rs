@@ -1,7 +1,11 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
+#[cfg(test)]
+mod test_support;
+
 use kafka_client_core::{
-    AdminDescribeProducersInput, AdminDescribeProducersState, DeliveryStatus, Moment,
+    AdminDescribeProducersEffect, AdminDescribeProducersInput, AdminDescribeProducersState,
+    DeliveryStatus, Moment,
 };
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
@@ -30,9 +34,9 @@ impl AdminDescribeProducersHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
@@ -66,32 +70,65 @@ impl AdminDescribeProducersHost {
                     AdminDescribeProducersState::AwaitingDriver,
                     AdminDescribeProducersHandoff::HandedOff,
                 ) => {
-                    seal_call(self.operations[0].call.take());
+                    self.retain_recovered_call(0)?;
                     self.apply(operation_id, AdminDescribeProducersInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        AdminDescribeProducersInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (
                     AdminDescribeProducersState::Submitted,
                     AdminDescribeProducersHandoff::Submitted,
                 ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        AdminDescribeProducersInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.retain_recovered_call(0)?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (AdminDescribeProducersState::Completed, _) => self.publish_terminal(0)?,
                 _ => return Err(AdminDescribeProducersHostError::InvalidHandoff),
             }
         }
         Ok(())
+    }
+
+    fn retain_recovered_call(
+        &mut self,
+        index: usize,
+    ) -> Result<(), AdminDescribeProducersHostError> {
+        if self.operations[index].recovered_call.is_some() {
+            return Ok(());
+        }
+        if let Some(call) = self.operations[index].call.take() {
+            self.operations[index].recovered_call = call.recover_after_driver_shutdown();
+        }
+        self.operations[index]
+            .recovered_call
+            .as_ref()
+            .ok_or(AdminDescribeProducersHostError::InvalidHandoff)
+            .map(|_recovered| ())
+    }
+
+    pub(super) fn settle_recovered_transport(
+        &mut self,
+        index: usize,
+    ) -> Result<(), AdminDescribeProducersHostError> {
+        let transition =
+            self.operations[index]
+                .machine
+                .apply(AdminDescribeProducersInput::TransportFailed {
+                    delivery: DeliveryStatus::PossiblySent,
+                })?;
+        let terminal = match transition.into_effect() {
+            Some(AdminDescribeProducersEffect::Complete {
+                operation_id,
+                terminal,
+            }) if operation_id == self.operations[index].operation_id => terminal,
+            _ => return Err(AdminDescribeProducersHostError::MissingTerminal),
+        };
+        let recovered = self.operations[index]
+            .recovered_call
+            .take()
+            .ok_or(AdminDescribeProducersHostError::InvalidHandoff)?;
+        recovered.seal();
+        self.operations[index].terminal = Some(terminal);
+        self.publish_terminal(index)
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), AdminDescribeProducersHostError> {
@@ -130,7 +167,10 @@ impl AdminDescribeProducersHost {
         &mut self,
         index: usize,
     ) -> Result<(), AdminDescribeProducersHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(AdminDescribeProducersHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -188,13 +228,5 @@ impl AdminDescribeProducersHost {
             .checked_sub(bytes)
             .ok_or(AdminDescribeProducersHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::DescribeProducersCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

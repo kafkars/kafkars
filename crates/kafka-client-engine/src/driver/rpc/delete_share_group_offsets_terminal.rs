@@ -107,6 +107,11 @@ impl RecoveredDeleteShareGroupOffsetsCall {
         Self { _private: () }
     }
 
+    #[cfg(test)]
+    pub(crate) const fn for_test() -> Self {
+        Self { _private: () }
+    }
+
     /// Consumes recovered ownership after core receives its terminal fact.
     pub(crate) const fn seal(self) {
         let Self { _private: () } = self;

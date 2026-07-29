@@ -19,9 +19,9 @@ use crate::{
 
 pub(super) fn terminal_input(
     terminal: &GroupOffsetDeleteTerminal,
-    plan: &DeleteConsumerGroupOffsetsPlan,
-    result_limit: usize,
 ) -> DeleteConsumerGroupOffsetsInput {
+    let plan = terminal.response_plan();
+    let result_limit = terminal.result_limit();
     match terminal.fact() {
         GroupOffsetDeleteTerminalFact::Failed { kind, delivery } => match kind {
             GroupOffsetDeleteDriverFailureKind::DeadlineElapsed => {

@@ -65,6 +65,7 @@ struct DescribeMetadataQuorumOperation {
     submission: Option<DescribeMetadataQuorumSubmission>,
     handoff: DescribeMetadataQuorumHandoff,
     call: Option<DescribeMetadataQuorumCall>,
+    recovered_call: Option<crate::driver::RecoveredDescribeMetadataQuorumCall>,
     raw_terminal: Option<DescribeMetadataQuorumRawTerminal>,
     terminal: Option<DescribeMetadataQuorumTerminal>,
 }

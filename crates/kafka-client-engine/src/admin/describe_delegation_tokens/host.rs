@@ -26,7 +26,6 @@ pub(crate) const DESCRIBE_DELEGATION_TOKENS_CAPACITY: usize = 16;
 pub(crate) const DESCRIBE_DELEGATION_TOKENS_OPERATION_BYTES: usize = 4 * 1024 * 1024;
 pub(crate) const DESCRIBE_DELEGATION_TOKENS_RETAINED_BYTES: usize =
     DESCRIBE_DELEGATION_TOKENS_CAPACITY * DESCRIBE_DELEGATION_TOKENS_OPERATION_BYTES;
-
 pub(crate) struct DescribeDelegationTokensAdmission {
     pub(crate) observer: DescribeDelegationTokensObserver,
     pub(crate) fault: Option<DescribeDelegationTokensHostError>,
@@ -74,7 +73,7 @@ enum DescribeDelegationTokensHandoff {
 struct DescribeDelegationTokensOperation {
     operation_id: OperationId,
     machine: DescribeDelegationTokensMachine,
-    correlation_plan: DescribeDelegationTokensPlan,
+    correlation_plan: Option<DescribeDelegationTokensPlan>,
     completion_id: CompletionId,
     deadline: OperationDeadline,
     retained_bytes: usize,
@@ -82,6 +81,7 @@ struct DescribeDelegationTokensOperation {
     submission: Option<DescribeDelegationTokensSubmission>,
     handoff: DescribeDelegationTokensHandoff,
     call: Option<DescribeDelegationTokensCall>,
+    recovered_call: Option<crate::driver::RecoveredDescribeDelegationTokensCall>,
     raw_terminal: Option<DescribeDelegationTokensRawTerminal>,
     terminal: Option<DescribeDelegationTokensTerminal>,
 }

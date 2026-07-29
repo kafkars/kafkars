@@ -43,7 +43,8 @@ pub(super) fn drive(
         DescribeUserScramCredentialsTurn::Idle => false,
         DescribeUserScramCredentialsTurn::Progress => true,
         DescribeUserScramCredentialsTurn::Submit(submission) => {
-            let (operation_id, deadline, plan, retained_request_bytes) = submission.into_parts();
+            let (operation_id, deadline, plan, request_limit, result_limit) =
+                submission.into_parts();
             let driver = resources
                 .driver
                 .as_ref()
@@ -51,15 +52,16 @@ pub(super) fn drive(
             match DescribeUserScramCredentialsCall::submit(
                 driver,
                 plan,
-                retained_request_bytes,
+                request_limit,
+                result_limit,
                 deadline.transport(),
             ) {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::DescribeUserScramCredentials)?,
                 Err(rejection) => {
-                    drop(rejection);
-                    host.reject_handoff(operation_id)
+                    let (plan, request_limit, result_limit) = rejection.into_evidence();
+                    host.reject_handoff(operation_id, plan, request_limit, result_limit)
                         .map_err(EngineHostError::DescribeUserScramCredentials)?;
                 }
             }

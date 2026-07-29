@@ -1,23 +1,27 @@
 //! Bounded ownership of accepted offset-deletion machines and tracked calls.
 
 mod admission;
+mod model;
 mod response;
 mod terminal;
 
+#[cfg(test)]
+mod ownership_test;
+
 use kafka_client_core::{
     DeleteConsumerGroupOffsetsEffect, DeleteConsumerGroupOffsetsInput,
-    DeleteConsumerGroupOffsetsMachine, DeleteConsumerGroupOffsetsPlan,
-    DeleteConsumerGroupOffsetsTerminal, Moment, OperationId,
+    DeleteConsumerGroupOffsetsPlan, DeleteConsumerGroupOffsetsTerminal, Moment, OperationId,
 };
 
 use crate::{
     admin::DeleteConsumerGroupOffsetsPublisher,
-    clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{GroupOffsetDeleteCall, GroupOffsetDeleteTerminal},
+    driver::GroupOffsetDeleteCall,
 };
 
 use super::{DeleteConsumerGroupOffsetsHostError, DeleteConsumerGroupOffsetsObserver};
+use model::{DeleteConsumerGroupOffsetsHandoff, DeleteConsumerGroupOffsetsOperation};
+pub(crate) use model::{DeleteConsumerGroupOffsetsSubmission, DeleteConsumerGroupOffsetsTurn};
 
 pub(crate) const DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY: usize = 16;
 pub(crate) const DELETE_CONSUMER_GROUP_OFFSETS_RETAINED_BYTES: usize = 4 * 1024 * 1024;
@@ -25,41 +29,6 @@ pub(crate) const DELETE_CONSUMER_GROUP_OFFSETS_RETAINED_BYTES: usize = 4 * 1024 
 pub(crate) struct DeleteConsumerGroupOffsetsAdmission {
     pub(crate) observer: DeleteConsumerGroupOffsetsObserver,
     pub(crate) fault: Option<DeleteConsumerGroupOffsetsHostError>,
-}
-
-pub(crate) struct DeleteConsumerGroupOffsetsSubmission {
-    operation_id: OperationId,
-    deadline: OperationDeadline,
-    plan: DeleteConsumerGroupOffsetsPlan,
-    request_scratch_limit: usize,
-}
-
-pub(crate) enum DeleteConsumerGroupOffsetsTurn {
-    Idle,
-    Progress,
-    Submit(DeleteConsumerGroupOffsetsSubmission),
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum DeleteConsumerGroupOffsetsHandoff {
-    Untouched,
-    HandedOff,
-    Submitted,
-}
-
-struct DeleteConsumerGroupOffsetsOperation {
-    operation_id: OperationId,
-    machine: DeleteConsumerGroupOffsetsMachine,
-    response_plan: DeleteConsumerGroupOffsetsPlan,
-    completion_id: CompletionId,
-    deadline: OperationDeadline,
-    retained_bytes: usize,
-    result_limit: usize,
-    submission: Option<DeleteConsumerGroupOffsetsSubmission>,
-    handoff: DeleteConsumerGroupOffsetsHandoff,
-    call: Option<GroupOffsetDeleteCall>,
-    raw_terminal: Option<GroupOffsetDeleteTerminal>,
-    terminal: Option<DeleteConsumerGroupOffsetsTerminal>,
 }
 
 pub(crate) struct DeleteConsumerGroupOffsetsHost {
@@ -134,10 +103,17 @@ impl DeleteConsumerGroupOffsetsHost {
             .ok_or(DeleteConsumerGroupOffsetsHostError::UnknownOperation)?;
         if self.operations[index].handoff != DeleteConsumerGroupOffsetsHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
         {
             return Err(DeleteConsumerGroupOffsetsHostError::InvalidHandoff);
         }
         self.operations[index].call = Some(call);
+        let operation = &self.operations[index];
+        if !operation.call.as_ref().is_some_and(|call| {
+            call.matches_evidence(&operation.response_plan, operation.result_limit)
+        }) {
+            return Err(DeleteConsumerGroupOffsetsHostError::SubmissionMismatch);
+        }
         self.apply(
             operation_id,
             DeleteConsumerGroupOffsetsInput::DriverAccepted,
@@ -147,12 +123,22 @@ impl DeleteConsumerGroupOffsetsHost {
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,
+        plan: DeleteConsumerGroupOffsetsPlan,
+        result_limit: usize,
     ) -> Result<(), DeleteConsumerGroupOffsetsHostError> {
         let index = self
             .operation_index(operation_id)
             .ok_or(DeleteConsumerGroupOffsetsHostError::UnknownOperation)?;
-        if self.operations[index].handoff != DeleteConsumerGroupOffsetsHandoff::HandedOff {
+        let operation = &self.operations[index];
+        if operation.handoff != DeleteConsumerGroupOffsetsHandoff::HandedOff
+            || operation.call.is_some()
+            || operation.recovered_call.is_some()
+            || operation.raw_terminal.is_some()
+        {
             return Err(DeleteConsumerGroupOffsetsHostError::InvalidHandoff);
+        }
+        if operation.response_plan != plan || operation.result_limit != result_limit {
+            return Err(DeleteConsumerGroupOffsetsHostError::SubmissionMismatch);
         }
         self.apply(
             operation_id,
@@ -212,15 +198,5 @@ impl DeleteConsumerGroupOffsetsHost {
     #[cfg(test)]
     pub(super) const fn retained_bytes_for_test(&self) -> usize {
         self.retained_bytes
-    }
-}
-
-impl DeleteConsumerGroupOffsetsOperation {
-    fn mark_handed_off(&mut self) {
-        self.handoff = DeleteConsumerGroupOffsetsHandoff::HandedOff;
-    }
-
-    fn mark_submitted(&mut self) {
-        self.handoff = DeleteConsumerGroupOffsetsHandoff::Submitted;
     }
 }

@@ -1,8 +1,10 @@
 //! Call polling, publication, reclamation, and shutdown recovery.
 
+#[cfg(test)]
+mod ownership_test;
+
 use kafka_client_core::{
-    DeliveryStatus, DescribeStreamsGroupEffect, DescribeStreamsGroupInput,
-    DescribeStreamsGroupState, Moment,
+    DescribeStreamsGroupEffect, DescribeStreamsGroupInput, DescribeStreamsGroupState, Moment,
 };
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
@@ -31,9 +33,9 @@ impl DescribeStreamsGroupHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
@@ -69,23 +71,13 @@ impl DescribeStreamsGroupHost {
                     DescribeStreamsGroupState::AwaitingDriver,
                     DescribeStreamsGroupHandoff::HandedOff,
                 ) => {
-                    seal_call(self.operations[0].call.take());
+                    self.retain_recovered_call(0)?;
                     self.apply(operation_id, DescribeStreamsGroupInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        DescribeStreamsGroupInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (DescribeStreamsGroupState::Submitted, DescribeStreamsGroupHandoff::Submitted) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        DescribeStreamsGroupInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.retain_recovered_call(0)?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (DescribeStreamsGroupState::Completed, _) => self.publish_terminal(0)?,
                 _ => return Err(DescribeStreamsGroupHostError::InvalidHandoff),
@@ -162,7 +154,10 @@ impl DescribeStreamsGroupHost {
         &mut self,
         index: usize,
     ) -> Result<(), DescribeStreamsGroupHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(DescribeStreamsGroupHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -220,13 +215,5 @@ impl DescribeStreamsGroupHost {
             .checked_sub(bytes)
             .ok_or(DescribeStreamsGroupHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::DescribeStreamsGroupCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

@@ -61,6 +61,7 @@ impl AlterShareGroupOffsetsHost {
             submission: None,
             handoff: AlterShareGroupOffsetsHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

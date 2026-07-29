@@ -4,8 +4,11 @@ use kafka_client_core::{AdminListTransactionsPlan, OperationId};
 
 use crate::clock::OperationDeadline;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum AdminListTransactionsSubmissionKind {
-    Discovery,
+    Discovery {
+        retained_limit: usize,
+    },
     Broker {
         broker_id: i32,
         plan: AdminListTransactionsPlan,

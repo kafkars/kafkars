@@ -61,6 +61,7 @@ impl AdminDescribeTopicPartitionsHost {
             submission: None,
             handoff: AdminDescribeTopicPartitionsHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

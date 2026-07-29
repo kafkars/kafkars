@@ -55,6 +55,7 @@ impl RemoveRaftVoterHost {
             submission: None,
             handoff: RemoveRaftVoterHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

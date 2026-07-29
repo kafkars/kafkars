@@ -57,8 +57,10 @@ impl AdminListTransactionsHost {
             retained_bytes: ADMIN_LIST_TRANSACTIONS_RETAINED_BYTES,
             remaining_result_bytes,
             submission: None,
+            active_submission: None,
             handoff: AdminListTransactionsHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };
@@ -100,10 +102,8 @@ fn start(
             operation_id,
             deadline: core_deadline,
         }) if operation_id == operation.operation_id && core_deadline == deadline.core() => {
-            operation.submission = Some(AdminListTransactionsSubmission {
-                operation_id,
-                deadline,
-                kind: AdminListTransactionsSubmissionKind::Discovery,
+            operation.prepare_submission(AdminListTransactionsSubmissionKind::Discovery {
+                retained_limit: operation.remaining_result_bytes,
             });
             Ok(false)
         }
@@ -146,6 +146,6 @@ fn request_owner_charge(plan: &AdminListTransactionsPlan) -> Option<usize> {
         .checked_add(pattern_bytes)?;
     size_of::<AdminListTransactionsOperation>()
         .checked_add(size_of::<AdminListTransactionsSubmission>())?
-        .checked_add(2usize.checked_mul(size_of::<AdminListTransactionsPlan>())?)?
-        .checked_add(2usize.checked_mul(plan_bytes)?)
+        .checked_add(3usize.checked_mul(size_of::<AdminListTransactionsPlan>())?)?
+        .checked_add(3usize.checked_mul(plan_bytes)?)
 }

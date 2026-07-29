@@ -3,7 +3,7 @@
 use std::{error::Error, fmt};
 
 use kafka_client_core::{CreatePartitionsInput, OperationId};
-use kafka_driver::{CompletionError, RouteFailureToken, RoutedCall};
+use kafka_driver::{CompletionError, RoutedCall};
 use kafka_wire::CreatePartitionsResponse;
 
 use crate::{
@@ -14,7 +14,11 @@ use crate::{
 };
 
 use super::{
-    super::DriverOwner, create_partitions_submission::CreatePartitionsSubmitError,
+    super::DriverOwner,
+    create_partitions_refresh::{
+        SettledCreatePartitionsCall, response_requires_controller_refresh,
+    },
+    create_partitions_submission::CreatePartitionsSubmitError,
     create_partitions_terminal::normalize_terminal,
 };
 
@@ -49,26 +53,6 @@ impl CreatePartitionsCallPermit<'_> {
             call,
         });
         Ok(())
-    }
-}
-
-pub(crate) struct SettledCreatePartitionsCall {
-    operation_id: OperationId,
-    input: Option<CreatePartitionsInput>,
-    route_token: Option<RouteFailureToken>,
-}
-
-impl SettledCreatePartitionsCall {
-    pub(crate) const fn operation_id(&self) -> OperationId {
-        self.operation_id
-    }
-
-    pub(crate) fn take_input(&mut self) -> Option<CreatePartitionsInput> {
-        self.input.take()
-    }
-
-    fn discard(self) {
-        drop(self.route_token);
     }
 }
 
@@ -185,17 +169,19 @@ impl TrackedCreatePartitionsCalls {
             source: Some(source),
         })?;
         let (result, _selected_version, route_token) = outcome.into_parts();
+        let broker_requires_controller_refresh = response_requires_controller_refresh(&result);
         let input = normalize_terminal(&call.plan, call.retained_bytes, result).map_err(
             |_retained_accounting| CreatePartitionsCompletionFailure {
                 operation_id: call.operation_id,
                 source: None,
             },
         )?;
-        self.settled = Some(SettledCreatePartitionsCall {
-            operation_id: call.operation_id,
-            input: Some(input),
+        self.settled = Some(SettledCreatePartitionsCall::new(
+            call.operation_id,
+            input,
             route_token,
-        });
+            broker_requires_controller_refresh,
+        ));
         Ok(self.settled.as_mut())
     }
 

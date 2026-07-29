@@ -60,6 +60,7 @@ impl DescribeShareGroupHost {
             submission: None,
             handoff: DescribeShareGroupHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

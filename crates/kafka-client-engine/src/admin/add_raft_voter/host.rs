@@ -16,7 +16,7 @@ use crate::{
     admin::AdminAddRaftVoterPublisher,
     clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{AddRaftVoterCall, AddRaftVoterRawTerminal},
+    driver::{AddRaftVoterCall, AddRaftVoterRawTerminal, RecoveredAddRaftVoterCall},
 };
 
 use super::{AddRaftVoterHostError, AddRaftVoterObserver};
@@ -72,6 +72,7 @@ struct AddRaftVoterOperation {
     submission: Option<AddRaftVoterSubmission>,
     handoff: AddRaftVoterHandoff,
     call: Option<AddRaftVoterCall>,
+    recovered_call: Option<RecoveredAddRaftVoterCall>,
     raw_terminal: Option<AddRaftVoterRawTerminal>,
     terminal: Option<AddRaftVoterTerminal>,
 }
@@ -101,11 +102,15 @@ impl AddRaftVoterHost {
         }
     }
 
-    pub(crate) fn turn(&mut self, now: Moment) -> Result<AddRaftVoterTurn, AddRaftVoterHostError> {
+    pub(crate) fn turn(
+        &mut self,
+        now: Moment,
+        driver: Option<&crate::driver::DriverOwner>,
+    ) -> Result<AddRaftVoterTurn, AddRaftVoterHostError> {
         if let Some(error) = self.health {
             return Err(error);
         }
-        if self.reclaim_one()? || self.poll_one_call()? {
+        if self.reclaim_one()? || self.poll_one_call(driver)? {
             return Ok(AddRaftVoterTurn::Progress);
         }
         let Some(index) = self

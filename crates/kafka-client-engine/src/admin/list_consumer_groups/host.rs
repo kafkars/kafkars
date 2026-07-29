@@ -1,25 +1,26 @@
 //! Bounded ownership of cluster group-listing machines and concrete calls.
 
 mod admission;
+mod effect;
 mod model;
+#[cfg(test)]
+mod ownership_test;
 mod response;
 mod terminal;
 
 use kafka_client_core::{
-    AdminListConsumerGroupsEffect, AdminListConsumerGroupsInput, AdminListConsumerGroupsMachine,
-    AdminListConsumerGroupsTerminal, Moment, OperationId,
+    AdminListConsumerGroupsInput, AdminListConsumerGroupsTerminal, Moment, OperationId,
 };
 
 use crate::{
     admin::AdminListConsumerGroupsPublisher,
-    clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{ListConsumerGroupsCall, ListConsumerGroupsRawTerminal},
+    driver::ListConsumerGroupsCall,
 };
 
 use super::{ListConsumerGroupsHostError, ListConsumerGroupsObserver};
 
-use model::ListConsumerGroupsHandoff;
+use model::{ListConsumerGroupsHandoff, ListConsumerGroupsOperation};
 pub(crate) use model::{
     ListConsumerGroupsSubmission, ListConsumerGroupsSubmissionKind, ListConsumerGroupsTurn,
 };
@@ -30,20 +31,6 @@ const LIST_CONSUMER_GROUPS_RETAINED_BYTES: usize = 4 * 1024 * 1024;
 pub(crate) struct ListConsumerGroupsAdmission {
     pub(crate) observer: ListConsumerGroupsObserver,
     pub(crate) fault: Option<ListConsumerGroupsHostError>,
-}
-
-struct ListConsumerGroupsOperation {
-    operation_id: OperationId,
-    machine: AdminListConsumerGroupsMachine,
-    completion_id: CompletionId,
-    deadline: OperationDeadline,
-    retained_bytes: usize,
-    remaining_result_bytes: usize,
-    submission: Option<ListConsumerGroupsSubmission>,
-    handoff: ListConsumerGroupsHandoff,
-    call: Option<ListConsumerGroupsCall>,
-    raw_terminal: Option<ListConsumerGroupsRawTerminal>,
-    terminal: Option<AdminListConsumerGroupsTerminal>,
 }
 
 pub(crate) struct ListConsumerGroupsHost {
@@ -115,24 +102,47 @@ impl ListConsumerGroupsHost {
             .ok_or(ListConsumerGroupsHostError::UnknownOperation)?;
         if self.operations[index].handoff != ListConsumerGroupsHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+            || self.operations[index].rejected_submission.is_some()
         {
             return Err(ListConsumerGroupsHostError::InvalidHandoff);
         }
+        let matches = self.operations[index].matches_call(&call);
         self.operations[index].call = Some(call);
+        if !matches {
+            return Err(ListConsumerGroupsHostError::SubmissionMismatch);
+        }
         self.apply(operation_id, AdminListConsumerGroupsInput::DriverAccepted)
     }
 
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,
+        kind: ListConsumerGroupsSubmissionKind,
     ) -> Result<(), ListConsumerGroupsHostError> {
         let index = self
             .operation_index(operation_id)
             .ok_or(ListConsumerGroupsHostError::UnknownOperation)?;
-        if self.operations[index].handoff != ListConsumerGroupsHandoff::HandedOff {
+        if self.operations[index].handoff != ListConsumerGroupsHandoff::HandedOff
+            || self.operations[index].call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+            || self.operations[index].rejected_submission.is_some()
+        {
             return Err(ListConsumerGroupsHostError::InvalidHandoff);
         }
-        self.apply(operation_id, AdminListConsumerGroupsInput::DriverRejected)
+        let matches = self.operations[index].matches_submission(&kind);
+        self.operations[index].rejected_submission = Some(kind);
+        if !matches {
+            return Err(ListConsumerGroupsHostError::SubmissionMismatch);
+        }
+        let transition = self.operations[index]
+            .machine
+            .apply(AdminListConsumerGroupsInput::DriverRejected)?;
+        drop(self.operations[index].rejected_submission.take());
+        let effect = transition
+            .into_effect()
+            .ok_or(ListConsumerGroupsHostError::MissingTerminal)?;
+        self.install_effect(index, effect)
     }
 
     pub(crate) fn close_admission(&mut self) {
@@ -166,6 +176,9 @@ impl ListConsumerGroupsHost {
             .operation_index(operation_id)
             .ok_or(ListConsumerGroupsHostError::UnknownOperation)?;
         let accepted = matches!(&input, AdminListConsumerGroupsInput::DriverAccepted);
+        if accepted && self.operations[index].handoff != ListConsumerGroupsHandoff::HandedOff {
+            return Err(ListConsumerGroupsHostError::InvalidHandoff);
+        }
         let transition = self.operations[index].machine.apply(input)?;
         if accepted {
             self.operations[index].handoff = ListConsumerGroupsHandoff::Submitted;
@@ -173,63 +186,6 @@ impl ListConsumerGroupsHost {
         if let Some(effect) = transition.into_effect() {
             self.install_effect(index, effect)?;
         }
-        Ok(())
-    }
-
-    fn install_effect(
-        &mut self,
-        index: usize,
-        effect: AdminListConsumerGroupsEffect,
-    ) -> Result<(), ListConsumerGroupsHostError> {
-        let operation_id = self.operations[index].operation_id;
-        let (effect_id, kind) = match effect {
-            AdminListConsumerGroupsEffect::SubmitDiscovery {
-                operation_id,
-                deadline,
-            } => {
-                if deadline != self.operations[index].deadline.core() {
-                    return Err(ListConsumerGroupsHostError::SubmissionMismatch);
-                }
-                (operation_id, ListConsumerGroupsSubmissionKind::Discovery)
-            }
-            AdminListConsumerGroupsEffect::SubmitBroker {
-                operation_id,
-                deadline,
-                broker_id,
-                filters,
-            } => {
-                if deadline != self.operations[index].deadline.core() {
-                    return Err(ListConsumerGroupsHostError::SubmissionMismatch);
-                }
-                (
-                    operation_id,
-                    ListConsumerGroupsSubmissionKind::Broker {
-                        broker_id,
-                        filters,
-                        retained_limit: self.operations[index].remaining_result_bytes,
-                    },
-                )
-            }
-            AdminListConsumerGroupsEffect::Complete {
-                operation_id: effect_id,
-                terminal,
-            } => {
-                if effect_id != operation_id {
-                    return Err(ListConsumerGroupsHostError::SubmissionMismatch);
-                }
-                self.operations[index].terminal = Some(terminal);
-                return self.publish_terminal(index);
-            }
-        };
-        if effect_id != operation_id {
-            return Err(ListConsumerGroupsHostError::SubmissionMismatch);
-        }
-        self.operations[index].submission = Some(ListConsumerGroupsSubmission {
-            operation_id,
-            deadline: self.operations[index].deadline,
-            kind,
-        });
-        self.operations[index].handoff = ListConsumerGroupsHandoff::Untouched;
         Ok(())
     }
 }

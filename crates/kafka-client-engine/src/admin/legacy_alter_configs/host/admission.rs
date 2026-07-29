@@ -52,11 +52,11 @@ impl LegacyAlterConfigsHost {
 
         self.next_operation_id = operation_id.get().checked_add(1).map(OperationId::from_raw);
         self.retained_bytes = total_bytes;
-        let correlation_plan = plan.clone();
         let mut operation = LegacyAlterConfigsOperation {
             operation_id,
             machine: LegacyAlterConfigsMachine::new(operation_id, deadline.core(), plan),
-            plan: correlation_plan,
+            route: None,
+            plan: None,
             completion_id,
             deadline,
             retained_bytes: retention.total(),
@@ -66,6 +66,7 @@ impl LegacyAlterConfigsHost {
             submission: None,
             handoff: LegacyAlterConfigsHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };
@@ -140,7 +141,8 @@ impl LegacyAlterConfigsOperation {
         let contribution = super::super::model::legacy_alter_configs_result_contribution(&plan)
             .filter(|bytes| *bytes <= self.remaining_result_bytes)
             .ok_or(LegacyAlterConfigsHostError::ByteAccounting)?;
-        self.plan = plan.clone();
+        self.route = Some(route);
+        self.plan = Some(plan.clone());
         self.active_result_limit = result_limit;
         self.active_result_contribution = contribution;
         self.submission = Some(LegacyAlterConfigsSubmission {

@@ -1,6 +1,9 @@
 //! Bounded ownership of accepted Admin `AlterClientQuotas` machines and calls.
 
 mod admission;
+mod model;
+#[cfg(test)]
+mod ownership_test;
 mod response;
 mod terminal;
 
@@ -8,18 +11,18 @@ mod terminal;
 mod response_test;
 
 use kafka_client_core::{
-    AlterClientQuotasEffect, AlterClientQuotasInput, AlterClientQuotasMachine,
-    AlterClientQuotasPlan, AlterClientQuotasTerminal, Moment, OperationId,
+    AlterClientQuotasEffect, AlterClientQuotasInput, AlterClientQuotasTerminal, Moment, OperationId,
 };
 
 use crate::{
     admin::AdminAlterClientQuotasPublisher,
-    clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{AlterClientQuotasCall, AlterClientQuotasRawTerminal},
+    driver::AlterClientQuotasCall,
 };
 
 use super::{AlterClientQuotasHostError, AlterClientQuotasObserver};
+use model::{AlterClientQuotasHandoff, AlterClientQuotasOperation};
+pub(crate) use model::{AlterClientQuotasSubmission, AlterClientQuotasTurn};
 
 pub(crate) const ALTER_CLIENT_QUOTAS_CAPACITY: usize = 16;
 pub(crate) const ALTER_CLIENT_QUOTAS_RETAINED_BYTES: usize = 4 * 1024 * 1024;
@@ -27,54 +30,6 @@ pub(crate) const ALTER_CLIENT_QUOTAS_RETAINED_BYTES: usize = 4 * 1024 * 1024;
 pub(crate) struct AlterClientQuotasAdmission {
     pub(crate) observer: AlterClientQuotasObserver,
     pub(crate) fault: Option<AlterClientQuotasHostError>,
-}
-
-/// One exact alteration plan ready for the engine's driver-admission stage.
-pub(crate) struct AlterClientQuotasSubmission {
-    operation_id: OperationId,
-    deadline: OperationDeadline,
-    plan: AlterClientQuotasPlan,
-    result_limit: usize,
-}
-
-impl AlterClientQuotasSubmission {
-    pub(crate) fn into_parts(
-        self,
-    ) -> (OperationId, OperationDeadline, AlterClientQuotasPlan, usize) {
-        (
-            self.operation_id,
-            self.deadline,
-            self.plan,
-            self.result_limit,
-        )
-    }
-}
-
-pub(crate) enum AlterClientQuotasTurn {
-    Idle,
-    Progress,
-    Submit(AlterClientQuotasSubmission),
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum AlterClientQuotasHandoff {
-    Untouched,
-    HandedOff,
-    Submitted,
-}
-
-struct AlterClientQuotasOperation {
-    operation_id: OperationId,
-    machine: AlterClientQuotasMachine,
-    completion_id: CompletionId,
-    deadline: OperationDeadline,
-    retained_bytes: usize,
-    remaining_result_bytes: usize,
-    submission: Option<AlterClientQuotasSubmission>,
-    handoff: AlterClientQuotasHandoff,
-    call: Option<AlterClientQuotasCall>,
-    raw_terminal: Option<AlterClientQuotasRawTerminal>,
-    terminal: Option<AlterClientQuotasTerminal>,
 }
 
 pub(crate) struct AlterClientQuotasHost {
@@ -145,24 +100,55 @@ impl AlterClientQuotasHost {
             .ok_or(AlterClientQuotasHostError::UnknownOperation)?;
         if self.operations[index].handoff != AlterClientQuotasHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+            || self.operations[index].rejected_submission.is_some()
         {
             return Err(AlterClientQuotasHostError::InvalidHandoff);
         }
+        let matches = self.operations[index].matches_call(&call);
         self.operations[index].call = Some(call);
+        if !matches {
+            return Err(AlterClientQuotasHostError::SubmissionMismatch);
+        }
         self.apply(operation_id, AlterClientQuotasInput::DriverAccepted)
     }
 
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,
+        plan: kafka_client_core::AlterClientQuotasPlan,
+        retained_limit: usize,
     ) -> Result<(), AlterClientQuotasHostError> {
         let index = self
             .operation_index(operation_id)
             .ok_or(AlterClientQuotasHostError::UnknownOperation)?;
-        if self.operations[index].handoff != AlterClientQuotasHandoff::HandedOff {
+        if self.operations[index].handoff != AlterClientQuotasHandoff::HandedOff
+            || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+            || self.operations[index].rejected_submission.is_some()
+        {
             return Err(AlterClientQuotasHostError::InvalidHandoff);
         }
-        self.apply(operation_id, AlterClientQuotasInput::DriverRejected)
+        let matches = self.operations[index].matches_submission(&plan, retained_limit);
+        self.operations[index].rejected_submission = Some((plan, retained_limit));
+        if !matches {
+            return Err(AlterClientQuotasHostError::SubmissionMismatch);
+        }
+        let transition = self.operations[index]
+            .machine
+            .apply(AlterClientQuotasInput::DriverRejected)?;
+        let terminal = match transition.into_effect() {
+            Some(AlterClientQuotasEffect::Complete {
+                operation_id: effect_id,
+                terminal,
+            }) if effect_id == operation_id => terminal,
+            _ => return Err(AlterClientQuotasHostError::MissingTerminal),
+        };
+        drop(self.operations[index].rejected_submission.take());
+        self.operations[index].terminal = Some(terminal);
+        self.publish_terminal(index)
     }
 
     pub(crate) fn close_admission(&mut self) {
@@ -203,7 +189,14 @@ impl AlterClientQuotasHost {
         if accepted {
             self.operations[index].handoff = AlterClientQuotasHandoff::Submitted;
         }
-        if let Some(AlterClientQuotasEffect::Complete { terminal, .. }) = transition.into_effect() {
+        if let Some(AlterClientQuotasEffect::Complete {
+            operation_id: effect_id,
+            terminal,
+        }) = transition.into_effect()
+        {
+            if effect_id != operation_id {
+                return Err(AlterClientQuotasHostError::SubmissionMismatch);
+            }
             self.operations[index].terminal = Some(terminal);
             self.publish_terminal(index)?;
         }

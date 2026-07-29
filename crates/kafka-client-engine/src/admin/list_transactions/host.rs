@@ -42,8 +42,10 @@ struct AdminListTransactionsOperation {
     retained_bytes: usize,
     remaining_result_bytes: usize,
     submission: Option<AdminListTransactionsSubmission>,
+    active_submission: Option<AdminListTransactionsSubmissionKind>,
     handoff: AdminListTransactionsHandoff,
     call: Option<ListTransactionsCall>,
+    recovered_call: Option<ListTransactionsCall>,
     raw_terminal: Option<ListTransactionsRawTerminal>,
     terminal: Option<AdminListTransactionsTerminal>,
 }
@@ -116,22 +118,35 @@ impl AdminListTransactionsHost {
             .ok_or(AdminListTransactionsHostError::UnknownOperation)?;
         if self.operations[index].handoff != AdminListTransactionsHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
         {
             return Err(AdminListTransactionsHostError::InvalidHandoff);
         }
         self.operations[index].call = Some(call);
+        if !call_matches_active_submission(&self.operations[index]) {
+            return Err(AdminListTransactionsHostError::SubmissionMismatch);
+        }
         self.apply(operation_id, AdminListTransactionsInput::DriverAccepted)
     }
 
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,
+        submission: AdminListTransactionsSubmissionKind,
     ) -> Result<(), AdminListTransactionsHostError> {
         let index = self
             .operation_index(operation_id)
             .ok_or(AdminListTransactionsHostError::UnknownOperation)?;
-        if self.operations[index].handoff != AdminListTransactionsHandoff::HandedOff {
+        if self.operations[index].handoff != AdminListTransactionsHandoff::HandedOff
+            || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(AdminListTransactionsHostError::InvalidHandoff);
+        }
+        if self.operations[index].active_submission.as_ref() != Some(&submission) {
+            return Err(AdminListTransactionsHostError::SubmissionMismatch);
         }
         self.apply(operation_id, AdminListTransactionsInput::DriverRejected)
     }
@@ -178,5 +193,33 @@ impl AdminListTransactionsHost {
             self.install_effect(index, effect)?;
         }
         Ok(())
+    }
+
+    #[cfg(test)]
+    pub(in crate::admin::list_transactions) fn apply_input_for_test(
+        &mut self,
+        operation_id: OperationId,
+        input: AdminListTransactionsInput,
+    ) -> Result<(), AdminListTransactionsHostError> {
+        self.apply(operation_id, input)
+    }
+}
+
+fn call_matches_active_submission(operation: &AdminListTransactionsOperation) -> bool {
+    let (Some(submission), Some(call)) = (
+        operation.active_submission.as_ref(),
+        operation.call.as_ref(),
+    ) else {
+        return false;
+    };
+    match submission {
+        AdminListTransactionsSubmissionKind::Discovery { retained_limit } => {
+            call.matches_discovery(*retained_limit)
+        }
+        AdminListTransactionsSubmissionKind::Broker {
+            broker_id,
+            plan,
+            retained_limit,
+        } => call.matches_broker(*broker_id, plan, *retained_limit),
     }
 }

@@ -46,30 +46,50 @@ pub(super) fn drive(
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            let call = match kind {
+            match kind {
                 ListConsumerGroupsSubmissionKind::Discovery => {
-                    ListConsumerGroupsCall::submit_discovery(driver, deadline.transport())
+                    match ListConsumerGroupsCall::submit_discovery(driver, deadline.transport()) {
+                        Ok(call) => host
+                            .accept_call(operation_id, call)
+                            .map_err(EngineHostError::ListConsumerGroups)?,
+                        Err(rejection) => {
+                            rejection.discard_source();
+                            host.reject_handoff(
+                                operation_id,
+                                ListConsumerGroupsSubmissionKind::Discovery,
+                            )
+                            .map_err(EngineHostError::ListConsumerGroups)?;
+                        }
+                    }
                 }
                 ListConsumerGroupsSubmissionKind::Broker {
                     broker_id,
                     filters,
                     retained_limit,
-                } => ListConsumerGroupsCall::submit_broker(
-                    driver,
-                    broker_id,
-                    filters,
-                    retained_limit,
-                    deadline.transport(),
-                ),
-            };
-            match call {
-                Ok(call) => host
-                    .accept_call(operation_id, call)
-                    .map_err(EngineHostError::ListConsumerGroups)?,
-                Err(rejection) => {
-                    rejection.discard_source();
-                    host.reject_handoff(operation_id)
-                        .map_err(EngineHostError::ListConsumerGroups)?;
+                } => {
+                    match ListConsumerGroupsCall::submit_broker(
+                        driver,
+                        broker_id,
+                        filters,
+                        retained_limit,
+                        deadline.transport(),
+                    ) {
+                        Ok(call) => host
+                            .accept_call(operation_id, call)
+                            .map_err(EngineHostError::ListConsumerGroups)?,
+                        Err(rejection) => {
+                            let (broker_id, filters, retained_limit) = rejection.into_correlation();
+                            host.reject_handoff(
+                                operation_id,
+                                ListConsumerGroupsSubmissionKind::Broker {
+                                    broker_id,
+                                    filters,
+                                    retained_limit,
+                                },
+                            )
+                            .map_err(EngineHostError::ListConsumerGroups)?;
+                        }
+                    }
                 }
             }
             true

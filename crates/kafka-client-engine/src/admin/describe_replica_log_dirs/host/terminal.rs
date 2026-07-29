@@ -1,5 +1,8 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
+#[cfg(test)]
+mod test_support;
+
 use kafka_client_core::{
     DeliveryStatus, DescribeReplicaLogDirsInput, DescribeReplicaLogDirsState, Moment,
 };
@@ -30,9 +33,9 @@ impl DescribeReplicaLogDirsHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
@@ -68,28 +71,16 @@ impl DescribeReplicaLogDirsHost {
                     DescribeReplicaLogDirsState::AwaitingDriver,
                     DescribeReplicaLogDirsHandoff::HandedOff,
                 ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.operations[0].current_replicas = None;
+                    self.retain_recovered_call(0)?;
                     self.apply(operation_id, DescribeReplicaLogDirsInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        DescribeReplicaLogDirsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (
                     DescribeReplicaLogDirsState::Submitted,
                     DescribeReplicaLogDirsHandoff::Submitted,
                 ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.operations[0].current_replicas = None;
-                    self.apply(
-                        operation_id,
-                        DescribeReplicaLogDirsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.retain_recovered_call(0)?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (DescribeReplicaLogDirsState::Completed, _) => {
                     self.publish_terminal(0)?;
@@ -100,6 +91,45 @@ impl DescribeReplicaLogDirsHost {
             }
         }
         Ok(())
+    }
+
+    fn retain_recovered_call(
+        &mut self,
+        index: usize,
+    ) -> Result<(), DescribeReplicaLogDirsHostError> {
+        if self.operations[index].recovered_call.is_some() {
+            return Ok(());
+        }
+        if let Some(call) = self.operations[index].call.take() {
+            self.operations[index].recovered_call = call.recover_after_driver_shutdown();
+        }
+        self.operations[index]
+            .recovered_call
+            .as_ref()
+            .ok_or(DescribeReplicaLogDirsHostError::InvalidHandoff)
+            .map(|_recovered| ())
+    }
+
+    fn settle_recovered_transport(
+        &mut self,
+        index: usize,
+    ) -> Result<(), DescribeReplicaLogDirsHostError> {
+        let transition =
+            self.operations[index]
+                .machine
+                .apply(DescribeReplicaLogDirsInput::TransportFailed {
+                    delivery: DeliveryStatus::PossiblySent,
+                })?;
+        let effect = transition
+            .into_effect()
+            .ok_or(DescribeReplicaLogDirsHostError::MissingTerminal)?;
+        self.operations[index].current_replicas = None;
+        let recovered = self.operations[index]
+            .recovered_call
+            .take()
+            .ok_or(DescribeReplicaLogDirsHostError::InvalidHandoff)?;
+        recovered.seal();
+        self.install_effect(index, effect)
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), DescribeReplicaLogDirsHostError> {
@@ -144,6 +174,7 @@ impl DescribeReplicaLogDirsHost {
         index: usize,
     ) -> Result<(), DescribeReplicaLogDirsHostError> {
         if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
             || self.operations[index].raw_terminal.is_some()
             || self.operations[index].current_replicas.is_some()
         {
@@ -204,13 +235,5 @@ impl DescribeReplicaLogDirsHost {
             .checked_sub(bytes)
             .ok_or(DescribeReplicaLogDirsHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::DescribeReplicaLogDirsCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

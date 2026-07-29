@@ -14,6 +14,7 @@ use super::{
     DescribeUserScramCredentialsAdmission, DescribeUserScramCredentialsHandoff,
     DescribeUserScramCredentialsHost, DescribeUserScramCredentialsHostError,
     DescribeUserScramCredentialsOperation, DescribeUserScramCredentialsSubmission,
+    model::DescribeUserScramCredentialsAttemptBounds,
 };
 use crate::admin::describe_user_scram_credentials::{
     DescribeUserScramCredentialsAdmissionErrorKind, DescribeUserScramCredentialsObserver,
@@ -51,16 +52,27 @@ impl DescribeUserScramCredentialsHost {
 
         self.next_operation_id = operation_id.get().checked_add(1).map(OperationId::from_raw);
         self.retained_bytes = total_bytes;
+        let bounds = DescribeUserScramCredentialsAttemptBounds {
+            request_limit: remaining_result_bytes,
+            result_limit: remaining_result_bytes,
+        };
         let mut operation = DescribeUserScramCredentialsOperation {
             operation_id,
-            machine: DescribeUserScramCredentialsMachine::new(operation_id, deadline.core(), plan),
+            machine: DescribeUserScramCredentialsMachine::new(
+                operation_id,
+                deadline.core(),
+                plan.clone(),
+            ),
+            expected_plan: plan,
             completion_id,
             deadline,
             retained_bytes: DESCRIBE_USER_SCRAM_CREDENTIALS_RETAINED_BYTES,
+            bounds,
             remaining_result_bytes,
             submission: None,
             handoff: DescribeUserScramCredentialsHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };
@@ -98,14 +110,17 @@ fn start(
             deadline: core_deadline,
             plan,
         }) => {
-            if operation_id != operation.operation_id || core_deadline != deadline.core() {
+            if operation_id != operation.operation_id
+                || core_deadline != deadline.core()
+                || plan != operation.expected_plan
+            {
                 return Err(DescribeUserScramCredentialsHostError::SubmissionMismatch);
             }
             operation.submission = Some(DescribeUserScramCredentialsSubmission {
                 operation_id,
                 deadline,
                 plan,
-                result_limit: operation.remaining_result_bytes,
+                bounds: operation.bounds,
             });
             Ok(false)
         }
@@ -141,5 +156,5 @@ fn request_owner_charge(plan: &DescribeUserScramCredentialsPlan) -> Option<usize
     )?;
     size_of::<DescribeUserScramCredentialsOperation>()
         .checked_add(size_of::<DescribeUserScramCredentialsSubmission>())?
-        .checked_add(2usize.checked_mul(selection_storage)?)
+        .checked_add(3usize.checked_mul(selection_storage)?)
 }

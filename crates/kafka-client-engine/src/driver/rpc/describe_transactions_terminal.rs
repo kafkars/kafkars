@@ -98,11 +98,22 @@ fn failure_kind(error: &RequestError) -> DescribeTransactionsDriverFailureKind {
 
 /// Accepted ownership recovered only after the unique driver is destroyed.
 #[must_use = "recovered DescribeTransactions ownership still requires core settlement"]
-pub(crate) struct RecoveredDescribeTransactionsCall;
+pub(crate) struct RecoveredDescribeTransactionsCall {
+    _private: (),
+}
 
 impl RecoveredDescribeTransactionsCall {
+    pub(super) const fn new() -> Self {
+        Self { _private: () }
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn for_test() -> Self {
+        Self { _private: () }
+    }
+
     /// Consumes recovered ownership after deterministic settlement.
     pub(crate) const fn seal(self) {
-        let Self = self;
+        let Self { _private: () } = self;
     }
 }

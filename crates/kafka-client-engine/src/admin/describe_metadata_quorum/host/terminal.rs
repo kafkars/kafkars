@@ -1,5 +1,8 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
+#[cfg(test)]
+mod test_support;
+
 use kafka_client_core::{
     DeliveryStatus, DescribeMetadataQuorumEffect, DescribeMetadataQuorumInput,
     DescribeMetadataQuorumState, Moment,
@@ -31,9 +34,9 @@ impl DescribeMetadataQuorumHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
@@ -71,26 +74,16 @@ impl DescribeMetadataQuorumHost {
                     DescribeMetadataQuorumState::AwaitingDriver,
                     DescribeMetadataQuorumHandoff::HandedOff,
                 ) => {
-                    seal_call(self.operations[0].call.take());
+                    self.retain_recovered_call(0)?;
                     self.apply(operation_id, DescribeMetadataQuorumInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        DescribeMetadataQuorumInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (
                     DescribeMetadataQuorumState::Submitted,
                     DescribeMetadataQuorumHandoff::Submitted,
                 ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        DescribeMetadataQuorumInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.retain_recovered_call(0)?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (DescribeMetadataQuorumState::Completed, _) => {
                     self.publish_terminal(0)?;
@@ -99,6 +92,49 @@ impl DescribeMetadataQuorumHost {
             }
         }
         Ok(())
+    }
+
+    fn retain_recovered_call(
+        &mut self,
+        index: usize,
+    ) -> Result<(), DescribeMetadataQuorumHostError> {
+        if self.operations[index].recovered_call.is_some() {
+            return Ok(());
+        }
+        if let Some(call) = self.operations[index].call.take() {
+            self.operations[index].recovered_call = call.recover_after_driver_shutdown();
+        }
+        self.operations[index]
+            .recovered_call
+            .as_ref()
+            .ok_or(DescribeMetadataQuorumHostError::InvalidHandoff)
+            .map(|_recovered| ())
+    }
+
+    pub(super) fn settle_recovered_transport(
+        &mut self,
+        index: usize,
+    ) -> Result<(), DescribeMetadataQuorumHostError> {
+        let transition =
+            self.operations[index]
+                .machine
+                .apply(DescribeMetadataQuorumInput::TransportFailed {
+                    delivery: DeliveryStatus::PossiblySent,
+                })?;
+        let terminal = match transition.into_effect() {
+            Some(DescribeMetadataQuorumEffect::Complete {
+                operation_id,
+                terminal,
+            }) if operation_id == self.operations[index].operation_id => terminal,
+            _ => return Err(DescribeMetadataQuorumHostError::MissingTerminal),
+        };
+        let recovered = self.operations[index]
+            .recovered_call
+            .take()
+            .ok_or(DescribeMetadataQuorumHostError::InvalidHandoff)?;
+        recovered.seal();
+        self.operations[index].terminal = Some(terminal);
+        self.publish_terminal(index)
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), DescribeMetadataQuorumHostError> {
@@ -139,7 +175,10 @@ impl DescribeMetadataQuorumHost {
         &mut self,
         index: usize,
     ) -> Result<(), DescribeMetadataQuorumHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(DescribeMetadataQuorumHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -197,13 +236,5 @@ impl DescribeMetadataQuorumHost {
             .checked_sub(bytes)
             .ok_or(DescribeMetadataQuorumHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::DescribeMetadataQuorumCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

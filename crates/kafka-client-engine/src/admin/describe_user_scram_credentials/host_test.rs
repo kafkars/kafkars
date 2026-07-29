@@ -11,8 +11,9 @@ use crate::{
 
 use super::{
     DescribeUserScramCredentialsAdmissionErrorKind, DescribeUserScramCredentialsDeliveryStatus,
-    DescribeUserScramCredentialsFailureKind, DescribeUserScramCredentialsOutcome,
-    DescribeUserScramCredentialsTurn, host::DESCRIBE_USER_SCRAM_CREDENTIALS_RETAINED_BYTES,
+    DescribeUserScramCredentialsFailureKind, DescribeUserScramCredentialsHostError,
+    DescribeUserScramCredentialsOutcome, DescribeUserScramCredentialsTurn,
+    host::DESCRIBE_USER_SCRAM_CREDENTIALS_RETAINED_BYTES,
 };
 
 #[test]
@@ -52,7 +53,8 @@ fn admission_reserves_terminal_and_full_envelope_before_submission() {
     else {
         panic!("submission expected");
     };
-    let (_operation_id, submitted_deadline, submitted_plan, result_limit) = submission.into_parts();
+    let (operation_id, submitted_deadline, submitted_plan, request_limit, result_limit) =
+        submission.into_parts();
     assert_eq!(submitted_deadline, capture.operation_deadline());
     assert_eq!(
         submitted_plan.users(),
@@ -60,7 +62,10 @@ fn admission_reserves_terminal_and_full_envelope_before_submission() {
     );
     assert!(result_limit > DESCRIBE_USER_SCRAM_CREDENTIALS_RETAINED_BYTES / 2);
     assert!(result_limit < DESCRIBE_USER_SCRAM_CREDENTIALS_RETAINED_BYTES);
+    assert_eq!(request_limit, result_limit);
 
+    host.reject_handoff(operation_id, submitted_plan, request_limit, result_limit)
+        .unwrap_or_else(|error| panic!("reject inspected submission: {error}"));
     drop(admission.observer);
     host.recover_after_driver_shutdown()
         .unwrap_or_else(|error| panic!("recover host: {error}"));
@@ -105,7 +110,7 @@ fn untouched_shutdown_is_definitely_unsent_and_reclaimable() {
 }
 
 #[test]
-fn handed_off_shutdown_is_conservatively_possibly_sent() {
+fn handed_off_without_a_returned_call_cannot_forge_recovery_evidence() {
     let (mut notifier, ports) =
         AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
     let mut host = DescribeUserScramCredentialsHost::new(ports.describe_user_scram_credentials);
@@ -124,24 +129,12 @@ fn handed_off_shutdown_is_conservatively_possibly_sent() {
         panic!("submission expected");
     };
 
-    host.recover_after_driver_shutdown()
-        .unwrap_or_else(|error| panic!("recover handoff: {error}"));
-    let DescribeUserScramCredentialsOutcome::Failed(failure) = admission
-        .observer
-        .wait()
-        .unwrap_or_else(|error| panic!("observe recovery: {error}"))
-    else {
-        panic!("failure expected");
-    };
-    assert_eq!(
-        failure.kind(),
-        &DescribeUserScramCredentialsFailureKind::Transport
-    );
-    assert_eq!(
-        failure.delivery(),
-        DescribeUserScramCredentialsDeliveryStatus::PossiblySent
-    );
-    drop(host);
+    assert!(matches!(
+        host.recover_after_driver_shutdown(),
+        Err(DescribeUserScramCredentialsHostError::InvalidHandoff)
+    ));
+
+    drop((admission, host));
     stop_notifier(&mut notifier);
 }
 

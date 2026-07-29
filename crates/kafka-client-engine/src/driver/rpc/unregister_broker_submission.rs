@@ -1,4 +1,4 @@
-//! Single-attempt AnyBroker submission policy for Admin `UnregisterBroker`.
+//! Single-attempt controller submission policy for Admin `UnregisterBroker`.
 
 use std::{error::Error, fmt, time::Instant};
 
@@ -32,7 +32,7 @@ impl Error for UnregisterBrokerSubmitError {
 }
 
 impl DriverOwner {
-    /// Submits one broker unregistration without controller cache or retry policy.
+    /// Submits one broker unregistration without automatic replay policy.
     pub(crate) fn submit_tracked_unregister_broker(
         &self,
         request: UnregisterBrokerRequest,
@@ -49,7 +49,7 @@ impl DriverOwner {
 }
 
 pub(super) const fn unregister_broker_route() -> Route {
-    Route::AnyBroker
+    Route::Controller
 }
 
 pub(super) const fn unregister_broker_options(deadline: Instant) -> RequestOptions {

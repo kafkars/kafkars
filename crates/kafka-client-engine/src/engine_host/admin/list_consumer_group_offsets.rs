@@ -40,18 +40,18 @@ pub(super) fn drive(
         ListConsumerGroupOffsetsTurn::Idle => false,
         ListConsumerGroupOffsetsTurn::Progress => true,
         ListConsumerGroupOffsetsTurn::Submit(submission) => {
-            let (operation_id, deadline, plan, _result_limit) = submission.into_parts();
+            let (operation_id, deadline, plan, result_limit) = submission.into_parts();
             let driver = resources
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            match GroupOffsetsCall::submit(driver, &plan, deadline.transport()) {
+            match GroupOffsetsCall::submit(driver, plan, result_limit, deadline.transport()) {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::ListConsumerGroupOffsets)?,
                 Err(rejection) => {
-                    drop(rejection.into_source());
-                    host.reject_handoff(operation_id)
+                    let (plan, result_limit) = rejection.into_submission_evidence();
+                    host.reject_handoff(operation_id, plan, result_limit)
                         .map_err(EngineHostError::ListConsumerGroupOffsets)?;
                 }
             }

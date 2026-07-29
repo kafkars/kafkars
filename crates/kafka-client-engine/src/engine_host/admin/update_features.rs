@@ -1,17 +1,13 @@
 //! Fair host turns for destructive controller-routed Admin `UpdateFeatures`.
 
-use kafka_client_core::{Deadline, Moment, UpdateFeatureIntent, UpdateFeaturesPlan};
+use kafka_client_core::{Deadline, Moment};
 
 use crate::{
     admin::update_features::{
-        UpdateFeaturesShardLockError, UpdateFeaturesShardWake, UpdateFeaturesShardWakeError,
-        UpdateFeaturesTurn,
+        UpdateFeaturesHostError, UpdateFeaturesShardLockError, UpdateFeaturesShardWake,
+        UpdateFeaturesShardWakeError, UpdateFeaturesTurn,
     },
     driver::{ReactorWake, UpdateFeaturesCall},
-    protocol::admin::update_features::{
-        PreparedUpdateFeaturesRequest, UpdateFeatureMode, UpdateFeatureRef,
-        UpdateFeaturesRequestPlan, update_features_request,
-    },
 };
 
 use super::super::{EngineHostError, EngineHostResources};
@@ -38,35 +34,29 @@ pub(super) fn drive(
     if resources.control.shutdown_requested() {
         resources.update_features.close_locked(&mut host);
     }
-    let turn = host.turn(now).map_err(EngineHostError::UpdateFeatures)?;
+    let turn = match host.turn(now, resources.driver.as_ref()) {
+        Ok(turn) => turn,
+        Err(UpdateFeaturesHostError::DriverMissing) => {
+            return Err(EngineHostError::DriverOwnerMissing);
+        }
+        Err(error) => return Err(EngineHostError::UpdateFeatures(error)),
+    };
     let driver_progress = match turn {
         UpdateFeaturesTurn::Idle => false,
         UpdateFeaturesTurn::Progress => true,
         UpdateFeaturesTurn::Submit(submission) => {
             let (operation_id, deadline, plan, result_limit) = submission.into_parts();
-            let request = remaining_timeout_ms(now, deadline.core())
-                .and_then(|timeout_ms| materialize_request(&plan, timeout_ms, result_limit));
-            let Some((request, minimum_version)) = request else {
-                host.reject_handoff(operation_id)
-                    .map_err(EngineHostError::UpdateFeatures)?;
-                return Ok(UpdateFeaturesProgress {
-                    unsettled: host.unsettled(),
-                    driver_progress: true,
-                    next_deadline: host.next_deadline(),
-                });
-            };
             let driver = resources
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            match UpdateFeaturesCall::submit(driver, request, minimum_version, deadline.transport())
-            {
+            match UpdateFeaturesCall::submit(driver, plan, result_limit, deadline, now) {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::UpdateFeatures)?,
                 Err(rejection) => {
-                    drop(rejection);
-                    host.reject_handoff(operation_id)
+                    let (plan, result_limit) = rejection.into_submission_evidence();
+                    host.reject_handoff(operation_id, plan, result_limit)
                         .map_err(EngineHostError::UpdateFeatures)?;
                 }
             }
@@ -78,41 +68,6 @@ pub(super) fn drive(
         driver_progress,
         next_deadline: host.next_deadline(),
     })
-}
-
-fn remaining_timeout_ms(now: Moment, deadline: Deadline) -> Option<i32> {
-    let remaining = deadline
-        .tick()
-        .checked_sub(now.tick())
-        .filter(|remaining| *remaining > 0)?;
-    let milliseconds = remaining.saturating_add(999_999) / 1_000_000;
-    Some(i32::try_from(milliseconds).unwrap_or(i32::MAX))
-}
-
-fn materialize_request(
-    plan: &UpdateFeaturesPlan,
-    timeout_ms: i32,
-    result_limit: usize,
-) -> Option<(PreparedUpdateFeaturesRequest, i16)> {
-    let mut updates = Vec::new();
-    updates.try_reserve_exact(plan.updates().len()).ok()?;
-    updates.extend(plan.updates().iter().map(|update| {
-        UpdateFeatureRef::new(
-            update.feature(),
-            update.max_version_level(),
-            match update.intent() {
-                UpdateFeatureIntent::Upgrade => UpdateFeatureMode::Upgrade,
-                UpdateFeatureIntent::SafeDowngrade => UpdateFeatureMode::SafeDowngrade,
-                UpdateFeatureIntent::UnsafeDowngrade => UpdateFeatureMode::UnsafeDowngrade,
-            },
-        )
-    }));
-    update_features_request(
-        UpdateFeaturesRequestPlan::new(&updates, plan.validate_only()),
-        timeout_ms,
-        result_limit,
-    )
-    .ok()
 }
 
 impl UpdateFeaturesProgress {

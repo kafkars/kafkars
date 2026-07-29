@@ -1,4 +1,4 @@
-//! Inert public leader-election intent translated only at the engine boundary.
+//! Inert public leader-election selection translated at the engine boundary.
 
 use kafka_client_engine::{
     ElectLeadersRequest as EngineRequest, LeaderElectionTarget as EngineTarget,
@@ -7,9 +7,15 @@ use kafka_client_engine::{
 
 use crate::{LeaderElectionTarget, LeaderElectionType};
 
+enum Selection {
+    Selected(Vec<LeaderElectionTarget>),
+    All,
+}
+
 /// Linear request retained by the public builder before submission.
 pub(crate) struct ElectLeadersAdminRequest {
-    inner: EngineRequest,
+    election_type: LeaderElectionType,
+    selection: Selection,
 }
 
 impl ElectLeadersAdminRequest {
@@ -18,15 +24,27 @@ impl ElectLeadersAdminRequest {
         targets: Vec<LeaderElectionTarget>,
     ) -> Self {
         Self {
-            inner: EngineRequest::new(
-                into_engine_type(election_type),
-                targets.into_iter().map(into_engine_target).collect(),
-            ),
+            election_type,
+            selection: Selection::Selected(targets),
+        }
+    }
+
+    pub(crate) const fn all(election_type: LeaderElectionType) -> Self {
+        Self {
+            election_type,
+            selection: Selection::All,
         }
     }
 
     pub(in crate::bridge) fn into_engine(self) -> EngineRequest {
-        self.inner
+        let election_type = into_engine_type(self.election_type);
+        match self.selection {
+            Selection::Selected(targets) => EngineRequest::selected(
+                election_type,
+                targets.into_iter().map(into_engine_target).collect(),
+            ),
+            Selection::All => EngineRequest::all(election_type),
+        }
     }
 }
 
@@ -34,6 +52,14 @@ impl std::fmt::Debug for ElectLeadersAdminRequest {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("ElectLeadersAdminRequest")
+            .field("election_type", &self.election_type)
+            .field(
+                "selection",
+                &match &self.selection {
+                    Selection::Selected(_) => "Selected",
+                    Selection::All => "All",
+                },
+            )
             .finish_non_exhaustive()
     }
 }

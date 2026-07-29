@@ -17,7 +17,7 @@ use crate::{
     admin::AdminDescribeFeaturesPublisher,
     clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{DescribeFeaturesCall, DescribeFeaturesRawTerminal},
+    driver::{DescribeFeaturesCall, DescribeFeaturesRawTerminal, RecoveredDescribeFeaturesCall},
 };
 
 use super::{DescribeFeaturesHostError, DescribeFeaturesObserver};
@@ -46,6 +46,8 @@ struct DescribeFeaturesOperation {
     submission: Option<DescribeFeaturesSubmission>,
     handoff: DescribeFeaturesHandoff,
     call: Option<DescribeFeaturesCall>,
+    // Driver-shutdown proof remains live until core accepts the terminal fact.
+    recovered_call: Option<RecoveredDescribeFeaturesCall>,
     raw_terminal: Option<DescribeFeaturesRawTerminal>,
     terminal: Option<DescribeFeaturesTerminal>,
 }
@@ -115,6 +117,7 @@ impl DescribeFeaturesHost {
             .ok_or(DescribeFeaturesHostError::UnknownOperation)?;
         if self.operations[index].handoff != DescribeFeaturesHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
         {
             return Err(DescribeFeaturesHostError::InvalidHandoff);
         }
@@ -129,7 +132,9 @@ impl DescribeFeaturesHost {
         let index = self
             .operation_index(operation_id)
             .ok_or(DescribeFeaturesHostError::UnknownOperation)?;
-        if self.operations[index].handoff != DescribeFeaturesHandoff::HandedOff {
+        if self.operations[index].handoff != DescribeFeaturesHandoff::HandedOff
+            || self.operations[index].recovered_call.is_some()
+        {
             return Err(DescribeFeaturesHostError::InvalidHandoff);
         }
         self.apply(operation_id, DescribeFeaturesInput::DriverRejected)

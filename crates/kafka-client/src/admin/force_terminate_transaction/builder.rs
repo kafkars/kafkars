@@ -17,13 +17,16 @@ impl ForceTerminateTransactionBuilder {
         Self { inner }
     }
 
-    /// Replaces the timeout while retaining the original Admin call boundary.
+    /// Replaces the duration converted into an absolute deadline at submission.
     pub fn deadline_after(mut self, timeout: Duration) -> Self {
         self.inner = self.inner.deadline_after(timeout);
         self
     }
 
     /// Attempts bounded admission and returns one named terminal observer.
+    ///
+    /// The shared producer-fencing owner captures exactly one absolute deadline
+    /// at this call boundary before preparing or admitting the operation.
     pub fn submit(self) -> ForceTerminateTransaction {
         ForceTerminateTransaction::from_fence_producers(self.inner.submit())
     }

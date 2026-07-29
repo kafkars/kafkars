@@ -7,6 +7,7 @@ use kafka_wire_core::{ApiVersion, BytesMut, KafkaEncode};
 use super::{
     DescribeLogDirsRequestFailure, DescribeLogDirsSelectionRef, DescribeLogDirsTopicSelectionRef,
     describe_log_dirs_request, describe_log_dirs_request_for_selection,
+    selection_request_peak_charge,
 };
 
 #[test]
@@ -111,4 +112,21 @@ fn generated_request_must_fit_before_it_is_returned() {
         error,
         DescribeLogDirsRequestFailure::RetainedBytes { .. }
     ));
+}
+
+#[test]
+fn flat_selection_peak_is_distinct_and_sufficient_for_grouped_request_scratch() {
+    let selection = AdminDescribeLogDirsSelection::Selected(vec![
+        AdminDescribeLogDirsPartition::new("orders".to_owned(), 3),
+        AdminDescribeLogDirsPartition::new("audit".to_owned(), 0),
+        AdminDescribeLogDirsPartition::new("orders".to_owned(), 1),
+    ]);
+    let peak = selection_request_peak_charge(&selection).expect("bounded peak");
+    assert!(peak > 0);
+    describe_log_dirs_request_for_selection(&selection, peak)
+        .unwrap_or_else(|error| panic!("charged selected request: {error:?}"));
+    assert_eq!(
+        selection_request_peak_charge(&AdminDescribeLogDirsSelection::AllTopics),
+        Some(0)
+    );
 }

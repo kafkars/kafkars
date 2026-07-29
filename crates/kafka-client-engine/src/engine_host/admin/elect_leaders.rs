@@ -36,18 +36,20 @@ pub(super) fn drive(
         ElectLeadersTurn::Idle => false,
         ElectLeadersTurn::Progress => true,
         ElectLeadersTurn::Submit(submission) => {
-            let (operation_id, deadline, plan, scratch_limit) = submission.into_parts();
+            let (operation_id, deadline, plan, scratch_limit, result_limit) =
+                submission.into_parts();
             let driver = resources
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            match ElectLeadersCall::submit(driver, &plan, scratch_limit, deadline, now) {
+            match ElectLeadersCall::submit(driver, plan, scratch_limit, result_limit, deadline, now)
+            {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::ElectLeaders)?,
                 Err(rejection) => {
-                    drop(rejection);
-                    host.reject_handoff(operation_id)
+                    let (plan, scratch_limit, result_limit) = rejection.into_correlation();
+                    host.reject_handoff(operation_id, plan, scratch_limit, result_limit)
                         .map_err(EngineHostError::ElectLeaders)?;
                 }
             }

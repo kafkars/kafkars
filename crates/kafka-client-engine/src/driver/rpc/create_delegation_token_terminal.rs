@@ -98,11 +98,22 @@ fn failure_kind(error: &RequestError) -> CreateDelegationTokenDriverFailureKind 
 
 /// Accepted ownership recovered only after the unique driver is destroyed.
 #[must_use = "recovered CreateDelegationToken ownership still requires core settlement"]
-pub(crate) struct RecoveredCreateDelegationTokenCall;
+pub(crate) struct RecoveredCreateDelegationTokenCall {
+    _private: (),
+}
 
 impl RecoveredCreateDelegationTokenCall {
+    pub(super) const fn new() -> Self {
+        Self { _private: () }
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn for_test() -> Self {
+        Self { _private: () }
+    }
+
     /// Consumes recovered ownership after core receives its terminal fact.
     pub(crate) const fn seal(self) {
-        let Self = self;
+        let Self { _private: () } = self;
     }
 }

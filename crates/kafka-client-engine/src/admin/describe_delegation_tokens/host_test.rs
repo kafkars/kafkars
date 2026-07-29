@@ -46,7 +46,8 @@ fn admission_reserves_completion_and_four_mib_envelope_before_submission() {
     else {
         panic!("submission expected");
     };
-    let (_id, submitted_deadline, submitted_plan, submitted_request) = submission.into_parts();
+    let (operation_id, submitted_deadline, submitted_plan, submitted_request) =
+        submission.into_parts();
     assert_eq!(submitted_deadline, capture.operation_deadline());
     assert!(matches!(
         submitted_plan.selection(),
@@ -55,6 +56,8 @@ fn admission_reserves_completion_and_four_mib_envelope_before_submission() {
     drop(submitted_request);
 
     drop(admission.observer);
+    host.reject_handoff(operation_id)
+        .unwrap_or_else(|error| panic!("reject inspected handoff: {error}"));
     host.recover_after_driver_shutdown()
         .unwrap_or_else(|error| panic!("recover host: {error}"));
     drop(host);
@@ -76,10 +79,15 @@ fn dropping_observer_does_not_cancel_accepted_work() {
         )
         .unwrap_or_else(|error| panic!("admit token query: {error:?}"));
     drop(admission.observer);
-    assert!(matches!(
-        host.turn(capture.now()),
-        Ok(DescribeDelegationTokensTurn::Submit(_))
-    ));
+    let DescribeDelegationTokensTurn::Submit(submission) = host
+        .turn(capture.now())
+        .unwrap_or_else(|error| panic!("submission turn: {error}"))
+    else {
+        panic!("submission expected");
+    };
+    let (operation_id, _deadline, _plan, _request) = submission.into_parts();
+    host.reject_handoff(operation_id)
+        .unwrap_or_else(|error| panic!("reject abandoned observation handoff: {error}"));
     host.recover_after_driver_shutdown()
         .unwrap_or_else(|error| panic!("recover abandoned observation: {error}"));
     drop(host);
@@ -126,21 +134,14 @@ fn sixteen_operations_are_reserved_before_capacity_rejection() {
 }
 
 #[test]
-fn shutdown_recovery_preserves_delivery_boundary() {
+fn untouched_shutdown_recovery_is_definitely_unsent() {
     recover_case(
-        false,
         DescribeDelegationTokensFailureKind::DriverRejected,
         DescribeDelegationTokensDeliveryStatus::NotSent,
-    );
-    recover_case(
-        true,
-        DescribeDelegationTokensFailureKind::Transport,
-        DescribeDelegationTokensDeliveryStatus::PossiblySent,
     );
 }
 
 fn recover_case(
-    hand_off: bool,
     kind: DescribeDelegationTokensFailureKind,
     delivery: DescribeDelegationTokensDeliveryStatus,
 ) {
@@ -156,12 +157,6 @@ fn recover_case(
             prepared(),
         )
         .unwrap_or_else(|error| panic!("admit recovery query: {error:?}"));
-    if hand_off {
-        assert!(matches!(
-            host.turn(capture.now()),
-            Ok(DescribeDelegationTokensTurn::Submit(_))
-        ));
-    }
     host.recover_after_driver_shutdown()
         .unwrap_or_else(|error| panic!("recover query: {error}"));
     assert_failure(admission.observer.wait(), kind, delivery);

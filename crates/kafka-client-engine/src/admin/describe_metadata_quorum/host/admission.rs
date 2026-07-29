@@ -59,6 +59,7 @@ impl DescribeMetadataQuorumHost {
             submission: None,
             handoff: DescribeMetadataQuorumHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

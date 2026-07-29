@@ -16,7 +16,10 @@ use crate::{
     admin::AdminDescribeClientQuotasPublisher,
     clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{DescribeClientQuotasCall, DescribeClientQuotasRawTerminal},
+    driver::{
+        DescribeClientQuotasCall, DescribeClientQuotasRawTerminal,
+        RecoveredDescribeClientQuotasCall,
+    },
 };
 
 use super::{DescribeClientQuotasHostError, DescribeClientQuotasObserver};
@@ -34,6 +37,7 @@ pub(crate) struct DescribeClientQuotasSubmission {
     operation_id: OperationId,
     deadline: OperationDeadline,
     plan: DescribeClientQuotasPlan,
+    request_scratch_limit: usize,
     result_limit: usize,
 }
 
@@ -45,11 +49,13 @@ impl DescribeClientQuotasSubmission {
         OperationDeadline,
         DescribeClientQuotasPlan,
         usize,
+        usize,
     ) {
         (
             self.operation_id,
             self.deadline,
             self.plan,
+            self.request_scratch_limit,
             self.result_limit,
         )
     }
@@ -71,13 +77,19 @@ enum DescribeClientQuotasHandoff {
 struct DescribeClientQuotasOperation {
     operation_id: OperationId,
     machine: DescribeClientQuotasMachine,
+    plan: DescribeClientQuotasPlan,
     completion_id: CompletionId,
     deadline: OperationDeadline,
     retained_bytes: usize,
+    request_scratch_limit: usize,
+    result_limit: usize,
     remaining_result_bytes: usize,
     submission: Option<DescribeClientQuotasSubmission>,
+    rejected_submission: Option<(DescribeClientQuotasPlan, usize, usize)>,
     handoff: DescribeClientQuotasHandoff,
     call: Option<DescribeClientQuotasCall>,
+    // Driver-shutdown proof remains live until core accepts the terminal fact.
+    recovered_call: Option<RecoveredDescribeClientQuotasCall>,
     raw_terminal: Option<DescribeClientQuotasRawTerminal>,
     terminal: Option<DescribeClientQuotasTerminal>,
 }
@@ -141,36 +153,6 @@ impl DescribeClientQuotasHost {
         Ok(DescribeClientQuotasTurn::Submit(submission))
     }
 
-    pub(crate) fn accept_call(
-        &mut self,
-        operation_id: OperationId,
-        call: DescribeClientQuotasCall,
-    ) -> Result<(), DescribeClientQuotasHostError> {
-        let index = self
-            .operation_index(operation_id)
-            .ok_or(DescribeClientQuotasHostError::UnknownOperation)?;
-        if self.operations[index].handoff != DescribeClientQuotasHandoff::HandedOff
-            || self.operations[index].call.is_some()
-        {
-            return Err(DescribeClientQuotasHostError::InvalidHandoff);
-        }
-        self.operations[index].call = Some(call);
-        self.apply(operation_id, DescribeClientQuotasInput::DriverAccepted)
-    }
-
-    pub(crate) fn reject_handoff(
-        &mut self,
-        operation_id: OperationId,
-    ) -> Result<(), DescribeClientQuotasHostError> {
-        let index = self
-            .operation_index(operation_id)
-            .ok_or(DescribeClientQuotasHostError::UnknownOperation)?;
-        if self.operations[index].handoff != DescribeClientQuotasHandoff::HandedOff {
-            return Err(DescribeClientQuotasHostError::InvalidHandoff);
-        }
-        self.apply(operation_id, DescribeClientQuotasInput::DriverRejected)
-    }
-
     pub(crate) fn close_admission(&mut self) {
         self.accepting = false;
     }
@@ -209,11 +191,16 @@ impl DescribeClientQuotasHost {
         if accepted {
             self.operations[index].handoff = DescribeClientQuotasHandoff::Submitted;
         }
-        if let Some(DescribeClientQuotasEffect::Complete { terminal, .. }) =
-            transition.into_effect()
-        {
-            self.operations[index].terminal = Some(terminal);
-            self.publish_terminal(index)?;
+        match transition.into_effect() {
+            Some(DescribeClientQuotasEffect::Complete {
+                operation_id: effect_id,
+                terminal,
+            }) if effect_id == operation_id => {
+                self.operations[index].terminal = Some(terminal);
+                self.publish_terminal(index)?;
+            }
+            Some(_) => return Err(DescribeClientQuotasHostError::SubmissionMismatch),
+            None => {}
         }
         Ok(())
     }

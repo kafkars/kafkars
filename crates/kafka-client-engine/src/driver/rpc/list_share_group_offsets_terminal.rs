@@ -107,6 +107,11 @@ impl RecoveredListShareGroupOffsetsCall {
         Self { _private: () }
     }
 
+    #[cfg(test)]
+    pub(crate) const fn for_test() -> Self {
+        Self::new()
+    }
+
     /// Consumes recovered ownership after core receives its terminal fact.
     pub(crate) const fn seal(self) {
         let Self { _private: () } = self;

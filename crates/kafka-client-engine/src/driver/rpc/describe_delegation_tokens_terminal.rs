@@ -1,6 +1,6 @@
 //! Neutral terminal facts for one tracked delegation-token query.
 
-use kafka_client_core::DeliveryStatus;
+use kafka_client_core::{DeliveryStatus, DescribeDelegationTokensPlan};
 use kafka_driver::{ApiVersion, CallFailure, RequestError, RouteFailureToken};
 use kafka_wire::DescribeDelegationTokenResponse;
 
@@ -98,11 +98,27 @@ fn failure_kind(error: &RequestError) -> DescribeDelegationTokensDriverFailureKi
 
 /// Accepted ownership recovered only after the unique driver is destroyed.
 #[must_use = "recovered DescribeDelegationTokens ownership still requires core settlement"]
-pub(crate) struct RecoveredDescribeDelegationTokensCall;
+pub(crate) struct RecoveredDescribeDelegationTokensCall {
+    plan: DescribeDelegationTokensPlan,
+}
 
 impl RecoveredDescribeDelegationTokensCall {
+    pub(super) const fn new(plan: DescribeDelegationTokensPlan) -> Self {
+        Self { plan }
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn for_test(plan: DescribeDelegationTokensPlan) -> Self {
+        Self { plan }
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn plan(&self) -> &DescribeDelegationTokensPlan {
+        &self.plan
+    }
+
     /// Consumes recovered ownership after core receives its terminal fact.
-    pub(crate) const fn seal(self) {
-        let Self = self;
+    pub(crate) fn seal(self) {
+        drop(self.plan);
     }
 }

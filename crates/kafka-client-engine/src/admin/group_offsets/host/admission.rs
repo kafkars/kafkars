@@ -62,7 +62,9 @@ impl ListConsumerGroupOffsetsHost {
             submission: None,
             handoff: ListConsumerGroupOffsetsHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
+            rejected_submission: None,
             terminal: None,
         };
         let start_result = start(&mut operation, now);

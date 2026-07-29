@@ -1,15 +1,13 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
-use kafka_client_core::{
-    AdminListTransactionsInput, AdminListTransactionsState, DeliveryStatus, Moment,
-};
+mod recovery;
+
+#[cfg(test)]
+mod recovery_test;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
-use super::{
-    AdminListTransactionsHandoff, AdminListTransactionsHost, AdminListTransactionsHostError,
-    response::terminal_input,
-};
+use super::{AdminListTransactionsHost, AdminListTransactionsHostError, response::terminal_input};
 
 impl AdminListTransactionsHost {
     pub(super) fn poll_one_call(&mut self) -> Result<bool, AdminListTransactionsHostError> {
@@ -30,71 +28,15 @@ impl AdminListTransactionsHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
             }
             Err(_error) => Err(AdminListTransactionsHostError::CallCompletion),
         }
-    }
-
-    pub(crate) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), AdminListTransactionsHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            match (operation.machine.state(), operation.handoff) {
-                (AdminListTransactionsState::Ready, _) => self.apply(
-                    operation_id,
-                    AdminListTransactionsInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (
-                    AdminListTransactionsState::AwaitingDiscoveryDriver
-                    | AdminListTransactionsState::AwaitingBrokerDriver,
-                    AdminListTransactionsHandoff::Untouched,
-                ) => self.apply(operation_id, AdminListTransactionsInput::DriverRejected)?,
-                (
-                    AdminListTransactionsState::AwaitingDiscoveryDriver
-                    | AdminListTransactionsState::AwaitingBrokerDriver,
-                    AdminListTransactionsHandoff::HandedOff,
-                ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(operation_id, AdminListTransactionsInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        AdminListTransactionsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (
-                    AdminListTransactionsState::DiscoverySubmitted
-                    | AdminListTransactionsState::BrokerSubmitted,
-                    AdminListTransactionsHandoff::Submitted,
-                ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        AdminListTransactionsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (AdminListTransactionsState::Completed, _) => self.publish_terminal(0)?,
-                _ => return Err(AdminListTransactionsHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), AdminListTransactionsHostError> {
@@ -107,7 +49,10 @@ impl AdminListTransactionsHost {
                 .raw_terminal
                 .as_ref()
                 .ok_or(AdminListTransactionsHostError::MissingTerminal)?;
-            terminal_input(raw, operation.remaining_result_bytes)
+            if !raw_matches_active_submission(operation, raw) {
+                return Err(AdminListTransactionsHostError::SubmissionMismatch);
+            }
+            terminal_input(raw)
         };
         self.operations[index].remaining_result_bytes = self.operations[index]
             .remaining_result_bytes
@@ -129,7 +74,10 @@ impl AdminListTransactionsHost {
         &mut self,
         index: usize,
     ) -> Result<(), AdminListTransactionsHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(AdminListTransactionsHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -188,12 +136,56 @@ impl AdminListTransactionsHost {
             .ok_or(AdminListTransactionsHostError::ByteAccounting)?;
         Ok(())
     }
+
+    #[cfg(test)]
+    pub(in crate::admin::list_transactions) fn retain_raw_terminal_for_test(
+        &mut self,
+        raw: crate::driver::ListTransactionsRawTerminal,
+    ) {
+        self.operations[0].raw_terminal = Some(raw);
+    }
+
+    #[cfg(test)]
+    pub(in crate::admin::list_transactions) fn settle_raw_for_test(
+        &mut self,
+    ) -> Result<(), AdminListTransactionsHostError> {
+        self.settle_raw(0)
+    }
+
+    #[cfg(test)]
+    pub(in crate::admin::list_transactions) fn recovered_matches_discovery_for_test(
+        &self,
+        retained_limit: usize,
+    ) -> bool {
+        self.operations[0]
+            .recovered_call
+            .as_ref()
+            .is_some_and(|recovered| recovered.matches_discovery(retained_limit))
+    }
+
+    #[cfg(test)]
+    pub(in crate::admin::list_transactions) fn publish_terminal_for_test(
+        &mut self,
+    ) -> Result<(), AdminListTransactionsHostError> {
+        self.publish_terminal(0)
+    }
 }
 
-fn seal_call(call: Option<crate::driver::ListTransactionsCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
+fn raw_matches_active_submission(
+    operation: &super::AdminListTransactionsOperation,
+    raw: &crate::driver::ListTransactionsRawTerminal,
+) -> bool {
+    let Some(submission) = operation.active_submission.as_ref() else {
+        return false;
+    };
+    match submission {
+        super::AdminListTransactionsSubmissionKind::Discovery { retained_limit } => {
+            raw.matches_discovery(*retained_limit)
         }
+        super::AdminListTransactionsSubmissionKind::Broker {
+            broker_id,
+            plan,
+            retained_limit,
+        } => raw.matches_broker(*broker_id, plan, *retained_limit),
     }
 }

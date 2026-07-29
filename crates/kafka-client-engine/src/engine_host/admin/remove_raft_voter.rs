@@ -1,11 +1,11 @@
-//! Fair host turns for one destructive metadata-quorum voter removal.
+//! Fair host turns for one destructive controller-routed metadata-quorum voter removal.
 
 use kafka_client_core::{Deadline, Moment};
 
 use crate::{
     admin::{
-        RemoveRaftVoterShardLockError, RemoveRaftVoterShardWake, RemoveRaftVoterShardWakeError,
-        RemoveRaftVoterTurn,
+        RemoveRaftVoterHostError, RemoveRaftVoterShardLockError, RemoveRaftVoterShardWake,
+        RemoveRaftVoterShardWakeError, RemoveRaftVoterTurn,
     },
     driver::{ReactorWake, RemoveRaftVoterCall},
 };
@@ -34,7 +34,13 @@ pub(super) fn drive(
     if resources.control.shutdown_requested() {
         resources.remove_raft_voter.close_locked(&mut host);
     }
-    let turn = host.turn(now).map_err(EngineHostError::RemoveRaftVoter)?;
+    let turn = match host.turn(now, resources.driver.as_ref()) {
+        Ok(turn) => turn,
+        Err(RemoveRaftVoterHostError::DriverMissing) => {
+            return Err(EngineHostError::DriverOwnerMissing);
+        }
+        Err(error) => return Err(EngineHostError::RemoveRaftVoter(error)),
+    };
     let driver_progress = match turn {
         RemoveRaftVoterTurn::Idle => false,
         RemoveRaftVoterTurn::Progress => true,
@@ -44,7 +50,7 @@ pub(super) fn drive(
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            match RemoveRaftVoterCall::submit(driver, &plan, deadline) {
+            match RemoveRaftVoterCall::submit(driver, plan, deadline) {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::RemoveRaftVoter)?,

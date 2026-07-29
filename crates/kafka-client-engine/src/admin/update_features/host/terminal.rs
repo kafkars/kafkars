@@ -1,17 +1,45 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
-use kafka_client_core::{
-    DeliveryStatus, Moment, UpdateFeaturesEffect, UpdateFeaturesInput, UpdateFeaturesState,
+mod recovery;
+
+#[cfg(test)]
+mod test_support;
+
+use kafka_client_core::UpdateFeaturesEffect;
+
+use crate::{
+    completion::{CompletionRegistryError, ReclaimStatus},
+    driver::{DriverOwner, UpdateFeaturesControllerRefreshPoll},
 };
 
-use crate::completion::{CompletionRegistryError, ReclaimStatus};
-
-use super::{
-    UpdateFeaturesHandoff, UpdateFeaturesHost, UpdateFeaturesHostError, response::terminal_input,
-};
+use super::{UpdateFeaturesHost, UpdateFeaturesHostError, response::terminal_input};
 
 impl UpdateFeaturesHost {
-    pub(super) fn poll_one_call(&mut self) -> Result<bool, UpdateFeaturesHostError> {
+    pub(super) fn poll_one_call(
+        &mut self,
+        driver: Option<&DriverOwner>,
+    ) -> Result<bool, UpdateFeaturesHostError> {
+        if let Some(index) = self
+            .operations
+            .iter()
+            .position(|operation| operation.raw_terminal.is_some())
+        {
+            let poll = self.operations[index]
+                .raw_terminal
+                .as_mut()
+                .ok_or(UpdateFeaturesHostError::MissingTerminal)?
+                .poll_controller_refresh(driver);
+            match poll {
+                UpdateFeaturesControllerRefreshPoll::Ready => {
+                    self.settle_raw(index)?;
+                    return Ok(true);
+                }
+                UpdateFeaturesControllerRefreshPoll::Pending => return Ok(true),
+                UpdateFeaturesControllerRefreshPoll::DriverMissing => {
+                    return Err(UpdateFeaturesHostError::DriverMissing);
+                }
+            }
+        }
         let Some(index) = self
             .operations
             .iter()
@@ -29,61 +57,14 @@ impl UpdateFeaturesHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
-                self.settle_raw(index)?;
                 Ok(true)
             }
             Err(_error) => Err(UpdateFeaturesHostError::CallCompletion),
         }
-    }
-
-    pub(crate) fn recover_after_driver_shutdown(&mut self) -> Result<(), UpdateFeaturesHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (UpdateFeaturesState::Ready, _) => self.apply(
-                    operation_id,
-                    UpdateFeaturesInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (UpdateFeaturesState::AwaitingDriver, UpdateFeaturesHandoff::Untouched) => {
-                    self.apply(operation_id, UpdateFeaturesInput::DriverRejected)?;
-                }
-                (UpdateFeaturesState::AwaitingDriver, UpdateFeaturesHandoff::HandedOff) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(operation_id, UpdateFeaturesInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        UpdateFeaturesInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (UpdateFeaturesState::Submitted, UpdateFeaturesHandoff::Submitted) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        UpdateFeaturesInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (UpdateFeaturesState::Completed, _) => self.publish_terminal(0)?,
-                _ => return Err(UpdateFeaturesHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), UpdateFeaturesHostError> {
@@ -96,17 +77,17 @@ impl UpdateFeaturesHost {
                 .raw_terminal
                 .as_ref()
                 .ok_or(UpdateFeaturesHostError::MissingTerminal)?;
-            terminal_input(
-                raw,
-                &operation.response_plan,
-                operation.remaining_result_bytes,
-            )
+            if !raw.matches_evidence(&operation.response_plan, operation.remaining_result_bytes) {
+                return Err(UpdateFeaturesHostError::SubmissionMismatch);
+            }
+            terminal_input(raw)
         };
-        self.operations[index].remaining_result_bytes = self.operations[index]
+        let remaining_result_bytes = self.operations[index]
             .remaining_result_bytes
             .checked_sub(retained_bytes)
             .ok_or(UpdateFeaturesHostError::ByteAccounting)?;
         let transition = self.operations[index].machine.apply(input)?;
+        self.operations[index].remaining_result_bytes = remaining_result_bytes;
         let raw = self.operations[index]
             .raw_terminal
             .take()
@@ -125,7 +106,10 @@ impl UpdateFeaturesHost {
     }
 
     pub(super) fn publish_terminal(&mut self, index: usize) -> Result<(), UpdateFeaturesHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(UpdateFeaturesHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -183,13 +167,5 @@ impl UpdateFeaturesHost {
             .checked_sub(bytes)
             .ok_or(UpdateFeaturesHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::UpdateFeaturesCall>) {
-    if let Some(call) = call
-        && let Some(recovered) = call.recover_after_driver_shutdown()
-    {
-        recovered.seal();
     }
 }

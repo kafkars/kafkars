@@ -41,12 +41,12 @@ pub(super) fn drive(
         ExpireDelegationTokenTurn::Idle => false,
         ExpireDelegationTokenTurn::Progress => true,
         ExpireDelegationTokenTurn::Submit(submission) => {
-            let (operation_id, deadline, _plan, request) = submission.into_parts();
+            let (operation_id, deadline, plan, request) = submission.into_parts();
             let driver = resources
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            match ExpireDelegationTokenCall::submit(driver, request, deadline.transport()) {
+            match ExpireDelegationTokenCall::submit(driver, plan, request, deadline.transport()) {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::ExpireDelegationToken)?,

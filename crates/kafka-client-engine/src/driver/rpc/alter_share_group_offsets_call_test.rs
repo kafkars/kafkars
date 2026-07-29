@@ -10,7 +10,7 @@ use crate::{EngineConfig, driver::DriverOwner};
 use super::AlterShareGroupOffsetsCall;
 
 #[test]
-fn completion_fault_is_yielded_once_and_not_recovered_as_active() {
+fn completion_fault_remains_recoverable_after_driver_shutdown() {
     let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver owner: {error}"));
     let plan = AlterShareGroupOffsetsPlan::new(
@@ -27,6 +27,7 @@ fn completion_fault_is_yielded_once_and_not_recovered_as_active() {
         call.try_terminal(),
         Some(Err(CompletionError::Closed))
     ));
-    assert!(call.try_terminal().is_none());
-    assert!(call.recover_after_driver_shutdown().is_none());
+    call.recover_after_driver_shutdown()
+        .unwrap_or_else(|| panic!("completion fault must retain accepted call ownership"))
+        .seal();
 }

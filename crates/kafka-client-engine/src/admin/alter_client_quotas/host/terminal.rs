@@ -1,15 +1,17 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
-use kafka_client_core::{
-    AlterClientQuotasEffect, AlterClientQuotasInput, AlterClientQuotasState, DeliveryStatus, Moment,
-};
+mod recovery;
+#[cfg(test)]
+mod recovery_test;
+
+#[cfg(test)]
+mod test_support;
+
+use kafka_client_core::AlterClientQuotasEffect;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
-use super::{
-    AlterClientQuotasHandoff, AlterClientQuotasHost, AlterClientQuotasHostError,
-    response::terminal_input,
-};
+use super::{AlterClientQuotasHost, AlterClientQuotasHostError, response::terminal_input};
 
 impl AlterClientQuotasHost {
     pub(super) fn poll_one_call(&mut self) -> Result<bool, AlterClientQuotasHostError> {
@@ -30,65 +32,15 @@ impl AlterClientQuotasHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
             }
             Err(_error) => Err(AlterClientQuotasHostError::CallCompletion),
         }
-    }
-
-    pub(crate) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), AlterClientQuotasHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (AlterClientQuotasState::Ready, _) => self.apply(
-                    operation_id,
-                    AlterClientQuotasInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (AlterClientQuotasState::AwaitingDriver, AlterClientQuotasHandoff::Untouched) => {
-                    self.apply(operation_id, AlterClientQuotasInput::DriverRejected)?;
-                }
-                (AlterClientQuotasState::AwaitingDriver, AlterClientQuotasHandoff::HandedOff) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(operation_id, AlterClientQuotasInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        AlterClientQuotasInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (AlterClientQuotasState::Submitted, AlterClientQuotasHandoff::Submitted) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        AlterClientQuotasInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (AlterClientQuotasState::Completed, _) => {
-                    self.publish_terminal(0)?;
-                }
-                _ => return Err(AlterClientQuotasHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), AlterClientQuotasHostError> {
@@ -101,35 +53,41 @@ impl AlterClientQuotasHost {
                 .raw_terminal
                 .as_ref()
                 .ok_or(AlterClientQuotasHostError::MissingTerminal)?;
-            terminal_input(raw, operation.remaining_result_bytes)
+            if !operation.matches_raw(raw) {
+                return Err(AlterClientQuotasHostError::SubmissionMismatch);
+            }
+            terminal_input(raw, operation.retained_limit)
         };
-        self.operations[index].remaining_result_bytes = self.operations[index]
-            .remaining_result_bytes
+        self.operations[index]
+            .retained_limit
             .checked_sub(retained_bytes)
             .ok_or(AlterClientQuotasHostError::ByteAccounting)?;
         let transition = self.operations[index].machine.apply(input)?;
-        let raw = self.operations[index]
-            .raw_terminal
-            .take()
-            .ok_or(AlterClientQuotasHostError::MissingTerminal)?;
-        raw.discard();
-        match transition.into_effect() {
+        let terminal = match transition.into_effect() {
             Some(AlterClientQuotasEffect::Complete {
                 operation_id,
                 terminal,
-            }) if operation_id == self.operations[index].operation_id => {
-                self.operations[index].terminal = Some(terminal);
-                self.publish_terminal(index)
-            }
-            _ => Err(AlterClientQuotasHostError::MissingTerminal),
-        }
+            }) if operation_id == self.operations[index].operation_id => terminal,
+            _ => return Err(AlterClientQuotasHostError::MissingTerminal),
+        };
+        self.operations[index]
+            .raw_terminal
+            .take()
+            .ok_or(AlterClientQuotasHostError::MissingTerminal)?
+            .discard();
+        self.operations[index].terminal = Some(terminal);
+        self.publish_terminal(index)
     }
 
     pub(super) fn publish_terminal(
         &mut self,
         index: usize,
     ) -> Result<(), AlterClientQuotasHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+            || self.operations[index].rejected_submission.is_some()
+        {
             return Err(AlterClientQuotasHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -187,13 +145,5 @@ impl AlterClientQuotasHost {
             .checked_sub(bytes)
             .ok_or(AlterClientQuotasHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::AlterClientQuotasCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

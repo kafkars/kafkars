@@ -2,6 +2,8 @@
 
 mod admission;
 mod model;
+#[cfg(test)]
+mod ownership_test;
 mod response;
 mod terminal;
 
@@ -17,7 +19,10 @@ use crate::{
     admin::AdminDeleteShareGroupOffsetsPublisher,
     clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{DeleteShareGroupOffsetsCall, DeleteShareGroupOffsetsTerminal as DriverTerminal},
+    driver::{
+        DeleteShareGroupOffsetsCall, DeleteShareGroupOffsetsTerminal as DriverTerminal,
+        RecoveredDeleteShareGroupOffsetsCall,
+    },
 };
 
 use super::{DeleteShareGroupOffsetsHostError, DeleteShareGroupOffsetsObserver};
@@ -45,6 +50,7 @@ struct DeleteShareGroupOffsetsOperation {
     submission: Option<DeleteShareGroupOffsetsSubmission>,
     handoff: DeleteShareGroupOffsetsHandoff,
     call: Option<DeleteShareGroupOffsetsCall>,
+    recovered_call: Option<RecoveredDeleteShareGroupOffsetsCall>,
     raw_terminal: Option<DriverTerminal>,
     terminal: Option<DeleteShareGroupOffsetsTerminal>,
 }

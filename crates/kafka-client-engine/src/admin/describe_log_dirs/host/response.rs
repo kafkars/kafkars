@@ -21,21 +21,19 @@ use crate::{
 
 pub(super) fn terminal_input(
     raw: &DescribeLogDirsRawTerminal,
-    current_broker: i32,
     selection: &AdminDescribeLogDirsSelection,
-    retained_bytes: usize,
 ) -> (AdminDescribeLogDirsInput, usize) {
     match raw.fact() {
         DescribeLogDirsTerminalFact::Response {
             broker_id,
             selected_version: Some(selected_version),
             response,
-        } if broker_id == current_broker => {
+        } => {
             match normalize_describe_log_dirs_response_for_selection(
                 selection,
                 selected_version,
                 response,
-                retained_bytes,
+                raw.result_limit(),
             ) {
                 Ok(normalized) => normalized_input(broker_id, normalized)
                     .unwrap_or((AdminDescribeLogDirsInput::ResponseTooLarge, 0)),
@@ -63,9 +61,6 @@ pub(super) fn terminal_input(
             },
             0,
         ),
-        DescribeLogDirsTerminalFact::Response { .. } => {
-            (AdminDescribeLogDirsInput::InvalidResponse, 0)
-        }
         DescribeLogDirsTerminalFact::Failed { kind, delivery } => {
             (driver_failure(kind, delivery), 0)
         }

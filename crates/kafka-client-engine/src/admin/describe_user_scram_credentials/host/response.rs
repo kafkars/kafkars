@@ -22,7 +22,6 @@ use crate::{
 
 pub(super) fn terminal_input(
     raw: &DescribeUserScramCredentialsRawTerminal,
-    retained_limit: usize,
 ) -> (DescribeUserScramCredentialsInput, usize) {
     match raw.fact() {
         DescribeUserScramCredentialsTerminalFact::Response {
@@ -34,7 +33,7 @@ pub(super) fn terminal_input(
                 selected_version,
                 request,
                 response,
-                retained_limit,
+                raw.result_limit(),
             ) {
                 Ok(normalized) => {
                     let (

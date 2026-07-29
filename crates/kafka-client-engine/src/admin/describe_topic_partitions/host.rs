@@ -44,6 +44,7 @@ struct AdminDescribeTopicPartitionsOperation {
     submission: Option<AdminDescribeTopicPartitionsSubmission>,
     handoff: AdminDescribeTopicPartitionsHandoff,
     call: Option<DescribeTopicPartitionsCall>,
+    recovered_call: Option<crate::driver::RecoveredDescribeTopicPartitionsCall>,
     raw_terminal: Option<DescribeTopicPartitionsRawTerminal>,
     terminal: Option<DescribeTopicPartitionsTerminal>,
 }
@@ -117,6 +118,7 @@ impl AdminDescribeTopicPartitionsHost {
             .ok_or(AdminDescribeTopicPartitionsHostError::UnknownOperation)?;
         if self.operations[index].handoff != AdminDescribeTopicPartitionsHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
         {
             return Err(AdminDescribeTopicPartitionsHostError::InvalidHandoff);
         }
@@ -131,7 +133,9 @@ impl AdminDescribeTopicPartitionsHost {
         let index = self
             .operation_index(operation_id)
             .ok_or(AdminDescribeTopicPartitionsHostError::UnknownOperation)?;
-        if self.operations[index].handoff != AdminDescribeTopicPartitionsHandoff::HandedOff {
+        if self.operations[index].handoff != AdminDescribeTopicPartitionsHandoff::HandedOff
+            || self.operations[index].recovered_call.is_some()
+        {
             return Err(AdminDescribeTopicPartitionsHostError::InvalidHandoff);
         }
         self.apply(operation_id, DescribeTopicPartitionsInput::DriverRejected)

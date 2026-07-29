@@ -1,15 +1,19 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
-use kafka_client_core::{
-    CreateDelegationTokenEffect, CreateDelegationTokenInput, CreateDelegationTokenState,
-    DeliveryStatus, Moment,
-};
+mod recovery;
+
+#[cfg(test)]
+mod recovery_test;
+#[cfg(test)]
+mod test_support;
+
+use kafka_client_core::CreateDelegationTokenEffect;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
 use super::{
-    CreateDelegationTokenHandoff, CreateDelegationTokenHost, CreateDelegationTokenHostError,
-    CreateDelegationTokenOperation, response::terminal_input,
+    CreateDelegationTokenHost, CreateDelegationTokenHostError, CreateDelegationTokenOperation,
+    response::terminal_input,
 };
 
 impl CreateDelegationTokenOperation {
@@ -22,18 +26,14 @@ impl CreateDelegationTokenOperation {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.call.take());
                 self.raw_terminal = Some(terminal);
                 Ok(true)
             }
             Err(_error) => Err(CreateDelegationTokenHostError::CallCompletion),
         }
-    }
-
-    fn take_call_for_recovery(&mut self) -> Option<crate::driver::CreateDelegationTokenCall> {
-        self.call.take()
     }
 
     fn settle_raw(&mut self) -> Result<(), CreateDelegationTokenHostError> {
@@ -81,61 +81,6 @@ impl CreateDelegationTokenHost {
         Ok(true)
     }
 
-    pub(crate) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), CreateDelegationTokenHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (CreateDelegationTokenState::Ready, _) => self.apply(
-                    operation_id,
-                    CreateDelegationTokenInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (
-                    CreateDelegationTokenState::AwaitingDriver,
-                    CreateDelegationTokenHandoff::Untouched,
-                ) => self.apply(operation_id, CreateDelegationTokenInput::DriverRejected)?,
-                (
-                    CreateDelegationTokenState::AwaitingDriver,
-                    CreateDelegationTokenHandoff::HandedOff,
-                ) => {
-                    seal_call(self.operations[0].take_call_for_recovery());
-                    self.apply(operation_id, CreateDelegationTokenInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        CreateDelegationTokenInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (
-                    CreateDelegationTokenState::Submitted,
-                    CreateDelegationTokenHandoff::Submitted,
-                ) => {
-                    seal_call(self.operations[0].take_call_for_recovery());
-                    self.apply(
-                        operation_id,
-                        CreateDelegationTokenInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (CreateDelegationTokenState::Completed, _) => self.publish_terminal(0)?,
-                _ => return Err(CreateDelegationTokenHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
-    }
-
     fn settle_raw(&mut self, index: usize) -> Result<(), CreateDelegationTokenHostError> {
         let operation = self
             .operations
@@ -149,7 +94,10 @@ impl CreateDelegationTokenHost {
         &mut self,
         index: usize,
     ) -> Result<(), CreateDelegationTokenHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(CreateDelegationTokenHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -208,16 +156,4 @@ impl CreateDelegationTokenHost {
             .ok_or(CreateDelegationTokenHostError::ByteAccounting)?;
         Ok(())
     }
-}
-
-fn seal_call(call: Option<crate::driver::CreateDelegationTokenCall>) {
-    if let Some(call) = call
-        && let Some(recovered) = call.recover_after_driver_shutdown()
-    {
-        seal_recovered_call(recovered);
-    }
-}
-
-fn seal_recovered_call(recovered: crate::driver::RecoveredCreateDelegationTokenCall) {
-    recovered.seal();
 }

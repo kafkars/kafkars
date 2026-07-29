@@ -59,6 +59,7 @@ impl AdminDescribeProducersHost {
             submission: None,
             handoff: AdminDescribeProducersHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

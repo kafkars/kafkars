@@ -4,6 +4,7 @@ use std::{fmt, time::Duration};
 
 use crate::admin::AdminHandle;
 
+use super::model::ElectLeadersPlanFailure;
 use super::{
     ElectLeadersAdmissionError, ElectLeadersAdmissionErrorKind, ElectLeadersObserver,
     ElectLeadersRequest,
@@ -44,11 +45,16 @@ impl AdminHandle {
             .clone()
             .canonicalize()
             .into_plan()
-            .map_err(|_error| {
-                ElectLeadersAdmissionError::new(
-                    ElectLeadersAdmissionErrorKind::InvalidRequest,
-                    request.clone(),
-                )
+            .map_err(|error| {
+                let kind = match error {
+                    ElectLeadersPlanFailure::Invalid(_error) => {
+                        ElectLeadersAdmissionErrorKind::InvalidRequest
+                    }
+                    ElectLeadersPlanFailure::RetainedBytes => {
+                        ElectLeadersAdmissionErrorKind::RetainedBytes
+                    }
+                };
+                ElectLeadersAdmissionError::new(kind, request.clone())
             })?;
         let admission = self
             .elect_leaders

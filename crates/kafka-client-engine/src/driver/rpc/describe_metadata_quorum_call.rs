@@ -33,14 +33,14 @@ impl DescribeMetadataQuorumCall {
         Ok(Self { call: Some(call) })
     }
 
-    /// Extracts one ready raw terminal without blocking.
+    /// Extracts one ready raw terminal without releasing its route evidence.
     pub(crate) fn try_terminal(
         &mut self,
     ) -> Option<Result<DescribeMetadataQuorumRawTerminal, CompletionError>> {
         let result = self.call.as_mut()?.try_result()?;
-        drop(self.call.take());
         match result {
             Ok(outcome) => {
+                drop(self.call.take());
                 let (result, selected_version, route_token) = outcome.into_parts();
                 Some(Ok(retain_describe_metadata_quorum_terminal(
                     selected_version,
@@ -54,11 +54,11 @@ impl DescribeMetadataQuorumCall {
 
     /// Seals unresolved ownership only after the unique driver is gone.
     pub(crate) fn recover_after_driver_shutdown(
-        mut self,
+        self,
     ) -> Option<RecoveredDescribeMetadataQuorumCall> {
-        self.call.take().map(|call| {
+        self.call.map(|call| {
             drop(call);
-            RecoveredDescribeMetadataQuorumCall
+            RecoveredDescribeMetadataQuorumCall::new()
         })
     }
 }

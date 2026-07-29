@@ -6,7 +6,7 @@ use crate::bridge::{admin::AdminEngine, admin_elect_leaders::ElectLeadersAdminRe
 
 use super::ElectLeaders;
 
-/// Inert caller-ordered selected-partition leader election.
+/// Inert selected-partition or cluster-wide leader election.
 #[must_use = "call submit to admit the ElectLeaders operation"]
 pub struct ElectLeadersBuilder {
     engine: AdminEngine,
@@ -33,7 +33,8 @@ impl ElectLeadersBuilder {
         self
     }
 
-    /// Attempts bounded admission and returns one named observer.
+    /// Captures the public deadline, attempts bounded admission, and returns
+    /// one named observer.
     pub fn submit(self) -> ElectLeaders {
         ElectLeaders::from_bridge(self.engine.submit_elect_leaders(self.request, self.timeout))
     }

@@ -104,6 +104,7 @@ impl ListShareGroupOffsetsHost {
             .ok_or(ListShareGroupOffsetsHostError::UnknownOperation)?;
         if self.operations[index].handoff != ListShareGroupOffsetsHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
         {
             return Err(ListShareGroupOffsetsHostError::InvalidHandoff);
         }

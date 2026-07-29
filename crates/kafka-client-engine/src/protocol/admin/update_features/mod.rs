@@ -15,9 +15,7 @@ pub(crate) use model::{
     UpdateFeaturesRequestPlan,
 };
 pub(crate) use prepared::PreparedUpdateFeaturesRequest;
-#[cfg(test)]
-pub(crate) use request::UpdateFeaturesRequestFailure;
-pub(crate) use request::update_features_request;
+pub(crate) use request::{UpdateFeaturesRequestFailure, update_features_request};
 pub(crate) use response::{UpdateFeaturesProtocolFailure, normalize_update_features_response};
 pub(crate) use version::UPDATE_FEATURES_MAX_VERSION;
 

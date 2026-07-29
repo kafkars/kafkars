@@ -1,6 +1,6 @@
 //! Neutral borrowed terminal facts for one API27 leader call.
 
-use kafka_client_core::DeliveryStatus;
+use kafka_client_core::{AbortPartitionTransactionPlan, DeliveryStatus};
 use kafka_driver::{ApiVersion, CallFailure, RequestError, RouteFailureToken};
 use kafka_wire::WriteTxnMarkersResponse;
 
@@ -33,6 +33,7 @@ pub(crate) struct AbortPartitionTransactionRawTerminal {
     selected_version: Option<i16>,
     result: Result<WriteTxnMarkersResponse, RequestError>,
     route_token: Option<RouteFailureToken>,
+    plan: AbortPartitionTransactionPlan,
 }
 
 impl AbortPartitionTransactionRawTerminal {
@@ -49,9 +50,22 @@ impl AbortPartitionTransactionRawTerminal {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn matches_plan_for_test(&self, expected: &AbortPartitionTransactionPlan) -> bool {
+        &self.plan == expected
+    }
+
     /// Deliberately releases route evidence after core accepts the terminal fact.
     pub(crate) fn discard(self) {
-        drop(self.route_token);
+        let Self {
+            selected_version: _,
+            result,
+            route_token,
+            plan,
+        } = self;
+        drop(result);
+        drop(route_token);
+        drop(plan);
     }
 }
 
@@ -59,11 +73,13 @@ pub(super) fn retain_abort_partition_transaction_terminal(
     selected_version: Option<ApiVersion>,
     result: Result<WriteTxnMarkersResponse, RequestError>,
     route_token: Option<RouteFailureToken>,
+    plan: AbortPartitionTransactionPlan,
 ) -> AbortPartitionTransactionRawTerminal {
     AbortPartitionTransactionRawTerminal {
         selected_version: selected_version.map(ApiVersion::value),
         result,
         route_token,
+        plan,
     }
 }
 
@@ -93,16 +109,26 @@ fn failure_kind(error: &RequestError) -> AbortPartitionTransactionDriverFailureK
 /// Accepted call ownership recovered only after driver shutdown.
 #[must_use = "recovered partition transaction-abort ownership requires settlement"]
 pub(crate) struct RecoveredAbortPartitionTransactionCall {
-    _private: (),
+    plan: AbortPartitionTransactionPlan,
 }
 
 impl RecoveredAbortPartitionTransactionCall {
-    pub(super) const fn new() -> Self {
-        Self { _private: () }
+    pub(super) const fn new(plan: AbortPartitionTransactionPlan) -> Self {
+        Self { plan }
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn for_test(plan: AbortPartitionTransactionPlan) -> Self {
+        Self { plan }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn matches_plan_for_test(&self, expected: &AbortPartitionTransactionPlan) -> bool {
+        &self.plan == expected
     }
 
     /// Consumes the recovered proof after conservative core settlement.
-    pub(crate) const fn seal(self) {
-        let Self { _private: () } = self;
+    pub(crate) fn seal(self) {
+        drop(self.plan);
     }
 }

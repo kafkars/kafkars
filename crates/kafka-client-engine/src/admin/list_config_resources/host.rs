@@ -17,7 +17,9 @@ use crate::{
     admin::AdminListConfigResourcesPublisher,
     clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{ListConfigResourcesCall, ListConfigResourcesRawTerminal},
+    driver::{
+        ListConfigResourcesCall, ListConfigResourcesRawTerminal, RecoveredListConfigResourcesCall,
+    },
 };
 
 use super::{ListConfigResourcesHostError, ListConfigResourcesObserver};
@@ -44,6 +46,7 @@ struct ListConfigResourcesOperation {
     submission: Option<ListConfigResourcesSubmission>,
     handoff: ListConfigResourcesHandoff,
     call: Option<ListConfigResourcesCall>,
+    recovered_call: Option<RecoveredListConfigResourcesCall>,
     raw_terminal: Option<ListConfigResourcesRawTerminal>,
     terminal: Option<ListConfigResourcesTerminal>,
 }
@@ -116,6 +119,7 @@ impl ListConfigResourcesHost {
             .ok_or(ListConfigResourcesHostError::UnknownOperation)?;
         if self.operations[index].handoff != ListConfigResourcesHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
         {
             return Err(ListConfigResourcesHostError::InvalidHandoff);
         }
@@ -130,7 +134,11 @@ impl ListConfigResourcesHost {
         let index = self
             .operation_index(operation_id)
             .ok_or(ListConfigResourcesHostError::UnknownOperation)?;
-        if self.operations[index].handoff != ListConfigResourcesHandoff::HandedOff {
+        if self.operations[index].handoff != ListConfigResourcesHandoff::HandedOff
+            || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(ListConfigResourcesHostError::InvalidHandoff);
         }
         self.apply(operation_id, ListConfigResourcesInput::DriverRejected)

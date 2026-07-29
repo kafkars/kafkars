@@ -17,7 +17,10 @@ use crate::{
     admin::AdminDescribeShareGroupPublisher,
     clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{DescribeShareGroupCall, DescribeShareGroupTerminal as DriverTerminal},
+    driver::{
+        DescribeShareGroupCall, DescribeShareGroupTerminal as DriverTerminal,
+        RecoveredDescribeShareGroupCall,
+    },
 };
 
 use super::{DescribeShareGroupHostError, DescribeShareGroupObserver};
@@ -45,6 +48,8 @@ struct DescribeShareGroupOperation {
     submission: Option<DescribeShareGroupSubmission>,
     handoff: DescribeShareGroupHandoff,
     call: Option<DescribeShareGroupCall>,
+    // Driver-shutdown proof remains live until core accepts the terminal fact.
+    recovered_call: Option<RecoveredDescribeShareGroupCall>,
     raw_terminal: Option<DriverTerminal>,
     terminal: Option<DescribeShareGroupTerminal>,
 }
@@ -68,7 +73,11 @@ impl DescribeShareGroupOperation {
         {
             return Err(DescribeShareGroupHostError::SubmissionMismatch);
         }
-        if self.call.is_some() || self.raw_terminal.is_some() || self.terminal.is_some() {
+        if self.call.is_some()
+            || self.recovered_call.is_some()
+            || self.raw_terminal.is_some()
+            || self.terminal.is_some()
+        {
             return Err(DescribeShareGroupHostError::InvalidHandoff);
         }
         self.active_plan = Some(plan.clone());
@@ -90,7 +99,11 @@ impl DescribeShareGroupOperation {
         if effect_id != self.operation_id {
             return Err(DescribeShareGroupHostError::SubmissionMismatch);
         }
-        if self.call.is_some() || self.raw_terminal.is_some() || self.terminal.is_some() {
+        if self.call.is_some()
+            || self.recovered_call.is_some()
+            || self.raw_terminal.is_some()
+            || self.terminal.is_some()
+        {
             return Err(DescribeShareGroupHostError::InvalidHandoff);
         }
         self.active_plan = None;
@@ -179,6 +192,9 @@ impl DescribeShareGroupHost {
             .ok_or(DescribeShareGroupHostError::UnknownOperation)?;
         if self.operations[index].handoff != DescribeShareGroupHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+            || self.operations[index].terminal.is_some()
         {
             return Err(DescribeShareGroupHostError::InvalidHandoff);
         }

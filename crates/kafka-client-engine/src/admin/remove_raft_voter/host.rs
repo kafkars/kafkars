@@ -17,7 +17,9 @@ use crate::{
     admin::AdminRemoveRaftVoterPublisher,
     clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{RemoveRaftVoterCall, RemoveRaftVoterRawTerminal},
+    driver::{
+        DriverOwner, RecoveredRemoveRaftVoterCall, RemoveRaftVoterCall, RemoveRaftVoterRawTerminal,
+    },
 };
 
 use super::{RemoveRaftVoterHostError, RemoveRaftVoterObserver};
@@ -46,6 +48,7 @@ struct RemoveRaftVoterOperation {
     submission: Option<RemoveRaftVoterSubmission>,
     handoff: RemoveRaftVoterHandoff,
     call: Option<RemoveRaftVoterCall>,
+    recovered_call: Option<RecoveredRemoveRaftVoterCall>,
     raw_terminal: Option<RemoveRaftVoterRawTerminal>,
     terminal: Option<RemoveRaftVoterTerminal>,
 }
@@ -78,11 +81,12 @@ impl RemoveRaftVoterHost {
     pub(crate) fn turn(
         &mut self,
         now: Moment,
+        driver: Option<&DriverOwner>,
     ) -> Result<RemoveRaftVoterTurn, RemoveRaftVoterHostError> {
         if let Some(error) = self.health {
             return Err(error);
         }
-        if self.reclaim_one()? || self.poll_one_call()? {
+        if self.reclaim_one()? || self.poll_one_call(driver)? {
             return Ok(RemoveRaftVoterTurn::Progress);
         }
         let Some(index) = self
@@ -115,6 +119,7 @@ impl RemoveRaftVoterHost {
             .ok_or(RemoveRaftVoterHostError::UnknownOperation)?;
         if self.operations[index].handoff != RemoveRaftVoterHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
         {
             return Err(RemoveRaftVoterHostError::InvalidHandoff);
         }
@@ -129,7 +134,11 @@ impl RemoveRaftVoterHost {
         let index = self
             .operation_index(operation_id)
             .ok_or(RemoveRaftVoterHostError::UnknownOperation)?;
-        if self.operations[index].handoff != RemoveRaftVoterHandoff::HandedOff {
+        if self.operations[index].handoff != RemoveRaftVoterHandoff::HandedOff
+            || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(RemoveRaftVoterHostError::InvalidHandoff);
         }
         self.apply(operation_id, RemoveRaftVoterInput::DriverRejected)

@@ -56,6 +56,7 @@ impl UnregisterBrokerHost {
             submission: None,
             handoff: UnregisterBrokerHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

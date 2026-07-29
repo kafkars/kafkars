@@ -2,10 +2,16 @@
 
 use std::time::{Duration, Instant};
 
-use kafka_driver::{Route, TrafficClass};
+use kafka_client_core::DescribeReplicaLogDirsReplica;
+use kafka_driver::{CompletionError, Route, TrafficClass};
 
-use super::describe_replica_log_dirs_submission::{
-    describe_replica_log_dirs_options, describe_replica_log_dirs_route,
+use crate::{EngineConfig, driver::DriverOwner};
+
+use super::{
+    DescribeReplicaLogDirsCall,
+    describe_replica_log_dirs_submission::{
+        describe_replica_log_dirs_options, describe_replica_log_dirs_route,
+    },
 };
 
 #[test]
@@ -32,4 +38,31 @@ fn options_preserve_deadline_lane_and_supported_versions() {
         options.maximum_version().map(|version| version.value()),
         Some(5)
     );
+}
+
+#[test]
+fn completion_fault_remains_recoverable_after_driver_shutdown() {
+    let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver owner: {error}"));
+    let mut call = DescribeReplicaLogDirsCall::submit(
+        &driver,
+        1,
+        &[DescribeReplicaLogDirsReplica::new(
+            "orders".to_owned(),
+            0,
+            1,
+        )],
+        4_096,
+        Instant::now() + Duration::from_secs(1),
+    )
+    .unwrap_or_else(|_error| panic!("accepted call"));
+    drop(driver);
+
+    assert!(matches!(
+        call.try_terminal(),
+        Some(Err(CompletionError::Closed))
+    ));
+    call.recover_after_driver_shutdown()
+        .unwrap_or_else(|| panic!("completion fault must retain accepted call ownership"))
+        .seal();
 }

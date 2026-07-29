@@ -2,14 +2,22 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{ConfigResourceType, ListConfigResourcesPlan};
+use kafka_client_core::{
+    ConfigResourceType, ListConfigResourcesMachineError, ListConfigResourcesPlan,
+};
 
-use crate::{admin::AdminCompletionNotifier, clock::MonotonicClock};
+use crate::{
+    EngineConfig,
+    admin::AdminCompletionNotifier,
+    clock::MonotonicClock,
+    driver::{DriverOwner, ListConfigResourcesCall},
+    protocol::admin::list_config_resources::list_config_resources_request,
+};
 
 use super::{
     ListConfigResourcesAdmissionErrorKind, ListConfigResourcesDeliveryStatus,
-    ListConfigResourcesFailureKind, ListConfigResourcesHost, ListConfigResourcesOutcome,
-    ListConfigResourcesTurn,
+    ListConfigResourcesFailureKind, ListConfigResourcesHost, ListConfigResourcesHostError,
+    ListConfigResourcesOutcome, ListConfigResourcesTurn,
     host::{LIST_CONFIG_RESOURCES_RESULT_BYTES, LIST_CONFIG_RESOURCES_RETAINED_BYTES},
 };
 
@@ -37,7 +45,7 @@ fn admission_reserves_terminal_request_and_two_mib_result_before_submission() {
     else {
         panic!("submission expected");
     };
-    let (_operation_id, submitted_deadline, submitted_plan, result_limit) = submission.into_parts();
+    let (operation_id, submitted_deadline, submitted_plan, result_limit) = submission.into_parts();
     assert_eq!(submitted_deadline, capture.operation_deadline());
     assert_eq!(
         submitted_plan
@@ -50,6 +58,8 @@ fn admission_reserves_terminal_request_and_two_mib_result_before_submission() {
     assert_eq!(result_limit, LIST_CONFIG_RESOURCES_RESULT_BYTES);
 
     drop(admission.observer);
+    host.reject_handoff(operation_id)
+        .unwrap_or_else(|error| panic!("reject inspected handoff: {error}"));
     host.recover_after_driver_shutdown()
         .unwrap_or_else(|error| panic!("recover host: {error}"));
     drop(host);
@@ -93,7 +103,7 @@ fn untouched_shutdown_is_definitely_unsent_and_reclaimable() {
 }
 
 #[test]
-fn handed_off_shutdown_is_conservatively_possibly_sent() {
+fn handed_off_without_a_returned_call_cannot_forge_recovery_evidence() {
     let (mut notifier, ports) =
         AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
     let mut host = ListConfigResourcesHost::new(ports.list_config_resources);
@@ -108,8 +118,80 @@ fn handed_off_shutdown_is_conservatively_possibly_sent() {
         panic!("submission expected");
     };
 
+    assert!(matches!(
+        host.recover_after_driver_shutdown(),
+        Err(ListConfigResourcesHostError::InvalidHandoff)
+    ));
+
+    drop((admission, host));
+    stop_notifier(&mut notifier);
+}
+
+#[test]
+fn recovered_call_and_request_plan_survive_core_rejection() {
+    let (mut notifier, ports) =
+        AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
+    let mut host = ListConfigResourcesHost::new(ports.list_config_resources);
+    let capture = deadline();
+    let admission = host
+        .try_admit(capture.now(), capture.operation_deadline(), plan())
+        .unwrap_or_else(|error| panic!("admit resource query: {error:?}"));
+    host.retain_recovered_call_for_test();
+
+    assert!(matches!(
+        host.settle_recovered_transport_for_test(),
+        Err(ListConfigResourcesHostError::Machine(
+            ListConfigResourcesMachineError::InvalidState
+        ))
+    ));
+    assert!(host.recovered_ownership_and_correlation_are_retained_for_test());
+    assert!(matches!(
+        host.publish_terminal_for_test(),
+        Err(ListConfigResourcesHostError::InvalidHandoff)
+    ));
+
+    drop((admission, host));
+    stop_notifier(&mut notifier);
+}
+
+#[test]
+fn completion_fault_retains_call_and_request_plan_until_recovery() {
+    let (mut notifier, ports) =
+        AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
+    let mut host = ListConfigResourcesHost::new(ports.list_config_resources);
+    let capture = deadline();
+    let admission = host
+        .try_admit(capture.now(), capture.operation_deadline(), plan())
+        .unwrap_or_else(|error| panic!("admit resource query: {error:?}"));
+    let ListConfigResourcesTurn::Submit(submission) = host
+        .turn(capture.now())
+        .unwrap_or_else(|error| panic!("handoff turn: {error}"))
+    else {
+        panic!("submission expected");
+    };
+    let (operation_id, submitted_deadline, submitted_plan, _result_limit) = submission.into_parts();
+    let resource_types = submitted_plan
+        .resource_types()
+        .iter()
+        .map(|resource_type| resource_type.code())
+        .collect::<Vec<_>>();
+    let request = list_config_resources_request(&resource_types)
+        .unwrap_or_else(|error| panic!("correlated request: {error:?}"));
+    let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver owner: {error}"));
+    let call = ListConfigResourcesCall::submit(&driver, request, submitted_deadline.transport())
+        .unwrap_or_else(|_error| panic!("accepted call"));
+    host.accept_call(operation_id, call)
+        .unwrap_or_else(|error| panic!("host acceptance: {error}"));
+    drop(driver);
+
+    assert!(matches!(
+        host.turn(capture.now()),
+        Err(ListConfigResourcesHostError::CallCompletion)
+    ));
+    assert!(host.request_correlation_is_retained_for_test());
     host.recover_after_driver_shutdown()
-        .unwrap_or_else(|error| panic!("recover handoff: {error}"));
+        .unwrap_or_else(|error| panic!("post-driver recovery: {error}"));
     let ListConfigResourcesOutcome::Failed(failure) = admission
         .observer
         .wait()
@@ -122,6 +204,7 @@ fn handed_off_shutdown_is_conservatively_possibly_sent() {
         failure.delivery(),
         ListConfigResourcesDeliveryStatus::PossiblySent
     );
+
     drop(host);
     stop_notifier(&mut notifier);
 }

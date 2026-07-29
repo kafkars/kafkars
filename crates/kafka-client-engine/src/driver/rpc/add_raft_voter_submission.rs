@@ -1,4 +1,4 @@
-//! Single-attempt AnyBroker submission policy for Admin `AddRaftVoter`.
+//! Single-attempt controller submission policy for Admin `AddRaftVoter`.
 
 use std::{error::Error, fmt, time::Instant};
 
@@ -33,7 +33,7 @@ impl Error for AddRaftVoterSubmitError {
 }
 
 impl DriverOwner {
-    /// Submits one voter addition without retry or invalidation policy.
+    /// Submits one voter addition to the current controller without replay policy.
     pub(crate) fn submit_tracked_add_raft_voter(
         &self,
         plan: &AddRaftVoterPlan,
@@ -51,7 +51,7 @@ impl DriverOwner {
 }
 
 pub(super) const fn add_raft_voter_route() -> Route {
-    Route::AnyBroker
+    Route::Controller
 }
 
 pub(super) const fn add_raft_voter_options(

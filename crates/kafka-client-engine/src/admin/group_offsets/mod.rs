@@ -40,6 +40,8 @@ mod error_test;
 #[cfg(test)]
 mod handle_test;
 #[cfg(test)]
+mod host_completion_test;
+#[cfg(test)]
 mod host_selection_test;
 #[cfg(test)]
 mod host_test;

@@ -1,15 +1,16 @@
 //! Call polling, publication, reclamation, and shutdown recovery.
 
-use kafka_client_core::{
-    DeliveryStatus, ListClientMetricsResourcesEffect, ListClientMetricsResourcesInput,
-    ListClientMetricsResourcesState, Moment,
-};
+mod recovery;
+
+#[cfg(test)]
+mod test_support;
+
+use kafka_client_core::ListClientMetricsResourcesEffect;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
 use super::{
-    ListClientMetricsResourcesHandoff, ListClientMetricsResourcesHost,
-    ListClientMetricsResourcesHostError, response::terminal_input,
+    ListClientMetricsResourcesHost, ListClientMetricsResourcesHostError, response::terminal_input,
 };
 
 impl ListClientMetricsResourcesHost {
@@ -31,80 +32,15 @@ impl ListClientMetricsResourcesHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
             }
             Err(_error) => Err(ListClientMetricsResourcesHostError::CallCompletion),
         }
-    }
-
-    pub(crate) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), ListClientMetricsResourcesHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (ListClientMetricsResourcesState::Ready, _) => self.apply(
-                    operation_id,
-                    ListClientMetricsResourcesInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (
-                    ListClientMetricsResourcesState::AwaitingDriver,
-                    ListClientMetricsResourcesHandoff::Untouched,
-                ) => {
-                    self.apply(
-                        operation_id,
-                        ListClientMetricsResourcesInput::DriverRejected,
-                    )?;
-                }
-                (
-                    ListClientMetricsResourcesState::AwaitingDriver,
-                    ListClientMetricsResourcesHandoff::HandedOff,
-                ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        ListClientMetricsResourcesInput::DriverAccepted,
-                    )?;
-                    self.apply(
-                        operation_id,
-                        ListClientMetricsResourcesInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (
-                    ListClientMetricsResourcesState::Submitted,
-                    ListClientMetricsResourcesHandoff::Submitted,
-                ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        ListClientMetricsResourcesInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (ListClientMetricsResourcesState::Completed, _) => {
-                    self.publish_terminal(0)?;
-                }
-                _ => return Err(ListClientMetricsResourcesHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), ListClientMetricsResourcesHostError> {
@@ -145,7 +81,10 @@ impl ListClientMetricsResourcesHost {
         &mut self,
         index: usize,
     ) -> Result<(), ListClientMetricsResourcesHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(ListClientMetricsResourcesHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -203,13 +142,5 @@ impl ListClientMetricsResourcesHost {
             .checked_sub(bytes)
             .ok_or(ListClientMetricsResourcesHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::ListClientMetricsResourcesCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

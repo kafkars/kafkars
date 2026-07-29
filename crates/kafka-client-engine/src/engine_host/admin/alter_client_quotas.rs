@@ -54,8 +54,8 @@ pub(super) fn drive(
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::AlterClientQuotas)?,
                 Err(rejection) => {
-                    drop(rejection);
-                    host.reject_handoff(operation_id)
+                    let (plan, retained_limit) = rejection.into_correlation();
+                    host.reject_handoff(operation_id, plan, retained_limit)
                         .map_err(EngineHostError::AlterClientQuotas)?;
                 }
             }

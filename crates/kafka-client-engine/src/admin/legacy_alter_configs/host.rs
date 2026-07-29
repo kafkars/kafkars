@@ -6,20 +6,19 @@ mod response;
 mod terminal;
 
 use kafka_client_core::{
-    LegacyAlterConfigsEffect, LegacyAlterConfigsInput, LegacyAlterConfigsMachine,
-    LegacyAlterConfigsPlan, LegacyAlterConfigsTerminal, Moment, OperationId,
+    LegacyAlterConfigsEffect, LegacyAlterConfigsInput, LegacyAlterConfigsPlan,
+    LegacyAlterConfigsTerminal, Moment, OperationId,
 };
 
 use crate::{
     admin::LegacyAlterConfigsPublisher,
-    clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{LegacyAlterConfigsCall, LegacyAlterConfigsTerminal as DriverTerminal},
+    driver::LegacyAlterConfigsCall,
 };
 
 use super::{LegacyAlterConfigsHostError, LegacyAlterConfigsObserver};
 
-use model::LegacyAlterConfigsHandoff;
+use model::{LegacyAlterConfigsHandoff, LegacyAlterConfigsOperation};
 pub(crate) use model::{LegacyAlterConfigsSubmission, LegacyAlterConfigsTurn};
 
 pub(crate) const LEGACY_ALTER_CONFIGS_CAPACITY: usize = 16;
@@ -28,23 +27,6 @@ pub(crate) const LEGACY_ALTER_CONFIGS_RETAINED_BYTES: usize = 8 * 1024 * 1024;
 pub(crate) struct LegacyAlterConfigsAdmission {
     pub(crate) observer: LegacyAlterConfigsObserver,
     pub(crate) fault: Option<LegacyAlterConfigsHostError>,
-}
-
-struct LegacyAlterConfigsOperation {
-    operation_id: OperationId,
-    machine: LegacyAlterConfigsMachine,
-    plan: LegacyAlterConfigsPlan,
-    completion_id: CompletionId,
-    deadline: OperationDeadline,
-    retained_bytes: usize,
-    remaining_result_bytes: usize,
-    active_result_limit: usize,
-    active_result_contribution: usize,
-    submission: Option<LegacyAlterConfigsSubmission>,
-    handoff: LegacyAlterConfigsHandoff,
-    call: Option<LegacyAlterConfigsCall>,
-    raw_terminal: Option<DriverTerminal>,
-    terminal: Option<LegacyAlterConfigsTerminal>,
 }
 
 pub(crate) struct LegacyAlterConfigsHost {
@@ -115,8 +97,12 @@ impl LegacyAlterConfigsHost {
             .ok_or(LegacyAlterConfigsHostError::UnknownOperation)?;
         if self.operations[index].handoff != LegacyAlterConfigsHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
         {
             return Err(LegacyAlterConfigsHostError::InvalidHandoff);
+        }
+        if !self.operations[index].matches_correlation(call.route(), call.plan()) {
+            return Err(LegacyAlterConfigsHostError::SubmissionMismatch);
         }
         self.operations[index].call = Some(call);
         self.apply(operation_id, LegacyAlterConfigsInput::DriverAccepted)
@@ -125,12 +111,21 @@ impl LegacyAlterConfigsHost {
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,
+        route: kafka_client_core::LegacyAlterConfigsRoute,
+        plan: LegacyAlterConfigsPlan,
     ) -> Result<(), LegacyAlterConfigsHostError> {
         let index = self
             .operation_index(operation_id)
             .ok_or(LegacyAlterConfigsHostError::UnknownOperation)?;
-        if self.operations[index].handoff != LegacyAlterConfigsHandoff::HandedOff {
+        if self.operations[index].handoff != LegacyAlterConfigsHandoff::HandedOff
+            || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(LegacyAlterConfigsHostError::InvalidHandoff);
+        }
+        if !self.operations[index].matches_correlation(route, &plan) {
+            return Err(LegacyAlterConfigsHostError::SubmissionMismatch);
         }
         self.apply(operation_id, LegacyAlterConfigsInput::DriverRejected)
     }

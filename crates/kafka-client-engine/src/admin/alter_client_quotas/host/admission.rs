@@ -37,7 +37,7 @@ impl AlterClientQuotasHost {
             .ok_or(AlterClientQuotasAdmissionErrorKind::IdentityExhausted)?;
         let owner_charge = request_owner_charge(&plan)
             .ok_or(AlterClientQuotasAdmissionErrorKind::RetainedBytes)?;
-        let remaining_result_bytes = ALTER_CLIENT_QUOTAS_RETAINED_BYTES
+        let retained_limit = ALTER_CLIENT_QUOTAS_RETAINED_BYTES
             .checked_sub(owner_charge)
             .filter(|limit| *limit > 0)
             .ok_or(AlterClientQuotasAdmissionErrorKind::RetainedBytes)?;
@@ -50,16 +50,20 @@ impl AlterClientQuotasHost {
 
         self.next_operation_id = operation_id.get().checked_add(1).map(OperationId::from_raw);
         self.retained_bytes = total_bytes;
+        let host_plan = plan.clone();
         let mut operation = AlterClientQuotasOperation {
             operation_id,
             machine: AlterClientQuotasMachine::new(operation_id, deadline.core(), plan),
+            plan: host_plan,
             completion_id,
             deadline,
             retained_bytes: ALTER_CLIENT_QUOTAS_RETAINED_BYTES,
-            remaining_result_bytes,
+            retained_limit,
             submission: None,
+            rejected_submission: None,
             handoff: AlterClientQuotasHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };
@@ -97,14 +101,17 @@ fn start(
             deadline: core_deadline,
             plan,
         }) => {
-            if operation_id != operation.operation_id || core_deadline != deadline.core() {
+            if operation_id != operation.operation_id
+                || core_deadline != deadline.core()
+                || operation.plan != plan
+            {
                 return Err(AlterClientQuotasHostError::SubmissionMismatch);
             }
             operation.submission = Some(AlterClientQuotasSubmission {
                 operation_id,
                 deadline,
                 plan,
-                result_limit: operation.remaining_result_bytes,
+                retained_limit: operation.retained_limit,
             });
             Ok(false)
         }
@@ -176,5 +183,5 @@ fn request_owner_charge(plan: &AlterClientQuotasPlan) -> Option<usize> {
         .checked_add(string_bytes)?;
     size_of::<AlterClientQuotasOperation>()
         .checked_add(size_of::<AlterClientQuotasSubmission>())?
-        .checked_add(2usize.checked_mul(plan_storage)?)
+        .checked_add(3usize.checked_mul(plan_storage)?)
 }

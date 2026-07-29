@@ -64,6 +64,7 @@ impl CreateDelegationTokenHost {
             submission: None,
             handoff: CreateDelegationTokenHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

@@ -10,7 +10,8 @@ pub use machine::{
     ElectLeadersState, ElectLeadersTransition,
 };
 pub use model::{
-    ElectLeadersPlan, ElectLeadersPlanError, LeaderElectionTarget, LeaderElectionType,
+    ElectLeadersPlan, ElectLeadersPlanError, ElectLeadersSelection, LeaderElectionTarget,
+    LeaderElectionType,
 };
 pub use outcome::{
     ElectLeadersBatch, ElectLeadersFailure, ElectLeadersFailureKind, ElectLeadersTerminal,

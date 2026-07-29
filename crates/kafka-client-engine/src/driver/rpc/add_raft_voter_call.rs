@@ -1,4 +1,4 @@
-//! Linear ownership of one accepted tracked AnyBroker voter addition.
+//! Linear ownership of one accepted tracked controller-routed voter addition.
 
 use std::{error::Error, fmt};
 
@@ -26,6 +26,7 @@ use super::{
 #[must_use = "an accepted AddRaftVoter call must be terminally settled"]
 pub(crate) struct AddRaftVoterCall {
     call: Option<RoutedCall<AddRaftVoterResponse>>,
+    plan: Option<AddRaftVoterPlan>,
 }
 
 impl AddRaftVoterCall {
@@ -39,10 +40,14 @@ impl AddRaftVoterCall {
             .map_err(AddRaftVoterCallAdmissionFailure::Deadline)?;
         let request = add_raft_voter_request(plan, timeout_ms)
             .map_err(AddRaftVoterCallAdmissionFailure::Request)?;
+        let correlation_plan = plan.clone();
         let call = driver
             .submit_tracked_add_raft_voter(plan, request, deadline.transport())
             .map_err(AddRaftVoterCallAdmissionFailure::Driver)?;
-        Ok(Self { call: Some(call) })
+        Ok(Self {
+            call: Some(call),
+            plan: Some(correlation_plan),
+        })
     }
 
     /// Extracts one ready raw terminal without releasing its route evidence.
@@ -50,14 +55,16 @@ impl AddRaftVoterCall {
         &mut self,
     ) -> Option<Result<AddRaftVoterRawTerminal, CompletionError>> {
         let result = self.call.as_mut()?.try_result()?;
-        drop(self.call.take());
         match result {
             Ok(outcome) => {
+                let plan = self.plan.take()?;
+                drop(self.call.take());
                 let (result, selected_version, route_token) = outcome.into_parts();
                 Some(Ok(retain_add_raft_voter_terminal(
                     selected_version,
                     result,
                     route_token,
+                    plan,
                 )))
             }
             Err(source) => Some(Err(source)),
@@ -65,11 +72,15 @@ impl AddRaftVoterCall {
     }
 
     /// Seals unresolved ownership only after the unique driver is gone.
-    pub(crate) fn recover_after_driver_shutdown(mut self) -> Option<RecoveredAddRaftVoterCall> {
-        self.call.take().map(|call| {
-            drop(call);
-            RecoveredAddRaftVoterCall
-        })
+    pub(crate) fn recover_after_driver_shutdown(self) -> Option<RecoveredAddRaftVoterCall> {
+        let Self { call, plan } = self;
+        match (call, plan) {
+            (Some(call), Some(plan)) => {
+                drop(call);
+                Some(RecoveredAddRaftVoterCall::new(plan))
+            }
+            _ => None,
+        }
     }
 }
 

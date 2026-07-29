@@ -1,6 +1,6 @@
 //! Exhaustive generated-free API 33 response and driver-failure translation.
 
-use kafka_client_core::{DeliveryStatus, LegacyAlterConfigsInput, LegacyAlterConfigsPlan};
+use kafka_client_core::{DeliveryStatus, LegacyAlterConfigsInput};
 
 use crate::{
     driver::{
@@ -14,7 +14,6 @@ use crate::{
 
 pub(super) fn terminal_input(
     raw: &DriverTerminal,
-    plan: &LegacyAlterConfigsPlan,
     retained_limit: usize,
     retained_contribution: usize,
 ) -> (LegacyAlterConfigsInput, usize) {
@@ -23,7 +22,7 @@ pub(super) fn terminal_input(
             selected_version,
             response,
         } => match normalize_legacy_alter_configs_response_bounded(
-            plan,
+            raw.plan(),
             selected_version,
             response,
             retained_limit,

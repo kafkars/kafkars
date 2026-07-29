@@ -1,6 +1,9 @@
 //! Selected-version, response ownership, and driver-failure classification.
 
-use kafka_client_core::DeliveryStatus;
+use kafka_client_core::{
+    DelegationTokenPrincipal, DeliveryStatus, DescribeDelegationTokensPlan,
+    DescribeDelegationTokensSelection,
+};
 use kafka_driver::{ApiKey, ApiVersion, CallFailure, Delivery, RequestError};
 use kafka_wire::DescribeDelegationTokenResponse;
 use kafka_wire_core::DecodeError;
@@ -82,5 +85,18 @@ fn failures_preserve_delivery_certainty_and_stable_classification() {
 
 #[test]
 fn shutdown_recovery_token_seals_linearly() {
-    RecoveredDescribeDelegationTokensCall.seal();
+    let recovered = RecoveredDescribeDelegationTokensCall::for_test(owner_plan());
+    let DescribeDelegationTokensSelection::Owners(owners) = recovered.plan().selection() else {
+        panic!("explicit owners expected");
+    };
+    assert_eq!(owners[0].principal_name(), "alice");
+    recovered.seal();
+}
+
+fn owner_plan() -> DescribeDelegationTokensPlan {
+    DescribeDelegationTokensPlan::for_owners(vec![
+        DelegationTokenPrincipal::new("User".to_owned(), "alice".to_owned())
+            .unwrap_or_else(|error| panic!("valid owner: {error}")),
+    ])
+    .unwrap_or_else(|error| panic!("valid owner selection: {error}"))
 }

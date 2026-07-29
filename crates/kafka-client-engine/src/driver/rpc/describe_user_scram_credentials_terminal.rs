@@ -4,7 +4,10 @@ use kafka_client_core::{DeliveryStatus, DescribeUserScramCredentialsPlan};
 use kafka_driver::{ApiVersion, CallFailure, RequestError, RouteFailureToken};
 use kafka_wire::DescribeUserScramCredentialsResponse;
 
-use super::super::request_failure_delivery;
+use super::{
+    super::request_failure_delivery,
+    describe_user_scram_credentials_call::DescribeUserScramCredentialsEvidence,
+};
 
 /// Stable engine-local classification without exposing driver variants.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -33,10 +36,24 @@ pub(crate) struct DescribeUserScramCredentialsRawTerminal {
     selected_version: Option<i16>,
     result: Result<DescribeUserScramCredentialsResponse, RequestError>,
     route_token: Option<RouteFailureToken>,
-    plan: DescribeUserScramCredentialsPlan,
+    evidence: DescribeUserScramCredentialsEvidence,
 }
 
 impl DescribeUserScramCredentialsRawTerminal {
+    #[cfg(test)]
+    pub(crate) fn for_test(
+        plan: DescribeUserScramCredentialsPlan,
+        request_limit: usize,
+        result_limit: usize,
+    ) -> Self {
+        Self {
+            selected_version: Some(0),
+            result: Ok(DescribeUserScramCredentialsResponse::default()),
+            route_token: None,
+            evidence: DescribeUserScramCredentialsEvidence::new(plan, request_limit, result_limit),
+        }
+    }
+
     pub(crate) fn fact(&self) -> DescribeUserScramCredentialsTerminalFact<'_> {
         match &self.result {
             Ok(response) => DescribeUserScramCredentialsTerminalFact::Response {
@@ -51,7 +68,20 @@ impl DescribeUserScramCredentialsRawTerminal {
     }
 
     pub(crate) const fn plan(&self) -> &DescribeUserScramCredentialsPlan {
-        &self.plan
+        self.evidence.plan()
+    }
+
+    pub(crate) const fn result_limit(&self) -> usize {
+        self.evidence.result_limit()
+    }
+
+    pub(crate) fn matches_evidence(
+        &self,
+        plan: &DescribeUserScramCredentialsPlan,
+        request_limit: usize,
+        result_limit: usize,
+    ) -> bool {
+        self.evidence.matches(plan, request_limit, result_limit)
     }
 
     /// Consumes terminal and correlation ownership after deterministic settlement.
@@ -60,11 +90,11 @@ impl DescribeUserScramCredentialsRawTerminal {
             selected_version: _,
             result,
             route_token,
-            plan,
+            evidence,
         } = self;
         drop(result);
         drop(route_token);
-        drop(plan);
+        drop(evidence);
     }
 }
 
@@ -72,13 +102,13 @@ pub(super) fn retain_describe_user_scram_credentials_terminal(
     selected_version: Option<ApiVersion>,
     result: Result<DescribeUserScramCredentialsResponse, RequestError>,
     route_token: Option<RouteFailureToken>,
-    plan: DescribeUserScramCredentialsPlan,
+    evidence: DescribeUserScramCredentialsEvidence,
 ) -> DescribeUserScramCredentialsRawTerminal {
     DescribeUserScramCredentialsRawTerminal {
         selected_version: selected_version.map(ApiVersion::value),
         result,
         route_token,
-        plan,
+        evidence,
     }
 }
 
@@ -108,16 +138,41 @@ fn failure_kind(error: &RequestError) -> DescribeUserScramCredentialsDriverFailu
 /// Accepted ownership recovered only after the unique driver is destroyed.
 #[must_use = "recovered DescribeUserScramCredentials ownership still requires core settlement"]
 pub(crate) struct RecoveredDescribeUserScramCredentialsCall {
-    plan: Option<DescribeUserScramCredentialsPlan>,
+    evidence: DescribeUserScramCredentialsEvidence,
 }
 
 impl RecoveredDescribeUserScramCredentialsCall {
-    pub(super) const fn new(plan: Option<DescribeUserScramCredentialsPlan>) -> Self {
-        Self { plan }
+    pub(super) const fn new(evidence: DescribeUserScramCredentialsEvidence) -> Self {
+        Self { evidence }
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn for_test(
+        plan: DescribeUserScramCredentialsPlan,
+        request_limit: usize,
+        result_limit: usize,
+    ) -> Self {
+        Self {
+            evidence: DescribeUserScramCredentialsEvidence::new(plan, request_limit, result_limit),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn plan(&self) -> &DescribeUserScramCredentialsPlan {
+        self.evidence.plan()
+    }
+
+    pub(crate) fn matches_evidence(
+        &self,
+        plan: &DescribeUserScramCredentialsPlan,
+        request_limit: usize,
+        result_limit: usize,
+    ) -> bool {
+        self.evidence.matches(plan, request_limit, result_limit)
     }
 
     /// Consumes recovered ownership after core receives its terminal fact.
     pub(crate) fn seal(self) {
-        drop(self.plan);
+        drop(self.evidence);
     }
 }

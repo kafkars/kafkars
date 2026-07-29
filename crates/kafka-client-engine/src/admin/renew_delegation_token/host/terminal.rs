@@ -1,15 +1,17 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
-use kafka_client_core::{
-    DeliveryStatus, Moment, RenewDelegationTokenEffect, RenewDelegationTokenInput,
-    RenewDelegationTokenState,
-};
+mod recovery;
+
+#[cfg(test)]
+mod test_support;
+
+use kafka_client_core::RenewDelegationTokenEffect;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
 use super::{
-    RenewDelegationTokenHandoff, RenewDelegationTokenHost, RenewDelegationTokenHostError,
-    RenewDelegationTokenOperation, response::terminal_input,
+    RenewDelegationTokenHost, RenewDelegationTokenHostError, RenewDelegationTokenOperation,
+    response::terminal_input,
 };
 
 impl RenewDelegationTokenHost {
@@ -21,64 +23,23 @@ impl RenewDelegationTokenHost {
         else {
             return Ok(false);
         };
-        let Some(terminal) = poll_call(&mut self.operations[index])? else {
+        let terminal = self.operations[index]
+            .call
+            .as_mut()
+            .ok_or(RenewDelegationTokenHostError::InvalidHandoff)?
+            .try_terminal();
+        let Some(terminal) = terminal else {
             return Ok(false);
         };
-        store_raw_terminal(&mut self.operations[index], terminal);
-        self.settle_raw(index)?;
-        Ok(true)
-    }
-
-    pub(crate) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), RenewDelegationTokenHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
+        match terminal {
+            Ok(terminal) => {
+                drop(self.operations[index].call.take());
+                self.operations[index].raw_terminal = Some(terminal);
+                self.settle_raw(index)?;
+                Ok(true)
             }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (RenewDelegationTokenState::Ready, _) => self.apply(
-                    operation_id,
-                    RenewDelegationTokenInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (
-                    RenewDelegationTokenState::AwaitingDriver,
-                    RenewDelegationTokenHandoff::Untouched,
-                ) => self.apply(operation_id, RenewDelegationTokenInput::DriverRejected)?,
-                (
-                    RenewDelegationTokenState::AwaitingDriver,
-                    RenewDelegationTokenHandoff::HandedOff,
-                ) => {
-                    seal_call(take_call(&mut self.operations[0]));
-                    self.apply(operation_id, RenewDelegationTokenInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        RenewDelegationTokenInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (RenewDelegationTokenState::Submitted, RenewDelegationTokenHandoff::Submitted) => {
-                    seal_call(take_call(&mut self.operations[0]));
-                    self.apply(
-                        operation_id,
-                        RenewDelegationTokenInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (RenewDelegationTokenState::Completed, _) => self.publish_terminal(0)?,
-                _ => return Err(RenewDelegationTokenHostError::InvalidHandoff),
-            }
+            Err(_error) => Err(RenewDelegationTokenHostError::CallCompletion),
         }
-        Ok(())
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), RenewDelegationTokenHostError> {
@@ -148,36 +109,6 @@ impl RenewDelegationTokenHost {
     }
 }
 
-fn poll_call(
-    operation: &mut RenewDelegationTokenOperation,
-) -> Result<Option<crate::driver::RenewDelegationTokenRawTerminal>, RenewDelegationTokenHostError> {
-    let terminal = operation
-        .call
-        .as_mut()
-        .ok_or(RenewDelegationTokenHostError::InvalidHandoff)?
-        .try_terminal();
-    let Some(terminal) = terminal else {
-        return Ok(None);
-    };
-    drop(operation.call.take());
-    terminal
-        .map(Some)
-        .map_err(|_error| RenewDelegationTokenHostError::CallCompletion)
-}
-
-fn store_raw_terminal(
-    operation: &mut RenewDelegationTokenOperation,
-    terminal: crate::driver::RenewDelegationTokenRawTerminal,
-) {
-    operation.raw_terminal = Some(terminal);
-}
-
-fn take_call(
-    operation: &mut RenewDelegationTokenOperation,
-) -> Option<crate::driver::RenewDelegationTokenCall> {
-    operation.call.take()
-}
-
 fn settle_operation(
     operation: &mut RenewDelegationTokenOperation,
 ) -> Result<(), RenewDelegationTokenHostError> {
@@ -218,7 +149,10 @@ fn take_publishable_terminal(
     ),
     RenewDelegationTokenHostError,
 > {
-    if operation.call.is_some() || operation.raw_terminal.is_some() {
+    if operation.call.is_some()
+        || operation.recovered_call.is_some()
+        || operation.raw_terminal.is_some()
+    {
         return Err(RenewDelegationTokenHostError::InvalidHandoff);
     }
     let terminal = operation
@@ -233,16 +167,4 @@ fn restore_terminal(
     terminal: kafka_client_core::RenewDelegationTokenTerminal,
 ) {
     operation.terminal = Some(terminal);
-}
-
-fn seal_call(call: Option<crate::driver::RenewDelegationTokenCall>) {
-    if let Some(call) = call
-        && let Some(recovered) = call.recover_after_driver_shutdown()
-    {
-        seal_recovered_call(recovered);
-    }
-}
-
-fn seal_recovered_call(recovered: crate::driver::RecoveredRenewDelegationTokenCall) {
-    recovered.seal();
 }

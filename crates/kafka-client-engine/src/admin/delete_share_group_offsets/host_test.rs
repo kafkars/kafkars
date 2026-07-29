@@ -31,15 +31,15 @@ fn admission_reserves_request_owner_and_complete_result_before_submission() {
     else {
         panic!("submission expected");
     };
-    let (_operation_id, submitted_deadline, submitted_plan, result_limit) = submission.into_parts();
+    let (operation_id, submitted_deadline, submitted_plan, result_limit) = submission.into_parts();
     assert_eq!(submitted_deadline, deadline);
     assert_eq!(submitted_plan, plan());
     assert_eq!(result_limit, DELETE_SHARE_GROUP_OFFSETS_RESULT_BYTES);
     assert_eq!(host.next_deadline(), None);
 
     drop(admission.observer);
-    host.recover_after_driver_shutdown()
-        .unwrap_or_else(|error| panic!("recover host: {error}"));
+    host.reject_handoff(operation_id)
+        .unwrap_or_else(|error| panic!("reject handoff: {error}"));
     drop(host);
     stop_notifier(&mut notifier);
 }
@@ -67,49 +67,35 @@ fn bounded_aggregate_reservation_eventually_rejects_before_machine_construction(
 }
 
 #[test]
-fn untouched_and_handed_off_recovery_preserve_delivery_boundary() {
-    for handed_off in [false, true] {
-        let (mut host, mut notifier) = host();
-        let admission = host
-            .try_admit(Moment::from_tick(1), deadline(20), plan())
-            .unwrap_or_else(|error| panic!("admit API 92: {error:?}"));
-        if handed_off {
-            let DeleteShareGroupOffsetsTurn::Submit(_submission) = host
-                .turn(Moment::from_tick(2))
-                .unwrap_or_else(|error| panic!("handoff turn: {error}"))
-            else {
-                panic!("submission expected");
-            };
-        }
-        host.recover_after_driver_shutdown()
-            .unwrap_or_else(|error| panic!("recover host: {error}"));
-        let DeleteShareGroupOffsetsOutcome::Failed(failure) = admission
-            .observer
-            .wait()
-            .unwrap_or_else(|error| panic!("observe recovery: {error}"))
-        else {
-            panic!("failure expected");
-        };
-        let expected = if handed_off {
-            (
-                DeleteShareGroupOffsetsFailureKind::Transport,
-                DeleteShareGroupOffsetsDeliveryStatus::PossiblySent,
-            )
-        } else {
-            (
-                DeleteShareGroupOffsetsFailureKind::DriverRejected,
-                DeleteShareGroupOffsetsDeliveryStatus::NotSent,
-            )
-        };
-        assert_eq!((failure.kind(), failure.delivery()), expected);
-        let _progress = host
-            .turn(Moment::from_tick(3))
-            .unwrap_or_else(|error| panic!("reclaim turn: {error}"));
-        assert_eq!(host.retained_bytes_for_test(), 0);
+fn untouched_recovery_is_definitely_unsent() {
+    let (mut host, mut notifier) = host();
+    let admission = host
+        .try_admit(Moment::from_tick(1), deadline(20), plan())
+        .unwrap_or_else(|error| panic!("admit API 92: {error:?}"));
 
-        drop(host);
-        stop_notifier(&mut notifier);
-    }
+    host.recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("recover host: {error}"));
+    let DeleteShareGroupOffsetsOutcome::Failed(failure) = admission
+        .observer
+        .wait()
+        .unwrap_or_else(|error| panic!("observe recovery: {error}"))
+    else {
+        panic!("failure expected");
+    };
+    assert_eq!(
+        (failure.kind(), failure.delivery()),
+        (
+            DeleteShareGroupOffsetsFailureKind::DriverRejected,
+            DeleteShareGroupOffsetsDeliveryStatus::NotSent,
+        )
+    );
+    let _progress = host
+        .turn(Moment::from_tick(3))
+        .unwrap_or_else(|error| panic!("reclaim turn: {error}"));
+    assert_eq!(host.retained_bytes_for_test(), 0);
+
+    drop(host);
+    stop_notifier(&mut notifier);
 }
 
 #[test]

@@ -46,11 +46,14 @@ fn admission_reserves_completion_and_one_mib_envelope_before_submission() {
     else {
         panic!("submission expected");
     };
-    let (_id, submitted_deadline, submitted_plan, submitted_request) = submission.into_parts();
+    let (operation_id, submitted_deadline, submitted_plan, submitted_request) =
+        submission.into_parts();
     assert_eq!(submitted_deadline, capture.operation_deadline());
     assert_eq!(submitted_plan.renewers()[0].principal_name(), "renewer");
     assert_eq!(submitted_request.minimum_version(), 3);
 
+    host.reject_handoff(operation_id)
+        .unwrap_or_else(|error| panic!("reject inspected submission: {error}"));
     drop(admission.observer);
     host.recover_after_driver_shutdown()
         .unwrap_or_else(|error| panic!("recover host: {error}"));
@@ -73,10 +76,15 @@ fn dropping_observer_does_not_cancel_accepted_work() {
         )
         .unwrap_or_else(|error| panic!("admit token creation: {error:?}"));
     drop(admission.observer);
-    assert!(matches!(
-        host.turn(capture.now()),
-        Ok(CreateDelegationTokenTurn::Submit(_))
-    ));
+    let CreateDelegationTokenTurn::Submit(submission) = host
+        .turn(capture.now())
+        .unwrap_or_else(|error| panic!("submission turn: {error}"))
+    else {
+        panic!("submission expected");
+    };
+    let (operation_id, _deadline, _plan, _request) = submission.into_parts();
+    host.reject_handoff(operation_id)
+        .unwrap_or_else(|error| panic!("reject abandoned observation: {error}"));
     host.recover_after_driver_shutdown()
         .unwrap_or_else(|error| panic!("recover abandoned observation: {error}"));
     drop(host);
@@ -158,42 +166,6 @@ fn untouched_shutdown_is_definitely_unsent_and_reclaimable() {
         .turn(capture.now())
         .unwrap_or_else(|error| panic!("reclaim turn: {error}"));
     assert_eq!(host.retained_bytes_for_test(), 0);
-    drop(host);
-    stop_notifier(&mut notifier);
-}
-
-#[test]
-fn handed_off_shutdown_is_possibly_sent() {
-    let (mut notifier, ports) =
-        AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
-    let mut host = CreateDelegationTokenHost::new(ports.create_delegation_token);
-    let capture = deadline();
-    let admission = host
-        .try_admit(
-            capture.now(),
-            capture.operation_deadline(),
-            plan(),
-            prepared(),
-        )
-        .unwrap_or_else(|error| panic!("admit token creation: {error:?}"));
-    assert!(matches!(
-        host.turn(capture.now()),
-        Ok(CreateDelegationTokenTurn::Submit(_))
-    ));
-    host.recover_after_driver_shutdown()
-        .unwrap_or_else(|error| panic!("recover handed-off request: {error}"));
-    let CreateDelegationTokenOutcome::Failed(failure) = admission
-        .observer
-        .wait()
-        .unwrap_or_else(|error| panic!("{error}"))
-    else {
-        panic!("failure expected");
-    };
-    assert_eq!(failure.kind(), CreateDelegationTokenFailureKind::Transport);
-    assert_eq!(
-        failure.delivery(),
-        CreateDelegationTokenDeliveryStatus::PossiblySent
-    );
     drop(host);
     stop_notifier(&mut notifier);
 }

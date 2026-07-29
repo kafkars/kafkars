@@ -20,19 +20,23 @@ use super::{
 #[must_use = "an accepted partition transaction abort must be terminally settled"]
 pub(crate) struct AbortPartitionTransactionCall {
     call: Option<RoutedCall<WriteTxnMarkersResponse>>,
+    plan: Option<AbortPartitionTransactionPlan>,
 }
 
 impl AbortPartitionTransactionCall {
     pub(crate) fn submit(
         driver: &DriverOwner,
-        plan: &AbortPartitionTransactionPlan,
+        plan: AbortPartitionTransactionPlan,
         deadline: Instant,
     ) -> Result<Self, AbortPartitionTransactionCallAdmissionFailure> {
-        let request = abort_partition_transaction_request(plan);
+        let request = abort_partition_transaction_request(&plan);
         let call = driver
-            .submit_tracked_abort_partition_transaction(plan, request, deadline)
+            .submit_tracked_abort_partition_transaction(&plan, request, deadline)
             .map_err(|_source| AbortPartitionTransactionCallAdmissionFailure::Driver)?;
-        Ok(Self { call: Some(call) })
+        Ok(Self {
+            call: Some(call),
+            plan: Some(plan),
+        })
     }
 
     /// Extracts a ready raw terminal without losing partition-route evidence.
@@ -40,14 +44,16 @@ impl AbortPartitionTransactionCall {
         &mut self,
     ) -> Option<Result<AbortPartitionTransactionRawTerminal, CompletionError>> {
         let result = self.call.as_mut()?.try_result()?;
-        drop(self.call.take());
         match result {
             Ok(outcome) => {
+                let plan = self.plan.take()?;
+                drop(self.call.take());
                 let (result, selected_version, route_token) = outcome.into_parts();
                 Some(Ok(retain_abort_partition_transaction_terminal(
                     selected_version,
                     result,
                     route_token,
+                    plan,
                 )))
             }
             Err(source) => Some(Err(source)),
@@ -58,10 +64,14 @@ impl AbortPartitionTransactionCall {
     pub(crate) fn recover_after_driver_shutdown(
         self,
     ) -> Option<RecoveredAbortPartitionTransactionCall> {
-        self.call.map(|call| {
-            drop(call);
-            RecoveredAbortPartitionTransactionCall::new()
-        })
+        let Self { call, plan } = self;
+        match (call, plan) {
+            (Some(call), Some(plan)) => {
+                drop(call);
+                Some(RecoveredAbortPartitionTransactionCall::new(plan))
+            }
+            _ => None,
+        }
     }
 }
 

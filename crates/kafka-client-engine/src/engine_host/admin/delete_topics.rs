@@ -2,7 +2,10 @@
 
 use kafka_client_core::{Deadline, DeleteTopicsInput, Moment};
 
-use crate::admin::{DeleteTopicsShardLockError, DeleteTopicsTurn};
+use crate::{
+    admin::{DeleteTopicsShardLockError, DeleteTopicsTurn},
+    driver::DeleteTopicsControllerRefreshPoll,
+};
 
 use super::super::{EngineHostError, EngineHostResources};
 
@@ -80,6 +83,13 @@ pub(super) fn apply_completions(
         else {
             break;
         };
+        match settled.poll_controller_refresh(resources.driver.as_ref()) {
+            DeleteTopicsControllerRefreshPoll::Ready => {}
+            DeleteTopicsControllerRefreshPoll::Pending => break,
+            DeleteTopicsControllerRefreshPoll::DriverMissing => {
+                return Err(EngineHostError::DriverOwnerMissing);
+            }
+        }
         let operation_id = settled.operation_id();
         let input = settled.take_input().ok_or(EngineHostError::DeleteTopics(
             crate::admin::DeleteTopicsHostError::MissingTerminal,

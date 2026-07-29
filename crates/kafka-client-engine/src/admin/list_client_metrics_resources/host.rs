@@ -17,7 +17,10 @@ use crate::{
     admin::AdminListClientMetricsResourcesPublisher,
     clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{ListClientMetricsResourcesCall, ListClientMetricsResourcesRawTerminal},
+    driver::{
+        ListClientMetricsResourcesCall, ListClientMetricsResourcesRawTerminal,
+        RecoveredListClientMetricsResourcesCall,
+    },
 };
 
 use super::{ListClientMetricsResourcesHostError, ListClientMetricsResourcesObserver};
@@ -43,6 +46,7 @@ struct ListClientMetricsResourcesOperation {
     submission: Option<ListClientMetricsResourcesSubmission>,
     handoff: ListClientMetricsResourcesHandoff,
     call: Option<ListClientMetricsResourcesCall>,
+    recovered_call: Option<RecoveredListClientMetricsResourcesCall>,
     raw_terminal: Option<ListClientMetricsResourcesRawTerminal>,
     terminal: Option<ListClientMetricsResourcesTerminal>,
 }
@@ -121,6 +125,7 @@ impl ListClientMetricsResourcesHost {
             .ok_or(ListClientMetricsResourcesHostError::UnknownOperation)?;
         if self.operations[index].handoff != ListClientMetricsResourcesHandoff::HandedOff
             || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
         {
             return Err(ListClientMetricsResourcesHostError::InvalidHandoff);
         }
@@ -138,7 +143,11 @@ impl ListClientMetricsResourcesHost {
         let index = self
             .operation_index(operation_id)
             .ok_or(ListClientMetricsResourcesHostError::UnknownOperation)?;
-        if self.operations[index].handoff != ListClientMetricsResourcesHandoff::HandedOff {
+        if self.operations[index].handoff != ListClientMetricsResourcesHandoff::HandedOff
+            || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(ListClientMetricsResourcesHostError::InvalidHandoff);
         }
         self.apply(

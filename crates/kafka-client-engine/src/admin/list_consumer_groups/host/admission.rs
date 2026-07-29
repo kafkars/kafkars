@@ -63,6 +63,7 @@ impl ListConsumerGroupsHost {
             retained_bytes: LIST_CONSUMER_GROUPS_RETAINED_BYTES,
             remaining_result_bytes,
             submission: None,
+            rejected_submission: None,
             handoff: ListConsumerGroupsHandoff::Untouched,
             call: None,
             raw_terminal: None,

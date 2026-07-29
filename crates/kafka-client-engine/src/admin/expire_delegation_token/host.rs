@@ -16,7 +16,10 @@ use crate::{
     admin::AdminExpireDelegationTokenPublisher,
     clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{ExpireDelegationTokenCall, ExpireDelegationTokenRawTerminal},
+    driver::{
+        ExpireDelegationTokenCall, ExpireDelegationTokenRawTerminal,
+        RecoveredExpireDelegationTokenCall,
+    },
     protocol::admin::expire_delegation_token::PreparedExpireDelegationTokenRequest,
 };
 
@@ -81,6 +84,7 @@ struct ExpireDelegationTokenOperation {
     submission: Option<ExpireDelegationTokenSubmission>,
     handoff: ExpireDelegationTokenHandoff,
     call: Option<ExpireDelegationTokenCall>,
+    recovered_call: Option<RecoveredExpireDelegationTokenCall>,
     raw_terminal: Option<ExpireDelegationTokenRawTerminal>,
     terminal: Option<ExpireDelegationTokenTerminal>,
 }
@@ -136,7 +140,11 @@ impl ExpireDelegationTokenHost {
             self.apply(operation_id, ExpireDelegationTokenInput::DeadlineElapsed)?;
             return Ok(ExpireDelegationTokenTurn::Progress);
         }
-        let submission = take_submission_for_handoff(&mut self.operations[index])?;
+        let submission = self.operations[index]
+            .submission
+            .take()
+            .ok_or(ExpireDelegationTokenHostError::MissingSubmission)?;
+        self.operations[index].handoff = ExpireDelegationTokenHandoff::HandedOff;
         Ok(ExpireDelegationTokenTurn::Submit(submission))
     }
 
@@ -148,7 +156,13 @@ impl ExpireDelegationTokenHost {
         let index = self
             .operation_index(operation_id)
             .ok_or(ExpireDelegationTokenHostError::UnknownOperation)?;
-        bind_call(&mut self.operations[index], call)?;
+        if self.operations[index].handoff != ExpireDelegationTokenHandoff::HandedOff
+            || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+        {
+            return Err(ExpireDelegationTokenHostError::InvalidHandoff);
+        }
+        self.operations[index].call = Some(call);
         self.apply(operation_id, ExpireDelegationTokenInput::DriverAccepted)
     }
 
@@ -159,7 +173,11 @@ impl ExpireDelegationTokenHost {
         let index = self
             .operation_index(operation_id)
             .ok_or(ExpireDelegationTokenHostError::UnknownOperation)?;
-        if self.operations[index].handoff != ExpireDelegationTokenHandoff::HandedOff {
+        if self.operations[index].handoff != ExpireDelegationTokenHandoff::HandedOff
+            || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(ExpireDelegationTokenHostError::InvalidHandoff);
         }
         self.apply(operation_id, ExpireDelegationTokenInput::DriverRejected)
@@ -195,7 +213,18 @@ impl ExpireDelegationTokenHost {
         let index = self
             .operation_index(operation_id)
             .ok_or(ExpireDelegationTokenHostError::UnknownOperation)?;
-        if apply_input(&mut self.operations[index], input)? {
+        let accepted = matches!(&input, ExpireDelegationTokenInput::DriverAccepted);
+        if accepted && self.operations[index].handoff != ExpireDelegationTokenHandoff::HandedOff {
+            return Err(ExpireDelegationTokenHostError::InvalidHandoff);
+        }
+        let transition = self.operations[index].machine.apply(input)?;
+        if accepted {
+            self.operations[index].handoff = ExpireDelegationTokenHandoff::Submitted;
+        }
+        if let Some(ExpireDelegationTokenEffect::Complete { terminal, .. }) =
+            transition.into_effect()
+        {
+            self.operations[index].terminal = Some(terminal);
             self.publish_terminal(index)?;
         }
         Ok(())
@@ -205,46 +234,4 @@ impl ExpireDelegationTokenHost {
     pub(super) const fn retained_bytes_for_test(&self) -> usize {
         self.retained_bytes
     }
-}
-
-fn take_submission_for_handoff(
-    operation: &mut ExpireDelegationTokenOperation,
-) -> Result<ExpireDelegationTokenSubmission, ExpireDelegationTokenHostError> {
-    let submission = operation
-        .submission
-        .take()
-        .ok_or(ExpireDelegationTokenHostError::MissingSubmission)?;
-    operation.handoff = ExpireDelegationTokenHandoff::HandedOff;
-    Ok(submission)
-}
-
-fn bind_call(
-    operation: &mut ExpireDelegationTokenOperation,
-    call: ExpireDelegationTokenCall,
-) -> Result<(), ExpireDelegationTokenHostError> {
-    if operation.handoff != ExpireDelegationTokenHandoff::HandedOff || operation.call.is_some() {
-        return Err(ExpireDelegationTokenHostError::InvalidHandoff);
-    }
-    operation.call = Some(call);
-    Ok(())
-}
-
-fn apply_input(
-    operation: &mut ExpireDelegationTokenOperation,
-    input: ExpireDelegationTokenInput,
-) -> Result<bool, ExpireDelegationTokenHostError> {
-    let accepted = matches!(&input, ExpireDelegationTokenInput::DriverAccepted);
-    if accepted && operation.handoff != ExpireDelegationTokenHandoff::HandedOff {
-        return Err(ExpireDelegationTokenHostError::InvalidHandoff);
-    }
-    let machine = &mut operation.machine;
-    let transition = machine.apply(input)?;
-    if accepted {
-        operation.handoff = ExpireDelegationTokenHandoff::Submitted;
-    }
-    if let Some(ExpireDelegationTokenEffect::Complete { terminal, .. }) = transition.into_effect() {
-        operation.terminal = Some(terminal);
-        return Ok(true);
-    }
-    Ok(false)
 }

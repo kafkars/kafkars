@@ -17,7 +17,10 @@ use crate::{
     admin::AdminAlterShareGroupOffsetsPublisher,
     clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{AlterShareGroupOffsetsCall, AlterShareGroupOffsetsTerminal as DriverTerminal},
+    driver::{
+        AlterShareGroupOffsetsCall, AlterShareGroupOffsetsTerminal as DriverTerminal,
+        RecoveredAlterShareGroupOffsetsCall,
+    },
 };
 
 use super::{AlterShareGroupOffsetsHostError, AlterShareGroupOffsetsObserver};
@@ -45,6 +48,8 @@ struct AlterShareGroupOffsetsOperation {
     submission: Option<AlterShareGroupOffsetsSubmission>,
     handoff: AlterShareGroupOffsetsHandoff,
     call: Option<AlterShareGroupOffsetsCall>,
+    // Driver-shutdown proof remains live until core accepts the terminal fact.
+    recovered_call: Option<RecoveredAlterShareGroupOffsetsCall>,
     raw_terminal: Option<DriverTerminal>,
     terminal: Option<AlterShareGroupOffsetsTerminal>,
 }

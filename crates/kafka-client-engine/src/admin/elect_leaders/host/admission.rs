@@ -20,12 +20,21 @@ use super::{
 };
 
 impl ElectLeadersSubmission {
-    pub(crate) fn into_parts(self) -> (OperationId, OperationDeadline, ElectLeadersPlan, usize) {
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        OperationId,
+        OperationDeadline,
+        ElectLeadersPlan,
+        usize,
+        usize,
+    ) {
         (
             self.operation_id,
             self.deadline,
             self.plan,
             self.request_scratch_limit,
+            self.result_limit,
         )
     }
 }
@@ -48,11 +57,14 @@ impl ElectLeadersHost {
             .ok_or(ElectLeadersAdmissionErrorKind::IdentityExhausted)?;
         let owner_charge =
             request_owner_charge(&plan).ok_or(ElectLeadersAdmissionErrorKind::RetainedBytes)?;
-        let generated_request_charge = generated_request_peak_charge(
-            plan.targets()
-                .iter()
-                .map(|target| LeaderElectionRef::new(target.topic(), target.partition())),
-        )
+        let generated_request_charge = match plan.selection().selected_targets() {
+            None => generated_request_peak_charge(core::iter::empty()),
+            Some(targets) => generated_request_peak_charge(
+                targets
+                    .iter()
+                    .map(|target| LeaderElectionRef::new(target.topic(), target.partition())),
+            ),
+        }
         .ok_or(ElectLeadersAdmissionErrorKind::RetainedBytes)?;
         let result_limit = ELECT_LEADERS_RETAINED_BYTES
             .checked_sub(owner_charge)
@@ -77,6 +89,7 @@ impl ElectLeadersHost {
             deadline,
             retained_bytes: ELECT_LEADERS_RETAINED_BYTES,
             result_limit,
+            request_scratch_limit: generated_request_charge,
             submission: None,
             handoff: ElectLeadersHandoff::Untouched,
             call: None,
@@ -93,12 +106,16 @@ impl ElectLeadersHost {
                 operation_id: submitted_id,
                 deadline: core_deadline,
                 plan,
-            }) if submitted_id == operation_id && core_deadline == deadline.core() => {
+            }) if submitted_id == operation_id
+                && core_deadline == deadline.core()
+                && plan == operation.response_plan =>
+            {
                 operation.submission = Some(ElectLeadersSubmission {
                     operation_id,
                     deadline,
                     plan,
                     request_scratch_limit: generated_request_charge,
+                    result_limit,
                 });
             }
             Some(ElectLeadersEffect::Complete {
@@ -133,18 +150,20 @@ fn reservation_error(error: CompletionRegistryError) -> ElectLeadersAdmissionErr
 }
 
 fn request_owner_charge(plan: &ElectLeadersPlan) -> Option<usize> {
-    let payload = plan.targets().iter().try_fold(0usize, |bytes, target| {
-        bytes.checked_add(target.topic().len())
-    })?;
+    let (target_count, payload) = match plan.selection().selected_targets() {
+        None => (0, 0),
+        Some(targets) => (
+            targets.len(),
+            targets.iter().try_fold(0usize, |bytes, target| {
+                bytes.checked_add(target.topic().len())
+            })?,
+        ),
+    };
     size_of::<ElectLeadersOperation>()
         .checked_add(size_of::<ElectLeadersSubmission>())?
         .checked_add(3usize.checked_mul(size_of::<ElectLeadersPlan>())?)?
         .checked_add(
-            3usize.checked_mul(
-                plan.targets()
-                    .len()
-                    .checked_mul(size_of::<LeaderElectionTarget>())?,
-            )?,
+            3usize.checked_mul(target_count.checked_mul(size_of::<LeaderElectionTarget>())?)?,
         )?
         .checked_add(3usize.checked_mul(payload)?)
 }

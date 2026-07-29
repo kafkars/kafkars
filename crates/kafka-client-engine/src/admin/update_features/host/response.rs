@@ -20,11 +20,9 @@ use crate::{
     },
 };
 
-pub(super) fn terminal_input(
-    raw: &UpdateFeaturesRawTerminal,
-    plan: &UpdateFeaturesPlan,
-    retained_limit: usize,
-) -> (UpdateFeaturesInput, usize) {
+pub(super) fn terminal_input(raw: &UpdateFeaturesRawTerminal) -> (UpdateFeaturesInput, usize) {
+    let plan = raw.response_plan();
+    let retained_limit = raw.result_limit();
     match raw.fact() {
         UpdateFeaturesTerminalFact::Response {
             selected_version,

@@ -1,15 +1,15 @@
 //! Call polling, publication, reclamation, and shutdown recovery.
 
-use kafka_client_core::{
-    DeliveryStatus, DescribeFeaturesEffect, DescribeFeaturesInput, DescribeFeaturesState, Moment,
-};
+mod recovery;
+
+#[cfg(test)]
+mod test_support;
+
+use kafka_client_core::DescribeFeaturesEffect;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
-use super::{
-    DescribeFeaturesHandoff, DescribeFeaturesHost, DescribeFeaturesHostError,
-    response::terminal_input,
-};
+use super::{DescribeFeaturesHost, DescribeFeaturesHostError, response::terminal_input};
 
 impl DescribeFeaturesHost {
     pub(super) fn poll_one_call(&mut self) -> Result<bool, DescribeFeaturesHostError> {
@@ -30,65 +30,15 @@ impl DescribeFeaturesHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
             }
             Err(_error) => Err(DescribeFeaturesHostError::CallCompletion),
         }
-    }
-
-    pub(crate) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), DescribeFeaturesHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (DescribeFeaturesState::Ready, _) => self.apply(
-                    operation_id,
-                    DescribeFeaturesInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (DescribeFeaturesState::AwaitingDriver, DescribeFeaturesHandoff::Untouched) => {
-                    self.apply(operation_id, DescribeFeaturesInput::DriverRejected)?;
-                }
-                (DescribeFeaturesState::AwaitingDriver, DescribeFeaturesHandoff::HandedOff) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(operation_id, DescribeFeaturesInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        DescribeFeaturesInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (DescribeFeaturesState::Submitted, DescribeFeaturesHandoff::Submitted) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        DescribeFeaturesInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (DescribeFeaturesState::Completed, _) => {
-                    self.publish_terminal(0)?;
-                }
-                _ => return Err(DescribeFeaturesHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), DescribeFeaturesHostError> {
@@ -129,7 +79,10 @@ impl DescribeFeaturesHost {
         &mut self,
         index: usize,
     ) -> Result<(), DescribeFeaturesHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(DescribeFeaturesHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -187,13 +140,5 @@ impl DescribeFeaturesHost {
             .checked_sub(bytes)
             .ok_or(DescribeFeaturesHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::DescribeFeaturesCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

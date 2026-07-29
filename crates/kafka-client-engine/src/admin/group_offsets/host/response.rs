@@ -2,7 +2,7 @@
 
 use kafka_client_core::{
     GroupOffsetBrokerError, GroupOffsetDescription, GroupOffsetOutcome,
-    ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsInput, ListConsumerGroupOffsetsPlan,
+    ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsInput,
 };
 
 use crate::{
@@ -15,9 +15,9 @@ use crate::{
 
 pub(super) fn terminal_input(
     terminal: &GroupOffsetsTerminal,
-    plan: &ListConsumerGroupOffsetsPlan,
-    result_limit: usize,
 ) -> (ListConsumerGroupOffsetsInput, usize) {
+    let plan = terminal.response_plan();
+    let result_limit = terminal.result_limit();
     match terminal.fact() {
         GroupOffsetsTerminalFact::Failed { kind, delivery } => match kind {
             GroupOffsetsDriverFailureKind::DeadlineElapsed => (

@@ -6,12 +6,11 @@ use kafka_client_core::{
     DescribeClientQuotaEntity, DescribeClientQuotaEntityComponent, DescribeClientQuotaValue,
     DescribeClientQuotasBatch, DescribeClientQuotasBrokerError,
 };
-use kafka_wire::{DescribeClientQuotasResponse, describe_client_quotas_request::ComponentData};
+use kafka_wire::DescribeClientQuotasResponse;
 
 use super::{
-    DescribeClientQuotaFilterComponentRef, DescribeClientQuotaMatchRef,
-    NormalizedClientQuotaEntityComponent, NormalizedClientQuotaEntry, NormalizedClientQuotaValue,
-    NormalizedDescribeClientQuotasResponse,
+    DescribeClientQuotaFilterComponentRef, NormalizedClientQuotaEntityComponent,
+    NormalizedClientQuotaEntry, NormalizedClientQuotaValue, NormalizedDescribeClientQuotasResponse,
 };
 
 pub(super) const MAX_FILTER_COMPONENTS: usize = 128;
@@ -26,26 +25,7 @@ pub(super) const MAX_DIAGNOSTIC_BYTES: usize = 1024;
 pub(super) fn request_peak_charge(
     components: &[DescribeClientQuotaFilterComponentRef<'_>],
 ) -> Option<usize> {
-    components.iter().try_fold(
-        components
-            .len()
-            .checked_mul(size_of::<ComponentData>())?
-            .checked_add(
-                components
-                    .len()
-                    .checked_mul(size_of::<DescribeClientQuotaFilterComponentRef<'static>>())?,
-            )?
-            .checked_add(components.len().checked_mul(size_of::<&str>())?)?,
-        |bytes, component| {
-            bytes
-                .checked_add(component.entity_type().len())?
-                .checked_add(match component.match_() {
-                    DescribeClientQuotaMatchRef::Exact(value) => value.len(),
-                    DescribeClientQuotaMatchRef::Default
-                    | DescribeClientQuotaMatchRef::AnySpecified => 0,
-                })
-        },
-    )
+    super::request_charge::borrowed_request_peak_charge(components)
 }
 
 pub(super) fn response_peak_charge(response: &DescribeClientQuotasResponse) -> Option<usize> {

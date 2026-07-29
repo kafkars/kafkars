@@ -1,5 +1,8 @@
 //! Call polling, publication, reclamation, and shutdown recovery.
 
+#[cfg(test)]
+mod test_support;
+
 use kafka_client_core::{
     AlterShareGroupOffsetsEffect, AlterShareGroupOffsetsInput, AlterShareGroupOffsetsState,
     DeliveryStatus, Moment,
@@ -31,9 +34,9 @@ impl AlterShareGroupOffsetsHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
@@ -52,9 +55,7 @@ impl AlterShareGroupOffsetsHost {
                 continue;
             }
             let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
+            match (operation.machine.state(), operation.handoff) {
                 (AlterShareGroupOffsetsState::Ready, _) => self.apply(
                     operation_id,
                     AlterShareGroupOffsetsInput::Start {
@@ -69,26 +70,16 @@ impl AlterShareGroupOffsetsHost {
                     AlterShareGroupOffsetsState::AwaitingDriver,
                     AlterShareGroupOffsetsHandoff::HandedOff,
                 ) => {
-                    seal_call(self.operations[0].call.take());
+                    self.retain_recovered_call(0)?;
                     self.apply(operation_id, AlterShareGroupOffsetsInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        AlterShareGroupOffsetsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (
                     AlterShareGroupOffsetsState::Submitted,
                     AlterShareGroupOffsetsHandoff::Submitted,
                 ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        AlterShareGroupOffsetsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    self.retain_recovered_call(0)?;
+                    self.settle_recovered_transport(0)?;
                 }
                 (AlterShareGroupOffsetsState::Completed, _) => self.publish_terminal(0)?,
                 _ => return Err(AlterShareGroupOffsetsHostError::InvalidHandoff),
@@ -97,7 +88,53 @@ impl AlterShareGroupOffsetsHost {
         Ok(())
     }
 
-    fn settle_raw(&mut self, index: usize) -> Result<(), AlterShareGroupOffsetsHostError> {
+    fn retain_recovered_call(
+        &mut self,
+        index: usize,
+    ) -> Result<(), AlterShareGroupOffsetsHostError> {
+        if self.operations[index].recovered_call.is_some() {
+            return Ok(());
+        }
+        if let Some(call) = self.operations[index].call.take() {
+            self.operations[index].recovered_call = call.recover_after_driver_shutdown();
+        }
+        self.operations[index]
+            .recovered_call
+            .as_ref()
+            .ok_or(AlterShareGroupOffsetsHostError::InvalidHandoff)
+            .map(|_recovered| ())
+    }
+
+    fn settle_recovered_transport(
+        &mut self,
+        index: usize,
+    ) -> Result<(), AlterShareGroupOffsetsHostError> {
+        let transition =
+            self.operations[index]
+                .machine
+                .apply(AlterShareGroupOffsetsInput::TransportFailed {
+                    delivery: DeliveryStatus::PossiblySent,
+                })?;
+        let terminal = match transition.into_effect() {
+            Some(AlterShareGroupOffsetsEffect::Complete {
+                operation_id,
+                terminal,
+            }) if operation_id == self.operations[index].operation_id => terminal,
+            _ => return Err(AlterShareGroupOffsetsHostError::MissingTerminal),
+        };
+        let recovered = self.operations[index]
+            .recovered_call
+            .take()
+            .ok_or(AlterShareGroupOffsetsHostError::InvalidHandoff)?;
+        recovered.seal();
+        self.operations[index].terminal = Some(terminal);
+        self.publish_terminal(index)
+    }
+
+    pub(super) fn settle_raw(
+        &mut self,
+        index: usize,
+    ) -> Result<(), AlterShareGroupOffsetsHostError> {
         let (input, retained_bytes) = {
             let operation = self
                 .operations
@@ -135,7 +172,10 @@ impl AlterShareGroupOffsetsHost {
         &mut self,
         index: usize,
     ) -> Result<(), AlterShareGroupOffsetsHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(AlterShareGroupOffsetsHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -193,13 +233,5 @@ impl AlterShareGroupOffsetsHost {
             .checked_sub(bytes)
             .ok_or(AlterShareGroupOffsetsHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::AlterShareGroupOffsetsCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

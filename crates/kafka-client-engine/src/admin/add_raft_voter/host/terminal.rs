@@ -1,17 +1,42 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
-use kafka_client_core::{
-    AddRaftVoterEffect, AddRaftVoterInput, AddRaftVoterState, DeliveryStatus, Moment,
+mod recovery;
+
+#[cfg(test)]
+mod recovery_test;
+#[cfg(test)]
+mod test_support;
+
+use kafka_client_core::AddRaftVoterEffect;
+
+use crate::{
+    completion::{CompletionRegistryError, ReclaimStatus},
+    driver::DriverOwner,
 };
 
-use crate::completion::{CompletionRegistryError, ReclaimStatus};
-
-use super::{
-    AddRaftVoterHandoff, AddRaftVoterHost, AddRaftVoterHostError, response::terminal_input,
-};
+use super::{AddRaftVoterHost, AddRaftVoterHostError, response::terminal_input};
 
 impl AddRaftVoterHost {
-    pub(super) fn poll_one_call(&mut self) -> Result<bool, AddRaftVoterHostError> {
+    pub(super) fn poll_one_call(
+        &mut self,
+        driver: Option<&DriverOwner>,
+    ) -> Result<bool, AddRaftVoterHostError> {
+        if let Some(index) = self
+            .operations
+            .iter()
+            .position(|operation| operation.raw_terminal.is_some())
+        {
+            let ready = self.operations[index]
+                .raw_terminal
+                .as_mut()
+                .ok_or(AddRaftVoterHostError::MissingTerminal)?
+                .poll_controller_refresh(driver)
+                .ok_or(AddRaftVoterHostError::DriverMissing)?;
+            if ready {
+                self.settle_raw(index)?;
+            }
+            return Ok(true);
+        }
         let Some(index) = self
             .operations
             .iter()
@@ -29,61 +54,14 @@ impl AddRaftVoterHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
-                self.settle_raw(index)?;
                 Ok(true)
             }
             Err(_error) => Err(AddRaftVoterHostError::CallCompletion),
         }
-    }
-
-    pub(crate) fn recover_after_driver_shutdown(&mut self) -> Result<(), AddRaftVoterHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (AddRaftVoterState::Ready, _) => self.apply(
-                    operation_id,
-                    AddRaftVoterInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (AddRaftVoterState::AwaitingDriver, AddRaftVoterHandoff::Untouched) => {
-                    self.apply(operation_id, AddRaftVoterInput::DriverRejected)?;
-                }
-                (AddRaftVoterState::AwaitingDriver, AddRaftVoterHandoff::HandedOff) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(operation_id, AddRaftVoterInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        AddRaftVoterInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (AddRaftVoterState::Submitted, AddRaftVoterHandoff::Submitted) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        AddRaftVoterInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (AddRaftVoterState::Completed, _) => self.publish_terminal(0)?,
-                _ => return Err(AddRaftVoterHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), AddRaftVoterHostError> {
@@ -121,7 +99,10 @@ impl AddRaftVoterHost {
     }
 
     pub(super) fn publish_terminal(&mut self, index: usize) -> Result<(), AddRaftVoterHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(AddRaftVoterHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -180,16 +161,4 @@ impl AddRaftVoterHost {
             .ok_or(AddRaftVoterHostError::ByteAccounting)?;
         Ok(())
     }
-}
-
-fn seal_call(call: Option<crate::driver::AddRaftVoterCall>) {
-    if let Some(call) = call
-        && let Some(recovered) = call.recover_after_driver_shutdown()
-    {
-        seal_recovered_call(recovered);
-    }
-}
-
-fn seal_recovered_call(recovered: crate::driver::RecoveredAddRaftVoterCall) {
-    recovered.seal();
 }

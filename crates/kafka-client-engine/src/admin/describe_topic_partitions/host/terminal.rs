@@ -1,14 +1,15 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
-use kafka_client_core::{
-    DeliveryStatus, DescribeTopicPartitionsInput, DescribeTopicPartitionsState, Moment,
-};
+mod recovery;
+
+#[cfg(test)]
+mod test_support;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
 use super::{
-    AdminDescribeTopicPartitionsHandoff, AdminDescribeTopicPartitionsHost,
-    AdminDescribeTopicPartitionsHostError, response::terminal_input,
+    AdminDescribeTopicPartitionsHost, AdminDescribeTopicPartitionsHostError,
+    response::terminal_input,
 };
 
 impl AdminDescribeTopicPartitionsHost {
@@ -30,74 +31,15 @@ impl AdminDescribeTopicPartitionsHost {
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
             }
             Err(_error) => Err(AdminDescribeTopicPartitionsHostError::CallCompletion),
         }
-    }
-
-    pub(crate) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), AdminDescribeTopicPartitionsHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (DescribeTopicPartitionsState::Ready, _) => self.apply(
-                    operation_id,
-                    DescribeTopicPartitionsInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (
-                    DescribeTopicPartitionsState::AwaitingDriver,
-                    AdminDescribeTopicPartitionsHandoff::Untouched,
-                ) => {
-                    self.apply(operation_id, DescribeTopicPartitionsInput::DriverRejected)?;
-                }
-                (
-                    DescribeTopicPartitionsState::AwaitingDriver,
-                    AdminDescribeTopicPartitionsHandoff::HandedOff,
-                ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(operation_id, DescribeTopicPartitionsInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        DescribeTopicPartitionsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (
-                    DescribeTopicPartitionsState::Submitted,
-                    AdminDescribeTopicPartitionsHandoff::Submitted,
-                ) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        DescribeTopicPartitionsInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (DescribeTopicPartitionsState::Completed, _) => {
-                    self.publish_terminal(0)?;
-                }
-                _ => return Err(AdminDescribeTopicPartitionsHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
     }
 
     fn settle_raw(&mut self, index: usize) -> Result<(), AdminDescribeTopicPartitionsHostError> {
@@ -132,7 +74,10 @@ impl AdminDescribeTopicPartitionsHost {
         &mut self,
         index: usize,
     ) -> Result<(), AdminDescribeTopicPartitionsHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
+        if self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+            || self.operations[index].raw_terminal.is_some()
+        {
             return Err(AdminDescribeTopicPartitionsHostError::InvalidHandoff);
         }
         let terminal = self.operations[index]
@@ -190,13 +135,5 @@ impl AdminDescribeTopicPartitionsHost {
             .checked_sub(bytes)
             .ok_or(AdminDescribeTopicPartitionsHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::DescribeTopicPartitionsCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
-        }
     }
 }

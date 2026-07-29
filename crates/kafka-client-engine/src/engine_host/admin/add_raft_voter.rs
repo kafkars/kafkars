@@ -1,4 +1,4 @@
-//! Fair host turns for one committed metadata-quorum voter addition.
+//! Fair host turns for one controller-routed metadata-quorum voter addition.
 
 use kafka_client_core::{Deadline, Moment};
 
@@ -34,7 +34,13 @@ pub(super) fn drive(
     if resources.control.shutdown_requested() {
         resources.add_raft_voter.close_locked(&mut host);
     }
-    let turn = host.turn(now).map_err(EngineHostError::AddRaftVoter)?;
+    let turn = match host.turn(now, resources.driver.as_ref()) {
+        Ok(turn) => turn,
+        Err(crate::admin::AddRaftVoterHostError::DriverMissing) => {
+            return Err(EngineHostError::DriverOwnerMissing);
+        }
+        Err(error) => return Err(EngineHostError::AddRaftVoter(error)),
+    };
     let driver_progress = match turn {
         AddRaftVoterTurn::Idle => false,
         AddRaftVoterTurn::Progress => true,

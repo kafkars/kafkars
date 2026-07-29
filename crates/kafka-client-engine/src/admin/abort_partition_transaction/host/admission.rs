@@ -58,6 +58,7 @@ impl AbortPartitionTransactionHost {
             submission: None,
             handoff: AbortPartitionTransactionHandoff::Untouched,
             call: None,
+            recovered_call: None,
             raw_terminal: None,
             terminal: None,
         };

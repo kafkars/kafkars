@@ -39,7 +39,7 @@ pub(super) fn drive(
         DescribeLogDirsTurn::Idle => false,
         DescribeLogDirsTurn::Progress => true,
         DescribeLogDirsTurn::Submit(submission) => {
-            let (operation_id, deadline, broker_id, selection, retained_limit) =
+            let (operation_id, deadline, broker_id, selection, request_scratch_limit, result_limit) =
                 submission.into_parts();
             let driver = resources
                 .driver
@@ -48,17 +48,25 @@ pub(super) fn drive(
             match DescribeLogDirsCall::submit(
                 driver,
                 broker_id,
-                &selection,
-                retained_limit,
+                selection,
+                request_scratch_limit,
+                result_limit,
                 deadline.transport(),
             ) {
                 Ok(call) => host
-                    .accept_call(operation_id, selection, call)
+                    .accept_call(operation_id, call)
                     .map_err(EngineHostError::DescribeLogDirs)?,
                 Err(rejection) => {
-                    drop(rejection);
-                    host.reject_handoff(operation_id)
-                        .map_err(EngineHostError::DescribeLogDirs)?;
+                    let (broker_id, selection, request_scratch_limit, result_limit) =
+                        rejection.into_correlation();
+                    host.reject_handoff(
+                        operation_id,
+                        broker_id,
+                        selection,
+                        request_scratch_limit,
+                        result_limit,
+                    )
+                    .map_err(EngineHostError::DescribeLogDirs)?;
                 }
             }
             true

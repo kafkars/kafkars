@@ -3,7 +3,9 @@
 use std::time::Instant;
 
 use kafka_driver::{CompletionError, RoutedCall};
-use kafka_wire::{ListConfigResourcesRequest, ListConfigResourcesResponse};
+use kafka_wire::ListConfigResourcesResponse;
+
+use crate::protocol::admin::list_client_metrics_resources::list_client_metrics_resources_request;
 
 use super::{
     super::DriverOwner,
@@ -22,9 +24,9 @@ pub(crate) struct ListClientMetricsResourcesCall {
 impl ListClientMetricsResourcesCall {
     pub(crate) fn submit(
         driver: &DriverOwner,
-        request: ListConfigResourcesRequest,
         deadline: Instant,
     ) -> Result<Self, ListClientMetricsResourcesCallAdmissionFailure> {
+        let request = list_client_metrics_resources_request();
         let call = driver
             .submit_tracked_list_client_metrics_resources(request, deadline)
             .map_err(|_source| ListClientMetricsResourcesCallAdmissionFailure)?;
@@ -36,9 +38,9 @@ impl ListClientMetricsResourcesCall {
         &mut self,
     ) -> Option<Result<ListClientMetricsResourcesRawTerminal, CompletionError>> {
         let result = self.call.as_mut()?.try_result()?;
-        drop(self.call.take());
         match result {
             Ok(outcome) => {
+                drop(self.call.take());
                 let (result, selected_version, route_token) = outcome.into_parts();
                 Some(Ok(retain_list_client_metrics_resources_terminal(
                     selected_version,
@@ -52,11 +54,11 @@ impl ListClientMetricsResourcesCall {
 
     /// Seals unresolved ownership only after the unique driver is gone.
     pub(crate) fn recover_after_driver_shutdown(
-        mut self,
+        self,
     ) -> Option<RecoveredListClientMetricsResourcesCall> {
-        self.call.take().map(|call| {
+        self.call.map(|call| {
             drop(call);
-            RecoveredListClientMetricsResourcesCall
+            RecoveredListClientMetricsResourcesCall::new()
         })
     }
 }

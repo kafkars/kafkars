@@ -66,6 +66,7 @@ pub(crate) enum UpdateFeaturesHostError {
     SubmissionMismatch,
     InvalidHandoff,
     CallCompletion,
+    DriverMissing,
     ByteAccounting,
     Unsettled(usize),
     Wake,

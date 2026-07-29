@@ -26,8 +26,8 @@ use crate::{
 
 pub(super) fn terminal_input(
     raw: &ListTransactionsRawTerminal,
-    retained_bytes: usize,
 ) -> (AdminListTransactionsInput, usize) {
+    let retained_bytes = raw.retained_limit();
     match raw.fact() {
         ListTransactionsRawTerminalFact::DiscoveryResponse {
             selected_version,

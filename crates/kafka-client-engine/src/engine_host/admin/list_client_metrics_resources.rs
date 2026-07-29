@@ -8,7 +8,6 @@ use crate::{
         ListClientMetricsResourcesShardWakeError, ListClientMetricsResourcesTurn,
     },
     driver::{ListClientMetricsResourcesCall, ReactorWake},
-    protocol::admin::list_client_metrics_resources::list_client_metrics_resources_request,
 };
 
 use super::super::{EngineHostError, EngineHostResources};
@@ -45,12 +44,11 @@ pub(super) fn drive(
         ListClientMetricsResourcesTurn::Progress => true,
         ListClientMetricsResourcesTurn::Submit(submission) => {
             let (operation_id, deadline, _result_limit) = submission.into_parts();
-            let request = list_client_metrics_resources_request();
             let driver = resources
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            match ListClientMetricsResourcesCall::submit(driver, request, deadline.transport()) {
+            match ListClientMetricsResourcesCall::submit(driver, deadline.transport()) {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::ListClientMetricsResources)?,

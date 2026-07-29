@@ -2,17 +2,22 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::AdminDescribeTransactionsPlan;
+use kafka_client_core::{
+    AdminDescribeTransactionsMachineError, AdminDescribeTransactionsPlan, Moment,
+};
 
 use crate::{
+    EngineConfig,
     admin::{AdminCompletionNotifier, AdminDescribeTransactionsHost},
     clock::MonotonicClock,
+    driver::{DescribeTransactionsCall, DriverOwner},
 };
 
 use super::{
     AdminDescribeTransactionsAdmissionErrorKind, AdminDescribeTransactionsDeliveryStatus,
-    AdminDescribeTransactionsFailureKind, AdminDescribeTransactionsOutcome,
-    AdminDescribeTransactionsTurn, host::ADMIN_DESCRIBE_TRANSACTIONS_RETAINED_BYTES,
+    AdminDescribeTransactionsFailureKind, AdminDescribeTransactionsHostError,
+    AdminDescribeTransactionsOutcome, AdminDescribeTransactionsTurn,
+    host::ADMIN_DESCRIBE_TRANSACTIONS_RETAINED_BYTES,
 };
 
 #[test]
@@ -44,65 +49,152 @@ fn admission_reserves_terminal_and_full_envelope_before_first_id() {
     else {
         panic!("submission expected");
     };
-    let (_operation_id, submitted_deadline, transactional_id) = submission.into_parts();
+    let (operation_id, submitted_deadline, transactional_id) = submission.into_parts();
     assert_eq!(submitted_deadline, capture.operation_deadline());
     assert_eq!(transactional_id, "orders-writer");
     assert_eq!(host.next_deadline(), None);
 
     drop(admission.observer);
-    host.recover_after_driver_shutdown()
-        .unwrap_or_else(|error| panic!("recover host: {error}"));
+    host.reject_handoff(operation_id)
+        .unwrap_or_else(|error| panic!("reject handoff: {error}"));
     drop(host);
     stop_notifier(&mut notifier);
 }
 
 #[test]
-fn untouched_and_handed_off_recovery_preserve_delivery_certainty() {
-    for handed_off in [false, true] {
-        let (mut notifier, ports) =
-            AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
-        let mut host = AdminDescribeTransactionsHost::new(ports.describe_transactions);
-        let capture = deadline();
-        let admission = host
-            .try_admit(capture.now(), capture.operation_deadline(), plan())
-            .unwrap_or_else(|error| panic!("admit DescribeTransactions: {error:?}"));
-        if handed_off {
-            let AdminDescribeTransactionsTurn::Submit(_) = host
-                .turn(capture.now())
-                .unwrap_or_else(|error| panic!("take submission: {error}"))
-            else {
-                panic!("submission expected");
-            };
-        }
+fn untouched_recovery_is_definitely_unsent() {
+    let (mut notifier, ports) =
+        AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
+    let mut host = AdminDescribeTransactionsHost::new(ports.describe_transactions);
+    let capture = deadline();
+    let admission = host
+        .try_admit(capture.now(), capture.operation_deadline(), plan())
+        .unwrap_or_else(|error| panic!("admit DescribeTransactions: {error:?}"));
 
-        host.recover_after_driver_shutdown()
-            .unwrap_or_else(|error| panic!("recover host: {error}"));
-        let AdminDescribeTransactionsOutcome::Failed(failure) = admission
-            .observer
-            .wait()
-            .unwrap_or_else(|error| panic!("observe recovery: {error}"))
-        else {
-            panic!("failure expected");
-        };
-        let expected = if handed_off {
-            (
-                AdminDescribeTransactionsFailureKind::Transport,
-                AdminDescribeTransactionsDeliveryStatus::PossiblySent,
-            )
-        } else {
-            (
-                AdminDescribeTransactionsFailureKind::DriverRejected,
-                AdminDescribeTransactionsDeliveryStatus::NotSent,
-            )
-        };
-        assert_eq!((failure.kind(), failure.delivery()), expected);
-        let _progress = host
-            .turn(capture.now())
-            .unwrap_or_else(|error| panic!("reclaim terminal: {error}"));
-        assert_eq!(host.retained_bytes_for_test(), 0);
-        drop(host);
-        stop_notifier(&mut notifier);
-    }
+    host.recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("recover host: {error}"));
+    let AdminDescribeTransactionsOutcome::Failed(failure) = admission
+        .observer
+        .wait()
+        .unwrap_or_else(|error| panic!("observe recovery: {error}"))
+    else {
+        panic!("failure expected");
+    };
+    assert_eq!(
+        (failure.kind(), failure.delivery()),
+        (
+            AdminDescribeTransactionsFailureKind::DriverRejected,
+            AdminDescribeTransactionsDeliveryStatus::NotSent,
+        )
+    );
+    let _progress = host
+        .turn(capture.now())
+        .unwrap_or_else(|error| panic!("reclaim terminal: {error}"));
+    assert_eq!(host.retained_bytes_for_test(), 0);
+
+    drop(host);
+    stop_notifier(&mut notifier);
+}
+
+#[test]
+fn handed_off_without_a_returned_call_cannot_forge_recovery_evidence() {
+    let (mut notifier, ports) =
+        AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
+    let mut host = AdminDescribeTransactionsHost::new(ports.describe_transactions);
+    let capture = deadline();
+    let admission = host
+        .try_admit(capture.now(), capture.operation_deadline(), plan())
+        .unwrap_or_else(|error| panic!("admit DescribeTransactions: {error:?}"));
+    let AdminDescribeTransactionsTurn::Submit(_submission) = host
+        .turn(capture.now())
+        .unwrap_or_else(|error| panic!("take submission: {error}"))
+    else {
+        panic!("submission expected");
+    };
+
+    assert!(matches!(
+        host.recover_after_driver_shutdown(),
+        Err(AdminDescribeTransactionsHostError::InvalidHandoff)
+    ));
+
+    drop((admission, host));
+    stop_notifier(&mut notifier);
+}
+
+#[test]
+fn recovered_call_remains_retained_when_core_rejects_terminal_fact() {
+    let (mut notifier, ports) =
+        AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
+    let mut host = AdminDescribeTransactionsHost::new(ports.describe_transactions);
+    let capture = deadline();
+    let admission = host
+        .try_admit(capture.now(), capture.operation_deadline(), plan())
+        .unwrap_or_else(|error| panic!("admit DescribeTransactions: {error:?}"));
+    host.retain_recovered_call_for_test();
+
+    assert!(matches!(
+        host.settle_recovered_transport_for_test(),
+        Err(AdminDescribeTransactionsHostError::Machine(
+            AdminDescribeTransactionsMachineError::InvalidState
+        ))
+    ));
+    assert!(host.recovered_call_is_retained_for_test());
+
+    drop((admission, host));
+    stop_notifier(&mut notifier);
+}
+
+#[test]
+fn completion_fault_retains_call_until_post_driver_recovery() {
+    let (mut notifier, ports) =
+        AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
+    let mut host = AdminDescribeTransactionsHost::new(ports.describe_transactions);
+    let capture = deadline();
+    let admission = host
+        .try_admit(capture.now(), capture.operation_deadline(), plan())
+        .unwrap_or_else(|error| panic!("admit DescribeTransactions: {error:?}"));
+    let AdminDescribeTransactionsTurn::Submit(submission) = host
+        .turn(capture.now())
+        .unwrap_or_else(|error| panic!("take submission: {error}"))
+    else {
+        panic!("submission expected");
+    };
+    let (operation_id, submitted_deadline, transactional_id) = submission.into_parts();
+    let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver owner: {error}"));
+    let call = DescribeTransactionsCall::submit(
+        &driver,
+        &transactional_id,
+        submitted_deadline.transport(),
+    )
+    .unwrap_or_else(|_error| panic!("accepted call"));
+    host.accept_call(operation_id, call)
+        .unwrap_or_else(|error| panic!("host acceptance: {error}"));
+    drop(driver);
+
+    assert!(matches!(
+        host.turn(Moment::from_tick(3)),
+        Err(AdminDescribeTransactionsHostError::CallCompletion)
+    ));
+    host.recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("post-driver recovery: {error}"));
+    let AdminDescribeTransactionsOutcome::Failed(failure) = admission
+        .observer
+        .wait()
+        .unwrap_or_else(|error| panic!("observe recovery: {error}"))
+    else {
+        panic!("recovery failure expected");
+    };
+    assert_eq!(
+        (failure.kind(), failure.delivery()),
+        (
+            AdminDescribeTransactionsFailureKind::Transport,
+            AdminDescribeTransactionsDeliveryStatus::PossiblySent,
+        )
+    );
+
+    drop(host);
+    stop_notifier(&mut notifier);
 }
 
 fn plan() -> AdminDescribeTransactionsPlan {

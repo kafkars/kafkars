@@ -16,7 +16,10 @@ use crate::{
     admin::AdminCreateDelegationTokenPublisher,
     clock::OperationDeadline,
     completion::{CompletionId, CompletionRegistry},
-    driver::{CreateDelegationTokenCall, CreateDelegationTokenRawTerminal},
+    driver::{
+        CreateDelegationTokenCall, CreateDelegationTokenRawTerminal,
+        RecoveredCreateDelegationTokenCall,
+    },
     protocol::admin::create_delegation_token::PreparedCreateDelegationTokenRequest,
 };
 
@@ -81,6 +84,7 @@ struct CreateDelegationTokenOperation {
     submission: Option<CreateDelegationTokenSubmission>,
     handoff: CreateDelegationTokenHandoff,
     call: Option<CreateDelegationTokenCall>,
+    recovered_call: Option<RecoveredCreateDelegationTokenCall>,
     raw_terminal: Option<CreateDelegationTokenRawTerminal>,
     terminal: Option<CreateDelegationTokenTerminal>,
 }
@@ -101,7 +105,10 @@ impl CreateDelegationTokenOperation {
         &mut self,
         call: CreateDelegationTokenCall,
     ) -> Result<(), CreateDelegationTokenHostError> {
-        if self.handoff != CreateDelegationTokenHandoff::HandedOff || self.call.is_some() {
+        if self.handoff != CreateDelegationTokenHandoff::HandedOff
+            || self.call.is_some()
+            || self.recovered_call.is_some()
+        {
             return Err(CreateDelegationTokenHostError::InvalidHandoff);
         }
         self.call = Some(call);
@@ -204,7 +211,10 @@ impl CreateDelegationTokenHost {
         let index = self
             .operation_index(operation_id)
             .ok_or(CreateDelegationTokenHostError::UnknownOperation)?;
-        if self.operations[index].handoff != CreateDelegationTokenHandoff::HandedOff {
+        if self.operations[index].handoff != CreateDelegationTokenHandoff::HandedOff
+            || self.operations[index].call.is_some()
+            || self.operations[index].recovered_call.is_some()
+        {
             return Err(CreateDelegationTokenHostError::InvalidHandoff);
         }
         self.apply(operation_id, CreateDelegationTokenInput::DriverRejected)

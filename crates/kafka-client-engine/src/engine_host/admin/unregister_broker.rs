@@ -1,11 +1,11 @@
-//! Fair host turns for one explicit AnyBroker broker unregistration.
+//! Fair host turns for one explicit controller-routed broker unregistration.
 
 use kafka_client_core::{Deadline, Moment};
 
 use crate::{
     admin::unregister_broker::{
-        UnregisterBrokerShardLockError, UnregisterBrokerShardWake, UnregisterBrokerShardWakeError,
-        UnregisterBrokerTurn,
+        UnregisterBrokerHostError, UnregisterBrokerShardLockError, UnregisterBrokerShardWake,
+        UnregisterBrokerShardWakeError, UnregisterBrokerTurn,
     },
     driver::{ReactorWake, UnregisterBrokerCall},
 };
@@ -34,7 +34,13 @@ pub(super) fn drive(
     if resources.control.shutdown_requested() {
         resources.unregister_broker.close_locked(&mut host);
     }
-    let turn = host.turn(now).map_err(EngineHostError::UnregisterBroker)?;
+    let turn = match host.turn(now, resources.driver.as_ref()) {
+        Ok(turn) => turn,
+        Err(UnregisterBrokerHostError::DriverMissing) => {
+            return Err(EngineHostError::DriverOwnerMissing);
+        }
+        Err(error) => return Err(EngineHostError::UnregisterBroker(error)),
+    };
     let driver_progress = match turn {
         UnregisterBrokerTurn::Idle => false,
         UnregisterBrokerTurn::Progress => true,
@@ -44,7 +50,7 @@ pub(super) fn drive(
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            match UnregisterBrokerCall::submit(driver, plan.broker_id(), deadline.transport()) {
+            match UnregisterBrokerCall::submit(driver, plan, deadline.transport()) {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::UnregisterBroker)?,

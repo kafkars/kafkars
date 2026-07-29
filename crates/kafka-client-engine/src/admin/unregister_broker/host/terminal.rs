@@ -1,18 +1,43 @@
-//! Call polling, publication, reclamation, and shutdown recovery.
+//! Call polling, publication, reclamation, and recovery routing.
 
-use kafka_client_core::{
-    DeliveryStatus, Moment, UnregisterBrokerEffect, UnregisterBrokerInput, UnregisterBrokerState,
+mod recovery;
+
+#[cfg(test)]
+mod test_support;
+
+use kafka_client_core::UnregisterBrokerEffect;
+
+use crate::{
+    completion::{CompletionRegistryError, ReclaimStatus},
+    driver::DriverOwner,
 };
 
-use crate::completion::{CompletionRegistryError, ReclaimStatus};
-
 use super::{
-    UnregisterBrokerHandoff, UnregisterBrokerHost, UnregisterBrokerHostError,
+    UnregisterBrokerHost, UnregisterBrokerHostError, UnregisterBrokerOperation,
     response::terminal_input,
 };
 
 impl UnregisterBrokerHost {
-    pub(super) fn poll_one_call(&mut self) -> Result<bool, UnregisterBrokerHostError> {
+    pub(super) fn poll_one_call(
+        &mut self,
+        driver: Option<&DriverOwner>,
+    ) -> Result<bool, UnregisterBrokerHostError> {
+        if let Some(index) = self
+            .operations
+            .iter()
+            .position(|operation| operation.raw_terminal.is_some())
+        {
+            let ready = self.operations[index]
+                .raw_terminal
+                .as_mut()
+                .ok_or(UnregisterBrokerHostError::MissingTerminal)?
+                .poll_controller_refresh(driver)
+                .ok_or(UnregisterBrokerHostError::DriverMissing)?;
+            if ready {
+                self.settle_raw(index)?;
+            }
+            return Ok(true);
+        }
         let Some(index) = self
             .operations
             .iter()
@@ -20,121 +45,38 @@ impl UnregisterBrokerHost {
         else {
             return Ok(false);
         };
-        let terminal = {
-            let call = self.operations[index]
-                .call
-                .as_mut()
-                .ok_or(UnregisterBrokerHostError::InvalidHandoff)?;
-            call.try_terminal()
-        };
+        let terminal = self.operations[index]
+            .call
+            .as_mut()
+            .ok_or(UnregisterBrokerHostError::InvalidHandoff)?
+            .try_terminal();
         let Some(terminal) = terminal else {
             return Ok(false);
         };
-        drop(self.operations[index].call.take());
         match terminal {
             Ok(terminal) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
-                self.settle_raw(index)?;
                 Ok(true)
             }
             Err(_error) => Err(UnregisterBrokerHostError::CallCompletion),
         }
     }
 
-    pub(crate) fn recover_after_driver_shutdown(
-        &mut self,
-    ) -> Result<(), UnregisterBrokerHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (UnregisterBrokerState::Ready, _) => self.apply(
-                    operation_id,
-                    UnregisterBrokerInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (UnregisterBrokerState::AwaitingDriver, UnregisterBrokerHandoff::Untouched) => {
-                    self.apply(operation_id, UnregisterBrokerInput::DriverRejected)?;
-                }
-                (UnregisterBrokerState::AwaitingDriver, UnregisterBrokerHandoff::HandedOff) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(operation_id, UnregisterBrokerInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        UnregisterBrokerInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (UnregisterBrokerState::Submitted, UnregisterBrokerHandoff::Submitted) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        UnregisterBrokerInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
-                }
-                (UnregisterBrokerState::Completed, _) => self.publish_terminal(0)?,
-                _ => return Err(UnregisterBrokerHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
-    }
-
     fn settle_raw(&mut self, index: usize) -> Result<(), UnregisterBrokerHostError> {
-        let (input, retained_bytes) = {
-            let operation = self
-                .operations
-                .get(index)
-                .ok_or(UnregisterBrokerHostError::UnknownOperation)?;
-            let raw = operation
-                .raw_terminal
-                .as_ref()
-                .ok_or(UnregisterBrokerHostError::MissingTerminal)?;
-            terminal_input(raw, operation.remaining_result_bytes)
-        };
-        self.operations[index].remaining_result_bytes = self.operations[index]
-            .remaining_result_bytes
-            .checked_sub(retained_bytes)
-            .ok_or(UnregisterBrokerHostError::ByteAccounting)?;
-        let transition = self.operations[index].machine.apply(input)?;
-        let raw = self.operations[index]
-            .raw_terminal
-            .take()
-            .ok_or(UnregisterBrokerHostError::MissingTerminal)?;
-        raw.discard();
-        match transition.into_effect() {
-            Some(UnregisterBrokerEffect::Complete {
-                operation_id,
-                terminal,
-            }) if operation_id == self.operations[index].operation_id => {
-                self.operations[index].terminal = Some(terminal);
-                self.publish_terminal(index)
-            }
-            _ => Err(UnregisterBrokerHostError::MissingTerminal),
-        }
+        let operation = self
+            .operations
+            .get_mut(index)
+            .ok_or(UnregisterBrokerHostError::UnknownOperation)?;
+        settle_operation(operation)?;
+        self.publish_terminal(index)
     }
 
     pub(super) fn publish_terminal(
         &mut self,
         index: usize,
     ) -> Result<(), UnregisterBrokerHostError> {
-        if self.operations[index].call.is_some() || self.operations[index].raw_terminal.is_some() {
-            return Err(UnregisterBrokerHostError::InvalidHandoff);
-        }
-        let terminal = self.operations[index]
-            .terminal
-            .take()
-            .ok_or(UnregisterBrokerHostError::MissingTerminal)?;
-        let completion_id = self.operations[index].completion_id;
+        let (completion_id, terminal) = take_publishable_terminal(&mut self.operations[index])?;
         match self.completions.publish(completion_id, terminal) {
             Ok(()) => {
                 let operation = self.operations.remove(index);
@@ -143,7 +85,7 @@ impl UnregisterBrokerHost {
                 Ok(())
             }
             Err((error, terminal)) => {
-                self.operations[index].terminal = Some(terminal);
+                restore_terminal(&mut self.operations[index], terminal);
                 Err(UnregisterBrokerHostError::Completion(error))
             }
         }
@@ -188,10 +130,61 @@ impl UnregisterBrokerHost {
     }
 }
 
-fn seal_call(call: Option<crate::driver::UnregisterBrokerCall>) {
-    if let Some(call) = call {
-        if let Some(recovered) = call.recover_after_driver_shutdown() {
-            recovered.seal();
+fn settle_operation(
+    operation: &mut UnregisterBrokerOperation,
+) -> Result<(), UnregisterBrokerHostError> {
+    let raw = operation
+        .raw_terminal
+        .as_ref()
+        .ok_or(UnregisterBrokerHostError::MissingTerminal)?;
+    let (input, retained_bytes) = terminal_input(raw, operation.remaining_result_bytes);
+    operation.remaining_result_bytes = operation
+        .remaining_result_bytes
+        .checked_sub(retained_bytes)
+        .ok_or(UnregisterBrokerHostError::ByteAccounting)?;
+    let transition = operation.machine.apply(input)?;
+    let raw = operation
+        .raw_terminal
+        .take()
+        .ok_or(UnregisterBrokerHostError::MissingTerminal)?;
+    raw.discard();
+    match transition.into_effect() {
+        Some(UnregisterBrokerEffect::Complete {
+            operation_id,
+            terminal,
+        }) if operation_id == operation.operation_id => {
+            operation.terminal = Some(terminal);
+            Ok(())
         }
+        _ => Err(UnregisterBrokerHostError::MissingTerminal),
     }
+}
+
+fn take_publishable_terminal(
+    operation: &mut UnregisterBrokerOperation,
+) -> Result<
+    (
+        crate::completion::CompletionId,
+        kafka_client_core::UnregisterBrokerTerminal,
+    ),
+    UnregisterBrokerHostError,
+> {
+    if operation.call.is_some()
+        || operation.recovered_call.is_some()
+        || operation.raw_terminal.is_some()
+    {
+        return Err(UnregisterBrokerHostError::InvalidHandoff);
+    }
+    let terminal = operation
+        .terminal
+        .take()
+        .ok_or(UnregisterBrokerHostError::MissingTerminal)?;
+    Ok((operation.completion_id, terminal))
+}
+
+fn restore_terminal(
+    operation: &mut UnregisterBrokerOperation,
+    terminal: kafka_client_core::UnregisterBrokerTerminal,
+) {
+    operation.terminal = Some(terminal);
 }

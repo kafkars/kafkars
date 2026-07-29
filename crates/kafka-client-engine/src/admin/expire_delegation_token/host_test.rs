@@ -2,11 +2,16 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{ExpireDelegationTokenHmac as CoreHmac, ExpireDelegationTokenPlan};
+use kafka_client_core::{
+    ExpireDelegationTokenHmac as CoreHmac, ExpireDelegationTokenMachineError,
+    ExpireDelegationTokenPlan,
+};
 
 use crate::{
+    EngineConfig,
     admin::AdminCompletionNotifier,
     clock::MonotonicClock,
+    driver::{DriverOwner, ExpireDelegationTokenCall},
     protocol::admin::expire_delegation_token::{
         EXPIRE_DELEGATION_TOKEN_MAX_RETAINED_BYTES, ExpireDelegationTokenRequestRef,
         PreparedExpireDelegationTokenRequest, expire_delegation_token_request,
@@ -16,7 +21,8 @@ use crate::{
 use super::{
     EXPIRE_DELEGATION_TOKEN_CAPACITY, ExpireDelegationTokenAdmissionErrorKind,
     ExpireDelegationTokenDeliveryStatus, ExpireDelegationTokenFailureKind,
-    ExpireDelegationTokenHost, ExpireDelegationTokenOutcome, ExpireDelegationTokenTurn,
+    ExpireDelegationTokenHost, ExpireDelegationTokenHostError, ExpireDelegationTokenOutcome,
+    ExpireDelegationTokenTurn,
     host::{EXPIRE_DELEGATION_TOKEN_OPERATION_BYTES, EXPIRE_DELEGATION_TOKEN_RETAINED_BYTES},
 };
 
@@ -46,15 +52,17 @@ fn admission_reserves_one_mib_and_dropped_observer_does_not_cancel() {
     else {
         panic!("submission expected");
     };
-    let (_id, submitted_deadline, plan, prepared) = submission.into_parts();
+    let (operation_id, submitted_deadline, submitted_plan, prepared) = submission.into_parts();
     assert_eq!(submitted_deadline, capture.operation_deadline());
-    assert_eq!(plan.hmac().as_bytes(), b"expire-secret");
-    assert_eq!(plan.expiry_period_ms(), Some(60_000));
+    assert!(submitted_plan.hmac().as_bytes() == TOKEN_HMAC);
+    assert_eq!(submitted_plan.expiry_period_ms(), Some(60_000));
     let debug = format!("{prepared:?}");
     assert!(debug.contains("[REDACTED]"));
-    assert!(!debug.contains("expire-secret"));
+    drop((submitted_plan, prepared));
 
     drop(admission.observer);
+    host.reject_handoff(operation_id)
+        .unwrap_or_else(|error| panic!("reject inspected handoff: {error}"));
     host.recover_after_driver_shutdown()
         .unwrap_or_else(|error| panic!("recover abandoned observation: {error}"));
     drop(host);
@@ -101,24 +109,7 @@ fn sixteen_operations_are_reserved_before_capacity_rejection() {
 }
 
 #[test]
-fn shutdown_recovery_preserves_delivery_boundary() {
-    recover_case(
-        false,
-        ExpireDelegationTokenFailureKind::DriverRejected,
-        ExpireDelegationTokenDeliveryStatus::NotSent,
-    );
-    recover_case(
-        true,
-        ExpireDelegationTokenFailureKind::Transport,
-        ExpireDelegationTokenDeliveryStatus::PossiblySent,
-    );
-}
-
-fn recover_case(
-    hand_off: bool,
-    kind: ExpireDelegationTokenFailureKind,
-    delivery: ExpireDelegationTokenDeliveryStatus,
-) {
+fn untouched_shutdown_recovery_is_definitely_unsent() {
     let (mut notifier, ports) =
         AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
     let mut host = ExpireDelegationTokenHost::new(ports.expire_delegation_token);
@@ -131,12 +122,6 @@ fn recover_case(
             prepared(),
         )
         .unwrap_or_else(|error| panic!("admit recovery: {error:?}"));
-    if hand_off {
-        assert!(matches!(
-            host.turn(capture.now()),
-            Ok(ExpireDelegationTokenTurn::Submit(_))
-        ));
-    }
     host.recover_after_driver_shutdown()
         .unwrap_or_else(|error| panic!("recover query: {error}"));
     let ExpireDelegationTokenOutcome::Failed(failure) = admission
@@ -146,15 +131,142 @@ fn recover_case(
     else {
         panic!("failure expected");
     };
-    assert_eq!(failure.kind(), kind);
-    assert_eq!(failure.delivery(), delivery);
+    assert_eq!(
+        failure.kind(),
+        ExpireDelegationTokenFailureKind::DriverRejected
+    );
+    assert_eq!(
+        failure.delivery(),
+        ExpireDelegationTokenDeliveryStatus::NotSent
+    );
     drop(host);
     stop_notifier(&mut notifier);
 }
 
+#[test]
+fn handed_off_without_a_returned_call_cannot_forge_recovery_evidence() {
+    let (mut notifier, ports) =
+        AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
+    let mut host = ExpireDelegationTokenHost::new(ports.expire_delegation_token);
+    let capture = deadline();
+    let admission = host
+        .try_admit(
+            capture.now(),
+            capture.operation_deadline(),
+            plan(),
+            prepared(),
+        )
+        .unwrap_or_else(|error| panic!("admit recovery: {error:?}"));
+    let ExpireDelegationTokenTurn::Submit(_submission) = host
+        .turn(capture.now())
+        .unwrap_or_else(|error| panic!("handoff turn: {error}"))
+    else {
+        panic!("submission expected");
+    };
+
+    assert!(matches!(
+        host.recover_after_driver_shutdown(),
+        Err(ExpireDelegationTokenHostError::InvalidHandoff)
+    ));
+
+    drop((admission, host));
+    stop_notifier(&mut notifier);
+}
+
+#[test]
+fn recovered_call_and_secret_correlation_survive_core_rejection() {
+    let (mut notifier, ports) =
+        AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
+    let mut host = ExpireDelegationTokenHost::new(ports.expire_delegation_token);
+    let capture = deadline();
+    let admission = host
+        .try_admit(
+            capture.now(),
+            capture.operation_deadline(),
+            plan(),
+            prepared(),
+        )
+        .unwrap_or_else(|error| panic!("admit recovery: {error:?}"));
+    host.retain_recovered_call_for_test(plan());
+
+    assert!(matches!(
+        host.settle_recovered_transport_for_test(),
+        Err(ExpireDelegationTokenHostError::Machine(
+            ExpireDelegationTokenMachineError::InvalidState
+        ))
+    ));
+    assert!(host.recovered_ownership_matches_for_test(TOKEN_HMAC, Some(60_000)));
+    assert!(matches!(
+        host.publish_terminal_for_test(),
+        Err(ExpireDelegationTokenHostError::InvalidHandoff)
+    ));
+
+    drop((admission, host));
+    stop_notifier(&mut notifier);
+}
+
+#[test]
+fn completion_fault_retains_call_and_secret_correlation_until_recovery() {
+    let (mut notifier, ports) =
+        AdminCompletionNotifier::start().unwrap_or_else(|error| panic!("notifier: {error}"));
+    let mut host = ExpireDelegationTokenHost::new(ports.expire_delegation_token);
+    let capture = deadline();
+    let admission = host
+        .try_admit(
+            capture.now(),
+            capture.operation_deadline(),
+            plan(),
+            prepared(),
+        )
+        .unwrap_or_else(|error| panic!("admit recovery: {error:?}"));
+    let ExpireDelegationTokenTurn::Submit(submission) = host
+        .turn(capture.now())
+        .unwrap_or_else(|error| panic!("handoff turn: {error}"))
+    else {
+        panic!("submission expected");
+    };
+    let (operation_id, submitted_deadline, submitted_plan, prepared) = submission.into_parts();
+    let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver owner: {error}"));
+    let call = ExpireDelegationTokenCall::submit(
+        &driver,
+        submitted_plan,
+        prepared,
+        submitted_deadline.transport(),
+    )
+    .unwrap_or_else(|_error| panic!("accepted call"));
+    host.accept_call(operation_id, call)
+        .unwrap_or_else(|error| panic!("host acceptance: {error}"));
+    drop(driver);
+
+    assert!(matches!(
+        host.turn(capture.now()),
+        Err(ExpireDelegationTokenHostError::CallCompletion)
+    ));
+    host.recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("post-driver recovery: {error}"));
+    let ExpireDelegationTokenOutcome::Failed(failure) = admission
+        .observer
+        .wait()
+        .unwrap_or_else(|error| panic!("observe recovery: {error}"))
+    else {
+        panic!("failure expected");
+    };
+    assert_eq!(failure.kind(), ExpireDelegationTokenFailureKind::Transport);
+    assert_eq!(
+        failure.delivery(),
+        ExpireDelegationTokenDeliveryStatus::PossiblySent
+    );
+
+    drop(host);
+    stop_notifier(&mut notifier);
+}
+
+const TOKEN_HMAC: &[u8] = &[0xA5, 0x5A, 0xC3, 0x3C];
+
 fn plan() -> ExpireDelegationTokenPlan {
     ExpireDelegationTokenPlan::new(
-        CoreHmac::new(b"expire-secret".to_vec()).unwrap_or_else(|error| panic!("hmac: {error}")),
+        CoreHmac::new(TOKEN_HMAC.to_vec()).unwrap_or_else(|error| panic!("hmac: {error}")),
         Some(60_000),
     )
     .unwrap_or_else(|error| panic!("plan: {error}"))
@@ -162,7 +274,7 @@ fn plan() -> ExpireDelegationTokenPlan {
 
 fn prepared() -> PreparedExpireDelegationTokenRequest {
     expire_delegation_token_request(
-        ExpireDelegationTokenRequestRef::explicit(b"expire-secret", 60_000),
+        ExpireDelegationTokenRequestRef::explicit(TOKEN_HMAC, 60_000),
         EXPIRE_DELEGATION_TOKEN_MAX_RETAINED_BYTES,
     )
     .unwrap_or_else(|error| panic!("prepared request: {error:?}"))

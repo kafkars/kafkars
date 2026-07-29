@@ -1,10 +1,13 @@
-//! Neutral terminal facts for one tracked metadata-quorum voter addition.
+//! Neutral terminal facts and causal controller refresh for one voter addition.
 
-use kafka_client_core::DeliveryStatus;
+mod refresh;
+
+use kafka_client_core::{AddRaftVoterPlan, DeliveryStatus};
 use kafka_driver::{ApiVersion, CallFailure, RequestError, RouteFailureToken};
 use kafka_wire::AddRaftVoterResponse;
 
-use super::super::request_failure_delivery;
+use super::super::{DriverOwner, request_failure_delivery};
+use refresh::AddRaftVoterControllerRefresh;
 
 /// Stable engine-local classification without exposing driver variants.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -32,10 +35,23 @@ pub(crate) enum AddRaftVoterTerminalFact<'a> {
 pub(crate) struct AddRaftVoterRawTerminal {
     selected_version: Option<i16>,
     result: Result<AddRaftVoterResponse, RequestError>,
-    route_token: Option<RouteFailureToken>,
+    controller_refresh: AddRaftVoterControllerRefresh,
+    plan: AddRaftVoterPlan,
 }
 
 impl AddRaftVoterRawTerminal {
+    #[cfg(test)]
+    pub(crate) fn not_controller_for_test(plan: AddRaftVoterPlan) -> Self {
+        let mut response = AddRaftVoterResponse::default();
+        response.error_code = 41;
+        Self {
+            selected_version: Some(1),
+            result: Ok(response),
+            controller_refresh: AddRaftVoterControllerRefresh::queued_for_test(),
+            plan,
+        }
+    }
+
     pub(crate) fn fact(&self) -> AddRaftVoterTerminalFact<'_> {
         match &self.result {
             Ok(response) => AddRaftVoterTerminalFact::Response {
@@ -49,15 +65,35 @@ impl AddRaftVoterRawTerminal {
         }
     }
 
+    /// Advances at most one causal invalidation transition without replaying API 80.
+    ///
+    /// `Some(true)` means the barrier is clear, `Some(false)` means it retained
+    /// pending work, and `None` means a queued refresh has no live driver owner.
+    pub(crate) fn poll_controller_refresh(&mut self, driver: Option<&DriverOwner>) -> Option<bool> {
+        self.controller_refresh.poll(driver)
+    }
+
+    #[cfg(test)]
+    pub(super) fn arm_controller_refresh_for_test(&mut self) {
+        self.controller_refresh.arm_for_test();
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn plan(&self) -> &AddRaftVoterPlan {
+        &self.plan
+    }
+
     /// Releases response and route evidence only after deterministic settlement.
     pub(crate) fn discard(self) {
         let Self {
             selected_version: _,
             result,
-            route_token,
+            controller_refresh,
+            plan,
         } = self;
         drop(result);
-        drop(route_token);
+        drop(controller_refresh);
+        drop(plan);
     }
 }
 
@@ -65,12 +101,27 @@ pub(super) fn retain_add_raft_voter_terminal(
     selected_version: Option<ApiVersion>,
     result: Result<AddRaftVoterResponse, RequestError>,
     route_token: Option<RouteFailureToken>,
+    plan: AddRaftVoterPlan,
 ) -> AddRaftVoterRawTerminal {
+    let selected_version = selected_version.map(ApiVersion::value);
+    let controller_refresh =
+        AddRaftVoterControllerRefresh::from_terminal(selected_version, &result, route_token);
     AddRaftVoterRawTerminal {
-        selected_version: selected_version.map(ApiVersion::value),
+        selected_version,
         result,
-        route_token,
+        controller_refresh,
+        plan,
     }
+}
+
+pub(super) fn response_requires_controller_refresh(
+    selected_version: Option<i16>,
+    result: &Result<AddRaftVoterResponse, RequestError>,
+) -> bool {
+    matches!(
+        (selected_version, result),
+        (Some(0..=1), Ok(response)) if response.error_code == 41
+    )
 }
 
 fn failure_kind(error: &RequestError) -> AddRaftVoterDriverFailureKind {
@@ -96,11 +147,27 @@ fn failure_kind(error: &RequestError) -> AddRaftVoterDriverFailureKind {
 
 /// Accepted ownership recovered only after the unique driver is destroyed.
 #[must_use = "recovered AddRaftVoter ownership still requires core settlement"]
-pub(crate) struct RecoveredAddRaftVoterCall;
+pub(crate) struct RecoveredAddRaftVoterCall {
+    plan: AddRaftVoterPlan,
+}
 
 impl RecoveredAddRaftVoterCall {
+    pub(super) const fn new(plan: AddRaftVoterPlan) -> Self {
+        Self { plan }
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn for_test(plan: AddRaftVoterPlan) -> Self {
+        Self { plan }
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn plan(&self) -> &AddRaftVoterPlan {
+        &self.plan
+    }
+
     /// Consumes recovered ownership after core receives its terminal fact.
-    pub(crate) const fn seal(self) {
-        let Self = self;
+    pub(crate) fn seal(self) {
+        drop(self.plan);
     }
 }
