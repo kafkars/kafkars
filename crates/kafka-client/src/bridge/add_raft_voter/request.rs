@@ -10,6 +10,7 @@ pub(crate) struct AddRaftVoterAdminRequest {
     cluster_id: Option<String>,
     identity: RaftVoterIdentity,
     endpoints: Vec<RaftVoterEndpoint>,
+    ack_when_committed: bool,
 }
 
 impl AddRaftVoterAdminRequest {
@@ -21,6 +22,7 @@ impl AddRaftVoterAdminRequest {
             cluster_id: None,
             identity,
             endpoints,
+            ack_when_committed: true,
         }
     }
 
@@ -29,14 +31,31 @@ impl AddRaftVoterAdminRequest {
         self
     }
 
-    pub(crate) fn into_parts(self) -> (Option<String>, RaftVoterIdentity, Vec<RaftVoterEndpoint>) {
-        (self.cluster_id, self.identity, self.endpoints)
+    pub(crate) const fn with_ack_when_committed(mut self, ack_when_committed: bool) -> Self {
+        self.ack_when_committed = ack_when_committed;
+        self
+    }
+
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        Option<String>,
+        RaftVoterIdentity,
+        Vec<RaftVoterEndpoint>,
+        bool,
+    ) {
+        (
+            self.cluster_id,
+            self.identity,
+            self.endpoints,
+            self.ack_when_committed,
+        )
     }
 }
 
 /// Converts after the engine has captured the sole public absolute deadline.
 pub(crate) fn translate_request(request: AddRaftVoterAdminRequest) -> Request {
-    let (cluster_id, identity, endpoints) = request.into_parts();
+    let (cluster_id, identity, endpoints, ack_when_committed) = request.into_parts();
     let (voter_id, directory_id) = identity.into_parts();
     let endpoints = endpoints
         .into_iter()
@@ -46,4 +65,5 @@ pub(crate) fn translate_request(request: AddRaftVoterAdminRequest) -> Request {
         })
         .collect();
     Request::new(cluster_id, voter_id, directory_id, endpoints)
+        .ack_when_committed(ack_when_committed)
 }

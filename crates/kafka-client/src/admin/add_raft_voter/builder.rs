@@ -33,6 +33,14 @@ impl AddRaftVoterBuilder {
         self
     }
 
+    /// Selects whether success waits for the voter addition to be committed.
+    ///
+    /// The default is `true`.
+    pub fn ack_when_committed(mut self, ack_when_committed: bool) -> Self {
+        self.request = self.request.with_ack_when_committed(ack_when_committed);
+        self
+    }
+
     /// Replaces the duration converted into one absolute deadline at submission.
     pub const fn deadline_after(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;

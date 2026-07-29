@@ -23,14 +23,30 @@ fn plan_preserves_identity_optional_cluster_and_listener_order() {
     assert_eq!(plan.voter_directory_id(), [9; 16]);
     assert_eq!(plan.listeners()[0].name(), "CONTROLLER");
     assert_eq!(plan.listeners()[1].port(), 9094);
-    let (cluster, voter, directory, listeners) = plan.into_parts();
+    assert!(plan.ack_when_committed());
+    assert_eq!(plan.minimum_api_version(), 0);
+    let (cluster, voter, directory, listeners, ack_when_committed) = plan.into_parts();
     assert_eq!(cluster.as_deref(), Some("cluster-a"));
     assert_eq!(voter, 7);
     assert_eq!(directory, [9; 16]);
+    assert!(ack_when_committed);
     assert_eq!(
         listeners[0].clone().into_parts(),
         ("CONTROLLER".to_owned(), "node-a".to_owned(), 9093)
     );
+}
+
+#[test]
+fn explicit_early_acknowledgment_requires_v1_and_survives_ownership_transfer() {
+    let plan = AddRaftVoterPlan::new(None, 7, [9; 16], vec![valid_endpoint()])
+        .unwrap_or_else(|error| panic!("plan: {error}"))
+        .with_ack_when_committed(false);
+
+    assert!(!plan.ack_when_committed());
+    assert_eq!(plan.minimum_api_version(), 1);
+    let (_, _, _, listeners, ack_when_committed) = plan.into_parts();
+    assert_eq!(listeners, vec![valid_endpoint()]);
+    assert!(!ack_when_committed);
 }
 
 #[test]

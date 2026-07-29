@@ -1,21 +1,12 @@
-//! Exact identity, endpoint, timeout, and committed-ack request evidence.
+//! Exact identity, endpoint, timeout, and acknowledgement request evidence.
 
 use kafka_client_core::{AddRaftVoterEndpoint, AddRaftVoterPlan};
 
 use super::{AddRaftVoterRequestFailure, add_raft_voter_request};
 
 #[test]
-fn request_preserves_plan_and_requires_committed_acknowledgement() {
-    let plan = AddRaftVoterPlan::new(
-        Some("cluster-a".to_owned()),
-        7,
-        [9; 16],
-        vec![
-            AddRaftVoterEndpoint::new("CONTROLLER".to_owned(), "controller-a".to_owned(), 9093),
-            AddRaftVoterEndpoint::new("CONTROLLER_SSL".to_owned(), "controller-b".to_owned(), 9094),
-        ],
-    )
-    .unwrap_or_else(|error| panic!("valid plan: {error}"));
+fn request_preserves_plan_and_default_committed_acknowledgement() {
+    let plan = plan();
     let request = add_raft_voter_request(&plan, 321).expect("valid request");
 
     assert_eq!(request.cluster_id.as_deref(), Some("cluster-a"));
@@ -40,6 +31,14 @@ fn request_preserves_plan_and_requires_committed_acknowledgement() {
 }
 
 #[test]
+fn request_preserves_explicit_local_write_acknowledgement() {
+    let plan = plan().with_ack_when_committed(false);
+    let request = add_raft_voter_request(&plan, 321).expect("valid local-write request");
+
+    assert!(!request.ack_when_committed);
+}
+
+#[test]
 fn request_preserves_absent_cluster_and_rejects_nonpositive_timeout() {
     let plan = AddRaftVoterPlan::new(
         None,
@@ -58,4 +57,17 @@ fn request_preserves_absent_cluster_and_rejects_nonpositive_timeout() {
     );
     let request = add_raft_voter_request(&plan, 1).expect("positive timeout");
     assert_eq!(request.cluster_id, None);
+}
+
+fn plan() -> AddRaftVoterPlan {
+    AddRaftVoterPlan::new(
+        Some("cluster-a".to_owned()),
+        7,
+        [9; 16],
+        vec![
+            AddRaftVoterEndpoint::new("CONTROLLER".to_owned(), "controller-a".to_owned(), 9093),
+            AddRaftVoterEndpoint::new("CONTROLLER_SSL".to_owned(), "controller-b".to_owned(), 9094),
+        ],
+    )
+    .unwrap_or_else(|error| panic!("valid plan: {error}"))
 }

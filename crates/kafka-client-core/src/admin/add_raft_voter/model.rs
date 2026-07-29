@@ -1,4 +1,4 @@
-//! Bounded identity and listener intent for one committed `AddRaftVoter` request.
+//! Bounded identity, listener, and acknowledgment intent for one `AddRaftVoter` request.
 
 use core::fmt;
 use std::collections::BTreeSet;
@@ -45,17 +45,20 @@ impl AddRaftVoterEndpoint {
     }
 }
 
-/// Validated intent for one committed controller `AddRaftVoter` RPC.
+/// Validated intent for one controller `AddRaftVoter` RPC.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AddRaftVoterPlan {
     cluster_id: Option<String>,
     voter_id: i32,
     voter_directory_id: [u8; 16],
     listeners: Vec<AddRaftVoterEndpoint>,
+    ack_when_committed: bool,
 }
 
 impl AddRaftVoterPlan {
     /// Validates one voter identity and its bounded, uniquely named endpoints.
+    ///
+    /// By default Kafka acknowledges only after the new voter set is committed.
     pub fn new(
         cluster_id: Option<String>,
         voter_id: i32,
@@ -97,7 +100,14 @@ impl AddRaftVoterPlan {
             voter_id,
             voter_directory_id,
             listeners,
+            ack_when_committed: true,
         })
+    }
+
+    /// Replaces whether Kafka waits for the new voter set to be committed.
+    pub const fn with_ack_when_committed(mut self, ack_when_committed: bool) -> Self {
+        self.ack_when_committed = ack_when_committed;
+        self
     }
 
     /// Returns the optional cluster identity.
@@ -120,13 +130,32 @@ impl AddRaftVoterPlan {
         &self.listeners
     }
 
+    /// Returns whether Kafka waits for the new voter set to be committed.
+    pub const fn ack_when_committed(&self) -> bool {
+        self.ack_when_committed
+    }
+
+    /// Returns the earliest API-key 80 version representing this acknowledgment policy.
+    pub const fn minimum_api_version(&self) -> i16 {
+        if self.ack_when_committed { 0 } else { 1 }
+    }
+
     /// Consumes this plan into adapter-owned scalar parts.
-    pub fn into_parts(self) -> (Option<String>, i32, [u8; 16], Vec<AddRaftVoterEndpoint>) {
+    pub fn into_parts(
+        self,
+    ) -> (
+        Option<String>,
+        i32,
+        [u8; 16],
+        Vec<AddRaftVoterEndpoint>,
+        bool,
+    ) {
         (
             self.cluster_id,
             self.voter_id,
             self.voter_directory_id,
             self.listeners,
+            self.ack_when_committed,
         )
     }
 }

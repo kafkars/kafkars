@@ -1,4 +1,4 @@
-//! Engine-owned inert intent for one committed metadata-quorum voter addition.
+//! Engine-owned inert intent for one metadata-quorum voter addition.
 
 use kafka_client_core::{
     AddRaftVoterEndpoint as CoreEndpoint, AddRaftVoterPlan as CorePlan,
@@ -51,13 +51,14 @@ impl AddRaftVoterEndpoint {
     }
 }
 
-/// One inert committed voter-addition request.
+/// One inert voter-addition request.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AddRaftVoterRequest {
     cluster_id: Option<String>,
     voter_id: i32,
     voter_directory_id: [u8; 16],
     listeners: Vec<AddRaftVoterEndpoint>,
+    ack_when_committed: bool,
 }
 
 impl AddRaftVoterRequest {
@@ -73,7 +74,14 @@ impl AddRaftVoterRequest {
             voter_id,
             voter_directory_id,
             listeners,
+            ack_when_committed: true,
         }
+    }
+
+    /// Replaces whether success waits for the new voter set to be committed.
+    pub const fn ack_when_committed(mut self, ack_when_committed: bool) -> Self {
+        self.ack_when_committed = ack_when_committed;
+        self
     }
 
     /// Returns the optional cluster identity.
@@ -96,7 +104,7 @@ impl AddRaftVoterRequest {
         &self.listeners
     }
 
-    /// Consumes the request into exact scalar parts.
+    /// Consumes the request into identity and listener parts.
     pub fn into_parts(self) -> (Option<String>, i32, [u8; 16], Vec<AddRaftVoterEndpoint>) {
         (
             self.cluster_id,
@@ -107,6 +115,7 @@ impl AddRaftVoterRequest {
     }
 
     pub(crate) fn into_plan(self) -> Result<CorePlan, AddRaftVoterPlanFailure> {
+        let ack_when_committed = self.ack_when_committed;
         let (cluster_id, voter_id, voter_directory_id, source) = self.into_parts();
         let mut listeners = Vec::new();
         listeners
@@ -119,6 +128,7 @@ impl AddRaftVoterRequest {
             voter_directory_id,
             listeners,
         )
+        .map(|plan| plan.with_ack_when_committed(ack_when_committed))
         .map_err(|_error: CorePlanError| AddRaftVoterPlanFailure::Invalid)
     }
 }

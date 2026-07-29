@@ -40,7 +40,7 @@ impl AddRaftVoterCall {
         let request = add_raft_voter_request(plan, timeout_ms)
             .map_err(AddRaftVoterCallAdmissionFailure::Request)?;
         let call = driver
-            .submit_tracked_add_raft_voter(request, deadline.transport())
+            .submit_tracked_add_raft_voter(plan, request, deadline.transport())
             .map_err(AddRaftVoterCallAdmissionFailure::Driver)?;
         Ok(Self { call: Some(call) })
     }

@@ -15,11 +15,13 @@ fn inert_request_keeps_facade_values_unconverted_until_submission() {
             9093,
         )],
     )
-    .with_cluster_id(String::from("cluster-a"));
+    .with_cluster_id(String::from("cluster-a"))
+    .with_ack_when_committed(false);
 
-    let (cluster_id, identity, endpoints) = request.into_parts();
+    let (cluster_id, identity, endpoints, ack_when_committed) = request.into_parts();
     assert_eq!(cluster_id.as_deref(), Some("cluster-a"));
     assert_eq!(identity.into_parts(), (-3, directory_id));
+    assert!(!ack_when_committed);
     assert_eq!(
         endpoints
             .into_iter()

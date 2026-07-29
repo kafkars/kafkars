@@ -13,6 +13,17 @@ fn request_preserves_cluster_voter_directory_and_listener_order() {
     assert_eq!(plan.listeners().len(), 2);
     assert_eq!(plan.listeners()[0].name(), "CONTROLLER");
     assert_eq!(plan.listeners()[1].name(), "CONTROLLER_SSL");
+    assert!(plan.ack_when_committed());
+}
+
+#[test]
+fn request_preserves_explicit_local_write_acknowledgement() {
+    let plan = request()
+        .ack_when_committed(false)
+        .into_plan()
+        .unwrap_or_else(|error| panic!("valid local-write request: {error:?}"));
+
+    assert!(!plan.ack_when_committed());
 }
 
 #[test]

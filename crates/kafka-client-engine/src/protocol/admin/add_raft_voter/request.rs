@@ -1,4 +1,4 @@
-//! Exact generated construction for one committed metadata-quorum voter addition.
+//! Exact generated construction for one metadata-quorum voter addition.
 
 use kafka_client_core::AddRaftVoterPlan;
 use kafka_wire::{AddRaftVoterRequest, add_raft_voter_request::Listener};
@@ -19,7 +19,7 @@ pub(crate) enum AddRaftVoterRequestFailure {
     },
 }
 
-/// Builds one request that reports success only after the new voter set is committed.
+/// Builds one request preserving its exact acknowledgement policy.
 pub(crate) fn add_raft_voter_request(
     plan: &AddRaftVoterPlan,
     timeout_ms: i32,
@@ -48,6 +48,6 @@ pub(crate) fn add_raft_voter_request(
     request.voter_id = plan.voter_id();
     request.voter_directory_id = Uuid::from_bytes(plan.voter_directory_id());
     request.listeners = listeners;
-    request.ack_when_committed = true;
+    request.ack_when_committed = plan.ack_when_committed();
     Ok(request)
 }

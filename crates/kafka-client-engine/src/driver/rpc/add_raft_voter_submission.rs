@@ -2,12 +2,12 @@
 
 use std::{error::Error, fmt, time::Instant};
 
+use kafka_client_core::AddRaftVoterPlan;
 use kafka_driver::{ApiVersion, RequestOptions, Route, RoutedCall, SubmitError, TrafficClass};
 use kafka_wire::{AddRaftVoterRequest, AddRaftVoterResponse};
 
 use super::super::DriverOwner;
 
-const ADD_RAFT_VOTER_MIN_VERSION: ApiVersion = ApiVersion::new(0);
 const ADD_RAFT_VOTER_MAX_VERSION: ApiVersion = ApiVersion::new(1);
 
 /// Definitely-unsent bounded-driver rejection.
@@ -33,9 +33,10 @@ impl Error for AddRaftVoterSubmitError {
 }
 
 impl DriverOwner {
-    /// Submits one committed voter addition without retry or invalidation policy.
+    /// Submits one voter addition without retry or invalidation policy.
     pub(crate) fn submit_tracked_add_raft_voter(
         &self,
+        plan: &AddRaftVoterPlan,
         request: AddRaftVoterRequest,
         deadline: Instant,
     ) -> Result<RoutedCall<AddRaftVoterResponse>, AddRaftVoterSubmitError> {
@@ -43,7 +44,7 @@ impl DriverOwner {
             .request_tracked_with(
                 add_raft_voter_route(),
                 request,
-                add_raft_voter_options(deadline),
+                add_raft_voter_options(plan, deadline),
             )
             .map_err(|source| AddRaftVoterSubmitError { source })
     }
@@ -53,9 +54,12 @@ pub(super) const fn add_raft_voter_route() -> Route {
     Route::AnyBroker
 }
 
-pub(super) const fn add_raft_voter_options(deadline: Instant) -> RequestOptions {
+pub(super) const fn add_raft_voter_options(
+    plan: &AddRaftVoterPlan,
+    deadline: Instant,
+) -> RequestOptions {
     RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Interactive)
-        .with_minimum_version(ADD_RAFT_VOTER_MIN_VERSION)
+        .with_minimum_version(ApiVersion::new(plan.minimum_api_version()))
         .with_maximum_version(ADD_RAFT_VOTER_MAX_VERSION)
 }
