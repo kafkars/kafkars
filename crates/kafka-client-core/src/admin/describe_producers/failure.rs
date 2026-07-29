@@ -1,0 +1,46 @@
+//! Whole-operation mechanism failures for Admin `DescribeProducers`.
+
+use crate::DeliveryStatus;
+
+/// Whole-operation failure category outside exact per-target broker outcomes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AdminDescribeProducersFailureKind {
+    /// The original public absolute deadline elapsed.
+    DeadlineElapsed,
+    /// Driver admission rejected one prepared partition-leader call.
+    DriverRejected,
+    /// Driver-owned transport execution failed.
+    Transport,
+    /// A valid response exceeded the admitted retained envelope.
+    ResponseTooLarge,
+    /// The selected broker version cannot represent required semantics.
+    Compatibility,
+    /// A broker response was malformed or could not be correlated.
+    InvalidResponse,
+}
+
+/// Whole-operation mechanism failure with authoritative delivery certainty.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AdminDescribeProducersFailure {
+    kind: AdminDescribeProducersFailureKind,
+    delivery: DeliveryStatus,
+}
+
+impl AdminDescribeProducersFailure {
+    pub(crate) const fn new(
+        kind: AdminDescribeProducersFailureKind,
+        delivery: DeliveryStatus,
+    ) -> Self {
+        Self { kind, delivery }
+    }
+
+    /// Returns the stable failure category.
+    pub const fn kind(self) -> AdminDescribeProducersFailureKind {
+        self.kind
+    }
+
+    /// Returns authoritative transport delivery certainty.
+    pub const fn delivery(self) -> DeliveryStatus {
+        self.delivery
+    }
+}
