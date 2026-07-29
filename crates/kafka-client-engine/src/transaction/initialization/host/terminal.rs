@@ -210,11 +210,14 @@ fn terminal_input(fact: TransactionInitTerminalFact<'_>) -> TransactionInitializ
             TransactionInitDriverFailureKind::InvalidResponse => {
                 TransactionInitializationInput::InvalidResponse
             }
+            TransactionInitDriverFailureKind::Compatibility => {
+                TransactionInitializationInput::TransportFailed { delivery }
+            }
             TransactionInitDriverFailureKind::Transport => {
                 TransactionInitializationInput::TransportFailed { delivery }
             }
         },
-        TransactionInitTerminalFact::Response(response) => {
+        TransactionInitTerminalFact::Response { response, .. } => {
             match normalize_transaction_init_response(response) {
                 Ok(identity) => TransactionInitializationInput::BrokerInitialized {
                     producer_id: identity.producer_id,

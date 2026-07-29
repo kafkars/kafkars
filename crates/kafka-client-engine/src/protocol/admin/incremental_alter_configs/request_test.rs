@@ -1,6 +1,9 @@
 //! Generated request semantics for all incremental configuration operations.
 
-use kafka_client_core::{ConfigAlteration, IncrementalAlterConfigsPlan, TopicConfigAlteration};
+use kafka_client_core::{
+    ConfigAlteration, IncrementalAlterConfigsPlan, IncrementalConfigResourceAlteration,
+    TopicConfigAlteration,
+};
 use kafka_wire::IncrementalAlterConfigsRequest;
 use kafka_wire_core::{
     ApiVersion, BytesMut, DecodeLimits, Decoder, KafkaDecode, KafkaEncode, StrBytes,
@@ -63,6 +66,48 @@ fn request_uses_generated_v0_v1_topic_operations_without_legacy_fallback() {
     assert_nullable_values_round_trip(&request, ApiVersion::new(1));
 }
 
+#[test]
+fn request_preserves_known_and_future_resource_types_in_caller_order() {
+    let plan = IncrementalAlterConfigsPlan::for_resources(
+        vec![
+            resource(4, "1"),
+            resource(8, "1"),
+            resource(16, "client"),
+            resource(32, "group"),
+            resource(64, "future"),
+        ],
+        false,
+    )
+    .unwrap_or_else(|error| panic!("valid generic plan: {error}"));
+
+    let request = incremental_alter_configs_request(&plan);
+    assert!(!request.validate_only);
+    assert_eq!(
+        request
+            .resources
+            .iter()
+            .map(|resource| (resource.resource_type, resource.resource_name.as_str()))
+            .collect::<Vec<_>>(),
+        [
+            (4, "1"),
+            (8, "1"),
+            (16, "client"),
+            (32, "group"),
+            (64, "future"),
+        ]
+    );
+    assert_nullable_values_round_trip(&request, ApiVersion::new(0));
+    assert_nullable_values_round_trip(&request, ApiVersion::new(1));
+}
+
+fn resource(resource_type: i8, name: &str) -> IncrementalConfigResourceAlteration {
+    IncrementalConfigResourceAlteration::resource(
+        resource_type,
+        name.to_owned(),
+        vec![ConfigAlteration::delete("key".to_owned())],
+    )
+}
+
 fn assert_nullable_values_round_trip(
     request: &IncrementalAlterConfigsRequest,
     version: ApiVersion,
@@ -78,12 +123,5 @@ fn assert_nullable_values_round_trip(
     decoder
         .finish()
         .unwrap_or_else(|error| panic!("generated request consumes its frame: {error}"));
-    assert_eq!(
-        decoded.resources[0]
-            .configs
-            .iter()
-            .map(|config| config.value.as_ref().map(StrBytes::as_str))
-            .collect::<Vec<_>>(),
-        vec![Some("compact"), None, Some(""), Some("cold")]
-    );
+    assert_eq!(&decoded, request);
 }

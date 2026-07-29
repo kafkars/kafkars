@@ -42,6 +42,24 @@ pub(super) fn recover_partition_operations(
         failure = failure.with_cleanup(cleanup);
     }
     drop(remove_consumer_group_members);
+    let mut describe_producers = resources.describe_producers.terminal_host();
+    if let Some(cleanup) = describe_producers
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::AdminDescribeProducers)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    drop(describe_producers);
+    let mut describe_topic_partitions = resources.describe_topic_partitions.terminal_host();
+    if let Some(cleanup) = describe_topic_partitions
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::AdminDescribeTopicPartitions)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    drop(describe_topic_partitions);
     let mut delete_records = resources.delete_records.terminal_host();
     if let Some(cleanup) = delete_records
         .recover_after_driver_shutdown()
@@ -51,5 +69,14 @@ pub(super) fn recover_partition_operations(
         failure = failure.with_cleanup(cleanup);
     }
     drop(delete_records);
+    let mut abort_partition_transaction = resources.abort_partition_transaction.terminal_host();
+    if let Some(cleanup) = abort_partition_transaction
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::AbortPartitionTransaction)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    drop(abort_partition_transaction);
     failure
 }

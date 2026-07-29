@@ -4,7 +4,7 @@ use core::mem::size_of;
 
 use kafka_client_core::{
     AdminDescribeLogDirsBrokerOutcome, AdminLogDirDescription, AdminLogDirOutcome,
-    AdminLogDirReplicaInfo,
+    AdminLogDirReplicaInfo, DescribeReplicaLogDirsReplicaPlacement, ReplicaLogDirInfo,
 };
 use kafka_wire::{DescribeLogDirsResponse, describe_log_dirs_request::DescribableLogDirTopic};
 
@@ -67,12 +67,28 @@ pub(super) fn response_peak_charge(
             duplicate_keys = duplicate_keys.checked_add(topic.partitions.len())?;
         }
     }
-    let selected_partitions = match selection {
-        DescribeLogDirsSelectionRef::AllTopics => 0,
+    let (selected_partitions, selected_terminal) = match selection {
+        DescribeLogDirsSelectionRef::AllTopics => (0, 0),
         DescribeLogDirsSelectionRef::Selected(topics) => {
-            topics.iter().try_fold(0usize, |count, topic| {
+            let selected_partitions = topics.iter().try_fold(0usize, |count, topic| {
                 count.checked_add(topic.partitions().len())
-            })?
+            })?;
+            let selected_topic_bytes = topics.iter().try_fold(0usize, |bytes, topic| {
+                bytes.checked_add(topic.topic().len().checked_mul(topic.partitions().len())?)
+            })?;
+            let repeated_path_bytes =
+                response.results.iter().try_fold(0usize, |bytes, log_dir| {
+                    let replicas = log_dir.topics.iter().try_fold(0usize, |count, topic| {
+                        count.checked_add(topic.partitions.len())
+                    })?;
+                    bytes.checked_add(log_dir.log_dir.len().checked_mul(replicas)?)
+                })?;
+            let selected_terminal = selected_partitions
+                .checked_mul(size_of::<DescribeReplicaLogDirsReplicaPlacement>())?
+                .checked_add(selected_partitions.checked_mul(size_of::<ReplicaLogDirInfo>())?)?
+                .checked_add(selected_topic_bytes)?
+                .checked_add(repeated_path_bytes)?;
+            (selected_partitions, selected_terminal)
         }
     };
     let terminal = response.results.iter().try_fold(
@@ -95,6 +111,7 @@ pub(super) fn response_peak_charge(
     output
         .checked_add(duplicate_keys.checked_mul(size_of::<DuplicateKey<'static>>())?)?
         .checked_add(selected_partitions.checked_mul(size_of::<SelectionKey<'static>>())?)
+        .and_then(|charge| charge.checked_add(selected_terminal))
         .and_then(|charge| charge.checked_add(terminal))
 }
 

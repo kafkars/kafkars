@@ -1,4 +1,4 @@
-//! Semantic normalization for tracked topic `IncrementalAlterConfigs` calls.
+//! Semantic normalization for tracked `IncrementalAlterConfigs` calls.
 
 use kafka_client_core::{
     DeliveryStatus, IncrementalAlterConfigsInput, IncrementalAlterConfigsPlan,
@@ -64,10 +64,10 @@ pub(super) fn normalize_terminal(
         Err(
             IncrementalAlterConfigsProtocolFailure::ThrottleTime
             | IncrementalAlterConfigsProtocolFailure::ResourceCount
-            | IncrementalAlterConfigsProtocolFailure::UnexpectedResourceType
-            | IncrementalAlterConfigsProtocolFailure::UnexpectedTopic
-            | IncrementalAlterConfigsProtocolFailure::MissingTopic
-            | IncrementalAlterConfigsProtocolFailure::DuplicateTopic,
+            | IncrementalAlterConfigsProtocolFailure::NonPositiveResourceType
+            | IncrementalAlterConfigsProtocolFailure::UnexpectedResource
+            | IncrementalAlterConfigsProtocolFailure::MissingResource
+            | IncrementalAlterConfigsProtocolFailure::DuplicateResource,
         ) => IncrementalAlterConfigsInput::InvalidResponse,
     }
 }

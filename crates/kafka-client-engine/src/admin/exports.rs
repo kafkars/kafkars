@@ -1,18 +1,31 @@
 //! Curated crate-private admin execution exports.
 
 pub(crate) use super::completion::{
+    AdminAbortPartitionTransactionPublisher, AdminAddRaftVoterPublisher,
     AdminAlterClientQuotasPublisher, AdminAlterReplicaLogDirsPublisher,
-    AdminAlterUserScramCredentialsPublisher, AdminCompletionNotifier, AdminCompletionPorts,
-    AdminCreateAclsPublisher, AdminDeleteAclsPublisher, AdminDescribeAclsPublisher,
+    AdminAlterShareGroupOffsetsPublisher, AdminAlterUserScramCredentialsPublisher,
+    AdminCompletionNotifier, AdminCompletionPorts, AdminCreateAclsPublisher,
+    AdminCreateDelegationTokenPublisher, AdminDeleteAclsPublisher,
+    AdminDeleteShareGroupOffsetsPublisher, AdminDescribeAclsPublisher,
     AdminDescribeClientQuotasPublisher, AdminDescribeConsumerGroupsPublisher,
-    AdminDescribeLogDirsPublisher, AdminDescribeUserScramCredentialsPublisher,
-    AdminListConsumerGroupsPublisher, AdminListOffsetsPublisher,
+    AdminDescribeDelegationTokensPublisher, AdminDescribeFeaturesPublisher,
+    AdminDescribeLogDirsPublisher, AdminDescribeMetadataQuorumPublisher,
+    AdminDescribeProducersPublisher, AdminDescribeReplicaLogDirsPublisher,
+    AdminDescribeShareGroupPublisher, AdminDescribeStreamsGroupPublisher,
+    AdminDescribeTopicPartitionsPublisher, AdminDescribeTransactionsPublisher,
+    AdminDescribeUserScramCredentialsPublisher, AdminExpireDelegationTokenPublisher,
+    AdminFenceProducersPublisher, AdminListClientMetricsResourcesPublisher,
+    AdminListConfigResourcesPublisher, AdminListConsumerGroupsPublisher, AdminListOffsetsPublisher,
+    AdminListShareGroupOffsetsPublisher, AdminListTransactionsPublisher,
+    AdminRemoveRaftVoterPublisher, AdminRenewDelegationTokenPublisher,
+    AdminUnregisterBrokerPublisher, AdminUpdateFeaturesPublisher,
     AlterConsumerGroupOffsetsPublisher, AlterPartitionReassignmentsPublisher,
     CreatePartitionsPublisher, CreateTopicsPublisher, DeleteConsumerGroupOffsetsPublisher,
     DeleteConsumerGroupsPublisher, DeleteRecordsPublisher, DeleteTopicsPublisher,
     DescribeClusterPublisher, DescribeConfigsPublisher, DescribeTopicsPublisher,
-    ElectLeadersPublisher, IncrementalAlterConfigsPublisher, ListConsumerGroupOffsetsPublisher,
-    ListPartitionReassignmentsPublisher, RemoveConsumerGroupMembersPublisher,
+    ElectLeadersPublisher, IncrementalAlterConfigsPublisher, LegacyAlterConfigsPublisher,
+    ListConsumerGroupOffsetsPublisher, ListPartitionReassignmentsPublisher,
+    RemoveConsumerGroupMembersPublisher,
 };
 pub(crate) use super::configs::DescribeConfigsRetention;
 pub(crate) use super::handle::AdminAdmissionPorts;

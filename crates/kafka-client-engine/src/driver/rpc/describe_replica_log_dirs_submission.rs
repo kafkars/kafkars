@@ -2,10 +2,7 @@
 
 use std::{error::Error, fmt, time::Instant};
 
-use kafka_driver::{
-    ApiVersion, BrokerId, BrokerIdError, RequestOptions, Route, RoutedCall, SubmitError,
-    TrafficClass,
-};
+use kafka_driver::{ApiVersion, RequestOptions, Route, RoutedCall, SubmitError, TrafficClass};
 use kafka_wire::{DescribeLogDirsRequest, DescribeLogDirsResponse};
 
 use super::super::DriverOwner;
@@ -16,7 +13,7 @@ const DESCRIBE_REPLICA_LOG_DIRS_MAX_VERSION: ApiVersion = ApiVersion::new(5);
 /// Definitely-unsent exact-route construction or driver-admission failure.
 #[derive(Debug)]
 pub(crate) enum DescribeReplicaLogDirsSubmitError {
-    InvalidBroker(BrokerIdError),
+    InvalidBroker(InvalidBroker),
     Driver(SubmitError),
 }
 
@@ -64,10 +61,27 @@ impl DriverOwner {
     }
 }
 
-pub(super) fn describe_replica_log_dirs_route(broker_id: i32) -> Result<Route, BrokerIdError> {
-    Ok(Route::Broker {
-        broker_id: BrokerId::new(broker_id)?,
-    })
+pub(super) fn describe_replica_log_dirs_route(broker_id: i32) -> Result<Route, InvalidBroker> {
+    validate_broker_id(broker_id)?;
+    Ok(Route::AnyBroker)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct InvalidBroker(i32);
+
+impl fmt::Display for InvalidBroker {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "broker ID {} must be nonnegative", self.0)
+    }
+}
+
+impl Error for InvalidBroker {}
+
+const fn validate_broker_id(broker_id: i32) -> Result<(), InvalidBroker> {
+    if broker_id < 0 {
+        return Err(InvalidBroker(broker_id));
+    }
+    Ok(())
 }
 
 pub(super) const fn describe_replica_log_dirs_options(deadline: Instant) -> RequestOptions {

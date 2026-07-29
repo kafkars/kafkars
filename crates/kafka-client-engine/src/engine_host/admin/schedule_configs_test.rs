@@ -1,9 +1,9 @@
 //! Independent shutdown accounting for the concrete `DescribeConfigs` owner.
 
-use kafka_client_core::Deadline;
+use kafka_client_core::{Deadline, Moment};
 
 use super::{
-    alter_consumer_group_offsets::AlterConsumerGroupOffsetsProgress,
+    super::EngineHostError, alter_consumer_group_offsets::AlterConsumerGroupOffsetsProgress,
     create_partitions::CreatePartitionsProgress, create_topics::CreateTopicsProgress,
     delete_consumer_group_offsets::DeleteConsumerGroupOffsetsProgress,
     delete_topics::DeleteTopicsProgress, describe_cluster::DescribeClusterProgress,
@@ -11,6 +11,16 @@ use super::{
     incremental_alter_configs::IncrementalAlterConfigsProgress,
     list_consumer_group_offsets::ListConsumerGroupOffsetsProgress, schedule::combine,
 };
+
+pub(super) fn drive_alter_configs_then_capture_group_offsets(
+    alter_configs_now: Moment,
+    drive_alter_configs: impl FnOnce(Moment) -> Result<IncrementalAlterConfigsProgress, EngineHostError>,
+    capture_group_offsets_now: impl FnOnce() -> Result<Moment, EngineHostError>,
+) -> Result<(IncrementalAlterConfigsProgress, Moment), EngineHostError> {
+    let alter_configs = drive_alter_configs(alter_configs_now)?;
+    let group_offsets_now = capture_group_offsets_now()?;
+    Ok((alter_configs, group_offsets_now))
+}
 
 #[test]
 fn describe_configs_owner_is_independent_and_prevents_false_quiescence() {

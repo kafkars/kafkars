@@ -14,9 +14,9 @@ pub(crate) use limits::DESCRIBE_TOPICS_CAPACITY;
 pub use model::DescribeTopicsRequest;
 pub use observer::DescribeTopicsObserver;
 pub use outcome::{
-    DescribeTopicError, DescribeTopicResult, DescribeTopicsDeliveryStatus, DescribeTopicsFailure,
-    DescribeTopicsFailureKind, DescribeTopicsObserverError, DescribeTopicsOutcome,
-    TopicDescription, TopicPartitionDescription,
+    DescribeTopicError, DescribeTopicIdResult, DescribeTopicResult, DescribeTopicsDeliveryStatus,
+    DescribeTopicsFailure, DescribeTopicsFailureKind, DescribeTopicsObserverError,
+    DescribeTopicsOutcome, TopicDescription, TopicPartitionDescription,
 };
 pub(crate) use shard::{
     DescribeTopicsAdmissionPort, DescribeTopicsShardLockError, DescribeTopicsShardOwner,

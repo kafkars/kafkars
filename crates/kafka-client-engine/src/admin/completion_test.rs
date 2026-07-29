@@ -9,37 +9,61 @@ use std::{
 };
 
 use kafka_client_core::{
+    AbortPartitionTransactionTerminal, AddRaftVoterSuccess, AddRaftVoterTerminal,
     AdminDescribeConsumerGroupsBatch, AdminDescribeConsumerGroupsTerminal,
+    AdminDescribeProducersBatch, AdminDescribeProducersTerminal, AdminDescribeTransactionsBatch,
+    AdminDescribeTransactionsTerminal, AdminFenceProducersBatch, AdminFenceProducersTerminal,
     AdminListConsumerGroupsBatch, AdminListConsumerGroupsTerminal, AdminListOffsetsBatch,
     AdminListOffsetsTerminal, AlterConsumerGroupOffsetsBatch, AlterConsumerGroupOffsetsTerminal,
     AlterPartitionReassignmentsBatch, AlterPartitionReassignmentsTerminal,
     AlterUserScramCredentialsBatch, AlterUserScramCredentialsTerminal, ClusterDescription,
-    CreatePartitionsTerminal, CreateTopicsTerminal, DeleteConsumerGroupOffsetsBatch,
-    DeleteConsumerGroupOffsetsTerminal, DeleteConsumerGroupsBatch, DeleteConsumerGroupsTerminal,
-    DeleteRecordsBatch, DeleteRecordsTerminal, DeleteTopicsTerminal, DescribeClusterTerminal,
-    DescribeConfigsBatch, DescribeConfigsTerminal, DescribeTopicsTerminal, ElectLeadersBatch,
-    ElectLeadersTerminal, IncrementalAlterConfigsBatch, IncrementalAlterConfigsTerminal,
+    CreateDelegationTokenBrokerError, CreateDelegationTokenTerminal, CreatePartitionsTerminal,
+    CreateTopicsTerminal, DeleteConsumerGroupOffsetsBatch, DeleteConsumerGroupOffsetsTerminal,
+    DeleteConsumerGroupsBatch, DeleteConsumerGroupsTerminal, DeleteRecordsBatch,
+    DeleteRecordsTerminal, DeleteShareGroupOffsetsBatch, DeleteShareGroupOffsetsTerminal,
+    DeleteTopicsTerminal, DescribeClusterTerminal, DescribeConfigsBatch, DescribeConfigsTerminal,
+    DescribeFeaturesBrokerError, DescribeFeaturesTerminal, DescribeMetadataQuorumBrokerError,
+    DescribeMetadataQuorumTerminal, DescribeStreamsGroupBrokerError, DescribeStreamsGroupTerminal,
+    DescribeTopicsTerminal, ElectLeadersBatch, ElectLeadersTerminal,
+    ExpireDelegationTokenBrokerError, ExpireDelegationTokenTerminal, IncrementalAlterConfigsBatch,
+    IncrementalAlterConfigsTerminal, LegacyAlterConfigsBatch, LegacyAlterConfigsTerminal,
     ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsTerminal,
     ListPartitionReassignmentsBatch, ListPartitionReassignmentsTerminal,
-    RemoveConsumerGroupMembersBatch, RemoveConsumerGroupMembersTerminal,
+    RemoveConsumerGroupMembersBatch, RemoveConsumerGroupMembersTerminal, RemoveRaftVoterSuccess,
+    RemoveRaftVoterTerminal, RenewDelegationTokenBrokerError, RenewDelegationTokenTerminal,
 };
 
 use crate::completion::{CompletionRegistry, ReclaimStatus};
 
 use super::{
-    ADMIN_LIST_OFFSETS_CAPACITY, ALTER_CLIENT_QUOTAS_CAPACITY,
+    ABORT_PARTITION_TRANSACTION_CAPACITY, ADD_RAFT_VOTER_CAPACITY,
+    ADMIN_DESCRIBE_PRODUCERS_CAPACITY, ADMIN_DESCRIBE_TOPIC_PARTITIONS_CAPACITY,
+    ADMIN_DESCRIBE_TRANSACTIONS_CAPACITY, ADMIN_FENCE_PRODUCERS_CAPACITY,
+    ADMIN_LIST_OFFSETS_CAPACITY, ADMIN_LIST_TRANSACTIONS_CAPACITY, ALTER_CLIENT_QUOTAS_CAPACITY,
     ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY, ALTER_PARTITION_REASSIGNMENTS_CAPACITY,
     ALTER_REPLICA_LOG_DIRS_CAPACITY, ALTER_USER_SCRAM_CREDENTIALS_CAPACITY, CREATE_ACLS_CAPACITY,
-    CREATE_PARTITIONS_CAPACITY, CREATE_TOPICS_CAPACITY, DELETE_ACLS_CAPACITY,
-    DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY, DELETE_CONSUMER_GROUPS_CAPACITY,
+    CREATE_DELEGATION_TOKEN_CAPACITY, CREATE_PARTITIONS_CAPACITY, CREATE_TOPICS_CAPACITY,
+    DELETE_ACLS_CAPACITY, DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY, DELETE_CONSUMER_GROUPS_CAPACITY,
     DELETE_RECORDS_CAPACITY, DELETE_TOPICS_CAPACITY, DESCRIBE_ACLS_CAPACITY,
     DESCRIBE_CLIENT_QUOTAS_CAPACITY, DESCRIBE_CLUSTER_CAPACITY, DESCRIBE_CONFIGS_CAPACITY,
-    DESCRIBE_CONSUMER_GROUPS_CAPACITY, DESCRIBE_LOG_DIRS_CAPACITY, DESCRIBE_TOPICS_CAPACITY,
+    DESCRIBE_CONSUMER_GROUPS_CAPACITY, DESCRIBE_DELEGATION_TOKENS_CAPACITY,
+    DESCRIBE_FEATURES_CAPACITY, DESCRIBE_LOG_DIRS_CAPACITY, DESCRIBE_METADATA_QUORUM_CAPACITY,
+    DESCRIBE_REPLICA_LOG_DIRS_CAPACITY, DESCRIBE_TOPICS_CAPACITY,
     DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY, ELECT_LEADERS_CAPACITY,
-    INCREMENTAL_ALTER_CONFIGS_CAPACITY, LIST_CONSUMER_GROUP_OFFSETS_CAPACITY,
-    LIST_CONSUMER_GROUPS_CAPACITY, LIST_PARTITION_REASSIGNMENTS_CAPACITY,
-    REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY, completion::AdminCompletionNotifier,
-    test_support::completion_owner,
+    EXPIRE_DELEGATION_TOKEN_CAPACITY, INCREMENTAL_ALTER_CONFIGS_CAPACITY,
+    LIST_CONSUMER_GROUP_OFFSETS_CAPACITY, LIST_CONSUMER_GROUPS_CAPACITY,
+    LIST_PARTITION_REASSIGNMENTS_CAPACITY, REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY,
+    REMOVE_RAFT_VOTER_CAPACITY, RENEW_DELEGATION_TOKEN_CAPACITY,
+    alter_share_group_offsets::ALTER_SHARE_GROUP_OFFSETS_CAPACITY,
+    completion::AdminCompletionNotifier,
+    delete_share_group_offsets::DELETE_SHARE_GROUP_OFFSETS_CAPACITY,
+    describe_share_group::DESCRIBE_SHARE_GROUP_CAPACITY,
+    describe_streams_group::DESCRIBE_STREAMS_GROUP_CAPACITY,
+    legacy_alter_configs::LEGACY_ALTER_CONFIGS_CAPACITY,
+    list_client_metrics_resources::internal_api::LIST_CLIENT_METRICS_RESOURCES_CAPACITY,
+    list_config_resources::LIST_CONFIG_RESOURCES_CAPACITY,
+    list_share_group_offsets::LIST_SHARE_GROUP_OFFSETS_CAPACITY, test_support::completion_owner,
+    unregister_broker::UNREGISTER_BROKER_CAPACITY, update_features::UPDATE_FEATURES_CAPACITY,
 };
 
 macro_rules! exercise_terminals {
@@ -59,7 +83,19 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
 
     exercise_terminals! {
         worker;
+        ports.abort_partition_transaction => AbortPartitionTransactionTerminal::Aborted,
+        ports.add_raft_voter => AddRaftVoterTerminal::Added(AddRaftVoterSuccess::new(0)),
+        ports.remove_raft_voter => RemoveRaftVoterTerminal::Removed(RemoveRaftVoterSuccess::new(0)),
         ports.create_topics => CreateTopicsTerminal::Topics(Vec::new()),
+        ports.create_delegation_token => CreateDelegationTokenTerminal::BrokerRejected(
+            CreateDelegationTokenBrokerError::new(0, core::num::NonZeroI16::MIN)
+        ),
+        ports.renew_delegation_token => RenewDelegationTokenTerminal::BrokerRejected(
+            RenewDelegationTokenBrokerError::new(0, core::num::NonZeroI16::MIN)
+        ),
+        ports.expire_delegation_token => ExpireDelegationTokenTerminal::BrokerRejected(
+            ExpireDelegationTokenBrokerError::new(0, core::num::NonZeroI16::MIN)
+        ),
         ports.delete_topics => DeleteTopicsTerminal::Topics(Vec::new()),
         ports.describe_cluster => DescribeClusterTerminal::Cluster(ClusterDescription::new(
             String::from("cluster"),
@@ -73,6 +109,9 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
         ),
         ports.incremental_alter_configs => IncrementalAlterConfigsTerminal::Configs(
             IncrementalAlterConfigsBatch::new(0, Vec::new())
+        ),
+        ports.legacy_alter_configs => LegacyAlterConfigsTerminal::Configs(
+            LegacyAlterConfigsBatch::new(0, Vec::new())
         ),
         ports.list_consumer_group_offsets => ListConsumerGroupOffsetsTerminal::Offsets(
             ListConsumerGroupOffsetsBatch::new(
@@ -116,11 +155,25 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
         ports.delete_records => DeleteRecordsTerminal::Deleted(
             DeleteRecordsBatch::new(0, Vec::new())
         ),
+        ports.delete_share_group_offsets => DeleteShareGroupOffsetsTerminal::Deleted(
+            DeleteShareGroupOffsetsBatch::new(0, Vec::new())
+        ),
+        ports.describe_streams_group => DescribeStreamsGroupTerminal::BrokerRejected(
+            DescribeStreamsGroupBrokerError::new(
+                0,
+                core::num::NonZeroI16::MIN,
+                None,
+                false,
+            )
+        ),
         ports.describe_consumer_groups => AdminDescribeConsumerGroupsTerminal::Described(
             AdminDescribeConsumerGroupsBatch::new(
                 0,
                 Vec::new(),
             )
+        ),
+        ports.describe_features => DescribeFeaturesTerminal::BrokerRejected(
+            DescribeFeaturesBrokerError::new(0, core::num::NonZeroI16::MIN)
         ),
         ports.list_consumer_groups => AdminListConsumerGroupsTerminal::Listed(
             AdminListConsumerGroupsBatch::new(
@@ -138,6 +191,22 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
         ports.alter_user_scram_credentials => AlterUserScramCredentialsTerminal::Altered(
             AlterUserScramCredentialsBatch::new(0, Vec::new())
         ),
+        ports.describe_metadata_quorum => DescribeMetadataQuorumTerminal::BrokerRejected(
+            DescribeMetadataQuorumBrokerError::new(
+                core::num::NonZeroI16::MIN,
+                None,
+                false,
+            )
+        ),
+        ports.describe_producers => AdminDescribeProducersTerminal::Described(
+            AdminDescribeProducersBatch::new(0, Vec::new())
+        ),
+        ports.describe_transactions => AdminDescribeTransactionsTerminal::Described(
+            AdminDescribeTransactionsBatch::new(0, Vec::new())
+        ),
+        ports.fence_producers => AdminFenceProducersTerminal::Fenced(
+            AdminFenceProducersBatch::new(0, Vec::new())
+        ),
     }
 
     let join = notifier
@@ -146,7 +215,7 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     assert_eq!(join.join_off_notifier(), Ok(()));
 }
 
-fn exercise_terminal<T, P>(publisher: P, terminal: T, worker: ThreadId)
+pub(super) fn exercise_terminal<T, P>(publisher: P, terminal: T, worker: ThreadId)
 where
     T: Send + 'static,
     P: crate::completion::CompletionPublisher<T>,
@@ -158,37 +227,8 @@ where
 
 #[test]
 fn shared_capacity_is_the_sum_of_the_closed_admin_ticket_set() {
-    assert_eq!(
-        AdminCompletionNotifier::capacity_for_test(),
-        CREATE_TOPICS_CAPACITY
-            + DELETE_TOPICS_CAPACITY
-            + DESCRIBE_CLUSTER_CAPACITY
-            + CREATE_PARTITIONS_CAPACITY
-            + DESCRIBE_TOPICS_CAPACITY
-            + DESCRIBE_CONFIGS_CAPACITY
-            + INCREMENTAL_ALTER_CONFIGS_CAPACITY
-            + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
-            + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
-            + DELETE_CONSUMER_GROUPS_CAPACITY
-            + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
-            + ADMIN_LIST_OFFSETS_CAPACITY
-            + LIST_PARTITION_REASSIGNMENTS_CAPACITY
-            + ALTER_PARTITION_REASSIGNMENTS_CAPACITY
-            + ELECT_LEADERS_CAPACITY
-            + DELETE_RECORDS_CAPACITY
-            + DESCRIBE_CONSUMER_GROUPS_CAPACITY
-            + LIST_CONSUMER_GROUPS_CAPACITY
-            + REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY
-            + DESCRIBE_LOG_DIRS_CAPACITY
-            + ALTER_REPLICA_LOG_DIRS_CAPACITY
-            + DESCRIBE_ACLS_CAPACITY
-            + DESCRIBE_CLIENT_QUOTAS_CAPACITY
-            + ALTER_CLIENT_QUOTAS_CAPACITY
-            + ALTER_USER_SCRAM_CREDENTIALS_CAPACITY
-            + DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY
-            + CREATE_ACLS_CAPACITY
-            + DELETE_ACLS_CAPACITY
-    );
+    super::completion_describe_topic_partitions_test::
+        assert_shared_capacity_includes_describe_topic_partitions();
 }
 
 #[test]
@@ -196,11 +236,14 @@ fn describe_topics_is_included_in_the_closed_shared_capacity_equation() {
     assert_eq!(
         AdminCompletionNotifier::capacity_for_test().checked_sub(
             CREATE_TOPICS_CAPACITY
+                + ABORT_PARTITION_TRANSACTION_CAPACITY
+                + ADD_RAFT_VOTER_CAPACITY
                 + DELETE_TOPICS_CAPACITY
                 + DESCRIBE_CLUSTER_CAPACITY
                 + CREATE_PARTITIONS_CAPACITY
                 + DESCRIBE_CONFIGS_CAPACITY
                 + INCREMENTAL_ALTER_CONFIGS_CAPACITY
+                + LEGACY_ALTER_CONFIGS_CAPACITY
                 + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
                 + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
                 + DELETE_CONSUMER_GROUPS_CAPACITY
@@ -210,17 +253,39 @@ fn describe_topics_is_included_in_the_closed_shared_capacity_equation() {
                 + ALTER_PARTITION_REASSIGNMENTS_CAPACITY
                 + ELECT_LEADERS_CAPACITY
                 + DELETE_RECORDS_CAPACITY
+                + DELETE_SHARE_GROUP_OFFSETS_CAPACITY
+                + LIST_SHARE_GROUP_OFFSETS_CAPACITY
+                + ALTER_SHARE_GROUP_OFFSETS_CAPACITY
+                + DESCRIBE_SHARE_GROUP_CAPACITY
+                + DESCRIBE_STREAMS_GROUP_CAPACITY
                 + DESCRIBE_CONSUMER_GROUPS_CAPACITY
+                + DESCRIBE_FEATURES_CAPACITY
                 + LIST_CONSUMER_GROUPS_CAPACITY
                 + REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY
+                + REMOVE_RAFT_VOTER_CAPACITY
                 + DESCRIBE_LOG_DIRS_CAPACITY
+                + DESCRIBE_REPLICA_LOG_DIRS_CAPACITY
                 + ALTER_REPLICA_LOG_DIRS_CAPACITY
                 + DESCRIBE_ACLS_CAPACITY
                 + DESCRIBE_CLIENT_QUOTAS_CAPACITY
                 + ALTER_CLIENT_QUOTAS_CAPACITY
                 + ALTER_USER_SCRAM_CREDENTIALS_CAPACITY
                 + DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY
+                + DESCRIBE_METADATA_QUORUM_CAPACITY
+                + ADMIN_DESCRIBE_PRODUCERS_CAPACITY
+                + ADMIN_DESCRIBE_TOPIC_PARTITIONS_CAPACITY
+                + ADMIN_DESCRIBE_TRANSACTIONS_CAPACITY
+                + ADMIN_FENCE_PRODUCERS_CAPACITY
+                + ADMIN_LIST_TRANSACTIONS_CAPACITY
+                + LIST_CLIENT_METRICS_RESOURCES_CAPACITY
+                + UPDATE_FEATURES_CAPACITY
+                + UNREGISTER_BROKER_CAPACITY
+                + LIST_CONFIG_RESOURCES_CAPACITY
                 + CREATE_ACLS_CAPACITY
+                + CREATE_DELEGATION_TOKEN_CAPACITY
+                + DESCRIBE_DELEGATION_TOKENS_CAPACITY
+                + RENEW_DELEGATION_TOKEN_CAPACITY
+                + EXPIRE_DELEGATION_TOKEN_CAPACITY
                 + DELETE_ACLS_CAPACITY
         ),
         Some(DESCRIBE_TOPICS_CAPACITY)
@@ -232,11 +297,14 @@ fn create_partitions_is_included_in_the_closed_shared_capacity_equation() {
     assert_eq!(
         AdminCompletionNotifier::capacity_for_test().checked_sub(
             CREATE_TOPICS_CAPACITY
+                + ABORT_PARTITION_TRANSACTION_CAPACITY
+                + ADD_RAFT_VOTER_CAPACITY
                 + DELETE_TOPICS_CAPACITY
                 + DESCRIBE_CLUSTER_CAPACITY
                 + DESCRIBE_TOPICS_CAPACITY
                 + DESCRIBE_CONFIGS_CAPACITY
                 + INCREMENTAL_ALTER_CONFIGS_CAPACITY
+                + LEGACY_ALTER_CONFIGS_CAPACITY
                 + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
                 + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
                 + DELETE_CONSUMER_GROUPS_CAPACITY
@@ -246,17 +314,39 @@ fn create_partitions_is_included_in_the_closed_shared_capacity_equation() {
                 + ALTER_PARTITION_REASSIGNMENTS_CAPACITY
                 + ELECT_LEADERS_CAPACITY
                 + DELETE_RECORDS_CAPACITY
+                + DELETE_SHARE_GROUP_OFFSETS_CAPACITY
+                + LIST_SHARE_GROUP_OFFSETS_CAPACITY
+                + ALTER_SHARE_GROUP_OFFSETS_CAPACITY
+                + DESCRIBE_SHARE_GROUP_CAPACITY
+                + DESCRIBE_STREAMS_GROUP_CAPACITY
                 + DESCRIBE_CONSUMER_GROUPS_CAPACITY
+                + DESCRIBE_FEATURES_CAPACITY
                 + LIST_CONSUMER_GROUPS_CAPACITY
                 + REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY
+                + REMOVE_RAFT_VOTER_CAPACITY
                 + DESCRIBE_LOG_DIRS_CAPACITY
+                + DESCRIBE_REPLICA_LOG_DIRS_CAPACITY
                 + ALTER_REPLICA_LOG_DIRS_CAPACITY
                 + DESCRIBE_ACLS_CAPACITY
                 + DESCRIBE_CLIENT_QUOTAS_CAPACITY
                 + ALTER_CLIENT_QUOTAS_CAPACITY
                 + ALTER_USER_SCRAM_CREDENTIALS_CAPACITY
                 + DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY
+                + DESCRIBE_METADATA_QUORUM_CAPACITY
+                + ADMIN_DESCRIBE_PRODUCERS_CAPACITY
+                + ADMIN_DESCRIBE_TOPIC_PARTITIONS_CAPACITY
+                + ADMIN_DESCRIBE_TRANSACTIONS_CAPACITY
+                + ADMIN_FENCE_PRODUCERS_CAPACITY
+                + ADMIN_LIST_TRANSACTIONS_CAPACITY
+                + LIST_CLIENT_METRICS_RESOURCES_CAPACITY
+                + UPDATE_FEATURES_CAPACITY
+                + UNREGISTER_BROKER_CAPACITY
+                + LIST_CONFIG_RESOURCES_CAPACITY
                 + CREATE_ACLS_CAPACITY
+                + CREATE_DELEGATION_TOKEN_CAPACITY
+                + DESCRIBE_DELEGATION_TOKENS_CAPACITY
+                + RENEW_DELEGATION_TOKEN_CAPACITY
+                + EXPIRE_DELEGATION_TOKEN_CAPACITY
                 + DELETE_ACLS_CAPACITY
         ),
         Some(CREATE_PARTITIONS_CAPACITY)
@@ -268,11 +358,14 @@ fn describe_configs_is_included_in_the_closed_shared_capacity_equation() {
     assert_eq!(
         AdminCompletionNotifier::capacity_for_test().checked_sub(
             CREATE_TOPICS_CAPACITY
+                + ABORT_PARTITION_TRANSACTION_CAPACITY
+                + ADD_RAFT_VOTER_CAPACITY
                 + DELETE_TOPICS_CAPACITY
                 + DESCRIBE_CLUSTER_CAPACITY
                 + CREATE_PARTITIONS_CAPACITY
                 + DESCRIBE_TOPICS_CAPACITY
                 + INCREMENTAL_ALTER_CONFIGS_CAPACITY
+                + LEGACY_ALTER_CONFIGS_CAPACITY
                 + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
                 + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
                 + DELETE_CONSUMER_GROUPS_CAPACITY
@@ -282,17 +375,39 @@ fn describe_configs_is_included_in_the_closed_shared_capacity_equation() {
                 + ALTER_PARTITION_REASSIGNMENTS_CAPACITY
                 + ELECT_LEADERS_CAPACITY
                 + DELETE_RECORDS_CAPACITY
+                + DELETE_SHARE_GROUP_OFFSETS_CAPACITY
+                + LIST_SHARE_GROUP_OFFSETS_CAPACITY
+                + ALTER_SHARE_GROUP_OFFSETS_CAPACITY
+                + DESCRIBE_SHARE_GROUP_CAPACITY
+                + DESCRIBE_STREAMS_GROUP_CAPACITY
                 + DESCRIBE_CONSUMER_GROUPS_CAPACITY
+                + DESCRIBE_FEATURES_CAPACITY
                 + LIST_CONSUMER_GROUPS_CAPACITY
                 + REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY
+                + REMOVE_RAFT_VOTER_CAPACITY
                 + DESCRIBE_LOG_DIRS_CAPACITY
+                + DESCRIBE_REPLICA_LOG_DIRS_CAPACITY
                 + ALTER_REPLICA_LOG_DIRS_CAPACITY
                 + DESCRIBE_ACLS_CAPACITY
                 + DESCRIBE_CLIENT_QUOTAS_CAPACITY
                 + ALTER_CLIENT_QUOTAS_CAPACITY
                 + ALTER_USER_SCRAM_CREDENTIALS_CAPACITY
                 + DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY
+                + DESCRIBE_METADATA_QUORUM_CAPACITY
+                + ADMIN_DESCRIBE_PRODUCERS_CAPACITY
+                + ADMIN_DESCRIBE_TOPIC_PARTITIONS_CAPACITY
+                + ADMIN_DESCRIBE_TRANSACTIONS_CAPACITY
+                + ADMIN_FENCE_PRODUCERS_CAPACITY
+                + ADMIN_LIST_TRANSACTIONS_CAPACITY
+                + LIST_CLIENT_METRICS_RESOURCES_CAPACITY
+                + UPDATE_FEATURES_CAPACITY
+                + UNREGISTER_BROKER_CAPACITY
+                + LIST_CONFIG_RESOURCES_CAPACITY
                 + CREATE_ACLS_CAPACITY
+                + CREATE_DELEGATION_TOKEN_CAPACITY
+                + DESCRIBE_DELEGATION_TOKENS_CAPACITY
+                + RENEW_DELEGATION_TOKEN_CAPACITY
+                + EXPIRE_DELEGATION_TOKEN_CAPACITY
                 + DELETE_ACLS_CAPACITY
         ),
         Some(DESCRIBE_CONFIGS_CAPACITY)
@@ -304,11 +419,14 @@ fn incremental_alter_configs_is_included_in_the_closed_shared_capacity_equation(
     assert_eq!(
         AdminCompletionNotifier::capacity_for_test().checked_sub(
             CREATE_TOPICS_CAPACITY
+                + ABORT_PARTITION_TRANSACTION_CAPACITY
+                + ADD_RAFT_VOTER_CAPACITY
                 + DELETE_TOPICS_CAPACITY
                 + DESCRIBE_CLUSTER_CAPACITY
                 + CREATE_PARTITIONS_CAPACITY
                 + DESCRIBE_TOPICS_CAPACITY
                 + DESCRIBE_CONFIGS_CAPACITY
+                + LEGACY_ALTER_CONFIGS_CAPACITY
                 + LIST_CONSUMER_GROUP_OFFSETS_CAPACITY
                 + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
                 + DELETE_CONSUMER_GROUPS_CAPACITY
@@ -318,17 +436,39 @@ fn incremental_alter_configs_is_included_in_the_closed_shared_capacity_equation(
                 + ALTER_PARTITION_REASSIGNMENTS_CAPACITY
                 + ELECT_LEADERS_CAPACITY
                 + DELETE_RECORDS_CAPACITY
+                + DELETE_SHARE_GROUP_OFFSETS_CAPACITY
+                + LIST_SHARE_GROUP_OFFSETS_CAPACITY
+                + ALTER_SHARE_GROUP_OFFSETS_CAPACITY
+                + DESCRIBE_SHARE_GROUP_CAPACITY
+                + DESCRIBE_STREAMS_GROUP_CAPACITY
                 + DESCRIBE_CONSUMER_GROUPS_CAPACITY
+                + DESCRIBE_FEATURES_CAPACITY
                 + LIST_CONSUMER_GROUPS_CAPACITY
                 + REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY
+                + REMOVE_RAFT_VOTER_CAPACITY
                 + DESCRIBE_LOG_DIRS_CAPACITY
+                + DESCRIBE_REPLICA_LOG_DIRS_CAPACITY
                 + ALTER_REPLICA_LOG_DIRS_CAPACITY
                 + DESCRIBE_ACLS_CAPACITY
                 + DESCRIBE_CLIENT_QUOTAS_CAPACITY
                 + ALTER_CLIENT_QUOTAS_CAPACITY
                 + ALTER_USER_SCRAM_CREDENTIALS_CAPACITY
                 + DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY
+                + DESCRIBE_METADATA_QUORUM_CAPACITY
+                + ADMIN_DESCRIBE_PRODUCERS_CAPACITY
+                + ADMIN_DESCRIBE_TOPIC_PARTITIONS_CAPACITY
+                + ADMIN_DESCRIBE_TRANSACTIONS_CAPACITY
+                + ADMIN_FENCE_PRODUCERS_CAPACITY
+                + ADMIN_LIST_TRANSACTIONS_CAPACITY
+                + LIST_CLIENT_METRICS_RESOURCES_CAPACITY
+                + UPDATE_FEATURES_CAPACITY
+                + UNREGISTER_BROKER_CAPACITY
+                + LIST_CONFIG_RESOURCES_CAPACITY
                 + CREATE_ACLS_CAPACITY
+                + CREATE_DELEGATION_TOKEN_CAPACITY
+                + DESCRIBE_DELEGATION_TOKENS_CAPACITY
+                + RENEW_DELEGATION_TOKEN_CAPACITY
+                + EXPIRE_DELEGATION_TOKEN_CAPACITY
                 + DELETE_ACLS_CAPACITY
         ),
         Some(INCREMENTAL_ALTER_CONFIGS_CAPACITY)
@@ -340,12 +480,15 @@ fn group_offsets_is_included_in_the_closed_shared_capacity_equation() {
     assert_eq!(
         AdminCompletionNotifier::capacity_for_test().checked_sub(
             CREATE_TOPICS_CAPACITY
+                + ABORT_PARTITION_TRANSACTION_CAPACITY
+                + ADD_RAFT_VOTER_CAPACITY
                 + DELETE_TOPICS_CAPACITY
                 + DESCRIBE_CLUSTER_CAPACITY
                 + CREATE_PARTITIONS_CAPACITY
                 + DESCRIBE_TOPICS_CAPACITY
                 + DESCRIBE_CONFIGS_CAPACITY
                 + INCREMENTAL_ALTER_CONFIGS_CAPACITY
+                + LEGACY_ALTER_CONFIGS_CAPACITY
                 + DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY
                 + DELETE_CONSUMER_GROUPS_CAPACITY
                 + ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY
@@ -354,17 +497,39 @@ fn group_offsets_is_included_in_the_closed_shared_capacity_equation() {
                 + ALTER_PARTITION_REASSIGNMENTS_CAPACITY
                 + ELECT_LEADERS_CAPACITY
                 + DELETE_RECORDS_CAPACITY
+                + DELETE_SHARE_GROUP_OFFSETS_CAPACITY
+                + LIST_SHARE_GROUP_OFFSETS_CAPACITY
+                + ALTER_SHARE_GROUP_OFFSETS_CAPACITY
+                + DESCRIBE_SHARE_GROUP_CAPACITY
+                + DESCRIBE_STREAMS_GROUP_CAPACITY
                 + DESCRIBE_CONSUMER_GROUPS_CAPACITY
+                + DESCRIBE_FEATURES_CAPACITY
                 + LIST_CONSUMER_GROUPS_CAPACITY
                 + REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY
+                + REMOVE_RAFT_VOTER_CAPACITY
                 + DESCRIBE_LOG_DIRS_CAPACITY
+                + DESCRIBE_REPLICA_LOG_DIRS_CAPACITY
                 + ALTER_REPLICA_LOG_DIRS_CAPACITY
                 + DESCRIBE_ACLS_CAPACITY
                 + DESCRIBE_CLIENT_QUOTAS_CAPACITY
                 + ALTER_CLIENT_QUOTAS_CAPACITY
                 + ALTER_USER_SCRAM_CREDENTIALS_CAPACITY
                 + DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY
+                + DESCRIBE_METADATA_QUORUM_CAPACITY
+                + ADMIN_DESCRIBE_PRODUCERS_CAPACITY
+                + ADMIN_DESCRIBE_TOPIC_PARTITIONS_CAPACITY
+                + ADMIN_DESCRIBE_TRANSACTIONS_CAPACITY
+                + ADMIN_FENCE_PRODUCERS_CAPACITY
+                + ADMIN_LIST_TRANSACTIONS_CAPACITY
+                + LIST_CLIENT_METRICS_RESOURCES_CAPACITY
+                + UPDATE_FEATURES_CAPACITY
+                + UNREGISTER_BROKER_CAPACITY
+                + LIST_CONFIG_RESOURCES_CAPACITY
                 + CREATE_ACLS_CAPACITY
+                + CREATE_DELEGATION_TOKEN_CAPACITY
+                + DESCRIBE_DELEGATION_TOKENS_CAPACITY
+                + RENEW_DELEGATION_TOKEN_CAPACITY
+                + EXPIRE_DELEGATION_TOKEN_CAPACITY
                 + DELETE_ACLS_CAPACITY
         ),
         Some(LIST_CONSUMER_GROUP_OFFSETS_CAPACITY)

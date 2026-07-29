@@ -1,4 +1,4 @@
-//! Conservative terminal reservation for ordered topics and bounded diagnostics.
+//! Conservative terminal reservation for ordered resources and bounded diagnostics.
 
 use kafka_client_core::IncrementalAlterConfigsPlan;
 
@@ -19,16 +19,16 @@ pub(super) fn ensure_result_fits(
 pub(super) fn required_result_reservation(
     plan: &IncrementalAlterConfigsPlan,
 ) -> Result<usize, IncrementalAlterConfigsProtocolFailure> {
-    let topic_bytes = plan.topics().iter().try_fold(0usize, |bytes, topic| {
-        bytes.checked_add(topic.topic().len())
+    let resource_name_bytes = plan.resources().iter().try_fold(0usize, |bytes, resource| {
+        bytes.checked_add(resource.resource_name().len())
     });
     let fixed = result_fixed_charge(
-        plan.topics().len(),
-        topic_bytes.ok_or(IncrementalAlterConfigsProtocolFailure::RetainedBytes)?,
+        plan.resources().len(),
+        resource_name_bytes.ok_or(IncrementalAlterConfigsProtocolFailure::RetainedBytes)?,
     )
     .ok_or(IncrementalAlterConfigsProtocolFailure::RetainedBytes)?;
     let diagnostics = plan
-        .topics()
+        .resources()
         .len()
         .checked_mul(RESULT_DIAGNOSTIC_BYTES_PER_TOPIC)
         .ok_or(IncrementalAlterConfigsProtocolFailure::RetainedBytes)?;

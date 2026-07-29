@@ -18,6 +18,15 @@ impl DescribeTopicsAdminRequest {
         }
     }
 
+    pub(crate) fn from_topic_ids<I>(topic_ids: I) -> Self
+    where
+        I: IntoIterator<Item = [u8; 16]>,
+    {
+        Self {
+            inner: EngineDescribeTopicsRequest::by_ids(topic_ids.into_iter().collect()),
+        }
+    }
+
     pub(crate) const fn all(include_internal: bool) -> Self {
         Self {
             inner: EngineDescribeTopicsRequest::all(include_internal),
@@ -26,6 +35,11 @@ impl DescribeTopicsAdminRequest {
 
     pub(crate) fn with_include_internal(mut self, include_internal: bool) -> Self {
         self.inner = EngineDescribeTopicsRequest::all(include_internal);
+        self
+    }
+
+    pub(crate) fn with_authorized_operations(mut self, include: bool) -> Self {
+        self.inner = self.inner.with_authorized_operations(include);
         self
     }
 

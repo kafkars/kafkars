@@ -8,11 +8,13 @@ const RESULT_BYTES_PER_TOPIC: usize = 128 * 1024;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DescribeTopicsRequest {
     selection: DescribeTopicsRequestSelection,
+    include_authorized_operations: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum DescribeTopicsRequestSelection {
     Named(Vec<String>),
+    Ids(Vec<[u8; 16]>),
     All { include_internal: bool },
 }
 
@@ -21,6 +23,15 @@ impl DescribeTopicsRequest {
     pub const fn new(topics: Vec<String>) -> Self {
         Self {
             selection: DescribeTopicsRequestSelection::Named(topics),
+            include_authorized_operations: false,
+        }
+    }
+
+    /// Creates one ordered batch of topic IDs.
+    pub const fn by_ids(topic_ids: Vec<[u8; 16]>) -> Self {
+        Self {
+            selection: DescribeTopicsRequestSelection::Ids(topic_ids),
+            include_authorized_operations: false,
         }
     }
 
@@ -28,16 +39,25 @@ impl DescribeTopicsRequest {
     pub const fn all(include_internal: bool) -> Self {
         Self {
             selection: DescribeTopicsRequestSelection::All { include_internal },
+            include_authorized_operations: false,
         }
     }
 
+    /// Selects whether Kafka should return exact topic authorization bitfields.
+    pub const fn with_authorized_operations(mut self, include: bool) -> Self {
+        self.include_authorized_operations = include;
+        self
+    }
+
     pub(crate) fn into_plan(self) -> Result<DescribeTopicsPlan, DescribeTopicsPlanError> {
-        match self.selection {
+        let plan = match self.selection {
             DescribeTopicsRequestSelection::Named(topics) => DescribeTopicsPlan::new(topics),
+            DescribeTopicsRequestSelection::Ids(topic_ids) => DescribeTopicsPlan::by_ids(topic_ids),
             DescribeTopicsRequestSelection::All { include_internal } => {
                 Ok(DescribeTopicsPlan::all(include_internal))
             }
-        }
+        }?;
+        Ok(plan.with_authorized_operations(self.include_authorized_operations))
     }
 
     pub(crate) fn canonicalize(mut self) -> Self {
@@ -58,6 +78,10 @@ impl DescribeTopicsRequest {
                     .try_fold(0usize, |bytes, topic| bytes.checked_add(topic.len()))?;
                 let request = crate::admin::retention::request_charge(topics.len(), 0, text_bytes)?;
                 request.checked_add(topics.len().checked_mul(RESULT_BYTES_PER_TOPIC)?)
+            }
+            DescribeTopicsRequestSelection::Ids(topic_ids) => {
+                let request = crate::admin::retention::request_charge(topic_ids.len(), 0, 0)?;
+                request.checked_add(topic_ids.len().checked_mul(RESULT_BYTES_PER_TOPIC)?)
             }
             DescribeTopicsRequestSelection::All { .. } => {
                 Some(super::limits::all_topics_retained_charge())

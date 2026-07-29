@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use kafka_driver::{ApiVersion, BrokerId, Route, TrafficClass};
+use kafka_driver::{ApiVersion, Route, TrafficClass};
 
 use super::list_transactions_submission::{
     ListTransactionsSubmitError, list_transactions_broker_options, list_transactions_broker_route,
@@ -12,12 +12,7 @@ use super::list_transactions_submission::{
 #[test]
 fn discovery_is_any_broker_routed_and_broker_routes_are_exact() {
     assert_eq!(list_transactions_discovery_route(), Route::AnyBroker);
-    assert_eq!(
-        list_transactions_broker_route(7),
-        Ok(Route::Broker {
-            broker_id: BrokerId::new(7).unwrap_or_else(|error| panic!("broker: {error}")),
-        })
-    );
+    assert_eq!(list_transactions_broker_route(7), Ok(Route::AnyBroker));
     assert!(list_transactions_broker_route(-1).is_err());
 }
 

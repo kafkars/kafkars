@@ -2,7 +2,9 @@
 
 use std::time::Instant;
 
-use kafka_client_core::{DeleteTopicsInput, DeleteTopicsPlan, DeliveryStatus};
+use kafka_client_core::{
+    DeleteTopicIdOutcome, DeleteTopicsInput, DeleteTopicsPlan, DeliveryStatus,
+};
 
 use crate::clock::OperationDeadline;
 
@@ -101,6 +103,55 @@ fn queued_and_taken_recovery_preserve_the_last_not_sent_boundary() {
         .turn(kafka_client_core::Moment::from_tick(3))
         .unwrap_or_else(|error| panic!("reclaim taken result: {error}"));
     stop(taken, taken_notifier);
+}
+
+#[test]
+fn topic_id_terminal_uses_the_same_admission_reserved_capacity() {
+    let topic_id = [7; 16];
+    let plan = DeleteTopicsPlan::by_ids(vec![topic_id])
+        .unwrap_or_else(|error| panic!("valid topic-ID deletion plan: {error}"));
+    let (mut host, notifier) = delete_topics_host();
+    let admission = host
+        .try_admit(
+            kafka_client_core::Moment::from_tick(1),
+            deadline(10),
+            plan,
+            16 * 1024,
+        )
+        .unwrap_or_else(|error| panic!("admit topic-ID deletion: {error:?}"));
+    assert_eq!(host.retained_bytes, 16 * 1024);
+    let DeleteTopicsTurn::Submit(submission) = host
+        .turn(kafka_client_core::Moment::from_tick(2))
+        .unwrap_or_else(|error| panic!("take topic-ID submission: {error}"))
+    else {
+        panic!("topic-ID submission must be ready");
+    };
+    host.apply(submission.operation_id, DeleteTopicsInput::DriverAccepted)
+        .and_then(|()| {
+            host.apply(
+                submission.operation_id,
+                DeleteTopicsInput::BrokerRespondedById {
+                    outcomes: vec![DeleteTopicIdOutcome::deleted(topic_id)],
+                },
+            )
+        })
+        .unwrap_or_else(|error| panic!("settle topic-ID deletion: {error}"));
+    let DeleteTopicsOutcome::TopicIds(outcomes) = admission
+        .observer
+        .wait()
+        .unwrap_or_else(|error| panic!("observe topic-ID terminal: {error}"))
+    else {
+        panic!("topic-ID terminal expected");
+    };
+    assert_eq!(outcomes.len(), 1);
+    assert_eq!(outcomes[0].topic_id(), topic_id);
+    assert_eq!(outcomes[0].result(), &Ok(()));
+    assert_eq!(host.retained_bytes, 16 * 1024);
+    let _turn = host
+        .turn(kafka_client_core::Moment::from_tick(3))
+        .unwrap_or_else(|error| panic!("reclaim topic-ID result: {error}"));
+    assert_eq!(host.retained_bytes, 0);
+    stop(host, notifier);
 }
 
 fn admitted() -> (

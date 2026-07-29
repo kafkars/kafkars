@@ -2,22 +2,24 @@
 
 use crate::{
     admin::{
-        AdminListOffsetsShardWake, AdminListOffsetsShardWakeError,
-        AlterConsumerGroupOffsetsShardWake, AlterConsumerGroupOffsetsShardWakeError,
-        AlterPartitionReassignmentsShardWake, AlterPartitionReassignmentsShardWakeError,
-        CreatePartitionsShardWake, CreatePartitionsShardWakeError, CreateTopicsShardWake,
-        CreateTopicsShardWakeError, DeleteConsumerGroupOffsetsShardWake,
-        DeleteConsumerGroupOffsetsShardWakeError, DeleteConsumerGroupsShardWake,
-        DeleteConsumerGroupsShardWakeError, DeleteRecordsShardWake, DeleteRecordsShardWakeError,
-        DeleteTopicsShardWake, DeleteTopicsShardWakeError, DescribeClusterShardWake,
-        DescribeClusterShardWakeError, DescribeConfigsShardWake, DescribeConfigsShardWakeError,
-        DescribeConsumerGroupsShardWake, DescribeConsumerGroupsShardWakeError,
-        DescribeTopicsShardWake, DescribeTopicsShardWakeError, ElectLeadersShardWake,
-        ElectLeadersShardWakeError, IncrementalAlterConfigsShardWake,
-        IncrementalAlterConfigsShardWakeError, ListConsumerGroupOffsetsShardWake,
-        ListConsumerGroupOffsetsShardWakeError, ListPartitionReassignmentsShardWake,
-        ListPartitionReassignmentsShardWakeError, RemoveConsumerGroupMembersShardWake,
-        RemoveConsumerGroupMembersShardWakeError,
+        AdminDescribeProducersShardWake, AdminDescribeProducersShardWakeError,
+        AdminDescribeTransactionsShardWake, AdminDescribeTransactionsShardWakeError,
+        AdminFenceProducersShardWake, AdminFenceProducersShardWakeError, AdminListOffsetsShardWake,
+        AdminListOffsetsShardWakeError, AlterConsumerGroupOffsetsShardWake,
+        AlterConsumerGroupOffsetsShardWakeError, AlterPartitionReassignmentsShardWake,
+        AlterPartitionReassignmentsShardWakeError, CreatePartitionsShardWake,
+        CreatePartitionsShardWakeError, CreateTopicsShardWake, CreateTopicsShardWakeError,
+        DeleteConsumerGroupOffsetsShardWake, DeleteConsumerGroupOffsetsShardWakeError,
+        DeleteConsumerGroupsShardWake, DeleteConsumerGroupsShardWakeError, DeleteRecordsShardWake,
+        DeleteRecordsShardWakeError, DeleteTopicsShardWake, DeleteTopicsShardWakeError,
+        DescribeClusterShardWake, DescribeClusterShardWakeError, DescribeConfigsShardWake,
+        DescribeConfigsShardWakeError, DescribeConsumerGroupsShardWake,
+        DescribeConsumerGroupsShardWakeError, DescribeTopicsShardWake,
+        DescribeTopicsShardWakeError, ElectLeadersShardWake, ElectLeadersShardWakeError,
+        IncrementalAlterConfigsShardWake, IncrementalAlterConfigsShardWakeError,
+        ListConsumerGroupOffsetsShardWake, ListConsumerGroupOffsetsShardWakeError,
+        ListPartitionReassignmentsShardWake, ListPartitionReassignmentsShardWakeError,
+        RemoveConsumerGroupMembersShardWake, RemoveConsumerGroupMembersShardWakeError,
     },
     driver::ReactorWake,
 };
@@ -117,6 +119,27 @@ impl AdminListOffsetsShardWake for ReactorWake {
     fn wake(&self) -> Result<(), AdminListOffsetsShardWakeError> {
         self.request()
             .map_err(|error| AdminListOffsetsShardWakeError::from_io(error.into_io()))
+    }
+}
+
+impl AdminDescribeProducersShardWake for ReactorWake {
+    fn wake(&self) -> Result<(), AdminDescribeProducersShardWakeError> {
+        self.request()
+            .map_err(|error| AdminDescribeProducersShardWakeError::from_io(error.into_io()))
+    }
+}
+
+impl AdminDescribeTransactionsShardWake for ReactorWake {
+    fn wake(&self) -> Result<(), AdminDescribeTransactionsShardWakeError> {
+        self.request()
+            .map_err(|error| AdminDescribeTransactionsShardWakeError::from_io(error.into_io()))
+    }
+}
+
+impl AdminFenceProducersShardWake for ReactorWake {
+    fn wake(&self) -> Result<(), AdminFenceProducersShardWakeError> {
+        self.request()
+            .map_err(|error| AdminFenceProducersShardWakeError::from_io(error.into_io()))
     }
 }
 

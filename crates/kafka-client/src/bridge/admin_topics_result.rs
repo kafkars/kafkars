@@ -14,7 +14,9 @@ use crate::{
     bridge::admin_topics_operation::AdminDescribeTopicsResult,
 };
 
-pub(super) fn translate_admission_error(error: DescribeTopicsAdmissionError) -> KafkaError {
+pub(in crate::bridge) fn translate_admission_error(
+    error: DescribeTopicsAdmissionError,
+) -> KafkaError {
     translate_admission_kind(error.kind())
 }
 
@@ -33,7 +35,9 @@ pub(super) fn translate_admission_kind(kind: DescribeTopicsAdmissionErrorKind) -
         .with_delivery_status(DeliveryStatus::NotSent)
 }
 
-pub(super) fn translate_accepted_fault(fault: DescribeTopicsAcceptedFaultKind) -> KafkaError {
+pub(in crate::bridge) fn translate_accepted_fault(
+    fault: DescribeTopicsAcceptedFaultKind,
+) -> KafkaError {
     match fault {
         DescribeTopicsAcceptedFaultKind::Wake => KafkaError::new(
             ErrorKind::Internal,
@@ -64,19 +68,27 @@ pub(super) fn translate_observation(
                 })
                 .collect(),
         )),
+        Ok(DescribeTopicsOutcome::TopicIds(_)) => Err(KafkaError::new(
+            ErrorKind::Internal,
+            "name-based DescribeTopics received a topic-ID terminal",
+        )
+        .with_delivery_status(DeliveryStatus::PossiblySent)),
         Ok(DescribeTopicsOutcome::Failed(failure)) => Err(translate_failure(failure)),
         Err(error) => Err(translate_observer_error(error)),
     }
 }
 
-fn translate_description(description: EngineTopicDescription) -> TopicDescription {
-    let (name, topic_id, internal, partitions) = description.into_parts();
+pub(in crate::bridge) fn translate_description(
+    description: EngineTopicDescription,
+) -> TopicDescription {
+    let (name, topic_id, internal, partitions, authorized_operations) = description.into_parts();
     TopicDescription::new(
         name,
         topic_id,
         internal,
         partitions.into_iter().map(translate_partition).collect(),
     )
+    .with_authorized_operations(authorized_operations)
 }
 
 fn translate_partition(partition: EnginePartitionDescription) -> TopicPartitionDescription {
@@ -92,7 +104,7 @@ fn translate_partition(partition: EnginePartitionDescription) -> TopicPartitionD
     )
 }
 
-fn translate_failure(failure: DescribeTopicsFailure) -> KafkaError {
+pub(in crate::bridge) fn translate_failure(failure: DescribeTopicsFailure) -> KafkaError {
     translate_failure_parts(failure.kind(), failure.delivery())
 }
 
@@ -124,7 +136,10 @@ pub(super) fn translate_failure_parts(
         .with_delivery_status(translate_delivery(delivery))
 }
 
-fn translate_topic_error(error: EngineTopicError, internal: bool) -> KafkaError {
+pub(in crate::bridge) fn translate_topic_error(
+    error: EngineTopicError,
+    internal: bool,
+) -> KafkaError {
     topic_error(error.code(), internal)
 }
 
@@ -147,7 +162,9 @@ const fn translate_delivery(delivery: DescribeTopicsDeliveryStatus) -> DeliveryS
     }
 }
 
-pub(super) fn translate_observer_error(error: DescribeTopicsObserverError) -> KafkaError {
+pub(in crate::bridge) fn translate_observer_error(
+    error: DescribeTopicsObserverError,
+) -> KafkaError {
     let public = match error {
         DescribeTopicsObserverError::AlreadyObserved => ErrorKind::State,
         DescribeTopicsObserverError::Stale => ErrorKind::Internal,

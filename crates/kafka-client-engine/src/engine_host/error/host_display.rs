@@ -107,6 +107,12 @@ impl fmt::Display for EngineHostError {
             Self::AlterUserScramCredentialsLockPoisoned => {
                 formatter.write_str("AlterUserScramCredentials host ownership lock is poisoned")
             }
+            Self::UpdateFeatures(error) => {
+                write!(formatter, "UpdateFeatures host failed: {error}")
+            }
+            Self::UpdateFeaturesLockPoisoned => {
+                formatter.write_str("UpdateFeatures host ownership lock is poisoned")
+            }
             Self::DescribeUserScramCredentials(error) => {
                 write!(
                     formatter,
@@ -116,11 +122,41 @@ impl fmt::Display for EngineHostError {
             Self::DescribeUserScramCredentialsLockPoisoned => {
                 formatter.write_str("DescribeUserScramCredentials host ownership lock is poisoned")
             }
+            Self::DescribeMetadataQuorum(error) => {
+                write!(formatter, "DescribeMetadataQuorum host failed: {error}")
+            }
+            Self::DescribeMetadataQuorumLockPoisoned => {
+                formatter.write_str("DescribeMetadataQuorum host ownership lock is poisoned")
+            }
             Self::CreateAcls(error) => {
                 write!(formatter, "CreateAcls host failed: {error}")
             }
             Self::CreateAclsLockPoisoned => {
                 formatter.write_str("CreateAcls host ownership lock is poisoned")
+            }
+            Self::CreateDelegationToken(error) => {
+                write!(formatter, "CreateDelegationToken host failed: {error}")
+            }
+            Self::CreateDelegationTokenLockPoisoned => {
+                formatter.write_str("CreateDelegationToken host ownership lock is poisoned")
+            }
+            Self::DescribeDelegationTokens(error) => {
+                write!(formatter, "DescribeDelegationTokens host failed: {error}")
+            }
+            Self::DescribeDelegationTokensLockPoisoned => {
+                formatter.write_str("DescribeDelegationTokens host ownership lock is poisoned")
+            }
+            Self::RenewDelegationToken(error) => {
+                write!(formatter, "RenewDelegationToken host failed: {error}")
+            }
+            Self::RenewDelegationTokenLockPoisoned => {
+                formatter.write_str("RenewDelegationToken host ownership lock is poisoned")
+            }
+            Self::ExpireDelegationToken(error) => {
+                write!(formatter, "ExpireDelegationToken host failed: {error}")
+            }
+            Self::ExpireDelegationTokenLockPoisoned => {
+                formatter.write_str("ExpireDelegationToken host ownership lock is poisoned")
             }
             Self::DeleteAcls(error) => {
                 write!(formatter, "DeleteAcls host failed: {error}")
@@ -141,11 +177,41 @@ impl fmt::Display for EngineHostError {
             Self::DescribeConsumerGroupsLockPoisoned => {
                 formatter.write_str("DescribeConsumerGroups host ownership lock is poisoned")
             }
+            Self::DescribeFeatures(error) => {
+                write!(formatter, "DescribeFeatures host failed: {error}")
+            }
+            Self::DescribeFeaturesLockPoisoned => {
+                formatter.write_str("DescribeFeatures host ownership lock is poisoned")
+            }
+            Self::UnregisterBroker(error) => {
+                write!(formatter, "UnregisterBroker host failed: {error}")
+            }
+            Self::UnregisterBrokerLockPoisoned => {
+                formatter.write_str("UnregisterBroker host ownership lock is poisoned")
+            }
+            Self::AddRaftVoter(error) => {
+                write!(formatter, "AddRaftVoter host failed: {error}")
+            }
+            Self::AddRaftVoterLockPoisoned => {
+                formatter.write_str("AddRaftVoter host ownership lock is poisoned")
+            }
+            Self::RemoveRaftVoter(error) => {
+                write!(formatter, "RemoveRaftVoter host failed: {error}")
+            }
+            Self::RemoveRaftVoterLockPoisoned => {
+                formatter.write_str("RemoveRaftVoter host ownership lock is poisoned")
+            }
             Self::DescribeLogDirs(error) => {
                 write!(formatter, "DescribeLogDirs host failed: {error}")
             }
             Self::DescribeLogDirsLockPoisoned => {
                 formatter.write_str("DescribeLogDirs host ownership lock is poisoned")
+            }
+            Self::DescribeReplicaLogDirs(error) => {
+                write!(formatter, "DescribeReplicaLogDirs host failed: {error}")
+            }
+            Self::DescribeReplicaLogDirsLockPoisoned => {
+                formatter.write_str("DescribeReplicaLogDirs host ownership lock is poisoned")
             }
             Self::AlterReplicaLogDirs(error) => {
                 write!(formatter, "AlterReplicaLogDirs host failed: {error}")
@@ -185,6 +251,12 @@ impl fmt::Display for EngineHostError {
             Self::IncrementalAlterConfigsLockPoisoned => {
                 formatter.write_str("IncrementalAlterConfigs host ownership lock is poisoned")
             }
+            Self::LegacyAlterConfigs(error) => {
+                write!(formatter, "LegacyAlterConfigs host failed: {error}")
+            }
+            Self::LegacyAlterConfigsLockPoisoned => {
+                formatter.write_str("LegacyAlterConfigs host ownership lock is poisoned")
+            }
             Self::ListConsumerGroupOffsets(error) => {
                 write!(formatter, "ListConsumerGroupOffsets host failed: {error}")
             }
@@ -196,6 +268,36 @@ impl fmt::Display for EngineHostError {
             }
             Self::DeleteConsumerGroupOffsetsLockPoisoned => {
                 formatter.write_str("DeleteConsumerGroupOffsets host ownership lock is poisoned")
+            }
+            Self::DeleteShareGroupOffsets(error) => {
+                write!(formatter, "DeleteShareGroupOffsets host failed: {error}")
+            }
+            Self::DeleteShareGroupOffsetsLockPoisoned => {
+                formatter.write_str("DeleteShareGroupOffsets host ownership lock is poisoned")
+            }
+            Self::ListShareGroupOffsets(error) => {
+                write!(formatter, "ListShareGroupOffsets host failed: {error}")
+            }
+            Self::ListShareGroupOffsetsLockPoisoned => {
+                formatter.write_str("ListShareGroupOffsets host ownership lock is poisoned")
+            }
+            Self::AlterShareGroupOffsets(error) => {
+                write!(formatter, "AlterShareGroupOffsets host failed: {error}")
+            }
+            Self::AlterShareGroupOffsetsLockPoisoned => {
+                formatter.write_str("AlterShareGroupOffsets host ownership lock is poisoned")
+            }
+            Self::DescribeShareGroup(error) => {
+                write!(formatter, "DescribeShareGroup host failed: {error}")
+            }
+            Self::DescribeShareGroupLockPoisoned => {
+                formatter.write_str("DescribeShareGroup host ownership lock is poisoned")
+            }
+            Self::DescribeStreamsGroup(error) => {
+                write!(formatter, "DescribeStreamsGroup host failed: {error}")
+            }
+            Self::DescribeStreamsGroupLockPoisoned => {
+                formatter.write_str("DescribeStreamsGroup host ownership lock is poisoned")
             }
             Self::AlterConsumerGroupOffsets(error) => {
                 write!(formatter, "AlterConsumerGroupOffsets host failed: {error}")
@@ -241,6 +343,60 @@ impl fmt::Display for EngineHostError {
             }
             Self::DeleteRecordsLockPoisoned => {
                 formatter.write_str("DeleteRecords host ownership lock is poisoned")
+            }
+            Self::AbortPartitionTransaction(error) => {
+                write!(
+                    formatter,
+                    "partition transaction-abort host failed: {error}"
+                )
+            }
+            Self::AbortPartitionTransactionLockPoisoned => {
+                formatter.write_str("partition transaction-abort host ownership lock is poisoned")
+            }
+            Self::AdminDescribeProducers(error) => {
+                write!(formatter, "Admin DescribeProducers host failed: {error}")
+            }
+            Self::AdminDescribeProducersLockPoisoned => {
+                formatter.write_str("Admin DescribeProducers host ownership lock is poisoned")
+            }
+            Self::AdminDescribeTopicPartitions(error) => {
+                write!(
+                    formatter,
+                    "Admin DescribeTopicPartitions host failed: {error}"
+                )
+            }
+            Self::AdminDescribeTopicPartitionsLockPoisoned => {
+                formatter.write_str("Admin DescribeTopicPartitions host ownership lock is poisoned")
+            }
+            Self::AdminDescribeTransactions(error) => {
+                write!(formatter, "Admin DescribeTransactions host failed: {error}")
+            }
+            Self::AdminDescribeTransactionsLockPoisoned => {
+                formatter.write_str("Admin DescribeTransactions host ownership lock is poisoned")
+            }
+            Self::AdminFenceProducers(error) => {
+                write!(formatter, "Admin FenceProducers host failed: {error}")
+            }
+            Self::AdminFenceProducersLockPoisoned => {
+                formatter.write_str("Admin FenceProducers host ownership lock is poisoned")
+            }
+            Self::AdminListTransactions(error) => {
+                write!(formatter, "Admin ListTransactions host failed: {error}")
+            }
+            Self::AdminListTransactionsLockPoisoned => {
+                formatter.write_str("Admin ListTransactions host ownership lock is poisoned")
+            }
+            Self::ListClientMetricsResources(error) => {
+                write!(formatter, "ListClientMetricsResources host failed: {error}")
+            }
+            Self::ListClientMetricsResourcesLockPoisoned => {
+                formatter.write_str("ListClientMetricsResources host ownership lock is poisoned")
+            }
+            Self::ListConfigResources(error) => {
+                write!(formatter, "ListConfigResources host failed: {error}")
+            }
+            Self::ListConfigResourcesLockPoisoned => {
+                formatter.write_str("ListConfigResources host ownership lock is poisoned")
             }
             Self::DeleteConsumerGroups(error) => {
                 write!(formatter, "DeleteConsumerGroups host failed: {error}")

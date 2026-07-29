@@ -1,4 +1,4 @@
-//! Semantic normalization for tracked topic `DescribeConfigs` calls.
+//! Semantic normalization for tracked generic `DescribeConfigs` calls.
 
 use kafka_client_core::{
     DeliveryStatus, DescribeConfigBrokerError, DescribeConfigEntry, DescribeConfigOutcome,

@@ -1,5 +1,25 @@
 //! Curated public and crate-private admin re-exports.
 
+pub(crate) use super::abort_partition_transaction::{
+    ABORT_PARTITION_TRANSACTION_CAPACITY, AbortPartitionTransactionAdmissionPort,
+    AbortPartitionTransactionHost, AbortPartitionTransactionHostError,
+    AbortPartitionTransactionShardLockError, AbortPartitionTransactionShardOwner,
+    AbortPartitionTransactionShardWake, AbortPartitionTransactionShardWakeError,
+    AbortPartitionTransactionTurn,
+};
+pub use super::abort_partition_transaction::{
+    AbortPartitionTransactionAccepted, AbortPartitionTransactionAcceptedFaultKind,
+    AbortPartitionTransactionAdmissionError, AbortPartitionTransactionAdmissionErrorKind,
+    AbortPartitionTransactionBrokerError, AbortPartitionTransactionDeliveryStatus,
+    AbortPartitionTransactionFailure, AbortPartitionTransactionFailureKind,
+    AbortPartitionTransactionObserver, AbortPartitionTransactionObserverError,
+    AbortPartitionTransactionOutcome, AbortPartitionTransactionRequest,
+};
+pub(crate) use super::add_raft_voter::{
+    ADD_RAFT_VOTER_CAPACITY, AddRaftVoterAdmissionPort, AddRaftVoterHost, AddRaftVoterHostError,
+    AddRaftVoterShardLockError, AddRaftVoterShardOwner, AddRaftVoterShardWake,
+    AddRaftVoterShardWakeError, AddRaftVoterTurn,
+};
 pub(crate) use super::alter_client_quotas::{
     ALTER_CLIENT_QUOTAS_CAPACITY, AlterClientQuotasAdmissionPort, AlterClientQuotasHost,
     AlterClientQuotasHostError, AlterClientQuotasShardLockError, AlterClientQuotasShardOwner,
@@ -27,7 +47,8 @@ pub use super::alter_configs::{
     IncrementalAlterConfigsFailure, IncrementalAlterConfigsFailureKind,
     IncrementalAlterConfigsObserver, IncrementalAlterConfigsObserverError,
     IncrementalAlterConfigsOutcome, IncrementalAlterConfigsRequest, IncrementalAlterConfigsResult,
-    IncrementalConfigAlteration, IncrementalConfigOperation, TopicConfigAlterations,
+    IncrementalConfigAlteration, IncrementalConfigOperation, IncrementalConfigResourceAlterations,
+    TopicConfigAlterations,
 };
 pub(crate) use super::alter_partition_reassignments::{
     ALTER_PARTITION_REASSIGNMENTS_CAPACITY, AlterPartitionReassignmentsAdmissionPort,
@@ -101,6 +122,22 @@ pub use super::create_acls::{
     CreateAclsBatch, CreateAclsDeliveryStatus, CreateAclsFailure, CreateAclsFailureKind,
     CreateAclsObserver, CreateAclsObserverError, CreateAclsOutcome, CreateAclsRequest,
 };
+pub(crate) use super::create_delegation_token::{
+    CREATE_DELEGATION_TOKEN_CAPACITY, CreateDelegationTokenAdmissionPort,
+    CreateDelegationTokenHost, CreateDelegationTokenHostError, CreateDelegationTokenShardLockError,
+    CreateDelegationTokenShardOwner, CreateDelegationTokenShardWake,
+    CreateDelegationTokenShardWakeError, CreateDelegationTokenTurn,
+};
+pub use super::create_delegation_token::{
+    CreateDelegationTokenAccepted, CreateDelegationTokenAcceptedFaultKind,
+    CreateDelegationTokenAdmissionError, CreateDelegationTokenAdmissionErrorKind,
+    CreateDelegationTokenBrokerError, CreateDelegationTokenCapture,
+    CreateDelegationTokenDeliveryStatus, CreateDelegationTokenFailure,
+    CreateDelegationTokenFailureKind, CreateDelegationTokenHmac, CreateDelegationTokenObserver,
+    CreateDelegationTokenObserverError, CreateDelegationTokenOutcome,
+    CreateDelegationTokenPrincipal, CreateDelegationTokenRequest, CreateDelegationTokenResult,
+    CreatedDelegationToken,
+};
 pub(crate) use super::delete_acls::{
     DELETE_ACLS_CAPACITY, DeleteAclsAdmissionPort, DeleteAclsHost, DeleteAclsHostError,
     DeleteAclsShardLockError, DeleteAclsShardOwner, DeleteAclsShardWake, DeleteAclsShardWakeError,
@@ -135,8 +172,8 @@ pub(crate) use super::delete_host::{
 pub use super::delete_model::DeleteTopicsRequest;
 pub use super::delete_observer::DeleteTopicsObserver;
 pub use super::delete_outcome::{
-    DeleteTopicError, DeleteTopicResult, DeleteTopicsDeliveryStatus, DeleteTopicsFailure,
-    DeleteTopicsFailureKind, DeleteTopicsObserverError, DeleteTopicsOutcome,
+    DeleteTopicError, DeleteTopicIdResult, DeleteTopicResult, DeleteTopicsDeliveryStatus,
+    DeleteTopicsFailure, DeleteTopicsFailureKind, DeleteTopicsObserverError, DeleteTopicsOutcome,
 };
 pub(crate) use super::delete_records::{
     DELETE_RECORDS_CAPACITY, DeleteRecordsAdmissionPort, DeleteRecordsHost, DeleteRecordsHostError,
@@ -201,7 +238,28 @@ pub(crate) use super::describe_consumer_groups::{
     DescribeConsumerGroupsShardWake, DescribeConsumerGroupsShardWakeError,
     DescribeConsumerGroupsTurn,
 };
+pub(crate) use super::describe_delegation_tokens::{
+    DESCRIBE_DELEGATION_TOKENS_CAPACITY, DescribeDelegationTokensAdmissionPort,
+    DescribeDelegationTokensHost, DescribeDelegationTokensHostError,
+    DescribeDelegationTokensShardLockError, DescribeDelegationTokensShardOwner,
+    DescribeDelegationTokensShardWake, DescribeDelegationTokensShardWakeError,
+    DescribeDelegationTokensTurn,
+};
+pub use super::describe_delegation_tokens::{
+    DescribeDelegationTokenHmac, DescribeDelegationTokenPrincipal,
+    DescribeDelegationTokensAccepted, DescribeDelegationTokensAcceptedFaultKind,
+    DescribeDelegationTokensAdmissionError, DescribeDelegationTokensAdmissionErrorKind,
+    DescribeDelegationTokensBrokerError, DescribeDelegationTokensCapture,
+    DescribeDelegationTokensDeliveryStatus, DescribeDelegationTokensFailure,
+    DescribeDelegationTokensFailureKind, DescribeDelegationTokensObserver,
+    DescribeDelegationTokensObserverError, DescribeDelegationTokensOutcome,
+    DescribeDelegationTokensRequest, DescribeDelegationTokensResult, DescribedDelegationToken,
+};
 pub use super::describe_error::{DescribeClusterAdmissionError, DescribeClusterAdmissionErrorKind};
+pub(crate) use super::describe_features::{
+    DESCRIBE_FEATURES_CAPACITY, DescribeFeaturesAdmissionPort, DescribeFeaturesHost,
+    DescribeFeaturesHostError, DescribeFeaturesShardOwner,
+};
 pub use super::describe_handle::{DescribeClusterAccepted, DescribeClusterAcceptedFaultKind};
 pub(crate) use super::describe_host::{
     DESCRIBE_CLUSTER_CAPACITY, DescribeClusterHost, DescribeClusterHostError, DescribeClusterTurn,
@@ -220,15 +278,101 @@ pub use super::describe_log_dirs::{
     DescribeLogDirsObserver, DescribeLogDirsObserverError, DescribeLogDirsOutcome,
     DescribeLogDirsReplicaInfo, DescribeLogDirsRequest,
 };
+pub(crate) use super::describe_metadata_quorum::{
+    DESCRIBE_METADATA_QUORUM_CAPACITY, DescribeMetadataQuorumAdmissionPort,
+    DescribeMetadataQuorumHost, DescribeMetadataQuorumHostError,
+    DescribeMetadataQuorumShardLockError, DescribeMetadataQuorumShardOwner,
+    DescribeMetadataQuorumShardWake, DescribeMetadataQuorumShardWakeError,
+    DescribeMetadataQuorumTurn,
+};
+pub use super::describe_metadata_quorum::{
+    DescribeMetadataQuorumAccepted, DescribeMetadataQuorumAcceptedFaultKind,
+    DescribeMetadataQuorumAdmissionError, DescribeMetadataQuorumAdmissionErrorKind,
+    DescribeMetadataQuorumBrokerError, DescribeMetadataQuorumDeliveryStatus,
+    DescribeMetadataQuorumDescription, DescribeMetadataQuorumFailure,
+    DescribeMetadataQuorumFailureKind, DescribeMetadataQuorumListener, DescribeMetadataQuorumNode,
+    DescribeMetadataQuorumObserver, DescribeMetadataQuorumObserverError,
+    DescribeMetadataQuorumOutcome, DescribeMetadataQuorumPartitionError,
+    DescribeMetadataQuorumReplica,
+};
 pub use super::describe_observer::DescribeClusterObserver;
 pub use super::describe_outcome::{
     ClusterBroker, ClusterDescription, DescribeClusterBrokerError, DescribeClusterDeliveryStatus,
     DescribeClusterFailure, DescribeClusterFailureKind, DescribeClusterObserverError,
     DescribeClusterOutcome,
 };
+pub(crate) use super::describe_producers::{
+    ADMIN_DESCRIBE_PRODUCERS_CAPACITY, AdminDescribeProducersAdmissionPort,
+    AdminDescribeProducersHost, AdminDescribeProducersHostError,
+    AdminDescribeProducersShardLockError, AdminDescribeProducersShardOwner,
+    AdminDescribeProducersShardWake, AdminDescribeProducersShardWakeError,
+    AdminDescribeProducersTurn,
+};
+pub use super::describe_producers::{
+    AdminDescribeProducerEngineBrokerError, AdminDescribeProducerEngineResult,
+    AdminDescribeProducerState, AdminDescribeProducersAccepted,
+    AdminDescribeProducersAcceptedFaultKind, AdminDescribeProducersAdmissionError,
+    AdminDescribeProducersAdmissionErrorKind, AdminDescribeProducersDeliveryStatus,
+    AdminDescribeProducersEngineBatch, AdminDescribeProducersFailure,
+    AdminDescribeProducersFailureKind, AdminDescribeProducersObserver,
+    AdminDescribeProducersObserverError, AdminDescribeProducersOutcome,
+    AdminDescribeProducersRequest, AdminDescribeProducersRequestTarget,
+};
+pub(crate) use super::describe_replica_log_dirs::{
+    DESCRIBE_REPLICA_LOG_DIRS_CAPACITY, DescribeReplicaLogDirsAdmissionPort,
+    DescribeReplicaLogDirsHost, DescribeReplicaLogDirsHostError,
+    DescribeReplicaLogDirsShardLockError, DescribeReplicaLogDirsShardOwner,
+    DescribeReplicaLogDirsShardWake, DescribeReplicaLogDirsShardWakeError,
+    DescribeReplicaLogDirsTurn,
+};
+pub use super::describe_replica_log_dirs::{
+    DescribeReplicaLogDirsAccepted, DescribeReplicaLogDirsAcceptedFaultKind,
+    DescribeReplicaLogDirsAdmissionError, DescribeReplicaLogDirsAdmissionErrorKind,
+    DescribeReplicaLogDirsBrokerError, DescribeReplicaLogDirsCapture,
+    DescribeReplicaLogDirsDeliveryStatus, DescribeReplicaLogDirsEngineBatch,
+    DescribeReplicaLogDirsEngineReplicaOutcome, DescribeReplicaLogDirsEngineReplicaResult,
+    DescribeReplicaLogDirsFailure, DescribeReplicaLogDirsFailureKind,
+    DescribeReplicaLogDirsObserver, DescribeReplicaLogDirsObserverError,
+    DescribeReplicaLogDirsOutcome, DescribeReplicaLogDirsRequest, DescribeReplicaLogDirsTarget,
+    ReplicaLogDirInfo, ReplicaLogDirLocation,
+};
 pub(crate) use super::describe_shard::{
     DescribeClusterAdmissionPort, DescribeClusterShardLockError, DescribeClusterShardOwner,
     DescribeClusterShardWake, DescribeClusterShardWakeError,
+};
+pub(crate) use super::describe_topic_partitions::{
+    ADMIN_DESCRIBE_TOPIC_PARTITIONS_CAPACITY, AdminDescribeTopicPartitionsAdmissionPort,
+    AdminDescribeTopicPartitionsHost, AdminDescribeTopicPartitionsHostError,
+    AdminDescribeTopicPartitionsShardLockError, AdminDescribeTopicPartitionsShardOwner,
+    AdminDescribeTopicPartitionsShardWake, AdminDescribeTopicPartitionsShardWakeError,
+    AdminDescribeTopicPartitionsTurn,
+};
+pub use super::describe_topic_partitions::{
+    AdminDescribeTopicPartition, AdminDescribeTopicPartitionsAccepted,
+    AdminDescribeTopicPartitionsAcceptedFaultKind, AdminDescribeTopicPartitionsAdmissionError,
+    AdminDescribeTopicPartitionsAdmissionErrorKind, AdminDescribeTopicPartitionsCursor,
+    AdminDescribeTopicPartitionsDeliveryStatus, AdminDescribeTopicPartitionsFailure,
+    AdminDescribeTopicPartitionsFailureKind, AdminDescribeTopicPartitionsObserver,
+    AdminDescribeTopicPartitionsObserverError, AdminDescribeTopicPartitionsOutcome,
+    AdminDescribeTopicPartitionsPage, AdminDescribeTopicPartitionsRequest,
+    AdminDescribeTopicPartitionsTopic,
+};
+pub(crate) use super::describe_transactions::{
+    ADMIN_DESCRIBE_TRANSACTIONS_CAPACITY, AdminDescribeTransactionsAdmissionPort,
+    AdminDescribeTransactionsHost, AdminDescribeTransactionsHostError,
+    AdminDescribeTransactionsShardLockError, AdminDescribeTransactionsShardOwner,
+    AdminDescribeTransactionsShardWake, AdminDescribeTransactionsShardWakeError,
+    AdminDescribeTransactionsTurn,
+};
+pub use super::describe_transactions::{
+    AdminDescribeTransactionDescription, AdminDescribeTransactionEngineBrokerError,
+    AdminDescribeTransactionEngineResult, AdminDescribeTransactionTopic,
+    AdminDescribeTransactionsAccepted, AdminDescribeTransactionsAcceptedFaultKind,
+    AdminDescribeTransactionsAdmissionError, AdminDescribeTransactionsAdmissionErrorKind,
+    AdminDescribeTransactionsDeliveryStatus, AdminDescribeTransactionsEngineBatch,
+    AdminDescribeTransactionsFailure, AdminDescribeTransactionsFailureKind,
+    AdminDescribeTransactionsObserver, AdminDescribeTransactionsObserverError,
+    AdminDescribeTransactionsOutcome, AdminDescribeTransactionsRequest,
 };
 pub(crate) use super::describe_user_scram_credentials::{
     DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY, DescribeUserScramCredentialsAdmissionPort,
@@ -260,6 +404,34 @@ pub use super::elect_leaders::{
     LeaderElectionTarget, LeaderElectionType,
 };
 pub use super::error::{CreateTopicsAdmissionError, CreateTopicsAdmissionErrorKind};
+pub(crate) use super::expire_delegation_token::{
+    EXPIRE_DELEGATION_TOKEN_CAPACITY, ExpireDelegationTokenAdmissionPort,
+    ExpireDelegationTokenHost, ExpireDelegationTokenHostError, ExpireDelegationTokenShardLockError,
+    ExpireDelegationTokenShardOwner, ExpireDelegationTokenShardWake,
+    ExpireDelegationTokenShardWakeError, ExpireDelegationTokenTurn,
+};
+pub use super::expire_delegation_token::{
+    ExpireDelegationTokenAccepted, ExpireDelegationTokenAcceptedFaultKind,
+    ExpireDelegationTokenAdmissionError, ExpireDelegationTokenAdmissionErrorKind,
+    ExpireDelegationTokenBrokerError, ExpireDelegationTokenCapture,
+    ExpireDelegationTokenDeliveryStatus, ExpireDelegationTokenFailure,
+    ExpireDelegationTokenFailureKind, ExpireDelegationTokenHmac, ExpireDelegationTokenObserver,
+    ExpireDelegationTokenObserverError, ExpireDelegationTokenOutcome, ExpireDelegationTokenRequest,
+    ExpireDelegationTokenResult,
+};
+pub(crate) use super::fence_producers::{
+    ADMIN_FENCE_PRODUCERS_CAPACITY, AdminFenceProducersAdmissionPort, AdminFenceProducersHost,
+    AdminFenceProducersHostError, AdminFenceProducersShardLockError, AdminFenceProducersShardOwner,
+    AdminFenceProducersShardWake, AdminFenceProducersShardWakeError, AdminFenceProducersTurn,
+};
+pub use super::fence_producers::{
+    AdminFenceProducerEngineBrokerError, AdminFenceProducerEngineResult,
+    AdminFenceProducersAccepted, AdminFenceProducersAcceptedFaultKind,
+    AdminFenceProducersAdmissionError, AdminFenceProducersAdmissionErrorKind,
+    AdminFenceProducersDeliveryStatus, AdminFenceProducersEngineBatch, AdminFenceProducersFailure,
+    AdminFenceProducersFailureKind, AdminFenceProducersObserver, AdminFenceProducersObserverError,
+    AdminFenceProducersOutcome, AdminFenceProducersRequest, AdminFencedProducerEngineIdentity,
+};
 pub(crate) use super::group_offset_alter::{
     ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY, AlterConsumerGroupOffsetsAdmissionPort,
     AlterConsumerGroupOffsetsHost, AlterConsumerGroupOffsetsHostError,
@@ -296,12 +468,14 @@ pub use super::group_offset_delete::{
 };
 pub use super::group_offsets::{
     GroupOffsetBrokerError, GroupOffsetDescription, GroupOffsetResult,
-    ListConsumerGroupOffsetsAccepted, ListConsumerGroupOffsetsAcceptedFaultKind,
-    ListConsumerGroupOffsetsAdmissionError, ListConsumerGroupOffsetsAdmissionErrorKind,
-    ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsDeliveryStatus,
-    ListConsumerGroupOffsetsFailure, ListConsumerGroupOffsetsFailureKind,
-    ListConsumerGroupOffsetsObserver, ListConsumerGroupOffsetsObserverError,
-    ListConsumerGroupOffsetsOutcome, ListConsumerGroupOffsetsRequest,
+    ListConsumerGroupBatchOutcome, ListConsumerGroupOffsetsAccepted,
+    ListConsumerGroupOffsetsAcceptedFaultKind, ListConsumerGroupOffsetsAdmissionError,
+    ListConsumerGroupOffsetsAdmissionErrorKind, ListConsumerGroupOffsetsBatch,
+    ListConsumerGroupOffsetsDeliveryStatus, ListConsumerGroupOffsetsFailure,
+    ListConsumerGroupOffsetsFailureKind, ListConsumerGroupOffsetsObserver,
+    ListConsumerGroupOffsetsObserverError, ListConsumerGroupOffsetsOutcome,
+    ListConsumerGroupOffsetsRequest, ListConsumerGroupsOffsetsBatch,
+    ListConsumerGroupsOffsetsRequest,
 };
 pub(crate) use super::group_offsets::{
     LIST_CONSUMER_GROUP_OFFSETS_CAPACITY, ListConsumerGroupOffsetsAdmissionPort,
@@ -315,11 +489,12 @@ pub(crate) use super::host::{
     CREATE_TOPICS_CAPACITY, CreateTopicsHost, CreateTopicsHostError, CreateTopicsTurn,
 };
 pub use super::list_consumer_groups::{
-    ConsumerGroupListing, ListConsumerGroupsAccepted, ListConsumerGroupsAcceptedFaultKind,
-    ListConsumerGroupsAdmissionError, ListConsumerGroupsAdmissionErrorKind,
-    ListConsumerGroupsBatch, ListConsumerGroupsBrokerError, ListConsumerGroupsDeliveryStatus,
-    ListConsumerGroupsDiscoveryError, ListConsumerGroupsFailure, ListConsumerGroupsFailureKind,
-    ListConsumerGroupsObserver, ListConsumerGroupsObserverError, ListConsumerGroupsOutcome,
+    AdminListGroupsRequest, ConsumerGroupListing, ListConsumerGroupsAccepted,
+    ListConsumerGroupsAcceptedFaultKind, ListConsumerGroupsAdmissionError,
+    ListConsumerGroupsAdmissionErrorKind, ListConsumerGroupsBatch, ListConsumerGroupsBrokerError,
+    ListConsumerGroupsDeliveryStatus, ListConsumerGroupsDiscoveryError, ListConsumerGroupsFailure,
+    ListConsumerGroupsFailureKind, ListConsumerGroupsObserver, ListConsumerGroupsObserverError,
+    ListConsumerGroupsOutcome,
 };
 pub(crate) use super::list_consumer_groups::{
     LIST_CONSUMER_GROUPS_CAPACITY, ListConsumerGroupsAdmissionPort, ListConsumerGroupsHost,
@@ -357,7 +532,25 @@ pub use super::list_partition_reassignments::{
     ListPartitionReassignmentsOutcome, ListPartitionReassignmentsRequest,
     ListPartitionReassignmentsRequestSelection, PartitionReassignment, PartitionReassignmentResult,
 };
-pub use super::model::{CreateTopic, CreateTopicConfig, CreateTopicsRequest};
+pub(crate) use super::list_transactions::{
+    ADMIN_LIST_TRANSACTIONS_CAPACITY, AdminListTransactionsAdmissionPort,
+    AdminListTransactionsHost, AdminListTransactionsHostError, AdminListTransactionsShardLockError,
+    AdminListTransactionsShardOwner, AdminListTransactionsShardWake,
+    AdminListTransactionsShardWakeError, AdminListTransactionsSubmissionKind,
+    AdminListTransactionsTurn,
+};
+pub use super::list_transactions::{
+    AdminListTransactionsAccepted, AdminListTransactionsAcceptedFaultKind,
+    AdminListTransactionsAdmissionError, AdminListTransactionsAdmissionErrorKind,
+    AdminListTransactionsBrokerError, AdminListTransactionsDeliveryStatus,
+    AdminListTransactionsDiscoveryError, AdminListTransactionsEngineBatch,
+    AdminListTransactionsFailure, AdminListTransactionsFailureKind, AdminListTransactionsObserver,
+    AdminListTransactionsObserverError, AdminListTransactionsOutcome, AdminListTransactionsRequest,
+    AdminListedTransaction,
+};
+pub use super::model::{
+    CreateTopic, CreateTopicConfig, CreateTopicReplicaAssignment, CreateTopicsRequest,
+};
 pub use super::observer::CreateTopicsObserver;
 pub use super::outcome::{
     CreateTopicError, CreateTopicResult, CreateTopicsDeliveryStatus, CreateTopicsFailure,
@@ -392,6 +585,26 @@ pub(crate) use super::remove_consumer_group_members::{
     RemoveConsumerGroupMembersShardWake, RemoveConsumerGroupMembersShardWakeError,
     RemoveConsumerGroupMembersTurn,
 };
+pub(crate) use super::remove_raft_voter::{
+    REMOVE_RAFT_VOTER_CAPACITY, RemoveRaftVoterAdmissionPort, RemoveRaftVoterHost,
+    RemoveRaftVoterHostError, RemoveRaftVoterShardLockError, RemoveRaftVoterShardOwner,
+    RemoveRaftVoterShardWake, RemoveRaftVoterShardWakeError, RemoveRaftVoterTurn,
+};
+pub(crate) use super::renew_delegation_token::{
+    RENEW_DELEGATION_TOKEN_CAPACITY, RenewDelegationTokenAdmissionPort, RenewDelegationTokenHost,
+    RenewDelegationTokenHostError, RenewDelegationTokenShardLockError,
+    RenewDelegationTokenShardOwner, RenewDelegationTokenShardWake,
+    RenewDelegationTokenShardWakeError, RenewDelegationTokenTurn,
+};
+pub use super::renew_delegation_token::{
+    RenewDelegationTokenAccepted, RenewDelegationTokenAcceptedFaultKind,
+    RenewDelegationTokenAdmissionError, RenewDelegationTokenAdmissionErrorKind,
+    RenewDelegationTokenBrokerError, RenewDelegationTokenCapture,
+    RenewDelegationTokenDeliveryStatus, RenewDelegationTokenFailure,
+    RenewDelegationTokenFailureKind, RenewDelegationTokenHmac, RenewDelegationTokenObserver,
+    RenewDelegationTokenObserverError, RenewDelegationTokenOutcome, RenewDelegationTokenRequest,
+    RenewDelegationTokenResult,
+};
 pub(crate) use super::shard::{
     CreateTopicsAdmissionPort, CreateTopicsShardLockError, CreateTopicsShardOwner,
     CreateTopicsShardWake, CreateTopicsShardWakeError,
@@ -402,7 +615,7 @@ pub(crate) use super::topics::{
     DescribeTopicsShardWake, DescribeTopicsShardWakeError, DescribeTopicsTurn,
 };
 pub use super::topics::{
-    DescribeTopicError, DescribeTopicResult, DescribeTopicsAccepted,
+    DescribeTopicError, DescribeTopicIdResult, DescribeTopicResult, DescribeTopicsAccepted,
     DescribeTopicsAcceptedFaultKind, DescribeTopicsAdmissionError,
     DescribeTopicsAdmissionErrorKind, DescribeTopicsDeliveryStatus, DescribeTopicsFailure,
     DescribeTopicsFailureKind, DescribeTopicsObserver, DescribeTopicsObserverError,

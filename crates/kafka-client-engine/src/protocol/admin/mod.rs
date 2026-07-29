@@ -1,16 +1,20 @@
 //! Generated-message adaptation for concrete Kafka admin operations.
 
+pub(crate) mod add_raft_voter;
 pub(crate) mod alter_client_quotas;
 pub(crate) mod alter_partition_reassignments;
 pub(crate) mod alter_replica_log_dirs;
+pub(crate) mod alter_share_group_offsets;
 pub(crate) mod alter_user_scram_credentials;
 pub(crate) mod create_acls;
+pub(crate) mod create_delegation_token;
 pub(crate) mod create_partitions;
 mod create_partitions_budget;
 pub(crate) mod create_topics;
 pub(crate) mod delete_acls;
 pub(crate) mod delete_groups;
 pub(crate) mod delete_records;
+pub(crate) mod delete_share_group_offsets;
 pub(crate) mod delete_topics;
 mod delete_topics_budget;
 pub(crate) mod describe_acls;
@@ -22,13 +26,22 @@ mod describe_configs_model;
 pub(crate) mod describe_configs_response;
 mod describe_configs_values;
 pub(crate) mod describe_consumer_groups;
+pub(crate) mod describe_delegation_tokens;
+pub(crate) mod describe_features;
 pub(crate) mod describe_log_dirs;
+pub(crate) mod describe_metadata_quorum;
+pub(crate) mod describe_producers;
+pub(crate) mod describe_share_group;
+pub(crate) mod describe_streams_group;
+pub(crate) mod describe_topic_partitions;
 mod describe_topic_value;
 pub(crate) mod describe_topics;
 mod describe_topics_budget;
 pub(crate) mod describe_topics_response;
+pub(crate) mod describe_transactions;
 pub(crate) mod describe_user_scram_credentials;
 pub(crate) mod elect_leaders;
+pub(crate) mod expire_delegation_token;
 #[cfg_attr(not(test), expect(dead_code, reason = "offset alter host follows"))]
 pub(crate) mod group_offset_alter;
 #[cfg_attr(
@@ -48,16 +61,26 @@ pub(crate) mod group_offset_delete;
 )]
 pub(crate) mod group_offsets;
 pub(crate) mod incremental_alter_configs;
+pub(crate) mod legacy_alter_configs;
+pub(crate) mod list_client_metrics_resources;
+pub(crate) mod list_config_resources;
 pub(crate) mod list_consumer_groups;
 pub(crate) mod list_offsets;
 pub(crate) mod list_partition_reassignments;
+pub(crate) mod list_share_group_offsets;
 mod list_topics_response;
+pub(crate) mod list_transactions;
 pub(crate) mod remove_consumer_group_members;
+pub(crate) mod remove_raft_voter;
+pub(crate) mod renew_delegation_token;
 mod request_timeout_error;
 #[cfg(test)]
 mod request_timeout_error_test;
 mod result_budget;
+pub(crate) mod unregister_broker;
+pub(crate) mod update_features;
 
+pub(crate) mod abort_partition_transaction;
 #[cfg(test)]
 mod create_partitions_budget_test;
 #[cfg(test)]

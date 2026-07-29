@@ -1,12 +1,15 @@
-//! Prebuilt topic `IncrementalAlterConfigs` request retained by the inert facade builder.
+//! Prebuilt `IncrementalAlterConfigs` request retained by inert facade builders.
 
 use kafka_client_engine::{
     IncrementalAlterConfigsRequest as EngineRequest,
     IncrementalConfigAlteration as EngineAlteration, IncrementalConfigOperation as EngineOperation,
+    IncrementalConfigResourceAlterations as EngineResourceAlterations,
     TopicConfigAlterations as EngineTopicAlterations,
 };
 
-use crate::admin::{ConfigAlteration, ConfigAlterationOperation, TopicConfigAlterations};
+use crate::admin::{
+    ConfigAlteration, ConfigAlterationOperation, ConfigResourceAlterations, TopicConfigAlterations,
+};
 
 /// Engine request prepared before the public submission boundary.
 pub(crate) struct IncrementalAlterConfigsAdminRequest {
@@ -20,6 +23,17 @@ impl IncrementalAlterConfigsAdminRequest {
     {
         Self {
             inner: EngineRequest::new(topics.into_iter().map(into_engine_topic).collect()),
+        }
+    }
+
+    pub(crate) fn from_resources<I>(resources: I) -> Self
+    where
+        I: IntoIterator<Item = ConfigResourceAlterations>,
+    {
+        Self {
+            inner: EngineRequest::for_resources(
+                resources.into_iter().map(into_engine_resource).collect(),
+            ),
         }
     }
 
@@ -45,6 +59,18 @@ fn into_engine_topic(topic: TopicConfigAlterations) -> EngineTopicAlterations {
     let (topic, alterations) = topic.into_parts();
     EngineTopicAlterations::new(
         topic,
+        alterations
+            .into_iter()
+            .map(into_engine_alteration)
+            .collect(),
+    )
+}
+
+fn into_engine_resource(resource: ConfigResourceAlterations) -> EngineResourceAlterations {
+    let (resource_type, resource_name, alterations) = resource.into_parts();
+    EngineResourceAlterations::resource(
+        resource_type.as_raw(),
+        resource_name,
         alterations
             .into_iter()
             .map(into_engine_alteration)

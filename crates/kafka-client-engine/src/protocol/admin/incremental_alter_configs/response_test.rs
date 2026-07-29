@@ -2,7 +2,7 @@
 
 use kafka_client_core::{
     ConfigAlteration, IncrementalAlterConfigResult, IncrementalAlterConfigsPlan,
-    TopicConfigAlteration,
+    IncrementalConfigResourceAlteration, TopicConfigAlteration,
 };
 use kafka_wire::{
     IncrementalAlterConfigsResponse,
@@ -57,12 +57,20 @@ fn malformed_resource_identity_and_negative_throttle_are_rejected() {
     );
     assert_eq!(
         normalize_incremental_alter_configs_response_bounded(&plan(), &wrong_type, usize::MAX,),
-        Err(IncrementalAlterConfigsProtocolFailure::UnexpectedResourceType)
+        Err(IncrementalAlterConfigsProtocolFailure::UnexpectedResource)
+    );
+    let nonpositive = response(
+        0,
+        vec![result(0, "orders", 0, None), result(2, "audit", 0, None)],
+    );
+    assert_eq!(
+        normalize_incremental_alter_configs_response_bounded(&plan(), &nonpositive, usize::MAX,),
+        Err(IncrementalAlterConfigsProtocolFailure::NonPositiveResourceType)
     );
 }
 
 #[test]
-fn closed_shape_failures_cover_count_unexpected_missing_and_duplicate_topics() {
+fn closed_shape_failures_cover_count_unexpected_missing_and_duplicate_resources() {
     let cases = [
         (
             response(0, vec![result(2, "orders", 0, None)]),
@@ -73,21 +81,21 @@ fn closed_shape_failures_cover_count_unexpected_missing_and_duplicate_topics() {
                 0,
                 vec![result(2, "orders", 0, None), result(2, "payments", 0, None)],
             ),
-            IncrementalAlterConfigsProtocolFailure::UnexpectedTopic,
+            IncrementalAlterConfigsProtocolFailure::UnexpectedResource,
         ),
         (
             response(
                 0,
                 vec![result(2, "audit", 0, None), result(2, "audit", 0, None)],
             ),
-            IncrementalAlterConfigsProtocolFailure::MissingTopic,
+            IncrementalAlterConfigsProtocolFailure::MissingResource,
         ),
         (
             response(
                 0,
                 vec![result(2, "orders", 0, None), result(2, "orders", 0, None)],
             ),
-            IncrementalAlterConfigsProtocolFailure::DuplicateTopic,
+            IncrementalAlterConfigsProtocolFailure::DuplicateResource,
         ),
     ];
     for (response, expected) in cases {
@@ -96,6 +104,44 @@ fn closed_shape_failures_cover_count_unexpected_missing_and_duplicate_topics() {
             Err(expected)
         );
     }
+}
+
+#[test]
+fn generic_response_restores_exact_type_name_order_and_signed_errors() {
+    let plan = generic_plan();
+    let response = response(
+        23,
+        vec![
+            result(64, "future", 0, None),
+            result(32, "group", 0, None),
+            result(16, "client", -32_101, Some("future signed code")),
+            result(8, "1", 0, None),
+            result(4, "1", 0, None),
+        ],
+    );
+    let batch = normalize_incremental_alter_configs_response_bounded(&plan, &response, usize::MAX)
+        .unwrap_or_else(|error| panic!("generic response correlates: {error:?}"));
+
+    assert_eq!(batch.throttle_time_ms(), 23);
+    assert_eq!(
+        batch
+            .resources()
+            .iter()
+            .map(|resource| (resource.resource_type(), resource.resource_name()))
+            .collect::<Vec<_>>(),
+        [
+            (4, "1"),
+            (8, "1"),
+            (16, "client"),
+            (32, "group"),
+            (64, "future"),
+        ]
+    );
+    let IncrementalAlterConfigResult::Failed(error) = batch.resources()[2].result() else {
+        panic!("client metrics resource must retain rejection");
+    };
+    assert_eq!(error.code(), -32_101);
+    assert_eq!(error.message(), Some("future signed code"));
 }
 
 pub(super) fn plan() -> IncrementalAlterConfigsPlan {
@@ -116,6 +162,29 @@ pub(super) fn plan() -> IncrementalAlterConfigsPlan {
         false,
     )
     .unwrap_or_else(|error| panic!("valid incremental plan: {error}"))
+}
+
+fn generic_plan() -> IncrementalAlterConfigsPlan {
+    IncrementalAlterConfigsPlan::for_resources(
+        [
+            (4, "1"),
+            (8, "1"),
+            (16, "client"),
+            (32, "group"),
+            (64, "future"),
+        ]
+        .into_iter()
+        .map(|(resource_type, resource_name)| {
+            IncrementalConfigResourceAlteration::resource(
+                resource_type,
+                resource_name.to_owned(),
+                vec![ConfigAlteration::delete("key".to_owned())],
+            )
+        })
+        .collect(),
+        false,
+    )
+    .unwrap_or_else(|error| panic!("valid generic plan: {error}"))
 }
 
 pub(super) fn result(

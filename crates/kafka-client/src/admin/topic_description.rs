@@ -78,6 +78,7 @@ pub struct TopicDescription {
     topic_id: Option<[u8; 16]>,
     internal: bool,
     partitions: Vec<TopicPartitionDescription>,
+    authorized_operations: Option<i32>,
 }
 
 impl TopicDescription {
@@ -92,7 +93,16 @@ impl TopicDescription {
             topic_id,
             internal,
             partitions,
+            authorized_operations: None,
         }
+    }
+
+    pub(crate) const fn with_authorized_operations(
+        mut self,
+        authorized_operations: Option<i32>,
+    ) -> Self {
+        self.authorized_operations = authorized_operations;
+        self
     }
 
     /// Returns the topic name.
@@ -113,5 +123,10 @@ impl TopicDescription {
     /// Returns partitions in ascending partition-index order.
     pub fn partitions(&self) -> &[TopicPartitionDescription] {
         &self.partitions
+    }
+
+    /// Returns Kafka's exact topic authorization bitfield when requested and supplied.
+    pub const fn authorized_operations(&self) -> Option<i32> {
+        self.authorized_operations
     }
 }

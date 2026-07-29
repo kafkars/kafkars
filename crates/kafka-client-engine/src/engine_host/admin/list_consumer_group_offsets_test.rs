@@ -6,16 +6,13 @@ use kafka_client_core::{Deadline, Moment};
 
 use super::{
     alter_consumer_group_offsets::AlterConsumerGroupOffsetsProgress,
-    create_partitions::CreatePartitionsProgress,
-    create_topics::CreateTopicsProgress,
+    create_partitions::CreatePartitionsProgress, create_topics::CreateTopicsProgress,
     delete_consumer_group_offsets::DeleteConsumerGroupOffsetsProgress,
-    delete_topics::DeleteTopicsProgress,
-    describe_cluster::DescribeClusterProgress,
-    describe_configs::DescribeConfigsProgress,
-    describe_topics::DescribeTopicsProgress,
+    delete_topics::DeleteTopicsProgress, describe_cluster::DescribeClusterProgress,
+    describe_configs::DescribeConfigsProgress, describe_topics::DescribeTopicsProgress,
     incremental_alter_configs::IncrementalAlterConfigsProgress,
-    list_consumer_group_offsets::ListConsumerGroupOffsetsProgress,
-    schedule::{combine, drive_alter_configs_then_capture_group_offsets},
+    list_consumer_group_offsets::ListConsumerGroupOffsetsProgress, schedule::combine,
+    schedule_configs_test::drive_alter_configs_then_capture_group_offsets,
 };
 
 #[test]

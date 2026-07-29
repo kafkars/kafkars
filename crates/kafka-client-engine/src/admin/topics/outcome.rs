@@ -74,6 +74,7 @@ pub struct TopicDescription {
     topic_id: Option<[u8; 16]>,
     internal: bool,
     partitions: Vec<TopicPartitionDescription>,
+    authorized_operations: Option<i32>,
 }
 
 impl TopicDescription {
@@ -85,8 +86,15 @@ impl TopicDescription {
         Option<[u8; 16]>,
         bool,
         Vec<TopicPartitionDescription>,
+        Option<i32>,
     ) {
-        (self.name, self.topic_id, self.internal, self.partitions)
+        (
+            self.name,
+            self.topic_id,
+            self.internal,
+            self.partitions,
+            self.authorized_operations,
+        )
     }
 }
 
@@ -96,6 +104,20 @@ pub struct DescribeTopicResult {
     topic: String,
     internal: bool,
     result: Result<TopicDescription, DescribeTopicError>,
+}
+
+/// One topic-ID-keyed terminal in caller order.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DescribeTopicIdResult {
+    topic_id: [u8; 16],
+    result: Result<TopicDescription, DescribeTopicError>,
+}
+
+impl DescribeTopicIdResult {
+    /// Consumes the ordered result into stable adapter-owned parts.
+    pub fn into_parts(self) -> ([u8; 16], Result<TopicDescription, DescribeTopicError>) {
+        (self.topic_id, self.result)
+    }
 }
 
 impl DescribeTopicResult {
@@ -148,6 +170,8 @@ impl DescribeTopicsFailure {
 pub enum DescribeTopicsOutcome {
     /// Ordered broker outcomes.
     Topics(Vec<DescribeTopicResult>),
+    /// Caller-ordered topic-ID-keyed broker outcomes.
+    TopicIds(Vec<DescribeTopicIdResult>),
     /// Whole-operation failure outside per-topic results.
     Failed(DescribeTopicsFailure),
 }

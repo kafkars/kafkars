@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of concrete engine topic configuration outcomes.
+//! Exhaustive stable translation of concrete engine configuration outcomes.
 
 use std::time::Duration;
 
@@ -12,8 +12,14 @@ use kafka_client_engine::{
 
 use crate::{
     DeliveryStatus, ErrorKind, KafkaError,
-    admin::{BatchResult, ConfigEntry, ConfigSynonym, DescribeConfigsResult},
-    bridge::admin_configs_operation::AdminDescribeConfigsResult,
+    admin::{
+        BatchResult, ConfigEntry, ConfigResource, ConfigResourceType, ConfigSynonym,
+        DescribeConfigResourcesResult, DescribeConfigsResult,
+    },
+    bridge::{
+        admin_config_resources_operation::AdminDescribeConfigResourcesResult,
+        admin_configs_operation::AdminDescribeConfigsResult,
+    },
 };
 
 pub(super) fn translate_admission_error(error: DescribeConfigsAdmissionError) -> KafkaError {
@@ -81,6 +87,35 @@ pub(super) fn translate_observation(
     }
 }
 
+pub(super) fn translate_resource_observation(
+    result: Result<DescribeConfigsOutcome, DescribeConfigsObserverError>,
+) -> AdminDescribeConfigResourcesResult {
+    match result {
+        Ok(DescribeConfigsOutcome::Configs(batch)) => {
+            let throttle = Duration::from_millis(u64::from(batch.throttle_time_ms()));
+            let entries = batch
+                .into_resources()
+                .into_iter()
+                .map(|resource| {
+                    let (resource_type, name, result) = resource.into_parts();
+                    (
+                        ConfigResource::new(ConfigResourceType::from_engine(resource_type), name),
+                        result
+                            .map(translate_entries)
+                            .map_err(translate_resource_error),
+                    )
+                })
+                .collect();
+            Ok(DescribeConfigResourcesResult::new(
+                throttle,
+                BatchResult::new(entries),
+            ))
+        }
+        Ok(DescribeConfigsOutcome::Failed(failure)) => Err(translate_failure(failure)),
+        Err(error) => Err(translate_observer_error(error)),
+    }
+}
+
 fn translate_entries(entries: Vec<EngineConfigEntry>) -> Vec<ConfigEntry> {
     entries.into_iter().map(translate_entry).collect()
 }
@@ -116,10 +151,8 @@ pub(super) fn translate_resource_error_parts(
     message_truncated: bool,
 ) -> KafkaError {
     let detail = message.map_or_else(
-        || format!("Kafka rejected topic DescribeConfigs with broker code {code}"),
-        |message| {
-            format!("Kafka rejected topic DescribeConfigs with broker code {code}: {message}")
-        },
+        || format!("Kafka rejected DescribeConfigs with broker code {code}"),
+        |message| format!("Kafka rejected DescribeConfigs with broker code {code}: {message}"),
     );
     KafkaError::new(ErrorKind::Broker, detail)
         .with_broker_code(Some(code))

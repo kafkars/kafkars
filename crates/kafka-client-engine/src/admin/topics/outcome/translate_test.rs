@@ -3,9 +3,9 @@
 use core::num::NonZeroI16;
 
 use kafka_client_core::{
-    Deadline, DescribeTopicBrokerError, DescribeTopicOutcome, DescribeTopicsEffect,
-    DescribeTopicsInput, DescribeTopicsMachine, DescribeTopicsPlan, DescribeTopicsTerminal, Moment,
-    OperationId, TopicDescription as CoreTopicDescription,
+    Deadline, DescribeTopicBrokerError, DescribeTopicIdOutcome, DescribeTopicOutcome,
+    DescribeTopicsEffect, DescribeTopicsInput, DescribeTopicsMachine, DescribeTopicsPlan,
+    DescribeTopicsTerminal, Moment, OperationId, TopicDescription as CoreTopicDescription,
     TopicPartitionDescription as CorePartitionDescription,
 };
 
@@ -39,8 +39,9 @@ fn topic_and_partition_codes_cross_the_engine_boundary_exactly() {
     let (_, orders_internal, orders) = topics[0].clone().into_parts();
     assert!(!orders_internal);
     let description = orders.unwrap_or_else(|error| panic!("description expected: {error:?}"));
-    let (_, topic_id, _, partitions) = description.into_parts();
+    let (_, topic_id, _, partitions, authorized_operations) = description.into_parts();
     assert_eq!(topic_id, Some([9; 16]));
+    assert_eq!(authorized_operations, None);
     let (_, error, _, _, replicas, isr, offline) = partitions
         .into_iter()
         .next()
@@ -105,4 +106,23 @@ fn top_level_unknown_code_remains_a_whole_operation_failure() {
         panic!("whole failure expected");
     };
     assert_eq!(failure.kind(), DescribeTopicsFailureKind::Broker(-31_999));
+}
+
+#[test]
+fn topic_id_keys_cross_the_engine_boundary_without_wire_types() {
+    let topic_id = [7; 16];
+    let terminal = DescribeTopicsTerminal::TopicIds(vec![DescribeTopicIdOutcome::described(
+        topic_id,
+        CoreTopicDescription::new("orders".to_owned(), Some(topic_id), false, Vec::new()),
+    )]);
+    let DescribeTopicsOutcome::TopicIds(topics) = translate_terminal(terminal) else {
+        panic!("topic-ID terminal expected");
+    };
+    let (actual, result) = topics
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| panic!("topic-ID result expected"))
+        .into_parts();
+    assert_eq!(actual, topic_id);
+    assert!(result.is_ok());
 }

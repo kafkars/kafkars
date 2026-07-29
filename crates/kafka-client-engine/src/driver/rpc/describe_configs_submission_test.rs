@@ -1,4 +1,4 @@
-//! Route and option scenarios for tracked topic `DescribeConfigs` submission.
+//! Route and option scenarios for tracked generic `DescribeConfigs` submission.
 
 use std::time::{Duration, Instant};
 

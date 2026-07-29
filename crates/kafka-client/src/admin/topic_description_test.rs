@@ -19,11 +19,13 @@ fn partition_errors_and_replica_order_are_preserved() {
         vec![8],
     );
     let description =
-        TopicDescription::new("orders".to_owned(), Some([5; 16]), false, vec![partition]);
+        TopicDescription::new("orders".to_owned(), Some([5; 16]), false, vec![partition])
+            .with_authorized_operations(Some(-1_234_567));
     let partition = &description.partitions()[0];
     assert_eq!(description.name(), "orders");
     assert_eq!(description.topic_id(), Some([5; 16]));
     assert!(!description.is_internal());
+    assert_eq!(description.authorized_operations(), Some(-1_234_567));
     assert_eq!(partition.partition_index(), 3);
     assert_eq!(
         partition.error().and_then(KafkaError::broker_code),

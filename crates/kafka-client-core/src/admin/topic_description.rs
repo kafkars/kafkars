@@ -106,6 +106,7 @@ pub struct TopicDescription {
     topic_id: Option<[u8; 16]>,
     internal: bool,
     partitions: Vec<TopicPartitionDescription>,
+    authorized_operations: Option<i32>,
 }
 
 impl TopicDescription {
@@ -121,7 +122,14 @@ impl TopicDescription {
             topic_id,
             internal,
             partitions,
+            authorized_operations: None,
         }
+    }
+
+    /// Retains Kafka's exact topic authorization bitfield when it was requested.
+    pub const fn with_authorized_operations(mut self, operations: Option<i32>) -> Self {
+        self.authorized_operations = operations;
+        self
     }
 
     /// Returns the requested topic name.
@@ -144,6 +152,11 @@ impl TopicDescription {
         &self.partitions
     }
 
+    /// Returns Kafka's exact topic authorization bitfield when supplied.
+    pub const fn authorized_operations(&self) -> Option<i32> {
+        self.authorized_operations
+    }
+
     /// Consumes the description into adapter-owned parts.
     pub fn into_parts(
         self,
@@ -152,7 +165,14 @@ impl TopicDescription {
         Option<[u8; 16]>,
         bool,
         Vec<TopicPartitionDescription>,
+        Option<i32>,
     ) {
-        (self.name, self.topic_id, self.internal, self.partitions)
+        (
+            self.name,
+            self.topic_id,
+            self.internal,
+            self.partitions,
+            self.authorized_operations,
+        )
     }
 }

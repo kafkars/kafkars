@@ -6,8 +6,9 @@ use kafka_client_core::{
 };
 
 use super::{
-    DescribeTopicError, DescribeTopicResult, DescribeTopicsDeliveryStatus, DescribeTopicsFailure,
-    DescribeTopicsFailureKind, DescribeTopicsOutcome, TopicDescription, TopicPartitionDescription,
+    DescribeTopicError, DescribeTopicIdResult, DescribeTopicResult, DescribeTopicsDeliveryStatus,
+    DescribeTopicsFailure, DescribeTopicsFailureKind, DescribeTopicsOutcome, TopicDescription,
+    TopicPartitionDescription,
 };
 
 pub(crate) fn translate_terminal(terminal: DescribeTopicsTerminal) -> DescribeTopicsOutcome {
@@ -33,6 +34,23 @@ pub(crate) fn translate_terminal(terminal: DescribeTopicsTerminal) -> DescribeTo
                 })
                 .collect(),
         ),
+        DescribeTopicsTerminal::TopicIds(outcomes) => DescribeTopicsOutcome::TopicIds(
+            outcomes
+                .into_iter()
+                .map(|outcome| {
+                    let (topic_id, result) = outcome.into_parts();
+                    let result = match result {
+                        CoreTopicResult::Described(description) => {
+                            Ok(translate_description(description))
+                        }
+                        CoreTopicResult::Failed(error) => {
+                            Err(DescribeTopicError { code: error.code() })
+                        }
+                    };
+                    DescribeTopicIdResult { topic_id, result }
+                })
+                .collect(),
+        ),
         DescribeTopicsTerminal::Failed(failure) => {
             let kind = match failure.kind() {
                 CoreFailureKind::DeadlineElapsed => DescribeTopicsFailureKind::DeadlineElapsed,
@@ -55,7 +73,7 @@ pub(crate) fn translate_terminal(terminal: DescribeTopicsTerminal) -> DescribeTo
 }
 
 fn translate_description(description: kafka_client_core::TopicDescription) -> TopicDescription {
-    let (name, topic_id, internal, partitions) = description.into_parts();
+    let (name, topic_id, internal, partitions, authorized_operations) = description.into_parts();
     TopicDescription {
         name,
         topic_id,
@@ -76,5 +94,6 @@ fn translate_description(description: kafka_client_core::TopicDescription) -> To
                 }
             })
             .collect(),
+        authorized_operations,
     }
 }

@@ -12,8 +12,14 @@ use kafka_client_engine::{
 
 use crate::{
     DeliveryStatus, ErrorKind, KafkaError,
-    admin::{BatchResult, IncrementalAlterConfigsResult},
-    bridge::admin_alter_configs_operation::AdminIncrementalAlterConfigsResult,
+    admin::{
+        BatchResult, ConfigResource, ConfigResourceType, IncrementalAlterConfigResourcesResult,
+        IncrementalAlterConfigsResult,
+    },
+    bridge::{
+        admin_alter_config_resources_operation::AdminIncrementalAlterConfigResourcesResult,
+        admin_alter_configs_operation::AdminIncrementalAlterConfigsResult,
+    },
 };
 
 pub(super) fn translate_admission_error(
@@ -78,6 +84,49 @@ pub(super) fn translate_observation(
         Ok(IncrementalAlterConfigsOutcome::Failed(failure)) => Err(translate_failure(failure)),
         Err(error) => Err(translate_observer_error(error)),
     }
+}
+
+pub(super) fn translate_resource_observation(
+    result: Result<IncrementalAlterConfigsOutcome, IncrementalAlterConfigsObserverError>,
+) -> AdminIncrementalAlterConfigResourcesResult {
+    match result {
+        Ok(IncrementalAlterConfigsOutcome::Configs(batch)) => {
+            let (throttle_time_ms, resources) = batch.into_parts();
+            let entries = resources
+                .into_iter()
+                .map(|resource| {
+                    let (resource_type, resource_name, result) = resource.into_resource_parts();
+                    (
+                        ConfigResource::new(
+                            ConfigResourceType::from_engine(resource_type),
+                            resource_name,
+                        ),
+                        result.map_err(translate_resource_error),
+                    )
+                })
+                .collect();
+            Ok(IncrementalAlterConfigResourcesResult::new(
+                Duration::from_millis(u64::from(throttle_time_ms)),
+                BatchResult::new(entries),
+            ))
+        }
+        Ok(IncrementalAlterConfigsOutcome::Failed(failure)) => Err(translate_failure(failure)),
+        Err(error) => Err(translate_observer_error(error)),
+    }
+}
+
+fn translate_resource_error(error: EngineTopicError) -> KafkaError {
+    let (code, message, message_truncated) = error.into_parts();
+    let detail = message.map_or_else(
+        || format!("Kafka rejected IncrementalAlterConfigs with broker code {code}"),
+        |message| {
+            format!("Kafka rejected IncrementalAlterConfigs with broker code {code}: {message}")
+        },
+    );
+    KafkaError::new(ErrorKind::Broker, detail)
+        .with_broker_code(Some(code))
+        .with_delivery_status(DeliveryStatus::PossiblySent)
+        .with_diagnostic_truncated(message_truncated)
 }
 
 fn translate_topic_error(error: EngineTopicError) -> KafkaError {

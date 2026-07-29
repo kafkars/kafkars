@@ -1,10 +1,10 @@
-//! Prebuilt topic `DescribeConfigs` request retained by the inert facade builder.
+//! Prebuilt generic `DescribeConfigs` request retained by inert facade builders.
 
 use kafka_client_engine::{
     DescribeConfigsRequest as EngineRequest, DescribeConfigsResourceQuery as EngineResourceQuery,
 };
 
-use crate::admin::TopicConfigQuery;
+use crate::admin::{ConfigResourceQuery, TopicConfigQuery};
 
 const TOPIC_RESOURCE_TYPE: i8 = 2;
 
@@ -25,6 +25,24 @@ impl DescribeConfigsAdminRequest {
             .map(|query| {
                 let (topic, keys) = query.into_parts();
                 EngineResourceQuery::new(TOPIC_RESOURCE_TYPE, topic, keys)
+            })
+            .collect();
+        Self {
+            inner: EngineRequest::new(resources, false, false),
+        }
+    }
+
+    pub(crate) fn from_resources<I, T>(resources: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<ConfigResourceQuery>,
+    {
+        let resources = resources
+            .into_iter()
+            .map(Into::into)
+            .map(|query| {
+                let (resource_type, resource_name, keys) = query.into_parts();
+                EngineResourceQuery::new(resource_type.as_raw(), resource_name, keys)
             })
             .collect();
         Self {

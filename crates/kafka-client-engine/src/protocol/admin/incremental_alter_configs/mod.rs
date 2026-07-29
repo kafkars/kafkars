@@ -1,4 +1,4 @@
-//! Generated-message adaptation for topic-only `IncrementalAlterConfigs`.
+//! Generated-message adaptation for resource-generic `IncrementalAlterConfigs`.
 mod request;
 mod resource;
 mod response;

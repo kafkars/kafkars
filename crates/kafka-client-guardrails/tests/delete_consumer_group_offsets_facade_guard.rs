@@ -38,7 +38,7 @@ fn checked_in_lifecycle_and_engine_submission_policy_is_exact() {
     assert_eq!(rules.len(), 1);
     assert_eq!(
         rules[0].allowed_paths,
-        ["crates/kafka-client/src/bridge/admin.rs"]
+        ["crates/kafka-client/src/bridge/admin/group_submissions.rs"]
     );
 }
 

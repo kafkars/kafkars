@@ -27,3 +27,34 @@ fn all_topic_request_reserves_the_complete_host_envelope() {
         kafka_client_core::DescribeTopicsPlan::all(true)
     );
 }
+
+#[test]
+fn topic_id_request_reserves_each_result_and_preserves_exact_ids() {
+    let first = [1; 16];
+    let second = [2; 16];
+    let request = DescribeTopicsRequest::by_ids(vec![first, second]);
+    let charge = request
+        .retained_charge()
+        .unwrap_or_else(|| panic!("topic-ID request charge should fit"));
+    assert!(charge >= 2 * 128 * 1024);
+    assert_eq!(
+        request
+            .into_plan()
+            .unwrap_or_else(|error| panic!("topic-ID plan should be valid: {error}"))
+            .selection(),
+        &kafka_client_core::DescribeTopicsSelection::Ids(vec![first, second])
+    );
+}
+
+#[test]
+fn authorized_operations_are_explicit_and_default_false() {
+    let default = DescribeTopicsRequest::new(vec!["orders".to_owned()])
+        .into_plan()
+        .unwrap_or_else(|error| panic!("default plan: {error}"));
+    let requested = DescribeTopicsRequest::by_ids(vec![[1; 16]])
+        .with_authorized_operations(true)
+        .into_plan()
+        .unwrap_or_else(|error| panic!("authorized plan: {error}"));
+    assert!(!default.include_authorized_operations());
+    assert!(requested.include_authorized_operations());
+}

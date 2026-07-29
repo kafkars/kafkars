@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use kafka_driver::{BrokerId, Route, TrafficClass};
+use kafka_driver::{Route, TrafficClass};
 
 use super::describe_replica_log_dirs_submission::{
     describe_replica_log_dirs_options, describe_replica_log_dirs_route,
@@ -12,9 +12,7 @@ use super::describe_replica_log_dirs_submission::{
 fn route_targets_the_requested_broker() {
     assert_eq!(
         describe_replica_log_dirs_route(17).expect("valid broker"),
-        Route::Broker {
-            broker_id: BrokerId::new(17).expect("valid broker")
-        }
+        Route::AnyBroker
     );
     assert!(describe_replica_log_dirs_route(-1).is_err());
 }

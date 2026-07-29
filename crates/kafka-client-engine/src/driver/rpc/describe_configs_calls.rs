@@ -1,4 +1,4 @@
-//! Bounded ownership and normalization of tracked topic `DescribeConfigs` calls.
+//! Bounded ownership and normalization of tracked generic `DescribeConfigs` calls.
 
 use std::{error::Error, fmt};
 

@@ -3,8 +3,8 @@
 use std::{error::Error, fmt, time::Instant};
 
 use kafka_driver::{
-    ApiVersion, BrokerId, BrokerIdError, PartitionId, PartitionIdError, RequestOptions, Route,
-    RoutedCall, SubmitError, TopicName, TopicNameError, TrafficClass,
+    ApiVersion, PartitionId, PartitionIdError, RequestOptions, Route, RoutedCall, SubmitError,
+    TopicName, TopicNameError, TrafficClass,
 };
 use kafka_wire::{DescribeProducersRequest, DescribeProducersResponse};
 
@@ -15,7 +15,7 @@ const DESCRIBE_PRODUCERS_VERSION: ApiVersion = ApiVersion::new(0);
 /// Definitely-unsent failure before the driver accepted request ownership.
 #[derive(Debug)]
 pub(crate) enum DescribeProducersSubmitError {
-    InvalidBroker(BrokerIdError),
+    InvalidBroker(InvalidBroker),
     InvalidTopic(TopicNameError),
     InvalidPartition(PartitionIdError),
     Driver(SubmitError),
@@ -78,11 +78,28 @@ pub(super) fn describe_producers_route(
     let partition =
         PartitionId::new(partition).map_err(DescribeProducersSubmitError::InvalidPartition)?;
     if let Some(broker_id) = broker_id {
-        let broker_id =
-            BrokerId::new(broker_id).map_err(DescribeProducersSubmitError::InvalidBroker)?;
-        return Ok(Route::Broker { broker_id });
+        validate_broker_id(broker_id).map_err(DescribeProducersSubmitError::InvalidBroker)?;
+        return Ok(Route::AnyBroker);
     }
     Ok(Route::PartitionLeader { topic, partition })
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct InvalidBroker(i32);
+
+impl fmt::Display for InvalidBroker {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "broker ID {} must be nonnegative", self.0)
+    }
+}
+
+impl Error for InvalidBroker {}
+
+const fn validate_broker_id(broker_id: i32) -> Result<(), InvalidBroker> {
+    if broker_id < 0 {
+        return Err(InvalidBroker(broker_id));
+    }
+    Ok(())
 }
 
 pub(super) const fn describe_producers_options(deadline: Instant) -> RequestOptions {

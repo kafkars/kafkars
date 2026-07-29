@@ -1,4 +1,4 @@
-//! Any-broker tracked submission of one topic `DescribeConfigs` request.
+//! Any-broker tracked submission of one resource-generic `DescribeConfigs` request.
 
 use std::{error::Error, fmt, time::Instant};
 
@@ -19,7 +19,7 @@ impl fmt::Display for DescribeConfigsSubmitError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
-            "driver rejected topic DescribeConfigs request: {}",
+            "driver rejected DescribeConfigs request: {}",
             self.source
         )
     }

@@ -1,4 +1,4 @@
-//! Bounded ownership and normalization of tracked topic `IncrementalAlterConfigs` calls.
+//! Bounded ownership and normalization of tracked `IncrementalAlterConfigs` calls.
 
 use std::{error::Error, fmt};
 

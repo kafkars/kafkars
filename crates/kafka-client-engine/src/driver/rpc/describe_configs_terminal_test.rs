@@ -1,4 +1,4 @@
-//! Version-authoritative terminal normalization for topic `DescribeConfigs`.
+//! Version-authoritative terminal normalization for generic `DescribeConfigs`.
 
 use kafka_client_core::{
     DeliveryStatus, DescribeConfigResult, DescribeConfigsInput, DescribeConfigsPlan,

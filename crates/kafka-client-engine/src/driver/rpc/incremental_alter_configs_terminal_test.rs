@@ -1,8 +1,8 @@
-//! Version and failure normalization for tracked topic `IncrementalAlterConfigs`.
+//! Version and failure normalization for tracked `IncrementalAlterConfigs`.
 
 use kafka_client_core::{
     ConfigAlteration, DeliveryStatus, IncrementalAlterConfigResult, IncrementalAlterConfigsInput,
-    IncrementalAlterConfigsPlan, TopicConfigAlteration,
+    IncrementalAlterConfigsPlan, IncrementalConfigResourceAlteration, TopicConfigAlteration,
 };
 use kafka_driver::{ApiKey, ApiVersion, CallFailure, Delivery, RequestError};
 use kafka_wire::{
@@ -52,6 +52,56 @@ fn selected_version_is_required_and_cannot_exceed_v1() {
             delivery: DeliveryStatus::PossiblySent
         }
     );
+}
+
+#[test]
+fn generic_terminal_preserves_resource_identity_and_exact_signed_error() {
+    let plan = IncrementalAlterConfigsPlan::for_resources(
+        vec![
+            IncrementalConfigResourceAlteration::resource(
+                4,
+                "1".to_owned(),
+                vec![ConfigAlteration::delete("broker.key".to_owned())],
+            ),
+            IncrementalConfigResourceAlteration::resource(
+                8,
+                "1".to_owned(),
+                vec![ConfigAlteration::delete("logger.key".to_owned())],
+            ),
+        ],
+        true,
+    )
+    .unwrap_or_else(|error| panic!("valid generic plan: {error}"));
+    let mut broker = AlterConfigsResourceResponse::default();
+    broker.resource_type = 4;
+    broker.resource_name = "1".into();
+    let mut logger = AlterConfigsResourceResponse::default();
+    logger.resource_type = 8;
+    logger.resource_name = "1".into();
+    logger.error_code = -32_111;
+    logger.error_message = Some("signed".into());
+    let mut response = IncrementalAlterConfigsResponse::default();
+    response.throttle_time_ms = 31;
+    response.responses = vec![logger, broker];
+
+    let IncrementalAlterConfigsInput::BrokerResponded { batch } =
+        normalize_terminal(&plan, LARGE_BUDGET, Some(ApiVersion::new(1)), Ok(response))
+    else {
+        panic!("generic bounded response expected");
+    };
+    assert_eq!(batch.throttle_time_ms(), 31);
+    assert_eq!(
+        batch
+            .resources()
+            .iter()
+            .map(|resource| (resource.resource_type(), resource.resource_name()))
+            .collect::<Vec<_>>(),
+        [(4, "1"), (8, "1")]
+    );
+    let IncrementalAlterConfigResult::Failed(error) = batch.resources()[1].result() else {
+        panic!("logger rejection expected");
+    };
+    assert_eq!(error.code(), -32_111);
 }
 
 #[test]

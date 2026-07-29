@@ -3,11 +3,14 @@
 use kafka_client_engine::{
     IncrementalAlterConfigsRequest as EngineRequest,
     IncrementalConfigAlteration as EngineAlteration, IncrementalConfigOperation as EngineOperation,
+    IncrementalConfigResourceAlterations as EngineResourceAlterations,
     TopicConfigAlterations as EngineTopicAlterations,
 };
 
 use super::admin_alter_configs_request::IncrementalAlterConfigsAdminRequest;
-use crate::{ConfigAlteration, TopicConfigAlterations};
+use crate::{
+    ConfigAlteration, ConfigResourceAlterations, ConfigResourceType, TopicConfigAlterations,
+};
 
 #[test]
 fn request_bridge_is_send_and_preserves_delete_vs_explicit_empty_value() {
@@ -45,6 +48,45 @@ fn request_bridge_is_send_and_preserves_delete_vs_explicit_empty_value() {
                 ),
             ],
         )])
+        .with_validate_only(true)
+    );
+}
+
+#[test]
+fn generic_request_bridge_preserves_exact_type_name_operations_and_validate_only() {
+    let request = IncrementalAlterConfigsAdminRequest::from_resources([
+        ConfigResourceAlterations::new(
+            ConfigResourceType::Broker,
+            "7",
+            [ConfigAlteration::set("num.partitions", "3")],
+        ),
+        ConfigResourceAlterations::new(
+            ConfigResourceType::from_raw(64),
+            "future-resource",
+            [ConfigAlteration::subtract("future.key", "")],
+        ),
+    ])
+    .with_validate_only(true);
+    assert_eq!(
+        request.into_engine(),
+        EngineRequest::for_resources(vec![
+            EngineResourceAlterations::resource(
+                4,
+                "7".to_owned(),
+                vec![EngineAlteration::new(
+                    "num.partitions".to_owned(),
+                    EngineOperation::Set("3".to_owned()),
+                )],
+            ),
+            EngineResourceAlterations::resource(
+                64,
+                "future-resource".to_owned(),
+                vec![EngineAlteration::new(
+                    "future.key".to_owned(),
+                    EngineOperation::Subtract(String::new()),
+                )],
+            ),
+        ])
         .with_validate_only(true)
     );
 }

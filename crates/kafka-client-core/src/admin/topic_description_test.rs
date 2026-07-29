@@ -16,11 +16,13 @@ fn partition_error_and_replica_facts_are_lossless() {
         vec![7],
         vec![8],
     );
-    let topic = TopicDescription::new("orders".to_owned(), Some([7; 16]), false, vec![partition]);
+    let topic = TopicDescription::new("orders".to_owned(), Some([7; 16]), false, vec![partition])
+        .with_authorized_operations(Some(-1_234_567));
     let partition = &topic.partitions()[0];
     assert_eq!(topic.name(), "orders");
     assert_eq!(topic.topic_id(), Some([7; 16]));
     assert!(!topic.is_internal());
+    assert_eq!(topic.authorized_operations(), Some(-1_234_567));
     assert_eq!(partition.partition_index(), 3);
     assert_eq!(partition.error_code(), Some(-32_000));
     assert_eq!(partition.leader_id(), Some(7));
