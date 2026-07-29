@@ -44,6 +44,37 @@ fn throttle_order_exact_signed_code_and_diagnostic_fact_cross_losslessly() {
 }
 
 #[test]
+fn generic_resource_identity_crosses_terminal_translation_losslessly() {
+    let terminal = CoreTerminal::Configs(CoreBatch::new(
+        5,
+        vec![
+            IncrementalAlterConfigOutcome::resource_altered(4, "1"),
+            IncrementalAlterConfigOutcome::resource_altered(8, "1"),
+            IncrementalAlterConfigOutcome::resource_altered(16, "client"),
+            IncrementalAlterConfigOutcome::resource_altered(32, "group"),
+            IncrementalAlterConfigOutcome::resource_altered(64, "future"),
+        ],
+    ));
+    let IncrementalAlterConfigsOutcome::Configs(batch) = translate_terminal(terminal) else {
+        panic!("generic config result expected");
+    };
+    assert_eq!(
+        batch
+            .resources()
+            .iter()
+            .map(|resource| (resource.resource_type(), resource.resource_name()))
+            .collect::<Vec<_>>(),
+        [
+            (4, "1"),
+            (8, "1"),
+            (16, "client"),
+            (32, "group"),
+            (64, "future"),
+        ]
+    );
+}
+
+#[test]
 fn every_core_failure_category_and_certainty_is_exhaustively_translated() {
     for (core_kind, engine_kind) in [
         (

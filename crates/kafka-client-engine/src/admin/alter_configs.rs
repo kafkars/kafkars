@@ -1,4 +1,4 @@
-//! Declarative facade for bounded topic `IncrementalAlterConfigs` ownership.
+//! Declarative facade for bounded `IncrementalAlterConfigs` ownership.
 
 mod error;
 mod handle;
@@ -16,7 +16,7 @@ pub(crate) use host::{
 };
 pub use model::{
     IncrementalAlterConfigsRequest, IncrementalConfigAlteration, IncrementalConfigOperation,
-    TopicConfigAlterations,
+    IncrementalConfigResourceAlterations, TopicConfigAlterations,
 };
 pub use observer::IncrementalAlterConfigsObserver;
 pub use outcome::{

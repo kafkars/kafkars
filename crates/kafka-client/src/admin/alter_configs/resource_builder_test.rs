@@ -1,0 +1,35 @@
+//! Generic incremental configuration builder ownership and validation scenarios.
+
+use std::time::Duration;
+
+use crate::{
+    Client, ConfigAlteration, ConfigResourceAlterations, ConfigResourceType, DeliveryStatus,
+    ErrorKind,
+};
+
+use super::IncrementalAlterConfigResourcesBuilder;
+
+#[test]
+fn generic_builder_is_send_and_nonpositive_types_reject_not_sent() {
+    fn assert_send<T: Send>() {}
+    assert_send::<IncrementalAlterConfigResourcesBuilder>();
+
+    let client = Client::builder()
+        .bootstrap_servers(["127.0.0.1:9092"])
+        .build()
+        .unwrap_or_else(|error| panic!("build local client: {error}"));
+    let error = client
+        .admin()
+        .incremental_alter_config_resources([ConfigResourceAlterations::new(
+            ConfigResourceType::from_raw(0),
+            "invalid",
+            [ConfigAlteration::delete("key")],
+        )])
+        .validate_only(true)
+        .deadline_after(Duration::from_secs(1))
+        .submit()
+        .wait()
+        .expect_err("nonpositive resource type must reject before transport");
+    assert_eq!(error.kind(), ErrorKind::Configuration);
+    assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+}

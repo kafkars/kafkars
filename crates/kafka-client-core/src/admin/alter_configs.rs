@@ -1,4 +1,4 @@
-//! Declarative facade for deterministic topic `IncrementalAlterConfigs` policy.
+//! Declarative facade for deterministic `IncrementalAlterConfigs` policy.
 
 mod machine;
 mod model;
@@ -12,7 +12,7 @@ pub use machine::{
 };
 pub use model::{
     ConfigAlteration, ConfigAlterationOperation, IncrementalAlterConfigsPlan,
-    IncrementalAlterConfigsPlanError, TopicConfigAlteration,
+    IncrementalAlterConfigsPlanError, IncrementalConfigResourceAlteration, TopicConfigAlteration,
 };
 pub use outcome::{
     IncrementalAlterConfigBrokerError, IncrementalAlterConfigOutcome, IncrementalAlterConfigResult,

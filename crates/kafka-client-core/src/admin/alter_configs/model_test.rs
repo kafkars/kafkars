@@ -1,8 +1,8 @@
-//! Scenarios for validated incremental topic configuration input.
+//! Scenarios for validated incremental configuration-resource input.
 
 use super::{
     ConfigAlteration, ConfigAlterationOperation, IncrementalAlterConfigsPlan,
-    IncrementalAlterConfigsPlanError, TopicConfigAlteration,
+    IncrementalAlterConfigsPlanError, IncrementalConfigResourceAlteration, TopicConfigAlteration,
 };
 
 #[test]
@@ -115,6 +115,78 @@ fn configuration_keys_are_nonempty_and_unique_within_each_topic() {
     );
 }
 
+#[test]
+fn generic_plan_preserves_known_and_future_positive_resource_identities() {
+    let plan = IncrementalAlterConfigsPlan::for_resources(
+        vec![
+            resource(4, "1", "log.cleaner.threads"),
+            resource(8, "1", "kafka.controller"),
+            resource(16, "payments-client", "metrics"),
+            resource(32, "payments-group", "consumer.session.timeout.ms"),
+            resource(64, "future-resource", "future.key"),
+        ],
+        true,
+    )
+    .unwrap_or_else(|error| panic!("valid generic plan: {error}"));
+
+    assert!(plan.validate_only());
+    assert_eq!(
+        plan.resources()
+            .iter()
+            .map(|resource| (resource.resource_type(), resource.resource_name()))
+            .collect::<Vec<_>>(),
+        [
+            (4, "1"),
+            (8, "1"),
+            (16, "payments-client"),
+            (32, "payments-group"),
+            (64, "future-resource"),
+        ]
+    );
+}
+
+#[test]
+fn generic_plan_rejects_invalid_or_duplicate_exact_resource_identities() {
+    for resource_type in [i8::MIN, -1, 0] {
+        assert_eq!(
+            IncrementalAlterConfigsPlan::for_resources(
+                vec![resource(resource_type, "name", "key")],
+                false,
+            ),
+            Err(IncrementalAlterConfigsPlanError::NonPositiveResourceType)
+        );
+    }
+    assert_eq!(
+        IncrementalAlterConfigsPlan::for_resources(vec![resource(4, "", "key")], false),
+        Err(IncrementalAlterConfigsPlanError::EmptyResourceName)
+    );
+    assert_eq!(
+        IncrementalAlterConfigsPlan::for_resources(
+            vec![resource(4, "1", "first"), resource(4, "1", "second")],
+            false,
+        ),
+        Err(IncrementalAlterConfigsPlanError::DuplicateResource)
+    );
+
+    let distinct_types = IncrementalAlterConfigsPlan::for_resources(
+        vec![resource(4, "1", "first"), resource(8, "1", "second")],
+        false,
+    );
+    assert!(distinct_types.is_ok());
+}
+
 fn topic(name: &str, alterations: Vec<ConfigAlteration>) -> TopicConfigAlteration {
     TopicConfigAlteration::new(name.to_owned(), alterations)
+}
+
+fn resource(
+    resource_type: i8,
+    resource_name: &str,
+    key: &str,
+) -> IncrementalConfigResourceAlteration {
+    IncrementalConfigResourceAlteration::resource(
+        resource_type,
+        resource_name.to_owned(),
+        vec![ConfigAlteration::delete(key.to_owned())],
+    )
 }

@@ -134,15 +134,18 @@ impl IncrementalAlterConfigsMachine {
     }
 
     fn batch_is_correlated(&self, batch: &IncrementalAlterConfigsBatch) -> bool {
-        if batch.topics().len() != self.plan.topics().len() {
+        if batch.resources().len() != self.plan.resources().len() {
             return false;
         }
         !self
             .plan
-            .topics()
+            .resources()
             .iter()
-            .zip(batch.topics())
-            .any(|(topic, outcome)| topic.topic() != outcome.topic())
+            .zip(batch.resources())
+            .any(|(resource, outcome)| {
+                resource.resource_type() != outcome.resource_type()
+                    || resource.resource_name() != outcome.resource_name()
+            })
     }
 
     fn finish(

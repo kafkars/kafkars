@@ -1,4 +1,4 @@
-//! Runtime-neutral admission of concrete topic `IncrementalAlterConfigs` work.
+//! Runtime-neutral admission of concrete `IncrementalAlterConfigs` work.
 
 use std::{fmt, time::Duration};
 

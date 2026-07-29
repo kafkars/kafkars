@@ -1,10 +1,10 @@
-//! Ordered terminal facts for one topic `IncrementalAlterConfigs` operation.
+//! Ordered terminal facts for one `IncrementalAlterConfigs` operation.
 
 use core::num::NonZeroI16;
 
 use crate::DeliveryStatus;
 
-/// Exact broker-declared failure for one requested topic.
+/// Exact broker-declared failure for one requested resource.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IncrementalAlterConfigBrokerError {
     code: NonZeroI16,
@@ -43,7 +43,7 @@ impl IncrementalAlterConfigBrokerError {
     }
 }
 
-/// Per-topic incremental alteration result.
+/// Per-resource incremental alteration result.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IncrementalAlterConfigResult {
     /// Kafka accepted every requested alteration for this topic.
@@ -52,10 +52,11 @@ pub enum IncrementalAlterConfigResult {
     Failed(IncrementalAlterConfigBrokerError),
 }
 
-/// One topic result retained in original request order.
+/// One resource result retained in original request order.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IncrementalAlterConfigOutcome {
-    topic: String,
+    resource_type: i8,
+    resource_name: String,
     result: IncrementalAlterConfigResult,
 }
 
@@ -63,7 +64,8 @@ impl IncrementalAlterConfigOutcome {
     /// Creates one successful topic result.
     pub fn altered(topic: impl Into<String>) -> Self {
         Self {
-            topic: topic.into(),
+            resource_type: 2,
+            resource_name: topic.into(),
             result: IncrementalAlterConfigResult::Altered,
         }
     }
@@ -71,14 +73,49 @@ impl IncrementalAlterConfigOutcome {
     /// Creates one broker-rejected topic result.
     pub fn failed(topic: impl Into<String>, error: IncrementalAlterConfigBrokerError) -> Self {
         Self {
-            topic: topic.into(),
+            resource_type: 2,
+            resource_name: topic.into(),
             result: IncrementalAlterConfigResult::Failed(error),
         }
     }
 
+    /// Creates one successful result for an exact requested resource.
+    pub fn resource_altered(resource_type: i8, resource_name: impl Into<String>) -> Self {
+        Self {
+            resource_type,
+            resource_name: resource_name.into(),
+            result: IncrementalAlterConfigResult::Altered,
+        }
+    }
+
+    /// Creates one rejected result for an exact requested resource.
+    pub fn resource_failed(
+        resource_type: i8,
+        resource_name: impl Into<String>,
+        error: IncrementalAlterConfigBrokerError,
+    ) -> Self {
+        Self {
+            resource_type,
+            resource_name: resource_name.into(),
+            result: IncrementalAlterConfigResult::Failed(error),
+        }
+    }
+
+    /// Returns Kafka's exact positive resource-type code.
+    pub const fn resource_type(&self) -> i8 {
+        self.resource_type
+    }
+
+    /// Returns the requested resource name.
+    pub fn resource_name(&self) -> &str {
+        &self.resource_name
+    }
+
     /// Returns the requested topic.
+    ///
+    /// This compatibility accessor is intended for topic-scoped operations.
     pub fn topic(&self) -> &str {
-        &self.topic
+        &self.resource_name
     }
 
     /// Returns the normalized topic result.
@@ -88,7 +125,12 @@ impl IncrementalAlterConfigOutcome {
 
     /// Consumes this outcome into adapter-owned parts.
     pub fn into_parts(self) -> (String, IncrementalAlterConfigResult) {
-        (self.topic, self.result)
+        (self.resource_name, self.result)
+    }
+
+    /// Consumes this outcome into its exact resource identity and result.
+    pub fn into_resource_parts(self) -> (i8, String, IncrementalAlterConfigResult) {
+        (self.resource_type, self.resource_name, self.result)
     }
 }
 
@@ -96,15 +138,15 @@ impl IncrementalAlterConfigOutcome {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IncrementalAlterConfigsBatch {
     throttle_time_ms: u32,
-    topics: Vec<IncrementalAlterConfigOutcome>,
+    resources: Vec<IncrementalAlterConfigOutcome>,
 }
 
 impl IncrementalAlterConfigsBatch {
     /// Creates one protocol-normalized ordered response batch.
-    pub const fn new(throttle_time_ms: u32, topics: Vec<IncrementalAlterConfigOutcome>) -> Self {
+    pub const fn new(throttle_time_ms: u32, resources: Vec<IncrementalAlterConfigOutcome>) -> Self {
         Self {
             throttle_time_ms,
-            topics,
+            resources,
         }
     }
 
@@ -113,14 +155,19 @@ impl IncrementalAlterConfigsBatch {
         self.throttle_time_ms
     }
 
-    /// Returns topic outcomes in original request order.
+    /// Returns resource outcomes in original request order.
+    pub fn resources(&self) -> &[IncrementalAlterConfigOutcome] {
+        &self.resources
+    }
+
+    /// Returns topic-compatible outcomes in original request order.
     pub fn topics(&self) -> &[IncrementalAlterConfigOutcome] {
-        &self.topics
+        &self.resources
     }
 
     /// Consumes the batch into adapter-owned parts.
     pub fn into_parts(self) -> (u32, Vec<IncrementalAlterConfigOutcome>) {
-        (self.throttle_time_ms, self.topics)
+        (self.throttle_time_ms, self.resources)
     }
 }
 

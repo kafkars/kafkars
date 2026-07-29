@@ -2,7 +2,7 @@
 
 use core::num::NonZeroI16;
 
-use super::IncrementalAlterConfigBrokerError;
+use super::{IncrementalAlterConfigBrokerError, IncrementalAlterConfigOutcome};
 
 #[test]
 fn exact_signed_code_and_bounded_diagnostic_fact_move_without_reclassification() {
@@ -15,5 +15,20 @@ fn exact_signed_code_and_bounded_diagnostic_fact_move_without_reclassification()
     assert_eq!(
         error.into_parts(),
         (-32_123, Some("future error".to_owned()), true)
+    );
+}
+
+#[test]
+fn resource_outcome_preserves_exact_future_positive_identity() {
+    let outcome = IncrementalAlterConfigOutcome::resource_altered(64, "future");
+    assert_eq!(outcome.resource_type(), 64);
+    assert_eq!(outcome.resource_name(), "future");
+    assert_eq!(
+        outcome.into_resource_parts(),
+        (
+            64,
+            "future".to_owned(),
+            super::IncrementalAlterConfigResult::Altered
+        )
     );
 }

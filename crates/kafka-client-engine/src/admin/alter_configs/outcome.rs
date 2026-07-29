@@ -2,11 +2,9 @@
 
 use core::fmt;
 
-use kafka_client_core::{
-    DeliveryStatus as CoreDeliveryStatus, IncrementalAlterConfigResult as CoreConfigResult,
-    IncrementalAlterConfigsFailureKind as CoreFailureKind,
-    IncrementalAlterConfigsTerminal as CoreTerminal,
-};
+mod translate;
+
+pub(crate) use translate::translate_terminal;
 
 /// Stable delivery certainty independent of core types.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -17,7 +15,7 @@ pub enum IncrementalAlterConfigsDeliveryStatus {
     PossiblySent,
 }
 
-/// Exact broker rejection for one requested topic.
+/// Exact broker rejection for one requested resource.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IncrementalAlterConfigError {
     code: i16,
@@ -47,17 +45,30 @@ impl IncrementalAlterConfigError {
     }
 }
 
-/// One topic result retained in original request order.
+/// One resource result retained in original request order.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IncrementalAlterConfigResult {
-    topic: String,
+    resource_type: i8,
+    resource_name: String,
     result: Result<(), IncrementalAlterConfigError>,
 }
 
 impl IncrementalAlterConfigResult {
+    /// Returns Kafka's exact positive resource-type code.
+    pub const fn resource_type(&self) -> i8 {
+        self.resource_type
+    }
+
+    /// Returns the requested resource name.
+    pub fn resource_name(&self) -> &str {
+        &self.resource_name
+    }
+
     /// Returns the requested topic.
+    ///
+    /// This compatibility accessor is intended for topic-scoped requests.
     pub fn topic(&self) -> &str {
-        &self.topic
+        &self.resource_name
     }
 
     /// Returns this topic's broker outcome.
@@ -67,7 +78,12 @@ impl IncrementalAlterConfigResult {
 
     /// Consumes the result into adapter-owned parts.
     pub fn into_parts(self) -> (String, Result<(), IncrementalAlterConfigError>) {
-        (self.topic, self.result)
+        (self.resource_name, self.result)
+    }
+
+    /// Consumes the result into its exact resource identity and broker outcome.
+    pub fn into_resource_parts(self) -> (i8, String, Result<(), IncrementalAlterConfigError>) {
+        (self.resource_type, self.resource_name, self.result)
     }
 }
 
@@ -75,7 +91,7 @@ impl IncrementalAlterConfigResult {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IncrementalAlterConfigsResult {
     throttle_time_ms: u32,
-    topics: Vec<IncrementalAlterConfigResult>,
+    resources: Vec<IncrementalAlterConfigResult>,
 }
 
 impl IncrementalAlterConfigsResult {
@@ -84,14 +100,19 @@ impl IncrementalAlterConfigsResult {
         self.throttle_time_ms
     }
 
-    /// Returns topic results in original request order.
+    /// Returns resource results in original request order.
+    pub fn resources(&self) -> &[IncrementalAlterConfigResult] {
+        &self.resources
+    }
+
+    /// Returns topic-compatible results in original request order.
     pub fn topics(&self) -> &[IncrementalAlterConfigResult] {
-        &self.topics
+        &self.resources
     }
 
     /// Consumes the response into its scalar parts.
     pub fn into_parts(self) -> (u32, Vec<IncrementalAlterConfigResult>) {
-        (self.throttle_time_ms, self.topics)
+        (self.throttle_time_ms, self.resources)
     }
 }
 
@@ -159,59 +180,3 @@ impl fmt::Display for IncrementalAlterConfigsObserverError {
 }
 
 impl std::error::Error for IncrementalAlterConfigsObserverError {}
-
-pub(crate) fn translate_terminal(terminal: CoreTerminal) -> IncrementalAlterConfigsOutcome {
-    match terminal {
-        CoreTerminal::Configs(batch) => {
-            let (throttle_time_ms, topics) = batch.into_parts();
-            IncrementalAlterConfigsOutcome::Configs(IncrementalAlterConfigsResult {
-                throttle_time_ms,
-                topics: topics
-                    .into_iter()
-                    .map(|outcome| {
-                        let (topic, result) = outcome.into_parts();
-                        let result = match result {
-                            CoreConfigResult::Altered => Ok(()),
-                            CoreConfigResult::Failed(error) => {
-                                let (code, message, message_truncated) = error.into_parts();
-                                Err(IncrementalAlterConfigError {
-                                    code,
-                                    message,
-                                    message_truncated,
-                                })
-                            }
-                        };
-                        IncrementalAlterConfigResult { topic, result }
-                    })
-                    .collect(),
-            })
-        }
-        CoreTerminal::Failed(failure) => {
-            let kind = match failure.kind() {
-                CoreFailureKind::DeadlineElapsed => {
-                    IncrementalAlterConfigsFailureKind::DeadlineElapsed
-                }
-                CoreFailureKind::DriverRejected => {
-                    IncrementalAlterConfigsFailureKind::DriverRejected
-                }
-                CoreFailureKind::Transport => IncrementalAlterConfigsFailureKind::Transport,
-                CoreFailureKind::InvalidResponse => {
-                    IncrementalAlterConfigsFailureKind::InvalidResponse
-                }
-                CoreFailureKind::ResponseTooLarge => {
-                    IncrementalAlterConfigsFailureKind::ResponseTooLarge
-                }
-                CoreFailureKind::Compatibility => IncrementalAlterConfigsFailureKind::Compatibility,
-            };
-            IncrementalAlterConfigsOutcome::Failed(IncrementalAlterConfigsFailure {
-                kind,
-                delivery: match failure.delivery() {
-                    CoreDeliveryStatus::NotSent => IncrementalAlterConfigsDeliveryStatus::NotSent,
-                    CoreDeliveryStatus::PossiblySent => {
-                        IncrementalAlterConfigsDeliveryStatus::PossiblySent
-                    }
-                },
-            })
-        }
-    }
-}

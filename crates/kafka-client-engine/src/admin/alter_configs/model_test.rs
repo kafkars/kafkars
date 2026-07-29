@@ -2,7 +2,7 @@
 
 use super::{
     IncrementalAlterConfigsRequest, IncrementalConfigAlteration, IncrementalConfigOperation,
-    TopicConfigAlterations,
+    IncrementalConfigResourceAlterations, TopicConfigAlterations,
 };
 
 #[test]
@@ -89,6 +89,66 @@ fn core_validation_rejects_ambiguous_engine_request_without_machine_construction
     assert!(request.into_plan().is_err());
 }
 
+#[test]
+fn generic_request_preserves_resource_types_names_and_validate_only() {
+    let request = IncrementalAlterConfigsRequest::for_resources(vec![
+        resource(4, "1"),
+        resource(8, "1"),
+        resource(16, "client"),
+        resource(32, "group"),
+        resource(64, "future"),
+    ])
+    .with_validate_only(true)
+    .canonicalize();
+    assert!(request.storage_is_canonical());
+    let plan = request
+        .into_plan()
+        .unwrap_or_else(|error| panic!("valid generic engine request: {error}"));
+
+    assert!(plan.validate_only());
+    assert_eq!(
+        plan.resources()
+            .iter()
+            .map(|resource| (resource.resource_type(), resource.resource_name()))
+            .collect::<Vec<_>>(),
+        [
+            (4, "1"),
+            (8, "1"),
+            (16, "client"),
+            (32, "group"),
+            (64, "future")
+        ]
+    );
+}
+
+#[test]
+fn generic_request_rejects_nonpositive_empty_and_duplicate_resources() {
+    for resources in [
+        vec![resource(0, "name")],
+        vec![resource(4, "")],
+        vec![resource(4, "1"), resource(4, "1")],
+    ] {
+        assert!(
+            IncrementalAlterConfigsRequest::for_resources(resources)
+                .into_plan()
+                .is_err()
+        );
+    }
+    assert!(
+        IncrementalAlterConfigsRequest::for_resources(vec![resource(4, "1"), resource(8, "1"),])
+            .into_plan()
+            .is_ok()
+    );
+}
+
 fn alteration(key: &str, operation: IncrementalConfigOperation) -> IncrementalConfigAlteration {
     IncrementalConfigAlteration::new(key.to_owned(), operation)
+}
+
+fn resource(resource_type: i8, resource_name: &str) -> IncrementalConfigResourceAlterations {
+    IncrementalConfigResourceAlterations::resource(
+        resource_type,
+        resource_name.to_owned(),
+        vec![alteration("key", IncrementalConfigOperation::Delete)],
+    )
 }

@@ -1,6 +1,6 @@
-//! Stable Rust vocabulary for one incremental topic configuration change.
+//! Stable Rust vocabulary for one incremental configuration change.
 
-/// Exact Kafka operation applied to one named topic configuration.
+/// Exact Kafka operation applied to one named configuration.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConfigAlterationOperation {
     /// Replaces the current value.
@@ -23,7 +23,7 @@ impl ConfigAlterationOperation {
     }
 }
 
-/// One named topic configuration change.
+/// One named configuration change.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigAlteration {
     key: String,

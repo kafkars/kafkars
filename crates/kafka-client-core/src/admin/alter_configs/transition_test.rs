@@ -10,7 +10,7 @@ use super::{
     IncrementalAlterConfigsFailureKind, IncrementalAlterConfigsInput,
     IncrementalAlterConfigsMachine, IncrementalAlterConfigsMachineError,
     IncrementalAlterConfigsPlan, IncrementalAlterConfigsState, IncrementalAlterConfigsTerminal,
-    IncrementalAlterConfigsTransition, TopicConfigAlteration,
+    IncrementalAlterConfigsTransition, IncrementalConfigResourceAlteration, TopicConfigAlteration,
 };
 
 #[test]
@@ -111,6 +111,57 @@ fn malformed_response_settles_invalid_once_without_follow_up() {
         assert_eq!(
             machine.apply(IncrementalAlterConfigsInput::InvalidResponse),
             Err(IncrementalAlterConfigsMachineError::AlreadyCompleted)
+        );
+    }
+}
+
+#[test]
+fn resource_correlation_uses_exact_type_name_pairs_in_caller_order() {
+    let plan = IncrementalAlterConfigsPlan::for_resources(
+        vec![
+            IncrementalConfigResourceAlteration::resource(
+                4,
+                "1".to_owned(),
+                vec![ConfigAlteration::delete("broker.key".to_owned())],
+            ),
+            IncrementalConfigResourceAlteration::resource(
+                8,
+                "1".to_owned(),
+                vec![ConfigAlteration::delete("logger.key".to_owned())],
+            ),
+        ],
+        false,
+    )
+    .unwrap_or_else(|error| panic!("valid resource plan: {error}"));
+    for outcomes in [
+        vec![
+            IncrementalAlterConfigOutcome::resource_altered(8, "1"),
+            IncrementalAlterConfigOutcome::resource_altered(4, "1"),
+        ],
+        vec![
+            IncrementalAlterConfigOutcome::resource_altered(4, "1"),
+            IncrementalAlterConfigOutcome::resource_altered(4, "1"),
+        ],
+    ] {
+        let mut machine = IncrementalAlterConfigsMachine::new(
+            OperationId::from_raw(41),
+            Deadline::from_tick(20),
+            plan.clone(),
+        );
+        machine
+            .apply(IncrementalAlterConfigsInput::Start {
+                now: Moment::from_tick(1),
+            })
+            .and_then(|_| machine.apply(IncrementalAlterConfigsInput::DriverAccepted))
+            .unwrap_or_else(|error| panic!("submit generic machine: {error}"));
+        assert_failure(
+            machine
+                .apply(IncrementalAlterConfigsInput::BrokerResponded {
+                    batch: IncrementalAlterConfigsBatch::new(0, outcomes),
+                })
+                .unwrap_or_else(|error| panic!("correlation failure settles: {error}")),
+            IncrementalAlterConfigsFailureKind::InvalidResponse,
+            DeliveryStatus::PossiblySent,
         );
     }
 }

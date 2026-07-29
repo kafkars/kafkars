@@ -42,7 +42,7 @@ pub enum IncrementalAlterConfigsInput {
     },
     /// Reports one ordered, bounded, protocol-normalized response.
     BrokerResponded {
-        /// Per-topic results plus Kafka's throttle observation.
+        /// Per-resource results plus Kafka's throttle observation.
         batch: IncrementalAlterConfigsBatch,
     },
     /// Reports a structurally valid response exceeding retained capacity.
