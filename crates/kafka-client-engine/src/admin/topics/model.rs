@@ -43,6 +43,14 @@ impl DescribeTopicsRequest {
         }
     }
 
+    /// Replaces internal-topic retention for an all-topic selection.
+    pub const fn with_include_internal(mut self, include: bool) -> Self {
+        if let DescribeTopicsRequestSelection::All { include_internal } = &mut self.selection {
+            *include_internal = include;
+        }
+        self
+    }
+
     /// Selects whether Kafka should return exact topic authorization bitfields.
     pub const fn with_authorized_operations(mut self, include: bool) -> Self {
         self.include_authorized_operations = include;

@@ -58,3 +58,22 @@ fn authorized_operations_are_explicit_and_default_false() {
     assert!(!default.include_authorized_operations());
     assert!(requested.include_authorized_operations());
 }
+
+#[test]
+fn all_topic_options_compose_without_call_order_changing_intent() {
+    let expected =
+        kafka_client_core::DescribeTopicsPlan::all(true).with_authorized_operations(true);
+    let authorized_then_internal = DescribeTopicsRequest::all(false)
+        .with_authorized_operations(true)
+        .with_include_internal(true)
+        .into_plan()
+        .unwrap_or_else(|error| panic!("authorized then internal plan: {error}"));
+    let internal_then_authorized = DescribeTopicsRequest::all(false)
+        .with_include_internal(true)
+        .with_authorized_operations(true)
+        .into_plan()
+        .unwrap_or_else(|error| panic!("internal then authorized plan: {error}"));
+
+    assert_eq!(authorized_then_internal, expected);
+    assert_eq!(internal_then_authorized, expected);
+}

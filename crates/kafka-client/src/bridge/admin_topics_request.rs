@@ -34,7 +34,7 @@ impl DescribeTopicsAdminRequest {
     }
 
     pub(crate) fn with_include_internal(mut self, include_internal: bool) -> Self {
-        self.inner = EngineDescribeTopicsRequest::all(include_internal);
+        self.inner = self.inner.with_include_internal(include_internal);
         self
     }
 

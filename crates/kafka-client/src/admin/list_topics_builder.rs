@@ -33,6 +33,12 @@ impl ListTopicsBuilder {
         self
     }
 
+    /// Selects whether Kafka should return exact topic authorization bitfields.
+    pub fn include_authorized_operations(mut self, include: bool) -> Self {
+        self.request = self.request.with_authorized_operations(include);
+        self
+    }
+
     /// Replaces the duration converted into an absolute deadline at submission.
     pub const fn deadline_after(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;

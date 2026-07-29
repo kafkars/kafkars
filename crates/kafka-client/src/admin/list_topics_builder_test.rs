@@ -17,15 +17,26 @@ fn zero_deadline_and_internal_option_remain_inert_until_submit() {
         .bootstrap_servers(["127.0.0.1:1"])
         .build()
         .unwrap_or_else(|error| panic!("start facade client: {error}"));
-    let error = client
-        .admin()
-        .list_topics()
-        .include_internal(true)
-        .deadline_after(Duration::ZERO)
-        .submit()
-        .wait()
-        .err()
-        .unwrap_or_else(|| panic!("zero deadline must reject at submit"));
-    assert_eq!(error.kind(), ErrorKind::Configuration);
-    assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+    let admin = client.admin();
+    let builders = [
+        admin
+            .list_topics()
+            .include_authorized_operations(true)
+            .include_internal(true),
+        admin
+            .list_topics()
+            .include_internal(true)
+            .include_authorized_operations(true),
+    ];
+
+    for builder in builders {
+        let error = builder
+            .deadline_after(Duration::ZERO)
+            .submit()
+            .wait()
+            .err()
+            .unwrap_or_else(|| panic!("zero deadline must reject at submit"));
+        assert_eq!(error.kind(), ErrorKind::Configuration);
+        assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+    }
 }

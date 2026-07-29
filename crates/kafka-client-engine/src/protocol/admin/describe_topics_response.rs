@@ -57,9 +57,11 @@ pub(crate) fn normalize_describe_topics_response(
             retained_bytes,
             plan.include_authorized_operations(),
         ),
-        DescribeTopicsSelection::All { .. } => {
-            normalize_list_topics_response(response, retained_bytes)
-        }
+        DescribeTopicsSelection::All { .. } => normalize_list_topics_response(
+            response,
+            retained_bytes,
+            plan.include_authorized_operations(),
+        ),
     }
 }
 

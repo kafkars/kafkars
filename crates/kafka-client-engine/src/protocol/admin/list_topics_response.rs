@@ -11,6 +11,7 @@ use super::{
 pub(super) fn normalize_list_topics_response(
     response: &MetadataResponse,
     retained_bytes: usize,
+    include_authorized_operations: bool,
 ) -> Result<DescribeTopicsInput, DescribeTopicsProtocolFailure> {
     validate_names(response)?;
     if !all_result_fits(response, retained_bytes) {
@@ -26,7 +27,7 @@ pub(super) fn normalize_list_topics_response(
                 .name
                 .as_ref()
                 .ok_or(DescribeTopicsProtocolFailure::MissingTopicName)?;
-            normalize_topic(name.as_str(), topic, false)
+            normalize_topic(name.as_str(), topic, include_authorized_operations)
         })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(DescribeTopicsInput::BrokerResponded { outcomes })

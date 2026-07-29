@@ -6018,6 +6018,7 @@ root = "crates/kafka-client/src"
 method = "with_include_internal"
 allowed_paths = [
   "crates/kafka-client/src/admin/list_topics_builder.rs",
+  "crates/kafka-client/src/bridge/admin_topics_request.rs",
 ]
 
 [[method_capabilities]]
