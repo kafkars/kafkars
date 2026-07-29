@@ -2,6 +2,8 @@
 
 use std::{fmt, time::Duration};
 
+use kafka_client_core::AdminDescribeConsumerGroupsScope;
+
 use crate::admin::AdminHandle;
 
 use super::{
@@ -16,6 +18,32 @@ impl AdminHandle {
         request: DescribeConsumerGroupsRequest,
         timeout: Duration,
     ) -> Result<DescribeConsumerGroupsAccepted, DescribeConsumerGroupsAdmissionError> {
+        self.try_describe_consumer_groups_with_scope(
+            request,
+            timeout,
+            AdminDescribeConsumerGroupsScope::ModernFirst,
+        )
+    }
+
+    /// Uses classic `DescribeGroups` directly on the existing bounded owner.
+    pub fn try_describe_classic_groups(
+        &self,
+        request: DescribeConsumerGroupsRequest,
+        timeout: Duration,
+    ) -> Result<DescribeConsumerGroupsAccepted, DescribeConsumerGroupsAdmissionError> {
+        self.try_describe_consumer_groups_with_scope(
+            request,
+            timeout,
+            AdminDescribeConsumerGroupsScope::ClassicOnly,
+        )
+    }
+
+    fn try_describe_consumer_groups_with_scope(
+        &self,
+        request: DescribeConsumerGroupsRequest,
+        timeout: Duration,
+        scope: AdminDescribeConsumerGroupsScope,
+    ) -> Result<DescribeConsumerGroupsAccepted, DescribeConsumerGroupsAdmissionError> {
         let capture = self.clock.capture_deadline_after(timeout).map_err(|_| {
             DescribeConsumerGroupsAdmissionError::new(
                 DescribeConsumerGroupsAdmissionErrorKind::InvalidDeadline,
@@ -26,7 +54,12 @@ impl AdminHandle {
                 DescribeConsumerGroupsAdmissionErrorKind::InvalidDeadline,
             ));
         }
-        let plan = request.canonicalize().into_plan().map_err(|_| {
+        let request = request.canonicalize();
+        let plan = match scope {
+            AdminDescribeConsumerGroupsScope::ModernFirst => request.into_plan(),
+            AdminDescribeConsumerGroupsScope::ClassicOnly => request.into_plan_with_scope(scope),
+        }
+        .map_err(|_| {
             DescribeConsumerGroupsAdmissionError::new(
                 DescribeConsumerGroupsAdmissionErrorKind::InvalidRequest,
             )

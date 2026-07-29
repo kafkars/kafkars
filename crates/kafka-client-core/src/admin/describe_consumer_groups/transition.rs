@@ -6,8 +6,9 @@ use super::{
     AdminDescribeConsumerGroupsBatch, AdminDescribeConsumerGroupsCallKind,
     AdminDescribeConsumerGroupsEffect, AdminDescribeConsumerGroupsFailureKind,
     AdminDescribeConsumerGroupsInput, AdminDescribeConsumerGroupsMachine,
-    AdminDescribeConsumerGroupsMachineError, AdminDescribeConsumerGroupsState,
-    AdminDescribeConsumerGroupsTerminal, AdminDescribeConsumerGroupsTransition,
+    AdminDescribeConsumerGroupsMachineError, AdminDescribeConsumerGroupsScope,
+    AdminDescribeConsumerGroupsState, AdminDescribeConsumerGroupsTerminal,
+    AdminDescribeConsumerGroupsTransition, machine::initial_call_kind,
 };
 
 impl AdminDescribeConsumerGroupsMachine {
@@ -136,7 +137,7 @@ impl AdminDescribeConsumerGroupsMachine {
                 AdminDescribeConsumerGroupsBatch::new(self.maximum_throttle_time_ms, outcomes),
             )));
         }
-        self.call_kind = AdminDescribeConsumerGroupsCallKind::Consumer;
+        self.call_kind = initial_call_kind(self.plan.scope());
         self.prior_delivery = DeliveryStatus::NotSent;
         self.submit_current()
     }
@@ -148,6 +149,7 @@ impl AdminDescribeConsumerGroupsMachine {
     ) -> Result<AdminDescribeConsumerGroupsTransition, AdminDescribeConsumerGroupsMachineError>
     {
         if self.state != AdminDescribeConsumerGroupsState::Submitted
+            || self.plan.scope() != AdminDescribeConsumerGroupsScope::ModernFirst
             || self.call_kind != AdminDescribeConsumerGroupsCallKind::Consumer
         {
             return Err(AdminDescribeConsumerGroupsMachineError::InvalidState);

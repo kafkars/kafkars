@@ -5,18 +5,41 @@ use std::collections::BTreeSet;
 
 const MAX_GROUP_ID_BYTES: usize = i16::MAX as usize;
 
+/// Explicit protocol-family policy for consumer-group description.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AdminDescribeConsumerGroupsScope {
+    /// Attempt KIP-848 first and permit one explicit classic fallback.
+    ModernFirst,
+    /// Use classic `DescribeGroups` directly without a modern attempt.
+    ClassicOnly,
+}
+
 /// Validated bounded intent for describing classic consumer groups.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AdminDescribeConsumerGroupsPlan {
     groups: Vec<String>,
     include_authorized_operations: bool,
+    scope: AdminDescribeConsumerGroupsScope,
 }
 
 impl AdminDescribeConsumerGroupsPlan {
-    /// Validates a nonempty caller-ordered set of unique group IDs.
+    /// Validates a modern-first, caller-ordered set of unique group IDs.
     pub fn new(
         groups: Vec<String>,
         include_authorized_operations: bool,
+    ) -> Result<Self, AdminDescribeConsumerGroupsPlanError> {
+        Self::with_scope(
+            groups,
+            include_authorized_operations,
+            AdminDescribeConsumerGroupsScope::ModernFirst,
+        )
+    }
+
+    /// Validates a caller-ordered set under one explicit protocol-family scope.
+    pub fn with_scope(
+        groups: Vec<String>,
+        include_authorized_operations: bool,
+        scope: AdminDescribeConsumerGroupsScope,
     ) -> Result<Self, AdminDescribeConsumerGroupsPlanError> {
         if groups.is_empty() {
             return Err(AdminDescribeConsumerGroupsPlanError::EmptyGroupBatch);
@@ -36,6 +59,7 @@ impl AdminDescribeConsumerGroupsPlan {
         Ok(Self {
             groups,
             include_authorized_operations,
+            scope,
         })
     }
 
@@ -47,6 +71,11 @@ impl AdminDescribeConsumerGroupsPlan {
     /// Returns whether Kafka authorization bits were explicitly requested.
     pub const fn include_authorized_operations(&self) -> bool {
         self.include_authorized_operations
+    }
+
+    /// Returns the immutable protocol-family scope.
+    pub const fn scope(&self) -> AdminDescribeConsumerGroupsScope {
+        self.scope
     }
 }
 

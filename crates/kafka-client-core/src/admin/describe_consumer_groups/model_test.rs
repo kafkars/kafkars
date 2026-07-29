@@ -1,6 +1,9 @@
 //! Consumer-group description plan validation scenarios.
 
-use super::{AdminDescribeConsumerGroupsPlan, AdminDescribeConsumerGroupsPlanError};
+use super::{
+    AdminDescribeConsumerGroupsPlan, AdminDescribeConsumerGroupsPlanError,
+    AdminDescribeConsumerGroupsScope,
+};
 
 #[test]
 fn plan_preserves_caller_order_and_authorization_intent() {
@@ -9,6 +12,20 @@ fn plan_preserves_caller_order_and_authorization_intent() {
             .unwrap_or_else(|error| panic!("valid plan: {error}"));
     assert_eq!(plan.groups(), ["beta", "alpha"]);
     assert!(plan.include_authorized_operations());
+    assert_eq!(plan.scope(), AdminDescribeConsumerGroupsScope::ModernFirst);
+}
+
+#[test]
+fn explicit_classic_scope_preserves_the_same_validated_intent() {
+    let plan = AdminDescribeConsumerGroupsPlan::with_scope(
+        vec!["beta".to_owned(), "alpha".to_owned()],
+        true,
+        AdminDescribeConsumerGroupsScope::ClassicOnly,
+    )
+    .unwrap_or_else(|error| panic!("valid classic plan: {error}"));
+    assert_eq!(plan.groups(), ["beta", "alpha"]);
+    assert!(plan.include_authorized_operations());
+    assert_eq!(plan.scope(), AdminDescribeConsumerGroupsScope::ClassicOnly);
 }
 
 #[test]

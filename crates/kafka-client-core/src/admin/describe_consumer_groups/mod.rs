@@ -24,7 +24,10 @@ pub use member_description::{
     AdminClassicConsumerGroupMemberDetails, AdminConsumerGroupDescriptionMember,
     AdminConsumerGroupMemberDetails, AdminModernConsumerGroupMemberDetails,
 };
-pub use model::{AdminDescribeConsumerGroupsPlan, AdminDescribeConsumerGroupsPlanError};
+pub use model::{
+    AdminDescribeConsumerGroupsPlan, AdminDescribeConsumerGroupsPlanError,
+    AdminDescribeConsumerGroupsScope,
+};
 pub use outcome::{
     AdminConsumerGroupBrokerError, AdminConsumerGroupDescriptionOutcome,
     AdminConsumerGroupDescriptionResult, AdminDescribeConsumerGroupsBatch,
@@ -38,5 +41,7 @@ mod fallback_test;
 mod model_test;
 #[cfg(test)]
 mod partial_test;
+#[cfg(test)]
+mod scope_test;
 #[cfg(test)]
 mod transition_test;

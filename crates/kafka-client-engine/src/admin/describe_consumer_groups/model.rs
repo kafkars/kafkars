@@ -1,6 +1,9 @@
 //! Engine-owned scalar intent for caller-ordered consumer-group description.
 
-use kafka_client_core::{AdminDescribeConsumerGroupsPlan, AdminDescribeConsumerGroupsPlanError};
+use kafka_client_core::{
+    AdminDescribeConsumerGroupsPlan, AdminDescribeConsumerGroupsPlanError,
+    AdminDescribeConsumerGroupsScope,
+};
 
 /// One caller-ordered inert request validated at the public operation boundary.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -37,6 +40,17 @@ impl DescribeConsumerGroupsRequest {
     pub(crate) fn into_plan(
         self,
     ) -> Result<AdminDescribeConsumerGroupsPlan, AdminDescribeConsumerGroupsPlanError> {
-        AdminDescribeConsumerGroupsPlan::new(self.groups, self.include_authorized_operations)
+        self.into_plan_with_scope(AdminDescribeConsumerGroupsScope::ModernFirst)
+    }
+
+    pub(crate) fn into_plan_with_scope(
+        self,
+        scope: AdminDescribeConsumerGroupsScope,
+    ) -> Result<AdminDescribeConsumerGroupsPlan, AdminDescribeConsumerGroupsPlanError> {
+        AdminDescribeConsumerGroupsPlan::with_scope(
+            self.groups,
+            self.include_authorized_operations,
+            scope,
+        )
     }
 }

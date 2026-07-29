@@ -6,7 +6,7 @@ use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
 use super::{
     AdminConsumerGroupDescriptionOutcome, AdminDescribeConsumerGroupsPlan,
-    AdminDescribeConsumerGroupsTerminal,
+    AdminDescribeConsumerGroupsScope, AdminDescribeConsumerGroupsTerminal,
 };
 
 /// Current ownership stage for one consumer-group description operation.
@@ -27,7 +27,9 @@ pub enum AdminDescribeConsumerGroupsState {
 pub enum AdminDescribeConsumerGroupsCallKind {
     /// KIP-848 `ConsumerGroupDescribe`, attempted first for every group.
     Consumer,
-    /// Classic `DescribeGroups`, attempted once after an explicit fallback fact.
+    /// Classic `DescribeGroups`, selected directly without a modern attempt.
+    Classic,
+    /// Classic `DescribeGroups`, selected after one explicit modern fallback.
     ClassicFallback,
 }
 
@@ -94,7 +96,7 @@ pub enum AdminDescribeConsumerGroupsEffect {
         group_id: String,
         /// Exact authorization-bit expansion intent.
         include_authorized_operations: bool,
-        /// Concrete modern-first or classic-fallback protocol.
+        /// Concrete modern, direct-classic, or classic-fallback protocol.
         call_kind: AdminDescribeConsumerGroupsCallKind,
     },
     /// Publishes the sole terminal decision.
@@ -151,6 +153,7 @@ impl AdminDescribeConsumerGroupsMachine {
         plan: AdminDescribeConsumerGroupsPlan,
     ) -> Self {
         let outcomes = Vec::with_capacity(plan.groups().len());
+        let call_kind = initial_call_kind(plan.scope());
         Self {
             operation_id,
             deadline,
@@ -159,7 +162,7 @@ impl AdminDescribeConsumerGroupsMachine {
             next_group: 0,
             maximum_throttle_time_ms: 0,
             outcomes,
-            call_kind: AdminDescribeConsumerGroupsCallKind::Consumer,
+            call_kind,
             prior_delivery: DeliveryStatus::NotSent,
         }
     }
@@ -179,9 +182,27 @@ impl AdminDescribeConsumerGroupsMachine {
         self.plan.include_authorized_operations()
     }
 
+    /// Returns the immutable protocol-family scope.
+    pub const fn scope(&self) -> AdminDescribeConsumerGroupsScope {
+        self.plan.scope()
+    }
+
     /// Returns the concrete protocol owned for the current group attempt.
     pub const fn call_kind(&self) -> AdminDescribeConsumerGroupsCallKind {
         self.call_kind
+    }
+}
+
+pub(super) const fn initial_call_kind(
+    scope: AdminDescribeConsumerGroupsScope,
+) -> AdminDescribeConsumerGroupsCallKind {
+    match scope {
+        AdminDescribeConsumerGroupsScope::ModernFirst => {
+            AdminDescribeConsumerGroupsCallKind::Consumer
+        }
+        AdminDescribeConsumerGroupsScope::ClassicOnly => {
+            AdminDescribeConsumerGroupsCallKind::Classic
+        }
     }
 }
 
