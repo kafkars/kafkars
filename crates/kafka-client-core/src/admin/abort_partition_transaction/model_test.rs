@@ -15,7 +15,46 @@ fn plan_preserves_the_complete_nonnegative_transaction_identity() {
     assert_eq!(plan.producer_id(), 91);
     assert_eq!(plan.producer_epoch(), 7);
     assert_eq!(plan.coordinator_epoch(), 11);
-    assert_eq!(plan.into_parts(), ("orders".to_owned(), 2, 91, 7, 11));
+    assert_eq!(plan.transaction_version(), 0);
+    assert_eq!(plan.minimum_api_version(), 1);
+    assert_eq!(plan.into_parts(), ("orders".to_owned(), 2, 91, 7, 11, 0));
+}
+
+#[test]
+fn every_positive_transaction_version_requires_api_v2() {
+    for transaction_version in [1, 2, i8::MAX] {
+        let plan = AbortPartitionTransactionPlan::new("orders".to_owned(), 2, 91, 7, 11)
+            .unwrap_or_else(|error| panic!("plan: {error}"))
+            .with_transaction_version(transaction_version)
+            .unwrap_or_else(|error| panic!("transaction version: {error}"));
+
+        assert_eq!(plan.transaction_version(), transaction_version);
+        assert_eq!(plan.minimum_api_version(), 2);
+        assert_eq!(plan.into_parts().5, transaction_version);
+    }
+}
+
+#[test]
+fn explicit_zero_transaction_version_retains_v1_compatibility() {
+    let plan = AbortPartitionTransactionPlan::new("orders".to_owned(), 2, 91, 7, 11)
+        .unwrap_or_else(|error| panic!("plan: {error}"))
+        .with_transaction_version(0)
+        .unwrap_or_else(|error| panic!("transaction version: {error}"));
+
+    assert_eq!(plan.transaction_version(), 0);
+    assert_eq!(plan.minimum_api_version(), 1);
+}
+
+#[test]
+fn negative_transaction_versions_are_rejected_before_machine_construction() {
+    for transaction_version in [i8::MIN, -1] {
+        let plan = AbortPartitionTransactionPlan::new("orders".to_owned(), 2, 91, 7, 11)
+            .unwrap_or_else(|error| panic!("plan: {error}"));
+        assert_eq!(
+            plan.with_transaction_version(transaction_version),
+            Err(AbortPartitionTransactionPlanError::NegativeTransactionVersion)
+        );
+    }
 }
 
 #[test]
@@ -68,4 +107,5 @@ fn maximum_topic_and_scalar_values_remain_representable() {
     assert_eq!(plan.producer_id(), i64::MAX);
     assert_eq!(plan.producer_epoch(), i16::MAX);
     assert_eq!(plan.coordinator_epoch(), i32::MAX);
+    assert_eq!(plan.transaction_version(), 0);
 }

@@ -20,7 +20,7 @@ impl AbortPartitionTransactionAdminRequest {
     }
 
     pub(in crate::bridge) fn into_engine(self) -> EngineRequest {
-        let (topic_partition, producer_id, producer_epoch, coordinator_epoch) =
+        let (topic_partition, producer_id, producer_epoch, coordinator_epoch, transaction_version) =
             self.spec.into_parts();
         let (topic, partition, start) = topic_partition.into_parts();
         let partition = if start.is_some() {
@@ -35,6 +35,7 @@ impl AbortPartitionTransactionAdminRequest {
             producer_epoch,
             coordinator_epoch,
         )
+        .with_transaction_version(transaction_version)
     }
 }
 

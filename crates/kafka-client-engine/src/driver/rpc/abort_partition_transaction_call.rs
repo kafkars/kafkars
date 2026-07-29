@@ -30,12 +30,7 @@ impl AbortPartitionTransactionCall {
     ) -> Result<Self, AbortPartitionTransactionCallAdmissionFailure> {
         let request = abort_partition_transaction_request(plan);
         let call = driver
-            .submit_tracked_abort_partition_transaction(
-                plan.topic(),
-                plan.partition(),
-                request,
-                deadline,
-            )
+            .submit_tracked_abort_partition_transaction(plan, request, deadline)
             .map_err(|_source| AbortPartitionTransactionCallAdmissionFailure::Driver)?;
         Ok(Self { call: Some(call) })
     }

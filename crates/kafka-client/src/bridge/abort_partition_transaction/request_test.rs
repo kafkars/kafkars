@@ -6,15 +6,20 @@ use super::AbortPartitionTransactionAdminRequest;
 
 #[test]
 fn translation_preserves_the_complete_broker_issued_identity() {
-    let request = AbortPartitionTransactionAdminRequest::new(AbortTransactionSpec::new(
-        TopicPartition::new("orders", 3),
-        41,
-        7,
-        11,
-    ));
+    let request = AbortPartitionTransactionAdminRequest::new(
+        AbortTransactionSpec::new(TopicPartition::new("orders", 3), 41, 7, 11)
+            .transaction_version(2),
+    );
 
     let engine = format!("{:?}", request.into_engine());
-    for expected in ["orders", "3", "41", "7", "11"] {
+    for expected in [
+        "orders",
+        "partition: 3",
+        "producer_id: 41",
+        "producer_epoch: 7",
+        "coordinator_epoch: 11",
+        "transaction_version: 2",
+    ] {
         assert!(engine.contains(expected), "missing {expected} in {engine}");
     }
 }

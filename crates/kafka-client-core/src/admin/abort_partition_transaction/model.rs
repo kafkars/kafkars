@@ -13,6 +13,7 @@ pub struct AbortPartitionTransactionPlan {
     producer_id: i64,
     producer_epoch: i16,
     coordinator_epoch: i32,
+    transaction_version: i8,
 }
 
 impl AbortPartitionTransactionPlan {
@@ -48,7 +49,20 @@ impl AbortPartitionTransactionPlan {
             producer_id,
             producer_epoch,
             coordinator_epoch,
+            transaction_version: 0,
         })
+    }
+
+    /// Validates and replaces Kafka's nonnegative transaction-marker version.
+    pub fn with_transaction_version(
+        mut self,
+        transaction_version: i8,
+    ) -> Result<Self, AbortPartitionTransactionPlanError> {
+        if transaction_version < 0 {
+            return Err(AbortPartitionTransactionPlanError::NegativeTransactionVersion);
+        }
+        self.transaction_version = transaction_version;
+        Ok(self)
     }
 
     /// Returns the exact topic containing the open transaction.
@@ -76,14 +90,25 @@ impl AbortPartitionTransactionPlan {
         self.coordinator_epoch
     }
 
+    /// Returns Kafka's exact nonnegative transaction-marker version.
+    pub const fn transaction_version(&self) -> i8 {
+        self.transaction_version
+    }
+
+    /// Returns the earliest API-key 27 version representing this marker version.
+    pub const fn minimum_api_version(&self) -> i16 {
+        if self.transaction_version == 0 { 1 } else { 2 }
+    }
+
     /// Consumes the plan into adapter-owned scalar values.
-    pub fn into_parts(self) -> (String, i32, i64, i16, i32) {
+    pub fn into_parts(self) -> (String, i32, i64, i16, i32, i8) {
         (
             self.topic,
             self.partition,
             self.producer_id,
             self.producer_epoch,
             self.coordinator_epoch,
+            self.transaction_version,
         )
     }
 }
@@ -103,6 +128,8 @@ pub enum AbortPartitionTransactionPlanError {
     NegativeProducerEpoch,
     /// Kafka transaction-coordinator epochs cannot be negative.
     NegativeCoordinatorEpoch,
+    /// Kafka transaction-marker versions cannot be negative.
+    NegativeTransactionVersion,
 }
 
 impl fmt::Display for AbortPartitionTransactionPlanError {

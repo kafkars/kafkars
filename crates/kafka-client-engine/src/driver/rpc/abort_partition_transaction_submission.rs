@@ -2,6 +2,7 @@
 
 use std::{error::Error, fmt, time::Instant};
 
+use kafka_client_core::AbortPartitionTransactionPlan;
 use kafka_driver::{
     ApiVersion, PartitionId, PartitionIdError, RequestOptions, Route, RoutedCall, SubmitError,
     TopicName, TopicNameError, TrafficClass,
@@ -10,7 +11,6 @@ use kafka_wire::{WriteTxnMarkersRequest, WriteTxnMarkersResponse};
 
 use super::super::DriverOwner;
 
-const ABORT_PARTITION_TRANSACTION_MIN_VERSION: ApiVersion = ApiVersion::new(1);
 const ABORT_PARTITION_TRANSACTION_MAX_VERSION: ApiVersion = ApiVersion::new(2);
 
 /// Definitely-unsent failure before the driver accepted request ownership.
@@ -60,28 +60,30 @@ impl DriverOwner {
     /// Submits one abort marker against the current partition leader.
     pub(crate) fn submit_tracked_abort_partition_transaction(
         &self,
-        topic: &str,
-        partition: i32,
+        plan: &AbortPartitionTransactionPlan,
         request: WriteTxnMarkersRequest,
         deadline: Instant,
     ) -> Result<RoutedCall<WriteTxnMarkersResponse>, AbortPartitionTransactionSubmitError> {
-        let topic = TopicName::new(topic.to_owned())
+        let topic = TopicName::new(plan.topic().to_owned())
             .map_err(AbortPartitionTransactionSubmitError::InvalidTopic)?;
-        let partition = PartitionId::new(partition)
+        let partition = PartitionId::new(plan.partition())
             .map_err(AbortPartitionTransactionSubmitError::InvalidPartition)?;
         self.driver
             .request_tracked_with(
                 Route::PartitionLeader { topic, partition },
                 request,
-                abort_partition_transaction_options(deadline),
+                abort_partition_transaction_options(plan, deadline),
             )
             .map_err(AbortPartitionTransactionSubmitError::Driver)
     }
 }
 
-pub(super) const fn abort_partition_transaction_options(deadline: Instant) -> RequestOptions {
+pub(super) const fn abort_partition_transaction_options(
+    plan: &AbortPartitionTransactionPlan,
+    deadline: Instant,
+) -> RequestOptions {
     RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Interactive)
-        .with_minimum_version(ABORT_PARTITION_TRANSACTION_MIN_VERSION)
+        .with_minimum_version(ApiVersion::new(plan.minimum_api_version()))
         .with_maximum_version(ABORT_PARTITION_TRANSACTION_MAX_VERSION)
 }

@@ -10,6 +10,7 @@ pub struct AbortPartitionTransactionRequest {
     producer_id: i64,
     producer_epoch: i16,
     coordinator_epoch: i32,
+    transaction_version: i8,
 }
 
 impl AbortPartitionTransactionRequest {
@@ -27,17 +28,25 @@ impl AbortPartitionTransactionRequest {
             producer_id,
             producer_epoch,
             coordinator_epoch,
+            transaction_version: 0,
         }
     }
 
+    /// Replaces Kafka's transaction-marker version.
+    pub const fn with_transaction_version(mut self, transaction_version: i8) -> Self {
+        self.transaction_version = transaction_version;
+        self
+    }
+
     /// Consumes the request into stable scalar parts.
-    pub fn into_parts(self) -> (String, i32, i64, i16, i32) {
+    pub fn into_parts(self) -> (String, i32, i64, i16, i32, i8) {
         (
             self.topic,
             self.partition,
             self.producer_id,
             self.producer_epoch,
             self.coordinator_epoch,
+            self.transaction_version,
         )
     }
 
@@ -49,7 +58,8 @@ impl AbortPartitionTransactionRequest {
     pub(crate) fn into_plan(
         self,
     ) -> Result<AbortPartitionTransactionPlan, AbortPartitionTransactionPlanError> {
-        let (topic, partition, producer_id, producer_epoch, coordinator_epoch) = self.into_parts();
+        let (topic, partition, producer_id, producer_epoch, coordinator_epoch, transaction_version) =
+            self.into_parts();
         AbortPartitionTransactionPlan::new(
             topic,
             partition,
@@ -57,5 +67,6 @@ impl AbortPartitionTransactionRequest {
             producer_epoch,
             coordinator_epoch,
         )
+        .and_then(|plan| plan.with_transaction_version(transaction_version))
     }
 }

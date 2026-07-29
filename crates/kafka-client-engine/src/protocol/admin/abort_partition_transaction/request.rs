@@ -20,7 +20,7 @@ pub(crate) fn abort_partition_transaction_request(
     marker.transaction_result = false;
     marker.topics = vec![topic];
     marker.coordinator_epoch = plan.coordinator_epoch();
-    marker.transaction_version = 0;
+    marker.transaction_version = plan.transaction_version();
 
     let mut request = WriteTxnMarkersRequest::default();
     request.markers = vec![marker];
