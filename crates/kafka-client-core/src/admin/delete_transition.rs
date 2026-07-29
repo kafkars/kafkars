@@ -2,6 +2,8 @@
 
 use crate::DeliveryStatus;
 
+use super::delete_model::DeleteTopicsSelection;
+use super::delete_outcome::DeleteTopicIdOutcome;
 use super::{
     DeleteTopicOutcome, DeleteTopicsEffect, DeleteTopicsFailure, DeleteTopicsInput,
     DeleteTopicsMachine, DeleteTopicsMachineError, DeleteTopicsState, DeleteTopicsTerminal,
@@ -23,6 +25,9 @@ impl DeleteTopicsMachine {
             DeleteTopicsInput::DriverRejected => self.driver_rejected(),
             DeleteTopicsInput::DeadlineElapsed => self.deadline_elapsed(),
             DeleteTopicsInput::BrokerResponded { outcomes } => self.broker_responded(outcomes),
+            DeleteTopicsInput::BrokerRespondedById { outcomes } => {
+                self.broker_responded_by_id(outcomes)
+            }
             DeleteTopicsInput::TransportFailed { delivery } => self.transport_failed(delivery),
             DeleteTopicsInput::InvalidResponse => self.invalid_response(),
         }
@@ -81,8 +86,25 @@ impl DeleteTopicsMachine {
         if self.state != DeleteTopicsState::Submitted {
             return Err(DeleteTopicsMachineError::InvalidState);
         }
+        if !matches!(self.plan.selection(), DeleteTopicsSelection::Named(_)) {
+            return Err(DeleteTopicsMachineError::OutcomeTopicMismatch);
+        }
         self.validate_outcomes(&outcomes)?;
         Ok(self.finish(DeleteTopicsTerminal::Topics(outcomes)))
+    }
+
+    fn broker_responded_by_id(
+        &mut self,
+        outcomes: Vec<DeleteTopicIdOutcome>,
+    ) -> Result<DeleteTopicsTransition, DeleteTopicsMachineError> {
+        if self.state != DeleteTopicsState::Submitted {
+            return Err(DeleteTopicsMachineError::InvalidState);
+        }
+        if !matches!(self.plan.selection(), DeleteTopicsSelection::Ids(_)) {
+            return Err(DeleteTopicsMachineError::OutcomeTopicIdMismatch);
+        }
+        self.validate_topic_id_outcomes(&outcomes)?;
+        Ok(self.finish(DeleteTopicsTerminal::TopicIds(outcomes)))
     }
 
     fn transport_failed(
@@ -121,6 +143,25 @@ impl DeleteTopicsMachine {
             .any(|(topic, outcome)| topic != outcome.topic())
         {
             return Err(DeleteTopicsMachineError::OutcomeTopicMismatch);
+        }
+        Ok(())
+    }
+
+    fn validate_topic_id_outcomes(
+        &self,
+        outcomes: &[DeleteTopicIdOutcome],
+    ) -> Result<(), DeleteTopicsMachineError> {
+        if self.plan.topic_ids().len() != outcomes.len() {
+            return Err(DeleteTopicsMachineError::OutcomeCountMismatch);
+        }
+        if self
+            .plan
+            .topic_ids()
+            .iter()
+            .zip(outcomes)
+            .any(|(topic_id, outcome)| *topic_id != outcome.topic_id())
+        {
+            return Err(DeleteTopicsMachineError::OutcomeTopicIdMismatch);
         }
         Ok(())
     }

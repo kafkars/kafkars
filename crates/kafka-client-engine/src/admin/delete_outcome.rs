@@ -53,6 +53,30 @@ pub struct DeleteTopicResult {
     result: Result<(), DeleteTopicError>,
 }
 
+/// One topic-ID terminal in original request order.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeleteTopicIdResult {
+    topic_id: [u8; 16],
+    result: Result<(), DeleteTopicError>,
+}
+
+impl DeleteTopicIdResult {
+    /// Returns the requested topic ID.
+    pub const fn topic_id(&self) -> [u8; 16] {
+        self.topic_id
+    }
+
+    /// Returns this topic ID's broker outcome.
+    pub const fn result(&self) -> &Result<(), DeleteTopicError> {
+        &self.result
+    }
+
+    /// Consumes the ordered result into stable adapter-owned parts.
+    pub fn into_parts(self) -> ([u8; 16], Result<(), DeleteTopicError>) {
+        (self.topic_id, self.result)
+    }
+}
+
 impl DeleteTopicResult {
     /// Returns the requested topic name.
     pub fn topic(&self) -> &str {
@@ -105,8 +129,10 @@ impl DeleteTopicsFailure {
 /// Exactly one engine-owned terminal decision.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DeleteTopicsOutcome {
-    /// Ordered broker outcomes.
+    /// Ordered name-based broker outcomes.
     Topics(Vec<DeleteTopicResult>),
+    /// Ordered topic-ID-based broker outcomes.
+    TopicIds(Vec<DeleteTopicIdResult>),
     /// Whole-operation failure outside per-topic results.
     Failed(DeleteTopicsFailure),
 }
@@ -150,6 +176,26 @@ pub(crate) fn translate_terminal(terminal: DeleteTopicsTerminal) -> DeleteTopics
                         }
                     };
                     DeleteTopicResult { topic, result }
+                })
+                .collect(),
+        ),
+        DeleteTopicsTerminal::TopicIds(outcomes) => DeleteTopicsOutcome::TopicIds(
+            outcomes
+                .into_iter()
+                .map(|outcome| {
+                    let (topic_id, result) = outcome.into_parts();
+                    let result = match result {
+                        CoreTopicResult::Deleted => Ok(()),
+                        CoreTopicResult::Failed(error) => {
+                            let (code, message, message_truncated) = error.into_parts();
+                            Err(DeleteTopicError {
+                                code,
+                                message,
+                                message_truncated,
+                            })
+                        }
+                    };
+                    DeleteTopicIdResult { topic_id, result }
                 })
                 .collect(),
         ),

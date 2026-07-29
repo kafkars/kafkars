@@ -4,6 +4,7 @@ use core::num::NonZeroI16;
 
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
+use super::delete_outcome::DeleteTopicIdOutcome;
 use super::{
     DeleteTopicBrokerError, DeleteTopicOutcome, DeleteTopicsEffect, DeleteTopicsInput,
     DeleteTopicsMachine, DeleteTopicsMachineError, DeleteTopicsPlan, DeleteTopicsState,
@@ -91,6 +92,58 @@ fn deadline_and_response_order_are_owned_by_core() {
         Err(DeleteTopicsMachineError::OutcomeTopicMismatch)
     );
     assert_eq!(mismatch.state(), DeleteTopicsState::Submitted);
+}
+
+#[test]
+fn topic_id_terminal_preserves_caller_order_and_identity_kind() {
+    let first = [1; 16];
+    let second = [2; 16];
+    let plan = DeleteTopicsPlan::by_ids(vec![first, second])
+        .unwrap_or_else(|error| panic!("valid topic-ID deletion plan: {error}"));
+    let mut machine =
+        DeleteTopicsMachine::new(OperationId::from_raw(9), Deadline::from_tick(20), plan);
+    machine
+        .apply(DeleteTopicsInput::Start {
+            now: Moment::from_tick(1),
+        })
+        .and_then(|_| machine.apply(DeleteTopicsInput::DriverAccepted))
+        .unwrap_or_else(|error| panic!("topic-ID setup should succeed: {error}"));
+    let terminal = machine
+        .apply(DeleteTopicsInput::BrokerRespondedById {
+            outcomes: vec![
+                DeleteTopicIdOutcome::deleted(first),
+                DeleteTopicIdOutcome::deleted(second),
+            ],
+        })
+        .unwrap_or_else(|error| panic!("topic-ID response should settle: {error}"));
+    assert!(matches!(
+        terminal.into_effect(),
+        Some(DeleteTopicsEffect::Complete {
+            terminal: DeleteTopicsTerminal::TopicIds(outcomes),
+            ..
+        }) if outcomes.iter().map(DeleteTopicIdOutcome::topic_id).collect::<Vec<_>>()
+            == vec![first, second]
+    ));
+
+    let plan = DeleteTopicsPlan::by_ids(vec![first, second])
+        .unwrap_or_else(|error| panic!("valid topic-ID deletion plan: {error}"));
+    let mut mismatch =
+        DeleteTopicsMachine::new(OperationId::from_raw(10), Deadline::from_tick(20), plan);
+    mismatch
+        .apply(DeleteTopicsInput::Start {
+            now: Moment::from_tick(1),
+        })
+        .and_then(|_| mismatch.apply(DeleteTopicsInput::DriverAccepted))
+        .unwrap_or_else(|error| panic!("topic-ID setup should succeed: {error}"));
+    assert_eq!(
+        mismatch.apply(DeleteTopicsInput::BrokerRespondedById {
+            outcomes: vec![
+                DeleteTopicIdOutcome::deleted(second),
+                DeleteTopicIdOutcome::deleted(first),
+            ],
+        }),
+        Err(DeleteTopicsMachineError::OutcomeTopicIdMismatch)
+    );
 }
 
 struct DeleteTopicsTransitionExt;

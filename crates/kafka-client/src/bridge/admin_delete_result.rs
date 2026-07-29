@@ -11,7 +11,9 @@ use crate::{
     bridge::admin_delete_operation::AdminDeleteTopicsResult,
 };
 
-pub(super) fn translate_admission_error(error: DeleteTopicsAdmissionError) -> KafkaError {
+pub(in crate::bridge) fn translate_admission_error(
+    error: DeleteTopicsAdmissionError,
+) -> KafkaError {
     translate_admission_kind(error.kind())
 }
 
@@ -30,7 +32,9 @@ pub(super) fn translate_admission_kind(kind: DeleteTopicsAdmissionErrorKind) -> 
         .with_delivery_status(DeliveryStatus::NotSent)
 }
 
-pub(super) fn translate_accepted_fault(fault: DeleteTopicsAcceptedFaultKind) -> KafkaError {
+pub(in crate::bridge) fn translate_accepted_fault(
+    fault: DeleteTopicsAcceptedFaultKind,
+) -> KafkaError {
     match fault {
         DeleteTopicsAcceptedFaultKind::Wake => KafkaError::new(
             ErrorKind::Internal,
@@ -56,12 +60,17 @@ pub(super) fn translate_observation(
                 })
                 .collect(),
         )),
+        Ok(DeleteTopicsOutcome::TopicIds(_)) => Err(KafkaError::new(
+            ErrorKind::Internal,
+            "name-based DeleteTopics received a topic-ID terminal",
+        )
+        .with_delivery_status(DeliveryStatus::PossiblySent)),
         Ok(DeleteTopicsOutcome::Failed(failure)) => Err(translate_failure(failure)),
         Err(error) => Err(translate_observer_error(error)),
     }
 }
 
-fn translate_failure(failure: DeleteTopicsFailure) -> KafkaError {
+pub(in crate::bridge) fn translate_failure(failure: DeleteTopicsFailure) -> KafkaError {
     translate_failure_parts(failure.kind(), failure.delivery())
 }
 
@@ -79,7 +88,7 @@ pub(super) fn translate_failure_parts(
         .with_delivery_status(translate_delivery(delivery))
 }
 
-fn translate_topic_error(error: EngineTopicError) -> KafkaError {
+pub(in crate::bridge) fn translate_topic_error(error: EngineTopicError) -> KafkaError {
     let (code, message, message_truncated) = error.into_parts();
     translate_topic_error_parts(code, message.as_deref(), message_truncated)
 }
@@ -105,7 +114,7 @@ const fn translate_delivery(delivery: DeleteTopicsDeliveryStatus) -> DeliverySta
     }
 }
 
-pub(super) fn translate_observer_error(error: DeleteTopicsObserverError) -> KafkaError {
+pub(in crate::bridge) fn translate_observer_error(error: DeleteTopicsObserverError) -> KafkaError {
     let public = match error {
         DeleteTopicsObserverError::AlreadyObserved => ErrorKind::State,
         DeleteTopicsObserverError::Stale => ErrorKind::Internal,

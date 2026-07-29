@@ -63,6 +63,41 @@ pub struct DeleteTopicOutcome {
     result: DeleteTopicResult,
 }
 
+/// One topic-ID per-resource result in a completed `DeleteTopics` batch.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeleteTopicIdOutcome {
+    topic_id: [u8; 16],
+    result: DeleteTopicResult,
+}
+
+impl DeleteTopicIdOutcome {
+    /// Creates a successful topic-ID result.
+    pub const fn deleted(topic_id: [u8; 16]) -> Self {
+        Self {
+            topic_id,
+            result: DeleteTopicResult::Deleted,
+        }
+    }
+
+    /// Creates a failed topic-ID result.
+    pub const fn failed(topic_id: [u8; 16], error: DeleteTopicBrokerError) -> Self {
+        Self {
+            topic_id,
+            result: DeleteTopicResult::Failed(error),
+        }
+    }
+
+    /// Returns the requested topic ID.
+    pub const fn topic_id(&self) -> [u8; 16] {
+        self.topic_id
+    }
+
+    /// Consumes this ordered outcome into adapter-owned parts.
+    pub fn into_parts(self) -> ([u8; 16], DeleteTopicResult) {
+        (self.topic_id, self.result)
+    }
+}
+
 impl DeleteTopicOutcome {
     /// Creates a successful per-topic result.
     pub fn deleted(topic: impl Into<String>) -> Self {
@@ -154,8 +189,10 @@ impl DeleteTopicsFailure {
 /// Exactly one terminal decision for a `DeleteTopics` operation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeleteTopicsTerminal {
-    /// Ordered per-topic broker outcomes.
+    /// Ordered name-based per-topic broker outcomes.
     Topics(Vec<DeleteTopicOutcome>),
+    /// Ordered topic-ID-based per-topic broker outcomes.
+    TopicIds(Vec<DeleteTopicIdOutcome>),
     /// Whole-operation failure outside per-topic broker results.
     Failed(DeleteTopicsFailure),
 }

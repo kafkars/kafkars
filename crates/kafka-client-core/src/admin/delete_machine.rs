@@ -4,6 +4,7 @@ use core::fmt;
 
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
+use super::delete_outcome::DeleteTopicIdOutcome;
 use super::{DeleteTopicOutcome, DeleteTopicsPlan, DeleteTopicsTerminal};
 
 /// Current ownership stage for one `DeleteTopics` operation.
@@ -37,6 +38,11 @@ pub enum DeleteTopicsInput {
     BrokerResponded {
         /// Outcomes in original request order.
         outcomes: Vec<DeleteTopicOutcome>,
+    },
+    /// Reports protocol-normalized topic-ID results in original request order.
+    BrokerRespondedById {
+        /// Outcomes in original topic-ID request order.
+        outcomes: Vec<DeleteTopicIdOutcome>,
     },
     /// Reports a driver-owned transport terminal.
     TransportFailed {
@@ -132,6 +138,8 @@ pub enum DeleteTopicsMachineError {
     OutcomeCountMismatch,
     /// A normalized response is not in original request order.
     OutcomeTopicMismatch,
+    /// A normalized topic-ID response is not in original request order.
+    OutcomeTopicIdMismatch,
 }
 
 impl fmt::Display for DeleteTopicsMachineError {
