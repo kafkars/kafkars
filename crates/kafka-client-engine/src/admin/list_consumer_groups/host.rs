@@ -196,13 +196,18 @@ impl ListConsumerGroupsHost {
                 operation_id,
                 deadline,
                 broker_id,
+                filters,
             } => {
                 if deadline != self.operations[index].deadline.core() {
                     return Err(ListConsumerGroupsHostError::SubmissionMismatch);
                 }
                 (
                     operation_id,
-                    ListConsumerGroupsSubmissionKind::Broker { broker_id },
+                    ListConsumerGroupsSubmissionKind::Broker {
+                        broker_id,
+                        filters,
+                        retained_limit: self.operations[index].remaining_result_bytes,
+                    },
                 )
             }
             AdminListConsumerGroupsEffect::Complete {

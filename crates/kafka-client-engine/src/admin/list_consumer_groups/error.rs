@@ -11,6 +11,8 @@ use crate::completion::CompletionRegistryError;
 pub enum ListConsumerGroupsAdmissionErrorKind {
     /// The public timeout could not produce a valid absolute deadline.
     InvalidDeadline,
+    /// The caller supplied an invalid bounded filter plan.
+    InvalidRequest,
     /// Another thread currently owns the bounded admission shard.
     Contended,
     /// Engine shutdown closed new admissions.

@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of cluster group-listing outcomes.
+//! Exhaustive stable translation of unfiltered cluster group-listing outcomes.
 
 use std::time::Duration;
 
@@ -11,10 +11,10 @@ use kafka_client_engine::{
 
 use crate::{
     DeliveryStatus, ErrorKind, KafkaError,
-    admin::{ConsumerGroupListing, ListConsumerGroupsBrokerError, ListConsumerGroupsResult},
+    admin::{GroupListing, ListGroupsBrokerError, ListGroupsResult},
 };
 
-use super::operation::AdminListConsumerGroupsResult;
+use super::operation::AdminListGroupsResult;
 
 pub(super) fn translate_admission_error(error: ListConsumerGroupsAdmissionError) -> KafkaError {
     let kind = error.kind();
@@ -28,46 +28,43 @@ pub(super) fn translate_admission_error(error: ListConsumerGroupsAdmissionError)
         ListConsumerGroupsAdmissionErrorKind::IdentityExhausted
         | ListConsumerGroupsAdmissionErrorKind::HostUnavailable => ErrorKind::Internal,
     };
-    KafkaError::new(
-        public,
-        format!("ListConsumerGroups admission failed: {kind:?}"),
-    )
-    .with_delivery_status(DeliveryStatus::NotSent)
+    KafkaError::new(public, format!("ListGroups admission failed: {kind:?}"))
+        .with_delivery_status(DeliveryStatus::NotSent)
 }
 
 pub(super) fn translate_accepted_fault(fault: ListConsumerGroupsAcceptedFaultKind) -> KafkaError {
     match fault {
         ListConsumerGroupsAcceptedFaultKind::Wake => KafkaError::new(
             ErrorKind::Internal,
-            "ListConsumerGroups was accepted but its host wake failed",
+            "ListGroups was accepted but its host wake failed",
         ),
         ListConsumerGroupsAcceptedFaultKind::HostInvariant => KafkaError::new(
             ErrorKind::Internal,
-            "ListConsumerGroups was accepted but its host reported an invariant failure",
+            "ListGroups was accepted but its host reported an invariant failure",
         ),
     }
 }
 
 pub(super) fn translate_observation(
     result: Result<ListConsumerGroupsOutcome, ListConsumerGroupsObserverError>,
-) -> AdminListConsumerGroupsResult {
+) -> AdminListGroupsResult {
     match result {
         Ok(ListConsumerGroupsOutcome::Groups(batch)) => {
             let (throttle_time_ms, groups, errors) = batch.into_parts();
-            Ok(ListConsumerGroupsResult::new(
+            Ok(ListGroupsResult::new(
                 Duration::from_millis(u64::from(throttle_time_ms)),
                 groups
                     .into_iter()
                     .map(|group| {
                         let (group_id, protocol_type, group_state, group_type) = group.into_parts();
-                        ConsumerGroupListing::new(group_id, protocol_type, group_state, group_type)
+                        GroupListing::new(group_id, protocol_type, group_state, group_type)
                     })
                     .collect(),
                 errors
                     .into_iter()
                     .map(|error| {
                         let (broker_id, code) = error.into_parts();
-                        ListConsumerGroupsBrokerError::new(broker_id, code)
+                        ListGroupsBrokerError::new(broker_id, code)
                     })
                     .collect(),
             ))
@@ -83,12 +80,8 @@ pub(super) fn translate_observation(
 fn translate_discovery_error(error: EngineDiscoveryError) -> KafkaError {
     let (code, message, truncated) = error.into_parts();
     let detail = message.map_or_else(
-        || format!("Kafka rejected ListConsumerGroups broker discovery with code {code}"),
-        |message| {
-            format!(
-                "Kafka rejected ListConsumerGroups broker discovery with code {code}: {message}"
-            )
-        },
+        || format!("Kafka rejected ListGroups broker discovery with code {code}"),
+        |message| format!("Kafka rejected ListGroups broker discovery with code {code}: {message}"),
     );
     KafkaError::new(ErrorKind::Broker, detail)
         .with_broker_code(Some(code))
@@ -106,7 +99,7 @@ fn translate_failure(failure: ListConsumerGroupsFailure) -> KafkaError {
         ListConsumerGroupsFailureKind::Compatibility => ErrorKind::Compatibility,
         ListConsumerGroupsFailureKind::InvalidResponse => ErrorKind::Broker,
     };
-    KafkaError::new(public, format!("ListConsumerGroups failed: {kind:?}"))
+    KafkaError::new(public, format!("ListGroups failed: {kind:?}"))
         .with_delivery_status(translate_delivery(failure.delivery()))
 }
 

@@ -1,13 +1,17 @@
 //! Concrete operation, handoff, and submission ownership states.
 
-use kafka_client_core::OperationId;
+use kafka_client_core::{AdminGroupListingFilters, OperationId};
 
 use crate::clock::OperationDeadline;
 
 /// Exact discovery or broker call ready for driver admission.
 pub(crate) enum ListConsumerGroupsSubmissionKind {
     Discovery,
-    Broker { broker_id: i32 },
+    Broker {
+        broker_id: i32,
+        filters: AdminGroupListingFilters,
+        retained_limit: usize,
+    },
 }
 
 pub(crate) struct ListConsumerGroupsSubmission {

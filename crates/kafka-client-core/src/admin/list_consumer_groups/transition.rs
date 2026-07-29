@@ -5,11 +5,11 @@ mod terminal;
 use crate::DeliveryStatus;
 
 use super::{
-    AdminConsumerGroupListing, AdminListConsumerGroupsBatch, AdminListConsumerGroupsEffect,
-    AdminListConsumerGroupsFailureKind, AdminListConsumerGroupsInput,
-    AdminListConsumerGroupsMachine, AdminListConsumerGroupsMachineError,
-    AdminListConsumerGroupsState, AdminListConsumerGroupsTerminal,
-    AdminListConsumerGroupsTransition,
+    AdminConsumerGroupListing, AdminGroupListingScope, AdminListConsumerGroupsBatch,
+    AdminListConsumerGroupsEffect, AdminListConsumerGroupsFailureKind,
+    AdminListConsumerGroupsInput, AdminListConsumerGroupsMachine,
+    AdminListConsumerGroupsMachineError, AdminListConsumerGroupsState,
+    AdminListConsumerGroupsTerminal, AdminListConsumerGroupsTransition,
 };
 
 impl AdminListConsumerGroupsMachine {
@@ -148,6 +148,7 @@ impl AdminListConsumerGroupsMachine {
                 operation_id: self.operation_id,
                 deadline: self.deadline,
                 broker_id,
+                filters: self.filters.clone(),
             },
         ))
     }
@@ -168,11 +169,11 @@ impl AdminListConsumerGroupsMachine {
         }
         match outcome {
             super::AdminListConsumerGroupsBrokerOutcome::Groups { groups, .. } => {
-                self.groups.extend(
-                    groups
-                        .into_iter()
-                        .filter(AdminConsumerGroupListing::is_consumer_group),
-                );
+                let scope = self.scope;
+                self.groups.extend(groups.into_iter().filter(|group| {
+                    (scope == AdminGroupListingScope::All || group.is_consumer_group())
+                        && self.filters.retains_protocol_type(group.protocol_type())
+                }));
             }
             super::AdminListConsumerGroupsBrokerOutcome::Rejected(error) => {
                 self.broker_errors.push(error);

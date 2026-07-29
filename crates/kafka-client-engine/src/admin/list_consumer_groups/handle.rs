@@ -2,6 +2,8 @@
 
 use std::{fmt, time::Duration};
 
+use kafka_client_core::{AdminGroupListingFilters, AdminGroupListingScope};
+
 use crate::admin::AdminHandle;
 
 use super::{
@@ -15,6 +17,19 @@ impl AdminHandle {
         &self,
         timeout: Duration,
     ) -> Result<ListConsumerGroupsAccepted, ListConsumerGroupsAdmissionError> {
+        self.try_list_groups_with_scope(
+            timeout,
+            AdminGroupListingScope::ConsumerOnly,
+            AdminGroupListingFilters::empty(),
+        )
+    }
+
+    /// Captures one public deadline and lists every broker-reported group type.
+    pub fn try_list_groups(
+        &self,
+        request: super::AdminListGroupsRequest,
+        timeout: Duration,
+    ) -> Result<ListConsumerGroupsAccepted, ListConsumerGroupsAdmissionError> {
         let capture = self.clock.capture_deadline_after(timeout).map_err(|_| {
             ListConsumerGroupsAdmissionError::new(
                 ListConsumerGroupsAdmissionErrorKind::InvalidDeadline,
@@ -25,9 +40,48 @@ impl AdminHandle {
                 ListConsumerGroupsAdmissionErrorKind::InvalidDeadline,
             ));
         }
+        let filters = request.canonicalize().into_filters().map_err(|_error| {
+            ListConsumerGroupsAdmissionError::new(
+                ListConsumerGroupsAdmissionErrorKind::InvalidRequest,
+            )
+        })?;
+        self.admit_list_groups(
+            capture.now(),
+            capture.operation_deadline(),
+            AdminGroupListingScope::All,
+            filters,
+        )
+    }
+
+    fn try_list_groups_with_scope(
+        &self,
+        timeout: Duration,
+        scope: AdminGroupListingScope,
+        filters: AdminGroupListingFilters,
+    ) -> Result<ListConsumerGroupsAccepted, ListConsumerGroupsAdmissionError> {
+        let capture = self.clock.capture_deadline_after(timeout).map_err(|_| {
+            ListConsumerGroupsAdmissionError::new(
+                ListConsumerGroupsAdmissionErrorKind::InvalidDeadline,
+            )
+        })?;
+        if timeout.is_zero() {
+            return Err(ListConsumerGroupsAdmissionError::new(
+                ListConsumerGroupsAdmissionErrorKind::InvalidDeadline,
+            ));
+        }
+        self.admit_list_groups(capture.now(), capture.operation_deadline(), scope, filters)
+    }
+
+    fn admit_list_groups(
+        &self,
+        now: kafka_client_core::Moment,
+        deadline: crate::clock::OperationDeadline,
+        scope: AdminGroupListingScope,
+        filters: AdminGroupListingFilters,
+    ) -> Result<ListConsumerGroupsAccepted, ListConsumerGroupsAdmissionError> {
         let admission = self
             .list_consumer_groups
-            .try_admit(capture.now(), capture.operation_deadline())
+            .try_admit(now, deadline, scope, filters)
             .map_err(ListConsumerGroupsAdmissionError::new)?;
         Ok(ListConsumerGroupsAccepted {
             observer: admission.observer,

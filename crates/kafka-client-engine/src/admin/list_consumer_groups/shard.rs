@@ -8,7 +8,7 @@ use std::{
     },
 };
 
-use kafka_client_core::Moment;
+use kafka_client_core::{AdminGroupListingFilters, AdminGroupListingScope, Moment};
 
 use crate::clock::OperationDeadline;
 
@@ -60,6 +60,8 @@ impl ListConsumerGroupsAdmissionPort {
         &self,
         now: Moment,
         deadline: OperationDeadline,
+        scope: AdminGroupListingScope,
+        filters: AdminGroupListingFilters,
     ) -> Result<ListConsumerGroupsAdmission, ListConsumerGroupsAdmissionErrorKind> {
         if self.shared.admission_closed.load(Ordering::Acquire) {
             return Err(ListConsumerGroupsAdmissionErrorKind::Closed);
@@ -73,7 +75,7 @@ impl ListConsumerGroupsAdmissionPort {
                 return Err(ListConsumerGroupsAdmissionErrorKind::HostUnavailable);
             }
         };
-        let mut admission = host.try_admit(now, deadline)?;
+        let mut admission = host.try_admit(now, deadline, scope, filters)?;
         drop(host);
         if self.shared.wake.wake().is_err() {
             admission

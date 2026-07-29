@@ -3,12 +3,14 @@
 mod error;
 mod handle;
 mod host;
+mod model;
 mod observer;
 mod outcome;
 mod shard;
 
 pub use error::{ListConsumerGroupsAdmissionError, ListConsumerGroupsAdmissionErrorKind};
 pub use handle::{ListConsumerGroupsAccepted, ListConsumerGroupsAcceptedFaultKind};
+pub use model::AdminListGroupsRequest;
 pub use observer::ListConsumerGroupsObserver;
 pub use outcome::{
     ConsumerGroupListing, ListConsumerGroupsBatch, ListConsumerGroupsBrokerError,
@@ -26,5 +28,7 @@ pub(crate) use shard::{
     ListConsumerGroupsShardOwner, ListConsumerGroupsShardWake, ListConsumerGroupsShardWakeError,
 };
 
+#[cfg(test)]
+mod model_test;
 #[cfg(test)]
 mod outcome_test;

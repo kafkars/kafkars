@@ -3,8 +3,8 @@
 use core::mem::size_of;
 
 use kafka_client_core::{
-    AdminListConsumerGroupsEffect, AdminListConsumerGroupsInput, AdminListConsumerGroupsMachine,
-    Moment, OperationId,
+    AdminGroupListingFilters, AdminGroupListingScope, AdminListConsumerGroupsEffect,
+    AdminListConsumerGroupsInput, AdminListConsumerGroupsMachine, Moment, OperationId,
 };
 
 use crate::{clock::OperationDeadline, completion::CompletionRegistryError};
@@ -24,6 +24,8 @@ impl ListConsumerGroupsHost {
         &mut self,
         now: Moment,
         deadline: OperationDeadline,
+        scope: AdminGroupListingScope,
+        filters: AdminGroupListingFilters,
     ) -> Result<ListConsumerGroupsAdmission, ListConsumerGroupsAdmissionErrorKind> {
         if !self.accepting {
             return Err(ListConsumerGroupsAdmissionErrorKind::Closed);
@@ -34,8 +36,7 @@ impl ListConsumerGroupsHost {
         let operation_id = self
             .next_operation_id
             .ok_or(ListConsumerGroupsAdmissionErrorKind::IdentityExhausted)?;
-        let owner_charge = size_of::<ListConsumerGroupsOperation>()
-            .checked_add(size_of::<ListConsumerGroupsSubmission>())
+        let owner_charge = request_owner_charge(&filters)
             .ok_or(ListConsumerGroupsAdmissionErrorKind::RetainedBytes)?;
         let remaining_result_bytes = LIST_CONSUMER_GROUPS_RETAINED_BYTES
             .checked_sub(owner_charge)
@@ -51,7 +52,12 @@ impl ListConsumerGroupsHost {
         self.retained_bytes = total_bytes;
         let mut operation = ListConsumerGroupsOperation {
             operation_id,
-            machine: AdminListConsumerGroupsMachine::new(operation_id, deadline.core()),
+            machine: AdminListConsumerGroupsMachine::new(
+                operation_id,
+                deadline.core(),
+                scope,
+                filters,
+            ),
             completion_id,
             deadline,
             retained_bytes: LIST_CONSUMER_GROUPS_RETAINED_BYTES,
@@ -80,6 +86,26 @@ impl ListConsumerGroupsHost {
             fault,
         })
     }
+}
+
+fn request_owner_charge(filters: &AdminGroupListingFilters) -> Option<usize> {
+    let filter_owners = filters
+        .state_filters()
+        .len()
+        .checked_add(filters.group_type_filters().len())?
+        .checked_add(filters.protocol_type_filters().len())?
+        .checked_mul(size_of::<String>())?;
+    let filter_text = filters
+        .state_filters()
+        .iter()
+        .chain(filters.group_type_filters())
+        .chain(filters.protocol_type_filters())
+        .try_fold(0usize, |bytes, filter| bytes.checked_add(filter.len()))?;
+    let filter_bytes = filter_owners.checked_add(filter_text)?;
+    size_of::<ListConsumerGroupsOperation>()
+        .checked_add(size_of::<ListConsumerGroupsSubmission>())?
+        .checked_add(2usize.checked_mul(size_of::<AdminGroupListingFilters>())?)?
+        .checked_add(3usize.checked_mul(filter_bytes)?)
 }
 
 fn start(

@@ -50,16 +50,24 @@ pub(super) fn drive(
                 ListConsumerGroupsSubmissionKind::Discovery => {
                     ListConsumerGroupsCall::submit_discovery(driver, deadline.transport())
                 }
-                ListConsumerGroupsSubmissionKind::Broker { broker_id } => {
-                    ListConsumerGroupsCall::submit_broker(driver, broker_id, deadline.transport())
-                }
+                ListConsumerGroupsSubmissionKind::Broker {
+                    broker_id,
+                    filters,
+                    retained_limit,
+                } => ListConsumerGroupsCall::submit_broker(
+                    driver,
+                    broker_id,
+                    filters,
+                    retained_limit,
+                    deadline.transport(),
+                ),
             };
             match call {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::ListConsumerGroups)?,
                 Err(rejection) => {
-                    drop(rejection.into_source());
+                    rejection.discard_source();
                     host.reject_handoff(operation_id)
                         .map_err(EngineHostError::ListConsumerGroups)?;
                 }

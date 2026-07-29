@@ -6,9 +6,18 @@ use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
 use super::super::DescribeClusterBrokerError;
 use super::{
-    AdminConsumerGroupListing, AdminListConsumerGroupsBrokerError,
+    AdminConsumerGroupListing, AdminGroupListingFilters, AdminListConsumerGroupsBrokerError,
     AdminListConsumerGroupsBrokerOutcome, AdminListConsumerGroupsTerminal,
 };
+
+/// Explicit group-selection policy for one cluster-wide `ListGroups` merge.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AdminGroupListingScope {
+    /// Retain every normalized Kafka group type.
+    All,
+    /// Retain only classic or modern consumer groups.
+    ConsumerOnly,
+}
 
 /// Current ownership stage for one cluster-wide list operation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -89,7 +98,7 @@ pub enum AdminListConsumerGroupsEffect {
         /// Original public absolute deadline.
         deadline: Deadline,
     },
-    /// Submit one unfiltered `ListGroups` call to an exact discovered broker.
+    /// Submit one exactly filtered `ListGroups` call to a discovered broker.
     SubmitBroker {
         /// Stable identity reserved before machine construction.
         operation_id: OperationId,
@@ -97,6 +106,8 @@ pub enum AdminListConsumerGroupsEffect {
         deadline: Deadline,
         /// Exact broker identity.
         broker_id: i32,
+        /// Immutable broker-side and client-side filters.
+        filters: AdminGroupListingFilters,
     },
     /// Publish the sole terminal decision.
     Complete {
@@ -135,6 +146,8 @@ impl AdminListConsumerGroupsTransition {
 pub struct AdminListConsumerGroupsMachine {
     pub(crate) operation_id: OperationId,
     pub(crate) deadline: Deadline,
+    pub(crate) scope: AdminGroupListingScope,
+    pub(crate) filters: AdminGroupListingFilters,
     pub(crate) state: AdminListConsumerGroupsState,
     pub(crate) broker_ids: Vec<i32>,
     pub(crate) next_broker: usize,
@@ -146,10 +159,17 @@ pub struct AdminListConsumerGroupsMachine {
 
 impl AdminListConsumerGroupsMachine {
     /// Creates one accepted operation after engine capacity reservation.
-    pub const fn new(operation_id: OperationId, deadline: Deadline) -> Self {
+    pub const fn new(
+        operation_id: OperationId,
+        deadline: Deadline,
+        scope: AdminGroupListingScope,
+        filters: AdminGroupListingFilters,
+    ) -> Self {
         Self {
             operation_id,
             deadline,
+            scope,
+            filters,
             state: AdminListConsumerGroupsState::Ready,
             broker_ids: Vec::new(),
             next_broker: 0,
@@ -163,6 +183,16 @@ impl AdminListConsumerGroupsMachine {
     /// Returns the current lifecycle stage.
     pub const fn state(&self) -> AdminListConsumerGroupsState {
         self.state
+    }
+
+    /// Returns the immutable group-selection policy.
+    pub const fn scope(&self) -> AdminGroupListingScope {
+        self.scope
+    }
+
+    /// Returns the immutable listing filters.
+    pub const fn filters(&self) -> &AdminGroupListingFilters {
+        &self.filters
     }
 
     /// Returns the exact broker currently awaiting or owned by the driver.
