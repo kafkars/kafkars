@@ -8,7 +8,6 @@
 //! explicit begin, record send, commit, and abort form the implemented slices.
 //! Later API domains remain design probes.
 #![forbid(unsafe_code)]
-
 mod admin;
 mod bridge;
 mod client;
@@ -151,13 +150,14 @@ pub use transaction::{
     TransactionOffsetsAdmissionError, TransactionSendAdmissionError, TransactionalProducer,
     TransactionalProducerBuilder, TransactionalProducerIdentity,
 };
-
 #[cfg(test)]
 mod client_test;
 #[cfg(test)]
 mod error_test;
 #[cfg(test)]
 mod readiness_test;
+#[cfg(test)]
+mod record_test;
 #[cfg(test)]
 mod shutdown_test;
 #[cfg(test)]

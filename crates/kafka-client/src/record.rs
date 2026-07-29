@@ -109,10 +109,15 @@ impl Record {
         self
     }
 
-    /// Appends a header without deduplicating its name.
-    pub fn header(mut self, name: impl Into<String>, value: impl Into<Bytes>) -> Self {
-        self.headers.push(Header::new(name, value));
+    /// Appends one prebuilt nullable or non-null header without deduplicating its name.
+    pub fn with_header(mut self, header: Header) -> Self {
+        self.headers.push(header);
         self
+    }
+
+    /// Appends one non-null header without deduplicating its name.
+    pub fn header(self, name: impl Into<String>, value: impl Into<Bytes>) -> Self {
+        self.with_header(Header::new(name, value))
     }
 
     /// Returns the logical topic name.
