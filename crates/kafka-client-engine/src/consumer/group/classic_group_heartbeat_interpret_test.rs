@@ -89,7 +89,7 @@ fn interpret_rejection(
         .begin_classic_heartbeat_settlement(accepted)
         .unwrap_or_else(|error| panic!("Heartbeat settlement failed: {error:?}"));
     let now = Moment::from_tick(key.deadline().core().tick() - 1);
-    let successor = interpret_heartbeat(entry, now, &terminal).unwrap_or_else(|error| match error {
+    let successor = interpret_heartbeat(entry, now, &terminal, false).unwrap_or_else(|error| match error {
         super::classic_group_heartbeat_interpret::ClassicHeartbeatInterpretationFailure::PostCoreRejection(
             fault,
         ) => panic!("broker rejection interpretation failed: {:?}", fault.failure()),

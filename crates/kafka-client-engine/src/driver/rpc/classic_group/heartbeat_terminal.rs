@@ -1,7 +1,10 @@
 //! Raw classic Heartbeat terminal ownership retained for a protocol interpreter.
 
 use kafka_client_core::{ClassicHeartbeatAttempt, GroupId, MembershipCycle};
-use kafka_driver::{ApiVersion, CompletionError, RequestError};
+use kafka_driver::{
+    ApiVersion, CallFailure, CompletionError, ConnectionCloseReason, RequestError,
+    ResponseCloseReason,
+};
 use kafka_wire::HeartbeatResponse;
 
 use crate::clock::OperationDeadline;
@@ -71,6 +74,10 @@ impl ClassicHeartbeatTerminal {
         &self.result
     }
 
+    pub(crate) fn coordinator_path_lost(&self) -> bool {
+        self.result.as_ref().is_err_and(coordinator_path_lost)
+    }
+
     pub(crate) fn into_parts(
         self,
     ) -> (
@@ -79,6 +86,23 @@ impl ClassicHeartbeatTerminal {
         Result<HeartbeatResponse, RequestError>,
     ) {
         (self.key, self.selected_version, self.result)
+    }
+}
+
+pub(super) const fn coordinator_path_lost(error: &RequestError) -> bool {
+    match error {
+        RequestError::RouteUnavailable | RequestError::NameResolutionFailed { .. } => true,
+        RequestError::Rejected { failure, .. } => matches!(
+            failure,
+            CallFailure::NotReady
+                | CallFailure::Closed
+                | CallFailure::ConnectionClosed {
+                    reason: ConnectionCloseReason::OpenFailed(_)
+                        | ConnectionCloseReason::TransportLost(_),
+                }
+        ),
+        RequestError::ConnectionClosed(ResponseCloseReason::TransportClosed) => true,
+        _ => false,
     }
 }
 

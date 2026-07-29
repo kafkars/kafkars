@@ -77,6 +77,19 @@ fn heartbeat_rejection_rejoins_before_but_only_revokes_at_its_attempt_deadline()
     ));
     assert!(effects.next().is_none());
     assert_lost_without_recovery(&exact);
+
+    let (mut lost, attempt, deadline) = stable_inflight();
+    let transition = lost
+        .apply(ClassicGroupInput::HeartbeatCoordinatorLost {
+            attempt,
+            now: Moment::from_tick(deadline.tick()),
+        })
+        .unwrap_or_else(|error| panic!("exact-deadline coordinator loss: {error}"));
+    assert!(matches!(
+        transition.effects().next(),
+        Some(ClassicGroupEffect::Revoke { .. })
+    ));
+    assert_lost_without_recovery(&lost);
 }
 
 #[test]

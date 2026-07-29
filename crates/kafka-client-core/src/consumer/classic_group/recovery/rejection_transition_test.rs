@@ -178,6 +178,34 @@ fn heartbeat_rediscovery_revokes_before_one_exactly_fenced_rejoin() {
 }
 
 #[test]
+fn heartbeat_coordinator_loss_revokes_before_bounded_rediscovery() {
+    let (mut machine, attempt) = stable_inflight();
+    let transition = machine
+        .apply(ClassicGroupInput::HeartbeatCoordinatorLost {
+            attempt,
+            now: Moment::from_tick(4),
+        })
+        .unwrap_or_else(|error| panic!("coordinator-loss recovery: {error}"));
+    let mut effects = transition.effects();
+    assert!(matches!(
+        effects.next(),
+        Some(ClassicGroupEffect::Revoke { .. })
+    ));
+    let Some(ClassicGroupEffect::ArmRejoin {
+        schedule,
+        coordinator: ClassicCoordinatorRecovery::Rediscover,
+    }) = effects.next()
+    else {
+        panic!("coordinator-loss rediscovery expected");
+    };
+    assert_eq!(
+        schedule.assignment_generation(),
+        Some(attempt.assignment_generation())
+    );
+    assert_eq!(schedule.due(), Deadline::from_tick(9));
+}
+
+#[test]
 fn fatal_heartbeat_revokes_before_retaining_the_exact_unknown_error() {
     let (mut machine, attempt) = stable_inflight();
     let error = broker_error(1234);

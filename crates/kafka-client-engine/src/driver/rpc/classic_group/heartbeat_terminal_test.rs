@@ -3,15 +3,35 @@
 use std::time::{Duration, Instant};
 
 use kafka_client_core::{ClassicHeartbeatAttempt, Deadline, GroupId, MembershipCycle};
-use kafka_driver::{ApiVersion, RequestError};
+use kafka_driver::{ApiVersion, CallFailure, Delivery, RequestError, ResponseCloseReason};
 use kafka_wire::HeartbeatResponse;
 
 use crate::clock::OperationDeadline;
 
 use super::{
-    heartbeat_terminal::{ClassicHeartbeatCallKey, retain_classic_heartbeat_terminal},
+    heartbeat_terminal::{
+        ClassicHeartbeatCallKey, coordinator_path_lost, retain_classic_heartbeat_terminal,
+    },
     heartbeat_test_fixture::heartbeat_attempts,
 };
+
+#[test]
+fn only_route_loss_terminals_request_coordinator_recovery() {
+    assert!(coordinator_path_lost(&RequestError::Rejected {
+        failure: CallFailure::Closed,
+        delivery: Delivery::NotSent,
+    }));
+    assert!(coordinator_path_lost(&RequestError::ConnectionClosed(
+        ResponseCloseReason::TransportClosed,
+    )));
+    assert!(!coordinator_path_lost(&RequestError::Rejected {
+        failure: CallFailure::CapacityReached { limit: 1 },
+        delivery: Delivery::NotSent,
+    }));
+    assert!(!coordinator_path_lost(&RequestError::ConnectionClosed(
+        ResponseCloseReason::Shutdown,
+    )));
+}
 
 #[test]
 fn raw_success_preserves_group_attempt_deadline_version_and_response() {

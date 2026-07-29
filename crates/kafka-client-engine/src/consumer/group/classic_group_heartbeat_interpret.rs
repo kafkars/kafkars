@@ -34,6 +34,7 @@ pub(super) fn interpret_heartbeat(
     entry: &mut GroupConsumerEntry,
     now: Moment,
     terminal: &ClassicHeartbeatTerminal,
+    coordinator_route_evidence: bool,
 ) -> Result<ClassicHeartbeatSuccessor, ClassicHeartbeatInterpretationFailure> {
     let key = terminal.key();
     if key.deadline().core().is_elapsed_at(now) {
@@ -49,6 +50,22 @@ pub(super) fn interpret_heartbeat(
                 ))
             })?;
         return commit_terminal_loss(entry, transition);
+    }
+    if coordinator_route_evidence && terminal.coordinator_path_lost() {
+        let transition = entry
+            .classic
+            .apply(ClassicGroupInput::HeartbeatCoordinatorLost {
+                attempt: key.attempt(),
+                now,
+            })
+            .map_err(|error| {
+                ClassicHeartbeatInterpretationFailure::Restorable(ClassicGroupExecutionError::Core(
+                    error.kind(),
+                ))
+            })?;
+        install_heartbeat_rejection(entry, transition, now)
+            .map_err(ClassicHeartbeatInterpretationFailure::PostCoreRejection)?;
+        return Ok(ClassicHeartbeatSuccessor::Dormant);
     }
     let outcome = terminal.result().as_ref().ok().and_then(|response| {
         terminal

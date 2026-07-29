@@ -4,8 +4,8 @@ use kafka_client_core::{ClassicGroupEffect, ClassicGroupInput, ClassicGroupPhase
 
 use crate::driver::classic_group::{
     AcceptedClassicHeartbeatCall, ClassicHeartbeatCallKey, ClassicHeartbeatPoll,
-    TrackedClassicHeartbeatCalls, install_heartbeat_route_failure_terminal,
-    install_heartbeat_success_terminal,
+    TrackedClassicHeartbeatCalls, install_heartbeat_success_terminal,
+    install_heartbeat_transport_loss_terminal,
 };
 
 use super::{
@@ -71,10 +71,10 @@ fn success_retains_broker_throttle_in_the_next_exact_cadence() {
 }
 
 #[test]
-fn driver_failure_revokes_before_route_confirmation() {
+fn coordinator_transport_close_without_route_evidence_remains_conservative_loss() {
     let (mut registry, group_id, key) = prepared_heartbeat();
     make_driver_owned(&mut registry, group_id, key);
-    install_heartbeat_route_failure_terminal(heartbeat_calls(&mut registry), key);
+    install_heartbeat_transport_loss_terminal(heartbeat_calls(&mut registry), key);
     let now = Moment::from_tick(key.deadline().core().tick() - 1);
 
     assert_eq!(
@@ -86,13 +86,7 @@ fn driver_failure_revokes_before_route_confirmation() {
         .unwrap_or_else(|| panic!("entry expected"));
     assert_eq!(entry.classic.machine().phase(), ClassicGroupPhase::Lost);
     assert!(entry.catalog.live_assignment().is_none());
-    assert!(matches!(
-        entry.heartbeat.state(),
-        ClassicHeartbeatExecutionState::ConfirmationPending {
-            successor: ClassicHeartbeatSuccessor::Dormant,
-            ..
-        }
-    ));
+    assert!(!entry.rediscovery.blocks_join());
 
     assert_eq!(
         registry.settle_one_classic_heartbeat(now),

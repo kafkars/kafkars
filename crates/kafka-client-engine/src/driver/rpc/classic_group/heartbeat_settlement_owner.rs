@@ -1,5 +1,7 @@
 //! Exact Heartbeat terminal handoff, restoration, confirmation, and shutdown recovery.
 
+use kafka_driver::RouteKind;
+
 use super::{
     heartbeat_calls::{
         AcceptedClassicHeartbeatCall, TrackedClassicHeartbeatCall, TrackedClassicHeartbeatCalls,
@@ -68,6 +70,23 @@ impl ClassicHeartbeatShutdownRecovery {
 }
 
 impl TrackedClassicHeartbeatCalls {
+    pub(crate) fn pending_classic_heartbeat_route_kind(
+        &self,
+        key: super::ClassicHeartbeatCallKey,
+    ) -> Option<RouteKind> {
+        self.pending_confirmation
+            .as_ref()
+            .filter(|pending| pending.key() == key)
+            .and_then(PendingClassicHeartbeatConfirmation::route_token_kind)
+    }
+
+    pub(crate) fn pending_classic_heartbeat_is_coordinator(
+        &self,
+        key: super::ClassicHeartbeatCallKey,
+    ) -> bool {
+        self.pending_classic_heartbeat_route_kind(key) == Some(RouteKind::Coordinator)
+    }
+
     pub(crate) fn begin_classic_heartbeat_settlement(
         &mut self,
         accepted: &AcceptedClassicHeartbeatCall,

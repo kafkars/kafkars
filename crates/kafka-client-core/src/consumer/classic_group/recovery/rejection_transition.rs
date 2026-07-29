@@ -1,4 +1,4 @@
-//! Stage-aware broker rejection transitions into rejoin or fatal state.
+//! Stage-aware broker rejection and coordinator-loss recovery transitions.
 
 use crate::{AssignmentGeneration, Moment};
 
@@ -54,6 +54,39 @@ impl ClassicGroupMachine {
             now,
             error,
         );
+        self.heartbeat.failed(attempt)?;
+        let revoke = self.take_stable_revoke()?;
+        Ok(match followup {
+            RejectionFollowup::Rejoin {
+                schedule,
+                coordinator,
+            } => {
+                self.wait_to_rejoin(schedule);
+                ClassicGroupTransition::two(
+                    revoke,
+                    ClassicGroupEffect::ArmRejoin {
+                        schedule,
+                        coordinator,
+                    },
+                )
+            }
+            RejectionFollowup::Fatal(fatal) => {
+                self.retain_fatal(fatal);
+                ClassicGroupTransition::two(revoke, ClassicGroupEffect::Fatal { fatal })
+            }
+        })
+    }
+
+    pub(in crate::consumer::classic_group) fn heartbeat_coordinator_lost(
+        &mut self,
+        attempt: ClassicHeartbeatAttempt,
+        now: Moment,
+    ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
+        self.validate_heartbeat_assignment(attempt)?;
+        if self.heartbeat.attempt_deadline_is_elapsed(attempt, now)? {
+            return self.heartbeat_deadline_elapsed(attempt, now);
+        }
+        let followup = self.coordinator_loss_followup(attempt, now);
         self.heartbeat.failed(attempt)?;
         let revoke = self.take_stable_revoke()?;
         Ok(match followup {
@@ -135,6 +168,28 @@ impl ClassicGroupMachine {
                     coordinator,
                 }
             }
+        }
+    }
+
+    fn coordinator_loss_followup(
+        &self,
+        attempt: ClassicHeartbeatAttempt,
+        now: Moment,
+    ) -> RejectionFollowup {
+        let Some(due) = now.checked_deadline_after(self.rejoin_policy().backoff_ticks()) else {
+            return RejectionFollowup::Fatal(ClassicGroupFatal::new(
+                attempt.cycle(),
+                Some(attempt.assignment_generation()),
+                ClassicGroupFatalReason::ScheduleDeadlineOverflow,
+            ));
+        };
+        RejectionFollowup::Rejoin {
+            schedule: ClassicRejoinSchedule::new(
+                attempt.cycle(),
+                Some(attempt.assignment_generation()),
+                due,
+            ),
+            coordinator: super::ClassicCoordinatorRecovery::Rediscover,
         }
     }
 }

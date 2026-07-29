@@ -83,7 +83,8 @@ impl GroupConsumerRegistry {
         let terminal = calls
             .begin_classic_heartbeat_settlement(accepted)
             .map_err(|_error| ClassicGroupExecutionError::CallIdentityMismatch)?;
-        settle_terminal(entry, calls, now, terminal)?;
+        let coordinator_route_evidence = calls.pending_classic_heartbeat_is_coordinator(key);
+        settle_terminal(entry, calls, now, terminal, coordinator_route_evidence)?;
         Ok(ClassicHeartbeatSettlementTurn::Progress)
     }
 }
@@ -93,8 +94,9 @@ fn settle_terminal(
     calls: &mut TrackedClassicHeartbeatCalls,
     now: Moment,
     terminal: ClassicHeartbeatTerminal,
+    coordinator_route_evidence: bool,
 ) -> Result<(), ClassicGroupExecutionError> {
-    match interpret_heartbeat(entry, now, &terminal) {
+    match interpret_heartbeat(entry, now, &terminal, coordinator_route_evidence) {
         Ok(successor) => {
             if let Err(kind) = stage_confirmation(entry, successor) {
                 entry.fault = Some(ClassicGroupEntryFault::HeartbeatPostCore(terminal));

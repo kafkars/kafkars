@@ -95,6 +95,13 @@ pub enum ClassicGroupInput {
         /// Exact nonzero Kafka error code.
         error: ClassicBrokerError,
     },
+    /// The exact heartbeat lost its coordinator route before a broker response.
+    HeartbeatCoordinatorLost {
+        /// Exact in-flight heartbeat identity.
+        attempt: ClassicHeartbeatAttempt,
+        /// Current monotonic failure observation.
+        now: Moment,
+    },
     /// The exact heartbeat terminally failed without retry.
     HeartbeatFailed {
         /// Exact in-flight heartbeat identity.
