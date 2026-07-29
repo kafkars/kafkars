@@ -3,6 +3,7 @@
 pub(crate) mod alter_client_quotas;
 pub(crate) mod alter_partition_reassignments;
 pub(crate) mod alter_replica_log_dirs;
+pub(crate) mod alter_user_scram_credentials;
 pub(crate) mod create_acls;
 pub(crate) mod create_partitions;
 mod create_partitions_budget;

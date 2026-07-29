@@ -99,6 +99,15 @@ fn recover_topic_operations(
         failure = failure.with_cleanup(cleanup);
     }
     drop(alter_client_quotas);
+    let mut alter_user_scram_credentials = resources.alter_user_scram_credentials.terminal_host();
+    if let Some(cleanup) = alter_user_scram_credentials
+        .recover_after_driver_shutdown()
+        .err()
+        .map(EngineHostError::AlterUserScramCredentials)
+    {
+        failure = failure.with_cleanup(cleanup);
+    }
+    drop(alter_user_scram_credentials);
     let mut describe_user_scram_credentials =
         resources.describe_user_scram_credentials.terminal_host();
     if let Some(cleanup) = describe_user_scram_credentials

@@ -210,6 +210,15 @@ fn verify_admin_topic_operations(resources: &EngineHostResources) -> Result<(), 
             crate::admin::AlterClientQuotasHostError::Unsettled(altered_client_quotas),
         ));
     }
+    let altered_scram_credentials = resources
+        .alter_user_scram_credentials
+        .terminal_host()
+        .unsettled();
+    if altered_scram_credentials != 0 {
+        return Err(EngineHostError::AlterUserScramCredentials(
+            crate::admin::AlterUserScramCredentialsHostError::Unsettled(altered_scram_credentials),
+        ));
+    }
     let described_scram_credentials = resources
         .describe_user_scram_credentials
         .terminal_host()

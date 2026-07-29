@@ -16,6 +16,10 @@ pub use super::alter_replica_log_dirs::{
     AlterReplicaLogDirs, AlterReplicaLogDirsBuilder, AlterReplicaLogDirsResult,
     ReplicaLogDirAssignment, TopicPartitionReplica,
 };
+pub use super::alter_user_scram_credentials::{
+    AlterUserScramCredentials, AlterUserScramCredentialsBuilder, AlterUserScramCredentialsResult,
+    UserScramCredentialAlteration,
+};
 pub use super::batch_result::BatchResult;
 pub use super::builder::CreateTopicsBuilder;
 pub use super::configs::{

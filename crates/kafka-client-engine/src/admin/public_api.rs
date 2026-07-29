@@ -60,6 +60,23 @@ pub use super::alter_replica_log_dirs::{
     AlterReplicaLogDirsObserver, AlterReplicaLogDirsObserverError, AlterReplicaLogDirsOutcome,
     AlterReplicaLogDirsRequest,
 };
+pub(crate) use super::alter_user_scram_credentials::{
+    ALTER_USER_SCRAM_CREDENTIALS_CAPACITY, AlterUserScramCredentialsAdmissionPort,
+    AlterUserScramCredentialsHost, AlterUserScramCredentialsHostError,
+    AlterUserScramCredentialsShardLockError, AlterUserScramCredentialsShardOwner,
+    AlterUserScramCredentialsShardWake, AlterUserScramCredentialsShardWakeError,
+    AlterUserScramCredentialsTurn,
+};
+pub use super::alter_user_scram_credentials::{
+    AlterUserScramCredential, AlterUserScramCredentialBrokerError, AlterUserScramCredentialOutcome,
+    AlterUserScramCredentialsAccepted, AlterUserScramCredentialsAcceptedFaultKind,
+    AlterUserScramCredentialsAdmissionError, AlterUserScramCredentialsAdmissionErrorKind,
+    AlterUserScramCredentialsBatch, AlterUserScramCredentialsCapture,
+    AlterUserScramCredentialsDeliveryStatus, AlterUserScramCredentialsFailure,
+    AlterUserScramCredentialsFailureKind, AlterUserScramCredentialsObserver,
+    AlterUserScramCredentialsObserverError, AlterUserScramCredentialsOutcome,
+    AlterUserScramCredentialsRequest,
+};
 pub(crate) use super::configs::{
     DESCRIBE_CONFIGS_CAPACITY, DescribeConfigsAdmissionPort, DescribeConfigsHost,
     DescribeConfigsHostError, DescribeConfigsShardLockError, DescribeConfigsShardOwner,

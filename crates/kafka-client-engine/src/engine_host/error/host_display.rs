@@ -101,6 +101,12 @@ impl fmt::Display for EngineHostError {
             Self::AlterClientQuotasLockPoisoned => {
                 formatter.write_str("AlterClientQuotas host ownership lock is poisoned")
             }
+            Self::AlterUserScramCredentials(error) => {
+                write!(formatter, "AlterUserScramCredentials host failed: {error}")
+            }
+            Self::AlterUserScramCredentialsLockPoisoned => {
+                formatter.write_str("AlterUserScramCredentials host ownership lock is poisoned")
+            }
             Self::DescribeUserScramCredentials(error) => {
                 write!(
                     formatter,

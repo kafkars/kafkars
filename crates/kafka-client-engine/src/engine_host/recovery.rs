@@ -38,6 +38,7 @@ pub(crate) fn recover(
     drop(resources.describe_acls.terminal_host());
     drop(resources.describe_client_quotas.terminal_host());
     drop(resources.alter_client_quotas.terminal_host());
+    drop(resources.alter_user_scram_credentials.terminal_host());
     drop(resources.describe_user_scram_credentials.terminal_host());
     drop(resources.create_acls.terminal_host());
     drop(resources.delete_acls.terminal_host());

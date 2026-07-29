@@ -30,6 +30,7 @@ pub(crate) struct EngineInner {
     describe_acls_admission: crate::admin::DescribeAclsAdmissionPort,
     describe_client_quotas_admission: crate::admin::DescribeClientQuotasAdmissionPort,
     alter_client_quotas_admission: crate::admin::AlterClientQuotasAdmissionPort,
+    alter_user_scram_credentials_admission: crate::admin::AlterUserScramCredentialsAdmissionPort,
     describe_user_scram_credentials_admission:
         crate::admin::DescribeUserScramCredentialsAdmissionPort,
     describe_cluster_admission: crate::admin::DescribeClusterAdmissionPort,
@@ -74,6 +75,7 @@ impl Engine {
             describe_acls_admission,
             describe_client_quotas_admission,
             alter_client_quotas_admission,
+            alter_user_scram_credentials_admission,
             describe_user_scram_credentials_admission,
             describe_cluster_admission,
             describe_consumer_groups_admission,
@@ -114,6 +116,7 @@ impl Engine {
                 describe_acls_admission,
                 describe_client_quotas_admission,
                 alter_client_quotas_admission,
+                alter_user_scram_credentials_admission,
                 describe_user_scram_credentials_admission,
                 describe_cluster_admission,
                 describe_consumer_groups_admission,

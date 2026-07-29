@@ -54,6 +54,16 @@ impl Engine {
                     .inner
                     .remove_consumer_group_members_admission
                     .clone(),
+                describe_client_quotas: self.inner.describe_client_quotas_admission.clone(),
+                alter_client_quotas: self.inner.alter_client_quotas_admission.clone(),
+                describe_user_scram_credentials: self
+                    .inner
+                    .describe_user_scram_credentials_admission
+                    .clone(),
+                alter_user_scram_credentials: self
+                    .inner
+                    .alter_user_scram_credentials_admission
+                    .clone(),
             },
             Arc::clone(&self.inner.clock),
             lifetime,
@@ -96,6 +106,14 @@ impl EngineInner {
         let _close_result = self.elect_leaders_admission.close_admission();
         let _close_result = self
             .remove_consumer_group_members_admission
+            .close_admission();
+        let _close_result = self.describe_client_quotas_admission.close_admission();
+        let _close_result = self.alter_client_quotas_admission.close_admission();
+        let _close_result = self
+            .describe_user_scram_credentials_admission
+            .close_admission();
+        let _close_result = self
+            .alter_user_scram_credentials_admission
             .close_admission();
     }
 }

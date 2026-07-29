@@ -1,14 +1,15 @@
 //! Closed construction of concrete admin hosts from notifier publishers.
 
 use crate::admin::{
-    AdminCompletionPorts, AdminListOffsetsPublisher, AlterConsumerGroupOffsetsPublisher,
-    AlterPartitionReassignmentsPublisher, AlterReplicaLogDirsHost, CreateAclsHost,
-    CreatePartitionsHost, CreateTopicsHost, DeleteAclsHost, DeleteConsumerGroupOffsetsHost,
-    DeleteConsumerGroupsHost, DeleteRecordsHost, DeleteTopicsHost, DescribeAclsHost,
+    AdminCompletionPorts, AdminListOffsetsPublisher, AlterClientQuotasHost,
+    AlterConsumerGroupOffsetsPublisher, AlterPartitionReassignmentsPublisher,
+    AlterReplicaLogDirsHost, AlterUserScramCredentialsHost, CreateAclsHost, CreatePartitionsHost,
+    CreateTopicsHost, DeleteAclsHost, DeleteConsumerGroupOffsetsHost, DeleteConsumerGroupsHost,
+    DeleteRecordsHost, DeleteTopicsHost, DescribeAclsHost, DescribeClientQuotasHost,
     DescribeClusterHost, DescribeConfigsPublisher, DescribeConsumerGroupsHost, DescribeLogDirsHost,
-    DescribeTopicsHost, ElectLeadersHost, IncrementalAlterConfigsHost,
-    ListConsumerGroupOffsetsHost, ListConsumerGroupsHost, ListPartitionReassignmentsPublisher,
-    RemoveConsumerGroupMembersHost,
+    DescribeTopicsHost, DescribeUserScramCredentialsHost, ElectLeadersHost,
+    IncrementalAlterConfigsHost, ListConsumerGroupOffsetsHost, ListConsumerGroupsHost,
+    ListPartitionReassignmentsPublisher, RemoveConsumerGroupMembersHost,
 };
 
 pub(super) struct StartedAdminHosts {
@@ -19,6 +20,10 @@ pub(super) struct StartedAdminHosts {
     pub(super) delete_consumer_groups: DeleteConsumerGroupsHost,
     pub(super) delete_records: DeleteRecordsHost,
     pub(super) describe_acls: DescribeAclsHost,
+    pub(super) describe_client_quotas: DescribeClientQuotasHost,
+    pub(super) alter_client_quotas: AlterClientQuotasHost,
+    pub(super) alter_user_scram_credentials: AlterUserScramCredentialsHost,
+    pub(super) describe_user_scram_credentials: DescribeUserScramCredentialsHost,
     pub(super) describe_cluster: DescribeClusterHost,
     pub(super) describe_consumer_groups: DescribeConsumerGroupsHost,
     pub(super) describe_log_dirs: DescribeLogDirsHost,
@@ -47,6 +52,10 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
         delete_consumer_groups,
         delete_records,
         describe_acls,
+        describe_client_quotas,
+        alter_client_quotas,
+        alter_user_scram_credentials,
+        describe_user_scram_credentials,
         describe_cluster,
         describe_consumer_groups,
         describe_log_dirs,
@@ -73,6 +82,14 @@ pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
         delete_consumer_groups: DeleteConsumerGroupsHost::new(delete_consumer_groups),
         delete_records: DeleteRecordsHost::new(delete_records),
         describe_acls: DescribeAclsHost::new(describe_acls),
+        describe_client_quotas: DescribeClientQuotasHost::new(describe_client_quotas),
+        alter_client_quotas: AlterClientQuotasHost::new(alter_client_quotas),
+        alter_user_scram_credentials: AlterUserScramCredentialsHost::new(
+            alter_user_scram_credentials,
+        ),
+        describe_user_scram_credentials: DescribeUserScramCredentialsHost::new(
+            describe_user_scram_credentials,
+        ),
         describe_cluster: DescribeClusterHost::new(describe_cluster),
         describe_consumer_groups: DescribeConsumerGroupsHost::new(describe_consumer_groups),
         describe_log_dirs: DescribeLogDirsHost::new(describe_log_dirs),

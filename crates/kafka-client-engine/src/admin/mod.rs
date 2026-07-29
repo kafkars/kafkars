@@ -3,6 +3,7 @@ mod alter_client_quotas;
 mod alter_configs;
 mod alter_partition_reassignments;
 mod alter_replica_log_dirs;
+mod alter_user_scram_credentials;
 mod completion;
 #[cfg(test)]
 mod completion_capacity_test;

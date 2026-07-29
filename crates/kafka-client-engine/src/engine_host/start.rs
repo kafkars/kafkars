@@ -11,7 +11,7 @@ use crate::{
     EngineConfig,
     admin::{
         AdminCompletionNotifier, AlterClientQuotasShardOwner, AlterReplicaLogDirsShardOwner,
-        CreateAclsShardOwner,
+        AlterUserScramCredentialsShardOwner, CreateAclsShardOwner,
         CreatePartitionsShardOwner, CreateTopicsShardOwner, DeleteAclsShardOwner,
         DeleteConsumerGroupOffsetsShardOwner, DeleteConsumerGroupsShardOwner,
         DeleteRecordsShardOwner, DeleteTopicsShardOwner, DescribeAclsShardOwner,
@@ -90,6 +90,7 @@ pub(crate) fn start(
         describe_acls,
         describe_client_quotas,
         alter_client_quotas,
+        alter_user_scram_credentials,
         describe_user_scram_credentials,
         describe_cluster,
         describe_consumer_groups,
@@ -167,6 +168,11 @@ pub(crate) fn start(
     let alter_client_quotas =
         AlterClientQuotasShardOwner::new(alter_client_quotas, Arc::new(driver.reactor_wake()));
     let alter_client_quotas_admission = alter_client_quotas.admission_port();
+    let alter_user_scram_credentials = AlterUserScramCredentialsShardOwner::new(
+        alter_user_scram_credentials,
+        Arc::new(driver.reactor_wake()),
+    );
+    let alter_user_scram_credentials_admission = alter_user_scram_credentials.admission_port();
     let describe_user_scram_credentials = DescribeUserScramCredentialsShardOwner::new(
         describe_user_scram_credentials,
         Arc::new(driver.reactor_wake()),
@@ -245,6 +251,7 @@ pub(crate) fn start(
         describe_acls,
         describe_client_quotas,
         alter_client_quotas,
+        alter_user_scram_credentials,
         describe_user_scram_credentials,
         describe_cluster,
         describe_consumer_groups,
@@ -310,6 +317,7 @@ pub(crate) fn start(
         describe_acls_admission,
         describe_client_quotas_admission,
         alter_client_quotas_admission,
+        alter_user_scram_credentials_admission,
         describe_user_scram_credentials_admission,
         describe_cluster_admission,
         describe_consumer_groups_admission,

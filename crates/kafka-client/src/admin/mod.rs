@@ -3,6 +3,7 @@ mod acls;
 mod alter_client_quotas;
 mod alter_configs;
 mod alter_replica_log_dirs;
+mod alter_user_scram_credentials;
 mod batch_result;
 mod builder;
 mod configs;

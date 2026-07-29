@@ -8,6 +8,7 @@ mod alter_consumer_group_offsets_schedule_test;
 mod alter_consumer_group_offsets_test;
 mod alter_partition_reassignments;
 mod alter_replica_log_dirs;
+mod alter_user_scram_credentials;
 mod create_acls;
 mod create_partitions;
 mod create_topics;

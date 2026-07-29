@@ -12,7 +12,8 @@ use kafka_client_core::{
     AdminDescribeConsumerGroupsBatch, AdminDescribeConsumerGroupsTerminal,
     AdminListConsumerGroupsBatch, AdminListConsumerGroupsTerminal, AdminListOffsetsBatch,
     AdminListOffsetsTerminal, AlterConsumerGroupOffsetsBatch, AlterConsumerGroupOffsetsTerminal,
-    AlterPartitionReassignmentsBatch, AlterPartitionReassignmentsTerminal, ClusterDescription,
+    AlterPartitionReassignmentsBatch, AlterPartitionReassignmentsTerminal,
+    AlterUserScramCredentialsBatch, AlterUserScramCredentialsTerminal, ClusterDescription,
     CreatePartitionsTerminal, CreateTopicsTerminal, DeleteConsumerGroupOffsetsBatch,
     DeleteConsumerGroupOffsetsTerminal, DeleteConsumerGroupsBatch, DeleteConsumerGroupsTerminal,
     DeleteRecordsBatch, DeleteRecordsTerminal, DeleteTopicsTerminal, DescribeClusterTerminal,
@@ -28,12 +29,13 @@ use crate::completion::{CompletionRegistry, ReclaimStatus};
 use super::{
     ADMIN_LIST_OFFSETS_CAPACITY, ALTER_CLIENT_QUOTAS_CAPACITY,
     ALTER_CONSUMER_GROUP_OFFSETS_CAPACITY, ALTER_PARTITION_REASSIGNMENTS_CAPACITY,
-    ALTER_REPLICA_LOG_DIRS_CAPACITY, CREATE_ACLS_CAPACITY, CREATE_PARTITIONS_CAPACITY,
-    CREATE_TOPICS_CAPACITY, DELETE_ACLS_CAPACITY, DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY,
-    DELETE_CONSUMER_GROUPS_CAPACITY, DELETE_RECORDS_CAPACITY, DELETE_TOPICS_CAPACITY,
-    DESCRIBE_ACLS_CAPACITY, DESCRIBE_CLIENT_QUOTAS_CAPACITY, DESCRIBE_CLUSTER_CAPACITY,
-    DESCRIBE_CONFIGS_CAPACITY, DESCRIBE_CONSUMER_GROUPS_CAPACITY, DESCRIBE_LOG_DIRS_CAPACITY,
-    DESCRIBE_TOPICS_CAPACITY, DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY, ELECT_LEADERS_CAPACITY,
+    ALTER_REPLICA_LOG_DIRS_CAPACITY, ALTER_USER_SCRAM_CREDENTIALS_CAPACITY, CREATE_ACLS_CAPACITY,
+    CREATE_PARTITIONS_CAPACITY, CREATE_TOPICS_CAPACITY, DELETE_ACLS_CAPACITY,
+    DELETE_CONSUMER_GROUP_OFFSETS_CAPACITY, DELETE_CONSUMER_GROUPS_CAPACITY,
+    DELETE_RECORDS_CAPACITY, DELETE_TOPICS_CAPACITY, DESCRIBE_ACLS_CAPACITY,
+    DESCRIBE_CLIENT_QUOTAS_CAPACITY, DESCRIBE_CLUSTER_CAPACITY, DESCRIBE_CONFIGS_CAPACITY,
+    DESCRIBE_CONSUMER_GROUPS_CAPACITY, DESCRIBE_LOG_DIRS_CAPACITY, DESCRIBE_TOPICS_CAPACITY,
+    DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY, ELECT_LEADERS_CAPACITY,
     INCREMENTAL_ALTER_CONFIGS_CAPACITY, LIST_CONSUMER_GROUP_OFFSETS_CAPACITY,
     LIST_CONSUMER_GROUPS_CAPACITY, LIST_PARTITION_REASSIGNMENTS_CAPACITY,
     REMOVE_CONSUMER_GROUP_MEMBERS_CAPACITY, completion::AdminCompletionNotifier,
@@ -133,6 +135,9 @@ fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
                 Vec::new(),
             )
         ),
+        ports.alter_user_scram_credentials => AlterUserScramCredentialsTerminal::Altered(
+            AlterUserScramCredentialsBatch::new(0, Vec::new())
+        ),
     }
 
     let join = notifier
@@ -179,6 +184,7 @@ fn shared_capacity_is_the_sum_of_the_closed_admin_ticket_set() {
             + DESCRIBE_ACLS_CAPACITY
             + DESCRIBE_CLIENT_QUOTAS_CAPACITY
             + ALTER_CLIENT_QUOTAS_CAPACITY
+            + ALTER_USER_SCRAM_CREDENTIALS_CAPACITY
             + DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY
             + CREATE_ACLS_CAPACITY
             + DELETE_ACLS_CAPACITY
@@ -212,6 +218,7 @@ fn describe_topics_is_included_in_the_closed_shared_capacity_equation() {
                 + DESCRIBE_ACLS_CAPACITY
                 + DESCRIBE_CLIENT_QUOTAS_CAPACITY
                 + ALTER_CLIENT_QUOTAS_CAPACITY
+                + ALTER_USER_SCRAM_CREDENTIALS_CAPACITY
                 + DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY
                 + CREATE_ACLS_CAPACITY
                 + DELETE_ACLS_CAPACITY
@@ -247,6 +254,7 @@ fn create_partitions_is_included_in_the_closed_shared_capacity_equation() {
                 + DESCRIBE_ACLS_CAPACITY
                 + DESCRIBE_CLIENT_QUOTAS_CAPACITY
                 + ALTER_CLIENT_QUOTAS_CAPACITY
+                + ALTER_USER_SCRAM_CREDENTIALS_CAPACITY
                 + DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY
                 + CREATE_ACLS_CAPACITY
                 + DELETE_ACLS_CAPACITY
@@ -282,6 +290,7 @@ fn describe_configs_is_included_in_the_closed_shared_capacity_equation() {
                 + DESCRIBE_ACLS_CAPACITY
                 + DESCRIBE_CLIENT_QUOTAS_CAPACITY
                 + ALTER_CLIENT_QUOTAS_CAPACITY
+                + ALTER_USER_SCRAM_CREDENTIALS_CAPACITY
                 + DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY
                 + CREATE_ACLS_CAPACITY
                 + DELETE_ACLS_CAPACITY
@@ -317,6 +326,7 @@ fn incremental_alter_configs_is_included_in_the_closed_shared_capacity_equation(
                 + DESCRIBE_ACLS_CAPACITY
                 + DESCRIBE_CLIENT_QUOTAS_CAPACITY
                 + ALTER_CLIENT_QUOTAS_CAPACITY
+                + ALTER_USER_SCRAM_CREDENTIALS_CAPACITY
                 + DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY
                 + CREATE_ACLS_CAPACITY
                 + DELETE_ACLS_CAPACITY
@@ -352,6 +362,7 @@ fn group_offsets_is_included_in_the_closed_shared_capacity_equation() {
                 + DESCRIBE_ACLS_CAPACITY
                 + DESCRIBE_CLIENT_QUOTAS_CAPACITY
                 + ALTER_CLIENT_QUOTAS_CAPACITY
+                + ALTER_USER_SCRAM_CREDENTIALS_CAPACITY
                 + DESCRIBE_USER_SCRAM_CREDENTIALS_CAPACITY
                 + CREATE_ACLS_CAPACITY
                 + DELETE_ACLS_CAPACITY

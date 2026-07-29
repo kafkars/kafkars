@@ -27,7 +27,8 @@ pub use admin::{
     AlterClientQuotasResult, AlterConsumerGroupOffsets, AlterConsumerGroupOffsetsBuilder,
     AlterConsumerGroupOffsetsResult, AlterPartitionReassignments,
     AlterPartitionReassignmentsBuilder, AlterPartitionReassignmentsResult, AlterReplicaLogDirs,
-    AlterReplicaLogDirsBuilder, AlterReplicaLogDirsResult, BatchResult,
+    AlterReplicaLogDirsBuilder, AlterReplicaLogDirsResult, AlterUserScramCredentials,
+    AlterUserScramCredentialsBuilder, AlterUserScramCredentialsResult, BatchResult,
     ClassicConsumerGroupDetails, ClassicConsumerGroupMemberDetails, ClientQuotaAlteration,
     ClientQuotaAlterationOperation, ClientQuotaEntity, ClientQuotaEntityComponent,
     ClientQuotaEntry, ClientQuotaFilterComponent, ClientQuotaMatch, ClientQuotaValue,
@@ -63,6 +64,7 @@ pub use admin::{
     RemoveConsumerGroupMembersResult, ReplicaLogDirAssignment, ResourcePattern,
     ScramCredentialInfo, ScramMechanism, TopicConfigAlterations, TopicConfigQuery,
     TopicDescription, TopicPartitionDescription, TopicPartitionReplica,
+    UserScramCredentialAlteration,
 };
 pub use client::{Client, ClientBuilder};
 pub use consumer::{
