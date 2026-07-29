@@ -11,6 +11,8 @@ pub use operation::ListConsumerGroups;
 pub use result::ListConsumerGroupsResult;
 
 #[cfg(test)]
+mod builder_test;
+#[cfg(test)]
 mod listing_test;
 #[cfg(test)]
 mod operation_test;

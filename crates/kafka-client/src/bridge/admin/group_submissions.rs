@@ -79,8 +79,15 @@ impl AdminEngine {
         )
     }
 
-    pub(crate) fn submit_list_consumer_groups(&self, timeout: Duration) -> AdminListConsumerGroups {
-        AdminListConsumerGroups::from_admission(self.handle.try_list_consumer_groups(timeout))
+    pub(crate) fn submit_list_consumer_groups(
+        &self,
+        request: ListGroupsAdminRequest,
+        timeout: Duration,
+    ) -> AdminListConsumerGroups {
+        AdminListConsumerGroups::from_admission(
+            self.handle
+                .try_list_consumer_groups(request.into_engine(), timeout),
+        )
     }
 
     pub(crate) fn submit_list_groups(

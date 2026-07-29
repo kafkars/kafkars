@@ -15,13 +15,10 @@ impl AdminHandle {
     /// Captures one public deadline and attempts immediate bounded admission.
     pub fn try_list_consumer_groups(
         &self,
+        request: super::AdminListGroupsRequest,
         timeout: Duration,
     ) -> Result<ListConsumerGroupsAccepted, ListConsumerGroupsAdmissionError> {
-        self.try_list_groups_with_scope(
-            timeout,
-            AdminGroupListingScope::ConsumerOnly,
-            AdminGroupListingFilters::empty(),
-        )
+        self.try_list_groups_with_scope(request, timeout, AdminGroupListingScope::ConsumerOnly)
     }
 
     /// Captures one public deadline and lists every broker-reported group type.
@@ -29,6 +26,15 @@ impl AdminHandle {
         &self,
         request: super::AdminListGroupsRequest,
         timeout: Duration,
+    ) -> Result<ListConsumerGroupsAccepted, ListConsumerGroupsAdmissionError> {
+        self.try_list_groups_with_scope(request, timeout, AdminGroupListingScope::All)
+    }
+
+    fn try_list_groups_with_scope(
+        &self,
+        request: super::AdminListGroupsRequest,
+        timeout: Duration,
+        scope: AdminGroupListingScope,
     ) -> Result<ListConsumerGroupsAccepted, ListConsumerGroupsAdmissionError> {
         let capture = self.clock.capture_deadline_after(timeout).map_err(|_| {
             ListConsumerGroupsAdmissionError::new(
@@ -45,30 +51,6 @@ impl AdminHandle {
                 ListConsumerGroupsAdmissionErrorKind::InvalidRequest,
             )
         })?;
-        self.admit_list_groups(
-            capture.now(),
-            capture.operation_deadline(),
-            AdminGroupListingScope::All,
-            filters,
-        )
-    }
-
-    fn try_list_groups_with_scope(
-        &self,
-        timeout: Duration,
-        scope: AdminGroupListingScope,
-        filters: AdminGroupListingFilters,
-    ) -> Result<ListConsumerGroupsAccepted, ListConsumerGroupsAdmissionError> {
-        let capture = self.clock.capture_deadline_after(timeout).map_err(|_| {
-            ListConsumerGroupsAdmissionError::new(
-                ListConsumerGroupsAdmissionErrorKind::InvalidDeadline,
-            )
-        })?;
-        if timeout.is_zero() {
-            return Err(ListConsumerGroupsAdmissionError::new(
-                ListConsumerGroupsAdmissionErrorKind::InvalidDeadline,
-            ));
-        }
         self.admit_list_groups(capture.now(), capture.operation_deadline(), scope, filters)
     }
 
