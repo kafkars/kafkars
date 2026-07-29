@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use super::IncrementalAlterConfigsPlanError;
+use super::{IncrementalAlterConfigsPlanError, IncrementalAlterConfigsRoute};
 
 /// One configuration change whose value contract is encoded by its variant.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -139,6 +139,16 @@ impl TopicConfigAlteration {
     pub fn alterations(&self) -> &[ConfigAlteration] {
         &self.alterations
     }
+
+    pub(crate) fn route(&self) -> IncrementalAlterConfigsRoute {
+        if matches!(self.resource_type, 4 | 8) {
+            return IncrementalAlterConfigsRoute::ExactBroker(
+                canonical_broker_id(&self.resource_name)
+                    .expect("validated broker resource name must remain canonical"),
+            );
+        }
+        IncrementalAlterConfigsRoute::AnyBroker
+    }
 }
 
 /// Resource-generic name for the exact type/name alteration value.
@@ -163,6 +173,11 @@ pub(super) fn validate_resources(
                 IncrementalAlterConfigsPlanError::EmptyResourceName
             });
         }
+        if matches!(resource.resource_type, 4 | 8)
+            && canonical_broker_id(&resource.resource_name).is_none()
+        {
+            return Err(IncrementalAlterConfigsPlanError::InvalidBrokerResourceName);
+        }
         if !identities.insert((resource.resource_type, resource.resource_name.as_str())) {
             return Err(if topic_compatibility_errors {
                 IncrementalAlterConfigsPlanError::DuplicateTopic
@@ -173,6 +188,19 @@ pub(super) fn validate_resources(
         validate_alterations(&resource.alterations)?;
     }
     Ok(())
+}
+
+fn canonical_broker_id(resource_name: &str) -> Option<i32> {
+    let bytes = resource_name.as_bytes();
+    if bytes == b"0" {
+        return Some(0);
+    }
+    if !matches!(bytes.first(), Some(b'1'..=b'9'))
+        || bytes.get(1..)?.iter().any(|byte| !byte.is_ascii_digit())
+    {
+        return None;
+    }
+    resource_name.parse().ok()
 }
 
 fn validate_alterations(

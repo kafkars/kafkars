@@ -9,12 +9,13 @@ use super::{
     IncrementalAlterConfigResult, IncrementalAlterConfigsBatch, IncrementalAlterConfigsEffect,
     IncrementalAlterConfigsFailureKind, IncrementalAlterConfigsInput,
     IncrementalAlterConfigsMachine, IncrementalAlterConfigsMachineError,
-    IncrementalAlterConfigsPlan, IncrementalAlterConfigsState, IncrementalAlterConfigsTerminal,
-    IncrementalAlterConfigsTransition, IncrementalConfigResourceAlteration, TopicConfigAlteration,
+    IncrementalAlterConfigsPlan, IncrementalAlterConfigsRoute, IncrementalAlterConfigsState,
+    IncrementalAlterConfigsTerminal, IncrementalAlterConfigsTransition,
+    IncrementalConfigResourceAlteration, TopicConfigAlteration,
 };
 
 #[test]
-fn original_deadline_and_semantic_plan_cross_the_only_submit_effect() {
+fn single_route_plan_preserves_original_deadline_and_semantics() {
     let mut machine = machine(20);
     let transition = machine
         .apply(IncrementalAlterConfigsInput::Start {
@@ -24,6 +25,7 @@ fn original_deadline_and_semantic_plan_cross_the_only_submit_effect() {
     let Some(IncrementalAlterConfigsEffect::Submit {
         operation_id,
         deadline,
+        route,
         plan,
     }) = transition.into_effect()
     else {
@@ -32,6 +34,7 @@ fn original_deadline_and_semantic_plan_cross_the_only_submit_effect() {
 
     assert_eq!(operation_id, OperationId::from_raw(12));
     assert_eq!(deadline, Deadline::from_tick(20));
+    assert_eq!(route, IncrementalAlterConfigsRoute::AnyBroker);
     assert_eq!(plan, plan_fixture());
     assert_eq!(
         machine.state(),

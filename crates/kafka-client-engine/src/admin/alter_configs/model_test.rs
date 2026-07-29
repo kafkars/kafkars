@@ -3,6 +3,7 @@
 use super::{
     IncrementalAlterConfigsRequest, IncrementalConfigAlteration, IncrementalConfigOperation,
     IncrementalConfigResourceAlterations, TopicConfigAlterations,
+    model::incremental_alter_configs_result_limit,
 };
 
 #[test]
@@ -138,6 +139,43 @@ fn generic_request_rejects_nonpositive_empty_and_duplicate_resources() {
         IncrementalAlterConfigsRequest::for_resources(vec![resource(4, "1"), resource(8, "1"),])
             .into_plan()
             .is_ok()
+    );
+}
+
+#[test]
+fn disjoint_route_result_contributions_fit_one_shared_operation_base() {
+    let any = IncrementalAlterConfigsRequest::for_resources(vec![
+        resource(2, "orders"),
+        resource(16, "client"),
+    ])
+    .into_plan()
+    .unwrap_or_else(|error| panic!("valid any-broker subplan: {error}"));
+    let broker =
+        IncrementalAlterConfigsRequest::for_resources(vec![resource(4, "1"), resource(8, "1")])
+            .into_plan()
+            .unwrap_or_else(|error| panic!("valid exact-broker subplan: {error}"));
+    let whole = IncrementalAlterConfigsRequest::for_resources(vec![
+        resource(2, "orders"),
+        resource(4, "1"),
+        resource(8, "1"),
+        resource(16, "client"),
+    ])
+    .into_plan()
+    .unwrap_or_else(|error| panic!("valid mixed plan: {error}"));
+    let base = crate::admin::retention::result_fixed_charge(0, 0)
+        .unwrap_or_else(|| panic!("result base fits"));
+    let any_limit = incremental_alter_configs_result_limit(&any)
+        .unwrap_or_else(|| panic!("any-broker result fits"));
+    let broker_limit = incremental_alter_configs_result_limit(&broker)
+        .unwrap_or_else(|| panic!("exact-broker result fits"));
+    let whole_limit = incremental_alter_configs_result_limit(&whole)
+        .unwrap_or_else(|| panic!("whole result fits"));
+
+    assert!(whole_limit >= any_limit);
+    assert!(whole_limit >= broker_limit);
+    assert_eq!(
+        whole_limit,
+        base + (any_limit - base) + (broker_limit - base)
     );
 }
 

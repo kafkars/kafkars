@@ -12,7 +12,8 @@ pub use machine::{
 };
 pub use model::{
     ConfigAlteration, ConfigAlterationOperation, IncrementalAlterConfigsPlan,
-    IncrementalAlterConfigsPlanError, IncrementalConfigResourceAlteration, TopicConfigAlteration,
+    IncrementalAlterConfigsPlanError, IncrementalAlterConfigsRoute,
+    IncrementalConfigResourceAlteration, TopicConfigAlteration,
 };
 pub use outcome::{
     IncrementalAlterConfigBrokerError, IncrementalAlterConfigOutcome, IncrementalAlterConfigResult,
@@ -24,5 +25,7 @@ pub use outcome::{
 mod model_test;
 #[cfg(test)]
 mod outcome_test;
+#[cfg(test)]
+mod routing_test;
 #[cfg(test)]
 mod transition_test;

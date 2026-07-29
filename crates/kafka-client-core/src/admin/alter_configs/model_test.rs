@@ -175,6 +175,30 @@ fn generic_plan_rejects_invalid_or_duplicate_exact_resource_identities() {
     assert!(distinct_types.is_ok());
 }
 
+#[test]
+fn broker_resource_names_are_canonical_nonnegative_i32_ids() {
+    for resource_type in [4, 8] {
+        for invalid_name in ["-1", "+1", "00", "01", " 1", "1 ", "1.0", "2147483648"] {
+            assert_eq!(
+                IncrementalAlterConfigsPlan::for_resources(
+                    vec![resource(resource_type, invalid_name, "key")],
+                    false,
+                ),
+                Err(IncrementalAlterConfigsPlanError::InvalidBrokerResourceName)
+            );
+        }
+    }
+
+    let plan = IncrementalAlterConfigsPlan::for_resources(
+        vec![
+            resource(4, "0", "broker.key"),
+            resource(8, "2147483647", "logger.key"),
+        ],
+        false,
+    );
+    assert!(plan.is_ok());
+}
+
 fn topic(name: &str, alterations: Vec<ConfigAlteration>) -> TopicConfigAlteration {
     TopicConfigAlteration::new(name.to_owned(), alterations)
 }

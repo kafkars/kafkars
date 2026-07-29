@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use kafka_client_core::{
     ConfigAlteration, DeliveryStatus, IncrementalAlterConfigsInput, IncrementalAlterConfigsPlan,
-    TopicConfigAlteration,
+    IncrementalAlterConfigsRoute, TopicConfigAlteration,
 };
 
 use crate::clock::OperationDeadline;
@@ -38,10 +38,11 @@ fn admission_reserves_slot_completion_bytes_and_original_deadline_before_machine
     else {
         panic!("submission expected");
     };
-    let (_id, submitted_deadline, submitted_plan, result_limit) = submission.into_parts();
+    let (_id, submitted_deadline, route, submitted_plan, result_limit) = submission.into_parts();
     assert_eq!(submitted_deadline.core(), deadline.core());
+    assert_eq!(route, IncrementalAlterConfigsRoute::AnyBroker);
     assert_eq!(submitted_plan, plan());
-    assert_eq!(result_limit, 8 * 1024);
+    assert_eq!(result_limit, result_limit_for(&plan()));
 
     drop((admission, host));
     crate::admin::test_support::stop_notifier(notifier);
@@ -216,5 +217,10 @@ fn deadline(tick: u64) -> OperationDeadline {
 }
 
 fn retention(total: usize) -> IncrementalAlterConfigsRetention {
-    IncrementalAlterConfigsRetention::from_parts(total, 8 * 1024)
+    IncrementalAlterConfigsRetention::from_parts(total, result_limit_for(&plan()))
+}
+
+fn result_limit_for(plan: &IncrementalAlterConfigsPlan) -> usize {
+    super::model::incremental_alter_configs_result_limit(plan)
+        .unwrap_or_else(|| panic!("small result limit fits"))
 }

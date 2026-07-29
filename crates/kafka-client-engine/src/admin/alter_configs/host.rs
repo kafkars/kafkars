@@ -5,7 +5,8 @@ mod terminal;
 
 use kafka_client_core::{
     IncrementalAlterConfigsEffect, IncrementalAlterConfigsInput, IncrementalAlterConfigsMachine,
-    IncrementalAlterConfigsPlan, IncrementalAlterConfigsTerminal, Moment, OperationId,
+    IncrementalAlterConfigsPlan, IncrementalAlterConfigsRoute, IncrementalAlterConfigsTerminal,
+    Moment, OperationId,
 };
 
 use crate::{
@@ -27,6 +28,7 @@ pub(crate) struct IncrementalAlterConfigsAdmission {
 pub(crate) struct IncrementalAlterConfigsSubmission {
     pub(crate) operation_id: OperationId,
     pub(crate) deadline: OperationDeadline,
+    pub(crate) route: IncrementalAlterConfigsRoute,
     pub(crate) plan: IncrementalAlterConfigsPlan,
     pub(crate) result_limit: usize,
 }
@@ -37,12 +39,14 @@ impl IncrementalAlterConfigsSubmission {
     ) -> (
         OperationId,
         OperationDeadline,
+        IncrementalAlterConfigsRoute,
         IncrementalAlterConfigsPlan,
         usize,
     ) {
         (
             self.operation_id,
             self.deadline,
+            self.route,
             self.plan,
             self.result_limit,
         )
@@ -149,11 +153,39 @@ impl IncrementalAlterConfigsHost {
         if accepted {
             self.operations[index].mark_submitted();
         }
-        if let Some(IncrementalAlterConfigsEffect::Complete { terminal, .. }) =
-            transition.into_effect()
-        {
-            self.operations[index].terminal = Some(terminal);
-            self.publish_terminal(index)?;
+        match transition.into_effect() {
+            Some(IncrementalAlterConfigsEffect::Submit {
+                operation_id: effect_id,
+                deadline,
+                route,
+                plan,
+            }) => {
+                if effect_id != operation_id || deadline != self.operations[index].deadline.core() {
+                    return Err(IncrementalAlterConfigsHostError::SubmissionMismatch);
+                }
+                let result_limit = super::model::incremental_alter_configs_result_limit(&plan)
+                    .filter(|limit| *limit <= self.operations[index].result_limit)
+                    .ok_or(IncrementalAlterConfigsHostError::ByteAccounting)?;
+                self.operations[index].submission = Some(IncrementalAlterConfigsSubmission {
+                    operation_id,
+                    deadline: self.operations[index].deadline,
+                    route,
+                    plan,
+                    result_limit,
+                });
+                self.operations[index].mark_untouched();
+            }
+            Some(IncrementalAlterConfigsEffect::Complete {
+                operation_id: effect_id,
+                terminal,
+            }) => {
+                if effect_id != operation_id {
+                    return Err(IncrementalAlterConfigsHostError::SubmissionMismatch);
+                }
+                self.operations[index].terminal = Some(terminal);
+                self.publish_terminal(index)?;
+            }
+            None => {}
         }
         Ok(())
     }
@@ -197,5 +229,9 @@ impl IncrementalAlterConfigsOperation {
 
     fn mark_submitted(&mut self) {
         self.handoff = IncrementalAlterConfigsHandoff::Submitted;
+    }
+
+    fn mark_untouched(&mut self) {
+        self.handoff = IncrementalAlterConfigsHandoff::Untouched;
     }
 }

@@ -88,16 +88,21 @@ fn start(
         Some(IncrementalAlterConfigsEffect::Submit {
             operation_id,
             deadline: core_deadline,
+            route,
             plan,
         }) => {
             if operation_id != operation.operation_id || core_deadline != deadline.core() {
                 return Err(IncrementalAlterConfigsHostError::SubmissionMismatch);
             }
+            let result_limit = super::super::model::incremental_alter_configs_result_limit(&plan)
+                .filter(|limit| *limit <= operation.result_limit)
+                .ok_or(IncrementalAlterConfigsHostError::ByteAccounting)?;
             operation.submission = Some(IncrementalAlterConfigsSubmission {
                 operation_id,
                 deadline,
+                route,
                 plan,
-                result_limit: operation.result_limit,
+                result_limit,
             });
             Ok(false)
         }

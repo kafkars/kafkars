@@ -5,7 +5,8 @@ use core::fmt;
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
 use super::{
-    IncrementalAlterConfigsBatch, IncrementalAlterConfigsPlan, IncrementalAlterConfigsTerminal,
+    IncrementalAlterConfigOutcome, IncrementalAlterConfigsBatch, IncrementalAlterConfigsPlan,
+    IncrementalAlterConfigsRoute, IncrementalAlterConfigsTerminal,
 };
 
 /// Current ownership stage for one incremental configuration operation.
@@ -70,6 +71,8 @@ pub enum IncrementalAlterConfigsEffect {
         operation_id: OperationId,
         /// Original public absolute deadline.
         deadline: Deadline,
+        /// Exact destination owned by this serial subplan.
+        route: IncrementalAlterConfigsRoute,
         /// Ordered semantic request facts.
         plan: IncrementalAlterConfigsPlan,
     },
@@ -111,6 +114,10 @@ pub struct IncrementalAlterConfigsMachine {
     pub(crate) operation_id: OperationId,
     pub(crate) deadline: Deadline,
     pub(crate) plan: IncrementalAlterConfigsPlan,
+    pub(crate) routes: Vec<IncrementalAlterConfigsRoute>,
+    pub(crate) current_route: usize,
+    pub(crate) throttle_time_ms: u32,
+    pub(crate) outcomes: Vec<Option<IncrementalAlterConfigOutcome>>,
     pub(crate) state: IncrementalAlterConfigsState,
 }
 
@@ -125,6 +132,10 @@ impl IncrementalAlterConfigsMachine {
             operation_id,
             deadline,
             plan,
+            routes: Vec::new(),
+            current_route: 0,
+            throttle_time_ms: 0,
+            outcomes: Vec::new(),
             state: IncrementalAlterConfigsState::Ready,
         }
     }

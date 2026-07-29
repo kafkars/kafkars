@@ -33,6 +33,8 @@ pub(crate) use shard::{
 #[cfg(test)]
 mod handle_test;
 #[cfg(test)]
+mod host_routing_test;
+#[cfg(test)]
 mod host_test;
 #[cfg(test)]
 mod model_test;

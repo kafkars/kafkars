@@ -2,7 +2,10 @@
 
 use std::{error::Error, fmt};
 
-use kafka_client_core::{IncrementalAlterConfigsInput, IncrementalAlterConfigsPlan, OperationId};
+use kafka_client_core::{
+    IncrementalAlterConfigsInput, IncrementalAlterConfigsPlan, IncrementalAlterConfigsRoute,
+    OperationId,
+};
 use kafka_driver::{CompletionError, RouteFailureToken, RoutedCall};
 use kafka_wire::IncrementalAlterConfigsResponse;
 
@@ -33,12 +36,16 @@ impl IncrementalAlterConfigsCallPermit<'_> {
         driver: &DriverOwner,
         operation_id: OperationId,
         deadline: OperationDeadline,
+        route: IncrementalAlterConfigsRoute,
         plan: IncrementalAlterConfigsPlan,
         result_limit: usize,
     ) -> Result<(), IncrementalAlterConfigsAdmissionFailure> {
         let request = incremental_alter_configs_request(&plan);
-        let call =
-            driver.submit_tracked_incremental_alter_configs(request, deadline.transport())?;
+        let call = driver.submit_tracked_incremental_alter_configs(
+            request,
+            route,
+            deadline.transport(),
+        )?;
         self.calls.push(IncrementalAlterConfigsCall {
             operation_id,
             plan,

@@ -1,18 +1,33 @@
-//! Route and option scenarios for tracked topic `IncrementalAlterConfigs` submission.
+//! Route and option scenarios for tracked resource-generic `IncrementalAlterConfigs`.
 
 use std::time::{Duration, Instant};
 
-use kafka_driver::{Route, TrafficClass};
+use kafka_client_core::IncrementalAlterConfigsRoute;
+use kafka_driver::{BrokerId, Route, TrafficClass};
 
 use super::incremental_alter_configs_submission::{
     incremental_alter_configs_options, incremental_alter_configs_route,
 };
 
 #[test]
-fn submission_uses_any_broker_interactive_lane_original_deadline_and_v1_ceiling() {
+fn submission_preserves_route_interactive_lane_original_deadline_and_v1_ceiling() {
     let deadline = Instant::now() + Duration::from_secs(9);
     let options = incremental_alter_configs_options(deadline);
-    assert_eq!(incremental_alter_configs_route(), Route::AnyBroker);
+    assert_eq!(
+        incremental_alter_configs_route(IncrementalAlterConfigsRoute::AnyBroker)
+            .unwrap_or_else(|error| panic!("any-broker route: {error}")),
+        Route::AnyBroker
+    );
+    assert_eq!(
+        incremental_alter_configs_route(IncrementalAlterConfigsRoute::ExactBroker(7))
+            .unwrap_or_else(|error| panic!("exact broker route: {error}")),
+        Route::Broker {
+            broker_id: BrokerId::new(7).unwrap_or_else(|error| panic!("broker ID: {error}")),
+        }
+    );
+    assert!(
+        incremental_alter_configs_route(IncrementalAlterConfigsRoute::ExactBroker(-1)).is_err()
+    );
     assert_eq!(options.deadline(), deadline);
     assert_eq!(options.traffic_class(), TrafficClass::Interactive);
     assert_eq!(
