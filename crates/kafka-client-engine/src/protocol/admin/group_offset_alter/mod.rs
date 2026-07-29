@@ -15,7 +15,7 @@ pub(crate) use model::{
 pub(crate) use request::{GroupOffsetAlterRequestFailure, group_offset_alter_request};
 pub(crate) use response::{GroupOffsetAlterProtocolFailure, validate_group_offset_alter_response};
 pub(crate) use retention::generated_request_peak_charge;
-pub(crate) use version::{GROUP_OFFSET_ALTER_MAX_VERSION, group_offset_alter_minimum_version};
+pub(crate) use version::{group_offset_alter_maximum_version, group_offset_alter_minimum_version};
 
 #[cfg(test)]
 mod correlation_test;

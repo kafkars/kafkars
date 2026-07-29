@@ -29,6 +29,16 @@ impl AlterConsumerGroupOffsetsBuilder {
         }
     }
 
+    /// Supplies Kafka's explicit committed-offset retention time.
+    ///
+    /// The duration remains inert and is validated only when [`Self::submit`]
+    /// enters the engine boundary.
+    #[must_use]
+    pub fn retention_time(mut self, retention_time: Duration) -> Self {
+        self.request = self.request.with_retention_time(retention_time);
+        self
+    }
+
     /// Replaces the duration converted into an absolute deadline at submission.
     pub const fn deadline_after(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;

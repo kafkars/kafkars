@@ -31,6 +31,7 @@ impl Error for GroupOffsetAlterRequestFailure {}
 pub(crate) fn group_offset_alter_request(
     group_id: &str,
     targets: &[OffsetCommitTargetRef<'_>],
+    retention_time_ms: Option<i64>,
     scratch_limit: usize,
 ) -> Result<OffsetCommitRequest, GroupOffsetAlterRequestFailure> {
     let scratch_charge = generated_request_peak_charge(group_id, targets.iter().copied())
@@ -44,7 +45,7 @@ pub(crate) fn group_offset_alter_request(
     request.generation_id_or_member_epoch = -1;
     request.member_id = "".into();
     request.group_instance_id = None;
-    request.retention_time_ms = -1;
+    request.retention_time_ms = retention_time_ms.unwrap_or(-1);
     append_topics(&mut request, targets, &order);
     Ok(request)
 }

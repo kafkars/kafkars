@@ -15,7 +15,7 @@ fn request_groups_topics_and_writes_exact_non_member_sentinels() {
         OffsetCommitTargetRef::new("audit", 7, 13, None, None),
         OffsetCommitTargetRef::new("orders", 1, 42, None, Some("")),
     ];
-    let request = group_offset_alter_request("readers", &targets, usize::MAX)
+    let request = group_offset_alter_request("readers", &targets, None, usize::MAX)
         .unwrap_or_else(|error| panic!("charged request: {error:?}"));
     let decoded = round_trip(&request, ApiVersion::new(2));
 
@@ -45,12 +45,29 @@ fn request_groups_topics_and_writes_exact_non_member_sentinels() {
 }
 
 #[test]
+fn explicit_retention_is_exact_through_v4_and_absent_afterward() {
+    let targets = [OffsetCommitTargetRef::new("orders", 2, 91, None, None)];
+    let request = group_offset_alter_request("readers", &targets, Some(86_400_000), usize::MAX)
+        .unwrap_or_else(|error| panic!("charged request: {error:?}"));
+
+    assert_eq!(request.retention_time_ms, 86_400_000);
+    assert_eq!(
+        round_trip(&request, ApiVersion::new(4)).retention_time_ms,
+        86_400_000
+    );
+    assert_eq!(
+        round_trip(&request, ApiVersion::new(5)).retention_time_ms,
+        -1
+    );
+}
+
+#[test]
 fn v9_round_trip_preserves_optional_epoch_and_nullable_metadata() {
     let targets = [
         OffsetCommitTargetRef::new("orders", 2, 91, Some(8), Some("")),
         OffsetCommitTargetRef::new("orders", 3, 92, None, None),
     ];
-    let request = group_offset_alter_request("readers", &targets, usize::MAX)
+    let request = group_offset_alter_request("readers", &targets, None, usize::MAX)
         .unwrap_or_else(|error| panic!("charged request: {error:?}"));
     let decoded = round_trip(&request, ApiVersion::new(9));
     let partitions = &decoded.topics[0].partitions;
@@ -78,7 +95,7 @@ fn generated_message_supports_our_exact_v2_through_v9_subset() {
 fn request_grouping_scratch_is_proven_before_allocation() {
     let target = [OffsetCommitTargetRef::new("orders", 1, 4, None, None)];
     assert_eq!(
-        group_offset_alter_request("readers", &target, 0).err(),
+        group_offset_alter_request("readers", &target, None, 0).err(),
         Some(GroupOffsetAlterRequestFailure::RetainedBytes)
     );
 }

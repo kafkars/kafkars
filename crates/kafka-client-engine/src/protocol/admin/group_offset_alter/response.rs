@@ -52,11 +52,12 @@ pub(crate) enum GroupOffsetAlterProtocolFailure {
 /// Validates before allocation and restores exact caller target order.
 pub(crate) fn validate_group_offset_alter_response<'a>(
     targets: &[OffsetCommitTargetRef<'_>],
+    retention_time_ms: Option<i64>,
     response: &'a OffsetCommitResponse,
     selected_version: i16,
     result_limit: usize,
 ) -> Result<ValidatedOffsetCommitResponse<'a>, GroupOffsetAlterProtocolFailure> {
-    validate_selected_version(targets, selected_version).map_err(|failure| {
+    validate_selected_version(targets, retention_time_ms, selected_version).map_err(|failure| {
         GroupOffsetAlterProtocolFailure::UnsupportedApiVersion {
             minimum: failure.minimum,
             maximum: failure.maximum,

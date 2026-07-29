@@ -47,6 +47,7 @@ pub(super) fn terminal_input(
             };
             match validate_group_offset_alter_response(
                 &targets,
+                plan.retention_time_ms(),
                 response,
                 selected_version,
                 terminal.result_limit(),

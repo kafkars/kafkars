@@ -1,5 +1,7 @@
 //! Inert group-offset alteration intent translated only at the engine boundary.
 
+use std::time::Duration;
+
 use kafka_client_engine::{
     AlterConsumerGroupOffsetTarget as EngineTarget,
     AlterConsumerGroupOffsetsRequest as EngineRequest,
@@ -23,6 +25,11 @@ impl AlterConsumerGroupOffsetsAdminRequest {
                     .collect(),
             ),
         }
+    }
+
+    pub(crate) fn with_retention_time(mut self, retention_time: Duration) -> Self {
+        self.inner = self.inner.with_retention_time(retention_time);
+        self
     }
 
     pub(in crate::bridge) fn into_engine(self) -> EngineRequest {

@@ -53,6 +53,7 @@ impl GroupOffsetAlterCall {
         let request = match group_offset_alter_request(
             evidence.plan().group_id(),
             &targets,
+            evidence.plan().retention_time_ms(),
             evidence.request_scratch_limit(),
         ) {
             Ok(request) => request,
@@ -66,6 +67,7 @@ impl GroupOffsetAlterCall {
         let call = match driver.submit_tracked_group_offset_alter(
             evidence.plan().group_id(),
             &targets,
+            evidence.plan().retention_time_ms(),
             request,
             deadline,
         ) {

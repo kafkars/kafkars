@@ -8,7 +8,7 @@ use kafka_driver::{
 use kafka_wire::{OffsetCommitRequest, OffsetCommitResponse};
 
 use crate::protocol::admin::group_offset_alter::{
-    GROUP_OFFSET_ALTER_MAX_VERSION, OffsetCommitTargetRef, group_offset_alter_minimum_version,
+    OffsetCommitTargetRef, group_offset_alter_maximum_version, group_offset_alter_minimum_version,
 };
 
 use super::{super::DriverOwner, group_coordinator_route::group_coordinator_route};
@@ -45,6 +45,7 @@ impl DriverOwner {
         &self,
         group: &str,
         targets: &[OffsetCommitTargetRef<'_>],
+        retention_time_ms: Option<i64>,
         request: OffsetCommitRequest,
         deadline: Instant,
     ) -> Result<RoutedCall<OffsetCommitResponse>, GroupOffsetAlterSubmitError> {
@@ -54,7 +55,7 @@ impl DriverOwner {
             .request_tracked_with(
                 route,
                 request,
-                group_offset_alter_options(targets, deadline),
+                group_offset_alter_options(targets, retention_time_ms, deadline),
             )
             .map_err(GroupOffsetAlterSubmitError::Driver)
     }
@@ -62,10 +63,11 @@ impl DriverOwner {
 
 pub(super) fn group_offset_alter_options(
     targets: &[OffsetCommitTargetRef<'_>],
+    retention_time_ms: Option<i64>,
     deadline: Instant,
 ) -> RequestOptions {
     let minimum = ApiVersion::new(group_offset_alter_minimum_version(targets).value());
-    let maximum = ApiVersion::new(GROUP_OFFSET_ALTER_MAX_VERSION.value());
+    let maximum = ApiVersion::new(group_offset_alter_maximum_version(retention_time_ms).value());
     RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Interactive)
         .with_minimum_version(minimum)

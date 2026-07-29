@@ -66,6 +66,7 @@ impl AlterConsumerGroupOffsetTarget {
 pub struct AlterConsumerGroupOffsetsPlan {
     group_id: String,
     targets: Vec<AlterConsumerGroupOffsetTarget>,
+    retention_time_ms: Option<i64>,
 }
 
 impl AlterConsumerGroupOffsetsPlan {
@@ -85,7 +86,26 @@ impl AlterConsumerGroupOffsetsPlan {
                 return Err(AlterConsumerGroupOffsetsPlanError::DuplicateTopicPartition);
             }
         }
-        Ok(Self { group_id, targets })
+        Ok(Self {
+            group_id,
+            targets,
+            retention_time_ms: None,
+        })
+    }
+
+    /// Selects an explicit nonnegative Kafka retention duration in milliseconds.
+    pub fn with_retention_time_ms(
+        mut self,
+        retention_time_ms: i64,
+    ) -> Result<Self, AlterConsumerGroupOffsetsPlanError> {
+        if retention_time_ms < 0 {
+            return Err(AlterConsumerGroupOffsetsPlanError::NegativeRetentionTime);
+        }
+        if self.requires_leader_epoch() {
+            return Err(AlterConsumerGroupOffsetsPlanError::RetentionTimeWithLeaderEpoch);
+        }
+        self.retention_time_ms = Some(retention_time_ms);
+        Ok(self)
     }
 
     /// Returns the exact consumer-group coordinator key.
@@ -96,6 +116,11 @@ impl AlterConsumerGroupOffsetsPlan {
     /// Returns alterations in original caller order.
     pub fn targets(&self) -> &[AlterConsumerGroupOffsetTarget] {
         &self.targets
+    }
+
+    /// Returns explicit retention milliseconds or omission for Kafka's `-1` sentinel.
+    pub const fn retention_time_ms(&self) -> Option<i64> {
+        self.retention_time_ms
     }
 
     /// Reports whether the request requires `OffsetCommit` v6 or newer.
@@ -167,6 +192,12 @@ pub enum AlterConsumerGroupOffsetsPlanError {
     MetadataTooLong,
     /// One request cannot repeat a topic-partition identity.
     DuplicateTopicPartition,
+    /// Kafka retention milliseconds must be nonnegative when explicitly selected.
+    NegativeRetentionTime,
+    /// Kafka versions carrying retention do not also carry leader epochs.
+    RetentionTimeWithLeaderEpoch,
+    /// The requested retention duration exceeds Kafka's signed-millisecond domain.
+    RetentionTimeTooLarge,
 }
 
 impl fmt::Display for AlterConsumerGroupOffsetsPlanError {
@@ -183,6 +214,15 @@ impl fmt::Display for AlterConsumerGroupOffsetsPlanError {
             Self::MetadataTooLong => "consumer group offset metadata is too long",
             Self::DuplicateTopicPartition => {
                 "consumer group offset alteration contains a duplicate topic-partition"
+            }
+            Self::NegativeRetentionTime => {
+                "consumer group offset alteration retention time is negative"
+            }
+            Self::RetentionTimeWithLeaderEpoch => {
+                "consumer group offset alteration retention time cannot be combined with a leader epoch"
+            }
+            Self::RetentionTimeTooLarge => {
+                "consumer group offset alteration retention time exceeds Kafka's millisecond domain"
             }
         })
     }

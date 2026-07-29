@@ -22,7 +22,50 @@ fn plan_preserves_group_caller_order_offsets_epochs_and_nullable_metadata() {
     assert_eq!(plan.targets()[0].leader_epoch(), Some(7));
     assert_eq!(plan.targets()[0].metadata(), Some(""));
     assert_eq!(plan.targets()[1].metadata(), None);
+    assert_eq!(plan.retention_time_ms(), None);
     assert!(plan.requires_leader_epoch());
+}
+
+#[test]
+fn plan_preserves_explicit_nonnegative_retention_milliseconds() {
+    let zero = AlterConsumerGroupOffsetsPlan::new(
+        "payments".to_owned(),
+        vec![plain_target("orders", 0, 1)],
+    )
+    .and_then(|plan| plan.with_retention_time_ms(0))
+    .unwrap_or_else(|error| panic!("zero retention plan: {error}"));
+    let positive = AlterConsumerGroupOffsetsPlan::new(
+        "payments".to_owned(),
+        vec![plain_target("orders", 0, 1)],
+    )
+    .and_then(|plan| plan.with_retention_time_ms(i64::MAX))
+    .unwrap_or_else(|error| panic!("maximum retention plan: {error}"));
+
+    assert_eq!(zero.retention_time_ms(), Some(0));
+    assert_eq!(positive.retention_time_ms(), Some(i64::MAX));
+}
+
+#[test]
+fn plan_rejects_negative_retention_and_retention_with_leader_epoch() {
+    let plain = AlterConsumerGroupOffsetsPlan::new(
+        "payments".to_owned(),
+        vec![plain_target("orders", 0, 1)],
+    )
+    .unwrap_or_else(|error| panic!("plain plan: {error}"));
+    assert_eq!(
+        plain.with_retention_time_ms(-1),
+        Err(AlterConsumerGroupOffsetsPlanError::NegativeRetentionTime)
+    );
+
+    let epoch = AlterConsumerGroupOffsetsPlan::new(
+        "payments".to_owned(),
+        vec![target("orders", 0, 1, Some(7), None)],
+    )
+    .unwrap_or_else(|error| panic!("leader-epoch plan: {error}"));
+    assert_eq!(
+        epoch.with_retention_time_ms(1),
+        Err(AlterConsumerGroupOffsetsPlanError::RetentionTimeWithLeaderEpoch)
+    );
 }
 
 #[test]

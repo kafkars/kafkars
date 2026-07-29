@@ -22,7 +22,7 @@ fn response_is_restored_to_caller_order_with_exact_signed_codes() {
             topic("orders", vec![partition(7, 0), partition(2, 9)]),
         ],
     );
-    let validated = validate_group_offset_alter_response(&targets, &response, 9, usize::MAX)
+    let validated = validate_group_offset_alter_response(&targets, None, &response, 9, usize::MAX)
         .unwrap_or_else(|error| panic!("correlatable response: {error:?}"));
     assert_eq!(validated.throttle_time_ms(), 17);
     let entries = validated.entries();
@@ -54,7 +54,8 @@ fn selected_version_respects_v2_floor_v9_ceiling_and_epoch_floor() {
     let response = response(0, vec![topic("orders", vec![partition(2, 0)])]);
     for (actual, minimum) in [(1, 2), (10, 2)] {
         assert_eq!(
-            validate_group_offset_alter_response(&ordinary, &response, actual, usize::MAX).err(),
+            validate_group_offset_alter_response(&ordinary, None, &response, actual, usize::MAX,)
+                .err(),
             Some(GroupOffsetAlterProtocolFailure::UnsupportedApiVersion {
                 minimum,
                 maximum: 9,
@@ -65,7 +66,7 @@ fn selected_version_respects_v2_floor_v9_ceiling_and_epoch_floor() {
 
     let epoch = [target("orders", 2, Some(7))];
     assert_eq!(
-        validate_group_offset_alter_response(&epoch, &response, 5, usize::MAX).err(),
+        validate_group_offset_alter_response(&epoch, None, &response, 5, usize::MAX).err(),
         Some(GroupOffsetAlterProtocolFailure::UnsupportedApiVersion {
             minimum: 6,
             maximum: 9,
@@ -75,14 +76,30 @@ fn selected_version_respects_v2_floor_v9_ceiling_and_epoch_floor() {
 }
 
 #[test]
+fn explicit_retention_rejects_a_response_selected_above_v4() {
+    let targets = [target("orders", 2, None)];
+    let response = response(0, vec![topic("orders", vec![partition(2, 0)])]);
+
+    assert_eq!(
+        validate_group_offset_alter_response(&targets, Some(86_400_000), &response, 5, usize::MAX,)
+            .err(),
+        Some(GroupOffsetAlterProtocolFailure::UnsupportedApiVersion {
+            minimum: 2,
+            maximum: 4,
+            actual: 5,
+        })
+    );
+}
+
+#[test]
 fn throttle_is_absent_in_v2_and_nonnegative_after_v2() {
     let targets = [target("orders", 2, None)];
     let negative = response(-1, vec![topic("orders", vec![partition(2, 0)])]);
-    let v2 = validate_group_offset_alter_response(&targets, &negative, 2, usize::MAX)
+    let v2 = validate_group_offset_alter_response(&targets, None, &negative, 2, usize::MAX)
         .unwrap_or_else(|error| panic!("v2 has no throttle field: {error:?}"));
     assert_eq!(v2.throttle_time_ms(), 0);
     assert_eq!(
-        validate_group_offset_alter_response(&targets, &negative, 3, usize::MAX).err(),
+        validate_group_offset_alter_response(&targets, None, &negative, 3, usize::MAX).err(),
         Some(GroupOffsetAlterProtocolFailure::NegativeThrottleTime { actual: -1 })
     );
 }
@@ -97,7 +114,8 @@ fn ambiguous_or_unexpected_response_targets_never_correlate() {
         ],
     );
     assert_eq!(
-        validate_group_offset_alter_response(&targets(), &duplicate_topic, 9, usize::MAX).err(),
+        validate_group_offset_alter_response(&targets(), None, &duplicate_topic, 9, usize::MAX,)
+            .err(),
         Some(GroupOffsetAlterProtocolFailure::DuplicateTopic)
     );
 
@@ -109,8 +127,14 @@ fn ambiguous_or_unexpected_response_targets_never_correlate() {
         ],
     );
     assert_eq!(
-        validate_group_offset_alter_response(&targets(), &duplicate_partition, 9, usize::MAX,)
-            .err(),
+        validate_group_offset_alter_response(
+            &targets(),
+            None,
+            &duplicate_partition,
+            9,
+            usize::MAX,
+        )
+        .err(),
         Some(GroupOffsetAlterProtocolFailure::DuplicatePartition { actual: 2 })
     );
 
@@ -122,7 +146,7 @@ fn ambiguous_or_unexpected_response_targets_never_correlate() {
         ],
     );
     assert_eq!(
-        validate_group_offset_alter_response(&targets(), &unexpected, 9, usize::MAX).err(),
+        validate_group_offset_alter_response(&targets(), None, &unexpected, 9, usize::MAX).err(),
         Some(GroupOffsetAlterProtocolFailure::MissingPartition { actual: 1 })
     );
 }
@@ -142,7 +166,7 @@ fn hostile_excess_partitions_are_rejected_before_correlation_allocation() {
         )],
     );
     assert_eq!(
-        validate_group_offset_alter_response(&targets(), &response, 9, usize::MAX).err(),
+        validate_group_offset_alter_response(&targets(), None, &response, 9, usize::MAX).err(),
         Some(GroupOffsetAlterProtocolFailure::PartitionCount {
             expected: 3,
             actual: 4,
@@ -159,11 +183,13 @@ fn complete_future_allocation_charge_must_fit_before_correlation() {
             topic("audit", vec![partition(1, 0)]),
         ],
     );
-    let validated = validate_group_offset_alter_response(&targets(), &response, 9, usize::MAX)
-        .unwrap_or_else(|error| panic!("charge can be measured: {error:?}"));
+    let validated =
+        validate_group_offset_alter_response(&targets(), None, &response, 9, usize::MAX)
+            .unwrap_or_else(|error| panic!("charge can be measured: {error:?}"));
     assert_eq!(
         validate_group_offset_alter_response(
             &targets(),
+            None,
             &response,
             9,
             validated.retained_charge() - 1,

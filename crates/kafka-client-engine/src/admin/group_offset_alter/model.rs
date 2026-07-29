@@ -1,6 +1,7 @@
 //! Engine-owned canonical request intent for consumer-group offset alteration.
 
 use core::mem::size_of;
+use std::time::Duration;
 
 use kafka_client_core::{
     AlterConsumerGroupOffsetTarget as CoreTarget, AlterConsumerGroupOffsetsPlan,
@@ -57,12 +58,23 @@ impl AlterConsumerGroupOffsetTarget {
 pub struct AlterConsumerGroupOffsetsRequest {
     group_id: String,
     targets: Vec<AlterConsumerGroupOffsetTarget>,
+    retention_time: Option<Duration>,
 }
 
 impl AlterConsumerGroupOffsetsRequest {
     /// Creates one inert request for validation at the public call boundary.
     pub const fn new(group_id: String, targets: Vec<AlterConsumerGroupOffsetTarget>) -> Self {
-        Self { group_id, targets }
+        Self {
+            group_id,
+            targets,
+            retention_time: None,
+        }
+    }
+
+    /// Selects an explicit retention duration without starting or validating work.
+    pub const fn with_retention_time(mut self, retention_time: Duration) -> Self {
+        self.retention_time = Some(retention_time);
+        self
     }
 
     pub(crate) fn canonicalize(mut self) -> Self {
@@ -96,13 +108,24 @@ impl AlterConsumerGroupOffsetsRequest {
     pub(crate) fn into_plan(
         self,
     ) -> Result<AlterConsumerGroupOffsetsPlan, AlterConsumerGroupOffsetsPlanError> {
-        AlterConsumerGroupOffsetsPlan::new(
+        let retention_time_ms = self
+            .retention_time
+            .map(|retention_time| {
+                i64::try_from(retention_time.as_millis())
+                    .map_err(|_| AlterConsumerGroupOffsetsPlanError::RetentionTimeTooLarge)
+            })
+            .transpose()?;
+        let plan = AlterConsumerGroupOffsetsPlan::new(
             self.group_id,
             self.targets
                 .into_iter()
                 .map(AlterConsumerGroupOffsetTarget::into_core)
                 .collect(),
-        )
+        )?;
+        match retention_time_ms {
+            Some(retention_time_ms) => plan.with_retention_time_ms(retention_time_ms),
+            None => Ok(plan),
+        }
     }
 
     #[cfg(test)]

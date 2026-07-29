@@ -32,9 +32,43 @@ fn request_uses_one_absolute_deadline_and_exact_name_based_bounds() {
             None,
         ),
     ];
-    let options = group_offset_alter_options(&targets, deadline);
+    let options = group_offset_alter_options(&targets, None, deadline);
     assert_eq!(options.minimum_version(), Some(ApiVersion::new(6)));
     assert_eq!(options.maximum_version(), Some(ApiVersion::new(9)));
     assert_eq!(options.traffic_class(), TrafficClass::Interactive);
     assert_eq!(options.deadline(), deadline);
+}
+
+#[test]
+fn explicit_retention_caps_the_driver_at_v4() {
+    let deadline = Instant::now() + Duration::from_secs(1);
+    let targets = [
+        crate::protocol::admin::group_offset_alter::OffsetCommitTargetRef::new(
+            "orders", 0, 91, None, None,
+        ),
+    ];
+    let options = group_offset_alter_options(&targets, Some(86_400_000), deadline);
+
+    assert_eq!(options.minimum_version(), Some(ApiVersion::new(2)));
+    assert_eq!(options.maximum_version(), Some(ApiVersion::new(4)));
+    assert_eq!(options.traffic_class(), TrafficClass::Interactive);
+    assert_eq!(options.deadline(), deadline);
+}
+
+#[test]
+fn retention_and_leader_epoch_produce_invalid_driver_bounds() {
+    let deadline = Instant::now() + Duration::from_secs(1);
+    let targets = [
+        crate::protocol::admin::group_offset_alter::OffsetCommitTargetRef::new(
+            "orders",
+            0,
+            91,
+            Some(7),
+            None,
+        ),
+    ];
+    let options = group_offset_alter_options(&targets, Some(86_400_000), deadline);
+
+    assert_eq!(options.minimum_version(), Some(ApiVersion::new(6)));
+    assert_eq!(options.maximum_version(), Some(ApiVersion::new(4)));
 }
