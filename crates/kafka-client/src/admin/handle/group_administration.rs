@@ -7,9 +7,9 @@ use crate::{
         AlterConsumerGroupOffsetsBuilder, AlterStreamsGroupOffsetsBuilder,
         ConsumerGroupOffsetAlteration, DeleteConsumerGroupOffsetsBuilder,
         DeleteConsumerGroupsBuilder, DeleteShareGroupsBuilder, DeleteStreamsGroupOffsetsBuilder,
-        DeleteStreamsGroupsBuilder, ListConsumerGroupOffsetsBuilder,
+        DeleteStreamsGroupsBuilder, ListConsumerGroupOffsetsBuilder, ListConsumerGroupOffsetsQuery,
         ListConsumerGroupsOffsetsBuilder, ListStreamsGroupOffsetsBuilder,
-        ListStreamsGroupsOffsetsBuilder,
+        ListStreamsGroupOffsetsQuery, ListStreamsGroupsOffsetsBuilder,
     },
     bridge::{
         admin_delete_consumer_groups::DeleteConsumerGroupsAdminRequest,
@@ -24,14 +24,15 @@ use crate::{
 impl Admin {
     /// Builds an inert all-partition committed-offset query for one group.
     ///
-    /// Stable offsets are not required by default. No timeout starts and no
-    /// operation is admitted until [`ListConsumerGroupOffsetsBuilder::submit`]
-    /// is called.
+    /// [`ListConsumerGroupOffsetsBuilder::partitions`] narrows the query to a
+    /// caller-ordered explicit selection. Stable offsets are not required by
+    /// default. No timeout starts and no operation is admitted until
+    /// [`ListConsumerGroupOffsetsBuilder::submit`] is called.
     pub fn list_consumer_group_offsets(
         &self,
         group_id: impl Into<String>,
     ) -> ListConsumerGroupOffsetsBuilder {
-        let request = ListConsumerGroupOffsetsAdminRequest::new(group_id.into());
+        let request = ListConsumerGroupOffsetsAdminRequest::all(group_id.into());
         ListConsumerGroupOffsetsBuilder::new(
             self.engine.clone(),
             request,
@@ -41,20 +42,19 @@ impl Admin {
 
     /// Builds one inert caller-ordered offset query for multiple consumer groups.
     ///
-    /// The accepted operation routes one explicit singleton request to each
-    /// group's coordinator under the original public deadline. No timeout
-    /// starts and no work is admitted until
+    /// Each [`ListConsumerGroupOffsetsQuery`] independently selects all or an
+    /// explicit caller-ordered topic-partition set. Plain string items remain
+    /// shorthand for all partitions. The accepted operation routes one
+    /// explicit singleton request to each group's coordinator under the
+    /// original public deadline. No timeout starts and no work is admitted until
     /// [`ListConsumerGroupsOffsetsBuilder::submit`] is called.
-    pub fn list_consumer_groups_offsets<I, T>(
-        &self,
-        group_ids: I,
-    ) -> ListConsumerGroupsOffsetsBuilder
+    pub fn list_consumer_groups_offsets<I, Q>(&self, queries: I) -> ListConsumerGroupsOffsetsBuilder
     where
-        I: IntoIterator<Item = T>,
-        T: Into<String>,
+        I: IntoIterator<Item = Q>,
+        Q: Into<ListConsumerGroupOffsetsQuery>,
     {
         let request = ListConsumerGroupsOffsetsAdminRequest::new(
-            group_ids.into_iter().map(Into::into).collect(),
+            queries.into_iter().map(Into::into).collect(),
         );
         ListConsumerGroupsOffsetsBuilder::new(
             self.engine.clone(),
@@ -66,7 +66,8 @@ impl Admin {
     /// Builds an inert committed-offset query for one streams group.
     ///
     /// Kafka defines this operation over the consumer-group `OffsetFetch`
-    /// path. No timeout starts and no operation is admitted until
+    /// path. [`ListStreamsGroupOffsetsBuilder::partitions`] selects explicit
+    /// topic-partitions. No timeout starts and no operation is admitted until
     /// [`ListStreamsGroupOffsetsBuilder::submit`] is called.
     pub fn list_streams_group_offsets(
         &self,
@@ -79,16 +80,21 @@ impl Admin {
 
     /// Builds one inert caller-ordered committed-offset query for multiple Streams groups.
     ///
-    /// Kafka defines this over the consumer-group `OffsetFetch` path. No timeout
-    /// starts and no work is admitted until
+    /// Kafka defines this over the consumer-group `OffsetFetch` path. Each
+    /// [`ListStreamsGroupOffsetsQuery`] selects all or explicit partitions;
+    /// plain strings remain all-partition shorthand. No timeout starts and no
+    /// work is admitted until
     /// [`ListStreamsGroupsOffsetsBuilder::submit`] is called.
-    pub fn list_streams_groups_offsets<I, T>(&self, group_ids: I) -> ListStreamsGroupsOffsetsBuilder
+    pub fn list_streams_groups_offsets<I, Q>(&self, queries: I) -> ListStreamsGroupsOffsetsBuilder
     where
-        I: IntoIterator<Item = T>,
-        T: Into<String>,
+        I: IntoIterator<Item = Q>,
+        Q: Into<ListStreamsGroupOffsetsQuery>,
     {
+        let consumer_queries = queries
+            .into_iter()
+            .map(|query| query.into().into_consumer_group());
         ListStreamsGroupsOffsetsBuilder::from_consumer_groups(
-            self.list_consumer_groups_offsets(group_ids),
+            self.list_consumer_groups_offsets(consumer_queries),
         )
     }
 

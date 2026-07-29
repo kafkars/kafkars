@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use crate::admin::ListConsumerGroupOffsetsBuilder;
+use crate::{TopicPartition, admin::ListConsumerGroupOffsetsBuilder};
 
 use super::ListStreamsGroupOffsets;
 
@@ -20,6 +20,18 @@ impl ListStreamsGroupOffsetsBuilder {
     /// Requires Kafka to reject offsets with pending transactional commits.
     pub fn require_stable(mut self, require_stable: bool) -> Self {
         self.inner = self.inner.require_stable(require_stable);
+        self
+    }
+
+    /// Selects a nonempty caller-ordered set of topic-partitions.
+    ///
+    /// Validation remains deferred until [`Self::submit`] enters the shared
+    /// OffsetFetch admission boundary.
+    pub fn partitions<I>(mut self, partitions: I) -> Self
+    where
+        I: IntoIterator<Item = TopicPartition>,
+    {
+        self.inner = self.inner.partitions(partitions);
         self
     }
 

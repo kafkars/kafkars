@@ -10,7 +10,10 @@ pub use machine::{
     ListConsumerGroupOffsetsMachineError, ListConsumerGroupOffsetsState,
     ListConsumerGroupOffsetsTransition,
 };
-pub use model::{ListConsumerGroupOffsetsPlan, ListConsumerGroupOffsetsPlanError};
+pub use model::{
+    ListConsumerGroupOffsetTarget, ListConsumerGroupOffsetsPlan, ListConsumerGroupOffsetsPlanError,
+    ListConsumerGroupOffsetsQuery, ListConsumerGroupOffsetsSelection,
+};
 pub use outcome::{
     GroupOffsetBrokerError, GroupOffsetDescription, GroupOffsetOutcome, GroupOffsetResult,
     ListConsumerGroupBatchOutcome, ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsFailure,
@@ -20,8 +23,6 @@ pub use outcome::{
 
 #[cfg(test)]
 mod machine_test;
-#[cfg(test)]
-mod model_test;
 #[cfg(test)]
 mod outcome_test;
 #[cfg(test)]

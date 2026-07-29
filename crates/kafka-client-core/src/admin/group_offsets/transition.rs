@@ -5,6 +5,8 @@ mod validation;
 
 #[cfg(test)]
 mod batch_test;
+#[cfg(test)]
+mod selection_test;
 
 use crate::DeliveryStatus;
 

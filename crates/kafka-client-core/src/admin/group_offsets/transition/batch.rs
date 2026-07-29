@@ -4,7 +4,7 @@ use core::{mem::take, num::NonZeroI16};
 
 use crate::DeliveryStatus;
 
-use super::validation::outcomes_are_normalized;
+use super::validation::correlate_outcomes;
 use crate::admin::group_offsets::{
     ListConsumerGroupBatchOutcome, ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsFailure,
     ListConsumerGroupOffsetsFailureKind, ListConsumerGroupOffsetsMachine,
@@ -21,14 +21,17 @@ impl ListConsumerGroupOffsetsMachine {
         if self.state != ListConsumerGroupOffsetsState::Submitted {
             return Err(ListConsumerGroupOffsetsMachineError::InvalidState);
         }
-        if !outcomes_are_normalized(batch.outcomes()) {
+        let Some(selection) = self.plan.selections().get(self.next_group) else {
+            return Err(ListConsumerGroupOffsetsMachineError::InvalidState);
+        };
+        let Some(batch) = correlate_outcomes(selection, batch) else {
             return Ok(self.finish(ListConsumerGroupOffsetsTerminal::Failed(
                 ListConsumerGroupOffsetsFailure::new(
                     ListConsumerGroupOffsetsFailureKind::InvalidResponse,
                     DeliveryStatus::PossiblySent,
                 ),
             )));
-        }
+        };
         let Some(group_id) = self.current_group_id().map(str::to_owned) else {
             return Err(ListConsumerGroupOffsetsMachineError::InvalidState);
         };

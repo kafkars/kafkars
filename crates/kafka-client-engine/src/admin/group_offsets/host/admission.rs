@@ -3,8 +3,9 @@
 use core::mem::size_of;
 
 use kafka_client_core::{
-    ListConsumerGroupOffsetsEffect, ListConsumerGroupOffsetsInput, ListConsumerGroupOffsetsMachine,
-    ListConsumerGroupOffsetsPlan, Moment, OperationId,
+    ListConsumerGroupOffsetTarget, ListConsumerGroupOffsetsEffect, ListConsumerGroupOffsetsInput,
+    ListConsumerGroupOffsetsMachine, ListConsumerGroupOffsetsPlan,
+    ListConsumerGroupOffsetsSelection, Moment, OperationId,
 };
 
 use crate::{clock::OperationDeadline, completion::CompletionRegistryError};
@@ -131,6 +132,34 @@ fn request_owner_charge(plan: &ListConsumerGroupOffsetsPlan) -> Option<usize> {
     let duplicated_plan_bytes = group_text_bytes
         .checked_mul(3)?
         .checked_add(group_entry_bytes)?;
+    let (selected_count, selected_topic_bytes) =
+        plan.selections()
+            .iter()
+            .try_fold((0usize, 0usize), |(count, bytes), selection| {
+                let ListConsumerGroupOffsetsSelection::Selected(targets) = selection else {
+                    return Some((count, bytes));
+                };
+                Some((
+                    count.checked_add(targets.len())?,
+                    targets.iter().try_fold(bytes, |total, target| {
+                        total.checked_add(target.topic().len())
+                    })?,
+                ))
+            })?;
+    let selected_plan_bytes = selected_topic_bytes.checked_mul(3)?.checked_add(
+        selected_count.checked_mul(
+            size_of::<ListConsumerGroupOffsetTarget>()
+                .checked_mul(3)?
+                // Conservatively covers the transient bounded topic-index tree,
+                // exact response correlation position, and allocator overhead.
+                .checked_add(size_of::<usize>().checked_mul(8)?)?,
+        )?,
+    )?;
+    let selection_vector_bytes = plan
+        .selections()
+        .len()
+        .checked_mul(size_of::<ListConsumerGroupOffsetsSelection>())?
+        .checked_mul(3)?;
     let batch_outcome_slots = plan
         .group_ids()
         .len()
@@ -138,5 +167,7 @@ fn request_owner_charge(plan: &ListConsumerGroupOffsetsPlan) -> Option<usize> {
     size_of::<ListConsumerGroupOffsetsOperation>()
         .checked_add(size_of::<ListConsumerGroupOffsetsSubmission>())?
         .checked_add(duplicated_plan_bytes)
+        .and_then(|charge| charge.checked_add(selected_plan_bytes))
+        .and_then(|charge| charge.checked_add(selection_vector_bytes))
         .and_then(|charge| charge.checked_add(batch_outcome_slots))
 }

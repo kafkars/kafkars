@@ -2,6 +2,7 @@
 
 use std::time::{Duration, Instant};
 
+use kafka_client_core::ListConsumerGroupOffsetsPlan;
 use kafka_driver::CompletionError;
 
 use crate::{
@@ -13,13 +14,11 @@ use crate::{
 fn completion_fault_is_yielded_once_and_is_not_recovered_as_active() {
     let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver owner: {error}"));
-    let mut call = GroupOffsetsCall::submit(
-        &driver,
-        "readers",
-        false,
-        Instant::now() + Duration::from_secs(1),
-    )
-    .unwrap_or_else(|failure| panic!("accepted call: {}", failure.into_source()));
+    let plan = ListConsumerGroupOffsetsPlan::new("readers".to_owned(), false)
+        .unwrap_or_else(|error| panic!("valid plan: {error}"));
+    let mut call =
+        GroupOffsetsCall::submit(&driver, &plan, Instant::now() + Duration::from_secs(1))
+            .unwrap_or_else(|failure| panic!("accepted call: {}", failure.into_source()));
     drop(driver);
 
     assert!(matches!(

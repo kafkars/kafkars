@@ -3,12 +3,32 @@
 use std::time::Duration;
 
 use super::ListConsumerGroupOffsetsBuilder;
-use crate::{Client, DeliveryStatus, ErrorKind};
+use crate::{Client, DeliveryStatus, ErrorKind, StartPosition, TopicPartition};
 
 #[test]
 fn builder_is_send_before_single_submission() {
     fn assert_send<T: Send>() {}
     assert_send::<ListConsumerGroupOffsetsBuilder>();
+}
+
+#[test]
+fn assignment_position_is_retained_until_submit_and_rejected_not_sent() {
+    let client = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .build()
+        .unwrap_or_else(|error| panic!("start facade client: {error}"));
+    let error = client
+        .admin()
+        .list_consumer_group_offsets("payments")
+        .partitions([
+            TopicPartition::new("orders", 3),
+            TopicPartition::new("audit", 1).start_at(StartPosition::Beginning),
+        ])
+        .submit()
+        .wait()
+        .expect_err("assignment-only start position must reject at submit");
+    assert_eq!(error.kind(), ErrorKind::Configuration);
+    assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
 }
 
 #[test]

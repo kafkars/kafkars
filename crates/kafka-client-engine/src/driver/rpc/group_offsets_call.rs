@@ -2,6 +2,7 @@
 
 use std::time::Instant;
 
+use kafka_client_core::ListConsumerGroupOffsetsPlan;
 use kafka_driver::{CompletionError, RoutedCall};
 use kafka_wire::OffsetFetchResponse;
 
@@ -24,13 +25,13 @@ pub(crate) struct GroupOffsetsCall {
 impl GroupOffsetsCall {
     pub(crate) fn submit(
         driver: &DriverOwner,
-        group: &str,
-        require_stable: bool,
+        plan: &ListConsumerGroupOffsetsPlan,
         deadline: Instant,
     ) -> Result<Self, GroupOffsetsCallAdmissionFailure> {
-        let request = group_offsets_request(group, require_stable);
+        let request =
+            group_offsets_request(plan.group_id(), plan.selection(), plan.require_stable());
         let call = driver
-            .submit_tracked_group_offsets(group, request, deadline, require_stable)
+            .submit_tracked_group_offsets(plan.group_id(), request, deadline, plan.require_stable())
             .map_err(GroupOffsetsCallAdmissionFailure::new)?;
         Ok(Self { call: Some(call) })
     }

@@ -81,18 +81,6 @@ fn malformed_or_duplicate_partition_facts_settle_invalid_once() {
         vec![described("audit", 0, Some(-1), None, None)],
         vec![described("audit", 0, None, Some(-1), None)],
         vec![
-            described("orders", 0, None, None, None),
-            described("audit", 0, None, None, None),
-        ],
-        vec![
-            described("évents", 0, None, None, None),
-            described("z-events", 0, None, None, None),
-        ],
-        vec![
-            described("audit", 2, None, None, None),
-            described("audit", 1, None, None, None),
-        ],
-        vec![
             described("audit", 1, None, None, None),
             GroupOffsetOutcome::failed(
                 "audit".to_owned(),

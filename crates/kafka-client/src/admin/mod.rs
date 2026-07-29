@@ -62,6 +62,7 @@ mod list_client_metrics_resources;
 mod list_config_resources;
 mod list_consumer_group_offsets;
 mod list_consumer_group_offsets_builder;
+mod list_consumer_group_offsets_query;
 mod list_consumer_group_offsets_result;
 mod list_consumer_groups;
 mod list_consumer_groups_offsets;
@@ -127,6 +128,8 @@ mod description_test;
 mod handle_test;
 #[cfg(test)]
 mod list_consumer_group_offsets_builder_test;
+#[cfg(test)]
+mod list_consumer_group_offsets_query_test;
 #[cfg(test)]
 mod list_consumer_group_offsets_result_test;
 #[cfg(test)]

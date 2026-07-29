@@ -186,6 +186,7 @@ pub use super::list_config_resources::{
 };
 pub use super::list_consumer_group_offsets::ListConsumerGroupOffsets;
 pub use super::list_consumer_group_offsets_builder::ListConsumerGroupOffsetsBuilder;
+pub use super::list_consumer_group_offsets_query::ListConsumerGroupOffsetsQuery;
 pub use super::list_consumer_group_offsets_result::ListConsumerGroupOffsetsResult;
 pub use super::list_consumer_groups::{
     ConsumerGroupListing, ListConsumerGroups, ListConsumerGroupsBrokerError,
@@ -213,7 +214,8 @@ pub use super::list_streams_group_offsets::{
     ListStreamsGroupOffsets, ListStreamsGroupOffsetsBuilder, ListStreamsGroupOffsetsResult,
 };
 pub use super::list_streams_groups_offsets::{
-    ListStreamsGroupsOffsets, ListStreamsGroupsOffsetsBuilder, ListStreamsGroupsOffsetsResult,
+    ListStreamsGroupOffsetsQuery, ListStreamsGroupsOffsets, ListStreamsGroupsOffsetsBuilder,
+    ListStreamsGroupsOffsetsResult,
 };
 pub use super::list_topics::ListTopics;
 pub use super::list_topics_builder::ListTopicsBuilder;

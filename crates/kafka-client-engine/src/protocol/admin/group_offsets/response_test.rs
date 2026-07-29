@@ -2,15 +2,21 @@
 
 use core::num::NonZeroI16;
 
+use kafka_client_core::{ListConsumerGroupOffsetTarget, ListConsumerGroupOffsetsSelection};
 use kafka_wire::{
     OffsetFetchResponse,
-    offset_fetch_response::{OffsetFetchResponseGroup, OffsetFetchResponseTopics},
+    offset_fetch_response::{
+        OffsetFetchResponseGroup, OffsetFetchResponsePartitions, OffsetFetchResponseTopics,
+    },
 };
 
 use super::{
     model::GroupOffsetValueRef,
     model_test::{partition, topic},
-    response::{GroupOffsetsProtocolFailure, validate_group_offsets_response},
+    response::{
+        GroupOffsetsProtocolFailure, validate_group_offsets_response,
+        validate_group_offsets_response_for_selection,
+    },
 };
 
 #[test]
@@ -121,6 +127,110 @@ fn complete_future_allocation_charge_must_fit_before_materialization() {
     );
 }
 
+#[test]
+fn selected_response_restores_exact_caller_topic_partition_order() {
+    let selection = selected(&[("z-orders", 1), ("a-audit", 3), ("z-orders", 8)]);
+    let mut legacy = OffsetFetchResponse::default();
+    legacy.topics = vec![
+        topic(
+            "z-orders",
+            vec![partition(8, 80, -1, None, 0), partition(1, 10, -1, None, 0)],
+        ),
+        topic("a-audit", vec![partition(3, 30, -1, None, 0)]),
+    ];
+    let validated = validate_group_offsets_response_for_selection(
+        "readers",
+        &selection,
+        &legacy,
+        7,
+        usize::MAX,
+    )
+    .unwrap_or_else(|error| panic!("exact selected response: {error:?}"));
+    assert_eq!(
+        validated
+            .entries()
+            .iter()
+            .map(|entry| (entry.topic(), entry.partition()))
+            .collect::<Vec<_>>(),
+        [("z-orders", 1), ("a-audit", 3), ("z-orders", 8)]
+    );
+
+    let modern = modern_response("readers", 0, legacy_topics_as_modern(&legacy));
+    let validated = validate_group_offsets_response_for_selection(
+        "readers",
+        &selection,
+        &modern,
+        9,
+        usize::MAX,
+    )
+    .unwrap_or_else(|error| panic!("exact modern selected response: {error:?}"));
+    assert_eq!(
+        validated
+            .entries()
+            .iter()
+            .map(|entry| (entry.topic(), entry.partition()))
+            .collect::<Vec<_>>(),
+        [("z-orders", 1), ("a-audit", 3), ("z-orders", 8)]
+    );
+}
+
+#[test]
+fn selected_response_rejects_missing_extra_and_duplicate_identities() {
+    let selection = selected(&[("orders", 0), ("orders", 1)]);
+    let mut missing = OffsetFetchResponse::default();
+    missing.topics = vec![topic("orders", vec![partition(0, 10, -1, None, 0)])];
+    assert_eq!(
+        validate_group_offsets_response_for_selection(
+            "readers",
+            &selection,
+            &missing,
+            7,
+            usize::MAX,
+        )
+        .err(),
+        Some(
+            GroupOffsetsProtocolFailure::SelectedPartitionCountMismatch {
+                expected: 2,
+                actual: 1,
+            }
+        )
+    );
+
+    let mut extra = OffsetFetchResponse::default();
+    extra.topics = vec![topic(
+        "orders",
+        vec![partition(0, 10, -1, None, 0), partition(2, 20, -1, None, 0)],
+    )];
+    assert_eq!(
+        validate_group_offsets_response_for_selection(
+            "readers",
+            &selection,
+            &extra,
+            7,
+            usize::MAX,
+        )
+        .err(),
+        Some(GroupOffsetsProtocolFailure::UnexpectedSelectedPartition)
+    );
+
+    let mut duplicate = OffsetFetchResponse::default();
+    duplicate.topics = vec![topic(
+        "orders",
+        vec![partition(0, 10, -1, None, 0), partition(0, 20, -1, None, 0)],
+    )];
+    assert_eq!(
+        validate_group_offsets_response_for_selection(
+            "readers",
+            &selection,
+            &duplicate,
+            7,
+            usize::MAX,
+        )
+        .err(),
+        Some(GroupOffsetsProtocolFailure::DuplicatePartition { actual: 0 })
+    );
+}
+
 fn modern_response(
     group_id: &str,
     error_code: i16,
@@ -133,4 +243,40 @@ fn modern_response(
     let mut response = OffsetFetchResponse::default();
     response.groups = vec![group];
     response
+}
+
+fn selected(targets: &[(&str, i32)]) -> ListConsumerGroupOffsetsSelection {
+    ListConsumerGroupOffsetsSelection::Selected(
+        targets
+            .iter()
+            .map(|(topic, partition)| {
+                ListConsumerGroupOffsetTarget::new((*topic).to_owned(), *partition)
+            })
+            .collect(),
+    )
+}
+
+fn legacy_topics_as_modern(response: &OffsetFetchResponse) -> Vec<OffsetFetchResponseTopics> {
+    response
+        .topics
+        .iter()
+        .map(|legacy| {
+            let mut modern = OffsetFetchResponseTopics::default();
+            modern.name = legacy.name.clone();
+            modern.partitions = legacy
+                .partitions
+                .iter()
+                .map(|partition| {
+                    let mut modern = OffsetFetchResponsePartitions::default();
+                    modern.partition_index = partition.partition_index;
+                    modern.committed_offset = partition.committed_offset;
+                    modern.committed_leader_epoch = partition.committed_leader_epoch;
+                    modern.metadata = partition.metadata.clone();
+                    modern.error_code = partition.error_code;
+                    modern
+                })
+                .collect();
+            modern
+        })
+        .collect()
 }

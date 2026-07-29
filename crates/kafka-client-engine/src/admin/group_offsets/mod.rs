@@ -17,7 +17,10 @@ pub(crate) use host::{
     LIST_CONSUMER_GROUP_OFFSETS_CAPACITY, ListConsumerGroupOffsetsHost,
     ListConsumerGroupOffsetsTurn,
 };
-pub use model::{ListConsumerGroupOffsetsRequest, ListConsumerGroupsOffsetsRequest};
+pub use model::{
+    ListConsumerGroupOffsetTarget, ListConsumerGroupOffsetsQuery, ListConsumerGroupOffsetsRequest,
+    ListConsumerGroupOffsetsSelection, ListConsumerGroupsOffsetsRequest,
+};
 pub use observer::ListConsumerGroupOffsetsObserver;
 pub use outcome::{
     GroupOffsetBrokerError, GroupOffsetDescription, GroupOffsetResult,
@@ -36,6 +39,8 @@ pub(crate) use shard::{
 mod error_test;
 #[cfg(test)]
 mod handle_test;
+#[cfg(test)]
+mod host_selection_test;
 #[cfg(test)]
 mod host_test;
 #[cfg(test)]

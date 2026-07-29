@@ -118,7 +118,7 @@ impl ListConsumerGroupOffsetsHost {
                 .ok_or(ListConsumerGroupOffsetsHostError::MissingTerminal)?;
             terminal_input(
                 raw,
-                operation.active_plan()?.group_id(),
+                operation.active_plan()?,
                 operation.remaining_result_bytes,
             )
         };

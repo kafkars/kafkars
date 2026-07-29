@@ -2,8 +2,9 @@
 
 use std::time::Duration;
 
-use crate::bridge::{
-    admin::AdminEngine, admin_group_offsets::ListConsumerGroupOffsetsAdminRequest,
+use crate::{
+    TopicPartition,
+    bridge::{admin::AdminEngine, admin_group_offsets::ListConsumerGroupOffsetsAdminRequest},
 };
 
 use super::ListConsumerGroupOffsets;
@@ -32,6 +33,21 @@ impl ListConsumerGroupOffsetsBuilder {
     /// Requires Kafka to reject offsets with pending transactional commits.
     pub fn require_stable(mut self, require_stable: bool) -> Self {
         self.request = self.request.with_require_stable(require_stable);
+        self
+    }
+
+    /// Selects a nonempty caller-ordered set of topic-partitions.
+    ///
+    /// Validation remains deferred until [`Self::submit`] captures the public
+    /// absolute deadline. An empty selection, duplicate or invalid partition,
+    /// or assignment-only start position is rejected as definitely unsent.
+    pub fn partitions<I>(mut self, partitions: I) -> Self
+    where
+        I: IntoIterator<Item = TopicPartition>,
+    {
+        self.request = self
+            .request
+            .with_partitions(partitions.into_iter().collect());
         self
     }
 

@@ -2,6 +2,7 @@
 
 use core::num::NonZeroI16;
 
+use kafka_client_core::ListConsumerGroupOffsetsSelection;
 use kafka_wire::{
     OffsetFetchResponse,
     offset_fetch_response::{
@@ -33,12 +34,31 @@ pub(crate) enum GroupOffsetsProtocolFailure {
     DuplicatePartition { actual: i32 },
     InvalidCommittedOffset { actual: i64 },
     InvalidLeaderEpoch { actual: i32 },
+    SelectedPartitionCountMismatch { expected: usize, actual: usize },
+    UnexpectedSelectedPartition,
     RetainedBytes,
 }
 
-/// Validates linearly, proves capacity, then allocates and sorts borrowed facts.
+/// Validates one all-partition response using Kafka's deterministic result order.
 pub(crate) fn validate_group_offsets_response<'a>(
     expected_group: &str,
+    response: &'a OffsetFetchResponse,
+    selected_version: i16,
+    result_limit: usize,
+) -> Result<ValidatedGroupOffsetsResponse<'a>, GroupOffsetsProtocolFailure> {
+    validate_group_offsets_response_for_selection(
+        expected_group,
+        &ListConsumerGroupOffsetsSelection::All,
+        response,
+        selected_version,
+        result_limit,
+    )
+}
+
+/// Validates linearly, proves capacity, and restores the selection's result order.
+pub(crate) fn validate_group_offsets_response_for_selection<'a>(
+    expected_group: &str,
+    selection: &ListConsumerGroupOffsetsSelection,
     response: &'a OffsetFetchResponse,
     selected_version: i16,
     result_limit: usize,
@@ -83,12 +103,44 @@ pub(crate) fn validate_group_offsets_response<'a>(
     };
     entries.sort_unstable_by(group_offset_order);
     reject_sorted_duplicates(&entries)?;
+    restore_selection_order(&mut entries, selection)?;
     Ok(ValidatedGroupOffsetsResponse::new(
         entries,
         throttle_time_ms,
         top_level_error,
         retained_charge,
     ))
+}
+
+fn restore_selection_order(
+    entries: &mut [super::model::BorrowedGroupOffset<'_>],
+    selection: &ListConsumerGroupOffsetsSelection,
+) -> Result<(), GroupOffsetsProtocolFailure> {
+    let ListConsumerGroupOffsetsSelection::Selected(targets) = selection else {
+        return Ok(());
+    };
+    if entries.len() != targets.len() {
+        return Err(
+            GroupOffsetsProtocolFailure::SelectedPartitionCountMismatch {
+                expected: targets.len(),
+                actual: entries.len(),
+            },
+        );
+    }
+    for (caller_position, target) in targets.iter().enumerate() {
+        let entry_index = entries
+            .binary_search_by(|entry| {
+                entry
+                    .topic()
+                    .as_bytes()
+                    .cmp(target.topic().as_bytes())
+                    .then_with(|| entry.partition().cmp(&target.partition()))
+            })
+            .map_err(|_| GroupOffsetsProtocolFailure::UnexpectedSelectedPartition)?;
+        entries[entry_index].set_caller_position(caller_position);
+    }
+    entries.sort_unstable_by_key(|entry| entry.caller_position());
+    Ok(())
 }
 
 fn broker_rejection(

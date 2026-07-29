@@ -1,8 +1,14 @@
 //! Version-selecting generated `OffsetFetch` request adaptation across v7/v8.
 
+use std::collections::BTreeMap;
+
+use kafka_client_core::ListConsumerGroupOffsetsSelection;
 use kafka_wire::{
     KafkaMessage, KafkaRequest, OffsetFetchRequest, OffsetFetchResponse, RequestResponsePair,
-    RetainedFootprint, RetainedSize, offset_fetch_request::OffsetFetchRequestGroup,
+    RetainedFootprint, RetainedSize,
+    offset_fetch_request::{
+        OffsetFetchRequestGroup, OffsetFetchRequestTopic, OffsetFetchRequestTopics,
+    },
 };
 use kafka_wire_core::{
     ApiKey, ApiVersion, DecodeError, Decoder, EncodeError, EncodeTarget, Encoder, KafkaDecode,
@@ -27,16 +33,31 @@ enum GroupOffsetsRequestRepresentation {
     Decoded(OffsetFetchRequest),
 }
 
-/// Builds one group-wide API-key 9 query without routing or retry policy.
-pub(crate) fn group_offsets_request(group_id: &str, require_stable: bool) -> GroupOffsetsRequest {
+/// Builds one API-key 9 query without routing or retry policy.
+pub(crate) fn group_offsets_request(
+    group_id: &str,
+    selection: &ListConsumerGroupOffsetsSelection,
+    require_stable: bool,
+) -> GroupOffsetsRequest {
+    let legacy_topics = request_topics(selection);
     let mut legacy = OffsetFetchRequest::default();
     legacy.group_id = group_id.into();
-    legacy.topics = None;
+    legacy.topics = legacy_topics.clone();
     legacy.require_stable = require_stable;
 
     let mut group = OffsetFetchRequestGroup::default();
     group.group_id = group_id.into();
-    group.topics = None;
+    group.topics = legacy_topics.map(|topics| {
+        topics
+            .into_iter()
+            .map(|topic| {
+                let mut modern = OffsetFetchRequestTopics::default();
+                modern.name = topic.name;
+                modern.partition_indexes = topic.partition_indexes;
+                modern
+            })
+            .collect()
+    });
     let mut modern = OffsetFetchRequest::default();
     modern.groups = vec![group];
     modern.require_stable = require_stable;
@@ -44,6 +65,29 @@ pub(crate) fn group_offsets_request(group_id: &str, require_stable: bool) -> Gro
     GroupOffsetsRequest {
         representation: GroupOffsetsRequestRepresentation::Prepared { legacy, modern },
     }
+}
+
+fn request_topics(
+    selection: &ListConsumerGroupOffsetsSelection,
+) -> Option<Vec<OffsetFetchRequestTopic>> {
+    let ListConsumerGroupOffsetsSelection::Selected(targets) = selection else {
+        return None;
+    };
+    let mut topics = Vec::<OffsetFetchRequestTopic>::new();
+    let mut topic_positions = BTreeMap::<&str, usize>::new();
+    for target in targets {
+        if let Some(position) = topic_positions.get(target.topic()).copied() {
+            let topic = &mut topics[position];
+            topic.partition_indexes.push(target.partition());
+            continue;
+        }
+        topic_positions.insert(target.topic(), topics.len());
+        let mut topic = OffsetFetchRequestTopic::default();
+        topic.name = target.topic().into();
+        topic.partition_indexes = vec![target.partition()];
+        topics.push(topic);
+    }
+    Some(topics)
 }
 
 impl GroupOffsetsRequest {

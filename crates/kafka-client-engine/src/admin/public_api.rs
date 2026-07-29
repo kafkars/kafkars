@@ -468,13 +468,14 @@ pub use super::group_offset_delete::{
 };
 pub use super::group_offsets::{
     GroupOffsetBrokerError, GroupOffsetDescription, GroupOffsetResult,
-    ListConsumerGroupBatchOutcome, ListConsumerGroupOffsetsAccepted,
+    ListConsumerGroupBatchOutcome, ListConsumerGroupOffsetTarget, ListConsumerGroupOffsetsAccepted,
     ListConsumerGroupOffsetsAcceptedFaultKind, ListConsumerGroupOffsetsAdmissionError,
     ListConsumerGroupOffsetsAdmissionErrorKind, ListConsumerGroupOffsetsBatch,
     ListConsumerGroupOffsetsDeliveryStatus, ListConsumerGroupOffsetsFailure,
     ListConsumerGroupOffsetsFailureKind, ListConsumerGroupOffsetsObserver,
     ListConsumerGroupOffsetsObserverError, ListConsumerGroupOffsetsOutcome,
-    ListConsumerGroupOffsetsRequest, ListConsumerGroupsOffsetsBatch,
+    ListConsumerGroupOffsetsQuery, ListConsumerGroupOffsetsRequest,
+    ListConsumerGroupOffsetsSelection, ListConsumerGroupsOffsetsBatch,
     ListConsumerGroupsOffsetsRequest,
 };
 pub(crate) use super::group_offsets::{

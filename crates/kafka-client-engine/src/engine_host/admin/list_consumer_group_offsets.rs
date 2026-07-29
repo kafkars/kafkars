@@ -45,12 +45,7 @@ pub(super) fn drive(
                 .driver
                 .as_ref()
                 .ok_or(EngineHostError::DriverOwnerMissing)?;
-            match GroupOffsetsCall::submit(
-                driver,
-                plan.group_id(),
-                plan.require_stable(),
-                deadline.transport(),
-            ) {
+            match GroupOffsetsCall::submit(driver, &plan, deadline.transport()) {
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::ListConsumerGroupOffsets)?,

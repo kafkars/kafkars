@@ -1,4 +1,4 @@
-//! Tracked group-coordinator submission of one all-topic `OffsetFetch`.
+//! Tracked group-coordinator submission of one selected or all-topic `OffsetFetch`.
 
 use std::{error::Error, fmt, time::Instant};
 

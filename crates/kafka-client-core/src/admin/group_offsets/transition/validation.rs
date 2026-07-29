@@ -1,20 +1,46 @@
-//! Structural validation for normalized group-offset response facts.
+//! Structural validation and deterministic correlation for group-offset facts.
 
-use core::cmp::Ordering;
+use crate::admin::group_offsets::{
+    GroupOffsetOutcome, GroupOffsetResult, ListConsumerGroupOffsetsBatch,
+    ListConsumerGroupOffsetsSelection,
+};
 
-use crate::admin::group_offsets::{GroupOffsetOutcome, GroupOffsetResult};
-
-pub(super) fn outcomes_are_normalized(outcomes: &[GroupOffsetOutcome]) -> bool {
+pub(super) fn correlate_outcomes(
+    selection: &ListConsumerGroupOffsetsSelection,
+    batch: ListConsumerGroupOffsetsBatch,
+) -> Option<ListConsumerGroupOffsetsBatch> {
+    let (throttle_time_ms, mut outcomes) = batch.into_parts();
     if outcomes.iter().any(outcome_is_malformed) {
-        return false;
+        return None;
     }
-    outcomes.windows(2).all(|pair| {
-        match pair[0].topic().as_bytes().cmp(pair[1].topic().as_bytes()) {
-            Ordering::Less => true,
-            Ordering::Equal => pair[0].partition() < pair[1].partition(),
-            Ordering::Greater => false,
+    match selection {
+        ListConsumerGroupOffsetsSelection::All => {
+            outcomes.sort_by(|left, right| {
+                left.topic()
+                    .as_bytes()
+                    .cmp(right.topic().as_bytes())
+                    .then_with(|| left.partition().cmp(&right.partition()))
+            });
+            if outcomes.windows(2).any(|pair| {
+                pair[0].topic() == pair[1].topic() && pair[0].partition() == pair[1].partition()
+            }) {
+                return None;
+            }
         }
-    })
+        ListConsumerGroupOffsetsSelection::Selected(targets) => {
+            if outcomes.len() != targets.len()
+                || !targets.iter().zip(&outcomes).all(|(target, outcome)| {
+                    target.topic() == outcome.topic() && target.partition() == outcome.partition()
+                })
+            {
+                return None;
+            }
+        }
+    }
+    Some(ListConsumerGroupOffsetsBatch::new(
+        throttle_time_ms,
+        outcomes,
+    ))
 }
 
 fn outcome_is_malformed(outcome: &GroupOffsetOutcome) -> bool {

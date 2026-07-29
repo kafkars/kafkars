@@ -2,20 +2,20 @@
 
 use kafka_client_core::{
     GroupOffsetBrokerError, GroupOffsetDescription, GroupOffsetOutcome,
-    ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsInput,
+    ListConsumerGroupOffsetsBatch, ListConsumerGroupOffsetsInput, ListConsumerGroupOffsetsPlan,
 };
 
 use crate::{
     driver::{GroupOffsetsDriverFailureKind, GroupOffsetsTerminal, GroupOffsetsTerminalFact},
     protocol::admin::group_offsets::{
         GroupOffsetValueRef, GroupOffsetsProtocolFailure, ValidatedGroupOffsetsResponse,
-        validate_group_offsets_response,
+        validate_group_offsets_response_for_selection,
     },
 };
 
 pub(super) fn terminal_input(
     terminal: &GroupOffsetsTerminal,
-    group_id: &str,
+    plan: &ListConsumerGroupOffsetsPlan,
     result_limit: usize,
 ) -> (ListConsumerGroupOffsetsInput, usize) {
     match terminal.fact() {
@@ -43,8 +43,9 @@ pub(super) fn terminal_input(
         GroupOffsetsTerminalFact::Response {
             selected_version: Some(selected_version),
             response,
-        } => match validate_group_offsets_response(
-            group_id,
+        } => match validate_group_offsets_response_for_selection(
+            plan.group_id(),
+            plan.selection(),
             response,
             selected_version,
             result_limit,
@@ -113,7 +114,9 @@ const fn protocol_failure(error: GroupOffsetsProtocolFailure) -> ListConsumerGro
         | GroupOffsetsProtocolFailure::NegativePartition { .. }
         | GroupOffsetsProtocolFailure::DuplicatePartition { .. }
         | GroupOffsetsProtocolFailure::InvalidCommittedOffset { .. }
-        | GroupOffsetsProtocolFailure::InvalidLeaderEpoch { .. } => {
+        | GroupOffsetsProtocolFailure::InvalidLeaderEpoch { .. }
+        | GroupOffsetsProtocolFailure::SelectedPartitionCountMismatch { .. }
+        | GroupOffsetsProtocolFailure::UnexpectedSelectedPartition => {
             ListConsumerGroupOffsetsInput::InvalidResponse
         }
     }

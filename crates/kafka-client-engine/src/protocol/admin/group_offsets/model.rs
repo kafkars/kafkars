@@ -28,6 +28,7 @@ pub(crate) struct BorrowedGroupOffset<'a> {
     partition: i32,
     value: GroupOffsetValueRef<'a>,
     source_topic: usize,
+    caller_position: Option<usize>,
 }
 
 impl<'a> BorrowedGroupOffset<'a> {
@@ -42,6 +43,7 @@ impl<'a> BorrowedGroupOffset<'a> {
             partition,
             value,
             source_topic,
+            caller_position: None,
         }
     }
 
@@ -59,6 +61,14 @@ impl<'a> BorrowedGroupOffset<'a> {
 
     pub(super) const fn source_topic(self) -> usize {
         self.source_topic
+    }
+
+    pub(super) fn set_caller_position(&mut self, caller_position: usize) {
+        self.caller_position = Some(caller_position);
+    }
+
+    pub(super) const fn caller_position(self) -> Option<usize> {
+        self.caller_position
     }
 }
 

@@ -9,7 +9,9 @@ mod shape;
 
 pub(crate) use model::{GroupOffsetValueRef, ValidatedGroupOffsetsResponse};
 pub(crate) use request::{GroupOffsetsRequest, group_offsets_request};
-pub(crate) use response::{GroupOffsetsProtocolFailure, validate_group_offsets_response};
+pub(crate) use response::{
+    GroupOffsetsProtocolFailure, validate_group_offsets_response_for_selection,
+};
 
 #[cfg(test)]
 mod entries_test;
