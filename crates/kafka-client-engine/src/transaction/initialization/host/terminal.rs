@@ -38,23 +38,27 @@ impl TransactionInitializationHost {
         else {
             return Ok(false);
         };
-        let terminal = self.operations[index]
+        let poll = self.operations[index]
             .call
             .as_mut()
-            .and_then(crate::driver::TransactionInitCall::try_terminal);
-        let Some(terminal) = terminal else {
-            return Ok(false);
-        };
-        drop(self.operations[index].call.take());
-        let terminal =
-            terminal.map_err(|_error| TransactionInitializationHostError::CallCompletion)?;
-        let input = terminal_input(terminal.fact());
-        self.operations[index].raw_terminal = Some(terminal);
-        self.settle_raw(index, input)?;
-        Ok(true)
+            .ok_or(TransactionInitializationHostError::UnknownOperation)?
+            .poll();
+        match poll {
+            crate::driver::TransactionInitPoll::Pending => Ok(false),
+            crate::driver::TransactionInitPoll::Progress => Ok(true),
+            crate::driver::TransactionInitPoll::Terminal(terminal) => {
+                drop(self.operations[index].call.take());
+                let terminal =
+                    terminal.map_err(|_| TransactionInitializationHostError::CallCompletion)?;
+                let input = terminal_input(terminal.fact());
+                self.operations[index].raw_terminal = Some(terminal);
+                self.settle_raw(index, input)?;
+                Ok(true)
+            }
+        }
     }
 
-    fn settle_raw(
+    pub(super) fn settle_raw(
         &mut self,
         index: usize,
         input: TransactionInitializationInput,
@@ -201,7 +205,9 @@ impl TransactionInitializationHost {
     }
 }
 
-fn terminal_input(fact: TransactionInitTerminalFact<'_>) -> TransactionInitializationInput {
+pub(super) fn terminal_input(
+    fact: TransactionInitTerminalFact<'_>,
+) -> TransactionInitializationInput {
     match fact {
         TransactionInitTerminalFact::Failed { kind, delivery } => match kind {
             TransactionInitDriverFailureKind::DeadlineElapsed => {

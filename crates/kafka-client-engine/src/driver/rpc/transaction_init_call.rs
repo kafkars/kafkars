@@ -1,8 +1,10 @@
-//! Linear ownership of one accepted transaction-coordinator identity call.
+//! Linear ownership and causal route refresh for one transaction identity call.
 
-use std::{error::Error, fmt, time::Instant};
+use std::{error::Error, fmt, mem, time::Instant};
 
-use kafka_driver::{CompletionError, RoutedCall};
+use kafka_driver::{
+    Call, CompletionError, Driver, InvalidationDisposition, RouteFailureToken, RoutedCall,
+};
 use kafka_wire::InitProducerIdResponse;
 
 use crate::protocol::transaction::transaction_init_request;
@@ -15,7 +17,8 @@ use super::{
 
 #[must_use = "an accepted transaction initialization call requires terminal settlement"]
 pub(crate) struct TransactionInitCall {
-    call: Option<RoutedCall<InitProducerIdResponse>>,
+    driver: Driver,
+    state: TransactionInitCallState,
 }
 
 impl TransactionInitCall {
@@ -29,30 +32,155 @@ impl TransactionInitCall {
         let call = driver
             .submit_tracked_transaction_init(transactional_id, request, deadline)
             .map_err(TransactionInitCallAdmissionFailure::Driver)?;
-        Ok(Self { call: Some(call) })
+        Ok(Self {
+            driver: driver.driver.clone(),
+            state: TransactionInitCallState::Calling(call),
+        })
     }
 
-    pub(crate) fn try_terminal(
-        &mut self,
-    ) -> Option<Result<TransactionInitTerminal, CompletionError>> {
-        let result = self.call.as_mut()?.try_result()?;
-        drop(self.call.take());
-        match result {
-            Ok(outcome) => {
+    pub(crate) fn poll(&mut self) -> TransactionInitPoll {
+        let state = mem::replace(&mut self.state, TransactionInitCallState::Consumed);
+        match state {
+            TransactionInitCallState::Calling(call) => {
+                let Some(result) = call.try_result() else {
+                    self.state = TransactionInitCallState::Calling(call);
+                    return TransactionInitPoll::Pending;
+                };
+                drop(call);
+                let outcome = match result {
+                    Ok(outcome) => outcome,
+                    Err(error) => return TransactionInitPoll::Terminal(Err(error)),
+                };
                 let (result, selected_version, route_token) = outcome.into_parts();
-                Some(Ok(retain_transaction_init_terminal(
-                    selected_version,
-                    result,
-                    route_token,
-                )))
+                let mut terminal =
+                    retain_transaction_init_terminal(selected_version, result, route_token);
+                let Some(token) = terminal.take_transaction_coordinator_refresh_token() else {
+                    return TransactionInitPoll::Terminal(Ok(terminal));
+                };
+                self.poll_refresh(terminal, TransactionInitCoordinatorRefresh::Queued(token))
             }
-            Err(error) => Some(Err(error)),
+            TransactionInitCallState::Refreshing { terminal, refresh } => {
+                self.poll_refresh(terminal, refresh)
+            }
+            TransactionInitCallState::Consumed => TransactionInitPoll::Pending,
         }
     }
 
-    pub(crate) fn discard_after_driver_shutdown(mut self) {
-        drop(self.call.take());
+    fn poll_refresh(
+        &mut self,
+        terminal: TransactionInitTerminal,
+        refresh: TransactionInitCoordinatorRefresh,
+    ) -> TransactionInitPoll {
+        match refresh {
+            TransactionInitCoordinatorRefresh::Queued(token) => {
+                match self.driver.invalidate(token) {
+                    Ok(call) => {
+                        self.state = TransactionInitCallState::Refreshing {
+                            terminal,
+                            refresh: TransactionInitCoordinatorRefresh::Active(call),
+                        };
+                        TransactionInitPoll::Progress
+                    }
+                    Err(rejection) => {
+                        let (_source, token) = rejection.into_parts();
+                        self.state = TransactionInitCallState::Refreshing {
+                            terminal,
+                            refresh: TransactionInitCoordinatorRefresh::Queued(token),
+                        };
+                        TransactionInitPoll::Pending
+                    }
+                }
+            }
+            TransactionInitCoordinatorRefresh::Active(call) => {
+                if call.try_result().is_some() {
+                    drop(call);
+                    TransactionInitPoll::Terminal(Ok(terminal))
+                } else {
+                    self.state = TransactionInitCallState::Refreshing {
+                        terminal,
+                        refresh: TransactionInitCoordinatorRefresh::Active(call),
+                    };
+                    TransactionInitPoll::Pending
+                }
+            }
+            #[cfg(test)]
+            TransactionInitCoordinatorRefresh::ScriptedForTest { progress_reported } => {
+                self.state = TransactionInitCallState::Refreshing {
+                    terminal,
+                    refresh: TransactionInitCoordinatorRefresh::ScriptedForTest {
+                        progress_reported: true,
+                    },
+                };
+                if progress_reported {
+                    TransactionInitPoll::Pending
+                } else {
+                    TransactionInitPoll::Progress
+                }
+            }
+        }
     }
+
+    pub(crate) fn recover_after_driver_shutdown(self) -> Option<TransactionInitTerminal> {
+        match self.state {
+            TransactionInitCallState::Calling(call) => {
+                drop(call);
+                None
+            }
+            TransactionInitCallState::Refreshing { terminal, refresh } => {
+                drop(refresh);
+                Some(terminal)
+            }
+            TransactionInitCallState::Consumed => None,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn refreshing_for_test(driver: &DriverOwner, error_code: i16) -> Self {
+        let mut response = InitProducerIdResponse::default();
+        response.error_code = error_code;
+        Self {
+            driver: driver.driver.clone(),
+            state: TransactionInitCallState::Refreshing {
+                terminal: retain_transaction_init_terminal(
+                    Some(kafka_driver::ApiVersion::new(5)),
+                    Ok(response),
+                    None,
+                ),
+                refresh: TransactionInitCoordinatorRefresh::ScriptedForTest {
+                    progress_reported: false,
+                },
+            },
+        }
+    }
+}
+
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the linear state retains the exact initialization terminal until refresh settles"
+)]
+enum TransactionInitCallState {
+    Calling(RoutedCall<InitProducerIdResponse>),
+    Refreshing {
+        terminal: TransactionInitTerminal,
+        refresh: TransactionInitCoordinatorRefresh,
+    },
+    Consumed,
+}
+
+enum TransactionInitCoordinatorRefresh {
+    Queued(RouteFailureToken),
+    Active(Call<InvalidationDisposition>),
+    #[cfg(test)]
+    ScriptedForTest {
+        progress_reported: bool,
+    },
+}
+
+/// One bounded observation of the request and any causal coordinator refresh.
+pub(crate) enum TransactionInitPoll {
+    Pending,
+    Progress,
+    Terminal(Result<TransactionInitTerminal, CompletionError>),
 }
 
 #[must_use = "a rejected call must become a definitely-unsent core fact"]

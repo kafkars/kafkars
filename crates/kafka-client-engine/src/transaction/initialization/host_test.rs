@@ -128,6 +128,54 @@ fn closed_lifecycle_still_reserves_its_slot_until_pruned() {
     assert_eq!(fixture.initialize(90).producer_id(), 90);
 }
 
+#[test]
+fn coordinator_refresh_progress_is_visible_and_shutdown_preserves_broker_terminal() {
+    let fixture = Fixture::new();
+    let accepted = fixture
+        .port
+        .capture(Duration::from_secs(5), Arc::new(()))
+        .unwrap_or_else(|error| panic!("capture deadline: {error:?}"))
+        .initialize_transactional_owner(TransactionInitializationRequest::new(
+            "invoice-writer".to_owned(),
+            45_000,
+        ))
+        .unwrap_or_else(|error| panic!("admit initialization: {:?}", error.kind()));
+    {
+        let mut host = fixture
+            .shard
+            .try_host()
+            .unwrap_or_else(|error| panic!("host lock: {error:?}"));
+        host.install_refresh_call_for_test(&fixture._driver, 16)
+            .unwrap_or_else(|error| panic!("install refresh call: {error:?}"));
+        assert_eq!(
+            host.turn(kafka_client_core::Moment::from_tick(1), &fixture._driver)
+                .unwrap_or_else(|error| panic!("refresh progress turn: {error:?}")),
+            super::TransactionInitializationTurn::Progress
+        );
+        assert_eq!(
+            host.turn(kafka_client_core::Moment::from_tick(2), &fixture._driver)
+                .unwrap_or_else(|error| panic!("refresh pending turn: {error:?}")),
+            super::TransactionInitializationTurn::Idle
+        );
+        host.recover_after_driver_shutdown()
+            .unwrap_or_else(|error| panic!("refresh recovery: {error:?}"));
+    }
+    let TransactionInitializationOutcome::Failed(failure) = accepted
+        .into_observer()
+        .wait()
+        .unwrap_or_else(|error| panic!("observe recovered terminal: {error:?}"))
+    else {
+        panic!("recovered coordinator rejection must fail initialization");
+    };
+    assert_eq!(
+        failure.kind(),
+        super::TransactionInitializationFailureKind::Broker {
+            code: 16,
+            fenced: false,
+        }
+    );
+}
+
 pub(super) struct Fixture {
     _driver: DriverOwner,
     shard: TransactionInitializationShardOwner,

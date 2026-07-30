@@ -37,6 +37,9 @@ use crate::{
     },
 };
 
+#[cfg(test)]
+use crate::driver::DriverOwner;
+
 use super::{
     RetainedTransactionInitializationOutcome, TransactionInitializationHostError,
     TransactionInitializationRequest, TransactionOwnerLossSignal,

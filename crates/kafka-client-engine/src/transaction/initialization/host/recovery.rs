@@ -8,6 +8,16 @@ use super::TransactionInitializationHost;
 use crate::transaction::initialization::TransactionInitializationHostError;
 
 impl TransactionInitializationHost {
+    fn settle_recovered_raw(
+        &mut self,
+        index: usize,
+        terminal: super::TransactionInitTerminal,
+    ) -> Result<(), TransactionInitializationHostError> {
+        let input = super::terminal::terminal_input(terminal.fact());
+        self.operations[index].raw_terminal = Some(terminal);
+        self.settle_raw(index, input)
+    }
+
     pub(crate) fn recover_after_driver_shutdown(
         &mut self,
     ) -> Result<(), TransactionInitializationHostError> {
@@ -30,28 +40,39 @@ impl TransactionInitializationHost {
                 )?,
                 TransactionInitializationState::AwaitingDriver => {
                     if let Some(call) = self.operations[0].call.take() {
-                        call.discard_after_driver_shutdown();
                         self.apply(0, TransactionInitializationInput::DriverAccepted)?;
-                        self.apply(
-                            0,
-                            TransactionInitializationInput::TransportFailed {
-                                delivery: DeliveryStatus::PossiblySent,
-                            },
-                        )?;
+                        match call.recover_after_driver_shutdown() {
+                            Some(terminal) => self.settle_recovered_raw(0, terminal)?,
+                            None => self.apply(
+                                0,
+                                TransactionInitializationInput::TransportFailed {
+                                    delivery: DeliveryStatus::PossiblySent,
+                                },
+                            )?,
+                        }
                     } else {
                         self.apply(0, TransactionInitializationInput::DriverRejected)?;
                     }
                 }
                 TransactionInitializationState::Submitted => {
                     if let Some(call) = self.operations[0].call.take() {
-                        call.discard_after_driver_shutdown();
+                        match call.recover_after_driver_shutdown() {
+                            Some(terminal) => self.settle_recovered_raw(0, terminal)?,
+                            None => self.apply(
+                                0,
+                                TransactionInitializationInput::TransportFailed {
+                                    delivery: DeliveryStatus::PossiblySent,
+                                },
+                            )?,
+                        }
+                    } else {
+                        self.apply(
+                            0,
+                            TransactionInitializationInput::TransportFailed {
+                                delivery: DeliveryStatus::PossiblySent,
+                            },
+                        )?;
                     }
-                    self.apply(
-                        0,
-                        TransactionInitializationInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
                 }
                 TransactionInitializationState::Completed => {
                     self.publish_terminal(0)?;

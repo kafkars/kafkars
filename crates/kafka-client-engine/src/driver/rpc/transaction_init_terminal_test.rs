@@ -1,9 +1,10 @@
 //! Transaction initialization delivery and malformed-response classification.
 
-use kafka_driver::{ApiKey, ApiVersion, CallFailure, Delivery, RequestError};
+use kafka_driver::{ApiKey, ApiVersion, CallFailure, Delivery, RequestError, RouteKind};
 
 use super::transaction_init_terminal::{
-    TransactionInitDriverFailureKind, TransactionInitTerminalFact, retain_transaction_init_terminal,
+    TransactionInitDriverFailureKind, TransactionInitTerminalFact,
+    needs_transaction_coordinator_refresh, retain_transaction_init_terminal,
 };
 
 #[test]
@@ -62,4 +63,70 @@ fn incompatible_version_remains_distinct_and_definitely_unsent() {
         }
     ));
     terminal.discard();
+}
+
+#[test]
+fn only_stale_broker_or_transport_evidence_requests_exact_coordinator_refresh() {
+    for error_code in [15, 16] {
+        let terminal = response_terminal(error_code);
+        assert!(needs_transaction_coordinator_refresh(
+            &terminal.fact(),
+            Some(RouteKind::Coordinator),
+        ));
+        assert!(!needs_transaction_coordinator_refresh(
+            &terminal.fact(),
+            Some(RouteKind::Controller),
+        ));
+        terminal.discard();
+    }
+    for error_code in [0, 25, 47] {
+        let terminal = response_terminal(error_code);
+        assert!(!needs_transaction_coordinator_refresh(
+            &terminal.fact(),
+            Some(RouteKind::Coordinator),
+        ));
+        terminal.discard();
+    }
+
+    for error in [
+        RequestError::RouteUnavailable,
+        RequestError::Rejected {
+            failure: CallFailure::DeadlineExceeded,
+            delivery: Delivery::PossiblySent,
+        },
+    ] {
+        let terminal = failure_terminal(error);
+        assert!(needs_transaction_coordinator_refresh(
+            &terminal.fact(),
+            Some(RouteKind::Coordinator),
+        ));
+        assert!(!needs_transaction_coordinator_refresh(
+            &terminal.fact(),
+            None,
+        ));
+        terminal.discard();
+    }
+
+    let incompatible = failure_terminal(RequestError::VersionFloorUnavailable {
+        api_key: ApiKey::new(22),
+        minimum: ApiVersion::new(0),
+        negotiated_maximum: ApiVersion::new(-1),
+    });
+    assert!(!needs_transaction_coordinator_refresh(
+        &incompatible.fact(),
+        Some(RouteKind::Coordinator),
+    ));
+    incompatible.discard();
+}
+
+fn response_terminal(error_code: i16) -> super::transaction_init_terminal::TransactionInitTerminal {
+    let mut response = kafka_wire::InitProducerIdResponse::default();
+    response.error_code = error_code;
+    retain_transaction_init_terminal(Some(ApiVersion::new(5)), Ok(response), None)
+}
+
+fn failure_terminal(
+    error: RequestError,
+) -> super::transaction_init_terminal::TransactionInitTerminal {
+    retain_transaction_init_terminal(Some(ApiVersion::new(5)), Err(error), None)
 }

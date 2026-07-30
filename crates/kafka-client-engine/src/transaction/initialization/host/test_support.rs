@@ -49,4 +49,19 @@ impl TransactionInitializationHost {
             },
         )
     }
+
+    pub(in crate::transaction::initialization) fn install_refresh_call_for_test(
+        &mut self,
+        driver: &super::DriverOwner,
+        error_code: i16,
+    ) -> Result<(), TransactionInitializationHostError> {
+        let operation = self
+            .operations
+            .first_mut()
+            .ok_or(TransactionInitializationHostError::UnknownOperation)?;
+        operation.call = Some(super::TransactionInitCall::refreshing_for_test(
+            driver, error_code,
+        ));
+        self.apply(0, TransactionInitializationInput::DriverAccepted)
+    }
 }
