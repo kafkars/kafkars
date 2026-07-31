@@ -94,6 +94,7 @@ impl FetchRequestSettings {
 /// Why one core-selected fetch could not become a generated request.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum FetchRequestFailure {
+    Allocation,
     EmptyTopic,
     TopicTooLong { actual: usize, limit: usize },
     PartitionOutOfRange { actual: u32 },
@@ -135,13 +136,21 @@ pub(crate) fn fetch_request_with_session(
     session: FetchSessionRequest,
 ) -> Result<FetchRequest, FetchRequestFailure> {
     validate_topic(topic)?;
-    let partition = i32::try_from(partition)
-        .map_err(|_| FetchRequestFailure::PartitionOutOfRange { actual: partition })?;
-    if fetch_offset < 0 {
-        return Err(FetchRequestFailure::NegativeFetchOffset {
-            actual: fetch_offset,
-        });
-    }
+    let generated_partition = generated_partition(partition, fetch_offset, settings)?;
+
+    let mut generated_topic = FetchTopic::default();
+    generated_topic.topic = topic.into();
+    generated_topic.partitions = vec![generated_partition];
+
+    let mut request = base_request(settings, session)?;
+    request.topics = vec![generated_topic];
+    Ok(request)
+}
+
+pub(super) fn base_request(
+    settings: FetchRequestSettings,
+    session: FetchSessionRequest,
+) -> Result<FetchRequest, FetchRequestFailure> {
     let max_wait_ms = positive_or_zero(settings.max_wait_ms, |actual| {
         FetchRequestFailure::MaxWaitOutOfRange { actual }
     })?;
@@ -150,9 +159,6 @@ pub(crate) fn fetch_request_with_session(
     })?;
     let max_bytes = positive(settings.max_bytes, |actual| {
         FetchRequestFailure::MaxBytesOutOfRange { actual }
-    })?;
-    let partition_max_bytes = positive(settings.partition_max_bytes, |actual| {
-        FetchRequestFailure::PartitionMaxBytesOutOfRange { actual }
     })?;
     if settings.min_bytes > settings.max_bytes {
         return Err(FetchRequestFailure::MinBytesExceedMaxBytes {
@@ -165,19 +171,6 @@ pub(crate) fn fetch_request_with_session(
             actual: settings.isolation_level,
         });
     }
-
-    let mut generated_partition = FetchPartition::default();
-    generated_partition.partition = partition;
-    generated_partition.current_leader_epoch = UNKNOWN_LEADER_EPOCH;
-    generated_partition.fetch_offset = fetch_offset;
-    generated_partition.last_fetched_epoch = NO_LAST_FETCHED_EPOCH;
-    generated_partition.log_start_offset = CONSUMER_LOG_START_OFFSET;
-    generated_partition.partition_max_bytes = partition_max_bytes;
-
-    let mut generated_topic = FetchTopic::default();
-    generated_topic.topic = topic.into();
-    generated_topic.partitions = vec![generated_partition];
-
     let mut request = FetchRequest::default();
     request.replica_id = CONSUMER_REPLICA_ID;
     request.max_wait_ms = max_wait_ms;
@@ -186,11 +179,35 @@ pub(crate) fn fetch_request_with_session(
     request.isolation_level = settings.isolation_level;
     request.session_id = session.session_id();
     request.session_epoch = session.session_epoch();
-    request.topics = vec![generated_topic];
     Ok(request)
 }
 
-fn validate_topic(topic: &str) -> Result<(), FetchRequestFailure> {
+pub(super) fn generated_partition(
+    partition: u32,
+    fetch_offset: i64,
+    settings: FetchRequestSettings,
+) -> Result<FetchPartition, FetchRequestFailure> {
+    let partition = i32::try_from(partition)
+        .map_err(|_| FetchRequestFailure::PartitionOutOfRange { actual: partition })?;
+    if fetch_offset < 0 {
+        return Err(FetchRequestFailure::NegativeFetchOffset {
+            actual: fetch_offset,
+        });
+    }
+    let partition_max_bytes = positive(settings.partition_max_bytes, |actual| {
+        FetchRequestFailure::PartitionMaxBytesOutOfRange { actual }
+    })?;
+    let mut generated = FetchPartition::default();
+    generated.partition = partition;
+    generated.current_leader_epoch = UNKNOWN_LEADER_EPOCH;
+    generated.fetch_offset = fetch_offset;
+    generated.last_fetched_epoch = NO_LAST_FETCHED_EPOCH;
+    generated.log_start_offset = CONSUMER_LOG_START_OFFSET;
+    generated.partition_max_bytes = partition_max_bytes;
+    Ok(generated)
+}
+
+pub(super) fn validate_topic(topic: &str) -> Result<(), FetchRequestFailure> {
     if topic.is_empty() {
         return Err(FetchRequestFailure::EmptyTopic);
     }

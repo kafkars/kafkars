@@ -4,6 +4,7 @@ const LEGACY_SESSION_ID: i32 = 0;
 const LEGACY_SESSION_EPOCH: i32 = -1;
 const INITIAL_SESSION_EPOCH: i32 = 0;
 const FIRST_INCREMENTAL_SESSION_EPOCH: i32 = 1;
+const FINAL_SESSION_EPOCH: i32 = -1;
 
 /// Fetch-session request state retained by the concrete execution owner.
 ///
@@ -38,6 +39,18 @@ impl FetchSessionRequest {
         }
     }
 
+    /// Converts live incremental metadata into Kafka's final session request.
+    pub(crate) const fn close(self) -> Option<Self> {
+        if self.session_id > 0 && self.session_epoch > 0 {
+            Some(Self {
+                session_id: self.session_id,
+                session_epoch: FINAL_SESSION_EPOCH,
+            })
+        } else {
+            None
+        }
+    }
+
     pub(crate) const fn session_id(self) -> i32 {
         self.session_id
     }
@@ -56,6 +69,10 @@ impl FetchSessionRequest {
 
     pub(crate) const fn is_incremental(self) -> bool {
         self.session_id > 0 && self.session_epoch > 0
+    }
+
+    pub(crate) const fn is_close(self) -> bool {
+        self.session_id > 0 && self.session_epoch == FINAL_SESSION_EPOCH
     }
 
     pub(crate) const fn next_incremental_epoch(self) -> Option<i32> {

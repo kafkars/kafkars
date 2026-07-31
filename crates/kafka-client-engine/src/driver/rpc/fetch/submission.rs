@@ -3,8 +3,8 @@
 use std::{error::Error, fmt, time::Instant};
 
 use kafka_driver::{
-    ApiVersion, PartitionId, PartitionIdError, RequestOptions, Route, RoutedCall, SubmitError,
-    TopicName, TopicNameError, TrafficClass,
+    ApiVersion, BrokerId, PartitionId, PartitionIdError, RequestOptions, Route, RoutedCall,
+    SubmitError, TopicName, TopicNameError, TrafficClass,
 };
 use kafka_wire::{FetchRequest, FetchResponse};
 
@@ -57,12 +57,26 @@ impl DriverOwner {
     ) -> Result<RoutedCall<FetchResponse>, FetchSubmitError> {
         let topic = TopicName::new(topic.to_owned()).map_err(FetchSubmitError::InvalidTopic)?;
         let partition = PartitionId::new(partition).map_err(FetchSubmitError::InvalidPartition)?;
+        let options = fetch_options_for_request(deadline, &request);
         self.driver
             .request_tracked_with(
                 Route::PartitionLeader { topic, partition },
                 request,
-                fetch_options(deadline),
+                options,
             )
+            .map_err(FetchSubmitError::Driver)
+    }
+
+    /// Submits one broker-aggregated long-poll Fetch under exact metadata authority.
+    pub(crate) fn submit_tracked_broker_fetch(
+        &self,
+        broker_id: BrokerId,
+        request: FetchRequest,
+        deadline: Instant,
+    ) -> Result<RoutedCall<FetchResponse>, FetchSubmitError> {
+        let options = fetch_options_for_request(deadline, &request);
+        self.driver
+            .request_tracked_with(Route::Broker { broker_id }, request, options)
             .map_err(FetchSubmitError::Driver)
     }
 }
@@ -71,4 +85,16 @@ pub(super) const fn fetch_options(deadline: Instant) -> RequestOptions {
     RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::LongPoll)
         .with_maximum_version(ApiVersion::new(FETCH_NAME_ROUTE_MAX_VERSION))
+}
+
+pub(super) const fn fetch_options_for_request(
+    deadline: Instant,
+    request: &FetchRequest,
+) -> RequestOptions {
+    let options = fetch_options(deadline);
+    if request.session_id > 0 {
+        options.with_minimum_version(ApiVersion::new(7))
+    } else {
+        options
+    }
 }

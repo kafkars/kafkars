@@ -47,7 +47,8 @@ pub(crate) fn classify_fetch_request_error(failure: &RequestError) -> FetchFailu
 
 fn classify_request_failure(failure: &FetchRequestFailure) -> FetchFailure {
     match failure {
-        FetchRequestFailure::EmptyTopic
+        FetchRequestFailure::Allocation
+        | FetchRequestFailure::EmptyTopic
         | FetchRequestFailure::TopicTooLong { .. }
         | FetchRequestFailure::PartitionOutOfRange { .. }
         | FetchRequestFailure::NegativeFetchOffset { .. }

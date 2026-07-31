@@ -1,9 +1,6 @@
 //! Bounded Fetch-response normalization into engine-owned retained records.
 
-#![cfg_attr(
-    not(test),
-    allow(dead_code, reason = "host owns this private Fetch seam")
-)]
+#![allow(dead_code, reason = "private Fetch seam")]
 
 mod batch;
 mod batch_identity;
@@ -28,6 +25,7 @@ mod record_failure;
 #[cfg(test)]
 mod record_failure_test;
 mod request;
+mod request_broker;
 mod response;
 mod retention;
 mod session;
@@ -70,6 +68,8 @@ mod outcome_read_committed_test;
 mod outcome_test;
 #[cfg(test)]
 mod read_committed_test;
+#[cfg(test)]
+mod request_broker_test;
 #[cfg(test)]
 mod request_test;
 #[cfg(test)]

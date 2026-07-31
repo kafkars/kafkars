@@ -2,12 +2,12 @@
 
 use std::time::{Duration, Instant};
 
-use kafka_driver::{ApiVersion, RoutedCall, TrafficClass};
+use kafka_driver::{ApiVersion, BrokerId, RoutedCall, TrafficClass};
 use kafka_wire::{FetchRequest, FetchResponse};
 
 use crate::{EngineConfig, driver::DriverOwner, protocol::fetch::FETCH_NAME_ROUTE_MAX_VERSION};
 
-use super::submission::{FetchSubmitError, fetch_options};
+use super::submission::{FetchSubmitError, fetch_options, fetch_options_for_request};
 
 #[test]
 fn options_preserve_original_deadline_long_poll_lane_and_name_ceiling() {
@@ -23,6 +23,25 @@ fn options_preserve_original_deadline_long_poll_lane_and_name_ceiling() {
 }
 
 #[test]
+fn established_session_requests_require_fetch_v7_while_initial_can_fallback() {
+    let deadline = Instant::now() + Duration::from_secs(7);
+    let mut initial = FetchRequest::default();
+    initial.session_epoch = 0;
+    assert_eq!(
+        fetch_options_for_request(deadline, &initial).minimum_version(),
+        None
+    );
+
+    let mut incremental = FetchRequest::default();
+    incremental.session_id = 91;
+    incremental.session_epoch = 3;
+    assert_eq!(
+        fetch_options_for_request(deadline, &incremental).minimum_version(),
+        Some(ApiVersion::new(7))
+    );
+}
+
+#[test]
 fn accepted_submission_returns_a_tracked_partition_call() {
     let mut owner = owner();
     let deadline = Instant::now() + Duration::from_secs(1);
@@ -31,6 +50,22 @@ fn accepted_submission_returns_a_tracked_partition_call() {
         .unwrap_or_else(|error| panic!("tracked Fetch admission: {error}"));
 
     assert!(call.try_result().is_none());
+    assert_tracked_fetch(&call);
+    drop(call);
+    owner
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
+}
+
+#[test]
+fn accepted_broker_submission_uses_exact_broker_route_ownership() {
+    let mut owner = owner();
+    let deadline = Instant::now() + Duration::from_secs(1);
+    let broker_id = BrokerId::new(3).unwrap_or_else(|error| panic!("broker ID: {error}"));
+    let call = owner
+        .submit_tracked_broker_fetch(broker_id, FetchRequest::default(), deadline)
+        .unwrap_or_else(|error| panic!("tracked broker Fetch admission: {error}"));
+
     assert_tracked_fetch(&call);
     drop(call);
     owner

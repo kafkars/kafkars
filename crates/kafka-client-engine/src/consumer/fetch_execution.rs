@@ -6,6 +6,12 @@ mod admission;
 mod admission_test;
 #[path = "fetch_execution/apply.rs"]
 mod apply;
+#[path = "fetch_execution/broker_session.rs"]
+mod broker_session;
+#[path = "fetch_execution/broker_session_state.rs"]
+mod broker_session_state;
+#[cfg(test)]
+mod broker_session_test;
 #[path = "fetch_execution/control.rs"]
 mod control;
 #[cfg(test)]

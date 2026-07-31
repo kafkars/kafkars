@@ -24,6 +24,10 @@ pub(crate) use super::{
         FETCH_NAME_ROUTE_MAX_VERSION, FETCH_NAME_ROUTE_MIN_VERSION, FetchRequestFailure,
         FetchRequestSettings, fetch_request, fetch_request_with_session,
     },
+    request_broker::{
+        BrokerFetchPartition, ForgottenFetchPartition, broker_fetch_request,
+        fetch_session_close_request,
+    },
     response::FetchResponseFailure,
     retention::{FetchOutputReservation, FetchReservationDomain, FetchRetentionFailure},
     session::FetchSessionRequest,

@@ -17,6 +17,7 @@ fn elapsed_admission_preserves_deadline_precedence() {
 #[test]
 fn every_closed_request_construction_failure_is_driver_rejected() {
     let failures = [
+        FetchRequestFailure::Allocation,
         FetchRequestFailure::EmptyTopic,
         FetchRequestFailure::TopicTooLong {
             actual: 250,
