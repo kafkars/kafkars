@@ -3,8 +3,8 @@
 use std::{sync::Arc, time::Duration};
 
 use super::{
-    GroupConsumerHandle, GroupConsumerMissingOffsetPolicy, GroupConsumerRegistration,
-    GroupConsumerRegistrationErrorKind,
+    GroupConsumerHandle, GroupConsumerMissingOffsetPolicy, GroupConsumerProtocol,
+    GroupConsumerRegistration, GroupConsumerRegistrationErrorKind,
     group::{
         GroupConsumerShardOwner, GroupConsumerShardWake, GroupConsumerShardWakeError,
         started_group_registry_for_public_test,
@@ -24,6 +24,7 @@ fn request_defaults_and_explicit_missing_offset_policy_remain_owned() {
 
 fn request_defaults_and_explicit_configuration_remain_owned() {
     let default = GroupConsumerRegistration::new(Arc::from("workers"), vec![Arc::from("orders")]);
+    assert_eq!(default.protocol(), GroupConsumerProtocol::Classic);
     assert_eq!(
         default.missing_offset_policy(),
         GroupConsumerMissingOffsetPolicy::Error
@@ -35,11 +36,13 @@ fn request_defaults_and_explicit_configuration_remain_owned() {
 
     let request = default
         .with_group_instance_id(Arc::from("instance-a"))
+        .with_protocol(GroupConsumerProtocol::Consumer)
         .with_missing_offset_policy(GroupConsumerMissingOffsetPolicy::Latest)
         .with_read_isolation(ConsumerReadIsolation::ReadCommitted)
         .with_processing_timeout(Duration::from_nanos(17));
     assert_eq!(request.group(), "workers");
     assert_eq!(request.group_instance_id(), Some("instance-a"));
+    assert_eq!(request.protocol(), GroupConsumerProtocol::Consumer);
     assert_eq!(
         request.missing_offset_policy(),
         GroupConsumerMissingOffsetPolicy::Latest
@@ -55,6 +58,7 @@ fn request_defaults_and_explicit_configuration_remain_owned() {
         group,
         group_instance_id,
         topics,
+        protocol,
         missing_offset_policy,
         read_isolation,
         processing_policy,
@@ -64,6 +68,7 @@ fn request_defaults_and_explicit_configuration_remain_owned() {
     assert_eq!(&*group, "workers");
     assert_eq!(group_instance_id.as_deref(), Some("instance-a"));
     assert_eq!(topics, [Arc::<str>::from("orders")]);
+    assert_eq!(protocol, GroupConsumerProtocol::Consumer);
     assert_eq!(
         missing_offset_policy,
         GroupConsumerMissingOffsetPolicy::Latest
@@ -77,6 +82,7 @@ fn zero_and_unrepresentable_timeouts_return_the_exact_request() {
     for timeout in [Duration::ZERO, Duration::MAX] {
         let request =
             GroupConsumerRegistration::new(Arc::from("workers"), vec![Arc::from("orders")])
+                .with_protocol(GroupConsumerProtocol::Consumer)
                 .with_read_isolation(ConsumerReadIsolation::ReadCommitted)
                 .with_missing_offset_policy(GroupConsumerMissingOffsetPolicy::Earliest)
                 .with_processing_timeout(timeout);
@@ -86,6 +92,7 @@ fn zero_and_unrepresentable_timeouts_return_the_exact_request() {
             .unwrap_or_else(|| panic!("invalid processing timeout must reject"));
         assert_eq!(returned.group(), "workers");
         assert_eq!(returned.topics(), &[Arc::<str>::from("orders")]);
+        assert_eq!(returned.protocol(), GroupConsumerProtocol::Consumer);
         assert_eq!(
             returned.missing_offset_policy(),
             GroupConsumerMissingOffsetPolicy::Earliest

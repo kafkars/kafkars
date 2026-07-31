@@ -61,6 +61,9 @@ mod classic_group_sync_rejection;
 mod classic_group_sync_settlement;
 mod classic_group_sync_submission;
 mod classic_group_topics;
+mod consumer_group_execution;
+#[cfg(test)]
+mod consumer_group_execution_test;
 mod offset_commit;
 mod registry;
 mod registry_acknowledge;

@@ -1,4 +1,4 @@
-//! Capture-first public result vocabulary for classic-group membership start.
+//! Capture-first public result vocabulary for group-consumer membership start.
 
 use std::time::Duration;
 
@@ -20,6 +20,11 @@ impl GroupConsumerStartCapture {
         let capture = port.capture_cycle_deadline(timeout).map_err(|_error| {
             GroupConsumerStartError::from_port(GroupConsumerCyclePortErrorCategory::InvalidTimeout)
         })?;
+        if timeout.is_zero() {
+            return Err(GroupConsumerStartError::from_port(
+                GroupConsumerCyclePortErrorCategory::InvalidTimeout,
+            ));
+        }
         Ok(Self { port, capture })
     }
 
@@ -104,7 +109,7 @@ impl core::fmt::Display for GroupConsumerStartError {
     fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             formatter,
-            "classic-group membership start rejected: {:?}",
+            "group-consumer membership start rejected: {:?}",
             self.kind
         )
     }

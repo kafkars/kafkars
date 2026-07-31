@@ -2,7 +2,10 @@
 
 use std::time::Duration;
 
-use super::{Consumer, ConsumerBuilder, OffsetReset, ReadIsolation, RecvConsumerBatch};
+use super::{
+    Consumer, ConsumerBuilder, ConsumerGroupProtocol, OffsetReset, ReadIsolation,
+    RecvConsumerBatch,
+};
 use crate::{Client, ErrorKind};
 
 macro_rules! assert_not_impl {
@@ -26,12 +29,14 @@ fn builder_and_unique_handle_expose_static_identity_without_control_capabilities
         let builder = builder
             .group_instance_id("instance-a")
             .subscribe(["orders"])
+            .group_protocol(ConsumerGroupProtocol::Consumer)
             .on_missing_offset(OffsetReset::Latest)
             .read_isolation(ReadIsolation::ReadCommitted)
             .processing_timeout(Duration::from_secs(41));
         let _: &str = builder.group_id();
         let _: Option<&str> = builder.selected_group_instance_id();
         let _: &[String] = builder.subscription();
+        let _: ConsumerGroupProtocol = builder.selected_group_protocol();
         let _: OffsetReset = builder.offset_reset();
         let _: ReadIsolation = builder.selected_read_isolation();
         let _: Duration = builder.selected_processing_timeout();
@@ -47,6 +52,25 @@ fn builder_and_unique_handle_expose_static_identity_without_control_capabilities
     assert_not_impl!(Consumer: Sync);
     let _ = builder_contract as fn(ConsumerBuilder);
     let _ = handle_contract as fn(&mut Consumer);
+}
+
+#[test]
+fn classic_protocol_is_default_and_consumer_protocol_is_explicit() {
+    let client = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .build()
+        .unwrap_or_else(|error| panic!("lazy client start: {error}"));
+    assert_eq!(
+        client.consumer("workers").selected_group_protocol(),
+        ConsumerGroupProtocol::Classic
+    );
+    assert_eq!(
+        client
+            .consumer("workers")
+            .group_protocol(ConsumerGroupProtocol::Consumer)
+            .selected_group_protocol(),
+        ConsumerGroupProtocol::Consumer
+    );
 }
 
 #[test]

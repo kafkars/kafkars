@@ -8,7 +8,8 @@ use crate::clock::{ClockError, DeadlineCapture, MonotonicClock};
 
 use super::{
     classic_group_execution::ClassicGroupExecutionError,
-    registry_cycle::GroupConsumerCycleAdmissionError,
+    consumer_group_execution::ConsumerGroupExecutionAdmissionError,
+    registry_cycle::{GroupConsumerCycleAcceptance, GroupConsumerCycleAdmissionError},
     registry_shard::{GroupConsumerShardLockError, GroupConsumerShardState},
     registry_wake::GroupConsumerShardWakeError,
 };
@@ -62,8 +63,8 @@ impl GroupConsumerPort {
         if self.shared.admission_is_closed() {
             return Err(GroupConsumerCyclePortError::CLOSED);
         }
-        let cycle = registry
-            .try_begin_classic_cycle(group_id, capture)
+        let acceptance = registry
+            .try_begin_cycle(group_id, capture)
             .map_err(GroupConsumerCyclePortError::registry)?;
         let entry_faulted = registry
             .entries
@@ -72,7 +73,10 @@ impl GroupConsumerPort {
             .is_some_and(|entry| entry.fault.is_some());
         drop(registry);
         Ok(GroupConsumerCycleAdmission {
-            cycle,
+            classic_cycle: match acceptance {
+                GroupConsumerCycleAcceptance::Classic(cycle) => Some(cycle),
+                GroupConsumerCycleAcceptance::Consumer => None,
+            },
             entry_faulted,
             wake: self.shared.request_turn().err(),
         })
@@ -86,14 +90,22 @@ impl GroupConsumerPort {
 
 #[must_use = "accepted membership retains any post-commit wake failure"]
 pub(crate) struct GroupConsumerCycleAdmission {
-    cycle: MembershipCycle,
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "classic cycle identity remains engine-private")
+    )]
+    classic_cycle: Option<MembershipCycle>,
     entry_faulted: bool,
     wake: Option<GroupConsumerShardWakeError>,
 }
 
 impl GroupConsumerCycleAdmission {
+    #[cfg(test)]
     pub(crate) const fn cycle(&self) -> MembershipCycle {
-        self.cycle
+        match self.classic_cycle {
+            Some(cycle) => cycle,
+            None => panic!("classic cycle requested for a consumer-protocol admission"),
+        }
     }
 
     pub(crate) const fn wake_failed(&self) -> bool {
@@ -165,6 +177,11 @@ impl GroupConsumerCyclePortError {
             }
             GroupConsumerCyclePortErrorKind::Registry(
                 GroupConsumerCycleAdmissionError::Execution(ClassicGroupExecutionError::Occupied),
+            )
+            | GroupConsumerCyclePortErrorKind::Registry(
+                GroupConsumerCycleAdmissionError::ConsumerExecution(
+                    ConsumerGroupExecutionAdmissionError::Occupied,
+                ),
             ) => GroupConsumerCyclePortErrorCategory::AlreadyStarted,
             GroupConsumerCyclePortErrorKind::Registry(
                 GroupConsumerCycleAdmissionError::UnknownGroup
@@ -173,7 +190,9 @@ impl GroupConsumerCyclePortError {
             GroupConsumerCyclePortErrorKind::Lock(GroupConsumerShardLockError::Poisoned)
             | GroupConsumerCyclePortErrorKind::Registry(
                 GroupConsumerCycleAdmissionError::EntryFault
-                | GroupConsumerCycleAdmissionError::Execution(_),
+                | GroupConsumerCycleAdmissionError::Execution(_)
+                | GroupConsumerCycleAdmissionError::ConsumerExecution(_)
+                | GroupConsumerCycleAdmissionError::ProtocolMismatch,
             ) => GroupConsumerCyclePortErrorCategory::InternalInvariant,
         }
     }

@@ -1,22 +1,18 @@
-//! Public linear ownership of one bounded classic-group registry registration.
-
-use std::{cell::Cell, marker::PhantomData, sync::Arc, time::Duration};
-
-use kafka_client_core::{ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicRejoinPolicy};
+//! Public linear ownership of one bounded group-consumer registry registration.
 
 use super::{
     GroupConsumerBatch, GroupConsumerPort, GroupConsumerPortRegistrationCategory,
     GroupConsumerStartAccepted, GroupConsumerStartCapture, GroupConsumerStartError,
     GroupConsumerTryTakeBatchError, group_registration_request::GroupConsumerRegistration,
 };
-
+use kafka_client_core::{ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicRejoinPolicy};
+use std::{cell::Cell, marker::PhantomData, sync::Arc, time::Duration};
 const DEFAULT_SESSION_TIMEOUT_MS: u64 = 10_000;
 const DEFAULT_REBALANCE_TIMEOUT_MS: u64 = 30_000;
 const DEFAULT_HEARTBEAT_INTERVAL_TICKS: u64 = 3_000_000_000;
 const DEFAULT_HEARTBEAT_ATTEMPT_TIMEOUT_TICKS: u64 = 10_000_000_000;
 const DEFAULT_REJOIN_BACKOFF_TICKS: u64 = 1_000_000_000;
 const DEFAULT_REJOIN_ATTEMPT_TIMEOUT_TICKS: u64 = 30_000_000_000;
-
 /// Stable reason bounded group registration did not transfer ownership.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GroupConsumerRegistrationErrorKind {
@@ -28,10 +24,11 @@ pub enum GroupConsumerRegistrationErrorKind {
     Backpressure,
     /// Group or topic input is outside the supported bounded domain.
     InvalidInput,
+    /// A future protocol selector is recognized but has no execution owner.
+    UnsupportedProtocol,
     /// Internal ownership could not be acquired consistently.
     Internal,
 }
-
 /// Rejected registration retaining the exact request.
 #[derive(Debug)]
 #[must_use = "registration rejection retains the exact request"]
@@ -39,7 +36,6 @@ pub struct GroupConsumerRegistrationError {
     kind: GroupConsumerRegistrationErrorKind,
     request: GroupConsumerRegistration,
 }
-
 impl GroupConsumerRegistrationError {
     pub(crate) const fn new(
         kind: GroupConsumerRegistrationErrorKind,
@@ -58,20 +54,17 @@ impl GroupConsumerRegistrationError {
         self.request
     }
 }
-
 impl core::fmt::Display for GroupConsumerRegistrationError {
     fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             formatter,
-            "classic-group registration rejected: {:?}",
+            "group-consumer registration rejected: {:?}",
             self.kind
         )
     }
 }
-
 impl std::error::Error for GroupConsumerRegistrationError {}
-
-/// Unique ownership of one registered classic-group entry.
+/// Unique ownership of one registered group-consumer entry.
 ///
 /// Registration reserves catalog and Fetch ownership; observation transfers only authorized delivery.
 /// Drop invents neither `LeaveGroup` nor publication-fenced removal.
@@ -82,7 +75,6 @@ pub struct GroupConsumerHandle {
     pub(super) lifetime: Arc<dyn Send + Sync>,
     pub(super) _not_sync: PhantomData<Cell<()>>,
 }
-
 impl core::fmt::Debug for GroupConsumerHandle {
     fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         formatter
@@ -91,7 +83,6 @@ impl core::fmt::Debug for GroupConsumerHandle {
             .finish_non_exhaustive()
     }
 }
-
 impl GroupConsumerHandle {
     #[cfg(test)]
     pub(crate) fn from_registered_for_test(
@@ -129,6 +120,7 @@ impl GroupConsumerHandle {
             group,
             group_instance_id,
             topics,
+            protocol,
             missing_offset_policy,
             read_isolation,
             processing_policy,
@@ -138,10 +130,11 @@ impl GroupConsumerHandle {
                 request,
             )
         })?;
-        match port.try_register_with_configuration(
+        match port.try_register_with_protocol_configuration(
             group,
             group_instance_id,
             topics,
+            protocol,
             timing,
             heartbeat,
             rejoin,
@@ -174,7 +167,8 @@ impl GroupConsumerHandle {
                     }
                 };
                 let mut request =
-                    GroupConsumerRegistration::new(failure.group, failure.local_topics);
+                    GroupConsumerRegistration::new(failure.group, failure.local_topics)
+                        .with_protocol(protocol);
                 if let Some(group_instance_id) = failure.group_instance_id {
                     request = request.with_group_instance_id(group_instance_id);
                 }

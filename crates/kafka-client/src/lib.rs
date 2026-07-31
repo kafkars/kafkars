@@ -132,7 +132,8 @@ pub use consumer::{
     ConsumerAssignment, ConsumerAssignmentPartition, ConsumerBatch, ConsumerBuildError,
     ConsumerBuilder, ConsumerCloseAdmissionError, ConsumerCommitAdmissionError,
     ConsumerCommitError, ConsumerEvent, ConsumerHeader, ConsumerRecord, ConsumerRecords,
-    ConsumerRevocation, GroupConsumerHeader, GroupConsumerRecord, GroupConsumerRecords,
+    ConsumerGroupProtocol, ConsumerRevocation, GroupConsumerHeader, GroupConsumerRecord,
+    GroupConsumerRecords,
     GroupMetadata, NextAssignedEvent, NextConsumerEvent, OffsetReset, ReadIsolation, RecordBatch,
     RecvAssignedBatch, RecvConsumerBatch, Seek, StartPosition, TopicPartition,
 };

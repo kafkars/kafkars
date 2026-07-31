@@ -19,9 +19,12 @@ use super::{
     classic_group_position::ClassicGroupPositionExecution,
     classic_group_rediscovery::ClassicCoordinatorRediscovery,
     classic_group_rejoin::ClassicGroupRejoinExecution,
+    consumer_group_execution::ConsumerGroupExecution,
     session_catalog::{GroupSessionCatalog, GroupSessionCatalogError},
 };
-use crate::consumer::GroupConsumerPositionFailureKind;
+use crate::consumer::{
+    GroupConsumerPositionFailureKind, group_registration_request::GroupConsumerProtocol,
+};
 
 /// Whether one retained group can still admit new operations.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -40,7 +43,9 @@ pub(super) enum GroupConsumerEntryBuildError {
 /// One bounded group spelling, session catalog, and close fence.
 pub(super) struct GroupConsumerEntry {
     pub(super) state: GroupConsumerEntryState,
+    pub(super) protocol: GroupConsumerProtocol,
     pub(super) catalog: GroupSessionCatalog,
+    pub(super) consumer: Option<ConsumerGroupExecution>,
     pub(super) classic: ClassicGroupOwner,
     pub(super) execution: ClassicGroupExecution,
     pub(super) fetch: ClassicGroupFetchOwner,
@@ -129,8 +134,41 @@ impl GroupConsumerEntry {
         read_isolation: ReadIsolation,
         processing_policy: ClassicProcessingLeasePolicy,
     ) -> Result<Self, GroupConsumerEntryBuildError> {
+        Self::try_new_with_protocol_configuration(
+            group_id,
+            group,
+            group_instance_id,
+            local_topics,
+            GroupConsumerProtocol::Classic,
+            timing,
+            heartbeat_policy,
+            rejoin_policy,
+            missing_offset_policy,
+            read_isolation,
+            processing_policy,
+        )
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one bounded entry receives one explicit immutable protocol and policy set"
+    )]
+    pub(super) fn try_new_with_protocol_configuration(
+        group_id: GroupId,
+        group: &Arc<str>,
+        group_instance_id: Option<&Arc<str>>,
+        local_topics: &[Arc<str>],
+        protocol: GroupConsumerProtocol,
+        timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
+        missing_offset_policy: GroupPositionMissingOffsetPolicy,
+        read_isolation: ReadIsolation,
+        processing_policy: ClassicProcessingLeasePolicy,
+    ) -> Result<Self, GroupConsumerEntryBuildError> {
         Ok(Self {
             state: GroupConsumerEntryState::Active,
+            protocol,
             catalog: GroupSessionCatalog::try_new_with_group_instance_id(
                 group_id,
                 Arc::clone(group),
@@ -138,6 +176,8 @@ impl GroupConsumerEntry {
                 local_topics,
             )
             .map_err(GroupConsumerEntryBuildError::Catalog)?,
+            consumer: (protocol == GroupConsumerProtocol::Consumer)
+                .then(|| ConsumerGroupExecution::new(group_id)),
             classic: ClassicGroupOwner::new(group_id, timing, heartbeat_policy, rejoin_policy),
             execution: new_classic_group_execution(),
             fetch: ClassicGroupFetchOwner::try_new_with_read_isolation(read_isolation)
@@ -166,6 +206,10 @@ impl GroupConsumerEntry {
 
     pub(super) const fn is_active(&self) -> bool {
         matches!(self.state, GroupConsumerEntryState::Active) && self.fault.is_none()
+    }
+
+    pub(super) const fn uses_consumer_group_protocol(&self) -> bool {
+        matches!(self.protocol, GroupConsumerProtocol::Consumer)
     }
 }
 

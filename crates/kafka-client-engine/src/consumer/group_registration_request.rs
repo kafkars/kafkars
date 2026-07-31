@@ -1,4 +1,4 @@
-//! Inert public configuration for one bounded classic-group registration.
+//! Inert public protocol and policy for one bounded group-consumer registration.
 
 use std::{sync::Arc, time::Duration};
 
@@ -12,17 +12,19 @@ type ValidatedGroupConsumerRegistration = (
     Arc<str>,
     Option<Arc<str>>,
     Vec<Arc<str>>,
+    GroupConsumerProtocol,
     GroupConsumerMissingOffsetPolicy,
     ConsumerReadIsolation,
     ClassicProcessingLeasePolicy,
 );
 
-/// Exact caller-owned names for one bounded classic-group registration.
+/// Exact caller-owned policy for one bounded group-consumer registration.
 #[derive(Debug)]
 pub struct GroupConsumerRegistration {
     group: Arc<str>,
     group_instance_id: Option<Arc<str>>,
     topics: Vec<Arc<str>>,
+    protocol: GroupConsumerProtocol,
     missing_offset_policy: GroupConsumerMissingOffsetPolicy,
     read_isolation: ConsumerReadIsolation,
     processing_timeout: Duration,
@@ -35,6 +37,7 @@ impl GroupConsumerRegistration {
             group,
             group_instance_id: None,
             topics,
+            protocol: GroupConsumerProtocol::Classic,
             missing_offset_policy: GroupConsumerMissingOffsetPolicy::Error,
             read_isolation: ConsumerReadIsolation::ReadUncommitted,
             processing_timeout: DEFAULT_PROCESSING_TIMEOUT,
@@ -60,6 +63,17 @@ impl GroupConsumerRegistration {
     /// Returns the requested local topic subscription in caller order.
     pub fn topics(&self) -> &[Arc<str>] {
         &self.topics
+    }
+
+    /// Selects the Kafka consumer-group membership protocol.
+    pub const fn with_protocol(mut self, protocol: GroupConsumerProtocol) -> Self {
+        self.protocol = protocol;
+        self
+    }
+
+    /// Returns the selected Kafka consumer-group membership protocol.
+    pub const fn protocol(&self) -> GroupConsumerProtocol {
+        self.protocol
     }
 
     /// Selects explicit missing-committed-offset behavior before registration.
@@ -115,11 +129,22 @@ impl GroupConsumerRegistration {
             self.group,
             self.group_instance_id,
             self.topics,
+            self.protocol,
             self.missing_offset_policy,
             self.read_isolation,
             processing_policy,
         ))
     }
+}
+
+/// Kafka consumer-group membership protocol selected before registration.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum GroupConsumerProtocol {
+    /// Join, Sync, and Heartbeat through Kafka's classic group protocol.
+    #[default]
+    Classic,
+    /// Join and maintain membership through KIP-848 `ConsumerGroupHeartbeat`.
+    Consumer,
 }
 
 /// Missing committed-offset behavior fixed for one registered group.

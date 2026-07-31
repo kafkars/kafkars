@@ -12,6 +12,7 @@ use super::{
     registry_entry::default_classic_processing_lease_policy, registry_port::GroupConsumerPort,
     registry_shard::GroupConsumerShardLockError, session_catalog::GroupSessionCatalogError,
 };
+use crate::consumer::group_registration_request::GroupConsumerProtocol;
 
 impl GroupConsumerPort {
     pub(crate) fn try_register(
@@ -70,6 +71,37 @@ impl GroupConsumerPort {
         read_isolation: ReadIsolation,
         processing_policy: ClassicProcessingLeasePolicy,
     ) -> Result<GroupId, GroupConsumerPortRegistrationFailure> {
+        self.try_register_with_protocol_configuration(
+            group,
+            group_instance_id,
+            local_topics,
+            GroupConsumerProtocol::Classic,
+            timing,
+            heartbeat_policy,
+            rejoin_policy,
+            missing_offset_policy,
+            read_isolation,
+            processing_policy,
+        )
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one bounded port admission forwards one explicit immutable protocol and policy set"
+    )]
+    pub(crate) fn try_register_with_protocol_configuration(
+        &self,
+        group: Arc<str>,
+        group_instance_id: Option<Arc<str>>,
+        local_topics: Vec<Arc<str>>,
+        protocol: GroupConsumerProtocol,
+        timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
+        missing_offset_policy: GroupPositionMissingOffsetPolicy,
+        read_isolation: ReadIsolation,
+        processing_policy: ClassicProcessingLeasePolicy,
+    ) -> Result<GroupId, GroupConsumerPortRegistrationFailure> {
         if self.shared.admission_is_closed() {
             return Err(registration_failure(
                 GroupConsumerPortRegistrationFailureKind::CLOSED,
@@ -98,10 +130,11 @@ impl GroupConsumerPort {
             ));
         }
         registry
-            .try_register_with_configuration(
+            .try_register_with_protocol_configuration(
                 group,
                 group_instance_id,
                 local_topics,
+                protocol,
                 timing,
                 heartbeat_policy,
                 rejoin_policy,

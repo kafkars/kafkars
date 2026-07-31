@@ -15,6 +15,7 @@ pub struct ConsumerBuilder {
     group_id: String,
     group_instance_id: Option<String>,
     topics: Vec<String>,
+    group_protocol: ConsumerGroupProtocol,
     offset_reset: OffsetReset,
     read_isolation: ReadIsolation,
     processing_timeout: Duration,
@@ -27,6 +28,7 @@ impl ConsumerBuilder {
             group_id,
             group_instance_id: None,
             topics: Vec::new(),
+            group_protocol: ConsumerGroupProtocol::Classic,
             offset_reset: OffsetReset::Error,
             read_isolation: ReadIsolation::ReadUncommitted,
             processing_timeout: Duration::from_secs(300),
@@ -49,6 +51,16 @@ impl ConsumerBuilder {
         S: Into<String>,
     {
         self.topics = topics.into_iter().map(Into::into).collect();
+        self
+    }
+
+    /// Selects the Kafka consumer-group membership protocol.
+    ///
+    /// Classic membership remains the default. Selecting
+    /// [`ConsumerGroupProtocol::Consumer`] never silently falls back to
+    /// classic membership.
+    pub const fn group_protocol(mut self, protocol: ConsumerGroupProtocol) -> Self {
+        self.group_protocol = protocol;
         self
     }
 
@@ -90,6 +102,11 @@ impl ConsumerBuilder {
         &self.topics
     }
 
+    /// Returns the selected Kafka consumer-group membership protocol.
+    pub const fn selected_group_protocol(&self) -> ConsumerGroupProtocol {
+        self.group_protocol
+    }
+
     /// Returns the immutable missing-offset policy for this registration.
     pub const fn offset_reset(&self) -> OffsetReset {
         self.offset_reset
@@ -127,6 +144,7 @@ impl ConsumerBuilder {
             &self.group_id,
             self.group_instance_id.as_deref(),
             &self.topics,
+            self.group_protocol,
             self.offset_reset,
             self.read_isolation,
             self.processing_timeout,
@@ -140,4 +158,14 @@ impl ConsumerBuilder {
             topics: self.topics,
         })
     }
+}
+
+/// Kafka consumer-group membership protocol selected for one consumer.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum ConsumerGroupProtocol {
+    /// Kafka's JoinGroup, SyncGroup, and Heartbeat protocol.
+    #[default]
+    Classic,
+    /// Kafka's KIP-848 `ConsumerGroupHeartbeat` protocol.
+    Consumer,
 }

@@ -17,6 +17,7 @@ use super::{
     },
     session_catalog::GroupSessionCatalogError,
 };
+use crate::consumer::group_registration_request::GroupConsumerProtocol;
 
 /// Registration rejection retaining the exact caller-owned group spelling.
 #[must_use = "group registration rejection retains the caller group spelling"]
@@ -95,6 +96,37 @@ impl GroupConsumerRegistry {
         read_isolation: ReadIsolation,
         processing_policy: ClassicProcessingLeasePolicy,
     ) -> Result<GroupId, GroupConsumerRegistrationFailure> {
+        self.try_register_with_protocol_configuration(
+            group,
+            group_instance_id,
+            local_topics,
+            GroupConsumerProtocol::Classic,
+            timing,
+            heartbeat_policy,
+            rejoin_policy,
+            missing_offset_policy,
+            read_isolation,
+            processing_policy,
+        )
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one bounded registration forwards one explicit immutable protocol and policy set"
+    )]
+    pub(super) fn try_register_with_protocol_configuration(
+        &mut self,
+        group: Arc<str>,
+        group_instance_id: Option<Arc<str>>,
+        local_topics: Vec<Arc<str>>,
+        protocol: GroupConsumerProtocol,
+        timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
+        missing_offset_policy: GroupPositionMissingOffsetPolicy,
+        read_isolation: ReadIsolation,
+        processing_policy: ClassicProcessingLeasePolicy,
+    ) -> Result<GroupId, GroupConsumerRegistrationFailure> {
         if !self.accepting {
             return Err(registration_failure(
                 GroupConsumerRegistrationFailureKind::Closed,
@@ -119,11 +151,12 @@ impl GroupConsumerRegistry {
                 local_topics,
             ));
         };
-        let entry = match GroupConsumerEntry::try_new_with_configuration(
+        let entry = match GroupConsumerEntry::try_new_with_protocol_configuration(
             group_id,
             &group,
             group_instance_id.as_ref(),
             &local_topics,
+            protocol,
             timing,
             heartbeat_policy,
             rejoin_policy,

@@ -4,6 +4,7 @@ use std::{sync::Arc, time::Duration};
 
 use kafka_client_engine::{
     Engine as SharedEngine, GroupConsumerDormantReleaseErrorKind, GroupConsumerMissingOffsetPolicy,
+    GroupConsumerProtocol as EngineGroupConsumerProtocol,
     GroupConsumerRegistration as EngineGroupConsumerRegistration, GroupConsumerStartCapture,
 };
 
@@ -11,7 +12,7 @@ use super::group_consumer_registration_result::{
     accepted_fault, translate_group_registration, translate_group_start,
 };
 use super::{super::client::engine_read_isolation, group_consumer::GroupConsumerEngine};
-use crate::{ErrorKind, KafkaError, OffsetReset, ReadIsolation};
+use crate::{ConsumerGroupProtocol, ErrorKind, KafkaError, OffsetReset, ReadIsolation};
 
 impl GroupConsumerEngine {
     pub(crate) fn register(
@@ -20,6 +21,7 @@ impl GroupConsumerEngine {
         group: &str,
         group_instance_id: Option<&str>,
         topics: &[String],
+        group_protocol: ConsumerGroupProtocol,
         offset_reset: OffsetReset,
         read_isolation: ReadIsolation,
         processing_timeout: Duration,
@@ -35,6 +37,7 @@ impl GroupConsumerEngine {
             registration = registration.with_group_instance_id(Arc::<str>::from(group_instance_id));
         }
         let registration = registration
+            .with_protocol(engine_group_protocol(group_protocol))
             .with_missing_offset_policy(engine_missing_offset_policy(offset_reset))
             .with_read_isolation(engine_read_isolation(read_isolation))
             .with_processing_timeout(processing_timeout);
@@ -69,6 +72,13 @@ impl GroupConsumerEngine {
                 }
             }
         }
+    }
+}
+
+const fn engine_group_protocol(protocol: ConsumerGroupProtocol) -> EngineGroupConsumerProtocol {
+    match protocol {
+        ConsumerGroupProtocol::Classic => EngineGroupConsumerProtocol::Classic,
+        ConsumerGroupProtocol::Consumer => EngineGroupConsumerProtocol::Consumer,
     }
 }
 

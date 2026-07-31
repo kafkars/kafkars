@@ -45,7 +45,7 @@ pub use event::{
     AssignedConsumerFetchThrottleFailureKind, AssignedConsumerPositionFence,
     AssignedConsumerPositionResolutionFailureKind,
 };
-pub use group::ConsumerBuilder;
+pub use group::{ConsumerBuilder, ConsumerGroupProtocol};
 pub use group_acknowledge_error::ConsumerAcknowledgeError;
 pub use group_build_error::ConsumerBuildError;
 pub use group_close::CloseConsumer;
