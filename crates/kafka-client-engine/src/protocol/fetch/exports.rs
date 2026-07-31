@@ -17,11 +17,14 @@ pub(crate) use super::{
         RejectedFetchOutcome, RetainedFetchOutcome,
     },
     outcome_failure::{FetchOutcomeFailureClass, classify_fetch_outcome_failure},
-    outcome_normalize::normalize_fetch_outcome,
+    outcome_normalize::{
+        FetchSessionUpdate, normalize_fetch_outcome, normalize_session_fetch_outcome,
+    },
     request::{
         FETCH_NAME_ROUTE_MAX_VERSION, FETCH_NAME_ROUTE_MIN_VERSION, FetchRequestFailure,
-        FetchRequestSettings, fetch_request,
+        FetchRequestSettings, fetch_request, fetch_request_with_session,
     },
     response::FetchResponseFailure,
     retention::{FetchOutputReservation, FetchReservationDomain, FetchRetentionFailure},
+    session::FetchSessionRequest,
 };

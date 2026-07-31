@@ -1,8 +1,9 @@
 //! Unique bounded owner joining Fetch calls, output reservations, and delivery.
 
-use kafka_client_core::FetchFence;
+use kafka_client_core::{AssignedConsumerEffect, FetchFence, PositionFence};
 
 use crate::driver::TrackedFetchCalls;
+use crate::protocol::fetch::{FetchSessionRequest, FetchSessionUpdate};
 
 use super::{
     super::fetch_store::{FetchDeliveryStore, FetchStoreReservation},
@@ -14,12 +15,20 @@ pub(super) struct ActiveFetchReservation {
     pub(super) reservation: FetchStoreReservation,
 }
 
+#[derive(Clone, Copy)]
+struct DirectFetchSession {
+    position: PositionFence,
+    metadata: FetchSessionRequest,
+}
+
 /// Concrete direct-assignment Fetch interpreter.
 pub(crate) struct DirectFetchExecutor {
     _seal: ExecutorSeal,
     pub(super) calls: TrackedFetchCalls,
     pub(super) store: FetchDeliveryStore,
     pub(super) active: Vec<ActiveFetchReservation>,
+    session_capacity: usize,
+    sessions: Vec<DirectFetchSession>,
     pub(super) fault: Option<RetainedFetchFault>,
 }
 
@@ -36,8 +45,81 @@ impl DirectFetchExecutor {
             calls: TrackedFetchCalls::new(call_capacity),
             store: FetchDeliveryStore::new(delivery_capacity, max_bytes),
             active: Vec::new(),
+            session_capacity: 0,
+            sessions: Vec::new(),
             fault: None,
         }
+    }
+
+    pub(crate) fn try_enable_sessions(&mut self, session_capacity: usize) -> Result<(), ()> {
+        self.sessions
+            .try_reserve_exact(session_capacity)
+            .map_err(|_error| ())?;
+        self.session_capacity = session_capacity;
+        Ok(())
+    }
+
+    pub(super) fn bind_fetch_session(&self, request: &mut crate::driver::PartitionFetchRequest) {
+        if self.session_capacity == 0 {
+            request.bind_session(FetchSessionRequest::LEGACY);
+            return;
+        }
+        let position = request.fence().position();
+        let metadata = self
+            .sessions
+            .iter()
+            .find(|session| session.position == position)
+            .map_or(FetchSessionRequest::INITIAL, |session| session.metadata);
+        request.bind_session(metadata);
+    }
+
+    pub(super) fn commit_fetch_session(&mut self, fence: FetchFence, update: FetchSessionUpdate) {
+        if self.session_capacity == 0 {
+            return;
+        }
+        let position = fence.position();
+        if let Some(index) = self
+            .sessions
+            .iter()
+            .position(|session| session.position.partition() == position.partition())
+        {
+            match update {
+                FetchSessionUpdate::Reset => {
+                    self.sessions.swap_remove(index);
+                }
+                FetchSessionUpdate::Continue(metadata) => {
+                    self.sessions[index] = DirectFetchSession { position, metadata };
+                }
+            }
+            return;
+        }
+        if let FetchSessionUpdate::Continue(metadata) = update
+            && self.sessions.len() < self.session_capacity
+        {
+            self.sessions
+                .push(DirectFetchSession { position, metadata });
+        }
+    }
+
+    pub(super) fn reset_fetch_session_for_control(&mut self, effect: AssignedConsumerEffect) {
+        self.sessions.retain(|session| {
+            let position = session.position;
+            !match effect {
+                AssignedConsumerEffect::Revoke {
+                    assignment_epoch,
+                    partition,
+                } => {
+                    position.assignment_epoch() == assignment_epoch
+                        && position.partition() == partition
+                }
+                AssignedConsumerEffect::Suspend { fence } => {
+                    position.assignment_epoch() == fence.assignment_epoch()
+                        && position.partition() == fence.partition()
+                        && position.position_epoch() < fence.position_epoch()
+                }
+                _ => false,
+            }
+        });
     }
 
     pub(super) fn active_index(&self, fence: FetchFence) -> Option<usize> {

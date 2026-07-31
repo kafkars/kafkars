@@ -74,3 +74,21 @@ pub(super) fn retain_success(
         charge,
     ))
 }
+
+pub(super) fn retain_empty_success(
+    requested_offset: i64,
+    throttle_ticks: u64,
+    reservation: FetchOutputReservation,
+) -> Result<RetainedFetchOutcome, RejectedFetchOutcome> {
+    let charge = settle(reservation, &[]).map_err(|(failure, reservation)| {
+        reject(FetchOutcomeFailure::Retention(failure), reservation)
+    })?;
+    Ok(RetainedFetchOutcome::new(
+        Some(throttle_ticks),
+        FetchOutcome::Success {
+            next_offset: requested_offset,
+            data_batches: Box::default(),
+        },
+        charge,
+    ))
+}

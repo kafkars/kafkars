@@ -2,10 +2,7 @@
 
 #![cfg_attr(
     not(test),
-    allow(
-        dead_code,
-        reason = "direct-consumer host interpretation follows this bounded protocol seam"
-    )
+    allow(dead_code, reason = "host owns this private Fetch seam")
 )]
 
 mod batch;
@@ -33,6 +30,7 @@ mod record_failure_test;
 mod request;
 mod response;
 mod retention;
+mod session;
 
 pub(crate) use exports::*;
 #[cfg(test)]
@@ -78,3 +76,5 @@ mod request_test;
 mod response_test;
 #[cfg(test)]
 mod retention_test;
+#[cfg(test)]
+mod session_test;

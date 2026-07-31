@@ -7,7 +7,8 @@ use kafka_client_core::{
 use crate::{
     driver::{FetchTerminal, PartitionFetchRequest, classify_fetch_request_error},
     protocol::fetch::{
-        FetchOutcomeFailureClass, classify_fetch_outcome_failure, normalize_fetch_outcome,
+        FetchOutcomeFailureClass, FetchSessionUpdate, classify_fetch_outcome_failure,
+        normalize_session_fetch_outcome,
     },
 };
 
@@ -22,6 +23,7 @@ pub(super) struct FetchTerminalFact {
     pub(super) request: PartitionFetchRequest,
     pub(super) input: AssignedConsumerInput,
     pub(super) storage: TerminalStorage,
+    pub(super) session: FetchSessionUpdate,
 }
 
 #[derive(Clone, Copy)]
@@ -61,17 +63,18 @@ impl DirectFetchExecutor {
                         FetchFailure::Compatibility,
                     );
                 };
-                let normalized = normalize_fetch_outcome(
+                let normalized = normalize_session_fetch_outcome(
                     isolation,
                     request.topic(),
                     request.fence().position().partition().partition().get(),
                     request.next_offset().get(),
+                    request.session(),
                     selected_version,
                     response,
                     request.decode_limits(),
                     output,
                 );
-                let outcome = match normalized {
+                let (outcome, session) = match normalized {
                     Ok(outcome) => outcome,
                     Err(rejected) => {
                         let failure = core_outcome_failure(classify_fetch_outcome_failure(
@@ -93,7 +96,7 @@ impl DirectFetchExecutor {
                         return Err(FetchExecutionError::Store(error));
                     }
                 };
-                Ok(staged_fact(request, observed_at, kind, fence))
+                Ok(staged_fact(request, observed_at, kind, fence, session))
             }
         }
     }
@@ -119,6 +122,7 @@ impl DirectFetchExecutor {
             request,
             input: AssignedConsumerInput::FetchFailed { fence, failure },
             storage: TerminalStorage::Released,
+            session: FetchSessionUpdate::Reset,
         })
     }
 }
@@ -137,6 +141,7 @@ fn staged_fact(
     observed_at: Moment,
     kind: FetchStageKind,
     fence: FetchFence,
+    session: FetchSessionUpdate,
 ) -> FetchTerminalFact {
     match kind {
         FetchStageKind::BrokerFailure(failure) => FetchTerminalFact {
@@ -146,6 +151,7 @@ fn staged_fact(
                 failure: FetchFailure::Broker(failure.code()),
             },
             storage: TerminalStorage::NonDelivery(fence),
+            session,
         },
         FetchStageKind::Empty(next_offset, throttle_ticks) => FetchTerminalFact {
             request,
@@ -157,6 +163,7 @@ fn staged_fact(
                 throttle_ticks,
             },
             storage: TerminalStorage::NonDelivery(fence),
+            session,
         },
         FetchStageKind::Deliverable(next_offset, throttle_ticks) => FetchTerminalFact {
             request,
@@ -168,6 +175,7 @@ fn staged_fact(
                 throttle_ticks,
             },
             storage: TerminalStorage::Deliverable(fence, next_offset),
+            session,
         },
     }
 }

@@ -26,6 +26,8 @@ mod fault_test;
 mod prepared;
 #[cfg(test)]
 mod prepared_test;
+#[cfg(test)]
+mod session_test;
 #[path = "fetch_execution/settlement.rs"]
 mod settlement;
 #[cfg(test)]

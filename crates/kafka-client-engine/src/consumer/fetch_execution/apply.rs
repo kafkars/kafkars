@@ -53,6 +53,7 @@ impl DirectFetchExecutor {
             self.retain_transition(fact.request, transition);
             return Err(FetchExecutionError::Confirm(error));
         }
+        self.commit_fetch_session(fence, fact.session);
         Ok(Some(transition))
     }
 

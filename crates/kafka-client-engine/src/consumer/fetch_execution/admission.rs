@@ -34,7 +34,7 @@ impl DirectFetchExecutor {
         if self.fault.is_some() {
             return Ok(FetchSubmission::Unavailable(prepared));
         }
-        let prepared = match prepared.reconcile_ownership(machine) {
+        let mut prepared = match prepared.reconcile_ownership(machine) {
             Ok(Some(prepared)) => prepared,
             Ok(None) => return Ok(FetchSubmission::Settled(None)),
             Err((error, prepared)) => {
@@ -44,6 +44,7 @@ impl DirectFetchExecutor {
                 return Err(FetchExecutionError::Core(error));
             }
         };
+        self.bind_fetch_session(&mut prepared.request);
         if prepared
             .request
             .operation_deadline()

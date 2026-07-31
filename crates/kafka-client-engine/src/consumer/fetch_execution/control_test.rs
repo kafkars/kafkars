@@ -12,7 +12,9 @@ use crate::{
     EngineConfig,
     clock::OperationDeadline,
     driver::DriverOwner,
-    protocol::fetch::{FetchDecodeLimits, FetchRequestSettings},
+    protocol::fetch::{
+        FetchDecodeLimits, FetchRequestSettings, FetchSessionRequest, FetchSessionUpdate,
+    },
 };
 
 use super::{DirectFetchExecutor, FetchAttemptDeadline, FetchSubmission, PreparedFetchExecution};
@@ -54,6 +56,36 @@ fn suspend_returns_request_storage_before_the_driver_call_finishes_draining() {
     let (requests, completion) = recovery.into_driver_recovery().into_parts();
     assert_eq!(requests.len(), 0);
     assert_eq!(completion, None);
+}
+
+#[test]
+fn position_control_fences_the_partition_session_before_new_fetch_work() {
+    let (effect, mut machine) = assignment();
+    let fence = fetch_fence(effect);
+    let mut executor = DirectFetchExecutor::create_unbound(1, 1, 4_096);
+    executor
+        .try_enable_sessions(1)
+        .unwrap_or_else(|()| panic!("reserve session state"));
+    let metadata =
+        FetchSessionRequest::incremental(91, 3).unwrap_or_else(|| panic!("valid session state"));
+    executor.commit_fetch_session(fence, FetchSessionUpdate::Continue(metadata));
+
+    let transition = machine
+        .apply(AssignedConsumerInput::Pause {
+            assignment_epoch: fence.position().assignment_epoch(),
+            partition: fence.position().partition(),
+        })
+        .unwrap_or_else(|error| panic!("pause session Fetch: {error}"));
+    let [control] = transition.effects() else {
+        panic!("one session control effect");
+    };
+    executor
+        .observe_control(*control)
+        .unwrap_or_else(|error| panic!("fence session: {error:?}"));
+
+    let (mut request, _bytes) = prepared(effect).into_parts_for_test();
+    executor.bind_fetch_session(&mut request);
+    assert_eq!(request.session(), FetchSessionRequest::INITIAL);
 }
 
 fn assignment() -> (AssignedConsumerEffect, AssignedConsumerMachine) {

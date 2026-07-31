@@ -11,7 +11,7 @@ use crate::{
         consumer::remaining_timeout_ms,
         fetch::{
             FetchDecodeLimits, FetchIsolation, FetchRequestFailure, FetchRequestSettings,
-            fetch_request,
+            FetchSessionRequest, fetch_request_with_session,
         },
     },
 };
@@ -25,6 +25,7 @@ pub(crate) struct PartitionFetchRequest {
     next_offset: NextFetchOffset,
     topic: String,
     settings: FetchRequestSettings,
+    session: FetchSessionRequest,
     decode_limits: FetchDecodeLimits,
     operation_deadline: OperationDeadline,
 }
@@ -47,6 +48,7 @@ impl PartitionFetchRequest {
             next_offset,
             topic,
             settings,
+            session: FetchSessionRequest::LEGACY,
             decode_limits,
             operation_deadline,
         }
@@ -67,6 +69,7 @@ impl PartitionFetchRequest {
             next_offset,
             topic,
             settings,
+            session: FetchSessionRequest::LEGACY,
             decode_limits,
             operation_deadline,
         })
@@ -94,6 +97,14 @@ impl PartitionFetchRequest {
 
     pub(crate) const fn isolation(&self) -> Option<FetchIsolation> {
         self.settings.isolation()
+    }
+
+    pub(crate) const fn session(&self) -> FetchSessionRequest {
+        self.session
+    }
+
+    pub(crate) fn bind_session(&mut self, session: FetchSessionRequest) {
+        self.session = session;
     }
 }
 
@@ -185,11 +196,12 @@ pub(super) fn generated_fetch_request(
     let remaining =
         u32::try_from(remaining).map_err(|_error| FetchAdmissionFailureSource::DeadlineElapsed)?;
     let partition = request.fence.position().partition().partition().get();
-    let generated = fetch_request(
+    let generated = fetch_request_with_session(
         &request.topic,
         partition,
         request.next_offset.get(),
         request.settings.cap_max_wait_ms(remaining),
+        request.session,
     )
     .map_err(FetchAdmissionFailureSource::Request)?;
     let partition = i32::try_from(partition).map_err(|_error| {

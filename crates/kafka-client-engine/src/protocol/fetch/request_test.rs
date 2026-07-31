@@ -4,11 +4,29 @@ use kafka_wire_core::{ApiVersion, KafkaEncode};
 
 use super::{
     FETCH_NAME_ROUTE_MAX_VERSION, FETCH_NAME_ROUTE_MIN_VERSION, FetchRequestFailure,
-    FetchRequestSettings, fetch_request,
+    FetchRequestSettings, FetchSessionRequest, fetch_request, fetch_request_with_session,
 };
 
 fn settings(isolation_level: i8) -> FetchRequestSettings {
     FetchRequestSettings::new(500, 1, 50 * 1024 * 1024, 1024 * 1024, isolation_level)
+}
+
+#[test]
+fn request_represents_initial_and_incremental_session_epochs_without_losing_old_brokers() {
+    let initial =
+        fetch_request_with_session("events", 7, 42, settings(0), FetchSessionRequest::INITIAL)
+            .unwrap_or_else(|error| panic!("initial session Fetch: {error:?}"));
+    assert_eq!((initial.session_id, initial.session_epoch), (0, 0));
+    assert!(initial.encoded_len(ApiVersion::new(6)).is_ok());
+    assert!(initial.encoded_len(ApiVersion::new(7)).is_ok());
+
+    let metadata = FetchSessionRequest::incremental(91, 3)
+        .unwrap_or_else(|| panic!("positive incremental session"));
+    let incremental = fetch_request_with_session("events", 7, 43, settings(0), metadata)
+        .unwrap_or_else(|error| panic!("incremental session Fetch: {error:?}"));
+    assert_eq!((incremental.session_id, incremental.session_epoch), (91, 3));
+    assert!(incremental.encoded_len(ApiVersion::new(7)).is_ok());
+    assert_eq!(metadata.next_incremental_epoch(), Some(4));
 }
 
 #[test]

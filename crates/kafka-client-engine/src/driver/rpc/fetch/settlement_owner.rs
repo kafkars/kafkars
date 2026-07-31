@@ -163,17 +163,21 @@ impl TrackedFetchCalls {
         request: super::admission::PartitionFetchRequest,
         observed_at: kafka_client_core::Moment,
         selected_version: i16,
-        partition_index: i32,
+        session_id: i32,
+        partition_index: Option<i32>,
         records: Option<Bytes>,
     ) {
-        let mut partition = kafka_wire::fetch_response::PartitionData::default();
-        partition.partition_index = partition_index;
-        partition.records = records;
-        let mut topic = kafka_wire::fetch_response::FetchableTopicResponse::default();
-        topic.topic = request.topic().into();
-        topic.partitions = vec![partition];
         let mut response = kafka_wire::FetchResponse::default();
-        response.responses = vec![topic];
+        response.session_id = session_id;
+        if let Some(partition_index) = partition_index {
+            let mut partition = kafka_wire::fetch_response::PartitionData::default();
+            partition.partition_index = partition_index;
+            partition.records = records;
+            let mut topic = kafka_wire::fetch_response::FetchableTopicResponse::default();
+            topic.topic = request.topic().into();
+            topic.partitions = vec![partition];
+            response.responses = vec![topic];
+        }
         self.install_terminal_result_for_test(
             request,
             observed_at,

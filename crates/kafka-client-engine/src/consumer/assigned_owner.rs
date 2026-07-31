@@ -84,16 +84,20 @@ impl AssignedConsumerOwner {
         reclaim_faults
             .try_reserve_exact(limits.delivery_capacity)
             .map_err(|_error| AssignedConsumerOwnerBuildError::Allocation)?;
+        let mut fetches = DirectFetchExecutor::create_unbound(
+            limits.call_capacity,
+            limits.delivery_capacity,
+            limits.delivery_bytes,
+        );
+        fetches
+            .try_enable_sessions(limits.partition_capacity)
+            .map_err(|()| AssignedConsumerOwnerBuildError::Allocation)?;
         Ok(Self {
             machine: AssignedConsumerMachine::with_read_isolation(settings.read_isolation),
             topics: AssignedTopics::new(limits.topic_limits),
             timers: AssignedTimers::new(limits.partition_capacity),
             positions: PositionResolutionExecutor::new(limits.call_capacity),
-            fetches: DirectFetchExecutor::create_unbound(
-                limits.call_capacity,
-                limits.delivery_capacity,
-                limits.delivery_bytes,
-            ),
+            fetches,
             events: AssignedConsumerEventStore::new(limits.partition_capacity)
                 .map_err(AssignedConsumerOwnerBuildError::Event)?,
             close: AssignedCloseSlot::create_for_assigned_owner(),

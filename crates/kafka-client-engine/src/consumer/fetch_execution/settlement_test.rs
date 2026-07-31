@@ -190,7 +190,8 @@ pub(in crate::consumer) fn install(
                 request,
                 Moment::from_tick(7),
                 12,
-                partition_index,
+                0,
+                Some(partition_index),
                 records,
             );
         }

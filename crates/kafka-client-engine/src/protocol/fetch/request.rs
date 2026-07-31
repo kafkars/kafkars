@@ -6,6 +6,7 @@ use kafka_wire::{
 };
 
 use super::isolation::FetchIsolation;
+use super::session::FetchSessionRequest;
 
 /// First generated Fetch version that represents isolation and request max bytes.
 pub(crate) const FETCH_NAME_ROUTE_MIN_VERSION: i16 = 4;
@@ -21,8 +22,6 @@ const CONSUMER_REPLICA_ID: i32 = -1;
 const UNKNOWN_LEADER_EPOCH: i32 = -1;
 const NO_LAST_FETCHED_EPOCH: i32 = -1;
 const CONSUMER_LOG_START_OFFSET: i64 = -1;
-const LEGACY_SESSION_ID: i32 = 0;
-const LEGACY_SESSION_EPOCH: i32 = -1;
 
 /// Raw bounded settings compiled by a future direct-consumer interpreter.
 ///
@@ -118,6 +117,23 @@ pub(crate) fn fetch_request(
     fetch_offset: i64,
     settings: FetchRequestSettings,
 ) -> Result<FetchRequest, FetchRequestFailure> {
+    fetch_request_with_session(
+        topic,
+        partition,
+        fetch_offset,
+        settings,
+        FetchSessionRequest::LEGACY,
+    )
+}
+
+/// Builds one session-fenced Fetch request for one name-routed partition.
+pub(crate) fn fetch_request_with_session(
+    topic: &str,
+    partition: u32,
+    fetch_offset: i64,
+    settings: FetchRequestSettings,
+    session: FetchSessionRequest,
+) -> Result<FetchRequest, FetchRequestFailure> {
     validate_topic(topic)?;
     let partition = i32::try_from(partition)
         .map_err(|_| FetchRequestFailure::PartitionOutOfRange { actual: partition })?;
@@ -168,8 +184,8 @@ pub(crate) fn fetch_request(
     request.min_bytes = min_bytes;
     request.max_bytes = max_bytes;
     request.isolation_level = settings.isolation_level;
-    request.session_id = LEGACY_SESSION_ID;
-    request.session_epoch = LEGACY_SESSION_EPOCH;
+    request.session_id = session.session_id();
+    request.session_epoch = session.session_epoch();
     request.topics = vec![generated_topic];
     Ok(request)
 }

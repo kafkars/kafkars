@@ -41,6 +41,7 @@ impl DirectFetchExecutor {
                 return Err(FetchExecutionError::Store(error));
             }
         }
+        self.reset_fetch_session_for_control(effect);
         Ok(())
     }
 }
