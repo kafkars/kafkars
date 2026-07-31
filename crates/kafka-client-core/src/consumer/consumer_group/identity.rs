@@ -18,7 +18,7 @@ impl ConsumerGroupMemberEpoch {
     }
 }
 
-/// Nonreused identity of one ConsumerGroupHeartbeat request.
+/// Nonreused identity of one `ConsumerGroupHeartbeat` request.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ConsumerGroupHeartbeatSequence(u64);
 

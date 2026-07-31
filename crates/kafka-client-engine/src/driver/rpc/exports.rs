@@ -20,6 +20,14 @@ pub(crate) use super::classic_group_position_reset_adapter::{
     ClassicGroupPositionResetCall, ClassicGroupPositionResetCompletionError,
     ClassicGroupPositionResetOutcome, ClassicGroupPositionResetRoute,
 };
+#[expect(
+    unused_imports,
+    reason = "awaiting KIP-848 membership host integration"
+)]
+pub(crate) use super::consumer_group_heartbeat_adapter::{
+    ConsumerGroupHeartbeatCall, ConsumerGroupHeartbeatCompletionError,
+    ConsumerGroupHeartbeatResolution,
+};
 pub(crate) use super::create_partitions_calls::{
     CreatePartitionsCompletionFailure, TrackedCreatePartitionsCalls,
 };

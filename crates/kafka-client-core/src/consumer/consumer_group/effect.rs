@@ -10,7 +10,7 @@ use super::{
 /// One bounded mechanism action for a KIP-848 member.
 #[derive(Debug, Eq, PartialEq)]
 pub enum ConsumerGroupHeartbeatEffect {
-    /// Submit one generated ConsumerGroupHeartbeat request.
+    /// Submit one generated `ConsumerGroupHeartbeat` request.
     Submit {
         /// Stable engine-catalog group identity.
         group_id: GroupId,

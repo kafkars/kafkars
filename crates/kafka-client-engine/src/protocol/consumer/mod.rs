@@ -3,6 +3,11 @@
 mod classic_group;
 #[cfg_attr(
     not(test),
+    expect(dead_code, reason = "awaiting KIP-848 membership executor")
+)]
+mod consumer_group;
+#[cfg_attr(
+    not(test),
     expect(dead_code, reason = "awaiting classic-group commit executor")
 )]
 mod group_offset_commit;
@@ -39,6 +44,16 @@ pub(crate) use classic_group::{
     classic_sync_group_request, classic_sync_group_request_with_instance,
     normalize_classic_heartbeat_response, normalize_classic_join_response,
     normalize_classic_leave_group_response, normalize_classic_sync_response,
+};
+#[expect(unused_imports, reason = "awaiting KIP-848 membership executor")]
+pub(crate) use consumer_group::{
+    CONSUMER_GROUP_HEARTBEAT_MAX_VERSION, CONSUMER_GROUP_HEARTBEAT_MIN_VERSION,
+    ConsumerGroupHeartbeatAssignmentTopic, ConsumerGroupHeartbeatBrokerRejection,
+    ConsumerGroupHeartbeatOutcome, ConsumerGroupHeartbeatOwnedTopic,
+    ConsumerGroupHeartbeatRequestFailure, ConsumerGroupHeartbeatResponseFailure,
+    ConsumerGroupHeartbeatSuccess, PreparedConsumerGroupHeartbeatRequest,
+    consumer_group_join_request, consumer_group_leave_request, consumer_group_steady_request,
+    normalize_consumer_group_heartbeat_response,
 };
 #[expect(unused_imports, reason = "awaiting classic-group commit executor")]
 pub(crate) use group_offset_commit::{
