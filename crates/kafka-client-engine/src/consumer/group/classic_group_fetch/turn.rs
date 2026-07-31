@@ -79,13 +79,17 @@ impl ClassicGroupFetchOwner {
             return work;
         }
 
+        if self.fetches.broker_session_close_requested() {
+            self.close_retired_broker_sessions(clock, driver, &mut work);
+            work.blocked = !work.progressed() && !work.fault_retained;
+            return work;
+        }
         self.submit_one_fetch(clock, driver, &mut work);
         if blocked_front && !work.progressed() && !work.fault_retained {
             work.blocked = true;
         }
         work
     }
-
     fn apply_one_due_timer(
         &mut self,
         clock: &MonotonicClock,

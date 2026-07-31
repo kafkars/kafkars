@@ -10,13 +10,30 @@ use super::{
     FetchSessionRequest, FetchSessionUpdate,
     batch_model_test::batch,
     decode_test::batch_bytes,
-    normalize_session_fetch_outcome,
+    fetch_session_requires_reestablishment, normalize_session_fetch_outcome,
     outcome_test::{
         PARTITION, REQUESTED_OFFSET, SELECTED_VERSION, TOPIC, normalize, normalize_with, partition,
         response, response_with_partition,
     },
     retention::FetchReservationDomain,
 };
+
+#[test]
+fn only_established_session_errors_request_reestablishment() {
+    let incremental = FetchSessionRequest::incremental(91, 3)
+        .unwrap_or_else(|| panic!("valid incremental session"));
+    for error_code in [70, 71] {
+        assert!(fetch_session_requires_reestablishment(
+            incremental,
+            error_code
+        ));
+        assert!(!fetch_session_requires_reestablishment(
+            FetchSessionRequest::INITIAL,
+            error_code
+        ));
+    }
+    assert!(!fetch_session_requires_reestablishment(incremental, 6));
+}
 
 #[test]
 fn top_level_broker_failure_needs_no_success_shape_or_session() {

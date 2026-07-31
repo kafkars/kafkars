@@ -104,6 +104,10 @@ impl AssignedConsumerOwner {
         if self.is_faulted() || !self.effects.is_empty() {
             return work;
         }
+        work.close_progressed = self.progress_broker_session_close(driver);
+        if self.is_faulted() || work.close_progressed {
+            return work;
+        }
         work.close_progressed = self.progress_close();
         work
     }

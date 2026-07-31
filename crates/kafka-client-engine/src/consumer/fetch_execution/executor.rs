@@ -3,10 +3,11 @@
 use kafka_client_core::{AssignedConsumerEffect, FetchFence, PositionFence};
 
 use crate::driver::{TrackedBrokerFetchCalls, TrackedFetchCalls};
-use crate::protocol::fetch::{FetchSessionRequest, FetchSessionUpdate};
+use crate::protocol::fetch::{FetchRequestSettings, FetchSessionRequest, FetchSessionUpdate};
 
 use super::{
     super::fetch_store::{FetchDeliveryStore, FetchStoreReservation},
+    broker_close::{ActiveBrokerSessionClose, BrokerSessionClosePolicy},
     broker_execution::{ActiveBrokerSession, PendingBrokerRoute, RoutedBrokerFetch},
     broker_session::BrokerFetchSessions,
     fault::RetainedFetchFault,
@@ -37,6 +38,10 @@ pub(crate) struct DirectFetchExecutor {
     pub(super) route_calls: Vec<PendingBrokerRoute>,
     pub(super) routed: Vec<RoutedBrokerFetch>,
     pub(super) active_broker_sessions: Vec<ActiveBrokerSession>,
+    pub(super) broker_close_policy: Option<BrokerSessionClosePolicy>,
+    pub(super) broker_close_requested: bool,
+    pub(super) broker_close_deadline: Option<crate::clock::OperationDeadline>,
+    pub(super) active_broker_close: Option<ActiveBrokerSessionClose>,
     pub(super) fault: Option<RetainedFetchFault>,
 }
 
@@ -65,6 +70,10 @@ impl DirectFetchExecutor {
             route_calls: Vec::new(),
             routed: Vec::new(),
             active_broker_sessions: Vec::new(),
+            broker_close_policy: None,
+            broker_close_requested: false,
+            broker_close_deadline: None,
+            active_broker_close: None,
             fault: None,
         }
     }
@@ -89,6 +98,14 @@ impl DirectFetchExecutor {
         );
         self.route_capacity = session_capacity;
         Ok(())
+    }
+
+    pub(crate) fn configure_broker_session_close(
+        &mut self,
+        settings: FetchRequestSettings,
+        timeout: std::time::Duration,
+    ) {
+        self.broker_close_policy = Some(BrokerSessionClosePolicy { settings, timeout });
     }
 
     pub(super) fn bind_fetch_session(&self, request: &mut crate::driver::PartitionFetchRequest) {
@@ -175,10 +192,25 @@ impl DirectFetchExecutor {
                 .retained_count()
                 .saturating_add(self.broker_calls.retained_count())
                 .saturating_add(self.route_calls.len())
-                .saturating_add(self.routed.len()),
+                .saturating_add(self.routed.len())
+                .saturating_add(usize::from(self.active_broker_close.is_some())),
             deliveries,
             bytes,
         )
+    }
+
+    pub(crate) fn broker_sessions_are_closed(&self) -> bool {
+        self.active_broker_close.is_none()
+            && self
+                .broker_sessions
+                .as_ref()
+                .is_none_or(BrokerFetchSessions::is_empty)
+    }
+
+    pub(crate) fn retained_broker_sessions(&self) -> usize {
+        self.broker_sessions
+            .as_ref()
+            .map_or(0, BrokerFetchSessions::len)
     }
 
     #[cfg(test)]

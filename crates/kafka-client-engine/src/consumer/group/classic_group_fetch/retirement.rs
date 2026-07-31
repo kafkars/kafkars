@@ -175,6 +175,7 @@ impl ClassicGroupFetchOwner {
                 ));
             }
         }
+        self.fetches.request_broker_session_close();
         Ok(ClassicGroupFetchRetirement::Retired {
             position_fence,
             assignment_epoch,

@@ -92,7 +92,12 @@ pub(crate) fn fetch_session_close_request(
     settings: FetchRequestSettings,
     session: FetchSessionRequest,
 ) -> Option<Result<FetchRequest, FetchRequestFailure>> {
-    session.close().map(|close| base_request(settings, close))
+    let close = if session.is_close() {
+        Some(session)
+    } else {
+        session.close()
+    };
+    close.map(|close| base_request(settings, close))
 }
 
 fn find_or_insert_topic<'a>(

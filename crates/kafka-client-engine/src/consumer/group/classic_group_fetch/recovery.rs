@@ -56,6 +56,7 @@ impl ClassicGroupFetchOwner {
             .saturating_add(fetch_calls)
             .saturating_add(self.positions.retained_positions())
             .saturating_add(fetch_deliveries)
+            .saturating_add(self.fetches.retained_broker_sessions())
             .saturating_add(event_claims)
             .saturating_add(event_ready)
             .saturating_add(usize::from(self.fault.is_some()))

@@ -77,6 +77,9 @@ impl ClassicGroupFetchOwner {
         for pending in &self.pending_fetches {
             next = minimum_deadline(next, pending.deadline());
         }
+        if let Some(deadline) = self.fetches.broker_session_close_deadline() {
+            next = minimum_deadline(next, deadline);
+        }
         next
     }
 

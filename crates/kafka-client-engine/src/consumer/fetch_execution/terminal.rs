@@ -8,7 +8,7 @@ use crate::{
     driver::{FetchTerminal, PartitionFetchRequest, classify_fetch_request_error},
     protocol::fetch::{
         FetchOutcomeFailureClass, FetchSessionUpdate, classify_fetch_outcome_failure,
-        normalize_session_fetch_outcome,
+        fetch_session_requires_reestablishment, normalize_session_fetch_outcome,
     },
 };
 
@@ -21,9 +21,14 @@ use super::{
 
 pub(super) struct FetchTerminalFact {
     pub(super) request: PartitionFetchRequest,
-    pub(super) input: AssignedConsumerInput,
+    pub(super) action: FetchTerminalAction,
     pub(super) storage: TerminalStorage,
     pub(super) session: FetchSessionUpdate,
+}
+
+pub(super) enum FetchTerminalAction {
+    Apply(AssignedConsumerInput),
+    Reestablish { hard_output_bytes: usize },
 }
 
 #[derive(Clone, Copy)]
@@ -63,6 +68,9 @@ impl DirectFetchExecutor {
                         FetchFailure::Compatibility,
                     );
                 };
+                if fetch_session_requires_reestablishment(request.session(), response.error_code) {
+                    return self.reestablish_terminal(request, proof, output);
+                }
                 let normalized = normalize_session_fetch_outcome(
                     isolation,
                     request.topic(),
@@ -120,7 +128,33 @@ impl DirectFetchExecutor {
         let fence = request.fence();
         Ok(FetchTerminalFact {
             request,
-            input: AssignedConsumerInput::FetchFailed { fence, failure },
+            action: FetchTerminalAction::Apply(AssignedConsumerInput::FetchFailed {
+                fence,
+                failure,
+            }),
+            storage: TerminalStorage::Released,
+            session: FetchSessionUpdate::Reset,
+        })
+    }
+
+    fn reestablish_terminal(
+        &mut self,
+        request: PartitionFetchRequest,
+        proof: super::super::fetch_store::FetchStageProof,
+        output: crate::protocol::fetch::FetchOutputReservation,
+    ) -> Result<FetchTerminalFact, FetchExecutionError> {
+        let hard_output_bytes = output.bytes();
+        if let Err((error, (proof, output))) = self.store.rollback(proof, output) {
+            self.fault = Some(RetainedFetchFault::PreparedRollback {
+                _prepared: PreparedFetchExecution::from_parts(request, hard_output_bytes),
+                _proof: proof,
+                _output: output,
+            });
+            return Err(FetchExecutionError::Store(error));
+        }
+        Ok(FetchTerminalFact {
+            request,
+            action: FetchTerminalAction::Reestablish { hard_output_bytes },
             storage: TerminalStorage::Released,
             session: FetchSessionUpdate::Reset,
         })
@@ -146,34 +180,34 @@ fn staged_fact(
     match kind {
         FetchStageKind::BrokerFailure(failure) => FetchTerminalFact {
             request,
-            input: AssignedConsumerInput::FetchFailed {
+            action: FetchTerminalAction::Apply(AssignedConsumerInput::FetchFailed {
                 fence,
                 failure: FetchFailure::Broker(failure.code()),
-            },
+            }),
             storage: TerminalStorage::NonDelivery(fence),
             session,
         },
         FetchStageKind::Empty(next_offset, throttle_ticks) => FetchTerminalFact {
             request,
-            input: AssignedConsumerInput::FetchAdvanced {
+            action: FetchTerminalAction::Apply(AssignedConsumerInput::FetchAdvanced {
                 fence,
                 records: FetchRecords::NoApplicationRecords,
                 next_offset,
                 now: observed_at,
                 throttle_ticks,
-            },
+            }),
             storage: TerminalStorage::NonDelivery(fence),
             session,
         },
         FetchStageKind::Deliverable(next_offset, throttle_ticks) => FetchTerminalFact {
             request,
-            input: AssignedConsumerInput::FetchAdvanced {
+            action: FetchTerminalAction::Apply(AssignedConsumerInput::FetchAdvanced {
                 fence,
                 records: FetchRecords::Deliverable,
                 next_offset,
                 now: observed_at,
                 throttle_ticks,
-            },
+            }),
             storage: TerminalStorage::Deliverable(fence, next_offset),
             session,
         },

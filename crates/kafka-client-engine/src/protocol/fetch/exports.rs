@@ -18,7 +18,8 @@ pub(crate) use super::{
     },
     outcome_failure::{FetchOutcomeFailureClass, classify_fetch_outcome_failure},
     outcome_normalize::{
-        FetchSessionUpdate, normalize_fetch_outcome, normalize_session_fetch_outcome,
+        FetchSessionUpdate, fetch_session_requires_reestablishment, normalize_fetch_outcome,
+        normalize_session_fetch_outcome,
     },
     request::{
         FETCH_NAME_ROUTE_MAX_VERSION, FETCH_NAME_ROUTE_MIN_VERSION, FetchRequestFailure,

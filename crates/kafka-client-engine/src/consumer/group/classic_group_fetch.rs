@@ -15,6 +15,7 @@ mod recovery;
 mod retirement;
 mod seek;
 mod seek_terminal;
+mod session_close;
 mod turn;
 mod turn_model;
 

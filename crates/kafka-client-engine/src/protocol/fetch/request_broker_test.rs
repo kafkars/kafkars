@@ -80,4 +80,12 @@ fn final_epoch_close_has_no_partition_payload_and_requires_a_live_session() {
     assert!(close.topics.is_empty());
     assert!(close.forgotten_topics_data.is_empty());
     assert!(close.encoded_len(ApiVersion::new(7)).is_ok());
+
+    let already_final = live
+        .close()
+        .unwrap_or_else(|| panic!("live session has final epoch"));
+    let close = fetch_session_close_request(settings(), already_final)
+        .unwrap_or_else(|| panic!("final session remains a close"))
+        .unwrap_or_else(|error| panic!("final close request: {error:?}"));
+    assert_eq!((close.session_id, close.session_epoch), (91, -1));
 }

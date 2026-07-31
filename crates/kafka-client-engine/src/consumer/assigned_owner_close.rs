@@ -3,6 +3,7 @@
 mod admission;
 #[cfg(test)]
 mod admission_test;
+mod session;
 
 use kafka_client_core::AssignedConsumerInput;
 
@@ -161,6 +162,7 @@ impl AssignedConsumerOwner {
             && self.timers.timer_count() == 0
             && self.positions.retained_positions() == 0
             && self.fetches.retained() == (0, 0, 0)
+            && self.fetches.broker_sessions_are_closed()
             && self.events.retained().0 == 0
             && !self.is_faulted()
     }

@@ -63,6 +63,15 @@ impl ClassicGroupFetchOwner {
         fetches
             .try_enable_sessions(FIRST_GROUP_FETCH_PARTITIONS)
             .map_err(|()| ClassicGroupFetchBuildError::Allocation)?;
+        let fetch_settings = FetchRequestSettings::new(
+            500,
+            1,
+            FIRST_GROUP_FETCH_REQUEST_BYTES,
+            FIRST_GROUP_FETCH_REQUEST_BYTES,
+            0,
+        )
+        .with_isolation(fetch_isolation(read_isolation));
+        fetches.configure_broker_session_close(fetch_settings, FIRST_GROUP_FETCH_ATTEMPT_TIMEOUT);
         Ok(Self {
             machine: AssignedConsumerMachine::with_read_isolation(read_isolation),
             activation: None,
@@ -74,14 +83,7 @@ impl ClassicGroupFetchOwner {
             raw_position_deadlines,
             pending_positions,
             pending_fetches,
-            fetch_settings: FetchRequestSettings::new(
-                500,
-                1,
-                FIRST_GROUP_FETCH_REQUEST_BYTES,
-                FIRST_GROUP_FETCH_REQUEST_BYTES,
-                0,
-            )
-            .with_isolation(fetch_isolation(read_isolation)),
+            fetch_settings,
             fetch_decode_limits: FetchDecodeLimits::default(),
             fetch_attempt_timeout: FIRST_GROUP_FETCH_ATTEMPT_TIMEOUT,
             read_isolation,

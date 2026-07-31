@@ -174,4 +174,17 @@ impl TrackedBrokerFetchCalls {
             route_token: None,
         });
     }
+
+    #[cfg(test)]
+    pub(crate) fn install_broker_error_for_test(
+        &mut self,
+        requests: Vec<PartitionFetchRequest>,
+        now: Moment,
+        selected_version: i16,
+        error_code: i16,
+    ) {
+        let mut response = WireFetchResponse::default();
+        response.error_code = error_code;
+        self.install_response_for_test(requests, now, selected_version, response);
+    }
 }

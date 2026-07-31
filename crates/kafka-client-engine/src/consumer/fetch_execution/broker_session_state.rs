@@ -30,6 +30,23 @@ pub(super) enum BrokerSessionError {
 }
 
 impl BrokerFetchSessions {
+    pub(super) fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    pub(super) fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub(super) fn first_broker_id(&self) -> Option<BrokerId> {
+        self.entries.first().map(|entry| entry.broker_id)
+    }
+
+    pub(super) fn discard_all(&mut self) {
+        self.entries.clear();
+        self.members.clear();
+    }
+
     pub(super) fn observe_control(&mut self, effect: AssignedConsumerEffect) {
         for retained in &mut self.members {
             if control_covers(retained.member.position(), effect) {

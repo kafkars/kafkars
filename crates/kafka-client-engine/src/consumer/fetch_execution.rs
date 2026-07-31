@@ -8,10 +8,14 @@ mod admission_test;
 mod apply;
 #[path = "fetch_execution/broker_batch.rs"]
 mod broker_batch;
+#[path = "fetch_execution/broker_close.rs"]
+mod broker_close;
 #[path = "fetch_execution/broker_execution.rs"]
 mod broker_execution;
 #[cfg(test)]
 mod broker_execution_test;
+#[cfg(test)]
+mod broker_reestablishment_test;
 #[path = "fetch_execution/broker_session.rs"]
 mod broker_session;
 #[path = "fetch_execution/broker_session_begin.rs"]

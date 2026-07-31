@@ -16,12 +16,26 @@ use super::{
 };
 
 const FETCH_SESSION_MIN_VERSION: i16 = 7;
+const FETCH_SESSION_ID_NOT_FOUND: i16 = 70;
+const INVALID_FETCH_SESSION_EPOCH: i16 = 71;
 
 /// Infallible state change reserved by a successfully normalized Fetch terminal.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum FetchSessionUpdate {
     Reset,
     Continue(FetchSessionRequest),
+}
+
+/// Reports whether one broker terminal invalidates an established session.
+pub(crate) const fn fetch_session_requires_reestablishment(
+    request: FetchSessionRequest,
+    error_code: i16,
+) -> bool {
+    request.is_incremental()
+        && matches!(
+            error_code,
+            FETCH_SESSION_ID_NOT_FOUND | INVALID_FETCH_SESSION_EPOCH
+        )
 }
 
 /// Settles one raw no-session Fetch response under its admitted isolation.
