@@ -24,6 +24,15 @@ pub use super::classic_group::{
     JoinedMemberSlot, MemberRank, MembershipCycle, PreparedClassicProcessingLeaseActivation,
     PreparedClassicProcessingLeaseRevocation, TopicPartitionCount,
 };
+pub use super::consumer_group::{
+    CONSUMER_GROUP_HEARTBEAT_MAX_PARTITIONS, ConsumerGroupHeartbeatApplyError,
+    ConsumerGroupHeartbeatAttempt, ConsumerGroupHeartbeatEffect, ConsumerGroupHeartbeatErrorKind,
+    ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatFatal, ConsumerGroupHeartbeatInput,
+    ConsumerGroupHeartbeatMachine, ConsumerGroupHeartbeatPhase, ConsumerGroupHeartbeatPolicy,
+    ConsumerGroupHeartbeatPolicyError, ConsumerGroupHeartbeatRequestKind,
+    ConsumerGroupHeartbeatSchedule, ConsumerGroupHeartbeatSequence,
+    ConsumerGroupHeartbeatTransition, ConsumerGroupMemberEpoch,
+};
 pub use super::effect::{
     AssignedConsumerEffect, AssignedConsumerTransition, FetchFailure, FetchThrottleFailure,
 };

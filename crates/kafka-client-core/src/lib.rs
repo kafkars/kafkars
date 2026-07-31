@@ -27,6 +27,7 @@ mod types;
 
 pub use public_api::admin_raft::*;
 pub use public_api::admin_transactions::*;
+pub use public_api::consumer_group::*;
 pub use public_api::*;
 
 #[cfg(test)]

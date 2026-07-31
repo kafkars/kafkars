@@ -5,6 +5,7 @@ mod assignment_retirement_transition;
 mod batch_control;
 mod classic_group;
 mod close;
+mod consumer_group;
 mod delivery_ownership;
 mod effect;
 mod error;
