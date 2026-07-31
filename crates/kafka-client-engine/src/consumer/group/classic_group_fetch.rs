@@ -77,7 +77,8 @@ pub(super) use model::{
 pub(super) use owner::ClassicGroupFetchOwner;
 pub(super) use position_transfer::{
     ClassicGroupFetchCurrentFenceError, ClassicGroupFetchTransferError,
-    ClassicGroupFetchTransferTurn, current_position_fence, transfer_completed_position,
+    ClassicGroupFetchTransferTurn, current_consumer_group_position_fence, current_position_fence,
+    transfer_completed_consumer_group_position, transfer_completed_position,
 };
 pub(super) use recovery::ClassicGroupFetchShutdownRecovery;
 pub(super) use retirement::{ClassicGroupFetchRetirement, ClassicGroupFetchRetirementError};

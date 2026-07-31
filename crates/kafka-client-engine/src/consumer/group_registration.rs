@@ -24,7 +24,7 @@ pub enum GroupConsumerRegistrationErrorKind {
     Backpressure,
     /// Group or topic input is outside the supported bounded domain.
     InvalidInput,
-    /// A future protocol selector is recognized but has no execution owner.
+    /// The selected protocol is not supported by this engine build.
     UnsupportedProtocol,
     /// Internal ownership could not be acquired consistently.
     Internal,

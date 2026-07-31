@@ -4,7 +4,10 @@ use crate::{clock::MonotonicClock, driver::DriverOwner};
 
 use super::{
     classic_group_entry_fault::ClassicGroupEntryFault,
-    classic_group_fetch::{ClassicGroupFetchTransferTurn, transfer_completed_position},
+    classic_group_fetch::{
+        ClassicGroupFetchTransferTurn, transfer_completed_consumer_group_position,
+        transfer_completed_position,
+    },
     registry::GroupConsumerRegistry,
 };
 
@@ -32,12 +35,21 @@ impl GroupConsumerRegistry {
             if !entry.is_active() || entry.fault.is_some() {
                 continue;
             }
-            match transfer_completed_position(
-                &entry.classic,
-                &entry.catalog,
-                &mut entry.position,
-                &mut entry.fetch,
-            ) {
+            let transfer = match entry.consumer.as_ref() {
+                Some(consumer) => transfer_completed_consumer_group_position(
+                    consumer,
+                    &entry.catalog,
+                    &mut entry.position,
+                    &mut entry.fetch,
+                ),
+                None => transfer_completed_position(
+                    &entry.classic,
+                    &entry.catalog,
+                    &mut entry.position,
+                    &mut entry.fetch,
+                ),
+            };
+            match transfer {
                 Ok(ClassicGroupFetchTransferTurn::Activated) => {
                     return Ok(GroupConsumerFetchTurn::Progress);
                 }

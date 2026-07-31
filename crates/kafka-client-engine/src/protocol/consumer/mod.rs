@@ -1,10 +1,6 @@
 //! Generated consumer DTOs normalized into engine-owned scalar facts.
 
 mod classic_group;
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "awaiting KIP-848 membership executor")
-)]
 mod consumer_group;
 #[cfg_attr(
     not(test),

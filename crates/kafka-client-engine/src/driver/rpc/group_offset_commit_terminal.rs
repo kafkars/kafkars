@@ -47,7 +47,10 @@ pub(super) fn normalize_group_offset_commit_terminal(
     let Some(version) = selected_version.map(ApiVersion::value) else {
         return GroupOffsetCommitInput::InvalidResponse;
     };
-    if !(2..=9).contains(&version) || prepared.requires_leader_epoch() && version < 6 {
+    if !(2..=9).contains(&version)
+        || prepared.requires_leader_epoch() && version < 6
+        || prepared.requires_consumer_group_version() && version < 9
+    {
         return GroupOffsetCommitInput::ProtocolIncompatible {
             delivery: DeliveryStatus::PossiblySent,
         };

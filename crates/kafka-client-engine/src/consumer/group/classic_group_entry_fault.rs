@@ -19,7 +19,10 @@ use super::{
     classic_group_assignment::{
         ClassicGroupAssignmentPreparationFailure, ClassicGroupRevocationFailure,
     },
-    classic_group_fetch::{ClassicGroupFetchOwnerFaultKind, ClassicGroupFetchTransferError},
+    classic_group_fetch::{
+        ClassicGroupFetchOwnerFaultKind, ClassicGroupFetchRetirementError,
+        ClassicGroupFetchTransferError,
+    },
     classic_group_heartbeat::ClassicHeartbeatAcceptanceFailure,
     classic_group_join::ClassicGroupJoinSuccessor,
     classic_group_join_call::ClassicGroupJoinAcceptanceFailure,
@@ -75,6 +78,16 @@ pub(super) enum ClassicGroupEntryFault {
         rejection: ClassicRejectionPostCore,
         terminal: SyncGroupTerminal,
     },
+    ConsumerGroupPositionPreparation {
+        assignment: LiveGroupAssignment,
+        error: ClassicGroupPositionPreparationError,
+    },
+    ConsumerGroupProcessingLeaseActivation {
+        assignment: LiveGroupAssignment,
+        error: ClassicProcessingLeaseError,
+    },
+    ConsumerGroupProcessingLeaseRevocation(ClassicProcessingLeaseError),
+    ConsumerGroupFetchRetirement(ClassicGroupFetchRetirementError),
     SyncRecoverySemantic(MembershipCycle),
     PositionAcceptance(ClassicGroupPositionAcceptanceFailure),
     PositionRejection(ClassicGroupPositionRejectionFailure),
@@ -154,6 +167,14 @@ impl ClassicGroupEntryFault {
             } => rejection
                 .retained_owner_count()
                 .saturating_add(retained_one(terminal)),
+            Self::ConsumerGroupPositionPreparation { assignment, error } => {
+                retained_one_with_guard(assignment, error)
+            }
+            Self::ConsumerGroupProcessingLeaseActivation { assignment, error } => {
+                retained_one_with_guard(assignment, error)
+            }
+            Self::ConsumerGroupProcessingLeaseRevocation(error) => retained_marker(error),
+            Self::ConsumerGroupFetchRetirement(error) => retained_marker(error),
             Self::SyncRecoverySemantic(owner) => retained_one(owner),
             Self::PositionAcceptance(owner) => owner.retained_owner_count(),
             Self::PositionRejection(owner) => owner.retained_owner_count(),

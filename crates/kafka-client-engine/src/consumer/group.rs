@@ -61,6 +61,8 @@ mod classic_group_sync_rejection;
 mod classic_group_sync_settlement;
 mod classic_group_sync_submission;
 mod classic_group_topics;
+mod consumer_group_assignment_install;
+mod consumer_group_assignment_retirement;
 mod consumer_group_close;
 #[cfg(test)]
 mod consumer_group_close_test;
@@ -85,6 +87,8 @@ mod consumer_group_heartbeat_failure;
 mod consumer_group_heartbeat_failure_test;
 mod consumer_group_heartbeat_leave_settlement;
 mod consumer_group_heartbeat_settlement;
+#[cfg(test)]
+mod consumer_group_heartbeat_settlement_test;
 mod consumer_group_heartbeat_submission;
 #[cfg(test)]
 mod consumer_group_heartbeat_submission_test;

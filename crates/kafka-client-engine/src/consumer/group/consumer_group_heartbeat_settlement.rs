@@ -1,5 +1,4 @@
 //! Initial API 68 terminal normalization, core transition, and catalog install.
-
 use kafka_client_core::{
     ConsumerGroupHeartbeatEffect, ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatInput,
     ConsumerGroupHeartbeatRequestKind, ConsumerGroupMemberEpoch, Moment,
@@ -8,6 +7,10 @@ use kafka_client_core::{
 use crate::driver::ConsumerGroupHeartbeatResolution;
 
 use super::{
+    consumer_group_assignment_install::{
+        PreparedConsumerGroupAssignmentInstall, install_consumer_group_assignment,
+    },
+    consumer_group_assignment_retirement::stage_consumer_group_revocation,
     consumer_group_execution::ConsumerGroupExecutionError,
     consumer_group_execution_terminal::fail_consumer_group_entry,
     consumer_group_heartbeat_failure::{completion_failure, driver_failure},
@@ -94,7 +97,7 @@ fn settle_heartbeat(
     clippy::too_many_lines,
     reason = "one successful heartbeat atomically validates broker identity, core state, and catalog effects"
 )]
-fn settle_success(
+pub(super) fn settle_success(
     entry: &mut GroupConsumerEntry,
     now: Moment,
     success: crate::protocol::consumer::ConsumerGroupHeartbeatSuccess,
@@ -128,9 +131,8 @@ fn settle_success(
     let throttle_ticks = u64::from(throttle_time_ms)
         .checked_mul(TICKS_PER_MILLISECOND)
         .ok_or(ConsumerGroupExecutionError::EffectShape)?;
-    if assignment.is_some() && entry.catalog.live_assignment().is_some() {
-        return fail_invalid_heartbeat(entry);
-    }
+    let replaces_live_assignment =
+        assignment.is_some() && entry.catalog.live_assignment().is_some();
     let assignment = match assignment {
         Some(assignment) => match entry
             .consumer
@@ -148,7 +150,7 @@ fn settle_success(
         entry
             .consumer
             .as_ref()
-            .and_then(|execution| execution.next_reconcile_cycle(false))
+            .and_then(|execution| execution.next_reconcile_cycle(replaces_live_assignment))
     });
     let transition = match entry
         .consumer
@@ -181,19 +183,32 @@ fn settle_success(
             assignment,
             member_epoch: installed_epoch,
             schedule,
-        }) if previous.is_none()
-            && installed_epoch == member_epoch
+        }) if installed_epoch == member_epoch
             && schedule.assignment_generation() == assignment.assignment_generation() =>
         {
             let cycle = install_cycle.ok_or(ConsumerGroupExecutionError::EffectShape)?;
-            entry
-                .catalog
-                .commit_consumer_group_install(candidate, cycle, member_epoch, assignment);
-            entry
-                .consumer
-                .as_mut()
-                .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
-                .commit_reconcile_cycle(cycle);
+            let install = PreparedConsumerGroupAssignmentInstall::new(
+                candidate,
+                cycle,
+                member_epoch,
+                assignment,
+                prepared.deadline(),
+                now,
+            );
+            match previous {
+                None if !replaces_live_assignment => {
+                    install_consumer_group_assignment(entry, install)?;
+                }
+                Some(previous)
+                    if replaces_live_assignment
+                        && entry.catalog.live_assignment() == Some(&previous)
+                        && entry.consumer_reconciliation.is_none() =>
+                {
+                    stage_consumer_group_revocation(entry, Some(previous))?;
+                    entry.consumer_reconciliation = Some(install);
+                }
+                _ => return Err(ConsumerGroupExecutionError::EffectShape),
+            }
         }
         Some(ConsumerGroupHeartbeatEffect::ArmHeartbeat { schedule })
             if entry.catalog.current_member_id() == Some(candidate.member_id())

@@ -59,6 +59,7 @@ impl GroupOffsetCommitCallPermit<'_> {
             prepared.operation_deadline().transport(),
             prepared.requires_leader_epoch(),
             static_membership,
+            prepared.requires_consumer_group_version(),
         ) {
             Ok(call) => call,
             Err(source) => {

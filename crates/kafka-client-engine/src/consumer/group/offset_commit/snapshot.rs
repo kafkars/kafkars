@@ -28,6 +28,7 @@ impl GroupOffsetCommitHost {
         let assignment = catalog
             .live_assignment()
             .ok_or(GroupOffsetCommitHostError::Preparation)?;
+        let consumer_group_protocol = catalog.consumer_group_member_epoch().is_some();
         let session = ClassicGroupCommitSession::new(
             catalog.group_id(),
             Arc::clone(catalog.group()),
@@ -43,10 +44,24 @@ impl GroupOffsetCommitHost {
             i64::from(
                 catalog
                     .classic_generation()
+                    .or_else(|| {
+                        catalog
+                            .consumer_group_member_epoch()
+                            .map(kafka_client_core::ConsumerGroupMemberEpoch::get)
+                    })
                     .ok_or(GroupOffsetCommitHostError::Preparation)?,
             ),
         )
-        .with_group_instance_id(catalog.group_instance_id().cloned());
+        .with_group_instance_id(
+            (!consumer_group_protocol)
+                .then(|| catalog.group_instance_id().cloned())
+                .flatten(),
+        );
+        let session = if consumer_group_protocol {
+            session.with_consumer_group_protocol()
+        } else {
+            session
+        };
         let mut last_topic = None;
         for entry in checkpoint.entries() {
             if last_topic == Some(entry.topic_id()) {

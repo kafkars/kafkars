@@ -5,12 +5,16 @@ use std::sync::Arc;
 use kafka_client_core::GroupId;
 
 use crate::consumer::{
+    group_registration_request::GroupConsumerProtocol,
     GroupConsumerAssignment, GroupConsumerAssignmentPartition, GroupConsumerMetadata,
     GroupConsumerState,
 };
 
 use super::{
-    classic_group_fetch::{ClassicGroupFetchCurrentFenceError, current_position_fence},
+    classic_group_fetch::{
+        ClassicGroupFetchCurrentFenceError, current_consumer_group_position_fence,
+        current_position_fence,
+    },
     registry::GroupConsumerRegistry,
     registry_entry::GroupConsumerEntryState,
     registry_port::GroupConsumerPort,
@@ -71,33 +75,56 @@ impl GroupConsumerRegistry {
         if entry.fault.is_some() {
             return Err(GroupConsumerStateSnapshotError::EntryFault);
         }
-        let Some(current) = entry.catalog.current.as_ref() else {
+        let Some(current_assignment) = entry.catalog.live_assignment() else {
             return Ok(None);
+        };
+        let Some(current_member) = entry.catalog.current_member() else {
+            return Err(GroupConsumerStateSnapshotError::EntryFault);
+        };
+        let Some(generation_id_or_member_epoch) = entry.catalog.classic_generation().or_else(|| {
+            entry
+                .catalog
+                .consumer_group_member_epoch()
+                .map(kafka_client_core::ConsumerGroupMemberEpoch::get)
+        }) else {
+            return Err(GroupConsumerStateSnapshotError::EntryFault);
         };
         if !entry.execution.is_idle() {
             return Ok(None);
         }
-        let position_fence = match current_position_fence(&entry.classic, &entry.catalog) {
-            Ok(fence) => fence,
-            Err(
-                ClassicGroupFetchCurrentFenceError::MissingMembershipCycle
-                | ClassicGroupFetchCurrentFenceError::MissingClassicAssignment
-                | ClassicGroupFetchCurrentFenceError::MissingCatalogAssignment,
-            ) => return Ok(None),
-            Err(
-                ClassicGroupFetchCurrentFenceError::CatalogGroupMismatch
-                | ClassicGroupFetchCurrentFenceError::AssignmentMismatch,
-            ) => return Err(GroupConsumerStateSnapshotError::EntryFault),
+        let position_fence = match entry.protocol {
+            GroupConsumerProtocol::Classic => {
+                match current_position_fence(&entry.classic, &entry.catalog) {
+                    Ok(fence) => fence,
+                    Err(
+                        ClassicGroupFetchCurrentFenceError::MissingMembershipCycle
+                        | ClassicGroupFetchCurrentFenceError::MissingClassicAssignment
+                        | ClassicGroupFetchCurrentFenceError::MissingCatalogAssignment,
+                    ) => return Ok(None),
+                    Err(
+                        ClassicGroupFetchCurrentFenceError::CatalogGroupMismatch
+                        | ClassicGroupFetchCurrentFenceError::AssignmentMismatch,
+                    ) => return Err(GroupConsumerStateSnapshotError::EntryFault),
+                }
+            }
+            GroupConsumerProtocol::Consumer => current_consumer_group_position_fence(
+                entry
+                    .consumer
+                    .as_ref()
+                    .ok_or(GroupConsumerStateSnapshotError::EntryFault)?,
+                &entry.catalog,
+            )
+            .map_err(|_error| GroupConsumerStateSnapshotError::EntryFault)?,
         };
-        let epoch = current.assignment.assignment_generation().get();
+        let epoch = current_assignment.assignment_generation().get();
         if !entry.catalog.events.is_confirmed(epoch) {
             return Ok(None);
         }
         let mut partitions = Vec::new();
         partitions
-            .try_reserve_exact(current.assignment.partitions().len())
+            .try_reserve_exact(current_assignment.partitions().len())
             .map_err(|_error| GroupConsumerStateSnapshotError::Allocation)?;
-        for assigned in current.assignment.partitions() {
+        for assigned in current_assignment.partitions() {
             let topic = entry
                 .catalog
                 .topic_name(assigned.topic_id())
@@ -113,9 +140,12 @@ impl GroupConsumerRegistry {
             GroupConsumerAssignment::new(epoch, partitions),
             GroupConsumerMetadata::new_with_group_instance_id(
                 Arc::clone(entry.catalog.group()),
-                entry.catalog.group_instance_id().cloned(),
-                Arc::clone(&current.member),
-                current.classic_generation,
+                match entry.protocol {
+                    GroupConsumerProtocol::Classic => entry.catalog.group_instance_id().cloned(),
+                    GroupConsumerProtocol::Consumer => None,
+                },
+                Arc::clone(current_member),
+                generation_id_or_member_epoch,
                 epoch,
                 position_fence,
             ),

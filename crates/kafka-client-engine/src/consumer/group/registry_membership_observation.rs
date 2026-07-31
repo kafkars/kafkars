@@ -136,7 +136,10 @@ impl GroupConsumerRegistry {
 impl GroupConsumerEntry {
     fn membership_unsettled(&self) -> usize {
         if let Some(consumer) = self.consumer.as_ref() {
-            return consumer.unsettled();
+            return consumer
+                .unsettled()
+                .saturating_add(usize::from(self.consumer_revocation.is_some()))
+                .saturating_add(usize::from(self.consumer_reconciliation.is_some()));
         }
         if let Some(fault) = &self.fault {
             return fault

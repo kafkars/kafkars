@@ -19,6 +19,7 @@ use super::{
     classic_group_position::ClassicGroupPositionExecution,
     classic_group_rediscovery::ClassicCoordinatorRediscovery,
     classic_group_rejoin::ClassicGroupRejoinExecution,
+    consumer_group_assignment_install::PreparedConsumerGroupAssignmentInstall,
     consumer_group_execution::{ConsumerGroupExecution, ConsumerGroupExecutionBuildError},
     session_catalog::{GroupSessionCatalog, GroupSessionCatalogError},
 };
@@ -47,6 +48,8 @@ pub(super) struct GroupConsumerEntry {
     pub(super) protocol: GroupConsumerProtocol,
     pub(super) catalog: GroupSessionCatalog,
     pub(super) consumer: Option<ConsumerGroupExecution>,
+    pub(super) consumer_revocation: Option<kafka_client_core::LiveGroupAssignment>,
+    pub(super) consumer_reconciliation: Option<PreparedConsumerGroupAssignmentInstall>,
     pub(super) classic: ClassicGroupOwner,
     pub(super) execution: ClassicGroupExecution,
     pub(super) fetch: ClassicGroupFetchOwner,
@@ -191,6 +194,8 @@ impl GroupConsumerEntry {
             } else {
                 None
             },
+            consumer_revocation: None,
+            consumer_reconciliation: None,
             classic: ClassicGroupOwner::new(group_id, timing, heartbeat_policy, rejoin_policy),
             execution: new_classic_group_execution(),
             fetch: ClassicGroupFetchOwner::try_new_with_read_isolation(read_isolation)

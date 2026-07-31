@@ -1,11 +1,4 @@
 //! Assignment-fenced processing-liveness scheduling for hosted classic groups.
-
-use kafka_client_core::{
-    ClassicGroupEffect, ClassicGroupErrorKind, ClassicGroupInput, ClassicGroupPhase,
-    ClassicProcessingLeaseEffect, ClassicProcessingLeaseError, ClassicProcessingLeaseExpiration,
-    ClassicProcessingLeaseInput, Deadline, Moment,
-};
-
 use super::{
     classic_group_assignment::{
         ClassicGroupRevocationFailure, ClassicGroupRevocationFailureKind,
@@ -13,10 +6,16 @@ use super::{
     },
     classic_group_entry_fault::ClassicGroupEntryFault,
     classic_group_heartbeat::ClassicHeartbeatExecutionError,
+    consumer_group_assignment_retirement::stage_consumer_group_revocation,
+    consumer_group_execution::ConsumerGroupExecutionError,
     registry::GroupConsumerRegistry,
     registry_entry::GroupConsumerEntry,
 };
-
+use kafka_client_core::{
+    ClassicGroupEffect, ClassicGroupErrorKind, ClassicGroupInput, ClassicGroupPhase,
+    ClassicProcessingLeaseEffect, ClassicProcessingLeaseError, ClassicProcessingLeaseExpiration,
+    ClassicProcessingLeaseInput, Deadline, Moment,
+};
 /// Result of observing at most one due application-processing lease.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum GroupConsumerProcessingTurn {
@@ -34,6 +33,7 @@ pub(super) enum GroupConsumerProcessingError {
     AssignmentFenceMismatch,
     Revocation(ClassicGroupRevocationFailureKind),
     Heartbeat(ClassicHeartbeatExecutionError),
+    ConsumerGroup(ConsumerGroupExecutionError),
 }
 
 impl GroupConsumerRegistry {
@@ -52,6 +52,14 @@ impl GroupConsumerRegistry {
         if let Some(index) = self.entries.iter().position(|entry| {
             entry.fault.is_none() && entry.processing_lease.pending_expiration().is_some()
         }) {
+            if self.entries[index].uses_consumer_group_protocol()
+                && self.entries[index]
+                    .consumer
+                    .as_ref()
+                    .is_some_and(|consumer| consumer.heartbeat_call().is_some())
+            {
+                return Ok(GroupConsumerProcessingTurn::Idle);
+            }
             let expiration = self.entries[index]
                 .processing_lease
                 .pending_expiration()
@@ -124,6 +132,9 @@ fn apply_processing_assignment_loss(
     entry: &mut GroupConsumerEntry,
     expiration: ClassicProcessingLeaseExpiration,
 ) -> Result<(), GroupConsumerProcessingError> {
+    if entry.uses_consumer_group_protocol() {
+        return apply_consumer_group_processing_loss(entry, expiration);
+    }
     let fence = expiration.schedule().fence();
     if entry.group_id() != fence.group_id()
         || entry.classic.machine().active_cycle() != Some(fence.cycle())
@@ -188,6 +199,34 @@ fn apply_processing_assignment_loss(
     debug_assert!(entry.catalog.live_assignment().is_none());
     debug_assert!(entry.processing_lease.active_schedule().is_none());
     debug_assert!(entry.processing_lease.pending_expiration().is_none());
+    Ok(())
+}
+
+fn apply_consumer_group_processing_loss(
+    entry: &mut GroupConsumerEntry,
+    expiration: ClassicProcessingLeaseExpiration,
+) -> Result<(), GroupConsumerProcessingError> {
+    let fence = expiration.schedule().fence();
+    let assignment_matches = entry.catalog.live_assignment().is_some_and(|assignment| {
+        assignment.group_id() == fence.group_id()
+            && assignment.assignment_generation() == fence.assignment_generation()
+    });
+    let consumer_matches = entry.consumer.as_ref().is_some_and(|consumer| {
+        consumer.cycle() == Some(fence.cycle())
+            && consumer.machine().live_assignment() == entry.catalog.live_assignment()
+    });
+    if entry.group_id() != fence.group_id() || !assignment_matches || !consumer_matches {
+        entry.fault = Some(ClassicGroupEntryFault::ProcessingSemantic(expiration));
+        return Err(GroupConsumerProcessingError::AssignmentFenceMismatch);
+    }
+    let revoked = entry
+        .consumer
+        .as_mut()
+        .ok_or(GroupConsumerProcessingError::AssignmentFenceMismatch)?
+        .close_locally()
+        .map_err(GroupConsumerProcessingError::ConsumerGroup)?;
+    stage_consumer_group_revocation(entry, revoked)
+        .map_err(GroupConsumerProcessingError::ConsumerGroup)?;
     Ok(())
 }
 

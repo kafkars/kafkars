@@ -3,7 +3,8 @@
 use std::sync::Arc;
 
 use kafka_client_core::{
-    Deadline, GroupAssignmentPartition, GroupCheckpoint, GroupCheckpointEntry, GroupId,
+    AssignmentGeneration, ConsumerGroupMemberEpoch, Deadline, GroupAssignmentPartition,
+    GroupCheckpoint, GroupCheckpointEntry, GroupId, LiveGroupAssignment, MembershipCycle,
     PartitionIndex, TopicId,
 };
 
@@ -53,6 +54,35 @@ pub(super) fn catalog_with_group_instance_id(
             TopicId::from_raw(1),
             PartitionIndex::from_raw(0),
         )],
+    );
+    catalog
+}
+
+pub(super) fn consumer_catalog() -> GroupSessionCatalog {
+    let mut catalog = GroupSessionCatalog::try_new(
+        GroupId::try_from_raw(2).unwrap_or_else(|| panic!("group identity must be nonzero")),
+        Arc::from("modern-invoice-workers"),
+        &[Arc::from("orders")],
+    )
+    .unwrap_or_else(|error| panic!("catalog: {error:?}"));
+    let candidate = catalog
+        .prepare_consumer_group_member(Arc::from("modern-member"))
+        .unwrap_or_else(|error| panic!("candidate: {error:?}"));
+    let assignment = LiveGroupAssignment::try_new(
+        catalog.group_id(),
+        candidate.member_id(),
+        AssignmentGeneration::try_from_raw(1).unwrap_or_else(|| panic!("generation")),
+        vec![GroupAssignmentPartition::new(
+            TopicId::from_raw(1),
+            PartitionIndex::from_raw(0),
+        )],
+    )
+    .unwrap_or_else(|error| panic!("assignment: {error:?}"));
+    catalog.commit_consumer_group_install(
+        candidate,
+        MembershipCycle::initial(),
+        ConsumerGroupMemberEpoch::try_from_raw(3).unwrap_or_else(|| panic!("member epoch")),
+        assignment,
     );
     catalog
 }

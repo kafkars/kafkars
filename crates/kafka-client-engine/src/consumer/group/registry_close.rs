@@ -7,9 +7,10 @@ use kafka_client_core::{ClassicGroupPhase, ConsumerGroupHeartbeatPhase, GroupId,
 use crate::{clock::OperationDeadline, completion::NotifierJoin};
 
 use super::{
-    classic_group_leave::GroupConsumerCloseCompletion, registry::GroupConsumerRegistry,
-    registry_entry::GroupConsumerEntryState, registry_host_error::GroupConsumerHostError,
-    registry_membership::GroupConsumerMembershipTurn,
+    classic_group_leave::GroupConsumerCloseCompletion,
+    consumer_group_assignment_retirement::ConsumerGroupAssignmentRetirementTurn,
+    registry::GroupConsumerRegistry, registry_entry::GroupConsumerEntryState,
+    registry_host_error::GroupConsumerHostError, registry_membership::GroupConsumerMembershipTurn,
 };
 
 /// A requested group close could not move an active entry to closing.
@@ -152,8 +153,21 @@ impl GroupConsumerRegistry {
     fn recover_local_membership(
         &mut self,
     ) -> Result<(), super::classic_group_execution::ClassicGroupExecutionError> {
-        let turn_limit = self.entries.len().saturating_mul(2).saturating_add(1);
+        let turn_limit = self.entries.len().saturating_mul(4).saturating_add(1);
         for _turn in 0..turn_limit {
+            match self.turn_one_consumer_group_assignment_retirement(Moment::from_tick(u64::MAX))? {
+                ConsumerGroupAssignmentRetirementTurn::Progress => continue,
+                ConsumerGroupAssignmentRetirementTurn::Blocked => break,
+                ConsumerGroupAssignmentRetirementTurn::Idle => {}
+            }
+            if self
+                .close_one_pending_consumer_reconciliation_after_driver_shutdown()
+                .map_err(|_error| {
+                    super::classic_group_execution::ClassicGroupExecutionError::ConsumerGroup
+                })?
+            {
+                continue;
+            }
             match self.turn_local_membership(Moment::from_tick(u64::MAX))? {
                 GroupConsumerMembershipTurn::Progress => {}
                 GroupConsumerMembershipTurn::Idle | GroupConsumerMembershipTurn::Blocked => {
@@ -201,6 +215,8 @@ fn group_close_is_drained(entry: &super::registry_entry::GroupConsumerEntry) -> 
                 && consumer.prepared().is_none()
                 && consumer.heartbeat_call().is_none()
                 && consumer.topic_identity_call().is_none()
+                && entry.consumer_revocation.is_none()
+                && entry.consumer_reconciliation.is_none()
         },
     );
     entry.state == GroupConsumerEntryState::Closing

@@ -19,7 +19,7 @@ fn submission_uses_group_coordinator_interactive_lane_and_original_deadline() {
     assert_eq!(key.kind(), CoordinatorKind::Group);
     assert_eq!(key.as_str(), "readers");
 
-    let options = group_offset_commit_options(deadline, false, false);
+    let options = group_offset_commit_options(deadline, false, false, false);
     assert_eq!(options.deadline(), deadline);
     assert_eq!(options.traffic_class(), TrafficClass::Interactive);
     assert_eq!(options.minimum_version(), None);
@@ -31,7 +31,7 @@ fn submission_uses_group_coordinator_interactive_lane_and_original_deadline() {
 
 #[test]
 fn leader_epoch_requires_v6_without_changing_v9_ceiling() {
-    let options = group_offset_commit_options(Instant::now(), true, false);
+    let options = group_offset_commit_options(Instant::now(), true, false, false);
     assert_eq!(
         options.minimum_version(),
         Some(kafka_driver::ApiVersion::new(6))
@@ -44,10 +44,23 @@ fn leader_epoch_requires_v6_without_changing_v9_ceiling() {
 
 #[test]
 fn static_membership_requires_v7_without_changing_v9_ceiling() {
-    let options = group_offset_commit_options(Instant::now(), false, true);
+    let options = group_offset_commit_options(Instant::now(), false, true, false);
     assert_eq!(
         options.minimum_version(),
         Some(kafka_driver::ApiVersion::new(7))
+    );
+    assert_eq!(
+        options.maximum_version(),
+        Some(kafka_driver::ApiVersion::new(9))
+    );
+}
+
+#[test]
+fn consumer_group_protocol_requires_exactly_v9() {
+    let options = group_offset_commit_options(Instant::now(), false, false, true);
+    assert_eq!(
+        options.minimum_version(),
+        Some(kafka_driver::ApiVersion::new(9))
     );
     assert_eq!(
         options.maximum_version(),

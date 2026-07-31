@@ -10,6 +10,7 @@ use super::{
         GroupConsumerCloseTerminal, GroupConsumerCloseTerminalFailure,
         GroupConsumerCloseTerminalFailureKind,
     },
+    consumer_group_assignment_retirement::stage_consumer_group_revocation,
     consumer_group_execution::ConsumerGroupExecutionError,
     registry::GroupConsumerRegistry,
     registry_entry::{GroupConsumerEntry, GroupConsumerEntryState},
@@ -115,6 +116,10 @@ impl GroupConsumerRegistry {
                 .as_mut()
                 .ok_or(ConsumerGroupExecutionError::EffectShape)?
                 .discard_calls_after_driver_shutdown();
+            if entry.consumer_revocation.is_some() {
+                continue;
+            }
+            drop(entry.consumer_reconciliation.take());
             if entry.consumer.as_ref().is_some_and(|execution| {
                 execution.machine().phase() != ConsumerGroupHeartbeatPhase::Closed
             }) {
@@ -122,6 +127,24 @@ impl GroupConsumerRegistry {
             }
         }
         Ok(())
+    }
+
+    pub(super) fn close_one_pending_consumer_reconciliation_after_driver_shutdown(
+        &mut self,
+    ) -> Result<bool, ConsumerGroupExecutionError> {
+        let Some(index) = self.entries.iter().position(|entry| {
+            entry.uses_consumer_group_protocol()
+                && entry.consumer_revocation.is_none()
+                && entry.consumer_reconciliation.is_some()
+        }) else {
+            return Ok(false);
+        };
+        drop(self.entries[index].consumer_reconciliation.take());
+        close_consumer_group_locally(
+            &mut self.entries[index],
+            GroupConsumerCloseTerminal::Succeeded,
+        )?;
+        Ok(true)
     }
 }
 
@@ -133,7 +156,7 @@ pub(super) fn complete_consumer_group_leave(
         .as_mut()
         .ok_or(ConsumerGroupExecutionError::EffectShape)?
         .apply_leave_success()?;
-    revoke_catalog(entry, revoked)?;
+    stage_consumer_group_revocation(entry, revoked)?;
     if !entry
         .leave
         .resolve_consumer_group(GroupConsumerCloseTerminal::Succeeded)
@@ -153,7 +176,7 @@ pub(super) fn fail_consumer_group_leave(
         .as_mut()
         .ok_or(ConsumerGroupExecutionError::EffectShape)?
         .apply_current_failure(failure)?;
-    revoke_catalog(entry, revoked)?;
+    stage_consumer_group_revocation(entry, revoked)?;
     close_consumer_group_locally(entry, terminal)
 }
 
@@ -173,22 +196,9 @@ fn close_consumer_group_locally(
         .as_mut()
         .ok_or(ConsumerGroupExecutionError::EffectShape)?
         .close_locally()?;
-    revoke_catalog(entry, revoked)?;
+    stage_consumer_group_revocation(entry, revoked)?;
     if entry.leave.pending_deadline().is_some() && !entry.leave.resolve_consumer_group(terminal) {
         return Err(ConsumerGroupExecutionError::EffectShape);
-    }
-    Ok(())
-}
-
-fn revoke_catalog(
-    entry: &mut GroupConsumerEntry,
-    revoked: Option<kafka_client_core::LiveGroupAssignment>,
-) -> Result<(), ConsumerGroupExecutionError> {
-    if let Some(assignment) = revoked {
-        if entry.catalog.live_assignment() != Some(&assignment) {
-            return Err(ConsumerGroupExecutionError::EffectShape);
-        }
-        entry.catalog.commit_consumer_group_revoke(assignment);
     }
     Ok(())
 }

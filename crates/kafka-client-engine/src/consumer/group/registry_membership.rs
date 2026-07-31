@@ -20,6 +20,8 @@ use super::{
     classic_group_rejoin_due::ClassicGroupRejoinDueTurn,
     classic_group_sync_settlement::ClassicGroupSyncSettlementTurn,
     classic_group_sync_submission::ClassicGroupSyncSubmissionTurn,
+    consumer_group_assignment_install::ConsumerGroupAssignmentInstallTurn,
+    consumer_group_assignment_retirement::ConsumerGroupAssignmentRetirementTurn,
     consumer_group_close::ConsumerGroupCloseTurn,
     consumer_group_heartbeat_due::ConsumerGroupHeartbeatDueTurn,
     consumer_group_heartbeat_settlement::ConsumerGroupHeartbeatSettlementTurn,
@@ -53,6 +55,22 @@ impl GroupConsumerRegistry {
             ConsumerGroupHeartbeatSettlementTurn::Blocked => true,
             ConsumerGroupHeartbeatSettlementTurn::Idle => false,
         };
+        match self.turn_one_consumer_group_assignment_retirement(now)? {
+            ConsumerGroupAssignmentRetirementTurn::Progress => {
+                return Ok(GroupConsumerMembershipTurn::Progress);
+            }
+            ConsumerGroupAssignmentRetirementTurn::Blocked => {
+                return Ok(GroupConsumerMembershipTurn::Blocked);
+            }
+            ConsumerGroupAssignmentRetirementTurn::Idle => {}
+        }
+        if self
+            .install_one_consumer_group_reconciliation()
+            .map_err(|_error| ClassicGroupExecutionError::ConsumerGroup)?
+            == ConsumerGroupAssignmentInstallTurn::Progress
+        {
+            return Ok(GroupConsumerMembershipTurn::Progress);
+        }
         let consumer_topic_blocked = match self
             .turn_one_consumer_group_topic_identity(now, driver)
             .map_err(|_error| ClassicGroupExecutionError::ConsumerGroup)?

@@ -124,6 +124,7 @@ impl PreparedGroupOffsetCommit {
                 }
             };
         let requires_leader_epoch = entries.iter().any(|entry| entry.leader_epoch.is_some());
+        let requires_consumer_group_version = session.consumer_group_protocol;
         Ok(Self::new(
             operation_id,
             operation_deadline,
@@ -133,6 +134,7 @@ impl PreparedGroupOffsetCommit {
             entries,
             result_reservation.into_outcomes(),
             requires_leader_epoch,
+            requires_consumer_group_version,
         ))
     }
 }

@@ -6,6 +6,7 @@ use kafka_client_core::{
 };
 
 use super::{
+    consumer_group_assignment_retirement::stage_consumer_group_revocation,
     consumer_group_execution::{ConsumerGroupExecution, ConsumerGroupExecutionError},
     registry_entry::GroupConsumerEntry,
 };
@@ -19,9 +20,7 @@ pub(super) fn fail_consumer_group_entry(
         .as_mut()
         .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
         .apply_current_failure(failure)?;
-    if let Some(assignment) = revoked {
-        entry.catalog.commit_consumer_group_revoke(assignment);
-    }
+    stage_consumer_group_revocation(entry, revoked)?;
     Ok(())
 }
 

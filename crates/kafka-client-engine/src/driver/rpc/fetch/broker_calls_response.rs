@@ -3,9 +3,11 @@
 use kafka_client_core::Moment;
 use kafka_wire::{FetchResponse as WireFetchResponse, fetch_response::FetchableTopicResponse};
 
+#[cfg(test)]
+use super::broker_calls::SettledBrokerFetchBatch;
 use super::{
     admission::{FetchAdmissionFailureSource, PartitionFetchRequest},
-    broker_calls::{BrokerFetchSlot, SettledBrokerFetchBatch, TrackedBrokerFetchCalls},
+    broker_calls::{BrokerFetchSlot, TrackedBrokerFetchCalls},
     terminal::retain_fetch_terminal,
 };
 

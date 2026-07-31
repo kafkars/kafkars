@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use super::{
     host::GroupOffsetCommitHost,
-    test_support::{catalog, catalog_with_group_instance_id, checkpoint},
+    test_support::{catalog, catalog_with_group_instance_id, checkpoint, consumer_catalog},
 };
 
 #[test]
@@ -39,4 +39,18 @@ fn static_snapshot_preserves_the_registered_instance_identity() {
             .map(kafka_wire_core::StrBytes::as_str),
         Some("instance-a")
     );
+}
+
+#[test]
+fn consumer_group_snapshot_uses_member_epoch_without_static_identity() {
+    let catalog = consumer_catalog();
+    let checkpoint = checkpoint(&catalog);
+    let snapshot = GroupOffsetCommitHost::snapshot(&catalog, &checkpoint, Vec::new())
+        .unwrap_or_else(|error| panic!("snapshot: {error}"));
+    let request = snapshot.request.into_generated_offset_commit_request();
+
+    assert_eq!(request.group_id.as_str(), "modern-invoice-workers");
+    assert_eq!(request.member_id.as_str(), "modern-member");
+    assert_eq!(request.generation_id_or_member_epoch, 3);
+    assert!(request.group_instance_id.is_none());
 }

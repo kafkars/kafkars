@@ -23,6 +23,8 @@ impl GroupConsumerRegistry {
         let Some(index) = self.entries.iter().position(|entry| {
             entry.is_active()
                 && entry.fault.is_none()
+                && entry.consumer_revocation.is_none()
+                && entry.consumer_reconciliation.is_none()
                 && entry.consumer.as_ref().is_some_and(|execution| {
                     execution
                         .machine()

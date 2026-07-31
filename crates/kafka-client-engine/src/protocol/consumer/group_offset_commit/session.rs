@@ -32,6 +32,7 @@ pub(crate) struct ClassicGroupCommitSession {
     pub(super) group_instance_id: Option<Arc<str>>,
     pub(super) assignment_generation: AssignmentGeneration,
     pub(super) classic_generation: i64,
+    pub(super) consumer_group_protocol: bool,
 }
 
 impl ClassicGroupCommitSession {
@@ -51,11 +52,17 @@ impl ClassicGroupCommitSession {
             group_instance_id: None,
             assignment_generation,
             classic_generation,
+            consumer_group_protocol: false,
         }
     }
 
     pub(crate) fn with_group_instance_id(mut self, group_instance_id: Option<Arc<str>>) -> Self {
         self.group_instance_id = group_instance_id;
+        self
+    }
+
+    pub(crate) fn with_consumer_group_protocol(mut self) -> Self {
+        self.consumer_group_protocol = true;
         self
     }
 }

@@ -55,6 +55,7 @@ pub(crate) struct PreparedGroupOffsetCommit {
     entries: Vec<PreparedGroupOffsetCommitEntry>,
     outcomes: Vec<GroupOffsetCommitPartitionOutcome>,
     requires_leader_epoch: bool,
+    requires_consumer_group_version: bool,
 }
 
 impl PreparedGroupOffsetCommit {
@@ -71,6 +72,7 @@ impl PreparedGroupOffsetCommit {
         entries: Vec<PreparedGroupOffsetCommitEntry>,
         outcomes: Vec<GroupOffsetCommitPartitionOutcome>,
         requires_leader_epoch: bool,
+        requires_consumer_group_version: bool,
     ) -> Self {
         Self {
             operation_id,
@@ -81,6 +83,7 @@ impl PreparedGroupOffsetCommit {
             entries,
             outcomes,
             requires_leader_epoch,
+            requires_consumer_group_version,
         }
     }
 
@@ -163,5 +166,9 @@ impl PreparedGroupOffsetCommit {
 
     pub(crate) const fn requires_leader_epoch(&self) -> bool {
         self.requires_leader_epoch
+    }
+
+    pub(crate) const fn requires_consumer_group_version(&self) -> bool {
+        self.requires_consumer_group_version
     }
 }

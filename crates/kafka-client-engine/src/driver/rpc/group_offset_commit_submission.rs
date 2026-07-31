@@ -11,6 +11,7 @@ use super::{super::DriverOwner, group_coordinator_route::group_coordinator_route
 
 const GROUP_OFFSET_COMMIT_MIN_LEADER_EPOCH_VERSION: ApiVersion = ApiVersion::new(6);
 const GROUP_OFFSET_COMMIT_STATIC_MEMBERSHIP_VERSION: ApiVersion = ApiVersion::new(7);
+const GROUP_OFFSET_COMMIT_CONSUMER_GROUP_VERSION: ApiVersion = ApiVersion::new(9);
 const GROUP_OFFSET_COMMIT_MAX_VERSION: ApiVersion = ApiVersion::new(9);
 
 /// Definitely-unsent failure before driver request ownership.
@@ -48,13 +49,19 @@ impl DriverOwner {
         deadline: Instant,
         requires_leader_epoch: bool,
         static_membership: bool,
+        consumer_group_protocol: bool,
     ) -> Result<RoutedCall<OffsetCommitResponse>, GroupOffsetCommitSubmitError> {
         let route = group_offset_commit_route(group)?;
         self.driver
             .request_tracked_with(
                 route,
                 request,
-                group_offset_commit_options(deadline, requires_leader_epoch, static_membership),
+                group_offset_commit_options(
+                    deadline,
+                    requires_leader_epoch,
+                    static_membership,
+                    consumer_group_protocol,
+                ),
             )
             .map_err(GroupOffsetCommitSubmitError::Driver)
     }
@@ -70,11 +77,14 @@ pub(super) const fn group_offset_commit_options(
     deadline: Instant,
     requires_leader_epoch: bool,
     static_membership: bool,
+    consumer_group_protocol: bool,
 ) -> RequestOptions {
     let options = RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Interactive)
         .with_maximum_version(GROUP_OFFSET_COMMIT_MAX_VERSION);
-    if static_membership {
+    if consumer_group_protocol {
+        options.with_minimum_version(GROUP_OFFSET_COMMIT_CONSUMER_GROUP_VERSION)
+    } else if static_membership {
         options.with_minimum_version(GROUP_OFFSET_COMMIT_STATIC_MEMBERSHIP_VERSION)
     } else if requires_leader_epoch {
         options.with_minimum_version(GROUP_OFFSET_COMMIT_MIN_LEADER_EPOCH_VERSION)
