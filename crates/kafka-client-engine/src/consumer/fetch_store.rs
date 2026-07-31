@@ -6,6 +6,8 @@ use crate::protocol::fetch::{
     FetchOutputReservation, FetchReservationDomain, RetainedFetchOutcome,
 };
 
+#[path = "fetch_store/batch.rs"]
+mod batch;
 #[path = "fetch_store/delivery.rs"]
 mod delivery;
 #[cfg(test)]

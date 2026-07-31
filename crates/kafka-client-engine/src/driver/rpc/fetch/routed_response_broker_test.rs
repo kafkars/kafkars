@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use bytes::BytesMut;
+use bytes::{Bytes, BytesMut};
 use kafka_driver::ApiVersion;
 use kafka_wire::{
     API_VERSIONS_API_DESCRIPTOR, ApiVersionsRequest, ApiVersionsResponse, FETCH_API_DESCRIPTOR,
@@ -82,11 +82,18 @@ impl RoutedBroker {
     }
 
     pub(super) fn complete_fetch(&mut self, driver: &mut DriverOwner) -> ApiVersion {
+        self.complete_fetch_request(driver).0
+    }
+
+    pub(super) fn complete_fetch_request(
+        &mut self,
+        driver: &mut DriverOwner,
+    ) -> (ApiVersion, FetchRequest) {
         let mut long_poll = accept_after_driving(&self.listener, driver);
         complete_negotiation(&mut long_poll, driver);
-        let version = respond_fetch(&mut long_poll, driver);
+        let completed = respond_fetch(&mut long_poll, driver);
         self.long_poll = Some(long_poll);
-        version
+        completed
     }
 }
 
@@ -164,11 +171,12 @@ fn respond_metadata(
     drive(driver, Duration::from_secs(1), "install Metadata response");
 }
 
-fn respond_fetch(peer: &mut TcpStream, driver: &mut DriverOwner) -> ApiVersion {
+fn respond_fetch(peer: &mut TcpStream, driver: &mut DriverOwner) -> (ApiVersion, FetchRequest) {
     wait_for_frame(peer, driver, "write Fetch request");
     let request = read_request(peer);
     assert_eq!(request.api_key, FETCH_API_DESCRIPTOR.api_key.value());
     assert_eq!(request.api_version, ApiVersion::new(12));
+    let decoded = request.decode::<FetchRequest>();
     write_response::<FetchRequest, _>(
         peer,
         request.correlation_id,
@@ -176,7 +184,7 @@ fn respond_fetch(peer: &mut TcpStream, driver: &mut DriverOwner) -> ApiVersion {
         request.api_version,
     );
     drive(driver, Duration::from_secs(1), "install Fetch response");
-    request.api_version
+    (request.api_version, decoded)
 }
 
 pub(super) fn drive(driver: &mut DriverOwner, wait: Duration, phase: &str) {
@@ -220,6 +228,7 @@ fn read_request(peer: &mut TcpStream) -> RequestFrame {
         api_key: read_i16(&frame, 0),
         api_version: ApiVersion::new(read_i16(&frame, 2)),
         correlation_id: read_i32(&frame, 4),
+        bytes: Bytes::from(frame),
     }
 }
 
@@ -282,8 +291,9 @@ fn read_i32(bytes: &[u8], offset: usize) -> i32 {
     i32::from_be_bytes(encoded)
 }
 
-struct RequestFrame {
-    api_key: i16,
-    api_version: ApiVersion,
-    correlation_id: i32,
+pub(super) struct RequestFrame {
+    pub(super) api_key: i16,
+    pub(super) api_version: ApiVersion,
+    pub(super) correlation_id: i32,
+    pub(super) bytes: Bytes,
 }

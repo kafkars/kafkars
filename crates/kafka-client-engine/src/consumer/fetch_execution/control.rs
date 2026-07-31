@@ -15,10 +15,12 @@ impl DirectFetchExecutor {
         if self.fault.is_some() {
             return Err(FetchExecutionError::Faulted);
         }
-        let drains = self
-            .calls
-            .observe_fetch_control(effect)
-            .map_err(FetchExecutionError::ControlPending)?;
+        let drains = if self.broker_calls_are_active() {
+            self.broker_calls.observe_control(effect)
+        } else {
+            self.calls.observe_fetch_control(effect)
+        }
+        .map_err(FetchExecutionError::ControlPending)?;
         let mut requests = drains.into_requests();
         while let Some(request) = requests.pop() {
             let fence = request.fence();
@@ -40,6 +42,9 @@ impl DirectFetchExecutor {
                 });
                 return Err(FetchExecutionError::Store(error));
             }
+        }
+        if let Some(sessions) = &mut self.broker_sessions {
+            sessions.observe_control(effect);
         }
         self.reset_fetch_session_for_control(effect);
         Ok(())

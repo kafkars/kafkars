@@ -43,6 +43,18 @@ impl DirectFetchExecutor {
     /// Releases retained fault and store ownership only after driver shutdown.
     pub(crate) fn release_fetch_executor_after_driver_shutdown(mut self) -> FetchShutdownRecovery {
         let driver = self.calls.recover_fetches_after_driver_shutdown();
+        let (mut requests, completion) = driver.into_parts();
+        let broker = self.broker_calls.recover_after_driver_shutdown();
+        let (broker_requests, broker_completion) = broker.into_parts();
+        requests.extend(broker_requests);
+        requests.extend(
+            self.route_calls
+                .drain(..)
+                .map(|pending| pending.call.recover_after_driver_shutdown()),
+        );
+        requests.extend(self.routed.drain(..).map(|routed| routed.request));
+        self.active_broker_sessions.clear();
+        let driver = crate::driver::FetchRecovery::new(requests, completion.or(broker_completion));
         FetchShutdownRecovery::new(driver, self.fault.is_some())
     }
 }

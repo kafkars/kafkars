@@ -112,6 +112,13 @@ pub(crate) struct FetchCompletionObservation {
 }
 
 impl FetchCompletionObservation {
+    pub(super) const fn from_driver(fence: FetchFence, source: CompletionError) -> Self {
+        Self {
+            fence,
+            kind: FetchCompletionKind::from_driver(source),
+        }
+    }
+
     pub(crate) const fn fence(self) -> FetchFence {
         self.fence
     }

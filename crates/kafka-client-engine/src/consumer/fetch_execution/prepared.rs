@@ -143,6 +143,10 @@ impl PreparedFetchExecution {
         }
     }
 
+    pub(super) fn into_parts(self) -> (PartitionFetchRequest, usize) {
+        (self.request, self.hard_output_bytes)
+    }
+
     #[cfg(test)]
     pub(crate) fn into_parts_for_test(self) -> (PartitionFetchRequest, usize) {
         (self.request, self.hard_output_bytes)

@@ -55,16 +55,20 @@ impl ClassicGroupFetchOwner {
             .map_err(|_error| ClassicGroupFetchBuildError::Allocation)?;
         let events = AssignedConsumerEventStore::new(FIRST_GROUP_FETCH_PARTITIONS)
             .map_err(|_error| ClassicGroupFetchBuildError::Allocation)?;
+        let mut fetches = DirectFetchExecutor::create_unbound(
+            FIRST_GROUP_FETCH_CALLS,
+            FIRST_GROUP_FETCH_DELIVERIES,
+            FIRST_GROUP_FETCH_DELIVERY_BYTES,
+        );
+        fetches
+            .try_enable_sessions(FIRST_GROUP_FETCH_PARTITIONS)
+            .map_err(|()| ClassicGroupFetchBuildError::Allocation)?;
         Ok(Self {
             machine: AssignedConsumerMachine::with_read_isolation(read_isolation),
             activation: None,
             timers: AssignedTimers::new(FIRST_GROUP_FETCH_PARTITIONS),
             positions: PositionResolutionExecutor::new(FIRST_GROUP_FETCH_CALLS),
-            fetches: DirectFetchExecutor::create_unbound(
-                FIRST_GROUP_FETCH_CALLS,
-                FIRST_GROUP_FETCH_DELIVERIES,
-                FIRST_GROUP_FETCH_DELIVERY_BYTES,
-            ),
+            fetches,
             events,
             effects,
             raw_position_deadlines,

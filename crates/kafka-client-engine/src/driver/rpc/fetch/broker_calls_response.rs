@@ -1,0 +1,177 @@
+//! Pre-reserved response slots and allocation-free broker Fetch fan-out.
+
+use kafka_client_core::Moment;
+use kafka_wire::{FetchResponse as WireFetchResponse, fetch_response::FetchableTopicResponse};
+
+use super::{
+    admission::{FetchAdmissionFailureSource, PartitionFetchRequest},
+    broker_calls::{BrokerFetchSlot, SettledBrokerFetchBatch, TrackedBrokerFetchCalls},
+    terminal::retain_fetch_terminal,
+};
+
+pub(super) fn reserved_responses(
+    requests: &[PartitionFetchRequest],
+) -> Result<Vec<WireFetchResponse>, FetchAdmissionFailureSource> {
+    let mut responses = Vec::new();
+    responses
+        .try_reserve_exact(requests.len())
+        .map_err(|_error| allocation())?;
+    for request in requests {
+        let mut response = WireFetchResponse::default();
+        response
+            .responses
+            .try_reserve_exact(1)
+            .map_err(|_error| allocation())?;
+        let mut topic = FetchableTopicResponse::default();
+        topic.topic = request.topic().into();
+        topic
+            .partitions
+            .try_reserve_exact(1)
+            .map_err(|_error| allocation())?;
+        response.responses.push(topic);
+        responses.push(response);
+    }
+    Ok(responses)
+}
+
+pub(super) fn distribute_terminal(
+    slots: &mut [BrokerFetchSlot],
+    now: Moment,
+    selected_version: Option<kafka_driver::ApiVersion>,
+    result: Result<WireFetchResponse, kafka_driver::RequestError>,
+) {
+    match result {
+        Err(error) => {
+            for slot in slots {
+                if let Some(request) = slot.request.take() {
+                    slot.terminal = Some(retain_fetch_terminal(
+                        request,
+                        now,
+                        selected_version,
+                        Err(error.clone()),
+                    ));
+                }
+            }
+        }
+        Ok(response) => distribute_response(slots, now, selected_version, response),
+    }
+}
+
+fn distribute_response(
+    slots: &mut [BrokerFetchSlot],
+    now: Moment,
+    selected_version: Option<kafka_driver::ApiVersion>,
+    mut response: WireFetchResponse,
+) {
+    for slot in slots.iter_mut() {
+        slot.response.throttle_time_ms = response.throttle_time_ms;
+        slot.response.error_code = response.error_code;
+        slot.response.session_id = response.session_id;
+    }
+    let mut invalid = !response.node_endpoints.is_empty();
+    for mut topic in response.responses.drain(..) {
+        if topic.partitions.is_empty() {
+            invalid = true;
+        }
+        for partition in topic.partitions.drain(..) {
+            let mut matching = slots.iter().enumerate().filter_map(|(index, slot)| {
+                slot.request
+                    .as_ref()
+                    .is_some_and(|request| {
+                        request.topic() == topic.topic.as_str()
+                            && request.fence().position().partition().partition().get()
+                                == u32::try_from(partition.partition_index).unwrap_or(u32::MAX)
+                    })
+                    .then_some(index)
+            });
+            let Some(index) = matching.next() else {
+                invalid = true;
+                continue;
+            };
+            if matching.next().is_some() {
+                invalid = true;
+                continue;
+            }
+            let target = &mut slots[index].response.responses[0];
+            if target.partitions.is_empty() {
+                target.topic_id = topic.topic_id;
+                target.partitions.push(partition);
+            } else {
+                invalid = true;
+            }
+        }
+    }
+    for slot in slots {
+        if invalid {
+            mark_invalid(&mut slot.response);
+        } else if slot.response.responses[0].partitions.is_empty() {
+            slot.response.responses.clear();
+        }
+        if let Some(request) = slot.request.take() {
+            let response = std::mem::take(&mut slot.response);
+            slot.terminal = Some(retain_fetch_terminal(
+                request,
+                now,
+                selected_version,
+                Ok(response),
+            ));
+        }
+    }
+}
+
+fn mark_invalid(response: &mut WireFetchResponse) {
+    let topic = &mut response.responses[0];
+    if let Some(partition) = topic.partitions.first_mut() {
+        partition.partition_index = i32::MIN;
+    } else {
+        let mut partition = kafka_wire::fetch_response::PartitionData::default();
+        partition.partition_index = i32::MIN;
+        topic.partitions.push(partition);
+    }
+}
+
+const fn allocation() -> FetchAdmissionFailureSource {
+    FetchAdmissionFailureSource::Request(crate::protocol::fetch::FetchRequestFailure::Allocation)
+}
+
+impl TrackedBrokerFetchCalls {
+    #[cfg(test)]
+    pub(crate) fn settled_route_kind_for_test(&self) -> Option<kafka_driver::RouteKind> {
+        self.settled
+            .as_ref()
+            .and_then(|settled| settled.route_token.as_ref())
+            .map(kafka_driver::RouteFailureToken::kind)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn install_response_for_test(
+        &mut self,
+        requests: Vec<PartitionFetchRequest>,
+        now: Moment,
+        selected_version: i16,
+        response: WireFetchResponse,
+    ) {
+        let responses = reserved_responses(&requests)
+            .unwrap_or_else(|error| panic!("reserve broker response slots: {error:?}"));
+        let mut slots = requests
+            .into_iter()
+            .zip(responses)
+            .map(|(request, response)| BrokerFetchSlot {
+                fence: request.fence(),
+                request: Some(request),
+                response,
+                terminal: None,
+            })
+            .collect::<Vec<_>>();
+        distribute_response(
+            &mut slots,
+            now,
+            Some(kafka_driver::ApiVersion::new(selected_version)),
+            response,
+        );
+        self.settled = Some(SettledBrokerFetchBatch {
+            slots,
+            route_token: None,
+        });
+    }
+}

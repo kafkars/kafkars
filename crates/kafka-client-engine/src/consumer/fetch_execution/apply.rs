@@ -21,7 +21,7 @@ impl DirectFetchExecutor {
         let transition = match machine.apply(fact.input) {
             Ok(transition) => transition,
             Err(error) if stale_terminal(fence, &error) => {
-                return self.discard_stale_terminal(fact.request, fact.storage);
+                return self.discard_stale_terminal(fact.request, fact.storage, fact.session);
             }
             Err(error) => {
                 self.fault = Some(RetainedFetchFault::Request {
@@ -49,11 +49,13 @@ impl DirectFetchExecutor {
             self.retain_transition(fact.request, transition);
             return Err(FetchExecutionError::Store(error));
         }
-        if let Err(error) = self.calls.confirm_fetch_settlement(fence) {
+        if let Err(error) = self.confirm_fetch_settlement(fence) {
             self.retain_transition(fact.request, transition);
             return Err(FetchExecutionError::Confirm(error));
         }
-        self.commit_fetch_session(fence, fact.session);
+        if !self.complete_broker_session(fence, fact.session)? {
+            self.commit_fetch_session(fence, fact.session);
+        }
         Ok(Some(transition))
     }
 
@@ -61,6 +63,7 @@ impl DirectFetchExecutor {
         &mut self,
         request: crate::driver::PartitionFetchRequest,
         storage: TerminalStorage,
+        session: crate::protocol::fetch::FetchSessionUpdate,
     ) -> Result<Option<AssignedConsumerTransition>, FetchExecutionError> {
         let fence = request.fence();
         if !matches!(storage, TerminalStorage::Released)
@@ -69,9 +72,12 @@ impl DirectFetchExecutor {
             self.fault = Some(RetainedFetchFault::Request { _request: request });
             return Err(FetchExecutionError::Store(error));
         }
-        if let Err(error) = self.calls.confirm_fetch_settlement(fence) {
+        if let Err(error) = self.confirm_fetch_settlement(fence) {
             self.fault = Some(RetainedFetchFault::Request { _request: request });
             return Err(FetchExecutionError::Confirm(error));
+        }
+        if !self.complete_broker_session(fence, session)? {
+            self.commit_fetch_session(fence, session);
         }
         Ok(None)
     }
@@ -85,6 +91,17 @@ impl DirectFetchExecutor {
             _request: request,
             _transition: transition,
         });
+    }
+
+    fn confirm_fetch_settlement(
+        &mut self,
+        fence: FetchFence,
+    ) -> Result<(), crate::driver::FetchConfirmationError> {
+        if self.broker_calls_are_active() {
+            self.broker_calls.confirm_fetch_settlement(fence)
+        } else {
+            self.calls.confirm_fetch_settlement(fence)
+        }
     }
 }
 

@@ -10,6 +10,10 @@ use support::{
 const EXECUTION: &str = "crates/kafka-client-engine/src/consumer/fetch_execution";
 const ADMISSION: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/admission.rs";
 const APPLY: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/apply.rs";
+const BROKER_EXECUTION: &str =
+    "crates/kafka-client-engine/src/consumer/fetch_execution/broker_execution.rs";
+const BROKER_SUBMISSION: &str =
+    "crates/kafka-client-engine/src/consumer/fetch_execution/broker_submission.rs";
 const CONTROL: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/control.rs";
 const DEADLINE: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/deadline.rs";
 const DELIVERY: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/delivery.rs";
@@ -36,19 +40,47 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
     (
         "DirectFetchExecutor",
         "calls",
-        &[ADMISSION, APPLY, CONTROL, DELIVERY, EXECUTOR, SETTLEMENT],
+        &[
+            ADMISSION,
+            APPLY,
+            BROKER_SUBMISSION,
+            CONTROL,
+            DELIVERY,
+            EXECUTOR,
+            SETTLEMENT,
+        ],
     ),
     (
         "DirectFetchExecutor",
         "store",
-        &[ADMISSION, APPLY, CONTROL, DELIVERY, EXECUTOR, TERMINAL],
+        &[
+            ADMISSION,
+            APPLY,
+            BROKER_SUBMISSION,
+            CONTROL,
+            DELIVERY,
+            EXECUTOR,
+            TERMINAL,
+        ],
     ),
-    ("DirectFetchExecutor", "active", &[ADMISSION, EXECUTOR]),
+    (
+        "DirectFetchExecutor",
+        "active",
+        &[ADMISSION, BROKER_SUBMISSION, EXECUTOR],
+    ),
     (
         "DirectFetchExecutor",
         "fault",
         &[
-            ADMISSION, APPLY, CONTROL, DELIVERY, EXECUTOR, SETTLEMENT, TERMINAL,
+            ADMISSION,
+            APPLY,
+            BROKER_EXECUTION,
+            BROKER_SUBMISSION,
+            CONTROL,
+            DELIVERY,
+            EXECUTOR,
+            SETTLEMENT,
+            TERMINAL,
         ],
     ),
 ];
@@ -178,7 +210,7 @@ fn checked_in_executor_policy_is_exact() {
     );
 
     for (method, execution_paths) in [
-        ("try_reserve", vec![ADMISSION, EXECUTOR]),
+        ("try_reserve", vec![ADMISSION, BROKER_SUBMISSION, EXECUTOR]),
         ("retained_count", vec![EXECUTOR]),
     ] {
         let rules = config

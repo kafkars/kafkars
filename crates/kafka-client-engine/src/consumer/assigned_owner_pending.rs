@@ -28,6 +28,28 @@ impl AssignedConsumerOwner {
         }
     }
 
+    pub(super) fn drive_and_poll_fetch_executor(
+        &mut self,
+        driver: &DriverOwner,
+        now: Moment,
+    ) -> bool {
+        match self
+            .fetches
+            .drive_broker_fetches(driver, &mut self.machine, now)
+        {
+            Ok(Some(transition)) => {
+                self.enqueue_transition(transition, None);
+                return true;
+            }
+            Ok(None) => {}
+            Err(error) => {
+                self.fault = Some(AssignedConsumerOwnerFault::Fetch(error));
+                return false;
+            }
+        }
+        self.poll_fetch_executor(now)
+    }
+
     pub(super) fn poll_fetch_executor(&mut self, now: Moment) -> bool {
         let retained = self.fetches.retained();
         match self.fetches.poll(&mut self.machine, now) {

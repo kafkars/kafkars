@@ -57,6 +57,29 @@ fn count_and_bytes_are_reserved_atomically_before_driver_admission() {
 }
 
 #[test]
+fn broker_batch_reservation_is_all_or_nothing() {
+    let [first, second] = fences();
+    let mut store = FetchDeliveryStore::new(2, 100);
+    assert_eq!(
+        store.try_reserve_batch(&[(first, 60), (second, 50)]).err(),
+        Some(FetchStoreFailure::ByteCapacity)
+    );
+    assert_eq!(store.retained(), (0, 0));
+
+    let reservations = store
+        .try_reserve_batch(&[(first, 40), (second, 50)])
+        .unwrap_or_else(|error| panic!("batch reservation: {error:?}"));
+    assert_eq!(store.retained(), (2, 90));
+    for reservation in reservations {
+        let (proof, output) = reservation.into_protocol_parts();
+        store
+            .rollback(proof, output)
+            .unwrap_or_else(|(error, _)| panic!("batch rollback: {error:?}"));
+    }
+    assert_eq!(store.retained(), (0, 0));
+}
+
+#[test]
 fn deliverable_bytes_stay_hidden_and_charged_until_exact_authorization_and_reclaim() {
     let [first, second] = fences();
     let mut store = FetchDeliveryStore::new(2, 32 * 1024);

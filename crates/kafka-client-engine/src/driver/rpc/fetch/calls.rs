@@ -4,8 +4,6 @@ use kafka_client_core::{AssignedConsumerEffect, FetchFence, Moment};
 use kafka_driver::RoutedCall;
 use kafka_wire::FetchResponse as WireFetchResponse;
 
-use crate::driver::DriverOwner;
-
 use super::{
     admission::{
         FetchAdmissionFailure, FetchCallAdmission, PartitionFetchRequest, submit_partition_fetch,
@@ -15,6 +13,7 @@ use super::{
     stale::{FetchControlPending, StaleFetchDrains},
     terminal::{FetchCompletionFailure, FetchCompletionObservation, retain_fetch_terminal},
 };
+use crate::driver::DriverOwner;
 
 pub(super) struct TrackedFetchCall {
     fence: FetchFence,

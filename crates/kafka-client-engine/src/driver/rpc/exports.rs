@@ -45,9 +45,10 @@ pub(crate) use super::describe_topics_calls::{
     DescribeTopicsCalls, DescribeTopicsCompletionFailure,
 };
 pub(crate) use super::fetch::{
+    BrokerFetchCallAdmission, BrokerFetchRouteCall, BrokerFetchRouteFailureKind,
     FetchBeginSettlementError, FetchCallAdmission, FetchCompletionObservation,
     FetchConfirmationError, FetchControlPending, FetchPoll, FetchRecovery, FetchTerminal,
-    PartitionFetchRequest, StaleFetchConfirmationError, TrackedFetchCalls,
+    PartitionFetchRequest, StaleFetchConfirmationError, TrackedBrokerFetchCalls, TrackedFetchCalls,
     classify_fetch_admission, classify_fetch_request_error,
 };
 pub(crate) use super::group_offset_alter_call::GroupOffsetAlterCall;

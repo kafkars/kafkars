@@ -83,7 +83,7 @@ impl AssignedConsumerOwner {
         let Some(now) = self.capture_turn_now() else {
             return work;
         };
-        work.fetch_polled = self.poll_fetch_executor(now);
+        work.fetch_polled = self.drive_and_poll_fetch_executor(driver, now);
         if self.is_faulted() || !self.effects.is_empty() {
             return work;
         }

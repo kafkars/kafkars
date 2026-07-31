@@ -1,9 +1,8 @@
 //! Infallible broker Fetch-session membership commits after reserved admission.
 
 use kafka_client_core::{AssignedConsumerEffect, PositionFence};
-use kafka_driver::BrokerId;
 
-use crate::protocol::fetch::FetchSessionRequest;
+use crate::{driver::BrokerId, protocol::fetch::FetchSessionRequest};
 
 use super::broker_session::{BrokerFetchSessions, BrokerSessionMember, BrokerSessionPlan};
 

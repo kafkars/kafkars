@@ -40,7 +40,7 @@ pub(crate) struct FetchRecovery {
 }
 
 impl FetchRecovery {
-    pub(super) fn new(
+    pub(crate) fn new(
         requests: Vec<PartitionFetchRequest>,
         completion_failure: Option<FetchCompletionObservation>,
     ) -> Self {

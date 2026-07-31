@@ -37,7 +37,7 @@ impl ClassicGroupFetchOwner {
                 return work;
             }
             ClassicGroupFetchFront::ControlPending => {
-                self.settle_one_fetch(clock, &mut work);
+                self.settle_one_fetch(clock, driver, &mut work);
                 work.blocked = !work.progressed() && !work.fault_retained;
                 return work;
             }
@@ -66,7 +66,7 @@ impl ClassicGroupFetchOwner {
         }
 
         let effects_before_poll = self.effects.len();
-        self.settle_one_fetch(clock, &mut work);
+        self.settle_one_fetch(clock, driver, &mut work);
         if self.is_faulted() || self.effects.len() != effects_before_poll {
             return work;
         }
@@ -124,11 +124,33 @@ impl ClassicGroupFetchOwner {
         }
     }
 
-    fn settle_one_fetch(&mut self, clock: &MonotonicClock, work: &mut ClassicGroupFetchTurn) {
+    fn settle_one_fetch(
+        &mut self,
+        clock: &MonotonicClock,
+        driver: &DriverOwner,
+        work: &mut ClassicGroupFetchTurn,
+    ) {
         let Some(now) = self.capture_turn_now(clock, work) else {
             return;
         };
         let retained = self.fetches.retained();
+        match self
+            .fetches
+            .drive_broker_fetches(driver, &mut self.machine, now)
+        {
+            Ok(Some(transition)) => {
+                work.fetch_polled = true;
+                self.append_transition(transition, work);
+                return;
+            }
+            Ok(None) => {}
+            Err(error) => {
+                self.fault = Some(ClassicGroupFetchOwnerFault::Fetch(error));
+                self.settle_seek_host_unavailable();
+                work.fault_retained = true;
+                return;
+            }
+        }
         match self.fetches.poll(&mut self.machine, now) {
             Ok(Some(transition)) => {
                 work.fetch_polled = true;

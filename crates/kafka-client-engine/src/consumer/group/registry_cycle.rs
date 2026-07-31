@@ -51,6 +51,7 @@ impl GroupConsumerRegistry {
         Ok(GroupConsumerCycleAcceptance::Classic(cycle))
     }
 
+    #[cfg(test)]
     pub(super) fn try_begin_classic_cycle(
         &mut self,
         group_id: GroupId,

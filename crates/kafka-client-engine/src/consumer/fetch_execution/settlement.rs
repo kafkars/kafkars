@@ -18,7 +18,11 @@ impl DirectFetchExecutor {
         if self.fault.is_some() {
             return Err(FetchExecutionError::Faulted);
         }
-        let poll = match self.calls.poll_fetch(now) {
+        let poll = match if self.broker_calls_are_active() {
+            self.broker_calls.poll_fetch(now)
+        } else {
+            self.calls.poll_fetch(now)
+        } {
             Ok(poll) => poll,
             Err(error) => {
                 self.fault = Some(RetainedFetchFault::Registry);
@@ -32,10 +36,16 @@ impl DirectFetchExecutor {
                     self.fault = Some(RetainedFetchFault::Staged);
                     return Err(FetchExecutionError::UnexpectedStaleReservation { fence });
                 }
-                if let Err(error) = self.calls.confirm_stale_fetch(fence) {
+                let confirmation = if self.broker_calls_are_active() {
+                    self.broker_calls.confirm_stale_fetch(fence)
+                } else {
+                    self.calls.confirm_stale_fetch(fence)
+                };
+                if let Err(error) = confirmation {
                     self.fault = Some(RetainedFetchFault::Registry);
                     return Err(FetchExecutionError::ConfirmStale(error));
                 }
+                self.abort_stale_broker_session(fence)?;
                 Ok(None)
             }
             FetchPoll::TerminalReady { fence } => {
@@ -43,7 +53,11 @@ impl DirectFetchExecutor {
                     self.fault = Some(RetainedFetchFault::Staged);
                     return Err(FetchExecutionError::MissingReservation { fence });
                 };
-                let terminal = match self.calls.begin_fetch_settlement(fence) {
+                let terminal = match if self.broker_calls_are_active() {
+                    self.broker_calls.begin_fetch_settlement(fence)
+                } else {
+                    self.calls.begin_fetch_settlement(fence)
+                } {
                     Ok(terminal) => terminal,
                     Err(error) => {
                         self.fault = Some(RetainedFetchFault::Registry);

@@ -3,6 +3,16 @@
 mod admission;
 #[cfg(test)]
 mod admission_test;
+mod broker_admission;
+#[cfg(test)]
+mod broker_admission_test;
+mod broker_calls;
+#[cfg(test)]
+mod broker_calls_loopback_test;
+mod broker_calls_response;
+mod broker_calls_settlement;
+#[cfg(test)]
+mod broker_calls_test;
 mod calls;
 #[cfg(test)]
 mod calls_test;
@@ -19,8 +29,13 @@ mod failure_wire_encode_test;
 mod fence;
 #[cfg(test)]
 mod fence_test;
+mod route;
+#[cfg(test)]
+mod route_test;
 #[cfg(test)]
 mod routed_response_broker_test;
+#[cfg(test)]
+mod routed_response_frame_test;
 #[cfg(test)]
 mod routed_response_test;
 mod settlement;
@@ -40,8 +55,10 @@ mod terminal;
 mod terminal_test;
 
 pub(crate) use admission::{FetchCallAdmission, PartitionFetchRequest};
+pub(crate) use broker_calls::{BrokerFetchCallAdmission, TrackedBrokerFetchCalls};
 pub(crate) use calls::TrackedFetchCalls;
 pub(crate) use failure::{classify_fetch_admission, classify_fetch_request_error};
+pub(crate) use route::{BrokerFetchRouteCall, BrokerFetchRouteFailureKind};
 pub(crate) use settlement::{
     FetchBeginSettlementError, FetchConfirmationError, FetchPoll, StaleFetchConfirmationError,
 };

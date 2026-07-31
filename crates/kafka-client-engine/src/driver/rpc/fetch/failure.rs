@@ -15,6 +15,8 @@ use super::failure_wire::{classify_wire_decode_error, classify_wire_encode_error
 pub(crate) fn classify_fetch_admission(failure: &FetchAdmissionFailureSource) -> FetchFailure {
     match failure {
         FetchAdmissionFailureSource::DeadlineElapsed => FetchFailure::DeadlineElapsed,
+        FetchAdmissionFailureSource::EmptyBrokerBatch
+        | FetchAdmissionFailureSource::InconsistentBrokerBatch => FetchFailure::DriverRejected,
         FetchAdmissionFailureSource::Request(failure) => classify_request_failure(failure),
         FetchAdmissionFailureSource::Driver(_failure) => FetchFailure::DriverRejected,
     }

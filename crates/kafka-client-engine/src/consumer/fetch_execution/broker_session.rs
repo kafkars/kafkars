@@ -3,9 +3,11 @@
 use std::sync::Arc;
 
 use kafka_client_core::PositionFence;
-use kafka_driver::BrokerId;
 
-use crate::protocol::fetch::{FetchSessionRequest, FetchSessionUpdate};
+use crate::{
+    driver::BrokerId,
+    protocol::fetch::{FetchSessionRequest, FetchSessionUpdate},
+};
 
 use super::broker_session_state::{BrokerSessionEntry, BrokerSessionError, RetainedBrokerMember};
 
@@ -88,70 +90,6 @@ impl BrokerFetchSessions {
             member_capacity,
             entries,
             members,
-        })
-    }
-
-    #[allow(
-        clippy::result_large_err,
-        reason = "failed begin returns exact active ownership"
-    )]
-    pub(super) fn try_begin(
-        &mut self,
-        broker_id: BrokerId,
-        active: Vec<BrokerSessionMember>,
-    ) -> Result<BrokerSessionPlan, (BrokerSessionError, Vec<BrokerSessionMember>)> {
-        let entry = self
-            .entries
-            .iter()
-            .position(|entry| entry.broker_id == broker_id);
-        if entry.is_none() && self.entries.len() >= self.entry_capacity {
-            return Err((BrokerSessionError::EntryCapacity, active));
-        }
-        if entry.is_some_and(|index| self.entries[index].in_flight) {
-            return Err((BrokerSessionError::InFlight, active));
-        }
-        let additions = active
-            .iter()
-            .filter(|active| {
-                !self.members.iter().any(|retained| {
-                    retained.broker_id == broker_id
-                        && retained.member.position().partition() == active.position().partition()
-                })
-            })
-            .count();
-        if self.members.len().saturating_add(additions) > self.member_capacity {
-            return Err((BrokerSessionError::MemberCapacity, active));
-        }
-        let forgotten_count = self
-            .members
-            .iter()
-            .filter(|member| member.broker_id == broker_id && member.forgotten)
-            .count();
-        let mut forgotten = Vec::new();
-        if forgotten.try_reserve_exact(forgotten_count).is_err() {
-            return Err((BrokerSessionError::Allocation, active));
-        }
-        forgotten.extend(
-            self.members
-                .iter()
-                .filter(|member| member.broker_id == broker_id && member.forgotten)
-                .map(|member| member.member.clone()),
-        );
-        let index = entry.unwrap_or_else(|| {
-            self.entries.push(BrokerSessionEntry {
-                broker_id,
-                metadata: FetchSessionRequest::INITIAL,
-                in_flight: false,
-            });
-            self.entries.len().saturating_sub(1)
-        });
-        self.entries[index].in_flight = true;
-        Ok(BrokerSessionPlan {
-            broker_id,
-            session: self.entries[index].metadata,
-            active,
-            forgotten,
-            close: false,
         })
     }
 

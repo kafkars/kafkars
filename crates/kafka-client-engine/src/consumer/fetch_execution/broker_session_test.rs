@@ -2,14 +2,15 @@
 
 use std::sync::Arc;
 
+use crate::{
+    driver::BrokerId,
+    protocol::fetch::{FetchSessionRequest, FetchSessionUpdate},
+};
 use kafka_client_core::{
     AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine, AssignedPartition,
     AssignedTopicPartition, Deadline, Moment, NextFetchOffset, PartitionIndex, StartPosition,
     TopicId,
 };
-use kafka_driver::BrokerId;
-
-use crate::protocol::fetch::{FetchSessionRequest, FetchSessionUpdate};
 
 use super::{
     broker_session::{BrokerFetchSessions, BrokerSessionMember},
@@ -59,7 +60,7 @@ fn control_is_forgotten_only_after_the_exact_incremental_terminal() {
     sessions.observe_control(transition.effects()[0]);
 
     let plan = sessions
-        .try_begin(broker, Vec::new())
+        .try_begin(broker, vec![member(effects[1], "beta")])
         .unwrap_or_else(|(error, _active)| panic!("forget plan: {error:?}"));
     assert_eq!(plan.forgotten().len(), 1);
     assert_eq!(plan.forgotten()[0].topic(), "alpha");
@@ -67,7 +68,7 @@ fn control_is_forgotten_only_after_the_exact_incremental_terminal() {
         .abort(plan, false)
         .unwrap_or_else(|error| panic!("restore unsent plan: {error:?}"));
     let retry = sessions
-        .try_begin(broker, Vec::new())
+        .try_begin(broker, vec![member(effects[1], "beta")])
         .unwrap_or_else(|(error, _active)| panic!("retry forget: {error:?}"));
     assert_eq!(retry.forgotten().len(), 1);
     sessions

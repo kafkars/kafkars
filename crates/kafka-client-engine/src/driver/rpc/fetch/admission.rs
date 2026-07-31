@@ -99,6 +99,10 @@ impl PartitionFetchRequest {
         self.settings.isolation()
     }
 
+    pub(super) const fn settings(&self) -> FetchRequestSettings {
+        self.settings
+    }
+
     pub(crate) const fn session(&self) -> FetchSessionRequest {
         self.session
     }
@@ -143,6 +147,8 @@ impl FetchAdmissionFailure {
 #[derive(Debug)]
 pub(crate) enum FetchAdmissionFailureSource {
     DeadlineElapsed,
+    EmptyBrokerBatch,
+    InconsistentBrokerBatch,
     Request(FetchRequestFailure),
     Driver(FetchSubmitError),
 }

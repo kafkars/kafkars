@@ -44,6 +44,9 @@ impl DirectFetchExecutor {
                 return Err(FetchExecutionError::Core(error));
             }
         };
+        if self.sessions_are_broker_routed() {
+            return self.submit_broker_route(driver, machine, prepared, now);
+        }
         self.bind_fetch_session(&mut prepared.request);
         if prepared
             .request
@@ -96,7 +99,7 @@ impl DirectFetchExecutor {
         }
     }
 
-    fn take_active_for_admission(
+    pub(super) fn take_active_for_admission(
         &mut self,
         prepared: PreparedFetchExecution,
     ) -> Result<
@@ -116,7 +119,7 @@ impl DirectFetchExecutor {
         Ok((prepared, self.take_active(index).reservation))
     }
 
-    fn rollback_or_fault(
+    pub(super) fn rollback_or_fault(
         &mut self,
         prepared: PreparedFetchExecution,
         reservation: super::super::fetch_store::FetchStoreReservation,
@@ -135,7 +138,7 @@ impl DirectFetchExecutor {
         }
     }
 
-    fn settle_unadmitted(
+    pub(super) fn settle_unadmitted(
         &mut self,
         machine: &mut AssignedConsumerMachine,
         prepared: PreparedFetchExecution,

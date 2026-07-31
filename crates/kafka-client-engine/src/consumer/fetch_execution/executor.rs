@@ -2,11 +2,13 @@
 
 use kafka_client_core::{AssignedConsumerEffect, FetchFence, PositionFence};
 
-use crate::driver::TrackedFetchCalls;
+use crate::driver::{TrackedBrokerFetchCalls, TrackedFetchCalls};
 use crate::protocol::fetch::{FetchSessionRequest, FetchSessionUpdate};
 
 use super::{
     super::fetch_store::{FetchDeliveryStore, FetchStoreReservation},
+    broker_execution::{ActiveBrokerSession, PendingBrokerRoute, RoutedBrokerFetch},
+    broker_session::BrokerFetchSessions,
     fault::RetainedFetchFault,
 };
 
@@ -25,16 +27,26 @@ struct DirectFetchSession {
 pub(crate) struct DirectFetchExecutor {
     _seal: ExecutorSeal,
     pub(super) calls: TrackedFetchCalls,
+    pub(super) broker_calls: TrackedBrokerFetchCalls,
     pub(super) store: FetchDeliveryStore,
     pub(super) active: Vec<ActiveFetchReservation>,
     session_capacity: usize,
     sessions: Vec<DirectFetchSession>,
+    pub(super) broker_sessions: Option<BrokerFetchSessions>,
+    pub(super) route_capacity: usize,
+    pub(super) route_calls: Vec<PendingBrokerRoute>,
+    pub(super) routed: Vec<RoutedBrokerFetch>,
+    pub(super) active_broker_sessions: Vec<ActiveBrokerSession>,
     pub(super) fault: Option<RetainedFetchFault>,
 }
 
 struct ExecutorSeal;
 
 impl DirectFetchExecutor {
+    pub(super) fn sessions_are_broker_routed(&self) -> bool {
+        self.broker_sessions.is_some()
+    }
+
     pub(crate) fn create_unbound(
         call_capacity: usize,
         delivery_capacity: usize,
@@ -43,10 +55,16 @@ impl DirectFetchExecutor {
         Self {
             _seal: ExecutorSeal,
             calls: TrackedFetchCalls::new(call_capacity),
+            broker_calls: TrackedBrokerFetchCalls::new(call_capacity),
             store: FetchDeliveryStore::new(delivery_capacity, max_bytes),
             active: Vec::new(),
             session_capacity: 0,
             sessions: Vec::new(),
+            broker_sessions: None,
+            route_capacity: 0,
+            route_calls: Vec::new(),
+            routed: Vec::new(),
+            active_broker_sessions: Vec::new(),
             fault: None,
         }
     }
@@ -56,6 +74,20 @@ impl DirectFetchExecutor {
             .try_reserve_exact(session_capacity)
             .map_err(|_error| ())?;
         self.session_capacity = session_capacity;
+        self.route_calls
+            .try_reserve_exact(session_capacity)
+            .map_err(|_error| ())?;
+        self.routed
+            .try_reserve_exact(session_capacity)
+            .map_err(|_error| ())?;
+        self.active_broker_sessions
+            .try_reserve_exact(session_capacity)
+            .map_err(|_error| ())?;
+        let member_capacity = session_capacity.checked_mul(2).ok_or(())?;
+        self.broker_sessions = Some(
+            BrokerFetchSessions::try_new(session_capacity, member_capacity).map_err(|_error| ())?,
+        );
+        self.route_capacity = session_capacity;
         Ok(())
     }
 
@@ -128,13 +160,25 @@ impl DirectFetchExecutor {
             .position(|reservation| reservation.fence == fence)
     }
 
+    pub(super) fn broker_calls_are_active(&self) -> bool {
+        self.sessions_are_broker_routed() && self.calls.retained_count() == 0
+    }
+
     pub(super) fn take_active(&mut self, index: usize) -> ActiveFetchReservation {
         self.active.swap_remove(index)
     }
 
     pub(crate) fn retained(&self) -> (usize, usize, usize) {
         let (deliveries, bytes) = self.store.retained();
-        (self.calls.retained_count(), deliveries, bytes)
+        (
+            self.calls
+                .retained_count()
+                .saturating_add(self.broker_calls.retained_count())
+                .saturating_add(self.route_calls.len())
+                .saturating_add(self.routed.len()),
+            deliveries,
+            bytes,
+        )
     }
 
     #[cfg(test)]
