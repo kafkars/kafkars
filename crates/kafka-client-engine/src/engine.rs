@@ -20,6 +20,7 @@ pub struct Engine {
 
 pub(crate) struct EngineInner {
     pub(crate) config: EngineConfig,
+    pub(crate) metrics: crate::driver::owner::observation::DriverObservationHandle,
     admission: crate::producer::ingress::ProducerAdmissionPort,
     abort_partition_transaction_admission:
         crate::admin::AbortPartitionTransactionAdmissionPort,
@@ -99,6 +100,7 @@ impl Engine {
     pub fn start(config: EngineConfig) -> Result<Self, EngineStartError> {
         let validated = config.validate().map_err(EngineStartError::configuration)?;
         let StartedEngineHost {
+            metrics,
             admission,
             abort_partition_transaction_admission,
             create_topics_admission,
@@ -165,6 +167,7 @@ impl Engine {
         Ok(Self {
             inner: Arc::new(EngineInner {
                 config,
+                metrics,
                 admission,
                 abort_partition_transaction_admission,
                 create_topics_admission,
@@ -229,7 +232,6 @@ impl Engine {
             }),
         })
     }
-
     /// Returns a runtime-neutral producer handle retaining this host.
     pub fn producer(&self) -> ProducerHandle {
         let lifetime: Arc<dyn Send + Sync> = self.inner.clone();
@@ -240,7 +242,6 @@ impl Engine {
             lifetime,
         )
     }
-
     /// Claims the host's sole directly assigned consumer.
     pub fn claim_assigned_consumer(
         &self,
@@ -248,7 +249,6 @@ impl Engine {
         let lifetime: Arc<dyn Send + Sync> = self.inner.clone();
         self.inner.assigned_consumer.claim(lifetime)
     }
-
     /// Returns immutable engine configuration.
     pub fn config(&self) -> &EngineConfig {
         &self.inner.config

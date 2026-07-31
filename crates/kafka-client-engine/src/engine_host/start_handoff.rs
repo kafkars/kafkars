@@ -47,6 +47,7 @@ use crate::{
 use super::{EngineHostControl, EngineHostResources, EngineLifecycle, EngineStartError};
 
 pub(crate) struct StartedEngineHost {
+    pub(crate) metrics: crate::driver::owner::observation::DriverObservationHandle,
     pub(crate) admission: ProducerAdmissionPort,
     pub(crate) abort_partition_transaction_admission: AbortPartitionTransactionAdmissionPort,
     pub(crate) add_raft_voter_admission: AddRaftVoterAdmissionPort,

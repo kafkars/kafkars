@@ -13,6 +13,7 @@ mod bridge;
 mod client;
 mod consumer;
 mod error;
+mod metrics;
 mod producer;
 mod readiness;
 mod record;
@@ -136,6 +137,10 @@ pub use consumer::{
     RecvAssignedBatch, RecvConsumerBatch, Seek, StartPosition, TopicPartition,
 };
 pub use error::{DeliveryStatus, ErrorKind, KafkaError};
+pub use metrics::{
+    CallMetrics, FailureMetrics, LatencyMetric, LatencyMetrics, MailboxMetrics, Metrics,
+    MetricsSnapshot,
+};
 pub use producer::{
     CancellationOutcome, CloseProducer, Compression, Delivery, Flush, Producer, ProducerBuilder,
     ProducerLimits, RecordMetadata, Send, SendBatch, SendBatchResult, TrySendError,

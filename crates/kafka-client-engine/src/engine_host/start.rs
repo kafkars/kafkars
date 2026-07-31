@@ -58,6 +58,7 @@ pub(crate) fn start(
         Ok(driver) => driver,
         Err(error) => return cancel_start(sender, handle, EngineStartError::driver(&error)),
     };
+    let metrics = driver.observation_handle();
     let clock = Arc::new(MonotonicClock::new());
     let wake = Arc::new(driver.reactor_wake());
     let control = Arc::new(EngineHostControl::new(wake.as_ref().clone()));
@@ -435,6 +436,7 @@ pub(crate) fn start(
     }
     drop(handle);
     Ok(StartedEngineHost {
+        metrics,
         admission,
         abort_partition_transaction_admission,
         add_raft_voter_admission,

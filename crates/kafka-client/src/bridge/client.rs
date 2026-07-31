@@ -1,5 +1,7 @@
 //! Facade-owned engine lifetime and private child-handle construction.
 
+pub(crate) mod metrics;
+
 use kafka_client_engine::{
     ConsumerReadIsolation as EngineReadIsolation, Engine, EngineConfig, EngineProducerLimits,
     EngineSasl, EngineSecurity, EngineStartErrorKind, EngineTls, GroupConsumerStartCapture,

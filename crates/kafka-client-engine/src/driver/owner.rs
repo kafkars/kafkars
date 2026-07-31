@@ -10,6 +10,8 @@ use crate::EngineConfig;
 
 use super::{DriverOwnerError, ReactorWake, ValidatedSecurity, endpoint, shutdown::DriverShutdown};
 
+pub(crate) mod observation;
+
 /// Driver-neutral outcome from one embedded reactor turn.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum DriverTurn {
@@ -75,6 +77,11 @@ impl DriverOwner {
     /// Shares the domain-neutral coalescing wake for the integrated host.
     pub(crate) fn reactor_wake(&self) -> ReactorWake {
         ReactorWake::new(self.wake.clone())
+    }
+
+    /// Shares one command-only handle for bounded operational observation.
+    pub(crate) fn observation_handle(&self) -> observation::DriverObservationHandle {
+        observation::DriverObservationHandle::new(self.driver.clone())
     }
 
     /// Drives one fairness-bounded embedded driver turn.

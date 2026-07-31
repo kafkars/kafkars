@@ -50,7 +50,7 @@ pub(crate) mod admin_topics_result;
 pub(crate) mod alter_client_quotas;
 pub(crate) mod alter_share_group_offsets;
 pub(crate) mod alter_user_scram_credentials;
-mod client;
+pub(crate) mod client;
 pub(crate) mod client_shutdown;
 pub(crate) mod consumer;
 pub(crate) mod consumer_facade;

@@ -33,6 +33,7 @@ mod engine_transaction;
 mod engine_transaction_test;
 mod flush_error;
 mod flush_observer;
+mod metrics;
 #[cfg_attr(
     not(test),
     expect(

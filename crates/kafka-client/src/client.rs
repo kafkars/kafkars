@@ -4,6 +4,7 @@ use crate::admin::Admin;
 use crate::bridge::ClientEngine;
 use crate::consumer::{AssignedConsumerBuilder, ConsumerBuilder, ReadIsolation};
 use crate::error::{ErrorKind, KafkaError};
+use crate::metrics::Metrics;
 use crate::producer::{Compression, ProducerBuilder, ProducerLimits};
 use crate::readiness::Ready;
 use crate::security::Security;
@@ -116,6 +117,11 @@ impl Client {
     /// The independent probe's deadline starts at this call boundary.
     pub fn ready(&self) -> Ready {
         Ready::from_bridge(self.engine.ready())
+    }
+
+    /// Requests one bounded point-in-time operational metrics snapshot.
+    pub fn metrics(&self) -> Result<Metrics, KafkaError> {
+        self.engine.metrics().map(Metrics::from_bridge)
     }
 
     /// Begins construction of a thread-safe producer.
