@@ -29,6 +29,29 @@ pub(crate) enum ConsumerGroupHeartbeatSubmitError {
     Driver(SubmitError),
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ConsumerGroupHeartbeatSubmitErrorKind {
+    Full,
+    Terminal,
+}
+
+impl ConsumerGroupHeartbeatSubmitError {
+    pub(crate) const fn kind(&self) -> ConsumerGroupHeartbeatSubmitErrorKind {
+        match self {
+            Self::Driver(SubmitError::Full) => ConsumerGroupHeartbeatSubmitErrorKind::Full,
+            Self::GroupMismatch
+            | Self::InvalidGroup(_)
+            | Self::Driver(
+                SubmitError::Closed
+                | SubmitError::Wake(_)
+                | SubmitError::IdentityExhausted
+                | SubmitError::ForeignDriver
+                | SubmitError::VersionBoundsInvalid { .. },
+            ) => ConsumerGroupHeartbeatSubmitErrorKind::Terminal,
+        }
+    }
+}
+
 impl fmt::Display for ConsumerGroupHeartbeatSubmitError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

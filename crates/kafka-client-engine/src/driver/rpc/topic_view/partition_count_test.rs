@@ -12,10 +12,12 @@ fn scalar_fact_retains_generation_and_total_logical_count() {
     let fact = TopicPartitionCountFact {
         metadata_generation: 11,
         logical_partition_count: 7,
+        kafka_topic_id: Some([5; 16]),
     };
 
     assert_eq!(fact.metadata_generation, 11);
     assert_eq!(fact.logical_partition_count, 7);
+    assert_eq!(fact.kafka_topic_id, Some([5; 16]));
 }
 
 #[test]

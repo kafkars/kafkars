@@ -229,13 +229,16 @@ impl GroupConsumerPortRegistrationFailureKind {
             | GroupConsumerPortRegistrationFailureReason::Registry(
                 GroupConsumerRegistrationFailureKind::IdentityExhausted
                 | GroupConsumerRegistrationFailureKind::Fetch(_)
+                | GroupConsumerRegistrationFailureKind::Consumer(_)
                 | GroupConsumerRegistrationFailureKind::Catalog(
                     GroupSessionCatalogError::EmptyMember
                     | GroupSessionCatalogError::MemberBytes { .. }
                     | GroupSessionCatalogError::RetainedTopicBytesOverflow
                     | GroupSessionCatalogError::TopicIdentityExhausted
                     | GroupSessionCatalogError::Allocation
-                    | GroupSessionCatalogError::UnknownTopic(_),
+                    | GroupSessionCatalogError::UnknownTopic(_)
+                    | GroupSessionCatalogError::MemberMismatch
+                    | GroupSessionCatalogError::SessionProtocolMismatch,
                 ),
             ) => GroupConsumerPortRegistrationCategory::InternalInvariant,
         }

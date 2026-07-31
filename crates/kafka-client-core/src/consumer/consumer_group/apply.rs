@@ -45,6 +45,7 @@ impl ConsumerGroupHeartbeatMachine {
             ConsumerGroupHeartbeatInput::LeaveFailed { attempt, failure } => {
                 self.leave_failed(attempt, failure)
             }
+            ConsumerGroupHeartbeatInput::Close => self.close(),
         };
         result.map_err(ConsumerGroupHeartbeatApplyError::new)
     }

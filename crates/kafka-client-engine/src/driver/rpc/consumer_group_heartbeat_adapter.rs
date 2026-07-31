@@ -144,6 +144,10 @@ impl ConsumerGroupHeartbeatCall {
     ) -> Result<PreparedConsumerGroupHeartbeatRequest, ConsumerGroupHeartbeatRequestFailure> {
         consumer_group_leave_request(group, member)
     }
+
+    pub(crate) fn discard_after_driver_shutdown(self) {
+        drop(self);
+    }
 }
 
 fn normalize_terminal(

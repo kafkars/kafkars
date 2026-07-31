@@ -165,6 +165,24 @@ impl ClassicGroupLeaveOwner {
         true
     }
 
+    pub(in crate::consumer::group) fn pending_deadline(&self) -> Option<OperationDeadline> {
+        match self.state {
+            ClassicGroupLeaveState::Pending(deadline) => Some(deadline),
+            _ => None,
+        }
+    }
+
+    pub(in crate::consumer::group) fn resolve_consumer_group(
+        &mut self,
+        terminal: GroupConsumerCloseTerminal,
+    ) -> bool {
+        if !matches!(self.state, ClassicGroupLeaveState::Pending(_)) {
+            return false;
+        }
+        self.state = ClassicGroupLeaveState::Terminal(terminal);
+        true
+    }
+
     pub(in crate::consumer::group) fn resolve_no_member(&mut self) -> bool {
         let ClassicGroupLeaveState::Pending(_deadline) = self.state else {
             return false;

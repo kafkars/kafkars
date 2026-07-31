@@ -5,6 +5,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use kafka_client_core::{GroupId, LiveGroupAssignment, MemberId, TopicId};
 
 use super::classic_group_event::ClassicGroupEventStore;
+use super::session_catalog_consumer::ConsumerGroupSession;
 
 mod static_membership;
 #[cfg(test)]
@@ -42,6 +43,8 @@ pub(super) enum GroupSessionCatalogError {
     TopicIdentityExhausted,
     Allocation,
     UnknownTopic(TopicId),
+    MemberMismatch,
+    SessionProtocolMismatch,
 }
 
 /// One fixed group identity, persistent topic catalog, and current member.
@@ -56,6 +59,7 @@ pub(super) struct GroupSessionCatalog {
     pub(super) topics_by_id: BTreeMap<TopicId, Arc<str>>,
     local_subscription: Vec<TopicId>,
     pub(super) current: Option<CurrentGroupSession>,
+    pub(super) consumer_current: Option<ConsumerGroupSession>,
     pub(super) required_join_member: Option<RequiredJoinMember>,
     pub(super) events: ClassicGroupEventStore,
 }
@@ -123,6 +127,7 @@ impl GroupSessionCatalog {
             topics_by_id,
             local_subscription,
             current: None,
+            consumer_current: None,
             required_join_member: None,
             events: ClassicGroupEventStore::new(),
         })
@@ -137,11 +142,25 @@ impl GroupSessionCatalog {
     }
 
     pub(super) fn current_member_id(&self) -> Option<MemberId> {
-        self.current.as_ref().map(|current| current.member_id)
+        self.current
+            .as_ref()
+            .map(|current| current.member_id)
+            .or_else(|| {
+                self.consumer_current
+                    .as_ref()
+                    .map(ConsumerGroupSession::member_id)
+            })
     }
 
     pub(super) fn current_member(&self) -> Option<&Arc<str>> {
-        self.current.as_ref().map(|current| &current.member)
+        self.current
+            .as_ref()
+            .map(|current| &current.member)
+            .or_else(|| {
+                self.consumer_current
+                    .as_ref()
+                    .map(ConsumerGroupSession::member)
+            })
     }
 
     pub(super) fn classic_generation(&self) -> Option<i32> {
@@ -151,7 +170,14 @@ impl GroupSessionCatalog {
     }
 
     pub(super) fn live_assignment(&self) -> Option<&LiveGroupAssignment> {
-        self.current.as_ref().map(|current| &current.assignment)
+        self.current
+            .as_ref()
+            .map(|current| &current.assignment)
+            .or_else(|| {
+                self.consumer_current
+                    .as_ref()
+                    .map(ConsumerGroupSession::assignment)
+            })
     }
 
     pub(super) fn topic_name(

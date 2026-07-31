@@ -206,4 +206,5 @@ pub(super) enum ClassicGroupExecutionError {
     Position(ClassicGroupPositionExecutionError),
     Core(ClassicGroupErrorKind),
     EntryFault,
+    ConsumerGroup,
 }

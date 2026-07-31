@@ -7,19 +7,27 @@ use kafka_client_core::{
     ConsumerGroupMemberEpoch, GroupId, MemberId, MembershipCycle,
 };
 
-use crate::clock::{DeadlineCapture, OperationDeadline};
+use crate::{
+    clock::{DeadlineCapture, OperationDeadline},
+    driver::ConsumerGroupHeartbeatCall,
+};
 
-const CONSUMER_GROUP_ATTEMPT_TIMEOUT_TICKS: u64 = 10_000_000_000;
+use super::consumer_group_topic_identity::{
+    ConsumerGroupTopicIdentityBuildError, ConsumerGroupTopicIdentityOwner,
+};
+use super::consumer_group_topic_identity_call::ConsumerGroupTopicIdentityCall;
+
+pub(super) const CONSUMER_GROUP_ATTEMPT_TIMEOUT_TICKS: u64 = 10_000_000_000;
 
 /// One exact core-authorized API 68 submission awaiting mechanism ownership.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct PreparedConsumerGroupHeartbeat {
-    attempt: ConsumerGroupHeartbeatAttempt,
-    kind: ConsumerGroupHeartbeatRequestKind,
-    member_id: Option<MemberId>,
-    member_epoch: Option<ConsumerGroupMemberEpoch>,
-    assignment_generation: Option<AssignmentGeneration>,
-    deadline: OperationDeadline,
+    pub(super) attempt: ConsumerGroupHeartbeatAttempt,
+    pub(super) kind: ConsumerGroupHeartbeatRequestKind,
+    pub(super) member_id: Option<MemberId>,
+    pub(super) member_epoch: Option<ConsumerGroupMemberEpoch>,
+    pub(super) assignment_generation: Option<AssignmentGeneration>,
+    pub(super) deadline: OperationDeadline,
 }
 
 impl PreparedConsumerGroupHeartbeat {
@@ -57,22 +65,59 @@ pub(super) enum ConsumerGroupExecutionAdmissionError {
     EffectShape,
 }
 
+/// Registration-time reservation failure before modern membership exists.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ConsumerGroupExecutionBuildError {
+    TopicIdentity(ConsumerGroupTopicIdentityBuildError),
+}
+
+/// Mechanism or core ownership failure after one modern start was accepted.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ConsumerGroupExecutionError {
+    MissingPrepared,
+    TopicIdentityCallOccupied,
+    TopicIdentityCallMissing,
+    HeartbeatCallOccupied,
+    HeartbeatCallMissing,
+    Core(ConsumerGroupHeartbeatErrorKind),
+    EffectShape,
+}
+
 /// One modern membership lifetime, its core owner, and pending effect transfer.
 pub(super) struct ConsumerGroupExecution {
-    machine: ConsumerGroupHeartbeatMachine,
-    cycle: Option<MembershipCycle>,
-    prepared: Option<PreparedConsumerGroupHeartbeat>,
+    pub(super) machine: ConsumerGroupHeartbeatMachine,
+    pub(super) cycle: Option<MembershipCycle>,
+    pub(super) prepared: Option<PreparedConsumerGroupHeartbeat>,
+    pub(super) rebalance_timeout_ms: u32,
+    pub(super) topic_identities: ConsumerGroupTopicIdentityOwner,
+    pub(super) topic_identity_call: Option<ConsumerGroupTopicIdentityCall>,
+    pub(super) heartbeat_call: Option<ConsumerGroupHeartbeatCall>,
 }
 
 impl ConsumerGroupExecution {
-    pub(super) fn new(group_id: GroupId) -> Self {
+    pub(super) fn try_new(
+        group_id: GroupId,
+        topic_count: usize,
+        rebalance_timeout_ms: u32,
+    ) -> Result<Self, ConsumerGroupExecutionBuildError> {
         let policy = ConsumerGroupHeartbeatPolicy::try_new(CONSUMER_GROUP_ATTEMPT_TIMEOUT_TICKS)
             .unwrap_or_else(|_error| unreachable!("fixed attempt timeout is positive"));
-        Self {
+        Ok(Self {
             machine: ConsumerGroupHeartbeatMachine::new(group_id, policy),
             cycle: None,
             prepared: None,
-        }
+            rebalance_timeout_ms,
+            topic_identities: ConsumerGroupTopicIdentityOwner::try_new(topic_count)
+                .map_err(ConsumerGroupExecutionBuildError::TopicIdentity)?,
+            topic_identity_call: None,
+            heartbeat_call: None,
+        })
+    }
+
+    #[cfg(test)]
+    pub(super) fn new(group_id: GroupId) -> Self {
+        Self::try_new(group_id, 0, 30_000)
+            .unwrap_or_else(|error| panic!("test execution: {error:?}"))
     }
 
     pub(super) fn begin(
@@ -135,24 +180,24 @@ impl ConsumerGroupExecution {
         self.cycle
     }
 
+    pub(super) const fn rebalance_timeout_ms(&self) -> u32 {
+        self.rebalance_timeout_ms
+    }
+
+    pub(super) const fn topic_identities(&self) -> &ConsumerGroupTopicIdentityOwner {
+        &self.topic_identities
+    }
+
+    pub(super) const fn topic_identities_mut(&mut self) -> &mut ConsumerGroupTopicIdentityOwner {
+        &mut self.topic_identities
+    }
+
     pub(super) const fn prepared(&self) -> Option<PreparedConsumerGroupHeartbeat> {
         self.prepared
     }
 
     pub(super) fn take_prepared(&mut self) -> Option<PreparedConsumerGroupHeartbeat> {
         self.prepared.take()
-    }
-
-    pub(super) fn restore_prepared(&mut self, prepared: PreparedConsumerGroupHeartbeat) -> bool {
-        if self.prepared.is_some() {
-            return false;
-        }
-        self.prepared = Some(prepared);
-        true
-    }
-
-    pub(super) fn unsettled(&self) -> usize {
-        usize::from(self.machine.in_flight().is_some())
     }
 }
 

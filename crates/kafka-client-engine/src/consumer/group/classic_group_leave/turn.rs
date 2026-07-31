@@ -30,7 +30,10 @@ impl GroupConsumerRegistry {
         let mut blocked = false;
         for index in 0..self.entries.len() {
             let entry = &mut self.entries[index];
-            if entry.state != GroupConsumerEntryState::Closing || entry.leave.allows_local_close() {
+            if entry.uses_consumer_group_protocol()
+                || entry.state != GroupConsumerEntryState::Closing
+                || entry.leave.allows_local_close()
+            {
                 continue;
             }
             let group = Arc::clone(entry.catalog.group());

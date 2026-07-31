@@ -16,6 +16,7 @@ impl GroupSessionCatalog {
         assignment: LiveGroupAssignment,
         classic_generation: ClassicGeneration,
     ) {
+        debug_assert!(self.consumer_current.is_none());
         let (staged_topics, next_member_id, next_topic_id, retained_topic_name_bytes, member) =
             candidate.into_catalog_install();
         for (name, topic_id) in staged_topics {

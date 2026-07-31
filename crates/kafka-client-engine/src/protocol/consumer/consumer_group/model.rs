@@ -45,7 +45,7 @@ pub(crate) struct ConsumerGroupHeartbeatAssignmentTopic {
 }
 
 impl ConsumerGroupHeartbeatAssignmentTopic {
-    pub(super) const fn new(topic_id: [u8; 16], partitions: Vec<u32>) -> Self {
+    pub(crate) const fn new(topic_id: [u8; 16], partitions: Vec<u32>) -> Self {
         Self {
             topic_id,
             partitions,

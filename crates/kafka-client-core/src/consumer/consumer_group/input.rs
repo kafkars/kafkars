@@ -67,4 +67,6 @@ pub enum ConsumerGroupHeartbeatInput {
         /// Stable normalized failure category.
         failure: ConsumerGroupHeartbeatFailure,
     },
+    /// Closes local ownership after no driver operation can still complete.
+    Close,
 }

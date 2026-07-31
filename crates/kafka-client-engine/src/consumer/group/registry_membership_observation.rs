@@ -104,6 +104,12 @@ impl GroupConsumerRegistry {
                 entry.fault.is_none() || entry.state == GroupConsumerEntryState::Closing
             })
             .filter_map(|entry| {
+                if let Some(consumer) = entry.consumer.as_ref() {
+                    return [consumer.next_deadline(), entry.leave.next_deadline()]
+                        .into_iter()
+                        .flatten()
+                        .min();
+                }
                 let route_blocked = entry.rediscovery.blocks_join()
                     || self
                         .coordinator_invalidations
@@ -129,6 +135,9 @@ impl GroupConsumerRegistry {
 
 impl GroupConsumerEntry {
     fn membership_unsettled(&self) -> usize {
+        if let Some(consumer) = self.consumer.as_ref() {
+            return consumer.unsettled();
+        }
         if let Some(fault) = &self.fault {
             return fault
                 .retained_owner_count()

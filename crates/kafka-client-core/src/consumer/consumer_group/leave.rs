@@ -9,6 +9,26 @@ use super::{
 };
 
 impl ConsumerGroupHeartbeatMachine {
+    pub(super) fn close(
+        &mut self,
+    ) -> Result<ConsumerGroupHeartbeatTransition, ConsumerGroupHeartbeatErrorKind> {
+        if self.phase == ConsumerGroupHeartbeatPhase::Closed {
+            return Err(ConsumerGroupHeartbeatErrorKind::Closed);
+        }
+        let assignment = self.live_assignment.take();
+        self.phase = ConsumerGroupHeartbeatPhase::Closed;
+        self.next_sequence = None;
+        self.next_assignment_generation = None;
+        self.clear_active();
+        Ok(
+            assignment.map_or_else(ConsumerGroupHeartbeatTransition::none, |assignment| {
+                ConsumerGroupHeartbeatTransition::one(ConsumerGroupHeartbeatEffect::Revoke {
+                    assignment,
+                })
+            }),
+        )
+    }
+
     pub(super) fn begin_leave(
         &mut self,
         now: Moment,

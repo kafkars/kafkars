@@ -61,9 +61,40 @@ mod classic_group_sync_rejection;
 mod classic_group_sync_settlement;
 mod classic_group_sync_submission;
 mod classic_group_topics;
+mod consumer_group_close;
+#[cfg(test)]
+mod consumer_group_close_test;
 mod consumer_group_execution;
+mod consumer_group_execution_cadence;
+#[cfg(test)]
+mod consumer_group_execution_cadence_test;
+mod consumer_group_execution_calls;
+mod consumer_group_execution_leave;
+#[cfg(test)]
+mod consumer_group_execution_leave_test;
+mod consumer_group_execution_terminal;
+#[cfg(test)]
+mod consumer_group_execution_terminal_test;
 #[cfg(test)]
 mod consumer_group_execution_test;
+mod consumer_group_heartbeat_due;
+#[cfg(test)]
+mod consumer_group_heartbeat_due_test;
+mod consumer_group_heartbeat_failure;
+#[cfg(test)]
+mod consumer_group_heartbeat_failure_test;
+mod consumer_group_heartbeat_leave_settlement;
+mod consumer_group_heartbeat_settlement;
+mod consumer_group_heartbeat_submission;
+#[cfg(test)]
+mod consumer_group_heartbeat_submission_test;
+mod consumer_group_topic_identity;
+mod consumer_group_topic_identity_call;
+#[cfg(test)]
+mod consumer_group_topic_identity_test;
+mod consumer_group_topic_identity_turn;
+#[cfg(test)]
+mod consumer_group_topic_identity_turn_test;
 mod offset_commit;
 mod registry;
 mod registry_acknowledge;
@@ -83,6 +114,7 @@ mod registry_graceful_revocation;
 mod registry_host;
 mod registry_host_error;
 mod registry_membership;
+mod registry_membership_local;
 mod registry_membership_observation;
 #[cfg(test)]
 mod registry_missing_offset_test;
@@ -107,6 +139,9 @@ mod registry_unregister;
 mod registry_wake;
 mod session_catalog;
 mod session_catalog_assignment;
+mod session_catalog_consumer;
+#[cfg(test)]
+mod session_catalog_consumer_test;
 
 #[cfg(test)]
 mod classic_group_assignment_bounds_test;

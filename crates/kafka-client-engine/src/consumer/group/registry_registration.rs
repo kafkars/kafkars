@@ -9,6 +9,7 @@ use kafka_client_core::{
 
 use super::{
     classic_group_fetch::ClassicGroupFetchBuildError,
+    consumer_group_execution::ConsumerGroupExecutionBuildError,
     registry::{
         GROUP_CONSUMER_CAPACITY, GROUP_CONSUMER_RETAINED_NAME_BYTES, GroupConsumerRegistry,
     },
@@ -37,6 +38,7 @@ pub(super) enum GroupConsumerRegistrationFailureKind {
     IdentityExhausted,
     Catalog(GroupSessionCatalogError),
     Fetch(ClassicGroupFetchBuildError),
+    Consumer(ConsumerGroupExecutionBuildError),
 }
 
 impl GroupConsumerRegistry {
@@ -176,6 +178,14 @@ impl GroupConsumerRegistry {
             Err(GroupConsumerEntryBuildError::Fetch(error)) => {
                 return Err(registration_failure(
                     GroupConsumerRegistrationFailureKind::Fetch(error),
+                    group,
+                    group_instance_id,
+                    local_topics,
+                ));
+            }
+            Err(GroupConsumerEntryBuildError::Consumer(error)) => {
+                return Err(registration_failure(
+                    GroupConsumerRegistrationFailureKind::Consumer(error),
                     group,
                     group_instance_id,
                     local_topics,

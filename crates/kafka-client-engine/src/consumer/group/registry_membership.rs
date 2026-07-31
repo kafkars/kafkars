@@ -20,6 +20,11 @@ use super::{
     classic_group_rejoin_due::ClassicGroupRejoinDueTurn,
     classic_group_sync_settlement::ClassicGroupSyncSettlementTurn,
     classic_group_sync_submission::ClassicGroupSyncSubmissionTurn,
+    consumer_group_close::ConsumerGroupCloseTurn,
+    consumer_group_heartbeat_due::ConsumerGroupHeartbeatDueTurn,
+    consumer_group_heartbeat_settlement::ConsumerGroupHeartbeatSettlementTurn,
+    consumer_group_heartbeat_submission::ConsumerGroupHeartbeatSubmissionTurn,
+    consumer_group_topic_identity_turn::ConsumerGroupTopicIdentityTurn,
     registry::GroupConsumerRegistry,
 };
 
@@ -38,6 +43,53 @@ impl GroupConsumerRegistry {
         clock: &crate::clock::MonotonicClock,
         driver: &DriverOwner,
     ) -> Result<GroupConsumerMembershipTurn, ClassicGroupExecutionError> {
+        let consumer_heartbeat_blocked = match self
+            .settle_one_consumer_group_heartbeat(now)
+            .map_err(|_error| ClassicGroupExecutionError::ConsumerGroup)?
+        {
+            ConsumerGroupHeartbeatSettlementTurn::Progress => {
+                return Ok(GroupConsumerMembershipTurn::Progress);
+            }
+            ConsumerGroupHeartbeatSettlementTurn::Blocked => true,
+            ConsumerGroupHeartbeatSettlementTurn::Idle => false,
+        };
+        let consumer_topic_blocked = match self
+            .turn_one_consumer_group_topic_identity(now, driver)
+            .map_err(|_error| ClassicGroupExecutionError::ConsumerGroup)?
+        {
+            ConsumerGroupTopicIdentityTurn::Progress => {
+                return Ok(GroupConsumerMembershipTurn::Progress);
+            }
+            ConsumerGroupTopicIdentityTurn::Blocked => true,
+            ConsumerGroupTopicIdentityTurn::Idle => false,
+        };
+        let consumer_close_blocked = match self
+            .turn_one_consumer_group_close(now)
+            .map_err(|_error| ClassicGroupExecutionError::ConsumerGroup)?
+        {
+            ConsumerGroupCloseTurn::Progress => {
+                return Ok(GroupConsumerMembershipTurn::Progress);
+            }
+            ConsumerGroupCloseTurn::Blocked => true,
+            ConsumerGroupCloseTurn::Idle => false,
+        };
+        if self
+            .prepare_one_consumer_group_heartbeat(now, clock)
+            .map_err(|_error| ClassicGroupExecutionError::ConsumerGroup)?
+            == ConsumerGroupHeartbeatDueTurn::Progress
+        {
+            return Ok(GroupConsumerMembershipTurn::Progress);
+        }
+        let consumer_submission_blocked = match self
+            .submit_one_consumer_group_heartbeat(now, driver)
+            .map_err(|_error| ClassicGroupExecutionError::ConsumerGroup)?
+        {
+            ConsumerGroupHeartbeatSubmissionTurn::Progress => {
+                return Ok(GroupConsumerMembershipTurn::Progress);
+            }
+            ConsumerGroupHeartbeatSubmissionTurn::Blocked => true,
+            ConsumerGroupHeartbeatSubmissionTurn::Idle => false,
+        };
         let rediscovery_blocked = match self.drive_one_classic_coordinator_invalidation(driver)? {
             ClassicCoordinatorInvalidationTurn::Progress => {
                 return Ok(GroupConsumerMembershipTurn::Progress);
@@ -105,6 +157,10 @@ impl GroupConsumerRegistry {
         Ok(match self.submit_one_classic_join(driver)? {
             ClassicGroupJoinSubmissionTurn::Idle
                 if rediscovery_blocked
+                    || consumer_heartbeat_blocked
+                    || consumer_submission_blocked
+                    || consumer_topic_blocked
+                    || consumer_close_blocked
                     || leave_blocked
                     || partition_count_blocked
                     || heartbeat_blocked

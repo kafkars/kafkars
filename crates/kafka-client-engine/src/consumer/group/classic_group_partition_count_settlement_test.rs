@@ -180,6 +180,7 @@ fn close_after_count_handoff_success_never_materializes_sync() {
                 TopicPartitionCountFact {
                     metadata_generation: 11,
                     logical_partition_count: 4,
+                    kafka_topic_id: None,
                 },
                 Moment::from_tick(3),
             ),

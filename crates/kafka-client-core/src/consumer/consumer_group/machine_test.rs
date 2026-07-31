@@ -240,3 +240,30 @@ fn stable_leave_uses_the_current_member_then_success_revokes_and_closes() {
     ));
     assert_eq!(machine.phase(), ConsumerGroupHeartbeatPhase::Closed);
 }
+
+#[test]
+fn local_close_revokes_stable_assignment_without_forging_a_leave_attempt() {
+    let (mut machine, attempt) = joining();
+    let _ = succeed(
+        &mut machine,
+        attempt,
+        20,
+        1,
+        5,
+        0,
+        Some(vec![partition(1, 0)]),
+    );
+
+    let transition = machine
+        .apply(ConsumerGroupHeartbeatInput::Close)
+        .unwrap_or_else(|error| panic!("local close: {error}"));
+
+    assert!(matches!(
+        transition.into_effects().next(),
+        Some(ConsumerGroupHeartbeatEffect::Revoke { .. })
+    ));
+    assert_eq!(machine.phase(), ConsumerGroupHeartbeatPhase::Closed);
+    assert!(machine.in_flight().is_none());
+    assert!(machine.schedule().is_none());
+    assert!(machine.live_assignment().is_none());
+}

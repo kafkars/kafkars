@@ -11,6 +11,7 @@ use super::super::super::DriverOwner;
 pub(crate) struct TopicPartitionCountFact {
     pub(crate) metadata_generation: u64,
     pub(crate) logical_partition_count: u32,
+    pub(crate) kafka_topic_id: Option<[u8; 16]>,
 }
 
 /// One accepted immutable-view lookup under its original absolute deadline.
@@ -52,6 +53,7 @@ impl TopicPartitionCountCall {
             Ok(Ok(view)) => Ok(TopicPartitionCountFact {
                 metadata_generation: view.generation().get(),
                 logical_partition_count: view.logical_partition_count(),
+                kafka_topic_id: view.topic_id().map(kafka_driver::KafkaTopicId::to_bytes),
             }),
         })
     }

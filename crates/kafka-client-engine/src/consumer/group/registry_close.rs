@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{ClassicGroupPhase, GroupId, Moment};
+use kafka_client_core::{ClassicGroupPhase, ConsumerGroupHeartbeatPhase, GroupId, Moment};
 
 use crate::{clock::OperationDeadline, completion::NotifierJoin};
 
@@ -94,6 +94,12 @@ impl GroupConsumerRegistry {
     pub(crate) fn recover_after_driver_shutdown(&mut self) -> Result<(), GroupConsumerHostError> {
         self.close_admission();
         self.recover_classic_group_leaves_after_driver_shutdown();
+        self.recover_consumer_groups_after_driver_shutdown()
+            .map_err(|_error| {
+                GroupConsumerHostError::membership(
+                    super::classic_group_execution::ClassicGroupExecutionError::ConsumerGroup,
+                )
+            })?;
         let membership = match self.recover_classic_calls_after_driver_shutdown() {
             Ok(()) => self.recover_local_membership().err(),
             Err(error) => Some(error),
@@ -185,9 +191,20 @@ fn mark_closing(entry: &mut super::registry_entry::GroupConsumerEntry) {
 }
 
 fn group_close_is_drained(entry: &super::registry_entry::GroupConsumerEntry) -> bool {
+    let protocol_is_closed = entry.consumer.as_ref().map_or_else(
+        || {
+            entry.classic.machine().phase() == ClassicGroupPhase::Closed
+                && entry.classic.pending().is_none()
+        },
+        |consumer| {
+            consumer.machine().phase() == ConsumerGroupHeartbeatPhase::Closed
+                && consumer.prepared().is_none()
+                && consumer.heartbeat_call().is_none()
+                && consumer.topic_identity_call().is_none()
+        },
+    );
     entry.state == GroupConsumerEntryState::Closing
-        && entry.classic.machine().phase() == ClassicGroupPhase::Closed
-        && entry.classic.pending().is_none()
+        && protocol_is_closed
         && entry.catalog.live_assignment().is_none()
         && entry.execution.is_idle()
         && entry.heartbeat.is_dormant()

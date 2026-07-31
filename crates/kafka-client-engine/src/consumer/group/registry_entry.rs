@@ -19,7 +19,7 @@ use super::{
     classic_group_position::ClassicGroupPositionExecution,
     classic_group_rediscovery::ClassicCoordinatorRediscovery,
     classic_group_rejoin::ClassicGroupRejoinExecution,
-    consumer_group_execution::ConsumerGroupExecution,
+    consumer_group_execution::{ConsumerGroupExecution, ConsumerGroupExecutionBuildError},
     session_catalog::{GroupSessionCatalog, GroupSessionCatalogError},
 };
 use crate::consumer::{
@@ -38,6 +38,7 @@ pub(super) enum GroupConsumerEntryState {
 pub(super) enum GroupConsumerEntryBuildError {
     Catalog(GroupSessionCatalogError),
     Fetch(ClassicGroupFetchBuildError),
+    Consumer(ConsumerGroupExecutionBuildError),
 }
 
 /// One bounded group spelling, session catalog, and close fence.
@@ -176,8 +177,20 @@ impl GroupConsumerEntry {
                 local_topics,
             )
             .map_err(GroupConsumerEntryBuildError::Catalog)?,
-            consumer: (protocol == GroupConsumerProtocol::Consumer)
-                .then(|| ConsumerGroupExecution::new(group_id)),
+            consumer: if protocol == GroupConsumerProtocol::Consumer {
+                Some(
+                    ConsumerGroupExecution::try_new(
+                        group_id,
+                        local_topics.len(),
+                        u32::try_from(timing.rebalance_timeout_ms()).unwrap_or_else(|_error| {
+                            unreachable!("validated rebalance timeout is positive")
+                        }),
+                    )
+                    .map_err(GroupConsumerEntryBuildError::Consumer)?,
+                )
+            } else {
+                None
+            },
             classic: ClassicGroupOwner::new(group_id, timing, heartbeat_policy, rejoin_policy),
             execution: new_classic_group_execution(),
             fetch: ClassicGroupFetchOwner::try_new_with_read_isolation(read_isolation)
