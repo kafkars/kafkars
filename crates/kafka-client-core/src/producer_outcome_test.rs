@@ -108,8 +108,10 @@ fn broker_outcome_requires_driver_ownership() {
     assert_eq!(
         producer.apply(ProducerInput::BrokerFailed {
             execution: execution(batch_id),
+            now: Moment::from_tick(2),
             failure: routing_failure(),
             delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: false,
         }),
         Err(ProducerMachineError::Transition(
             TransitionError::InvalidState
@@ -124,8 +126,10 @@ fn broker_outcome_requires_driver_ownership() {
         producer
             .apply(ProducerInput::BrokerFailed {
                 execution: execution(batch_id),
+                now: Moment::from_tick(2),
                 failure: routing_failure(),
                 delivery: DeliveryStatus::PossiblySent,
+                route_refreshed: false,
             })
             .is_ok()
     );
@@ -157,6 +161,7 @@ fn transport_failure_is_distinct_from_broker_error() {
             now: Moment::from_tick(2),
             failure: ProducerAttemptFailureKind::Permanent,
             delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: false,
         })
         .unwrap_or_else(|error| panic!("transport failure failed: {error}"));
     assert!(matches!(

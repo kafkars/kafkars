@@ -137,9 +137,22 @@ pub enum ProducerInput {
     BrokerFailed {
         /// Exact driver-owned execution that produced the response.
         execution: BatchExecutionId,
+        /// Monotonic observation after any required route refresh.
+        now: Moment,
         /// Semantic broker category with its exact signed diagnostic code.
         failure: ProducerBrokerFailure,
         /// Driver-owned certainty for this request attempt.
+        delivery: DeliveryStatus,
+        /// Whether the exact failed route was fenced before retry policy runs.
+        route_refreshed: bool,
+    },
+    /// Reports that a broker-terminal route refresh reached the original deadline.
+    RouteRefreshDeadlineElapsed {
+        /// Exact driver-owned execution whose routing failure is retained.
+        execution: BatchExecutionId,
+        /// Monotonic observation at or after the original public deadline.
+        now: Moment,
+        /// Driver-owned certainty already established by the failed attempt.
         delivery: DeliveryStatus,
     },
     /// Reports transport failure after driver ownership.
@@ -152,6 +165,8 @@ pub enum ProducerInput {
         failure: ProducerAttemptFailureKind,
         /// Driver-owned certainty for this request attempt.
         delivery: DeliveryStatus,
+        /// Whether the exact failed partition route was fenced before retry policy runs.
+        route_refreshed: bool,
     },
     /// Reports that production execution is permanently unavailable.
     ///

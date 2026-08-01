@@ -27,7 +27,7 @@ impl ProducerMachine {
             .earliest_deadline()
             .ok_or(ProducerMachineError::UnknownBatch)?;
         if deadline.is_elapsed_at(now) {
-            return self.settle_batch_failed(batch_id, ProducerFailure::deadline_elapsed());
+            return self.settle_retry_terminal(batch_id, ProducerFailure::deadline_elapsed());
         }
         self.submit_materialized(execution)
     }
@@ -41,7 +41,7 @@ impl ProducerMachine {
         }
         let batch_id = execution.batch_id();
         self.require_batch_state(batch_id, BatchState::Materializing)?;
-        self.settle_batch_failed(batch_id, ProducerFailure::materialization_failed())
+        self.settle_retry_terminal(batch_id, ProducerFailure::materialization_failed())
     }
 
     pub(crate) fn driver_accepted(
@@ -87,7 +87,44 @@ impl ProducerMachine {
     pub(crate) fn broker_failed(
         &mut self,
         execution: BatchExecutionId,
+        now: Moment,
         failure: ProducerBrokerFailure,
+        delivery: DeliveryStatus,
+        route_refreshed: bool,
+    ) -> Result<ProducerTransition, ProducerMachineError> {
+        if !self.execution_is_current(execution) {
+            return Ok(ProducerTransition::none());
+        }
+        let batch_id = execution.batch_id();
+        self.require_batch_state(batch_id, BatchState::Submitted)?;
+        let retryable = failure.kind() == crate::ProducerBrokerFailureKind::Retriable
+            || (failure.kind() == crate::ProducerBrokerFailureKind::Routing && route_refreshed);
+        if retryable && !self.idempotence.is_fenced() && self.retry_available(batch_id)? {
+            let deadline = self
+                .batches
+                .get(&batch_id)
+                .and_then(super::ProducerBatch::earliest_deadline)
+                .ok_or(ProducerMachineError::UnknownBatch)?;
+            if deadline.is_elapsed_at(now) {
+                return self.settle_retry_terminal(batch_id, ProducerFailure::deadline_elapsed());
+            }
+            return self.start_retry(execution, now, deadline, BatchState::Submitted, delivery);
+        }
+        if failure.kind() == crate::ProducerBrokerFailureKind::Routing {
+            return self
+                .settle_retry_terminal(batch_id, ProducerFailure::broker(failure, delivery));
+        }
+        if delivery == DeliveryStatus::PossiblySent {
+            return self
+                .settle_uncertain_delivery(batch_id, ProducerFailure::broker(failure, delivery));
+        }
+        self.settle_retry_terminal(batch_id, ProducerFailure::broker(failure, delivery))
+    }
+
+    pub(crate) fn route_refresh_deadline_elapsed(
+        &mut self,
+        execution: BatchExecutionId,
+        now: Moment,
         delivery: DeliveryStatus,
     ) -> Result<ProducerTransition, ProducerMachineError> {
         if !self.execution_is_current(execution) {
@@ -95,11 +132,22 @@ impl ProducerMachine {
         }
         let batch_id = execution.batch_id();
         self.require_batch_state(batch_id, BatchState::Submitted)?;
-        if delivery == DeliveryStatus::PossiblySent {
-            return self
-                .settle_uncertain_delivery(batch_id, ProducerFailure::broker(failure, delivery));
+        let deadline = self
+            .batches
+            .get(&batch_id)
+            .and_then(super::ProducerBatch::earliest_deadline)
+            .ok_or(ProducerMachineError::UnknownBatch)?;
+        if !deadline.is_elapsed_at(now) {
+            return Err(ProducerMachineError::Transition(
+                TransitionError::DeadlineNotElapsed,
+            ));
         }
-        self.settle_batch_failed(batch_id, ProducerFailure::broker(failure, delivery))
+        let failure = ProducerFailure::deadline_elapsed().with_delivery(delivery);
+        if delivery == DeliveryStatus::PossiblySent {
+            self.settle_uncertain_delivery(batch_id, failure)
+        } else {
+            self.settle_retry_terminal(batch_id, failure)
+        }
     }
 
     pub(crate) fn deadline_elapsed(
@@ -151,7 +199,7 @@ impl ProducerMachine {
                 let batch_id = operation
                     .batch_id()
                     .ok_or(ProducerMachineError::UnknownBatch)?;
-                self.settle_batch_failed(batch_id, ProducerFailure::deadline_elapsed())
+                self.settle_retry_terminal(batch_id, ProducerFailure::deadline_elapsed())
             }
             ProducerOperationState::Submitted { .. } | ProducerOperationState::Completed => {
                 Ok(ProducerTransition::none())

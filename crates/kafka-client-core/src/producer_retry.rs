@@ -15,6 +15,8 @@ pub enum ProducerAttemptFailureKind {
     ConnectionUnavailable,
     /// The broker and generated Produce protocol share no safe version.
     Compatibility,
+    /// Kafka returned a response that could not be correlated as valid success.
+    InvalidResponse,
     /// Retrying cannot repair the structural failure or is not yet supported.
     Permanent,
 }

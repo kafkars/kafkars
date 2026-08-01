@@ -4,7 +4,7 @@ use core::num::NonZeroI16;
 
 use kafka_client_core::{
     AdmissionRejection, BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline,
-    DeliveryStatus, ExplicitRecord, OperationId, PartitionIndex, PayloadId,
+    DeliveryStatus, ExplicitRecord, Moment, OperationId, PartitionIndex, PayloadId,
     ProducerAttemptFailureKind, ProducerBatchSuccess, ProducerBrokerFailure,
     ProducerBrokerFailureKind, ProducerCompletion, ProducerEffect, ProducerFailureKind,
     ProducerInput, ProducerMachineError, TopicId,
@@ -235,8 +235,10 @@ fn driver_and_broker_failure_stages_preserve_certainty() {
     uncertain
         .step(ProducerInput::BrokerFailed {
             execution: execution(),
+            now: Moment::from_tick(2),
             failure: routing_failure(),
             delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: false,
         })
         .unwrap_or_else(|error| panic!("broker failure failed: {error}"));
     assert!(matches!(

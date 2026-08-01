@@ -13,7 +13,7 @@ use super::scenario_support::retry::{
 };
 
 #[test]
-fn possibly_sent_permanent_and_broker_failures_never_retry() {
+fn possibly_sent_transport_permanent_and_unknown_broker_failures_never_retry() {
     let (mut possibly_sent, _, execution) = submitted(3, 2, 30);
     let terminal = possibly_sent
         .apply(ProducerInput::TransportFailed {
@@ -21,6 +21,7 @@ fn possibly_sent_permanent_and_broker_failures_never_retry() {
             now: Moment::from_tick(2),
             failure: ProducerAttemptFailureKind::LocalCapacity,
             delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: false,
         })
         .unwrap_or_else(|error| panic!("possibly-sent failure failed: {error}"));
     assert!(!has_retry(terminal.effects()));
@@ -32,6 +33,7 @@ fn possibly_sent_permanent_and_broker_failures_never_retry() {
             now: Moment::from_tick(2),
             failure: ProducerAttemptFailureKind::Permanent,
             delivery: DeliveryStatus::NotSent,
+            route_refreshed: false,
         })
         .unwrap_or_else(|error| panic!("permanent failure failed: {error}"));
     assert!(!has_retry(terminal.effects()));
@@ -40,11 +42,142 @@ fn possibly_sent_permanent_and_broker_failures_never_retry() {
     let terminal = broker
         .apply(ProducerInput::BrokerFailed {
             execution,
-            failure: broker_retry_later(),
+            now: Moment::from_tick(2),
+            failure: unknown_broker_failure(),
             delivery: DeliveryStatus::NotSent,
+            route_refreshed: false,
         })
         .unwrap_or_else(|error| panic!("broker failure failed: {error}"));
     assert!(!has_retry(terminal.effects()));
+}
+
+#[test]
+fn refreshed_transport_loss_retries_with_the_original_idempotent_sequence() {
+    let (mut producer, _, first) = submitted(1, 2, 30);
+    let retry = producer
+        .apply(ProducerInput::TransportFailed {
+            execution: first,
+            now: Moment::from_tick(2),
+            failure: ProducerAttemptFailureKind::ConnectionUnavailable,
+            delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: true,
+        })
+        .unwrap_or_else(|error| panic!("refreshed transport failure failed: {error}"));
+
+    assert!(has_retry(retry.effects()));
+    assert!(!retry.effects().iter().any(|effect| matches!(
+        effect,
+        ProducerEffect::Complete { .. } | ProducerEffect::CompleteFlush { .. }
+    )));
+
+    let replacement = next(first);
+    let ready = fire_retry(&mut producer, replacement, 2, 4);
+    assert!(matches!(
+        ready.effects(),
+        [ProducerEffect::MaterializeBatch {
+            execution,
+            sequence,
+            ..
+        }] if *execution == replacement && sequence.base_sequence() == 0
+    ));
+    materialize_and_submit(&mut producer, replacement, 4);
+    let terminal = producer
+        .apply(ProducerInput::BrokerSucceeded {
+            execution: replacement,
+            success: ProducerBatchSuccess::new(91, None, Some(8)),
+        })
+        .unwrap_or_else(|error| panic!("replacement success failed: {error}"));
+    assert!(matches!(
+        terminal.effects().last(),
+        Some(ProducerEffect::Complete {
+            completion: ProducerCompletion::Delivered(metadata),
+            ..
+        }) if metadata.offset() == 91
+    ));
+}
+
+#[test]
+fn routing_rejection_retries_with_the_original_sequence_and_flush_barrier() {
+    let (mut producer, _, first) = submitted(1, 2, 30);
+    let flush = producer
+        .apply(ProducerInput::FlushRequested)
+        .unwrap_or_else(|error| panic!("flush failed: {error}"));
+    assert!(matches!(
+        flush.effects(),
+        [ProducerEffect::AcceptFlush { .. }]
+    ));
+
+    let retry = producer
+        .apply(ProducerInput::BrokerFailed {
+            execution: first,
+            now: Moment::from_tick(2),
+            failure: routing_failure(),
+            delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: true,
+        })
+        .unwrap_or_else(|error| panic!("routing failure failed: {error}"));
+    assert!(has_retry(retry.effects()));
+    assert!(!retry.effects().iter().any(|effect| matches!(
+        effect,
+        ProducerEffect::Complete { .. }
+    ) || matches!(
+        effect,
+        ProducerEffect::CompleteFlush { .. }
+    )));
+
+    let replacement = next(first);
+    let ready = fire_retry(&mut producer, replacement, 2, 4);
+    assert!(matches!(
+        ready.effects(),
+        [ProducerEffect::MaterializeBatch {
+            execution,
+            sequence,
+            ..
+        }] if *execution == replacement && sequence.base_sequence() == 0
+    ));
+    materialize_and_submit(&mut producer, replacement, 4);
+    let terminal = producer
+        .apply(ProducerInput::BrokerSucceeded {
+            execution: replacement,
+            success: ProducerBatchSuccess::new(91, None, Some(8)),
+        })
+        .unwrap_or_else(|error| panic!("replacement success failed: {error}"));
+    assert_eq!(
+        terminal
+            .effects()
+            .iter()
+            .filter(|effect| matches!(effect, ProducerEffect::Complete { .. }))
+            .count(),
+        1
+    );
+    assert!(matches!(
+        terminal.effects().last(),
+        Some(ProducerEffect::CompleteFlush { .. })
+    ));
+}
+
+#[test]
+fn routing_rejection_without_exact_refresh_never_retries() {
+    let (mut producer, _, execution) = submitted(1, 2, 30);
+    let terminal = producer
+        .apply(ProducerInput::BrokerFailed {
+            execution,
+            now: Moment::from_tick(2),
+            failure: routing_failure(),
+            delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: false,
+        })
+        .unwrap_or_else(|error| panic!("unrefreshed routing failure failed: {error}"));
+
+    assert!(!has_retry(terminal.effects()));
+    assert!(matches!(
+        terminal.effects().last(),
+        Some(ProducerEffect::Complete {
+            completion: ProducerCompletion::Failed(failure),
+            ..
+        }) if failure.kind() == ProducerFailureKind::Routing
+            && failure.delivery() == DeliveryStatus::PossiblySent
+    ));
 }
 
 #[test]
@@ -144,7 +277,12 @@ fn close_waits_across_retry_and_completes_after_record_terminal() {
     ));
 }
 
-fn broker_retry_later() -> ProducerBrokerFailure {
-    let code = NonZeroI16::new(20).unwrap_or_else(|| panic!("test code must be nonzero"));
-    ProducerBrokerFailure::new(ProducerBrokerFailureKind::Retriable, code)
+fn unknown_broker_failure() -> ProducerBrokerFailure {
+    let code = NonZeroI16::new(123).unwrap_or_else(|| panic!("test code must be nonzero"));
+    ProducerBrokerFailure::new(ProducerBrokerFailureKind::Unknown, code)
+}
+
+fn routing_failure() -> ProducerBrokerFailure {
+    let code = NonZeroI16::new(6).unwrap_or_else(|| panic!("test code must be nonzero"));
+    ProducerBrokerFailure::new(ProducerBrokerFailureKind::Routing, code)
 }

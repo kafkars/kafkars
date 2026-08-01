@@ -16,7 +16,7 @@ pub(crate) struct BatchFailurePlan {
 struct FailedBatch {
     batch_id: BatchId,
     route: super::BatchRoute,
-    sequence_leased: bool,
+    sequence_not_sent: bool,
 }
 
 impl ProducerMachine {
@@ -61,7 +61,15 @@ impl ProducerMachine {
                     payload_id: record.payload_id(),
                     retained_bytes: record.retained_bytes(),
                 });
-                settlements.push((operation_id, Settlement::Failed(failure.delivery())));
+                let settlement = if batch.state != BatchState::Submitted
+                    && batch.prior_delivery() == crate::DeliveryStatus::PossiblySent
+                    && failure.delivery() == crate::DeliveryStatus::PossiblySent
+                {
+                    Settlement::FailedAfterPossibleDelivery
+                } else {
+                    Settlement::Failed(failure.delivery())
+                };
+                settlements.push((operation_id, settlement));
             }
             for operation_id in batch.member_ids() {
                 effects.push(ProducerEffect::Complete {
@@ -72,7 +80,8 @@ impl ProducerMachine {
             batches.push(FailedBatch {
                 batch_id: *batch_id,
                 route: batch.route,
-                sequence_leased: batch.sequence_lease().is_some(),
+                sequence_not_sent: batch.sequence_lease().is_some()
+                    && failure.delivery() == crate::DeliveryStatus::NotSent,
             });
         }
         Ok(BatchFailurePlan {
@@ -89,7 +98,7 @@ impl ProducerMachine {
         self.settle_operations_with(&plan.settlements)?;
         for failed in plan.batches {
             self.remove_open_batch_if_current(failed.route, failed.batch_id);
-            if failed.sequence_leased {
+            if failed.sequence_not_sent {
                 self.idempotence.release_not_sent(failed.route);
             }
             self.batches.remove(&failed.batch_id);

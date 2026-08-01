@@ -123,9 +123,7 @@ impl GroupConsumerMetadata {
     }
 
     pub(crate) fn group_instance_id_arc(&self) -> Option<Arc<str>> {
-        self.transaction_group_instance_id
-            .as_ref()
-            .map(Arc::clone)
+        self.transaction_group_instance_id.as_ref().map(Arc::clone)
     }
 
     pub(crate) const fn position_fence(&self) -> GroupPositionFence {

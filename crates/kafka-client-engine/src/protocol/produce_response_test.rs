@@ -3,7 +3,7 @@
 use kafka_client_core::{DeliveryStatus, ProducerBatchSuccess, ProducerBrokerFailureKind};
 use kafka_wire::{
     ProduceResponse,
-    produce_response::{PartitionProduceResponse, TopicProduceResponse},
+    produce_response::{BatchIndexAndErrorMessage, PartitionProduceResponse, TopicProduceResponse},
 };
 
 use super::produce_response::{
@@ -84,6 +84,24 @@ fn broker_failure_response_is_possibly_sent_and_preserves_normalized_code() {
 }
 
 #[test]
+fn nonzero_broker_error_remains_authoritative_over_diagnostic_fields() {
+    let mut response = response();
+    let partition = sole_partition_mut(&mut response);
+    partition.error_code = 6;
+    partition.record_errors.push(record_error());
+    partition.error_message = Some("partition rejected".into());
+
+    let Err(ProduceResponseFailure::Broker { failure, delivery }) =
+        normalize_explicit_produce_response(&response, TOPIC, PARTITION)
+    else {
+        panic!("nonzero broker code must remain the authoritative failure");
+    };
+    assert_eq!(failure.kind(), ProducerBrokerFailureKind::Routing);
+    assert_eq!(failure.code(), 6);
+    assert_eq!(delivery, DeliveryStatus::PossiblySent);
+}
+
+#[test]
 fn structural_response_failures_are_possibly_sent() {
     for (response, expected) in structural_failures() {
         let Err(failure) = normalize_explicit_produce_response(&response, TOPIC, PARTITION) else {
@@ -114,6 +132,12 @@ fn structural_failures() -> Vec<(ProduceResponse, ProduceResponseProtocolFailure
         .push(partition_response());
     let mut wrong_partition = response();
     sole_partition_mut(&mut wrong_partition).index = 99;
+    let mut record_errors = response();
+    sole_partition_mut(&mut record_errors)
+        .record_errors
+        .push(record_error());
+    let mut error_message = response();
+    sole_partition_mut(&mut error_message).error_message = Some("partition rejected".into());
     let mut negative_offset = response();
     sole_partition_mut(&mut negative_offset).base_offset = -1;
 
@@ -143,10 +167,25 @@ fn structural_failures() -> Vec<(ProduceResponse, ProduceResponseProtocolFailure
             ProduceResponseProtocolFailure::PartitionIndexMismatch { actual: 99 },
         ),
         (
+            record_errors,
+            ProduceResponseProtocolFailure::RecordErrorsOnSuccess { actual: 1 },
+        ),
+        (
+            error_message,
+            ProduceResponseProtocolFailure::ErrorMessageOnSuccess,
+        ),
+        (
             negative_offset,
             ProduceResponseProtocolFailure::NegativeBaseOffset { actual: -1 },
         ),
     ]
+}
+
+fn record_error() -> BatchIndexAndErrorMessage {
+    let mut error = BatchIndexAndErrorMessage::default();
+    error.batch_index = 0;
+    error.batch_index_error_message = Some("record rejected".into());
+    error
 }
 
 fn response() -> ProduceResponse {

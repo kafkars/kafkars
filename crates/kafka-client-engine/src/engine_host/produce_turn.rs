@@ -32,9 +32,16 @@ pub(super) fn drive(
         resources.producer.close_locked_admission(&mut data);
     }
     resources.control.record_producer_turn();
-    let outcome = data
+    let mut outcome = data
         .turn(now, resources.budget)
         .map_err(EngineHostError::Producer)?;
+    if let Some(deadline) = resources.produce_calls.next_refresh_deadline() {
+        outcome.next_deadline = Some(
+            outcome
+                .next_deadline
+                .map_or(deadline, |current| current.min(deadline)),
+        );
+    }
     let driver = resources
         .driver
         .as_ref()
@@ -59,6 +66,7 @@ pub(super) fn drive(
 }
 
 pub(super) fn apply_completions(
+    driver: &crate::driver::DriverOwner,
     producer: &ProducerShardOwner,
     identity_calls: &mut crate::driver::TrackedProducerIdentityCalls,
     partitioning_call: &mut Option<produce::ProducerPartitioningCall>,
@@ -74,7 +82,7 @@ pub(super) fn apply_completions(
     };
     let identity = produce::apply_identity_ready(identity_calls, &mut data, now)?;
     let partitioning = produce::apply_partitioning_ready(partitioning_call, &mut data)?;
-    let produce = produce::apply_ready(calls, &mut data, now, PRODUCE_COMPLETION_BUDGET)?;
+    let produce = produce::apply_ready(driver, calls, &mut data, now, PRODUCE_COMPLETION_BUDGET)?;
     Ok(identity || partitioning || produce)
 }
 

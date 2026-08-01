@@ -30,7 +30,8 @@ impl ProducerMachine {
             .earliest_deadline()
             .ok_or(ProducerMachineError::UnknownBatch)?;
         if deadline.is_elapsed_at(now) {
-            return self.settle_batch_failed(batch_id, crate::ProducerFailure::deadline_elapsed());
+            return self
+                .settle_retry_terminal(batch_id, crate::ProducerFailure::deadline_elapsed());
         }
         let execution = batch
             .execution_id(batch_id)

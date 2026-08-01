@@ -186,6 +186,7 @@ fn stale_failure(
             now: Moment::from_tick(3),
             failure: ProducerAttemptFailureKind::ConnectionUnavailable,
             delivery: DeliveryStatus::NotSent,
+            route_refreshed: false,
         })
         .unwrap_or_else(|error| panic!("stale terminal failed: {error}"))
 }

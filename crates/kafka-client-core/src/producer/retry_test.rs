@@ -124,6 +124,7 @@ fn retry_identity_exhaustion_has_no_partial_mutation() {
             now: Moment::from_tick(2),
             failure: ProducerAttemptFailureKind::ConnectionUnavailable,
             delivery: DeliveryStatus::NotSent,
+            route_refreshed: false,
         }),
         Err(ProducerMachineError::ExecutionGenerationExhausted)
     );
@@ -151,6 +152,7 @@ fn retry_timer_identity_exhaustion_has_no_partial_mutation() {
             now: Moment::from_tick(2),
             failure: ProducerAttemptFailureKind::ConnectionUnavailable,
             delivery: DeliveryStatus::NotSent,
+            route_refreshed: false,
         }),
         Err(ProducerMachineError::TimerGenerationExhausted)
     );
@@ -173,6 +175,7 @@ fn stale_terminal(
             now: Moment::from_tick(3),
             failure: ProducerAttemptFailureKind::ConnectionUnavailable,
             delivery: DeliveryStatus::NotSent,
+            route_refreshed: false,
         })
         .unwrap_or_else(|error| panic!("stale terminal failed: {error}"))
 }

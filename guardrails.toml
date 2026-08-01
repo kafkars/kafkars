@@ -6902,6 +6902,11 @@ field = "calls"
 allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/calls.rs"]
 
 [[mutation_owners]]
+owner_type = "TrackedProduceCalls"
+field = "recovered"
+allowed_paths = ["crates/kafka-client-engine/src/driver/rpc/calls.rs"]
+
+[[mutation_owners]]
 owner_type = "CreateTopicsHost"
 field = "operations"
 allowed_paths = [
@@ -8667,6 +8672,10 @@ owner_type = "SettledProduceCall"
 path = "crates/kafka-client-engine/src/driver/rpc/calls.rs"
 
 [[linear_owners]]
+owner_type = "RecoveredProduceCall"
+path = "crates/kafka-client-engine/src/driver/rpc/calls.rs"
+
+[[linear_owners]]
 owner_type = "CompletionRegistry"
 path = "crates/kafka-client-engine/src/completion/registry.rs"
 
@@ -8893,6 +8902,10 @@ path = "crates/kafka-client-engine/src/producer/terminal_backlog.rs"
 [[linear_owners]]
 owner_type = "VirtualBatch"
 path = "crates/kafka-client-sim/src/state/batch.rs"
+
+[[linear_owners]]
+owner_type = "VirtualFlushes"
+path = "crates/kafka-client-sim/src/state/flush.rs"
 
 [[linear_owners]]
 owner_type = "ProducerHost"

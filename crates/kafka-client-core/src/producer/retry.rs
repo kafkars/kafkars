@@ -30,7 +30,28 @@ impl ProducerMachine {
         now: Moment,
         failure: ProducerAttemptFailureKind,
         delivery: DeliveryStatus,
+        route_refreshed: bool,
     ) -> Result<ProducerTransition, ProducerMachineError> {
+        if self.execution_is_current(execution)
+            && delivery == DeliveryStatus::PossiblySent
+            && route_refreshed
+            && failure.is_structurally_transient()
+        {
+            let batch_id = execution.batch_id();
+            self.require_batch_state(batch_id, BatchState::Submitted)?;
+            if !self.idempotence.is_fenced() && self.retry_available(batch_id)? {
+                let deadline = self
+                    .batches
+                    .get(&batch_id)
+                    .and_then(super::ProducerBatch::earliest_deadline)
+                    .ok_or(ProducerMachineError::UnknownBatch)?;
+                if deadline.is_elapsed_at(now) {
+                    return self
+                        .settle_retry_terminal(batch_id, ProducerFailure::deadline_elapsed());
+                }
+                return self.start_retry(execution, now, deadline, BatchState::Submitted, delivery);
+            }
+        }
         if self.execution_is_current(execution) && delivery == DeliveryStatus::PossiblySent {
             return self.settle_uncertain_delivery(
                 execution.batch_id(),
@@ -67,7 +88,7 @@ impl ProducerMachine {
             || !failure.is_structurally_transient()
             || !self.retry_available(batch_id)?
         {
-            return self.settle_batch_failed(batch_id, terminal);
+            return self.settle_retry_terminal(batch_id, terminal);
         }
         let deadline = self
             .batches
@@ -75,12 +96,15 @@ impl ProducerMachine {
             .and_then(super::ProducerBatch::earliest_deadline)
             .ok_or(ProducerMachineError::UnknownBatch)?;
         if deadline.is_elapsed_at(now) {
-            return self.settle_batch_failed(batch_id, ProducerFailure::deadline_elapsed());
+            return self.settle_retry_terminal(batch_id, ProducerFailure::deadline_elapsed());
         }
-        self.start_retry(execution, now, deadline, expected)
+        self.start_retry(execution, now, deadline, expected, delivery)
     }
 
-    fn retry_available(&self, batch_id: crate::BatchId) -> Result<bool, ProducerMachineError> {
+    pub(crate) fn retry_available(
+        &self,
+        batch_id: crate::BatchId,
+    ) -> Result<bool, ProducerMachineError> {
         let batch = self
             .batches
             .get(&batch_id)
@@ -88,12 +112,13 @@ impl ProducerMachine {
         Ok(batch.retries_started < self.retry_policy.max_retries())
     }
 
-    fn start_retry(
+    pub(crate) fn start_retry(
         &mut self,
         previous: BatchExecutionId,
         now: Moment,
         operation_deadline: crate::Deadline,
         expected: BatchState,
+        delivery: DeliveryStatus,
     ) -> Result<ProducerTransition, ProducerMachineError> {
         let batch_id = previous.batch_id();
         let batch = self
@@ -140,6 +165,7 @@ impl ProducerMachine {
             retries_started,
             timer_generation,
             retry_deadline,
+            delivery,
         );
 
         Ok(ProducerTransition::from_effects(vec![
@@ -153,6 +179,25 @@ impl ProducerMachine {
                 deadline: retry_deadline,
             },
         ]))
+    }
+
+    pub(crate) fn settle_retry_terminal(
+        &mut self,
+        batch_id: crate::BatchId,
+        failure: ProducerFailure,
+    ) -> Result<ProducerTransition, ProducerMachineError> {
+        let prior_delivery = self
+            .batches
+            .get(&batch_id)
+            .ok_or(ProducerMachineError::UnknownBatch)?
+            .prior_delivery();
+        if prior_delivery == DeliveryStatus::PossiblySent {
+            return self.settle_uncertain_delivery(
+                batch_id,
+                failure.with_delivery(DeliveryStatus::PossiblySent),
+            );
+        }
+        self.settle_batch_failed(batch_id, failure)
     }
 
     fn require_retry_source(

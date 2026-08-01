@@ -35,6 +35,7 @@ fn every_engine_delivery_failure_has_one_stable_facade_category() {
         (EngineFailureKind::ProducerFenced, ErrorKind::Fenced),
         (EngineFailureKind::ProducerIdentity, ErrorKind::State),
         (EngineFailureKind::Transport, ErrorKind::Transport),
+        (EngineFailureKind::InvalidResponse, ErrorKind::Broker),
         (EngineFailureKind::ExecutionUnavailable, ErrorKind::Internal),
         (EngineFailureKind::DeadlineElapsed, ErrorKind::Timeout),
         (EngineFailureKind::UnknownBroker, ErrorKind::Broker),

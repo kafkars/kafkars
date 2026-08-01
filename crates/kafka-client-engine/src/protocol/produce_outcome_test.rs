@@ -9,7 +9,7 @@ use kafka_client_core::{
 };
 use kafka_wire::{
     ProduceResponse,
-    produce_response::{PartitionProduceResponse, TopicProduceResponse},
+    produce_response::{BatchIndexAndErrorMessage, PartitionProduceResponse, TopicProduceResponse},
 };
 
 use super::{
@@ -33,7 +33,7 @@ fn successful_response_becomes_the_correlated_core_success() {
     partition.current_leader.leader_epoch = 9;
 
     assert_eq!(
-        explicit_produce_response_input(EXECUTION, TOPIC, PARTITION, &response),
+        explicit_produce_response_input(EXECUTION, NOW, TOPIC, PARTITION, &response),
         Ok(ProducerInput::BrokerSucceeded {
             execution: EXECUTION,
             success: ProducerBatchSuccess::new(42, Some(1_234), Some(9)),
@@ -47,11 +47,13 @@ fn broker_error_becomes_the_correlated_core_failure() {
     sole_partition_mut(&mut response).error_code = 6;
 
     assert_eq!(
-        explicit_produce_response_input(EXECUTION, TOPIC, PARTITION, &response),
+        explicit_produce_response_input(EXECUTION, NOW, TOPIC, PARTITION, &response),
         Ok(ProducerInput::BrokerFailed {
             execution: EXECUTION,
+            now: NOW,
             failure: ProducerBrokerFailure::new(ProducerBrokerFailureKind::Routing, nonzero(6)),
             delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: false,
         })
     );
 }
@@ -62,9 +64,28 @@ fn structural_mismatch_remains_an_exact_protocol_failure() {
     sole_partition_mut(&mut response).index = 99;
 
     assert_eq!(
-        explicit_produce_response_input(EXECUTION, TOPIC, PARTITION, &response),
+        explicit_produce_response_input(EXECUTION, NOW, TOPIC, PARTITION, &response),
         Err(ProduceResponseFailure::Protocol {
             failure: ProduceResponseProtocolFailure::PartitionIndexMismatch { actual: 99 },
+            delivery: DeliveryStatus::PossiblySent,
+        })
+    );
+}
+
+#[test]
+fn false_success_remains_an_exact_protocol_failure() {
+    let mut response = response();
+    let mut record_error = BatchIndexAndErrorMessage::default();
+    record_error.batch_index = 0;
+    record_error.batch_index_error_message = Some("record rejected".into());
+    sole_partition_mut(&mut response)
+        .record_errors
+        .push(record_error);
+
+    assert_eq!(
+        explicit_produce_response_input(EXECUTION, NOW, TOPIC, PARTITION, &response),
+        Err(ProduceResponseFailure::Protocol {
+            failure: ProduceResponseProtocolFailure::RecordErrorsOnSuccess { actual: 1 },
             delivery: DeliveryStatus::PossiblySent,
         })
     );
@@ -85,6 +106,7 @@ fn transport_failure_preserves_adapter_normalized_delivery_certainty() {
                 now: NOW,
                 failure: ProducerAttemptFailureKind::ConnectionUnavailable,
                 delivery,
+                route_refreshed: false,
             }
         );
     }

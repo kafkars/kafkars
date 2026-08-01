@@ -52,7 +52,9 @@ pub(super) const fn failure_kind(kind: EngineFailureKind) -> ErrorKind {
             ErrorKind::Internal
         }
         EngineFailureKind::Routing => ErrorKind::Routing,
-        EngineFailureKind::BrokerRetriable | EngineFailureKind::UnknownBroker => ErrorKind::Broker,
+        EngineFailureKind::BrokerRetriable
+        | EngineFailureKind::InvalidResponse
+        | EngineFailureKind::UnknownBroker => ErrorKind::Broker,
         EngineFailureKind::AccessRejected => ErrorKind::Access,
         EngineFailureKind::InvalidRecord => ErrorKind::InvalidRecord,
         EngineFailureKind::Compatibility => ErrorKind::Compatibility,
@@ -78,6 +80,7 @@ const fn failure_message(kind: EngineFailureKind) -> &'static str {
         EngineFailureKind::ProducerFenced => "Kafka fenced the producer identity",
         EngineFailureKind::ProducerIdentity => "producer identity requires recovery",
         EngineFailureKind::Transport => "producer transport failed",
+        EngineFailureKind::InvalidResponse => "Kafka returned an invalid producer response",
         EngineFailureKind::ExecutionUnavailable => "producer execution owner is unavailable",
         EngineFailureKind::DeadlineElapsed => "producer delivery deadline elapsed",
         EngineFailureKind::UnknownBroker => "Kafka returned an unknown producer failure",

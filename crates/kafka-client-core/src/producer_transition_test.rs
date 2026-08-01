@@ -249,8 +249,10 @@ fn broker_failure_preserves_semantic_code_and_certainty() {
     let terminal = producer
         .apply(ProducerInput::BrokerFailed {
             execution: execution(batch_id),
+            now: Moment::from_tick(2),
             failure: routing_failure(),
             delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: false,
         })
         .unwrap_or_else(|error| panic!("broker failure failed: {error}"));
     assert!(matches!(

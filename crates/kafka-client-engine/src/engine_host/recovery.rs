@@ -90,7 +90,7 @@ pub(crate) fn recover(
     resources.discard_driver_after_shutdown();
     #[cfg(test)]
     resources.control.record_recovery_driver_released();
-    resources.produce_calls.discard_after_driver_shutdown();
+    resources.produce_calls.recover_after_driver_shutdown();
     resources
         .producer_identity_calls
         .discard_after_driver_shutdown();
@@ -145,6 +145,9 @@ pub(crate) fn recover(
     {
         failure = failure.with_cleanup(cleanup);
     }
+    resources
+        .produce_calls
+        .seal_recovered_after_execution_unavailable();
     if let Some(cleanup) = producer
         .verify_release_before_completion()
         .err()

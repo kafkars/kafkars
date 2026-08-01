@@ -30,6 +30,9 @@ impl ProducerMachine {
                 Ok(resolved(ProducerCancellationOutcome::TooLate, Vec::new()))
             }
             ProducerOperationState::RetryWaiting { batch_id, .. } => {
+                if self.retry_may_have_been_sent(batch_id)? {
+                    return Ok(resolved(ProducerCancellationOutcome::TooLate, Vec::new()));
+                }
                 self.cancel_retry_waiting_member(batch_id, operation_id)
             }
             ProducerOperationState::Accumulating { batch_id, .. } => {
@@ -52,6 +55,9 @@ impl ProducerMachine {
             }
             ProducerOperationState::Materializing { batch_id, .. }
             | ProducerOperationState::AwaitingDriver { batch_id, .. } => {
+                if self.retry_may_have_been_sent(batch_id)? {
+                    return Ok(resolved(ProducerCancellationOutcome::TooLate, Vec::new()));
+                }
                 self.cancel_sealed_member(batch_id, operation_id)
             }
             ProducerOperationState::WaitingForCapacity { .. } => {
@@ -66,6 +72,16 @@ impl ProducerMachine {
                 ))
             }
         }
+    }
+
+    fn retry_may_have_been_sent(
+        &self,
+        batch_id: crate::BatchId,
+    ) -> Result<bool, ProducerMachineError> {
+        self.batches
+            .get(&batch_id)
+            .map(|batch| batch.prior_delivery() == crate::DeliveryStatus::PossiblySent)
+            .ok_or(ProducerMachineError::UnknownBatch)
     }
 
     fn cancel_sealed_member(

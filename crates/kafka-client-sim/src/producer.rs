@@ -1,8 +1,9 @@
 //! Explicit deterministic steps joining producer policy to virtual engine ownership.
 
 use kafka_client_core::{
-    BatchId, ByteCount, Moment, OperationId, PayloadId, ProducerBatchPolicy, ProducerCompletion,
-    ProducerEffect, ProducerInput, ProducerMachine, ProducerRetryPolicy, ProducerTransition,
+    BatchId, ByteCount, FlushId, Moment, OperationId, PayloadId, ProducerBatchPolicy,
+    ProducerCompletion, ProducerEffect, ProducerInput, ProducerMachine, ProducerRetryPolicy,
+    ProducerTransition,
 };
 
 use crate::{SimulationError, VirtualClock, state::VirtualProducerState};
@@ -21,7 +22,7 @@ impl ProducerScenario {
         Self {
             clock: VirtualClock::default(),
             core: ProducerMachine::new(retained_bytes, completion_capacity),
-            engine: VirtualProducerState::default(),
+            engine: VirtualProducerState::new(completion_capacity),
         }
     }
 
@@ -38,7 +39,7 @@ impl ProducerScenario {
                 completion_capacity,
                 batch_policy,
             ),
-            engine: VirtualProducerState::default(),
+            engine: VirtualProducerState::new(completion_capacity),
         }
     }
 
@@ -57,7 +58,7 @@ impl ProducerScenario {
                 batch_policy,
                 retry_policy,
             ),
-            engine: VirtualProducerState::default(),
+            engine: VirtualProducerState::new(completion_capacity),
         }
     }
 
@@ -95,6 +96,13 @@ impl ProducerScenario {
 
     /// Applies one external fact and interprets every ordered core effect.
     pub fn step(&mut self, input: ProducerInput) -> Result<ProducerTransition, SimulationError> {
+        let reserves_flush = matches!(
+            input,
+            ProducerInput::FlushRequested | ProducerInput::CloseRequested
+        );
+        if reserves_flush {
+            self.engine.reserve_flush_completion()?;
+        }
         let reclaimed = match input {
             ProducerInput::CompletionReclaimed { operation_id } => {
                 self.engine.require_released_terminal(operation_id)?;
@@ -102,13 +110,31 @@ impl ProducerScenario {
             }
             _ => None,
         };
-        let transition = self.core.apply(input).map_err(SimulationError::Core)?;
+        let reclaimed_flush = match input {
+            ProducerInput::FlushCompletionReclaimed { flush_id } => {
+                self.engine.require_released_flush(flush_id)?;
+                Some(flush_id)
+            }
+            _ => None,
+        };
+        let transition = match self.core.apply(input) {
+            Ok(transition) => transition,
+            Err(error) => {
+                if reserves_flush {
+                    self.engine.rollback_flush_reservation();
+                }
+                return Err(SimulationError::Core(error));
+            }
+        };
         if let ProducerInput::DriverAccepted { execution } = input {
             self.engine.driver_accepted(execution)?;
         }
         self.interpret_effects(transition.effects())?;
         if let Some(operation_id) = reclaimed {
             self.engine.finish_reclaim(operation_id);
+        }
+        if let Some(flush_id) = reclaimed_flush {
+            self.engine.finish_flush_reclaim(flush_id);
         }
         Ok(transition)
     }
@@ -144,6 +170,11 @@ impl ProducerScenario {
         self.engine.release_terminal(operation_id)
     }
 
+    /// Releases one completed virtual flush result before core reclamation.
+    pub fn release_flush_result(&mut self, flush_id: FlushId) -> Result<(), SimulationError> {
+        self.engine.release_flush(flush_id)
+    }
+
     /// Returns whether the virtual engine still retains this payload.
     pub fn contains_payload(&self, payload_id: PayloadId) -> bool {
         self.engine.contains_payload(payload_id)
@@ -157,6 +188,11 @@ impl ProducerScenario {
     /// Returns the engine-owned terminal result retained for observation.
     pub fn terminal_result(&self, operation_id: OperationId) -> Option<ProducerCompletion> {
         self.engine.terminal(operation_id)
+    }
+
+    /// Returns whether one completed flush result remains retained for observation.
+    pub fn flush_result_is_retained(&self, flush_id: FlushId) -> bool {
+        self.engine.flush_terminal_is_retained(flush_id)
     }
 
     /// Returns driver submissions requested by core policy.
@@ -177,5 +213,10 @@ impl ProducerScenario {
     /// Returns core completion markers, including engine-retained results.
     pub fn completion_slots(&self) -> usize {
         self.core.completion_slots()
+    }
+
+    /// Returns core flush markers, including virtual-engine-retained results.
+    pub fn flush_slots(&self) -> usize {
+        self.core.flush_slots()
     }
 }

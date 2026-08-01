@@ -72,6 +72,17 @@ fn compatibility_attempt_preserves_semantics_and_authoritative_certainty() {
 }
 
 #[test]
+fn invalid_response_attempt_preserves_semantics_and_certainty() {
+    let failure = ProducerFailure::attempt(
+        crate::ProducerAttemptFailureKind::InvalidResponse,
+        DeliveryStatus::PossiblySent,
+    );
+    assert_eq!(failure.kind(), ProducerFailureKind::InvalidResponse);
+    assert_eq!(failure.delivery(), DeliveryStatus::PossiblySent);
+    assert_eq!(failure.broker_code(), None);
+}
+
+#[test]
 fn execution_loss_preserves_the_reported_conservative_certainty() {
     for status in [DeliveryStatus::NotSent, DeliveryStatus::PossiblySent] {
         let failure = ProducerFailure::execution_unavailable(status);

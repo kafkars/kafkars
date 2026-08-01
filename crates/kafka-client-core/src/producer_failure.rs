@@ -27,6 +27,8 @@ pub enum ProducerFailureKind {
     ProducerIdentity,
     /// The transport failed while the request was active.
     Transport,
+    /// Kafka returned a response that could not be correlated as valid success.
+    InvalidResponse,
     /// Production execution stopped permanently before the operation settled.
     ExecutionUnavailable,
     /// The public absolute deadline elapsed before driver ownership.
@@ -92,6 +94,9 @@ impl ProducerFailure {
             crate::ProducerAttemptFailureKind::Compatibility => {
                 Self::new(ProducerFailureKind::Compatibility, delivery)
             }
+            crate::ProducerAttemptFailureKind::InvalidResponse => {
+                Self::new(ProducerFailureKind::InvalidResponse, delivery)
+            }
             crate::ProducerAttemptFailureKind::LocalCapacity
             | crate::ProducerAttemptFailureKind::RouteUnavailable
             | crate::ProducerAttemptFailureKind::NameResolutionUnavailable
@@ -124,6 +129,10 @@ impl ProducerFailure {
             ProducerFailureKind::DeadlineElapsed,
             DeliveryStatus::NotSent,
         )
+    }
+
+    pub(crate) const fn with_delivery(self, delivery: DeliveryStatus) -> Self {
+        Self { delivery, ..self }
     }
 
     /// Creates a terminal for a public deadline elapsed before active admission.

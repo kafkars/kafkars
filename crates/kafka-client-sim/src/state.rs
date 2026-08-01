@@ -6,9 +6,11 @@ mod batch_revision;
 mod batch_revision_test;
 #[cfg(test)]
 mod batch_test;
+mod flush;
 mod retry;
 #[cfg(test)]
 mod retry_test;
+mod terminal;
 
 use std::collections::{BTreeMap, BTreeSet, btree_map::Entry};
 
@@ -29,10 +31,18 @@ pub(crate) struct VirtualProducerState {
     timers: BTreeMap<BatchId, (BatchTimerGeneration, Deadline)>,
     terminals: BTreeMap<OperationId, ProducerCompletion>,
     released_terminals: BTreeSet<OperationId>,
+    flushes: flush::VirtualFlushes,
     trace: Vec<ProducerEffect>,
 }
 
 impl VirtualProducerState {
+    pub(crate) fn new(flush_capacity: usize) -> Self {
+        Self {
+            flushes: flush::VirtualFlushes::new(flush_capacity),
+            ..Self::default()
+        }
+    }
+
     pub(crate) fn retain_payload(
         &mut self,
         payload_id: PayloadId,
@@ -118,9 +128,10 @@ impl VirtualProducerState {
                 operation_id,
                 completion,
             } => self.complete(operation_id, completion)?,
-            ProducerEffect::AcceptFlush { .. } | ProducerEffect::CompleteFlush { .. } => {
-                return Err(SimulationError::FlushControlUnavailable);
+            ProducerEffect::AcceptFlush { flush_id, barrier } => {
+                self.accept_flush(flush_id, barrier)?
             }
+            ProducerEffect::CompleteFlush { flush_id } => self.complete_flush(flush_id)?,
         }
         self.trace.push(effect);
         Ok(())
@@ -143,44 +154,6 @@ impl VirtualProducerState {
         Ok(())
     }
 
-    fn complete(
-        &mut self,
-        operation_id: OperationId,
-        completion: ProducerCompletion,
-    ) -> Result<(), SimulationError> {
-        let payload_retained = self
-            .operation_payloads
-            .get(&operation_id)
-            .is_some_and(|payload_id| self.payloads.contains_key(payload_id));
-        let batch_retained = self
-            .batches
-            .values()
-            .any(|batch| batch.contains(operation_id));
-        if payload_retained || batch_retained {
-            return Err(SimulationError::ResourceStillRetained(operation_id));
-        }
-        self.operation_payloads.remove(&operation_id);
-        match self.terminals.entry(operation_id) {
-            Entry::Occupied(_) => Err(SimulationError::DuplicateTerminal(operation_id)),
-            Entry::Vacant(slot) => {
-                slot.insert(completion);
-                Ok(())
-            }
-        }
-    }
-
-    pub(crate) fn release_terminal(
-        &mut self,
-        operation_id: OperationId,
-    ) -> Result<ProducerCompletion, SimulationError> {
-        let completion = self
-            .terminals
-            .remove(&operation_id)
-            .ok_or(SimulationError::UnknownTerminal(operation_id))?;
-        self.released_terminals.insert(operation_id);
-        Ok(completion)
-    }
-
     pub(crate) fn take_timer_before(
         &mut self,
         target: kafka_client_core::Moment,
@@ -196,30 +169,12 @@ impl VirtualProducerState {
             .map(|(generation, deadline)| (batch_id, generation, deadline))
     }
 
-    pub(crate) fn require_released_terminal(
-        &self,
-        operation_id: OperationId,
-    ) -> Result<(), SimulationError> {
-        self.released_terminals
-            .contains(&operation_id)
-            .then_some(())
-            .ok_or(SimulationError::TerminalStillRetained(operation_id))
-    }
-
-    pub(crate) fn finish_reclaim(&mut self, operation_id: OperationId) {
-        self.released_terminals.remove(&operation_id);
-    }
-
     pub(crate) fn contains_payload(&self, payload_id: PayloadId) -> bool {
         self.payloads.contains_key(&payload_id)
     }
 
     pub(crate) fn contains_batch(&self, batch_id: BatchId) -> bool {
         self.batches.contains_key(&batch_id)
-    }
-
-    pub(crate) fn terminal(&self, operation_id: OperationId) -> Option<ProducerCompletion> {
-        self.terminals.get(&operation_id).copied()
     }
 
     pub(crate) fn trace(&self) -> &[ProducerEffect] {

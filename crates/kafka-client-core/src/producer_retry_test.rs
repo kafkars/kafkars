@@ -14,6 +14,8 @@ fn only_named_structural_availability_failures_are_transient() {
     }
     for permanent in [
         ProducerAttemptFailureKind::Compatibility,
+        ProducerAttemptFailureKind::InvalidResponse,
+        ProducerAttemptFailureKind::Compatibility,
         ProducerAttemptFailureKind::Permanent,
     ] {
         assert!(!permanent.is_structurally_transient());

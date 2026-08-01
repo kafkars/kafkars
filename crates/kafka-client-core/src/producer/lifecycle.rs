@@ -12,6 +12,7 @@ pub(crate) enum Settlement {
     Cancelled,
     Expired,
     Failed(DeliveryStatus),
+    FailedAfterPossibleDelivery,
     Delivered,
 }
 
@@ -188,6 +189,7 @@ impl ProducerMachine {
             Settlement::Cancelled => operation.plan_cancel(),
             Settlement::Expired => operation.plan_expire(),
             Settlement::Failed(delivery) => operation.plan_failed(delivery),
+            Settlement::FailedAfterPossibleDelivery => operation.plan_finish(),
             Settlement::Delivered => operation.plan_delivered(),
         }
         .map_err(ProducerMachineError::Transition)

@@ -55,6 +55,8 @@ mod partitioner;
 mod partitioner_test;
 mod retry;
 #[cfg(test)]
+mod retry_broker_test;
+#[cfg(test)]
 mod retry_cancellation_test;
 #[cfg(test)]
 mod retry_safety_test;

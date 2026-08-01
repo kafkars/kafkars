@@ -1,22 +1,100 @@
 //! Evidence for bounded tracked Produce-call ownership.
 
-use std::time::{Duration, Instant};
+#[cfg(test)]
+mod refresh_deadline_test;
+
+use std::{
+    num::NonZeroI16,
+    time::{Duration, Instant},
+};
 
 use bytes::Bytes;
 use kafka_client_core::{
-    BatchExecutionGeneration, BatchExecutionId, BatchId, DeliveryStatus, Moment, ProducerInput,
+    BatchExecutionGeneration, BatchExecutionId, BatchId, DeliveryStatus, Moment,
+    ProducerBrokerFailure, ProducerBrokerFailureKind, ProducerInput,
 };
 use kafka_driver::RequestError;
 use kafka_wire::{
     ProduceResponse,
-    produce_response::{PartitionProduceResponse, TopicProduceResponse},
+    produce_response::{BatchIndexAndErrorMessage, PartitionProduceResponse, TopicProduceResponse},
 };
 
 use crate::{EngineConfig, clock::OperationDeadline, protocol::produce::MaterializedProduce};
 
-use crate::driver::{DriverOwner, TrackedProduceCalls};
+use crate::driver::{DriverOwner, ProduceRouteRefreshPoll, TrackedProduceCalls};
 
-use super::calls::normalized_terminal_input;
+use super::calls::{mark_route_refreshed, needs_partition_refresh, normalized_terminal_input};
+
+#[test]
+fn transient_transport_loss_uses_exact_route_refresh_when_available() {
+    let execution = execution(7);
+    let mut uncertain = ProducerInput::TransportFailed {
+        execution,
+        now: Moment::from_tick(12),
+        failure: kafka_client_core::ProducerAttemptFailureKind::ConnectionUnavailable,
+        delivery: DeliveryStatus::PossiblySent,
+        route_refreshed: false,
+    };
+    assert!(needs_partition_refresh(uncertain));
+    mark_route_refreshed(&mut uncertain);
+    assert!(!needs_partition_refresh(uncertain));
+    assert!(matches!(
+        uncertain,
+        ProducerInput::TransportFailed {
+            route_refreshed: true,
+            ..
+        }
+    ));
+
+    assert!(needs_partition_refresh(ProducerInput::TransportFailed {
+        execution,
+        now: Moment::from_tick(12),
+        failure: kafka_client_core::ProducerAttemptFailureKind::ConnectionUnavailable,
+        delivery: DeliveryStatus::NotSent,
+        route_refreshed: false,
+    }));
+    assert!(!needs_partition_refresh(ProducerInput::TransportFailed {
+        execution,
+        now: Moment::from_tick(12),
+        failure: kafka_client_core::ProducerAttemptFailureKind::Permanent,
+        delivery: DeliveryStatus::PossiblySent,
+        route_refreshed: false,
+    }));
+}
+
+#[test]
+fn routing_failure_without_exact_partition_receipt_cannot_authorize_retry() {
+    let mut driver = owner();
+    let input = ProducerInput::BrokerFailed {
+        execution: execution(7),
+        now: Moment::from_tick(12),
+        failure: ProducerBrokerFailure::new(
+            ProducerBrokerFailureKind::Routing,
+            NonZeroI16::new(6).unwrap_or_else(|| panic!("routing code is nonzero")),
+        ),
+        delivery: DeliveryStatus::PossiblySent,
+        route_refreshed: false,
+    };
+    let mut calls = TrackedProduceCalls::with_missing_route_refresh_for_test(
+        execution(7),
+        kafka_client_core::Deadline::from_tick(50_000_000),
+        input,
+    );
+    let settled = calls
+        .poll_next_ready(Moment::from_tick(13))
+        .unwrap_or_else(|error| panic!("poll retained terminal: {error}"))
+        .unwrap_or_else(|| panic!("test terminal remains retained"));
+
+    assert_eq!(
+        settled.poll_route_refresh(&driver, Moment::from_tick(13)),
+        ProduceRouteRefreshPoll::Failed
+    );
+    assert_eq!(settled.input(), input);
+    calls.discard_settled();
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
+}
 
 #[test]
 fn permits_preflight_the_exact_bounded_owner() {
@@ -80,8 +158,39 @@ fn structural_response_mismatch_terminalizes_conservatively() {
         ProducerInput::TransportFailed {
             execution: execution(7),
             now: Moment::from_tick(11),
-            failure: kafka_client_core::ProducerAttemptFailureKind::Permanent,
+            failure: kafka_client_core::ProducerAttemptFailureKind::InvalidResponse,
             delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: false,
+        }
+    );
+}
+
+#[test]
+fn invalid_response_false_success_terminalizes_conservatively() {
+    let mut response = success_response("orders", 3);
+    let mut record_error = BatchIndexAndErrorMessage::default();
+    record_error.batch_index = 0;
+    record_error.batch_index_error_message = Some("record rejected".into());
+    response.responses[0].partition_responses[0]
+        .record_errors
+        .push(record_error);
+
+    let input = normalized_terminal_input(
+        execution(7),
+        "orders",
+        3,
+        Moment::from_tick(11),
+        &Ok(response),
+    );
+
+    assert_eq!(
+        input,
+        ProducerInput::TransportFailed {
+            execution: execution(7),
+            now: Moment::from_tick(11),
+            failure: kafka_client_core::ProducerAttemptFailureKind::InvalidResponse,
+            delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: false,
         }
     );
 }
@@ -107,6 +216,7 @@ fn terminal_driver_failure_preserves_execution_time_and_structure() {
             now: Moment::from_tick(12),
             failure: kafka_client_core::ProducerAttemptFailureKind::RouteUnavailable,
             delivery: DeliveryStatus::NotSent,
+            route_refreshed: false,
         }
     );
 }

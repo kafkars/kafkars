@@ -52,6 +52,20 @@ fn failure_certainty_preserves_not_sent_and_possibly_sent() {
         ProducerDeliveryStatus::PossiblySent
     );
 
+    let Err(ProducerDeliveryError::Failed(invalid_response)) =
+        observe(invalid_response_completion())
+    else {
+        panic!("invalid response should be terminal")
+    };
+    assert_eq!(
+        invalid_response.kind(),
+        ProducerDeliveryFailureKind::InvalidResponse
+    );
+    assert_eq!(
+        invalid_response.delivery_status(),
+        ProducerDeliveryStatus::PossiblySent
+    );
+
     let Err(ProducerDeliveryError::Failed(stopped)) = observe(execution_unavailable_completion())
     else {
         panic!("execution loss should be terminal")
@@ -61,6 +75,19 @@ fn failure_certainty_preserves_not_sent_and_possibly_sent() {
         ProducerDeliveryFailureKind::ExecutionUnavailable
     );
     assert_eq!(stopped.delivery_status(), ProducerDeliveryStatus::NotSent);
+}
+
+#[test]
+fn invalid_response_failure_crosses_engine_boundary_without_becoming_transport() {
+    let Err(ProducerDeliveryError::Failed(failure)) = observe(invalid_response_completion()) else {
+        panic!("invalid response should be terminal")
+    };
+    assert_eq!(failure.kind(), ProducerDeliveryFailureKind::InvalidResponse);
+    assert_eq!(
+        failure.delivery_status(),
+        ProducerDeliveryStatus::PossiblySent
+    );
+    assert_eq!(failure.broker_code(), None);
 }
 
 pub(super) fn delivered_completion() -> ProducerCompletion {
@@ -119,6 +146,34 @@ fn possibly_sent_completion() -> ProducerCompletion {
             now: Moment::from_tick(3),
             failure: ProducerAttemptFailureKind::Permanent,
             delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: false,
+        },
+    )
+}
+
+fn invalid_response_completion() -> ProducerCompletion {
+    let (mut machine, batch_id) = materializing_machine();
+    apply(
+        &mut machine,
+        ProducerInput::BatchMaterialized {
+            execution: execution(batch_id),
+            now: Moment::from_tick(2),
+        },
+    );
+    apply(
+        &mut machine,
+        ProducerInput::DriverAccepted {
+            execution: execution(batch_id),
+        },
+    );
+    terminal(
+        &mut machine,
+        ProducerInput::TransportFailed {
+            execution: execution(batch_id),
+            now: Moment::from_tick(3),
+            failure: ProducerAttemptFailureKind::InvalidResponse,
+            delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: false,
         },
     )
 }

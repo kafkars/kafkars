@@ -1,26 +1,26 @@
-//! Scenarios for simulator rejection of unsupported producer effects.
+//! Scenarios for simulator rejection of unowned producer effects.
 
 use kafka_client_core::{AdmissionSequence, FlushId, ProducerEffect};
 
 use crate::{SimulationError, state::VirtualProducerState};
 
 #[test]
-fn flush_effects_are_rejected_until_completion_ownership_is_modeled() {
-    for effect in [
-        ProducerEffect::AcceptFlush {
+fn flush_effects_require_owned_completion_state() {
+    let mut state = VirtualProducerState::default();
+    assert_eq!(
+        state.interpret(ProducerEffect::AcceptFlush {
             flush_id: FlushId::from_raw(1),
             barrier: AdmissionSequence::from_raw(1),
-        },
-        ProducerEffect::CompleteFlush {
+        }),
+        Err(SimulationError::MissingFlushReservation(FlushId::from_raw(
+            1
+        )))
+    );
+    assert_eq!(
+        state.interpret(ProducerEffect::CompleteFlush {
             flush_id: FlushId::from_raw(1),
-        },
-    ] {
-        let mut state = VirtualProducerState::default();
-
-        assert_eq!(
-            state.interpret(effect),
-            Err(SimulationError::FlushControlUnavailable)
-        );
-        assert!(state.trace().is_empty());
-    }
+        }),
+        Err(SimulationError::UnknownFlush(FlushId::from_raw(1)))
+    );
+    assert!(state.trace().is_empty());
 }

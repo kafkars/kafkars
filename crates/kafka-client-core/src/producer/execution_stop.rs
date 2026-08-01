@@ -55,7 +55,7 @@ impl ProducerMachine {
         let mut effects = Vec::with_capacity(effect_capacity);
 
         for (batch_id, batch) in &self.batches {
-            let delivery = delivery_for(batch.state);
+            let delivery = delivery_for(batch.state, batch.prior_delivery());
             if matches!(
                 batch.state,
                 BatchState::Open | BatchState::AwaitingIdentity | BatchState::RetryWaiting
@@ -76,7 +76,14 @@ impl ProducerMachine {
                 if !stage_matches(operation.state(), *batch_id, batch.state) {
                     return Err(invalid_state());
                 }
-                settlements.push((member.operation_id, Settlement::Failed(delivery)));
+                let settlement = if batch.state != BatchState::Submitted
+                    && batch.prior_delivery() == DeliveryStatus::PossiblySent
+                {
+                    Settlement::FailedAfterPossibleDelivery
+                } else {
+                    Settlement::Failed(delivery)
+                };
+                settlements.push((member.operation_id, settlement));
                 payload_operations.push(member.operation_id);
             }
         }
@@ -111,13 +118,17 @@ impl ProducerMachine {
             });
         }
         for (operation_id, settlement) in &settlements {
-            let Settlement::Failed(delivery) = settlement else {
-                return Err(invalid_state());
+            let delivery = match settlement {
+                Settlement::Failed(delivery) => *delivery,
+                Settlement::FailedAfterPossibleDelivery => DeliveryStatus::PossiblySent,
+                Settlement::Cancelled | Settlement::Expired | Settlement::Delivered => {
+                    return Err(invalid_state());
+                }
             };
             effects.push(ProducerEffect::Complete {
                 operation_id: *operation_id,
                 completion: ProducerCompletion::Failed(ProducerFailure::execution_unavailable(
-                    *delivery,
+                    delivery,
                 )),
             });
         }
@@ -140,14 +151,14 @@ impl ProducerMachine {
     }
 }
 
-const fn delivery_for(state: BatchState) -> DeliveryStatus {
+const fn delivery_for(state: BatchState, prior: DeliveryStatus) -> DeliveryStatus {
     match state {
+        BatchState::Submitted => DeliveryStatus::PossiblySent,
         BatchState::Open
         | BatchState::AwaitingIdentity
         | BatchState::Materializing
         | BatchState::AwaitingDriver
-        | BatchState::RetryWaiting => DeliveryStatus::NotSent,
-        BatchState::Submitted => DeliveryStatus::PossiblySent,
+        | BatchState::RetryWaiting => prior,
     }
 }
 

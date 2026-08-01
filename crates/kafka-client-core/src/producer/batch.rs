@@ -1,8 +1,9 @@
 //! Producer-owned topic-partition batch membership and timer state.
 
 use crate::{
-    BatchExecutionGeneration, BatchExecutionId, BatchTimerGeneration, ByteCount, Deadline, Moment,
-    OperationId, PartitionIndex, ProducerBatchPolicy, ProducerSequenceLease, TopicId,
+    BatchExecutionGeneration, BatchExecutionId, BatchTimerGeneration, ByteCount, Deadline,
+    DeliveryStatus, Moment, OperationId, PartitionIndex, ProducerBatchPolicy,
+    ProducerSequenceLease, TopicId,
 };
 
 /// Topic-partition identity for one accumulator.
@@ -44,6 +45,7 @@ pub(crate) struct ProducerBatch {
     pub(crate) members: Vec<BatchMember>,
     pub(crate) execution_generation: Option<BatchExecutionGeneration>,
     pub(crate) retries_started: u32,
+    pub(crate) prior_delivery: DeliveryStatus,
     pub(crate) sequence_lease: Option<ProducerSequenceLease>,
     pub(crate) state: BatchState,
 }
@@ -115,6 +117,7 @@ impl ProducerBatch {
             }],
             execution_generation: None,
             retries_started: 0,
+            prior_delivery: DeliveryStatus::NotSent,
             sequence_lease: None,
             state: BatchState::Open,
         })
@@ -166,5 +169,9 @@ impl ProducerBatch {
 
     pub(crate) const fn sequence_lease(&self) -> Option<ProducerSequenceLease> {
         self.sequence_lease
+    }
+
+    pub(crate) const fn prior_delivery(&self) -> DeliveryStatus {
+        self.prior_delivery
     }
 }

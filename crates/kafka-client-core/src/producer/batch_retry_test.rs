@@ -25,7 +25,13 @@ fn retry_commit_replaces_every_attempt_identity_in_one_owner() {
     let timer_generation = BatchTimerGeneration::from_raw(4);
     let retry_deadline = Deadline::from_tick(8);
 
-    batch.commit_retry_waiting(replacement, 1, timer_generation, retry_deadline);
+    batch.commit_retry_waiting(
+        replacement,
+        1,
+        timer_generation,
+        retry_deadline,
+        crate::DeliveryStatus::NotSent,
+    );
 
     assert_eq!(batch.execution_generation, Some(replacement));
     assert_eq!(batch.retries_started, 1);

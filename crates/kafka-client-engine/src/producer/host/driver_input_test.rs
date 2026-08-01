@@ -220,6 +220,7 @@ fn live_possibly_sent_failure_never_creates_replacement() {
             now: Moment::from_tick(3),
             failure: ProducerAttemptFailureKind::LocalCapacity,
             delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: false,
         },
     )
     .unwrap_or_else(|error| panic!("terminal transport fact failed: {error}"));

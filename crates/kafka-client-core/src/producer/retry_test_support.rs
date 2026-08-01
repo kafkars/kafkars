@@ -122,6 +122,7 @@ pub(crate) fn transient_failure(
             now: Moment::from_tick(now),
             failure: crate::ProducerAttemptFailureKind::ConnectionUnavailable,
             delivery: crate::DeliveryStatus::NotSent,
+            route_refreshed: false,
         })
         .unwrap_or_else(|error| panic!("transient failure failed: {error}"))
 }

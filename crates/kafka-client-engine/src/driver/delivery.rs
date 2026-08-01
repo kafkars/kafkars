@@ -24,7 +24,7 @@ pub(crate) const fn request_failure_kind(error: &RequestError) -> ProducerAttemp
         | RequestError::ApiUnavailable { .. }
         | RequestError::VersionLimitUnavailable { .. }
         | RequestError::VersionFloorUnavailable { .. } => ProducerAttemptFailureKind::Compatibility,
-        RequestError::Rejected { failure, delivery } => rejected_failure_kind(*failure, *delivery),
+        RequestError::Rejected { failure, .. } => rejected_failure_kind(*failure),
         // The public driver surface does not yet expose the sanitized DNS
         // variant, so the engine cannot safely identify temporary failures.
         RequestError::NameResolutionFailed { .. }
@@ -38,10 +38,7 @@ pub(crate) const fn request_failure_kind(error: &RequestError) -> ProducerAttemp
     }
 }
 
-const fn rejected_failure_kind(
-    failure: CallFailure,
-    delivery: Delivery,
-) -> ProducerAttemptFailureKind {
+const fn rejected_failure_kind(failure: CallFailure) -> ProducerAttemptFailureKind {
     match failure {
         CallFailure::CapacityReached { .. }
         | CallFailure::CorrelationSpaceExhausted
@@ -50,13 +47,10 @@ const fn rejected_failure_kind(
             ProducerAttemptFailureKind::ConnectionUnavailable
         }
         CallFailure::ConnectionClosed {
-            reason: ConnectionCloseReason::OpenFailed(_) | ConnectionCloseReason::TransportLost(_),
-        } if matches!(delivery, Delivery::NotSent) => {
-            ProducerAttemptFailureKind::ConnectionUnavailable
-        }
-        CallFailure::ConnectionClosed {
             reason:
-                ConnectionCloseReason::NegotiationFailed(
+                ConnectionCloseReason::OpenFailed(_)
+                | ConnectionCloseReason::TransportLost(_)
+                | ConnectionCloseReason::NegotiationFailed(
                     NegotiationFailure::Broker
                     | NegotiationFailure::Capacity
                     | NegotiationFailure::Timeout,

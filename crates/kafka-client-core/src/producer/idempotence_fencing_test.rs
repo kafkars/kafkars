@@ -22,15 +22,25 @@ fn ambiguous_batch_fences_second_submitted_batch_out_of_retry() {
     accumulate(&mut producer, second_operation, second_batch, 1);
     submit(&mut producer, second_batch);
 
-    producer
+    let invalid = producer
         .apply(ProducerInput::TransportFailed {
             execution: execution(first_batch),
             now: Moment::from_tick(2),
-            failure: ProducerAttemptFailureKind::ConnectionUnavailable,
+            failure: ProducerAttemptFailureKind::InvalidResponse,
             delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: false,
         })
         .unwrap_or_else(|error| panic!("ambiguous failure must fence: {error}"));
     assert!(!producer.admission_is_open());
+    assert!(invalid.effects().iter().any(|effect| matches!(
+        effect,
+        ProducerEffect::Complete {
+            operation_id,
+            completion: crate::ProducerCompletion::Failed(failure),
+        } if *operation_id == first_operation
+            && failure.kind() == ProducerFailureKind::InvalidResponse
+            && failure.delivery() == DeliveryStatus::PossiblySent
+    )));
 
     let second = producer
         .apply(ProducerInput::TransportFailed {
@@ -38,6 +48,7 @@ fn ambiguous_batch_fences_second_submitted_batch_out_of_retry() {
             now: Moment::from_tick(3),
             failure: ProducerAttemptFailureKind::ConnectionUnavailable,
             delivery: DeliveryStatus::NotSent,
+            route_refreshed: false,
         })
         .unwrap_or_else(|error| panic!("post-fence failure must settle: {error}"));
     assert!(second.effects().iter().all(|effect| !matches!(
@@ -68,6 +79,7 @@ fn ambiguous_batch_fences_second_submitted_batch_out_of_retry() {
                 now: Moment::from_tick(4),
                 failure: ProducerAttemptFailureKind::ConnectionUnavailable,
                 delivery: DeliveryStatus::NotSent,
+                route_refreshed: false,
             })
             .is_ok_and(|transition| transition.effects().is_empty())
     );
@@ -108,6 +120,7 @@ fn authoritative_success_after_another_batch_fences_still_delivers_once() {
             now: Moment::from_tick(2),
             failure: ProducerAttemptFailureKind::ConnectionUnavailable,
             delivery: DeliveryStatus::PossiblySent,
+            route_refreshed: false,
         })
         .unwrap_or_else(|error| panic!("ambiguous failure must fence: {error}"));
     let delivered = producer

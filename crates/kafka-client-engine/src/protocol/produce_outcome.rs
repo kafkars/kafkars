@@ -14,6 +14,7 @@ use super::produce_response::{ProduceResponseFailure, normalize_explicit_produce
 /// normalizer's conservative delivery certainty.
 pub(crate) fn explicit_produce_response_input(
     execution: BatchExecutionId,
+    now: Moment,
     expected_topic: &str,
     expected_partition: i32,
     response: &ProduceResponse,
@@ -23,8 +24,10 @@ pub(crate) fn explicit_produce_response_input(
         Err(ProduceResponseFailure::Broker { failure, delivery }) => {
             Ok(ProducerInput::BrokerFailed {
                 execution,
+                now,
                 failure,
                 delivery,
+                route_refreshed: false,
             })
         }
         Err(failure @ ProduceResponseFailure::Protocol { .. }) => Err(failure),
@@ -43,5 +46,6 @@ pub(crate) const fn produce_transport_failure_input(
         now,
         failure,
         delivery,
+        route_refreshed: false,
     }
 }

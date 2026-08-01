@@ -54,6 +54,7 @@ fn completion_polling_waits_without_consuming_when_the_shard_is_contended() {
     let mut identity_calls = crate::driver::TrackedProducerIdentityCalls::new();
     let mut partitioning_call = None;
     let progress = apply_completions(
+        &driver,
         &producer,
         &mut identity_calls,
         &mut partitioning_call,

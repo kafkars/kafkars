@@ -3,7 +3,7 @@
 use core::fmt;
 
 use kafka_client_core::{
-    BatchExecutionId, BatchId, ByteCount, OperationId, PayloadId, ProducerMachineError,
+    BatchExecutionId, BatchId, ByteCount, FlushId, OperationId, PayloadId, ProducerMachineError,
 };
 
 use crate::VirtualClockError;
@@ -57,8 +57,36 @@ pub enum SimulationError {
     UnknownTerminal(OperationId),
     /// Core reclamation was reported before the engine released its result.
     TerminalStillRetained(OperationId),
-    /// Flush effects require completion ownership the simulator does not model.
-    FlushControlUnavailable,
+    /// Every virtual flush completion destination is retained or reserved.
+    FlushCompletionCapacity,
+    /// Core accepted a flush without one pre-reserved virtual destination.
+    MissingFlushReservation(FlushId),
+    /// One flush identity was accepted more than once.
+    DuplicateFlush(FlushId),
+    /// Accepted flush identities or barriers moved backwards.
+    FlushAcceptanceOutOfOrder {
+        /// Latest previously accepted flush.
+        previous: FlushId,
+        /// Flush named by the new acceptance.
+        actual: FlushId,
+    },
+    /// Completion named a flush the virtual engine does not own.
+    UnknownFlush(FlushId),
+    /// One flush reached terminal publication more than once.
+    DuplicateFlushCompletion(FlushId),
+    /// A later pending barrier completed before an earlier pending barrier.
+    FlushCompletionOutOfOrder {
+        /// Earliest pending flush.
+        expected: FlushId,
+        /// Flush named by the completion.
+        actual: FlushId,
+    },
+    /// The engine attempted to release a pending flush result.
+    FlushNotCompleted(FlushId),
+    /// The engine attempted to release one flush result twice.
+    FlushAlreadyReleased(FlushId),
+    /// Core reclamation was reported before the virtual flush result was released.
+    FlushTerminalStillRetained(FlushId),
 }
 
 impl fmt::Display for SimulationError {
@@ -102,8 +130,29 @@ impl fmt::Display for SimulationError {
             Self::TerminalStillRetained(_) => {
                 formatter.write_str("terminal result remains retained by the virtual engine")
             }
-            Self::FlushControlUnavailable => {
-                formatter.write_str("virtual producer flush completion is not implemented")
+            Self::FlushCompletionCapacity => {
+                formatter.write_str("virtual flush completion capacity is exhausted")
+            }
+            Self::MissingFlushReservation(_) => {
+                formatter.write_str("virtual flush owns no completion reservation")
+            }
+            Self::DuplicateFlush(_) => formatter.write_str("duplicate virtual flush acceptance"),
+            Self::FlushAcceptanceOutOfOrder { .. } => {
+                formatter.write_str("virtual flush acceptance moved backwards")
+            }
+            Self::UnknownFlush(_) => formatter.write_str("unknown virtual flush"),
+            Self::DuplicateFlushCompletion(_) => {
+                formatter.write_str("duplicate virtual flush completion")
+            }
+            Self::FlushCompletionOutOfOrder { .. } => {
+                formatter.write_str("virtual flush completion is out of barrier order")
+            }
+            Self::FlushNotCompleted(_) => formatter.write_str("virtual flush is not completed"),
+            Self::FlushAlreadyReleased(_) => {
+                formatter.write_str("virtual flush result was already released")
+            }
+            Self::FlushTerminalStillRetained(_) => {
+                formatter.write_str("virtual flush result remains retained")
             }
         }
     }

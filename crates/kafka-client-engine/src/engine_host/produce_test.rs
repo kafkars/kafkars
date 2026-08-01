@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use kafka_client_core::{ByteCount, Deadline, Moment, ProducerBatchPolicy};
+use kafka_client_core::{ByteCount, Deadline, Moment, ProducerBatchPolicy, ProducerInput};
 
 use crate::{
     EngineConfig, ProducerCancellationOutcome, ProducerDeliveryError, ProducerDeliveryFailureKind,
@@ -24,6 +24,36 @@ use super::produce::{admit_identity, admit_one, apply_ready};
 
 const DRIVER_TURN_LIMIT: usize = 256;
 const DRIVER_TURN_WAIT: Duration = Duration::from_millis(10);
+
+#[test]
+fn submitted_refresh_progresses_once_but_pending_or_rejected_refresh_does_not_spin() {
+    let (producer, observer) = prepared_producer();
+    let mut driver = driver();
+    let mut calls = TrackedProduceCalls::with_submit_then_pending_refresh_for_test(
+        kafka_client_core::BatchExecutionId::new(
+            kafka_client_core::BatchId::from_raw(1),
+            kafka_client_core::BatchExecutionGeneration::initial(),
+        ),
+        Deadline::from_tick(100),
+        ProducerInput::ExecutionUnavailable,
+    );
+    let mut data = producer
+        .try_data()
+        .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
+
+    assert!(
+        apply_ready(&driver, &mut calls, &mut data, Moment::from_tick(2), 1)
+            .unwrap_or_else(|error| panic!("submit route refresh: {error}"))
+    );
+    assert!(
+        !apply_ready(&driver, &mut calls, &mut data, Moment::from_tick(3), 1)
+            .unwrap_or_else(|error| panic!("poll pending route refresh: {error}"))
+    );
+    assert_eq!(calls.retained_count(), 1);
+
+    drop((data, observer, calls));
+    shutdown(&mut driver);
+}
 
 #[test]
 fn accepted_call_is_retained_before_core_reports_submitted() {
@@ -125,7 +155,7 @@ fn terminal_fact_is_applied_before_the_tracked_slot_is_released() {
         let mut data = producer
             .try_data()
             .unwrap_or_else(|error| panic!("lock producer shard: {error:?}"));
-        if apply_ready(&mut calls, &mut data, Moment::from_tick(3), 1)
+        if apply_ready(&driver, &mut calls, &mut data, Moment::from_tick(3), 1)
             .unwrap_or_else(|error| panic!("apply Produce terminal: {error}"))
         {
             settled = true;

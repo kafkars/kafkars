@@ -78,15 +78,23 @@ impl ProducerMachine {
             }
             ProducerInput::BrokerFailed {
                 execution,
+                now,
                 failure,
                 delivery,
-            } => self.broker_failed(execution, failure, delivery),
+                route_refreshed,
+            } => self.broker_failed(execution, now, failure, delivery, route_refreshed),
+            ProducerInput::RouteRefreshDeadlineElapsed {
+                execution,
+                now,
+                delivery,
+            } => self.route_refresh_deadline_elapsed(execution, now, delivery),
             ProducerInput::TransportFailed {
                 execution,
                 now,
                 failure,
                 delivery,
-            } => self.transport_failed(execution, now, failure, delivery),
+                route_refreshed,
+            } => self.transport_failed(execution, now, failure, delivery, route_refreshed),
             ProducerInput::ExecutionUnavailable => self.execution_unavailable(),
             ProducerInput::FlushRequested => self.flush_requested(),
             ProducerInput::CloseRequested => self.close_requested(),

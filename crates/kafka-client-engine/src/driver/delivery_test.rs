@@ -111,7 +111,7 @@ fn only_recoverable_connection_shapes_are_transient() {
 }
 
 #[test]
-fn possibly_sent_transport_loss_is_not_structurally_retryable() {
+fn possibly_sent_transport_loss_is_transient_but_keeps_delivery_uncertain() {
     let error = RequestError::Rejected {
         failure: CallFailure::ConnectionClosed {
             reason: ConnectionCloseReason::TransportLost(TransportFailure::Reset),
@@ -121,7 +121,7 @@ fn possibly_sent_transport_loss_is_not_structurally_retryable() {
 
     assert_eq!(
         request_failure_kind(&error),
-        ProducerAttemptFailureKind::Permanent
+        ProducerAttemptFailureKind::ConnectionUnavailable
     );
     assert_eq!(
         request_failure_delivery(&error),

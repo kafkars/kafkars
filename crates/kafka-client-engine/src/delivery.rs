@@ -88,6 +88,8 @@ pub enum ProducerDeliveryFailureKind {
     ProducerIdentity,
     /// The transport failed while the request was active.
     Transport,
+    /// Kafka returned a response that could not be correlated as valid success.
+    InvalidResponse,
     /// The engine execution owner stopped before delivery settled.
     ExecutionUnavailable,
     /// The absolute delivery deadline elapsed before driver ownership.
@@ -110,6 +112,7 @@ impl ProducerDeliveryFailureKind {
             CoreProducerFailureKind::ProducerFenced => Self::ProducerFenced,
             CoreProducerFailureKind::ProducerIdentity => Self::ProducerIdentity,
             CoreProducerFailureKind::Transport => Self::Transport,
+            CoreProducerFailureKind::InvalidResponse => Self::InvalidResponse,
             CoreProducerFailureKind::ExecutionUnavailable => Self::ExecutionUnavailable,
             CoreProducerFailureKind::DeadlineElapsed => Self::DeadlineElapsed,
             CoreProducerFailureKind::UnknownBroker => Self::UnknownBroker,

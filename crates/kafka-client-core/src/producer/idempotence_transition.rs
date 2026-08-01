@@ -127,9 +127,12 @@ impl ProducerMachine {
         batch_id: BatchId,
         failure: ProducerFailure,
     ) -> Result<ProducerTransition, ProducerMachineError> {
-        self.require_batch_state(batch_id, BatchState::Submitted)?;
         let mut failures = vec![(batch_id, failure)];
-        failures.extend(self.pre_driver_batch_failures(ProducerFailure::producer_identity(None)));
+        failures.extend(
+            self.pre_driver_batch_failures(ProducerFailure::producer_identity(None))
+                .into_iter()
+                .filter(|(other_batch_id, _failure)| *other_batch_id != batch_id),
+        );
         let plan = self.plan_batch_failures(&failures)?;
         let transition = self.commit_batch_failures(plan)?;
         self.idempotence.fence();

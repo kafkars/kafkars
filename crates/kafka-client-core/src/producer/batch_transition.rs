@@ -217,11 +217,15 @@ impl ProducerBatch {
         retries_started: u32,
         timer_generation: BatchTimerGeneration,
         timer_deadline: Deadline,
+        delivery: crate::DeliveryStatus,
     ) {
         self.execution_generation = Some(execution_generation);
         self.retries_started = retries_started;
         self.timer_generation = timer_generation;
         self.timer_deadline = timer_deadline;
+        if delivery == crate::DeliveryStatus::PossiblySent {
+            self.prior_delivery = delivery;
+        }
         self.state = BatchState::RetryWaiting;
     }
 }

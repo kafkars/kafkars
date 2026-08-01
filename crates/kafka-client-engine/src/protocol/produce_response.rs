@@ -67,6 +67,13 @@ pub(crate) enum ProduceResponseProtocolFailure {
         /// Observed partition index.
         actual: i32,
     },
+    /// A zero-code partition response still reported per-record failures.
+    RecordErrorsOnSuccess {
+        /// Observed number of per-record failures.
+        actual: usize,
+    },
+    /// A zero-code partition response still carried a partition failure message.
+    ErrorMessageOnSuccess,
     /// A successful response carried an impossible negative base offset.
     NegativeBaseOffset {
         /// Observed base offset.
@@ -113,6 +120,18 @@ pub(crate) fn normalize_explicit_produce_response(
 
     if let Some(failure) = normalize_produce_failure(partition) {
         return Err(ProduceResponseFailure::broker(failure));
+    }
+    if !partition.record_errors.is_empty() {
+        return Err(ProduceResponseFailure::protocol(
+            ProduceResponseProtocolFailure::RecordErrorsOnSuccess {
+                actual: partition.record_errors.len(),
+            },
+        ));
+    }
+    if partition.error_message.is_some() {
+        return Err(ProduceResponseFailure::protocol(
+            ProduceResponseProtocolFailure::ErrorMessageOnSuccess,
+        ));
     }
     if partition.base_offset < 0 {
         return Err(ProduceResponseFailure::protocol(

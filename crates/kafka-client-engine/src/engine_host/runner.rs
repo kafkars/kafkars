@@ -86,6 +86,7 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
         };
         let completion_now = resources.clock.now().map_err(EngineHostError::Clock)?;
         let completion_progress = produce_turn::apply_completions(
+            driver,
             &resources.producer,
             &mut resources.producer_identity_calls,
             &mut resources.producer_partitioning_call,

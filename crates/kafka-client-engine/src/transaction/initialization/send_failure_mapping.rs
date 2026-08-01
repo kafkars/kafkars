@@ -136,6 +136,7 @@ const fn attempt_failure_kind(
         ProducerAttemptFailureKind::ConnectionUnavailable => {
             TransactionSendFailureKind::ConnectionUnavailable
         }
+        ProducerAttemptFailureKind::InvalidResponse => TransactionSendFailureKind::InvalidResponse,
         ProducerAttemptFailureKind::Compatibility => TransactionSendFailureKind::Compatibility,
         ProducerAttemptFailureKind::Permanent => TransactionSendFailureKind::Permanent,
     };

@@ -5,7 +5,9 @@ mod partitioning;
 use kafka_client_core::{Moment, ProducerInput};
 
 use crate::{
-    driver::{DriverOwner, TrackedProduceCalls, TrackedProducerIdentityCalls},
+    driver::{
+        DriverOwner, ProduceRouteRefreshPoll, TrackedProduceCalls, TrackedProducerIdentityCalls,
+    },
     producer::ingress::ProducerShardData,
 };
 
@@ -92,6 +94,7 @@ pub(super) fn admit_one(
 
 /// Applies at most `budget` terminal driver facts under the shard guard.
 pub(super) fn apply_ready(
+    driver: &DriverOwner,
     calls: &mut TrackedProduceCalls,
     data: &mut ProducerShardData,
     now: Moment,
@@ -105,6 +108,15 @@ pub(super) fn apply_ready(
         else {
             break;
         };
+        match settled.poll_route_refresh(driver, now) {
+            ProduceRouteRefreshPoll::Ready => {}
+            ProduceRouteRefreshPoll::Failed => {}
+            ProduceRouteRefreshPoll::Submitted => {
+                progress = true;
+                break;
+            }
+            ProduceRouteRefreshPoll::Pending => break,
+        }
         data.apply_produce_driver_input(now, settled.input())
             .map_err(EngineHostError::Producer)?;
         calls.discard_settled();
