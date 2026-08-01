@@ -1,10 +1,10 @@
 //! Normalized facts accepted by one KIP-848 membership owner.
 
-use crate::{Deadline, GroupAssignmentPartition, MemberId, Moment};
+use crate::{AssignmentGeneration, Deadline, GroupAssignmentPartition, MemberId, Moment};
 
 use super::{
-    ConsumerGroupHeartbeatAttempt, ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatSchedule,
-    ConsumerGroupMemberEpoch,
+    ConsumerGroupHeartbeatAttempt, ConsumerGroupHeartbeatFailure,
+    ConsumerGroupHeartbeatRetrySchedule, ConsumerGroupHeartbeatSchedule, ConsumerGroupMemberEpoch,
 };
 
 /// One explicit KIP-848 lifecycle fact without protocol or transport vocabulary.
@@ -41,11 +41,56 @@ pub enum ConsumerGroupHeartbeatInput {
         /// Ordered assignment when changed; absence means retain the live assignment.
         assignment: Option<Vec<GroupAssignmentPartition>>,
     },
+    /// Confirms exact engine retirement of the still-reportable prior assignment.
+    AssignmentRetired {
+        /// Current monotonic observation starting the immediate acknowledgement attempt.
+        now: Moment,
+        /// Exact retained member identity.
+        member_id: MemberId,
+        /// Exact broker epoch paired with the pending target.
+        member_epoch: ConsumerGroupMemberEpoch,
+        /// Exact prior assignment generation whose ownership is now empty.
+        assignment_generation: AssignmentGeneration,
+    },
     /// Applies one exact terminal join or steady heartbeat failure.
     HeartbeatFailed {
         /// Exact in-flight request identity.
         attempt: ConsumerGroupHeartbeatAttempt,
         /// Stable normalized failure category.
+        failure: ConsumerGroupHeartbeatFailure,
+    },
+    /// Requests one bounded replacement of the exact in-flight heartbeat after coordinator loss.
+    RetryHeartbeat {
+        /// Exact in-flight request identity; replacements never allocate another attempt.
+        attempt: ConsumerGroupHeartbeatAttempt,
+        /// Current monotonic observation used against the original attempt deadline.
+        now: Moment,
+        /// Normalized failure; only exact coordinator-unavailability categories authorize replacement.
+        failure: ConsumerGroupHeartbeatFailure,
+    },
+    /// Schedules the exact in-flight request after Kafka reports a loading coordinator.
+    RetryCoordinatorLoad {
+        /// Exact in-flight Join, Steady, or Leave request identity.
+        attempt: ConsumerGroupHeartbeatAttempt,
+        /// Current monotonic observation used against the original attempt deadline.
+        now: Moment,
+        /// Exact broker response; only `COORDINATOR_LOAD_IN_PROGRESS` authorizes this retry.
+        failure: ConsumerGroupHeartbeatFailure,
+    },
+    /// Observes one exact coordinator-load backoff deadline.
+    CoordinatorLoadRetryDue {
+        /// Full core-issued retry schedule.
+        schedule: ConsumerGroupHeartbeatRetrySchedule,
+        /// Current monotonic observation proving backoff expiry.
+        now: Moment,
+    },
+    /// Abandons a fenced steady membership and rejoins with the retained member identity.
+    RecoverFencedMembership {
+        /// Exact in-flight steady request identity that received the fencing response.
+        attempt: ConsumerGroupHeartbeatAttempt,
+        /// Current monotonic observation supplied by the interpreter.
+        now: Moment,
+        /// Exact fencing response; only unknown-member and fenced-epoch broker codes recover.
         failure: ConsumerGroupHeartbeatFailure,
     },
     /// Begins an epoch-minus-one leave heartbeat under an explicit close deadline.

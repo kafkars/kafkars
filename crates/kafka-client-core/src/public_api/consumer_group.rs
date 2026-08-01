@@ -6,6 +6,6 @@ pub use crate::consumer::{
     ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatFatal, ConsumerGroupHeartbeatInput,
     ConsumerGroupHeartbeatMachine, ConsumerGroupHeartbeatPhase, ConsumerGroupHeartbeatPolicy,
     ConsumerGroupHeartbeatPolicyError, ConsumerGroupHeartbeatRequestKind,
-    ConsumerGroupHeartbeatSchedule, ConsumerGroupHeartbeatSequence,
-    ConsumerGroupHeartbeatTransition, ConsumerGroupMemberEpoch,
+    ConsumerGroupHeartbeatRetrySchedule, ConsumerGroupHeartbeatSchedule,
+    ConsumerGroupHeartbeatSequence, ConsumerGroupHeartbeatTransition, ConsumerGroupMemberEpoch,
 };

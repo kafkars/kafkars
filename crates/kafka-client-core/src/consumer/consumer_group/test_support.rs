@@ -25,6 +25,89 @@ pub(super) fn joining() -> (ConsumerGroupHeartbeatMachine, ConsumerGroupHeartbea
     (machine, attempt)
 }
 
+pub(super) fn heartbeating() -> (ConsumerGroupHeartbeatMachine, ConsumerGroupHeartbeatAttempt) {
+    let (mut machine, attempt) = joining();
+    let _ = succeed(
+        &mut machine,
+        attempt,
+        20,
+        1,
+        5,
+        0,
+        Some(vec![partition(1, 0)]),
+    );
+    let schedule = machine
+        .schedule()
+        .unwrap_or_else(|| panic!("armed heartbeat"));
+    let transition = machine
+        .apply(ConsumerGroupHeartbeatInput::HeartbeatDue {
+            schedule,
+            now: moment(schedule.deadline().tick()),
+        })
+        .unwrap_or_else(|error| panic!("due heartbeat: {error}"));
+    let Some(ConsumerGroupHeartbeatEffect::Submit { attempt, .. }) =
+        transition.into_effects().next()
+    else {
+        panic!("steady heartbeat attempt")
+    };
+    (machine, attempt)
+}
+
+pub(super) fn staged_reconciliation() -> ConsumerGroupHeartbeatMachine {
+    let (mut machine, attempt) = joining();
+    let _ = succeed(
+        &mut machine,
+        attempt,
+        20,
+        1,
+        5,
+        0,
+        Some(vec![partition(1, 0)]),
+    );
+    let attempt = due_attempt(&mut machine);
+    let transition = succeed(
+        &mut machine,
+        attempt,
+        26,
+        2,
+        5,
+        0,
+        Some(vec![partition(1, 1)]),
+    );
+    let effects = transition.into_effects().collect::<Vec<_>>();
+    assert!(matches!(
+        effects.as_slice(),
+        [ConsumerGroupHeartbeatEffect::Reconcile {
+            previous: Some(previous),
+            assignment,
+            member_epoch,
+            schedule,
+        }] if previous.assignment_generation().get() == 1
+            && assignment.assignment_generation().get() == 2
+            && *member_epoch == epoch(2)
+            && schedule.assignment_generation().get() == 1
+    ));
+    machine
+}
+
+pub(super) fn due_attempt(
+    machine: &mut ConsumerGroupHeartbeatMachine,
+) -> ConsumerGroupHeartbeatAttempt {
+    let schedule = machine.schedule().unwrap_or_else(|| panic!("schedule"));
+    let transition = machine
+        .apply(ConsumerGroupHeartbeatInput::HeartbeatDue {
+            schedule,
+            now: moment(schedule.deadline().tick()),
+        })
+        .unwrap_or_else(|error| panic!("heartbeat due: {error}"));
+    let Some(ConsumerGroupHeartbeatEffect::Submit { attempt, .. }) =
+        transition.into_effects().next()
+    else {
+        panic!("steady attempt")
+    };
+    attempt
+}
+
 #[expect(
     clippy::too_many_arguments,
     reason = "test names every normalized broker scalar"

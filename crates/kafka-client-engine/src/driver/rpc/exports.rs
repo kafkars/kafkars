@@ -22,7 +22,7 @@ pub(crate) use super::classic_group_position_reset_adapter::{
 };
 pub(crate) use super::consumer_group_heartbeat_adapter::{
     ConsumerGroupHeartbeatCall, ConsumerGroupHeartbeatCompletionError,
-    ConsumerGroupHeartbeatResolution,
+    ConsumerGroupHeartbeatResolution, ConsumerGroupHeartbeatRoute,
 };
 pub(crate) use super::consumer_group_heartbeat_failure::ConsumerGroupHeartbeatDriverFailureKind;
 pub(crate) use super::consumer_group_heartbeat_submission::ConsumerGroupHeartbeatSubmitErrorKind;

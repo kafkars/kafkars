@@ -10,6 +10,8 @@ mod apply;
 mod broker_batch;
 #[path = "fetch_execution/broker_close.rs"]
 mod broker_close;
+#[cfg(test)]
+mod broker_close_test;
 #[path = "fetch_execution/broker_execution.rs"]
 mod broker_execution;
 #[cfg(test)]

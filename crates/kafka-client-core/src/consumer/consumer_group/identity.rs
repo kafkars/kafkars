@@ -68,7 +68,7 @@ impl ConsumerGroupHeartbeatAttempt {
         self.sequence
     }
 
-    /// Returns the exact stable epoch sent by this attempt, absent for initial join.
+    /// Returns the exact stable epoch sent by this attempt, absent for an epoch-zero Join.
     pub const fn member_epoch(self) -> Option<ConsumerGroupMemberEpoch> {
         self.member_epoch
     }

@@ -21,6 +21,18 @@ pub enum ConsumerGroupHeartbeatErrorKind {
     AssignmentGenerationExhausted,
     /// The supplied request identity is not currently owned.
     AttemptMismatch,
+    /// The normalized failure does not authorize a coordinator-rediscovery replacement.
+    FailureNotRetryable,
+    /// The normalized failure does not authorize a fenced-membership recovery Join.
+    FailureNotRecoverable,
+    /// The normalized failure is not exact `COORDINATOR_LOAD_IN_PROGRESS`.
+    FailureNotCoordinatorLoad,
+    /// Another fact cannot settle the request while its coordinator-load retry is waiting.
+    CoordinatorLoadRetryPending,
+    /// The supplied coordinator-load retry schedule is not currently owned.
+    CoordinatorLoadRetryScheduleMismatch,
+    /// A coordinator-load retry observation arrived before its exact backoff deadline.
+    CoordinatorLoadRetryNotDue,
     /// The supplied cadence schedule is not currently owned.
     ScheduleMismatch,
     /// A cadence observation arrived before its exact deadline.
@@ -33,6 +45,10 @@ pub enum ConsumerGroupHeartbeatErrorKind {
     ChangedEpochMissingAssignment,
     /// An unchanged member epoch attempted to change assignment.
     AssignmentChangedWithoutEpoch,
+    /// A pending reconciliation unexpectedly changed broker member epoch.
+    ReconciliationEpochChanged,
+    /// Retirement did not match the exact pending member and current assignment fence.
+    ReconciliationMismatch,
     /// Initial join did not provide an assignment.
     InitialAssignmentMissing,
     /// The broker returned a zero heartbeat interval.

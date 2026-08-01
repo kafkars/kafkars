@@ -2,7 +2,7 @@
 
 use kafka_client_core::{
     ConsumerGroupHeartbeatEffect, ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatInput,
-    ConsumerGroupHeartbeatPhase, ConsumerGroupHeartbeatRequestKind, LiveGroupAssignment,
+    ConsumerGroupHeartbeatPhase, ConsumerGroupHeartbeatRequestKind, LiveGroupAssignment, Moment,
 };
 
 use super::{
@@ -10,6 +10,14 @@ use super::{
     consumer_group_execution::{ConsumerGroupExecution, ConsumerGroupExecutionError},
     registry_entry::GroupConsumerEntry,
 };
+
+#[derive(Debug, Eq, PartialEq)]
+pub(super) enum ConsumerGroupRediscoveryDecision {
+    Rediscover,
+    Terminal {
+        revoked: Option<LiveGroupAssignment>,
+    },
+}
 
 pub(super) fn fail_consumer_group_entry(
     entry: &mut GroupConsumerEntry,
@@ -20,11 +28,84 @@ pub(super) fn fail_consumer_group_entry(
         .as_mut()
         .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
         .apply_current_failure(failure)?;
+    drop(entry.consumer_reconciliation.take());
     stage_consumer_group_revocation(entry, revoked)?;
     Ok(())
 }
 
 impl ConsumerGroupExecution {
+    pub(super) fn apply_current_rediscovery(
+        &mut self,
+        now: Moment,
+        failure: ConsumerGroupHeartbeatFailure,
+    ) -> Result<ConsumerGroupRediscoveryDecision, ConsumerGroupExecutionError> {
+        let prepared = self
+            .prepared
+            .ok_or(ConsumerGroupExecutionError::MissingPrepared)?;
+        if prepared.kind() == ConsumerGroupHeartbeatRequestKind::Leave {
+            return Err(ConsumerGroupExecutionError::EffectShape);
+        }
+        let transition = self
+            .machine
+            .apply(ConsumerGroupHeartbeatInput::RetryHeartbeat {
+                attempt: prepared.attempt(),
+                now,
+                failure,
+            })
+            .map_err(|error| ConsumerGroupExecutionError::Core(error.kind()))?;
+        let mut effects = transition.into_effects();
+        let first = effects.next();
+        let second = effects.next();
+        if effects.next().is_some() {
+            return Err(ConsumerGroupExecutionError::EffectShape);
+        }
+        match (first, second) {
+            (
+                Some(ConsumerGroupHeartbeatEffect::Rediscover {
+                    group_id,
+                    attempt,
+                    kind,
+                    member_id,
+                    member_epoch,
+                    assignment_generation,
+                    deadline,
+                }),
+                None,
+            ) if group_id == self.machine.group_id()
+                && attempt == prepared.attempt()
+                && kind == prepared.kind()
+                && member_id == prepared.member_id()
+                && member_epoch == prepared.member_epoch()
+                && assignment_generation == prepared.assignment_generation()
+                && deadline == prepared.deadline().core() =>
+            {
+                self.await_rediscovery_admission()?;
+                Ok(ConsumerGroupRediscoveryDecision::Rediscover)
+            }
+            (Some(ConsumerGroupHeartbeatEffect::Fatal { fatal }), None)
+                if fatal.attempt() == prepared.attempt()
+                    && self.machine.phase() == ConsumerGroupHeartbeatPhase::Fatal =>
+            {
+                self.prepared = None;
+                self.clear_rediscovery();
+                Ok(ConsumerGroupRediscoveryDecision::Terminal { revoked: None })
+            }
+            (
+                Some(ConsumerGroupHeartbeatEffect::Revoke { assignment }),
+                Some(ConsumerGroupHeartbeatEffect::Fatal { fatal }),
+            ) if fatal.attempt() == prepared.attempt()
+                && self.machine.phase() == ConsumerGroupHeartbeatPhase::Fatal =>
+            {
+                self.prepared = None;
+                self.clear_rediscovery();
+                Ok(ConsumerGroupRediscoveryDecision::Terminal {
+                    revoked: Some(assignment),
+                })
+            }
+            _ => Err(ConsumerGroupExecutionError::EffectShape),
+        }
+    }
+
     pub(super) fn apply_current_failure(
         &mut self,
         failure: ConsumerGroupHeartbeatFailure,
@@ -69,6 +150,7 @@ impl ConsumerGroupExecution {
             return Err(ConsumerGroupExecutionError::EffectShape);
         }
         self.prepared = None;
+        self.clear_rediscovery();
         Ok(revoked)
     }
 
@@ -92,6 +174,7 @@ impl ConsumerGroupExecution {
             return Err(ConsumerGroupExecutionError::EffectShape);
         }
         self.prepared = None;
+        self.clear_rediscovery();
         Ok(revoked)
     }
 
@@ -100,8 +183,15 @@ impl ConsumerGroupExecution {
     }
 
     pub(super) fn next_deadline(&self) -> Option<kafka_client_core::Deadline> {
-        self.prepared
-            .map(|prepared| prepared.deadline().core())
-            .or_else(|| self.machine.schedule().map(|schedule| schedule.deadline()))
+        [
+            self.prepared.map(|prepared| prepared.deadline().core()),
+            self.machine
+                .retry_schedule()
+                .map(|schedule| schedule.not_before()),
+            self.machine.schedule().map(|schedule| schedule.deadline()),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
     }
 }

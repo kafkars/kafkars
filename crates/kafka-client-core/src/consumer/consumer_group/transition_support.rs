@@ -24,6 +24,9 @@ impl ConsumerGroupHeartbeatMachine {
         if self.in_flight != Some(attempt) {
             return Err(ConsumerGroupHeartbeatErrorKind::AttemptMismatch);
         }
+        if self.retry_schedule.is_some() {
+            return Err(ConsumerGroupHeartbeatErrorKind::CoordinatorLoadRetryPending);
+        }
         if self
             .deadline
             .is_none_or(|deadline| deadline.is_elapsed_at(now))
@@ -65,10 +68,13 @@ impl ConsumerGroupHeartbeatMachine {
         self.next_sequence = next_sequence;
         self.in_flight = None;
         self.deadline = None;
+        self.rediscovery_replacement_used = false;
+        self.retry_schedule = None;
         self.member_id = Some(member_id);
         self.member_epoch = Some(member_epoch);
         self.next_assignment_generation = generation.checked_next();
         self.live_assignment = Some(assignment);
+        self.pending_assignment = None;
         self.schedule = Some(schedule);
     }
 
@@ -96,8 +102,11 @@ impl ConsumerGroupHeartbeatMachine {
     pub(super) fn clear_active(&mut self) {
         self.in_flight = None;
         self.deadline = None;
+        self.rediscovery_replacement_used = false;
+        self.retry_schedule = None;
         self.member_id = None;
         self.member_epoch = None;
+        self.pending_assignment = None;
         self.schedule = None;
     }
 }

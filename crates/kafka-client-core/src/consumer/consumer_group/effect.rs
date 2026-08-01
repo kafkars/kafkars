@@ -4,7 +4,7 @@ use crate::{AssignmentGeneration, Deadline, GroupId, LiveGroupAssignment, Member
 
 use super::{
     ConsumerGroupHeartbeatAttempt, ConsumerGroupHeartbeatFatal, ConsumerGroupHeartbeatRequestKind,
-    ConsumerGroupHeartbeatSchedule, ConsumerGroupMemberEpoch,
+    ConsumerGroupHeartbeatRetrySchedule, ConsumerGroupHeartbeatSchedule, ConsumerGroupMemberEpoch,
 };
 
 /// One bounded mechanism action for a KIP-848 member.
@@ -20,14 +20,36 @@ pub enum ConsumerGroupHeartbeatEffect {
         kind: ConsumerGroupHeartbeatRequestKind,
         /// Stable member identity, absent only for the initial v0 join request.
         member_id: Option<MemberId>,
-        /// Positive current member epoch, absent only for initial join.
+        /// Positive current member epoch, absent for an epoch-zero Join.
         member_epoch: Option<ConsumerGroupMemberEpoch>,
         /// Current owned assignment reported by steady and leave requests.
         assignment_generation: Option<AssignmentGeneration>,
         /// Original absolute attempt deadline.
         deadline: Deadline,
     },
-    /// Atomically replace any prior assignment and arm broker-controlled cadence.
+    /// Rediscover the coordinator and replace the exact in-flight join or steady heartbeat once.
+    Rediscover {
+        /// Stable engine-catalog group identity used for coordinator discovery.
+        group_id: GroupId,
+        /// Exact original request identity retained by the replacement.
+        attempt: ConsumerGroupHeartbeatAttempt,
+        /// Join or steady request shape; leave replacement is deliberately unsupported.
+        kind: ConsumerGroupHeartbeatRequestKind,
+        /// Stable member identity, absent only for the initial v0 join request.
+        member_id: Option<MemberId>,
+        /// Positive current member epoch, absent for an epoch-zero Join.
+        member_epoch: Option<ConsumerGroupMemberEpoch>,
+        /// Current owned assignment reported by a steady replacement.
+        assignment_generation: Option<AssignmentGeneration>,
+        /// Original absolute attempt deadline, never restarted by rediscovery.
+        deadline: Deadline,
+    },
+    /// Arm one positive core-owned delay before resubmitting the same loading-coordinator attempt.
+    ArmCoordinatorLoadRetry {
+        /// Exact attempt, request shape, backoff deadline, and original deadline fence.
+        schedule: ConsumerGroupHeartbeatRetrySchedule,
+    },
+    /// Stage a broker target and arm cadence for the still-reportable assignment.
     Reconcile {
         /// Prior live assignment to retire before installation.
         previous: Option<LiveGroupAssignment>,
@@ -35,7 +57,18 @@ pub enum ConsumerGroupHeartbeatEffect {
         assignment: LiveGroupAssignment,
         /// Exact broker member epoch paired with the new assignment.
         member_epoch: ConsumerGroupMemberEpoch,
-        /// First heartbeat schedule fenced by the new assignment.
+        /// First heartbeat schedule fenced by the still-reportable assignment.
+        schedule: ConsumerGroupHeartbeatSchedule,
+    },
+    /// Authorize installation of the exact retained target after its empty-owned acknowledgement.
+    InstallReconciled {
+        /// Stable member identity paired with the target.
+        member_id: MemberId,
+        /// Exact broker member epoch paired with the target.
+        member_epoch: ConsumerGroupMemberEpoch,
+        /// Exact target assignment generation retained by the interpreter.
+        assignment_generation: AssignmentGeneration,
+        /// First broker cadence fenced by the installed target.
         schedule: ConsumerGroupHeartbeatSchedule,
     },
     /// Arm one exact future steady heartbeat without changing assignment.

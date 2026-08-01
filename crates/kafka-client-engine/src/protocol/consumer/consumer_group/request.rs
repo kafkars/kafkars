@@ -49,14 +49,18 @@ impl PreparedConsumerGroupHeartbeatRequest {
     }
 }
 
-/// Builds the initial epoch-zero API 68 v0 request with the complete subscription.
+/// Builds an epoch-zero API 68 v0 join with the complete subscription.
 pub(crate) fn consumer_group_join_request(
     group_id: &str,
+    member_id: Option<&str>,
     instance_id: Option<&str>,
     rebalance_timeout_ms: u32,
     topics: &[&str],
 ) -> Result<PreparedConsumerGroupHeartbeatRequest, ConsumerGroupHeartbeatRequestFailure> {
     validate_group(group_id)?;
+    if member_id.is_some_and(|value| !valid_kafka_string(value)) {
+        return Err(ConsumerGroupHeartbeatRequestFailure::MemberId);
+    }
     if instance_id.is_some_and(|value| !valid_kafka_string(value)) {
         return Err(ConsumerGroupHeartbeatRequestFailure::InstanceId);
     }
@@ -66,7 +70,7 @@ pub(crate) fn consumer_group_join_request(
     let subscribed_topic_names = subscription(topics)?;
     let mut request = ConsumerGroupHeartbeatRequest::default();
     request.group_id = group_id.into();
-    request.member_id = "".into();
+    request.member_id = member_id.unwrap_or_default().into();
     request.member_epoch = 0;
     request.instance_id = instance_id.map(Into::into);
     request.rebalance_timeout_ms = rebalance_timeout_ms;

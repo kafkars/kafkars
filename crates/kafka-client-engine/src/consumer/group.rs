@@ -71,6 +71,9 @@ mod consumer_group_execution_cadence;
 #[cfg(test)]
 mod consumer_group_execution_cadence_test;
 mod consumer_group_execution_calls;
+mod consumer_group_execution_fencing;
+#[cfg(test)]
+mod consumer_group_execution_fencing_test;
 mod consumer_group_execution_leave;
 #[cfg(test)]
 mod consumer_group_execution_leave_test;
@@ -86,12 +89,16 @@ mod consumer_group_heartbeat_failure;
 #[cfg(test)]
 mod consumer_group_heartbeat_failure_test;
 mod consumer_group_heartbeat_leave_settlement;
+mod consumer_group_heartbeat_prepared;
+#[cfg(test)]
+mod consumer_group_heartbeat_reconciliation_test;
 mod consumer_group_heartbeat_settlement;
 #[cfg(test)]
 mod consumer_group_heartbeat_settlement_test;
 mod consumer_group_heartbeat_submission;
 #[cfg(test)]
 mod consumer_group_heartbeat_submission_test;
+mod consumer_group_heartbeat_success_settlement;
 mod consumer_group_topic_identity;
 mod consumer_group_topic_identity_call;
 #[cfg(test)]

@@ -8,7 +8,8 @@ use kafka_client_core::{
 use crate::clock::OperationDeadline;
 
 use super::consumer_group_execution::{
-    ConsumerGroupExecution, ConsumerGroupExecutionError, PreparedConsumerGroupHeartbeat,
+    ConsumerGroupExecution, ConsumerGroupExecutionError, ConsumerGroupRediscoveryState,
+    PreparedConsumerGroupHeartbeat,
 };
 
 impl ConsumerGroupExecution {
@@ -19,6 +20,9 @@ impl ConsumerGroupExecution {
     ) -> Result<bool, ConsumerGroupExecutionError> {
         if self.prepared.is_some() || self.heartbeat_call.is_some() {
             return Ok(false);
+        }
+        if self.rediscovery_state() != ConsumerGroupRediscoveryState::Open {
+            return Err(ConsumerGroupExecutionError::EffectShape);
         }
         let transition = self
             .machine
@@ -93,6 +97,7 @@ impl ConsumerGroupExecution {
             return Err(ConsumerGroupExecutionError::EffectShape);
         }
         self.prepared = None;
+        self.clear_rediscovery();
         Ok(revoked)
     }
 }

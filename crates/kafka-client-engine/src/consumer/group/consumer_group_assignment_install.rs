@@ -14,16 +14,9 @@ use super::{
         prepare_classic_group_position_with_policy,
     },
     consumer_group_execution::ConsumerGroupExecutionError,
-    registry::GroupConsumerRegistry,
     registry_entry::GroupConsumerEntry,
     session_catalog_consumer::ConsumerGroupMemberCandidate,
 };
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum ConsumerGroupAssignmentInstallTurn {
-    Idle,
-    Progress,
-}
 
 /// Exact new assignment retained while its previous owner drains.
 #[must_use = "a prepared KIP-848 assignment must be installed or explicitly dropped"]
@@ -54,11 +47,48 @@ impl PreparedConsumerGroupAssignmentInstall {
             observed_at,
         }
     }
+
+    pub(super) const fn member_id(&self) -> kafka_client_core::MemberId {
+        self.candidate.member_id()
+    }
+
+    pub(super) const fn member_epoch(&self) -> ConsumerGroupMemberEpoch {
+        self.member_epoch
+    }
+
+    pub(super) const fn assignment(&self) -> &LiveGroupAssignment {
+        &self.assignment
+    }
+
+    pub(super) const fn refresh_resolution_boundary(
+        mut self,
+        deadline: OperationDeadline,
+        observed_at: Moment,
+    ) -> Self {
+        self.deadline = deadline;
+        self.observed_at = observed_at;
+        self
+    }
 }
 
 pub(super) fn install_consumer_group_assignment(
     entry: &mut GroupConsumerEntry,
     prepared: PreparedConsumerGroupAssignmentInstall,
+) -> Result<(), ConsumerGroupExecutionError> {
+    install(entry, prepared, false)
+}
+
+pub(super) fn install_reconciled_consumer_group_assignment(
+    entry: &mut GroupConsumerEntry,
+    prepared: PreparedConsumerGroupAssignmentInstall,
+) -> Result<(), ConsumerGroupExecutionError> {
+    install(entry, prepared, true)
+}
+
+fn install(
+    entry: &mut GroupConsumerEntry,
+    prepared: PreparedConsumerGroupAssignmentInstall,
+    reconciled: bool,
 ) -> Result<(), ConsumerGroupExecutionError> {
     if entry.catalog.live_assignment().is_some()
         || !entry.position.is_dormant()
@@ -114,9 +144,18 @@ pub(super) fn install_consumer_group_assignment(
             return Err(ConsumerGroupExecutionError::EffectShape);
         }
     };
-    entry
-        .catalog
-        .commit_consumer_group_install(candidate, cycle, member_epoch, assignment);
+    if reconciled {
+        entry.catalog.commit_consumer_group_reconciliation_install(
+            candidate,
+            cycle,
+            member_epoch,
+            assignment,
+        );
+    } else {
+        entry
+            .catalog
+            .commit_consumer_group_install(candidate, cycle, member_epoch, assignment);
+    }
     entry.catalog.stage_installed_assignment_event();
     entry.catalog.confirm_sync_event();
     let _transition = processing.commit();
@@ -134,24 +173,4 @@ pub(super) fn install_consumer_group_assignment(
         .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
         .commit_reconcile_cycle(cycle);
     Ok(())
-}
-
-impl GroupConsumerRegistry {
-    pub(super) fn install_one_consumer_group_reconciliation(
-        &mut self,
-    ) -> Result<ConsumerGroupAssignmentInstallTurn, ConsumerGroupExecutionError> {
-        let Some(index) = self.entries.iter().position(|entry| {
-            entry.fault.is_none()
-                && entry.consumer_revocation.is_none()
-                && entry.consumer_reconciliation.is_some()
-        }) else {
-            return Ok(ConsumerGroupAssignmentInstallTurn::Idle);
-        };
-        let prepared = self.entries[index]
-            .consumer_reconciliation
-            .take()
-            .ok_or(ConsumerGroupExecutionError::EffectShape)?;
-        install_consumer_group_assignment(&mut self.entries[index], prepared)?;
-        Ok(ConsumerGroupAssignmentInstallTurn::Progress)
-    }
 }

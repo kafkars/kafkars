@@ -115,7 +115,7 @@ fn initial_assignment_owns_position_processing_and_observation_before_fetch() {
     stage_consumer_group_revocation(&mut entry, revoked)
         .unwrap_or_else(|error| panic!("stage revocation: {error:?}"));
     assert_eq!(
-        retire_entry_assignment(&mut entry, Moment::from_tick(10)),
+        retire_entry_assignment(&mut entry, Moment::from_tick(10), &MonotonicClock::new(),),
         Ok(ConsumerGroupAssignmentRetirementTurn::Progress)
     );
     assert!(entry.consumer_revocation.is_none());
@@ -156,68 +156,7 @@ fn processing_expiry_closes_modern_membership_before_retiring_assignment() {
     );
 }
 
-#[test]
-fn changed_member_epoch_retires_then_installs_the_new_assignment() {
-    let (mut entry, topic_id) = installed_modern_entry();
-    let schedule = entry
-        .consumer
-        .as_ref()
-        .and_then(|consumer| consumer.machine().schedule())
-        .unwrap_or_else(|| panic!("heartbeat schedule"));
-    let now = Moment::from_tick(schedule.deadline().tick());
-    entry
-        .consumer
-        .as_mut()
-        .unwrap_or_else(|| panic!("modern execution"))
-        .prepare_due_heartbeat(now, &MonotonicClock::new())
-        .unwrap_or_else(|error| panic!("prepare heartbeat: {error:?}"));
-    assert_eq!(
-        settle_success(&mut entry, now, success_with(2, 1)),
-        Ok(ConsumerGroupHeartbeatSettlementTurn::Progress)
-    );
-    assert!(entry.consumer_revocation.is_some());
-    assert!(entry.consumer_reconciliation.is_some());
-
-    assert_eq!(
-        retire_entry_assignment(&mut entry, now),
-        Ok(ConsumerGroupAssignmentRetirementTurn::Progress)
-    );
-    assert_eq!(
-        retire_entry_assignment(&mut entry, now),
-        Ok(ConsumerGroupAssignmentRetirementTurn::Progress)
-    );
-    assert!(entry.catalog.live_assignment().is_none());
-
-    let mut registry =
-        GroupConsumerRegistry::start().unwrap_or_else(|error| panic!("registry: {error:?}"));
-    registry.entries.push(entry);
-    assert_eq!(
-        registry.install_one_consumer_group_reconciliation(),
-        Ok(super::consumer_group_assignment_install::ConsumerGroupAssignmentInstallTurn::Progress)
-    );
-    let entry = registry
-        .entries
-        .first_mut()
-        .unwrap_or_else(|| panic!("modern entry"));
-    let assignment = entry
-        .catalog
-        .live_assignment()
-        .unwrap_or_else(|| panic!("replacement assignment"));
-    assert_eq!(assignment.assignment_generation().get(), 2);
-    assert_eq!(assignment.partitions()[0].topic_id(), topic_id);
-    assert_eq!(assignment.partitions()[0].partition().get(), 1);
-    assert!(entry.consumer_reconciliation.is_none());
-    assert!(matches!(
-        entry.catalog.take_event(),
-        Some(crate::consumer::GroupConsumerEvent::PartitionsLost(_))
-    ));
-    assert!(matches!(
-        entry.catalog.take_event(),
-        Some(crate::consumer::GroupConsumerEvent::PartitionsAssigned(_))
-    ));
-}
-
-fn installed_modern_entry() -> (GroupConsumerEntry, kafka_client_core::TopicId) {
+pub(super) fn installed_modern_entry() -> (GroupConsumerEntry, kafka_client_core::TopicId) {
     let mut entry = modern_entry();
     let capture = MonotonicClock::new()
         .capture_deadline_after(Duration::from_secs(30))
@@ -274,7 +213,7 @@ fn success() -> crate::protocol::consumer::ConsumerGroupHeartbeatSuccess {
     success_with(1, 0)
 }
 
-fn success_with(
+pub(super) fn success_with(
     member_epoch: i32,
     partition: i32,
 ) -> crate::protocol::consumer::ConsumerGroupHeartbeatSuccess {
@@ -292,6 +231,21 @@ fn success_with(
         .unwrap_or_else(|error| panic!("normalize: {error:?}"));
     let ConsumerGroupHeartbeatOutcome::Succeeded(success) = outcome else {
         panic!("successful heartbeat")
+    };
+    success
+}
+
+pub(super) fn success_without_assignment(
+    member_epoch: i32,
+) -> crate::protocol::consumer::ConsumerGroupHeartbeatSuccess {
+    let mut response = ConsumerGroupHeartbeatResponse::default();
+    response.member_id = Some("member-a".into());
+    response.member_epoch = member_epoch;
+    response.heartbeat_interval_ms = 5_000;
+    let outcome = normalize_consumer_group_heartbeat_response(0, &response)
+        .unwrap_or_else(|error| panic!("normalize: {error:?}"));
+    let ConsumerGroupHeartbeatOutcome::Succeeded(success) = outcome else {
+        panic!("successful steady heartbeat")
     };
     success
 }

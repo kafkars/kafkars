@@ -176,7 +176,7 @@ impl GroupSessionCatalog {
             .or_else(|| {
                 self.consumer_current
                     .as_ref()
-                    .map(ConsumerGroupSession::assignment)
+                    .and_then(ConsumerGroupSession::assignment)
             })
     }
 

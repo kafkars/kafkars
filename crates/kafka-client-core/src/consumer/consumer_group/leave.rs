@@ -66,6 +66,8 @@ impl ConsumerGroupHeartbeatMachine {
         self.schedule = None;
         self.in_flight = Some(attempt);
         self.deadline = Some(deadline);
+        self.rediscovery_replacement_used = false;
+        self.retry_schedule = None;
         Ok(ConsumerGroupHeartbeatTransition::one(
             ConsumerGroupHeartbeatEffect::Submit {
                 group_id: self.group_id,
@@ -89,6 +91,9 @@ impl ConsumerGroupHeartbeatMachine {
         if self.in_flight != Some(attempt) {
             return Err(ConsumerGroupHeartbeatErrorKind::AttemptMismatch);
         }
+        if self.retry_schedule.is_some() {
+            return Err(ConsumerGroupHeartbeatErrorKind::CoordinatorLoadRetryPending);
+        }
         let assignment = self.live_assignment.take();
         self.phase = ConsumerGroupHeartbeatPhase::Closed;
         self.clear_active();
@@ -111,6 +116,9 @@ impl ConsumerGroupHeartbeatMachine {
         }
         if self.in_flight != Some(attempt) {
             return Err(ConsumerGroupHeartbeatErrorKind::AttemptMismatch);
+        }
+        if self.retry_schedule.is_some() {
+            return Err(ConsumerGroupHeartbeatErrorKind::CoordinatorLoadRetryPending);
         }
         Ok(self.fail(attempt, failure))
     }

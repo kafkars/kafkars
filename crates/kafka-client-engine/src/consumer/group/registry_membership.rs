@@ -20,7 +20,6 @@ use super::{
     classic_group_rejoin_due::ClassicGroupRejoinDueTurn,
     classic_group_sync_settlement::ClassicGroupSyncSettlementTurn,
     classic_group_sync_submission::ClassicGroupSyncSubmissionTurn,
-    consumer_group_assignment_install::ConsumerGroupAssignmentInstallTurn,
     consumer_group_assignment_retirement::ConsumerGroupAssignmentRetirementTurn,
     consumer_group_close::ConsumerGroupCloseTurn,
     consumer_group_heartbeat_due::ConsumerGroupHeartbeatDueTurn,
@@ -46,7 +45,7 @@ impl GroupConsumerRegistry {
         driver: &DriverOwner,
     ) -> Result<GroupConsumerMembershipTurn, ClassicGroupExecutionError> {
         let consumer_heartbeat_blocked = match self
-            .settle_one_consumer_group_heartbeat(now)
+            .settle_one_consumer_group_heartbeat(now, clock)
             .map_err(|_error| ClassicGroupExecutionError::ConsumerGroup)?
         {
             ConsumerGroupHeartbeatSettlementTurn::Progress => {
@@ -55,22 +54,14 @@ impl GroupConsumerRegistry {
             ConsumerGroupHeartbeatSettlementTurn::Blocked => true,
             ConsumerGroupHeartbeatSettlementTurn::Idle => false,
         };
-        match self.turn_one_consumer_group_assignment_retirement(now)? {
-            ConsumerGroupAssignmentRetirementTurn::Progress => {
-                return Ok(GroupConsumerMembershipTurn::Progress);
-            }
-            ConsumerGroupAssignmentRetirementTurn::Blocked => {
-                return Ok(GroupConsumerMembershipTurn::Blocked);
-            }
-            ConsumerGroupAssignmentRetirementTurn::Idle => {}
-        }
-        if self
-            .install_one_consumer_group_reconciliation()
-            .map_err(|_error| ClassicGroupExecutionError::ConsumerGroup)?
-            == ConsumerGroupAssignmentInstallTurn::Progress
-        {
-            return Ok(GroupConsumerMembershipTurn::Progress);
-        }
+        let consumer_assignment_blocked =
+            match self.turn_one_consumer_group_assignment_retirement(now, clock)? {
+                ConsumerGroupAssignmentRetirementTurn::Progress => {
+                    return Ok(GroupConsumerMembershipTurn::Progress);
+                }
+                ConsumerGroupAssignmentRetirementTurn::Blocked => true,
+                ConsumerGroupAssignmentRetirementTurn::Idle => false,
+            };
         let consumer_topic_blocked = match self
             .turn_one_consumer_group_topic_identity(now, driver)
             .map_err(|_error| ClassicGroupExecutionError::ConsumerGroup)?
@@ -81,6 +72,13 @@ impl GroupConsumerRegistry {
             ConsumerGroupTopicIdentityTurn::Blocked => true,
             ConsumerGroupTopicIdentityTurn::Idle => false,
         };
+        if self
+            .prepare_one_consumer_group_load_retry(now)
+            .map_err(|_error| ClassicGroupExecutionError::ConsumerGroup)?
+            == ConsumerGroupHeartbeatDueTurn::Progress
+        {
+            return Ok(GroupConsumerMembershipTurn::Progress);
+        }
         let consumer_close_blocked = match self
             .turn_one_consumer_group_close(now)
             .map_err(|_error| ClassicGroupExecutionError::ConsumerGroup)?
@@ -175,6 +173,7 @@ impl GroupConsumerRegistry {
         Ok(match self.submit_one_classic_join(driver)? {
             ClassicGroupJoinSubmissionTurn::Idle
                 if rediscovery_blocked
+                    || consumer_assignment_blocked
                     || consumer_heartbeat_blocked
                     || consumer_submission_blocked
                     || consumer_topic_blocked

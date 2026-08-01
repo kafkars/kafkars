@@ -16,7 +16,6 @@ use kafka_client_core::{
     ClassicProcessingLeaseEffect, ClassicProcessingLeaseError, ClassicProcessingLeaseExpiration,
     ClassicProcessingLeaseInput, Deadline, Moment,
 };
-/// Result of observing at most one due application-processing lease.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum GroupConsumerProcessingTurn {
     Idle,
@@ -225,6 +224,7 @@ fn apply_consumer_group_processing_loss(
         .ok_or(GroupConsumerProcessingError::AssignmentFenceMismatch)?
         .close_locally()
         .map_err(GroupConsumerProcessingError::ConsumerGroup)?;
+    drop(entry.consumer_reconciliation.take());
     stage_consumer_group_revocation(entry, revoked)
         .map_err(GroupConsumerProcessingError::ConsumerGroup)?;
     Ok(())

@@ -33,9 +33,33 @@ impl ConsumerGroupHeartbeatMachine {
                 throttle_ticks,
                 assignment,
             ),
+            ConsumerGroupHeartbeatInput::AssignmentRetired {
+                now,
+                member_id,
+                member_epoch,
+                assignment_generation,
+            } => self.assignment_retired(now, member_id, member_epoch, assignment_generation),
             ConsumerGroupHeartbeatInput::HeartbeatFailed { attempt, failure } => {
                 self.heartbeat_failed(attempt, failure)
             }
+            ConsumerGroupHeartbeatInput::RetryHeartbeat {
+                attempt,
+                now,
+                failure,
+            } => self.retry_heartbeat(attempt, now, failure),
+            ConsumerGroupHeartbeatInput::RetryCoordinatorLoad {
+                attempt,
+                now,
+                failure,
+            } => self.retry_coordinator_load(attempt, now, failure),
+            ConsumerGroupHeartbeatInput::CoordinatorLoadRetryDue { schedule, now } => {
+                self.coordinator_load_retry_due(schedule, now)
+            }
+            ConsumerGroupHeartbeatInput::RecoverFencedMembership {
+                attempt,
+                now,
+                failure,
+            } => self.recover_fenced_membership(attempt, now, failure),
             ConsumerGroupHeartbeatInput::BeginLeave { now, deadline } => {
                 self.begin_leave(now, deadline)
             }

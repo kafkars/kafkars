@@ -54,3 +54,30 @@ fn consumer_group_snapshot_uses_member_epoch_without_static_identity() {
     assert_eq!(request.generation_id_or_member_epoch, 3);
     assert!(request.group_instance_id.is_none());
 }
+
+#[test]
+fn reconciling_checkpoint_uses_new_member_epoch_with_the_old_assignment_fence() {
+    let mut catalog = consumer_catalog();
+    let old_assignment_generation = catalog
+        .live_assignment()
+        .unwrap_or_else(|| panic!("old assignment"))
+        .assignment_generation();
+    let candidate = catalog
+        .prepare_consumer_group_member(Arc::from("modern-member"))
+        .unwrap_or_else(|error| panic!("reconciliation candidate: {error:?}"));
+    let advanced_epoch = kafka_client_core::ConsumerGroupMemberEpoch::try_from_raw(4)
+        .unwrap_or_else(|| panic!("advanced member epoch"));
+    catalog.commit_consumer_group_reconciliation_epoch(&candidate, advanced_epoch);
+    let checkpoint = checkpoint(&catalog);
+
+    let snapshot = GroupOffsetCommitHost::snapshot(&catalog, &checkpoint, Vec::new())
+        .unwrap_or_else(|error| panic!("snapshot: {error}"));
+    let request = snapshot.request.into_generated_offset_commit_request();
+
+    assert_eq!(request.generation_id_or_member_epoch, 4);
+    assert_eq!(
+        checkpoint.assignment_generation(),
+        old_assignment_generation
+    );
+    assert_eq!(request.topics[0].partitions[0].committed_offset, 12);
+}

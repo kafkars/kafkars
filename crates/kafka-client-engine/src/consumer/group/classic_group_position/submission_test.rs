@@ -222,12 +222,12 @@ pub(super) fn prepared_identity(
     (prepared.key().fence(), prepared.key().operation_deadline())
 }
 
-pub(super) fn driver() -> DriverOwner {
+pub(in crate::consumer::group) fn driver() -> DriverOwner {
     DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver build failed: {error}"))
 }
 
-pub(super) fn shutdown_driver(driver: &mut DriverOwner) {
+pub(in crate::consumer::group) fn shutdown_driver(driver: &mut DriverOwner) {
     driver
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("driver shutdown failed: {error}"));

@@ -1,9 +1,9 @@
-//! Bounded submission and terminal installation for core-authorized rediscovery.
+//! Bounded submission and terminal installation for core-authorized coordinator rediscovery.
 
-use kafka_client_core::GroupId;
+use kafka_client_core::{ConsumerGroupHeartbeatFailure, GroupId, Moment};
 
 use crate::driver::{
-    DriverOwner,
+    ConsumerGroupHeartbeatRoute, DriverOwner,
     classic_group::{
         ClassicCoordinatorInvalidationAdmissionFailureKind,
         ClassicCoordinatorInvalidationPermission, ClassicCoordinatorInvalidationPoll,
@@ -13,7 +13,13 @@ use crate::driver::{
 
 use super::{
     classic_group_entry_fault::ClassicGroupEntryFault,
-    classic_group_execution::ClassicGroupExecutionError, registry::GroupConsumerRegistry,
+    classic_group_execution::ClassicGroupExecutionError,
+    consumer_group_assignment_retirement::stage_consumer_group_revocation,
+    consumer_group_execution::{ConsumerGroupExecutionError, ConsumerGroupRediscoveryState},
+    consumer_group_execution_terminal::{
+        ConsumerGroupRediscoveryDecision, fail_consumer_group_entry,
+    },
+    registry::GroupConsumerRegistry,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -24,6 +30,84 @@ pub(super) enum ClassicCoordinatorInvalidationTurn {
 }
 
 impl GroupConsumerRegistry {
+    pub(super) fn settle_consumer_group_rediscovery(
+        &mut self,
+        index: usize,
+        now: Moment,
+        failure: ConsumerGroupHeartbeatFailure,
+        route: ConsumerGroupHeartbeatRoute,
+    ) -> Result<(), ConsumerGroupExecutionError> {
+        let state = self.entries[index]
+            .consumer
+            .as_ref()
+            .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
+            .rediscovery_state();
+        if state == ConsumerGroupRediscoveryState::ReplacementAdmitted {
+            route.accept();
+            let decision = self.entries[index]
+                .consumer
+                .as_mut()
+                .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
+                .apply_current_rediscovery(now, failure)?;
+            let ConsumerGroupRediscoveryDecision::Terminal { revoked } = decision else {
+                return Err(ConsumerGroupExecutionError::EffectShape);
+            };
+            drop(self.entries[index].consumer_reconciliation.take());
+            stage_consumer_group_revocation(&mut self.entries[index], revoked)?;
+            return Ok(());
+        }
+        if state != ConsumerGroupRediscoveryState::Open {
+            route.accept();
+            return Err(ConsumerGroupExecutionError::EffectShape);
+        }
+
+        let group_id = self.entries[index].group_id();
+        let (entries, invalidations) = (&mut self.entries, &mut self.coordinator_invalidations);
+        let permit = match invalidations
+            .as_mut()
+            .ok_or(ConsumerGroupExecutionError::EffectShape)?
+            .try_reserve(group_id)
+        {
+            Ok(permit) => permit,
+            Err(_error) => {
+                route.accept();
+                fail_consumer_group_entry(&mut entries[index], failure)?;
+                return Ok(());
+            }
+        };
+        let pending = match route.into_coordinator_invalidation(group_id) {
+            Ok(pending) => pending,
+            Err(route) => {
+                drop(permit);
+                route.accept();
+                fail_consumer_group_entry(&mut entries[index], failure)?;
+                return Ok(());
+            }
+        };
+        let decision = entries[index]
+            .consumer
+            .as_mut()
+            .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
+            .apply_current_rediscovery(now, failure)?;
+        match decision {
+            ConsumerGroupRediscoveryDecision::Rediscover => {
+                if let Err(failure) = permit.install(pending) {
+                    entries[index].fault = Some(
+                        ClassicGroupEntryFault::CoordinatorInvalidationInstall(failure),
+                    );
+                    return Err(ConsumerGroupExecutionError::EffectShape);
+                }
+            }
+            ConsumerGroupRediscoveryDecision::Terminal { revoked } => {
+                drop(permit);
+                drop(pending);
+                drop(entries[index].consumer_reconciliation.take());
+                stage_consumer_group_revocation(&mut entries[index], revoked)?;
+            }
+        }
+        Ok(())
+    }
+
     pub(super) fn drive_one_classic_coordinator_invalidation(
         &mut self,
         driver: &DriverOwner,
@@ -54,7 +138,8 @@ impl GroupConsumerRegistry {
             ClassicCoordinatorInvalidationPoll::Idle => {
                 Ok(ClassicCoordinatorInvalidationTurn::Idle)
             }
-            ClassicCoordinatorInvalidationPoll::Submitted { .. } => {
+            ClassicCoordinatorInvalidationPoll::Submitted { group_id } => {
+                self.permit_consumer_group_rediscovery_after_invalidation_admission(group_id)?;
                 Ok(ClassicCoordinatorInvalidationTurn::Progress)
             }
             ClassicCoordinatorInvalidationPoll::Pending { .. } => {
@@ -87,6 +172,14 @@ impl GroupConsumerRegistry {
             let _completed = entry.leave.complete_coordinator_invalidation(result);
             return Ok(());
         }
+        if let Some(consumer) = entry.consumer.as_ref() {
+            if consumer.rediscovery_state()
+                == ConsumerGroupRediscoveryState::AwaitingInvalidationAdmission
+            {
+                return Err(ClassicGroupExecutionError::CoordinatorInvalidationGate);
+            }
+            return Ok(());
+        }
         match result {
             Ok(
                 ClassicCoordinatorInvalidationPermission::Applied
@@ -100,6 +193,32 @@ impl GroupConsumerRegistry {
                     failure,
                 ));
                 Err(ClassicGroupExecutionError::CoordinatorInvalidationTerminal)
+            }
+        }
+    }
+
+    fn permit_consumer_group_rediscovery_after_invalidation_admission(
+        &mut self,
+        group_id: GroupId,
+    ) -> Result<(), ClassicGroupExecutionError> {
+        let entry = self
+            .entries
+            .iter_mut()
+            .find(|entry| entry.group_id() == group_id)
+            .ok_or(ClassicGroupExecutionError::CallIdentityMismatch)?;
+        if entry.leave.owns_coordinator_invalidation() {
+            return Ok(());
+        }
+        let Some(consumer) = entry.consumer.as_mut() else {
+            return Ok(());
+        };
+        match consumer.rediscovery_state() {
+            ConsumerGroupRediscoveryState::AwaitingInvalidationAdmission => consumer
+                .permit_rediscovery_replacement()
+                .map_err(|_error| ClassicGroupExecutionError::CoordinatorInvalidationGate),
+            ConsumerGroupRediscoveryState::Open => Ok(()),
+            ConsumerGroupRediscoveryState::ReplacementAdmitted => {
+                Err(ClassicGroupExecutionError::CoordinatorInvalidationGate)
             }
         }
     }

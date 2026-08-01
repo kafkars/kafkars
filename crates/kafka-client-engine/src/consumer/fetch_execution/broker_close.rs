@@ -97,6 +97,7 @@ impl DirectFetchExecutor {
             .map_err(|_error| FetchExecutionError::BrokerSession)?;
         let Some(plan) = plan else {
             if self.broker_sessions_are_closed() {
+                self.broker_close_requested = false;
                 self.broker_close_deadline = None;
             }
             return Ok(true);

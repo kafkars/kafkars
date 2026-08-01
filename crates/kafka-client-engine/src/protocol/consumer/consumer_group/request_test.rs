@@ -11,6 +11,7 @@ use super::{
 fn join_carries_epoch_zero_complete_subscription_and_initial_configuration() {
     let prepared = consumer_group_join_request(
         "orders-workers",
+        None,
         Some("worker-a"),
         30_000,
         &["orders", "payments"],
@@ -33,6 +34,30 @@ fn join_carries_epoch_zero_complete_subscription_and_initial_configuration() {
                 .collect::<Vec<_>>()
         }),
         Some(vec!["orders", "payments"])
+    );
+    assert!(request.topic_partitions.is_none());
+}
+
+#[test]
+fn fenced_rejoin_retains_the_broker_member_with_epoch_zero_configuration() {
+    let prepared = consumer_group_join_request(
+        "orders-workers",
+        Some("member-a"),
+        None,
+        30_000,
+        &["orders"],
+    )
+    .unwrap_or_else(|error| panic!("rejoin request: {error:?}"));
+    let request = prepared.request_for_test();
+    assert_eq!(request.member_id.as_str(), "member-a");
+    assert_eq!(request.member_epoch, 0);
+    assert_eq!(request.rebalance_timeout_ms, 30_000);
+    assert_eq!(
+        request
+            .subscribed_topic_names
+            .as_ref()
+            .map(|topics| topics[0].as_str()),
+        Some("orders")
     );
     assert!(request.topic_partitions.is_none());
 }
@@ -73,7 +98,7 @@ fn leave_uses_epoch_minus_one_without_replaying_unchanged_configuration() {
 #[test]
 fn builders_reject_duplicate_and_unrepresentable_bounded_inputs() {
     assert_eq!(
-        consumer_group_join_request("group", None, 10, &["orders", "orders"])
+        consumer_group_join_request("group", None, None, 10, &["orders", "orders"])
             .err()
             .unwrap_or_else(|| panic!("duplicate subscription must reject")),
         ConsumerGroupHeartbeatRequestFailure::DuplicateTopicName

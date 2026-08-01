@@ -82,7 +82,7 @@ mod state_test;
 #[cfg(test)]
 mod submission_duplicate_test;
 #[cfg(test)]
-mod submission_test;
+pub(in crate::consumer::group) mod submission_test;
 #[cfg(test)]
 mod sync_install_failure_test;
 #[cfg(test)]

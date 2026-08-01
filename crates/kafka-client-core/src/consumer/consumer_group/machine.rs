@@ -1,11 +1,11 @@
-//! Unique deterministic owner of one KIP-848 member and live assignment.
+//! Unique deterministic owner of one KIP-848 member and assignment reconciliation.
 
 use crate::{AssignmentGeneration, Deadline, GroupId, LiveGroupAssignment, MemberId};
 
 use super::{
     ConsumerGroupHeartbeatAttempt, ConsumerGroupHeartbeatFatal, ConsumerGroupHeartbeatPhase,
-    ConsumerGroupHeartbeatPolicy, ConsumerGroupHeartbeatSchedule, ConsumerGroupHeartbeatSequence,
-    ConsumerGroupMemberEpoch,
+    ConsumerGroupHeartbeatPolicy, ConsumerGroupHeartbeatRetrySchedule,
+    ConsumerGroupHeartbeatSchedule, ConsumerGroupHeartbeatSequence, ConsumerGroupMemberEpoch,
 };
 
 /// Deterministic KIP-848 member lifecycle.
@@ -17,10 +17,13 @@ pub struct ConsumerGroupHeartbeatMachine {
     pub(super) next_sequence: Option<ConsumerGroupHeartbeatSequence>,
     pub(super) in_flight: Option<ConsumerGroupHeartbeatAttempt>,
     pub(super) deadline: Option<Deadline>,
+    pub(super) rediscovery_replacement_used: bool,
+    pub(super) retry_schedule: Option<ConsumerGroupHeartbeatRetrySchedule>,
     pub(super) member_id: Option<MemberId>,
     pub(super) member_epoch: Option<ConsumerGroupMemberEpoch>,
     pub(super) next_assignment_generation: Option<AssignmentGeneration>,
     pub(super) live_assignment: Option<LiveGroupAssignment>,
+    pub(super) pending_assignment: Option<LiveGroupAssignment>,
     pub(super) schedule: Option<ConsumerGroupHeartbeatSchedule>,
     pub(super) fatal: Option<ConsumerGroupHeartbeatFatal>,
 }
@@ -35,10 +38,13 @@ impl ConsumerGroupHeartbeatMachine {
             next_sequence: Some(ConsumerGroupHeartbeatSequence::initial()),
             in_flight: None,
             deadline: None,
+            rediscovery_replacement_used: false,
+            retry_schedule: None,
             member_id: None,
             member_epoch: None,
             next_assignment_generation: Some(AssignmentGeneration::initial()),
             live_assignment: None,
+            pending_assignment: None,
             schedule: None,
             fatal: None,
         }
@@ -69,9 +75,19 @@ impl ConsumerGroupHeartbeatMachine {
         self.live_assignment.as_ref()
     }
 
+    /// Borrows the broker target waiting for exact current-assignment retirement.
+    pub const fn pending_assignment(&self) -> Option<&LiveGroupAssignment> {
+        self.pending_assignment.as_ref()
+    }
+
     /// Returns the exact armed broker cadence.
     pub const fn schedule(&self) -> Option<ConsumerGroupHeartbeatSchedule> {
         self.schedule
+    }
+
+    /// Returns the exact armed coordinator-load retry schedule.
+    pub const fn retry_schedule(&self) -> Option<ConsumerGroupHeartbeatRetrySchedule> {
+        self.retry_schedule
     }
 
     /// Returns the retained terminal membership cause.

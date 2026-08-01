@@ -1,6 +1,7 @@
 //! Driver-owned call, routed terminal, and failure facts for KIP-848 heartbeats.
 
-use kafka_driver::{CompletionError, RouteFailureToken, RoutedCall, RoutedOutcome};
+use kafka_client_core::GroupId;
+use kafka_driver::{CompletionError, RouteFailureToken, RouteKind, RoutedCall, RoutedOutcome};
 use kafka_wire::ConsumerGroupHeartbeatResponse;
 
 use crate::{
@@ -16,6 +17,7 @@ use crate::{
 
 use super::{
     super::DriverOwner,
+    classic_group::PendingClassicCoordinatorInvalidation,
     consumer_group_heartbeat_failure::{
         ConsumerGroupHeartbeatDriverFailureKind, classify_consumer_group_heartbeat_request_error,
     },
@@ -43,10 +45,29 @@ pub(crate) enum ConsumerGroupHeartbeatResolution {
 
 /// Linear coordinator-route authority retained through terminal interpretation.
 pub(crate) struct ConsumerGroupHeartbeatRoute {
-    _token: Option<RouteFailureToken>,
+    token: Option<RouteFailureToken>,
 }
 
 impl ConsumerGroupHeartbeatRoute {
+    /// Transfers exact coordinator-route authority into bounded invalidation ownership.
+    #[expect(
+        clippy::result_large_err,
+        reason = "a rejected transfer must return the exact linear route authority intact"
+    )]
+    pub(crate) fn into_coordinator_invalidation(
+        self,
+        group_id: GroupId,
+    ) -> Result<PendingClassicCoordinatorInvalidation, Self> {
+        if self.token.as_ref().map(RouteFailureToken::kind) != Some(RouteKind::Coordinator) {
+            return Err(self);
+        }
+        let Self { token } = self;
+        let Some(token) = token else {
+            unreachable!("coordinator route kind requires a retained token")
+        };
+        Ok(PendingClassicCoordinatorInvalidation::new(group_id, token))
+    }
+
     /// Explicitly accepts the observed route without requesting invalidation.
     pub(crate) fn accept(self) {
         drop(self);
@@ -67,9 +88,7 @@ impl ConsumerGroupHeartbeatCallOutcome {
         ConsumerGroupHeartbeatRoute,
     ) {
         let (result, selected_version, route_token) = self.outcome.into_parts();
-        let route = ConsumerGroupHeartbeatRoute {
-            _token: route_token,
-        };
+        let route = ConsumerGroupHeartbeatRoute { token: route_token };
         let resolution = match result {
             Ok(response) => match selected_version {
                 Some(version) => normalize_terminal(version.value(), &response),
@@ -122,11 +141,12 @@ impl ConsumerGroupHeartbeatCall {
 
     pub(crate) fn join_request(
         group: &str,
+        member: Option<&str>,
         instance_id: Option<&str>,
         rebalance_timeout_ms: u32,
         topics: &[&str],
     ) -> Result<PreparedConsumerGroupHeartbeatRequest, ConsumerGroupHeartbeatRequestFailure> {
-        consumer_group_join_request(group, instance_id, rebalance_timeout_ms, topics)
+        consumer_group_join_request(group, member, instance_id, rebalance_timeout_ms, topics)
     }
 
     pub(crate) fn steady_request(

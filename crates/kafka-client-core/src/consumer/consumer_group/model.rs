@@ -10,7 +10,7 @@ pub const CONSUMER_GROUP_HEARTBEAT_MAX_PARTITIONS: usize = 64;
 pub enum ConsumerGroupHeartbeatPhase {
     /// No heartbeat has entered membership ownership.
     Dormant,
-    /// Initial epoch-zero heartbeat is outstanding.
+    /// An initial or fenced-recovery epoch-zero Join heartbeat is outstanding.
     Joining,
     /// One broker assignment is live and a cadence deadline is armed.
     Stable,

@@ -1,18 +1,16 @@
 //! Initial API 68 terminal normalization, core transition, and catalog install.
-use kafka_client_core::{
-    ConsumerGroupHeartbeatEffect, ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatInput,
-    ConsumerGroupHeartbeatRequestKind, ConsumerGroupMemberEpoch, Moment,
-};
+use kafka_client_core::{ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatRequestKind, Moment};
 
-use crate::driver::ConsumerGroupHeartbeatResolution;
+use crate::{clock::MonotonicClock, driver::ConsumerGroupHeartbeatResolution};
 
 use super::{
-    consumer_group_assignment_install::{
-        PreparedConsumerGroupAssignmentInstall, install_consumer_group_assignment,
-    },
     consumer_group_assignment_retirement::stage_consumer_group_revocation,
     consumer_group_execution::ConsumerGroupExecutionError,
-    consumer_group_execution_terminal::fail_consumer_group_entry,
+    consumer_group_execution::ConsumerGroupRediscoveryState,
+    consumer_group_execution_terminal::{
+        ConsumerGroupRediscoveryDecision, fail_consumer_group_entry,
+    },
+    consumer_group_heartbeat_due::settle_consumer_group_load_retry_turn,
     consumer_group_heartbeat_failure::{completion_failure, driver_failure},
     consumer_group_heartbeat_leave_settlement::{
         settle_leave_completion_error, settle_leave_resolution,
@@ -21,7 +19,7 @@ use super::{
     registry_entry::GroupConsumerEntry,
 };
 
-const TICKS_PER_MILLISECOND: u64 = 1_000_000;
+pub(super) use super::consumer_group_heartbeat_success_settlement::settle_success;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ConsumerGroupHeartbeatSettlementTurn {
@@ -30,11 +28,43 @@ pub(super) enum ConsumerGroupHeartbeatSettlementTurn {
     Blocked,
 }
 
+pub(super) fn fail_invalid_heartbeat(
+    entry: &mut GroupConsumerEntry,
+) -> Result<ConsumerGroupHeartbeatSettlementTurn, ConsumerGroupExecutionError> {
+    fail_consumer_group_entry(entry, ConsumerGroupHeartbeatFailure::InvalidResponse)?;
+    Ok(ConsumerGroupHeartbeatSettlementTurn::Progress)
+}
+
 impl GroupConsumerRegistry {
     pub(super) fn settle_one_consumer_group_heartbeat(
         &mut self,
         now: Moment,
+        clock: &MonotonicClock,
     ) -> Result<ConsumerGroupHeartbeatSettlementTurn, ConsumerGroupExecutionError> {
+        if let Some(index) = self.entries.iter().position(|entry| {
+            entry.consumer.as_ref().is_some_and(|execution| {
+                execution.rediscovery_state()
+                    == ConsumerGroupRediscoveryState::AwaitingInvalidationAdmission
+                    && execution
+                        .prepared()
+                        .is_some_and(|prepared| prepared.deadline().core().is_elapsed_at(now))
+            })
+        }) {
+            let decision = self.entries[index]
+                .consumer
+                .as_mut()
+                .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
+                .apply_current_rediscovery(
+                    now,
+                    ConsumerGroupHeartbeatFailure::CoordinatorUnavailable,
+                )?;
+            let ConsumerGroupRediscoveryDecision::Terminal { revoked } = decision else {
+                return Err(ConsumerGroupExecutionError::EffectShape);
+            };
+            drop(self.entries[index].consumer_reconciliation.take());
+            stage_consumer_group_revocation(&mut self.entries[index], revoked)?;
+            return Ok(ConsumerGroupHeartbeatSettlementTurn::Progress);
+        }
         let Some(index) = self.entries.iter().position(|entry| {
             entry
                 .consumer
@@ -43,14 +73,17 @@ impl GroupConsumerRegistry {
         }) else {
             return Ok(ConsumerGroupHeartbeatSettlementTurn::Idle);
         };
-        settle_heartbeat(&mut self.entries[index], now)
+        settle_heartbeat(self, index, now, clock)
     }
 }
 
 fn settle_heartbeat(
-    entry: &mut GroupConsumerEntry,
+    registry: &mut GroupConsumerRegistry,
+    index: usize,
     now: Moment,
+    clock: &MonotonicClock,
 ) -> Result<ConsumerGroupHeartbeatSettlementTurn, ConsumerGroupExecutionError> {
+    let entry = &mut registry.entries[index];
     let execution = entry
         .consumer
         .as_mut()
@@ -76,165 +109,69 @@ fn settle_heartbeat(
         }
     };
     let (resolution, route) = outcome.into_resolution();
-    route.accept();
+    if matches!(
+        &resolution,
+        ConsumerGroupHeartbeatResolution::BrokerRejected { error_code: 14, .. }
+    ) {
+        route.accept();
+        let turn = entry
+            .consumer
+            .as_mut()
+            .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
+            .schedule_current_coordinator_load_retry(
+                now,
+                ConsumerGroupHeartbeatFailure::Broker(14),
+            )?;
+        settle_consumer_group_load_retry_turn(entry, turn)?;
+        return Ok(ConsumerGroupHeartbeatSettlementTurn::Progress);
+    }
     if kind == ConsumerGroupHeartbeatRequestKind::Leave {
+        route.accept();
         return settle_leave_resolution(entry, resolution);
     }
     match resolution {
-        ConsumerGroupHeartbeatResolution::Succeeded(success) => settle_success(entry, now, success),
+        ConsumerGroupHeartbeatResolution::Succeeded(success) => {
+            route.accept();
+            settle_success(entry, now, success)
+        }
         ConsumerGroupHeartbeatResolution::BrokerRejected { error_code, .. } => {
+            if matches!(error_code, 15 | 16) {
+                registry.settle_consumer_group_rediscovery(
+                    index,
+                    now,
+                    ConsumerGroupHeartbeatFailure::Broker(error_code),
+                    route,
+                )?;
+                return Ok(ConsumerGroupHeartbeatSettlementTurn::Progress);
+            }
+            if kind == ConsumerGroupHeartbeatRequestKind::Steady && matches!(error_code, 25 | 110) {
+                route.accept();
+                let revoked = entry
+                    .consumer
+                    .as_mut()
+                    .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
+                    .recover_current_fenced_membership(
+                        now,
+                        clock,
+                        ConsumerGroupHeartbeatFailure::Broker(error_code),
+                    )?;
+                drop(entry.consumer_reconciliation.take());
+                stage_consumer_group_revocation(entry, revoked)?;
+                return Ok(ConsumerGroupHeartbeatSettlementTurn::Progress);
+            }
+            route.accept();
             fail_consumer_group_entry(entry, ConsumerGroupHeartbeatFailure::Broker(error_code))?;
             Ok(ConsumerGroupHeartbeatSettlementTurn::Progress)
         }
         ConsumerGroupHeartbeatResolution::Failed(failure) => {
-            fail_consumer_group_entry(entry, driver_failure(failure))?;
+            let failure = driver_failure(failure);
+            if failure == ConsumerGroupHeartbeatFailure::CoordinatorUnavailable {
+                registry.settle_consumer_group_rediscovery(index, now, failure, route)?;
+                return Ok(ConsumerGroupHeartbeatSettlementTurn::Progress);
+            }
+            route.accept();
+            fail_consumer_group_entry(entry, failure)?;
             Ok(ConsumerGroupHeartbeatSettlementTurn::Progress)
         }
     }
-}
-
-#[expect(
-    clippy::too_many_lines,
-    reason = "one successful heartbeat atomically validates broker identity, core state, and catalog effects"
-)]
-pub(super) fn settle_success(
-    entry: &mut GroupConsumerEntry,
-    now: Moment,
-    success: crate::protocol::consumer::ConsumerGroupHeartbeatSuccess,
-) -> Result<ConsumerGroupHeartbeatSettlementTurn, ConsumerGroupExecutionError> {
-    let (throttle_time_ms, member, member_epoch, heartbeat_interval_ms, assignment) =
-        success.into_parts();
-    let prepared = entry
-        .consumer
-        .as_ref()
-        .and_then(|execution| execution.prepared())
-        .ok_or(ConsumerGroupExecutionError::MissingPrepared)?;
-    let candidate = match member {
-        Some(member) => match entry.catalog.prepare_consumer_group_member(member) {
-            Ok(candidate) => candidate,
-            Err(_error) => return fail_invalid_heartbeat(entry),
-        },
-        None if prepared.kind() == kafka_client_core::ConsumerGroupHeartbeatRequestKind::Steady => {
-            match entry.catalog.current_consumer_group_member_candidate() {
-                Some(candidate) => candidate,
-                None => return fail_invalid_heartbeat(entry),
-            }
-        }
-        None => return fail_invalid_heartbeat(entry),
-    };
-    let Some(member_epoch) = ConsumerGroupMemberEpoch::try_from_raw(member_epoch) else {
-        return fail_invalid_heartbeat(entry);
-    };
-    let heartbeat_interval_ticks = u64::from(heartbeat_interval_ms)
-        .checked_mul(TICKS_PER_MILLISECOND)
-        .ok_or(ConsumerGroupExecutionError::EffectShape)?;
-    let throttle_ticks = u64::from(throttle_time_ms)
-        .checked_mul(TICKS_PER_MILLISECOND)
-        .ok_or(ConsumerGroupExecutionError::EffectShape)?;
-    let replaces_live_assignment =
-        assignment.is_some() && entry.catalog.live_assignment().is_some();
-    let assignment = match assignment {
-        Some(assignment) => match entry
-            .consumer
-            .as_ref()
-            .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
-            .topic_identities()
-            .translate_assignment(&assignment)
-        {
-            Ok(assignment) => Some(assignment),
-            Err(_error) => return fail_invalid_heartbeat(entry),
-        },
-        None => None,
-    };
-    let install_cycle = assignment.as_ref().and_then(|_assignment| {
-        entry
-            .consumer
-            .as_ref()
-            .and_then(|execution| execution.next_reconcile_cycle(replaces_live_assignment))
-    });
-    let transition = match entry
-        .consumer
-        .as_mut()
-        .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
-        .machine_mut()
-        .apply(ConsumerGroupHeartbeatInput::HeartbeatSucceeded {
-            attempt: prepared.attempt(),
-            now,
-            member_id: candidate.member_id(),
-            member_epoch,
-            heartbeat_interval_ticks,
-            throttle_ticks,
-            assignment,
-        }) {
-        Ok(transition) => transition,
-        Err(error)
-            if error.kind()
-                == kafka_client_core::ConsumerGroupHeartbeatErrorKind::DeadlineElapsed =>
-        {
-            fail_consumer_group_entry(entry, ConsumerGroupHeartbeatFailure::DeadlineElapsed)?;
-            return Ok(ConsumerGroupHeartbeatSettlementTurn::Progress);
-        }
-        Err(_error) => return fail_invalid_heartbeat(entry),
-    };
-    let mut effects = transition.into_effects();
-    match effects.next() {
-        Some(ConsumerGroupHeartbeatEffect::Reconcile {
-            previous,
-            assignment,
-            member_epoch: installed_epoch,
-            schedule,
-        }) if installed_epoch == member_epoch
-            && schedule.assignment_generation() == assignment.assignment_generation() =>
-        {
-            let cycle = install_cycle.ok_or(ConsumerGroupExecutionError::EffectShape)?;
-            let install = PreparedConsumerGroupAssignmentInstall::new(
-                candidate,
-                cycle,
-                member_epoch,
-                assignment,
-                prepared.deadline(),
-                now,
-            );
-            match previous {
-                None if !replaces_live_assignment => {
-                    install_consumer_group_assignment(entry, install)?;
-                }
-                Some(previous)
-                    if replaces_live_assignment
-                        && entry.catalog.live_assignment() == Some(&previous)
-                        && entry.consumer_reconciliation.is_none() =>
-                {
-                    stage_consumer_group_revocation(entry, Some(previous))?;
-                    entry.consumer_reconciliation = Some(install);
-                }
-                _ => return Err(ConsumerGroupExecutionError::EffectShape),
-            }
-        }
-        Some(ConsumerGroupHeartbeatEffect::ArmHeartbeat { schedule })
-            if entry.catalog.current_member_id() == Some(candidate.member_id())
-                && entry.catalog.consumer_group_member_epoch() == Some(member_epoch)
-                && entry.catalog.live_assignment().is_some_and(|assignment| {
-                    assignment.assignment_generation() == schedule.assignment_generation()
-                }) => {}
-        _ => return Err(ConsumerGroupExecutionError::EffectShape),
-    }
-    if effects.next().is_some() {
-        return Err(ConsumerGroupExecutionError::EffectShape);
-    }
-    if entry
-        .consumer
-        .as_mut()
-        .and_then(|execution| execution.take_prepared())
-        != Some(prepared)
-    {
-        return Err(ConsumerGroupExecutionError::EffectShape);
-    }
-    Ok(ConsumerGroupHeartbeatSettlementTurn::Progress)
-}
-
-fn fail_invalid_heartbeat(
-    entry: &mut GroupConsumerEntry,
-) -> Result<ConsumerGroupHeartbeatSettlementTurn, ConsumerGroupExecutionError> {
-    fail_consumer_group_entry(entry, ConsumerGroupHeartbeatFailure::InvalidResponse)?;
-    Ok(ConsumerGroupHeartbeatSettlementTurn::Progress)
 }

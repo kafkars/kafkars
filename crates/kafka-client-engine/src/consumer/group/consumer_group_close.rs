@@ -116,10 +116,10 @@ impl GroupConsumerRegistry {
                 .as_mut()
                 .ok_or(ConsumerGroupExecutionError::EffectShape)?
                 .discard_calls_after_driver_shutdown();
+            drop(entry.consumer_reconciliation.take());
             if entry.consumer_revocation.is_some() {
                 continue;
             }
-            drop(entry.consumer_reconciliation.take());
             if entry.consumer.as_ref().is_some_and(|execution| {
                 execution.machine().phase() != ConsumerGroupHeartbeatPhase::Closed
             }) {
@@ -156,6 +156,7 @@ pub(super) fn complete_consumer_group_leave(
         .as_mut()
         .ok_or(ConsumerGroupExecutionError::EffectShape)?
         .apply_leave_success()?;
+    drop(entry.consumer_reconciliation.take());
     stage_consumer_group_revocation(entry, revoked)?;
     if !entry
         .leave
@@ -176,6 +177,7 @@ pub(super) fn fail_consumer_group_leave(
         .as_mut()
         .ok_or(ConsumerGroupExecutionError::EffectShape)?
         .apply_current_failure(failure)?;
+    drop(entry.consumer_reconciliation.take());
     stage_consumer_group_revocation(entry, revoked)?;
     close_consumer_group_locally(entry, terminal)
 }
@@ -196,6 +198,7 @@ fn close_consumer_group_locally(
         .as_mut()
         .ok_or(ConsumerGroupExecutionError::EffectShape)?
         .close_locally()?;
+    drop(entry.consumer_reconciliation.take());
     stage_consumer_group_revocation(entry, revoked)?;
     if entry.leave.pending_deadline().is_some() && !entry.leave.resolve_consumer_group(terminal) {
         return Err(ConsumerGroupExecutionError::EffectShape);

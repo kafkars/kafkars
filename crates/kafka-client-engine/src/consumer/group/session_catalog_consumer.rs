@@ -13,8 +13,8 @@ pub(super) struct ConsumerGroupSession {
     member_id: MemberId,
     member: Arc<str>,
     installed_cycle: MembershipCycle,
-    member_epoch: ConsumerGroupMemberEpoch,
-    assignment: LiveGroupAssignment,
+    member_epoch: Option<ConsumerGroupMemberEpoch>,
+    assignment: Option<LiveGroupAssignment>,
 }
 
 impl ConsumerGroupSession {
@@ -30,12 +30,12 @@ impl ConsumerGroupSession {
         self.installed_cycle
     }
 
-    pub(super) const fn member_epoch(&self) -> ConsumerGroupMemberEpoch {
+    pub(super) const fn member_epoch(&self) -> Option<ConsumerGroupMemberEpoch> {
         self.member_epoch
     }
 
-    pub(super) const fn assignment(&self) -> &LiveGroupAssignment {
-        &self.assignment
+    pub(super) const fn assignment(&self) -> Option<&LiveGroupAssignment> {
+        self.assignment.as_ref()
     }
 }
 
@@ -112,24 +112,90 @@ impl GroupSessionCatalog {
             member_id: candidate.member_id,
             member: candidate.member,
             installed_cycle,
-            member_epoch,
-            assignment,
+            member_epoch: Some(member_epoch),
+            assignment: Some(assignment),
         });
+    }
+
+    /// Advances broker membership while the exact prior assignment remains engine-owned.
+    pub(super) fn commit_consumer_group_reconciliation_epoch(
+        &mut self,
+        candidate: &ConsumerGroupMemberCandidate,
+        member_epoch: ConsumerGroupMemberEpoch,
+    ) {
+        let current = self
+            .consumer_current
+            .as_mut()
+            .unwrap_or_else(|| unreachable!("reconciliation retains a modern member"));
+        debug_assert_eq!(current.member_id, candidate.member_id);
+        debug_assert_eq!(current.member.as_ref(), candidate.member.as_ref());
+        current.member_epoch = Some(member_epoch);
+    }
+
+    /// Clears the retired assignment while retaining the current member and broker epoch.
+    pub(super) fn commit_consumer_group_reconciliation_revoke(
+        &mut self,
+        assignment: LiveGroupAssignment,
+    ) {
+        let current = self
+            .consumer_current
+            .as_mut()
+            .unwrap_or_else(|| unreachable!("reconciliation retains a modern member"));
+        debug_assert_eq!(current.assignment.as_ref(), Some(&assignment));
+        debug_assert!(current.member_epoch.is_some());
+        current.assignment = None;
+    }
+
+    /// Installs the core-authorized target without replacing its retained modern member.
+    pub(super) fn commit_consumer_group_reconciliation_install(
+        &mut self,
+        candidate: ConsumerGroupMemberCandidate,
+        installed_cycle: MembershipCycle,
+        member_epoch: ConsumerGroupMemberEpoch,
+        assignment: LiveGroupAssignment,
+    ) {
+        let group_id = self.group_id();
+        let current = self
+            .consumer_current
+            .as_mut()
+            .unwrap_or_else(|| unreachable!("reconciliation retains a modern member"));
+        debug_assert_eq!(current.member_id, candidate.member_id);
+        debug_assert_eq!(current.member.as_ref(), candidate.member.as_ref());
+        debug_assert_eq!(current.member_epoch, Some(member_epoch));
+        debug_assert_eq!(assignment.group_id(), group_id);
+        debug_assert_eq!(assignment.member_id(), candidate.member_id);
+        current.member = candidate.member;
+        current.installed_cycle = installed_cycle;
+        current.assignment = Some(assignment);
+        self.next_member_id = candidate.next_member_id;
+        self.required_join_member = None;
     }
 
     pub(super) fn commit_consumer_group_revoke(&mut self, assignment: LiveGroupAssignment) {
         debug_assert!(
             self.consumer_current
                 .as_ref()
-                .is_some_and(|current| current.assignment == assignment)
+                .and_then(ConsumerGroupSession::assignment)
+                == Some(&assignment)
         );
         self.consumer_current = None;
+    }
+
+    /// Retains the process-lifetime Kafka member spelling while fencing its stale assignment.
+    pub(super) fn commit_consumer_group_fenced_revoke(&mut self, assignment: LiveGroupAssignment) {
+        let current = self
+            .consumer_current
+            .as_mut()
+            .unwrap_or_else(|| unreachable!("fenced assignment has a modern member"));
+        debug_assert_eq!(current.assignment.as_ref(), Some(&assignment));
+        current.assignment = None;
+        current.member_epoch = None;
     }
 
     pub(super) fn consumer_group_member_epoch(&self) -> Option<ConsumerGroupMemberEpoch> {
         self.consumer_current
             .as_ref()
-            .map(ConsumerGroupSession::member_epoch)
+            .and_then(ConsumerGroupSession::member_epoch)
     }
 }
 

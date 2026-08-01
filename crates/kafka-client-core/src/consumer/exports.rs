@@ -30,8 +30,8 @@ pub use super::consumer_group::{
     ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatFatal, ConsumerGroupHeartbeatInput,
     ConsumerGroupHeartbeatMachine, ConsumerGroupHeartbeatPhase, ConsumerGroupHeartbeatPolicy,
     ConsumerGroupHeartbeatPolicyError, ConsumerGroupHeartbeatRequestKind,
-    ConsumerGroupHeartbeatSchedule, ConsumerGroupHeartbeatSequence,
-    ConsumerGroupHeartbeatTransition, ConsumerGroupMemberEpoch,
+    ConsumerGroupHeartbeatRetrySchedule, ConsumerGroupHeartbeatSchedule,
+    ConsumerGroupHeartbeatSequence, ConsumerGroupHeartbeatTransition, ConsumerGroupMemberEpoch,
 };
 pub use super::effect::{
     AssignedConsumerEffect, AssignedConsumerTransition, FetchFailure, FetchThrottleFailure,

@@ -21,7 +21,6 @@ pub(in crate::consumer) enum GroupRegistryCloseError {
     EntryFault,
 }
 
-/// Exact invariant preventing physical release of a drained group entry.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum GroupConsumerRemovalError {
     RetainedBytesInvariant,
@@ -65,7 +64,11 @@ impl GroupConsumerRegistry {
 
     /// Physically releases at most one fully drained explicit-close entry.
     pub(super) fn remove_one_closed_group(&mut self) -> Result<bool, GroupConsumerRemovalError> {
-        let Some(index) = self.entries.iter().position(group_close_is_drained) else {
+        let invalidations = self.coordinator_invalidations.as_ref();
+        let Some(index) = self.entries.iter().position(|entry| {
+            group_close_is_drained(entry)
+                && invalidations.is_none_or(|owner| !owner.blocks_join(entry.group_id()))
+        }) else {
             return Ok(false);
         };
         let bytes = self.entries[index].group_bytes();
@@ -155,7 +158,9 @@ impl GroupConsumerRegistry {
     ) -> Result<(), super::classic_group_execution::ClassicGroupExecutionError> {
         let turn_limit = self.entries.len().saturating_mul(4).saturating_add(1);
         for _turn in 0..turn_limit {
-            match self.turn_one_consumer_group_assignment_retirement(Moment::from_tick(u64::MAX))? {
+            match self.turn_one_consumer_group_assignment_retirement_after_driver_shutdown(
+                Moment::from_tick(u64::MAX),
+            )? {
                 ConsumerGroupAssignmentRetirementTurn::Progress => continue,
                 ConsumerGroupAssignmentRetirementTurn::Blocked => break,
                 ConsumerGroupAssignmentRetirementTurn::Idle => {}

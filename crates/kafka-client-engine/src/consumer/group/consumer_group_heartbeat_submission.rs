@@ -105,17 +105,31 @@ pub(super) fn consumer_group_heartbeat_is_ready(entry: &GroupConsumerEntry) -> b
     (entry.is_active() || leave_is_closing)
         && entry.fault.is_none()
         && entry.consumer.as_ref().is_some_and(|execution| {
-            consumer_group_execution_is_ready(execution) && execution.heartbeat_call().is_none()
+            consumer_group_execution_is_ready(execution)
+                && execution.heartbeat_call().is_none()
+                && join_assignment_is_retired(entry, execution)
         })
+}
+
+fn join_assignment_is_retired(
+    entry: &GroupConsumerEntry,
+    execution: &ConsumerGroupExecution,
+) -> bool {
+    execution.prepared().is_none_or(|prepared| {
+        prepared.kind() != ConsumerGroupHeartbeatRequestKind::Join
+            || (entry.consumer_revocation.is_none() && entry.catalog.live_assignment().is_none())
+    })
 }
 
 pub(super) fn consumer_group_execution_is_ready(execution: &ConsumerGroupExecution) -> bool {
     execution.prepared().is_some()
+        && execution.machine().retry_schedule().is_none()
         && execution.topic_identity_call().is_none()
         && execution.topic_identities().is_complete()
+        && execution.rediscovery_state().permits_submission()
 }
 
-fn prepare_request(
+pub(super) fn prepare_request(
     entry: &GroupConsumerEntry,
 ) -> Result<crate::protocol::consumer::PreparedConsumerGroupHeartbeatRequest, ()> {
     let execution = entry.consumer.as_ref().ok_or(())?;
@@ -131,6 +145,14 @@ fn prepare_join_request(
     entry: &GroupConsumerEntry,
     execution: &ConsumerGroupExecution,
 ) -> Result<crate::protocol::consumer::PreparedConsumerGroupHeartbeatRequest, ()> {
+    let prepared = execution.prepared().ok_or(())?;
+    let member = match prepared.member_id() {
+        Some(member_id) if entry.catalog.current_member_id() == Some(member_id) => {
+            Some(entry.catalog.current_member().ok_or(())?.as_ref())
+        }
+        Some(_) => return Err(()),
+        None => None,
+    };
     let mut topics = Vec::new();
     topics
         .try_reserve_exact(entry.catalog.local_subscription().len())
@@ -146,6 +168,7 @@ fn prepare_join_request(
     }
     ConsumerGroupHeartbeatCall::join_request(
         entry.catalog.group(),
+        member,
         entry
             .catalog
             .group_instance_id()
@@ -163,11 +186,15 @@ fn prepare_steady_request(
     let prepared = execution.prepared().ok_or(())?;
     let member_id = prepared.member_id().ok_or(())?;
     let member_epoch = prepared.member_epoch().ok_or(())?;
-    let assignment_generation = prepared.assignment_generation().ok_or(())?;
-    let assignment = execution.machine().live_assignment().ok_or(())?;
-    if assignment.member_id() != member_id
-        || assignment.assignment_generation() != assignment_generation
-        || entry.catalog.current_member_id() != Some(member_id)
+    let reportable = execution.machine().live_assignment();
+    match (prepared.assignment_generation(), reportable) {
+        (Some(generation), Some(assignment))
+            if assignment.member_id() == member_id
+                && assignment.assignment_generation() == generation => {}
+        (None, None) if execution.machine().pending_assignment().is_some() => {}
+        _ => return Err(()),
+    }
+    if entry.catalog.current_member_id() != Some(member_id)
         || entry.catalog.consumer_group_member_epoch() != Some(member_epoch)
     {
         return Err(());
@@ -175,7 +202,7 @@ fn prepare_steady_request(
     let member = entry.catalog.current_member().ok_or(())?;
     let owned = execution
         .topic_identities()
-        .owned_topics(assignment.partitions())
+        .owned_topics(reportable.map_or(&[], |assignment| assignment.partitions()))
         .map_err(|_error| ())?;
     ConsumerGroupHeartbeatCall::steady_request(
         entry.catalog.group(),

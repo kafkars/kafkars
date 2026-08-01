@@ -1,60 +1,21 @@
 //! Exact engine ownership of KIP-848 effects between core and mechanism turns.
 
 use kafka_client_core::{
-    AssignmentGeneration, ConsumerGroupHeartbeatApplyError, ConsumerGroupHeartbeatAttempt,
-    ConsumerGroupHeartbeatEffect, ConsumerGroupHeartbeatErrorKind, ConsumerGroupHeartbeatInput,
-    ConsumerGroupHeartbeatMachine, ConsumerGroupHeartbeatPolicy, ConsumerGroupHeartbeatRequestKind,
-    ConsumerGroupMemberEpoch, GroupId, MemberId, MembershipCycle,
+    ConsumerGroupHeartbeatApplyError, ConsumerGroupHeartbeatEffect,
+    ConsumerGroupHeartbeatErrorKind, ConsumerGroupHeartbeatInput, ConsumerGroupHeartbeatMachine,
+    ConsumerGroupHeartbeatPolicy, ConsumerGroupHeartbeatRequestKind, GroupId, MembershipCycle,
 };
 
-use crate::{
-    clock::{DeadlineCapture, OperationDeadline},
-    driver::ConsumerGroupHeartbeatCall,
-};
+use crate::{clock::DeadlineCapture, driver::ConsumerGroupHeartbeatCall};
 
 use super::consumer_group_topic_identity::{
     ConsumerGroupTopicIdentityBuildError, ConsumerGroupTopicIdentityOwner,
 };
 use super::consumer_group_topic_identity_call::ConsumerGroupTopicIdentityCall;
 
+pub(super) use super::consumer_group_heartbeat_prepared::PreparedConsumerGroupHeartbeat;
+
 pub(super) const CONSUMER_GROUP_ATTEMPT_TIMEOUT_TICKS: u64 = 10_000_000_000;
-
-/// One exact core-authorized API 68 submission awaiting mechanism ownership.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) struct PreparedConsumerGroupHeartbeat {
-    pub(super) attempt: ConsumerGroupHeartbeatAttempt,
-    pub(super) kind: ConsumerGroupHeartbeatRequestKind,
-    pub(super) member_id: Option<MemberId>,
-    pub(super) member_epoch: Option<ConsumerGroupMemberEpoch>,
-    pub(super) assignment_generation: Option<AssignmentGeneration>,
-    pub(super) deadline: OperationDeadline,
-}
-
-impl PreparedConsumerGroupHeartbeat {
-    pub(super) const fn attempt(self) -> ConsumerGroupHeartbeatAttempt {
-        self.attempt
-    }
-
-    pub(super) const fn kind(self) -> ConsumerGroupHeartbeatRequestKind {
-        self.kind
-    }
-
-    pub(super) const fn member_id(self) -> Option<MemberId> {
-        self.member_id
-    }
-
-    pub(super) const fn member_epoch(self) -> Option<ConsumerGroupMemberEpoch> {
-        self.member_epoch
-    }
-
-    pub(super) const fn assignment_generation(self) -> Option<AssignmentGeneration> {
-        self.assignment_generation
-    }
-
-    pub(super) const fn deadline(self) -> OperationDeadline {
-        self.deadline
-    }
-}
 
 /// Pre-core or post-core start failure for one modern group entry.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -83,6 +44,26 @@ pub(super) enum ConsumerGroupExecutionError {
     EffectShape,
 }
 
+/// Mechanism fence for the one core-authorized coordinator replacement.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ConsumerGroupRediscoveryState {
+    /// This prepared attempt has not requested coordinator rediscovery.
+    Open,
+    /// The exact route capability is queued for driver invalidation admission.
+    AwaitingInvalidationAdmission,
+    /// Invalidation admission withdrew the failed route and the replacement may submit.
+    ReplacementAdmitted,
+}
+
+impl ConsumerGroupRediscoveryState {
+    pub(super) const fn permits_submission(self) -> bool {
+        match self {
+            Self::Open | Self::ReplacementAdmitted => true,
+            Self::AwaitingInvalidationAdmission => false,
+        }
+    }
+}
+
 /// One modern membership lifetime, its core owner, and pending effect transfer.
 pub(super) struct ConsumerGroupExecution {
     pub(super) machine: ConsumerGroupHeartbeatMachine,
@@ -92,6 +73,7 @@ pub(super) struct ConsumerGroupExecution {
     pub(super) topic_identities: ConsumerGroupTopicIdentityOwner,
     pub(super) topic_identity_call: Option<ConsumerGroupTopicIdentityCall>,
     pub(super) heartbeat_call: Option<ConsumerGroupHeartbeatCall>,
+    pub(super) rediscovery: ConsumerGroupRediscoveryState,
 }
 
 impl ConsumerGroupExecution {
@@ -111,6 +93,7 @@ impl ConsumerGroupExecution {
                 .map_err(ConsumerGroupExecutionBuildError::TopicIdentity)?,
             topic_identity_call: None,
             heartbeat_call: None,
+            rediscovery: ConsumerGroupRediscoveryState::Open,
         })
     }
 
@@ -124,7 +107,10 @@ impl ConsumerGroupExecution {
         &mut self,
         capture: DeadlineCapture,
     ) -> Result<(), ConsumerGroupExecutionAdmissionError> {
-        if self.prepared.is_some() || self.cycle.is_some() {
+        if self.prepared.is_some()
+            || self.cycle.is_some()
+            || self.rediscovery != ConsumerGroupRediscoveryState::Open
+        {
             return Err(ConsumerGroupExecutionAdmissionError::Occupied);
         }
         let transition = self
@@ -197,7 +183,39 @@ impl ConsumerGroupExecution {
     }
 
     pub(super) fn take_prepared(&mut self) -> Option<PreparedConsumerGroupHeartbeat> {
-        self.prepared.take()
+        let prepared = self.prepared.take();
+        if prepared.is_some() {
+            self.rediscovery = ConsumerGroupRediscoveryState::Open;
+        }
+        prepared
+    }
+
+    pub(super) const fn rediscovery_state(&self) -> ConsumerGroupRediscoveryState {
+        self.rediscovery
+    }
+
+    pub(super) fn await_rediscovery_admission(
+        &mut self,
+    ) -> Result<(), ConsumerGroupExecutionError> {
+        if self.rediscovery != ConsumerGroupRediscoveryState::Open {
+            return Err(ConsumerGroupExecutionError::EffectShape);
+        }
+        self.rediscovery = ConsumerGroupRediscoveryState::AwaitingInvalidationAdmission;
+        Ok(())
+    }
+
+    pub(super) fn permit_rediscovery_replacement(
+        &mut self,
+    ) -> Result<(), ConsumerGroupExecutionError> {
+        if self.rediscovery != ConsumerGroupRediscoveryState::AwaitingInvalidationAdmission {
+            return Err(ConsumerGroupExecutionError::EffectShape);
+        }
+        self.rediscovery = ConsumerGroupRediscoveryState::ReplacementAdmitted;
+        Ok(())
+    }
+
+    pub(super) fn clear_rediscovery(&mut self) {
+        self.rediscovery = ConsumerGroupRediscoveryState::Open;
     }
 }
 
