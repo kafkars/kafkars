@@ -141,11 +141,12 @@ impl GroupConsumerRegistry {
             GroupConsumerAssignment::new(epoch, partitions),
             GroupConsumerMetadata::new_with_group_instance_id(
                 Arc::clone(entry.catalog.group()),
+                entry.catalog.group_instance_id().cloned(),
+                Arc::clone(current_member),
                 match entry.protocol {
                     GroupConsumerProtocol::Classic => entry.catalog.group_instance_id().cloned(),
                     GroupConsumerProtocol::Consumer => None,
                 },
-                Arc::clone(current_member),
                 generation_id_or_member_epoch,
                 epoch,
                 position_fence,

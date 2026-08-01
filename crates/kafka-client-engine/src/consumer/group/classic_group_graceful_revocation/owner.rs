@@ -1,21 +1,19 @@
 //! Pre-reserved per-entry ownership of completion and one retained core terminal.
 
 use kafka_client_core::{
-    AssignmentEpoch, ClassicGeneration, ClassicGracefulRevocation, ClassicGracefulRevocationEffect,
-    ClassicGracefulRevocationInput, ClassicGracefulRevocationLease,
-    ClassicGracefulRevocationLossReason, ClassicGracefulRevocationTerminal, LiveGroupAssignment,
-    Moment,
+    AssignmentEpoch, ClassicGracefulRevocation, ClassicGracefulRevocationEffect,
+    ClassicGracefulRevocationInput, ClassicGracefulRevocationLossReason,
+    ClassicGracefulRevocationTerminal, LiveGroupAssignment, Moment,
 };
 
 use super::model::{
-    ClassicGroupRevocationAcknowledgeError, ClassicGroupRevocationBeginError,
-    ClassicGroupRevocationHostError, PendingClassicGroupRevocation,
+    ClassicGroupRevocationAcknowledgeError, ClassicGroupRevocationHostError, PendingGroupRevocation,
 };
 
 /// One fixed-capacity owner constructed before any revocation is admitted.
 pub(in crate::consumer::group) struct ClassicGroupRevocationOwner {
-    core: ClassicGracefulRevocation,
-    pending: Option<PendingClassicGroupRevocation>,
+    pub(super) core: ClassicGracefulRevocation,
+    pub(super) pending: Option<PendingGroupRevocation>,
 }
 
 impl ClassicGroupRevocationOwner {
@@ -24,49 +22,6 @@ impl ClassicGroupRevocationOwner {
             core: ClassicGracefulRevocation::new(),
             pending: None,
         }
-    }
-
-    pub(in crate::consumer::group) fn begin(
-        &mut self,
-        assignment: LiveGroupAssignment,
-        generation: ClassicGeneration,
-        lease: ClassicGracefulRevocationLease,
-        now: Moment,
-    ) -> Result<(), (ClassicGroupRevocationBeginError, LiveGroupAssignment)> {
-        if self.pending.is_some()
-            || self.core.active_lease().is_some()
-            || self.core.terminal().is_some()
-        {
-            return Err((ClassicGroupRevocationBeginError::Occupied, assignment));
-        }
-        let transition = match self
-            .core
-            .apply(ClassicGracefulRevocationInput::Begin { lease, now })
-        {
-            Ok(transition) => transition,
-            Err(error) => {
-                return Err((ClassicGroupRevocationBeginError::Core(error), assignment));
-            }
-        };
-        let effect = one_effect(&transition);
-        match effect {
-            Some(ClassicGracefulRevocationEffect::Arm { lease: armed }) if armed == lease => {}
-            Some(ClassicGracefulRevocationEffect::Complete {
-                terminal:
-                    ClassicGracefulRevocationTerminal::Lost {
-                        lease: expired,
-                        reason: ClassicGracefulRevocationLossReason::DeadlineElapsed,
-                    },
-            }) if expired == lease => {}
-            _ => {
-                return Err((
-                    ClassicGroupRevocationBeginError::UnexpectedEffect,
-                    assignment,
-                ));
-            }
-        }
-        self.pending = Some(PendingClassicGroupRevocation::new(assignment, generation));
-        Ok(())
     }
 
     pub(in crate::consumer::group) fn acknowledge(
@@ -180,12 +135,36 @@ impl ClassicGroupRevocationOwner {
         self.core.terminal()
     }
 
-    pub(super) fn take_pending(&mut self) -> Option<PendingClassicGroupRevocation> {
+    pub(in crate::consumer::group) const fn pending_is_consumer(&self) -> bool {
+        matches!(&self.pending, Some(PendingGroupRevocation::Consumer(_)))
+    }
+
+    pub(super) fn take_pending(&mut self) -> Option<PendingGroupRevocation> {
         self.pending.take()
     }
 
-    pub(super) fn restore_pending(&mut self, pending: PendingClassicGroupRevocation) {
+    pub(super) fn restore_pending(&mut self, pending: PendingGroupRevocation) {
         self.pending = Some(pending);
+    }
+
+    pub(in crate::consumer::group) fn take_pending_consumer(
+        &mut self,
+    ) -> Option<LiveGroupAssignment> {
+        let pending = self.pending.take()?;
+        match pending {
+            PendingGroupRevocation::Consumer(assignment) => Some(assignment),
+            pending @ PendingGroupRevocation::Classic(_) => {
+                self.pending = Some(pending);
+                None
+            }
+        }
+    }
+
+    pub(in crate::consumer::group) fn restore_pending_consumer(
+        &mut self,
+        assignment: LiveGroupAssignment,
+    ) {
+        self.pending = Some(PendingGroupRevocation::consumer(assignment));
     }
 
     pub(in crate::consumer::group) fn release_terminal(
@@ -203,7 +182,7 @@ impl ClassicGroupRevocationOwner {
     }
 }
 
-fn one_effect(
+pub(super) fn one_effect(
     transition: &kafka_client_core::ClassicGracefulRevocationTransition,
 ) -> Option<ClassicGracefulRevocationEffect> {
     let mut effects = transition.effects().copied();

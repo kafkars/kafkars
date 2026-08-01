@@ -177,6 +177,14 @@ pub(super) fn fail_consumer_group_leave(
         .as_mut()
         .ok_or(ConsumerGroupExecutionError::EffectShape)?
         .apply_current_failure(failure)?;
+    finish_consumer_group_leave_failure(entry, revoked, terminal)
+}
+
+pub(super) fn finish_consumer_group_leave_failure(
+    entry: &mut GroupConsumerEntry,
+    revoked: Option<kafka_client_core::LiveGroupAssignment>,
+    terminal: GroupConsumerCloseTerminal,
+) -> Result<(), ConsumerGroupExecutionError> {
     drop(entry.consumer_reconciliation.take());
     stage_consumer_group_revocation(entry, revoked)?;
     close_consumer_group_locally(entry, terminal)

@@ -1,5 +1,7 @@
 //! Production staging, scheduling, and completion of graceful assignment release.
 
+pub(super) mod consumer_group;
+
 use kafka_client_core::{
     ClassicGeneration, ClassicGracefulRevocationLease, Deadline, GroupId, LiveGroupAssignment,
     Moment,
@@ -19,6 +21,8 @@ use super::{
     registry_shard::GroupConsumerShardLockError,
     session_catalog::GroupSessionCatalog,
 };
+
+use self::consumer_group::settle_consumer_group_revocation;
 
 /// Private observation and completion failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -85,6 +89,12 @@ impl GroupConsumerRegistry {
     ) -> Result<ClassicGroupRevocationTurn, ClassicGroupRevocationHostError> {
         for entry in &mut self.entries {
             if entry.revocation.expire_if_due(now)? {
+                return Ok(ClassicGroupRevocationTurn::Progress);
+            }
+            if entry.revocation.terminal().is_some()
+                && entry.revocation.pending_is_consumer()
+                && settle_consumer_group_revocation(entry)?
+            {
                 return Ok(ClassicGroupRevocationTurn::Progress);
             }
             if entry.revocation.terminal().is_some()

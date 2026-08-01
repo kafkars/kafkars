@@ -3,6 +3,7 @@
 use kafka_client_core::{ClassicGeneration, ClassicGracefulRevocationError, LiveGroupAssignment};
 
 use super::super::classic_group_assignment::ClassicGroupRevocationFailureKind;
+use super::super::consumer_group_execution::ConsumerGroupExecutionError;
 
 pub(super) struct PendingClassicGroupRevocation {
     pub(super) assignment: LiveGroupAssignment,
@@ -17,6 +18,31 @@ impl PendingClassicGroupRevocation {
         Self {
             assignment,
             generation,
+        }
+    }
+}
+
+pub(super) enum PendingGroupRevocation {
+    Classic(PendingClassicGroupRevocation),
+    Consumer(LiveGroupAssignment),
+}
+
+impl PendingGroupRevocation {
+    pub(super) const fn classic(
+        assignment: LiveGroupAssignment,
+        generation: ClassicGeneration,
+    ) -> Self {
+        Self::Classic(PendingClassicGroupRevocation::new(assignment, generation))
+    }
+
+    pub(super) const fn consumer(assignment: LiveGroupAssignment) -> Self {
+        Self::Consumer(assignment)
+    }
+
+    pub(super) fn into_assignment(self) -> LiveGroupAssignment {
+        match self {
+            Self::Classic(pending) => pending.assignment,
+            Self::Consumer(assignment) => assignment,
         }
     }
 }
@@ -62,4 +88,5 @@ pub(in crate::consumer::group) enum ClassicGroupRevocationHostError {
     UnexpectedEffect,
     MissingPending,
     Revocation(ClassicGroupRevocationFailureKind),
+    ConsumerGroup(ConsumerGroupExecutionError),
 }

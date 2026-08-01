@@ -17,7 +17,9 @@ impl ConsumerGroupHeartbeatMachine {
     ) -> Result<ConsumerGroupHeartbeatTransition, ConsumerGroupHeartbeatErrorKind> {
         if !matches!(
             self.phase,
-            ConsumerGroupHeartbeatPhase::Joining | ConsumerGroupHeartbeatPhase::Heartbeating
+            ConsumerGroupHeartbeatPhase::Joining
+                | ConsumerGroupHeartbeatPhase::Heartbeating
+                | ConsumerGroupHeartbeatPhase::Leaving
         ) {
             return Err(ConsumerGroupHeartbeatErrorKind::InvalidPhase);
         }
@@ -91,6 +93,32 @@ impl ConsumerGroupHeartbeatMachine {
                     Some(member_id),
                     Some(member_epoch),
                     assignment_generation,
+                )
+            }
+            ConsumerGroupHeartbeatPhase::Leaving => {
+                let member_id = self
+                    .member_id
+                    .ok_or(ConsumerGroupHeartbeatErrorKind::InvariantViolation)?;
+                let member_epoch = self
+                    .member_epoch
+                    .ok_or(ConsumerGroupHeartbeatErrorKind::InvariantViolation)?;
+                let assignment_generation = self
+                    .live_assignment
+                    .as_ref()
+                    .filter(|assignment| {
+                        assignment.group_id() == self.group_id
+                            && assignment.member_id() == member_id
+                    })
+                    .map(|assignment| assignment.assignment_generation())
+                    .ok_or(ConsumerGroupHeartbeatErrorKind::InvariantViolation)?;
+                if attempt.member_epoch() != Some(member_epoch) {
+                    return Err(ConsumerGroupHeartbeatErrorKind::InvariantViolation);
+                }
+                (
+                    ConsumerGroupHeartbeatRequestKind::Leave,
+                    Some(member_id),
+                    Some(member_epoch),
+                    Some(assignment_generation),
                 )
             }
             _ => return Err(ConsumerGroupHeartbeatErrorKind::InvalidPhase),

@@ -50,6 +50,17 @@ fn graceful_revocation_supersedes_assignment_without_duplicate_loss() {
 }
 
 #[test]
+fn lost_modern_revocation_replaces_unobserved_notice_with_loss() {
+    let mut events = confirmed(1);
+    events.stage_graceful_revocation(Some(assignment(1)), 1);
+    events.lose_graceful_revocation(1);
+    events.observe_retirement(Some(assignment(1)), 1, ClassicGroupPhase::Lost);
+
+    assert_lost(events.take(), 1);
+    assert_eq!(events.take(), None);
+}
+
+#[test]
 fn consecutive_losses_coalesce_to_newest_cumulative_fence() {
     let mut events = confirmed(1);
     let _assigned = events.take();

@@ -16,6 +16,7 @@ pub(super) enum ConsumerGroupRediscoveryDecision {
     Rediscover,
     Terminal {
         revoked: Option<LiveGroupAssignment>,
+        failure: ConsumerGroupHeartbeatFailure,
     },
 }
 
@@ -42,9 +43,6 @@ impl ConsumerGroupExecution {
         let prepared = self
             .prepared
             .ok_or(ConsumerGroupExecutionError::MissingPrepared)?;
-        if prepared.kind() == ConsumerGroupHeartbeatRequestKind::Leave {
-            return Err(ConsumerGroupExecutionError::EffectShape);
-        }
         let transition = self
             .machine
             .apply(ConsumerGroupHeartbeatInput::RetryHeartbeat {
@@ -88,7 +86,10 @@ impl ConsumerGroupExecution {
             {
                 self.prepared = None;
                 self.clear_rediscovery();
-                Ok(ConsumerGroupRediscoveryDecision::Terminal { revoked: None })
+                Ok(ConsumerGroupRediscoveryDecision::Terminal {
+                    revoked: None,
+                    failure: fatal.failure(),
+                })
             }
             (
                 Some(ConsumerGroupHeartbeatEffect::Revoke { assignment }),
@@ -100,6 +101,7 @@ impl ConsumerGroupExecution {
                 self.clear_rediscovery();
                 Ok(ConsumerGroupRediscoveryDecision::Terminal {
                     revoked: Some(assignment),
+                    failure: fatal.failure(),
                 })
             }
             _ => Err(ConsumerGroupExecutionError::EffectShape),

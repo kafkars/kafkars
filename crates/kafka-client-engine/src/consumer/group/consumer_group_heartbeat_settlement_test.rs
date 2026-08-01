@@ -156,8 +156,30 @@ fn processing_expiry_closes_modern_membership_before_retiring_assignment() {
     );
 }
 
+#[test]
+fn confirmed_static_modern_state_exposes_identity_without_sending_it_transactionally() {
+    let (entry, _topic_id) = installed_modern_entry_with_instance(Some(&Arc::from("instance-a")));
+    let group_id = entry.group_id();
+    let mut registry =
+        GroupConsumerRegistry::start().unwrap_or_else(|error| panic!("registry: {error:?}"));
+    registry.entries.push(entry);
+
+    let state = registry
+        .group_state(group_id)
+        .unwrap_or_else(|error| panic!("state observation: {error:?}"))
+        .unwrap_or_else(|| panic!("confirmed state"));
+    assert_eq!(state.metadata().group_instance_id(), Some("instance-a"));
+    assert_eq!(state.metadata().group_instance_id_arc(), None);
+}
+
 pub(super) fn installed_modern_entry() -> (GroupConsumerEntry, kafka_client_core::TopicId) {
-    let mut entry = modern_entry();
+    installed_modern_entry_with_instance(None)
+}
+
+fn installed_modern_entry_with_instance(
+    group_instance_id: Option<&Arc<str>>,
+) -> (GroupConsumerEntry, kafka_client_core::TopicId) {
+    let mut entry = modern_entry_with_instance(group_instance_id);
     let capture = MonotonicClock::new()
         .capture_deadline_after(Duration::from_secs(30))
         .unwrap_or_else(|error| panic!("capture: {error}"));
@@ -192,11 +214,11 @@ pub(super) fn installed_modern_entry() -> (GroupConsumerEntry, kafka_client_core
     (entry, topic_id)
 }
 
-fn modern_entry() -> GroupConsumerEntry {
+fn modern_entry_with_instance(group_instance_id: Option<&Arc<str>>) -> GroupConsumerEntry {
     GroupConsumerEntry::try_new_with_protocol_configuration(
         GroupId::try_from_raw(3).unwrap_or_else(|| panic!("group identity")),
         &Arc::from("workers"),
-        None,
+        group_instance_id,
         &[Arc::from("orders")],
         GroupConsumerProtocol::Consumer,
         classic_group_test_support::timing(),

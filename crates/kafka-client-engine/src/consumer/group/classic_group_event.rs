@@ -1,13 +1,14 @@
 //! Bounded observation lifecycle derived from confirmed assignment transitions.
 
+mod naming;
+
 use std::collections::VecDeque;
 
 use kafka_client_core::{ClassicGroupPhase, LiveGroupAssignment};
 
-use crate::consumer::{
-    GroupConsumerAssignment, GroupConsumerAssignmentPartition, GroupConsumerEvent,
-};
+use crate::consumer::{GroupConsumerAssignment, GroupConsumerEvent};
 
+use self::naming::named_assignment;
 use super::session_catalog::GroupSessionCatalog;
 
 /// One staged Sync observation plus bounded prior-loss/current-assignment state.
@@ -55,6 +56,13 @@ impl ClassicGroupEventStore {
         debug_assert_eq!(self.confirmed_assignment_epoch, Some(epoch));
         self.revoking_assignment_epoch = Some(epoch);
         self.publish(GroupConsumerEvent::PartitionsRevoked(assignment));
+    }
+
+    /// Lets KIP-848 publish loss only when graceful release ends unacknowledged.
+    pub(super) fn lose_graceful_revocation(&mut self, epoch: u64) {
+        if self.revoking_assignment_epoch == Some(epoch) {
+            self.revoking_assignment_epoch = None;
+        }
     }
 
     /// Retires the exact observation fence beside the authoritative assignment.
@@ -125,6 +133,12 @@ impl ClassicGroupEventStore {
                 Some(GroupConsumerEvent::PartitionsAssigned(assigned)),
                 GroupConsumerEvent::PartitionsRevoked(revoked),
             ) if assigned.assignment_epoch() == revoked.assignment_epoch()
+        ) || matches!(
+            (self.ready.back(), &event),
+            (
+                Some(GroupConsumerEvent::PartitionsRevoked(revoked)),
+                GroupConsumerEvent::PartitionsLost(lost),
+            ) if revoked.assignment_epoch() == lost.assignment_epoch()
         );
         if replace_back {
             let _superseded = self.ready.pop_back();
@@ -194,6 +208,10 @@ impl GroupSessionCatalog {
         self.events.stage_graceful_revocation(named, epoch);
     }
 
+    pub(super) fn lose_consumer_group_graceful_revocation(&mut self, epoch: u64) {
+        self.events.lose_graceful_revocation(epoch);
+    }
+
     pub(super) fn commit_assignment_retirement_event(
         &mut self,
         named: Option<GroupConsumerAssignment>,
@@ -206,23 +224,4 @@ impl GroupSessionCatalog {
     pub(super) fn take_event(&mut self) -> Option<GroupConsumerEvent> {
         self.events.take()
     }
-}
-
-fn named_assignment(
-    catalog: &GroupSessionCatalog,
-    assignment: &LiveGroupAssignment,
-) -> GroupConsumerAssignment {
-    let mut partitions = Vec::with_capacity(assignment.partitions().len());
-    for assigned in assignment.partitions() {
-        let topic = catalog
-            .topic_name(assigned.topic_id())
-            .unwrap_or_else(|_error| unreachable!("installed assignment topics are cataloged"));
-        let partition = i32::try_from(assigned.partition().get())
-            .unwrap_or_else(|_error| unreachable!("installed partition fits Kafka i32"));
-        partitions.push(GroupConsumerAssignmentPartition::new(
-            topic.clone(),
-            partition,
-        ));
-    }
-    GroupConsumerAssignment::new(assignment.assignment_generation().get(), partitions)
 }

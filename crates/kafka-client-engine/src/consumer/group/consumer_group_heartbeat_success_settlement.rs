@@ -1,4 +1,7 @@
 //! Successful KIP-848 heartbeat validation and atomic assignment-catalog installation.
+
+mod reconciliation;
+
 use kafka_client_core::{
     ConsumerGroupHeartbeatEffect, ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatInput,
     ConsumerGroupMemberEpoch, Moment,
@@ -9,14 +12,18 @@ use super::{
         PreparedConsumerGroupAssignmentInstall, install_consumer_group_assignment,
         install_reconciled_consumer_group_assignment,
     },
-    consumer_group_assignment_retirement::stage_consumer_group_revocation,
     consumer_group_execution::ConsumerGroupExecutionError,
     consumer_group_execution_terminal::fail_consumer_group_entry,
     consumer_group_heartbeat_settlement::{
         ConsumerGroupHeartbeatSettlementTurn, fail_invalid_heartbeat,
     },
     registry_entry::GroupConsumerEntry,
+    registry_graceful_revocation::consumer_group::{
+        prepare_reconciliation_revocation_deadline, stage_consumer_group_reconciliation,
+    },
 };
+
+use self::reconciliation::reconciliation_core_matches;
 
 const TICKS_PER_MILLISECOND: u64 = 1_000_000;
 
@@ -70,6 +77,8 @@ pub(super) fn settle_success(
         },
         None => None,
     };
+    let revocation_deadline =
+        prepare_reconciliation_revocation_deadline(entry, now, replaces_live_assignment)?;
     let install_cycle = assignment.as_ref().and_then(|_assignment| {
         entry
             .consumer
@@ -115,21 +124,7 @@ pub(super) fn settle_success(
                         previous.assignment_generation()
                     }) =>
         {
-            let execution = entry
-                .consumer
-                .as_ref()
-                .ok_or(ConsumerGroupExecutionError::MissingPrepared)?;
-            let core_matches = match previous.as_ref() {
-                Some(previous) => {
-                    execution.machine().live_assignment() == Some(previous)
-                        && execution.machine().pending_assignment() == Some(&assignment)
-                }
-                None => {
-                    execution.machine().live_assignment() == Some(&assignment)
-                        && execution.machine().pending_assignment().is_none()
-                }
-            };
-            if !core_matches {
+            if !reconciliation_core_matches(entry, previous.as_ref(), &assignment) {
                 return Err(ConsumerGroupExecutionError::EffectShape);
             }
             let cycle = install_cycle.ok_or(ConsumerGroupExecutionError::EffectShape)?;
@@ -150,9 +145,6 @@ pub(super) fn settle_success(
                         && entry.catalog.live_assignment() == Some(&previous)
                         && entry.consumer_reconciliation.is_none() =>
                 {
-                    entry
-                        .catalog
-                        .commit_consumer_group_reconciliation_epoch(&candidate, member_epoch);
                     let install = PreparedConsumerGroupAssignmentInstall::new(
                         candidate,
                         cycle,
@@ -161,8 +153,13 @@ pub(super) fn settle_success(
                         prepared.deadline(),
                         now,
                     );
-                    stage_consumer_group_revocation(entry, Some(previous))?;
-                    entry.consumer_reconciliation = Some(install);
+                    stage_consumer_group_reconciliation(
+                        entry,
+                        previous,
+                        install,
+                        revocation_deadline,
+                        now,
+                    )?;
                 }
                 _ => return Err(ConsumerGroupExecutionError::EffectShape),
             }

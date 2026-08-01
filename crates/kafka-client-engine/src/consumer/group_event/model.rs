@@ -62,6 +62,7 @@ pub struct GroupConsumerMetadata {
     group: Arc<str>,
     group_instance_id: Option<Arc<str>>,
     member: Arc<str>,
+    transaction_group_instance_id: Option<Arc<str>>,
     generation_id: i32,
     assignment_epoch: u64,
     _position_fence: GroupPositionFence,
@@ -72,6 +73,7 @@ impl GroupConsumerMetadata {
         group: Arc<str>,
         group_instance_id: Option<Arc<str>>,
         member: Arc<str>,
+        transaction_group_instance_id: Option<Arc<str>>,
         generation_id: i32,
         assignment_epoch: u64,
         position_fence: GroupPositionFence,
@@ -80,6 +82,7 @@ impl GroupConsumerMetadata {
             group,
             group_instance_id,
             member,
+            transaction_group_instance_id,
             generation_id,
             assignment_epoch,
             _position_fence: position_fence,
@@ -120,7 +123,9 @@ impl GroupConsumerMetadata {
     }
 
     pub(crate) fn group_instance_id_arc(&self) -> Option<Arc<str>> {
-        self.group_instance_id.as_ref().map(Arc::clone)
+        self.transaction_group_instance_id
+            .as_ref()
+            .map(Arc::clone)
     }
 
     pub(crate) const fn position_fence(&self) -> GroupPositionFence {

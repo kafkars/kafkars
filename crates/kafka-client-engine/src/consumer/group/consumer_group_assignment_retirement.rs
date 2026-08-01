@@ -29,11 +29,18 @@ pub(super) fn stage_consumer_group_revocation(
     let Some(assignment) = revoked else {
         return Ok(());
     };
+    stage_consumer_group_revocation_owned(entry, assignment).map_err(|(error, _assignment)| error)
+}
+
+pub(super) fn stage_consumer_group_revocation_owned(
+    entry: &mut GroupConsumerEntry,
+    assignment: LiveGroupAssignment,
+) -> Result<(), (ConsumerGroupExecutionError, LiveGroupAssignment)> {
     if let Some(current) = entry.consumer_revocation.as_ref() {
         return if current == &assignment {
             Ok(())
         } else {
-            Err(ConsumerGroupExecutionError::EffectShape)
+            Err((ConsumerGroupExecutionError::EffectShape, assignment))
         };
     }
     match entry.catalog.live_assignment() {
@@ -48,7 +55,7 @@ pub(super) fn stage_consumer_group_revocation(
         {
             Ok(())
         }
-        _ => Err(ConsumerGroupExecutionError::EffectShape),
+        _ => Err((ConsumerGroupExecutionError::EffectShape, assignment)),
     }
 }
 

@@ -19,13 +19,33 @@ fn every_engine_start_error_crosses_one_translation_function() {
 }
 
 #[test]
-fn contention_and_capacity_remain_distinct_backpressure_diagnostics() {
+fn every_live_registration_category_crosses_without_a_placeholder_protocol_error() {
+    for (kind, expected) in [
+        (GroupConsumerRegistrationErrorKind::Closed, ErrorKind::State),
+        (
+            GroupConsumerRegistrationErrorKind::Contended,
+            ErrorKind::Backpressure,
+        ),
+        (
+            GroupConsumerRegistrationErrorKind::Backpressure,
+            ErrorKind::Backpressure,
+        ),
+        (
+            GroupConsumerRegistrationErrorKind::InvalidInput,
+            ErrorKind::Configuration,
+        ),
+        (
+            GroupConsumerRegistrationErrorKind::Internal,
+            ErrorKind::Internal,
+        ),
+    ] {
+        assert_eq!(translate_group_registration_kind(kind).kind(), expected);
+    }
+
     let contended =
         translate_group_registration_kind(GroupConsumerRegistrationErrorKind::Contended);
     let capacity =
         translate_group_registration_kind(GroupConsumerRegistrationErrorKind::Backpressure);
-    assert_eq!(contended.kind(), ErrorKind::Backpressure);
-    assert_eq!(capacity.kind(), ErrorKind::Backpressure);
     assert!(contended.to_string().contains("temporarily contended"));
     assert!(capacity.to_string().contains("capacity is full"));
 }

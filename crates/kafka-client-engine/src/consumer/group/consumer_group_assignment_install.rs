@@ -52,6 +52,10 @@ impl PreparedConsumerGroupAssignmentInstall {
         self.candidate.member_id()
     }
 
+    pub(super) const fn candidate(&self) -> &ConsumerGroupMemberCandidate {
+        &self.candidate
+    }
+
     pub(super) const fn member_epoch(&self) -> ConsumerGroupMemberEpoch {
         self.member_epoch
     }

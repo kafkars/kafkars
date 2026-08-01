@@ -4,6 +4,7 @@ use kafka_client_core::{ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatReq
 use crate::{clock::MonotonicClock, driver::ConsumerGroupHeartbeatResolution};
 
 use super::{
+    classic_group_rediscovery_execution::finish_consumer_group_rediscovery_terminal,
     consumer_group_assignment_retirement::stage_consumer_group_revocation,
     consumer_group_execution::ConsumerGroupExecutionError,
     consumer_group_execution::ConsumerGroupRediscoveryState,
@@ -50,6 +51,13 @@ impl GroupConsumerRegistry {
                         .is_some_and(|prepared| prepared.deadline().core().is_elapsed_at(now))
             })
         }) {
+            let is_leave = self.entries[index]
+                .consumer
+                .as_ref()
+                .and_then(|execution| execution.prepared())
+                .is_some_and(|prepared| {
+                    prepared.kind() == ConsumerGroupHeartbeatRequestKind::Leave
+                });
             let decision = self.entries[index]
                 .consumer
                 .as_mut()
@@ -58,11 +66,15 @@ impl GroupConsumerRegistry {
                     now,
                     ConsumerGroupHeartbeatFailure::CoordinatorUnavailable,
                 )?;
-            let ConsumerGroupRediscoveryDecision::Terminal { revoked } = decision else {
+            let ConsumerGroupRediscoveryDecision::Terminal { revoked, failure } = decision else {
                 return Err(ConsumerGroupExecutionError::EffectShape);
             };
-            drop(self.entries[index].consumer_reconciliation.take());
-            stage_consumer_group_revocation(&mut self.entries[index], revoked)?;
+            finish_consumer_group_rediscovery_terminal(
+                &mut self.entries[index],
+                is_leave,
+                revoked,
+                failure,
+            )?;
             return Ok(ConsumerGroupHeartbeatSettlementTurn::Progress);
         }
         let Some(index) = self.entries.iter().position(|entry| {
@@ -126,8 +138,35 @@ fn settle_heartbeat(
         return Ok(ConsumerGroupHeartbeatSettlementTurn::Progress);
     }
     if kind == ConsumerGroupHeartbeatRequestKind::Leave {
-        route.accept();
-        return settle_leave_resolution(entry, resolution);
+        return match resolution {
+            ConsumerGroupHeartbeatResolution::BrokerRejected { error_code, .. }
+                if matches!(error_code, 15 | 16) =>
+            {
+                registry.settle_consumer_group_rediscovery(
+                    index,
+                    now,
+                    ConsumerGroupHeartbeatFailure::Broker(error_code),
+                    route,
+                )?;
+                Ok(ConsumerGroupHeartbeatSettlementTurn::Progress)
+            }
+            ConsumerGroupHeartbeatResolution::Failed(failure)
+                if driver_failure(failure)
+                    == ConsumerGroupHeartbeatFailure::CoordinatorUnavailable =>
+            {
+                registry.settle_consumer_group_rediscovery(
+                    index,
+                    now,
+                    ConsumerGroupHeartbeatFailure::CoordinatorUnavailable,
+                    route,
+                )?;
+                Ok(ConsumerGroupHeartbeatSettlementTurn::Progress)
+            }
+            resolution => {
+                route.accept();
+                settle_leave_resolution(entry, resolution)
+            }
+        };
     }
     match resolution {
         ConsumerGroupHeartbeatResolution::Succeeded(success) => {

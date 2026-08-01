@@ -194,7 +194,7 @@ fn unrelated_broker_code_does_not_authorize_rediscovery() {
 }
 
 #[test]
-fn rediscovery_rejects_a_stale_attempt_and_a_leave_attempt() {
+fn rediscovery_rejects_a_stale_attempt() {
     let (mut heartbeating, stale) = joining();
     let _ = succeed(
         &mut heartbeating,
@@ -226,10 +226,13 @@ fn rediscovery_rejects_a_stale_attempt_and_a_leave_attempt() {
         stale_error.kind(),
         super::ConsumerGroupHeartbeatErrorKind::AttemptMismatch
     );
+}
 
-    let (mut leaving, join) = joining();
-    let _ = succeed(&mut leaving, join, 20, 1, 5, 0, Some(vec![partition(1, 0)]));
-    let transition = leaving
+#[test]
+fn leaving_coordinator_rediscovery_preserves_the_exact_attempt_deadline_and_facts() {
+    let (mut machine, join) = joining();
+    let _ = succeed(&mut machine, join, 20, 1, 5, 0, Some(vec![partition(1, 0)]));
+    let transition = machine
         .apply(ConsumerGroupHeartbeatInput::BeginLeave {
             now: moment(22),
             deadline: deadline(40),
@@ -240,16 +243,57 @@ fn rediscovery_rejects_a_stale_attempt_and_a_leave_attempt() {
     else {
         panic!("leave attempt")
     };
-    let leave_error = leaving
+    let next_sequence = machine.next_sequence;
+    let transition = machine
         .apply(ConsumerGroupHeartbeatInput::RetryHeartbeat {
             attempt: leave,
             now: moment(23),
-            failure: ConsumerGroupHeartbeatFailure::CoordinatorUnavailable,
+            failure: ConsumerGroupHeartbeatFailure::Broker(16),
         })
-        .err()
-        .unwrap_or_else(|| panic!("leave replacement must reject"));
-    assert_eq!(
-        leave_error.kind(),
-        super::ConsumerGroupHeartbeatErrorKind::InvalidPhase
-    );
+        .unwrap_or_else(|error| panic!("leave rediscovery: {error}"));
+    let effects = transition.into_effects().collect::<Vec<_>>();
+    let [
+        ConsumerGroupHeartbeatEffect::Rediscover {
+            attempt: replacement,
+            kind: ConsumerGroupHeartbeatRequestKind::Leave,
+            member_id: Some(member_id),
+            member_epoch: Some(member_epoch),
+            assignment_generation: Some(generation),
+            deadline: original_deadline,
+            ..
+        },
+    ] = effects.as_slice()
+    else {
+        panic!("leave retry must preserve every live membership fact")
+    };
+    assert_eq!(*replacement, leave);
+    assert_eq!(member_id.get(), 9);
+    assert_eq!(member_epoch.get(), 1);
+    assert_eq!(generation.get(), 1);
+    assert_eq!(*original_deadline, deadline(40));
+    assert_eq!(machine.phase(), ConsumerGroupHeartbeatPhase::Leaving);
+    assert_eq!(machine.in_flight(), Some(leave));
+    assert_eq!(machine.next_sequence, next_sequence);
+    assert_eq!(machine.deadline, Some(deadline(40)));
+
+    let terminal = machine
+        .apply(ConsumerGroupHeartbeatInput::RetryHeartbeat {
+            attempt: leave,
+            now: moment(24),
+            failure: ConsumerGroupHeartbeatFailure::Broker(16),
+        })
+        .unwrap_or_else(|error| panic!("bounded leave rediscovery terminal: {error}"))
+        .into_effects()
+        .collect::<Vec<_>>();
+    assert!(matches!(
+        terminal[0],
+        ConsumerGroupHeartbeatEffect::Revoke { .. }
+    ));
+    assert!(matches!(
+        terminal[1],
+        ConsumerGroupHeartbeatEffect::Fatal { fatal }
+            if fatal.attempt() == leave
+                && fatal.failure() == ConsumerGroupHeartbeatFailure::Broker(16)
+    ));
+    assert_eq!(machine.phase(), ConsumerGroupHeartbeatPhase::Fatal);
 }

@@ -98,6 +98,29 @@ pub(super) const fn broker_close_terminal(error_code: i16) -> GroupConsumerClose
     )
 }
 
+pub(super) const fn core_close_terminal(
+    failure: ConsumerGroupHeartbeatFailure,
+) -> GroupConsumerCloseTerminal {
+    match failure {
+        ConsumerGroupHeartbeatFailure::DeadlineElapsed => {
+            close_failure(GroupConsumerCloseTerminalFailureKind::DeadlineElapsed, None)
+        }
+        ConsumerGroupHeartbeatFailure::CoordinatorUnavailable => {
+            close_failure(GroupConsumerCloseTerminalFailureKind::Transport, None)
+        }
+        ConsumerGroupHeartbeatFailure::Compatibility => {
+            close_failure(GroupConsumerCloseTerminalFailureKind::Compatibility, None)
+        }
+        ConsumerGroupHeartbeatFailure::Execution => {
+            close_failure(GroupConsumerCloseTerminalFailureKind::DriverRejected, None)
+        }
+        ConsumerGroupHeartbeatFailure::Broker(error_code) => broker_close_terminal(error_code),
+        ConsumerGroupHeartbeatFailure::InvalidResponse => {
+            close_failure(GroupConsumerCloseTerminalFailureKind::InvalidResponse, None)
+        }
+    }
+}
+
 const fn close_failure(
     kind: GroupConsumerCloseTerminalFailureKind,
     broker_code: Option<i16>,

@@ -1,6 +1,9 @@
 //! Bounded submission and terminal installation for core-authorized coordinator rediscovery.
 
-use kafka_client_core::{ConsumerGroupHeartbeatFailure, GroupId, Moment};
+use kafka_client_core::{
+    ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatRequestKind, GroupId, LiveGroupAssignment,
+    Moment,
+};
 
 use crate::driver::{
     ConsumerGroupHeartbeatRoute, DriverOwner,
@@ -15,11 +18,14 @@ use super::{
     classic_group_entry_fault::ClassicGroupEntryFault,
     classic_group_execution::ClassicGroupExecutionError,
     consumer_group_assignment_retirement::stage_consumer_group_revocation,
+    consumer_group_close::{fail_consumer_group_leave, finish_consumer_group_leave_failure},
     consumer_group_execution::{ConsumerGroupExecutionError, ConsumerGroupRediscoveryState},
     consumer_group_execution_terminal::{
         ConsumerGroupRediscoveryDecision, fail_consumer_group_entry,
     },
+    consumer_group_heartbeat_failure::core_close_terminal,
     registry::GroupConsumerRegistry,
+    registry_entry::GroupConsumerEntry,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -44,16 +50,21 @@ impl GroupConsumerRegistry {
             .rediscovery_state();
         if state == ConsumerGroupRediscoveryState::ReplacementAdmitted {
             route.accept();
+            let is_leave = consumer_group_rediscovery_is_leave(&self.entries[index])?;
             let decision = self.entries[index]
                 .consumer
                 .as_mut()
                 .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
                 .apply_current_rediscovery(now, failure)?;
-            let ConsumerGroupRediscoveryDecision::Terminal { revoked } = decision else {
+            let ConsumerGroupRediscoveryDecision::Terminal { revoked, failure } = decision else {
                 return Err(ConsumerGroupExecutionError::EffectShape);
             };
-            drop(self.entries[index].consumer_reconciliation.take());
-            stage_consumer_group_revocation(&mut self.entries[index], revoked)?;
+            finish_consumer_group_rediscovery_terminal(
+                &mut self.entries[index],
+                is_leave,
+                revoked,
+                failure,
+            )?;
             return Ok(());
         }
         if state != ConsumerGroupRediscoveryState::Open {
@@ -71,7 +82,7 @@ impl GroupConsumerRegistry {
             Ok(permit) => permit,
             Err(_error) => {
                 route.accept();
-                fail_consumer_group_entry(&mut entries[index], failure)?;
+                fail_consumer_group_rediscovery_entry(&mut entries[index], failure)?;
                 return Ok(());
             }
         };
@@ -80,10 +91,11 @@ impl GroupConsumerRegistry {
             Err(route) => {
                 drop(permit);
                 route.accept();
-                fail_consumer_group_entry(&mut entries[index], failure)?;
+                fail_consumer_group_rediscovery_entry(&mut entries[index], failure)?;
                 return Ok(());
             }
         };
+        let is_leave = consumer_group_rediscovery_is_leave(&entries[index])?;
         let decision = entries[index]
             .consumer
             .as_mut()
@@ -98,11 +110,15 @@ impl GroupConsumerRegistry {
                     return Err(ConsumerGroupExecutionError::EffectShape);
                 }
             }
-            ConsumerGroupRediscoveryDecision::Terminal { revoked } => {
+            ConsumerGroupRediscoveryDecision::Terminal { revoked, failure } => {
                 drop(permit);
                 drop(pending);
-                drop(entries[index].consumer_reconciliation.take());
-                stage_consumer_group_revocation(&mut entries[index], revoked)?;
+                finish_consumer_group_rediscovery_terminal(
+                    &mut entries[index],
+                    is_leave,
+                    revoked,
+                    failure,
+                )?;
             }
         }
         Ok(())
@@ -221,5 +237,43 @@ impl GroupConsumerRegistry {
                 Err(ClassicGroupExecutionError::CoordinatorInvalidationGate)
             }
         }
+    }
+}
+
+fn consumer_group_rediscovery_is_leave(
+    entry: &GroupConsumerEntry,
+) -> Result<bool, ConsumerGroupExecutionError> {
+    Ok(entry
+        .consumer
+        .as_ref()
+        .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
+        .prepared()
+        .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
+        .kind()
+        == ConsumerGroupHeartbeatRequestKind::Leave)
+}
+
+fn fail_consumer_group_rediscovery_entry(
+    entry: &mut GroupConsumerEntry,
+    failure: ConsumerGroupHeartbeatFailure,
+) -> Result<(), ConsumerGroupExecutionError> {
+    if consumer_group_rediscovery_is_leave(entry)? {
+        fail_consumer_group_leave(entry, failure, core_close_terminal(failure))
+    } else {
+        fail_consumer_group_entry(entry, failure)
+    }
+}
+
+pub(super) fn finish_consumer_group_rediscovery_terminal(
+    entry: &mut GroupConsumerEntry,
+    is_leave: bool,
+    revoked: Option<LiveGroupAssignment>,
+    failure: ConsumerGroupHeartbeatFailure,
+) -> Result<(), ConsumerGroupExecutionError> {
+    if is_leave {
+        finish_consumer_group_leave_failure(entry, revoked, core_close_terminal(failure))
+    } else {
+        drop(entry.consumer_reconciliation.take());
+        stage_consumer_group_revocation(entry, revoked)
     }
 }

@@ -11,6 +11,8 @@ use super::{
     ClassicGroupRevocationHostError, ClassicGroupRevocationOwner,
 };
 
+use super::model::PendingGroupRevocation;
+
 impl ClassicGroupRevocationOwner {
     pub(in crate::consumer::group) fn settle_terminal(
         &mut self,
@@ -25,6 +27,10 @@ impl ClassicGroupRevocationOwner {
         let pending = self
             .take_pending()
             .ok_or(ClassicGroupRevocationHostError::MissingPending)?;
+        let PendingGroupRevocation::Classic(pending) = pending else {
+            self.restore_pending(pending);
+            return Err(ClassicGroupRevocationHostError::UnexpectedEffect);
+        };
         let assignment_epoch = terminal.lease().assignment_epoch();
         match retire_and_revoke_classic_group_assignment(
             classic,
@@ -37,7 +43,7 @@ impl ClassicGroupRevocationOwner {
             Ok(_retirement) => self.release_terminal(assignment_epoch)?,
             Err(failure) => {
                 let kind = failure.kind;
-                self.restore_pending(super::model::PendingClassicGroupRevocation::new(
+                self.restore_pending(PendingGroupRevocation::classic(
                     failure.assignment,
                     failure.classic_generation,
                 ));

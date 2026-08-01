@@ -1,5 +1,6 @@
 //! Private host owner for one assignment-fenced graceful-revocation lease.
 
+mod begin;
 mod model;
 mod owner;
 mod settlement;

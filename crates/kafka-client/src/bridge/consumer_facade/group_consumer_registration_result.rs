@@ -46,10 +46,6 @@ pub(super) fn translate_group_registration_kind(
             ErrorKind::Configuration,
             "group id, subscription, or processing timeout is outside the supported bounded domain",
         ),
-        GroupConsumerRegistrationErrorKind::UnsupportedProtocol => KafkaError::new(
-            ErrorKind::Configuration,
-            "the selected group protocol is not supported by this engine",
-        ),
         GroupConsumerRegistrationErrorKind::Internal => KafkaError::new(
             ErrorKind::Internal,
             "group-consumer registration ownership is unavailable",
