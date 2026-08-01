@@ -22,7 +22,7 @@ mod terminal_normalization;
 pub(super) use activation::{
     ClassicGroupPositionActivationError, prepare_classic_group_fetch_activation,
 };
-pub(super) use close::ClassicGroupPositionCloseTurn;
+pub(super) use close::{ClassicGroupPositionCloseTurn, close_entry_position};
 pub(super) use completion_state::{
     ClassicGroupPositionCompleted, ClassicGroupPositionConfirmationPending,
 };

@@ -10,6 +10,7 @@ use crate::producer::{Compression, ProducerLimits};
 fn concurrent_bridge_observers_receive_one_retained_shutdown_report() {
     let client = ClientEngine::start(
         vec!["127.0.0.1:1".to_owned()],
+        None,
         Security::plaintext(),
         Compression::None,
         ProducerLimits::default(),

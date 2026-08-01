@@ -78,15 +78,13 @@ impl ClientBuilder {
 
         let engine = ClientEngine::start(
             self.bootstrap_servers,
+            self.client_id,
             self.security,
             self.producer_compression,
             self.producer_limits,
             self.assigned_consumer_read_isolation,
         )?;
-        Ok(Client {
-            engine,
-            client_id: self.client_id,
-        })
+        Ok(Client { engine })
     }
 }
 
@@ -94,7 +92,6 @@ impl ClientBuilder {
 #[derive(Debug, Clone)]
 pub struct Client {
     engine: ClientEngine,
-    client_id: Option<String>,
 }
 
 impl Client {
@@ -105,7 +102,7 @@ impl Client {
 
     /// Returns the configured client identifier.
     pub fn client_id(&self) -> Option<&str> {
-        self.client_id.as_deref()
+        self.engine.client_id()
     }
 
     /// Returns validated bootstrap endpoints.

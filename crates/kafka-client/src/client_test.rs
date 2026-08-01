@@ -23,6 +23,19 @@ fn client_retains_facade_configuration_across_clones() {
 }
 
 #[test]
+fn oversized_client_id_is_rejected_as_configuration() {
+    let result = Client::builder()
+        .bootstrap_servers(["127.0.0.1:9092"])
+        .client_id("x".repeat(i16::MAX as usize + 1))
+        .build();
+    let Err(error) = result else {
+        panic!("oversized Kafka request-header identity must reject");
+    };
+
+    assert_eq!(error.kind(), ErrorKind::Configuration);
+}
+
+#[test]
 fn client_builder_accepts_each_closed_producer_compression_choice() {
     for compression in [
         Compression::None,

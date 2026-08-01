@@ -1,13 +1,14 @@
 //! Bounded admission and aggregate ownership for exact-broker Fetch calls.
 
 use kafka_client_core::{FetchFence, Moment};
-use kafka_driver::{BrokerId, CompletionError, RouteFailureToken, RoutedCall};
+use kafka_driver::{CompletionError, RouteFailureToken, RoutedCall};
 use kafka_wire::FetchResponse as WireFetchResponse;
 
 use super::{
     admission::{FetchAdmissionFailureSource, PartitionFetchRequest},
     broker_admission::{BrokerFetchAdmissionFailure, submit_broker_fetch_batch},
     broker_calls_response::reserved_responses,
+    route::BrokerId,
     terminal::{FetchCompletionObservation, FetchTerminal},
 };
 use crate::{driver::DriverOwner, protocol::fetch::ForgottenFetchPartition};
@@ -26,7 +27,7 @@ pub(super) struct TrackedBrokerFetchCall {
 
 pub(super) struct SettledBrokerFetchBatch {
     pub(super) slots: Vec<BrokerFetchSlot>,
-    pub(super) route_token: Option<RouteFailureToken>,
+    pub(super) _route_token: Option<RouteFailureToken>,
 }
 
 pub(super) struct PendingBrokerFetchConfirmation {

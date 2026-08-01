@@ -20,24 +20,26 @@ impl AdminFenceProducersHost {
         else {
             return Ok(false);
         };
-        let terminal = {
+        let poll = {
             let call = self.operations[index]
                 .call
                 .as_mut()
                 .ok_or(AdminFenceProducersHostError::InvalidHandoff)?;
-            call.try_terminal()
+            call.poll()
         };
-        let Some(terminal) = terminal else {
-            return Ok(false);
-        };
-        drop(self.operations[index].call.take());
-        match terminal {
-            Ok(terminal) => {
+        match poll {
+            crate::driver::TransactionInitPoll::Pending => Ok(false),
+            crate::driver::TransactionInitPoll::Progress => Ok(true),
+            crate::driver::TransactionInitPoll::Terminal(Ok(terminal)) => {
+                drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
                 self.settle_raw(index)?;
                 Ok(true)
             }
-            Err(_error) => Err(AdminFenceProducersHostError::CallCompletion),
+            crate::driver::TransactionInitPoll::Terminal(Err(_error)) => {
+                drop(self.operations[index].call.take());
+                Err(AdminFenceProducersHostError::CallCompletion)
+            }
         }
     }
 
@@ -66,23 +68,37 @@ impl AdminFenceProducersHost {
                     AdminFenceProducersState::AwaitingDriver,
                     AdminFenceProducersHandoff::HandedOff,
                 ) => {
-                    seal_call(self.operations[0].call.take());
+                    let recovered = self.operations[0].call.take().and_then(
+                        crate::driver::TransactionInitCall::recover_after_driver_shutdown,
+                    );
                     self.apply(operation_id, AdminFenceProducersInput::DriverAccepted)?;
-                    self.apply(
-                        operation_id,
-                        AdminFenceProducersInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    if let Some(terminal) = recovered {
+                        self.operations[0].raw_terminal = Some(terminal);
+                        self.settle_raw(0)?;
+                    } else {
+                        self.apply(
+                            operation_id,
+                            AdminFenceProducersInput::TransportFailed {
+                                delivery: DeliveryStatus::PossiblySent,
+                            },
+                        )?;
+                    }
                 }
                 (AdminFenceProducersState::Submitted, AdminFenceProducersHandoff::Submitted) => {
-                    seal_call(self.operations[0].call.take());
-                    self.apply(
-                        operation_id,
-                        AdminFenceProducersInput::TransportFailed {
-                            delivery: DeliveryStatus::PossiblySent,
-                        },
-                    )?;
+                    let recovered = self.operations[0].call.take().and_then(
+                        crate::driver::TransactionInitCall::recover_after_driver_shutdown,
+                    );
+                    if let Some(terminal) = recovered {
+                        self.operations[0].raw_terminal = Some(terminal);
+                        self.settle_raw(0)?;
+                    } else {
+                        self.apply(
+                            operation_id,
+                            AdminFenceProducersInput::TransportFailed {
+                                delivery: DeliveryStatus::PossiblySent,
+                            },
+                        )?;
+                    }
                 }
                 (AdminFenceProducersState::Completed, _) => self.publish_terminal(0)?,
                 _ => return Err(AdminFenceProducersHostError::InvalidHandoff),
@@ -185,11 +201,5 @@ impl AdminFenceProducersHost {
             .checked_sub(bytes)
             .ok_or(AdminFenceProducersHostError::ByteAccounting)?;
         Ok(())
-    }
-}
-
-fn seal_call(call: Option<crate::driver::TransactionInitCall>) {
-    if let Some(call) = call {
-        call.discard_after_driver_shutdown();
     }
 }

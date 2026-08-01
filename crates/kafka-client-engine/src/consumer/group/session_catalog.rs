@@ -2,7 +2,7 @@
 
 use std::{collections::BTreeMap, sync::Arc};
 
-use kafka_client_core::{GroupId, LiveGroupAssignment, MemberId, TopicId};
+use kafka_client_core::{GroupId, LiveGroupAssignment, MemberId, MembershipCycle, TopicId};
 
 use super::classic_group_event::ClassicGroupEventStore;
 use super::session_catalog_consumer::ConsumerGroupSession;
@@ -167,6 +167,12 @@ impl GroupSessionCatalog {
         self.current
             .as_ref()
             .map(|current| current.classic_generation)
+    }
+
+    pub(super) fn membership_cycle(&self) -> Option<MembershipCycle> {
+        self.consumer_current
+            .as_ref()
+            .map(ConsumerGroupSession::installed_cycle)
     }
 
     pub(super) fn live_assignment(&self) -> Option<&LiveGroupAssignment> {

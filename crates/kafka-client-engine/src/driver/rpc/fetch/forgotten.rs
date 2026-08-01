@@ -1,7 +1,7 @@
 //! Linear tracked-call ownership for one forgotten-only broker Fetch epoch.
 
 use kafka_client_core::Moment;
-use kafka_driver::{BrokerId, CompletionError, RequestError, RouteFailureToken, RoutedCall};
+use kafka_driver::{CompletionError, RequestError, RouteFailureToken, RoutedCall};
 use kafka_wire::{FetchRequest, FetchResponse as WireFetchResponse};
 
 use crate::{
@@ -16,7 +16,7 @@ use crate::{
     },
 };
 
-use super::submission::FetchSubmitError;
+use super::{route::BrokerId, submission::FetchSubmitError};
 
 #[must_use = "a forgotten-only Fetch request must be submitted or restored"]
 pub(crate) struct ForgottenFetchRequest {
@@ -230,6 +230,7 @@ fn submit_failure_kind(source: FetchSubmitError) -> ForgottenFetchSubmitFailureK
         }
         FetchSubmitError::InvalidTopic(_)
         | FetchSubmitError::InvalidPartition(_)
+        | FetchSubmitError::ExactBrokerRoutingUnavailable
         | FetchSubmitError::Driver(_) => ForgottenFetchSubmitFailureKind::DriverRejected,
     }
 }

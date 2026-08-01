@@ -62,9 +62,11 @@ impl DriverOwner {
         }
         let bootstrap =
             BootstrapSet::try_from_iter(endpoints, limits).map_err(DriverOwnerError::Bootstrap)?;
-        let (driver, reactor) = super::security::builder(bootstrap, security)
-            .build_reactor()
-            .map_err(DriverOwnerError::Build)?;
+        let builder = super::security::builder(bootstrap, security);
+        // The reviewed driver does not yet expose request-header client-ID
+        // configuration. Preserve the engine setting for a later driver bridge.
+        let _configured_client_id = config.client_id();
+        let (driver, reactor) = builder.build_reactor().map_err(DriverOwnerError::Build)?;
         let wake = reactor.wake_handle();
         Ok(Self {
             driver,

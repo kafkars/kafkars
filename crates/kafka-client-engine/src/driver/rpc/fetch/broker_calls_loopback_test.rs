@@ -1,4 +1,4 @@
-//! Live exact-broker aggregation and route-token lifetime scenarios.
+//! Exact-broker capability omission and request-recovery scenarios.
 
 use std::{
     sync::Arc,
@@ -7,9 +7,8 @@ use std::{
 
 use kafka_client_core::{
     AssignedConsumerInput, AssignedConsumerMachine, AssignedPartition, AssignedTopicPartition,
-    Deadline, FetchFence, Moment, NextFetchOffset, PartitionIndex, StartPosition, TopicId,
+    Deadline, Moment, NextFetchOffset, PartitionIndex, StartPosition, TopicId,
 };
-use kafka_driver::{BrokerId, RouteKind};
 
 use crate::{
     EngineConfig,
@@ -21,20 +20,17 @@ use crate::{
 };
 
 use super::{
-    admission::PartitionFetchRequest,
+    admission::{FetchAdmissionFailureSource, PartitionFetchRequest},
     broker_calls::{BrokerFetchCallAdmission, TrackedBrokerFetchCalls},
     forgotten::{ForgottenFetchRequest, TrackedForgottenFetchCall},
-    routed_response_broker_test::{self as broker, RoutedBroker},
-    settlement::FetchPoll,
+    route::BrokerId,
+    submission::FetchSubmitError,
 };
 
 #[test]
-fn forgotten_only_call_reaches_broker_and_retains_confirmation_authority() {
-    let mut broker = RoutedBroker::new();
-    let mut driver = DriverOwner::build(&EngineConfig::new(vec![broker.endpoint()]))
+fn forgotten_only_call_fails_closed_and_returns_exact_request() {
+    let mut driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("build forgotten Fetch driver: {error}"));
-    RoutedBroker::await_seed(&mut driver);
-    broker.install_cluster(&mut driver);
     let session =
         FetchSessionRequest::incremental(91, 3).unwrap_or_else(|| panic!("incremental session"));
     let request = ForgottenFetchRequest::new(
@@ -46,128 +42,66 @@ fn forgotten_only_call_reaches_broker_and_retains_confirmation_authority() {
         ),
         vec![OwnedForgottenFetchPartition::new(Arc::from("events"), 3)],
     );
-    let mut call = TrackedForgottenFetchCall::submit(
+    let failure = TrackedForgottenFetchCall::submit(
         &driver,
         BrokerId::new(1).unwrap_or_else(|error| panic!("broker ID: {error}")),
         request,
         Moment::from_tick(0),
     )
-    .unwrap_or_else(|failure| {
-        let (_request, kind) = failure.into_parts();
-        panic!("submit forgotten Fetch: {kind:?}")
-    });
+    .err()
+    .unwrap_or_else(|| panic!("exact-broker forgotten Fetch must remain unsent"));
 
-    let (version, generated) = broker.complete_fetch_request(&mut driver);
-    assert_eq!(version.value(), 12);
-    assert!(generated.topics.is_empty());
-    assert_eq!((generated.session_id, generated.session_epoch), (91, 3));
-    assert_eq!(generated.forgotten_topics_data.len(), 1);
-    let terminal = (0..32)
-        .find_map(|turn| {
-            let terminal = call.try_terminal(Moment::from_tick(7 + turn));
-            if terminal.is_none() {
-                broker::drive(
-                    &mut driver,
-                    Duration::from_millis(100),
-                    "settle forgotten Fetch",
-                );
-            }
-            terminal
-        })
-        .unwrap_or_else(|| panic!("forgotten Fetch terminal"))
-        .unwrap_or_else(|failure| {
-            let (_request, source) = failure.recover_after_driver_shutdown();
-            panic!("forgotten Fetch completion: {source}")
-        });
-    let (request, observed_at, selected_version, result, confirmation) = terminal.into_parts();
+    let (request, kind) = failure.into_parts();
     assert_eq!(request.session(), session);
-    assert!(observed_at >= Moment::from_tick(7));
-    assert_eq!(selected_version, Some(12));
-    assert!(result.is_ok());
-    confirmation.confirm();
+    assert_eq!(
+        kind,
+        super::forgotten::ForgottenFetchSubmitFailureKind::DriverRejected
+    );
     driver
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
 }
 
 #[test]
-fn one_live_broker_call_contains_two_partitions_and_confirms_once() {
-    let mut broker = RoutedBroker::new();
-    let mut driver = DriverOwner::build(&EngineConfig::new(vec![broker.endpoint()]))
+fn aggregate_call_fails_closed_and_returns_every_partition_request() {
+    let mut driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("build aggregate Fetch driver: {error}"));
-    RoutedBroker::await_seed(&mut driver);
-    broker.install_cluster(&mut driver);
     let requests = requests();
     let fences = requests
         .iter()
         .map(PartitionFetchRequest::fence)
         .collect::<Vec<_>>();
     let mut calls = TrackedBrokerFetchCalls::new(1);
-    assert!(matches!(
-        calls.try_submit(
-            &driver,
-            BrokerId::new(1).unwrap_or_else(|error| panic!("broker ID: {error}")),
-            requests,
-            &[],
-            Moment::from_tick(0),
-        ),
-        BrokerFetchCallAdmission::Accepted
-    ));
+    let failure = match calls.try_submit(
+        &driver,
+        BrokerId::new(1).unwrap_or_else(|error| panic!("broker ID: {error}")),
+        requests,
+        &[],
+        Moment::from_tick(0),
+    ) {
+        BrokerFetchCallAdmission::Rejected(failure) => failure,
+        BrokerFetchCallAdmission::Accepted => panic!("exact-broker Fetch must remain unsent"),
+        BrokerFetchCallAdmission::Backpressured(_) => {
+            panic!("available admission capacity must not report backpressure")
+        }
+    };
 
-    let (version, request) = broker.complete_fetch_request(&mut driver);
-    assert_eq!(version.value(), 12);
-    assert_eq!(request.topics.len(), 1);
-    assert_eq!(request.topics[0].topic.as_str(), "events");
+    let (requests, source) = failure.into_parts();
     assert_eq!(
-        request.topics[0]
-            .partitions
+        requests
             .iter()
-            .map(|partition| partition.partition)
+            .map(PartitionFetchRequest::fence)
             .collect::<Vec<_>>(),
-        vec![3, 4]
+        fences
     );
-    wait_for_terminal(&mut driver, &mut calls, fences[0]);
-    assert_eq!(calls.settled_route_kind_for_test(), Some(RouteKind::Broker));
-    settle(&mut calls, fences[0]);
-    assert_eq!(calls.settled_route_kind_for_test(), Some(RouteKind::Broker));
-    settle(&mut calls, fences[1]);
+    assert!(matches!(
+        source,
+        FetchAdmissionFailureSource::Driver(FetchSubmitError::ExactBrokerRoutingUnavailable)
+    ));
     assert_eq!(calls.retained_count(), 0);
     driver
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
-}
-
-fn wait_for_terminal(
-    driver: &mut DriverOwner,
-    calls: &mut TrackedBrokerFetchCalls,
-    expected: FetchFence,
-) {
-    for turn in 0..32 {
-        match calls.poll_fetch(Moment::from_tick(10 + turn)) {
-            Ok(FetchPoll::TerminalReady { fence }) => {
-                assert_eq!(fence, expected);
-                return;
-            }
-            Ok(FetchPoll::Idle) => {
-                broker::drive(driver, Duration::from_millis(100), "settle aggregate Fetch")
-            }
-            Ok(FetchPoll::StaleConfirmationReady { .. }) => {
-                panic!("live aggregate Fetch became stale")
-            }
-            Err(error) => panic!("aggregate Fetch completion: {error:?}"),
-        }
-    }
-    panic!("aggregate Fetch did not settle")
-}
-
-fn settle(calls: &mut TrackedBrokerFetchCalls, fence: FetchFence) {
-    let terminal = calls
-        .begin_fetch_settlement(fence)
-        .unwrap_or_else(|error| panic!("begin aggregate terminal: {error:?}"));
-    assert_eq!(terminal.fence(), fence);
-    calls
-        .confirm_fetch_settlement(fence)
-        .unwrap_or_else(|error| panic!("confirm aggregate terminal: {error:?}"));
 }
 
 fn requests() -> Vec<PartitionFetchRequest> {

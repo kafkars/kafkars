@@ -29,8 +29,6 @@ use super::{
     registry::GroupConsumerRegistry,
 };
 
-mod local;
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum GroupConsumerMembershipTurn {
     Idle,

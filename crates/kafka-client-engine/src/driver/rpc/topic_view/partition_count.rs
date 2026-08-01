@@ -53,7 +53,9 @@ impl TopicPartitionCountCall {
             Ok(Ok(view)) => Ok(TopicPartitionCountFact {
                 metadata_generation: view.generation().get(),
                 logical_partition_count: view.logical_partition_count(),
-                kafka_topic_id: view.topic_id().map(kafka_driver::KafkaTopicId::to_bytes),
+                // The reviewed driver projection does not expose Kafka topic
+                // identity. Callers requiring it reject this omitted fact.
+                kafka_topic_id: None,
             }),
         })
     }

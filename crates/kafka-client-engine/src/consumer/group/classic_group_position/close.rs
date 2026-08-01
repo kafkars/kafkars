@@ -7,12 +7,30 @@ use super::{
     ClassicGroupPositionExecutionError, ClassicGroupPositionExecutionState,
     ClassicGroupPositionPrepared, ClassicGroupPositionRejectionFailure,
 };
+use crate::consumer::group::{
+    classic_group_entry_fault::ClassicGroupEntryFault,
+    classic_group_execution::ClassicGroupExecutionError, registry_entry::GroupConsumerEntry,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(in crate::consumer::group) enum ClassicGroupPositionCloseTurn {
     Idle,
     Progress,
     Blocked,
+}
+
+pub(in crate::consumer::group) fn close_entry_position(
+    entry: &mut GroupConsumerEntry,
+    now: Moment,
+) -> Result<ClassicGroupPositionCloseTurn, ClassicGroupExecutionError> {
+    match entry.position.close_position_if_local(now) {
+        Ok(turn) => Ok(turn),
+        Err(failure) => {
+            let error = failure.error();
+            entry.fault = Some(ClassicGroupEntryFault::PositionRejection(failure));
+            Err(ClassicGroupExecutionError::Position(error))
+        }
+    }
 }
 
 impl ClassicGroupPositionExecution {

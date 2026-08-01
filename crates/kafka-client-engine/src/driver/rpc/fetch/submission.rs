@@ -3,12 +3,14 @@
 use std::{error::Error, fmt, time::Instant};
 
 use kafka_driver::{
-    ApiVersion, BrokerId, PartitionId, PartitionIdError, RequestOptions, Route, RoutedCall,
-    SubmitError, TopicName, TopicNameError, TrafficClass,
+    ApiVersion, PartitionId, PartitionIdError, RequestOptions, Route, RoutedCall, SubmitError,
+    TopicName, TopicNameError, TrafficClass,
 };
 use kafka_wire::{FetchRequest, FetchResponse};
 
 use crate::{driver::DriverOwner, protocol::fetch::FETCH_NAME_ROUTE_MAX_VERSION};
+
+use super::route::BrokerId;
 
 /// Definitely-unsent failure before the driver accepted request ownership.
 #[derive(Debug)]
@@ -17,6 +19,8 @@ pub(crate) enum FetchSubmitError {
     InvalidTopic(TopicNameError),
     /// The engine supplied a partition outside the driver's validated domain.
     InvalidPartition(PartitionIdError),
+    /// The reviewed driver cannot route one request to an exact broker.
+    ExactBrokerRoutingUnavailable,
     /// Bounded driver admission rejected the request.
     Driver(SubmitError),
 }
@@ -28,6 +32,9 @@ impl fmt::Display for FetchSubmitError {
             Self::InvalidPartition(source) => {
                 write!(formatter, "invalid Fetch partition: {source}")
             }
+            Self::ExactBrokerRoutingUnavailable => {
+                formatter.write_str("exact-broker Fetch routing is unavailable")
+            }
             Self::Driver(source) => write!(formatter, "driver rejected Fetch: {source}"),
         }
     }
@@ -38,6 +45,7 @@ impl Error for FetchSubmitError {
         match self {
             Self::InvalidTopic(source) => Some(source),
             Self::InvalidPartition(source) => Some(source),
+            Self::ExactBrokerRoutingUnavailable => None,
             Self::Driver(source) => Some(source),
         }
     }
@@ -71,13 +79,11 @@ impl DriverOwner {
     pub(crate) fn submit_tracked_broker_fetch(
         &self,
         broker_id: BrokerId,
-        request: FetchRequest,
-        deadline: Instant,
+        _request: FetchRequest,
+        _deadline: Instant,
     ) -> Result<RoutedCall<FetchResponse>, FetchSubmitError> {
-        let options = fetch_options_for_request(deadline, &request);
-        self.driver
-            .request_tracked_with(Route::Broker { broker_id }, request, options)
-            .map_err(FetchSubmitError::Driver)
+        let _requested_broker_id = broker_id.get();
+        Err(FetchSubmitError::ExactBrokerRoutingUnavailable)
     }
 }
 

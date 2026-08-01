@@ -7,6 +7,7 @@ use crate::{ErrorKind, Security, producer::Compression};
 fn bridge_claims_once_and_observes_real_close() {
     let engine = ClientEngine::start(
         vec![String::from("127.0.0.1:1")],
+        None,
         Security::plaintext(),
         Compression::None,
         crate::ProducerLimits::default(),

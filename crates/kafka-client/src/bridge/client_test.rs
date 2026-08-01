@@ -14,6 +14,7 @@ use crate::{
 fn client_bridge_retains_validated_endpoints_and_builds_a_producer() {
     let result = ClientEngine::start(
         vec!["127.0.0.1:1".to_owned()],
+        None,
         Security::plaintext(),
         Compression::None,
         ProducerLimits::default(),
@@ -78,6 +79,7 @@ fn invalid_custom_tls_roots_are_configuration_errors_without_material_disclosure
     let certificate_material = "private-invalid-certificate-material";
     let result = ClientEngine::start(
         vec!["127.0.0.1:1".to_owned()],
+        None,
         Security::tls(Tls::custom_roots_pem(
             certificate_material.as_bytes().to_vec(),
         )),
@@ -99,6 +101,7 @@ fn rejected_security_diagnostics_do_not_expose_credentials() {
     let password = "private\0password";
     let result = ClientEngine::start(
         vec!["127.0.0.1:1".to_owned()],
+        None,
         Security::sasl_plaintext(Sasl::plain("private-user", password)),
         Compression::None,
         ProducerLimits::default(),

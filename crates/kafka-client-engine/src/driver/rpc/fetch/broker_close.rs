@@ -1,6 +1,6 @@
 //! Tracked exact-broker execution of one final Fetch-session epoch.
 
-use kafka_driver::{BrokerId, CompletionError, RoutedCall};
+use kafka_driver::{CompletionError, RoutedCall};
 use kafka_wire::FetchResponse;
 
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
     protocol::fetch::{FetchRequestSettings, FetchSessionRequest, fetch_session_close_request},
 };
 
-use super::submission::FetchSubmitError;
+use super::{route::BrokerId, submission::FetchSubmitError};
 
 /// One accepted final-epoch request whose completion remains driver-owned.
 #[must_use = "an accepted Fetch-session close must be polled or recovered"]

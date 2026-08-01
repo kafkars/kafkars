@@ -20,12 +20,7 @@ pub(crate) use super::classic_group_position_reset_adapter::{
     ClassicGroupPositionResetCall, ClassicGroupPositionResetCompletionError,
     ClassicGroupPositionResetOutcome, ClassicGroupPositionResetRoute,
 };
-pub(crate) use super::consumer_group_heartbeat_adapter::{
-    ConsumerGroupHeartbeatCall, ConsumerGroupHeartbeatCompletionError,
-    ConsumerGroupHeartbeatResolution, ConsumerGroupHeartbeatRoute,
-};
-pub(crate) use super::consumer_group_heartbeat_failure::ConsumerGroupHeartbeatDriverFailureKind;
-pub(crate) use super::consumer_group_heartbeat_submission::ConsumerGroupHeartbeatSubmitErrorKind;
+pub(crate) use super::consumer_group_heartbeat_adapter::ConsumerGroupHeartbeatRoute;
 pub(crate) use super::create_partitions_calls::{
     CreatePartitionsCompletionFailure, TrackedCreatePartitionsCalls,
 };
@@ -46,7 +41,7 @@ pub(crate) use super::describe_topics_calls::{
 };
 pub(crate) use super::fetch::{
     BrokerFetchCallAdmission, BrokerFetchCloseCall, BrokerFetchRouteCall,
-    BrokerFetchRouteFailureKind, FetchBeginSettlementError, FetchCallAdmission,
+    BrokerFetchRouteFailureKind, BrokerId, FetchBeginSettlementError, FetchCallAdmission,
     FetchCompletionObservation, FetchConfirmationError, FetchControlPending, FetchPoll,
     FetchRecovery, FetchTerminal, ForgottenFetchCompletionFailure, ForgottenFetchConfirmation,
     ForgottenFetchRequest, ForgottenFetchSubmitFailureKind, ForgottenFetchTerminal,
@@ -109,7 +104,7 @@ pub(crate) use super::topic_view::{
     TopicPartitionCountAdmissionFailureKind, TopicPartitionCountCall, TopicPartitionCountFact,
     TopicPartitionCountFailure,
 };
-pub(crate) use super::transaction_init_call::TransactionInitCall;
+pub(crate) use super::transaction_init_call::{TransactionInitCall, TransactionInitPoll};
 pub(crate) use super::transaction_init_terminal::{
     TransactionInitDriverFailureKind, TransactionInitTerminal, TransactionInitTerminalFact,
 };

@@ -4,9 +4,10 @@ use std::time::{Duration, Instant};
 
 use kafka_driver::CompletionError;
 
-use crate::EngineConfig;
-
-use super::{super::DriverOwner, TransactionInitCall, TransactionInitPoll};
+use crate::{
+    EngineConfig,
+    driver::{DriverOwner, TransactionInitCall, TransactionInitPoll, TransactionInitTerminalFact},
+};
 
 #[test]
 fn call_owner_is_linear_at_the_adapter_boundary() {
@@ -46,8 +47,7 @@ fn refresh_state_reports_progress_then_recovers_the_known_terminal() {
     let terminal = call
         .recover_after_driver_shutdown()
         .unwrap_or_else(|| panic!("refreshing call retains its known terminal"));
-    let super::super::TransactionInitTerminalFact::Response { response, .. } = terminal.fact()
-    else {
+    let TransactionInitTerminalFact::Response { response, .. } = terminal.fact() else {
         panic!("broker terminal retained through refresh recovery");
     };
     assert_eq!(response.error_code, 16);

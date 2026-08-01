@@ -18,6 +18,7 @@ use super::{
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum EngineConfigError {
     EmptyBootstrap,
+    ClientIdTooLong,
     Security(EngineSecurityError),
     ZeroDeliveryTimeout,
     ZeroAdminTimeout,
@@ -35,6 +36,12 @@ impl EngineConfig {
     pub(crate) fn validate(&self) -> Result<ValidatedEngineConfig, EngineConfigError> {
         if self.bootstrap_servers().is_empty() {
             return Err(EngineConfigError::EmptyBootstrap);
+        }
+        if self
+            .client_id()
+            .is_some_and(|client_id| i16::try_from(client_id.len()).is_err())
+        {
+            return Err(EngineConfigError::ClientIdTooLong);
         }
         let security = validate_security(self.security()).map_err(EngineConfigError::Security)?;
         if self.delivery_timeout().is_zero() {

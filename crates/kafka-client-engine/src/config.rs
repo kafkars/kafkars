@@ -40,6 +40,7 @@ const DEFAULT_TURN_BUDGET: usize = 64;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EngineConfig {
     bootstrap_servers: Vec<String>,
+    client_id: Option<String>,
     delivery_timeout: Duration,
     admin_timeout: Duration,
     producer_limits: EngineProducerLimits,
@@ -55,6 +56,7 @@ impl EngineConfig {
     pub fn new(bootstrap_servers: Vec<String>) -> Self {
         Self {
             bootstrap_servers,
+            client_id: None,
             delivery_timeout: DEFAULT_DELIVERY_TIMEOUT,
             admin_timeout: DEFAULT_ADMIN_TIMEOUT,
             producer_limits: EngineProducerLimits::default(),
@@ -114,6 +116,13 @@ impl EngineConfig {
         self
     }
 
+    /// Replaces the optional identity written into every Kafka request header.
+    #[must_use]
+    pub fn with_client_id(mut self, client_id: Option<String>) -> Self {
+        self.client_id = client_id;
+        self
+    }
+
     /// Replaces bounded definitely-unsent retry intent.
     #[must_use]
     pub const fn with_producer_retry(mut self, max_retries: u32, backoff: Duration) -> Self {
@@ -125,6 +134,11 @@ impl EngineConfig {
     /// Returns configured logical bootstrap endpoints.
     pub fn bootstrap_servers(&self) -> &[String] {
         &self.bootstrap_servers
+    }
+
+    /// Returns the immutable request-header identity, when configured.
+    pub fn client_id(&self) -> Option<&str> {
+        self.client_id.as_deref()
     }
 
     /// Returns the engine-owned default delivery timeout.

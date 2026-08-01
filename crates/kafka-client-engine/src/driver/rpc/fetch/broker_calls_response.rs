@@ -138,14 +138,6 @@ const fn allocation() -> FetchAdmissionFailureSource {
 
 impl TrackedBrokerFetchCalls {
     #[cfg(test)]
-    pub(crate) fn settled_route_kind_for_test(&self) -> Option<kafka_driver::RouteKind> {
-        self.settled
-            .as_ref()
-            .and_then(|settled| settled.route_token.as_ref())
-            .map(kafka_driver::RouteFailureToken::kind)
-    }
-
-    #[cfg(test)]
     pub(crate) fn install_response_for_test(
         &mut self,
         requests: Vec<PartitionFetchRequest>,
@@ -173,7 +165,7 @@ impl TrackedBrokerFetchCalls {
         );
         self.settled = Some(SettledBrokerFetchBatch {
             slots,
-            route_token: None,
+            _route_token: None,
         });
     }
 

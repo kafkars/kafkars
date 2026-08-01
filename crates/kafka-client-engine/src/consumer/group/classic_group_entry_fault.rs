@@ -241,6 +241,10 @@ const fn retained_one<T>(_owner: &T) -> usize {
     1
 }
 
+const fn retained_marker<T>(_marker: &T) -> usize {
+    0
+}
+
 const fn retained_pair<T, U>(_first: &T, _second: &U) -> usize {
     2
 }

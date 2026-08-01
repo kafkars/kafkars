@@ -3,8 +3,7 @@
 use std::time::Duration;
 
 use super::{
-    Consumer, ConsumerBuilder, ConsumerGroupProtocol, OffsetReset, ReadIsolation,
-    RecvConsumerBatch,
+    Consumer, ConsumerBuilder, ConsumerGroupProtocol, OffsetReset, ReadIsolation, RecvConsumerBatch,
 };
 use crate::{Client, ErrorKind};
 

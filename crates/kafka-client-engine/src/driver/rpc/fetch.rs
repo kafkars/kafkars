@@ -69,7 +69,7 @@ pub(crate) use forgotten::{
     ForgottenFetchCompletionFailure, ForgottenFetchConfirmation, ForgottenFetchRequest,
     ForgottenFetchSubmitFailureKind, ForgottenFetchTerminal, TrackedForgottenFetchCall,
 };
-pub(crate) use route::{BrokerFetchRouteCall, BrokerFetchRouteFailureKind};
+pub(crate) use route::{BrokerFetchRouteCall, BrokerFetchRouteFailureKind, BrokerId};
 pub(crate) use settlement::{
     FetchBeginSettlementError, FetchConfirmationError, FetchPoll, StaleFetchConfirmationError,
 };

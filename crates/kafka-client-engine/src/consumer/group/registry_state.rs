@@ -5,9 +5,8 @@ use std::sync::Arc;
 use kafka_client_core::GroupId;
 
 use crate::consumer::{
-    group_registration_request::GroupConsumerProtocol,
     GroupConsumerAssignment, GroupConsumerAssignmentPartition, GroupConsumerMetadata,
-    GroupConsumerState,
+    GroupConsumerState, group_registration_request::GroupConsumerProtocol,
 };
 
 use super::{
@@ -81,12 +80,14 @@ impl GroupConsumerRegistry {
         let Some(current_member) = entry.catalog.current_member() else {
             return Err(GroupConsumerStateSnapshotError::EntryFault);
         };
-        let Some(generation_id_or_member_epoch) = entry.catalog.classic_generation().or_else(|| {
-            entry
-                .catalog
-                .consumer_group_member_epoch()
-                .map(kafka_client_core::ConsumerGroupMemberEpoch::get)
-        }) else {
+        let Some(generation_id_or_member_epoch) =
+            entry.catalog.classic_generation().or_else(|| {
+                entry
+                    .catalog
+                    .consumer_group_member_epoch()
+                    .map(kafka_client_core::ConsumerGroupMemberEpoch::get)
+            })
+        else {
             return Err(GroupConsumerStateSnapshotError::EntryFault);
         };
         if !entry.execution.is_idle() {

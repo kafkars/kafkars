@@ -1,6 +1,6 @@
 //! Lossless transfer from confirmed group positions into Fetch activation.
 
-use kafka_client_core::GroupPositionFence;
+use kafka_client_core::{GroupPositionBootstrapTerminal, GroupPositionFence};
 
 use super::{
     activation::{

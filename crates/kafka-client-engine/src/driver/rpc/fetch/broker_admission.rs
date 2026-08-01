@@ -3,7 +3,6 @@
 use std::time::Instant;
 
 use kafka_client_core::Moment;
-use kafka_driver::BrokerId;
 use kafka_wire::FetchRequest;
 
 use crate::{
@@ -14,7 +13,10 @@ use crate::{
     },
 };
 
-use super::admission::{FetchAdmissionFailureSource, PartitionFetchRequest};
+use super::{
+    admission::{FetchAdmissionFailureSource, PartitionFetchRequest},
+    route::BrokerId,
+};
 
 pub(super) struct AcceptedBrokerFetchCall {
     pub(super) requests: Vec<PartitionFetchRequest>,

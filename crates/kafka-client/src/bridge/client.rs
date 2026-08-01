@@ -29,12 +29,14 @@ impl ClientEngine {
     )]
     pub(crate) fn start(
         bootstrap_servers: Vec<String>,
+        client_id: Option<String>,
         security: Security,
         compression: Compression,
         producer_limits: ProducerLimits,
         assigned_consumer_read_isolation: Option<ReadIsolation>,
     ) -> Result<Self, KafkaError> {
         let config = EngineConfig::new(bootstrap_servers)
+            .with_client_id(client_id)
             .with_security(engine_security(&security))
             .with_producer_compression(engine_compression(compression))
             .with_producer_limits(engine_producer_limits(producer_limits));
@@ -63,6 +65,11 @@ impl ClientEngine {
     /// Returns the validated logical bootstrap endpoints.
     pub(crate) fn bootstrap_servers(&self) -> &[String] {
         self.inner.config().bootstrap_servers()
+    }
+
+    /// Returns the immutable request-header identity retained by the engine.
+    pub(crate) fn client_id(&self) -> Option<&str> {
+        self.inner.config().client_id()
     }
 
     /// Returns a producer bridge with the engine-owned default deadline.

@@ -3,7 +3,6 @@
 use std::time::{Duration, Instant};
 
 use kafka_client_core::Deadline;
-use kafka_driver::BrokerId;
 
 use crate::{
     EngineConfig,
@@ -13,20 +12,18 @@ use crate::{
 };
 
 use super::{
-    broker_close::BrokerFetchCloseCall,
-    routed_response_broker_test::{self as broker, RoutedBroker},
+    broker_close::{BrokerFetchCloseCall, BrokerFetchCloseSubmitError},
+    route::BrokerId,
+    submission::FetchSubmitError,
 };
 
 #[test]
-fn established_session_close_reaches_its_exact_broker_as_final_epoch() {
-    let mut broker = RoutedBroker::new();
-    let mut driver = DriverOwner::build(&EngineConfig::new(vec![broker.endpoint()]))
+fn established_session_close_fails_closed_without_exact_broker_routing() {
+    let mut driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("build close driver: {error}"));
-    RoutedBroker::await_seed(&mut driver);
-    broker.install_cluster(&mut driver);
     let session =
         FetchSessionRequest::incremental(91, 7).unwrap_or_else(|| panic!("established session"));
-    let mut call = BrokerFetchCloseCall::submit(
+    let error = BrokerFetchCloseCall::submit(
         &driver,
         BrokerId::new(1).unwrap_or_else(|error| panic!("broker ID: {error}")),
         FetchRequestSettings::new(500, 1, 1024, 1024, 0),
@@ -36,27 +33,15 @@ fn established_session_close_reaches_its_exact_broker_as_final_epoch() {
             Instant::now() + Duration::from_secs(60),
         ),
     )
-    .unwrap_or_else(|error| panic!("submit close: {error:?}"));
+    .err()
+    .unwrap_or_else(|| panic!("exact-broker close must remain unsent"));
 
-    let (_version, request) = broker.complete_fetch_request(&mut driver);
-    assert_eq!((request.session_id, request.session_epoch), (91, -1));
-    assert!(request.topics.is_empty());
-    assert!(request.forgotten_topics_data.is_empty());
-    for _turn in 0..32 {
-        if call
-            .poll()
-            .unwrap_or_else(|error| panic!("poll close: {error}"))
-        {
-            driver
-                .shutdown_with_turn_limit(64, Duration::from_millis(10))
-                .unwrap_or_else(|error| panic!("shutdown close driver: {error}"));
-            return;
-        }
-        broker::drive(
-            &mut driver,
-            Duration::from_millis(100),
-            "settle session close",
-        );
-    }
-    panic!("session close did not settle")
+    assert!(!error.is_backpressured());
+    assert!(matches!(
+        error,
+        BrokerFetchCloseSubmitError::Driver(FetchSubmitError::ExactBrokerRoutingUnavailable)
+    ));
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("shutdown close driver: {error}"));
 }

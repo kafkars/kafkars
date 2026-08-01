@@ -2,12 +2,15 @@
 
 use std::time::{Duration, Instant};
 
-use kafka_driver::{ApiVersion, BrokerId, RoutedCall, TrafficClass};
+use kafka_driver::{ApiVersion, RoutedCall, TrafficClass};
 use kafka_wire::{FetchRequest, FetchResponse};
 
 use crate::{EngineConfig, driver::DriverOwner, protocol::fetch::FETCH_NAME_ROUTE_MAX_VERSION};
 
-use super::submission::{FetchSubmitError, fetch_options, fetch_options_for_request};
+use super::{
+    route::BrokerId,
+    submission::{FetchSubmitError, fetch_options, fetch_options_for_request},
+};
 
 #[test]
 fn options_preserve_original_deadline_long_poll_lane_and_name_ceiling() {
@@ -58,16 +61,19 @@ fn accepted_submission_returns_a_tracked_partition_call() {
 }
 
 #[test]
-fn accepted_broker_submission_uses_exact_broker_route_ownership() {
+fn exact_broker_submission_fails_closed_when_driver_route_is_unavailable() {
     let mut owner = owner();
     let deadline = Instant::now() + Duration::from_secs(1);
     let broker_id = BrokerId::new(3).unwrap_or_else(|error| panic!("broker ID: {error}"));
-    let call = owner
+    let error = owner
         .submit_tracked_broker_fetch(broker_id, FetchRequest::default(), deadline)
-        .unwrap_or_else(|error| panic!("tracked broker Fetch admission: {error}"));
+        .err()
+        .unwrap_or_else(|| panic!("exact-broker Fetch must remain unsent"));
 
-    assert_tracked_fetch(&call);
-    drop(call);
+    assert!(matches!(
+        error,
+        FetchSubmitError::ExactBrokerRoutingUnavailable
+    ));
     owner
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));

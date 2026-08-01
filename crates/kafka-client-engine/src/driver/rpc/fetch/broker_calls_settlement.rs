@@ -95,7 +95,7 @@ impl TrackedBrokerFetchCalls {
         distribute_terminal(&mut tracked.slots, now, selected_version, result);
         self.settled = Some(SettledBrokerFetchBatch {
             slots: tracked.slots,
-            route_token,
+            _route_token: route_token,
         });
         Ok(self.settled.as_ref().map_or(FetchPoll::Idle, batch_poll))
     }
