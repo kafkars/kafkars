@@ -32,6 +32,9 @@ mod failure_wire_encode_test;
 mod fence;
 #[cfg(test)]
 mod fence_test;
+mod forgotten;
+#[cfg(test)]
+mod forgotten_test;
 mod route;
 #[cfg(test)]
 mod route_test;
@@ -62,6 +65,10 @@ pub(crate) use broker_calls::{BrokerFetchCallAdmission, TrackedBrokerFetchCalls}
 pub(crate) use broker_close::BrokerFetchCloseCall;
 pub(crate) use calls::TrackedFetchCalls;
 pub(crate) use failure::{classify_fetch_admission, classify_fetch_request_error};
+pub(crate) use forgotten::{
+    ForgottenFetchCompletionFailure, ForgottenFetchConfirmation, ForgottenFetchRequest,
+    ForgottenFetchSubmitFailureKind, ForgottenFetchTerminal, TrackedForgottenFetchCall,
+};
 pub(crate) use route::{BrokerFetchRouteCall, BrokerFetchRouteFailureKind};
 pub(crate) use settlement::{
     FetchBeginSettlementError, FetchConfirmationError, FetchPoll, StaleFetchConfirmationError,

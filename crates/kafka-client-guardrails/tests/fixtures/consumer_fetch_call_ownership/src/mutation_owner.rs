@@ -26,6 +26,18 @@ impl TrackedFetchCall {
     }
 }
 
+struct TrackedForgottenFetchCall {
+    request: usize,
+    call: usize,
+}
+
+impl TrackedForgottenFetchCall {
+    fn settle(&mut self) {
+        self.request += 1;
+        self.call += 1;
+    }
+}
+
 struct SettledFetchCall {
     terminal: usize,
 }

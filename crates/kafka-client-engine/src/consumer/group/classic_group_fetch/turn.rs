@@ -1,6 +1,6 @@
 //! One bounded, stage-ordered execution turn for classic-group Fetch.
 
-use kafka_client_core::{AssignedConsumerInput, AssignedConsumerTransition, Moment};
+use kafka_client_core::{AssignedConsumerTransition, Moment};
 
 use crate::{
     clock::MonotonicClock,
@@ -15,6 +15,7 @@ use super::{
     },
     owner::ClassicGroupFetchOwner,
     position_execution::ClassicGroupPositionStage,
+    timer_input::duplicate_due_input,
     turn_model::ClassicGroupFetchTurn,
 };
 
@@ -63,6 +64,16 @@ impl ClassicGroupFetchOwner {
         );
         if self.is_faulted() || !self.effects.is_empty() {
             return work;
+        }
+
+        if !self.fetches.broker_session_close_requested()
+            && !self.pending_fetches.is_empty()
+            && self.fetches.broker_sessions_have_forgotten_ready()
+        {
+            self.submit_one_fetch(clock, driver, &mut work);
+            if work.fetch_submitted || work.fault_retained {
+                return work;
+            }
         }
 
         let effects_before_poll = self.effects.len();
@@ -140,14 +151,18 @@ impl ClassicGroupFetchOwner {
         let retained = self.fetches.retained();
         match self
             .fetches
-            .drive_broker_fetches(driver, &mut self.machine, now)
+            .drive_broker_fetches(driver, &mut self.machine, clock, now)
         {
-            Ok(Some(transition)) => {
+            Ok((Some(transition), _progressed)) => {
                 work.fetch_polled = true;
                 self.append_transition(transition, work);
                 return;
             }
-            Ok(None) => {}
+            Ok((None, true)) => {
+                work.fetch_polled = true;
+                return;
+            }
+            Ok((None, false)) => {}
             Err(error) => {
                 self.fault = Some(ClassicGroupFetchOwnerFault::Fetch(error));
                 self.settle_seek_host_unavailable();
@@ -258,21 +273,5 @@ impl ClassicGroupFetchOwner {
             self.effects.push_back(effect);
         }
         true
-    }
-}
-
-fn duplicate_due_input(
-    input: AssignedConsumerInput,
-) -> Result<(AssignedConsumerInput, AssignedConsumerInput), AssignedConsumerInput> {
-    match input {
-        AssignedConsumerInput::PositionThrottleElapsed { fence, now } => Ok((
-            AssignedConsumerInput::PositionThrottleElapsed { fence, now },
-            AssignedConsumerInput::PositionThrottleElapsed { fence, now },
-        )),
-        AssignedConsumerInput::FetchThrottleElapsed { fence, now } => Ok((
-            AssignedConsumerInput::FetchThrottleElapsed { fence, now },
-            AssignedConsumerInput::FetchThrottleElapsed { fence, now },
-        )),
-        input => Err(input),
     }
 }

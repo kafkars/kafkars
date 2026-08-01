@@ -45,6 +45,30 @@ const LINEAR_OWNERS: &[(&str, &str)] = &[
         "crates/kafka-client-engine/src/driver/rpc/fetch/terminal.rs",
     ),
     (
+        "ForgottenFetchRequest",
+        "crates/kafka-client-engine/src/driver/rpc/fetch/forgotten.rs",
+    ),
+    (
+        "TrackedForgottenFetchCall",
+        "crates/kafka-client-engine/src/driver/rpc/fetch/forgotten.rs",
+    ),
+    (
+        "ForgottenFetchTerminal",
+        "crates/kafka-client-engine/src/driver/rpc/fetch/forgotten.rs",
+    ),
+    (
+        "ForgottenFetchConfirmation",
+        "crates/kafka-client-engine/src/driver/rpc/fetch/forgotten.rs",
+    ),
+    (
+        "ForgottenFetchSubmitFailure",
+        "crates/kafka-client-engine/src/driver/rpc/fetch/forgotten.rs",
+    ),
+    (
+        "ForgottenFetchCompletionFailure",
+        "crates/kafka-client-engine/src/driver/rpc/fetch/forgotten.rs",
+    ),
+    (
         "PendingFetchConfirmation",
         "crates/kafka-client-engine/src/driver/rpc/fetch/settlement.rs",
     ),
@@ -66,6 +90,7 @@ const CALLS: &str = "crates/kafka-client-engine/src/driver/rpc/fetch/calls.rs";
 const SETTLEMENT: &str = "crates/kafka-client-engine/src/driver/rpc/fetch/settlement.rs";
 const SETTLEMENT_OWNER: &str =
     "crates/kafka-client-engine/src/driver/rpc/fetch/settlement_owner.rs";
+const FORGOTTEN: &str = "crates/kafka-client-engine/src/driver/rpc/fetch/forgotten.rs";
 const MUTATION_OWNERS: &[(&str, &str, &[&str])] = &[
     ("TrackedFetchCalls", "calls", &[CALLS, SETTLEMENT_OWNER]),
     ("TrackedFetchCalls", "settled", &[CALLS, SETTLEMENT_OWNER]),
@@ -80,9 +105,18 @@ const MUTATION_OWNERS: &[(&str, &str, &[&str])] = &[
         &[CALLS, SETTLEMENT_OWNER],
     ),
     ("TrackedFetchCall", "request", &[CALLS, SETTLEMENT_OWNER]),
+    ("TrackedForgottenFetchCall", "request", &[FORGOTTEN]),
+    ("TrackedForgottenFetchCall", "call", &[FORGOTTEN]),
     ("SettledFetchCall", "terminal", &[SETTLEMENT]),
 ];
 const OWNER_METHODS: &[(&str, &[&str])] = &[
+    (
+        "has_admission_capacity",
+        &[
+            "crates/kafka-client-engine/src/driver/rpc/fetch/broker_calls.rs",
+            "crates/kafka-client-engine/src/consumer/fetch_execution/broker_maintenance.rs",
+        ],
+    ),
     (
         "try_submit_fetch",
         &["crates/kafka-client-engine/src/consumer/fetch_execution/admission.rs"],

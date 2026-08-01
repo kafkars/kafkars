@@ -220,8 +220,8 @@ fn settings(isolation: i8) -> FetchRequestSettings {
     FetchRequestSettings::new(500, 1, 1_048_576, 1_048_576, isolation)
 }
 
-pub(super) fn configure_broker_session_close(executor: &mut DirectFetchExecutor) {
-    executor.configure_broker_session_close(settings(0), Duration::from_secs(1));
+pub(super) fn configure_broker_sessions(executor: &mut DirectFetchExecutor) {
+    executor.configure_broker_sessions(settings(0), Duration::from_secs(1));
 }
 
 pub(super) fn operation_deadline(tick: u64) -> OperationDeadline {

@@ -92,10 +92,7 @@ impl AssignedConsumerOwner {
         fetches
             .try_enable_sessions(limits.partition_capacity)
             .map_err(|()| AssignedConsumerOwnerBuildError::Allocation)?;
-        fetches.configure_broker_session_close(
-            settings.fetch_settings,
-            settings.fetch_attempt_timeout,
-        );
+        fetches.configure_broker_sessions(settings.fetch_settings, settings.fetch_attempt_timeout);
         Ok(Self {
             machine: AssignedConsumerMachine::with_read_isolation(settings.read_isolation),
             topics: AssignedTopics::new(limits.topic_limits),
@@ -141,6 +138,9 @@ impl AssignedConsumerOwner {
             next = minimum_deadline(next, pending.deadline());
         }
         if let Some(deadline) = self.fetches.broker_session_close_deadline() {
+            next = minimum_deadline(next, deadline);
+        }
+        if let Some(deadline) = self.fetches.broker_session_maintenance_deadline() {
             next = minimum_deadline(next, deadline);
         }
         next

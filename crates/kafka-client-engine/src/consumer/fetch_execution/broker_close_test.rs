@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    admission_test::{configure_broker_session_close, owner, shutdown},
+    admission_test::{configure_broker_sessions, owner, shutdown},
     broker_session::BrokerSessionMember,
     executor::DirectFetchExecutor,
     settlement_test::{assignment, fetch_fence},
@@ -47,7 +47,7 @@ fn initial_session_is_removed_locally_and_reports_progress() {
     executor
         .try_enable_sessions(1)
         .unwrap_or_else(|()| panic!("reserve broker-session capacity"));
-    configure_broker_session_close(&mut executor);
+    configure_broker_sessions(&mut executor);
     let initial = executor
         .broker_sessions
         .as_mut()

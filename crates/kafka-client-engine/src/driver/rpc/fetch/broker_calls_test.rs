@@ -28,7 +28,9 @@ fn aggregate_response_becomes_two_exact_partition_terminals() {
         .map(PartitionFetchRequest::fence)
         .collect::<Vec<_>>();
     let mut calls = TrackedBrokerFetchCalls::new(1);
+    assert!(calls.has_admission_capacity());
     calls.install_response_for_test(requests, Moment::from_tick(7), 12, response());
+    assert!(!calls.has_admission_capacity());
 
     for (expected_fence, expected_partition) in fences.into_iter().zip([3, 4]) {
         assert_eq!(
@@ -56,6 +58,7 @@ fn aggregate_response_becomes_two_exact_partition_terminals() {
     }
     assert_eq!(calls.poll_fetch(Moment::from_tick(9)), Ok(FetchPoll::Idle));
     assert_eq!(calls.retained_count(), 0);
+    assert!(calls.has_admission_capacity());
 }
 
 fn response() -> FetchResponse {

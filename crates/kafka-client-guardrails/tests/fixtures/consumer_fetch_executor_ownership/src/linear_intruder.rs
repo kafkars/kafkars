@@ -13,6 +13,9 @@ struct FetchSubmission;
 struct ActiveFetchReservation;
 
 #[derive(Clone, Copy)]
+struct BrokerSessionMaintenance;
+
+#[derive(Clone, Copy)]
 struct ExecutorSeal;
 
 #[derive(Clone, Copy)]

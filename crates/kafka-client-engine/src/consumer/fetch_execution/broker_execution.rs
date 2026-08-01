@@ -1,5 +1,6 @@
 //! Metadata-routed broker Fetch-session admission and exact plan ownership.
 
+use crate::clock::MonotonicClock;
 use crate::driver::{BrokerFetchRouteCall, BrokerFetchRouteFailureKind, BrokerId, DriverOwner};
 use kafka_client_core::{
     AssignedConsumerMachine, AssignedConsumerTransition, FetchFailure, Moment,
@@ -83,24 +84,41 @@ impl DirectFetchExecutor {
         &mut self,
         driver: &DriverOwner,
         machine: &mut AssignedConsumerMachine,
+        clock: &MonotonicClock,
         now: Moment,
-    ) -> Result<Option<AssignedConsumerTransition>, FetchExecutionError> {
+    ) -> Result<(Option<AssignedConsumerTransition>, bool), FetchExecutionError> {
         if self.broker_sessions.is_none() || self.fault.is_some() {
-            return Ok(None);
+            return Ok((None, false));
         }
         let routed_before = self.routed.len();
         if let Some(transition) = self.poll_one_broker_route(machine)? {
-            return Ok(Some(transition));
+            return Ok((Some(transition), true));
         }
         if self.routed.len() > routed_before {
-            return Ok(None);
+            return Ok((None, true));
         }
         // Routed partitions accumulate until the admitted projection phase is
         // terminal, then one broker plan consumes every same-broker member.
         if !self.route_calls.is_empty() {
-            return Ok(None);
+            return Ok((None, false));
         }
-        self.dispatch_one_routed(driver, machine, now)
+        if self.broker_maintenance.is_some() {
+            let progressed = self.drive_forgotten_maintenance(driver, clock, now)?;
+            return Ok((None, progressed));
+        }
+        if !self.routed.is_empty() {
+            let routed_before = self.routed.len();
+            let transition = self.dispatch_one_routed(driver, machine, now)?;
+            let progressed = transition.is_some() || self.routed.len() < routed_before;
+            return Ok((transition, progressed));
+        }
+        if self.drive_forgotten_maintenance(driver, clock, now)? {
+            return Ok((None, true));
+        }
+        if self.broker_maintenance.is_some() {
+            return Ok((None, false));
+        }
+        Ok((None, false))
     }
 
     fn poll_one_broker_route(

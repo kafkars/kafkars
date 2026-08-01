@@ -80,6 +80,9 @@ impl ClassicGroupFetchOwner {
         if let Some(deadline) = self.fetches.broker_session_close_deadline() {
             next = minimum_deadline(next, deadline);
         }
+        if let Some(deadline) = self.fetches.broker_session_maintenance_deadline() {
+            next = minimum_deadline(next, deadline);
+        }
         next
     }
 

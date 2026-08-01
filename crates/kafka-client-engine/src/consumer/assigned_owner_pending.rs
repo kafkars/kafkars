@@ -35,13 +35,14 @@ impl AssignedConsumerOwner {
     ) -> bool {
         match self
             .fetches
-            .drive_broker_fetches(driver, &mut self.machine, now)
+            .drive_broker_fetches(driver, &mut self.machine, &self.clock, now)
         {
-            Ok(Some(transition)) => {
+            Ok((Some(transition), _progressed)) => {
                 self.enqueue_transition(transition, None);
                 return true;
             }
-            Ok(None) => {}
+            Ok((None, true)) => return true,
+            Ok((None, false)) => {}
             Err(error) => {
                 self.fault = Some(AssignedConsumerOwnerFault::Fetch(error));
                 return false;

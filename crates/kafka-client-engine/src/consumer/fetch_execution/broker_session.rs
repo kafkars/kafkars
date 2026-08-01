@@ -30,6 +30,10 @@ impl BrokerSessionMember {
     pub(super) fn topic(&self) -> &str {
         &self.topic
     }
+
+    pub(super) fn topic_owner(&self) -> Arc<str> {
+        Arc::clone(&self.topic)
+    }
 }
 
 /// Linear request-side snapshot whose completion advances exactly one broker epoch.

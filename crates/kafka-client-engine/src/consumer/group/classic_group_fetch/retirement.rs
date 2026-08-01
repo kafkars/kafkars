@@ -53,16 +53,33 @@ pub(in crate::consumer::group) enum ClassicGroupFetchRetirementError {
 impl ClassicGroupFetchOwner {
     /// Retires the exact Fetch activation before its catalog assignment is revoked.
     ///
-    /// Existing accepted calls are not cancelled. The queued `Revoke` controls
-    /// first return local request and store reservations, then leave routed
-    /// calls to drain through the ordinary stale-confirmation path.
+    /// Existing accepted Kafka Fetch calls are not cancelled. The queued
+    /// `Revoke` controls retire definitely-unsent routing work, return local
+    /// request and store reservations, then leave accepted calls to drain
+    /// through the ordinary stale-confirmation path.
+    pub(in crate::consumer::group) fn retire_for_assignment_loss(
+        &mut self,
+        assignment: &LiveGroupAssignment,
+    ) -> Result<ClassicGroupFetchRetirement, ClassicGroupFetchRetirementError> {
+        self.retire_assignment(assignment, true)
+    }
+
+    /// Retires local assignment fences while retaining the broker Fetch session.
+    pub(in crate::consumer::group) fn retire_for_assignment_replacement(
+        &mut self,
+        assignment: &LiveGroupAssignment,
+    ) -> Result<ClassicGroupFetchRetirement, ClassicGroupFetchRetirementError> {
+        self.retire_assignment(assignment, false)
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "retirement is one ordered linear transition that must retain and fault the exact owner"
     )]
-    pub(in crate::consumer::group) fn retire_for_assignment_loss(
+    fn retire_assignment(
         &mut self,
         assignment: &LiveGroupAssignment,
+        close_broker_session: bool,
     ) -> Result<ClassicGroupFetchRetirement, ClassicGroupFetchRetirementError> {
         if self.is_faulted() {
             return Err(ClassicGroupFetchRetirementError::Faulted);
@@ -175,7 +192,11 @@ impl ClassicGroupFetchOwner {
                 ));
             }
         }
-        self.fetches.request_broker_session_close();
+        if close_broker_session {
+            self.fetches.request_broker_session_close();
+        } else {
+            self.fetches.defer_broker_session_maintenance();
+        }
         Ok(ClassicGroupFetchRetirement::Retired {
             position_fence,
             assignment_epoch,

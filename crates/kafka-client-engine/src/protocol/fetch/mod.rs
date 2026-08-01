@@ -1,7 +1,5 @@
 //! Bounded Fetch-response normalization into engine-owned retained records.
-
 #![allow(dead_code, reason = "private Fetch seam")]
-
 mod batch;
 mod batch_identity;
 mod batch_model;
@@ -18,6 +16,9 @@ mod outcome;
 mod outcome_failure;
 #[cfg(test)]
 mod outcome_failure_test;
+mod outcome_forgotten;
+#[cfg(test)]
+mod outcome_forgotten_test;
 mod outcome_normalize;
 mod outcome_retain;
 mod read_committed;
@@ -29,7 +30,6 @@ mod request_broker;
 mod response;
 mod retention;
 mod session;
-
 pub(crate) use exports::*;
 #[cfg(test)]
 pub(crate) use fixture::{

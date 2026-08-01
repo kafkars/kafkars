@@ -17,6 +17,7 @@ pub(crate) use super::{
         RejectedFetchOutcome, RetainedFetchOutcome,
     },
     outcome_failure::{FetchOutcomeFailureClass, classify_fetch_outcome_failure},
+    outcome_forgotten::{ForgottenFetchOutcome, normalize_forgotten_fetch_outcome},
     outcome_normalize::{
         FetchSessionUpdate, fetch_session_requires_reestablishment, normalize_fetch_outcome,
         normalize_session_fetch_outcome,
@@ -26,8 +27,8 @@ pub(crate) use super::{
         FetchRequestSettings, fetch_request, fetch_request_with_session,
     },
     request_broker::{
-        BrokerFetchPartition, ForgottenFetchPartition, broker_fetch_request,
-        fetch_session_close_request,
+        BrokerFetchPartition, ForgottenFetchPartition, OwnedForgottenFetchPartition,
+        broker_fetch_request, fetch_session_close_request, forgotten_fetch_request,
     },
     response::FetchResponseFailure,
     retention::{FetchOutputReservation, FetchReservationDomain, FetchRetentionFailure},

@@ -28,6 +28,24 @@ struct FetchTerminal;
 struct FetchCompletionFailure;
 
 #[derive(Clone, Copy)]
+struct ForgottenFetchRequest;
+
+#[derive(Clone, Copy)]
+struct TrackedForgottenFetchCall;
+
+#[derive(Clone, Copy)]
+struct ForgottenFetchTerminal;
+
+#[derive(Clone, Copy)]
+struct ForgottenFetchConfirmation;
+
+#[derive(Clone, Copy)]
+struct ForgottenFetchSubmitFailure;
+
+#[derive(Clone, Copy)]
+struct ForgottenFetchCompletionFailure;
+
+#[derive(Clone, Copy)]
 struct PendingFetchConfirmation;
 
 #[derive(Clone, Copy)]

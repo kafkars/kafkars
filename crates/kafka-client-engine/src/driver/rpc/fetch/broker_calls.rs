@@ -84,7 +84,7 @@ impl TrackedBrokerFetchCalls {
                 FetchAdmissionFailureSource::DeadlineElapsed,
             ));
         }
-        if self.retained_count() >= self.capacity {
+        if !self.has_admission_capacity() {
             return BrokerFetchCallAdmission::Backpressured(requests);
         }
         let responses = match reserved_responses(&requests) {
@@ -124,5 +124,10 @@ impl TrackedBrokerFetchCalls {
             .saturating_add(usize::from(self.settled.is_some()))
             .saturating_add(usize::from(self.pending.is_some()))
             .saturating_add(usize::from(self.completion_failure.is_some()))
+    }
+
+    /// Reports whether the shared broker Fetch call bound can admit one call.
+    pub(crate) fn has_admission_capacity(&self) -> bool {
+        self.retained_count() < self.capacity
     }
 }

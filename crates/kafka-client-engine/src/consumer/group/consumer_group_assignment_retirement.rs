@@ -147,7 +147,12 @@ fn retire_entry_assignment_inner(
         .catalog
         .prepare_assignment_retirement_event(assignment);
     let epoch = assignment.assignment_generation().get();
-    if let Err(error) = entry.fetch.retire_for_assignment_loss(assignment) {
+    let retirement = if reconciling {
+        entry.fetch.retire_for_assignment_replacement(assignment)
+    } else {
+        entry.fetch.retire_for_assignment_loss(assignment)
+    };
+    if let Err(error) = retirement {
         drop(processing);
         entry.fault = Some(ClassicGroupEntryFault::ConsumerGroupFetchRetirement(error));
         return Err(ClassicGroupExecutionError::FetchRetirement(error));

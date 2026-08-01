@@ -155,6 +155,7 @@ impl ClassicGroupFetchOwner {
             self.effects.push_back(effect);
         }
         self.activation = Some(ClassicGroupFetchActivation::new(binding));
+        self.fetches.resume_broker_session_maintenance();
         Ok(())
     }
 

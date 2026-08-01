@@ -19,6 +19,12 @@ impl DirectFetchExecutor {
         now: Moment,
         prepared_batch: &mut Vec<PreparedFetchExecution>,
     ) {
+        let mut selected_bytes = prepared_batch
+            .iter()
+            .try_fold(0usize, |bytes, prepared| {
+                bytes.checked_add(prepared.hard_output_bytes)
+            })
+            .unwrap_or(usize::MAX);
         let mut index = self.routed.len();
         while index > 0 {
             index -= 1;
@@ -37,7 +43,19 @@ impl DirectFetchExecutor {
                         .core()
                         .is_elapsed_at(now) =>
                 {
+                    let Some(next_bytes) =
+                        selected_bytes.checked_add(self.routed[index].hard_output_bytes)
+                    else {
+                        continue;
+                    };
+                    if !self.can_reserve_broker_batch(
+                        prepared_batch.len().saturating_add(1),
+                        next_bytes,
+                    ) {
+                        continue;
+                    }
                     let routed = self.routed.swap_remove(index);
+                    selected_bytes = next_bytes;
                     prepared_batch.push(PreparedFetchExecution::from_parts(
                         routed.request,
                         routed.hard_output_bytes,

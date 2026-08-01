@@ -42,6 +42,17 @@ impl BrokerFetchSessions {
         self.entries.first().map(|entry| entry.broker_id)
     }
 
+    pub(super) fn has_forgotten_ready(&self) -> bool {
+        self.entries.iter().any(|entry| {
+            !entry.in_flight
+                && entry.metadata.is_incremental()
+                && self
+                    .members
+                    .iter()
+                    .any(|member| member.broker_id == entry.broker_id && member.forgotten)
+        })
+    }
+
     pub(super) fn discard_all(&mut self) {
         self.entries.clear();
         self.members.clear();

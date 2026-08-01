@@ -1,5 +1,7 @@
 //! Broker-aggregated name-based Fetch request construction and session control.
 
+use std::sync::Arc;
+
 use kafka_wire::{
     FetchRequest,
     fetch_request::{FetchTopic, ForgottenTopic},
@@ -44,6 +46,27 @@ impl<'a> ForgottenFetchPartition<'a> {
     }
 }
 
+/// One owned partition identity retained by a forgotten-only Fetch call.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct OwnedForgottenFetchPartition {
+    topic: Arc<str>,
+    partition: u32,
+}
+
+impl OwnedForgottenFetchPartition {
+    pub(crate) fn new(topic: Arc<str>, partition: u32) -> Self {
+        Self { topic, partition }
+    }
+
+    pub(crate) fn topic(&self) -> &str {
+        &self.topic
+    }
+
+    pub(crate) const fn partition(&self) -> u32 {
+        self.partition
+    }
+}
+
 /// Builds one broker-routed request containing every active and forgotten partition.
 pub(crate) fn broker_fetch_request(
     active: &[BrokerFetchPartition<'_>],
@@ -66,24 +89,28 @@ pub(crate) fn broker_fetch_request(
             .map_err(|_error| FetchRequestFailure::Allocation)?;
         topic.partitions.push(partition);
     }
-    request
-        .forgotten_topics_data
-        .try_reserve_exact(forgotten.len())
-        .map_err(|_error| FetchRequestFailure::Allocation)?;
-    for item in forgotten {
-        validate_topic(item.topic)?;
-        let partition = i32::try_from(item.partition).map_err(|_error| {
-            FetchRequestFailure::PartitionOutOfRange {
-                actual: item.partition,
-            }
-        })?;
-        let topic = find_or_insert_forgotten(&mut request.forgotten_topics_data, item.topic)?;
-        topic
-            .partitions
-            .try_reserve(1)
-            .map_err(|_error| FetchRequestFailure::Allocation)?;
-        topic.partitions.push(partition);
-    }
+    append_forgotten(
+        &mut request,
+        forgotten.len(),
+        forgotten.iter().map(|item| (item.topic, item.partition)),
+    )?;
+    Ok(request)
+}
+
+/// Builds one incremental request whose only session delta removes partitions.
+pub(crate) fn forgotten_fetch_request(
+    forgotten: &[OwnedForgottenFetchPartition],
+    settings: FetchRequestSettings,
+    session: FetchSessionRequest,
+) -> Result<FetchRequest, FetchRequestFailure> {
+    let mut request = base_request(settings, session)?;
+    append_forgotten(
+        &mut request,
+        forgotten.len(),
+        forgotten
+            .iter()
+            .map(|item| (item.topic(), item.partition())),
+    )?;
     Ok(request)
 }
 
@@ -126,4 +153,27 @@ fn find_or_insert_forgotten<'a>(
     topics.push(topic);
     let index = topics.len().saturating_sub(1);
     Ok(&mut topics[index])
+}
+
+fn append_forgotten<'a>(
+    request: &mut FetchRequest,
+    count: usize,
+    forgotten: impl Iterator<Item = (&'a str, u32)>,
+) -> Result<(), FetchRequestFailure> {
+    request
+        .forgotten_topics_data
+        .try_reserve_exact(count)
+        .map_err(|_error| FetchRequestFailure::Allocation)?;
+    for (name, partition) in forgotten {
+        validate_topic(name)?;
+        let partition = i32::try_from(partition)
+            .map_err(|_error| FetchRequestFailure::PartitionOutOfRange { actual: partition })?;
+        let topic = find_or_insert_forgotten(&mut request.forgotten_topics_data, name)?;
+        topic
+            .partitions
+            .try_reserve(1)
+            .map_err(|_error| FetchRequestFailure::Allocation)?;
+        topic.partitions.push(partition);
+    }
+    Ok(())
 }

@@ -71,7 +71,7 @@ impl ClassicGroupFetchOwner {
             0,
         )
         .with_isolation(fetch_isolation(read_isolation));
-        fetches.configure_broker_session_close(fetch_settings, FIRST_GROUP_FETCH_ATTEMPT_TIMEOUT);
+        fetches.configure_broker_sessions(fetch_settings, FIRST_GROUP_FETCH_ATTEMPT_TIMEOUT);
         Ok(Self {
             machine: AssignedConsumerMachine::with_read_isolation(read_isolation),
             activation: None,

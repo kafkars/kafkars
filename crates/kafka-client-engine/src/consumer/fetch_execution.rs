@@ -16,12 +16,22 @@ mod broker_close_test;
 mod broker_execution;
 #[cfg(test)]
 mod broker_execution_test;
+#[path = "fetch_execution/broker_maintenance.rs"]
+mod broker_maintenance;
+#[path = "fetch_execution/broker_maintenance_settlement.rs"]
+mod broker_maintenance_settlement;
+#[path = "fetch_execution/broker_maintenance_state.rs"]
+mod broker_maintenance_state;
+#[cfg(test)]
+mod broker_maintenance_test;
 #[cfg(test)]
 mod broker_reestablishment_test;
 #[path = "fetch_execution/broker_session.rs"]
 mod broker_session;
 #[path = "fetch_execution/broker_session_begin.rs"]
 mod broker_session_begin;
+#[cfg(test)]
+mod broker_session_reassignment_test;
 #[path = "fetch_execution/broker_session_state.rs"]
 mod broker_session_state;
 #[cfg(test)]
@@ -46,6 +56,8 @@ mod executor;
 mod fault;
 #[cfg(test)]
 mod fault_test;
+#[path = "fetch_execution/partition_session.rs"]
+mod partition_session;
 #[path = "fetch_execution/prepared.rs"]
 mod prepared;
 #[cfg(test)]

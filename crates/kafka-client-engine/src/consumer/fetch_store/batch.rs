@@ -8,6 +8,17 @@ use super::{
 };
 
 impl FetchDeliveryStore {
+    pub(crate) fn can_reserve_batch_shape(&self, count: usize, bytes: usize) -> bool {
+        self.slots
+            .len()
+            .checked_add(count)
+            .is_some_and(|next| next <= self.max_count)
+            && self
+                .used_bytes
+                .checked_add(bytes)
+                .is_some_and(|next| next <= self.max_bytes)
+    }
+
     pub(crate) fn try_reserve_batch(
         &mut self,
         requested: &[(FetchFence, usize)],

@@ -14,7 +14,7 @@ use super::{
 };
 
 #[derive(Clone, Copy)]
-pub(super) struct BrokerSessionClosePolicy {
+pub(super) struct BrokerSessionPolicy {
     pub(super) settings: crate::protocol::fetch::FetchRequestSettings,
     pub(super) timeout: std::time::Duration,
 }
@@ -26,6 +26,7 @@ pub(super) struct ActiveBrokerSessionClose {
 
 impl DirectFetchExecutor {
     pub(crate) fn request_broker_session_close(&mut self) {
+        self.broker_maintenance_deferred = false;
         self.broker_close_requested = true;
     }
 
@@ -68,7 +69,7 @@ impl DirectFetchExecutor {
             self.broker_close_deadline = None;
             return Ok(false);
         };
-        let Some(policy) = self.broker_close_policy else {
+        let Some(policy) = self.broker_session_policy else {
             return Err(FetchExecutionError::BrokerSession);
         };
         if self.broker_close_deadline.is_none() {
@@ -155,6 +156,7 @@ impl DirectFetchExecutor {
             && self.route_calls.is_empty()
             && self.routed.is_empty()
             && self.active_broker_sessions.is_empty()
+            && self.broker_maintenance.is_none()
             && self.store.retained() == (0, 0)
     }
 }

@@ -30,7 +30,13 @@ impl BrokerFetchSessions {
         let forgotten_count = self
             .members
             .iter()
-            .filter(|retained| retained.broker_id == broker_id && retained.forgotten)
+            .filter(|retained| {
+                retained.broker_id == broker_id
+                    && retained.forgotten
+                    && !active.iter().any(|active| {
+                        active.position().partition() == retained.member.position().partition()
+                    })
+            })
             .count();
         let additions = active
             .iter()
@@ -57,7 +63,13 @@ impl BrokerFetchSessions {
         forgotten.extend(
             self.members
                 .iter()
-                .filter(|retained| retained.broker_id == broker_id && retained.forgotten)
+                .filter(|retained| {
+                    retained.broker_id == broker_id
+                        && retained.forgotten
+                        && !active.iter().any(|active| {
+                            active.position().partition() == retained.member.position().partition()
+                        })
+                })
                 .map(|member| member.member.clone()),
         );
         let index = entry.unwrap_or_else(|| {
@@ -76,5 +88,44 @@ impl BrokerFetchSessions {
             forgotten,
             close: false,
         })
+    }
+
+    pub(super) fn try_begin_forgotten(
+        &mut self,
+    ) -> Result<Option<BrokerSessionPlan>, BrokerSessionError> {
+        let Some(index) = self.entries.iter().position(|entry| {
+            !entry.in_flight
+                && entry.metadata.is_incremental()
+                && self
+                    .members
+                    .iter()
+                    .any(|member| member.broker_id == entry.broker_id && member.forgotten)
+        }) else {
+            return Ok(None);
+        };
+        let broker_id = self.entries[index].broker_id;
+        let forgotten_count = self
+            .members
+            .iter()
+            .filter(|member| member.broker_id == broker_id && member.forgotten)
+            .count();
+        let mut forgotten = Vec::new();
+        forgotten
+            .try_reserve_exact(forgotten_count)
+            .map_err(|_error| BrokerSessionError::Allocation)?;
+        forgotten.extend(
+            self.members
+                .iter()
+                .filter(|member| member.broker_id == broker_id && member.forgotten)
+                .map(|member| member.member.clone()),
+        );
+        self.entries[index].in_flight = true;
+        Ok(Some(BrokerSessionPlan {
+            broker_id,
+            session: self.entries[index].metadata,
+            active: Vec::new(),
+            forgotten,
+            close: false,
+        }))
     }
 }

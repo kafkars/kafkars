@@ -1,5 +1,4 @@
 //! Ownership, capability, and machine-binding guards for direct Fetch execution.
-
 mod support;
 
 use support::{
@@ -10,8 +9,16 @@ use support::{
 const EXECUTION: &str = "crates/kafka-client-engine/src/consumer/fetch_execution";
 const ADMISSION: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/admission.rs";
 const APPLY: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/apply.rs";
+const BROKER_CLOSE: &str =
+    "crates/kafka-client-engine/src/consumer/fetch_execution/broker_close.rs";
 const BROKER_EXECUTION: &str =
     "crates/kafka-client-engine/src/consumer/fetch_execution/broker_execution.rs";
+const BROKER_MAINTENANCE: &str =
+    "crates/kafka-client-engine/src/consumer/fetch_execution/broker_maintenance.rs";
+const BROKER_MAINTENANCE_SETTLEMENT: &str =
+    "crates/kafka-client-engine/src/consumer/fetch_execution/broker_maintenance_settlement.rs";
+const BROKER_MAINTENANCE_STATE: &str =
+    "crates/kafka-client-engine/src/consumer/fetch_execution/broker_maintenance_state.rs";
 const BROKER_SUBMISSION: &str =
     "crates/kafka-client-engine/src/consumer/fetch_execution/broker_submission.rs";
 const CONTROL: &str = "crates/kafka-client-engine/src/consumer/fetch_execution/control.rs";
@@ -28,6 +35,7 @@ const LINEAR: &[(&str, &str)] = &[
     ("PreparedFetchExecution", PREPARED),
     ("FetchSubmission", ADMISSION),
     ("ActiveFetchReservation", EXECUTOR),
+    ("BrokerSessionMaintenance", BROKER_MAINTENANCE_STATE),
     ("ExecutorSeal", EXECUTOR),
     ("DirectFetchExecutor", EXECUTOR),
     ("RetainedFetchFault", FAULT),
@@ -43,6 +51,7 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
         &[
             ADMISSION,
             APPLY,
+            BROKER_CLOSE,
             BROKER_SUBMISSION,
             CONTROL,
             DELIVERY,
@@ -56,6 +65,7 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
         &[
             ADMISSION,
             APPLY,
+            BROKER_CLOSE,
             BROKER_SUBMISSION,
             CONTROL,
             DELIVERY,
@@ -74,7 +84,10 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
         &[
             ADMISSION,
             APPLY,
+            BROKER_CLOSE,
             BROKER_EXECUTION,
+            BROKER_MAINTENANCE,
+            BROKER_MAINTENANCE_SETTLEMENT,
             BROKER_SUBMISSION,
             CONTROL,
             DELIVERY,
@@ -82,6 +95,23 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
             SETTLEMENT,
             TERMINAL,
         ],
+    ),
+    (
+        "DirectFetchExecutor",
+        "broker_maintenance",
+        &[
+            BROKER_CLOSE,
+            BROKER_EXECUTION,
+            BROKER_MAINTENANCE,
+            BROKER_MAINTENANCE_SETTLEMENT,
+            BROKER_MAINTENANCE_STATE,
+            EXECUTOR,
+        ],
+    ),
+    (
+        "DirectFetchExecutor",
+        "broker_session_policy",
+        &[BROKER_CLOSE, BROKER_MAINTENANCE, EXECUTOR],
     ),
 ];
 
@@ -106,11 +136,13 @@ const FORBIDDEN: &[&str] = &[
 const CAPABILITY_ALLOWS: &[(&str, &str)] = &[
     ("admission_test.rs", "std::time"),
     ("admission_test.rs", "Instant::now"),
+    ("broker_close.rs", "std::time"),
     ("control_test.rs", "std::time"),
     ("control_test.rs", "Instant::now"),
     ("deadline.rs", "std::time"),
     ("deadline_test.rs", "std::time"),
     ("deadline_test.rs", "Instant::now"),
+    ("executor.rs", "std::time"),
     ("fault_test.rs", "std::time"),
     ("settlement_test.rs", "std::time"),
     ("settlement_test.rs", "Instant::now"),
@@ -211,7 +243,10 @@ fn checked_in_executor_policy_is_exact() {
 
     for (method, execution_paths) in [
         ("try_reserve", vec![ADMISSION, BROKER_SUBMISSION, EXECUTOR]),
-        ("retained_count", vec![EXECUTOR]),
+        (
+            "retained_count",
+            vec![BROKER_CLOSE, BROKER_MAINTENANCE, EXECUTOR],
+        ),
     ] {
         let rules = config
             .method_capabilities

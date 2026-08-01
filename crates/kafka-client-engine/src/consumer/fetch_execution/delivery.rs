@@ -54,6 +54,7 @@ impl DirectFetchExecutor {
         );
         requests.extend(self.routed.drain(..).map(|routed| routed.request));
         self.active_broker_sessions.clear();
+        self.release_forgotten_maintenance_after_driver_shutdown();
         let driver = crate::driver::FetchRecovery::new(requests, completion.or(broker_completion));
         FetchShutdownRecovery::new(driver, self.fault.is_some())
     }

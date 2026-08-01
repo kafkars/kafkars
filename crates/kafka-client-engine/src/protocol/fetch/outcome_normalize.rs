@@ -162,7 +162,7 @@ pub(crate) fn normalize_session_fetch_outcome(
         .map(|outcome| (outcome, session_update))
 }
 
-fn session_update(
+pub(super) fn session_update(
     request: FetchSessionRequest,
     selected_version: i16,
     response_session_id: i32,
