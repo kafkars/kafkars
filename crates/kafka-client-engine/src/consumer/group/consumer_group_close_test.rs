@@ -68,6 +68,53 @@ fn dormant_modern_close_completes_without_submitting_a_leave() {
 }
 
 #[test]
+fn control_requested_modern_close_prepares_the_existing_epoch_minus_one_leave() {
+    let clock = MonotonicClock::new();
+    let (entry, _topic_id) = installed_modern_entry();
+    let authority = entry.close_authority();
+    let close_deadline = clock
+        .capture_deadline_after(Duration::from_secs(30))
+        .unwrap_or_else(|error| panic!("close deadline: {error}"))
+        .operation_deadline();
+    assert!(authority.request(close_deadline));
+    assert!(!authority.request(close_deadline));
+    let mut registry =
+        GroupConsumerRegistry::start().unwrap_or_else(|error| panic!("registry: {error:?}"));
+    registry.entries.push(entry);
+
+    assert!(
+        registry
+            .close_one_requested_group()
+            .unwrap_or_else(|error| panic!("apply control shutdown: {error:?}"))
+    );
+    let now = clock
+        .now()
+        .unwrap_or_else(|error| panic!("close turn time: {error}"));
+    assert_eq!(
+        registry.turn_one_consumer_group_close(now),
+        Ok(super::consumer_group_close::ConsumerGroupCloseTurn::Progress)
+    );
+    let entry = registry
+        .entries
+        .first()
+        .unwrap_or_else(|| panic!("closing modern entry"));
+    let prepared = entry
+        .consumer
+        .as_ref()
+        .and_then(|execution| execution.prepared())
+        .unwrap_or_else(|| panic!("prepared KIP-848 leave"));
+    assert_eq!(prepared.kind(), ConsumerGroupHeartbeatRequestKind::Leave);
+    assert_eq!(prepared.deadline(), close_deadline);
+    assert_eq!(
+        entry
+            .consumer
+            .as_ref()
+            .map(|execution| execution.machine().phase()),
+        Some(ConsumerGroupHeartbeatPhase::Leaving)
+    );
+}
+
+#[test]
 fn close_during_reconciliation_prepares_leave_instead_of_empty_owned_ack() {
     let clock = MonotonicClock::new();
     let (mut entry, _topic_id) = installed_modern_entry();

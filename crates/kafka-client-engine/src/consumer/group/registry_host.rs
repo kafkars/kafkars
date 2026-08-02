@@ -26,6 +26,15 @@ impl GroupConsumerRegistry {
         clock: &crate::clock::MonotonicClock,
         driver: &DriverOwner,
     ) -> Result<GroupConsumerRegistryTurn, GroupConsumerHostError> {
+        if self
+            .close_one_requested_group()
+            .map_err(GroupConsumerHostError::close)?
+        {
+            return Ok(GroupConsumerRegistryTurn {
+                progressed: true,
+                blocked_work: false,
+            });
+        }
         let offset_commit = self
             .offset_commits
             .turn(now, driver)

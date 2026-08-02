@@ -72,7 +72,10 @@ impl GroupConsumerHandle {
     /// Rejection returns this exact unique handle. Acceptance consumes it,
     /// permanently fences new group work, and continues if observation drops.
     pub fn try_close(self) -> Result<GroupConsumerClose, GroupConsumerCloseAdmissionError> {
-        match self.port.try_begin_close(self.group_id) {
+        match self
+            .port
+            .try_begin_close(self.group_id, &self.close_authority)
+        {
             Ok(admission) => {
                 let wake_failed = admission.wake_failed();
                 Ok(GroupConsumerClose::new(
@@ -103,6 +106,9 @@ pub(super) const fn admission_error_kind(
             GroupConsumerCloseAdmissionErrorKind::InternalInvariant
         }
         GroupConsumerClosePortError::Lock(GroupConsumerShardLockError::Contended) => {
+            GroupConsumerCloseAdmissionErrorKind::Contended
+        }
+        GroupConsumerClosePortError::Registry(RegistryCloseError::AuthorityContended) => {
             GroupConsumerCloseAdmissionErrorKind::Contended
         }
         GroupConsumerClosePortError::Registry(

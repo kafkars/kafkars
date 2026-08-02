@@ -8,11 +8,17 @@ use kafka_client_core::{
 };
 
 use super::{
+    classic_group_leave::GroupConsumerCloseAuthority,
     registry::GroupConsumerRegistrationFailureKind,
     registry_entry::default_classic_processing_lease_policy, registry_port::GroupConsumerPort,
     registry_shard::GroupConsumerShardLockError, session_catalog::GroupSessionCatalogError,
 };
 use crate::consumer::group_registration_request::GroupConsumerProtocol;
+
+pub(in crate::consumer) struct GroupConsumerPortRegistrationAccepted {
+    pub(in crate::consumer) group_id: GroupId,
+    pub(in crate::consumer) close_authority: Arc<GroupConsumerCloseAuthority>,
+}
 
 impl GroupConsumerPort {
     pub(crate) fn try_register(
@@ -102,6 +108,38 @@ impl GroupConsumerPort {
         read_isolation: ReadIsolation,
         processing_policy: ClassicProcessingLeasePolicy,
     ) -> Result<GroupId, GroupConsumerPortRegistrationFailure> {
+        self.try_register_controlled(
+            group,
+            group_instance_id,
+            local_topics,
+            protocol,
+            timing,
+            heartbeat_policy,
+            rejoin_policy,
+            missing_offset_policy,
+            read_isolation,
+            processing_policy,
+        )
+        .map(|accepted| accepted.group_id)
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one exact bounded group registration and close-control authority"
+    )]
+    pub(in crate::consumer) fn try_register_controlled(
+        &self,
+        group: Arc<str>,
+        group_instance_id: Option<Arc<str>>,
+        local_topics: Vec<Arc<str>>,
+        protocol: GroupConsumerProtocol,
+        timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
+        missing_offset_policy: GroupPositionMissingOffsetPolicy,
+        read_isolation: ReadIsolation,
+        processing_policy: ClassicProcessingLeasePolicy,
+    ) -> Result<GroupConsumerPortRegistrationAccepted, GroupConsumerPortRegistrationFailure> {
         if self.shared.admission_is_closed() {
             return Err(registration_failure(
                 GroupConsumerPortRegistrationFailureKind::CLOSED,
@@ -129,7 +167,7 @@ impl GroupConsumerPort {
                 local_topics,
             ));
         }
-        registry
+        let group_id = registry
             .try_register_with_protocol_configuration(
                 group,
                 group_instance_id,
@@ -147,7 +185,15 @@ impl GroupConsumerPort {
                 group: failure.group,
                 group_instance_id: failure.group_instance_id,
                 local_topics: failure.local_topics,
-            })
+            })?;
+        let close_authority = registry
+            .entry(group_id)
+            .unwrap_or_else(|| unreachable!("accepted group remains in its registry"))
+            .close_authority();
+        Ok(GroupConsumerPortRegistrationAccepted {
+            group_id,
+            close_authority,
+        })
     }
 }
 

@@ -335,9 +335,9 @@ pub(in crate::consumer) use classic_group_fetch::{
 };
 pub(in crate::consumer) use classic_group_graceful_revocation::ClassicGroupRevocationAcknowledgeError;
 pub(in crate::consumer) use classic_group_leave::{
-    GroupConsumerCloseCompletion, GroupConsumerCloseCompletionObservation,
-    GroupConsumerCloseTerminal, GroupConsumerCloseTerminalFailure,
-    GroupConsumerCloseTerminalFailureKind,
+    GroupConsumerCloseAuthority, GroupConsumerCloseCompletion,
+    GroupConsumerCloseCompletionObservation, GroupConsumerCloseTerminal,
+    GroupConsumerCloseTerminalFailure, GroupConsumerCloseTerminalFailureKind,
 };
 pub(crate) use registry::GroupConsumerRegistry;
 pub(in crate::consumer) use registry_acknowledge::GroupConsumerAcknowledgePortError;
@@ -358,6 +358,7 @@ pub(crate) use registry_port::{
     GroupConsumerCycleAdmission, GroupConsumerCyclePortErrorCategory, GroupConsumerPort,
     GroupConsumerPortRegistrationCategory,
 };
+pub(in crate::consumer) use registry_port_registration::GroupConsumerPortRegistrationAccepted;
 pub(crate) use registry_release_port::GroupConsumerPortDormantReleaseError;
 pub(in crate::consumer) use registry_seek::{
     GroupConsumerSeekObservation, GroupConsumerSeekObservationError, GroupConsumerSeekPortError,

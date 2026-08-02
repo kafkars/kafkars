@@ -70,6 +70,7 @@ pub(crate) const ENTRY_DECLARED_FIELDS: &[&str] = &[
     "fetch",
     "heartbeat",
     "leave",
+    "close_authority",
     "missing_offset_policy",
     "read_isolation",
     "position",

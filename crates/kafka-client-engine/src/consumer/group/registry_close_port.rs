@@ -11,18 +11,22 @@ use crate::{
 
 use super::{
     classic_group_entry_fault::ClassicGroupEntryFault,
-    classic_group_leave::GroupConsumerCloseCompletion, registry_close::GroupRegistryCloseError,
-    registry_entry::GroupConsumerEntryState, registry_port::GroupConsumerPort,
-    registry_shard::GroupConsumerShardLockError, registry_wake::GroupConsumerShardWakeError,
+    classic_group_leave::{GroupConsumerCloseAuthority, GroupConsumerCloseCompletion},
+    registry_close::GroupRegistryCloseError,
+    registry_entry::GroupConsumerEntryState,
+    registry_port::GroupConsumerPort,
+    registry_shard::GroupConsumerShardLockError,
+    registry_wake::GroupConsumerShardWakeError,
 };
 
-const DEFAULT_EXPLICIT_CLOSE_TIMEOUT: Duration = Duration::from_secs(30);
+pub(super) const DEFAULT_EXPLICIT_CLOSE_TIMEOUT: Duration = Duration::from_secs(30);
 
 impl GroupConsumerPort {
     /// Reserves terminal notification capacity before fencing group admission.
     pub(in crate::consumer) fn try_begin_close(
         &self,
         group_id: GroupId,
+        authority: &Arc<GroupConsumerCloseAuthority>,
     ) -> Result<GroupConsumerCloseAdmission, GroupConsumerClosePortError> {
         let capture = self
             .clock
@@ -31,7 +35,6 @@ impl GroupConsumerPort {
         if self.shared.admission_is_closed() {
             return Err(GroupConsumerClosePortError::Closed);
         }
-        let completion = Arc::new(GroupConsumerCloseCompletion::pending());
         let registration = self
             .arm_group_recv_blocking(group_id, None, GroupConsumerRecvWait::Unlock)
             .map_err(|_error| GroupConsumerClosePortError::Notification)?;
@@ -47,21 +50,37 @@ impl GroupConsumerPort {
             self.cancel_group_recv(&mut Some(registration));
             return Err(GroupConsumerClosePortError::Closed);
         }
-        if let Err(error) = registry.close_group_explicit(
+        let completion = match registry.close_group_explicit(
             group_id,
             capture.operation_deadline(),
-            Arc::clone(&completion),
+            authority,
         ) {
-            drop(registry);
-            self.cancel_group_recv(&mut Some(registration));
-            return Err(GroupConsumerClosePortError::Registry(error));
-        }
+            Ok(completion) => completion,
+            Err(error) => {
+                drop(registry);
+                self.cancel_group_recv(&mut Some(registration));
+                return Err(GroupConsumerClosePortError::Registry(error));
+            }
+        };
         drop(registry);
         Ok(GroupConsumerCloseAdmission {
             completion,
             registration,
             wake: self.shared.request_turn().err(),
         })
+    }
+
+    pub(in crate::consumer) fn capture_control_close_deadline(
+        &self,
+    ) -> Option<crate::clock::OperationDeadline> {
+        self.clock
+            .capture_deadline_after(DEFAULT_EXPLICIT_CLOSE_TIMEOUT)
+            .ok()
+            .map(crate::clock::DeadlineCapture::operation_deadline)
+    }
+
+    pub(in crate::consumer) fn request_control_shutdown_turn(&self) {
+        let _wake_result = self.shared.request_turn();
     }
 
     /// Observes only whether one accepted close still retains its exact entry.

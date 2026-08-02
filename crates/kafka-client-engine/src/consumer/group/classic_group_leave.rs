@@ -7,9 +7,9 @@ mod terminal;
 mod turn;
 
 pub(in crate::consumer) use completion::{
-    GroupConsumerCloseCompletion, GroupConsumerCloseCompletionObservation,
-    GroupConsumerCloseTerminal, GroupConsumerCloseTerminalFailure,
-    GroupConsumerCloseTerminalFailureKind,
+    GroupConsumerCloseAuthority, GroupConsumerCloseAuthorityClaim, GroupConsumerCloseCompletion,
+    GroupConsumerCloseCompletionObservation, GroupConsumerCloseTerminal,
+    GroupConsumerCloseTerminalFailure, GroupConsumerCloseTerminalFailureKind,
 };
 pub(in crate::consumer::group) use owner::ClassicGroupLeaveOwner;
 pub(in crate::consumer::group) use turn::{

@@ -14,7 +14,7 @@ use super::{
     classic_group_fetch::{ClassicGroupFetchBuildError, ClassicGroupFetchOwner},
     classic_group_graceful_revocation::ClassicGroupRevocationOwner,
     classic_group_heartbeat::ClassicHeartbeatExecution,
-    classic_group_leave::ClassicGroupLeaveOwner,
+    classic_group_leave::{ClassicGroupLeaveOwner, GroupConsumerCloseAuthority},
     classic_group_owner::ClassicGroupOwner,
     classic_group_position::ClassicGroupPositionExecution,
     classic_group_rediscovery::ClassicCoordinatorRediscovery,
@@ -54,6 +54,7 @@ pub(super) struct GroupConsumerEntry {
     pub(super) execution: ClassicGroupExecution,
     pub(super) fetch: ClassicGroupFetchOwner,
     pub(super) heartbeat: ClassicHeartbeatExecution,
+    pub(super) close_authority: Arc<GroupConsumerCloseAuthority>,
     pub(super) leave: ClassicGroupLeaveOwner,
     pub(super) missing_offset_policy: GroupPositionMissingOffsetPolicy,
     pub(super) read_isolation: ReadIsolation,
@@ -201,6 +202,7 @@ impl GroupConsumerEntry {
             fetch: ClassicGroupFetchOwner::try_new_with_read_isolation(read_isolation)
                 .map_err(GroupConsumerEntryBuildError::Fetch)?,
             heartbeat: ClassicHeartbeatExecution::new(),
+            close_authority: Arc::new(GroupConsumerCloseAuthority::new()),
             leave: ClassicGroupLeaveOwner::new(),
             missing_offset_policy,
             read_isolation,
@@ -228,6 +230,10 @@ impl GroupConsumerEntry {
 
     pub(super) const fn uses_consumer_group_protocol(&self) -> bool {
         matches!(self.protocol, GroupConsumerProtocol::Consumer)
+    }
+
+    pub(super) fn close_authority(&self) -> Arc<GroupConsumerCloseAuthority> {
+        Arc::clone(&self.close_authority)
     }
 }
 

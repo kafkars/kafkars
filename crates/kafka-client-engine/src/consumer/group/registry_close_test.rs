@@ -14,6 +14,35 @@ use super::{
 };
 
 #[test]
+fn contended_control_authority_does_not_mutate_and_retries_on_a_later_turn() {
+    let mut registry = started_registry();
+    let group_id = register(&mut registry, "workers");
+    let authority = registry
+        .entry(group_id)
+        .unwrap_or_else(|| panic!("registered entry"))
+        .close_authority();
+    let requested_deadline = deadline(40);
+    assert!(authority.request(requested_deadline));
+    let held = authority.hold_for_test();
+
+    assert_eq!(registry.close_one_requested_group(), Ok(false));
+    let entry = registry
+        .entry(group_id)
+        .unwrap_or_else(|| panic!("unmodified entry"));
+    assert!(entry.is_active());
+    assert_eq!(entry.leave.pending_deadline(), None);
+
+    drop(held);
+    assert_eq!(registry.close_one_requested_group(), Ok(true));
+    let entry = registry
+        .entry(group_id)
+        .unwrap_or_else(|| panic!("closing entry"));
+    assert!(!entry.is_active());
+    assert_eq!(entry.leave.pending_deadline(), Some(requested_deadline));
+    stop_registry(&mut registry);
+}
+
+#[test]
 fn closing_one_group_does_not_close_global_commit_admission() {
     let mut registry = started_registry();
     let first = register(&mut registry, "first");

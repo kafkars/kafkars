@@ -1,7 +1,8 @@
-//! Batch pause and resume translation for one hosted classic-group assignment.
+//! Batch Fetch control and clone-shared shutdown translation for one hosted group.
 
 use kafka_client_engine::{
-    GroupConsumerControlAccepted, GroupConsumerControlError, GroupConsumerControlErrorKind,
+    GroupConsumerControl as EngineGroupConsumerControl, GroupConsumerControlAccepted,
+    GroupConsumerControlError, GroupConsumerControlErrorKind,
     GroupConsumerHandle as EngineGroupConsumerHandle,
     GroupConsumerPartition as EngineGroupConsumerPartition, GroupConsumerPartitionInputError,
     GroupConsumerPartitionInputErrorKind, GroupConsumerResumeCaptureError,
@@ -12,7 +13,36 @@ use crate::{ErrorKind, KafkaError, consumer::TopicPartition};
 
 use super::group_consumer::GroupConsumerEngine;
 
+/// Private cloneable bridge over one engine-owned group wakeup capability.
+#[derive(Clone)]
+pub(crate) struct GroupConsumerControl {
+    inner: EngineGroupConsumerControl,
+}
+
+impl GroupConsumerControl {
+    pub(super) const fn from_engine(inner: EngineGroupConsumerControl) -> Self {
+        Self { inner }
+    }
+
+    pub(crate) fn request_shutdown(&self) {
+        self.inner.request_shutdown();
+    }
+}
+
+impl core::fmt::Debug for GroupConsumerControl {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_struct("GroupConsumerControl")
+            .finish_non_exhaustive()
+    }
+}
+
 impl GroupConsumerEngine {
+    /// Clones the engine-owned group shutdown capability without sharing mutation.
+    pub(crate) fn control(&self) -> GroupConsumerControl {
+        GroupConsumerControl::from_engine(self.handle.control())
+    }
+
     /// Pauses one fully validated batch of current assignment partitions.
     pub(crate) fn pause(&mut self, partitions: &[TopicPartition]) -> Result<(), KafkaError> {
         control(

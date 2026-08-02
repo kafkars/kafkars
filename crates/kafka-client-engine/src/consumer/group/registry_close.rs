@@ -7,10 +7,14 @@ use kafka_client_core::{ClassicGroupPhase, ConsumerGroupHeartbeatPhase, GroupId,
 use crate::{clock::OperationDeadline, completion::NotifierJoin};
 
 use super::{
-    classic_group_leave::GroupConsumerCloseCompletion,
+    classic_group_leave::{
+        GroupConsumerCloseAuthority, GroupConsumerCloseAuthorityClaim, GroupConsumerCloseCompletion,
+    },
     consumer_group_assignment_retirement::ConsumerGroupAssignmentRetirementTurn,
-    registry::GroupConsumerRegistry, registry_entry::GroupConsumerEntryState,
-    registry_host_error::GroupConsumerHostError, registry_membership::GroupConsumerMembershipTurn,
+    registry::GroupConsumerRegistry,
+    registry_entry::GroupConsumerEntryState,
+    registry_host_error::GroupConsumerHostError,
+    registry_membership::GroupConsumerMembershipTurn,
 };
 
 /// A requested group close could not move an active entry to closing.
@@ -18,6 +22,7 @@ use super::{
 pub(in crate::consumer) enum GroupRegistryCloseError {
     UnknownGroup,
     AlreadyClosing,
+    AuthorityContended,
     EntryFault,
 }
 
@@ -25,6 +30,7 @@ pub(in crate::consumer) enum GroupRegistryCloseError {
 pub(super) enum GroupConsumerRemovalError {
     RetainedBytesInvariant,
     TerminalInvariant,
+    CloseAuthorityInvariant,
 }
 
 impl GroupConsumerRegistry {
@@ -45,21 +51,71 @@ impl GroupConsumerRegistry {
         &mut self,
         group_id: GroupId,
         deadline: OperationDeadline,
-        completion: Arc<GroupConsumerCloseCompletion>,
-    ) -> Result<(), GroupRegistryCloseError> {
+        authority: &Arc<GroupConsumerCloseAuthority>,
+    ) -> Result<Arc<GroupConsumerCloseCompletion>, GroupRegistryCloseError> {
         let entry = self
             .entries
             .iter_mut()
             .find(|entry| entry.group_id() == group_id)
             .ok_or(GroupRegistryCloseError::UnknownGroup)?;
-        if entry.state != GroupConsumerEntryState::Active {
-            return Err(GroupRegistryCloseError::AlreadyClosing);
-        }
-        if entry.leave.begin(deadline, completion).is_err() {
+        if !Arc::ptr_eq(&entry.close_authority, authority) {
             return Err(GroupRegistryCloseError::EntryFault);
         }
-        mark_closing(entry);
-        Ok(())
+        match authority.claim_explicit(deadline) {
+            GroupConsumerCloseAuthorityClaim::Start {
+                deadline,
+                completion,
+            } => {
+                if entry.state != GroupConsumerEntryState::Active
+                    || entry
+                        .leave
+                        .begin(deadline, Arc::clone(&completion))
+                        .is_err()
+                {
+                    return Err(GroupRegistryCloseError::EntryFault);
+                }
+                mark_closing(entry);
+                Ok(completion)
+            }
+            GroupConsumerCloseAuthorityClaim::Observe { completion } => {
+                if entry.state != GroupConsumerEntryState::Closing {
+                    return Err(GroupRegistryCloseError::EntryFault);
+                }
+                Ok(completion)
+            }
+            GroupConsumerCloseAuthorityClaim::Busy => {
+                Err(GroupRegistryCloseError::AuthorityContended)
+            }
+            GroupConsumerCloseAuthorityClaim::Idle => Err(GroupRegistryCloseError::EntryFault),
+        }
+    }
+
+    /// Transfers at most one retained control request into existing leave ownership.
+    pub(super) fn close_one_requested_group(&mut self) -> Result<bool, GroupConsumerRemovalError> {
+        for entry in &mut self.entries {
+            if entry.state != GroupConsumerEntryState::Active {
+                continue;
+            }
+            match entry.close_authority.claim_requested() {
+                GroupConsumerCloseAuthorityClaim::Start {
+                    deadline,
+                    completion,
+                } => {
+                    if entry.leave.begin(deadline, completion).is_err() {
+                        return Err(GroupConsumerRemovalError::CloseAuthorityInvariant);
+                    }
+                    mark_closing(entry);
+                    return Ok(true);
+                }
+                GroupConsumerCloseAuthorityClaim::Idle | GroupConsumerCloseAuthorityClaim::Busy => {
+                    continue;
+                }
+                GroupConsumerCloseAuthorityClaim::Observe { .. } => {
+                    return Err(GroupConsumerRemovalError::CloseAuthorityInvariant);
+                }
+            }
+        }
+        Ok(false)
     }
 
     /// Physically releases at most one fully drained explicit-close entry.

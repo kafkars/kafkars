@@ -58,10 +58,11 @@ pub use super::group_commit::{
     GroupConsumerCommitPartitionResult,
 };
 pub use super::group_control::{
-    GroupConsumerControlAccepted, GroupConsumerControlAcceptedFaultKind, GroupConsumerControlError,
-    GroupConsumerControlErrorKind, GroupConsumerPartition, GroupConsumerPartitionInputError,
-    GroupConsumerPartitionInputErrorKind, GroupConsumerResumeCapture,
-    GroupConsumerResumeCaptureError, GroupConsumerResumeCaptureErrorKind,
+    GroupConsumerControl, GroupConsumerControlAccepted, GroupConsumerControlAcceptedFaultKind,
+    GroupConsumerControlError, GroupConsumerControlErrorKind, GroupConsumerPartition,
+    GroupConsumerPartitionInputError, GroupConsumerPartitionInputErrorKind,
+    GroupConsumerResumeCapture, GroupConsumerResumeCaptureError,
+    GroupConsumerResumeCaptureErrorKind,
 };
 pub use super::group_event::{
     GroupConsumerAssignment, GroupConsumerAssignmentPartition, GroupConsumerEvent,

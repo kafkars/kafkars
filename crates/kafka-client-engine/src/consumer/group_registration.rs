@@ -3,7 +3,9 @@
 use super::{
     GroupConsumerBatch, GroupConsumerPort, GroupConsumerPortRegistrationCategory,
     GroupConsumerStartAccepted, GroupConsumerStartCapture, GroupConsumerStartError,
-    GroupConsumerTryTakeBatchError, group_registration_request::GroupConsumerRegistration,
+    GroupConsumerTryTakeBatchError,
+    group::{GroupConsumerCloseAuthority, GroupConsumerPortRegistrationAccepted},
+    group_registration_request::GroupConsumerRegistration,
 };
 use kafka_client_core::{ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicRejoinPolicy};
 use std::{cell::Cell, marker::PhantomData, sync::Arc, time::Duration};
@@ -71,6 +73,7 @@ pub struct GroupConsumerHandle {
     pub(super) group_id: kafka_client_core::GroupId,
     pub(super) port: GroupConsumerPort,
     pub(super) lifetime: Arc<dyn Send + Sync>,
+    pub(super) close_authority: Arc<GroupConsumerCloseAuthority>,
     pub(super) _not_sync: PhantomData<Cell<()>>,
 }
 impl core::fmt::Debug for GroupConsumerHandle {
@@ -92,6 +95,7 @@ impl GroupConsumerHandle {
             group_id,
             port,
             lifetime,
+            close_authority: Arc::new(GroupConsumerCloseAuthority::new()),
             _not_sync: PhantomData,
         }
     }
@@ -128,7 +132,7 @@ impl GroupConsumerHandle {
                 request,
             )
         })?;
-        match port.try_register_with_protocol_configuration(
+        match port.try_register_controlled(
             group,
             group_instance_id,
             topics,
@@ -140,10 +144,14 @@ impl GroupConsumerHandle {
             read_isolation.core(),
             processing_policy,
         ) {
-            Ok(group_id) => Ok(Self {
+            Ok(GroupConsumerPortRegistrationAccepted {
+                group_id,
+                close_authority,
+            }) => Ok(Self {
                 group_id,
                 port,
                 lifetime,
+                close_authority,
                 _not_sync: PhantomData,
             }),
             Err(failure) => {

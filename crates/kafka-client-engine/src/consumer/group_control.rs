@@ -10,6 +10,7 @@ mod resume_capture_test;
 
 pub use accepted::{GroupConsumerControlAccepted, GroupConsumerControlAcceptedFaultKind};
 pub use error::{GroupConsumerControlError, GroupConsumerControlErrorKind};
+pub use operation::GroupConsumerControl;
 pub use partition::{
     GroupConsumerPartition, GroupConsumerPartitionInputError, GroupConsumerPartitionInputErrorKind,
 };

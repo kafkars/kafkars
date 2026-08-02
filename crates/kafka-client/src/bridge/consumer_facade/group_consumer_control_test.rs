@@ -1,4 +1,4 @@
-//! Hosted classic-group batch-control conversion and category scenarios.
+//! Hosted classic-group batch and clone-shared shutdown scenarios.
 
 use kafka_client_engine::{
     GroupConsumerControlErrorKind as Kind, GroupConsumerResumeCaptureErrorKind as CaptureKind,
@@ -7,7 +7,7 @@ use kafka_client_engine::{
 use super::{
     group_consumer::GroupConsumerEngine,
     group_consumer_control::{
-        engine_partitions, translate_group_consumer_control_kind,
+        GroupConsumerControl, engine_partitions, translate_group_consumer_control_kind,
         translate_group_consumer_resume_capture_kind,
     },
 };
@@ -25,6 +25,17 @@ fn bridge_controls_preserve_the_public_borrowed_batch_shape() {
 
     require(GroupConsumerEngine::pause);
     require(GroupConsumerEngine::resume);
+}
+
+#[test]
+fn bridge_shutdown_control_is_cloneable_send_sync_and_engine_backed() {
+    fn require<T: Clone + Send + Sync>() {}
+    fn require_control(_control: fn(&GroupConsumerEngine) -> GroupConsumerControl) {}
+    fn require_shutdown(_shutdown: fn(&GroupConsumerControl)) {}
+
+    require::<GroupConsumerControl>();
+    require_control(GroupConsumerEngine::control);
+    require_shutdown(GroupConsumerControl::request_shutdown);
 }
 
 #[test]

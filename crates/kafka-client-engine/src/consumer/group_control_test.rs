@@ -3,13 +3,25 @@
 use std::sync::Arc;
 
 use super::{
-    GroupConsumerControlErrorKind, GroupConsumerHandle, GroupConsumerPartition,
-    GroupConsumerPartitionInputErrorKind, GroupConsumerRegistration, GroupConsumerShardOwner,
+    GroupConsumerControl, GroupConsumerControlErrorKind, GroupConsumerHandle,
+    GroupConsumerPartition, GroupConsumerPartitionInputErrorKind, GroupConsumerRegistration,
+    GroupConsumerShardOwner,
     group::{
         install_group_session_for_public_test, install_ready_group_delivery_for_public_test,
         started_group_registry_for_public_test,
     },
 };
+
+#[test]
+fn shutdown_control_is_cloneable_send_sync_and_handle_backed() {
+    fn require<T: Clone + Send + Sync>() {}
+    fn require_control(_control: fn(&GroupConsumerHandle) -> GroupConsumerControl) {}
+    fn require_shutdown(_shutdown: fn(&GroupConsumerControl)) {}
+
+    require::<GroupConsumerControl>();
+    require_control(GroupConsumerHandle::control);
+    require_shutdown(GroupConsumerControl::request_shutdown);
+}
 
 #[test]
 fn scalar_targets_validate_topic_and_partition_bounds() {
