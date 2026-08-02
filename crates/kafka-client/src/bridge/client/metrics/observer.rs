@@ -20,7 +20,7 @@ pub(crate) struct ClientMetricsObserver {
 }
 
 impl ClientEngine {
-    /// Immediately admits one bounded point-in-time operational snapshot.
+    /// Immediately admits one bounded operational snapshot with staged capture.
     pub(crate) fn metrics(&self) -> Result<ClientMetricsObserver, KafkaError> {
         self.inner
             .metrics()

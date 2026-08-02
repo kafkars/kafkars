@@ -11,7 +11,7 @@ use crate::{KafkaError, bridge::client::metrics::ClientMetricsObserver};
 
 use super::MetricsSnapshot;
 
-/// Sole observer for one accepted point-in-time operational snapshot.
+/// Sole observer for one accepted operational snapshot with staged capture points.
 #[must_use = "dropping abandons observation without cancelling accepted metrics work"]
 pub struct Metrics {
     inner: ClientMetricsObserver,

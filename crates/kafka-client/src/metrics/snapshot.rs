@@ -2,9 +2,9 @@
 
 use crate::bridge::client::metrics::ClientMetricsSnapshot;
 
-use super::{CallMetrics, FailureMetrics, LatencyMetrics, MailboxMetrics};
+use super::{CallMetrics, FailureMetrics, LatencyMetrics, MailboxMetrics, ProducerMetrics};
 
-/// One bounded point-in-time client operational snapshot.
+/// One bounded client snapshot with explicit owner capture points.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MetricsSnapshot {
     inner: ClientMetricsSnapshot,
@@ -33,5 +33,13 @@ impl MetricsSnapshot {
     /// Returns cumulative call-stage and end-to-end latency summaries.
     pub const fn latency(&self) -> LatencyMetrics {
         LatencyMetrics::from_bridge(self.inner.latency())
+    }
+
+    /// Returns producer ownership captured at this metrics admission boundary.
+    ///
+    /// Driver fields in this snapshot are captured later by the reactor and
+    /// are not an atomic cross-owner view with these producer fields.
+    pub const fn producer(&self) -> ProducerMetrics {
+        ProducerMetrics::from_bridge(self.inner.producer())
     }
 }

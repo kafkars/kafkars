@@ -17,6 +17,16 @@ fn live_engine_returns_one_bounded_metrics_snapshot() {
     assert_eq!(snapshot.calls().succeeded(), 0);
     assert_eq!(snapshot.mailbox().queued_work(), 0);
     assert_eq!(snapshot.latency().end_to_end().samples(), 0);
+    let producer = snapshot.producer();
+    assert_eq!(producer.active_records(), 0);
+    assert_eq!(producer.active_bytes(), 0);
+    assert_eq!(producer.waiting_records(), 0);
+    assert_eq!(producer.waiting_bytes(), 0);
+    assert_eq!(producer.prepared_batches(), 0);
+    assert_eq!(producer.prepared_batch_bytes(), 0);
+    assert_eq!(producer.terminal_backlog(), 0);
+    assert!(producer.accepting());
+    assert!(producer.healthy());
 
     engine
         .shutdown()

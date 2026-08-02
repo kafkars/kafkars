@@ -141,7 +141,7 @@ pub use consumer::{
 pub use error::{DeliveryStatus, ErrorKind, KafkaError, RetryAdvice};
 pub use metrics::{
     CallMetrics, FailureMetrics, LatencyMetric, LatencyMetrics, MailboxMetrics, Metrics,
-    MetricsSnapshot,
+    MetricsSnapshot, ProducerMetrics,
 };
 pub use producer::{
     CancellationOutcome, CloseProducer, Compression, Delivery, Flush, Producer, ProducerBuilder,

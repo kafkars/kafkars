@@ -7,6 +7,8 @@ use kafka_client_engine::{
     EngineMailboxMetrics, EngineMetricsSnapshot,
 };
 
+use super::ClientProducerMetrics;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ClientMetricsSnapshot {
     inner: EngineMetricsSnapshot,
@@ -31,6 +33,10 @@ impl ClientMetricsSnapshot {
 
     pub(crate) const fn latency(&self) -> ClientLatencyMetrics {
         ClientLatencyMetrics(self.inner.latency())
+    }
+
+    pub(crate) const fn producer(&self) -> ClientProducerMetrics {
+        ClientProducerMetrics::from_engine(self.inner.producer())
     }
 }
 

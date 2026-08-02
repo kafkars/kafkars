@@ -6,15 +6,17 @@ use crate::driver::owner::observation::{
     DriverObservationAdmissionError, DriverObservationAdmissionErrorKind, DriverObservationError,
     DriverObservationErrorKind,
 };
+use crate::producer::ingress::ProducerShardLockError;
 
 /// Stable category for a metrics request that never entered driver ownership.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EngineMetricsAdmissionErrorKind {
-    /// The bounded driver command lane is full.
+    /// A bounded metrics admission owner is temporarily full or contended.
     Capacity,
     /// Driver admission has closed permanently.
     Closed,
-    /// The poller could not be notified or an impossible request category appeared.
+    /// A metrics owner was unavailable, could not be notified, or rejected an
+    /// impossible request category.
     HostUnavailable,
 }
 
@@ -22,7 +24,7 @@ pub enum EngineMetricsAdmissionErrorKind {
 #[derive(Debug)]
 pub struct EngineMetricsAdmissionError {
     kind: EngineMetricsAdmissionErrorKind,
-    source: DriverObservationAdmissionError,
+    source: EngineMetricsAdmissionSource,
 }
 
 impl EngineMetricsAdmissionError {
@@ -35,6 +37,23 @@ impl EngineMetricsAdmissionError {
             DriverObservationAdmissionErrorKind::HostUnavailable => {
                 EngineMetricsAdmissionErrorKind::HostUnavailable
             }
+        };
+        Self {
+            kind,
+            source: EngineMetricsAdmissionSource::Driver(source),
+        }
+    }
+
+    pub(crate) const fn from_producer(source: ProducerShardLockError) -> Self {
+        let (kind, source) = match source {
+            ProducerShardLockError::Contended => (
+                EngineMetricsAdmissionErrorKind::Capacity,
+                EngineMetricsAdmissionSource::ProducerContended,
+            ),
+            ProducerShardLockError::Poisoned => (
+                EngineMetricsAdmissionErrorKind::HostUnavailable,
+                EngineMetricsAdmissionSource::ProducerUnavailable,
+            ),
         };
         Self { kind, source }
     }
@@ -53,7 +72,32 @@ impl fmt::Display for EngineMetricsAdmissionError {
 
 impl std::error::Error for EngineMetricsAdmissionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(&self.source)
+        match &self.source {
+            EngineMetricsAdmissionSource::Driver(source) => Some(source),
+            EngineMetricsAdmissionSource::ProducerContended
+            | EngineMetricsAdmissionSource::ProducerUnavailable => None,
+        }
+    }
+}
+
+#[derive(Debug)]
+enum EngineMetricsAdmissionSource {
+    Driver(DriverObservationAdmissionError),
+    ProducerContended,
+    ProducerUnavailable,
+}
+
+impl fmt::Display for EngineMetricsAdmissionSource {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Driver(source) => source.fmt(formatter),
+            Self::ProducerContended => {
+                formatter.write_str("producer metrics ownership is temporarily contended")
+            }
+            Self::ProducerUnavailable => {
+                formatter.write_str("producer metrics ownership is unavailable")
+            }
+        }
     }
 }
 

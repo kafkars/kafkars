@@ -116,7 +116,10 @@ impl Client {
         Ready::from_bridge(self.engine.ready())
     }
 
-    /// Requests one bounded point-in-time operational metrics snapshot.
+    /// Requests one bounded operational metrics snapshot.
+    ///
+    /// Producer ownership is captured synchronously here. Driver counters are
+    /// captured later by the reactor and are not cross-owner atomic with it.
     pub fn metrics(&self) -> Result<Metrics, KafkaError> {
         self.engine.metrics().map(Metrics::from_bridge)
     }

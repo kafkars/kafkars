@@ -21,7 +21,7 @@ pub struct Engine {
 pub(crate) struct EngineInner {
     pub(crate) config: EngineConfig,
     pub(crate) metrics: crate::driver::owner::observation::DriverObservationHandle,
-    admission: crate::producer::ingress::ProducerAdmissionPort,
+    pub(crate) admission: crate::producer::ingress::ProducerAdmissionPort,
     abort_partition_transaction_admission:
         crate::admin::AbortPartitionTransactionAdmissionPort,
     create_topics_admission: crate::admin::CreateTopicsAdmissionPort,

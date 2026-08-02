@@ -46,6 +46,13 @@ impl ProducerAdmissionPort {
         self.shared.data().map(|data| data.shard_stats())
     }
 
+    /// Samples producer ownership without waiting for the shard lock.
+    pub(crate) fn try_shard_stats(
+        &self,
+    ) -> Result<super::data::ProducerShardStats, ProducerShardLockError> {
+        self.shared.try_data().map(|data| data.shard_stats())
+    }
+
     #[cfg(test)]
     pub(crate) fn inject_terminal_interpretation_fault(
         &self,
