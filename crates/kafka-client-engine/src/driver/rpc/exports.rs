@@ -102,7 +102,7 @@ pub(crate) use super::list_partition_reassignments_terminal::{
 };
 pub(crate) use super::submission::ProduceSubmitError;
 pub(crate) use super::topic_view::{
-    ProducerTopicViewCall, TopicPartitionCountAdmissionFailure,
+    ProducerTopicView, ProducerTopicViewCall, TopicPartitionCountAdmissionFailure,
     TopicPartitionCountAdmissionFailureKind, TopicPartitionCountCall, TopicPartitionCountFact,
     TopicPartitionCountFailure,
 };

@@ -16,6 +16,18 @@ pub(crate) struct PreparedProduceSubmission {
 }
 
 impl PreparedProduceSubmission {
+    pub(super) const fn new(
+        execution: BatchExecutionId,
+        deadline: OperationDeadline,
+        materialized: MaterializedProduce,
+    ) -> Self {
+        Self {
+            execution,
+            deadline,
+            materialized,
+        }
+    }
+
     /// Returns the exact sealed-batch execution identity.
     pub(crate) const fn execution(&self) -> BatchExecutionId {
         self.execution
@@ -35,6 +47,11 @@ impl PreparedProduceSubmission {
 /// Exact rejection from the unified prepared-request transfer.
 #[derive(Debug)]
 pub(crate) enum PreparedProduceHandoffError {
+    /// Bounded control storage could not retain one selected broker group.
+    GroupingCapacity {
+        /// Number of exact prepared submissions selected without mutation.
+        requested: usize,
+    },
     /// The prepared entry is absent, stale, or has not been armed by core.
     OwnershipMismatch {
         /// Execution requested by the driver bridge.
@@ -63,6 +80,10 @@ pub(crate) enum PreparedProduceHandoffError {
 impl fmt::Display for PreparedProduceHandoffError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::GroupingCapacity { requested } => write!(
+                formatter,
+                "prepared Produce broker group could not reserve {requested} control entries"
+            ),
             Self::OwnershipMismatch { requested, .. } => write!(
                 formatter,
                 "prepared Produce handoff ownership disagrees for batch {} generation {}",
@@ -90,11 +111,11 @@ impl fmt::Display for PreparedProduceHandoffError {
 impl Error for PreparedProduceHandoffError {}
 
 impl PreparedExecution {
-    /// Transfers one exact armed entry after checking every retained fact.
-    pub(crate) fn take_driver_submission(
-        &mut self,
+    pub(super) fn preflight_driver_submission(
+        &self,
         execution: BatchExecutionId,
-    ) -> Result<PreparedProduceSubmission, PreparedProduceHandoffError> {
+    ) -> Result<(super::SubmissionFacts, ScheduledDeadline, usize), PreparedProduceHandoffError>
+    {
         let batch_id = execution.batch_id();
         let retained = self.entries.get(&batch_id).map(|entry| entry.execution);
         let Some(entry) = self
@@ -131,6 +152,39 @@ impl PreparedExecution {
                 deadline: submission.deadline,
                 reason: PreparedProduceError::EncodedByteOverflow,
             })?;
+        Ok((submission, scheduled, next_bytes))
+    }
+
+    pub(super) fn preflight_driver_submission_group(
+        &self,
+        executions: &[BatchExecutionId],
+    ) -> Result<usize, PreparedProduceHandoffError> {
+        let mut next_bytes = self.retained_bytes;
+        for execution in executions {
+            let (submission, _scheduled, _individual_next_bytes) =
+                self.preflight_driver_submission(*execution)?;
+            let retained = self
+                .entries
+                .get(&execution.batch_id())
+                .unwrap_or_else(|| unreachable!("preflighted Produce entry remains retained"));
+            next_bytes = next_bytes
+                .checked_sub(retained.materialized.retained_record_bytes())
+                .ok_or(PreparedProduceHandoffError::AccountingInconsistent {
+                    execution: *execution,
+                    deadline: submission.deadline,
+                    reason: PreparedProduceError::EncodedByteOverflow,
+                })?;
+        }
+        Ok(next_bytes)
+    }
+
+    /// Transfers one exact armed entry after checking every retained fact.
+    pub(crate) fn take_driver_submission(
+        &mut self,
+        execution: BatchExecutionId,
+    ) -> Result<PreparedProduceSubmission, PreparedProduceHandoffError> {
+        let batch_id = execution.batch_id();
+        let (submission, scheduled, next_bytes) = self.preflight_driver_submission(execution)?;
 
         if !self.schedule.remove(&scheduled) {
             return Err(PreparedProduceHandoffError::ScheduleInconsistent {
@@ -146,11 +200,11 @@ impl PreparedExecution {
             });
         };
         self.retained_bytes = next_bytes;
-        Ok(PreparedProduceSubmission {
+        Ok(PreparedProduceSubmission::new(
             execution,
-            deadline: submission.deadline,
-            materialized: entry.materialized,
-        })
+            submission.deadline,
+            entry.materialized,
+        ))
     }
 
     #[cfg(test)]

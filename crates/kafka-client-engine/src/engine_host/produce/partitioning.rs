@@ -2,20 +2,33 @@
 
 use crate::{
     driver::{
-        DriverOwner, ProducerTopicViewCall, TopicPartitionCountAdmissionFailureKind,
-        TopicPartitionCountFailure,
+        DriverOwner, ProducerTopicView, ProducerTopicViewCall,
+        TopicPartitionCountAdmissionFailureKind, TopicPartitionCountFailure,
     },
     producer::{
-        ProducerPartitioningFailure, ProducerPartitioningRequest, ingress::ProducerShardData,
+        ProducerPartitionSource, ProducerPartitioningFailure, ProducerPartitioningRequest,
+        ingress::ProducerShardData,
     },
 };
 
 use super::super::EngineHostError;
 
+impl ProducerPartitionSource for ProducerTopicView {
+    fn leader_broker_id(&self, partition: kafka_client_core::PartitionIndex) -> Option<i32> {
+        self.leader_broker_id(partition)
+    }
+}
+
 /// Exact waiting and driver ownership retained until metadata settles.
 pub(in crate::engine_host) struct ProducerPartitioningCall {
     request: ProducerPartitioningRequest,
     call: ProducerTopicViewCall,
+}
+
+impl ProducerPartitioningCall {
+    pub(in crate::engine_host) const fn deadline(&self) -> crate::clock::OperationDeadline {
+        self.request.deadline()
+    }
 }
 
 pub(in crate::engine_host) fn admit(

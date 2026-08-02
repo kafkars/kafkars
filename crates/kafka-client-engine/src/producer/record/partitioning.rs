@@ -18,12 +18,21 @@ impl ProducerRecord {
         self.key.as_ref()
     }
 
-    pub(in crate::producer) fn assign_partition(&mut self, partition: PartitionIndex) -> bool {
+    pub(in crate::producer) fn assign_partition(
+        &mut self,
+        partition: PartitionIndex,
+        leader_broker_id: Option<i32>,
+    ) -> bool {
         if self.partition.is_some() {
             return false;
         }
         self.partition = Some(partition);
+        self.leader_broker_id = leader_broker_id;
         true
+    }
+
+    pub(in crate::producer) const fn leader_broker_id(&self) -> Option<i32> {
+        self.leader_broker_id
     }
 
     pub(in crate::producer) const fn is_automatic_unkeyed(&self) -> bool {

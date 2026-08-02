@@ -24,6 +24,9 @@ pub(crate) mod produce_outcome;
 #[cfg(test)]
 mod produce_outcome_test;
 pub(crate) mod produce_response;
+pub(crate) mod produce_response_batch;
+#[cfg(test)]
+mod produce_response_batch_test;
 #[cfg(test)]
 mod produce_response_test;
 #[cfg(test)]

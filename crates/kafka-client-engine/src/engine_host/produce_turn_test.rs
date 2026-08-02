@@ -20,7 +20,88 @@ use crate::{
     protocol::produce::materialize_explicit_produce_batch,
 };
 
-use super::produce_turn::apply_completions;
+use super::produce_turn::{admit_after_partitioning, apply_completions};
+
+#[test]
+fn matching_retained_partition_lookup_blocks_produce_until_it_settles() {
+    let (producer, observer) = super::produce_test::prepared_producer();
+    let mut driver = driver();
+    let mut calls = TrackedProduceCalls::new(1);
+    let mut data = producer
+        .try_data()
+        .unwrap_or_else(|error| panic!("lock prepared producer: {error:?}"));
+    let exact_deadline = data
+        .next_produce_submission_deadline()
+        .unwrap_or_else(|| panic!("prepared submission deadline"));
+
+    assert!(
+        !admit_after_partitioning(
+            &driver,
+            &mut calls,
+            &mut data,
+            Moment::from_tick(2),
+            Some(exact_deadline),
+        )
+        .unwrap_or_else(|error| panic!("defer for matching retained lookup: {error}"))
+    );
+    assert_eq!(calls.retained_count(), 0);
+    assert_eq!(data.shard_stats().host.prepared_batches, 1);
+
+    assert!(
+        !admit_after_partitioning(
+            &driver,
+            &mut calls,
+            &mut data,
+            Moment::from_tick(3),
+            Some(exact_deadline),
+        )
+        .unwrap_or_else(|error| panic!("keep deferring retained lookup: {error}"))
+    );
+    assert_eq!(calls.retained_count(), 0);
+
+    assert!(
+        admit_after_partitioning(&driver, &mut calls, &mut data, Moment::from_tick(4), None,)
+            .unwrap_or_else(|error| panic!("admit after lookup settlement: {error}"))
+    );
+    assert_eq!(calls.retained_count(), 1);
+    drop((data, observer, calls));
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
+}
+
+#[test]
+fn different_deadline_partition_lookup_does_not_block_ready_produce() {
+    let (producer, observer) = super::produce_test::prepared_producer();
+    let mut driver = driver();
+    let mut calls = TrackedProduceCalls::new(1);
+    let mut data = producer
+        .try_data()
+        .unwrap_or_else(|error| panic!("lock prepared producer: {error:?}"));
+    let ready_deadline = data
+        .next_produce_submission_deadline()
+        .unwrap_or_else(|| panic!("prepared submission deadline"));
+    let unrelated_deadline = OperationDeadline::from_parts_for_test(
+        Deadline::from_tick(ready_deadline.core().tick().saturating_add(1)),
+        ready_deadline.transport(),
+    );
+
+    assert!(
+        admit_after_partitioning(
+            &driver,
+            &mut calls,
+            &mut data,
+            Moment::from_tick(2),
+            Some(unrelated_deadline),
+        )
+        .unwrap_or_else(|error| panic!("unrelated lookup must not defer Produce: {error}"))
+    );
+    assert_eq!(calls.retained_count(), 1);
+    drop((data, observer, calls));
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
+}
 
 #[test]
 fn completion_polling_waits_without_consuming_when_the_shard_is_contended() {
@@ -72,7 +153,7 @@ fn completion_polling_waits_without_consuming_when_the_shard_is_contended() {
             .unwrap_or_else(|error| panic!("ready completion retained: {error}"))
             .is_some()
     );
-    calls.discard_settled();
+    calls.discard_settled(Moment::from_tick(12));
     driver
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));

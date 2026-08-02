@@ -3,13 +3,19 @@
 use std::sync::Arc;
 
 use kafka_client_core::{
-    ProducerWaiterId, ProducerWaitingTerminal, TopicId,
+    PartitionIndex, ProducerWaiterId, ProducerWaitingTerminal, TopicId,
     partitioning::{TopicPartitionFacts, TopicPartitionSource, select_java_keyed_topic_partition},
 };
 
 use crate::clock::OperationDeadline;
 
 use crate::producer::{ProducerHost, ProducerHostInvariantError};
+
+/// Producer-specific projection of one immutable metadata view.
+pub(crate) trait ProducerPartitionSource: TopicPartitionSource {
+    /// Returns the validated broker currently leading one selected partition.
+    fn leader_broker_id(&self, partition: PartitionIndex) -> Option<i32>;
+}
 
 /// Exact waiting identity transferred to one driver topic-view lookup.
 #[derive(Debug)]
@@ -100,7 +106,7 @@ impl ProducerHost {
     pub(crate) fn apply_partitioning_view(
         &mut self,
         request: ProducerPartitioningRequest,
-        source: &dyn TopicPartitionSource,
+        source: &dyn ProducerPartitionSource,
     ) -> Result<bool, ProducerHostInvariantError> {
         let Some(index) = self
             .waiting
@@ -129,7 +135,10 @@ impl ProducerHost {
             return Ok(true);
         };
         let entry = &mut self.waiting.entries[index];
-        if !entry.record.assign_partition(selection.partition()) {
+        if !entry.record.assign_partition(
+            selection.partition(),
+            source.leader_broker_id(selection.partition()),
+        ) {
             return Err(self.poison(ProducerHostInvariantError::WaitingOwnership));
         }
         entry.partitioning = false;

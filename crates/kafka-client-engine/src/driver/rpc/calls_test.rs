@@ -21,46 +21,9 @@ use kafka_wire::{
 
 use crate::{EngineConfig, clock::OperationDeadline, protocol::produce::MaterializedProduce};
 
-use crate::driver::{DriverOwner, ProduceRouteRefreshPoll, TrackedProduceCalls};
+use crate::driver::DriverOwner;
 
-use super::calls::{mark_route_refreshed, needs_partition_refresh, normalized_terminal_input};
-
-#[test]
-fn transient_transport_loss_uses_exact_route_refresh_when_available() {
-    let execution = execution(7);
-    let mut uncertain = ProducerInput::TransportFailed {
-        execution,
-        now: Moment::from_tick(12),
-        failure: kafka_client_core::ProducerAttemptFailureKind::ConnectionUnavailable,
-        delivery: DeliveryStatus::PossiblySent,
-        route_refreshed: false,
-    };
-    assert!(needs_partition_refresh(uncertain));
-    mark_route_refreshed(&mut uncertain);
-    assert!(!needs_partition_refresh(uncertain));
-    assert!(matches!(
-        uncertain,
-        ProducerInput::TransportFailed {
-            route_refreshed: true,
-            ..
-        }
-    ));
-
-    assert!(needs_partition_refresh(ProducerInput::TransportFailed {
-        execution,
-        now: Moment::from_tick(12),
-        failure: kafka_client_core::ProducerAttemptFailureKind::ConnectionUnavailable,
-        delivery: DeliveryStatus::NotSent,
-        route_refreshed: false,
-    }));
-    assert!(!needs_partition_refresh(ProducerInput::TransportFailed {
-        execution,
-        now: Moment::from_tick(12),
-        failure: kafka_client_core::ProducerAttemptFailureKind::Permanent,
-        delivery: DeliveryStatus::PossiblySent,
-        route_refreshed: false,
-    }));
-}
+use super::{ProduceRouteRefreshPoll, TrackedProduceCalls};
 
 #[test]
 fn routing_failure_without_exact_partition_receipt_cannot_authorize_retry() {
@@ -90,7 +53,7 @@ fn routing_failure_without_exact_partition_receipt_cannot_authorize_retry() {
         ProduceRouteRefreshPoll::Failed
     );
     assert_eq!(settled.input(), input);
-    calls.discard_settled();
+    calls.discard_settled(Moment::from_tick(13));
     driver
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
@@ -142,6 +105,36 @@ fn pending_call_remains_owned_when_a_poll_has_no_result() {
     driver
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
+}
+
+#[test]
+fn shutdown_recovery_retains_every_exact_accepted_execution_until_sealed() {
+    let mut driver = owner();
+    let mut calls = TrackedProduceCalls::new(2);
+    for batch in [3, 9] {
+        let permit = calls
+            .try_reserve()
+            .unwrap_or_else(|| panic!("bounded slot for batch {batch}"));
+        submit(permit, &driver, batch);
+    }
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
+    drop(driver);
+
+    calls.recover_after_driver_shutdown();
+    assert_eq!(
+        calls
+            .recovered()
+            .iter()
+            .map(|recovered| recovered.execution())
+            .collect::<Vec<_>>(),
+        vec![execution(3), execution(9)]
+    );
+    assert_eq!(calls.retained_count(), 2);
+
+    calls.seal_recovered_after_execution_unavailable();
+    assert_eq!(calls.retained_count(), 0);
 }
 
 #[test]
@@ -240,6 +233,34 @@ fn execution(batch: u64) -> BatchExecutionId {
         BatchId::from_raw(batch),
         BatchExecutionGeneration::initial(),
     )
+}
+
+fn normalized_terminal_input(
+    execution: BatchExecutionId,
+    topic: &str,
+    partition: i32,
+    now: Moment,
+    result: &Result<ProduceResponse, RequestError>,
+) -> ProducerInput {
+    match result {
+        Ok(response) => crate::protocol::produce_outcome::explicit_produce_response_input(
+            execution, now, topic, partition, response,
+        )
+        .unwrap_or_else(|failure| {
+            crate::protocol::produce_outcome::produce_transport_failure_input(
+                execution,
+                now,
+                kafka_client_core::ProducerAttemptFailureKind::InvalidResponse,
+                failure.delivery(),
+            )
+        }),
+        Err(error) => crate::protocol::produce_outcome::produce_transport_failure_input(
+            execution,
+            now,
+            super::super::request_failure_kind(error),
+            super::super::request_failure_delivery(error),
+        ),
+    }
 }
 
 fn deadline() -> OperationDeadline {

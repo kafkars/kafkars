@@ -9,4 +9,4 @@ pub(crate) use partition_count::{
     TopicPartitionCountAdmissionFailure, TopicPartitionCountAdmissionFailureKind,
     TopicPartitionCountCall, TopicPartitionCountFact, TopicPartitionCountFailure,
 };
-pub(crate) use producer::ProducerTopicViewCall;
+pub(crate) use producer::{ProducerTopicView, ProducerTopicViewCall};

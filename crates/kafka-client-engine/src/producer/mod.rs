@@ -32,6 +32,7 @@ mod terminal_publication;
 mod topic_catalog;
 mod waiting;
 pub use exports::*;
+pub(crate) use waiting::ProducerPartitionSource;
 #[cfg(test)]
 mod admission_test;
 #[cfg(test)]

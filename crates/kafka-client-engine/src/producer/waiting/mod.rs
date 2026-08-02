@@ -14,4 +14,6 @@ mod turn;
 
 pub(crate) use admission::{AdmittedWaiting, ProducerWaitingAdmissionFailure};
 pub(super) use model::{ProducerWaitingStats, WaitingToken};
-pub(crate) use partitioning::{ProducerPartitioningFailure, ProducerPartitioningRequest};
+pub(crate) use partitioning::{
+    ProducerPartitionSource, ProducerPartitioningFailure, ProducerPartitioningRequest,
+};

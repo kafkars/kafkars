@@ -85,6 +85,7 @@ impl MaterializationRecord {
 pub(crate) struct MaterializationBatch {
     topic: Arc<str>,
     partition: i32,
+    leader_broker_id: Option<i32>,
     records: Vec<MaterializationRecord>,
     max_batch_bytes: usize,
     source_retained_bytes: usize,
@@ -171,6 +172,7 @@ impl MaterializationBatch {
         Some(Self::idempotent(
             topic,
             partition,
+            None,
             records,
             max_batch_bytes,
             max_batch_bytes,
@@ -182,6 +184,7 @@ impl MaterializationBatch {
     pub(crate) fn idempotent(
         topic: impl Into<Arc<str>>,
         partition: i32,
+        leader_broker_id: Option<i32>,
         records: Vec<MaterializationRecord>,
         max_batch_bytes: usize,
         source_retained_bytes: usize,
@@ -191,6 +194,7 @@ impl MaterializationBatch {
         Self {
             topic: topic.into(),
             partition,
+            leader_broker_id,
             records,
             max_batch_bytes,
             source_retained_bytes,
@@ -205,6 +209,7 @@ impl MaterializationBatch {
     ) -> (
         Arc<str>,
         i32,
+        Option<i32>,
         Vec<MaterializationRecord>,
         usize,
         ProducerIdentity,
@@ -213,6 +218,7 @@ impl MaterializationBatch {
         (
             self.topic,
             self.partition,
+            self.leader_broker_id,
             self.records,
             self.max_batch_bytes,
             self.identity,

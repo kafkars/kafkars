@@ -11,7 +11,7 @@ use kafka_wire::{
 
 use crate::clock::OperationDeadline;
 
-const ACKS_ALL: i16 = -1;
+pub(super) const ACKS_ALL: i16 = -1;
 const NANOSECONDS_PER_MILLISECOND: u64 = 1_000_000;
 
 /// Opaque route and separately bounded host-owned encoded batch bytes.
@@ -24,14 +24,21 @@ const NANOSECONDS_PER_MILLISECOND: u64 = 1_000_000;
 pub(crate) struct MaterializedProduce {
     topic: Arc<str>,
     partition: i32,
+    leader_broker_id: Option<i32>,
     records: Bytes,
 }
 
 impl MaterializedProduce {
-    pub(super) const fn new(topic: Arc<str>, partition: i32, records: Bytes) -> Self {
+    pub(super) const fn new(
+        topic: Arc<str>,
+        partition: i32,
+        leader_broker_id: Option<i32>,
+        records: Bytes,
+    ) -> Self {
         Self {
             topic,
             partition,
+            leader_broker_id,
             records,
         }
     }
@@ -42,11 +49,20 @@ impl MaterializedProduce {
         partition: i32,
         records: Bytes,
     ) -> Self {
-        Self::new(topic.into(), partition, records)
+        Self::new(topic.into(), partition, None, records)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn from_broker_routed_test_parts(
+        topic: impl Into<Arc<str>>,
+        partition: i32,
+        leader_broker_id: i32,
+        records: Bytes,
+    ) -> Self {
+        Self::new(topic.into(), partition, Some(leader_broker_id), records)
     }
 
     /// Borrows the topic needed for name-routed driver admission.
-    #[cfg(test)]
     pub(crate) fn topic_name(&self) -> &str {
         self.topic.as_ref()
     }
@@ -59,6 +75,11 @@ impl MaterializedProduce {
     /// Returns the explicit partition needed for driver routing.
     pub(crate) const fn partition(&self) -> i32 {
         self.partition
+    }
+
+    /// Returns metadata provenance retained only for broker aggregation.
+    pub(crate) const fn leader_broker_id(&self) -> Option<i32> {
+        self.leader_broker_id
     }
 
     /// Returns the retained `RecordBatch` bytes awaiting driver submission.
@@ -76,6 +97,15 @@ impl MaterializedProduce {
         deadline: OperationDeadline,
     ) -> ProduceRequest {
         self.into_request(None, now, deadline)
+    }
+
+    /// Combines already materialized batches whose metadata selected one broker.
+    pub(crate) fn into_broker_routed_request(
+        batches: Vec<Self>,
+        now: Moment,
+        deadline: OperationDeadline,
+    ) -> Result<ProduceRequest, Vec<Self>> {
+        super::request_broker::build_broker_routed_request(batches, now, deadline)
     }
 
     /// Builds one transactional attempt while retaining the exact encoded owner.
@@ -106,6 +136,13 @@ impl MaterializedProduce {
             now,
             deadline,
         )
+    }
+
+    pub(super) fn into_partition_data(self) -> (Arc<str>, PartitionProduceData) {
+        let mut partition = PartitionProduceData::default();
+        partition.index = self.partition;
+        partition.records = Some(self.records);
+        (self.topic, partition)
     }
 
     fn request(
@@ -154,7 +191,7 @@ impl MaterializedProduce {
     }
 }
 
-fn remaining_broker_timeout_ms(now: Moment, deadline: OperationDeadline) -> i32 {
+pub(super) fn remaining_broker_timeout_ms(now: Moment, deadline: OperationDeadline) -> i32 {
     let remaining_nanoseconds = deadline.core().tick().saturating_sub(now.tick());
     let rounded_milliseconds = remaining_nanoseconds
         .saturating_add(NANOSECONDS_PER_MILLISECOND - 1)

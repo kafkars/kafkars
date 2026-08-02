@@ -22,7 +22,7 @@ use crate::{
 };
 
 use super::super::{
-    ProducerHost, ProducerRecord,
+    ProducerHost, ProducerPartitionSource, ProducerRecord,
     host_limits_test::{start, valid_limits},
 };
 use super::ProducerPartitioningFailure;
@@ -55,6 +55,53 @@ fn unkeyed_partition_stays_sticky_until_the_batch_seals_then_advances() {
     resolve_front(&mut host);
     assert_eq!(promote_and_materialize(&mut host, 2), 1);
     drop((first, second));
+}
+
+#[test]
+fn same_deadline_pending_submit_remains_coalescible_until_armed() {
+    let mut host = start(partitioning_limits());
+    let shared_deadline = deadline(500);
+    let first = admit_automatic_at(&mut host, None, shared_deadline);
+    let second = admit_automatic_at(&mut host, None, shared_deadline);
+
+    resolve_front(&mut host);
+    assert_eq!(
+        host.drive_waiting(Moment::from_tick(1), 1)
+            .expect("first waiting promotion")
+            .progressed,
+        1
+    );
+    super::test_identity::acquire_host_if_pending(&mut host, Moment::from_tick(1));
+    assert_eq!(host.drive_prepared(Moment::from_tick(1), 1).unwrap(), 1);
+    assert_eq!(host.drive_prepared(Moment::from_tick(1), 1).unwrap(), 1);
+    assert_eq!(
+        host.execution.next_submission_deadline(),
+        Some(shared_deadline)
+    );
+
+    resolve_front(&mut host);
+    assert_eq!(
+        host.drive_waiting(Moment::from_tick(2), 1)
+            .expect("second waiting promotion")
+            .progressed,
+        1
+    );
+    assert_eq!(host.drive_prepared(Moment::from_tick(2), 1).unwrap(), 1);
+    assert!(host.has_pending_produce_submission_at(shared_deadline));
+
+    assert_eq!(host.drive_prepared(Moment::from_tick(2), 1).unwrap(), 1);
+    assert!(!host.has_pending_produce_submission_at(shared_deadline));
+    let submissions = host
+        .execution
+        .take_next_driver_submissions()
+        .expect("same-deadline broker group");
+    assert_eq!(submissions.len(), 2);
+    assert!(
+        submissions
+            .iter()
+            .all(|submission| submission.deadline() == shared_deadline)
+    );
+    drop((first, second, submissions));
 }
 
 #[test]
@@ -98,12 +145,16 @@ pub(super) fn admit_automatic(
     key: Option<Bytes>,
     deadline_tick: u64,
 ) -> super::AdmittedWaiting {
-    host.try_admit_waiting(
-        Moment::from_tick(0),
-        deadline(deadline_tick),
-        automatic_record(key),
-    )
-    .unwrap_or_else(|_| panic!("automatic waiting admission"))
+    admit_automatic_at(host, key, deadline(deadline_tick))
+}
+
+fn admit_automatic_at(
+    host: &mut ProducerHost,
+    key: Option<Bytes>,
+    deadline: OperationDeadline,
+) -> super::AdmittedWaiting {
+    host.try_admit_waiting(Moment::from_tick(0), deadline, automatic_record(key))
+        .unwrap_or_else(|_| panic!("automatic waiting admission"))
 }
 
 fn resolve_front(host: &mut ProducerHost) {
@@ -191,6 +242,12 @@ impl TopicPartitionSource for TestTopicSource {
 
     fn available_at(&self, index: usize) -> Option<AvailablePartition> {
         self.available.get(index).copied()
+    }
+}
+
+impl ProducerPartitionSource for TestTopicSource {
+    fn leader_broker_id(&self, partition: PartitionIndex) -> Option<i32> {
+        (partition.get() < 3).then_some(1)
     }
 }
 

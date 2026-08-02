@@ -30,6 +30,7 @@ impl ProducerStore {
             let partition = i32::try_from(plan.route.partition.get())
                 .map_err(|_| ProducerStoreError::PartitionOutOfRange)?;
             let mut expected_topic: Option<Arc<str>> = None;
+            let mut leader_broker_id = None;
             for member in &plan.members {
                 let record = self.records.record(member.payload_id)?;
                 if self.records.route(member.payload_id)?.0 != plan.route.topic_id {
@@ -42,6 +43,11 @@ impl ProducerStore {
                     None => expected_topic = Some(Arc::clone(record.topic())),
                     _ => {}
                 }
+                leader_broker_id = match leader_broker_id {
+                    None => Some(record.leader_broker_id()),
+                    Some(expected) if expected == record.leader_broker_id() => Some(expected),
+                    Some(_) => Some(None),
+                };
             }
             let topic = expected_topic.ok_or(ProducerStoreError::EmptyBatch)?;
             let source_retained_bytes =
@@ -65,6 +71,7 @@ impl ProducerStore {
             Ok(MaterializationBatch::idempotent(
                 topic,
                 partition,
+                leader_broker_id.flatten(),
                 records,
                 max_batch_bytes,
                 source_retained_bytes,

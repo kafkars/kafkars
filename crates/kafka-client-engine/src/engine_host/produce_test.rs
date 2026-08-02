@@ -205,7 +205,7 @@ fn full_call_capacity_preserves_the_next_prepared_owner() {
     shutdown(&mut driver);
 }
 
-fn prepared_producer() -> (ProducerShardOwner, ProducerDeliveryObserver) {
+pub(super) fn prepared_producer() -> (ProducerShardOwner, ProducerDeliveryObserver) {
     let producer =
         ProducerShardOwner::new(start(ready_limits()), Arc::new(CountingWake::default()));
     let observer = admit_prepared(&producer, "orders");

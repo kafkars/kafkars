@@ -59,7 +59,7 @@ fn pending_route_refresh_expires_at_the_original_delivery_deadline() {
             delivery: DeliveryStatus::PossiblySent,
         }
     );
-    calls.discard_settled();
+    calls.discard_settled(Moment::from_tick(14));
     driver
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));

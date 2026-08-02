@@ -97,6 +97,7 @@ impl ProducerHeader {
 pub(crate) struct ProducerRecord {
     topic: Arc<str>,
     partition: Option<PartitionIndex>,
+    leader_broker_id: Option<i32>,
     automatic_partition: bool,
     timestamp_ms: i64,
     defaulted_timestamp: bool,
@@ -127,6 +128,7 @@ impl ProducerRecord {
         Self {
             topic,
             partition: Some(partition),
+            leader_broker_id: None,
             automatic_partition: false,
             timestamp_ms,
             defaulted_timestamp: false,
@@ -148,6 +150,7 @@ impl ProducerRecord {
         Self {
             topic,
             partition,
+            leader_broker_id: None,
             automatic_partition: partition.is_none(),
             timestamp_ms,
             defaulted_timestamp,

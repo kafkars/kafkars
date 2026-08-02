@@ -1,13 +1,13 @@
 //! Deterministic producer host ownership behind one shard lock.
 
-use kafka_client_core::{Moment, partitioning::TopicPartitionSource};
+use kafka_client_core::Moment;
 
 use crate::{
     clock::OperationDeadline,
     producer::{
         ProducerHost, ProducerHostInvariantError, ProducerIdentityHandoffError,
-        ProducerIdentitySubmission, ProducerPartitioningFailure, ProducerPartitioningRequest,
-        ProducerRecord,
+        ProducerIdentitySubmission, ProducerPartitionSource, ProducerPartitioningFailure,
+        ProducerPartitioningRequest, ProducerRecord,
         admission::{AdmittedExplicit, ProducerAdmissionFailure},
         cancellation::{ProducerHostCancelAccepted, ProducerHostCancelError},
         execution::{PreparedProduceHandoffError, PreparedProduceSubmission},
@@ -99,11 +99,29 @@ impl ProducerShardData {
         self.host.turn(now, budget)
     }
 
-    /// Transfers at most one driver-ready request while this shard is locked.
+    /// Transfers at most one driver-ready request for focused host tests.
+    #[cfg(test)]
     pub(crate) fn take_produce_submission(
         &mut self,
     ) -> Result<Option<PreparedProduceSubmission>, PreparedProduceHandoffError> {
         self.host.execution.take_next_driver_submission()
+    }
+
+    /// Transfers the next bounded same-broker admission-order group.
+    pub(crate) fn take_produce_submissions(
+        &mut self,
+    ) -> Result<Vec<PreparedProduceSubmission>, PreparedProduceHandoffError> {
+        self.host.execution.take_next_driver_submissions()
+    }
+
+    /// Borrows the exact deadline of the next driver-ready Produce owner.
+    pub(crate) fn next_produce_submission_deadline(&self) -> Option<OperationDeadline> {
+        self.host.execution.next_submission_deadline()
+    }
+
+    /// Reports same-deadline preparation that can still join a ready submission.
+    pub(crate) fn has_pending_produce_submission_at(&self, deadline: OperationDeadline) -> bool {
+        self.host.has_pending_produce_submission_at(deadline)
     }
 
     pub(crate) fn take_identity_submission(
@@ -128,7 +146,7 @@ impl ProducerShardData {
     pub(crate) fn apply_partitioning_view(
         &mut self,
         request: ProducerPartitioningRequest,
-        source: &dyn TopicPartitionSource,
+        source: &dyn ProducerPartitionSource,
     ) -> Result<bool, ProducerHostInvariantError> {
         self.host.apply_partitioning_view(request, source)
     }

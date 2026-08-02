@@ -54,8 +54,17 @@ pub(super) fn drive(
     )?;
     let partitioning_progress =
         produce::admit_partitioning(driver, &mut resources.producer_partitioning_call, &mut data)?;
-    let produce_progress =
-        produce::admit_one(driver, &mut resources.produce_calls, &mut data, now)?;
+    let retained_partitioning_deadline = resources
+        .producer_partitioning_call
+        .as_ref()
+        .map(produce::ProducerPartitioningCall::deadline);
+    let produce_progress = admit_after_partitioning(
+        driver,
+        &mut resources.produce_calls,
+        &mut data,
+        now,
+        retained_partitioning_deadline,
+    )?;
     Ok(ProducerProgress {
         outcome: Some(outcome),
         unsettled: data
@@ -63,6 +72,23 @@ pub(super) fn drive(
             .saturating_add(usize::from(resources.producer_partitioning_call.is_some())),
         driver_progress: identity_progress || partitioning_progress || produce_progress,
     })
+}
+
+pub(super) fn admit_after_partitioning(
+    driver: &crate::driver::DriverOwner,
+    calls: &mut crate::driver::TrackedProduceCalls,
+    data: &mut crate::producer::ingress::ProducerShardData,
+    now: Moment,
+    retained_partitioning_deadline: Option<crate::clock::OperationDeadline>,
+) -> Result<bool, EngineHostError> {
+    if let Some(ready_deadline) = data.next_produce_submission_deadline() {
+        if retained_partitioning_deadline == Some(ready_deadline)
+            || data.has_pending_produce_submission_at(ready_deadline)
+        {
+            return Ok(false);
+        }
+    }
+    produce::admit_one(driver, calls, data, now)
 }
 
 pub(super) fn apply_completions(

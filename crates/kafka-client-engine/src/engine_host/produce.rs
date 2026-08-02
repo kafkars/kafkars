@@ -59,12 +59,45 @@ pub(super) fn admit_one(
     let Some(permit) = calls.try_reserve() else {
         return Ok(false);
     };
-    let Some(submission) = data
-        .take_produce_submission()
-        .map_err(EngineHostError::ProducerHandoff)?
-    else {
+    let mut submissions = data
+        .take_produce_submissions()
+        .map_err(EngineHostError::ProducerHandoff)?;
+    if submissions.is_empty() {
         return Ok(false);
-    };
+    }
+    if submissions.len() > 1 {
+        match permit.submit_batch(driver, submissions, now) {
+            Ok(accepted) => {
+                for input in accepted.inputs() {
+                    data.apply_produce_driver_input(now, input)
+                        .map_err(EngineHostError::Producer)?;
+                }
+                accepted.confirm_receipt();
+            }
+            Err(rejection) => {
+                debug_assert_eq!(
+                    rejection.delivery(),
+                    kafka_client_core::DeliveryStatus::NotSent
+                );
+                let failure = rejection.failure_kind();
+                for execution in rejection.executions() {
+                    data.apply_produce_driver_input(
+                        now,
+                        ProducerInput::DriverRejected {
+                            execution,
+                            now,
+                            failure,
+                        },
+                    )
+                    .map_err(EngineHostError::Producer)?;
+                }
+            }
+        }
+        return Ok(true);
+    }
+    let submission = submissions
+        .pop()
+        .unwrap_or_else(|| unreachable!("nonempty single Produce handoff"));
     let (execution, deadline, materialized) = submission.into_parts();
     match permit.submit(driver, execution, deadline, materialized, now) {
         Ok(accepted) => {
@@ -121,7 +154,7 @@ pub(super) fn apply_ready(
         }
         data.apply_produce_driver_input(now, settled.input())
             .map_err(EngineHostError::Producer)?;
-        calls.discard_settled();
+        calls.discard_settled(now);
         progress = true;
     }
     Ok(progress)

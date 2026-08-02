@@ -2,6 +2,7 @@
 
 use kafka_client_core::{DeliveryStatus, ProducerBatchSuccess, ProducerBrokerFailure};
 use kafka_wire::ProduceResponse;
+use kafka_wire::produce_response::PartitionProduceResponse;
 
 use super::produce_failure::normalize_produce_failure;
 
@@ -25,14 +26,14 @@ pub(crate) enum ProduceResponseFailure {
 }
 
 impl ProduceResponseFailure {
-    const fn broker(failure: ProducerBrokerFailure) -> Self {
+    pub(super) const fn broker(failure: ProducerBrokerFailure) -> Self {
         Self::Broker {
             failure,
             delivery: DeliveryStatus::PossiblySent,
         }
     }
 
-    const fn protocol(failure: ProduceResponseProtocolFailure) -> Self {
+    pub(super) const fn protocol(failure: ProduceResponseProtocolFailure) -> Self {
         Self::Protocol {
             failure,
             delivery: DeliveryStatus::PossiblySent,
@@ -66,6 +67,20 @@ pub(crate) enum ProduceResponseProtocolFailure {
     PartitionIndexMismatch {
         /// Observed partition index.
         actual: i32,
+    },
+    /// A broker-aggregated response returned the wrong total partition count.
+    BatchedPartitionCount {
+        /// Number of partitions owned by the submitted request.
+        expected: usize,
+        /// Number of partition responses returned by Kafka.
+        actual: usize,
+    },
+    /// A broker-aggregated response could not be bijectively correlated.
+    BatchedTargetMismatch,
+    /// Bounded correlation storage could not be reserved after driver ownership.
+    BatchedCorrelationCapacity {
+        /// Number of exact submitted targets that required correlation storage.
+        requested: usize,
     },
     /// A zero-code partition response still reported per-record failures.
     RecordErrorsOnSuccess {
@@ -118,6 +133,12 @@ pub(crate) fn normalize_explicit_produce_response(
         ));
     }
 
+    normalize_partition_response(partition)
+}
+
+pub(super) fn normalize_partition_response(
+    partition: &PartitionProduceResponse,
+) -> Result<ProducerBatchSuccess, ProduceResponseFailure> {
     if let Some(failure) = normalize_produce_failure(partition) {
         return Err(ProduceResponseFailure::broker(failure));
     }

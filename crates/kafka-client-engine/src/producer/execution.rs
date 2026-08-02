@@ -94,6 +94,13 @@ impl PreparedExecution {
         self.schedule.first().map(|entry| entry.deadline)
     }
 
+    /// Borrows the exact deadline of the next admission-order submission.
+    pub(crate) fn next_submission_deadline(&self) -> Option<OperationDeadline> {
+        self.entries
+            .values()
+            .find_map(|entry| entry.submission.map(|submission| submission.deadline))
+    }
+
     /// Returns bounded prepared-byte ownership for metrics and host checks.
     pub(crate) fn prepared_stats(&self) -> PreparedProduceStats {
         PreparedProduceStats {
