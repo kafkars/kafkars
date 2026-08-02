@@ -67,9 +67,11 @@ pub(super) fn admit_one(
     };
     let (execution, deadline, materialized) = submission.into_parts();
     match permit.submit(driver, execution, deadline, materialized, now) {
-        Ok(()) => {
-            data.apply_produce_driver_input(now, ProducerInput::DriverAccepted { execution })
+        Ok(accepted) => {
+            debug_assert_eq!(accepted.execution(), execution);
+            data.apply_produce_driver_input(now, accepted.driver_accepted())
                 .map_err(EngineHostError::Producer)?;
+            accepted.confirm_receipt();
         }
         Err(rejection) => {
             debug_assert_eq!(

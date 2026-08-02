@@ -127,7 +127,8 @@ fn pending_call_remains_owned_when_a_poll_has_no_result() {
             materialized(),
             Moment::from_tick(0),
         )
-        .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"));
+        .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"))
+        .confirm_receipt();
 
     assert!(
         calls
@@ -230,7 +231,8 @@ fn submit(permit: super::calls::ProduceCallPermit<'_>, driver: &DriverOwner, bat
             materialized(),
             Moment::from_tick(0),
         )
-        .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"));
+        .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"))
+        .confirm_receipt();
 }
 
 fn execution(batch: u64) -> BatchExecutionId {

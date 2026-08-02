@@ -41,7 +41,8 @@ fn completion_polling_waits_without_consuming_when_the_shard_is_contended() {
             materialized(),
             Moment::from_tick(0),
         )
-        .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"));
+        .unwrap_or_else(|error| panic!("tracked Produce admission: {error}"))
+        .confirm_receipt();
     for turn in 0..64 {
         driver
             .turn(Duration::from_millis(10))

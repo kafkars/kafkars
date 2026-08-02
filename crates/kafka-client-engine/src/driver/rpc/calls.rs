@@ -20,7 +20,7 @@ use crate::{
     },
 };
 
-use super::{super::DriverOwner, ProduceSubmitError};
+use super::{super::DriverOwner, ProduceSubmitError, produce_acceptance::AcceptedProduceCall};
 
 pub(crate) struct TrackedProduceCall {
     execution: BatchExecutionId,
@@ -85,7 +85,7 @@ impl ProduceCallPermit<'_> {
         deadline: OperationDeadline,
         materialized: MaterializedProduce,
         now: Moment,
-    ) -> Result<(), ProduceSubmitError> {
+    ) -> Result<AcceptedProduceCall, ProduceSubmitError> {
         let topic = materialized.topic_owner();
         let partition = materialized.partition();
         let request = materialized.into_name_routed_request(now, deadline);
@@ -102,7 +102,7 @@ impl ProduceCallPermit<'_> {
             partition,
             call,
         ));
-        Ok(())
+        Ok(AcceptedProduceCall::new(execution))
     }
 }
 
