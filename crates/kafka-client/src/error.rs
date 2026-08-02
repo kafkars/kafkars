@@ -11,6 +11,21 @@ pub enum DeliveryStatus {
     PossiblySent,
 }
 
+/// Stable guidance for an application considering a new operation after failure.
+///
+/// This advice describes duplicate-delivery safety, not whether another
+/// attempt is guaranteed to succeed. The client never turns this observation
+/// into a hidden retry outside the operation's configured retry policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RetryAdvice {
+    /// Available facts do not justify another application-level attempt.
+    DoNotRetry,
+    /// A new application-level attempt cannot duplicate this operation.
+    RetrySafe,
+    /// The failure is transient, but a new attempt may duplicate the operation.
+    RetryMayDuplicate,
+}
+
 /// Stable top-level category for a client failure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorKind {
@@ -52,6 +67,8 @@ pub struct KafkaError {
     internal_topic: Option<bool>,
     diagnostic_truncated: bool,
     transaction_abort_required: bool,
+    retry_advice: RetryAdvice,
+    fatal: bool,
 }
 
 impl KafkaError {
@@ -65,6 +82,8 @@ impl KafkaError {
             internal_topic: None,
             diagnostic_truncated: false,
             transaction_abort_required: false,
+            retry_advice: RetryAdvice::DoNotRetry,
+            fatal: false,
         }
     }
 
@@ -94,6 +113,28 @@ impl KafkaError {
         self
     }
 
+    pub(crate) const fn with_safe_retry(mut self) -> Self {
+        if matches!(self.delivery_status, Some(DeliveryStatus::PossiblySent)) {
+            return self;
+        }
+        self.retry_advice = RetryAdvice::RetrySafe;
+        self
+    }
+
+    pub(crate) const fn with_duplicate_risk(mut self) -> Self {
+        if !matches!(self.delivery_status, Some(DeliveryStatus::PossiblySent)) {
+            return self;
+        }
+        self.retry_advice = RetryAdvice::RetryMayDuplicate;
+        self
+    }
+
+    pub(crate) const fn with_fatal_disposition(mut self) -> Self {
+        self.retry_advice = RetryAdvice::DoNotRetry;
+        self.fatal = true;
+        self
+    }
+
     /// Returns the stable error category.
     pub const fn kind(&self) -> ErrorKind {
         self.kind
@@ -107,6 +148,27 @@ impl KafkaError {
     /// Returns Kafka's exact protocol error code when supplied by a broker.
     pub const fn broker_code(&self) -> Option<i16> {
         self.broker_code
+    }
+
+    /// Returns whether the exact failure facts describe a transient condition.
+    ///
+    /// This does not imply that an application-level retry is duplicate-safe;
+    /// inspect [`Self::retry_advice`] before creating a new operation.
+    pub const fn is_retriable(&self) -> bool {
+        matches!(
+            self.retry_advice,
+            RetryAdvice::RetrySafe | RetryAdvice::RetryMayDuplicate
+        )
+    }
+
+    /// Returns whether the originating operation owner cannot safely continue.
+    pub const fn is_fatal(&self) -> bool {
+        self.fatal
+    }
+
+    /// Returns stable application-level retry guidance.
+    pub const fn retry_advice(&self) -> RetryAdvice {
+        self.retry_advice
     }
 
     /// Returns Kafka's internal-topic marker for a topic-scoped error.

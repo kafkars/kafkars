@@ -127,17 +127,17 @@ pub use consumer::{
     AssignedConsumer, AssignedConsumerBuildError, AssignedConsumerBuilder, AssignedConsumerEvent,
     AssignedConsumerFetchFailureKind, AssignedConsumerFetchFence,
     AssignedConsumerFetchThrottleFailureKind, AssignedConsumerPositionFence,
-    AssignedConsumerPositionResolutionFailureKind, Checkpoint, CloseAssignedConsumer,
-    CloseConsumer, CommitConsumerCheckpoint, Consumer, ConsumerAcknowledgeError,
-    ConsumerAssignment, ConsumerAssignmentPartition, ConsumerBatch, ConsumerBuildError,
-    ConsumerBuilder, ConsumerCloseAdmissionError, ConsumerCommitAdmissionError,
-    ConsumerCommitError, ConsumerEvent, ConsumerGroupProtocol, ConsumerHeader, ConsumerRecord,
-    ConsumerRecords, ConsumerRevocation, GroupConsumerHeader, GroupConsumerRecord,
-    GroupConsumerRecords, GroupMetadata, NextAssignedEvent, NextConsumerEvent, OffsetReset,
-    ReadIsolation, RecordBatch, RecvAssignedBatch, RecvConsumerBatch, Seek, StartPosition,
-    TopicPartition,
+    AssignedConsumerPositionResolutionFailureKind, Checkpoint, CheckpointBuilder,
+    CheckpointMarkError, CheckpointMarkErrorKind, CloseAssignedConsumer, CloseConsumer,
+    CommitConsumerCheckpoint, Consumer, ConsumerAcknowledgeError, ConsumerAssignment,
+    ConsumerAssignmentPartition, ConsumerBatch, ConsumerBuildError, ConsumerBuilder,
+    ConsumerCloseAdmissionError, ConsumerCommitAdmissionError, ConsumerCommitError, ConsumerEvent,
+    ConsumerGroupProtocol, ConsumerHeader, ConsumerRecord, ConsumerRecords, ConsumerRevocation,
+    GroupConsumerHeader, GroupConsumerRecord, GroupConsumerRecords, GroupMetadata,
+    NextAssignedEvent, NextConsumerEvent, OffsetReset, ReadIsolation, RecordBatch,
+    RecvAssignedBatch, RecvConsumerBatch, Seek, StartPosition, TopicPartition,
 };
-pub use error::{DeliveryStatus, ErrorKind, KafkaError};
+pub use error::{DeliveryStatus, ErrorKind, KafkaError, RetryAdvice};
 pub use metrics::{
     CallMetrics, FailureMetrics, LatencyMetric, LatencyMetrics, MailboxMetrics, Metrics,
     MetricsSnapshot,

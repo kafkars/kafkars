@@ -1,6 +1,6 @@
 //! Tests for the facade-owned stable error vocabulary.
 
-use crate::{DeliveryStatus, ErrorKind, KafkaError};
+use crate::{DeliveryStatus, ErrorKind, KafkaError, RetryAdvice};
 
 #[test]
 fn producer_delivery_certainty_round_trips_through_public_error() {
@@ -21,6 +21,45 @@ fn non_producer_error_has_no_delivery_certainty() {
     assert_eq!(error.is_internal_topic(), None);
     assert!(!error.diagnostic_truncated());
     assert!(!error.requires_transaction_abort());
+    assert!(!error.is_retriable());
+    assert!(!error.is_fatal());
+    assert_eq!(error.retry_advice(), RetryAdvice::DoNotRetry);
+}
+
+#[test]
+fn closed_retry_advice_distinguishes_safe_duplicate_risk_and_fatal() {
+    let safe = KafkaError::new(ErrorKind::Backpressure, "capacity")
+        .with_delivery_status(DeliveryStatus::NotSent)
+        .with_safe_retry();
+    assert!(safe.is_retriable());
+    assert!(!safe.is_fatal());
+    assert_eq!(safe.retry_advice(), RetryAdvice::RetrySafe);
+
+    let duplicate_risk = KafkaError::new(ErrorKind::Broker, "transient broker response")
+        .with_delivery_status(DeliveryStatus::PossiblySent)
+        .with_duplicate_risk();
+    assert!(duplicate_risk.is_retriable());
+    assert!(!duplicate_risk.is_fatal());
+    assert_eq!(
+        duplicate_risk.retry_advice(),
+        RetryAdvice::RetryMayDuplicate
+    );
+
+    let fatal = KafkaError::new(ErrorKind::Fenced, "producer fenced").with_fatal_disposition();
+    assert!(!fatal.is_retriable());
+    assert!(fatal.is_fatal());
+    assert_eq!(fatal.retry_advice(), RetryAdvice::DoNotRetry);
+}
+
+#[test]
+fn possibly_sent_certainty_cannot_be_reclassified_as_retry_safe() {
+    let error = KafkaError::new(ErrorKind::Transport, "uncertain transport")
+        .with_delivery_status(DeliveryStatus::PossiblySent)
+        .with_safe_retry();
+
+    assert!(!error.is_retriable());
+    assert!(!error.is_fatal());
+    assert_eq!(error.retry_advice(), RetryAdvice::DoNotRetry);
 }
 
 #[test]

@@ -2,7 +2,7 @@
 
 use crate::bridge::consumer_facade::group_consumer_batch::GroupConsumerBatch;
 
-use super::{Checkpoint, GroupConsumerRecord, GroupConsumerRecords};
+use super::{Checkpoint, CheckpointBuilder, GroupConsumerRecord, GroupConsumerRecords};
 
 /// Owned group-consumer batch whose record views borrow its retained storage.
 ///
@@ -54,12 +54,19 @@ impl ConsumerBatch {
         self.records()
     }
 
+    /// Begins a checkpoint over the processed prefix of this exact batch.
+    pub fn checkpoint_builder(&self) -> CheckpointBuilder<'_> {
+        CheckpointBuilder::from_bridge(self.inner.checkpoint_builder())
+    }
+
     /// Consumes the whole batch into its exact assignment-fenced checkpoint.
     pub fn checkpoint(self) -> Checkpoint {
         Checkpoint::from_bridge(self.inner.checkpoint())
     }
 
-    /// Compatibility alias for [`Self::checkpoint`].
+    /// Consumes the whole batch into its exact assignment-fenced checkpoint.
+    ///
+    /// This compatibility spelling is equivalent to [`Self::checkpoint`].
     pub fn into_checkpoint(self) -> Checkpoint {
         self.checkpoint()
     }

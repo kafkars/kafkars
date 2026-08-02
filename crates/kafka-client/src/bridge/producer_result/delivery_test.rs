@@ -10,7 +10,7 @@ use super::delivery::{
     delivery_status, failure_error, failure_kind, metadata_parts, translate_delivery_error,
     translate_delivery_result,
 };
-use crate::{DeliveryStatus, ErrorKind, KafkaError, RecordMetadata};
+use crate::{DeliveryStatus, ErrorKind, KafkaError, RecordMetadata, RetryAdvice};
 
 #[test]
 fn future_delivery_bridge_surface_remains_type_checked() {
@@ -78,6 +78,80 @@ fn terminal_failure_preserves_exact_delivery_status_and_broker_code() {
     assert_eq!(error.kind(), ErrorKind::Broker);
     assert_eq!(error.delivery_status(), Some(DeliveryStatus::PossiblySent));
     assert_eq!(error.broker_code(), Some(-123));
+}
+
+#[test]
+fn terminal_retry_advice_distinguishes_transience_from_duplicate_safety() {
+    for kind in [
+        EngineFailureKind::Routing,
+        EngineFailureKind::BrokerRetriable,
+    ] {
+        let safe = failure_error(kind, EngineDeliveryStatus::NotSent, Some(20));
+        assert!(safe.is_retriable(), "{kind:?}");
+        assert!(!safe.is_fatal(), "{kind:?}");
+        assert_eq!(safe.retry_advice(), RetryAdvice::RetrySafe, "{kind:?}");
+
+        let uncertain = failure_error(kind, EngineDeliveryStatus::PossiblySent, Some(20));
+        assert!(uncertain.is_retriable(), "{kind:?}");
+        assert!(!uncertain.is_fatal(), "{kind:?}");
+        assert_eq!(
+            uncertain.retry_advice(),
+            RetryAdvice::RetryMayDuplicate,
+            "{kind:?}"
+        );
+    }
+
+    let driver_rejected = failure_error(
+        EngineFailureKind::DriverRejected,
+        EngineDeliveryStatus::NotSent,
+        None,
+    );
+    assert!(driver_rejected.is_retriable());
+    assert!(!driver_rejected.is_fatal());
+    assert_eq!(driver_rejected.retry_advice(), RetryAdvice::RetrySafe);
+
+    let impossible_uncertain_rejection = failure_error(
+        EngineFailureKind::DriverRejected,
+        EngineDeliveryStatus::PossiblySent,
+        None,
+    );
+    assert!(!impossible_uncertain_rejection.is_retriable());
+    assert!(!impossible_uncertain_rejection.is_fatal());
+    assert_eq!(
+        impossible_uncertain_rejection.retry_advice(),
+        RetryAdvice::DoNotRetry
+    );
+}
+
+#[test]
+fn terminal_advice_is_fatal_or_permanent_only_from_exact_engine_facts() {
+    for kind in [
+        EngineFailureKind::ProducerFenced,
+        EngineFailureKind::ProducerIdentity,
+        EngineFailureKind::InvalidResponse,
+        EngineFailureKind::ExecutionUnavailable,
+    ] {
+        let error = failure_error(kind, EngineDeliveryStatus::NotSent, None);
+        assert!(!error.is_retriable(), "{kind:?}");
+        assert!(error.is_fatal(), "{kind:?}");
+        assert_eq!(error.retry_advice(), RetryAdvice::DoNotRetry, "{kind:?}");
+    }
+
+    for kind in [
+        EngineFailureKind::Cancelled,
+        EngineFailureKind::MaterializationFailed,
+        EngineFailureKind::AccessRejected,
+        EngineFailureKind::InvalidRecord,
+        EngineFailureKind::Compatibility,
+        EngineFailureKind::Transport,
+        EngineFailureKind::DeadlineElapsed,
+        EngineFailureKind::UnknownBroker,
+    ] {
+        let error = failure_error(kind, EngineDeliveryStatus::NotSent, None);
+        assert!(!error.is_retriable(), "{kind:?}");
+        assert!(!error.is_fatal(), "{kind:?}");
+        assert_eq!(error.retry_advice(), RetryAdvice::DoNotRetry, "{kind:?}");
+    }
 }
 
 #[test]

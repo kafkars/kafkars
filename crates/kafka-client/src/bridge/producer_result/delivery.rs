@@ -39,9 +39,39 @@ pub(super) fn failure_error(
     status: EngineDeliveryStatus,
     broker_code: Option<i16>,
 ) -> KafkaError {
-    KafkaError::new(failure_kind(kind), failure_message(kind))
+    let error = KafkaError::new(failure_kind(kind), failure_message(kind))
         .with_delivery_status(delivery_status(status))
-        .with_broker_code(broker_code)
+        .with_broker_code(broker_code);
+    terminal_disposition(error, kind, status)
+}
+
+fn terminal_disposition(
+    error: KafkaError,
+    kind: EngineFailureKind,
+    status: EngineDeliveryStatus,
+) -> KafkaError {
+    match kind {
+        EngineFailureKind::DriverRejected => match status {
+            EngineDeliveryStatus::NotSent => error.with_safe_retry(),
+            EngineDeliveryStatus::PossiblySent => error,
+        },
+        EngineFailureKind::Routing | EngineFailureKind::BrokerRetriable => match status {
+            EngineDeliveryStatus::NotSent => error.with_safe_retry(),
+            EngineDeliveryStatus::PossiblySent => error.with_duplicate_risk(),
+        },
+        EngineFailureKind::ProducerFenced
+        | EngineFailureKind::ProducerIdentity
+        | EngineFailureKind::InvalidResponse
+        | EngineFailureKind::ExecutionUnavailable => error.with_fatal_disposition(),
+        EngineFailureKind::Cancelled
+        | EngineFailureKind::MaterializationFailed
+        | EngineFailureKind::AccessRejected
+        | EngineFailureKind::InvalidRecord
+        | EngineFailureKind::Compatibility
+        | EngineFailureKind::Transport
+        | EngineFailureKind::DeadlineElapsed
+        | EngineFailureKind::UnknownBroker => error,
+    }
 }
 
 pub(super) const fn failure_kind(kind: EngineFailureKind) -> ErrorKind {

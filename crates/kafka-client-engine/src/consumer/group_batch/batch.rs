@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use super::{GroupConsumerCheckpoint, GroupConsumerRecords};
+use super::{GroupConsumerCheckpoint, GroupConsumerCheckpointBuilder, GroupConsumerRecords};
 use crate::consumer::{
     group::{ClassicGroupFetchDelivery, GroupConsumerPort},
     group_batch::checkpoint::checkpoint_from_delivery,
@@ -53,6 +53,14 @@ impl GroupConsumerBatch {
     /// Iterates normalized application records in Kafka order.
     pub fn records(&self) -> GroupConsumerRecords<'_> {
         GroupConsumerRecords::new(self.delivery())
+    }
+
+    /// Begins an assignment-fenced checkpoint over this batch's processed prefix.
+    ///
+    /// The builder accepts only record views borrowed from this exact batch and
+    /// advances only in their original iteration order.
+    pub fn checkpoint_builder(&self) -> GroupConsumerCheckpointBuilder<'_> {
+        GroupConsumerCheckpointBuilder::new(self.delivery())
     }
 
     /// Counts normalized application records without copying their bytes.

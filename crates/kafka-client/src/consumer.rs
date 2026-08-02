@@ -8,6 +8,7 @@ mod assigned_next_event;
 mod assigned_recv;
 mod assignment;
 mod checkpoint;
+mod checkpoint_builder;
 mod consumer_batch;
 mod event;
 mod group;
@@ -39,6 +40,7 @@ pub use assigned_next_event::NextAssignedEvent;
 pub use assigned_recv::RecvAssignedBatch;
 pub use assignment::{StartPosition, TopicPartition};
 pub use checkpoint::Checkpoint;
+pub use checkpoint_builder::{CheckpointBuilder, CheckpointMarkError, CheckpointMarkErrorKind};
 pub use consumer_batch::ConsumerBatch;
 pub use event::{
     AssignedConsumerEvent, AssignedConsumerFetchFailureKind, AssignedConsumerFetchFence,
@@ -78,6 +80,8 @@ mod assigned_recv_test;
 mod assigned_test;
 #[cfg(test)]
 mod assignment_test;
+#[cfg(test)]
+mod checkpoint_builder_test;
 #[cfg(test)]
 mod checkpoint_test;
 #[cfg(test)]

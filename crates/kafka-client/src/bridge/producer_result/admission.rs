@@ -57,7 +57,15 @@ pub(crate) fn translate_batch_admission_error(
 }
 
 pub(crate) fn translate_accepted_fault(fault: &EngineAcceptedFault) -> KafkaError {
-    KafkaError::new(accepted_fault_kind(fault.kind()), fault.to_string())
+    accepted_fault_error(fault.kind(), &fault.to_string())
+}
+
+pub(super) fn accepted_fault_error(kind: EngineAcceptedFaultKind, detail: &str) -> KafkaError {
+    let error = KafkaError::new(accepted_fault_kind(kind), detail);
+    match kind {
+        EngineAcceptedFaultKind::HostInvariant => error.with_fatal_disposition(),
+        EngineAcceptedFaultKind::Wake => error,
+    }
 }
 
 pub(super) const fn capture_error_kind(kind: EngineCaptureErrorKind) -> EngineTrySendErrorKind {
@@ -73,7 +81,27 @@ pub(super) const fn capture_error_kind(kind: EngineCaptureErrorKind) -> EngineTr
 
 pub(super) fn admission_error(kind: EngineTrySendErrorKind, detail: Option<&str>) -> KafkaError {
     let message = detail.unwrap_or_else(|| admission_message(kind));
-    KafkaError::new(admission_kind(kind), message).with_delivery_status(DeliveryStatus::NotSent)
+    let error = KafkaError::new(admission_kind(kind), message)
+        .with_delivery_status(DeliveryStatus::NotSent);
+    match kind {
+        EngineTrySendErrorKind::Contended
+        | EngineTrySendErrorKind::CompletionCapacity
+        | EngineTrySendErrorKind::RecordCapacity
+        | EngineTrySendErrorKind::ByteCapacity
+        | EngineTrySendErrorKind::BatchCapacity
+        | EngineTrySendErrorKind::AccumulatorPending => error.with_safe_retry(),
+        EngineTrySendErrorKind::TimestampUnrepresentable
+        | EngineTrySendErrorKind::LocalIdentityExhausted
+        | EngineTrySendErrorKind::HostPoisoned
+        | EngineTrySendErrorKind::InternalInvariant => error.with_fatal_disposition(),
+        EngineTrySendErrorKind::EmptyTopic
+        | EngineTrySendErrorKind::MissingExplicitPartition
+        | EngineTrySendErrorKind::NegativeExplicitPartition
+        | EngineTrySendErrorKind::DeadlineUnrepresentable
+        | EngineTrySendErrorKind::DeadlineElapsed
+        | EngineTrySendErrorKind::RecordSizeUnrepresentable
+        | EngineTrySendErrorKind::Closed => error,
+    }
 }
 
 pub(super) const fn admission_kind(kind: EngineTrySendErrorKind) -> ErrorKind {

@@ -1,6 +1,8 @@
 //! Public group-consumer batch ownership and iteration shape contract.
 
-use super::{Checkpoint, ConsumerBatch, GroupConsumerRecord, GroupConsumerRecords};
+use super::{
+    Checkpoint, CheckpointBuilder, ConsumerBatch, GroupConsumerRecord, GroupConsumerRecords,
+};
 
 macro_rules! assert_not_impl {
     ($type:ty: $trait:path) => {
@@ -17,7 +19,7 @@ macro_rules! assert_not_impl {
 }
 
 #[test]
-fn batch_is_send_linear_iterable_and_yields_one_checkpoint() {
+fn batch_is_send_linear_iterable_and_exposes_both_consuming_checkpoint_spellings() {
     fn require_send<T: Send>() {}
     fn batch_contract(batch: &ConsumerBatch) {
         let _: &str = batch.topic();
@@ -26,9 +28,15 @@ fn batch_is_send_linear_iterable_and_yields_one_checkpoint() {
         let _: usize = batch.len();
         let _: bool = batch.is_empty();
         let _: Option<GroupConsumerRecord<'_>> = batch.records().next();
+        let _: Option<GroupConsumerRecord<'_>> = batch.iter().next();
+        let _: Option<GroupConsumerRecord<'_>> = batch.into_iter().next();
+        let _: CheckpointBuilder<'_> = batch.checkpoint_builder();
     }
-    fn checkpoint(batch: ConsumerBatch) -> Checkpoint {
+    fn canonical_checkpoint(batch: ConsumerBatch) -> Checkpoint {
         batch.checkpoint()
+    }
+    fn compatibility_checkpoint(batch: ConsumerBatch) -> Checkpoint {
+        batch.into_checkpoint()
     }
     fn iterator_contract(batch: &ConsumerBatch) -> GroupConsumerRecords<'_> {
         batch.into_iter()
@@ -38,6 +46,7 @@ fn batch_is_send_linear_iterable_and_yields_one_checkpoint() {
     assert_not_impl!(ConsumerBatch: Clone);
     assert_not_impl!(ConsumerBatch: Copy);
     let _ = batch_contract as fn(&ConsumerBatch);
-    let _ = checkpoint as fn(ConsumerBatch) -> Checkpoint;
+    let _ = canonical_checkpoint as fn(ConsumerBatch) -> Checkpoint;
+    let _ = compatibility_checkpoint as fn(ConsumerBatch) -> Checkpoint;
     let _ = iterator_contract as fn(&ConsumerBatch) -> GroupConsumerRecords<'_>;
 }

@@ -40,7 +40,8 @@ pub use super::group_acknowledge::{
     GroupConsumerAcknowledgeError, GroupConsumerAcknowledgeErrorKind,
 };
 pub use super::group_batch::{
-    GroupConsumerBatch, GroupConsumerCheckpoint, GroupConsumerHeader,
+    GroupConsumerBatch, GroupConsumerCheckpoint, GroupConsumerCheckpointBuilder,
+    GroupConsumerCheckpointMarkError, GroupConsumerCheckpointMarkErrorKind, GroupConsumerHeader,
     GroupConsumerPositionFailureKind, GroupConsumerRecord, GroupConsumerRecords,
     GroupConsumerTryTakeBatchError, GroupConsumerTryTakeBatchErrorKind,
 };

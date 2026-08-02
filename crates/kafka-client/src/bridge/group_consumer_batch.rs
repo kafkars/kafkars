@@ -1,8 +1,10 @@
 //! Private facade translation over one engine-owned group-consumer lease.
 
 use kafka_client_engine::{
-    GroupConsumerBatch as EngineBatch, GroupConsumerHeader as EngineHeader,
-    GroupConsumerRecord as EngineRecord, GroupConsumerRecords as EngineRecords,
+    GroupConsumerBatch as EngineBatch, GroupConsumerCheckpointBuilder as EngineCheckpointBuilder,
+    GroupConsumerCheckpointMarkErrorKind as EngineCheckpointMarkErrorKind,
+    GroupConsumerHeader as EngineHeader, GroupConsumerRecord as EngineRecord,
+    GroupConsumerRecords as EngineRecords,
 };
 
 use super::group_consumer_checkpoint::GroupConsumerCheckpoint;
@@ -42,6 +44,58 @@ impl GroupConsumerBatch {
     pub(crate) fn checkpoint(self) -> GroupConsumerCheckpoint {
         GroupConsumerCheckpoint::from_engine(self.inner.checkpoint())
     }
+
+    pub(crate) fn checkpoint_builder(&self) -> GroupConsumerCheckpointBuilder<'_> {
+        GroupConsumerCheckpointBuilder {
+            inner: self.inner.checkpoint_builder(),
+        }
+    }
+
+    pub(crate) fn into_checkpoint(self) -> GroupConsumerCheckpoint {
+        GroupConsumerCheckpoint::from_engine(self.inner.into_checkpoint())
+    }
+}
+
+/// Private exact-batch prefix-checkpoint translation.
+pub(crate) struct GroupConsumerCheckpointBuilder<'batch> {
+    inner: EngineCheckpointBuilder<'batch>,
+}
+
+impl GroupConsumerCheckpointBuilder<'_> {
+    pub(crate) fn mark_processed(
+        &mut self,
+        record: &GroupConsumerRecord<'_>,
+    ) -> Result<(), GroupConsumerCheckpointMarkErrorKind> {
+        self.inner
+            .mark_processed(&record.inner)
+            .map_err(|error| match error.kind() {
+                EngineCheckpointMarkErrorKind::ForeignRecord => {
+                    GroupConsumerCheckpointMarkErrorKind::ForeignRecord
+                }
+                EngineCheckpointMarkErrorKind::OutOfOrder => {
+                    GroupConsumerCheckpointMarkErrorKind::OutOfOrder
+                }
+            })
+    }
+
+    pub(crate) fn finish(self) -> GroupConsumerCheckpoint {
+        GroupConsumerCheckpoint::from_engine(self.inner.finish())
+    }
+}
+
+impl std::fmt::Debug for GroupConsumerCheckpointBuilder<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_tuple("GroupConsumerCheckpointBuilder")
+            .field(&self.inner)
+            .finish()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum GroupConsumerCheckpointMarkErrorKind {
+    ForeignRecord,
+    OutOfOrder,
 }
 
 impl std::fmt::Debug for GroupConsumerBatch {

@@ -6,23 +6,26 @@ use crate::{
 };
 
 /// Ordered borrowed application records from one classic-group delivery.
-#[derive(Debug)]
 pub struct GroupConsumerRecords<'batch> {
+    delivery: &'batch ClassicGroupFetchDelivery,
     topic: &'batch str,
     partition: i32,
     batches: &'batch [FetchBatch],
     batch_index: usize,
     record_index: usize,
+    next_ordinal: usize,
 }
 
 impl<'batch> GroupConsumerRecords<'batch> {
     pub(super) fn new(delivery: &'batch ClassicGroupFetchDelivery) -> Self {
         Self {
+            delivery,
             topic: delivery.topic(),
             partition: delivery.partition(),
             batches: delivery.data_batches(),
             batch_index: 0,
             record_index: 0,
+            next_ordinal: 0,
         }
     }
 }
@@ -40,9 +43,13 @@ impl<'batch> Iterator for GroupConsumerRecords<'batch> {
             }
             if let Some(record) = batch.records.get(self.record_index) {
                 self.record_index += 1;
+                let ordinal = self.next_ordinal;
+                self.next_ordinal = self.next_ordinal.saturating_add(1);
                 return Some(GroupConsumerRecord {
+                    delivery: self.delivery,
                     topic: self.topic,
                     partition: self.partition,
+                    ordinal,
                     record,
                 });
             }
@@ -53,10 +60,11 @@ impl<'batch> Iterator for GroupConsumerRecords<'batch> {
 }
 
 /// One record borrowing bytes from its owning classic-group batch.
-#[derive(Debug)]
 pub struct GroupConsumerRecord<'batch> {
+    delivery: &'batch ClassicGroupFetchDelivery,
     topic: &'batch str,
     partition: i32,
+    ordinal: usize,
     record: &'batch FetchRecord,
 }
 
@@ -74,6 +82,14 @@ impl GroupConsumerRecord<'_> {
     /// Returns the absolute Kafka log offset.
     pub const fn offset(&self) -> i64 {
         self.record.offset
+    }
+
+    pub(super) fn belongs_to(&self, delivery: &ClassicGroupFetchDelivery) -> bool {
+        std::ptr::eq(self.delivery, delivery)
+    }
+
+    pub(super) const fn ordinal(&self) -> usize {
+        self.ordinal
     }
 
     /// Returns the Kafka timestamp in milliseconds when present.
@@ -97,6 +113,31 @@ impl GroupConsumerRecord<'_> {
             .headers
             .iter()
             .map(|header| GroupConsumerHeader { header })
+    }
+}
+
+impl std::fmt::Debug for GroupConsumerRecords<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GroupConsumerRecords")
+            .field("topic", &self.topic)
+            .field("partition", &self.partition)
+            .field("batch_index", &self.batch_index)
+            .field("record_index", &self.record_index)
+            .field("next_ordinal", &self.next_ordinal)
+            .finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for GroupConsumerRecord<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GroupConsumerRecord")
+            .field("topic", &self.topic)
+            .field("partition", &self.partition)
+            .field("ordinal", &self.ordinal)
+            .field("record", &self.record)
+            .finish()
     }
 }
 

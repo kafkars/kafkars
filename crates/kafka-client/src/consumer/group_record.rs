@@ -36,6 +36,10 @@ impl<'batch> GroupConsumerRecord<'batch> {
         Self { inner }
     }
 
+    pub(super) const fn as_bridge(&self) -> &BridgeRecord<'batch> {
+        &self.inner
+    }
+
     /// Returns the retained Kafka topic name.
     pub fn topic(&self) -> &str {
         self.inner.topic()

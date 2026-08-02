@@ -2057,6 +2057,14 @@ production = "crates/kafka-client/src/consumer/checkpoint.rs"
 test = "crates/kafka-client/src/consumer/checkpoint_test.rs"
 
 [[test_mirrors]]
+production = "crates/kafka-client/src/consumer/checkpoint_builder.rs"
+test = "crates/kafka-client/src/consumer/checkpoint_builder_test.rs"
+
+[[test_mirrors]]
+production = "crates/kafka-client-engine/src/consumer/group_batch/checkpoint_builder.rs"
+test = "crates/kafka-client-engine/src/consumer/group_batch/checkpoint_builder_test.rs"
+
+[[test_mirrors]]
 production = "crates/kafka-client/src/consumer/record.rs"
 test = "crates/kafka-client/src/consumer/record_test.rs"
 
@@ -11718,6 +11726,10 @@ owner_type = "GroupConsumerCheckpoint"
 path = "crates/kafka-client-engine/src/consumer/group_batch/checkpoint.rs"
 
 [[linear_owners]]
+owner_type = "GroupConsumerCheckpointBuilder"
+path = "crates/kafka-client-engine/src/consumer/group_batch/checkpoint_builder.rs"
+
+[[linear_owners]]
 owner_type = "GroupConsumerRecvNotificationResources"
 path = "crates/kafka-client-engine/src/consumer/group_recv/completion.rs"
 
@@ -17412,6 +17424,14 @@ path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement
 [[linear_owners]]
 owner_type = "GroupConsumerCheckpoint"
 path = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint.rs"
+
+[[linear_owners]]
+owner_type = "GroupConsumerCheckpointBuilder"
+path = "crates/kafka-client/src/bridge/group_consumer_batch.rs"
+
+[[linear_owners]]
+owner_type = "CheckpointBuilder"
+path = "crates/kafka-client/src/consumer/checkpoint_builder.rs"
 
 [[linear_owners]]
 owner_type = "CommitConsumerCheckpoint"

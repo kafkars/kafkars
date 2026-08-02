@@ -172,9 +172,15 @@ impl std::fmt::Debug for GroupConsumerCheckpoint {
 pub(super) fn checkpoint_from_delivery(
     delivery: &ClassicGroupFetchDelivery,
 ) -> GroupConsumerCheckpoint {
+    checkpoint_from_delivery_at(delivery, delivery.next_offset().get())
+}
+
+pub(super) fn checkpoint_from_delivery_at(
+    delivery: &ClassicGroupFetchDelivery,
+    next_offset: i64,
+) -> GroupConsumerCheckpoint {
     let fence = delivery.position_fence();
     let partition = delivery.partition_identity();
-    let next_offset = delivery.next_offset().get();
     let entry = GroupCheckpointEntry::try_new(
         partition.topic_id(),
         partition.partition(),
