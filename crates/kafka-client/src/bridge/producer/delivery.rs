@@ -24,6 +24,9 @@ use crate::{
 #[must_use = "dropping abandons observation without cancelling accepted producer work"]
 pub(crate) struct ProducerDelivery {
     topic: Option<String>,
+    create_timestamp: i64,
+    serialized_key_size: Option<usize>,
+    serialized_value_size: Option<usize>,
     observer: EngineDeliveryObserver,
     /// Advisory post-ownership mechanism fault retained for diagnostics only.
     ///
@@ -40,11 +43,17 @@ pub(crate) struct ProducerDelivery {
 impl ProducerDelivery {
     pub(crate) const fn new(
         topic: String,
+        create_timestamp: i64,
+        serialized_key_size: Option<usize>,
+        serialized_value_size: Option<usize>,
         observer: EngineDeliveryObserver,
         accepted_diagnostic: Option<KafkaError>,
     ) -> Self {
         Self {
             topic: Some(topic),
+            create_timestamp,
+            serialized_key_size,
+            serialized_value_size,
             observer,
             accepted_diagnostic,
             cancellation_diagnostic: None,
@@ -67,7 +76,13 @@ impl ProducerDelivery {
         let Some(topic) = self.topic else {
             return Err(already_observed());
         };
-        translate_delivery_result(topic, self.observer.wait())
+        translate_delivery_result(
+            topic,
+            self.create_timestamp,
+            self.serialized_key_size,
+            self.serialized_value_size,
+            self.observer.wait(),
+        )
     }
 }
 
@@ -79,7 +94,13 @@ impl Future for ProducerDelivery {
         match Pin::new(&mut this.observer).poll(context) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(result) => match this.topic.take() {
-                Some(topic) => Poll::Ready(translate_delivery_result(topic, result)),
+                Some(topic) => Poll::Ready(translate_delivery_result(
+                    topic,
+                    this.create_timestamp,
+                    this.serialized_key_size,
+                    this.serialized_value_size,
+                    result,
+                )),
                 None => Poll::Ready(Err(already_observed())),
             },
         }
@@ -95,6 +116,9 @@ impl fmt::Debug for ProducerDelivery {
         formatter
             .debug_struct("ProducerDelivery")
             .field("topic", &self.topic)
+            .field("create_timestamp", &self.create_timestamp)
+            .field("serialized_key_size", &self.serialized_key_size)
+            .field("serialized_value_size", &self.serialized_value_size)
             .field("observer", &self.observer)
             .field("accepted_diagnostic", &self.accepted_diagnostic)
             .field("cancellation_diagnostic", &self.cancellation_diagnostic)

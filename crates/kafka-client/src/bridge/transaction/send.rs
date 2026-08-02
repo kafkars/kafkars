@@ -33,6 +33,8 @@ impl<'producer> TransactionEngine<'producer> {
             Ok(capture) => capture,
             Err(error) => return Err((record, translate_send_capture(error))),
         };
+        let serialized_key_size = record.key_bytes().map(bytes::Bytes::len);
+        let serialized_value_size = record.value_bytes().map(bytes::Bytes::len);
         match self
             .inner
             .send_captured(into_engine_record(record), capture)
@@ -42,6 +44,8 @@ impl<'producer> TransactionEngine<'producer> {
                 Ok(TransactionSendEngine {
                     inner: accepted.into_observer(),
                     wake_failed,
+                    serialized_key_size,
+                    serialized_value_size,
                 })
             }
             Err(error) => {
@@ -57,6 +61,8 @@ impl<'producer> TransactionEngine<'producer> {
 pub(crate) struct TransactionSendEngine<'send, 'producer> {
     inner: EngineTransactionSendObserver<'send, 'producer>,
     wake_failed: bool,
+    serialized_key_size: Option<usize>,
+    serialized_value_size: Option<usize>,
 }
 
 impl TransactionSendEngine<'_, '_> {
@@ -65,7 +71,11 @@ impl TransactionSendEngine<'_, '_> {
     }
 
     pub(crate) fn wait(self) -> Result<RecordMetadata, KafkaError> {
-        translate_send_observation(self.inner.wait())
+        translate_send_observation(
+            self.inner.wait(),
+            self.serialized_key_size,
+            self.serialized_value_size,
+        )
     }
 }
 
@@ -73,9 +83,10 @@ impl Future for TransactionSendEngine<'_, '_> {
     type Output = Result<RecordMetadata, KafkaError>;
 
     fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
-        Pin::new(&mut self.get_mut().inner)
-            .poll(context)
-            .map(translate_send_observation)
+        let this = self.get_mut();
+        Pin::new(&mut this.inner).poll(context).map(|result| {
+            translate_send_observation(result, this.serialized_key_size, this.serialized_value_size)
+        })
     }
 }
 
@@ -85,6 +96,8 @@ impl core::fmt::Debug for TransactionSendEngine<'_, '_> {
             .debug_struct("TransactionSendEngine")
             .field("inner", &self.inner)
             .field("wake_failed", &self.wake_failed)
+            .field("serialized_key_size", &self.serialized_key_size)
+            .field("serialized_value_size", &self.serialized_value_size)
             .finish()
     }
 }

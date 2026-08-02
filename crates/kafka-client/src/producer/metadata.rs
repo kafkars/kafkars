@@ -8,6 +8,8 @@ pub struct RecordMetadata {
     offset: i64,
     timestamp_milliseconds: Option<i64>,
     leader_epoch: Option<i32>,
+    serialized_key_size: Option<usize>,
+    serialized_value_size: Option<usize>,
 }
 
 impl RecordMetadata {
@@ -17,6 +19,8 @@ impl RecordMetadata {
         offset: i64,
         timestamp_milliseconds: Option<i64>,
         leader_epoch: Option<i32>,
+        serialized_key_size: Option<usize>,
+        serialized_value_size: Option<usize>,
     ) -> Self {
         Self {
             topic,
@@ -24,6 +28,8 @@ impl RecordMetadata {
             offset,
             timestamp_milliseconds,
             leader_epoch,
+            serialized_key_size,
+            serialized_value_size,
         }
     }
 
@@ -50,5 +56,21 @@ impl RecordMetadata {
     /// Returns the acknowledged leader epoch when supplied by Kafka.
     pub const fn leader_epoch(&self) -> Option<i32> {
         self.leader_epoch
+    }
+
+    /// Returns the exact serialized key length, or `None` when the key was null.
+    ///
+    /// `Some(0)` identifies a present empty key. This length excludes record,
+    /// header, batch, compression, and request-envelope overhead.
+    pub const fn serialized_key_size(&self) -> Option<usize> {
+        self.serialized_key_size
+    }
+
+    /// Returns the exact serialized value length, or `None` when the value was null.
+    ///
+    /// `Some(0)` identifies a present empty value. This length excludes record,
+    /// header, batch, compression, and request-envelope overhead.
+    pub const fn serialized_value_size(&self) -> Option<usize> {
+        self.serialized_value_size
     }
 }

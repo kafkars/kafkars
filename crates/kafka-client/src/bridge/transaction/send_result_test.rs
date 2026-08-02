@@ -7,7 +7,7 @@ use kafka_client_engine::{
 
 use super::send_result::{
     translate_send_admission, translate_send_failure_kind, translate_send_failure_parts,
-    translate_send_observation,
+    translate_send_metadata_parts, translate_send_observation,
 };
 use crate::{DeliveryStatus, ErrorKind};
 
@@ -142,11 +142,29 @@ fn observer_failures_translate_without_inventing_transaction_consequences() {
             ErrorKind::Internal,
         ),
     ] {
-        let Err(error) = translate_send_observation(Err(observer)) else {
+        let Err(error) = translate_send_observation(Err(observer), Some(8), Some(7)) else {
             panic!("observer failure must remain an error")
         };
         assert_eq!(error.kind(), expected);
         assert!(!error.requires_transaction_abort());
         assert_eq!(error.delivery_status(), None);
+    }
+}
+
+#[test]
+fn transactional_metadata_preserves_exact_null_empty_and_nonempty_sizes() {
+    for (key_size, value_size) in [(None, None), (Some(0), Some(0)), (Some(8), Some(7))] {
+        let metadata = translate_send_metadata_parts(
+            "orders".to_owned(),
+            2,
+            91,
+            Some(1_700_000_000_456),
+            Some(7),
+            key_size,
+            value_size,
+        );
+
+        assert_eq!(metadata.serialized_key_size(), key_size);
+        assert_eq!(metadata.serialized_value_size(), value_size);
     }
 }

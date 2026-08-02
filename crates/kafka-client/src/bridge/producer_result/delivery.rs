@@ -11,10 +11,19 @@ use crate::{DeliveryStatus, ErrorKind, KafkaError, RecordMetadata};
 
 pub(crate) fn translate_delivery_result(
     topic: String,
+    create_timestamp: i64,
+    serialized_key_size: Option<usize>,
+    serialized_value_size: Option<usize>,
     result: EngineDeliveryResult,
 ) -> Result<RecordMetadata, KafkaError> {
     match result {
-        Ok(metadata) => translate_metadata(topic, metadata),
+        Ok(metadata) => translate_metadata(
+            topic,
+            create_timestamp,
+            serialized_key_size,
+            serialized_value_size,
+            metadata,
+        ),
         Err(error) => Err(translate_delivery_error(error)),
     }
 }
@@ -134,14 +143,19 @@ fn translate_observer_error(error: EngineObserverError) -> KafkaError {
 
 fn translate_metadata(
     topic: String,
+    create_timestamp: i64,
+    serialized_key_size: Option<usize>,
+    serialized_value_size: Option<usize>,
     metadata: EngineRecordMetadata,
 ) -> Result<RecordMetadata, KafkaError> {
     metadata_parts(
         topic,
         metadata.partition(),
         metadata.offset(),
-        metadata.append_timestamp(),
+        metadata.append_timestamp().or(Some(create_timestamp)),
         metadata.leader_epoch(),
+        serialized_key_size,
+        serialized_value_size,
     )
 }
 
@@ -151,6 +165,8 @@ pub(super) fn metadata_parts(
     offset: i64,
     append_timestamp: Option<i64>,
     leader_epoch: Option<i32>,
+    serialized_key_size: Option<usize>,
+    serialized_value_size: Option<usize>,
 ) -> Result<RecordMetadata, KafkaError> {
     let Ok(partition) = i32::try_from(partition) else {
         return Err(KafkaError::new(
@@ -164,5 +180,7 @@ pub(super) fn metadata_parts(
         offset,
         append_timestamp,
         leader_epoch,
+        serialized_key_size,
+        serialized_value_size,
     ))
 }

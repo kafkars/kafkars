@@ -15,7 +15,13 @@ use crate::{DeliveryStatus, ErrorKind, KafkaError, RecordMetadata, RetryAdvice};
 #[test]
 fn future_delivery_bridge_surface_remains_type_checked() {
     let _ = translate_delivery_result
-        as fn(String, EngineDeliveryResult) -> Result<RecordMetadata, KafkaError>;
+        as fn(
+            String,
+            i64,
+            Option<usize>,
+            Option<usize>,
+            EngineDeliveryResult,
+        ) -> Result<RecordMetadata, KafkaError>;
 }
 
 #[test]
@@ -162,6 +168,8 @@ fn engine_metadata_preserves_facade_topic_and_acknowledgement_fields() {
         4_294_967_296,
         Some(1_725_000_000_000),
         Some(19),
+        Some(8),
+        Some(7),
     );
     let Ok(metadata) = result else {
         panic!("valid engine metadata should translate")
@@ -172,11 +180,13 @@ fn engine_metadata_preserves_facade_topic_and_acknowledgement_fields() {
     assert_eq!(metadata.offset(), 4_294_967_296);
     assert_eq!(metadata.timestamp_milliseconds(), Some(1_725_000_000_000));
     assert_eq!(metadata.leader_epoch(), Some(19));
+    assert_eq!(metadata.serialized_key_size(), Some(8));
+    assert_eq!(metadata.serialized_value_size(), Some(7));
 }
 
 #[test]
 fn out_of_range_engine_partition_is_an_internal_translation_failure() {
-    let result = metadata_parts("orders".to_owned(), u32::MAX, 0, None, None);
+    let result = metadata_parts("orders".to_owned(), u32::MAX, 0, None, None, None, Some(0));
     let Err(error) = result else {
         panic!("unsigned partition outside Kafka's domain must fail")
     };

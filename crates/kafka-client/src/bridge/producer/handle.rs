@@ -90,12 +90,20 @@ impl ProducerEngine {
             Err(error) => return Err(translate_capture_error(record, error)),
         };
         let topic = record.topic().to_owned();
+        let create_timestamp = record
+            .timestamp()
+            .unwrap_or_else(|| capture.default_timestamp_milliseconds());
+        let serialized_key_size = record.key_bytes().map(bytes::Bytes::len);
+        let serialized_value_size = record.value_bytes().map(bytes::Bytes::len);
         let engine_record = into_engine_record(record);
         match self.handle.try_send_captured(capture, engine_record) {
             Ok(accepted) => {
                 let diagnostic = accepted.fault().map(translate_accepted_fault);
                 Ok(ProducerDelivery::new(
                     topic,
+                    create_timestamp,
+                    serialized_key_size,
+                    serialized_value_size,
                     accepted.into_observer(),
                     diagnostic,
                 ))
@@ -114,12 +122,20 @@ impl ProducerEngine {
             }
         };
         let topic = record.topic().to_owned();
+        let create_timestamp = record
+            .timestamp()
+            .unwrap_or_else(|| capture.default_timestamp_milliseconds());
+        let serialized_key_size = record.key_bytes().map(bytes::Bytes::len);
+        let serialized_value_size = record.value_bytes().map(bytes::Bytes::len);
         let engine_record = into_engine_record(record);
         match self.handle.send_captured(capture, engine_record) {
             Ok(accepted) => {
                 let diagnostic = accepted.fault().map(translate_accepted_fault);
                 ProducerSend::accepted(ProducerDelivery::new(
                     topic,
+                    create_timestamp,
+                    serialized_key_size,
+                    serialized_value_size,
                     accepted.into_observer(),
                     diagnostic,
                 ))
@@ -157,22 +173,42 @@ impl ProducerEngine {
                 )),
             );
         }
-        let topics = records
+        let default_timestamp = capture.default_timestamp_milliseconds();
+        let metadata_contexts = records
             .iter()
-            .map(|record| record.topic().to_owned())
+            .map(|record| {
+                (
+                    record.topic().to_owned(),
+                    record.timestamp().unwrap_or(default_timestamp),
+                    record.key_bytes().map(bytes::Bytes::len),
+                    record.value_bytes().map(bytes::Bytes::len),
+                )
+            })
             .collect::<Vec<_>>();
         let engine_records = records.into_iter().map(into_engine_record).collect();
         let (accepted, rejection) = self
             .handle
             .try_send_batch_captured(capture, engine_records)
             .into_parts();
-        let deliveries = topics
+        let deliveries = metadata_contexts
             .into_iter()
             .zip(accepted)
-            .map(|(topic, accepted)| {
-                let diagnostic = accepted.fault().map(translate_accepted_fault);
-                ProducerDelivery::new(topic, accepted.into_observer(), diagnostic)
-            })
+            .map(
+                |(
+                    (topic, create_timestamp, serialized_key_size, serialized_value_size),
+                    accepted,
+                )| {
+                    let diagnostic = accepted.fault().map(translate_accepted_fault);
+                    ProducerDelivery::new(
+                        topic,
+                        create_timestamp,
+                        serialized_key_size,
+                        serialized_value_size,
+                        accepted.into_observer(),
+                        diagnostic,
+                    )
+                },
+            )
             .collect();
         let rejection = rejection.map(|error| {
             let (kind, records, detail) = error.into_parts();

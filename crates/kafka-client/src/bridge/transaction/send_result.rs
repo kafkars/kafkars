@@ -52,21 +52,53 @@ pub(super) fn translate_send_admission(kind: TransactionSendAdmissionErrorKind) 
 
 pub(super) fn translate_send_observation(
     result: Result<TransactionSendOutcome, TransactionSendObserverError>,
+    serialized_key_size: Option<usize>,
+    serialized_value_size: Option<usize>,
 ) -> Result<RecordMetadata, KafkaError> {
     match result {
-        Ok(TransactionSendOutcome::Succeeded(metadata)) => Ok(translate_send_metadata(&metadata)),
+        Ok(TransactionSendOutcome::Succeeded(metadata)) => Ok(translate_send_metadata(
+            &metadata,
+            serialized_key_size,
+            serialized_value_size,
+        )),
         Ok(TransactionSendOutcome::Failed(failure)) => Err(translate_send_failure(failure)),
         Err(error) => Err(translate_send_observer_error(error)),
     }
 }
 
-fn translate_send_metadata(metadata: &TransactionSendMetadata) -> RecordMetadata {
-    RecordMetadata::from_parts(
+fn translate_send_metadata(
+    metadata: &TransactionSendMetadata,
+    serialized_key_size: Option<usize>,
+    serialized_value_size: Option<usize>,
+) -> RecordMetadata {
+    translate_send_metadata_parts(
         metadata.topic().to_owned(),
         metadata.partition(),
         metadata.offset(),
         metadata.timestamp(),
         metadata.leader_epoch(),
+        serialized_key_size,
+        serialized_value_size,
+    )
+}
+
+pub(super) fn translate_send_metadata_parts(
+    topic: String,
+    partition: i32,
+    offset: i64,
+    timestamp: Option<i64>,
+    leader_epoch: Option<i32>,
+    serialized_key_size: Option<usize>,
+    serialized_value_size: Option<usize>,
+) -> RecordMetadata {
+    RecordMetadata::from_parts(
+        topic,
+        partition,
+        offset,
+        timestamp,
+        leader_epoch,
+        serialized_key_size,
+        serialized_value_size,
     )
 }
 
