@@ -145,7 +145,7 @@ fn coordinator_refresh_progress_is_visible_and_shutdown_preserves_broker_termina
             .shard
             .try_host()
             .unwrap_or_else(|error| panic!("host lock: {error:?}"));
-        host.install_refresh_call_for_test(&fixture._driver, 16)
+        host.install_refresh_call_for_test(&fixture._driver, 14)
             .unwrap_or_else(|error| panic!("install refresh call: {error:?}"));
         assert_eq!(
             host.turn(kafka_client_core::Moment::from_tick(1), &fixture._driver)
@@ -170,9 +170,79 @@ fn coordinator_refresh_progress_is_visible_and_shutdown_preserves_broker_termina
     assert_eq!(
         failure.kind(),
         super::TransactionInitializationFailureKind::Broker {
-            code: 16,
+            code: 14,
             fenced: false,
         }
+    );
+}
+
+#[test]
+fn stalled_refresh_expires_at_original_deadline_without_a_late_init_retry() {
+    let fixture = Fixture::new();
+    let accepted = fixture
+        .port
+        .capture(Duration::from_secs(5), Arc::new(()))
+        .unwrap_or_else(|error| panic!("capture deadline: {error:?}"))
+        .initialize_transactional_owner(TransactionInitializationRequest::new(
+            "invoice-writer".to_owned(),
+            45_000,
+        ))
+        .unwrap_or_else(|error| panic!("admit initialization: {:?}", error.kind()));
+    {
+        let mut host = fixture
+            .shard
+            .try_host()
+            .unwrap_or_else(|error| panic!("host lock: {error:?}"));
+        let deadline = host
+            .next_deadline()
+            .unwrap_or_else(|| panic!("accepted initialization owns its original deadline"));
+        assert!(deadline.tick() >= 2);
+        host.install_refresh_call_for_test(&fixture._driver, 14)
+            .unwrap_or_else(|error| panic!("install refresh call: {error:?}"));
+        assert_eq!(host.next_deadline(), Some(deadline));
+        assert_eq!(
+            host.turn(
+                kafka_client_core::Moment::from_tick(deadline.tick() - 2),
+                &fixture._driver,
+            )
+            .unwrap_or_else(|error| panic!("refresh progress turn: {error:?}")),
+            super::TransactionInitializationTurn::Progress
+        );
+        assert_eq!(host.next_deadline(), Some(deadline));
+        assert_eq!(
+            host.turn(
+                kafka_client_core::Moment::from_tick(deadline.tick() - 1),
+                &fixture._driver,
+            )
+            .unwrap_or_else(|error| panic!("refresh pending turn: {error:?}")),
+            super::TransactionInitializationTurn::Idle
+        );
+        assert_eq!(host.next_deadline(), Some(deadline));
+        assert_eq!(
+            host.turn(
+                kafka_client_core::Moment::from_tick(deadline.tick()),
+                &fixture._driver,
+            )
+            .unwrap_or_else(|error| panic!("refresh deadline turn: {error:?}")),
+            super::TransactionInitializationTurn::Progress
+        );
+        assert_eq!(host.next_deadline(), None, "no replacement retry is armed");
+    }
+
+    let TransactionInitializationOutcome::Failed(failure) = accepted
+        .into_observer()
+        .wait()
+        .unwrap_or_else(|error| panic!("observe deadline terminal: {error:?}"))
+    else {
+        panic!("expired refresh cannot initialize an owner");
+    };
+    assert_eq!(
+        failure.kind(),
+        super::TransactionInitializationFailureKind::DeadlineElapsed
+    );
+    assert_eq!(
+        failure.delivery(),
+        super::TransactionInitializationDeliveryStatus::PossiblySent
     );
 }
 

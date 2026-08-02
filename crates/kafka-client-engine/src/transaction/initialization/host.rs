@@ -5,6 +5,9 @@ mod control;
 mod owner;
 mod reclaim;
 mod recovery;
+mod retry;
+#[cfg(test)]
+mod retry_test;
 mod terminal;
 #[cfg(test)]
 mod test_support;
@@ -71,6 +74,8 @@ pub(super) struct TransactionInitializationOperation {
     call: Option<TransactionInitCall>,
     raw_terminal: Option<TransactionInitTerminal>,
     terminal: Option<RetainedTransactionInitializationOutcome>,
+    retry_not_before: Option<kafka_client_core::Deadline>,
+    retries_started: u32,
 }
 
 pub(super) struct LiveTransactionalOwner {
@@ -177,10 +182,22 @@ impl TransactionInitializationHost {
             .operations
             .iter()
             .filter(|operation| {
-                operation.machine.state() == TransactionInitializationState::AwaitingDriver
-                    && operation.call.is_none()
+                matches!(
+                    operation.machine.state(),
+                    TransactionInitializationState::AwaitingDriver
+                        | TransactionInitializationState::Submitted
+                )
             })
-            .map(|operation| operation.deadline.core())
+            .map(|operation| {
+                if operation.call.is_some() {
+                    operation.deadline.core()
+                } else {
+                    operation.retry_not_before.map_or_else(
+                        || operation.deadline.core(),
+                        |not_before| not_before.min(operation.deadline.core()),
+                    )
+                }
+            })
             .min();
         let execution = self
             .executions

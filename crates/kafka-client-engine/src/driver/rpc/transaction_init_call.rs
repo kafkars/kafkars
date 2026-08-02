@@ -66,9 +66,23 @@ impl TransactionInitCall {
         }
     }
 
+    /// Stops only a post-terminal coordinator refresh at the public deadline.
+    pub(crate) fn expire_refresh(&mut self) -> Option<TransactionInitTerminal> {
+        match mem::replace(&mut self.state, TransactionInitCallState::Consumed) {
+            TransactionInitCallState::Refreshing { terminal, refresh } => {
+                drop(refresh);
+                Some(terminal)
+            }
+            state => {
+                self.state = state;
+                None
+            }
+        }
+    }
+
     fn poll_refresh(
         &mut self,
-        terminal: TransactionInitTerminal,
+        mut terminal: TransactionInitTerminal,
         refresh: TransactionInitCoordinatorRefresh,
     ) -> TransactionInitPoll {
         match refresh {
@@ -91,18 +105,26 @@ impl TransactionInitCall {
                     }
                 }
             }
-            TransactionInitCoordinatorRefresh::Active(call) => {
-                if call.try_result().is_some() {
+            TransactionInitCoordinatorRefresh::Active(call) => match call.try_result() {
+                Some(result) => {
+                    if matches!(
+                        result,
+                        Ok(InvalidationDisposition::Applied
+                            | InvalidationDisposition::IgnoredStale)
+                    ) {
+                        terminal.mark_coordinator_refresh_completed();
+                    }
                     drop(call);
                     TransactionInitPoll::Terminal(Ok(terminal))
-                } else {
+                }
+                None => {
                     self.state = TransactionInitCallState::Refreshing {
                         terminal,
                         refresh: TransactionInitCoordinatorRefresh::Active(call),
                     };
                     TransactionInitPoll::Pending
                 }
-            }
+            },
             #[cfg(test)]
             TransactionInitCoordinatorRefresh::ScriptedForTest { progress_reported } => {
                 self.state = TransactionInitCallState::Refreshing {

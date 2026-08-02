@@ -46,6 +46,9 @@ impl TransactionInitializationMachine {
                 producer_id,
                 producer_epoch,
             } => self.broker_initialized(producer_id, producer_epoch),
+            TransactionInitializationInput::RetryableBrokerRejected => {
+                self.retryable_broker_rejected()
+            }
             TransactionInitializationInput::BrokerRejected { failure } => self.finish_submitted(
                 TransactionInitializationFailureKind::Broker(failure),
                 DeliveryStatus::PossiblySent,
@@ -110,6 +113,23 @@ impl TransactionInitializationMachine {
             ));
         };
         Ok(self.finish(TransactionInitializationTerminal::Initialized(identity)))
+    }
+
+    fn retryable_broker_rejected(
+        &mut self,
+    ) -> Result<TransactionInitializationTransition, TransactionInitializationMachineError> {
+        if self.state != TransactionInitializationState::Submitted {
+            return Err(TransactionInitializationMachineError::InvalidState);
+        }
+        self.state = TransactionInitializationState::AwaitingDriver;
+        Ok(TransactionInitializationTransition::one(
+            TransactionInitializationEffect::Submit {
+                owner_id: self.owner_id,
+                operation_id: self.operation_id,
+                deadline: self.deadline,
+                plan: self.plan,
+            },
+        ))
     }
 
     fn finish_awaiting(

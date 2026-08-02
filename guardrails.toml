@@ -3051,6 +3051,7 @@ allowed_paths = [
   "crates/kafka-client-engine/src/transaction/initialization/host.rs",
   "crates/kafka-client-engine/src/transaction/initialization/host/admission.rs",
   "crates/kafka-client-engine/src/transaction/initialization/host/recovery.rs",
+  "crates/kafka-client-engine/src/transaction/initialization/host/retry.rs",
   "crates/kafka-client-engine/src/transaction/initialization/host/terminal.rs",
   "crates/kafka-client-engine/src/transaction/initialization/host/test_support.rs",
 ]

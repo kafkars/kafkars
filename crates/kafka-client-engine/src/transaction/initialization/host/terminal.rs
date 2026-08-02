@@ -6,17 +6,9 @@ use std::{
 };
 
 use kafka_client_core::{
-    TransactionInitializationBrokerCategory, TransactionInitializationBrokerFailure,
+    Moment, TransactionInitializationBrokerCategory, TransactionInitializationBrokerFailure,
     TransactionInitializationEffect, TransactionInitializationInput,
     TransactionInitializationTerminal,
-};
-
-use crate::{
-    driver::{TransactionInitDriverFailureKind, TransactionInitTerminalFact},
-    protocol::transaction::{
-        TransactionInitBrokerCategory, TransactionInitResponseFailure,
-        normalize_transaction_init_response,
-    },
 };
 
 use super::{
@@ -28,9 +20,18 @@ use crate::transaction::initialization::{
     RetainedTransactionInitializationOutcome, TransactionInitializationHostError,
     TransactionalOwnerParts,
 };
-
+use crate::{
+    driver::{TransactionInitDriverFailureKind, TransactionInitTerminalFact},
+    protocol::transaction::{
+        TransactionInitBrokerCategory, TransactionInitResponseFailure,
+        normalize_transaction_init_response,
+    },
+};
 impl TransactionInitializationHost {
-    pub(super) fn poll_one_call(&mut self) -> Result<bool, TransactionInitializationHostError> {
+    pub(super) fn poll_one_call(
+        &mut self,
+        now: Moment,
+    ) -> Result<bool, TransactionInitializationHostError> {
         let Some(index) = self
             .operations
             .iter()
@@ -50,12 +51,25 @@ impl TransactionInitializationHost {
                 drop(self.operations[index].call.take());
                 let terminal =
                     terminal.map_err(|_| TransactionInitializationHostError::CallCompletion)?;
-                let input = terminal_input(terminal.fact());
-                self.operations[index].raw_terminal = Some(terminal);
-                self.settle_raw(index, input)?;
+                self.settle_or_retry_terminal(index, terminal, now)?;
                 Ok(true)
             }
         }
+    }
+
+    fn settle_or_retry_terminal(
+        &mut self,
+        index: usize,
+        terminal: crate::driver::TransactionInitTerminal,
+        now: Moment,
+    ) -> Result<(), TransactionInitializationHostError> {
+        if terminal.retry_safe_after_refresh() && self.schedule_retry(index, now)? {
+            terminal.discard();
+            return Ok(());
+        }
+        let input = terminal_input(terminal.fact());
+        self.operations[index].raw_terminal = Some(terminal);
+        self.settle_raw(index, input)
     }
 
     pub(super) fn settle_raw(

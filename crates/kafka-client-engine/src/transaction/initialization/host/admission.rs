@@ -88,6 +88,8 @@ impl TransactionInitializationHost {
             call: None,
             raw_terminal: None,
             terminal: None,
+            retry_not_before: None,
+            retries_started: 0,
         };
         let transition = operation
             .machine

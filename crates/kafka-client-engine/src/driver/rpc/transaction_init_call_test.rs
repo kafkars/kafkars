@@ -53,3 +53,32 @@ fn refresh_state_reports_progress_then_recovers_the_known_terminal() {
     assert_eq!(response.error_code, 16);
     terminal.discard();
 }
+
+#[test]
+fn refresh_expiry_returns_the_known_terminal_once_without_touching_a_live_call() {
+    let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver owner: {error}"));
+    let mut refreshing = TransactionInitCall::refreshing_for_test(&driver, 16);
+
+    let terminal = refreshing
+        .expire_refresh()
+        .unwrap_or_else(|| panic!("post-terminal refresh can expire"));
+    let super::super::TransactionInitTerminalFact::Response { response, .. } = terminal.fact()
+    else {
+        panic!("expiry must return the authoritative broker terminal");
+    };
+    assert_eq!(response.error_code, 16);
+    assert!(refreshing.expire_refresh().is_none());
+    assert!(matches!(refreshing.poll(), TransactionInitPoll::Pending));
+    terminal.discard();
+
+    let mut calling = TransactionInitCall::submit(
+        &driver,
+        "writer",
+        30_000,
+        Instant::now() + Duration::from_secs(1),
+    )
+    .unwrap_or_else(|error| panic!("accepted call: {error}"));
+    assert!(calling.expire_refresh().is_none());
+    assert!(calling.recover_after_driver_shutdown().is_none());
+}

@@ -30,6 +30,8 @@ pub enum TransactionInitializationInput {
         /// Kafka's signed producer epoch field.
         producer_epoch: i16,
     },
+    /// Authorizes one replacement after an exact rejection and causal route refresh.
+    RetryableBrokerRejected,
     /// Reports one exact normalized Kafka broker rejection.
     BrokerRejected {
         /// Exact signed code plus its fencing category.

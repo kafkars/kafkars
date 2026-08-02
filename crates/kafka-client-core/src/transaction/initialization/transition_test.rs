@@ -152,6 +152,36 @@ fn submitted_failures_preserve_driver_certainty_and_exact_broker_fencing() {
 }
 
 #[test]
+fn refreshed_broker_rejection_reuses_exact_owner_operation_deadline_and_plan() {
+    let owner = owner(7);
+    let mut machine = submitted(owner);
+
+    let transition = machine
+        .apply(
+            owner,
+            TransactionInitializationInput::RetryableBrokerRejected,
+        )
+        .unwrap_or_else(|error| panic!("refreshed replacement: {error}"));
+
+    assert!(matches!(
+        transition.into_effect(),
+        Some(TransactionInitializationEffect::Submit {
+            owner_id,
+            operation_id,
+            deadline,
+            plan,
+        }) if owner_id == owner
+            && operation_id == OperationId::from_raw(11)
+            && deadline == Deadline::from_tick(20)
+            && plan.transaction_timeout_ms() == 60_000
+    ));
+    assert_eq!(
+        machine.state(),
+        TransactionInitializationState::AwaitingDriver
+    );
+}
+
+#[test]
 fn broker_success_requires_nonnegative_identity_and_completes_once() {
     let owner = owner(7);
     let mut initialized = submitted(owner);

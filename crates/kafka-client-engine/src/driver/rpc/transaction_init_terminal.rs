@@ -31,6 +31,7 @@ pub(crate) struct TransactionInitTerminal {
     result: Result<InitProducerIdResponse, RequestError>,
     selected_version: Option<i16>,
     route_token: Option<RouteFailureToken>,
+    coordinator_refresh_completed: bool,
 }
 
 impl TransactionInitTerminal {
@@ -58,6 +59,19 @@ impl TransactionInitTerminal {
         }
     }
 
+    pub(super) fn mark_coordinator_refresh_completed(&mut self) {
+        self.coordinator_refresh_completed = true;
+    }
+
+    pub(crate) fn retry_safe_after_refresh(&self) -> bool {
+        self.coordinator_refresh_completed
+            && matches!(
+                self.fact(),
+                TransactionInitTerminalFact::Response { response, .. }
+                    if matches!(response.error_code, 14 | 15 | 16)
+            )
+    }
+
     pub(crate) fn discard(self) {
         drop(self.route_token);
     }
@@ -70,7 +84,7 @@ pub(super) fn needs_transaction_coordinator_refresh(
     let stale_broker = matches!(
         fact,
         TransactionInitTerminalFact::Response { response, .. }
-            if matches!(response.error_code, 15 | 16)
+            if matches!(response.error_code, 14 | 15 | 16)
     );
     route_kind == Some(RouteKind::Coordinator)
         && (stale_broker
@@ -93,6 +107,7 @@ pub(super) fn retain_transaction_init_terminal(
         result,
         selected_version: selected_version.map(ApiVersion::value),
         route_token,
+        coordinator_refresh_completed: false,
     }
 }
 

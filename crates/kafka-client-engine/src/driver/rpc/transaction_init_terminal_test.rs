@@ -67,7 +67,7 @@ fn incompatible_version_remains_distinct_and_definitely_unsent() {
 
 #[test]
 fn only_stale_broker_or_transport_evidence_requests_exact_coordinator_refresh() {
-    for error_code in [15, 16] {
+    for error_code in [14, 15, 16] {
         let terminal = response_terminal(error_code);
         assert!(needs_transaction_coordinator_refresh(
             &terminal.fact(),
@@ -79,7 +79,7 @@ fn only_stale_broker_or_transport_evidence_requests_exact_coordinator_refresh() 
         ));
         terminal.discard();
     }
-    for error_code in [0, 25, 47] {
+    for error_code in [0, 13, 25, 47] {
         let terminal = response_terminal(error_code);
         assert!(!needs_transaction_coordinator_refresh(
             &terminal.fact(),
@@ -117,6 +117,22 @@ fn only_stale_broker_or_transport_evidence_requests_exact_coordinator_refresh() 
         Some(RouteKind::Coordinator),
     ));
     incompatible.discard();
+}
+
+#[test]
+fn retry_authority_requires_exact_rejection_and_completed_refresh_barrier() {
+    for error_code in [14, 15, 16] {
+        let mut terminal = response_terminal(error_code);
+        assert!(!terminal.retry_safe_after_refresh());
+        terminal.mark_coordinator_refresh_completed();
+        assert!(terminal.retry_safe_after_refresh());
+        terminal.discard();
+    }
+
+    let mut unrelated = response_terminal(25);
+    unrelated.mark_coordinator_refresh_completed();
+    assert!(!unrelated.retry_safe_after_refresh());
+    unrelated.discard();
 }
 
 fn response_terminal(error_code: i16) -> super::transaction_init_terminal::TransactionInitTerminal {
