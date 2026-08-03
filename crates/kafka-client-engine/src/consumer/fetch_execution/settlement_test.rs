@@ -193,10 +193,25 @@ pub(in crate::consumer) fn install(
                 0,
                 Some(partition_index),
                 records,
+                0,
             );
         }
         TerminalFixture::Broker(code) => {
             calls.install_broker_terminal_for_test(request, Moment::from_tick(7), 12, code);
+        }
+        TerminalFixture::PartitionBroker(code) => {
+            let partition_index =
+                i32::try_from(request.fence().position().partition().partition().get())
+                    .unwrap_or_else(|error| panic!("test partition must fit i32: {error}"));
+            calls.install_success_terminal_for_test(
+                request,
+                Moment::from_tick(7),
+                12,
+                0,
+                Some(partition_index),
+                None,
+                code,
+            );
         }
         TerminalFixture::RouteUnavailable => {
             calls.install_route_unavailable_terminal_for_test(request, Moment::from_tick(7));
@@ -207,6 +222,7 @@ pub(in crate::consumer) fn install(
 pub(in crate::consumer) enum TerminalFixture {
     Success(Option<Bytes>),
     Broker(i16),
+    PartitionBroker(i16),
     RouteUnavailable,
 }
 

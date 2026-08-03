@@ -1,6 +1,6 @@
 //! Bounded construction and selected isolation policy for the group Fetch owner.
 
-use kafka_client_core::ReadIsolation;
+use kafka_client_core::{GroupPositionMissingOffsetPolicy, ReadIsolation};
 
 use crate::protocol::fetch::{FetchIsolation, fetch_request};
 
@@ -58,5 +58,19 @@ fn selected_read_isolation_reaches_the_core_machine_and_generated_fetch() {
         let request = fetch_request("orders", 0, 17, owner.fetch_settings)
             .unwrap_or_else(|error| panic!("generated Fetch request: {error:?}"));
         assert_eq!(request.isolation_level, wire_isolation);
+    }
+}
+
+#[test]
+fn selected_missing_offset_policy_reaches_the_fetch_owner() {
+    for policy in [
+        GroupPositionMissingOffsetPolicy::Error,
+        GroupPositionMissingOffsetPolicy::Earliest,
+        GroupPositionMissingOffsetPolicy::Latest,
+    ] {
+        let owner =
+            ClassicGroupFetchOwner::try_new_with_policies(ReadIsolation::ReadUncommitted, policy)
+                .unwrap_or_else(|error| panic!("Fetch owner: {error:?}"));
+        assert_eq!(owner.missing_offset_policy, policy);
     }
 }

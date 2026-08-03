@@ -3,6 +3,7 @@
 mod activation;
 mod control;
 mod delivery;
+mod fetch_terminal;
 mod model;
 mod owner;
 mod owner_build;
@@ -27,6 +28,8 @@ mod activation_test;
 mod control_test;
 #[cfg(test)]
 mod delivery_test;
+#[cfg(test)]
+mod fetch_terminal_test;
 #[cfg(test)]
 mod model_test;
 #[cfg(test)]

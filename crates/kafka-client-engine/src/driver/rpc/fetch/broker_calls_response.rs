@@ -170,6 +170,40 @@ impl TrackedBrokerFetchCalls {
     }
 
     #[cfg(test)]
+    pub(crate) fn install_topic_partition_results_for_test(
+        &mut self,
+        requests: Vec<PartitionFetchRequest>,
+        now: Moment,
+        selected_version: i16,
+        session_id: i32,
+        error_codes: &[i16],
+    ) {
+        assert_eq!(requests.len(), error_codes.len());
+        let topic_name = requests
+            .first()
+            .map(|request| request.topic().to_owned())
+            .unwrap_or_else(|| panic!("test response requires one request"));
+        let mut topic = FetchableTopicResponse::default();
+        topic.topic = topic_name.into();
+        topic.partitions = requests
+            .iter()
+            .zip(error_codes)
+            .map(|(request, error_code)| {
+                let mut partition = kafka_wire::fetch_response::PartitionData::default();
+                partition.partition_index =
+                    i32::try_from(request.fence().position().partition().partition().get())
+                        .unwrap_or_else(|error| panic!("test partition must fit i32: {error}"));
+                partition.error_code = *error_code;
+                partition
+            })
+            .collect();
+        let mut response = WireFetchResponse::default();
+        response.session_id = session_id;
+        response.responses = vec![topic];
+        self.install_response_for_test(requests, now, selected_version, response);
+    }
+
+    #[cfg(test)]
     pub(crate) fn install_broker_error_for_test(
         &mut self,
         requests: Vec<PartitionFetchRequest>,

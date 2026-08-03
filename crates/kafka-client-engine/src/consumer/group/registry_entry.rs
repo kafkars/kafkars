@@ -211,8 +211,11 @@ impl GroupConsumerEntry {
             ),
             classic_reconciliation: None,
             execution: new_classic_group_execution(),
-            fetch: ClassicGroupFetchOwner::try_new_with_read_isolation(read_isolation)
-                .map_err(GroupConsumerEntryBuildError::Fetch)?,
+            fetch: ClassicGroupFetchOwner::try_new_with_policies(
+                read_isolation,
+                missing_offset_policy,
+            )
+            .map_err(GroupConsumerEntryBuildError::Fetch)?,
             heartbeat: ClassicHeartbeatExecution::new(),
             close_authority: Arc::new(GroupConsumerCloseAuthority::new()),
             leave: ClassicGroupLeaveOwner::new(),

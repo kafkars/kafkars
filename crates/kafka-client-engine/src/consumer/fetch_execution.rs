@@ -72,6 +72,10 @@ mod settlement_test;
 mod stale_test;
 #[path = "fetch_execution/terminal.rs"]
 mod terminal;
+#[path = "fetch_execution/terminal_proposal.rs"]
+mod terminal_proposal;
+#[cfg(test)]
+mod terminal_proposal_test;
 
 #[cfg_attr(
     not(test),
@@ -114,7 +118,11 @@ pub(crate) use fault::FetchReclaimFailure;
     )
 )]
 pub(crate) use prepared::{PrepareFetchError, PrepareFetchFailure, PreparedFetchExecution};
+pub(in crate::consumer) use settlement::FetchTerminalPoll;
 #[cfg(test)]
 pub(super) use settlement_test::{
     TerminalFixture as FetchTerminalFixture, install as install_terminal_for_test,
+};
+pub(in crate::consumer) use terminal_proposal::{
+    FetchTerminalProposal, PartitionOffsetOutOfRangeProposal,
 };

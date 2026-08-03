@@ -3,7 +3,8 @@
 use std::{collections::VecDeque, time::Duration};
 
 use kafka_client_core::{
-    AssignedConsumerEffect, AssignedConsumerMachine, GroupPositionFence, ReadIsolation,
+    AssignedConsumerEffect, AssignedConsumerMachine, GroupPositionFence,
+    GroupPositionMissingOffsetPolicy, ReadIsolation,
 };
 
 use crate::{
@@ -62,6 +63,7 @@ pub(in crate::consumer::group) struct ClassicGroupFetchOwner {
     pub(super) fetch_settings: FetchRequestSettings,
     pub(super) fetch_decode_limits: FetchDecodeLimits,
     pub(super) fetch_attempt_timeout: Duration,
+    pub(super) missing_offset_policy: GroupPositionMissingOffsetPolicy,
     pub(super) read_isolation: ReadIsolation,
     pub(super) partition_capacity: usize,
     pub(super) effect_capacity: usize,

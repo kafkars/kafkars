@@ -98,5 +98,6 @@ fn install_session_parts(
             response_session_id,
             partition_index,
             None,
+            0,
         );
 }

@@ -4,7 +4,7 @@ use kafka_client_core::{AssignedConsumerTransition, Moment};
 
 use crate::{
     clock::MonotonicClock,
-    consumer::fetch_execution::{FetchExecutionError, FetchSubmission},
+    consumer::fetch_execution::{FetchExecutionError, FetchSubmission, FetchTerminalPoll},
     driver::DriverOwner,
 };
 
@@ -20,6 +20,20 @@ use super::{
 };
 
 impl ClassicGroupFetchOwner {
+    fn poll_terminal_proposal(
+        &mut self,
+        clock: &MonotonicClock,
+        now: Moment,
+    ) -> Result<(Option<AssignedConsumerTransition>, bool), FetchExecutionError> {
+        match self.fetches.poll_proposal(now)? {
+            FetchTerminalPoll::Proposed(proposal) => self
+                .settle_terminal_proposal(clock, proposal)
+                .map(|transition| (transition, true)),
+            FetchTerminalPoll::Progressed => Ok((None, true)),
+            FetchTerminalPoll::Idle => Ok((None, false)),
+        }
+    }
+
     /// Interprets, settles, and admits at most one item at each ordered stage.
     pub(in crate::consumer::group) fn turn(
         &mut self,
@@ -170,13 +184,14 @@ impl ClassicGroupFetchOwner {
                 return;
             }
         }
-        match self.fetches.poll(&mut self.machine, now) {
-            Ok(Some(transition)) => {
-                work.fetch_polled = true;
+        match self.poll_terminal_proposal(clock, now) {
+            Ok((Some(transition), progressed)) => {
+                work.fetch_polled = progressed;
                 self.append_transition(transition, work);
             }
-            Ok(None) => {
-                work.fetch_polled = self.fetches.retained() < retained;
+            Ok((None, progressed)) => {
+                work.fetch_polled = progressed || self.fetches.retained() < retained;
+                work.fault_retained = self.is_faulted();
             }
             Err(error) => {
                 self.fault = Some(ClassicGroupFetchOwnerFault::Fetch(error));

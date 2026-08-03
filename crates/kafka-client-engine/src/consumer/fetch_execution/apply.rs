@@ -10,14 +10,34 @@ use super::{
     fault::{FetchExecutionError, RetainedFetchFault},
     prepared::PreparedFetchExecution,
     terminal::{FetchTerminalAction, FetchTerminalFact, TerminalStorage},
+    terminal_proposal::{FetchTerminalProposal, PartitionOffsetOutOfRangeProposal},
 };
 
 impl DirectFetchExecutor {
-    pub(super) fn apply_terminal(
+    pub(in crate::consumer) fn apply_terminal_proposal(
         &mut self,
         machine: &mut AssignedConsumerMachine,
-        fact: FetchTerminalFact,
+        proposal: FetchTerminalProposal,
     ) -> Result<Option<AssignedConsumerTransition>, FetchExecutionError> {
+        self.apply_terminal_with_input(machine, proposal, None)
+    }
+
+    pub(in crate::consumer) fn apply_offset_out_of_range_reset(
+        &mut self,
+        machine: &mut AssignedConsumerMachine,
+        proposal: PartitionOffsetOutOfRangeProposal,
+        input: kafka_client_core::AssignedConsumerInput,
+    ) -> Result<Option<AssignedConsumerTransition>, FetchExecutionError> {
+        self.apply_terminal_with_input(machine, proposal.into_proposal(), Some(input))
+    }
+
+    fn apply_terminal_with_input(
+        &mut self,
+        machine: &mut AssignedConsumerMachine,
+        proposal: FetchTerminalProposal,
+        replacement: Option<kafka_client_core::AssignedConsumerInput>,
+    ) -> Result<Option<AssignedConsumerTransition>, FetchExecutionError> {
+        let fact = proposal.into_fact();
         let FetchTerminalFact {
             request,
             action,
@@ -25,9 +45,13 @@ impl DirectFetchExecutor {
             session,
         } = fact;
         let fence = request.fence();
-        let input = match action {
-            FetchTerminalAction::Apply(input) => input,
-            FetchTerminalAction::Reestablish { hard_output_bytes } => {
+        let input = match (replacement, action) {
+            (Some(input), FetchTerminalAction::Apply(_terminal)) => input,
+            (Some(_input), FetchTerminalAction::Reestablish { .. }) => {
+                unreachable!("offset-out-of-range proof excludes session re-establishment")
+            }
+            (None, FetchTerminalAction::Apply(input)) => input,
+            (None, FetchTerminalAction::Reestablish { hard_output_bytes }) => {
                 return self.reestablish_broker_session(request, hard_output_bytes, storage);
             }
         };
@@ -64,8 +88,13 @@ impl DirectFetchExecutor {
             self.retain_transition(request, transition);
             return Err(FetchExecutionError::Confirm(error));
         }
-        if !self.complete_broker_session(fence, session)? {
-            self.commit_fetch_session(fence, session);
+        match self.complete_broker_session(fence, session) {
+            Ok(true) => {}
+            Ok(false) => self.commit_fetch_session(fence, session),
+            Err(error) => {
+                self.retain_transition(request, transition);
+                return Err(error);
+            }
         }
         Ok(Some(transition))
     }
@@ -137,8 +166,13 @@ impl DirectFetchExecutor {
             self.fault = Some(RetainedFetchFault::Request { _request: request });
             return Err(FetchExecutionError::Confirm(error));
         }
-        if !self.complete_broker_session(fence, session)? {
-            self.commit_fetch_session(fence, session);
+        match self.complete_broker_session(fence, session) {
+            Ok(true) => {}
+            Ok(false) => self.commit_fetch_session(fence, session),
+            Err(error) => {
+                self.fault = Some(RetainedFetchFault::Request { _request: request });
+                return Err(error);
+            }
         }
         Ok(None)
     }

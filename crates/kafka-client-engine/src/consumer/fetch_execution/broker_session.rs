@@ -118,6 +118,24 @@ impl BrokerFetchSessions {
         Ok(())
     }
 
+    pub(super) fn validate_complete(
+        &self,
+        plan: &BrokerSessionPlan,
+    ) -> Result<(), BrokerSessionError> {
+        let index = self.live_plan_index(plan)?;
+        if plan.is_close() || self.entries[index].metadata != plan.session() {
+            return Err(BrokerSessionError::PlanMismatch);
+        }
+        Ok(())
+    }
+
+    pub(super) fn validate_abort(
+        &self,
+        plan: &BrokerSessionPlan,
+    ) -> Result<(), BrokerSessionError> {
+        self.live_plan_index(plan).map(|_index| ())
+    }
+
     pub(super) fn abort(
         &mut self,
         plan: BrokerSessionPlan,

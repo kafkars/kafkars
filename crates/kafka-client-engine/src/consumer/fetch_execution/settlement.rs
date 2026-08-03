@@ -7,7 +7,16 @@ use crate::driver::FetchPoll;
 use super::{
     executor::DirectFetchExecutor,
     fault::{FetchExecutionError, RetainedFetchFault},
+    terminal_proposal::FetchTerminalProposal,
 };
+
+/// One bounded Fetch-poll result before deterministic core application.
+#[must_use = "a proposed Fetch terminal must be consumed exactly once"]
+pub(in crate::consumer) enum FetchTerminalPoll {
+    Idle,
+    Progressed,
+    Proposed(FetchTerminalProposal),
+}
 
 impl DirectFetchExecutor {
     pub(crate) fn poll(
@@ -15,6 +24,18 @@ impl DirectFetchExecutor {
         machine: &mut AssignedConsumerMachine,
         now: Moment,
     ) -> Result<Option<AssignedConsumerTransition>, FetchExecutionError> {
+        match self.poll_proposal(now)? {
+            FetchTerminalPoll::Idle | FetchTerminalPoll::Progressed => Ok(None),
+            FetchTerminalPoll::Proposed(proposal) => {
+                self.apply_terminal_proposal(machine, proposal)
+            }
+        }
+    }
+
+    pub(in crate::consumer) fn poll_proposal(
+        &mut self,
+        now: Moment,
+    ) -> Result<FetchTerminalPoll, FetchExecutionError> {
         if self.fault.is_some() {
             return Err(FetchExecutionError::Faulted);
         }
@@ -30,7 +51,7 @@ impl DirectFetchExecutor {
             }
         };
         match poll {
-            FetchPoll::Idle => Ok(None),
+            FetchPoll::Idle => Ok(FetchTerminalPoll::Idle),
             FetchPoll::StaleConfirmationReady { fence } => {
                 if self.active_index(fence).is_some() {
                     self.fault = Some(RetainedFetchFault::Staged);
@@ -46,7 +67,7 @@ impl DirectFetchExecutor {
                     return Err(FetchExecutionError::ConfirmStale(error));
                 }
                 self.abort_stale_broker_session(fence)?;
-                Ok(None)
+                Ok(FetchTerminalPoll::Progressed)
             }
             FetchPoll::TerminalReady { fence } => {
                 let Some(index) = self.active_index(fence) else {
@@ -65,8 +86,8 @@ impl DirectFetchExecutor {
                     }
                 };
                 let active = self.take_active(index);
-                let fact = self.normalize_terminal(terminal, active)?;
-                self.apply_terminal(machine, fact)
+                let proposal = self.normalize_terminal(terminal, active)?;
+                Ok(FetchTerminalPoll::Proposed(proposal))
             }
         }
     }

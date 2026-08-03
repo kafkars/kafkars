@@ -166,12 +166,14 @@ impl TrackedFetchCalls {
         session_id: i32,
         partition_index: Option<i32>,
         records: Option<Bytes>,
+        partition_error_code: i16,
     ) {
         let mut response = kafka_wire::FetchResponse::default();
         response.session_id = session_id;
         if let Some(partition_index) = partition_index {
             let mut partition = kafka_wire::fetch_response::PartitionData::default();
             partition.partition_index = partition_index;
+            partition.error_code = partition_error_code;
             partition.records = records;
             let mut topic = kafka_wire::fetch_response::FetchableTopicResponse::default();
             topic.topic = request.topic().into();

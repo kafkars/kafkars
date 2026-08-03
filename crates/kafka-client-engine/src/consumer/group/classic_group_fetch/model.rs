@@ -12,8 +12,8 @@ use crate::{
         assigned_owner_model::PendingPosition,
         assigned_timer_model::AssignedTimerError,
         fetch_execution::{
-            FetchAttemptDeadline, FetchExecutionError, FetchReclaimFailure, PrepareFetchError,
-            PreparedFetchExecution,
+            FetchAttemptDeadline, FetchExecutionError, FetchReclaimFailure,
+            PartitionOffsetOutOfRangeProposal, PrepareFetchError, PreparedFetchExecution,
         },
         position_execution::PositionExecutionError,
         position_prepare_error::PreparePositionError,
@@ -75,6 +75,15 @@ pub(in crate::consumer::group) enum ClassicGroupFetchTransitionFailure {
     RetirementControls,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(in crate::consumer::group) enum ClassicGroupFetchOffsetResetFailure {
+    Clock(ClockError),
+    EffectCapacity { actual: usize, limit: usize },
+    RawDeadlineCapacity { actual: usize, limit: usize },
+    PendingPositionCapacity { actual: usize, limit: usize },
+    Event(AssignedConsumerEventStoreError),
+}
+
 /// Stable observation of every retained group Fetch fault shape.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(in crate::consumer::group) enum ClassicGroupFetchOwnerFaultKind {
@@ -94,6 +103,7 @@ pub(in crate::consumer::group) enum ClassicGroupFetchOwnerFaultKind {
     DeliveryPartition,
     Reclaim,
     Reconciliation(super::reconciliation::ClassicGroupFetchReconciliationErrorKind),
+    OffsetReset(ClassicGroupFetchOffsetResetFailure),
 }
 
 /// Full linear owner retained after an invariant or execution failure.
@@ -155,6 +165,10 @@ pub(in crate::consumer::group) enum ClassicGroupFetchOwnerFault {
         transition: AssignedConsumerTransition,
         kind: super::reconciliation::ClassicGroupFetchReconciliationErrorKind,
     },
+    OffsetReset {
+        _proposal: PartitionOffsetOutOfRangeProposal,
+        failure: ClassicGroupFetchOffsetResetFailure,
+    },
 }
 
 impl ClassicGroupFetchOwnerFault {
@@ -183,6 +197,9 @@ impl ClassicGroupFetchOwnerFault {
             Self::Reclaim { .. } => ClassicGroupFetchOwnerFaultKind::Reclaim,
             Self::Reconciliation { kind, .. } => {
                 ClassicGroupFetchOwnerFaultKind::Reconciliation(*kind)
+            }
+            Self::OffsetReset { failure, .. } => {
+                ClassicGroupFetchOwnerFaultKind::OffsetReset(*failure)
             }
         }
     }

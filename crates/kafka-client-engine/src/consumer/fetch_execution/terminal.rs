@@ -17,6 +17,7 @@ use super::{
     executor::{ActiveFetchReservation, DirectFetchExecutor},
     fault::{FetchExecutionError, RetainedFetchFault},
     prepared::PreparedFetchExecution,
+    terminal_proposal::FetchTerminalProposal,
 };
 
 pub(super) struct FetchTerminalFact {
@@ -43,7 +44,7 @@ impl DirectFetchExecutor {
         &mut self,
         terminal: FetchTerminal,
         active: ActiveFetchReservation,
-    ) -> Result<FetchTerminalFact, FetchExecutionError> {
+    ) -> Result<FetchTerminalProposal, FetchExecutionError> {
         let (request, observed_at, selected_version, result) = terminal.into_parts();
         let (proof, output) = active.reservation.into_protocol_parts();
         match result {
@@ -115,7 +116,7 @@ impl DirectFetchExecutor {
         proof: super::super::fetch_store::FetchStageProof,
         output: crate::protocol::fetch::FetchOutputReservation,
         failure: FetchFailure,
-    ) -> Result<FetchTerminalFact, FetchExecutionError> {
+    ) -> Result<FetchTerminalProposal, FetchExecutionError> {
         let bytes = output.bytes();
         if let Err((error, (proof, output))) = self.store.rollback(proof, output) {
             self.fault = Some(RetainedFetchFault::PreparedRollback {
@@ -126,15 +127,18 @@ impl DirectFetchExecutor {
             return Err(FetchExecutionError::Store(error));
         }
         let fence = request.fence();
-        Ok(FetchTerminalFact {
-            request,
-            action: FetchTerminalAction::Apply(AssignedConsumerInput::FetchFailed {
-                fence,
-                failure,
-            }),
-            storage: TerminalStorage::Released,
-            session: FetchSessionUpdate::Reset,
-        })
+        Ok(FetchTerminalProposal::new(
+            FetchTerminalFact {
+                request,
+                action: FetchTerminalAction::Apply(AssignedConsumerInput::FetchFailed {
+                    fence,
+                    failure,
+                }),
+                storage: TerminalStorage::Released,
+                session: FetchSessionUpdate::Reset,
+            },
+            None,
+        ))
     }
 
     fn reestablish_terminal(
@@ -142,7 +146,7 @@ impl DirectFetchExecutor {
         request: PartitionFetchRequest,
         proof: super::super::fetch_store::FetchStageProof,
         output: crate::protocol::fetch::FetchOutputReservation,
-    ) -> Result<FetchTerminalFact, FetchExecutionError> {
+    ) -> Result<FetchTerminalProposal, FetchExecutionError> {
         let hard_output_bytes = output.bytes();
         if let Err((error, (proof, output))) = self.store.rollback(proof, output) {
             self.fault = Some(RetainedFetchFault::PreparedRollback {
@@ -152,12 +156,15 @@ impl DirectFetchExecutor {
             });
             return Err(FetchExecutionError::Store(error));
         }
-        Ok(FetchTerminalFact {
-            request,
-            action: FetchTerminalAction::Reestablish { hard_output_bytes },
-            storage: TerminalStorage::Released,
-            session: FetchSessionUpdate::Reset,
-        })
+        Ok(FetchTerminalProposal::new(
+            FetchTerminalFact {
+                request,
+                action: FetchTerminalAction::Reestablish { hard_output_bytes },
+                storage: TerminalStorage::Released,
+                session: FetchSessionUpdate::Reset,
+            },
+            None,
+        ))
     }
 }
 
@@ -176,40 +183,49 @@ fn staged_fact(
     kind: FetchStageKind,
     fence: FetchFence,
     session: FetchSessionUpdate,
-) -> FetchTerminalFact {
+) -> FetchTerminalProposal {
     match kind {
-        FetchStageKind::BrokerFailure(failure) => FetchTerminalFact {
-            request,
-            action: FetchTerminalAction::Apply(AssignedConsumerInput::FetchFailed {
-                fence,
-                failure: FetchFailure::Broker(failure.code()),
-            }),
-            storage: TerminalStorage::NonDelivery(fence),
-            session,
-        },
-        FetchStageKind::Empty(next_offset, throttle_ticks) => FetchTerminalFact {
-            request,
-            action: FetchTerminalAction::Apply(AssignedConsumerInput::FetchAdvanced {
-                fence,
-                records: FetchRecords::NoApplicationRecords,
-                next_offset,
-                now: observed_at,
-                throttle_ticks,
-            }),
-            storage: TerminalStorage::NonDelivery(fence),
-            session,
-        },
-        FetchStageKind::Deliverable(next_offset, throttle_ticks) => FetchTerminalFact {
-            request,
-            action: FetchTerminalAction::Apply(AssignedConsumerInput::FetchAdvanced {
-                fence,
-                records: FetchRecords::Deliverable,
-                next_offset,
-                now: observed_at,
-                throttle_ticks,
-            }),
-            storage: TerminalStorage::Deliverable(fence, next_offset),
-            session,
-        },
+        FetchStageKind::BrokerFailure(failure) => FetchTerminalProposal::new(
+            FetchTerminalFact {
+                request,
+                action: FetchTerminalAction::Apply(AssignedConsumerInput::FetchFailed {
+                    fence,
+                    failure: FetchFailure::Broker(failure.code()),
+                }),
+                storage: TerminalStorage::NonDelivery(fence),
+                session,
+            },
+            Some(failure),
+        ),
+        FetchStageKind::Empty(next_offset, throttle_ticks) => FetchTerminalProposal::new(
+            FetchTerminalFact {
+                request,
+                action: FetchTerminalAction::Apply(AssignedConsumerInput::FetchAdvanced {
+                    fence,
+                    records: FetchRecords::NoApplicationRecords,
+                    next_offset,
+                    now: observed_at,
+                    throttle_ticks,
+                }),
+                storage: TerminalStorage::NonDelivery(fence),
+                session,
+            },
+            None,
+        ),
+        FetchStageKind::Deliverable(next_offset, throttle_ticks) => FetchTerminalProposal::new(
+            FetchTerminalFact {
+                request,
+                action: FetchTerminalAction::Apply(AssignedConsumerInput::FetchAdvanced {
+                    fence,
+                    records: FetchRecords::Deliverable,
+                    next_offset,
+                    now: observed_at,
+                    throttle_ticks,
+                }),
+                storage: TerminalStorage::Deliverable(fence, next_offset),
+                session,
+            },
+            None,
+        ),
     }
 }

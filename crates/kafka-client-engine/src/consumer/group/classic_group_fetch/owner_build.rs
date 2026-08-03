@@ -2,7 +2,7 @@
 
 use std::{collections::VecDeque, time::Duration};
 
-use kafka_client_core::{AssignedConsumerMachine, ReadIsolation};
+use kafka_client_core::{AssignedConsumerMachine, GroupPositionMissingOffsetPolicy, ReadIsolation};
 
 use crate::{
     consumer::{
@@ -27,11 +27,21 @@ const FIRST_GROUP_FETCH_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(30);
 
 impl ClassicGroupFetchOwner {
     pub(in crate::consumer::group) fn try_new() -> Result<Self, ClassicGroupFetchBuildError> {
-        Self::try_new_with_read_isolation(ReadIsolation::ReadUncommitted)
+        Self::try_new_with_policies(
+            ReadIsolation::ReadUncommitted,
+            GroupPositionMissingOffsetPolicy::Error,
+        )
     }
 
     pub(in crate::consumer::group) fn try_new_with_read_isolation(
         read_isolation: ReadIsolation,
+    ) -> Result<Self, ClassicGroupFetchBuildError> {
+        Self::try_new_with_policies(read_isolation, GroupPositionMissingOffsetPolicy::Error)
+    }
+
+    pub(in crate::consumer::group) fn try_new_with_policies(
+        read_isolation: ReadIsolation,
+        missing_offset_policy: GroupPositionMissingOffsetPolicy,
     ) -> Result<Self, ClassicGroupFetchBuildError> {
         let mut effects = VecDeque::new();
         let mut raw_position_deadlines = VecDeque::new();
@@ -86,6 +96,7 @@ impl ClassicGroupFetchOwner {
             fetch_settings,
             fetch_decode_limits: FetchDecodeLimits::default(),
             fetch_attempt_timeout: FIRST_GROUP_FETCH_ATTEMPT_TIMEOUT,
+            missing_offset_policy,
             read_isolation,
             partition_capacity: FIRST_GROUP_FETCH_PARTITIONS,
             effect_capacity: FIRST_GROUP_FETCH_EFFECTS,
