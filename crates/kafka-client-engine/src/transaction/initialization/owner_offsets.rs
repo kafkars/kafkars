@@ -85,7 +85,7 @@ impl<'owner> TransactionToken<'owner> {
             self.epoch,
             TransactionOffsetCommitGroup::new(
                 metadata.group_arc(),
-                metadata.generation_id(),
+                metadata.generation_id_or_member_epoch(),
                 metadata.member_arc(),
                 metadata.group_instance_id_arc(),
                 metadata.position_fence(),

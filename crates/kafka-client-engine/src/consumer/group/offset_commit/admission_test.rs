@@ -4,6 +4,8 @@ use kafka_client_core::{
     GroupCheckpoint, GroupCheckpointEntry, GroupId, GroupOffsetCommitAdmissionErrorKind,
 };
 
+use crate::consumer::GroupConsumerProtocol;
+
 use super::{
     admission::GroupOffsetCommitAdmissionFailureKind,
     host::{GroupOffsetCommitHost, GroupOffsetCommitHostError},
@@ -18,7 +20,12 @@ fn admission_reserves_terminal_result_bytes_and_original_deadline() {
     let mut host = GroupOffsetCommitHost::start_group_offset_commit_host()
         .unwrap_or_else(|error| panic!("host start: {error}"));
     let admission = host
-        .try_admit(&catalog, expected_deadline, checkpoint)
+        .try_admit(
+            GroupConsumerProtocol::Classic,
+            &catalog,
+            expected_deadline,
+            checkpoint,
+        )
         .unwrap_or_else(|failure| panic!("admission failed: {:?}", failure.kind));
 
     assert!(admission.fault.is_none());
@@ -62,7 +69,12 @@ fn retained_host_fault_rejects_new_admission_with_the_exact_checkpoint() {
     host.fault = Some(GroupOffsetCommitHostError::Preparation);
 
     let failure = host
-        .try_admit(&catalog, deadline(40), checkpoint)
+        .try_admit(
+            GroupConsumerProtocol::Classic,
+            &catalog,
+            deadline(40),
+            checkpoint,
+        )
         .err()
         .unwrap_or_else(|| panic!("faulted host must reject"));
 
@@ -115,7 +127,12 @@ fn core_preflight_rejects_foreign_group_before_any_host_capacity_changes() {
         .unwrap_or_else(|error| panic!("host start: {error}"));
 
     let failure = host
-        .try_admit(&catalog, deadline(40), foreign_checkpoint)
+        .try_admit(
+            GroupConsumerProtocol::Classic,
+            &catalog,
+            deadline(40),
+            foreign_checkpoint,
+        )
         .err()
         .unwrap_or_else(|| panic!("foreign checkpoint must be rejected"));
 

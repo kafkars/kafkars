@@ -10,7 +10,9 @@ use super::{
         GroupOffsetCommitAdmissionFailureKind,
     },
     registry::GroupConsumerRegistry,
+    registry_entry::GroupConsumerEntry,
 };
+use crate::consumer::group_registration_request::GroupConsumerProtocol;
 
 /// Registry rejection retaining the exact caller checkpoint.
 #[must_use = "registry commit rejection retains the caller checkpoint"]
@@ -64,10 +66,29 @@ impl GroupConsumerRegistry {
                 checkpoint,
             ));
         }
+        if entry.catalog.live_assignment().is_some() && !session_matches_selected_protocol(entry) {
+            return Err(commit_failure(
+                GroupConsumerCommitFailureKind::EntryFault,
+                checkpoint,
+            ));
+        }
         let offset_commits = &mut self.offset_commits;
         offset_commits
-            .try_admit(&entry.catalog, deadline, checkpoint)
+            .try_admit(entry.protocol, &entry.catalog, deadline, checkpoint)
             .map_err(delegated_failure)
+    }
+}
+
+fn session_matches_selected_protocol(entry: &GroupConsumerEntry) -> bool {
+    match entry.protocol {
+        GroupConsumerProtocol::Classic => {
+            entry.catalog.classic_generation().is_some()
+                && entry.catalog.consumer_group_member_epoch().is_none()
+        }
+        GroupConsumerProtocol::Consumer => {
+            entry.catalog.classic_generation().is_none()
+                && entry.catalog.consumer_group_member_epoch().is_some()
+        }
     }
 }
 

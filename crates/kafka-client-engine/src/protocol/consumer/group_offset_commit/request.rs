@@ -14,7 +14,7 @@ pub(crate) fn group_offset_commit_request(
 ) -> OffsetCommitRequest {
     let mut request = OffsetCommitRequest::default();
     request.group_id = prepared.group().as_ref().into();
-    request.generation_id_or_member_epoch = prepared.classic_generation();
+    request.generation_id_or_member_epoch = prepared.generation_id_or_member_epoch();
     request.member_id = prepared.member().as_ref().into();
     request.retention_time_ms = -1;
     for entry in prepared.entries() {

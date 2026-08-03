@@ -2,11 +2,13 @@
 
 use std::sync::Arc;
 
+use kafka_client_core::ConsumerGroupMemberEpoch;
 use kafka_wire::OffsetCommitRequest;
 use kafka_wire_core::{ApiVersion, BytesMut, DecodeLimits, Decoder, KafkaDecode, KafkaEncode};
 
 use super::{
-    model_test::{entry, prepared, topic},
+    ClassicGroupCommitSession,
+    model_test::{entry, generation, group_id, inputs, member_id, prepare, prepared, topic},
     request::group_offset_commit_request,
 };
 
@@ -62,6 +64,36 @@ fn absent_leader_epoch_does_not_require_v6() {
     let request = group_offset_commit_request(&prepared);
     assert_eq!(request.topics[0].partitions[0].committed_leader_epoch, -1);
     assert_round_trip(&request, 2);
+}
+
+#[test]
+fn consumer_epoch_projects_to_the_shared_wire_field_and_requires_v9() {
+    let topics = vec![topic(1, Arc::from("orders"))];
+    let (effect, deadline, _classic_session, topics) = inputs(
+        vec![entry(1, 0, 10, None)],
+        4,
+        Arc::from("readers"),
+        Arc::from("member-a"),
+        topics,
+    );
+    let member_epoch = ConsumerGroupMemberEpoch::try_from_raw(3)
+        .unwrap_or_else(|| panic!("positive member epoch"));
+    let session = ClassicGroupCommitSession::new_consumer(
+        group_id(),
+        Arc::from("readers"),
+        member_id(),
+        Arc::from("member-a"),
+        generation(4),
+        member_epoch,
+    );
+    let prepared = prepare(effect, deadline, session, topics)
+        .unwrap_or_else(|error| panic!("consumer prepared commit: {:?}", error.kind()));
+
+    assert!(prepared.requires_consumer_group_version());
+    let request = group_offset_commit_request(&prepared);
+    assert_eq!(request.generation_id_or_member_epoch, member_epoch.get());
+    assert!(request.group_instance_id.is_none());
+    assert_round_trip(&request, 9);
 }
 
 fn assert_round_trip(request: &OffsetCommitRequest, version: i16) {

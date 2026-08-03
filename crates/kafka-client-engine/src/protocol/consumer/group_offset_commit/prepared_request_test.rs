@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use kafka_client_core::{
-    AssignmentGeneration, GroupCheckpoint, GroupCheckpointEntry, GroupId, MemberId, PartitionIndex,
-    TopicId,
+    AssignmentGeneration, ConsumerGroupMemberEpoch, GroupCheckpoint, GroupCheckpointEntry, GroupId,
+    MemberId, PartitionIndex, TopicId,
 };
 use kafka_wire::RetainedSize;
 
@@ -87,6 +87,40 @@ fn static_session_carries_instance_into_the_prebuilt_request() {
             .map(kafka_wire_core::StrBytes::as_str),
         Some("instance-a")
     );
+}
+
+#[test]
+fn consumer_session_carries_member_epoch_without_static_identity() {
+    let member_epoch = ConsumerGroupMemberEpoch::try_from_raw(4)
+        .unwrap_or_else(|| panic!("positive member epoch"));
+    let session = ClassicGroupCommitSession::new_consumer(
+        group_id(1),
+        Arc::from("group"),
+        member_id(2),
+        Arc::from("member"),
+        generation(3),
+        member_epoch,
+    );
+    let checkpoint = GroupCheckpoint::try_new(
+        group_id(1),
+        member_id(2),
+        generation(3),
+        vec![entry(1, 0, 11)],
+    )
+    .unwrap_or_else(|error| panic!("checkpoint: {error}"));
+    let prepared = PreparedGroupOffsetCommitRequest::try_new(
+        &session,
+        &checkpoint,
+        &[GroupOffsetCommitTopicName::new(
+            TopicId::from_raw(1),
+            Arc::from("orders"),
+        )],
+    )
+    .unwrap_or_else(|error| panic!("request preparation: {error:?}"));
+    let request = prepared.request_for_test();
+
+    assert_eq!(request.generation_id_or_member_epoch, member_epoch.get());
+    assert!(request.group_instance_id.is_none());
 }
 
 fn entry(topic: u64, partition: u32, next_offset: i64) -> GroupCheckpointEntry {

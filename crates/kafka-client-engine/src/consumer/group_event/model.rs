@@ -1,4 +1,4 @@
-//! Owned named facts observed from confirmed classic-group membership.
+//! Owned named facts observed from confirmed group membership.
 
 use std::sync::Arc;
 
@@ -56,14 +56,38 @@ impl GroupConsumerAssignment {
     }
 }
 
-/// Stable protocol identity for one confirmed classic-group membership.
+/// Broker-issued fencing epoch for one confirmed group membership.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GroupConsumerMembershipEpoch {
+    /// Generation assigned by the classic `JoinGroup` protocol.
+    Classic {
+        /// Nonnegative generation assigned by `JoinGroup`.
+        generation_id: i32,
+    },
+    /// Member epoch assigned by the KIP-848 consumer-group protocol.
+    Consumer {
+        /// Positive epoch assigned by `ConsumerGroupHeartbeat`.
+        member_epoch: i32,
+    },
+}
+
+impl GroupConsumerMembershipEpoch {
+    pub(crate) const fn generation_id_or_member_epoch(self) -> i32 {
+        match self {
+            Self::Classic { generation_id } => generation_id,
+            Self::Consumer { member_epoch } => member_epoch,
+        }
+    }
+}
+
+/// Stable protocol identity for one confirmed group membership.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroupConsumerMetadata {
     group: Arc<str>,
     group_instance_id: Option<Arc<str>>,
     member: Arc<str>,
     transaction_group_instance_id: Option<Arc<str>>,
-    generation_id: i32,
+    membership_epoch: GroupConsumerMembershipEpoch,
     assignment_epoch: u64,
     _position_fence: GroupPositionFence,
 }
@@ -74,7 +98,7 @@ impl GroupConsumerMetadata {
         group_instance_id: Option<Arc<str>>,
         member: Arc<str>,
         transaction_group_instance_id: Option<Arc<str>>,
-        generation_id: i32,
+        membership_epoch: GroupConsumerMembershipEpoch,
         assignment_epoch: u64,
         position_fence: GroupPositionFence,
     ) -> Self {
@@ -83,7 +107,7 @@ impl GroupConsumerMetadata {
             group_instance_id,
             member,
             transaction_group_instance_id,
-            generation_id,
+            membership_epoch,
             assignment_epoch,
             _position_fence: position_fence,
         }
@@ -99,14 +123,18 @@ impl GroupConsumerMetadata {
         self.group_instance_id.as_deref()
     }
 
-    /// Returns the broker-issued classic-group member identity.
+    /// Returns the broker-issued group member identity.
     pub fn member(&self) -> &str {
         &self.member
     }
 
-    /// Returns the broker-issued classic-group generation.
-    pub const fn generation_id(&self) -> i32 {
-        self.generation_id
+    /// Returns the protocol-specific broker fencing epoch.
+    pub const fn membership_epoch(&self) -> GroupConsumerMembershipEpoch {
+        self.membership_epoch
+    }
+
+    pub(crate) const fn generation_id_or_member_epoch(&self) -> i32 {
+        self.membership_epoch.generation_id_or_member_epoch()
     }
 
     /// Returns the local assignment fence current for this metadata.

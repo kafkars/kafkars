@@ -19,7 +19,7 @@ pub(crate) enum GroupOffsetCommitRequestPreparationError {
         topic_id: TopicId,
         partition: PartitionIndex,
     },
-    ClassicGenerationOutOfRange,
+    GroupEpochOutOfRange,
 }
 
 /// Linear generated request built and charged before deterministic admission.
@@ -89,10 +89,11 @@ impl PreparedGroupOffsetCommitRequest {
         }
         let mut request = OffsetCommitRequest::default();
         request.group_id = try_string(session.group.as_ref())?;
-        request.generation_id_or_member_epoch =
-            i32::try_from(session.classic_generation).map_err(|_error| {
-                GroupOffsetCommitRequestPreparationError::ClassicGenerationOutOfRange
-            })?;
+        request.generation_id_or_member_epoch = session
+            .epoch
+            .try_narrow()
+            .ok_or(GroupOffsetCommitRequestPreparationError::GroupEpochOutOfRange)?
+            .generation_id_or_member_epoch();
         request.member_id = try_string(session.member.as_ref())?;
         request.group_instance_id = session
             .group_instance_id

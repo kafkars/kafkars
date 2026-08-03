@@ -55,7 +55,9 @@ pub use group_close_error::ConsumerCloseAdmissionError;
 pub use group_commit::CommitConsumerCheckpoint;
 pub use group_commit_error::{ConsumerCommitAdmissionError, ConsumerCommitError};
 pub use group_control::ConsumerControl;
-pub use group_event::{ConsumerAssignment, ConsumerAssignmentPartition, GroupMetadata};
+pub use group_event::{
+    ConsumerAssignment, ConsumerAssignmentPartition, GroupMembershipEpoch, GroupMetadata,
+};
 pub use group_handle::Consumer;
 pub use group_next_event::NextConsumerEvent;
 pub use group_rebalance_event::{ConsumerEvent, ConsumerRevocation};

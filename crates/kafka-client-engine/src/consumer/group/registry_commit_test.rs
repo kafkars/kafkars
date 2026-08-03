@@ -6,12 +6,13 @@ use kafka_client_core::{
 };
 
 use super::{
-    offset_commit::GroupOffsetCommitAdmissionFailureKind,
+    offset_commit::{GroupOffsetCommitAdmissionFailureKind, test_support::admission_usage},
     registry_commit::GroupConsumerCommitFailureKind,
     registry_test_support::{
         checkpoint, deadline, install_session, register, started_registry, stop_registry,
     },
 };
+use crate::consumer::GroupConsumerProtocol;
 
 #[test]
 fn caller_group_selects_catalog_and_core_rejects_cross_group_checkpoint() {
@@ -51,6 +52,38 @@ fn unknown_group_rejection_retains_checkpoint_without_touching_host() {
         .unwrap_or_else(|| panic!("unknown group must be rejected"));
     assert_eq!(failure.kind, GroupConsumerCommitFailureKind::UnknownGroup);
     assert_eq!(failure.checkpoint.group_id(), group_id);
+    stop_registry(&mut registry);
+}
+
+#[test]
+fn selected_protocol_mismatch_rejects_before_host_capacity_changes() {
+    let mut registry = started_registry();
+    let group_id = register(&mut registry, "workers");
+    install_session(&mut registry, group_id);
+    let checkpoint = checkpoint(&registry, group_id);
+    let expected_entries = checkpoint.entries().as_ptr();
+    let before = admission_usage(&registry.offset_commits);
+    let entry = registry
+        .entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .unwrap_or_else(|| panic!("registered group"));
+    entry.protocol = GroupConsumerProtocol::Consumer;
+
+    let failure = registry
+        .try_commit(group_id, deadline(100), checkpoint)
+        .err()
+        .unwrap_or_else(|| panic!("protocol mismatch must be rejected"));
+
+    assert_eq!(failure.kind, GroupConsumerCommitFailureKind::EntryFault);
+    assert_eq!(failure.checkpoint.entries().as_ptr(), expected_entries);
+    assert_eq!(admission_usage(&registry.offset_commits), before);
+    registry
+        .entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .unwrap_or_else(|| panic!("registered group"))
+        .protocol = GroupConsumerProtocol::Classic;
     stop_registry(&mut registry);
 }
 

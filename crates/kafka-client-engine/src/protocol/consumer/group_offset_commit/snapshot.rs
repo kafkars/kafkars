@@ -97,9 +97,9 @@ impl PreparedGroupOffsetCommit {
                 result_reservation,
             ));
         }
-        let Ok(classic_generation) = i32::try_from(session.classic_generation) else {
+        let Some(epoch) = session.epoch.try_narrow() else {
             return Err(GroupOffsetCommitPreparationError::new(
-                GroupOffsetCommitPreparationErrorKind::ClassicGenerationOutOfRange,
+                GroupOffsetCommitPreparationErrorKind::GroupEpochOutOfRange,
                 effect,
                 operation_deadline,
                 session,
@@ -124,17 +124,15 @@ impl PreparedGroupOffsetCommit {
                 }
             };
         let requires_leader_epoch = entries.iter().any(|entry| entry.leader_epoch.is_some());
-        let requires_consumer_group_version = session.consumer_group_protocol;
         Ok(Self::new(
             operation_id,
             operation_deadline,
             session.group,
             session.member,
-            classic_generation,
+            epoch,
             entries,
             result_reservation.into_outcomes(),
             requires_leader_epoch,
-            requires_consumer_group_version,
         ))
     }
 }

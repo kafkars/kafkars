@@ -66,11 +66,12 @@ pub use super::group_control::{
 };
 pub use super::group_event::{
     GroupConsumerAssignment, GroupConsumerAssignmentPartition, GroupConsumerEvent,
-    GroupConsumerMetadata, GroupConsumerNextEvent, GroupConsumerNextEventError,
-    GroupConsumerNextEventErrorKind, GroupConsumerRevocationAcknowledgeError,
-    GroupConsumerRevocationAcknowledgeErrorKind, GroupConsumerRevocationControl,
-    GroupConsumerState, GroupConsumerStateError, GroupConsumerStateErrorKind,
-    GroupConsumerTryTakeEventError, GroupConsumerTryTakeEventErrorKind,
+    GroupConsumerMembershipEpoch, GroupConsumerMetadata, GroupConsumerNextEvent,
+    GroupConsumerNextEventError, GroupConsumerNextEventErrorKind,
+    GroupConsumerRevocationAcknowledgeError, GroupConsumerRevocationAcknowledgeErrorKind,
+    GroupConsumerRevocationControl, GroupConsumerState, GroupConsumerStateError,
+    GroupConsumerStateErrorKind, GroupConsumerTryTakeEventError,
+    GroupConsumerTryTakeEventErrorKind,
 };
 pub use super::group_recv::{
     GroupConsumerRecv, GroupConsumerRecvError, GroupConsumerRecvErrorKind,

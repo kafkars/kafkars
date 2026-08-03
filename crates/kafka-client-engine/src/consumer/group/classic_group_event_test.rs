@@ -6,6 +6,7 @@ use kafka_client_core::{ClassicGroupPhase, ClassicProcessingLeaseFence, Moment};
 
 use crate::consumer::{
     GroupConsumerAssignment, GroupConsumerAssignmentPartition, GroupConsumerEvent,
+    GroupConsumerMembershipEpoch,
 };
 
 use super::{
@@ -173,7 +174,10 @@ fn current_state_exists_only_after_sync_confirmation_and_survives_event_observat
     assert_eq!(state.assignment().partitions()[0].topic(), "orders");
     assert_eq!(state.metadata().group(), "workers");
     assert_eq!(state.metadata().member(), "member-1");
-    assert_eq!(state.metadata().generation_id(), 7);
+    assert_eq!(
+        state.metadata().membership_epoch(),
+        GroupConsumerMembershipEpoch::Classic { generation_id: 7 }
+    );
     assert_eq!(state.metadata().assignment_epoch(), 1);
     assert_eq!(state.metadata().group_instance_id(), None);
 

@@ -2,6 +2,8 @@
 
 use kafka_client_core::Moment;
 
+use crate::consumer::GroupConsumerProtocol;
+
 use super::{
     host::{GroupOffsetCommitHost, GroupOffsetCommitTurn},
     test_support::{catalog, checkpoint, deadline, driver},
@@ -13,7 +15,12 @@ fn observed_terminal_reclaims_the_exact_operation_charge() {
     let mut host = GroupOffsetCommitHost::start_group_offset_commit_host()
         .unwrap_or_else(|error| panic!("host start: {error}"));
     let admission = host
-        .try_admit(&catalog, deadline(5), checkpoint(&catalog))
+        .try_admit(
+            GroupConsumerProtocol::Classic,
+            &catalog,
+            deadline(5),
+            checkpoint(&catalog),
+        )
         .unwrap_or_else(|failure| panic!("admission failed: {:?}", failure.kind));
     let driver = driver();
     assert_eq!(

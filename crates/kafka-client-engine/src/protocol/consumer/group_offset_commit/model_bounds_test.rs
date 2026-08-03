@@ -89,7 +89,7 @@ fn classic_generation_and_exact_string_bounds_are_checked_at_preparation() {
                 prepare(effect, deadline, session, topics),
                 "classic generation bound",
             ),
-            GroupOffsetCommitPreparationErrorKind::ClassicGenerationOutOfRange,
+            GroupOffsetCommitPreparationErrorKind::GroupEpochOutOfRange,
         );
     }
     assert_spelling_failure(

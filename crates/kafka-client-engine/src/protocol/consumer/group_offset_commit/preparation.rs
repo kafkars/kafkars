@@ -21,7 +21,7 @@ pub(crate) enum GroupOffsetCommitPreparationErrorKind {
     GroupMismatch,
     MemberMismatch,
     GenerationMismatch,
-    ClassicGenerationOutOfRange,
+    GroupEpochOutOfRange,
     EmptyGroup,
     GroupTooLong {
         actual: usize,

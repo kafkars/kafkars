@@ -16,7 +16,7 @@ pub use error::{
 pub use immediate::GroupConsumerRevocationControl;
 pub use model::{
     GroupConsumerAssignment, GroupConsumerAssignmentPartition, GroupConsumerEvent,
-    GroupConsumerMetadata, GroupConsumerState,
+    GroupConsumerMembershipEpoch, GroupConsumerMetadata, GroupConsumerState,
 };
 pub use operation::GroupConsumerNextEvent;
 

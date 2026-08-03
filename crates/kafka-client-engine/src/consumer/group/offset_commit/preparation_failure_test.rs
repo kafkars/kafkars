@@ -5,9 +5,12 @@ use kafka_client_core::{
     GroupOffsetCommitTerminal, OperationId,
 };
 
-use crate::protocol::consumer::{
-    GroupOffsetCommitEntryReservation, GroupOffsetCommitResultReservation,
-    PreparedGroupOffsetCommit,
+use crate::{
+    consumer::GroupConsumerProtocol,
+    protocol::consumer::{
+        GroupOffsetCommitEntryReservation, GroupOffsetCommitResultReservation,
+        PreparedGroupOffsetCommit,
+    },
 };
 
 use super::{
@@ -23,8 +26,13 @@ fn execution_unavailable_is_definitely_unsent_and_terminal() {
     let catalog = catalog();
     let operation_id = OperationId::from_raw(7);
     let checkpoint = checkpoint(&catalog);
-    let snapshot = GroupOffsetCommitHost::snapshot(&catalog, &checkpoint, Vec::new())
-        .unwrap_or_else(|error| panic!("snapshot: {error}"));
+    let snapshot = GroupOffsetCommitHost::snapshot(
+        GroupConsumerProtocol::Classic,
+        &catalog,
+        &checkpoint,
+        Vec::new(),
+    )
+    .unwrap_or_else(|error| panic!("snapshot: {error}"));
     let operation_deadline = deadline(40);
     let admission = GroupOffsetCommitMachine::try_admit(
         operation_id,

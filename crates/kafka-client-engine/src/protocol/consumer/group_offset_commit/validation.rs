@@ -115,11 +115,8 @@ fn validate_session(
             },
         )?;
     }
-    let Ok(classic_generation) = i32::try_from(session.classic_generation) else {
-        return Err(GroupOffsetCommitPreparationErrorKind::ClassicGenerationOutOfRange);
-    };
-    if classic_generation < 0 {
-        return Err(GroupOffsetCommitPreparationErrorKind::ClassicGenerationOutOfRange);
+    if session.epoch.try_narrow().is_none() {
+        return Err(GroupOffsetCommitPreparationErrorKind::GroupEpochOutOfRange);
     }
     Ok(())
 }

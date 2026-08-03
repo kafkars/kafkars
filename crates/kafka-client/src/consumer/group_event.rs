@@ -1,6 +1,8 @@
 //! Stable Rust vocabulary for current classic-group assignment state.
 
-use crate::bridge::consumer_facade::group_consumer_metadata::GroupConsumerMetadata as BridgeMetadata;
+use crate::bridge::consumer_facade::group_consumer_metadata::{
+    GroupConsumerMembershipEpoch as BridgeMembershipEpoch, GroupConsumerMetadata as BridgeMetadata,
+};
 
 /// One named topic-partition in a confirmed assignment.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -32,7 +34,49 @@ pub struct ConsumerAssignment {
     partitions: Box<[ConsumerAssignmentPartition]>,
 }
 
-/// Stable identity of one current, Sync-confirmed classic-group membership.
+/// Broker-issued fencing epoch for one current group membership.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GroupMembershipEpoch {
+    /// Generation assigned by the classic `JoinGroup` protocol.
+    Classic {
+        /// Nonnegative generation assigned by `JoinGroup`.
+        generation_id: i32,
+    },
+    /// Member epoch assigned by the KIP-848 consumer-group protocol.
+    Consumer {
+        /// Positive epoch assigned by `ConsumerGroupHeartbeat`.
+        member_epoch: i32,
+    },
+}
+
+impl From<BridgeMembershipEpoch> for GroupMembershipEpoch {
+    fn from(epoch: BridgeMembershipEpoch) -> Self {
+        match epoch {
+            BridgeMembershipEpoch::Classic { generation_id } => Self::Classic { generation_id },
+            BridgeMembershipEpoch::Consumer { member_epoch } => Self::Consumer { member_epoch },
+        }
+    }
+}
+
+impl GroupMembershipEpoch {
+    /// Returns the classic generation, or `None` for KIP-848 membership.
+    pub const fn classic_generation_id(self) -> Option<i32> {
+        match self {
+            Self::Classic { generation_id } => Some(generation_id),
+            Self::Consumer { .. } => None,
+        }
+    }
+
+    /// Returns the KIP-848 member epoch, or `None` for classic membership.
+    pub const fn consumer_member_epoch(self) -> Option<i32> {
+        match self {
+            Self::Classic { .. } => None,
+            Self::Consumer { member_epoch } => Some(member_epoch),
+        }
+    }
+}
+
+/// Stable identity of one current, confirmed group membership.
 ///
 /// This value is suitable for fencing a future transactional offset transfer
 /// against the same assignment generation. It is unavailable while joining or
@@ -41,7 +85,7 @@ pub struct ConsumerAssignment {
 pub struct GroupMetadata {
     group_id: String,
     member_id: String,
-    generation_id: i32,
+    membership_epoch: GroupMembershipEpoch,
     assignment_epoch: u64,
     group_instance_id: Option<String>,
     transaction_metadata: Option<BridgeMetadata>,
@@ -52,14 +96,14 @@ impl GroupMetadata {
     pub(crate) const fn from_parts(
         group_id: String,
         member_id: String,
-        generation_id: i32,
+        membership_epoch: GroupMembershipEpoch,
         assignment_epoch: u64,
         group_instance_id: Option<String>,
     ) -> Self {
         Self {
             group_id,
             member_id,
-            generation_id,
+            membership_epoch,
             assignment_epoch,
             group_instance_id,
             transaction_metadata: None,
@@ -70,7 +114,7 @@ impl GroupMetadata {
         Self {
             group_id: inner.group().to_owned(),
             member_id: inner.member().to_owned(),
-            generation_id: inner.generation_id(),
+            membership_epoch: inner.membership_epoch().into(),
             assignment_epoch: inner.assignment_epoch(),
             group_instance_id: inner.group_instance_id().map(str::to_owned),
             transaction_metadata: Some(inner),
@@ -86,14 +130,14 @@ impl GroupMetadata {
         &self.group_id
     }
 
-    /// Returns the broker-issued classic member identity.
+    /// Returns the broker-issued group member identity.
     pub fn member_id(&self) -> &str {
         &self.member_id
     }
 
-    /// Returns the broker-issued classic generation.
-    pub const fn generation_id(&self) -> i32 {
-        self.generation_id
+    /// Returns the protocol-specific broker fencing epoch.
+    pub const fn membership_epoch(&self) -> GroupMembershipEpoch {
+        self.membership_epoch
     }
 
     /// Returns the nonreused local assignment fence current with this metadata.

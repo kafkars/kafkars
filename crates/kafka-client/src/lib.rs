@@ -134,7 +134,7 @@ pub use consumer::{
     ConsumerBuilder, ConsumerCloseAdmissionError, ConsumerCommitAdmissionError,
     ConsumerCommitError, ConsumerControl, ConsumerEvent, ConsumerGroupProtocol, ConsumerHeader,
     ConsumerRecord, ConsumerRecords, ConsumerRevocation, GroupConsumerHeader, GroupConsumerRecord,
-    GroupConsumerRecords, GroupMetadata, NextAssignedEvent, NextConsumerEvent, OffsetReset,
+    GroupMembershipEpoch, GroupMetadata, NextAssignedEvent, NextConsumerEvent, OffsetReset,
     ReadIsolation, RecordBatch, RecvAssignedBatch, RecvConsumerBatch, Seek, StartPosition,
     TopicPartition,
 };

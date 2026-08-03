@@ -4,6 +4,8 @@ use kafka_client_core::{
     DeliveryStatus, GroupOffsetCommitFailureKind, GroupOffsetCommitTerminal, Moment,
 };
 
+use crate::consumer::GroupConsumerProtocol;
+
 use super::{
     host::{GroupOffsetCommitHost, GroupOffsetCommitTurn},
     test_support::{catalog, checkpoint, deadline, driver},
@@ -16,7 +18,12 @@ fn deadline_before_driver_is_not_sent_and_publishes_once() {
     let mut host = GroupOffsetCommitHost::start_group_offset_commit_host()
         .unwrap_or_else(|error| panic!("host start: {error}"));
     let admission = host
-        .try_admit(&catalog, deadline(5), checkpoint)
+        .try_admit(
+            GroupConsumerProtocol::Classic,
+            &catalog,
+            deadline(5),
+            checkpoint,
+        )
         .unwrap_or_else(|failure| panic!("admission failed: {:?}", failure.kind));
     assert_eq!(host.next_deadline(), Some(deadline(5).core()));
     let driver = driver();

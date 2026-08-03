@@ -5,8 +5,8 @@ use std::sync::Arc;
 use kafka_client_core::GroupId;
 
 use crate::consumer::{
-    GroupConsumerAssignment, GroupConsumerAssignmentPartition, GroupConsumerMetadata,
-    GroupConsumerState, group_registration_request::GroupConsumerProtocol,
+    GroupConsumerAssignment, GroupConsumerAssignmentPartition, GroupConsumerMembershipEpoch,
+    GroupConsumerMetadata, GroupConsumerState, group_registration_request::GroupConsumerProtocol,
 };
 
 use super::{
@@ -75,15 +75,20 @@ impl GroupConsumerRegistry {
         let Some(current_member) = entry.catalog.current_member() else {
             return Err(GroupConsumerStateSnapshotError::EntryFault);
         };
-        let Some(generation_id_or_member_epoch) =
-            entry.catalog.classic_generation().or_else(|| {
-                entry
+        let membership_epoch = match entry.protocol {
+            GroupConsumerProtocol::Classic => GroupConsumerMembershipEpoch::Classic {
+                generation_id: entry
+                    .catalog
+                    .classic_generation()
+                    .ok_or(GroupConsumerStateSnapshotError::EntryFault)?,
+            },
+            GroupConsumerProtocol::Consumer => GroupConsumerMembershipEpoch::Consumer {
+                member_epoch: entry
                     .catalog
                     .consumer_group_member_epoch()
-                    .map(kafka_client_core::ConsumerGroupMemberEpoch::get)
-            })
-        else {
-            return Err(GroupConsumerStateSnapshotError::EntryFault);
+                    .ok_or(GroupConsumerStateSnapshotError::EntryFault)?
+                    .get(),
+            },
         };
         if !entry.execution.is_idle() {
             return Ok(None);
@@ -132,7 +137,7 @@ impl GroupConsumerRegistry {
                     GroupConsumerProtocol::Classic => entry.catalog.group_instance_id().cloned(),
                     GroupConsumerProtocol::Consumer => None,
                 },
-                generation_id_or_member_epoch,
+                membership_epoch,
                 epoch,
                 position_fence,
             ),

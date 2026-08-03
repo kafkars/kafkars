@@ -7,6 +7,7 @@ use kafka_client_core::{
 use crate::{
     clock::OperationDeadline,
     completion::{CompletionId, CompletionObserver, CompletionRegistryError},
+    consumer::group_registration_request::GroupConsumerProtocol,
     protocol::consumer::{GroupOffsetCommitEntryReservation, GroupOffsetCommitResultReservation},
 };
 
@@ -49,6 +50,7 @@ struct ReservedAdmission {
 impl GroupOffsetCommitHost {
     pub(in crate::consumer::group) fn try_admit(
         &mut self,
+        protocol: GroupConsumerProtocol,
         catalog: &GroupSessionCatalog,
         deadline: OperationDeadline,
         checkpoint: GroupCheckpoint,
@@ -79,7 +81,7 @@ impl GroupOffsetCommitHost {
                 checkpoint,
             ));
         }
-        let reserved = self.reserve_before_core(catalog, checkpoint)?;
+        let reserved = self.reserve_before_core(protocol, catalog, checkpoint)?;
         let admission = match GroupOffsetCommitMachine::try_admit(
             operation_id,
             deadline.core(),
@@ -116,6 +118,7 @@ impl GroupOffsetCommitHost {
 
     fn reserve_before_core(
         &mut self,
+        protocol: GroupConsumerProtocol,
         catalog: &GroupSessionCatalog,
         checkpoint: GroupCheckpoint,
     ) -> Result<ReservedAdmission, GroupOffsetCommitAdmissionFailure> {
@@ -172,7 +175,7 @@ impl GroupOffsetCommitHost {
                 GroupOffsetCommitAdmissionFailureKind::SnapshotCapacity,
             ));
         }
-        let snapshot = match Self::snapshot(catalog, &checkpoint, topic_names) {
+        let snapshot = match Self::snapshot(protocol, catalog, &checkpoint, topic_names) {
             Ok(snapshot) => snapshot,
             Err(_error) => {
                 return Err(self.rollback_admission(

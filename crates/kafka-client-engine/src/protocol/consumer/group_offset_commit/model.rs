@@ -6,6 +6,8 @@ use kafka_client_core::{GroupOffsetCommitPartitionOutcome, OperationId, Partitio
 
 use crate::clock::OperationDeadline;
 
+use super::session::GroupOffsetCommitEpoch;
+
 /// One request-order checkpoint entry retaining exact topic spelling.
 #[derive(Debug)]
 pub(super) struct PreparedGroupOffsetCommitEntry {
@@ -51,11 +53,10 @@ pub(crate) struct PreparedGroupOffsetCommit {
     operation_deadline: OperationDeadline,
     group: Arc<str>,
     member: Arc<str>,
-    classic_generation: i32,
+    epoch: GroupOffsetCommitEpoch<i32>,
     entries: Vec<PreparedGroupOffsetCommitEntry>,
     outcomes: Vec<GroupOffsetCommitPartitionOutcome>,
     requires_leader_epoch: bool,
-    requires_consumer_group_version: bool,
 }
 
 impl PreparedGroupOffsetCommit {
@@ -68,22 +69,20 @@ impl PreparedGroupOffsetCommit {
         operation_deadline: OperationDeadline,
         group: Arc<str>,
         member: Arc<str>,
-        classic_generation: i32,
+        epoch: GroupOffsetCommitEpoch<i32>,
         entries: Vec<PreparedGroupOffsetCommitEntry>,
         outcomes: Vec<GroupOffsetCommitPartitionOutcome>,
         requires_leader_epoch: bool,
-        requires_consumer_group_version: bool,
     ) -> Self {
         Self {
             operation_id,
             operation_deadline,
             group,
             member,
-            classic_generation,
+            epoch,
             entries,
             outcomes,
             requires_leader_epoch,
-            requires_consumer_group_version,
         }
     }
 
@@ -103,8 +102,8 @@ impl PreparedGroupOffsetCommit {
         &self.member
     }
 
-    pub(super) const fn classic_generation(&self) -> i32 {
-        self.classic_generation
+    pub(super) const fn generation_id_or_member_epoch(&self) -> i32 {
+        self.epoch.generation_id_or_member_epoch()
     }
 
     pub(super) fn entries(&self) -> &[PreparedGroupOffsetCommitEntry] {
@@ -169,6 +168,6 @@ impl PreparedGroupOffsetCommit {
     }
 
     pub(crate) const fn requires_consumer_group_version(&self) -> bool {
-        self.requires_consumer_group_version
+        self.epoch.requires_consumer_group_version()
     }
 }

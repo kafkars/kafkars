@@ -4,6 +4,8 @@ use kafka_client_core::{
     AssignmentGeneration, GroupCheckpoint, GroupOffsetCommitAdmissionErrorKind,
 };
 
+use crate::consumer::GroupConsumerProtocol;
+
 use super::{
     host::GroupOffsetCommitHost,
     test_support::{catalog, checkpoint, deadline},
@@ -25,7 +27,12 @@ fn stale_checkpoint_rejection_rolls_back_completion_and_bytes() {
     let mut host = GroupOffsetCommitHost::start_group_offset_commit_host()
         .unwrap_or_else(|error| panic!("host start: {error}"));
     let failure = host
-        .try_admit(&catalog, deadline(40), stale)
+        .try_admit(
+            GroupConsumerProtocol::Classic,
+            &catalog,
+            deadline(40),
+            stale,
+        )
         .err()
         .unwrap_or_else(|| panic!("stale checkpoint must fail"));
 
