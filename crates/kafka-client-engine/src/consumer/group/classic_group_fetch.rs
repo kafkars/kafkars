@@ -18,6 +18,7 @@ mod retirement;
 mod seek;
 mod seek_terminal;
 mod session_close;
+mod terminal_observation;
 mod timer_input;
 mod turn;
 mod turn_model;
@@ -57,6 +58,8 @@ mod seek_terminal_test;
 #[cfg(test)]
 mod seek_test;
 #[cfg(test)]
+mod terminal_observation_test;
+#[cfg(test)]
 mod test_support;
 #[cfg(test)]
 mod turn_model_test;
@@ -81,8 +84,8 @@ pub(super) use model::{
 };
 pub(super) use owner::ClassicGroupFetchOwner;
 pub(super) use position_transfer::{
-    ClassicGroupFetchCurrentFenceError, ClassicGroupFetchTransferError,
-    ClassicGroupFetchTransferTurn, current_consumer_group_position_fence, current_position_fence,
+    ClassicGroupFetchTransferError, ClassicGroupFetchTransferTurn,
+    current_consumer_group_position_fence, current_position_fence,
     transfer_completed_consumer_group_position, transfer_completed_position,
 };
 pub(super) use reconciliation::{
@@ -93,5 +96,5 @@ pub(super) use retirement::{ClassicGroupFetchRetirement, ClassicGroupFetchRetire
 pub(super) use seek::{ClassicGroupFetchSeekError, ClassicGroupFetchSeekObservation};
 #[cfg(test)]
 pub(in crate::consumer::group) use test_support::{
-    completed_ready, install_ready_delivery_for_test,
+    install_ready_delivery_for_test, install_retained_fetch_failure_for_test,
 };

@@ -75,6 +75,10 @@ impl<'consumer> GroupConsumerRecv<'consumer> {
                     self.finish();
                     Err(GroupConsumerRecvError::position(kind))
                 }
+                GroupConsumerTryTakeBatchErrorKind::Fetch(kind) => {
+                    self.finish();
+                    Err(GroupConsumerRecvError::fetch(kind))
+                }
                 GroupConsumerTryTakeBatchErrorKind::InternalInvariant => {
                     self.finish();
                     Err(GroupConsumerRecvError::internal_invariant())

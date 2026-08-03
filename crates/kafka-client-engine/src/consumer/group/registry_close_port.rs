@@ -100,7 +100,7 @@ impl GroupConsumerPort {
             Some(entry)
                 if entry.state == GroupConsumerEntryState::Closing
                     && entry.fault.as_ref().is_some_and(|fault| {
-                        !matches!(fault, ClassicGroupEntryFault::PositionFailure(_))
+                        !ClassicGroupEntryFault::allows_explicit_close_progress(fault)
                     }) =>
             {
                 GroupConsumerCloseObservation::Faulted

@@ -46,6 +46,7 @@ impl GroupSessionCatalog {
         classic_generation: ClassicGeneration,
     ) {
         debug_assert!(self.consumer_current.is_none());
+        let installed_cycle = candidate.cycle();
         let (staged_topics, next_member_id, next_topic_id, retained_topic_name_bytes, member) =
             candidate.into_catalog_install();
         for (name, topic_id) in staged_topics {
@@ -59,6 +60,7 @@ impl GroupSessionCatalog {
         self.current = Some(CurrentGroupSession {
             member_id: assignment.member_id(),
             member,
+            installed_cycle,
             classic_generation: classic_generation.get(),
             assignment,
         });

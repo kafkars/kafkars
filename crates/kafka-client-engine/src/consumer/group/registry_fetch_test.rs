@@ -1,9 +1,6 @@
 //! Registry-host transfer, bounded-turn, deadline, and ownership accounting scenarios.
 
-use kafka_client_core::{
-    GroupId, GroupPositionBatch, GroupPositionFence, GroupPositionPartitionFact, Moment,
-    NextFetchOffset,
-};
+use kafka_client_core::GroupId;
 
 use crate::{
     clock::MonotonicClock,
@@ -12,13 +9,41 @@ use crate::{
 };
 
 use super::{
-    classic_group_position::{ClassicGroupPositionExecutionState, test_support::completed_ready},
+    classic_group_position::ClassicGroupPositionExecutionState,
     registry::GroupConsumerRegistry,
     registry_fetch::GroupConsumerFetchTurn,
-    registry_test_support::{install_session, register, started_registry},
+    registry_test_support::{
+        install_completed_position, install_session, register, started_registry, stop_registry,
+    },
 };
 
 const FETCH_ATTEMPT_TICKS: u64 = 30_000_000_000;
+
+#[test]
+fn closing_entry_does_not_activate_a_completed_position() {
+    let mut registry = started_registry();
+    let group_id = register(&mut registry, "group-closing");
+    install_session(&mut registry, group_id);
+    install_completed_position(&mut registry, group_id, 11);
+    registry
+        .close_group(group_id)
+        .unwrap_or_else(|error| panic!("close group: {error:?}"));
+    let clock = MonotonicClock::new();
+    let driver = driver();
+
+    assert_eq!(
+        registry.turn_fetch(&clock, &driver),
+        Ok(GroupConsumerFetchTurn::Idle)
+    );
+    let entry = registered_entry(&registry, group_id);
+    assert!(entry.fetch.activation().is_none());
+    assert!(matches!(
+        entry.position.state(),
+        ClassicGroupPositionExecutionState::Complete(_)
+    ));
+
+    stop_registry(&mut registry);
+}
 
 #[test]
 fn confirmed_position_transfers_once_before_one_bounded_fetch_action() {
@@ -101,52 +126,6 @@ fn registry_aggregates_fetch_deadline_and_unsettled_ownership() {
     assert_eq!(registry.fetch_unsettled(), 3);
 
     stop_after_fetch_recovery(&mut registry, &mut driver, group_id);
-}
-
-fn install_completed_position(
-    registry: &mut GroupConsumerRegistry,
-    group_id: GroupId,
-    next_offset: i64,
-) {
-    let entry = registry
-        .entries
-        .iter_mut()
-        .find(|entry| entry.group_id() == group_id)
-        .unwrap_or_else(|| panic!("registered group expected"));
-    let assignment = entry
-        .catalog
-        .live_assignment()
-        .unwrap_or_else(|| panic!("live assignment expected"));
-    let partition = assignment
-        .partitions()
-        .first()
-        .copied()
-        .unwrap_or_else(|| panic!("assigned partition expected"));
-    let fence = GroupPositionFence::new(
-        assignment.group_id(),
-        entry
-            .classic
-            .machine()
-            .active_cycle()
-            .unwrap_or_else(|| panic!("active membership cycle expected")),
-        assignment.member_id(),
-        assignment.assignment_generation(),
-    );
-    let completed = completed_ready(
-        fence,
-        Moment::from_tick(41),
-        GroupPositionBatch::new(
-            0,
-            vec![GroupPositionPartitionFact::committed(
-                partition,
-                NextFetchOffset::try_from_raw(next_offset)
-                    .unwrap_or_else(|| panic!("next Fetch offset")),
-            )],
-        ),
-    );
-    entry
-        .position
-        .set(ClassicGroupPositionExecutionState::Complete(completed));
 }
 
 fn registered_entry(

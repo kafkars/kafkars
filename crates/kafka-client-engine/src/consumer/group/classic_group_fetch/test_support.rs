@@ -112,3 +112,38 @@ pub(in crate::consumer::group) fn install_ready_delivery_for_test(
         );
     }
 }
+
+pub(in crate::consumer::group) fn install_retained_fetch_failure_for_test(
+    owner: &mut ClassicGroupFetchOwner,
+    catalog: &GroupSessionCatalog,
+    failure: kafka_client_core::FetchFailure,
+) {
+    let fetch_fence = match owner.effects.front().copied() {
+        Some(kafka_client_core::AssignedConsumerEffect::FetchReady { fence, .. }) => fence,
+        effect => panic!("initial FetchReady, got {effect:?}"),
+    };
+    assert_eq!(
+        owner.interpret_front_effect(catalog, &MonotonicClock::new()),
+        ClassicGroupFetchFront::Interpreted
+    );
+    drop(
+        owner
+            .pending_fetches
+            .pop_front()
+            .unwrap_or_else(|| panic!("prepared Fetch call")),
+    );
+    let transition = owner
+        .machine
+        .apply(kafka_client_core::AssignedConsumerInput::FetchFailed {
+            fence: fetch_fence,
+            failure,
+        })
+        .unwrap_or_else(|error| panic!("Fetch failure transition: {error}"));
+    owner.effects.extend(transition.into_effects());
+    assert_eq!(
+        owner.interpret_front_effect(catalog, &MonotonicClock::new()),
+        ClassicGroupFetchFront::Interpreted
+    );
+    assert!(owner.effects.is_empty());
+    assert_eq!(owner.events.retained(), (0, 1));
+}

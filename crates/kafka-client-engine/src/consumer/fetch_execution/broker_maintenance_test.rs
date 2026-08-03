@@ -45,7 +45,8 @@ fn forgotten_only_work_uses_one_bounded_call_and_recovers_after_shutdown() {
         .unwrap_or_else(|error| panic!("drive maintenance: {error:?}"));
     assert!(transition.is_none());
     assert!(progressed);
-    assert_eq!(executor.retained(), (1, 0, 0));
+    assert_eq!(executor.retained(), (0, 0, 0));
+    assert!(!executor.broker_sessions_have_forgotten_ready());
     assert_eq!(executor.broker_session_maintenance_deadline(), None);
 
     shutdown(&mut driver);
@@ -131,7 +132,8 @@ fn assignment_replacement_defers_forgotten_maintenance_until_new_work_is_ready()
         )
         .unwrap_or_else(|error| panic!("resume forgotten maintenance: {error:?}"));
     assert_eq!(resumed, (None, true));
-    assert_eq!(executor.retained(), (1, 0, 0));
+    assert_eq!(executor.retained(), (0, 0, 0));
+    assert!(!executor.broker_sessions_have_forgotten_ready());
     shutdown(&mut driver);
 }
 

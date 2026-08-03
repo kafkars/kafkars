@@ -145,6 +145,11 @@ pub(super) enum ClassicGroupEntryFault {
 }
 
 impl ClassicGroupEntryFault {
+    /// Whether explicit close may drain this semantic terminal normally.
+    pub(super) const fn allows_explicit_close_progress(&self) -> bool {
+        matches!(self, Self::PositionFailure(_))
+    }
+
     pub(super) fn retained_owner_count(&self) -> usize {
         match self {
             Self::JoinAcceptance(owner) => retained_one(owner),

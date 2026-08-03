@@ -8,10 +8,7 @@ use crate::{EngineConfig, clock::MonotonicClock, driver::DriverOwner};
 
 use super::{
     classic_group_graceful_revocation::ClassicGroupRevocationTurn,
-    classic_group_leave::{
-        GroupConsumerCloseCompletion, GroupConsumerCloseCompletionObservation,
-        GroupConsumerCloseTerminal,
-    },
+    classic_group_leave::{GroupConsumerCloseCompletionObservation, GroupConsumerCloseTerminal},
     registry::GroupConsumerRegistry,
     registry_entry::default_classic_processing_lease_policy,
     registry_fetch::GroupConsumerFetchTurn,
@@ -25,13 +22,16 @@ use super::{
 fn accepted_close_publishes_success_only_after_physical_removal() {
     let mut registry = started_registry();
     let group_id = register(&mut registry, "workers");
-    let completion = Arc::new(GroupConsumerCloseCompletion::pending());
+    let authority = registry
+        .entry(group_id)
+        .unwrap_or_else(|| panic!("registered group"))
+        .close_authority();
 
-    registry
+    let completion = registry
         .close_group_explicit(
             group_id,
             super::registry_test_support::deadline(100),
-            Arc::clone(&completion),
+            &authority,
         )
         .unwrap_or_else(|error| panic!("explicit close admission: {error:?}"));
     assert_eq!(

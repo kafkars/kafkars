@@ -21,6 +21,7 @@ pub(super) const MAX_KAFKA_GROUP_STRING_BYTES: usize = i16::MAX as usize;
 pub(super) struct CurrentGroupSession {
     pub(super) member_id: MemberId,
     pub(super) member: Arc<str>,
+    pub(super) installed_cycle: MembershipCycle,
     pub(super) classic_generation: i32,
     pub(super) assignment: LiveGroupAssignment,
 }
@@ -170,9 +171,14 @@ impl GroupSessionCatalog {
     }
 
     pub(super) fn membership_cycle(&self) -> Option<MembershipCycle> {
-        self.consumer_current
+        self.current
             .as_ref()
-            .map(ConsumerGroupSession::installed_cycle)
+            .map(|current| current.installed_cycle)
+            .or_else(|| {
+                self.consumer_current
+                    .as_ref()
+                    .map(ConsumerGroupSession::installed_cycle)
+            })
     }
 
     pub(super) fn live_assignment(&self) -> Option<&LiveGroupAssignment> {

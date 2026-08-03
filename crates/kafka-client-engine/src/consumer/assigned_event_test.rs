@@ -3,14 +3,14 @@
 use std::{num::NonZeroI16, sync::Arc};
 
 use kafka_client_core::{
-    AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachine, AssignedPartition,
-    AssignedTopicPartition, Deadline, FetchFailure, FetchThrottleFailure, Moment, NextFetchOffset,
-    PartitionIndex, PositionResolutionFailure, StartPosition, TopicId,
+    AssignedConsumerEffect, AssignedConsumerMachine, FetchFailure, FetchThrottleFailure,
+    PositionResolutionFailure, StartPosition,
 };
 
-use super::assigned_event::{
-    AssignedConsumerEvent, AssignedConsumerEventStore, AssignedConsumerEventStoreError,
+use super::assigned_event::test_support::{
+    assign, assign_reserved, entry, event_store, offset, partition, retain,
 };
+use super::assigned_event::{AssignedConsumerEvent, AssignedConsumerEventStoreError};
 
 #[test]
 fn terminal_effects_transfer_exact_claims_into_fifo_events() {
@@ -241,58 +241,4 @@ fn post_driver_recovery_counts_and_releases_all_event_ownership() {
     let recovery = store.recover_after_driver_shutdown();
     assert_eq!((recovery.claimed(), recovery.ready()), (1, 1));
     assert_eq!(store.retained(), (0, 0));
-}
-
-fn assign_reserved(
-    store: &mut AssignedConsumerEventStore,
-    machine: &mut AssignedConsumerMachine,
-    partitions: Vec<AssignedPartition>,
-) -> kafka_client_core::AssignedConsumerTransition {
-    let prepared = store
-        .prepare_replacement(partitions.len())
-        .unwrap_or_else(|error| panic!("reserve replacement: {error:?}"));
-    let transition = assign(machine, partitions);
-    prepared
-        .commit_event_claims(transition.effects())
-        .unwrap_or_else(|error| panic!("commit replacement: {error:?}"));
-    transition
-}
-
-fn assign(
-    machine: &mut AssignedConsumerMachine,
-    partitions: Vec<AssignedPartition>,
-) -> kafka_client_core::AssignedConsumerTransition {
-    machine
-        .apply(AssignedConsumerInput::Assign {
-            partitions,
-            now: Moment::from_tick(0),
-            resolution_deadline: Deadline::from_tick(100),
-        })
-        .unwrap_or_else(|error| panic!("assign: {error}"))
-}
-
-fn entry(topic: u64, partition: u32, start: StartPosition) -> AssignedPartition {
-    AssignedPartition::new(self::partition(topic, partition), start)
-}
-
-fn partition(topic: u64, partition: u32) -> AssignedTopicPartition {
-    AssignedTopicPartition::new(
-        TopicId::from_raw(topic),
-        PartitionIndex::from_raw(partition),
-    )
-}
-
-fn offset(value: i64) -> NextFetchOffset {
-    NextFetchOffset::try_from_raw(value).unwrap_or_else(|| panic!("nonnegative offset"))
-}
-
-fn event_store(capacity: usize) -> AssignedConsumerEventStore {
-    AssignedConsumerEventStore::new(capacity)
-        .unwrap_or_else(|error| panic!("event store: {error:?}"))
-}
-
-fn retain(store: &mut AssignedConsumerEventStore, topic: &str, effect: AssignedConsumerEffect) {
-    store
-        .retain_terminal(Arc::from(topic), effect)
-        .unwrap_or_else(|(error, _topic)| panic!("retain terminal: {error:?}"));
 }

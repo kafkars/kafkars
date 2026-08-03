@@ -9,6 +9,7 @@ use super::{
         transfer_completed_position,
     },
     registry::GroupConsumerRegistry,
+    registry_entry::GroupConsumerEntryState,
 };
 
 /// Result of driving the private Fetch owner for every retained group once.
@@ -63,6 +64,11 @@ impl GroupConsumerRegistry {
 
         let mut blocked = false;
         for entry in &mut self.entries {
+            if entry.state == GroupConsumerEntryState::Closing
+                && entry.fetch.discard_one_retired_terminal_for_close()
+            {
+                return Ok(GroupConsumerFetchTurn::Progress);
+            }
             if entry.fault.is_some() {
                 continue;
             }

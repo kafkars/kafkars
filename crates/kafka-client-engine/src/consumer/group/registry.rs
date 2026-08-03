@@ -116,7 +116,8 @@ impl GroupConsumerRegistry {
             .find(|entry| entry.group_id() == group_id)
     }
 
-    pub(super) fn registered_group_count(&self) -> usize {
+    #[cfg(test)]
+    pub(crate) fn registered_group_count(&self) -> usize {
         self.entries.len()
     }
 

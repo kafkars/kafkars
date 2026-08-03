@@ -6,6 +6,7 @@ use kafka_client_core::{
 };
 
 use super::{
+    classic_group_entry_fault::ClassicGroupEntryFault,
     classic_group_leave::{
         GroupConsumerCloseTerminal, GroupConsumerCloseTerminalFailure,
         GroupConsumerCloseTerminalFailureKind,
@@ -15,6 +16,19 @@ use super::{
     registry::GroupConsumerRegistry,
     registry_entry::{GroupConsumerEntry, GroupConsumerEntryState},
 };
+
+pub(super) fn position_failure_allows_consumer_group_leave(entry: &GroupConsumerEntry) -> bool {
+    entry.state == GroupConsumerEntryState::Closing
+        && entry
+            .fault
+            .as_ref()
+            .is_some_and(ClassicGroupEntryFault::allows_explicit_close_progress)
+        && entry.consumer.as_ref().is_some_and(|execution| {
+            execution
+                .prepared()
+                .is_some_and(|prepared| prepared.kind() == ConsumerGroupHeartbeatRequestKind::Leave)
+        })
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ConsumerGroupCloseTurn {

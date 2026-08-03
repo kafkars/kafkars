@@ -21,7 +21,7 @@ pub use checkpoint_builder::{
     GroupConsumerCheckpointMarkErrorKind,
 };
 pub use error::{
-    GroupConsumerPositionFailureKind, GroupConsumerTryTakeBatchError,
-    GroupConsumerTryTakeBatchErrorKind,
+    GroupConsumerFetchFailureKind, GroupConsumerPositionFailureKind,
+    GroupConsumerTryTakeBatchError, GroupConsumerTryTakeBatchErrorKind,
 };
 pub use record::{GroupConsumerHeader, GroupConsumerRecord, GroupConsumerRecords};

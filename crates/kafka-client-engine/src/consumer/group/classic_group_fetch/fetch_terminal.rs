@@ -173,7 +173,7 @@ impl ClassicGroupFetchOwner {
 
     fn retain_reset_transition_fault(&mut self, transition: AssignedConsumerTransition) {
         self.fault = Some(ClassicGroupFetchOwnerFault::Transition {
-            transition,
+            _transition: transition,
             failure: ClassicGroupFetchTransitionFailure::ControlInvariant,
         });
         self.settle_seek_host_unavailable();

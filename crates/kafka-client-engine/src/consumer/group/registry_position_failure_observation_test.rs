@@ -1,7 +1,6 @@
 //! Consumer-observable position-failure termination scenarios.
 
 use std::{
-    marker::PhantomData,
     sync::{Arc, mpsc::sync_channel},
     thread,
     time::Duration,
@@ -232,12 +231,7 @@ fn hosted(fixture: PositionSettlementFixture) -> (GroupConsumerShardOwner, Group
         Arc::new(NoopWake),
     );
     let lifetime: Arc<dyn Send + Sync> = Arc::new(());
-    let handle = GroupConsumerHandle {
-        group_id,
-        port,
-        lifetime,
-        _not_sync: PhantomData,
-    };
+    let handle = GroupConsumerHandle::from_registered_for_test(port, lifetime, group_id);
     (owner, handle)
 }
 

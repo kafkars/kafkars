@@ -7,7 +7,9 @@ use kafka_client_engine::{
 use crate::bridge::consumer_facade::group_consumer_event::{
     translate_group_consumer_state, translate_group_consumer_state_error,
 };
-use crate::bridge::consumer_facade::group_consumer_recv_result::translate_group_consumer_position_failure;
+use crate::bridge::consumer_facade::group_consumer_recv_result::{
+    translate_group_consumer_fetch_failure, translate_group_consumer_position_failure,
+};
 use crate::bridge::consumer_facade::{
     group_consumer_batch::GroupConsumerBatch, group_consumer_recv::GroupConsumerRecv,
 };
@@ -75,6 +77,9 @@ impl GroupConsumerEngine {
                 ),
                 GroupConsumerTryTakeBatchErrorKind::Position(failure) => {
                     translate_group_consumer_position_failure(failure)
+                }
+                GroupConsumerTryTakeBatchErrorKind::Fetch(failure) => {
+                    translate_group_consumer_fetch_failure(failure)
                 }
                 GroupConsumerTryTakeBatchErrorKind::HostUnavailable
                 | GroupConsumerTryTakeBatchErrorKind::InternalInvariant => KafkaError::new(

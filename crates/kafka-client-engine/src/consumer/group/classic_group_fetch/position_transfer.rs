@@ -1,6 +1,6 @@
 //! Lossless transfer from confirmed group positions into Fetch activation.
 
-use kafka_client_core::{GroupPositionBootstrapTerminal, GroupPositionFence};
+use kafka_client_core::GroupPositionFence;
 
 use super::{
     activation::{
@@ -69,20 +69,7 @@ pub(in crate::consumer::group) fn transfer_completed_consumer_group_position(
     position: &mut ClassicGroupPositionExecution,
     fetch: &mut ClassicGroupFetchOwner,
 ) -> Result<ClassicGroupFetchTransferTurn, ClassicGroupFetchTransferError> {
-    if !matches!(
-        position.state(),
-        ClassicGroupPositionExecutionState::Complete(_)
-    ) {
-        return Ok(ClassicGroupFetchTransferTurn::Idle);
-    }
-    if matches!(
-        position.state(),
-        ClassicGroupPositionExecutionState::Complete(completed)
-            if matches!(
-                completed.terminal(),
-                GroupPositionBootstrapTerminal::ResetRequired(_)
-            )
-    ) {
+    if !position.has_ready_bootstrap_terminal() {
         return Ok(ClassicGroupFetchTransferTurn::Idle);
     }
     let current_fence = current_consumer_group_position_fence(consumer, catalog)

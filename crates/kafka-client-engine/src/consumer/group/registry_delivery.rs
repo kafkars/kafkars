@@ -80,6 +80,13 @@ impl GroupConsumerRegistry {
         if entry.fault.is_some() {
             return Err(GroupConsumerDeliveryError::EntryFault);
         }
+        if let Some(failure) = entry
+            .fetch
+            .take_fetch_failure()
+            .map_err(GroupConsumerDeliveryError::Fetch)?
+        {
+            return Err(GroupConsumerDeliveryError::FetchTerminal(failure));
+        }
         let delivery = entry
             .fetch
             .take_delivery(&entry.catalog)

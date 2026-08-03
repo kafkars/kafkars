@@ -2,11 +2,18 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::MembershipCycle;
+use kafka_client_core::{GroupPositionMissingOffsetPolicy, MembershipCycle, Moment};
 
-use crate::clock::MonotonicClock;
+use crate::{clock::MonotonicClock, consumer::GroupConsumerPositionFailureKind};
 
 use super::classic_group_entry_fault::ClassicGroupEntryFault;
+use super::classic_group_leave::GroupConsumerCloseCompletionObservation;
+use super::classic_group_position::{
+    ClassicGroupPositionSettlementTurn,
+    settlement_test_support::{
+        PartitionValue, driver_owned_fixture_with_policy, install_legacy_terminal,
+    },
+};
 use super::registry_close::GroupRegistryCloseError;
 use super::registry_close_port::{GroupConsumerCloseObservation, GroupConsumerClosePortError};
 use super::registry_shard::{GroupConsumerShardLockError, GroupConsumerShardOwner};
@@ -72,6 +79,88 @@ fn accepted_close_observation_reports_a_retained_entry_fault_instead_of_pending_
         super::classic_group_leave::GroupConsumerCloseCompletionObservation::Terminal(
             super::classic_group_leave::GroupConsumerCloseTerminal::Succeeded
         )
+    ));
+}
+
+#[test]
+fn accepted_close_keeps_a_position_failure_pending_and_retained() {
+    let mut fixture =
+        driver_owned_fixture_with_policy(&[0], GroupPositionMissingOffsetPolicy::Error);
+    install_legacy_terminal(&mut fixture, Some(7), 0, 0, &[(0, PartitionValue::Missing)]);
+    for _turn in 0..2 {
+        assert_eq!(
+            fixture
+                .registry
+                .settle_one_classic_group_position(Moment::from_tick(50)),
+            Ok(ClassicGroupPositionSettlementTurn::Progress)
+        );
+    }
+    assert!(
+        fixture
+            .registry
+            .terminalize_one_classic_group_position_failure()
+    );
+    let group_id = fixture.group_id;
+    let authority = fixture
+        .registry
+        .entry(group_id)
+        .unwrap_or_else(|| panic!("position-faulted group"))
+        .close_authority();
+    let completion = fixture
+        .registry
+        .close_group_explicit(group_id, deadline(100), &authority)
+        .unwrap_or_else(|error| panic!("accepted position-fault close: {error:?}"));
+    let (mut owner, port) = GroupConsumerShardOwner::new(
+        fixture.registry,
+        Arc::new(MonotonicClock::new()),
+        Arc::new(NoopWake),
+    );
+
+    assert_eq!(
+        port.observe_close(group_id),
+        Ok(GroupConsumerCloseObservation::Pending)
+    );
+    {
+        let registry = owner.lock_registry_for_test();
+        let entry = registry
+            .entry(group_id)
+            .unwrap_or_else(|| panic!("retained closing entry"));
+        assert_eq!(
+            entry.position_failure_observation,
+            Some(GroupConsumerPositionFailureKind::MissingOffset)
+        );
+        assert!(matches!(
+            &entry.fault,
+            Some(ClassicGroupEntryFault::PositionFailure(_))
+        ));
+    }
+
+    let mut registry = owner.terminal_registry();
+    let _fault = registry
+        .entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .and_then(|entry| entry.fault.take())
+        .unwrap_or_else(|| panic!("retained position fault"));
+    registry
+        .recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("registry recovery: {error}"));
+    let commit_join = registry
+        .finish_shutdown()
+        .unwrap_or_else(|error| panic!("registry finish: {error}"));
+    drop(registry);
+    let recv_join = owner
+        .stop_recv_notifier()
+        .unwrap_or_else(|| panic!("receive notifier"));
+    commit_join
+        .join_off_notifier()
+        .unwrap_or_else(|error| panic!("commit notifier join: {error}"));
+    recv_join
+        .join_off_notifier()
+        .unwrap_or_else(|error| panic!("receive notifier join: {error}"));
+    assert!(matches!(
+        completion.observe(),
+        GroupConsumerCloseCompletionObservation::Terminal(_)
     ));
 }
 

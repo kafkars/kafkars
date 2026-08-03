@@ -228,6 +228,7 @@ fn active_catalog(generation: u64) -> GroupSessionCatalog {
     catalog.current = Some(CurrentGroupSession {
         member_id: fence.member_id(),
         member: Arc::from("member-a"),
+        installed_cycle: fence.membership_cycle(),
         classic_generation: 3,
         assignment,
     });

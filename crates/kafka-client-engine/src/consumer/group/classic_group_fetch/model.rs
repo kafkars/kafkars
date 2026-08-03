@@ -1,14 +1,9 @@
 //! Bounded first-slice policy, progress, and lossless Fetch preparation faults.
 
-use kafka_client_core::{
-    AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachineError,
-    AssignedConsumerTransition, Deadline,
-};
-
 use crate::{
     clock::ClockError,
     consumer::{
-        assigned_event::AssignedConsumerEventStoreError,
+        assigned_event::{AssignedConsumerEvent, AssignedConsumerEventStoreError},
         assigned_owner_model::PendingPosition,
         assigned_timer_model::AssignedTimerError,
         fetch_execution::{
@@ -18,6 +13,10 @@ use crate::{
         position_execution::PositionExecutionError,
         position_prepare_error::PreparePositionError,
     },
+};
+use kafka_client_core::{
+    AssignedConsumerEffect, AssignedConsumerInput, AssignedConsumerMachineError,
+    AssignedConsumerTransition, Deadline,
 };
 
 use super::{
@@ -54,6 +53,7 @@ pub(in crate::consumer::group) enum ClassicGroupFetchEffectFailure {
     Clock(ClockError),
     Timer(AssignedTimerError),
     Event(AssignedConsumerEventStoreError),
+    TerminalCatalog(GroupSessionCatalogError),
     PositionCatalog(GroupSessionCatalogError),
     PositionPreparation(PreparePositionError),
     PositionCapacity,
@@ -101,6 +101,7 @@ pub(in crate::consumer::group) enum ClassicGroupFetchOwnerFaultKind {
     Delivery(AssignedConsumerMachineError),
     DeliveryCatalog(GroupSessionCatalogError),
     DeliveryPartition,
+    DeliveryEvent(Option<AssignedConsumerMachineError>),
     Reclaim,
     Reconciliation(super::reconciliation::ClassicGroupFetchReconciliationErrorKind),
     OffsetReset(ClassicGroupFetchOffsetResetFailure),
@@ -119,6 +120,11 @@ pub(in crate::consumer::group) enum ClassicGroupFetchOwnerFault {
     Effect {
         effect: AssignedConsumerEffect,
         failure: ClassicGroupFetchEffectFailure,
+    },
+    Event {
+        effect: AssignedConsumerEffect,
+        error: AssignedConsumerEventStoreError,
+        _topic: std::sync::Arc<str>,
     },
     Captured {
         effect: AssignedConsumerEffect,
@@ -157,6 +163,10 @@ pub(in crate::consumer::group) enum ClassicGroupFetchOwnerFault {
     DeliveryPartition {
         _delivery: crate::consumer::fetch_store::FetchDelivery,
     },
+    DeliveryEvent {
+        error: Option<AssignedConsumerMachineError>,
+        _event: AssignedConsumerEvent,
+    },
     Reclaim {
         _failure: FetchReclaimFailure,
     },
@@ -177,6 +187,9 @@ impl ClassicGroupFetchOwnerFault {
             Self::Activation(fault) => ClassicGroupFetchOwnerFaultKind::Activation(fault.kind()),
             Self::Clock(error) => ClassicGroupFetchOwnerFaultKind::Clock(*error),
             Self::Effect { failure, .. } => ClassicGroupFetchOwnerFaultKind::Effect(*failure),
+            Self::Event { error, .. } => ClassicGroupFetchOwnerFaultKind::Effect(
+                ClassicGroupFetchEffectFailure::Event(*error),
+            ),
             Self::Captured { failure, .. } => ClassicGroupFetchOwnerFaultKind::Captured(*failure),
             Self::Pending { error, .. } => ClassicGroupFetchOwnerFaultKind::Pending(*error),
             Self::PendingPosition { error, .. } => {
@@ -194,6 +207,9 @@ impl ClassicGroupFetchOwnerFault {
                 ClassicGroupFetchOwnerFaultKind::DeliveryCatalog(*error)
             }
             Self::DeliveryPartition { .. } => ClassicGroupFetchOwnerFaultKind::DeliveryPartition,
+            Self::DeliveryEvent { error, .. } => {
+                ClassicGroupFetchOwnerFaultKind::DeliveryEvent(*error)
+            }
             Self::Reclaim { .. } => ClassicGroupFetchOwnerFaultKind::Reclaim,
             Self::Reconciliation { kind, .. } => {
                 ClassicGroupFetchOwnerFaultKind::Reconciliation(*kind)
@@ -207,7 +223,9 @@ impl ClassicGroupFetchOwnerFault {
     #[cfg(test)]
     pub(super) const fn effect(&self) -> Option<AssignedConsumerEffect> {
         match self {
-            Self::Effect { effect, .. } | Self::Captured { effect, .. } => Some(*effect),
+            Self::Effect { effect, .. }
+            | Self::Event { effect, .. }
+            | Self::Captured { effect, .. } => Some(*effect),
             _ => None,
         }
     }

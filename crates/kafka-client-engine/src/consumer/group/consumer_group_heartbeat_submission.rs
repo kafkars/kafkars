@@ -7,7 +7,9 @@ use crate::driver::{
 };
 
 use super::{
-    consumer_group_close::{deadline_terminal, fail_consumer_group_leave},
+    consumer_group_close::{
+        deadline_terminal, fail_consumer_group_leave, position_failure_allows_consumer_group_leave,
+    },
     consumer_group_execution::{ConsumerGroupExecution, ConsumerGroupExecutionError},
     consumer_group_execution_terminal::fail_consumer_group_entry,
     registry::GroupConsumerRegistry,
@@ -103,7 +105,7 @@ pub(super) fn consumer_group_heartbeat_is_ready(entry: &GroupConsumerEntry) -> b
                 .is_some_and(|prepared| prepared.kind() == ConsumerGroupHeartbeatRequestKind::Leave)
         });
     (entry.is_active() || leave_is_closing)
-        && entry.fault.is_none()
+        && (entry.fault.is_none() || position_failure_allows_consumer_group_leave(entry))
         && entry.consumer.as_ref().is_some_and(|execution| {
             consumer_group_execution_is_ready(execution)
                 && execution.heartbeat_call().is_none()

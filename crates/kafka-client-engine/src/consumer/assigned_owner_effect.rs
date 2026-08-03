@@ -33,8 +33,12 @@ impl AssignedConsumerOwner {
             return self.interpret_control(effect);
         }
         let result = match effect {
-            AssignedConsumerEffect::AcceptClose { .. }
-            | AssignedConsumerEffect::CompleteClose { .. } => self
+            AssignedConsumerEffect::AcceptClose { .. } => self
+                .close
+                .observe_close_effect(effect)
+                .map(|()| self.fetches.request_broker_session_close())
+                .map_err(AssignedConsumerEffectFailure::Close),
+            AssignedConsumerEffect::CompleteClose { .. } => self
                 .close
                 .observe_close_effect(effect)
                 .map_err(AssignedConsumerEffectFailure::Close),

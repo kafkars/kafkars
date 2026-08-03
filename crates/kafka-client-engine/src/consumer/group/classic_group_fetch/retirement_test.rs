@@ -288,13 +288,6 @@ fn assert_retired_terminal_drains(terminal: RetiredTerminal) {
         )
     );
 
-    assert_eq!(
-        owner.interpret_front_effect(&catalog, &clock),
-        ClassicGroupFetchFront::Idle
-    );
-    assert_eq!(owner.effects.front().copied(), Some(retained));
-    assert_eq!(owner.events.retained(), (1, 0));
-
     let assignment_epoch = owner
         .machine_assignment_epoch()
         .unwrap_or_else(|| panic!("active assignment epoch"));

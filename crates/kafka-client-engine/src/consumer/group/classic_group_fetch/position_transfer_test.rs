@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use kafka_client_core::{
     AssignmentGeneration, Deadline, GroupAssignmentPartition, GroupId, GroupPositionBatch,
-    GroupPositionFence, GroupPositionPartitionFact, Moment, NextFetchOffset, PartitionIndex,
+    GroupPositionBootstrapTerminal, GroupPositionFence, GroupPositionPartitionFact, Moment,
+    NextFetchOffset, PartitionIndex,
 };
 
 use crate::{
@@ -16,6 +17,7 @@ use crate::{
             test_support::completed_ready,
         },
         classic_group_test_support,
+        consumer_group_heartbeat_settlement_test::installed_modern_entry,
         registry_entry::GroupConsumerEntry,
     },
     driver::{
@@ -27,7 +29,9 @@ use crate::{
 use super::{
     activation::ClassicGroupFetchActivationFailureKind,
     position_transfer::{
-        ClassicGroupFetchTransferError, ClassicGroupFetchTransferTurn, transfer_completed_position,
+        ClassicGroupFetchTransferError, ClassicGroupFetchTransferTurn,
+        current_consumer_group_position_fence, transfer_completed_consumer_group_position,
+        transfer_completed_position,
     },
 };
 
@@ -101,6 +105,52 @@ fn confirmed_position_activates_fetch_exactly_once() {
     );
     assert_eq!(entry.fetch.machine_assignment_epoch(), installed_epoch);
     assert_eq!(entry.fetch.effect_count_for_test(), effect_count);
+}
+
+#[test]
+fn classic_missing_offset_terminal_remains_owned_for_position_observation() {
+    let mut entry = stable_entry();
+    let fence = current_fence(&entry);
+    install_missing(&mut entry, fence);
+
+    assert_eq!(
+        transfer_completed_position(
+            &entry.classic,
+            &entry.catalog,
+            &mut entry.position,
+            &mut entry.fetch,
+        ),
+        Ok(ClassicGroupFetchTransferTurn::Idle)
+    );
+    assert_missing_remains_fetch_inert(&entry);
+}
+
+#[test]
+fn consumer_group_missing_offset_terminal_remains_owned_for_position_observation() {
+    let (mut entry, _topic_id) = installed_modern_entry();
+    let fence = current_consumer_group_position_fence(
+        entry
+            .consumer
+            .as_ref()
+            .unwrap_or_else(|| panic!("modern execution")),
+        &entry.catalog,
+    )
+    .unwrap_or_else(|error| panic!("modern position fence: {error:?}"));
+    install_missing(&mut entry, fence);
+
+    assert_eq!(
+        transfer_completed_consumer_group_position(
+            entry
+                .consumer
+                .as_ref()
+                .unwrap_or_else(|| panic!("modern execution")),
+            &entry.catalog,
+            &mut entry.position,
+            &mut entry.fetch,
+        ),
+        Ok(ClassicGroupFetchTransferTurn::Idle)
+    );
+    assert_missing_remains_fetch_inert(&entry);
 }
 
 #[test]
@@ -222,6 +272,36 @@ fn install_completed(
     entry
         .position
         .set(ClassicGroupPositionExecutionState::Complete(completed));
+}
+
+fn install_missing(entry: &mut GroupConsumerEntry, fence: GroupPositionFence) {
+    let partition = entry
+        .catalog
+        .live_assignment()
+        .and_then(|assignment| assignment.partitions().first())
+        .copied()
+        .unwrap_or_else(|| panic!("assigned partition"));
+    let completed = completed_ready(
+        fence,
+        Moment::from_tick(41),
+        GroupPositionBatch::new(0, vec![GroupPositionPartitionFact::missing(partition)]),
+    );
+    entry
+        .position
+        .set(ClassicGroupPositionExecutionState::Complete(completed));
+}
+
+fn assert_missing_remains_fetch_inert(entry: &GroupConsumerEntry) {
+    assert!(matches!(
+        entry.position.state(),
+        ClassicGroupPositionExecutionState::Complete(completed)
+            if matches!(
+                completed.terminal(),
+                GroupPositionBootstrapTerminal::MissingOffsets(_)
+            )
+    ));
+    assert!(entry.fetch.activation().is_none());
+    assert_eq!(entry.fetch.machine_assignment_epoch(), None);
 }
 
 fn prepare_confirmation_pending(entry: &mut GroupConsumerEntry) {

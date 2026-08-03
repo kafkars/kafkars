@@ -3,7 +3,10 @@
 use kafka_client_core::{ClassicProcessingLeaseError, ClassicProcessingLeaseExpiration};
 
 use super::classic_group_fetch::ClassicGroupFetchDeliveryError;
-use crate::{clock::ClockError, consumer::GroupConsumerPositionFailureKind};
+use crate::{
+    clock::ClockError,
+    consumer::{GroupConsumerFetchFailureKind, GroupConsumerPositionFailureKind},
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(in crate::consumer) enum GroupConsumerDeliveryError {
@@ -12,6 +15,7 @@ pub(in crate::consumer) enum GroupConsumerDeliveryError {
     Revoking,
     EntryFault,
     PositionFailure(GroupConsumerPositionFailureKind),
+    FetchTerminal(GroupConsumerFetchFailureKind),
     Fetch(ClassicGroupFetchDeliveryError),
     Clock {
         error: ClockError,

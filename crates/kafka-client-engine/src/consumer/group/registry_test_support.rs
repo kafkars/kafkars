@@ -4,18 +4,19 @@ use std::sync::Arc;
 
 use kafka_client_core::{
     ClassicProcessingLeaseFence, Deadline, GroupAssignmentPartition, GroupCheckpoint,
-    GroupCheckpointEntry, GroupId, GroupPositionFence, GroupPositionPartitionFact, Moment,
-    NextFetchOffset, PartitionIndex, TopicId,
+    GroupCheckpointEntry, GroupId, GroupPositionFence, Moment, PartitionIndex, TopicId,
 };
 
 use crate::clock::OperationDeadline;
 
 use super::{
-    classic_group_fetch::{completed_ready, install_ready_delivery_for_test},
-    classic_group_test_support,
-    registry::GroupConsumerRegistry,
-    registry_membership::GroupConsumerMembershipTurn,
+    classic_group_fetch::install_ready_delivery_for_test,
+    classic_group_position::ClassicGroupPositionExecutionState, classic_group_test_support,
+    registry::GroupConsumerRegistry, registry_membership::GroupConsumerMembershipTurn,
 };
+
+mod position;
+use position::completed_committed_position;
 
 pub(crate) fn started_registry() -> GroupConsumerRegistry {
     GroupConsumerRegistry::start().unwrap_or_else(|error| panic!("registry start failed: {error}"))
@@ -76,6 +77,42 @@ pub(crate) fn install_session(registry: &mut GroupConsumerRegistry, group_id: Gr
         .commit();
 }
 
+pub(crate) fn install_completed_position(
+    registry: &mut GroupConsumerRegistry,
+    group_id: GroupId,
+    next_offset: i64,
+) {
+    let entry = registry
+        .entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .unwrap_or_else(|| panic!("registered group expected"));
+    let assignment = entry
+        .catalog
+        .live_assignment()
+        .unwrap_or_else(|| panic!("live assignment expected"));
+    let partition = assignment
+        .partitions()
+        .first()
+        .copied()
+        .unwrap_or_else(|| panic!("assigned partition expected"));
+    let fence = kafka_client_core::GroupPositionFence::new(
+        assignment.group_id(),
+        entry
+            .classic
+            .machine()
+            .active_cycle()
+            .unwrap_or_else(|| panic!("active membership cycle expected")),
+        assignment.member_id(),
+        assignment.assignment_generation(),
+    );
+    entry
+        .position
+        .set(ClassicGroupPositionExecutionState::Complete(
+            completed_committed_position(fence, partition, next_offset),
+        ));
+}
+
 pub(crate) fn install_ready_group_delivery(
     registry: &mut GroupConsumerRegistry,
     group_id: GroupId,
@@ -108,16 +145,7 @@ pub(crate) fn install_ready_group_delivery(
     entry
         .fetch
         .try_activate(
-            completed_ready(
-                fence,
-                Moment::from_tick(41),
-                0,
-                vec![GroupPositionPartitionFact::committed(
-                    partition,
-                    NextFetchOffset::try_from_raw(first_offset)
-                        .unwrap_or_else(|| panic!("next Fetch offset")),
-                )],
-            ),
+            completed_committed_position(fence, partition, first_offset),
             fence,
         )
         .unwrap_or_else(|_error| panic!("Fetch activation failed"));

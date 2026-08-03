@@ -19,9 +19,9 @@ fn first_slice_reserves_every_pre_core_fifo_and_event_owner() {
 
     assert_eq!(FIRST_GROUP_FETCH_PARTITIONS, 64);
     assert_eq!(FIRST_GROUP_FETCH_EFFECTS, 129);
-    assert_eq!(FIRST_GROUP_FETCH_CALLS, 1);
-    assert_eq!(FIRST_GROUP_FETCH_DELIVERIES, 1);
-    assert_eq!(FIRST_GROUP_FETCH_DELIVERY_BYTES, 1024 * 1024);
+    assert_eq!(FIRST_GROUP_FETCH_CALLS, 8);
+    assert_eq!(FIRST_GROUP_FETCH_DELIVERIES, 8);
+    assert_eq!(FIRST_GROUP_FETCH_DELIVERY_BYTES, 8 * 1024 * 1024);
     assert_eq!(FIRST_GROUP_FETCH_OUTPUT_BYTES, 1024 * 1024);
     assert!(owner.effects.capacity() >= FIRST_GROUP_FETCH_EFFECTS);
     assert!(owner.pending_fetches.capacity() >= FIRST_GROUP_FETCH_PARTITIONS);

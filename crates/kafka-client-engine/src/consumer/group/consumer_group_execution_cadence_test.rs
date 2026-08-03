@@ -6,14 +6,17 @@ use kafka_client_core::{
     ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatPhase, GroupId, Moment,
 };
 
-use crate::clock::MonotonicClock;
+use crate::{clock::MonotonicClock, consumer::GroupConsumerPositionFailureKind};
 
 use super::{
+    classic_group_entry_fault::ClassicGroupEntryFault,
     consumer_group_execution::ConsumerGroupExecution,
     consumer_group_execution_cadence::ConsumerGroupCoordinatorLoadRetryTurn,
     consumer_group_heartbeat_due::settle_consumer_group_load_retry_turn,
     consumer_group_heartbeat_settlement_test::installed_modern_entry,
     consumer_group_heartbeat_submission::consumer_group_heartbeat_is_ready,
+    consumer_group_heartbeat_submission_test::position_faulted_closing_leave_entry,
+    registry_test_support::{started_registry, stop_registry},
 };
 
 #[test]
@@ -92,6 +95,43 @@ fn coordinator_load_wait_retains_the_exact_prepared_attempt_and_wake_deadline() 
     assert_eq!(execution.machine().in_flight(), Some(prepared.attempt()));
     assert!(execution.machine().retry_schedule().is_none());
     assert!(consumer_group_heartbeat_is_ready(&entry));
+}
+
+#[test]
+fn closing_position_failure_allows_due_leave_coordinator_load_retry() {
+    let (mut entry, now) = position_faulted_closing_leave_entry();
+    let scheduled = entry
+        .consumer
+        .as_mut()
+        .unwrap_or_else(|| panic!("consumer execution"))
+        .schedule_current_coordinator_load_retry(now, ConsumerGroupHeartbeatFailure::Broker(14))
+        .unwrap_or_else(|error| panic!("schedule leave retry: {error:?}"));
+    let ConsumerGroupCoordinatorLoadRetryTurn::Scheduled { schedule } = scheduled else {
+        panic!("leave retry schedule")
+    };
+    let mut registry = started_registry();
+    registry.entries.push(entry);
+
+    assert_eq!(
+        registry.prepare_one_consumer_group_load_retry(Moment::from_tick(
+            schedule.not_before().tick(),
+        )),
+        Ok(super::consumer_group_heartbeat_due::ConsumerGroupHeartbeatDueTurn::Progress)
+    );
+    let entry = registry
+        .entries
+        .first()
+        .unwrap_or_else(|| panic!("faulted closing entry"));
+    assert_eq!(
+        entry.position_failure_observation,
+        Some(GroupConsumerPositionFailureKind::MissingOffset)
+    );
+    assert!(matches!(
+        &entry.fault,
+        Some(ClassicGroupEntryFault::PositionFailure(_))
+    ));
+    drop(registry.entries.pop());
+    stop_registry(&mut registry);
 }
 
 #[test]

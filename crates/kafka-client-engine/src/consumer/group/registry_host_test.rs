@@ -9,10 +9,52 @@ use crate::{EngineConfig, clock::MonotonicClock, driver::DriverOwner};
 
 use super::{
     classic_group_entry_fault::ClassicGroupEntryFault,
+    classic_group_graceful_revocation::ClassicGroupRevocationTurn,
     registry_test_support::{
-        checkpoint, deadline, install_session, register, started_registry, stop_registry,
+        checkpoint, deadline, install_completed_position, install_session, register,
+        started_registry, stop_registry,
     },
 };
+
+#[test]
+fn membership_progress_does_not_activate_fetch_for_a_closing_entry() {
+    let mut registry = started_registry();
+    let group_id = register(&mut registry, "group-closing");
+    install_session(&mut registry, group_id);
+    install_completed_position(&mut registry, group_id, 11);
+    let authority = registry
+        .entry(group_id)
+        .unwrap_or_else(|| panic!("registered group expected"))
+        .close_authority();
+    let _close = registry
+        .close_group_explicit(group_id, deadline(u64::MAX), &authority)
+        .unwrap_or_else(|error| panic!("explicit close admission: {error:?}"));
+    while registry
+        .turn_graceful_revocation(Moment::from_tick(5))
+        .unwrap_or_else(|error| panic!("drain close revocation: {error:?}"))
+        == ClassicGroupRevocationTurn::Progress
+    {}
+    let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
+        .unwrap_or_else(|error| panic!("driver: {error}"));
+
+    let turn = registry
+        .turn(Moment::from_tick(5), &MonotonicClock::new(), &driver)
+        .unwrap_or_else(|error| panic!("membership-first registry turn: {error}"));
+    assert!(turn.progressed);
+    let entry = registry
+        .entry(group_id)
+        .unwrap_or_else(|| panic!("closing group expected"));
+    assert!(entry.fetch.activation().is_none());
+
+    registry
+        .recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("recover closing registry: {error}"));
+    let join = registry
+        .finish_shutdown()
+        .unwrap_or_else(|error| panic!("finish recovered registry: {error}"));
+    join.join_off_notifier()
+        .unwrap_or_else(|error| panic!("join recovered notifier: {error}"));
+}
 
 #[test]
 fn one_registry_turn_expires_one_queued_commit_at_its_original_deadline() {

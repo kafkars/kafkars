@@ -310,6 +310,8 @@ mod registry_event_reconciliation_test;
 #[cfg(test)]
 mod registry_fetch_recovery_test;
 #[cfg(test)]
+mod registry_fetch_terminal_observation_test;
+#[cfg(test)]
 mod registry_fetch_test;
 #[cfg(test)]
 mod registry_graceful_revocation_test;

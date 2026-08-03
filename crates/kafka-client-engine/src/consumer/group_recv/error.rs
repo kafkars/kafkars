@@ -1,12 +1,14 @@
 //! Stable failures for notification-backed classic-group batch observation.
 
-use crate::consumer::GroupConsumerPositionFailureKind;
+use crate::consumer::{GroupConsumerFetchFailureKind, GroupConsumerPositionFailureKind};
 
 /// Stable reason a named group receive cannot continue.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GroupConsumerRecvErrorKind {
     /// The synchronized group host is unavailable or retained a terminal fault.
     HostUnavailable,
+    /// Hosted Fetch reached one exact terminal outcome before transferring bytes.
+    Fetch(GroupConsumerFetchFailureKind),
     /// Group-position bootstrap or reset reached one exact terminal outcome.
     Position(GroupConsumerPositionFailureKind),
     /// An internal observation mechanism violated its ownership contract.
@@ -29,6 +31,12 @@ impl GroupConsumerRecvError {
     pub(super) const fn position(kind: GroupConsumerPositionFailureKind) -> Self {
         Self {
             kind: GroupConsumerRecvErrorKind::Position(kind),
+        }
+    }
+
+    pub(super) const fn fetch(kind: GroupConsumerFetchFailureKind) -> Self {
+        Self {
+            kind: GroupConsumerRecvErrorKind::Fetch(kind),
         }
     }
 

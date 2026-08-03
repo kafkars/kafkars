@@ -6,7 +6,7 @@ use crate::clock::MonotonicClock;
 
 use super::{
     consumer_group_assignment_retirement::stage_consumer_group_revocation,
-    consumer_group_close::deadline_terminal,
+    consumer_group_close::{deadline_terminal, position_failure_allows_consumer_group_leave},
     consumer_group_execution::ConsumerGroupExecutionError,
     consumer_group_execution_cadence::ConsumerGroupCoordinatorLoadRetryTurn,
     registry::GroupConsumerRegistry,
@@ -26,7 +26,7 @@ impl GroupConsumerRegistry {
     ) -> Result<ConsumerGroupHeartbeatDueTurn, ConsumerGroupExecutionError> {
         let Some(index) = self.entries.iter().position(|entry| {
             (entry.is_active() || entry.state == GroupConsumerEntryState::Closing)
-                && entry.fault.is_none()
+                && (entry.fault.is_none() || position_failure_allows_consumer_group_leave(entry))
                 && entry.consumer.as_ref().is_some_and(|execution| {
                     execution
                         .machine()

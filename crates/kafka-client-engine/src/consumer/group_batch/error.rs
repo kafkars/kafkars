@@ -5,6 +5,27 @@ use crate::consumer::group::{
     GroupConsumerShardLockError,
 };
 
+/// Stable Kafka Fetch failure preserved at the group-delivery boundary.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GroupConsumerFetchFailureKind {
+    /// The absolute hosted Fetch attempt deadline elapsed.
+    DeadlineElapsed,
+    /// The driver rejected the already-admitted Fetch call.
+    DriverRejected,
+    /// Transport failed after the Fetch call was accepted.
+    Transport,
+    /// Kafka rejected Fetch with the exact protocol error code.
+    Broker(i16),
+    /// The broker cannot execute the selected Fetch protocol shape.
+    Compatibility,
+    /// The broker returned a structurally invalid Fetch response.
+    InvalidResponse,
+    /// The Fetch response exceeded the configured bounded decode limit.
+    ResponseTooLarge,
+    /// Applying the broker throttle would overflow the Fetch deadline.
+    ThrottleDeadlineOverflow,
+}
+
 /// Stable group-position bootstrap or reset failure preserved at delivery.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GroupConsumerPositionFailureKind {
@@ -41,6 +62,8 @@ pub enum GroupConsumerTryTakeBatchErrorKind {
     ProcessingExpired,
     /// The synchronized engine host cannot execute group-consumer work.
     HostUnavailable,
+    /// Hosted Fetch reached one exact terminal outcome before transferring bytes.
+    Fetch(GroupConsumerFetchFailureKind),
     /// Group-position bootstrap or reset reached one exact terminal outcome.
     Position(GroupConsumerPositionFailureKind),
     /// A non-semantic engine mechanism violated its ownership contract.
@@ -93,15 +116,16 @@ const fn error_kind(error: &GroupConsumerDeliveryPortError) -> GroupConsumerTryT
         GroupConsumerDeliveryPortError::Registry(
             GroupConsumerDeliveryError::UnknownGroup | GroupConsumerDeliveryError::Closing,
         ) => GroupConsumerTryTakeBatchErrorKind::GroupUnavailable,
-        GroupConsumerDeliveryPortError::Registry(GroupConsumerDeliveryError::Fetch(
-            ClassicGroupFetchDeliveryError::EffectsPending,
-        ))
-        | GroupConsumerDeliveryPortError::Registry(GroupConsumerDeliveryError::Revoking) => {
-            GroupConsumerTryTakeBatchErrorKind::Pending
-        }
+        GroupConsumerDeliveryPortError::Registry(
+            GroupConsumerDeliveryError::Fetch(ClassicGroupFetchDeliveryError::EffectsPending)
+            | GroupConsumerDeliveryError::Revoking,
+        ) => GroupConsumerTryTakeBatchErrorKind::Pending,
         GroupConsumerDeliveryPortError::Registry(
             GroupConsumerDeliveryError::ProcessingExpired { .. },
         ) => GroupConsumerTryTakeBatchErrorKind::ProcessingExpired,
+        GroupConsumerDeliveryPortError::Registry(GroupConsumerDeliveryError::FetchTerminal(
+            failure,
+        )) => GroupConsumerTryTakeBatchErrorKind::Fetch(*failure),
         GroupConsumerDeliveryPortError::Registry(GroupConsumerDeliveryError::PositionFailure(
             failure,
         )) => GroupConsumerTryTakeBatchErrorKind::Position(*failure),

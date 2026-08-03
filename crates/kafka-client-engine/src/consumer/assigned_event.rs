@@ -15,6 +15,11 @@ mod prepared;
 mod prepared_reconciliation_test;
 #[cfg(test)]
 mod prepared_test;
+#[cfg(test)]
+mod retirement_test;
+mod terminal;
+#[cfg(test)]
+pub(in crate::consumer) mod test_support;
 
 use claim::EventClaim;
 pub(crate) use model::{
@@ -22,6 +27,7 @@ pub(crate) use model::{
     AssignedConsumerEventStoreError,
 };
 use prepared::effect_claim;
+use terminal::{terminal_claim, terminal_event};
 
 /// Sole bounded owner of active terminal claims and unobserved terminal events.
 pub(crate) struct AssignedConsumerEventStore {
@@ -74,13 +80,7 @@ impl AssignedConsumerEventStore {
             AssignedConsumerEffect::Revoke {
                 assignment_epoch,
                 partition,
-            } => {
-                self.claims.retain(|claim| {
-                    claim.partition() != partition
-                        || claim.position().assignment_epoch() != assignment_epoch
-                });
-                Ok(())
-            }
+            } => self.retire_assignment(assignment_epoch, partition),
             AssignedConsumerEffect::AcceptClose { .. }
             | AssignedConsumerEffect::CompleteClose { .. } => Ok(()),
             AssignedConsumerEffect::PositionResolutionFailed { .. }
@@ -89,6 +89,18 @@ impl AssignedConsumerEventStore {
                 Err(AssignedConsumerEventStoreError::TransitionMismatch)
             }
         }
+    }
+
+    fn retire_assignment(
+        &mut self,
+        assignment_epoch: kafka_client_core::AssignmentEpoch,
+        partition: AssignedTopicPartition,
+    ) -> Result<(), AssignedConsumerEventStoreError> {
+        self.claims.retain(|claim| {
+            claim.partition() != partition
+                || claim.position().assignment_epoch() != assignment_epoch
+        });
+        Ok(())
     }
 
     pub(crate) fn retain_terminal(
@@ -111,30 +123,8 @@ impl AssignedConsumerEventStore {
             };
             return Err((error, topic));
         };
-        let event = match effect {
-            AssignedConsumerEffect::PositionResolutionFailed { fence, failure } => {
-                AssignedConsumerEvent::PositionResolutionFailed {
-                    topic,
-                    fence,
-                    failure,
-                }
-            }
-            AssignedConsumerEffect::FetchThrottleFailed { fence, failure } => {
-                AssignedConsumerEvent::FetchThrottleFailed {
-                    topic,
-                    fence,
-                    failure,
-                }
-            }
-            AssignedConsumerEffect::FetchFailed { fence, failure } => {
-                AssignedConsumerEvent::FetchFailed {
-                    topic,
-                    fence,
-                    failure,
-                }
-            }
-            _ => return Err((AssignedConsumerEventStoreError::TransitionMismatch, topic)),
-        };
+        let event = terminal_event(topic, effect)
+            .map_err(|topic| (AssignedConsumerEventStoreError::TransitionMismatch, topic))?;
         let _claim = self.claims.swap_remove(index);
         self.ready.push_back(event);
         Ok(())
@@ -156,6 +146,18 @@ impl AssignedConsumerEventStore {
             .position(|present| *present == claim)
             .ok_or(AssignedConsumerEventStoreError::ClaimMissing)?;
         self.claims.swap_remove(index);
+        Ok(())
+    }
+
+    pub(crate) fn discard_superseded_terminal(
+        &mut self,
+        effect: AssignedConsumerEffect,
+    ) -> Result<(), AssignedConsumerEventStoreError> {
+        let claim =
+            terminal_claim(effect).ok_or(AssignedConsumerEventStoreError::TransitionMismatch)?;
+        if let Some(index) = self.claims.iter().position(|present| *present == claim) {
+            self.claims.swap_remove(index);
+        }
         Ok(())
     }
 
@@ -222,16 +224,5 @@ impl AssignedConsumerEventStore {
             .contains(&expected)
             .then_some(())
             .ok_or(AssignedConsumerEventStoreError::ClaimMismatch)
-    }
-}
-
-const fn terminal_claim(effect: AssignedConsumerEffect) -> Option<EventClaim> {
-    match effect {
-        AssignedConsumerEffect::PositionResolutionFailed { fence, .. } => {
-            Some(EventClaim::Position(fence))
-        }
-        AssignedConsumerEffect::FetchThrottleFailed { fence, .. }
-        | AssignedConsumerEffect::FetchFailed { fence, .. } => Some(EventClaim::Fetch(fence)),
-        _ => None,
     }
 }
