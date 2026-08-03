@@ -1,7 +1,8 @@
 //! Linear retention of exact core effects after a due rejoin mutates policy state.
 
 use kafka_client_core::{
-    ClassicGroupEffect, ClassicGroupTiming, ClassicProtocol, Deadline, GroupId, MembershipCycle,
+    ClassicGroupEffect, ClassicGroupTiming, ClassicProtocol, Deadline, GroupId, MemberId,
+    MembershipCycle,
 };
 
 use crate::clock::ClockError;
@@ -16,6 +17,7 @@ pub(super) struct PendingClassicRejoinJoin {
     pending_rejoin_group_id: GroupId,
     pending_rejoin_cycle: MembershipCycle,
     pending_rejoin_protocol: ClassicProtocol,
+    pending_rejoin_member_id: Option<MemberId>,
     pending_rejoin_timing: ClassicGroupTiming,
     pending_rejoin_deadline: Deadline,
 }
@@ -48,6 +50,7 @@ impl PendingClassicRejoinJoin {
         group_id: GroupId,
         cycle: MembershipCycle,
         protocol: ClassicProtocol,
+        member_id: Option<MemberId>,
         timing: ClassicGroupTiming,
         deadline: Deadline,
     ) -> Self {
@@ -55,6 +58,7 @@ impl PendingClassicRejoinJoin {
             pending_rejoin_group_id: group_id,
             pending_rejoin_cycle: cycle,
             pending_rejoin_protocol: protocol,
+            pending_rejoin_member_id: member_id,
             pending_rejoin_timing: timing,
             pending_rejoin_deadline: deadline,
         }
@@ -70,6 +74,10 @@ impl PendingClassicRejoinJoin {
 
     pub(super) const fn protocol(&self) -> ClassicProtocol {
         self.pending_rejoin_protocol
+    }
+
+    pub(super) const fn member_id(&self) -> Option<MemberId> {
+        self.pending_rejoin_member_id
     }
 
     pub(super) const fn timing(&self) -> ClassicGroupTiming {
@@ -120,6 +128,7 @@ impl ClassicRejoinPostCore {
     pub(super) const fn join_for_test(
         group_id: GroupId,
         cycle: MembershipCycle,
+        member_id: Option<MemberId>,
         timing: ClassicGroupTiming,
         deadline: Deadline,
         failure: ClassicRejoinPostCoreFailure,
@@ -129,6 +138,7 @@ impl ClassicRejoinPostCore {
                 group_id,
                 cycle,
                 ClassicProtocol::Range,
+                member_id,
                 timing,
                 deadline,
             )),

@@ -2,17 +2,17 @@
 
 use kafka_client_core::{
     ClassicGeneration, ClassicGroupPhase, ClassicProcessingLeaseError, LiveGroupAssignment,
-    PartitionIndex,
+    MembershipCycle, PartitionIndex,
 };
 
 use super::{
     classic_group_fetch::ClassicGroupFetchRetirementError, classic_group_owner::ClassicGroupOwner,
     session_catalog::GroupSessionCatalog,
 };
-
 mod retirement;
-pub(super) use retirement::retire_and_revoke_classic_group_assignment;
-
+pub(super) use retirement::{
+    retire_and_revoke_classic_group_assignment, retire_lost_classic_group_reconciliation,
+};
 #[must_use = "a prepared classic-group install must be committed"]
 pub(super) struct PreparedClassicGroupInstall<'a> {
     owner: &'a mut ClassicGroupOwner,
@@ -28,7 +28,11 @@ pub(super) struct PreparedClassicGroupRevoke<'a> {
     assignment: LiveGroupAssignment,
     classic_generation: ClassicGeneration,
 }
-
+#[must_use = "a prepared cooperative-reconciliation revoke must be committed"]
+struct PreparedClassicGroupReconciliationRevoke<'a> {
+    _owner: &'a ClassicGroupOwner,
+    catalog: &'a mut GroupSessionCatalog,
+}
 #[must_use = "failed effect preparation retains the linear assignment"]
 pub(super) struct ClassicGroupAssignmentPreparationFailure {
     pub(super) kind: ClassicGroupAssignmentPreparationFailureKind,
@@ -61,6 +65,13 @@ pub(super) enum ClassicGroupAssignmentPreparationFailureKind {
 pub(super) enum ClassicGroupRevocationFailureKind {
     Catalog(ClassicGroupAssignmentPreparationFailureKind),
     ProcessingLeaseCycleUnavailable,
+    ProcessingLease(ClassicProcessingLeaseError),
+    Fetch(ClassicGroupFetchRetirementError),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ClassicGroupReconciliationRevocationError {
+    Catalog(ClassicGroupAssignmentPreparationFailureKind),
     ProcessingLease(ClassicProcessingLeaseError),
     Fetch(ClassicGroupFetchRetirementError),
 }
@@ -154,6 +165,51 @@ impl ClassicGroupOwner {
             classic_generation,
         })
     }
+
+    fn prepare_reconciliation_loss<'a>(
+        &'a self,
+        catalog: &'a mut GroupSessionCatalog,
+        previous: &LiveGroupAssignment,
+        previous_cycle: MembershipCycle,
+        replacement_generation: ClassicGeneration,
+    ) -> Result<
+        PreparedClassicGroupReconciliationRevoke<'a>,
+        ClassicGroupAssignmentPreparationFailureKind,
+    > {
+        let Some(current) = catalog.live_assignment() else {
+            return Err(CatalogNotAssigned);
+        };
+        if current != previous {
+            return Err(AssignmentMismatch);
+        }
+        if catalog.membership_cycle() != Some(previous_cycle) {
+            return Err(CatalogChanged);
+        }
+        if catalog.classic_generation() != Some(replacement_generation.get()) {
+            return Err(GenerationMismatch);
+        }
+        if self.machine().group_id() != catalog.group_id()
+            || previous.group_id() != catalog.group_id()
+        {
+            return Err(GroupMismatch);
+        }
+        if catalog.current_member_id() != Some(previous.member_id()) {
+            return Err(MemberMismatch);
+        }
+        if !matches!(
+            self.machine().phase(),
+            ClassicGroupPhase::Lost | ClassicGroupPhase::Fatal
+        ) || self.machine().live_assignment().is_some()
+            || self.machine().live_cycle().is_some()
+            || self.machine().live_generation().is_some()
+        {
+            return Err(MachinePhase);
+        }
+        Ok(PreparedClassicGroupReconciliationRevoke {
+            _owner: self,
+            catalog,
+        })
+    }
 }
 
 impl PreparedClassicGroupInstall<'_> {
@@ -172,6 +228,12 @@ impl PreparedClassicGroupRevoke<'_> {
     pub(super) fn commit(self) {
         self.catalog
             .commit_classic_group_revoke(self.assignment, self.classic_generation);
+    }
+}
+
+impl PreparedClassicGroupReconciliationRevoke<'_> {
+    fn commit(self) {
+        self.catalog.commit_classic_group_reconciliation_loss();
     }
 }
 

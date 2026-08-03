@@ -6,6 +6,8 @@ mod classic_group_candidate;
 mod classic_group_candidate_prepare;
 mod classic_group_entry_fault;
 mod classic_group_event;
+#[cfg(test)]
+mod classic_group_event_reconciliation_test;
 mod classic_group_execution;
 mod classic_group_execution_close;
 mod classic_group_execution_handoff;
@@ -44,6 +46,11 @@ mod classic_group_position;
 mod classic_group_position_reset;
 #[cfg(test)]
 mod classic_group_position_reset_test;
+mod classic_group_reconciliation;
+mod classic_group_reconciliation_loss;
+mod classic_group_reconciliation_turn;
+#[cfg(test)]
+mod classic_group_reconciliation_turn_test;
 mod classic_group_recovery;
 mod classic_group_rediscovery;
 mod classic_group_rediscovery_execution;
@@ -53,6 +60,8 @@ mod classic_group_rejection_fault;
 mod classic_group_rejection_install;
 mod classic_group_rejoin;
 mod classic_group_rejoin_due;
+#[cfg(test)]
+mod classic_group_rejoin_due_cooperative_test;
 mod classic_group_rejoin_fault;
 mod classic_group_sync;
 mod classic_group_sync_install;
@@ -296,6 +305,8 @@ mod registry_cycle_test;
 mod registry_delivery_test;
 #[cfg(test)]
 mod registry_entry_test;
+#[cfg(test)]
+mod registry_event_reconciliation_test;
 #[cfg(test)]
 mod registry_fetch_recovery_test;
 #[cfg(test)]

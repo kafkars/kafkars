@@ -9,6 +9,10 @@ const ILLEGAL_GENERATION: i16 = 22;
 const UNKNOWN_MEMBER_ID: i16 = 25;
 const REBALANCE_IN_PROGRESS: i16 = 27;
 
+pub(super) const fn is_rebalance_in_progress(error: ClassicBrokerError) -> bool {
+    error.code() == REBALANCE_IN_PROGRESS
+}
+
 /// Kafka request stage that observed one broker rejection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ClassicBrokerStage {

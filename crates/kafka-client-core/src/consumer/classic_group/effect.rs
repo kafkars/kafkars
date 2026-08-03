@@ -3,9 +3,9 @@
 use crate::{Deadline, GroupId, LiveGroupAssignment, MemberId, TopicId};
 
 use super::{
-    ClassicAssignmentPlan, ClassicCoordinatorRecovery, ClassicGeneration, ClassicGroupFatal,
-    ClassicGroupTiming, ClassicHeartbeatAttempt, ClassicHeartbeatSchedule, ClassicProtocol,
-    ClassicRejoinSchedule, MembershipCycle,
+    ClassicAssignmentPlan, ClassicAssignmentReconciliation, ClassicCoordinatorRecovery,
+    ClassicGeneration, ClassicGroupFatal, ClassicGroupTiming, ClassicHeartbeatAttempt,
+    ClassicHeartbeatSchedule, ClassicProtocol, ClassicRejoinSchedule, MembershipCycle,
 };
 
 /// One bounded mechanism action carrying the original membership deadline.
@@ -26,7 +26,7 @@ pub enum ClassicGroupEffect {
         /// Original absolute deadline.
         deadline: Deadline,
     },
-    /// Resolve exact partition counts before leader-side Range planning.
+    /// Resolve exact partition counts before leader-side assignment planning.
     RequestPartitionCounts {
         /// Nonreused membership cycle.
         cycle: MembershipCycle,
@@ -58,6 +58,11 @@ pub enum ClassicGroupEffect {
         classic_generation: ClassicGeneration,
         /// First exact heartbeat schedule owned by the installed assignment.
         heartbeat: ClassicHeartbeatSchedule,
+    },
+    /// Reconciles exact prior and replacement cooperative ownership.
+    Reconcile {
+        /// Allocation-complete assignment replacement and ordered delta.
+        reconciliation: ClassicAssignmentReconciliation,
     },
     /// Arm one exact future heartbeat cadence deadline.
     ArmHeartbeat {

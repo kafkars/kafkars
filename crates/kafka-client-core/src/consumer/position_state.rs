@@ -10,6 +10,10 @@ use super::{
 };
 use crate::{Deadline, Moment};
 
+mod reconciliation;
+
+pub(in crate::consumer) use reconciliation::RetainedAssignmentPositionPlan;
+
 #[derive(Debug)]
 pub(super) struct PartitionPosition {
     epoch: PositionEpoch,

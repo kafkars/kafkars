@@ -83,7 +83,9 @@ fn accepted_batch_requests_exactly_one_turn_after_releasing_the_registry() {
     assert_eq!(wake.requests.load(Ordering::Acquire), 1);
 
     let mut registry = owner.terminal_registry();
-    registry.recover_fetch_after_driver_shutdown();
+    registry
+        .recover_fetch_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("recover group Fetch: {error:?}"));
     stop_registry(&mut registry);
 }
 

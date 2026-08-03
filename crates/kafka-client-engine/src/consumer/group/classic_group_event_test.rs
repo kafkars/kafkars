@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::ClassicGroupPhase;
+use kafka_client_core::{ClassicGroupPhase, ClassicProcessingLeaseFence, Moment};
 
 use crate::consumer::{
     GroupConsumerAssignment, GroupConsumerAssignmentPartition, GroupConsumerEvent,
@@ -47,6 +47,71 @@ fn graceful_revocation_supersedes_assignment_without_duplicate_loss() {
     assert_eq!(revoked.assignment_epoch(), 1);
     events.observe_retirement(Some(assignment(1)), 1, ClassicGroupPhase::WaitingToRejoin);
     assert_eq!(events.take(), None);
+}
+
+#[test]
+fn graceful_revocation_can_publish_only_the_cooperative_removed_subset() {
+    let mut registry = started_registry();
+    let group_id = register(&mut registry, "workers");
+    let entry = registry
+        .entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .unwrap_or_else(|| panic!("registered group"));
+    let topic_id = entry
+        .catalog
+        .topic_id("orders")
+        .unwrap_or_else(|| panic!("registered topic"));
+    super::classic_group_test_support::install_follower(
+        &mut entry.catalog,
+        &mut entry.classic,
+        "member-1",
+        7,
+        vec![
+            kafka_client_core::GroupAssignmentPartition::new(
+                topic_id,
+                kafka_client_core::PartitionIndex::from_raw(0),
+            ),
+            kafka_client_core::GroupAssignmentPartition::new(
+                topic_id,
+                kafka_client_core::PartitionIndex::from_raw(1),
+            ),
+        ],
+    );
+    entry.catalog.stage_installed_assignment_event();
+    entry.catalog.confirm_sync_event();
+    let assignment = entry
+        .catalog
+        .live_assignment()
+        .unwrap_or_else(|| panic!("live assignment"));
+    let cycle = entry
+        .classic
+        .machine()
+        .active_cycle()
+        .unwrap_or_else(|| panic!("active membership cycle"));
+    entry
+        .processing_lease
+        .prepare_activation(
+            ClassicProcessingLeaseFence::new(group_id, cycle, assignment.assignment_generation()),
+            Moment::from_tick(3),
+        )
+        .unwrap_or_else(|error| panic!("processing lease activation: {error:?}"))
+        .commit();
+    let epoch = assignment.assignment_generation().get();
+    let removed = [assignment.partitions()[1]];
+    let named = entry
+        .catalog
+        .prepare_graceful_revocation_subset_event(assignment, &removed);
+    entry.catalog.commit_graceful_revocation_event(named, epoch);
+
+    let Some(GroupConsumerEvent::PartitionsRevoked(revoked)) = entry.catalog.take_event() else {
+        panic!("expected cooperative revoked subset");
+    };
+    assert_eq!(revoked.assignment_epoch(), epoch);
+    assert_eq!(revoked.partitions().len(), 1);
+    assert_eq!(revoked.partitions()[0].topic(), "orders");
+    assert_eq!(revoked.partitions()[0].partition(), 1);
+    stop_registry(&mut registry);
 }
 
 #[test]

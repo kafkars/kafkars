@@ -200,6 +200,7 @@ pub(super) enum ClassicGroupExecutionError {
     ProcessingLease(kafka_client_core::ClassicProcessingLeaseError),
     FetchRetirement(super::classic_group_fetch::ClassicGroupFetchRetirementError),
     PositionPreparation,
+    Reconciliation,
     PositionCallsUnavailable,
     PositionPending,
     PositionDuplicateFence(kafka_client_core::GroupPositionFence),

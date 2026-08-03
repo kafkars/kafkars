@@ -2,7 +2,7 @@
 
 use kafka_client_core::{
     ClassicGroupEffect, ClassicGroupFatal, ClassicGroupFatalReason, ClassicGroupInput,
-    ClassicGroupPhase, ClassicRejoinSchedule, MembershipCycle, Moment,
+    ClassicGroupPhase, ClassicProtocol, ClassicRejoinSchedule, MemberId, MembershipCycle, Moment,
 };
 
 use crate::clock::MonotonicClock;
@@ -39,11 +39,9 @@ impl GroupConsumerRegistry {
             .rejoin
             .schedule()
             .ok_or(ClassicGroupExecutionError::RejoinState)?;
-        if !is_exact_due_state(entry, schedule) {
-            return Err(ClassicGroupExecutionError::RejoinState);
-        }
+        let expected_member_id = expected_due_join_member(entry, schedule)?;
         let prior_cycle = schedule.cycle();
-        let Some(pending) = apply_due_transition(entry, schedule, now)? else {
+        let Some(pending) = apply_due_transition(entry, schedule, now, expected_member_id)? else {
             return Ok(ClassicGroupRejoinDueTurn::Progress);
         };
         stage_due_join(entry, schedule, prior_cycle, pending, clock)?;
@@ -54,6 +52,7 @@ impl GroupConsumerRegistry {
 fn due_rejoin_index(entries: &[GroupConsumerEntry], now: Moment) -> Option<usize> {
     entries.iter().position(|entry| {
         entry.is_active()
+            && entry.classic_reconciliation.is_none()
             && !entry.rediscovery.blocks_join()
             && entry
                 .rejoin
@@ -62,21 +61,41 @@ fn due_rejoin_index(entries: &[GroupConsumerEntry], now: Moment) -> Option<usize
     })
 }
 
-fn is_exact_due_state(entry: &GroupConsumerEntry, schedule: ClassicRejoinSchedule) -> bool {
-    entry.execution.is_idle()
-        && entry.heartbeat.is_dormant()
-        && entry.position.is_dormant()
-        && entry.catalog.live_assignment().is_none()
-        && entry.classic.pending().is_none()
-        && entry.classic.machine().phase() == ClassicGroupPhase::WaitingToRejoin
-        && entry.classic.machine().pending_rejoin() == Some(schedule)
-        && !entry.rediscovery.blocks_join()
+pub(super) fn expected_due_join_member(
+    entry: &GroupConsumerEntry,
+    schedule: ClassicRejoinSchedule,
+) -> Result<Option<MemberId>, ClassicGroupExecutionError> {
+    if !entry.execution.is_idle()
+        || !entry.heartbeat.is_dormant()
+        || !entry.position.is_dormant()
+        || entry.classic.pending().is_some()
+        || entry.classic_reconciliation.is_some()
+        || entry.classic.machine().phase() != ClassicGroupPhase::WaitingToRejoin
+        || entry.classic.machine().pending_rejoin() != Some(schedule)
+        || entry.rediscovery.blocks_join()
+    {
+        return Err(ClassicGroupExecutionError::RejoinState);
+    }
+    match (
+        entry.catalog.live_assignment(),
+        entry.classic.machine().live_assignment(),
+    ) {
+        (None, None) => Ok(None),
+        (Some(catalog), Some(core))
+            if entry.classic.machine().protocol() == ClassicProtocol::CooperativeSticky
+                && catalog == core =>
+        {
+            Ok(Some(catalog.member_id()))
+        }
+        _ => Err(ClassicGroupExecutionError::RejoinState),
+    }
 }
 
-fn apply_due_transition(
+pub(super) fn apply_due_transition(
     entry: &mut GroupConsumerEntry,
     schedule: ClassicRejoinSchedule,
     now: Moment,
+    expected_member_id: Option<MemberId>,
 ) -> Result<Option<PendingClassicRejoinJoin>, ClassicGroupExecutionError> {
     let transition = entry
         .classic
@@ -90,10 +109,12 @@ fn apply_due_transition(
             group_id,
             cycle,
             protocol,
-            member_id: None,
+            member_id,
             timing,
             deadline,
-        }) => PendingClassicRejoinJoin::new(group_id, cycle, protocol, timing, deadline),
+        }) if member_id == expected_member_id => {
+            PendingClassicRejoinJoin::new(group_id, cycle, protocol, member_id, timing, deadline)
+        }
         Some(ClassicGroupEffect::Fatal { fatal }) if exact_due_fatal(entry, schedule, fatal) => {
             if second.is_some() {
                 return freeze(
@@ -152,7 +173,7 @@ fn exact_due_fatal(
         && entry.classic.machine().deadline().is_none()
 }
 
-fn stage_due_join(
+pub(super) fn stage_due_join(
     entry: &mut GroupConsumerEntry,
     schedule: ClassicRejoinSchedule,
     prior_cycle: MembershipCycle,
@@ -197,10 +218,11 @@ fn stage_due_join(
             ClassicRejoinPostCore::new(Some(pending), [None, None], ScheduleState),
         );
     }
-    let prepared = PreparedClassicGroupJoin::new(
+    let prepared = PreparedClassicGroupJoin::new_with_member_id(
         pending.group_id(),
         pending.cycle(),
         pending.protocol(),
+        pending.member_id(),
         pending.timing(),
         mapped,
     );

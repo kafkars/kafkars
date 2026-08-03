@@ -6,9 +6,12 @@ use super::{
     classic_group_execution::ClassicGroupExecutionError,
     classic_group_execution_close::ClassicGroupCloseProgress,
     classic_group_leave::resolve_local_leave_without_member,
-    classic_group_position::{ClassicGroupPositionCloseTurn, close_entry_position},
+    classic_group_position::{
+        ClassicGroupPositionCloseTurn, ClassicGroupPositionExecutionState,
+        ClassicGroupPositionPreparation, close_entry_position,
+    },
     registry::GroupConsumerRegistry,
-    registry_entry::GroupConsumerEntryState,
+    registry_entry::{GroupConsumerEntry, GroupConsumerEntryState},
     registry_membership::GroupConsumerMembershipTurn,
 };
 
@@ -40,6 +43,9 @@ impl GroupConsumerRegistry {
                 driver_owned_close = true;
                 continue;
             }
+            if transfer_reconciliation_position_for_close(entry)? {
+                return Ok(GroupConsumerMembershipTurn::Progress);
+            }
             match close_entry_position(entry, now)? {
                 ClassicGroupPositionCloseTurn::Progress => {
                     return Ok(GroupConsumerMembershipTurn::Progress);
@@ -55,12 +61,24 @@ impl GroupConsumerRegistry {
                 continue;
             }
             let heartbeat_was_local = entry.heartbeat.unsettled() != 0;
-            match entry.execution.close_if_local(
-                &mut entry.classic,
-                &mut entry.catalog,
-                &mut entry.processing_lease,
-                &mut entry.fetch,
-            )? {
+            let close = if entry.classic_reconciliation.is_some() {
+                entry.execution.close_reconciliation_if_local(
+                    &mut entry.classic,
+                    &mut entry.catalog,
+                    &mut entry.processing_lease,
+                    &mut entry.fetch,
+                    entry.rejoin.schedule(),
+                    &mut entry.classic_reconciliation,
+                )?
+            } else {
+                entry.execution.close_if_local(
+                    &mut entry.classic,
+                    &mut entry.catalog,
+                    &mut entry.processing_lease,
+                    &mut entry.fetch,
+                )?
+            };
+            match close {
                 ClassicGroupCloseProgress::Progress => {
                     entry
                         .heartbeat
@@ -138,4 +156,33 @@ impl GroupConsumerRegistry {
             GroupConsumerMembershipTurn::Idle
         })
     }
+}
+
+/// Transfers an unsubmitted added-position owner into the ordinary local-close
+/// state machine. The next bounded turn rejects or consumes it through the
+/// same deterministic position seam used by every other close.
+fn transfer_reconciliation_position_for_close(
+    entry: &mut GroupConsumerEntry,
+) -> Result<bool, ClassicGroupExecutionError> {
+    let Some(pending) = entry.classic_reconciliation.as_mut() else {
+        return Ok(false);
+    };
+    if pending.position_was_installed() {
+        return Ok(false);
+    }
+    if !entry.position.is_dormant() {
+        return Err(ClassicGroupExecutionError::PositionPending);
+    }
+    let position = pending
+        .take_position()
+        .ok_or(ClassicGroupExecutionError::PositionPending)?;
+    entry.position.set(match position {
+        ClassicGroupPositionPreparation::Prepared(prepared) => {
+            ClassicGroupPositionExecutionState::Prepared(prepared)
+        }
+        ClassicGroupPositionPreparation::Complete(completed) => {
+            ClassicGroupPositionExecutionState::Complete(completed)
+        }
+    });
+    Ok(true)
 }

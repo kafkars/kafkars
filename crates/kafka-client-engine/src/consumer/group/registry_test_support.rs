@@ -207,8 +207,12 @@ pub(super) fn stop_registry(registry: &mut GroupConsumerRegistry) {
     }
     assert_eq!(registry.membership_unsettled(), 0);
     if registry.fetch_unsettled() != 0 {
-        // Registry-only tests have no live embedded driver after local close.
-        registry.recover_fetch_after_driver_shutdown();
+        // These registry-only tests have no live embedded DriverOwner. Once
+        // membership is locally closed, consume any assignment-retirement
+        // Fetch owner through the same post-driver terminal recovery seam.
+        registry
+            .recover_fetch_after_driver_shutdown()
+            .unwrap_or_else(|error| panic!("Fetch recovery failed: {error:?}"));
     }
     let join = registry
         .finish_shutdown()

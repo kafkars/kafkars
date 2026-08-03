@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use kafka_client_core::{
-    ClassicGeneration, ClassicGroupEffect, ClassicGroupInput, GroupId, JoinedMemberSlot, Moment,
-    TopicPartitionCount,
+    ClassicGeneration, ClassicGroupEffect, ClassicGroupInput, ClassicProtocol, GroupId,
+    JoinedMemberSlot, Moment, TopicPartitionCount,
 };
 
 use crate::protocol::consumer::NamedAssignmentPartition;
@@ -41,6 +41,7 @@ fn follower_after_foreign_topic() -> (GroupSessionCatalog, ClassicGroupCycleCand
     let candidate = catalog
         .prepare_leader_cycle(
             cycle,
+            ClassicProtocol::Range,
             Arc::from("a-local"),
             vec![
                 JoinedGroupMember::new(slot(1), Arc::from("a-local"), vec![Arc::from("orders")]),

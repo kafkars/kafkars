@@ -19,7 +19,7 @@ pub(super) use super::{
 };
 pub(super) use super::{
     ClassicGroupEffect, ClassicGroupErrorKind, ClassicGroupMachine, ClassicGroupPhase,
-    ClassicGroupTransition, ClassicHeartbeatAttempt, MembershipCycle,
+    ClassicGroupTransition, ClassicHeartbeatAttempt, ClassicProtocol, MembershipCycle,
 };
 
 #[cfg(test)]

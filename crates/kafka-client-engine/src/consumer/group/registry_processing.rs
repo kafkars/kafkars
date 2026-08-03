@@ -49,7 +49,10 @@ impl GroupConsumerRegistry {
         now: Moment,
     ) -> Result<GroupConsumerProcessingTurn, GroupConsumerProcessingError> {
         if let Some(index) = self.entries.iter().position(|entry| {
-            entry.fault.is_none() && entry.processing_lease.pending_expiration().is_some()
+            entry.fault.is_none()
+                && entry.classic_reconciliation.is_none()
+                && entry.revocation.is_dormant()
+                && entry.processing_lease.pending_expiration().is_some()
         }) {
             if self.entries[index].uses_consumer_group_protocol()
                 && self.entries[index]
@@ -68,6 +71,8 @@ impl GroupConsumerRegistry {
         }
         let Some(index) = self.entries.iter().position(|entry| {
             entry.fault.is_none()
+                && entry.classic_reconciliation.is_none()
+                && entry.revocation.is_dormant()
                 && entry
                     .processing_lease
                     .active_schedule()
@@ -83,7 +88,11 @@ impl GroupConsumerRegistry {
     pub(super) fn processing_next_deadline(&self) -> Option<Deadline> {
         self.entries
             .iter()
-            .filter(|entry| entry.fault.is_none())
+            .filter(|entry| {
+                entry.fault.is_none()
+                    && entry.classic_reconciliation.is_none()
+                    && entry.revocation.is_dormant()
+            })
             .filter_map(|entry| entry.processing_lease.next_deadline())
             .min()
     }

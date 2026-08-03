@@ -1,5 +1,6 @@
-//! Shared scalar and version checks for dynamic and opt-in static Range membership.
+//! Shared scalar and version checks for bounded classic consumer membership.
 
+use kafka_client_core::ClassicProtocol;
 use kafka_wire_core::DecodeLimits;
 
 pub(crate) const JOIN_MIN_VERSION: i16 = 1;
@@ -15,23 +16,49 @@ pub(crate) const LEAVE_MIN_VERSION: i16 = 0;
 pub(crate) const LEAVE_MAX_VERSION: i16 = 2;
 pub(crate) const STATIC_LEAVE_VERSION: i16 = 3;
 pub(super) const INNER_SCHEMA_VERSION: i16 = 0;
+pub(super) const COOPERATIVE_SUBSCRIPTION_VERSION: i16 = 2;
+pub(super) const MAX_COOPERATIVE_SUBSCRIPTION_VERSION: i16 = 3;
 pub(super) const PROTOCOL_TYPE: &str = "consumer";
 pub(super) const RANGE_PROTOCOL: &str = "range";
+pub(super) const COOPERATIVE_STICKY_PROTOCOL: &str = "cooperative-sticky";
 pub(super) const MAX_MEMBERS: usize = 64;
 pub(super) const MAX_TOPICS: usize = 64;
 pub(crate) const MAX_MEMBER_PARTITIONS: usize = 64;
 pub(super) const MAX_TOPIC_BYTES: usize = 249;
 pub(super) const MAX_KAFKA_STRING_BYTES: usize = i16::MAX as usize;
+pub(super) const MAX_RACK_ID_BYTES: usize = MAX_KAFKA_STRING_BYTES;
 pub(super) const MAX_MEMBER_NAME_BYTES: usize = MAX_MEMBERS * MAX_KAFKA_STRING_BYTES;
-pub(super) const MAX_JOIN_TOPIC_NAME_BYTES: usize = MAX_MEMBERS * MAX_TOPICS * MAX_TOPIC_BYTES;
+pub(super) const MAX_JOIN_TOPIC_NAME_BYTES: usize =
+    MAX_MEMBERS * (MAX_TOPICS + MAX_MEMBER_PARTITIONS) * MAX_TOPIC_BYTES;
 pub(super) const MAX_INNER_PAYLOAD_BYTES: usize =
     2 + 4 + MAX_TOPICS * (2 + MAX_TOPIC_BYTES + 4) + MAX_MEMBER_PARTITIONS * 4 + 4;
+pub(super) const MAX_SUBSCRIPTION_PAYLOAD_BYTES: usize = 2
+    + 4
+    + MAX_TOPICS * (2 + MAX_TOPIC_BYTES)
+    + 4
+    + 4
+    + MAX_MEMBER_PARTITIONS * (2 + MAX_TOPIC_BYTES + 4)
+    + MAX_MEMBER_PARTITIONS * 4
+    + 4
+    + 2
+    + MAX_RACK_ID_BYTES;
 
 pub(super) fn inner_decode_limits() -> DecodeLimits {
+    decode_limits(MAX_INNER_PAYLOAD_BYTES)
+}
+
+pub(super) fn subscription_decode_limits() -> DecodeLimits {
+    let mut limits = decode_limits(MAX_SUBSCRIPTION_PAYLOAD_BYTES);
+    limits.max_string_bytes = MAX_KAFKA_STRING_BYTES;
+    limits.max_array_elements = MAX_MEMBER_PARTITIONS.max(MAX_TOPICS) + 1;
+    limits
+}
+
+fn decode_limits(max_frame_bytes: usize) -> DecodeLimits {
     let mut limits = DecodeLimits::default();
-    limits.max_frame_bytes = MAX_INNER_PAYLOAD_BYTES;
+    limits.max_frame_bytes = max_frame_bytes;
     limits.max_string_bytes = MAX_TOPIC_BYTES;
-    limits.max_bytes_bytes = MAX_INNER_PAYLOAD_BYTES;
+    limits.max_bytes_bytes = max_frame_bytes;
     limits.max_array_elements = MAX_TOPICS;
     limits.max_tagged_fields = 0;
     limits.max_tag_bytes = 0;
@@ -45,6 +72,20 @@ pub(super) fn valid_join_version(version: i16) -> bool {
 
 pub(super) fn valid_sync_version(version: i16) -> bool {
     (SYNC_MIN_VERSION..=SYNC_MAX_VERSION).contains(&version) || version == STATIC_SYNC_VERSION
+}
+
+pub(super) const fn protocol_name(protocol: ClassicProtocol) -> &'static str {
+    match protocol {
+        ClassicProtocol::Range => RANGE_PROTOCOL,
+        ClassicProtocol::CooperativeSticky => COOPERATIVE_STICKY_PROTOCOL,
+    }
+}
+
+pub(super) const fn subscription_version(protocol: ClassicProtocol) -> i16 {
+    match protocol {
+        ClassicProtocol::Range => INNER_SCHEMA_VERSION,
+        ClassicProtocol::CooperativeSticky => COOPERATIVE_SUBSCRIPTION_VERSION,
+    }
 }
 
 pub(super) const fn valid_topic(topic: &str) -> bool {

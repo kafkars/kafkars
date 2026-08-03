@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use kafka_client_core::{
     ClassicGeneration, ClassicGroupEffect, ClassicGroupInput, GroupAssignmentPartition, GroupId,
-    Moment, PartitionIndex, TopicId,
+    LiveGroupAssignment, Moment, PartitionIndex, TopicId,
 };
 
 use super::{
@@ -131,4 +131,54 @@ fn revoke_clears_only_after_core_assignment_loss() {
         .commit();
     assert!(catalog.live_assignment().is_none());
     assert!(catalog.current_member().is_none());
+}
+
+#[test]
+fn reconciliation_advances_broker_generation_without_replacing_assignment() {
+    let (mut catalog, mut owner) = owners();
+    classic_group_test_support::install_follower(
+        &mut catalog,
+        &mut owner,
+        "member-a",
+        7,
+        vec![GroupAssignmentPartition::new(
+            TopicId::from_raw(1),
+            PartitionIndex::from_raw(2),
+        )],
+    );
+    let current = catalog
+        .live_assignment()
+        .unwrap_or_else(|| panic!("installed assignment"));
+    let previous = LiveGroupAssignment::try_new(
+        current.group_id(),
+        current.member_id(),
+        current.assignment_generation(),
+        current.partitions().to_vec(),
+    )
+    .unwrap_or_else(|error| panic!("previous assignment copy: {error}"));
+    let old_storage = current.partitions().as_ptr();
+    let cycle = owner
+        .machine()
+        .active_cycle()
+        .and_then(kafka_client_core::MembershipCycle::checked_next)
+        .unwrap_or_else(|| panic!("next membership cycle"));
+    let candidate = catalog
+        .prepare_follower_cycle(cycle, Arc::from("member-a"))
+        .unwrap_or_else(|error| panic!("reconciliation candidate: {error:?}"));
+    catalog
+        .prepare_classic_reconciliation_epoch(
+            &candidate,
+            &previous,
+            ClassicGeneration::try_from_raw(7).unwrap_or_else(|| panic!("old generation")),
+            ClassicGeneration::try_from_raw(8).unwrap_or_else(|| panic!("new generation")),
+        )
+        .unwrap_or_else(|| panic!("reconciliation epoch must prepare"))
+        .commit();
+
+    let retained = catalog
+        .live_assignment()
+        .unwrap_or_else(|| panic!("prior assignment remains live"));
+    assert_eq!(retained.partitions().as_ptr(), old_storage);
+    assert_eq!(catalog.membership_cycle(), owner.machine().active_cycle());
+    assert_eq!(catalog.classic_generation(), Some(8));
 }

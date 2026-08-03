@@ -22,6 +22,7 @@ use super::{
     classic_group_heartbeat::{
         ClassicHeartbeatExecutionError, ClassicHeartbeatExecutionState, PreparedClassicHeartbeat,
     },
+    classic_group_reconciliation_loss::stage_classic_group_reconciliation_loss,
     registry::GroupConsumerRegistry,
     registry_entry::GroupConsumerEntry,
 };
@@ -194,6 +195,9 @@ pub(super) fn commit_revoke(
     assignment: kafka_client_core::LiveGroupAssignment,
     generation: ClassicGeneration,
 ) -> Result<(), ClassicGroupRevocationFailure> {
+    if entry.classic_reconciliation.is_some() {
+        return stage_classic_group_reconciliation_loss(entry, assignment, generation);
+    }
     retire_and_revoke_classic_group_assignment(
         &entry.classic,
         &mut entry.catalog,

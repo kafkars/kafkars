@@ -4,7 +4,7 @@ use crate::{MemberId, Moment};
 
 use super::{
     ClassicGroupEffect, ClassicGroupErrorKind, ClassicGroupMachine, ClassicGroupPhase,
-    ClassicGroupTransition, ClassicProtocol, MembershipCycle, transition_support::validate_active,
+    ClassicGroupTransition, MembershipCycle, transition_support::validate_active,
 };
 
 impl ClassicGroupMachine {
@@ -30,7 +30,7 @@ impl ClassicGroupMachine {
         let replacement = ClassicGroupEffect::Join {
             group_id: self.group_id,
             cycle,
-            protocol: ClassicProtocol::Range,
+            protocol: self.protocol(),
             member_id: Some(member_id),
             timing: self.timing(),
             deadline,

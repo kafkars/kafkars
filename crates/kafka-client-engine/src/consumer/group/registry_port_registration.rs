@@ -13,7 +13,9 @@ use super::{
     registry_entry::default_classic_processing_lease_policy, registry_port::GroupConsumerPort,
     registry_shard::GroupConsumerShardLockError, session_catalog::GroupSessionCatalogError,
 };
-use crate::consumer::group_registration_request::GroupConsumerProtocol;
+use crate::consumer::group_registration_request::{
+    GroupConsumerClassicAssignor, GroupConsumerProtocol,
+};
 
 pub(in crate::consumer) struct GroupConsumerPortRegistrationAccepted {
     pub(in crate::consumer) group_id: GroupId,
@@ -82,6 +84,7 @@ impl GroupConsumerPort {
             group_instance_id,
             local_topics,
             GroupConsumerProtocol::Classic,
+            GroupConsumerClassicAssignor::Range,
             timing,
             heartbeat_policy,
             rejoin_policy,
@@ -101,6 +104,7 @@ impl GroupConsumerPort {
         group_instance_id: Option<Arc<str>>,
         local_topics: Vec<Arc<str>>,
         protocol: GroupConsumerProtocol,
+        classic_assignor: GroupConsumerClassicAssignor,
         timing: ClassicGroupTiming,
         heartbeat_policy: ClassicHeartbeatPolicy,
         rejoin_policy: ClassicRejoinPolicy,
@@ -113,6 +117,7 @@ impl GroupConsumerPort {
             group_instance_id,
             local_topics,
             protocol,
+            classic_assignor,
             timing,
             heartbeat_policy,
             rejoin_policy,
@@ -133,6 +138,7 @@ impl GroupConsumerPort {
         group_instance_id: Option<Arc<str>>,
         local_topics: Vec<Arc<str>>,
         protocol: GroupConsumerProtocol,
+        classic_assignor: GroupConsumerClassicAssignor,
         timing: ClassicGroupTiming,
         heartbeat_policy: ClassicHeartbeatPolicy,
         rejoin_policy: ClassicRejoinPolicy,
@@ -173,6 +179,7 @@ impl GroupConsumerPort {
                 group_instance_id,
                 local_topics,
                 protocol,
+                classic_assignor,
                 timing,
                 heartbeat_policy,
                 rejoin_policy,

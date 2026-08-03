@@ -21,6 +21,19 @@ impl AssignedConsumerEventStore {
         })
     }
 
+    pub(crate) fn prepare_reconciliation(
+        &mut self,
+        partition_count: usize,
+    ) -> Result<PreparedEventClaims<'_, 'static>, AssignedConsumerEventStoreError> {
+        if self.ready.len().saturating_add(partition_count) > self.capacity {
+            return Err(AssignedConsumerEventStoreError::Capacity);
+        }
+        Ok(PreparedEventClaims {
+            store: self,
+            kind: PreparedKind::Reconciliation(partition_count),
+        })
+    }
+
     pub(crate) fn prepare_partition(
         &mut self,
         partition: AssignedTopicPartition,

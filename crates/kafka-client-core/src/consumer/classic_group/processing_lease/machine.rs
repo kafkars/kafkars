@@ -32,6 +32,14 @@ pub struct PreparedClassicProcessingLeaseRevocation<'lease> {
     fence: ClassicProcessingLeaseFence,
 }
 
+/// Exclusive prepared fence replacement that preserves the absolute deadline.
+#[derive(Debug)]
+#[must_use = "a prepared processing-lease reconciliation must be committed or dropped"]
+pub struct PreparedClassicProcessingLeaseReconciliation<'lease> {
+    owner: &'lease mut ClassicProcessingLease,
+    schedule: ClassicProcessingLeaseSchedule,
+}
+
 impl ClassicProcessingLease {
     /// Creates one dormant lease without consulting time.
     pub const fn new(policy: ClassicProcessingLeasePolicy) -> Self {
@@ -75,6 +83,30 @@ impl ClassicProcessingLease {
             return Err(ClassicProcessingLeaseError::FenceMismatch);
         }
         Ok(PreparedClassicProcessingLeaseRevocation { owner: self, fence })
+    }
+
+    /// Prepares a new assignment fence without restarting application liveness time.
+    pub fn prepare_reconciliation(
+        &mut self,
+        expected: ClassicProcessingLeaseFence,
+        replacement: ClassicProcessingLeaseFence,
+    ) -> Result<PreparedClassicProcessingLeaseReconciliation<'_>, ClassicProcessingLeaseError> {
+        let schedule = match self.state {
+            ClassicProcessingLeaseState::Dormant => {
+                return Err(ClassicProcessingLeaseError::NotActive);
+            }
+            ClassicProcessingLeaseState::Expired(_) => {
+                return Err(ClassicProcessingLeaseError::ExpirationPending);
+            }
+            ClassicProcessingLeaseState::Armed(schedule) => schedule,
+        };
+        if schedule.fence() != expected {
+            return Err(ClassicProcessingLeaseError::FenceMismatch);
+        }
+        Ok(PreparedClassicProcessingLeaseReconciliation {
+            owner: self,
+            schedule: ClassicProcessingLeaseSchedule::new(replacement, schedule.deadline()),
+        })
     }
 
     /// Applies one explicit application-liveness fact.
@@ -221,6 +253,19 @@ impl PreparedClassicProcessingLeaseRevocation<'_> {
     pub fn commit(self) -> ClassicProcessingLeaseTransition {
         self.owner.state = ClassicProcessingLeaseState::Dormant;
         ClassicProcessingLeaseTransition::none()
+    }
+}
+
+impl PreparedClassicProcessingLeaseReconciliation<'_> {
+    /// Returns the exact replacement schedule with the prior absolute deadline.
+    pub const fn schedule(&self) -> ClassicProcessingLeaseSchedule {
+        self.schedule
+    }
+
+    /// Replaces only the assignment fence after all other owners are ready.
+    pub fn commit(self) -> ClassicProcessingLeaseTransition {
+        self.owner.state = ClassicProcessingLeaseState::Armed(self.schedule);
+        arm(self.schedule)
     }
 }
 

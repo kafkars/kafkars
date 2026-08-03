@@ -3,8 +3,8 @@
 pub(super) mod consumer_group;
 
 use kafka_client_core::{
-    ClassicGeneration, ClassicGracefulRevocationLease, Deadline, GroupId, LiveGroupAssignment,
-    Moment,
+    ClassicGeneration, ClassicGracefulRevocationLease, ClassicGracefulRevocationTerminal, Deadline,
+    GroupAssignmentPartition, GroupId, LiveGroupAssignment, Moment,
 };
 
 use crate::clock::ClockError;
@@ -82,6 +82,58 @@ pub(super) fn stage_classic_group_revocation(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "revocation staging atomically validates and transfers every split-authority owner"
+)]
+pub(super) fn stage_classic_group_reconciliation_revocation(
+    catalog: &mut GroupSessionCatalog,
+    fetch: &ClassicGroupFetchOwner,
+    revocation: &mut ClassicGroupRevocationOwner,
+    assignment: LiveGroupAssignment,
+    generation: ClassicGeneration,
+    removed: &[GroupAssignmentPartition],
+    deadline: Deadline,
+    now: Moment,
+) -> Result<(), (ClassicGroupRevocationStageError, LiveGroupAssignment)> {
+    if catalog.live_assignment() != Some(&assignment) {
+        return Err((
+            ClassicGroupRevocationStageError::AssignmentMismatch,
+            assignment,
+        ));
+    }
+    let Some(activation) = fetch.activation() else {
+        return Err((
+            ClassicGroupRevocationStageError::FetchBindingMissing,
+            assignment,
+        ));
+    };
+    let assignment_epoch = activation.binding().assignment_epoch();
+    if fetch.machine_assignment_epoch() != Some(assignment_epoch)
+        || assignment_epoch.get() != assignment.assignment_generation().get()
+    {
+        return Err((
+            ClassicGroupRevocationStageError::FetchBindingMismatch,
+            assignment,
+        ));
+    }
+    let named = catalog.prepare_graceful_revocation_subset_event(&assignment, removed);
+    let publishes_event = named.is_some();
+    let lease = ClassicGracefulRevocationLease::new(assignment_epoch, deadline);
+    revocation
+        .begin_classic_reconciliation(assignment, generation, lease, now)
+        .map_err(|(error, assignment)| {
+            (ClassicGroupRevocationStageError::Owner(error), assignment)
+        })?;
+    catalog.commit_graceful_revocation_event(named, lease.assignment_epoch().get());
+    if !publishes_event {
+        revocation
+            .lose_owner()
+            .map_err(|_error| unreachable!("newly armed revocation can be lost"))?;
+    }
+    Ok(())
+}
+
 impl GroupConsumerRegistry {
     pub(super) fn turn_graceful_revocation(
         &mut self,
@@ -94,6 +146,12 @@ impl GroupConsumerRegistry {
             if entry.revocation.terminal().is_some()
                 && entry.revocation.pending_is_consumer()
                 && settle_consumer_group_revocation(entry)?
+            {
+                return Ok(ClassicGroupRevocationTurn::Progress);
+            }
+            if entry.revocation.terminal().is_some()
+                && entry.revocation.pending_is_classic_reconciliation()
+                && settle_classic_group_reconciliation_revocation(entry)?
             {
                 return Ok(ClassicGroupRevocationTurn::Progress);
             }
@@ -154,6 +212,58 @@ impl GroupConsumerRegistry {
             .acknowledge(active, now)
             .map_err(GroupConsumerRevocationPortError::Acknowledge)
     }
+}
+
+fn settle_classic_group_reconciliation_revocation(
+    entry: &mut super::registry_entry::GroupConsumerEntry,
+) -> Result<bool, ClassicGroupRevocationHostError> {
+    let Some(terminal) = entry.revocation.terminal() else {
+        return Ok(false);
+    };
+    let Some((assignment, generation)) = entry.revocation.take_pending_classic_reconciliation()
+    else {
+        return Err(ClassicGroupRevocationHostError::MissingPending);
+    };
+    let matches = entry
+        .classic_reconciliation
+        .as_ref()
+        .is_some_and(|pending| {
+            let reconciliation = pending.reconciliation();
+            reconciliation.previous_assignment() == &assignment
+                && reconciliation.previous_classic_generation() == generation
+        });
+    if !matches {
+        entry
+            .revocation
+            .restore_pending_classic_reconciliation(assignment, generation);
+        return Err(ClassicGroupRevocationHostError::UnexpectedEffect);
+    }
+    let loss_event =
+        matches!(terminal, ClassicGracefulRevocationTerminal::Lost { .. }).then(|| {
+            let removed = entry
+                .classic_reconciliation
+                .as_ref()
+                .unwrap_or_else(|| unreachable!("matched reconciliation remains retained"))
+                .reconciliation()
+                .delta()
+                .removed();
+            entry
+                .catalog
+                .prepare_graceful_revocation_subset_loss_event(&assignment, removed)
+        });
+    let assignment_epoch = terminal.lease().assignment_epoch();
+    entry.revocation.release_terminal(assignment_epoch)?;
+    if let Some(loss_event) = loss_event {
+        entry
+            .catalog
+            .commit_graceful_revocation_subset_loss_event(loss_event, assignment_epoch.get());
+    }
+    entry
+        .classic_reconciliation
+        .as_mut()
+        .ok_or(ClassicGroupRevocationHostError::MissingPending)?
+        .settle_revocation();
+    Ok(true)
 }
 
 impl GroupConsumerPort {

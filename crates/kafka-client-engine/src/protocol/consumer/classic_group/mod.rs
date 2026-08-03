@@ -55,6 +55,8 @@ mod heartbeat_request_test;
 #[cfg(test)]
 mod heartbeat_response_test;
 #[cfg(test)]
+mod join_cooperative_request_test;
+#[cfg(test)]
 mod join_request_test;
 #[cfg(test)]
 mod join_response_members_test;

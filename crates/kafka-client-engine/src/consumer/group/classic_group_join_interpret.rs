@@ -10,7 +10,7 @@ use crate::{
 };
 
 use super::{
-    classic_group_candidate::JoinedGroupMember,
+    classic_group_candidate::{JoinedGroupMember, JoinedOwnedPartition},
     classic_group_execution::ClassicGroupExecutionError,
     classic_group_join::ClassicGroupJoinSuccessor,
     classic_group_owner_follower::ClassicGroupFollowerJoinError,
@@ -57,8 +57,9 @@ pub(super) fn interpret_join(
     let version = terminal
         .selected_version()
         .ok_or(restore(ClassicGroupExecutionError::JoinTerminal))?;
-    let outcome = normalize_classic_join_response(version, response)
-        .map_err(|_error| restore(ClassicGroupExecutionError::JoinTerminal))?;
+    let outcome =
+        normalize_classic_join_response(version, entry.classic.machine().protocol(), response)
+            .map_err(|_error| restore(ClassicGroupExecutionError::JoinTerminal))?;
     let joined = match outcome {
         ClassicJoinOutcome::MemberIdRequired { member } => {
             let replacement = prepare_member_id_required_join(entry, cycle, now, terminal, member)?;
@@ -82,7 +83,7 @@ pub(super) fn interpret_join(
             .map_err(|()| restore(ClassicGroupExecutionError::LeaderJoin))?;
         let candidate = entry
             .catalog
-            .prepare_leader_cycle(cycle, member, members)
+            .prepare_leader_cycle(cycle, entry.classic.machine().protocol(), member, members)
             .map_err(|_error| restore(ClassicGroupExecutionError::LeaderJoin))?;
         let prepared = entry
             .classic
@@ -119,10 +120,20 @@ fn prepare_leader_members(
     members
         .try_reserve_exact(joined.len())
         .map_err(|_error| ())?;
-    members.extend(joined.into_iter().map(|joined| {
-        let (slot, member, topics) = joined.into_parts();
-        JoinedGroupMember::new(slot, member, topics)
-    }));
+    for joined in joined {
+        let (slot, member, topics, owned_partitions, generation) = joined.into_parts();
+        let mut owned = Vec::new();
+        owned
+            .try_reserve_exact(owned_partitions.len())
+            .map_err(|_error| ())?;
+        owned.extend(owned_partitions.into_iter().map(|partition| {
+            let (topic, partition) = partition.into_parts();
+            JoinedOwnedPartition::new(topic, partition)
+        }));
+        members.push(JoinedGroupMember::new_with_owned(
+            slot, member, topics, owned, generation,
+        ));
+    }
     Ok(members)
 }
 

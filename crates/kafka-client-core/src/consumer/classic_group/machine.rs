@@ -9,12 +9,14 @@ use super::{
     ClassicGeneration, ClassicGroupFatal, ClassicGroupPhase, ClassicGroupTiming,
     ClassicHeartbeatPolicy, ClassicJoinMembers, ClassicRejoinPolicy, ClassicRejoinSchedule,
     JoinedMemberSlot, MembershipCycle, heartbeat_state::ClassicHeartbeatState,
+    reconciliation::PendingClassicReconciliation,
 };
 
 /// Deterministic owner for one group's classic Join and Sync lifecycle.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ClassicGroupMachine {
     pub(super) group_id: GroupId,
+    protocol: super::ClassicProtocol,
     timing: ClassicGroupTiming,
     rejoin_policy: ClassicRejoinPolicy,
     pub(super) phase: ClassicGroupPhase,
@@ -28,8 +30,11 @@ pub struct ClassicGroupMachine {
     pub(super) pending_expected_assignment: Option<Vec<GroupAssignmentPartition>>,
     pub(super) pending_heartbeat_liveness: Option<Deadline>,
     pub(super) next_assignment_generation: Option<AssignmentGeneration>,
+    pub(super) live_cycle: Option<MembershipCycle>,
     pub(super) live_generation: Option<ClassicGeneration>,
     pub(super) live_assignment: Option<LiveGroupAssignment>,
+    pub(super) pending_reconciliation: Option<PendingClassicReconciliation>,
+    pub(super) pending_withheld_transfers: bool,
     pub(super) pending_rejoin: Option<ClassicRejoinSchedule>,
     pub(super) fatal: Option<ClassicGroupFatal>,
     pub(super) heartbeat: ClassicHeartbeatState,
@@ -43,8 +48,26 @@ impl ClassicGroupMachine {
         heartbeat_policy: ClassicHeartbeatPolicy,
         rejoin_policy: ClassicRejoinPolicy,
     ) -> Self {
+        Self::new_with_protocol(
+            group_id,
+            super::ClassicProtocol::Range,
+            timing,
+            heartbeat_policy,
+            rejoin_policy,
+        )
+    }
+
+    /// Creates one dormant owner with an immutable assignment protocol.
+    pub const fn new_with_protocol(
+        group_id: GroupId,
+        protocol: super::ClassicProtocol,
+        timing: ClassicGroupTiming,
+        heartbeat_policy: ClassicHeartbeatPolicy,
+        rejoin_policy: ClassicRejoinPolicy,
+    ) -> Self {
         Self {
             group_id,
+            protocol,
             timing,
             rejoin_policy,
             phase: ClassicGroupPhase::Dormant,
@@ -58,8 +81,11 @@ impl ClassicGroupMachine {
             pending_expected_assignment: None,
             pending_heartbeat_liveness: None,
             next_assignment_generation: Some(AssignmentGeneration::initial()),
+            live_cycle: None,
             live_generation: None,
             live_assignment: None,
+            pending_reconciliation: None,
+            pending_withheld_transfers: false,
             pending_rejoin: None,
             fatal: None,
             heartbeat: ClassicHeartbeatState::new(heartbeat_policy),
@@ -69,6 +95,11 @@ impl ClassicGroupMachine {
     /// Returns the stable engine-catalog group identity.
     pub const fn group_id(&self) -> GroupId {
         self.group_id
+    }
+
+    /// Returns the immutable assignment protocol selected before admission.
+    pub const fn protocol(&self) -> super::ClassicProtocol {
+        self.protocol
     }
 
     /// Returns the immutable timeout policy emitted for every membership cycle.
@@ -99,6 +130,11 @@ impl ClassicGroupMachine {
     /// Borrows the assignment installed only by matching Sync success.
     pub const fn live_assignment(&self) -> Option<&LiveGroupAssignment> {
         self.live_assignment.as_ref()
+    }
+
+    /// Returns the membership cycle paired with the live assignment.
+    pub const fn live_cycle(&self) -> Option<MembershipCycle> {
+        self.live_cycle
     }
 
     /// Returns the exact Kafka generation paired with the live assignment.

@@ -37,6 +37,9 @@ impl ClassicGroupFetchOwner {
         if let Some(front) = self.interpret_position_effect(effect, catalog) {
             return front;
         }
+        if is_fetch_terminal(effect) {
+            return self.interpret_fetch_terminal(effect);
+        }
         let result = match effect {
             AssignedConsumerEffect::ArmFetchThrottle { fence, deadline } => self
                 .timers
@@ -64,15 +67,15 @@ impl ClassicGroupFetchOwner {
             AssignedConsumerEffect::AuthorizeFetchDelivery { .. } => Ok(()),
             AssignedConsumerEffect::AcceptClose { .. }
             | AssignedConsumerEffect::CompleteClose { .. }
-            | AssignedConsumerEffect::FetchThrottleFailed { .. }
-            | AssignedConsumerEffect::FetchFailed { .. }
             | AssignedConsumerEffect::Revoke { .. }
             | AssignedConsumerEffect::Suspend { .. } => {
                 return ClassicGroupFetchFront::Idle;
             }
             AssignedConsumerEffect::ResolvePosition { .. }
             | AssignedConsumerEffect::PositionResolutionFailed { .. }
-            | AssignedConsumerEffect::ArmPositionThrottle { .. } => unreachable!(),
+            | AssignedConsumerEffect::ArmPositionThrottle { .. }
+            | AssignedConsumerEffect::FetchThrottleFailed { .. }
+            | AssignedConsumerEffect::FetchFailed { .. } => unreachable!(),
         };
         match result {
             Ok(()) => {
@@ -93,6 +96,47 @@ impl ClassicGroupFetchOwner {
                 ClassicGroupFetchFront::Idle
             }
         }
+    }
+
+    fn interpret_fetch_terminal(
+        &mut self,
+        effect: AssignedConsumerEffect,
+    ) -> ClassicGroupFetchFront {
+        if !self.has_exact_retirement_control(effect) {
+            return ClassicGroupFetchFront::Idle;
+        }
+        match self.events.discard_terminal(effect) {
+            Ok(()) => {
+                self.effects.pop_front();
+                ClassicGroupFetchFront::Interpreted
+            }
+            Err(error) => {
+                self.fault = Some(ClassicGroupFetchOwnerFault::Effect {
+                    effect,
+                    failure: ClassicGroupFetchEffectFailure::Event(error),
+                });
+                self.settle_seek_host_unavailable();
+                ClassicGroupFetchFront::Idle
+            }
+        }
+    }
+
+    fn has_exact_retirement_control(&self, effect: AssignedConsumerEffect) -> bool {
+        let position = match effect {
+            AssignedConsumerEffect::FetchThrottleFailed { fence, .. }
+            | AssignedConsumerEffect::FetchFailed { fence, .. } => fence.position(),
+            _ => return false,
+        };
+        self.effects.iter().skip(1).any(|queued| {
+            matches!(
+                *queued,
+                AssignedConsumerEffect::Revoke {
+                    assignment_epoch,
+                    partition,
+                } if assignment_epoch == position.assignment_epoch()
+                    && partition == position.partition()
+            )
+        })
     }
 
     #[allow(
@@ -234,5 +278,13 @@ const fn is_control(effect: AssignedConsumerEffect) -> bool {
     matches!(
         effect,
         AssignedConsumerEffect::Revoke { .. } | AssignedConsumerEffect::Suspend { .. }
+    )
+}
+
+const fn is_fetch_terminal(effect: AssignedConsumerEffect) -> bool {
+    matches!(
+        effect,
+        AssignedConsumerEffect::FetchThrottleFailed { .. }
+            | AssignedConsumerEffect::FetchFailed { .. }
     )
 }

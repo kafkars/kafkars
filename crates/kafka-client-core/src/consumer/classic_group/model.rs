@@ -1,6 +1,6 @@
 //! Bounded bytes-free facts normalized from classic consumer-group protocol data.
 
-use crate::{MemberId, TopicId};
+use crate::{GroupAssignmentPartition, MemberId, TopicId};
 
 use super::{JoinedMemberSlot, MemberRank};
 
@@ -24,6 +24,8 @@ pub enum ClassicGroupPhase {
     AwaitingPartitionCounts,
     /// One exact Sync request is outstanding.
     Syncing,
+    /// A cooperative replacement awaits engine-side ownership application.
+    Reconciling,
     /// Matching Sync success installed the live assignment.
     Stable,
     /// One exact recovery schedule is waiting for its due observation.
@@ -41,17 +43,30 @@ pub enum ClassicGroupPhase {
 pub enum ClassicProtocol {
     /// Dynamic, non-rack-aware Kafka Range assignment.
     Range,
+    /// Incremental, non-rack-aware Kafka cooperative-sticky assignment.
+    CooperativeSticky,
 }
 
-/// Ordered unique scalar topics subscribed by one classic member.
+/// Ordered unique topics and prior ownership reported by one classic member.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ClassicSubscription {
     topics: Vec<TopicId>,
+    owned_partitions: Vec<GroupAssignmentPartition>,
+    generation: Option<super::ClassicGeneration>,
 }
 
 impl ClassicSubscription {
     /// Validates the bounded, strictly ordered topic set.
     pub fn try_new(topics: Vec<TopicId>) -> Result<Self, ClassicSubscriptionError> {
+        Self::try_new_with_owned(topics, Vec::new(), None)
+    }
+
+    /// Validates one bounded subscription with cooperative prior-ownership facts.
+    pub fn try_new_with_owned(
+        topics: Vec<TopicId>,
+        owned_partitions: Vec<GroupAssignmentPartition>,
+        generation: Option<super::ClassicGeneration>,
+    ) -> Result<Self, ClassicSubscriptionError> {
         if topics.len() > MAX_CLASSIC_TOPICS_PER_MEMBER {
             return Err(ClassicSubscriptionError::TooManyTopics);
         }
@@ -63,12 +78,37 @@ impl ClassicSubscription {
                 return Err(ClassicSubscriptionError::OutOfOrder);
             }
         }
-        Ok(Self { topics })
+        if owned_partitions.len() > super::assignment::MAX_CLASSIC_MEMBER_PARTITIONS {
+            return Err(ClassicSubscriptionError::TooManyOwnedPartitions);
+        }
+        for pair in owned_partitions.windows(2) {
+            if pair[0] == pair[1] {
+                return Err(ClassicSubscriptionError::DuplicateOwnedPartition(pair[0]));
+            }
+            if pair[0] > pair[1] {
+                return Err(ClassicSubscriptionError::OwnedPartitionsOutOfOrder);
+            }
+        }
+        Ok(Self {
+            topics,
+            owned_partitions,
+            generation,
+        })
     }
 
     /// Borrows the engine-catalog topic identities in deterministic order.
     pub fn topics(&self) -> &[TopicId] {
         &self.topics
+    }
+
+    /// Borrows the ordered partitions reported as currently owned.
+    pub fn owned_partitions(&self) -> &[GroupAssignmentPartition] {
+        &self.owned_partitions
+    }
+
+    /// Returns the generation paired with the prior ownership, when known.
+    pub const fn generation(&self) -> Option<super::ClassicGeneration> {
+        self.generation
     }
 }
 
@@ -81,6 +121,12 @@ pub enum ClassicSubscriptionError {
     DuplicateTopic(TopicId),
     /// Topic identities were not presented in ascending order.
     OutOfOrder,
+    /// The owned-partition report exceeded one member's reviewed bound.
+    TooManyOwnedPartitions,
+    /// One owned partition appeared more than once.
+    DuplicateOwnedPartition(GroupAssignmentPartition),
+    /// Owned partitions were not ordered by topic identity and partition.
+    OwnedPartitionsOutOfOrder,
 }
 
 /// One normalized member in the ordering chosen from Kafka member identifiers.

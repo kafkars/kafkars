@@ -1,6 +1,6 @@
 //! Normalized time-stamped facts accepted by one classic membership owner.
 
-use crate::{Deadline, GroupAssignmentPartition, MemberId, Moment};
+use crate::{AssignmentGeneration, Deadline, GroupAssignmentPartition, MemberId, Moment};
 
 use super::{
     ClassicBrokerError, ClassicGeneration, ClassicHeartbeatAttempt, ClassicJoinMembers,
@@ -37,7 +37,7 @@ pub enum ClassicGroupInput {
         /// Exact signed Kafka generation.
         generation: ClassicGeneration,
     },
-    /// Join succeeded and this member owns the Range plan.
+    /// Join succeeded and this member owns the selected assignment plan.
     JoinLeader {
         /// Exact cycle that issued Join.
         cycle: MembershipCycle,
@@ -69,6 +69,15 @@ pub enum ClassicGroupInput {
         now: Moment,
         /// Ordered unique assignment decoded by the engine.
         partitions: Vec<GroupAssignmentPartition>,
+    },
+    /// Engine-side cooperative ownership application completed.
+    ReconciliationApplied {
+        /// Exact membership cycle that emitted the reconciliation.
+        cycle: MembershipCycle,
+        /// Exact replacement assignment generation that was applied.
+        assignment_generation: AssignmentGeneration,
+        /// Current monotonic observation for a possible follow-up round.
+        now: Moment,
     },
     /// The exact assignment-fenced heartbeat cadence deadline elapsed.
     HeartbeatDue {

@@ -12,6 +12,8 @@ mod model;
 mod model_test;
 mod prepared;
 #[cfg(test)]
+mod prepared_reconciliation_test;
+#[cfg(test)]
 mod prepared_test;
 
 use claim::EventClaim;

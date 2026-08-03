@@ -115,11 +115,12 @@ impl GroupConsumerRegistry {
                         .coordinator_invalidations
                         .as_ref()
                         .is_some_and(|owner| owner.blocks_join(entry.group_id()));
+                let rejoin_blocked = route_blocked || entry.classic_reconciliation.is_some();
                 [
                     entry.execution.next_deadline(),
                     entry.heartbeat.next_deadline(),
                     entry.leave.next_deadline(),
-                    if route_blocked {
+                    if rejoin_blocked {
                         None
                     } else {
                         entry.rejoin.next_deadline()
@@ -135,11 +136,13 @@ impl GroupConsumerRegistry {
 
 impl GroupConsumerEntry {
     fn membership_unsettled(&self) -> usize {
+        let classic_reconciliation = usize::from(self.classic_reconciliation.is_some());
         if let Some(consumer) = self.consumer.as_ref() {
             return consumer
                 .unsettled()
                 .saturating_add(usize::from(self.consumer_revocation.is_some()))
-                .saturating_add(usize::from(self.consumer_reconciliation.is_some()));
+                .saturating_add(usize::from(self.consumer_reconciliation.is_some()))
+                .saturating_add(classic_reconciliation);
         }
         if let Some(fault) = &self.fault {
             return fault
@@ -148,7 +151,8 @@ impl GroupConsumerEntry {
                 .saturating_add(self.heartbeat.unsettled())
                 .saturating_add(self.leave.unsettled())
                 .saturating_add(self.rejoin.unsettled())
-                .saturating_add(self.rediscovery.unsettled());
+                .saturating_add(self.rediscovery.unsettled())
+                .saturating_add(classic_reconciliation);
         }
         if self.state == GroupConsumerEntryState::Closing
             && self.classic.machine().phase() != ClassicGroupPhase::Closed
@@ -157,7 +161,8 @@ impl GroupConsumerEntry {
                 .saturating_add(self.heartbeat.unsettled())
                 .saturating_add(self.leave.unsettled())
                 .saturating_add(self.rejoin.unsettled())
-                .saturating_add(self.rediscovery.unsettled());
+                .saturating_add(self.rediscovery.unsettled())
+                .saturating_add(classic_reconciliation);
         }
         self.execution
             .unsettled()
@@ -165,5 +170,6 @@ impl GroupConsumerEntry {
             .saturating_add(self.leave.unsettled())
             .saturating_add(self.rejoin.unsettled())
             .saturating_add(self.rediscovery.unsettled())
+            .saturating_add(classic_reconciliation)
     }
 }

@@ -123,6 +123,8 @@ impl GroupConsumerHandle {
             group_instance_id,
             topics,
             protocol,
+            effective_classic_assignor,
+            requested_classic_assignor,
             missing_offset_policy,
             read_isolation,
             processing_policy,
@@ -137,6 +139,7 @@ impl GroupConsumerHandle {
             group_instance_id,
             topics,
             protocol,
+            effective_classic_assignor.unwrap_or_default(),
             timing,
             heartbeat,
             rejoin,
@@ -175,6 +178,9 @@ impl GroupConsumerHandle {
                 let mut request =
                     GroupConsumerRegistration::new(failure.group, failure.local_topics)
                         .with_protocol(protocol);
+                if let Some(requested_classic_assignor) = requested_classic_assignor {
+                    request = request.with_classic_assignor(requested_classic_assignor);
+                }
                 if let Some(group_instance_id) = failure.group_instance_id {
                     request = request.with_group_instance_id(group_instance_id);
                 }

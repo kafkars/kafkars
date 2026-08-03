@@ -3,14 +3,14 @@
 use core::num::NonZeroI16;
 use std::sync::Arc;
 
-use kafka_client_core::ClassicGeneration;
+use kafka_client_core::{ClassicGeneration, ClassicProtocol};
 use kafka_wire::JoinGroupResponse;
 use kafka_wire_core::DecodeError;
 
 use super::{
     ClassicBrokerRejection, ClassicJoinOutcome, ClassicJoinedGroup, ClassicJoinedRole,
     join_response_members::normalize_members,
-    validation::{RANGE_PROTOCOL, valid_join_version, valid_kafka_string},
+    validation::{protocol_name, valid_join_version, valid_kafka_string},
 };
 
 const MEMBER_ID_REQUIRED_ERROR_CODE: i16 = 79;
@@ -36,9 +36,18 @@ pub(crate) enum ClassicJoinResponseFailure {
     Metadata(DecodeError),
     UnsupportedSubscriptionVersion(i16),
     SubscriptionUserData,
+    SubscriptionRackId,
     TopicCount { actual: usize, limit: usize },
     InvalidTopic,
     DuplicateTopic,
+    OwnedPartitionCount { actual: usize, limit: usize },
+    InvalidOwnedTopic,
+    DuplicateOwnedTopic,
+    OutOfOrderOwnedTopic,
+    InvalidOwnedPartition(i32),
+    DuplicateOwnedPartition,
+    OutOfOrderOwnedPartition,
+    InvalidSubscriptionGeneration(i32),
     MemberNameBytes,
     TopicNameBytes,
     Allocation,
@@ -47,6 +56,7 @@ pub(crate) enum ClassicJoinResponseFailure {
 /// Normalizes one selected v1-v3 Join terminal without deciding failure policy.
 pub(crate) fn normalize_classic_join_response(
     selected_version: i16,
+    expected_protocol: ClassicProtocol,
     response: &JoinGroupResponse,
 ) -> Result<ClassicJoinOutcome, ClassicJoinResponseFailure> {
     if !valid_join_version(selected_version) {
@@ -72,7 +82,7 @@ pub(crate) fn normalize_classic_join_response(
             error_code,
         )));
     }
-    validate_success_protocol(response)?;
+    validate_success_protocol(expected_protocol, response)?;
     let generation = ClassicGeneration::try_from_raw(response.generation_id).ok_or(
         ClassicJoinResponseFailure::InvalidGeneration(response.generation_id),
     )?;
@@ -89,6 +99,7 @@ pub(crate) fn normalize_classic_join_response(
             &response.members,
             member,
             selected_version,
+            expected_protocol,
         )?)
     } else {
         if !response.members.is_empty() {
@@ -118,6 +129,7 @@ fn normalize_throttle(
 }
 
 fn validate_success_protocol(
+    expected_protocol: ClassicProtocol,
     response: &JoinGroupResponse,
 ) -> Result<(), ClassicJoinResponseFailure> {
     if response.protocol_type.is_some() {
@@ -127,7 +139,7 @@ fn validate_success_protocol(
         .protocol_name
         .as_ref()
         .map(kafka_wire_core::StrBytes::as_str)
-        != Some(RANGE_PROTOCOL)
+        != Some(protocol_name(expected_protocol))
     {
         return Err(ClassicJoinResponseFailure::UnexpectedProtocolName);
     }

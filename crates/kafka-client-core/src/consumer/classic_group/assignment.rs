@@ -1,4 +1,4 @@
-//! Bounded deterministic non-rack classic Range assignment policy.
+//! Bounded deterministic non-rack classic assignment plans.
 
 use crate::{GroupAssignmentPartition, MemberId, PartitionIndex, TopicId};
 
@@ -16,8 +16,8 @@ pub(super) const MAX_CLASSIC_ASSIGNMENT_PARTITIONS: usize = 4_096;
 /// One member's deterministic, possibly empty Range assignment.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ClassicMemberAssignment {
-    slot: JoinedMemberSlot,
-    partitions: Vec<GroupAssignmentPartition>,
+    pub(super) slot: JoinedMemberSlot,
+    pub(super) partitions: Vec<GroupAssignmentPartition>,
 }
 
 impl ClassicMemberAssignment {
@@ -36,12 +36,14 @@ impl ClassicMemberAssignment {
 #[derive(Debug, Eq, PartialEq)]
 pub struct ClassicAssignmentPlan {
     assignments: Vec<ClassicMemberAssignment>,
+    withheld_transfers: usize,
 }
 
 impl ClassicAssignmentPlan {
     pub(crate) const fn empty() -> Self {
         Self {
             assignments: Vec::new(),
+            withheld_transfers: 0,
         }
     }
 
@@ -60,12 +62,44 @@ impl ClassicAssignmentPlan {
         for member in members.members() {
             assignments.push(assign_member(member, members, counts)?);
         }
-        Ok(Self { assignments })
+        Ok(Self {
+            assignments,
+            withheld_transfers: 0,
+        })
+    }
+
+    /// Computes a bounded sticky target and applies Kafka's cooperative handoff rule.
+    ///
+    /// Partitions that must move between live owners are withheld from the new
+    /// owner for this round. The prior owner receives an assignment without
+    /// those partitions and can report the completed revocation on its next Join.
+    pub fn try_cooperative_sticky(
+        members: &ClassicJoinMembers,
+        counts: &[TopicPartitionCount],
+    ) -> Result<Self, ClassicAssignmentError> {
+        validate_counts(members, counts)?;
+        preflight_aggregate(counts)?;
+        super::cooperative_sticky::try_plan(members, counts).map(
+            |(assignments, withheld_transfers)| Self {
+                assignments,
+                withheld_transfers,
+            },
+        )
     }
 
     /// Borrows all member assignments, including members assigned no partitions.
     pub fn entries(&self) -> &[ClassicMemberAssignment] {
         &self.assignments
+    }
+
+    /// Returns the number of cross-member transfers withheld for another round.
+    pub const fn withheld_transfers(&self) -> usize {
+        self.withheld_transfers
+    }
+
+    /// Returns whether this plan needs another cooperative Join and Sync round.
+    pub const fn requires_followup(&self) -> bool {
+        self.withheld_transfers != 0
     }
 
     /// Removes the complete linear plan for one Sync request translation.
@@ -103,19 +137,15 @@ pub enum ClassicAssignmentError {
     ArithmeticOverflow,
     /// Bounded plan storage could not be reserved.
     AllocationFailed,
+    /// More than one member reported current ownership of one partition.
+    ConflictingOwnedPartition(GroupAssignmentPartition),
 }
 
 fn preflight_plan(
     members: &ClassicJoinMembers,
     counts: &[TopicPartitionCount],
 ) -> Result<(), ClassicAssignmentError> {
-    let aggregate = counts.iter().try_fold(0_usize, |sum, count| {
-        sum.checked_add(count.count() as usize)
-            .ok_or(ClassicAssignmentError::ArithmeticOverflow)
-    })?;
-    if aggregate > MAX_CLASSIC_ASSIGNMENT_PARTITIONS {
-        return Err(ClassicAssignmentError::AggregatePartitionLimit { actual: aggregate });
-    }
+    preflight_aggregate(counts)?;
     for member in members.members() {
         let count = assigned_count(member, members, counts)?;
         if count > MAX_CLASSIC_MEMBER_PARTITIONS {
@@ -124,6 +154,19 @@ fn preflight_plan(
                 actual: count,
             });
         }
+    }
+    Ok(())
+}
+
+pub(super) fn preflight_aggregate(
+    counts: &[TopicPartitionCount],
+) -> Result<(), ClassicAssignmentError> {
+    let aggregate = counts.iter().try_fold(0_usize, |sum, count| {
+        sum.checked_add(count.count() as usize)
+            .ok_or(ClassicAssignmentError::ArithmeticOverflow)
+    })?;
+    if aggregate > MAX_CLASSIC_ASSIGNMENT_PARTITIONS {
+        return Err(ClassicAssignmentError::AggregatePartitionLimit { actual: aggregate });
     }
     Ok(())
 }

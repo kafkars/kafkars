@@ -1,11 +1,20 @@
 //! Join response version, role, and broker-error scenarios.
 
+use kafka_client_core::ClassicProtocol;
+
 use super::{
     ClassicJoinOutcome, ClassicJoinResponseFailure,
     join_response_test_fixture::{member, response},
-    normalize_classic_join_response,
+    normalize_classic_join_response as normalize_classic_join_response_for_protocol,
     validation::RANGE_PROTOCOL,
 };
+
+fn normalize_classic_join_response(
+    selected_version: i16,
+    response: &kafka_wire::JoinGroupResponse,
+) -> Result<ClassicJoinOutcome, ClassicJoinResponseFailure> {
+    normalize_classic_join_response_for_protocol(selected_version, ClassicProtocol::Range, response)
+}
 
 #[test]
 fn follower_success_is_owned_without_a_leader_member_set() {
@@ -39,7 +48,7 @@ fn leader_success_returns_ordered_owned_candidate_parts() {
     let members = role
         .into_leader_members()
         .unwrap_or_else(|| panic!("leader members expected"));
-    let (slot, first, first_topics) = members
+    let (slot, first, first_topics, first_owned, first_generation) = members
         .into_iter()
         .next()
         .unwrap_or_else(|| panic!("first member"))
@@ -47,6 +56,8 @@ fn leader_success_returns_ordered_owned_candidate_parts() {
     assert_eq!(slot.get(), 1);
     assert_eq!(first.as_ref(), "member-b");
     assert_eq!(first_topics[0].as_ref(), "payments");
+    assert!(first_owned.is_empty());
+    assert_eq!(first_generation, None);
 }
 
 #[test]
@@ -128,5 +139,14 @@ fn success_rejects_optional_protocol_inference_and_role_mismatch() {
     assert_eq!(
         normalize_classic_join_response(3, &raw),
         Err(ClassicJoinResponseFailure::UnexpectedFollowerMembers)
+    );
+}
+
+#[test]
+fn success_protocol_must_match_the_selected_assignor() {
+    let raw = response("a", "b");
+    assert_eq!(
+        normalize_classic_join_response_for_protocol(3, ClassicProtocol::CooperativeSticky, &raw,),
+        Err(ClassicJoinResponseFailure::UnexpectedProtocolName)
     );
 }

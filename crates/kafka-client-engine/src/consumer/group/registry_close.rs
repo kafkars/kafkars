@@ -7,9 +7,11 @@ use kafka_client_core::{ClassicGroupPhase, ConsumerGroupHeartbeatPhase, GroupId,
 use crate::{clock::OperationDeadline, completion::NotifierJoin};
 
 use super::{
+    classic_group_graceful_revocation::ClassicGroupRevocationTurn,
     classic_group_leave::{
         GroupConsumerCloseAuthority, GroupConsumerCloseAuthorityClaim, GroupConsumerCloseCompletion,
     },
+    classic_group_reconciliation_loss::ClassicGroupReconciliationLossTurn,
     consumer_group_assignment_retirement::ConsumerGroupAssignmentRetirementTurn,
     registry::GroupConsumerRegistry,
     registry_entry::GroupConsumerEntryState,
@@ -27,7 +29,7 @@ pub(in crate::consumer) enum GroupRegistryCloseError {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum GroupConsumerRemovalError {
+pub(in crate::consumer) enum GroupConsumerRemovalError {
     RetainedBytesInvariant,
     TerminalInvariant,
     CloseAuthorityInvariant,
@@ -164,16 +166,20 @@ impl GroupConsumerRegistry {
             Ok(()) => self.recover_local_membership().err(),
             Err(error) => Some(error),
         };
-        if membership.is_none() {
-            self.recover_fetch_after_driver_shutdown();
-        }
+        let fetch = if membership.is_none() {
+            self.recover_fetch_after_driver_shutdown()
+                .err()
+                .map(GroupConsumerHostError::close)
+        } else {
+            None
+        };
         let offset_commits = &mut self.offset_commits;
         let offset_commit = offset_commits
             .recover_after_driver_shutdown()
             .err()
             .map(GroupConsumerHostError::from);
         membership.map_or_else(
-            || offset_commit.map_or(Ok(()), Err),
+            || fetch.or(offset_commit).map_or(Ok(()), Err),
             |error| Err(GroupConsumerHostError::membership(error)),
         )
     }
@@ -212,8 +218,21 @@ impl GroupConsumerRegistry {
     fn recover_local_membership(
         &mut self,
     ) -> Result<(), super::classic_group_execution::ClassicGroupExecutionError> {
-        let turn_limit = self.entries.len().saturating_mul(4).saturating_add(1);
+        let turn_limit = self.entries.len().saturating_mul(5).saturating_add(1);
         for _turn in 0..turn_limit {
+            match self
+                .turn_graceful_revocation(Moment::from_tick(u64::MAX))
+                .map_err(|_error| {
+                    super::classic_group_execution::ClassicGroupExecutionError::Reconciliation
+                })? {
+                ClassicGroupRevocationTurn::Progress => continue,
+                ClassicGroupRevocationTurn::Idle => {}
+            }
+            match self.turn_one_classic_group_reconciliation_loss(Moment::from_tick(u64::MAX))? {
+                ClassicGroupReconciliationLossTurn::Progress => continue,
+                ClassicGroupReconciliationLossTurn::Blocked => break,
+                ClassicGroupReconciliationLossTurn::Idle => {}
+            }
             match self.turn_one_consumer_group_assignment_retirement_after_driver_shutdown(
                 Moment::from_tick(u64::MAX),
             )? {
@@ -282,6 +301,7 @@ fn group_close_is_drained(entry: &super::registry_entry::GroupConsumerEntry) -> 
     );
     entry.state == GroupConsumerEntryState::Closing
         && protocol_is_closed
+        && entry.classic_reconciliation.is_none()
         && entry.catalog.live_assignment().is_none()
         && entry.execution.is_idle()
         && entry.heartbeat.is_dormant()

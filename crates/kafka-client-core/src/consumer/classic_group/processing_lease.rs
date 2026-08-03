@@ -8,7 +8,7 @@ use super::MembershipCycle;
 mod machine;
 pub use machine::{
     ClassicProcessingLease, PreparedClassicProcessingLeaseActivation,
-    PreparedClassicProcessingLeaseRevocation,
+    PreparedClassicProcessingLeaseReconciliation, PreparedClassicProcessingLeaseRevocation,
 };
 
 /// Positive duration between application progress observations.

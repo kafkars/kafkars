@@ -17,6 +17,7 @@ use super::{
     classic_group_leave::{ClassicGroupLeaveOwner, GroupConsumerCloseAuthority},
     classic_group_owner::ClassicGroupOwner,
     classic_group_position::ClassicGroupPositionExecution,
+    classic_group_reconciliation::PreparedClassicGroupReconciliation,
     classic_group_rediscovery::ClassicCoordinatorRediscovery,
     classic_group_rejoin::ClassicGroupRejoinExecution,
     consumer_group_assignment_install::PreparedConsumerGroupAssignmentInstall,
@@ -24,7 +25,8 @@ use super::{
     session_catalog::{GroupSessionCatalog, GroupSessionCatalogError},
 };
 use crate::consumer::{
-    GroupConsumerPositionFailureKind, group_registration_request::GroupConsumerProtocol,
+    GroupConsumerPositionFailureKind,
+    group_registration_request::{GroupConsumerClassicAssignor, GroupConsumerProtocol},
 };
 
 /// Whether one retained group can still admit new operations.
@@ -51,6 +53,7 @@ pub(super) struct GroupConsumerEntry {
     pub(super) consumer_revocation: Option<kafka_client_core::LiveGroupAssignment>,
     pub(super) consumer_reconciliation: Option<PreparedConsumerGroupAssignmentInstall>,
     pub(super) classic: ClassicGroupOwner,
+    pub(super) classic_reconciliation: Option<PreparedClassicGroupReconciliation>,
     pub(super) execution: ClassicGroupExecution,
     pub(super) fetch: ClassicGroupFetchOwner,
     pub(super) heartbeat: ClassicHeartbeatExecution,
@@ -145,6 +148,7 @@ impl GroupConsumerEntry {
             group_instance_id,
             local_topics,
             GroupConsumerProtocol::Classic,
+            GroupConsumerClassicAssignor::Range,
             timing,
             heartbeat_policy,
             rejoin_policy,
@@ -164,6 +168,7 @@ impl GroupConsumerEntry {
         group_instance_id: Option<&Arc<str>>,
         local_topics: &[Arc<str>],
         protocol: GroupConsumerProtocol,
+        classic_assignor: GroupConsumerClassicAssignor,
         timing: ClassicGroupTiming,
         heartbeat_policy: ClassicHeartbeatPolicy,
         rejoin_policy: ClassicRejoinPolicy,
@@ -197,7 +202,14 @@ impl GroupConsumerEntry {
             },
             consumer_revocation: None,
             consumer_reconciliation: None,
-            classic: ClassicGroupOwner::new(group_id, timing, heartbeat_policy, rejoin_policy),
+            classic: ClassicGroupOwner::new_with_protocol(
+                group_id,
+                classic_assignor.into_core(),
+                timing,
+                heartbeat_policy,
+                rejoin_policy,
+            ),
+            classic_reconciliation: None,
             execution: new_classic_group_execution(),
             fetch: ClassicGroupFetchOwner::try_new_with_read_isolation(read_isolation)
                 .map_err(GroupConsumerEntryBuildError::Fetch)?,

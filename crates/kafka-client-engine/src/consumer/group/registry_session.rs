@@ -60,7 +60,12 @@ impl GroupConsumerRegistry {
         }
         let candidate = entry
             .catalog
-            .prepare_leader_cycle(cycle, local_member, joined)
+            .prepare_leader_cycle(
+                cycle,
+                entry.classic.machine().protocol(),
+                local_member,
+                joined,
+            )
             .map_err(GroupConsumerSessionFailure::Candidate)?;
         let members = candidate
             .try_core_join_members()

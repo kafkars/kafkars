@@ -10,14 +10,9 @@ use crate::consumer::{
 };
 
 use super::{
-    classic_group_fetch::{
-        ClassicGroupFetchCurrentFenceError, current_consumer_group_position_fence,
-        current_position_fence,
-    },
-    registry::GroupConsumerRegistry,
-    registry_entry::GroupConsumerEntryState,
-    registry_port::GroupConsumerPort,
-    registry_shard::GroupConsumerShardLockError,
+    classic_group_fetch::current_consumer_group_position_fence, registry::GroupConsumerRegistry,
+    registry_entry::GroupConsumerEntryState, registry_event::observable_classic_position_fence,
+    registry_port::GroupConsumerPort, registry_shard::GroupConsumerShardLockError,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -94,20 +89,10 @@ impl GroupConsumerRegistry {
             return Ok(None);
         }
         let position_fence = match entry.protocol {
-            GroupConsumerProtocol::Classic => {
-                match current_position_fence(&entry.classic, &entry.catalog) {
-                    Ok(fence) => fence,
-                    Err(
-                        ClassicGroupFetchCurrentFenceError::MissingMembershipCycle
-                        | ClassicGroupFetchCurrentFenceError::MissingClassicAssignment
-                        | ClassicGroupFetchCurrentFenceError::MissingCatalogAssignment,
-                    ) => return Ok(None),
-                    Err(
-                        ClassicGroupFetchCurrentFenceError::CatalogGroupMismatch
-                        | ClassicGroupFetchCurrentFenceError::AssignmentMismatch,
-                    ) => return Err(GroupConsumerStateSnapshotError::EntryFault),
-                }
-            }
+            GroupConsumerProtocol::Classic => match observable_classic_position_fence(entry)? {
+                Some(fence) => fence,
+                None => return Ok(None),
+            },
             GroupConsumerProtocol::Consumer => current_consumer_group_position_fence(
                 entry
                     .consumer

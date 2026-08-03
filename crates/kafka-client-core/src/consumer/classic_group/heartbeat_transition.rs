@@ -79,10 +79,13 @@ impl ClassicGroupMachine {
         &self,
         attempt: ClassicHeartbeatAttempt,
     ) -> Result<(), ClassicGroupErrorKind> {
-        if self.phase != ClassicGroupPhase::Stable {
+        if !matches!(
+            self.phase,
+            ClassicGroupPhase::Stable | ClassicGroupPhase::Reconciling
+        ) {
             return Err(ClassicGroupErrorKind::InvalidPhase);
         }
-        if self.active_cycle != Some(attempt.cycle()) {
+        if self.live_cycle != Some(attempt.cycle()) {
             return Err(ClassicGroupErrorKind::HeartbeatMismatch);
         }
         let assignment = self

@@ -42,14 +42,21 @@ impl ClassicGroupMachine {
         let cycle = self
             .next_cycle
             .ok_or(ClassicGroupErrorKind::CycleExhausted)?;
-        if self.live_assignment.is_some() || self.live_generation.is_some() {
+        let has_live = self.live_assignment.is_some();
+        if has_live != self.live_generation.is_some() || has_live != self.live_cycle.is_some() {
             return Err(ClassicGroupErrorKind::InvariantViolation);
         }
+        if has_live && self.protocol() != ClassicProtocol::CooperativeSticky {
+            return Err(ClassicGroupErrorKind::InvariantViolation);
+        }
+        let retained_member_id = self
+            .live_assignment()
+            .map(crate::LiveGroupAssignment::member_id);
         let join = ClassicGroupEffect::Join {
             group_id: self.group_id,
             cycle,
-            protocol: ClassicProtocol::Range,
-            member_id: None,
+            protocol: self.protocol(),
+            member_id: retained_member_id,
             timing: self.timing(),
             deadline,
         };
@@ -59,6 +66,8 @@ impl ClassicGroupMachine {
         self.deadline = Some(deadline);
         self.pending_rejoin = None;
         self.clear_pending();
+        self.pending_member_id = retained_member_id;
+        self.heartbeat.disarm();
         Ok(ClassicGroupTransition::one(join))
     }
 
@@ -132,12 +141,18 @@ impl ClassicGroupMachine {
             .pending_members
             .as_ref()
             .ok_or(ClassicGroupErrorKind::InvariantViolation)?;
-        let plan = ClassicAssignmentPlan::try_range(members, counts)
-            .map_err(ClassicGroupErrorKind::Assignment)?;
+        let plan = match self.protocol() {
+            ClassicProtocol::Range => ClassicAssignmentPlan::try_range(members, counts),
+            ClassicProtocol::CooperativeSticky => {
+                ClassicAssignmentPlan::try_cooperative_sticky(members, counts)
+            }
+        }
+        .map_err(ClassicGroupErrorKind::Assignment)?;
         let local_slot = self
             .pending_local_slot
             .ok_or(ClassicGroupErrorKind::InvariantViolation)?;
         let expected_assignment = copy_local_assignment(&plan, local_slot)?;
+        let withheld_transfers = plan.requires_followup();
         let member_id = self
             .pending_member_id
             .ok_or(ClassicGroupErrorKind::InvariantViolation)?;
@@ -156,6 +171,7 @@ impl ClassicGroupMachine {
         self.pending_members = None;
         self.pending_local_slot = None;
         self.pending_expected_assignment = Some(expected_assignment);
+        self.pending_withheld_transfers = withheld_transfers;
         Ok(ClassicGroupTransition::one(effect))
     }
 
@@ -195,9 +211,23 @@ impl ClassicGroupMachine {
             heartbeat_liveness,
         )?
         else {
-            self.lose_cycle();
-            return Ok(ClassicGroupTransition::none());
+            return if self.live_assignment.is_some() {
+                self.revoke_stable_assignment()
+            } else {
+                self.lose_cycle();
+                Ok(ClassicGroupTransition::none())
+            };
         };
+        if self.live_assignment.is_some() {
+            return self.sync_cooperative_replacement(
+                cycle,
+                member_id,
+                classic_generation,
+                assignment_generation,
+                partitions,
+                heartbeat,
+            );
+        }
         let (retained, effect_assignment) = crate::LiveGroupAssignment::try_new_pair(
             self.group_id,
             member_id,
@@ -209,6 +239,7 @@ impl ClassicGroupMachine {
         self.deadline = None;
         self.clear_pending();
         self.next_assignment_generation = assignment_generation.checked_next();
+        self.live_cycle = Some(cycle);
         self.live_generation = Some(classic_generation);
         self.live_assignment = Some(retained);
         self.heartbeat.activate(heartbeat);
@@ -226,6 +257,8 @@ impl ClassicGroupMachine {
         self.pending_local_slot = None;
         self.pending_expected_assignment = None;
         self.pending_heartbeat_liveness = None;
+        self.pending_reconciliation = None;
+        self.pending_withheld_transfers = false;
     }
 
     fn heartbeat_liveness_after(&self, now: Moment) -> Result<Deadline, ClassicGroupErrorKind> {

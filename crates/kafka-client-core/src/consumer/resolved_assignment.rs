@@ -5,6 +5,18 @@ use core::fmt;
 use super::{AssignedTopicPartition, AssignmentEpoch, NextFetchOffset};
 use crate::Moment;
 
+mod reconciliation;
+mod reconciliation_transition;
+
+pub use reconciliation::{
+    ReconcileResolvedAssignment, ReconcileResolvedAssignmentError,
+    ReconcileResolvedAssignmentErrorKind, ResolvedAssignmentTarget,
+};
+#[cfg(test)]
+mod reconciliation_test;
+#[cfg(test)]
+mod reconciliation_transition_test;
+
 /// One assigned partition paired with its committed next Fetch offset.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ResolvedAssignedPartition {

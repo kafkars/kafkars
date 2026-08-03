@@ -3,8 +3,8 @@
 use std::{sync::Arc, time::Duration};
 
 use super::{
-    GroupConsumerHandle, GroupConsumerMissingOffsetPolicy, GroupConsumerProtocol,
-    GroupConsumerRegistration, GroupConsumerRegistrationErrorKind,
+    GroupConsumerClassicAssignor, GroupConsumerHandle, GroupConsumerMissingOffsetPolicy,
+    GroupConsumerProtocol, GroupConsumerRegistration, GroupConsumerRegistrationErrorKind,
     group::{
         GroupConsumerShardOwner, GroupConsumerShardWake, GroupConsumerShardWakeError,
         started_group_registry_for_public_test,
@@ -26,6 +26,10 @@ fn request_defaults_and_explicit_configuration_remain_owned() {
     let default = GroupConsumerRegistration::new(Arc::from("workers"), vec![Arc::from("orders")]);
     assert_eq!(default.protocol(), GroupConsumerProtocol::Classic);
     assert_eq!(
+        default.classic_assignor(),
+        Some(GroupConsumerClassicAssignor::Range)
+    );
+    assert_eq!(
         default.missing_offset_policy(),
         GroupConsumerMissingOffsetPolicy::Error
     );
@@ -36,13 +40,17 @@ fn request_defaults_and_explicit_configuration_remain_owned() {
 
     let request = default
         .with_group_instance_id(Arc::from("instance-a"))
-        .with_protocol(GroupConsumerProtocol::Consumer)
+        .with_classic_assignor(GroupConsumerClassicAssignor::CooperativeSticky)
         .with_missing_offset_policy(GroupConsumerMissingOffsetPolicy::Latest)
         .with_read_isolation(ConsumerReadIsolation::ReadCommitted)
         .with_processing_timeout(Duration::from_nanos(17));
     assert_eq!(request.group(), "workers");
     assert_eq!(request.group_instance_id(), Some("instance-a"));
-    assert_eq!(request.protocol(), GroupConsumerProtocol::Consumer);
+    assert_eq!(request.protocol(), GroupConsumerProtocol::Classic);
+    assert_eq!(
+        request.classic_assignor(),
+        Some(GroupConsumerClassicAssignor::CooperativeSticky)
+    );
     assert_eq!(
         request.missing_offset_policy(),
         GroupConsumerMissingOffsetPolicy::Latest
@@ -59,6 +67,8 @@ fn request_defaults_and_explicit_configuration_remain_owned() {
         group_instance_id,
         topics,
         protocol,
+        effective_assignor,
+        requested_assignor,
         missing_offset_policy,
         read_isolation,
         processing_policy,
@@ -68,13 +78,105 @@ fn request_defaults_and_explicit_configuration_remain_owned() {
     assert_eq!(&*group, "workers");
     assert_eq!(group_instance_id.as_deref(), Some("instance-a"));
     assert_eq!(topics, [Arc::<str>::from("orders")]);
-    assert_eq!(protocol, GroupConsumerProtocol::Consumer);
+    assert_eq!(protocol, GroupConsumerProtocol::Classic);
+    assert_eq!(
+        effective_assignor,
+        Some(GroupConsumerClassicAssignor::CooperativeSticky)
+    );
+    assert_eq!(requested_assignor, effective_assignor);
     assert_eq!(
         missing_offset_policy,
         GroupConsumerMissingOffsetPolicy::Latest
     );
     assert_eq!(read_isolation, ConsumerReadIsolation::ReadCommitted);
     assert_eq!(processing_policy.timeout_ticks(), 17);
+}
+
+#[test]
+fn validated_protocol_configuration_resolves_only_compatible_classic_assignors() {
+    let default = GroupConsumerRegistration::new(Arc::from("workers"), vec![Arc::from("orders")]);
+    let (_, _, _, protocol, effective, requested, _, _, _) = default
+        .into_validated_parts()
+        .unwrap_or_else(|_request| panic!("default classic request must validate"));
+    assert_eq!(protocol, GroupConsumerProtocol::Classic);
+    assert_eq!(effective, Some(GroupConsumerClassicAssignor::Range));
+    assert_eq!(requested, None);
+
+    let consumer = GroupConsumerRegistration::new(Arc::from("workers"), vec![Arc::from("orders")])
+        .with_protocol(GroupConsumerProtocol::Consumer);
+    assert_eq!(consumer.classic_assignor(), None);
+    let (_, _, _, protocol, effective, requested, _, _, _) =
+        consumer.into_validated_parts().unwrap_or_else(|_request| {
+            panic!("consumer request without classic assignor must validate")
+        });
+    assert_eq!(protocol, GroupConsumerProtocol::Consumer);
+    assert_eq!(effective, None);
+    assert_eq!(requested, None);
+}
+
+#[test]
+fn consumer_protocol_rejects_an_explicit_classic_assignor_in_both_orders() {
+    let requests = [
+        GroupConsumerRegistration::new(Arc::from("workers"), vec![Arc::from("orders")])
+            .with_protocol(GroupConsumerProtocol::Consumer)
+            .with_classic_assignor(GroupConsumerClassicAssignor::CooperativeSticky),
+        GroupConsumerRegistration::new(Arc::from("workers"), vec![Arc::from("orders")])
+            .with_classic_assignor(GroupConsumerClassicAssignor::CooperativeSticky)
+            .with_protocol(GroupConsumerProtocol::Consumer),
+    ];
+
+    for request in requests {
+        let returned = request
+            .into_validated_parts()
+            .err()
+            .unwrap_or_else(|| panic!("consumer protocol plus classic assignor must reject"));
+        assert_eq!(returned.group(), "workers");
+        assert_eq!(returned.topics(), &[Arc::<str>::from("orders")]);
+        assert_eq!(returned.protocol(), GroupConsumerProtocol::Consumer);
+        assert_eq!(returned.classic_assignor(), None);
+        assert_eq!(
+            returned
+                .with_protocol(GroupConsumerProtocol::Classic)
+                .classic_assignor(),
+            Some(GroupConsumerClassicAssignor::CooperativeSticky)
+        );
+    }
+}
+
+#[test]
+fn consumer_protocol_with_a_classic_assignor_is_invalid_before_registry_admission() {
+    let registry = started_group_registry_for_public_test();
+    let (owner, port) = GroupConsumerShardOwner::new(
+        registry,
+        Arc::new(MonotonicClock::new()),
+        Arc::new(NoopWake),
+    );
+    let request =
+        GroupConsumerRegistration::new(Arc::from("modern-workers"), vec![Arc::from("orders")])
+            .with_protocol(GroupConsumerProtocol::Consumer)
+            .with_classic_assignor(GroupConsumerClassicAssignor::CooperativeSticky);
+
+    let error = GroupConsumerHandle::try_register(port, Arc::new(()), request)
+        .err()
+        .unwrap_or_else(|| panic!("consumer protocol plus classic assignor must reject"));
+
+    assert_eq!(
+        error.kind(),
+        GroupConsumerRegistrationErrorKind::InvalidInput
+    );
+    let returned = error.into_request();
+    assert_eq!(returned.group(), "modern-workers");
+    assert_eq!(returned.topics(), &[Arc::<str>::from("orders")]);
+    assert_eq!(returned.protocol(), GroupConsumerProtocol::Consumer);
+    assert_eq!(returned.classic_assignor(), None);
+    assert_eq!(owner.lock_registry_for_test().registered_group_count(), 0);
+    assert_eq!(
+        returned
+            .with_protocol(GroupConsumerProtocol::Classic)
+            .classic_assignor(),
+        Some(GroupConsumerClassicAssignor::CooperativeSticky)
+    );
+    finish_registry(&owner);
 }
 
 #[test]
@@ -93,6 +195,7 @@ fn zero_and_unrepresentable_timeouts_return_the_exact_request() {
         assert_eq!(returned.group(), "workers");
         assert_eq!(returned.topics(), &[Arc::<str>::from("orders")]);
         assert_eq!(returned.protocol(), GroupConsumerProtocol::Consumer);
+        assert_eq!(returned.classic_assignor(), None);
         assert_eq!(
             returned.missing_offset_policy(),
             GroupConsumerMissingOffsetPolicy::Earliest
@@ -127,6 +230,7 @@ fn contended_registration_returns_the_exact_configuration_for_retry() {
         vec![Arc::from("orders"), Arc::from("payments")],
     )
     .with_group_instance_id(Arc::from("instance-a"))
+    .with_classic_assignor(GroupConsumerClassicAssignor::CooperativeSticky)
     .with_missing_offset_policy(GroupConsumerMissingOffsetPolicy::Latest)
     .with_read_isolation(ConsumerReadIsolation::ReadCommitted)
     .with_processing_timeout(Duration::from_secs(41));
@@ -140,6 +244,10 @@ fn contended_registration_returns_the_exact_configuration_for_retry() {
     let request = error.into_request();
     assert_eq!(request.group(), "workers");
     assert_eq!(request.group_instance_id(), Some("instance-a"));
+    assert_eq!(
+        request.classic_assignor(),
+        Some(GroupConsumerClassicAssignor::CooperativeSticky)
+    );
     assert_eq!(
         request.missing_offset_policy(),
         GroupConsumerMissingOffsetPolicy::Latest
@@ -162,6 +270,10 @@ fn contended_registration_returns_the_exact_configuration_for_retry() {
 
 fn finish(owner: &GroupConsumerShardOwner, handle: GroupConsumerHandle) {
     drop(handle);
+    finish_registry(owner);
+}
+
+fn finish_registry(owner: &GroupConsumerShardOwner) {
     let mut registry = owner.terminal_registry();
     registry
         .recover_after_driver_shutdown()

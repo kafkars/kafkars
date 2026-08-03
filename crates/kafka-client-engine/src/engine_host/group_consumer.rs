@@ -43,7 +43,7 @@ pub(super) fn drive_shard(
     if shutdown {
         shard.close_admission();
     }
-    let mut registry = match shard.try_registry() {
+    let mut registry = match shard.try_registry_for_host_turn() {
         Ok(registry) => registry,
         Err(GroupConsumerShardLockError::Contended) => {
             return Ok(GroupConsumerProgress::contended());

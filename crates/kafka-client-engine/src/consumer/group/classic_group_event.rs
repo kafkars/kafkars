@@ -8,7 +8,7 @@ use kafka_client_core::{ClassicGroupPhase, LiveGroupAssignment};
 
 use crate::consumer::{GroupConsumerAssignment, GroupConsumerEvent};
 
-use self::naming::named_assignment;
+use self::naming::{named_assignment, named_assignment_subset};
 use super::session_catalog::GroupSessionCatalog;
 
 /// One staged Sync observation plus bounded prior-loss/current-assignment state.
@@ -63,6 +63,23 @@ impl ClassicGroupEventStore {
         if self.revoking_assignment_epoch == Some(epoch) {
             self.revoking_assignment_epoch = None;
         }
+    }
+
+    /// Replaces the exact staged cooperative revoke when graceful release is lost.
+    pub(super) fn publish_graceful_revocation_loss(
+        &mut self,
+        assignment: Option<GroupConsumerAssignment>,
+        epoch: u64,
+    ) {
+        if self.revoking_assignment_epoch != Some(epoch) {
+            return;
+        }
+        self.revoking_assignment_epoch = None;
+        let Some(assignment) = assignment else {
+            return;
+        };
+        debug_assert_eq!(assignment.assignment_epoch(), epoch);
+        self.publish(GroupConsumerEvent::PartitionsLost(assignment));
     }
 
     /// Retires the exact observation fence beside the authoritative assignment.
@@ -155,6 +172,12 @@ impl ClassicGroupEventStore {
                 Some(GroupConsumerEvent::PartitionsRevoked(older)),
                 GroupConsumerEvent::PartitionsRevoked(newer),
             ) if older.assignment_epoch() < newer.assignment_epoch()
+        ) || matches!(
+            (self.ready.back(), &event),
+            (
+                Some(GroupConsumerEvent::PartitionsAssigned(older)),
+                GroupConsumerEvent::PartitionsAssigned(newer),
+            ) if older.assignment_epoch() < newer.assignment_epoch()
         );
         if coalesce_back {
             let _subsumed = self.ready.pop_back();
@@ -200,12 +223,44 @@ impl GroupSessionCatalog {
         .then(|| named_assignment(self, assignment))
     }
 
+    pub(super) fn prepare_graceful_revocation_subset_event(
+        &self,
+        assignment: &LiveGroupAssignment,
+        partitions: &[kafka_client_core::GroupAssignmentPartition],
+    ) -> Option<GroupConsumerAssignment> {
+        let epoch = assignment.assignment_generation().get();
+        (self.events.confirmed_assignment_epoch == Some(epoch)
+            && self.events.revoking_assignment_epoch.is_none()
+            && !partitions.is_empty())
+        .then(|| named_assignment_subset(self, assignment, partitions))
+    }
+
     pub(super) fn commit_graceful_revocation_event(
         &mut self,
         named: Option<GroupConsumerAssignment>,
         epoch: u64,
     ) {
         self.events.stage_graceful_revocation(named, epoch);
+    }
+
+    pub(super) fn prepare_graceful_revocation_subset_loss_event(
+        &self,
+        assignment: &LiveGroupAssignment,
+        partitions: &[kafka_client_core::GroupAssignmentPartition],
+    ) -> Option<GroupConsumerAssignment> {
+        let epoch = assignment.assignment_generation().get();
+        (self.events.confirmed_assignment_epoch == Some(epoch)
+            && self.events.revoking_assignment_epoch == Some(epoch)
+            && !partitions.is_empty())
+        .then(|| named_assignment_subset(self, assignment, partitions))
+    }
+
+    pub(super) fn commit_graceful_revocation_subset_loss_event(
+        &mut self,
+        named: Option<GroupConsumerAssignment>,
+        epoch: u64,
+    ) {
+        self.events.publish_graceful_revocation_loss(named, epoch);
     }
 
     pub(super) fn lose_consumer_group_graceful_revocation(&mut self, epoch: u64) {

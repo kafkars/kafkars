@@ -6,8 +6,9 @@ use super::super::transition_support::validate_stage_cycle;
 use super::{
     ClassicBrokerError, ClassicBrokerStage, ClassicGroupEffect, ClassicGroupErrorKind,
     ClassicGroupFatal, ClassicGroupFatalReason, ClassicGroupMachine, ClassicGroupPhase,
-    ClassicGroupTransition, ClassicHeartbeatAttempt, ClassicRejoinSchedule, MembershipCycle,
-    error_disposition::{ClassicErrorDisposition, disposition},
+    ClassicGroupTransition, ClassicHeartbeatAttempt, ClassicProtocol, ClassicRejoinSchedule,
+    MembershipCycle,
+    error_disposition::{ClassicErrorDisposition, disposition, is_rebalance_in_progress},
 };
 
 impl ClassicGroupMachine {
@@ -21,7 +22,16 @@ impl ClassicGroupMachine {
         if self.stage_deadline_is_elapsed(now)? {
             return self.deadline_elapsed(cycle, now);
         }
-        Ok(self.stage_rejected(ClassicBrokerStage::Join, cycle, None, now, error))
+        let assignment_generation = self
+            .live_assignment()
+            .map(crate::LiveGroupAssignment::assignment_generation);
+        self.stage_rejected(
+            ClassicBrokerStage::Join,
+            cycle,
+            assignment_generation,
+            now,
+            error,
+        )
     }
 
     pub(in crate::consumer::classic_group) fn sync_rejected(
@@ -34,7 +44,16 @@ impl ClassicGroupMachine {
         if self.stage_deadline_is_elapsed(now)? {
             return self.deadline_elapsed(cycle, now);
         }
-        Ok(self.stage_rejected(ClassicBrokerStage::Sync, cycle, None, now, error))
+        let assignment_generation = self
+            .live_assignment()
+            .map(crate::LiveGroupAssignment::assignment_generation);
+        self.stage_rejected(
+            ClassicBrokerStage::Sync,
+            cycle,
+            assignment_generation,
+            now,
+            error,
+        )
     }
 
     pub(in crate::consumer::classic_group) fn heartbeat_rejected(
@@ -47,34 +66,14 @@ impl ClassicGroupMachine {
         if self.heartbeat.attempt_deadline_is_elapsed(attempt, now)? {
             return self.heartbeat_deadline_elapsed(attempt, now);
         }
-        let followup = self.rejection_followup(
+        self.heartbeat.failed(attempt)?;
+        self.stage_rejected(
             ClassicBrokerStage::Heartbeat,
             attempt.cycle(),
             Some(attempt.assignment_generation()),
             now,
             error,
-        );
-        self.heartbeat.failed(attempt)?;
-        let revoke = self.take_stable_revoke()?;
-        Ok(match followup {
-            RejectionFollowup::Rejoin {
-                schedule,
-                coordinator,
-            } => {
-                self.wait_to_rejoin(schedule);
-                ClassicGroupTransition::two(
-                    revoke,
-                    ClassicGroupEffect::ArmRejoin {
-                        schedule,
-                        coordinator,
-                    },
-                )
-            }
-            RejectionFollowup::Fatal(fatal) => {
-                self.retain_fatal(fatal);
-                ClassicGroupTransition::two(revoke, ClassicGroupEffect::Fatal { fatal })
-            }
-        })
+        )
     }
 
     pub(in crate::consumer::classic_group) fn heartbeat_coordinator_lost(
@@ -124,16 +123,33 @@ impl ClassicGroupMachine {
         assignment_generation: Option<AssignmentGeneration>,
         now: Moment,
         error: ClassicBrokerError,
-    ) -> ClassicGroupTransition {
+    ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
+        let retain_ownership = self.protocol() == ClassicProtocol::CooperativeSticky
+            && is_rebalance_in_progress(error);
+        let finish_reconciliation_before_rejoin =
+            retain_ownership && self.phase == ClassicGroupPhase::Reconciling;
         match self.rejection_followup(stage, cycle, assignment_generation, now, error) {
             RejectionFollowup::Rejoin {
                 schedule,
                 coordinator,
             } => {
-                self.wait_to_rejoin(schedule);
-                ClassicGroupTransition::one(ClassicGroupEffect::ArmRejoin {
+                let revoke = if self.live_assignment.is_some() && !retain_ownership {
+                    Some(self.take_stable_revoke()?)
+                } else {
+                    None
+                };
+                if finish_reconciliation_before_rejoin {
+                    self.wait_to_rejoin_after_reconciliation(schedule);
+                } else {
+                    self.wait_to_rejoin(schedule);
+                }
+                let arm = ClassicGroupEffect::ArmRejoin {
                     schedule,
                     coordinator,
+                };
+                Ok(match revoke {
+                    Some(revoke) => ClassicGroupTransition::two(revoke, arm),
+                    None => ClassicGroupTransition::one(arm),
                 })
             }
             RejectionFollowup::Fatal(fatal) => self.finish_fatal(fatal),

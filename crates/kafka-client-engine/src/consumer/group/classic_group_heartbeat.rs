@@ -182,6 +182,20 @@ impl ClassicHeartbeatExecution {
         )
     }
 
+    /// Returns whether reconciliation may synchronously disarm this owner.
+    ///
+    /// A driver handoff or accepted call must settle first. Dormant, waiting,
+    /// and not-yet-submitted work remain wholly registry-owned and can be
+    /// cleared in the same turn as the core transition that disarms heartbeat.
+    pub(super) const fn is_locally_clearable(&self) -> bool {
+        matches!(
+            self.heartbeat_execution_state,
+            ClassicHeartbeatExecutionState::Dormant
+                | ClassicHeartbeatExecutionState::Waiting(_)
+                | ClassicHeartbeatExecutionState::Prepared(_)
+        )
+    }
+
     pub(super) const fn accepted(&self) -> Option<&AcceptedClassicHeartbeatCall> {
         match &self.heartbeat_execution_state {
             ClassicHeartbeatExecutionState::DriverOwned(owner)

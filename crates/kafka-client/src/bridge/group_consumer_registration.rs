@@ -3,7 +3,8 @@
 use std::{sync::Arc, time::Duration};
 
 use kafka_client_engine::{
-    Engine as SharedEngine, GroupConsumerDormantReleaseErrorKind, GroupConsumerMissingOffsetPolicy,
+    Engine as SharedEngine, GroupConsumerClassicAssignor as EngineGroupConsumerClassicAssignor,
+    GroupConsumerDormantReleaseErrorKind, GroupConsumerMissingOffsetPolicy,
     GroupConsumerProtocol as EngineGroupConsumerProtocol,
     GroupConsumerRegistration as EngineGroupConsumerRegistration, GroupConsumerStartCapture,
 };
@@ -12,7 +13,9 @@ use super::group_consumer_registration_result::{
     accepted_fault, translate_group_registration, translate_group_start,
 };
 use super::{super::client::engine_read_isolation, group_consumer::GroupConsumerEngine};
-use crate::{ConsumerGroupProtocol, ErrorKind, KafkaError, OffsetReset, ReadIsolation};
+use crate::{
+    ClassicGroupAssignor, ConsumerGroupProtocol, ErrorKind, KafkaError, OffsetReset, ReadIsolation,
+};
 
 impl GroupConsumerEngine {
     pub(crate) fn register(
@@ -22,6 +25,7 @@ impl GroupConsumerEngine {
         group_instance_id: Option<&str>,
         topics: &[String],
         group_protocol: ConsumerGroupProtocol,
+        classic_group_assignor: Option<ClassicGroupAssignor>,
         offset_reset: OffsetReset,
         read_isolation: ReadIsolation,
         processing_timeout: Duration,
@@ -36,8 +40,12 @@ impl GroupConsumerEngine {
         if let Some(group_instance_id) = group_instance_id {
             registration = registration.with_group_instance_id(Arc::<str>::from(group_instance_id));
         }
+        let registration = registration.with_protocol(engine_group_protocol(group_protocol));
+        let registration = match classic_group_assignor {
+            Some(assignor) => registration.with_classic_assignor(engine_classic_assignor(assignor)),
+            None => registration,
+        };
         let registration = registration
-            .with_protocol(engine_group_protocol(group_protocol))
             .with_missing_offset_policy(engine_missing_offset_policy(offset_reset))
             .with_read_isolation(engine_read_isolation(read_isolation))
             .with_processing_timeout(processing_timeout);
@@ -71,6 +79,17 @@ impl GroupConsumerEngine {
                     }),
                 }
             }
+        }
+    }
+}
+
+const fn engine_classic_assignor(
+    assignor: ClassicGroupAssignor,
+) -> EngineGroupConsumerClassicAssignor {
+    match assignor {
+        ClassicGroupAssignor::Range => EngineGroupConsumerClassicAssignor::Range,
+        ClassicGroupAssignor::CooperativeSticky => {
+            EngineGroupConsumerClassicAssignor::CooperativeSticky
         }
     }
 }

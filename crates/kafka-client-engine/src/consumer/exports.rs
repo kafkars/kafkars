@@ -79,7 +79,8 @@ pub use super::group_registration::{
     GroupConsumerHandle, GroupConsumerRegistrationError, GroupConsumerRegistrationErrorKind,
 };
 pub use super::group_registration_request::{
-    GroupConsumerMissingOffsetPolicy, GroupConsumerProtocol, GroupConsumerRegistration,
+    GroupConsumerClassicAssignor, GroupConsumerMissingOffsetPolicy, GroupConsumerProtocol,
+    GroupConsumerRegistration,
 };
 pub use super::group_release::{
     GroupConsumerDormantReleaseError, GroupConsumerDormantReleaseErrorKind,

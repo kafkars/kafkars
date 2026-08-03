@@ -139,6 +139,13 @@ impl ClassicGroupRevocationOwner {
         matches!(&self.pending, Some(PendingGroupRevocation::Consumer(_)))
     }
 
+    pub(in crate::consumer::group) const fn pending_is_classic_reconciliation(&self) -> bool {
+        matches!(
+            &self.pending,
+            Some(PendingGroupRevocation::ClassicReconciliation(_))
+        )
+    }
+
     pub(super) fn take_pending(&mut self) -> Option<PendingGroupRevocation> {
         self.pending.take()
     }
@@ -153,11 +160,37 @@ impl ClassicGroupRevocationOwner {
         let pending = self.pending.take()?;
         match pending {
             PendingGroupRevocation::Consumer(assignment) => Some(assignment),
-            pending @ PendingGroupRevocation::Classic(_) => {
+            pending @ (PendingGroupRevocation::Classic(_)
+            | PendingGroupRevocation::ClassicReconciliation(_)) => {
                 self.pending = Some(pending);
                 None
             }
         }
+    }
+
+    pub(in crate::consumer::group) fn take_pending_classic_reconciliation(
+        &mut self,
+    ) -> Option<(LiveGroupAssignment, kafka_client_core::ClassicGeneration)> {
+        let pending = self.pending.take()?;
+        match pending {
+            PendingGroupRevocation::ClassicReconciliation(pending) => {
+                Some((pending.assignment, pending.generation))
+            }
+            pending => {
+                self.pending = Some(pending);
+                None
+            }
+        }
+    }
+
+    pub(in crate::consumer::group) fn restore_pending_classic_reconciliation(
+        &mut self,
+        assignment: LiveGroupAssignment,
+        generation: kafka_client_core::ClassicGeneration,
+    ) {
+        self.pending = Some(PendingGroupRevocation::classic_reconciliation(
+            assignment, generation,
+        ));
     }
 
     pub(in crate::consumer::group) fn restore_pending_consumer(

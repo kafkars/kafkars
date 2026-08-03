@@ -34,7 +34,12 @@ impl ClassicGroupMachine {
         &mut self,
         cycle: MembershipCycle,
     ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
-        validate_stage_cycle(self, ClassicGroupPhase::Stable, cycle)?;
+        if self.live_cycle != Some(cycle) {
+            return Err(ClassicGroupErrorKind::CycleMismatch);
+        }
+        if self.live_assignment.is_none() {
+            return Err(ClassicGroupErrorKind::InvalidPhase);
+        }
         self.revoke_stable_assignment()
     }
 
@@ -53,7 +58,8 @@ impl ClassicGroupMachine {
     pub(super) fn take_stable_revoke(
         &mut self,
     ) -> Result<ClassicGroupEffect, ClassicGroupErrorKind> {
-        if self.live_assignment.is_some() != self.live_generation.is_some() {
+        let has_live = self.live_assignment.is_some();
+        if has_live != self.live_generation.is_some() || has_live != self.live_cycle.is_some() {
             return Err(ClassicGroupErrorKind::InvariantViolation);
         }
         let assignment = self
@@ -64,6 +70,7 @@ impl ClassicGroupMachine {
             .live_generation
             .take()
             .ok_or(ClassicGroupErrorKind::InvariantViolation)?;
+        self.live_cycle = None;
         Ok(ClassicGroupEffect::Revoke {
             assignment,
             classic_generation,
@@ -82,15 +89,20 @@ impl ClassicGroupMachine {
         if !deadline.is_elapsed_at(now) {
             return Err(ClassicGroupErrorKind::DeadlineNotElapsed);
         }
-        self.lose_cycle();
-        Ok(ClassicGroupTransition::none())
+        if self.live_assignment.is_some() {
+            self.revoke_stable_assignment()
+        } else {
+            self.lose_cycle();
+            Ok(ClassicGroupTransition::none())
+        }
     }
 
     pub(super) fn close(&mut self) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         if self.phase == ClassicGroupPhase::Closed {
             return Err(ClassicGroupErrorKind::Closed);
         }
-        if self.live_assignment.is_some() != self.live_generation.is_some() {
+        let has_live = self.live_assignment.is_some();
+        if has_live != self.live_generation.is_some() || has_live != self.live_cycle.is_some() {
             return Err(ClassicGroupErrorKind::InvariantViolation);
         }
         let revoke = match (self.live_assignment.take(), self.live_generation.take()) {
@@ -104,6 +116,7 @@ impl ClassicGroupMachine {
         self.phase = ClassicGroupPhase::Closed;
         self.next_cycle = None;
         self.next_assignment_generation = None;
+        self.live_cycle = None;
         self.active_cycle = None;
         self.deadline = None;
         self.pending_rejoin = None;
@@ -127,7 +140,11 @@ impl ClassicGroupMachine {
         expected: ClassicGroupPhase,
     ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
         validate_stage_cycle(self, expected, cycle)?;
-        self.lose_cycle();
-        Ok(ClassicGroupTransition::none())
+        if self.live_assignment.is_some() {
+            self.revoke_stable_assignment()
+        } else {
+            self.lose_cycle();
+            Ok(ClassicGroupTransition::none())
+        }
     }
 }

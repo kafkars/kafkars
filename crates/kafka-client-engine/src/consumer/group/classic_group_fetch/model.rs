@@ -93,6 +93,7 @@ pub(in crate::consumer::group) enum ClassicGroupFetchOwnerFaultKind {
     DeliveryCatalog(GroupSessionCatalogError),
     DeliveryPartition,
     Reclaim,
+    Reconciliation(super::reconciliation::ClassicGroupFetchReconciliationErrorKind),
 }
 
 /// Full linear owner retained after an invariant or execution failure.
@@ -149,6 +150,11 @@ pub(in crate::consumer::group) enum ClassicGroupFetchOwnerFault {
     Reclaim {
         _failure: FetchReclaimFailure,
     },
+    Reconciliation {
+        _completed: super::super::classic_group_position::ClassicGroupPositionCompleted,
+        transition: AssignedConsumerTransition,
+        kind: super::reconciliation::ClassicGroupFetchReconciliationErrorKind,
+    },
 }
 
 impl ClassicGroupFetchOwnerFault {
@@ -175,6 +181,9 @@ impl ClassicGroupFetchOwnerFault {
             }
             Self::DeliveryPartition { .. } => ClassicGroupFetchOwnerFaultKind::DeliveryPartition,
             Self::Reclaim { .. } => ClassicGroupFetchOwnerFaultKind::Reclaim,
+            Self::Reconciliation { kind, .. } => {
+                ClassicGroupFetchOwnerFaultKind::Reconciliation(*kind)
+            }
         }
     }
 

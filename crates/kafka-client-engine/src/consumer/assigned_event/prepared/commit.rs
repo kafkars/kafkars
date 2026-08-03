@@ -15,10 +15,36 @@ impl PreparedEventClaims<'_, '_> {
     ) -> Result<(), AssignedConsumerEventStoreError> {
         match self.kind {
             PreparedKind::Replacement(count) => self.commit_replacement(count, effects),
+            PreparedKind::Reconciliation(count) => self.commit_reconciliation(count, effects),
             PreparedKind::Partition(partition) => self.commit_partition(partition, effects),
             PreparedKind::Pause(partitions) => self.commit_pause(partitions, effects),
             PreparedKind::Resume(partitions) => self.commit_resume(partitions, effects),
         }
+    }
+
+    fn commit_reconciliation(
+        self,
+        count: usize,
+        effects: &[AssignedConsumerEffect],
+    ) -> Result<(), AssignedConsumerEventStoreError> {
+        let first_claim = effects
+            .iter()
+            .position(|effect| effect_claim(*effect).is_some())
+            .unwrap_or(effects.len());
+        let (controls, starts) = effects.split_at(first_claim);
+        if !controls.iter().all(|effect| {
+            matches!(
+                effect,
+                AssignedConsumerEffect::Revoke { .. } | AssignedConsumerEffect::Suspend { .. }
+            )
+        }) || starts.iter().any(|effect| effect_claim(*effect).is_none())
+            || starts.len() > count
+            || has_duplicate_claim(starts)
+        {
+            return Err(AssignedConsumerEventStoreError::TransitionMismatch);
+        }
+        self.store.install_replacement_claims(effects);
+        Ok(())
     }
 
     pub(crate) fn rollback_event_claims(self) {

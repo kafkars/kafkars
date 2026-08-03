@@ -32,7 +32,7 @@ impl GroupConsumerRegistry {
         driver: &DriverOwner,
     ) -> Result<GroupConsumerFetchTurn, GroupConsumerFetchError> {
         for entry in &mut self.entries {
-            if !entry.is_active() || entry.fault.is_some() {
+            if !entry.is_active() || entry.classic_reconciliation.is_some() {
                 continue;
             }
             let transfer = match entry.consumer.as_ref() {

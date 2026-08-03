@@ -7,7 +7,7 @@ use crate::{
         DriverOwner,
         classic_group::{JoinGroupCallKey, JoinGroupCallReservationError},
     },
-    protocol::consumer::classic_join_group_request_with_instance,
+    protocol::consumer::{ClassicSyncTopic, classic_join_group_request_with_instance},
 };
 
 use super::{
@@ -101,16 +101,54 @@ fn prepare_join_request(
             entry
                 .catalog
                 .required_join_member_spelling(prepared.cycle(), member_id)
+                .or_else(|| match entry.catalog.current_member_id() {
+                    Some(current) if current == member_id => entry.catalog.current_member(),
+                    Some(_) | None => None,
+                })
                 .map(Arc::as_ref)
                 .ok_or(ClassicGroupExecutionError::JoinRequest)?,
         ),
         None => entry.catalog.current_member().map(Arc::as_ref),
     };
+    let (owned_partitions, generation) = match prepared.protocol() {
+        kafka_client_core::ClassicProtocol::Range => (&[][..], None),
+        kafka_client_core::ClassicProtocol::CooperativeSticky => (
+            entry
+                .classic
+                .machine()
+                .live_assignment()
+                .map_or(&[][..], kafka_client_core::LiveGroupAssignment::partitions),
+            entry.classic.machine().live_generation(),
+        ),
+    };
+    let mut owned_topics = Vec::new();
+    owned_topics
+        .try_reserve_exact(owned_partitions.len())
+        .map_err(|_error| ClassicGroupExecutionError::JoinRequest)?;
+    let mut prior_topic = None;
+    for partition in owned_partitions {
+        if prior_topic == Some(partition.topic_id()) {
+            continue;
+        }
+        let topic = entry
+            .catalog
+            .topic_name(partition.topic_id())
+            .map_err(|_error| ClassicGroupExecutionError::JoinRequest)?;
+        owned_topics.push(ClassicSyncTopic::new(
+            partition.topic_id(),
+            Arc::clone(topic),
+        ));
+        prior_topic = Some(partition.topic_id());
+    }
     classic_join_group_request_with_instance(
         entry.catalog.group(),
         member,
         entry.catalog.group_instance_id().map(Arc::as_ref),
+        prepared.protocol(),
         &topics,
+        owned_partitions,
+        &owned_topics,
+        generation,
         prepared.timing(),
     )
     .map_err(|_error| ClassicGroupExecutionError::JoinRequest)

@@ -24,6 +24,7 @@ impl PendingClassicGroupRevocation {
 
 pub(super) enum PendingGroupRevocation {
     Classic(PendingClassicGroupRevocation),
+    ClassicReconciliation(PendingClassicGroupRevocation),
     Consumer(LiveGroupAssignment),
 }
 
@@ -39,9 +40,16 @@ impl PendingGroupRevocation {
         Self::Consumer(assignment)
     }
 
+    pub(super) const fn classic_reconciliation(
+        assignment: LiveGroupAssignment,
+        generation: ClassicGeneration,
+    ) -> Self {
+        Self::ClassicReconciliation(PendingClassicGroupRevocation::new(assignment, generation))
+    }
+
     pub(super) fn into_assignment(self) -> LiveGroupAssignment {
         match self {
-            Self::Classic(pending) => pending.assignment,
+            Self::Classic(pending) | Self::ClassicReconciliation(pending) => pending.assignment,
             Self::Consumer(assignment) => assignment,
         }
     }

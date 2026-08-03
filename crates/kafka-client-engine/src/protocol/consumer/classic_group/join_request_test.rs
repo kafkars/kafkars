@@ -1,9 +1,9 @@
-//! Dynamic Range Join request construction and inner-metadata scenarios.
+//! Classic Join request construction and inner-metadata scenarios.
 
 use std::sync::Arc;
 
 use kafka_client_core::{
-    CLASSIC_GROUP_TIMEOUT_MAX_MS, CLASSIC_GROUP_TIMEOUT_MIN_MS, ClassicGroupTiming,
+    CLASSIC_GROUP_TIMEOUT_MAX_MS, CLASSIC_GROUP_TIMEOUT_MIN_MS, ClassicGroupTiming, ClassicProtocol,
 };
 use kafka_wire::{
     JOIN_GROUP_API_DESCRIPTOR, JoinGroupRequest, decode_consumer_protocol_subscription,
@@ -26,7 +26,11 @@ fn static_request_carries_instance_and_round_trips_at_v5() {
         "workers",
         Some("member-a"),
         Some("instance-a"),
+        ClassicProtocol::Range,
         &topics(&["orders"]),
+        &[],
+        &[],
+        None,
         timing(),
     )
     .unwrap_or_else(|error| panic!("static Join: {error:?}"));

@@ -5,7 +5,7 @@ use core::num::NonZeroI16;
 #[cfg(test)]
 use std::{error::Error, fmt};
 
-use kafka_client_core::FetchFailure;
+use kafka_client_core::{AssignedConsumerEffect, FetchFailure};
 use kafka_driver::{Call, CompletionError, SubmitError, TopicName, TopicView, TopicViewError};
 
 use super::{super::super::DriverOwner, admission::PartitionFetchRequest};
@@ -116,6 +116,23 @@ impl BrokerFetchRouteCall {
             Ok(Err(source)) => Err(topic_view_failure(request, source)),
             Ok(Ok(view)) => correlate_view(request, &self.topic, view),
         })
+    }
+
+    pub(crate) fn is_superseded_by(&self, effect: AssignedConsumerEffect) -> bool {
+        self.request
+            .as_ref()
+            .is_some_and(|request| request.is_superseded_by(effect))
+    }
+
+    /// Abandons only `TopicView` observation and returns the definitely-unsent Fetch request.
+    pub(crate) fn retire_for_control(mut self) -> PartitionFetchRequest {
+        self.call
+            .take()
+            .unwrap_or_else(|| unreachable!("live route call retains completion observation"))
+            .abandon();
+        self.request
+            .take()
+            .unwrap_or_else(|| unreachable!("live route call retains its Fetch request"))
     }
 
     pub(crate) fn recover_after_driver_shutdown(mut self) -> PartitionFetchRequest {

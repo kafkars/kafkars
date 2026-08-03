@@ -221,6 +221,7 @@ fn modern_entry_with_instance(group_instance_id: Option<&Arc<str>>) -> GroupCons
         group_instance_id,
         &[Arc::from("orders")],
         GroupConsumerProtocol::Consumer,
+        crate::consumer::group_registration_request::GroupConsumerClassicAssignor::Range,
         classic_group_test_support::timing(),
         classic_group_test_support::heartbeat_policy(),
         classic_group_test_support::rejoin_policy(),

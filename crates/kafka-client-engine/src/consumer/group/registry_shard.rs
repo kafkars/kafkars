@@ -21,6 +21,7 @@ use super::{
 pub(super) struct GroupConsumerShardState {
     registry_owner: Mutex<GroupConsumerRegistry>,
     admission_fence: AtomicBool,
+    port_contention_handoff: AtomicBool,
     reactor_wake: Arc<dyn GroupConsumerShardWake>,
     group_recv_signal: Arc<GroupConsumerRecvSignal>,
     group_recv_publisher: crate::consumer::group_recv::GroupConsumerRecvPublisher,
@@ -48,6 +49,7 @@ impl GroupConsumerShardOwner {
         let shared = Arc::new(GroupConsumerShardState {
             registry_owner: Mutex::new(registry),
             admission_fence: AtomicBool::new(false),
+            port_contention_handoff: AtomicBool::new(false),
             reactor_wake: wake,
             group_recv_signal: Arc::new(GroupConsumerRecvSignal::new()),
             group_recv_publisher: notifications.publisher,
@@ -64,7 +66,21 @@ impl GroupConsumerShardOwner {
     pub(crate) fn try_registry(
         &self,
     ) -> Result<GroupConsumerRegistryGuard<'_>, GroupConsumerShardLockError> {
-        self.shared.try_registry()
+        self.shared.try_registry_raw()
+    }
+
+    /// Gives one contended public port a complete host stage without registry ownership.
+    pub(crate) fn try_registry_for_host_turn(
+        &self,
+    ) -> Result<GroupConsumerRegistryGuard<'_>, GroupConsumerShardLockError> {
+        if self
+            .shared
+            .port_contention_handoff
+            .swap(false, Ordering::AcqRel)
+        {
+            return Err(GroupConsumerShardLockError::Contended);
+        }
+        self.shared.try_registry_raw()
     }
 
     pub(crate) fn close_admission(&self) {
@@ -115,6 +131,16 @@ impl GroupConsumerShardState {
     }
 
     pub(super) fn try_registry(
+        &self,
+    ) -> Result<GroupConsumerRegistryGuard<'_>, GroupConsumerShardLockError> {
+        let result = self.try_registry_raw();
+        if matches!(&result, Err(GroupConsumerShardLockError::Contended)) {
+            self.port_contention_handoff.store(true, Ordering::Release);
+        }
+        result
+    }
+
+    fn try_registry_raw(
         &self,
     ) -> Result<GroupConsumerRegistryGuard<'_>, GroupConsumerShardLockError> {
         match self.registry_owner.try_lock() {

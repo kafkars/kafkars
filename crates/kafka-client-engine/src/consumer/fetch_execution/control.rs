@@ -43,10 +43,24 @@ impl DirectFetchExecutor {
                 return Err(FetchExecutionError::Store(error));
             }
         }
+        self.retire_broker_routes_for_control(effect);
         if let Some(sessions) = &mut self.broker_sessions {
             sessions.observe_control(effect);
         }
         self.reset_fetch_session_for_control(effect);
         Ok(())
+    }
+
+    fn retire_broker_routes_for_control(&mut self, effect: AssignedConsumerEffect) {
+        let mut pending = self.route_calls.len();
+        while pending > 0 {
+            pending -= 1;
+            if self.route_calls[pending].call.is_superseded_by(effect) {
+                let retired = self.route_calls.swap_remove(pending);
+                drop(retired.call.retire_for_control());
+            }
+        }
+        self.routed
+            .retain(|routed| !routed.request.is_superseded_by(effect));
     }
 }

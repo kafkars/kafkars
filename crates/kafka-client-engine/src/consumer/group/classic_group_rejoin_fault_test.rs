@@ -1,6 +1,8 @@
 //! Exact scalar Join retention and directional cycle-fault evidence.
 
-use kafka_client_core::{ClassicGroupEffect, ClassicProtocol, Deadline, GroupId, MembershipCycle};
+use kafka_client_core::{
+    ClassicGroupEffect, ClassicProtocol, Deadline, GroupId, MemberId, MembershipCycle,
+};
 
 use super::{
     classic_group_entry_fault::ClassicGroupEntryFault,
@@ -14,6 +16,7 @@ fn post_core_fault_retains_the_exact_scalar_join_owner() {
     let mut registry = started_registry();
     let group_id = register(&mut registry, "workers");
     let cycle = MembershipCycle::try_from_raw(3).unwrap_or_else(|| panic!("nonzero skipped cycle"));
+    let member_id = MemberId::try_from_raw(5).unwrap_or_else(|| panic!("nonzero member identity"));
     let core_deadline = Deadline::from_tick(47);
     let timing = registry
         .entry(group_id)
@@ -25,6 +28,7 @@ fn post_core_fault_retains_the_exact_scalar_join_owner() {
         ClassicRejoinPostCore::join_for_test(
             group_id,
             cycle,
+            Some(member_id),
             timing,
             core_deadline,
             ClassicRejoinPostCoreFailure::CycleSequence,
@@ -41,6 +45,7 @@ fn post_core_fault_retains_the_exact_scalar_join_owner() {
         .join()
         .unwrap_or_else(|| panic!("exact scalar Join expected"));
     assert_eq!(join.cycle(), cycle);
+    assert_eq!(join.member_id(), Some(member_id));
     assert_eq!(join.deadline(), core_deadline);
     assert_eq!(fault.failure(), ClassicRejoinPostCoreFailure::CycleSequence);
     assert_eq!(registry.membership_unsettled(), 1);

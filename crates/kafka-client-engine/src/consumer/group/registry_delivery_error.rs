@@ -9,6 +9,7 @@ use crate::{clock::ClockError, consumer::GroupConsumerPositionFailureKind};
 pub(in crate::consumer) enum GroupConsumerDeliveryError {
     UnknownGroup,
     Closing,
+    Revoking,
     EntryFault,
     PositionFailure(GroupConsumerPositionFailureKind),
     Fetch(ClassicGroupFetchDeliveryError),

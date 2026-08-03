@@ -9,6 +9,7 @@ use super::{
         install_fatal, install_rediscovery, install_rejoin,
     },
     classic_group_rejection_fault::ClassicRejectionPostCore,
+    classic_group_rejection_install::install_retained_rejoin,
     registry_entry::GroupConsumerEntry,
 };
 
@@ -23,6 +24,26 @@ pub(super) fn install_heartbeat_rejection(
 ) -> Result<(), ClassicRejectionPostCore> {
     let effects = into_effects(transition);
     match effects {
+        [
+            Some(ClassicGroupEffect::ArmRejoin {
+                schedule,
+                coordinator: ClassicCoordinatorRecovery::Retain,
+            }),
+            None,
+        ] => install_retained_rejoin(entry, schedule, ClassicCoordinatorRecovery::Retain).map_err(
+            |failure| {
+                ClassicRejectionPostCore::new(
+                    [
+                        Some(ClassicGroupEffect::ArmRejoin {
+                            schedule,
+                            coordinator: ClassicCoordinatorRecovery::Retain,
+                        }),
+                        None,
+                    ],
+                    failure,
+                )
+            },
+        ),
         [
             Some(ClassicGroupEffect::Revoke {
                 assignment,

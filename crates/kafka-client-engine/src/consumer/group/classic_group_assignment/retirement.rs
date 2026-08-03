@@ -1,6 +1,9 @@
 //! Atomic processing, Fetch, catalog, and event retirement for assignment loss.
 
-use kafka_client_core::{ClassicGeneration, ClassicProcessingLease, LiveGroupAssignment};
+use kafka_client_core::{
+    ClassicGeneration, ClassicProcessingLease, ClassicProcessingLeaseFence, LiveGroupAssignment,
+    MembershipCycle,
+};
 
 use super::{
     super::{
@@ -8,7 +11,8 @@ use super::{
         classic_group_owner::ClassicGroupOwner,
         session_catalog::GroupSessionCatalog,
     },
-    ClassicGroupRevocationFailure, ClassicGroupRevocationFailureKind,
+    ClassicGroupReconciliationRevocationError, ClassicGroupRevocationFailure,
+    ClassicGroupRevocationFailureKind,
 };
 
 #[expect(
@@ -73,6 +77,38 @@ pub(in crate::consumer::group) fn retire_and_revoke_classic_group_assignment(
             });
         }
     };
+    let _transition = processing_revocation.commit();
+    prepared.commit();
+    catalog.commit_assignment_retirement_event(event, assignment_epoch, retirement_phase);
+    Ok(retirement)
+}
+
+pub(in crate::consumer::group) fn retire_lost_classic_group_reconciliation(
+    owner: &ClassicGroupOwner,
+    catalog: &mut GroupSessionCatalog,
+    processing_lease: &mut ClassicProcessingLease,
+    fetch: &mut ClassicGroupFetchOwner,
+    previous: &LiveGroupAssignment,
+    previous_cycle: MembershipCycle,
+    replacement_generation: ClassicGeneration,
+) -> Result<ClassicGroupFetchRetirement, ClassicGroupReconciliationRevocationError> {
+    let retirement_phase = owner.machine().phase();
+    let assignment_epoch = previous.assignment_generation().get();
+    let event = catalog.prepare_assignment_retirement_event(previous);
+    let prepared = owner
+        .prepare_reconciliation_loss(catalog, previous, previous_cycle, replacement_generation)
+        .map_err(ClassicGroupReconciliationRevocationError::Catalog)?;
+    let processing_fence = ClassicProcessingLeaseFence::new(
+        previous.group_id(),
+        previous_cycle,
+        previous.assignment_generation(),
+    );
+    let processing_revocation = processing_lease
+        .prepare_revocation(processing_fence)
+        .map_err(ClassicGroupReconciliationRevocationError::ProcessingLease)?;
+    let retirement = fetch
+        .retire_for_assignment_loss(previous)
+        .map_err(ClassicGroupReconciliationRevocationError::Fetch)?;
     let _transition = processing_revocation.commit();
     prepared.commit();
     catalog.commit_assignment_retirement_event(event, assignment_epoch, retirement_phase);

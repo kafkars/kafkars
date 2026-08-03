@@ -11,7 +11,7 @@ use kafka_client_core::{
 use crate::{
     EngineConfig,
     clock::OperationDeadline,
-    driver::DriverOwner,
+    driver::{BrokerId, DriverOwner},
     protocol::fetch::{
         FetchDecodeLimits, FetchRequestSettings, FetchSessionRequest, FetchSessionUpdate,
     },
@@ -59,6 +59,91 @@ fn suspend_returns_request_storage_before_the_driver_call_finishes_draining() {
 }
 
 #[test]
+fn revoke_retires_a_pending_broker_route_before_unassigned_dispatch() {
+    let (effect, mut machine) = assignment();
+    let fence = fetch_fence(effect);
+    let mut executor = DirectFetchExecutor::create_unbound(1, 1, 4_096);
+    executor
+        .try_enable_sessions(1)
+        .unwrap_or_else(|()| panic!("reserve broker-routed Fetch state"));
+    let mut driver = owner();
+    assert!(matches!(
+        executor
+            .submit(
+                &driver,
+                &mut machine,
+                prepared(effect),
+                Moment::from_tick(0),
+            )
+            .unwrap_or_else(|error| panic!("admit route projection: {error:?}")),
+        FetchSubmission::Accepted
+    ));
+    assert_eq!(executor.route_calls.len(), 1);
+
+    let retirement = machine
+        .apply(AssignedConsumerInput::RetireAssignment {
+            assignment_epoch: Some(fence.position().assignment_epoch()),
+        })
+        .unwrap_or_else(|error| panic!("retire assignment: {error}"));
+    let [revoke] = retirement.effects() else {
+        panic!("one exact revoke");
+    };
+    executor
+        .observe_control(*revoke)
+        .unwrap_or_else(|error| panic!("retire pending route: {error:?}"));
+
+    assert!(executor.route_calls.is_empty());
+    assert!(executor.routed.is_empty());
+    assert_eq!(executor.retained(), (0, 0, 0));
+    shutdown(&mut driver);
+    let recovery = executor.release_fetch_executor_after_driver_shutdown();
+    assert!(!recovery.had_fault());
+    let (requests, completion) = recovery.into_driver_recovery().into_parts();
+    assert!(requests.is_empty());
+    assert_eq!(completion, None);
+}
+
+#[test]
+fn suspend_retires_only_the_exact_already_routed_request() {
+    let (effects, mut machine) = two_partition_assignment();
+    let first_fence = fetch_fence(effects[0]);
+    let second_fence = fetch_fence(effects[1]);
+    let broker = BrokerId::new(3).unwrap_or_else(|error| panic!("broker ID: {error}"));
+    let mut executor = DirectFetchExecutor::create_unbound(2, 2, 8_192);
+    executor
+        .try_enable_sessions(2)
+        .unwrap_or_else(|()| panic!("reserve broker-routed Fetch state"));
+    executor.restore_routed(broker, prepared(effects[0]));
+    executor.restore_routed(broker, prepared(effects[1]));
+    assert_eq!(executor.routed.len(), 2);
+
+    let suspension = machine
+        .apply(AssignedConsumerInput::Pause {
+            assignment_epoch: first_fence.position().assignment_epoch(),
+            partition: first_fence.position().partition(),
+        })
+        .unwrap_or_else(|error| panic!("pause first partition: {error}"));
+    let [suspend] = suspension.effects() else {
+        panic!("one exact suspend");
+    };
+    executor
+        .observe_control(*suspend)
+        .unwrap_or_else(|error| panic!("retire exact routed request: {error:?}"));
+
+    assert_eq!(executor.routed.len(), 1);
+    assert_eq!(executor.routed[0].request.fence(), second_fence);
+    assert_eq!(executor.retained(), (1, 0, 0));
+    let mut driver = owner();
+    shutdown(&mut driver);
+    let recovery = executor.release_fetch_executor_after_driver_shutdown();
+    assert!(!recovery.had_fault());
+    let (requests, completion) = recovery.into_driver_recovery().into_parts();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].fence(), second_fence);
+    assert_eq!(completion, None);
+}
+
+#[test]
 fn position_control_fences_the_partition_session_before_new_fetch_work() {
     let (effect, mut machine) = assignment();
     let fence = fetch_fence(effect);
@@ -101,6 +186,27 @@ fn assignment() -> (AssignedConsumerEffect, AssignedConsumerMachine) {
         })
         .unwrap_or_else(|error| panic!("direct assignment: {error}"));
     (transition.effects()[0], machine)
+}
+
+fn two_partition_assignment() -> (Vec<AssignedConsumerEffect>, AssignedConsumerMachine) {
+    let mut machine = AssignedConsumerMachine::new();
+    let transition = machine
+        .apply(AssignedConsumerInput::Assign {
+            partitions: vec![
+                AssignedPartition::new(
+                    AssignedTopicPartition::new(TopicId::from_raw(1), PartitionIndex::from_raw(3)),
+                    StartPosition::Offset(offset(10)),
+                ),
+                AssignedPartition::new(
+                    AssignedTopicPartition::new(TopicId::from_raw(1), PartitionIndex::from_raw(4)),
+                    StartPosition::Offset(offset(20)),
+                ),
+            ],
+            now: Moment::from_tick(0),
+            resolution_deadline: Deadline::from_tick(1_000_000_000),
+        })
+        .unwrap_or_else(|error| panic!("two-partition assignment: {error}"));
+    (transition.into_effects(), machine)
 }
 
 fn prepared(effect: AssignedConsumerEffect) -> PreparedFetchExecution {

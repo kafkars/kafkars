@@ -23,7 +23,10 @@ use super::{
     registry_membership::GroupConsumerMembershipTurn,
     registry_test_support::deadline,
 };
-use crate::{clock::MonotonicClock, consumer::group_registration_request::GroupConsumerProtocol};
+use crate::{
+    clock::MonotonicClock,
+    consumer::group_registration_request::{GroupConsumerClassicAssignor, GroupConsumerProtocol},
+};
 
 #[test]
 fn dormant_modern_close_completes_without_submitting_a_leave() {
@@ -34,6 +37,7 @@ fn dormant_modern_close_completes_without_submitting_a_leave() {
         None,
         &[Arc::from("orders")],
         GroupConsumerProtocol::Consumer,
+        GroupConsumerClassicAssignor::Range,
         super::classic_group_test_support::timing(),
         super::classic_group_test_support::heartbeat_policy(),
         super::classic_group_test_support::rejoin_policy(),

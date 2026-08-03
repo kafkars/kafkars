@@ -14,6 +14,8 @@ use super::{
     classic_group_leave::ClassicGroupLeaveTurn,
     classic_group_partition_count_settlement::ClassicGroupPartitionCountSettlementTurn,
     classic_group_partition_count_submission::ClassicGroupPartitionCountSubmissionTurn,
+    classic_group_reconciliation_loss::ClassicGroupReconciliationLossTurn,
+    classic_group_reconciliation_turn::ClassicGroupReconciliationTurn,
     classic_group_rediscovery_execution::{
         ClassicCoordinatorInvalidationTurn, ClassicCoordinatorInvalidationTurn::Blocked,
     },
@@ -36,6 +38,10 @@ pub(super) enum GroupConsumerMembershipTurn {
     Blocked,
 }
 impl GroupConsumerRegistry {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one fair membership scheduler turn must preserve the explicit domain order"
+    )]
     pub(super) fn turn_membership(
         &mut self,
         now: Moment,
@@ -117,6 +123,29 @@ impl GroupConsumerRegistry {
         if self.settle_one_classic_sync(now)? == ClassicGroupSyncSettlementTurn::Progress {
             return Ok(GroupConsumerMembershipTurn::Progress);
         }
+        let reconciliation_loss_blocked =
+            match self.turn_one_classic_group_reconciliation_loss(now)? {
+                ClassicGroupReconciliationLossTurn::Progress => {
+                    return Ok(GroupConsumerMembershipTurn::Progress);
+                }
+                ClassicGroupReconciliationLossTurn::Blocked => true,
+                ClassicGroupReconciliationLossTurn::Idle => false,
+            };
+        let reconciliation_finish_blocked =
+            match self.finish_one_classic_group_reconciliation(now, clock)? {
+                ClassicGroupReconciliationTurn::Progress => {
+                    return Ok(GroupConsumerMembershipTurn::Progress);
+                }
+                ClassicGroupReconciliationTurn::Blocked => true,
+                ClassicGroupReconciliationTurn::Idle => false,
+            };
+        let reconciliation_stage_blocked = match self.stage_one_classic_group_reconciliation(now)? {
+            ClassicGroupReconciliationTurn::Progress => {
+                return Ok(GroupConsumerMembershipTurn::Progress);
+            }
+            ClassicGroupReconciliationTurn::Blocked => true,
+            ClassicGroupReconciliationTurn::Idle => false,
+        };
         match self.settle_one_classic_join(now)? {
             ClassicGroupJoinSettlementTurn::Progress => {
                 return Ok(GroupConsumerMembershipTurn::Progress);
@@ -179,7 +208,10 @@ impl GroupConsumerRegistry {
                     || leave_blocked
                     || partition_count_blocked
                     || heartbeat_blocked
-                    || sync_blocked =>
+                    || sync_blocked
+                    || reconciliation_loss_blocked
+                    || reconciliation_finish_blocked
+                    || reconciliation_stage_blocked =>
             {
                 GroupConsumerMembershipTurn::Blocked
             }

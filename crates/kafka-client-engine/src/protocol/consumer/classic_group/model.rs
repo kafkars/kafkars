@@ -29,29 +29,49 @@ impl ClassicBrokerRejection {
     }
 }
 
-/// One response member and decoded v0 Range subscription.
+/// One response member and one protocol-selected decoded subscription.
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct ClassicJoinedMember {
     slot: JoinedMemberSlot,
     member: Arc<str>,
     topics: Vec<Arc<str>>,
+    owned_partitions: Vec<NamedAssignmentPartition>,
+    generation: Option<ClassicGeneration>,
 }
+
+type ClassicJoinedMemberParts = (
+    JoinedMemberSlot,
+    Arc<str>,
+    Vec<Arc<str>>,
+    Vec<NamedAssignmentPartition>,
+    Option<ClassicGeneration>,
+);
 
 impl ClassicJoinedMember {
     pub(super) const fn new(
         slot: JoinedMemberSlot,
         member: Arc<str>,
         topics: Vec<Arc<str>>,
+        owned_partitions: Vec<NamedAssignmentPartition>,
+        generation: Option<ClassicGeneration>,
     ) -> Self {
         Self {
             slot,
             member,
             topics,
+            owned_partitions,
+            generation,
         }
     }
 
-    pub(crate) fn into_parts(self) -> (JoinedMemberSlot, Arc<str>, Vec<Arc<str>>) {
-        (self.slot, self.member, self.topics)
+    pub(crate) fn into_parts(self) -> ClassicJoinedMemberParts {
+        (
+            self.slot,
+            self.member,
+            self.topics,
+            self.owned_partitions,
+            self.generation,
+        )
     }
 }
 
@@ -171,7 +191,7 @@ pub(crate) struct NamedAssignmentPartition {
 }
 
 impl NamedAssignmentPartition {
-    pub(super) const fn new(topic: Arc<str>, partition: i32) -> Self {
+    pub(crate) const fn new(topic: Arc<str>, partition: i32) -> Self {
         Self { topic, partition }
     }
 

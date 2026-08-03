@@ -66,6 +66,9 @@ impl GroupConsumerRegistry {
                 entry.execution.confirm_sync(calls)?;
             }
             entry.catalog.confirm_sync_event();
+            if let Some(reconciliation) = entry.classic_reconciliation.as_mut() {
+                reconciliation.confirm_sync();
+            }
             return Ok(ClassicGroupSyncSettlementTurn::Progress);
         }
         let terminal = calls

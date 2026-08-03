@@ -6,9 +6,8 @@ use kafka_client_core::{
 };
 
 use super::{
-    classic_group_assignment::{
-        ClassicGroupRevocationFailureKind, retire_and_revoke_classic_group_assignment,
-    },
+    classic_group_assignment::ClassicGroupRevocationFailureKind,
+    classic_group_heartbeat_prepare::commit_revoke,
     classic_group_rejection_fault::{ClassicRejectionInstallFailure, ClassicRejectionPostCore},
     registry_entry::GroupConsumerEntry,
     registry_graceful_revocation::stage_classic_group_revocation,
@@ -132,15 +131,8 @@ pub(super) fn install_fatal(
     if !fatal_state_matches(entry, fatal) {
         return Err(post_fatal(assignment, generation, fatal, MachineState));
     }
-    match retire_and_revoke_classic_group_assignment(
-        &entry.classic,
-        &mut entry.catalog,
-        &mut entry.processing_lease,
-        &mut entry.fetch,
-        assignment,
-        generation,
-    ) {
-        Ok(_retirement) => Ok(()),
+    match commit_revoke(entry, assignment, generation) {
+        Ok(()) => Ok(()),
         Err(failure) => {
             let kind = rejection_revocation_kind(failure.kind);
             Err(post_fatal(

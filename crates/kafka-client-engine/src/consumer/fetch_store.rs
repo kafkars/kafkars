@@ -204,6 +204,13 @@ impl FetchDeliveryStore {
         (self.slots.len(), self.used_bytes)
     }
 
+    /// Reports whether one authorized delivery must drain before assignment fencing.
+    pub(crate) fn has_ready(&self) -> bool {
+        self.slots
+            .iter()
+            .any(|slot| matches!(slot.state, SlotState::Ready(_)))
+    }
+
     fn reserved(&self, proof: &FetchStageProof) -> Result<usize, FetchStoreFailure> {
         let index = self.index(proof.fence)?;
         let slot = &self.slots[index];

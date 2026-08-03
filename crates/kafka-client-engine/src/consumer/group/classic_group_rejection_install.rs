@@ -34,7 +34,7 @@ pub(super) fn install_stage_rejection(
                 coordinator,
             }),
             None,
-        ] => install_rejoin(entry, schedule, coordinator).map_err(|failure| {
+        ] => install_retained_rejoin(entry, schedule, coordinator).map_err(|failure| {
             ClassicRejectionPostCore::new(
                 [
                     Some(ClassicGroupEffect::ArmRejoin {
@@ -57,7 +57,7 @@ pub(super) fn install_stage_rejection(
     }
 }
 
-fn install_rejoin(
+pub(super) fn install_retained_rejoin(
     entry: &mut GroupConsumerEntry,
     schedule: ClassicRejoinSchedule,
     coordinator: ClassicCoordinatorRecovery,

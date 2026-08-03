@@ -79,6 +79,10 @@ impl PartitionFetchRequest {
         self.fence
     }
 
+    pub(crate) fn is_superseded_by(&self, effect: AssignedConsumerEffect) -> bool {
+        super::fence::supersedes(effect, self.fence)
+    }
+
     pub(crate) const fn next_offset(&self) -> NextFetchOffset {
         self.next_offset
     }

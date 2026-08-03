@@ -1,6 +1,6 @@
 //! Bounded normalized classic-group model evidence.
 
-use crate::{MemberId, TopicId};
+use crate::{GroupAssignmentPartition, MemberId, PartitionIndex, TopicId};
 
 use super::model::{MAX_CLASSIC_GROUP_MEMBERS, MAX_CLASSIC_TOPICS_PER_MEMBER};
 use super::{
@@ -26,6 +26,16 @@ fn subscription_accepts_only_bounded_ordered_unique_topic_facts() {
         ClassicSubscription::try_new(vec![topic(1); MAX_CLASSIC_TOPICS_PER_MEMBER + 1]),
         Err(ClassicSubscriptionError::TooManyTopics)
     );
+}
+
+#[test]
+fn subscription_retains_prior_ownership_from_a_dropped_topic() {
+    let dropped = GroupAssignmentPartition::new(topic(1), PartitionIndex::from_raw(3));
+    let subscription = ClassicSubscription::try_new_with_owned(vec![topic(2)], vec![dropped], None)
+        .unwrap_or_else(|error| panic!("dropped-topic ownership: {error:?}"));
+
+    assert_eq!(subscription.topics(), [topic(2)]);
+    assert_eq!(subscription.owned_partitions(), [dropped]);
 }
 
 #[test]

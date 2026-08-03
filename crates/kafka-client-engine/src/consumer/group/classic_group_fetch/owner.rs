@@ -179,4 +179,19 @@ impl ClassicGroupFetchOwner {
         }
         Ok(())
     }
+    pub(in crate::consumer::group) const fn machine_assignment_epoch(
+        &self,
+    ) -> Option<kafka_client_core::AssignmentEpoch> {
+        self.machine.assignment_epoch()
+    }
+
+    /// Reports authorized bytes that must remain observable before cooperative fencing.
+    pub(in crate::consumer::group) fn has_ready_delivery(&self) -> bool {
+        self.fetches.has_ready_delivery()
+    }
+
+    #[cfg(test)]
+    pub(super) fn pop_prepared_for_test(&mut self) -> Option<PreparedFetchExecution> {
+        self.pending_fetches.pop_front()
+    }
 }

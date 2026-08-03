@@ -71,6 +71,9 @@ impl GroupConsumerRegistry {
         if entry.state == GroupConsumerEntryState::Closing {
             return Err(GroupConsumerDeliveryError::Closing);
         }
+        if !entry.revocation.is_dormant() {
+            return Err(GroupConsumerDeliveryError::Revoking);
+        }
         if let Some(failure) = entry.take_position_failure_observation() {
             return Err(GroupConsumerDeliveryError::PositionFailure(failure));
         }

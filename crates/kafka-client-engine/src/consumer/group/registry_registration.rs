@@ -18,7 +18,9 @@ use super::{
     },
     session_catalog::GroupSessionCatalogError,
 };
-use crate::consumer::group_registration_request::GroupConsumerProtocol;
+use crate::consumer::group_registration_request::{
+    GroupConsumerClassicAssignor, GroupConsumerProtocol,
+};
 
 /// Registration rejection retaining the exact caller-owned group spelling.
 #[must_use = "group registration rejection retains the caller group spelling"]
@@ -103,6 +105,7 @@ impl GroupConsumerRegistry {
             group_instance_id,
             local_topics,
             GroupConsumerProtocol::Classic,
+            GroupConsumerClassicAssignor::Range,
             timing,
             heartbeat_policy,
             rejoin_policy,
@@ -122,6 +125,7 @@ impl GroupConsumerRegistry {
         group_instance_id: Option<Arc<str>>,
         local_topics: Vec<Arc<str>>,
         protocol: GroupConsumerProtocol,
+        classic_assignor: GroupConsumerClassicAssignor,
         timing: ClassicGroupTiming,
         heartbeat_policy: ClassicHeartbeatPolicy,
         rejoin_policy: ClassicRejoinPolicy,
@@ -159,6 +163,7 @@ impl GroupConsumerRegistry {
             group_instance_id.as_ref(),
             &local_topics,
             protocol,
+            classic_assignor,
             timing,
             heartbeat_policy,
             rejoin_policy,

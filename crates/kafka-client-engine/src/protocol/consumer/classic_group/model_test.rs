@@ -15,10 +15,14 @@ fn candidate_and_assignment_parts_move_arc_spellings_without_copying() {
         slot,
         Arc::clone(&member_name),
         vec![Arc::clone(&topic_name)],
+        Vec::new(),
+        None,
     );
-    let (_, moved_member, moved_topics) = member.into_parts();
+    let (_, moved_member, moved_topics, moved_owned, moved_generation) = member.into_parts();
     assert!(Arc::ptr_eq(&member_name, &moved_member));
     assert!(Arc::ptr_eq(&topic_name, &moved_topics[0]));
+    assert!(moved_owned.is_empty());
+    assert_eq!(moved_generation, None);
 
     let mapped_member = ClassicSyncMember::new(slot, Arc::clone(&member_name));
     assert_eq!(mapped_member.slot(), slot);

@@ -1,11 +1,12 @@
 //! Per-group close isolation and whole-registry shutdown scenarios.
 
-use kafka_client_core::{GroupOffsetCommitAdmissionErrorKind, Moment};
+use kafka_client_core::{ClassicGroupInput, GroupOffsetCommitAdmissionErrorKind, Moment};
 
 use super::{
     offset_commit::GroupOffsetCommitAdmissionFailureKind,
     registry_close::GroupRegistryCloseError,
     registry_commit::GroupConsumerCommitFailureKind,
+    registry_event_reconciliation_test::prepared_reconciliation,
     registry_host_error::GroupConsumerHostError,
     registry_membership::GroupConsumerMembershipTurn,
     registry_test_support::{
@@ -39,6 +40,44 @@ fn contended_control_authority_does_not_mutate_and_retries_on_a_later_turn() {
         .unwrap_or_else(|| panic!("closing entry"));
     assert!(!entry.is_active());
     assert_eq!(entry.leave.pending_deadline(), Some(requested_deadline));
+    stop_registry(&mut registry);
+}
+
+#[test]
+fn prepared_classic_reconciliation_blocks_physical_removal() {
+    let mut registry = started_registry();
+    let group_id = register(&mut registry, "workers");
+    let entry = registry
+        .entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .unwrap_or_else(|| panic!("registered group"));
+    let _original = core::mem::replace(entry, prepared_reconciliation());
+    registry
+        .close_group(group_id)
+        .unwrap_or_else(|error| panic!("close prepared reconciliation: {error:?}"));
+    let entry = registry
+        .entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .unwrap_or_else(|| panic!("closing group"));
+    let _transition = entry
+        .classic
+        .apply(ClassicGroupInput::Close)
+        .unwrap_or_else(|error| panic!("close classic core: {error}"));
+    entry.catalog.current = None;
+
+    assert_eq!(registry.remove_one_closed_group(), Ok(false));
+    let entry = registry
+        .entries
+        .iter_mut()
+        .find(|entry| entry.group_id() == group_id)
+        .unwrap_or_else(|| panic!("retained reconciliation group"));
+    let _reconciliation = entry
+        .classic_reconciliation
+        .take()
+        .unwrap_or_else(|| panic!("retained classic reconciliation"));
+    assert_eq!(registry.remove_one_closed_group(), Ok(true));
     stop_registry(&mut registry);
 }
 

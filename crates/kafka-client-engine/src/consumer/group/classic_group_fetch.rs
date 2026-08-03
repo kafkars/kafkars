@@ -11,6 +11,7 @@ mod position_execution;
 mod position_prepare;
 mod position_transfer;
 mod prepare;
+mod reconciliation;
 mod recovery;
 mod retirement;
 mod seek;
@@ -80,6 +81,9 @@ pub(super) use position_transfer::{
     ClassicGroupFetchCurrentFenceError, ClassicGroupFetchTransferError,
     ClassicGroupFetchTransferTurn, current_consumer_group_position_fence, current_position_fence,
     transfer_completed_consumer_group_position, transfer_completed_position,
+};
+pub(super) use reconciliation::{
+    ClassicGroupFetchReconciliationError, ClassicGroupFetchReconciliationErrorKind,
 };
 pub(super) use recovery::ClassicGroupFetchShutdownRecovery;
 pub(super) use retirement::{ClassicGroupFetchRetirement, ClassicGroupFetchRetirementError};

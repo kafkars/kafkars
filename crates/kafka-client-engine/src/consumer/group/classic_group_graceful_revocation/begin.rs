@@ -37,6 +37,21 @@ impl ClassicGroupRevocationOwner {
             .map_err(|(error, pending)| (error, pending.into_assignment()))
     }
 
+    pub(in crate::consumer::group) fn begin_classic_reconciliation(
+        &mut self,
+        assignment: LiveGroupAssignment,
+        generation: ClassicGeneration,
+        lease: ClassicGracefulRevocationLease,
+        now: Moment,
+    ) -> Result<(), (ClassicGroupRevocationBeginError, LiveGroupAssignment)> {
+        self.begin_pending(
+            PendingGroupRevocation::classic_reconciliation(assignment, generation),
+            lease,
+            now,
+        )
+        .map_err(|(error, pending)| (error, pending.into_assignment()))
+    }
+
     fn begin_pending(
         &mut self,
         pending: PendingGroupRevocation,

@@ -39,6 +39,11 @@ impl ClassicGroupMachine {
                 now,
                 partitions,
             } => self.sync_succeeded(cycle, now, partitions),
+            ClassicGroupInput::ReconciliationApplied {
+                cycle,
+                assignment_generation,
+                now,
+            } => self.reconciliation_applied(cycle, assignment_generation, now),
             ClassicGroupInput::HeartbeatDue { attempt, now } => self.heartbeat_due(attempt, now),
             ClassicGroupInput::HeartbeatSucceeded {
                 attempt,

@@ -78,6 +78,11 @@ pub(super) enum ClassicGroupEntryFault {
         rejection: ClassicRejectionPostCore,
         terminal: SyncGroupTerminal,
     },
+    ClassicReconciliationPostCore {
+        requires_followup: bool,
+        first: Option<ClassicGroupEffect>,
+        second: Option<ClassicGroupEffect>,
+    },
     ConsumerGroupPositionPreparation {
         assignment: LiveGroupAssignment,
         error: ClassicGroupPositionPreparationError,
@@ -167,6 +172,13 @@ impl ClassicGroupEntryFault {
             } => rejection
                 .retained_owner_count()
                 .saturating_add(retained_one(terminal)),
+            Self::ClassicReconciliationPostCore {
+                requires_followup,
+                first,
+                second,
+            } => {
+                retained_reconciliation_effects(*requires_followup, first.as_ref(), second.as_ref())
+            }
             Self::ConsumerGroupPositionPreparation { assignment, error } => {
                 retained_one_with_guard(assignment, error)
             }
@@ -235,6 +247,14 @@ impl ClassicGroupEntryFault {
             Self::CoordinatorInvalidationGate => 1,
         }
     }
+}
+
+fn retained_reconciliation_effects(
+    _requires_followup: bool,
+    first: Option<&ClassicGroupEffect>,
+    second: Option<&ClassicGroupEffect>,
+) -> usize {
+    usize::from(first.is_some()).saturating_add(usize::from(second.is_some()))
 }
 
 const fn retained_one<T>(_owner: &T) -> usize {

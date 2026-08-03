@@ -157,6 +157,10 @@ impl DirectFetchExecutor {
         )
     }
 
+    pub(crate) fn has_ready_delivery(&self) -> bool {
+        self.store.has_ready()
+    }
+
     pub(crate) fn broker_sessions_are_closed(&self) -> bool {
         self.active_broker_close.is_none()
             && self

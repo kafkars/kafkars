@@ -24,8 +24,9 @@ pub use super::{
         ClassicProcessingLeaseFence, ClassicProcessingLeaseInput, ClassicProcessingLeasePolicy,
         ClassicProcessingLeasePolicyError, ClassicProcessingLeaseSchedule,
         ClassicProcessingLeaseTransition, PreparedClassicProcessingLeaseActivation,
-        PreparedClassicProcessingLeaseRevocation,
+        PreparedClassicProcessingLeaseReconciliation, PreparedClassicProcessingLeaseRevocation,
     },
+    reconciliation::{ClassicAssignmentDelta, ClassicAssignmentReconciliation},
     recovery::{
         ClassicBrokerError, ClassicBrokerStage, ClassicCoordinatorRecovery, ClassicGroupFatal,
         ClassicGroupFatalReason, ClassicRejoinPolicy, ClassicRejoinPolicyError,

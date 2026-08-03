@@ -2,9 +2,19 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{GroupId, JoinedMemberSlot, MembershipCycle, TopicId};
+use kafka_client_core::{
+    ClassicGeneration, ClassicProtocol, GroupAssignmentPartition, GroupId, JoinedMemberSlot,
+    MembershipCycle, PartitionIndex, TopicId,
+};
 
-use super::{classic_group_candidate::JoinedGroupMember, session_catalog::GroupSessionCatalog};
+use super::{
+    classic_group_candidate::{
+        ClassicGroupCycleCandidateError, JoinedGroupMember, JoinedOwnedPartition,
+    },
+    classic_group_owner::ClassicGroupOwner,
+    classic_group_test_support,
+    session_catalog::GroupSessionCatalog,
+};
 
 fn group_id() -> GroupId {
     GroupId::try_from_raw(5).unwrap_or_else(|| panic!("nonzero group identity"))
@@ -25,6 +35,7 @@ fn leader_candidate_ranks_member_spellings_and_stages_foreign_topics() {
     let candidate = catalog
         .prepare_leader_cycle(
             MembershipCycle::initial(),
+            ClassicProtocol::Range,
             Arc::from("a-local"),
             vec![
                 JoinedGroupMember::new(slot(1), Arc::from("z-remote"), vec![Arc::from("payments")]),
@@ -62,4 +73,119 @@ fn leader_candidate_ranks_member_spellings_and_stages_foreign_topics() {
         Some(1)
     );
     assert_eq!(catalog.next_topic_id.map(TopicId::get), Some(2));
+}
+
+#[test]
+fn initial_cooperative_leader_echoes_empty_ownership_without_a_generation() {
+    let catalog = catalog();
+    let exact = catalog.prepare_leader_cycle(
+        MembershipCycle::initial(),
+        ClassicProtocol::CooperativeSticky,
+        Arc::from("member-a"),
+        vec![local_member(Vec::new(), None)],
+    );
+    assert!(exact.is_ok());
+
+    let unexpected = catalog.prepare_leader_cycle(
+        MembershipCycle::initial(),
+        ClassicProtocol::CooperativeSticky,
+        Arc::from("member-a"),
+        vec![local_member(named_owned(&[0, 1]), Some(generation(7)))],
+    );
+    assert!(matches!(
+        unexpected,
+        Err(ClassicGroupCycleCandidateError::LocalOwnershipMismatch)
+    ));
+}
+
+#[test]
+fn current_cooperative_leader_rejects_a_different_local_generation() {
+    let (catalog, cycle) = installed_cooperative_catalog();
+    let exact = catalog.prepare_leader_cycle(
+        cycle,
+        ClassicProtocol::CooperativeSticky,
+        Arc::from("member-a"),
+        vec![local_member(named_owned(&[0, 1]), Some(generation(7)))],
+    );
+    assert!(exact.is_ok());
+
+    let mismatch = catalog.prepare_leader_cycle(
+        cycle,
+        ClassicProtocol::CooperativeSticky,
+        Arc::from("member-a"),
+        vec![local_member(named_owned(&[0, 1]), Some(generation(8)))],
+    );
+
+    assert!(matches!(
+        mismatch,
+        Err(ClassicGroupCycleCandidateError::LocalOwnershipMismatch)
+    ));
+}
+
+#[test]
+fn current_cooperative_leader_rejects_different_local_partitions() {
+    let (catalog, cycle) = installed_cooperative_catalog();
+    let mismatch = catalog.prepare_leader_cycle(
+        cycle,
+        ClassicProtocol::CooperativeSticky,
+        Arc::from("member-a"),
+        vec![local_member(named_owned(&[0, 2]), Some(generation(7)))],
+    );
+
+    assert!(matches!(
+        mismatch,
+        Err(ClassicGroupCycleCandidateError::LocalOwnershipMismatch)
+    ));
+}
+
+fn installed_cooperative_catalog() -> (GroupSessionCatalog, MembershipCycle) {
+    let mut catalog = catalog();
+    let mut owner = ClassicGroupOwner::new_with_protocol(
+        group_id(),
+        ClassicProtocol::CooperativeSticky,
+        classic_group_test_support::timing(),
+        classic_group_test_support::heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
+    );
+    let orders = catalog
+        .topic_id("orders")
+        .unwrap_or_else(|| panic!("orders topic identity"));
+    classic_group_test_support::install_follower(
+        &mut catalog,
+        &mut owner,
+        "member-a",
+        7,
+        vec![
+            GroupAssignmentPartition::new(orders, PartitionIndex::from_raw(0)),
+            GroupAssignmentPartition::new(orders, PartitionIndex::from_raw(1)),
+        ],
+    );
+    let cycle = MembershipCycle::initial()
+        .checked_next()
+        .unwrap_or_else(|| panic!("second membership cycle"));
+    (catalog, cycle)
+}
+
+fn local_member(
+    owned: Vec<JoinedOwnedPartition>,
+    generation: Option<ClassicGeneration>,
+) -> JoinedGroupMember {
+    JoinedGroupMember::new_with_owned(
+        slot(1),
+        Arc::from("member-a"),
+        vec![Arc::from("orders")],
+        owned,
+        generation,
+    )
+}
+
+fn named_owned(partitions: &[i32]) -> Vec<JoinedOwnedPartition> {
+    partitions
+        .iter()
+        .map(|partition| JoinedOwnedPartition::new(Arc::from("orders"), *partition))
+        .collect()
+}
+
+fn generation(raw: i32) -> ClassicGeneration {
+    ClassicGeneration::try_from_raw(raw).unwrap_or_else(|| panic!("nonnegative generation"))
 }

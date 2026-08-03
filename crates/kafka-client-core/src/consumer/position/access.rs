@@ -5,7 +5,7 @@ use crate::{
     Deadline, Moment,
     consumer::{
         AssignedConsumerEffect, AssignedConsumerMachineError, AssignmentEpoch, PositionFence,
-        position_state::PartitionPosition,
+        position_state::{PartitionPosition, RetainedAssignmentPositionPlan},
     },
 };
 
@@ -39,6 +39,26 @@ impl AssignedPartitionState {
         assignment_epoch: AssignmentEpoch,
     ) -> PositionFence {
         PositionFence::new(assignment_epoch, self.partition, self.position.epoch())
+    }
+
+    pub(in crate::consumer) fn plan_assignment_reconciliation(
+        &self,
+        new_assignment_epoch: AssignmentEpoch,
+        now: Moment,
+    ) -> Result<RetainedAssignmentPositionPlan, AssignedConsumerMachineError> {
+        self.position.plan_assignment_reconciliation(
+            new_assignment_epoch,
+            self.partition,
+            self.paused,
+            now,
+        )
+    }
+
+    pub(in crate::consumer) fn install_assignment_reconciliation(
+        &mut self,
+        plan: RetainedAssignmentPositionPlan,
+    ) -> Option<AssignedConsumerEffect> {
+        self.position.install_assignment_reconciliation(plan)
     }
 
     pub(super) fn activate(

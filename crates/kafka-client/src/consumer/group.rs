@@ -3,6 +3,7 @@
 use std::time::Duration;
 
 use crate::bridge::ClientEngine;
+use crate::{ErrorKind, KafkaError};
 
 use super::{Consumer, ConsumerBuildError, OffsetReset, ReadIsolation};
 
@@ -16,6 +17,7 @@ pub struct ConsumerBuilder {
     group_instance_id: Option<String>,
     topics: Vec<String>,
     group_protocol: ConsumerGroupProtocol,
+    classic_group_assignor: Option<ClassicGroupAssignor>,
     offset_reset: OffsetReset,
     read_isolation: ReadIsolation,
     processing_timeout: Duration,
@@ -29,6 +31,7 @@ impl ConsumerBuilder {
             group_instance_id: None,
             topics: Vec::new(),
             group_protocol: ConsumerGroupProtocol::Classic,
+            classic_group_assignor: None,
             offset_reset: OffsetReset::Error,
             read_isolation: ReadIsolation::ReadUncommitted,
             processing_timeout: Duration::from_secs(300),
@@ -61,6 +64,14 @@ impl ConsumerBuilder {
     /// classic membership.
     pub const fn group_protocol(mut self, protocol: ConsumerGroupProtocol) -> Self {
         self.group_protocol = protocol;
+        self
+    }
+
+    /// Selects the classic-group partition assignor.
+    ///
+    /// Combining this with [`ConsumerGroupProtocol::Consumer`] is rejected.
+    pub const fn classic_group_assignor(mut self, assignor: ClassicGroupAssignor) -> Self {
+        self.classic_group_assignor = Some(assignor);
         self
     }
 
@@ -107,6 +118,15 @@ impl ConsumerBuilder {
         self.group_protocol
     }
 
+    /// Returns the effective classic-group partition assignor, when applicable.
+    pub const fn selected_classic_group_assignor(&self) -> Option<ClassicGroupAssignor> {
+        match (self.group_protocol, self.classic_group_assignor) {
+            (ConsumerGroupProtocol::Classic, Some(assignor)) => Some(assignor),
+            (ConsumerGroupProtocol::Classic, None) => Some(ClassicGroupAssignor::Range),
+            (ConsumerGroupProtocol::Consumer, _) => None,
+        }
+    }
+
     /// Returns the immutable missing-offset policy for this registration.
     pub const fn offset_reset(&self) -> OffsetReset {
         self.offset_reset
@@ -139,12 +159,26 @@ impl ConsumerBuilder {
             Ok(capture) => capture,
             Err(error) => return Err(ConsumerBuildError::new(self, error)),
         };
+        if self.group_protocol == ConsumerGroupProtocol::Consumer
+            && self.classic_group_assignor.is_some()
+        {
+            drop(capture);
+            return Err(ConsumerBuildError::new(
+                self,
+                KafkaError::new(
+                    ErrorKind::Configuration,
+                    "a classic group assignor cannot be selected with the KIP-848 consumer-group protocol",
+                ),
+            ));
+        }
+        let classic_group_assignor = self.selected_classic_group_assignor();
         let engine = match self.engine.register_group_consumer(
             capture,
             &self.group_id,
             self.group_instance_id.as_deref(),
             &self.topics,
             self.group_protocol,
+            classic_group_assignor,
             self.offset_reset,
             self.read_isolation,
             self.processing_timeout,
@@ -163,9 +197,19 @@ impl ConsumerBuilder {
 /// Kafka consumer-group membership protocol selected for one consumer.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ConsumerGroupProtocol {
-    /// Kafka's JoinGroup, SyncGroup, and Heartbeat protocol.
+    /// Kafka's `JoinGroup`, `SyncGroup`, and `Heartbeat` protocol.
     #[default]
     Classic,
     /// Kafka's KIP-848 `ConsumerGroupHeartbeat` protocol.
     Consumer,
+}
+
+/// Classic consumer-group partition assignor selected for one consumer.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum ClassicGroupAssignor {
+    /// Kafka's eager `Range` assignor.
+    #[default]
+    Range,
+    /// Kafka's incremental `CooperativeSticky` assignor.
+    CooperativeSticky,
 }

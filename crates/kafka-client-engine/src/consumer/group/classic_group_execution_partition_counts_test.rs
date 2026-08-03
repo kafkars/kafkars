@@ -2,7 +2,9 @@
 
 use std::{sync::Arc, time::Instant};
 
-use kafka_client_core::{ClassicGeneration, Deadline, GroupId, JoinedMemberSlot, Moment};
+use kafka_client_core::{
+    ClassicGeneration, ClassicProtocol, Deadline, GroupId, JoinedMemberSlot, Moment,
+};
 
 use crate::clock::OperationDeadline;
 
@@ -78,6 +80,7 @@ fn prepared_leader(
     let candidate = catalog
         .prepare_leader_cycle(
             cycle,
+            ClassicProtocol::Range,
             Arc::from("member-a"),
             vec![JoinedGroupMember::new(
                 JoinedMemberSlot::try_from_raw(1).unwrap_or_else(|| panic!("member slot")),

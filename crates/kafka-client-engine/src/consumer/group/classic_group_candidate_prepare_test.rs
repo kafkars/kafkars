@@ -2,10 +2,15 @@
 
 use std::sync::Arc;
 
-use kafka_client_core::{GroupId, JoinedMemberSlot, MembershipCycle};
+use kafka_client_core::{
+    ClassicGeneration, ClassicProtocol, GroupAssignmentPartition, GroupId, JoinedMemberSlot,
+    MembershipCycle, PartitionIndex,
+};
 
 use super::{
-    classic_group_candidate::{ClassicGroupCycleCandidateError, JoinedGroupMember},
+    classic_group_candidate::{
+        ClassicGroupCycleCandidateError, JoinedGroupMember, JoinedOwnedPartition,
+    },
     classic_group_owner::ClassicGroupOwner,
     classic_group_test_support,
     session_catalog::GroupSessionCatalog,
@@ -70,10 +75,99 @@ fn member_id_required_spelling_reuses_the_staged_catalog_identity() {
 }
 
 #[test]
+fn retained_member_spelling_reuses_the_installed_catalog_identity() {
+    let mut catalog = catalog();
+    let mut owner = ClassicGroupOwner::new(
+        group_id(),
+        classic_group_test_support::timing(),
+        classic_group_test_support::heartbeat_policy(),
+        classic_group_test_support::rejoin_policy(),
+    );
+    classic_group_test_support::install_follower(
+        &mut catalog,
+        &mut owner,
+        "member-a",
+        7,
+        Vec::new(),
+    );
+    let installed = catalog
+        .current_member_id()
+        .unwrap_or_else(|| panic!("installed member identity"));
+    let cursor = catalog.next_member_id;
+    let cycle = MembershipCycle::initial()
+        .checked_next()
+        .unwrap_or_else(|| panic!("second cycle"));
+
+    let follower = catalog
+        .prepare_follower_cycle(cycle, Arc::from("member-a"))
+        .unwrap_or_else(|error| panic!("retained follower: {error:?}"));
+    assert_eq!(follower.local_member_id(), installed);
+    assert_eq!(follower.next_member_id_after_install(), cursor);
+
+    let leader = catalog
+        .prepare_leader_cycle(
+            cycle,
+            ClassicProtocol::Range,
+            Arc::from("member-a"),
+            vec![JoinedGroupMember::new(
+                slot(1),
+                Arc::from("member-a"),
+                vec![Arc::from("orders")],
+            )],
+        )
+        .unwrap_or_else(|error| panic!("retained leader: {error:?}"));
+    assert_eq!(leader.local_member_id(), installed);
+    assert_eq!(leader.next_member_id_after_install(), cursor);
+}
+
+#[test]
+fn leader_candidate_retains_foreign_ownership_from_a_dropped_topic() {
+    let catalog = catalog();
+    let orders = catalog
+        .topic_id("orders")
+        .unwrap_or_else(|| panic!("orders topic identity"));
+    let generation =
+        ClassicGeneration::try_from_raw(7).unwrap_or_else(|| panic!("generation identity"));
+    let candidate = catalog
+        .prepare_leader_cycle(
+            MembershipCycle::initial(),
+            ClassicProtocol::Range,
+            Arc::from("local"),
+            vec![
+                JoinedGroupMember::new(slot(1), Arc::from("local"), vec![Arc::from("orders")]),
+                JoinedGroupMember::new_with_owned(
+                    slot(2),
+                    Arc::from("remote"),
+                    vec![Arc::from("payments")],
+                    vec![JoinedOwnedPartition::new(Arc::from("orders"), 2)],
+                    Some(generation),
+                ),
+            ],
+        )
+        .unwrap_or_else(|error| panic!("dropped-topic candidate: {error:?}"));
+    let members = candidate
+        .try_core_join_members()
+        .unwrap_or_else(|error| panic!("dropped-topic core members: {error:?}"));
+    let remote = &members.members()[1];
+
+    assert_eq!(remote.subscription().topics().len(), 1);
+    assert_ne!(remote.subscription().topics()[0], orders);
+    assert_eq!(
+        remote.subscription().owned_partitions(),
+        [GroupAssignmentPartition::new(
+            orders,
+            PartitionIndex::from_raw(2),
+        )]
+    );
+    assert_eq!(remote.subscription().generation(), Some(generation));
+}
+
+#[test]
 fn invalid_leader_membership_is_atomic() {
     let catalog = catalog();
     let mismatch = catalog.prepare_leader_cycle(
         MembershipCycle::initial(),
+        ClassicProtocol::Range,
         Arc::from("local"),
         vec![JoinedGroupMember::new(
             slot(1),
@@ -88,6 +182,7 @@ fn invalid_leader_membership_is_atomic() {
 
     let duplicate = catalog.prepare_leader_cycle(
         MembershipCycle::initial(),
+        ClassicProtocol::Range,
         Arc::from("local"),
         vec![
             JoinedGroupMember::new(slot(1), Arc::from("local"), vec![Arc::from("orders")]),
@@ -148,6 +243,7 @@ fn exhausted_foreign_topic_cursor_preserves_staged_members_and_owner() {
 
     let result = catalog.prepare_leader_cycle(
         cycle,
+        ClassicProtocol::Range,
         Arc::from("local"),
         vec![
             JoinedGroupMember::new(slot(1), Arc::from("local"), vec![Arc::from("orders")]),

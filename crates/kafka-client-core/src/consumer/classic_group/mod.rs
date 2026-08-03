@@ -1,6 +1,7 @@
 //! Deterministic classic consumer-group Join and Sync policy.
 mod apply;
 mod assignment;
+mod cooperative_sticky;
 mod effect;
 mod error;
 mod exports;
@@ -15,6 +16,8 @@ mod member_id_required;
 mod model;
 mod processing_lease;
 mod range_validation;
+mod reconciliation;
+mod reconciliation_transition;
 mod recovery;
 mod terminal_transition;
 mod timing;
@@ -25,6 +28,10 @@ pub use exports::*;
 mod apply_test;
 #[cfg(test)]
 mod assignment_test;
+#[cfg(test)]
+mod cooperative_recovery_test;
+#[cfg(test)]
+mod cooperative_sticky_test;
 #[cfg(test)]
 mod effect_test;
 #[cfg(test)]
@@ -53,6 +60,8 @@ mod processing_lease_preparation_test;
 mod processing_lease_test;
 #[cfg(test)]
 mod range_validation_test;
+#[cfg(test)]
+mod reconciliation_test;
 #[cfg(test)]
 mod terminal_transition_test;
 #[cfg(test)]

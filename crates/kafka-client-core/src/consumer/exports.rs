@@ -4,10 +4,11 @@ pub use super::assignment_retirement::{
     RetireAssignment, RetireAssignmentError, RetireAssignmentErrorKind,
 };
 pub use super::classic_group::{
-    CLASSIC_GROUP_TIMEOUT_MAX_MS, CLASSIC_GROUP_TIMEOUT_MIN_MS, ClassicAssignmentError,
-    ClassicAssignmentPlan, ClassicBrokerError, ClassicBrokerStage, ClassicCoordinatorRecovery,
-    ClassicGeneration, ClassicGracefulRevocation, ClassicGracefulRevocationEffect,
-    ClassicGracefulRevocationError, ClassicGracefulRevocationInput, ClassicGracefulRevocationLease,
+    CLASSIC_GROUP_TIMEOUT_MAX_MS, CLASSIC_GROUP_TIMEOUT_MIN_MS, ClassicAssignmentDelta,
+    ClassicAssignmentError, ClassicAssignmentPlan, ClassicAssignmentReconciliation,
+    ClassicBrokerError, ClassicBrokerStage, ClassicCoordinatorRecovery, ClassicGeneration,
+    ClassicGracefulRevocation, ClassicGracefulRevocationEffect, ClassicGracefulRevocationError,
+    ClassicGracefulRevocationInput, ClassicGracefulRevocationLease,
     ClassicGracefulRevocationLossReason, ClassicGracefulRevocationTerminal,
     ClassicGracefulRevocationTransition, ClassicGroupApplyError, ClassicGroupEffect,
     ClassicGroupErrorKind, ClassicGroupFatal, ClassicGroupFatalReason, ClassicGroupInput,
@@ -22,7 +23,8 @@ pub use super::classic_group::{
     ClassicProcessingLeaseTransition, ClassicProtocol, ClassicRejoinPolicy,
     ClassicRejoinPolicyError, ClassicRejoinSchedule, ClassicSubscription, ClassicSubscriptionError,
     JoinedMemberSlot, MemberRank, MembershipCycle, PreparedClassicProcessingLeaseActivation,
-    PreparedClassicProcessingLeaseRevocation, TopicPartitionCount,
+    PreparedClassicProcessingLeaseReconciliation, PreparedClassicProcessingLeaseRevocation,
+    TopicPartitionCount,
 };
 pub use super::consumer_group::{
     CONSUMER_GROUP_HEARTBEAT_MAX_PARTITIONS, ConsumerGroupHeartbeatApplyError,
@@ -74,5 +76,6 @@ pub use super::position_failure::{PositionResolutionAttemptFailure, PositionReso
 pub use super::read_isolation::ReadIsolation;
 pub use super::resolved_assignment::{
     InstallResolvedAssignment, InstallResolvedAssignmentError, InstallResolvedAssignmentErrorKind,
-    ResolvedAssignedPartition,
+    ReconcileResolvedAssignment, ReconcileResolvedAssignmentError,
+    ReconcileResolvedAssignmentErrorKind, ResolvedAssignedPartition, ResolvedAssignmentTarget,
 };

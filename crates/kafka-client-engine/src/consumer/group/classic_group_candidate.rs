@@ -3,17 +3,36 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use kafka_client_core::{
-    ClassicJoinMember, ClassicJoinMembers, ClassicJoinMembersError, ClassicSubscription,
-    ClassicSubscriptionError, JoinedMemberSlot, MemberId, MemberRank, MembershipCycle, TopicId,
+    ClassicGeneration, ClassicJoinMember, ClassicJoinMembers, ClassicJoinMembersError,
+    ClassicSubscription, ClassicSubscriptionError, GroupAssignmentPartition, JoinedMemberSlot,
+    MemberId, MemberRank, MembershipCycle, TopicId,
 };
 
 use super::session_catalog::GroupSessionCatalog;
+
+/// Join-boundary spelling retained without admitting protocol ownership into candidate policy.
+pub(super) struct JoinedOwnedPartition {
+    pub(super) topic: Arc<str>,
+    pub(super) partition: i32,
+}
+
+impl JoinedOwnedPartition {
+    pub(super) const fn new(topic: Arc<str>, partition: i32) -> Self {
+        Self { topic, partition }
+    }
+
+    pub(super) fn into_parts(self) -> (Arc<str>, i32) {
+        (self.topic, self.partition)
+    }
+}
 
 /// One decoded member spelling and subscription before core normalization.
 pub(super) struct JoinedGroupMember {
     pub(super) slot: JoinedMemberSlot,
     pub(super) member: Arc<str>,
     pub(super) topics: Vec<Arc<str>>,
+    pub(super) owned_partitions: Vec<JoinedOwnedPartition>,
+    pub(super) generation: Option<ClassicGeneration>,
 }
 
 impl JoinedGroupMember {
@@ -26,6 +45,24 @@ impl JoinedGroupMember {
             slot,
             member,
             topics,
+            owned_partitions: Vec::new(),
+            generation: None,
+        }
+    }
+
+    pub(super) const fn new_with_owned(
+        slot: JoinedMemberSlot,
+        member: Arc<str>,
+        topics: Vec<Arc<str>>,
+        owned_partitions: Vec<JoinedOwnedPartition>,
+        generation: Option<ClassicGeneration>,
+    ) -> Self {
+        Self {
+            slot,
+            member,
+            topics,
+            owned_partitions,
+            generation,
         }
     }
 }
@@ -36,15 +73,19 @@ pub(super) struct CandidateMember {
     ordering_rank: MemberRank,
     kafka_member_spelling: Arc<str>,
     subscribed_topic_ids: Vec<TopicId>,
+    candidate_owned_partitions: Vec<GroupAssignmentPartition>,
+    candidate_generation: Option<ClassicGeneration>,
 }
 
 impl CandidateMember {
-    pub(super) const fn from_prepared_member(
+    pub(super) const fn from_prepared_member_with_owned(
         slot: JoinedMemberSlot,
         member_id: MemberId,
         rank: MemberRank,
         member: Arc<str>,
         topics: Vec<TopicId>,
+        owned_partitions: Vec<GroupAssignmentPartition>,
+        generation: Option<ClassicGeneration>,
     ) -> Self {
         Self {
             joined_slot: slot,
@@ -52,6 +93,8 @@ impl CandidateMember {
             ordering_rank: rank,
             kafka_member_spelling: member,
             subscribed_topic_ids: topics,
+            candidate_owned_partitions: owned_partitions,
+            candidate_generation: generation,
         }
     }
 }
@@ -176,8 +219,17 @@ impl ClassicGroupCycleCandidate {
                 .try_reserve_exact(member.subscribed_topic_ids.len())
                 .map_err(|_error| ClassicGroupCycleCandidateError::Allocation)?;
             topics.extend_from_slice(&member.subscribed_topic_ids);
-            let subscription = ClassicSubscription::try_new(topics)
-                .map_err(ClassicGroupCycleCandidateError::Subscription)?;
+            let mut owned_partitions = Vec::new();
+            owned_partitions
+                .try_reserve_exact(member.candidate_owned_partitions.len())
+                .map_err(|_error| ClassicGroupCycleCandidateError::Allocation)?;
+            owned_partitions.extend_from_slice(&member.candidate_owned_partitions);
+            let subscription = ClassicSubscription::try_new_with_owned(
+                topics,
+                owned_partitions,
+                member.candidate_generation,
+            )
+            .map_err(ClassicGroupCycleCandidateError::Subscription)?;
             joined.push(ClassicJoinMember::new(
                 member.joined_slot,
                 member.normalized_member_id,
@@ -218,6 +270,8 @@ impl ClassicGroupCycleCandidate {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ClassicGroupCycleCandidateError {
     Allocation,
+    InvalidOwnedPartition,
+    DuplicateOwnedPartition,
     EmptyMember,
     MemberBytes { actual: usize, limit: usize },
     MemberCapacity { actual: usize, limit: usize },
@@ -225,6 +279,7 @@ pub(super) enum ClassicGroupCycleCandidateError {
     DuplicateSlot(JoinedMemberSlot),
     LocalMemberMissing,
     LocalSubscriptionMismatch,
+    LocalOwnershipMismatch,
     RequiredMemberMismatch,
     TopicCapacity { actual: usize, limit: usize },
     TopicsPerMember { actual: usize, limit: usize },

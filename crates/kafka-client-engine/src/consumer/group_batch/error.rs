@@ -95,7 +95,10 @@ const fn error_kind(error: &GroupConsumerDeliveryPortError) -> GroupConsumerTryT
         ) => GroupConsumerTryTakeBatchErrorKind::GroupUnavailable,
         GroupConsumerDeliveryPortError::Registry(GroupConsumerDeliveryError::Fetch(
             ClassicGroupFetchDeliveryError::EffectsPending,
-        )) => GroupConsumerTryTakeBatchErrorKind::Pending,
+        ))
+        | GroupConsumerDeliveryPortError::Registry(GroupConsumerDeliveryError::Revoking) => {
+            GroupConsumerTryTakeBatchErrorKind::Pending
+        }
         GroupConsumerDeliveryPortError::Registry(
             GroupConsumerDeliveryError::ProcessingExpired { .. },
         ) => GroupConsumerTryTakeBatchErrorKind::ProcessingExpired,

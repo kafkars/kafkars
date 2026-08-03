@@ -7,13 +7,12 @@ use crate::driver::classic_group::{
 };
 
 use super::{
-    classic_group_assignment::retire_and_revoke_classic_group_assignment,
     classic_group_entry_fault::ClassicGroupEntryFault,
     classic_group_execution::ClassicGroupExecutionError,
     classic_group_heartbeat::{
         ClassicHeartbeatDriverOwner, ClassicHeartbeatExecutionState, ClassicHeartbeatSuccessor,
     },
-    classic_group_heartbeat_prepare::map_revocation_kind,
+    classic_group_heartbeat_prepare::{commit_revoke, map_revocation_kind},
     registry::GroupConsumerRegistry,
     registry_entry::GroupConsumerEntry,
 };
@@ -122,15 +121,8 @@ fn apply_recovery_loss(
         entry.fault = Some(ClassicGroupEntryFault::HeartbeatRecoverySemantic(attempt));
         return Err(ClassicGroupExecutionError::HeartbeatTerminal);
     }
-    match retire_and_revoke_classic_group_assignment(
-        &entry.classic,
-        &mut entry.catalog,
-        &mut entry.processing_lease,
-        &mut entry.fetch,
-        assignment,
-        classic_generation,
-    ) {
-        Ok(_retirement) => Ok(()),
+    match commit_revoke(entry, assignment, classic_generation) {
+        Ok(()) => Ok(()),
         Err(failure) => {
             let kind = failure.kind;
             entry.fault = Some(ClassicGroupEntryFault::HeartbeatLocalRevoke { failure });

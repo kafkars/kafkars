@@ -7,6 +7,7 @@ use super::super::AssignedConsumerEventStore;
 #[derive(Clone, Copy)]
 pub(super) enum PreparedKind<'input> {
     Replacement(usize),
+    Reconciliation(usize),
     Partition(AssignedTopicPartition),
     Pause(&'input [AssignedTopicPartition]),
     Resume(&'input [AssignedTopicPartition]),

@@ -86,7 +86,9 @@ fn contended_control_returns_the_exact_vector_for_retry() {
         .unwrap_or_else(|error| panic!("retry pause: {error}"));
     drop(handle);
     let mut registry = owner.terminal_registry();
-    registry.recover_fetch_after_driver_shutdown();
+    registry
+        .recover_fetch_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("recover group Fetch: {error:?}"));
     let join = registry
         .finish_shutdown()
         .unwrap_or_else(|error| panic!("finish registry: {error}"));

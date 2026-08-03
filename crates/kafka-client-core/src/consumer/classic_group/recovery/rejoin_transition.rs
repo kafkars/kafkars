@@ -19,24 +19,27 @@ impl ClassicGroupMachine {
         if self.pending_rejoin != Some(schedule) {
             return Err(ClassicGroupErrorKind::RejoinMismatch);
         }
+        if self.pending_reconciliation.is_some() {
+            return Err(ClassicGroupErrorKind::InvalidPhase);
+        }
         if !schedule.due().is_elapsed_at(now) {
             return Err(ClassicGroupErrorKind::DeadlineNotElapsed);
         }
         if self.next_cycle.is_none() {
-            return Ok(self.finish_fatal(ClassicGroupFatal::new(
+            return self.finish_fatal(ClassicGroupFatal::new(
                 schedule.cycle(),
                 schedule.assignment_generation(),
                 ClassicGroupFatalReason::CycleExhausted,
-            )));
+            ));
         }
         let Some(deadline) =
             now.checked_deadline_after(self.rejoin_policy().attempt_timeout_ticks())
         else {
-            return Ok(self.finish_fatal(ClassicGroupFatal::new(
+            return self.finish_fatal(ClassicGroupFatal::new(
                 schedule.cycle(),
                 schedule.assignment_generation(),
                 ClassicGroupFatalReason::AttemptDeadlineOverflow,
-            )));
+            ));
         };
         self.start_cycle(now, deadline)
     }
@@ -50,9 +53,29 @@ impl ClassicGroupMachine {
         self.heartbeat.disarm();
     }
 
-    pub(super) fn finish_fatal(&mut self, fatal: ClassicGroupFatal) -> ClassicGroupTransition {
+    pub(super) fn wait_to_rejoin_after_reconciliation(&mut self, schedule: ClassicRejoinSchedule) {
+        debug_assert_eq!(self.phase, ClassicGroupPhase::Reconciling);
+        debug_assert!(self.pending_reconciliation.is_some());
+        let pending_reconciliation = self.pending_reconciliation;
+        self.wait_to_rejoin(schedule);
+        self.pending_reconciliation = pending_reconciliation;
+    }
+
+    pub(in crate::consumer::classic_group) fn finish_fatal(
+        &mut self,
+        fatal: ClassicGroupFatal,
+    ) -> Result<ClassicGroupTransition, ClassicGroupErrorKind> {
+        let revoke = if self.live_assignment.is_some() {
+            Some(self.take_stable_revoke()?)
+        } else {
+            None
+        };
         self.retain_fatal(fatal);
-        ClassicGroupTransition::one(ClassicGroupEffect::Fatal { fatal })
+        let effect = ClassicGroupEffect::Fatal { fatal };
+        Ok(match revoke {
+            Some(revoke) => ClassicGroupTransition::two(revoke, effect),
+            None => ClassicGroupTransition::one(effect),
+        })
     }
 
     pub(super) fn retain_fatal(&mut self, fatal: ClassicGroupFatal) {
