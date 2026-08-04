@@ -2,7 +2,12 @@
 
 use std::time::Duration;
 
-/// Independent bounds for active records and callers waiting on capacity.
+/// Independent bounds for active records, waiting callers, and batching.
+///
+/// Defaults retain up to 32 MiB and 1,024 active records, 1,024 waiting
+/// callers and 32 MiB of their bytes, and 256 records or one MiB per partition
+/// batch with a five-millisecond linger. Client startup rejects zero,
+/// overflowing, or internally incoherent ownership domains.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ProducerLimits {
     retained_bytes: usize,

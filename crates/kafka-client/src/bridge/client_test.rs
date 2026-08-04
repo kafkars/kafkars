@@ -1,5 +1,7 @@
 //! Scenarios for facade-owned engine startup and child-handle retention.
 
+use std::time::Duration;
+
 use kafka_client_engine::{
     ConsumerReadIsolation as EngineReadIsolation, EngineSaslMechanism, EngineSecurity,
 };
@@ -10,7 +12,7 @@ use super::{
 };
 use crate::{
     ConsumerFetchConfig, ConsumerLimits, ErrorKind, Sasl, Security, Tls,
-    producer::{Compression, ProducerLimits},
+    producer::{ProducerConfig, ProducerRetryConfig},
 };
 
 #[test]
@@ -19,8 +21,7 @@ fn client_bridge_retains_validated_endpoints_and_builds_a_producer() {
         vec!["127.0.0.1:1".to_owned()],
         None,
         Security::plaintext(),
-        Compression::None,
-        ProducerLimits::default(),
+        ProducerConfig::default(),
         None,
         ConsumerFetchConfig::default(),
         ConsumerLimits::default(),
@@ -31,6 +32,33 @@ fn client_bridge_retains_validated_endpoints_and_builds_a_producer() {
 
     assert_eq!(client.bootstrap_servers(), &["127.0.0.1:1".to_owned()]);
     let _producer = client.producer();
+}
+
+#[test]
+fn client_bridge_carries_disabled_and_configured_producer_retry_exactly() {
+    for (requested, expected) in [
+        (
+            ProducerRetryConfig::new(0, Duration::MAX),
+            (0, Duration::MAX),
+        ),
+        (
+            ProducerRetryConfig::new(4, Duration::from_millis(250)),
+            (4, Duration::from_millis(250)),
+        ),
+    ] {
+        let client = ClientEngine::start_with_consumer_fetch(
+            vec!["127.0.0.1:1".to_owned()],
+            None,
+            Security::plaintext(),
+            ProducerConfig::default().with_retry(requested),
+            None,
+            ConsumerFetchConfig::default(),
+            ConsumerLimits::default(),
+        )
+        .unwrap_or_else(|error| panic!("valid retry configuration must start: {error}"));
+
+        assert_eq!(client.producer_retry(), expected);
+    }
 }
 
 #[test]
@@ -88,8 +116,7 @@ fn invalid_custom_tls_roots_are_configuration_errors_without_material_disclosure
         Security::tls(Tls::custom_roots_pem(
             certificate_material.as_bytes().to_vec(),
         )),
-        Compression::None,
-        ProducerLimits::default(),
+        ProducerConfig::default(),
         None,
         ConsumerFetchConfig::default(),
         ConsumerLimits::default(),
@@ -110,8 +137,7 @@ fn rejected_security_diagnostics_do_not_expose_credentials() {
         vec!["127.0.0.1:1".to_owned()],
         None,
         Security::sasl_plaintext(Sasl::plain("private-user", password)),
-        Compression::None,
-        ProducerLimits::default(),
+        ProducerConfig::default(),
         None,
         ConsumerFetchConfig::default(),
         ConsumerLimits::default(),

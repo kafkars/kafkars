@@ -3,10 +3,7 @@
 use std::thread;
 
 use super::client::ClientEngine;
-use crate::{
-    ConsumerFetchConfig, ConsumerLimits, Security,
-    producer::{Compression, ProducerLimits},
-};
+use crate::{ConsumerFetchConfig, ConsumerLimits, ProducerConfig, Security};
 
 #[test]
 fn concurrent_bridge_observers_receive_one_retained_shutdown_report() {
@@ -14,8 +11,7 @@ fn concurrent_bridge_observers_receive_one_retained_shutdown_report() {
         vec!["127.0.0.1:1".to_owned()],
         None,
         Security::plaintext(),
-        Compression::None,
-        ProducerLimits::default(),
+        ProducerConfig::default(),
         None,
         ConsumerFetchConfig::default(),
         ConsumerLimits::default(),

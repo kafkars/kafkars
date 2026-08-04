@@ -7,11 +7,15 @@ use crate::consumer::{
 };
 use crate::error::{ErrorKind, KafkaError};
 use crate::metrics::Metrics;
-use crate::producer::{Compression, ProducerBuilder, ProducerLimits};
+use crate::producer::{ProducerBuilder, ProducerConfig};
 use crate::readiness::Ready;
 use crate::security::Security;
 use crate::shutdown::Shutdown;
 use crate::transaction::TransactionalProducerBuilder;
+
+mod configuration;
+#[cfg(test)]
+mod configuration_test;
 
 /// Builder for one shared cluster, security, and execution context.
 #[derive(Debug, Clone, Default)]
@@ -19,8 +23,7 @@ pub struct ClientBuilder {
     bootstrap_servers: Vec<String>,
     client_id: Option<String>,
     security: Security,
-    producer_compression: Compression,
-    producer_limits: ProducerLimits,
+    producer: ProducerConfig,
     assigned_consumer_read_isolation: Option<ReadIsolation>,
     assigned_consumer_fetch: ConsumerFetchConfig,
     assigned_consumer_limits: ConsumerLimits,
@@ -47,20 +50,6 @@ impl ClientBuilder {
     #[must_use]
     pub fn security(mut self, security: Security) -> Self {
         self.security = security;
-        self
-    }
-
-    /// Selects `RecordBatch` compression for this client's producer owner.
-    #[must_use]
-    pub const fn producer_compression(mut self, compression: Compression) -> Self {
-        self.producer_compression = compression;
-        self
-    }
-
-    /// Sets independent active, waiting, and batch producer ownership bounds.
-    #[must_use]
-    pub const fn producer_limits(mut self, limits: ProducerLimits) -> Self {
-        self.producer_limits = limits;
         self
     }
 
@@ -98,8 +87,7 @@ impl ClientBuilder {
             self.bootstrap_servers,
             self.client_id,
             self.security,
-            self.producer_compression,
-            self.producer_limits,
+            self.producer,
             self.assigned_consumer_read_isolation,
             self.assigned_consumer_fetch,
             self.assigned_consumer_limits,

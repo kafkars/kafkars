@@ -146,7 +146,8 @@ pub use metrics::{
 };
 pub use producer::{
     CancellationOutcome, CloseProducer, Compression, Delivery, Flush, Producer, ProducerBuilder,
-    ProducerLimits, RecordMetadata, Send, SendBatch, SendBatchResult, TrySendError,
+    ProducerConfig, ProducerLimits, ProducerRetryConfig, RecordMetadata, Send, SendBatch,
+    SendBatchResult, TrySendError,
 };
 pub use readiness::Ready;
 pub use record::{Header, Record};

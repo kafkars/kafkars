@@ -19,12 +19,18 @@ impl ProducerBuilder {
 
     /// Sets the duration used to create each record's absolute end-to-end deadline.
     ///
-    /// The timeout starts at the `Producer::try_send` call boundary and spans
-    /// local batching, transport admission, and broker delivery.
+    /// Each record operation converts this duration into an absolute deadline
+    /// at its own public call boundary. It spans waiting, local batching,
+    /// transport admission, and broker delivery.
     #[must_use]
     pub fn delivery_timeout(mut self, delivery_timeout: Duration) -> Self {
         self.engine = self.engine.with_delivery_timeout(delivery_timeout);
         self
+    }
+
+    /// Returns the selected default duration for each record operation.
+    pub fn selected_delivery_timeout(&self) -> Duration {
+        self.engine.delivery_timeout()
     }
 
     /// Builds the producer after local validation.

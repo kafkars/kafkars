@@ -1,7 +1,7 @@
 //! Private bridge claim and close lifecycle scenarios.
 
 use crate::bridge::ClientEngine;
-use crate::{ConsumerFetchConfig, ConsumerLimits, ErrorKind, Security, producer::Compression};
+use crate::{ConsumerFetchConfig, ConsumerLimits, ErrorKind, ProducerConfig, Security};
 
 #[test]
 fn bridge_claims_once_and_observes_real_close() {
@@ -9,8 +9,7 @@ fn bridge_claims_once_and_observes_real_close() {
         vec![String::from("127.0.0.1:1")],
         None,
         Security::plaintext(),
-        Compression::None,
-        crate::ProducerLimits::default(),
+        ProducerConfig::default(),
         None,
         ConsumerFetchConfig::default(),
         ConsumerLimits::default(),

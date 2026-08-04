@@ -12,7 +12,7 @@ use crate::consumer::{
     ConsumerLimits, GroupConsumerOperationConfig, OffsetReset, ReadIsolation,
 };
 use crate::error::{ErrorKind, KafkaError};
-use crate::producer::{Compression, ProducerLimits};
+use crate::producer::{Compression, ProducerConfig, ProducerLimits};
 use crate::security::{Sasl, SaslMechanism, Security};
 use crate::shutdown::Shutdown;
 
@@ -38,17 +38,19 @@ impl ClientEngine {
         bootstrap_servers: Vec<String>,
         client_id: Option<String>,
         security: Security,
-        compression: Compression,
-        producer_limits: ProducerLimits,
+        producer: ProducerConfig,
         assigned_consumer_read_isolation: Option<ReadIsolation>,
         assigned_consumer_fetch: ConsumerFetchConfig,
         assigned_consumer_limits: ConsumerLimits,
     ) -> Result<Self, KafkaError> {
+        let (delivery_timeout, compression, retry, producer_limits) = producer.into_parts();
         let config = EngineConfig::new(bootstrap_servers)
             .with_client_id(client_id)
             .with_security(engine_security(&security))
+            .with_delivery_timeout(delivery_timeout)
             .with_producer_compression(engine_compression(compression))
-            .with_producer_limits(engine_producer_limits(producer_limits));
+            .with_producer_limits(engine_producer_limits(producer_limits))
+            .with_producer_retry(retry.max_retries(), retry.backoff());
         let config = match assigned_consumer_read_isolation {
             Some(read_isolation) => {
                 config.with_assigned_consumer_read_isolation(engine_read_isolation(read_isolation))
@@ -81,6 +83,14 @@ impl ClientEngine {
     /// Returns the immutable request-header identity retained by the engine.
     pub(crate) fn client_id(&self) -> Option<&str> {
         self.inner.config().client_id()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn producer_retry(&self) -> (u32, std::time::Duration) {
+        (
+            self.inner.config().producer_retry_max(),
+            self.inner.config().producer_retry_backoff(),
+        )
     }
 
     /// Returns a producer bridge with the engine-owned default deadline.

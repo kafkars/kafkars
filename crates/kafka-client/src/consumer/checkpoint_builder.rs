@@ -1,6 +1,6 @@
 //! Public exact-batch processed-prefix checkpoint ownership.
 
-use crate::bridge::group_consumer_batch::{
+use crate::bridge::consumer_facade::group_consumer_batch::{
     GroupConsumerCheckpointBuilder as BridgeBuilder,
     GroupConsumerCheckpointMarkErrorKind as BridgeMarkErrorKind,
 };
