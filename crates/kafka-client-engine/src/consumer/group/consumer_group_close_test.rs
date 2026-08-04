@@ -25,6 +25,7 @@ use super::{
 };
 use crate::{
     clock::MonotonicClock,
+    config::{ValidatedConsumerFetchConfig, ValidatedConsumerLimits},
     consumer::group_registration_request::{GroupConsumerClassicAssignor, GroupConsumerProtocol},
 };
 
@@ -44,6 +45,8 @@ fn dormant_modern_close_completes_without_submitting_a_leave() {
         GroupPositionMissingOffsetPolicy::Error,
         ReadIsolation::ReadUncommitted,
         default_classic_processing_lease_policy(),
+        ValidatedConsumerFetchConfig::default(),
+        ValidatedConsumerLimits::default(),
     )
     .unwrap_or_else(|error| panic!("entry: {error:?}"));
     let completion = Arc::new(GroupConsumerCloseCompletion::pending());

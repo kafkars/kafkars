@@ -1,7 +1,5 @@
 //! Call-boundary capture and lossless pre-core admission for group seek.
 
-use std::time::Duration;
-
 use crate::{
     clock::DeadlineCapture,
     consumer::{
@@ -13,8 +11,6 @@ use crate::{
 };
 
 use super::{GroupConsumerSeek, GroupConsumerSeekPosition};
-
-const DEFAULT_GROUP_SEEK_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Stable reason a group seek did not mutate deterministic position state.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -70,13 +66,13 @@ pub struct GroupConsumerSeekCapture<'handle> {
 }
 
 impl GroupConsumerHandle {
-    /// Captures the fixed seek deadline before facade input conversion.
+    /// Captures the configured seek deadline before facade input conversion.
     pub fn capture_seek(
         &mut self,
     ) -> Result<GroupConsumerSeekCapture<'_>, GroupConsumerSeekAdmissionError> {
         let capture = self
             .port
-            .capture_seek_deadline(DEFAULT_GROUP_SEEK_TIMEOUT)
+            .capture_seek_deadline(self.seek_timeout)
             .map_err(admission_error)?;
         Ok(GroupConsumerSeekCapture {
             handle: self,

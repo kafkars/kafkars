@@ -2,22 +2,44 @@
 
 use std::time::Duration;
 
+mod classic_group_config;
 mod compression;
 #[cfg(test)]
 mod compression_test;
+mod consumer_fetch;
+mod consumer_limits;
+mod group_consumer_operations;
 mod producer_limits;
 mod read_isolation;
 mod security;
 mod transaction;
 mod validated;
 mod validation;
+pub use classic_group_config::EngineClassicGroupConfig;
+pub(crate) use classic_group_config::ValidatedClassicGroupConfig;
 pub use compression::ProducerCompression;
+pub use consumer_fetch::EngineConsumerFetchConfig;
+pub(crate) use consumer_fetch::{ConsumerFetchConfigError, ValidatedConsumerFetchConfig};
+pub use consumer_limits::EngineConsumerLimits;
+pub(crate) use consumer_limits::{
+    ConsumerLimitsError, ValidatedConsumerLimits, validate_consumer_fetch_envelope,
+};
+pub use group_consumer_operations::EngineGroupConsumerOperationConfig;
+pub(crate) use group_consumer_operations::ValidatedGroupConsumerOperationConfig;
 pub use producer_limits::EngineProducerLimits;
 pub use read_isolation::ConsumerReadIsolation;
 pub use security::{EngineSasl, EngineSaslMechanism, EngineSecurity, EngineTls};
 pub(crate) use validated::ValidatedEngineConfig;
 pub(crate) use validation::EngineConfigError;
 
+#[cfg(test)]
+mod classic_group_config_test;
+#[cfg(test)]
+mod consumer_fetch_test;
+#[cfg(test)]
+mod consumer_limits_test;
+#[cfg(test)]
+mod group_consumer_operations_test;
 #[cfg(test)]
 mod producer_limits_test;
 #[cfg(test)]
@@ -47,6 +69,8 @@ pub struct EngineConfig {
     producer_compression: ProducerCompression,
     assigned_consumer_read_isolation: ConsumerReadIsolation,
     security: EngineSecurity,
+    assigned_consumer_fetch: EngineConsumerFetchConfig,
+    assigned_consumer_limits: EngineConsumerLimits,
     producer_retry_max: u32,
     producer_retry_backoff: Duration,
 }
@@ -63,6 +87,8 @@ impl EngineConfig {
             producer_compression: ProducerCompression::None,
             assigned_consumer_read_isolation: ConsumerReadIsolation::default(),
             security: EngineSecurity::default(),
+            assigned_consumer_fetch: EngineConsumerFetchConfig::default(),
+            assigned_consumer_limits: EngineConsumerLimits::default(),
             producer_retry_max: DEFAULT_PRODUCER_RETRIES,
             producer_retry_backoff: DEFAULT_PRODUCER_RETRY_BACKOFF,
         }
@@ -123,6 +149,20 @@ impl EngineConfig {
         self
     }
 
+    /// Replaces the sole assigned consumer's broker Fetch policy.
+    #[must_use]
+    pub const fn with_assigned_consumer_fetch(mut self, fetch: EngineConsumerFetchConfig) -> Self {
+        self.assigned_consumer_fetch = fetch;
+        self
+    }
+
+    /// Replaces the sole assigned consumer's bounded resource capacities.
+    #[must_use]
+    pub const fn with_assigned_consumer_limits(mut self, limits: EngineConsumerLimits) -> Self {
+        self.assigned_consumer_limits = limits;
+        self
+    }
+
     /// Replaces bounded definitely-unsent retry intent.
     #[must_use]
     pub const fn with_producer_retry(mut self, max_retries: u32, backoff: Duration) -> Self {
@@ -169,5 +209,25 @@ impl EngineConfig {
     /// Returns the complete transport and broker-authentication policy.
     pub const fn security(&self) -> &EngineSecurity {
         &self.security
+    }
+
+    /// Returns the sole assigned consumer's raw broker Fetch policy.
+    pub const fn assigned_consumer_fetch(&self) -> EngineConsumerFetchConfig {
+        self.assigned_consumer_fetch
+    }
+
+    /// Returns the sole assigned consumer's raw resource capacities.
+    pub const fn assigned_consumer_limits(&self) -> EngineConsumerLimits {
+        self.assigned_consumer_limits
+    }
+
+    /// Returns the maximum definitely-unsent retries per producer batch.
+    pub const fn producer_retry_max(&self) -> u32 {
+        self.producer_retry_max
+    }
+
+    /// Returns the fixed delay between definitely-unsent producer attempts.
+    pub const fn producer_retry_backoff(&self) -> Duration {
+        self.producer_retry_backoff
     }
 }

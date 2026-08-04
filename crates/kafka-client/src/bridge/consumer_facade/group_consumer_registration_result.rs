@@ -44,7 +44,7 @@ pub(super) fn translate_group_registration_kind(
         ),
         GroupConsumerRegistrationErrorKind::InvalidInput => KafkaError::new(
             ErrorKind::Configuration,
-            "group id, subscription, or processing timeout is outside the supported bounded domain",
+            "group-consumer registration policy is outside the supported bounded domain",
         ),
         GroupConsumerRegistrationErrorKind::Internal => KafkaError::new(
             ErrorKind::Internal,

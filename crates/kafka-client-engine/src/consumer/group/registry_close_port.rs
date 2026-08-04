@@ -19,18 +19,17 @@ use super::{
     registry_wake::GroupConsumerShardWakeError,
 };
 
-pub(super) const DEFAULT_EXPLICIT_CLOSE_TIMEOUT: Duration = Duration::from_secs(30);
-
 impl GroupConsumerPort {
     /// Reserves terminal notification capacity before fencing group admission.
     pub(in crate::consumer) fn try_begin_close(
         &self,
         group_id: GroupId,
         authority: &Arc<GroupConsumerCloseAuthority>,
+        timeout: Duration,
     ) -> Result<GroupConsumerCloseAdmission, GroupConsumerClosePortError> {
         let capture = self
             .clock
-            .capture_deadline_after(DEFAULT_EXPLICIT_CLOSE_TIMEOUT)
+            .capture_deadline_after(timeout)
             .map_err(GroupConsumerClosePortError::Clock)?;
         if self.shared.admission_is_closed() {
             return Err(GroupConsumerClosePortError::Closed);
@@ -72,9 +71,10 @@ impl GroupConsumerPort {
 
     pub(in crate::consumer) fn capture_control_close_deadline(
         &self,
+        timeout: Duration,
     ) -> Option<crate::clock::OperationDeadline> {
         self.clock
-            .capture_deadline_after(DEFAULT_EXPLICIT_CLOSE_TIMEOUT)
+            .capture_deadline_after(timeout)
             .ok()
             .map(crate::clock::DeadlineCapture::operation_deadline)
     }

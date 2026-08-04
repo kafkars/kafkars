@@ -2,6 +2,7 @@
 
 use kafka_client_core::{GroupPositionMissingOffsetPolicy, ReadIsolation};
 
+use crate::config::{EngineConsumerFetchConfig, EngineConsumerLimits};
 use crate::protocol::fetch::{FetchIsolation, fetch_request};
 
 use super::{
@@ -19,9 +20,9 @@ fn first_slice_reserves_every_pre_core_fifo_and_event_owner() {
 
     assert_eq!(FIRST_GROUP_FETCH_PARTITIONS, 64);
     assert_eq!(FIRST_GROUP_FETCH_EFFECTS, 129);
-    assert_eq!(FIRST_GROUP_FETCH_CALLS, 1);
-    assert_eq!(FIRST_GROUP_FETCH_DELIVERIES, 1);
-    assert_eq!(FIRST_GROUP_FETCH_DELIVERY_BYTES, 1024 * 1024);
+    assert_eq!(FIRST_GROUP_FETCH_CALLS, 8);
+    assert_eq!(FIRST_GROUP_FETCH_DELIVERIES, 8);
+    assert_eq!(FIRST_GROUP_FETCH_DELIVERY_BYTES, 8 * 1024 * 1024);
     assert_eq!(FIRST_GROUP_FETCH_OUTPUT_BYTES, 1024 * 1024);
     assert!(owner.effects.capacity() >= FIRST_GROUP_FETCH_EFFECTS);
     assert!(owner.raw_position_deadlines.capacity() >= FIRST_GROUP_FETCH_PARTITIONS);
@@ -73,4 +74,33 @@ fn selected_missing_offset_policy_reaches_the_fetch_owner() {
                 .unwrap_or_else(|error| panic!("Fetch owner: {error:?}"));
         assert_eq!(owner.missing_offset_policy, policy);
     }
+}
+
+#[test]
+fn selected_consumer_limits_size_the_group_fetch_owner() {
+    let default_fetch = EngineConsumerFetchConfig::default();
+    let fetch = EngineConsumerFetchConfig::new(
+        default_fetch.max_wait(),
+        default_fetch.min_bytes(),
+        default_fetch.max_bytes(),
+        256 * 1024,
+        default_fetch.attempt_timeout(),
+    )
+    .validate()
+    .unwrap_or_else(|error| panic!("Fetch policy: {error:?}"));
+    let limits = EngineConsumerLimits::new(3, 5, 4 * 1024 * 1024, 256 * 1024)
+        .validate()
+        .unwrap_or_else(|error| panic!("consumer limits: {error:?}"));
+    let owner = ClassicGroupFetchOwner::try_new_with_fetch_configuration(
+        ReadIsolation::ReadUncommitted,
+        GroupPositionMissingOffsetPolicy::Error,
+        fetch,
+        limits,
+    )
+    .unwrap_or_else(|error| panic!("Fetch owner: {error:?}"));
+
+    assert_eq!(owner.fetches.retained(), (0, 0, 0));
+    assert_eq!(owner.delivery_capacity, 5);
+    assert_eq!(owner.hard_fetch_output_bytes, 256 * 1024);
+    assert!(owner.reclaim_faults.capacity() >= 5);
 }

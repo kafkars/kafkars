@@ -3,16 +3,22 @@
 pub(crate) mod metrics;
 
 use kafka_client_engine::{
-    ConsumerReadIsolation as EngineReadIsolation, Engine, EngineConfig, EngineProducerLimits,
-    EngineSasl, EngineSecurity, EngineStartErrorKind, EngineTls, GroupConsumerStartCapture,
-    ProducerCompression as EngineCompression,
+    Engine, EngineConfig, EngineProducerLimits, EngineSasl, EngineSecurity, EngineStartErrorKind,
+    EngineTls, GroupConsumerStartCapture, ProducerCompression as EngineCompression,
 };
 
-use crate::consumer::{ClassicGroupAssignor, ConsumerGroupProtocol, OffsetReset, ReadIsolation};
+use crate::consumer::{
+    ClassicGroupAssignor, ClassicGroupConfig, ConsumerFetchConfig, ConsumerGroupProtocol,
+    ConsumerLimits, GroupConsumerOperationConfig, OffsetReset, ReadIsolation,
+};
 use crate::error::{ErrorKind, KafkaError};
 use crate::producer::{Compression, ProducerLimits};
 use crate::security::{Sasl, SaslMechanism, Security};
 use crate::shutdown::Shutdown;
+
+use super::consumer_configuration::{
+    engine_consumer_fetch, engine_consumer_limits, engine_read_isolation,
+};
 
 /// Facade-owned handle that hides engine types from public modules.
 #[derive(Debug, Clone)]
@@ -25,15 +31,18 @@ impl ClientEngine {
     /// Starts the engine from facade-owned configuration values.
     #[expect(
         clippy::needless_pass_by_value,
+        clippy::too_many_arguments,
         reason = "the consuming client-builder boundary transfers its exact security owner"
     )]
-    pub(crate) fn start(
+    pub(crate) fn start_with_consumer_fetch(
         bootstrap_servers: Vec<String>,
         client_id: Option<String>,
         security: Security,
         compression: Compression,
         producer_limits: ProducerLimits,
         assigned_consumer_read_isolation: Option<ReadIsolation>,
+        assigned_consumer_fetch: ConsumerFetchConfig,
+        assigned_consumer_limits: ConsumerLimits,
     ) -> Result<Self, KafkaError> {
         let config = EngineConfig::new(bootstrap_servers)
             .with_client_id(client_id)
@@ -45,7 +54,9 @@ impl ClientEngine {
                 config.with_assigned_consumer_read_isolation(engine_read_isolation(read_isolation))
             }
             None => config,
-        };
+        }
+        .with_assigned_consumer_fetch(engine_consumer_fetch(assigned_consumer_fetch))
+        .with_assigned_consumer_limits(engine_consumer_limits(assigned_consumer_limits));
         let inner = Engine::start(config).map_err(|error| {
             let kind = match error.kind() {
                 EngineStartErrorKind::Configuration => ErrorKind::Configuration,
@@ -121,6 +132,10 @@ impl ClientEngine {
     }
 
     /// Registers one bounded dynamic classic-group owner and admits captured membership.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the bridge forwards each explicit group policy without a second configuration owner"
+    )]
     pub(crate) fn register_group_consumer(
         &self,
         capture: GroupConsumerStartCapture,
@@ -132,8 +147,12 @@ impl ClientEngine {
         offset_reset: OffsetReset,
         read_isolation: ReadIsolation,
         processing_timeout: std::time::Duration,
+        classic_group_config: ClassicGroupConfig,
+        operations: GroupConsumerOperationConfig,
+        fetch: ConsumerFetchConfig,
+        limits: ConsumerLimits,
     ) -> Result<super::consumer_facade::group_consumer::GroupConsumerEngine, KafkaError> {
-        super::consumer_facade::group_consumer::GroupConsumerEngine::register(
+        super::consumer_facade::group_consumer::GroupConsumerEngine::register_with_fetch(
             &self.inner,
             capture,
             group,
@@ -144,6 +163,10 @@ impl ClientEngine {
             offset_reset,
             read_isolation,
             processing_timeout,
+            classic_group_config,
+            operations,
+            fetch,
+            limits,
         )
     }
 }
@@ -187,13 +210,6 @@ fn engine_producer_limits(limits: ProducerLimits) -> EngineProducerLimits {
         batch_bytes,
         linger,
     )
-}
-
-pub(super) const fn engine_read_isolation(read_isolation: ReadIsolation) -> EngineReadIsolation {
-    match read_isolation {
-        ReadIsolation::ReadUncommitted => EngineReadIsolation::ReadUncommitted,
-        ReadIsolation::ReadCommitted => EngineReadIsolation::ReadCommitted,
-    }
 }
 
 const fn engine_compression(compression: Compression) -> EngineCompression {

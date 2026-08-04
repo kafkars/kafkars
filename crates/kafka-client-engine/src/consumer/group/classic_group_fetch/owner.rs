@@ -39,12 +39,12 @@ use super::{
 pub(super) const FIRST_GROUP_FETCH_PARTITIONS: usize = CLASSIC_SYNC_MAX_MEMBER_PARTITIONS;
 /// First private slice reserves replacement revokes, starts, and one close effect.
 pub(super) const FIRST_GROUP_FETCH_EFFECTS: usize = FIRST_GROUP_FETCH_PARTITIONS * 2 + 1;
-/// First private slice admits one group-owned Fetch call at a time.
-pub(super) const FIRST_GROUP_FETCH_CALLS: usize = 1;
-/// First private slice retains one group-owned delivery at a time.
-pub(super) const FIRST_GROUP_FETCH_DELIVERIES: usize = 1;
-/// First private slice mirrors the direct consumer's one-MiB delivery bound.
-pub(super) const FIRST_GROUP_FETCH_DELIVERY_BYTES: usize = 1024 * 1024;
+/// Default group Fetch-call capacity mirrors the assigned consumer.
+pub(super) const FIRST_GROUP_FETCH_CALLS: usize = 8;
+/// Default group delivery capacity mirrors the assigned consumer.
+pub(super) const FIRST_GROUP_FETCH_DELIVERIES: usize = 8;
+/// Default group delivery-byte capacity mirrors the assigned consumer.
+pub(super) const FIRST_GROUP_FETCH_DELIVERY_BYTES: usize = 8 * 1024 * 1024;
 /// First private slice mirrors the direct consumer's one-MiB per-Fetch output bound.
 pub(super) const FIRST_GROUP_FETCH_OUTPUT_BYTES: usize = 1024 * 1024;
 
@@ -67,6 +67,7 @@ pub(in crate::consumer::group) struct ClassicGroupFetchOwner {
     pub(super) read_isolation: ReadIsolation,
     pub(super) partition_capacity: usize,
     pub(super) effect_capacity: usize,
+    pub(super) delivery_capacity: usize,
     pub(super) hard_fetch_output_bytes: usize,
     pub(super) fault: Option<ClassicGroupFetchOwnerFault>,
     pub(super) seek: Option<ClassicGroupFetchSeek>,

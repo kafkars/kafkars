@@ -1,17 +1,19 @@
 //! Private bridge claim and close lifecycle scenarios.
 
 use crate::bridge::ClientEngine;
-use crate::{ErrorKind, Security, producer::Compression};
+use crate::{ConsumerFetchConfig, ConsumerLimits, ErrorKind, Security, producer::Compression};
 
 #[test]
 fn bridge_claims_once_and_observes_real_close() {
-    let engine = ClientEngine::start(
+    let engine = ClientEngine::start_with_consumer_fetch(
         vec![String::from("127.0.0.1:1")],
         None,
         Security::plaintext(),
         Compression::None,
         crate::ProducerLimits::default(),
         None,
+        ConsumerFetchConfig::default(),
+        ConsumerLimits::default(),
     )
     .unwrap_or_else(|error| panic!("start engine: {error}"));
     let mut consumer = engine

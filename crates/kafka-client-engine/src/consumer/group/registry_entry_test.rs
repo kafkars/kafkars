@@ -9,6 +9,7 @@ use kafka_client_core::{
 
 use super::classic_group_test_support;
 use super::registry_entry::{GroupConsumerEntry, default_classic_processing_lease_policy};
+use crate::config::{ValidatedConsumerFetchConfig, ValidatedConsumerLimits};
 use crate::consumer::group_registration_request::{
     GroupConsumerClassicAssignor, GroupConsumerProtocol,
 };
@@ -64,6 +65,8 @@ fn cooperative_sticky_registration_reaches_the_classic_machine() {
         GroupPositionMissingOffsetPolicy::Error,
         ReadIsolation::ReadUncommitted,
         default_classic_processing_lease_policy(),
+        ValidatedConsumerFetchConfig::default(),
+        ValidatedConsumerLimits::default(),
     )
     .unwrap_or_else(|error| panic!("cooperative entry: {error:?}"));
 

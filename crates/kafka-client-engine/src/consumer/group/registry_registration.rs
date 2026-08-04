@@ -18,8 +18,9 @@ use super::{
     },
     session_catalog::GroupSessionCatalogError,
 };
-use crate::consumer::group_registration_request::{
-    GroupConsumerClassicAssignor, GroupConsumerProtocol,
+use crate::{
+    config::{ValidatedConsumerFetchConfig, ValidatedConsumerLimits},
+    consumer::group_registration_request::{GroupConsumerClassicAssignor, GroupConsumerProtocol},
 };
 
 /// Registration rejection retaining the exact caller-owned group spelling.
@@ -112,6 +113,8 @@ impl GroupConsumerRegistry {
             missing_offset_policy,
             read_isolation,
             processing_policy,
+            ValidatedConsumerFetchConfig::default(),
+            ValidatedConsumerLimits::default(),
         )
     }
 
@@ -132,6 +135,8 @@ impl GroupConsumerRegistry {
         missing_offset_policy: GroupPositionMissingOffsetPolicy,
         read_isolation: ReadIsolation,
         processing_policy: ClassicProcessingLeasePolicy,
+        fetch: ValidatedConsumerFetchConfig,
+        limits: ValidatedConsumerLimits,
     ) -> Result<GroupId, GroupConsumerRegistrationFailure> {
         if !self.accepting {
             return Err(registration_failure(
@@ -170,6 +175,8 @@ impl GroupConsumerRegistry {
             missing_offset_policy,
             read_isolation,
             processing_policy,
+            fetch,
+            limits,
         ) {
             Ok(entry) => entry,
             Err(GroupConsumerEntryBuildError::Catalog(error)) => {

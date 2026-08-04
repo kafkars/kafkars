@@ -3,8 +3,8 @@
 use std::time::Duration;
 
 use super::{
-    ClassicGroupAssignor, Consumer, ConsumerBuilder, ConsumerGroupProtocol, OffsetReset,
-    ReadIsolation, RecvConsumerBatch,
+    ClassicGroupAssignor, ClassicGroupConfig, Consumer, ConsumerBuilder, ConsumerFetchConfig,
+    ConsumerGroupProtocol, ConsumerLimits, OffsetReset, ReadIsolation, RecvConsumerBatch,
 };
 use crate::{Client, ErrorKind};
 
@@ -41,6 +41,10 @@ fn builder_and_unique_handle_expose_static_identity_without_control_capabilities
         let _: OffsetReset = builder.offset_reset();
         let _: ReadIsolation = builder.selected_read_isolation();
         let _: Duration = builder.selected_processing_timeout();
+        let _: Duration = builder.selected_membership_start_timeout();
+        let _: ClassicGroupConfig = builder.selected_classic_group_config();
+        let _: ConsumerFetchConfig = builder.selected_fetch_config();
+        let _: ConsumerLimits = builder.selected_limits();
     }
     fn handle_contract(consumer: &mut Consumer) {
         let _: &str = consumer.group_id();
@@ -53,6 +57,65 @@ fn builder_and_unique_handle_expose_static_identity_without_control_capabilities
     assert_not_impl!(Consumer: Sync);
     let _ = builder_contract as fn(ConsumerBuilder);
     let _ = handle_contract as fn(&mut Consumer);
+}
+
+#[test]
+fn limits_are_group_scoped_and_invalid_limits_return_the_exact_builder() {
+    let client = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .build()
+        .unwrap_or_else(|error| panic!("lazy client start: {error}"));
+    let limits = ConsumerLimits::new(3, 5, 4 * 1024 * 1024, 1024 * 1024);
+    assert_eq!(
+        client
+            .consumer("configured-workers")
+            .limits(limits)
+            .selected_limits(),
+        limits
+    );
+
+    let invalid = limits.with_in_flight_fetches(0);
+    let rejected = client
+        .consumer("configured-workers")
+        .subscribe(["orders"])
+        .limits(invalid)
+        .build()
+        .err()
+        .unwrap_or_else(|| panic!("zero Fetch-call capacity must reject"));
+    assert_eq!(rejected.error().kind(), ErrorKind::Configuration);
+    assert_eq!(rejected.builder().selected_limits(), invalid);
+}
+
+#[test]
+fn fetch_policy_is_group_scoped_and_invalid_policy_returns_the_exact_builder() {
+    let client = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .build()
+        .unwrap_or_else(|error| panic!("lazy client start: {error}"));
+    let fetch = ConsumerFetchConfig::default()
+        .with_max_wait(Duration::from_millis(125))
+        .with_min_bytes(4_096)
+        .with_max_bytes(2 * 1024 * 1024)
+        .with_partition_max_bytes(512 * 1024)
+        .with_attempt_timeout(Duration::from_secs(9));
+    assert_eq!(
+        client
+            .consumer("configured-workers")
+            .fetch_config(fetch)
+            .selected_fetch_config(),
+        fetch
+    );
+
+    let invalid = fetch.with_max_wait(Duration::ZERO);
+    let rejected = client
+        .consumer("configured-workers")
+        .subscribe(["orders"])
+        .fetch_config(invalid)
+        .build()
+        .err()
+        .unwrap_or_else(|| panic!("zero Fetch max-wait must reject"));
+    assert_eq!(rejected.error().kind(), ErrorKind::Configuration);
+    assert_eq!(rejected.builder().selected_fetch_config(), invalid);
 }
 
 #[test]

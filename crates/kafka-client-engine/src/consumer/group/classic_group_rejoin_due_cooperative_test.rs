@@ -8,9 +8,12 @@ use kafka_client_core::{
     PartitionIndex, ReadIsolation,
 };
 
-use crate::clock::MonotonicClock;
 use crate::consumer::group_registration_request::{
     GroupConsumerClassicAssignor, GroupConsumerProtocol,
+};
+use crate::{
+    clock::MonotonicClock,
+    config::{ValidatedConsumerFetchConfig, ValidatedConsumerLimits},
 };
 
 use super::{
@@ -214,6 +217,8 @@ fn cooperative_waiting_entry() -> (GroupConsumerEntry, ClassicRejoinSchedule, Me
         GroupPositionMissingOffsetPolicy::Error,
         ReadIsolation::ReadUncommitted,
         default_classic_processing_lease_policy(),
+        ValidatedConsumerFetchConfig::default(),
+        ValidatedConsumerLimits::default(),
     )
     .unwrap_or_else(|error| panic!("cooperative entry: {error:?}"));
     let topic_id = entry

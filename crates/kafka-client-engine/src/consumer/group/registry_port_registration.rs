@@ -13,8 +13,9 @@ use super::{
     registry_entry::default_classic_processing_lease_policy, registry_port::GroupConsumerPort,
     registry_shard::GroupConsumerShardLockError, session_catalog::GroupSessionCatalogError,
 };
-use crate::consumer::group_registration_request::{
-    GroupConsumerClassicAssignor, GroupConsumerProtocol,
+use crate::{
+    config::{ValidatedConsumerFetchConfig, ValidatedConsumerLimits},
+    consumer::group_registration_request::{GroupConsumerClassicAssignor, GroupConsumerProtocol},
 };
 
 pub(in crate::consumer) struct GroupConsumerPortRegistrationAccepted {
@@ -91,6 +92,8 @@ impl GroupConsumerPort {
             missing_offset_policy,
             read_isolation,
             processing_policy,
+            ValidatedConsumerFetchConfig::default(),
+            ValidatedConsumerLimits::default(),
         )
     }
 
@@ -111,6 +114,8 @@ impl GroupConsumerPort {
         missing_offset_policy: GroupPositionMissingOffsetPolicy,
         read_isolation: ReadIsolation,
         processing_policy: ClassicProcessingLeasePolicy,
+        fetch: ValidatedConsumerFetchConfig,
+        limits: ValidatedConsumerLimits,
     ) -> Result<GroupId, GroupConsumerPortRegistrationFailure> {
         self.try_register_controlled(
             group,
@@ -124,6 +129,8 @@ impl GroupConsumerPort {
             missing_offset_policy,
             read_isolation,
             processing_policy,
+            fetch,
+            limits,
         )
         .map(|accepted| accepted.group_id)
     }
@@ -145,6 +152,8 @@ impl GroupConsumerPort {
         missing_offset_policy: GroupPositionMissingOffsetPolicy,
         read_isolation: ReadIsolation,
         processing_policy: ClassicProcessingLeasePolicy,
+        fetch: ValidatedConsumerFetchConfig,
+        limits: ValidatedConsumerLimits,
     ) -> Result<GroupConsumerPortRegistrationAccepted, GroupConsumerPortRegistrationFailure> {
         if self.shared.admission_is_closed() {
             return Err(registration_failure(
@@ -186,6 +195,8 @@ impl GroupConsumerPort {
                 missing_offset_policy,
                 read_isolation,
                 processing_policy,
+                fetch,
+                limits,
             )
             .map_err(|failure| GroupConsumerPortRegistrationFailure {
                 kind: GroupConsumerPortRegistrationFailureKind::registry(failure.kind),

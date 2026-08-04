@@ -8,7 +8,7 @@ use super::{
     completion::AssignedConsumerCompletionNotifier, shard_test::CountingWake,
     start::build_first_assigned_consumer,
 };
-use crate::clock::MonotonicClock;
+use crate::{clock::MonotonicClock, config::EngineConsumerFetchConfig};
 
 #[test]
 fn each_read_isolation_builds_one_matching_idle_core_owner() {
@@ -17,6 +17,10 @@ fn each_read_isolation_builds_one_matching_idle_core_owner() {
             .unwrap_or_else(|error| panic!("completion notifier: {error}"));
         let (owner, _port) = build_first_assigned_consumer(
             isolation,
+            EngineConsumerFetchConfig::default()
+                .validate()
+                .unwrap_or_else(|error| panic!("Fetch config: {error:?}")),
+            crate::config::ValidatedConsumerLimits::default(),
             Arc::new(MonotonicClock::new()),
             Arc::new(CountingWake::default()),
             publishers.close,

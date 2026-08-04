@@ -1,11 +1,12 @@
 //! First direct-consumer slice compiles one bounded immutable-isolation lifecycle.
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use kafka_client_core::ReadIsolation;
 
 use crate::{
     clock::MonotonicClock,
+    config::{ValidatedConsumerFetchConfig, ValidatedConsumerLimits},
     protocol::fetch::{FetchDecodeLimits, FetchRequestSettings},
 };
 
@@ -25,14 +26,10 @@ use super::{
 };
 
 const PARTITIONS: usize = 64;
-const CALLS: usize = 8;
-const DELIVERIES: usize = 8;
-const DELIVERY_BYTES: usize = 8 * 1024 * 1024;
-const FETCH_REQUEST_BYTES: u32 = 1024 * 1024;
-const FETCH_OUTPUT_BYTES: usize = 1024 * 1024;
-
 pub(crate) fn build_first_assigned_consumer<W>(
     read_isolation: ReadIsolation,
+    fetch: ValidatedConsumerFetchConfig,
+    limits: ValidatedConsumerLimits,
     clock: Arc<MonotonicClock>,
     wake: Arc<W>,
     close_publisher: AssignedConsumerClosePublisher,
@@ -44,17 +41,23 @@ where
 {
     let settings = AssignedConsumerOwnerSettings::new(
         read_isolation,
-        FetchRequestSettings::new(500, 1, FETCH_REQUEST_BYTES, FETCH_REQUEST_BYTES, 0),
+        FetchRequestSettings::new(
+            fetch.max_wait_ms(),
+            fetch.min_bytes(),
+            fetch.max_bytes(),
+            fetch.partition_max_bytes(),
+            0,
+        ),
         FetchDecodeLimits::default(),
-        Duration::from_secs(30),
+        fetch.attempt_timeout(),
         8,
     );
     let limits = AssignedConsumerOwnerLimits::new(
         PARTITIONS,
-        CALLS,
-        DELIVERIES,
-        DELIVERY_BYTES,
-        FETCH_OUTPUT_BYTES,
+        limits.in_flight_fetches(),
+        limits.buffered_batches(),
+        limits.buffered_bytes(),
+        limits.max_batch_bytes(),
         AssignedTopicLimits::new(PARTITIONS, PARTITIONS, 249, 16 * 1024),
     )?;
     AssignedConsumerShardOwner::new(

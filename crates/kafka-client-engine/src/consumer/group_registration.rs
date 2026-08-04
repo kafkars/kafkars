@@ -7,14 +7,7 @@ use super::{
     group::{GroupConsumerCloseAuthority, GroupConsumerPortRegistrationAccepted},
     group_registration_request::GroupConsumerRegistration,
 };
-use kafka_client_core::{ClassicGroupTiming, ClassicHeartbeatPolicy, ClassicRejoinPolicy};
 use std::{cell::Cell, marker::PhantomData, sync::Arc, time::Duration};
-const DEFAULT_SESSION_TIMEOUT_MS: u64 = 10_000;
-const DEFAULT_REBALANCE_TIMEOUT_MS: u64 = 30_000;
-const DEFAULT_HEARTBEAT_INTERVAL_TICKS: u64 = 3_000_000_000;
-const DEFAULT_HEARTBEAT_ATTEMPT_TIMEOUT_TICKS: u64 = 10_000_000_000;
-const DEFAULT_REJOIN_BACKOFF_TICKS: u64 = 1_000_000_000;
-const DEFAULT_REJOIN_ATTEMPT_TIMEOUT_TICKS: u64 = 30_000_000_000;
 /// Stable reason bounded group registration did not transfer ownership.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GroupConsumerRegistrationErrorKind {
@@ -74,6 +67,8 @@ pub struct GroupConsumerHandle {
     pub(super) port: GroupConsumerPort,
     pub(super) lifetime: Arc<dyn Send + Sync>,
     pub(super) close_authority: Arc<GroupConsumerCloseAuthority>,
+    pub(super) seek_timeout: Duration,
+    pub(super) close_timeout: Duration,
     pub(super) _not_sync: PhantomData<Cell<()>>,
 }
 impl core::fmt::Debug for GroupConsumerHandle {
@@ -96,6 +91,8 @@ impl GroupConsumerHandle {
             port,
             lifetime,
             close_authority: Arc::new(GroupConsumerCloseAuthority::new()),
+            seek_timeout: Duration::from_secs(30),
+            close_timeout: Duration::from_secs(30),
             _not_sync: PhantomData,
         }
     }
@@ -105,19 +102,6 @@ impl GroupConsumerHandle {
         lifetime: Arc<dyn Send + Sync>,
         request: GroupConsumerRegistration,
     ) -> Result<Self, GroupConsumerRegistrationError> {
-        let timing =
-            ClassicGroupTiming::try_new(DEFAULT_SESSION_TIMEOUT_MS, DEFAULT_REBALANCE_TIMEOUT_MS)
-                .unwrap_or_else(|_| unreachable!("fixed classic-group timing is valid"));
-        let heartbeat = ClassicHeartbeatPolicy::try_new(
-            DEFAULT_HEARTBEAT_INTERVAL_TICKS,
-            DEFAULT_HEARTBEAT_ATTEMPT_TIMEOUT_TICKS,
-        )
-        .unwrap_or_else(|_| unreachable!("fixed classic heartbeat policy is valid"));
-        let rejoin = ClassicRejoinPolicy::try_new(
-            DEFAULT_REJOIN_BACKOFF_TICKS,
-            DEFAULT_REJOIN_ATTEMPT_TIMEOUT_TICKS,
-        )
-        .unwrap_or_else(|_| unreachable!("fixed classic rejoin policy is valid"));
         let (
             group,
             group_instance_id,
@@ -128,6 +112,14 @@ impl GroupConsumerHandle {
             missing_offset_policy,
             read_isolation,
             processing_policy,
+            raw_classic_group_config,
+            classic_group_config,
+            raw_operation_config,
+            operation_config,
+            raw_fetch,
+            fetch,
+            raw_limits,
+            limits,
         ) = request.into_validated_parts().map_err(|request| {
             GroupConsumerRegistrationError::new(
                 GroupConsumerRegistrationErrorKind::InvalidInput,
@@ -140,12 +132,14 @@ impl GroupConsumerHandle {
             topics,
             protocol,
             effective_classic_assignor.unwrap_or_default(),
-            timing,
-            heartbeat,
-            rejoin,
+            classic_group_config.timing(),
+            classic_group_config.heartbeat(),
+            classic_group_config.rejoin(),
             missing_offset_policy.into_core(),
             read_isolation.core(),
             processing_policy,
+            fetch,
+            limits,
         ) {
             Ok(GroupConsumerPortRegistrationAccepted {
                 group_id,
@@ -155,6 +149,8 @@ impl GroupConsumerHandle {
                 port,
                 lifetime,
                 close_authority,
+                seek_timeout: operation_config.seek_timeout(),
+                close_timeout: operation_config.close_timeout(),
                 _not_sync: PhantomData,
             }),
             Err(failure) => {
@@ -189,7 +185,11 @@ impl GroupConsumerHandle {
                     .with_read_isolation(read_isolation)
                     .with_processing_timeout(Duration::from_nanos(
                         processing_policy.timeout_ticks(),
-                    ));
+                    ))
+                    .with_classic_group_config(raw_classic_group_config)
+                    .with_operation_config(raw_operation_config)
+                    .with_fetch(raw_fetch)
+                    .with_limits(raw_limits);
                 Err(GroupConsumerRegistrationError::new(kind, request))
             }
         }

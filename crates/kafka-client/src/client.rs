@@ -2,7 +2,9 @@
 
 use crate::admin::Admin;
 use crate::bridge::ClientEngine;
-use crate::consumer::{AssignedConsumerBuilder, ConsumerBuilder, ReadIsolation};
+use crate::consumer::{
+    AssignedConsumerBuilder, ConsumerBuilder, ConsumerFetchConfig, ConsumerLimits, ReadIsolation,
+};
 use crate::error::{ErrorKind, KafkaError};
 use crate::metrics::Metrics;
 use crate::producer::{Compression, ProducerBuilder, ProducerLimits};
@@ -20,6 +22,8 @@ pub struct ClientBuilder {
     producer_compression: Compression,
     producer_limits: ProducerLimits,
     assigned_consumer_read_isolation: Option<ReadIsolation>,
+    assigned_consumer_fetch: ConsumerFetchConfig,
+    assigned_consumer_limits: ConsumerLimits,
 }
 
 impl ClientBuilder {
@@ -67,6 +71,20 @@ impl ClientBuilder {
         self
     }
 
+    /// Sets the broker Fetch policy for this client's assigned consumer.
+    #[must_use]
+    pub const fn assigned_consumer_fetch(mut self, fetch: ConsumerFetchConfig) -> Self {
+        self.assigned_consumer_fetch = fetch;
+        self
+    }
+
+    /// Sets the resource capacities for this client's assigned consumer.
+    #[must_use]
+    pub const fn assigned_consumer_limits(mut self, limits: ConsumerLimits) -> Self {
+        self.assigned_consumer_limits = limits;
+        self
+    }
+
     /// Validates local configuration and starts the default host.
     pub fn build(self) -> Result<Client, KafkaError> {
         if self.bootstrap_servers.is_empty() {
@@ -76,13 +94,15 @@ impl ClientBuilder {
             ));
         }
 
-        let engine = ClientEngine::start(
+        let engine = ClientEngine::start_with_consumer_fetch(
             self.bootstrap_servers,
             self.client_id,
             self.security,
             self.producer_compression,
             self.producer_limits,
             self.assigned_consumer_read_isolation,
+            self.assigned_consumer_fetch,
+            self.assigned_consumer_limits,
         )?;
         Ok(Client { engine })
     }

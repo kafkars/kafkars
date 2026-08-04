@@ -4,21 +4,26 @@ use kafka_client_engine::{
     ConsumerReadIsolation as EngineReadIsolation, EngineSaslMechanism, EngineSecurity,
 };
 
-use super::client::{ClientEngine, engine_read_isolation, engine_security};
+use super::{
+    client::{ClientEngine, engine_security},
+    consumer_configuration::engine_read_isolation,
+};
 use crate::{
-    ErrorKind, ReadIsolation, Sasl, Security, Tls,
+    ConsumerFetchConfig, ConsumerLimits, ErrorKind, Sasl, Security, Tls,
     producer::{Compression, ProducerLimits},
 };
 
 #[test]
 fn client_bridge_retains_validated_endpoints_and_builds_a_producer() {
-    let result = ClientEngine::start(
+    let result = ClientEngine::start_with_consumer_fetch(
         vec!["127.0.0.1:1".to_owned()],
         None,
         Security::plaintext(),
         Compression::None,
         ProducerLimits::default(),
         None,
+        ConsumerFetchConfig::default(),
+        ConsumerLimits::default(),
     );
     let Ok(client) = result else {
         panic!("valid local engine configuration should start")
@@ -77,7 +82,7 @@ fn custom_tls_root_bundle_reaches_engine_configuration_without_diagnostics() {
 #[test]
 fn invalid_custom_tls_roots_are_configuration_errors_without_material_disclosure() {
     let certificate_material = "private-invalid-certificate-material";
-    let result = ClientEngine::start(
+    let result = ClientEngine::start_with_consumer_fetch(
         vec!["127.0.0.1:1".to_owned()],
         None,
         Security::tls(Tls::custom_roots_pem(
@@ -86,6 +91,8 @@ fn invalid_custom_tls_roots_are_configuration_errors_without_material_disclosure
         Compression::None,
         ProducerLimits::default(),
         None,
+        ConsumerFetchConfig::default(),
+        ConsumerLimits::default(),
     );
     let Err(error) = result else {
         panic!("invalid custom TLS roots must be rejected");
@@ -99,13 +106,15 @@ fn invalid_custom_tls_roots_are_configuration_errors_without_material_disclosure
 #[test]
 fn rejected_security_diagnostics_do_not_expose_credentials() {
     let password = "private\0password";
-    let result = ClientEngine::start(
+    let result = ClientEngine::start_with_consumer_fetch(
         vec!["127.0.0.1:1".to_owned()],
         None,
         Security::sasl_plaintext(Sasl::plain("private-user", password)),
         Compression::None,
         ProducerLimits::default(),
         None,
+        ConsumerFetchConfig::default(),
+        ConsumerLimits::default(),
     );
     let Err(error) = result else {
         panic!("NUL-containing SASL credentials must be rejected");
@@ -121,11 +130,11 @@ fn rejected_security_diagnostics_do_not_expose_credentials() {
 fn facade_read_isolation_maps_exhaustively_to_engine_configuration() {
     for (public, engine) in [
         (
-            ReadIsolation::ReadUncommitted,
+            crate::ReadIsolation::ReadUncommitted,
             EngineReadIsolation::ReadUncommitted,
         ),
         (
-            ReadIsolation::ReadCommitted,
+            crate::ReadIsolation::ReadCommitted,
             EngineReadIsolation::ReadCommitted,
         ),
     ] {

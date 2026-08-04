@@ -53,6 +53,7 @@ pub(crate) mod alter_user_scram_credentials;
 pub(crate) mod client;
 pub(crate) mod client_shutdown;
 pub(crate) mod consumer;
+pub(crate) mod consumer_configuration;
 pub(crate) mod consumer_facade;
 pub(crate) mod create_delegation_token;
 pub(crate) mod delete_share_group_offsets;
@@ -132,3 +133,5 @@ mod admin_topics_result_test;
 mod client_shutdown_test;
 #[cfg(test)]
 mod client_test;
+#[cfg(test)]
+mod consumer_configuration_test;

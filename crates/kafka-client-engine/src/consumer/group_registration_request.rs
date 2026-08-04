@@ -6,7 +6,12 @@ use kafka_client_core::{
     ClassicProcessingLeasePolicy, ClassicProtocol, GroupPositionMissingOffsetPolicy,
 };
 
-use crate::config::ConsumerReadIsolation;
+use crate::config::{
+    ConsumerReadIsolation, EngineClassicGroupConfig, EngineConsumerFetchConfig,
+    EngineConsumerLimits, EngineGroupConsumerOperationConfig, ValidatedClassicGroupConfig,
+    ValidatedConsumerFetchConfig, ValidatedConsumerLimits, ValidatedGroupConsumerOperationConfig,
+    validate_consumer_fetch_envelope,
+};
 
 const DEFAULT_PROCESSING_TIMEOUT: Duration = Duration::from_secs(300);
 
@@ -20,6 +25,14 @@ type ValidatedGroupConsumerRegistration = (
     GroupConsumerMissingOffsetPolicy,
     ConsumerReadIsolation,
     ClassicProcessingLeasePolicy,
+    EngineClassicGroupConfig,
+    ValidatedClassicGroupConfig,
+    EngineGroupConsumerOperationConfig,
+    ValidatedGroupConsumerOperationConfig,
+    EngineConsumerFetchConfig,
+    ValidatedConsumerFetchConfig,
+    EngineConsumerLimits,
+    ValidatedConsumerLimits,
 );
 
 /// Exact caller-owned policy for one bounded group-consumer registration.
@@ -33,6 +46,10 @@ pub struct GroupConsumerRegistration {
     missing_offset_policy: GroupConsumerMissingOffsetPolicy,
     read_isolation: ConsumerReadIsolation,
     processing_timeout: Duration,
+    classic_group_config: EngineClassicGroupConfig,
+    operation_config: EngineGroupConsumerOperationConfig,
+    fetch: EngineConsumerFetchConfig,
+    limits: EngineConsumerLimits,
 }
 
 impl GroupConsumerRegistration {
@@ -47,6 +64,10 @@ impl GroupConsumerRegistration {
             missing_offset_policy: GroupConsumerMissingOffsetPolicy::Error,
             read_isolation: ConsumerReadIsolation::ReadUncommitted,
             processing_timeout: DEFAULT_PROCESSING_TIMEOUT,
+            classic_group_config: EngineClassicGroupConfig::default(),
+            operation_config: EngineGroupConsumerOperationConfig::default(),
+            fetch: EngineConsumerFetchConfig::default(),
+            limits: EngineConsumerLimits::default(),
         }
     }
 
@@ -139,7 +160,59 @@ impl GroupConsumerRegistration {
         self.processing_timeout
     }
 
+    /// Replaces immutable classic membership timing for this registration.
+    pub const fn with_classic_group_config(mut self, config: EngineClassicGroupConfig) -> Self {
+        self.classic_group_config = config;
+        self
+    }
+
+    /// Returns raw classic membership timing for this registration.
+    pub const fn classic_group_config(&self) -> EngineClassicGroupConfig {
+        self.classic_group_config
+    }
+
+    /// Replaces hosted-group seek and close durations for this registration.
+    pub const fn with_operation_config(
+        mut self,
+        config: EngineGroupConsumerOperationConfig,
+    ) -> Self {
+        self.operation_config = config;
+        self
+    }
+
+    /// Returns raw hosted-group seek and close durations.
+    pub const fn operation_config(&self) -> EngineGroupConsumerOperationConfig {
+        self.operation_config
+    }
+
+    /// Replaces the broker Fetch policy for this group registration.
+    pub const fn with_fetch(mut self, fetch: EngineConsumerFetchConfig) -> Self {
+        self.fetch = fetch;
+        self
+    }
+
+    /// Returns the raw broker Fetch policy for this group registration.
+    pub const fn fetch(&self) -> EngineConsumerFetchConfig {
+        self.fetch
+    }
+
+    /// Replaces bounded Fetch-call and delivery ownership for this group.
+    pub const fn with_limits(mut self, limits: EngineConsumerLimits) -> Self {
+        self.limits = limits;
+        self
+    }
+
+    /// Returns raw Fetch-call and delivery ownership for this group.
+    pub const fn limits(&self) -> EngineConsumerLimits {
+        self.limits
+    }
+
     pub(super) fn into_validated_parts(self) -> Result<ValidatedGroupConsumerRegistration, Self> {
+        if self.protocol == GroupConsumerProtocol::Consumer
+            && self.classic_group_config != EngineClassicGroupConfig::default()
+        {
+            return Err(self);
+        }
         let effective_classic_assignor = match (self.protocol, self.classic_assignor) {
             (GroupConsumerProtocol::Classic, Some(assignor)) => Some(assignor),
             (GroupConsumerProtocol::Classic, None) => Some(GroupConsumerClassicAssignor::Range),
@@ -154,6 +227,27 @@ impl GroupConsumerRegistration {
             Ok(policy) => policy,
             Err(_invalid) => return Err(self),
         };
+        let validated_classic_group_config = match self.classic_group_config.validate() {
+            Ok(config) => config,
+            Err(_invalid) => return Err(self),
+        };
+        let validated_operation_config = match self.operation_config.validate() {
+            Ok(config) => config,
+            Err(_invalid) => return Err(self),
+        };
+        let validated_fetch = match self.fetch.validate() {
+            Ok(fetch) => fetch,
+            Err(_invalid) => return Err(self),
+        };
+        let validated_limits = match self.limits.validate() {
+            Ok(limits) => limits,
+            Err(_invalid) => return Err(self),
+        };
+        if validate_consumer_fetch_envelope(validated_limits, validated_fetch.partition_max_bytes())
+            .is_err()
+        {
+            return Err(self);
+        }
         Ok((
             self.group,
             self.group_instance_id,
@@ -164,6 +258,14 @@ impl GroupConsumerRegistration {
             self.missing_offset_policy,
             self.read_isolation,
             processing_policy,
+            self.classic_group_config,
+            validated_classic_group_config,
+            self.operation_config,
+            validated_operation_config,
+            self.fetch,
+            validated_fetch,
+            self.limits,
+            validated_limits,
         ))
     }
 }

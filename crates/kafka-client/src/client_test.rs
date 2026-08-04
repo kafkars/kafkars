@@ -1,8 +1,17 @@
 //! Tests for facade-owned client construction and configuration views.
 
-use std::time::Duration;
+use std::{future::Future, time::Duration};
 
-use crate::{Client, Compression, DeliveryStatus, ErrorKind, ProducerLimits, ReadIsolation};
+use crate::{
+    Client, Compression, ConsumerFetchConfig, ConsumerLimits, DeliveryStatus, ErrorKind,
+    KafkaError, ProducerLimits, ReadIsolation, Ready,
+};
+
+#[test]
+fn readiness_is_a_named_send_future_without_an_async_runtime() {
+    fn assert_future<T: Future<Output = Result<(), KafkaError>> + Send>() {}
+    assert_future::<Ready>();
+}
 
 #[test]
 fn client_retains_facade_configuration_across_clones() {
@@ -72,6 +81,55 @@ fn client_builder_translates_explicit_producer_limits_before_startup() {
         .build();
 
     assert!(client.is_ok());
+}
+
+#[test]
+fn assigned_consumer_fetch_policy_is_validated_before_host_start() {
+    let valid = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .assigned_consumer_fetch(
+            ConsumerFetchConfig::default()
+                .with_max_wait(Duration::from_millis(250))
+                .with_attempt_timeout(Duration::from_secs(4)),
+        )
+        .build();
+    assert!(valid.is_ok());
+
+    let invalid = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .assigned_consumer_fetch(ConsumerFetchConfig::default().with_partition_max_bytes(0))
+        .build();
+    let Err(error) = invalid else {
+        panic!("zero partition Fetch bytes must reject");
+    };
+    assert_eq!(error.kind(), ErrorKind::Configuration);
+}
+
+#[test]
+fn assigned_consumer_limits_are_validated_with_the_fetch_envelope() {
+    let valid = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .assigned_consumer_limits(ConsumerLimits::new(3, 5, 4 * 1024 * 1024, 1024 * 1024))
+        .build();
+    assert!(valid.is_ok());
+
+    let invalid = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .assigned_consumer_limits(ConsumerLimits::default().with_buffered_batches(0))
+        .build();
+    let Err(error) = invalid else {
+        panic!("zero buffered-batch capacity must reject");
+    };
+    assert_eq!(error.kind(), ErrorKind::Configuration);
+
+    let incoherent = Client::builder()
+        .bootstrap_servers(["127.0.0.1:1"])
+        .assigned_consumer_limits(ConsumerLimits::new(1, 1, 1024 * 1024, 512 * 1024))
+        .build();
+    let Err(error) = incoherent else {
+        panic!("batch ceiling below partition Fetch bytes must reject");
+    };
+    assert_eq!(error.kind(), ErrorKind::Configuration);
 }
 
 #[test]

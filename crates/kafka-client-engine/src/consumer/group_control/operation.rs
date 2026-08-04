@@ -1,6 +1,6 @@
 //! Immediate batch control and clone-shared shutdown for one group handle.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use kafka_client_core::GroupId;
 
@@ -19,6 +19,7 @@ pub struct GroupConsumerControl {
     group_id: GroupId,
     close_authority: Arc<GroupConsumerCloseAuthority>,
     shutdown_port: GroupConsumerPort,
+    close_timeout: Duration,
 }
 
 impl GroupConsumerControl {
@@ -28,7 +29,10 @@ impl GroupConsumerControl {
     /// preallocated close authority. Repeated requests and a later explicit
     /// close converge on that same broker leave and terminal cell.
     pub fn request_shutdown(&self) {
-        let Some(deadline) = self.shutdown_port.capture_control_close_deadline() else {
+        let Some(deadline) = self
+            .shutdown_port
+            .capture_control_close_deadline(self.close_timeout)
+        else {
             return;
         };
         if self.close_authority.request(deadline) {
@@ -53,6 +57,7 @@ impl GroupConsumerHandle {
             group_id: self.group_id,
             close_authority: Arc::clone(&self.close_authority),
             shutdown_port: self.port.clone(),
+            close_timeout: self.close_timeout,
         }
     }
 

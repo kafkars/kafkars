@@ -70,6 +70,8 @@ pub(crate) fn start(
     let (assigned_consumer_owner, assigned_consumer) =
         match assigned_consumer_start::start_assigned_consumer(
             config.assigned_consumer_read_isolation().core(),
+            validated.assigned_consumer_fetch,
+            validated.assigned_consumer_limits,
             Arc::clone(&clock),
             Arc::clone(&wake),
             assigned_publishers.close,

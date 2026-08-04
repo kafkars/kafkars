@@ -186,6 +186,10 @@ fn setup() -> (
         .unwrap_or_else(|error| panic!("assigned-consumer notifier: {error}"));
     let (owner, port) = start_assigned_consumer(
         ReadIsolation::ReadUncommitted,
+        crate::config::EngineConsumerFetchConfig::default()
+            .validate()
+            .unwrap_or_else(|error| panic!("Fetch config: {error:?}")),
+        crate::config::ValidatedConsumerLimits::default(),
         Arc::clone(&clock),
         Arc::new(driver.reactor_wake()),
         publishers.close,

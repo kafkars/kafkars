@@ -12,6 +12,7 @@ use kafka_client_core::{
 
 use crate::{
     clock::OperationDeadline,
+    config::{ValidatedConsumerFetchConfig, ValidatedConsumerLimits},
     consumer::group_registration_request::{GroupConsumerClassicAssignor, GroupConsumerProtocol},
 };
 
@@ -39,6 +40,8 @@ pub(in super::super) fn prepared_reconciliation() -> GroupConsumerEntry {
         GroupPositionMissingOffsetPolicy::Error,
         ReadIsolation::ReadUncommitted,
         default_classic_processing_lease_policy(),
+        ValidatedConsumerFetchConfig::default(),
+        ValidatedConsumerLimits::default(),
     )
     .unwrap_or_else(|error| panic!("cooperative entry: {error:?}"));
     let topic_id = entry

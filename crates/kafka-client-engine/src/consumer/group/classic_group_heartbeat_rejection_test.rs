@@ -7,9 +7,12 @@ use kafka_client_core::{
     Moment, ReadIsolation,
 };
 
-use crate::consumer::{
-    GroupConsumerEvent,
-    group_registration_request::{GroupConsumerClassicAssignor, GroupConsumerProtocol},
+use crate::{
+    config::{ValidatedConsumerFetchConfig, ValidatedConsumerLimits},
+    consumer::{
+        GroupConsumerEvent,
+        group_registration_request::{GroupConsumerClassicAssignor, GroupConsumerProtocol},
+    },
 };
 
 use super::{
@@ -166,6 +169,8 @@ fn cooperative_stable_entry() -> GroupConsumerEntry {
             GroupPositionMissingOffsetPolicy::Error,
             ReadIsolation::ReadUncommitted,
             default_classic_processing_lease_policy(),
+            ValidatedConsumerFetchConfig::default(),
+            ValidatedConsumerLimits::default(),
         )
         .unwrap_or_else(|failure| panic!("cooperative registration: {:?}", failure.kind));
     install_session(&mut registry, group_id);

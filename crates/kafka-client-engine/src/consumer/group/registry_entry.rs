@@ -24,9 +24,12 @@ use super::{
     consumer_group_execution::{ConsumerGroupExecution, ConsumerGroupExecutionBuildError},
     session_catalog::{GroupSessionCatalog, GroupSessionCatalogError},
 };
-use crate::consumer::{
-    GroupConsumerPositionFailureKind,
-    group_registration_request::{GroupConsumerClassicAssignor, GroupConsumerProtocol},
+use crate::{
+    config::{ValidatedConsumerFetchConfig, ValidatedConsumerLimits},
+    consumer::{
+        GroupConsumerPositionFailureKind,
+        group_registration_request::{GroupConsumerClassicAssignor, GroupConsumerProtocol},
+    },
 };
 
 /// Whether one retained group can still admit new operations.
@@ -155,6 +158,8 @@ impl GroupConsumerEntry {
             missing_offset_policy,
             read_isolation,
             processing_policy,
+            ValidatedConsumerFetchConfig::default(),
+            ValidatedConsumerLimits::default(),
         )
     }
 
@@ -175,6 +180,8 @@ impl GroupConsumerEntry {
         missing_offset_policy: GroupPositionMissingOffsetPolicy,
         read_isolation: ReadIsolation,
         processing_policy: ClassicProcessingLeasePolicy,
+        fetch: ValidatedConsumerFetchConfig,
+        limits: ValidatedConsumerLimits,
     ) -> Result<Self, GroupConsumerEntryBuildError> {
         Ok(Self {
             state: GroupConsumerEntryState::Active,
@@ -211,9 +218,11 @@ impl GroupConsumerEntry {
             ),
             classic_reconciliation: None,
             execution: new_classic_group_execution(),
-            fetch: ClassicGroupFetchOwner::try_new_with_policies(
+            fetch: ClassicGroupFetchOwner::try_new_with_fetch_configuration(
                 read_isolation,
                 missing_offset_policy,
+                fetch,
+                limits,
             )
             .map_err(GroupConsumerEntryBuildError::Fetch)?,
             heartbeat: ClassicHeartbeatExecution::new(),

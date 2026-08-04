@@ -74,7 +74,7 @@ impl GroupConsumerHandle {
     pub fn try_close(self) -> Result<GroupConsumerClose, GroupConsumerCloseAdmissionError> {
         match self
             .port
-            .try_begin_close(self.group_id, &self.close_authority)
+            .try_begin_close(self.group_id, &self.close_authority, self.close_timeout)
         {
             Ok(admission) => {
                 let wake_failed = admission.wake_failed();

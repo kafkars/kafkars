@@ -1,10 +1,11 @@
 //! Bounded allocation and policy construction for the classic-group Fetch owner.
 
-use std::{collections::VecDeque, time::Duration};
+use std::collections::VecDeque;
 
 use kafka_client_core::{AssignedConsumerMachine, GroupPositionMissingOffsetPolicy, ReadIsolation};
 
 use crate::{
+    config::{ValidatedConsumerFetchConfig, ValidatedConsumerLimits},
     consumer::{
         assigned_event::AssignedConsumerEventStore, assigned_owner_model::fetch_isolation,
         assigned_timers::AssignedTimers, fetch_execution::DirectFetchExecutor,
@@ -15,15 +16,8 @@ use crate::{
 
 use super::{
     model::ClassicGroupFetchBuildError,
-    owner::{
-        ClassicGroupFetchOwner, FIRST_GROUP_FETCH_CALLS, FIRST_GROUP_FETCH_DELIVERIES,
-        FIRST_GROUP_FETCH_DELIVERY_BYTES, FIRST_GROUP_FETCH_EFFECTS,
-        FIRST_GROUP_FETCH_OUTPUT_BYTES, FIRST_GROUP_FETCH_PARTITIONS,
-    },
+    owner::{ClassicGroupFetchOwner, FIRST_GROUP_FETCH_EFFECTS, FIRST_GROUP_FETCH_PARTITIONS},
 };
-
-const FIRST_GROUP_FETCH_REQUEST_BYTES: u32 = 1024 * 1024;
-const FIRST_GROUP_FETCH_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(30);
 
 impl ClassicGroupFetchOwner {
     pub(in crate::consumer::group) fn try_new() -> Result<Self, ClassicGroupFetchBuildError> {
@@ -43,6 +37,20 @@ impl ClassicGroupFetchOwner {
         read_isolation: ReadIsolation,
         missing_offset_policy: GroupPositionMissingOffsetPolicy,
     ) -> Result<Self, ClassicGroupFetchBuildError> {
+        Self::try_new_with_fetch_configuration(
+            read_isolation,
+            missing_offset_policy,
+            ValidatedConsumerFetchConfig::default(),
+            ValidatedConsumerLimits::default(),
+        )
+    }
+
+    pub(in crate::consumer::group) fn try_new_with_fetch_configuration(
+        read_isolation: ReadIsolation,
+        missing_offset_policy: GroupPositionMissingOffsetPolicy,
+        fetch: ValidatedConsumerFetchConfig,
+        limits: ValidatedConsumerLimits,
+    ) -> Result<Self, ClassicGroupFetchBuildError> {
         let mut effects = VecDeque::new();
         let mut raw_position_deadlines = VecDeque::new();
         let mut pending_positions = VecDeque::new();
@@ -61,32 +69,32 @@ impl ClassicGroupFetchOwner {
             .try_reserve_exact(FIRST_GROUP_FETCH_PARTITIONS)
             .map_err(|_error| ClassicGroupFetchBuildError::Allocation)?;
         reclaim_faults
-            .try_reserve_exact(FIRST_GROUP_FETCH_DELIVERIES)
+            .try_reserve_exact(limits.buffered_batches())
             .map_err(|_error| ClassicGroupFetchBuildError::Allocation)?;
         let events = AssignedConsumerEventStore::new(FIRST_GROUP_FETCH_PARTITIONS)
             .map_err(|_error| ClassicGroupFetchBuildError::Allocation)?;
         let mut fetches = DirectFetchExecutor::create_unbound(
-            FIRST_GROUP_FETCH_CALLS,
-            FIRST_GROUP_FETCH_DELIVERIES,
-            FIRST_GROUP_FETCH_DELIVERY_BYTES,
+            limits.in_flight_fetches(),
+            limits.buffered_batches(),
+            limits.buffered_bytes(),
         );
         fetches
             .try_enable_sessions(FIRST_GROUP_FETCH_PARTITIONS)
             .map_err(|()| ClassicGroupFetchBuildError::Allocation)?;
         let fetch_settings = FetchRequestSettings::new(
-            500,
-            1,
-            FIRST_GROUP_FETCH_REQUEST_BYTES,
-            FIRST_GROUP_FETCH_REQUEST_BYTES,
+            fetch.max_wait_ms(),
+            fetch.min_bytes(),
+            fetch.max_bytes(),
+            fetch.partition_max_bytes(),
             0,
         )
         .with_isolation(fetch_isolation(read_isolation));
-        fetches.configure_broker_sessions(fetch_settings, FIRST_GROUP_FETCH_ATTEMPT_TIMEOUT);
+        fetches.configure_broker_sessions(fetch_settings, fetch.attempt_timeout());
         Ok(Self {
             machine: AssignedConsumerMachine::with_read_isolation(read_isolation),
             activation: None,
             timers: AssignedTimers::new(FIRST_GROUP_FETCH_PARTITIONS),
-            positions: PositionResolutionExecutor::new(FIRST_GROUP_FETCH_CALLS),
+            positions: PositionResolutionExecutor::new(limits.in_flight_fetches()),
             fetches,
             events,
             effects,
@@ -95,12 +103,13 @@ impl ClassicGroupFetchOwner {
             pending_fetches,
             fetch_settings,
             fetch_decode_limits: FetchDecodeLimits::default(),
-            fetch_attempt_timeout: FIRST_GROUP_FETCH_ATTEMPT_TIMEOUT,
+            fetch_attempt_timeout: fetch.attempt_timeout(),
             missing_offset_policy,
             read_isolation,
             partition_capacity: FIRST_GROUP_FETCH_PARTITIONS,
             effect_capacity: FIRST_GROUP_FETCH_EFFECTS,
-            hard_fetch_output_bytes: FIRST_GROUP_FETCH_OUTPUT_BYTES,
+            delivery_capacity: limits.buffered_batches(),
+            hard_fetch_output_bytes: limits.max_batch_bytes(),
             fault: None,
             seek: None,
             reclaim_faults,

@@ -9,8 +9,10 @@ mod assigned_recv;
 mod assignment;
 mod checkpoint;
 mod checkpoint_builder;
+mod classic_group_config;
 mod consumer_batch;
 mod event;
+mod fetch_config;
 mod group;
 mod group_acknowledge;
 mod group_acknowledge_error;
@@ -23,10 +25,12 @@ mod group_control;
 mod group_event;
 mod group_handle;
 mod group_next_event;
+mod group_operation_config;
 mod group_rebalance_event;
 mod group_record;
 mod group_recv;
 mod group_seek;
+mod limits;
 mod offset_reset;
 mod read_isolation;
 mod record;
@@ -41,12 +45,14 @@ pub use assigned_recv::RecvAssignedBatch;
 pub use assignment::{StartPosition, TopicPartition};
 pub use checkpoint::Checkpoint;
 pub use checkpoint_builder::{CheckpointBuilder, CheckpointMarkError, CheckpointMarkErrorKind};
+pub use classic_group_config::ClassicGroupConfig;
 pub use consumer_batch::ConsumerBatch;
 pub use event::{
     AssignedConsumerEvent, AssignedConsumerFetchFailureKind, AssignedConsumerFetchFence,
     AssignedConsumerFetchThrottleFailureKind, AssignedConsumerPositionFence,
     AssignedConsumerPositionResolutionFailureKind,
 };
+pub use fetch_config::ConsumerFetchConfig;
 pub use group::{ClassicGroupAssignor, ConsumerBuilder, ConsumerGroupProtocol};
 pub use group_acknowledge_error::ConsumerAcknowledgeError;
 pub use group_build_error::ConsumerBuildError;
@@ -60,10 +66,12 @@ pub use group_event::{
 };
 pub use group_handle::Consumer;
 pub use group_next_event::NextConsumerEvent;
+pub use group_operation_config::GroupConsumerOperationConfig;
 pub use group_rebalance_event::{ConsumerEvent, ConsumerRevocation};
 pub use group_record::{GroupConsumerHeader, GroupConsumerRecord, GroupConsumerRecords};
 pub use group_recv::RecvConsumerBatch;
 pub use group_seek::Seek;
+pub use limits::ConsumerLimits;
 pub use offset_reset::OffsetReset;
 pub use read_isolation::ReadIsolation;
 pub use record::{ConsumerHeader, ConsumerRecord, ConsumerRecords};
@@ -88,9 +96,13 @@ mod checkpoint_builder_test;
 #[cfg(test)]
 mod checkpoint_test;
 #[cfg(test)]
+mod classic_group_config_test;
+#[cfg(test)]
 mod consumer_batch_test;
 #[cfg(test)]
 mod event_test;
+#[cfg(test)]
+mod fetch_config_test;
 #[cfg(test)]
 mod group_acknowledge_error_test;
 #[cfg(test)]
@@ -112,6 +124,8 @@ mod group_event_test;
 #[cfg(test)]
 mod group_next_event_test;
 #[cfg(test)]
+mod group_operation_config_test;
+#[cfg(test)]
 mod group_rebalance_event_test;
 #[cfg(test)]
 mod group_recv_test;
@@ -119,6 +133,8 @@ mod group_recv_test;
 mod group_seek_test;
 #[cfg(test)]
 mod group_test;
+#[cfg(test)]
+mod limits_test;
 #[cfg(test)]
 mod read_isolation_test;
 #[cfg(test)]

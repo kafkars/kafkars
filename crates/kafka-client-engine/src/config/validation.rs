@@ -12,7 +12,8 @@ use crate::{
 };
 
 use super::{
-    DEFAULT_COMPRESSION_WORKERS, DEFAULT_TURN_BUDGET, EngineConfig, ValidatedEngineConfig,
+    ConsumerFetchConfigError, ConsumerLimitsError, DEFAULT_COMPRESSION_WORKERS,
+    DEFAULT_TURN_BUDGET, EngineConfig, ValidatedEngineConfig, validate_consumer_fetch_envelope,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -29,6 +30,8 @@ pub(crate) enum EngineConfigError {
     BatchPolicy,
     RetryPolicy(ProducerRetryPolicyError),
     Producer(ProducerHostLimitError),
+    ConsumerFetch(ConsumerFetchConfigError),
+    ConsumerLimits(ConsumerLimitsError),
     TurnBudget,
 }
 
@@ -53,6 +56,19 @@ impl EngineConfig {
         }
         duration_ticks(self.admin_timeout())?;
         let host_limits = self.producer_host_limits()?;
+        let assigned_consumer_fetch = self
+            .assigned_consumer_fetch()
+            .validate()
+            .map_err(EngineConfigError::ConsumerFetch)?;
+        let assigned_consumer_limits = self
+            .assigned_consumer_limits()
+            .validate()
+            .map_err(EngineConfigError::ConsumerLimits)?;
+        validate_consumer_fetch_envelope(
+            assigned_consumer_limits,
+            assigned_consumer_fetch.partition_max_bytes(),
+        )
+        .map_err(EngineConfigError::ConsumerLimits)?;
         let validated_host = host_limits
             .validate()
             .map_err(EngineConfigError::Producer)?;
@@ -71,6 +87,8 @@ impl EngineConfig {
             host_limits,
             turn_budget,
             security,
+            assigned_consumer_fetch,
+            assigned_consumer_limits,
         })
     }
 

@@ -16,9 +16,8 @@ use crate::{
 };
 
 use super::{
-    super::session_catalog::GroupSessionCatalog,
-    model::ClassicGroupFetchOwnerFault,
-    owner::{ClassicGroupFetchOwner, FIRST_GROUP_FETCH_DELIVERIES},
+    super::session_catalog::GroupSessionCatalog, model::ClassicGroupFetchOwnerFault,
+    owner::ClassicGroupFetchOwner,
 };
 
 /// One exact group Fetch byte lease before a processing lease or public batch exists.
@@ -179,7 +178,7 @@ impl ClassicGroupFetchOwner {
             });
         }
 
-        for _attempt in 0..FIRST_GROUP_FETCH_DELIVERIES {
+        for _attempt in 0..self.delivery_capacity {
             let delivery = match self.fetches.take_ready() {
                 Ok(delivery) => delivery,
                 Err(error) => {
@@ -259,7 +258,7 @@ impl ClassicGroupFetchOwner {
     ) -> Result<(), ClassicGroupFetchReclaimError> {
         self.fetches.reclaim(delivery).map_err(|failure| {
             let fault = ClassicGroupFetchReclaimFault::new(failure);
-            if self.reclaim_faults.len() < FIRST_GROUP_FETCH_DELIVERIES {
+            if self.reclaim_faults.len() < self.delivery_capacity {
                 self.reclaim_faults.push(fault);
             } else {
                 self.reclaim_overflow = Some(fault);

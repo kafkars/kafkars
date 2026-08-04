@@ -14,6 +14,7 @@ use kafka_wire_core::Uuid;
 
 use crate::{
     clock::MonotonicClock,
+    config::{ValidatedConsumerFetchConfig, ValidatedConsumerLimits},
     driver::TopicPartitionCountFact,
     protocol::consumer::{
         ConsumerGroupHeartbeatOutcome, normalize_consumer_group_heartbeat_response,
@@ -291,6 +292,8 @@ fn modern_entry_with_instance(group_instance_id: Option<&Arc<str>>) -> GroupCons
         kafka_client_core::GroupPositionMissingOffsetPolicy::Error,
         kafka_client_core::ReadIsolation::ReadUncommitted,
         default_classic_processing_lease_policy(),
+        ValidatedConsumerFetchConfig::default(),
+        ValidatedConsumerLimits::default(),
     )
     .unwrap_or_else(|error| panic!("modern entry: {error:?}"))
 }

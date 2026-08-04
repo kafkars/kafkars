@@ -6,6 +6,7 @@ use kafka_client_core::ReadIsolation;
 
 use crate::{
     clock::MonotonicClock,
+    config::{ValidatedConsumerFetchConfig, ValidatedConsumerLimits},
     consumer::{
         AssignedConsumerClosePublisher, AssignedConsumerEventPublisher,
         AssignedConsumerOwnerBuildError, AssignedConsumerPort, AssignedConsumerRecvPublisher,
@@ -16,6 +17,8 @@ use crate::{
 
 pub(super) fn start_assigned_consumer(
     read_isolation: ReadIsolation,
+    fetch: ValidatedConsumerFetchConfig,
+    limits: ValidatedConsumerLimits,
     clock: Arc<MonotonicClock>,
     wake: Arc<ReactorWake>,
     close_publisher: AssignedConsumerClosePublisher,
@@ -24,6 +27,8 @@ pub(super) fn start_assigned_consumer(
 ) -> Result<(AssignedConsumerShardOwner, AssignedConsumerPort), AssignedConsumerOwnerBuildError> {
     build_first_assigned_consumer(
         read_isolation,
+        fetch,
+        limits,
         clock,
         wake,
         close_publisher,

@@ -9,15 +9,27 @@ use kafka_client_engine::{
     GroupConsumerRegistration as EngineGroupConsumerRegistration, GroupConsumerStartCapture,
 };
 
+use crate::{
+    ClassicGroupAssignor, ClassicGroupConfig, ConsumerFetchConfig, ConsumerGroupProtocol,
+    ConsumerLimits, ErrorKind, GroupConsumerOperationConfig, KafkaError, OffsetReset,
+    ReadIsolation,
+};
+
+use super::super::consumer_configuration::{
+    engine_classic_group_config, engine_consumer_fetch, engine_consumer_limits,
+    engine_group_consumer_operations, engine_read_isolation,
+};
+use super::group_consumer::GroupConsumerEngine;
 use super::group_consumer_registration_result::{
     accepted_fault, translate_group_registration, translate_group_start,
 };
-use super::{super::client::engine_read_isolation, group_consumer::GroupConsumerEngine};
-use crate::{
-    ClassicGroupAssignor, ConsumerGroupProtocol, ErrorKind, KafkaError, OffsetReset, ReadIsolation,
-};
 
 impl GroupConsumerEngine {
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the compatibility bridge forwards each explicit group policy with default Fetch"
+    )]
+    #[cfg(test)]
     pub(crate) fn register(
         engine: &SharedEngine,
         capture: GroupConsumerStartCapture,
@@ -29,6 +41,44 @@ impl GroupConsumerEngine {
         offset_reset: OffsetReset,
         read_isolation: ReadIsolation,
         processing_timeout: Duration,
+    ) -> Result<Self, KafkaError> {
+        Self::register_with_fetch(
+            engine,
+            capture,
+            group,
+            group_instance_id,
+            topics,
+            group_protocol,
+            classic_group_assignor,
+            offset_reset,
+            read_isolation,
+            processing_timeout,
+            ClassicGroupConfig::default(),
+            GroupConsumerOperationConfig::default(),
+            ConsumerFetchConfig::default(),
+            ConsumerLimits::default(),
+        )
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "registration retains each explicit group policy without a second configuration owner"
+    )]
+    pub(crate) fn register_with_fetch(
+        engine: &SharedEngine,
+        capture: GroupConsumerStartCapture,
+        group: &str,
+        group_instance_id: Option<&str>,
+        topics: &[String],
+        group_protocol: ConsumerGroupProtocol,
+        classic_group_assignor: Option<ClassicGroupAssignor>,
+        offset_reset: OffsetReset,
+        read_isolation: ReadIsolation,
+        processing_timeout: Duration,
+        classic_group_config: ClassicGroupConfig,
+        operations: GroupConsumerOperationConfig,
+        fetch: ConsumerFetchConfig,
+        limits: ConsumerLimits,
     ) -> Result<Self, KafkaError> {
         let mut registration = EngineGroupConsumerRegistration::new(
             Arc::<str>::from(group),
@@ -48,7 +98,11 @@ impl GroupConsumerEngine {
         let registration = registration
             .with_missing_offset_policy(engine_missing_offset_policy(offset_reset))
             .with_read_isolation(engine_read_isolation(read_isolation))
-            .with_processing_timeout(processing_timeout);
+            .with_processing_timeout(processing_timeout)
+            .with_classic_group_config(engine_classic_group_config(classic_group_config))
+            .with_operation_config(engine_group_consumer_operations(operations))
+            .with_fetch(engine_consumer_fetch(fetch))
+            .with_limits(engine_consumer_limits(limits));
         let mut handle = engine
             .register_group_consumer(registration)
             .map_err(|error| translate_group_registration(&error))?;
