@@ -71,9 +71,12 @@ pub struct Record {
 
 impl Record {
     /// Begins a record for the named topic.
-    pub fn to(topic: impl Into<String>) -> Self {
+    ///
+    /// An `Arc<str>` crosses this boundary without reallocating its topic bytes,
+    /// allowing repeated records to share one canonical topic owner.
+    pub fn to(topic: impl Into<Arc<str>>) -> Self {
         Self {
-            topic: Arc::from(topic.into()),
+            topic: topic.into(),
             partition: None,
             timestamp_milliseconds: None,
             key: None,
@@ -83,7 +86,7 @@ impl Record {
     }
 
     /// Creates an explicit tombstone record.
-    pub fn tombstone(topic: impl Into<String>) -> Self {
+    pub fn tombstone(topic: impl Into<Arc<str>>) -> Self {
         Self::to(topic)
     }
 

@@ -60,6 +60,8 @@ mod materialization_retention_test;
 #[cfg(test)]
 mod materialization_test;
 #[cfg(test)]
+mod reclaim_generation_test;
+#[cfg(test)]
 mod reclaim_test;
 #[cfg(test)]
 mod reclaim_turn_test;

@@ -1,9 +1,12 @@
 //! Bounded reservation and terminal-readiness markers for operation completions.
 
 use core::fmt;
-use std::collections::{BTreeMap, btree_map::Entry};
+use std::collections::hash_map::Entry;
 
-use crate::OperationId;
+use crate::{
+    OperationId,
+    id_hash::{IdMap, id_map},
+};
 
 /// Rejected completion-ledger transition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,6 +47,8 @@ enum CompletionState {
     Terminal,
 }
 
+type CompletionSlots = IdMap<OperationId, CompletionState>;
+
 /// Bounded terminal-completion capacity reserved before operation admission.
 ///
 /// This ledger stores only lifecycle markers. The engine owns terminal result
@@ -51,7 +56,7 @@ enum CompletionState {
 #[derive(Debug)]
 pub struct CompletionLedger {
     capacity: usize,
-    slots: BTreeMap<OperationId, CompletionState>,
+    slots: CompletionSlots,
 }
 
 impl CompletionLedger {
@@ -59,7 +64,7 @@ impl CompletionLedger {
     pub const fn new(capacity: usize) -> Self {
         Self {
             capacity,
-            slots: BTreeMap::new(),
+            slots: id_map(),
         }
     }
 

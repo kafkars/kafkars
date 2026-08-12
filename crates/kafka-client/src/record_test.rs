@@ -1,8 +1,18 @@
 //! Public record construction evidence for nullable ordered duplicate headers.
 
+use std::sync::Arc;
+
 use bytes::Bytes;
 
 use super::{Header, Record};
+
+#[test]
+fn shared_topic_owner_crosses_record_construction_without_reallocation() {
+    let topic = Arc::<str>::from("orders");
+    let record = Record::to(Arc::clone(&topic));
+
+    assert!(Arc::ptr_eq(record.topic_owner(), &topic));
+}
 
 #[test]
 fn prebuilt_headers_preserve_null_empty_nonempty_storage_and_duplicate_order() {

@@ -44,6 +44,8 @@ mod observer_test;
 #[cfg(test)]
 mod registry_generation_test;
 #[cfg(test)]
+mod registry_notification_test;
+#[cfg(test)]
 mod registry_test;
 #[cfg(test)]
 mod settlement_test;

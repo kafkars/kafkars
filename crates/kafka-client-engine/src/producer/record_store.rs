@@ -1,12 +1,14 @@
 //! Sole owner of payload identities, record capacity, and retained byte counts.
 
-use std::collections::BTreeMap;
-
 use kafka_client_core::{ByteCount, ExplicitRecord, PayloadId, TopicId};
+
+use crate::id_hash::{IdMap, id_map};
 
 use super::{
     ProducerAdmissionError, ProducerRecord, ProducerStoreError, topic_catalog::TopicCatalog,
 };
+
+type PayloadSlots = IdMap<PayloadId, RecordSlot>;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum PayloadState {
@@ -68,7 +70,7 @@ pub(super) struct RecordStore {
     pub(super) max_bytes: usize,
     pub(super) next_payload_id: Option<PayloadId>,
     pub(super) used_bytes: usize,
-    pub(super) slots: BTreeMap<PayloadId, RecordSlot>,
+    pub(super) slots: PayloadSlots,
     pub(super) topics: TopicCatalog,
 }
 
@@ -88,7 +90,7 @@ impl RecordStore {
             max_bytes,
             next_payload_id: Some(PayloadId::from_raw(1)),
             used_bytes: 0,
-            slots: BTreeMap::new(),
+            slots: id_map(),
             topics: TopicCatalog::new(max_topics, max_topic_bytes),
         }
     }

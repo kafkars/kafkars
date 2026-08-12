@@ -1,8 +1,9 @@
 //! Unit scenarios for bounded flush-ledger ownership.
 
-use std::collections::BTreeMap;
-
-use super::flush::{FlushLedger, FlushLedgerError};
+use super::{
+    flush::{FlushLedger, FlushLedgerError},
+    machine::ProducerOperations,
+};
 use crate::{
     AdmissionSequence, BatchId, ByteCount, Deadline, FlushId, OperationId, ProducerEffect,
     ProducerOperation,
@@ -11,7 +12,7 @@ use crate::{
 #[test]
 fn empty_barrier_accepts_and_completes_in_one_transition() {
     let mut ledger = FlushLedger::new(1);
-    let operations = BTreeMap::new();
+    let operations = ProducerOperations::default();
 
     let effects = ledger
         .request(Some(OperationId::from_raw(1)), &operations)
@@ -35,7 +36,7 @@ fn empty_barrier_accepts_and_completes_in_one_transition() {
 #[test]
 fn pending_and_terminal_slots_obey_reclaim_and_capacity() {
     let mut ledger = FlushLedger::new(1);
-    let mut operations = BTreeMap::new();
+    let mut operations = ProducerOperations::default();
     operations.insert(
         OperationId::from_raw(1),
         ProducerOperation::admitted(

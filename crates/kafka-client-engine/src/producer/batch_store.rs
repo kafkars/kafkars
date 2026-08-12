@@ -13,11 +13,11 @@ mod revision;
 #[cfg(test)]
 mod revision_test;
 
-use std::collections::BTreeMap;
-
 use kafka_client_core::{
     BatchExecutionId, BatchId, OperationId, PartitionIndex, PayloadId, TopicId,
 };
+
+use crate::id_hash::{IdMap, id_map};
 
 use super::ProducerStoreError;
 pub(in crate::producer) use driver::DriverAcceptancePlan;
@@ -80,18 +80,18 @@ pub(super) struct BatchPlan {
 #[derive(Debug, Default)]
 pub(super) struct BatchStore {
     max_batches: usize,
-    batches: BTreeMap<BatchId, BatchAccumulator>,
-    operations: BTreeMap<OperationId, BatchId>,
-    payloads: BTreeMap<PayloadId, BatchId>,
+    batches: IdMap<BatchId, BatchAccumulator>,
+    operations: IdMap<OperationId, BatchId>,
+    payloads: IdMap<PayloadId, BatchId>,
 }
 
 impl BatchStore {
     pub(super) const fn new(max_batches: usize) -> Self {
         Self {
             max_batches,
-            batches: BTreeMap::new(),
-            operations: BTreeMap::new(),
-            payloads: BTreeMap::new(),
+            batches: id_map(),
+            operations: id_map(),
+            payloads: id_map(),
         }
     }
 

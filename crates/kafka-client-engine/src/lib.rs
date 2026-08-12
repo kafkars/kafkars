@@ -1,6 +1,6 @@
 //! Execution ownership between deterministic client policy and `kafka-driver`.
-
 #![forbid(unsafe_code)]
+#![cfg_attr(test, allow(clippy::large_stack_arrays, reason = "libtest registry"))]
 
 mod admin;
 #[cfg_attr(
@@ -33,6 +33,7 @@ mod engine_transaction;
 mod engine_transaction_test;
 mod flush_error;
 mod flush_observer;
+mod id_hash;
 mod metrics;
 #[cfg_attr(
     not(test),
@@ -70,5 +71,7 @@ mod engine_test;
 mod flush_error_test;
 #[cfg(test)]
 mod flush_observer_test;
+#[cfg(test)]
+mod id_hash_test;
 #[cfg(test)]
 mod silent_broker_test;

@@ -3,7 +3,9 @@
 use core::fmt;
 use std::collections::{BTreeMap, btree_map::Entry};
 
-use crate::{OperationId, ProducerEffect, ProducerOperation, ProducerOperationState};
+use crate::{OperationId, ProducerEffect, ProducerOperationState};
+
+use super::machine::ProducerOperations;
 
 /// Stable identity for one accepted producer flush.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -124,7 +126,7 @@ impl FlushLedger {
     pub(crate) fn request(
         &mut self,
         next_operation_id: Option<OperationId>,
-        operations: &BTreeMap<OperationId, ProducerOperation>,
+        operations: &ProducerOperations,
     ) -> Result<Vec<ProducerEffect>, FlushLedgerError> {
         if self.slots.len() >= self.capacity {
             return Err(FlushLedgerError::Capacity);
@@ -155,10 +157,7 @@ impl FlushLedger {
         Ok(effects)
     }
 
-    pub(crate) fn settle_ready(
-        &mut self,
-        operations: &BTreeMap<OperationId, ProducerOperation>,
-    ) -> Vec<ProducerEffect> {
+    pub(crate) fn settle_ready(&mut self, operations: &ProducerOperations) -> Vec<ProducerEffect> {
         let mut effects = Vec::new();
         for (flush_id, slot) in &mut self.slots {
             if slot.state == FlushState::Pending && barrier_is_settled(slot.barrier, operations) {
@@ -194,10 +193,7 @@ impl FlushLedger {
     }
 }
 
-fn barrier_is_settled(
-    barrier: AdmissionSequence,
-    operations: &BTreeMap<OperationId, ProducerOperation>,
-) -> bool {
+fn barrier_is_settled(barrier: AdmissionSequence, operations: &ProducerOperations) -> bool {
     operations
         .iter()
         .filter(|(id, _operation)| barrier.contains(**id))

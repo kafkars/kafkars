@@ -1,4 +1,4 @@
-//! Fixed-capacity host ownership of terminal publication and reclamation.
+//! Bounded on-demand host ownership of terminal publication and reclamation.
 
 mod lifecycle;
 mod notifier_lifecycle;
@@ -7,7 +7,7 @@ use std::{
     fmt,
     sync::{
         Arc,
-        mpsc::{Receiver, TryRecvError, sync_channel},
+        mpsc::{Receiver, SyncSender, TryRecvError, sync_channel},
     },
 };
 
@@ -28,10 +28,12 @@ pub(crate) enum ReclaimStatus {
 
 /// Host-side fixed completion slots and one typed terminal publisher.
 pub(crate) struct CompletionRegistry<T, P = Notifier<PublishTicket<T>>> {
+    capacity: usize,
     pub(super) slots: Vec<HostSlot<T>>,
     free: Vec<usize>,
     pub(super) unsettled: usize,
     pub(super) published_or_reclaiming: usize,
+    reclaim_sender: SyncSender<CompletionId>,
     reclaim: Receiver<CompletionId>,
     pub(super) publisher: Option<P>,
 }
@@ -53,18 +55,13 @@ impl<T: Send + 'static> CompletionPublisher<T> for Notifier<PublishTicket<T>> {
 impl<T: Send + 'static, P: CompletionPublisher<T>> CompletionRegistry<T, P> {
     pub(crate) fn with_publisher(capacity: usize, publisher: P) -> Self {
         let (reclaim_sender, reclaim) = sync_channel(capacity);
-        let mut slots = Vec::with_capacity(capacity);
-        let mut free = Vec::with_capacity(capacity);
-        for slot in 0..capacity {
-            let cell = Arc::new(CompletionCell::new(slot, reclaim_sender.clone()));
-            slots.push(HostSlot::new(cell));
-            free.push(capacity - slot - 1);
-        }
         Self {
-            slots,
-            free,
+            capacity,
+            slots: Vec::with_capacity(capacity),
+            free: Vec::with_capacity(capacity),
             unsettled: 0,
             published_or_reclaiming: 0,
+            reclaim_sender,
             reclaim,
             publisher: Some(publisher),
         }
@@ -77,8 +74,15 @@ impl<T: Send + 'static, P: CompletionPublisher<T>> CompletionRegistry<T, P> {
         if self.publisher.is_none() {
             return Err(CompletionRegistryError::NotifierStopped);
         }
-        let Some(slot_index) = self.free.pop() else {
-            return Err(CompletionRegistryError::Full);
+        let slot_index = match self.free.pop() {
+            Some(slot) => slot,
+            None if self.slots.len() < self.capacity => {
+                let slot = self.slots.len();
+                let cell = Arc::new(CompletionCell::new(slot, self.reclaim_sender.clone()));
+                self.slots.push(HostSlot::new(cell));
+                slot
+            }
+            None => return Err(CompletionRegistryError::Full),
         };
         let Some(slot) = self.slots.get_mut(slot_index) else {
             self.free.push(slot_index);
@@ -219,7 +223,8 @@ impl<T, P> fmt::Debug for CompletionRegistry<T, P> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("CompletionRegistry")
-            .field("capacity", &self.slots.len())
+            .field("capacity", &self.capacity)
+            .field("allocated_slots", &self.slots.len())
             .field("free", &self.free.len())
             .field("publisher_running", &self.publisher.is_some())
             .finish_non_exhaustive()

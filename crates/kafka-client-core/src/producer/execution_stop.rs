@@ -87,16 +87,23 @@ impl ProducerMachine {
                 payload_operations.push(member.operation_id);
             }
         }
-        for (operation_id, operation) in &self.operations {
-            if matches!(
-                operation.state(),
-                ProducerOperationState::WaitingForCapacity { .. }
-            ) {
-                if !seen.insert(*operation_id) {
-                    return Err(invalid_state());
-                }
-                settlements.push((*operation_id, Settlement::Failed(DeliveryStatus::NotSent)));
+        let mut waiting = self
+            .operations
+            .iter()
+            .filter(|(_id, operation)| {
+                matches!(
+                    operation.state(),
+                    ProducerOperationState::WaitingForCapacity { .. }
+                )
+            })
+            .map(|(operation_id, _operation)| *operation_id)
+            .collect::<Vec<_>>();
+        waiting.sort_unstable();
+        for operation_id in waiting {
+            if !seen.insert(operation_id) {
+                return Err(invalid_state());
             }
+            settlements.push((operation_id, Settlement::Failed(DeliveryStatus::NotSent)));
         }
         if settlements.len() != active_count {
             return Err(invalid_state());

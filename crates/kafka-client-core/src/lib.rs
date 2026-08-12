@@ -6,6 +6,7 @@ mod admission;
 mod capacity;
 mod completion;
 mod consumer;
+mod id_hash;
 mod operation;
 mod operation_outcome;
 pub mod partitioning;
@@ -34,6 +35,8 @@ pub use public_api::*;
 mod capacity_test;
 #[cfg(test)]
 mod completion_test;
+#[cfg(test)]
+mod id_hash_test;
 #[cfg(test)]
 mod operation_test;
 #[cfg(test)]

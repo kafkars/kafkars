@@ -1,10 +1,14 @@
 //! Fixed-capacity association of operations with engine execution ownership.
 
-use std::{collections::HashMap, error::Error, fmt};
+use std::{error::Error, fmt};
 
 use kafka_client_core::OperationId;
 
-use crate::{clock::OperationDeadline, completion::CompletionId};
+use crate::{
+    clock::OperationDeadline,
+    completion::CompletionId,
+    id_hash::{IdMap, id_map},
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct OperationBinding {
@@ -17,7 +21,7 @@ struct OperationBinding {
 /// Failure to mutate producer operation execution ownership.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum OperationBindingError {
-    /// Every preallocated binding entry is occupied.
+    /// Every bounded binding entry is occupied.
     Full,
     /// The operation already owns a completion binding.
     DuplicateOperation,
@@ -51,18 +55,18 @@ impl Error for OperationBindingError {}
 pub(crate) struct OperationBindings {
     max_entries: usize,
     waiting_terminal: usize,
-    by_operation: HashMap<OperationId, OperationBinding>,
-    by_completion: HashMap<CompletionId, OperationId>,
+    by_operation: IdMap<OperationId, OperationBinding>,
+    by_completion: IdMap<CompletionId, OperationId>,
 }
 
 impl OperationBindings {
-    /// Preallocates the complete association capacity.
+    /// Declares the complete association capacity without touching unused slots.
     pub(crate) fn new(capacity: usize) -> Self {
         Self {
             max_entries: capacity,
             waiting_terminal: 0,
-            by_operation: HashMap::with_capacity(capacity),
-            by_completion: HashMap::with_capacity(capacity),
+            by_operation: id_map(),
+            by_completion: id_map(),
         }
     }
 

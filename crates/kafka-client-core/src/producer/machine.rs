@@ -5,10 +5,15 @@ use std::collections::BTreeMap;
 use crate::{
     AdmissionRejection, BatchId, ByteBudget, ByteCount, CapacityError, CompletionLedger,
     CompletionLedgerError, Deadline, ExplicitRecord, Moment, OperationId, ProducerBatchPolicy,
-    ProducerOperation, ProducerRetryPolicy, producer_transition_effect_capacity,
+    ProducerOperation, ProducerRetryPolicy,
+    id_hash::{IdMap, id_map},
+    producer_transition_effect_capacity,
 };
 
 use super::{BatchRoute, FlushLedger, ProducerBatch, idempotence::IdempotentProducer};
+
+pub(super) type ProducerOperations = IdMap<OperationId, ProducerOperation>;
+type RecordFacts = IdMap<OperationId, ExplicitRecord>;
 
 /// Single-owner deterministic producer admission and completion machine.
 #[derive(Debug)]
@@ -24,8 +29,8 @@ pub struct ProducerMachine {
     pub(crate) completions: CompletionLedger,
     pub(crate) flushes: FlushLedger,
     pub(crate) transition_effect_capacity: Option<usize>,
-    pub(crate) operations: BTreeMap<OperationId, ProducerOperation>,
-    pub(crate) records: BTreeMap<OperationId, ExplicitRecord>,
+    pub(crate) operations: ProducerOperations,
+    pub(crate) records: RecordFacts,
     pub(crate) open_batches: BTreeMap<BatchRoute, BatchId>,
     pub(crate) batches: BTreeMap<BatchId, ProducerBatch>,
 }
@@ -131,8 +136,8 @@ impl ProducerMachine {
                 completion_capacity,
                 flush_capacity,
             ),
-            operations: BTreeMap::new(),
-            records: BTreeMap::new(),
+            operations: id_map(),
+            records: id_map(),
             open_batches: BTreeMap::new(),
             batches: BTreeMap::new(),
         }
