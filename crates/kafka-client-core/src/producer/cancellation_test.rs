@@ -146,6 +146,26 @@ fn submitted_cancellation_is_too_late_without_mutation() {
     assert_eq!(producer.retained_bytes(), RETAINED);
 }
 
+#[test]
+fn dependent_sequence_lease_makes_sealed_cancellation_too_late() {
+    let mut producer = ProducerMachine::with_batch_policy(ByteCount::new(64), 2, policy(1));
+    producer.install_identity_for_test();
+    let (first_operation, first_batch) = admit(&mut producer, 1);
+    accumulate(&mut producer, first_operation, first_batch);
+    let (second_operation, second_batch) = admit(&mut producer, 2);
+    accumulate(&mut producer, second_operation, second_batch);
+    let before = format!("{producer:?}");
+
+    let transition = cancel(&mut producer, first_operation);
+
+    assert_eq!(
+        transition.cancellation_outcome(),
+        Some(ProducerCancellationOutcome::TooLate)
+    );
+    assert!(transition.effects().is_empty());
+    assert_eq!(format!("{producer:?}"), before);
+}
+
 fn admit(producer: &mut ProducerMachine, payload: u64) -> (OperationId, BatchId) {
     let transition = producer
         .apply(ProducerInput::AdmitExplicit {

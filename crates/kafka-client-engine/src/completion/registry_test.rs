@@ -15,6 +15,37 @@ use super::{
 };
 
 #[test]
+fn lifecycle_counts_are_exact_without_scanning_fixed_capacity() {
+    let Ok(mut registry) = CompletionRegistry::new(8, 8) else {
+        panic!("notifier should start");
+    };
+    assert_eq!(registry.unsettled_len(), 0);
+    assert_eq!(registry.published_or_reclaiming_len(), 0);
+
+    let Ok((rolled_back, abandoned)) = registry.reserve() else {
+        panic!("rollback slot should reserve");
+    };
+    assert_eq!(registry.unsettled_len(), 1);
+    assert_eq!(registry.rollback_reservation(rolled_back), Ok(()));
+    drop(abandoned);
+    assert_eq!(registry.unsettled_len(), 0);
+
+    let Ok((id, observer)) = registry.reserve() else {
+        panic!("published slot should reserve");
+    };
+    assert_eq!(registry.unsettled_len(), 1);
+    assert_eq!(registry.publish(id, 67), Ok(()));
+    assert_eq!(registry.unsettled_len(), 0);
+    assert_eq!(registry.published_or_reclaiming_len(), 1);
+    assert_eq!(observer.wait(), Ok(67));
+    assert_eq!(registry.next_reclaim(), Ok(Some(id)));
+    assert_eq!(registry.published_or_reclaiming_len(), 1);
+    assert_eq!(registry.finish_reclaim(id), Ok(ReclaimStatus::Reclaimed));
+    assert_eq!(registry.published_or_reclaiming_len(), 0);
+    stop(&mut registry);
+}
+
+#[test]
 fn unobserved_terminal_retains_fixed_capacity() {
     let Ok(mut registry) = CompletionRegistry::new(1, 1) else {
         panic!("notifier should start");

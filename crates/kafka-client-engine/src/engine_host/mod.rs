@@ -54,8 +54,6 @@ mod recovery;
 #[cfg(test)]
 mod recovery_test;
 mod runner;
-#[cfg(test)]
-mod runner_test;
 mod start;
 mod start_handoff;
 #[cfg(test)]
@@ -66,7 +64,9 @@ mod thread_start_test;
 mod transaction;
 mod transaction_shutdown;
 mod transaction_start;
-
+mod wait;
+#[cfg(test)]
+mod wait_test;
 pub(crate) use control::EngineHostControl;
 #[cfg(test)]
 pub(crate) use control::EngineHostSnapshot;

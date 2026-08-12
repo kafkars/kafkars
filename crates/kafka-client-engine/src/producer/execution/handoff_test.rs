@@ -155,6 +155,7 @@ const fn owner() -> PreparedExecution {
         PreparedExecutionLimits {
             encoded_bytes: 1_024,
             max_batch_bytes: 1_024,
+            max_request_bytes: 1_024,
         },
     )
 }

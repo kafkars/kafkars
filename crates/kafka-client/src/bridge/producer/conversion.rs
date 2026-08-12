@@ -6,6 +6,23 @@ use kafka_client_engine::{
 
 use crate::record::{Header, Record, RecordParts};
 
+pub(crate) fn validate_batch_records(
+    records: &[Record],
+) -> Result<(), kafka_client_engine::ProducerTrySendErrorKind> {
+    for record in records {
+        if record.topic().is_empty() {
+            return Err(kafka_client_engine::ProducerTrySendErrorKind::EmptyTopic);
+        }
+        if record
+            .explicit_partition()
+            .is_some_and(|partition| partition < 0)
+        {
+            return Err(kafka_client_engine::ProducerTrySendErrorKind::NegativeExplicitPartition);
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn into_engine_record(record: Record) -> EngineProducerRecord {
     let RecordParts {
         topic,
@@ -48,7 +65,7 @@ pub(crate) fn restore_rejected_record(record: EngineProducerRecord) -> Record {
         .map(|header| Header::from_parts(header.name().to_owned(), header.value().cloned()))
         .collect();
     Record::from_parts(RecordParts {
-        topic: record.topic().to_owned(),
+        topic: std::sync::Arc::from(record.topic()),
         partition: record.explicit_partition(),
         timestamp_milliseconds: record.timestamp(),
         key: record.key_bytes().cloned(),

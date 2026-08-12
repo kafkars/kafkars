@@ -58,7 +58,7 @@ fn unkeyed_partition_stays_sticky_until_the_batch_seals_then_advances() {
 }
 
 #[test]
-fn same_deadline_pending_submit_remains_coalescible_until_armed() {
+fn same_deadline_pending_submit_remains_eligible_until_armed() {
     let mut host = start(partitioning_limits());
     let shared_deadline = deadline(500);
     let first = admit_automatic_at(&mut host, None, shared_deadline);
@@ -71,7 +71,7 @@ fn same_deadline_pending_submit_remains_coalescible_until_armed() {
             .progressed,
         1
     );
-    super::test_identity::acquire_host_if_pending(&mut host, Moment::from_tick(1));
+    super::super::test_identity::acquire_host_if_pending(&mut host, Moment::from_tick(1));
     assert_eq!(host.drive_prepared(Moment::from_tick(1), 1).unwrap(), 1);
     assert_eq!(host.drive_prepared(Moment::from_tick(1), 1).unwrap(), 1);
     assert_eq!(
@@ -91,17 +91,19 @@ fn same_deadline_pending_submit_remains_coalescible_until_armed() {
 
     assert_eq!(host.drive_prepared(Moment::from_tick(2), 1).unwrap(), 1);
     assert!(!host.has_pending_produce_submission_at(shared_deadline));
-    let submissions = host
+    let first_submission = host
         .execution
         .take_next_driver_submissions()
-        .expect("same-deadline broker group");
-    assert_eq!(submissions.len(), 2);
-    assert!(
-        submissions
-            .iter()
-            .all(|submission| submission.deadline() == shared_deadline)
-    );
-    drop((first, second, submissions));
+        .expect("first same-deadline submission");
+    let second_submission = host
+        .execution
+        .take_next_driver_submissions()
+        .expect("second same-deadline submission");
+    assert_eq!(first_submission.len(), 1);
+    assert_eq!(second_submission.len(), 1);
+    assert_eq!(first_submission[0].deadline(), shared_deadline);
+    assert_eq!(second_submission[0].deadline(), shared_deadline);
+    drop((first, second, first_submission, second_submission));
 }
 
 #[test]

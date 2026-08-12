@@ -26,7 +26,7 @@ pub(crate) use outcome::{
     ProducerPortPoison, ProducerPortPoisonReason, ProducerPortRejected,
     ProducerPortRejectionReason,
 };
-pub(crate) use port::ProducerAdmissionPort;
+pub(crate) use port::{ProducerAdmissionPort, ProducerBatchAdmissionPermit};
 pub(crate) use shard::{
     ProducerShardLockError, ProducerShardOwner, ProducerShardWake, ProducerShardWakeError,
 };

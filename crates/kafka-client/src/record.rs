@@ -1,11 +1,13 @@
 //! Bytes-native producer records and ordered duplicate-preserving headers.
 
+use std::sync::Arc;
+
 use bytes::Bytes;
 
 /// Crate-private ownership transfer for the engine bridge.
 #[derive(Debug)]
 pub(crate) struct RecordParts {
-    pub(crate) topic: String,
+    pub(crate) topic: Arc<str>,
     pub(crate) partition: Option<i32>,
     pub(crate) timestamp_milliseconds: Option<i64>,
     pub(crate) key: Option<Bytes>,
@@ -59,7 +61,7 @@ impl Header {
 /// Owned, bytes-native record submitted to a producer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Record {
-    topic: String,
+    topic: Arc<str>,
     partition: Option<i32>,
     timestamp_milliseconds: Option<i64>,
     key: Option<Bytes>,
@@ -71,7 +73,7 @@ impl Record {
     /// Begins a record for the named topic.
     pub fn to(topic: impl Into<String>) -> Self {
         Self {
-            topic: topic.into(),
+            topic: Arc::from(topic.into()),
             partition: None,
             timestamp_milliseconds: None,
             key: None,
@@ -122,6 +124,10 @@ impl Record {
 
     /// Returns the logical topic name.
     pub fn topic(&self) -> &str {
+        &self.topic
+    }
+
+    pub(crate) const fn topic_owner(&self) -> &Arc<str> {
         &self.topic
     }
 

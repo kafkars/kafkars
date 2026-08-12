@@ -268,6 +268,7 @@ const fn execution(encoded_bytes: usize) -> PreparedExecution {
         PreparedExecutionLimits {
             encoded_bytes,
             max_batch_bytes: 1_024,
+            max_request_bytes: 1_024,
         },
     )
 }

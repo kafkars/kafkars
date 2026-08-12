@@ -22,6 +22,37 @@ pub(super) struct PreparedBatch {
     records: Vec<ProducerRecord>,
 }
 
+/// Completely validated public records awaiting one bounded shard acquisition.
+pub(super) struct ValidatedBatch {
+    capture: crate::clock::DeadlineCapture,
+    default_timestamp_ms: i64,
+    records: Vec<PublicProducerRecord>,
+}
+
+impl ValidatedBatch {
+    pub(super) fn into_prepared(self) -> PreparedBatch {
+        let records = self
+            .records
+            .into_iter()
+            .map(|record| {
+                let partition = validate_optional_partition(&record).unwrap_or_else(|_| {
+                    unreachable!("complete batch validation already succeeded")
+                });
+                record.into_stored(partition, self.default_timestamp_ms)
+            })
+            .collect();
+        PreparedBatch {
+            attempted_at: self.capture.now(),
+            deadline: self.capture.operation_deadline(),
+            records,
+        }
+    }
+
+    pub(super) fn into_records(self) -> Vec<PublicProducerRecord> {
+        self.records
+    }
+}
+
 impl PreparedBatch {
     pub(super) fn into_parts(self) -> (Moment, OperationDeadline, Vec<ProducerRecord>) {
         (self.attempted_at, self.deadline, self.records)
@@ -92,27 +123,19 @@ pub(super) fn prepare_waiting(
     })
 }
 
-pub(super) fn prepare_batch(
+pub(super) fn validate_batch(
     capture: ProducerBatchSendCapture,
     records: Vec<PublicProducerRecord>,
-) -> Result<PreparedBatch, RejectedBatch> {
+) -> Result<ValidatedBatch, RejectedBatch> {
     let (capture, default_timestamp_ms) = capture.into_parts();
     for record in &records {
         if let Err(kind) = validate_optional_partition(record) {
             return Err(RejectedBatch { kind, records });
         }
     }
-    let records = records
-        .into_iter()
-        .map(|record| {
-            let partition = validate_optional_partition(&record)
-                .unwrap_or_else(|_| unreachable!("complete batch validation already succeeded"));
-            record.into_stored(partition, default_timestamp_ms)
-        })
-        .collect();
-    Ok(PreparedBatch {
-        attempted_at: capture.now(),
-        deadline: capture.operation_deadline(),
+    Ok(ValidatedBatch {
+        capture,
+        default_timestamp_ms,
         records,
     })
 }

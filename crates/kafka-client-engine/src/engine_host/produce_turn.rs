@@ -10,6 +10,7 @@ use crate::producer::{
 use super::{EngineHostError, EngineHostResources, produce};
 
 const PRODUCE_COMPLETION_BUDGET: usize = 64;
+const PRODUCE_ADMISSION_BUDGET: usize = 64;
 
 pub(super) struct ProducerProgress {
     pub(super) outcome: Option<ProducerTurnOutcome>,
@@ -58,7 +59,7 @@ pub(super) fn drive(
         .producer_partitioning_call
         .as_ref()
         .map(produce::ProducerPartitioningCall::deadline);
-    let produce_progress = admit_after_partitioning(
+    let produce_progress = admit_ready(
         driver,
         &mut resources.produce_calls,
         &mut data,
@@ -72,6 +73,23 @@ pub(super) fn drive(
             .saturating_add(usize::from(resources.producer_partitioning_call.is_some())),
         driver_progress: identity_progress || partitioning_progress || produce_progress,
     })
+}
+
+fn admit_ready(
+    driver: &crate::driver::DriverOwner,
+    calls: &mut crate::driver::TrackedProduceCalls,
+    data: &mut crate::producer::ingress::ProducerShardData,
+    now: Moment,
+    retained_partitioning_deadline: Option<crate::clock::OperationDeadline>,
+) -> Result<bool, EngineHostError> {
+    let mut progress = false;
+    for _attempt in 0..PRODUCE_ADMISSION_BUDGET {
+        if !admit_after_partitioning(driver, calls, data, now, retained_partitioning_deadline)? {
+            break;
+        }
+        progress = true;
+    }
+    Ok(progress)
 }
 
 pub(super) fn admit_after_partitioning(

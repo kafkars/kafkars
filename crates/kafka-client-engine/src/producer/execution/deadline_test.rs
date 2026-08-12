@@ -112,6 +112,7 @@ const fn owner(capacity: usize) -> PreparedExecution {
         PreparedExecutionLimits {
             encoded_bytes: usize::MAX,
             max_batch_bytes: 1_024,
+            max_request_bytes: 1_024,
         },
     )
 }

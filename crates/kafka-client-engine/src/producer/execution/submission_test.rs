@@ -29,6 +29,7 @@ fn submission_requires_and_preserves_the_admitted_operation_deadline() {
         PreparedExecutionLimits {
             encoded_bytes: 1_024,
             max_batch_bytes: 1_024,
+            max_request_bytes: 1_024,
         },
     );
     execution
@@ -107,6 +108,7 @@ fn equal_deadline_from_another_batch_cannot_arm_this_execution() {
         PreparedExecutionLimits {
             encoded_bytes: 2_048,
             max_batch_bytes: 1_024,
+            max_request_bytes: 1_024,
         },
     );
     execution

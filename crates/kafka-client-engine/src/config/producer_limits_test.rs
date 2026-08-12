@@ -14,15 +14,21 @@ fn defaults_name_each_bounded_producer_resource() {
     assert_eq!(limits.waiting_bytes(), 32 * 1024 * 1024);
     assert_eq!(limits.batch_records(), 256);
     assert_eq!(limits.batch_bytes(), 1024 * 1024);
+    assert_eq!(limits.request_bytes(), 1024 * 1024);
+    assert_eq!(limits.max_in_flight_requests_per_broker(), 5);
     assert_eq!(limits.linger(), Duration::from_millis(5));
 }
 
 #[test]
 fn explicit_limits_preserve_accepted_record_capacity() {
-    let limits = EngineProducerLimits::new(4_096, 11, 5, 2_000, 3, 2_048, Duration::from_millis(7));
+    let limits = EngineProducerLimits::new(4_096, 11, 5, 2_000, 3, 2_048, Duration::from_millis(7))
+        .with_request_bytes(8_192)
+        .with_max_in_flight_requests_per_broker(4);
 
     assert_eq!(limits.in_flight_records(), 11);
     assert_eq!(limits.waiting_records(), 5);
     assert_eq!(limits.waiting_bytes(), 2_000);
     assert_eq!(limits.batch_records(), 3);
+    assert_eq!(limits.request_bytes(), 8_192);
+    assert_eq!(limits.max_in_flight_requests_per_broker(), 4);
 }

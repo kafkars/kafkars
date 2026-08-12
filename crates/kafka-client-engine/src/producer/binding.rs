@@ -1,6 +1,6 @@
 //! Fixed-capacity association of operations with engine execution ownership.
 
-use std::{error::Error, fmt};
+use std::{collections::HashMap, error::Error, fmt};
 
 use kafka_client_core::OperationId;
 
@@ -8,7 +8,6 @@ use crate::{clock::OperationDeadline, completion::CompletionId};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct OperationBinding {
-    operation_id: OperationId,
     completion_id: CompletionId,
     deadline: OperationDeadline,
     waiting_origin: bool,
@@ -51,7 +50,9 @@ impl Error for OperationBindingError {}
 #[derive(Debug)]
 pub(crate) struct OperationBindings {
     max_entries: usize,
-    entries: Vec<OperationBinding>,
+    waiting_terminal: usize,
+    by_operation: HashMap<OperationId, OperationBinding>,
+    by_completion: HashMap<CompletionId, OperationId>,
 }
 
 impl OperationBindings {
@@ -59,7 +60,9 @@ impl OperationBindings {
     pub(crate) fn new(capacity: usize) -> Self {
         Self {
             max_entries: capacity,
-            entries: Vec::with_capacity(capacity),
+            waiting_terminal: 0,
+            by_operation: HashMap::with_capacity(capacity),
+            by_completion: HashMap::with_capacity(capacity),
         }
     }
 
@@ -90,30 +93,27 @@ impl OperationBindings {
         deadline: OperationDeadline,
         waiting_origin: bool,
     ) -> Result<(), OperationBindingError> {
-        let index = match self.operation_index(operation_id) {
-            Ok(_) => return Err(OperationBindingError::DuplicateOperation),
-            Err(index) => index,
-        };
-        if self
-            .entries
-            .iter()
-            .any(|binding| binding.completion_id == completion_id)
-        {
+        if self.by_operation.contains_key(&operation_id) {
+            return Err(OperationBindingError::DuplicateOperation);
+        }
+        if self.by_completion.contains_key(&completion_id) {
             return Err(OperationBindingError::DuplicateCompletion);
         }
-        if self.entries.len() >= self.max_entries {
+        if self.by_operation.len() >= self.max_entries {
             return Err(OperationBindingError::Full);
         }
-        self.entries.insert(
-            index,
+        let replaced_operation = self.by_operation.insert(
+            operation_id,
             OperationBinding {
-                operation_id,
                 completion_id,
                 deadline,
                 waiting_origin,
                 waiting_terminal: false,
             },
         );
+        let replaced = self.by_completion.insert(completion_id, operation_id);
+        debug_assert!(replaced_operation.is_none());
+        debug_assert!(replaced.is_none());
         Ok(())
     }
 
@@ -122,44 +122,42 @@ impl OperationBindings {
         &mut self,
         operation_id: OperationId,
     ) -> Result<(), OperationBindingError> {
-        let index = self
-            .operation_index(operation_id)
-            .map_err(|_| OperationBindingError::UnknownOperation)?;
-        if !self.entries[index].waiting_origin {
+        let binding = self
+            .by_operation
+            .get_mut(&operation_id)
+            .ok_or(OperationBindingError::UnknownOperation)?;
+        if !binding.waiting_origin {
             return Err(OperationBindingError::NotWaitingOperation);
         }
-        self.entries[index].waiting_terminal = true;
+        if !binding.waiting_terminal {
+            binding.waiting_terminal = true;
+            self.waiting_terminal += 1;
+        }
         Ok(())
     }
 
     /// Returns waiting-origin terminal associations retained until reclaim.
-    pub(crate) fn waiting_terminal_len(&self) -> usize {
-        self.entries
-            .iter()
-            .filter(|binding| binding.waiting_terminal)
-            .count()
+    pub(crate) const fn waiting_terminal_len(&self) -> usize {
+        self.waiting_terminal
     }
 
     /// Returns the exact completion generation bound to an operation.
     pub(crate) fn completion(&self, operation_id: OperationId) -> Option<CompletionId> {
-        self.operation_index(operation_id)
-            .ok()
-            .map(|index| self.entries[index].completion_id)
+        self.by_operation
+            .get(&operation_id)
+            .map(|binding| binding.completion_id)
     }
 
     /// Returns the operation bound to an exact completion generation.
     pub(crate) fn operation(&self, completion_id: CompletionId) -> Option<OperationId> {
-        self.entries
-            .iter()
-            .find(|binding| binding.completion_id == completion_id)
-            .map(|binding| binding.operation_id)
+        self.by_completion.get(&completion_id).copied()
     }
 
     /// Returns the original paired deadline bound at public admission.
     pub(crate) fn deadline(&self, operation_id: OperationId) -> Option<OperationDeadline> {
-        self.operation_index(operation_id)
-            .ok()
-            .map(|index| self.entries[index].deadline)
+        self.by_operation
+            .get(&operation_id)
+            .map(|binding| binding.deadline)
     }
 
     /// Removes an operation association and returns its completion generation.
@@ -167,10 +165,20 @@ impl OperationBindings {
         &mut self,
         operation_id: OperationId,
     ) -> Result<CompletionId, OperationBindingError> {
-        let index = self
-            .operation_index(operation_id)
-            .map_err(|_| OperationBindingError::UnknownOperation)?;
-        Ok(self.entries.remove(index).completion_id)
+        let binding = self
+            .by_operation
+            .remove(&operation_id)
+            .ok_or(OperationBindingError::UnknownOperation)?;
+        if binding.waiting_terminal {
+            self.waiting_terminal = self
+                .waiting_terminal
+                .checked_sub(1)
+                .unwrap_or_else(|| unreachable!("removed waiting terminal was counted"));
+        }
+        let completion_id = binding.completion_id;
+        let removed = self.by_completion.remove(&completion_id);
+        debug_assert!(removed.is_some());
+        Ok(completion_id)
     }
 
     /// Removes only the exact operation and completion generation association.
@@ -179,33 +187,39 @@ impl OperationBindings {
         operation_id: OperationId,
         completion_id: CompletionId,
     ) -> Result<(), OperationBindingError> {
-        let index = self
-            .operation_index(operation_id)
-            .map_err(|_| OperationBindingError::UnknownOperation)?;
-        if self.entries[index].completion_id != completion_id {
+        let Some(binding) = self.by_operation.get(&operation_id) else {
+            return Err(OperationBindingError::UnknownOperation);
+        };
+        if binding.completion_id != completion_id {
             return Err(OperationBindingError::CompletionMismatch);
         }
-        self.entries.remove(index);
+        let removed_operation = self.by_operation.remove(&operation_id);
+        if removed_operation.is_some_and(|binding| binding.waiting_terminal) {
+            self.waiting_terminal = self
+                .waiting_terminal
+                .checked_sub(1)
+                .unwrap_or_else(|| unreachable!("removed waiting terminal was counted"));
+        }
+        let removed = self.by_completion.remove(&completion_id);
+        debug_assert!(removed_operation.is_some());
+        debug_assert!(removed.is_some());
         Ok(())
     }
 
     /// Drops terminal-only associations after observer publication.
     pub(crate) fn clear_terminal(&mut self) {
-        self.entries.clear();
+        self.by_operation.clear();
+        self.by_completion.clear();
+        self.waiting_terminal = 0;
     }
 
     /// Returns the number of live operation associations.
     pub(crate) fn len(&self) -> usize {
-        self.entries.len()
-    }
-
-    fn operation_index(&self, operation_id: OperationId) -> Result<usize, usize> {
-        self.entries
-            .binary_search_by_key(&operation_id, |binding| binding.operation_id)
+        self.by_operation.len()
     }
 
     #[cfg(test)]
     pub(crate) fn allocation_capacity(&self) -> usize {
-        self.entries.capacity()
+        self.by_operation.capacity()
     }
 }

@@ -21,6 +21,7 @@ fn next_submission_uses_lowest_batch_id_as_core_admission_order() {
         PreparedExecutionLimits {
             encoded_bytes: usize::MAX,
             max_batch_bytes: 1_024,
+            max_request_bytes: 1_024,
         },
     );
     // Arming out of order proves selection follows core's monotonically
@@ -56,6 +57,7 @@ fn materialized_but_unarmed_batch_is_not_a_driver_submission() {
         PreparedExecutionLimits {
             encoded_bytes: usize::MAX,
             max_batch_bytes: 1_024,
+            max_request_bytes: 1_024,
         },
     );
     owner
@@ -73,12 +75,13 @@ fn materialized_but_unarmed_batch_is_not_a_driver_submission() {
 }
 
 #[test]
-fn next_submission_combines_only_the_contiguous_same_broker_prefix() {
+fn next_submission_detaches_one_name_routed_entry_even_when_brokers_match() {
     let mut owner = PreparedExecution::new(
         4,
         PreparedExecutionLimits {
             encoded_bytes: usize::MAX,
             max_batch_bytes: 1_024,
+            max_request_bytes: 1_024,
         },
     );
     for (batch, broker) in [(1, 7), (2, 7), (3, 8), (4, 7)] {
@@ -104,39 +107,39 @@ fn next_submission_combines_only_the_contiguous_same_broker_prefix() {
             .iter()
             .map(|submission| submission.execution())
             .collect::<Vec<_>>(),
-        vec![execution(1), execution(2)]
+        vec![execution(1)]
     );
     let second = owner
         .take_next_driver_submissions()
         .unwrap_or_else(|error| panic!("second broker group handoff: {error}"));
     assert_eq!(second.len(), 1);
-    assert_eq!(second[0].execution(), execution(3));
+    assert_eq!(second[0].execution(), execution(2));
 }
 
 #[test]
-fn broker_group_stops_before_a_duplicate_topic_partition() {
+fn matching_routes_remain_individually_name_routed() {
     let mut owner = broker_owner(4, 1_024);
     for (batch, partition) in [(1, 0), (2, 1), (3, 1), (4, 2)] {
         retain_broker_batch(&mut owner, batch, partition, b"encoded");
     }
 
-    assert_eq!(take_group_ids(&mut owner), vec![execution(1), execution(2)]);
-    assert_eq!(take_group_ids(&mut owner), vec![execution(3), execution(4)]);
+    assert_eq!(take_group_ids(&mut owner), vec![execution(1)]);
+    assert_eq!(take_group_ids(&mut owner), vec![execution(2)]);
 }
 
 #[test]
-fn broker_group_stops_before_cumulative_record_bytes_exceed_batch_bound() {
+fn request_bound_does_not_combine_name_routed_submissions() {
     let mut owner = broker_owner(3, 10);
     retain_broker_batch(&mut owner, 1, 0, b"123456");
     retain_broker_batch(&mut owner, 2, 1, b"12345");
     retain_broker_batch(&mut owner, 3, 2, b"1234");
 
     assert_eq!(take_group_ids(&mut owner), vec![execution(1)]);
-    assert_eq!(take_group_ids(&mut owner), vec![execution(2), execution(3)]);
+    assert_eq!(take_group_ids(&mut owner), vec![execution(2)]);
 }
 
 #[test]
-fn broker_group_selects_a_long_unique_prefix_in_exact_admission_order() {
+fn bounded_pipeline_still_detaches_only_one_submission_per_driver_call() {
     let mut owner = broker_owner(64, 1_024);
     for batch in 1..=64 {
         retain_broker_batch(
@@ -147,14 +150,11 @@ fn broker_group_selects_a_long_unique_prefix_in_exact_admission_order() {
         );
     }
 
-    assert_eq!(
-        take_group_ids(&mut owner),
-        (1..=64).map(execution).collect::<Vec<_>>()
-    );
+    assert_eq!(take_group_ids(&mut owner), vec![execution(1)]);
 }
 
 #[test]
-fn broker_group_requires_one_exact_shared_operation_deadline() {
+fn different_deadlines_remain_individually_name_routed() {
     let mut owner = broker_owner(3, 1_024);
     let first_deadline = shared_deadline();
     let later_deadline = OperationDeadline::from_parts_for_test(
@@ -166,15 +166,15 @@ fn broker_group_requires_one_exact_shared_operation_deadline() {
     retain_broker_batch_at(&mut owner, 3, 2, b"three", later_deadline);
 
     assert_eq!(take_group_ids(&mut owner), vec![execution(1)]);
-    assert_eq!(take_group_ids(&mut owner), vec![execution(2), execution(3)]);
+    assert_eq!(take_group_ids(&mut owner), vec![execution(2)]);
 }
 
 #[test]
-fn corrupt_group_accounting_rejects_before_any_entry_is_detached() {
+fn corrupt_selected_entry_accounting_rejects_before_any_entry_is_detached() {
     let mut owner = broker_owner(2, 1_024);
     retain_broker_batch(&mut owner, 1, 0, b"123456");
     retain_broker_batch(&mut owner, 2, 1, b"12345");
-    owner.replace_retained_bytes_for_test(6);
+    owner.replace_retained_bytes_for_test(5);
     let before = owner.prepared_stats();
 
     assert!(matches!(
@@ -186,12 +186,13 @@ fn corrupt_group_accounting_rejects_before_any_entry_is_detached() {
     assert!(owner.next_deadline().is_some());
 }
 
-fn broker_owner(capacity: usize, max_batch_bytes: usize) -> PreparedExecution {
+fn broker_owner(capacity: usize, max_request_bytes: usize) -> PreparedExecution {
     PreparedExecution::new(
         capacity,
         PreparedExecutionLimits {
             encoded_bytes: usize::MAX,
-            max_batch_bytes,
+            max_batch_bytes: 1_024,
+            max_request_bytes,
         },
     )
 }

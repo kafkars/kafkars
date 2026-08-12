@@ -1,9 +1,11 @@
 //! Stable acknowledged-record metadata owned by the Rust facade.
 
+use std::sync::Arc;
+
 /// Metadata for one acknowledged record.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecordMetadata {
-    topic: String,
+    topic: Arc<str>,
     partition: i32,
     offset: i64,
     timestamp_milliseconds: Option<i64>,
@@ -13,8 +15,8 @@ pub struct RecordMetadata {
 }
 
 impl RecordMetadata {
-    pub(crate) const fn from_parts(
-        topic: String,
+    pub(crate) fn from_parts(
+        topic: impl Into<Arc<str>>,
         partition: i32,
         offset: i64,
         timestamp_milliseconds: Option<i64>,
@@ -23,7 +25,7 @@ impl RecordMetadata {
         serialized_value_size: Option<usize>,
     ) -> Self {
         Self {
-            topic,
+            topic: topic.into(),
             partition,
             offset,
             timestamp_milliseconds,

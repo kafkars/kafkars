@@ -21,6 +21,7 @@ use crate::{
 use super::{
     barrier::{BarrierKind, ProducerBarrier},
     batch::ProducerBatch,
+    conversion::validate_batch_records,
     delivery::ProducerDelivery,
     into_engine_record, restore_rejected_record,
     send::ProducerSend,
@@ -89,7 +90,7 @@ impl ProducerEngine {
             Ok(capture) => capture,
             Err(error) => return Err(translate_capture_error(record, error)),
         };
-        let topic = record.topic().to_owned();
+        let topic = std::sync::Arc::clone(record.topic_owner());
         let create_timestamp = record
             .timestamp()
             .unwrap_or_else(|| capture.default_timestamp_milliseconds());
@@ -121,7 +122,7 @@ impl ProducerEngine {
                 return ProducerSend::ready(error);
             }
         };
-        let topic = record.topic().to_owned();
+        let topic = std::sync::Arc::clone(record.topic_owner());
         let create_timestamp = record
             .timestamp()
             .unwrap_or_else(|| capture.default_timestamp_milliseconds());
@@ -173,12 +174,36 @@ impl ProducerEngine {
                 )),
             );
         }
+        if records.is_empty() {
+            return ProducerBatch::new(Vec::new(), None);
+        }
+        if let Err(kind) = validate_batch_records(&records) {
+            return ProducerBatch::new(
+                Vec::new(),
+                Some(crate::TrySendError::new(
+                    records,
+                    translate_batch_admission_error(kind, None),
+                )),
+            );
+        }
+        let admission = match self.handle.try_begin_batch_admission() {
+            Ok(admission) => admission,
+            Err(kind) => {
+                return ProducerBatch::new(
+                    Vec::new(),
+                    Some(crate::TrySendError::new(
+                        records,
+                        translate_batch_admission_error(kind, None),
+                    )),
+                );
+            }
+        };
         let default_timestamp = capture.default_timestamp_milliseconds();
         let metadata_contexts = records
             .iter()
             .map(|record| {
                 (
-                    record.topic().to_owned(),
+                    std::sync::Arc::clone(record.topic_owner()),
                     record.timestamp().unwrap_or(default_timestamp),
                     record.key_bytes().map(bytes::Bytes::len),
                     record.value_bytes().map(bytes::Bytes::len),
@@ -186,10 +211,8 @@ impl ProducerEngine {
             })
             .collect::<Vec<_>>();
         let engine_records = records.into_iter().map(into_engine_record).collect();
-        let (accepted, rejection) = self
-            .handle
-            .try_send_batch_captured(capture, engine_records)
-            .into_parts();
+        let outcome = admission.try_send_captured(capture, engine_records);
+        let (accepted, rejection) = outcome.into_parts();
         let deliveries = metadata_contexts
             .into_iter()
             .zip(accepted)

@@ -28,6 +28,15 @@ impl PreparedProduceSubmission {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) const fn from_test_parts(
+        execution: BatchExecutionId,
+        deadline: OperationDeadline,
+        materialized: MaterializedProduce,
+    ) -> Self {
+        Self::new(execution, deadline, materialized)
+    }
+
     /// Returns the exact sealed-batch execution identity.
     pub(crate) const fn execution(&self) -> BatchExecutionId {
         self.execution
@@ -36,6 +45,16 @@ impl PreparedProduceSubmission {
     /// Returns the unchanged deadline pair captured at the public boundary.
     pub(crate) const fn deadline(&self) -> OperationDeadline {
         self.deadline
+    }
+
+    /// Returns records encoded into this partition batch.
+    pub(crate) const fn record_count(&self) -> u32 {
+        self.materialized.record_count()
+    }
+
+    /// Returns encoded record bytes transferred by this partition batch.
+    pub(crate) fn encoded_record_bytes(&self) -> usize {
+        self.materialized.retained_record_bytes()
     }
 
     /// Transfers every driver-handoff owner without rebuilding encoded bytes.
@@ -153,29 +172,6 @@ impl PreparedExecution {
                 reason: PreparedProduceError::EncodedByteOverflow,
             })?;
         Ok((submission, scheduled, next_bytes))
-    }
-
-    pub(super) fn preflight_driver_submission_group(
-        &self,
-        executions: &[BatchExecutionId],
-    ) -> Result<usize, PreparedProduceHandoffError> {
-        let mut next_bytes = self.retained_bytes;
-        for execution in executions {
-            let (submission, _scheduled, _individual_next_bytes) =
-                self.preflight_driver_submission(*execution)?;
-            let retained = self
-                .entries
-                .get(&execution.batch_id())
-                .unwrap_or_else(|| unreachable!("preflighted Produce entry remains retained"));
-            next_bytes = next_bytes
-                .checked_sub(retained.materialized.retained_record_bytes())
-                .ok_or(PreparedProduceHandoffError::AccountingInconsistent {
-                    execution: *execution,
-                    deadline: submission.deadline,
-                    reason: PreparedProduceError::EncodedByteOverflow,
-                })?;
-        }
-        Ok(next_bytes)
     }
 
     /// Transfers one exact armed entry after checking every retained fact.

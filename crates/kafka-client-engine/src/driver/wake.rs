@@ -1,23 +1,52 @@
-//! Domain-neutral access to the embedded reactor's coalescing wake source.
+//! Domain-neutral wake requests and the integrated host's sleep handshake.
 
-use std::{error::Error, fmt, io};
+use std::{
+    error::Error,
+    fmt, io,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 
 use kafka_driver::WakeHandle;
 
 /// Cloneable engine mechanism for requesting one embedded-reactor turn.
 #[derive(Clone, Debug)]
 pub(crate) struct ReactorWake {
+    shared: Arc<ReactorWakeState>,
+}
+
+#[derive(Debug)]
+struct ReactorWakeState {
     handle: WakeHandle,
+    turn_requested: AtomicBool,
 }
 
 impl ReactorWake {
-    pub(super) const fn new(handle: WakeHandle) -> Self {
-        Self { handle }
+    pub(super) fn new(handle: WakeHandle) -> Self {
+        Self {
+            shared: Arc::new(ReactorWakeState {
+                handle,
+                turn_requested: AtomicBool::new(false),
+            }),
+        }
     }
 
-    /// Requests one coalesced embedded-reactor turn.
+    /// Publishes turn demand before waking the embedded reactor.
     pub(crate) fn request(&self) -> Result<(), ReactorWakeError> {
-        self.handle.wake().map_err(ReactorWakeError::from_io)
+        self.shared.turn_requested.store(true, Ordering::Release);
+        self.shared.handle.wake().map_err(ReactorWakeError::from_io)
+    }
+
+    /// Acknowledges requests that the host is about to inspect.
+    pub(super) fn acknowledge_host_turn(&self) {
+        self.shared.turn_requested.store(false, Ordering::Release);
+    }
+
+    /// Returns whether demand arrived after the host began its current turn.
+    pub(super) fn host_turn_requested(&self) -> bool {
+        self.shared.turn_requested.load(Ordering::Acquire)
     }
 }
 

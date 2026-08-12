@@ -223,7 +223,7 @@ fn queued_deadline_fact_is_harmless_after_driver_or_terminal_ownership() {
 }
 
 #[test]
-fn unresolved_partition_rejects_a_new_batch_until_terminal() {
+fn unresolved_partition_accepts_a_distinct_bounded_batch() {
     let policy = ProducerBatchPolicy::try_new(2, ByteCount::new(20), 100)
         .unwrap_or_else(|error| panic!("valid policy: {error}"));
     let mut producer = ProducerMachine::with_batch_policy(ByteCount::new(128), 4, policy);
@@ -260,8 +260,8 @@ fn unresolved_partition_rejects_a_new_batch_until_terminal() {
         })
         .unwrap_or_else(|error| panic!("first accumulation failed: {error}"));
 
-    assert_eq!(
-        producer.apply(ProducerInput::AdmitExplicit {
+    let second = producer
+        .apply(ProducerInput::AdmitExplicit {
             now: Moment::from_tick(0),
             deadline: Deadline::from_tick(100),
             record: ExplicitRecord::new(
@@ -270,18 +270,8 @@ fn unresolved_partition_rejects_a_new_batch_until_terminal() {
                 PartitionIndex::from_raw(0),
                 ByteCount::new(32),
             ),
-        }),
-        Err(ProducerMachineError::Admission(
-            crate::AdmissionRejection::AccumulatorPending,
-        ))
-    );
-    producer
-        .apply(ProducerInput::BatchMaterializationFailed {
-            execution: execution(*older_batch),
         })
-        .unwrap_or_else(|error| panic!("older batch failure failed: {error}"));
-
-    let second = admit(&mut producer, 2);
+        .unwrap_or_else(|error| panic!("second admission failed: {error}"));
     assert!(matches!(
         second.effects().first(),
         Some(ProducerEffect::AccumulateExplicit { batch_id, .. }) if batch_id != older_batch

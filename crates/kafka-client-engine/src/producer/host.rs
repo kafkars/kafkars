@@ -8,6 +8,7 @@ mod observation;
 #[cfg(test)]
 mod test_support;
 use kafka_client_core::{ByteCount, ProducerEffect, ProducerMachine, ProducerWaitingQueue};
+use std::collections::VecDeque;
 
 use crate::{clock::BatchTimers, completion::CompletionRegistry};
 
@@ -47,6 +48,12 @@ pub(crate) struct ProducerHostStats {
     pub(crate) compression_bytes: usize,
     pub(crate) terminal_backlog: usize,
     pub(crate) waiting: ProducerWaitingStats,
+    pub(crate) produce_requests: u64,
+    pub(crate) produce_batches: u64,
+    pub(crate) produce_records: u64,
+    pub(crate) produce_encoded_bytes: u64,
+    pub(crate) peak_produce_in_flight_requests: usize,
+    pub(crate) peak_produce_in_flight_requests_per_broker: usize,
     pub(crate) healthy: bool,
 }
 
@@ -70,11 +77,18 @@ pub(crate) struct ProducerHost {
     pub(super) compression: CompressionWorkers,
     pub(super) compression_saturated: bool,
     pub(super) pending_effects: Vec<ProducerEffect>,
+    pub(super) generated_inputs: VecDeque<kafka_client_core::ProducerInput>,
     pub(super) terminal_backlog: OrderedTerminalBacklog,
     pub(super) waiting_policy: ProducerWaitingQueue,
     pub(super) waiting: ProducerWaitingStore,
     pub(super) effect_capacity: usize,
     pub(super) health: ProducerHostHealth,
+    pub(super) produce_requests: u64,
+    pub(super) produce_batches: u64,
+    pub(super) produce_records: u64,
+    pub(super) produce_encoded_bytes: u64,
+    pub(super) peak_produce_in_flight_requests: usize,
+    pub(super) peak_produce_in_flight_requests_per_broker: usize,
     #[cfg(test)]
     pub(super) terminal_publish_faults:
         std::collections::VecDeque<crate::completion::CompletionRegistryError>,
@@ -147,11 +161,13 @@ impl ProducerHost {
                 PreparedExecutionLimits {
                     encoded_bytes: limits.encoded_byte_capacity,
                     max_batch_bytes: limits.max_wire_batch_bytes,
+                    max_request_bytes: limits.max_request_bytes,
                 },
             ),
             compression,
             compression_saturated: false,
             pending_effects: Vec::with_capacity(total_completion_capacity),
+            generated_inputs: VecDeque::new(),
             terminal_backlog: OrderedTerminalBacklog::new(total_completion_capacity),
             waiting_policy: ProducerWaitingQueue::new(
                 limits.waiting_record_capacity,
@@ -160,6 +176,12 @@ impl ProducerHost {
             waiting: ProducerWaitingStore::new(limits.waiting_record_capacity),
             effect_capacity: total_completion_capacity,
             health: ProducerHostHealth::Healthy,
+            produce_requests: 0,
+            produce_batches: 0,
+            produce_records: 0,
+            produce_encoded_bytes: 0,
+            peak_produce_in_flight_requests: 0,
+            peak_produce_in_flight_requests_per_broker: 0,
             #[cfg(test)]
             terminal_publish_faults: std::collections::VecDeque::new(),
             #[cfg(test)]
@@ -191,6 +213,13 @@ impl ProducerHost {
             compression_bytes: self.compression.retained_bytes(),
             terminal_backlog: self.terminal_backlog.len(),
             waiting: self.waiting_stats(),
+            produce_requests: self.produce_requests,
+            produce_batches: self.produce_batches,
+            produce_records: self.produce_records,
+            produce_encoded_bytes: self.produce_encoded_bytes,
+            peak_produce_in_flight_requests: self.peak_produce_in_flight_requests,
+            peak_produce_in_flight_requests_per_broker: self
+                .peak_produce_in_flight_requests_per_broker,
             healthy: self.health == ProducerHostHealth::Healthy,
         }
     }

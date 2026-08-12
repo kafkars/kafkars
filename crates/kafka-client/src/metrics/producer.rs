@@ -51,6 +51,36 @@ impl ProducerMetrics {
         self.inner.terminal_backlog()
     }
 
+    /// Returns cumulative driver-accepted Produce requests.
+    pub const fn produce_requests(self) -> u64 {
+        self.inner.produce_requests()
+    }
+
+    /// Returns cumulative partition batches in accepted Produce requests.
+    pub const fn produce_batches(self) -> u64 {
+        self.inner.produce_batches()
+    }
+
+    /// Returns cumulative records in accepted Produce requests.
+    pub const fn produce_records(self) -> u64 {
+        self.inner.produce_records()
+    }
+
+    /// Returns cumulative encoded record bytes in accepted Produce requests.
+    pub const fn produce_encoded_bytes(self) -> u64 {
+        self.inner.produce_encoded_bytes()
+    }
+
+    /// Returns the peak number of Produce requests owned by transport.
+    pub const fn peak_produce_in_flight_requests(self) -> usize {
+        self.inner.peak_produce_in_flight_requests()
+    }
+
+    /// Returns the peak Produce requests owned by one broker connection.
+    pub const fn peak_produce_in_flight_requests_per_broker(self) -> usize {
+        self.inner.peak_produce_in_flight_requests_per_broker()
+    }
+
     /// Reports whether the producer was accepting records at this boundary.
     pub const fn accepting(self) -> bool {
         self.inner.accepting()

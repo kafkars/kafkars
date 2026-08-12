@@ -106,7 +106,7 @@ impl ProducerMachine {
                 deadline_operation_id,
                 deadline,
             } => {
-                self.idempotence.commit_lease(route);
+                self.idempotence.commit_lease(route, lease);
                 let batch = self.batches.get_mut(&batch_id);
                 debug_assert!(batch.is_some());
                 if let Some(batch) = batch {

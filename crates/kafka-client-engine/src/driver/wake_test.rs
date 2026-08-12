@@ -10,13 +10,19 @@ use super::{
 };
 
 #[test]
-fn reactor_wake_is_cloneable_thread_safe_and_coalescible() {
+fn reactor_wake_clones_share_the_host_turn_demand_handshake() {
     assert_clone_send_sync::<ReactorWake>();
     let owner = owner();
     let wake = owner.reactor_wake();
+    owner.acknowledge_host_turn();
+    assert!(!owner.host_turn_requested());
 
     assert!(wake.request().is_ok());
+    assert!(owner.host_turn_requested());
+    owner.acknowledge_host_turn();
+    assert!(!owner.host_turn_requested());
     assert!(wake.clone().request().is_ok());
+    assert!(owner.host_turn_requested());
 }
 
 #[test]

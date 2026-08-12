@@ -343,8 +343,10 @@ pub(crate) fn start(
         Arc::new(driver.reactor_wake()),
     );
     let remove_consumer_group_members_admission = remove_consumer_group_members.admission_port();
-    let produce_calls =
-        crate::driver::TrackedProduceCalls::new(validated.host_limits.batch_capacity);
+    let produce_calls = crate::driver::TrackedProduceCalls::with_max_in_flight_requests_per_broker(
+        validated.host_limits.batch_capacity,
+        validated.host_limits.max_in_flight_requests_per_broker,
+    );
     let resources = EngineHostResources {
         driver: Some(driver),
         producer,

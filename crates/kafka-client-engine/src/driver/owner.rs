@@ -2,9 +2,7 @@
 
 use std::{fmt, time::Duration};
 
-use kafka_driver::{
-    BootstrapError, BootstrapLimits, BootstrapSet, Driver, Reactor, TurnOutcome, WakeHandle,
-};
+use kafka_driver::{BootstrapError, BootstrapLimits, BootstrapSet, Driver, Reactor, TurnOutcome};
 
 use crate::EngineConfig;
 
@@ -28,7 +26,7 @@ pub(crate) enum DriverTurn {
 pub(crate) struct DriverOwner {
     pub(super) driver: Driver,
     reactor: Reactor,
-    wake: WakeHandle,
+    wake: ReactorWake,
     shutdown: DriverShutdown,
 }
 
@@ -67,7 +65,7 @@ impl DriverOwner {
         // configuration. Preserve the engine setting for a later driver bridge.
         let _configured_client_id = config.client_id();
         let (driver, reactor) = builder.build_reactor().map_err(DriverOwnerError::Build)?;
-        let wake = reactor.wake_handle();
+        let wake = ReactorWake::new(reactor.wake_handle());
         Ok(Self {
             driver,
             reactor,
@@ -76,9 +74,19 @@ impl DriverOwner {
         })
     }
 
-    /// Shares the domain-neutral coalescing wake for the integrated host.
+    /// Shares the domain-neutral wake and host-turn demand handshake.
     pub(crate) fn reactor_wake(&self) -> ReactorWake {
-        ReactorWake::new(self.wake.clone())
+        self.wake.clone()
+    }
+
+    /// Clears demand that the integrated host is about to inspect.
+    pub(crate) fn acknowledge_host_turn(&self) {
+        self.wake.acknowledge_host_turn();
+    }
+
+    /// Reports demand published after the current host turn began.
+    pub(crate) fn host_turn_requested(&self) -> bool {
+        self.wake.host_turn_requested()
     }
 
     /// Shares one command-only handle for bounded operational observation.

@@ -7,6 +7,8 @@ use kafka_client_core::{
 
 use crate::producer::host_error::ProducerHostLimitError;
 
+const MAX_IDEMPOTENT_IN_FLIGHT_REQUESTS: usize = 5;
+
 /// Capacity values shared by core policy and every bounded engine owner.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ProducerHostLimits {
@@ -19,6 +21,8 @@ pub(crate) struct ProducerHostLimits {
     pub(crate) timer_capacity: usize,
     pub(crate) encoded_byte_capacity: usize,
     pub(crate) max_wire_batch_bytes: usize,
+    pub(crate) max_request_bytes: usize,
+    pub(crate) max_in_flight_requests_per_broker: usize,
     pub(crate) batch_policy: ProducerBatchPolicy,
     pub(crate) retry_policy: ProducerRetryPolicy,
     pub(crate) compression: CompressionPolicy,
@@ -92,6 +96,18 @@ impl ProducerHostLimits {
         }
         if self.max_wire_batch_bytes == 0 {
             return Err(ProducerHostLimitError::ZeroWireBatchBytes);
+        }
+        if self.max_request_bytes == 0 {
+            return Err(ProducerHostLimitError::ZeroRequestBytes);
+        }
+        if self.max_request_bytes < self.max_wire_batch_bytes {
+            return Err(ProducerHostLimitError::RequestSmallerThanBatch);
+        }
+        if self.max_in_flight_requests_per_broker == 0 {
+            return Err(ProducerHostLimitError::ZeroInFlightRequests);
+        }
+        if self.max_in_flight_requests_per_broker > MAX_IDEMPOTENT_IN_FLIGHT_REQUESTS {
+            return Err(ProducerHostLimitError::TooManyInFlightRequests);
         }
         if self.batch_policy.max_records() > self.record_capacity {
             return Err(ProducerHostLimitError::BatchRecordLimitExceedsCapacity);

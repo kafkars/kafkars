@@ -7,17 +7,11 @@ use crate::{
     ProducerMachineError, ProducerTransition,
 };
 
-use super::{BatchState, ProducerMachine, materialization::materialize_effect};
-
-pub(crate) struct SequenceSuccessPlan {
-    route: super::BatchRoute,
-    lease: crate::ProducerSequenceLease,
-}
-
-pub(crate) struct SequenceNotSentPlan {
-    route: super::BatchRoute,
-    lease: crate::ProducerSequenceLease,
-}
+use super::{
+    BatchState, ProducerMachine,
+    idempotence_lease::{SequenceNotSentPlan, SequenceRevisionPlan, SequenceSuccessPlan},
+    materialization::materialize_effect,
+};
 
 impl ProducerMachine {
     pub(crate) fn producer_identity_acquired(
@@ -83,7 +77,7 @@ impl ProducerMachine {
             lease,
         ) in plans
         {
-            self.idempotence.commit_lease(route);
+            self.idempotence.commit_lease(route, lease);
             let batch = self
                 .batches
                 .get_mut(&batch_id)
@@ -198,7 +192,8 @@ impl ProducerMachine {
         let lease = batch
             .sequence_lease()
             .ok_or(ProducerMachineError::ProducerIdentityFenced)?;
-        self.idempotence.require_owned_lease(batch.route, lease)?;
+        self.idempotence
+            .require_releasable_lease(batch.route, lease)?;
         Ok(SequenceNotSentPlan {
             route: batch.route,
             lease,
@@ -217,6 +212,38 @@ impl ProducerMachine {
                 .map(|()| lease),
             Ok(lease),
         );
-        self.idempotence.release_not_sent(route);
+        self.idempotence.release_not_sent(route, lease);
+    }
+
+    pub(crate) fn plan_sequence_revision(
+        &self,
+        batch_id: BatchId,
+        record_count: usize,
+    ) -> Result<SequenceRevisionPlan, ProducerMachineError> {
+        let batch = self
+            .batches
+            .get(&batch_id)
+            .ok_or(ProducerMachineError::UnknownBatch)?;
+        let previous = batch
+            .sequence_lease()
+            .ok_or(ProducerMachineError::ProducerIdentityFenced)?;
+        self.idempotence
+            .require_releasable_lease(batch.route, previous)?;
+        let count =
+            u32::try_from(record_count).map_err(|_| ProducerMachineError::SequenceRangeOverflow)?;
+        let replacement = previous
+            .with_record_count(count)
+            .ok_or(ProducerMachineError::SequenceRangeOverflow)?;
+        Ok(SequenceRevisionPlan {
+            route: batch.route,
+            previous,
+            replacement,
+        })
+    }
+
+    pub(crate) fn commit_sequence_revision(&mut self, plan: SequenceRevisionPlan) {
+        let (route, previous, replacement) = plan.into_parts();
+        self.idempotence
+            .replace_releasable_lease(route, previous, replacement);
     }
 }

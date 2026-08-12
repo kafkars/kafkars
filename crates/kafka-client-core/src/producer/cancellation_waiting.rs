@@ -82,6 +82,12 @@ impl ProducerMachine {
                 TransitionError::InvalidState,
             ));
         }
+        if batch
+            .sequence_lease()
+            .is_some_and(|lease| self.idempotence.has_dependent_lease(batch.route, lease))
+        {
+            return Ok(resolved(ProducerCancellationOutcome::TooLate, Vec::new()));
+        }
         let revision = batch.plan_retry_revision(batch_id, operation_id)?;
         let previous = revision.batch.previous;
         let replacement = revision.batch.replacement;
@@ -91,6 +97,10 @@ impl ProducerMachine {
         let sequence_release = replacement
             .is_none()
             .then(|| self.plan_sequence_not_sent(batch_id))
+            .transpose()?;
+        let sequence_revision = replacement
+            .is_some()
+            .then(|| self.plan_sequence_revision(batch_id, revision.batch.members.len()))
             .transpose()?;
         let failure = ProducerFailure::cancelled();
         let mut terminal =
@@ -113,6 +123,9 @@ impl ProducerMachine {
         }
         if let Some(sequence_release) = sequence_release {
             self.commit_sequence_not_sent(sequence_release);
+        }
+        if let Some(sequence_revision) = sequence_revision {
+            self.commit_sequence_revision(sequence_revision);
         }
         let flush_effects = self.settle_ready_flushes();
         let mut effects = Vec::with_capacity(

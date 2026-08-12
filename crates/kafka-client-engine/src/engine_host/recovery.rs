@@ -3,8 +3,8 @@
 use kafka_client_core::Moment;
 
 use super::{
-    EngineHostError, EngineHostExit, EngineHostResources, admin, group_consumer_shutdown,
-    notifier_shutdown::NotifierShutdownOwner, runner::shutdown_driver, transaction_shutdown,
+    EngineHostError, EngineHostExit, EngineHostResources, admin, cleanup::shutdown_driver,
+    group_consumer_shutdown, notifier_shutdown::NotifierShutdownOwner, transaction_shutdown,
 };
 
 impl EngineHostResources {

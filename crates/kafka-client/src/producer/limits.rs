@@ -2,6 +2,9 @@
 
 use std::time::Duration;
 
+const DEFAULT_REQUEST_BYTES: usize = 1024 * 1024;
+const DEFAULT_MAX_IN_FLIGHT_REQUESTS_PER_BROKER: usize = 5;
+
 /// Independent bounds for active records, waiting callers, and batching.
 ///
 /// Defaults retain up to 32 MiB and 1,024 active records, 1,024 waiting
@@ -16,6 +19,8 @@ pub struct ProducerLimits {
     waiting_bytes: usize,
     batch_records: usize,
     batch_bytes: usize,
+    request_bytes: usize,
+    max_in_flight_requests_per_broker: usize,
     linger: Duration,
 }
 
@@ -37,11 +42,25 @@ impl ProducerLimits {
             waiting_bytes,
             batch_records,
             batch_bytes,
+            request_bytes: DEFAULT_REQUEST_BYTES,
+            max_in_flight_requests_per_broker: DEFAULT_MAX_IN_FLIGHT_REQUESTS_PER_BROKER,
             linger,
         }
     }
 
-    pub(crate) const fn into_parts(self) -> (usize, usize, usize, usize, usize, usize, Duration) {
+    pub(crate) const fn into_parts(
+        self,
+    ) -> (
+        usize,
+        usize,
+        usize,
+        usize,
+        usize,
+        usize,
+        usize,
+        usize,
+        Duration,
+    ) {
         (
             self.retained_bytes,
             self.in_flight_records,
@@ -49,6 +68,8 @@ impl ProducerLimits {
             self.waiting_bytes,
             self.batch_records,
             self.batch_bytes,
+            self.request_bytes,
+            self.max_in_flight_requests_per_broker,
             self.linger,
         )
     }
@@ -81,6 +102,16 @@ impl ProducerLimits {
     /// Returns the maximum encoded bytes retained for one Produce batch.
     pub const fn batch_bytes(self) -> usize {
         self.batch_bytes
+    }
+
+    /// Returns the maximum encoded record bytes grouped into one Produce request.
+    pub const fn request_bytes(self) -> usize {
+        self.request_bytes
+    }
+
+    /// Returns the idempotent Produce request limit for each broker connection.
+    pub const fn max_in_flight_requests_per_broker(self) -> usize {
+        self.max_in_flight_requests_per_broker
     }
 
     /// Returns the engine-owned maximum batching delay.
@@ -127,6 +158,23 @@ impl ProducerLimits {
     #[must_use]
     pub const fn with_batch_bytes(mut self, batch_bytes: usize) -> Self {
         self.batch_bytes = batch_bytes;
+        self
+    }
+
+    /// Replaces the maximum encoded record bytes grouped into one Produce request.
+    #[must_use]
+    pub const fn with_request_bytes(mut self, request_bytes: usize) -> Self {
+        self.request_bytes = request_bytes;
+        self
+    }
+
+    /// Replaces the per-broker idempotent request limit, which must be `1..=5`.
+    #[must_use]
+    pub const fn with_max_in_flight_requests_per_broker(
+        mut self,
+        max_in_flight_requests_per_broker: usize,
+    ) -> Self {
+        self.max_in_flight_requests_per_broker = max_in_flight_requests_per_broker;
         self
     }
 

@@ -37,6 +37,8 @@ fn generated_accumulation_waits_until_the_whole_admission_transition_drains() {
         timer_capacity: 1,
         encoded_byte_capacity: 1_024,
         max_wire_batch_bytes: 1_024,
+        max_request_bytes: 1_024,
+        max_in_flight_requests_per_broker: 5,
         batch_policy,
         retry_policy: ProducerRetryPolicy::none(),
         compression: kafka_client_core::CompressionPolicy::None,

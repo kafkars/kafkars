@@ -168,6 +168,35 @@ impl ProducerShardData {
         self.host.apply_one_driver_input(now, input)
     }
 
+    /// Records one driver-accepted Produce request and its exact member shape.
+    pub(crate) fn record_produce_request(
+        &mut self,
+        batches: usize,
+        records: u64,
+        encoded_bytes: usize,
+        in_flight_requests: usize,
+        broker_in_flight_requests: usize,
+    ) {
+        self.host.produce_requests = self.host.produce_requests.saturating_add(1);
+        self.host.produce_batches = self
+            .host
+            .produce_batches
+            .saturating_add(u64::try_from(batches).unwrap_or(u64::MAX));
+        self.host.produce_records = self.host.produce_records.saturating_add(records);
+        self.host.produce_encoded_bytes = self
+            .host
+            .produce_encoded_bytes
+            .saturating_add(u64::try_from(encoded_bytes).unwrap_or(u64::MAX));
+        self.host.peak_produce_in_flight_requests = self
+            .host
+            .peak_produce_in_flight_requests
+            .max(in_flight_requests);
+        self.host.peak_produce_in_flight_requests_per_broker = self
+            .host
+            .peak_produce_in_flight_requests_per_broker
+            .max(broker_in_flight_requests);
+    }
+
     pub(crate) fn unsettled_completions(&self) -> usize {
         self.host.unsettled_completions()
     }

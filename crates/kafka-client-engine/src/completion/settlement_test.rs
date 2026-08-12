@@ -38,10 +38,13 @@ fn one_pass_settles_multiple_live_observers() {
 
     assert_eq!(progress.queued(), 3);
     assert_eq!(progress.remaining(), 0);
+    assert_eq!(registry.unsettled_len(), 0);
+    assert_eq!(registry.published_or_reclaiming_len(), 3);
     assert_eq!(first.wait(), Ok(11));
     assert_eq!(second.wait(), Ok(12));
     assert_eq!(third.wait(), Ok(13));
     assert_eq!(finish_reclaims(&mut registry), Ok(3));
+    assert_eq!(registry.published_or_reclaiming_len(), 0);
     stop(&mut registry);
 }
 

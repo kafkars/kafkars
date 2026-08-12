@@ -30,6 +30,8 @@ pub(crate) enum ReclaimStatus {
 pub(crate) struct CompletionRegistry<T, P = Notifier<PublishTicket<T>>> {
     pub(super) slots: Vec<HostSlot<T>>,
     free: Vec<usize>,
+    pub(super) unsettled: usize,
+    pub(super) published_or_reclaiming: usize,
     reclaim: Receiver<CompletionId>,
     pub(super) publisher: Option<P>,
 }
@@ -61,6 +63,8 @@ impl<T: Send + 'static, P: CompletionPublisher<T>> CompletionRegistry<T, P> {
         Self {
             slots,
             free,
+            unsettled: 0,
+            published_or_reclaiming: 0,
             reclaim,
             publisher: Some(publisher),
         }
@@ -88,6 +92,7 @@ impl<T: Send + 'static, P: CompletionPublisher<T>> CompletionRegistry<T, P> {
             }
         };
         slot.reserve(id);
+        self.unsettled += 1;
         Ok((id, CompletionObserver::new(id, Arc::clone(&slot.cell))))
     }
 
@@ -110,6 +115,11 @@ impl<T: Send + 'static, P: CompletionPublisher<T>> CompletionRegistry<T, P> {
         match publisher.try_publish(ticket) {
             Ok(()) => {
                 slot.mark_published(id);
+                self.unsettled = self
+                    .unsettled
+                    .checked_sub(1)
+                    .unwrap_or_else(|| unreachable!("published reservation was unsettled"));
+                self.published_or_reclaiming += 1;
                 Ok(())
             }
             Err(QueuePushError::Full(ticket)) => Err((
@@ -151,11 +161,19 @@ impl<T: Send + 'static, P: CompletionPublisher<T>> CompletionRegistry<T, P> {
             Ok(true) => {
                 slot.vacate();
                 self.free.push(id.slot());
+                self.published_or_reclaiming = self
+                    .published_or_reclaiming
+                    .checked_sub(1)
+                    .unwrap_or_else(|| unreachable!("reclaimed completion was published"));
                 Ok(ReclaimStatus::Reclaimed)
             }
             Ok(false) => Ok(ReclaimStatus::Retry),
             Err(CompletionRegistryError::GenerationExhausted) => {
                 slot.retire();
+                self.published_or_reclaiming = self
+                    .published_or_reclaiming
+                    .checked_sub(1)
+                    .unwrap_or_else(|| unreachable!("retired completion was published"));
                 Err(CompletionRegistryError::GenerationExhausted)
             }
             Err(error) => Err(error),
@@ -163,19 +181,13 @@ impl<T: Send + 'static, P: CompletionPublisher<T>> CompletionRegistry<T, P> {
     }
 
     /// Returns accepted operations that have not published a terminal value.
-    pub(crate) fn unsettled_len(&self) -> usize {
-        self.slots
-            .iter()
-            .filter(|slot| slot.has_unsettled_reservation())
-            .count()
+    pub(crate) const fn unsettled_len(&self) -> usize {
+        self.unsettled
     }
 
     /// Returns slots whose terminal already crossed notifier ownership.
-    pub(crate) fn published_or_reclaiming_len(&self) -> usize {
-        self.slots
-            .iter()
-            .filter(|slot| slot.is_published_or_reclaiming())
-            .count()
+    pub(crate) const fn published_or_reclaiming_len(&self) -> usize {
+        self.published_or_reclaiming
     }
 
     fn slot_mut(&mut self, id: CompletionId) -> Result<&mut HostSlot<T>, CompletionRegistryError> {

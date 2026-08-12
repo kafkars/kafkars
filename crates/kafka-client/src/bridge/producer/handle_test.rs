@@ -17,7 +17,7 @@ fn capture_failure_precedes_conversion_and_returns_exact_facade_record() {
     let producer = ProducerEngine::new(engine.producer(), Duration::MAX);
     let retained = Bytes::from(vec![1, 2, 3, 4]);
     let record = Record::from_parts(RecordParts {
-        topic: String::new(),
+        topic: String::new().into(),
         partition: None,
         timestamp_milliseconds: None,
         key: Some(Bytes::new()),
@@ -51,7 +51,7 @@ fn capture_failure_precedes_conversion_and_returns_exact_facade_record() {
 fn record_bridge_preserves_nullable_and_ordered_semantics() {
     let retained = Bytes::from_static(b"last");
     let original = Record::from_parts(RecordParts {
-        topic: "orders".to_owned(),
+        topic: "orders".into(),
         partition: None,
         timestamp_milliseconds: None,
         key: Some(Bytes::new()),
@@ -91,7 +91,7 @@ fn rejected_record_reuses_nonempty_payload_storage() {
     let key = Bytes::from(vec![1, 2, 3]);
     let value = Bytes::from(vec![4, 5, 6]);
     let original = Record::from_parts(RecordParts {
-        topic: "owned".to_owned(),
+        topic: "owned".into(),
         partition: Some(2),
         timestamp_milliseconds: Some(9),
         key: Some(key.clone()),

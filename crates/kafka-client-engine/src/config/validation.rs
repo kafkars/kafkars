@@ -26,6 +26,7 @@ pub(crate) enum EngineConfigError {
     DurationOverflow,
     RetainedBytes,
     BatchBytes,
+    RequestBytes,
     CompressionBytes,
     BatchPolicy,
     RetryPolicy(ProducerRetryPolicyError),
@@ -100,6 +101,8 @@ impl EngineConfig {
             u64::try_from(limits.waiting_bytes()).map_err(|_| EngineConfigError::RetainedBytes)?;
         let batch_bytes =
             u64::try_from(limits.batch_bytes()).map_err(|_| EngineConfigError::BatchBytes)?;
+        let _request_bytes =
+            u64::try_from(limits.request_bytes()).map_err(|_| EngineConfigError::RequestBytes)?;
         let linger_ticks = duration_ticks(limits.linger())?;
         let batch_policy = ProducerBatchPolicy::try_new(
             limits.batch_records(),
@@ -134,6 +137,8 @@ impl EngineConfig {
             timer_capacity: limits.in_flight_records(),
             encoded_byte_capacity: limits.retained_bytes(),
             max_wire_batch_bytes: limits.batch_bytes(),
+            max_request_bytes: limits.request_bytes(),
+            max_in_flight_requests_per_broker: limits.max_in_flight_requests_per_broker(),
             batch_policy,
             retry_policy,
             compression,

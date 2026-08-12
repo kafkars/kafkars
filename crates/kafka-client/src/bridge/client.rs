@@ -209,8 +209,17 @@ fn engine_sasl(sasl: &Sasl) -> EngineSasl {
 }
 
 fn engine_producer_limits(limits: ProducerLimits) -> EngineProducerLimits {
-    let (retained, active, waiting, waiting_bytes, batch, batch_bytes, linger) =
-        limits.into_parts();
+    let (
+        retained,
+        active,
+        waiting,
+        waiting_bytes,
+        batch,
+        batch_bytes,
+        request_bytes,
+        max_in_flight_requests_per_broker,
+        linger,
+    ) = limits.into_parts();
     EngineProducerLimits::new(
         retained,
         active,
@@ -220,6 +229,8 @@ fn engine_producer_limits(limits: ProducerLimits) -> EngineProducerLimits {
         batch_bytes,
         linger,
     )
+    .with_request_bytes(request_bytes)
+    .with_max_in_flight_requests_per_broker(max_in_flight_requests_per_broker)
 }
 
 const fn engine_compression(compression: Compression) -> EngineCompression {

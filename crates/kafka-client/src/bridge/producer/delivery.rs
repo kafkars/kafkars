@@ -4,6 +4,7 @@ use std::{
     fmt,
     future::Future,
     pin::Pin,
+    sync::Arc,
     task::{Context, Poll},
 };
 
@@ -23,7 +24,7 @@ use crate::{
 /// Private runtime-neutral observer shared by asynchronous and blocking APIs.
 #[must_use = "dropping abandons observation without cancelling accepted producer work"]
 pub(crate) struct ProducerDelivery {
-    topic: Option<String>,
+    topic: Option<Arc<str>>,
     create_timestamp: i64,
     serialized_key_size: Option<usize>,
     serialized_value_size: Option<usize>,
@@ -42,7 +43,7 @@ pub(crate) struct ProducerDelivery {
 
 impl ProducerDelivery {
     pub(crate) const fn new(
-        topic: String,
+        topic: Arc<str>,
         create_timestamp: i64,
         serialized_key_size: Option<usize>,
         serialized_value_size: Option<usize>,

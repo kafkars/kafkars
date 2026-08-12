@@ -190,6 +190,7 @@ fn waiting_terminal_origin_shares_the_existing_binding_bound_without_growth() {
     );
     let allocation = bindings.allocation_capacity();
     assert_eq!(bindings.mark_waiting_terminal(first_operation), Ok(()));
+    assert_eq!(bindings.mark_waiting_terminal(first_operation), Ok(()));
     assert_eq!(bindings.mark_waiting_terminal(second_operation), Ok(()));
     assert_eq!(bindings.waiting_terminal_len(), 2);
     assert_eq!(bindings.allocation_capacity(), allocation);

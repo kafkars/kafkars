@@ -55,6 +55,7 @@ fn prepared(max_batch_bytes: usize) -> PreparedExecution {
         PreparedExecutionLimits {
             encoded_bytes: 1_024,
             max_batch_bytes,
+            max_request_bytes: 1_024,
         },
     )
 }
@@ -125,6 +126,7 @@ fn prepared_capacity_failure_returns_exact_attempt_to_ready() {
         PreparedExecutionLimits {
             encoded_bytes: 1,
             max_batch_bytes: 1_024,
+            max_request_bytes: 1_024,
         },
     );
 

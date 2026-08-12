@@ -95,7 +95,7 @@ fn negative_partition_rejection_returns_exact_nullable_ordered_bytes_storage() {
     };
     let retained = Bytes::from(vec![9, 8, 7]);
     let record = Record::from_parts(RecordParts {
-        topic: "orders".to_owned(),
+        topic: "orders".into(),
         partition: Some(-1),
         timestamp_milliseconds: Some(42),
         key: None,

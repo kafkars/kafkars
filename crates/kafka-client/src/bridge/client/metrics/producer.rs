@@ -38,6 +38,30 @@ impl ClientProducerMetrics {
         self.0.terminal_backlog()
     }
 
+    pub(crate) const fn produce_requests(self) -> u64 {
+        self.0.produce_requests()
+    }
+
+    pub(crate) const fn produce_batches(self) -> u64 {
+        self.0.produce_batches()
+    }
+
+    pub(crate) const fn produce_records(self) -> u64 {
+        self.0.produce_records()
+    }
+
+    pub(crate) const fn produce_encoded_bytes(self) -> u64 {
+        self.0.produce_encoded_bytes()
+    }
+
+    pub(crate) const fn peak_produce_in_flight_requests(self) -> usize {
+        self.0.peak_produce_in_flight_requests()
+    }
+
+    pub(crate) const fn peak_produce_in_flight_requests_per_broker(self) -> usize {
+        self.0.peak_produce_in_flight_requests_per_broker()
+    }
+
     pub(crate) const fn accepting(self) -> bool {
         self.0.accepting()
     }

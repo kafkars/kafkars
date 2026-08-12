@@ -39,6 +39,7 @@ mod idempotence;
 mod idempotence_acquisition_test;
 #[cfg(test)]
 mod idempotence_fencing_test;
+mod idempotence_lease;
 mod idempotence_request_terminal;
 #[cfg(test)]
 mod idempotence_sequence_test;

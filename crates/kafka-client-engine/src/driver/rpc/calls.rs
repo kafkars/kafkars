@@ -26,6 +26,7 @@ use settlement::{RecoveredProduceCall, SettledProduceCall};
 
 pub(super) struct TrackedProduceCall {
     pub(super) entries: TrackedProduceEntries,
+    pub(super) broker_id: Option<i32>,
     pub(super) call: RoutedCall<ProduceResponse>,
 }
 
@@ -58,6 +59,7 @@ impl ProduceCallPermit<'_> {
                 topic,
                 partition,
             }),
+            broker_id: None,
             call,
         });
         Ok(AcceptedProduceCall::new(execution))
@@ -66,15 +68,25 @@ impl ProduceCallPermit<'_> {
 
 pub(crate) struct TrackedProduceCalls {
     capacity: usize,
+    max_in_flight_requests_per_broker: usize,
     calls: Vec<TrackedProduceCall>,
     settled: Option<SettledProduceCall>,
     recovered: Vec<RecoveredProduceCall>,
 }
 
 impl TrackedProduceCalls {
+    #[cfg(test)]
     pub(crate) fn new(capacity: usize) -> Self {
+        Self::with_max_in_flight_requests_per_broker(capacity, 5)
+    }
+
+    pub(crate) fn with_max_in_flight_requests_per_broker(
+        capacity: usize,
+        max_in_flight_requests_per_broker: usize,
+    ) -> Self {
         Self {
             capacity,
+            max_in_flight_requests_per_broker,
             calls: Vec::with_capacity(capacity),
             settled: None,
             recovered: Vec::with_capacity(capacity),
@@ -89,6 +101,7 @@ impl TrackedProduceCalls {
     ) -> Self {
         Self {
             capacity: 1,
+            max_in_flight_requests_per_broker: 5,
             calls: Vec::new(),
             settled: Some(
                 SettledProduceCall::with_submit_then_pending_refresh_for_test(
@@ -107,6 +120,7 @@ impl TrackedProduceCalls {
     ) -> Self {
         Self {
             capacity: 1,
+            max_in_flight_requests_per_broker: 5,
             calls: Vec::new(),
             settled: Some(SettledProduceCall::from_input(
                 execution, deadline, input, None,
@@ -128,6 +142,50 @@ impl TrackedProduceCalls {
         Some(ProduceCallPermit {
             calls: &mut self.calls,
         })
+    }
+
+    /// Reports capacity under the configured idempotent per-broker request gate.
+    pub(crate) fn broker_admission_available(&self, broker_id: Option<i32>) -> bool {
+        let unknown = self
+            .calls
+            .iter()
+            .filter(|call| call.broker_id.is_none())
+            .count();
+        let broker_calls = broker_id.map_or(self.calls.len(), |broker_id| {
+            self.calls
+                .iter()
+                .filter(|call| call.broker_id == Some(broker_id))
+                .count()
+                .saturating_add(unknown)
+        });
+        broker_calls < self.max_in_flight_requests_per_broker
+    }
+
+    /// Returns requests still owned by the driver transport.
+    pub(crate) fn in_flight_request_count(&self) -> usize {
+        self.calls.len()
+    }
+
+    /// Returns the busiest resolved broker, conservatively including unknown routes.
+    pub(crate) fn max_broker_in_flight_request_count(&self) -> usize {
+        let unknown = self
+            .calls
+            .iter()
+            .filter(|call| call.broker_id.is_none())
+            .count();
+        let resolved_max = self
+            .calls
+            .iter()
+            .filter_map(|call| call.broker_id)
+            .map(|broker_id| {
+                self.calls
+                    .iter()
+                    .filter(|call| call.broker_id == Some(broker_id))
+                    .count()
+            })
+            .max()
+            .unwrap_or(0);
+        unknown.saturating_add(resolved_max)
     }
 
     pub(crate) fn retained_count(&self) -> usize {
@@ -156,7 +214,11 @@ impl TrackedProduceCalls {
         else {
             return Ok(None);
         };
-        let TrackedProduceCall { entries, call } = self.calls.remove(index);
+        let TrackedProduceCall {
+            entries,
+            broker_id: _,
+            call,
+        } = self.calls.remove(index);
         let outcome = match result {
             Ok(outcome) => outcome,
             Err(source) => return Err(ProduceCompletionFailure::new(entries, source)),
@@ -186,7 +248,11 @@ impl TrackedProduceCalls {
     pub(crate) fn recover_after_driver_shutdown(&mut self) {
         debug_assert!(self.recovered.is_empty());
         for call in self.calls.drain(..) {
-            let TrackedProduceCall { entries, call } = call;
+            let TrackedProduceCall {
+                entries,
+                broker_id: _,
+                call,
+            } = call;
             drop(call);
             self.recovered.push(RecoveredProduceCall::new(entries));
         }
@@ -204,5 +270,10 @@ impl TrackedProduceCalls {
     #[cfg(test)]
     pub(crate) fn recovered(&self) -> &[RecoveredProduceCall] {
         &self.recovered
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_broker_id_for_test(&mut self, index: usize, broker_id: i32) {
+        self.calls[index].broker_id = Some(broker_id);
     }
 }

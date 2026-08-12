@@ -85,7 +85,6 @@ fn different_deadline_partition_lookup_does_not_block_ready_produce() {
         Deadline::from_tick(ready_deadline.core().tick().saturating_add(1)),
         ready_deadline.transport(),
     );
-
     assert!(
         admit_after_partitioning(
             &driver,

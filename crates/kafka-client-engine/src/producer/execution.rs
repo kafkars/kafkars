@@ -38,18 +38,25 @@ pub(crate) use ownership::{PreparedProduceError, PreparedProduceStats, Submissio
 pub(crate) use revision::{PreparedRevisionExpectation, PreparedRevisionPlan};
 
 /// Hard bounds shared by encoded bytes and pre-driver deadline ownership.
+#[expect(
+    clippy::struct_field_names,
+    reason = "each limit names the distinct byte representation it bounds"
+)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct PreparedExecutionLimits {
     /// Maximum encoded `RecordBatch` bytes retained before driver acceptance.
     pub(crate) encoded_bytes: usize,
     /// Per-batch limit passed to the authoritative wire-records encoder.
     pub(crate) max_batch_bytes: usize,
+    /// Maximum encoded record bytes grouped into one broker Produce request.
+    pub(crate) max_request_bytes: usize,
 }
 
 /// Single bounded owner of materialized bytes awaiting real driver acceptance.
 #[derive(Debug)]
 pub(crate) struct PreparedExecution {
     max_batch_bytes: usize,
+    _max_request_bytes: usize,
     batch_capacity: usize,
     encoded_byte_capacity: usize,
     retained_bytes: usize,
@@ -81,6 +88,7 @@ impl PreparedExecution {
     pub(crate) const fn new(batch_capacity: usize, limits: PreparedExecutionLimits) -> Self {
         Self {
             max_batch_bytes: limits.max_batch_bytes,
+            _max_request_bytes: limits.max_request_bytes,
             batch_capacity,
             encoded_byte_capacity: limits.encoded_bytes,
             retained_bytes: 0,

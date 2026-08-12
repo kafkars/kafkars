@@ -127,6 +127,29 @@ fn encoded_and_wire_byte_limits_must_be_nonzero() {
     let mut wire = valid_limits();
     wire.max_wire_batch_bytes = 0;
     assert_limit(wire, ProducerHostLimitError::ZeroWireBatchBytes);
+
+    let mut request = valid_limits();
+    request.max_request_bytes = 0;
+    assert_limit(request, ProducerHostLimitError::ZeroRequestBytes);
+}
+
+#[test]
+fn request_bytes_must_cover_one_wire_batch() {
+    let mut limits = valid_limits();
+    limits.max_request_bytes = limits.max_wire_batch_bytes - 1;
+
+    assert_limit(limits, ProducerHostLimitError::RequestSmallerThanBatch);
+}
+
+#[test]
+fn idempotent_in_flight_requests_are_configurable_only_through_five() {
+    let mut zero = valid_limits();
+    zero.max_in_flight_requests_per_broker = 0;
+    assert_limit(zero, ProducerHostLimitError::ZeroInFlightRequests);
+
+    let mut six = valid_limits();
+    six.max_in_flight_requests_per_broker = 6;
+    assert_limit(six, ProducerHostLimitError::TooManyInFlightRequests);
 }
 
 #[test]
@@ -232,6 +255,8 @@ pub(crate) fn valid_limits() -> ProducerHostLimits {
         timer_capacity: 2,
         encoded_byte_capacity: 1_024,
         max_wire_batch_bytes: 1_024,
+        max_request_bytes: 1_024,
+        max_in_flight_requests_per_broker: 5,
         batch_policy,
         retry_policy: ProducerRetryPolicy::none(),
         compression: kafka_client_core::CompressionPolicy::None,

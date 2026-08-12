@@ -25,6 +25,7 @@ pub(crate) struct MaterializedProduce {
     topic: Arc<str>,
     partition: i32,
     leader_broker_id: Option<i32>,
+    record_count: u32,
     records: Bytes,
 }
 
@@ -33,12 +34,14 @@ impl MaterializedProduce {
         topic: Arc<str>,
         partition: i32,
         leader_broker_id: Option<i32>,
+        record_count: u32,
         records: Bytes,
     ) -> Self {
         Self {
             topic,
             partition,
             leader_broker_id,
+            record_count,
             records,
         }
     }
@@ -49,7 +52,7 @@ impl MaterializedProduce {
         partition: i32,
         records: Bytes,
     ) -> Self {
-        Self::new(topic.into(), partition, None, records)
+        Self::new(topic.into(), partition, None, 1, records)
     }
 
     #[cfg(test)]
@@ -59,7 +62,7 @@ impl MaterializedProduce {
         leader_broker_id: i32,
         records: Bytes,
     ) -> Self {
-        Self::new(topic.into(), partition, Some(leader_broker_id), records)
+        Self::new(topic.into(), partition, Some(leader_broker_id), 1, records)
     }
 
     /// Borrows the topic needed for name-routed driver admission.
@@ -80,6 +83,11 @@ impl MaterializedProduce {
     /// Returns metadata provenance retained only for broker aggregation.
     pub(crate) const fn leader_broker_id(&self) -> Option<i32> {
         self.leader_broker_id
+    }
+
+    /// Returns records encoded into this one partition batch.
+    pub(crate) const fn record_count(&self) -> u32 {
+        self.record_count
     }
 
     /// Returns the retained `RecordBatch` bytes awaiting driver submission.

@@ -1,4 +1,4 @@
-//! Host wait selection scenarios.
+//! Host wait selection and cross-thread turn-demand scenarios.
 
 use std::time::Duration;
 
@@ -9,7 +9,7 @@ use crate::producer::host_turn::ProducerTurnOutcome;
 use super::{
     assigned_consumer::AssignedConsumerProgress,
     group_consumer::GroupConsumerProgress,
-    runner::{assigned_consumer_wait, group_consumer_wait, producer_wait},
+    wait::{assigned_consumer, group_consumer, host_turn, producer},
 };
 
 #[test]
@@ -17,7 +17,7 @@ fn prepared_submission_parks_on_its_original_deadline() {
     let outcome = outcome(Some(Deadline::from_tick(250)), false, false);
 
     assert_eq!(
-        producer_wait(Moment::from_tick(100), Some(outcome), false),
+        producer(Moment::from_tick(100), Some(outcome), false),
         Duration::from_nanos(150)
     );
 }
@@ -27,7 +27,7 @@ fn every_nonzero_wait_is_capped_for_failed_wake_liveness() {
     let outcome = outcome(Some(Deadline::from_tick(1_000_000_000)), false, false);
 
     assert_eq!(
-        producer_wait(Moment::from_tick(0), Some(outcome), false),
+        producer(Moment::from_tick(0), Some(outcome), false),
         Duration::from_millis(100)
     );
 }
@@ -36,12 +36,12 @@ fn every_nonzero_wait_is_capped_for_failed_wake_liveness() {
 fn only_runnable_or_driver_local_work_requests_an_immediate_turn() {
     let runnable = outcome(None, true, false);
     assert_eq!(
-        producer_wait(Moment::from_tick(0), Some(runnable), false),
+        producer(Moment::from_tick(0), Some(runnable), false),
         Duration::ZERO
     );
     let idle = outcome(None, false, false);
     assert_eq!(
-        producer_wait(Moment::from_tick(0), Some(idle), true),
+        producer(Moment::from_tick(0), Some(idle), true),
         Duration::ZERO
     );
 }
@@ -51,8 +51,17 @@ fn transient_lock_or_notification_work_uses_the_liveness_cap() {
     let blocked = outcome(None, false, true);
 
     assert_eq!(
-        producer_wait(Moment::from_tick(0), Some(blocked), false),
+        producer(Moment::from_tick(0), Some(blocked), false),
         Duration::from_millis(100)
+    );
+}
+
+#[test]
+fn host_turn_demand_preempts_the_selected_wait() {
+    assert_eq!(host_turn(Duration::from_secs(1), true), Duration::ZERO);
+    assert_eq!(
+        host_turn(Duration::from_millis(17), false),
+        Duration::from_millis(17)
     );
 }
 
@@ -61,7 +70,7 @@ fn actual_assigned_progress_requests_an_immediate_turn() {
     let progress = assigned_progress(None, true, false);
 
     assert_eq!(
-        assigned_consumer_wait(Moment::from_tick(10), Duration::from_millis(100), &progress),
+        assigned_consumer(Moment::from_tick(10), Duration::from_millis(100), &progress),
         Duration::ZERO
     );
 }
@@ -71,7 +80,7 @@ fn assigned_deadline_can_preempt_other_domain_waits() {
     let progress = assigned_progress(Some(Deadline::from_tick(30)), false, false);
 
     assert_eq!(
-        assigned_consumer_wait(Moment::from_tick(10), Duration::from_nanos(80), &progress),
+        assigned_consumer(Moment::from_tick(10), Duration::from_nanos(80), &progress),
         Duration::from_nanos(20)
     );
 }
@@ -81,7 +90,7 @@ fn elapsed_assigned_deadline_is_immediate_without_claiming_progress() {
     let progress = assigned_progress(Some(Deadline::from_tick(9)), false, false);
 
     assert_eq!(
-        assigned_consumer_wait(Moment::from_tick(10), Duration::from_millis(100), &progress),
+        assigned_consumer(Moment::from_tick(10), Duration::from_millis(100), &progress),
         Duration::ZERO
     );
 }
@@ -91,7 +100,7 @@ fn assigned_contention_uses_the_liveness_cap_instead_of_spinning() {
     let progress = assigned_progress(None, false, true);
 
     assert_eq!(
-        assigned_consumer_wait(Moment::from_tick(10), Duration::from_millis(100), &progress),
+        assigned_consumer(Moment::from_tick(10), Duration::from_millis(100), &progress),
         Duration::from_millis(100)
     );
 }
@@ -101,7 +110,7 @@ fn group_progress_requests_an_immediate_followup_turn() {
     let progress = group_progress(None, true, false);
 
     assert_eq!(
-        group_consumer_wait(Moment::from_tick(10), Duration::from_millis(100), &progress),
+        group_consumer(Moment::from_tick(10), Duration::from_millis(100), &progress),
         Duration::ZERO
     );
 }
@@ -111,7 +120,7 @@ fn group_deadline_can_preempt_other_domain_waits() {
     let progress = group_progress(Some(Deadline::from_tick(30)), false, false);
 
     assert_eq!(
-        group_consumer_wait(Moment::from_tick(10), Duration::from_nanos(80), &progress),
+        group_consumer(Moment::from_tick(10), Duration::from_nanos(80), &progress),
         Duration::from_nanos(20)
     );
 }
@@ -121,7 +130,7 @@ fn blocked_group_work_uses_the_liveness_cap_instead_of_spinning() {
     let progress = group_progress(None, false, true);
 
     assert_eq!(
-        group_consumer_wait(Moment::from_tick(10), Duration::from_millis(100), &progress),
+        group_consumer(Moment::from_tick(10), Duration::from_millis(100), &progress),
         Duration::from_millis(100)
     );
 }

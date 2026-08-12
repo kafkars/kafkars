@@ -94,6 +94,11 @@ impl<T: Send + 'static> CompletionRegistry<T> {
             match result {
                 Ok(()) => {
                     self.slots[index].mark_published(completion_id);
+                    self.unsettled = self
+                        .unsettled
+                        .checked_sub(1)
+                        .unwrap_or_else(|| unreachable!("settled reservation was unsettled"));
+                    self.published_or_reclaiming += 1;
                     queued += 1;
                 }
                 Err(QueuePushError::Full(ticket)) => {
@@ -114,7 +119,7 @@ impl<T: Send + 'static> CompletionRegistry<T> {
         }
         Ok(SettlementProgress {
             queued,
-            remaining: self.reserved_count(),
+            remaining: self.unsettled,
         })
     }
 
@@ -127,19 +132,12 @@ impl<T: Send + 'static> CompletionRegistry<T> {
         SettlementFailure {
             progress: SettlementProgress {
                 queued,
-                remaining: self.reserved_count(),
+                remaining: self.unsettled,
             },
             completion_id: ticket.id,
             error,
             terminal: ticket.value,
         }
-    }
-
-    fn reserved_count(&self) -> usize {
-        self.slots
-            .iter()
-            .filter(|slot| slot.reserved_id().is_some())
-            .count()
     }
 
     #[cfg(test)]

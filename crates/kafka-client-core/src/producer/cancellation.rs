@@ -101,6 +101,12 @@ impl ProducerMachine {
                 TransitionError::InvalidState,
             ));
         }
+        if batch
+            .sequence_lease()
+            .is_some_and(|lease| self.idempotence.has_dependent_lease(batch.route, lease))
+        {
+            return Ok(resolved(ProducerCancellationOutcome::TooLate, Vec::new()));
+        }
         let revision = batch.plan_revision(batch_id, operation_id)?;
         if batch.state == BatchState::AwaitingIdentity {
             return self.cancel_identity_waiting_member(
@@ -120,6 +126,11 @@ impl ProducerMachine {
             .replacement
             .is_none()
             .then(|| self.plan_sequence_not_sent(batch_id))
+            .transpose()?;
+        let sequence_revision = revision
+            .replacement
+            .is_some()
+            .then(|| self.plan_sequence_revision(batch_id, revision.members.len()))
             .transpose()?;
         let failure = ProducerFailure::cancelled();
         let mut terminal =
@@ -141,6 +152,9 @@ impl ProducerMachine {
         if let Some(sequence_release) = sequence_release {
             self.commit_sequence_not_sent(sequence_release);
         }
+        if let Some(sequence_revision) = sequence_revision {
+            self.commit_sequence_revision(sequence_revision);
+        }
         let flush_effects = self.settle_ready_flushes();
 
         let mut effects = Vec::with_capacity(
@@ -157,32 +171,40 @@ impl ProducerMachine {
         effects.append(&mut terminal);
         effects.extend(flush_effects);
         if let Some(execution) = replacement {
-            let batch = self
-                .batches
-                .get(&batch_id)
-                .ok_or(ProducerMachineError::UnknownBatch)?;
-            let identity = self
-                .idempotence
-                .identity()
-                .ok_or(ProducerMachineError::ProducerIdentityFenced)?;
-            let sequence = batch
-                .sequence_lease()
-                .ok_or(ProducerMachineError::ProducerIdentityFenced)?;
-            let (deadline_operation_id, deadline) = batch
-                .earliest_deadline_owner()
-                .ok_or(ProducerMachineError::UnknownBatch)?;
-            effects.push(materialize_effect(
-                execution,
-                deadline_operation_id,
-                deadline,
-                self.compression,
-                identity,
-                sequence,
-            ));
+            effects.push(self.revised_materialization_effect(batch_id, execution)?);
         }
         Ok(resolved(
             ProducerCancellationOutcome::CancelledNotSent,
             effects,
+        ))
+    }
+
+    fn revised_materialization_effect(
+        &self,
+        batch_id: crate::BatchId,
+        execution: crate::BatchExecutionId,
+    ) -> Result<ProducerEffect, ProducerMachineError> {
+        let batch = self
+            .batches
+            .get(&batch_id)
+            .ok_or(ProducerMachineError::UnknownBatch)?;
+        let identity = self
+            .idempotence
+            .identity()
+            .ok_or(ProducerMachineError::ProducerIdentityFenced)?;
+        let sequence = batch
+            .sequence_lease()
+            .ok_or(ProducerMachineError::ProducerIdentityFenced)?;
+        let (deadline_operation_id, deadline) = batch
+            .earliest_deadline_owner()
+            .ok_or(ProducerMachineError::UnknownBatch)?;
+        Ok(materialize_effect(
+            execution,
+            deadline_operation_id,
+            deadline,
+            self.compression,
+            identity,
+            sequence,
         ))
     }
 }

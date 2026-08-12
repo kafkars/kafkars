@@ -16,7 +16,7 @@ use crate::{DeliveryStatus, ErrorKind, KafkaError, RecordMetadata, RetryAdvice};
 fn future_delivery_bridge_surface_remains_type_checked() {
     let _ = translate_delivery_result
         as fn(
-            String,
+            std::sync::Arc<str>,
             i64,
             Option<usize>,
             Option<usize>,

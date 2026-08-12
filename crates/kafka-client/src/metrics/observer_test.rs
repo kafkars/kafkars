@@ -27,6 +27,10 @@ fn client_returns_one_real_operational_snapshot() {
     assert_eq!(producer.prepared_batches(), 0);
     assert_eq!(producer.prepared_batch_bytes(), 0);
     assert_eq!(producer.terminal_backlog(), 0);
+    assert_eq!(producer.produce_requests(), 0);
+    assert_eq!(producer.produce_batches(), 0);
+    assert_eq!(producer.produce_records(), 0);
+    assert_eq!(producer.produce_encoded_bytes(), 0);
     assert!(producer.accepting());
     assert!(producer.healthy());
 

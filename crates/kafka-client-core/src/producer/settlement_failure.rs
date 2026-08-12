@@ -16,7 +16,7 @@ pub(crate) struct BatchFailurePlan {
 struct FailedBatch {
     batch_id: BatchId,
     route: super::BatchRoute,
-    sequence_not_sent: bool,
+    sequence_not_sent: Option<crate::ProducerSequenceLease>,
 }
 
 impl ProducerMachine {
@@ -80,8 +80,9 @@ impl ProducerMachine {
             batches.push(FailedBatch {
                 batch_id: *batch_id,
                 route: batch.route,
-                sequence_not_sent: batch.sequence_lease().is_some()
-                    && failure.delivery() == crate::DeliveryStatus::NotSent,
+                sequence_not_sent: batch
+                    .sequence_lease()
+                    .filter(|_| failure.delivery() == crate::DeliveryStatus::NotSent),
             });
         }
         Ok(BatchFailurePlan {
@@ -98,8 +99,17 @@ impl ProducerMachine {
         self.settle_operations_with(&plan.settlements)?;
         for failed in plan.batches {
             self.remove_open_batch_if_current(failed.route, failed.batch_id);
-            if failed.sequence_not_sent {
-                self.idempotence.release_not_sent(failed.route);
+            if let Some(lease) = failed.sequence_not_sent {
+                if self
+                    .idempotence
+                    .require_releasable_lease(failed.route, lease)
+                    .is_ok()
+                {
+                    self.idempotence.release_not_sent(failed.route, lease);
+                } else {
+                    self.idempotence.fence();
+                    self.admission_open = false;
+                }
             }
             self.batches.remove(&failed.batch_id);
         }

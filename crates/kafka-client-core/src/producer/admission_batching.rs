@@ -24,7 +24,7 @@ impl ProducerMachine {
         if let Some(batch_id) = self.open_batches.get(&route).copied() {
             return self.admit_existing(batch_id, now, deadline, record);
         }
-        if self.batches.values().any(|batch| batch.route == route) {
+        if !self.route_batch_capacity_available(route) {
             return Err(ProducerMachineError::Admission(
                 AdmissionRejection::AccumulatorPending,
             ));
@@ -107,6 +107,14 @@ impl ProducerMachine {
                 deadline: timer_deadline,
             },
         ]))
+    }
+
+    pub(crate) fn route_batch_capacity_available(&self, route: BatchRoute) -> bool {
+        if self.idempotence.identity().is_some() {
+            self.idempotence.lease_capacity_available(route)
+        } else {
+            !self.batches.values().any(|batch| batch.route == route)
+        }
     }
 }
 

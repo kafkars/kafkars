@@ -45,7 +45,7 @@ impl ProducerMachine {
         if let Some(batch_id) = self.open_batches.get(&route).copied() {
             return self.promote_existing(batch_id, operation_id, deadline, record);
         }
-        if self.batches.values().any(|batch| batch.route == route) {
+        if !self.route_batch_capacity_available(route) {
             return Err(ProducerMachineError::Admission(
                 AdmissionRejection::AccumulatorPending,
             ));

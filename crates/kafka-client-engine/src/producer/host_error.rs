@@ -28,6 +28,10 @@ pub(crate) enum ProducerHostLimitError {
     InsufficientTimerCapacity,
     ZeroEncodedByteCapacity,
     ZeroWireBatchBytes,
+    ZeroRequestBytes,
+    RequestSmallerThanBatch,
+    ZeroInFlightRequests,
+    TooManyInFlightRequests,
     BatchRecordLimitExceedsCapacity,
     RetainedBytesOutOfRange,
     TransitionCapacityOverflow,
@@ -63,6 +67,14 @@ impl fmt::Display for ProducerHostLimitError {
             }
             Self::ZeroEncodedByteCapacity => "producer encoded-byte capacity must be nonzero",
             Self::ZeroWireBatchBytes => "producer wire batch byte limit must be nonzero",
+            Self::ZeroRequestBytes => "producer request byte limit must be nonzero",
+            Self::RequestSmallerThanBatch => {
+                "producer request byte limit must cover one wire batch"
+            }
+            Self::ZeroInFlightRequests => "producer in-flight requests per broker must be nonzero",
+            Self::TooManyInFlightRequests => {
+                "idempotent producer in-flight requests per broker cannot exceed five"
+            }
             Self::BatchRecordLimitExceedsCapacity => {
                 "producer batch record limit exceeds record capacity"
             }

@@ -51,25 +51,10 @@ impl ProducerTopicView {
         })
     }
 
-    /// Returns the validated leader broker for one selected logical partition.
+    /// Refuses to invent a broker identity absent from the reviewed driver view.
     pub(crate) fn leader_broker_id(&self, partition: PartitionIndex) -> Option<i32> {
-        #[cfg(not(test))]
-        {
-            let _ = (self, partition);
-            return None;
-        }
-        #[cfg(test)]
-        {
-            let raw_partition = i32::try_from(partition.get()).ok()?;
-            self.view
-                .available_at((0..self.view.available_len()).find(|index| {
-                    self.view
-                        .available_at(*index)
-                        .map(|fact| fact.partition().get())
-                        == Some(raw_partition)
-                })?)
-                .map(|fact| fact.broker_id().get())
-        }
+        let _ = (self, partition);
+        None
     }
 }
 

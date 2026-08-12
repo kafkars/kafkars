@@ -14,6 +14,8 @@ fn defaults_expose_all_active_waiting_and_batch_limits() {
     assert_eq!(limits.waiting_bytes(), 32 * 1024 * 1024);
     assert_eq!(limits.batch_records(), 256);
     assert_eq!(limits.batch_bytes(), 1024 * 1024);
+    assert_eq!(limits.request_bytes(), 1024 * 1024);
+    assert_eq!(limits.max_in_flight_requests_per_broker(), 5);
     assert_eq!(limits.linger(), Duration::from_millis(5));
 }
 
@@ -26,6 +28,8 @@ fn named_setters_round_trip_without_seven_positional_arguments() {
         .with_waiting_bytes(14)
         .with_batch_records(15)
         .with_batch_bytes(16)
+        .with_request_bytes(32)
+        .with_max_in_flight_requests_per_broker(4)
         .with_linger(Duration::from_millis(17));
 
     assert_eq!(LIMITS.retained_bytes(), 11);
@@ -34,5 +38,7 @@ fn named_setters_round_trip_without_seven_positional_arguments() {
     assert_eq!(LIMITS.waiting_bytes(), 14);
     assert_eq!(LIMITS.batch_records(), 15);
     assert_eq!(LIMITS.batch_bytes(), 16);
+    assert_eq!(LIMITS.request_bytes(), 32);
+    assert_eq!(LIMITS.max_in_flight_requests_per_broker(), 4);
     assert_eq!(LIMITS.linger(), Duration::from_millis(17));
 }

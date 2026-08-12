@@ -3,9 +3,7 @@
 use std::thread::ThreadId;
 
 use super::CompletionRegistry;
-use crate::completion::{
-    CompletionRegistryError, NotifierJoin, host_state::HostSlot, notifier::Notifier,
-};
+use crate::completion::{CompletionRegistryError, NotifierJoin, notifier::Notifier};
 
 impl<T: Send + 'static> CompletionRegistry<T> {
     pub(crate) fn start(capacity: usize) -> std::io::Result<Self> {
@@ -14,7 +12,7 @@ impl<T: Send + 'static> CompletionRegistry<T> {
 
     /// Stops notification without waiting; joining belongs off-reactor.
     pub(crate) fn stop_notifier(&mut self) -> Result<NotifierJoin, CompletionRegistryError> {
-        if self.slots.iter().any(HostSlot::has_unsettled_reservation) {
+        if self.unsettled_len() != 0 {
             return Err(CompletionRegistryError::UnsettledCompletion);
         }
         let Some(notifier) = self.publisher.take() else {

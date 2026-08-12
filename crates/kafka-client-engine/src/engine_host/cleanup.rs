@@ -10,8 +10,24 @@ use crate::completion::NotifierJoin;
 
 use super::{
     EngineHostError, EngineHostResources, group_consumer_shutdown,
-    notifier_shutdown::collect_notification_joins, transaction_shutdown,
+    notifier_shutdown::collect_notification_joins, transaction_shutdown, wait,
 };
+
+const SHUTDOWN_TURN_ATTEMPTS: usize = 64;
+
+pub(super) fn shutdown_driver(resources: &mut EngineHostResources) -> Result<(), EngineHostError> {
+    let driver = resources
+        .driver
+        .as_mut()
+        .ok_or(EngineHostError::DriverOwnerMissing)?;
+    let turns = driver
+        .shutdown_with_turn_limit(SHUTDOWN_TURN_ATTEMPTS, wait::HOST_PARK_LIMIT)
+        .map_err(EngineHostError::Driver)?;
+    for _turn in 0..turns {
+        resources.control.record_driver_turn();
+    }
+    Ok(())
+}
 
 pub(super) fn begin_notification_shutdown(
     resources: &mut EngineHostResources,

@@ -123,7 +123,7 @@ impl ProducerMachine {
             batch_policy,
             retry_policy,
             compression,
-            idempotence: IdempotentProducer::new(),
+            idempotence: IdempotentProducer::new(completion_capacity),
             byte_budget: ByteBudget::new(retained_bytes),
             completions: CompletionLedger::new(completion_capacity),
             flushes: FlushLedger::new(flush_capacity),

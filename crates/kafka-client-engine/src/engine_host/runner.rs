@@ -2,23 +2,14 @@
 
 mod resources;
 
-use std::time::Duration;
-
-use kafka_client_core::{Deadline, Moment};
-
-use crate::{driver::DriverTurn, producer::host_turn::ProducerTurnOutcome};
+use crate::driver::DriverTurn;
 
 use super::{
     EngineHostError, admin, assigned_consumer, cleanup, group_consumer,
-    notifier_shutdown::NotifierShutdownOwner, produce_turn, transaction,
+    notifier_shutdown::NotifierShutdownOwner, produce_turn, transaction, wait,
 };
 
 pub(crate) use resources::EngineHostResources;
-
-// Wake failure cannot revoke ownership; the park cap preserves deadline and shutdown liveness.
-const HOST_PARK_LIMIT: Duration = Duration::from_millis(100);
-const BLOCKED_RETRY_DELAY: Duration = HOST_PARK_LIMIT;
-const SHUTDOWN_TURN_ATTEMPTS: usize = 64;
 pub(crate) struct EngineHostExit {
     pub(super) notifier: NotifierShutdownOwner,
     pub(super) failure: Option<EngineHostError>,
@@ -27,6 +18,11 @@ pub(crate) struct EngineHostExit {
 pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit, EngineHostError> {
     let mut driver_more_work = false;
     loop {
+        resources
+            .driver
+            .as_ref()
+            .ok_or(EngineHostError::DriverOwnerMissing)?
+            .acknowledge_host_turn();
         #[cfg(test)]
         if resources.control.failure_requested() {
             return Err(EngineHostError::ForcedTestFailure);
@@ -58,7 +54,7 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
             break;
         }
         let wait_now = resources.clock.now().map_err(EngineHostError::Clock)?;
-        let wait = producer_wait(
+        let wait = wait::producer(
             wait_now,
             producer.outcome,
             driver_more_work
@@ -67,13 +63,18 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
                 || transaction.progressed,
         );
         let wait = admin.next_deadline.map_or(wait, |deadline| {
-            wait.min(duration_until(wait_now, deadline))
+            wait.min(wait::deadline(wait_now, deadline))
         });
-        let wait = assigned_consumer_wait(wait_now, wait, &assigned);
-        let wait = group_consumer_wait(wait_now, wait, &group);
+        let wait = wait::assigned_consumer(wait_now, wait, &assigned);
+        let wait = wait::group_consumer(wait_now, wait, &group);
         let wait = transaction.next_deadline.map_or(wait, |deadline| {
-            wait.min(duration_until(wait_now, deadline))
+            wait.min(wait::deadline(wait_now, deadline))
         });
+        let driver = resources
+            .driver
+            .as_ref()
+            .ok_or(EngineHostError::DriverOwnerMissing)?;
+        let wait = wait::host_turn(wait, driver.host_turn_requested());
         resources.control.record_driver_turn();
         let driver = resources
             .driver
@@ -97,90 +98,11 @@ pub(crate) fn run(resources: &mut EngineHostResources) -> Result<EngineHostExit,
         driver_more_work = driver_turn_more || completion_progress || admin_completion_progress;
     }
 
-    shutdown_driver(resources)?;
+    cleanup::shutdown_driver(resources)?;
     cleanup::prepare_notification_stop(resources)?;
     let (notifier, failure) = cleanup::begin_notification_shutdown(resources)?;
     Ok(EngineHostExit {
         notifier: NotifierShutdownOwner::new(notifier),
         failure,
     })
-}
-
-pub(super) fn shutdown_driver(resources: &mut EngineHostResources) -> Result<(), EngineHostError> {
-    let driver = resources
-        .driver
-        .as_mut()
-        .ok_or(EngineHostError::DriverOwnerMissing)?;
-    let turns = driver
-        .shutdown_with_turn_limit(SHUTDOWN_TURN_ATTEMPTS, HOST_PARK_LIMIT)
-        .map_err(EngineHostError::Driver)?;
-    for _turn in 0..turns {
-        resources.control.record_driver_turn();
-    }
-    Ok(())
-}
-
-pub(super) fn producer_wait(
-    now: Moment,
-    outcome: Option<ProducerTurnOutcome>,
-    driver_more_work: bool,
-) -> Duration {
-    if driver_more_work {
-        return Duration::ZERO;
-    }
-    let Some(outcome) = outcome else {
-        return HOST_PARK_LIMIT;
-    };
-    if outcome.runnable_work {
-        return Duration::ZERO;
-    }
-    let deadline_wait = outcome.next_deadline.map_or(HOST_PARK_LIMIT, |deadline| {
-        duration_until(now, deadline).min(HOST_PARK_LIMIT)
-    });
-    if outcome.blocked_work {
-        deadline_wait.min(BLOCKED_RETRY_DELAY)
-    } else {
-        deadline_wait
-    }
-}
-
-pub(super) fn assigned_consumer_wait(
-    now: Moment,
-    current: Duration,
-    progress: &assigned_consumer::AssignedConsumerProgress,
-) -> Duration {
-    if progress.progressed {
-        return Duration::ZERO;
-    }
-    let deadline_wait = progress.next_deadline.map_or(HOST_PARK_LIMIT, |deadline| {
-        duration_until(now, deadline).min(HOST_PARK_LIMIT)
-    });
-    let wait = current.min(deadline_wait);
-    if progress.blocked_work {
-        wait.min(BLOCKED_RETRY_DELAY)
-    } else {
-        wait
-    }
-}
-
-pub(super) fn group_consumer_wait(
-    now: Moment,
-    current: Duration,
-    progress: &group_consumer::GroupConsumerProgress,
-) -> Duration {
-    if progress.progressed {
-        return Duration::ZERO;
-    }
-    let wait = progress.next_deadline.map_or(current, |deadline| {
-        current.min(duration_until(now, deadline))
-    });
-    if progress.blocked_work {
-        wait.min(BLOCKED_RETRY_DELAY)
-    } else {
-        wait
-    }
-}
-
-fn duration_until(now: Moment, deadline: Deadline) -> Duration {
-    Duration::from_nanos(deadline.tick().saturating_sub(now.tick()))
 }

@@ -31,6 +31,7 @@ pub(crate) fn materialize_explicit_produce_batch_with_compression(
 ) -> Result<MaterializedProduce, ProduceMaterializationError> {
     let (topic, partition, leader_broker_id, records, max_batch_bytes, identity, sequence) =
         input.into_idempotent_parts();
+    let record_count = sequence.record_count();
     let records = record_batch(
         records,
         identity.producer_id(),
@@ -46,6 +47,7 @@ pub(crate) fn materialize_explicit_produce_batch_with_compression(
         topic,
         partition,
         leader_broker_id,
+        record_count,
         records,
     ))
 }
@@ -56,6 +58,7 @@ pub(crate) fn materialize_transactional_produce_batch(
     compression: CompressionPolicy,
 ) -> Result<MaterializedProduce, ProduceMaterializationError> {
     let (topic, partition, records, max_batch_bytes, identity, sequence) = input.into_parts();
+    let record_count = sequence.record_count();
     let records = record_batch(
         records,
         identity.producer_id(),
@@ -67,7 +70,13 @@ pub(crate) fn materialize_transactional_produce_batch(
         true,
     )?;
 
-    Ok(MaterializedProduce::new(topic, partition, None, records))
+    Ok(MaterializedProduce::new(
+        topic,
+        partition,
+        None,
+        record_count,
+        records,
+    ))
 }
 
 #[expect(

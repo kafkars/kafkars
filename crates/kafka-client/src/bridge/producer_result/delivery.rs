@@ -1,5 +1,7 @@
 //! Lossless translation of terminal producer delivery and observer values.
 
+use std::sync::Arc;
+
 use kafka_client_engine::{
     ProducerDeliveryError as EngineDeliveryError, ProducerDeliveryFailure as EngineDeliveryFailure,
     ProducerDeliveryFailureKind as EngineFailureKind,
@@ -10,7 +12,7 @@ use kafka_client_engine::{
 use crate::{DeliveryStatus, ErrorKind, KafkaError, RecordMetadata};
 
 pub(crate) fn translate_delivery_result(
-    topic: String,
+    topic: Arc<str>,
     create_timestamp: i64,
     serialized_key_size: Option<usize>,
     serialized_value_size: Option<usize>,
@@ -142,7 +144,7 @@ fn translate_observer_error(error: EngineObserverError) -> KafkaError {
 }
 
 fn translate_metadata(
-    topic: String,
+    topic: Arc<str>,
     create_timestamp: i64,
     serialized_key_size: Option<usize>,
     serialized_value_size: Option<usize>,
@@ -160,7 +162,7 @@ fn translate_metadata(
 }
 
 pub(super) fn metadata_parts(
-    topic: String,
+    topic: impl Into<Arc<str>>,
     partition: u32,
     offset: i64,
     append_timestamp: Option<i64>,

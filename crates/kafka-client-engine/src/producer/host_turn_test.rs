@@ -84,7 +84,10 @@ fn prepared_submission_expires_and_reclaims_across_bounded_turns() {
         .unwrap_or_else(|error| panic!("materialization turn should run: {error}"));
     assert_eq!(materialized.prepared_effects, 1);
     assert_eq!(materialized.submission_expiries, 0);
-    assert!(!materialized.runnable_work);
+    assert!(
+        materialized.runnable_work,
+        "a newly generated SubmitProduce effect requires an immediate follow-up turn"
+    );
     assert!(!materialized.blocked_work);
     assert_eq!(materialized.next_deadline, Some(Deadline::from_tick(5)));
     assert!(matches!(

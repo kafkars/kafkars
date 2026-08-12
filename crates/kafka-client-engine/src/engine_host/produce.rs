@@ -56,6 +56,9 @@ pub(super) fn admit_one(
     data: &mut ProducerShardData,
     now: Moment,
 ) -> Result<bool, EngineHostError> {
+    if !calls.broker_admission_available(None) {
+        return Ok(false);
+    }
     let Some(permit) = calls.try_reserve() else {
         return Ok(false);
     };
@@ -65,9 +68,23 @@ pub(super) fn admit_one(
     if submissions.is_empty() {
         return Ok(false);
     }
+    let request_batches = submissions.len();
+    let request_records = submissions.iter().fold(0_u64, |total, submission| {
+        total.saturating_add(u64::from(submission.record_count()))
+    });
+    let request_bytes = submissions.iter().fold(0_usize, |total, submission| {
+        total.saturating_add(submission.encoded_record_bytes())
+    });
     if submissions.len() > 1 {
         match permit.submit_batch(driver, submissions, now) {
             Ok(accepted) => {
+                data.record_produce_request(
+                    request_batches,
+                    request_records,
+                    request_bytes,
+                    calls.in_flight_request_count(),
+                    calls.max_broker_in_flight_request_count(),
+                );
                 for input in accepted.inputs() {
                     data.apply_produce_driver_input(now, input)
                         .map_err(EngineHostError::Producer)?;
@@ -101,6 +118,13 @@ pub(super) fn admit_one(
     let (execution, deadline, materialized) = submission.into_parts();
     match permit.submit(driver, execution, deadline, materialized, now) {
         Ok(accepted) => {
+            data.record_produce_request(
+                request_batches,
+                request_records,
+                request_bytes,
+                calls.in_flight_request_count(),
+                calls.max_broker_in_flight_request_count(),
+            );
             debug_assert_eq!(accepted.execution(), execution);
             data.apply_produce_driver_input(now, accepted.driver_accepted())
                 .map_err(EngineHostError::Producer)?;

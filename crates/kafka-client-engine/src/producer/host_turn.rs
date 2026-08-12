@@ -152,6 +152,7 @@ struct ReclaimProgress {
 const fn is_runnable_effect(effect: ProducerEffect, compression_saturated: bool) -> bool {
     match effect {
         ProducerEffect::AcquireProducerIdentity { .. }
+        | ProducerEffect::SubmitProduce { .. }
         | ProducerEffect::MaterializeBatch {
             compression: kafka_client_core::CompressionPolicy::None,
             ..

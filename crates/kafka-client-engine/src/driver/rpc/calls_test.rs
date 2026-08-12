@@ -19,11 +19,12 @@ use kafka_wire::{
     produce_response::{BatchIndexAndErrorMessage, PartitionProduceResponse, TopicProduceResponse},
 };
 
-use crate::{EngineConfig, clock::OperationDeadline, protocol::produce::MaterializedProduce};
-
-use crate::driver::DriverOwner;
-
-use super::{ProduceRouteRefreshPoll, TrackedProduceCalls};
+use crate::{
+    EngineConfig,
+    clock::OperationDeadline,
+    driver::{DriverOwner, ProduceRouteRefreshPoll, TrackedProduceCalls},
+    protocol::produce::MaterializedProduce,
+};
 
 #[test]
 fn routing_failure_without_exact_partition_receipt_cannot_authorize_retry() {
@@ -69,6 +70,64 @@ fn permits_preflight_the_exact_bounded_owner() {
     submit(permit, &driver, 1);
 
     assert!(calls.try_reserve().is_none());
+
+    drop(calls);
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
+}
+
+#[test]
+fn configured_gate_bounds_unresolved_broker_requests() {
+    let mut driver = owner();
+    let mut calls = TrackedProduceCalls::with_max_in_flight_requests_per_broker(3, 2);
+    assert!(calls.broker_admission_available(None));
+
+    for batch in [1, 2] {
+        let permit = calls
+            .try_reserve()
+            .unwrap_or_else(|| panic!("bounded slot for batch {batch}"));
+        submit(permit, &driver, batch);
+    }
+
+    assert!(!calls.broker_admission_available(None));
+    assert!(!calls.broker_admission_available(Some(7)));
+    assert!(calls.try_reserve().is_some());
+
+    drop(calls);
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
+}
+
+#[test]
+fn unresolved_calls_charge_every_resolved_broker_gate() {
+    let mut driver = owner();
+    let mut calls = TrackedProduceCalls::with_max_in_flight_requests_per_broker(6, 5);
+    for batch in 1..=4 {
+        let permit = calls
+            .try_reserve()
+            .unwrap_or_else(|| panic!("bounded unresolved slot for batch {batch}"));
+        submit(permit, &driver, batch);
+    }
+
+    assert!(calls.broker_admission_available(Some(7)));
+    calls.set_broker_id_for_test(0, 7);
+    assert!(calls.broker_admission_available(Some(7)));
+    calls.set_broker_id_for_test(1, 7);
+    assert!(calls.broker_admission_available(Some(7)));
+    calls.set_broker_id_for_test(2, 7);
+    assert!(calls.broker_admission_available(Some(7)));
+    assert!(calls.broker_admission_available(Some(8)));
+    assert!(calls.broker_admission_available(None));
+
+    let permit = calls
+        .try_reserve()
+        .unwrap_or_else(|| panic!("fifth bounded unresolved slot"));
+    submit(permit, &driver, 5);
+    assert!(!calls.broker_admission_available(Some(7)));
+    assert!(!calls.broker_admission_available(None));
+    assert_eq!(calls.max_broker_in_flight_request_count(), 5);
 
     drop(calls);
     driver

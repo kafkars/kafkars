@@ -12,6 +12,12 @@ pub struct EngineProducerMetrics {
     prepared_batches: usize,
     prepared_batch_bytes: usize,
     terminal_backlog: usize,
+    produce_requests: u64,
+    produce_batches: u64,
+    produce_records: u64,
+    produce_encoded_bytes: u64,
+    peak_produce_in_flight_requests: usize,
+    peak_produce_in_flight_requests_per_broker: usize,
     accepting: bool,
     healthy: bool,
 }
@@ -27,6 +33,14 @@ impl EngineProducerMetrics {
             prepared_batches: stats.host.prepared_batches,
             prepared_batch_bytes: stats.host.prepared_bytes,
             terminal_backlog: stats.host.terminal_backlog,
+            produce_requests: stats.host.produce_requests,
+            produce_batches: stats.host.produce_batches,
+            produce_records: stats.host.produce_records,
+            produce_encoded_bytes: stats.host.produce_encoded_bytes,
+            peak_produce_in_flight_requests: stats.host.peak_produce_in_flight_requests,
+            peak_produce_in_flight_requests_per_broker: stats
+                .host
+                .peak_produce_in_flight_requests_per_broker,
             accepting: stats.accepting,
             healthy: stats.host.healthy,
         }
@@ -65,6 +79,36 @@ impl EngineProducerMetrics {
     /// Returns terminal decisions awaiting completion publication.
     pub const fn terminal_backlog(self) -> usize {
         self.terminal_backlog
+    }
+
+    /// Returns cumulative driver-accepted Produce requests.
+    pub const fn produce_requests(self) -> u64 {
+        self.produce_requests
+    }
+
+    /// Returns cumulative partition batches in accepted Produce requests.
+    pub const fn produce_batches(self) -> u64 {
+        self.produce_batches
+    }
+
+    /// Returns cumulative records in accepted Produce requests.
+    pub const fn produce_records(self) -> u64 {
+        self.produce_records
+    }
+
+    /// Returns cumulative encoded record bytes in accepted Produce requests.
+    pub const fn produce_encoded_bytes(self) -> u64 {
+        self.produce_encoded_bytes
+    }
+
+    /// Returns the peak number of Produce requests owned by transport.
+    pub const fn peak_produce_in_flight_requests(self) -> usize {
+        self.peak_produce_in_flight_requests
+    }
+
+    /// Returns the peak Produce requests owned by one broker connection.
+    pub const fn peak_produce_in_flight_requests_per_broker(self) -> usize {
+        self.peak_produce_in_flight_requests_per_broker
     }
 
     /// Reports whether the producer was accepting records at this boundary.

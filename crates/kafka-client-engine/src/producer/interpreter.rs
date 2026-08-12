@@ -31,9 +31,14 @@ impl ProducerHost {
         if let Some(error) = self.poison_reason() {
             return Err(error);
         }
-        let mut generated = VecDeque::with_capacity(self.effect_capacity);
-        self.interpret_effects(now, initial, &mut generated)?;
-        self.drain_generated(now, &mut generated)
+        let mut generated = std::mem::take(&mut self.generated_inputs);
+        debug_assert!(generated.is_empty());
+        let result = self
+            .interpret_effects(now, initial, &mut generated)
+            .and_then(|()| self.drain_generated(now, &mut generated));
+        generated.clear();
+        self.generated_inputs = generated;
+        result
     }
 
     pub(super) fn drain_generated(
