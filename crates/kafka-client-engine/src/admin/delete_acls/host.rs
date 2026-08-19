@@ -112,6 +112,10 @@ impl DeleteAclsHost {
         self.apply(operation_id, DeleteAclsInput::DriverAccepted)
     }
 
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "rejected handoff consumes the exact owned ACL plan evidence"
+    )]
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,

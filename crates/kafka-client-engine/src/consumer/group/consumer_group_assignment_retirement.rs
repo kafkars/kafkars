@@ -98,6 +98,10 @@ pub(super) fn retire_entry_assignment(
     retire_entry_assignment_inner(entry, now, Some(clock))
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "assignment retirement is one ordered linear transition across fetch, processing, catalog, and heartbeat ownership"
+)]
 fn retire_entry_assignment_inner(
     entry: &mut GroupConsumerEntry,
     now: Moment,
@@ -160,7 +164,6 @@ fn retire_entry_assignment_inner(
         entry.fetch.retire_for_assignment_loss(assignment)
     };
     if let Err(error) = retirement {
-        drop(processing);
         entry.fault = Some(ClassicGroupEntryFault::ConsumerGroupFetchRetirement(error));
         return Err(ClassicGroupExecutionError::FetchRetirement(error));
     }

@@ -179,10 +179,10 @@ impl TrackedBrokerFetchCalls {
         error_codes: &[i16],
     ) {
         assert_eq!(requests.len(), error_codes.len());
-        let topic_name = requests
-            .first()
-            .map(|request| request.topic().to_owned())
-            .unwrap_or_else(|| panic!("test response requires one request"));
+        let topic_name = requests.first().map_or_else(
+            || panic!("test response requires one request"),
+            |request| request.topic().to_owned(),
+        );
         let mut topic = FetchableTopicResponse::default();
         topic.topic = topic_name.into();
         topic.partitions = requests

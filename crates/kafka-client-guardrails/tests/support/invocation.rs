@@ -14,34 +14,43 @@ use super::invocation_scope::{
 use super::macro_identifiers;
 
 pub(crate) struct InvocationEvidence {
-    pub(crate) paths: BTreeSet<String>,
-    pub(crate) unresolved: BTreeSet<String>,
     pub(crate) macro_identifiers: BTreeSet<String>,
+    method_suffixes: BTreeSet<String>,
+    candidate_methods: BTreeSet<String>,
 }
 
 pub(crate) fn invocations(file: &File) -> InvocationEvidence {
     let mut collector = InvocationCollector::default();
     collector.visit_file(file);
+    let mut method_suffixes = BTreeSet::new();
+    let mut candidate_methods = BTreeSet::new();
+    for path in collector.observed.iter().chain(&collector.unresolved) {
+        let segments = path.split("::").collect::<Vec<_>>();
+        for index in 0..segments.len() {
+            method_suffixes.insert(segments[index..].join("::"));
+        }
+        if let Some(candidate) = segments.last() {
+            candidate_methods.insert((*candidate).to_owned());
+        }
+    }
     InvocationEvidence {
-        paths: collector.observed,
-        unresolved: collector.unresolved,
         macro_identifiers: collector.macro_identifiers,
+        method_suffixes,
+        candidate_methods,
     }
 }
 
-pub(crate) fn invocation_matches(observed: &str, expected: &str) -> bool {
-    observed == expected
-        || observed
-            .strip_suffix(expected)
-            .is_some_and(|prefix| prefix.ends_with("::"))
-}
+impl InvocationEvidence {
+    pub(crate) fn invokes_method(&self, expected: &str) -> bool {
+        self.method_suffixes.contains(expected)
+    }
 
-pub(crate) fn invocation_candidate_matches(observed: &str, expected: &str) -> bool {
-    observed
-        .rsplit("::")
-        .next()
-        .zip(expected.rsplit("::").next())
-        .is_some_and(|(observed, expected)| observed == expected)
+    pub(crate) fn invokes_candidate(&self, expected: &str) -> bool {
+        expected
+            .rsplit("::")
+            .next()
+            .is_some_and(|candidate| self.candidate_methods.contains(candidate))
+    }
 }
 
 #[derive(Default)]

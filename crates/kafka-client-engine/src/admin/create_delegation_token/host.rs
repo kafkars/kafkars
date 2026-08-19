@@ -35,7 +35,7 @@ pub(crate) struct CreateDelegationTokenAdmission {
     pub(crate) fault: Option<CreateDelegationTokenHostError>,
 }
 
-/// One plan and prepared API-key 38 owner ready for AnyBroker handoff.
+/// One plan and prepared API-key 38 owner ready for `AnyBroker` handoff.
 pub(crate) struct CreateDelegationTokenSubmission {
     operation_id: OperationId,
     deadline: OperationDeadline,
@@ -61,6 +61,10 @@ impl CreateDelegationTokenSubmission {
     }
 }
 
+#[allow(
+    clippy::large_enum_variant,
+    reason = "the bounded turn transfers prepared ownership without a post-admission box allocation"
+)]
 pub(crate) enum CreateDelegationTokenTurn {
     Idle,
     Progress,

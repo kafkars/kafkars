@@ -1,10 +1,14 @@
 //! Complete production allowlists for inferred method capabilities.
 
-use std::{collections::BTreeSet, path::Path};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::{Path, PathBuf},
+};
 
+use super::invocation::InvocationEvidence;
 use super::{
-    MethodCapabilityRule, WalkScope, display_path, invocation_matches, invocations,
-    is_test_only_source, read, rust_files_under,
+    MethodCapabilityRule, WalkScope, display_path, invocations, is_test_only_source, read,
+    rust_files_under,
 };
 
 pub(crate) fn method_capability_violations(
@@ -12,6 +16,8 @@ pub(crate) fn method_capability_violations(
     rules: &[MethodCapabilityRule],
 ) -> Vec<String> {
     let mut violations = Vec::new();
+    let mut file_cache = BTreeMap::<PathBuf, Vec<PathBuf>>::new();
+    let mut evidence_cache = BTreeMap::<PathBuf, InvocationEvidence>::new();
     for rule in rules {
         let source_root = root.join(&rule.root);
         assert!(
@@ -20,7 +26,14 @@ pub(crate) fn method_capability_violations(
             source_root.display()
         );
         validate_allowed_paths(root, &source_root, rule, &mut violations);
-        inspect_rule(root, &source_root, rule, &mut violations);
+        inspect_rule(
+            root,
+            &source_root,
+            rule,
+            &mut file_cache,
+            &mut evidence_cache,
+            &mut violations,
+        );
     }
     violations
 }
@@ -29,18 +42,24 @@ fn inspect_rule(
     root: &Path,
     source_root: &Path,
     rule: &MethodCapabilityRule,
+    file_cache: &mut BTreeMap<PathBuf, Vec<PathBuf>>,
+    evidence_cache: &mut BTreeMap<PathBuf, InvocationEvidence>,
     violations: &mut Vec<String>,
 ) {
     let mut observed_allowed = BTreeSet::new();
-    for path in rust_files_under(source_root, WalkScope::Fixture)
-        .into_iter()
-        .filter(|path| !is_test_only_source(path))
-    {
-        let source = read(&path);
-        let syntax = syn::parse_file(&source)
-            .unwrap_or_else(|error| panic!("parse {}: {error}", display_path(root, &path)));
-        let observed = invocations(&syntax);
-        let relative = display_path(root, &path);
+    let files = file_cache
+        .entry(source_root.to_path_buf())
+        .or_insert_with(|| {
+            rust_files_under(source_root, WalkScope::Fixture)
+                .into_iter()
+                .filter(|path| !is_test_only_source(path))
+                .collect()
+        });
+    for path in files {
+        let observed = evidence_cache
+            .entry(path.clone())
+            .or_insert_with(|| collect_invocations(root, path));
+        let relative = display_path(root, path);
         if observed.macro_identifiers.contains(&rule.method) {
             violations.push(format!(
                 "{relative} contains protected method token {} inside a macro",
@@ -48,12 +67,7 @@ fn inspect_rule(
             ));
             continue;
         }
-        if !observed
-            .paths
-            .iter()
-            .chain(&observed.unresolved)
-            .any(|call| invocation_matches(call, &rule.method))
-        {
+        if !observed.invokes_method(&rule.method) {
             continue;
         }
         if rule
@@ -77,6 +91,13 @@ fn inspect_rule(
             ));
         }
     }
+}
+
+fn collect_invocations(root: &Path, path: &Path) -> InvocationEvidence {
+    let source = read(path);
+    let syntax = syn::parse_file(&source)
+        .unwrap_or_else(|error| panic!("parse {}: {error}", display_path(root, path)));
+    invocations(&syntax)
 }
 
 fn validate_allowed_paths(

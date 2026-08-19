@@ -72,10 +72,6 @@ impl ConsumerGroupHeartbeatMachine {
         ))
     }
 
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "initial assignment and its first cadence commit atomically"
-    )]
     pub(super) fn install_initial_assignment(
         &mut self,
         member_id: MemberId,
@@ -143,10 +139,6 @@ impl ConsumerGroupHeartbeatMachine {
         ))
     }
 
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "acknowledgement validates the pending target and commits its cadence atomically"
-    )]
     pub(super) fn settle_pending_reconciliation(
         &mut self,
         member_id: MemberId,

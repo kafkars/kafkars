@@ -136,6 +136,11 @@ fn materialize(
     required: usize,
     limit: usize,
 ) -> Result<NormalizedAlterClientQuotasResponse, AlterClientQuotasResponseFailure> {
+    let throttle_time_ms = u32::try_from(response.throttle_time_ms).map_err(|_| {
+        AlterClientQuotasResponseFailure::NegativeThrottleTime {
+            actual: response.throttle_time_ms,
+        }
+    })?;
     let mut outcomes = Vec::new();
     outcomes
         .try_reserve_exact(ordered.len())
@@ -144,7 +149,7 @@ fn materialize(
         outcomes.push(materialize_outcome(entry, required, limit)?);
     }
     let mut normalized = NormalizedAlterClientQuotasResponse {
-        throttle_time_ms: response.throttle_time_ms as u32,
+        throttle_time_ms,
         outcomes,
         retained_bytes: 0,
     };

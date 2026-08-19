@@ -1,4 +1,4 @@
-//! Named single-observer ShareGroup offset-deletion operation.
+//! Named single-observer `ShareGroup` offset-deletion operation.
 
 use std::{
     future::Future,
@@ -10,7 +10,7 @@ use crate::{KafkaError, bridge::delete_share_group_offsets::AdminDeleteShareGrou
 
 use super::DeleteShareGroupOffsetsResult;
 
-/// Sole terminal observer for one submitted ShareGroup offset deletion.
+/// Sole terminal observer for one submitted `ShareGroup` offset deletion.
 #[derive(Debug)]
 #[must_use = "dropping abandons observation without cancelling accepted admin work"]
 pub struct DeleteShareGroupOffsets {

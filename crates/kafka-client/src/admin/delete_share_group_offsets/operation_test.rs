@@ -1,4 +1,4 @@
-//! ShareGroup offset-deletion operation ownership tests.
+//! `ShareGroup` offset-deletion operation ownership tests.
 
 use super::DeleteShareGroupOffsets;
 

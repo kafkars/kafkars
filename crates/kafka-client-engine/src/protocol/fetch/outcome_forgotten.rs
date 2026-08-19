@@ -48,6 +48,10 @@ impl ForgottenFetchOutcome {
 }
 
 /// Normalizes one incremental response without inventing partition ownership.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "normalization consumes the exact terminal response even when all retained fields are scalar"
+)]
 pub(crate) fn normalize_forgotten_fetch_outcome(
     session: FetchSessionRequest,
     selected_version: i16,

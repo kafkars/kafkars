@@ -33,7 +33,7 @@ fn response_preserves_complete_v3_and_legacy_token_facts() {
         .into_parts();
     assert_eq!(owner.principal_name(), "owner");
     assert_eq!(
-        requester.map(|value| value.into_parts()),
+        requester.map(crate::DelegationTokenPrincipal::into_parts),
         Some(("User".to_owned(), "requester".to_owned()))
     );
     assert_eq!(renewers[0].principal_name(), "renewer");

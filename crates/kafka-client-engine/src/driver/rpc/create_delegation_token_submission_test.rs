@@ -1,4 +1,4 @@
-//! AnyBroker route, original deadline, Interactive lane, and owner-aware floor.
+//! `AnyBroker` route, original deadline, Interactive lane, and owner-aware floor.
 
 use std::time::{Duration, Instant};
 

@@ -19,6 +19,10 @@ use super::{
     classic_group_rejection_install::exact_broker_error, registry_entry::GroupConsumerEntry,
 };
 
+#[allow(
+    clippy::large_enum_variant,
+    reason = "failure variants retain exact post-core recovery ownership without hidden allocation"
+)]
 pub(super) enum ClassicHeartbeatInterpretationFailure {
     Restorable(ClassicGroupExecutionError),
     PostCore(ClassicGroupExecutionError),

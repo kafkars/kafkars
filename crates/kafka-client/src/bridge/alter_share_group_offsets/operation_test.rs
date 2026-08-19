@@ -1,4 +1,4 @@
-//! Ready and runtime-neutral ShareGroup offset-alteration observation tests.
+//! Ready and runtime-neutral `ShareGroup` offset-alteration observation tests.
 
 use std::{
     future::Future,

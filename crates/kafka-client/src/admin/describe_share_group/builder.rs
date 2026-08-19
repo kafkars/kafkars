@@ -6,7 +6,7 @@ use crate::bridge::{admin::AdminEngine, describe_share_group::DescribeShareGroup
 
 use super::DescribeShareGroup;
 
-/// Inert typed description request for one modern ShareGroup.
+/// Inert typed description request for one modern `ShareGroup`.
 #[must_use = "call submit to admit the DescribeShareGroup operation"]
 pub struct DescribeShareGroupBuilder {
     engine: AdminEngine,

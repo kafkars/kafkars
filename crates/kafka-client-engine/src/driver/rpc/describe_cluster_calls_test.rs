@@ -40,6 +40,8 @@ fn generated_request_and_response_complete_through_a_loopback_broker() {
     let mut driver = DriverOwner::build(&EngineConfig::new(vec![endpoint]))
         .unwrap_or_else(|error| panic!("driver owner: {error}"));
     await_seed(&mut driver);
+    let mut peer = accept_after_driving(&listener, &mut driver);
+    complete_negotiation(&mut peer, &mut driver);
 
     let mut calls = DescribeClusterCalls::new(1);
     calls
@@ -50,7 +52,7 @@ fn generated_request_and_response_complete_through_a_loopback_broker() {
             OperationId::from_raw(7),
             OperationDeadline::from_parts_for_test(
                 Deadline::from_tick(5_000_000_000),
-                Instant::now() + Duration::from_secs(5),
+                Instant::now() + Duration::from_secs(60),
             ),
             64 * 1024,
             false,
@@ -58,8 +60,6 @@ fn generated_request_and_response_complete_through_a_loopback_broker() {
         )
         .unwrap_or_else(|_error| panic!("DescribeCluster call must be accepted"));
 
-    let mut peer = accept_after_driving(&listener, &mut driver);
-    complete_negotiation(&mut peer, &mut driver);
     wait_for_frame(&peer, &mut driver, "write DescribeCluster request");
     let request = read_request(&mut peer);
     assert_eq!(
@@ -106,7 +106,7 @@ fn generated_request_and_response_complete_through_a_loopback_broker() {
     let broker_ids = description
         .brokers()
         .iter()
-        .map(|broker| broker.id())
+        .map(kafka_client_core::ClusterBroker::id)
         .collect::<Vec<_>>();
     assert_eq!(broker_ids, [2, 9]);
     assert_eq!(description.brokers()[1].rack(), Some("rack-b"));

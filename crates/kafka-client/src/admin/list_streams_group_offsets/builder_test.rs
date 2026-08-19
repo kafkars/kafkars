@@ -1,4 +1,5 @@
 //! Streams-group builder delegation and submission-boundary evidence.
+#![expect(clippy::expect_used, reason = "the test asserts deadline validation")]
 
 use std::time::Duration;
 

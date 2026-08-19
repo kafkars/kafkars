@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned AlterClientQuotas adapter contract.
+//! Isolated names for the engine-owned `AlterClientQuotas` adapter contract.
 
 pub(super) use kafka_client_engine::{
     AlterClientQuotaBrokerError as BrokerError, AlterClientQuotaEntity as Entity,

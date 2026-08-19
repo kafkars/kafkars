@@ -29,7 +29,7 @@ const SYNC_REJECTION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_sync_rejection.rs";
 const MEMBERSHIP: &str = "crates/kafka-client-engine/src/consumer/group/registry_membership.rs";
 const MEMBERSHIP_LOCAL: &str =
-    "crates/kafka-client-engine/src/consumer/group/registry_membership/local.rs";
+    "crates/kafka-client-engine/src/consumer/group/registry_membership_local.rs";
 const MEMBERSHIP_OBSERVATION: &str =
     "crates/kafka-client-engine/src/consumer/group/registry_membership_observation.rs";
 
@@ -40,7 +40,13 @@ pub(crate) const METHODS: &[(&str, &[&str])] = &[
         &[REJECTION_INSTALL, HEARTBEAT_REJECTION_INSTALL],
     ),
     ("clear_rejoin_exact", &[DUE, MEMBERSHIP_LOCAL]),
-    ("stage_rejoin_join", &[DUE]),
+    (
+        "stage_rejoin_join",
+        &[
+            DUE,
+            "crates/kafka-client-engine/src/consumer/group/classic_group_reconciliation_turn.rs",
+        ],
+    ),
     (
         "prepare_rediscovery_install",
         &[REJECTION_INSTALL, HEARTBEAT_REJECTION_INSTALL],

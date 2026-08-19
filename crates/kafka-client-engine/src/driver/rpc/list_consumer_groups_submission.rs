@@ -10,7 +10,6 @@ use kafka_wire::{
 use super::super::DriverOwner;
 
 const DESCRIBE_CLUSTER_MAX_VERSION: ApiVersion = ApiVersion::new(2);
-const LIST_GROUPS_MIN_VERSION: ApiVersion = ApiVersion::new(0);
 const LIST_GROUPS_MAX_VERSION: ApiVersion = ApiVersion::new(5);
 
 /// Definitely-unsent discovery or broker-route construction failure.
@@ -64,6 +63,7 @@ impl DriverOwner {
         &self,
         broker_id: i32,
         request: ListGroupsRequest,
+        minimum_version: i16,
         deadline: Instant,
     ) -> Result<RoutedCall<ListGroupsResponse>, ListConsumerGroupsSubmitError> {
         let route = list_consumer_groups_broker_route(broker_id)
@@ -72,7 +72,7 @@ impl DriverOwner {
             .request_tracked_with(
                 route,
                 request,
-                list_consumer_groups_broker_options(deadline),
+                list_consumer_groups_broker_options(deadline, minimum_version),
             )
             .map_err(ListConsumerGroupsSubmitError::Driver)
     }
@@ -111,9 +111,12 @@ pub(super) const fn list_consumer_groups_discovery_options(deadline: Instant) ->
         .with_maximum_version(DESCRIBE_CLUSTER_MAX_VERSION)
 }
 
-pub(super) const fn list_consumer_groups_broker_options(deadline: Instant) -> RequestOptions {
+pub(super) const fn list_consumer_groups_broker_options(
+    deadline: Instant,
+    minimum_version: i16,
+) -> RequestOptions {
     RequestOptions::new(deadline)
         .with_traffic_class(TrafficClass::Interactive)
-        .with_minimum_version(LIST_GROUPS_MIN_VERSION)
+        .with_minimum_version(ApiVersion::new(minimum_version))
         .with_maximum_version(LIST_GROUPS_MAX_VERSION)
 }

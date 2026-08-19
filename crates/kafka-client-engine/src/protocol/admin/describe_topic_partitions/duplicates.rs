@@ -39,7 +39,7 @@ fn validate_topic_duplicates(
     ordered.extend(
         topics
             .iter()
-            .filter_map(|topic| topic.name.as_ref().map(|name| name.as_str())),
+            .filter_map(|topic| topic.name.as_ref().map(kafka_wire_core::StrBytes::as_str)),
     );
     ordered.sort_unstable_by(|left, right| left.as_bytes().cmp(right.as_bytes()));
     if ordered.windows(2).any(|pair| pair[0] == pair[1]) {

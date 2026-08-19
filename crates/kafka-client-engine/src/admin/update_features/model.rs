@@ -54,9 +54,9 @@ impl UpdateFeature {
         self.intent
     }
 
-    fn into_core(&self) -> CoreFeature {
+    fn to_core(&self) -> CoreFeature {
         CoreFeature::new(
-            self.feature.to_owned().into_boxed_str().into_string(),
+            self.feature.clone().into_boxed_str().into_string(),
             self.max_version_level,
             match self.intent {
                 UpdateFeatureIntent::Upgrade => CoreIntent::Upgrade,
@@ -98,7 +98,7 @@ impl UpdateFeaturesRequest {
         updates
             .try_reserve_exact(self.updates.len())
             .map_err(|_| UpdateFeaturesPlanFailure::RetainedBytes)?;
-        updates.extend(self.updates.iter().map(UpdateFeature::into_core));
+        updates.extend(self.updates.iter().map(UpdateFeature::to_core));
         CorePlan::new(updates, self.validate_only)
             .map_err(|_error: CorePlanError| UpdateFeaturesPlanFailure::Invalid)
     }

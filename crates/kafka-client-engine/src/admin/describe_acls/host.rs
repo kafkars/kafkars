@@ -108,6 +108,10 @@ impl DescribeAclsHost {
         self.apply(operation_id, DescribeAclsInput::DriverAccepted)
     }
 
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "rejected handoff consumes the exact owned ACL query evidence"
+    )]
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,

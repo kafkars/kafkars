@@ -72,7 +72,7 @@ fn settle_rejected(
         ListConsumerGroupOffsetsInput::DriverAccepted,
         0,
     )
-    .and_then(|_| {
+    .and_then(|()| {
         host.apply_for_test(
             operation_id,
             ListConsumerGroupOffsetsInput::BrokerRejected {

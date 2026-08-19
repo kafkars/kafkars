@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned UpdateFeatures adapter contract.
+//! Isolated names for the engine-owned `UpdateFeatures` adapter contract.
 
 pub(super) use kafka_client_engine::{
     UpdateFeature as Feature, UpdateFeatureIntent as FeatureIntent,

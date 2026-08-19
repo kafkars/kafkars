@@ -93,7 +93,11 @@ fn validate_roles(
         while observer < observers.len() && observers[observer].replica_id() < voter.replica_id() {
             observer += 1;
         }
-        if observers.get(observer).map(|value| value.replica_id()) == Some(voter.replica_id()) {
+        if observers
+            .get(observer)
+            .map(super::replica::DescribeMetadataQuorumReplica::replica_id)
+            == Some(voter.replica_id())
+        {
             return Err(DescribeMetadataQuorumValueError::ReplicaRoleOverlap);
         }
     }

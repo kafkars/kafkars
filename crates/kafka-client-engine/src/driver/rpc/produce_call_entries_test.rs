@@ -11,8 +11,7 @@ fn aggregate_entries_advance_without_moving() {
     let second_address = entries
         .iter()
         .nth(1)
-        .map(std::ptr::from_ref)
-        .unwrap_or_else(|| panic!("second entry"));
+        .map_or_else(|| panic!("second entry"), std::ptr::from_ref);
 
     assert_eq!(entries.first().execution, execution(1));
     assert!(entries.advance());

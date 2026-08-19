@@ -1,4 +1,8 @@
 //! API-key 75 admission, failure, broker-code, and delivery translation tests.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts required error and cursor variants"
+)]
 
 use crate::{DeliveryStatus, ErrorKind};
 
@@ -116,7 +120,8 @@ fn page_value_mapping_preserves_exact_api_75_fields_and_nullable_lists() {
     assert_eq!(partition.last_known_eligible_leader_replicas(), None);
     assert_eq!(partition.offline_replicas(), [9]);
     assert_eq!(
-        page.next_cursor().map(|cursor| cursor.partition_index()),
+        page.next_cursor()
+            .map(crate::DescribeTopicPartitionsCursor::partition_index),
         Some(8)
     );
 }

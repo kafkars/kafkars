@@ -56,7 +56,7 @@ fn v4_restores_utf8_name_order_and_preserves_complete_feature_facts() {
     assert_eq!(
         supported
             .into_iter()
-            .map(|feature| feature.into_parts())
+            .map(super::model::NormalizedDescribeFeaturesSupportedFeature::into_parts)
             .collect::<Vec<_>>(),
         vec![
             ("kraft".to_owned(), 1, 2),
@@ -66,7 +66,7 @@ fn v4_restores_utf8_name_order_and_preserves_complete_feature_facts() {
     assert_eq!(
         finalized
             .into_iter()
-            .map(|feature| feature.into_parts())
+            .map(super::model::NormalizedDescribeFeaturesFinalizedFeature::into_parts)
             .collect::<Vec<_>>(),
         vec![
             ("kraft".to_owned(), 1, 1),

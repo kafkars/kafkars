@@ -1,4 +1,8 @@
 //! Generic destructive replacement builder ownership and validation scenarios.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts a specific validation failure"
+)]
 
 use std::time::Duration;
 

@@ -1,4 +1,4 @@
-//! ShareGroup offset-deletion Admin entry-point surface tests.
+//! `ShareGroup` offset-deletion Admin entry-point surface tests.
 
 use crate::admin::{Admin, DeleteShareGroupOffsetsBuilder};
 

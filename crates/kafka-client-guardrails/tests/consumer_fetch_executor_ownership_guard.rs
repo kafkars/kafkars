@@ -51,12 +51,11 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
         &[
             ADMISSION,
             APPLY,
-            BROKER_CLOSE,
-            BROKER_SUBMISSION,
             CONTROL,
             DELIVERY,
             EXECUTOR,
             SETTLEMENT,
+            BROKER_CLOSE,
         ],
     ),
     (
@@ -65,18 +64,18 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
         &[
             ADMISSION,
             APPLY,
-            BROKER_CLOSE,
-            BROKER_SUBMISSION,
             CONTROL,
             DELIVERY,
             EXECUTOR,
             TERMINAL,
+            BROKER_CLOSE,
+            BROKER_SUBMISSION,
         ],
     ),
     (
         "DirectFetchExecutor",
         "active",
-        &[ADMISSION, BROKER_SUBMISSION, EXECUTOR],
+        &[ADMISSION, EXECUTOR, BROKER_SUBMISSION],
     ),
     (
         "DirectFetchExecutor",
@@ -84,16 +83,16 @@ const MUTATIONS: &[(&str, &str, &[&str])] = &[
         &[
             ADMISSION,
             APPLY,
-            BROKER_CLOSE,
-            BROKER_EXECUTION,
-            BROKER_MAINTENANCE,
-            BROKER_MAINTENANCE_SETTLEMENT,
-            BROKER_SUBMISSION,
             CONTROL,
             DELIVERY,
             EXECUTOR,
             SETTLEMENT,
             TERMINAL,
+            BROKER_CLOSE,
+            BROKER_EXECUTION,
+            BROKER_MAINTENANCE,
+            BROKER_MAINTENANCE_SETTLEMENT,
+            BROKER_SUBMISSION,
         ],
     ),
     (
@@ -136,16 +135,16 @@ const FORBIDDEN: &[&str] = &[
 const CAPABILITY_ALLOWS: &[(&str, &str)] = &[
     ("admission_test.rs", "std::time"),
     ("admission_test.rs", "Instant::now"),
-    ("broker_close.rs", "std::time"),
     ("control_test.rs", "std::time"),
     ("control_test.rs", "Instant::now"),
     ("deadline.rs", "std::time"),
     ("deadline_test.rs", "std::time"),
     ("deadline_test.rs", "Instant::now"),
-    ("executor.rs", "std::time"),
     ("fault_test.rs", "std::time"),
     ("settlement_test.rs", "std::time"),
     ("settlement_test.rs", "Instant::now"),
+    ("broker_close.rs", "std::time"),
+    ("executor.rs", "std::time"),
 ];
 
 #[test]
@@ -224,7 +223,7 @@ fn checked_in_executor_policy_is_exact() {
         constructors[0].allowed_paths,
         [
             "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
-            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner_build.rs",
         ]
     );
     let deadline_constructors = config
@@ -242,10 +241,10 @@ fn checked_in_executor_policy_is_exact() {
     );
 
     for (method, execution_paths) in [
-        ("try_reserve", vec![ADMISSION, BROKER_SUBMISSION, EXECUTOR]),
+        ("try_reserve", vec![ADMISSION, EXECUTOR, BROKER_SUBMISSION]),
         (
             "retained_count",
-            vec![BROKER_CLOSE, BROKER_MAINTENANCE, EXECUTOR],
+            vec![EXECUTOR, BROKER_CLOSE, BROKER_MAINTENANCE],
         ),
     ] {
         let rules = config

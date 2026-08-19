@@ -1,8 +1,8 @@
-//! Stable typed description and member values for one ShareGroup.
+//! Stable typed description and member values for one `ShareGroup`.
 
 use super::ShareGroupAssignment;
 
-/// One current ShareGroup member.
+/// One current `ShareGroup` member.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ShareGroupMember {
     member_id: String,
@@ -72,7 +72,7 @@ impl ShareGroupMember {
     }
 }
 
-/// Successful typed description of one modern ShareGroup.
+/// Successful typed description of one modern `ShareGroup`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ShareGroupDescription {
     group_id: String,

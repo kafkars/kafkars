@@ -1,4 +1,4 @@
-//! StreamsGroup description builder surface and submit-boundary tests.
+//! `StreamsGroup` description builder surface and submit-boundary tests.
 
 use std::{future::Future, time::Duration};
 

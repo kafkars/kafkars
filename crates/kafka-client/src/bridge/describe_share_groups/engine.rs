@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned batched ShareGroup contract.
+//! Isolated names for the engine-owned batched `ShareGroup` contract.
 
 pub(super) use kafka_client_engine::{
     DescribeShareGroupAccepted as Accepted, DescribeShareGroupAdmissionError as AdmissionError,

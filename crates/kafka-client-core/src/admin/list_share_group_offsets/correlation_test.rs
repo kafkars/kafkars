@@ -1,5 +1,12 @@
 //! Caller correlation, canonical ordering, and hostile API-90 responses.
 
+#![expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::needless_pass_by_value,
+    reason = "fixture indices are bounded and helpers preserve terminal ownership"
+)]
+
 use core::num::NonZeroI16;
 
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};

@@ -61,10 +61,8 @@ const fn host_error_kind(error: TransactionLifecycleHostError) -> TransactionCon
         TransactionLifecycleHostError::OffsetCommitUnsettled => {
             TransactionControlErrorKind::OutstandingOperations
         }
-        TransactionLifecycleHostError::OffsetCommit(_) => {
-            TransactionControlErrorKind::HostUnavailable
-        }
-        TransactionLifecycleHostError::InvalidProducerIdentity
+        TransactionLifecycleHostError::OffsetCommit(_)
+        | TransactionLifecycleHostError::InvalidProducerIdentity
         | TransactionLifecycleHostError::InvalidExecutionLimits
         | TransactionLifecycleHostError::UnexpectedEffect => {
             TransactionControlErrorKind::HostUnavailable

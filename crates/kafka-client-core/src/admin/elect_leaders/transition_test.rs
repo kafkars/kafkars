@@ -1,5 +1,10 @@
 //! Focused lifecycle tests for the single-attempt election machine.
 
+#![expect(
+    clippy::expect_used,
+    reason = "test fixtures require contextual transition failures"
+)]
+
 use super::{
     ElectLeadersBatch, ElectLeadersEffect, ElectLeadersFailureKind, ElectLeadersInput,
     ElectLeadersMachine, ElectLeadersPlan, ElectLeadersTerminal, LeaderElectionOutcome,

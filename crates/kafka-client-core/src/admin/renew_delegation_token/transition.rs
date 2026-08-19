@@ -1,4 +1,4 @@
-//! AnyBroker handoff and sole token-renewal terminal assignment.
+//! `AnyBroker` handoff and sole token-renewal terminal assignment.
 
 use crate::DeliveryStatus;
 
@@ -11,6 +11,10 @@ use super::{
 
 impl RenewDelegationTokenMachine {
     /// Applies one normalized fact without hidden I/O, retry, or cancellation.
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "the transition boundary consumes one normalized input capability"
+    )]
     pub fn apply(
         &mut self,
         input: RenewDelegationTokenInput,

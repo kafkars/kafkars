@@ -39,7 +39,7 @@ fn top_level_error_accepts_no_entries_but_rejects_populated_entries() {
     let mut nullable = response(None);
     nullable.error_code = 31;
     let normalized = normalize_describe_client_quotas_response(1, &nullable, usize::MAX)
-        .expect("null entries belong to a broker error");
+        .unwrap_or_else(|error| panic!("null entries belong to a broker error: {error:?}"));
     assert_eq!(normalized.error_code, 31);
     assert!(normalized.entries.is_empty());
 

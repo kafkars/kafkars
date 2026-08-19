@@ -1,4 +1,4 @@
-//! Declarative facade for typed multi-Streams-group OffsetFetch operations.
+//! Declarative facade for typed multi-Streams-group `OffsetFetch` operations.
 
 mod builder;
 mod operation;

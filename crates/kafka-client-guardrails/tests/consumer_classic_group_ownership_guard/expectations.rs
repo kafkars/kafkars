@@ -8,6 +8,10 @@ pub(super) const TERMINAL_TRANSITION: &str =
     "crates/kafka-client-core/src/consumer/classic_group/terminal_transition.rs";
 pub(super) const REJOIN_TRANSITION: &str =
     "crates/kafka-client-core/src/consumer/classic_group/recovery/rejoin_transition.rs";
+pub(super) const RECONCILIATION_TRANSITION: &str =
+    "crates/kafka-client-core/src/consumer/classic_group/reconciliation_transition.rs";
+pub(super) const REJECTION_TRANSITION: &str =
+    "crates/kafka-client-core/src/consumer/classic_group/recovery/rejection_transition.rs";
 pub(super) const MEMBER_ID_REQUIRED: &str =
     "crates/kafka-client-core/src/consumer/classic_group/member_id_required.rs";
 
@@ -54,8 +58,31 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
     ),
 ];
 
-pub(super) const IMMUTABLE_MACHINE_FIELDS: &[&str] = &["group_id", "timing", "rejoin_policy"];
-pub(super) const TRAILING_MACHINE_FIELDS: &[&str] = &["heartbeat"];
+pub(super) const DECLARED_MACHINE_FIELDS: &[&str] = &[
+    "group_id",
+    "protocol",
+    "timing",
+    "rejoin_policy",
+    "phase",
+    "next_cycle",
+    "active_cycle",
+    "deadline",
+    "pending_member_id",
+    "pending_generation",
+    "pending_members",
+    "pending_local_slot",
+    "pending_expected_assignment",
+    "pending_heartbeat_liveness",
+    "next_assignment_generation",
+    "live_cycle",
+    "live_generation",
+    "live_assignment",
+    "pending_reconciliation",
+    "pending_withheld_transfers",
+    "pending_rejoin",
+    "fatal",
+    "heartbeat",
+];
 
 pub(super) const LINEAR: &[(&str, &str)] = &[
     ("ClassicSubscription", "model.rs"),
@@ -86,11 +113,21 @@ pub(super) const LINEAR: &[(&str, &str)] = &[
 pub(super) const MACHINE_FIELDS: &[(&str, &[&str])] = &[
     (
         "phase",
-        &[TRANSITION, TERMINAL_TRANSITION, REJOIN_TRANSITION],
+        &[
+            TRANSITION,
+            TERMINAL_TRANSITION,
+            REJOIN_TRANSITION,
+            RECONCILIATION_TRANSITION,
+        ],
     ),
     (
         "next_cycle",
-        &[TRANSITION, TERMINAL_TRANSITION, REJOIN_TRANSITION],
+        &[
+            TRANSITION,
+            TERMINAL_TRANSITION,
+            REJOIN_TRANSITION,
+            RECONCILIATION_TRANSITION,
+        ],
     ),
     (
         "active_cycle",
@@ -98,7 +135,12 @@ pub(super) const MACHINE_FIELDS: &[(&str, &[&str])] = &[
     ),
     (
         "deadline",
-        &[TRANSITION, TERMINAL_TRANSITION, REJOIN_TRANSITION],
+        &[
+            TRANSITION,
+            TERMINAL_TRANSITION,
+            REJOIN_TRANSITION,
+            RECONCILIATION_TRANSITION,
+        ],
     ),
     ("pending_member_id", &[MEMBER_ID_REQUIRED, TRANSITION]),
     ("pending_generation", &[MEMBER_ID_REQUIRED, TRANSITION]),
@@ -114,13 +156,30 @@ pub(super) const MACHINE_FIELDS: &[(&str, &[&str])] = &[
     ),
     (
         "next_assignment_generation",
-        &[TRANSITION, TERMINAL_TRANSITION],
+        &[TRANSITION, TERMINAL_TRANSITION, RECONCILIATION_TRANSITION],
     ),
-    ("live_generation", &[TRANSITION, TERMINAL_TRANSITION]),
-    ("live_assignment", &[TRANSITION, TERMINAL_TRANSITION]),
+    (
+        "live_generation",
+        &[TRANSITION, TERMINAL_TRANSITION, RECONCILIATION_TRANSITION],
+    ),
+    (
+        "live_assignment",
+        &[
+            TRANSITION,
+            TERMINAL_TRANSITION,
+            RECONCILIATION_TRANSITION,
+            REJECTION_TRANSITION,
+            REJOIN_TRANSITION,
+        ],
+    ),
     (
         "pending_rejoin",
-        &[TRANSITION, TERMINAL_TRANSITION, REJOIN_TRANSITION],
+        &[
+            TRANSITION,
+            TERMINAL_TRANSITION,
+            REJOIN_TRANSITION,
+            RECONCILIATION_TRANSITION,
+        ],
     ),
     ("fatal", &[REJOIN_TRANSITION]),
 ];

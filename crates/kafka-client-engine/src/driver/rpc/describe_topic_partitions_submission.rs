@@ -1,4 +1,4 @@
-//! Tracked AnyBroker submission policy for Admin `DescribeTopicPartitions`.
+//! Tracked `AnyBroker` submission policy for Admin `DescribeTopicPartitions`.
 
 use std::{error::Error, fmt, time::Instant};
 

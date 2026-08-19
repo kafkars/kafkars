@@ -17,6 +17,10 @@ impl crate::Engine {
     }
 
     /// Registers one bounded classic-group owner without beginning membership.
+    #[allow(
+        clippy::result_large_err,
+        reason = "registration failure preserves the exact caller-owned request for retry or inspection"
+    )]
     pub fn register_group_consumer(
         &self,
         registration: GroupConsumerRegistration,

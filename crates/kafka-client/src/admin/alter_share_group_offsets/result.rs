@@ -1,4 +1,4 @@
-//! Public caller-ordered ShareGroup offset-alteration result.
+//! Public caller-ordered `ShareGroup` offset-alteration result.
 
 use std::time::Duration;
 
@@ -6,7 +6,7 @@ use crate::TopicPartition;
 
 use super::super::BatchResult;
 
-/// Completed ShareGroup offset alteration with ordered per-partition outcomes.
+/// Completed `ShareGroup` offset alteration with ordered per-partition outcomes.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AlterShareGroupOffsetsResult {
     throttle_time: Duration,

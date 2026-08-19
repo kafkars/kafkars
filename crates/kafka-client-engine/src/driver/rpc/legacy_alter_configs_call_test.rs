@@ -1,4 +1,4 @@
-//! Linear completion and post-driver recovery scenarios for legacy AlterConfigs.
+//! Linear completion and post-driver recovery scenarios for legacy `AlterConfigs`.
 
 use std::time::{Duration, Instant};
 

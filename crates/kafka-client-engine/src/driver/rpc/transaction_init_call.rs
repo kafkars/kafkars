@@ -105,8 +105,8 @@ impl TransactionInitCall {
                     }
                 }
             }
-            TransactionInitCoordinatorRefresh::Active(call) => match call.try_result() {
-                Some(result) => {
+            TransactionInitCoordinatorRefresh::Active(call) => {
+                if let Some(result) = call.try_result() {
                     if matches!(
                         result,
                         Ok(InvalidationDisposition::Applied
@@ -116,15 +116,14 @@ impl TransactionInitCall {
                     }
                     drop(call);
                     TransactionInitPoll::Terminal(Ok(terminal))
-                }
-                None => {
+                } else {
                     self.state = TransactionInitCallState::Refreshing {
                         terminal,
                         refresh: TransactionInitCoordinatorRefresh::Active(call),
                     };
                     TransactionInitPoll::Pending
                 }
-            },
+            }
             #[cfg(test)]
             TransactionInitCoordinatorRefresh::ScriptedForTest { progress_reported } => {
                 self.state = TransactionInitCallState::Refreshing {

@@ -207,6 +207,10 @@ impl GroupConsumerRegistration {
         self.limits
     }
 
+    #[allow(
+        clippy::result_large_err,
+        reason = "validation failure returns the exact inert registration builder intact"
+    )]
     pub(super) fn into_validated_parts(self) -> Result<ValidatedGroupConsumerRegistration, Self> {
         if self.protocol == GroupConsumerProtocol::Consumer
             && self.classic_group_config != EngineClassicGroupConfig::default()

@@ -1,4 +1,4 @@
-//! Declarative private bridge for ShareGroup offset deletion.
+//! Declarative private bridge for `ShareGroup` offset deletion.
 
 mod engine;
 mod operation;

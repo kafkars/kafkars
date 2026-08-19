@@ -21,7 +21,7 @@ fn success_preserves_broker_throttle_unknown_states_and_signed_listing() {
     );
 
     let (input, retained) =
-        normalized_input(7, normalized).unwrap_or_else(|_| panic!("core input"));
+        normalized_input(7, normalized).unwrap_or_else(|()| panic!("core input"));
     let AdminListTransactionsInput::BrokerResponded {
         throttle_time_ms,
         outcome:
@@ -45,7 +45,7 @@ fn nonzero_top_level_error_remains_exact_terminal_data() {
     let normalized =
         ListTransactionsResponseFacts::for_test(3, Some(-32_000), Vec::new(), Vec::new(), 17);
 
-    let (input, _) = normalized_input(11, normalized).unwrap_or_else(|_| panic!("core input"));
+    let (input, _) = normalized_input(11, normalized).unwrap_or_else(|()| panic!("core input"));
     let AdminListTransactionsInput::BrokerResponded {
         outcome: AdminListTransactionsBrokerOutcome::Rejected(error),
         ..

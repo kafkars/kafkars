@@ -1,4 +1,8 @@
 //! Inert group-offset builder ownership and deadline scenarios.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts local deadline rejection"
+)]
 
 use std::time::Duration;
 

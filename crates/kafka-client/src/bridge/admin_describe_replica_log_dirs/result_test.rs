@@ -1,4 +1,4 @@
-//! DescribeReplicaLogDirs error and public value translation coverage.
+//! `DescribeReplicaLogDirs` error and public value translation coverage.
 
 use crate::{DeliveryStatus, ErrorKind};
 

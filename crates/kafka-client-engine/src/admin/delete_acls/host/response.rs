@@ -11,6 +11,10 @@ use crate::{
 
 use super::super::{DeleteAclMatchingBinding as StableMatchingBinding, DeleteAclsPreparedOutcomes};
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the terminal seam names each independently charged prepared buffer and byte budget"
+)]
 pub(super) fn terminal_input(
     raw: &DeleteAclsRawTerminal,
     expected_filters: usize,
@@ -27,11 +31,11 @@ pub(super) fn terminal_input(
             selected_version: Some(selected_version),
             response,
         } => {
-            let response_limit =
-                match remaining_response_bytes.checked_add(prepared_core_result_bytes) {
-                    Some(limit) => limit,
-                    None => return (DeleteAclsInput::ResponseTooLarge, 0),
-                };
+            let Some(response_limit) =
+                remaining_response_bytes.checked_add(prepared_core_result_bytes)
+            else {
+                return (DeleteAclsInput::ResponseTooLarge, 0);
+            };
             let normalized = normalize_delete_acls_response(
                 selected_version,
                 expected_filters,
@@ -54,17 +58,20 @@ pub(super) fn terminal_input(
             {
                 return (DeleteAclsInput::ResponseTooLarge, 0);
             }
-            let protocol_dynamic = match retained_bytes.checked_sub(prepared_core_result_bytes) {
-                Some(bytes) if bytes <= remaining_response_bytes => bytes,
-                _ => return (DeleteAclsInput::ResponseTooLarge, 0),
+            let Some(protocol_dynamic) = retained_bytes.checked_sub(prepared_core_result_bytes)
+            else {
+                return (DeleteAclsInput::ResponseTooLarge, 0);
             };
-            let requested_stable_nested =
-                match matching_counts.iter().try_fold(0usize, |bytes, count| {
+            if protocol_dynamic > remaining_response_bytes {
+                return (DeleteAclsInput::ResponseTooLarge, 0);
+            }
+            let Some(requested_stable_nested) =
+                matching_counts.iter().try_fold(0usize, |bytes, count| {
                     bytes.checked_add(count.checked_mul(size_of::<StableMatchingBinding>())?)
-                }) {
-                    Some(bytes) => bytes,
-                    None => return (DeleteAclsInput::ResponseTooLarge, 0),
-                };
+                })
+            else {
+                return (DeleteAclsInput::ResponseTooLarge, 0);
+            };
             if protocol_dynamic
                 .checked_add(requested_stable_nested)
                 .is_none_or(|bytes| bytes > remaining_response_bytes)
@@ -77,13 +84,11 @@ pub(super) fn terminal_input(
             {
                 return (DeleteAclsInput::ResponseTooLarge, 0);
             }
-            let prepared_bytes = match prepared_outcomes.retained_heap_bytes() {
-                Some(bytes) => bytes,
-                None => return (DeleteAclsInput::ResponseTooLarge, 0),
+            let Some(prepared_bytes) = prepared_outcomes.retained_heap_bytes() else {
+                return (DeleteAclsInput::ResponseTooLarge, 0);
             };
-            let stable_dynamic = match prepared_bytes.checked_sub(prepared_outcome_bytes) {
-                Some(bytes) => bytes,
-                None => return (DeleteAclsInput::ResponseTooLarge, 0),
+            let Some(stable_dynamic) = prepared_bytes.checked_sub(prepared_outcome_bytes) else {
+                return (DeleteAclsInput::ResponseTooLarge, 0);
             };
             let total_dynamic = match protocol_dynamic.checked_add(stable_dynamic) {
                 Some(bytes) if bytes <= remaining_response_bytes => bytes,

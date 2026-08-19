@@ -9,6 +9,10 @@ use super::{
 };
 
 impl ConsumerGroupHeartbeatMachine {
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one retry transition validates and transfers the complete heartbeat ownership tuple"
+    )]
     pub(super) fn retry_heartbeat(
         &mut self,
         attempt: ConsumerGroupHeartbeatAttempt,
@@ -109,7 +113,7 @@ impl ConsumerGroupHeartbeatMachine {
                         assignment.group_id() == self.group_id
                             && assignment.member_id() == member_id
                     })
-                    .map(|assignment| assignment.assignment_generation())
+                    .map(crate::LiveGroupAssignment::assignment_generation)
                     .ok_or(ConsumerGroupHeartbeatErrorKind::InvariantViolation)?;
                 if attempt.member_epoch() != Some(member_epoch) {
                     return Err(ConsumerGroupHeartbeatErrorKind::InvariantViolation);

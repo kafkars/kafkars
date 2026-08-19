@@ -1,4 +1,4 @@
-//! Concrete observation of accepted or rejected DescribeReplicaLogDirs work.
+//! Concrete observation of accepted or rejected `DescribeReplicaLogDirs` work.
 
 use std::{
     fmt,

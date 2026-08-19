@@ -1,6 +1,6 @@
-//! Stable public value for one successful ShareGroup partition offset.
+//! Stable public value for one successful `ShareGroup` partition offset.
 
-/// One ShareGroup partition's broker-visible offset state.
+/// One `ShareGroup` partition's broker-visible offset state.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ShareGroupOffset {
     topic_id: [u8; 16],

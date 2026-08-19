@@ -1,4 +1,4 @@
-//! AnyBroker route, original deadline, lane, and exact-v1 submission evidence.
+//! `AnyBroker` route, original deadline, lane, and exact-v1 submission evidence.
 
 use std::time::{Duration, Instant};
 

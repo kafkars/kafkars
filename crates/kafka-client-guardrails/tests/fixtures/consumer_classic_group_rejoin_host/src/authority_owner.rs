@@ -10,6 +10,7 @@ struct PendingClassicRejoinJoin {
     pending_rejoin_protocol: usize,
     pending_rejoin_timing: usize,
     pending_rejoin_deadline: usize,
+    pending_rejoin_member_id: usize,
 }
 
 struct ClassicRejoinPostCore {

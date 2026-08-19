@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned ShareGroup description contract.
+//! Isolated names for the engine-owned `ShareGroup` description contract.
 
 pub(super) use kafka_client_engine::{
     DescribeShareGroupAccepted as Accepted,

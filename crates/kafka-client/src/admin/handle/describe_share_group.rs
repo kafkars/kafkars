@@ -1,4 +1,4 @@
-//! Singular ShareGroup description entry point on the shared admin handle.
+//! Singular `ShareGroup` description entry point on the shared admin handle.
 
 use super::Admin;
 use crate::{
@@ -6,7 +6,7 @@ use crate::{
 };
 
 impl Admin {
-    /// Builds an inert typed description request for one modern ShareGroup.
+    /// Builds an inert typed description request for one modern `ShareGroup`.
     ///
     /// Group validation remains deferred until [`DescribeShareGroupBuilder::submit`]
     /// captures the public absolute deadline and attempts bounded engine admission.

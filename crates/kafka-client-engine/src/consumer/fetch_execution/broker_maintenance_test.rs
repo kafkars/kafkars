@@ -88,7 +88,7 @@ fn zero_call_capacity_does_not_begin_or_extend_maintenance() {
         executor
             .broker_sessions
             .as_ref()
-            .is_some_and(|sessions| sessions.has_forgotten_ready())
+            .is_some_and(super::broker_session::BrokerFetchSessions::has_forgotten_ready)
     );
 
     shutdown(&mut driver);
@@ -181,7 +181,7 @@ fn prepared_maintenance_keeps_its_deadline_and_blocks_ordinary_dispatch() {
             Moment::from_tick(1),
         )
         .unwrap_or_else(|error| panic!("submit retained maintenance: {error:?}"));
-    assert_eq!(first.1, true);
+    assert!(first.1);
     assert_eq!(executor.routed.len(), 1);
     shutdown(&mut driver);
     let recovery = executor.release_fetch_executor_after_driver_shutdown();

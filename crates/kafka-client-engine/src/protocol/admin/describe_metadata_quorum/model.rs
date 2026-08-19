@@ -49,6 +49,10 @@ impl NormalizedQuorumReplica {
         }
     }
 
+    #[allow(
+        clippy::type_complexity,
+        reason = "the tuple is the exact allocation-free normalized replica field set"
+    )]
     pub(crate) const fn into_parts(
         self,
     ) -> (i32, Option<[u8; 16]>, Option<i64>, Option<i64>, Option<i64>) {
@@ -139,6 +143,10 @@ impl NormalizedMetadataQuorum {
         }
     }
 
+    #[allow(
+        clippy::type_complexity,
+        reason = "the tuple is the exact allocation-free normalized quorum field set"
+    )]
     pub(crate) fn into_parts(
         self,
     ) -> (

@@ -1,4 +1,4 @@
-//! Linear ownership of one accepted AnyBroker `DescribeAcls` call.
+//! Linear ownership of one accepted `AnyBroker` `DescribeAcls` call.
 
 use std::time::Instant;
 

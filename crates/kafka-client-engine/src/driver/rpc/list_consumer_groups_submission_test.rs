@@ -23,7 +23,7 @@ fn discovery_is_controller_routed_and_brokers_are_exact_with_one_deadline() {
 
     assert_eq!(list_consumer_groups_broker_route(7), Ok(Route::AnyBroker));
     assert!(list_consumer_groups_broker_route(-1).is_err());
-    let broker = list_consumer_groups_broker_options(deadline);
+    let broker = list_consumer_groups_broker_options(deadline, 0);
     assert_eq!(broker.deadline(), deadline);
     assert_eq!(broker.traffic_class(), TrafficClass::Interactive);
     assert_eq!(

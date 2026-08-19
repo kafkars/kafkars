@@ -1,4 +1,4 @@
-//! Neutral terminal facts for one tracked AnyBroker `AlterClientQuotas` call.
+//! Neutral terminal facts for one tracked `AnyBroker` `AlterClientQuotas` call.
 
 use kafka_client_core::DeliveryStatus;
 use kafka_driver::{ApiVersion, CallFailure, RequestError, RouteFailureToken};

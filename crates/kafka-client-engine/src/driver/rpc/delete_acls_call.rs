@@ -1,4 +1,4 @@
-//! Linear ownership of one accepted AnyBroker `DeleteAcls` call.
+//! Linear ownership of one accepted `AnyBroker` `DeleteAcls` call.
 
 mod evidence;
 
@@ -127,10 +127,10 @@ impl DeleteAclsCall {
     }
 }
 
-pub(super) fn prepare_delete_acls_filter_refs<'a>(
-    filters: &'a [DeleteAclsFilter],
+pub(super) fn prepare_delete_acls_filter_refs(
+    filters: &[DeleteAclsFilter],
     retained_limit: usize,
-) -> Result<(Vec<DeleteAclsFilterRef<'a>>, usize), DeleteAclsCallAdmissionSource> {
+) -> Result<(Vec<DeleteAclsFilterRef<'_>>, usize), DeleteAclsCallAdmissionSource> {
     let minimum_bytes = filter_ref_bytes(filters.len())?;
     retained_limit
         .checked_sub(minimum_bytes)

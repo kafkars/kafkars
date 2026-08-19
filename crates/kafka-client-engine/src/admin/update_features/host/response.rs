@@ -28,9 +28,8 @@ pub(super) fn terminal_input(raw: &UpdateFeaturesRawTerminal) -> (UpdateFeatures
             selected_version,
             response,
         } => {
-            let refs = match request_refs(plan) {
-                Ok(refs) => refs,
-                Err(()) => return (UpdateFeaturesInput::ResponseTooLarge, 0),
+            let Ok(refs) = request_refs(plan) else {
+                return (UpdateFeaturesInput::ResponseTooLarge, 0);
             };
             let request_plan = UpdateFeaturesRequestPlan::new(&refs, plan.validate_only());
             match normalize_update_features_response(

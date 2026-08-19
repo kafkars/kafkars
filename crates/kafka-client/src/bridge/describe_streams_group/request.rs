@@ -1,4 +1,4 @@
-//! Linear public StreamsGroup description intent translated at submission.
+//! Linear public `StreamsGroup` description intent translated at submission.
 
 use super::engine::Request as EngineRequest;
 

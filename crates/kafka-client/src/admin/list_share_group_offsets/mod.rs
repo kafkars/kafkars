@@ -1,4 +1,4 @@
-//! Public Admin API for listing ShareGroup offsets.
+//! Public Admin API for listing `ShareGroup` offsets.
 
 mod builder;
 mod offset;

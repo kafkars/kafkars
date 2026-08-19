@@ -48,13 +48,13 @@ pub enum DescribeClusterInput {
         /// Driver-authoritative delivery certainty.
         delivery: DeliveryStatus,
     },
-    /// Reports that the broker cannot represent the explicitly requested view.
-    ProtocolIncompatible {
+    /// Reports that SASL authentication failed before ordinary call admission.
+    AuthenticationFailed {
         /// Driver-authoritative delivery certainty.
         delivery: DeliveryStatus,
     },
-    /// Reports that SASL authentication failed before ordinary call admission.
-    AuthenticationFailed {
+    /// Reports that the broker cannot represent the explicitly requested view.
+    ProtocolIncompatible {
         /// Driver-authoritative delivery certainty.
         delivery: DeliveryStatus,
     },

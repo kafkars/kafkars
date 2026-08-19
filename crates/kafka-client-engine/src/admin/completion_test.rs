@@ -73,6 +73,10 @@ macro_rules! exercise_terminals {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one exhaustive fixture proves every concrete admin terminal uses the shared off-reactor worker"
+)]
 fn one_worker_publishes_every_concrete_admin_terminal_off_reactor() {
     let reactor = std::thread::current().id();
     let (mut notifier, ports) = completion_owner();

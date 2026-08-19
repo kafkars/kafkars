@@ -1,4 +1,4 @@
-//! AnyBroker handoff, response correlation, and sole terminal assignment.
+//! `AnyBroker` handoff, response correlation, and sole terminal assignment.
 
 use crate::DeliveryStatus;
 

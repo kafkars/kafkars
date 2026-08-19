@@ -142,7 +142,10 @@ impl EngineConfig {
         self
     }
 
-    /// Replaces the optional identity written into every Kafka request header.
+    /// Replaces the optional identity retained for future header propagation.
+    ///
+    /// The pinned driver does not currently write this value into Kafka
+    /// request headers.
     #[must_use]
     pub fn with_client_id(mut self, client_id: Option<String>) -> Self {
         self.client_id = client_id;
@@ -176,7 +179,9 @@ impl EngineConfig {
         &self.bootstrap_servers
     }
 
-    /// Returns the immutable request-header identity, when configured.
+    /// Returns the retained client identity, when configured.
+    ///
+    /// The returned value does not imply request-header propagation.
     pub fn client_id(&self) -> Option<&str> {
         self.client_id.as_deref()
     }

@@ -8,7 +8,7 @@ use super::AbortPartitionTransactionRequest;
 fn preserves_every_specification_scalar() {
     let plan = AbortPartitionTransactionRequest::new("orders".to_owned(), 3, 41, 7, 11)
         .into_plan()
-        .expect("valid request");
+        .unwrap_or_else(|error| panic!("valid request: {error:?}"));
 
     assert_eq!(plan.topic(), "orders");
     assert_eq!(plan.partition(), 3);
@@ -25,7 +25,7 @@ fn preserves_explicit_positive_transaction_version_and_version_floor() {
         let plan = AbortPartitionTransactionRequest::new("orders".to_owned(), 3, 41, 7, 11)
             .with_transaction_version(transaction_version)
             .into_plan()
-            .expect("valid request");
+            .unwrap_or_else(|error| panic!("valid request: {error:?}"));
 
         assert_eq!(plan.transaction_version(), transaction_version);
         assert_eq!(plan.minimum_api_version(), 2);

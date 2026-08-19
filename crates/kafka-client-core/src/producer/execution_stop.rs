@@ -34,6 +34,10 @@ impl ProducerMachine {
         Ok(ProducerTransition::from_effects(plan.effects))
     }
 
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the plan validates every retained producer owner before any shutdown mutation"
+    )]
     fn plan_execution_unavailable(&self) -> Result<ExecutionStopPlan, ProducerMachineError> {
         let active_count = self
             .operations

@@ -65,25 +65,23 @@ pub(super) fn response_peak_charge(
     for token in &response.tokens {
         bytes = bytes
             .checked_add(size_of::<NormalizedDescribeDelegationTokenPrincipal>())?
-            .checked_add(
-                include_requester
-                    .then_some(size_of::<NormalizedDescribeDelegationTokenPrincipal>())
-                    .unwrap_or(0),
-            )?
+            .checked_add(if include_requester {
+                size_of::<NormalizedDescribeDelegationTokenPrincipal>()
+            } else {
+                0
+            })?
             .checked_add(token.principal_type.len())?
             .checked_add(token.principal_name.len())?
             .checked_add(token.token_id.len())?
             .checked_add(token.hmac.len())?
-            .checked_add(
-                include_requester
-                    .then_some(
-                        token
-                            .token_requester_principal_type
-                            .len()
-                            .checked_add(token.token_requester_principal_name.len())?,
-                    )
-                    .unwrap_or(0),
-            )?
+            .checked_add(if include_requester {
+                token
+                    .token_requester_principal_type
+                    .len()
+                    .checked_add(token.token_requester_principal_name.len())?
+            } else {
+                0
+            })?
             .checked_add(
                 token
                     .renewers

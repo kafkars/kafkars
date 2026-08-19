@@ -14,11 +14,11 @@ pub(super) struct CanonicalResponseEntryRef<'a> {
     pub(super) source: &'a ResponseEntryData,
 }
 
-pub(super) fn canonicalize_response_entries<'a>(
-    entries: &'a [ResponseEntryData],
+pub(super) fn canonicalize_response_entries(
+    entries: &[ResponseEntryData],
     required: usize,
     limit: usize,
-) -> Result<Vec<CanonicalResponseEntryRef<'a>>, AlterClientQuotasResponseFailure> {
+) -> Result<Vec<CanonicalResponseEntryRef<'_>>, AlterClientQuotasResponseFailure> {
     let mut canonical = Vec::new();
     canonical
         .try_reserve_exact(entries.len())
@@ -32,11 +32,11 @@ pub(super) fn canonicalize_response_entries<'a>(
     Ok(canonical)
 }
 
-fn canonicalize_entity<'a>(
-    entity: &'a [kafka_wire::alter_client_quotas_response::EntityData],
+fn canonicalize_entity(
+    entity: &[kafka_wire::alter_client_quotas_response::EntityData],
     required: usize,
     limit: usize,
-) -> Result<CanonicalEntityRef<'a>, AlterClientQuotasResponseFailure> {
+) -> Result<CanonicalEntityRef<'_>, AlterClientQuotasResponseFailure> {
     if entity.is_empty() {
         return Err(AlterClientQuotasResponseFailure::EmptyEntity);
     }

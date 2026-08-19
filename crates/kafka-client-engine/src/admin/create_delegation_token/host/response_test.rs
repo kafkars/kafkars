@@ -55,7 +55,7 @@ fn normalized_success_moves_complete_secret_bearing_response() {
     assert_eq!(throttle, 7);
     assert_eq!(owner.principal_name(), "owner");
     assert_eq!(
-        requester.map(|value| value.into_parts()),
+        requester.map(kafka_client_core::DelegationTokenPrincipal::into_parts),
         Some(("User".to_owned(), "requester".to_owned()))
     );
     assert_eq!((issue, expiry, max), (10, 20, 30));

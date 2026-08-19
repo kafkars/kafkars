@@ -1,4 +1,4 @@
-//! Linear public ShareGroup offset-listing intent translated at submission.
+//! Linear public `ShareGroup` offset-listing intent translated at submission.
 
 use crate::{TopicPartition, admin::ListShareGroupOffsetsQuery};
 
@@ -72,7 +72,7 @@ fn into_engine_target(target: TopicPartition) -> EngineTarget {
     EngineTarget::new(topic, partition)
 }
 
-/// Multiple independently selected ShareGroup queries retained before admission.
+/// Multiple independently selected `ShareGroup` queries retained before admission.
 pub(crate) struct ListShareGroupsOffsetsAdminRequest {
     queries: Vec<ListShareGroupOffsetsQuery>,
 }

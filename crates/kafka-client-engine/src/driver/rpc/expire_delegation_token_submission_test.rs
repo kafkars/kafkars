@@ -1,4 +1,4 @@
-//! AnyBroker route, original deadline, Interactive lane, and v1-v2 window.
+//! `AnyBroker` route, original deadline, Interactive lane, and v1-v2 window.
 
 use std::time::{Duration, Instant};
 

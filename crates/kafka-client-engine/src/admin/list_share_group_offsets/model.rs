@@ -1,4 +1,4 @@
-//! Engine-owned scalar intent for singular and batched ShareGroup offset listing.
+//! Engine-owned scalar intent for singular and batched `ShareGroup` offset listing.
 
 use kafka_client_core::{
     ListShareGroupOffsetTarget as CoreTarget, ListShareGroupOffsetsPlan,
@@ -26,7 +26,7 @@ enum ListShareGroupOffsetsRequestSelection {
     All,
 }
 
-/// One inert ShareGroup offset query.
+/// One inert `ShareGroup` offset query.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ListShareGroupOffsetsRequest {
     group_id: String,

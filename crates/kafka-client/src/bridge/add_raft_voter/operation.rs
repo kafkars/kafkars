@@ -1,4 +1,4 @@
-//! Concrete observation of accepted or rejected AddRaftVoter work.
+//! Concrete observation of accepted or rejected `AddRaftVoter` work.
 
 use std::{
     fmt,

@@ -23,8 +23,8 @@ fn response_flattens_and_orders_bindings_by_bytes_then_scalars() {
         resource(-1, "audit", -2, vec![acl("User:m", "*", -3, -4)]),
     ]);
 
-    let normalized =
-        normalize_describe_acls_response(3, &response, usize::MAX).expect("valid response");
+    let normalized = normalize_describe_acls_response(3, &response, usize::MAX)
+        .unwrap_or_else(|error| panic!("valid response: {error:?}"));
     assert_eq!(normalized.throttle_time_ms, 7);
     assert_eq!(normalized.error_code, 0);
     assert_eq!(normalized.bindings.len(), 3);
@@ -56,7 +56,7 @@ fn response_preserves_signed_top_level_error_and_utf8_bounded_diagnostic() {
     response.error_message = Some(StrBytes::from(diagnostic.as_str()));
 
     let normalized = normalize_describe_acls_response(1, &response, usize::MAX)
-        .expect("bounded broker rejection");
+        .unwrap_or_else(|error| panic!("bounded broker rejection: {error:?}"));
     assert_eq!(normalized.error_code, -42);
     assert_eq!(
         normalized.error_message.as_deref().map(str::len),
@@ -193,8 +193,8 @@ fn response_checks_peak_scratch_and_output_capacity_before_copying() {
         3,
         vec![acl("User:a", "*", 3, 3)],
     )]);
-    let normalized =
-        normalize_describe_acls_response(2, &response, usize::MAX).expect("measure peak");
+    let normalized = normalize_describe_acls_response(2, &response, usize::MAX)
+        .unwrap_or_else(|error| panic!("measure peak: {error:?}"));
     let required = normalized.retained_bytes;
 
     assert_eq!(

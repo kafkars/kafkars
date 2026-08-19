@@ -18,7 +18,7 @@ pub enum DeleteAclsRoute {
 pub enum DeleteAclsState {
     /// Accepted but not started.
     Ready,
-    /// The one AnyBroker submission awaits driver admission.
+    /// The one `AnyBroker` submission awaits driver admission.
     AwaitingDriver,
     /// The driver owns the sole request attempt.
     Submitted,
@@ -71,7 +71,7 @@ pub enum DeleteAclsInput {
 /// One concrete mechanism request emitted by ACL-deletion policy.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DeleteAclsEffect {
-    /// Submit the exact caller-ordered plan once through AnyBroker.
+    /// Submit the exact caller-ordered plan once through `AnyBroker`.
     Submit {
         /// Stable identity reserved before machine construction.
         operation_id: OperationId,

@@ -16,11 +16,13 @@ fn capture_retains_one_monotonic_deadline_and_boundary_timestamp() {
         panic!("ordinary producer boundary should be representable")
     };
     let absolute_deadline = capture.absolute_deadline();
+    let captured_timestamp = capture.default_timestamp_milliseconds();
 
     std::thread::sleep(Duration::from_millis(2));
     let (deadline, timestamp_ms) = capture.into_parts();
 
     assert_eq!(deadline.operation_deadline().transport(), absolute_deadline);
+    assert_eq!(timestamp_ms, captured_timestamp);
     assert!(timestamp_ms >= before);
     assert!(timestamp_ms <= after);
 }

@@ -1,4 +1,4 @@
-//! Singular StreamsGroup description entry point on the shared admin handle.
+//! Singular `StreamsGroup` description entry point on the shared admin handle.
 
 use super::Admin;
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
 };
 
 impl Admin {
-    /// Builds an inert typed description request for one modern StreamsGroup.
+    /// Builds an inert typed description request for one modern `StreamsGroup`.
     ///
     /// Group validation remains deferred until
     /// [`DescribeStreamsGroupBuilder::submit`] captures the public absolute

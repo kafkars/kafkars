@@ -1,4 +1,4 @@
-//! Concrete observation of accepted or rejected ShareGroup offset listing.
+//! Concrete observation of accepted or rejected `ShareGroup` offset listing.
 
 use std::{
     fmt,

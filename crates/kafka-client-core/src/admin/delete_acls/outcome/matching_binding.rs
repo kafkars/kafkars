@@ -68,6 +68,10 @@ pub struct DeleteAclMatchingBinding {
 
 impl DeleteAclMatchingBinding {
     /// Creates one protocol-normalized matching binding for core validation.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the constructor preserves the exact protocol binding tuple"
+    )]
     pub const fn new(
         resource_type: i8,
         resource_name: String,

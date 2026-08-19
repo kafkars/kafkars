@@ -57,11 +57,13 @@ pub(super) fn terminal_input(
 fn normalized_input(outcome: NormalizedMetadataQuorumOutcome) -> DescribeMetadataQuorumInput {
     match outcome {
         NormalizedMetadataQuorumOutcome::TopLevelError(error) => exact_error(error)
-            .map(|error| DescribeMetadataQuorumInput::BrokerRejected { error })
-            .unwrap_or(DescribeMetadataQuorumInput::InvalidResponse),
+            .map_or(DescribeMetadataQuorumInput::InvalidResponse, |error| {
+                DescribeMetadataQuorumInput::BrokerRejected { error }
+            }),
         NormalizedMetadataQuorumOutcome::PartitionError(error) => exact_partition_error(error)
-            .map(|error| DescribeMetadataQuorumInput::PartitionRejected { error })
-            .unwrap_or(DescribeMetadataQuorumInput::InvalidResponse),
+            .map_or(DescribeMetadataQuorumInput::InvalidResponse, |error| {
+                DescribeMetadataQuorumInput::PartitionRejected { error }
+            }),
         NormalizedMetadataQuorumOutcome::Quorum(quorum) => core_description(quorum)
             .map(|description| DescribeMetadataQuorumInput::BrokerResponded { description })
             .unwrap_or(DescribeMetadataQuorumInput::InvalidResponse),

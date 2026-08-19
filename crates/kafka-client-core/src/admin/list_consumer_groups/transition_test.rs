@@ -91,7 +91,7 @@ fn discovery_then_exact_brokers_filters_sorts_and_deduplicates_consumer_groups()
     assert_eq!(
         groups
             .iter()
-            .map(|group| group.group_id())
+            .map(super::outcome::AdminConsumerGroupListing::group_id)
             .collect::<Vec<_>>(),
         vec!["alpha", "modern", "same", "zeta"]
     );
@@ -173,7 +173,7 @@ fn all_scope_retains_mixed_group_types_then_sorts_and_deduplicates_globally() {
     assert_eq!(
         groups
             .iter()
-            .map(|group| group.group_id())
+            .map(super::outcome::AdminConsumerGroupListing::group_id)
             .collect::<Vec<_>>(),
         vec!["classic", "consumer", "same", "share", "streams", "zeta"]
     );

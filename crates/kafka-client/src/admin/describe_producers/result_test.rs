@@ -1,4 +1,8 @@
-//! Public caller-ordered DescribeProducers result scenarios.
+//! Public caller-ordered `DescribeProducers` result scenarios.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts a successful partition outcome"
+)]
 
 use std::time::Duration;
 

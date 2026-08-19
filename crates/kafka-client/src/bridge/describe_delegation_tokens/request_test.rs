@@ -29,14 +29,24 @@ fn all_and_selected_owners_remain_distinct_after_conversion() {
 #[test]
 fn empty_and_duplicate_owner_filters_remain_explicit_and_inert() {
     let empty = DescribeDelegationTokensAdminRequest::owners(Vec::new()).into_engine();
-    assert_eq!(empty.owners().map(|owners| owners.len()), Some(0));
+    assert_eq!(
+        empty
+            .owners()
+            .map(<[kafka_client_engine::DescribeDelegationTokenPrincipal]>::len),
+        Some(0)
+    );
 
     let duplicate = DescribeDelegationTokensAdminRequest::owners(vec![
         principal("User", "alice"),
         principal("User", "alice"),
     ])
     .into_engine();
-    assert_eq!(duplicate.owners().map(|owners| owners.len()), Some(2));
+    assert_eq!(
+        duplicate
+            .owners()
+            .map(<[kafka_client_engine::DescribeDelegationTokenPrincipal]>::len),
+        Some(2)
+    );
 }
 
 fn principal(principal_type: &str, principal_name: &str) -> DelegationTokenPrincipal {

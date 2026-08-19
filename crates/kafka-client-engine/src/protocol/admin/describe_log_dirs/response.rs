@@ -54,7 +54,7 @@ pub(crate) fn normalize_describe_log_dirs_response(
     let required = response_peak_charge(selection, response).unwrap_or(usize::MAX);
     ensure_limit(required, retained_limit)?;
     let selected = selected_keys(selection, required, retained_limit)?;
-    validate_uniqueness_and_selection(response, &selected, required, retained_limit)?;
+    validate_uniqueness_and_selection(response, selected.as_deref(), required, retained_limit)?;
     let mut normalized = materialize(selected_version, response, required, retained_limit)?;
     let retained = normalized_retained_charge(&normalized).unwrap_or(usize::MAX);
     ensure_limit(retained, retained_limit)?;
@@ -171,11 +171,11 @@ fn validate_topic(topic: &DescribeLogDirsTopic) -> Result<(), DescribeLogDirsRes
     Ok(())
 }
 
-fn selected_keys<'a>(
-    selection: DescribeLogDirsSelectionRef<'a>,
+fn selected_keys(
+    selection: DescribeLogDirsSelectionRef<'_>,
     required: usize,
     limit: usize,
-) -> Result<Option<Vec<SelectionKey<'a>>>, DescribeLogDirsResponseFailure> {
+) -> Result<Option<Vec<SelectionKey<'_>>>, DescribeLogDirsResponseFailure> {
     let DescribeLogDirsSelectionRef::Selected(topics) = selection else {
         return Ok(None);
     };
@@ -211,7 +211,7 @@ fn selected_keys<'a>(
 
 fn validate_uniqueness_and_selection(
     response: &DescribeLogDirsResponse,
-    selected: &Option<Vec<SelectionKey<'_>>>,
+    selected: Option<&[SelectionKey<'_>]>,
     required: usize,
     limit: usize,
 ) -> Result<(), DescribeLogDirsResponseFailure> {
@@ -236,7 +236,7 @@ fn validate_uniqueness_and_selection(
             let name = topic.name.as_str();
             keys.push(DuplicateKey::Topic(path, name));
             for partition in &topic.partitions {
-                if selected.as_ref().is_some_and(|selected| {
+                if selected.is_some_and(|selected| {
                     selected
                         .binary_search(&SelectionKey(name, partition.partition_index))
                         .is_err()
@@ -288,9 +288,14 @@ fn materialize(
         )?);
     }
     log_dirs.sort_unstable_by(|left, right| left.path.as_bytes().cmp(right.path.as_bytes()));
+    let throttle_time_ms = u32::try_from(response.throttle_time_ms).map_err(|_| {
+        DescribeLogDirsResponseFailure::NegativeThrottleTime {
+            actual: response.throttle_time_ms,
+        }
+    })?;
     Ok(NormalizedDescribeLogDirsResponse {
         selected_version,
-        throttle_time_ms: response.throttle_time_ms as u32,
+        throttle_time_ms,
         error_code: response.error_code,
         log_dirs,
         retained_bytes: 0,

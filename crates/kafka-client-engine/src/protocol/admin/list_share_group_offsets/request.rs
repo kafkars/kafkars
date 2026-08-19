@@ -59,14 +59,13 @@ fn group_selected_topics(
         let topic_index = topics
             .iter()
             .position(|topic| topic.topic_name.as_str() == target.topic());
-        let index = match topic_index {
-            Some(index) => index,
-            None => {
-                let mut topic = DescribeShareGroupOffsetsRequestTopic::default();
-                topic.topic_name = target.topic().into();
-                topics.push(topic);
-                topics.len() - 1
-            }
+        let index = if let Some(index) = topic_index {
+            index
+        } else {
+            let mut topic = DescribeShareGroupOffsetsRequestTopic::default();
+            topic.topic_name = target.topic().into();
+            topics.push(topic);
+            topics.len() - 1
         };
         topics[index].partitions.try_reserve(1).map_err(|_| {
             ListShareGroupOffsetsRequestFailure {

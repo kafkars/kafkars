@@ -170,6 +170,32 @@ fn malformed_owned_response_is_possibly_sent() {
 }
 
 #[test]
+fn authentication_rejection_remains_distinct_and_definitely_unsent() {
+    let mut machine = machine();
+    machine
+        .apply(DescribeClusterInput::Start {
+            now: Moment::from_tick(5),
+        })
+        .and_then(|_| machine.apply(DescribeClusterInput::DriverAccepted))
+        .unwrap_or_else(|error| panic!("start machine: {error}"));
+    let terminal = machine
+        .apply(DescribeClusterInput::AuthenticationFailed {
+            delivery: DeliveryStatus::NotSent,
+        })
+        .unwrap_or_else(|error| panic!("settle authentication rejection: {error}"))
+        .into_effect();
+    let Some(DescribeClusterEffect::Complete {
+        terminal: DescribeClusterTerminal::Failed(failure),
+        ..
+    }) = terminal
+    else {
+        panic!("authentication rejection must complete");
+    };
+    assert_eq!(failure.kind(), DescribeClusterFailureKind::Authentication);
+    assert_eq!(failure.delivery(), DeliveryStatus::NotSent);
+}
+
+#[test]
 fn explicit_fenced_view_crosses_submit_and_compatibility_is_definitely_unsent() {
     let mut machine = DescribeClusterMachine::new_with_options(
         OperationId::from_raw(9),
@@ -208,32 +234,6 @@ fn explicit_fenced_view_crosses_submit_and_compatibility_is_definitely_unsent() 
         panic!("compatibility must complete");
     };
     assert_eq!(failure.kind(), DescribeClusterFailureKind::Compatibility);
-    assert_eq!(failure.delivery(), DeliveryStatus::NotSent);
-}
-
-#[test]
-fn authentication_rejection_remains_distinct_and_definitely_unsent() {
-    let mut machine = machine();
-    machine
-        .apply(DescribeClusterInput::Start {
-            now: Moment::from_tick(5),
-        })
-        .and_then(|_| machine.apply(DescribeClusterInput::DriverAccepted))
-        .unwrap_or_else(|error| panic!("start machine: {error}"));
-    let terminal = machine
-        .apply(DescribeClusterInput::AuthenticationFailed {
-            delivery: DeliveryStatus::NotSent,
-        })
-        .unwrap_or_else(|error| panic!("settle authentication rejection: {error}"))
-        .into_effect();
-    let Some(DescribeClusterEffect::Complete {
-        terminal: DescribeClusterTerminal::Failed(failure),
-        ..
-    }) = terminal
-    else {
-        panic!("authentication rejection must complete");
-    };
-    assert_eq!(failure.kind(), DescribeClusterFailureKind::Authentication);
     assert_eq!(failure.delivery(), DeliveryStatus::NotSent);
 }
 

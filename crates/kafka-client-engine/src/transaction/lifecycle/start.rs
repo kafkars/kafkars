@@ -19,6 +19,10 @@ use super::{
 };
 
 impl TransactionLifecycleHost {
+    #[allow(
+        clippy::result_large_err,
+        reason = "failed construction returns the exact initialized transactional owner for recovery"
+    )]
     pub(in crate::transaction) fn try_new(
         mut owner: TransactionalOwnerParts,
         limits: TransactionExecutionLimits,

@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned DescribeReplicaLogDirs adapter contract.
+//! Isolated names for the engine-owned `DescribeReplicaLogDirs` adapter contract.
 
 pub(super) use kafka_client_engine::{
     DescribeReplicaLogDirsAccepted as Accepted,

@@ -22,7 +22,9 @@ fn successful_translation_moves_every_complete_token_and_redacts_secrets() {
     let token = &result.tokens()[0];
     assert_eq!(token.owner().principal_name(), "alice");
     assert_eq!(
-        token.requester().map(|value| value.principal_name()),
+        token
+            .requester()
+            .map(super::model::DescribeDelegationTokenPrincipal::principal_name),
         Some("requester")
     );
     assert_eq!(token.renewers()[0].principal_name(), "renewer");

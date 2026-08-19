@@ -20,13 +20,13 @@ pub(super) fn normalize_terminal(
             include_authorized_operations,
         )
         .unwrap_or(DescribeClusterInput::InvalidResponse),
-        Err(error) if is_compatibility_failure(&error) => {
-            DescribeClusterInput::ProtocolIncompatible {
+        Err(error) if is_authentication_failure(&error) => {
+            DescribeClusterInput::AuthenticationFailed {
                 delivery: super::super::request_failure_delivery(&error),
             }
         }
-        Err(error) if is_authentication_failure(&error) => {
-            DescribeClusterInput::AuthenticationFailed {
+        Err(error) if is_compatibility_failure(&error) => {
+            DescribeClusterInput::ProtocolIncompatible {
                 delivery: super::super::request_failure_delivery(&error),
             }
         }
@@ -48,18 +48,6 @@ pub(super) fn normalize_terminal(
     }
 }
 
-const fn is_compatibility_failure(error: &RequestError) -> bool {
-    matches!(
-        error,
-        RequestError::Encode(_)
-            | RequestError::UnsupportedVersion { .. }
-            | RequestError::ApiUnavailable { .. }
-            | RequestError::VersionLimitUnavailable { .. }
-            | RequestError::VersionFloorUnavailable { .. }
-            | RequestError::VersionBoundsInvalid { .. }
-    )
-}
-
 const fn is_authentication_failure(error: &RequestError) -> bool {
     matches!(
         error,
@@ -69,5 +57,17 @@ const fn is_authentication_failure(error: &RequestError) -> bool {
             },
             ..
         }
+    )
+}
+
+const fn is_compatibility_failure(error: &RequestError) -> bool {
+    matches!(
+        error,
+        RequestError::Encode(_)
+            | RequestError::UnsupportedVersion { .. }
+            | RequestError::ApiUnavailable { .. }
+            | RequestError::VersionLimitUnavailable { .. }
+            | RequestError::VersionFloorUnavailable { .. }
+            | RequestError::VersionBoundsInvalid { .. }
     )
 }

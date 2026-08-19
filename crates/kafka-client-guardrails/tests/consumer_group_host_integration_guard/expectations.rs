@@ -165,16 +165,14 @@ pub(super) const AUTHORITIES: &[(&str, &str, &[&str], &[&str])] = &[
             "reactor_wake",
             "group_recv_signal",
             "group_recv_publisher",
+            "port_contention_handoff",
         ],
         &[SHARD],
     ),
 ];
 
 pub(super) const METHODS: &[(&str, &[&str])] = &[
-    (
-        "try_begin_classic_cycle",
-        &["crates/kafka-client-engine/src/consumer/group/registry_port.rs"],
-    ),
+    ("try_begin_classic_cycle", &[]),
     ("into_driver_acceptance", &[JOIN_EXECUTION]),
     ("confirm_join_driver_owned", &[JOIN_EXECUTION]),
     (

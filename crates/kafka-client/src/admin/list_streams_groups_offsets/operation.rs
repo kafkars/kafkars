@@ -1,4 +1,4 @@
-//! Typed observer over one multi-consumer-group OffsetFetch operation.
+//! Typed observer over one multi-consumer-group `OffsetFetch` operation.
 
 use std::{
     future::Future,

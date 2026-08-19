@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned DeleteAcls adapter contract.
+//! Isolated names for the engine-owned `DeleteAcls` adapter contract.
 
 pub(super) use kafka_client_engine::{
     DeleteAclBrokerError as BrokerError, DeleteAclFilterOutcome as FilterOutcome,

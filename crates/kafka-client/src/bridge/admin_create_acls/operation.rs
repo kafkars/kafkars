@@ -1,4 +1,4 @@
-//! Concrete observation of accepted, rejected, or locally expired CreateAcls work.
+//! Concrete observation of accepted, rejected, or locally expired `CreateAcls` work.
 
 use std::{
     fmt,
@@ -43,9 +43,8 @@ impl AdminCreateAcls {
         deadline: Instant,
         submit: impl FnOnce(EngineRequest, Duration) -> Result<Accepted, AdmissionError>,
     ) -> Self {
-        let prepared = match PreparedCreateAclsOutcomes::try_new(request.binding_count()) {
-            Ok(prepared) => prepared,
-            Err(()) => return Self::result_capacity_rejected(),
+        let Ok(prepared) = PreparedCreateAclsOutcomes::try_new(request.binding_count()) else {
+            return Self::result_capacity_rejected();
         };
         let request = request.into_engine();
         let remaining = deadline.saturating_duration_since(Instant::now());

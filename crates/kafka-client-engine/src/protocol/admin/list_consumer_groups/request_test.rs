@@ -28,7 +28,7 @@ fn state_and_type_filters_preserve_order_and_raise_exact_version_floor() {
         request
             .states_filter
             .iter()
-            .map(|value| value.as_str())
+            .map(kafka_wire_core::StrBytes::as_str)
             .collect::<Vec<_>>(),
         vec!["Stable", "Empty"]
     );
@@ -36,7 +36,7 @@ fn state_and_type_filters_preserve_order_and_raise_exact_version_floor() {
         request
             .types_filter
             .iter()
-            .map(|value| value.as_str())
+            .map(kafka_wire_core::StrBytes::as_str)
             .collect::<Vec<_>>(),
         vec!["share", "streams"]
     );

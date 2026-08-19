@@ -1,4 +1,4 @@
-//! Linear ownership of one accepted tracked AnyBroker topic-partition query.
+//! Linear ownership of one accepted tracked `AnyBroker` topic-partition query.
 
 use std::time::Instant;
 

@@ -29,7 +29,7 @@ fn authorization_intent_raises_only_the_exact_version_floor() {
 #[test]
 fn classic_and_modern_completion_faults_remain_recoverable_after_shutdown() {
     for call_kind in [
-        AdminDescribeConsumerGroupsCallKind::ClassicFallback,
+        AdminDescribeConsumerGroupsCallKind::Classic,
         AdminDescribeConsumerGroupsCallKind::Consumer,
     ] {
         let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))

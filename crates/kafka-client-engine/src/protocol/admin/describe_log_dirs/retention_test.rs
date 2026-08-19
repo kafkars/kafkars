@@ -18,8 +18,10 @@ use super::{
 fn complete_normalization_peak_must_fit_before_owned_copying() {
     let response = populated_response();
     let required = response_peak_charge(DescribeLogDirsSelectionRef::AllTopics, &response)
-        .expect("bounded charge");
-    assert!(required > generated_response_floor(&response).expect("generated floor"));
+        .unwrap_or_else(|| panic!("bounded charge"));
+    assert!(
+        required > generated_response_floor(&response).unwrap_or_else(|| panic!("generated floor"))
+    );
 
     assert_eq!(
         normalize_describe_log_dirs_response(

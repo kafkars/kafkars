@@ -133,6 +133,10 @@ impl GroupSessionCatalog {
     }
 
     /// Clears the retired assignment while retaining the current member and broker epoch.
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "commit consumes the exact retired assignment so stale ownership cannot be reused"
+    )]
     pub(super) fn commit_consumer_group_reconciliation_revoke(
         &mut self,
         assignment: LiveGroupAssignment,
@@ -171,6 +175,10 @@ impl GroupSessionCatalog {
         self.required_join_member = None;
     }
 
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "commit consumes the exact revoked assignment so stale ownership cannot be reused"
+    )]
     pub(super) fn commit_consumer_group_revoke(&mut self, assignment: LiveGroupAssignment) {
         debug_assert!(
             self.consumer_current
@@ -182,6 +190,10 @@ impl GroupSessionCatalog {
     }
 
     /// Retains the process-lifetime Kafka member spelling while fencing its stale assignment.
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "fencing consumes the exact stale assignment while preserving member identity"
+    )]
     pub(super) fn commit_consumer_group_fenced_revoke(&mut self, assignment: LiveGroupAssignment) {
         let current = self
             .consumer_current

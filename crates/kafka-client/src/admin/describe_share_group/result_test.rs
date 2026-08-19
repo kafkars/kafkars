@@ -1,4 +1,4 @@
-//! Public ShareGroup description result tests.
+//! Public `ShareGroup` description result tests.
 
 use std::time::Duration;
 

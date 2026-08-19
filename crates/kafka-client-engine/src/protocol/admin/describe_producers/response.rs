@@ -107,17 +107,15 @@ pub(crate) fn normalize_describe_producers_response(
                 },
             );
         }
-        let (message, truncated, retained) = match partition.error_message.as_deref() {
-            Some(message) => {
+        let (message, truncated, retained) =
+            if let Some(message) = partition.error_message.as_deref() {
                 let (message, truncated, retained) = retained_diagnostic(message, retained_limit)?;
                 (Some(message), truncated, retained)
-            }
-            None => {
+            } else {
                 let retained = diagnostic_charge(0).unwrap_or(usize::MAX);
                 ensure_limit(retained, retained_limit)?;
                 (None, false, retained)
-            }
-        };
+            };
         (
             NormalizedDescribeProducerResult::BrokerFailed(
                 NormalizedDescribeProducerBrokerError::new(

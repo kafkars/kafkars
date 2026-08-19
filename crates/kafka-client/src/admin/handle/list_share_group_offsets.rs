@@ -1,4 +1,4 @@
-//! ShareGroup offset-listing entry point on the shared admin handle.
+//! `ShareGroup` offset-listing entry point on the shared admin handle.
 
 use super::Admin;
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
 };
 
 impl Admin {
-    /// Builds an inert all-partition offset listing for one ShareGroup.
+    /// Builds an inert all-partition offset listing for one `ShareGroup`.
     ///
     /// [`ListShareGroupOffsetsBuilder::partitions`] narrows the query to an
     /// explicit nonempty caller-ordered selection. Validation remains deferred
@@ -29,7 +29,7 @@ impl Admin {
         )
     }
 
-    /// Builds one inert caller-ordered offset operation for multiple ShareGroups.
+    /// Builds one inert caller-ordered offset operation for multiple `ShareGroups`.
     ///
     /// Each query independently selects all or explicit topic-partitions.
     /// Submission captures one public deadline and routes exact singleton

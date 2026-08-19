@@ -77,7 +77,7 @@ impl TrackedForgottenFetchCall {
             Err(source) => {
                 return Err(ForgottenFetchSubmitFailure {
                     request,
-                    kind: submit_failure_kind(source),
+                    kind: submit_failure_kind(&source),
                 });
             }
         };
@@ -223,7 +223,7 @@ pub(super) fn materialize(
     .map_err(|_error: FetchRequestFailure| ForgottenFetchSubmitFailureKind::Request)
 }
 
-fn submit_failure_kind(source: FetchSubmitError) -> ForgottenFetchSubmitFailureKind {
+fn submit_failure_kind(source: &FetchSubmitError) -> ForgottenFetchSubmitFailureKind {
     match source {
         FetchSubmitError::Driver(kafka_driver::SubmitError::Full) => {
             ForgottenFetchSubmitFailureKind::Backpressured

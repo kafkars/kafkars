@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of batched ShareGroup engine outcomes.
+//! Exhaustive stable translation of batched `ShareGroup` engine outcomes.
 
 use std::time::Duration;
 
@@ -44,7 +44,7 @@ pub(super) fn translate_observation(
             ))
         }
         Ok(Outcome::Failed(failure)) => Err(translate_failure(failure)),
-        Ok(Outcome::Described(_)) | Ok(Outcome::BrokerRejected(_)) => Err(KafkaError::new(
+        Ok(Outcome::Described(_) | Outcome::BrokerRejected(_)) => Err(KafkaError::new(
             ErrorKind::Internal,
             "DescribeShareGroups received a singular terminal from its batch plan",
         )

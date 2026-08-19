@@ -1,4 +1,4 @@
-//! Fair host turns for AnyBroker Admin `DescribeUserScramCredentials` work.
+//! Fair host turns for `AnyBroker` Admin `DescribeUserScramCredentials` work.
 
 use kafka_client_core::{Deadline, Moment};
 

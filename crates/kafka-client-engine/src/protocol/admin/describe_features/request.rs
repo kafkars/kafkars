@@ -1,4 +1,4 @@
-//! Explicit nonempty client identity for feature-bearing ApiVersions requests.
+//! Explicit nonempty client identity for feature-bearing `ApiVersions` requests.
 
 use kafka_wire::ApiVersionsRequest;
 

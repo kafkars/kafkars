@@ -14,10 +14,10 @@ fn request_preserves_caller_order_and_all_assignment_scalars() {
     let plan = request
         .into_plan()
         .unwrap_or_else(|error| panic!("valid plan: {error:?}"));
-    assert_plan_order(plan);
+    assert_plan_order(&plan);
 }
 
-fn assert_plan_order(plan: AlterReplicaLogDirsPlan) {
+fn assert_plan_order(plan: &AlterReplicaLogDirsPlan) {
     let assignments = plan.assignments();
 
     assert_eq!(

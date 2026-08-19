@@ -112,6 +112,15 @@ impl ProducerSendCapture {
         self.deadline.operation_deadline().transport()
     }
 
+    /// Returns the create timestamp captured at the same public call boundary.
+    ///
+    /// Facades retain this scalar so a successful `CreateTime` response can use
+    /// the exact timestamp encoded into the record when Kafka supplies no log
+    /// append timestamp.
+    pub const fn default_timestamp_milliseconds(&self) -> i64 {
+        self.default_timestamp_ms
+    }
+
     pub(crate) const fn into_parts(self) -> (DeadlineCapture, i64) {
         (self.deadline, self.default_timestamp_ms)
     }
@@ -141,6 +150,11 @@ impl ProducerBatchSendCapture {
     /// Returns the one absolute monotonic deadline shared by the batch.
     pub const fn absolute_deadline(&self) -> Instant {
         self.deadline.operation_deadline().transport()
+    }
+
+    /// Returns the create timestamp shared by records without explicit timestamps.
+    pub const fn default_timestamp_milliseconds(&self) -> i64 {
+        self.default_timestamp_ms
     }
 
     pub(super) const fn into_parts(self) -> (DeadlineCapture, i64) {

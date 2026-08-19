@@ -1,5 +1,10 @@
 //! One-submit lifecycle, page correlation, order restoration, and delivery tests.
 
+#![expect(
+    clippy::expect_used,
+    reason = "test fixtures require contextual transition failures"
+)]
+
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
 use super::{
@@ -74,7 +79,8 @@ fn subset_topics_restore_caller_order_without_reordering_partitions() {
     assert_eq!(page.topics()[1].partitions()[0].partition_index(), 2);
     assert_eq!(page.topics()[1].partitions()[1].partition_index(), 0);
     assert_eq!(
-        page.next_cursor().map(|cursor| cursor.topic_name()),
+        page.next_cursor()
+            .map(super::model::DescribeTopicPartitionsCursor::topic_name),
         Some("omega")
     );
     assert_eq!(machine.state(), DescribeTopicPartitionsState::Completed);

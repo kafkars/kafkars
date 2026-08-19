@@ -50,10 +50,6 @@ impl GroupConsumerBatch {
             inner: self.inner.checkpoint_builder(),
         }
     }
-
-    pub(crate) fn into_checkpoint(self) -> GroupConsumerCheckpoint {
-        GroupConsumerCheckpoint::from_engine(self.inner.into_checkpoint())
-    }
 }
 
 /// Private exact-batch prefix-checkpoint translation.

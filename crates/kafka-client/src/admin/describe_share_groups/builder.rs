@@ -1,4 +1,4 @@
-//! Builder for one caller-ordered, multi-group ShareGroup description operation.
+//! Builder for one caller-ordered, multi-group `ShareGroup` description operation.
 
 use std::{fmt, time::Duration};
 
@@ -6,7 +6,7 @@ use crate::bridge::{admin::AdminEngine, describe_share_groups::DescribeShareGrou
 
 use super::DescribeShareGroups;
 
-/// Configures and submits a caller-ordered batch of ShareGroup descriptions.
+/// Configures and submits a caller-ordered batch of `ShareGroup` descriptions.
 #[must_use = "the builder does nothing until submit is called"]
 pub struct DescribeShareGroupsBuilder {
     engine: AdminEngine,

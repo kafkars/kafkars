@@ -1,4 +1,4 @@
-//! Declarative private bridge for one modern StreamsGroup description.
+//! Declarative private bridge for one modern `StreamsGroup` description.
 
 mod engine;
 mod operation;

@@ -65,7 +65,7 @@ pub enum AlterUserScramCredentialsInput {
 /// One concrete mechanism request emitted by SCRAM alteration policy.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AlterUserScramCredentialsEffect {
-    /// Submit the exact non-secret plan once through the engine's AnyBroker lane.
+    /// Submit the exact non-secret plan once through the engine's `AnyBroker` lane.
     Submit {
         /// Stable identity reserved before machine construction.
         operation_id: OperationId,

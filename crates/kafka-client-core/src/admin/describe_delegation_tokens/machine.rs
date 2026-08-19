@@ -14,7 +14,7 @@ use super::{
 pub enum DescribeDelegationTokensState {
     /// Engine has reserved bytes and terminal capacity but not submitted.
     Ready,
-    /// The sole AnyBroker request awaits driver admission.
+    /// The sole `AnyBroker` request awaits driver admission.
     AwaitingDriver,
     /// The driver owns the sole request attempt.
     Submitted,
@@ -70,7 +70,7 @@ pub enum DescribeDelegationTokensInput {
 /// One concrete mechanism request emitted by token-description policy.
 #[derive(Debug, Eq, PartialEq)]
 pub enum DescribeDelegationTokensEffect {
-    /// Submits the exact plan once through the AnyBroker route.
+    /// Submits the exact plan once through the `AnyBroker` route.
     Submit {
         /// Stable identity reserved before machine construction.
         operation_id: OperationId,

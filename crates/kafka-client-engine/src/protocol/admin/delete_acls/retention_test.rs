@@ -1,4 +1,4 @@
-//! Focused evidence for checked DeleteAcls byte accounting.
+//! Focused evidence for checked `DeleteAcls` byte accounting.
 
 use core::mem::size_of;
 

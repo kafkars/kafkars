@@ -44,14 +44,13 @@ pub(crate) fn alter_share_group_offsets_request(
         let topic_index = topics
             .iter()
             .position(|topic| topic.topic_name.as_str() == change.topic());
-        let index = match topic_index {
-            Some(index) => index,
-            None => {
-                let mut topic = AlterShareGroupOffsetsRequestTopic::default();
-                topic.topic_name = change.topic().into();
-                topics.push(topic);
-                topics.len() - 1
-            }
+        let index = if let Some(index) = topic_index {
+            index
+        } else {
+            let mut topic = AlterShareGroupOffsetsRequestTopic::default();
+            topic.topic_name = change.topic().into();
+            topics.push(topic);
+            topics.len() - 1
         };
         topics[index].partitions.try_reserve(1).map_err(|_| {
             AlterShareGroupOffsetsRequestFailure {

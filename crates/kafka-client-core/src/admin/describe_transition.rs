@@ -37,11 +37,11 @@ impl DescribeClusterMachine {
             DescribeClusterInput::TransportFailed { delivery } => {
                 self.finish_failure(DescribeClusterFailureKind::Transport, delivery)
             }
-            DescribeClusterInput::ProtocolIncompatible { delivery } => {
-                self.finish_failure(DescribeClusterFailureKind::Compatibility, delivery)
-            }
             DescribeClusterInput::AuthenticationFailed { delivery } => {
                 self.finish_failure(DescribeClusterFailureKind::Authentication, delivery)
+            }
+            DescribeClusterInput::ProtocolIncompatible { delivery } => {
+                self.finish_failure(DescribeClusterFailureKind::Compatibility, delivery)
             }
             DescribeClusterInput::InvalidResponse => self.finish_failure(
                 DescribeClusterFailureKind::InvalidResponse,
@@ -95,8 +95,8 @@ impl DescribeClusterMachine {
             DescribeClusterFailureKind::DeadlineElapsed
             | DescribeClusterFailureKind::DriverRejected => DescribeClusterState::AwaitingDriver,
             DescribeClusterFailureKind::Transport
-            | DescribeClusterFailureKind::Compatibility
             | DescribeClusterFailureKind::Authentication
+            | DescribeClusterFailureKind::Compatibility
             | DescribeClusterFailureKind::InvalidResponse => DescribeClusterState::Submitted,
         };
         if self.state != expected {

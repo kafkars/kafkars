@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of engine ShareGroup offset-alteration outcomes.
+//! Exhaustive stable translation of engine `ShareGroup` offset-alteration outcomes.
 
 use std::time::Duration;
 

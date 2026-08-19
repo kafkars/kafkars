@@ -39,7 +39,7 @@ pub(super) fn translate_observation(
             ))
         }
         Ok(Outcome::Failed(failure)) => Err(translate_failure(failure)),
-        Ok(Outcome::Offsets(_)) | Ok(Outcome::BrokerRejected(_)) => Err(KafkaError::new(
+        Ok(Outcome::Offsets(_) | Outcome::BrokerRejected(_)) => Err(KafkaError::new(
             ErrorKind::Internal,
             "plural ListShareGroupsOffsets received a singular terminal",
         )

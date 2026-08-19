@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned ShareGroup offset-alteration contract.
+//! Isolated names for the engine-owned `ShareGroup` offset-alteration contract.
 
 pub(super) use kafka_client_engine::{
     AlterShareGroupOffset as Target, AlterShareGroupOffsetsAccepted as Accepted,

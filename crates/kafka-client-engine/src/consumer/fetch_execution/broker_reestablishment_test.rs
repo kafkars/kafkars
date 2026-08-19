@@ -177,6 +177,10 @@ fn invalid_incremental_session_is_reset_and_requeued_without_failing_core() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the scenario keeps both partitions and the complete session reset sequence visible"
+)]
 fn partition_offset_out_of_range_resets_the_complete_aggregated_session() {
     let (effects, mut machine) = aggregate_assignment();
     let reset_fence = fetch_fence(effects[0]);

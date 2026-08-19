@@ -105,7 +105,7 @@ fn next_submission_detaches_one_name_routed_entry_even_when_brokers_match() {
     assert_eq!(
         first
             .iter()
-            .map(|submission| submission.execution())
+            .map(super::handoff::PreparedProduceSubmission::execution)
             .collect::<Vec<_>>(),
         vec![execution(1)]
     );

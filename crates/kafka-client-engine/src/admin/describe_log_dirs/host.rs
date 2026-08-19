@@ -2,14 +2,15 @@
 
 mod admission;
 mod response;
+mod submission;
 mod terminal;
 
 #[cfg(test)]
 mod response_test;
 
 use kafka_client_core::{
-    AdminDescribeLogDirsEffect, AdminDescribeLogDirsInput, AdminDescribeLogDirsMachine,
-    AdminDescribeLogDirsTerminal, Moment, OperationId,
+    AdminDescribeLogDirsInput, AdminDescribeLogDirsMachine, AdminDescribeLogDirsPlan,
+    AdminDescribeLogDirsSelection, AdminDescribeLogDirsTerminal, OperationId,
 };
 
 use crate::{
@@ -20,6 +21,8 @@ use crate::{
 };
 
 use super::{DescribeLogDirsHostError, DescribeLogDirsObserver};
+pub(crate) use submission::DescribeLogDirsTurn;
+use submission::{DescribeLogDirsHandoff, DescribeLogDirsSubmission};
 
 pub(crate) const DESCRIBE_LOG_DIRS_CAPACITY: usize = 16;
 const DESCRIBE_LOG_DIRS_RETAINED_BYTES: usize = 4 * 1024 * 1024;
@@ -29,40 +32,18 @@ pub(crate) struct DescribeLogDirsAdmission {
     pub(crate) fault: Option<DescribeLogDirsHostError>,
 }
 
-/// One exact broker ready for the engine's driver-admission stage.
-pub(crate) struct DescribeLogDirsSubmission {
-    operation_id: OperationId,
-    deadline: OperationDeadline,
-    broker_id: i32,
-}
-
-impl DescribeLogDirsSubmission {
-    pub(crate) const fn into_parts(self) -> (OperationId, OperationDeadline, i32) {
-        (self.operation_id, self.deadline, self.broker_id)
-    }
-}
-
-pub(crate) enum DescribeLogDirsTurn {
-    Idle,
-    Progress,
-    Submit(DescribeLogDirsSubmission),
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum DescribeLogDirsHandoff {
-    Untouched,
-    HandedOff,
-    Submitted,
-}
-
 struct DescribeLogDirsOperation {
     operation_id: OperationId,
     machine: AdminDescribeLogDirsMachine,
+    plan: AdminDescribeLogDirsPlan,
     completion_id: CompletionId,
     deadline: OperationDeadline,
     retained_bytes: usize,
+    request_scratch_limit: usize,
+    result_limit: usize,
     remaining_result_bytes: usize,
     submission: Option<DescribeLogDirsSubmission>,
+    rejected_submission: Option<(i32, AdminDescribeLogDirsSelection, usize, usize)>,
     handoff: DescribeLogDirsHandoff,
     call: Option<DescribeLogDirsCall>,
     // Driver-shutdown proof remains live until core accepts the terminal fact.
@@ -96,36 +77,6 @@ impl DescribeLogDirsHost {
         }
     }
 
-    pub(crate) fn turn(
-        &mut self,
-        now: Moment,
-    ) -> Result<DescribeLogDirsTurn, DescribeLogDirsHostError> {
-        if let Some(error) = self.health {
-            return Err(error);
-        }
-        if self.reclaim_one()? || self.poll_one_call()? {
-            return Ok(DescribeLogDirsTurn::Progress);
-        }
-        let Some(index) = self
-            .operations
-            .iter()
-            .position(|operation| operation.submission.is_some())
-        else {
-            return Ok(DescribeLogDirsTurn::Idle);
-        };
-        if self.operations[index].deadline.core().is_elapsed_at(now) {
-            let operation_id = self.operations[index].operation_id;
-            self.apply(operation_id, AdminDescribeLogDirsInput::DeadlineElapsed)?;
-            return Ok(DescribeLogDirsTurn::Progress);
-        }
-        let submission = self.operations[index]
-            .submission
-            .take()
-            .ok_or(DescribeLogDirsHostError::MissingSubmission)?;
-        self.operations[index].handoff = DescribeLogDirsHandoff::HandedOff;
-        Ok(DescribeLogDirsTurn::Submit(submission))
-    }
-
     pub(crate) fn accept_call(
         &mut self,
         operation_id: OperationId,
@@ -139,24 +90,67 @@ impl DescribeLogDirsHost {
             || self.operations[index].recovered_call.is_some()
             || self.operations[index].raw_terminal.is_some()
             || self.operations[index].terminal.is_some()
+            || self.operations[index].rejected_submission.is_some()
         {
             return Err(DescribeLogDirsHostError::InvalidHandoff);
         }
+        let operation = &self.operations[index];
+        let broker_id = operation
+            .machine
+            .current_broker()
+            .ok_or(DescribeLogDirsHostError::SubmissionMismatch)?;
+        let matches = call.matches(
+            broker_id,
+            operation.plan.selection(),
+            operation.request_scratch_limit,
+            operation.result_limit,
+        );
         self.operations[index].call = Some(call);
+        if !matches {
+            return Err(DescribeLogDirsHostError::SubmissionMismatch);
+        }
         self.apply(operation_id, AdminDescribeLogDirsInput::DriverAccepted)
     }
 
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,
+        broker_id: i32,
+        selection: AdminDescribeLogDirsSelection,
+        request_scratch_limit: usize,
+        result_limit: usize,
     ) -> Result<(), DescribeLogDirsHostError> {
         let index = self
             .operation_index(operation_id)
             .ok_or(DescribeLogDirsHostError::UnknownOperation)?;
-        if self.operations[index].handoff != DescribeLogDirsHandoff::HandedOff {
+        let operation = &self.operations[index];
+        if operation.handoff != DescribeLogDirsHandoff::HandedOff
+            || operation.call.is_some()
+            || operation.recovered_call.is_some()
+            || operation.raw_terminal.is_some()
+            || operation.terminal.is_some()
+            || operation.rejected_submission.is_some()
+        {
             return Err(DescribeLogDirsHostError::InvalidHandoff);
         }
-        self.apply(operation_id, AdminDescribeLogDirsInput::DriverRejected)
+        let matches = operation.machine.current_broker() == Some(broker_id)
+            && operation.plan.selection() == &selection
+            && operation.request_scratch_limit == request_scratch_limit
+            && operation.result_limit == result_limit;
+        self.operations[index].rejected_submission =
+            Some((broker_id, selection, request_scratch_limit, result_limit));
+        if !matches {
+            return Err(DescribeLogDirsHostError::SubmissionMismatch);
+        }
+        let transition = self.operations[index]
+            .machine
+            .apply(AdminDescribeLogDirsInput::DriverRejected)?;
+        let effect = transition
+            .into_effect()
+            .ok_or(DescribeLogDirsHostError::MissingTerminal)?;
+        self.validate_effect(index, &effect)?;
+        drop(self.operations[index].rejected_submission.take());
+        self.install_effect(index, effect)
     }
 
     pub(crate) fn close_admission(&mut self) {
@@ -201,42 +195,6 @@ impl DescribeLogDirsHost {
             self.install_effect(index, effect)?;
         }
         Ok(())
-    }
-
-    fn install_effect(
-        &mut self,
-        index: usize,
-        effect: AdminDescribeLogDirsEffect,
-    ) -> Result<(), DescribeLogDirsHostError> {
-        let operation_id = self.operations[index].operation_id;
-        match effect {
-            AdminDescribeLogDirsEffect::Submit {
-                operation_id: effect_id,
-                deadline,
-                broker_id,
-            } => {
-                if effect_id != operation_id || deadline != self.operations[index].deadline.core() {
-                    return Err(DescribeLogDirsHostError::SubmissionMismatch);
-                }
-                self.operations[index].submission = Some(DescribeLogDirsSubmission {
-                    operation_id,
-                    deadline: self.operations[index].deadline,
-                    broker_id,
-                });
-                self.operations[index].handoff = DescribeLogDirsHandoff::Untouched;
-                Ok(())
-            }
-            AdminDescribeLogDirsEffect::Complete {
-                operation_id: effect_id,
-                terminal,
-            } => {
-                if effect_id != operation_id {
-                    return Err(DescribeLogDirsHostError::SubmissionMismatch);
-                }
-                self.operations[index].terminal = Some(terminal);
-                self.publish_terminal(index)
-            }
-        }
     }
 
     #[cfg(test)]

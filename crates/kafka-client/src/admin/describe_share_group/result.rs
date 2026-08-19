@@ -1,10 +1,10 @@
-//! Public result for one ShareGroup description.
+//! Public result for one `ShareGroup` description.
 
 use std::time::Duration;
 
 use super::ShareGroupDescription;
 
-/// Completed ShareGroup description plus Kafka's throttle observation.
+/// Completed `ShareGroup` description plus Kafka's throttle observation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DescribeShareGroupResult {
     throttle_time: Duration,

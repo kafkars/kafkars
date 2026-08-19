@@ -1,4 +1,8 @@
 //! Public-to-engine transaction-filter translation scenarios.
+#![expect(
+    clippy::expect_used,
+    reason = "the test requires both serialized filter markers"
+)]
 
 use std::time::Duration;
 

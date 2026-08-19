@@ -16,6 +16,7 @@ fn steal() {
         pending_rejoin_protocol: 1,
         pending_rejoin_timing: 1,
         pending_rejoin_deadline: 1,
+        pending_rejoin_member_id: 1,
     };
     join.pending_rejoin_cycle = 2;
     let mut fault = ClassicRejoinPostCore {

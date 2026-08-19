@@ -31,6 +31,7 @@ kafka-driver = { path = "../kafka-driver" }
 kafka-wire = { path = "../kafka-protocol/crates/kafka-wire" }
 kafka-wire-core = { path = "../kafka-protocol/crates/kafka-wire-core" }
 kafka-wire-records = { path = "../kafka-protocol/crates/kafka-wire-records" }
+ring = "0.17.14"
 rustls = { version = "0.23.42", default-features = false, features = ["ring", "std"] }
 rustls-native-certs = "0.8.4"
 serde = { version = "1.0", features = ["derive"] }

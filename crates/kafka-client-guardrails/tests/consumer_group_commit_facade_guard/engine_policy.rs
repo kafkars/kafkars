@@ -12,8 +12,8 @@ const INVALIDATE_REASON: &str = "A correlated coordinator rejection consumes its
 fn engine_channel_invalidation_and_facade_baselines_are_exact() {
     let config = load_config(&workspace_root());
     for (path, lines) in [
-        ("crates/kafka-client-engine/src/consumer/group.rs", 302),
-        ("crates/kafka-client-engine/src/consumer/mod.rs", 90),
+        ("crates/kafka-client-engine/src/consumer/group.rs", 389),
+        ("crates/kafka-client-engine/src/consumer/mod.rs", 98),
     ] {
         let baselines = config
             .budgets
@@ -78,7 +78,18 @@ fn engine_channel_invalidation_and_facade_baselines_are_exact() {
             "crates/kafka-client-engine/src/driver/rpc/reassignment_controller_refresh.rs",
             "crates/kafka-client-engine/src/driver/rpc/transaction_control/add_partitions_refresh.rs",
             "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs",
+            "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets_refresh.rs",
+            "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit_refresh.rs",
             "crates/kafka-client-engine/src/driver/rpc/transaction_produce/route_refresh.rs",
+            "crates/kafka-client-engine/src/driver/rpc/add_raft_voter_terminal/refresh.rs",
+            "crates/kafka-client-engine/src/driver/rpc/calls/route_refresh.rs",
+            "crates/kafka-client-engine/src/driver/rpc/create_partitions_refresh.rs",
+            "crates/kafka-client-engine/src/driver/rpc/delete_topics_refresh.rs",
+            "crates/kafka-client-engine/src/driver/rpc/elect_leaders_terminal.rs",
+            "crates/kafka-client-engine/src/driver/rpc/remove_raft_voter_terminal.rs",
+            "crates/kafka-client-engine/src/driver/rpc/transaction_init_call.rs",
+            "crates/kafka-client-engine/src/driver/rpc/unregister_broker_terminal.rs",
+            "crates/kafka-client-engine/src/driver/rpc/update_features_terminal/refresh.rs",
         ]
     );
 }

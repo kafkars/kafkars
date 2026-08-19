@@ -1,4 +1,4 @@
-//! ShareGroup offset-listing Admin entry-point surface tests.
+//! `ShareGroup` offset-listing Admin entry-point surface tests.
 
 use crate::admin::{Admin, ListShareGroupOffsetsBuilder};
 

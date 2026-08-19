@@ -1,6 +1,6 @@
-//! Stable scalar and task values shared by one StreamsGroup description.
+//! Stable scalar and task values shared by one `StreamsGroup` description.
 
-/// One string key-value fact reported for a StreamsGroup.
+/// One string key-value fact reported for a `StreamsGroup`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StreamsGroupKeyValue {
     key: String,

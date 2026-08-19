@@ -46,7 +46,7 @@ impl ProducerConfig {
         self.delivery_timeout
     }
 
-    /// Returns the RecordBatch compression policy.
+    /// Returns the `RecordBatch` compression policy.
     pub const fn compression(self) -> Compression {
         self.compression
     }
@@ -68,7 +68,7 @@ impl ProducerConfig {
         self
     }
 
-    /// Replaces the RecordBatch compression policy.
+    /// Replaces the `RecordBatch` compression policy.
     #[must_use]
     pub const fn with_compression(mut self, compression: Compression) -> Self {
         self.compression = compression;

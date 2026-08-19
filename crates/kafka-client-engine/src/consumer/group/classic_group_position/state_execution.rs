@@ -127,10 +127,6 @@ const fn resolution_failure_kind(
 }
 
 /// Complete explicit mechanism lifecycle for one assigned position bootstrap.
-#[expect(
-    clippy::large_enum_variant,
-    reason = "each stage retains one exact preallocated owner; boxing would add hidden allocation"
-)]
 pub(in crate::consumer::group) enum ClassicGroupPositionExecutionState {
     Dormant,
     Prepared(ClassicGroupPositionPrepared),

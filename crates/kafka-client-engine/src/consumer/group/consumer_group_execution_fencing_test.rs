@@ -32,7 +32,7 @@ fn fenced_member_is_lost_then_rejoins_at_epoch_zero_with_the_same_identity() {
         let cycle = entry
             .consumer
             .as_ref()
-            .and_then(|consumer| consumer.cycle())
+            .and_then(super::consumer_group_execution::ConsumerGroupExecution::cycle)
             .unwrap_or_else(|| panic!("installed membership cycle"));
         let schedule = entry
             .consumer

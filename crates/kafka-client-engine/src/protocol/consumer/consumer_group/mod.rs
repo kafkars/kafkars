@@ -3,6 +3,8 @@
 mod model;
 mod request;
 mod response;
+#[cfg(test)]
+mod test_support;
 
 pub(crate) use model::{
     CONSUMER_GROUP_HEARTBEAT_MAX_VERSION, CONSUMER_GROUP_HEARTBEAT_MIN_VERSION,
@@ -15,6 +17,11 @@ pub(crate) use request::{
 };
 pub(crate) use response::{
     ConsumerGroupHeartbeatResponseFailure, normalize_consumer_group_heartbeat_response,
+};
+#[cfg(test)]
+pub(crate) use test_support::{
+    consumer_group_heartbeat_success_for_test,
+    consumer_group_heartbeat_success_without_assignment_for_test,
 };
 
 #[cfg(test)]

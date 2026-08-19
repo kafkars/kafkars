@@ -1,4 +1,4 @@
-//! Public Admin API for describing one modern StreamsGroup.
+//! Public Admin API for describing one modern `StreamsGroup`.
 
 mod assignment;
 mod builder;

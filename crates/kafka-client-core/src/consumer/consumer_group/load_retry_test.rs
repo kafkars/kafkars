@@ -68,7 +68,12 @@ fn steady_load_retry_retains_member_epoch_assignment_and_coordinator_semantics()
     assert_eq!(schedule.kind(), ConsumerGroupHeartbeatRequestKind::Steady);
     assert_eq!(schedule.not_before(), deadline(100_000_026));
     assert_eq!(schedule.deadline(), deadline(300_000_025));
-    assert_eq!(machine.member_epoch().map(|epoch| epoch.get()), Some(1));
+    assert_eq!(
+        machine
+            .member_epoch()
+            .map(super::identity::ConsumerGroupMemberEpoch::get),
+        Some(1)
+    );
     let assignment = machine
         .live_assignment()
         .unwrap_or_else(|| panic!("live assignment"));

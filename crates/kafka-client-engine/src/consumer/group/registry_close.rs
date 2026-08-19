@@ -29,6 +29,10 @@ pub(in crate::consumer) enum GroupRegistryCloseError {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[allow(
+    clippy::enum_variant_names,
+    reason = "the variants are the explicit invariant classes checked during linear registry teardown"
+)]
 pub(in crate::consumer) enum GroupConsumerRemovalError {
     RetainedBytesInvariant,
     TerminalInvariant,
@@ -110,7 +114,6 @@ impl GroupConsumerRegistry {
                     return Ok(true);
                 }
                 GroupConsumerCloseAuthorityClaim::Idle | GroupConsumerCloseAuthorityClaim::Busy => {
-                    continue;
                 }
                 GroupConsumerCloseAuthorityClaim::Observe { .. } => {
                     return Err(GroupConsumerRemovalError::CloseAuthorityInvariant);

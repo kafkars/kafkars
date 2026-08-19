@@ -50,10 +50,6 @@ pub(crate) struct ConsumerGroupHeartbeatRoute {
 
 impl ConsumerGroupHeartbeatRoute {
     /// Transfers exact coordinator-route authority into bounded invalidation ownership.
-    #[expect(
-        clippy::result_large_err,
-        reason = "a rejected transfer must return the exact linear route authority intact"
-    )]
     pub(crate) fn into_coordinator_invalidation(
         self,
         group_id: GroupId,

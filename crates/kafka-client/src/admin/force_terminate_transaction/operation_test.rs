@@ -1,4 +1,8 @@
 //! Force-termination operation and singleton-result translation scenarios.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts a specific terminal failure"
+)]
 
 use std::{future::Future, time::Duration};
 

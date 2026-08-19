@@ -9,7 +9,7 @@ pub struct RaftVoterEndpoint {
 }
 
 impl RaftVoterEndpoint {
-    /// Creates one inert endpoint validated when AddRaftVoter is submitted.
+    /// Creates one inert endpoint validated when `AddRaftVoter` is submitted.
     pub fn new(listener: impl Into<String>, host: impl Into<String>, port: u16) -> Self {
         Self {
             listener: listener.into(),

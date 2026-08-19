@@ -1,4 +1,4 @@
-//! Public Admin API for describing one modern ShareGroup.
+//! Public Admin API for describing one modern `ShareGroup`.
 
 mod assignment;
 mod builder;

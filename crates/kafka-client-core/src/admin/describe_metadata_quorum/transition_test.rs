@@ -1,5 +1,10 @@
 //! Deadline, submission, exact rejection, and delivery-certainty scenarios.
 
+#![expect(
+    clippy::needless_pass_by_value,
+    reason = "test helpers preserve exact effect ownership"
+)]
+
 use core::num::NonZeroI16;
 
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};

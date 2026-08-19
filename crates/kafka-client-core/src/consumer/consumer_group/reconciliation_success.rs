@@ -58,10 +58,6 @@ impl ConsumerGroupHeartbeatMachine {
         )
     }
 
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "one successful response chooses initial, retained, or replacement ownership"
-    )]
     fn settle_without_pending_target(
         &mut self,
         member_id: MemberId,

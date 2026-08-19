@@ -1,4 +1,4 @@
-//! Named StreamsGroup offset-alteration observer tests.
+//! Named `StreamsGroup` offset-alteration observer tests.
 
 use std::future::Future;
 

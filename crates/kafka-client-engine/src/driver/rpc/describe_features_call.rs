@@ -1,4 +1,4 @@
-//! Linear ownership of one accepted tracked AnyBroker feature query.
+//! Linear ownership of one accepted tracked `AnyBroker` feature query.
 
 use std::time::Instant;
 

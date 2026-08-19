@@ -42,7 +42,10 @@ fn exact_description_translates_without_generated_values() {
     assert_eq!((epoch, assignment_epoch), (1, 2));
     assert!(members.is_empty());
     assert_eq!(operations, Some(5));
-    assert_eq!(status.map(|value| value.raw()), Some(9));
+    assert_eq!(
+        status.map(crate::DescribeStreamsGroupTopologyDescriptionStatus::raw),
+        Some(9)
+    );
 }
 
 #[test]

@@ -1,5 +1,10 @@
 //! Stable entity, quota-value, and exact broker-error scenarios.
 
+#![expect(
+    clippy::float_cmp,
+    reason = "the fixture uses an exactly representable quota value"
+)]
+
 use core::num::NonZeroI16;
 
 use super::{

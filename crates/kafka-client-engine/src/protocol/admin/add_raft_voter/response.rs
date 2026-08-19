@@ -1,4 +1,4 @@
-//! Validate-first normalization of generated AddRaftVoter responses.
+//! Validate-first normalization of generated `AddRaftVoter` responses.
 
 use kafka_wire::AddRaftVoterResponse;
 

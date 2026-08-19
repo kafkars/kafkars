@@ -1,4 +1,4 @@
-//! Named future for one caller-ordered, multi-group ShareGroup description.
+//! Named future for one caller-ordered, multi-group `ShareGroup` description.
 
 use std::{
     future::Future,
@@ -10,7 +10,7 @@ use crate::{KafkaError, bridge::describe_share_groups::AdminDescribeShareGroups}
 
 use super::DescribeShareGroupsResult;
 
-/// A submitted multi-group ShareGroup description operation.
+/// A submitted multi-group `ShareGroup` description operation.
 #[must_use = "dropping abandons observation without cancelling accepted admin work"]
 #[derive(Debug)]
 pub struct DescribeShareGroups {

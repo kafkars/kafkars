@@ -1,4 +1,4 @@
-//! InitProducerId normalization scenarios for caller-selected producer fencing.
+//! `InitProducerId` normalization scenarios for caller-selected producer fencing.
 
 use kafka_client_core::{Deadline, Moment};
 use kafka_wire::InitProducerIdResponse;

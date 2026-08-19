@@ -10,7 +10,7 @@ fn request_preserves_caller_order_and_exact_target_identity() {
     ])
     .canonicalize()
     .into_plan()
-    .expect("valid plan");
+    .unwrap_or_else(|error| panic!("valid plan: {error:?}"));
 
     assert_eq!(plan.replicas()[0].topic(), "orders");
     assert_eq!(plan.replicas()[0].partition(), 2);

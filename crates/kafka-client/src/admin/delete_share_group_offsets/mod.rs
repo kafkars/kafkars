@@ -1,4 +1,4 @@
-//! Public Admin API for deleting ShareGroup offsets by topic.
+//! Public Admin API for deleting `ShareGroup` offsets by topic.
 
 mod builder;
 mod operation;

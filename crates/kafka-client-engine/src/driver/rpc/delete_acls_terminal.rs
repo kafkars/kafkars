@@ -1,4 +1,4 @@
-//! Neutral terminal facts for one tracked AnyBroker `DeleteAcls` call.
+//! Neutral terminal facts for one tracked `AnyBroker` `DeleteAcls` call.
 
 use kafka_client_core::{DeleteAclsPlan, DeliveryStatus};
 use kafka_driver::{ApiVersion, CallFailure, RequestError, RouteFailureToken};

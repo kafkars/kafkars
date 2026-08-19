@@ -1,4 +1,4 @@
-//! ShareGroup offset-deletion result ordering and throttle tests.
+//! `ShareGroup` offset-deletion result ordering and throttle tests.
 
 use std::time::Duration;
 

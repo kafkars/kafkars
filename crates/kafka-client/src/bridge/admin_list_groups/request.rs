@@ -3,6 +3,10 @@
 use kafka_client_engine::AdminListGroupsRequest as EngineRequest;
 
 /// Linear request retained by the public builder before submission.
+#[expect(
+    clippy::struct_field_names,
+    reason = "the fields preserve the three distinct Kafka ListGroups filter categories"
+)]
 pub(crate) struct ListGroupsAdminRequest {
     state_filters: Vec<String>,
     group_type_filters: Vec<String>,

@@ -110,7 +110,11 @@ fn validate_result(
                 },
             );
         }
-        let mechanism = info.mechanism as usize;
+        let mechanism = usize::try_from(info.mechanism).map_err(|_| {
+            DescribeUserScramCredentialsResponseFailure::InvalidMechanism {
+                actual: info.mechanism,
+            }
+        })?;
         if seen[mechanism] {
             return Err(
                 DescribeUserScramCredentialsResponseFailure::DuplicateMechanism {

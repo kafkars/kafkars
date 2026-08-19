@@ -12,6 +12,8 @@ const ROOT: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_
 const ACTIVATION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/activation.rs";
 const OWNER: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs";
+const OWNER_BUILD: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner_build.rs";
 const CONTROL: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/control.rs";
 const OWNER_OBSERVATION: &str =
@@ -90,7 +92,13 @@ fn checked_in_group_fetch_activation_policy_is_exact() {
             .collect::<Vec<_>>();
         assert_eq!(rules.len(), 1, "{field} needs one mutation rule");
         let expected = if field == "activation" {
-            vec![OWNER, RETIREMENT, RECOVERY]
+            vec![
+                OWNER,
+                RETIREMENT,
+                RECOVERY,
+                "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/reconciliation.rs",
+                "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/terminal_observation.rs",
+            ]
         } else {
             vec![
                 OWNER,
@@ -101,6 +109,13 @@ fn checked_in_group_fetch_activation_policy_is_exact() {
                 TURN,
                 RECOVERY,
                 DELIVERY,
+                "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/seek.rs",
+                "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/position_prepare.rs",
+                "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/position_execution.rs",
+                "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/fetch_terminal.rs",
+                "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/reconciliation.rs",
+                "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/session_close.rs",
+                "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/terminal_observation.rs",
             ]
         };
         assert_eq!(rules[0].allowed_paths, expected);
@@ -219,9 +234,6 @@ fn sole_owner_preflights_installs_and_moves_ordered_effects_without_attempt_capt
         "activation owner may not abandon post-core owners through process failure"
     );
     for required in [
-        "try_new_with_read_isolation",
-        "AssignedConsumerMachine::with_read_isolation(read_isolation)",
-        ".with_isolation(fetch_isolation(read_isolation))",
         "prepare_classic_group_fetch_activation",
         "preflight_activation_capacity",
         "prepare_replacement",
@@ -232,6 +244,17 @@ fn sole_owner_preflights_installs_and_moves_ordered_effects_without_attempt_capt
         "ClassicGroupFetchActivation::new",
     ] {
         assert!(owner.contains(required), "owner lost {required}");
+    }
+    let owner_build = read(&root.join(OWNER_BUILD));
+    for required in [
+        "try_new_with_fetch_configuration",
+        "AssignedConsumerMachine::with_read_isolation(read_isolation)",
+        ".with_isolation(fetch_isolation(read_isolation))",
+    ] {
+        assert!(
+            owner_build.contains(required),
+            "owner build lost {required}"
+        );
     }
     for forbidden in [
         "FetchAttemptDeadline",
@@ -249,9 +272,12 @@ fn sole_owner_preflights_installs_and_moves_ordered_effects_without_attempt_capt
         );
     }
     let entry = read(&root.join(ENTRY));
+    let compact_entry = entry.split_whitespace().collect::<Vec<_>>().join(" ");
     assert_eq!(
-        entry
-            .matches("ClassicGroupFetchOwner::try_new_with_read_isolation(read_isolation)")
+        compact_entry
+            .matches(
+                "ClassicGroupFetchOwner::try_new_with_fetch_configuration( read_isolation, missing_offset_policy, fetch, limits, )",
+            )
             .count(),
         1
     );

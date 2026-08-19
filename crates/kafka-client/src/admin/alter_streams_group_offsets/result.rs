@@ -1,10 +1,10 @@
-//! Typed StreamsGroup result over the shared consumer-group terminal value.
+//! Typed `StreamsGroup` result over the shared consumer-group terminal value.
 
 use std::time::Duration;
 
 use crate::{AlterConsumerGroupOffsetsResult, TopicPartition, admin::BatchResult};
 
-/// Successful StreamsGroup offset alteration in original caller order.
+/// Successful `StreamsGroup` offset alteration in original caller order.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AlterStreamsGroupOffsetsResult {
     inner: AlterConsumerGroupOffsetsResult,

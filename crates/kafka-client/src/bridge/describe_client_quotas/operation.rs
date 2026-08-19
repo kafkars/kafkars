@@ -1,4 +1,4 @@
-//! Concrete observation of accepted or rejected DescribeClientQuotas work.
+//! Concrete observation of accepted or rejected `DescribeClientQuotas` work.
 
 use std::{
     fmt,

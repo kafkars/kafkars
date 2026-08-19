@@ -23,7 +23,12 @@ pub(super) fn source_response_charge(response: &DescribeTopicPartitionsResponse)
         )
     })?;
     let text = response.topics.iter().try_fold(0usize, |bytes, topic| {
-        bytes.checked_add(topic.name.as_ref().map_or(0, |name| name.len()))
+        bytes.checked_add(
+            topic
+                .name
+                .as_ref()
+                .map_or(0, kafka_wire_core::StrBytes::len),
+        )
     })?;
     let text = text.checked_add(
         response
@@ -66,7 +71,7 @@ pub(super) fn normalized_response_charge(
     )?;
     for topic in response.topics() {
         required = required
-            .checked_add(topic.name().map_or(0, |name| name.capacity()))?
+            .checked_add(topic.name().map_or(0, std::string::String::capacity))?
             .checked_add(
                 topic
                     .partition_capacity()

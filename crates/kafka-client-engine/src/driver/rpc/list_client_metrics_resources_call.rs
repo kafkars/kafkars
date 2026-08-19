@@ -1,4 +1,4 @@
-//! Linear ownership of one accepted tracked AnyBroker client-metrics resource query.
+//! Linear ownership of one accepted tracked `AnyBroker` client-metrics resource query.
 
 use std::time::Instant;
 

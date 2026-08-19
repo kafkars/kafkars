@@ -6,8 +6,8 @@ use super::{
 };
 use std::path::{Path, PathBuf};
 use syn::{
-    BinOp, Expr, ExprBinary, ExprMethodCall, ExprReference, File, FnArg, ImplItemFn, ItemFn,
-    ItemImpl, ItemStruct, Member, Pat, Type,
+    BinOp, Expr, ExprBinary, ExprMethodCall, ExprReference, FnArg, ImplItemFn, ItemFn, ItemImpl,
+    ItemStruct, Member, Pat, Type,
     visit::{self, Visit},
 };
 #[derive(Default)]
@@ -140,10 +140,13 @@ pub(crate) fn mutation_violations(
     let parsed = files
         .iter()
         .map(|path| {
+            let source = read(path);
             (
                 display_path(root, path),
-                parse(path),
+                syn::parse_file(&source)
+                    .unwrap_or_else(|error| panic!("parse {}: {error}", path.display())),
                 !is_test_only_source(path),
+                source,
             )
         })
         .collect::<Vec<_>>();
@@ -155,7 +158,13 @@ pub(crate) fn mutation_violations(
             }
         }
         let (mut declared, mut mutations) = (false, 0);
-        for (path, file, track_owner_bindings) in &parsed {
+        for (path, file, track_owner_bindings, source) in &parsed {
+            // Every declaration, owner impl, and typed owner binding recognized
+            // below names both the protected owner type and its field. Avoid a
+            // full AST visit when the source cannot contribute evidence.
+            if !source.contains(&rule.owner_type) || !source.contains(&rule.field) {
+                continue;
+            }
             let mut visitor = MutationVisitor {
                 rule,
                 path,
@@ -270,8 +279,4 @@ const fn is_assign_op(operator: &BinOp) -> bool {
             | BinOp::ShlAssign(_)
             | BinOp::ShrAssign(_)
     )
-}
-
-fn parse(path: &Path) -> File {
-    syn::parse_file(&read(path)).unwrap_or_else(|error| panic!("parse {}: {error}", path.display()))
 }

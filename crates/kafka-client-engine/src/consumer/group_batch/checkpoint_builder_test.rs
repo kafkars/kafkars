@@ -24,18 +24,30 @@ fn builder_rejects_skips_duplicates_and_foreign_records_without_advancing() {
     let mut builder = batch.checkpoint_builder();
 
     assert_eq!(
-        builder.mark_processed(&records[1]).unwrap_err().kind(),
+        builder
+            .mark_processed(&records[1])
+            .err()
+            .unwrap_or_else(|| panic!("skipped record must fail"))
+            .kind(),
         GroupConsumerCheckpointMarkErrorKind::OutOfOrder
     );
     assert_eq!(
-        builder.mark_processed(&foreign).unwrap_err().kind(),
+        builder
+            .mark_processed(&foreign)
+            .err()
+            .unwrap_or_else(|| panic!("foreign record must fail"))
+            .kind(),
         GroupConsumerCheckpointMarkErrorKind::ForeignRecord
     );
     builder
         .mark_processed(&records[0])
         .unwrap_or_else(|error| panic!("mark first record: {error}"));
     assert_eq!(
-        builder.mark_processed(&records[0]).unwrap_err().kind(),
+        builder
+            .mark_processed(&records[0])
+            .err()
+            .unwrap_or_else(|| panic!("duplicate record must fail"))
+            .kind(),
         GroupConsumerCheckpointMarkErrorKind::OutOfOrder
     );
     builder
@@ -49,7 +61,6 @@ fn builder_rejects_skips_duplicates_and_foreign_records_without_advancing() {
 
     drop(records);
     drop(batch);
-    drop(foreign);
     drop(foreign_batch);
     fixture.finish();
     foreign_fixture.finish();

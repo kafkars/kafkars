@@ -17,7 +17,7 @@ fn response_preserves_success_for_each_owned_version() {
             &response,
             ADD_RAFT_VOTER_MAX_RETAINED_BYTES,
         )
-        .expect("valid success");
+        .unwrap_or_else(|error| panic!("valid success: {error:?}"));
         let retained = core::mem::size_of_val(&normalized);
         assert_eq!(normalized.into_parts(), (9, 0, None, false, retained));
     }
@@ -29,7 +29,7 @@ fn response_preserves_signed_code_and_utf8_safe_bounded_diagnostic() {
     let response = response(3, -32_000, Some(&diagnostic));
     let normalized =
         normalize_add_raft_voter_response(Some(1), &response, ADD_RAFT_VOTER_MAX_RETAINED_BYTES)
-            .expect("valid broker rejection");
+            .unwrap_or_else(|error| panic!("valid broker rejection: {error:?}"));
     let (throttle, code, message, truncated, retained) = normalized.into_parts();
 
     assert_eq!(throttle, 3);

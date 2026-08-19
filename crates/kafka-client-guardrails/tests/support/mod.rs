@@ -44,7 +44,7 @@ pub(crate) use files::{
 };
 pub(crate) use github_yaml::{YamlNode, entry as yaml_entry, parse as parse_github_yaml};
 pub(crate) use glob_import::glob_import_violations;
-pub(crate) use invocation::{invocation_candidate_matches, invocation_matches, invocations};
+pub(crate) use invocation::invocations;
 pub(crate) use macro_scope::{MacroScope, source_capable_definition};
 pub(crate) use macro_token::macro_identifiers;
 pub(crate) use method_capability::method_capability_violations;

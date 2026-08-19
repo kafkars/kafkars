@@ -32,7 +32,8 @@ fn response_restores_request_order_and_distinguishes_current_future_missing() {
         ),
     ]);
 
-    let (input, retained) = normalized_input(7, &replicas, normalized).expect("valid correlation");
+    let (input, retained) = normalized_input(7, &replicas, normalized)
+        .unwrap_or_else(|error| panic!("valid correlation: {error:?}"));
     assert_eq!(retained, 512);
     let DescribeReplicaLogDirsInput::BrokerResponded {
         broker_id,
@@ -50,21 +51,21 @@ fn response_restores_request_order_and_distinguishes_current_future_missing() {
         placements[0]
             .info()
             .current()
-            .map(|location| location.path()),
+            .map(kafka_client_core::ReplicaLogDirLocation::path),
         Some("/logs/a")
     );
     assert_eq!(
         placements[0]
             .info()
             .future()
-            .map(|location| location.path()),
+            .map(kafka_client_core::ReplicaLogDirLocation::path),
         Some("/logs/b")
     );
     assert_eq!(
         placements[1]
             .info()
             .current()
-            .map(|location| location.offset_lag()),
+            .map(kafka_client_core::ReplicaLogDirLocation::offset_lag),
         Some(3)
     );
     assert!(placements[2].info().current().is_none());
@@ -80,8 +81,8 @@ fn directory_error_contributes_no_placement() {
         vec![topic("orders", vec![partition(1, false, 0)])],
     )]);
 
-    let (input, _) =
-        normalized_input(7, &replicas, normalized).expect("directory error is absence");
+    let (input, _) = normalized_input(7, &replicas, normalized)
+        .unwrap_or_else(|error| panic!("directory error is absence: {error:?}"));
     let DescribeReplicaLogDirsInput::BrokerResponded {
         result: Ok(placements),
         ..

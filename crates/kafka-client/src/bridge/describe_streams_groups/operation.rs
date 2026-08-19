@@ -1,4 +1,4 @@
-//! Concrete observation of accepted or rejected batched StreamsGroup work.
+//! Concrete observation of accepted or rejected batched `StreamsGroup` work.
 
 use std::{
     fmt,

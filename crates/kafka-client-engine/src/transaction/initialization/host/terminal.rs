@@ -230,10 +230,8 @@ pub(super) fn terminal_input(
             TransactionInitDriverFailureKind::InvalidResponse => {
                 TransactionInitializationInput::InvalidResponse
             }
-            TransactionInitDriverFailureKind::Compatibility => {
-                TransactionInitializationInput::TransportFailed { delivery }
-            }
-            TransactionInitDriverFailureKind::Transport => {
+            TransactionInitDriverFailureKind::Compatibility
+            | TransactionInitDriverFailureKind::Transport => {
                 TransactionInitializationInput::TransportFailed { delivery }
             }
         },

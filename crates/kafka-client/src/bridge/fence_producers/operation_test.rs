@@ -1,4 +1,9 @@
 //! Local and ready producer-fencing observation tests.
+#![expect(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    reason = "the test constructs a known representable past deadline and asserts failure"
+)]
 
 use std::{
     future::Future,
@@ -31,7 +36,9 @@ fn elapsed_submission_boundary_is_a_locally_ready_unsent_timeout() {
 fn captured_submission_deadline_is_rechecked_after_public_result_preparation() {
     let operation = AdminFenceProducers::submit_with(
         FenceProducersAdminRequest::new(vec!["orders-tx".to_owned()]),
-        Instant::now() - Duration::from_millis(1),
+        Instant::now()
+            .checked_sub(Duration::from_millis(1))
+            .unwrap(),
         |_request, _remaining| panic!("expired request must not reach engine admission"),
     );
     let error = operation

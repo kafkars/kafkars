@@ -1,4 +1,4 @@
-//! Single-attempt AnyBroker policy for Admin `DescribeDelegationTokens`.
+//! Single-attempt `AnyBroker` policy for Admin `DescribeDelegationTokens`.
 
 use std::{error::Error, fmt, time::Instant};
 

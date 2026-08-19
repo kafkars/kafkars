@@ -1,4 +1,4 @@
-//! Deterministic mixed-route LegacyAlterConfigs scenarios.
+//! Deterministic mixed-route `LegacyAlterConfigs` scenarios.
 
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 

@@ -9,10 +9,6 @@ use super::{
 };
 
 impl ConsumerGroupHeartbeatMachine {
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "the staged target and its first reportable cadence commit atomically"
-    )]
     pub(super) fn stage_replacement(
         &mut self,
         member_id: MemberId,

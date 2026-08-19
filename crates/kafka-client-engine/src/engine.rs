@@ -97,6 +97,10 @@ pub(crate) struct EngineInner {
 
 impl Engine {
     /// Validates every local bound and starts one native host thread.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the one-to-one transfer of every admission capability into the shared owner stays explicit and auditable"
+    )]
     pub fn start(config: EngineConfig) -> Result<Self, EngineStartError> {
         let validated = config.validate().map_err(EngineStartError::configuration)?;
         let StartedEngineHost {

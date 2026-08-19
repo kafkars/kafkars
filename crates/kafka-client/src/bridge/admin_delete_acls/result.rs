@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of engine-owned DeleteAcls outcomes.
+//! Exhaustive stable translation of engine-owned `DeleteAcls` outcomes.
 
 use std::time::Duration;
 

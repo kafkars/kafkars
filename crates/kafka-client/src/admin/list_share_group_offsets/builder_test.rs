@@ -1,4 +1,4 @@
-//! ShareGroup offset-listing builder surface tests.
+//! `ShareGroup` offset-listing builder surface tests.
 
 use std::{future::Future, time::Duration};
 

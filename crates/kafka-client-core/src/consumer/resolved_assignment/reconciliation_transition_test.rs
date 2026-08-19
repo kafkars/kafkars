@@ -1,5 +1,10 @@
 //! Retained-position movement, effect ordering, and fresh-fence scenarios.
 
+#![expect(
+    clippy::manual_let_else,
+    reason = "fixture matches name each expected effect while retaining assertion context"
+)]
+
 use super::{
     InstallResolvedAssignment, ReconcileResolvedAssignment, ResolvedAssignedPartition,
     ResolvedAssignmentTarget,

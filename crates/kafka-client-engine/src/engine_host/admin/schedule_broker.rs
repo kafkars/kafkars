@@ -11,7 +11,11 @@ use super::{
 };
 
 // The broker-operation owner set stays explicit at its sole aggregation boundary.
-#[expect(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "the sole broker progress aggregation boundary keeps every concrete owner explicit"
+)]
 pub(super) const fn extend_with_broker_operations(
     progress: &AdminProgress,
     log_directories: &describe_log_dirs::DescribeLogDirsProgress,

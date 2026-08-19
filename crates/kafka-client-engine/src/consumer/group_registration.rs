@@ -97,6 +97,10 @@ impl GroupConsumerHandle {
         }
     }
 
+    #[allow(
+        clippy::result_large_err,
+        reason = "registration failure returns the exact request or handle ownership for deterministic recovery"
+    )]
     pub(crate) fn try_register(
         port: GroupConsumerPort,
         lifetime: Arc<dyn Send + Sync>,

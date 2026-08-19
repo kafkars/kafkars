@@ -1,4 +1,4 @@
-//! Name-based DescribeLogDirs generated-version policy.
+//! Name-based `DescribeLogDirs` generated-version policy.
 
 use super::{
     DESCRIBE_LOG_DIRS_MAX_VERSION, DESCRIBE_LOG_DIRS_MIN_VERSION,

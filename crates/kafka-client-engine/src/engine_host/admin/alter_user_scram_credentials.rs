@@ -1,4 +1,4 @@
-//! Fair host turns for destructive AnyBroker Admin `AlterUserScramCredentials`.
+//! Fair host turns for destructive `AnyBroker` Admin `AlterUserScramCredentials`.
 
 use kafka_client_core::{Deadline, Moment};
 

@@ -6,6 +6,8 @@ struct CandidateMember {
     ordering_rank: usize,
     kafka_member_spelling: usize,
     subscribed_topic_ids: usize,
+    candidate_generation: usize,
+    candidate_owned_partitions: usize,
 }
 
 struct ClassicGroupCycleCandidate {
@@ -33,6 +35,8 @@ fn own() -> (CandidateMember, ClassicGroupCycleCandidate) {
             ordering_rank: 1,
             kafka_member_spelling: 1,
             subscribed_topic_ids: 1,
+            candidate_generation: 1,
+            candidate_owned_partitions: 1,
         },
         ClassicGroupCycleCandidate {
             membership_cycle: 1,

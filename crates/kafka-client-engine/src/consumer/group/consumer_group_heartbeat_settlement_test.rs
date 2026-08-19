@@ -2,23 +2,18 @@
 
 use std::{sync::Arc, time::Duration};
 
-use kafka_client_core::{
-    GroupId, GroupPositionBatch, GroupPositionFence, GroupPositionPartitionFact,
-    LiveGroupAssignment, Moment, NextFetchOffset,
-};
-use kafka_wire::{
-    ConsumerGroupHeartbeatResponse,
-    consumer_group_heartbeat_response::{Assignment, TopicPartitions},
-};
-use kafka_wire_core::Uuid;
-
 use crate::{
     clock::MonotonicClock,
     config::{ValidatedConsumerFetchConfig, ValidatedConsumerLimits},
     driver::TopicPartitionCountFact,
     protocol::consumer::{
-        ConsumerGroupHeartbeatOutcome, normalize_consumer_group_heartbeat_response,
+        consumer_group_heartbeat_success_for_test,
+        consumer_group_heartbeat_success_without_assignment_for_test,
     },
+};
+use kafka_client_core::{
+    GroupId, GroupPositionBatch, GroupPositionFence, GroupPositionPartitionFact,
+    LiveGroupAssignment, Moment, NextFetchOffset,
 };
 
 use super::{
@@ -70,7 +65,7 @@ fn initial_assignment_owns_position_processing_and_observation_before_fetch() {
         entry
             .consumer
             .as_ref()
-            .and_then(|consumer| consumer.cycle())
+            .and_then(super::consumer_group_execution::ConsumerGroupExecution::cycle)
             .unwrap_or_else(|| panic!("membership cycle")),
         assignment.member_id(),
         assignment.assignment_generation(),
@@ -306,35 +301,11 @@ pub(super) fn success_with(
     member_epoch: i32,
     partition: i32,
 ) -> crate::protocol::consumer::ConsumerGroupHeartbeatSuccess {
-    let mut response = ConsumerGroupHeartbeatResponse::default();
-    response.member_id = Some("member-a".into());
-    response.member_epoch = member_epoch;
-    response.heartbeat_interval_ms = 5_000;
-    let mut topic = TopicPartitions::default();
-    topic.topic_id = Uuid::from_bytes([7; 16]);
-    topic.partitions = vec![partition];
-    let mut assignment = Assignment::default();
-    assignment.topic_partitions = vec![topic];
-    response.assignment = Some(assignment);
-    let outcome = normalize_consumer_group_heartbeat_response(0, &response)
-        .unwrap_or_else(|error| panic!("normalize: {error:?}"));
-    let ConsumerGroupHeartbeatOutcome::Succeeded(success) = outcome else {
-        panic!("successful heartbeat")
-    };
-    success
+    consumer_group_heartbeat_success_for_test(member_epoch, partition)
 }
 
 pub(super) fn success_without_assignment(
     member_epoch: i32,
 ) -> crate::protocol::consumer::ConsumerGroupHeartbeatSuccess {
-    let mut response = ConsumerGroupHeartbeatResponse::default();
-    response.member_id = Some("member-a".into());
-    response.member_epoch = member_epoch;
-    response.heartbeat_interval_ms = 5_000;
-    let outcome = normalize_consumer_group_heartbeat_response(0, &response)
-        .unwrap_or_else(|error| panic!("normalize: {error:?}"));
-    let ConsumerGroupHeartbeatOutcome::Succeeded(success) = outcome else {
-        panic!("successful steady heartbeat")
-    };
-    success
+    consumer_group_heartbeat_success_without_assignment_for_test(member_epoch)
 }

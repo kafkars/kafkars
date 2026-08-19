@@ -1,4 +1,9 @@
-//! AnyBroker submission, allocation reuse, and terminal-assignment tests.
+//! `AnyBroker` submission, allocation reuse, and terminal-assignment tests.
+
+#![expect(
+    clippy::needless_pass_by_value,
+    reason = "test helpers preserve exact effect ownership"
+)]
 
 use core::num::NonZeroI16;
 

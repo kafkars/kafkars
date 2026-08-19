@@ -231,6 +231,10 @@ impl DescribeStreamsGroupTaskIds {
 
 /// Current or target task assignment for one member.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(
+    clippy::struct_field_names,
+    reason = "the task suffix mirrors Kafka's public assignment vocabulary"
+)]
 pub struct DescribeStreamsGroupAssignment {
     active_tasks: Vec<DescribeStreamsGroupTaskIds>,
     standby_tasks: Vec<DescribeStreamsGroupTaskIds>,

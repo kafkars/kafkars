@@ -56,8 +56,8 @@ fn reported_peak_covers_materialized_normalized_ownership() {
     let mut response = DescribeAclsResponse::default();
     response.resources = vec![resource];
 
-    let peak = response_peak_charge(&response).expect("bounded peak");
-    let normalized =
-        normalize_describe_acls_response(3, &response, peak).expect("peak covers output");
+    let peak = response_peak_charge(&response).unwrap_or_else(|| panic!("bounded peak"));
+    let normalized = normalize_describe_acls_response(3, &response, peak)
+        .unwrap_or_else(|error| panic!("peak covers output: {error:?}"));
     assert_eq!(normalized.retained_bytes, peak);
 }

@@ -1,4 +1,4 @@
-//! Shared caller-prepared vectors and generated DeleteAcls test values.
+//! Shared caller-prepared vectors and generated `DeleteAcls` test values.
 
 use kafka_client_core::{DeleteAclFilterResult, DeleteAclMatchingBinding};
 use kafka_wire::{
@@ -46,13 +46,17 @@ pub(super) fn normalize_versioned(
 
 pub(super) fn prepared_results(count: usize) -> Vec<DeleteAclFilterResult> {
     let mut results = Vec::new();
-    results.try_reserve_exact(count).expect("outer capacity");
+    results
+        .try_reserve_exact(count)
+        .unwrap_or_else(|error| panic!("outer capacity: {error:?}"));
     results
 }
 
 pub(super) fn prepared_matching(count: usize) -> Vec<DeleteAclMatchingBinding> {
     let mut matching = Vec::new();
-    matching.try_reserve_exact(count).expect("nested capacity");
+    matching
+        .try_reserve_exact(count)
+        .unwrap_or_else(|error| panic!("nested capacity: {error:?}"));
     matching
 }
 

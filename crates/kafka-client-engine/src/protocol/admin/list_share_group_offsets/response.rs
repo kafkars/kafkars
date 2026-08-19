@@ -130,8 +130,7 @@ pub(crate) fn normalize_list_share_group_offsets_response(
         topic.partitions.iter().map(|partition| {
             (
                 topic.topic_name.as_str(),
-                NonZeroI16::new(partition.error_code)
-                    .and_then(|_| partition.error_message.as_deref()),
+                NonZeroI16::new(partition.error_code).and(partition.error_message.as_deref()),
             )
         })
     }))
@@ -172,7 +171,7 @@ fn validate_envelope_bounds(
             group
                 .error_message
                 .as_ref()
-                .map_or(0, |message| message.len()),
+                .map_or(0, kafka_wire_core::StrBytes::len),
         )
         .ok_or(bytes_overflow())?;
     if text_bytes > MAX_RESPONSE_TEXT_BYTES {
@@ -203,7 +202,7 @@ fn validate_envelope_bounds(
                     partition
                         .error_message
                         .as_ref()
-                        .map_or(0, |message| message.len()),
+                        .map_or(0, kafka_wire_core::StrBytes::len),
                 )
                 .ok_or(bytes_overflow())?;
         }
@@ -309,7 +308,7 @@ fn validate_success_shape(
                     partition
                         .error_message
                         .as_ref()
-                        .map_or(0, |message| message.len()),
+                        .map_or(0, kafka_wire_core::StrBytes::len),
                 )
                 .ok_or(bytes_overflow())?;
             if text_bytes > MAX_RESPONSE_TEXT_BYTES {

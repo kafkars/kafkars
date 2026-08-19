@@ -1,4 +1,4 @@
-//! StreamsGroup description translation and exact value-loopback tests.
+//! `StreamsGroup` description translation and exact value-loopback tests.
 
 use crate::{DeliveryStatus, ErrorKind, admin::StreamsGroupTopologyDescriptionStatus};
 
@@ -77,6 +77,10 @@ fn accepted_and_observer_failures_keep_stable_categories() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one cohesive topology round trip keeps all nested future-compatible facts visible"
+)]
 fn exact_nested_engine_result_loops_back_without_losing_nullable_or_future_facts() {
     let source = TopologyDescriptionNode::new(
         "source".to_owned(),

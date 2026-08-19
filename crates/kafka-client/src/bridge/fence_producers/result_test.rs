@@ -1,4 +1,8 @@
 //! Producer-fencing translation categories, identities, and delivery.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts a broker rejection result"
+)]
 
 use crate::{DeliveryStatus, ErrorKind};
 

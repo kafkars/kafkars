@@ -1,4 +1,4 @@
-//! Public ShareGroup offset-listing result with Kafka throttle observation.
+//! Public `ShareGroup` offset-listing result with Kafka throttle observation.
 
 use std::time::Duration;
 
@@ -6,7 +6,7 @@ use crate::TopicPartition;
 
 use super::{super::BatchResult, ShareGroupOffset};
 
-/// Completed ShareGroup offset listing with deterministic per-partition outcomes.
+/// Completed `ShareGroup` offset listing with deterministic per-partition outcomes.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ListShareGroupOffsetsResult {
     throttle_time: Duration,

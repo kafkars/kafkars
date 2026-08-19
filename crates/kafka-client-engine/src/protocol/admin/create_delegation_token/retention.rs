@@ -65,11 +65,11 @@ pub(super) fn success_source_charge(
     size_of::<NormalizedCreateDelegationTokenResponse>()
         .checked_add(size_of::<NormalizedDelegationToken>())?
         .checked_add(size_of::<NormalizedDelegationTokenPrincipal>())?
-        .checked_add(
-            include_requester
-                .then_some(size_of::<NormalizedDelegationTokenPrincipal>())
-                .unwrap_or(0),
-        )?
+        .checked_add(if include_requester {
+            size_of::<NormalizedDelegationTokenPrincipal>()
+        } else {
+            0
+        })?
         .checked_add(response.principal_type.len())?
         .checked_add(response.principal_name.len())?
         .checked_add(requester.unwrap_or(0))?

@@ -70,7 +70,7 @@ fn translate_page(page: Page) -> PublicPage {
     page_from_parts(
         throttle_time_ms,
         topics.into_iter().map(translate_topic).collect(),
-        cursor.map(|cursor| cursor.into_parts()),
+        cursor.map(kafka_client_engine::AdminDescribeTopicPartitionsCursor::into_parts),
     )
 }
 

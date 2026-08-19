@@ -1,4 +1,4 @@
-//! Public StreamsGroup description result tests.
+//! Public `StreamsGroup` description result tests.
 
 use std::time::Duration;
 

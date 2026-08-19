@@ -1,4 +1,4 @@
-//! Compile-time shape tests for the multi-group ShareGroup builder.
+//! Compile-time shape tests for the multi-group `ShareGroup` builder.
 
 use std::time::Duration;
 
@@ -11,12 +11,13 @@ fn assert_send_sync<T: Send + Sync>() {}
 fn builder_is_thread_safe_and_has_the_expected_fluent_shape() {
     assert_send_sync::<DescribeShareGroupsBuilder>();
 
-    let _authorized_operations: fn(DescribeShareGroupsBuilder, bool) -> DescribeShareGroupsBuilder =
+    let authorized_operations: fn(DescribeShareGroupsBuilder, bool) -> DescribeShareGroupsBuilder =
         DescribeShareGroupsBuilder::include_authorized_operations;
-    let _deadline: fn(DescribeShareGroupsBuilder, Duration) -> DescribeShareGroupsBuilder =
+    let deadline: fn(DescribeShareGroupsBuilder, Duration) -> DescribeShareGroupsBuilder =
         DescribeShareGroupsBuilder::deadline_after;
-    let _submit: fn(DescribeShareGroupsBuilder) -> DescribeShareGroups =
+    let submit: fn(DescribeShareGroupsBuilder) -> DescribeShareGroups =
         DescribeShareGroupsBuilder::submit;
+    let _ = (authorized_operations, deadline, submit);
 }
 
 #[test]

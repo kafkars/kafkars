@@ -62,7 +62,7 @@ impl DescribeShareGroupHost {
                     },
                 )?,
                 (DescribeShareGroupState::AwaitingDriver, DescribeShareGroupHandoff::Untouched) => {
-                    self.apply(operation_id, DescribeShareGroupInput::DriverRejected)?
+                    self.apply(operation_id, DescribeShareGroupInput::DriverRejected)?;
                 }
                 (DescribeShareGroupState::AwaitingDriver, DescribeShareGroupHandoff::HandedOff) => {
                     self.retain_recovered_call(0)?;

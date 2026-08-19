@@ -6,7 +6,7 @@ use crate::bridge::{admin::AdminEngine, describe_streams_group::DescribeStreamsG
 
 use super::DescribeStreamsGroup;
 
-/// Inert typed description request for one modern StreamsGroup.
+/// Inert typed description request for one modern `StreamsGroup`.
 #[must_use = "call submit to admit the DescribeStreamsGroup operation"]
 pub struct DescribeStreamsGroupBuilder {
     engine: AdminEngine,
@@ -35,7 +35,7 @@ impl DescribeStreamsGroupBuilder {
 
     /// Requests Kafka's optional full topology description.
     ///
-    /// Enabling this requires StreamsGroupDescribe v1.
+    /// Enabling this requires `StreamsGroupDescribe` v1.
     pub fn include_topology_description(mut self, include: bool) -> Self {
         self.request.set_include_topology_description(include);
         self

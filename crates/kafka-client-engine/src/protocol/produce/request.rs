@@ -24,7 +24,6 @@ const NANOSECONDS_PER_MILLISECOND: u64 = 1_000_000;
 pub(crate) struct MaterializedProduce {
     topic: Arc<str>,
     partition: i32,
-    leader_broker_id: Option<i32>,
     record_count: u32,
     records: Bytes,
 }
@@ -33,14 +32,12 @@ impl MaterializedProduce {
     pub(super) const fn new(
         topic: Arc<str>,
         partition: i32,
-        leader_broker_id: Option<i32>,
         record_count: u32,
         records: Bytes,
     ) -> Self {
         Self {
             topic,
             partition,
-            leader_broker_id,
             record_count,
             records,
         }
@@ -52,20 +49,21 @@ impl MaterializedProduce {
         partition: i32,
         records: Bytes,
     ) -> Self {
-        Self::new(topic.into(), partition, None, 1, records)
+        Self::new(topic.into(), partition, 1, records)
     }
 
     #[cfg(test)]
     pub(crate) fn from_broker_routed_test_parts(
         topic: impl Into<Arc<str>>,
         partition: i32,
-        leader_broker_id: i32,
+        _leader_broker_id: i32,
         records: Bytes,
     ) -> Self {
-        Self::new(topic.into(), partition, Some(leader_broker_id), 1, records)
+        Self::new(topic.into(), partition, 1, records)
     }
 
     /// Borrows the topic needed for name-routed driver admission.
+    #[cfg(test)]
     pub(crate) fn topic_name(&self) -> &str {
         self.topic.as_ref()
     }
@@ -78,11 +76,6 @@ impl MaterializedProduce {
     /// Returns the explicit partition needed for driver routing.
     pub(crate) const fn partition(&self) -> i32 {
         self.partition
-    }
-
-    /// Returns metadata provenance retained only for broker aggregation.
-    pub(crate) const fn leader_broker_id(&self) -> Option<i32> {
-        self.leader_broker_id
     }
 
     /// Returns records encoded into this one partition batch.
@@ -108,6 +101,7 @@ impl MaterializedProduce {
     }
 
     /// Combines already materialized batches whose metadata selected one broker.
+    #[cfg(test)]
     pub(crate) fn into_broker_routed_request(
         batches: Vec<Self>,
         now: Moment,
@@ -146,6 +140,7 @@ impl MaterializedProduce {
         )
     }
 
+    #[cfg(test)]
     pub(super) fn into_partition_data(self) -> (Arc<str>, PartitionProduceData) {
         let mut partition = PartitionProduceData::default();
         partition.index = self.partition;

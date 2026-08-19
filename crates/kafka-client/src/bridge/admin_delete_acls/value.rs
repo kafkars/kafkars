@@ -1,4 +1,4 @@
-//! Fallible nested DeleteAcls value translation without infallible collection.
+//! Fallible nested `DeleteAcls` value translation without infallible collection.
 
 use crate::{
     DeliveryStatus, ErrorKind, KafkaError,

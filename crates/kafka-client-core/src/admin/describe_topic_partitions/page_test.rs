@@ -1,5 +1,12 @@
 //! Aggregate duplicate, count, text, broker-reference, and cursor page tests.
 
+#![expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::expect_used,
+    reason = "bounded fixture indices and contextual failures are explicit test inputs"
+)]
+
 use super::{
     DESCRIBE_TOPIC_PARTITIONS_MAX_BROKER_REFERENCES,
     DESCRIBE_TOPIC_PARTITIONS_MAX_RESPONSE_PARTITIONS, DescribeTopicPartition,
@@ -21,7 +28,8 @@ fn explicit_page_preserves_throttle_subset_and_next_cursor() {
     assert_eq!(page.topics()[0].partitions()[0].partition_index(), 7);
     assert_eq!(page.topics()[0].partitions()[1].partition_index(), 2);
     assert_eq!(
-        page.next_cursor().map(|cursor| cursor.partition_index()),
+        page.next_cursor()
+            .map(super::model::DescribeTopicPartitionsCursor::partition_index),
         Some(9)
     );
 }

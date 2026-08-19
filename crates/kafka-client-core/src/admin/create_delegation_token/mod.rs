@@ -3,7 +3,7 @@
 //! The engine constructs this machine only after atomically reserving retained
 //! request/result bytes and one completion cell. The host supplies the single
 //! absolute deadline captured at the public `submit` boundary and remains its
-//! scheduling owner. Core emits exactly one AnyBroker submission, owns the
+//! scheduling owner. Core emits exactly one `AnyBroker` submission, owns the
 //! sole terminal decision, and has no retry or cancellation transition.
 //! Dropping a later observer therefore abandons observation without changing
 //! this accepted machine.

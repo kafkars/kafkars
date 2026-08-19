@@ -1,4 +1,4 @@
-//! Stable ShareGroup offset-listing error translation tests.
+//! Stable `ShareGroup` offset-listing error translation tests.
 
 use crate::{DeliveryStatus, ErrorKind};
 

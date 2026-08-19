@@ -176,10 +176,8 @@ impl GroupConsumerCyclePortError {
                 GroupConsumerCyclePortErrorCategory::Contended
             }
             GroupConsumerCyclePortErrorKind::Registry(
-                GroupConsumerCycleAdmissionError::Execution(ClassicGroupExecutionError::Occupied),
-            )
-            | GroupConsumerCyclePortErrorKind::Registry(
-                GroupConsumerCycleAdmissionError::ConsumerExecution(
+                GroupConsumerCycleAdmissionError::Execution(ClassicGroupExecutionError::Occupied)
+                | GroupConsumerCycleAdmissionError::ConsumerExecution(
                     ConsumerGroupExecutionAdmissionError::Occupied,
                 ),
             ) => GroupConsumerCyclePortErrorCategory::AlreadyStarted,

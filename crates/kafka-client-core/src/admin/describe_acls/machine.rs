@@ -67,7 +67,7 @@ pub enum DescribeAclsInput {
 /// One concrete mechanism request emitted by ACL-description policy.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DescribeAclsEffect {
-    /// Submit the exact filter once through the engine's AnyBroker lane.
+    /// Submit the exact filter once through the engine's `AnyBroker` lane.
     Submit {
         /// Stable identity reserved before machine construction.
         operation_id: OperationId,

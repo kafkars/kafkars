@@ -1,4 +1,4 @@
-//! Exhaustive InitProducerId terminal translation into deterministic fencing input.
+//! Exhaustive `InitProducerId` terminal translation into deterministic fencing input.
 
 use kafka_client_core::{
     AdminFenceProducerBrokerError, AdminFenceProducerOutcome, AdminFenceProducersInput,

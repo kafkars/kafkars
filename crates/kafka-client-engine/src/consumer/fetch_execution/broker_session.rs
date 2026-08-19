@@ -136,6 +136,10 @@ impl BrokerFetchSessions {
         self.live_plan_index(plan).map(|_index| ())
     }
 
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "aborting consumes the exact linear session plan even though only its identity is inspected"
+    )]
     pub(super) fn abort(
         &mut self,
         plan: BrokerSessionPlan,
@@ -178,6 +182,10 @@ impl BrokerFetchSessions {
         }))
     }
 
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "close completion consumes the exact linear session plan after validation"
+    )]
     pub(super) fn complete_close(
         &mut self,
         plan: BrokerSessionPlan,

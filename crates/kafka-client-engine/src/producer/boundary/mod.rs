@@ -1,5 +1,6 @@
 //! Public producer records, options, admission handles, and ownership-aware results.
 
+mod batch_admission;
 mod batch_result;
 mod cancellation;
 mod capture;
@@ -13,6 +14,7 @@ mod record;
 mod result;
 mod transaction_record;
 
+pub use batch_admission::ProducerBatchAdmission;
 pub use batch_result::{ProducerTrySendBatch, ProducerTrySendBatchError};
 pub use cancellation::{
     ProducerCancelAccepted, ProducerCancelError, ProducerCancelErrorKind, ProducerCancelFault,
@@ -33,6 +35,8 @@ pub(crate) use transaction_record::TransactionRecordViewError;
 
 #[cfg(test)]
 mod batch_result_test;
+#[cfg(test)]
+mod batch_scale_test;
 #[cfg(test)]
 mod batch_test;
 #[cfg(test)]

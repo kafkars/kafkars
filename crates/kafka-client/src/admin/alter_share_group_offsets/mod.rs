@@ -1,4 +1,4 @@
-//! Public Admin API for altering ShareGroup partition offsets.
+//! Public Admin API for altering `ShareGroup` partition offsets.
 
 mod alteration;
 mod builder;

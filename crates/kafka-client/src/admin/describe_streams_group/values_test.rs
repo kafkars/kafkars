@@ -1,4 +1,4 @@
-//! Stable StreamsGroup scalar and task value tests.
+//! Stable `StreamsGroup` scalar and task value tests.
 
 use super::{
     StreamsGroupEndpoint, StreamsGroupKeyValue, StreamsGroupTaskIds, StreamsGroupTaskOffset,

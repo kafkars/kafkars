@@ -108,7 +108,7 @@ fn control_requested_modern_close_prepares_the_existing_epoch_minus_one_leave() 
     let prepared = entry
         .consumer
         .as_ref()
-        .and_then(|execution| execution.prepared())
+        .and_then(super::consumer_group_execution::ConsumerGroupExecution::prepared)
         .unwrap_or_else(|| panic!("prepared KIP-848 leave"));
     assert_eq!(prepared.kind(), ConsumerGroupHeartbeatRequestKind::Leave);
     assert_eq!(prepared.deadline(), close_deadline);

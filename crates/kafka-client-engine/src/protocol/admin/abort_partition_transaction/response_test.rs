@@ -15,7 +15,8 @@ use super::{
 };
 
 fn plan() -> AbortPartitionTransactionPlan {
-    AbortPartitionTransactionPlan::new("orders".to_owned(), 3, 41, 7, 11).expect("valid abort plan")
+    AbortPartitionTransactionPlan::new("orders".to_owned(), 3, 41, 7, 11)
+        .unwrap_or_else(|error| panic!("valid abort plan: {error:?}"))
 }
 
 fn response(error_code: i16) -> WriteTxnMarkersResponse {

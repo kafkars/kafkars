@@ -1,4 +1,4 @@
-//! Inert ShareGroup offset-alteration request bridge tests.
+//! Inert `ShareGroup` offset-alteration request bridge tests.
 
 use crate::admin::ShareGroupOffsetAlteration;
 

@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned DescribeLogDirs adapter contract.
+//! Isolated names for the engine-owned `DescribeLogDirs` adapter contract.
 
 pub(super) use kafka_client_engine::{
     DescribeLogDirDescription as DirectoryDescription,

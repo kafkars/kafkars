@@ -1,4 +1,8 @@
-//! Public ShareGroup offset-listing result tests.
+//! Public `ShareGroup` offset-listing result tests.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts exact per-partition results"
+)]
 
 use std::time::Duration;
 

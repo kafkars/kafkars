@@ -216,7 +216,7 @@ fn one_batch_rearms_singleton_coordinator_submissions_and_debits_cumulative_resu
         ListConsumerGroupOffsetsInput::DriverAccepted,
         0,
     )
-    .and_then(|_| {
+    .and_then(|()| {
         host.apply_for_test(
             operation_id,
             ListConsumerGroupOffsetsInput::BrokerResponded {

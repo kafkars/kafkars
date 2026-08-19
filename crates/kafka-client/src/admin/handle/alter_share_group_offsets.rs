@@ -1,4 +1,4 @@
-//! ShareGroup offset-alteration entry point on the shared admin handle.
+//! `ShareGroup` offset-alteration entry point on the shared admin handle.
 
 use super::Admin;
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
 };
 
 impl Admin {
-    /// Builds inert caller-ordered partition-offset alterations for one ShareGroup.
+    /// Builds inert caller-ordered partition-offset alterations for one `ShareGroup`.
     ///
     /// Group, topic-partition, and offset validation remains deferred until
     /// [`AlterShareGroupOffsetsBuilder::submit`] captures the public absolute

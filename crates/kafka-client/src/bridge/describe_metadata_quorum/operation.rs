@@ -1,4 +1,4 @@
-//! Concrete observation of accepted or rejected DescribeMetadataQuorum work.
+//! Concrete observation of accepted or rejected `DescribeMetadataQuorum` work.
 
 use std::{
     fmt,

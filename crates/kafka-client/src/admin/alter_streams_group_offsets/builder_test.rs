@@ -1,4 +1,4 @@
-//! Typed StreamsGroup builder delegation and deadline-boundary tests.
+//! Typed `StreamsGroup` builder delegation and deadline-boundary tests.
 
 use std::time::Duration;
 

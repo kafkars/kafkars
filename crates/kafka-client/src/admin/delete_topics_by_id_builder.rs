@@ -1,4 +1,4 @@
-//! Inert topic-ID DeleteTopics options with one explicit submission boundary.
+//! Inert topic-ID `DeleteTopics` options with one explicit submission boundary.
 
 use std::time::Duration;
 

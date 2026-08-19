@@ -1,5 +1,11 @@
 //! Scenarios for bounded active-producer request validation.
 
+#![expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    reason = "fixture indices are bounded far below the protocol integer limit"
+)]
+
 use super::{
     AdminDescribeProducerTarget, AdminDescribeProducersPlan, AdminDescribeProducersPlanError,
     DESCRIBE_PRODUCERS_MAX_TARGET_TOPIC_BYTES, DESCRIBE_PRODUCERS_MAX_TARGETS,

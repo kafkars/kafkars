@@ -17,11 +17,11 @@ pub(super) struct CanonicalAlterationRef<'a> {
     pub(super) operations: Vec<AlterClientQuotaOperationRef<'a>>,
 }
 
-pub(super) fn canonicalize_request<'a>(
-    request: AlterClientQuotasRequestRef<'a>,
+pub(super) fn canonicalize_request(
+    request: AlterClientQuotasRequestRef<'_>,
     required: usize,
     limit: usize,
-) -> Result<Vec<CanonicalAlterationRef<'a>>, AlterClientQuotasRequestFailure> {
+) -> Result<Vec<CanonicalAlterationRef<'_>>, AlterClientQuotasRequestFailure> {
     validate_request_count(request.alterations())?;
     let mut canonical = Vec::new();
     canonical
@@ -49,11 +49,11 @@ fn validate_request_count(
     Ok(())
 }
 
-fn canonicalize_alteration<'a>(
-    alteration: AlterClientQuotaAlterationRef<'a>,
+fn canonicalize_alteration(
+    alteration: AlterClientQuotaAlterationRef<'_>,
     required: usize,
     limit: usize,
-) -> Result<CanonicalAlterationRef<'a>, AlterClientQuotasRequestFailure> {
+) -> Result<CanonicalAlterationRef<'_>, AlterClientQuotasRequestFailure> {
     validate_entity_count(alteration.entity())?;
     validate_operation_count(alteration.operations())?;
     let entity = canonicalize_entity(alteration.entity(), required, limit)?;

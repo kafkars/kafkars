@@ -35,7 +35,7 @@ pub(crate) struct RenewDelegationTokenAdmission {
     pub(crate) fault: Option<RenewDelegationTokenHostError>,
 }
 
-/// One plan and prepared API-key 39 owner ready for AnyBroker handoff.
+/// One plan and prepared API-key 39 owner ready for `AnyBroker` handoff.
 pub(crate) struct RenewDelegationTokenSubmission {
     operation_id: OperationId,
     deadline: OperationDeadline,

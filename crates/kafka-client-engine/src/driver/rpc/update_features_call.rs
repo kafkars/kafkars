@@ -42,23 +42,17 @@ impl UpdateFeaturesCall {
         now: Moment,
     ) -> Result<Self, UpdateFeaturesCallAdmissionFailure> {
         let evidence = UpdateFeaturesEvidence::new(plan, result_limit);
-        let timeout_ms = match remaining_timeout_ms(now, deadline) {
-            Some(timeout_ms) => timeout_ms,
-            None => {
-                return Err(UpdateFeaturesCallAdmissionFailure::new(
-                    UpdateFeaturesAdmissionSource::Deadline,
-                    evidence,
-                ));
-            }
+        let Some(timeout_ms) = remaining_timeout_ms(now, deadline) else {
+            return Err(UpdateFeaturesCallAdmissionFailure::new(
+                UpdateFeaturesAdmissionSource::Deadline,
+                evidence,
+            ));
         };
-        let refs = match request_refs(evidence.plan()) {
-            Ok(refs) => refs,
-            Err(()) => {
-                return Err(UpdateFeaturesCallAdmissionFailure::new(
-                    UpdateFeaturesAdmissionSource::Request,
-                    evidence,
-                ));
-            }
+        let Ok(refs) = request_refs(evidence.plan()) else {
+            return Err(UpdateFeaturesCallAdmissionFailure::new(
+                UpdateFeaturesAdmissionSource::Request,
+                evidence,
+            ));
         };
         let request = update_features_request(
             UpdateFeaturesRequestPlan::new(&refs, evidence.plan().validate_only()),

@@ -149,7 +149,7 @@ fn serial_success_consumes_disjoint_contributions_and_publishes_caller_order() {
         result
             .resources()
             .iter()
-            .map(|resource| resource.resource_name())
+            .map(super::outcome::LegacyAlterConfigResult::resource_name)
             .collect::<Vec<_>>(),
         ["orders", "1"]
     );

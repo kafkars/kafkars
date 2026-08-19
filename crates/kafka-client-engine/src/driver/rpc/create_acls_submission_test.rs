@@ -1,4 +1,4 @@
-//! CreateAcls route, version, deadline, lane, and failure classification tests.
+//! `CreateAcls` route, version, deadline, lane, and failure classification tests.
 
 use std::time::{Duration, Instant};
 

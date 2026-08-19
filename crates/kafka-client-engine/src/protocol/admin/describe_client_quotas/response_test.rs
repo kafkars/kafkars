@@ -22,7 +22,7 @@ fn response_canonicalizes_entities_values_and_outer_entries() {
     ]));
 
     let normalized = normalize_describe_client_quotas_response(1, &response, usize::MAX)
-        .expect("valid response");
+        .unwrap_or_else(|error| panic!("valid response: {error:?}"));
     assert_eq!(normalized.throttle_time_ms, 7);
     assert_eq!(normalized.error_code, 0);
     assert_eq!(normalized.entries.len(), 2);
@@ -33,7 +33,7 @@ fn response_canonicalizes_entities_values_and_outer_entries() {
     assert_eq!(first.entity[1].entity_type, "user");
     assert_eq!(first.entity[1].entity_name, None);
     assert_eq!(first.values[0].key, "a");
-    assert_eq!(first.values[0].value, -0.25);
+    assert_eq!(first.values[0].value.to_bits(), (-0.25_f64).to_bits());
     assert_eq!(first.values[1].key, "z");
     assert_eq!(normalized.entries[1].entity[0].entity_type, "ip");
 }
@@ -49,7 +49,7 @@ fn default_entity_orders_before_an_exact_entity_of_the_same_type() {
     ]));
 
     let normalized = normalize_describe_client_quotas_response(0, &response, usize::MAX)
-        .expect("valid response");
+        .unwrap_or_else(|error| panic!("valid response: {error:?}"));
     assert_eq!(normalized.entries[0].entity[0].entity_name, None);
     assert_eq!(
         normalized.entries[1].entity[0].entity_name.as_deref(),
@@ -65,7 +65,7 @@ fn response_preserves_signed_error_and_utf8_bounded_diagnostic() {
     response.error_message = Some(StrBytes::from(diagnostic.as_str()));
 
     let normalized = normalize_describe_client_quotas_response(0, &response, usize::MAX)
-        .expect("bounded broker rejection");
+        .unwrap_or_else(|error| panic!("bounded broker rejection: {error:?}"));
     assert_eq!(normalized.error_code, -42);
     assert_eq!(
         normalized.error_message.as_deref().map(str::len),
@@ -81,8 +81,8 @@ fn response_checks_peak_scratch_and_output_before_copying() {
         vec![entity("user", Some("User:a"))],
         vec![value("producer_byte_rate", 1024.0)],
     )]));
-    let normalized =
-        normalize_describe_client_quotas_response(1, &response, usize::MAX).expect("measure peak");
+    let normalized = normalize_describe_client_quotas_response(1, &response, usize::MAX)
+        .unwrap_or_else(|error| panic!("measure peak: {error:?}"));
     let required = normalized.retained_bytes;
 
     assert_eq!(

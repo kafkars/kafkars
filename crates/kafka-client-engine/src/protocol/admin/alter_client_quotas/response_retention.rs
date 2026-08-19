@@ -93,9 +93,12 @@ fn normalized_output_charge(response: &AlterClientQuotasResponse) -> Option<usiz
                 )?
                 .checked_add(bounded_diagnostic_len(entry.error_message.as_deref()))?;
             entry.entity.iter().try_fold(bytes, |bytes, component| {
-                bytes
-                    .checked_add(component.entity_type.len())?
-                    .checked_add(component.entity_name.as_ref().map_or(0, |name| name.len()))
+                bytes.checked_add(component.entity_type.len())?.checked_add(
+                    component
+                        .entity_name
+                        .as_ref()
+                        .map_or(0, kafka_wire_core::StrBytes::len),
+                )
             })
         },
     )

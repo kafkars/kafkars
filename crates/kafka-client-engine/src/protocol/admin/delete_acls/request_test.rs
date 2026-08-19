@@ -15,7 +15,8 @@ fn request_preserves_order_nullable_selectors_and_duplicate_positions() {
         filter(1, None, 1, None, None, 1, 1),
     ];
 
-    let request = delete_acls_request(&filters, usize::MAX).expect("valid filters");
+    let request = delete_acls_request(&filters, usize::MAX)
+        .unwrap_or_else(|error| panic!("valid filters: {error:?}"));
 
     assert_eq!(request.filters.len(), 3);
     assert_eq!(request.filters[0], request.filters[2]);
@@ -106,7 +107,7 @@ fn complete_generated_request_must_fit_the_retained_limit() {
         any_filter(),
         filter(2, Some("orders"), 3, Some("User:a"), Some("*"), 3, 3),
     ];
-    let required = request_peak_charge(&filters).expect("bounded charge");
+    let required = request_peak_charge(&filters).unwrap_or_else(|| panic!("bounded charge"));
 
     assert_eq!(
         delete_acls_request(&filters, required - 1),
@@ -115,7 +116,8 @@ fn complete_generated_request_must_fit_the_retained_limit() {
             limit: required - 1,
         })
     );
-    let request = delete_acls_request(&filters, required).expect("exact retained limit");
+    let request = delete_acls_request(&filters, required)
+        .unwrap_or_else(|error| panic!("exact retained limit: {error:?}"));
     assert!(request.retained_size().heap_bytes() <= required);
 }
 

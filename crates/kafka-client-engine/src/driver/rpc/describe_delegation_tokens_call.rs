@@ -1,4 +1,4 @@
-//! Linear ownership of one accepted tracked AnyBroker token query.
+//! Linear ownership of one accepted tracked `AnyBroker` token query.
 
 use std::{error::Error, fmt, time::Instant};
 

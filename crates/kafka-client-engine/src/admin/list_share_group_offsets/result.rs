@@ -1,6 +1,6 @@
 //! Stable ordered partition results for Admin `ListShareGroupOffsets`.
 
-/// One successful ShareGroup partition's broker-visible offset state.
+/// One successful `ShareGroup` partition's broker-visible offset state.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ListShareGroupOffsetsPartitionDescription {
     pub(super) start_offset: Option<i64>,

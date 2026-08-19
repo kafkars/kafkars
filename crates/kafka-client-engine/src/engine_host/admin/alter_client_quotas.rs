@@ -1,4 +1,4 @@
-//! Fair host turns for destructive AnyBroker Admin `AlterClientQuotas` work.
+//! Fair host turns for destructive `AnyBroker` Admin `AlterClientQuotas` work.
 
 use kafka_client_core::{Deadline, Moment};
 

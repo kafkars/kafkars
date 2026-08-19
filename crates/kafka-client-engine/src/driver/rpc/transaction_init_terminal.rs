@@ -68,7 +68,7 @@ impl TransactionInitTerminal {
             && matches!(
                 self.fact(),
                 TransactionInitTerminalFact::Response { response, .. }
-                    if matches!(response.error_code, 14 | 15 | 16)
+                    if matches!(response.error_code, 14..=16)
             )
     }
 
@@ -84,7 +84,7 @@ pub(super) fn needs_transaction_coordinator_refresh(
     let stale_broker = matches!(
         fact,
         TransactionInitTerminalFact::Response { response, .. }
-            if matches!(response.error_code, 14 | 15 | 16)
+            if matches!(response.error_code, 14..=16)
     );
     route_kind == Some(RouteKind::Coordinator)
         && (stale_broker

@@ -8,13 +8,14 @@ use support::{
 };
 
 const HOST: &str = "crates/kafka-client-engine/src/admin/group_offset_delete/host.rs";
+const MODEL: &str = "crates/kafka-client-engine/src/admin/group_offset_delete/host/model.rs";
 const ADMISSION: &str =
     "crates/kafka-client-engine/src/admin/group_offset_delete/host/admission.rs";
 const TERMINAL: &str = "crates/kafka-client-engine/src/admin/group_offset_delete/host/terminal.rs";
 const OWNERS: [(&str, &str); 6] = [
     ("DeleteConsumerGroupOffsetsHost", HOST),
-    ("DeleteConsumerGroupOffsetsOperation", HOST),
-    ("DeleteConsumerGroupOffsetsSubmission", HOST),
+    ("DeleteConsumerGroupOffsetsOperation", MODEL),
+    ("DeleteConsumerGroupOffsetsSubmission", MODEL),
     (
         "DeleteConsumerGroupOffsetsShardOwner",
         "crates/kafka-client-engine/src/admin/group_offset_delete/shard.rs",

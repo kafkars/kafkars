@@ -11,6 +11,8 @@ use support::{
 const ENGINE_ROOT: &str = "crates/kafka-client-engine/src";
 const GROUP_FETCH_ROOT: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch";
 const OWNER: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs";
+const OWNER_BUILD: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner_build.rs";
 const CONTROL: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/control.rs";
 const OWNER_OBSERVATION: &str =
@@ -77,11 +79,31 @@ const MUTATIONS: &[(&str, &[&str])] = &[
             TURN,
             RECOVERY,
             DELIVERY,
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/seek.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/position_prepare.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/position_execution.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/fetch_terminal.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/reconciliation.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/session_close.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/terminal_observation.rs",
         ],
     ),
     (
         "effects",
-        &[OWNER, CONTROL, PREPARE, RETIREMENT, TURN, DELIVERY],
+        &[
+            OWNER,
+            CONTROL,
+            PREPARE,
+            RETIREMENT,
+            TURN,
+            DELIVERY,
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/seek.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/position_prepare.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/position_execution.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/fetch_terminal.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/reconciliation.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/terminal_observation.rs",
+        ],
     ),
     (
         "pending_fetches",
@@ -93,7 +115,7 @@ const CALLS: &[(&str, &[&str])] = &[
         "DirectFetchExecutor::create_unbound",
         &[
             "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
-            OWNER,
+            OWNER_BUILD,
         ],
     ),
     (
@@ -116,6 +138,7 @@ const METHODS: &[(&str, &str, &[&str])] = &[
         &[
             "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
             PREPARE,
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/position_prepare.rs",
         ],
     ),
     (GROUP_FETCH_ROOT, "arm_fetch", &[PREPARE]),

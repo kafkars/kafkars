@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned AddRaftVoter contract.
+//! Isolated names for the engine-owned `AddRaftVoter` contract.
 
 pub(super) use kafka_client_engine::{
     AddRaftVoterAccepted as Accepted, AddRaftVoterAcceptedFaultKind as AcceptedFaultKind,

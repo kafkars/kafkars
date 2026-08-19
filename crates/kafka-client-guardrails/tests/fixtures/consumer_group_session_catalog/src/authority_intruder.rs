@@ -9,6 +9,8 @@ fn intrude() {
         ordering_rank: 1,
         kafka_member_spelling: 1,
         subscribed_topic_ids: 1,
+        candidate_generation: 1,
+        candidate_owned_partitions: 1,
     };
     member.ordering_rank = 2;
     let mut candidate = ClassicGroupCycleCandidate {

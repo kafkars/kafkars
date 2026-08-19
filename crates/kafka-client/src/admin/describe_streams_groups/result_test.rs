@@ -1,4 +1,8 @@
-//! Value and translation-boundary tests for multi-group StreamsGroup results.
+//! Value and translation-boundary tests for multi-group `StreamsGroup` results.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts exact per-group result variants"
+)]
 
 use std::time::Duration;
 

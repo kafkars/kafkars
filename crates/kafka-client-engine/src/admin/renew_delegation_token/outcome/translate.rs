@@ -11,6 +11,10 @@ use super::{
 };
 use crate::admin::renew_delegation_token::RenewDelegationTokenResult;
 
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "terminal translation is an explicit ownership boundary even while the core value is copyable"
+)]
 pub(crate) fn translate_terminal(terminal: CoreTerminal) -> RenewDelegationTokenOutcome {
     match terminal {
         CoreTerminal::Renewed(success) => {

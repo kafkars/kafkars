@@ -1,4 +1,8 @@
 //! Stable generated-free metadata-quorum value tests.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts a required optional value"
+)]
 
 use super::{
     MetadataQuorumDescription, MetadataQuorumListener, MetadataQuorumNode, MetadataQuorumReplica,

@@ -24,14 +24,18 @@ fn v1_normalizes_the_complete_list_in_deterministic_order_without_requester() {
     ];
     response.tokens[1].renewers = vec![renewer("User", "z"), renewer("Service", "a")];
 
-    let normalized = normalize(1, all(), &response).expect("valid v1 response");
+    let normalized = normalize(1, all(), &response)
+        .unwrap_or_else(|error| panic!("valid v1 response: {error:?}"));
     let (throttle, code, tokens, retained) = normalized.into_parts();
     assert_eq!((throttle, code), (7, 0));
     assert_eq!(tokens.len(), 2);
     assert!(retained <= DESCRIBE_DELEGATION_TOKENS_MAX_RETAINED_BYTES);
 
-    let (owner, requester, _, _, _, token_id, hmac, renewers) =
-        tokens.into_iter().next().expect("first token").into_parts();
+    let (owner, requester, _, _, _, token_id, hmac, renewers) = tokens
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| panic!("first token"))
+        .into_parts();
     assert_eq!(owner.into_parts(), ("User".to_owned(), "alice".to_owned()));
     assert_eq!(requester, None);
     assert_eq!(token_id, "token-a");
@@ -39,7 +43,7 @@ fn v1_normalizes_the_complete_list_in_deterministic_order_without_requester() {
     assert_eq!(
         renewers
             .into_iter()
-            .map(|value| value.into_parts())
+            .map(super::model::NormalizedDescribeDelegationTokenPrincipal::into_parts)
             .collect::<Vec<_>>(),
         vec![
             ("Service".to_owned(), "a".to_owned()),
@@ -56,15 +60,19 @@ fn v3_preserves_requester_and_redacts_every_hmac_debug_path() {
     let mut response = DescribeDelegationTokenResponse::default();
     response.tokens.push(token);
 
-    let normalized = normalize(3, all(), &response).expect("valid v3 response");
+    let normalized = normalize(3, all(), &response)
+        .unwrap_or_else(|error| panic!("valid v3 response: {error:?}"));
     let debug = format!("{normalized:?}");
     assert!(debug.contains("[REDACTED]"));
     assert!(!debug.contains("secret-token-a"));
     let (_, _, tokens, _) = normalized.into_parts();
-    let (_, requester, _, _, _, _, hmac, _) =
-        tokens.into_iter().next().expect("token").into_parts();
+    let (_, requester, _, _, _, _, hmac, _) = tokens
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| panic!("token"))
+        .into_parts();
     assert_eq!(
-        requester.map(|value| value.into_parts()),
+        requester.map(super::model::NormalizedDescribeDelegationTokenPrincipal::into_parts),
         Some(("Service".to_owned(), "issuer".to_owned()))
     );
     assert_eq!(hmac.into_bytes(), b"secret-token-a");
@@ -96,7 +104,8 @@ fn broker_error_and_version_shape_preserve_exact_semantics() {
     let mut response = DescribeDelegationTokenResponse::default();
     response.error_code = -31_234;
     response.throttle_time_ms = 19;
-    let normalized = normalize(3, all(), &response).expect("exact broker error");
+    let normalized = normalize(3, all(), &response)
+        .unwrap_or_else(|error| panic!("exact broker error: {error:?}"));
     let (throttle, code, tokens, _) = normalized.into_parts();
     assert_eq!((throttle, code), (19, -31_234));
     assert!(tokens.is_empty());

@@ -1,5 +1,11 @@
 //! Cooperative-sticky balance, retention, and two-round handoff tests.
 
+#![expect(
+    clippy::cast_possible_truncation,
+    clippy::type_complexity,
+    reason = "bounded fixture tables mirror the assignment domain directly"
+)]
+
 use crate::{GroupAssignmentPartition, MemberId, PartitionIndex, TopicId};
 
 use super::{

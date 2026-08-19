@@ -60,11 +60,11 @@ pub(super) fn translate_observation(
             let (throttle_time_ms, unknown, transactions, errors) = batch.into_parts();
             let transactions = transactions
                 .into_iter()
-                .map(|transaction| transaction.into_parts())
+                .map(kafka_client_engine::AdminListedTransaction::into_parts)
                 .collect::<Vec<_>>();
             let errors = errors
                 .into_iter()
-                .map(|error| error.into_parts())
+                .map(kafka_client_engine::AdminListTransactionsBrokerError::into_parts)
                 .collect::<Vec<_>>();
             Ok(translate_listed_parts(
                 throttle_time_ms,

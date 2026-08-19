@@ -59,15 +59,12 @@ impl GroupConsumerRegistry {
             }
             return Ok(ConsumerGroupHeartbeatSubmissionTurn::Progress);
         }
-        let request = match prepare_request(entry) {
-            Ok(request) => request,
-            Err(()) => {
-                fail_consumer_group_entry(
-                    &mut self.entries[index],
-                    ConsumerGroupHeartbeatFailure::InvalidResponse,
-                )?;
-                return Ok(ConsumerGroupHeartbeatSubmissionTurn::Progress);
-            }
+        let Ok(request) = prepare_request(entry) else {
+            fail_consumer_group_entry(
+                &mut self.entries[index],
+                ConsumerGroupHeartbeatFailure::InvalidResponse,
+            )?;
+            return Ok(ConsumerGroupHeartbeatSubmissionTurn::Progress);
         };
         match ConsumerGroupHeartbeatCall::submit(
             driver,

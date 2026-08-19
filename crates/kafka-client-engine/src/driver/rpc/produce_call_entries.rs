@@ -15,6 +15,7 @@ pub(super) struct TrackedProduceEntry {
 #[derive(Debug)]
 pub(super) enum TrackedProduceEntries {
     Single(TrackedProduceEntry),
+    #[cfg(test)]
     Batch {
         entries: Vec<TrackedProduceEntry>,
         next: usize,
@@ -22,6 +23,7 @@ pub(super) enum TrackedProduceEntries {
 }
 
 impl TrackedProduceEntries {
+    #[cfg(test)]
     pub(super) fn batch(entries: Vec<TrackedProduceEntry>) -> Self {
         debug_assert!(!entries.is_empty());
         Self::Batch { entries, next: 0 }
@@ -30,6 +32,7 @@ impl TrackedProduceEntries {
     pub(super) fn first(&self) -> &TrackedProduceEntry {
         match self {
             Self::Single(entry) => entry,
+            #[cfg(test)]
             Self::Batch { entries, next } => entries
                 .get(*next)
                 .unwrap_or_else(|| unreachable!("tracked Produce batch is nonempty")),
@@ -39,6 +42,7 @@ impl TrackedProduceEntries {
     pub(super) fn len(&self) -> usize {
         match self {
             Self::Single(_) => 1,
+            #[cfg(test)]
             Self::Batch { entries, next } => entries.len().saturating_sub(*next),
         }
     }
@@ -46,6 +50,7 @@ impl TrackedProduceEntries {
     pub(super) fn iter(&self) -> impl Iterator<Item = &TrackedProduceEntry> {
         match self {
             Self::Single(entry) => EitherEntries::Single(std::iter::once(entry)),
+            #[cfg(test)]
             Self::Batch { entries, next } => EitherEntries::Batch(entries[*next..].iter()),
         }
     }
@@ -53,17 +58,22 @@ impl TrackedProduceEntries {
     pub(super) fn advance(&mut self) -> bool {
         match self {
             Self::Single(_) => false,
-            Self::Batch { entries, next } if next.saturating_add(1) < entries.len() => {
-                *next = next.saturating_add(1);
-                true
+            #[cfg(test)]
+            Self::Batch { entries, next } => {
+                if next.saturating_add(1) < entries.len() {
+                    *next = next.saturating_add(1);
+                    true
+                } else {
+                    false
+                }
             }
-            Self::Batch { .. } => false,
         }
     }
 }
 
 enum EitherEntries<'a> {
     Single(std::iter::Once<&'a TrackedProduceEntry>),
+    #[cfg(test)]
     Batch(std::slice::Iter<'a, TrackedProduceEntry>),
 }
 
@@ -73,6 +83,7 @@ impl<'a> Iterator for EitherEntries<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             Self::Single(iter) => iter.next(),
+            #[cfg(test)]
             Self::Batch(iter) => iter.next(),
         }
     }

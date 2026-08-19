@@ -1,4 +1,4 @@
-//! Linear public ShareGroup offset-alteration intent translated at submission.
+//! Linear public `ShareGroup` offset-alteration intent translated at submission.
 
 use crate::admin::ShareGroupOffsetAlteration;
 

@@ -31,6 +31,10 @@ const TICKS_PER_MILLISECOND: u64 = 1_000_000;
     clippy::result_large_err,
     reason = "the error retains the exact linear generated terminal without another allocation"
 )]
+#[allow(
+    clippy::too_many_lines,
+    reason = "the atomic Sync installation keeps every staged owner and commit point visible in one transition"
+)]
 pub(super) fn install_sync_assignment(
     entry: &mut GroupConsumerEntry,
     cycle: MembershipCycle,

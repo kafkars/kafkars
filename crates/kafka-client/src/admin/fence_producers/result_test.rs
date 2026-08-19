@@ -1,4 +1,8 @@
 //! Public fenced producer identity and ordered batch scenarios.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts exact fenced-producer results"
+)]
 
 use std::time::Duration;
 

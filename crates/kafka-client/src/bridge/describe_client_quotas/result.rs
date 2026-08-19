@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of engine-owned DescribeClientQuotas outcomes.
+//! Exhaustive stable translation of engine-owned `DescribeClientQuotas` outcomes.
 
 use std::time::Duration;
 
@@ -59,7 +59,7 @@ pub(super) fn translate_observation(
 ) -> AdminDescribeClientQuotasResult {
     match result {
         Ok(Outcome::Described(batch)) => Ok(translate_batch(batch)),
-        Ok(Outcome::Failed(failure)) => Err(translate_failure(failure)),
+        Ok(Outcome::Failed(failure)) => Err(translate_failure(&failure)),
         Err(error) => Err(translate_observer_error(error)),
     }
 }
@@ -97,7 +97,7 @@ pub(super) const fn translate_entity_parts(
     ClientQuotaEntry::new(components, values)
 }
 
-fn translate_failure(failure: Failure) -> KafkaError {
+fn translate_failure(failure: &Failure) -> KafkaError {
     translate_failure_parts(failure.kind().clone(), failure.delivery())
 }
 

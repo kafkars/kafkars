@@ -1,5 +1,10 @@
 //! Lifecycle, deadline, delivery, and terminal scenarios for API 90.
 
+#![expect(
+    clippy::needless_pass_by_value,
+    reason = "test helpers preserve exact terminal ownership"
+)]
+
 use core::num::NonZeroI16;
 
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};

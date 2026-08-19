@@ -1,4 +1,4 @@
-//! Fair host turns for one explicit AnyBroker feature-metadata query.
+//! Fair host turns for one explicit `AnyBroker` feature-metadata query.
 
 use kafka_client_core::{Deadline, Moment};
 

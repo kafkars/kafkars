@@ -61,16 +61,13 @@ impl DirectFetchExecutor {
             .try_begin_forgotten()
             .map_err(|_error| FetchExecutionError::BrokerSession)?
             .unwrap_or_else(|| unreachable!("ready forgotten session must produce a plan"));
-        let request = match request_from_plan(&plan, policy.settings, deadline) {
-            Ok(request) => request,
-            Err(()) => {
-                self.broker_sessions
-                    .as_mut()
-                    .unwrap_or_else(|| unreachable!("maintenance plan requires session owner"))
-                    .abort(plan, false)
-                    .map_err(|_error| FetchExecutionError::BrokerSession)?;
-                return Err(FetchExecutionError::BrokerSession);
-            }
+        let Ok(request) = request_from_plan(&plan, policy.settings, deadline) else {
+            self.broker_sessions
+                .as_mut()
+                .unwrap_or_else(|| unreachable!("maintenance plan requires session owner"))
+                .abort(plan, false)
+                .map_err(|_error| FetchExecutionError::BrokerSession)?;
+            return Err(FetchExecutionError::BrokerSession);
         };
         self.submit_forgotten_maintenance(driver, plan, request, now)
     }

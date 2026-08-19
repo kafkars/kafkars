@@ -1,4 +1,4 @@
-//! Fair host turns for AnyBroker Admin `DescribeTopicPartitions` work.
+//! Fair host turns for `AnyBroker` Admin `DescribeTopicPartitions` work.
 
 use kafka_client_core::{Deadline, Moment};
 
@@ -75,8 +75,7 @@ pub(super) fn drive(
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::AdminDescribeTopicPartitions)?,
-                Err(rejection) => {
-                    let _rejection = rejection;
+                Err(_rejection) => {
                     host.reject_handoff(operation_id)
                         .map_err(EngineHostError::AdminDescribeTopicPartitions)?;
                 }

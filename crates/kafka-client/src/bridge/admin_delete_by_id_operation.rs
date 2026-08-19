@@ -1,4 +1,4 @@
-//! Concrete observation of accepted topic-ID DeleteTopics work.
+//! Concrete observation of accepted topic-ID `DeleteTopics` work.
 
 use std::{
     fmt,

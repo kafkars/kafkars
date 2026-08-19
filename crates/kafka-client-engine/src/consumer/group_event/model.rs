@@ -89,7 +89,7 @@ pub struct GroupConsumerMetadata {
     transaction_group_instance_id: Option<Arc<str>>,
     membership_epoch: GroupConsumerMembershipEpoch,
     assignment_epoch: u64,
-    _position_fence: GroupPositionFence,
+    position_fence: GroupPositionFence,
 }
 
 impl GroupConsumerMetadata {
@@ -109,7 +109,7 @@ impl GroupConsumerMetadata {
             transaction_group_instance_id,
             membership_epoch,
             assignment_epoch,
-            _position_fence: position_fence,
+            position_fence,
         }
     }
 
@@ -155,7 +155,7 @@ impl GroupConsumerMetadata {
     }
 
     pub(crate) const fn position_fence(&self) -> GroupPositionFence {
-        self._position_fence
+        self.position_fence
     }
 }
 

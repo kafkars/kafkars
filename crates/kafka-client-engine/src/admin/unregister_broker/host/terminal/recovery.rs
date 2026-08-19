@@ -25,7 +25,7 @@ impl UnregisterBrokerHost {
                     },
                 )?,
                 (UnregisterBrokerState::AwaitingDriver, UnregisterBrokerHandoff::Untouched) => {
-                    self.apply(operation_id, UnregisterBrokerInput::DriverRejected)?
+                    self.apply(operation_id, UnregisterBrokerInput::DriverRejected)?;
                 }
                 (UnregisterBrokerState::AwaitingDriver, UnregisterBrokerHandoff::HandedOff) => {
                     self.retain_recovered_call(0)?;

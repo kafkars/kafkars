@@ -59,6 +59,12 @@ macro_rules! engine {
     ("host/terminal.rs") => {
         "crates/kafka-client-engine/src/admin/expire_delegation_token/host/terminal.rs"
     };
+    ("host/terminal/recovery.rs") => {
+        "crates/kafka-client-engine/src/admin/expire_delegation_token/host/terminal/recovery.rs"
+    };
+    ("host/terminal/test_support.rs") => {
+        "crates/kafka-client-engine/src/admin/expire_delegation_token/host/terminal/test_support.rs"
+    };
     ("host_test.rs") => {
         "crates/kafka-client-engine/src/admin/expire_delegation_token/host_test.rs"
     };
@@ -204,6 +210,7 @@ pub(super) const MUTATIONS: &[(&str, &str, &[&str])] = &[
             engine!("host.rs"),
             engine!("host/admission.rs"),
             engine!("host/terminal.rs"),
+            engine!("host/terminal/recovery.rs"),
         ],
     ),
     (
@@ -259,16 +266,6 @@ pub(super) const MUTATIONS: &[(&str, &str, &[&str])] = &[
         "ExpireDelegationTokenOperation",
         "submission",
         &[engine!("host.rs"), engine!("host/admission.rs")],
-    ),
-    (
-        "ExpireDelegationTokenOperation",
-        "handoff",
-        &[engine!("host.rs")],
-    ),
-    (
-        "ExpireDelegationTokenOperation",
-        "call",
-        &[engine!("host.rs"), engine!("host/terminal.rs")],
     ),
     (
         "ExpireDelegationTokenOperation",
@@ -333,5 +330,6 @@ pub(super) const METHODS: &[(&str, &str, &[&str])] = &[
 pub(super) const CAPABILITY_ALLOWS: &[(&str, &str)] = &[
     (engine!("host.rs"), "crate::driver"),
     (engine!("host/response.rs"), "crate::driver"),
-    (engine!("host/terminal.rs"), "crate::driver"),
+    (engine!("host/terminal/test_support.rs"), "crate::driver"),
+    (engine!("host_test.rs"), "crate::driver"),
 ];

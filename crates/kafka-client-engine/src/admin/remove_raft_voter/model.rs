@@ -4,6 +4,10 @@ use kafka_client_core::RemoveRaftVoterPlan;
 
 /// One inert exactly identified voter-removal request.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(
+    clippy::struct_field_names,
+    reason = "the field names preserve Kafka's distinct cluster, voter, and directory identities"
+)]
 pub struct RemoveRaftVoterRequest {
     cluster_id: Option<String>,
     voter_id: i32,

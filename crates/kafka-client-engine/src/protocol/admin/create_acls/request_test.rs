@@ -14,7 +14,8 @@ fn request_preserves_caller_order_and_exact_binding_fields() {
         binding(3, "payments", 4, "User:bob", "10.0.0.1", 8, 2),
     ];
 
-    let request = create_acls_request(&bindings, usize::MAX).expect("valid batch");
+    let request = create_acls_request(&bindings, usize::MAX)
+        .unwrap_or_else(|error| panic!("valid batch: {error:?}"));
 
     assert_eq!(request.creations.len(), 2);
     let first = &request.creations[0];
@@ -113,7 +114,7 @@ fn complete_request_and_validation_peak_must_fit_before_allocation() {
         valid_binding(),
         binding(3, "audit", 4, "User:b", "10.0.0.1", 4, 2),
     ];
-    let required = request_peak_charge(&bindings).expect("bounded charge");
+    let required = request_peak_charge(&bindings).unwrap_or_else(|| panic!("bounded charge"));
 
     assert_eq!(
         create_acls_request(&bindings, required - 1),
@@ -122,7 +123,8 @@ fn complete_request_and_validation_peak_must_fit_before_allocation() {
             limit: required - 1,
         })
     );
-    let request = create_acls_request(&bindings, required).expect("exact peak");
+    let request = create_acls_request(&bindings, required)
+        .unwrap_or_else(|error| panic!("exact peak: {error:?}"));
     assert!(request.retained_size().heap_bytes() <= required);
 }
 

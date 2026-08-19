@@ -1,4 +1,4 @@
-//! Linear ownership of one accepted AnyBroker `CreateAcls` call.
+//! Linear ownership of one accepted `AnyBroker` `CreateAcls` call.
 
 mod evidence;
 

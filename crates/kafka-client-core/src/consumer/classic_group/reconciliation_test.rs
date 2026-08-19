@@ -1,5 +1,10 @@
 //! Cooperative reconciliation delta, fencing, and multi-round lifecycle tests.
 
+#![expect(
+    clippy::cast_possible_truncation,
+    reason = "fixture indices are bounded far below the domain integer limit"
+)]
+
 use crate::{
     AssignmentGeneration, Deadline, GroupAssignmentPartition, GroupId, MemberId, Moment,
     PartitionIndex, TopicId,
@@ -246,7 +251,7 @@ fn joined_members(specifications: &[(&[u32], i32)]) -> ClassicJoinMembers {
                 Some(generation(*generation_value)),
             )
             .unwrap_or_else(|error| panic!("subscription: {error:?}"));
-            ClassicJoinMember::new(slot(raw), member(raw as u64), rank(raw), subscription)
+            ClassicJoinMember::new(slot(raw), member(u64::from(raw)), rank(raw), subscription)
         })
         .collect();
     ClassicJoinMembers::try_new(members).unwrap_or_else(|error| panic!("members: {error:?}"))

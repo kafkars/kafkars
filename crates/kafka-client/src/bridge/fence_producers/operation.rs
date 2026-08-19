@@ -41,10 +41,9 @@ impl AdminFenceProducers {
         deadline: Instant,
         submit: impl FnOnce(EngineRequest, Duration) -> Result<Accepted, AdmissionError>,
     ) -> Self {
-        let prepared = match PreparedFenceProducerResults::try_new(request.transactional_id_count())
-        {
-            Ok(prepared) => prepared,
-            Err(()) => return Self::result_capacity_rejected(),
+        let Ok(prepared) = PreparedFenceProducerResults::try_new(request.transactional_id_count())
+        else {
+            return Self::result_capacity_rejected();
         };
         let request = request.into_engine();
         let remaining = deadline.saturating_duration_since(Instant::now());

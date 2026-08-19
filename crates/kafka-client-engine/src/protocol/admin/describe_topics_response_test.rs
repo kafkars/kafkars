@@ -156,7 +156,7 @@ fn topic_id_results_restore_caller_order_and_allow_null_name_on_failure() {
     assert!(
         outcomes
             .iter()
-            .map(|outcome| outcome.topic_id())
+            .map(kafka_client_core::DescribeTopicIdOutcome::topic_id)
             .eq([first, second])
     );
     let (_, DescribeTopicResult::Described(description)) = outcomes[0].clone().into_parts() else {

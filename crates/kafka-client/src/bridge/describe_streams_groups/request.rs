@@ -1,4 +1,4 @@
-//! Linear caller-ordered StreamsGroup intent translated only at submission.
+//! Linear caller-ordered `StreamsGroup` intent translated only at submission.
 
 use super::engine::Request as EngineRequest;
 

@@ -9,7 +9,7 @@ use super::abort_partition_transaction_request;
 #[test]
 fn default_request_is_one_abort_marker_with_legacy_transaction_version() {
     let plan = AbortPartitionTransactionPlan::new("orders".to_owned(), 3, 41, 7, 11)
-        .expect("valid abort plan");
+        .unwrap_or_else(|error| panic!("valid abort plan: {error:?}"));
 
     let request = abort_partition_transaction_request(&plan);
 
@@ -28,9 +28,9 @@ fn default_request_is_one_abort_marker_with_legacy_transaction_version() {
 #[test]
 fn explicit_transaction_version_is_materialized_only_by_v2_wire() {
     let plan = AbortPartitionTransactionPlan::new("orders".to_owned(), 3, 41, 7, 11)
-        .expect("valid abort plan")
+        .unwrap_or_else(|error| panic!("valid abort plan: {error:?}"))
         .with_transaction_version(2)
-        .expect("valid transaction version");
+        .unwrap_or_else(|error| panic!("valid transaction version: {error:?}"));
 
     let request = abort_partition_transaction_request(&plan);
 
@@ -49,10 +49,13 @@ fn round_trip(request: &WriteTxnMarkersRequest, version: ApiVersion) -> WriteTxn
     let mut encoded = BytesMut::new();
     request
         .encode_into(&mut encoded, version)
-        .expect("request encodes");
-    let mut decoder =
-        Decoder::new(encoded.freeze(), DecodeLimits::default()).expect("request frame is bounded");
-    let decoded = WriteTxnMarkersRequest::decode(&mut decoder, version).expect("request decodes");
-    decoder.finish().expect("request consumes frame");
+        .unwrap_or_else(|error| panic!("request encodes: {error:?}"));
+    let mut decoder = Decoder::new(encoded.freeze(), DecodeLimits::default())
+        .unwrap_or_else(|error| panic!("request frame is bounded: {error:?}"));
+    let decoded = WriteTxnMarkersRequest::decode(&mut decoder, version)
+        .unwrap_or_else(|error| panic!("request decodes: {error:?}"));
+    decoder
+        .finish()
+        .unwrap_or_else(|error| panic!("request consumes frame: {error:?}"));
     decoded
 }

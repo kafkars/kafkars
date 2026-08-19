@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of engine-owned AddRaftVoter outcomes.
+//! Exhaustive stable translation of engine-owned `AddRaftVoter` outcomes.
 
 use std::time::Duration;
 

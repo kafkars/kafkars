@@ -36,6 +36,10 @@ impl AlterReplicaLogDirsHost {
         self.apply(operation_id, AlterReplicaLogDirsInput::DriverAccepted)
     }
 
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "rejected handoff consumes the exact owned assignment evidence"
+    )]
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,

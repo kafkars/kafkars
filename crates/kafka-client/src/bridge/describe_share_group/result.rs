@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of engine ShareGroup description outcomes.
+//! Exhaustive stable translation of engine `ShareGroup` description outcomes.
 
 use std::time::Duration;
 

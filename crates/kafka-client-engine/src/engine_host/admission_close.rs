@@ -2,6 +2,10 @@
 
 use super::EngineHostResources;
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "shutdown names every admission capability explicitly so omissions remain reviewable"
+)]
 pub(super) fn close_all(resources: &mut EngineHostResources) {
     let _close_result = resources.producer.close_admission();
     let _close_result = resources

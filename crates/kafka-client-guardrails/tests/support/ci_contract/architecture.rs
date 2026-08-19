@@ -12,6 +12,7 @@ pub(crate) fn violations(source: &str) -> Vec<String> {
         "cd \"$repo_root\"",
         "\"$repo_root/scripts/check-dependency-provenance\"",
         "\"$repo_root/scripts/test-dependency-provenance\"",
+        "\"$repo_root/scripts/test-bootstrap-siblings\"",
         "cargo test --locked -p kafka-client-guardrails --all-features",
         "git diff --check",
     ];

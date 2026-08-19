@@ -42,7 +42,7 @@ pub(crate) fn elect_leaders_request(
     }
     let targets = match selection {
         ElectLeadersSelectionRef::AllPartitions => &[][..],
-        ElectLeadersSelectionRef::Selected(targets) if targets.is_empty() => {
+        ElectLeadersSelectionRef::Selected([]) => {
             return Err(ElectLeadersRequestFailure::EmptySelection);
         }
         ElectLeadersSelectionRef::Selected(targets) => targets,

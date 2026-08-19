@@ -74,6 +74,10 @@ pub(crate) struct NormalizedDescribeFeaturesResponse {
 }
 
 impl NormalizedDescribeFeaturesResponse {
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "constructor preserves the complete normalized broker response without an intermediate DTO"
+    )]
     pub(super) const fn new(
         throttle_time_ms: u32,
         broker_error_code: i16,

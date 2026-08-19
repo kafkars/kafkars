@@ -168,8 +168,7 @@ pub(super) fn apply_ready(
             break;
         };
         match settled.poll_route_refresh(driver, now) {
-            ProduceRouteRefreshPoll::Ready => {}
-            ProduceRouteRefreshPoll::Failed => {}
+            ProduceRouteRefreshPoll::Ready | ProduceRouteRefreshPoll::Failed => {}
             ProduceRouteRefreshPoll::Submitted => {
                 progress = true;
                 break;

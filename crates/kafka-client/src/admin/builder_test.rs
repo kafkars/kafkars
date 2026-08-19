@@ -1,4 +1,8 @@
 //! Inert builder ownership scenarios.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts local deadline rejection"
+)]
 
 use std::time::Duration;
 

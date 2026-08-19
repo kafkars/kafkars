@@ -23,6 +23,10 @@ pub(in crate::engine_host) fn recover_operations(
     recover_partition_operations(resources, failure)
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "post-driver recovery keeps the deterministic concrete-owner cleanup order explicit"
+)]
 fn recover_topic_operations(
     resources: &EngineHostResources,
     mut failure: EngineHostError,

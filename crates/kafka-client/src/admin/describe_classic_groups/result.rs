@@ -50,6 +50,10 @@ impl DescribeClassicGroupsResult {
     }
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "translation consumes the terminal description at the public boundary"
+)]
 fn translate_classic_description(
     description: ConsumerGroupDescription,
 ) -> Result<ClassicGroupDescription, KafkaError> {

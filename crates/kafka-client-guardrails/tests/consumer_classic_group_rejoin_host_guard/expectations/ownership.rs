@@ -96,6 +96,7 @@ pub(crate) const AUTHORITIES: &[(&str, &str, &[&str], &[&str])] = &[
             "pending_rejoin_protocol",
             "pending_rejoin_timing",
             "pending_rejoin_deadline",
+            "pending_rejoin_member_id",
         ],
         &[FAULT],
     ),

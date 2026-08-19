@@ -74,8 +74,9 @@ impl SubmissionTimeout {
         Self { timeout }
     }
 
-    pub(super) const fn with_timeout(self, timeout: Duration) -> Self {
-        Self { timeout }
+    pub(super) const fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = timeout;
+        self
     }
 
     fn capture(self) -> Result<Instant, CallDeadlineError> {

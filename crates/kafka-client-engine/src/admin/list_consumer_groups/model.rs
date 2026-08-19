@@ -5,9 +5,9 @@ use kafka_client_core::{AdminGroupListingFilters, AdminGroupListingFiltersError}
 /// Stable generated-free filters retained until the public operation boundary.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AdminListGroupsRequest {
-    state_filters: Vec<String>,
-    group_type_filters: Vec<String>,
-    protocol_type_filters: Vec<String>,
+    states: Vec<String>,
+    group_types: Vec<String>,
+    protocol_types: Vec<String>,
 }
 
 impl AdminListGroupsRequest {
@@ -18,27 +18,23 @@ impl AdminListGroupsRequest {
         protocol_type_filters: Vec<String>,
     ) -> Self {
         Self {
-            state_filters,
-            group_type_filters,
-            protocol_type_filters,
+            states: state_filters,
+            group_types: group_type_filters,
+            protocol_types: protocol_type_filters,
         }
     }
 
     pub(crate) fn canonicalize(mut self) -> Self {
-        canonicalize(&mut self.state_filters);
-        canonicalize(&mut self.group_type_filters);
-        canonicalize(&mut self.protocol_type_filters);
+        canonicalize(&mut self.states);
+        canonicalize(&mut self.group_types);
+        canonicalize(&mut self.protocol_types);
         self
     }
 
     pub(crate) fn into_filters(
         self,
     ) -> Result<AdminGroupListingFilters, AdminGroupListingFiltersError> {
-        AdminGroupListingFilters::new(
-            self.state_filters,
-            self.group_type_filters,
-            self.protocol_type_filters,
-        )
+        AdminGroupListingFilters::new(self.states, self.group_types, self.protocol_types)
     }
 }
 

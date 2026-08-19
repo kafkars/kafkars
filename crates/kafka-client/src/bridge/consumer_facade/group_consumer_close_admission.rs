@@ -8,6 +8,10 @@ use super::{group_consumer::GroupConsumerEngine, group_consumer_close::GroupCons
 
 impl GroupConsumerEngine {
     /// Consumes the bridge only after engine close admission accepts.
+    #[expect(
+        clippy::result_large_err,
+        reason = "failed close admission must return the exact still-live consumer owner"
+    )]
     pub(crate) fn try_close(self) -> Result<GroupConsumerClose, (GroupConsumerEngine, KafkaError)> {
         let GroupConsumerEngine {
             handle,

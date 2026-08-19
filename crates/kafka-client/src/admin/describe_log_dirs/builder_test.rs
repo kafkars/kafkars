@@ -1,4 +1,8 @@
 //! Public builder selection and result thread-safety shape tests.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts a specific builder rejection"
+)]
 
 use std::time::Duration;
 

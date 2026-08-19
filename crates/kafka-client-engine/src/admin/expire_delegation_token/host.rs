@@ -35,7 +35,7 @@ pub(crate) struct ExpireDelegationTokenAdmission {
     pub(crate) fault: Option<ExpireDelegationTokenHostError>,
 }
 
-/// One plan and prepared API-key 40 owner ready for AnyBroker handoff.
+/// One plan and prepared API-key 40 owner ready for `AnyBroker` handoff.
 pub(crate) struct ExpireDelegationTokenSubmission {
     operation_id: OperationId,
     deadline: OperationDeadline,

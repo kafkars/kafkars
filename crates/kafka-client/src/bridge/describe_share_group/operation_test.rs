@@ -1,4 +1,4 @@
-//! Ready and runtime-neutral ShareGroup description observation tests.
+//! Ready and runtime-neutral `ShareGroup` description observation tests.
 
 use std::{
     future::Future,

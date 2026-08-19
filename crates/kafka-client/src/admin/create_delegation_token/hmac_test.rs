@@ -1,4 +1,8 @@
 //! Delegation-token HMAC redaction, transfer, and zeroization scenarios.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts exact HMAC decoding outcomes"
+)]
 
 use super::{DelegationTokenHmac, DelegationTokenHmacError};
 

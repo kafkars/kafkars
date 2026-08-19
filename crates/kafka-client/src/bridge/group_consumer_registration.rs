@@ -27,41 +27,6 @@ use super::group_consumer_registration_result::{
 impl GroupConsumerEngine {
     #[expect(
         clippy::too_many_arguments,
-        reason = "the compatibility bridge forwards each explicit group policy with default Fetch"
-    )]
-    #[cfg(test)]
-    pub(crate) fn register(
-        engine: &SharedEngine,
-        capture: GroupConsumerStartCapture,
-        group: &str,
-        group_instance_id: Option<&str>,
-        topics: &[String],
-        group_protocol: ConsumerGroupProtocol,
-        classic_group_assignor: Option<ClassicGroupAssignor>,
-        offset_reset: OffsetReset,
-        read_isolation: ReadIsolation,
-        processing_timeout: Duration,
-    ) -> Result<Self, KafkaError> {
-        Self::register_with_fetch(
-            engine,
-            capture,
-            group,
-            group_instance_id,
-            topics,
-            group_protocol,
-            classic_group_assignor,
-            offset_reset,
-            read_isolation,
-            processing_timeout,
-            ClassicGroupConfig::default(),
-            GroupConsumerOperationConfig::default(),
-            ConsumerFetchConfig::default(),
-            ConsumerLimits::default(),
-        )
-    }
-
-    #[expect(
-        clippy::too_many_arguments,
         reason = "registration retains each explicit group policy without a second configuration owner"
     )]
     pub(crate) fn register_with_fetch(

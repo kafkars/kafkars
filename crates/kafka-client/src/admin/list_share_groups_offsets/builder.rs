@@ -8,7 +8,7 @@ use crate::bridge::{
 
 use super::ListShareGroupsOffsets;
 
-/// Inert caller-ordered offset queries for multiple ShareGroups.
+/// Inert caller-ordered offset queries for multiple `ShareGroups`.
 #[must_use = "call submit to admit the ListShareGroupsOffsets operation"]
 pub struct ListShareGroupsOffsetsBuilder {
     engine: AdminEngine,

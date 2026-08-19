@@ -261,10 +261,10 @@ fn assert_partition_event(
     partition: i32,
 ) {
     let event = event.unwrap_or_else(|error| panic!("assignment observation: {error:?}"));
-    let assignment = match (expected_loss, event) {
-        (false, Some(GroupConsumerEvent::PartitionsRevoked(assignment)))
-        | (true, Some(GroupConsumerEvent::PartitionsLost(assignment))) => assignment,
-        _ => panic!("expected exact revocation disposition"),
+    let ((false, Some(GroupConsumerEvent::PartitionsRevoked(assignment)))
+    | (true, Some(GroupConsumerEvent::PartitionsLost(assignment)))) = (expected_loss, event)
+    else {
+        panic!("expected exact revocation disposition");
     };
     assert_eq!(assignment.assignment_epoch(), epoch);
     assert_eq!(assignment.partitions().len(), 1);

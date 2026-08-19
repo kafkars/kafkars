@@ -214,9 +214,11 @@ fn cooperative_owned_facts_are_strictly_ordered_and_bounded() {
             Err(expected)
         );
     }
+    let maximum_partition = i32::try_from(MAX_MEMBER_PARTITIONS)
+        .unwrap_or_else(|error| panic!("member partition limit fits i32: {error:?}"));
     raw.members = vec![cooperative_member(
         "local",
-        &[("orders", (0..=MAX_MEMBER_PARTITIONS as i32).collect())],
+        &[("orders", (0..=maximum_partition).collect())],
         2,
         4,
         None,

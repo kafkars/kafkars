@@ -1,4 +1,4 @@
-//! Shared startup handoff for ShareGroup and StreamsGroup Admin owners.
+//! Shared startup handoff for `ShareGroup` and `StreamsGroup` Admin owners.
 
 use std::sync::Arc;
 

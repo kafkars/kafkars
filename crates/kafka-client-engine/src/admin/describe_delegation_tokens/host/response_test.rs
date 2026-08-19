@@ -61,7 +61,7 @@ fn normalized_listing_moves_complete_tokens_into_core() {
     assert_eq!(throttle, 7);
     assert_eq!(owner.principal_name(), "alice");
     assert_eq!(
-        requester.map(|value| value.into_parts()),
+        requester.map(kafka_client_core::DelegationTokenPrincipal::into_parts),
         Some(("Service".to_owned(), "issuer".to_owned()))
     );
     assert_eq!(renewers[0].principal_name(), "renewer");

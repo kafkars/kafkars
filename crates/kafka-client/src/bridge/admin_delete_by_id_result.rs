@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of topic-ID DeleteTopics outcomes.
+//! Exhaustive stable translation of topic-ID `DeleteTopics` outcomes.
 
 use kafka_client_engine::{DeleteTopicsObserverError, DeleteTopicsOutcome};
 

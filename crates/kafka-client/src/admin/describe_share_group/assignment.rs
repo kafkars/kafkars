@@ -1,4 +1,4 @@
-//! Stable typed ShareGroup topic-partition assignment values.
+//! Stable typed `ShareGroup` topic-partition assignment values.
 
 /// One topic and its assigned partitions.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -33,7 +33,7 @@ impl ShareGroupTopicPartitions {
     }
 }
 
-/// One member's typed ShareGroup assignment.
+/// One member's typed `ShareGroup` assignment.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ShareGroupAssignment {
     topics: Vec<ShareGroupTopicPartitions>,

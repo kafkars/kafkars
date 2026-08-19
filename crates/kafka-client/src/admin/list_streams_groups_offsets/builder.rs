@@ -1,4 +1,4 @@
-//! Inert multi-Streams-group offset intent over the shared OffsetFetch owner.
+//! Inert multi-Streams-group offset intent over the shared `OffsetFetch` owner.
 
 use std::time::Duration;
 
@@ -29,7 +29,7 @@ impl ListStreamsGroupsOffsetsBuilder {
         self
     }
 
-    /// Captures the public deadline and admits through the shared OffsetFetch owner.
+    /// Captures the public deadline and admits through the shared `OffsetFetch` owner.
     pub fn submit(self) -> ListStreamsGroupsOffsets {
         ListStreamsGroupsOffsets::from_consumer_groups(self.inner.submit())
     }

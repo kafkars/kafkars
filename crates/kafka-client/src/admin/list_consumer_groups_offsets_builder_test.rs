@@ -1,4 +1,8 @@
 //! Public multi-consumer-group builder boundary tests.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts request and deadline validation"
+)]
 
 use std::time::Duration;
 

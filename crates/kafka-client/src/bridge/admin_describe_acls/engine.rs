@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned DescribeAcls adapter contract.
+//! Isolated names for the engine-owned `DescribeAcls` adapter contract.
 
 pub(super) use kafka_client_engine::{
     DescribeAclBinding as Binding, DescribeAclsAccepted as Accepted,

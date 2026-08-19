@@ -1,4 +1,4 @@
-//! Private ShareGroup offset-listing request tests.
+//! Private `ShareGroup` offset-listing request tests.
 
 use crate::{StartPosition, TopicPartition};
 

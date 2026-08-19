@@ -1,4 +1,8 @@
 //! Public-to-engine Admin `DescribeProducers` request translation scenarios.
+#![expect(
+    clippy::expect_used,
+    reason = "the test requires both serialized topic markers"
+)]
 
 use crate::{StartPosition, TopicPartition};
 

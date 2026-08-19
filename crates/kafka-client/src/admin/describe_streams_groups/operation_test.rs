@@ -1,4 +1,4 @@
-//! Compile-time shape tests for the multi-group StreamsGroup operation.
+//! Compile-time shape tests for the multi-group `StreamsGroup` operation.
 
 use std::future::Future;
 
@@ -19,6 +19,7 @@ fn operation_is_a_send_named_future_with_a_blocking_wait() {
     assert_send::<DescribeStreamsGroups>();
     assert_future::<DescribeStreamsGroups>();
 
-    let _wait: fn(DescribeStreamsGroups) -> Result<DescribeStreamsGroupsResult, KafkaError> =
+    let wait: fn(DescribeStreamsGroups) -> Result<DescribeStreamsGroupsResult, KafkaError> =
         DescribeStreamsGroups::wait;
+    let _ = wait;
 }

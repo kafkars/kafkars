@@ -1,4 +1,4 @@
-//! Linear public ShareGroup description intent translated at submission.
+//! Linear public `ShareGroup` description intent translated at submission.
 
 use super::engine::Request as EngineRequest;
 

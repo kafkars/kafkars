@@ -1,4 +1,4 @@
-//! Fair host turns for AnyBroker Admin client-metrics resource listing.
+//! Fair host turns for `AnyBroker` Admin client-metrics resource listing.
 
 use kafka_client_core::{Deadline, Moment};
 
@@ -52,8 +52,7 @@ pub(super) fn drive(
                 Ok(call) => host
                     .accept_call(operation_id, call)
                     .map_err(EngineHostError::ListClientMetricsResources)?,
-                Err(rejection) => {
-                    let _rejection = rejection;
+                Err(_rejection) => {
                     host.reject_handoff(operation_id)
                         .map_err(EngineHostError::ListClientMetricsResources)?;
                 }

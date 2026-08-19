@@ -1,4 +1,4 @@
-//! AddRaftVoter outcome, error, and delivery translation tests.
+//! `AddRaftVoter` outcome, error, and delivery translation tests.
 
 use crate::{DeliveryStatus, ErrorKind};
 

@@ -130,10 +130,10 @@ pub enum DescribeClusterFailureKind {
     DriverRejected,
     /// Driver-owned transport execution failed.
     Transport,
-    /// The broker cannot represent the explicitly requested protocol semantics.
-    Compatibility,
     /// SASL authentication rejected the connection before ordinary call admission.
     Authentication,
+    /// The broker cannot represent the explicitly requested protocol semantics.
+    Compatibility,
     /// Broker response was malformed or exceeded its retained-result budget.
     InvalidResponse,
 }
@@ -214,8 +214,8 @@ pub(crate) fn translate_terminal(terminal: DescribeClusterTerminal) -> DescribeC
                     CoreFailureKind::DeadlineElapsed => DescribeClusterFailureKind::DeadlineElapsed,
                     CoreFailureKind::DriverRejected => DescribeClusterFailureKind::DriverRejected,
                     CoreFailureKind::Transport => DescribeClusterFailureKind::Transport,
-                    CoreFailureKind::Compatibility => DescribeClusterFailureKind::Compatibility,
                     CoreFailureKind::Authentication => DescribeClusterFailureKind::Authentication,
+                    CoreFailureKind::Compatibility => DescribeClusterFailureKind::Compatibility,
                     CoreFailureKind::InvalidResponse => DescribeClusterFailureKind::InvalidResponse,
                 },
                 delivery: translate_delivery(failure.delivery()),

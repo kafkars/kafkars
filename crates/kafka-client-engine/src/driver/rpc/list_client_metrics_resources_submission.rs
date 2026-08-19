@@ -1,4 +1,4 @@
-//! Tracked AnyBroker submission policy for Admin `ListClientMetricsResources`.
+//! Tracked `AnyBroker` submission policy for Admin `ListClientMetricsResources`.
 
 use std::{error::Error, fmt, time::Instant};
 

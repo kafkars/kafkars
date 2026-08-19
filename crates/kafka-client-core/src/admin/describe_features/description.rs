@@ -88,7 +88,7 @@ impl DescribeFeaturesDescription {
         &self.finalized_features
     }
 
-    /// Reports the controller's exact ZooKeeper migration-readiness fact.
+    /// Reports the controller's exact `ZooKeeper` migration-readiness fact.
     pub const fn zk_migration_ready(&self) -> bool {
         self.zk_migration_ready
     }

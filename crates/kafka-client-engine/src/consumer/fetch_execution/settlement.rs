@@ -12,6 +12,10 @@ use super::{
 
 /// One bounded Fetch-poll result before deterministic core application.
 #[must_use = "a proposed Fetch terminal must be consumed exactly once"]
+#[allow(
+    clippy::large_enum_variant,
+    reason = "the proposed branch retains the exact preallocated terminal owner without hidden allocation"
+)]
 pub(in crate::consumer) enum FetchTerminalPoll {
     Idle,
     Progressed,

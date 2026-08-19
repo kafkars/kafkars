@@ -1,4 +1,4 @@
-//! Named single-observer ShareGroup offset-listing operation.
+//! Named single-observer `ShareGroup` offset-listing operation.
 
 use std::{
     future::Future,
@@ -10,7 +10,7 @@ use crate::{KafkaError, bridge::list_share_group_offsets::AdminListShareGroupOff
 
 use super::ListShareGroupOffsetsResult;
 
-/// Sole terminal observer for one submitted ShareGroup offset listing.
+/// Sole terminal observer for one submitted `ShareGroup` offset listing.
 #[derive(Debug)]
 #[must_use = "dropping abandons observation without cancelling accepted admin work"]
 pub struct ListShareGroupOffsets {

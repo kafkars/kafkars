@@ -141,6 +141,10 @@ impl ElectLeadersHost {
         Ok(())
     }
 
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "rejected handoff consumes the exact owned election plan evidence"
+    )]
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,

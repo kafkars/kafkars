@@ -1,4 +1,4 @@
-//! Focused evidence for positional zero-intermediate DeleteAcls normalization.
+//! Focused evidence for positional zero-intermediate `DeleteAcls` normalization.
 
 use kafka_client_core::{DeleteAclFilterResult, DeleteAclMatchResult};
 use kafka_wire::delete_acls_response::DeleteAclsMatchingAcl;
@@ -25,7 +25,8 @@ fn response_preserves_filter_and_nested_order_with_exact_signed_errors() {
         ),
         filter_result(17, Some("filter rejected"), Vec::new()),
     ]);
-    let normalized = normalize(&response, 2, usize::MAX).expect("valid response");
+    let normalized = normalize(&response, 2, usize::MAX)
+        .unwrap_or_else(|error| panic!("valid response: {error:?}"));
     let (throttle, results, retained) = normalized.into_parts();
 
     assert_eq!(throttle, 23);
@@ -75,7 +76,7 @@ fn normalization_reuses_caller_prepared_outer_and_nested_allocations() {
             Ok(nested)
         },
     )
-    .expect("prepared storage");
+    .unwrap_or_else(|error| panic!("prepared storage: {error:?}"));
     let (_, results, _) = normalized.into_parts();
 
     assert_eq!(results.as_ptr(), outer_allocation);
@@ -175,7 +176,8 @@ fn response_rejects_invalid_binding_domains_and_nested_caps() {
 fn diagnostics_are_nullable_utf8_bounded_and_storage_failures_are_explicit() {
     let diagnostic = format!("{}é", "x".repeat(MAX_DIAGNOSTIC_BYTES - 1));
     let oversized_response = response(vec![filter_result(-1, Some(&diagnostic), Vec::new())]);
-    let normalized = normalize(&oversized_response, 1, usize::MAX).expect("bounded diagnostic");
+    let normalized = normalize(&oversized_response, 1, usize::MAX)
+        .unwrap_or_else(|error| panic!("bounded diagnostic: {error:?}"));
     let (_, results, _) = normalized.into_parts();
     let DeleteAclFilterResult::BrokerFailed(error) = &results[0] else {
         panic!("broker failure");
@@ -223,7 +225,8 @@ fn validate_first_peak_must_fit_before_terminal_storage_is_requested() {
         None,
         vec![matching(-7, Some("denied"), "orders", "User:a", "*", 3)],
     )]);
-    let required = response_peak_charge(&response).expect("bounded response charge");
+    let required =
+        response_peak_charge(&response).unwrap_or_else(|| panic!("bounded response charge"));
     let mut storage_calls = 0;
 
     let rejected = normalize_delete_acls_response(

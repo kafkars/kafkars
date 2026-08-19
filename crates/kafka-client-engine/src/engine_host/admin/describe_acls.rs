@@ -1,4 +1,4 @@
-//! Fair host turns for AnyBroker Admin `DescribeAcls` work.
+//! Fair host turns for `AnyBroker` Admin `DescribeAcls` work.
 
 use kafka_client_core::{Deadline, Moment};
 

@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned AlterReplicaLogDirs adapter contract.
+//! Isolated names for the engine-owned `AlterReplicaLogDirs` adapter contract.
 
 pub(super) use kafka_client_engine::{
     AlterReplicaLogDirAssignment as Assignment, AlterReplicaLogDirEngineBrokerError as BrokerError,

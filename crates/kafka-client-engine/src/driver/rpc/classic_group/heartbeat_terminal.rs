@@ -91,7 +91,9 @@ impl ClassicHeartbeatTerminal {
 
 pub(super) const fn coordinator_path_lost(error: &RequestError) -> bool {
     match error {
-        RequestError::RouteUnavailable | RequestError::NameResolutionFailed { .. } => true,
+        RequestError::RouteUnavailable
+        | RequestError::NameResolutionFailed { .. }
+        | RequestError::ConnectionClosed(ResponseCloseReason::TransportClosed) => true,
         RequestError::Rejected { failure, .. } => matches!(
             failure,
             CallFailure::NotReady
@@ -101,7 +103,6 @@ pub(super) const fn coordinator_path_lost(error: &RequestError) -> bool {
                         | ConnectionCloseReason::TransportLost(_),
                 }
         ),
-        RequestError::ConnectionClosed(ResponseCloseReason::TransportClosed) => true,
         _ => false,
     }
 }

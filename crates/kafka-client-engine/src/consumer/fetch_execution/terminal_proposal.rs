@@ -30,6 +30,10 @@ impl FetchTerminalProposal {
         }
     }
 
+    #[allow(
+        clippy::result_large_err,
+        reason = "a failed narrowing returns the exact linear terminal proposal intact"
+    )]
     pub(in crate::consumer) fn into_partition_offset_out_of_range(
         self,
     ) -> Result<PartitionOffsetOutOfRangeProposal, Self> {

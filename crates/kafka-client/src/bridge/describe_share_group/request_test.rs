@@ -1,4 +1,4 @@
-//! Inert ShareGroup description request bridge tests.
+//! Inert `ShareGroup` description request bridge tests.
 
 use super::{engine::Request as EngineRequest, request::DescribeShareGroupAdminRequest};
 

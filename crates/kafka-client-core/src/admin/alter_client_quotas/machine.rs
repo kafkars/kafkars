@@ -62,7 +62,7 @@ pub enum AlterClientQuotasInput {
 /// One concrete mechanism request emitted by client-quota alteration policy.
 #[derive(Clone, Debug, PartialEq)]
 pub enum AlterClientQuotasEffect {
-    /// Submit the exact plan once through the engine's AnyBroker lane.
+    /// Submit the exact plan once through the engine's `AnyBroker` lane.
     Submit {
         /// Stable identity reserved before machine construction.
         operation_id: OperationId,

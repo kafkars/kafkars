@@ -1,9 +1,13 @@
-//! Stable current and target StreamsGroup task assignments.
+//! Stable current and target `StreamsGroup` task assignments.
 
 use super::StreamsGroupTaskIds;
 
 /// One member's active, standby, and warm-up task assignment.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "the field names preserve Kafka's active, standby, and warm-up task vocabulary"
+)]
 pub struct StreamsGroupAssignment {
     active_tasks: Vec<StreamsGroupTaskIds>,
     standby_tasks: Vec<StreamsGroupTaskIds>,

@@ -1,4 +1,4 @@
-//! Linear ownership of one modern-first or classic-fallback group description call.
+//! Linear ownership of one modern or classic group-description call.
 
 mod evidence;
 
@@ -73,7 +73,8 @@ impl DescribeConsumerGroupsCall {
                 };
                 DescribeConsumerGroupsCallInner::Consumer(call)
             }
-            AdminDescribeConsumerGroupsCallKind::ClassicFallback => {
+            AdminDescribeConsumerGroupsCallKind::Classic
+            | AdminDescribeConsumerGroupsCallKind::ClassicFallback => {
                 let request = describe_consumer_group_request(
                     evidence.group_id(),
                     evidence.include_authorized_operations(),

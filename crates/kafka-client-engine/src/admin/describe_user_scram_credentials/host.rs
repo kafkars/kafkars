@@ -125,6 +125,10 @@ impl DescribeUserScramCredentialsHost {
         )
     }
 
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "rejected handoff consumes the exact owned SCRAM query evidence"
+    )]
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,

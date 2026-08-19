@@ -12,9 +12,10 @@ use super::{
 #[test]
 fn v1_success_owns_secret_bytes_without_inventing_requester_identity() {
     let response = success();
-    let normalized = normalize(1, &response).expect("valid v1 success");
+    let normalized =
+        normalize(1, &response).unwrap_or_else(|error| panic!("valid v1 success: {error:?}"));
     let (throttle, code, token, retained) = normalized.into_parts();
-    let token = token.expect("success token");
+    let token = token.unwrap_or_else(|| panic!("success token"));
     let (owner, requester, issue, expiry, max, token_id, hmac) = token.into_parts();
 
     assert_eq!(throttle, 7);
@@ -33,16 +34,19 @@ fn v3_success_preserves_distinct_requester_and_redacts_hmac_debug() {
     let mut response = success();
     response.token_requester_principal_type = "User".into();
     response.token_requester_principal_name = "requester".into();
-    let normalized = normalize(3, &response).expect("valid v3 success");
+    let normalized =
+        normalize(3, &response).unwrap_or_else(|error| panic!("valid v3 success: {error:?}"));
 
     let debug = format!("{normalized:?}");
     assert!(debug.contains("[REDACTED]"));
     assert!(!debug.contains("secret-hmac"));
 
     let (_, _, token, _) = normalized.into_parts();
-    let (_, requester, _, _, _, _, hmac) = token.expect("success token").into_parts();
+    let (_, requester, _, _, _, _, hmac) = token
+        .unwrap_or_else(|| panic!("success token"))
+        .into_parts();
     assert_eq!(
-        requester.map(|value| value.into_parts()),
+        requester.map(super::model::NormalizedDelegationTokenPrincipal::into_parts),
         Some(("User".to_owned(), "requester".to_owned()))
     );
     assert_eq!(hmac.into_bytes(), b"secret-hmac");
@@ -55,7 +59,8 @@ fn broker_error_preserves_exact_signed_code_and_nonnegative_throttle() {
     response.throttle_time_ms = 19;
     response.hmac = Bytes::from(vec![7; MAX_HMAC_BYTES + 1]);
 
-    let normalized = normalize(3, &response).expect("exact broker error");
+    let normalized =
+        normalize(3, &response).unwrap_or_else(|error| panic!("exact broker error: {error:?}"));
     let (throttle, code, token, retained) = normalized.into_parts();
 
     assert_eq!(throttle, 19);

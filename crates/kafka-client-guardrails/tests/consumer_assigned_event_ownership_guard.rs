@@ -16,6 +16,10 @@ const CLAIM_TEST: &str = "crates/kafka-client-engine/src/consumer/assigned_event
 const MODEL: &str = "crates/kafka-client-engine/src/consumer/assigned_event/model.rs";
 const MODEL_TEST: &str = "crates/kafka-client-engine/src/consumer/assigned_event/model_test.rs";
 const PREPARED: &str = "crates/kafka-client-engine/src/consumer/assigned_event/prepared.rs";
+const PREPARED_COMMIT: &str =
+    "crates/kafka-client-engine/src/consumer/assigned_event/prepared/commit.rs";
+const PREPARED_MODEL: &str =
+    "crates/kafka-client-engine/src/consumer/assigned_event/prepared/model.rs";
 const PREPARED_TEST: &str =
     "crates/kafka-client-engine/src/consumer/assigned_event/prepared_test.rs";
 const OWNER_EVENT: &str = "crates/kafka-client-engine/src/consumer/assigned_owner_event.rs";
@@ -26,7 +30,7 @@ const PORT_TEST: &str = "crates/kafka-client-engine/src/consumer/assigned_host/e
 const LINEAR: &[(&str, &str)] = &[
     ("AssignedConsumerEventStore", STORE),
     ("AssignedConsumerEvent", MODEL),
-    ("PreparedEventClaims", PREPARED),
+    ("PreparedEventClaims", PREPARED_MODEL),
 ];
 const MUTATIONS: &[(&str, &str, &[&str])] = &[
     ("AssignedConsumerEventStore", "claims", &[STORE]),
@@ -51,10 +55,13 @@ const CLAIM_TRANSFERS: &[&str] = &[
     "crates/kafka-client-engine/src/consumer/assigned_owner_control.rs",
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/control.rs",
     "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs",
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/fetch_terminal.rs",
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/reconciliation.rs",
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/seek.rs",
 ];
 const METHODS: &[(&str, &[&str])] = &[
-    ("install_replacement_claims", &[PREPARED]),
-    ("install_partition_claim", &[PREPARED]),
+    ("install_replacement_claims", &[PREPARED_COMMIT]),
+    ("install_partition_claim", &[PREPARED_COMMIT]),
     ("commit_event_claims", CLAIM_TRANSFERS),
     ("rollback_event_claims", CLAIM_TRANSFERS),
     (
@@ -65,14 +72,22 @@ const METHODS: &[(&str, &[&str])] = &[
             "crates/kafka-client-engine/src/consumer/assigned_host/handle.rs",
             "crates/kafka-client-engine/src/consumer/assigned_host/next_event/port.rs",
             "crates/kafka-client-engine/src/consumer/group/registry_event.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/terminal_observation.rs",
         ],
     ),
-    ("retain_terminal", &[OWNER_EVENT]),
+    (
+        "retain_terminal",
+        &[
+            OWNER_EVENT,
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/terminal_observation.rs",
+        ],
+    ),
     (
         "observe_effect",
         &[
             "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
             "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/prepare.rs",
+            "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/position_prepare.rs",
         ],
     ),
 ];

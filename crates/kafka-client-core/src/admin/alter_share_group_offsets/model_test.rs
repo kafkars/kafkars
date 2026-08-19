@@ -1,5 +1,11 @@
 //! Scenarios for bounded caller-ordered API-91 plans.
 
+#![expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    reason = "fixture indices are bounded far below the protocol integer limit"
+)]
+
 use super::{
     ALTER_SHARE_GROUP_OFFSETS_MAX_GROUP_ID_BYTES, ALTER_SHARE_GROUP_OFFSETS_MAX_PARTITIONS,
     ALTER_SHARE_GROUP_OFFSETS_MAX_TOPIC_NAME_BYTES, AlterShareGroupOffset,

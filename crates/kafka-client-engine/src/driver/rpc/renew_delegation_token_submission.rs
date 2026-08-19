@@ -1,4 +1,4 @@
-//! Single-attempt AnyBroker policy for Admin `RenewDelegationToken`.
+//! Single-attempt `AnyBroker` policy for Admin `RenewDelegationToken`.
 
 use std::{error::Error, fmt, time::Instant};
 

@@ -4,6 +4,10 @@ use crate::{ProducerInput, ProducerMachine, ProducerMachineError, ProducerTransi
 
 impl ProducerMachine {
     /// Applies one producer fact and returns ordered mechanism requests.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the explicit dispatcher keeps every producer input and terminal path visible"
+    )]
     pub fn apply(
         &mut self,
         input: ProducerInput,

@@ -1,4 +1,4 @@
-//! ListTransactions error-category and exact-delivery translation tests.
+//! `ListTransactions` error-category and exact-delivery translation tests.
 
 use crate::{DeliveryStatus, ErrorKind};
 

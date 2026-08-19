@@ -2,7 +2,7 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use super::{CapabilityRule, WalkScope, async_capability, display_path, read, rust_files_under};
@@ -11,6 +11,8 @@ use syn::{Block, File, Item, ItemMod, ItemUse, Stmt, UseTree};
 
 pub(crate) fn capability_violations(root: &Path, rules: &[CapabilityRule]) -> Vec<String> {
     let mut violations = Vec::new();
+    let mut file_cache = BTreeMap::<PathBuf, Vec<PathBuf>>::new();
+    let mut collector_cache = BTreeMap::<PathBuf, CapabilityCollector>::new();
     for rule in rules {
         let source_root = root.join(&rule.root);
         assert!(
@@ -19,14 +21,19 @@ pub(crate) fn capability_violations(root: &Path, rules: &[CapabilityRule]) -> Ve
             source_root.display()
         );
         validate_allow_entries(root, &source_root, rule, &mut violations);
-        let files = if source_root.is_file() {
-            vec![source_root]
-        } else {
-            rust_files_under(&source_root, WalkScope::Fixture)
-        };
+        let files = file_cache.entry(source_root.clone()).or_insert_with(|| {
+            if source_root.is_file() {
+                vec![source_root.clone()]
+            } else {
+                rust_files_under(&source_root, WalkScope::Fixture)
+            }
+        });
         let mut used = BTreeSet::new();
         for path in files {
-            inspect_file(root, &path, rule, &mut used, &mut violations);
+            let collector = collector_cache
+                .entry(path.clone())
+                .or_insert_with(|| collect_file(root, path));
+            inspect_file(root, path, rule, collector, &mut used, &mut violations);
         }
         for allowed in &rule.allow {
             if !used.contains(&(allowed.path.clone(), allowed.capability.clone())) {
@@ -80,9 +87,55 @@ fn inspect_file(
     root: &Path,
     path: &Path,
     rule: &CapabilityRule,
+    collector: &CapabilityCollector,
     used: &mut BTreeSet<(String, String)>,
     violations: &mut Vec<String>,
 ) {
+    let relative = display_path(root, path);
+    let mut matches = BTreeSet::new();
+    for forbidden in &rule.forbidden {
+        let glob_reaches_forbidden = collector.globs.iter().any(|prefix| {
+            forbidden
+                .strip_prefix(prefix)
+                .is_some_and(|suffix| suffix.starts_with("::"))
+        });
+        if glob_reaches_forbidden {
+            matches.extend(
+                collector
+                    .paths
+                    .iter()
+                    .map(|observed| (observed.clone(), forbidden.clone())),
+            );
+            continue;
+        }
+        if collector.paths.contains(forbidden) {
+            matches.insert((forbidden.clone(), forbidden.clone()));
+        }
+        let prefix = format!("{forbidden}::");
+        matches.extend(
+            collector
+                .paths
+                .range(prefix.clone()..)
+                .take_while(|observed| observed.starts_with(&prefix))
+                .map(|observed| (observed.clone(), forbidden.clone())),
+        );
+    }
+    for (observed, forbidden) in matches {
+        if rule
+            .allow
+            .iter()
+            .any(|allowed| allowed.path == relative && allowed.capability == forbidden)
+        {
+            used.insert((relative.clone(), forbidden));
+        } else {
+            violations.push(format!(
+                "{relative} reaches forbidden capability {forbidden} through {observed}"
+            ));
+        }
+    }
+}
+
+fn collect_file(root: &Path, path: &Path) -> CapabilityCollector {
     let source = read(path);
     let syntax = syn::parse_file(&source)
         .unwrap_or_else(|error| panic!("parse {}: {error}", display_path(root, path)));
@@ -91,35 +144,7 @@ fn inspect_file(
     if async_capability::contains_async(&syntax) {
         collector.paths.insert("async".into());
     }
-
-    let relative = display_path(root, path);
-    for observed in &collector.paths {
-        for forbidden in &rule.forbidden {
-            let reaches_forbidden = observed == forbidden
-                || observed
-                    .strip_prefix(forbidden)
-                    .is_some_and(|suffix| suffix.starts_with("::"))
-                || collector.globs.iter().any(|prefix| {
-                    forbidden
-                        .strip_prefix(prefix)
-                        .is_some_and(|suffix| suffix.starts_with("::"))
-                });
-            if !reaches_forbidden {
-                continue;
-            }
-            if rule
-                .allow
-                .iter()
-                .any(|allowed| allowed.path == relative && allowed.capability == *forbidden)
-            {
-                used.insert((relative.clone(), forbidden.clone()));
-            } else {
-                violations.push(format!(
-                    "{relative} reaches forbidden capability {forbidden} through {observed}"
-                ));
-            }
-        }
-    }
+    collector
 }
 
 #[derive(Default)]

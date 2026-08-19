@@ -1,4 +1,4 @@
-//! Named observer for one topic-ID DeleteTopics operation.
+//! Named observer for one topic-ID `DeleteTopics` operation.
 
 use std::{
     future::Future,

@@ -13,7 +13,8 @@ fn v1_and_v2_success_preserve_nonnegative_expiry_and_throttle() {
         let mut response = RenewDelegationTokenResponse::default();
         response.expiry_timestamp_ms = 1_700_003_600_002;
         response.throttle_time_ms = 17;
-        let normalized = normalize(Some(version), &response).expect("valid renewal response");
+        let normalized = normalize(Some(version), &response)
+            .unwrap_or_else(|error| panic!("valid renewal response: {error:?}"));
 
         let (throttle, code, expiry, retained) = normalized.into_parts();
         assert_eq!(throttle, 17);
@@ -31,7 +32,8 @@ fn broker_rejection_preserves_exact_signed_code_and_ignores_expiry_sentinel() {
     response.expiry_timestamp_ms = -1;
     response.throttle_time_ms = 29;
 
-    let normalized = normalize(Some(2), &response).expect("exact broker rejection");
+    let normalized = normalize(Some(2), &response)
+        .unwrap_or_else(|error| panic!("exact broker rejection: {error:?}"));
     assert_eq!(normalized.into_parts(), (29, -31_234, None, retained()));
 }
 

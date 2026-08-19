@@ -42,7 +42,7 @@ fn request_preserves_caller_order_limit_and_optional_cursor() {
         ["zeta", "alpha"]
     );
     assert_eq!(request.response_partition_limit, 32_768);
-    let cursor = request.cursor.as_ref().expect("cursor");
+    let cursor = request.cursor.as_ref().unwrap_or_else(|| panic!("cursor"));
     assert_eq!(cursor.topic_name.as_str(), "zeta");
     assert_eq!(cursor.partition_index, 7);
     assert!(request.unknown_tagged_fields.is_empty());

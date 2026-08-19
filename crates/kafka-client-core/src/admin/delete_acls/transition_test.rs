@@ -1,4 +1,9 @@
-//! AnyBroker submission, positional results, storage reuse, and terminal tests.
+//! `AnyBroker` submission, positional results, storage reuse, and terminal tests.
+
+#![expect(
+    clippy::needless_pass_by_value,
+    reason = "test helpers preserve exact effect ownership"
+)]
 
 use core::num::NonZeroI16;
 

@@ -28,4 +28,7 @@ struct GroupConsumerShardState {
     registry_owner: usize,
     admission_fence: usize,
     reactor_wake: usize,
+    group_recv_signal: usize,
+    group_recv_publisher: usize,
+    port_contention_handoff: usize,
 }

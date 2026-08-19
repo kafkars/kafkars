@@ -1,4 +1,4 @@
-//! Concrete observation of accepted or rejected UpdateFeatures work.
+//! Concrete observation of accepted or rejected `UpdateFeatures` work.
 
 use std::{
     fmt,

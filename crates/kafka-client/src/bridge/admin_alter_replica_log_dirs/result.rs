@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of engine-owned AlterReplicaLogDirs outcomes.
+//! Exhaustive stable translation of engine-owned `AlterReplicaLogDirs` outcomes.
 
 use std::time::Duration;
 

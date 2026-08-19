@@ -12,8 +12,8 @@ const FILTER: &str = "crates/kafka-client-engine/src/protocol/fetch/read_committ
 const GROUP_REGISTRATION: &str =
     "crates/kafka-client-engine/src/consumer/group_registration_request.rs";
 const GROUP_ENTRY: &str = "crates/kafka-client-engine/src/consumer/group/registry_entry.rs";
-const GROUP_FETCH_OWNER: &str =
-    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner.rs";
+const GROUP_FETCH_BUILD: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/owner_build.rs";
 const FORBIDDEN: &[&str] = &[
     "crate::admin",
     "crate::consumer",
@@ -37,6 +37,10 @@ const FORBIDDEN: &[&str] = &[
 ];
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one policy test checks the complete read-isolation ownership ratchet"
+)]
 fn checked_in_read_isolation_policy_is_exact() {
     let workspace = workspace_root();
     let config = load_config(&workspace);
@@ -160,14 +164,17 @@ fn hosted_registration_isolation_is_non_decorative_and_immutable() {
 
     let entry = read(&root.join(GROUP_ENTRY));
     assert!(entry.contains("pub(super) read_isolation: ReadIsolation"));
-    assert_eq!(
-        entry
-            .matches("ClassicGroupFetchOwner::try_new_with_read_isolation(read_isolation)")
-            .count(),
-        1
+    let fetch_construction = concat!(
+        "ClassicGroupFetchOwner::try_new_with_fetch_configuration(\n",
+        "                read_isolation,\n",
+        "                missing_offset_policy,\n",
+        "                fetch,\n",
+        "                limits,\n",
+        "            )",
     );
+    assert_eq!(entry.matches(fetch_construction).count(), 1);
 
-    let owner = read(&root.join(GROUP_FETCH_OWNER));
+    let owner = read(&root.join(GROUP_FETCH_BUILD));
     for token in [
         "AssignedConsumerMachine::with_read_isolation(read_isolation)",
         ".with_isolation(fetch_isolation(read_isolation))",

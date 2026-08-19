@@ -12,10 +12,10 @@ const ROOT: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_
 const ACTIVATION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_position/activation.rs";
 const STATE: &str = "crates/kafka-client-engine/src/consumer/group/classic_group_position/state.rs";
+const COMPLETION_STATE: &str =
+    "crates/kafka-client-engine/src/consumer/group/classic_group_position/completion_state.rs";
 const EXECUTION: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_position/state_execution.rs";
-const MEMBERSHIP_LOCAL: &str =
-    "crates/kafka-client-engine/src/consumer/group/registry_membership/local.rs";
 const HOST: &str = "crates/kafka-client-engine/src/consumer/group/registry_host.rs";
 const RECOVERY: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_position/recovery.rs";
@@ -32,8 +32,8 @@ const LINEAR: &[(&str, &str)] = &[
     ("ClassicGroupPositionPrepared", STATE),
     ("ClassicGroupPositionHandoff", STATE),
     ("ClassicGroupPositionDriverOwned", STATE),
-    ("ClassicGroupPositionCompleted", STATE),
-    ("ClassicGroupPositionConfirmationPending", STATE),
+    ("ClassicGroupPositionCompleted", COMPLETION_STATE),
+    ("ClassicGroupPositionConfirmationPending", COMPLETION_STATE),
     ("ClassicGroupPositionExecutionState", EXECUTION),
     ("ClassicGroupPositionExecution", EXECUTION),
 ];
@@ -58,7 +58,7 @@ const METHODS: &[(&str, &[&str])] = &[
     ("finish_driver_rejected", &[REGISTRY_SUBMISSION]),
     ("apply_raw_terminal", &[RECOVERY, REGISTRY_SETTLEMENT]),
     ("confirm_terminal_settlement", &[REGISTRY_SETTLEMENT]),
-    ("close_position_if_local", &[CLOSE, MEMBERSHIP_LOCAL]),
+    ("close_position_if_local", &[CLOSE]),
     ("expire_prepared_if_due", &[REGISTRY_SUBMISSION]),
     ("recover_key_after_driver_shutdown", &[REGISTRY_RECOVERY]),
     (

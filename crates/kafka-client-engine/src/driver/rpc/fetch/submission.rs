@@ -76,6 +76,10 @@ impl DriverOwner {
     }
 
     /// Submits one broker-aggregated long-poll Fetch under exact metadata authority.
+    #[allow(
+        clippy::unused_self,
+        reason = "the driver capability boundary deliberately fails closed until exact-broker routing exists"
+    )]
     pub(crate) fn submit_tracked_broker_fetch(
         &self,
         broker_id: BrokerId,

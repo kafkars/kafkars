@@ -44,7 +44,7 @@ fn page_translation_is_lossless_and_consumable_without_cloning() {
     let (throttle, topics, cursor) = page.into_parts();
     assert_eq!(throttle, 11);
     assert_eq!(
-        cursor.map(|value| value.into_parts()),
+        cursor.map(super::model::AdminDescribeTopicPartitionsCursor::into_parts),
         Some(("orders".to_owned(), 4))
     );
     let (error, name, topic_id, internal, partitions, operations) = topics

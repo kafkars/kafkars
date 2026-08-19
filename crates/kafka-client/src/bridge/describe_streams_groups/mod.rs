@@ -1,4 +1,4 @@
-//! Declarative private bridge for caller-ordered StreamsGroup descriptions.
+//! Declarative private bridge for caller-ordered `StreamsGroup` descriptions.
 
 mod engine;
 mod operation;

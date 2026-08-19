@@ -1,37 +1,80 @@
 //! Cloneable public admin handle over the private engine bridge.
 
+mod abort_partition_transaction;
+mod add_raft_voter;
+mod alter_share_group_offsets;
+mod constructor;
+mod create_delegation_token;
+mod delete_share_group_offsets;
+mod describe_delegation_tokens;
+mod describe_features;
 mod describe_log_dirs;
+mod describe_metadata_quorum;
+mod describe_producers;
+mod describe_replica_log_dirs;
+mod describe_share_group;
+mod describe_share_groups;
+mod describe_streams_group;
+mod describe_streams_groups;
+mod describe_topic_partitions;
+mod describe_transactions;
+mod elect_leaders;
+mod expire_delegation_token;
+mod fence_producers;
+mod force_terminate_transaction;
+mod group_administration;
+mod group_discovery;
+mod legacy_replace_topic_configs;
+mod list_client_metrics_resources;
+mod list_config_resources;
 mod list_offsets;
+mod list_share_group_offsets;
+mod list_transactions;
 mod partition_reassignments;
 mod remove_consumer_group_members;
+mod remove_raft_voter;
+mod renew_delegation_token;
+mod unregister_broker;
+mod update_features;
 
-use crate::TopicPartition;
+#[cfg(test)]
+mod alter_share_group_offsets_test;
+#[cfg(test)]
+mod delete_share_group_offsets_test;
+#[cfg(test)]
+mod describe_share_group_test;
+#[cfg(test)]
+mod describe_streams_group_test;
+#[cfg(test)]
+mod list_config_resources_test;
+#[cfg(test)]
+mod list_share_group_offsets_test;
+#[cfg(test)]
+mod unregister_broker_test;
+
 use crate::bridge::admin::{AdminEngine, AdminRequest, DeleteAdminRequest, PartitionsAdminRequest};
 use crate::bridge::admin_alter_configs_request::IncrementalAlterConfigsAdminRequest;
 use crate::bridge::admin_alter_replica_log_dirs::AlterReplicaLogDirsAdminRequest;
 use crate::bridge::admin_configs_request::DescribeConfigsAdminRequest;
 use crate::bridge::admin_create_acls::CreateAclsAdminRequest;
 use crate::bridge::admin_delete_acls::DeleteAclsAdminRequest;
-use crate::bridge::admin_delete_consumer_groups::DeleteConsumerGroupsAdminRequest;
 use crate::bridge::admin_delete_records::DeleteRecordsAdminRequest;
 use crate::bridge::admin_describe_acls::DescribeAclsAdminRequest;
-use crate::bridge::admin_describe_consumer_groups::DescribeConsumerGroupsAdminRequest;
-use crate::bridge::admin_elect_leaders::ElectLeadersAdminRequest;
-use crate::bridge::admin_group_offset_delete_request::DeleteConsumerGroupOffsetsAdminRequest;
-use crate::bridge::admin_group_offsets::{
-    AlterConsumerGroupOffsetsAdminRequest, ListConsumerGroupOffsetsAdminRequest,
-};
 use crate::bridge::admin_topics_request::DescribeTopicsAdminRequest;
+use crate::bridge::alter_client_quotas::AlterClientQuotasAdminRequest;
+use crate::bridge::alter_user_scram_credentials::AlterUserScramCredentialsAdminRequest;
+use crate::bridge::describe_client_quotas::DescribeClientQuotasAdminRequest;
+use crate::bridge::describe_user_scram_credentials::DescribeUserScramCredentialsAdminRequest;
 
 use super::{
-    AlterConsumerGroupOffsetsBuilder, AlterReplicaLogDirsBuilder, ConsumerGroupOffsetAlteration,
-    CreateAclsBuilder, CreatePartitionsBuilder, CreateTopicsBuilder, DeleteAclsBuilder,
-    DeleteConsumerGroupOffsetsBuilder, DeleteConsumerGroupsBuilder, DeleteRecordsBuilder,
-    DeleteRecordsTarget, DeleteTopicsBuilder, DescribeAclsBuilder, DescribeClusterBuilder,
-    DescribeConfigsBuilder, DescribeConsumerGroupsBuilder, DescribeTopicsBuilder,
-    ElectLeadersBuilder, IncrementalAlterConfigsBuilder, LeaderElectionTarget, LeaderElectionType,
-    ListConsumerGroupOffsetsBuilder, ListConsumerGroupsBuilder, ListTopicsBuilder, NewPartitions,
-    NewTopic, ReplicaLogDirAssignment, TopicConfigAlterations, TopicConfigQuery,
+    AlterClientQuotasBuilder, AlterReplicaLogDirsBuilder, AlterUserScramCredentialsBuilder,
+    ConfigResourceAlterations, ConfigResourceQuery, CreateAclsBuilder, CreatePartitionsBuilder,
+    CreateTopicsBuilder, DeleteAclsBuilder, DeleteRecordsBuilder, DeleteRecordsTarget,
+    DeleteTopicsBuilder, DeleteTopicsByIdBuilder, DescribeAclsBuilder, DescribeClientQuotasBuilder,
+    DescribeClusterBuilder, DescribeConfigResourcesBuilder, DescribeConfigsBuilder,
+    DescribeTopicsBuilder, DescribeTopicsByIdBuilder, DescribeUserScramCredentialsBuilder,
+    IncrementalAlterConfigResourcesBuilder, IncrementalAlterConfigsBuilder, ListTopicsBuilder,
+    NewPartitions, NewTopic, ReplicaLogDirAssignment, TopicConfigAlterations, TopicConfigQuery,
 };
 
 /// Cheaply cloneable, thread-safe admin handle.
@@ -41,10 +84,6 @@ pub struct Admin {
 }
 
 impl Admin {
-    pub(crate) const fn new(engine: AdminEngine) -> Self {
-        Self { engine }
-    }
-
     /// Builds inert caller-ordered ACL creation intent.
     ///
     /// No timeout starts and no operation is admitted until
@@ -76,6 +115,66 @@ impl Admin {
     pub fn describe_acls(&self, filter: super::AclBindingFilter) -> DescribeAclsBuilder {
         let request = DescribeAclsAdminRequest::new(filter);
         DescribeAclsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
+    }
+
+    /// Builds an inert client-quota filter. An empty component set lists all quotas.
+    ///
+    /// No timeout starts and no operation is admitted until
+    /// [`DescribeClientQuotasBuilder::submit`] is called.
+    pub fn describe_client_quotas<I>(&self, components: I) -> DescribeClientQuotasBuilder
+    where
+        I: IntoIterator<Item = super::ClientQuotaFilterComponent>,
+    {
+        let request = DescribeClientQuotasAdminRequest::new(components.into_iter().collect());
+        DescribeClientQuotasBuilder::new(
+            self.engine.clone(),
+            request,
+            self.engine.default_timeout(),
+        )
+    }
+
+    /// Builds an inert all-user SCRAM credential metadata query.
+    ///
+    /// No timeout starts and no operation is admitted until
+    /// [`DescribeUserScramCredentialsBuilder::submit`] is called. Use
+    /// [`DescribeUserScramCredentialsBuilder::users`] to select explicit users.
+    pub fn describe_user_scram_credentials(&self) -> DescribeUserScramCredentialsBuilder {
+        DescribeUserScramCredentialsBuilder::new(
+            self.engine.clone(),
+            DescribeUserScramCredentialsAdminRequest::new(),
+            self.engine.default_timeout(),
+        )
+    }
+
+    /// Builds inert caller-ordered client-quota alterations.
+    ///
+    /// No timeout starts and no operation is admitted until
+    /// [`AlterClientQuotasBuilder::submit`] is called.
+    pub fn alter_client_quotas<I>(&self, alterations: I) -> AlterClientQuotasBuilder
+    where
+        I: IntoIterator<Item = super::ClientQuotaAlteration>,
+    {
+        let request = AlterClientQuotasAdminRequest::new(alterations.into_iter().collect());
+        AlterClientQuotasBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
+    }
+
+    /// Builds inert caller-ordered SCRAM credential deletions and upsertions.
+    ///
+    /// No timeout starts and no operation is admitted until
+    /// [`AlterUserScramCredentialsBuilder::submit`] is called.
+    pub fn alter_user_scram_credentials<I>(
+        &self,
+        alterations: I,
+    ) -> AlterUserScramCredentialsBuilder
+    where
+        I: IntoIterator<Item = super::UserScramCredentialAlteration>,
+    {
+        let request = AlterUserScramCredentialsAdminRequest::new(alterations.into_iter().collect());
+        AlterUserScramCredentialsBuilder::new(
+            self.engine.clone(),
+            request,
+            self.engine.default_timeout(),
+        )
     }
 
     /// Builds inert caller-ordered broker-local replica log-directory assignments.
@@ -115,31 +214,25 @@ impl Admin {
         DeleteTopicsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
     }
 
+    /// Builds an inert caller-ordered topic-ID deletion request.
+    ///
+    /// The all-zero protocol sentinel and duplicate IDs are rejected at
+    /// submission. No timeout starts and no destructive work is admitted until
+    /// [`DeleteTopicsByIdBuilder::submit`] is called.
+    pub fn delete_topics_by_id<I>(&self, topic_ids: I) -> DeleteTopicsByIdBuilder
+    where
+        I: IntoIterator<Item = [u8; 16]>,
+    {
+        let request = DeleteAdminRequest::from_topic_ids(topic_ids);
+        DeleteTopicsByIdBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
+    }
+
     /// Builds an inert broker-endpoint `DescribeCluster` request.
     ///
     /// No timeout starts and no operation is admitted until
     /// [`DescribeClusterBuilder::submit`] is called.
     pub fn describe_cluster(&self) -> DescribeClusterBuilder {
         DescribeClusterBuilder::new(self.engine.clone(), self.engine.default_timeout())
-    }
-
-    /// Builds an inert caller-ordered classic consumer-group description.
-    ///
-    /// Authorized operations are omitted by default. No timeout starts and no
-    /// operation is admitted until [`DescribeConsumerGroupsBuilder::submit`] is
-    /// called.
-    pub fn describe_consumer_groups<I, T>(&self, groups: I) -> DescribeConsumerGroupsBuilder
-    where
-        I: IntoIterator<Item = T>,
-        T: Into<String>,
-    {
-        let request =
-            DescribeConsumerGroupsAdminRequest::new(groups.into_iter().map(Into::into).collect());
-        DescribeConsumerGroupsBuilder::new(
-            self.engine.clone(),
-            request,
-            self.engine.default_timeout(),
-        )
     }
 
     /// Builds an inert ordered name-based `DescribeTopics` request.
@@ -155,6 +248,19 @@ impl Admin {
         DescribeTopicsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
     }
 
+    /// Builds an inert ordered topic-ID `DescribeTopics` request.
+    ///
+    /// The all-zero protocol sentinel and duplicate IDs are rejected at
+    /// submission. No timeout starts and no operation is admitted until
+    /// [`DescribeTopicsByIdBuilder::submit`] is called.
+    pub fn describe_topics_by_id<I>(&self, topic_ids: I) -> DescribeTopicsByIdBuilder
+    where
+        I: IntoIterator<Item = [u8; 16]>,
+    {
+        let request = DescribeTopicsAdminRequest::from_topic_ids(topic_ids);
+        DescribeTopicsByIdBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
+    }
+
     /// Builds an inert query for topics visible to the authenticated principal.
     ///
     /// Internal topics are excluded by default. No timeout starts and no
@@ -162,98 +268,6 @@ impl Admin {
     pub fn list_topics(&self) -> ListTopicsBuilder {
         let request = DescribeTopicsAdminRequest::all(false);
         ListTopicsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
-    }
-
-    /// Builds an inert all-partition committed-offset query for one group.
-    ///
-    /// Stable offsets are not required by default. No timeout starts and no
-    /// operation is admitted until [`ListConsumerGroupOffsetsBuilder::submit`]
-    /// is called.
-    pub fn list_consumer_group_offsets(
-        &self,
-        group_id: impl Into<String>,
-    ) -> ListConsumerGroupOffsetsBuilder {
-        let request = ListConsumerGroupOffsetsAdminRequest::new(group_id.into());
-        ListConsumerGroupOffsetsBuilder::new(
-            self.engine.clone(),
-            request,
-            self.engine.default_timeout(),
-        )
-    }
-
-    /// Builds an inert cluster-wide consumer-group listing request.
-    ///
-    /// No timeout starts and no operation is admitted until
-    /// [`ListConsumerGroupsBuilder::submit`] is called.
-    pub fn list_consumer_groups(&self) -> ListConsumerGroupsBuilder {
-        ListConsumerGroupsBuilder::new(self.engine.clone(), self.engine.default_timeout())
-    }
-
-    /// Builds an inert caller-ordered committed-offset deletion for one group.
-    ///
-    /// [`TopicPartition::start_at`](crate::TopicPartition::start_at) is
-    /// assignment-only and causes a definitely-unsent configuration rejection
-    /// at [`DeleteConsumerGroupOffsetsBuilder::submit`]. No timeout starts and
-    /// no operation is admitted before that submission boundary.
-    pub fn delete_consumer_group_offsets<I>(
-        &self,
-        group_id: impl Into<String>,
-        targets: I,
-    ) -> DeleteConsumerGroupOffsetsBuilder
-    where
-        I: IntoIterator<Item = TopicPartition>,
-    {
-        let request = DeleteConsumerGroupOffsetsAdminRequest::new(
-            group_id.into(),
-            targets.into_iter().collect(),
-        );
-        DeleteConsumerGroupOffsetsBuilder::new(
-            self.engine.clone(),
-            request,
-            self.engine.default_timeout(),
-        )
-    }
-
-    /// Builds an inert caller-ordered consumer-group deletion request.
-    ///
-    /// No timeout starts and no destructive call is admitted until
-    /// [`DeleteConsumerGroupsBuilder::submit`] is called.
-    pub fn delete_consumer_groups<I, T>(&self, group_ids: I) -> DeleteConsumerGroupsBuilder
-    where
-        I: IntoIterator<Item = T>,
-        T: Into<String>,
-    {
-        let request =
-            DeleteConsumerGroupsAdminRequest::new(group_ids.into_iter().map(Into::into).collect());
-        DeleteConsumerGroupsBuilder::new(
-            self.engine.clone(),
-            request,
-            self.engine.default_timeout(),
-        )
-    }
-
-    /// Builds an inert caller-ordered committed-offset alteration for one group.
-    ///
-    /// Invalid offsets, epochs, identities, and duplicate topic-partitions
-    /// remain inert until [`AlterConsumerGroupOffsetsBuilder::submit`] captures
-    /// the public absolute deadline and attempts bounded engine admission.
-    pub fn alter_consumer_group_offsets<I>(
-        &self,
-        group_id: impl Into<String>,
-        alterations: I,
-    ) -> AlterConsumerGroupOffsetsBuilder
-    where
-        I: IntoIterator<Item = ConsumerGroupOffsetAlteration>,
-    {
-        let request = AlterConsumerGroupOffsetsAdminRequest::new(
-            group_id.into(),
-            alterations.into_iter().collect(),
-        );
-        AlterConsumerGroupOffsetsBuilder::new(
-            self.engine.clone(),
-            request,
-            self.engine.default_timeout(),
-        )
     }
 
     /// Builds an inert ordered topic `DescribeConfigs` request.
@@ -268,6 +282,24 @@ impl Admin {
     {
         let request = DescribeConfigsAdminRequest::from_topics(topics);
         DescribeConfigsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
+    }
+
+    /// Builds an inert ordered resource-generic `DescribeConfigs` request.
+    ///
+    /// Known and future positive [`super::ConfigResourceType`] codes remain
+    /// representable. Validation and bounded admission occur only when
+    /// [`DescribeConfigResourcesBuilder::submit`] captures one public deadline.
+    pub fn describe_config_resources<I, T>(&self, resources: I) -> DescribeConfigResourcesBuilder
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<ConfigResourceQuery>,
+    {
+        let request = DescribeConfigsAdminRequest::from_resources(resources);
+        DescribeConfigResourcesBuilder::new(
+            self.engine.clone(),
+            request,
+            self.engine.default_timeout(),
+        )
     }
 
     /// Builds an inert ordered topic `IncrementalAlterConfigs` request.
@@ -287,7 +319,27 @@ impl Admin {
         )
     }
 
-    /// Builds an inert automatic-assignment `CreatePartitions` request.
+    /// Builds inert caller-ordered generic `IncrementalAlterConfigs` intent.
+    ///
+    /// Known and future positive resource types remain exact. Validation,
+    /// deadline capture, and bounded admission occur only at
+    /// [`IncrementalAlterConfigResourcesBuilder::submit`].
+    pub fn incremental_alter_config_resources<I>(
+        &self,
+        resources: I,
+    ) -> IncrementalAlterConfigResourcesBuilder
+    where
+        I: IntoIterator<Item = ConfigResourceAlterations>,
+    {
+        let request = IncrementalAlterConfigsAdminRequest::from_resources(resources);
+        IncrementalAlterConfigResourcesBuilder::new(
+            self.engine.clone(),
+            request,
+            self.engine.default_timeout(),
+        )
+    }
+
+    /// Builds an inert automatic or explicit-placement `CreatePartitions` request.
     ///
     /// No timeout starts and no operation is admitted until
     /// [`CreatePartitionsBuilder::submit`] is called.
@@ -309,21 +361,5 @@ impl Admin {
     {
         let request = DeleteRecordsAdminRequest::new(targets.into_iter().collect());
         DeleteRecordsBuilder::new(self.engine.clone(), request, self.engine.default_timeout())
-    }
-
-    /// Builds an inert caller-ordered selected-partition leader election.
-    pub fn elect_leaders<I>(
-        &self,
-        election_type: LeaderElectionType,
-        targets: I,
-    ) -> ElectLeadersBuilder
-    where
-        I: IntoIterator<Item = LeaderElectionTarget>,
-    {
-        ElectLeadersBuilder::new(
-            self.engine.clone(),
-            ElectLeadersAdminRequest::new(election_type, targets.into_iter().collect()),
-            self.engine.default_timeout(),
-        )
     }
 }

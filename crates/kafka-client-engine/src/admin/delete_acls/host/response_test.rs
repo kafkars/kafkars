@@ -22,10 +22,10 @@ fn matching_capacities_preserve_every_filter_position_across_broker_failures() {
     let mut capacities = Vec::new();
     capacities
         .try_reserve_exact(filter_results.len())
-        .expect("matching-capacity storage");
+        .unwrap_or_else(|error| panic!("matching-capacity storage: {error:?}"));
 
     record_positional_matching_capacities(&filter_results, filter_results.len(), &mut capacities)
-        .expect("one prepared capacity per filter position");
+        .unwrap_or_else(|error| panic!("one prepared capacity per filter position: {error:?}"));
 
     assert_eq!(capacities, [2, 0, 0, 0]);
 }
@@ -93,7 +93,7 @@ fn matched(count: usize) -> DeleteAclFilterResult {
 
 fn broker_failed(code: i16) -> DeleteAclFilterResult {
     DeleteAclFilterResult::BrokerFailed(DeleteAclBrokerError::new(
-        NonZeroI16::new(code).expect("nonzero broker code"),
+        NonZeroI16::new(code).unwrap_or_else(|| panic!("nonzero broker code")),
         None,
         false,
     ))

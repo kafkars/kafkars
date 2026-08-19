@@ -1,4 +1,8 @@
-//! Public caller-ordered DescribeTransactions result scenarios.
+//! Public caller-ordered `DescribeTransactions` result scenarios.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts a broker rejection result"
+)]
 
 use std::time::Duration;
 

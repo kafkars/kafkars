@@ -1,4 +1,4 @@
-//! Named StreamsGroup description operation ownership tests.
+//! Named `StreamsGroup` description operation ownership tests.
 
 use std::future::Future;
 

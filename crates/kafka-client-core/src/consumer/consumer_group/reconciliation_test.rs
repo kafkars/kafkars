@@ -101,7 +101,7 @@ fn repeated_target_is_idempotent_but_changed_same_epoch_target_is_rejected() {
     assert_eq!(
         machine
             .pending_assignment()
-            .map(|assignment| assignment.partitions()),
+            .map(crate::LiveGroupAssignment::partitions),
         Some(&[partition(1, 1)][..])
     );
 }
@@ -161,7 +161,7 @@ fn exact_retirement_emits_empty_owned_ack_then_success_authorizes_target_install
     assert_eq!(
         machine
             .live_assignment()
-            .map(|assignment| assignment.partitions()),
+            .map(crate::LiveGroupAssignment::partitions),
         Some(&[partition(1, 1)][..])
     );
     assert!(machine.pending_assignment().is_none());
@@ -193,7 +193,7 @@ fn stale_retirement_fence_cannot_clear_reportable_ownership() {
     assert_eq!(
         machine
             .live_assignment()
-            .map(|assignment| assignment.assignment_generation()),
+            .map(crate::LiveGroupAssignment::assignment_generation),
         Some(old_generation)
     );
     assert!(machine.pending_assignment().is_some());

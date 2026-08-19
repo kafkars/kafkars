@@ -1,4 +1,4 @@
-//! Linear public ShareGroup offset-deletion intent translated at submission.
+//! Linear public `ShareGroup` offset-deletion intent translated at submission.
 
 use super::engine::Request as EngineRequest;
 

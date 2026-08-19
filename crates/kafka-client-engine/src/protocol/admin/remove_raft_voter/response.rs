@@ -1,4 +1,4 @@
-//! Validate-first normalization of the sole generated RemoveRaftVoter response.
+//! Validate-first normalization of the sole generated `RemoveRaftVoter` response.
 
 use kafka_wire::RemoveRaftVoterResponse;
 

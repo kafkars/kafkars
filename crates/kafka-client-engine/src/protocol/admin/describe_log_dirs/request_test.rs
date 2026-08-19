@@ -19,7 +19,7 @@ fn flat_core_selection_groups_first_seen_topics_and_partition_order() {
     ]);
     let request = describe_log_dirs_request_for_selection(&selection, usize::MAX)
         .unwrap_or_else(|error| panic!("selected request: {error:?}"));
-    let topics = request.topics.expect("selected topics");
+    let topics = request.topics.unwrap_or_else(|| panic!("selected topics"));
     assert_eq!(topics.len(), 2);
     assert_eq!(topics[0].topic.as_str(), "orders");
     assert_eq!(topics[0].partitions, [3, 1]);
@@ -38,7 +38,10 @@ fn nullable_all_topics_and_explicit_selection_remain_distinct() {
     let request =
         describe_log_dirs_request(DescribeLogDirsSelectionRef::Selected(&selected), usize::MAX)
             .unwrap_or_else(|error| panic!("selected request: {error:?}"));
-    let topics = request.topics.as_ref().expect("selected topics");
+    let topics = request
+        .topics
+        .as_ref()
+        .unwrap_or_else(|| panic!("selected topics"));
     assert_eq!(topics.len(), 1);
     assert_eq!(topics[0].topic.as_str(), "orders");
     assert_eq!(topics[0].partitions, partitions);
@@ -107,7 +110,10 @@ fn generated_request_must_fit_before_it_is_returned() {
         DescribeLogDirsSelectionRef::Selected(&selected),
         exact_generated.saturating_sub(1),
     )
-    .expect_err("one byte short must fail");
+    .map_or_else(
+        |error| error,
+        |value| panic!("one byte short must fail: {value:?}"),
+    );
     assert!(matches!(
         error,
         DescribeLogDirsRequestFailure::RetainedBytes { .. }
@@ -121,7 +127,7 @@ fn flat_selection_peak_is_distinct_and_sufficient_for_grouped_request_scratch() 
         AdminDescribeLogDirsPartition::new("audit".to_owned(), 0),
         AdminDescribeLogDirsPartition::new("orders".to_owned(), 1),
     ]);
-    let peak = selection_request_peak_charge(&selection).expect("bounded peak");
+    let peak = selection_request_peak_charge(&selection).unwrap_or_else(|| panic!("bounded peak"));
     assert!(peak > 0);
     describe_log_dirs_request_for_selection(&selection, peak)
         .unwrap_or_else(|error| panic!("charged selected request: {error:?}"));

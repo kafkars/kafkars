@@ -50,7 +50,7 @@ fn activation_and_front_interpretation_order_is_source_explicit() {
     for required in [
         "ClassicGroupFetchFront::Backpressured",
         "FetchExecutionError::ControlPending",
-        "if self.fault.is_some()",
+        "if self.is_faulted()",
     ] {
         assert!(prepare.contains(required), "preparation lost {required}");
     }

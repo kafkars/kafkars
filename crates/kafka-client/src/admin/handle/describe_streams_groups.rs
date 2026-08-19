@@ -1,4 +1,4 @@
-//! Batched StreamsGroup description entry point on the shared admin handle.
+//! Batched `StreamsGroup` description entry point on the shared admin handle.
 
 use super::Admin;
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
 };
 
 impl Admin {
-    /// Builds inert caller-ordered descriptions for multiple StreamsGroups.
+    /// Builds inert caller-ordered descriptions for multiple `StreamsGroups`.
     ///
     /// Group validation remains deferred until
     /// [`DescribeStreamsGroupsBuilder::submit`] captures the public absolute

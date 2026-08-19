@@ -129,7 +129,7 @@ impl VirtualProducerState {
                 completion,
             } => self.complete(operation_id, completion)?,
             ProducerEffect::AcceptFlush { flush_id, barrier } => {
-                self.accept_flush(flush_id, barrier)?
+                self.accept_flush(flush_id, barrier)?;
             }
             ProducerEffect::CompleteFlush { flush_id } => self.complete_flush(flush_id)?,
         }

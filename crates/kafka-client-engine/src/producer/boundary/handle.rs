@@ -4,9 +4,10 @@ mod waiting;
 
 use std::sync::Arc;
 
-use super::super::ingress::ProducerAdmissionPort;
+use super::super::ingress::{ProducerAdmissionPort, ProducerShardLockError};
 use super::{
-    batch_result::{ProducerTrySendBatch, ProducerTrySendBatchError},
+    batch_admission::{ProducerBatchAdmission, rejected_batch},
+    batch_result::ProducerTrySendBatch,
     capture::{
         ProducerBatchSendCapture, ProducerSendCapture, ProducerSendCaptureError,
         ProducerSendCaptureErrorKind, ProducerSendOptions,
@@ -15,7 +16,7 @@ use super::{
     error::{ProducerTrySendError, ProducerTrySendErrorKind},
     flush_error::ProducerTryFlushError,
     flush_result::ProducerTryFlushAccepted,
-    prepare::{prepare_batch, prepare_explicit, prepare_waiting},
+    prepare::{prepare_explicit, prepare_waiting, validate_batch},
     record::ProducerRecord,
     result::ProducerTrySendAccepted,
 };
@@ -50,7 +51,7 @@ impl ProducerHandle {
         self.batch_admission_capacity
     }
 
-    /// Captures time before a Rust facade converts its record.
+    /// Captures time before the Rust facade converts its record.
     pub fn capture_send(
         &self,
         options: ProducerSendOptions,
@@ -108,7 +109,16 @@ impl ProducerHandle {
         } else {
             prepare_waiting(capture, record)
         }?;
-        let (attempted_at, deadline, stored) = prepared.into_parts();
+        let (_boundary_at, deadline, stored) = prepared.into_parts();
+        let attempted_at = match self.clock.now() {
+            Ok(now) => now,
+            Err(_error) => {
+                return Err(ProducerTrySendError::with_record(
+                    ProducerTrySendErrorKind::DeadlineUnrepresentable,
+                    ProducerRecord::from_stored(stored),
+                ));
+            }
+        };
         let admission = if explicit {
             self.port.try_admit_explicit(attempted_at, deadline, stored)
         } else {
@@ -117,6 +127,18 @@ impl ProducerHandle {
         match admission {
             Ok(accepted) => Ok(ProducerTrySendAccepted::from_port(accepted)),
             Err(error) => Err(ProducerTrySendError::from_port(error)),
+        }
+    }
+
+    /// Acquires one nonblocking batch admission permit after caller validation.
+    pub fn try_begin_batch_admission(
+        &self,
+    ) -> Result<ProducerBatchAdmission<'_>, ProducerTrySendErrorKind> {
+        match self.port.try_batch_permit() {
+            Ok(Some(permit)) => Ok(ProducerBatchAdmission::new(permit, &self.clock)),
+            Ok(None) => Err(ProducerTrySendErrorKind::Closed),
+            Err(ProducerShardLockError::Contended) => Err(ProducerTrySendErrorKind::Contended),
+            Err(ProducerShardLockError::Poisoned) => Err(ProducerTrySendErrorKind::HostPoisoned),
         }
     }
 
@@ -130,34 +152,23 @@ impl ProducerHandle {
         capture: ProducerBatchSendCapture,
         records: Vec<ProducerRecord>,
     ) -> ProducerTrySendBatch {
-        let (attempted_at, deadline, records) = match prepare_batch(capture, records) {
-            Ok(prepared) => prepared.into_parts(),
+        if records.is_empty() {
+            return ProducerTrySendBatch::new(Vec::new(), None);
+        }
+        let validated = match validate_batch(capture, records) {
+            Ok(validated) => validated,
             Err(rejected) => {
                 let (kind, records) = rejected.into_parts();
-                return ProducerTrySendBatch::new(
-                    Vec::new(),
-                    Some(ProducerTrySendBatchError::from_parts(kind, records, None)),
-                );
+                return rejected_batch(kind, records);
             }
         };
-        let admitted = self.port.try_admit_batch(attempted_at, deadline, records);
-        let (accepted, rejection) = admitted.into_parts();
-        let accepted = accepted
-            .into_iter()
-            .map(ProducerTrySendAccepted::from_port)
-            .collect();
-        let rejection = rejection.map(|rejection| {
-            let (first, remaining) = rejection.into_parts();
-            let remaining = remaining
-                .into_iter()
-                .map(ProducerRecord::from_stored)
-                .collect();
-            ProducerTrySendBatchError::from_single(
-                ProducerTrySendError::from_port(first),
-                remaining,
-            )
-        });
-        ProducerTrySendBatch::new(accepted, rejection)
+        let admission = match self.try_begin_batch_admission() {
+            Ok(admission) => admission,
+            Err(kind) => {
+                return rejected_batch(kind, validated.into_records());
+            }
+        };
+        admission.admit_validated(validated)
     }
 
     /// Attempts one producer flush admission without blocking.

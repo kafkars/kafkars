@@ -245,6 +245,7 @@ fn expected_paths(field: &str) -> Vec<String> {
             "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_effect.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_status.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_close/session.rs",
         ],
         "close_completions" => &[
             "crates/kafka-client-engine/src/consumer/assigned_owner.rs",
@@ -283,6 +284,7 @@ fn expected_paths(field: &str) -> Vec<String> {
             "crates/kafka-client-engine/src/consumer/assigned_owner_pending.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_recovery.rs",
             "crates/kafka-client-engine/src/consumer/assigned_owner_turn.rs",
+            "crates/kafka-client-engine/src/consumer/assigned_owner_close/session.rs",
         ],
         "reclaim_faults" | "reclaim_overflow" => &[
             "crates/kafka-client-engine/src/consumer/assigned_owner.rs",

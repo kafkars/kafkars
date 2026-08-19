@@ -1,4 +1,9 @@
 //! Local pre-admission terminal observation tests.
+#![expect(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    reason = "the test constructs a known representable past deadline and asserts failure"
+)]
 
 use std::{
     future::Future,
@@ -24,7 +29,9 @@ fn elapsed_submission_boundary_is_a_locally_ready_unsent_timeout() {
 fn captured_deadline_expires_before_engine_admission() {
     let operation = AdminDeleteAcls::submit_with(
         DeleteAclsAdminRequest::new(Vec::new()),
-        Instant::now() - Duration::from_millis(1),
+        Instant::now()
+            .checked_sub(Duration::from_millis(1))
+            .unwrap(),
         |_request, _remaining| panic!("expired work must not reach engine admission"),
     );
     let error = operation.wait().expect_err("expired deadline must fail");

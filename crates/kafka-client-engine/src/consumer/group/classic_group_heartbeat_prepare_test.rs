@@ -142,7 +142,7 @@ fn cooperative_reconciliation_heartbeat_deadline_retires_the_previous_assignment
         entry
             .classic_reconciliation
             .as_ref()
-            .is_some_and(|pending| pending.assignment_loss_is_staged())
+            .is_some_and(super::classic_group_reconciliation::PreparedClassicGroupReconciliation::assignment_loss_is_staged)
     );
     assert!(entry.heartbeat.is_dormant());
 

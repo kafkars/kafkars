@@ -1,8 +1,8 @@
-//! Stable initialized StreamsGroup topology metadata.
+//! Stable initialized `StreamsGroup` topology metadata.
 
 use super::StreamsGroupKeyValue;
 
-/// One internal topic described by a StreamsGroup topology.
+/// One internal topic described by a `StreamsGroup` topology.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StreamsGroupTopicInfo {
     name: String,
@@ -51,7 +51,7 @@ impl StreamsGroupTopicInfo {
     }
 }
 
-/// One initialized StreamsGroup subtopology.
+/// One initialized `StreamsGroup` subtopology.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StreamsGroupSubtopology {
     subtopology_id: String,
@@ -104,7 +104,7 @@ impl StreamsGroupSubtopology {
     }
 }
 
-/// The topology metadata currently initialized for a StreamsGroup.
+/// The topology metadata currently initialized for a `StreamsGroup`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StreamsGroupTopology {
     epoch: i32,

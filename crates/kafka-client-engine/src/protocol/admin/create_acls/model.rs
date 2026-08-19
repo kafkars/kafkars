@@ -65,6 +65,10 @@ impl<'a> CreateAclBindingRef<'a> {
 
 /// Borrowed bounded Kafka result for one caller-ordered binding.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[allow(
+    clippy::struct_field_names,
+    reason = "the field names preserve exact broker error code, text, and truncation facts"
+)]
 pub(crate) struct NormalizedCreateAclResultRef<'a> {
     error_code: i16,
     error_message: Option<&'a str>,

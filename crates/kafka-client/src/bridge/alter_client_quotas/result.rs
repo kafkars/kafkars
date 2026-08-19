@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of engine-owned AlterClientQuotas outcomes.
+//! Exhaustive stable translation of engine-owned `AlterClientQuotas` outcomes.
 
 use std::time::Duration;
 
@@ -57,7 +57,7 @@ pub(super) fn translate_observation(
 ) -> AdminAlterClientQuotasResult {
     match result {
         Ok(Outcome::Altered(batch)) => Ok(translate_batch(batch)),
-        Ok(Outcome::Failed(failure)) => Err(translate_failure(failure)),
+        Ok(Outcome::Failed(failure)) => Err(translate_failure(&failure)),
         Err(error) => Err(translate_observer_error(error)),
     }
 }
@@ -114,7 +114,7 @@ pub(super) fn translate_broker_parts(
         .with_diagnostic_truncated(message_truncated)
 }
 
-fn translate_failure(failure: Failure) -> KafkaError {
+fn translate_failure(failure: &Failure) -> KafkaError {
     translate_failure_parts(failure.kind(), failure.delivery())
 }
 

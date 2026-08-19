@@ -1,4 +1,4 @@
-//! Singular ShareGroup description Admin entry-point surface test.
+//! Singular `ShareGroup` description Admin entry-point surface test.
 
 use crate::admin::{Admin, DescribeShareGroupBuilder};
 

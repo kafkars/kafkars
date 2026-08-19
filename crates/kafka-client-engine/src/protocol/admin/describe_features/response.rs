@@ -1,4 +1,4 @@
-//! Validate-first normalization of feature-bearing ApiVersions responses.
+//! Validate-first normalization of feature-bearing `ApiVersions` responses.
 
 use kafka_wire::ApiVersionsResponse;
 

@@ -15,6 +15,10 @@ use crate::{
     driver::ReactorWake,
 };
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the startup handoff transfers each bounded completion and wake capability explicitly"
+)]
 pub(super) fn start_assigned_consumer(
     read_isolation: ReadIsolation,
     fetch: ValidatedConsumerFetchConfig,

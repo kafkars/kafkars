@@ -1,4 +1,4 @@
-//! RemoveRaftVoter outcome, error, and delivery translation tests.
+//! `RemoveRaftVoter` outcome, error, and delivery translation tests.
 
 use crate::{DeliveryStatus, ErrorKind};
 

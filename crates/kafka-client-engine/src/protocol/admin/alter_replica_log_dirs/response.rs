@@ -167,12 +167,12 @@ fn expected<'a>(
     Ok(expected)
 }
 
-fn returned<'a>(
-    response: &'a AlterReplicaLogDirsResponse,
+fn returned(
+    response: &AlterReplicaLogDirsResponse,
     partition_count: usize,
     required: usize,
     limit: usize,
-) -> Result<Vec<Returned<'a>>, AlterReplicaLogDirsResponseFailure> {
+) -> Result<Vec<Returned<'_>>, AlterReplicaLogDirsResponseFailure> {
     let mut returned = Vec::new();
     returned
         .try_reserve_exact(partition_count)

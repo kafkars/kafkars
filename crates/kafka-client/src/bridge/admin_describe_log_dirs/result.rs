@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of engine-owned DescribeLogDirs outcomes.
+//! Exhaustive stable translation of engine-owned `DescribeLogDirs` outcomes.
 
 use std::time::Duration;
 

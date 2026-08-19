@@ -1,5 +1,10 @@
 //! Cooperative retain-on-rebalance and eager-loss regression tests.
 
+#![expect(
+    clippy::too_many_lines,
+    reason = "the scenario intentionally keeps one rebalance lifecycle visible"
+)]
+
 use crate::{
     AssignmentGeneration, Deadline, GroupAssignmentPartition, GroupId, MemberId, Moment,
     PartitionIndex, TopicId,

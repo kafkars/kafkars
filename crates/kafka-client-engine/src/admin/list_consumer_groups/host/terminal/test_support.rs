@@ -1,4 +1,4 @@
-//! Narrow ownership probes for ListConsumerGroups host tests.
+//! Narrow ownership probes for `ListConsumerGroups` host tests.
 
 use kafka_client_core::{AdminListConsumerGroupsInput, OperationId};
 
@@ -25,7 +25,7 @@ impl ListConsumerGroupsHost {
         self.operations[0]
             .call
             .as_ref()
-            .is_some_and(|call| call.is_recovered())
+            .is_some_and(crate::driver::ListConsumerGroupsCall::is_recovered)
     }
 
     pub(in crate::admin::list_consumer_groups) fn rejected_submission_is_retained_for_test(

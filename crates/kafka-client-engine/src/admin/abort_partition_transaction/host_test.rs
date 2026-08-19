@@ -19,44 +19,51 @@ use super::AbortPartitionTransactionHost;
 fn deadline() -> OperationDeadline {
     Arc::new(MonotonicClock::new())
         .capture_deadline_after(std::time::Duration::from_secs(1))
-        .expect("deadline")
+        .unwrap_or_else(|error| panic!("deadline: {error:?}"))
         .operation_deadline()
 }
 
 fn plan(topic: &str) -> AbortPartitionTransactionPlan {
-    AbortPartitionTransactionPlan::new(topic.to_owned(), 3, 41, 7, 11).expect("valid plan")
+    AbortPartitionTransactionPlan::new(topic.to_owned(), 3, 41, 7, 11)
+        .unwrap_or_else(|error| panic!("valid plan: {error:?}"))
 }
 
 #[test]
 fn admission_reserves_capacity_and_retained_bytes() {
-    let (mut notifier, ports) = AdminCompletionNotifier::start().expect("completion notifier");
+    let (mut notifier, ports) = AdminCompletionNotifier::start()
+        .unwrap_or_else(|error| panic!("completion notifier: {error:?}"));
     let mut host = AbortPartitionTransactionHost::new(ports.abort_partition_transaction);
 
     let admission = host
         .try_admit(Moment::from_tick(0), deadline(), plan("orders"))
-        .expect("admit");
+        .unwrap_or_else(|error| panic!("admit: {error:?}"));
 
     assert!(admission.fault.is_none());
     assert_eq!(host.unsettled(), 1);
     assert!(host.retained_bytes_for_test() > 0);
     assert!(host.retained_bytes_for_test() < ABORT_PARTITION_TRANSACTION_RETAINED_BYTES);
     drop(admission.observer);
-    host.recover_after_driver_shutdown().expect("recover host");
+    host.recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("recover host: {error:?}"));
     drop(host);
     stop_notifier(&mut notifier);
 }
 
 #[test]
 fn elapsed_at_start_publishes_not_sent_deadline_terminal() {
-    let (mut notifier, ports) = AdminCompletionNotifier::start().expect("completion notifier");
+    let (mut notifier, ports) = AdminCompletionNotifier::start()
+        .unwrap_or_else(|error| panic!("completion notifier: {error:?}"));
     let mut host = AbortPartitionTransactionHost::new(ports.abort_partition_transaction);
     let deadline = deadline();
     let now = Moment::from_tick(deadline.core().tick());
 
     let admission = host
         .try_admit(now, deadline, plan("orders"))
-        .expect("accepted terminal");
-    let outcome = admission.observer.wait().expect("observe");
+        .unwrap_or_else(|error| panic!("accepted terminal: {error:?}"));
+    let outcome = admission
+        .observer
+        .wait()
+        .unwrap_or_else(|error| panic!("observe: {error:?}"));
     let AbortPartitionTransactionOutcome::Failed(failure) = outcome else {
         panic!("expected deadline failure");
     };
@@ -68,14 +75,17 @@ fn elapsed_at_start_publishes_not_sent_deadline_terminal() {
         failure.delivery(),
         super::AbortPartitionTransactionDeliveryStatus::NotSent
     );
-    let _turn = host.turn(now).expect("reclaim terminal");
+    let _turn = host
+        .turn(now)
+        .unwrap_or_else(|error| panic!("reclaim terminal: {error:?}"));
     drop(host);
     stop_notifier(&mut notifier);
 }
 
 #[test]
 fn operation_count_is_bounded_at_sixteen() {
-    let (mut notifier, ports) = AdminCompletionNotifier::start().expect("completion notifier");
+    let (mut notifier, ports) = AdminCompletionNotifier::start()
+        .unwrap_or_else(|error| panic!("completion notifier: {error:?}"));
     let mut host = AbortPartitionTransactionHost::new(ports.abort_partition_transaction);
     let deadline = deadline();
     let mut observers = Vec::new();
@@ -84,14 +94,15 @@ fn operation_count_is_bounded_at_sixteen() {
         let plan = AbortPartitionTransactionPlan::new(
             "orders".to_owned(),
             3,
-            i64::try_from(producer_id).expect("bounded producer"),
+            i64::try_from(producer_id)
+                .unwrap_or_else(|error| panic!("bounded producer: {error:?}")),
             7,
             11,
         )
-        .expect("valid plan");
+        .unwrap_or_else(|error| panic!("valid plan: {error:?}"));
         observers.push(
             host.try_admit(Moment::from_tick(0), deadline, plan)
-                .expect("bounded admission")
+                .unwrap_or_else(|error| panic!("bounded admission: {error:?}"))
                 .observer,
         );
     }
@@ -101,23 +112,28 @@ fn operation_count_is_bounded_at_sixteen() {
     ));
 
     drop(observers);
-    host.recover_after_driver_shutdown().expect("recover host");
+    host.recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("recover host: {error:?}"));
     drop(host);
     stop_notifier(&mut notifier);
 }
 
 #[test]
 fn untouched_recovery_is_definitely_unsent() {
-    let (mut notifier, ports) = AdminCompletionNotifier::start().expect("completion notifier");
+    let (mut notifier, ports) = AdminCompletionNotifier::start()
+        .unwrap_or_else(|error| panic!("completion notifier: {error:?}"));
     let mut host = AbortPartitionTransactionHost::new(ports.abort_partition_transaction);
     let deadline = deadline();
     let admission = host
         .try_admit(Moment::from_tick(0), deadline, plan("orders"))
-        .expect("admit");
+        .unwrap_or_else(|error| panic!("admit: {error:?}"));
 
-    host.recover_after_driver_shutdown().expect("recover host");
-    let AbortPartitionTransactionOutcome::Failed(failure) =
-        admission.observer.wait().expect("observe")
+    host.recover_after_driver_shutdown()
+        .unwrap_or_else(|error| panic!("recover host: {error:?}"));
+    let AbortPartitionTransactionOutcome::Failed(failure) = admission
+        .observer
+        .wait()
+        .unwrap_or_else(|error| panic!("observe: {error:?}"))
     else {
         panic!("failure expected");
     };
@@ -129,7 +145,9 @@ fn untouched_recovery_is_definitely_unsent() {
         )
     );
 
-    let _turn = host.turn(Moment::from_tick(0)).expect("reclaim terminal");
+    let _turn = host
+        .turn(Moment::from_tick(0))
+        .unwrap_or_else(|error| panic!("reclaim terminal: {error:?}"));
     drop(host);
     stop_notifier(&mut notifier);
 }
@@ -137,7 +155,7 @@ fn untouched_recovery_is_definitely_unsent() {
 fn stop_notifier(notifier: &mut AdminCompletionNotifier) {
     notifier
         .stop()
-        .expect("stop notifier")
+        .unwrap_or_else(|error| panic!("stop notifier: {error:?}"))
         .join_off_notifier()
         .unwrap_or_else(|_| panic!("join notifier"));
 }

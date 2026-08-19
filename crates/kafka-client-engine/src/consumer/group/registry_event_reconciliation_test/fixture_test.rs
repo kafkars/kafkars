@@ -25,6 +25,10 @@ use super::super::{
     registry_entry::{GroupConsumerEntry, default_classic_processing_lease_policy},
 };
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the fixture constructs one exact cross-owner reconciliation state for multiple focused assertions"
+)]
 pub(in super::super) fn prepared_reconciliation() -> GroupConsumerEntry {
     let group_id = GroupId::try_from_raw(1).unwrap_or_else(|| panic!("group identity"));
     let mut entry = GroupConsumerEntry::try_new_with_protocol_configuration(

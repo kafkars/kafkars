@@ -12,8 +12,8 @@ use super::{
 #[test]
 fn empty_filter_preserves_the_describe_all_shape() {
     let filter = DescribeClientQuotasFilterRef::new(&[], false);
-    let request =
-        describe_client_quotas_request(filter, usize::MAX).expect("valid all-entity filter");
+    let request = describe_client_quotas_request(filter, usize::MAX)
+        .unwrap_or_else(|error| panic!("valid all-entity filter: {error:?}"));
 
     assert!(request.components.is_empty());
     assert!(!request.strict);
@@ -30,7 +30,7 @@ fn request_maps_all_match_modes_without_nullable_ambiguity() {
         DescribeClientQuotasFilterRef::new(&components, true),
         usize::MAX,
     )
-    .expect("valid filter");
+    .unwrap_or_else(|error| panic!("valid filter: {error:?}"));
 
     assert!(request.strict);
     assert_eq!(request.components.len(), 3);
@@ -112,7 +112,7 @@ fn request_checks_peak_capacity_before_copying() {
         "user",
         DescribeClientQuotaMatchRef::Exact("User:a"),
     )];
-    let required = request_peak_charge(&components).expect("bounded charge");
+    let required = request_peak_charge(&components).unwrap_or_else(|| panic!("bounded charge"));
 
     assert_eq!(
         describe_client_quotas_request(

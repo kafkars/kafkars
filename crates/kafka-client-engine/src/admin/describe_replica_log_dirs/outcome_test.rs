@@ -30,7 +30,7 @@ fn translation_preserves_target_order_and_optional_locations() {
     let (target, result) = outcomes
         .into_iter()
         .next()
-        .expect("one outcome")
+        .unwrap_or_else(|| panic!("one outcome"))
         .into_parts();
     assert_eq!(target.topic(), "orders");
     assert_eq!(target.partition(), 2);
@@ -40,7 +40,9 @@ fn translation_preserves_target_order_and_optional_locations() {
     };
     let (current, future) = info.into_parts();
     assert_eq!(
-        current.expect("current placement").into_parts(),
+        current
+            .unwrap_or_else(|| panic!("current placement"))
+            .into_parts(),
         ("/logs/current".to_owned(), -1)
     );
     assert!(future.is_none());

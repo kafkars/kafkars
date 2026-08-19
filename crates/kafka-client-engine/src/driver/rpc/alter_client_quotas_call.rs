@@ -1,4 +1,4 @@
-//! Linear ownership of one accepted AnyBroker `AlterClientQuotas` call.
+//! Linear ownership of one accepted `AnyBroker` `AlterClientQuotas` call.
 
 mod evidence;
 

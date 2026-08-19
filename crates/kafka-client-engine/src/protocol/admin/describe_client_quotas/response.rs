@@ -73,8 +73,13 @@ fn materialize(
     for entry in canonical {
         entries.push(materialize_entry(entry, required, limit)?);
     }
+    let throttle_time_ms = u32::try_from(response.throttle_time_ms).map_err(|_| {
+        DescribeClientQuotasResponseFailure::NegativeThrottleTime {
+            actual: response.throttle_time_ms,
+        }
+    })?;
     let mut normalized = NormalizedDescribeClientQuotasResponse {
-        throttle_time_ms: response.throttle_time_ms as u32,
+        throttle_time_ms,
         error_code: response.error_code,
         error_message,
         error_message_truncated: response

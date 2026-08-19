@@ -1,4 +1,4 @@
-//! Declarative private bridge for one modern ShareGroup description.
+//! Declarative private bridge for one modern `ShareGroup` description.
 
 mod engine;
 mod operation;

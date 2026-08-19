@@ -14,6 +14,8 @@ struct BrokerTopicPlan {
     partitions: usize,
 }
 
+type BrokerTopicPlanning = (HashMap<Arc<str>, usize>, Vec<BrokerTopicPlan>);
+
 pub(super) fn build_broker_routed_request(
     batches: Vec<MaterializedProduce>,
     now: Moment,
@@ -41,9 +43,7 @@ pub(super) fn build_broker_routed_request(
     Ok(request)
 }
 
-fn plan_topics(
-    batches: &[MaterializedProduce],
-) -> Option<(HashMap<Arc<str>, usize>, Vec<BrokerTopicPlan>)> {
+fn plan_topics(batches: &[MaterializedProduce]) -> Option<BrokerTopicPlanning> {
     let mut topic_indexes: HashMap<Arc<str>, usize> = HashMap::new();
     let mut topic_plans: Vec<BrokerTopicPlan> = Vec::new();
     topic_indexes.try_reserve(batches.len()).ok()?;

@@ -1,4 +1,4 @@
-//! Inert DescribeProducers builder and named-operation surface tests.
+//! Inert `DescribeProducers` builder and named-operation surface tests.
 
 use std::{future::Future, time::Duration};
 

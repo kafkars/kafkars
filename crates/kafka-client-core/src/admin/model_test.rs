@@ -1,5 +1,11 @@
 //! Scenarios for validated ordered `CreateTopics` request facts.
 
+#![expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    reason = "fixture indices are bounded far below the protocol integer limit"
+)]
+
 use super::{
     CREATE_TOPICS_MAX_MANUAL_PARTITIONS_PER_TOPIC, CREATE_TOPICS_MAX_REPLICAS_PER_PARTITION,
     CreateTopicConfig, CreateTopicPlacement, CreateTopicReplicaAssignment,

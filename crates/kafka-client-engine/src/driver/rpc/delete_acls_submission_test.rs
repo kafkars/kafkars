@@ -1,4 +1,4 @@
-//! DeleteAcls route, deadline, version, retention, and terminal evidence tests.
+//! `DeleteAcls` route, deadline, version, retention, and terminal evidence tests.
 
 use std::{
     mem::size_of,
@@ -45,10 +45,10 @@ fn options_preserve_original_deadline_lane_and_exact_generated_window() {
 fn borrowed_filter_storage_preserves_plan_order_and_charges_actual_capacity() {
     let duplicate = filter(2, Some("orders"), 3, Some("User:a"), Some("*"), 3, 3);
     let plan = DeleteAclsPlan::new(vec![duplicate.clone(), duplicate])
-        .expect("duplicate filters retain distinct positions");
+        .unwrap_or_else(|error| panic!("duplicate filters retain distinct positions: {error:?}"));
     let retained_limit = usize::MAX;
     let (filters, request_limit) = prepare_delete_acls_filter_refs(plan.filters(), retained_limit)
-        .expect("borrowed filter storage");
+        .unwrap_or_else(|error| panic!("borrowed filter storage: {error:?}"));
     let actual_bytes = filters.capacity() * size_of::<DeleteAclsFilterRef<'static>>();
 
     assert_eq!(filters.len(), 2);
@@ -59,8 +59,8 @@ fn borrowed_filter_storage_preserves_plan_order_and_charges_actual_capacity() {
 
 #[test]
 fn borrowed_filter_storage_rejects_before_allocating_beyond_its_limit() {
-    let plan =
-        DeleteAclsPlan::new(vec![filter(1, None, 1, None, None, 1, 1)]).expect("valid filter");
+    let plan = DeleteAclsPlan::new(vec![filter(1, None, 1, None, None, 1, 1)])
+        .unwrap_or_else(|error| panic!("valid filter: {error:?}"));
     let minimum = size_of::<DeleteAclsFilterRef<'static>>();
 
     assert_eq!(
@@ -178,8 +178,8 @@ fn raw_success_retains_the_selected_version_until_settlement() {
 fn completion_fault_retains_the_accepted_call_for_recovery() {
     let driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("driver owner: {error}"));
-    let plan =
-        DeleteAclsPlan::new(vec![filter(1, None, 1, None, None, 1, 1)]).expect("valid filter");
+    let plan = DeleteAclsPlan::new(vec![filter(1, None, 1, None, None, 1, 1)])
+        .unwrap_or_else(|error| panic!("valid filter: {error:?}"));
     let mut call = DeleteAclsCall::submit(
         &driver,
         plan.clone(),
@@ -212,7 +212,7 @@ fn synchronous_rejection_returns_ordered_filters_and_every_bound() {
         filter(2, Some("orders"), 3, Some("User:a"), Some("*"), 3, 3),
         filter(3, Some("payments"), 4, Some("User:b"), Some("host"), 4, 2),
     ])
-    .expect("ordered filters");
+    .unwrap_or_else(|error| panic!("ordered filters: {error:?}"));
     let rejection = match DeleteAclsCall::submit(
         &driver,
         expected.clone(),
@@ -235,7 +235,8 @@ fn synchronous_rejection_returns_ordered_filters_and_every_bound() {
 }
 
 fn plan() -> DeleteAclsPlan {
-    DeleteAclsPlan::new(vec![filter(1, None, 1, None, None, 1, 1)]).expect("valid filter")
+    DeleteAclsPlan::new(vec![filter(1, None, 1, None, None, 1, 1)])
+        .unwrap_or_else(|error| panic!("valid filter: {error:?}"))
 }
 
 fn evidence(

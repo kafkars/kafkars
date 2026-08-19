@@ -24,6 +24,10 @@ use super::{
 };
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the scenario proves the full retire acknowledge and install sequence under one membership epoch change"
+)]
 fn changed_member_epoch_retires_then_installs_the_new_assignment() {
     let (mut entry, topic_id) = installed_modern_entry();
     activate_fetch(&mut entry);
@@ -55,7 +59,7 @@ fn changed_member_epoch_retires_then_installs_the_new_assignment() {
         entry
             .catalog
             .consumer_group_member_epoch()
-            .map(|epoch| epoch.get()),
+            .map(kafka_client_core::ConsumerGroupMemberEpoch::get),
         Some(2)
     );
     assert_eq!(
@@ -137,10 +141,10 @@ fn changed_member_epoch_retires_then_installs_the_new_assignment() {
     let ack = entry
         .consumer
         .as_ref()
-        .and_then(|execution| execution.prepared())
+        .and_then(super::consumer_group_execution::ConsumerGroupExecution::prepared)
         .unwrap_or_else(|| panic!("empty-owned acknowledgement"));
     assert_eq!(ack.assignment_generation(), None);
-    let request = prepare_request(&entry)
+    let request = prepare_request(entry)
         .unwrap_or_else(|()| panic!("prepare empty-owned acknowledgement"))
         .into_generated_request();
     assert_eq!(request.member_epoch, 2);
@@ -264,7 +268,7 @@ fn activate_fetch(entry: &mut GroupConsumerEntry) {
         entry
             .consumer
             .as_ref()
-            .and_then(|consumer| consumer.cycle())
+            .and_then(super::consumer_group_execution::ConsumerGroupExecution::cycle)
             .unwrap_or_else(|| panic!("membership cycle")),
         assignment.member_id(),
         assignment.assignment_generation(),

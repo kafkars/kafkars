@@ -1,10 +1,10 @@
-//! Public result for one StreamsGroup description.
+//! Public result for one `StreamsGroup` description.
 
 use std::time::Duration;
 
 use super::StreamsGroupDescription;
 
-/// Completed StreamsGroup description plus Kafka's throttle observation.
+/// Completed `StreamsGroup` description plus Kafka's throttle observation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DescribeStreamsGroupResult {
     throttle_time: Duration,

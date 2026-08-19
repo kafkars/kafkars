@@ -1,4 +1,4 @@
-//! Tracked AnyBroker submission policy for Admin `ListConfigResources`.
+//! Tracked `AnyBroker` submission policy for Admin `ListConfigResources`.
 
 use std::{error::Error, fmt, time::Instant};
 

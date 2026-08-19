@@ -38,7 +38,7 @@ pub(super) fn settle_success(
     let prepared = entry
         .consumer
         .as_ref()
-        .and_then(|execution| execution.prepared())
+        .and_then(super::consumer_group_execution::ConsumerGroupExecution::prepared)
         .ok_or(ConsumerGroupExecutionError::MissingPrepared)?;
     let candidate = match member {
         Some(member) => match entry.catalog.prepare_consumer_group_member(member) {
@@ -228,7 +228,7 @@ pub(super) fn settle_success(
     if entry
         .consumer
         .as_mut()
-        .and_then(|execution| execution.take_prepared())
+        .and_then(super::consumer_group_execution::ConsumerGroupExecution::take_prepared)
         != Some(prepared)
     {
         return Err(ConsumerGroupExecutionError::EffectShape);

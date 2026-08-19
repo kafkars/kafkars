@@ -34,14 +34,14 @@ fn default_owner_uses_legacy_sentinel_but_v3_null() {
             decoded
                 .owner_principal_type
                 .as_ref()
-                .map(|value| value.as_str()),
+                .map(kafka_wire_core::StrBytes::as_str),
             Some("")
         );
         assert_eq!(
             decoded
                 .owner_principal_name
                 .as_ref()
-                .map(|value| value.as_str()),
+                .map(kafka_wire_core::StrBytes::as_str),
             Some("")
         );
         assert_eq!(decoded.renewers[0].principal_name.as_str(), "renewer");
@@ -65,14 +65,14 @@ fn explicit_owner_requires_v3_and_preserves_principal() {
         decoded
             .owner_principal_type
             .as_ref()
-            .map(|value| value.as_str()),
+            .map(kafka_wire_core::StrBytes::as_str),
         Some("User")
     );
     assert_eq!(
         decoded
             .owner_principal_name
             .as_ref()
-            .map(|value| value.as_str()),
+            .map(kafka_wire_core::StrBytes::as_str),
         Some("service")
     );
 }

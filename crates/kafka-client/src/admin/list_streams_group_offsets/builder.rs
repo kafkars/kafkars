@@ -1,4 +1,4 @@
-//! Inert Streams-group offset intent delegated to the shared OffsetFetch path.
+//! Inert Streams-group offset intent delegated to the shared `OffsetFetch` path.
 
 use std::time::Duration;
 
@@ -26,7 +26,7 @@ impl ListStreamsGroupOffsetsBuilder {
     /// Selects a nonempty caller-ordered set of topic-partitions.
     ///
     /// Validation remains deferred until [`Self::submit`] enters the shared
-    /// OffsetFetch admission boundary.
+    /// `OffsetFetch` admission boundary.
     pub fn partitions<I>(mut self, partitions: I) -> Self
     where
         I: IntoIterator<Item = TopicPartition>,
@@ -41,7 +41,7 @@ impl ListStreamsGroupOffsetsBuilder {
         self
     }
 
-    /// Attempts immediate bounded admission through the existing OffsetFetch owner.
+    /// Attempts immediate bounded admission through the existing `OffsetFetch` owner.
     pub fn submit(self) -> ListStreamsGroupOffsets {
         ListStreamsGroupOffsets::from_consumer_group(self.inner.submit())
     }

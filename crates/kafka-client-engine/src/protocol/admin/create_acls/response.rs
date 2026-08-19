@@ -48,7 +48,12 @@ pub(crate) fn normalize_create_acls_response<'a>(
         ))
         .map_err(|()| CreateAclsResponseFailure::ResultStorage)?;
     }
-    Ok((response.throttle_time_ms as u32, required))
+    let throttle_time_ms = u32::try_from(response.throttle_time_ms).map_err(|_| {
+        CreateAclsResponseFailure::NegativeThrottleTime {
+            actual: response.throttle_time_ms,
+        }
+    })?;
+    Ok((throttle_time_ms, required))
 }
 
 fn validate_shape(

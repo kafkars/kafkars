@@ -60,13 +60,11 @@ fn response_scratch_charge(
     request_count
         .checked_mul(size_of::<&str>())?
         .checked_add(result_count.checked_mul(size_of::<&'static ()>())?)?
-        .checked_add(
-            request
-                .users()
-                .is_some()
-                .then_some(result_count.checked_mul(size_of::<&'static ()>())?)
-                .unwrap_or(0),
-        )
+        .checked_add(if request.users().is_some() {
+            result_count.checked_mul(size_of::<&'static ()>())?
+        } else {
+            0
+        })
 }
 
 fn normalized_output_charge(response: &DescribeUserScramCredentialsResponse) -> Option<usize> {

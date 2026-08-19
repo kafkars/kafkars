@@ -140,12 +140,11 @@ pub(super) fn retain_elect_leaders_terminal(
 ) -> ElectLeadersTerminal {
     let selected_version = selected_version.map(ApiVersion::value);
     let controller_refresh = if response_requires_controller_refresh(selected_version, &result) {
-        match route_token {
-            Some(route_token) => ElectLeadersControllerRefresh::Queued(driver, route_token),
-            None => {
-                drop(driver);
-                ElectLeadersControllerRefresh::None
-            }
+        if let Some(route_token) = route_token {
+            ElectLeadersControllerRefresh::Queued(driver, route_token)
+        } else {
+            drop(driver);
+            ElectLeadersControllerRefresh::None
         }
     } else {
         drop((driver, route_token));

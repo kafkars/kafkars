@@ -73,7 +73,7 @@ fn exact_resource_identity_crosses_engine_translation_without_reclassification()
             .result()
             .as_ref()
             .err()
-            .map(|error| error.code()),
+            .map(super::outcome::LegacyAlterConfigError::code),
         Some(-30_001)
     );
 }

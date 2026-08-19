@@ -14,6 +14,25 @@ use super::{
 
 impl ElectLeadersHost {
     pub(super) fn poll_one_call(&mut self) -> Result<bool, ElectLeadersHostError> {
+        if let Some(index) = self
+            .operations
+            .iter()
+            .position(|operation| operation.raw_terminal.is_some())
+        {
+            let poll = self.operations[index]
+                .raw_terminal
+                .as_mut()
+                .ok_or(ElectLeadersHostError::MissingTerminal)?
+                .poll_controller_refresh();
+            match poll {
+                crate::driver::ElectLeadersControllerRefreshPoll::Ready => {
+                    self.settle_raw(index)?;
+                    return Ok(true);
+                }
+                crate::driver::ElectLeadersControllerRefreshPoll::Progress => return Ok(true),
+                crate::driver::ElectLeadersControllerRefreshPoll::Pending => {}
+            }
+        }
         let Some(index) = self
             .operations
             .iter()
@@ -33,7 +52,6 @@ impl ElectLeadersHost {
             Ok(terminal) => {
                 drop(self.operations[index].call.take());
                 self.operations[index].raw_terminal = Some(terminal);
-                self.settle_raw(index)?;
                 Ok(true)
             }
             Err(_error) => Err(ElectLeadersHostError::CallCompletion),
@@ -75,23 +93,41 @@ impl ElectLeadersHost {
     }
 
     fn retain_recovered_call(&mut self, index: usize) -> Result<(), ElectLeadersHostError> {
-        if self.operations[index].recovered_call.is_some() {
-            return Ok(());
-        }
-        if let Some(call) = self.operations[index].call.take() {
+        if self.operations[index].recovered_call.is_none()
+            && let Some(call) = self.operations[index].call.take()
+        {
             retain_recovered(
                 &mut self.operations[index],
                 call.recover_after_driver_shutdown(),
             );
         }
-        self.operations[index]
+        let recovered = self.operations[index]
             .recovered_call
             .as_ref()
-            .ok_or(ElectLeadersHostError::InvalidHandoff)
-            .map(|_recovered| ())
+            .ok_or(ElectLeadersHostError::InvalidHandoff)?;
+        if recovered.matches_correlation(
+            &self.operations[index].response_plan,
+            self.operations[index].request_scratch_limit,
+            self.operations[index].result_limit,
+        ) {
+            Ok(())
+        } else {
+            Err(ElectLeadersHostError::SubmissionMismatch)
+        }
     }
 
     fn settle_recovered_transport(&mut self, index: usize) -> Result<(), ElectLeadersHostError> {
+        let recovered = self.operations[index]
+            .recovered_call
+            .as_ref()
+            .ok_or(ElectLeadersHostError::InvalidHandoff)?;
+        if !recovered.matches_correlation(
+            &self.operations[index].response_plan,
+            self.operations[index].request_scratch_limit,
+            self.operations[index].result_limit,
+        ) {
+            return Err(ElectLeadersHostError::SubmissionMismatch);
+        }
         let transition =
             self.operations[index]
                 .machine
@@ -119,7 +155,14 @@ impl ElectLeadersHost {
                 .raw_terminal
                 .as_ref()
                 .ok_or(ElectLeadersHostError::MissingTerminal)?;
-            terminal_input(raw, &operation.response_plan, operation.result_limit)
+            if !raw.matches_correlation(
+                &operation.response_plan,
+                operation.request_scratch_limit,
+                operation.result_limit,
+            ) {
+                return Err(ElectLeadersHostError::SubmissionMismatch);
+            }
+            terminal_input(raw)
         };
         let transition = self.operations[index].machine.apply(input)?;
         self.operations[index]

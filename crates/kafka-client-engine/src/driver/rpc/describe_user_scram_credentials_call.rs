@@ -1,4 +1,4 @@
-//! Linear ownership of one accepted AnyBroker SCRAM credential-description call.
+//! Linear ownership of one accepted `AnyBroker` SCRAM credential-description call.
 
 mod evidence;
 

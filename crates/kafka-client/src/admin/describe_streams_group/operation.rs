@@ -1,4 +1,4 @@
-//! Named single-observer StreamsGroup description operation.
+//! Named single-observer `StreamsGroup` description operation.
 
 use std::{
     future::Future,
@@ -10,7 +10,7 @@ use crate::{KafkaError, bridge::describe_streams_group::AdminDescribeStreamsGrou
 
 use super::DescribeStreamsGroupResult;
 
-/// Sole terminal observer for one submitted StreamsGroup description.
+/// Sole terminal observer for one submitted `StreamsGroup` description.
 #[derive(Debug)]
 #[must_use = "dropping abandons observation without cancelling accepted admin work"]
 pub struct DescribeStreamsGroup {

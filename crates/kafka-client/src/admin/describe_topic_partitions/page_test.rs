@@ -60,7 +60,8 @@ fn page_preserves_api_75_only_fields_and_topic_and_partition_errors() {
     assert_eq!(partition.last_known_eligible_leader_replicas(), None);
     assert_eq!(partition.offline_replicas(), [9]);
     assert_eq!(
-        page.next_cursor().map(|cursor| cursor.partition_index()),
+        page.next_cursor()
+            .map(super::cursor::DescribeTopicPartitionsCursor::partition_index),
         Some(8)
     );
 }

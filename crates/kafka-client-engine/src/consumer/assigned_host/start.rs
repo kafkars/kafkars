@@ -26,6 +26,10 @@ use super::{
 };
 
 const PARTITIONS: usize = 64;
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the first owner receives each bounded completion and wake capability explicitly"
+)]
 pub(crate) fn build_first_assigned_consumer<W>(
     read_isolation: ReadIsolation,
     fetch: ValidatedConsumerFetchConfig,

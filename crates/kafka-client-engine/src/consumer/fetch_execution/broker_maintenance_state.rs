@@ -51,9 +51,12 @@ impl DirectFetchExecutor {
                 let request = call.recover_after_driver_shutdown();
                 drop((plan, request));
             }
-            BrokerSessionMaintenance::CompletionFault { _plan, failure } => {
+            BrokerSessionMaintenance::CompletionFault {
+                _plan: plan,
+                failure,
+            } => {
                 let recovered = failure.recover_after_driver_shutdown();
-                drop((_plan, recovered));
+                drop((plan, recovered));
             }
             BrokerSessionMaintenance::ConfirmationFault {
                 request,

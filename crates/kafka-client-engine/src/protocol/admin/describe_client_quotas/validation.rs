@@ -141,11 +141,11 @@ fn validate_value(value: &ValueData) -> Result<(), DescribeClientQuotasResponseF
     Ok(())
 }
 
-pub(super) fn canonicalize<'a>(
-    entries: &'a [kafka_wire::describe_client_quotas_response::EntryData],
+pub(super) fn canonicalize(
+    entries: &[kafka_wire::describe_client_quotas_response::EntryData],
     required: usize,
     limit: usize,
-) -> Result<Vec<CanonicalEntryRef<'a>>, DescribeClientQuotasResponseFailure> {
+) -> Result<Vec<CanonicalEntryRef<'_>>, DescribeClientQuotasResponseFailure> {
     let mut canonical = Vec::new();
     canonical
         .try_reserve_exact(entries.len())
@@ -163,11 +163,11 @@ pub(super) fn canonicalize<'a>(
     Ok(canonical)
 }
 
-fn canonical_entry<'a>(
-    entry: &'a kafka_wire::describe_client_quotas_response::EntryData,
+fn canonical_entry(
+    entry: &kafka_wire::describe_client_quotas_response::EntryData,
     required: usize,
     limit: usize,
-) -> Result<CanonicalEntryRef<'a>, DescribeClientQuotasResponseFailure> {
+) -> Result<CanonicalEntryRef<'_>, DescribeClientQuotasResponseFailure> {
     let mut entity = Vec::new();
     entity
         .try_reserve_exact(entry.entity.len())

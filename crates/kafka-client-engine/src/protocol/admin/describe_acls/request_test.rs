@@ -19,7 +19,7 @@ fn request_preserves_nullable_text_and_exact_signed_codes() {
         ),
         usize::MAX,
     )
-    .expect("bounded filter");
+    .unwrap_or_else(|error| panic!("bounded filter: {error:?}"));
 
     assert_eq!(request.resource_type_filter, -1);
     assert_eq!(request.resource_name_filter.as_deref(), Some("orders"));
@@ -35,7 +35,7 @@ fn request_preserves_nullable_text_and_exact_signed_codes() {
 fn all_nullable_filters_require_no_retained_text_capacity() {
     let request =
         describe_acls_request(DescribeAclsFilterRef::new(1, None, 3, None, None, 2, 2), 0)
-            .expect("wildcard filter");
+            .unwrap_or_else(|error| panic!("wildcard filter: {error:?}"));
 
     assert_eq!(request.resource_name_filter, None);
     assert_eq!(request.principal_filter, None);

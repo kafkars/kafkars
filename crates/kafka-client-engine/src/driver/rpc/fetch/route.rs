@@ -96,7 +96,7 @@ impl BrokerFetchRouteCall {
             .topic_view(topic.clone(), request.operation_deadline().transport())
         {
             Ok(call) => call,
-            Err(source) => return Err(admission_failure(request, source)),
+            Err(source) => return Err(admission_failure(request, &source)),
         };
         Ok(Self {
             request: Some(request),
@@ -114,7 +114,7 @@ impl BrokerFetchRouteCall {
         Some(match result {
             Err(source) => Err(completion_failure(request, source)),
             Ok(Err(source)) => Err(topic_view_failure(request, source)),
-            Ok(Ok(view)) => correlate_view(request, &self.topic, view),
+            Ok(Ok(view)) => correlate_view(request, &self.topic, &view),
         })
     }
 
@@ -170,10 +170,14 @@ pub(crate) enum BrokerFetchRouteFailureKind {
     Completion,
 }
 
+#[allow(
+    clippy::result_large_err,
+    reason = "route failure returns the exact prepared Fetch request for deterministic settlement"
+)]
 fn correlate_view(
     request: PartitionFetchRequest,
     topic: &TopicName,
-    view: TopicView,
+    view: &TopicView,
 ) -> Result<BrokerRoutedFetch, BrokerFetchRouteFailure> {
     if view.topic() != topic {
         return Err(BrokerFetchRouteFailure::terminal(
@@ -207,7 +211,7 @@ fn correlate_view(
 
 fn admission_failure(
     request: PartitionFetchRequest,
-    source: SubmitError,
+    source: &SubmitError,
 ) -> BrokerFetchRouteFailure {
     if matches!(source, SubmitError::Full) {
         BrokerFetchRouteFailure {

@@ -54,8 +54,10 @@ fn invalid_and_duplicate_replica_assignments_are_rejected() {
 #[test]
 fn complete_request_peak_must_fit_before_generated_ownership() {
     let assignments = [assignment("orders", 1, "/data")];
-    let error = alter_replica_log_dirs_request(&assignments, 0)
-        .expect_err("zero bytes cannot retain generated request");
+    let error = alter_replica_log_dirs_request(&assignments, 0).map_or_else(
+        |error| error,
+        |value| panic!("zero bytes cannot retain generated request: {value:?}"),
+    );
     assert!(matches!(
         error,
         AlterReplicaLogDirsRequestFailure::RetainedBytes {

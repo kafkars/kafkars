@@ -1,4 +1,4 @@
-//! Tracked AnyBroker submission policy for Admin `DeleteAcls`.
+//! Tracked `AnyBroker` submission policy for Admin `DeleteAcls`.
 
 use std::{error::Error, fmt, time::Instant};
 

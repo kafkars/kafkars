@@ -250,7 +250,10 @@ fn validate_manual(
         return Err(CreateTopicsPlanError::TooManyManualPartitions);
     }
     for (expected, assignment) in assignments.iter().enumerate() {
-        if assignment.partition_index != expected as i32 {
+        let Ok(expected) = i32::try_from(expected) else {
+            return Err(CreateTopicsPlanError::TooManyManualPartitions);
+        };
+        if assignment.partition_index != expected {
             return Err(CreateTopicsPlanError::NonContiguousManualPartitions);
         }
         if assignment.broker_ids.is_empty() {

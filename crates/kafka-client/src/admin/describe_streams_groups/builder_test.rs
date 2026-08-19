@@ -1,4 +1,4 @@
-//! Compile-time shape tests for the multi-group StreamsGroup builder.
+//! Compile-time shape tests for the multi-group `StreamsGroup` builder.
 
 use std::time::Duration;
 
@@ -11,23 +11,23 @@ fn assert_send_sync<T: Send + Sync>() {}
 fn builder_is_thread_safe_and_has_the_expected_fluent_shape() {
     assert_send_sync::<DescribeStreamsGroupsBuilder>();
 
-    let _authorized_operations: fn(
+    let authorized_operations: fn(
         DescribeStreamsGroupsBuilder,
         bool,
     ) -> DescribeStreamsGroupsBuilder = DescribeStreamsGroupsBuilder::include_authorized_operations;
-    let _topology_description: fn(
+    let topology_description: fn(
         DescribeStreamsGroupsBuilder,
         bool,
     ) -> DescribeStreamsGroupsBuilder = DescribeStreamsGroupsBuilder::include_topology_description;
-    let _deadline: fn(DescribeStreamsGroupsBuilder, Duration) -> DescribeStreamsGroupsBuilder =
+    let deadline: fn(DescribeStreamsGroupsBuilder, Duration) -> DescribeStreamsGroupsBuilder =
         DescribeStreamsGroupsBuilder::deadline_after;
-    let _submit: fn(DescribeStreamsGroupsBuilder) -> DescribeStreamsGroups =
+    let submit: fn(DescribeStreamsGroupsBuilder) -> DescribeStreamsGroups =
         DescribeStreamsGroupsBuilder::submit;
     let _ = (
-        _authorized_operations,
-        _topology_description,
-        _deadline,
-        _submit,
+        authorized_operations,
+        topology_description,
+        deadline,
+        submit,
     );
 }
 

@@ -1,4 +1,4 @@
-//! Typed StreamsGroup result delegation tests.
+//! Typed `StreamsGroup` result delegation tests.
 
 use std::time::Duration;
 
@@ -25,7 +25,7 @@ fn result_preserves_throttle_errors_and_caller_order_without_remapping() {
             .1
             .as_ref()
             .err()
-            .map(|error| error.kind()),
+            .map(crate::error::KafkaError::kind),
         Some(ErrorKind::Broker)
     );
     assert_eq!(result.into_offsets().entries().len(), 2);

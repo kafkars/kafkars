@@ -1,4 +1,4 @@
-//! Named ShareGroup description operation ownership tests.
+//! Named `ShareGroup` description operation ownership tests.
 
 use std::future::Future;
 

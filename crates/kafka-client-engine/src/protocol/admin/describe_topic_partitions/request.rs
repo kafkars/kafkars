@@ -89,8 +89,13 @@ pub(crate) fn describe_topic_partitions_request(
         .transpose()?;
     let mut request = DescribeTopicPartitionsRequest::default();
     request.topics = topics;
-    request.response_partition_limit = i32::try_from(plan.response_partition_limit())
-        .expect("validated partition limit must fit i32");
+    request.response_partition_limit =
+        i32::try_from(plan.response_partition_limit()).map_err(|_| {
+            DescribeTopicPartitionsRequestFailure::InvalidResponsePartitionLimit {
+                actual: plan.response_partition_limit(),
+                max: DESCRIBE_TOPIC_PARTITIONS_MAX_RESPONSE_PARTITIONS,
+            }
+        })?;
     request.cursor = cursor;
     ensure_limit(request.retained_size().heap_bytes(), retained_limit)?;
     Ok(request)

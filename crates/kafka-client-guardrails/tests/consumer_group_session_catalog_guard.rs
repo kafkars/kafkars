@@ -108,7 +108,14 @@ fn checked_in_classic_group_engine_policy_is_exact() {
             .collect::<Vec<_>>();
         assert_eq!(rules.len(), 1, "{method} needs one caller rule");
         assert_eq!(rules[0].root, "crates/kafka-client-engine/src");
-        assert_eq!(rules[0].allowed_paths, [*allowed]);
+        assert_eq!(
+            rules[0]
+                .allowed_paths
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            *allowed
+        );
     }
 }
 

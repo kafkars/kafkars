@@ -74,7 +74,7 @@ pub(super) fn canonicalize_response(
     if !charge.items::<DescribeStreamsGroupMember>(members.len()) {
         return charge.failure();
     }
-    let mut members = Vec::from(members);
+    let mut members = members;
     for member in &mut members {
         let Some(canonical) = canonical_member(member.clone(), &mut charge) else {
             return charge.failure();
@@ -245,19 +245,17 @@ impl Charge {
             self.overflow = true;
             return false;
         }
-        self.text = match self.text.checked_add(value.len()) {
-            Some(total) => total,
-            None => {
-                self.overflow = true;
-                return false;
-            }
+        self.text = if let Some(total) = self.text.checked_add(value.len()) {
+            total
+        } else {
+            self.overflow = true;
+            return false;
         };
-        self.retained = match self.retained.checked_add(value.len()) {
-            Some(total) => total,
-            None => {
-                self.overflow = true;
-                return false;
-            }
+        self.retained = if let Some(total) = self.retained.checked_add(value.len()) {
+            total
+        } else {
+            self.overflow = true;
+            return false;
         };
         self.within_limits()
     }
@@ -271,15 +269,14 @@ impl Charge {
             self.overflow = true;
             return false;
         }
-        self.retained = match count
+        self.retained = if let Some(total) = count
             .checked_mul(size_of::<T>())
             .and_then(|bytes| self.retained.checked_add(bytes))
         {
-            Some(total) => total,
-            None => {
-                self.overflow = true;
-                return false;
-            }
+            total
+        } else {
+            self.overflow = true;
+            return false;
         };
         self.within_limits()
     }
@@ -289,15 +286,14 @@ impl Charge {
             self.overflow = true;
             return false;
         }
-        self.retained = match count
+        self.retained = if let Some(total) = count
             .checked_mul(size_of::<i32>())
             .and_then(|bytes| self.retained.checked_add(bytes))
         {
-            Some(total) => total,
-            None => {
-                self.overflow = true;
-                return false;
-            }
+            total
+        } else {
+            self.overflow = true;
+            return false;
         };
         self.within_limits()
     }

@@ -140,10 +140,10 @@ impl DescribeConfigsPlan {
 
 fn route_for(resource: &DescribeConfigsResourceQuery) -> DescribeConfigsRoute {
     if matches!(resource.resource_type, 4 | 8) {
-        return DescribeConfigsRoute::ExactBroker(
-            canonical_broker_id(&resource.resource_name)
-                .expect("validated broker resource name must remain canonical"),
-        );
+        let Some(broker_id) = canonical_broker_id(&resource.resource_name) else {
+            unreachable!("validated broker resource name must remain canonical")
+        };
+        return DescribeConfigsRoute::ExactBroker(broker_id);
     }
     DescribeConfigsRoute::AnyBroker
 }

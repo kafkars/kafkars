@@ -119,11 +119,7 @@ pub(super) fn validate_topic_id_response_shape(
     }
     for result in &response.responses {
         let topic_id = *result.topic_id.as_bytes();
-        if !plan
-            .topic_ids()
-            .iter()
-            .any(|requested| *requested == topic_id)
-        {
+        if !plan.topic_ids().contains(&topic_id) {
             return Err(DeleteTopicsProtocolFailure::UnexpectedTopicId);
         }
     }

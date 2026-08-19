@@ -1,4 +1,4 @@
-//! Inert ShareGroup offset-deletion intent with one submission boundary.
+//! Inert `ShareGroup` offset-deletion intent with one submission boundary.
 
 use std::time::Duration;
 
@@ -8,7 +8,7 @@ use crate::bridge::{
 
 use super::DeleteShareGroupOffsets;
 
-/// Inert caller-ordered topic offset deletion for one ShareGroup.
+/// Inert caller-ordered topic offset deletion for one `ShareGroup`.
 #[must_use = "call submit to admit the DeleteShareGroupOffsets operation"]
 pub struct DeleteShareGroupOffsetsBuilder {
     engine: AdminEngine,

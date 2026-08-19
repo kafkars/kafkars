@@ -97,7 +97,7 @@ impl DescribeFeaturesDescription {
         &self.finalized_features
     }
 
-    /// Reports Kafka's exact ZooKeeper migration-readiness fact.
+    /// Reports Kafka's exact `ZooKeeper` migration-readiness fact.
     pub const fn zk_migration_ready(&self) -> bool {
         self.zk_migration_ready
     }

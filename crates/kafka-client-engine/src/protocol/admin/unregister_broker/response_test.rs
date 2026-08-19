@@ -11,8 +11,8 @@ use super::{
 #[test]
 fn response_preserves_success_and_nullable_diagnostic() {
     let response = response(9, 0, None);
-    let normalized =
-        normalize(&response, UNREGISTER_BROKER_MAX_RETAINED_BYTES).expect("valid success");
+    let normalized = normalize(&response, UNREGISTER_BROKER_MAX_RETAINED_BYTES)
+        .unwrap_or_else(|error| panic!("valid success: {error:?}"));
     let retained = core::mem::size_of_val(&normalized);
 
     assert_eq!(normalized.into_parts(), (9, 0, None, false, retained));
@@ -25,8 +25,8 @@ fn response_preserves_signed_code_and_utf8_safe_bounded_diagnostic() {
         "x".repeat(UNREGISTER_BROKER_MAX_DIAGNOSTIC_BYTES - 1)
     );
     let response = response(3, -42, Some(&diagnostic));
-    let normalized =
-        normalize(&response, UNREGISTER_BROKER_MAX_RETAINED_BYTES).expect("valid broker failure");
+    let normalized = normalize(&response, UNREGISTER_BROKER_MAX_RETAINED_BYTES)
+        .unwrap_or_else(|error| panic!("valid broker failure: {error:?}"));
     let (throttle, code, message, truncated, retained) = normalized.into_parts();
 
     assert_eq!(throttle, 3);

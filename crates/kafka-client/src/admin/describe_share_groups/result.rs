@@ -1,10 +1,10 @@
-//! Caller-ordered result of describing multiple ShareGroups.
+//! Caller-ordered result of describing multiple `ShareGroups`.
 
 use std::time::Duration;
 
 use crate::{BatchResult, admin::ShareGroupDescription};
 
-/// The completed response for a caller-ordered ShareGroup description batch.
+/// The completed response for a caller-ordered `ShareGroup` description batch.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DescribeShareGroupsResult {
     throttle_time: Duration,

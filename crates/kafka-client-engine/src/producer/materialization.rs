@@ -181,6 +181,10 @@ impl MaterializationBatch {
         ))
     }
 
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "construction names the exact record bytes, byte limits, identity, and sequence authorities"
+    )]
     pub(crate) fn idempotent(
         topic: impl Into<Arc<str>>,
         partition: i32,

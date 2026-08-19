@@ -22,7 +22,7 @@ fn response_preserves_caller_order_signed_codes_and_nullable_diagnostics() {
             results.push(result);
             Ok(())
         })
-        .expect("valid positional response");
+        .unwrap_or_else(|error| panic!("valid positional response: {error:?}"));
     assert_eq!(throttle, 17);
     assert_eq!(results.len(), 3);
     assert!(retained > 0);
@@ -41,7 +41,7 @@ fn visitor_reuses_caller_prepared_result_storage_without_reallocation() {
     let mut prepared = Vec::new();
     prepared
         .try_reserve_exact(2)
-        .expect("caller result capacity");
+        .unwrap_or_else(|error| panic!("caller result capacity: {error:?}"));
     let allocation = prepared.as_ptr();
     let capacity = prepared.capacity();
 
@@ -49,7 +49,7 @@ fn visitor_reuses_caller_prepared_result_storage_without_reallocation() {
         prepared.push(result);
         Ok(())
     })
-    .expect("prepared storage");
+    .unwrap_or_else(|error| panic!("prepared storage: {error:?}"));
 
     assert_eq!(prepared.len(), 2);
     assert_eq!(prepared.capacity(), capacity);
@@ -66,13 +66,12 @@ fn response_truncates_each_diagnostic_at_a_utf8_boundary() {
         normalized = Some(result);
         Ok(())
     })
-    .expect("bounded diagnostic");
-    let (code, message, truncated) = normalized.expect("one result").into_parts();
+    .unwrap_or_else(|error| panic!("bounded diagnostic: {error:?}"));
+    let (code, message, truncated) = normalized
+        .unwrap_or_else(|| panic!("one result"))
+        .into_parts();
     assert_eq!(code, -1);
-    assert_eq!(
-        message.as_deref().map(str::len),
-        Some(MAX_DIAGNOSTIC_BYTES - 1)
-    );
+    assert_eq!(message.map(str::len), Some(MAX_DIAGNOSTIC_BYTES - 1));
     assert!(truncated);
 }
 
@@ -122,7 +121,7 @@ fn response_requires_the_exact_admitted_result_count() {
 #[test]
 fn complete_normalization_and_terminal_peak_must_fit_before_copying() {
     let response = response(vec![result(-1, Some("first")), result(-2, Some("second"))]);
-    let required = response_peak_charge(&response).expect("bounded charge");
+    let required = response_peak_charge(&response).unwrap_or_else(|| panic!("bounded charge"));
 
     assert_eq!(
         ignore_response(2, 2, &response, required - 1),
@@ -133,7 +132,7 @@ fn complete_normalization_and_terminal_peak_must_fit_before_copying() {
     );
     assert_eq!(
         ignore_response(2, 2, &response, required)
-            .expect("exact peak")
+            .unwrap_or_else(|error| panic!("exact peak: {error:?}"))
             .1,
         required
     );

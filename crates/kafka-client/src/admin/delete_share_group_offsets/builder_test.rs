@@ -1,4 +1,4 @@
-//! ShareGroup offset-deletion builder surface tests.
+//! `ShareGroup` offset-deletion builder surface tests.
 
 use std::{future::Future, time::Duration};
 

@@ -130,6 +130,10 @@ impl AdminListTransactionsHost {
         self.apply(operation_id, AdminListTransactionsInput::DriverAccepted)
     }
 
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "rejected handoff consumes the exact owned transaction-listing evidence"
+    )]
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,

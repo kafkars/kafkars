@@ -105,10 +105,8 @@ pub(super) const fn admission_error_kind(
         | GroupConsumerClosePortError::Lock(GroupConsumerShardLockError::Poisoned) => {
             GroupConsumerCloseAdmissionErrorKind::InternalInvariant
         }
-        GroupConsumerClosePortError::Lock(GroupConsumerShardLockError::Contended) => {
-            GroupConsumerCloseAdmissionErrorKind::Contended
-        }
-        GroupConsumerClosePortError::Registry(RegistryCloseError::AuthorityContended) => {
+        GroupConsumerClosePortError::Lock(GroupConsumerShardLockError::Contended)
+        | GroupConsumerClosePortError::Registry(RegistryCloseError::AuthorityContended) => {
             GroupConsumerCloseAdmissionErrorKind::Contended
         }
         GroupConsumerClosePortError::Registry(

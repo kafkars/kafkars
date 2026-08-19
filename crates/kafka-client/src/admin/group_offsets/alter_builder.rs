@@ -33,7 +33,6 @@ impl AlterConsumerGroupOffsetsBuilder {
     ///
     /// The duration remains inert and is validated only when [`Self::submit`]
     /// enters the engine boundary.
-    #[must_use]
     pub fn retention_time(mut self, retention_time: Duration) -> Self {
         self.request = self.request.with_retention_time(retention_time);
         self

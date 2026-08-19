@@ -1,4 +1,4 @@
-//! Stable Admin fencing facts normalized from one generated InitProducerId response.
+//! Stable Admin fencing facts normalized from one generated `InitProducerId` response.
 
 use core::num::NonZeroI16;
 

@@ -1,4 +1,4 @@
-//! Concrete observation of accepted, rejected, or locally expired DeleteAcls work.
+//! Concrete observation of accepted, rejected, or locally expired `DeleteAcls` work.
 
 use std::{
     fmt,
@@ -43,9 +43,8 @@ impl AdminDeleteAcls {
         deadline: Instant,
         submit: impl FnOnce(EngineRequest, Duration) -> Result<Accepted, AdmissionError>,
     ) -> Self {
-        let prepared = match PreparedDeleteAclsOutcomes::try_new(request.filter_count()) {
-            Ok(prepared) => prepared,
-            Err(()) => return Self::result_capacity_rejected(),
+        let Ok(prepared) = PreparedDeleteAclsOutcomes::try_new(request.filter_count()) else {
+            return Self::result_capacity_rejected();
         };
         let request = request.into_engine();
         let remaining = deadline.saturating_duration_since(Instant::now());

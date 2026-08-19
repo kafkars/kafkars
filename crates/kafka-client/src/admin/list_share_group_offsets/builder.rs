@@ -1,4 +1,4 @@
-//! Inert ShareGroup offset-listing intent with one submission boundary.
+//! Inert `ShareGroup` offset-listing intent with one submission boundary.
 
 use std::time::Duration;
 
@@ -9,7 +9,7 @@ use crate::{
 
 use super::ListShareGroupOffsets;
 
-/// Inert all-partition or caller-selected offset query for one ShareGroup.
+/// Inert all-partition or caller-selected offset query for one `ShareGroup`.
 #[must_use = "call submit to admit the ListShareGroupOffsets operation"]
 pub struct ListShareGroupOffsetsBuilder {
     engine: AdminEngine,

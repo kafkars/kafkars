@@ -1,4 +1,4 @@
-//! Batched ShareGroup description entry point on the shared admin handle.
+//! Batched `ShareGroup` description entry point on the shared admin handle.
 
 use super::Admin;
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
 };
 
 impl Admin {
-    /// Builds inert caller-ordered descriptions for multiple modern ShareGroups.
+    /// Builds inert caller-ordered descriptions for multiple modern `ShareGroups`.
     ///
     /// Group validation remains deferred until
     /// [`DescribeShareGroupsBuilder::submit`] captures the public absolute

@@ -2,14 +2,15 @@
 
 pub(crate) use super::boundary::TransactionRecordViewError;
 pub use super::boundary::{
-    ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerBatchSendCapture,
-    ProducerCancelAccepted, ProducerCancelError, ProducerCancelErrorKind, ProducerCancelFault,
-    ProducerCancelFaultKind, ProducerCancellationOutcome, ProducerHandle, ProducerSendCapture,
-    ProducerSendCaptureError, ProducerSendCaptureErrorKind, ProducerSendOptions,
-    ProducerTryCloseAccepted, ProducerTryCloseError, ProducerTryCloseErrorKind,
-    ProducerTryFlushAccepted, ProducerTryFlushError, ProducerTryFlushErrorKind,
-    ProducerTrySendAccepted, ProducerTrySendBatch, ProducerTrySendBatchError, ProducerTrySendError,
-    ProducerTrySendErrorKind, PublicProducerHeader, PublicProducerRecord,
+    ProducerAcceptedFault, ProducerAcceptedFaultKind, ProducerBatchAdmission,
+    ProducerBatchSendCapture, ProducerCancelAccepted, ProducerCancelError, ProducerCancelErrorKind,
+    ProducerCancelFault, ProducerCancelFaultKind, ProducerCancellationOutcome, ProducerHandle,
+    ProducerSendCapture, ProducerSendCaptureError, ProducerSendCaptureErrorKind,
+    ProducerSendOptions, ProducerTryCloseAccepted, ProducerTryCloseError,
+    ProducerTryCloseErrorKind, ProducerTryFlushAccepted, ProducerTryFlushError,
+    ProducerTryFlushErrorKind, ProducerTrySendAccepted, ProducerTrySendBatch,
+    ProducerTrySendBatchError, ProducerTrySendError, ProducerTrySendErrorKind,
+    PublicProducerHeader, PublicProducerRecord,
 };
 pub(crate) use super::error::{ProducerAdmissionError, ProducerStoreError};
 pub(crate) use super::host::{ProducerHost, ProducerHostLimits};

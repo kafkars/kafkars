@@ -1,4 +1,4 @@
-//! Inert ShareGroup offset-alteration intent with one submission boundary.
+//! Inert `ShareGroup` offset-alteration intent with one submission boundary.
 
 use std::time::Duration;
 
@@ -8,7 +8,7 @@ use crate::bridge::{
 
 use super::AlterShareGroupOffsets;
 
-/// Inert caller-ordered partition-offset alteration for one ShareGroup.
+/// Inert caller-ordered partition-offset alteration for one `ShareGroup`.
 #[must_use = "call submit to admit the AlterShareGroupOffsets operation"]
 pub struct AlterShareGroupOffsetsBuilder {
     engine: AdminEngine,

@@ -1,4 +1,4 @@
-//! Typed StreamsGroup offset alteration over the consumer-group execution path.
+//! Typed `StreamsGroup` offset alteration over the consumer-group execution path.
 
 mod builder;
 mod operation;

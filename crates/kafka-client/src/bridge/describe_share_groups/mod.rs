@@ -1,4 +1,4 @@
-//! Declarative private bridge for caller-ordered ShareGroup descriptions.
+//! Declarative private bridge for caller-ordered `ShareGroup` descriptions.
 
 mod engine;
 mod operation;

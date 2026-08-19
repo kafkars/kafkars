@@ -1,10 +1,10 @@
-//! Caller-ordered result of describing multiple StreamsGroups.
+//! Caller-ordered result of describing multiple `StreamsGroups`.
 
 use std::time::Duration;
 
 use crate::{BatchResult, admin::StreamsGroupDescription};
 
-/// The completed response for a caller-ordered StreamsGroup description batch.
+/// The completed response for a caller-ordered `StreamsGroup` description batch.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DescribeStreamsGroupsResult {
     throttle_time: Duration,

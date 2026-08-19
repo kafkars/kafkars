@@ -6,6 +6,9 @@ use zeroize::Zeroize;
 
 use super::super::ScramMechanism;
 
+type UpsertParts = (u32, Vec<u8>, Option<Vec<u8>>);
+type AlterationParts = (String, ScramMechanism, Option<UpsertParts>);
+
 /// One deletion or upsert of a user's SCRAM credential.
 ///
 /// Construction is inert. User, mechanism, iteration, password, salt, and
@@ -115,13 +118,7 @@ impl UserScramCredentialAlteration {
         }
     }
 
-    pub(crate) fn into_parts(
-        mut self,
-    ) -> (
-        String,
-        ScramMechanism,
-        Option<(u32, Vec<u8>, Option<Vec<u8>>)>,
-    ) {
+    pub(crate) fn into_parts(mut self) -> AlterationParts {
         match &mut self {
             Self::Delete { user, mechanism } => (std::mem::take(user), *mechanism, None),
             Self::Upsert {

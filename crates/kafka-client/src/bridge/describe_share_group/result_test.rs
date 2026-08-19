@@ -1,4 +1,4 @@
-//! ShareGroup description translation category tests.
+//! `ShareGroup` description translation category tests.
 
 use crate::{DeliveryStatus, ErrorKind};
 

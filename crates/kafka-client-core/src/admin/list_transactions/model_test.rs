@@ -1,5 +1,10 @@
 //! Request-filter validation and exact-value scenarios.
 
+#![expect(
+    clippy::cast_possible_wrap,
+    reason = "fixture indices are bounded far below the protocol integer limit"
+)]
+
 use super::{
     AdminListTransactionsPlan, AdminListTransactionsPlanError,
     LIST_TRANSACTIONS_MAX_FILTER_STATE_BYTES, LIST_TRANSACTIONS_MAX_PRODUCER_ID_FILTERS,

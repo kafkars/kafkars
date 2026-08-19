@@ -47,7 +47,7 @@ fn request_preserves_opaque_pattern_and_signed_ids_in_canonical_order() {
         request
             .state_filters
             .iter()
-            .map(|state| state.as_str())
+            .map(kafka_wire_core::StrBytes::as_str)
             .collect::<Vec<_>>(),
         ["Empty", "Ongoing"]
     );
@@ -57,7 +57,7 @@ fn request_preserves_opaque_pattern_and_signed_ids_in_canonical_order() {
         request
             .transactional_id_pattern
             .as_ref()
-            .map(|value| value.as_str()),
+            .map(kafka_wire_core::StrBytes::as_str),
         Some("[broker-owned")
     );
 }

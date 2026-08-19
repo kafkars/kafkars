@@ -65,8 +65,13 @@ pub(crate) fn normalize_describe_acls_response(
             permission_type: binding.permission_type,
         });
     }
+    let throttle_time_ms = u32::try_from(response.throttle_time_ms).map_err(|_| {
+        DescribeAclsResponseFailure::NegativeThrottleTime {
+            actual: response.throttle_time_ms,
+        }
+    })?;
     let mut normalized = NormalizedDescribeAclsResponse {
-        throttle_time_ms: response.throttle_time_ms as u32,
+        throttle_time_ms,
         error_code: response.error_code,
         error_message,
         error_message_truncated: response
@@ -170,11 +175,11 @@ fn validate_acl(acl: &AclDescription) -> Result<(), DescribeAclsResponseFailure>
     Ok(())
 }
 
-fn sorted_borrowed_bindings<'a>(
-    response: &'a DescribeAclsResponse,
+fn sorted_borrowed_bindings(
+    response: &DescribeAclsResponse,
     required: usize,
     limit: usize,
-) -> Result<Vec<BindingRef<'a>>, DescribeAclsResponseFailure> {
+) -> Result<Vec<BindingRef<'_>>, DescribeAclsResponseFailure> {
     let mut resource_keys = Vec::new();
     resource_keys
         .try_reserve_exact(response.resources.len())

@@ -47,6 +47,15 @@ macro_rules! engine {
     ("host/terminal.rs") => {
         "crates/kafka-client-engine/src/admin/create_delegation_token/host/terminal.rs"
     };
+    ("host/terminal/recovery.rs") => {
+        "crates/kafka-client-engine/src/admin/create_delegation_token/host/terminal/recovery.rs"
+    };
+    ("host/terminal/recovery_test.rs") => {
+        "crates/kafka-client-engine/src/admin/create_delegation_token/host/terminal/recovery_test.rs"
+    };
+    ("host/terminal/test_support.rs") => {
+        "crates/kafka-client-engine/src/admin/create_delegation_token/host/terminal/test_support.rs"
+    };
     ("host_test.rs") => {
         "crates/kafka-client-engine/src/admin/create_delegation_token/host_test.rs"
     };
@@ -212,6 +221,7 @@ pub(super) const MUTATIONS: &[(&str, &str, &[&str])] = &[
             engine!("host.rs"),
             engine!("host/admission.rs"),
             engine!("host/terminal.rs"),
+            engine!("host/terminal/recovery.rs"),
         ],
     ),
     (
@@ -337,5 +347,6 @@ pub(super) const METHODS: &[(&str, &str, &[&str])] = &[
 pub(super) const CAPABILITY_ALLOWS: &[(&str, &str)] = &[
     (engine!("host.rs"), "crate::driver"),
     (engine!("host/response.rs"), "crate::driver"),
-    (engine!("host/terminal.rs"), "crate::driver"),
+    (engine!("host/terminal/recovery_test.rs"), "crate::driver"),
+    (engine!("host/terminal/test_support.rs"), "crate::driver"),
 ];

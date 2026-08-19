@@ -54,7 +54,7 @@ impl GroupConsumerRegistry {
             let is_leave = self.entries[index]
                 .consumer
                 .as_ref()
-                .and_then(|execution| execution.prepared())
+                .and_then(super::consumer_group_execution::ConsumerGroupExecution::prepared)
                 .is_some_and(|prepared| {
                     prepared.kind() == ConsumerGroupHeartbeatRequestKind::Leave
                 });
@@ -89,6 +89,10 @@ impl GroupConsumerRegistry {
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "one explicit dispatch settles route authority and the exact heartbeat terminal atomically"
+)]
 fn settle_heartbeat(
     registry: &mut GroupConsumerRegistry,
     index: usize,

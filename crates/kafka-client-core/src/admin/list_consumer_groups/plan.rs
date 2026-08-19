@@ -12,6 +12,10 @@ pub(crate) const LIST_GROUPS_MAX_FILTER_BYTES: usize = 256 * 1024;
 
 /// Validated, caller-ordered filters for one cluster-wide group listing.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(
+    clippy::struct_field_names,
+    reason = "the filter suffix distinguishes the three independent Kafka filter domains"
+)]
 pub struct AdminGroupListingFilters {
     state_filters: Vec<String>,
     group_type_filters: Vec<String>,

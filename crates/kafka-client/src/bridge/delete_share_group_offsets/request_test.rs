@@ -1,4 +1,4 @@
-//! Inert ShareGroup offset-deletion request bridge tests.
+//! Inert `ShareGroup` offset-deletion request bridge tests.
 
 use super::request::DeleteShareGroupOffsetsAdminRequest;
 

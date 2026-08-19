@@ -1,4 +1,4 @@
-//! Fair host turns for AnyBroker Admin configuration-resource listing.
+//! Fair host turns for `AnyBroker` Admin configuration-resource listing.
 
 use kafka_client_core::{Deadline, ListConfigResourcesPlan, Moment};
 

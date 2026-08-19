@@ -145,15 +145,15 @@ fn coordinator_refresh_progress_is_visible_and_shutdown_preserves_broker_termina
             .shard
             .try_host()
             .unwrap_or_else(|error| panic!("host lock: {error:?}"));
-        host.install_refresh_call_for_test(&fixture._driver, 14)
+        host.install_refresh_call_for_test(&fixture.driver, 14)
             .unwrap_or_else(|error| panic!("install refresh call: {error:?}"));
         assert_eq!(
-            host.turn(kafka_client_core::Moment::from_tick(1), &fixture._driver)
+            host.turn(kafka_client_core::Moment::from_tick(1), &fixture.driver)
                 .unwrap_or_else(|error| panic!("refresh progress turn: {error:?}")),
             super::TransactionInitializationTurn::Progress
         );
         assert_eq!(
-            host.turn(kafka_client_core::Moment::from_tick(2), &fixture._driver)
+            host.turn(kafka_client_core::Moment::from_tick(2), &fixture.driver)
                 .unwrap_or_else(|error| panic!("refresh pending turn: {error:?}")),
             super::TransactionInitializationTurn::Idle
         );
@@ -197,13 +197,13 @@ fn stalled_refresh_expires_at_original_deadline_without_a_late_init_retry() {
             .next_deadline()
             .unwrap_or_else(|| panic!("accepted initialization owns its original deadline"));
         assert!(deadline.tick() >= 2);
-        host.install_refresh_call_for_test(&fixture._driver, 14)
+        host.install_refresh_call_for_test(&fixture.driver, 14)
             .unwrap_or_else(|error| panic!("install refresh call: {error:?}"));
         assert_eq!(host.next_deadline(), Some(deadline));
         assert_eq!(
             host.turn(
                 kafka_client_core::Moment::from_tick(deadline.tick() - 2),
-                &fixture._driver,
+                &fixture.driver,
             )
             .unwrap_or_else(|error| panic!("refresh progress turn: {error:?}")),
             super::TransactionInitializationTurn::Progress
@@ -212,7 +212,7 @@ fn stalled_refresh_expires_at_original_deadline_without_a_late_init_retry() {
         assert_eq!(
             host.turn(
                 kafka_client_core::Moment::from_tick(deadline.tick() - 1),
-                &fixture._driver,
+                &fixture.driver,
             )
             .unwrap_or_else(|error| panic!("refresh pending turn: {error:?}")),
             super::TransactionInitializationTurn::Idle
@@ -221,7 +221,7 @@ fn stalled_refresh_expires_at_original_deadline_without_a_late_init_retry() {
         assert_eq!(
             host.turn(
                 kafka_client_core::Moment::from_tick(deadline.tick()),
-                &fixture._driver,
+                &fixture.driver,
             )
             .unwrap_or_else(|error| panic!("refresh deadline turn: {error:?}")),
             super::TransactionInitializationTurn::Progress
@@ -247,7 +247,7 @@ fn stalled_refresh_expires_at_original_deadline_without_a_late_init_retry() {
 }
 
 pub(super) struct Fixture {
-    _driver: DriverOwner,
+    driver: DriverOwner,
     shard: TransactionInitializationShardOwner,
     port: super::TransactionInitializationAdmissionPort,
 }
@@ -265,7 +265,7 @@ impl Fixture {
         );
         let port = shard.admission_port();
         Self {
-            _driver: driver,
+            driver,
             shard,
             port,
         }

@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned DescribeClientQuotas adapter contract.
+//! Isolated names for the engine-owned `DescribeClientQuotas` adapter contract.
 
 pub(super) use kafka_client_engine::{
     DescribeClientQuotaEntity as Entity, DescribeClientQuotaEntityComponent as EntityComponent,

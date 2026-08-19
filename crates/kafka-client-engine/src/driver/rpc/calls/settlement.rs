@@ -53,7 +53,7 @@ impl SettledProduceCall {
             _ => None,
         };
         let response_shape_valid =
-            !matches!(&result, Ok(_) if entries.len() > 1) || response_index.is_some();
+            response_index.is_some() || (result.is_err() && entries.len() > 1);
         let input = normalized_entry_input(
             entries.first(),
             now,

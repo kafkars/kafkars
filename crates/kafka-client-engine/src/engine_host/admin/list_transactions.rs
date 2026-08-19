@@ -20,6 +20,10 @@ pub(super) struct AdminListTransactionsProgress {
     pub(super) next_deadline: Option<Deadline>,
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "discovery and exact-broker submission remain one explicit ownership dispatch"
+)]
 pub(super) fn drive(
     resources: &mut EngineHostResources,
     now: Moment,

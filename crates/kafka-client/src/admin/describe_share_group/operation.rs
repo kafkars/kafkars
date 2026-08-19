@@ -1,4 +1,4 @@
-//! Named single-observer ShareGroup description operation.
+//! Named single-observer `ShareGroup` description operation.
 
 use std::{
     future::Future,
@@ -10,7 +10,7 @@ use crate::{KafkaError, bridge::describe_share_group::AdminDescribeShareGroup};
 
 use super::DescribeShareGroupResult;
 
-/// Sole terminal observer for one submitted ShareGroup description.
+/// Sole terminal observer for one submitted `ShareGroup` description.
 #[derive(Debug)]
 #[must_use = "dropping abandons observation without cancelling accepted admin work"]
 pub struct DescribeShareGroup {

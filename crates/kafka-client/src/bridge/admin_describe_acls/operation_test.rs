@@ -1,4 +1,8 @@
 //! Local pre-admission terminal observation tests.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts local deadline failure"
+)]
 
 use std::{
     future::Future,

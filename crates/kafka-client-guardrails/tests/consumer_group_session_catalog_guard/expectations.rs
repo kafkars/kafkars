@@ -5,6 +5,8 @@ pub(super) const CATALOG_STATIC: &str =
     "crates/kafka-client-engine/src/consumer/group/session_catalog/static_membership.rs";
 pub(super) const CATALOG_ASSIGNMENT: &str =
     "crates/kafka-client-engine/src/consumer/group/session_catalog_assignment.rs";
+pub(super) const CATALOG_CONSUMER: &str =
+    "crates/kafka-client-engine/src/consumer/group/session_catalog_consumer.rs";
 pub(super) const OWNER: &str =
     "crates/kafka-client-engine/src/consumer/group/classic_group_owner.rs";
 pub(super) const FOLLOWER_OWNER: &str =
@@ -45,34 +47,50 @@ pub(super) const LINEAR: &[(&str, &str)] = &[
 pub(super) const CATALOG_FIELDS: &[(&str, &[&str])] = &[
     (
         "next_member_id",
-        &[CATALOG, CATALOG_STATIC, CATALOG_ASSIGNMENT],
+        &[
+            CATALOG,
+            CATALOG_STATIC,
+            CATALOG_ASSIGNMENT,
+            CATALOG_CONSUMER,
+        ],
     ),
     ("next_topic_id", &[CATALOG, CATALOG_ASSIGNMENT]),
     ("retained_topic_name_bytes", &[CATALOG, CATALOG_ASSIGNMENT]),
     ("topics_by_name", &[CATALOG, CATALOG_ASSIGNMENT]),
     ("topics_by_id", &[CATALOG, CATALOG_ASSIGNMENT]),
-    ("current", &[CATALOG_ASSIGNMENT]),
+    ("current", &[CATALOG_ASSIGNMENT, CATALOG_CONSUMER]),
     (
         "required_join_member",
-        &[CATALOG, CATALOG_STATIC, CATALOG_ASSIGNMENT],
+        &[
+            CATALOG,
+            CATALOG_STATIC,
+            CATALOG_ASSIGNMENT,
+            CATALOG_CONSUMER,
+        ],
     ),
 ];
 pub(super) const OWNER_FIELDS: &[(&str, &[&str])] = &[(
     "pending",
     &[OWNER, FOLLOWER_OWNER, LEADER_OWNER, EFFECT_ASSIGNMENT],
 )];
-pub(super) const METHODS: &[(&str, &str)] = &[
-    ("commit_classic_group_install", EFFECT_ASSIGNMENT),
-    ("commit_classic_group_revoke", EFFECT_ASSIGNMENT),
+pub(super) const METHODS: &[(&str, &[&str])] = &[
     (
-        "from_prepared_member",
-        "crates/kafka-client-engine/src/consumer/group/classic_group_candidate_prepare.rs",
+        "commit_classic_group_install",
+        &[
+            EFFECT_ASSIGNMENT,
+            "crates/kafka-client-engine/src/consumer/group/classic_group_reconciliation_turn.rs",
+        ],
+    ),
+    ("commit_classic_group_revoke", &[EFFECT_ASSIGNMENT]),
+    (
+        "from_prepared_member_with_owned",
+        &["crates/kafka-client-engine/src/consumer/group/classic_group_candidate_prepare.rs"],
     ),
     (
         "try_from_prepared_cycle",
-        "crates/kafka-client-engine/src/consumer/group/classic_group_candidate_prepare.rs",
+        &["crates/kafka-client-engine/src/consumer/group/classic_group_candidate_prepare.rs"],
     ),
-    ("into_catalog_install", CATALOG_ASSIGNMENT),
+    ("into_catalog_install", &[CATALOG_ASSIGNMENT]),
 ];
 pub(super) const AUTHORITIES: &[(&str, &[&str])] = &[
     (
@@ -83,6 +101,8 @@ pub(super) const AUTHORITIES: &[(&str, &[&str])] = &[
             "ordering_rank",
             "kafka_member_spelling",
             "subscribed_topic_ids",
+            "candidate_generation",
+            "candidate_owned_partitions",
         ],
     ),
     (

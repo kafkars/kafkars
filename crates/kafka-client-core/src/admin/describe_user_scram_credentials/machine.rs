@@ -70,7 +70,7 @@ pub enum DescribeUserScramCredentialsInput {
 /// One concrete mechanism request emitted by SCRAM description policy.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DescribeUserScramCredentialsEffect {
-    /// Submit the exact user selection once through the engine's AnyBroker lane.
+    /// Submit the exact user selection once through the engine's `AnyBroker` lane.
     Submit {
         /// Stable identity reserved before machine construction.
         operation_id: OperationId,

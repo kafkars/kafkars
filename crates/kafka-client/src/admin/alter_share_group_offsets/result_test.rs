@@ -1,4 +1,4 @@
-//! Public ShareGroup offset-alteration result tests.
+//! Public `ShareGroup` offset-alteration result tests.
 
 use std::time::Duration;
 

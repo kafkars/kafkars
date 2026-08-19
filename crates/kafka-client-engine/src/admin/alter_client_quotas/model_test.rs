@@ -27,7 +27,7 @@ fn request_preserves_entity_order_operations_and_validate_only() {
     let plan = request
         .canonicalize()
         .into_plan()
-        .expect("valid client-quota alteration");
+        .unwrap_or_else(|error| panic!("valid client-quota alteration: {error:?}"));
     assert!(plan.validate_only());
     assert_eq!(plan.entries().len(), 1);
     assert_eq!(

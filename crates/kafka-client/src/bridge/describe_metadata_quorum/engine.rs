@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned DescribeMetadataQuorum adapter contract.
+//! Isolated names for the engine-owned `DescribeMetadataQuorum` adapter contract.
 
 pub(super) use kafka_client_engine::{
     DescribeMetadataQuorumAccepted as Accepted,

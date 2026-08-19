@@ -1,4 +1,8 @@
 //! Public-to-engine Admin `DescribeTransactions` request translation scenarios.
+#![expect(
+    clippy::expect_used,
+    reason = "the test requires both serialized transaction IDs"
+)]
 
 use super::DescribeTransactionsAdminRequest;
 

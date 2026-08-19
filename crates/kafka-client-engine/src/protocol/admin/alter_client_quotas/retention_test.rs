@@ -18,10 +18,11 @@ fn response_peak_covers_request_scratch_correlation_and_projected_terminals() {
     let alterations = [alteration(&entity, &operations)];
     let request = AlterClientQuotasRequestRef::new(&alterations, true);
     let response = response();
-    let peak = response_peak_charge(request, &response).expect("bounded peak");
+    let peak = response_peak_charge(request, &response).unwrap_or_else(|| panic!("bounded peak"));
     let normalized = normalize_alter_client_quotas_response(1, request, &response, peak)
-        .expect("peak admits full normalization");
-    let retained = normalized_retained_charge(&normalized).expect("bounded normalized result");
+        .unwrap_or_else(|error| panic!("peak admits full normalization: {error:?}"));
+    let retained = normalized_retained_charge(&normalized)
+        .unwrap_or_else(|| panic!("bounded normalized result"));
 
     assert_eq!(normalized.retained_bytes, peak);
     assert!(retained < peak);

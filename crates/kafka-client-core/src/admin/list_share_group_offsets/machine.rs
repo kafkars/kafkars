@@ -167,7 +167,7 @@ impl ListShareGroupOffsetsMachine {
         self.plan
             .queries()
             .get(self.next_group)
-            .map(|query| query.group_id())
+            .map(crate::ListShareGroupOffsetsQuery::group_id)
     }
 }
 

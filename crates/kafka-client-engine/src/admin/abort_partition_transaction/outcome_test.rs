@@ -22,7 +22,7 @@ fn preserves_success_and_exact_signed_broker_code() {
         AbortPartitionTransactionOutcome::Aborted
     );
 
-    let error = CoreBrokerError::new(NonZeroI16::new(-73).expect("nonzero"));
+    let error = CoreBrokerError::new(NonZeroI16::new(-73).unwrap_or_else(|| panic!("nonzero")));
     let AbortPartitionTransactionOutcome::BrokerRejected(error) =
         translate_terminal(CoreTerminal::BrokerRejected(error))
     else {
@@ -36,19 +36,22 @@ fn preserves_failure_kind_and_delivery_certainty() {
     let mut machine = CoreMachine::new(
         OperationId::from_raw(1),
         Deadline::from_tick(10),
-        CorePlan::new("orders".to_owned(), 3, 41, 7, 11).expect("valid plan"),
+        CorePlan::new("orders".to_owned(), 3, 41, 7, 11)
+            .unwrap_or_else(|error| panic!("valid plan: {error:?}")),
     );
     let _submit = machine
         .apply(CoreInput::Start {
             now: Moment::from_tick(0),
         })
-        .expect("start");
-    let _accepted = machine.apply(CoreInput::DriverAccepted).expect("accept");
+        .unwrap_or_else(|error| panic!("start: {error:?}"));
+    let _accepted = machine
+        .apply(CoreInput::DriverAccepted)
+        .unwrap_or_else(|error| panic!("accept: {error:?}"));
     let complete = machine
         .apply(CoreInput::TransportFailed {
             delivery: DeliveryStatus::PossiblySent,
         })
-        .expect("fail");
+        .unwrap_or_else(|error| panic!("fail: {error:?}"));
     let Some(CoreEffect::Complete { terminal, .. }) = complete.into_effect() else {
         panic!("expected terminal");
     };

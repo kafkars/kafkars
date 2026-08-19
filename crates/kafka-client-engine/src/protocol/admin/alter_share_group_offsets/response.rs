@@ -110,8 +110,7 @@ pub(crate) fn normalize_alter_share_group_offsets_response(
         topic.partitions.iter().map(|partition| {
             (
                 topic.topic_name.as_str(),
-                NonZeroI16::new(partition.error_code)
-                    .and_then(|_| partition.error_message.as_deref()),
+                NonZeroI16::new(partition.error_code).and(partition.error_message.as_deref()),
             )
         })
     }))
@@ -157,7 +156,7 @@ fn validate_source_shape(
     let mut text_bytes = response
         .error_message
         .as_ref()
-        .map_or(0, |message| message.len());
+        .map_or(0, kafka_wire_core::StrBytes::len);
     ensure_text_limit(text_bytes)?;
     let mut partition_count = 0usize;
     for topic in &response.responses {
@@ -201,7 +200,7 @@ fn validate_source_shape(
                     partition
                         .error_message
                         .as_ref()
-                        .map_or(0, |message| message.len()),
+                        .map_or(0, kafka_wire_core::StrBytes::len),
                 )
                 .ok_or(bytes_overflow())?;
         }

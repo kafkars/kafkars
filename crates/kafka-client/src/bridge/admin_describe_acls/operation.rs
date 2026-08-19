@@ -1,4 +1,4 @@
-//! Concrete observation of accepted, rejected, or locally expired DescribeAcls work.
+//! Concrete observation of accepted, rejected, or locally expired `DescribeAcls` work.
 
 use std::{
     fmt,

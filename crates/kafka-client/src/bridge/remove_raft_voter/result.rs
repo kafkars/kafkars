@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of engine-owned RemoveRaftVoter outcomes.
+//! Exhaustive stable translation of engine-owned `RemoveRaftVoter` outcomes.
 
 use std::time::Duration;
 

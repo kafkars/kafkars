@@ -1,4 +1,4 @@
-//! Inert public DescribeTransactions intent translated at the engine boundary.
+//! Inert public `DescribeTransactions` intent translated at the engine boundary.
 
 use super::engine::Request as EngineRequest;
 

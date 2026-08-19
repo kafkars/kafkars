@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use super::super::{BatchResult, ListShareGroupOffsetsResult};
 
-/// Caller-ordered ShareGroup offset outcomes from one accepted operation.
+/// Caller-ordered `ShareGroup` offset outcomes from one accepted operation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ListShareGroupsOffsetsResult {
     throttle_time: Duration,
@@ -27,12 +27,12 @@ impl ListShareGroupsOffsetsResult {
         self.throttle_time
     }
 
-    /// Returns exactly one outcome per requested ShareGroup in caller order.
+    /// Returns exactly one outcome per requested `ShareGroup` in caller order.
     pub const fn groups(&self) -> &BatchResult<String, ListShareGroupOffsetsResult> {
         &self.groups
     }
 
-    /// Consumes this result into caller-ordered ShareGroup outcomes.
+    /// Consumes this result into caller-ordered `ShareGroup` outcomes.
     pub fn into_groups(self) -> BatchResult<String, ListShareGroupOffsetsResult> {
         self.groups
     }

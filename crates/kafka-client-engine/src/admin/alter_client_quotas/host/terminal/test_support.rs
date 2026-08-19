@@ -1,4 +1,4 @@
-//! Test-only observations of recovered AlterClientQuotas call-and-plan ownership.
+//! Test-only observations of recovered `AlterClientQuotas` call-and-plan ownership.
 
 use kafka_client_core::{AlterClientQuotasInput, AlterClientQuotasPlan, OperationId};
 

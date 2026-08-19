@@ -1,4 +1,4 @@
-//! Linear ownership of one accepted tracked AnyBroker configuration-resource query.
+//! Linear ownership of one accepted tracked `AnyBroker` configuration-resource query.
 
 use std::time::Instant;
 

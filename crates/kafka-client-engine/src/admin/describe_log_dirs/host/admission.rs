@@ -4,9 +4,10 @@ use core::mem::size_of;
 
 use kafka_client_core::{
     AdminDescribeLogDirsEffect, AdminDescribeLogDirsInput, AdminDescribeLogDirsMachine,
-    AdminDescribeLogDirsPlan, Moment, OperationId,
+    AdminDescribeLogDirsPartition, AdminDescribeLogDirsPlan, Moment, OperationId,
 };
 
+use crate::protocol::admin::describe_log_dirs::selection_request_peak_charge;
 use crate::{clock::OperationDeadline, completion::CompletionRegistryError};
 
 use super::{
@@ -34,8 +35,12 @@ impl DescribeLogDirsHost {
             .ok_or(DescribeLogDirsAdmissionErrorKind::IdentityExhausted)?;
         let owner_charge =
             request_owner_charge(&plan).ok_or(DescribeLogDirsAdmissionErrorKind::RetainedBytes)?;
+        let request_scratch_limit = selection_request_peak_charge(plan.selection())
+            .ok_or(DescribeLogDirsAdmissionErrorKind::RetainedBytes)?;
         let remaining_result_bytes = DESCRIBE_LOG_DIRS_RETAINED_BYTES
             .checked_sub(owner_charge)
+            .and_then(|limit| limit.checked_sub(request_scratch_limit))
+            .filter(|limit| *limit > 0)
             .ok_or(DescribeLogDirsAdmissionErrorKind::RetainedBytes)?;
         let total_bytes = self
             .retained_bytes
@@ -46,14 +51,19 @@ impl DescribeLogDirsHost {
 
         self.next_operation_id = operation_id.get().checked_add(1).map(OperationId::from_raw);
         self.retained_bytes = total_bytes;
+        let expected_plan = plan.clone();
         let mut operation = DescribeLogDirsOperation {
             operation_id,
             machine: AdminDescribeLogDirsMachine::new(operation_id, deadline.core(), plan),
+            plan: expected_plan,
             completion_id,
             deadline,
             retained_bytes: DESCRIBE_LOG_DIRS_RETAINED_BYTES,
+            request_scratch_limit,
+            result_limit: remaining_result_bytes,
             remaining_result_bytes,
             submission: None,
+            rejected_submission: None,
             handoff: DescribeLogDirsHandoff::Untouched,
             call: None,
             recovered_call: None,
@@ -93,15 +103,23 @@ fn start(
             operation_id,
             deadline: core_deadline,
             broker_id,
+            selection,
         }) => {
-            if operation_id != operation.operation_id || core_deadline != deadline.core() {
+            if operation_id != operation.operation_id
+                || core_deadline != deadline.core()
+                || operation.machine.current_broker() != Some(broker_id)
+                || selection != *operation.plan.selection()
+            {
                 return Err(DescribeLogDirsHostError::SubmissionMismatch);
             }
-            operation.submission = Some(DescribeLogDirsSubmission {
+            operation.submission = Some(DescribeLogDirsSubmission::new(
                 operation_id,
                 deadline,
                 broker_id,
-            });
+                selection,
+                operation.request_scratch_limit,
+                operation.result_limit,
+            ));
             Ok(false)
         }
         Some(AdminDescribeLogDirsEffect::Complete {
@@ -126,10 +144,23 @@ fn reservation_error(error: CompletionRegistryError) -> DescribeLogDirsAdmission
 }
 
 fn request_owner_charge(plan: &AdminDescribeLogDirsPlan) -> Option<usize> {
+    let selected = plan.selection().selected_partitions().unwrap_or(&[]);
+    let selection_structures = selected
+        .len()
+        .checked_mul(size_of::<AdminDescribeLogDirsPartition>().checked_mul(3)?)?;
+    let topic_bytes = selected.iter().try_fold(0usize, |bytes, partition| {
+        bytes.checked_add(partition.topic().len().checked_mul(3)?)
+    })?;
     size_of::<DescribeLogDirsOperation>()
         .checked_add(size_of::<DescribeLogDirsSubmission>())?
-        .checked_add(plan.broker_ids().len().checked_mul(size_of::<i32>())?)?
+        .checked_add(
+            plan.broker_ids()
+                .len()
+                .checked_mul(size_of::<i32>().checked_mul(2)?)?,
+        )?
         .checked_add(plan.broker_ids().len().checked_mul(size_of::<
             kafka_client_core::AdminDescribeLogDirsBrokerOutcome,
-        >())?)
+        >())?)?
+        .checked_add(selection_structures)?
+        .checked_add(topic_bytes)
 }

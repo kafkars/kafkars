@@ -68,7 +68,7 @@ fn batch_canonicalizes_each_query_and_preserves_independent_selections() {
     assert_eq!(
         plan.queries()
             .iter()
-            .map(|query| query.group_id())
+            .map(kafka_client_core::ListShareGroupOffsetsQuery::group_id)
             .collect::<Vec<_>>(),
         ["share-a", "share-b"]
     );

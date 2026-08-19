@@ -1,4 +1,4 @@
-//! Named ShareGroup offset-alteration operation ownership tests.
+//! Named `ShareGroup` offset-alteration operation ownership tests.
 
 use super::AlterShareGroupOffsets;
 

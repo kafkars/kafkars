@@ -9,11 +9,11 @@ use crate::{Client, DeliveryStatus, ErrorKind};
 fn builder_is_send_before_single_submission() {
     fn assert_send<T: Send>() {}
     assert_send::<DescribeClusterBuilder>();
-    let _authorized_operations: fn(DescribeClusterBuilder, bool) -> DescribeClusterBuilder =
+    let authorized_operations: fn(DescribeClusterBuilder, bool) -> DescribeClusterBuilder =
         DescribeClusterBuilder::include_authorized_operations;
-    let _fenced_brokers: fn(DescribeClusterBuilder, bool) -> DescribeClusterBuilder =
+    let fenced_brokers: fn(DescribeClusterBuilder, bool) -> DescribeClusterBuilder =
         DescribeClusterBuilder::include_fenced_brokers;
-    let _ = (_authorized_operations, _fenced_brokers);
+    let _ = (authorized_operations, fenced_brokers);
 }
 
 #[test]

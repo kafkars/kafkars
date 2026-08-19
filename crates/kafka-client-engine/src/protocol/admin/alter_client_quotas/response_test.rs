@@ -34,7 +34,8 @@ fn response_canonicalizes_identities_and_restores_caller_order() {
         entry(0, None, vec![response_entity("user", None)]),
     ]);
 
-    let normalized = normalize(&alterations, 1, &response, usize::MAX).expect("valid response");
+    let normalized = normalize(&alterations, 1, &response, usize::MAX)
+        .unwrap_or_else(|error| panic!("valid response: {error:?}"));
     assert_eq!(normalized.throttle_time_ms, 9);
     assert_eq!(normalized.outcomes.len(), 2);
     assert_eq!(normalized.outcomes[0].entity[0].entity_type, "user");
@@ -60,7 +61,8 @@ fn response_preserves_signed_codes_and_utf8_safe_diagnostics() {
         vec![response_entity("user", None)],
     )]);
 
-    let normalized = normalize(&alterations, 0, &response, usize::MAX).expect("valid response");
+    let normalized = normalize(&alterations, 0, &response, usize::MAX)
+        .unwrap_or_else(|error| panic!("valid response: {error:?}"));
     let outcome = &normalized.outcomes[0];
     assert_eq!(outcome.error_code, -42);
     assert_eq!(

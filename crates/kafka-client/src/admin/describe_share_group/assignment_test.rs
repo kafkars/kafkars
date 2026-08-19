@@ -1,4 +1,4 @@
-//! Typed ShareGroup assignment value tests.
+//! Typed `ShareGroup` assignment value tests.
 
 use super::{ShareGroupAssignment, ShareGroupTopicPartitions};
 

@@ -70,7 +70,7 @@ pub enum DescribeClientQuotasInput {
 /// One concrete mechanism request emitted by client-quota description policy.
 #[derive(Clone, Debug, PartialEq)]
 pub enum DescribeClientQuotasEffect {
-    /// Submit the exact filter once through the engine's AnyBroker lane.
+    /// Submit the exact filter once through the engine's `AnyBroker` lane.
     Submit {
         /// Stable identity reserved before machine construction.
         operation_id: OperationId,

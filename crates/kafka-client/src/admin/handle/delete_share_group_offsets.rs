@@ -1,4 +1,4 @@
-//! ShareGroup offset-deletion entry point on the shared admin handle.
+//! `ShareGroup` offset-deletion entry point on the shared admin handle.
 
 use super::Admin;
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
 };
 
 impl Admin {
-    /// Builds inert caller-ordered topic offset deletion for one ShareGroup.
+    /// Builds inert caller-ordered topic offset deletion for one `ShareGroup`.
     ///
     /// Group and topic validation remains deferred until
     /// [`DeleteShareGroupOffsetsBuilder::submit`] captures the public absolute

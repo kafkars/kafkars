@@ -1,4 +1,4 @@
-//! Builder for one caller-ordered, multi-group StreamsGroup description operation.
+//! Builder for one caller-ordered, multi-group `StreamsGroup` description operation.
 
 use std::{fmt, time::Duration};
 
@@ -8,7 +8,7 @@ use crate::bridge::{
 
 use super::DescribeStreamsGroups;
 
-/// Configures and submits a caller-ordered batch of StreamsGroup descriptions.
+/// Configures and submits a caller-ordered batch of `StreamsGroup` descriptions.
 #[must_use = "the builder does nothing until submit is called"]
 pub struct DescribeStreamsGroupsBuilder {
     engine: AdminEngine,
@@ -37,7 +37,7 @@ impl DescribeStreamsGroupsBuilder {
 
     /// Requests Kafka's optional full topology description for every group.
     ///
-    /// Enabling this requires StreamsGroupDescribe v1.
+    /// Enabling this requires `StreamsGroupDescribe` v1.
     pub fn include_topology_description(mut self, include: bool) -> Self {
         self.request.set_include_topology_description(include);
         self

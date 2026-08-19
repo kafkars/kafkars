@@ -9,6 +9,7 @@ use support::{
 };
 
 const STORE: &str = "crates/kafka-client-engine/src/consumer/fetch_store.rs";
+const BATCH: &str = "crates/kafka-client-engine/src/consumer/fetch_store/batch.rs";
 const DELIVERY: &str = "crates/kafka-client-engine/src/consumer/fetch_store/delivery.rs";
 const RETENTION: &str = "crates/kafka-client-engine/src/protocol/fetch/retention.rs";
 const LINEAR: &[(&str, &str)] = &[
@@ -20,10 +21,10 @@ const LINEAR: &[(&str, &str)] = &[
     ("FetchDelivery", DELIVERY),
 ];
 const MUTATIONS: &[(&str, &str, &[&str])] = &[
-    ("FetchDeliveryStore", "next_sequence", &[STORE]),
+    ("FetchDeliveryStore", "next_sequence", &[STORE, BATCH]),
     ("FetchDeliveryStore", "next_authorization", &[DELIVERY]),
-    ("FetchDeliveryStore", "used_bytes", &[STORE]),
-    ("FetchDeliveryStore", "slots", &[STORE, DELIVERY]),
+    ("FetchDeliveryStore", "used_bytes", &[STORE, BATCH]),
+    ("FetchDeliveryStore", "slots", &[STORE, DELIVERY, BATCH]),
     ("FetchSlot", "charged_bytes", &[STORE]),
     ("FetchSlot", "provenance", &[STORE]),
     ("FetchSlot", "outcome", &[STORE]),
@@ -76,7 +77,7 @@ fn reservation_domain_minting_stays_with_the_store() {
         .filter(|rule| rule.method == "issue_pair")
         .collect::<Vec<_>>();
     assert_eq!(issuers.len(), 1);
-    assert_eq!(issuers[0].allowed_paths, [STORE]);
+    assert_eq!(issuers[0].allowed_paths, [STORE, BATCH]);
 
     let root = fixture_files("consumer_fetch_ownership").0;
     let call_violations = call_capability_violations(

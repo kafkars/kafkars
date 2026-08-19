@@ -1,4 +1,4 @@
-//! Inert public DescribeProducers intent translated at the engine boundary.
+//! Inert public `DescribeProducers` intent translated at the engine boundary.
 
 use crate::TopicPartition;
 

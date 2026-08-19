@@ -2,6 +2,10 @@
 
 use super::super::{EngineHostError, EngineHostResources};
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "terminal verification names every resource-scoped owner and its exact error"
+)]
 pub(super) fn verify(resources: &EngineHostResources) -> Result<(), EngineHostError> {
     let create = resources.create_topics.terminal_host().unsettled();
     if create != 0 {

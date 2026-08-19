@@ -1,5 +1,12 @@
 //! Scenarios for strict API-91 topic-partition correlation.
 
+#![expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::needless_pass_by_value,
+    reason = "bounded indices and exact terminal ownership are intentional fixtures"
+)]
+
 use core::num::NonZeroI16;
 
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};

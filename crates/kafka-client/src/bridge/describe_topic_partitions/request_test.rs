@@ -1,4 +1,8 @@
 //! Public-to-engine API-key 75 page-intent translation scenarios.
+#![expect(
+    clippy::expect_used,
+    reason = "the test requires both serialized topic markers"
+)]
 
 use super::DescribeTopicPartitionsAdminRequest;
 

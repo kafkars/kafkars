@@ -94,10 +94,10 @@ impl LegacyTopicConfigReplacement {
 
     pub(crate) fn route(&self) -> LegacyAlterConfigsRoute {
         if matches!(self.resource_type, 4 | 8) {
-            return LegacyAlterConfigsRoute::ExactBroker(
-                canonical_broker_id(&self.resource_name)
-                    .expect("validated broker resource name must remain canonical"),
-            );
+            let Some(broker_id) = canonical_broker_id(&self.resource_name) else {
+                unreachable!("validated broker resource name must remain canonical")
+            };
+            return LegacyAlterConfigsRoute::ExactBroker(broker_id);
         }
         LegacyAlterConfigsRoute::AnyBroker
     }

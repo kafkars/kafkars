@@ -1,4 +1,4 @@
-//! Stable ShareGroup offset-alteration value tests.
+//! Stable `ShareGroup` offset-alteration value tests.
 
 use super::ShareGroupOffsetAlteration;
 

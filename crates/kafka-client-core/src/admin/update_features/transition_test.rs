@@ -1,5 +1,10 @@
 //! Version evolution, correlation, deadline, delivery, and terminal scenarios.
 
+#![expect(
+    clippy::needless_pass_by_value,
+    reason = "test helpers preserve exact failure ownership"
+)]
+
 use core::num::NonZeroI16;
 
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};

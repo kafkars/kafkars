@@ -63,6 +63,10 @@ impl DeleteAclsTranslationFailure {
     }
 }
 
+#[allow(
+    clippy::result_large_err,
+    reason = "translation failure must return both linear inputs intact for deterministic recovery"
+)]
 pub(crate) fn translate_terminal_into(
     terminal: CoreTerminal,
     prepared: DeleteAclsPreparedOutcomes,

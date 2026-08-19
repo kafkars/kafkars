@@ -1,4 +1,4 @@
-//! Selected-version and driver-authoritative failure facts for legacy AlterConfigs.
+//! Selected-version and driver-authoritative failure facts for legacy `AlterConfigs`.
 
 use kafka_client_core::{
     DeliveryStatus, LegacyAlterConfigsPlan, LegacyAlterConfigsRoute, LegacyConfigEntry,

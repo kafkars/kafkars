@@ -21,7 +21,9 @@ fn successful_translation_moves_complete_token_and_redacts_secret() {
     let token = result.token();
     assert_eq!(token.owner().principal_name(), "owner");
     assert_eq!(
-        token.requester().map(|value| value.principal_name()),
+        token
+            .requester()
+            .map(super::model::CreateDelegationTokenPrincipal::principal_name),
         Some("requester")
     );
     assert_eq!(token.renewers()[0].principal_name(), "renewer");

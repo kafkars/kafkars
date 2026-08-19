@@ -186,7 +186,7 @@ fn shutdown_recovery_retains_every_exact_accepted_execution_until_sealed() {
         calls
             .recovered()
             .iter()
-            .map(|recovered| recovered.execution())
+            .map(super::calls::RecoveredProduceCallForTest::execution)
             .collect::<Vec<_>>(),
         vec![execution(3), execution(9)]
     );

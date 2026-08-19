@@ -1,4 +1,4 @@
-//! Inert StreamsGroup description request bridge tests.
+//! Inert `StreamsGroup` description request bridge tests.
 
 use super::{engine::Request as EngineRequest, request::DescribeStreamsGroupAdminRequest};
 

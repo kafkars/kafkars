@@ -1,5 +1,10 @@
 //! Request topic, limit, cursor, uniqueness, and caller-order validation.
 
+#![expect(
+    clippy::expect_used,
+    reason = "test fixtures require contextual construction failures"
+)]
+
 use super::{
     DESCRIBE_TOPIC_PARTITIONS_MAX_RESPONSE_PARTITIONS, DESCRIBE_TOPIC_PARTITIONS_MAX_TOPICS,
     DescribeTopicPartitionsCursor, DescribeTopicPartitionsPlan, DescribeTopicPartitionsPlanError,

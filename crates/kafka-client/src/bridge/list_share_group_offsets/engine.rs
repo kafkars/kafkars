@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned ShareGroup offset-listing contract.
+//! Isolated names for the engine-owned `ShareGroup` offset-listing contract.
 
 pub(super) use kafka_client_engine::{
     ListShareGroupOffsetsAccepted as Accepted,

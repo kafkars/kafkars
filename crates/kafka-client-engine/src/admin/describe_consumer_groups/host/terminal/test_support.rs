@@ -10,8 +10,7 @@ impl DescribeConsumerGroupsHost {
     pub(in crate::admin::describe_consumer_groups) fn route_plan_for_test(&self) -> &[String] {
         self.operations
             .first()
-            .map(|operation| operation.route_plan.groups())
-            .unwrap_or(&[])
+            .map_or(&[], |operation| operation.route_plan.groups())
     }
 
     pub(in crate::admin::describe_consumer_groups) fn recovered_matches_for_test(

@@ -7,6 +7,10 @@ pub const REMOVE_RAFT_VOTER_MAX_CLUSTER_ID_BYTES: usize = i16::MAX as usize;
 
 /// Validated intent for one destructive controller `RemoveRaftVoter` RPC.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(
+    clippy::struct_field_names,
+    reason = "the id suffix preserves Kafka's cluster, voter, and directory identifiers"
+)]
 pub struct RemoveRaftVoterPlan {
     cluster_id: Option<String>,
     voter_id: i32,

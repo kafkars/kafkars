@@ -1,4 +1,4 @@
-//! ShareGroup description builder surface and submit-boundary tests.
+//! `ShareGroup` description builder surface and submit-boundary tests.
 
 use std::{future::Future, time::Duration};
 

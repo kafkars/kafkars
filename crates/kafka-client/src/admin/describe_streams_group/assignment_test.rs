@@ -1,4 +1,4 @@
-//! Stable StreamsGroup assignment tests.
+//! Stable `StreamsGroup` assignment tests.
 
 use super::{StreamsGroupAssignment, StreamsGroupTaskIds};
 

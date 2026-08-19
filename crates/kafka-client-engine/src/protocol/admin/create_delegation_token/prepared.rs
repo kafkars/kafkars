@@ -64,6 +64,10 @@ impl PreparedCreateDelegationTokenRequest {
     }
 }
 
+#[allow(
+    clippy::missing_fields_in_debug,
+    reason = "debug output deliberately summarizes generated requests without exposing identities"
+)]
 impl fmt::Debug for PreparedCreateDelegationTokenRequest {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter

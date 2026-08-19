@@ -1,4 +1,4 @@
-//! Concrete observation of accepted or rejected batched ShareGroup work.
+//! Concrete observation of accepted or rejected batched `ShareGroup` work.
 
 use std::{
     fmt,

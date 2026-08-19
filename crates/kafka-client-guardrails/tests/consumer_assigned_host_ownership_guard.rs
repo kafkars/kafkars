@@ -120,7 +120,10 @@ const LINEAR: &[(&str, &str)] = &[
 const METHODS: &[(&str, &[&str])] = &[
     (
         "release_position_calls_after_driver_shutdown",
-        &["consumer/assigned_owner_recovery.rs"],
+        &[
+            "consumer/assigned_owner_recovery.rs",
+            "consumer/group/classic_group_fetch/recovery.rs",
+        ],
     ),
     (
         "release_fetch_executor_after_driver_shutdown",

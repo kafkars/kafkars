@@ -89,11 +89,16 @@ fn blocked_reconciliation_retirement_does_not_suppress_old_owned_cadence() {
         .as_ref()
         .and_then(ConsumerGroupExecution::prepared)
         .unwrap_or_else(|| panic!("prepared reconciling heartbeat"));
-    assert_eq!(prepared.member_epoch().map(|epoch| epoch.get()), Some(2));
+    assert_eq!(
+        prepared
+            .member_epoch()
+            .map(kafka_client_core::ConsumerGroupMemberEpoch::get),
+        Some(2)
+    );
     assert_eq!(
         prepared
             .assignment_generation()
-            .map(|generation| generation.get()),
+            .map(kafka_client_core::AssignmentGeneration::get),
         Some(1)
     );
     let request = prepare_request(entry)

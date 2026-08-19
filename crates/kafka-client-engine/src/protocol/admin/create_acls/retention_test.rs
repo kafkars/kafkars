@@ -14,8 +14,9 @@ fn request_peak_covers_generated_ownership_and_duplicate_scratch() {
         CreateAclBindingRef::new(2, "orders", 3, "User:a", "*", 3, 3),
         CreateAclBindingRef::new(3, "audit", 4, "User:b", "10.0.0.1", 4, 2),
     ];
-    let peak = request_peak_charge(&bindings).expect("bounded peak");
-    let request = create_acls_request(&bindings, peak).expect("peak covers request");
+    let peak = request_peak_charge(&bindings).unwrap_or_else(|| panic!("bounded peak"));
+    let request = create_acls_request(&bindings, peak)
+        .unwrap_or_else(|error| panic!("peak covers request: {error:?}"));
 
     assert!(peak > request.retained_size().heap_bytes());
 }
@@ -31,9 +32,9 @@ fn diagnostic_charge_stops_at_one_utf8_safe_kibibyte_per_result() {
 #[test]
 fn reported_charge_is_only_bounded_diagnostics_beyond_caller_storage() {
     let response = response_with_message("broker rejected binding".to_owned());
-    let peak = response_peak_charge(&response).expect("bounded peak");
+    let peak = response_peak_charge(&response).unwrap_or_else(|| panic!("bounded peak"));
     let normalized = normalize_create_acls_response(3, 1, &response, peak, |_| Ok(()))
-        .expect("charge covers borrowed visit");
+        .unwrap_or_else(|error| panic!("charge covers borrowed visit: {error:?}"));
 
     assert_eq!(normalized.1, peak);
     assert_eq!(peak, "broker rejected binding".len());

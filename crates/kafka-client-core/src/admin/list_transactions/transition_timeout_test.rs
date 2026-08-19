@@ -1,5 +1,10 @@
 //! Original-deadline and cumulative delivery scenarios.
 
+#![expect(
+    clippy::needless_pass_by_value,
+    reason = "test helpers preserve exact effect ownership"
+)]
+
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
 use super::{

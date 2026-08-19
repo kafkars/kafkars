@@ -35,7 +35,8 @@ impl DirectFetchExecutor {
     }
 
     pub(crate) fn broker_session_close_deadline(&self) -> Option<kafka_client_core::Deadline> {
-        self.broker_close_deadline.map(|deadline| deadline.core())
+        self.broker_close_deadline
+            .map(crate::clock::OperationDeadline::core)
     }
 
     pub(crate) fn drive_broker_session_close(
@@ -63,7 +64,7 @@ impl DirectFetchExecutor {
         let Some(broker_id) = self
             .broker_sessions
             .as_ref()
-            .and_then(|sessions| sessions.first_broker_id())
+            .and_then(super::broker_session::BrokerFetchSessions::first_broker_id)
         else {
             self.broker_close_requested = false;
             self.broker_close_deadline = None;

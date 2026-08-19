@@ -24,11 +24,11 @@ pub(super) struct BorrowedPartition<'a> {
     selected_version: i16,
 }
 
-pub(super) fn collect_partitions<'a>(
-    group: &'a DescribeShareGroupOffsetsResponseGroup,
+pub(super) fn collect_partitions(
+    group: &DescribeShareGroupOffsetsResponseGroup,
     selected_version: i16,
     count: usize,
-) -> Result<Vec<BorrowedPartition<'a>>, ListShareGroupOffsetsProtocolFailure> {
+) -> Result<Vec<BorrowedPartition<'_>>, ListShareGroupOffsetsProtocolFailure> {
     let mut entries = Vec::new();
     entries.try_reserve_exact(count).map_err(|_| {
         ListShareGroupOffsetsProtocolFailure::Allocation {

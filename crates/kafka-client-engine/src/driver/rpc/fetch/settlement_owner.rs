@@ -158,6 +158,10 @@ impl TrackedFetchCalls {
     }
 
     #[cfg(test)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the test helper exposes every exact generated Fetch terminal field to focused scenarios"
+    )]
     pub(crate) fn install_success_terminal_for_test(
         &mut self,
         request: super::admission::PartitionFetchRequest,

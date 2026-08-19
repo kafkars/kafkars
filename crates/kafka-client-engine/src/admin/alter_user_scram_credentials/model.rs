@@ -112,7 +112,7 @@ impl AlterUserScramCredential {
         }
     }
 
-    pub(crate) fn into_core_change(&self) -> CoreChange {
+    pub(crate) fn to_core_change(&self) -> CoreChange {
         match self {
             Self::Delete { user, mechanism } => {
                 CoreChange::deletion(canonical_string(user), *mechanism)
@@ -197,7 +197,7 @@ impl AlterUserScramCredentialsRequest {
         changes.extend(
             self.alterations
                 .iter()
-                .map(AlterUserScramCredential::into_core_change),
+                .map(AlterUserScramCredential::to_core_change),
         );
         CorePlan::new(changes)
             .map_err(|_error: CorePlanError| AlterUserScramCredentialsPlanFailure::Invalid)

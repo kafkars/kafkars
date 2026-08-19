@@ -1,4 +1,4 @@
-//! Named single-observer StreamsGroup offset alteration over the shared owner.
+//! Named single-observer `StreamsGroup` offset alteration over the shared owner.
 
 use std::{
     future::Future,
@@ -9,7 +9,7 @@ use std::{
 use super::AlterStreamsGroupOffsetsResult;
 use crate::{AlterConsumerGroupOffsets, KafkaError};
 
-/// Sole terminal observer for one submitted StreamsGroup offset alteration.
+/// Sole terminal observer for one submitted `StreamsGroup` offset alteration.
 #[derive(Debug)]
 #[must_use = "dropping abandons observation without cancelling accepted admin work"]
 pub struct AlterStreamsGroupOffsets {

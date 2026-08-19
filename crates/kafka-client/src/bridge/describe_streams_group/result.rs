@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of engine StreamsGroup description outcomes.
+//! Exhaustive stable translation of engine `StreamsGroup` description outcomes.
 
 use std::time::Duration;
 

@@ -1,11 +1,11 @@
-//! Stable typed description and member values for one StreamsGroup.
+//! Stable typed description and member values for one `StreamsGroup`.
 
 use super::{
     StreamsGroupAssignment, StreamsGroupEndpoint, StreamsGroupKeyValue, StreamsGroupTaskOffset,
     StreamsGroupTopology, StreamsGroupTopologyDescription, StreamsGroupTopologyDescriptionStatus,
 };
 
-/// One current StreamsGroup member.
+/// One current `StreamsGroup` member.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StreamsGroupMember {
     member_id: String,
@@ -139,7 +139,7 @@ impl StreamsGroupMember {
     }
 }
 
-/// Successful typed description of one modern StreamsGroup.
+/// Successful typed description of one modern `StreamsGroup`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StreamsGroupDescription {
     group_id: String,

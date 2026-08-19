@@ -42,7 +42,7 @@ pub(crate) fn group_offsets_request(
     let legacy_topics = request_topics(selection);
     let mut legacy = OffsetFetchRequest::default();
     legacy.group_id = group_id.into();
-    legacy.topics = legacy_topics.clone();
+    legacy.topics.clone_from(&legacy_topics);
     legacy.require_stable = require_stable;
 
     let mut group = OffsetFetchRequestGroup::default();

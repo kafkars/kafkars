@@ -75,13 +75,13 @@ impl LegacyAlterConfigsCall {
 
     pub(crate) fn route(&self) -> LegacyAlterConfigsRoute {
         self.route
-            .expect("accepted legacy AlterConfigs call retains its route")
+            .unwrap_or_else(|| unreachable!("accepted legacy AlterConfigs call retains its route"))
     }
 
     pub(crate) fn plan(&self) -> &LegacyAlterConfigsPlan {
         self.plan
             .as_ref()
-            .expect("accepted legacy AlterConfigs call retains its plan")
+            .unwrap_or_else(|| unreachable!("accepted legacy AlterConfigs call retains its plan"))
     }
 
     /// Seals unresolved ownership only after the unique driver is destroyed.

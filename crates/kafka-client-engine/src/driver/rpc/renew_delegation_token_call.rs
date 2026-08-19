@@ -1,4 +1,4 @@
-//! Linear ownership of one accepted tracked AnyBroker token renewal.
+//! Linear ownership of one accepted tracked `AnyBroker` token renewal.
 
 use std::{error::Error, fmt, time::Instant};
 

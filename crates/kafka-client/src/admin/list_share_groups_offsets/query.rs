@@ -2,7 +2,7 @@
 
 use crate::TopicPartition;
 
-/// One ShareGroup identity and either all or selected topic-partitions.
+/// One `ShareGroup` identity and either all or selected topic-partitions.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ListShareGroupOffsetsQuery {
     group_id: String,
@@ -10,7 +10,7 @@ pub struct ListShareGroupOffsetsQuery {
 }
 
 impl ListShareGroupOffsetsQuery {
-    /// Queries every broker-visible offset for one ShareGroup.
+    /// Queries every broker-visible offset for one `ShareGroup`.
     pub fn all(group_id: impl Into<String>) -> Self {
         Self {
             group_id: group_id.into(),
@@ -18,7 +18,7 @@ impl ListShareGroupOffsetsQuery {
         }
     }
 
-    /// Queries one caller-ordered nonempty partition selection for one ShareGroup.
+    /// Queries one caller-ordered nonempty partition selection for one `ShareGroup`.
     pub fn selected<I>(group_id: impl Into<String>, partitions: I) -> Self
     where
         I: IntoIterator<Item = TopicPartition>,

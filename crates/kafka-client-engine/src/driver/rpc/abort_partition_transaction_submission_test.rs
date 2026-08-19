@@ -31,7 +31,7 @@ fn transaction_version_two_raises_the_floor_to_v2() {
     let deadline = Instant::now() + Duration::from_secs(1);
     let plan = plan()
         .with_transaction_version(2)
-        .expect("valid transaction version");
+        .unwrap_or_else(|error| panic!("valid transaction version: {error:?}"));
     let options = abort_partition_transaction_options(&plan, deadline);
 
     assert_eq!(options.deadline(), deadline);
@@ -79,5 +79,6 @@ fn successful_raw_terminal_retains_exact_transaction_plan_until_settlement() {
 }
 
 fn plan() -> AbortPartitionTransactionPlan {
-    AbortPartitionTransactionPlan::new("orders".to_owned(), 3, 41, 7, 11).expect("valid abort plan")
+    AbortPartitionTransactionPlan::new("orders".to_owned(), 3, 41, 7, 11)
+        .unwrap_or_else(|error| panic!("valid abort plan: {error:?}"))
 }

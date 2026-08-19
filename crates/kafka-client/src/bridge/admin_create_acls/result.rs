@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of engine-owned CreateAcls outcomes.
+//! Exhaustive stable translation of engine-owned `CreateAcls` outcomes.
 
 use std::time::Duration;
 

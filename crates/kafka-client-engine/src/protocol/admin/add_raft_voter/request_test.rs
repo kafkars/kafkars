@@ -7,7 +7,8 @@ use super::{AddRaftVoterRequestFailure, add_raft_voter_request};
 #[test]
 fn request_preserves_plan_and_default_committed_acknowledgement() {
     let plan = plan();
-    let request = add_raft_voter_request(&plan, 321).expect("valid request");
+    let request = add_raft_voter_request(&plan, 321)
+        .unwrap_or_else(|error| panic!("valid request: {error:?}"));
 
     assert_eq!(request.cluster_id.as_deref(), Some("cluster-a"));
     assert_eq!(request.timeout_ms, 321);
@@ -33,7 +34,8 @@ fn request_preserves_plan_and_default_committed_acknowledgement() {
 #[test]
 fn request_preserves_explicit_local_write_acknowledgement() {
     let plan = plan().with_ack_when_committed(false);
-    let request = add_raft_voter_request(&plan, 321).expect("valid local-write request");
+    let request = add_raft_voter_request(&plan, 321)
+        .unwrap_or_else(|error| panic!("valid local-write request: {error:?}"));
 
     assert!(!request.ack_when_committed);
 }
@@ -55,7 +57,8 @@ fn request_preserves_absent_cluster_and_rejects_nonpositive_timeout() {
         add_raft_voter_request(&plan, 0),
         Err(AddRaftVoterRequestFailure::NonPositiveTimeout { actual: 0 })
     );
-    let request = add_raft_voter_request(&plan, 1).expect("positive timeout");
+    let request = add_raft_voter_request(&plan, 1)
+        .unwrap_or_else(|error| panic!("positive timeout: {error:?}"));
     assert_eq!(request.cluster_id, None);
 }
 

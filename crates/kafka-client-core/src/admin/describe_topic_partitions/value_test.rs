@@ -1,5 +1,10 @@
 //! Exact scalar, nullable-list, sentinel, order, and local-shape value tests.
 
+#![expect(
+    clippy::expect_used,
+    reason = "test fixtures require contextual construction failures"
+)]
+
 use super::{
     DescribeTopicPartition, DescribeTopicPartitionsTopic, DescribeTopicPartitionsValueError,
 };

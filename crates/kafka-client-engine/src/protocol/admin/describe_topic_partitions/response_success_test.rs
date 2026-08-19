@@ -49,7 +49,9 @@ fn response_preserves_exact_page_facts_without_request_correlation() {
         normalized.topics()[1].scalar_parts(),
         (-32_000, [0; 16], false, 7)
     );
-    let cursor = normalized.next_cursor().expect("next cursor");
+    let cursor = normalized
+        .next_cursor()
+        .unwrap_or_else(|| panic!("next cursor"));
     assert_eq!(cursor.topic_name_str(), "zeta");
     assert_eq!(cursor.partition_index(), 4);
 }

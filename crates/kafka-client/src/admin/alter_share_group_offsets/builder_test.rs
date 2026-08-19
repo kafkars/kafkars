@@ -1,4 +1,4 @@
-//! ShareGroup offset-alteration builder surface tests.
+//! `ShareGroup` offset-alteration builder surface tests.
 
 use std::{future::Future, time::Duration};
 

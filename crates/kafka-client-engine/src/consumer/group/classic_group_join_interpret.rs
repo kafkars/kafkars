@@ -30,6 +30,10 @@ pub(super) enum JoinInterpretation {
     Confirm(ClassicGroupJoinSuccessor),
 }
 
+#[allow(
+    clippy::large_enum_variant,
+    reason = "failure variants retain exact post-core recovery ownership without hidden allocation"
+)]
 pub(super) enum JoinInterpretationFailure {
     Restore(ClassicGroupExecutionError),
     PostCore(ClassicGroupExecutionError),

@@ -1,4 +1,4 @@
-//! Deterministic mixed-route IncrementalAlterConfigs scenarios.
+//! Deterministic mixed-route `IncrementalAlterConfigs` scenarios.
 
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 

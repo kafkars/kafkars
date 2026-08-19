@@ -21,15 +21,19 @@ fn request_preserves_outer_and_operation_order_while_canonicalizing_identity() {
         alteration(&second_entity, &second_ops),
     ];
 
-    let request = build(&alterations, true, usize::MAX).expect("valid quota alterations");
+    let request = build(&alterations, true, usize::MAX)
+        .unwrap_or_else(|error| panic!("valid quota alterations: {error:?}"));
     assert!(request.validate_only);
     assert_eq!(request.entries.len(), 2);
     assert_eq!(request.entries[0].entity[0].entity_type.as_str(), "user");
     assert_eq!(request.entries[0].ops[0].key.as_str(), "z");
-    assert_eq!(request.entries[0].ops[0].value, 0.0);
+    assert_eq!(request.entries[0].ops[0].value.to_bits(), 0.0_f64.to_bits());
     assert!(request.entries[0].ops[0].remove);
     assert_eq!(request.entries[0].ops[1].key.as_str(), "a");
-    assert_eq!(request.entries[0].ops[1].value, 12.5);
+    assert_eq!(
+        request.entries[0].ops[1].value.to_bits(),
+        12.5_f64.to_bits()
+    );
     assert!(!request.entries[0].ops[1].remove);
     assert_eq!(
         request.entries[1].entity[0].entity_type.as_str(),
@@ -144,7 +148,7 @@ fn request_checks_generated_canonical_and_caller_reference_peak() {
     let operations = [set("producer_byte_rate", 1024.0)];
     let alterations = [alteration(&entity, &operations)];
     let request_ref = AlterClientQuotasRequestRef::new(&alterations, false);
-    let required = request_peak_charge(request_ref).expect("bounded charge");
+    let required = request_peak_charge(request_ref).unwrap_or_else(|| panic!("bounded charge"));
 
     assert_eq!(
         alter_client_quotas_request(request_ref, required - 1),

@@ -1,4 +1,4 @@
-//! Initialized StreamsGroup topology value tests.
+//! Initialized `StreamsGroup` topology value tests.
 
 use super::{
     StreamsGroupKeyValue, StreamsGroupSubtopology, StreamsGroupTopicInfo, StreamsGroupTopology,

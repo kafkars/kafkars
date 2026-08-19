@@ -1,4 +1,4 @@
-//! Tracked AnyBroker submission policy for Admin `CreateAcls`.
+//! Tracked `AnyBroker` submission policy for Admin `CreateAcls`.
 
 use std::{error::Error, fmt, time::Instant};
 

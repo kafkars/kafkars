@@ -57,7 +57,11 @@ fn caller_order_offsets_topic_ids_and_exact_partition_error_translate_once() {
         ),
         (Some(41), Some(9), Some(3))
     );
-    let error = batch.offsets()[1].result().as_ref().unwrap_err();
+    let error = batch.offsets()[1]
+        .result()
+        .as_ref()
+        .err()
+        .unwrap_or_else(|| panic!("second offset must retain its broker error"));
     assert_eq!(error.code(), -31_999);
     assert_eq!(error.message(), Some("bounded prefix"));
     assert!(error.message_truncated());

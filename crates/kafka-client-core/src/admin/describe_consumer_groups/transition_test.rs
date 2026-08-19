@@ -1,5 +1,10 @@
 //! Sequential coordinator-call lifecycle scenarios.
 
+#![expect(
+    clippy::expect_used,
+    reason = "test fixtures require contextual transition failures"
+)]
+
 use core::num::NonZeroI16;
 
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};

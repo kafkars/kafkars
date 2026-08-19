@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned StreamsGroup description contract.
+//! Isolated names for the engine-owned `StreamsGroup` description contract.
 
 pub(super) use kafka_client_engine::{
     DescribeStreamsGroupAccepted as Accepted,

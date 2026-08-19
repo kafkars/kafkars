@@ -1,4 +1,4 @@
-//! Deadline, AnyBroker handoff, correlation, and single terminal scenarios.
+//! Deadline, `AnyBroker` handoff, correlation, and single terminal scenarios.
 
 use core::num::NonZeroI16;
 

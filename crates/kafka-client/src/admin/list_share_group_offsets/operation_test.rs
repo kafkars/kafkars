@@ -1,4 +1,4 @@
-//! Named ShareGroup offset-listing operation surface tests.
+//! Named `ShareGroup` offset-listing operation surface tests.
 
 use super::ListShareGroupOffsets;
 

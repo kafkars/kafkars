@@ -1,4 +1,8 @@
 //! Caller-order and exact per-replica error preservation tests.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts a broker rejection result"
+)]
 
 use std::time::Duration;
 

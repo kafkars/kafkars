@@ -106,7 +106,7 @@ pub(crate) fn normalize_delete_share_group_offsets_response(
     let required = batch_required_bytes(response.responses.iter().map(|topic| {
         (
             topic.topic_name.as_str(),
-            NonZeroI16::new(topic.error_code).and_then(|_| topic.error_message.as_deref()),
+            NonZeroI16::new(topic.error_code).and(topic.error_message.as_deref()),
         )
     }))
     .ok_or(bytes_overflow())?;
@@ -152,7 +152,7 @@ fn validate_source_shape(
     let mut text_bytes = response
         .error_message
         .as_ref()
-        .map_or(0, |message| message.len());
+        .map_or(0, kafka_wire_core::StrBytes::len);
     if text_bytes > MAX_RESPONSE_TEXT_BYTES {
         return Err(
             DeleteShareGroupOffsetsProtocolFailure::ResponseTextBytesExceeded {
@@ -179,7 +179,7 @@ fn validate_source_shape(
                     topic
                         .error_message
                         .as_ref()
-                        .map_or(0, |message| message.len()),
+                        .map_or(0, kafka_wire_core::StrBytes::len),
                 )
             })
             .ok_or(bytes_overflow())?;
@@ -200,7 +200,7 @@ fn validate_source_shape(
             }
         }
         let _ = topic_error_required_bytes(
-            NonZeroI16::new(topic.error_code).and_then(|_| topic.error_message.as_deref()),
+            NonZeroI16::new(topic.error_code).and(topic.error_message.as_deref()),
         )
         .ok_or(bytes_overflow())?;
     }

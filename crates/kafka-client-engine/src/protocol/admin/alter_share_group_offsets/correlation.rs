@@ -23,10 +23,10 @@ pub(super) struct BorrowedPartition<'a> {
     error_message: Option<&'a str>,
 }
 
-pub(super) fn collect_partitions<'a>(
-    response: &'a AlterShareGroupOffsetsResponse,
+pub(super) fn collect_partitions(
+    response: &AlterShareGroupOffsetsResponse,
     count: usize,
-) -> Result<Vec<BorrowedPartition<'a>>, AlterShareGroupOffsetsProtocolFailure> {
+) -> Result<Vec<BorrowedPartition<'_>>, AlterShareGroupOffsetsProtocolFailure> {
     let mut entries = Vec::new();
     entries.try_reserve_exact(count).map_err(|_| {
         AlterShareGroupOffsetsProtocolFailure::Allocation {

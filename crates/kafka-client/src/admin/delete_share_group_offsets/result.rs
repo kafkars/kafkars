@@ -1,10 +1,10 @@
-//! Public caller-ordered ShareGroup offset-deletion result.
+//! Public caller-ordered `ShareGroup` offset-deletion result.
 
 use std::time::Duration;
 
 use super::super::BatchResult;
 
-/// Completed ShareGroup offset deletion with ordered per-topic outcomes.
+/// Completed `ShareGroup` offset deletion with ordered per-topic outcomes.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DeleteShareGroupOffsetsResult {
     throttle_time: Duration,

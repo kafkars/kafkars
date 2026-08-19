@@ -57,6 +57,10 @@ impl DescribeMetadataQuorumReplica {
     }
 
     /// Consumes the replica into stable adapter-owned scalar parts.
+    #[allow(
+        clippy::type_complexity,
+        reason = "the return value preserves the exact normalized replica tuple"
+    )]
     pub fn into_parts(self) -> (i32, Option<[u8; 16]>, Option<i64>, Option<i64>, Option<i64>) {
         (
             self.replica_id,

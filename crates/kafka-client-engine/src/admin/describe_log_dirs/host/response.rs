@@ -37,10 +37,12 @@ pub(super) fn terminal_input(
             ) {
                 Ok(normalized) => normalized_input(broker_id, normalized)
                     .unwrap_or((AdminDescribeLogDirsInput::ResponseTooLarge, 0)),
-                Err(DescribeLogDirsSelectionResponseFailure::RetainedBytes)
-                | Err(DescribeLogDirsSelectionResponseFailure::Response(
-                    DescribeLogDirsResponseFailure::RetainedBytes { .. },
-                )) => (AdminDescribeLogDirsInput::ResponseTooLarge, 0),
+                Err(
+                    DescribeLogDirsSelectionResponseFailure::RetainedBytes
+                    | DescribeLogDirsSelectionResponseFailure::Response(
+                        DescribeLogDirsResponseFailure::RetainedBytes { .. },
+                    ),
+                ) => (AdminDescribeLogDirsInput::ResponseTooLarge, 0),
                 Err(DescribeLogDirsSelectionResponseFailure::Response(
                     DescribeLogDirsResponseFailure::UnsupportedApiVersion { .. },
                 )) => (
@@ -72,19 +74,18 @@ pub(super) fn normalized_input(
     normalized: NormalizedDescribeLogDirsResponse,
 ) -> Result<(AdminDescribeLogDirsInput, usize), ()> {
     let (throttle_time_ms, error_code, log_dirs, retained_bytes) = normalized.into_parts();
-    let outcome = match NonZeroI16::new(error_code) {
-        Some(code) => AdminDescribeLogDirsBrokerOutcome::broker_failed(
+    let outcome = if let Some(code) = NonZeroI16::new(error_code) {
+        AdminDescribeLogDirsBrokerOutcome::broker_failed(
             broker_id,
             AdminDescribeLogDirsBrokerError::new(code),
-        ),
-        None => {
-            let mut outcomes = Vec::new();
-            outcomes.try_reserve_exact(log_dirs.len()).map_err(|_| ())?;
-            for log_dir in log_dirs {
-                outcomes.push(normalize_log_dir(log_dir)?);
-            }
-            AdminDescribeLogDirsBrokerOutcome::described(broker_id, outcomes)
+        )
+    } else {
+        let mut outcomes = Vec::new();
+        outcomes.try_reserve_exact(log_dirs.len()).map_err(|_| ())?;
+        for log_dir in log_dirs {
+            outcomes.push(normalize_log_dir(log_dir)?);
         }
+        AdminDescribeLogDirsBrokerOutcome::described(broker_id, outcomes)
     };
     Ok((
         AdminDescribeLogDirsInput::BrokerResponded {
@@ -97,37 +98,36 @@ pub(super) fn normalized_input(
 
 fn normalize_log_dir(normalized: NormalizedDescribeLogDir) -> Result<AdminLogDirOutcome, ()> {
     let (error_code, path, topics, total_bytes, usable_bytes, cordoned) = normalized.into_parts();
-    match NonZeroI16::new(error_code) {
-        Some(code) => Ok(AdminLogDirOutcome::broker_failed(
+    if let Some(code) = NonZeroI16::new(error_code) {
+        Ok(AdminLogDirOutcome::broker_failed(
             path,
             AdminDescribeLogDirsBrokerError::new(code),
-        )),
-        None => {
-            let replica_count = topics.iter().try_fold(0usize, |count, topic| {
-                count.checked_add(topic.partitions().len())
-            });
-            let mut replicas = Vec::new();
-            replicas
-                .try_reserve_exact(replica_count.ok_or(())?)
-                .map_err(|_| ())?;
-            for topic in topics {
-                let (name, partitions) = topic.into_parts();
-                for partition in partitions {
-                    let (partition, size_bytes, offset_lag, future) = partition.into_parts();
-                    replicas.push(AdminLogDirReplicaInfo::new(
-                        copy_string(&name)?,
-                        partition,
-                        size_bytes,
-                        offset_lag,
-                        future,
-                    ));
-                }
+        ))
+    } else {
+        let replica_count = topics.iter().try_fold(0usize, |count, topic| {
+            count.checked_add(topic.partitions().len())
+        });
+        let mut replicas = Vec::new();
+        replicas
+            .try_reserve_exact(replica_count.ok_or(())?)
+            .map_err(|_| ())?;
+        for topic in topics {
+            let (name, partitions) = topic.into_parts();
+            for partition in partitions {
+                let (partition, size_bytes, offset_lag, future) = partition.into_parts();
+                replicas.push(AdminLogDirReplicaInfo::new(
+                    copy_string(&name)?,
+                    partition,
+                    size_bytes,
+                    offset_lag,
+                    future,
+                ));
             }
-            Ok(AdminLogDirOutcome::described(
-                path,
-                AdminLogDirDescription::new(replicas, total_bytes, usable_bytes, cordoned),
-            ))
         }
+        Ok(AdminLogDirOutcome::described(
+            path,
+            AdminLogDirDescription::new(replicas, total_bytes, usable_bytes, cordoned),
+        ))
     }
 }
 

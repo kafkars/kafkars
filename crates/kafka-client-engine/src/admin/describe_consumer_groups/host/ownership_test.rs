@@ -243,7 +243,7 @@ fn call_kind_is_part_of_rejection_identity() {
             operation_id,
             group_id.clone(),
             authorized,
-            AdminDescribeConsumerGroupsCallKind::ClassicFallback,
+            AdminDescribeConsumerGroupsCallKind::Classic,
             request_limit,
             result_limit,
         ),

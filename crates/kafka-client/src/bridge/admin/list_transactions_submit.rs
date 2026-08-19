@@ -1,4 +1,4 @@
-//! Isolated ListTransactions submission from facade values into the engine owner.
+//! Isolated `ListTransactions` submission from facade values into the engine owner.
 
 use std::time::Duration;
 

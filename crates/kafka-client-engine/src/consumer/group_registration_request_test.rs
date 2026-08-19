@@ -28,6 +28,10 @@ fn request_defaults_and_explicit_missing_offset_policy_remain_owned() {
     request_defaults_and_explicit_configuration_remain_owned();
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the fixture compares every default and explicit registration field in one ownership matrix"
+)]
 fn request_defaults_and_explicit_configuration_remain_owned() {
     let default = GroupConsumerRegistration::new(Arc::from("workers"), vec![Arc::from("orders")]);
     assert_eq!(default.protocol(), GroupConsumerProtocol::Classic);

@@ -1,4 +1,4 @@
-//! Deadline, sole AnyBroker submission, and terminal-assignment scenarios.
+//! Deadline, sole `AnyBroker` submission, and terminal-assignment scenarios.
 
 use core::num::NonZeroI16;
 

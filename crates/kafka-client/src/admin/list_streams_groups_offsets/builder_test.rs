@@ -1,4 +1,5 @@
 //! Multi-Streams-group builder type guarantees.
+#![expect(clippy::expect_used, reason = "the test asserts deadline validation")]
 
 use crate::{
     Client, DeliveryStatus, ErrorKind, StartPosition, TopicPartition,

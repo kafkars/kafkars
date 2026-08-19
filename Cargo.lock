@@ -151,6 +151,9 @@ dependencies = [
 [[package]]
 name = "kafka-client-core"
 version = "0.0.0"
+dependencies = [
+ "zeroize",
+]
 
 [[package]]
 name = "kafka-client-engine"
@@ -162,6 +165,7 @@ dependencies = [
  "kafka-wire",
  "kafka-wire-core",
  "kafka-wire-records",
+ "ring",
  "rustls",
  "rustls-native-certs",
  "zeroize",

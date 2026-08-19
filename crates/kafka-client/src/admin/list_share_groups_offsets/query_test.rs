@@ -1,4 +1,4 @@
-//! Per-group ShareGroup offset selection tests.
+//! Per-group `ShareGroup` offset selection tests.
 
 use crate::TopicPartition;
 

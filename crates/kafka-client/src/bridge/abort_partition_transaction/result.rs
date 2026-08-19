@@ -47,6 +47,10 @@ pub(super) fn translate_accepted_fault(fault: AcceptedFaultKind) -> KafkaError {
     }
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "observation translation consumes the terminal result at the public boundary"
+)]
 pub(super) fn translate_observation(
     result: Result<Outcome, ObserverError>,
 ) -> AdminAbortPartitionTransactionResult {

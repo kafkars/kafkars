@@ -30,7 +30,11 @@ pub(crate) fn normalize_describe_delegation_tokens_response(
         selected_version.ok_or(DescribeDelegationTokensResponseFailure::MissingSelectedVersion)?;
     validate_response(selected_version, request, response)?;
     let effective_limit = retained_limit.min(DESCRIBE_DELEGATION_TOKENS_MAX_RETAINED_BYTES);
-    let throttle = response.throttle_time_ms as u32;
+    let throttle = u32::try_from(response.throttle_time_ms).map_err(|_| {
+        DescribeDelegationTokensResponseFailure::NegativeThrottleTime {
+            actual: response.throttle_time_ms,
+        }
+    })?;
     if response.error_code != 0 {
         let required = error_charge();
         ensure_limit(required, effective_limit)?;

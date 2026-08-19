@@ -1,4 +1,4 @@
-//! Tracked AnyBroker submission policy for Admin `DescribeFeatures`.
+//! Tracked `AnyBroker` submission policy for Admin `DescribeFeatures`.
 
 use std::{error::Error, fmt, time::Instant};
 

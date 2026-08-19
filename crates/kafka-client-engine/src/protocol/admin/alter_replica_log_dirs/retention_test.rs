@@ -19,7 +19,8 @@ fn response_and_correlation_peak_must_fit_before_owned_copying() {
         AlterReplicaLogDirAssignmentRef::new("orders", 2, "/data"),
     ];
     let response = response();
-    let required = response_peak_charge(&assignments, 2).expect("bounded response peak");
+    let required =
+        response_peak_charge(&assignments, 2).unwrap_or_else(|| panic!("bounded response peak"));
     assert_eq!(
         normalize_alter_replica_log_dirs_response(&assignments, 2, &response, required - 1,),
         Err(AlterReplicaLogDirsResponseFailure::RetainedBytes {

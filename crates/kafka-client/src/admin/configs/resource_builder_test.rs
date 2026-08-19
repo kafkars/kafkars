@@ -1,4 +1,8 @@
 //! Generic `DescribeConfigs` builder ownership and deadline scenarios.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts a specific validation failure"
+)]
 
 use std::time::Duration;
 

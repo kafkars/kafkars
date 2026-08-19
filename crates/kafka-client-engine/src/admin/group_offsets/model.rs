@@ -64,7 +64,7 @@ impl ListConsumerGroupOffsetsSelection {
             Self::Selected(targets) => CoreSelection::Selected(
                 targets
                     .into_iter()
-                    .map(|target| target.into_core())
+                    .map(ListConsumerGroupOffsetTarget::into_core)
                     .collect(),
             ),
         }

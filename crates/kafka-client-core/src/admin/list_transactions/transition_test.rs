@@ -1,5 +1,12 @@
 //! Discovery, all-broker fanout, aggregation, bounds, and terminal scenarios.
 
+#![expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::needless_pass_by_value,
+    reason = "fixture indices are bounded and helpers preserve effect ownership"
+)]
+
 use core::num::NonZeroI16;
 
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
@@ -121,7 +128,7 @@ fn all_brokers_settle_with_deterministic_deduplication_and_exact_errors() {
         batch
             .transactions()
             .iter()
-            .map(|transaction| transaction.transactional_id())
+            .map(super::value::AdminListedTransaction::transactional_id)
             .collect::<Vec<_>>(),
         ["alpha", "same", "zeta"]
     );

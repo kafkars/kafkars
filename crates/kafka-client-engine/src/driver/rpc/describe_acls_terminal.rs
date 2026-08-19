@@ -1,4 +1,4 @@
-//! Neutral terminal facts for one tracked AnyBroker `DescribeAcls` call.
+//! Neutral terminal facts for one tracked `AnyBroker` `DescribeAcls` call.
 
 use kafka_client_core::{DeliveryStatus, DescribeAclsPlan};
 use kafka_driver::{ApiVersion, CallFailure, RequestError, RouteFailureToken};

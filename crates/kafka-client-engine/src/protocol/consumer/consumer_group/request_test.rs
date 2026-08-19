@@ -22,7 +22,10 @@ fn join_carries_epoch_zero_complete_subscription_and_initial_configuration() {
     assert_eq!(request.member_id.as_str(), "");
     assert_eq!(request.member_epoch, 0);
     assert_eq!(
-        request.instance_id.as_ref().map(|value| value.as_str()),
+        request
+            .instance_id
+            .as_ref()
+            .map(kafka_wire_core::StrBytes::as_str),
         Some("worker-a")
     );
     assert_eq!(request.rebalance_timeout_ms, 30_000);
@@ -30,7 +33,7 @@ fn join_carries_epoch_zero_complete_subscription_and_initial_configuration() {
         request.subscribed_topic_names.as_ref().map(|topics| {
             topics
                 .iter()
-                .map(|topic| topic.as_str())
+                .map(kafka_wire_core::StrBytes::as_str)
                 .collect::<Vec<_>>()
         }),
         Some(vec!["orders", "payments"])

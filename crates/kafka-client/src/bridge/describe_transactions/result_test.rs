@@ -1,4 +1,4 @@
-//! DescribeTransactions category, delivery, broker-code, and scalar tests.
+//! `DescribeTransactions` category, delivery, broker-code, and scalar tests.
 
 use crate::{DeliveryStatus, ErrorKind};
 

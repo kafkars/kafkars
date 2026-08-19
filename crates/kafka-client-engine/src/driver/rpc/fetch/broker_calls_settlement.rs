@@ -77,11 +77,10 @@ impl TrackedBrokerFetchCalls {
             Ok(outcome) => outcome,
             Err(source) => {
                 let requests = take_slot_requests(&mut tracked.slots);
-                let fence = tracked
-                    .slots
-                    .first()
-                    .map(|slot| slot.fence)
-                    .unwrap_or_else(|| unreachable!("accepted broker Fetch is nonempty"));
+                let fence = tracked.slots.first().map_or_else(
+                    || unreachable!("accepted broker Fetch is nonempty"),
+                    |slot| slot.fence,
+                );
                 let observation = FetchCompletionObservation::from_driver(fence, source);
                 self.completion_failure = Some(BrokerFetchCompletionFailure {
                     requests,
@@ -113,11 +112,7 @@ impl TrackedBrokerFetchCalls {
             return Err(FetchBeginSettlementError::NoSettledCall { supplied });
         };
         let Some(slot) = settled.slots.iter_mut().find(|slot| slot.fence == supplied) else {
-            let actual = settled
-                .slots
-                .first()
-                .map(|slot| slot.fence)
-                .unwrap_or(supplied);
+            let actual = settled.slots.first().map_or(supplied, |slot| slot.fence);
             return Err(FetchBeginSettlementError::FenceMismatch {
                 settled: actual,
                 supplied,
@@ -156,11 +151,7 @@ impl TrackedBrokerFetchCalls {
             return Err(StaleFetchConfirmationError::NoSettledCall { supplied });
         };
         let Some(slot) = settled.slots.iter().find(|slot| slot.fence == supplied) else {
-            let actual = settled
-                .slots
-                .first()
-                .map(|slot| slot.fence)
-                .unwrap_or(supplied);
+            let actual = settled.slots.first().map_or(supplied, |slot| slot.fence);
             return Err(StaleFetchConfirmationError::FenceMismatch {
                 settled: actual,
                 supplied,

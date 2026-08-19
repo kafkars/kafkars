@@ -22,6 +22,8 @@ use super::produce_call_entries::{TrackedProduceEntries, TrackedProduceEntry};
 use super::{super::DriverOwner, ProduceSubmitError, produce_acceptance::AcceptedProduceCall};
 pub(crate) use route_refresh::ProduceRouteRefreshPoll;
 pub(crate) use settlement::ProduceCompletionFailure;
+#[cfg(test)]
+pub(crate) use settlement::RecoveredProduceCall as RecoveredProduceCallForTest;
 use settlement::{RecoveredProduceCall, SettledProduceCall};
 
 pub(super) struct TrackedProduceCall {

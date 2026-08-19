@@ -1,4 +1,4 @@
-//! Exhaustive stable translation of engine-owned UpdateFeatures outcomes.
+//! Exhaustive stable translation of engine-owned `UpdateFeatures` outcomes.
 
 use std::time::Duration;
 
@@ -54,7 +54,7 @@ pub(super) fn translate_observation(
 ) -> AdminUpdateFeaturesResult {
     match result {
         Ok(Outcome::Updated(batch)) => Ok(translate_batch(batch)),
-        Ok(Outcome::Failed(failure)) => Err(translate_failure(failure)),
+        Ok(Outcome::Failed(failure)) => Err(translate_failure(&failure)),
         Err(error) => Err(translate_observer_error(error)),
     }
 }
@@ -110,7 +110,7 @@ pub(super) fn translate_feature_parts(
     (feature_name, result)
 }
 
-fn translate_failure(failure: Failure) -> KafkaError {
+fn translate_failure(failure: &Failure) -> KafkaError {
     translate_failure_parts(failure.kind(), failure.delivery())
 }
 

@@ -1,4 +1,8 @@
 //! Caller-order and nested broker/log-directory error preservation tests.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts a nested broker rejection"
+)]
 
 use std::time::Duration;
 

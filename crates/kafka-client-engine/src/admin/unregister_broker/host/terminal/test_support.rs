@@ -17,7 +17,7 @@ impl UnregisterBrokerHost {
         self.operations[0]
             .recovered_call
             .as_ref()
-            .map(|recovered| recovered.broker_id_for_test())
+            .map(crate::driver::RecoveredUnregisterBrokerCall::broker_id_for_test)
     }
 
     pub(in crate::admin::unregister_broker) fn settle_recovered_transport_for_test(

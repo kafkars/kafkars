@@ -17,7 +17,8 @@ fn request_preserves_owner_renewers_lifetime_and_order() {
 
     assert_eq!(plan.minimum_version(), 3);
     assert_eq!(
-        plan.owner().map(|owner| owner.principal_name()),
+        plan.owner()
+            .map(kafka_client_core::DelegationTokenPrincipal::principal_name),
         Some("owner")
     );
     assert_eq!(plan.renewers()[0].principal_name(), "renewer-a");

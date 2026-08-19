@@ -1,4 +1,8 @@
 //! Public topic-ID builder contract tests.
+#![expect(
+    clippy::expect_used,
+    reason = "the test asserts a topic-ID validation failure"
+)]
 
 use std::time::Duration;
 

@@ -21,20 +21,34 @@ fn fetch_state_owners_are_registered_at_their_narrow_modules() {
         "crates/kafka-client-core/src/consumer/fetch_throttle.rs"
     );
 
-    for field in ["next_fetch_revision", "phase"] {
+    for (field, expected_paths) in [
+        (
+            "next_fetch_revision",
+            &[
+                "crates/kafka-client-core/src/consumer/fetch_state.rs",
+                "crates/kafka-client-core/src/consumer/position_state.rs",
+                "crates/kafka-client-core/src/consumer/fetch_state/transition.rs",
+                "crates/kafka-client-core/src/consumer/position_state/reconciliation.rs",
+            ][..],
+        ),
+        (
+            "phase",
+            &[
+                "crates/kafka-client-core/src/consumer/fetch_state.rs",
+                "crates/kafka-client-core/src/consumer/position_state.rs",
+                "crates/kafka-client-core/src/consumer/fetch_state/settlement.rs",
+                "crates/kafka-client-core/src/consumer/fetch_state/transition.rs",
+                "crates/kafka-client-core/src/consumer/position_state/reconciliation.rs",
+            ][..],
+        ),
+    ] {
         let rules = config
             .mutation_owners
             .iter()
             .filter(|rule| rule.owner_type == "PartitionPosition" && rule.field == field)
             .collect::<Vec<_>>();
         assert_eq!(rules.len(), 1, "{field} needs one mutation rule");
-        assert_eq!(
-            rules[0].allowed_paths,
-            [
-                "crates/kafka-client-core/src/consumer/fetch_state.rs",
-                "crates/kafka-client-core/src/consumer/position_state.rs",
-            ]
-        );
+        assert_eq!(rules[0].allowed_paths, expected_paths);
     }
 }
 

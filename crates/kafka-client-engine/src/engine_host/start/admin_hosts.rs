@@ -79,6 +79,10 @@ pub(super) struct StartedAdminHosts {
     pub(super) remove_consumer_group_members: RemoveConsumerGroupMembersHost,
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "startup transfers every concrete admin completion port to exactly one host"
+)]
 pub(super) fn start(ports: AdminCompletionPorts) -> StartedAdminHosts {
     let AdminCompletionPorts {
         abort_partition_transaction,

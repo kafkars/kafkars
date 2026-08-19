@@ -67,11 +67,11 @@ pub(super) fn ordered_results<'a>(
     Ok(ordered)
 }
 
-fn canonical_requested<'a>(
-    users: Option<&'a [String]>,
+fn canonical_requested(
+    users: Option<&[String]>,
     required: usize,
     limit: usize,
-) -> Result<Option<Vec<&'a str>>, DescribeUserScramCredentialsResponseFailure> {
+) -> Result<Option<Vec<&str>>, DescribeUserScramCredentialsResponseFailure> {
     let Some(users) = users else {
         return Ok(None);
     };

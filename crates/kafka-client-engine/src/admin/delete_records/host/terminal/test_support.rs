@@ -1,4 +1,4 @@
-//! Test-only observations of retained DeleteRecords call ownership.
+//! Test-only observations of retained `DeleteRecords` call ownership.
 
 use super::super::{DeleteRecordsHost, DeleteRecordsHostError};
 

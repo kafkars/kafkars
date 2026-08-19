@@ -142,10 +142,10 @@ impl TopicConfigAlteration {
 
     pub(crate) fn route(&self) -> IncrementalAlterConfigsRoute {
         if matches!(self.resource_type, 4 | 8) {
-            return IncrementalAlterConfigsRoute::ExactBroker(
-                canonical_broker_id(&self.resource_name)
-                    .expect("validated broker resource name must remain canonical"),
-            );
+            let Some(broker_id) = canonical_broker_id(&self.resource_name) else {
+                unreachable!("validated broker resource name must remain canonical")
+            };
+            return IncrementalAlterConfigsRoute::ExactBroker(broker_id);
         }
         IncrementalAlterConfigsRoute::AnyBroker
     }

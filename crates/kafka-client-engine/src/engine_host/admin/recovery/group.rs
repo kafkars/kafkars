@@ -2,6 +2,10 @@
 
 use super::super::super::{EngineHostError, EngineHostResources};
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "post-driver recovery keeps the deterministic group-owner cleanup order explicit"
+)]
 pub(super) fn recover(
     resources: &EngineHostResources,
     mut failure: EngineHostError,

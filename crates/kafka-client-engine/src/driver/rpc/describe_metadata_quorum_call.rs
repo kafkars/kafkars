@@ -1,4 +1,4 @@
-//! Linear ownership of one accepted tracked AnyBroker metadata-quorum query.
+//! Linear ownership of one accepted tracked `AnyBroker` metadata-quorum query.
 
 use std::time::Instant;
 

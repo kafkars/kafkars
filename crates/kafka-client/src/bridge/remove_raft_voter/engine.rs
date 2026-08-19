@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned RemoveRaftVoter contract.
+//! Isolated names for the engine-owned `RemoveRaftVoter` contract.
 
 pub(super) use kafka_client_engine::{
     RemoveRaftVoterAccepted as Accepted, RemoveRaftVoterAcceptedFaultKind as AcceptedFaultKind,

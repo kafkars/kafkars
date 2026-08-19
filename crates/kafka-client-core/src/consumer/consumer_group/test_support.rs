@@ -108,10 +108,6 @@ pub(super) fn due_attempt(
     attempt
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "test names every normalized broker scalar"
-)]
 pub(super) fn succeed(
     machine: &mut ConsumerGroupHeartbeatMachine,
     attempt: ConsumerGroupHeartbeatAttempt,

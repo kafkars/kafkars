@@ -1,4 +1,4 @@
-//! Named future for one caller-ordered, multi-group StreamsGroup description.
+//! Named future for one caller-ordered, multi-group `StreamsGroup` description.
 
 use std::{
     future::Future,
@@ -10,7 +10,7 @@ use crate::{KafkaError, bridge::describe_streams_groups::AdminDescribeStreamsGro
 
 use super::DescribeStreamsGroupsResult;
 
-/// A submitted multi-group StreamsGroup description operation.
+/// A submitted multi-group `StreamsGroup` description operation.
 #[must_use = "dropping abandons observation without cancelling accepted admin work"]
 #[derive(Debug)]
 pub struct DescribeStreamsGroups {

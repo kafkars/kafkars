@@ -1,5 +1,11 @@
 //! Validation and caller-order scenarios for API-90 request intent.
 
+#![expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    reason = "fixture indices are bounded far below the protocol integer limit"
+)]
+
 use super::{
     LIST_SHARE_GROUP_OFFSETS_MAX_GROUP_ID_BYTES, LIST_SHARE_GROUP_OFFSETS_MAX_REQUEST_TEXT_BYTES,
     LIST_SHARE_GROUP_OFFSETS_MAX_SELECTED_PARTITIONS,

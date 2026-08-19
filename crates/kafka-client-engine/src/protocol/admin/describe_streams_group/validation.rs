@@ -64,7 +64,6 @@ fn validate_topology_description_state(
         return Ok(());
     }
     let payload_matches = match group.topology_description_status {
-        1 | 2 => group.topology_description.is_none(),
         3 => group.topology_description.is_some(),
         0 => false,
         _ => group.topology_description.is_none(),

@@ -25,6 +25,10 @@ pub(crate) struct ProduceBatchSubmitFailure {
 impl ProduceCallPermit<'_> {
     /// Rejects aggregation until the driver can accept one opaque name-routed
     /// call without exposing or trusting a raw broker identity.
+    #[allow(
+        clippy::unused_self,
+        reason = "the fail-closed batch path consumes its exact call-capacity permit"
+    )]
     pub(crate) fn submit_batch(
         self,
         _driver: &DriverOwner,
@@ -32,7 +36,6 @@ impl ProduceCallPermit<'_> {
         _now: Moment,
     ) -> Result<AcceptedProduceBatchCall, ProduceBatchSubmitFailure> {
         debug_assert!(submissions.len() > 1);
-        drop(self);
         Err(ProduceBatchSubmitFailure::from_submissions(
             submissions,
             ProducerAttemptFailureKind::Permanent,

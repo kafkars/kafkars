@@ -1,4 +1,4 @@
-//! ShareGroup offset-alteration translation category and diagnostic tests.
+//! `ShareGroup` offset-alteration translation category and diagnostic tests.
 
 use crate::{DeliveryStatus, ErrorKind};
 

@@ -102,17 +102,21 @@ evidence = [
 
 [[invariant]]
 id = "ADM-06"
-title = "CreatePartitions is automatic, bounded, tracked, and explicit"
-statement = "Automatic-assignment CreatePartitions validates ordered positive total counts, preserves one terminal decision plus exact signed broker codes and bounded diagnostics, sets generated assignments to null through API key 37 with a v3 ceiling, reserves completion and retained bytes before acceptance, carries the original public deadline through one controller-tracked Interactive call, preserves queued NotSent versus taken PossiblySent recovery, schedules independently, extends the closed shared admin notifier capacity, and exposes one inert Rust submit boundary without retry, metadata ownership, or an async runtime."
+title = "CreatePartitions placement is exact, bounded, tracked, and explicit"
+statement = "CreatePartitions validates ordered positive total counts and either preserves broker-chosen null placement or exact caller-ordered nonempty new-partition replica lists with nonnegative unique broker IDs, carries that intent through generated API key 37 with a v3 ceiling without metadata or topology inference, charges nested assignment storage before acceptance, preserves one terminal decision plus exact signed broker codes and bounded diagnostics, carries the original public deadline through one controller-tracked Interactive call, preserves queued NotSent versus taken PossiblySent recovery, schedules independently, extends the closed shared admin notifier capacity, and exposes one inert Rust submit boundary without retry, metadata ownership, or an async runtime."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/admin/partitions_model_test.rs::plan_preserves_order_and_rejects_ambiguous_or_invalid_topics",
+  "crates/kafka-client-core/src/admin/partitions_model_test.rs::explicit_assignments_preserve_outer_and_broker_order",
+  "crates/kafka-client-core/src/admin/partitions_model_test.rs::explicit_assignments_reject_empty_negative_or_duplicate_brokers",
   "crates/kafka-client-core/src/admin/partitions_transition_test.rs::ordered_terminal_is_single_assignment",
   "crates/kafka-client-engine/src/protocol/admin/create_partitions_test.rs::request_uses_generated_automatic_assignments_and_original_options",
+  "crates/kafka-client-engine/src/protocol/admin/create_partitions_test.rs::request_preserves_explicit_assignment_and_broker_order",
   "crates/kafka-client-engine/src/protocol/admin/create_partitions_test.rs::response_is_reordered_and_unknown_code_is_lossless",
   "crates/kafka-client-engine/src/protocol/admin/create_partitions_test.rs::ambiguous_names_never_bind_to_the_wrong_topic",
   "crates/kafka-client-engine/src/protocol/admin/create_partitions_budget_test.rs::oversized_diagnostic_is_bounded_and_reports_truncation",
   "crates/kafka-client-engine/src/driver/rpc/create_partitions_submission_test.rs::create_partitions_uses_interactive_original_deadline_and_v3_ceiling",
+  "crates/kafka-client-engine/src/admin/partitions/model_test.rs::explicit_assignments_are_canonical_ordered_and_charged",
   "crates/kafka-client-engine/src/admin/partitions/host_test.rs::terminal_bytes_remain_reserved_until_observer_reclamation",
   "crates/kafka-client-engine/src/admin/partitions/host_test.rs::queued_and_taken_recovery_preserve_driver_ownership_boundary",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::create_partitions_owner_is_independent_and_prevents_false_quiescence",
@@ -161,25 +165,31 @@ evidence = [
 [[invariant]]
 id = "ADM-08"
 title = "DescribeConfigs policy is ordered, bounded, and exact"
-statement = "One capacity-reserved DescribeConfigs machine validates a nonempty ordered batch of unique positive resource type/name identities and optional ordered unique configuration keys, retains one original absolute deadline and request intent, assigns at most one terminal decision, revalidates ordered resource and configuration correlation, preserves exact signed per-resource broker errors and positive broker throttle as observation data without retry policy, and distinguishes invalid, over-budget, protocol-incompatible, deadline, driver-rejected, and transport terminals with authoritative delivery certainty. Its concrete engine slice admits only topic resources, rejects broker-specific and mixed plans definitely-unsent before driver ownership, reserves distinct request and terminal-result bytes atomically, and uses one tracked AnyBroker Interactive call with a v4 ceiling and the original deadline. The exact selected v1-v4 response version gates v3 type and documentation fields. The curated Rust facade prepares topic-only requests before its explicit submit boundary, exposes one named runtime-neutral Future plus blocking wait, preserves request and result order, nullable values, exact signed source, type, and broker codes, diagnostic truncation, delivery certainty, and throttle observation without exposing engine or generated types. No retry, cache, generic executor, callback, or async runtime is introduced."
+statement = "One capacity-reserved DescribeConfigs machine validates a nonempty caller-ordered batch of unique positive resource type/name identities, canonical nonnegative i32 names for broker and broker-logger resources, and optional ordered unique configuration keys. It partitions resources into deterministic first-seen route groups, coalesces broker and broker-logger resources by exact broker ID, retains one original absolute deadline and operation identity, emits only one serial route-local submission at a time, revalidates ordered resource and configuration correlation, restores one caller-ordered terminal batch, keeps the maximum positive broker throttle, assigns at most one terminal decision, and promotes a later route-local NotSent failure to whole-operation PossiblySent after an earlier route responded. Its concrete engine owner admits generic and mixed plans, rejects invalid plans definitely-unsent before driver ownership, atomically reserves one completion plus distinct request and terminal-result bytes, partitions the result budget across route subplans, and submits tracked Interactive calls through AnyBroker or the exact Broker route with a v4 ceiling and the original deadline. The exact selected v1-v4 response version gates v3 type and documentation fields. The curated Rust facade prepares generic topic, broker, broker-logger, and future positive resource queries before its explicit submit boundary, exposes one named runtime-neutral Future plus blocking wait, and preserves request and result order, nullable values, exact signed source, type, and broker codes, diagnostic truncation, authoritative aggregate delivery certainty, and throttle observation without exposing engine, driver, or generated types. No retry, cache, generic executor, callback, or async runtime is introduced."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/admin/describe_configs_model_test.rs::plan_preserves_order_flags_and_optional_key_selection",
   "crates/kafka-client-core/src/admin/describe_configs_model_test.rs::plan_rejects_empty_invalid_and_ambiguous_resource_queries",
+  "crates/kafka-client-core/src/admin/describe_configs_model_test.rs::broker_resource_names_are_canonical_nonnegative_i32_ids",
+  "crates/kafka-client-core/src/admin/describe_configs_model_test.rs::route_plans_coalesce_by_first_seen_destination_and_preserve_resource_order",
   "crates/kafka-client-core/src/admin/describe_configs_transition_test.rs::ordered_terminal_retains_exact_error_and_positive_throttle_once",
-  "crates/kafka-client-core/src/admin/describe_configs_transition_test.rs::driver_owned_deadline_and_transport_preserve_authoritative_certainty",
-  "crates/kafka-client-core/src/admin/describe_configs_transition_test.rs::invalid_too_large_and_compatibility_have_distinct_terminal_categories",
+  "crates/kafka-client-core/src/admin/describe_configs_transition_failure_test.rs::first_route_driver_failures_preserve_authoritative_certainty",
+  "crates/kafka-client-core/src/admin/describe_configs_transition_failure_test.rs::later_route_not_sent_failures_preserve_aggregate_possibly_sent_truth",
+  "crates/kafka-client-core/src/admin/describe_configs_transition_failure_test.rs::submitted_failure_categories_remain_distinct",
   "crates/kafka-client-core/src/admin/describe_configs_transition_test.rs::response_resource_and_configuration_order_are_revalidated_before_terminal",
   "crates/kafka-client-engine/src/protocol/admin/describe_configs_test.rs::request_preserves_resource_and_key_order_without_policy_expansion",
   "crates/kafka-client-engine/src/protocol/admin/describe_configs_response_test.rs::shuffled_response_becomes_ordered_wire_free_scalar_facts",
   "crates/kafka-client-engine/src/protocol/admin/describe_configs_response_test.rs::pre_v3_generated_defaults_do_not_fabricate_type_or_documentation",
   "crates/kafka-client-engine/src/protocol/admin/describe_configs_budget_test.rs::exact_normalized_charge_is_accepted_and_one_byte_less_is_rejected",
   "crates/kafka-client-engine/src/protocol/admin/describe_configs_budget_test.rs::hostile_diagnostic_is_utf8_bounded_before_terminal_copy",
-  "crates/kafka-client-engine/src/admin/configs/model_test.rs::broker_specific_and_mixed_batches_are_definitely_unsupported",
-  "crates/kafka-client-engine/src/admin/configs/shard_test.rs::broker_and_mixed_plans_never_reserve_terminal_or_retained_bytes",
+  "crates/kafka-client-engine/src/admin/configs/model_test.rs::all_positive_resource_types_remain_exact_and_caller_ordered",
+  "crates/kafka-client-engine/src/admin/configs/shard_test.rs::generic_and_mixed_plans_reserve_one_bounded_operation",
   "crates/kafka-client-engine/src/admin/configs/model_test.rs::topic_batches_reserve_result_capacity_before_acceptance",
   "crates/kafka-client-engine/src/admin/configs/host_test.rs::terminal_bytes_remain_reserved_until_observer_reclamation",
-  "crates/kafka-client-engine/src/driver/rpc/describe_configs_submission_test.rs::topic_configs_use_any_broker_interactive_lane_original_deadline_and_v4_ceiling",
+  "crates/kafka-client-engine/src/admin/configs/host_routing_test.rs::mixed_routes_reuse_one_operation_deadline_and_partition_result_capacity",
+  "crates/kafka-client-engine/src/admin/configs/host_routing_test.rs::later_local_rejection_keeps_prior_route_delivery_visible",
+  "crates/kafka-client-engine/src/driver/rpc/describe_configs_submission_test.rs::generic_and_broker_configs_validate_the_core_route_before_submission",
+  "crates/kafka-client-engine/src/driver/rpc/describe_configs_submission_test.rs::configs_use_interactive_lane_original_deadline_and_v4_ceiling",
   "crates/kafka-client-engine/src/driver/rpc/describe_configs_terminal_test.rs::selected_v2_does_not_fabricate_v3_fields_but_retains_throttle",
   "crates/kafka-client-engine/src/driver/rpc/describe_configs_terminal_test.rs::selected_v3_retains_type_and_documentation",
   "crates/kafka-client-engine/src/driver/rpc/describe_configs_terminal_test.rs::request_bytes_cannot_inflate_the_response_capacity",
@@ -202,34 +212,39 @@ evidence = [
 [[invariant]]
 id = "ADM-09"
 title = "IncrementalAlterConfigs policy, ownership, and protocol are ordered, bounded, and exact"
-statement = "One capacity-reserved topic IncrementalAlterConfigs machine validates a nonempty ordered batch of unique topics with at least one nonempty unique key each; represents Set, Delete, Append, and Subtract with exact value presence; retains one original absolute deadline; emits only one concrete submit attempt; revalidates ordered topic correlation; assigns at most one terminal decision; preserves nonnegative throttle, exact signed broker codes, bounded-diagnostic facts, and authoritative delivery certainty; and terminates compatibility without retry, legacy AlterConfigs fallback, invalidation, cache authority, generated protocol types, or transport types. Its concrete engine owner canonicalizes request strings, uses the shared conservative operation charge plus an explicit terminal normalization ceiling, reserves one operation slot and terminal cell before machine construction, retains bytes through single terminal publication and observer reclamation, preserves untouched NotSent versus handed-off or submitted PossiblySent recovery, and joins the closed shared-admin notifier capacity. The engine constructs the real generated API-key 44 v0/v1 request with topic resource type 2, exact Set=0, Delete=1, Append=2, and Subtract=3 operation codes, null values only for Delete, caller order, and validate-only intent; restores generated resource results to request order; rejects negative throttle and malformed resource identity; preserves exact signed codes; and bounds nullable UTF-8 diagnostics before core ownership. One explicit-capacity tracked-call owner submits that request through kafka-driver on Route::AnyBroker in TrafficClass::Interactive with maximum version 1 and the original transport deadline; retains operation, plan, result limit, and route receipt; validates the selected v0/v1 version; and maps decode or correlation faults, retained overflow, driver deadline, compatibility, and transport terminals without retry, fallback, cache, invalidation, or a generic executor. One explicit fair host stage recaptures time, drives the owner even when peer lanes are saturated, drains bounded completions, participates in deadline parking and shutdown quiescence, recovers only after driver destruction, and exposes immediate bounded admission plus one named runtime-neutral observer. The curated Rust facade exposes caller-ordered stable Set, Delete, Append, and Subtract values with Delete alone unable to carry a value and explicit empty strings preserved; retains validate-only intent in an inert builder until submit captures the public absolute deadline; returns one named runtime-neutral Future and blocking wait over the same observer; preserves throttle and request-order BatchResult topic outcomes; and exhaustively translates admission, accepted faults, exact broker diagnostics and codes, delivery certainty, whole-operation failures, and observer failures into KafkaError without exposing core, engine, driver, or wire types."
+statement = "One capacity-reserved resource-generic IncrementalAlterConfigs machine validates a nonempty ordered batch of unique positive type-and-name resource identities with at least one nonempty unique key each; requires canonical nonnegative i32 names for broker and broker-logger resources; represents Set, Delete, Append, and Subtract with exact value presence; groups first-seen destinations into one AnyBroker group for non-broker resources and coalesced ExactBroker groups for broker and broker-logger resources; retains one original absolute deadline while serially emitting route-local submit attempts; revalidates route-local correlation; restores caller order with maximum throttle; assigns at most one terminal decision; promotes any later route-local NotSent failure to whole-operation PossiblySent; preserves exact signed broker codes, bounded-diagnostic facts, and authoritative delivery certainty; and terminates compatibility without retry, legacy AlterConfigs fallback, invalidation, cache authority, generated protocol types, or transport types. Its concrete engine owner canonicalizes request strings, proves disjoint route-result contributions and one transient route batch fit the shared conservative operation charge, reserves one operation slot and terminal cell before machine construction, derives each exact route-local normalization ceiling without treating the numeric ceiling as spendable capacity, retains bytes through single terminal publication and observer reclamation, preserves untouched NotSent versus handed-off or submitted PossiblySent recovery at every serial handoff, and joins the closed shared-admin notifier capacity. The engine constructs real generated API-key 44 v0/v1 requests with exact resource types and names, exact Set=0, Delete=1, Append=2, and Subtract=3 operation codes, null values only for Delete, route-local caller order, and validate-only intent; restores generated resource results to route order; rejects negative throttle and malformed resource identity; preserves exact signed codes; and bounds nullable UTF-8 diagnostics before core ownership. One explicit-capacity tracked-call owner submits each serial request through kafka-driver on Route::AnyBroker or the named Route::Broker in TrafficClass::Interactive with maximum version 1 and the original transport deadline; retains operation, route-local plan, exact result limit, and route receipt; validates the selected v0/v1 version; and maps decode or correlation faults, retained overflow, driver deadline, compatibility, and transport terminals without retry, fallback, cache, invalidation, or a generic executor. One explicit fair host stage recaptures time, drives the owner even when peer lanes are saturated, resets handoff ownership only when the core emits the next serial submit, drains bounded completions, participates in deadline parking and shutdown quiescence, recovers only after driver destruction, and exposes immediate bounded admission plus one named runtime-neutral observer. The curated Rust facade exposes caller-ordered stable resource-generic Set, Delete, Append, and Subtract values with Delete alone unable to carry a value and explicit empty strings preserved; retains validate-only intent in an inert builder until submit captures the public absolute deadline; returns one named runtime-neutral Future and blocking wait over the same observer; preserves maximum throttle and request-order BatchResult resource outcomes; and exhaustively translates admission, accepted faults, exact broker diagnostics and codes, delivery certainty, whole-operation failures, and observer failures into KafkaError without exposing core, engine, driver, or wire types."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/admin/alter_configs/model_test.rs::plan_preserves_topic_operation_order_flags_and_exact_value_semantics",
   "crates/kafka-client-core/src/admin/alter_configs/model_test.rs::plan_rejects_empty_duplicate_or_ambiguous_topic_inputs",
   "crates/kafka-client-core/src/admin/alter_configs/model_test.rs::configuration_keys_are_nonempty_and_unique_within_each_topic",
+  "crates/kafka-client-core/src/admin/alter_configs/model_test.rs::broker_resource_names_are_canonical_nonnegative_i32_ids",
   "crates/kafka-client-core/src/admin/alter_configs/outcome_test.rs::exact_signed_code_and_bounded_diagnostic_fact_move_without_reclassification",
-  "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs::original_deadline_and_semantic_plan_cross_the_only_submit_effect",
+  "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs::single_route_plan_preserves_original_deadline_and_semantics",
   "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs::ordered_terminal_is_single_assignment_and_retains_exact_broker_facts",
   "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs::malformed_response_settles_invalid_once_without_follow_up",
   "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs::pre_driver_failures_are_definitely_not_sent",
   "crates/kafka-client-core/src/admin/alter_configs/transition_test.rs::submitted_failures_preserve_certainty_without_retry_or_legacy_fallback",
+  "crates/kafka-client-core/src/admin/alter_configs/routing_test.rs::mixed_resources_submit_first_seen_routes_and_merge_caller_order",
+  "crates/kafka-client-core/src/admin/alter_configs/routing_test.rs::later_route_local_not_sent_failures_become_possibly_sent",
   "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/request_test.rs::request_uses_generated_v0_v1_topic_operations_without_legacy_fallback",
   "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/response_test.rs::response_restores_caller_order_throttle_and_exact_signed_codes",
   "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/response_test.rs::malformed_resource_identity_and_negative_throttle_are_rejected",
-  "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/response_test.rs::closed_shape_failures_cover_count_unexpected_missing_and_duplicate_topics",
+  "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/response_test.rs::closed_shape_failures_cover_count_unexpected_missing_and_duplicate_resources",
   "crates/kafka-client-engine/src/protocol/admin/incremental_alter_configs/retention_test.rs::retained_budget_bounds_utf8_diagnostics_before_core_ownership",
   "crates/kafka-client-engine/src/admin/alter_configs/model_test.rs::shared_operation_charge_covers_the_separate_terminal_result_limit",
+  "crates/kafka-client-engine/src/admin/alter_configs/model_test.rs::disjoint_route_result_contributions_fit_one_shared_operation_base",
   "crates/kafka-client-engine/src/admin/alter_configs/host_test.rs::admission_reserves_slot_completion_bytes_and_original_deadline_before_machine_start",
   "crates/kafka-client-engine/src/admin/alter_configs/host_test.rs::operation_and_completion_capacity_reject_before_constructing_an_extra_machine",
   "crates/kafka-client-engine/src/admin/alter_configs/host_test.rs::abandoned_observer_releases_reserved_bytes_once_after_terminal_publication",
   "crates/kafka-client-engine/src/admin/alter_configs/host_test.rs::recovery_distinguishes_untouched_handed_off_and_submitted_work",
+  "crates/kafka-client-engine/src/admin/alter_configs/host_routing_test.rs::later_route_recovery_preserves_prior_possible_delivery_at_every_handoff_boundary",
   "crates/kafka-client-engine/src/admin/alter_configs/outcome_test.rs::throttle_order_exact_signed_code_and_diagnostic_fact_cross_losslessly",
   "crates/kafka-client-engine/src/admin/completion_capacity_test.rs::incremental_alter_configs_is_included_in_the_closed_shared_capacity_equation",
   "crates/kafka-client-engine/src/admin/alter_configs/handle_test.rs::accepted_faults_never_revoke_incremental_alter_configs_ownership",
   "crates/kafka-client-engine/src/engine_host/admin/incremental_alter_configs_schedule_test.rs::incremental_alter_configs_owner_is_independent_and_prevents_false_quiescence",
   "crates/kafka-client-engine/src/engine_incremental_alter_configs_test.rs::admitted_incremental_alter_configs_reaches_one_host_terminal",
-  "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_submission_test.rs::submission_uses_any_broker_interactive_lane_original_deadline_and_v1_ceiling",
+  "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_submission_test.rs::submission_preserves_route_interactive_lane_original_deadline_and_v1_ceiling",
   "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls_test.rs::accepted_call_occupies_the_only_slot_until_driver_shutdown",
   "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls_test.rs::zero_capacity_rejects_before_submission",
   "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_calls_test.rs::driver_admission_failure_is_definitely_unsent_core_rejection",
@@ -283,38 +298,53 @@ evidence = [
 [[invariant]]
 id = "ADM-11"
 title = "ListConsumerGroupOffsets is bounded, exact, and coordinator routed"
-statement = "One capacity-reserved ListConsumerGroupOffsets machine validates one explicit nonempty group identity and stable-read intent, retains the original absolute deadline, emits one concrete submission, assigns exactly one terminal decision, requires unique strict topic-byte and partition order, preserves nullable committed offset, leader epoch, and metadata facts plus exact signed group and partition broker codes, and distinguishes definitely-unsent admission or pre-driver deadline failure from driver-owned delivery certainty without retry. Its concrete engine owner atomically reserves one completion cell and a combined four-MiB request, normalized-result, and temporary-sort envelope before machine construction; retains the one generated response and opaque route receipt until deterministic terminal acceptance; publishes off-reactor; and releases the reservation only after observer reclamation. The generated kafka-wire OffsetFetch adapter sends nullable all-topic selection, negotiates exactly v2-v9 with require_stable raising the floor to v7, selects the legacy or exactly matching modern group envelope, converts only Kafka's -1 committed-offset and leader-epoch sentinels to absence, validates and charges before allocating one borrowed sort, and never re-encodes protocol fields independently. One singular kafka-driver GroupOffsetsCall uses the existing group-coordinator route, Interactive traffic, and unchanged absolute transport deadline; retains selected-version and route evidence; and reports neutral deadline, compatibility, invalid-response, and transport facts with driver-authoritative delivery certainty. One explicit fair EngineHost stage recaptures time, drives and polls the concrete owner, participates in deadline parking and shutdown quiescence, and recovers only after driver destruction. The curated Rust facade exposes an inert ListConsumerGroupOffsets builder, explicit submit boundary, named runtime-neutral Future plus blocking wait, throttle observation, and ordinary BatchResult topic-partition entries without a callback, async runtime, generic admin executor, coordinator cache, invalidation policy, generated type, driver type, or core type."
+statement = "One capacity-reserved ListConsumerGroupOffsets machine validates one explicit nonempty group identity, an explicit all-partition mode or nonempty bounded caller-ordered set of unique nonnegative topic-partitions, and stable-read intent; retains the original absolute deadline; emits one concrete submission; and assigns exactly one terminal decision. All-partition responses require unique strict topic-byte and partition order, while selected responses require exactly the requested identities and restore caller order; both preserve nullable committed offset, leader epoch, and metadata facts plus exact signed group and partition broker codes, and distinguish definitely-unsent admission or pre-driver deadline failure from driver-owned delivery certainty without retry. Its concrete engine owner atomically reserves one completion cell and a combined four-MiB request, correlation-scratch, normalized-result, and temporary-sort envelope before machine construction; retains the one generated response and opaque route receipt until deterministic terminal acceptance; publishes off-reactor; and releases the reservation only after observer reclamation. The generated kafka-wire OffsetFetch adapter sends nullable topics only for all-partition mode or exact selected topic arrays grouped in first-topic and caller-partition order across both v2-v7 and v8-v9 schemas, negotiates exactly v2-v9 with require_stable raising the floor to v7, selects the legacy or exactly matching modern group envelope, converts only Kafka's -1 committed-offset and leader-epoch sentinels to absence, validates and charges before one borrowed sort and bounded identity correlation, and never re-encodes protocol fields independently. One singular kafka-driver GroupOffsetsCall uses the existing group-coordinator route, Interactive traffic, and unchanged absolute transport deadline; retains selected-version and route evidence; and reports neutral deadline, compatibility, invalid-response, and transport facts with driver-authoritative delivery certainty. One explicit fair EngineHost stage recaptures time, drives and polls the concrete owner, participates in deadline parking and shutdown quiescence, and recovers only after driver destruction. The curated Rust facade exposes inert singular builders with explicit partition selection, caller-ordered plural per-group all-or-selected query values for consumer and Streams groups, one explicit submit boundary, named runtime-neutral Future plus blocking wait, throttle observation, and ordinary BatchResult topic-partition entries without a callback, async runtime, generic admin executor, coordinator cache, invalidation policy, generated type, driver type, or core type."
 status = "enforced"
 evidence = [
-  "crates/kafka-client-core/src/admin/group_offsets/model_test.rs::plan_preserves_explicit_group_and_stability_intent",
-  "crates/kafka-client-core/src/admin/group_offsets/model_test.rs::plan_rejects_empty_or_unrepresentable_group_identity",
+  "crates/kafka-client-core/src/admin/group_offsets/model/plan_test.rs::plan_preserves_explicit_group_and_stability_intent",
+  "crates/kafka-client-core/src/admin/group_offsets/model/plan_test.rs::plan_rejects_empty_or_unrepresentable_group_identity",
+  "crates/kafka-client-core/src/admin/group_offsets/model/query_test.rs::selected_query_preserves_exact_caller_order",
+  "crates/kafka-client-core/src/admin/group_offsets/model/query_test.rs::selected_query_rejects_empty_duplicate_negative_and_hostile_shapes",
   "crates/kafka-client-core/src/admin/group_offsets/transition_test.rs::original_deadline_group_and_stability_cross_the_only_submit_effect",
   "crates/kafka-client-core/src/admin/group_offsets/transition_test.rs::ordered_mixed_terminal_is_single_assignment_and_lossless",
   "crates/kafka-client-core/src/admin/group_offsets/transition_test.rs::malformed_or_duplicate_partition_facts_settle_invalid_once",
   "crates/kafka-client-core/src/admin/group_offsets/transition_test.rs::deadlines_and_driver_ownership_preserve_certainty_without_retry",
+  "crates/kafka-client-core/src/admin/group_offsets/transition/selection_test.rs::selected_response_requires_and_preserves_exact_caller_order",
+  "crates/kafka-client-core/src/admin/group_offsets/transition/selection_test.rs::selected_response_rejects_missing_extra_duplicate_and_out_of_order_identities",
+  "crates/kafka-client-core/src/admin/group_offsets/transition/selection_test.rs::all_response_retains_canonical_topic_byte_and_partition_order",
   "crates/kafka-client-engine/src/protocol/admin/group_offsets/request_test.rs::legacy_versions_encode_one_group_with_nullable_all_topics",
   "crates/kafka-client-engine/src/protocol/admin/group_offsets/request_test.rs::modern_versions_encode_one_matching_group_with_nullable_all_topics",
   "crates/kafka-client-engine/src/protocol/admin/group_offsets/request_test.rs::stable_queries_have_an_exact_v7_floor_and_v9_ceiling",
+  "crates/kafka-client-engine/src/protocol/admin/group_offsets/request_test.rs::selected_topics_encode_across_both_eras_in_first_topic_and_caller_partition_order",
   "crates/kafka-client-engine/src/protocol/admin/group_offsets/response_test.rs::legacy_and_modern_top_level_errors_remain_exact_and_separate",
   "crates/kafka-client-engine/src/protocol/admin/group_offsets/response_test.rs::complete_future_allocation_charge_must_fit_before_materialization",
+  "crates/kafka-client-engine/src/protocol/admin/group_offsets/response_test.rs::selected_response_restores_exact_caller_topic_partition_order",
+  "crates/kafka-client-engine/src/protocol/admin/group_offsets/response_test.rs::selected_response_rejects_missing_extra_and_duplicate_identities",
   "crates/kafka-client-engine/src/protocol/admin/group_offsets/entries_test.rs::reverse_ordered_hostile_shape_uses_one_charged_sort_and_restores_order",
   "crates/kafka-client-engine/src/protocol/admin/group_offsets/retention_test.rs::every_entry_charges_owned_output_and_temporary_sort_storage",
   "crates/kafka-client-engine/src/driver/rpc/group_offsets_submission_test.rs::route_is_the_existing_validated_group_coordinator_authority",
   "crates/kafka-client-engine/src/driver/rpc/group_offsets_submission_test.rs::ordinary_and_stable_queries_have_exact_version_bounds",
   "crates/kafka-client-engine/src/driver/rpc/group_offsets_terminal_test.rs::failures_are_neutral_and_preserve_driver_authoritative_delivery",
-  "crates/kafka-client-engine/src/driver/rpc/group_offsets_call_test.rs::completion_fault_is_yielded_once_and_is_not_recovered_as_active",
+  "crates/kafka-client-engine/src/driver/rpc/group_offsets_call_test.rs::completion_fault_remains_recoverable_after_driver_shutdown",
   "crates/kafka-client-engine/src/admin/group_offsets/host_test.rs::one_query_atomically_reserves_the_complete_four_mib_envelope",
   "crates/kafka-client-engine/src/admin/group_offsets/host_test.rs::handed_off_operation_leaves_deadline_parking_to_the_driver",
   "crates/kafka-client-engine/src/admin/group_offsets/host_test.rs::abandoned_observer_retains_bytes_until_terminal_publication_is_reclaimed",
-  "crates/kafka-client-engine/src/admin/group_offsets/host_test.rs::recovery_distinguishes_untouched_from_handed_off_ownership",
+  "crates/kafka-client-engine/src/admin/group_offsets/host_test.rs::untouched_recovery_is_definitely_unsent",
+  "crates/kafka-client-engine/src/admin/group_offsets/host_completion_test.rs::handed_off_without_a_returned_call_cannot_forge_recovery_evidence",
+  "crates/kafka-client-engine/src/admin/group_offsets/host_completion_test.rs::completion_fault_retains_call_until_post_driver_recovery",
   "crates/kafka-client-engine/src/admin/group_offsets/host_test.rs::expired_call_boundary_deadline_never_reaches_driver_handoff",
+  "crates/kafka-client-engine/src/admin/group_offsets/model_test.rs::selected_request_canonicalizes_and_preserves_caller_target_order",
+  "crates/kafka-client-engine/src/admin/group_offsets/model_test.rs::plural_request_preserves_each_groups_independent_selection",
   "crates/kafka-client-engine/src/admin/group_offsets/handle_test.rs::accepted_faults_never_revoke_group_offset_ownership",
   "crates/kafka-client-engine/src/admin/completion_capacity_test.rs::group_offsets_is_included_in_the_closed_shared_capacity_equation",
   "crates/kafka-client-engine/src/admin/group_offsets/outcome_test.rs::throttle_order_nullable_values_and_partition_error_translate_exactly",
   "crates/kafka-client-engine/src/engine_host/admin/list_consumer_group_offsets_test.rs::group_offsets_owner_is_independent_and_prevents_false_quiescence",
   "crates/kafka-client-engine/src/engine_host/admin/list_consumer_group_offsets_test.rs::group_offsets_uses_time_recaptured_after_prior_admin_work",
   "crates/kafka-client-engine/src/engine_list_consumer_group_offsets_test.rs::admitted_group_offset_query_reaches_one_host_terminal",
+  "crates/kafka-client/src/admin/list_consumer_group_offsets_query_test.rs::query_preserves_all_or_selected_intent_and_caller_order",
+  "crates/kafka-client/src/admin/list_consumer_group_offsets_builder_test.rs::assignment_position_is_retained_until_submit_and_rejected_not_sent",
   "crates/kafka-client/src/admin/list_consumer_group_offsets_builder_test.rs::zero_deadline_and_stability_option_remain_inert_until_submit",
+  "crates/kafka-client/src/admin/list_streams_group_offsets/builder_test.rs::selected_assignment_position_rejects_at_the_delegated_submit_boundary",
   "crates/kafka-client/src/admin/list_consumer_group_offsets_test.rs::operation_is_a_named_send_future",
   "crates/kafka-client/src/admin/list_consumer_group_offsets_result_test.rs::result_preserves_throttle_and_engine_supplied_order",
   "crates/kafka-client/src/bridge/admin_group_offsets/list_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
@@ -343,7 +373,9 @@ evidence = [
   "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_submission_test.rs::route_is_the_existing_validated_group_coordinator_authority",
   "crates/kafka-client-engine/src/driver/rpc/group_offset_delete_terminal_test.rs::failures_preserve_delivery_certainty_and_stable_classification",
   "crates/kafka-client-engine/src/admin/group_offset_delete/host_test.rs::admission_atomically_reserves_the_complete_four_mib_envelope",
-  "crates/kafka-client-engine/src/admin/group_offset_delete/host_test.rs::untouched_and_handed_off_recovery_preserve_delivery_boundary",
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host_test.rs::untouched_recovery_is_definitely_unsent",
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host_test.rs::handed_off_without_a_returned_call_cannot_forge_recovery_evidence",
+  "crates/kafka-client-engine/src/admin/group_offset_delete/host_test.rs::completion_fault_retains_call_until_post_driver_recovery",
   "crates/kafka-client-engine/src/admin/group_offset_delete/host_test.rs::expired_public_deadline_never_reaches_driver_handoff",
   "crates/kafka-client-engine/src/admin/completion_group_offsets_test.rs::group_offset_delete_is_included_in_the_closed_shared_capacity_equation",
   "crates/kafka-client-engine/src/engine_host/admin/delete_consumer_group_offsets_schedule_test.rs::offset_deletion_is_independent_and_prevents_false_quiescence",
@@ -701,8 +733,8 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/assigned_host/delivery/return_test.rs::owner_missing_drop_occurs_only_after_recovery_released_store_accounting",
   "crates/kafka-client-engine/src/engine_host/assigned_consumer_test.rs::contention_is_blocked_without_false_progress",
   "crates/kafka-client-engine/src/engine_host/assigned_consumer_test.rs::each_host_call_runs_one_bounded_owner_turn",
-  "crates/kafka-client-engine/src/engine_host/runner_test.rs::assigned_deadline_can_preempt_other_domain_waits",
-  "crates/kafka-client-engine/src/engine_host/runner_test.rs::assigned_contention_uses_the_liveness_cap_instead_of_spinning",
+  "crates/kafka-client-engine/src/engine_host/wait_test.rs::assigned_deadline_can_preempt_other_domain_waits",
+  "crates/kafka-client-engine/src/engine_host/wait_test.rs::assigned_contention_uses_the_liveness_cap_instead_of_spinning",
 ]
 
 [[invariant]]
@@ -1149,7 +1181,7 @@ evidence = [
   "crates/kafka-client/src/bridge/consumer_facade/group_consumer_registration_result_test.rs::every_missing_offset_choice_crosses_the_registration_boundary_exactly",
   "crates/kafka-client/src/bridge/consumer_facade/group_consumer_recv_result_test.rs::every_position_failure_maps_to_its_exact_public_category",
   "crates/kafka-client/src/bridge/consumer_facade/group_consumer_recv_result_test.rs::position_broker_failure_preserves_the_exact_signed_code",
-  "crates/kafka-client/src/consumer/consumer_batch_test.rs::batch_is_send_linear_iterable_and_yields_one_checkpoint",
+  "crates/kafka-client/src/consumer/consumer_batch_test.rs::batch_is_send_linear_iterable_and_exposes_both_consuming_checkpoint_spellings",
   "crates/kafka-client/src/consumer/group_recv_test.rs::recv_is_send_linear_and_borrows_the_unique_consumer",
   "crates/kafka-client/src/consumer/group_close_test.rs::accepted_close_is_one_send_runtime_neutral_observer",
   "crates/kafka-client/src/consumer/group_close_error_test.rs::rejection_exposes_and_returns_the_exact_consumer",
@@ -1452,7 +1484,7 @@ evidence = [
 [[invariant]]
 id = "RCT-01"
 title = "Application code never runs on a reactor"
-statement = "Driver and engine reactors publish into bounded completion mechanisms and never invoke Rust or foreign application callbacks."
+statement = "Driver and engine reactors publish into bounded completion mechanisms and never invoke application callbacks."
 status = "enforced"
 evidence = [
   "crates/kafka-client-engine/src/completion/settlement_test.rs::hostile_waker_runs_only_on_the_completion_notifier",
@@ -1462,18 +1494,20 @@ evidence = [
 
 [[invariant]]
 id = "RTY-01"
-title = "Producer retries require definitely-unsent structural evidence"
-statement = "Only a normalized structurally transient attempt with authoritative NotSent certainty may start a bounded replacement execution after nonzero backoff; PossiblySent and broker terminal facts never retry, and every replacement retains the original deadline, bytes, completion, flush, and close ownership."
+title = "Producer retries require explicit structural and replay authority"
+statement = "The public builder may select one bounded maximum replacement count and fixed backoff before engine startup; omission preserves the bounded engine default, zero replacements disables retry and ignores the backoff, and an enabled zero or unrepresentable backoff is rejected before any host starts. Validation installs that choice into the existing sole core retry policy. A bounded replacement execution may start after nonzero backoff for a normalized structurally transient attempt with authoritative NotSent certainty, an exact broker-retriable rejection, or an exact routing rejection after completed route refresh. A PossiblySent transient transport loss may replace only after the exact partition route token yields Applied or IgnoredStale invalidation, idempotence remains unfenced, and the replacement reuses the unchanged producer identity, epoch, partition, and base sequence. Missing or failed route authority, permanent failures, unknown broker failures, and other PossiblySent failures never retry. Every replacement retains the original deadline, bytes, completion, flush, and close ownership; route refresh never rewrites delivery certainty."
 status = "enforced"
 evidence = [
   "crates/kafka-client-core/src/producer/retry_test.rs::definitely_unsent_transient_failure_retries_with_a_fresh_execution",
   "crates/kafka-client-core/src/producer/retry_test.rs::retry_bound_exhaustion_settles_without_reusing_an_execution",
-  "crates/kafka-client-core/src/producer/retry_safety_test.rs::possibly_sent_permanent_and_broker_failures_never_retry",
+  "crates/kafka-client-core/src/producer/retry_safety_test.rs::possibly_sent_transport_permanent_and_unknown_broker_failures_never_retry",
+  "crates/kafka-client-core/src/producer/retry_safety_test.rs::refreshed_transport_loss_retries_with_the_original_idempotent_sequence",
   "crates/kafka-client-core/src/producer/retry_safety_test.rs::original_deadline_caps_backoff_and_settles_before_another_attempt",
   "crates/kafka-client-core/src/producer/retry_safety_test.rs::flush_waits_across_retry_and_completes_after_record_terminal",
   "crates/kafka-client-core/src/producer/retry_safety_test.rs::close_waits_across_retry_and_completes_after_record_terminal",
   "crates/kafka-client-engine/src/driver/delivery_test.rs::only_recoverable_connection_shapes_are_transient",
-  "crates/kafka-client-engine/src/driver/delivery_test.rs::driver_owned_possibly_sent_evidence_is_preserved",
+  "crates/kafka-client-engine/src/driver/delivery_test.rs::possibly_sent_transport_loss_is_transient_but_keeps_delivery_uncertain",
+  "crates/kafka-client-engine/src/driver/rpc/calls/route_refresh_test.rs::only_applied_or_stale_route_refresh_authorizes_retry",
   "crates/kafka-client-engine/src/producer/host/driver_input_test.rs::live_retry_rematerializes_fresh_execution_with_original_deadline",
   "crates/kafka-client-engine/src/producer/host/driver_input_test.rs::live_possibly_sent_failure_never_creates_replacement",
   "crates/kafka-client-sim/src/state/retry_test.rs::retry_retains_attempt_history_and_materializes_only_the_replacement",

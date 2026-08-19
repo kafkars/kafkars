@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned ShareGroup offset-deletion contract.
+//! Isolated names for the engine-owned `ShareGroup` offset-deletion contract.
 
 pub(super) use kafka_client_engine::{
     DeleteShareGroupOffsetsAccepted as Accepted,

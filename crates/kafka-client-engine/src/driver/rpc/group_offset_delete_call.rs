@@ -38,14 +38,11 @@ impl GroupOffsetDeleteCall {
         deadline: Instant,
     ) -> Result<Self, GroupOffsetDeleteCallAdmissionFailure> {
         let evidence = GroupOffsetDeleteEvidence::new(plan, result_limit);
-        let targets = match request_targets(evidence.plan()) {
-            Some(targets) => targets,
-            None => {
-                return Err(GroupOffsetDeleteCallAdmissionFailure::new(
-                    GroupOffsetDeleteAdmissionSource::Allocation,
-                    evidence,
-                ));
-            }
+        let Some(targets) = request_targets(evidence.plan()) else {
+            return Err(GroupOffsetDeleteCallAdmissionFailure::new(
+                GroupOffsetDeleteAdmissionSource::Allocation,
+                evidence,
+            ));
         };
         let request = match group_offset_delete_request(
             evidence.plan().group_id(),

@@ -1,5 +1,10 @@
 //! Explicit one-time KIP-848 to classic fallback transitions.
 
+#![expect(
+    clippy::expect_used,
+    reason = "test fixtures require contextual transition failures"
+)]
+
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
 use super::{

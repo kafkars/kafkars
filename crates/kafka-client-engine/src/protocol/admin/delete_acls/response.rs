@@ -117,8 +117,13 @@ pub(crate) fn normalize_delete_acls_response(
 
     let retained_bytes = validated_peak.max(terminal_bytes);
     ensure_limit(retained_bytes, retained_limit)?;
+    let throttle_time_ms = u32::try_from(response.throttle_time_ms).map_err(|_| {
+        DeleteAclsResponseFailure::NegativeThrottleTime {
+            actual: response.throttle_time_ms,
+        }
+    })?;
     Ok(NormalizedDeleteAclsResponse {
-        throttle_time_ms: response.throttle_time_ms as u32,
+        throttle_time_ms,
         results,
         retained_bytes,
     })

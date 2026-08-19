@@ -1,4 +1,4 @@
-//! Fair host turns for AnyBroker Admin `DeleteAcls` work.
+//! Fair host turns for `AnyBroker` Admin `DeleteAcls` work.
 
 use kafka_client_core::{Deadline, Moment};
 

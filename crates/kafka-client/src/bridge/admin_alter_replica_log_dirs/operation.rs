@@ -1,4 +1,4 @@
-//! Concrete observation of accepted or rejected AlterReplicaLogDirs work.
+//! Concrete observation of accepted or rejected `AlterReplicaLogDirs` work.
 
 use std::{
     fmt,

@@ -40,6 +40,10 @@ pub(crate) struct TransactionExecutionHost {
 }
 
 impl TransactionExecutionHost {
+    #[allow(
+        clippy::result_large_err,
+        reason = "failed installation returns the exact initialized transactional owner for recovery"
+    )]
     pub(in crate::transaction) fn try_new(
         parts: TransactionalOwnerParts,
         limits: TransactionExecutionLimits,

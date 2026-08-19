@@ -80,8 +80,13 @@ fn materialize(
     for result in ordered {
         results.push(materialize_result(result, required, limit)?);
     }
+    let throttle_time_ms = u32::try_from(response.throttle_time_ms).map_err(|_| {
+        DescribeUserScramCredentialsResponseFailure::NegativeThrottleTime {
+            actual: response.throttle_time_ms,
+        }
+    })?;
     let mut normalized = NormalizedDescribeUserScramCredentialsResponse {
-        throttle_time_ms: response.throttle_time_ms as u32,
+        throttle_time_ms,
         error_code: response.error_code,
         error_message,
         error_message_truncated,
@@ -105,12 +110,17 @@ fn materialize_result(
     credential_infos
         .try_reserve_exact(source.credential_infos.len())
         .map_err(|_| retained(required, limit))?;
-    credential_infos.extend(
-        source
-            .credential_infos
-            .iter()
-            .map(|info| NormalizedScramCredentialInfo::new(info.mechanism, info.iterations as u32)),
-    );
+    for info in &source.credential_infos {
+        let iterations = u32::try_from(info.iterations).map_err(|_| {
+            DescribeUserScramCredentialsResponseFailure::NonPositiveIterations {
+                actual: info.iterations,
+            }
+        })?;
+        credential_infos.push(NormalizedScramCredentialInfo::new(
+            info.mechanism,
+            iterations,
+        ));
+    }
     credential_infos.sort_unstable_by_key(|info| info.into_parts().0);
     Ok(NormalizedUserScramCredentials {
         user: copy_string(source.user.as_str(), required, limit)?,

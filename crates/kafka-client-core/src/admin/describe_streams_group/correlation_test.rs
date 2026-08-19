@@ -1,5 +1,10 @@
 //! Scenarios for strict bounded API-89 correlation and ordering.
 
+#![expect(
+    clippy::needless_pass_by_value,
+    reason = "test helpers preserve exact terminal ownership"
+)]
+
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
 use super::{

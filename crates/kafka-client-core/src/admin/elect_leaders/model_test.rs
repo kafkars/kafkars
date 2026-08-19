@@ -1,5 +1,10 @@
 //! Focused validation tests for explicit selected-partition elections.
 
+#![expect(
+    clippy::expect_used,
+    reason = "test fixtures require contextual construction failures"
+)]
+
 use super::{
     ElectLeadersPlan, ElectLeadersPlanError, ElectLeadersSelection, LeaderElectionTarget,
     LeaderElectionType,

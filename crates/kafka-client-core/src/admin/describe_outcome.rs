@@ -167,10 +167,10 @@ pub enum DescribeClusterFailureKind {
     DriverRejected,
     /// Transport failed after the request entered driver ownership.
     Transport,
-    /// The broker cannot represent the explicitly requested cluster view.
-    Compatibility,
     /// SASL authentication rejected the connection before ordinary call admission.
     Authentication,
+    /// The broker cannot represent the explicitly requested cluster view.
+    Compatibility,
     /// A broker response was malformed or exceeded the retained-result budget.
     InvalidResponse,
 }

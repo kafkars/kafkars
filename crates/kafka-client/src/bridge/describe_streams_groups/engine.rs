@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned batched StreamsGroup contract.
+//! Isolated names for the engine-owned batched `StreamsGroup` contract.
 
 pub(super) use kafka_client_engine::{
     DescribeStreamsGroupAccepted as Accepted, DescribeStreamsGroupAdmissionError as AdmissionError,

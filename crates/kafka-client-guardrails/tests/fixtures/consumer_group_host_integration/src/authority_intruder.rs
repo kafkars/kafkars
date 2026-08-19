@@ -31,6 +31,9 @@ fn intrude() {
         registry_owner: 1,
         admission_fence: 1,
         reactor_wake: 1,
+        group_recv_signal: 1,
+        group_recv_publisher: 1,
+        port_contention_handoff: 1,
     };
     shard.admission_fence = 2;
 }

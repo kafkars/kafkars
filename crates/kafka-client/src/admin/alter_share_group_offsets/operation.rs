@@ -1,4 +1,4 @@
-//! Named single-observer ShareGroup offset-alteration operation.
+//! Named single-observer `ShareGroup` offset-alteration operation.
 
 use std::{
     future::Future,
@@ -10,7 +10,7 @@ use crate::{KafkaError, bridge::alter_share_group_offsets::AdminAlterShareGroupO
 
 use super::AlterShareGroupOffsetsResult;
 
-/// Sole terminal observer for one submitted ShareGroup offset alteration.
+/// Sole terminal observer for one submitted `ShareGroup` offset alteration.
 #[derive(Debug)]
 #[must_use = "dropping abandons observation without cancelling accepted admin work"]
 pub struct AlterShareGroupOffsets {

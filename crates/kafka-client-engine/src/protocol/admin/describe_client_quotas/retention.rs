@@ -71,7 +71,12 @@ pub(super) fn response_peak_charge(response: &DescribeClientQuotasResponse) -> O
         for component in &entry.entity {
             output = output
                 .checked_add(component.entity_type.len())?
-                .checked_add(component.entity_name.as_ref().map_or(0, |name| name.len()))?;
+                .checked_add(
+                    component
+                        .entity_name
+                        .as_ref()
+                        .map_or(0, kafka_wire_core::StrBytes::len),
+                )?;
         }
         for value in &entry.values {
             output = output.checked_add(value.key.len())?;
@@ -109,9 +114,12 @@ fn terminal_peak_charge(response: &DescribeClientQuotasResponse) -> Option<usize
                         .checked_mul(size_of::<DescribeClientQuotaValue>())?,
                 )?;
             let bytes = entry.entity.iter().try_fold(bytes, |bytes, component| {
-                bytes
-                    .checked_add(component.entity_type.len())?
-                    .checked_add(component.entity_name.as_ref().map_or(0, |name| name.len()))
+                bytes.checked_add(component.entity_type.len())?.checked_add(
+                    component
+                        .entity_name
+                        .as_ref()
+                        .map_or(0, kafka_wire_core::StrBytes::len),
+                )
             })?;
             entry
                 .values

@@ -174,8 +174,10 @@ fn replica_and_listener_counts_have_hard_limits() {
 }
 
 fn failure(version: i16, response: &DescribeQuorumResponse) -> Failure {
-    normalize_describe_metadata_quorum_response(version, response, LIMIT)
-        .expect_err("hostile shape must fail")
+    normalize_describe_metadata_quorum_response(version, response, LIMIT).map_or_else(
+        |error| error,
+        |value| panic!("hostile shape must fail: {value:?}"),
+    )
 }
 
 fn success_response() -> DescribeQuorumResponse {

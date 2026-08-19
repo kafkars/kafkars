@@ -31,7 +31,7 @@ pub(crate) struct DescribeDelegationTokensAdmission {
     pub(crate) fault: Option<DescribeDelegationTokensHostError>,
 }
 
-/// One plan and prepared API-key 41 owner ready for AnyBroker handoff.
+/// One plan and prepared API-key 41 owner ready for `AnyBroker` handoff.
 pub(crate) struct DescribeDelegationTokensSubmission {
     operation_id: OperationId,
     deadline: OperationDeadline,

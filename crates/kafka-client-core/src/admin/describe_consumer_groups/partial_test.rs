@@ -1,5 +1,10 @@
 //! Caller-ordered partial-result settlement after accepted work fails.
 
+#![expect(
+    clippy::expect_used,
+    reason = "test fixtures require contextual transition failures"
+)]
+
 use crate::{Deadline, DeliveryStatus, Moment, OperationId};
 
 use super::{

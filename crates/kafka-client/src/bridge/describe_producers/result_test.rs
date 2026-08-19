@@ -1,4 +1,4 @@
-//! DescribeProducers category, delivery, diagnostic, and scalar tests.
+//! `DescribeProducers` category, delivery, diagnostic, and scalar tests.
 
 use crate::{DeliveryStatus, ErrorKind};
 

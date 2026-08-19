@@ -1,4 +1,4 @@
-//! Singular StreamsGroup description Admin entry-point surface test.
+//! Singular `StreamsGroup` description Admin entry-point surface test.
 
 use crate::admin::{Admin, DescribeStreamsGroupBuilder};
 

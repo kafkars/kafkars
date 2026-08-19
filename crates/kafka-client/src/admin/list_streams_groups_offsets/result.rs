@@ -1,4 +1,4 @@
-//! Typed multi-Streams-group result over deterministic OffsetFetch facts.
+//! Typed multi-Streams-group result over deterministic `OffsetFetch` facts.
 
 use std::time::Duration;
 

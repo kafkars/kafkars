@@ -1,4 +1,4 @@
-//! Isolated names for the engine-owned CreateAcls adapter contract.
+//! Isolated names for the engine-owned `CreateAcls` adapter contract.
 
 pub(super) use kafka_client_engine::{
     CreateAclBinding as Binding, CreateAclBrokerError as BrokerError,

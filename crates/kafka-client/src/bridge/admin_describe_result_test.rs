@@ -73,22 +73,22 @@ fn signed_code_nullable_diagnostic_and_certainty_are_lossless() {
 }
 
 #[test]
-fn protocol_incompatibility_remains_definitely_unsent() {
-    let failure = translate_failure_parts(
-        DescribeClusterFailureKind::Compatibility,
-        DescribeClusterDeliveryStatus::NotSent,
-    );
-    assert_eq!(failure.kind(), ErrorKind::Compatibility);
-    assert_eq!(failure.delivery_status(), Some(DeliveryStatus::NotSent));
-}
-
-#[test]
 fn authentication_rejection_maps_to_public_access() {
     let failure = translate_failure_parts(
         DescribeClusterFailureKind::Authentication,
         DescribeClusterDeliveryStatus::NotSent,
     );
     assert_eq!(failure.kind(), ErrorKind::Access);
+    assert_eq!(failure.delivery_status(), Some(DeliveryStatus::NotSent));
+}
+
+#[test]
+fn protocol_incompatibility_remains_definitely_unsent() {
+    let failure = translate_failure_parts(
+        DescribeClusterFailureKind::Compatibility,
+        DescribeClusterDeliveryStatus::NotSent,
+    );
+    assert_eq!(failure.kind(), ErrorKind::Compatibility);
     assert_eq!(failure.delivery_status(), Some(DeliveryStatus::NotSent));
 }
 

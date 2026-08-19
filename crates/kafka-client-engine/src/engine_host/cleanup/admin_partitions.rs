@@ -2,6 +2,10 @@
 
 use super::super::{EngineHostError, EngineHostResources};
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "terminal verification names every partition-scoped owner and its exact error"
+)]
 pub(super) fn verify(resources: &EngineHostResources) -> Result<(), EngineHostError> {
     let list_offsets = resources.list_offsets.terminal_host().unsettled();
     if list_offsets != 0 {

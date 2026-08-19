@@ -17,7 +17,7 @@ pub(super) const RECOVERY: &str =
 pub(super) const MEMBERSHIP: &str =
     "crates/kafka-client-engine/src/consumer/group/registry_membership.rs";
 pub(super) const MEMBERSHIP_LOCAL: &str =
-    "crates/kafka-client-engine/src/consumer/group/registry_membership/local.rs";
+    "crates/kafka-client-engine/src/consumer/group/registry_membership_local.rs";
 
 pub(super) const LINEAR: &[(&str, &str)] = &[
     ("PreparedClassicHeartbeat", HEARTBEAT),

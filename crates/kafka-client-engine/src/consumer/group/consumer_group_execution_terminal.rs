@@ -189,8 +189,10 @@ impl ConsumerGroupExecution {
             self.prepared.map(|prepared| prepared.deadline().core()),
             self.machine
                 .retry_schedule()
-                .map(|schedule| schedule.not_before()),
-            self.machine.schedule().map(|schedule| schedule.deadline()),
+                .map(kafka_client_core::ConsumerGroupHeartbeatRetrySchedule::not_before),
+            self.machine
+                .schedule()
+                .map(kafka_client_core::ConsumerGroupHeartbeatSchedule::deadline),
         ]
         .into_iter()
         .flatten()

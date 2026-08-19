@@ -1,4 +1,4 @@
-//! Typed StreamsGroup description and member value tests.
+//! Typed `StreamsGroup` description and member value tests.
 
 use super::{
     StreamsGroupAssignment, StreamsGroupDescription, StreamsGroupEndpoint, StreamsGroupKeyValue,

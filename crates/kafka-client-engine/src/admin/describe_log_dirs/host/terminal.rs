@@ -1,14 +1,10 @@
 //! Call polling, route release, publication, reclamation, and recovery.
 
-use kafka_client_core::{
-    AdminDescribeLogDirsInput, AdminDescribeLogDirsState, DeliveryStatus, Moment,
-};
+mod recovery;
 
 use crate::completion::{CompletionRegistryError, ReclaimStatus};
 
-use super::{
-    DescribeLogDirsHandoff, DescribeLogDirsHost, DescribeLogDirsHostError, response::terminal_input,
-};
+use super::{DescribeLogDirsHost, DescribeLogDirsHostError, response::terminal_input};
 
 impl DescribeLogDirsHost {
     pub(super) fn poll_one_call(&mut self) -> Result<bool, DescribeLogDirsHostError> {
@@ -40,76 +36,6 @@ impl DescribeLogDirsHost {
         }
     }
 
-    pub(crate) fn recover_after_driver_shutdown(&mut self) -> Result<(), DescribeLogDirsHostError> {
-        self.close_admission();
-        while let Some(operation) = self.operations.first() {
-            if operation.raw_terminal.is_some() {
-                self.settle_raw(0)?;
-                continue;
-            }
-            let operation_id = operation.operation_id;
-            let state = operation.machine.state();
-            let handoff = operation.handoff;
-            match (state, handoff) {
-                (AdminDescribeLogDirsState::Ready, _) => self.apply(
-                    operation_id,
-                    AdminDescribeLogDirsInput::Start {
-                        now: Moment::from_tick(u64::MAX),
-                    },
-                )?,
-                (AdminDescribeLogDirsState::AwaitingDriver, DescribeLogDirsHandoff::Untouched) => {
-                    self.apply(operation_id, AdminDescribeLogDirsInput::DriverRejected)?;
-                }
-                (AdminDescribeLogDirsState::AwaitingDriver, DescribeLogDirsHandoff::HandedOff) => {
-                    self.retain_recovered_call(0)?;
-                    self.apply(operation_id, AdminDescribeLogDirsInput::DriverAccepted)?;
-                    self.settle_recovered_transport(0)?;
-                }
-                (AdminDescribeLogDirsState::Submitted, DescribeLogDirsHandoff::Submitted) => {
-                    self.retain_recovered_call(0)?;
-                    self.settle_recovered_transport(0)?;
-                }
-                (AdminDescribeLogDirsState::Completed, _) => {
-                    self.publish_terminal(0)?;
-                }
-                _ => return Err(DescribeLogDirsHostError::InvalidHandoff),
-            }
-        }
-        Ok(())
-    }
-
-    fn retain_recovered_call(&mut self, index: usize) -> Result<(), DescribeLogDirsHostError> {
-        if self.operations[index].recovered_call.is_some() {
-            return Ok(());
-        }
-        if let Some(call) = self.operations[index].call.take() {
-            self.operations[index].recovered_call = call.recover_after_driver_shutdown();
-        }
-        self.operations[index]
-            .recovered_call
-            .as_ref()
-            .ok_or(DescribeLogDirsHostError::InvalidHandoff)
-            .map(|_recovered| ())
-    }
-
-    fn settle_recovered_transport(&mut self, index: usize) -> Result<(), DescribeLogDirsHostError> {
-        let transition =
-            self.operations[index]
-                .machine
-                .apply(AdminDescribeLogDirsInput::TransportFailed {
-                    delivery: DeliveryStatus::PossiblySent,
-                })?;
-        let effect = transition
-            .into_effect()
-            .ok_or(DescribeLogDirsHostError::MissingTerminal)?;
-        let recovered = self.operations[index]
-            .recovered_call
-            .take()
-            .ok_or(DescribeLogDirsHostError::InvalidHandoff)?;
-        recovered.seal();
-        self.install_effect(index, effect)
-    }
-
     fn settle_raw(&mut self, index: usize) -> Result<(), DescribeLogDirsHostError> {
         let (input, retained_bytes) = {
             let operation = self
@@ -124,21 +50,31 @@ impl DescribeLogDirsHost {
                 .machine
                 .current_broker()
                 .ok_or(DescribeLogDirsHostError::SubmissionMismatch)?;
-            terminal_input(raw, current, operation.remaining_result_bytes)
+            if !raw.matches(
+                current,
+                operation.plan.selection(),
+                operation.request_scratch_limit,
+                operation.result_limit,
+            ) {
+                return Err(DescribeLogDirsHostError::SubmissionMismatch);
+            }
+            terminal_input(raw, operation.plan.selection())
         };
-        self.operations[index].remaining_result_bytes = self.operations[index]
+        let remaining_result_bytes = self.operations[index]
             .remaining_result_bytes
             .checked_sub(retained_bytes)
             .ok_or(DescribeLogDirsHostError::ByteAccounting)?;
         let transition = self.operations[index].machine.apply(input)?;
+        let effect = transition
+            .into_effect()
+            .ok_or(DescribeLogDirsHostError::MissingTerminal)?;
+        self.validate_effect(index, &effect)?;
+        self.operations[index].remaining_result_bytes = remaining_result_bytes;
         let raw = self.operations[index]
             .raw_terminal
             .take()
             .ok_or(DescribeLogDirsHostError::MissingTerminal)?;
         raw.discard();
-        let effect = transition
-            .into_effect()
-            .ok_or(DescribeLogDirsHostError::MissingTerminal)?;
         self.install_effect(index, effect)
     }
 
@@ -149,6 +85,7 @@ impl DescribeLogDirsHost {
         if self.operations[index].call.is_some()
             || self.operations[index].recovered_call.is_some()
             || self.operations[index].raw_terminal.is_some()
+            || self.operations[index].rejected_submission.is_some()
         {
             return Err(DescribeLogDirsHostError::InvalidHandoff);
         }
@@ -211,13 +148,61 @@ impl DescribeLogDirsHost {
 
     #[cfg(test)]
     pub(in crate::admin::describe_log_dirs) fn retain_recovered_call_for_test(&mut self) {
+        let (broker_id, selection, request_scratch_limit, result_limit) = {
+            let operation = &self.operations[0];
+            (
+                operation
+                    .machine
+                    .current_broker()
+                    .unwrap_or_else(|| panic!("current broker")),
+                operation.plan.selection().clone(),
+                operation.request_scratch_limit,
+                operation.result_limit,
+            )
+        };
         self.operations[0].recovered_call =
-            Some(crate::driver::RecoveredDescribeLogDirsCall::for_test());
+            Some(crate::driver::RecoveredDescribeLogDirsCall::for_test(
+                broker_id,
+                selection,
+                request_scratch_limit,
+                result_limit,
+            ));
     }
 
     #[cfg(test)]
     pub(in crate::admin::describe_log_dirs) fn recovered_call_is_retained_for_test(&self) -> bool {
         self.operations[0].recovered_call.is_some()
+    }
+
+    #[cfg(test)]
+    pub(in crate::admin::describe_log_dirs) fn settle_matching_raw_for_test(
+        &mut self,
+    ) -> Result<(), DescribeLogDirsHostError> {
+        let operation_id = self.operations[0].operation_id;
+        self.apply(
+            operation_id,
+            kafka_client_core::AdminDescribeLogDirsInput::DriverAccepted,
+        )?;
+        let (broker_id, selection, request_scratch_limit, result_limit) = {
+            let operation = &self.operations[0];
+            (
+                operation
+                    .machine
+                    .current_broker()
+                    .ok_or(DescribeLogDirsHostError::SubmissionMismatch)?,
+                operation.plan.selection().clone(),
+                operation.request_scratch_limit,
+                operation.result_limit,
+            )
+        };
+        self.operations[0].raw_terminal =
+            Some(crate::driver::DescribeLogDirsRawTerminal::for_test(
+                broker_id,
+                selection,
+                request_scratch_limit,
+                result_limit,
+            ));
+        self.settle_raw(0)
     }
 
     #[cfg(test)]

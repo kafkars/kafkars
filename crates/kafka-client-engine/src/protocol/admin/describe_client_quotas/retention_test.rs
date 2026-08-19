@@ -18,10 +18,11 @@ fn response_peak_covers_the_normalized_result_while_scratch_is_live() {
             value("request_percentage", 50.0),
         ],
     )]));
-    let peak = response_peak_charge(&response).expect("bounded peak");
+    let peak = response_peak_charge(&response).unwrap_or_else(|| panic!("bounded peak"));
     let normalized = normalize_describe_client_quotas_response(1, &response, peak)
-        .expect("peak admits normalization");
-    let retained = normalized_retained_charge(&normalized).expect("bounded retained result");
+        .unwrap_or_else(|error| panic!("peak admits normalization: {error:?}"));
+    let retained = normalized_retained_charge(&normalized)
+        .unwrap_or_else(|| panic!("bounded retained result"));
 
     assert_eq!(normalized.retained_bytes, peak);
     assert!(retained <= peak);

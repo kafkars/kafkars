@@ -1,4 +1,4 @@
-//! Private ready ShareGroup offset-listing observation tests.
+//! Private ready `ShareGroup` offset-listing observation tests.
 
 use std::{
     future::Future,

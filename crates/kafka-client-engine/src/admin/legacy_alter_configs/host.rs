@@ -108,6 +108,10 @@ impl LegacyAlterConfigsHost {
         self.apply(operation_id, LegacyAlterConfigsInput::DriverAccepted)
     }
 
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "rejected handoff consumes the exact owned configuration plan evidence"
+    )]
     pub(crate) fn reject_handoff(
         &mut self,
         operation_id: OperationId,

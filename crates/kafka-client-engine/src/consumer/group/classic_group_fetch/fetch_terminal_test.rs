@@ -83,7 +83,9 @@ fn admitted_recovery_capacity_failure_retains_the_exact_terminal_proposal() {
     );
 
     assert_eq!(
-        owner.fault().map(|fault| fault.kind()),
+        owner
+            .fault()
+            .map(super::model::ClassicGroupFetchOwnerFault::kind),
         Some(ClassicGroupFetchOwnerFaultKind::OffsetReset(
             ClassicGroupFetchOffsetResetFailure::EffectCapacity {
                 actual: 2,

@@ -1,4 +1,4 @@
-//! Typed ShareGroup description and member value tests.
+//! Typed `ShareGroup` description and member value tests.
 
 use super::{
     ShareGroupAssignment, ShareGroupDescription, ShareGroupMember, ShareGroupTopicPartitions,

@@ -1,4 +1,8 @@
 //! Client-quota value, error category, and delivery translation tests.
+#![expect(
+    clippy::float_cmp,
+    reason = "the test asserts exact broker scalar preservation"
+)]
 
 use crate::{
     DeliveryStatus, ErrorKind,

@@ -51,6 +51,11 @@ pub(crate) use consumer_group::{
     consumer_group_join_request, consumer_group_leave_request, consumer_group_steady_request,
     normalize_consumer_group_heartbeat_response,
 };
+#[cfg(test)]
+pub(crate) use consumer_group::{
+    consumer_group_heartbeat_success_for_test,
+    consumer_group_heartbeat_success_without_assignment_for_test,
+};
 #[expect(unused_imports, reason = "awaiting classic-group commit executor")]
 pub(crate) use group_offset_commit::{
     ClassicGroupCommitSession, GroupOffsetCommitEntryReservation,

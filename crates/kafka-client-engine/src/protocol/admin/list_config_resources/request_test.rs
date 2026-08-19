@@ -12,13 +12,13 @@ use super::{
 fn empty_selection_means_all_and_nonempty_selection_is_canonical() {
     assert!(
         list_config_resources_request(&[])
-            .unwrap()
+            .unwrap_or_else(|error| panic!("empty selection must be valid: {error:?}"))
             .resource_types
             .is_empty()
     );
     assert_eq!(
         list_config_resources_request(&[16, 2, 8])
-            .unwrap()
+            .unwrap_or_else(|error| panic!("selected resource types must be valid: {error:?}"))
             .resource_types,
         [2, 8, 16]
     );

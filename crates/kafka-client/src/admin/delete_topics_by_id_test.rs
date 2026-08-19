@@ -1,4 +1,4 @@
-//! Topic-ID DeleteTopics operation type guarantees.
+//! Topic-ID `DeleteTopics` operation type guarantees.
 
 use std::future::Future;
 

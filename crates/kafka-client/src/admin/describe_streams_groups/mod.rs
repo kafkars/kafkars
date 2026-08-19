@@ -1,4 +1,4 @@
-//! Public Admin API for describing multiple StreamsGroups in caller order.
+//! Public Admin API for describing multiple `StreamsGroups` in caller order.
 
 mod builder;
 mod operation;

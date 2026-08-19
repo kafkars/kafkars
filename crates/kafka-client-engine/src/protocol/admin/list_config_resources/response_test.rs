@@ -24,8 +24,8 @@ fn selected_v1_success_is_canonical_by_type_then_name_bytes() {
         resource(2, "alpha"),
         resource(17, "future"),
     ];
-    let facts =
-        normalize_list_config_resources_response(Some(1), &response, MAX_NORMALIZED_BYTES).unwrap();
+    let facts = normalize_list_config_resources_response(Some(1), &response, MAX_NORMALIZED_BYTES)
+        .unwrap_or_else(|error| panic!("selected response must normalize: {error:?}"));
     assert_eq!(facts.throttle_time_ms(), 12);
     assert_eq!(facts.broker_error_code(), 0);
     let resources = facts
@@ -45,7 +45,8 @@ fn broker_error_preserves_signed_code_without_binding_payload() {
     let mut response = ListConfigResourcesResponse::default();
     response.error_code = -7;
     response.config_resources = vec![resource(0, "")];
-    let facts = normalize_list_config_resources_response(Some(1), &response, 128).unwrap();
+    let facts = normalize_list_config_resources_response(Some(1), &response, 128)
+        .unwrap_or_else(|error| panic!("broker error must normalize: {error:?}"));
     assert_eq!(facts.broker_error_code(), -7);
     assert!(facts.resources().is_empty());
 }

@@ -11,6 +11,10 @@ use super::{
     registry_entry::GroupConsumerEntry,
 };
 
+#[allow(
+    clippy::large_enum_variant,
+    reason = "the post-core branch retains exact rejection recovery ownership without hidden allocation"
+)]
 pub(super) enum ClassicSyncRejectionFailure {
     Restorable(ClassicGroupExecutionError),
     PostCore(ClassicRejectionPostCore),

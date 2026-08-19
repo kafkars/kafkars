@@ -1,13 +1,13 @@
-//! Inert StreamsGroup offset alteration with one delegated submission boundary.
+//! Inert `StreamsGroup` offset alteration with one delegated submission boundary.
 
 use std::time::Duration;
 
 use super::AlterStreamsGroupOffsets;
 use crate::AlterConsumerGroupOffsetsBuilder;
 
-/// Typed StreamsGroup view of the existing caller-ordered offset alteration.
+/// Typed `StreamsGroup` view of the existing caller-ordered offset alteration.
 ///
-/// Kafka 4.2 defines StreamsGroup offset alteration with the same offset data
+/// Kafka 4.2 defines `StreamsGroup` offset alteration with the same offset data
 /// and execution semantics as consumer-group offset alteration. This wrapper
 /// preserves that single implementation and its original deadline boundary.
 #[must_use = "call submit to admit the AlterStreamsGroupOffsets operation"]

@@ -31,7 +31,6 @@ impl ClientEngine {
     /// Starts the engine from facade-owned configuration values.
     #[expect(
         clippy::needless_pass_by_value,
-        clippy::too_many_arguments,
         reason = "the consuming client-builder boundary transfers its exact security owner"
     )]
     pub(crate) fn start_with_consumer_fetch(
