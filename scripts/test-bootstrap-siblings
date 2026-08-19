@@ -270,4 +270,95 @@ expect_bootstrap_failure \
 test -d "$partial_root/kafka-driver"
 test ! -e "$partial_root/kafka-protocol"
 
+rollback_root="$sandbox/second-install-move-failure"
+rollback_client="$rollback_root/kafka-client"
+rollback_log="$rollback_root/bootstrap.log"
+rollback_bin="$rollback_root/bin"
+rollback_counter="$rollback_root/mv-counter"
+prepare_client "$rollback_client"
+write_revisions "$rollback_client" "$driver_revision" "$protocol_revision"
+write_attestation \
+  "$rollback_client" "$driver_revision" "$protocol_revision" \
+  "$driver_fingerprint" "$wire_fingerprint" "$unreachable_declared_wire"
+mkdir -p "$rollback_bin"
+# The generated wrapper expands these variables at its own runtime.
+# shellcheck disable=SC2016
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'set -euo pipefail' \
+  ': "${KAFKA_BOOTSTRAP_TEST_MV_COUNTER:?}"' \
+  'count=0' \
+  'if [[ -f "$KAFKA_BOOTSTRAP_TEST_MV_COUNTER" ]]; then' \
+  '  read -r count < "$KAFKA_BOOTSTRAP_TEST_MV_COUNTER"' \
+  'fi' \
+  'count=$((count + 1))' \
+  'printf "%s\\n" "$count" > "$KAFKA_BOOTSTRAP_TEST_MV_COUNTER"' \
+  'if [[ "$count" -eq 2 ]]; then' \
+  '  echo "injected second install move failure" >&2' \
+  '  exit 73' \
+  'fi' \
+  'exec /bin/mv "$@"' \
+  > "$rollback_bin/mv"
+chmod 700 "$rollback_bin/mv"
+if PATH="$rollback_bin:$PATH" \
+  KAFKA_BOOTSTRAP_TEST_MV_COUNTER="$rollback_counter" \
+  run_bootstrap "$rollback_client" "$rollback_log"; then
+  echo "bootstrap unexpectedly survived the second install move failure" >&2
+  exit 1
+fi
+grep -Fq "injected second install move failure" "$rollback_log"
+test ! -e "$rollback_root/kafka-driver"
+test ! -e "$rollback_root/kafka-protocol"
+if find "$rollback_root" -maxdepth 1 -name '.kafka-client-bootstrap.*' | grep -q .; then
+  echo "bootstrap left a staging directory after install rollback" >&2
+  exit 1
+fi
+
+signal_root="$sandbox/first-install-move-signal"
+signal_client="$signal_root/kafka-client"
+signal_log="$signal_root/bootstrap.log"
+signal_bin="$signal_root/bin"
+signal_counter="$signal_root/mv-counter"
+prepare_client "$signal_client"
+write_revisions "$signal_client" "$driver_revision" "$protocol_revision"
+write_attestation \
+  "$signal_client" "$driver_revision" "$protocol_revision" \
+  "$driver_fingerprint" "$wire_fingerprint" "$unreachable_declared_wire"
+mkdir -p "$signal_bin"
+# The generated wrapper expands these variables at its own runtime.
+# shellcheck disable=SC2016
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'set -euo pipefail' \
+  ': "${KAFKA_BOOTSTRAP_TEST_MV_COUNTER:?}"' \
+  'count=0' \
+  'if [[ -f "$KAFKA_BOOTSTRAP_TEST_MV_COUNTER" ]]; then' \
+  '  read -r count < "$KAFKA_BOOTSTRAP_TEST_MV_COUNTER"' \
+  'fi' \
+  'count=$((count + 1))' \
+  'printf "%s\\n" "$count" > "$KAFKA_BOOTSTRAP_TEST_MV_COUNTER"' \
+  'if [[ "$count" -eq 1 ]]; then' \
+  '  /bin/mv "$@"' \
+  '  echo "injected signal after first install move" >&2' \
+  '  kill -TERM "$PPID"' \
+  '  exit 0' \
+  'fi' \
+  'exec /bin/mv "$@"' \
+  > "$signal_bin/mv"
+chmod 700 "$signal_bin/mv"
+if PATH="$signal_bin:$PATH" \
+  KAFKA_BOOTSTRAP_TEST_MV_COUNTER="$signal_counter" \
+  run_bootstrap "$signal_client" "$signal_log"; then
+  echo "bootstrap unexpectedly survived the first install move signal" >&2
+  exit 1
+fi
+grep -Fq "injected signal after first install move" "$signal_log"
+test ! -e "$signal_root/kafka-driver"
+test ! -e "$signal_root/kafka-protocol"
+test ! -e "$signal_root/.kafka-client-bootstrap.lock"
+if find "$signal_root" -maxdepth 1 -name '.kafka-client-bootstrap.*' | grep -q .; then
+  echo "bootstrap left a staging directory after the install signal" >&2
+  exit 1
+fi
+
 echo "bootstrap exact public-pair network fixture passed"

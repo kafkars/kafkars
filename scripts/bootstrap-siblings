@@ -81,10 +81,68 @@ if [[ -e "$driver_root" || -L "$driver_root" || -e "$protocol_root" || -L "$prot
 fi
 
 stage_root=$(mktemp -d "$parent_root/.kafka-client-bootstrap.XXXXXX")
+lock_root="$parent_root/.kafka-client-bootstrap.lock"
+lock_acquired=0
+driver_installing=0
+driver_installed=0
+protocol_installing=0
+protocol_installed=0
+
+checkout_is_exact() {
+  local root=$1
+  local revision=$2
+  local actual
+
+  [[ -d "$root" && ! -L "$root" ]] || return 1
+  actual=$(git -C "$root" rev-parse --verify 'HEAD^{commit}' 2>/dev/null) || return 1
+  [[ "$actual" == "$revision" ]]
+}
+
 cleanup() {
+  local status=$?
+  trap - EXIT HUP INT TERM
+
+  if [[ "$driver_installing" -eq 1 && "$driver_installed" -eq 0 ]] &&
+    checkout_is_exact "$driver_root" "$driver_revision"; then
+    driver_installed=1
+  fi
+  if [[ "$protocol_installing" -eq 1 && "$protocol_installed" -eq 0 ]] &&
+    checkout_is_exact "$protocol_root" "$protocol_revision"; then
+    protocol_installed=1
+  fi
+  if [[ "$driver_installed" -eq 1 && "$protocol_installed" -eq 0 ]]; then
+    if checkout_is_exact "$protocol_root" "$protocol_revision"; then
+      protocol_installed=1
+    elif checkout_is_exact "$driver_root" "$driver_revision" &&
+      [[ ! -e "$stage_root/kafka-driver" && ! -L "$stage_root/kafka-driver" ]]; then
+      if ! mv "$driver_root" "$stage_root/kafka-driver"; then
+        echo "failed to roll back the partially installed kafka-driver checkout" >&2
+        status=1
+      fi
+    else
+      echo "cannot safely roll back the partially installed kafka-driver checkout" >&2
+      status=1
+    fi
+  fi
   rm -rf -- "$stage_root"
+  if [[ "$lock_acquired" -eq 1 ]] && ! rmdir "$lock_root"; then
+    echo "failed to release the sibling bootstrap lock" >&2
+    status=1
+  fi
+  exit "$status"
 }
 trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
+
+if ! mkdir "$lock_root"; then
+  echo "another sibling bootstrap is active or left an unresolved lock" >&2
+  exit 1
+fi
+lock_acquired=1
+if [[ -e "$driver_root" || -L "$driver_root" || -e "$protocol_root" || -L "$protocol_root" ]]; then
+  echo "a sibling checkout appeared before the bootstrap lock was acquired; refusing to replace it" >&2
+  exit 1
+fi
 
 materialize_staged() {
   local name=$1
@@ -122,8 +180,22 @@ if [[ -e "$driver_root" || -L "$driver_root" || -e "$protocol_root" || -L "$prot
   echo "a sibling checkout appeared while the reviewed pair was fetched; refusing to replace it" >&2
   exit 1
 fi
+driver_installing=1
 mv "$stage_root/kafka-driver" "$driver_root"
+checkout_is_exact "$driver_root" "$driver_revision" || {
+  echo "kafka-driver installation did not preserve the reviewed checkout" >&2
+  exit 1
+}
+driver_installed=1
+driver_installing=0
+protocol_installing=1
 mv "$stage_root/kafka-protocol" "$protocol_root"
+checkout_is_exact "$protocol_root" "$protocol_revision" || {
+  echo "kafka-protocol installation did not preserve the reviewed checkout" >&2
+  exit 1
+}
+protocol_installed=1
+protocol_installing=0
 
 "$repo_root/scripts/check-dependency-provenance"
 echo "installed reviewed public sibling pair driver=$driver_revision wire=$protocol_revision"
