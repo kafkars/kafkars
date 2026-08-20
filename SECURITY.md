@@ -2,10 +2,10 @@
 
 ## Supported versions
 
-There is no released or supported version of `kafkars` yet. The current
-`0.0.0`, `publish = false` source tree is an experimental preview and receives
-best-effort security fixes on its active development branch. No older commit,
-artifact, crate, tag, C ABI, or foreign-language binding is supported.
+The `0.0.1` `kafkars` line is an experimental source preview and receives
+best-effort security fixes on its active development branch. It is not a
+production-supported release. No older commit, artifact, crate, tag, C ABI, or
+foreign-language binding is supported.
 
 This status is not permission to publish a vulnerability before maintainers
 have had a reasonable opportunity to investigate it.

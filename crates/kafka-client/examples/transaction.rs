@@ -1,6 +1,6 @@
 //! Compile-checked transactional-owner initialization.
 
-use kafka_client::{Client, KafkaError};
+use kafkars::{Client, KafkaError};
 
 fn main() {}
 

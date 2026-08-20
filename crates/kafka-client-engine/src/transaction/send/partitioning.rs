@@ -122,7 +122,8 @@ pub(super) const fn normalize_topic_view_failure(
         | TopicPartitionCountFailure::Capacity { .. }
         | TopicPartitionCountFailure::Draining
         | TopicPartitionCountFailure::TopicMismatch
-        | TopicPartitionCountFailure::Completion => {
+        | TopicPartitionCountFailure::Completion
+        | TopicPartitionCountFailure::UnrecognizedDriverFailure => {
             ProducerPartitioningFailure::MetadataUnavailable { broker_code: None }
         }
     };

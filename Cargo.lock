@@ -150,14 +150,14 @@ dependencies = [
 
 [[package]]
 name = "kafka-client-core"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "zeroize",
 ]
 
 [[package]]
 name = "kafka-client-engine"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "bytes",
  "kafka-client-core",
@@ -173,7 +173,7 @@ dependencies = [
 
 [[package]]
 name = "kafka-client-guardrails"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "serde",
  "syn 2.0.119",
@@ -181,19 +181,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "kafka-client-rs"
-version = "0.0.0"
-dependencies = [
- "bytes",
- "kafka-client-engine",
- "kafka-wire",
- "kafka-wire-core",
- "zeroize",
-]
-
-[[package]]
 name = "kafka-client-sim"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "kafka-client-core",
 ]
@@ -259,6 +248,17 @@ dependencies = [
  "snap",
  "thiserror",
  "zstd",
+]
+
+[[package]]
+name = "kafkars"
+version = "0.0.1"
+dependencies = [
+ "bytes",
+ "kafka-client-engine",
+ "kafka-wire",
+ "kafka-wire-core",
+ "zeroize",
 ]
 
 [[package]]

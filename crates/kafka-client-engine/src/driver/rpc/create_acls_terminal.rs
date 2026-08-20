@@ -93,6 +93,11 @@ pub(super) fn retain_create_acls_terminal(
     }
 }
 
+#[allow(
+    clippy::match_same_arms,
+    unreachable_patterns,
+    reason = "the published driver RC exposes a non-exhaustive request error while the reviewed path dependency is exhaustive"
+)]
 pub(super) fn create_acls_failure_kind(error: &RequestError) -> CreateAclsDriverFailureKind {
     match error {
         RequestError::Rejected {
@@ -121,6 +126,7 @@ pub(super) fn create_acls_failure_kind(error: &RequestError) -> CreateAclsDriver
         | RequestError::NameResolutionFailed { .. }
         | RequestError::Rejected { .. }
         | RequestError::ConnectionClosed(_) => CreateAclsDriverFailureKind::Transport,
+        _ => CreateAclsDriverFailureKind::InvalidResponse,
     }
 }
 

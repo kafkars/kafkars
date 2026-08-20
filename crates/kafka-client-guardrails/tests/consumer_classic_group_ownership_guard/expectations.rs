@@ -208,7 +208,7 @@ pub(super) const FORBIDDEN: &[&str] = &[
     "async",
     "async_std",
     "bytes",
-    "kafka_client",
+    "kafkars",
     "kafka_client_engine",
     "kafka_driver",
     "kafka_wire",

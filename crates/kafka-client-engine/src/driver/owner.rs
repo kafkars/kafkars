@@ -95,6 +95,10 @@ impl DriverOwner {
     }
 
     /// Drives one fairness-bounded embedded driver turn.
+    #[allow(
+        unreachable_patterns,
+        reason = "the published driver RC exposes a non-exhaustive turn outcome while the reviewed path dependency is exhaustive"
+    )]
     pub(crate) fn turn(&mut self, max_wait: Duration) -> Result<DriverTurn, DriverOwnerError> {
         let outcome = self
             .reactor
@@ -103,11 +107,15 @@ impl DriverOwner {
         self.shutdown
             .observe()
             .map_err(DriverOwnerError::ShutdownCompletion)?;
-        Ok(match outcome {
+        let outcome = match outcome {
             TurnOutcome::Idle => DriverTurn::Idle,
             TurnOutcome::Progress { more_work, .. } => DriverTurn::Progress { more_work },
             TurnOutcome::Shutdown { .. } => DriverTurn::Shutdown,
-        })
+            // A future outcome cannot be guessed without changing owner-state
+            // semantics such as progress, wake scheduling, or shutdown.
+            _ => return Err(DriverOwnerError::UnrecognizedTurnOutcome),
+        };
+        Ok(outcome)
     }
 
     /// Requests and retains the driver's shared explicit shutdown barrier.

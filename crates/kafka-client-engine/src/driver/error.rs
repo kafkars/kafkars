@@ -28,6 +28,8 @@ pub(crate) enum DriverOwnerError {
     Build(DriverBuildError),
     /// A bounded embedded-reactor turn failed.
     Reactor(ReactorError),
+    /// The driver returned a future reactor outcome with unknown owner semantics.
+    UnrecognizedTurnOutcome,
     /// The driver's shared shutdown barrier rejected its first subscription.
     ShutdownSubmit(SubmitError),
     /// The retained shared shutdown barrier lost its terminal result.
@@ -50,6 +52,9 @@ impl fmt::Display for DriverOwnerError {
             Self::Bootstrap(source) => write!(formatter, "invalid bootstrap set: {source}"),
             Self::Build(source) => write!(formatter, "failed to build embedded driver: {source}"),
             Self::Reactor(source) => write!(formatter, "embedded driver turn failed: {source}"),
+            Self::UnrecognizedTurnOutcome => {
+                formatter.write_str("embedded driver returned an unrecognized turn outcome")
+            }
             Self::ShutdownSubmit(source) => {
                 write!(formatter, "driver shutdown request was rejected: {source}")
             }
@@ -72,6 +77,7 @@ impl Error for DriverOwnerError {
             Self::Bootstrap(source) => Some(source),
             Self::Build(source) => Some(source),
             Self::Reactor(source) => Some(source),
+            Self::UnrecognizedTurnOutcome => None,
             Self::ShutdownSubmit(source) => Some(source),
             Self::ShutdownCompletion(source) => Some(source),
             Self::ShutdownTurnExhausted => None,

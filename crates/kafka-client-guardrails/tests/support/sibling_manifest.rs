@@ -1,4 +1,4 @@
-//! Exact Cargo manifest contracts for reviewed sibling path dependencies.
+//! Exact Cargo manifest contracts for reviewed sibling path dependencies with registry fallbacks.
 
 use toml::Value;
 
@@ -8,24 +8,29 @@ const DEPENDENCY_SECTIONS: [&str; 3] = ["dependencies", "dev-dependencies", "bui
 struct Sibling {
     name: &'static str,
     path: &'static str,
+    version: &'static str,
 }
 
 const SIBLINGS: [Sibling; 4] = [
     Sibling {
         name: "kafka-driver",
         path: "../kafka-driver",
+        version: "0.1.0-rc.1",
     },
     Sibling {
         name: "kafka-wire",
         path: "../kafka-protocol/crates/kafka-wire",
+        version: "0.1.0-rc.2",
     },
     Sibling {
         name: "kafka-wire-records",
         path: "../kafka-protocol/crates/kafka-wire-records",
+        version: "0.1.0-rc.2",
     },
     Sibling {
         name: "kafka-wire-core",
         path: "../kafka-protocol/crates/kafka-wire-core",
+        version: "0.1.0-rc.2",
     },
 ];
 
@@ -62,10 +67,10 @@ fn inspect_root(root: &Value, violations: &mut Vec<String>) {
     for sibling in SIBLINGS {
         let specification =
             workspace_dependencies.and_then(|dependencies| dependencies.get(sibling.name));
-        if !is_exact_path(specification, sibling.path) {
+        if !is_exact_path_and_version(specification, sibling.path, sibling.version) {
             violations.push(format!(
-                "workspace dependency {} must be exactly {{ path = \"{}\" }}",
-                sibling.name, sibling.path
+                "workspace dependency {} must be exactly {{ path = \"{}\", version = \"{}\" }}",
+                sibling.name, sibling.path, sibling.version
             ));
         }
     }
@@ -174,11 +179,17 @@ fn is_sibling(name: &str) -> bool {
     SIBLINGS.iter().any(|sibling| sibling.name == name)
 }
 
-fn is_exact_path(specification: Option<&Value>, expected: &str) -> bool {
+fn is_exact_path_and_version(
+    specification: Option<&Value>,
+    expected_path: &str,
+    expected_version: &str,
+) -> bool {
     specification
         .and_then(Value::as_table)
         .is_some_and(|table| {
-            table.len() == 1 && table.get("path").and_then(Value::as_str) == Some(expected)
+            table.len() == 2
+                && table.get("path").and_then(Value::as_str) == Some(expected_path)
+                && table.get("version").and_then(Value::as_str) == Some(expected_version)
         })
 }
 

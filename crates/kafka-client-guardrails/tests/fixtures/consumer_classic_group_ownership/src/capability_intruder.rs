@@ -1,7 +1,7 @@
 //! Capabilities forbidden from deterministic classic-group policy.
 
 use bytes::Bytes;
-use kafka_client::Client;
+use kafkars::Client;
 use kafka_client_engine::Engine as ForeignEngine;
 use kafka_driver::Driver;
 use kafka_wire::JoinGroupRequest;

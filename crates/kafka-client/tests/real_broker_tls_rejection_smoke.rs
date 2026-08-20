@@ -8,7 +8,7 @@ mod operation;
 use std::{env, fs, io};
 
 use error::TestError;
-use kafka_client::{Client, DeliveryStatus, ErrorKind, Security, Tls};
+use kafkars::{Client, DeliveryStatus, ErrorKind, Security, Tls};
 use operation::wait_within;
 
 #[test]

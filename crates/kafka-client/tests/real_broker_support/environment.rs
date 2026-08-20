@@ -2,7 +2,7 @@
 
 use std::{env, fs, io};
 
-use kafka_client::{Client, ClientBuilder, Sasl, Security, Tls};
+use kafkars::{Client, ClientBuilder, Sasl, Security, Tls};
 
 use super::TestError;
 

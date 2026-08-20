@@ -9,7 +9,7 @@ mod real_broker_support;
 
 use std::io;
 
-use kafka_client::{
+use kafkars::{
     Admin, Client, PartitionReassignmentChange, TopicDescription, TopicPartition,
     TopicPartitionDescription,
 };

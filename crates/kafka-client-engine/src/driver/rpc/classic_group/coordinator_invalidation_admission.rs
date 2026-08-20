@@ -19,6 +19,10 @@ impl ClassicCoordinatorInvalidationAdmissionFailure {
         self.group_id
     }
 
+    #[allow(
+        unreachable_patterns,
+        reason = "the published driver RC exposes a non-exhaustive admission error while the reviewed path dependency is exhaustive"
+    )]
     pub(crate) const fn kind(&self) -> ClassicCoordinatorInvalidationAdmissionFailureKind {
         match &self.source {
             SubmitError::Full => ClassicCoordinatorInvalidationAdmissionFailureKind::Full,
@@ -33,6 +37,7 @@ impl ClassicCoordinatorInvalidationAdmissionFailure {
             SubmitError::VersionBoundsInvalid { .. } => {
                 ClassicCoordinatorInvalidationAdmissionFailureKind::VersionBoundsInvalid
             }
+            _ => ClassicCoordinatorInvalidationAdmissionFailureKind::Unrecognized,
         }
     }
 }
@@ -46,4 +51,5 @@ pub(crate) enum ClassicCoordinatorInvalidationAdmissionFailureKind {
     IdentityExhausted,
     ForeignDriver,
     VersionBoundsInvalid,
+    Unrecognized,
 }

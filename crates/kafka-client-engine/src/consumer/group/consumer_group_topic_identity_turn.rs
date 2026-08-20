@@ -158,6 +158,9 @@ pub(super) const fn topic_lookup_failure(
         | TopicPartitionCountFailure::QueryCapacity(_)
         | TopicPartitionCountFailure::Capacity { .. }
         | TopicPartitionCountFailure::Draining
-        | TopicPartitionCountFailure::Completion => ConsumerGroupHeartbeatFailure::Execution,
+        | TopicPartitionCountFailure::Completion
+        | TopicPartitionCountFailure::UnrecognizedDriverFailure => {
+            ConsumerGroupHeartbeatFailure::Execution
+        }
     }
 }

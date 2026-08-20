@@ -1,7 +1,7 @@
 # Architecture
 
-`kafkars` is one native Kafka client with a deterministic semantic core, one
-runtime-neutral execution engine, and a curated Rust facade.
+`kafkars` is one native client for Apache Kafka® with a deterministic semantic
+core, one runtime-neutral execution engine, and a curated Rust facade.
 
 ```text
 kafka-client-core ----------------------+

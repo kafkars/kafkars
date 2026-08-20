@@ -103,6 +103,11 @@ pub(super) fn retain_delete_acls_terminal(
     }
 }
 
+#[allow(
+    clippy::match_same_arms,
+    unreachable_patterns,
+    reason = "the published driver RC exposes a non-exhaustive request error while the reviewed path dependency is exhaustive"
+)]
 pub(super) fn delete_acls_failure_kind(error: &RequestError) -> DeleteAclsDriverFailureKind {
     match error {
         RequestError::Rejected {
@@ -131,6 +136,7 @@ pub(super) fn delete_acls_failure_kind(error: &RequestError) -> DeleteAclsDriver
         | RequestError::NameResolutionFailed { .. }
         | RequestError::Rejected { .. }
         | RequestError::ConnectionClosed(_) => DeleteAclsDriverFailureKind::Transport,
+        _ => DeleteAclsDriverFailureKind::InvalidResponse,
     }
 }
 

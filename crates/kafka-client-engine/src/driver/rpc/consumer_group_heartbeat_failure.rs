@@ -19,6 +19,11 @@ pub(crate) enum ConsumerGroupHeartbeatDriverFailureKind {
 pub(super) fn classify_consumer_group_heartbeat_request_error(
     error: &RequestError,
 ) -> ConsumerGroupHeartbeatDriverFailureKind {
+    #[allow(
+        clippy::match_same_arms,
+        unreachable_patterns,
+        reason = "the published driver RC exposes a non-exhaustive request error while the reviewed path dependency is exhaustive"
+    )]
     match error {
         RequestError::Encode(error) => classify_encode(error),
         RequestError::Decode(error) => classify_decode(error),
@@ -43,6 +48,7 @@ pub(super) fn classify_consumer_group_heartbeat_request_error(
         }
         RequestError::Rejected { failure, .. } => classify_call(*failure),
         RequestError::ConnectionClosed(reason) => classify_response_close(*reason),
+        _ => ConsumerGroupHeartbeatDriverFailureKind::DriverRejected,
     }
 }
 
@@ -103,6 +109,11 @@ const fn classify_connection_close(
     }
 }
 
+#[allow(
+    clippy::match_same_arms,
+    unreachable_patterns,
+    reason = "an unknown close reason cannot safely acquire transport-retry semantics"
+)]
 const fn classify_response_close(
     reason: ResponseCloseReason,
 ) -> ConsumerGroupHeartbeatDriverFailureKind {
@@ -113,5 +124,6 @@ const fn classify_response_close(
         ResponseCloseReason::TransportClosed | ResponseCloseReason::Shutdown => {
             ConsumerGroupHeartbeatDriverFailureKind::Transport
         }
+        _ => ConsumerGroupHeartbeatDriverFailureKind::InvalidResponse,
     }
 }

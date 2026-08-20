@@ -14,7 +14,7 @@ mod shared_admin_wait;
 use std::time::{Duration, Instant};
 
 use admin_partition_reassignments_loopback::{PartitionReassignmentsBroker, Workflow, wait_within};
-use kafka_client::{
+use kafkars::{
     AlterPartitionReassignmentsResult, Client, DeliveryStatus, ErrorKind, KafkaError,
     PartitionReassignmentChange, TopicPartition,
 };
@@ -122,7 +122,7 @@ fn not_controller_refreshes_reassignment_route_before_caller_retry() {
 }
 
 fn alter_within(
-    admin: &kafka_client::Admin,
+    admin: &kafkars::Admin,
     phase: &str,
 ) -> Result<AlterPartitionReassignmentsResult, KafkaError> {
     let admission_deadline = Instant::now() + Duration::from_secs(2);

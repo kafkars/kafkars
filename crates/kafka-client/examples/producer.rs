@@ -1,6 +1,6 @@
 //! Compile-checked native producer API sketch.
 
-use kafka_client::{Client, KafkaError, Record};
+use kafkars::{Client, KafkaError, Record};
 
 fn main() {}
 

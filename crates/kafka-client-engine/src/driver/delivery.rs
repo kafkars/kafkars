@@ -11,6 +11,11 @@ pub(crate) const fn request_failure_delivery(error: &RequestError) -> DeliverySt
 }
 
 /// Normalizes driver structure without changing authoritative delivery certainty.
+#[allow(
+    clippy::match_same_arms,
+    unreachable_patterns,
+    reason = "the published driver RC exposes a non-exhaustive request error while the reviewed path dependency is exhaustive"
+)]
 pub(crate) const fn request_failure_kind(error: &RequestError) -> ProducerAttemptFailureKind {
     match error {
         RequestError::ResponseCapacityReached { .. }
@@ -35,6 +40,7 @@ pub(crate) const fn request_failure_kind(error: &RequestError) -> ProducerAttemp
         | RequestError::DeadlineOverflow
         | RequestError::CoordinatorCapacityReached { .. }
         | RequestError::ConnectionClosed(_) => ProducerAttemptFailureKind::Permanent,
+        _ => ProducerAttemptFailureKind::Permanent,
     }
 }
 

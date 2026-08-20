@@ -33,6 +33,11 @@ impl ProduceSubmitError {
     }
 
     /// Normalizes immediate rejection structure without inventing retry policy.
+    #[allow(
+        clippy::match_same_arms,
+        unreachable_patterns,
+        reason = "the published driver RC exposes a non-exhaustive admission error while the reviewed path dependency is exhaustive"
+    )]
     pub(crate) const fn failure_kind(&self) -> ProducerAttemptFailureKind {
         match self {
             Self::InvalidTopic(_) | Self::InvalidPartition(_) => {
@@ -46,6 +51,7 @@ impl ProduceSubmitError {
                 | SubmitError::ForeignDriver
                 | SubmitError::VersionBoundsInvalid { .. },
             ) => ProducerAttemptFailureKind::Permanent,
+            Self::Driver(_) => ProducerAttemptFailureKind::Permanent,
         }
     }
 }

@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use admin_list_partition_reassignments_loopback::{
     ListPartitionReassignmentsBroker, Workflow, wait_within,
 };
-use kafka_client::{
+use kafkars::{
     Client, DeliveryStatus, ErrorKind, KafkaError, ListPartitionReassignmentsResult, TopicPartition,
 };
 
@@ -153,7 +153,7 @@ fn not_controller_refreshes_listing_route_before_caller_retry() {
 }
 
 fn list_all_within(
-    admin: &kafka_client::Admin,
+    admin: &kafkars::Admin,
     phase: &str,
 ) -> Result<ListPartitionReassignmentsResult, KafkaError> {
     let admission_deadline = Instant::now() + Duration::from_secs(2);

@@ -1,12 +1,13 @@
-//! Idiomatic Rust facade over the shared reactor-native Kafka client engine.
+//! Experimental, runtime-neutral Rust client for Apache Kafka.
 //!
-//! Immediate explicit-partition producer admission, stage-aware cancellation,
-//! flush observation, atomic close-and-drain, batched topic mutation, and
-//! bounded topic description, committed group-offset listing and deletion,
-//! committed group-offset alteration, configuration description, incremental
-//! configuration alteration, and transactional-owner initialization with
-//! explicit begin, record send, commit, and abort form the implemented slices.
-//! Later API domains remain design probes.
+//! The facade exposes bounded producer, consumer, transaction, security, and
+//! administrative operations over the deterministic client engine. Version
+//! 0.0.1 is a source preview for API evaluation, not a production-readiness or
+//! broker-compatibility claim.
+//!
+//! KAFKA is a registered trademark of The Apache Software Foundation and has
+//! been licensed for use by kafkars. kafkars has no affiliation with and is not
+//! endorsed by The Apache Software Foundation.
 #![forbid(unsafe_code)]
 mod admin;
 mod bridge;

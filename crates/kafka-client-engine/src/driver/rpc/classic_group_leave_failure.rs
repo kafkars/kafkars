@@ -17,6 +17,11 @@ pub(crate) enum ClassicGroupLeaveDriverFailureKind {
     ResponseTooLarge,
 }
 
+#[allow(
+    clippy::match_same_arms,
+    unreachable_patterns,
+    reason = "the published driver RC exposes non-exhaustive failure vocabularies while the reviewed path dependency is exhaustive"
+)]
 pub(super) fn classify_request_error(error: &RequestError) -> ClassicGroupLeaveDriverFailureKind {
     match error {
         RequestError::Encode(error) => classify_encode(error),
@@ -42,6 +47,7 @@ pub(super) fn classify_request_error(error: &RequestError) -> ClassicGroupLeaveD
         }
         RequestError::Rejected { failure, .. } => classify_call(*failure),
         RequestError::ConnectionClosed(reason) => classify_response_close(*reason),
+        _ => ClassicGroupLeaveDriverFailureKind::DriverRejected,
     }
 }
 
@@ -103,6 +109,11 @@ const fn classify_connection_close(
     }
 }
 
+#[allow(
+    clippy::match_same_arms,
+    unreachable_patterns,
+    reason = "an unknown close reason cannot safely acquire transport-retry semantics"
+)]
 const fn classify_response_close(
     reason: ResponseCloseReason,
 ) -> ClassicGroupLeaveDriverFailureKind {
@@ -111,5 +122,6 @@ const fn classify_response_close(
         ResponseCloseReason::TransportClosed | ResponseCloseReason::Shutdown => {
             ClassicGroupLeaveDriverFailureKind::Transport
         }
+        _ => ClassicGroupLeaveDriverFailureKind::InvalidResponse,
     }
 }

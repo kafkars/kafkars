@@ -23,6 +23,11 @@ pub(crate) fn classify_fetch_admission(failure: &FetchAdmissionFailureSource) ->
 }
 
 /// Classifies one driver-owned terminal without exposing driver vocabulary to core.
+#[allow(
+    clippy::match_same_arms,
+    unreachable_patterns,
+    reason = "the published driver RC exposes a non-exhaustive request error while the reviewed path dependency is exhaustive"
+)]
 pub(crate) fn classify_fetch_request_error(failure: &RequestError) -> FetchFailure {
     match failure {
         RequestError::Encode(failure) => classify_wire_encode_error(failure),
@@ -44,6 +49,7 @@ pub(crate) fn classify_fetch_request_error(failure: &RequestError) -> FetchFailu
         }
         RequestError::Rejected { failure, .. } => classify_call_failure(*failure),
         RequestError::ConnectionClosed(reason) => classify_response_close(*reason),
+        _ => FetchFailure::DriverRejected,
     }
 }
 
@@ -98,11 +104,17 @@ const fn classify_connection_close(reason: ConnectionCloseReason) -> FetchFailur
     }
 }
 
+#[allow(
+    clippy::match_same_arms,
+    unreachable_patterns,
+    reason = "an unknown close reason cannot safely acquire transport-retry semantics"
+)]
 const fn classify_response_close(reason: ResponseCloseReason) -> FetchFailure {
     match reason {
         ResponseCloseReason::ProtocolFault => FetchFailure::InvalidResponse,
         ResponseCloseReason::TransportClosed | ResponseCloseReason::Shutdown => {
             FetchFailure::Transport
         }
+        _ => FetchFailure::InvalidResponse,
     }
 }

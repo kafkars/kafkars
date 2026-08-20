@@ -233,6 +233,11 @@ fn completion_failure(
     }
 }
 
+#[allow(
+    clippy::match_same_arms,
+    unreachable_patterns,
+    reason = "the published driver RC exposes a non-exhaustive topic-view error while the reviewed path dependency is exhaustive"
+)]
 fn topic_view_failure(
     request: PartitionFetchRequest,
     source: TopicViewError,
@@ -249,6 +254,7 @@ fn topic_view_failure(
         TopicViewError::Unavailable | TopicViewError::RefreshFailed | TopicViewError::Draining => {
             FetchFailure::Transport
         }
+        _ => FetchFailure::DriverRejected,
     };
     BrokerFetchRouteFailure::terminal(request, failure)
 }

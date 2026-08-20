@@ -1,6 +1,6 @@
 //! Compile-checked group-consumer API sketch.
 
-use kafka_client::Client;
+use kafkars::Client;
 
 fn main() {}
 

@@ -13,9 +13,7 @@ use std::{
 };
 
 use admin_list_offsets_loopback::{ListOffsetsBroker, Workflow};
-use kafka_client::{
-    Client, DeliveryStatus, ErrorKind, ListOffsetsQuery, OffsetSpec, ReadIsolation,
-};
+use kafkars::{Client, DeliveryStatus, ErrorKind, ListOffsetsQuery, OffsetSpec, ReadIsolation};
 
 #[test]
 fn kafka_43_selectors_preserve_order_isolation_fencing_and_leader_routing() {

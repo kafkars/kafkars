@@ -35,7 +35,9 @@ pub(super) const fn classify_partition_count_failure(
     deadline_elapsed: bool,
 ) -> ClassicGroupPartitionCountFailureDisposition {
     match failure {
-        TopicPartitionCountFailure::TopicMismatch | TopicPartitionCountFailure::Completion => {
+        TopicPartitionCountFailure::TopicMismatch
+        | TopicPartitionCountFailure::Completion
+        | TopicPartitionCountFailure::UnrecognizedDriverFailure => {
             ClassicGroupPartitionCountFailureDisposition::Fault
         }
         TopicPartitionCountFailure::Deadline

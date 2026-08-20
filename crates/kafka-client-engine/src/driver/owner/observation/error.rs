@@ -20,6 +20,11 @@ pub(crate) struct DriverObservationAdmissionError {
 }
 
 impl DriverObservationAdmissionError {
+    #[allow(
+        clippy::match_same_arms,
+        unreachable_patterns,
+        reason = "the published driver RC exposes a non-exhaustive admission error while the reviewed path dependency is exhaustive"
+    )]
     pub(super) const fn from_driver(source: SubmitError) -> Self {
         let kind = match source {
             SubmitError::Full => DriverObservationAdmissionErrorKind::Capacity,
@@ -30,6 +35,7 @@ impl DriverObservationAdmissionError {
             | SubmitError::VersionBoundsInvalid { .. } => {
                 DriverObservationAdmissionErrorKind::HostUnavailable
             }
+            _ => DriverObservationAdmissionErrorKind::HostUnavailable,
         };
         Self { kind, source }
     }

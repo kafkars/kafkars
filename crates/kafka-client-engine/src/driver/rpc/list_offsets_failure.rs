@@ -8,6 +8,11 @@ use kafka_wire_core::{DecodeError, EncodeError};
 
 use crate::protocol::consumer::ListOffsetsResponseFailure;
 
+#[allow(
+    clippy::match_same_arms,
+    unreachable_patterns,
+    reason = "the published driver RC exposes a non-exhaustive request error while the reviewed path dependency is exhaustive"
+)]
 pub(super) fn classify_request_error(failure: &RequestError) -> PositionResolutionAttemptFailure {
     match failure {
         RequestError::Encode(failure) => classify_encode_error(failure),
@@ -33,6 +38,7 @@ pub(super) fn classify_request_error(failure: &RequestError) -> PositionResoluti
         }
         RequestError::Rejected { failure, .. } => classify_call_failure(*failure),
         RequestError::ConnectionClosed(reason) => classify_response_close(*reason),
+        _ => PositionResolutionAttemptFailure::DriverRejected,
     }
 }
 
@@ -153,11 +159,17 @@ const fn classify_connection_close(
     }
 }
 
+#[allow(
+    clippy::match_same_arms,
+    unreachable_patterns,
+    reason = "an unknown close reason cannot safely acquire transport-retry semantics"
+)]
 const fn classify_response_close(reason: ResponseCloseReason) -> PositionResolutionAttemptFailure {
     match reason {
         ResponseCloseReason::ProtocolFault => PositionResolutionAttemptFailure::InvalidResponse,
         ResponseCloseReason::TransportClosed | ResponseCloseReason::Shutdown => {
             PositionResolutionAttemptFailure::Transport
         }
+        _ => PositionResolutionAttemptFailure::InvalidResponse,
     }
 }

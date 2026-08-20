@@ -36,6 +36,11 @@ pub(crate) enum ConsumerGroupHeartbeatSubmitErrorKind {
 }
 
 impl ConsumerGroupHeartbeatSubmitError {
+    #[allow(
+        clippy::match_same_arms,
+        unreachable_patterns,
+        reason = "the published driver RC exposes a non-exhaustive admission error while the reviewed path dependency is exhaustive"
+    )]
     pub(crate) const fn kind(&self) -> ConsumerGroupHeartbeatSubmitErrorKind {
         match self {
             Self::Driver(SubmitError::Full) => ConsumerGroupHeartbeatSubmitErrorKind::Full,
@@ -48,6 +53,7 @@ impl ConsumerGroupHeartbeatSubmitError {
                 | SubmitError::ForeignDriver
                 | SubmitError::VersionBoundsInvalid { .. },
             ) => ConsumerGroupHeartbeatSubmitErrorKind::Terminal,
+            Self::Driver(_) => ConsumerGroupHeartbeatSubmitErrorKind::Terminal,
         }
     }
 }

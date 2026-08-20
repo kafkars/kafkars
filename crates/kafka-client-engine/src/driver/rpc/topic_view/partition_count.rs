@@ -79,6 +79,7 @@ pub(crate) enum TopicPartitionCountFailure {
         byte_limit: usize,
     },
     Draining,
+    UnrecognizedDriverFailure,
     TopicMismatch,
     Completion,
 }
@@ -90,6 +91,11 @@ pub(crate) enum TopicPartitionCountAdmissionFailure {
 }
 
 impl TopicPartitionCountAdmissionFailure {
+    #[allow(
+        clippy::match_same_arms,
+        unreachable_patterns,
+        reason = "the published driver RC exposes a non-exhaustive admission error while the reviewed path dependency is exhaustive"
+    )]
     pub(crate) const fn kind(&self) -> TopicPartitionCountAdmissionFailureKind {
         match self {
             Self::Driver(SubmitError::Full) => TopicPartitionCountAdmissionFailureKind::Full,
@@ -101,6 +107,7 @@ impl TopicPartitionCountAdmissionFailure {
                 | SubmitError::ForeignDriver
                 | SubmitError::VersionBoundsInvalid { .. },
             ) => TopicPartitionCountAdmissionFailureKind::Terminal,
+            Self::Driver(_) => TopicPartitionCountAdmissionFailureKind::Terminal,
         }
     }
 }
@@ -129,6 +136,10 @@ impl Error for TopicPartitionCountAdmissionFailure {
     }
 }
 
+#[allow(
+    unreachable_patterns,
+    reason = "the published driver RC exposes a non-exhaustive topic-view error while the reviewed path dependency is exhaustive"
+)]
 pub(super) const fn normalize_error(error: TopicViewError) -> TopicPartitionCountFailure {
     match error {
         TopicViewError::DeadlineExceeded => TopicPartitionCountFailure::Deadline,
@@ -148,5 +159,7 @@ pub(super) const fn normalize_error(error: TopicViewError) -> TopicPartitionCoun
             byte_limit,
         },
         TopicViewError::Draining => TopicPartitionCountFailure::Draining,
+        // Future topic-view failures are not granted transient semantics.
+        _ => TopicPartitionCountFailure::UnrecognizedDriverFailure,
     }
 }

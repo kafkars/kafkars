@@ -1,14 +1,16 @@
 # Support and compatibility
 
-This document states the public boundary of the experimental Rust preview. It
-is intentionally narrower than the amount of code in the repository.
+This document states the public boundary of the experimental Rust client for
+Apache Kafka®. It is intentionally narrower than the amount of code in the
+repository.
 
 ## Release status
 
-- Workspace version: `0.0.0`
-- Publication: disabled for every workspace package
+- Workspace version: `0.0.1`
+- Publication: enabled for `kafkars`, `kafka-client-core`, and
+  `kafka-client-engine`; disabled for simulation and guardrails
 - Stability: no semantic-versioning or source-compatibility promise
-- Supported releases: none
+- Supported releases: no production release; `0.0.1` is a source preview
 - Intended audience: design review, source evaluation, and contribution
 
 The current source is not a public beta and is not recommended for production
@@ -40,11 +42,11 @@ No Kafka broker version is release-supported in this preview. The protocol
 adapters negotiate bounded per-request version windows, but that is not a
 substitute for end-to-end qualification.
 
-Before a beta or tag, the project intends to qualify maintained Kafka 3.x and
-current Kafka 4.x releases across produce and consume, group coordination,
-administration, transactions, reconnects, retries, deadlines, and shutdown.
-Until that evidence exists, compatibility reports should include the exact
-broker distribution and version.
+Before a beta or production-supported release, the project intends to qualify
+maintained Kafka 3.x and current Kafka 4.x releases across produce and consume,
+group coordination, administration, transactions, reconnects, retries,
+deadlines, and shutdown. Until that evidence exists, compatibility reports
+should include the exact broker distribution and version.
 
 ## Transport and authentication
 
@@ -96,10 +98,10 @@ release surface.
 
 ## Project naming
 
-The product is `kafkars`; `kafka-client` is the repository. The current public
-Rust library is `kafka_client`, built from the unpublished `kafka-client-rs`
-package. `zsumz` is the maintainer and signing identity. These names do not
-imply that a crate has been published or reserved.
+The product, package, and public Rust library are `kafkars`; `kafka-client` is
+the repository. `kafka-client-core` and `kafka-client-engine` are published
+implementation dependencies, not separate public product identities. `zsumz`
+is the maintainer and signing identity.
 
 For build setup, see `README.md`. For security-sensitive reports, follow
 `SECURITY.md` rather than opening a public issue.

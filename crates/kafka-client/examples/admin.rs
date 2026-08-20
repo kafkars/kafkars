@@ -1,6 +1,6 @@
 //! Compile-checked batched admin API sketch.
 
-use kafka_client::{Client, KafkaError, NewPartitions, NewTopic};
+use kafkars::{Client, KafkaError, NewPartitions, NewTopic};
 
 fn main() {}
 

@@ -116,7 +116,8 @@ fn normalize_failure(failure: TopicPartitionCountFailure) -> ProducerPartitionin
         | TopicPartitionCountFailure::Capacity { .. }
         | TopicPartitionCountFailure::Draining
         | TopicPartitionCountFailure::TopicMismatch
-        | TopicPartitionCountFailure::Completion => {
+        | TopicPartitionCountFailure::Completion
+        | TopicPartitionCountFailure::UnrecognizedDriverFailure => {
             ProducerPartitioningFailure::MetadataUnavailable { broker_code: None }
         }
     }

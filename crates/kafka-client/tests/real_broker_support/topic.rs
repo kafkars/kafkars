@@ -5,7 +5,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use kafka_client::{Admin, BatchResult, Client, NewTopic};
+use kafkars::{Admin, BatchResult, Client, NewTopic};
 
 use super::{OPERATION_TIMEOUT, TestError, wait_within};
 

@@ -16,7 +16,7 @@ default-members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.0.0"
+version = "0.0.1"
 edition = "2024"
 rust-version = "1.88"
 license = "Apache-2.0"
@@ -24,13 +24,13 @@ repository = "https://github.com/zsumz/kafka-client"
 
 [workspace.dependencies]
 bytes = "1.10"
-kafka-client-core = { path = "crates/kafka-client-core" }
-kafka-client-engine = { path = "crates/kafka-client-engine" }
+kafka-client-core = { path = "crates/kafka-client-core", version = "0.0.1" }
+kafka-client-engine = { path = "crates/kafka-client-engine", version = "0.0.1" }
 kafka-client-sim = { path = "crates/kafka-client-sim" }
-kafka-driver = { path = "../kafka-driver" }
-kafka-wire = { path = "../kafka-protocol/crates/kafka-wire" }
-kafka-wire-core = { path = "../kafka-protocol/crates/kafka-wire-core" }
-kafka-wire-records = { path = "../kafka-protocol/crates/kafka-wire-records" }
+kafka-driver = { path = "../kafka-driver", version = "0.1.0-rc.1" }
+kafka-wire = { path = "../kafka-protocol/crates/kafka-wire", version = "0.1.0-rc.2" }
+kafka-wire-core = { path = "../kafka-protocol/crates/kafka-wire-core", version = "0.1.0-rc.2" }
+kafka-wire-records = { path = "../kafka-protocol/crates/kafka-wire-records", version = "0.1.0-rc.2" }
 ring = "0.17.14"
 rustls = { version = "0.23.42", default-features = false, features = ["ring", "std"] }
 rustls-native-certs = "0.8.4"

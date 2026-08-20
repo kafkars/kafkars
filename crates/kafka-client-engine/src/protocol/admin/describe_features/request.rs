@@ -2,7 +2,7 @@
 
 use kafka_wire::ApiVersionsRequest;
 
-const CLIENT_SOFTWARE_NAME: &str = "kafka-client-rs";
+const CLIENT_SOFTWARE_NAME: &str = "kafkars";
 const CLIENT_SOFTWARE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Builds a v3-v5-compatible feature query without invented cluster identity.

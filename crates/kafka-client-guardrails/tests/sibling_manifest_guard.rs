@@ -1,4 +1,4 @@
-//! Reviewed sibling crates remain exact local paths throughout Cargo manifests.
+//! Reviewed sibling crates retain exact local paths and registry fallbacks.
 
 #[path = "support/sibling_manifest.rs"]
 mod sibling_manifest;
@@ -10,7 +10,7 @@ use sibling_manifest::violations;
 use support::{read, workspace_root};
 
 #[test]
-fn live_sibling_dependency_specs_are_exact_paths() {
+fn live_sibling_dependency_specs_have_exact_paths_and_versions() {
     let workspace = workspace_root();
     let violations = violations(
         &read(&workspace.join("Cargo.toml")),
@@ -37,9 +37,19 @@ fn git_and_alternate_path_specs_are_rejected() {
     ] {
         let violations = violations(&fixture(root), &engine);
         assert!(
-            violations
-                .iter()
-                .any(|violation| violation.contains("workspace dependency kafka-driver")),
+            violations.len() == 1 && violations[0].contains("workspace dependency kafka-driver"),
+            "sibling manifest guard accepted {root}: {violations:?}"
+        );
+    }
+}
+
+#[test]
+fn missing_and_wrong_registry_fallbacks_are_rejected() {
+    let engine = fixture("engine_valid.toml");
+    for root in ["root_path_only.toml", "root_wrong_version.toml"] {
+        let violations = violations(&fixture(root), &engine);
+        assert!(
+            violations.len() == 1 && violations[0].contains("workspace dependency kafka-driver"),
             "sibling manifest guard accepted {root}: {violations:?}"
         );
     }

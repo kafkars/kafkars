@@ -1,15 +1,20 @@
 [package]
-name = "kafka-client-rs"
+name = "kafkars"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Idiomatic Rust client for Apache Kafka"
-publish = false
+description = "A deterministic, runtime-neutral Rust client for Apache Kafka"
+documentation = "https://docs.rs/kafkars"
+readme = "README.md"
+keywords = ["kafka", "streaming", "client", "messaging"]
+categories = ["api-bindings", "network-programming"]
+include = ["src/**", "examples/**", "README.md", "LICENSE"]
+publish = ["crates-io"]
 
 [lib]
-name = "kafka_client"
+name = "kafkars"
 path = "src/lib.rs"
 
 [dependencies]

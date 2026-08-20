@@ -1,14 +1,16 @@
 # kafkars
 
-`kafkars` is an experimental Rust Kafka client built around a deterministic
-semantic core and a runtime-neutral execution engine. The project treats
-deadlines, retained bytes, operation completion, cancellation, and delivery
-certainty as explicit ownership rather than incidental runtime behavior.
+`kafkars` is an experimental Rust client for Apache Kafka® built around a
+deterministic semantic core and a runtime-neutral execution engine. The project
+treats deadlines, retained bytes, operation completion, cancellation, and
+delivery certainty as explicit ownership rather than incidental runtime
+behavior.
 
-This repository is a source preview, not a beta or production release. Every
-workspace package is currently version `0.0.0` with `publish = false`. There is
-no supported crates.io release, stable API promise, or qualified Kafka broker
-matrix yet.
+Version `0.0.1` is a source preview, not a beta or production release. The
+user-facing `kafkars` crate and its `kafka-client-core` and
+`kafka-client-engine` implementation dependencies are publishable;
+`kafka-client-sim` and `kafka-client-guardrails` remain unpublished. There is
+no stable API promise or qualified Kafka broker matrix yet.
 
 ## What is here
 
@@ -18,8 +20,7 @@ The Rust workspace contains:
   transaction policy with no networking or async-runtime dependency;
 - `kafka-client-engine`, the bounded integration owner for one embedded
   `kafka-driver` reactor;
-- `kafka-client-rs`, whose library name is `kafka_client`, the public Rust
-  facade;
+- `kafkars`, the user-facing Rust facade;
 - `kafka-client-sim`, virtual-time execution of core state machines; and
 - `kafka-client-guardrails`, executable repository and architecture policy.
 
@@ -34,6 +35,22 @@ No C ABI or Java, Python, Node.js, Go, or .NET binding is included in this
 preview. A future foreign interface would require its own versioned contract
 and qualification; this repository makes no foreign-ABI compatibility
 promise.
+
+## Use the source-preview crate
+
+```toml
+[dependencies]
+kafkars = "0.0.1"
+```
+
+The public Rust crate name is also `kafkars`:
+
+```rust
+use kafkars::{Client, ClientBuilder};
+```
+
+This version is for API evaluation. It is not a claim of production readiness
+or broker compatibility beyond the exact evidence described below.
 
 ## Build from a clean clone
 
@@ -82,14 +99,21 @@ RUSTDOCFLAGS="-D warnings" cargo doc --locked --workspace --all-features --no-de
 
 ## Project identity
 
-`kafkars` is the project name. `kafka-client` is the source repository name,
-and the current Rust facade is the `kafka_client` library from the unpublished
-`kafka-client-rs` package. `zsumz` is the maintainer and signing identity, not a
-second client implementation. No crates.io package name is reserved by this
-preview.
+`kafkars` is the project, package, and public Rust crate name. `kafka-client` is
+the [source repository](https://github.com/zsumz/kafka-client).
+`kafka-client-core` and `kafka-client-engine` retain implementation-oriented
+package identities; most users should depend only on `kafkars`. `zsumz` is the
+maintainer and signing identity, not a second client implementation.
 
 Read [ARCHITECTURE.md](ARCHITECTURE.md) before changing ownership boundaries.
 Contributions are described in [CONTRIBUTING.md](CONTRIBUTING.md), private
 vulnerability reporting in [SECURITY.md](SECURITY.md), and the exact support
 status in [SUPPORT.md](SUPPORT.md). The source is licensed under
 [Apache-2.0](LICENSE).
+
+## Trademarks
+
+KAFKA is a registered trademark of The Apache Software Foundation and has been
+licensed for use by kafkars. kafkars has no affiliation with and is not
+endorsed by The Apache Software Foundation. See the
+[Apache Kafka trademark policy](https://kafka.apache.org/community/trademark/).

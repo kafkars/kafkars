@@ -144,7 +144,8 @@ impl GroupConsumerRegistry {
                     | ClassicCoordinatorInvalidationAdmissionFailureKind::Wake
                     | ClassicCoordinatorInvalidationAdmissionFailureKind::IdentityExhausted
                     | ClassicCoordinatorInvalidationAdmissionFailureKind::ForeignDriver
-                    | ClassicCoordinatorInvalidationAdmissionFailureKind::VersionBoundsInvalid => {
+                    | ClassicCoordinatorInvalidationAdmissionFailureKind::VersionBoundsInvalid
+                    | ClassicCoordinatorInvalidationAdmissionFailureKind::Unrecognized => {
                         Err(ClassicGroupExecutionError::CoordinatorInvalidationAdmission)
                     }
                 };
