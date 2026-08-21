@@ -10,7 +10,7 @@ documentation = "https://docs.rs/kafkars"
 readme = "README.md"
 keywords = ["kafka", "streaming", "client", "messaging"]
 categories = ["api-bindings", "network-programming"]
-include = ["src/**", "examples/**", "README.md", "LICENSE"]
+include = ["src/**", "examples/**", "assets/kafkars-logo.svg", "README.md", "LICENSE"]
 publish = ["crates-io"]
 
 [lib]

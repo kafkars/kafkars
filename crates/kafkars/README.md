@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/kafkars/kafkars/main/crates/kafkars/assets/kafkars-logo.svg" alt="kafkars — native Rust client for Apache Kafka®" width="780">
+</p>
+
 # kafkars
 
 `kafkars` is an experimental, deterministic, runtime-neutral Rust client for
