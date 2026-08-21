@@ -51,10 +51,15 @@ impl ProducerTopicView {
         })
     }
 
-    /// Refuses to invent a broker identity absent from the reviewed driver view.
+    /// Returns the exact driver-published leader identity for one partition.
     pub(crate) fn leader_broker_id(&self, partition: PartitionIndex) -> Option<i32> {
-        let _ = (self, partition);
-        None
+        let partition = i32::try_from(partition.get()).ok()?;
+        (0..self.view.available_len()).find_map(|index| {
+            self.view
+                .available_at(index)
+                .filter(|fact| fact.partition().get() == partition)
+                .map(|fact| fact.broker_id().get())
+        })
     }
 }
 

@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use kafka_client_core::DescribeConfigsRoute;
-use kafka_driver::{Route, TrafficClass};
+use kafka_driver::{BrokerId, Route, TrafficClass};
 
 use super::describe_configs_submission::{describe_configs_options, describe_configs_route};
 
@@ -17,7 +17,9 @@ fn generic_and_broker_configs_validate_the_core_route_before_submission() {
     assert_eq!(
         describe_configs_route(DescribeConfigsRoute::ExactBroker(7))
             .unwrap_or_else(|error| panic!("exact broker route: {error}")),
-        Route::AnyBroker
+        Route::Broker {
+            broker_id: BrokerId::new(7).unwrap_or_else(|error| panic!("valid broker: {error}")),
+        }
     );
     assert!(describe_configs_route(DescribeConfigsRoute::ExactBroker(-1)).is_err());
 }

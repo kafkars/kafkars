@@ -11,19 +11,15 @@ use crate::{
     protocol::fetch::{FetchRequestSettings, FetchSessionRequest},
 };
 
-use super::{
-    broker_close::{BrokerFetchCloseCall, BrokerFetchCloseSubmitError},
-    route::BrokerId,
-    submission::FetchSubmitError,
-};
+use super::{broker_close::BrokerFetchCloseCall, route::BrokerId};
 
 #[test]
-fn established_session_close_fails_closed_without_exact_broker_routing() {
+fn established_session_close_is_admitted_to_exact_broker_route() {
     let mut driver = DriverOwner::build(&EngineConfig::new(vec!["127.0.0.1:1".to_owned()]))
         .unwrap_or_else(|error| panic!("build close driver: {error}"));
     let session =
         FetchSessionRequest::incremental(91, 7).unwrap_or_else(|| panic!("established session"));
-    let error = BrokerFetchCloseCall::submit(
+    let mut call = BrokerFetchCloseCall::submit(
         &driver,
         BrokerId::new(1).unwrap_or_else(|error| panic!("broker ID: {error}")),
         FetchRequestSettings::new(500, 1, 1024, 1024, 0),
@@ -33,15 +29,15 @@ fn established_session_close_fails_closed_without_exact_broker_routing() {
             Instant::now() + Duration::from_secs(60),
         ),
     )
-    .err()
-    .unwrap_or_else(|| panic!("exact-broker close must remain unsent"));
+    .unwrap_or_else(|error| panic!("exact-broker close admission: {error:?}"));
 
-    assert!(!error.is_backpressured());
-    assert!(matches!(
-        error,
-        BrokerFetchCloseSubmitError::Driver(FetchSubmitError::ExactBrokerRoutingUnavailable)
-    ));
+    assert!(
+        !call
+            .poll()
+            .unwrap_or_else(|error| panic!("close poll: {error}"))
+    );
     driver
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("shutdown close driver: {error}"));
+    drop(call);
 }

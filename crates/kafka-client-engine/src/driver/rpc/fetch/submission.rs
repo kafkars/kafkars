@@ -19,8 +19,6 @@ pub(crate) enum FetchSubmitError {
     InvalidTopic(TopicNameError),
     /// The engine supplied a partition outside the driver's validated domain.
     InvalidPartition(PartitionIdError),
-    /// The reviewed driver cannot route one request to an exact broker.
-    ExactBrokerRoutingUnavailable,
     /// Bounded driver admission rejected the request.
     Driver(SubmitError),
 }
@@ -32,9 +30,6 @@ impl fmt::Display for FetchSubmitError {
             Self::InvalidPartition(source) => {
                 write!(formatter, "invalid Fetch partition: {source}")
             }
-            Self::ExactBrokerRoutingUnavailable => {
-                formatter.write_str("exact-broker Fetch routing is unavailable")
-            }
             Self::Driver(source) => write!(formatter, "driver rejected Fetch: {source}"),
         }
     }
@@ -45,7 +40,6 @@ impl Error for FetchSubmitError {
         match self {
             Self::InvalidTopic(source) => Some(source),
             Self::InvalidPartition(source) => Some(source),
-            Self::ExactBrokerRoutingUnavailable => None,
             Self::Driver(source) => Some(source),
         }
     }
@@ -76,18 +70,22 @@ impl DriverOwner {
     }
 
     /// Submits one broker-aggregated long-poll Fetch under exact metadata authority.
-    #[allow(
-        clippy::unused_self,
-        reason = "the driver capability boundary deliberately fails closed until exact-broker routing exists"
-    )]
     pub(crate) fn submit_tracked_broker_fetch(
         &self,
         broker_id: BrokerId,
-        _request: FetchRequest,
-        _deadline: Instant,
+        request: FetchRequest,
+        deadline: Instant,
     ) -> Result<RoutedCall<FetchResponse>, FetchSubmitError> {
-        let _requested_broker_id = broker_id.get();
-        Err(FetchSubmitError::ExactBrokerRoutingUnavailable)
+        let options = fetch_options_for_request(deadline, &request);
+        self.driver
+            .request_tracked_with(
+                Route::Broker {
+                    broker_id: broker_id.driver(),
+                },
+                request,
+                options,
+            )
+            .map_err(FetchSubmitError::Driver)
     }
 }
 

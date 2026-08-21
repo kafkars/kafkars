@@ -3,7 +3,9 @@
 use std::{error::Error, fmt, time::Instant};
 
 use kafka_client_core::DescribeConfigsRoute;
-use kafka_driver::{ApiVersion, RequestOptions, Route, RoutedCall, SubmitError, TrafficClass};
+use kafka_driver::{
+    ApiVersion, BrokerId, RequestOptions, Route, RoutedCall, SubmitError, TrafficClass,
+};
 use kafka_wire::{DescribeConfigsRequest, DescribeConfigsResponse};
 
 use super::super::DriverOwner;
@@ -62,8 +64,9 @@ pub(super) fn describe_configs_route(
     match route {
         DescribeConfigsRoute::AnyBroker => Ok(Route::AnyBroker),
         DescribeConfigsRoute::ExactBroker(raw) => {
-            validate_broker_id(raw).map_err(DescribeConfigsSubmitError::InvalidBroker)?;
-            Ok(Route::AnyBroker)
+            let broker_id = BrokerId::new(raw)
+                .map_err(|_error| DescribeConfigsSubmitError::InvalidBroker(InvalidBroker(raw)))?;
+            Ok(Route::Broker { broker_id })
         }
     }
 }
@@ -78,13 +81,6 @@ impl fmt::Display for InvalidBroker {
 }
 
 impl Error for InvalidBroker {}
-
-const fn validate_broker_id(broker_id: i32) -> Result<(), InvalidBroker> {
-    if broker_id < 0 {
-        return Err(InvalidBroker(broker_id));
-    }
-    Ok(())
-}
 
 pub(super) const fn describe_configs_options(deadline: Instant) -> RequestOptions {
     RequestOptions::new(deadline)

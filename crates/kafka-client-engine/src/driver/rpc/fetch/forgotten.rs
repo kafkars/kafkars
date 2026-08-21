@@ -230,7 +230,6 @@ fn submit_failure_kind(source: &FetchSubmitError) -> ForgottenFetchSubmitFailure
         }
         FetchSubmitError::InvalidTopic(_)
         | FetchSubmitError::InvalidPartition(_)
-        | FetchSubmitError::ExactBrokerRoutingUnavailable
         | FetchSubmitError::Driver(_) => ForgottenFetchSubmitFailureKind::DriverRejected,
     }
 }

@@ -61,19 +61,17 @@ fn accepted_submission_returns_a_tracked_partition_call() {
 }
 
 #[test]
-fn exact_broker_submission_fails_closed_when_driver_route_is_unavailable() {
+fn accepted_exact_broker_submission_returns_a_tracked_call() {
     let mut owner = owner();
     let deadline = Instant::now() + Duration::from_secs(1);
     let broker_id = BrokerId::new(3).unwrap_or_else(|error| panic!("broker ID: {error}"));
-    let error = owner
+    let call = owner
         .submit_tracked_broker_fetch(broker_id, FetchRequest::default(), deadline)
-        .err()
-        .unwrap_or_else(|| panic!("exact-broker Fetch must remain unsent"));
+        .unwrap_or_else(|error| panic!("tracked exact-broker Fetch admission: {error}"));
 
-    assert!(matches!(
-        error,
-        FetchSubmitError::ExactBrokerRoutingUnavailable
-    ));
+    assert!(call.try_result().is_none());
+    assert_tracked_fetch(&call);
+    drop(call);
     owner
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));

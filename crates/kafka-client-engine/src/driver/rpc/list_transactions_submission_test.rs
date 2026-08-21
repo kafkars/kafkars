@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use kafka_client_core::AdminListTransactionsPlan;
-use kafka_driver::{ApiVersion, CompletionError, Route, TrafficClass};
+use kafka_driver::{ApiVersion, BrokerId, CompletionError, Route, TrafficClass};
 use kafka_wire::ListTransactionsRequest;
 
 use crate::{EngineConfig, driver::DriverOwner};
@@ -20,7 +20,12 @@ use super::{
 #[test]
 fn discovery_is_any_broker_routed_and_broker_routes_are_exact() {
     assert_eq!(list_transactions_discovery_route(), Route::AnyBroker);
-    assert_eq!(list_transactions_broker_route(7), Ok(Route::AnyBroker));
+    assert_eq!(
+        list_transactions_broker_route(7),
+        Ok(Route::Broker {
+            broker_id: BrokerId::new(7).unwrap_or_else(|error| panic!("valid broker: {error}")),
+        })
+    );
     assert!(list_transactions_broker_route(-1).is_err());
 }
 

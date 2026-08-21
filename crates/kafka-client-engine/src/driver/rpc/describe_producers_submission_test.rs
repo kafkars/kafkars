@@ -3,7 +3,9 @@
 use std::time::{Duration, Instant};
 
 use kafka_client_core::AdminDescribeProducerTarget;
-use kafka_driver::{ApiVersion, CompletionError, PartitionId, Route, TopicName, TrafficClass};
+use kafka_driver::{
+    ApiVersion, BrokerId, CompletionError, PartitionId, Route, TopicName, TrafficClass,
+};
 
 use crate::{EngineConfig, driver::DriverOwner};
 
@@ -31,7 +33,9 @@ fn explicit_broker_selects_exact_route_after_validating_the_target() {
     assert_eq!(
         describe_producers_route("orders", 17, Some(7))
             .unwrap_or_else(|error| panic!("valid exact broker route: {error}")),
-        Route::AnyBroker
+        Route::Broker {
+            broker_id: BrokerId::new(7).unwrap_or_else(|error| panic!("valid broker: {error}")),
+        }
     );
     assert!(describe_producers_route("", 17, Some(7)).is_err());
     assert!(describe_producers_route("orders", -1, Some(7)).is_err());

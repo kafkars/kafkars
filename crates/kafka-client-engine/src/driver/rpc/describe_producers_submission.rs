@@ -3,8 +3,8 @@
 use std::{error::Error, fmt, time::Instant};
 
 use kafka_driver::{
-    ApiVersion, PartitionId, PartitionIdError, RequestOptions, Route, RoutedCall, SubmitError,
-    TopicName, TopicNameError, TrafficClass,
+    ApiVersion, BrokerId, PartitionId, PartitionIdError, RequestOptions, Route, RoutedCall,
+    SubmitError, TopicName, TopicNameError, TrafficClass,
 };
 use kafka_wire::{DescribeProducersRequest, DescribeProducersResponse};
 
@@ -78,8 +78,10 @@ pub(super) fn describe_producers_route(
     let partition =
         PartitionId::new(partition).map_err(DescribeProducersSubmitError::InvalidPartition)?;
     if let Some(broker_id) = broker_id {
-        validate_broker_id(broker_id).map_err(DescribeProducersSubmitError::InvalidBroker)?;
-        return Ok(Route::AnyBroker);
+        let broker_id = BrokerId::new(broker_id).map_err(|_error| {
+            DescribeProducersSubmitError::InvalidBroker(InvalidBroker(broker_id))
+        })?;
+        return Ok(Route::Broker { broker_id });
     }
     Ok(Route::PartitionLeader { topic, partition })
 }
@@ -94,13 +96,6 @@ impl fmt::Display for InvalidBroker {
 }
 
 impl Error for InvalidBroker {}
-
-const fn validate_broker_id(broker_id: i32) -> Result<(), InvalidBroker> {
-    if broker_id < 0 {
-        return Err(InvalidBroker(broker_id));
-    }
-    Ok(())
-}
 
 pub(super) const fn describe_producers_options(deadline: Instant) -> RequestOptions {
     RequestOptions::new(deadline)

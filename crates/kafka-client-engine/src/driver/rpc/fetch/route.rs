@@ -2,58 +2,36 @@
 
 use core::num::NonZeroI16;
 
-#[cfg(test)]
-use std::{error::Error, fmt};
-
 use kafka_client_core::{AssignedConsumerEffect, FetchFailure};
-use kafka_driver::{Call, CompletionError, SubmitError, TopicName, TopicView, TopicViewError};
+use kafka_driver::{
+    BrokerId as DriverBrokerId, Call, CompletionError, SubmitError, TopicName, TopicView,
+    TopicViewError,
+};
 
 use super::{super::super::DriverOwner, admission::PartitionFetchRequest};
 
 /// Nonnegative Kafka broker identity retained by the broker-session owner.
-///
-/// The reviewed driver does not currently expose broker identities through
-/// `TopicView`, so production routing cannot construct this value yet.
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct BrokerId(i32);
+pub(crate) struct BrokerId(DriverBrokerId);
 
 impl BrokerId {
     #[cfg(test)]
-    pub(crate) const fn new(value: i32) -> Result<Self, BrokerIdError> {
-        if value < 0 {
-            return Err(BrokerIdError { value });
-        }
-        Ok(Self(value))
+    pub(crate) fn new(value: i32) -> Result<Self, kafka_driver::BrokerIdError> {
+        DriverBrokerId::new(value).map(Self)
     }
 
-    pub(crate) const fn get(self) -> i32 {
+    pub(crate) const fn from_driver(value: DriverBrokerId) -> Self {
+        Self(value)
+    }
+
+    pub(crate) const fn driver(self) -> DriverBrokerId {
         self.0
     }
 }
 
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct BrokerIdError {
-    value: i32,
-}
-
-#[cfg(test)]
-impl fmt::Display for BrokerIdError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "broker ID {} must be nonnegative", self.value)
-    }
-}
-
-#[cfg(test)]
-impl Error for BrokerIdError {}
-
 /// One prepared request paired with exact immutable metadata authority.
 #[must_use = "a broker-routed Fetch must be submitted or terminally settled"]
-#[allow(
-    dead_code,
-    reason = "the reviewed driver cannot yet project the broker identity needed to construct it"
-)]
 pub(crate) struct BrokerRoutedFetch {
     request: PartitionFetchRequest,
     broker_id: BrokerId,
@@ -195,18 +173,20 @@ fn correlate_view(
             ));
         }
     };
-    let partition_is_available = (0..view.available_len()).any(|index| {
+    let Some(broker_id) = (0..view.available_len()).find_map(|index| {
         view.available_at(index)
-            .is_some_and(|entry| entry.partition().get() == partition)
-    });
-    let failure = if partition_is_available {
-        // `TopicView` proves that a leader exists but does not expose its broker
-        // identity. Do not substitute an arbitrary broker for exact routing.
-        FetchFailure::DriverRejected
-    } else {
-        FetchFailure::Transport
+            .filter(|entry| entry.partition().get() == partition)
+            .map(|entry| entry.broker_id())
+    }) else {
+        return Err(BrokerFetchRouteFailure::terminal(
+            request,
+            FetchFailure::Transport,
+        ));
     };
-    Err(BrokerFetchRouteFailure::terminal(request, failure))
+    Ok(BrokerRoutedFetch {
+        request,
+        broker_id: BrokerId::from_driver(broker_id),
+    })
 }
 
 fn admission_failure(
