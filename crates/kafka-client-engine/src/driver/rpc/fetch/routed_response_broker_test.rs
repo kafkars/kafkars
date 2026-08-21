@@ -16,12 +16,12 @@ use kafka_wire::{
     metadata_response::{MetadataResponseBroker, MetadataResponsePartition, MetadataResponseTopic},
     response_header_version_for,
 };
-use kafka_wire_core::{KafkaEncode, StrBytes};
+use kafka_wire_core::{KafkaEncode, StrBytes, Uuid};
 
 use crate::driver::DriverOwner;
 
 /// Opaque loopback peers kept alive for one routed-response scenario.
-pub(super) struct RoutedBroker {
+pub(in crate::driver::rpc) struct RoutedBroker {
     listener: TcpListener,
     port: u16,
     seed: Option<TcpStream>,
@@ -29,7 +29,7 @@ pub(super) struct RoutedBroker {
 }
 
 impl RoutedBroker {
-    pub(super) fn new() -> Self {
+    pub(in crate::driver::rpc) fn new() -> Self {
         let listener = TcpListener::bind("127.0.0.1:0")
             .unwrap_or_else(|error| panic!("bind loopback Kafka broker: {error}"));
         let port = listener
@@ -44,11 +44,11 @@ impl RoutedBroker {
         }
     }
 
-    pub(super) fn endpoint(&self) -> String {
+    pub(in crate::driver::rpc) fn endpoint(&self) -> String {
         format!("127.0.0.1:{}", self.port)
     }
 
-    pub(super) fn await_seed(driver: &mut DriverOwner) {
+    pub(in crate::driver::rpc) fn await_seed(driver: &mut DriverOwner) {
         for _turn in 0..32 {
             drive(driver, Duration::from_millis(100), "resolve bootstrap seed");
             let snapshot = driver
@@ -67,14 +67,14 @@ impl RoutedBroker {
         panic!("driver did not install the expected bootstrap seed")
     }
 
-    pub(super) fn install_cluster(&mut self, driver: &mut DriverOwner) {
+    pub(in crate::driver::rpc) fn install_cluster(&mut self, driver: &mut DriverOwner) {
         let mut seed = accept_after_driving(&self.listener, driver);
         complete_negotiation(&mut seed, driver);
         respond_metadata(&mut seed, driver, self.port, false);
         self.seed = Some(seed);
     }
 
-    pub(super) fn install_topic(&mut self, driver: &mut DriverOwner) {
+    pub(in crate::driver::rpc) fn install_topic(&mut self, driver: &mut DriverOwner) {
         let Some(seed) = self.seed.as_mut() else {
             panic!("cluster connection must precede topic Metadata");
         };
@@ -123,7 +123,7 @@ fn complete_negotiation(peer: &mut TcpStream, driver: &mut DriverOwner) {
     let mut response = ApiVersionsResponse::default();
     response.api_keys = vec![
         advertisement(API_VERSIONS_API_DESCRIPTOR.api_key.value(), 0, 0),
-        advertisement(METADATA_API_DESCRIPTOR.api_key.value(), 0, 1),
+        advertisement(METADATA_API_DESCRIPTOR.api_key.value(), 0, 13),
         advertisement(FETCH_API_DESCRIPTOR.api_key.value(), 4, 12),
     ];
     write_response::<ApiVersionsRequest, _>(
@@ -154,6 +154,7 @@ fn respond_metadata(
     if include_partition {
         let mut topic = MetadataResponseTopic::default();
         topic.name = Some(StrBytes::from("events"));
+        topic.topic_id = Uuid::from_bytes([7; 16]);
         for partition_index in 0..=3 {
             let mut partition = MetadataResponsePartition::default();
             partition.partition_index = partition_index;

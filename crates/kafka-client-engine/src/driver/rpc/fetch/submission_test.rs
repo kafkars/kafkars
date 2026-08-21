@@ -2,13 +2,14 @@
 
 use std::time::{Duration, Instant};
 
-use kafka_driver::{ApiVersion, RoutedCall, TrafficClass};
+use kafka_driver::{ApiVersion, RouteKind, RoutedCall, TrafficClass};
 use kafka_wire::{FetchRequest, FetchResponse};
 
 use crate::{EngineConfig, driver::DriverOwner, protocol::fetch::FETCH_NAME_ROUTE_MAX_VERSION};
 
 use super::{
     route::BrokerId,
+    routed_response_broker_test::RoutedBroker,
     submission::{FetchSubmitError, fetch_options, fetch_options_for_request},
 };
 
@@ -72,6 +73,35 @@ fn accepted_exact_broker_submission_returns_a_tracked_call() {
     assert!(call.try_result().is_none());
     assert_tracked_fetch(&call);
     drop(call);
+    owner
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));
+}
+
+#[test]
+fn exact_broker_submission_reaches_the_selected_loopback_broker() {
+    let mut broker = RoutedBroker::new();
+    let mut owner = DriverOwner::build(&EngineConfig::new(vec![broker.endpoint()]))
+        .unwrap_or_else(|error| panic!("build exact-broker driver: {error}"));
+    RoutedBroker::await_seed(&mut owner);
+    broker.install_cluster(&mut owner);
+    let call = owner
+        .submit_tracked_broker_fetch(
+            BrokerId::new(1).unwrap_or_else(|error| panic!("broker ID: {error}")),
+            FetchRequest::default(),
+            Instant::now() + Duration::from_secs(60),
+        )
+        .unwrap_or_else(|error| panic!("tracked exact-broker Fetch admission: {error}"));
+
+    assert_eq!(broker.complete_fetch(&mut owner).value(), 12);
+    let outcome = call
+        .wait()
+        .unwrap_or_else(|error| panic!("exact-broker completion: {error}"));
+    assert!(outcome.result().is_ok());
+    assert_eq!(
+        outcome.route_failure_token().map(|token| token.kind()),
+        Some(RouteKind::Broker)
+    );
     owner
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("bounded driver shutdown: {error}"));

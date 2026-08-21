@@ -1,6 +1,13 @@
 //! Topic-view adapter type and exact failure-domain smoke scenarios.
 
+use std::time::{Duration, Instant};
+
 use kafka_driver::{KafkaTopicId, SubmitError};
+
+use crate::{
+    EngineConfig, driver::DriverOwner,
+    driver::rpc::fetch::routed_response_broker_test::RoutedBroker,
+};
 
 use super::{
     TopicPartitionCountAdmissionFailure, TopicPartitionCountAdmissionFailureKind,
@@ -28,6 +35,32 @@ fn driver_topic_identity_projection_preserves_exact_bytes_and_absence() {
 
     assert_eq!(topic_id_bytes(Some(topic_id)), Some(bytes));
     assert_eq!(topic_id_bytes(None), None);
+}
+
+#[test]
+fn live_topic_view_retains_broker_issued_topic_identity() {
+    let mut broker = RoutedBroker::new();
+    let mut driver = DriverOwner::build(&EngineConfig::new(vec![broker.endpoint()]))
+        .unwrap_or_else(|error| panic!("build topic-view driver: {error}"));
+    RoutedBroker::await_seed(&mut driver);
+    broker.install_cluster(&mut driver);
+    let mut call = super::TopicPartitionCountCall::submit(
+        &driver,
+        "events",
+        Instant::now() + Duration::from_secs(60),
+    )
+    .unwrap_or_else(|error| panic!("submit topic view: {error}"));
+    broker.install_topic(&mut driver);
+
+    let fact = call
+        .try_terminal()
+        .unwrap_or_else(|| panic!("topic view must settle after Metadata response"))
+        .unwrap_or_else(|error| panic!("topic view: {error:?}"));
+    assert_eq!(fact.kafka_topic_id, Some([7; 16]));
+    assert_eq!(fact.logical_partition_count, 4);
+    driver
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("shutdown topic-view driver: {error}"));
 }
 
 #[test]
