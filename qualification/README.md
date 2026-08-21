@@ -15,3 +15,13 @@ checked-in matrix before producing `compatibility.json`, `COMPATIBILITY.md`,
 and the evidence-owned table in `SUPPORT.md`. Broker logs and client diagnostics
 remain separate archived files beside these summaries; the summaries never
 stand in for the raw run evidence.
+
+Run the pull-request cell from a clean checkout with its reviewed sibling pair:
+
+```console
+scripts/run-qualification pr-smoke 4.3.1 plaintext /tmp/kafkars-pr-evidence
+```
+
+The runner resolves the pulled tag to a repository digest before starting the
+cluster, runs Compose with that immutable digest, and always captures broker
+state and logs before removing its isolated cluster and volumes.
