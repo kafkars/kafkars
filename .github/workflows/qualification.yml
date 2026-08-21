@@ -1,0 +1,58 @@
+name: Qualification
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qualification-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+
+jobs:
+  qualification-pr-smoke:
+    name: qualification-pr-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: kafka-client
+    steps:
+      - name: Check out client
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: kafka-client
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        uses: ./kafka-client/.github/actions/setup-rust
+      - name: Check out reviewed sibling dependencies
+        uses: ./kafka-client/.github/actions/checkout-siblings
+      - name: Run Kafka 4.3.1 qualification smoke
+        env:
+          EVIDENCE_ROOT: ${{ runner.temp }}/kafkars-pr-smoke
+        run: scripts/run-qualification pr-smoke 4.3.1 plaintext "$EVIDENCE_ROOT"
+      - name: Archive qualification evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qualification-pr-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/kafkars-pr-smoke
+          if-no-files-found: warn
+          retention-days: 14
+
+  qualification-gate:
+    name: qualification-gate
+    if: ${{ always() }}
+    needs: [qualification-pr-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect real-broker evidence lane
+        env:
+          QUALIFICATION_RESULT: ${{ needs.qualification-pr-smoke.result }}
+        run: test "$QUALIFICATION_RESULT" = success
