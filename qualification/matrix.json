@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "image_repository": "apache/kafka",
+  "kafka_versions": {
+    "4.3.1": { "lane": "primary", "gating": true, "maintained": true },
+    "4.2.1": { "lane": "supported", "gating": true, "maintained": true },
+    "4.1.2": { "lane": "supported", "gating": true, "maintained": true },
+    "3.9.2": { "lane": "legacy", "gating": false, "maintained": false }
+  },
+  "profiles": {
+    "pr-smoke": {
+      "cluster_size": 1,
+      "securities": ["plaintext"],
+      "scenarios": [
+        "client_readiness",
+        "create_topic",
+        "produce",
+        "direct_consume",
+        "classic_group_consume_commit",
+        "transaction_commit_abort",
+        "graceful_shutdown"
+      ]
+    },
+    "nightly": {
+      "cluster_size": 3,
+      "securities": [
+        "plaintext",
+        "tls",
+        "sasl_plain",
+        "scram_sha_256",
+        "scram_sha_512"
+      ],
+      "scenarios": [
+        "producer_batching_partitioning",
+        "producer_retries_leader_movement",
+        "producer_cancellation_ambiguous_delivery",
+        "direct_fetch_seek_offset_reset",
+        "classic_join_cooperative_rebalance",
+        "classic_member_death_commit_resume",
+        "kip848_assignment_reconciliation",
+        "transaction_fencing_abort_commit_read_committed",
+        "admin_controller_coordinator_exact_broker",
+        "broker_restart_metadata_refresh",
+        "coordinator_loss_leader_change",
+        "bounded_admission_deadlines_shutdown",
+        "retained_byte_recovery"
+      ]
+    },
+    "release": {
+      "cluster_size": 3,
+      "securities": [
+        "plaintext",
+        "tls",
+        "sasl_plain",
+        "scram_sha_256",
+        "scram_sha_512"
+      ],
+      "scenarios_from": "nightly"
+    }
+  }
+}

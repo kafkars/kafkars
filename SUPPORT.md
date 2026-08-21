@@ -45,12 +45,14 @@ substitute for end-to-end qualification.
 The qualification target matrix is explicit even though no cell has passed a
 release qualification yet:
 
+<!-- qualification-evidence:begin -->
 | Kafka version | Intended lane | Current evidence status |
 | --- | --- | --- |
 | 4.3.1 | Primary/current required gate | Not yet qualified |
 | 4.2.1 | Supported compatibility | Not yet qualified |
 | 4.1.2 | Supported compatibility | Not yet qualified |
 | 3.9.2 | Optional legacy compatibility, non-gating | Not yet qualified |
+<!-- qualification-evidence:end -->
 
 Kafka 3.9.2 is a legacy lane, not a maintained upstream release. Every future
 qualified cell must be generated from archived qualification evidence rather
