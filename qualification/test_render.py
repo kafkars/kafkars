@@ -90,6 +90,27 @@ class RendererTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "evidence is incomplete"):
             RENDER.require_complete_profile(matrix, evidence, "nightly")
 
+    def test_complete_profile_accepts_exact_matrix_and_legacy_is_non_gating(self) -> None:
+        matrix = RENDER.load_json(ROOT / "qualification/matrix.json")
+        scenarios = RENDER.required_scenarios(matrix, "nightly")
+        with tempfile.TemporaryDirectory() as directory:
+            events = Path(directory) / "events.tsv"
+            cells = []
+            for version in matrix["kafka_versions"]:
+                for security in matrix["profiles"]["nightly"]["securities"]:
+                    status = "failed" if version == "3.9.2" else "passed"
+                    events.write_text("".join(f"{name}\t{status}\t1\n" for name in scenarios))
+                    arguments = self.arguments(events)
+                    arguments.profile = "nightly"
+                    arguments.kafka_version = version
+                    arguments.image = f"apache/kafka:{version}"
+                    arguments.security = security
+                    cells.append(RENDER.build_cell(arguments))
+        evidence = RENDER.evidence_document(cells)
+        RENDER.require_complete_profile(matrix, evidence, "nightly")
+        self.assertTrue(evidence["qualified"])
+        self.assertEqual(len(evidence["cells"]), 20)
+
     def test_support_projection_is_generated_from_evidence(self) -> None:
         matrix = RENDER.load_json(ROOT / "qualification/matrix.json")
         scenarios = RENDER.required_scenarios(matrix, "pr-smoke")
