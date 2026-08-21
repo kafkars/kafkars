@@ -14,20 +14,20 @@ repository.
 - Intended audience: design review, source evaluation, and contribution
 
 The current source is not a public beta and is not recommended for production
-traffic. A supported release requires a real-broker matrix and separate
-release authorization.
+traffic. A supported release requires complete passing archived real-broker
+evidence and separate release authorization.
 
 ## Runtime surface
 
 | Area | Source status | Qualification status |
 | --- | --- | --- |
 | Rust facade | Concrete runtime-neutral builders, futures, blocking observation, and error vocabulary | Unit-tested; no stable API promise |
-| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, and close paths | No maintained real-broker matrix |
-| Direct consumer | Assignment, fetch, checkpoint, seek, events, and close paths | No maintained real-broker matrix |
-| Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | No maintained real-broker matrix |
-| KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, and owned-topic acknowledgement | Integrated and unit-tested; no maintained real-broker matrix |
-| Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | Integrated and unit-tested; no maintained real-broker matrix |
-| Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | No maintained real-broker matrix |
+| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, and close paths | PR and nightly scenarios defined; no archived passing release cell |
+| Direct consumer | Assignment, fetch, checkpoint, seek, events, and close paths | PR and nightly scenarios defined; no archived passing release cell |
+| Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | PR and nightly scenarios defined; no archived passing release cell |
+| KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, and owned-topic acknowledgement | Nightly scenario defined; no archived passing release cell |
+| Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | PR and nightly scenarios defined; no archived passing release cell |
+| Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | PR and nightly scenarios defined; no archived passing release cell |
 | Simulation | Virtual-time execution of deterministic core effects | Development evidence, not broker emulation |
 | Foreign bindings | Not included | No ABI or compatibility promise |
 
@@ -58,6 +58,13 @@ Kafka 3.9.2 is a legacy lane, not a maintained upstream release. Every future
 qualified cell must be generated from archived qualification evidence rather
 than maintained as a prose promise. Until that evidence exists, compatibility
 reports should include the exact broker distribution and version.
+
+`.github/workflows/qualification.yml` runs Kafka 4.3.1 pull-request smoke,
+schedules the complete version and security matrix, and exposes a manual
+release profile. The aggregate artifact contains evidence-generated
+`compatibility.json`, `COMPATIBILITY.md`, and `SUPPORT.md`; incomplete cells,
+mixed crate graphs, mutable image references, and failed gating cells cannot
+produce a qualified aggregate.
 
 ## Transport and authentication
 

@@ -108,10 +108,7 @@ impl Client {
         ClientBuilder::default()
     }
 
-    /// Returns the configured client identifier retained by this client.
-    ///
-    /// This value is not evidence that the pinned driver sent a client ID in
-    /// Kafka request headers.
+    /// Returns the configured client identifier passed to the driver for Kafka headers.
     pub fn client_id(&self) -> Option<&str> {
         self.engine.client_id()
     }

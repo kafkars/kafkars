@@ -25,3 +25,27 @@ scripts/run-qualification pr-smoke 4.3.1 plaintext /tmp/kafkars-pr-evidence
 The runner resolves the pulled tag to a repository digest before starting the
 cluster, runs Compose with that immutable digest, and always captures broker
 state and logs before removing its isolated cluster and volumes.
+
+The scheduled matrix uses three combined KRaft broker/controllers and runs all
+five client transport profiles for each policy version:
+
+```console
+scripts/run-qualification nightly 4.3.1 plaintext /tmp/kafkars-nightly-cell
+scripts/run-qualification nightly 4.3.1 tls /tmp/kafkars-nightly-tls-cell
+scripts/run-qualification nightly 4.3.1 sasl_plain /tmp/kafkars-nightly-plain-cell
+scripts/run-qualification nightly 4.3.1 scram_sha_256 /tmp/kafkars-nightly-scram-cell
+scripts/run-qualification nightly 4.3.1 scram_sha_512 /tmp/kafkars-nightly-scram512-cell
+```
+
+TLS certificates and stores are generated for each run and removed after log
+capture. SASL lanes use public, qualification-only credentials against the
+ephemeral cluster. Internal broker and controller traffic stays on an isolated
+plaintext Compose network so each cell isolates the client-facing transport
+contract under test.
+
+The manual `release` workflow profile runs the same full matrix against one
+exact proposed client, driver, and wire graph. It additionally archives the
+packaged crates, package checksums, crate metadata, image inspection, broker
+logs, client diagnostics, raw scenario timings, and aggregate compatibility
+documents. Kafka 3.9.2 evidence is required to be present but remains a
+non-gating legacy result.
