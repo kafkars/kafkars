@@ -2,7 +2,9 @@
 
 use std::{error::Error, fmt, time::Instant};
 
-use kafka_driver::{Call, SubmitError, TopicName, TopicNameError, TopicView, TopicViewError};
+use kafka_driver::{
+    Call, KafkaTopicId, SubmitError, TopicName, TopicNameError, TopicView, TopicViewError,
+};
 
 use super::super::super::DriverOwner;
 
@@ -53,9 +55,7 @@ impl TopicPartitionCountCall {
             Ok(Ok(view)) => Ok(TopicPartitionCountFact {
                 metadata_generation: view.generation().get(),
                 logical_partition_count: view.logical_partition_count(),
-                // The reviewed driver projection does not expose Kafka topic
-                // identity. Callers requiring it reject this omitted fact.
-                kafka_topic_id: None,
+                kafka_topic_id: topic_id_bytes(view.topic_id()),
             }),
         })
     }
@@ -63,6 +63,10 @@ impl TopicPartitionCountCall {
     pub(crate) fn discard_after_driver_shutdown(mut self) {
         drop(self.topic_view_driver_call.take());
     }
+}
+
+pub(super) fn topic_id_bytes(topic_id: Option<KafkaTopicId>) -> Option<[u8; 16]> {
+    topic_id.map(KafkaTopicId::to_bytes)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

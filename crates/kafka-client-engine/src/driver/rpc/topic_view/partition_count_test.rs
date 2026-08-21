@@ -1,10 +1,10 @@
 //! Topic-view adapter type and exact failure-domain smoke scenarios.
 
-use kafka_driver::SubmitError;
+use kafka_driver::{KafkaTopicId, SubmitError};
 
 use super::{
     TopicPartitionCountAdmissionFailure, TopicPartitionCountAdmissionFailureKind,
-    TopicPartitionCountFact, TopicPartitionCountFailure,
+    TopicPartitionCountFact, TopicPartitionCountFailure, partition_count::topic_id_bytes,
 };
 
 #[test]
@@ -18,6 +18,16 @@ fn scalar_fact_retains_generation_and_total_logical_count() {
     assert_eq!(fact.metadata_generation, 11);
     assert_eq!(fact.logical_partition_count, 7);
     assert_eq!(fact.kafka_topic_id, Some([5; 16]));
+}
+
+#[test]
+fn driver_topic_identity_projection_preserves_exact_bytes_and_absence() {
+    let bytes = [5; 16];
+    let topic_id =
+        KafkaTopicId::from_bytes(bytes).unwrap_or_else(|| panic!("nonzero Kafka topic identity"));
+
+    assert_eq!(topic_id_bytes(Some(topic_id)), Some(bytes));
+    assert_eq!(topic_id_bytes(None), None);
 }
 
 #[test]
