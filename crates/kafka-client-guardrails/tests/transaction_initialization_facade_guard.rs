@@ -9,28 +9,28 @@ use support::{
 };
 use syn::{ImplItem, ItemImpl, Type, Visibility, visit::Visit};
 
-const HANDLE: &str = "crates/kafka-client/src/bridge/transaction/handle.rs";
+const HANDLE: &str = "crates/kafkars/src/bridge/transaction/handle.rs";
 const LINEAR: &[(&str, &str)] = &[
     ("TransactionalProducerInitializer", HANDLE),
     (
         "TransactionInitialization",
-        "crates/kafka-client/src/bridge/transaction/operation.rs",
+        "crates/kafkars/src/bridge/transaction/operation.rs",
     ),
     (
         "TransactionalProducerEngine",
-        "crates/kafka-client/src/bridge/transaction/owner.rs",
+        "crates/kafkars/src/bridge/transaction/owner.rs",
     ),
     (
         "TransactionalProducerBuilder",
-        "crates/kafka-client/src/transaction/builder.rs",
+        "crates/kafkars/src/transaction/builder.rs",
     ),
     (
         "InitializeTransactionalProducer",
-        "crates/kafka-client/src/transaction/initialization.rs",
+        "crates/kafkars/src/transaction/initialization.rs",
     ),
     (
         "TransactionalProducer",
-        "crates/kafka-client/src/transaction/producer.rs",
+        "crates/kafkars/src/transaction/producer.rs",
     ),
 ];
 const METHODS: &[&str] = &[
@@ -70,7 +70,7 @@ fn checked_in_transaction_facade_ownership_is_exact() {
     let capability = config
         .capability_rules
         .iter()
-        .filter(|rule| rule.root == "crates/kafka-client/src/transaction")
+        .filter(|rule| rule.root == "crates/kafkars/src/transaction")
         .collect::<Vec<_>>();
     assert_eq!(capability.len(), 1);
     assert_eq!(
@@ -144,10 +144,7 @@ fn fixture_rejects_public_engine_import_and_second_submission_owner() {
 #[test]
 fn public_transaction_lifecycle_has_exact_supported_owners() {
     let workspace = workspace_root();
-    let live = rust_files_under(
-        &workspace.join("crates/kafka-client/src"),
-        WalkScope::Fixture,
-    );
+    let live = rust_files_under(&workspace.join("crates/kafkars/src"), WalkScope::Fixture);
     let mut actual = public_lifecycle_methods(&live);
     actual.sort();
     let mut expected = PUBLIC_LIFECYCLE

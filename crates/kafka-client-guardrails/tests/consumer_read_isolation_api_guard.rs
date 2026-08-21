@@ -6,8 +6,8 @@ use std::path::Path;
 
 use support::{load_config, read, workspace_root};
 
-const FACADE: &str = "crates/kafka-client/src/consumer/read_isolation.rs";
-const FACADE_TEST: &str = "crates/kafka-client/src/consumer/read_isolation_test.rs";
+const FACADE: &str = "crates/kafkars/src/consumer/read_isolation.rs";
+const FACADE_TEST: &str = "crates/kafkars/src/consumer/read_isolation_test.rs";
 const ENGINE: &str = "crates/kafka-client-engine/src/config/read_isolation.rs";
 const ENGINE_TEST: &str = "crates/kafka-client-engine/src/config/read_isolation_test.rs";
 const EXPECTED: [&str; 2] = ["ReadUncommitted", "ReadCommitted"];

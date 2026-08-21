@@ -4,8 +4,8 @@ mod support;
 
 use support::{LinearOwner, fixture_files, linear_violations, load_config, workspace_root};
 
-const BUILD_ERROR: &str = "crates/kafka-client/src/consumer/assigned_build_error.rs";
-const BUILD_ERROR_TEST: &str = "crates/kafka-client/src/consumer/assigned_build_error_test.rs";
+const BUILD_ERROR: &str = "crates/kafkars/src/consumer/assigned_build_error.rs";
+const BUILD_ERROR_TEST: &str = "crates/kafkars/src/consumer/assigned_build_error_test.rs";
 
 #[test]
 fn checked_in_build_rejection_is_linear_and_sibling_tested() {

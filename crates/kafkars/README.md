@@ -13,7 +13,7 @@ kafkars = "0.0.1"
 use kafkars::{Client, ClientBuilder};
 ```
 
-See the [source repository](https://github.com/zsumz/kafka-client) for the
+See the [source repository](https://github.com/kafkars/kafkars) for the
 architecture, exact limitations, qualification evidence, and contribution
 guide.
 

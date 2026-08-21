@@ -129,36 +129,36 @@ macro_rules! driver {
 }
 macro_rules! facade {
     ("builder.rs") => {
-        "crates/kafka-client/src/admin/renew_delegation_token/builder.rs"
+        "crates/kafkars/src/admin/renew_delegation_token/builder.rs"
     };
     ("operation.rs") => {
-        "crates/kafka-client/src/admin/renew_delegation_token/operation.rs"
+        "crates/kafkars/src/admin/renew_delegation_token/operation.rs"
     };
     ("operation_test.rs") => {
-        "crates/kafka-client/src/admin/renew_delegation_token/operation_test.rs"
+        "crates/kafkars/src/admin/renew_delegation_token/operation_test.rs"
     };
     ("result.rs") => {
-        "crates/kafka-client/src/admin/renew_delegation_token/result.rs"
+        "crates/kafkars/src/admin/renew_delegation_token/result.rs"
     };
     ("result_test.rs") => {
-        "crates/kafka-client/src/admin/renew_delegation_token/result_test.rs"
+        "crates/kafkars/src/admin/renew_delegation_token/result_test.rs"
     };
 }
 macro_rules! bridge {
     ("operation.rs") => {
-        "crates/kafka-client/src/bridge/renew_delegation_token/operation.rs"
+        "crates/kafkars/src/bridge/renew_delegation_token/operation.rs"
     };
     ("request.rs") => {
-        "crates/kafka-client/src/bridge/renew_delegation_token/request.rs"
+        "crates/kafkars/src/bridge/renew_delegation_token/request.rs"
     };
     ("request_test.rs") => {
-        "crates/kafka-client/src/bridge/renew_delegation_token/request_test.rs"
+        "crates/kafkars/src/bridge/renew_delegation_token/request_test.rs"
     };
     ("result.rs") => {
-        "crates/kafka-client/src/bridge/renew_delegation_token/result.rs"
+        "crates/kafkars/src/bridge/renew_delegation_token/result.rs"
     };
     ("result_test.rs") => {
-        "crates/kafka-client/src/bridge/renew_delegation_token/result_test.rs"
+        "crates/kafkars/src/bridge/renew_delegation_token/result_test.rs"
     };
 }
 
@@ -321,9 +321,9 @@ pub(super) const METHODS: &[(&str, &str, &[&str])] = &[
         &[driver!("renew_delegation_token_call.rs")],
     ),
     (
-        "crates/kafka-client/src",
+        "crates/kafkars/src",
         "capture_renew_delegation_token",
-        &["crates/kafka-client/src/bridge/admin.rs"],
+        &["crates/kafkars/src/bridge/admin.rs"],
     ),
 ];
 

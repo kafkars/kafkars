@@ -99,7 +99,7 @@ fn collect_use_roots(tree: &UseTree, collector: &mut DependencyCollector) {
 
 #[test]
 fn live_facade_dependencies_respect_the_private_bridge() {
-    let source_root = workspace_root().join("crates/kafka-client/src");
+    let source_root = workspace_root().join("crates/kafkars/src");
     let violations = facade_dependency_violations(&source_root);
 
     assert!(

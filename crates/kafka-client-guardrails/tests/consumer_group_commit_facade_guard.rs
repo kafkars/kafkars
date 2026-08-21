@@ -50,12 +50,12 @@ fn checked_in_mirrors_owners_and_submission_seams_are_exact() {
         .filter(|rule| rule.method == "try_commit")
         .collect::<Vec<_>>();
     assert_eq!(methods.len(), 1);
-    assert_eq!(methods[0].root, "crates/kafka-client/src");
+    assert_eq!(methods[0].root, "crates/kafkars/src");
     assert_eq!(
         methods[0].allowed_paths,
         [
-            "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission.rs",
-            "crates/kafka-client/src/consumer/group_commit.rs",
+            "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit_admission.rs",
+            "crates/kafkars/src/consumer/group_commit.rs",
         ]
     );
 }
@@ -65,23 +65,23 @@ fn checked_in_capability_boundaries_are_exact() {
     let config = load_config(&workspace_root());
     for (root, forbidden) in [
         (
-            "crates/kafka-client/src/consumer/group_commit.rs",
+            "crates/kafkars/src/consumer/group_commit.rs",
             PUBLIC_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/consumer/group_commit_error.rs",
+            "crates/kafkars/src/consumer/group_commit_error.rs",
             PUBLIC_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint.rs",
+            "crates/kafkars/src/bridge/consumer_facade/group_consumer_checkpoint.rs",
             BRIDGE_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs",
+            "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit.rs",
             BRIDGE_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission.rs",
+            "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit_admission.rs",
             BRIDGE_FORBIDDEN,
         ),
     ] {
@@ -117,23 +117,23 @@ fn live_facade_respects_registered_ownership_and_capabilities() {
         .collect::<Vec<_>>();
     let capabilities = [
         (
-            "crates/kafka-client/src/consumer/group_commit.rs",
+            "crates/kafkars/src/consumer/group_commit.rs",
             PUBLIC_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/consumer/group_commit_error.rs",
+            "crates/kafkars/src/consumer/group_commit_error.rs",
             PUBLIC_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint.rs",
+            "crates/kafkars/src/bridge/consumer_facade/group_consumer_checkpoint.rs",
             BRIDGE_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs",
+            "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit.rs",
             BRIDGE_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission.rs",
+            "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit_admission.rs",
             BRIDGE_FORBIDDEN,
         ),
     ]
@@ -147,12 +147,12 @@ fn live_facade_respects_registered_ownership_and_capabilities() {
     violations.extend(method_capability_violations(
         &workspace,
         &[MethodCapabilityRule {
-            root: "crates/kafka-client/src".into(),
+            root: "crates/kafkars/src".into(),
             method: "try_commit".into(),
             allowed_paths: vec![
-                "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission.rs"
+                "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit_admission.rs"
                     .into(),
-                "crates/kafka-client/src/consumer/group_commit.rs".into(),
+                "crates/kafkars/src/consumer/group_commit.rs".into(),
             ],
         }],
     ));

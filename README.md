@@ -99,8 +99,9 @@ RUSTDOCFLAGS="-D warnings" cargo doc --locked --workspace --all-features --no-de
 
 ## Project identity
 
-`kafkars` is the project, package, and public Rust crate name. `kafka-client` is
-the [source repository](https://github.com/zsumz/kafka-client).
+`kafkars` is the project, source repository, package, and public Rust crate
+name. The repository is available at
+[github.com/kafkars/kafkars](https://github.com/kafkars/kafkars).
 `kafka-client-core` and `kafka-client-engine` retain implementation-oriented
 package identities; most users should depend only on `kafkars`. `zsumz` is the
 maintainer and signing identity, not a second client implementation.

@@ -60,11 +60,11 @@ const ENGINE_LINEAR: &[(&str, &str)] = &[
 const FACADE_LINEAR: &[(&str, &str)] = &[
     (
         "AssignedConsumerRecv",
-        "crates/kafka-client/src/bridge/consumer/recv.rs",
+        "crates/kafkars/src/bridge/consumer/recv.rs",
     ),
     (
         "RecvAssignedBatch",
-        "crates/kafka-client/src/consumer/assigned_recv.rs",
+        "crates/kafkars/src/consumer/assigned_recv.rs",
     ),
 ];
 const FORBIDDEN: &[&str] = &[

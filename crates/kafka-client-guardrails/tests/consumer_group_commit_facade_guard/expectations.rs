@@ -14,24 +14,24 @@ pub(super) const MIRRORS: &[(&str, &str)] = &[
         "crates/kafka-client-engine/src/consumer/group_commit/outcome_test.rs",
     ),
     (
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint.rs",
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint_test.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_checkpoint.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_checkpoint_test.rs",
     ),
     (
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs",
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_test.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit_test.rs",
     ),
     (
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission.rs",
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission_test.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit_admission.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit_admission_test.rs",
     ),
     (
-        "crates/kafka-client/src/consumer/group_commit.rs",
-        "crates/kafka-client/src/consumer/group_commit_test.rs",
+        "crates/kafkars/src/consumer/group_commit.rs",
+        "crates/kafkars/src/consumer/group_commit_test.rs",
     ),
     (
-        "crates/kafka-client/src/consumer/group_commit_error.rs",
-        "crates/kafka-client/src/consumer/group_commit_error_test.rs",
+        "crates/kafkars/src/consumer/group_commit_error.rs",
+        "crates/kafkars/src/consumer/group_commit_error_test.rs",
     ),
 ];
 pub(super) const LINEAR: &[(&str, &str)] = &[
@@ -55,33 +55,30 @@ pub(super) const LINEAR: &[(&str, &str)] = &[
         "CoordinatorRefresh",
         "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement.rs",
     ),
-    (
-        "Checkpoint",
-        "crates/kafka-client/src/consumer/checkpoint.rs",
-    ),
+    ("Checkpoint", "crates/kafkars/src/consumer/checkpoint.rs"),
     (
         "GroupConsumerCheckpoint",
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_checkpoint.rs",
     ),
     (
         "CommitConsumerCheckpoint",
-        "crates/kafka-client/src/consumer/group_commit.rs",
+        "crates/kafkars/src/consumer/group_commit.rs",
     ),
     (
         "ConsumerCommitAdmissionError",
-        "crates/kafka-client/src/consumer/group_commit_error.rs",
+        "crates/kafkars/src/consumer/group_commit_error.rs",
     ),
     (
         "ConsumerCommitError",
-        "crates/kafka-client/src/consumer/group_commit_error.rs",
+        "crates/kafkars/src/consumer/group_commit_error.rs",
     ),
     (
         "GroupConsumerCommit",
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit.rs",
     ),
     (
         "GroupConsumerCommitError",
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit.rs",
     ),
 ];
 pub(super) const MUTATION_FIXTURE: &[(&str, &str)] = &[

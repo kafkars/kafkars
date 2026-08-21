@@ -98,10 +98,10 @@ release surface.
 
 ## Project naming
 
-The product, package, and public Rust library are `kafkars`; `kafka-client` is
-the repository. `kafka-client-core` and `kafka-client-engine` are published
-implementation dependencies, not separate public product identities. `zsumz`
-is the maintainer and signing identity.
+The product, source repository, package, and public Rust library are `kafkars`.
+`kafka-client-core` and `kafka-client-engine` are published implementation
+dependencies, not separate public product identities. `zsumz` is the
+maintainer and signing identity.
 
 For build setup, see `README.md`. For security-sensitive reports, follow
 `SECURITY.md` rather than opening a public issue.

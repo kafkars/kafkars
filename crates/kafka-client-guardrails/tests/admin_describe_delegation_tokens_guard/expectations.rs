@@ -120,36 +120,36 @@ macro_rules! driver {
 }
 macro_rules! facade {
     ("builder.rs") => {
-        "crates/kafka-client/src/admin/describe_delegation_tokens/builder.rs"
+        "crates/kafkars/src/admin/describe_delegation_tokens/builder.rs"
     };
     ("operation.rs") => {
-        "crates/kafka-client/src/admin/describe_delegation_tokens/operation.rs"
+        "crates/kafkars/src/admin/describe_delegation_tokens/operation.rs"
     };
     ("operation_test.rs") => {
-        "crates/kafka-client/src/admin/describe_delegation_tokens/operation_test.rs"
+        "crates/kafkars/src/admin/describe_delegation_tokens/operation_test.rs"
     };
     ("result.rs") => {
-        "crates/kafka-client/src/admin/describe_delegation_tokens/result.rs"
+        "crates/kafkars/src/admin/describe_delegation_tokens/result.rs"
     };
     ("result_test.rs") => {
-        "crates/kafka-client/src/admin/describe_delegation_tokens/result_test.rs"
+        "crates/kafkars/src/admin/describe_delegation_tokens/result_test.rs"
     };
 }
 macro_rules! bridge {
     ("operation.rs") => {
-        "crates/kafka-client/src/bridge/describe_delegation_tokens/operation.rs"
+        "crates/kafkars/src/bridge/describe_delegation_tokens/operation.rs"
     };
     ("request.rs") => {
-        "crates/kafka-client/src/bridge/describe_delegation_tokens/request.rs"
+        "crates/kafkars/src/bridge/describe_delegation_tokens/request.rs"
     };
     ("request_test.rs") => {
-        "crates/kafka-client/src/bridge/describe_delegation_tokens/request_test.rs"
+        "crates/kafkars/src/bridge/describe_delegation_tokens/request_test.rs"
     };
     ("result.rs") => {
-        "crates/kafka-client/src/bridge/describe_delegation_tokens/result.rs"
+        "crates/kafkars/src/bridge/describe_delegation_tokens/result.rs"
     };
     ("result_test.rs") => {
-        "crates/kafka-client/src/bridge/describe_delegation_tokens/result_test.rs"
+        "crates/kafkars/src/bridge/describe_delegation_tokens/result_test.rs"
     };
 }
 
@@ -326,9 +326,9 @@ pub(super) const METHODS: &[(&str, &str, &[&str])] = &[
         &[driver!("describe_delegation_tokens_call.rs")],
     ),
     (
-        "crates/kafka-client/src",
+        "crates/kafkars/src",
         "capture_describe_delegation_tokens",
-        &["crates/kafka-client/src/bridge/admin.rs"],
+        &["crates/kafkars/src/bridge/admin.rs"],
     ),
 ];
 

@@ -45,16 +45,16 @@ const BRIDGE_FORBIDDEN: &[&str] = &[
 ];
 const MIRRORS: &[(&str, &str)] = &[
     (
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_rebalance_event.rs",
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_rebalance_event_test.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_rebalance_event.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_rebalance_event_test.rs",
     ),
     (
-        "crates/kafka-client/src/consumer/group_next_event.rs",
-        "crates/kafka-client/src/consumer/group_next_event_test.rs",
+        "crates/kafkars/src/consumer/group_next_event.rs",
+        "crates/kafkars/src/consumer/group_next_event_test.rs",
     ),
     (
-        "crates/kafka-client/src/consumer/group_rebalance_event.rs",
-        "crates/kafka-client/src/consumer/group_rebalance_event_test.rs",
+        "crates/kafkars/src/consumer/group_rebalance_event.rs",
+        "crates/kafkars/src/consumer/group_rebalance_event_test.rs",
     ),
 ];
 const LINEAR: &[(&str, &str)] = &[
@@ -64,26 +64,26 @@ const LINEAR: &[(&str, &str)] = &[
     ),
     (
         "GroupConsumerRevocationCompletion",
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_rebalance_event.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_rebalance_event.rs",
     ),
     (
         "ConsumerEvent",
-        "crates/kafka-client/src/consumer/group_rebalance_event.rs",
+        "crates/kafkars/src/consumer/group_rebalance_event.rs",
     ),
     (
         "ConsumerRevocation",
-        "crates/kafka-client/src/consumer/group_rebalance_event.rs",
+        "crates/kafkars/src/consumer/group_rebalance_event.rs",
     ),
     (
         "NextConsumerEvent",
-        "crates/kafka-client/src/consumer/group_next_event.rs",
+        "crates/kafkars/src/consumer/group_next_event.rs",
     ),
 ];
 const EVENT_METHOD_PATHS: &[&str] = &[
-    "crates/kafka-client/src/bridge/consumer/handle.rs",
-    "crates/kafka-client/src/bridge/consumer_facade/group_consumer_event_observation.rs",
-    "crates/kafka-client/src/consumer/assigned.rs",
-    "crates/kafka-client/src/consumer/group_next_event.rs",
+    "crates/kafkars/src/bridge/consumer/handle.rs",
+    "crates/kafkars/src/bridge/consumer_facade/group_consumer_event_observation.rs",
+    "crates/kafkars/src/consumer/assigned.rs",
+    "crates/kafkars/src/consumer/group_next_event.rs",
 ];
 
 #[test]
@@ -115,7 +115,7 @@ fn checked_in_mirrors_linear_owners_and_mutation_are_exact() {
         .unwrap_or_else(|| panic!("revocation completion mutation owner"));
     assert_eq!(
         mutation.allowed_paths,
-        ["crates/kafka-client/src/bridge/consumer_facade/group_consumer_rebalance_event.rs"]
+        ["crates/kafkars/src/bridge/consumer_facade/group_consumer_rebalance_event.rs"]
     );
 }
 
@@ -126,7 +126,7 @@ fn checked_in_event_methods_and_capability_roots_are_exact() {
         let rule = config
             .method_capabilities
             .iter()
-            .find(|rule| rule.root == "crates/kafka-client/src" && rule.method == method)
+            .find(|rule| rule.root == "crates/kafkars/src" && rule.method == method)
             .unwrap_or_else(|| panic!("{method} capability owner"));
         assert_eq!(rule.allowed_paths, EVENT_METHOD_PATHS.to_vec());
     }
@@ -168,7 +168,7 @@ fn live_facade_respects_registered_ownership_and_capabilities() {
         })
         .collect::<Vec<_>>();
     let methods = ["next_event", "try_take_event"].map(|method| MethodCapabilityRule {
-        root: "crates/kafka-client/src".into(),
+        root: "crates/kafkars/src".into(),
         method: method.into(),
         allowed_paths: EVENT_METHOD_PATHS
             .iter()
@@ -247,23 +247,23 @@ fn fixture_rejects_duplication_mutation_method_and_capability_theft() {
 fn capability_roots() -> Vec<(&'static str, &'static [&'static str])> {
     vec![
         (
-            "crates/kafka-client/src/consumer/group_rebalance_event.rs",
+            "crates/kafkars/src/consumer/group_rebalance_event.rs",
             PUBLIC_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/consumer/group_next_event.rs",
+            "crates/kafkars/src/consumer/group_next_event.rs",
             PUBLIC_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/bridge/consumer_facade/group_consumer_rebalance_event.rs",
+            "crates/kafkars/src/bridge/consumer_facade/group_consumer_rebalance_event.rs",
             BRIDGE_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/bridge/consumer_facade/group_consumer_next_event.rs",
+            "crates/kafkars/src/bridge/consumer_facade/group_consumer_next_event.rs",
             BRIDGE_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/bridge/consumer_facade/group_consumer_event_observation.rs",
+            "crates/kafkars/src/bridge/consumer_facade/group_consumer_event_observation.rs",
             BRIDGE_FORBIDDEN,
         ),
     ]

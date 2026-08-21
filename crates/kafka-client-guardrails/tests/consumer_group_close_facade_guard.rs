@@ -70,20 +70,20 @@ const MIRRORS: &[(&str, &str)] = &[
         "crates/kafka-client-engine/src/consumer/group_close/operation_test.rs",
     ),
     (
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close.rs",
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close_test.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_close.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_close_test.rs",
     ),
     (
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close_admission.rs",
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close_admission_test.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_close_admission.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_close_admission_test.rs",
     ),
     (
-        "crates/kafka-client/src/consumer/group_close.rs",
-        "crates/kafka-client/src/consumer/group_close_test.rs",
+        "crates/kafkars/src/consumer/group_close.rs",
+        "crates/kafkars/src/consumer/group_close_test.rs",
     ),
     (
-        "crates/kafka-client/src/consumer/group_close_error.rs",
-        "crates/kafka-client/src/consumer/group_close_error_test.rs",
+        "crates/kafkars/src/consumer/group_close_error.rs",
+        "crates/kafkars/src/consumer/group_close_error_test.rs",
     ),
 ];
 const LINEAR: &[(&str, &str)] = &[
@@ -101,23 +101,23 @@ const LINEAR: &[(&str, &str)] = &[
     ),
     (
         "GroupConsumerClose",
-        "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close.rs",
+        "crates/kafkars/src/bridge/consumer_facade/group_consumer_close.rs",
     ),
     (
         "CloseConsumer",
-        "crates/kafka-client/src/consumer/group_close.rs",
+        "crates/kafkars/src/consumer/group_close.rs",
     ),
     (
         "ConsumerCloseAdmissionError",
-        "crates/kafka-client/src/consumer/group_close_error.rs",
+        "crates/kafkars/src/consumer/group_close_error.rs",
     ),
 ];
 const CLOSE_METHOD_PATHS: &[&str] = &[
-    "crates/kafka-client/src/bridge/consumer/handle.rs",
-    "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close_admission.rs",
-    "crates/kafka-client/src/bridge/producer/handle.rs",
-    "crates/kafka-client/src/consumer/assigned.rs",
-    "crates/kafka-client/src/consumer/group_close.rs",
+    "crates/kafkars/src/bridge/consumer/handle.rs",
+    "crates/kafkars/src/bridge/consumer_facade/group_consumer_close_admission.rs",
+    "crates/kafkars/src/bridge/producer/handle.rs",
+    "crates/kafkars/src/consumer/assigned.rs",
+    "crates/kafkars/src/consumer/group_close.rs",
 ];
 
 #[test]
@@ -157,7 +157,7 @@ fn checked_in_close_method_and_capability_roots_are_exact() {
     let method = config
         .method_capabilities
         .iter()
-        .find(|rule| rule.root == "crates/kafka-client/src" && rule.method == "try_close")
+        .find(|rule| rule.root == "crates/kafkars/src" && rule.method == "try_close")
         .unwrap_or_else(|| panic!("try_close capability owner"));
     assert_eq!(method.allowed_paths, CLOSE_METHOD_PATHS.to_vec());
     for (root, forbidden) in capability_roots() {
@@ -198,7 +198,7 @@ fn live_close_surface_respects_registered_policy() {
         })
         .collect::<Vec<_>>();
     let methods = [MethodCapabilityRule {
-        root: "crates/kafka-client/src".into(),
+        root: "crates/kafkars/src".into(),
         method: "try_close".into(),
         allowed_paths: CLOSE_METHOD_PATHS
             .iter()
@@ -277,19 +277,19 @@ fn capability_roots() -> Vec<(&'static str, &'static [&'static str])> {
             ENGINE_PORT_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/consumer/group_close.rs",
+            "crates/kafkars/src/consumer/group_close.rs",
             PUBLIC_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/consumer/group_close_error.rs",
+            "crates/kafkars/src/consumer/group_close_error.rs",
             PUBLIC_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close.rs",
+            "crates/kafkars/src/bridge/consumer_facade/group_consumer_close.rs",
             BRIDGE_FORBIDDEN,
         ),
         (
-            "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close_admission.rs",
+            "crates/kafkars/src/bridge/consumer_facade/group_consumer_close_admission.rs",
             BRIDGE_FORBIDDEN,
         ),
     ]

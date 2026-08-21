@@ -35,14 +35,14 @@ title = "Rust CreateTopics submission is explicit and lossless"
 statement = "The Rust facade prepares an inert batch before one explicit submit boundary, returns immediate definitely-unsent rejection through the same named runtime-neutral observer used by Future and blocking wait, and exhaustively preserves ordered outcomes, signed broker codes, bounded-diagnostic truncation, and delivery certainty without an async runtime or hidden retry."
 status = "enforced"
 evidence = [
-  "crates/kafka-client/src/admin/batch_result_test.rs::entries_preserve_request_order_and_move_without_reclassification",
-  "crates/kafka-client/src/admin/builder_test.rs::empty_zero_deadline_builder_is_inert_until_submit",
-  "crates/kafka-client/src/bridge/admin_test.rs::prepared_empty_request_is_rejected_without_first_poll_work",
-  "crates/kafka-client/src/bridge/admin_operation_test.rs::wait_and_future_share_the_same_concrete_result_shape",
-  "crates/kafka-client/src/bridge/admin_result_test.rs::every_admission_category_maps_without_hidden_retry_policy",
-  "crates/kafka-client/src/bridge/admin_result_test.rs::whole_failure_preserves_authoritative_delivery_certainty",
-  "crates/kafka-client/src/bridge/admin_result_test.rs::unknown_signed_code_and_bounded_diagnostic_are_lossless",
-  "crates/kafka-client/src/bridge/admin_result_test.rs::observer_and_accepted_fault_categories_remain_distinct",
+  "crates/kafkars/src/admin/batch_result_test.rs::entries_preserve_request_order_and_move_without_reclassification",
+  "crates/kafkars/src/admin/builder_test.rs::empty_zero_deadline_builder_is_inert_until_submit",
+  "crates/kafkars/src/bridge/admin_test.rs::prepared_empty_request_is_rejected_without_first_poll_work",
+  "crates/kafkars/src/bridge/admin_operation_test.rs::wait_and_future_share_the_same_concrete_result_shape",
+  "crates/kafkars/src/bridge/admin_result_test.rs::every_admission_category_maps_without_hidden_retry_policy",
+  "crates/kafkars/src/bridge/admin_result_test.rs::whole_failure_preserves_authoritative_delivery_certainty",
+  "crates/kafkars/src/bridge/admin_result_test.rs::unknown_signed_code_and_bounded_diagnostic_are_lossless",
+  "crates/kafkars/src/bridge/admin_result_test.rs::observer_and_accepted_fault_categories_remain_distinct",
 ]
 
 [[invariant]]
@@ -63,10 +63,10 @@ evidence = [
   "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::saturated_create_lane_cannot_hide_runnable_delete_work",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::either_concrete_owner_prevents_false_shutdown_quiescence",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_time_test.rs::delete_timeout_uses_time_recaptured_after_create_work",
-  "crates/kafka-client/src/admin/delete_builder_test.rs::empty_zero_deadline_builder_is_inert_until_submit",
-  "crates/kafka-client/src/bridge/admin_delete_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
-  "crates/kafka-client/src/bridge/admin_delete_result_test.rs::every_admission_category_maps_without_hidden_retry_policy",
-  "crates/kafka-client/src/bridge/admin_delete_result_test.rs::failures_codes_and_diagnostics_are_lossless",
+  "crates/kafkars/src/admin/delete_builder_test.rs::empty_zero_deadline_builder_is_inert_until_submit",
+  "crates/kafkars/src/bridge/admin_delete_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
+  "crates/kafkars/src/bridge/admin_delete_result_test.rs::every_admission_category_maps_without_hidden_retry_policy",
+  "crates/kafkars/src/bridge/admin_delete_result_test.rs::failures_codes_and_diagnostics_are_lossless",
 ]
 
 [[invariant]]
@@ -94,10 +94,10 @@ evidence = [
   "crates/kafka-client-engine/src/completion/shared_notifier_test.rs::bounded_shared_queue_returns_the_exact_typed_terminal_for_retry",
   "crates/kafka-client-engine/src/engine_admin_notifier_test.rs::startup_owns_one_worker_for_each_completion_domain",
   "crates/kafka-client-engine/src/engine_admin_notifier_test.rs::admin_notifier_reentrant_shutdown_defers_its_own_join",
-  "crates/kafka-client/src/admin/describe_builder_test.rs::zero_deadline_builder_is_inert_until_submit",
-  "crates/kafka-client/src/bridge/admin_describe_result_test.rs::controller_identity_crosses_the_bridge_without_becoming_policy",
-  "crates/kafka-client/src/bridge/admin_describe_result_test.rs::signed_code_nullable_diagnostic_and_certainty_are_lossless",
-  "crates/kafka-client/src/bridge/admin_describe_result_test.rs::authentication_rejection_maps_to_public_access",
+  "crates/kafkars/src/admin/describe_builder_test.rs::zero_deadline_builder_is_inert_until_submit",
+  "crates/kafkars/src/bridge/admin_describe_result_test.rs::controller_identity_crosses_the_bridge_without_becoming_policy",
+  "crates/kafkars/src/bridge/admin_describe_result_test.rs::signed_code_nullable_diagnostic_and_certainty_are_lossless",
+  "crates/kafkars/src/bridge/admin_describe_result_test.rs::authentication_rejection_maps_to_public_access",
 ]
 
 [[invariant]]
@@ -121,10 +121,10 @@ evidence = [
   "crates/kafka-client-engine/src/admin/partitions/host_test.rs::queued_and_taken_recovery_preserve_driver_ownership_boundary",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::create_partitions_owner_is_independent_and_prevents_false_quiescence",
   "crates/kafka-client-engine/src/admin/completion_capacity_test.rs::create_partitions_is_included_in_the_closed_shared_capacity_equation",
-  "crates/kafka-client/src/admin/partitions_builder_test.rs::empty_zero_deadline_builder_is_inert_until_submit",
-  "crates/kafka-client/src/bridge/admin_partitions_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
-  "crates/kafka-client/src/bridge/admin_partitions_result_test.rs::every_admission_category_maps_without_hidden_retry_policy",
-  "crates/kafka-client/src/bridge/admin_partitions_result_test.rs::failures_codes_and_diagnostics_are_lossless",
+  "crates/kafkars/src/admin/partitions_builder_test.rs::empty_zero_deadline_builder_is_inert_until_submit",
+  "crates/kafkars/src/bridge/admin_partitions_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
+  "crates/kafkars/src/bridge/admin_partitions_result_test.rs::every_admission_category_maps_without_hidden_retry_policy",
+  "crates/kafkars/src/bridge/admin_partitions_result_test.rs::failures_codes_and_diagnostics_are_lossless",
 ]
 
 [[invariant]]
@@ -156,10 +156,10 @@ evidence = [
   "crates/kafka-client-engine/src/admin/topics/outcome/translate_test.rs::topic_and_partition_codes_cross_the_engine_boundary_exactly",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_test.rs::describe_topics_owner_is_independent_and_prevents_false_quiescence",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_time_test.rs::describe_topics_uses_time_recaptured_after_describe_cluster_work",
-  "crates/kafka-client/src/admin/topics_builder_test.rs::empty_zero_deadline_builder_is_inert_until_submit",
-  "crates/kafka-client/src/bridge/admin_topics_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
-  "crates/kafka-client/src/bridge/admin_topics_result_test.rs::top_level_and_partition_codes_remain_exact",
-  "crates/kafka-client/src/bridge/admin_topics_result_test.rs::old_broker_policy_failure_maps_to_public_compatibility",
+  "crates/kafkars/src/admin/topics_builder_test.rs::empty_zero_deadline_builder_is_inert_until_submit",
+  "crates/kafkars/src/bridge/admin_topics_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
+  "crates/kafkars/src/bridge/admin_topics_result_test.rs::top_level_and_partition_codes_remain_exact",
+  "crates/kafkars/src/bridge/admin_topics_result_test.rs::old_broker_policy_failure_maps_to_public_compatibility",
 ]
 
 [[invariant]]
@@ -198,15 +198,15 @@ evidence = [
   "crates/kafka-client-engine/src/driver/rpc/describe_configs_calls_test.rs::zero_capacity_rejects_before_submission",
   "crates/kafka-client-engine/src/engine_host/admin/schedule_configs_test.rs::describe_configs_owner_is_independent_and_prevents_false_quiescence",
   "crates/kafka-client-engine/src/admin/completion_capacity_test.rs::describe_configs_is_included_in_the_closed_shared_capacity_equation",
-  "crates/kafka-client/src/admin/configs/query_test.rs::strings_request_all_configs_and_explicit_keys_preserve_order",
-  "crates/kafka-client/src/admin/configs/entry_test.rs::nullable_versioned_and_signed_configuration_facts_remain_exact",
-  "crates/kafka-client/src/admin/configs/result_test.rs::throttle_and_original_topic_order_are_retained",
-  "crates/kafka-client/src/admin/configs/builder_test.rs::duplicate_topic_queries_are_rejected_only_at_submit",
-  "crates/kafka-client/src/admin/configs/builder_test.rs::zero_deadline_is_rejected_at_the_public_submission_boundary",
-  "crates/kafka-client/src/admin/configs/operation_test.rs::describe_configs_is_a_named_send_future",
-  "crates/kafka-client/src/bridge/admin_configs_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
-  "crates/kafka-client/src/bridge/admin_configs_result_test.rs::resource_diagnostic_code_delivery_and_truncation_remain_exact",
-  "crates/kafka-client/src/bridge/admin_configs_result_test.rs::failures_preserve_category_and_driver_authoritative_delivery",
+  "crates/kafkars/src/admin/configs/query_test.rs::strings_request_all_configs_and_explicit_keys_preserve_order",
+  "crates/kafkars/src/admin/configs/entry_test.rs::nullable_versioned_and_signed_configuration_facts_remain_exact",
+  "crates/kafkars/src/admin/configs/result_test.rs::throttle_and_original_topic_order_are_retained",
+  "crates/kafkars/src/admin/configs/builder_test.rs::duplicate_topic_queries_are_rejected_only_at_submit",
+  "crates/kafkars/src/admin/configs/builder_test.rs::zero_deadline_is_rejected_at_the_public_submission_boundary",
+  "crates/kafkars/src/admin/configs/operation_test.rs::describe_configs_is_a_named_send_future",
+  "crates/kafkars/src/bridge/admin_configs_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
+  "crates/kafkars/src/bridge/admin_configs_result_test.rs::resource_diagnostic_code_delivery_and_truncation_remain_exact",
+  "crates/kafkars/src/bridge/admin_configs_result_test.rs::failures_preserve_category_and_driver_authoritative_delivery",
 ]
 
 [[invariant]]
@@ -254,18 +254,18 @@ evidence = [
   "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_terminal_test.rs::decode_and_driver_deadline_map_without_inventing_transport_policy",
   "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_terminal_test.rs::protocol_compatibility_failures_preserve_driver_certainty",
   "crates/kafka-client-engine/src/driver/rpc/incremental_alter_configs_terminal_test.rs::other_driver_failures_are_transport_failures_with_driver_certainty",
-  "crates/kafka-client/src/admin/alter_configs/alteration_test.rs::set_delete_append_and_subtract_preserve_exact_value_presence",
-  "crates/kafka-client/src/admin/alter_configs/topic_test.rs::topic_and_change_order_remain_inert_until_submission",
-  "crates/kafka-client/src/admin/alter_configs/builder_test.rs::duplicate_topics_and_keys_are_rejected_only_at_submit",
-  "crates/kafka-client/src/admin/alter_configs/builder_test.rs::zero_deadline_is_rejected_at_the_public_submission_boundary",
-  "crates/kafka-client/src/admin/alter_configs/operation_test.rs::incremental_alter_configs_is_a_named_send_future",
-  "crates/kafka-client/src/admin/alter_configs/result_test.rs::throttle_topic_order_and_per_topic_error_facts_are_retained",
-  "crates/kafka-client/src/bridge/admin_alter_configs_request_test.rs::request_bridge_is_send_and_preserves_delete_vs_explicit_empty_value",
-  "crates/kafka-client/src/bridge/admin_alter_configs_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
-  "crates/kafka-client/src/bridge/admin_alter_configs_operation_test.rs::private_incremental_alter_configs_operation_is_send_without_runtime_dependencies",
-  "crates/kafka-client/src/bridge/admin_alter_configs_result_test.rs::every_admission_observer_and_accepted_fault_category_is_stable",
-  "crates/kafka-client/src/bridge/admin_alter_configs_result_test.rs::topic_diagnostic_code_delivery_empty_message_and_truncation_remain_exact",
-  "crates/kafka-client/src/bridge/admin_alter_configs_result_test.rs::every_terminal_failure_preserves_category_and_driver_delivery",
+  "crates/kafkars/src/admin/alter_configs/alteration_test.rs::set_delete_append_and_subtract_preserve_exact_value_presence",
+  "crates/kafkars/src/admin/alter_configs/topic_test.rs::topic_and_change_order_remain_inert_until_submission",
+  "crates/kafkars/src/admin/alter_configs/builder_test.rs::duplicate_topics_and_keys_are_rejected_only_at_submit",
+  "crates/kafkars/src/admin/alter_configs/builder_test.rs::zero_deadline_is_rejected_at_the_public_submission_boundary",
+  "crates/kafkars/src/admin/alter_configs/operation_test.rs::incremental_alter_configs_is_a_named_send_future",
+  "crates/kafkars/src/admin/alter_configs/result_test.rs::throttle_topic_order_and_per_topic_error_facts_are_retained",
+  "crates/kafkars/src/bridge/admin_alter_configs_request_test.rs::request_bridge_is_send_and_preserves_delete_vs_explicit_empty_value",
+  "crates/kafkars/src/bridge/admin_alter_configs_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
+  "crates/kafkars/src/bridge/admin_alter_configs_operation_test.rs::private_incremental_alter_configs_operation_is_send_without_runtime_dependencies",
+  "crates/kafkars/src/bridge/admin_alter_configs_result_test.rs::every_admission_observer_and_accepted_fault_category_is_stable",
+  "crates/kafkars/src/bridge/admin_alter_configs_result_test.rs::topic_diagnostic_code_delivery_empty_message_and_truncation_remain_exact",
+  "crates/kafkars/src/bridge/admin_alter_configs_result_test.rs::every_terminal_failure_preserves_category_and_driver_delivery",
 ]
 
 [[invariant]]
@@ -289,10 +289,10 @@ evidence = [
   "crates/kafka-client-engine/src/admin/topics/outcome/translate_test.rs::internal_status_crosses_success_and_failure_translation",
   "crates/kafka-client-engine/src/driver/rpc/describe_topics_submission_test.rs::policy_window_is_an_exact_supported_subset_of_the_wire_descriptor",
   "crates/kafka-client-engine/src/driver/rpc/describe_topics_terminal_test.rs::all_topic_read_only_policy_failure_is_local_compatibility",
-  "crates/kafka-client/src/admin/list_topics_builder_test.rs::zero_deadline_and_internal_option_remain_inert_until_submit",
-  "crates/kafka-client/src/admin/list_topics_test.rs::list_topics_is_a_named_send_future",
-  "crates/kafka-client/src/bridge/admin_topics_result_test.rs::failed_topic_retains_internal_marker_and_exact_signed_code",
-  "crates/kafka-client/src/error_test.rs::topic_scoped_error_preserves_internal_marker",
+  "crates/kafkars/src/admin/list_topics_builder_test.rs::zero_deadline_and_internal_option_remain_inert_until_submit",
+  "crates/kafkars/src/admin/list_topics_test.rs::list_topics_is_a_named_send_future",
+  "crates/kafkars/src/bridge/admin_topics_result_test.rs::failed_topic_retains_internal_marker_and_exact_signed_code",
+  "crates/kafkars/src/error_test.rs::topic_scoped_error_preserves_internal_marker",
 ]
 
 [[invariant]]
@@ -341,15 +341,15 @@ evidence = [
   "crates/kafka-client-engine/src/engine_host/admin/list_consumer_group_offsets_test.rs::group_offsets_owner_is_independent_and_prevents_false_quiescence",
   "crates/kafka-client-engine/src/engine_host/admin/list_consumer_group_offsets_test.rs::group_offsets_uses_time_recaptured_after_prior_admin_work",
   "crates/kafka-client-engine/src/engine_list_consumer_group_offsets_test.rs::admitted_group_offset_query_reaches_one_host_terminal",
-  "crates/kafka-client/src/admin/list_consumer_group_offsets_query_test.rs::query_preserves_all_or_selected_intent_and_caller_order",
-  "crates/kafka-client/src/admin/list_consumer_group_offsets_builder_test.rs::assignment_position_is_retained_until_submit_and_rejected_not_sent",
-  "crates/kafka-client/src/admin/list_consumer_group_offsets_builder_test.rs::zero_deadline_and_stability_option_remain_inert_until_submit",
-  "crates/kafka-client/src/admin/list_streams_group_offsets/builder_test.rs::selected_assignment_position_rejects_at_the_delegated_submit_boundary",
-  "crates/kafka-client/src/admin/list_consumer_group_offsets_test.rs::operation_is_a_named_send_future",
-  "crates/kafka-client/src/admin/list_consumer_group_offsets_result_test.rs::result_preserves_throttle_and_engine_supplied_order",
-  "crates/kafka-client/src/bridge/admin_group_offsets/list_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
-  "crates/kafka-client/src/bridge/admin_group_offsets/list_operation_test.rs::private_operation_is_a_send_future_without_a_runtime",
-  "crates/kafka-client/src/bridge/admin_group_offsets/list_result_test.rs::whole_and_partition_broker_codes_remain_exact_and_signed",
+  "crates/kafkars/src/admin/list_consumer_group_offsets_query_test.rs::query_preserves_all_or_selected_intent_and_caller_order",
+  "crates/kafkars/src/admin/list_consumer_group_offsets_builder_test.rs::assignment_position_is_retained_until_submit_and_rejected_not_sent",
+  "crates/kafkars/src/admin/list_consumer_group_offsets_builder_test.rs::zero_deadline_and_stability_option_remain_inert_until_submit",
+  "crates/kafkars/src/admin/list_streams_group_offsets/builder_test.rs::selected_assignment_position_rejects_at_the_delegated_submit_boundary",
+  "crates/kafkars/src/admin/list_consumer_group_offsets_test.rs::operation_is_a_named_send_future",
+  "crates/kafkars/src/admin/list_consumer_group_offsets_result_test.rs::result_preserves_throttle_and_engine_supplied_order",
+  "crates/kafkars/src/bridge/admin_group_offsets/list_operation_test.rs::wait_and_future_share_one_concrete_result_shape",
+  "crates/kafkars/src/bridge/admin_group_offsets/list_operation_test.rs::private_operation_is_a_send_future_without_a_runtime",
+  "crates/kafkars/src/bridge/admin_group_offsets/list_result_test.rs::whole_and_partition_broker_codes_remain_exact_and_signed",
 ]
 
 [[invariant]]
@@ -420,10 +420,10 @@ evidence = [
   "crates/kafka-client-engine/src/admin/completion_group_offsets_test.rs::group_offset_alter_is_included_in_the_closed_shared_capacity_equation",
   "crates/kafka-client-engine/src/engine_host/admin/alter_consumer_group_offsets_schedule_test.rs::offset_alteration_is_independent_and_prevents_false_quiescence",
   "crates/kafka-client-engine/src/engine_host/admin/alter_consumer_group_offsets_schedule_test.rs::offset_alteration_uses_time_recaptured_after_offset_deletion",
-  "crates/kafka-client/src/admin/group_offsets/alteration_test.rs::offset_epoch_and_nullable_metadata_remain_exact_and_inert",
-  "crates/kafka-client/src/admin/group_offsets/alter_builder_test.rs::duplicate_targets_are_rejected_definitely_unsent_only_at_submit",
-  "crates/kafka-client/src/admin/group_offsets/alter_result_test.rs::result_preserves_throttle_caller_order_and_exact_partition_failure",
-  "crates/kafka-client/src/bridge/admin_group_offsets/alter_result_test.rs::whole_failures_and_partition_codes_preserve_delivery_certainty",
+  "crates/kafkars/src/admin/group_offsets/alteration_test.rs::offset_epoch_and_nullable_metadata_remain_exact_and_inert",
+  "crates/kafkars/src/admin/group_offsets/alter_builder_test.rs::duplicate_targets_are_rejected_definitely_unsent_only_at_submit",
+  "crates/kafkars/src/admin/group_offsets/alter_result_test.rs::result_preserves_throttle_caller_order_and_exact_partition_failure",
+  "crates/kafkars/src/bridge/admin_group_offsets/alter_result_test.rs::whole_failures_and_partition_codes_preserve_delivery_certainty",
 ]
 
 [[invariant]]
@@ -467,7 +467,7 @@ evidence = [
   "crates/kafka-client-engine/src/producer/cancellation/revision_test.rs::driver_accepted_marks_engine_submitted_before_too_late_decision",
   "crates/kafka-client-engine/src/producer/cancellation/revision_test.rs::retry_wait_preflight_requires_explicit_store_phase_with_no_prepared_owner",
   "crates/kafka-client-engine/src/producer/ingress/cancellation_test.rs::cancellation_terminal_backpressure_preserves_abandon_reclaim",
-  "crates/kafka-client/src/producer/cancellation_test.rs::cancellation_preserves_the_terminal_observer_and_repeated_requests_reach_core",
+  "crates/kafkars/src/producer/cancellation_test.rs::cancellation_preserves_the_terminal_observer_and_repeated_requests_reach_core",
   "crates/kafka-client-engine/src/producer/compression/pool_test.rs::explicit_cancellation_fences_a_completed_but_unapplied_generation",
   "crates/kafka-client-engine/src/producer/waiting_test.rs::dropping_waiting_observer_requests_exact_not_sent_cancellation",
 ]
@@ -489,7 +489,7 @@ evidence = [
   "crates/kafka-client-engine/src/producer/ingress/data_test.rs::close_capacity_failure_leaves_record_and_flush_admission_running",
   "crates/kafka-client-engine/src/producer/terminal_publication_test.rs::close_publication_stays_behind_prior_record_under_notifier_backpressure",
   "crates/kafka-client-engine/src/producer/flush/close_reclaim_test.rs::abandoned_close_reclaims_its_exact_flush_binding_and_shared_capacity",
-  "crates/kafka-client/src/producer/close_test.rs::public_close_is_clone_shared_and_first_success_wins",
+  "crates/kafkars/src/producer/close_test.rs::public_close_is_clone_shared_and_first_success_wins",
 ]
 
 [[invariant]]
@@ -536,9 +536,9 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/group_commit/outcome_test.rs::broker_rejection_preserves_exact_signed_code_and_partition_correlation",
   "crates/kafka-client-engine/src/consumer/group_commit/outcome_test.rs::whole_operation_failure_preserves_category_and_delivery_certainty",
   "crates/kafka-client-engine/src/consumer/group_commit/outcome_test.rs::impossible_terminal_identity_is_an_observer_invariant_error",
-  "crates/kafka-client/src/consumer/group_commit_test.rs::accepted_commit_is_send_future_with_blocking_and_advisory_observation",
-  "crates/kafka-client/src/consumer/group_commit_error_test.rs::rejection_exposes_and_returns_the_exact_checkpoint",
-  "crates/kafka-client/src/consumer/group_commit_error_test.rs::terminal_error_exposes_and_returns_the_exact_retry_checkpoint",
+  "crates/kafkars/src/consumer/group_commit_test.rs::accepted_commit_is_send_future_with_blocking_and_advisory_observation",
+  "crates/kafkars/src/consumer/group_commit_error_test.rs::rejection_exposes_and_returns_the_exact_checkpoint",
+  "crates/kafkars/src/consumer/group_commit_error_test.rs::terminal_error_exposes_and_returns_the_exact_retry_checkpoint",
 ]
 
 [[invariant]]
@@ -575,9 +575,9 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/group_control_test.rs::contended_control_returns_the_exact_vector_for_retry",
   "crates/kafka-client-engine/src/consumer/group_control_test.rs::empty_batch_is_inert_even_while_the_registry_is_contended",
   "crates/kafka-client-engine/src/consumer/group_control/resume_capture_test.rs::resume_capture_borrows_the_handle_before_target_conversion",
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_control_test.rs::borrowed_targets_are_copied_in_order_without_position_policy",
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_control_test.rs::every_control_error_kind_has_one_stable_facade_category",
-  "crates/kafka-client/src/consumer/group_control_test.rs::partition_controls_are_batch_synchronous_and_timeout_free",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_control_test.rs::borrowed_targets_are_copied_in_order_without_position_policy",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_control_test.rs::every_control_error_kind_has_one_stable_facade_category",
+  "crates/kafkars/src/consumer/group_control_test.rs::partition_controls_are_batch_synchronous_and_timeout_free",
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/seek_test.rs::explicit_offset_completes_after_core_fences_old_fetch",
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/seek_test.rs::paused_explicit_offset_stays_paused_and_completes_without_list_offsets",
   "crates/kafka-client-engine/src/consumer/group/classic_group_fetch/seek_terminal_test.rs::throttle_success_and_signed_broker_failure_are_terminal",
@@ -585,16 +585,16 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/group/registry_seek_test.rs::current_assignment_translation_commits_explicit_offset_terminal",
   "crates/kafka-client-engine/src/consumer/group_seek/completion_test.rs::first_terminal_wins_and_preserves_signed_broker_code",
   "crates/kafka-client-engine/src/consumer/group_seek/operation_test.rs::seek_is_a_send_linear_future_with_the_same_blocking_outcome",
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_seek_test.rs::target_conversion_rejects_direct_assignment_policy_and_invalid_scalars",
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_seek_test.rs::every_terminal_kind_and_signed_code_have_one_stable_facade_category",
-  "crates/kafka-client/src/consumer/group_seek_test.rs::seek_is_a_send_linear_future_borrowing_the_unique_consumer",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_seek_test.rs::target_conversion_rejects_direct_assignment_policy_and_invalid_scalars",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_seek_test.rs::every_terminal_kind_and_signed_code_have_one_stable_facade_category",
+  "crates/kafkars/src/consumer/group_seek_test.rs::seek_is_a_send_linear_future_borrowing_the_unique_consumer",
   "crates/kafka-client-engine/src/consumer/assigned_host/control_handle_test.rs::retained_topic_translation_preserves_core_epoch_and_partition_fencing",
   "crates/kafka-client-engine/src/consumer/assigned_host/control_handle_test.rs::resume_and_seek_capture_deadlines_before_owner_contention",
   "crates/kafka-client-core/src/consumer/resolution_test.rs::result_and_failure_observations_apply_core_owned_deadline_precedence",
   "crates/kafka-client-core/src/consumer/position_failure_transition_test.rs::unelapsed_resolution_failure_preserves_every_attempt_category",
   "crates/kafka-client-engine/src/driver/rpc/list_offsets_terminal_test.rs::list_offsets_failures_preserve_semantic_categories_and_exact_broker_code",
   "crates/kafka-client-engine/src/consumer/assigned_host/event/translate_test.rs::every_position_failure_category_translates_without_fallbacks",
-  "crates/kafka-client/src/bridge/consumer/event_test.rs::every_position_category_and_signed_broker_code_translate_exactly",
+  "crates/kafkars/src/bridge/consumer/event_test.rs::every_position_category_and_signed_broker_code_translate_exactly",
   "crates/kafka-client-core/src/consumer/resolution_test.rs::pause_and_reassignment_fence_every_old_resolution_terminal",
   "crates/kafka-client-core/src/consumer/throttle_test.rs::positive_throttle_arms_exact_deadline_and_rejects_early_wake_without_mutation",
   "crates/kafka-client-core/src/consumer/throttle_test.rs::pause_rearms_the_same_throttle_deadline_under_a_new_fence",
@@ -671,9 +671,9 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/assigned_host/start_test.rs::each_read_isolation_builds_one_matching_idle_core_owner",
   "crates/kafka-client-engine/src/consumer/assigned_owner_model_test.rs::core_read_isolation_maps_exhaustively_at_protocol_boundaries",
   "crates/kafka-client-engine/src/consumer/fetch_execution/admission_test.rs::read_committed_reaches_bounded_output_admission",
-  "crates/kafka-client/src/consumer/read_isolation_test.rs::default_is_read_uncommitted_and_both_choices_are_closed_values",
-  "crates/kafka-client/src/bridge/client_test.rs::facade_read_isolation_maps_exhaustively_to_engine_configuration",
-  "crates/kafka-client/src/client_test.rs::client_builder_accepts_each_closed_assigned_read_isolation_choice",
+  "crates/kafkars/src/consumer/read_isolation_test.rs::default_is_read_uncommitted_and_both_choices_are_closed_values",
+  "crates/kafkars/src/bridge/client_test.rs::facade_read_isolation_maps_exhaustively_to_engine_configuration",
+  "crates/kafkars/src/client_test.rs::client_builder_accepts_each_closed_assigned_read_isolation_choice",
   "crates/kafka-client-engine/src/protocol/fetch/control_record_test.rs::generated_schemas_decode_abort_and_commit_markers_exactly",
   "crates/kafka-client-engine/src/protocol/fetch/control_record_test.rs::schema_versions_and_trailing_bytes_are_strict",
   "crates/kafka-client-engine/src/protocol/fetch/read_committed_test.rs::aborted_ranges_hide_records_and_abort_retires_only_the_earliest_match",
@@ -794,8 +794,8 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/assigned_host/claim_test.rs::clone_shared_engine_contention_selects_exactly_one_claim",
   "crates/kafka-client-engine/src/consumer/assigned_host/claim_test.rs::retained_closer_fences_admission_after_the_port_transfers",
   "crates/kafka-client-engine/src/consumer/assigned_host/handle_test.rs::assigned_consumer_handle_is_send_but_linear_and_not_shared",
-  "crates/kafka-client/src/consumer/assigned_builder_test.rs::rejected_claim_returns_the_same_engine_builder_without_disturbing_the_winner",
-  "crates/kafka-client/src/consumer/assigned_build_error_test.rs::build_error_is_concrete_and_returns_both_owned_parts",
+  "crates/kafkars/src/consumer/assigned_builder_test.rs::rejected_claim_returns_the_same_engine_builder_without_disturbing_the_winner",
+  "crates/kafkars/src/consumer/assigned_build_error_test.rs::build_error_is_concrete_and_returns_both_owned_parts",
   "crates/kafka-client-engine/src/consumer/assigned_owner_close/admission_test.rs::accepted_close_binds_one_completion_before_effect_interpretation",
   "crates/kafka-client-engine/src/consumer/assigned_owner_close_test.rs::close_publication_backpressure_retains_the_exact_terminal_for_retry",
   "crates/kafka-client-engine/src/consumer/assigned_owner_recovery_test.rs::accepted_close_settles_execution_unavailable_after_driver_shutdown",
@@ -816,7 +816,7 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/assigned_host/next_event/operation_test.rs::owner_failure_wakes_event_with_stable_host_failure",
   "crates/kafka-client-engine/src/consumer/assigned_host/next_event/operation_test.rs::contended_event_registration_wakes_when_the_owner_unlocks",
   "crates/kafka-client-engine/src/consumer/assigned_host/state/notification_test.rs::owner_lock_is_released_before_the_unlock_waker_runs",
-  "crates/kafka-client/src/consumer/assigned_recv_test.rs::recv_is_send_linear_and_borrows_the_unique_consumer",
+  "crates/kafkars/src/consumer/assigned_recv_test.rs::recv_is_send_linear_and_borrows_the_unique_consumer",
 ]
 
 [[invariant]]
@@ -1161,10 +1161,10 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/group_acknowledge/operation_test.rs::exact_batch_checkpoint_renews_processing_liveness",
   "crates/kafka-client-engine/src/consumer/group_acknowledge/operation_test.rs::contended_acknowledgment_returns_the_exact_checkpoint",
   "crates/kafka-client-engine/src/consumer/group_acknowledge/operation_test.rs::foreign_member_acknowledgment_returns_the_exact_checkpoint",
-  "crates/kafka-client/src/consumer/group_acknowledge_test.rs::acknowledgment_consumes_one_checkpoint_without_an_operation_observer",
-  "crates/kafka-client/src/consumer/group_acknowledge_error_test.rs::rejection_exposes_and_returns_the_exact_checkpoint",
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_acknowledge_test.rs::rejection_returns_the_exact_private_checkpoint_owner",
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_acknowledge_test.rs::acknowledgment_categories_translate_exhaustively_without_protocol_work",
+  "crates/kafkars/src/consumer/group_acknowledge_test.rs::acknowledgment_consumes_one_checkpoint_without_an_operation_observer",
+  "crates/kafkars/src/consumer/group_acknowledge_error_test.rs::rejection_exposes_and_returns_the_exact_checkpoint",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_acknowledge_test.rs::rejection_returns_the_exact_private_checkpoint_owner",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_acknowledge_test.rs::acknowledgment_categories_translate_exhaustively_without_protocol_work",
   "crates/kafka-client-engine/src/consumer/group_recv_test.rs::change_published_during_probe_rearm_remains_observable",
   "crates/kafka-client-engine/src/consumer/group_recv_test.rs::pending_recv_wakes_only_on_the_group_notifier",
   "crates/kafka-client-engine/src/consumer/group_recv_test.rs::drop_cancels_only_observation_and_preserves_ready_delivery",
@@ -1175,16 +1175,16 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/group_close/admission_test.rs::contended_admission_returns_the_exact_retryable_handle",
   "crates/kafka-client-engine/src/consumer/group_close/admission_test.rs::dropping_observation_does_not_cancel_the_accepted_close",
   "crates/kafka-client-engine/src/consumer/group_close/operation_test.rs::close_observer_is_send_future_with_a_blocking_adapter",
-  "crates/kafka-client/src/consumer/group_test.rs::builder_and_unique_handle_expose_static_identity_without_control_capabilities",
-  "crates/kafka-client/src/consumer/group_test.rs::read_isolation_defaults_to_uncommitted_and_retains_each_explicit_choice",
-  "crates/kafka-client/src/consumer/group_test.rs::offset_reset_defaults_to_error_and_retains_each_explicit_choice",
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_registration_result_test.rs::every_missing_offset_choice_crosses_the_registration_boundary_exactly",
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_recv_result_test.rs::every_position_failure_maps_to_its_exact_public_category",
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_recv_result_test.rs::position_broker_failure_preserves_the_exact_signed_code",
-  "crates/kafka-client/src/consumer/consumer_batch_test.rs::batch_is_send_linear_iterable_and_exposes_both_consuming_checkpoint_spellings",
-  "crates/kafka-client/src/consumer/group_recv_test.rs::recv_is_send_linear_and_borrows_the_unique_consumer",
-  "crates/kafka-client/src/consumer/group_close_test.rs::accepted_close_is_one_send_runtime_neutral_observer",
-  "crates/kafka-client/src/consumer/group_close_error_test.rs::rejection_exposes_and_returns_the_exact_consumer",
+  "crates/kafkars/src/consumer/group_test.rs::builder_and_unique_handle_expose_static_identity_without_control_capabilities",
+  "crates/kafkars/src/consumer/group_test.rs::read_isolation_defaults_to_uncommitted_and_retains_each_explicit_choice",
+  "crates/kafkars/src/consumer/group_test.rs::offset_reset_defaults_to_error_and_retains_each_explicit_choice",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_registration_result_test.rs::every_missing_offset_choice_crosses_the_registration_boundary_exactly",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_recv_result_test.rs::every_position_failure_maps_to_its_exact_public_category",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_recv_result_test.rs::position_broker_failure_preserves_the_exact_signed_code",
+  "crates/kafkars/src/consumer/consumer_batch_test.rs::batch_is_send_linear_iterable_and_exposes_both_consuming_checkpoint_spellings",
+  "crates/kafkars/src/consumer/group_recv_test.rs::recv_is_send_linear_and_borrows_the_unique_consumer",
+  "crates/kafkars/src/consumer/group_close_test.rs::accepted_close_is_one_send_runtime_neutral_observer",
+  "crates/kafkars/src/consumer/group_close_error_test.rs::rejection_exposes_and_returns_the_exact_consumer",
 ]
 
 [[invariant]]
@@ -1220,9 +1220,9 @@ evidence = [
   "crates/kafka-client-engine/src/driver/rpc/classic_group_leave_failure_test.rs::authentication_failure_remains_distinct_from_transport",
   "crates/kafka-client-engine/src/consumer/group/classic_group_leave/failure_test.rs::authentication_failure_remains_distinct_from_transport",
   "crates/kafka-client-engine/src/consumer/group_close/error_test.rs::authentication_terminal_remains_distinct_from_transport",
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close_test.rs::every_leave_group_terminal_has_one_stable_facade_category",
-  "crates/kafka-client/src/consumer/group_test.rs::static_identity_is_opt_in_and_exactly_recovered_on_invalid_registration",
-  "crates/kafka-client/src/consumer/group_event_test.rs::group_metadata_retains_the_configured_static_identity",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_close_test.rs::every_leave_group_terminal_has_one_stable_facade_category",
+  "crates/kafkars/src/consumer/group_test.rs::static_identity_is_opt_in_and_exactly_recovered_on_invalid_registration",
+  "crates/kafkars/src/consumer/group_event_test.rs::group_metadata_retains_the_configured_static_identity",
 ]
 
 [[invariant]]
@@ -1242,11 +1242,11 @@ evidence = [
   "crates/kafka-client-engine/src/consumer/group/registry_graceful_revocation_test.rs::exact_deadline_loses_then_retires_on_the_next_bounded_turn",
   "crates/kafka-client-engine/src/consumer/group_event/error_test.rs::revocation_port_failures_have_exhaustive_public_categories",
   "crates/kafka-client-engine/src/consumer/group_event/immediate_test.rs::immediate_event_observation_is_public_and_non_waiting",
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_rebalance_event_test.rs::revocation_acknowledgment_categories_translate_exhaustively",
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_rebalance_event_test.rs::event_observation_categories_translate_exhaustively",
-  "crates/kafka-client/src/consumer/group_rebalance_event_test.rs::assignment_event_retains_named_epoch_fence_without_clone_authority",
-  "crates/kafka-client/src/consumer/group_rebalance_event_test.rs::revoking_event_is_linear_and_owns_completion",
-  "crates/kafka-client/src/consumer/group_next_event_test.rs::next_event_is_send_linear_and_borrows_the_unique_consumer",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_rebalance_event_test.rs::revocation_acknowledgment_categories_translate_exhaustively",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_rebalance_event_test.rs::event_observation_categories_translate_exhaustively",
+  "crates/kafkars/src/consumer/group_rebalance_event_test.rs::assignment_event_retains_named_epoch_fence_without_clone_authority",
+  "crates/kafkars/src/consumer/group_rebalance_event_test.rs::revoking_event_is_linear_and_owns_completion",
+  "crates/kafkars/src/consumer/group_next_event_test.rs::next_event_is_send_linear_and_borrows_the_unique_consumer",
 ]
 
 [[invariant]]
@@ -1572,14 +1572,14 @@ evidence = [
   "crates/kafka-client-engine/src/transaction/initialization/host_test.rs::control_reports_contended_closed_and_stale_without_hidden_queueing",
   "crates/kafka-client-engine/src/transaction/initialization/host_test.rs::closed_lifecycle_still_reserves_its_slot_until_pruned",
   "crates/kafka-client-engine/src/engine_transaction_test.rs::local_rejection_returns_the_exact_transaction_request",
-  "crates/kafka-client/src/transaction/builder_test.rs::initialization_deadline_is_captured_before_request_validation",
-  "crates/kafka-client/src/transaction/builder_test.rs::broker_timeout_remains_distinct_from_operation_deadline",
-  "crates/kafka-client/src/transaction/initialization_test.rs::named_initialization_is_one_sendable_observer",
-  "crates/kafka-client/src/transaction/producer_test.rs::initialized_owner_is_sendable_unique_and_not_shared",
-  "crates/kafka-client/src/transaction/producer_test.rs::initialized_owner_exposes_identity_begin_and_close",
-  "crates/kafka-client/src/bridge/transaction/result_test.rs::every_local_rejection_category_maps_without_hidden_retry_policy",
-  "crates/kafka-client/src/bridge/transaction/result_test.rs::terminal_failures_preserve_certainty_fencing_and_exact_broker_code",
-  "crates/kafka-client/src/bridge/transaction/result_test.rs::observer_and_accepted_faults_remain_stable_internal_categories",
+  "crates/kafkars/src/transaction/builder_test.rs::initialization_deadline_is_captured_before_request_validation",
+  "crates/kafkars/src/transaction/builder_test.rs::broker_timeout_remains_distinct_from_operation_deadline",
+  "crates/kafkars/src/transaction/initialization_test.rs::named_initialization_is_one_sendable_observer",
+  "crates/kafkars/src/transaction/producer_test.rs::initialized_owner_is_sendable_unique_and_not_shared",
+  "crates/kafkars/src/transaction/producer_test.rs::initialized_owner_exposes_identity_begin_and_close",
+  "crates/kafkars/src/bridge/transaction/result_test.rs::every_local_rejection_category_maps_without_hidden_retry_policy",
+  "crates/kafkars/src/bridge/transaction/result_test.rs::terminal_failures_preserve_certainty_fencing_and_exact_broker_code",
+  "crates/kafkars/src/bridge/transaction/result_test.rs::observer_and_accepted_faults_remain_stable_internal_categories",
 ]
 
 [[invariant]]
@@ -1612,12 +1612,12 @@ evidence = [
   "crates/kafka-client-engine/src/transaction/send/automatic_test.rs::unkeyed_send_advances_only_after_its_transactional_batch_seals",
   "crates/kafka-client-engine/src/transaction/send/turn_test.rs::success_preserves_deadline_and_discards_evidence_only_after_settlement",
   "crates/kafka-client-engine/src/transaction/partition_enrollment/host_test.rs::success_retains_exact_request_deadline_epoch_and_batch_fence",
-  "crates/kafka-client/src/bridge/transaction/result_test.rs::lifecycle_control_categories_translate_exhaustively",
-  "crates/kafka-client/src/bridge/transaction/result_test.rs::end_observation_preserves_disposition_and_fencing",
-  "crates/kafka-client/src/transaction/transaction_test.rs::active_transaction_is_linear_and_end_rejection_retains_it",
-  "crates/kafka-client/src/bridge/transaction/send_result_test.rs::consequence_delivery_and_broker_code_remain_lossless",
-  "crates/kafka-client/src/transaction/send_test.rs::accepted_send_is_one_named_linear_future_and_waiter",
-  "crates/kafka-client/src/transaction/end_test.rs::commit_and_abort_are_named_linear_future_operations",
+  "crates/kafkars/src/bridge/transaction/result_test.rs::lifecycle_control_categories_translate_exhaustively",
+  "crates/kafkars/src/bridge/transaction/result_test.rs::end_observation_preserves_disposition_and_fencing",
+  "crates/kafkars/src/transaction/transaction_test.rs::active_transaction_is_linear_and_end_rejection_retains_it",
+  "crates/kafkars/src/bridge/transaction/send_result_test.rs::consequence_delivery_and_broker_code_remain_lossless",
+  "crates/kafkars/src/transaction/send_test.rs::accepted_send_is_one_named_linear_future_and_waiter",
+  "crates/kafkars/src/transaction/end_test.rs::commit_and_abort_are_named_linear_future_operations",
 ]
 
 [[invariant]]
@@ -1640,7 +1640,7 @@ evidence = [
   "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/submission_test.rs::options_preserve_deadline_lane_and_exact_v4_bounds",
   "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/add_offsets_test.rs::retry_authority_requires_both_exact_rejection_and_completed_refresh_barrier",
   "crates/kafka-client-engine/src/driver/rpc/transaction_offsets/offset_commit_test.rs::only_exact_refreshed_group_coordinator_rejection_is_retry_safe",
-  "crates/kafka-client/src/bridge/transaction/offsets_test.rs::private_offsets_reborrow_transaction_until_observer_release",
-  "crates/kafka-client/src/transaction/offsets_error_test.rs::rejection_exposes_borrowed_and_owned_exact_inputs",
-  "crates/kafka-client/src/transaction/offsets_test.rs::accepted_offsets_are_runtime_neutral_and_linear",
+  "crates/kafkars/src/bridge/transaction/offsets_test.rs::private_offsets_reborrow_transaction_until_observer_release",
+  "crates/kafkars/src/transaction/offsets_error_test.rs::rejection_exposes_borrowed_and_owned_exact_inputs",
+  "crates/kafkars/src/transaction/offsets_test.rs::accepted_offsets_are_runtime_neutral_and_linear",
 ]

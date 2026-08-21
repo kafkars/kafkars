@@ -117,54 +117,54 @@ macro_rules! driver {
 }
 macro_rules! facade {
     ("builder.rs") => {
-        "crates/kafka-client/src/admin/create_delegation_token/builder.rs"
+        "crates/kafkars/src/admin/create_delegation_token/builder.rs"
     };
     ("hmac.rs") => {
-        "crates/kafka-client/src/admin/create_delegation_token/hmac.rs"
+        "crates/kafkars/src/admin/create_delegation_token/hmac.rs"
     };
     ("hmac_test.rs") => {
-        "crates/kafka-client/src/admin/create_delegation_token/hmac_test.rs"
+        "crates/kafkars/src/admin/create_delegation_token/hmac_test.rs"
     };
     ("operation.rs") => {
-        "crates/kafka-client/src/admin/create_delegation_token/operation.rs"
+        "crates/kafkars/src/admin/create_delegation_token/operation.rs"
     };
     ("operation_test.rs") => {
-        "crates/kafka-client/src/admin/create_delegation_token/operation_test.rs"
+        "crates/kafkars/src/admin/create_delegation_token/operation_test.rs"
     };
     ("principal.rs") => {
-        "crates/kafka-client/src/admin/create_delegation_token/principal.rs"
+        "crates/kafkars/src/admin/create_delegation_token/principal.rs"
     };
     ("principal_test.rs") => {
-        "crates/kafka-client/src/admin/create_delegation_token/principal_test.rs"
+        "crates/kafkars/src/admin/create_delegation_token/principal_test.rs"
     };
     ("result.rs") => {
-        "crates/kafka-client/src/admin/create_delegation_token/result.rs"
+        "crates/kafkars/src/admin/create_delegation_token/result.rs"
     };
     ("result_test.rs") => {
-        "crates/kafka-client/src/admin/create_delegation_token/result_test.rs"
+        "crates/kafkars/src/admin/create_delegation_token/result_test.rs"
     };
     ("token.rs") => {
-        "crates/kafka-client/src/admin/create_delegation_token/token.rs"
+        "crates/kafkars/src/admin/create_delegation_token/token.rs"
     };
     ("token_test.rs") => {
-        "crates/kafka-client/src/admin/create_delegation_token/token_test.rs"
+        "crates/kafkars/src/admin/create_delegation_token/token_test.rs"
     };
 }
 macro_rules! bridge {
     ("operation.rs") => {
-        "crates/kafka-client/src/bridge/create_delegation_token/operation.rs"
+        "crates/kafkars/src/bridge/create_delegation_token/operation.rs"
     };
     ("request.rs") => {
-        "crates/kafka-client/src/bridge/create_delegation_token/request.rs"
+        "crates/kafkars/src/bridge/create_delegation_token/request.rs"
     };
     ("request_test.rs") => {
-        "crates/kafka-client/src/bridge/create_delegation_token/request_test.rs"
+        "crates/kafkars/src/bridge/create_delegation_token/request_test.rs"
     };
     ("result.rs") => {
-        "crates/kafka-client/src/bridge/create_delegation_token/result.rs"
+        "crates/kafkars/src/bridge/create_delegation_token/result.rs"
     };
     ("result_test.rs") => {
-        "crates/kafka-client/src/bridge/create_delegation_token/result_test.rs"
+        "crates/kafkars/src/bridge/create_delegation_token/result_test.rs"
     };
 }
 
@@ -338,9 +338,9 @@ pub(super) const METHODS: &[(&str, &str, &[&str])] = &[
         &[driver!("create_delegation_token_call.rs")],
     ),
     (
-        "crates/kafka-client/src",
+        "crates/kafkars/src",
         "capture_create_delegation_token",
-        &["crates/kafka-client/src/bridge/admin.rs"],
+        &["crates/kafkars/src/bridge/admin.rs"],
     ),
 ];
 

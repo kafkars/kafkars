@@ -6,26 +6,26 @@ use support::{LinearOwner, fixture_files, linear_violations, load_config, worksp
 
 const MIRRORS: &[(&str, &str)] = &[
     (
-        "crates/kafka-client/src/bridge/consumer/next_event.rs",
-        "crates/kafka-client/src/bridge/consumer/next_event_test.rs",
+        "crates/kafkars/src/bridge/consumer/next_event.rs",
+        "crates/kafkars/src/bridge/consumer/next_event_test.rs",
     ),
     (
-        "crates/kafka-client/src/bridge/consumer/next_event_result.rs",
-        "crates/kafka-client/src/bridge/consumer/next_event_result_test.rs",
+        "crates/kafkars/src/bridge/consumer/next_event_result.rs",
+        "crates/kafkars/src/bridge/consumer/next_event_result_test.rs",
     ),
     (
-        "crates/kafka-client/src/consumer/assigned_next_event.rs",
-        "crates/kafka-client/src/consumer/assigned_next_event_test.rs",
+        "crates/kafkars/src/consumer/assigned_next_event.rs",
+        "crates/kafkars/src/consumer/assigned_next_event_test.rs",
     ),
 ];
 const LINEAR: &[(&str, &str)] = &[
     (
         "AssignedConsumerNextEvent",
-        "crates/kafka-client/src/bridge/consumer/next_event.rs",
+        "crates/kafkars/src/bridge/consumer/next_event.rs",
     ),
     (
         "NextAssignedEvent",
-        "crates/kafka-client/src/consumer/assigned_next_event.rs",
+        "crates/kafkars/src/consumer/assigned_next_event.rs",
     ),
 ];
 

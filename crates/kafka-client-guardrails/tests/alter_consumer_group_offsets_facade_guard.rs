@@ -7,10 +7,10 @@ use support::{
     method_capability_violations, workspace_root,
 };
 
-const REQUEST: &str = "crates/kafka-client/src/bridge/admin_group_offsets/alter_request.rs";
-const OPERATION: &str = "crates/kafka-client/src/bridge/admin_group_offsets/alter_operation.rs";
-const BUILDER: &str = "crates/kafka-client/src/admin/group_offsets/alter_builder.rs";
-const PUBLIC_OPERATION: &str = "crates/kafka-client/src/admin/group_offsets/alter_operation.rs";
+const REQUEST: &str = "crates/kafkars/src/bridge/admin_group_offsets/alter_request.rs";
+const OPERATION: &str = "crates/kafkars/src/bridge/admin_group_offsets/alter_operation.rs";
+const BUILDER: &str = "crates/kafkars/src/admin/group_offsets/alter_builder.rs";
+const PUBLIC_OPERATION: &str = "crates/kafkars/src/admin/group_offsets/alter_operation.rs";
 const LINEAR: &[(&str, &str)] = &[
     ("AlterConsumerGroupOffsetsAdminRequest", REQUEST),
     ("AdminAlterConsumerGroupOffsets", OPERATION),
@@ -38,7 +38,7 @@ fn checked_in_lifecycle_and_engine_submission_policy_is_exact() {
     assert_eq!(rules.len(), 1);
     assert_eq!(
         rules[0].allowed_paths,
-        ["crates/kafka-client/src/bridge/admin/group_submissions.rs"]
+        ["crates/kafkars/src/bridge/admin/group_submissions.rs"]
     );
 }
 

@@ -60,16 +60,16 @@ excluded_roots = ["crates/kafka-client-guardrails/tests/fixtures"]
 
 [budgets]
 baseline = [
-  { path = "crates/kafka-client/src/admin/handle.rs", lines = 365, reason = "the shared Admin handle retains the stable common builder surface after group and specialist methods moved into focused child seams" },
-  { path = "crates/kafka-client/src/admin/mod.rs", lines = 156, reason = "the declarative Admin facade explicitly names the complete Rust source-preview module and sibling-test surface" },
-  { path = "crates/kafka-client/src/admin/public_api.rs", lines = 255, reason = "the curated generated-free Admin reexport table keeps the complete Rust source-preview vocabulary explicit without globbing protocol or engine internals" },
-  { path = "crates/kafka-client/src/bridge/admin.rs", lines = 404, reason = "the private Admin bridge retains common capture-first submissions after grouped and DescribeCluster handoffs moved into focused child seams" },
-  { path = "crates/kafka-client/src/bridge/client.rs", lines = 243, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client/src/bridge/describe_streams_group/result.rs", lines = 327, reason = "the API 89 bridge result translator exhaustively maps the complete generated-free topology, member, task, exact broker rejection, and delivery vocabulary into the curated public surface" },
-  { path = "crates/kafka-client/src/bridge/mod.rs", lines = 137, reason = "the declarative bridge facade explicitly names every private Rust source-preview adapter including generic configuration resources" },
-  { path = "crates/kafka-client/src/bridge/producer/handle.rs", lines = 246, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client/src/consumer/group_test.rs", lines = 303, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
-  { path = "crates/kafka-client/src/lib.rs", lines = 174, reason = "the crate facade explicitly reexports the complete curated Rust source-preview surface, preview limitation, and required trademark notice" },
+  { path = "crates/kafkars/src/admin/handle.rs", lines = 365, reason = "the shared Admin handle retains the stable common builder surface after group and specialist methods moved into focused child seams" },
+  { path = "crates/kafkars/src/admin/mod.rs", lines = 156, reason = "the declarative Admin facade explicitly names the complete Rust source-preview module and sibling-test surface" },
+  { path = "crates/kafkars/src/admin/public_api.rs", lines = 255, reason = "the curated generated-free Admin reexport table keeps the complete Rust source-preview vocabulary explicit without globbing protocol or engine internals" },
+  { path = "crates/kafkars/src/bridge/admin.rs", lines = 404, reason = "the private Admin bridge retains common capture-first submissions after grouped and DescribeCluster handoffs moved into focused child seams" },
+  { path = "crates/kafkars/src/bridge/client.rs", lines = 243, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafkars/src/bridge/describe_streams_group/result.rs", lines = 327, reason = "the API 89 bridge result translator exhaustively maps the complete generated-free topology, member, task, exact broker rejection, and delivery vocabulary into the curated public surface" },
+  { path = "crates/kafkars/src/bridge/mod.rs", lines = 137, reason = "the declarative bridge facade explicitly names every private Rust source-preview adapter including generic configuration resources" },
+  { path = "crates/kafkars/src/bridge/producer/handle.rs", lines = 246, reason = "the focused owner keeps its reviewed responsibility in one explicit seam; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafkars/src/consumer/group_test.rs", lines = 303, reason = "the focused evidence keeps its related ownership and regression scenarios together; this exact measured baseline ratchets any further growth pending a focused split" },
+  { path = "crates/kafkars/src/lib.rs", lines = 174, reason = "the crate facade explicitly reexports the complete curated Rust source-preview surface, preview limitation, and required trademark notice" },
   { path = "crates/kafka-client-core/src/admin/alter_share_group_offsets/outcome.rs", lines = 268, reason = "the bounded API 91 outcome seam keeps caller-ordered partition identities, nonzero topic IDs, exact group and partition errors, delivery certainty, and terminal variants in one deterministic vocabulary" },
   { path = "crates/kafka-client-core/src/admin/delete_share_group_offsets/outcome.rs", lines = 245, reason = "the bounded API 92 outcome seam keeps exact signed top-level and per-topic broker failures, nonzero topic identities, delivery certainty, and retained-byte accounting together" },
   { path = "crates/kafka-client-core/src/admin/delete_share_group_offsets/transition.rs", lines = 268, reason = "the destructive API 92 state transition keeps admission, handoff, deadline, broker settlement, and shutdown recovery exhaustive over one explicit operation state" },
@@ -1932,440 +1932,440 @@ production = "crates/kafka-client-sim/src/producer.rs"
 test = "crates/kafka-client-sim/src/producer_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/client.rs"
-test = "crates/kafka-client/src/client_test.rs"
+production = "crates/kafkars/src/client.rs"
+test = "crates/kafkars/src/client_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/readiness.rs"
-test = "crates/kafka-client/src/readiness_test.rs"
+production = "crates/kafkars/src/readiness.rs"
+test = "crates/kafkars/src/readiness_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/security/policy.rs"
-test = "crates/kafka-client/src/security/policy_test.rs"
+production = "crates/kafkars/src/security/policy.rs"
+test = "crates/kafkars/src/security/policy_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/security/sasl.rs"
-test = "crates/kafka-client/src/security/sasl_test.rs"
+production = "crates/kafkars/src/security/sasl.rs"
+test = "crates/kafkars/src/security/sasl_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/security/tls.rs"
-test = "crates/kafka-client/src/security/tls_test.rs"
+production = "crates/kafkars/src/security/tls.rs"
+test = "crates/kafkars/src/security/tls_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/shutdown.rs"
-test = "crates/kafka-client/src/shutdown_test.rs"
+production = "crates/kafkars/src/shutdown.rs"
+test = "crates/kafkars/src/shutdown_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/client_shutdown.rs"
-test = "crates/kafka-client/src/bridge/client_shutdown_test.rs"
+production = "crates/kafkars/src/bridge/client_shutdown.rs"
+test = "crates/kafkars/src/bridge/client_shutdown_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/client_shutdown/state.rs"
-test = "crates/kafka-client/src/bridge/client_shutdown/state_test.rs"
+production = "crates/kafkars/src/bridge/client_shutdown/state.rs"
+test = "crates/kafkars/src/bridge/client_shutdown/state_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/error.rs"
-test = "crates/kafka-client/src/error_test.rs"
+production = "crates/kafkars/src/error.rs"
+test = "crates/kafkars/src/error_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/client.rs"
-test = "crates/kafka-client/src/bridge/client_test.rs"
+production = "crates/kafkars/src/bridge/client.rs"
+test = "crates/kafkars/src/bridge/client_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer/handle.rs"
-test = "crates/kafka-client/src/bridge/consumer/handle_test.rs"
+production = "crates/kafkars/src/bridge/consumer/handle.rs"
+test = "crates/kafkars/src/bridge/consumer/handle_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer/assignment.rs"
-test = "crates/kafka-client/src/bridge/consumer/assignment_test.rs"
+production = "crates/kafkars/src/bridge/consumer/assignment.rs"
+test = "crates/kafkars/src/bridge/consumer/assignment_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer/assignment_result.rs"
-test = "crates/kafka-client/src/bridge/consumer/assignment_result_test.rs"
+production = "crates/kafkars/src/bridge/consumer/assignment_result.rs"
+test = "crates/kafkars/src/bridge/consumer/assignment_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer/control.rs"
-test = "crates/kafka-client/src/bridge/consumer/control_test.rs"
+production = "crates/kafkars/src/bridge/consumer/control.rs"
+test = "crates/kafkars/src/bridge/consumer/control_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer/control_result.rs"
-test = "crates/kafka-client/src/bridge/consumer/control_result_test.rs"
+production = "crates/kafkars/src/bridge/consumer/control_result.rs"
+test = "crates/kafkars/src/bridge/consumer/control_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer/batch.rs"
-test = "crates/kafka-client/src/bridge/consumer/batch_test.rs"
+production = "crates/kafkars/src/bridge/consumer/batch.rs"
+test = "crates/kafkars/src/bridge/consumer/batch_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer/batch_result.rs"
-test = "crates/kafka-client/src/bridge/consumer/batch_result_test.rs"
+production = "crates/kafkars/src/bridge/consumer/batch_result.rs"
+test = "crates/kafkars/src/bridge/consumer/batch_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer/event.rs"
-test = "crates/kafka-client/src/bridge/consumer/event_test.rs"
+production = "crates/kafkars/src/bridge/consumer/event.rs"
+test = "crates/kafkars/src/bridge/consumer/event_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer/event_result.rs"
-test = "crates/kafka-client/src/bridge/consumer/event_result_test.rs"
+production = "crates/kafkars/src/bridge/consumer/event_result.rs"
+test = "crates/kafkars/src/bridge/consumer/event_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer/next_event.rs"
-test = "crates/kafka-client/src/bridge/consumer/next_event_test.rs"
+production = "crates/kafkars/src/bridge/consumer/next_event.rs"
+test = "crates/kafkars/src/bridge/consumer/next_event_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer/next_event_result.rs"
-test = "crates/kafka-client/src/bridge/consumer/next_event_result_test.rs"
+production = "crates/kafkars/src/bridge/consumer/next_event_result.rs"
+test = "crates/kafkars/src/bridge/consumer/next_event_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer/close.rs"
-test = "crates/kafka-client/src/bridge/consumer/close_test.rs"
+production = "crates/kafkars/src/bridge/consumer/close.rs"
+test = "crates/kafkars/src/bridge/consumer/close_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer/recv.rs"
-test = "crates/kafka-client/src/bridge/consumer/recv_test.rs"
+production = "crates/kafkars/src/bridge/consumer/recv.rs"
+test = "crates/kafkars/src/bridge/consumer/recv_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer/recv_result.rs"
-test = "crates/kafka-client/src/bridge/consumer/recv_result_test.rs"
+production = "crates/kafkars/src/bridge/consumer/recv_result.rs"
+test = "crates/kafkars/src/bridge/consumer/recv_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer/result.rs"
-test = "crates/kafka-client/src/bridge/consumer/result_test.rs"
+production = "crates/kafkars/src/bridge/consumer/result.rs"
+test = "crates/kafkars/src/bridge/consumer/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin.rs"
-test = "crates/kafka-client/src/bridge/admin_test.rs"
+production = "crates/kafkars/src/bridge/admin.rs"
+test = "crates/kafkars/src/bridge/admin_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_operation.rs"
-test = "crates/kafka-client/src/bridge/admin_operation_test.rs"
+production = "crates/kafkars/src/bridge/admin_operation.rs"
+test = "crates/kafkars/src/bridge/admin_operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_result.rs"
-test = "crates/kafka-client/src/bridge/admin_result_test.rs"
+production = "crates/kafkars/src/bridge/admin_result.rs"
+test = "crates/kafkars/src/bridge/admin_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_delete_operation.rs"
-test = "crates/kafka-client/src/bridge/admin_delete_operation_test.rs"
+production = "crates/kafkars/src/bridge/admin_delete_operation.rs"
+test = "crates/kafkars/src/bridge/admin_delete_operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_delete_result.rs"
-test = "crates/kafka-client/src/bridge/admin_delete_result_test.rs"
+production = "crates/kafkars/src/bridge/admin_delete_result.rs"
+test = "crates/kafkars/src/bridge/admin_delete_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_describe_operation.rs"
-test = "crates/kafka-client/src/bridge/admin_describe_operation_test.rs"
+production = "crates/kafkars/src/bridge/admin_describe_operation.rs"
+test = "crates/kafkars/src/bridge/admin_describe_operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_describe_result.rs"
-test = "crates/kafka-client/src/bridge/admin_describe_result_test.rs"
+production = "crates/kafkars/src/bridge/admin_describe_result.rs"
+test = "crates/kafkars/src/bridge/admin_describe_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_group_offsets/list_operation.rs"
-test = "crates/kafka-client/src/bridge/admin_group_offsets/list_operation_test.rs"
+production = "crates/kafkars/src/bridge/admin_group_offsets/list_operation.rs"
+test = "crates/kafkars/src/bridge/admin_group_offsets/list_operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_group_offsets/list_request.rs"
-test = "crates/kafka-client/src/bridge/admin_group_offsets/list_request_test.rs"
+production = "crates/kafkars/src/bridge/admin_group_offsets/list_request.rs"
+test = "crates/kafkars/src/bridge/admin_group_offsets/list_request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_group_offsets/list_result.rs"
-test = "crates/kafka-client/src/bridge/admin_group_offsets/list_result_test.rs"
+production = "crates/kafkars/src/bridge/admin_group_offsets/list_result.rs"
+test = "crates/kafkars/src/bridge/admin_group_offsets/list_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_partitions_operation.rs"
-test = "crates/kafka-client/src/bridge/admin_partitions_operation_test.rs"
+production = "crates/kafkars/src/bridge/admin_partitions_operation.rs"
+test = "crates/kafkars/src/bridge/admin_partitions_operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_partitions_result.rs"
-test = "crates/kafka-client/src/bridge/admin_partitions_result_test.rs"
+production = "crates/kafkars/src/bridge/admin_partitions_result.rs"
+test = "crates/kafkars/src/bridge/admin_partitions_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_topics_operation.rs"
-test = "crates/kafka-client/src/bridge/admin_topics_operation_test.rs"
+production = "crates/kafkars/src/bridge/admin_topics_operation.rs"
+test = "crates/kafkars/src/bridge/admin_topics_operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_topics_result.rs"
-test = "crates/kafka-client/src/bridge/admin_topics_result_test.rs"
+production = "crates/kafkars/src/bridge/admin_topics_result.rs"
+test = "crates/kafkars/src/bridge/admin_topics_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_topics_request.rs"
-test = "crates/kafka-client/src/bridge/admin_topics_request_test.rs"
+production = "crates/kafkars/src/bridge/admin_topics_request.rs"
+test = "crates/kafkars/src/bridge/admin_topics_request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_alter_configs_request.rs"
-test = "crates/kafka-client/src/bridge/admin_alter_configs_request_test.rs"
+production = "crates/kafkars/src/bridge/admin_alter_configs_request.rs"
+test = "crates/kafkars/src/bridge/admin_alter_configs_request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_alter_configs_operation.rs"
-test = "crates/kafka-client/src/bridge/admin_alter_configs_operation_test.rs"
+production = "crates/kafkars/src/bridge/admin_alter_configs_operation.rs"
+test = "crates/kafkars/src/bridge/admin_alter_configs_operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_alter_configs_result.rs"
-test = "crates/kafka-client/src/bridge/admin_alter_configs_result_test.rs"
+production = "crates/kafkars/src/bridge/admin_alter_configs_result.rs"
+test = "crates/kafkars/src/bridge/admin_alter_configs_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_configs_request.rs"
-test = "crates/kafka-client/src/bridge/admin_configs_request_test.rs"
+production = "crates/kafkars/src/bridge/admin_configs_request.rs"
+test = "crates/kafkars/src/bridge/admin_configs_request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_configs_operation.rs"
-test = "crates/kafka-client/src/bridge/admin_configs_operation_test.rs"
+production = "crates/kafkars/src/bridge/admin_configs_operation.rs"
+test = "crates/kafkars/src/bridge/admin_configs_operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_configs_result.rs"
-test = "crates/kafka-client/src/bridge/admin_configs_result_test.rs"
+production = "crates/kafkars/src/bridge/admin_configs_result.rs"
+test = "crates/kafkars/src/bridge/admin_configs_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/producer_result/admission.rs"
-test = "crates/kafka-client/src/bridge/producer_result/admission_test.rs"
+production = "crates/kafkars/src/bridge/producer_result/admission.rs"
+test = "crates/kafkars/src/bridge/producer_result/admission_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/producer_result/close.rs"
-test = "crates/kafka-client/src/bridge/producer_result/close_test.rs"
+production = "crates/kafkars/src/bridge/producer_result/close.rs"
+test = "crates/kafkars/src/bridge/producer_result/close_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/producer_result/delivery.rs"
-test = "crates/kafka-client/src/bridge/producer_result/delivery_test.rs"
+production = "crates/kafkars/src/bridge/producer_result/delivery.rs"
+test = "crates/kafkars/src/bridge/producer_result/delivery_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/producer/handle.rs"
-test = "crates/kafka-client/src/bridge/producer/handle_test.rs"
+production = "crates/kafkars/src/bridge/producer/handle.rs"
+test = "crates/kafkars/src/bridge/producer/handle_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/producer/delivery.rs"
-test = "crates/kafka-client/src/bridge/producer/delivery_test.rs"
+production = "crates/kafkars/src/bridge/producer/delivery.rs"
+test = "crates/kafkars/src/bridge/producer/delivery_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/producer/barrier.rs"
-test = "crates/kafka-client/src/bridge/producer/barrier_test.rs"
+production = "crates/kafkars/src/bridge/producer/barrier.rs"
+test = "crates/kafkars/src/bridge/producer/barrier_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/producer_result/flush.rs"
-test = "crates/kafka-client/src/bridge/producer_result/flush_test.rs"
+production = "crates/kafkars/src/bridge/producer_result/flush.rs"
+test = "crates/kafkars/src/bridge/producer_result/flush_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/producer/handle.rs"
-test = "crates/kafka-client/src/producer/handle_test.rs"
+production = "crates/kafkars/src/producer/handle.rs"
+test = "crates/kafkars/src/producer/handle_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/assigned.rs"
-test = "crates/kafka-client/src/consumer/assigned_test.rs"
+production = "crates/kafkars/src/consumer/assigned.rs"
+test = "crates/kafkars/src/consumer/assigned_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/assignment.rs"
-test = "crates/kafka-client/src/consumer/assignment_test.rs"
+production = "crates/kafkars/src/consumer/assignment.rs"
+test = "crates/kafkars/src/consumer/assignment_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/assigned_builder.rs"
-test = "crates/kafka-client/src/consumer/assigned_builder_test.rs"
+production = "crates/kafkars/src/consumer/assigned_builder.rs"
+test = "crates/kafkars/src/consumer/assigned_builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/read_isolation.rs"
-test = "crates/kafka-client/src/consumer/read_isolation_test.rs"
+production = "crates/kafkars/src/consumer/read_isolation.rs"
+test = "crates/kafkars/src/consumer/read_isolation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/assigned_build_error.rs"
-test = "crates/kafka-client/src/consumer/assigned_build_error_test.rs"
+production = "crates/kafkars/src/consumer/assigned_build_error.rs"
+test = "crates/kafkars/src/consumer/assigned_build_error_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/assigned_close.rs"
-test = "crates/kafka-client/src/consumer/assigned_close_test.rs"
+production = "crates/kafkars/src/consumer/assigned_close.rs"
+test = "crates/kafkars/src/consumer/assigned_close_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/assigned_next_event.rs"
-test = "crates/kafka-client/src/consumer/assigned_next_event_test.rs"
+production = "crates/kafkars/src/consumer/assigned_next_event.rs"
+test = "crates/kafkars/src/consumer/assigned_next_event_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/assigned_recv.rs"
-test = "crates/kafka-client/src/consumer/assigned_recv_test.rs"
+production = "crates/kafkars/src/consumer/assigned_recv.rs"
+test = "crates/kafkars/src/consumer/assigned_recv_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/checkpoint.rs"
-test = "crates/kafka-client/src/consumer/checkpoint_test.rs"
+production = "crates/kafkars/src/consumer/checkpoint.rs"
+test = "crates/kafkars/src/consumer/checkpoint_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/checkpoint_builder.rs"
-test = "crates/kafka-client/src/consumer/checkpoint_builder_test.rs"
+production = "crates/kafkars/src/consumer/checkpoint_builder.rs"
+test = "crates/kafkars/src/consumer/checkpoint_builder_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-engine/src/consumer/group_batch/checkpoint_builder.rs"
 test = "crates/kafka-client-engine/src/consumer/group_batch/checkpoint_builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/record.rs"
-test = "crates/kafka-client/src/consumer/record_test.rs"
+production = "crates/kafkars/src/consumer/record.rs"
+test = "crates/kafkars/src/consumer/record_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/record_batch.rs"
-test = "crates/kafka-client/src/consumer/record_batch_test.rs"
+production = "crates/kafkars/src/consumer/record_batch.rs"
+test = "crates/kafkars/src/consumer/record_batch_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/event.rs"
-test = "crates/kafka-client/src/consumer/event_test.rs"
+production = "crates/kafkars/src/consumer/event.rs"
+test = "crates/kafkars/src/consumer/event_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/group.rs"
-test = "crates/kafka-client/src/consumer/group_test.rs"
+production = "crates/kafkars/src/consumer/group.rs"
+test = "crates/kafkars/src/consumer/group_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_recv_result.rs"
-test = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_recv_result_test.rs"
+production = "crates/kafkars/src/bridge/consumer_facade/group_consumer_recv_result.rs"
+test = "crates/kafkars/src/bridge/consumer_facade/group_consumer_recv_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/group_event.rs"
-test = "crates/kafka-client/src/consumer/group_event_test.rs"
+production = "crates/kafkars/src/consumer/group_event.rs"
+test = "crates/kafkars/src/consumer/group_event_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/producer/close.rs"
-test = "crates/kafka-client/src/producer/close_test.rs"
+production = "crates/kafkars/src/producer/close.rs"
+test = "crates/kafkars/src/producer/close_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/producer/delivery.rs"
-test = "crates/kafka-client/src/producer/delivery_test.rs"
+production = "crates/kafkars/src/producer/delivery.rs"
+test = "crates/kafkars/src/producer/delivery_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/producer/flush.rs"
-test = "crates/kafka-client/src/producer/flush_test.rs"
+production = "crates/kafkars/src/producer/flush.rs"
+test = "crates/kafkars/src/producer/flush_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/producer/metadata.rs"
-test = "crates/kafka-client/src/producer/metadata_test.rs"
+production = "crates/kafkars/src/producer/metadata.rs"
+test = "crates/kafkars/src/producer/metadata_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/producer/rejection.rs"
-test = "crates/kafka-client/src/producer/rejection_test.rs"
+production = "crates/kafkars/src/producer/rejection.rs"
+test = "crates/kafkars/src/producer/rejection_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/batch_result.rs"
-test = "crates/kafka-client/src/admin/batch_result_test.rs"
+production = "crates/kafkars/src/admin/batch_result.rs"
+test = "crates/kafkars/src/admin/batch_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/builder.rs"
-test = "crates/kafka-client/src/admin/builder_test.rs"
+production = "crates/kafkars/src/admin/builder.rs"
+test = "crates/kafkars/src/admin/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/group_offsets/offset.rs"
-test = "crates/kafka-client/src/admin/group_offsets/offset_test.rs"
+production = "crates/kafkars/src/admin/group_offsets/offset.rs"
+test = "crates/kafkars/src/admin/group_offsets/offset_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/create_topics.rs"
-test = "crates/kafka-client/src/admin/create_topics_test.rs"
+production = "crates/kafkars/src/admin/create_topics.rs"
+test = "crates/kafkars/src/admin/create_topics_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/delete_builder.rs"
-test = "crates/kafka-client/src/admin/delete_builder_test.rs"
+production = "crates/kafkars/src/admin/delete_builder.rs"
+test = "crates/kafkars/src/admin/delete_builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/delete_topics.rs"
-test = "crates/kafka-client/src/admin/delete_topics_test.rs"
+production = "crates/kafkars/src/admin/delete_topics.rs"
+test = "crates/kafkars/src/admin/delete_topics_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_builder.rs"
-test = "crates/kafka-client/src/admin/describe_builder_test.rs"
+production = "crates/kafkars/src/admin/describe_builder.rs"
+test = "crates/kafkars/src/admin/describe_builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_cluster.rs"
-test = "crates/kafka-client/src/admin/describe_cluster_test.rs"
+production = "crates/kafkars/src/admin/describe_cluster.rs"
+test = "crates/kafkars/src/admin/describe_cluster_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_topics.rs"
-test = "crates/kafka-client/src/admin/describe_topics_test.rs"
+production = "crates/kafkars/src/admin/describe_topics.rs"
+test = "crates/kafkars/src/admin/describe_topics_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/list_consumer_group_offsets.rs"
-test = "crates/kafka-client/src/admin/list_consumer_group_offsets_test.rs"
+production = "crates/kafkars/src/admin/list_consumer_group_offsets.rs"
+test = "crates/kafkars/src/admin/list_consumer_group_offsets_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/list_consumer_group_offsets_builder.rs"
-test = "crates/kafka-client/src/admin/list_consumer_group_offsets_builder_test.rs"
+production = "crates/kafkars/src/admin/list_consumer_group_offsets_builder.rs"
+test = "crates/kafkars/src/admin/list_consumer_group_offsets_builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/list_consumer_group_offsets_result.rs"
-test = "crates/kafka-client/src/admin/list_consumer_group_offsets_result_test.rs"
+production = "crates/kafkars/src/admin/list_consumer_group_offsets_result.rs"
+test = "crates/kafkars/src/admin/list_consumer_group_offsets_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/list_topics_builder.rs"
-test = "crates/kafka-client/src/admin/list_topics_builder_test.rs"
+production = "crates/kafkars/src/admin/list_topics_builder.rs"
+test = "crates/kafkars/src/admin/list_topics_builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/list_topics.rs"
-test = "crates/kafka-client/src/admin/list_topics_test.rs"
+production = "crates/kafkars/src/admin/list_topics.rs"
+test = "crates/kafkars/src/admin/list_topics_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/topics_builder.rs"
-test = "crates/kafka-client/src/admin/topics_builder_test.rs"
+production = "crates/kafkars/src/admin/topics_builder.rs"
+test = "crates/kafkars/src/admin/topics_builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/topic_description.rs"
-test = "crates/kafka-client/src/admin/topic_description_test.rs"
+production = "crates/kafkars/src/admin/topic_description.rs"
+test = "crates/kafkars/src/admin/topic_description_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/configs/query.rs"
-test = "crates/kafka-client/src/admin/configs/query_test.rs"
+production = "crates/kafkars/src/admin/configs/query.rs"
+test = "crates/kafkars/src/admin/configs/query_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/configs/entry.rs"
-test = "crates/kafka-client/src/admin/configs/entry_test.rs"
+production = "crates/kafkars/src/admin/configs/entry.rs"
+test = "crates/kafkars/src/admin/configs/entry_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/configs/builder.rs"
-test = "crates/kafka-client/src/admin/configs/builder_test.rs"
+production = "crates/kafkars/src/admin/configs/builder.rs"
+test = "crates/kafkars/src/admin/configs/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/configs/result.rs"
-test = "crates/kafka-client/src/admin/configs/result_test.rs"
+production = "crates/kafkars/src/admin/configs/result.rs"
+test = "crates/kafkars/src/admin/configs/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/configs/operation.rs"
-test = "crates/kafka-client/src/admin/configs/operation_test.rs"
+production = "crates/kafkars/src/admin/configs/operation.rs"
+test = "crates/kafkars/src/admin/configs/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/alter_configs/alteration.rs"
-test = "crates/kafka-client/src/admin/alter_configs/alteration_test.rs"
+production = "crates/kafkars/src/admin/alter_configs/alteration.rs"
+test = "crates/kafkars/src/admin/alter_configs/alteration_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/alter_configs/topic.rs"
-test = "crates/kafka-client/src/admin/alter_configs/topic_test.rs"
+production = "crates/kafkars/src/admin/alter_configs/topic.rs"
+test = "crates/kafkars/src/admin/alter_configs/topic_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/alter_configs/builder.rs"
-test = "crates/kafka-client/src/admin/alter_configs/builder_test.rs"
+production = "crates/kafkars/src/admin/alter_configs/builder.rs"
+test = "crates/kafkars/src/admin/alter_configs/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/alter_configs/result.rs"
-test = "crates/kafka-client/src/admin/alter_configs/result_test.rs"
+production = "crates/kafkars/src/admin/alter_configs/result.rs"
+test = "crates/kafkars/src/admin/alter_configs/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/alter_configs/operation.rs"
-test = "crates/kafka-client/src/admin/alter_configs/operation_test.rs"
+production = "crates/kafkars/src/admin/alter_configs/operation.rs"
+test = "crates/kafkars/src/admin/alter_configs/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/description.rs"
-test = "crates/kafka-client/src/admin/description_test.rs"
+production = "crates/kafkars/src/admin/description.rs"
+test = "crates/kafkars/src/admin/description_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/handle.rs"
-test = "crates/kafka-client/src/admin/handle_test.rs"
+production = "crates/kafkars/src/admin/handle.rs"
+test = "crates/kafkars/src/admin/handle_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/new_topic.rs"
-test = "crates/kafka-client/src/admin/new_topic_test.rs"
+production = "crates/kafkars/src/admin/new_topic.rs"
+test = "crates/kafkars/src/admin/new_topic_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/new_partitions.rs"
-test = "crates/kafka-client/src/admin/new_partitions_test.rs"
+production = "crates/kafkars/src/admin/new_partitions.rs"
+test = "crates/kafkars/src/admin/new_partitions_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/partitions_builder.rs"
-test = "crates/kafka-client/src/admin/partitions_builder_test.rs"
+production = "crates/kafkars/src/admin/partitions_builder.rs"
+test = "crates/kafkars/src/admin/partitions_builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/create_partitions.rs"
-test = "crates/kafka-client/src/admin/create_partitions_test.rs"
+production = "crates/kafkars/src/admin/create_partitions.rs"
+test = "crates/kafkars/src/admin/create_partitions_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/producer/compression.rs"
-test = "crates/kafka-client/src/producer/compression_test.rs"
+production = "crates/kafkars/src/producer/compression.rs"
+test = "crates/kafkars/src/producer/compression_test.rs"
 
 [[test_mirrors]]
 production = "crates/kafka-client-core/src/admin/describe_configs_outcome.rs"
@@ -2723,20 +2723,20 @@ production = "crates/kafka-client-engine/src/driver/rpc/transaction_produce/norm
 test = "crates/kafka-client-engine/src/driver/rpc/transaction_produce/normalize_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/transaction/send.rs"
-test = "crates/kafka-client/src/bridge/transaction/send_test.rs"
+production = "crates/kafkars/src/bridge/transaction/send.rs"
+test = "crates/kafkars/src/bridge/transaction/send_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/transaction/send_result.rs"
-test = "crates/kafka-client/src/bridge/transaction/send_result_test.rs"
+production = "crates/kafkars/src/bridge/transaction/send_result.rs"
+test = "crates/kafkars/src/bridge/transaction/send_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/transaction/send.rs"
-test = "crates/kafka-client/src/transaction/send_test.rs"
+production = "crates/kafkars/src/transaction/send.rs"
+test = "crates/kafkars/src/transaction/send_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/transaction/send_error.rs"
-test = "crates/kafka-client/src/transaction/send_error_test.rs"
+production = "crates/kafkars/src/transaction/send_error.rs"
+test = "crates/kafkars/src/transaction/send_error_test.rs"
 
 [[linear_owners]]
 owner_type = "TransactionSequenceMachine"
@@ -2828,15 +2828,15 @@ path = "crates/kafka-client-engine/src/driver/rpc/transaction_produce/model.rs"
 
 [[linear_owners]]
 owner_type = "TransactionSendEngine"
-path = "crates/kafka-client/src/bridge/transaction/send.rs"
+path = "crates/kafkars/src/bridge/transaction/send.rs"
 
 [[linear_owners]]
 owner_type = "SendTransactionRecord"
-path = "crates/kafka-client/src/transaction/send.rs"
+path = "crates/kafkars/src/transaction/send.rs"
 
 [[linear_owners]]
 owner_type = "TransactionSendAdmissionError"
-path = "crates/kafka-client/src/transaction/send_error.rs"
+path = "crates/kafkars/src/transaction/send_error.rs"
 
 [[mutation_owners]]
 owner_type = "TransactionSequenceMachine"
@@ -3092,43 +3092,43 @@ path = "crates/kafka-client-engine/src/driver/rpc/transaction_control/end.rs"
 
 [[linear_owners]]
 owner_type = "TransactionEngine"
-path = "crates/kafka-client/src/bridge/transaction/lifecycle.rs"
+path = "crates/kafkars/src/bridge/transaction/lifecycle.rs"
 
 [[linear_owners]]
 owner_type = "TransactionEndEngine"
-path = "crates/kafka-client/src/bridge/transaction/lifecycle.rs"
+path = "crates/kafkars/src/bridge/transaction/lifecycle.rs"
 
 [[linear_owners]]
 owner_type = "Transaction"
-path = "crates/kafka-client/src/transaction/transaction.rs"
+path = "crates/kafkars/src/transaction/transaction.rs"
 
 [[linear_owners]]
 owner_type = "CommitTransaction"
-path = "crates/kafka-client/src/transaction/end.rs"
+path = "crates/kafkars/src/transaction/end.rs"
 
 [[linear_owners]]
 owner_type = "AbortTransaction"
-path = "crates/kafka-client/src/transaction/end.rs"
+path = "crates/kafkars/src/transaction/end.rs"
 
 [[linear_owners]]
 owner_type = "TransactionEndAdmissionError"
-path = "crates/kafka-client/src/transaction/end_error.rs"
+path = "crates/kafkars/src/transaction/end_error.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/transaction/lifecycle.rs"
-test = "crates/kafka-client/src/bridge/transaction/lifecycle_test.rs"
+production = "crates/kafkars/src/bridge/transaction/lifecycle.rs"
+test = "crates/kafkars/src/bridge/transaction/lifecycle_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/transaction/end.rs"
-test = "crates/kafka-client/src/transaction/end_test.rs"
+production = "crates/kafkars/src/transaction/end.rs"
+test = "crates/kafkars/src/transaction/end_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/transaction/end_error.rs"
-test = "crates/kafka-client/src/transaction/end_error_test.rs"
+production = "crates/kafkars/src/transaction/end_error.rs"
+test = "crates/kafkars/src/transaction/end_error_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/transaction/transaction.rs"
-test = "crates/kafka-client/src/transaction/transaction_test.rs"
+production = "crates/kafkars/src/transaction/transaction.rs"
+test = "crates/kafkars/src/transaction/transaction_test.rs"
 
 [[mutation_owners]]
 owner_type = "TransactionLifecycleMachine"
@@ -6371,7 +6371,7 @@ forbidden = [
 
 # The curated Rust API delegates execution and wire work to lower layers.
 [[capability_rules]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 forbidden = [
   "std::fs",
   "std::net",
@@ -6390,36 +6390,36 @@ forbidden = [
   "tokio",
 ]
 allow = [
-  { path = "crates/kafka-client/src/silent_broker_test.rs", capability = "std::net", reason = "A test-only silent loopback listener proves the public timeout translation without exposing a production test hook." },
-  { path = "crates/kafka-client/src/silent_broker_test.rs", capability = "std::thread", reason = "The test broker completes negotiation off the client reactor and joins before the scenario exits." },
-  { path = "crates/kafka-client/src/producer/send_batch_test.rs", capability = "std::thread", reason = "The public prefix-admission proof delays only its caller while retrying deliberately forced shard contention." },
-  { path = "crates/kafka-client/src/bridge/client_shutdown/state.rs", capability = "std::sync::Condvar", reason = "The bounded clone-shared shutdown terminal provides a runtime-neutral blocking adapter without borrowing an executor." },
-  { path = "crates/kafka-client/src/bridge/client_shutdown/state.rs", capability = "std::sync::Mutex", reason = "The facade retains one bounded shutdown phase and observer registry shared across client clones." },
-  { path = "crates/kafka-client/src/bridge/client_shutdown/state.rs", capability = "std::thread", reason = "One named native waiter observes engine termination and publishes user wakers away from reactor threads." },
-  { path = "crates/kafka-client/src/bridge/client_shutdown_test.rs", capability = "std::thread", reason = "The focused bridge scenario proves concurrent callers observe one retained shutdown terminal." },
+  { path = "crates/kafkars/src/silent_broker_test.rs", capability = "std::net", reason = "A test-only silent loopback listener proves the public timeout translation without exposing a production test hook." },
+  { path = "crates/kafkars/src/silent_broker_test.rs", capability = "std::thread", reason = "The test broker completes negotiation off the client reactor and joins before the scenario exits." },
+  { path = "crates/kafkars/src/producer/send_batch_test.rs", capability = "std::thread", reason = "The public prefix-admission proof delays only its caller while retrying deliberately forced shard contention." },
+  { path = "crates/kafkars/src/bridge/client_shutdown/state.rs", capability = "std::sync::Condvar", reason = "The bounded clone-shared shutdown terminal provides a runtime-neutral blocking adapter without borrowing an executor." },
+  { path = "crates/kafkars/src/bridge/client_shutdown/state.rs", capability = "std::sync::Mutex", reason = "The facade retains one bounded shutdown phase and observer registry shared across client clones." },
+  { path = "crates/kafkars/src/bridge/client_shutdown/state.rs", capability = "std::thread", reason = "One named native waiter observes engine termination and publishes user wakers away from reactor threads." },
+  { path = "crates/kafkars/src/bridge/client_shutdown_test.rs", capability = "std::thread", reason = "The focused bridge scenario proves concurrent callers observe one retained shutdown terminal." },
 ]
 
 # Public admin vocabulary reaches execution only through its private bridge.
 [[capability_rules]]
-root = "crates/kafka-client/src/admin"
+root = "crates/kafkars/src/admin"
 forbidden = [
   "kafka_client_engine",
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "with_include_internal"
 allowed_paths = [
-  "crates/kafka-client/src/admin/list_topics_builder.rs",
-  "crates/kafka-client/src/bridge/admin_topics_request.rs",
+  "crates/kafkars/src/admin/list_topics_builder.rs",
+  "crates/kafkars/src/bridge/admin_topics_request.rs",
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "with_require_stable"
 allowed_paths = [
-  "crates/kafka-client/src/admin/list_consumer_group_offsets_builder.rs",
-  "crates/kafka-client/src/admin/list_consumer_groups_offsets_builder.rs",
+  "crates/kafkars/src/admin/list_consumer_group_offsets_builder.rs",
+  "crates/kafkars/src/admin/list_consumer_groups_offsets_builder.rs",
 ]
 
 # Load-bearing state fields have one deliberately small mutation surface.
@@ -9497,211 +9497,211 @@ path = "crates/kafka-client-engine/src/producer/boundary/prepare.rs"
 
 [[linear_owners]]
 owner_type = "ProducerDelivery"
-path = "crates/kafka-client/src/bridge/producer/delivery.rs"
+path = "crates/kafkars/src/bridge/producer/delivery.rs"
 
 [[linear_owners]]
 owner_type = "ProducerBarrier"
-path = "crates/kafka-client/src/bridge/producer/barrier.rs"
+path = "crates/kafkars/src/bridge/producer/barrier.rs"
 
 [[linear_owners]]
 owner_type = "Delivery"
-path = "crates/kafka-client/src/producer/delivery.rs"
+path = "crates/kafkars/src/producer/delivery.rs"
 
 [[linear_owners]]
 owner_type = "Flush"
-path = "crates/kafka-client/src/producer/flush.rs"
+path = "crates/kafkars/src/producer/flush.rs"
 
 [[linear_owners]]
 owner_type = "CloseProducer"
-path = "crates/kafka-client/src/producer/close.rs"
+path = "crates/kafkars/src/producer/close.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumerEngine"
-path = "crates/kafka-client/src/bridge/consumer/handle.rs"
+path = "crates/kafkars/src/bridge/consumer/handle.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumerAssignmentState"
-path = "crates/kafka-client/src/bridge/consumer/assignment.rs"
+path = "crates/kafkars/src/bridge/consumer/assignment.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumerClose"
-path = "crates/kafka-client/src/bridge/consumer/close.rs"
+path = "crates/kafkars/src/bridge/consumer/close.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumerBatch"
-path = "crates/kafka-client/src/bridge/consumer/batch.rs"
+path = "crates/kafkars/src/bridge/consumer/batch.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumerRecv"
-path = "crates/kafka-client/src/bridge/consumer/recv.rs"
+path = "crates/kafkars/src/bridge/consumer/recv.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumerNextEvent"
-path = "crates/kafka-client/src/bridge/consumer/next_event.rs"
+path = "crates/kafkars/src/bridge/consumer/next_event.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumer"
-path = "crates/kafka-client/src/consumer/assigned.rs"
+path = "crates/kafkars/src/consumer/assigned.rs"
 
 [[linear_owners]]
 owner_type = "RecordBatch"
-path = "crates/kafka-client/src/consumer/record_batch.rs"
+path = "crates/kafkars/src/consumer/record_batch.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumerEvent"
-path = "crates/kafka-client/src/consumer/event.rs"
+path = "crates/kafkars/src/consumer/event.rs"
 
 [[linear_owners]]
 owner_type = "CloseAssignedConsumer"
-path = "crates/kafka-client/src/consumer/assigned_close.rs"
+path = "crates/kafkars/src/consumer/assigned_close.rs"
 
 [[linear_owners]]
 owner_type = "RecvAssignedBatch"
-path = "crates/kafka-client/src/consumer/assigned_recv.rs"
+path = "crates/kafkars/src/consumer/assigned_recv.rs"
 
 [[linear_owners]]
 owner_type = "NextAssignedEvent"
-path = "crates/kafka-client/src/consumer/assigned_next_event.rs"
+path = "crates/kafkars/src/consumer/assigned_next_event.rs"
 
 [[linear_owners]]
 owner_type = "TrySendError"
-path = "crates/kafka-client/src/producer/rejection.rs"
+path = "crates/kafkars/src/producer/rejection.rs"
 
 [[linear_owners]]
 owner_type = "AdminRequest"
-path = "crates/kafka-client/src/bridge/admin/request.rs"
+path = "crates/kafkars/src/bridge/admin/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminCreateTopics"
-path = "crates/kafka-client/src/bridge/admin_operation.rs"
+path = "crates/kafkars/src/bridge/admin_operation.rs"
 
 [[linear_owners]]
 owner_type = "CreateTopicsBuilder"
-path = "crates/kafka-client/src/admin/builder.rs"
+path = "crates/kafkars/src/admin/builder.rs"
 
 [[linear_owners]]
 owner_type = "CreateTopics"
-path = "crates/kafka-client/src/admin/create_topics.rs"
+path = "crates/kafkars/src/admin/create_topics.rs"
 
 [[linear_owners]]
 owner_type = "DeleteAdminRequest"
-path = "crates/kafka-client/src/bridge/admin/request.rs"
+path = "crates/kafkars/src/bridge/admin/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminDeleteTopics"
-path = "crates/kafka-client/src/bridge/admin_delete_operation.rs"
+path = "crates/kafkars/src/bridge/admin_delete_operation.rs"
 
 [[linear_owners]]
 owner_type = "DeleteTopicsBuilder"
-path = "crates/kafka-client/src/admin/delete_builder.rs"
+path = "crates/kafkars/src/admin/delete_builder.rs"
 
 [[linear_owners]]
 owner_type = "DeleteTopics"
-path = "crates/kafka-client/src/admin/delete_topics.rs"
+path = "crates/kafkars/src/admin/delete_topics.rs"
 
 [[linear_owners]]
 owner_type = "AdminDescribeCluster"
-path = "crates/kafka-client/src/bridge/admin_describe_operation.rs"
+path = "crates/kafkars/src/bridge/admin_describe_operation.rs"
 
 [[linear_owners]]
 owner_type = "Ready"
-path = "crates/kafka-client/src/readiness.rs"
+path = "crates/kafkars/src/readiness.rs"
 
 [[linear_owners]]
 owner_type = "ListConsumerGroupOffsetsAdminRequest"
-path = "crates/kafka-client/src/bridge/admin_group_offsets/list_request.rs"
+path = "crates/kafkars/src/bridge/admin_group_offsets/list_request.rs"
 
 [[linear_owners]]
 owner_type = "AdminListConsumerGroupOffsets"
-path = "crates/kafka-client/src/bridge/admin_group_offsets/list_operation.rs"
+path = "crates/kafkars/src/bridge/admin_group_offsets/list_operation.rs"
 
 [[linear_owners]]
 owner_type = "ListConsumerGroupOffsetsBuilder"
-path = "crates/kafka-client/src/admin/list_consumer_group_offsets_builder.rs"
+path = "crates/kafkars/src/admin/list_consumer_group_offsets_builder.rs"
 
 [[linear_owners]]
 owner_type = "ListConsumerGroupOffsets"
-path = "crates/kafka-client/src/admin/list_consumer_group_offsets.rs"
+path = "crates/kafkars/src/admin/list_consumer_group_offsets.rs"
 
 [[linear_owners]]
 owner_type = "DescribeClusterBuilder"
-path = "crates/kafka-client/src/admin/describe_builder.rs"
+path = "crates/kafkars/src/admin/describe_builder.rs"
 
 [[linear_owners]]
 owner_type = "DescribeCluster"
-path = "crates/kafka-client/src/admin/describe_cluster.rs"
+path = "crates/kafkars/src/admin/describe_cluster.rs"
 
 [[linear_owners]]
 owner_type = "DescribeTopicsAdminRequest"
-path = "crates/kafka-client/src/bridge/admin_topics_request.rs"
+path = "crates/kafkars/src/bridge/admin_topics_request.rs"
 
 [[linear_owners]]
 owner_type = "AdminDescribeTopics"
-path = "crates/kafka-client/src/bridge/admin_topics_operation.rs"
+path = "crates/kafkars/src/bridge/admin_topics_operation.rs"
 
 [[linear_owners]]
 owner_type = "DescribeTopicsBuilder"
-path = "crates/kafka-client/src/admin/topics_builder.rs"
+path = "crates/kafkars/src/admin/topics_builder.rs"
 
 [[linear_owners]]
 owner_type = "DescribeTopics"
-path = "crates/kafka-client/src/admin/describe_topics.rs"
+path = "crates/kafkars/src/admin/describe_topics.rs"
 
 [[linear_owners]]
 owner_type = "ListTopicsBuilder"
-path = "crates/kafka-client/src/admin/list_topics_builder.rs"
+path = "crates/kafkars/src/admin/list_topics_builder.rs"
 
 [[linear_owners]]
 owner_type = "ListTopics"
-path = "crates/kafka-client/src/admin/list_topics.rs"
+path = "crates/kafkars/src/admin/list_topics.rs"
 
 [[linear_owners]]
 owner_type = "DescribeConfigsAdminRequest"
-path = "crates/kafka-client/src/bridge/admin_configs_request.rs"
+path = "crates/kafkars/src/bridge/admin_configs_request.rs"
 
 [[linear_owners]]
 owner_type = "IncrementalAlterConfigsAdminRequest"
-path = "crates/kafka-client/src/bridge/admin_alter_configs_request.rs"
+path = "crates/kafkars/src/bridge/admin_alter_configs_request.rs"
 
 [[linear_owners]]
 owner_type = "AdminDescribeConfigs"
-path = "crates/kafka-client/src/bridge/admin_configs_operation.rs"
+path = "crates/kafkars/src/bridge/admin_configs_operation.rs"
 
 [[linear_owners]]
 owner_type = "AdminIncrementalAlterConfigs"
-path = "crates/kafka-client/src/bridge/admin_alter_configs_operation.rs"
+path = "crates/kafkars/src/bridge/admin_alter_configs_operation.rs"
 
 [[linear_owners]]
 owner_type = "DescribeConfigsBuilder"
-path = "crates/kafka-client/src/admin/configs/builder.rs"
+path = "crates/kafkars/src/admin/configs/builder.rs"
 
 [[linear_owners]]
 owner_type = "IncrementalAlterConfigsBuilder"
-path = "crates/kafka-client/src/admin/alter_configs/builder.rs"
+path = "crates/kafkars/src/admin/alter_configs/builder.rs"
 
 [[linear_owners]]
 owner_type = "DescribeConfigs"
-path = "crates/kafka-client/src/admin/configs/operation.rs"
+path = "crates/kafkars/src/admin/configs/operation.rs"
 
 [[linear_owners]]
 owner_type = "IncrementalAlterConfigs"
-path = "crates/kafka-client/src/admin/alter_configs/operation.rs"
+path = "crates/kafkars/src/admin/alter_configs/operation.rs"
 
 [[linear_owners]]
 owner_type = "PartitionsAdminRequest"
-path = "crates/kafka-client/src/bridge/admin/request.rs"
+path = "crates/kafkars/src/bridge/admin/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminCreatePartitions"
-path = "crates/kafka-client/src/bridge/admin_partitions_operation.rs"
+path = "crates/kafkars/src/bridge/admin_partitions_operation.rs"
 
 [[linear_owners]]
 owner_type = "CreatePartitionsBuilder"
-path = "crates/kafka-client/src/admin/partitions_builder.rs"
+path = "crates/kafkars/src/admin/partitions_builder.rs"
 
 [[linear_owners]]
 owner_type = "CreatePartitions"
-path = "crates/kafka-client/src/admin/create_partitions.rs"
+path = "crates/kafkars/src/admin/create_partitions.rs"
 
 [[mutation_owners]]
 owner_type = "DescribeConfigsCalls"
@@ -12571,48 +12571,48 @@ production = "crates/kafka-client-engine/src/engine_host/admin/schedule_deadline
 test = "crates/kafka-client-engine/src/engine_host/admin/schedule_time_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/delete_consumer_group_offsets.rs"
-test = "crates/kafka-client/src/admin/delete_consumer_group_offsets_test.rs"
+production = "crates/kafkars/src/admin/delete_consumer_group_offsets.rs"
+test = "crates/kafkars/src/admin/delete_consumer_group_offsets_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/delete_consumer_group_offsets_builder.rs"
-test = "crates/kafka-client/src/admin/delete_consumer_group_offsets_builder_test.rs"
+production = "crates/kafkars/src/admin/delete_consumer_group_offsets_builder.rs"
+test = "crates/kafkars/src/admin/delete_consumer_group_offsets_builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/delete_consumer_group_offsets_result.rs"
-test = "crates/kafka-client/src/admin/delete_consumer_group_offsets_result_test.rs"
+production = "crates/kafkars/src/admin/delete_consumer_group_offsets_result.rs"
+test = "crates/kafkars/src/admin/delete_consumer_group_offsets_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_group_offset_delete_request.rs"
-test = "crates/kafka-client/src/bridge/admin_group_offset_delete_request_test.rs"
+production = "crates/kafkars/src/bridge/admin_group_offset_delete_request.rs"
+test = "crates/kafkars/src/bridge/admin_group_offset_delete_request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_group_offset_delete_operation.rs"
-test = "crates/kafka-client/src/bridge/admin_group_offset_delete_operation_test.rs"
+production = "crates/kafkars/src/bridge/admin_group_offset_delete_operation.rs"
+test = "crates/kafkars/src/bridge/admin_group_offset_delete_operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_group_offset_delete_result.rs"
-test = "crates/kafka-client/src/bridge/admin_group_offset_delete_result_test.rs"
+production = "crates/kafkars/src/bridge/admin_group_offset_delete_result.rs"
+test = "crates/kafkars/src/bridge/admin_group_offset_delete_result_test.rs"
 
 [[linear_owners]]
 owner_type = "DeleteConsumerGroupOffsetsAdminRequest"
-path = "crates/kafka-client/src/bridge/admin_group_offset_delete_request.rs"
+path = "crates/kafkars/src/bridge/admin_group_offset_delete_request.rs"
 
 [[linear_owners]]
 owner_type = "AdminDeleteConsumerGroupOffsets"
-path = "crates/kafka-client/src/bridge/admin_group_offset_delete_operation.rs"
+path = "crates/kafkars/src/bridge/admin_group_offset_delete_operation.rs"
 
 [[linear_owners]]
 owner_type = "DeleteConsumerGroupOffsetsBuilder"
-path = "crates/kafka-client/src/admin/delete_consumer_group_offsets_builder.rs"
+path = "crates/kafkars/src/admin/delete_consumer_group_offsets_builder.rs"
 
 [[linear_owners]]
 owner_type = "DeleteConsumerGroupOffsets"
-path = "crates/kafka-client/src/admin/delete_consumer_group_offsets.rs"
+path = "crates/kafkars/src/admin/delete_consumer_group_offsets.rs"
 
 [[linear_owners]]
 owner_type = "AssignedConsumerBuildError"
-path = "crates/kafka-client/src/consumer/assigned_build_error.rs"
+path = "crates/kafkars/src/consumer/assigned_build_error.rs"
 
 [[capability_rules]]
 root = "crates/kafka-client-engine/src/consumer/group/session_catalog_assignment.rs"
@@ -17191,108 +17191,108 @@ forbidden = [
 ]
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/group_offsets/alteration.rs"
-test = "crates/kafka-client/src/admin/group_offsets/alteration_test.rs"
+production = "crates/kafkars/src/admin/group_offsets/alteration.rs"
+test = "crates/kafkars/src/admin/group_offsets/alteration_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/group_offsets/alter_operation.rs"
-test = "crates/kafka-client/src/admin/group_offsets/alter_operation_test.rs"
+production = "crates/kafkars/src/admin/group_offsets/alter_operation.rs"
+test = "crates/kafkars/src/admin/group_offsets/alter_operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/group_offsets/alter_builder.rs"
-test = "crates/kafka-client/src/admin/group_offsets/alter_builder_test.rs"
+production = "crates/kafkars/src/admin/group_offsets/alter_builder.rs"
+test = "crates/kafkars/src/admin/group_offsets/alter_builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/group_offsets/alter_result.rs"
-test = "crates/kafka-client/src/admin/group_offsets/alter_result_test.rs"
+production = "crates/kafkars/src/admin/group_offsets/alter_result.rs"
+test = "crates/kafkars/src/admin/group_offsets/alter_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_group_offsets/alter_request.rs"
-test = "crates/kafka-client/src/bridge/admin_group_offsets/alter_request_test.rs"
+production = "crates/kafkars/src/bridge/admin_group_offsets/alter_request.rs"
+test = "crates/kafkars/src/bridge/admin_group_offsets/alter_request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_group_offsets/alter_operation.rs"
-test = "crates/kafka-client/src/bridge/admin_group_offsets/alter_operation_test.rs"
+production = "crates/kafkars/src/bridge/admin_group_offsets/alter_operation.rs"
+test = "crates/kafkars/src/bridge/admin_group_offsets/alter_operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_group_offsets/alter_result.rs"
-test = "crates/kafka-client/src/bridge/admin_group_offsets/alter_result_test.rs"
+production = "crates/kafkars/src/bridge/admin_group_offsets/alter_result.rs"
+test = "crates/kafkars/src/bridge/admin_group_offsets/alter_result_test.rs"
 
 [[linear_owners]]
 owner_type = "AlterConsumerGroupOffsetsAdminRequest"
-path = "crates/kafka-client/src/bridge/admin_group_offsets/alter_request.rs"
+path = "crates/kafkars/src/bridge/admin_group_offsets/alter_request.rs"
 
 [[linear_owners]]
 owner_type = "AdminAlterConsumerGroupOffsets"
-path = "crates/kafka-client/src/bridge/admin_group_offsets/alter_operation.rs"
+path = "crates/kafkars/src/bridge/admin_group_offsets/alter_operation.rs"
 
 [[linear_owners]]
 owner_type = "AlterConsumerGroupOffsetsBuilder"
-path = "crates/kafka-client/src/admin/group_offsets/alter_builder.rs"
+path = "crates/kafkars/src/admin/group_offsets/alter_builder.rs"
 
 [[linear_owners]]
 owner_type = "AlterConsumerGroupOffsets"
-path = "crates/kafka-client/src/admin/group_offsets/alter_operation.rs"
+path = "crates/kafkars/src/admin/group_offsets/alter_operation.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/list_offsets/query.rs"
-test = "crates/kafka-client/src/admin/list_offsets/query_test.rs"
+production = "crates/kafkars/src/admin/list_offsets/query.rs"
+test = "crates/kafkars/src/admin/list_offsets/query_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/list_offsets/spec.rs"
-test = "crates/kafka-client/src/admin/list_offsets/spec_test.rs"
+production = "crates/kafkars/src/admin/list_offsets/spec.rs"
+test = "crates/kafkars/src/admin/list_offsets/spec_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/list_offsets/value.rs"
-test = "crates/kafka-client/src/admin/list_offsets/value_test.rs"
+production = "crates/kafkars/src/admin/list_offsets/value.rs"
+test = "crates/kafkars/src/admin/list_offsets/value_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_list_offsets/request.rs"
-test = "crates/kafka-client/src/bridge/admin_list_offsets/request_test.rs"
+production = "crates/kafkars/src/bridge/admin_list_offsets/request.rs"
+test = "crates/kafkars/src/bridge/admin_list_offsets/request_test.rs"
 
 [[linear_owners]]
 owner_type = "ListOffsetsAdminRequest"
-path = "crates/kafka-client/src/bridge/admin_list_offsets/request.rs"
+path = "crates/kafkars/src/bridge/admin_list_offsets/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminListOffsets"
-path = "crates/kafka-client/src/bridge/admin_list_offsets/operation.rs"
+path = "crates/kafkars/src/bridge/admin_list_offsets/operation.rs"
 
 [[linear_owners]]
 owner_type = "ListOffsetsBuilder"
-path = "crates/kafka-client/src/admin/list_offsets/builder.rs"
+path = "crates/kafkars/src/admin/list_offsets/builder.rs"
 
 [[linear_owners]]
 owner_type = "ListOffsets"
-path = "crates/kafka-client/src/admin/list_offsets/operation.rs"
+path = "crates/kafkars/src/admin/list_offsets/operation.rs"
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "try_list_offsets"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin_list_offsets/engine.rs",
+  "crates/kafkars/src/bridge/admin_list_offsets/engine.rs",
 ]
 
 # Transaction initialization reaches the curated engine only through one
 # capture-first private bridge and retains linear ownership at every layer.
 [[capability_rules]]
-root = "crates/kafka-client/src/transaction"
+root = "crates/kafkars/src/transaction"
 forbidden = [
   "kafka_client_engine",
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "capture_transactional_owner_initialization"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/transaction/handle.rs",
+  "crates/kafkars/src/bridge/transaction/handle.rs",
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "initialize_transactional_owner"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/transaction/handle.rs",
+  "crates/kafkars/src/bridge/transaction/handle.rs",
 ]
 
 [[test_mirrors]]
@@ -17300,36 +17300,36 @@ production = "crates/kafka-client-engine/src/transaction/initialization/capture.
 test = "crates/kafka-client-engine/src/transaction/initialization/capture_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/transaction/builder.rs"
-test = "crates/kafka-client/src/transaction/builder_test.rs"
+production = "crates/kafkars/src/transaction/builder.rs"
+test = "crates/kafkars/src/transaction/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/transaction/identity.rs"
-test = "crates/kafka-client/src/transaction/identity_test.rs"
+production = "crates/kafkars/src/transaction/identity.rs"
+test = "crates/kafkars/src/transaction/identity_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/transaction/initialization.rs"
-test = "crates/kafka-client/src/transaction/initialization_test.rs"
+production = "crates/kafkars/src/transaction/initialization.rs"
+test = "crates/kafkars/src/transaction/initialization_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/transaction/producer.rs"
-test = "crates/kafka-client/src/transaction/producer_test.rs"
+production = "crates/kafkars/src/transaction/producer.rs"
+test = "crates/kafkars/src/transaction/producer_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/transaction/handle.rs"
-test = "crates/kafka-client/src/bridge/transaction/handle_test.rs"
+production = "crates/kafkars/src/bridge/transaction/handle.rs"
+test = "crates/kafkars/src/bridge/transaction/handle_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/transaction/operation.rs"
-test = "crates/kafka-client/src/bridge/transaction/operation_test.rs"
+production = "crates/kafkars/src/bridge/transaction/operation.rs"
+test = "crates/kafkars/src/bridge/transaction/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/transaction/owner.rs"
-test = "crates/kafka-client/src/bridge/transaction/owner_test.rs"
+production = "crates/kafkars/src/bridge/transaction/owner.rs"
+test = "crates/kafkars/src/bridge/transaction/owner_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/transaction/result.rs"
-test = "crates/kafka-client/src/bridge/transaction/result_test.rs"
+production = "crates/kafkars/src/bridge/transaction/result.rs"
+test = "crates/kafkars/src/bridge/transaction/result_test.rs"
 
 [[linear_owners]]
 owner_type = "TransactionInitializationCapture"
@@ -17337,27 +17337,27 @@ path = "crates/kafka-client-engine/src/transaction/initialization/capture.rs"
 
 [[linear_owners]]
 owner_type = "TransactionalProducerInitializer"
-path = "crates/kafka-client/src/bridge/transaction/handle.rs"
+path = "crates/kafkars/src/bridge/transaction/handle.rs"
 
 [[linear_owners]]
 owner_type = "TransactionInitialization"
-path = "crates/kafka-client/src/bridge/transaction/operation.rs"
+path = "crates/kafkars/src/bridge/transaction/operation.rs"
 
 [[linear_owners]]
 owner_type = "TransactionalProducerEngine"
-path = "crates/kafka-client/src/bridge/transaction/owner.rs"
+path = "crates/kafkars/src/bridge/transaction/owner.rs"
 
 [[linear_owners]]
 owner_type = "TransactionalProducerBuilder"
-path = "crates/kafka-client/src/transaction/builder.rs"
+path = "crates/kafkars/src/transaction/builder.rs"
 
 [[linear_owners]]
 owner_type = "InitializeTransactionalProducer"
-path = "crates/kafka-client/src/transaction/initialization.rs"
+path = "crates/kafkars/src/transaction/initialization.rs"
 
 [[linear_owners]]
 owner_type = "TransactionalProducer"
-path = "crates/kafka-client/src/transaction/producer.rs"
+path = "crates/kafkars/src/transaction/producer.rs"
 
 # Classic coordinator rediscovery transfers one opaque driver capability into
 # one bounded owner and releases it only through terminal settlement or
@@ -17516,32 +17516,32 @@ production = "crates/kafka-client-engine/src/driver/rpc/reassignment_controller_
 test = "crates/kafka-client-engine/src/driver/rpc/reassignment_controller_refresh_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/partition_reassignments/list/builder.rs"
-test = "crates/kafka-client/src/admin/partition_reassignments/list/builder_test.rs"
+production = "crates/kafkars/src/admin/partition_reassignments/list/builder.rs"
+test = "crates/kafkars/src/admin/partition_reassignments/list/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/partition_reassignments/list/operation.rs"
-test = "crates/kafka-client/src/admin/partition_reassignments/list/operation_test.rs"
+production = "crates/kafkars/src/admin/partition_reassignments/list/operation.rs"
+test = "crates/kafkars/src/admin/partition_reassignments/list/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/partition_reassignments/list/result.rs"
-test = "crates/kafka-client/src/admin/partition_reassignments/list/result_test.rs"
+production = "crates/kafkars/src/admin/partition_reassignments/list/result.rs"
+test = "crates/kafkars/src/admin/partition_reassignments/list/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/partition_reassignments/list/value.rs"
-test = "crates/kafka-client/src/admin/partition_reassignments/list/value_test.rs"
+production = "crates/kafkars/src/admin/partition_reassignments/list/value.rs"
+test = "crates/kafkars/src/admin/partition_reassignments/list/value_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_list_partition_reassignments/operation.rs"
-test = "crates/kafka-client/src/bridge/admin_list_partition_reassignments/operation_test.rs"
+production = "crates/kafkars/src/bridge/admin_list_partition_reassignments/operation.rs"
+test = "crates/kafkars/src/bridge/admin_list_partition_reassignments/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_list_partition_reassignments/request.rs"
-test = "crates/kafka-client/src/bridge/admin_list_partition_reassignments/request_test.rs"
+production = "crates/kafkars/src/bridge/admin_list_partition_reassignments/request.rs"
+test = "crates/kafkars/src/bridge/admin_list_partition_reassignments/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_list_partition_reassignments/result.rs"
-test = "crates/kafka-client/src/bridge/admin_list_partition_reassignments/result_test.rs"
+production = "crates/kafkars/src/bridge/admin_list_partition_reassignments/result.rs"
+test = "crates/kafkars/src/bridge/admin_list_partition_reassignments/result_test.rs"
 
 [[mutation_owners]]
 owner_type = "ListPartitionReassignmentsHost"
@@ -17638,25 +17638,25 @@ path = "crates/kafka-client-engine/src/driver/rpc/reassignment_controller_refres
 
 [[linear_owners]]
 owner_type = "ListPartitionReassignmentsAdminRequest"
-path = "crates/kafka-client/src/bridge/admin_list_partition_reassignments/request.rs"
+path = "crates/kafkars/src/bridge/admin_list_partition_reassignments/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminListPartitionReassignments"
-path = "crates/kafka-client/src/bridge/admin_list_partition_reassignments/operation.rs"
+path = "crates/kafkars/src/bridge/admin_list_partition_reassignments/operation.rs"
 
 [[linear_owners]]
 owner_type = "ListPartitionReassignmentsBuilder"
-path = "crates/kafka-client/src/admin/partition_reassignments/list/builder.rs"
+path = "crates/kafkars/src/admin/partition_reassignments/list/builder.rs"
 
 [[linear_owners]]
 owner_type = "ListPartitionReassignments"
-path = "crates/kafka-client/src/admin/partition_reassignments/list/operation.rs"
+path = "crates/kafkars/src/admin/partition_reassignments/list/operation.rs"
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "try_list_partition_reassignments"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin_list_partition_reassignments/engine.rs",
+  "crates/kafkars/src/bridge/admin_list_partition_reassignments/engine.rs",
 ]
 
 # Partition-reassignment alteration preserves one public absolute deadline,
@@ -17719,32 +17719,32 @@ production = "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassign
 test = "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassignments_terminal_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/partition_reassignments/alter_builder.rs"
-test = "crates/kafka-client/src/admin/partition_reassignments/alter_builder_test.rs"
+production = "crates/kafkars/src/admin/partition_reassignments/alter_builder.rs"
+test = "crates/kafkars/src/admin/partition_reassignments/alter_builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/partition_reassignments/alter_operation.rs"
-test = "crates/kafka-client/src/admin/partition_reassignments/alter_operation_test.rs"
+production = "crates/kafkars/src/admin/partition_reassignments/alter_operation.rs"
+test = "crates/kafkars/src/admin/partition_reassignments/alter_operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/partition_reassignments/alter_result.rs"
-test = "crates/kafka-client/src/admin/partition_reassignments/alter_result_test.rs"
+production = "crates/kafkars/src/admin/partition_reassignments/alter_result.rs"
+test = "crates/kafkars/src/admin/partition_reassignments/alter_result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/partition_reassignments/change.rs"
-test = "crates/kafka-client/src/admin/partition_reassignments/change_test.rs"
+production = "crates/kafkars/src/admin/partition_reassignments/change.rs"
+test = "crates/kafkars/src/admin/partition_reassignments/change_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_operation.rs"
-test = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_operation_test.rs"
+production = "crates/kafkars/src/bridge/admin_partition_reassignments/alter_operation.rs"
+test = "crates/kafkars/src/bridge/admin_partition_reassignments/alter_operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_request.rs"
-test = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_request_test.rs"
+production = "crates/kafkars/src/bridge/admin_partition_reassignments/alter_request.rs"
+test = "crates/kafkars/src/bridge/admin_partition_reassignments/alter_request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_result.rs"
-test = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_result_test.rs"
+production = "crates/kafkars/src/bridge/admin_partition_reassignments/alter_result.rs"
+test = "crates/kafkars/src/bridge/admin_partition_reassignments/alter_result_test.rs"
 
 [[mutation_owners]]
 owner_type = "AlterPartitionReassignmentsMachine"
@@ -17868,19 +17868,19 @@ path = "crates/kafka-client-engine/src/driver/rpc/alter_partition_reassignments_
 
 [[linear_owners]]
 owner_type = "AlterPartitionReassignmentsAdminRequest"
-path = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_request.rs"
+path = "crates/kafkars/src/bridge/admin_partition_reassignments/alter_request.rs"
 
 [[linear_owners]]
 owner_type = "AdminAlterPartitionReassignments"
-path = "crates/kafka-client/src/bridge/admin_partition_reassignments/alter_operation.rs"
+path = "crates/kafkars/src/bridge/admin_partition_reassignments/alter_operation.rs"
 
 [[linear_owners]]
 owner_type = "AlterPartitionReassignmentsBuilder"
-path = "crates/kafka-client/src/admin/partition_reassignments/alter_builder.rs"
+path = "crates/kafkars/src/admin/partition_reassignments/alter_builder.rs"
 
 [[linear_owners]]
 owner_type = "AlterPartitionReassignments"
-path = "crates/kafka-client/src/admin/partition_reassignments/alter_operation.rs"
+path = "crates/kafkars/src/admin/partition_reassignments/alter_operation.rs"
 
 [[method_capabilities]]
 root = "crates/kafka-client-engine/src"
@@ -17890,10 +17890,10 @@ allowed_paths = [
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "try_alter_partition_reassignments"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin_partition_reassignments/engine.rs",
+  "crates/kafkars/src/bridge/admin_partition_reassignments/engine.rs",
 ]
 
 # Immediate hosted checkpoint acknowledgment moves one exact linear checkpoint
@@ -17903,16 +17903,16 @@ production = "crates/kafka-client-engine/src/consumer/group_acknowledge/operatio
 test = "crates/kafka-client-engine/src/consumer/group_acknowledge/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_acknowledge.rs"
-test = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_acknowledge_test.rs"
+production = "crates/kafkars/src/bridge/consumer_facade/group_consumer_acknowledge.rs"
+test = "crates/kafkars/src/bridge/consumer_facade/group_consumer_acknowledge_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/group_acknowledge.rs"
-test = "crates/kafka-client/src/consumer/group_acknowledge_test.rs"
+production = "crates/kafkars/src/consumer/group_acknowledge.rs"
+test = "crates/kafkars/src/consumer/group_acknowledge_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/group_acknowledge_error.rs"
-test = "crates/kafka-client/src/consumer/group_acknowledge_error_test.rs"
+production = "crates/kafkars/src/consumer/group_acknowledge_error.rs"
+test = "crates/kafkars/src/consumer/group_acknowledge_error_test.rs"
 
 [[linear_owners]]
 owner_type = "GroupConsumerAcknowledgeError"
@@ -17920,14 +17920,14 @@ path = "crates/kafka-client-engine/src/consumer/group_acknowledge/error.rs"
 
 [[linear_owners]]
 owner_type = "ConsumerAcknowledgeError"
-path = "crates/kafka-client/src/consumer/group_acknowledge_error.rs"
+path = "crates/kafkars/src/consumer/group_acknowledge_error.rs"
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "acknowledge"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_acknowledge.rs",
-  "crates/kafka-client/src/consumer/group_acknowledge.rs",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_acknowledge.rs",
+  "crates/kafkars/src/consumer/group_acknowledge.rs",
 ]
 
 # Hosted checkpoint commit preserves one exact linear checkpoint through the
@@ -17945,28 +17945,28 @@ production = "crates/kafka-client-engine/src/consumer/group_commit/outcome.rs"
 test = "crates/kafka-client-engine/src/consumer/group_commit/outcome_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint.rs"
-test = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint_test.rs"
+production = "crates/kafkars/src/bridge/consumer_facade/group_consumer_checkpoint.rs"
+test = "crates/kafkars/src/bridge/consumer_facade/group_consumer_checkpoint_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs"
-test = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_test.rs"
+production = "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit.rs"
+test = "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission.rs"
-test = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission_test.rs"
+production = "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit_admission.rs"
+test = "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit_admission_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/group_commit.rs"
-test = "crates/kafka-client/src/consumer/group_commit_test.rs"
+production = "crates/kafkars/src/consumer/group_commit.rs"
+test = "crates/kafkars/src/consumer/group_commit_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/group_commit_error.rs"
-test = "crates/kafka-client/src/consumer/group_commit_error_test.rs"
+production = "crates/kafkars/src/consumer/group_commit_error.rs"
+test = "crates/kafkars/src/consumer/group_commit_error_test.rs"
 
 [[linear_owners]]
 owner_type = "Checkpoint"
-path = "crates/kafka-client/src/consumer/checkpoint.rs"
+path = "crates/kafkars/src/consumer/checkpoint.rs"
 
 [[linear_owners]]
 owner_type = "GroupConsumerCommitAdmissionError"
@@ -17990,46 +17990,46 @@ path = "crates/kafka-client-engine/src/driver/rpc/group_offset_commit_settlement
 
 [[linear_owners]]
 owner_type = "GroupConsumerCheckpoint"
-path = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint.rs"
+path = "crates/kafkars/src/bridge/consumer_facade/group_consumer_checkpoint.rs"
 
 [[linear_owners]]
 owner_type = "GroupConsumerCheckpointBuilder"
-path = "crates/kafka-client/src/bridge/group_consumer_batch.rs"
+path = "crates/kafkars/src/bridge/group_consumer_batch.rs"
 
 [[linear_owners]]
 owner_type = "CheckpointBuilder"
-path = "crates/kafka-client/src/consumer/checkpoint_builder.rs"
+path = "crates/kafkars/src/consumer/checkpoint_builder.rs"
 
 [[linear_owners]]
 owner_type = "CommitConsumerCheckpoint"
-path = "crates/kafka-client/src/consumer/group_commit.rs"
+path = "crates/kafkars/src/consumer/group_commit.rs"
 
 [[linear_owners]]
 owner_type = "ConsumerCommitAdmissionError"
-path = "crates/kafka-client/src/consumer/group_commit_error.rs"
+path = "crates/kafkars/src/consumer/group_commit_error.rs"
 
 [[linear_owners]]
 owner_type = "ConsumerCommitError"
-path = "crates/kafka-client/src/consumer/group_commit_error.rs"
+path = "crates/kafkars/src/consumer/group_commit_error.rs"
 
 [[linear_owners]]
 owner_type = "GroupConsumerCommit"
-path = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs"
+path = "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit.rs"
 
 [[linear_owners]]
 owner_type = "GroupConsumerCommitError"
-path = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs"
+path = "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit.rs"
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "try_commit"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission.rs",
-  "crates/kafka-client/src/consumer/group_commit.rs",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit_admission.rs",
+  "crates/kafkars/src/consumer/group_commit.rs",
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/consumer/group_commit.rs"
+root = "crates/kafkars/src/consumer/group_commit.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_client_engine",
@@ -18050,7 +18050,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/consumer/group_commit_error.rs"
+root = "crates/kafkars/src/consumer/group_commit_error.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_client_engine",
@@ -18071,7 +18071,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_checkpoint.rs"
+root = "crates/kafkars/src/bridge/consumer_facade/group_consumer_checkpoint.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_driver",
@@ -18091,7 +18091,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit.rs"
+root = "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_driver",
@@ -18111,7 +18111,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_commit_admission.rs"
+root = "crates/kafkars/src/bridge/consumer_facade/group_consumer_commit_admission.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_driver",
@@ -18169,16 +18169,16 @@ production = "crates/kafka-client-engine/src/consumer/group_event/immediate.rs"
 test = "crates/kafka-client-engine/src/consumer/group_event/immediate_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_rebalance_event.rs"
-test = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_rebalance_event_test.rs"
+production = "crates/kafkars/src/bridge/consumer_facade/group_consumer_rebalance_event.rs"
+test = "crates/kafkars/src/bridge/consumer_facade/group_consumer_rebalance_event_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/group_next_event.rs"
-test = "crates/kafka-client/src/consumer/group_next_event_test.rs"
+production = "crates/kafkars/src/consumer/group_next_event.rs"
+test = "crates/kafkars/src/consumer/group_next_event_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/group_rebalance_event.rs"
-test = "crates/kafka-client/src/consumer/group_rebalance_event_test.rs"
+production = "crates/kafkars/src/consumer/group_rebalance_event.rs"
+test = "crates/kafkars/src/consumer/group_rebalance_event_test.rs"
 
 [[linear_owners]]
 owner_type = "GroupConsumerRevocationControl"
@@ -18186,49 +18186,49 @@ path = "crates/kafka-client-engine/src/consumer/group_event/immediate.rs"
 
 [[linear_owners]]
 owner_type = "GroupConsumerRevocationCompletion"
-path = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_rebalance_event.rs"
+path = "crates/kafkars/src/bridge/consumer_facade/group_consumer_rebalance_event.rs"
 
 [[linear_owners]]
 owner_type = "ConsumerEvent"
-path = "crates/kafka-client/src/consumer/group_rebalance_event.rs"
+path = "crates/kafkars/src/consumer/group_rebalance_event.rs"
 
 [[linear_owners]]
 owner_type = "ConsumerRevocation"
-path = "crates/kafka-client/src/consumer/group_rebalance_event.rs"
+path = "crates/kafkars/src/consumer/group_rebalance_event.rs"
 
 [[linear_owners]]
 owner_type = "NextConsumerEvent"
-path = "crates/kafka-client/src/consumer/group_next_event.rs"
+path = "crates/kafkars/src/consumer/group_next_event.rs"
 
 [[mutation_owners]]
 owner_type = "GroupConsumerRevocationCompletion"
 field = "completed"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_rebalance_event.rs",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_rebalance_event.rs",
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "next_event"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/consumer/handle.rs",
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_event_observation.rs",
-  "crates/kafka-client/src/consumer/assigned.rs",
-  "crates/kafka-client/src/consumer/group_next_event.rs",
+  "crates/kafkars/src/bridge/consumer/handle.rs",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_event_observation.rs",
+  "crates/kafkars/src/consumer/assigned.rs",
+  "crates/kafkars/src/consumer/group_next_event.rs",
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "try_take_event"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/consumer/handle.rs",
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_event_observation.rs",
-  "crates/kafka-client/src/consumer/assigned.rs",
-  "crates/kafka-client/src/consumer/group_next_event.rs",
+  "crates/kafkars/src/bridge/consumer/handle.rs",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_event_observation.rs",
+  "crates/kafkars/src/consumer/assigned.rs",
+  "crates/kafkars/src/consumer/group_next_event.rs",
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/consumer/group_rebalance_event.rs"
+root = "crates/kafkars/src/consumer/group_rebalance_event.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_client_engine",
@@ -18249,7 +18249,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/consumer/group_next_event.rs"
+root = "crates/kafkars/src/consumer/group_next_event.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_client_engine",
@@ -18270,7 +18270,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_rebalance_event.rs"
+root = "crates/kafkars/src/bridge/consumer_facade/group_consumer_rebalance_event.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_driver",
@@ -18290,7 +18290,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_next_event.rs"
+root = "crates/kafkars/src/bridge/consumer_facade/group_consumer_next_event.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_driver",
@@ -18310,7 +18310,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_event_observation.rs"
+root = "crates/kafkars/src/bridge/consumer_facade/group_consumer_event_observation.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_driver",
@@ -18376,20 +18376,20 @@ production = "crates/kafka-client-engine/src/consumer/group_close/operation.rs"
 test = "crates/kafka-client-engine/src/consumer/group_close/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close.rs"
-test = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close_test.rs"
+production = "crates/kafkars/src/bridge/consumer_facade/group_consumer_close.rs"
+test = "crates/kafkars/src/bridge/consumer_facade/group_consumer_close_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close_admission.rs"
-test = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close_admission_test.rs"
+production = "crates/kafkars/src/bridge/consumer_facade/group_consumer_close_admission.rs"
+test = "crates/kafkars/src/bridge/consumer_facade/group_consumer_close_admission_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/group_close.rs"
-test = "crates/kafka-client/src/consumer/group_close_test.rs"
+production = "crates/kafkars/src/consumer/group_close.rs"
+test = "crates/kafkars/src/consumer/group_close_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/group_close_error.rs"
-test = "crates/kafka-client/src/consumer/group_close_error_test.rs"
+production = "crates/kafkars/src/consumer/group_close_error.rs"
+test = "crates/kafkars/src/consumer/group_close_error_test.rs"
 
 [[linear_owners]]
 owner_type = "GroupConsumerCloseAdmission"
@@ -18405,15 +18405,15 @@ path = "crates/kafka-client-engine/src/consumer/group_close/operation.rs"
 
 [[linear_owners]]
 owner_type = "GroupConsumerClose"
-path = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close.rs"
+path = "crates/kafkars/src/bridge/consumer_facade/group_consumer_close.rs"
 
 [[linear_owners]]
 owner_type = "CloseConsumer"
-path = "crates/kafka-client/src/consumer/group_close.rs"
+path = "crates/kafkars/src/consumer/group_close.rs"
 
 [[linear_owners]]
 owner_type = "ConsumerCloseAdmissionError"
-path = "crates/kafka-client/src/consumer/group_close_error.rs"
+path = "crates/kafkars/src/consumer/group_close_error.rs"
 
 [[mutation_owners]]
 owner_type = "GroupConsumerClose"
@@ -18423,18 +18423,18 @@ allowed_paths = [
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "try_close"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/consumer/handle.rs",
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close_admission.rs",
-  "crates/kafka-client/src/bridge/producer/handle.rs",
-  "crates/kafka-client/src/consumer/assigned.rs",
-  "crates/kafka-client/src/consumer/group_close.rs",
+  "crates/kafkars/src/bridge/consumer/handle.rs",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_close_admission.rs",
+  "crates/kafkars/src/bridge/producer/handle.rs",
+  "crates/kafkars/src/consumer/assigned.rs",
+  "crates/kafkars/src/consumer/group_close.rs",
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/consumer/group_close.rs"
+root = "crates/kafkars/src/consumer/group_close.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_client_engine",
@@ -18488,7 +18488,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/consumer/group_close_error.rs"
+root = "crates/kafkars/src/consumer/group_close_error.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_client_engine",
@@ -18509,7 +18509,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close.rs"
+root = "crates/kafkars/src/bridge/consumer_facade/group_consumer_close.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_driver",
@@ -18529,7 +18529,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_close_admission.rs"
+root = "crates/kafkars/src/bridge/consumer_facade/group_consumer_close_admission.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_driver",
@@ -18567,12 +18567,12 @@ production = "crates/kafka-client-engine/src/consumer/group_control/resume_captu
 test = "crates/kafka-client-engine/src/consumer/group_control/resume_capture_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_control.rs"
-test = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_control_test.rs"
+production = "crates/kafkars/src/bridge/consumer_facade/group_consumer_control.rs"
+test = "crates/kafkars/src/bridge/consumer_facade/group_consumer_control_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/group_control.rs"
-test = "crates/kafka-client/src/consumer/group_control_test.rs"
+production = "crates/kafkars/src/consumer/group_control.rs"
+test = "crates/kafkars/src/consumer/group_control_test.rs"
 
 [[linear_owners]]
 owner_type = "GroupConsumerPartition"
@@ -18601,19 +18601,19 @@ allowed_paths = [
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "pause"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_control.rs",
-  "crates/kafka-client/src/consumer/group_control.rs",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_control.rs",
+  "crates/kafkars/src/consumer/group_control.rs",
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "resume"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/consumer_facade/group_consumer_control.rs",
-  "crates/kafka-client/src/consumer/group_control.rs",
+  "crates/kafkars/src/bridge/consumer_facade/group_consumer_control.rs",
+  "crates/kafkars/src/consumer/group_control.rs",
 ]
 
 [[capability_rules]]
@@ -18750,7 +18750,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_control.rs"
+root = "crates/kafkars/src/bridge/consumer_facade/group_consumer_control.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_driver",
@@ -18771,7 +18771,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/consumer/group_control.rs"
+root = "crates/kafkars/src/consumer/group_control.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_client_engine",
@@ -18826,12 +18826,12 @@ production = "crates/kafka-client-engine/src/consumer/group_seek/position.rs"
 test = "crates/kafka-client-engine/src/consumer/group_seek/position_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_seek.rs"
-test = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_seek_test.rs"
+production = "crates/kafkars/src/bridge/consumer_facade/group_consumer_seek.rs"
+test = "crates/kafkars/src/bridge/consumer_facade/group_consumer_seek_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/consumer/group_seek.rs"
-test = "crates/kafka-client/src/consumer/group_seek_test.rs"
+production = "crates/kafkars/src/consumer/group_seek.rs"
+test = "crates/kafkars/src/consumer/group_seek_test.rs"
 
 [[linear_owners]]
 owner_type = "ClassicGroupFetchSeek"
@@ -18855,15 +18855,15 @@ path = "crates/kafka-client-engine/src/consumer/group_seek/operation.rs"
 
 [[linear_owners]]
 owner_type = "GroupConsumerSeek"
-path = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_seek.rs"
+path = "crates/kafkars/src/bridge/consumer_facade/group_consumer_seek.rs"
 
 [[linear_owners]]
 owner_type = "GroupConsumerSeekInner"
-path = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_seek.rs"
+path = "crates/kafkars/src/bridge/consumer_facade/group_consumer_seek.rs"
 
 [[linear_owners]]
 owner_type = "Seek"
-path = "crates/kafka-client/src/consumer/group_seek.rs"
+path = "crates/kafkars/src/consumer/group_seek.rs"
 
 [[mutation_owners]]
 owner_type = "ClassicGroupFetchOwner"
@@ -18939,10 +18939,10 @@ allowed_paths = [
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src/consumer"
+root = "crates/kafkars/src/consumer"
 method = "seek"
 allowed_paths = [
-  "crates/kafka-client/src/consumer/group_seek.rs",
+  "crates/kafkars/src/consumer/group_seek.rs",
 ]
 
 [[call_capabilities]]
@@ -19185,7 +19185,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/bridge/consumer_facade/group_consumer_seek.rs"
+root = "crates/kafkars/src/bridge/consumer_facade/group_consumer_seek.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_driver",
@@ -19205,7 +19205,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/consumer/group_seek.rs"
+root = "crates/kafkars/src/consumer/group_seek.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_client_engine",
@@ -19227,28 +19227,28 @@ forbidden = [
 # Transactional checkpoint transfer captures once before translation, retains
 # both exact facade inputs on rejection, and exposes one linear observation.
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/transaction/offsets.rs"
-test = "crates/kafka-client/src/bridge/transaction/offsets_test.rs"
+production = "crates/kafkars/src/bridge/transaction/offsets.rs"
+test = "crates/kafkars/src/bridge/transaction/offsets_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/transaction/offsets.rs"
-test = "crates/kafka-client/src/transaction/offsets_test.rs"
+production = "crates/kafkars/src/transaction/offsets.rs"
+test = "crates/kafkars/src/transaction/offsets_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/transaction/offsets_error.rs"
-test = "crates/kafka-client/src/transaction/offsets_error_test.rs"
+production = "crates/kafkars/src/transaction/offsets_error.rs"
+test = "crates/kafkars/src/transaction/offsets_error_test.rs"
 
 [[linear_owners]]
 owner_type = "TransactionOffsetsEngine"
-path = "crates/kafka-client/src/bridge/transaction/offsets.rs"
+path = "crates/kafkars/src/bridge/transaction/offsets.rs"
 
 [[linear_owners]]
 owner_type = "SendTransactionOffsets"
-path = "crates/kafka-client/src/transaction/offsets.rs"
+path = "crates/kafkars/src/transaction/offsets.rs"
 
 [[linear_owners]]
 owner_type = "TransactionOffsetsAdmissionError"
-path = "crates/kafka-client/src/transaction/offsets_error.rs"
+path = "crates/kafkars/src/transaction/offsets_error.rs"
 
 [[linear_owners]]
 owner_type = "TransactionOffsetsCapture"
@@ -19319,92 +19319,92 @@ owner_type = "RecoveredGroupOffsetAlterCall"
 path = "crates/kafka-client-engine/src/driver/rpc/group_offset_alter_terminal.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/delete_share_group_offsets/builder.rs"
-test = "crates/kafka-client/src/admin/delete_share_group_offsets/builder_test.rs"
+production = "crates/kafkars/src/admin/delete_share_group_offsets/builder.rs"
+test = "crates/kafkars/src/admin/delete_share_group_offsets/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/delete_share_group_offsets/operation.rs"
-test = "crates/kafka-client/src/admin/delete_share_group_offsets/operation_test.rs"
+production = "crates/kafkars/src/admin/delete_share_group_offsets/operation.rs"
+test = "crates/kafkars/src/admin/delete_share_group_offsets/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/delete_share_group_offsets/result.rs"
-test = "crates/kafka-client/src/admin/delete_share_group_offsets/result_test.rs"
+production = "crates/kafkars/src/admin/delete_share_group_offsets/result.rs"
+test = "crates/kafkars/src/admin/delete_share_group_offsets/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/handle/delete_share_group_offsets.rs"
-test = "crates/kafka-client/src/admin/handle/delete_share_group_offsets_test.rs"
+production = "crates/kafkars/src/admin/handle/delete_share_group_offsets.rs"
+test = "crates/kafkars/src/admin/handle/delete_share_group_offsets_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/delete_share_group_offsets/request.rs"
-test = "crates/kafka-client/src/bridge/delete_share_group_offsets/request_test.rs"
+production = "crates/kafkars/src/bridge/delete_share_group_offsets/request.rs"
+test = "crates/kafkars/src/bridge/delete_share_group_offsets/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/delete_share_group_offsets/result.rs"
-test = "crates/kafka-client/src/bridge/delete_share_group_offsets/result_test.rs"
+production = "crates/kafkars/src/bridge/delete_share_group_offsets/result.rs"
+test = "crates/kafkars/src/bridge/delete_share_group_offsets/result_test.rs"
 
 [[linear_owners]]
 owner_type = "DeleteShareGroupOffsetsAdminRequest"
-path = "crates/kafka-client/src/bridge/delete_share_group_offsets/request.rs"
+path = "crates/kafkars/src/bridge/delete_share_group_offsets/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminDeleteShareGroupOffsets"
-path = "crates/kafka-client/src/bridge/delete_share_group_offsets/operation.rs"
+path = "crates/kafkars/src/bridge/delete_share_group_offsets/operation.rs"
 
 [[linear_owners]]
 owner_type = "DeleteShareGroupOffsetsBuilder"
-path = "crates/kafka-client/src/admin/delete_share_group_offsets/builder.rs"
+path = "crates/kafkars/src/admin/delete_share_group_offsets/builder.rs"
 
 [[linear_owners]]
 owner_type = "DeleteShareGroupOffsets"
-path = "crates/kafka-client/src/admin/delete_share_group_offsets/operation.rs"
+path = "crates/kafkars/src/admin/delete_share_group_offsets/operation.rs"
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "try_delete_consumer_group_offsets"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin/group_submissions.rs",
+  "crates/kafkars/src/bridge/admin/group_submissions.rs",
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "try_delete_share_group_offsets"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin/delete_share_group_offsets_submit.rs",
+  "crates/kafkars/src/bridge/admin/delete_share_group_offsets_submit.rs",
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "try_list_share_group_offsets"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin/list_share_group_offsets_submit.rs",
+  "crates/kafkars/src/bridge/admin/list_share_group_offsets_submit.rs",
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "try_alter_share_group_offsets"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin/alter_share_group_offsets_submit.rs",
+  "crates/kafkars/src/bridge/admin/alter_share_group_offsets_submit.rs",
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "try_describe_share_group"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin/describe_share_group_submit.rs",
+  "crates/kafkars/src/bridge/admin/describe_share_group_submit.rs",
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "try_describe_streams_group"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin/describe_streams_group_submit.rs",
+  "crates/kafkars/src/bridge/admin/describe_streams_group_submit.rs",
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "capture_legacy_alter_configs"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin/legacy_replace_topic_configs.rs",
+  "crates/kafkars/src/bridge/admin/legacy_replace_topic_configs.rs",
 ]
 
 [[method_capabilities]]
@@ -19447,14 +19447,14 @@ allowed_paths = [
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src/transaction"
+root = "crates/kafkars/src/transaction"
 method = "send_offsets"
 allowed_paths = [
-  "crates/kafka-client/src/transaction/transaction.rs",
+  "crates/kafkars/src/transaction/transaction.rs",
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/bridge/transaction/offsets.rs"
+root = "crates/kafkars/src/bridge/transaction/offsets.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_driver",
@@ -19474,7 +19474,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/bridge/transaction/offsets_result.rs"
+root = "crates/kafkars/src/bridge/transaction/offsets_result.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_driver",
@@ -19494,7 +19494,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/transaction/offsets.rs"
+root = "crates/kafkars/src/transaction/offsets.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_client_engine",
@@ -19514,7 +19514,7 @@ forbidden = [
 ]
 
 [[capability_rules]]
-root = "crates/kafka-client/src/transaction/offsets_error.rs"
+root = "crates/kafkars/src/transaction/offsets_error.rs"
 forbidden = [
   "kafka_client_core",
   "kafka_client_engine",
@@ -19741,10 +19741,10 @@ allowed_paths = [
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "try_alter_consumer_group_offsets"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin/group_submissions.rs",
+  "crates/kafkars/src/bridge/admin/group_submissions.rs",
 ]
 
 # Transaction initialization, lifecycle, and send reach the curated engine only
@@ -19896,52 +19896,52 @@ owner_type = "RecoveredListShareGroupOffsetsCall"
 path = "crates/kafka-client-engine/src/driver/rpc/list_share_group_offsets_terminal.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/list_share_group_offsets/builder.rs"
-test = "crates/kafka-client/src/admin/list_share_group_offsets/builder_test.rs"
+production = "crates/kafkars/src/admin/list_share_group_offsets/builder.rs"
+test = "crates/kafkars/src/admin/list_share_group_offsets/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/list_share_group_offsets/operation.rs"
-test = "crates/kafka-client/src/admin/list_share_group_offsets/operation_test.rs"
+production = "crates/kafkars/src/admin/list_share_group_offsets/operation.rs"
+test = "crates/kafkars/src/admin/list_share_group_offsets/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/list_share_group_offsets/offset.rs"
-test = "crates/kafka-client/src/admin/list_share_group_offsets/offset_test.rs"
+production = "crates/kafkars/src/admin/list_share_group_offsets/offset.rs"
+test = "crates/kafkars/src/admin/list_share_group_offsets/offset_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/list_share_group_offsets/result.rs"
-test = "crates/kafka-client/src/admin/list_share_group_offsets/result_test.rs"
+production = "crates/kafkars/src/admin/list_share_group_offsets/result.rs"
+test = "crates/kafkars/src/admin/list_share_group_offsets/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/handle/list_share_group_offsets.rs"
-test = "crates/kafka-client/src/admin/handle/list_share_group_offsets_test.rs"
+production = "crates/kafkars/src/admin/handle/list_share_group_offsets.rs"
+test = "crates/kafkars/src/admin/handle/list_share_group_offsets_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/list_share_group_offsets/request.rs"
-test = "crates/kafka-client/src/bridge/list_share_group_offsets/request_test.rs"
+production = "crates/kafkars/src/bridge/list_share_group_offsets/request.rs"
+test = "crates/kafkars/src/bridge/list_share_group_offsets/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/list_share_group_offsets/operation.rs"
-test = "crates/kafka-client/src/bridge/list_share_group_offsets/operation_test.rs"
+production = "crates/kafkars/src/bridge/list_share_group_offsets/operation.rs"
+test = "crates/kafkars/src/bridge/list_share_group_offsets/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/list_share_group_offsets/result.rs"
-test = "crates/kafka-client/src/bridge/list_share_group_offsets/result_test.rs"
+production = "crates/kafkars/src/bridge/list_share_group_offsets/result.rs"
+test = "crates/kafkars/src/bridge/list_share_group_offsets/result_test.rs"
 
 [[linear_owners]]
 owner_type = "ListShareGroupOffsetsAdminRequest"
-path = "crates/kafka-client/src/bridge/list_share_group_offsets/request.rs"
+path = "crates/kafkars/src/bridge/list_share_group_offsets/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminListShareGroupOffsets"
-path = "crates/kafka-client/src/bridge/list_share_group_offsets/operation.rs"
+path = "crates/kafkars/src/bridge/list_share_group_offsets/operation.rs"
 
 [[linear_owners]]
 owner_type = "ListShareGroupOffsetsBuilder"
-path = "crates/kafka-client/src/admin/list_share_group_offsets/builder.rs"
+path = "crates/kafkars/src/admin/list_share_group_offsets/builder.rs"
 
 [[linear_owners]]
 owner_type = "ListShareGroupOffsets"
-path = "crates/kafka-client/src/admin/list_share_group_offsets/operation.rs"
+path = "crates/kafkars/src/admin/list_share_group_offsets/operation.rs"
 
 # API 91 AlterShareGroupOffsets keeps deterministic mutation policy, concrete
 # completion and byte ownership, exact-v0 protocol adaptation, coordinator
@@ -20086,52 +20086,52 @@ owner_type = "RecoveredAlterShareGroupOffsetsCall"
 path = "crates/kafka-client-engine/src/driver/rpc/alter_share_group_offsets_terminal.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/alter_share_group_offsets/alteration.rs"
-test = "crates/kafka-client/src/admin/alter_share_group_offsets/alteration_test.rs"
+production = "crates/kafkars/src/admin/alter_share_group_offsets/alteration.rs"
+test = "crates/kafkars/src/admin/alter_share_group_offsets/alteration_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/alter_share_group_offsets/builder.rs"
-test = "crates/kafka-client/src/admin/alter_share_group_offsets/builder_test.rs"
+production = "crates/kafkars/src/admin/alter_share_group_offsets/builder.rs"
+test = "crates/kafkars/src/admin/alter_share_group_offsets/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/alter_share_group_offsets/operation.rs"
-test = "crates/kafka-client/src/admin/alter_share_group_offsets/operation_test.rs"
+production = "crates/kafkars/src/admin/alter_share_group_offsets/operation.rs"
+test = "crates/kafkars/src/admin/alter_share_group_offsets/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/alter_share_group_offsets/result.rs"
-test = "crates/kafka-client/src/admin/alter_share_group_offsets/result_test.rs"
+production = "crates/kafkars/src/admin/alter_share_group_offsets/result.rs"
+test = "crates/kafkars/src/admin/alter_share_group_offsets/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/handle/alter_share_group_offsets.rs"
-test = "crates/kafka-client/src/admin/handle/alter_share_group_offsets_test.rs"
+production = "crates/kafkars/src/admin/handle/alter_share_group_offsets.rs"
+test = "crates/kafkars/src/admin/handle/alter_share_group_offsets_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/alter_share_group_offsets/request.rs"
-test = "crates/kafka-client/src/bridge/alter_share_group_offsets/request_test.rs"
+production = "crates/kafkars/src/bridge/alter_share_group_offsets/request.rs"
+test = "crates/kafkars/src/bridge/alter_share_group_offsets/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/alter_share_group_offsets/operation.rs"
-test = "crates/kafka-client/src/bridge/alter_share_group_offsets/operation_test.rs"
+production = "crates/kafkars/src/bridge/alter_share_group_offsets/operation.rs"
+test = "crates/kafkars/src/bridge/alter_share_group_offsets/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/alter_share_group_offsets/result.rs"
-test = "crates/kafka-client/src/bridge/alter_share_group_offsets/result_test.rs"
+production = "crates/kafkars/src/bridge/alter_share_group_offsets/result.rs"
+test = "crates/kafkars/src/bridge/alter_share_group_offsets/result_test.rs"
 
 [[linear_owners]]
 owner_type = "AlterShareGroupOffsetsAdminRequest"
-path = "crates/kafka-client/src/bridge/alter_share_group_offsets/request.rs"
+path = "crates/kafkars/src/bridge/alter_share_group_offsets/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminAlterShareGroupOffsets"
-path = "crates/kafka-client/src/bridge/alter_share_group_offsets/operation.rs"
+path = "crates/kafkars/src/bridge/alter_share_group_offsets/operation.rs"
 
 [[linear_owners]]
 owner_type = "AlterShareGroupOffsetsBuilder"
-path = "crates/kafka-client/src/admin/alter_share_group_offsets/builder.rs"
+path = "crates/kafkars/src/admin/alter_share_group_offsets/builder.rs"
 
 [[linear_owners]]
 owner_type = "AlterShareGroupOffsets"
-path = "crates/kafka-client/src/admin/alter_share_group_offsets/operation.rs"
+path = "crates/kafkars/src/admin/alter_share_group_offsets/operation.rs"
 
 # API 77 DescribeShareGroup keeps singleton deterministic policy, bounded
 # concrete ownership, exact flexible-v1 protocol adaptation, coordinator
@@ -20276,56 +20276,56 @@ owner_type = "RecoveredDescribeShareGroupCall"
 path = "crates/kafka-client-engine/src/driver/rpc/describe_share_group_terminal.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_share_group/assignment.rs"
-test = "crates/kafka-client/src/admin/describe_share_group/assignment_test.rs"
+production = "crates/kafkars/src/admin/describe_share_group/assignment.rs"
+test = "crates/kafkars/src/admin/describe_share_group/assignment_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_share_group/builder.rs"
-test = "crates/kafka-client/src/admin/describe_share_group/builder_test.rs"
+production = "crates/kafkars/src/admin/describe_share_group/builder.rs"
+test = "crates/kafkars/src/admin/describe_share_group/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_share_group/description.rs"
-test = "crates/kafka-client/src/admin/describe_share_group/description_test.rs"
+production = "crates/kafkars/src/admin/describe_share_group/description.rs"
+test = "crates/kafkars/src/admin/describe_share_group/description_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_share_group/operation.rs"
-test = "crates/kafka-client/src/admin/describe_share_group/operation_test.rs"
+production = "crates/kafkars/src/admin/describe_share_group/operation.rs"
+test = "crates/kafkars/src/admin/describe_share_group/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_share_group/result.rs"
-test = "crates/kafka-client/src/admin/describe_share_group/result_test.rs"
+production = "crates/kafkars/src/admin/describe_share_group/result.rs"
+test = "crates/kafkars/src/admin/describe_share_group/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/handle/describe_share_group.rs"
-test = "crates/kafka-client/src/admin/handle/describe_share_group_test.rs"
+production = "crates/kafkars/src/admin/handle/describe_share_group.rs"
+test = "crates/kafkars/src/admin/handle/describe_share_group_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/describe_share_group/request.rs"
-test = "crates/kafka-client/src/bridge/describe_share_group/request_test.rs"
+production = "crates/kafkars/src/bridge/describe_share_group/request.rs"
+test = "crates/kafkars/src/bridge/describe_share_group/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/describe_share_group/operation.rs"
-test = "crates/kafka-client/src/bridge/describe_share_group/operation_test.rs"
+production = "crates/kafkars/src/bridge/describe_share_group/operation.rs"
+test = "crates/kafkars/src/bridge/describe_share_group/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/describe_share_group/result.rs"
-test = "crates/kafka-client/src/bridge/describe_share_group/result_test.rs"
+production = "crates/kafkars/src/bridge/describe_share_group/result.rs"
+test = "crates/kafkars/src/bridge/describe_share_group/result_test.rs"
 
 [[linear_owners]]
 owner_type = "DescribeShareGroupAdminRequest"
-path = "crates/kafka-client/src/bridge/describe_share_group/request.rs"
+path = "crates/kafkars/src/bridge/describe_share_group/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminDescribeShareGroup"
-path = "crates/kafka-client/src/bridge/describe_share_group/operation.rs"
+path = "crates/kafkars/src/bridge/describe_share_group/operation.rs"
 
 [[linear_owners]]
 owner_type = "DescribeShareGroupBuilder"
-path = "crates/kafka-client/src/admin/describe_share_group/builder.rs"
+path = "crates/kafkars/src/admin/describe_share_group/builder.rs"
 
 [[linear_owners]]
 owner_type = "DescribeShareGroup"
-path = "crates/kafka-client/src/admin/describe_share_group/operation.rs"
+path = "crates/kafkars/src/admin/describe_share_group/operation.rs"
 
 # API 89 DescribeStreamsGroup keeps singleton deterministic policy, bounded
 # concrete ownership, stable flexible-v0-v1 protocol adaptation, conditional
@@ -20471,68 +20471,68 @@ owner_type = "RecoveredDescribeStreamsGroupCall"
 path = "crates/kafka-client-engine/src/driver/rpc/describe_streams_group_terminal.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_streams_group/assignment.rs"
-test = "crates/kafka-client/src/admin/describe_streams_group/assignment_test.rs"
+production = "crates/kafkars/src/admin/describe_streams_group/assignment.rs"
+test = "crates/kafkars/src/admin/describe_streams_group/assignment_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_streams_group/builder.rs"
-test = "crates/kafka-client/src/admin/describe_streams_group/builder_test.rs"
+production = "crates/kafkars/src/admin/describe_streams_group/builder.rs"
+test = "crates/kafkars/src/admin/describe_streams_group/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_streams_group/description.rs"
-test = "crates/kafka-client/src/admin/describe_streams_group/description_test.rs"
+production = "crates/kafkars/src/admin/describe_streams_group/description.rs"
+test = "crates/kafkars/src/admin/describe_streams_group/description_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_streams_group/operation.rs"
-test = "crates/kafka-client/src/admin/describe_streams_group/operation_test.rs"
+production = "crates/kafkars/src/admin/describe_streams_group/operation.rs"
+test = "crates/kafkars/src/admin/describe_streams_group/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_streams_group/result.rs"
-test = "crates/kafka-client/src/admin/describe_streams_group/result_test.rs"
+production = "crates/kafkars/src/admin/describe_streams_group/result.rs"
+test = "crates/kafkars/src/admin/describe_streams_group/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_streams_group/topology.rs"
-test = "crates/kafka-client/src/admin/describe_streams_group/topology_test.rs"
+production = "crates/kafkars/src/admin/describe_streams_group/topology.rs"
+test = "crates/kafkars/src/admin/describe_streams_group/topology_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_streams_group/topology_description.rs"
-test = "crates/kafka-client/src/admin/describe_streams_group/topology_description_test.rs"
+production = "crates/kafkars/src/admin/describe_streams_group/topology_description.rs"
+test = "crates/kafkars/src/admin/describe_streams_group/topology_description_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_streams_group/values.rs"
-test = "crates/kafka-client/src/admin/describe_streams_group/values_test.rs"
+production = "crates/kafkars/src/admin/describe_streams_group/values.rs"
+test = "crates/kafkars/src/admin/describe_streams_group/values_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/handle/describe_streams_group.rs"
-test = "crates/kafka-client/src/admin/handle/describe_streams_group_test.rs"
+production = "crates/kafkars/src/admin/handle/describe_streams_group.rs"
+test = "crates/kafkars/src/admin/handle/describe_streams_group_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/describe_streams_group/request.rs"
-test = "crates/kafka-client/src/bridge/describe_streams_group/request_test.rs"
+production = "crates/kafkars/src/bridge/describe_streams_group/request.rs"
+test = "crates/kafkars/src/bridge/describe_streams_group/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/describe_streams_group/operation.rs"
-test = "crates/kafka-client/src/bridge/describe_streams_group/operation_test.rs"
+production = "crates/kafkars/src/bridge/describe_streams_group/operation.rs"
+test = "crates/kafkars/src/bridge/describe_streams_group/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/describe_streams_group/result.rs"
-test = "crates/kafka-client/src/bridge/describe_streams_group/result_test.rs"
+production = "crates/kafkars/src/bridge/describe_streams_group/result.rs"
+test = "crates/kafkars/src/bridge/describe_streams_group/result_test.rs"
 
 [[linear_owners]]
 owner_type = "DescribeStreamsGroupAdminRequest"
-path = "crates/kafka-client/src/bridge/describe_streams_group/request.rs"
+path = "crates/kafkars/src/bridge/describe_streams_group/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminDescribeStreamsGroup"
-path = "crates/kafka-client/src/bridge/describe_streams_group/operation.rs"
+path = "crates/kafkars/src/bridge/describe_streams_group/operation.rs"
 
 [[linear_owners]]
 owner_type = "DescribeStreamsGroupBuilder"
-path = "crates/kafka-client/src/admin/describe_streams_group/builder.rs"
+path = "crates/kafkars/src/admin/describe_streams_group/builder.rs"
 
 [[linear_owners]]
 owner_type = "DescribeStreamsGroup"
-path = "crates/kafka-client/src/admin/describe_streams_group/operation.rs"
+path = "crates/kafkars/src/admin/describe_streams_group/operation.rs"
 
 # API 33 AlterConfigs is an explicitly named legacy full-snapshot operation.
 # Its deterministic policy, bounded concrete owner, v0-v2 protocol seam,
@@ -20712,52 +20712,52 @@ owner_type = "RecoveredLegacyAlterConfigsCall"
 path = "crates/kafka-client-engine/src/driver/rpc/legacy_alter_configs_terminal.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/legacy_replace_topic_configs/builder.rs"
-test = "crates/kafka-client/src/admin/legacy_replace_topic_configs/builder_test.rs"
+production = "crates/kafkars/src/admin/legacy_replace_topic_configs/builder.rs"
+test = "crates/kafkars/src/admin/legacy_replace_topic_configs/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/legacy_replace_topic_configs/entry.rs"
-test = "crates/kafka-client/src/admin/legacy_replace_topic_configs/entry_test.rs"
+production = "crates/kafkars/src/admin/legacy_replace_topic_configs/entry.rs"
+test = "crates/kafkars/src/admin/legacy_replace_topic_configs/entry_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/legacy_replace_topic_configs/operation.rs"
-test = "crates/kafka-client/src/admin/legacy_replace_topic_configs/operation_test.rs"
+production = "crates/kafkars/src/admin/legacy_replace_topic_configs/operation.rs"
+test = "crates/kafkars/src/admin/legacy_replace_topic_configs/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/legacy_replace_topic_configs/replacement.rs"
-test = "crates/kafka-client/src/admin/legacy_replace_topic_configs/replacement_test.rs"
+production = "crates/kafkars/src/admin/legacy_replace_topic_configs/replacement.rs"
+test = "crates/kafkars/src/admin/legacy_replace_topic_configs/replacement_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/legacy_replace_topic_configs/result.rs"
-test = "crates/kafka-client/src/admin/legacy_replace_topic_configs/result_test.rs"
+production = "crates/kafkars/src/admin/legacy_replace_topic_configs/result.rs"
+test = "crates/kafkars/src/admin/legacy_replace_topic_configs/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/legacy_replace_topic_configs/request.rs"
-test = "crates/kafka-client/src/bridge/legacy_replace_topic_configs/request_test.rs"
+production = "crates/kafkars/src/bridge/legacy_replace_topic_configs/request.rs"
+test = "crates/kafkars/src/bridge/legacy_replace_topic_configs/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/legacy_replace_topic_configs/operation.rs"
-test = "crates/kafka-client/src/bridge/legacy_replace_topic_configs/operation_test.rs"
+production = "crates/kafkars/src/bridge/legacy_replace_topic_configs/operation.rs"
+test = "crates/kafkars/src/bridge/legacy_replace_topic_configs/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/legacy_replace_topic_configs/result.rs"
-test = "crates/kafka-client/src/bridge/legacy_replace_topic_configs/result_test.rs"
+production = "crates/kafkars/src/bridge/legacy_replace_topic_configs/result.rs"
+test = "crates/kafkars/src/bridge/legacy_replace_topic_configs/result_test.rs"
 
 [[linear_owners]]
 owner_type = "LegacyReplaceTopicConfigsAdminRequest"
-path = "crates/kafka-client/src/bridge/legacy_replace_topic_configs/request.rs"
+path = "crates/kafkars/src/bridge/legacy_replace_topic_configs/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminLegacyReplaceTopicConfigs"
-path = "crates/kafka-client/src/bridge/legacy_replace_topic_configs/operation.rs"
+path = "crates/kafkars/src/bridge/legacy_replace_topic_configs/operation.rs"
 
 [[linear_owners]]
 owner_type = "LegacyReplaceTopicConfigsBuilder"
-path = "crates/kafka-client/src/admin/legacy_replace_topic_configs/builder.rs"
+path = "crates/kafkars/src/admin/legacy_replace_topic_configs/builder.rs"
 
 [[linear_owners]]
 owner_type = "LegacyReplaceTopicConfigs"
-path = "crates/kafka-client/src/admin/legacy_replace_topic_configs/operation.rs"
+path = "crates/kafkars/src/admin/legacy_replace_topic_configs/operation.rs"
 
 # API 22 FenceProducers is an explicitly sequential transaction-coordinator
 # operation. Its caller-ordered deterministic policy, bounded host, reused
@@ -20944,67 +20944,67 @@ production = "crates/kafka-client-engine/src/protocol/transaction/fence_producer
 test = "crates/kafka-client-engine/src/protocol/transaction/fence_producers_test.rs"
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "try_fence_producers"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin/fence_producers_submit.rs",
+  "crates/kafkars/src/bridge/admin/fence_producers_submit.rs",
 ]
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/fence_producers/builder.rs"
-test = "crates/kafka-client/src/admin/fence_producers/builder_test.rs"
+production = "crates/kafkars/src/admin/fence_producers/builder.rs"
+test = "crates/kafkars/src/admin/fence_producers/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/fence_producers/operation.rs"
-test = "crates/kafka-client/src/admin/fence_producers/operation_test.rs"
+production = "crates/kafkars/src/admin/fence_producers/operation.rs"
+test = "crates/kafkars/src/admin/fence_producers/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/fence_producers/result.rs"
-test = "crates/kafka-client/src/admin/fence_producers/result_test.rs"
+production = "crates/kafkars/src/admin/fence_producers/result.rs"
+test = "crates/kafkars/src/admin/fence_producers/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/fence_producers/operation.rs"
-test = "crates/kafka-client/src/bridge/fence_producers/operation_test.rs"
+production = "crates/kafkars/src/bridge/fence_producers/operation.rs"
+test = "crates/kafkars/src/bridge/fence_producers/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/fence_producers/request.rs"
-test = "crates/kafka-client/src/bridge/fence_producers/request_test.rs"
+production = "crates/kafkars/src/bridge/fence_producers/request.rs"
+test = "crates/kafkars/src/bridge/fence_producers/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/fence_producers/result.rs"
-test = "crates/kafka-client/src/bridge/fence_producers/result_test.rs"
+production = "crates/kafkars/src/bridge/fence_producers/result.rs"
+test = "crates/kafkars/src/bridge/fence_producers/result_test.rs"
 
 [[linear_owners]]
 owner_type = "FenceProducersAdminRequest"
-path = "crates/kafka-client/src/bridge/fence_producers/request.rs"
+path = "crates/kafkars/src/bridge/fence_producers/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminFenceProducers"
-path = "crates/kafka-client/src/bridge/fence_producers/operation.rs"
+path = "crates/kafkars/src/bridge/fence_producers/operation.rs"
 
 [[linear_owners]]
 owner_type = "FenceProducersBuilder"
-path = "crates/kafka-client/src/admin/fence_producers/builder.rs"
+path = "crates/kafkars/src/admin/fence_producers/builder.rs"
 
 [[linear_owners]]
 owner_type = "FenceProducers"
-path = "crates/kafka-client/src/admin/fence_producers/operation.rs"
+path = "crates/kafkars/src/admin/fence_producers/operation.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/force_terminate_transaction/builder.rs"
-test = "crates/kafka-client/src/admin/force_terminate_transaction/builder_test.rs"
+production = "crates/kafkars/src/admin/force_terminate_transaction/builder.rs"
+test = "crates/kafkars/src/admin/force_terminate_transaction/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/force_terminate_transaction/operation.rs"
-test = "crates/kafka-client/src/admin/force_terminate_transaction/operation_test.rs"
+production = "crates/kafkars/src/admin/force_terminate_transaction/operation.rs"
+test = "crates/kafkars/src/admin/force_terminate_transaction/operation_test.rs"
 
 [[linear_owners]]
 owner_type = "ForceTerminateTransactionBuilder"
-path = "crates/kafka-client/src/admin/force_terminate_transaction/builder.rs"
+path = "crates/kafkars/src/admin/force_terminate_transaction/builder.rs"
 
 [[linear_owners]]
 owner_type = "ForceTerminateTransaction"
-path = "crates/kafka-client/src/admin/force_terminate_transaction/operation.rs"
+path = "crates/kafkars/src/admin/force_terminate_transaction/operation.rs"
 
 # API 27 AbortTransaction is one destructive partition-leader WriteTxnMarkers
 # operation. It preserves the caller's broker-issued producer and coordinator
@@ -21183,47 +21183,47 @@ production = "crates/kafka-client-engine/src/protocol/admin/abort_partition_tran
 test = "crates/kafka-client-engine/src/protocol/admin/abort_partition_transaction/response_test.rs"
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "try_abort_partition_transaction"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin/abort_partition_transaction_submit.rs",
+  "crates/kafkars/src/bridge/admin/abort_partition_transaction_submit.rs",
 ]
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/abort_partition_transaction/builder.rs"
-test = "crates/kafka-client/src/admin/abort_partition_transaction/builder_test.rs"
+production = "crates/kafkars/src/admin/abort_partition_transaction/builder.rs"
+test = "crates/kafkars/src/admin/abort_partition_transaction/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/abort_partition_transaction/operation.rs"
-test = "crates/kafka-client/src/admin/abort_partition_transaction/operation_test.rs"
+production = "crates/kafkars/src/admin/abort_partition_transaction/operation.rs"
+test = "crates/kafkars/src/admin/abort_partition_transaction/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/abort_partition_transaction/spec.rs"
-test = "crates/kafka-client/src/admin/abort_partition_transaction/spec_test.rs"
+production = "crates/kafkars/src/admin/abort_partition_transaction/spec.rs"
+test = "crates/kafkars/src/admin/abort_partition_transaction/spec_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/abort_partition_transaction/request.rs"
-test = "crates/kafka-client/src/bridge/abort_partition_transaction/request_test.rs"
+production = "crates/kafkars/src/bridge/abort_partition_transaction/request.rs"
+test = "crates/kafkars/src/bridge/abort_partition_transaction/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/abort_partition_transaction/result.rs"
-test = "crates/kafka-client/src/bridge/abort_partition_transaction/result_test.rs"
+production = "crates/kafkars/src/bridge/abort_partition_transaction/result.rs"
+test = "crates/kafkars/src/bridge/abort_partition_transaction/result_test.rs"
 
 [[linear_owners]]
 owner_type = "AbortPartitionTransactionAdminRequest"
-path = "crates/kafka-client/src/bridge/abort_partition_transaction/request.rs"
+path = "crates/kafkars/src/bridge/abort_partition_transaction/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminAbortPartitionTransaction"
-path = "crates/kafka-client/src/bridge/abort_partition_transaction/operation.rs"
+path = "crates/kafkars/src/bridge/abort_partition_transaction/operation.rs"
 
 [[linear_owners]]
 owner_type = "AbortTransactionBuilder"
-path = "crates/kafka-client/src/admin/abort_partition_transaction/builder.rs"
+path = "crates/kafkars/src/admin/abort_partition_transaction/builder.rs"
 
 [[linear_owners]]
 owner_type = "AbortPartitionTransaction"
-path = "crates/kafka-client/src/admin/abort_partition_transaction/operation.rs"
+path = "crates/kafkars/src/admin/abort_partition_transaction/operation.rs"
 
 # API 80 AddRaftVoter and API 81 RemoveRaftVoter are separate concrete
 # membership mutations. Each retains one original deadline, one bounded
@@ -21436,98 +21436,98 @@ production = "crates/kafka-client-engine/src/protocol/admin/remove_raft_voter/re
 test = "crates/kafka-client-engine/src/protocol/admin/remove_raft_voter/response_test.rs"
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "capture_add_raft_voter"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin/add_raft_voter_submit.rs",
+  "crates/kafkars/src/bridge/admin/add_raft_voter_submit.rs",
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "capture_remove_raft_voter"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin/remove_raft_voter_submit.rs",
+  "crates/kafkars/src/bridge/admin/remove_raft_voter_submit.rs",
 ]
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/raft_voter/endpoint.rs"
-test = "crates/kafka-client/src/admin/raft_voter/endpoint_test.rs"
+production = "crates/kafkars/src/admin/raft_voter/endpoint.rs"
+test = "crates/kafkars/src/admin/raft_voter/endpoint_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/raft_voter/identity.rs"
-test = "crates/kafka-client/src/admin/raft_voter/identity_test.rs"
+production = "crates/kafkars/src/admin/raft_voter/identity.rs"
+test = "crates/kafkars/src/admin/raft_voter/identity_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/add_raft_voter/builder.rs"
-test = "crates/kafka-client/src/admin/add_raft_voter/builder_test.rs"
+production = "crates/kafkars/src/admin/add_raft_voter/builder.rs"
+test = "crates/kafkars/src/admin/add_raft_voter/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/add_raft_voter/operation.rs"
-test = "crates/kafka-client/src/admin/add_raft_voter/operation_test.rs"
+production = "crates/kafkars/src/admin/add_raft_voter/operation.rs"
+test = "crates/kafkars/src/admin/add_raft_voter/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/add_raft_voter/result.rs"
-test = "crates/kafka-client/src/admin/add_raft_voter/result_test.rs"
+production = "crates/kafkars/src/admin/add_raft_voter/result.rs"
+test = "crates/kafkars/src/admin/add_raft_voter/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/add_raft_voter/request.rs"
-test = "crates/kafka-client/src/bridge/add_raft_voter/request_test.rs"
+production = "crates/kafkars/src/bridge/add_raft_voter/request.rs"
+test = "crates/kafkars/src/bridge/add_raft_voter/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/add_raft_voter/result.rs"
-test = "crates/kafka-client/src/bridge/add_raft_voter/result_test.rs"
+production = "crates/kafkars/src/bridge/add_raft_voter/result.rs"
+test = "crates/kafkars/src/bridge/add_raft_voter/result_test.rs"
 
 [[linear_owners]]
 owner_type = "AddRaftVoterAdminRequest"
-path = "crates/kafka-client/src/bridge/add_raft_voter/request.rs"
+path = "crates/kafkars/src/bridge/add_raft_voter/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminAddRaftVoter"
-path = "crates/kafka-client/src/bridge/add_raft_voter/operation.rs"
+path = "crates/kafkars/src/bridge/add_raft_voter/operation.rs"
 
 [[linear_owners]]
 owner_type = "AddRaftVoterBuilder"
-path = "crates/kafka-client/src/admin/add_raft_voter/builder.rs"
+path = "crates/kafkars/src/admin/add_raft_voter/builder.rs"
 
 [[linear_owners]]
 owner_type = "AddRaftVoter"
-path = "crates/kafka-client/src/admin/add_raft_voter/operation.rs"
+path = "crates/kafkars/src/admin/add_raft_voter/operation.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/remove_raft_voter/builder.rs"
-test = "crates/kafka-client/src/admin/remove_raft_voter/builder_test.rs"
+production = "crates/kafkars/src/admin/remove_raft_voter/builder.rs"
+test = "crates/kafkars/src/admin/remove_raft_voter/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/remove_raft_voter/operation.rs"
-test = "crates/kafka-client/src/admin/remove_raft_voter/operation_test.rs"
+production = "crates/kafkars/src/admin/remove_raft_voter/operation.rs"
+test = "crates/kafkars/src/admin/remove_raft_voter/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/remove_raft_voter/result.rs"
-test = "crates/kafka-client/src/admin/remove_raft_voter/result_test.rs"
+production = "crates/kafkars/src/admin/remove_raft_voter/result.rs"
+test = "crates/kafkars/src/admin/remove_raft_voter/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/remove_raft_voter/request.rs"
-test = "crates/kafka-client/src/bridge/remove_raft_voter/request_test.rs"
+production = "crates/kafkars/src/bridge/remove_raft_voter/request.rs"
+test = "crates/kafkars/src/bridge/remove_raft_voter/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/remove_raft_voter/result.rs"
-test = "crates/kafka-client/src/bridge/remove_raft_voter/result_test.rs"
+production = "crates/kafkars/src/bridge/remove_raft_voter/result.rs"
+test = "crates/kafkars/src/bridge/remove_raft_voter/result_test.rs"
 
 [[linear_owners]]
 owner_type = "RemoveRaftVoterAdminRequest"
-path = "crates/kafka-client/src/bridge/remove_raft_voter/request.rs"
+path = "crates/kafkars/src/bridge/remove_raft_voter/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminRemoveRaftVoter"
-path = "crates/kafka-client/src/bridge/remove_raft_voter/operation.rs"
+path = "crates/kafkars/src/bridge/remove_raft_voter/operation.rs"
 
 [[linear_owners]]
 owner_type = "RemoveRaftVoterBuilder"
-path = "crates/kafka-client/src/admin/remove_raft_voter/builder.rs"
+path = "crates/kafkars/src/admin/remove_raft_voter/builder.rs"
 
 [[linear_owners]]
 owner_type = "RemoveRaftVoter"
-path = "crates/kafka-client/src/admin/remove_raft_voter/operation.rs"
+path = "crates/kafkars/src/admin/remove_raft_voter/operation.rs"
 
 # API 35 DescribeReplicaLogDirs preserves one caller-ordered replica batch,
 # groups it by first broker occurrence, retains one original deadline and one
@@ -21706,55 +21706,55 @@ allowed_paths = [
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "capture_describe_replica_log_dirs"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin.rs",
+  "crates/kafkars/src/bridge/admin.rs",
 ]
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_replica_log_dirs/builder.rs"
-test = "crates/kafka-client/src/admin/describe_replica_log_dirs/builder_test.rs"
+production = "crates/kafkars/src/admin/describe_replica_log_dirs/builder.rs"
+test = "crates/kafkars/src/admin/describe_replica_log_dirs/builder_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_replica_log_dirs/info.rs"
-test = "crates/kafka-client/src/admin/describe_replica_log_dirs/info_test.rs"
+production = "crates/kafkars/src/admin/describe_replica_log_dirs/info.rs"
+test = "crates/kafkars/src/admin/describe_replica_log_dirs/info_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_replica_log_dirs/location.rs"
-test = "crates/kafka-client/src/admin/describe_replica_log_dirs/location_test.rs"
+production = "crates/kafkars/src/admin/describe_replica_log_dirs/location.rs"
+test = "crates/kafkars/src/admin/describe_replica_log_dirs/location_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_replica_log_dirs/operation.rs"
-test = "crates/kafka-client/src/admin/describe_replica_log_dirs/operation_test.rs"
+production = "crates/kafkars/src/admin/describe_replica_log_dirs/operation.rs"
+test = "crates/kafkars/src/admin/describe_replica_log_dirs/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_replica_log_dirs/result.rs"
-test = "crates/kafka-client/src/admin/describe_replica_log_dirs/result_test.rs"
+production = "crates/kafkars/src/admin/describe_replica_log_dirs/result.rs"
+test = "crates/kafkars/src/admin/describe_replica_log_dirs/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_describe_replica_log_dirs/request.rs"
-test = "crates/kafka-client/src/bridge/admin_describe_replica_log_dirs/request_test.rs"
+production = "crates/kafkars/src/bridge/admin_describe_replica_log_dirs/request.rs"
+test = "crates/kafkars/src/bridge/admin_describe_replica_log_dirs/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/admin_describe_replica_log_dirs/result.rs"
-test = "crates/kafka-client/src/bridge/admin_describe_replica_log_dirs/result_test.rs"
+production = "crates/kafkars/src/bridge/admin_describe_replica_log_dirs/result.rs"
+test = "crates/kafkars/src/bridge/admin_describe_replica_log_dirs/result_test.rs"
 
 [[linear_owners]]
 owner_type = "DescribeReplicaLogDirsAdminRequest"
-path = "crates/kafka-client/src/bridge/admin_describe_replica_log_dirs/request.rs"
+path = "crates/kafkars/src/bridge/admin_describe_replica_log_dirs/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminDescribeReplicaLogDirs"
-path = "crates/kafka-client/src/bridge/admin_describe_replica_log_dirs/operation.rs"
+path = "crates/kafkars/src/bridge/admin_describe_replica_log_dirs/operation.rs"
 
 [[linear_owners]]
 owner_type = "DescribeReplicaLogDirsBuilder"
-path = "crates/kafka-client/src/admin/describe_replica_log_dirs/builder.rs"
+path = "crates/kafkars/src/admin/describe_replica_log_dirs/builder.rs"
 
 [[linear_owners]]
 owner_type = "DescribeReplicaLogDirs"
-path = "crates/kafka-client/src/admin/describe_replica_log_dirs/operation.rs"
+path = "crates/kafkars/src/admin/describe_replica_log_dirs/operation.rs"
 
 # API 38 CreateDelegationToken is one capture-first, bounded mutation. Default
 # owner intent negotiates v1-v3 through generated version-specific request
@@ -22009,55 +22009,55 @@ allowed_paths = [
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "capture_create_delegation_token"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin.rs",
+  "crates/kafkars/src/bridge/admin.rs",
 ]
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/create_delegation_token/hmac.rs"
-test = "crates/kafka-client/src/admin/create_delegation_token/hmac_test.rs"
+production = "crates/kafkars/src/admin/create_delegation_token/hmac.rs"
+test = "crates/kafkars/src/admin/create_delegation_token/hmac_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/create_delegation_token/principal.rs"
-test = "crates/kafka-client/src/admin/create_delegation_token/principal_test.rs"
+production = "crates/kafkars/src/admin/create_delegation_token/principal.rs"
+test = "crates/kafkars/src/admin/create_delegation_token/principal_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/create_delegation_token/operation.rs"
-test = "crates/kafka-client/src/admin/create_delegation_token/operation_test.rs"
+production = "crates/kafkars/src/admin/create_delegation_token/operation.rs"
+test = "crates/kafkars/src/admin/create_delegation_token/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/create_delegation_token/result.rs"
-test = "crates/kafka-client/src/admin/create_delegation_token/result_test.rs"
+production = "crates/kafkars/src/admin/create_delegation_token/result.rs"
+test = "crates/kafkars/src/admin/create_delegation_token/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/create_delegation_token/token.rs"
-test = "crates/kafka-client/src/admin/create_delegation_token/token_test.rs"
+production = "crates/kafkars/src/admin/create_delegation_token/token.rs"
+test = "crates/kafkars/src/admin/create_delegation_token/token_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/create_delegation_token/request.rs"
-test = "crates/kafka-client/src/bridge/create_delegation_token/request_test.rs"
+production = "crates/kafkars/src/bridge/create_delegation_token/request.rs"
+test = "crates/kafkars/src/bridge/create_delegation_token/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/create_delegation_token/result.rs"
-test = "crates/kafka-client/src/bridge/create_delegation_token/result_test.rs"
+production = "crates/kafkars/src/bridge/create_delegation_token/result.rs"
+test = "crates/kafkars/src/bridge/create_delegation_token/result_test.rs"
 
 [[linear_owners]]
 owner_type = "CreateDelegationTokenAdminRequest"
-path = "crates/kafka-client/src/bridge/create_delegation_token/request.rs"
+path = "crates/kafkars/src/bridge/create_delegation_token/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminCreateDelegationToken"
-path = "crates/kafka-client/src/bridge/create_delegation_token/operation.rs"
+path = "crates/kafkars/src/bridge/create_delegation_token/operation.rs"
 
 [[linear_owners]]
 owner_type = "CreateDelegationTokenBuilder"
-path = "crates/kafka-client/src/admin/create_delegation_token/builder.rs"
+path = "crates/kafkars/src/admin/create_delegation_token/builder.rs"
 
 [[linear_owners]]
 owner_type = "CreateDelegationToken"
-path = "crates/kafka-client/src/admin/create_delegation_token/operation.rs"
+path = "crates/kafkars/src/admin/create_delegation_token/operation.rs"
 
 # API 41 DescribeDelegationTokens is one capture-first, bounded query. Nullable
 # owner intent remains distinct from an explicit nonempty caller-ordered owner
@@ -22312,43 +22312,43 @@ allowed_paths = [
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "capture_describe_delegation_tokens"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin.rs",
+  "crates/kafkars/src/bridge/admin.rs",
 ]
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_delegation_tokens/operation.rs"
-test = "crates/kafka-client/src/admin/describe_delegation_tokens/operation_test.rs"
+production = "crates/kafkars/src/admin/describe_delegation_tokens/operation.rs"
+test = "crates/kafkars/src/admin/describe_delegation_tokens/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/describe_delegation_tokens/result.rs"
-test = "crates/kafka-client/src/admin/describe_delegation_tokens/result_test.rs"
+production = "crates/kafkars/src/admin/describe_delegation_tokens/result.rs"
+test = "crates/kafkars/src/admin/describe_delegation_tokens/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/describe_delegation_tokens/request.rs"
-test = "crates/kafka-client/src/bridge/describe_delegation_tokens/request_test.rs"
+production = "crates/kafkars/src/bridge/describe_delegation_tokens/request.rs"
+test = "crates/kafkars/src/bridge/describe_delegation_tokens/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/describe_delegation_tokens/result.rs"
-test = "crates/kafka-client/src/bridge/describe_delegation_tokens/result_test.rs"
+production = "crates/kafkars/src/bridge/describe_delegation_tokens/result.rs"
+test = "crates/kafkars/src/bridge/describe_delegation_tokens/result_test.rs"
 
 [[linear_owners]]
 owner_type = "DescribeDelegationTokensAdminRequest"
-path = "crates/kafka-client/src/bridge/describe_delegation_tokens/request.rs"
+path = "crates/kafkars/src/bridge/describe_delegation_tokens/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminDescribeDelegationTokens"
-path = "crates/kafka-client/src/bridge/describe_delegation_tokens/operation.rs"
+path = "crates/kafkars/src/bridge/describe_delegation_tokens/operation.rs"
 
 [[linear_owners]]
 owner_type = "DescribeDelegationTokensBuilder"
-path = "crates/kafka-client/src/admin/describe_delegation_tokens/builder.rs"
+path = "crates/kafkars/src/admin/describe_delegation_tokens/builder.rs"
 
 [[linear_owners]]
 owner_type = "DescribeDelegationTokens"
-path = "crates/kafka-client/src/admin/describe_delegation_tokens/operation.rs"
+path = "crates/kafkars/src/admin/describe_delegation_tokens/operation.rs"
 
 # API 39 RenewDelegationToken is one capture-first, bounded mutation. Its HMAC
 # remains uniquely owned, redacted, and zeroizing through one prepared
@@ -22597,43 +22597,43 @@ allowed_paths = [
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "capture_renew_delegation_token"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin.rs",
+  "crates/kafkars/src/bridge/admin.rs",
 ]
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/renew_delegation_token/operation.rs"
-test = "crates/kafka-client/src/admin/renew_delegation_token/operation_test.rs"
+production = "crates/kafkars/src/admin/renew_delegation_token/operation.rs"
+test = "crates/kafkars/src/admin/renew_delegation_token/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/renew_delegation_token/result.rs"
-test = "crates/kafka-client/src/admin/renew_delegation_token/result_test.rs"
+production = "crates/kafkars/src/admin/renew_delegation_token/result.rs"
+test = "crates/kafkars/src/admin/renew_delegation_token/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/renew_delegation_token/request.rs"
-test = "crates/kafka-client/src/bridge/renew_delegation_token/request_test.rs"
+production = "crates/kafkars/src/bridge/renew_delegation_token/request.rs"
+test = "crates/kafkars/src/bridge/renew_delegation_token/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/renew_delegation_token/result.rs"
-test = "crates/kafka-client/src/bridge/renew_delegation_token/result_test.rs"
+production = "crates/kafkars/src/bridge/renew_delegation_token/result.rs"
+test = "crates/kafkars/src/bridge/renew_delegation_token/result_test.rs"
 
 [[linear_owners]]
 owner_type = "RenewDelegationTokenAdminRequest"
-path = "crates/kafka-client/src/bridge/renew_delegation_token/request.rs"
+path = "crates/kafkars/src/bridge/renew_delegation_token/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminRenewDelegationToken"
-path = "crates/kafka-client/src/bridge/renew_delegation_token/operation.rs"
+path = "crates/kafkars/src/bridge/renew_delegation_token/operation.rs"
 
 [[linear_owners]]
 owner_type = "RenewDelegationTokenBuilder"
-path = "crates/kafka-client/src/admin/renew_delegation_token/builder.rs"
+path = "crates/kafkars/src/admin/renew_delegation_token/builder.rs"
 
 [[linear_owners]]
 owner_type = "RenewDelegationToken"
-path = "crates/kafka-client/src/admin/renew_delegation_token/operation.rs"
+path = "crates/kafkars/src/admin/renew_delegation_token/operation.rs"
 
 # API 40 ExpireDelegationToken is one capture-first, bounded mutation. Its HMAC
 # remains uniquely owned, redacted, and zeroizing through one prepared
@@ -22882,40 +22882,40 @@ allowed_paths = [
 ]
 
 [[method_capabilities]]
-root = "crates/kafka-client/src"
+root = "crates/kafkars/src"
 method = "capture_expire_delegation_token"
 allowed_paths = [
-  "crates/kafka-client/src/bridge/admin.rs",
+  "crates/kafkars/src/bridge/admin.rs",
 ]
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/expire_delegation_token/operation.rs"
-test = "crates/kafka-client/src/admin/expire_delegation_token/operation_test.rs"
+production = "crates/kafkars/src/admin/expire_delegation_token/operation.rs"
+test = "crates/kafkars/src/admin/expire_delegation_token/operation_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/admin/expire_delegation_token/result.rs"
-test = "crates/kafka-client/src/admin/expire_delegation_token/result_test.rs"
+production = "crates/kafkars/src/admin/expire_delegation_token/result.rs"
+test = "crates/kafkars/src/admin/expire_delegation_token/result_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/expire_delegation_token/request.rs"
-test = "crates/kafka-client/src/bridge/expire_delegation_token/request_test.rs"
+production = "crates/kafkars/src/bridge/expire_delegation_token/request.rs"
+test = "crates/kafkars/src/bridge/expire_delegation_token/request_test.rs"
 
 [[test_mirrors]]
-production = "crates/kafka-client/src/bridge/expire_delegation_token/result.rs"
-test = "crates/kafka-client/src/bridge/expire_delegation_token/result_test.rs"
+production = "crates/kafkars/src/bridge/expire_delegation_token/result.rs"
+test = "crates/kafkars/src/bridge/expire_delegation_token/result_test.rs"
 
 [[linear_owners]]
 owner_type = "ExpireDelegationTokenAdminRequest"
-path = "crates/kafka-client/src/bridge/expire_delegation_token/request.rs"
+path = "crates/kafkars/src/bridge/expire_delegation_token/request.rs"
 
 [[linear_owners]]
 owner_type = "AdminExpireDelegationToken"
-path = "crates/kafka-client/src/bridge/expire_delegation_token/operation.rs"
+path = "crates/kafkars/src/bridge/expire_delegation_token/operation.rs"
 
 [[linear_owners]]
 owner_type = "ExpireDelegationTokenBuilder"
-path = "crates/kafka-client/src/admin/expire_delegation_token/builder.rs"
+path = "crates/kafkars/src/admin/expire_delegation_token/builder.rs"
 
 [[linear_owners]]
 owner_type = "ExpireDelegationToken"
-path = "crates/kafka-client/src/admin/expire_delegation_token/operation.rs"
+path = "crates/kafkars/src/admin/expire_delegation_token/operation.rs"
