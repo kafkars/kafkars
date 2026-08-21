@@ -67,6 +67,29 @@ class RendererTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "summary conflicts"):
             RENDER.validate_cell(matrix, cell)
 
+    def test_merge_rejects_mixed_crate_graphs(self) -> None:
+        matrix = RENDER.load_json(ROOT / "qualification/matrix.json")
+        scenarios = RENDER.required_scenarios(matrix, "pr-smoke")
+        with tempfile.TemporaryDirectory() as directory:
+            events = Path(directory) / "events.tsv"
+            events.write_text("".join(f"{name}\tpassed\t1\n" for name in scenarios))
+            first = RENDER.build_cell(self.arguments(events))
+            second = dict(first, security="tls", client_sha="e" * 40)
+        with self.assertRaisesRegex(ValueError, "one exact crate graph"):
+            RENDER.evidence_document([first, second])
+
+    def test_complete_profile_rejects_missing_cells(self) -> None:
+        matrix = RENDER.load_json(ROOT / "qualification/matrix.json")
+        scenarios = RENDER.required_scenarios(matrix, "nightly")
+        with tempfile.TemporaryDirectory() as directory:
+            events = Path(directory) / "events.tsv"
+            events.write_text("".join(f"{name}\tpassed\t1\n" for name in scenarios))
+            arguments = self.arguments(events)
+            arguments.profile = "nightly"
+            evidence = RENDER.evidence_document([RENDER.build_cell(arguments)])
+        with self.assertRaisesRegex(ValueError, "evidence is incomplete"):
+            RENDER.require_complete_profile(matrix, evidence, "nightly")
+
     def test_support_projection_is_generated_from_evidence(self) -> None:
         matrix = RENDER.load_json(ROOT / "qualification/matrix.json")
         scenarios = RENDER.required_scenarios(matrix, "pr-smoke")

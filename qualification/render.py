@@ -160,6 +160,10 @@ def markdown(evidence: dict[str, Any]) -> str:
         "",
         f"Generated at `{evidence['generated_at']}` from exact archived evidence.",
         "",
+        f"- Client: `{evidence['client_sha']}`",
+        f"- Driver: `{evidence['driver_sha']}`",
+        f"- Wire: `{evidence['wire_sha']}`",
+        "",
         "| Kafka | Profile | Security | Lane | Qualified | Duration (ms) | Image digest |",
         "| --- | --- | --- | --- | --- | ---: | --- |",
     ]
@@ -183,13 +187,47 @@ def evidence_document(cells: list[dict[str, Any]]) -> dict[str, Any]:
     keys = [(cell["profile"], cell["kafka_version"], cell["security"]) for cell in cells]
     if len(keys) != len(set(keys)):
         raise ValueError("qualification evidence contains duplicate cells")
+    revisions = {
+        (cell["client_sha"], cell["driver_sha"], cell["wire_sha"])
+        for cell in cells
+    }
+    if len(revisions) > 1:
+        raise ValueError("qualification cells do not use one exact crate graph")
+    client_sha, driver_sha, wire_sha = next(iter(revisions), (None, None, None))
     cells.sort(key=lambda cell: (cell["kafka_version"], cell["profile"], cell["security"]), reverse=True)
     return {
         "schema_version": 1,
         "generated_at": dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat(),
-        "qualified": bool(cells) and all(cell["qualified"] for cell in cells),
+        "qualified": bool(cells)
+        and all(cell["qualified"] for cell in cells if cell["gating"]),
+        "client_sha": client_sha,
+        "driver_sha": driver_sha,
+        "wire_sha": wire_sha,
         "cells": cells,
     }
+
+
+def require_complete_profile(
+    matrix: dict[str, Any], evidence: dict[str, Any], profile: str
+) -> None:
+    policy = matrix.get("profiles", {}).get(profile)
+    if not isinstance(policy, dict):
+        raise ValueError(f"unknown complete-profile requirement {profile!r}")
+    expected = {
+        (profile, version, security)
+        for version in matrix.get("kafka_versions", {})
+        for security in policy.get("securities", [])
+    }
+    actual = {
+        (cell["profile"], cell["kafka_version"], cell["security"])
+        for cell in evidence["cells"]
+    }
+    missing = sorted(expected.difference(actual))
+    unexpected = sorted(actual.difference(expected))
+    if missing or unexpected:
+        raise ValueError(
+            f"{profile} evidence is incomplete: missing={missing!r} unexpected={unexpected!r}"
+        )
 
 
 def write_outputs(output: Path, evidence: dict[str, Any], support: Path | None) -> None:
@@ -205,7 +243,9 @@ def write_outputs(output: Path, evidence: dict[str, Any], support: Path | None) 
             raise ValueError("SUPPORT source must contain one evidence marker pair")
         before, remainder = source.split(BEGIN)
         _, after = remainder.split(END)
-        table = rendered.split("\n\n", 2)[2].split("\n\n", 1)[0]
+        table_start = rendered.index("| Kafka |")
+        table_end = rendered.index("\n\n", table_start)
+        table = rendered[table_start:table_end]
         (output / "SUPPORT.md").write_text(
             f"{before}{BEGIN}\n{table}\n{END}{after}", encoding="utf-8"
         )
@@ -233,6 +273,7 @@ def parser() -> argparse.ArgumentParser:
     merge.add_argument("--cell", type=Path, action="append", required=True)
     merge.add_argument("--output", type=Path, required=True)
     merge.add_argument("--support", type=Path)
+    merge.add_argument("--require-complete-profile")
     merge.add_argument("--require-qualified", action="store_true")
     return root
 
@@ -255,6 +296,8 @@ def main() -> int:
                 validate_cell(matrix, cell)
             cells.extend(source)
         evidence = evidence_document(cells)
+        if args.require_complete_profile is not None:
+            require_complete_profile(matrix, evidence, args.require_complete_profile)
     write_outputs(args.output, evidence, args.support)
     return int(args.require_qualified and not evidence["qualified"])
 
