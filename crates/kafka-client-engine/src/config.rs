@@ -142,10 +142,7 @@ impl EngineConfig {
         self
     }
 
-    /// Replaces the optional identity retained for future header propagation.
-    ///
-    /// The pinned driver does not currently write this value into Kafka
-    /// request headers.
+    /// Replaces the optional identity encoded in Kafka request headers.
     #[must_use]
     pub fn with_client_id(mut self, client_id: Option<String>) -> Self {
         self.client_id = client_id;

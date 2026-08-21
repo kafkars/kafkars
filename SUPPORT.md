@@ -25,8 +25,8 @@ release authorization.
 | Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, and close paths | No maintained real-broker matrix |
 | Direct consumer | Assignment, fetch, checkpoint, seek, events, and close paths | No maintained real-broker matrix |
 | Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | No maintained real-broker matrix |
-| KIP-848 consumer group | Concrete count-only behavior | Partial; paths requiring Kafka topic IDs fail closed |
-| Admin | Broad concrete request-specific core, engine, and facade paths | Exact-broker limitation below; no maintained real-broker matrix |
+| KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, and owned-topic acknowledgement | Integrated and unit-tested; no maintained real-broker matrix |
+| Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | Integrated and unit-tested; no maintained real-broker matrix |
 | Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | No maintained real-broker matrix |
 | Simulation | Virtual-time execution of deterministic core effects | Development evidence, not broker emulation |
 | Foreign bindings | Not included | No ABI or compatibility promise |
@@ -42,11 +42,20 @@ No Kafka broker version is release-supported in this preview. The protocol
 adapters negotiate bounded per-request version windows, but that is not a
 substitute for end-to-end qualification.
 
-Before a beta or production-supported release, the project intends to qualify
-maintained Kafka 3.x and current Kafka 4.x releases across produce and consume,
-group coordination, administration, transactions, reconnects, retries,
-deadlines, and shutdown. Until that evidence exists, compatibility reports
-should include the exact broker distribution and version.
+The qualification target matrix is explicit even though no cell has passed a
+release qualification yet:
+
+| Kafka version | Intended lane | Current evidence status |
+| --- | --- | --- |
+| 4.3.1 | Primary/current required gate | Not yet qualified |
+| 4.2.1 | Supported compatibility | Not yet qualified |
+| 4.1.2 | Supported compatibility | Not yet qualified |
+| 3.9.2 | Optional legacy compatibility, non-gating | Not yet qualified |
+
+Kafka 3.9.2 is a legacy lane, not a maintained upstream release. Every future
+qualified cell must be generated from archived qualification evidence rather
+than maintained as a prose promise. Until that evidence exists, compatibility
+reports should include the exact broker distribution and version.
 
 ## Transport and authentication
 
@@ -66,29 +75,22 @@ Credentials are retained with redacted diagnostics and zeroized on final
 release, but operational secret storage and rotation remain the embedding
 application's responsibility.
 
-## Known integration limits
+## Reviewed-pair integration audit
 
-### Exact-broker operations
+The current reviewed driver/wire pair closes the three previously documented
+integration omissions. These are implementation claims, not broker-version
+qualification claims.
 
-The pinned `kafka-driver` does not expose broker IDs or an exact-broker route.
-Operations that require exact-broker aggregation or fetch therefore fail
-closed. A safe individual name-routed request is used only when it preserves
-the operation's ordering, correlation, deadline, and delivery contract. The
-client does not invent a broker cache or silently downgrade routing.
+| Contract | Reviewed-pair status | Local evidence |
+| --- | --- | --- |
+| Exact broker identity and routing | Driver `TopicView` broker identities are projected into tracked `Route::Broker` calls for aggregate Fetch and exact-broker Admin operations | `exact_broker_submission_reaches_the_selected_loopback_broker` plus route-specific submission tests |
+| Kafka protocol topic UUIDs | Nonzero driver topic UUIDs are retained as exact bytes, then translated through KIP-848 assignment, reconciliation, and owned-topic acknowledgement | `live_topic_view_retains_broker_issued_topic_identity`, `resolved_topic_uuids_translate_assignments_and_owned_partitions`, and KIP-848 reconciliation tests |
+| Configured client ID | The validated facade value is passed into the driver builder and encoded in Kafka request headers | `generated_request_and_response_complete_through_a_loopback_broker` verifies the configured header value |
 
-### KIP-848 topic IDs
+Local topic identities remain client ownership keys and are deliberately
+distinct from Kafka protocol topic UUIDs.
 
-The pinned driver projection does not expose Kafka topic IDs. KIP-848 behavior
-that requires those IDs fails closed; count-only behavior that does not require
-them remains available. Local client topic identities are ownership keys and
-must not be confused with Kafka protocol topic IDs.
-
-### Client ID propagation
-
-`ClientBuilder::client_id` validates and retains the configured value, and
-`Client::client_id` returns it. The pinned driver cannot currently propagate
-that value into Kafka request headers. Do not rely on broker logs, quotas, or
-metrics seeing this configured client ID.
+## Retained integration limits
 
 ### Foreign interfaces
 
