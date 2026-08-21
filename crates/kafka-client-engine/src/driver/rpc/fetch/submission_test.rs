@@ -99,7 +99,9 @@ fn exact_broker_submission_reaches_the_selected_loopback_broker() {
         .unwrap_or_else(|error| panic!("exact-broker completion: {error}"));
     assert!(outcome.result().is_ok());
     assert_eq!(
-        outcome.route_failure_token().map(|token| token.kind()),
+        outcome
+            .route_failure_token()
+            .map(kafka_driver::RouteFailureToken::kind),
         Some(RouteKind::Broker)
     );
     owner
