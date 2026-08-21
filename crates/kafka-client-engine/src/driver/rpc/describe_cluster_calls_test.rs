@@ -37,8 +37,10 @@ fn generated_request_and_response_complete_through_a_loopback_broker() {
         .local_addr()
         .unwrap_or_else(|error| panic!("read loopback broker address: {error}"))
         .to_string();
-    let mut driver = DriverOwner::build(&EngineConfig::new(vec![endpoint]))
-        .unwrap_or_else(|error| panic!("driver owner: {error}"));
+    let config = EngineConfig::new(vec![endpoint])
+        .with_client_id(Some("describe-cluster-loopback".to_owned()));
+    let mut driver =
+        DriverOwner::build(&config).unwrap_or_else(|error| panic!("driver owner: {error}"));
     await_seed(&mut driver);
     let mut peer = accept_after_driving(&listener, &mut driver);
     complete_negotiation(&mut peer, &mut driver);
@@ -67,6 +69,7 @@ fn generated_request_and_response_complete_through_a_loopback_broker() {
         DESCRIBE_CLUSTER_API_DESCRIPTOR.api_key.value()
     );
     assert_eq!(request.api_version, ApiVersion::new(2));
+    assert_eq!(request.client_id, "describe-cluster-loopback");
 
     let mut response = DescribeClusterResponse::default();
     response.cluster_id = StrBytes::from("beta-cluster");
@@ -212,10 +215,14 @@ fn read_request(peer: &mut TcpStream) -> RequestFrame {
     let mut frame = vec![0; length];
     peer.read_exact(&mut frame)
         .unwrap_or_else(|error| panic!("read request frame: {error}"));
+    let client_id_length = usize::try_from(read_i16(&frame, 8))
+        .unwrap_or_else(|error| panic!("request client ID length must be nonnegative: {error}"));
     RequestFrame {
         api_key: read_i16(&frame, 0),
         api_version: ApiVersion::new(read_i16(&frame, 2)),
         correlation_id: read_i32(&frame, 4),
+        client_id: String::from_utf8(frame[10..10 + client_id_length].to_vec())
+            .unwrap_or_else(|error| panic!("request client ID must be UTF-8: {error}")),
     }
 }
 
@@ -288,4 +295,5 @@ struct RequestFrame {
     api_key: i16,
     api_version: ApiVersion,
     correlation_id: i32,
+    client_id: String,
 }
