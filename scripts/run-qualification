@@ -4,7 +4,7 @@ set -euo pipefail
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
 usage() {
-  echo "usage: scripts/run-qualification pr-smoke 4.3.1 plaintext OUTPUT" >&2
+  echo "usage: scripts/run-qualification PROFILE KAFKA_VERSION SECURITY OUTPUT" >&2
 }
 
 if [[ "$#" -ne 4 ]]; then
@@ -17,10 +17,6 @@ kafka_version=$2
 security=$3
 output_argument=$4
 
-if [[ "$profile" != pr-smoke || "$security" != plaintext ]]; then
-  echo "the local runner currently accepts only the pr-smoke plaintext cell" >&2
-  exit 2
-fi
 case "$kafka_version" in
   4.3.1 | 4.2.1 | 4.1.2 | 3.9.2) ;;
   *)
@@ -28,6 +24,44 @@ case "$kafka_version" in
     exit 2
     ;;
 esac
+
+compose_files=()
+case "$profile" in
+  pr-smoke)
+    if [[ "$security" != plaintext ]]; then
+      echo "the pr-smoke profile accepts only plaintext" >&2
+      exit 2
+    fi
+    test_name=pull_request_smoke
+    readiness_service=broker
+    readiness_bootstrap=broker:19092
+    compose_files+=("$repo_root/qualification/compose/pr-smoke.yml")
+    bootstrap="localhost:${KAFKA_HOST_PORT:-9092}"
+    ;;
+  nightly | release)
+    test_name=nightly_matrix
+    readiness_service=kafka-1
+    readiness_bootstrap=kafka-1:19092
+    compose_files+=("$repo_root/qualification/compose/cluster.yml")
+    bootstrap="localhost:${KAFKA_BROKER_1_PORT:-29092},localhost:${KAFKA_BROKER_2_PORT:-39092},localhost:${KAFKA_BROKER_3_PORT:-49092}"
+    ;;
+  *)
+    echo "unknown qualification profile: $profile" >&2
+    exit 2
+    ;;
+esac
+
+case "$security" in
+  plaintext | tls | sasl_plain | scram_sha_256 | scram_sha_512) ;;
+  *)
+    echo "unknown qualification security profile: $security" >&2
+    exit 2
+    ;;
+esac
+if [[ "$profile" == pr-smoke && "$kafka_version" != 4.3.1 ]]; then
+  echo "the required pr-smoke cell is fixed to Kafka 4.3.1" >&2
+  exit 2
+fi
 
 if ! git -C "$repo_root" diff --quiet || ! git -C "$repo_root" diff --cached --quiet; then
   echo "qualification requires a clean client worktree" >&2
@@ -55,10 +89,43 @@ fi
 image_digest=${BASH_REMATCH[1]}
 export IMAGE="apache/kafka@$image_digest"
 export KAFKA_HOST_PORT=${KAFKA_HOST_PORT:-9092}
+export KAFKA_BROKER_1_PORT=${KAFKA_BROKER_1_PORT:-29092}
+export KAFKA_BROKER_2_PORT=${KAFKA_BROKER_2_PORT:-39092}
+export KAFKA_BROKER_3_PORT=${KAFKA_BROKER_3_PORT:-49092}
 
-compose_file="$repo_root/qualification/compose/pr-smoke.yml"
-project="kafkars-pr-smoke-$$"
-compose=(docker compose --project-name "$project" -f "$compose_file")
+secret_root=""
+qualification_username=kafkars
+qualification_password=kafkars-qualification-password
+case "$security" in
+  plaintext)
+    export KAFKA_EXTERNAL_PROTOCOL=PLAINTEXT
+    export KAFKA_CLIENT_TEST_SECURITY=plaintext
+    ;;
+  tls)
+    secret_root=$(mktemp -d "${TMPDIR:-/tmp}/kafkars-qualification.XXXXXX")
+    export KAFKA_TLS_DIR="$secret_root/tls"
+    "$repo_root/qualification/generate-tls" "$KAFKA_TLS_DIR" "$qualification_password"
+    compose_files+=("$repo_root/qualification/compose/cluster-tls.yml")
+    export KAFKA_EXTERNAL_PROTOCOL=SSL
+    export KAFKA_CLIENT_TEST_SECURITY=tls
+    export KAFKA_CLIENT_TEST_TLS_CA_PEM="$KAFKA_TLS_DIR/ca.pem"
+    ;;
+  sasl_plain | scram_sha_256 | scram_sha_512)
+    export KAFKA_SASL_DIR="$repo_root/qualification/sasl"
+    compose_files+=("$repo_root/qualification/compose/cluster-sasl.yml")
+    export KAFKA_EXTERNAL_PROTOCOL=SASL_PLAINTEXT
+    export KAFKA_CLIENT_TEST_SECURITY=sasl_plaintext
+    export KAFKA_CLIENT_TEST_SASL_USERNAME="$qualification_username"
+    export KAFKA_CLIENT_TEST_SASL_PASSWORD="$qualification_password"
+    export KAFKA_CLIENT_TEST_SASL_MECHANISM=${security/sasl_plain/plain}
+    ;;
+esac
+
+project="kafkars-${profile//[^a-zA-Z0-9]/-}-${security//_/-}-$$"
+compose=(docker compose --project-name "$project")
+for file in "${compose_files[@]}"; do
+  compose+=(-f "$file")
+done
 started=0
 
 cleanup() {
@@ -70,6 +137,9 @@ cleanup() {
     "${compose[@]}" down --volumes --remove-orphans \
       >"$output/compose-down.log" 2>&1 || true
   fi
+  if [[ -n "$secret_root" && -d "$secret_root" ]]; then
+    rm -rf -- "$secret_root"
+  fi
   exit "$status"
 }
 trap cleanup EXIT HUP INT TERM
@@ -80,9 +150,9 @@ started=1
 
 ready=0
 for _ in $(seq 1 60); do
-  if "${compose[@]}" exec -T broker \
+  if "${compose[@]}" exec -T "$readiness_service" \
     /opt/kafka/bin/kafka-broker-api-versions.sh \
-    --bootstrap-server broker:19092 >"$output/readiness.txt" 2>&1; then
+    --bootstrap-server "$readiness_bootstrap" >"$output/readiness.txt" 2>&1; then
     ready=1
     break
   fi
@@ -91,6 +161,18 @@ done
 if [[ "$ready" -ne 1 ]]; then
   echo "Kafka did not become ready within 120 seconds" >&2
   exit 1
+fi
+
+if [[ "$security" == scram_sha_256 || "$security" == scram_sha_512 ]]; then
+  case "$security" in
+    scram_sha_256) scram_mechanism=SCRAM-SHA-256 ;;
+    scram_sha_512) scram_mechanism=SCRAM-SHA-512 ;;
+  esac
+  "${compose[@]}" exec -T kafka-1 /opt/kafka/bin/kafka-configs.sh \
+    --bootstrap-server kafka-1:19092 --alter --entity-type users \
+    --entity-name "$qualification_username" \
+    --add-config "$scram_mechanism=[iterations=8192,password=$qualification_password]" \
+    >"$output/scram-setup.txt" 2>&1
 fi
 
 parent_root=$(cd "$repo_root/.." && pwd)
@@ -102,14 +184,17 @@ cargo metadata --manifest-path "$repo_root/Cargo.toml" --locked --format-version
 
 events="$output/events.tsv"
 touch "$events"
-export KAFKA_CLIENT_TEST_BOOTSTRAP="localhost:$KAFKA_HOST_PORT"
-export KAFKA_CLIENT_TEST_SECURITY=plaintext
+export KAFKA_CLIENT_TEST_BOOTSTRAP="$bootstrap"
 export KAFKARS_QUALIFICATION_EVENTS="$events"
+export KAFKARS_QUALIFICATION_CONTROL="$repo_root/qualification/control-compose"
+export KAFKARS_COMPOSE_PROJECT="$project"
+export KAFKARS_COMPOSE_FILES
+KAFKARS_COMPOSE_FILES=$(IFS=:; echo "${compose_files[*]}")
 
 set +e
 cargo test --manifest-path "$repo_root/Cargo.toml" --locked \
   -p kafkars --test real_broker_qualification \
-  pull_request_smoke -- --ignored --exact --nocapture \
+  "$test_name" -- --ignored --exact --nocapture \
   >"$output/client.log" 2>&1
 test_status=$?
 set -e
