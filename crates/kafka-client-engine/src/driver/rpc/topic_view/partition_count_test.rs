@@ -52,8 +52,15 @@ fn live_topic_view_retains_broker_issued_topic_identity() {
     .unwrap_or_else(|error| panic!("submit topic view: {error}"));
     broker.install_topic(&mut driver);
 
-    let fact = call
-        .try_terminal()
+    let fact = (0..32)
+        .find_map(|_| {
+            call.try_terminal().or_else(|| {
+                driver
+                    .turn(Duration::from_millis(100))
+                    .unwrap_or_else(|error| panic!("settle topic view: {error}"));
+                call.try_terminal()
+            })
+        })
         .unwrap_or_else(|| panic!("topic view must settle after Metadata response"))
         .unwrap_or_else(|error| panic!("topic view: {error:?}"));
     assert_eq!(fact.kafka_topic_id, Some([7; 16]));
