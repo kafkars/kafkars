@@ -5,15 +5,6 @@ on:
   schedule:
     - cron: "17 7 * * *"
   workflow_dispatch:
-    inputs:
-      profile:
-        description: Qualification depth
-        required: true
-        type: choice
-        default: nightly
-        options:
-          - nightly
-          - release
 
 permissions:
   contents: read
@@ -27,11 +18,41 @@ env:
   RUST_BACKTRACE: "1"
 
 jobs:
-  qualification-pr-smoke:
-    name: qualification-pr-smoke
-    if: ${{ github.event_name == 'pull_request' }}
+  qualification-policy:
+    name: qualification-policy
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 5
+    steps:
+      - name: Check out client
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: kafka-client
+          persist-credentials: false
+      - name: Validate qualification policy and renderer
+        working-directory: kafka-client
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest qualification.test_render -v
+
+  qualification-pr:
+    name: qualification-pr-${{ matrix.kafka_version }}-${{ matrix.profile }}-${{ matrix.security }}
+    if: ${{ github.event_name == 'pull_request' }}
+    needs: [qualification-policy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - { kafka_version: 4.3.1, profile: full, security: plaintext }
+          - { kafka_version: 4.2.1, profile: compatibility-smoke, security: plaintext }
+          - { kafka_version: 4.1.2, profile: compatibility-smoke, security: plaintext }
+          - { kafka_version: 4.0.2, profile: compatibility-smoke, security: plaintext }
+          - { kafka_version: 3.9.2, profile: classic, security: plaintext }
+          - { kafka_version: 3.8.1, profile: classic, security: plaintext }
+          - { kafka_version: 3.7.2, profile: classic, security: plaintext }
+          - { kafka_version: 4.3.1, profile: security-smoke, security: tls_custom }
+          - { kafka_version: 4.3.1, profile: security-smoke, security: sasl_plaintext_plain }
+          - { kafka_version: 4.3.1, profile: security-smoke, security: sasl_tls_custom_scram_sha_512 }
     defaults:
       run:
         working-directory: kafka-client
@@ -45,52 +66,94 @@ jobs:
         uses: ./kafka-client/.github/actions/setup-rust
       - name: Check out reviewed sibling dependencies
         uses: ./kafka-client/.github/actions/checkout-siblings
-      - name: Run Kafka 4.3.1 qualification smoke
+      - name: Run required pull-request qualification cell
         env:
-          EVIDENCE_ROOT: ${{ runner.temp }}/kafkars-pr-smoke
-        run: scripts/run-qualification pr-smoke 4.3.1 plaintext "$EVIDENCE_ROOT"
+          EVIDENCE_ROOT: ${{ runner.temp }}/qualification-pr-cell
+          KAFKA_VERSION: ${{ matrix.kafka_version }}
+          PROFILE: ${{ matrix.profile }}
+          SECURITY: ${{ matrix.security }}
+        run: scripts/run-qualification pr "$PROFILE" "$KAFKA_VERSION" "$SECURITY" "$EVIDENCE_ROOT"
       - name: Archive qualification evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: qualification-pr-smoke-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/kafkars-pr-smoke
+          name: qualification-pr-${{ matrix.kafka_version }}-${{ matrix.profile }}-${{ matrix.security }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qualification-pr-cell
           if-no-files-found: warn
           retention-days: 14
 
   qualification-gate:
     name: qualification-gate
     if: ${{ always() && github.event_name == 'pull_request' }}
-    needs: [qualification-pr-smoke]
+    needs: [qualification-policy, qualification-pr]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Inspect real-broker evidence lane
         env:
-          QUALIFICATION_RESULT: ${{ needs.qualification-pr-smoke.result }}
-        run: test "$QUALIFICATION_RESULT" = success
+          POLICY_RESULT: ${{ needs.qualification-policy.result }}
+          QUALIFICATION_RESULT: ${{ needs.qualification-pr.result }}
+        run: |
+          test "$POLICY_RESULT" = success
+          test "$QUALIFICATION_RESULT" = success
+      - name: Check out client
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: kafka-client
+          persist-credentials: false
+      - name: Download pull-request qualification cells
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: qualification-pr-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qualification-pr-cells
+      - name: Merge and validate required pull-request evidence
+        run: |
+          cell_args=()
+          while IFS= read -r -d '' cell; do
+            cell_args+=(--cell "$cell")
+          done < <(find qualification-pr-cells -type f -name compatibility.json -print0)
+          test "${#cell_args[@]}" -gt 0
+          kafka-client/scripts/render-qualification merge \
+            --matrix kafka-client/qualification/matrix.json \
+            "${cell_args[@]}" \
+            --output qualification-pr-aggregate \
+            --support kafka-client/SUPPORT.md \
+            --require-complete-set pr \
+            --require-qualified
+      - name: Archive aggregate pull-request compatibility evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: qualification-pr-aggregate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qualification-pr-aggregate
+          if-no-files-found: error
+          retention-days: 14
 
   qualification-matrix:
-    name: qualification-${{ matrix.kafka.version }}-${{ matrix.security }}
+    name: qualification-${{ matrix.kafka_version }}-${{ matrix.profile }}-${{ matrix.security }}
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    needs: [qualification-policy]
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    continue-on-error: ${{ ! matrix.kafka.gating }}
+    continue-on-error: ${{ ! matrix.gating }}
     strategy:
       fail-fast: false
       max-parallel: 4
       matrix:
-        kafka:
-          - { version: 4.3.1, gating: true }
-          - { version: 4.2.1, gating: true }
-          - { version: 4.1.2, gating: true }
-          - { version: 3.9.2, gating: false }
-        security:
-          - plaintext
-          - tls
-          - sasl_plain
-          - scram_sha_256
-          - scram_sha_512
+        include:
+          - { kafka_version: 4.3.1, profile: full, security: plaintext, gating: true }
+          - { kafka_version: 4.3.1, profile: full, security: tls_custom, gating: true }
+          - { kafka_version: 4.3.1, profile: full, security: sasl_plaintext_plain, gating: true }
+          - { kafka_version: 4.3.1, profile: full, security: sasl_plaintext_scram_sha_256, gating: true }
+          - { kafka_version: 4.3.1, profile: full, security: sasl_plaintext_scram_sha_512, gating: true }
+          - { kafka_version: 4.3.1, profile: full, security: sasl_tls_custom_plain, gating: true }
+          - { kafka_version: 4.3.1, profile: full, security: sasl_tls_custom_scram_sha_256, gating: true }
+          - { kafka_version: 4.3.1, profile: full, security: sasl_tls_custom_scram_sha_512, gating: true }
+          - { kafka_version: 4.2.1, profile: full, security: plaintext, gating: true }
+          - { kafka_version: 4.1.2, profile: full, security: plaintext, gating: true }
+          - { kafka_version: 4.0.2, profile: full, security: plaintext, gating: true }
+          - { kafka_version: 3.9.2, profile: classic, security: plaintext, gating: false }
+          - { kafka_version: 3.8.1, profile: classic, security: plaintext, gating: false }
+          - { kafka_version: 3.7.2, profile: classic, security: plaintext, gating: false }
     defaults:
       run:
         working-directory: kafka-client
@@ -104,67 +167,26 @@ jobs:
         uses: ./kafka-client/.github/actions/setup-rust
       - name: Check out reviewed sibling dependencies
         uses: ./kafka-client/.github/actions/checkout-siblings
-      - name: Run three-broker qualification cell
+      - name: Run scheduled qualification cell
         env:
           EVIDENCE_ROOT: ${{ runner.temp }}/qualification-cell
-          PROFILE: ${{ github.event_name == 'schedule' && 'nightly' || inputs.profile }}
-          KAFKA_VERSION: ${{ matrix.kafka.version }}
+          KAFKA_VERSION: ${{ matrix.kafka_version }}
+          PROFILE: ${{ matrix.profile }}
           SECURITY: ${{ matrix.security }}
-        run: scripts/run-qualification "$PROFILE" "$KAFKA_VERSION" "$SECURITY" "$EVIDENCE_ROOT"
+        run: scripts/run-qualification nightly "$PROFILE" "$KAFKA_VERSION" "$SECURITY" "$EVIDENCE_ROOT"
       - name: Archive qualification cell
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: qualification-cell-${{ matrix.kafka.version }}-${{ matrix.security }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: qualification-cell-${{ matrix.kafka_version }}-${{ matrix.profile }}-${{ matrix.security }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/qualification-cell
           if-no-files-found: warn
           retention-days: 30
 
-  release-crate-graph:
-    name: release-crate-graph
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.profile == 'release' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: kafka-client
-    steps:
-      - name: Check out client
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          path: kafka-client
-          persist-credentials: false
-      - name: Install pinned Rust toolchain
-        uses: ./kafka-client/.github/actions/setup-rust
-      - name: Check out reviewed sibling dependencies
-        uses: ./kafka-client/.github/actions/checkout-siblings
-      - name: Package exact proposed crate graph
-        env:
-          GRAPH_ROOT: ${{ runner.temp }}/release-crate-graph
-        run: |
-          mkdir -p "$GRAPH_ROOT/crates"
-          cargo metadata --locked --format-version 1 >"$GRAPH_ROOT/crate-graph.json"
-          cargo package --locked --no-verify \
-            -p kafka-client-core -p kafka-client-engine -p kafkars
-          find target/package -maxdepth 1 -type f -name '*.crate' \
-            -exec cp {} "$GRAPH_ROOT/crates" \;
-          sha256sum "$GRAPH_ROOT"/crates/*.crate >"$GRAPH_ROOT/package-checksums.txt"
-          git rev-parse --verify 'HEAD^{commit}' >"$GRAPH_ROOT/client-sha.txt"
-          git -C ../kafka-driver rev-parse --verify 'HEAD^{commit}' >"$GRAPH_ROOT/driver-sha.txt"
-          git -C ../kafka-protocol rev-parse --verify 'HEAD^{commit}' >"$GRAPH_ROOT/wire-sha.txt"
-      - name: Archive proposed crate graph
-        if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: release-crate-graph-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/release-crate-graph
-          if-no-files-found: error
-          retention-days: 90
-
   qualification-aggregate:
     name: qualification-aggregate
     if: ${{ always() && github.event_name != 'pull_request' }}
-    needs: [qualification-matrix, release-crate-graph]
+    needs: [qualification-policy, qualification-matrix]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -180,11 +202,10 @@ jobs:
           path: qualification-cells
       - name: Merge and validate complete matrix evidence
         env:
-          PROFILE: ${{ github.event_name == 'schedule' && 'nightly' || inputs.profile }}
-          RELEASE_GRAPH_RESULT: ${{ needs.release-crate-graph.result }}
+          POLICY_RESULT: ${{ needs.qualification-policy.result }}
         run: |
-          if [[ "$PROFILE" == release && "$RELEASE_GRAPH_RESULT" != success ]]; then
-            echo "release crate graph ended with: $RELEASE_GRAPH_RESULT" >&2
+          if [[ "$POLICY_RESULT" != success ]]; then
+            echo "qualification policy ended with: $POLICY_RESULT" >&2
             exit 1
           fi
           cell_args=()
@@ -197,7 +218,7 @@ jobs:
             "${cell_args[@]}" \
             --output qualification-aggregate \
             --support kafka-client/SUPPORT.md \
-            --require-complete-profile "$PROFILE" \
+            --require-complete-set nightly \
             --require-qualified
       - name: Archive aggregate compatibility evidence
         if: ${{ always() }}

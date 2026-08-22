@@ -10,10 +10,10 @@ use crate::real_broker_support::{
 
 use super::{nightly_control, nightly_control::BrokerGuard, nightly_support};
 
-pub(super) fn producer_retries_leader_movement() -> Result<(), TestError> {
-    let builder = client_builder_from_environment("kafkars-nightly-retry")?
+pub(super) fn producer_delivers_across_leader_movement() -> Result<(), TestError> {
+    let builder = client_builder_from_environment("kafkars-nightly-leader-movement")?
         .producer_retry(10, Duration::from_millis(200));
-    let fixture = nightly_support::Fixture::from_builder(builder, "producer-retry", 1)?;
+    let fixture = nightly_support::Fixture::from_builder(builder, "producer-leader-movement", 1)?;
     let producer = fixture.client.producer().build()?;
     wait_within(
         producer.send(
@@ -43,7 +43,7 @@ pub(super) fn producer_retries_leader_movement() -> Result<(), TestError> {
     fixture.finish()
 }
 
-pub(super) fn broker_restart_metadata_refresh() -> Result<(), TestError> {
+pub(super) fn cluster_usable_after_broker_restart() -> Result<(), TestError> {
     let fixture = nightly_support::Fixture::new("broker-restart", 1)?;
     let admin = fixture.client.admin();
     let cluster = wait_within(
@@ -83,17 +83,17 @@ pub(super) fn broker_restart_metadata_refresh() -> Result<(), TestError> {
     fixture.finish()
 }
 
-pub(super) fn coordinator_loss_and_leader_change() -> Result<(), TestError> {
-    let fixture = nightly_support::Fixture::new("coordinator-loss", 1)?;
+pub(super) fn group_usable_after_coordinator_restart() -> Result<(), TestError> {
+    let fixture = nightly_support::Fixture::new("coordinator-restart", 1)?;
     let producer = fixture.client.producer().build()?;
-    let group_id = unique_name("kafkars-coordinator-loss");
+    let group_id = unique_name("kafkars-coordinator-restart");
     wait_within(
         producer.send(
             Record::to(fixture.topic.as_str())
                 .partition(0)
                 .value("before-loss"),
         ),
-        "coordinator-loss seed",
+        "coordinator-restart seed",
     )??;
     let mut consumer = fixture
         .client
@@ -108,7 +108,7 @@ pub(super) fn coordinator_loss_and_leader_change() -> Result<(), TestError> {
         consumer.try_commit(first.checkpoint(), OPERATION_TIMEOUT)?,
         "pre-loss group commit",
     )??;
-    let _coordinator_id = nightly_control::restart_coordinator(&group_id)?;
+    nightly_control::restart_coordinator(&group_id)?;
     wait_within(
         producer.send(
             Record::to(fixture.topic.as_str())
@@ -123,12 +123,10 @@ pub(super) fn coordinator_loss_and_leader_change() -> Result<(), TestError> {
         .records()
         .any(|record| record.value() == Some(b"after-loss".as_slice()))
     {
-        return Err(
-            io::Error::other("group omitted record after coordinator leader change").into(),
-        );
+        return Err(io::Error::other("group omitted record after coordinator restart").into());
     }
-    wait_within(consumer.try_close()?, "coordinator-loss consumer close")??;
-    wait_within(producer.close(), "coordinator-loss producer close")??;
+    wait_within(consumer.try_close()?, "coordinator-restart consumer close")??;
+    wait_within(producer.close(), "coordinator-restart producer close")??;
     fixture.finish()
 }
 

@@ -1,8 +1,11 @@
-//! Real batching, partition placement, cancellation, and ambiguity scenarios.
+//! Real batching, partition placement, cancellation, and delivery-certainty scenarios.
 
-use std::{io, thread, time::Duration};
+use std::{
+    io, thread,
+    time::{Duration, Instant},
+};
 
-use kafkars::{CancellationOutcome, DeliveryStatus, ErrorKind, ProducerLimits, Record};
+use kafkars::{CancellationOutcome, Delivery, DeliveryStatus, ErrorKind, ProducerLimits, Record};
 
 use crate::real_broker_support::{TestError, client_builder_from_environment, wait_within};
 
@@ -41,11 +44,12 @@ pub(super) fn batching_and_partitioning() -> Result<(), TestError> {
     fixture.finish()
 }
 
-pub(super) fn cancellation_and_ambiguity() -> Result<(), TestError> {
+pub(super) fn cancellation_preserves_delivery_certainty() -> Result<(), TestError> {
+    let delivery_timeout = Duration::from_secs(2);
     let limits = ProducerLimits::default().with_linger(Duration::from_millis(50));
     let builder = client_builder_from_environment("kafkars-nightly-cancellation")?
         .producer_limits(limits)
-        .producer_delivery_timeout(Duration::from_secs(2));
+        .producer_delivery_timeout(delivery_timeout);
     let fixture = nightly_support::Fixture::from_builder(builder, "producer-cancel", 1)?;
     let producer = fixture.client.producer().build()?;
     wait_within(
@@ -62,29 +66,57 @@ pub(super) fn cancellation_and_ambiguity() -> Result<(), TestError> {
         .ok_or_else(|| io::Error::other("qualification topic has no leader"))?;
 
     let paused = BrokerGuard::pause(leader)?;
+    let operation_deadline = Instant::now() + delivery_timeout;
     let mut delivery = producer.try_send(
         Record::to(fixture.topic.as_str())
             .partition(0)
-            .value("possibly-sent"),
+            .value("cancellation-race"),
     )?;
     thread::sleep(Duration::from_millis(100));
-    let cancellation = delivery.cancel()?;
-    let terminal = wait_within(delivery, "ambiguous producer terminal")?;
+    let cancellation = cancel_within(&mut delivery, operation_deadline)?;
+    let terminal = wait_within(delivery, "cancellation-race producer terminal")?;
     paused.restore()?;
     let error = terminal
         .err()
         .ok_or_else(|| io::Error::other("paused broker unexpectedly acknowledged Produce"))?;
-    if !matches!(
-        cancellation,
-        CancellationOutcome::TooLate | CancellationOutcome::AlreadyTerminal
-    ) || error.delivery_status() != Some(DeliveryStatus::PossiblySent)
-        || !matches!(error.kind(), ErrorKind::Timeout | ErrorKind::Transport)
-    {
+    let certainty_preserved = match cancellation {
+        CancellationOutcome::CancelledNotSent => {
+            error.kind() == ErrorKind::Cancelled
+                && error.delivery_status() == Some(DeliveryStatus::NotSent)
+        }
+        CancellationOutcome::TooLate | CancellationOutcome::AlreadyTerminal => {
+            matches!(error.kind(), ErrorKind::Timeout | ErrorKind::Transport)
+                && error.delivery_status() == Some(DeliveryStatus::PossiblySent)
+        }
+    };
+    if !certainty_preserved {
         return Err(io::Error::other(format!(
-            "delivery did not retain ambiguity: cancellation={cancellation:?} error={error:?}"
+            "cancellation did not preserve delivery certainty: cancellation={cancellation:?} error={error:?}"
         ))
         .into());
     }
     wait_within(producer.close(), "cancellation producer close")??;
     fixture.finish()
+}
+
+fn cancel_within(
+    delivery: &mut Delivery,
+    operation_deadline: Instant,
+) -> Result<CancellationOutcome, TestError> {
+    loop {
+        match delivery.cancel() {
+            Ok(outcome) => return Ok(outcome),
+            Err(error) if error.kind() == ErrorKind::Backpressure => {
+                if Instant::now() >= operation_deadline {
+                    return Err(io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        "producer cancellation remained contended until its operation deadline",
+                    )
+                    .into());
+                }
+                thread::yield_now();
+            }
+            Err(error) => return Err(error.into()),
+        }
+    }
 }

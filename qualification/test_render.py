@@ -1,27 +1,47 @@
-"""Fail-closed qualification evidence renderer tests."""
+"""Fail-closed qualification policy and evidence renderer tests."""
 
 import argparse
 import importlib.util
 import json
+import os
+import re
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location("qualification_render", ROOT / "qualification/render.py")
+SPEC = importlib.util.spec_from_file_location(
+    "qualification_render", ROOT / "qualification/render.py"
+)
 assert SPEC is not None and SPEC.loader is not None
 RENDER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RENDER)
 
 
 class RendererTests(unittest.TestCase):
-    def arguments(self, events: Path) -> argparse.Namespace:
+    def setUp(self) -> None:
+        self.matrix = RENDER.load_json(ROOT / "qualification/matrix.json")
+        RENDER.validate_matrix(self.matrix)
+
+    def arguments(
+        self,
+        events: Path,
+        *,
+        evidence_set: str = "pr",
+        profile: str = "full",
+        kafka_version: str = "4.3.1",
+        security: str = "plaintext",
+        runner_status: str = "passed",
+    ) -> argparse.Namespace:
         return argparse.Namespace(
             matrix=ROOT / "qualification/matrix.json",
-            profile="pr-smoke",
-            kafka_version="4.3.1",
-            security="plaintext",
-            image="apache/kafka:4.3.1",
+            evidence_set=evidence_set,
+            profile=profile,
+            kafka_version=kafka_version,
+            security=security,
+            runner_status=runner_status,
+            image=f"apache/kafka:{kafka_version}",
             image_digest="sha256:" + "a" * 64,
             client_sha="b" * 40,
             driver_sha="c" * 40,
@@ -29,108 +49,476 @@ class RendererTests(unittest.TestCase):
             events=events,
         )
 
+    def write_events(
+        self,
+        path: Path,
+        profile: str,
+        security: str,
+        status: str = "passed",
+    ) -> None:
+        scenarios = RENDER.required_scenarios(self.matrix, profile, security)
+        path.write_text(
+            "".join(f"{name}\t{status}\t1\n" for name in scenarios),
+            encoding="utf-8",
+        )
+
+    def build_policy_cell(
+        self,
+        directory: Path,
+        evidence_set: str,
+        policy: dict[str, object],
+        *,
+        status: str = "passed",
+        runner_status: str = "passed",
+    ) -> dict[str, object]:
+        profile = str(policy["profile"])
+        version = str(policy["kafka_version"])
+        security = str(policy["security"])
+        events = directory / f"{evidence_set}-{profile}-{version}-{security}.tsv"
+        self.write_events(events, profile, security, status)
+        return RENDER.build_cell(
+            self.arguments(
+                events,
+                evidence_set=evidence_set,
+                profile=profile,
+                kafka_version=version,
+                security=security,
+                runner_status=runner_status,
+            )
+        )
+
     def test_complete_exact_evidence_qualifies(self) -> None:
-        matrix = RENDER.load_json(ROOT / "qualification/matrix.json")
-        scenarios = RENDER.required_scenarios(matrix, "pr-smoke")
         with tempfile.TemporaryDirectory() as directory:
             events = Path(directory) / "events.tsv"
-            events.write_text("".join(f"{name}\tpassed\t1\n" for name in scenarios))
+            self.write_events(events, "full", "plaintext")
             cell = RENDER.build_cell(self.arguments(events))
         self.assertTrue(cell["qualified"])
-        self.assertEqual(cell["duration_ms"], len(scenarios))
+        self.assertEqual(
+            cell["duration_ms"],
+            len(RENDER.required_scenarios(self.matrix, "full", "plaintext")),
+        )
 
     def test_missing_scenario_cannot_qualify(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             events = Path(directory) / "events.tsv"
-            events.write_text("client_readiness\tpassed\t1\n")
+            events.write_text("producer_batching_partitioning\tpassed\t1\n")
             cell = RENDER.build_cell(self.arguments(events))
         self.assertFalse(cell["qualified"])
         self.assertIn("missing", {item["status"] for item in cell["scenarios"]})
 
+    def test_failed_runner_cannot_qualify_complete_events(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            events = Path(directory) / "events.tsv"
+            self.write_events(events, "full", "plaintext")
+            cell = RENDER.build_cell(
+                self.arguments(events, runner_status="failed")
+            )
+        self.assertFalse(cell["qualified"])
+        self.assertEqual(cell["runner_status"], "failed")
+
+    def test_security_negative_scenarios_are_required(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            events = Path(directory) / "events.tsv"
+            base = self.matrix["profiles"]["security-smoke"]["scenarios"]
+            events.write_text(
+                "".join(f"{name}\tpassed\t1\n" for name in base),
+                encoding="utf-8",
+            )
+            cell = RENDER.build_cell(
+                self.arguments(
+                    events,
+                    profile="security-smoke",
+                    security="sasl_tls_custom_scram_sha_512",
+                )
+            )
+        statuses = {item["id"]: item["status"] for item in cell["scenarios"]}
+        self.assertEqual(statuses["tls_hostname_rejection"], "missing")
+        self.assertEqual(statuses["sasl_wrong_secret_rejection"], "missing")
+        self.assertFalse(cell["qualified"])
+
     def test_mutable_or_malformed_provenance_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             events = Path(directory) / "events.tsv"
-            events.write_text("")
+            events.write_text("", encoding="utf-8")
             arguments = self.arguments(events)
             arguments.image_digest = "latest"
             with self.assertRaisesRegex(ValueError, "exact sha256"):
                 RENDER.build_cell(arguments)
 
-    def test_merge_revalidates_stored_summary(self) -> None:
-        matrix = RENDER.load_json(ROOT / "qualification/matrix.json")
-        scenarios = RENDER.required_scenarios(matrix, "pr-smoke")
+    def test_libtest_listing_requires_one_exact_test(self) -> None:
+        name = "public_tls_rejects_mismatched_server_identity"
+        with tempfile.TemporaryDirectory() as directory:
+            listing = Path(directory) / "tests.txt"
+            listing.write_text(
+                f"{name}: test\n1 test, 0 benchmarks\n",
+                encoding="utf-8",
+            )
+            RENDER.validate_libtest_listing(listing, name)
+            listing.write_text("0 tests, 0 benchmarks\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "found 0"):
+                RENDER.validate_libtest_listing(listing, name)
+            listing.write_text(f"{name}: test\n{name}: test\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "found 2"):
+                RENDER.validate_libtest_listing(listing, name)
+        runner = (ROOT / "scripts/run-qualification").read_text(encoding="utf-8")
+        self.assertIn('"$test" -- --ignored --exact --list', runner)
+        self.assertIn('scripts/render-qualification" libtest', runner)
+        self.assertIn("tls-rejection-list.txt", runner)
+        self.assertIn("sasl-rejection-list.txt", runner)
+
+    def test_cell_outside_declared_evidence_set_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             events = Path(directory) / "events.tsv"
-            events.write_text("".join(f"{name}\tpassed\t1\n" for name in scenarios))
+            events.write_text("", encoding="utf-8")
+            arguments = self.arguments(
+                events,
+                profile="compatibility-smoke",
+                kafka_version="4.3.1",
+            )
+            with self.assertRaisesRegex(ValueError, "outside evidence set"):
+                RENDER.build_cell(arguments)
+
+    def test_merge_revalidates_stored_summary_and_runner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            events = Path(directory) / "events.tsv"
+            self.write_events(events, "full", "plaintext")
             cell = RENDER.build_cell(self.arguments(events))
-        cell["qualified"] = False
+        cell["runner_status"] = "failed"
         with self.assertRaisesRegex(ValueError, "summary conflicts"):
-            RENDER.validate_cell(matrix, cell)
+            RENDER.validate_cell(self.matrix, cell)
 
     def test_merge_rejects_mixed_crate_graphs(self) -> None:
-        matrix = RENDER.load_json(ROOT / "qualification/matrix.json")
-        scenarios = RENDER.required_scenarios(matrix, "pr-smoke")
+        policies = self.matrix["evidence_sets"]["pr"][:2]
         with tempfile.TemporaryDirectory() as directory:
-            events = Path(directory) / "events.tsv"
-            events.write_text("".join(f"{name}\tpassed\t1\n" for name in scenarios))
-            first = RENDER.build_cell(self.arguments(events))
-            second = dict(first, security="tls", client_sha="e" * 40)
+            root = Path(directory)
+            first = self.build_policy_cell(root, "pr", policies[0])
+            second = self.build_policy_cell(root, "pr", policies[1])
+        second["client_sha"] = "e" * 40
         with self.assertRaisesRegex(ValueError, "one exact crate graph"):
             RENDER.evidence_document([first, second])
 
-    def test_complete_profile_rejects_missing_cells(self) -> None:
-        matrix = RENDER.load_json(ROOT / "qualification/matrix.json")
-        scenarios = RENDER.required_scenarios(matrix, "nightly")
-        with tempfile.TemporaryDirectory() as directory:
-            events = Path(directory) / "events.tsv"
-            events.write_text("".join(f"{name}\tpassed\t1\n" for name in scenarios))
-            arguments = self.arguments(events)
-            arguments.profile = "nightly"
-            evidence = RENDER.evidence_document([RENDER.build_cell(arguments)])
-        with self.assertRaisesRegex(ValueError, "evidence is incomplete"):
-            RENDER.require_complete_profile(matrix, evidence, "nightly")
-
-    def test_complete_profile_accepts_exact_matrix_and_legacy_is_non_gating(self) -> None:
-        matrix = RENDER.load_json(ROOT / "qualification/matrix.json")
-        scenarios = RENDER.required_scenarios(matrix, "nightly")
-        with tempfile.TemporaryDirectory() as directory:
-            events = Path(directory) / "events.tsv"
-            cells = []
-            for version in matrix["kafka_versions"]:
-                for security in matrix["profiles"]["nightly"]["securities"]:
-                    status = "failed" if version == "3.9.2" else "passed"
-                    events.write_text("".join(f"{name}\t{status}\t1\n" for name in scenarios))
-                    arguments = self.arguments(events)
-                    arguments.profile = "nightly"
-                    arguments.kafka_version = version
-                    arguments.image = f"apache/kafka:{version}"
-                    arguments.security = security
-                    cells.append(RENDER.build_cell(arguments))
-        evidence = RENDER.evidence_document(cells)
-        RENDER.require_complete_profile(matrix, evidence, "nightly")
-        self.assertTrue(evidence["qualified"])
-        self.assertEqual(len(evidence["cells"]), 20)
-
-    def test_support_projection_is_generated_from_evidence(self) -> None:
-        matrix = RENDER.load_json(ROOT / "qualification/matrix.json")
-        scenarios = RENDER.required_scenarios(matrix, "pr-smoke")
+    def test_merge_rejects_mixed_image_digests_for_one_version(self) -> None:
+        policies = [
+            cell
+            for cell in self.matrix["evidence_sets"]["pr"]
+            if cell["kafka_version"] == "4.3.1"
+        ][:2]
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            events = root / "events.tsv"
-            events.write_text("".join(f"{name}\tpassed\t1\n" for name in scenarios))
-            evidence = RENDER.evidence_document([RENDER.build_cell(self.arguments(events))])
+            first = self.build_policy_cell(root, "pr", policies[0])
+            second = self.build_policy_cell(root, "pr", policies[1])
+        second["image_digest"] = "sha256:" + "e" * 64
+        RENDER.validate_cell(self.matrix, first)
+        RENDER.validate_cell(self.matrix, second)
+        with self.assertRaisesRegex(ValueError, "one exact image digest"):
+            RENDER.evidence_document([first, second])
+
+    def test_merge_revalidates_source_document_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cell = self.build_policy_cell(
+                root, "pr", self.matrix["evidence_sets"]["pr"][0]
+            )
+            document = RENDER.evidence_document([cell])
+            document["qualified"] = False
+            with self.assertRaisesRegex(ValueError, "summary conflicts"):
+                RENDER.validate_evidence_document(
+                    self.matrix, document, root / "compatibility.json"
+                )
+
+    def test_complete_set_rejects_missing_cells(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            cell = self.build_policy_cell(
+                Path(directory), "pr", self.matrix["evidence_sets"]["pr"][0]
+            )
+        evidence = RENDER.evidence_document([cell])
+        with self.assertRaisesRegex(ValueError, "evidence is incomplete"):
+            RENDER.require_complete_set(self.matrix, evidence, "pr")
+
+    def test_complete_nightly_accepts_failed_advisory_cells(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cells = []
+            for policy in self.matrix["evidence_sets"]["nightly"]:
+                advisory = not policy["gating"]
+                cells.append(
+                    self.build_policy_cell(
+                        root,
+                        "nightly",
+                        policy,
+                        status="failed" if advisory else "passed",
+                        runner_status="failed" if advisory else "passed",
+                    )
+                )
+        evidence = RENDER.evidence_document(cells)
+        RENDER.require_complete_set(self.matrix, evidence, "nightly")
+        self.assertTrue(evidence["qualified"])
+        self.assertEqual(len(evidence["cells"]), 14)
+        self.assertEqual(
+            sum(not cell["qualified"] for cell in evidence["cells"]), 3
+        )
+
+    def test_failed_advisory_cell_does_not_claim_standalone_qualification(self) -> None:
+        policy = next(
+            cell
+            for cell in self.matrix["evidence_sets"]["nightly"]
+            if not cell["gating"]
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            cell = self.build_policy_cell(
+                Path(directory),
+                "nightly",
+                policy,
+                status="failed",
+                runner_status="failed",
+            )
+        evidence = RENDER.evidence_document([cell])
+        self.assertFalse(evidence["qualified"])
+
+    def test_support_projection_is_generated_from_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cell = self.build_policy_cell(
+                root, "pr", self.matrix["evidence_sets"]["pr"][0]
+            )
+            evidence = RENDER.evidence_document([cell])
             support = root / "SUPPORT.md"
-            support.write_text(f"before\n{RENDER.BEGIN}\nold\n{RENDER.END}\nafter\n")
+            support.write_text(
+                f"before\n{RENDER.BEGIN}\nold\n{RENDER.END}\nafter\n",
+                encoding="utf-8",
+            )
             RENDER.write_outputs(root / "output", evidence, support)
-            projected = (root / "output/SUPPORT.md").read_text()
-        self.assertIn("| 4.3.1 | pr-smoke | plaintext |", projected)
+            projected = (root / "output/SUPPORT.md").read_text(encoding="utf-8")
+        self.assertIn("| 4.3.1 | full | plaintext |", projected)
         self.assertNotIn("\nold\n", projected)
 
     def test_json_matrix_is_canonical(self) -> None:
-        matrix_path = ROOT / "qualification/matrix.json"
-        matrix = json.loads(matrix_path.read_text())
-        self.assertEqual(matrix["schema_version"], 1)
-        self.assertEqual(RENDER.required_scenarios(matrix, "release"), RENDER.required_scenarios(matrix, "nightly"))
+        self.assertEqual(self.matrix["schema_version"], 2)
+        self.assertEqual(
+            list(self.matrix["kafka_versions"]),
+            ["4.3.1", "4.2.1", "4.1.2", "4.0.2", "3.9.2", "3.8.1", "3.7.2"],
+        )
+        self.assertEqual(
+            set(self.matrix["profiles"]),
+            {"compatibility-smoke", "full", "security-smoke", "classic"},
+        )
+        self.assertEqual(set(self.matrix["evidence_sets"]), {"pr", "nightly"})
+        self.assertEqual(len(self.matrix["evidence_sets"]["pr"]), 10)
+        self.assertTrue(
+            all(cell["gating"] for cell in self.matrix["evidence_sets"]["pr"])
+        )
+        self.assertEqual(len(self.matrix["evidence_sets"]["nightly"]), 14)
+        self.assertEqual(
+            self.matrix["profiles"]["full"]["securities"],
+            [
+                "plaintext",
+                "tls_custom",
+                "sasl_plaintext_plain",
+                "sasl_plaintext_scram_sha_256",
+                "sasl_plaintext_scram_sha_512",
+                "sasl_tls_custom_plain",
+                "sasl_tls_custom_scram_sha_256",
+                "sasl_tls_custom_scram_sha_512",
+            ],
+        )
+        self.assertEqual(
+            self.matrix["profiles"]["security-smoke"]["securities"],
+            [
+                "tls_custom",
+                "sasl_plaintext_plain",
+                "sasl_tls_custom_scram_sha_512",
+            ],
+        )
+        for profile in ("full", "security-smoke"):
+            for security in self.matrix["profiles"][profile]["securities"]:
+                scenarios = RENDER.required_scenarios(
+                    self.matrix, profile, security
+                )
+                if "tls" in security:
+                    self.assertIn("tls_hostname_rejection", scenarios)
+                if "sasl" in security:
+                    self.assertIn("sasl_wrong_secret_rejection", scenarios)
+        self.assertNotIn(
+            "kip848_assignment_reconciliation",
+            self.matrix["profiles"]["classic"]["scenarios"],
+        )
+        self.assertEqual(len(self.matrix["profiles"]["full"]["scenarios"]), 13)
+        self.assertEqual(len(self.matrix["profiles"]["classic"]["scenarios"]), 12)
+        self.assertEqual(
+            self.matrix["profiles"]["classic"]["scenarios"],
+            [
+                scenario
+                for scenario in self.matrix["profiles"]["full"]["scenarios"]
+                if scenario != "kip848_assignment_reconciliation"
+            ],
+        )
+        self.assertNotIn(
+            "fetch_survives_leader_movement",
+            self.matrix["profiles"]["full"]["scenarios"],
+        )
+        self.assertIn(
+            "classic_member_shutdown_commit_resume",
+            self.matrix["profiles"]["full"]["scenarios"],
+        )
+        self.assertNotIn(
+            "classic_member_death_commit_resume",
+            self.matrix["profiles"]["full"]["scenarios"],
+        )
+        truthful_scenarios = {
+            "producer_delivers_across_leader_movement",
+            "producer_cancellation_preserves_delivery_certainty",
+            "cluster_usable_after_broker_restart",
+            "group_usable_after_coordinator_restart",
+        }
+        stale_scenarios = {
+            "producer_retries_leader_movement",
+            "producer_cancellation_ambiguous_delivery",
+            "broker_restart_metadata_refresh",
+            "coordinator_loss_leader_change",
+        }
+        for profile in ("full", "classic"):
+            scenarios = set(self.matrix["profiles"][profile]["scenarios"])
+            self.assertTrue(truthful_scenarios.issubset(scenarios))
+            self.assertTrue(stale_scenarios.isdisjoint(scenarios))
+
+    def test_workflow_include_lists_match_policy_exactly(self) -> None:
+        workflow = (ROOT / ".github/workflows/qualification.yml").read_text(
+            encoding="utf-8"
+        )
+        pr_section = workflow.split("  qualification-pr:", 1)[1].split(
+            "\n  qualification-gate:", 1
+        )[0]
+        nightly_section = workflow.split("  qualification-matrix:", 1)[1].split(
+            "\n  qualification-aggregate:", 1
+        )[0]
+        aggregate_section = workflow.split("  qualification-aggregate:", 1)[1]
+        row = re.compile(
+            r"^\s+- \{ kafka_version: ([^,]+), profile: ([^,]+), "
+            r"security: ([^,}]+)(?:, gating: (true|false))? \}$",
+            re.MULTILINE,
+        )
+        pr_cells = [match.groups()[:3] for match in row.finditer(pr_section)]
+        expected_pr = [
+            (cell["kafka_version"], cell["profile"], cell["security"])
+            for cell in self.matrix["evidence_sets"]["pr"]
+        ]
+        self.assertEqual(pr_cells, expected_pr)
+        nightly_cells = [
+            (*match.groups()[:3], match.group(4) == "true")
+            for match in row.finditer(nightly_section)
+        ]
+        expected_nightly = [
+            (
+                cell["kafka_version"],
+                cell["profile"],
+                cell["security"],
+                cell["gating"],
+            )
+            for cell in self.matrix["evidence_sets"]["nightly"]
+        ]
+        self.assertEqual(nightly_cells, expected_nightly)
+        self.assertNotIn("release-crate-graph", workflow)
+        self.assertIn("--require-complete-set pr", workflow)
+        self.assertIn("--require-complete-set nightly", workflow)
+        self.assertIn('test "$QUALIFICATION_RESULT" = success', workflow)
+        self.assertIn('test "$POLICY_RESULT" = success', workflow)
+        self.assertIn("name: qualification-pr-aggregate-", workflow)
+        self.assertIn('if [[ "$POLICY_RESULT" != success ]]', aggregate_section)
+        self.assertNotIn("MATRIX_RESULT", aggregate_section)
+        architecture_gate = (ROOT / "scripts/check-architecture").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest qualification.test_render -v",
+            architecture_gate,
+        )
+
+    def test_compose_and_tls_assets_keep_security_boundaries(self) -> None:
+        cluster = (ROOT / "qualification/compose/cluster.yml").read_text(
+            encoding="utf-8"
+        )
+        smoke = (ROOT / "qualification/compose/pr-smoke.yml").read_text(
+            encoding="utf-8"
+        )
+        for compose in (cluster, smoke):
+            self.assertNotIn("SHARE_COORDINATOR_STATE_TOPIC", compose)
+            published = [
+                line.strip()
+                for line in compose.splitlines()
+                if re.match(r'^\s+- "[^\"]+:\d+"$', line)
+            ]
+            self.assertTrue(published)
+            self.assertTrue(all(line.startswith('- "127.0.0.1:') for line in published))
+        tls = (ROOT / "qualification/tls.cnf").read_text(encoding="utf-8")
+        self.assertIn("DNS.1 = localhost", tls)
+        self.assertNotRegex(tls, r"(?m)^IP\.\d+\s*=")
+
+    def test_combined_sasl_tls_uses_one_complete_secret_mount(self) -> None:
+        runner = (ROOT / "scripts/run-qualification").read_text(encoding="utf-8")
+        self.assertIn('export KAFKA_TLS_DIR="$secret_dir"', runner)
+        self.assertIn('export KAFKA_SASL_DIR="$secret_dir"', runner)
+        self.assertLess(runner.index("trap cleanup EXIT"), runner.index("mktemp -d"))
+        self.assertLess(runner.index("trap cleanup EXIT"), runner.index("generate-tls"))
+        self.assertLess(
+            runner.index("trap cleanup EXIT"),
+            runner.index('cp "$repo_root/qualification/sasl/broker_jaas.conf"'),
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            common = str(Path(directory).resolve())
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "IMAGE": "apache/kafka:4.3.1",
+                    "KAFKA_EXTERNAL_PROTOCOL": "SASL_SSL",
+                    "KAFKA_TLS_DIR": common,
+                    "KAFKA_SASL_DIR": common,
+                }
+            )
+            command = [
+                "docker",
+                "compose",
+                "-f",
+                str(ROOT / "qualification/compose/cluster.yml"),
+                "-f",
+                str(ROOT / "qualification/compose/cluster-tls.yml"),
+                "-f",
+                str(ROOT / "qualification/compose/cluster-sasl.yml"),
+                "config",
+                "--format",
+                "json",
+            ]
+            completed = subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                text=True,
+                env=environment,
+            )
+        rendered = json.loads(completed.stdout)
+        for service in rendered["services"].values():
+            mounts = [
+                volume
+                for volume in service["volumes"]
+                if volume["target"] == "/etc/kafka/secrets"
+            ]
+            self.assertEqual(len(mounts), 1)
+            self.assertEqual(mounts[0]["source"], common)
+            self.assertTrue(mounts[0]["read_only"])
+            broker_environment = service["environment"]
+            self.assertEqual(
+                broker_environment["KAFKA_SSL_KEYSTORE_FILENAME"],
+                "kafka.keystore.p12",
+            )
+            self.assertEqual(
+                broker_environment["KAFKA_OPTS"],
+                "-Djava.security.auth.login.config=/etc/kafka/secrets/broker_jaas.conf",
+            )
+            self.assertTrue(
+                broker_environment["KAFKA_LISTENER_SECURITY_PROTOCOL_MAP"].endswith(
+                    "EXTERNAL:SASL_SSL"
+                )
+            )
 
 
 if __name__ == "__main__":

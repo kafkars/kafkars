@@ -74,6 +74,30 @@ pub(super) fn fencing_abort_commit_and_read_committed() -> Result<(), TestError>
         "replacement abort",
     )??;
 
+    let mut sentinel = replacement.begin()?;
+    wait_within(
+        sentinel.send(
+            Record::to(fixture.topic.as_str())
+                .partition(0)
+                .value("sentinel"),
+            OPERATION_TIMEOUT,
+        )?,
+        "replacement sentinel send",
+    )??;
+    wait_within(
+        sentinel.commit(OPERATION_TIMEOUT).map_err(|error| {
+            io::Error::other(format!("replacement sentinel admission: {}", error.error()))
+        })?,
+        "replacement sentinel commit",
+    )??;
+
+    assert_read_committed_visibility(&fixture)?;
+    first.close();
+    replacement.close();
+    fixture.finish()
+}
+
+fn assert_read_committed_visibility(fixture: &nightly_support::Fixture) -> Result<(), TestError> {
     let mut consumer = fixture
         .client
         .consumer(unique_name("kafkars-read-committed"))
@@ -82,25 +106,42 @@ pub(super) fn fencing_abort_commit_and_read_committed() -> Result<(), TestError>
         .read_isolation(ReadIsolation::ReadCommitted)
         .membership_start_timeout(OPERATION_TIMEOUT)
         .build()?;
-    let batch = wait_within(consumer.recv(), "read-committed receive")??
-        .ok_or_else(|| io::Error::other("read-committed consumer closed before delivery"))?;
-    let values = batch
-        .records()
-        .filter_map(|record| record.value().map(<[u8]>::to_vec))
-        .collect::<Vec<_>>();
-    if !values.iter().any(|value| value == b"committed")
-        || values
-            .iter()
-            .any(|value| value == b"aborted" || value == b"fenced")
-    {
-        return Err(
-            io::Error::other("read_committed visibility included an uncommitted record").into(),
-        );
+    let mut saw_committed = false;
+    let mut saw_sentinel = false;
+    for _ in 0..4 {
+        let batch = wait_within(consumer.recv(), "read-committed receive")??
+            .ok_or_else(|| io::Error::other("read-committed consumer closed before sentinel"))?;
+        for record in batch.records() {
+            let Some(value) = record.value() else {
+                continue;
+            };
+            if value == b"fenced" || value == b"aborted" {
+                return Err(io::Error::other(
+                    "read_committed visibility included an uncommitted record",
+                )
+                .into());
+            }
+            saw_committed |= value == b"committed";
+            saw_sentinel |= value == b"sentinel";
+        }
+        if saw_sentinel {
+            break;
+        }
+    }
+    if !saw_sentinel {
+        return Err(io::Error::other(
+            "read_committed did not reach its committed sentinel within four visible batches",
+        )
+        .into());
+    }
+    if !saw_committed {
+        return Err(io::Error::other(
+            "read_committed reached its sentinel without the original committed record",
+        )
+        .into());
     }
     wait_within(consumer.try_close()?, "read-committed close")??;
-    first.close();
-    replacement.close();
-    fixture.finish()
+    Ok(())
 }
 
 fn transactional(

@@ -29,5 +29,5 @@ mod smoke;
 #[path = "transaction.rs"]
 mod transaction;
 
-pub(crate) use nightly::run_nightly_matrix;
+pub(crate) use nightly::{run_classic_matrix, run_nightly_matrix};
 pub(crate) use smoke::run_pull_request_smoke;

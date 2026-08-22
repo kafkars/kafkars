@@ -11,18 +11,18 @@ use super::{
 
 type Scenario = (&'static str, fn() -> Result<(), TestError>);
 
-const SCENARIOS: [Scenario; 13] = [
+const BEFORE_KIP_848: [Scenario; 6] = [
     (
         "producer_batching_partitioning",
         nightly_producer::batching_and_partitioning,
     ),
     (
-        "producer_retries_leader_movement",
-        nightly_resilience::producer_retries_leader_movement,
+        "producer_delivers_across_leader_movement",
+        nightly_resilience::producer_delivers_across_leader_movement,
     ),
     (
-        "producer_cancellation_ambiguous_delivery",
-        nightly_producer::cancellation_and_ambiguity,
+        "producer_cancellation_preserves_delivery_certainty",
+        nightly_producer::cancellation_preserves_delivery_certainty,
     ),
     (
         "direct_fetch_seek_offset_reset",
@@ -33,13 +33,17 @@ const SCENARIOS: [Scenario; 13] = [
         nightly_group::classic_join_and_cooperative_rebalance,
     ),
     (
-        "classic_member_death_commit_resume",
-        nightly_group::member_death_commit_and_resume,
+        "classic_member_shutdown_commit_resume",
+        nightly_group::member_shutdown_commit_and_resume,
     ),
-    (
-        "kip848_assignment_reconciliation",
-        nightly_group::kip848_assignment_and_reconciliation,
-    ),
+];
+
+const KIP_848: Scenario = (
+    "kip848_assignment_reconciliation",
+    nightly_group::kip848_assignment_and_reconciliation,
+);
+
+const AFTER_KIP_848: [Scenario; 6] = [
     (
         "transaction_fencing_abort_commit_read_committed",
         nightly_transaction::fencing_abort_commit_and_read_committed,
@@ -49,12 +53,12 @@ const SCENARIOS: [Scenario; 13] = [
         nightly_admin::controller_coordinator_and_exact_broker,
     ),
     (
-        "broker_restart_metadata_refresh",
-        nightly_resilience::broker_restart_metadata_refresh,
+        "cluster_usable_after_broker_restart",
+        nightly_resilience::cluster_usable_after_broker_restart,
     ),
     (
-        "coordinator_loss_leader_change",
-        nightly_resilience::coordinator_loss_and_leader_change,
+        "group_usable_after_coordinator_restart",
+        nightly_resilience::group_usable_after_coordinator_restart,
     ),
     (
         "bounded_admission_deadlines_shutdown",
@@ -67,8 +71,20 @@ const SCENARIOS: [Scenario; 13] = [
 ];
 
 pub(crate) fn run_nightly_matrix() -> Result<(), TestError> {
+    run_matrix(true)
+}
+
+pub(crate) fn run_classic_matrix() -> Result<(), TestError> {
+    run_matrix(false)
+}
+
+fn run_matrix(include_kip_848: bool) -> Result<(), TestError> {
     let mut failures = Vec::new();
-    for (name, scenario) in SCENARIOS {
+    let scenarios = BEFORE_KIP_848
+        .into_iter()
+        .chain(include_kip_848.then_some(KIP_848))
+        .chain(AFTER_KIP_848);
+    for (name, scenario) in scenarios {
         if let Err(error) = evidence::measure(name, scenario) {
             failures.push(format!("{name}: {error}"));
         }

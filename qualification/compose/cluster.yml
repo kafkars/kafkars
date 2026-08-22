@@ -3,7 +3,7 @@ services:
     image: ${IMAGE:?set IMAGE to an exact Kafka image digest}
     hostname: kafka-1
     ports:
-      - "${KAFKA_BROKER_1_PORT:-29092}:9092"
+      - "127.0.0.1:${KAFKA_BROKER_1_PORT:-29092}:9092"
     environment:
       <<: &common-environment
         KAFKA_PROCESS_ROLES: broker,controller
@@ -19,8 +19,6 @@ services:
         KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
         KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
         KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
-        KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 3
-        KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 2
         KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
       KAFKA_NODE_ID: 1
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-1:19092,EXTERNAL://localhost:${KAFKA_BROKER_1_PORT:-29092}
@@ -29,7 +27,7 @@ services:
     image: ${IMAGE:?set IMAGE to an exact Kafka image digest}
     hostname: kafka-2
     ports:
-      - "${KAFKA_BROKER_2_PORT:-39092}:9092"
+      - "127.0.0.1:${KAFKA_BROKER_2_PORT:-39092}:9092"
     environment:
       <<: *common-environment
       KAFKA_NODE_ID: 2
@@ -39,7 +37,7 @@ services:
     image: ${IMAGE:?set IMAGE to an exact Kafka image digest}
     hostname: kafka-3
     ports:
-      - "${KAFKA_BROKER_3_PORT:-49092}:9092"
+      - "127.0.0.1:${KAFKA_BROKER_3_PORT:-49092}:9092"
     environment:
       <<: *common-environment
       KAFKA_NODE_ID: 3

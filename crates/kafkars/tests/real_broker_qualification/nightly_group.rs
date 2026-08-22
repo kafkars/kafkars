@@ -6,7 +6,10 @@ use kafkars::{
     ClassicGroupAssignor, ConsumerGroupProtocol, GroupMembershipEpoch, OffsetReset, Record,
 };
 
-use crate::real_broker_support::{OPERATION_TIMEOUT, TestError, unique_name, wait_within};
+use crate::real_broker_support::{
+    OPERATION_TIMEOUT, TestError, client_builder_from_environment, ready_client, unique_name,
+    wait_within,
+};
 
 use super::nightly_support;
 
@@ -14,27 +17,33 @@ pub(super) fn classic_join_and_cooperative_rebalance() -> Result<(), TestError> 
     let fixture = nightly_support::Fixture::new("classic-rebalance", 2)?;
     let group_id = unique_name("kafkars-cooperative");
     let first = cooperative_consumer(&fixture, &group_id)?;
+    let first_epoch = nightly_support::poll_until(|| {
+        let assignment = first.assignment().ok().flatten()?;
+        (assignment_set(&assignment).len() == 2).then_some(assignment.assignment_epoch())
+    })?;
     let second = cooperative_consumer(&fixture, &group_id)?;
-    let (first_assignment, second_assignment) = nightly_support::poll_until(|| {
+    nightly_support::poll_until(|| {
         let first_assignment = first.assignment().ok().flatten()?;
         let second_assignment = second.assignment().ok().flatten()?;
         let first_set = assignment_set(&first_assignment);
         let second_set = assignment_set(&second_assignment);
-        if first_set.is_disjoint(&second_set) && first_set.union(&second_set).count() == 2 {
-            Some((first_assignment, second_assignment))
+        if first_set.len() == 1
+            && second_set.len() == 1
+            && first_set.is_disjoint(&second_set)
+            && first_set.union(&second_set).count() == 2
+            && first_assignment.assignment_epoch() > first_epoch
+        {
+            Some(())
         } else {
             None
         }
     })?;
-    if first_assignment.assignment_epoch() == second_assignment.assignment_epoch() {
-        return Err(io::Error::other("separate members reused one local assignment fence").into());
-    }
     wait_within(first.try_close()?, "first cooperative close")??;
     wait_within(second.try_close()?, "second cooperative close")??;
     fixture.finish()
 }
 
-pub(super) fn member_death_commit_and_resume() -> Result<(), TestError> {
+pub(super) fn member_shutdown_commit_and_resume() -> Result<(), TestError> {
     let fixture = nightly_support::Fixture::new("classic-resume", 1)?;
     let group_id = unique_name("kafkars-resume");
     let producer = fixture.client.producer().build()?;
@@ -46,8 +55,10 @@ pub(super) fn member_death_commit_and_resume() -> Result<(), TestError> {
         ),
         "classic resume seed",
     )??;
-    let mut first = fixture
-        .client
+    let first_client =
+        client_builder_from_environment("kafkars-nightly-classic-resume-first")?.build()?;
+    ready_client(&first_client)?;
+    let mut first = first_client
         .consumer(&group_id)
         .subscribe([&fixture.topic])
         .on_missing_offset(OffsetReset::Earliest)
@@ -59,6 +70,10 @@ pub(super) fn member_death_commit_and_resume() -> Result<(), TestError> {
     wait_within(
         first.try_commit(checkpoint, OPERATION_TIMEOUT)?,
         "classic first member commit",
+    )??;
+    wait_within(
+        first_client.shutdown(),
+        "classic first member client shutdown",
     )??;
     drop(first);
 
@@ -106,37 +121,115 @@ pub(super) fn kip848_assignment_and_reconciliation() -> Result<(), TestError> {
         ),
         "KIP-848 seed delivery",
     )??;
-    let mut consumer = fixture
+    let group_id = unique_name("kafkars-kip848");
+    let expected = BTreeSet::from([(fixture.topic.clone(), 0), (fixture.topic.clone(), 1)]);
+    let mut first = consumer_protocol_consumer(&fixture, &group_id)?;
+    let first_member_epoch = nightly_support::poll_until(|| {
+        let assignment = first.assignment().ok().flatten()?;
+        let metadata = first.group_metadata().ok().flatten()?;
+        if assignment_set(&assignment) != expected
+            || assignment.assignment_epoch() != metadata.assignment_epoch()
+        {
+            return None;
+        }
+        match metadata.membership_epoch() {
+            GroupMembershipEpoch::Consumer { member_epoch } if member_epoch > 0 => {
+                Some(member_epoch)
+            }
+            GroupMembershipEpoch::Classic { .. } | GroupMembershipEpoch::Consumer { .. } => None,
+        }
+    })?;
+
+    let mut second = consumer_protocol_consumer(&fixture, &group_id)?;
+    let first_owns_partition_one = nightly_support::poll_until(|| {
+        let first_assignment = first.assignment().ok().flatten()?;
+        let first_metadata = first.group_metadata().ok().flatten()?;
+        let second_assignment = second.assignment().ok().flatten()?;
+        let second_metadata = second.group_metadata().ok().flatten()?;
+        if first_assignment.assignment_epoch() != first_metadata.assignment_epoch()
+            || second_assignment.assignment_epoch() != second_metadata.assignment_epoch()
+        {
+            return None;
+        }
+        let GroupMembershipEpoch::Consumer {
+            member_epoch: current_first_epoch,
+        } = first_metadata.membership_epoch()
+        else {
+            return None;
+        };
+        if !matches!(
+            second_metadata.membership_epoch(),
+            GroupMembershipEpoch::Consumer { member_epoch } if member_epoch > 0
+        ) {
+            return None;
+        }
+        let first_set = assignment_set(&first_assignment);
+        let second_set = assignment_set(&second_assignment);
+        let union = first_set
+            .union(&second_set)
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        if first_set.len() != 1
+            || second_set.len() != 1
+            || !first_set.is_disjoint(&second_set)
+            || union != expected
+            || current_first_epoch <= first_member_epoch
+        {
+            return None;
+        }
+        Some(first_set.contains(&(fixture.topic.clone(), 1)))
+    })?;
+
+    if first_owns_partition_one {
+        let batch = receive_kip848_partition_one(&mut first, &fixture.topic)?;
+        wait_within(
+            first.try_commit(batch.checkpoint(), OPERATION_TIMEOUT)?,
+            "first KIP-848 member commit",
+        )??;
+    } else {
+        let batch = receive_kip848_partition_one(&mut second, &fixture.topic)?;
+        wait_within(
+            second.try_commit(batch.checkpoint(), OPERATION_TIMEOUT)?,
+            "second KIP-848 member commit",
+        )??;
+    }
+    wait_within(second.try_close()?, "second KIP-848 member close")??;
+    wait_within(first.try_close()?, "first KIP-848 member close")??;
+    wait_within(producer.close(), "KIP-848 producer close")??;
+    fixture.finish()
+}
+
+fn consumer_protocol_consumer(
+    fixture: &nightly_support::Fixture,
+    group_id: &str,
+) -> Result<kafkars::Consumer, TestError> {
+    Ok(fixture
         .client
-        .consumer(unique_name("kafkars-kip848"))
+        .consumer(group_id)
         .subscribe([&fixture.topic])
         .group_protocol(ConsumerGroupProtocol::Consumer)
         .on_missing_offset(OffsetReset::Earliest)
         .membership_start_timeout(OPERATION_TIMEOUT)
-        .build()?;
-    let (assignment, metadata) = nightly_support::poll_until(|| {
-        Some((
-            consumer.assignment().ok().flatten()?,
-            consumer.group_metadata().ok().flatten()?,
-        ))
-    })?;
-    if assignment.partitions().len() != 2
-        || !matches!(
-            metadata.membership_epoch(),
-            GroupMembershipEpoch::Consumer { member_epoch } if member_epoch > 0
+        .build()?)
+}
+
+fn receive_kip848_partition_one(
+    consumer: &mut kafkars::Consumer,
+    topic: &str,
+) -> Result<kafkars::ConsumerBatch, TestError> {
+    let batch = wait_within(consumer.recv(), "KIP-848 partition-one receive")??
+        .ok_or_else(|| io::Error::other("KIP-848 partition-one owner closed before delivery"))?;
+    let values = batch
+        .records()
+        .map(|record| record.value().map(<[u8]>::to_vec))
+        .collect::<Vec<_>>();
+    if batch.topic() != topic || batch.partition() != 1 || values != [Some(b"kip848".to_vec())] {
+        return Err(io::Error::other(
+            "KIP-848 partition-one owner did not receive the exact seeded payload",
         )
-    {
-        return Err(io::Error::other("KIP-848 did not install its typed assignment epoch").into());
+        .into());
     }
-    let batch = wait_within(consumer.recv(), "KIP-848 receive")??
-        .ok_or_else(|| io::Error::other("KIP-848 consumer closed before delivery"))?;
-    wait_within(
-        consumer.try_commit(batch.checkpoint(), OPERATION_TIMEOUT)?,
-        "KIP-848 commit",
-    )??;
-    wait_within(consumer.try_close()?, "KIP-848 close")??;
-    wait_within(producer.close(), "KIP-848 producer close")??;
-    fixture.finish()
+    Ok(batch)
 }
 
 fn cooperative_consumer(

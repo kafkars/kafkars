@@ -22,12 +22,12 @@ evidence and separate release authorization.
 | Area | Source status | Qualification status |
 | --- | --- | --- |
 | Rust facade | Concrete runtime-neutral builders, futures, blocking observation, and error vocabulary | Unit-tested; no stable API promise |
-| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, and close paths | PR and nightly scenarios defined; no archived passing release cell |
-| Direct consumer | Assignment, fetch, checkpoint, seek, events, and close paths | PR and nightly scenarios defined; no archived passing release cell |
-| Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | PR and nightly scenarios defined; no archived passing release cell |
-| KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, and owned-topic acknowledgement | Nightly scenario defined; no archived passing release cell |
-| Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | PR and nightly scenarios defined; no archived passing release cell |
-| Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | PR and nightly scenarios defined; no archived passing release cell |
+| Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
+| Direct consumer | Assignment, fetch, checkpoint, seek, events, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
+| Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
+| KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, and owned-topic acknowledgement | Nightly scenario defined; no archived passing qualification cell |
+| Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | PR and nightly scenarios defined; no archived passing qualification cell |
+| Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
 | Simulation | Virtual-time execution of deterministic core effects | Development evidence, not broker emulation |
 | Foreign bindings | Not included | No ABI or compatibility promise |
 
@@ -42,40 +42,45 @@ No Kafka broker version is release-supported in this preview. The protocol
 adapters negotiate bounded per-request version windows, but that is not a
 substitute for end-to-end qualification.
 
-The qualification target matrix is explicit even though no cell has passed a
-release qualification yet:
+The qualification target matrix is explicit even though no cell has archived
+passing evidence yet:
 
 <!-- qualification-evidence:begin -->
-| Kafka version | Intended lane | Current evidence status |
-| --- | --- | --- |
-| 4.3.1 | Primary/current required gate | Not yet qualified |
-| 4.2.1 | Supported compatibility | Not yet qualified |
-| 4.1.2 | Supported compatibility | Not yet qualified |
-| 3.9.2 | Optional legacy compatibility, non-gating | Not yet qualified |
+| Kafka | Pull-request profile | Scheduled profile | Current evidence status |
+| --- | --- | --- | --- |
+| 4.3.1 | Full plaintext plus three security-smoke cells | Full over eight matrix security modes | Not yet qualified |
+| 4.2.1 | Compatibility smoke, plaintext | Full, plaintext | Not yet qualified |
+| 4.1.2 | Compatibility smoke, plaintext | Full, plaintext | Not yet qualified |
+| 4.0.2 | Compatibility smoke, plaintext | Full, plaintext | Not yet qualified |
+| 3.9.2 | Classic, plaintext, gating | Classic, plaintext, advisory | Not yet qualified |
+| 3.8.1 | Classic, plaintext, gating | Classic, plaintext, advisory | Not yet qualified |
+| 3.7.2 | Classic, plaintext, gating | Classic, plaintext, advisory | Not yet qualified |
 <!-- qualification-evidence:end -->
 
-Kafka 3.9.2 is a legacy lane, not a maintained upstream release. Every future
-qualified cell must be generated from archived qualification evidence rather
-than maintained as a prose promise. Until that evidence exists, compatibility
-reports should include the exact broker distribution and version.
+The Kafka 3.x targets are legacy lanes, not maintained upstream releases. Their
+scheduled results are advisory, but all three are mandatory pull-request
+gates. Every future qualified cell must be generated from archived
+qualification evidence rather than maintained as a prose promise. Until that
+evidence exists, compatibility reports should include the exact broker
+distribution and version.
 
-`.github/workflows/qualification.yml` runs Kafka 4.3.1 pull-request smoke,
-schedules the complete version and security matrix, and exposes a manual
-release profile. The aggregate artifact contains evidence-generated
-`compatibility.json`, `COMPATIBILITY.md`, and `SUPPORT.md`; incomplete cells,
-mixed crate graphs, mutable image references, and failed gating cells cannot
-produce a qualified aggregate.
+`.github/workflows/qualification.yml` runs ten explicit pull-request cells and
+fourteen explicit scheduled cells. It has no release profile. The pull-request
+gate downloads the cell artifacts and archives an evidence-generated aggregate
+containing `compatibility.json`, `COMPATIBILITY.md`, and `SUPPORT.md`.
+Incomplete sets, mixed crate graphs, mutable image references, failed runners,
+and failed gating cells cannot produce a qualified aggregate.
 
 ## Transport and authentication
 
 | Configuration | Code path | Real-broker qualification |
 | --- | --- | --- |
-| Plain TCP without SASL | Present and the default | Not release-qualified |
-| TLS with platform roots | Present | Not release-qualified |
-| TLS with a custom PEM root bundle | Present | Not release-qualified |
-| SASL/PLAIN over plain TCP or TLS | Present | Not release-qualified |
-| SCRAM-SHA-256 over plain TCP or TLS | Present | Not release-qualified |
-| SCRAM-SHA-512 over plain TCP or TLS | Present | Not release-qualified |
+| Plain TCP without SASL | Present and the default | Targeted; no archived passing evidence |
+| TLS with platform roots | Present | Explicitly unqualified by the self-signed test matrix |
+| TLS with a custom PEM root bundle | Present | Targeted with hostname-rejection checks; no archived passing evidence |
+| SASL/PLAIN over plain TCP or custom-root TLS | Present | Targeted with wrong-secret checks; no archived passing evidence |
+| SCRAM-SHA-256 over plain TCP or custom-root TLS | Present | Targeted with wrong-secret checks; no archived passing evidence |
+| SCRAM-SHA-512 over plain TCP or custom-root TLS | Present | Targeted with wrong-secret checks; no archived passing evidence |
 | Mutual TLS client certificates | Not exposed | Unsupported |
 | SASL/OAUTHBEARER | Not exposed | Unsupported |
 | SASL/GSSAPI or Kerberos | Not exposed | Unsupported |
@@ -100,6 +105,13 @@ Local topic identities remain client ownership keys and are deliberately
 distinct from Kafka protocol topic UUIDs.
 
 ## Retained integration limits
+
+### Fetch leader movement
+
+Broker Fetch is currently name-routed through Fetch v12. KIP-951
+current-leader hints require Fetch v16 and topic IDs, so that recovery path is
+not implemented. Leader movement may require external reassignment or a client
+restart; qualification does not claim in-process recovery.
 
 ### Foreign interfaces
 

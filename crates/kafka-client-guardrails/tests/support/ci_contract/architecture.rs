@@ -13,6 +13,7 @@ pub(crate) fn violations(source: &str) -> Vec<String> {
         "\"$repo_root/scripts/check-dependency-provenance\"",
         "\"$repo_root/scripts/test-dependency-provenance\"",
         "\"$repo_root/scripts/test-bootstrap-siblings\"",
+        "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest qualification.test_render -v",
         "cargo test --locked -p kafka-client-guardrails --all-features",
         "git diff --check",
     ];

@@ -22,3 +22,10 @@ fn nightly_matrix() {
     qualification::run_nightly_matrix()
         .unwrap_or_else(|error| panic!("real-broker nightly matrix failed: {error}"));
 }
+
+#[test]
+#[ignore = "requires a qualification-managed three-broker Kafka cluster"]
+fn classic_matrix() {
+    qualification::run_classic_matrix()
+        .unwrap_or_else(|error| panic!("real-broker classic matrix failed: {error}"));
+}
