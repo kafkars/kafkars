@@ -166,6 +166,40 @@ class RendererTests(unittest.TestCase):
         self.assertIn("tls-rejection-list.txt", runner)
         self.assertIn("sasl-rejection-list.txt", runner)
 
+    def test_broker_metadata_readiness_parser_is_portable_and_exact(self) -> None:
+        runner = (ROOT / "scripts/run-qualification").read_text(encoding="utf-8")
+        function = re.search(
+            r"(?ms)^metadata_has_exact_broker_ids\(\) \{\n.*?^\}\n",
+            runner,
+        )
+        self.assertIsNotNone(function)
+        command = (
+            f"{function.group(0)}\n"
+            'metadata_has_exact_broker_ids /dev/stdin "$1"'
+        )
+        complete = "".join(
+            f"broker:{19091 + broker_id} (id: {broker_id} rack: null)\n"
+            for broker_id in (1, 2, 3)
+        )
+        accepted = subprocess.run(
+            ["bash", "-c", command, "readiness-test", "1,2,3"],
+            input=complete,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(accepted.returncode, 0)
+        for rejected in (
+            complete.replace("broker:19094 (id: 3 rack: null)\n", ""),
+            complete + "broker:19095 (id: 4 rack: null)\n",
+        ):
+            completed = subprocess.run(
+                ["bash", "-c", command, "readiness-test", "1,2,3"],
+                input=rejected,
+                text=True,
+                check=False,
+            )
+            self.assertNotEqual(completed.returncode, 0)
+
     def test_cell_outside_declared_evidence_set_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             events = Path(directory) / "events.tsv"

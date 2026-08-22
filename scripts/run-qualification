@@ -258,8 +258,8 @@ metadata_has_exact_broker_ids() {
   LC_ALL=C awk -v expected="$expected" '
     BEGIN {
       expected_count = split(expected, expected_ids, ",")
-      for (index = 1; index <= expected_count; index++) {
-        required[expected_ids[index]] = 1
+      for (position = 1; position <= expected_count; position++) {
+        required[expected_ids[position]] = 1
       }
     }
     {
