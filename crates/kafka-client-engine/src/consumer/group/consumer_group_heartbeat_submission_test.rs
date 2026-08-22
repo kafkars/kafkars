@@ -17,10 +17,10 @@ use super::{
     classic_group_position::{ClassicGroupPositionExecutionState, test_support::completed_ready},
     consumer_group_close::position_failure_allows_consumer_group_leave,
     consumer_group_execution::ConsumerGroupExecution,
-    consumer_group_heartbeat_settlement_test::installed_modern_entry,
-    consumer_group_heartbeat_submission::{
+    consumer_group_execution_fencing::{
         consumer_group_execution_is_ready, consumer_group_heartbeat_is_ready,
     },
+    consumer_group_heartbeat_settlement_test::installed_modern_entry,
     registry_entry::{GroupConsumerEntry, GroupConsumerEntryState},
 };
 

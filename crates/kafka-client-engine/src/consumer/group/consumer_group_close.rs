@@ -7,12 +7,10 @@ use kafka_client_core::{
 
 use super::{
     classic_group_entry_fault::ClassicGroupEntryFault,
-    classic_group_leave::{
-        GroupConsumerCloseTerminal, GroupConsumerCloseTerminalFailure,
-        GroupConsumerCloseTerminalFailureKind,
-    },
+    classic_group_leave::GroupConsumerCloseTerminal,
     consumer_group_assignment_retirement::stage_consumer_group_revocation,
     consumer_group_execution::ConsumerGroupExecutionError,
+    consumer_group_heartbeat_failure::deadline_terminal,
     registry::GroupConsumerRegistry,
     registry_entry::{GroupConsumerEntry, GroupConsumerEntryState},
 };
@@ -170,6 +168,9 @@ pub(super) fn complete_consumer_group_leave(
         .as_mut()
         .ok_or(ConsumerGroupExecutionError::EffectShape)?
         .apply_leave_success()?;
+    if revoked.is_none() {
+        entry.catalog.commit_assignmentless_consumer_group_close();
+    }
     drop(entry.consumer_reconciliation.take());
     stage_consumer_group_revocation(entry, revoked)?;
     if !entry
@@ -204,13 +205,6 @@ pub(super) fn finish_consumer_group_leave_failure(
     close_consumer_group_locally(entry, terminal)
 }
 
-pub(super) const fn deadline_terminal() -> GroupConsumerCloseTerminal {
-    GroupConsumerCloseTerminal::Failed(GroupConsumerCloseTerminalFailure {
-        kind: GroupConsumerCloseTerminalFailureKind::DeadlineElapsed,
-        broker_code: None,
-    })
-}
-
 fn close_consumer_group_locally(
     entry: &mut GroupConsumerEntry,
     terminal: GroupConsumerCloseTerminal,
@@ -220,6 +214,9 @@ fn close_consumer_group_locally(
         .as_mut()
         .ok_or(ConsumerGroupExecutionError::EffectShape)?
         .close_locally()?;
+    if revoked.is_none() {
+        entry.catalog.commit_assignmentless_consumer_group_close();
+    }
     drop(entry.consumer_reconciliation.take());
     stage_consumer_group_revocation(entry, revoked)?;
     if entry.leave.pending_deadline().is_some() && !entry.leave.resolve_consumer_group(terminal) {

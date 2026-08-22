@@ -121,6 +121,10 @@ pub(super) const fn core_close_terminal(
     }
 }
 
+pub(super) const fn deadline_terminal() -> GroupConsumerCloseTerminal {
+    close_failure(GroupConsumerCloseTerminalFailureKind::DeadlineElapsed, None)
+}
+
 const fn close_failure(
     kind: GroupConsumerCloseTerminalFailureKind,
     broker_code: Option<i16>,

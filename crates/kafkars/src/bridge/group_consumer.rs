@@ -1,7 +1,8 @@
 //! Private facade translation for bounded classic-group registration ownership.
 
 use kafka_client_engine::{
-    GroupConsumerHandle as EngineGroupConsumerHandle, GroupConsumerTryTakeBatchErrorKind,
+    GroupConsumerHandle as EngineGroupConsumerHandle, GroupConsumerStartupFailureKind,
+    GroupConsumerTryTakeBatchErrorKind,
 };
 
 use crate::bridge::consumer_facade::group_consumer_event::{
@@ -23,7 +24,11 @@ pub(crate) struct GroupConsumerEngine {
 
 impl GroupConsumerEngine {
     pub(crate) fn startup_fault(&self) -> Option<KafkaError> {
-        self.startup_fault.clone()
+        self.startup_fault.clone().or_else(|| {
+            self.handle
+                .startup_failure()
+                .map(translate_consumer_group_startup_failure)
+        })
     }
 
     /// Copies one atomically confirmed membership and assignment without group work.
@@ -88,6 +93,39 @@ impl GroupConsumerEngine {
                 ),
             })
     }
+}
+
+fn translate_consumer_group_startup_failure(
+    failure: GroupConsumerStartupFailureKind,
+) -> KafkaError {
+    let error = match failure {
+        GroupConsumerStartupFailureKind::CoordinatorUnavailable => KafkaError::new(
+            ErrorKind::Routing,
+            "consumer-group coordinator remained unavailable",
+        ),
+        GroupConsumerStartupFailureKind::Compatibility => KafkaError::new(
+            ErrorKind::Compatibility,
+            "consumer-group protocol is incompatible with the broker",
+        ),
+        GroupConsumerStartupFailureKind::Execution => KafkaError::new(
+            ErrorKind::Internal,
+            "consumer-group startup execution failed",
+        ),
+        GroupConsumerStartupFailureKind::Broker(code) => KafkaError::new(
+            ErrorKind::Broker,
+            "consumer-group startup was rejected by the broker",
+        )
+        .with_broker_code(Some(code)),
+        GroupConsumerStartupFailureKind::InvalidResponse => KafkaError::new(
+            ErrorKind::Internal,
+            "consumer-group startup received an invalid broker response",
+        ),
+        GroupConsumerStartupFailureKind::DeadlineElapsed => KafkaError::new(
+            ErrorKind::Timeout,
+            "consumer-group startup deadline elapsed",
+        ),
+    };
+    error.with_fatal_disposition()
 }
 
 impl core::fmt::Debug for GroupConsumerEngine {

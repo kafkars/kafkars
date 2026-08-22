@@ -4,14 +4,12 @@ use kafka_client_core::{ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatReq
 use crate::{clock::MonotonicClock, driver::ConsumerGroupHeartbeatResolution};
 
 use super::{
-    classic_group_rediscovery_execution::finish_consumer_group_rediscovery_terminal,
     consumer_group_assignment_retirement::stage_consumer_group_revocation,
     consumer_group_execution::ConsumerGroupExecutionError,
-    consumer_group_execution::ConsumerGroupRediscoveryState,
-    consumer_group_execution_terminal::{
-        ConsumerGroupRediscoveryDecision, fail_consumer_group_entry,
+    consumer_group_execution_terminal::fail_consumer_group_entry,
+    consumer_group_heartbeat_due::{
+        settle_consumer_group_load_retry_turn, settle_one_consumer_group_rediscovery_deadline,
     },
-    consumer_group_heartbeat_due::settle_consumer_group_load_retry_turn,
     consumer_group_heartbeat_failure::{completion_failure, driver_failure},
     consumer_group_heartbeat_leave_settlement::{
         settle_leave_completion_error, settle_leave_resolution,
@@ -42,39 +40,7 @@ impl GroupConsumerRegistry {
         now: Moment,
         clock: &MonotonicClock,
     ) -> Result<ConsumerGroupHeartbeatSettlementTurn, ConsumerGroupExecutionError> {
-        if let Some(index) = self.entries.iter().position(|entry| {
-            entry.consumer.as_ref().is_some_and(|execution| {
-                execution.rediscovery_state()
-                    == ConsumerGroupRediscoveryState::AwaitingInvalidationAdmission
-                    && execution
-                        .prepared()
-                        .is_some_and(|prepared| prepared.deadline().core().is_elapsed_at(now))
-            })
-        }) {
-            let is_leave = self.entries[index]
-                .consumer
-                .as_ref()
-                .and_then(super::consumer_group_execution::ConsumerGroupExecution::prepared)
-                .is_some_and(|prepared| {
-                    prepared.kind() == ConsumerGroupHeartbeatRequestKind::Leave
-                });
-            let decision = self.entries[index]
-                .consumer
-                .as_mut()
-                .ok_or(ConsumerGroupExecutionError::MissingPrepared)?
-                .apply_current_rediscovery(
-                    now,
-                    ConsumerGroupHeartbeatFailure::CoordinatorUnavailable,
-                )?;
-            let ConsumerGroupRediscoveryDecision::Terminal { revoked, failure } = decision else {
-                return Err(ConsumerGroupExecutionError::EffectShape);
-            };
-            finish_consumer_group_rediscovery_terminal(
-                &mut self.entries[index],
-                is_leave,
-                revoked,
-                failure,
-            )?;
+        if settle_one_consumer_group_rediscovery_deadline(self, now)? {
             return Ok(ConsumerGroupHeartbeatSettlementTurn::Progress);
         }
         let Some(index) = self.entries.iter().position(|entry| {
@@ -198,6 +164,20 @@ fn settle_heartbeat(
                         clock,
                         ConsumerGroupHeartbeatFailure::Broker(error_code),
                     )?;
+                if revoked.is_none() {
+                    if entry.consumer.as_ref().is_some_and(|execution| {
+                        execution.machine().phase()
+                            == kafka_client_core::ConsumerGroupHeartbeatPhase::Joining
+                    }) {
+                        entry
+                            .catalog
+                            .commit_consumer_group_fenced_without_assignment();
+                    } else {
+                        entry
+                            .catalog
+                            .commit_consumer_group_close_without_assignment();
+                    }
+                }
                 drop(entry.consumer_reconciliation.take());
                 stage_consumer_group_revocation(entry, revoked)?;
                 return Ok(ConsumerGroupHeartbeatSettlementTurn::Progress);

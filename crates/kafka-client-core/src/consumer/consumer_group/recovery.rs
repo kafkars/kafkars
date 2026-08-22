@@ -46,8 +46,10 @@ impl ConsumerGroupHeartbeatMachine {
             && self.pending_assignment.as_ref().is_some_and(|assignment| {
                 assignment.group_id() == self.group_id && assignment.member_id() == member_id
             });
+        let awaiting_assignment_is_valid =
+            self.live_assignment.is_none() && self.pending_assignment.is_none();
         if attempt.member_epoch() != Some(member_epoch)
-            || !(assignment_is_valid || empty_ack_is_valid)
+            || !(assignment_is_valid || empty_ack_is_valid || awaiting_assignment_is_valid)
         {
             return Err(ConsumerGroupHeartbeatErrorKind::InvariantViolation);
         }
@@ -62,7 +64,6 @@ impl ConsumerGroupHeartbeatMachine {
         self.next_sequence = next_sequence;
         self.in_flight = Some(join_attempt);
         self.deadline = Some(deadline);
-        self.rediscovery_replacement_used = false;
         self.retry_schedule = None;
         self.member_epoch = None;
         self.schedule = None;

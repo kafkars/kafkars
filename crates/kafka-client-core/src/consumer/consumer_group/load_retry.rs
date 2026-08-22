@@ -1,4 +1,4 @@
-//! Same-attempt KIP-848 retry after `COORDINATOR_LOAD_IN_PROGRESS`.
+//! Positive original-deadline KIP-848 heartbeat retry scheduling.
 
 use crate::{Deadline, Moment};
 
@@ -8,13 +8,23 @@ use super::{
     ConsumerGroupHeartbeatRequestKind, ConsumerGroupHeartbeatTransition,
 };
 
-const CONSUMER_GROUP_COORDINATOR_LOAD_BACKOFF_TICKS: u64 = 100_000_000;
+const CONSUMER_GROUP_HEARTBEAT_RETRY_BACKOFF_TICKS: u64 = 100_000_000;
 
-/// Exact future fence for retrying one unchanged coordinator request.
+/// Semantic authority paired with one positive heartbeat retry delay.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ConsumerGroupHeartbeatRetryCause {
+    /// Kafka reported `COORDINATOR_LOAD_IN_PROGRESS` on the retained route.
+    CoordinatorLoad,
+    /// Kafka rejected a stale coordinator route that must be invalidated first.
+    Rediscovery,
+}
+
+/// Exact future fence for retrying one retained or freshly replaced request.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ConsumerGroupHeartbeatRetrySchedule {
     attempt: ConsumerGroupHeartbeatAttempt,
     kind: ConsumerGroupHeartbeatRequestKind,
+    cause: ConsumerGroupHeartbeatRetryCause,
     not_before: Deadline,
     deadline: Deadline,
 }
@@ -23,18 +33,20 @@ impl ConsumerGroupHeartbeatRetrySchedule {
     const fn new(
         attempt: ConsumerGroupHeartbeatAttempt,
         kind: ConsumerGroupHeartbeatRequestKind,
+        cause: ConsumerGroupHeartbeatRetryCause,
         not_before: Deadline,
         deadline: Deadline,
     ) -> Self {
         Self {
             attempt,
             kind,
+            cause,
             not_before,
             deadline,
         }
     }
 
-    /// Returns the exact unchanged request identity.
+    /// Returns the exact request identity authorized after this delay.
     pub const fn attempt(self) -> ConsumerGroupHeartbeatAttempt {
         self.attempt
     }
@@ -42,6 +54,11 @@ impl ConsumerGroupHeartbeatRetrySchedule {
     /// Returns the unchanged Join, Steady, or Leave request shape.
     pub const fn kind(self) -> ConsumerGroupHeartbeatRequestKind {
         self.kind
+    }
+
+    /// Returns the exact broker fact authorizing this retry.
+    pub const fn cause(self) -> ConsumerGroupHeartbeatRetryCause {
+        self.cause
     }
 
     /// Returns the earliest absolute moment at which resubmission is allowed.
@@ -76,11 +93,13 @@ impl ConsumerGroupHeartbeatMachine {
         if deadline.is_elapsed_at(now) {
             return Ok(self.fail(attempt, ConsumerGroupHeartbeatFailure::DeadlineElapsed));
         }
-        let not_before = now
-            .checked_deadline_after(CONSUMER_GROUP_COORDINATOR_LOAD_BACKOFF_TICKS)
-            .map_or(deadline, |backoff| backoff.min(deadline));
-        let schedule =
-            ConsumerGroupHeartbeatRetrySchedule::new(attempt, kind, not_before, deadline);
+        let schedule = retry_schedule(
+            attempt,
+            kind,
+            ConsumerGroupHeartbeatRetryCause::CoordinatorLoad,
+            now,
+            deadline,
+        );
         self.retry_schedule = Some(schedule);
         Ok(ConsumerGroupHeartbeatTransition::one(
             ConsumerGroupHeartbeatEffect::ArmCoordinatorLoadRetry { schedule },
@@ -123,7 +142,7 @@ impl ConsumerGroupHeartbeatMachine {
         ))
     }
 
-    fn retry_kind(
+    pub(super) fn retry_kind(
         &self,
         attempt: ConsumerGroupHeartbeatAttempt,
     ) -> Result<ConsumerGroupHeartbeatRequestKind, ConsumerGroupHeartbeatErrorKind> {
@@ -139,7 +158,7 @@ impl ConsumerGroupHeartbeatMachine {
         Ok(kind)
     }
 
-    fn retry_facts(
+    pub(super) fn retry_facts(
         &self,
         kind: ConsumerGroupHeartbeatRequestKind,
     ) -> Result<RetryFacts, ConsumerGroupHeartbeatErrorKind> {
@@ -175,6 +194,15 @@ impl ConsumerGroupHeartbeatMachine {
             {
                 None
             }
+            None if self.pending_assignment.is_none()
+                && matches!(
+                    kind,
+                    ConsumerGroupHeartbeatRequestKind::Steady
+                        | ConsumerGroupHeartbeatRequestKind::Leave
+                ) =>
+            {
+                None
+            }
             _ => return Err(ConsumerGroupHeartbeatErrorKind::InvariantViolation),
         };
         if self
@@ -185,6 +213,19 @@ impl ConsumerGroupHeartbeatMachine {
         }
         Ok((Some(member_id), Some(member_epoch), assignment_generation))
     }
+}
+
+pub(super) fn retry_schedule(
+    attempt: ConsumerGroupHeartbeatAttempt,
+    kind: ConsumerGroupHeartbeatRequestKind,
+    cause: ConsumerGroupHeartbeatRetryCause,
+    now: Moment,
+    deadline: Deadline,
+) -> ConsumerGroupHeartbeatRetrySchedule {
+    let not_before = now
+        .checked_deadline_after(CONSUMER_GROUP_HEARTBEAT_RETRY_BACKOFF_TICKS)
+        .map_or(deadline, |backoff| backoff.min(deadline));
+    ConsumerGroupHeartbeatRetrySchedule::new(attempt, kind, cause, not_before, deadline)
 }
 
 type RetryFacts = (

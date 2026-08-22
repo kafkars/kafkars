@@ -236,3 +236,20 @@ pub(super) fn poll_until<T>(mut operation: impl FnMut() -> Option<T>) -> Result<
         thread::sleep(std::time::Duration::from_millis(50));
     }
 }
+
+pub(super) fn poll_until_result<T>(
+    mut operation: impl FnMut() -> Result<Option<T>, TestError>,
+) -> Result<T, TestError> {
+    let deadline = Instant::now() + OPERATION_TIMEOUT;
+    loop {
+        if let Some(value) = operation()? {
+            return Ok(value);
+        }
+        if Instant::now() >= deadline {
+            return Err(
+                io::Error::new(io::ErrorKind::TimedOut, "nightly condition timed out").into(),
+            );
+        }
+        thread::sleep(std::time::Duration::from_millis(50));
+    }
+}

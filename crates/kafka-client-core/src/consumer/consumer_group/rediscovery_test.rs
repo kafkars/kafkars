@@ -42,21 +42,26 @@ fn joining_coordinator_rediscovery_preserves_the_exact_attempt_deadline_and_fact
             deadline: original_deadline,
             ..
         },
+        ConsumerGroupHeartbeatEffect::ArmRediscoveryRetry { schedule },
     ] = effects.as_slice()
     else {
-        panic!("join retry must request one exact coordinator rediscovery")
+        panic!("join retry must pair rediscovery with one delayed replacement")
     };
-    assert_eq!(*replacement, attempt);
+    assert_ne!(*replacement, attempt);
     assert_eq!(*original_deadline, deadline(40));
+    assert_eq!(schedule.attempt(), *replacement);
+    assert_eq!(
+        schedule.cause(),
+        super::ConsumerGroupHeartbeatRetryCause::Rediscovery
+    );
     assert_eq!(machine.phase(), ConsumerGroupHeartbeatPhase::Joining);
-    assert_eq!(machine.in_flight(), Some(attempt));
-    assert_eq!(machine.next_sequence, next_sequence);
+    assert_eq!(machine.in_flight(), Some(*replacement));
+    assert_ne!(machine.next_sequence, next_sequence);
     assert_eq!(machine.deadline, Some(deadline(40)));
-    assert!(machine.rediscovery_replacement_used);
 }
 
 #[test]
-fn second_steady_rediscovery_for_the_same_attempt_revokes_and_terminalizes() {
+fn steady_rediscovery_preserves_facts_for_one_fresh_delayed_attempt() {
     let (mut machine, attempt) = heartbeating();
     let next_sequence = machine.next_sequence;
 
@@ -78,40 +83,21 @@ fn second_steady_rediscovery_for_the_same_attempt_revokes_and_terminalizes() {
             deadline: original_deadline,
             ..
         },
+        ConsumerGroupHeartbeatEffect::ArmRediscoveryRetry { schedule },
     ] = effects.as_slice()
     else {
         panic!("steady retry must preserve every live membership fact")
     };
-    assert_eq!(*replacement, attempt);
+    assert_ne!(*replacement, attempt);
     assert_eq!(member_id.get(), 9);
     assert_eq!(member_epoch.get(), 1);
     assert_eq!(generation.get(), 1);
     assert_eq!(*original_deadline, deadline(35));
     assert_eq!(machine.phase(), ConsumerGroupHeartbeatPhase::Heartbeating);
-    assert_eq!(machine.in_flight(), Some(attempt));
-    assert_eq!(machine.next_sequence, next_sequence);
+    assert_eq!(schedule.attempt(), *replacement);
+    assert_eq!(machine.in_flight(), Some(*replacement));
+    assert_ne!(machine.next_sequence, next_sequence);
     assert_eq!(machine.deadline, Some(deadline(35)));
-
-    let terminal = machine
-        .apply(ConsumerGroupHeartbeatInput::RetryHeartbeat {
-            attempt,
-            now: moment(27),
-            failure: ConsumerGroupHeartbeatFailure::CoordinatorUnavailable,
-        })
-        .unwrap_or_else(|error| panic!("bounded rediscovery terminal: {error}"))
-        .into_effects()
-        .collect::<Vec<_>>();
-    assert!(matches!(
-        terminal[0],
-        ConsumerGroupHeartbeatEffect::Revoke { .. }
-    ));
-    assert!(matches!(
-        terminal[1],
-        ConsumerGroupHeartbeatEffect::Fatal { fatal }
-            if fatal.attempt() == attempt
-                && fatal.failure() == ConsumerGroupHeartbeatFailure::CoordinatorUnavailable
-    ));
-    assert_eq!(machine.phase(), ConsumerGroupHeartbeatPhase::Fatal);
 }
 
 #[test]
@@ -139,7 +125,7 @@ fn elapsed_rediscovery_deadline_is_terminal_without_restarting_time() {
 }
 
 #[test]
-fn exact_coordinator_broker_codes_rediscover_once_then_retain_the_terminal_code() {
+fn exact_coordinator_broker_codes_allocate_fresh_delayed_attempts() {
     for code in [15, 16] {
         let (mut machine, attempt) = joining();
         let retry = machine
@@ -149,27 +135,27 @@ fn exact_coordinator_broker_codes_rediscover_once_then_retain_the_terminal_code(
                 failure: ConsumerGroupHeartbeatFailure::Broker(code),
             })
             .unwrap_or_else(|error| panic!("broker {code} rediscovery: {error}"));
-        assert!(matches!(
-            retry.into_effects().next(),
-            Some(ConsumerGroupHeartbeatEffect::Rediscover {
-                attempt: replacement,
-                ..
-            }) if replacement == attempt
-        ));
-
-        let terminal = machine
+        let effects = retry.into_effects().collect::<Vec<_>>();
+        let replacement = match effects.as_slice() {
+            [
+                ConsumerGroupHeartbeatEffect::Rediscover { attempt, .. },
+                ConsumerGroupHeartbeatEffect::ArmRediscoveryRetry { schedule },
+            ] if schedule.attempt() == *attempt => *attempt,
+            _ => panic!("broker {code} must pair rediscovery and delay"),
+        };
+        assert_ne!(replacement, attempt);
+        let stale = machine
             .apply(ConsumerGroupHeartbeatInput::RetryHeartbeat {
                 attempt,
                 now: moment(21),
                 failure: ConsumerGroupHeartbeatFailure::Broker(code),
             })
-            .unwrap_or_else(|error| panic!("broker {code} terminal: {error}"));
-        assert!(matches!(
-            terminal.into_effects().next(),
-            Some(ConsumerGroupHeartbeatEffect::Fatal { fatal })
-                if fatal.attempt() == attempt
-                    && fatal.failure() == ConsumerGroupHeartbeatFailure::Broker(code)
-        ));
+            .err()
+            .unwrap_or_else(|| panic!("broker {code} stale attempt must reject"));
+        assert_eq!(
+            stale.kind(),
+            super::ConsumerGroupHeartbeatErrorKind::AttemptMismatch
+        );
     }
 }
 
@@ -190,7 +176,6 @@ fn unrelated_broker_code_does_not_authorize_rediscovery() {
     );
     assert_eq!(machine.phase(), ConsumerGroupHeartbeatPhase::Joining);
     assert_eq!(machine.in_flight(), Some(attempt));
-    assert!(!machine.rediscovery_replacement_used);
 }
 
 #[test]
@@ -262,38 +247,19 @@ fn leaving_coordinator_rediscovery_preserves_the_exact_attempt_deadline_and_fact
             deadline: original_deadline,
             ..
         },
+        ConsumerGroupHeartbeatEffect::ArmRediscoveryRetry { schedule },
     ] = effects.as_slice()
     else {
         panic!("leave retry must preserve every live membership fact")
     };
-    assert_eq!(*replacement, leave);
+    assert_ne!(*replacement, leave);
     assert_eq!(member_id.get(), 9);
     assert_eq!(member_epoch.get(), 1);
     assert_eq!(generation.get(), 1);
     assert_eq!(*original_deadline, deadline(40));
     assert_eq!(machine.phase(), ConsumerGroupHeartbeatPhase::Leaving);
-    assert_eq!(machine.in_flight(), Some(leave));
-    assert_eq!(machine.next_sequence, next_sequence);
+    assert_eq!(schedule.attempt(), *replacement);
+    assert_eq!(machine.in_flight(), Some(*replacement));
+    assert_ne!(machine.next_sequence, next_sequence);
     assert_eq!(machine.deadline, Some(deadline(40)));
-
-    let terminal = machine
-        .apply(ConsumerGroupHeartbeatInput::RetryHeartbeat {
-            attempt: leave,
-            now: moment(24),
-            failure: ConsumerGroupHeartbeatFailure::Broker(16),
-        })
-        .unwrap_or_else(|error| panic!("bounded leave rediscovery terminal: {error}"))
-        .into_effects()
-        .collect::<Vec<_>>();
-    assert!(matches!(
-        terminal[0],
-        ConsumerGroupHeartbeatEffect::Revoke { .. }
-    ));
-    assert!(matches!(
-        terminal[1],
-        ConsumerGroupHeartbeatEffect::Fatal { fatal }
-            if fatal.attempt() == leave
-                && fatal.failure() == ConsumerGroupHeartbeatFailure::Broker(16)
-    ));
-    assert_eq!(machine.phase(), ConsumerGroupHeartbeatPhase::Fatal);
 }

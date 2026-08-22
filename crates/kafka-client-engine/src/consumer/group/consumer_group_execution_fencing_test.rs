@@ -12,8 +12,9 @@ use super::{
         ConsumerGroupAssignmentRetirementTurn, retire_entry_assignment,
         stage_consumer_group_revocation,
     },
+    consumer_group_execution_fencing::consumer_group_heartbeat_is_ready,
     consumer_group_heartbeat_settlement_test::installed_modern_entry,
-    consumer_group_heartbeat_submission::{consumer_group_heartbeat_is_ready, prepare_request},
+    consumer_group_heartbeat_submission::prepare_request,
 };
 
 #[test]

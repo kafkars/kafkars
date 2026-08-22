@@ -1,22 +1,33 @@
 //! Sequential missing-offset reset execution scenarios.
 
 use kafka_client_core::{
-    GroupPositionMissingOffsetPolicy, GroupPositionResetState, GroupPositionResetTerminal, Moment,
-    PositionResolutionAttemptFailure, StartPosition,
+    Deadline, GroupPositionBatch, GroupPositionBootstrapEffect, GroupPositionBootstrapInput,
+    GroupPositionBootstrapMachine, GroupPositionMissingOffsetPolicy, GroupPositionPartitionFact,
+    GroupPositionResetState, GroupPositionResetTerminal, Moment, PositionResolutionAttemptFailure,
+    StartPosition,
 };
 
 use super::{
     classic_group_entry_fault::ClassicGroupEntryFault,
+    classic_group_fetch::current_consumer_group_position_fence,
     classic_group_position::{
+        ClassicGroupPositionCloseTurn, ClassicGroupPositionCompleted,
         ClassicGroupPositionExecutionState, ClassicGroupPositionFailure,
-        ClassicGroupPositionSettlementTurn,
+        ClassicGroupPositionSettlementTurn, close_entry_position,
         settlement_test_support::{
             PartitionValue, driver_owned_fixture_with_policy, install_legacy_terminal,
         },
     },
     classic_group_position_reset::ClassicGroupPositionResetTurn,
+    consumer_group_assignment_retirement::{
+        ConsumerGroupAssignmentRetirementTurn, retire_entry_assignment,
+        stage_consumer_group_revocation,
+    },
+    consumer_group_heartbeat_settlement_test::installed_modern_entry,
+    registry::GroupConsumerRegistry,
     registry_test_support::stop_registry,
 };
+use crate::clock::{MonotonicClock, OperationDeadline};
 
 #[test]
 fn confirmed_reset_terminal_becomes_one_exact_sequential_lookup() {
@@ -78,6 +89,91 @@ fn confirmed_reset_terminal_becomes_one_exact_sequential_lookup() {
 
         stop_registry(&mut fixture.registry);
     }
+}
+
+#[test]
+fn modern_reset_uses_the_consumer_group_assignment_fence() {
+    let (mut entry, _topic_id) = installed_modern_entry();
+    let consumer = entry
+        .consumer
+        .as_ref()
+        .unwrap_or_else(|| panic!("modern execution"));
+    let fence = current_consumer_group_position_fence(consumer, &entry.catalog)
+        .unwrap_or_else(|error| panic!("modern fence: {error:?}"));
+    let partition = entry
+        .catalog
+        .live_assignment()
+        .unwrap_or_else(|| panic!("modern assignment"))
+        .partitions()[0];
+    let mut bootstrap = GroupPositionBootstrapMachine::try_new_with_policy(
+        fence,
+        Deadline::from_tick(100),
+        vec![partition],
+        GroupPositionMissingOffsetPolicy::Earliest,
+    )
+    .unwrap_or_else(|error| panic!("modern position bootstrap: {error}"));
+    bootstrap
+        .apply(GroupPositionBootstrapInput::Start {
+            fence,
+            now: Moment::from_tick(1),
+        })
+        .and_then(|_| bootstrap.apply(GroupPositionBootstrapInput::DriverAccepted { fence }))
+        .unwrap_or_else(|error| panic!("modern position submission: {error}"));
+    let transition = bootstrap
+        .apply(GroupPositionBootstrapInput::OffsetsFetched {
+            fence,
+            now: Moment::from_tick(50),
+            batch: GroupPositionBatch::new(0, vec![GroupPositionPartitionFact::missing(partition)]),
+        })
+        .unwrap_or_else(|error| panic!("modern position terminal: {error}"));
+    let Some(GroupPositionBootstrapEffect::Complete { terminal, .. }) = transition.into_effect()
+    else {
+        panic!("modern reset-required completion");
+    };
+    entry
+        .position
+        .set(ClassicGroupPositionExecutionState::Complete(
+            ClassicGroupPositionCompleted::new_with_operation_deadline(
+                bootstrap,
+                terminal,
+                Moment::from_tick(50),
+                OperationDeadline::from_core_for_test(Deadline::from_tick(100)),
+            ),
+        ));
+    let mut registry =
+        GroupConsumerRegistry::start().unwrap_or_else(|error| panic!("registry: {error:?}"));
+    registry.retained_group_bytes = entry.group_bytes();
+    registry.entries.push(entry);
+
+    assert_eq!(
+        registry.begin_one_classic_group_position_reset(Moment::from_tick(51)),
+        Ok(ClassicGroupPositionResetTurn::Progress)
+    );
+    let entry = registry
+        .entries
+        .first_mut()
+        .unwrap_or_else(|| panic!("modern entry"));
+    let ClassicGroupPositionExecutionState::ResetPrepared(prepared) = entry.position.state() else {
+        panic!("modern reset lookup must be prepared");
+    };
+    assert_eq!(prepared.reset.fence(), fence);
+    assert_eq!(
+        close_entry_position(entry, Moment::from_tick(52)),
+        Ok(ClassicGroupPositionCloseTurn::Progress)
+    );
+    let revoked = entry
+        .consumer
+        .as_mut()
+        .unwrap_or_else(|| panic!("modern execution"))
+        .close_locally()
+        .unwrap_or_else(|error| panic!("modern close: {error:?}"));
+    stage_consumer_group_revocation(entry, revoked)
+        .unwrap_or_else(|error| panic!("modern revocation: {error:?}"));
+    assert_eq!(
+        retire_entry_assignment(entry, Moment::from_tick(53), &MonotonicClock::new()),
+        Ok(ConsumerGroupAssignmentRetirementTurn::Progress)
+    );
+    stop_registry(&mut registry);
 }
 
 #[test]

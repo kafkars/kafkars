@@ -80,10 +80,9 @@ pub(crate) fn run_classic_matrix() -> Result<(), TestError> {
 
 fn run_matrix(include_kip_848: bool) -> Result<(), TestError> {
     let mut failures = Vec::new();
-    let scenarios = include_kip_848
-        .then_some(KIP_848)
+    let scenarios = BEFORE_KIP_848
         .into_iter()
-        .chain(BEFORE_KIP_848)
+        .chain(include_kip_848.then_some(KIP_848))
         .chain(AFTER_KIP_848);
     for (name, scenario) in scenarios {
         if let Err(error) = evidence::measure(name, scenario) {

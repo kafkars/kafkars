@@ -25,7 +25,7 @@ pub use identity::{
     ConsumerGroupMemberEpoch,
 };
 pub use input::ConsumerGroupHeartbeatInput;
-pub use load_retry::ConsumerGroupHeartbeatRetrySchedule;
+pub use load_retry::{ConsumerGroupHeartbeatRetryCause, ConsumerGroupHeartbeatRetrySchedule};
 pub use machine::ConsumerGroupHeartbeatMachine;
 pub use model::{
     CONSUMER_GROUP_HEARTBEAT_MAX_PARTITIONS, ConsumerGroupHeartbeatFailure,
@@ -33,6 +33,8 @@ pub use model::{
 };
 pub use policy::{ConsumerGroupHeartbeatPolicy, ConsumerGroupHeartbeatPolicyError};
 
+#[cfg(test)]
+mod awaiting_assignment_test;
 #[cfg(test)]
 mod failure_test;
 #[cfg(test)]
@@ -51,6 +53,8 @@ mod reconciliation_terminal_test;
 mod reconciliation_test;
 #[cfg(test)]
 mod recovery_test;
+#[cfg(test)]
+mod rediscovery_retry_test;
 #[cfg(test)]
 mod rediscovery_test;
 #[cfg(test)]

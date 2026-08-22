@@ -68,7 +68,6 @@ impl ConsumerGroupHeartbeatMachine {
         self.next_sequence = next_sequence;
         self.in_flight = None;
         self.deadline = None;
-        self.rediscovery_replacement_used = false;
         self.retry_schedule = None;
         self.member_id = Some(member_id);
         self.member_epoch = Some(member_epoch);
@@ -102,7 +101,6 @@ impl ConsumerGroupHeartbeatMachine {
     pub(super) fn clear_active(&mut self) {
         self.in_flight = None;
         self.deadline = None;
-        self.rediscovery_replacement_used = false;
         self.retry_schedule = None;
         self.member_id = None;
         self.member_epoch = None;

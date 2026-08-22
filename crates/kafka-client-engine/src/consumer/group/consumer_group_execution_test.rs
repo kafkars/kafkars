@@ -2,7 +2,10 @@
 
 use std::time::Duration;
 
-use kafka_client_core::{ConsumerGroupHeartbeatPhase, ConsumerGroupHeartbeatRequestKind, GroupId};
+use kafka_client_core::{
+    ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatPhase, ConsumerGroupHeartbeatRequestKind,
+    GroupId,
+};
 
 use crate::clock::MonotonicClock;
 
@@ -53,6 +56,28 @@ fn second_begin_cannot_replace_the_accepted_effect() {
         Err(ConsumerGroupExecutionAdmissionError::Occupied)
     );
     assert_eq!(execution.prepared(), first);
+}
+
+#[test]
+fn initial_failure_becomes_one_retained_fatal_without_assignment_loss() {
+    let mut execution = ConsumerGroupExecution::new(group_id());
+    let capture = MonotonicClock::new()
+        .capture_deadline_after(Duration::from_secs(1))
+        .unwrap_or_else(|error| panic!("capture: {error:?}"));
+    execution
+        .begin(capture)
+        .unwrap_or_else(|error| panic!("begin: {error:?}"));
+    assert_eq!(
+        execution
+            .apply_current_failure(ConsumerGroupHeartbeatFailure::Compatibility)
+            .unwrap_or_else(|error| panic!("failure: {error:?}")),
+        None
+    );
+    assert_eq!(
+        execution.machine().phase(),
+        ConsumerGroupHeartbeatPhase::Fatal
+    );
+    assert_eq!(execution.unsettled(), 0);
 }
 
 fn group_id() -> GroupId {

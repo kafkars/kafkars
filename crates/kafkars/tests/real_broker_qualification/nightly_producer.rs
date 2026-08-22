@@ -5,9 +5,14 @@ use std::{
     time::{Duration, Instant},
 };
 
-use kafkars::{CancellationOutcome, Delivery, DeliveryStatus, ErrorKind, ProducerLimits, Record};
+use kafkars::{
+    CancellationOutcome, Delivery, DeliveryStatus, ErrorKind, Producer, ProducerLimits, Record,
+    RetryAdvice, SendBatchResult,
+};
 
-use crate::real_broker_support::{TestError, client_builder_from_environment, wait_within};
+use crate::real_broker_support::{
+    OPERATION_TIMEOUT, TestError, client_builder_from_environment, wait_within, wait_within_for,
+};
 
 use super::{nightly_control::BrokerGuard, nightly_support};
 
@@ -21,9 +26,22 @@ pub(super) fn batching_and_partitioning() -> Result<(), TestError> {
                 .value(format!("batch-{index}"))
         })
         .collect::<Vec<_>>();
-    let result = wait_within(producer.send_batch(records), "batched producer send")?;
-    if result.rejection().is_some() || result.deliveries().len() != 18 {
-        return Err(io::Error::other("batch admission did not settle all 18 records").into());
+    let result = send_batch_after_transient_admission(&producer, records)?;
+    if let Some(rejection) = result.rejection() {
+        return Err(io::Error::other(format!(
+            "batch admission accepted {} of 18 records before rejection: error={:?}; rejected={}",
+            result.deliveries().len(),
+            rejection.error(),
+            rejection.record().len(),
+        ))
+        .into());
+    }
+    if result.deliveries().len() != 18 {
+        return Err(io::Error::other(format!(
+            "batch admission returned {} deliveries without a rejection",
+            result.deliveries().len(),
+        ))
+        .into());
     }
     for (index, delivery) in result.deliveries().iter().enumerate() {
         let metadata = delivery.as_ref().map_err(Clone::clone)?;
@@ -42,6 +60,41 @@ pub(super) fn batching_and_partitioning() -> Result<(), TestError> {
     }
     nightly_support::close_producer(&producer, "batched producer close")?;
     fixture.finish()
+}
+
+fn send_batch_after_transient_admission(
+    producer: &Producer,
+    mut records: Vec<Record>,
+) -> Result<SendBatchResult, TestError> {
+    let deadline = Instant::now() + OPERATION_TIMEOUT;
+    loop {
+        let now = Instant::now();
+        if now >= deadline {
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "batch admission remained backpressured",
+            )
+            .into());
+        }
+        let result = wait_within_for(
+            producer.send_batch(records),
+            "batched producer send",
+            deadline.saturating_duration_since(now),
+        )?;
+        let retryable = result.deliveries().is_empty()
+            && result.rejection().is_some_and(|rejection| {
+                rejection.error().retry_advice() == RetryAdvice::RetrySafe
+            });
+        if !retryable {
+            return Ok(result);
+        }
+        let (_deliveries, rejection) = result.into_parts();
+        records = rejection
+            .unwrap_or_else(|| unreachable!("retryable batch retained its exact rejection"))
+            .into_parts()
+            .0;
+        thread::sleep(Duration::from_millis(1));
+    }
 }
 
 pub(super) fn cancellation_preserves_delivery_certainty() -> Result<(), TestError> {

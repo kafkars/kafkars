@@ -61,11 +61,18 @@ pub enum ConsumerGroupHeartbeatInput {
     },
     /// Requests one bounded replacement of the exact in-flight heartbeat after coordinator loss.
     RetryHeartbeat {
-        /// Exact in-flight request identity; replacements never allocate another attempt.
+        /// Exact rejected request identity; each replacement allocates a fresh attempt.
         attempt: ConsumerGroupHeartbeatAttempt,
         /// Current monotonic observation used against the original attempt deadline.
         now: Moment,
         /// Normalized failure; only exact coordinator-unavailability categories authorize replacement.
+        failure: ConsumerGroupHeartbeatFailure,
+    },
+    /// Terminalizes a replacement whose paired route invalidation failed.
+    RediscoveryFailed {
+        /// Exact retained retry schedule paired with the invalidation.
+        schedule: ConsumerGroupHeartbeatRetrySchedule,
+        /// Stable normalized invalidation failure.
         failure: ConsumerGroupHeartbeatFailure,
     },
     /// Schedules the exact in-flight request after Kafka reports a loading coordinator.

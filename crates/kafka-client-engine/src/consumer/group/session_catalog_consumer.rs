@@ -8,6 +8,8 @@ use super::session_catalog::{
     GroupSessionCatalog, GroupSessionCatalogError, MAX_KAFKA_GROUP_STRING_BYTES,
 };
 
+mod assignmentless;
+
 /// Current modern member spelling paired with its engine assignment fence.
 pub(super) struct ConsumerGroupSession {
     member_id: MemberId,

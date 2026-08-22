@@ -12,8 +12,8 @@ use crate::{
     },
 };
 use kafka_client_core::{
-    GroupId, GroupPositionBatch, GroupPositionFence, GroupPositionPartitionFact,
-    LiveGroupAssignment, Moment, NextFetchOffset,
+    GroupId, GroupPositionBatch, GroupPositionFence, GroupPositionPartitionFact, Moment,
+    NextFetchOffset,
 };
 
 use super::{
@@ -29,11 +29,9 @@ use super::{
     consumer_group_heartbeat_settlement::{ConsumerGroupHeartbeatSettlementTurn, settle_success},
     registry::GroupConsumerRegistry,
     registry_entry::{GroupConsumerEntry, default_classic_processing_lease_policy},
-    registry_event::GroupConsumerStateError,
     registry_processing::GroupConsumerProcessingTurn,
-    session_catalog::CurrentGroupSession,
 };
-use crate::consumer::{GroupConsumerMembershipEpoch, GroupConsumerProtocol};
+use crate::consumer::GroupConsumerProtocol;
 
 #[test]
 fn initial_assignment_owns_position_processing_and_observation_before_fetch() {
@@ -154,88 +152,11 @@ fn processing_expiry_closes_modern_membership_before_retiring_assignment() {
     );
 }
 
-#[test]
-fn confirmed_static_modern_state_exposes_identity_without_sending_it_transactionally() {
-    let (entry, _topic_id) = installed_modern_entry_with_instance(Some(&Arc::from("instance-a")));
-    let group_id = entry.group_id();
-    let mut registry =
-        GroupConsumerRegistry::start().unwrap_or_else(|error| panic!("registry: {error:?}"));
-    registry.entries.push(entry);
-
-    let state = registry
-        .group_state(group_id)
-        .unwrap_or_else(|error| panic!("state observation: {error:?}"))
-        .unwrap_or_else(|| panic!("confirmed state"));
-    assert_eq!(
-        state.metadata().membership_epoch(),
-        GroupConsumerMembershipEpoch::Consumer { member_epoch: 1 }
-    );
-    assert_eq!(state.metadata().group_instance_id(), Some("instance-a"));
-    assert_eq!(state.metadata().group_instance_id_arc(), None);
-}
-
-#[test]
-fn group_state_rejects_consumer_protocol_with_only_a_classic_epoch() {
-    let (mut entry, _topic_id) = installed_modern_entry();
-    let assignment = entry
-        .catalog
-        .live_assignment()
-        .unwrap_or_else(|| panic!("installed modern assignment"));
-    let classic_assignment = LiveGroupAssignment::try_new(
-        assignment.group_id(),
-        assignment.member_id(),
-        assignment.assignment_generation(),
-        assignment.partitions().to_vec(),
-    )
-    .unwrap_or_else(|error| panic!("matching classic assignment: {error}"));
-    let member_id = assignment.member_id();
-    let member = entry
-        .catalog
-        .current_member()
-        .cloned()
-        .unwrap_or_else(|| panic!("installed modern member"));
-    let installed_cycle = entry
-        .catalog
-        .membership_cycle()
-        .unwrap_or_else(|| panic!("installed modern cycle"));
-    let modern_session = entry
-        .catalog
-        .consumer_current
-        .take()
-        .unwrap_or_else(|| panic!("installed modern session"));
-    entry.catalog.current = Some(CurrentGroupSession {
-        member_id,
-        member,
-        installed_cycle,
-        classic_generation: 7,
-        assignment: classic_assignment,
-    });
-    assert_eq!(entry.protocol, GroupConsumerProtocol::Consumer);
-    assert_eq!(entry.catalog.classic_generation(), Some(7));
-    assert_eq!(entry.catalog.consumer_group_member_epoch(), None);
-
-    let group_id = entry.group_id();
-    let mut registry =
-        GroupConsumerRegistry::start().unwrap_or_else(|error| panic!("registry: {error:?}"));
-    registry.entries.push(entry);
-    assert_eq!(
-        registry.group_state(group_id),
-        Err(GroupConsumerStateError::EntryFault)
-    );
-
-    let entry = registry
-        .entries
-        .first_mut()
-        .unwrap_or_else(|| panic!("modern entry"));
-    entry.catalog.current = None;
-    entry.catalog.consumer_current = Some(modern_session);
-}
-
 pub(super) fn installed_modern_entry() -> (GroupConsumerEntry, kafka_client_core::TopicId) {
     installed_modern_entry_with_instance(None)
 }
 
-fn installed_modern_entry_with_instance(
+pub(super) fn installed_modern_entry_with_instance(
     group_instance_id: Option<&Arc<str>>,
 ) -> (GroupConsumerEntry, kafka_client_core::TopicId) {
     let mut entry = modern_entry_with_instance(group_instance_id);
@@ -273,7 +194,9 @@ fn installed_modern_entry_with_instance(
     (entry, topic_id)
 }
 
-fn modern_entry_with_instance(group_instance_id: Option<&Arc<str>>) -> GroupConsumerEntry {
+pub(super) fn modern_entry_with_instance(
+    group_instance_id: Option<&Arc<str>>,
+) -> GroupConsumerEntry {
     GroupConsumerEntry::try_new_with_protocol_configuration(
         GroupId::try_from_raw(3).unwrap_or_else(|| panic!("group identity")),
         &Arc::from("workers"),

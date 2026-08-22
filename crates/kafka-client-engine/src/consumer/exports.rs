@@ -94,7 +94,7 @@ pub use super::group_seek::{
 };
 pub use super::group_start::{
     GroupConsumerStartAccepted, GroupConsumerStartCapture, GroupConsumerStartError,
-    GroupConsumerStartErrorKind,
+    GroupConsumerStartErrorKind, GroupConsumerStartupFailureKind,
 };
 
 pub(crate) use super::{

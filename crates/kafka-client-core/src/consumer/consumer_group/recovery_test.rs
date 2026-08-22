@@ -53,7 +53,6 @@ fn fenced_steady_member_revokes_then_rejoins_with_retained_identity_and_fresh_de
     assert_eq!(machine.member_epoch(), None);
     assert!(machine.live_assignment().is_none());
     assert!(machine.schedule().is_none());
-    assert!(!machine.rediscovery_replacement_used);
     let next_sequence = machine.next_sequence;
     let recovered = succeed(
         &mut machine,
@@ -290,7 +289,7 @@ fn rediscovery_of_a_recovery_join_retains_the_member_identity() {
             assignment_generation: None,
             deadline: actual_deadline,
             ..
-        }) if attempt == join_attempt
+        }) if attempt != join_attempt
             && member_id == member(9)
             && actual_deadline == deadline(36)
     ));

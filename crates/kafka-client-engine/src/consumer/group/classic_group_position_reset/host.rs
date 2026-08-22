@@ -6,7 +6,7 @@ use crate::driver::DriverOwner;
 
 use super::{
     super::{
-        classic_group_fetch::current_position_fence,
+        classic_group_fetch::{current_consumer_group_position_fence, current_position_fence},
         classic_group_position::{
             ClassicGroupPositionExecutionError, ClassicGroupPositionExecutionState,
         },
@@ -27,8 +27,11 @@ impl GroupConsumerRegistry {
             return Ok(ClassicGroupPositionResetTurn::Idle);
         };
         let entry = &mut self.entries[index];
-        let current = current_position_fence(&entry.classic, &entry.catalog)
-            .map_err(|_error| ClassicGroupPositionExecutionError::ResetCurrentFence)?;
+        let current = match entry.consumer.as_ref() {
+            Some(consumer) => current_consumer_group_position_fence(consumer, &entry.catalog),
+            None => current_position_fence(&entry.classic, &entry.catalog),
+        }
+        .map_err(|_error| ClassicGroupPositionExecutionError::ResetCurrentFence)?;
         entry.position.begin_missing_offset_reset(current, now)?;
         Ok(ClassicGroupPositionResetTurn::Progress)
     }

@@ -33,7 +33,6 @@ impl ConsumerGroupHeartbeatMachine {
         self.next_sequence = next_sequence;
         self.in_flight = Some(attempt);
         self.deadline = Some(deadline);
-        self.rediscovery_replacement_used = false;
         self.retry_schedule = None;
         Ok(ConsumerGroupHeartbeatTransition::one(
             ConsumerGroupHeartbeatEffect::Submit {
@@ -53,7 +52,10 @@ impl ConsumerGroupHeartbeatMachine {
         schedule: ConsumerGroupHeartbeatSchedule,
         now: Moment,
     ) -> Result<ConsumerGroupHeartbeatTransition, ConsumerGroupHeartbeatErrorKind> {
-        if self.phase != ConsumerGroupHeartbeatPhase::Stable {
+        if !matches!(
+            self.phase,
+            ConsumerGroupHeartbeatPhase::Stable | ConsumerGroupHeartbeatPhase::AwaitingAssignment
+        ) {
             return Err(ConsumerGroupHeartbeatErrorKind::InvalidPhase);
         }
         if self.schedule != Some(schedule) {
@@ -68,11 +70,18 @@ impl ConsumerGroupHeartbeatMachine {
         let member_epoch = self
             .member_epoch
             .ok_or(ConsumerGroupHeartbeatErrorKind::InvariantViolation)?;
-        let assignment = self
-            .live_assignment
-            .as_ref()
-            .ok_or(ConsumerGroupHeartbeatErrorKind::InvariantViolation)?;
-        if assignment.assignment_generation() != schedule.assignment_generation() {
+        let assignment_generation = match self.live_assignment.as_ref() {
+            Some(assignment) if self.phase == ConsumerGroupHeartbeatPhase::Stable => {
+                Some(assignment.assignment_generation())
+            }
+            None if self.phase == ConsumerGroupHeartbeatPhase::AwaitingAssignment
+                && self.pending_assignment.is_none() =>
+            {
+                None
+            }
+            _ => return Err(ConsumerGroupHeartbeatErrorKind::InvariantViolation),
+        };
+        if assignment_generation != schedule.assignment_generation() {
             return Err(ConsumerGroupHeartbeatErrorKind::ScheduleMismatch);
         }
         let deadline = now
@@ -86,7 +95,6 @@ impl ConsumerGroupHeartbeatMachine {
         self.schedule = None;
         self.in_flight = Some(attempt);
         self.deadline = Some(deadline);
-        self.rediscovery_replacement_used = false;
         self.retry_schedule = None;
         Ok(ConsumerGroupHeartbeatTransition::one(
             ConsumerGroupHeartbeatEffect::Submit {
@@ -95,7 +103,10 @@ impl ConsumerGroupHeartbeatMachine {
                 kind: ConsumerGroupHeartbeatRequestKind::Steady,
                 member_id: Some(member_id),
                 member_epoch: Some(member_epoch),
-                assignment_generation: Some(assignment.assignment_generation()),
+                assignment_generation: self
+                    .live_assignment
+                    .as_ref()
+                    .map(crate::LiveGroupAssignment::assignment_generation),
                 deadline,
             },
         ))

@@ -3,11 +3,13 @@
 use kafka_client_core::{
     ConsumerGroupHeartbeatEffect, ConsumerGroupHeartbeatFailure, ConsumerGroupHeartbeatInput,
     ConsumerGroupHeartbeatPhase, ConsumerGroupHeartbeatRequestKind,
-    ConsumerGroupHeartbeatRetrySchedule, LiveGroupAssignment, Moment,
+    ConsumerGroupHeartbeatRetryCause, ConsumerGroupHeartbeatRetrySchedule, LiveGroupAssignment,
+    Moment,
 };
 
 use super::super::consumer_group_execution::{
-    ConsumerGroupExecution, ConsumerGroupExecutionError, PreparedConsumerGroupHeartbeat,
+    ConsumerGroupExecution, ConsumerGroupExecutionError, ConsumerGroupRediscoveryState,
+    PreparedConsumerGroupHeartbeat,
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -53,6 +55,7 @@ impl ConsumerGroupExecution {
             (Some(ConsumerGroupHeartbeatEffect::ArmCoordinatorLoadRetry { schedule }), None)
                 if schedule.attempt() == prepared.attempt()
                     && schedule.kind() == prepared.kind()
+                    && schedule.cause() == ConsumerGroupHeartbeatRetryCause::CoordinatorLoad
                     && schedule.not_before().tick() > now.tick()
                     && schedule.not_before().tick() <= schedule.deadline().tick()
                     && schedule.deadline() == prepared.deadline().core()
@@ -73,6 +76,9 @@ impl ConsumerGroupExecution {
         };
         if !schedule.not_before().is_elapsed_at(now) {
             return Ok(ConsumerGroupCoordinatorLoadRetryTurn::Idle);
+        }
+        if !retry_cause_matches_rediscovery(schedule.cause(), self.rediscovery_state()) {
+            return Err(ConsumerGroupExecutionError::EffectShape);
         }
         let prepared = self
             .prepared
@@ -106,6 +112,7 @@ impl ConsumerGroupExecution {
                 && member_epoch == prepared.member_epoch()
                 && assignment_generation == prepared.assignment_generation()
                 && deadline == prepared.deadline().core()
+                && retry_cause_matches_rediscovery(schedule.cause(), self.rediscovery_state())
                 && self.machine.retry_schedule().is_none() =>
             {
                 Ok(ConsumerGroupCoordinatorLoadRetryTurn::SubmissionReady)
@@ -151,4 +158,21 @@ impl ConsumerGroupExecution {
             revoked,
         })
     }
+}
+
+const fn retry_cause_matches_rediscovery(
+    cause: ConsumerGroupHeartbeatRetryCause,
+    rediscovery: ConsumerGroupRediscoveryState,
+) -> bool {
+    matches!(
+        (cause, rediscovery),
+        (
+            ConsumerGroupHeartbeatRetryCause::CoordinatorLoad,
+            ConsumerGroupRediscoveryState::Open
+        ) | (
+            ConsumerGroupHeartbeatRetryCause::Rediscovery,
+            ConsumerGroupRediscoveryState::AwaitingInvalidationAdmission
+                | ConsumerGroupRediscoveryState::ReplacementAdmitted
+        )
+    )
 }

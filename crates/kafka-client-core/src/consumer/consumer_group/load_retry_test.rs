@@ -25,7 +25,6 @@ fn join_load_retry_owns_positive_backoff_and_resubmits_the_exact_attempt() {
     assert_eq!(machine.phase(), ConsumerGroupHeartbeatPhase::Joining);
     assert_eq!(machine.in_flight(), Some(attempt));
     assert_eq!(machine.next_sequence, next_sequence);
-    assert!(!machine.rediscovery_replacement_used);
 
     let early = machine
         .apply(ConsumerGroupHeartbeatInput::CoordinatorLoadRetryDue {
@@ -61,7 +60,6 @@ fn join_load_retry_owns_positive_backoff_and_resubmits_the_exact_attempt() {
 #[test]
 fn steady_load_retry_retains_member_epoch_assignment_and_coordinator_semantics() {
     let (mut machine, attempt) = heartbeating();
-    machine.rediscovery_replacement_used = true;
     let next_sequence = machine.next_sequence;
     let schedule = arm(&mut machine, attempt, 26);
 
@@ -80,7 +78,6 @@ fn steady_load_retry_retains_member_epoch_assignment_and_coordinator_semantics()
     assert_eq!(assignment.member_id(), member(9));
     assert_eq!(assignment.assignment_generation().get(), 1);
     assert_eq!(assignment.partitions(), [partition(1, 0)]);
-    assert!(machine.rediscovery_replacement_used);
 
     let submit = due(&mut machine, schedule, schedule.not_before().tick());
     assert!(matches!(
@@ -102,7 +99,6 @@ fn steady_load_retry_retains_member_epoch_assignment_and_coordinator_semantics()
     assert_eq!(machine.phase(), ConsumerGroupHeartbeatPhase::Heartbeating);
     assert_eq!(machine.in_flight(), Some(attempt));
     assert_eq!(machine.next_sequence, next_sequence);
-    assert!(machine.rediscovery_replacement_used);
 }
 
 #[test]

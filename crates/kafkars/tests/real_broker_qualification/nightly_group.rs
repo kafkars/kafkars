@@ -3,7 +3,8 @@
 use std::{collections::BTreeSet, io};
 
 use kafkars::{
-    ClassicGroupAssignor, Client, ConsumerGroupProtocol, GroupMembershipEpoch, OffsetReset, Record,
+    ClassicGroupAssignor, Client, ConsumerGroupProtocol, ErrorKind, GroupMembershipEpoch,
+    OffsetReset, Record,
 };
 
 use crate::real_broker_support::{
@@ -15,6 +16,7 @@ use super::{consume, nightly_support};
 
 pub(super) fn classic_cooperative_initial_assignment() -> Result<(), TestError> {
     let fixture = nightly_support::Fixture::new("classic-rebalance", 2)?;
+    prove_partitions_writable(&fixture)?;
     let group_id = unique_name("kafkars-cooperative");
     let first = cooperative_consumer(&fixture.client, &fixture.topic, &group_id)?;
     nightly_support::poll_until(|| {
@@ -23,6 +25,21 @@ pub(super) fn classic_cooperative_initial_assignment() -> Result<(), TestError> 
     })?;
     consume::close_group(first, "first cooperative close")?;
     fixture.finish()
+}
+
+fn prove_partitions_writable(fixture: &nightly_support::Fixture) -> Result<(), TestError> {
+    let producer = fixture.client.producer().build()?;
+    for partition in 0..2 {
+        wait_within(
+            producer.send(
+                Record::to(fixture.topic.as_str())
+                    .partition(partition)
+                    .value(format!("group-ready-{partition}")),
+            ),
+            "group partition readiness",
+        )??;
+    }
+    nightly_support::close_producer(&producer, "group readiness producer close")
 }
 
 pub(super) fn member_shutdown_commit_and_resume() -> Result<(), TestError> {
@@ -95,21 +112,35 @@ pub(super) fn member_shutdown_commit_and_resume() -> Result<(), TestError> {
 
 pub(super) fn kip848_initial_assignment() -> Result<(), TestError> {
     let fixture = nightly_support::Fixture::new("kip848", 2)?;
+    prove_partitions_writable(&fixture)?;
     let group_id = unique_name("kafkars-kip848");
     let expected = BTreeSet::from([(fixture.topic.clone(), 0), (fixture.topic.clone(), 1)]);
     let first = consumer_protocol_consumer(&fixture.client, &fixture.topic, &group_id)?;
-    nightly_support::poll_until(|| {
-        let assignment = first.assignment().ok().flatten()?;
-        let metadata = first.group_metadata().ok().flatten()?;
+    nightly_support::poll_until_result(|| {
+        if let Some(error) = first.startup_error() {
+            return Err(error.into());
+        }
+        let assignment = match first.assignment() {
+            Ok(Some(assignment)) => assignment,
+            Ok(None) => return Ok(None),
+            Err(error) if error.kind() == ErrorKind::Backpressure => return Ok(None),
+            Err(error) => return Err(error.into()),
+        };
+        let metadata = match first.group_metadata() {
+            Ok(Some(metadata)) => metadata,
+            Ok(None) => return Ok(None),
+            Err(error) if error.kind() == ErrorKind::Backpressure => return Ok(None),
+            Err(error) => return Err(error.into()),
+        };
         if assignment_set(&assignment) != expected
             || assignment.assignment_epoch() != metadata.assignment_epoch()
         {
-            return None;
+            return Ok(None);
         }
-        match metadata.membership_epoch() {
+        Ok(match metadata.membership_epoch() {
             GroupMembershipEpoch::Consumer { member_epoch } if member_epoch > 0 => Some(()),
             GroupMembershipEpoch::Classic { .. } | GroupMembershipEpoch::Consumer { .. } => None,
-        }
+        })
     })?;
     consume::close_group(first, "first KIP-848 member close")?;
     fixture.finish()
