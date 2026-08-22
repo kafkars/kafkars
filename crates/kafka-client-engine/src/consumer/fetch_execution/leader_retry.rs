@@ -101,6 +101,10 @@ impl DirectFetchExecutor {
         }
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one atomic retry transition preserves every request, event, store, route, and broker-session rollback owner"
+    )]
     fn apply_leader_movement_retry(
         &mut self,
         _driver: &DriverOwner,

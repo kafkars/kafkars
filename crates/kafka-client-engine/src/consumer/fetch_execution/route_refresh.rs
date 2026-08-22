@@ -144,6 +144,10 @@ impl LeaderMovementRecovery {
 }
 
 impl DirectFetchExecutor {
+    #[expect(
+        clippy::result_large_err,
+        reason = "pre-admission capacity rejection returns the exact linear prepared Fetch owner"
+    )]
     pub(super) fn retain_topic_route_retry(
         &mut self,
         prepared: PreparedFetchExecution,
