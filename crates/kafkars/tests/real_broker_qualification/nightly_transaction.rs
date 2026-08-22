@@ -11,90 +11,96 @@ use crate::real_broker_support::{
     OPERATION_TIMEOUT, TestError, unique_name, wait_within, wait_within_for,
 };
 
-use super::{consume, nightly_support};
+use super::{consume, nightly_support, transaction};
 
 pub(super) fn fencing_abort_commit_and_read_committed() -> Result<(), TestError> {
     let fixture = nightly_support::Fixture::new("transaction", 1)?;
     let transaction_id = unique_name("kafkars-fencing");
     let mut first = transactional(&fixture, &transaction_id)?;
-    let mut first_transaction = first.begin()?;
-    wait_within(
-        first_transaction.send(
-            Record::to(fixture.topic.as_str())
-                .partition(0)
-                .value("fenced"),
-            OPERATION_TIMEOUT,
-        )?,
-        "first transactional send",
-    )??;
+    let mut replacement = transaction::with_transaction(
+        &mut first,
+        "first transaction begin",
+        |mut first_transaction| {
+            wait_within(
+                first_transaction.send(
+                    Record::to(fixture.topic.as_str())
+                        .partition(0)
+                        .value("fenced"),
+                    OPERATION_TIMEOUT,
+                )?,
+                "first transactional send",
+            )??;
 
-    let mut replacement = transactional(&fixture, &transaction_id)?;
-    let first_commit = first_transaction
-        .commit(OPERATION_TIMEOUT)
-        .map_err(|error| {
-            io::Error::other(format!(
-                "fenced transaction commit admission: {}",
-                error.error()
-            ))
-        })?;
-    let fenced = match wait_within(first_commit, "fenced transaction terminal")? {
-        Ok(()) => return Err(io::Error::other("replacement producer did not fence first").into()),
-        Err(error) => error,
-    };
-    if fenced.kind() != ErrorKind::Fenced {
-        return Err(io::Error::other(format!("first producer was not fenced: {fenced:?}")).into());
-    }
+            let replacement = transactional(&fixture, &transaction_id)?;
+            let fenced =
+                match transaction::commit_result(first_transaction, "fenced transaction terminal")?
+                {
+                    Ok(()) => {
+                        return Err(
+                            io::Error::other("replacement producer did not fence first").into()
+                        );
+                    }
+                    Err(error) => error,
+                };
+            if fenced.kind() != ErrorKind::Fenced {
+                return Err(
+                    io::Error::other(format!("first producer was not fenced: {fenced:?}")).into(),
+                );
+            }
+            Ok(replacement)
+        },
+    )?;
 
-    let mut committed = replacement.begin()?;
-    wait_within(
-        committed.send(
-            Record::to(fixture.topic.as_str())
-                .partition(0)
-                .value("committed"),
-            OPERATION_TIMEOUT,
-        )?,
-        "replacement committed send",
-    )??;
-    wait_within(
-        committed.commit(OPERATION_TIMEOUT).map_err(|error| {
-            io::Error::other(format!("replacement commit admission: {}", error.error()))
-        })?,
-        "replacement commit",
-    )??;
+    transaction::with_transaction(
+        &mut replacement,
+        "replacement commit begin",
+        |mut committed| {
+            wait_within(
+                committed.send(
+                    Record::to(fixture.topic.as_str())
+                        .partition(0)
+                        .value("committed"),
+                    OPERATION_TIMEOUT,
+                )?,
+                "replacement committed send",
+            )??;
+            transaction::commit(committed, "replacement commit")
+        },
+    )?;
 
-    let mut aborted = replacement.begin()?;
-    wait_within(
-        aborted.send(
-            Record::to(fixture.topic.as_str())
-                .partition(0)
-                .value("aborted"),
-            OPERATION_TIMEOUT,
-        )?,
-        "replacement aborted send",
-    )??;
-    wait_within(
-        aborted.abort(OPERATION_TIMEOUT).map_err(|error| {
-            io::Error::other(format!("replacement abort admission: {}", error.error()))
-        })?,
-        "replacement abort",
-    )??;
+    transaction::with_transaction(
+        &mut replacement,
+        "replacement abort begin",
+        |mut aborted| {
+            wait_within(
+                aborted.send(
+                    Record::to(fixture.topic.as_str())
+                        .partition(0)
+                        .value("aborted"),
+                    OPERATION_TIMEOUT,
+                )?,
+                "replacement aborted send",
+            )??;
+            transaction::abort(aborted, "replacement abort")
+        },
+    )?;
 
-    let mut sentinel = replacement.begin()?;
-    wait_within(
-        sentinel.send(
-            Record::to(fixture.topic.as_str())
-                .partition(0)
-                .value("sentinel"),
-            OPERATION_TIMEOUT,
-        )?,
-        "replacement sentinel send",
-    )??;
-    wait_within(
-        sentinel.commit(OPERATION_TIMEOUT).map_err(|error| {
-            io::Error::other(format!("replacement sentinel admission: {}", error.error()))
-        })?,
-        "replacement sentinel commit",
-    )??;
+    transaction::with_transaction(
+        &mut replacement,
+        "replacement sentinel begin",
+        |mut sentinel| {
+            wait_within(
+                sentinel.send(
+                    Record::to(fixture.topic.as_str())
+                        .partition(0)
+                        .value("sentinel"),
+                    OPERATION_TIMEOUT,
+                )?,
+                "replacement sentinel send",
+            )??;
+            transaction::commit(sentinel, "replacement sentinel commit")
+        },
+    )?;
 
     assert_read_committed_visibility(&fixture)?;
     first.close();
