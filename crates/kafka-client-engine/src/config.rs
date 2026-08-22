@@ -178,7 +178,7 @@ impl EngineConfig {
 
     /// Returns the retained client identity, when configured.
     ///
-    /// The returned value does not imply request-header propagation.
+    /// The configured value is propagated to Kafka request headers.
     pub fn client_id(&self) -> Option<&str> {
         self.client_id.as_deref()
     }
