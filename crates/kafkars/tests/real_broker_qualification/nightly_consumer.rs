@@ -6,7 +6,7 @@ use kafkars::{OffsetReset, Record, StartPosition, TopicPartition};
 
 use crate::real_broker_support::{OPERATION_TIMEOUT, TestError, wait_within};
 
-use super::nightly_support;
+use super::{consume, nightly_support};
 
 pub(super) fn fetch_seek_and_offset_reset() -> Result<(), TestError> {
     let fixture = nightly_support::Fixture::new("direct-seek", 1)?;
@@ -20,14 +20,20 @@ pub(super) fn fetch_seek_and_offset_reset() -> Result<(), TestError> {
 
     let partition = TopicPartition::new(&fixture.topic, 0);
     let mut direct = fixture.client.assigned_consumer().build()?;
-    direct.try_replace_assignment(
-        [partition.clone().start_at(StartPosition::Beginning)],
-        OPERATION_TIMEOUT,
-    )?;
+    consume::retry_assigned_control("direct seek initial assignment", || {
+        direct.try_replace_assignment(
+            [partition.clone().start_at(StartPosition::Beginning)],
+            OPERATION_TIMEOUT,
+        )
+    })?;
     require_direct_value(&mut direct, b"first")?;
-    direct.try_seek(&partition, StartPosition::Beginning, OPERATION_TIMEOUT)?;
+    consume::retry_assigned_control("direct seek to beginning", || {
+        direct.try_seek(&partition, StartPosition::Beginning, OPERATION_TIMEOUT)
+    })?;
     require_direct_value(&mut direct, b"first")?;
-    direct.try_seek(&partition, StartPosition::End, OPERATION_TIMEOUT)?;
+    consume::retry_assigned_control("direct seek to end", || {
+        direct.try_seek(&partition, StartPosition::End, OPERATION_TIMEOUT)
+    })?;
     wait_within(
         producer.send(
             Record::to(fixture.topic.as_str())
@@ -37,7 +43,7 @@ pub(super) fn fetch_seek_and_offset_reset() -> Result<(), TestError> {
         "post-seek delivery",
     )??;
     require_direct_value(&mut direct, b"after-end")?;
-    wait_within(direct.try_close()?, "direct seek consumer close")??;
+    consume::close_assigned(&mut direct, "direct seek consumer close")?;
 
     let group_id = crate::real_broker_support::unique_name("kafkars-offset-reset");
     let mut group = fixture
@@ -55,8 +61,9 @@ pub(super) fn fetch_seek_and_offset_reset() -> Result<(), TestError> {
     {
         return Err(io::Error::other("earliest reset omitted the first record").into());
     }
-    wait_within(group.try_close()?, "offset-reset group close")??;
-    wait_within(producer.close(), "direct seek producer close")??;
+    drop(batch);
+    consume::close_group(group, "offset-reset group close")?;
+    nightly_support::close_producer(&producer, "direct seek producer close")?;
     fixture.finish()
 }
 

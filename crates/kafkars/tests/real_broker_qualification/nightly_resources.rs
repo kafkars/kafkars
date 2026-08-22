@@ -4,7 +4,9 @@ use std::{io, time::Duration};
 
 use kafkars::{DeliveryStatus, ErrorKind, ProducerLimits, Record};
 
-use crate::real_broker_support::{TestError, client_builder_from_environment, wait_within};
+use crate::real_broker_support::{
+    OPERATION_TIMEOUT, TestError, client_builder_from_environment, wait_within,
+};
 
 use super::{nightly_control::BrokerGuard, nightly_support};
 
@@ -14,15 +16,21 @@ pub(super) fn bounded_admission_deadlines_and_shutdown() -> Result<(), TestError
         .producer_limits(limits)
         .producer_delivery_timeout(Duration::from_millis(500));
     let mut fixture = nightly_support::Fixture::from_builder(builder, "bounded", 1)?;
-    let producer = fixture.client.producer().build()?;
+    let warmup_producer = fixture
+        .client
+        .producer()
+        .delivery_timeout(OPERATION_TIMEOUT)
+        .build()?;
     wait_within(
-        producer.send(
+        warmup_producer.send(
             Record::to(fixture.topic.as_str())
                 .partition(0)
                 .value("warmup"),
         ),
         "bounded admission warmup",
     )??;
+    drop(warmup_producer);
+    let producer = fixture.client.producer().build()?;
     let leader = nightly_support::describe_topic(&fixture.client.admin(), &fixture.topic)?
         .partitions()[0]
         .leader_id()
@@ -50,12 +58,29 @@ pub(super) fn bounded_admission_deadlines_and_shutdown() -> Result<(), TestError
     };
     paused.restore()?;
     if timed_out.kind() != ErrorKind::Timeout
-        || timed_out.delivery_status() != Some(DeliveryStatus::PossiblySent)
+        || !matches!(
+            timed_out.delivery_status(),
+            Some(DeliveryStatus::NotSent | DeliveryStatus::PossiblySent)
+        )
     {
-        return Err(io::Error::other("deadline did not preserve possibly-sent certainty").into());
+        return Err(io::Error::other(format!(
+            "deadline did not preserve authoritative delivery certainty: {timed_out:?}"
+        ))
+        .into());
     }
 
-    wait_within(producer.close(), "bounded producer close")??;
+    let close = nightly_support::close_producer_result(&producer, "bounded producer close")?;
+    match (timed_out.delivery_status(), close) {
+        (Some(DeliveryStatus::NotSent), Ok(())) => {}
+        (Some(DeliveryStatus::PossiblySent), Err(ref close_error))
+            if close_error.kind() == ErrorKind::State => {}
+        (delivery, close) => {
+            return Err(io::Error::other(format!(
+                "producer close disagreed with deadline terminal: delivery={delivery:?} close={close:?}"
+            ))
+            .into());
+        }
+    }
     fixture.remove_topic()?;
     wait_within(fixture.client.shutdown(), "bounded client shutdown")??;
     let closed = match producer.try_send(
@@ -87,7 +112,7 @@ pub(super) fn retained_byte_recovery() -> Result<(), TestError> {
         return Err(io::Error::other("retained-byte batch did not fully settle").into());
     }
     drop(result);
-    wait_within(producer.flush(), "retained-byte flush")??;
+    nightly_support::flush_producer(&producer, "retained-byte flush")?;
     let metrics = nightly_support::poll_until(|| {
         let snapshot = wait_within(fixture.client.metrics().ok()?, "retained-byte metrics")
             .ok()?
@@ -107,6 +132,6 @@ pub(super) fn retained_byte_recovery() -> Result<(), TestError> {
             io::Error::other("driver mailbox retained bytes after terminal recovery").into(),
         );
     }
-    wait_within(producer.close(), "retained-byte producer close")??;
+    nightly_support::close_producer(&producer, "retained-byte producer close")?;
     fixture.finish()
 }

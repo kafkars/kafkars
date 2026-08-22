@@ -79,7 +79,7 @@ fn only_stale_broker_or_transport_evidence_requests_exact_coordinator_refresh() 
         ));
         terminal.discard();
     }
-    for error_code in [0, 13, 25, 47] {
+    for error_code in [0, 13, 25, 47, 51] {
         let terminal = response_terminal(error_code);
         assert!(!needs_transaction_coordinator_refresh(
             &terminal.fact(),
@@ -120,19 +120,83 @@ fn only_stale_broker_or_transport_evidence_requests_exact_coordinator_refresh() 
 }
 
 #[test]
-fn retry_authority_requires_exact_rejection_and_completed_refresh_barrier() {
+fn retry_authority_requires_exact_evidence_and_completed_refresh_barrier() {
     for error_code in [14, 15, 16] {
         let mut terminal = response_terminal(error_code);
-        assert!(!terminal.retry_safe_after_refresh());
+        assert_eq!(terminal.retry_delivery(), None);
         terminal.mark_coordinator_refresh_completed();
-        assert!(terminal.retry_safe_after_refresh());
+        assert_eq!(
+            terminal.retry_delivery(),
+            Some(kafka_client_core::DeliveryStatus::PossiblySent)
+        );
+        terminal.discard();
+    }
+
+    for error in [
+        RequestError::RouteUnavailable,
+        RequestError::Rejected {
+            failure: CallFailure::DeadlineExceeded,
+            delivery: Delivery::NotSent,
+        },
+    ] {
+        let mut terminal = failure_terminal(error);
+        assert_eq!(terminal.retry_delivery(), None);
+        terminal.mark_coordinator_refresh_completed();
+        assert_eq!(
+            terminal.retry_delivery(),
+            Some(kafka_client_core::DeliveryStatus::NotSent)
+        );
         terminal.discard();
     }
 
     let mut unrelated = response_terminal(25);
     unrelated.mark_coordinator_refresh_completed();
-    assert!(!unrelated.retry_safe_after_refresh());
+    assert_eq!(unrelated.retry_delivery(), None);
     unrelated.discard();
+}
+
+#[test]
+fn exact_concurrent_transactions_authorizes_same_coordinator_retry_without_refresh() {
+    let terminal = response_terminal(51);
+    assert!(!needs_transaction_coordinator_refresh(
+        &terminal.fact(),
+        Some(RouteKind::Coordinator),
+    ));
+    assert_eq!(
+        terminal.retry_delivery(),
+        Some(kafka_client_core::DeliveryStatus::PossiblySent)
+    );
+    terminal.discard();
+
+    for code in [-51, 50, 52] {
+        let terminal = response_terminal(code);
+        assert_eq!(terminal.retry_delivery(), None);
+        terminal.discard();
+    }
+}
+
+#[test]
+fn refresh_never_authorizes_uncertain_or_incompatible_failure() {
+    for error in [
+        RequestError::Rejected {
+            failure: CallFailure::NotReady,
+            delivery: Delivery::PossiblySent,
+        },
+        RequestError::Rejected {
+            failure: CallFailure::DeadlineExceeded,
+            delivery: Delivery::PossiblySent,
+        },
+        RequestError::VersionFloorUnavailable {
+            api_key: ApiKey::new(22),
+            minimum: ApiVersion::new(0),
+            negotiated_maximum: ApiVersion::new(-1),
+        },
+    ] {
+        let mut terminal = failure_terminal(error);
+        terminal.mark_coordinator_refresh_completed();
+        assert_eq!(terminal.retry_delivery(), None);
+        terminal.discard();
+    }
 }
 
 fn response_terminal(error_code: i16) -> super::transaction_init_terminal::TransactionInitTerminal {

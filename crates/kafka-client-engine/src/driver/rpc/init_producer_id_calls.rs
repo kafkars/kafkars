@@ -122,6 +122,7 @@ pub(super) fn normalize_terminal(
                 ProducerInput::ProducerIdentityFailed {
                     generation,
                     broker_code: Some(code),
+                    now,
                 }
             }
             Err(
@@ -130,6 +131,7 @@ pub(super) fn normalize_terminal(
             ) => ProducerInput::ProducerIdentityFailed {
                 generation,
                 broker_code: None,
+                now,
             },
         },
         Err(RequestError::Rejected {

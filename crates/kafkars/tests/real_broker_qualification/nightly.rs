@@ -17,8 +17,8 @@ const BEFORE_KIP_848: [Scenario; 6] = [
         nightly_producer::batching_and_partitioning,
     ),
     (
-        "producer_delivers_across_leader_movement",
-        nightly_resilience::producer_delivers_across_leader_movement,
+        "producer_delivers_after_leader_movement",
+        nightly_resilience::producer_delivers_after_leader_movement,
     ),
     (
         "producer_cancellation_preserves_delivery_certainty",
@@ -29,8 +29,8 @@ const BEFORE_KIP_848: [Scenario; 6] = [
         nightly_consumer::fetch_seek_and_offset_reset,
     ),
     (
-        "classic_join_cooperative_rebalance",
-        nightly_group::classic_join_and_cooperative_rebalance,
+        "classic_cooperative_initial_assignment",
+        nightly_group::classic_cooperative_initial_assignment,
     ),
     (
         "classic_member_shutdown_commit_resume",
@@ -39,8 +39,8 @@ const BEFORE_KIP_848: [Scenario; 6] = [
 ];
 
 const KIP_848: Scenario = (
-    "kip848_assignment_reconciliation",
-    nightly_group::kip848_assignment_and_reconciliation,
+    "kip848_initial_assignment",
+    nightly_group::kip848_initial_assignment,
 );
 
 const AFTER_KIP_848: [Scenario; 6] = [
@@ -80,13 +80,14 @@ pub(crate) fn run_classic_matrix() -> Result<(), TestError> {
 
 fn run_matrix(include_kip_848: bool) -> Result<(), TestError> {
     let mut failures = Vec::new();
-    let scenarios = BEFORE_KIP_848
+    let scenarios = include_kip_848
+        .then_some(KIP_848)
         .into_iter()
-        .chain(include_kip_848.then_some(KIP_848))
+        .chain(BEFORE_KIP_848)
         .chain(AFTER_KIP_848);
     for (name, scenario) in scenarios {
         if let Err(error) = evidence::measure(name, scenario) {
-            failures.push(format!("{name}: {error}"));
+            failures.push(format!("{name}: {error:?}"));
         }
     }
     if failures.is_empty() {

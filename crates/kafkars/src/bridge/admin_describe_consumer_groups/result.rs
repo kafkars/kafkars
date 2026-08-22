@@ -29,7 +29,12 @@ use crate::{
 use super::operation::AdminDescribeConsumerGroupsResult;
 
 pub(super) fn translate_admission_error(error: DescribeConsumerGroupsAdmissionError) -> KafkaError {
-    let kind = error.kind();
+    translate_admission_kind(error.kind())
+}
+
+pub(super) fn translate_admission_kind(
+    kind: DescribeConsumerGroupsAdmissionErrorKind,
+) -> KafkaError {
     let public = match kind {
         DescribeConsumerGroupsAdmissionErrorKind::InvalidRequest
         | DescribeConsumerGroupsAdmissionErrorKind::InvalidDeadline => ErrorKind::Configuration,
@@ -40,11 +45,21 @@ pub(super) fn translate_admission_error(error: DescribeConsumerGroupsAdmissionEr
         DescribeConsumerGroupsAdmissionErrorKind::IdentityExhausted
         | DescribeConsumerGroupsAdmissionErrorKind::HostUnavailable => ErrorKind::Internal,
     };
-    KafkaError::new(
+    let error = KafkaError::new(
         public,
         format!("DescribeConsumerGroups admission failed: {kind:?}"),
     )
-    .with_delivery_status(DeliveryStatus::NotSent)
+    .with_delivery_status(DeliveryStatus::NotSent);
+    match kind {
+        DescribeConsumerGroupsAdmissionErrorKind::Contended
+        | DescribeConsumerGroupsAdmissionErrorKind::Capacity
+        | DescribeConsumerGroupsAdmissionErrorKind::RetainedBytes => error.with_safe_retry(),
+        DescribeConsumerGroupsAdmissionErrorKind::InvalidRequest
+        | DescribeConsumerGroupsAdmissionErrorKind::InvalidDeadline
+        | DescribeConsumerGroupsAdmissionErrorKind::Closed
+        | DescribeConsumerGroupsAdmissionErrorKind::IdentityExhausted
+        | DescribeConsumerGroupsAdmissionErrorKind::HostUnavailable => error,
+    }
 }
 
 pub(super) fn translate_accepted_fault(

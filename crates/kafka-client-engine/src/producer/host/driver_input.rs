@@ -46,6 +46,7 @@ const fn is_driver_input(input: ProducerInput) -> bool {
             | ProducerInput::BrokerSucceeded { .. }
             | ProducerInput::BrokerFailed { .. }
             | ProducerInput::RouteRefreshDeadlineElapsed { .. }
+            | ProducerInput::DriverDeadlineElapsed { .. }
             | ProducerInput::TransportFailed { .. }
             | ProducerInput::ProducerIdentityAcquired { .. }
             | ProducerInput::ProducerIdentityFailed { .. }

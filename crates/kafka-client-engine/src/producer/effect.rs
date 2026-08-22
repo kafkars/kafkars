@@ -48,6 +48,10 @@ impl ProducerHost {
                 self.retain_pending(pending)?;
                 Ok(())
             }
+            pending @ ProducerEffect::ArmProducerIdentityRetry { .. } => {
+                self.retain_pending(pending)?;
+                Ok(())
+            }
             ProducerEffect::AccumulateExplicit { .. } => {
                 Err(ProducerHostInvariantError::UnexpectedCancellationEffect)
             }

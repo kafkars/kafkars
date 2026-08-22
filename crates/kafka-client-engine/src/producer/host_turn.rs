@@ -73,10 +73,14 @@ impl ProducerHost {
         if let Some(error) = self.poison_reason() {
             return Err(error);
         }
-        let batch_timers = self.fire_due(now, budget.batch_timers)?;
+        let (batch_timers, identity_retries) =
+            self.drive_policy_deadlines(now, budget.batch_timers, budget.prepared_effects)?;
         let waiting = self.drive_waiting(now, budget.waiting_admissions)?;
         let compression_expiries = self.fire_due_compression(now, budget.submission_expiries)?;
-        let prepared_effects = self.drive_prepared(now, budget.prepared_effects)?;
+        let prepared_effects = identity_retries.saturating_add(self.drive_prepared(
+            now,
+            budget.prepared_effects.saturating_sub(identity_retries),
+        )?);
         let submission_expiries = compression_expiries
             .saturating_add(self.fire_due_submissions(now, budget.submission_expiries)?);
         let completion_retries = self.retry_terminal_backlog(budget.completion_retries)?;
@@ -99,7 +103,7 @@ impl ProducerHost {
             .pending_effects()
             .iter()
             .copied()
-            .any(|effect| is_runnable_effect(effect, self.compression_saturated));
+            .any(|effect| is_runnable_effect(effect, self.compression_saturated, now));
         let completion_blocked = !self.terminal_backlog.is_empty();
         let runnable_work = due_remains
             || prepared_remains
@@ -120,6 +124,49 @@ impl ProducerHost {
             runnable_work,
             blocked_work,
         })
+    }
+
+    fn drive_policy_deadlines(
+        &mut self,
+        now: Moment,
+        timer_limit: usize,
+        retry_limit: usize,
+    ) -> Result<(usize, usize), ProducerHostInvariantError> {
+        let mut timers = 0;
+        let mut retries = 0;
+        loop {
+            let timer = self
+                .timers
+                .next_deadline()
+                .filter(|deadline| deadline.is_elapsed_at(now));
+            let retry = self
+                .pending_identity_retry_deadline()
+                .filter(|deadline| deadline.is_elapsed_at(now));
+            if retry.is_some_and(|retry| timer.is_none_or(|timer| retry <= timer)) {
+                if retries >= retry_limit {
+                    break;
+                }
+                let progressed = self.fire_due_identity_retry(now)?;
+                if progressed == 0 {
+                    break;
+                }
+                retries = retries.saturating_add(progressed);
+                continue;
+            }
+            if timer.is_some() {
+                if timers >= timer_limit {
+                    break;
+                }
+                let progressed = self.fire_due(now, 1)?;
+                if progressed == 0 {
+                    break;
+                }
+                timers = timers.saturating_add(progressed);
+                continue;
+            }
+            break;
+        }
+        Ok((timers, retries))
     }
 
     fn reclaim_many(
@@ -149,7 +196,11 @@ struct ReclaimProgress {
     blocked: bool,
 }
 
-const fn is_runnable_effect(effect: ProducerEffect, compression_saturated: bool) -> bool {
+const fn is_runnable_effect(
+    effect: ProducerEffect,
+    compression_saturated: bool,
+    now: Moment,
+) -> bool {
     match effect {
         ProducerEffect::AcquireProducerIdentity { .. }
         | ProducerEffect::SubmitProduce { .. }
@@ -157,6 +208,9 @@ const fn is_runnable_effect(effect: ProducerEffect, compression_saturated: bool)
             compression: kafka_client_core::CompressionPolicy::None,
             ..
         } => true,
+        ProducerEffect::ArmProducerIdentityRetry { schedule } => {
+            schedule.not_before().is_elapsed_at(now)
+        }
         ProducerEffect::MaterializeBatch { .. } => !compression_saturated,
         _ => false,
     }
@@ -169,6 +223,7 @@ fn pending_submission_deadline(host: &ProducerHost) -> Option<Deadline> {
             ProducerEffect::AcquireProducerIdentity { deadline, .. }
             | ProducerEffect::MaterializeBatch { deadline, .. }
             | ProducerEffect::SubmitProduce { deadline, .. } => Some(*deadline),
+            ProducerEffect::ArmProducerIdentityRetry { schedule } => Some(schedule.not_before()),
             _ => None,
         })
         .min()

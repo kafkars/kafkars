@@ -5,8 +5,11 @@ use kafka_client_engine::{
     ProducerTryCloseErrorKind as EngineTryCloseErrorKind,
 };
 
-use super::{close::translate_close_result, flush::admission_kind};
-use crate::ErrorKind;
+use super::{
+    close::{translate_close_admission_kind, translate_close_result},
+    flush::admission_kind,
+};
+use crate::{ErrorKind, RetryAdvice};
 
 #[test]
 fn every_close_admission_kind_has_one_stable_facade_category() {
@@ -34,6 +37,33 @@ fn every_close_admission_kind_has_one_stable_facade_category() {
 
     for (engine, facade) in cases {
         assert_eq!(admission_kind(engine), facade);
+    }
+}
+
+#[test]
+fn close_admission_retry_advice_preserves_the_pre_admission_boundary() {
+    let retry_safe = [
+        EngineTryCloseErrorKind::Contended,
+        EngineTryCloseErrorKind::CompletionCapacity,
+    ];
+    for kind in retry_safe {
+        let error = translate_close_admission_kind(kind);
+        assert_eq!(error.kind(), ErrorKind::Backpressure);
+        assert_eq!(error.retry_advice(), RetryAdvice::RetrySafe);
+        assert_eq!(error.delivery_status(), None);
+    }
+
+    let terminal = [
+        EngineTryCloseErrorKind::MomentUnrepresentable,
+        EngineTryCloseErrorKind::Closed,
+        EngineTryCloseErrorKind::LocalIdentityExhausted,
+        EngineTryCloseErrorKind::HostPoisoned,
+        EngineTryCloseErrorKind::InternalInvariant,
+    ];
+    for kind in terminal {
+        let error = translate_close_admission_kind(kind);
+        assert_eq!(error.retry_advice(), RetryAdvice::DoNotRetry);
+        assert_eq!(error.delivery_status(), None);
     }
 }
 

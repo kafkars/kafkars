@@ -7,7 +7,7 @@ use super::ProducerRetryConfig;
 #[test]
 fn default_and_disabled_policies_are_explicit() {
     let default = ProducerRetryConfig::default();
-    assert_eq!(default.max_retries(), 3);
+    assert_eq!(default.max_retries(), 10);
     assert_eq!(default.backoff(), Duration::from_millis(100));
 
     let disabled = ProducerRetryConfig::disabled();

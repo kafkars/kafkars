@@ -87,6 +87,11 @@ pub enum ProducerEffect {
         /// Earliest waiting batch deadline captured at admission.
         deadline: Deadline,
     },
+    /// Retain one same-purpose identity retry until its explicit backoff expires.
+    ArmProducerIdentityRetry {
+        /// Exact generation-fenced retry schedule.
+        schedule: crate::ProducerIdentityRetrySchedule,
+    },
     /// Append engine-owned payload metadata to a core-selected batch.
     AccumulateExplicit {
         /// Stable public operation identity.
@@ -138,7 +143,7 @@ pub enum ProducerEffect {
         /// Sole member removed from the immutable execution snapshot.
         removed_operation_id: OperationId,
     },
-    /// Replace one definitely-unsent submitted attempt without changing membership.
+    /// Replace one core-authorized submitted attempt without changing membership.
     RetryBatchExecution {
         /// Exact terminal attempt whose mechanism ownership is gone.
         previous: BatchExecutionId,

@@ -185,16 +185,7 @@ fn normalized_response_fact(
         rejection.get_or_insert(kind);
     }
     rejection.map_or(TransactionPartitionEnrollmentPortFact::Enrolled, |kind| {
-        if retry_safe_after_refresh
-            && matches!(
-                kind,
-                TransactionPartitionEnrollmentFailureKind::Broker { code: 14..=16, .. }
-            )
-        {
-            retryable_coordinator_loss(kind, DeliveryStatus::PossiblySent)
-        } else {
-            failed(kind, DeliveryStatus::PossiblySent)
-        }
+        TransactionPartitionEnrollmentPortFact::broker_rejection(kind, retry_safe_after_refresh)
     })
 }
 

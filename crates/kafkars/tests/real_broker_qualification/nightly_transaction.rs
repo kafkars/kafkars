@@ -6,7 +6,7 @@ use kafkars::{ErrorKind, OffsetReset, ReadIsolation, Record};
 
 use crate::real_broker_support::{OPERATION_TIMEOUT, TestError, unique_name, wait_within};
 
-use super::nightly_support;
+use super::{consume, nightly_support};
 
 pub(super) fn fencing_abort_commit_and_read_committed() -> Result<(), TestError> {
     let fixture = nightly_support::Fixture::new("transaction", 1)?;
@@ -140,7 +140,7 @@ fn assert_read_committed_visibility(fixture: &nightly_support::Fixture) -> Resul
         )
         .into());
     }
-    wait_within(consumer.try_close()?, "read-committed close")??;
+    consume::close_group(consumer, "read-committed close")?;
     Ok(())
 }
 

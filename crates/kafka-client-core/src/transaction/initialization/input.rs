@@ -12,7 +12,7 @@ pub enum TransactionInitializationInput {
         /// Current monotonic observation.
         now: Moment,
     },
-    /// Reports that the driver accepted the only request.
+    /// Reports that the driver accepted the current request.
     DriverAccepted,
     /// Reports definite rejection before driver ownership.
     DriverRejected,
@@ -30,8 +30,11 @@ pub enum TransactionInitializationInput {
         /// Kafka's signed producer epoch field.
         producer_epoch: i16,
     },
-    /// Authorizes one replacement after an exact rejection and causal route refresh.
-    RetryableBrokerRejected,
+    /// Authorizes one replacement after exact retry-safe evidence and any required route refresh.
+    RetryAuthorized {
+        /// Delivery certainty accumulated by the attempt that permits replacement.
+        delivery: DeliveryStatus,
+    },
     /// Reports one exact normalized Kafka broker rejection.
     BrokerRejected {
         /// Exact signed code plus its fencing category.

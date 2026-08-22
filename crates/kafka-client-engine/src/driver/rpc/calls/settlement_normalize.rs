@@ -57,6 +57,13 @@ pub(super) fn normalized_entry_input(
                 )
             })
         }
+        Err(error) if crate::driver::delivery::request_failure_is_deadline(error) => {
+            ProducerInput::DriverDeadlineElapsed {
+                execution: entry.execution,
+                now,
+                delivery: crate::driver::request_failure_delivery(error),
+            }
+        }
         Err(error) => produce_transport_failure_input(
             entry.execution,
             now,

@@ -15,8 +15,8 @@ mod terminal;
 use std::collections::{BTreeMap, BTreeSet, btree_map::Entry};
 
 use kafka_client_core::{
-    BatchExecutionId, BatchId, BatchTimerGeneration, ByteCount, Deadline, OperationId, PayloadId,
-    ProducerCompletion, ProducerEffect,
+    BatchExecutionId, BatchId, BatchTimerGeneration, ByteCount, Deadline, Moment, OperationId,
+    PayloadId, ProducerCompletion, ProducerEffect, ProducerIdentityRetrySchedule,
 };
 
 use crate::SimulationError;
@@ -29,6 +29,7 @@ pub(crate) struct VirtualProducerState {
     batches: BTreeMap<BatchId, VirtualBatch>,
     submissions: BTreeMap<BatchExecutionId, Vec<OperationId>>,
     timers: BTreeMap<BatchId, (BatchTimerGeneration, Deadline)>,
+    identity_retry: Option<ProducerIdentityRetrySchedule>,
     terminals: BTreeMap<OperationId, ProducerCompletion>,
     released_terminals: BTreeSet<OperationId>,
     flushes: flush::VirtualFlushes,
@@ -60,6 +61,12 @@ impl VirtualProducerState {
     pub(crate) fn interpret(&mut self, effect: ProducerEffect) -> Result<(), SimulationError> {
         match effect {
             ProducerEffect::AcquireProducerIdentity { .. } => {}
+            ProducerEffect::ArmProducerIdentityRetry { schedule } => {
+                if self.identity_retry.is_some() {
+                    return Err(SimulationError::DuplicateProducerIdentityRetry);
+                }
+                self.identity_retry = Some(schedule);
+            }
             ProducerEffect::AccumulateExplicit {
                 operation_id,
                 batch_id,
@@ -167,6 +174,33 @@ impl VirtualProducerState {
         self.timers
             .remove(&batch_id)
             .map(|(generation, deadline)| (batch_id, generation, deadline))
+    }
+
+    pub(crate) fn next_timer_deadline_before(&self, target: Moment) -> Option<Deadline> {
+        self.timers
+            .values()
+            .map(|(_generation, deadline)| *deadline)
+            .filter(|deadline| deadline.is_elapsed_at(target))
+            .min()
+    }
+
+    pub(crate) fn identity_retry_before(
+        &self,
+        target: Moment,
+    ) -> Option<ProducerIdentityRetrySchedule> {
+        self.identity_retry
+            .filter(|schedule| schedule.not_before().is_elapsed_at(target))
+    }
+
+    pub(crate) fn take_identity_retry(
+        &mut self,
+        expected: ProducerIdentityRetrySchedule,
+    ) -> Option<ProducerIdentityRetrySchedule> {
+        if self.identity_retry == Some(expected) {
+            self.identity_retry.take()
+        } else {
+            None
+        }
     }
 
     pub(crate) fn contains_payload(&self, payload_id: PayloadId) -> bool {

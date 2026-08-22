@@ -7,7 +7,7 @@ use crate::real_broker_support::{
     ready_client, unique_name, wait_within,
 };
 
-use super::{consume, evidence, transaction};
+use super::{consume, evidence, nightly_support, transaction};
 
 pub(crate) fn run_pull_request_smoke() -> Result<(), TestError> {
     let topic = unique_name("kafkars-pr-smoke");
@@ -31,7 +31,7 @@ pub(crate) fn run_pull_request_smoke() -> Result<(), TestError> {
                 "producer delivery",
             )??;
         }
-        wait_within(producer.flush(), "producer flush")??;
+        nightly_support::flush_producer(&producer, "producer flush")?;
         Ok(())
     })?;
     evidence::measure("direct_consume", || {
@@ -44,7 +44,7 @@ pub(crate) fn run_pull_request_smoke() -> Result<(), TestError> {
         transaction::commit_and_abort(&client, &topic, &transaction_id)
     })?;
     evidence::measure("graceful_shutdown", || {
-        wait_within(producer.close(), "producer close")??;
+        nightly_support::close_producer(&producer, "producer close")?;
         delete_topics(&admin, std::slice::from_ref(&topic))?;
         cleanup.disarm();
         wait_within(client.shutdown(), "client shutdown")??;

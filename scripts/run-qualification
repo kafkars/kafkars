@@ -136,6 +136,7 @@ unset KAFKA_CLIENT_TEST_SASL_USERNAME
 unset KAFKA_CLIENT_TEST_SASL_PASSWORD
 unset KAFKA_CLIENT_TEST_SASL_MECHANISM
 unset KAFKA_CLIENT_TEST_TLS_MISMATCH_BOOTSTRAP
+unset KAFKA_TLS_PASSWORD
 unset SSL_CERT_FILE
 
 uses_tls=0
@@ -226,6 +227,7 @@ if [[ "$uses_tls" -eq 1 || "$uses_sasl" -eq 1 ]]; then
 fi
 if [[ "$uses_tls" -eq 1 ]]; then
   export KAFKA_TLS_DIR="$secret_dir"
+  export KAFKA_TLS_PASSWORD="$qualification_password"
   "$repo_root/qualification/generate-tls" "$KAFKA_TLS_DIR" "$qualification_password"
   compose_files+=("$repo_root/qualification/compose/cluster-tls.yml")
   export KAFKA_CLIENT_TEST_TLS_CA_PEM="$KAFKA_TLS_DIR/ca.pem"

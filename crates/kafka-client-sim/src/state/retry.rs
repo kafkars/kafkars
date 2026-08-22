@@ -1,4 +1,4 @@
-//! Exact replacement of virtual attempts after definitely-unsent failure.
+//! Exact replacement of virtual attempts after core-authorized retry.
 
 use kafka_client_core::{BatchExecutionGeneration, BatchExecutionId};
 

@@ -49,6 +49,8 @@ pub enum SimulationError {
     BatchExecutionAlreadySubmitted(BatchExecutionId),
     /// One virtual execution was materialized or submitted twice.
     DuplicateBatchExecution(BatchExecutionId),
+    /// Core armed a second producer-identity retry before the first fired.
+    DuplicateProducerIdentityRetry,
     /// Completion publication preceded engine resource release.
     ResourceStillRetained(OperationId),
     /// Core emitted a second terminal outcome for one operation.
@@ -121,6 +123,9 @@ impl fmt::Display for SimulationError {
             }
             Self::DuplicateBatchExecution(_) => {
                 formatter.write_str("virtual batch execution was repeated")
+            }
+            Self::DuplicateProducerIdentityRetry => {
+                formatter.write_str("duplicate virtual producer identity retry")
             }
             Self::ResourceStillRetained(_) => {
                 formatter.write_str("completion preceded virtual resource release")

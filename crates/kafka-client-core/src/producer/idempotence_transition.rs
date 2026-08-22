@@ -103,9 +103,13 @@ impl ProducerMachine {
         &mut self,
         generation: ProducerIdentityGeneration,
         broker_code: Option<NonZeroI16>,
+        now: Moment,
     ) -> Result<ProducerTransition, ProducerMachineError> {
         if !self.idempotence.acquisition_is_current(generation) {
             return Ok(ProducerTransition::none());
+        }
+        if broker_code.is_some_and(|code| code.get() == 14) {
+            return self.retry_producer_identity_coordinator_load(generation, now);
         }
         let failures =
             self.pre_driver_batch_failures(ProducerFailure::producer_identity(broker_code));

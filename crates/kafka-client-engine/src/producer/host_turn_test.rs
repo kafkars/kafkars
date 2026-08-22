@@ -1,12 +1,16 @@
-//! Fair host-turn scheduling, expiry, reclamation, and poisoning scenarios.
+//! Fair host-turn scheduling, identity backoff, expiry, and reclamation scenarios.
 
-use kafka_client_core::{ByteCount, Deadline, Moment, ProducerBatchPolicy, ProducerEffect};
+use core::num::NonZeroI16;
+
+use kafka_client_core::{
+    ByteCount, Deadline, Moment, ProducerBatchPolicy, ProducerEffect, ProducerInput,
+};
 
 use crate::{ProducerDeliveryError, ProducerDeliveryFailureKind, ProducerDeliveryStatus};
 
 use super::{
     ProducerHostInvariantError,
-    admission_test::{admit, record},
+    admission_test::{admit, admit_without_identity, record},
     host_limits_test::{start, valid_limits},
     host_turn::{ProducerTurnBudget, ProducerTurnOutcome},
 };
@@ -122,6 +126,120 @@ fn prepared_submission_expires_and_reclaims_across_bounded_turns() {
         .unwrap_or_else(|error| panic!("idle turn should run: {error}"));
     assert!(!idle.runnable_work);
     assert!(!idle.blocked_work);
+}
+
+#[test]
+fn identity_retry_waits_for_backoff_then_hands_off_one_fresh_generation() {
+    const BACKOFF: u64 = 100_000_000;
+    let mut host = start(immediate_limits());
+    let admitted = admit_without_identity(
+        &mut host,
+        Moment::from_tick(0),
+        Deadline::from_tick(BACKOFF + 50),
+        record("orders"),
+    );
+    let submission = host
+        .take_identity_submission()
+        .unwrap_or_else(|error| panic!("identity handoff should agree: {error}"))
+        .unwrap_or_else(|| panic!("initial identity request must be pending"));
+    let (generation, _deadline) = submission.into_parts();
+    host.apply_one_driver_input(
+        Moment::from_tick(10),
+        ProducerInput::ProducerIdentityFailed {
+            generation,
+            broker_code: NonZeroI16::new(14),
+            now: Moment::from_tick(10),
+        },
+    )
+    .unwrap_or_else(|error| panic!("coordinator load must schedule retry: {error}"));
+
+    let waiting = host
+        .turn(Moment::from_tick(20), one_each())
+        .unwrap_or_else(|error| panic!("future retry turn failed: {error}"));
+    assert_eq!(waiting.prepared_effects, 0);
+    assert_eq!(
+        waiting.next_deadline,
+        Some(Deadline::from_tick(BACKOFF + 10))
+    );
+    assert!(!waiting.runnable_work);
+
+    let due = host
+        .turn(Moment::from_tick(BACKOFF + 10), one_each())
+        .unwrap_or_else(|error| panic!("due retry turn failed: {error}"));
+    assert_eq!(due.prepared_effects, 1);
+    assert!(due.runnable_work);
+    let retry = host
+        .take_identity_submission()
+        .unwrap_or_else(|error| panic!("retry handoff should agree: {error}"))
+        .unwrap_or_else(|| panic!("due retry must request one identity"));
+    let (retry_generation, retry_deadline) = retry.into_parts();
+    assert_eq!(retry_generation.get(), generation.get() + 1);
+    assert_eq!(retry_deadline.core(), Deadline::from_tick(BACKOFF + 50));
+    drop(admitted);
+}
+
+#[test]
+fn identity_retry_wins_equal_deadline_and_fences_every_waiter_atomically() {
+    let mut host = start(immediate_limits());
+    let expired = admit_without_identity(
+        &mut host,
+        Moment::from_tick(0),
+        Deadline::from_tick(50),
+        record("orders"),
+    );
+    let later = admit_without_identity(
+        &mut host,
+        Moment::from_tick(0),
+        Deadline::from_tick(200),
+        record("payments"),
+    );
+    let submission = host
+        .take_identity_submission()
+        .unwrap_or_else(|error| panic!("identity handoff should agree: {error}"))
+        .unwrap_or_else(|| panic!("initial identity request must be pending"));
+    let (generation, _deadline) = submission.into_parts();
+    host.apply_one_driver_input(
+        Moment::from_tick(0),
+        ProducerInput::ProducerIdentityFailed {
+            generation,
+            broker_code: NonZeroI16::new(14),
+            now: Moment::from_tick(0),
+        },
+    )
+    .unwrap_or_else(|error| panic!("coordinator load must schedule retry: {error}"));
+
+    let due = host
+        .turn(Moment::from_tick(50), one_each())
+        .unwrap_or_else(|error| panic!("equal deadline turn failed: {error}"));
+    assert_eq!(due.prepared_effects, 1);
+    assert_eq!(due.batch_timers, 0);
+    assert!(
+        host.take_identity_submission()
+            .unwrap_or_else(|error| panic!("identity handoff should agree: {error}"))
+            .is_none()
+    );
+
+    let Err(ProducerDeliveryError::Failed(expired_failure)) =
+        expired.into_delivery_observer().wait()
+    else {
+        panic!("expired identity waiter must fail")
+    };
+    assert_eq!(
+        expired_failure.kind(),
+        ProducerDeliveryFailureKind::DeadlineElapsed
+    );
+    let Err(ProducerDeliveryError::Failed(later_failure)) = later.into_delivery_observer().wait()
+    else {
+        panic!("later identity waiter must be fenced atomically")
+    };
+    assert_eq!(
+        later_failure.kind(),
+        ProducerDeliveryFailureKind::ProducerIdentity
+    );
+    assert_eq!(
+        later_failure.delivery_status(),
+        ProducerDeliveryStatus::NotSent
+    );
 }
 
 #[test]

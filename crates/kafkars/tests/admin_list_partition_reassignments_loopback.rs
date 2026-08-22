@@ -17,7 +17,8 @@ use admin_list_partition_reassignments_loopback::{
     ListPartitionReassignmentsBroker, Workflow, wait_within,
 };
 use kafkars::{
-    Client, DeliveryStatus, ErrorKind, KafkaError, ListPartitionReassignmentsResult, TopicPartition,
+    Client, DeliveryStatus, ErrorKind, KafkaError, ListPartitionReassignmentsResult, RetryAdvice,
+    TopicPartition,
 };
 
 #[test]
@@ -189,8 +190,9 @@ fn build_client(broker: &ListPartitionReassignmentsBroker, client_id: &str) -> C
         match client.ready().wait() {
             Ok(()) => break,
             Err(error)
-                if error.kind() == ErrorKind::Transport
-                    && error.delivery_status() == Some(DeliveryStatus::NotSent)
+                if (error.retry_advice() == RetryAdvice::RetrySafe
+                    || (error.kind() == ErrorKind::Transport
+                        && error.delivery_status() == Some(DeliveryStatus::NotSent)))
                     && Instant::now() < deadline =>
             {
                 std::thread::sleep(Duration::from_millis(1));

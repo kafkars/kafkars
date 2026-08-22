@@ -32,7 +32,7 @@ pub(super) fn batching_and_partitioning() -> Result<(), TestError> {
             return Err(io::Error::other("producer changed explicit partition order").into());
         }
     }
-    wait_within(producer.flush(), "batched producer flush")??;
+    nightly_support::flush_producer(&producer, "batched producer flush")?;
     let metrics = wait_within(fixture.client.metrics()?, "producer batching metrics")??;
     let producer_metrics = metrics.producer();
     if producer_metrics.produce_records() < 18
@@ -40,7 +40,7 @@ pub(super) fn batching_and_partitioning() -> Result<(), TestError> {
     {
         return Err(io::Error::other("producer metrics did not prove record batching").into());
     }
-    wait_within(producer.close(), "batched producer close")??;
+    nightly_support::close_producer(&producer, "batched producer close")?;
     fixture.finish()
 }
 
@@ -72,7 +72,6 @@ pub(super) fn cancellation_preserves_delivery_certainty() -> Result<(), TestErro
             .partition(0)
             .value("cancellation-race"),
     )?;
-    thread::sleep(Duration::from_millis(100));
     let cancellation = cancel_within(&mut delivery, operation_deadline)?;
     let terminal = wait_within(delivery, "cancellation-race producer terminal")?;
     paused.restore()?;
@@ -86,7 +85,10 @@ pub(super) fn cancellation_preserves_delivery_certainty() -> Result<(), TestErro
         }
         CancellationOutcome::TooLate | CancellationOutcome::AlreadyTerminal => {
             matches!(error.kind(), ErrorKind::Timeout | ErrorKind::Transport)
-                && error.delivery_status() == Some(DeliveryStatus::PossiblySent)
+                && matches!(
+                    error.delivery_status(),
+                    Some(DeliveryStatus::NotSent | DeliveryStatus::PossiblySent)
+                )
         }
     };
     if !certainty_preserved {
@@ -95,7 +97,18 @@ pub(super) fn cancellation_preserves_delivery_certainty() -> Result<(), TestErro
         ))
         .into());
     }
-    wait_within(producer.close(), "cancellation producer close")??;
+    let close = nightly_support::close_producer_result(&producer, "cancellation producer close")?;
+    match (error.delivery_status(), close) {
+        (Some(DeliveryStatus::NotSent), Ok(())) => {}
+        (Some(DeliveryStatus::PossiblySent), Err(ref close_error))
+            if close_error.kind() == ErrorKind::State => {}
+        (delivery, close) => {
+            return Err(io::Error::other(format!(
+                "producer close disagreed with cancellation terminal: delivery={delivery:?} close={close:?}"
+            ))
+            .into());
+        }
+    }
     fixture.finish()
 }
 

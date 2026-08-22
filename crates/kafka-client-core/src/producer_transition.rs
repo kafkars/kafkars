@@ -27,7 +27,11 @@ impl ProducerMachine {
             ProducerInput::ProducerIdentityFailed {
                 generation,
                 broker_code,
-            } => self.producer_identity_failed(generation, broker_code),
+                now,
+            } => self.producer_identity_failed(generation, broker_code, now),
+            ProducerInput::ProducerIdentityRetryDue { schedule, now } => {
+                self.producer_identity_retry_due(schedule, now)
+            }
             ProducerInput::ProducerIdentityDeadlineElapsed { generation, now } => {
                 self.producer_identity_deadline_elapsed(generation, now)
             }
@@ -91,7 +95,12 @@ impl ProducerMachine {
                 execution,
                 now,
                 delivery,
-            } => self.route_refresh_deadline_elapsed(execution, now, delivery),
+            }
+            | ProducerInput::DriverDeadlineElapsed {
+                execution,
+                now,
+                delivery,
+            } => self.attempt_deadline_elapsed(execution, now, delivery),
             ProducerInput::TransportFailed {
                 execution,
                 now,

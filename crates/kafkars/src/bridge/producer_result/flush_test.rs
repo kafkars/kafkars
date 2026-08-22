@@ -5,8 +5,8 @@ use kafka_client_engine::{
     ProducerTryFlushErrorKind as EngineTryFlushErrorKind,
 };
 
-use super::flush::{admission_kind, translate_flush_result};
-use crate::ErrorKind;
+use super::flush::{admission_kind, translate_flush_admission_kind, translate_flush_result};
+use crate::{ErrorKind, RetryAdvice};
 
 #[test]
 fn every_flush_admission_kind_has_one_stable_facade_category() {
@@ -34,6 +34,33 @@ fn every_flush_admission_kind_has_one_stable_facade_category() {
 
     for (engine, facade) in cases {
         assert_eq!(admission_kind(engine), facade);
+    }
+}
+
+#[test]
+fn flush_admission_retry_advice_preserves_the_pre_admission_boundary() {
+    let retry_safe = [
+        EngineTryFlushErrorKind::Contended,
+        EngineTryFlushErrorKind::CompletionCapacity,
+    ];
+    for kind in retry_safe {
+        let error = translate_flush_admission_kind(kind);
+        assert_eq!(error.kind(), ErrorKind::Backpressure);
+        assert_eq!(error.retry_advice(), RetryAdvice::RetrySafe);
+        assert_eq!(error.delivery_status(), None);
+    }
+
+    let terminal = [
+        EngineTryFlushErrorKind::MomentUnrepresentable,
+        EngineTryFlushErrorKind::Closed,
+        EngineTryFlushErrorKind::LocalIdentityExhausted,
+        EngineTryFlushErrorKind::HostPoisoned,
+        EngineTryFlushErrorKind::InternalInvariant,
+    ];
+    for kind in terminal {
+        let error = translate_flush_admission_kind(kind);
+        assert_eq!(error.retry_advice(), RetryAdvice::DoNotRetry);
+        assert_eq!(error.delivery_status(), None);
     }
 }
 

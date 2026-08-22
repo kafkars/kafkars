@@ -75,6 +75,7 @@ pub(crate) fn consumer_group_join_request(
     request.instance_id = instance_id.map(Into::into);
     request.rebalance_timeout_ms = rebalance_timeout_ms;
     request.subscribed_topic_names = Some(subscribed_topic_names);
+    request.topic_partitions = Some(Vec::new());
     Ok(PreparedConsumerGroupHeartbeatRequest { request })
 }
 

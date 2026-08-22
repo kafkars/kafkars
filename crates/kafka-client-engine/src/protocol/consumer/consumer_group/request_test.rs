@@ -38,7 +38,7 @@ fn join_carries_epoch_zero_complete_subscription_and_initial_configuration() {
         }),
         Some(vec!["orders", "payments"])
     );
-    assert!(request.topic_partitions.is_none());
+    assert_eq!(request.topic_partitions.as_deref(), Some(&[][..]));
 }
 
 #[test]
@@ -62,7 +62,7 @@ fn fenced_rejoin_retains_the_broker_member_with_epoch_zero_configuration() {
             .map(|topics| topics[0].as_str()),
         Some("orders")
     );
-    assert!(request.topic_partitions.is_none());
+    assert_eq!(request.topic_partitions.as_deref(), Some(&[][..]));
 }
 
 #[test]

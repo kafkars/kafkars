@@ -55,6 +55,14 @@ and make a gating cell fail closed. Each negative test is first resolved from a
 libtest listing as exactly one ignored test, so a zero-match Cargo invocation
 cannot be recorded as a pass.
 
+Topic fixtures do not treat a successful `CreateTopics` response as immediate
+routability. Under one bounded fixture deadline they require exact
+`DescribeTopics` correlation, the requested partition count, and a leader for
+every partition; only Kafka's provisional unknown-topic and leader-unavailable
+codes remain pending. Coordinator disruption likewise polls the exact active
+group under a fixed bound and accepts both legacy numeric IDs and the current
+endpoint-plus-parenthesized-ID CLI form before selecting a broker service.
+
 Before rendering, the runner must capture the immutable image inspection,
 resolved Compose configuration, readiness output, crate graph, scenario
 events, client output, broker state, broker logs, and teardown result. Required

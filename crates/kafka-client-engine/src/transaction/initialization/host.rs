@@ -2,6 +2,8 @@
 
 mod admission;
 mod control;
+#[cfg(test)]
+mod delivery_floor_test;
 mod owner;
 mod reclaim;
 mod recovery;
@@ -114,16 +116,14 @@ impl TransactionInitializationHost {
     }
 
     #[cfg(test)]
-    pub(crate) fn start_with_retry_policy(
-        execution_retry_policy: ProducerRetryPolicy,
-    ) -> std::io::Result<Self> {
+    pub(crate) fn start_with_retry_policy(policy: ProducerRetryPolicy) -> std::io::Result<Self> {
         let execution_limits = TransactionExecutionLimits::try_new_with_bounds(
             TRANSACTION_OWNER_CAPACITY,
             TRANSACTION_INITIALIZATION_OPERATION_BYTES,
             TRANSACTION_INITIALIZATION_OPERATION_BYTES,
             TRANSACTION_INITIALIZATION_OPERATION_BYTES,
             CompressionPolicy::None,
-            execution_retry_policy,
+            policy,
         )
         .unwrap_or_else(|| unreachable!("focused transaction limits are nonzero"));
         Self::start_with_limits(execution_limits)

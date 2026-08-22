@@ -105,6 +105,6 @@ fn fenced_member_is_lost_then_rejoins_at_epoch_zero_with_the_same_identity() {
         assert_eq!(request.member_id.as_str(), member.as_ref());
         assert_eq!(request.member_epoch, 0);
         assert!(request.subscribed_topic_names.is_some());
-        assert!(request.topic_partitions.is_none());
+        assert_eq!(request.topic_partitions.as_deref(), Some(&[][..]));
     }
 }

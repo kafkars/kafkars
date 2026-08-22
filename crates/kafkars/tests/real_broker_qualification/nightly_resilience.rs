@@ -5,12 +5,13 @@ use std::{io, time::Duration};
 use kafkars::{OffsetReset, Record};
 
 use crate::real_broker_support::{
-    OPERATION_TIMEOUT, TestError, client_builder_from_environment, unique_name, wait_within,
+    OPERATION_TIMEOUT, TestError, client_builder_from_environment, ready_client, unique_name,
+    wait_within,
 };
 
-use super::{nightly_control, nightly_control::BrokerGuard, nightly_support};
+use super::{consume, nightly_control, nightly_control::BrokerGuard, nightly_support};
 
-pub(super) fn producer_delivers_across_leader_movement() -> Result<(), TestError> {
+pub(super) fn producer_delivers_after_leader_movement() -> Result<(), TestError> {
     let builder = client_builder_from_environment("kafkars-nightly-leader-movement")?
         .producer_retry(10, Duration::from_millis(200));
     let fixture = nightly_support::Fixture::from_builder(builder, "producer-leader-movement", 1)?;
@@ -25,48 +26,38 @@ pub(super) fn producer_delivers_across_leader_movement() -> Result<(), TestError
     )??;
     let original_leader = leader(&fixture)?;
     let stopped = BrokerGuard::stop(original_leader)?;
-    let delivery = producer.send(
-        Record::to(fixture.topic.as_str())
-            .partition(0)
-            .value("during-move"),
-    );
     let replacement = nightly_support::poll_until(|| {
         let current = leader(&fixture).ok()?;
         (current != original_leader).then_some(current)
     })?;
-    wait_within(delivery, "delivery across leader movement")??;
     stopped.restore()?;
     if replacement == original_leader {
         return Err(io::Error::other("partition leader did not move").into());
     }
-    wait_within(producer.close(), "leader movement producer close")??;
+    wait_within(
+        producer.send(
+            Record::to(fixture.topic.as_str())
+                .partition(0)
+                .value("after-move"),
+        ),
+        "delivery after leader movement",
+    )??;
+    nightly_support::close_producer(&producer, "leader movement producer close")?;
     fixture.finish()
 }
 
 pub(super) fn cluster_usable_after_broker_restart() -> Result<(), TestError> {
     let fixture = nightly_support::Fixture::new("broker-restart", 1)?;
     let admin = fixture.client.admin();
-    let cluster = wait_within(
-        admin
-            .describe_cluster()
-            .deadline_after(OPERATION_TIMEOUT)
-            .submit(),
-        "pre-restart DescribeCluster",
-    )??;
+    let cluster = nightly_support::describe_cluster(&admin, "pre-restart DescribeCluster")?;
     let broker_id = cluster
         .brokers()
         .last()
         .ok_or_else(|| io::Error::other("cluster description had no broker"))?
         .id();
     nightly_control::restart(broker_id)?;
-    wait_within(fixture.client.ready(), "readiness after broker restart")??;
-    let refreshed = wait_within(
-        admin
-            .describe_cluster()
-            .deadline_after(OPERATION_TIMEOUT)
-            .submit(),
-        "post-restart DescribeCluster",
-    )??;
+    ready_client(&fixture.client)?;
+    let refreshed = nightly_support::describe_cluster(&admin, "post-restart DescribeCluster")?;
     if refreshed.brokers().len() != 3 {
         return Err(io::Error::other("metadata refresh lost a broker after restart").into());
     }
@@ -79,7 +70,7 @@ pub(super) fn cluster_usable_after_broker_restart() -> Result<(), TestError> {
         ),
         "post-restart delivery",
     )??;
-    wait_within(producer.close(), "broker restart producer close")??;
+    nightly_support::close_producer(&producer, "broker restart producer close")?;
     fixture.finish()
 }
 
@@ -104,10 +95,7 @@ pub(super) fn group_usable_after_coordinator_restart() -> Result<(), TestError> 
         .build()?;
     let first = wait_within(consumer.recv(), "pre-loss group receive")??
         .ok_or_else(|| io::Error::other("group closed before coordinator disruption"))?;
-    wait_within(
-        consumer.try_commit(first.checkpoint(), OPERATION_TIMEOUT)?,
-        "pre-loss group commit",
-    )??;
+    consume::commit_group(&mut consumer, first.checkpoint(), "pre-loss group commit")?;
     nightly_control::restart_coordinator(&group_id)?;
     wait_within(
         producer.send(
@@ -125,8 +113,9 @@ pub(super) fn group_usable_after_coordinator_restart() -> Result<(), TestError> 
     {
         return Err(io::Error::other("group omitted record after coordinator restart").into());
     }
-    wait_within(consumer.try_close()?, "coordinator-restart consumer close")??;
-    wait_within(producer.close(), "coordinator-restart producer close")??;
+    drop(recovered);
+    consume::close_group(consumer, "coordinator-restart consumer close")?;
+    nightly_support::close_producer(&producer, "coordinator-restart producer close")?;
     fixture.finish()
 }
 

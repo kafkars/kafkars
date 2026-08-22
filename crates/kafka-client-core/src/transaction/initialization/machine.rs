@@ -2,7 +2,7 @@
 
 use core::fmt;
 
-use crate::{Deadline, OperationId};
+use crate::{Deadline, DeliveryStatus, OperationId};
 
 use super::{TransactionInitializationPlan, TransactionInitializationState, TransactionalOwnerId};
 
@@ -14,6 +14,7 @@ pub struct TransactionInitializationMachine {
     pub(super) deadline: Deadline,
     pub(super) plan: TransactionInitializationPlan,
     pub(super) state: TransactionInitializationState,
+    pub(super) delivery_floor: DeliveryStatus,
 }
 
 impl TransactionInitializationMachine {
@@ -30,6 +31,7 @@ impl TransactionInitializationMachine {
             deadline,
             plan,
             state: TransactionInitializationState::Ready,
+            delivery_floor: DeliveryStatus::NotSent,
         }
     }
 

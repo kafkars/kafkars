@@ -28,9 +28,4 @@ keytool -importcert -noprompt -alias qualification-ca \
   -file "$output/ca.pem" -keystore "$output/kafka.truststore.p12" \
   -storetype PKCS12 -storepass "$password"
 
-printf '%s\n' "$password" >"$output/kafka_keystore_creds"
-printf '%s\n' "$password" >"$output/kafka_ssl_key_creds"
-printf '%s\n' "$password" >"$output/kafka_truststore_creds"
-chmod 0444 "$output/kafka.keystore.p12" "$output/kafka.truststore.p12" \
-  "$output/kafka_keystore_creds" "$output/kafka_ssl_key_creds" \
-  "$output/kafka_truststore_creds"
+chmod 0444 "$output/kafka.keystore.p12" "$output/kafka.truststore.p12"

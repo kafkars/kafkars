@@ -2,7 +2,11 @@
 
 mod admission;
 mod driver_port;
+#[cfg(test)]
+mod driver_port_test;
 mod host;
+#[cfg(test)]
+mod host_concurrent_transactions_retry_test;
 #[cfg(test)]
 mod host_failure_test;
 #[cfg(test)]

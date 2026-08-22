@@ -65,18 +65,7 @@ impl SettledProduceCall {
         // One name-route receipt proves only the selected routing partition.
         // Batch settlement therefore retains that token until drop and never
         // reports it as refresh evidence for every aggregated entry.
-        let route_refresh_required = entries.len() == 1
-            && response_shape_valid
-            && entries.iter().any(|entry| {
-                needs_route_refresh(normalized_entry_input(
-                    entry,
-                    now,
-                    &result,
-                    entries.len() > 1,
-                    true,
-                    response_index.as_ref(),
-                ))
-            });
+        let route_refresh_required = entries.len() == 1 && needs_route_refresh(input);
         let route_refresh = ProduceRouteRefresh::from_required(
             route_refresh_required,
             RouteKind::PartitionLeader,
@@ -114,6 +103,11 @@ impl SettledProduceCall {
 
     pub(super) fn refresh_deadline(&self) -> Option<Deadline> {
         self.route_refresh.deadline(self.shared_deadline)
+    }
+
+    #[cfg(test)]
+    pub(super) const fn route_refresh_required_for_test(&self) -> bool {
+        !matches!(self.route_refresh, ProduceRouteRefresh::None)
     }
 
     pub(super) fn advance(&mut self, now: Moment) -> bool {

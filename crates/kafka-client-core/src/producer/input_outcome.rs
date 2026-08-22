@@ -121,7 +121,7 @@ impl ProducerMachine {
         self.settle_retry_terminal(batch_id, ProducerFailure::broker(failure, delivery))
     }
 
-    pub(crate) fn route_refresh_deadline_elapsed(
+    pub(crate) fn attempt_deadline_elapsed(
         &mut self,
         execution: BatchExecutionId,
         now: Moment,

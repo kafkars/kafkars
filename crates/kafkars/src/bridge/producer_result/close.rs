@@ -11,10 +11,29 @@ use crate::{ErrorKind, KafkaError};
 use super::flush::admission_kind;
 
 pub(crate) fn translate_close_admission(error: &EngineTryCloseError) -> KafkaError {
-    let message = error
-        .detail()
-        .map_or_else(|| close_message(error.kind()).to_owned(), str::to_owned);
-    KafkaError::new(admission_kind(error.kind()), message)
+    let kind = error.kind();
+    let Some(detail) = error.detail() else {
+        return translate_close_admission_kind(kind);
+    };
+    close_admission(kind, detail.to_owned())
+}
+
+pub(super) fn translate_close_admission_kind(kind: EngineTryCloseErrorKind) -> KafkaError {
+    close_admission(kind, close_message(kind).to_owned())
+}
+
+fn close_admission(kind: EngineTryCloseErrorKind, message: String) -> KafkaError {
+    let error = KafkaError::new(admission_kind(kind), message);
+    match kind {
+        EngineTryCloseErrorKind::Contended | EngineTryCloseErrorKind::CompletionCapacity => {
+            error.with_safe_retry()
+        }
+        EngineTryCloseErrorKind::MomentUnrepresentable
+        | EngineTryCloseErrorKind::Closed
+        | EngineTryCloseErrorKind::LocalIdentityExhausted
+        | EngineTryCloseErrorKind::HostPoisoned
+        | EngineTryCloseErrorKind::InternalInvariant => error,
+    }
 }
 
 pub(crate) fn translate_close_result(result: EngineFlushResult) -> Result<(), KafkaError> {

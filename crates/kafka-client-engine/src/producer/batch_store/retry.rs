@@ -1,4 +1,4 @@
-//! Exact engine-state replacement for core-authorized definitely-unsent retries.
+//! Exact engine-state replacement for core-authorized producer retries.
 
 use kafka_client_core::{BatchExecutionGeneration, BatchExecutionId};
 

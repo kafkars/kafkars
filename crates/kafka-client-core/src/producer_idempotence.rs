@@ -2,6 +2,8 @@
 
 use core::num::NonZeroU32;
 
+use crate::Deadline;
+
 /// Generation fencing one lazy nontransactional identity acquisition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ProducerIdentityGeneration(NonZeroU32);
@@ -15,6 +17,50 @@ impl ProducerIdentityGeneration {
     /// Returns the stable nonzero value.
     pub const fn get(self) -> u32 {
         self.0.get()
+    }
+
+    pub(crate) fn checked_next(self) -> Option<Self> {
+        self.get()
+            .checked_add(1)
+            .and_then(NonZeroU32::new)
+            .map(Self)
+    }
+}
+
+/// Exact future fence replacing one failed producer-identity acquisition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProducerIdentityRetrySchedule {
+    failed_generation: ProducerIdentityGeneration,
+    retry_generation: ProducerIdentityGeneration,
+    not_before: Deadline,
+}
+
+impl ProducerIdentityRetrySchedule {
+    pub(crate) const fn new(
+        failed_generation: ProducerIdentityGeneration,
+        retry_generation: ProducerIdentityGeneration,
+        not_before: Deadline,
+    ) -> Self {
+        Self {
+            failed_generation,
+            retry_generation,
+            not_before,
+        }
+    }
+
+    /// Returns the failed acquisition generation fenced by this schedule.
+    pub const fn failed_generation(self) -> ProducerIdentityGeneration {
+        self.failed_generation
+    }
+
+    /// Returns the fresh generation reserved for the retry acquisition.
+    pub const fn retry_generation(self) -> ProducerIdentityGeneration {
+        self.retry_generation
+    }
+
+    /// Returns the earliest absolute moment at which resubmission is allowed.
+    pub const fn not_before(self) -> Deadline {
+        self.not_before
     }
 }
 

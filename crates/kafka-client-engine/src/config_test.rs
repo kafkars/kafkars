@@ -37,7 +37,7 @@ fn provisional_defaults_are_explicit_and_bounded() {
     );
     assert_eq!(
         validated.host_limits.retry_policy,
-        ProducerRetryPolicy::try_fixed(3, 100_000_000)
+        ProducerRetryPolicy::try_fixed(10, 100_000_000)
             .unwrap_or_else(|error| panic!("default retry failed: {error}"))
     );
 }

@@ -62,6 +62,7 @@ impl ProducerTransition {
             self.effects.iter().find_map(|effect| match effect {
                 ProducerEffect::AccumulateExplicit { operation_id, .. } => Some(*operation_id),
                 ProducerEffect::AcquireProducerIdentity { .. }
+                | ProducerEffect::ArmProducerIdentityRetry { .. }
                 | ProducerEffect::ArmBatchTimer { .. }
                 | ProducerEffect::CancelBatchTimer { .. }
                 | ProducerEffect::MaterializeBatch { .. }
@@ -84,6 +85,7 @@ impl ProducerTransition {
             ProducerEffect::AcceptFlush { flush_id, .. } => Some(*flush_id),
             ProducerEffect::AccumulateExplicit { .. }
             | ProducerEffect::AcquireProducerIdentity { .. }
+            | ProducerEffect::ArmProducerIdentityRetry { .. }
             | ProducerEffect::ArmBatchTimer { .. }
             | ProducerEffect::CancelBatchTimer { .. }
             | ProducerEffect::MaterializeBatch { .. }

@@ -1,5 +1,8 @@
 //! Explicit deterministic steps joining producer policy to virtual engine ownership.
 
+#[path = "producer_time.rs"]
+mod time;
+
 use kafka_client_core::{
     BatchId, ByteCount, FlushId, Moment, OperationId, PayloadId, ProducerBatchPolicy,
     ProducerCompletion, ProducerEffect, ProducerInput, ProducerMachine, ProducerRetryPolicy,
@@ -14,6 +17,7 @@ pub struct ProducerScenario {
     clock: VirtualClock,
     core: ProducerMachine,
     engine: VirtualProducerState,
+    auto_identity: bool,
 }
 
 impl ProducerScenario {
@@ -23,6 +27,7 @@ impl ProducerScenario {
             clock: VirtualClock::default(),
             core: ProducerMachine::new(retained_bytes, completion_capacity),
             engine: VirtualProducerState::new(completion_capacity),
+            auto_identity: true,
         }
     }
 
@@ -40,10 +45,11 @@ impl ProducerScenario {
                 batch_policy,
             ),
             engine: VirtualProducerState::new(completion_capacity),
+            auto_identity: true,
         }
     }
 
-    /// Creates a scenario with explicit batching and definitely-unsent retry policy.
+    /// Creates a scenario with explicit batching and producer retry policy.
     pub fn with_batch_and_retry_policy(
         retained_bytes: ByteCount,
         completion_capacity: usize,
@@ -59,30 +65,13 @@ impl ProducerScenario {
                 retry_policy,
             ),
             engine: VirtualProducerState::new(completion_capacity),
+            auto_identity: true,
         }
     }
 
     /// Returns the current virtual monotonic observation.
     pub const fn now(&self) -> Moment {
         self.clock.now()
-    }
-
-    /// Advances virtual time and deterministically dispatches every due batch timer.
-    pub fn advance(&mut self, ticks: u64) -> Result<(), SimulationError> {
-        let target = self
-            .clock
-            .target_after(ticks)
-            .map_err(SimulationError::Time)?;
-        while let Some((batch_id, generation, deadline)) = self.engine.take_timer_before(target) {
-            self.clock.set(Moment::from_tick(deadline.tick()));
-            self.step(ProducerInput::BatchTimerFired {
-                batch_id,
-                generation,
-                now: self.clock.now(),
-            })?;
-        }
-        self.clock.set(target);
-        Ok(())
     }
 
     /// Gives the virtual engine ownership of bytes before core admission.
@@ -148,6 +137,9 @@ impl ProducerScenario {
             let ProducerEffect::AcquireProducerIdentity { generation, .. } = effect else {
                 continue;
             };
+            if !self.auto_identity {
+                continue;
+            }
             let acquired = self
                 .core
                 .apply(ProducerInput::ProducerIdentityAcquired {
@@ -160,6 +152,11 @@ impl ProducerScenario {
             pending.extend_from_slice(acquired.effects());
         }
         Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn disable_automatic_identity_for_test(&mut self) {
+        self.auto_identity = false;
     }
 
     /// Releases the engine-owned terminal result without reclaiming core capacity.

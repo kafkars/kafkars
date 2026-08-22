@@ -211,16 +211,25 @@ pub(super) fn admit(
     deadline: Deadline,
     record: ProducerRecord,
 ) -> AdmittedExplicit {
-    let admitted = match host.try_admit_explicit(
+    let admitted = admit_without_identity(host, now, deadline, record);
+    super::test_identity::acquire_host_if_pending(host, now);
+    admitted
+}
+
+pub(super) fn admit_without_identity(
+    host: &mut ProducerHost,
+    now: Moment,
+    deadline: Deadline,
+    record: ProducerRecord,
+) -> AdmittedExplicit {
+    match host.try_admit_explicit(
         now,
         OperationDeadline::from_parts_for_test(deadline, Instant::now()),
         record,
     ) {
         Ok(admitted) => admitted,
         Err(error) => panic!("producer admission should succeed: {error:?}"),
-    };
-    super::test_identity::acquire_host_if_pending(host, now);
-    admitted
+    }
 }
 
 fn operation_deadline(tick: u64) -> OperationDeadline {

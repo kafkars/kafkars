@@ -9,7 +9,7 @@ use super::admin_topics_result::{
     partition_error, topic_error, translate_accepted_fault, translate_admission_kind,
     translate_failure_parts, translate_observer_error,
 };
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
 #[test]
 fn distinct_admission_observer_and_fault_categories_remain_distinct() {
@@ -30,6 +30,31 @@ fn distinct_admission_observer_and_fault_categories_remain_distinct() {
         DescribeTopicsAcceptedFaultKind::HostInvariant,
     ] {
         assert_eq!(translate_accepted_fault(fault).kind(), ErrorKind::Internal);
+    }
+}
+
+#[test]
+fn only_pre_admission_topic_backpressure_is_retry_safe() {
+    for kind in [
+        DescribeTopicsAdmissionErrorKind::Contended,
+        DescribeTopicsAdmissionErrorKind::Capacity,
+        DescribeTopicsAdmissionErrorKind::RetainedBytes,
+    ] {
+        let error = translate_admission_kind(kind);
+        assert_eq!(error.retry_advice(), RetryAdvice::RetrySafe);
+        assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+    }
+    for kind in [
+        DescribeTopicsAdmissionErrorKind::InvalidRequest,
+        DescribeTopicsAdmissionErrorKind::InvalidDeadline,
+        DescribeTopicsAdmissionErrorKind::Closed,
+        DescribeTopicsAdmissionErrorKind::IdentityExhausted,
+        DescribeTopicsAdmissionErrorKind::HostUnavailable,
+    ] {
+        assert_eq!(
+            translate_admission_kind(kind).retry_advice(),
+            RetryAdvice::DoNotRetry
+        );
     }
 }
 

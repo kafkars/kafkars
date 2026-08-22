@@ -30,10 +30,16 @@ pub enum ProducerMachineError {
     TimerGenerationExhausted,
     /// A sealed execution generation could not advance without reuse.
     ExecutionGenerationExhausted,
+    /// A producer-identity acquisition generation could not advance without reuse.
+    ProducerIdentityGenerationExhausted,
     /// Broker returned an invalid producer ID or epoch.
     InvalidProducerIdentity,
     /// Identity fencing forbids assigning another partition sequence.
     ProducerIdentityFenced,
+    /// The supplied identity-retry schedule is not currently owned.
+    ProducerIdentityRetryScheduleMismatch,
+    /// An identity-retry observation arrived before its exact backoff deadline.
+    ProducerIdentityRetryNotDue,
     /// A batch record count cannot be represented as one Kafka sequence range.
     SequenceRangeOverflow,
     /// Transport accepted bytes from a revoked or already-released execution.
@@ -66,10 +72,19 @@ impl fmt::Display for ProducerMachineError {
             Self::ExecutionGenerationExhausted => {
                 formatter.write_str("producer execution generation exhausted")
             }
+            Self::ProducerIdentityGenerationExhausted => {
+                formatter.write_str("producer identity generation exhausted")
+            }
             Self::InvalidProducerIdentity => {
                 formatter.write_str("broker returned an invalid producer identity")
             }
             Self::ProducerIdentityFenced => formatter.write_str("producer identity is fenced"),
+            Self::ProducerIdentityRetryScheduleMismatch => {
+                formatter.write_str("producer identity retry schedule is not current")
+            }
+            Self::ProducerIdentityRetryNotDue => {
+                formatter.write_str("producer identity retry backoff has not elapsed")
+            }
             Self::SequenceRangeOverflow => {
                 formatter.write_str("producer sequence range cannot be represented")
             }

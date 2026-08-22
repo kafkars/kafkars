@@ -30,7 +30,7 @@ pub(crate) fn translate_assigned_close_admission(
 pub(crate) fn translate_assigned_close_admission_kind(
     kind: AssignedConsumerTryCloseErrorKind,
 ) -> KafkaError {
-    match kind {
+    let error = match kind {
         AssignedConsumerTryCloseErrorKind::Contended => KafkaError::new(
             ErrorKind::Backpressure,
             "assigned-consumer close admission is contended",
@@ -54,6 +54,14 @@ pub(crate) fn translate_assigned_close_admission_kind(
             ErrorKind::Internal,
             "assigned-consumer close ownership is inconsistent",
         ),
+    };
+    match kind {
+        AssignedConsumerTryCloseErrorKind::Contended
+        | AssignedConsumerTryCloseErrorKind::CompletionCapacity
+        | AssignedConsumerTryCloseErrorKind::Pending => error.with_safe_retry(),
+        AssignedConsumerTryCloseErrorKind::Closed
+        | AssignedConsumerTryCloseErrorKind::HostUnavailable
+        | AssignedConsumerTryCloseErrorKind::InternalInvariant => error,
     }
 }
 

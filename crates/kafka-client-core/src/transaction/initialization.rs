@@ -23,6 +23,8 @@ pub use outcome::{
 pub use state::TransactionInitializationState;
 
 #[cfg(test)]
+mod delivery_floor_test;
+#[cfg(test)]
 mod machine_test;
 #[cfg(test)]
 mod model_test;

@@ -200,6 +200,49 @@ class RendererTests(unittest.TestCase):
             )
             self.assertNotEqual(completed.returncode, 0)
 
+    def test_coordinator_state_parser_accepts_exact_positive_broker_id(self) -> None:
+        control = (ROOT / "qualification/control-compose").read_text(
+            encoding="utf-8"
+        )
+        function = re.search(
+            r"(?ms)^coordinator_id_from_state\(\) \{\n.*?^\}\n",
+            control,
+        )
+        self.assertIsNotNone(function)
+        self.assertIn("for _ in $(seq 1 60); do", control)
+        self.assertIn("did not become queryable within 120 seconds", control)
+        command = f'{function.group(0)}\ncoordinator_id_from_state "$1"'
+        group = "kafkars-coordinator-restart-7"
+        for state, expected in (
+            (f"{group} kafka-2:19092 (2) range Stable 1\n", "2"),
+            (f"{group} 3 range Stable 1\n", "3"),
+        ):
+            completed = subprocess.run(
+                ["bash", "-c", command, "coordinator-test", group],
+                input=state,
+                text=True,
+                check=False,
+                capture_output=True,
+            )
+            self.assertEqual(completed.returncode, 0)
+            self.assertEqual(completed.stdout.strip(), expected)
+        for state in (
+            "GROUP COORDINATOR (ID) STATE #MEMBERS\n",
+            f"another-group kafka-2:19092 (2) range Stable 1\n",
+            f"{group} kafka-2:19092 (0) range Stable 1\n",
+            f"{group} kafka-2:19092 (2 range Stable 1\n",
+            f"{group} kafka-2:19092 2) range Stable 1\n",
+            f"{group} kafka-2:19092 unavailable Stable 2\n",
+        ):
+            completed = subprocess.run(
+                ["bash", "-c", command, "coordinator-test", group],
+                input=state,
+                text=True,
+                check=False,
+                capture_output=True,
+            )
+            self.assertNotEqual(completed.returncode, 0)
+
     def test_cell_outside_declared_evidence_set_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             events = Path(directory) / "events.tsv"
@@ -373,7 +416,7 @@ class RendererTests(unittest.TestCase):
                 if "sasl" in security:
                     self.assertIn("sasl_wrong_secret_rejection", scenarios)
         self.assertNotIn(
-            "kip848_assignment_reconciliation",
+            "kip848_initial_assignment",
             self.matrix["profiles"]["classic"]["scenarios"],
         )
         self.assertEqual(len(self.matrix["profiles"]["full"]["scenarios"]), 13)
@@ -383,7 +426,7 @@ class RendererTests(unittest.TestCase):
             [
                 scenario
                 for scenario in self.matrix["profiles"]["full"]["scenarios"]
-                if scenario != "kip848_assignment_reconciliation"
+                if scenario != "kip848_initial_assignment"
             ],
         )
         self.assertNotIn(
@@ -399,7 +442,7 @@ class RendererTests(unittest.TestCase):
             self.matrix["profiles"]["full"]["scenarios"],
         )
         truthful_scenarios = {
-            "producer_delivers_across_leader_movement",
+            "producer_delivers_after_leader_movement",
             "producer_cancellation_preserves_delivery_certainty",
             "cluster_usable_after_broker_restart",
             "group_usable_after_coordinator_restart",
@@ -506,6 +549,7 @@ class RendererTests(unittest.TestCase):
                     "IMAGE": "apache/kafka:4.3.1",
                     "KAFKA_EXTERNAL_PROTOCOL": "SASL_SSL",
                     "KAFKA_TLS_DIR": common,
+                    "KAFKA_TLS_PASSWORD": "qualification-test-password",
                     "KAFKA_SASL_DIR": common,
                 }
             )
@@ -541,9 +585,18 @@ class RendererTests(unittest.TestCase):
             self.assertTrue(mounts[0]["read_only"])
             broker_environment = service["environment"]
             self.assertEqual(
-                broker_environment["KAFKA_SSL_KEYSTORE_FILENAME"],
-                "kafka.keystore.p12",
+                broker_environment["KAFKA_SSL_KEYSTORE_LOCATION"],
+                "/etc/kafka/secrets/kafka.keystore.p12",
             )
+            self.assertEqual(
+                broker_environment["KAFKA_SSL_TRUSTSTORE_LOCATION"],
+                "/etc/kafka/secrets/kafka.truststore.p12",
+            )
+            self.assertEqual(
+                broker_environment["KAFKA_SSL_KEYSTORE_PASSWORD"],
+                "qualification-test-password",
+            )
+            self.assertNotIn("KAFKA_SSL_KEYSTORE_FILENAME", broker_environment)
             self.assertEqual(
                 broker_environment["KAFKA_OPTS"],
                 "-Djava.security.auth.login.config=/etc/kafka/secrets/broker_jaas.conf",

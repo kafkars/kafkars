@@ -5,11 +5,13 @@ mod error;
 #[path = "real_broker_support/operation.rs"]
 mod operation;
 
-use std::{env, fs, io};
+use std::{env, fs, io, time::Duration};
 
 use error::TestError;
 use kafkars::{Client, DeliveryStatus, ErrorKind, Security, Tls};
-use operation::wait_within;
+use operation::{wait_within, wait_within_for};
+
+const REJECTION_OBSERVATION_TIMEOUT: Duration = Duration::from_secs(45);
 
 #[test]
 #[ignore = "requires TLS smoke environment variables and a TLS-enabled Kafka cluster"]
@@ -31,7 +33,11 @@ fn run() -> Result<(), TestError> {
         .security(Security::tls(Tls::custom_roots_pem(certificate.clone())))
         .build()?;
 
-    let readiness = wait_within(client.ready(), "mismatched TLS identity readiness");
+    let readiness = wait_within_for(
+        client.ready(),
+        "mismatched TLS identity readiness",
+        REJECTION_OBSERVATION_TIMEOUT,
+    );
     let shutdown = wait_within(client.shutdown(), "mismatched TLS identity client shutdown");
     let readiness = readiness?;
     shutdown??;

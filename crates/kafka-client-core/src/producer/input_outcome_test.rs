@@ -1,10 +1,13 @@
 //! Exact-generation outcome facts distinguish stale work from lifecycle corruption.
 
 use crate::{
-    BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline, ExplicitRecord,
-    Moment, PartitionIndex, PayloadId, ProducerAttemptFailureKind, ProducerEffect, ProducerInput,
-    ProducerMachine, ProducerMachineError, TopicId, TransitionError,
+    BatchExecutionGeneration, BatchExecutionId, BatchId, ByteCount, Deadline, DeliveryStatus,
+    ExplicitRecord, Moment, PartitionIndex, PayloadId, ProducerAttemptFailureKind,
+    ProducerCompletion, ProducerEffect, ProducerFailureKind, ProducerInput, ProducerMachine,
+    ProducerMachineError, TopicId, TransitionError,
 };
+
+use super::scenario_support::retry::submitted;
 
 fn materializing() -> (ProducerMachine, BatchExecutionId) {
     let mut producer = ProducerMachine::new(ByteCount::new(64), 1);
@@ -163,6 +166,44 @@ fn sealed_generation_is_nonzero_initial_identity() {
     let (_producer, execution) = materializing();
     assert_eq!(execution.generation(), BatchExecutionGeneration::initial());
     assert_eq!(execution.generation().get(), 1);
+}
+
+#[test]
+fn driver_deadline_preserves_certainty_and_requires_the_original_boundary() {
+    for delivery in [DeliveryStatus::NotSent, DeliveryStatus::PossiblySent] {
+        let (mut producer, _, execution) = submitted(2, 2, 5);
+        let early = producer.apply(ProducerInput::DriverDeadlineElapsed {
+            execution,
+            now: Moment::from_tick(4),
+            delivery,
+        });
+        assert!(matches!(
+            early,
+            Err(ProducerMachineError::Transition(
+                TransitionError::DeadlineNotElapsed
+            ))
+        ));
+
+        let terminal = producer
+            .apply(ProducerInput::DriverDeadlineElapsed {
+                execution,
+                now: Moment::from_tick(5),
+                delivery,
+            })
+            .unwrap_or_else(|error| panic!("driver deadline failed: {error}"));
+        assert!(matches!(
+            terminal.effects().last(),
+            Some(ProducerEffect::Complete {
+                completion: ProducerCompletion::Failed(failure),
+                ..
+            }) if failure.kind() == ProducerFailureKind::DeadlineElapsed
+                && failure.delivery() == delivery
+        ));
+        assert_eq!(
+            producer.admission_is_open(),
+            delivery == DeliveryStatus::NotSent
+        );
+    }
 }
 
 const fn rejected(execution: BatchExecutionId) -> ProducerInput {

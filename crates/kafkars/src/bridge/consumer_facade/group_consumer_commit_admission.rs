@@ -54,7 +54,9 @@ impl GroupConsumerEngine {
     }
 }
 
-fn translate_commit_admission(kind: GroupConsumerCommitAdmissionErrorKind) -> KafkaError {
+pub(super) fn translate_commit_admission(
+    kind: GroupConsumerCommitAdmissionErrorKind,
+) -> KafkaError {
     match kind {
         GroupConsumerCommitAdmissionErrorKind::InvalidDeadline => KafkaError::new(
             ErrorKind::Configuration,
@@ -69,7 +71,8 @@ fn translate_commit_admission(kind: GroupConsumerCommitAdmissionErrorKind) -> Ka
         | GroupConsumerCommitAdmissionErrorKind::Backpressure => KafkaError::new(
             ErrorKind::Backpressure,
             "bounded group commit admission is temporarily full",
-        ),
+        )
+        .with_safe_retry(),
         GroupConsumerCommitAdmissionErrorKind::StaleCheckpoint => KafkaError::new(
             ErrorKind::State,
             "checkpoint no longer matches the live group assignment",

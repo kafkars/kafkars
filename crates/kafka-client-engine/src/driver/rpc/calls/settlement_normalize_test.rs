@@ -4,6 +4,7 @@ use kafka_client_core::{
     BatchExecutionGeneration, BatchExecutionId, BatchId, Deadline, DeliveryStatus, Moment,
     ProducerAttemptFailureKind, ProducerInput,
 };
+use kafka_driver::{CallFailure, Delivery, RequestError};
 use kafka_wire::ProduceResponse;
 
 use super::{
@@ -39,4 +40,35 @@ fn invalid_aggregate_shape_terminalizes_one_entry_as_possibly_sent() {
             route_refreshed: false,
         }
     );
+}
+
+#[test]
+fn exact_driver_deadline_preserves_authoritative_delivery_certainty() {
+    let execution =
+        BatchExecutionId::new(BatchId::from_raw(7), BatchExecutionGeneration::initial());
+    let entry = TrackedProduceEntry {
+        execution,
+        deadline: Deadline::from_tick(20),
+        topic: "orders".into(),
+        partition: 3,
+    };
+    let now = Moment::from_tick(20);
+
+    for (driver, delivery) in [
+        (Delivery::NotSent, DeliveryStatus::NotSent),
+        (Delivery::PossiblySent, DeliveryStatus::PossiblySent),
+    ] {
+        let error = RequestError::Rejected {
+            failure: CallFailure::DeadlineExceeded,
+            delivery: driver,
+        };
+        assert_eq!(
+            normalized_entry_input(&entry, now, &Err(error), false, false, None),
+            ProducerInput::DriverDeadlineElapsed {
+                execution,
+                now,
+                delivery,
+            }
+        );
+    }
 }

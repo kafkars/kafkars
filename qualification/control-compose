@@ -36,6 +36,52 @@ wait_for_broker() {
   exit 1
 }
 
+coordinator_id_from_state() {
+  local group=$1
+  LC_ALL=C awk -v group="$group" '
+    $1 == group {
+      for (field = 2; field <= 3 && field <= NF; field++) {
+        candidate = $field
+        if (candidate ~ /^[1-9][0-9]*$/) {
+          print candidate
+          found = 1
+          exit
+        }
+        if (candidate ~ /^\([1-9][0-9]*\)$/) {
+          sub(/^\(/, "", candidate)
+          sub(/\)$/, "", candidate)
+          print candidate
+          found = 1
+          exit
+        }
+      }
+    }
+    END {
+      if (!found) {
+        exit 1
+      }
+    }
+  '
+}
+
+find_coordinator() {
+  local group=$1
+  local output
+  local coordinator
+  for _ in $(seq 1 60); do
+    if output=$("${compose[@]}" exec -T kafka-1 \
+      /opt/kafka/bin/kafka-consumer-groups.sh \
+      --bootstrap-server kafka-1:19092 --describe --group "$group" --state 2>&1) &&
+      coordinator=$(coordinator_id_from_state "$group" <<<"$output"); then
+      printf '%s\n' "$coordinator"
+      return
+    fi
+    sleep 2
+  done
+  echo "coordinator for group $group did not become queryable within 120 seconds" >&2
+  return 1
+}
+
 case "$action" in
   stop)
     service=$(service_for "$target")
@@ -58,10 +104,7 @@ case "$action" in
     wait_for_broker "$service"
     ;;
   restart-coordinator)
-    coordinator=$("${compose[@]}" exec -T kafka-1 \
-      /opt/kafka/bin/kafka-consumer-groups.sh \
-      --bootstrap-server kafka-1:19092 --describe --group "$target" --state |
-      awk -v group="$target" '$1 == group && $2 ~ /^[0-9]+$/ { print $2; exit }')
+    coordinator=$(find_coordinator "$target")
     service=$(service_for "$coordinator")
     "${compose[@]}" stop "$service" >&2
     sleep 8

@@ -90,7 +90,22 @@ pub(crate) fn translate_assigned_assignment_admission_kind(
             "assigned-consumer replacement ownership is inconsistent",
         ),
     };
-    KafkaError::new(facade_kind, message)
+    let error = KafkaError::new(facade_kind, message);
+    match kind {
+        AssignedConsumerTryReplaceAssignmentErrorKind::Contended
+        | AssignedConsumerTryReplaceAssignmentErrorKind::Pending => error.with_safe_retry(),
+        AssignedConsumerTryReplaceAssignmentErrorKind::Closed
+        | AssignedConsumerTryReplaceAssignmentErrorKind::AssignmentCapacity
+        | AssignedConsumerTryReplaceAssignmentErrorKind::TopicCapacity
+        | AssignedConsumerTryReplaceAssignmentErrorKind::RetainedNameCapacity
+        | AssignedConsumerTryReplaceAssignmentErrorKind::EventCapacity
+        | AssignedConsumerTryReplaceAssignmentErrorKind::EmptyAssignment
+        | AssignedConsumerTryReplaceAssignmentErrorKind::DuplicatePartition
+        | AssignedConsumerTryReplaceAssignmentErrorKind::DeadlineOverflow
+        | AssignedConsumerTryReplaceAssignmentErrorKind::ResourceExhausted
+        | AssignedConsumerTryReplaceAssignmentErrorKind::HostUnavailable
+        | AssignedConsumerTryReplaceAssignmentErrorKind::InternalInvariant => error,
+    }
 }
 
 pub(crate) fn translate_assigned_assignment_fault(

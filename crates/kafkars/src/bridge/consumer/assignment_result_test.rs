@@ -7,7 +7,7 @@ use kafka_client_engine::{
 use super::assignment_result::{
     translate_assigned_assignment_admission_kind, translate_assigned_assignment_fault,
 };
-use crate::ErrorKind;
+use crate::{ErrorKind, RetryAdvice};
 
 #[test]
 fn every_assignment_admission_kind_is_translated() {
@@ -29,6 +29,34 @@ fn every_assignment_admission_kind_is_translated() {
         assert_eq!(
             translate_assigned_assignment_admission_kind(kind).kind(),
             expected
+        );
+    }
+}
+
+#[test]
+fn only_transient_pre_admission_assignment_rejections_are_retry_safe() {
+    for kind in [Kind::Contended, Kind::Pending] {
+        assert_eq!(
+            translate_assigned_assignment_admission_kind(kind).retry_advice(),
+            RetryAdvice::RetrySafe
+        );
+    }
+    for kind in [
+        Kind::Closed,
+        Kind::AssignmentCapacity,
+        Kind::TopicCapacity,
+        Kind::RetainedNameCapacity,
+        Kind::EventCapacity,
+        Kind::EmptyAssignment,
+        Kind::DuplicatePartition,
+        Kind::DeadlineOverflow,
+        Kind::ResourceExhausted,
+        Kind::HostUnavailable,
+        Kind::InternalInvariant,
+    ] {
+        assert_eq!(
+            translate_assigned_assignment_admission_kind(kind).retry_advice(),
+            RetryAdvice::DoNotRetry
         );
     }
 }

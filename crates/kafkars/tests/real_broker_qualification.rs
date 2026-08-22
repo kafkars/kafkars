@@ -13,19 +13,19 @@ mod real_broker_support;
 #[ignore = "requires a qualification-managed mutable Kafka cluster"]
 fn pull_request_smoke() {
     qualification::run_pull_request_smoke()
-        .unwrap_or_else(|error| panic!("real-broker pull-request smoke failed: {error}"));
+        .unwrap_or_else(|error| panic!("real-broker pull-request smoke failed: {error:?}"));
 }
 
 #[test]
 #[ignore = "requires a qualification-managed three-broker Kafka cluster"]
 fn nightly_matrix() {
     qualification::run_nightly_matrix()
-        .unwrap_or_else(|error| panic!("real-broker nightly matrix failed: {error}"));
+        .unwrap_or_else(|error| panic!("real-broker nightly matrix failed: {error:?}"));
 }
 
 #[test]
 #[ignore = "requires a qualification-managed three-broker Kafka cluster"]
 fn classic_matrix() {
     qualification::run_classic_matrix()
-        .unwrap_or_else(|error| panic!("real-broker classic matrix failed: {error}"));
+        .unwrap_or_else(|error| panic!("real-broker classic matrix failed: {error:?}"));
 }

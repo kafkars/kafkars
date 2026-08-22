@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use kafka_client_core::{
-    Deadline, ProducerRetryPolicy, TransactionEpoch, TransactionalProducerIdentity,
+    Deadline, DeliveryStatus, ProducerRetryPolicy, TransactionEpoch, TransactionalProducerIdentity,
 };
 
 use crate::{
@@ -25,6 +25,7 @@ pub(super) struct PendingEnrollment {
     pub(super) deadline: OperationDeadline,
     pub(super) retry_not_before: Option<Deadline>,
     pub(super) retries_started: u32,
+    pub(super) delivery_floor: DeliveryStatus,
     pub(super) batch: Option<TransactionalMaterializationBatch>,
     pub(super) call: Option<Box<dyn TransactionPartitionEnrollmentPortCall>>,
 }

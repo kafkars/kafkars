@@ -9,10 +9,10 @@ use super::admin_describe_result::{
     translate_accepted_fault, translate_admission_kind, translate_broker_error_parts,
     translate_description_parts, translate_failure_parts, translate_observer_error,
 };
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
 #[test]
-fn every_admission_category_maps_without_hidden_retry_policy() {
+fn every_admission_category_preserves_pre_admission_retry_safety() {
     let cases = [
         (
             DescribeClusterAdmissionErrorKind::InvalidDeadline,
@@ -44,6 +44,16 @@ fn every_admission_category_maps_without_hidden_retry_policy() {
         let error = translate_admission_kind(engine);
         assert_eq!(error.kind(), public);
         assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+        let expected = match engine {
+            DescribeClusterAdmissionErrorKind::Contended
+            | DescribeClusterAdmissionErrorKind::Capacity
+            | DescribeClusterAdmissionErrorKind::RetainedBytes => RetryAdvice::RetrySafe,
+            DescribeClusterAdmissionErrorKind::InvalidDeadline
+            | DescribeClusterAdmissionErrorKind::Closed
+            | DescribeClusterAdmissionErrorKind::IdentityExhausted
+            | DescribeClusterAdmissionErrorKind::HostUnavailable => RetryAdvice::DoNotRetry,
+        };
+        assert_eq!(error.retry_advice(), expected);
     }
 }
 

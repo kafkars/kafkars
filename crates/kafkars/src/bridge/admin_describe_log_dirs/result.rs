@@ -36,11 +36,21 @@ pub(super) fn translate_admission_kind(kind: AdmissionErrorKind) -> KafkaError {
             ErrorKind::Internal
         }
     };
-    KafkaError::new(
+    let error = KafkaError::new(
         public,
         format!("DescribeLogDirs admission failed: {kind:?}"),
     )
-    .with_delivery_status(PublicDeliveryStatus::NotSent)
+    .with_delivery_status(PublicDeliveryStatus::NotSent);
+    match kind {
+        AdmissionErrorKind::Contended
+        | AdmissionErrorKind::Capacity
+        | AdmissionErrorKind::RetainedBytes => error.with_safe_retry(),
+        AdmissionErrorKind::InvalidRequest
+        | AdmissionErrorKind::InvalidDeadline
+        | AdmissionErrorKind::Closed
+        | AdmissionErrorKind::IdentityExhausted
+        | AdmissionErrorKind::HostUnavailable => error,
+    }
 }
 
 pub(super) fn translate_accepted_fault(fault: AcceptedFaultKind) -> KafkaError {

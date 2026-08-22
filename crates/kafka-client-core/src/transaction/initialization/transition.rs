@@ -46,8 +46,8 @@ impl TransactionInitializationMachine {
                 producer_id,
                 producer_epoch,
             } => self.broker_initialized(producer_id, producer_epoch),
-            TransactionInitializationInput::RetryableBrokerRejected => {
-                self.retryable_broker_rejected()
+            TransactionInitializationInput::RetryAuthorized { delivery } => {
+                self.retry_authorized(delivery)
             }
             TransactionInitializationInput::BrokerRejected { failure } => self.finish_submitted(
                 TransactionInitializationFailureKind::Broker(failure),
@@ -115,12 +115,14 @@ impl TransactionInitializationMachine {
         Ok(self.finish(TransactionInitializationTerminal::Initialized(identity)))
     }
 
-    fn retryable_broker_rejected(
+    fn retry_authorized(
         &mut self,
+        delivery: DeliveryStatus,
     ) -> Result<TransactionInitializationTransition, TransactionInitializationMachineError> {
         if self.state != TransactionInitializationState::Submitted {
             return Err(TransactionInitializationMachineError::InvalidState);
         }
+        self.delivery_floor = weaken_delivery(self.delivery_floor, delivery);
         self.state = TransactionInitializationState::AwaitingDriver;
         Ok(TransactionInitializationTransition::one(
             TransactionInitializationEffect::Submit {
@@ -159,6 +161,7 @@ impl TransactionInitializationMachine {
         kind: TransactionInitializationFailureKind,
         delivery: DeliveryStatus,
     ) -> TransactionInitializationTransition {
+        let delivery = weaken_delivery(self.delivery_floor, delivery);
         self.finish(TransactionInitializationTerminal::Failed(
             TransactionInitializationFailure::new(kind, delivery),
         ))
@@ -174,5 +177,14 @@ impl TransactionInitializationMachine {
             operation_id: self.operation_id,
             terminal,
         })
+    }
+}
+
+const fn weaken_delivery(left: DeliveryStatus, right: DeliveryStatus) -> DeliveryStatus {
+    if matches!(left, DeliveryStatus::PossiblySent) || matches!(right, DeliveryStatus::PossiblySent)
+    {
+        DeliveryStatus::PossiblySent
+    } else {
+        DeliveryStatus::NotSent
     }
 }

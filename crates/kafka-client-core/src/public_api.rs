@@ -452,7 +452,8 @@ pub use crate::producer_effect::{
 pub use crate::producer_error::ProducerMachineError;
 pub use crate::producer_failure::{ProducerFailure, ProducerFailureKind};
 pub use crate::producer_idempotence::{
-    ProducerIdentity, ProducerIdentityGeneration, ProducerSequenceLease,
+    ProducerIdentity, ProducerIdentityGeneration, ProducerIdentityRetrySchedule,
+    ProducerSequenceLease,
 };
 pub use crate::producer_input::ProducerInput;
 pub use crate::producer_policy::{ProducerBatchPolicy, ProducerBatchPolicyError};
