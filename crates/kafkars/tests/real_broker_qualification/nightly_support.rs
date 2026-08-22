@@ -3,8 +3,8 @@
 use std::{io, thread, time::Instant};
 
 use kafkars::{
-    Admin, Client, ClientBuilder, ClusterDescription, KafkaError, NewTopic, Producer, RetryAdvice,
-    TopicDescription,
+    Admin, Client, ClientBuilder, ClusterDescription, KafkaError, NewTopic, Producer, Record,
+    RetryAdvice, SendBatchResult, TopicDescription,
 };
 
 use crate::real_broker_support::{
@@ -87,6 +87,42 @@ pub(super) fn flush_producer(producer: &Producer, phase: &str) -> Result<(), Tes
             }
             Err(error) => return Err(error.into()),
         }
+    }
+}
+
+pub(super) fn send_batch_after_transient_admission(
+    producer: &Producer,
+    mut records: Vec<Record>,
+    phase: &str,
+) -> Result<SendBatchResult, TestError> {
+    let deadline = Instant::now() + OPERATION_TIMEOUT;
+    loop {
+        let now = Instant::now();
+        if now >= deadline {
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                format!("{phase} admission remained backpressured"),
+            )
+            .into());
+        }
+        let result = wait_within_for(
+            producer.send_batch(records),
+            phase,
+            deadline.saturating_duration_since(now),
+        )?;
+        let retryable = result.deliveries().is_empty()
+            && result.rejection().is_some_and(|rejection| {
+                rejection.error().retry_advice() == RetryAdvice::RetrySafe
+            });
+        if !retryable {
+            return Ok(result);
+        }
+        let (_deliveries, rejection) = result.into_parts();
+        records = rejection
+            .unwrap_or_else(|| unreachable!("retryable batch retained its exact rejection"))
+            .into_parts()
+            .0;
+        thread::sleep(std::time::Duration::from_millis(1));
     }
 }
 

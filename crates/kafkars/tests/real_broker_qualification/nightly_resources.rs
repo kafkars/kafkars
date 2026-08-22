@@ -107,9 +107,36 @@ pub(super) fn retained_byte_recovery() -> Result<(), TestError> {
             Record::to(fixture.topic.as_str()).partition(0).value(value)
         })
         .collect();
-    let result = wait_within(producer.send_batch(records), "retained-byte batch")?;
-    if result.rejection().is_some() || result.deliveries().iter().any(Result::is_err) {
-        return Err(io::Error::other("retained-byte batch did not fully settle").into());
+    let result = nightly_support::send_batch_after_transient_admission(
+        &producer,
+        records,
+        "retained-byte batch",
+    )?;
+    if let Some(rejection) = result.rejection() {
+        return Err(io::Error::other(format!(
+            "retained-byte batch accepted {} of 20 records before rejection: error={:?}; rejected={}",
+            result.deliveries().len(),
+            rejection.error(),
+            rejection.record().len(),
+        ))
+        .into());
+    }
+    if result.deliveries().len() != 20 {
+        return Err(io::Error::other(format!(
+            "retained-byte batch returned {} deliveries without a rejection",
+            result.deliveries().len(),
+        ))
+        .into());
+    }
+    if let Some((index, error)) = result
+        .deliveries()
+        .iter()
+        .enumerate()
+        .find_map(|(index, delivery)| delivery.as_ref().err().map(|error| (index, error)))
+    {
+        return Err(
+            io::Error::other(format!("retained-byte delivery {index} failed: {error:?}")).into(),
+        );
     }
     drop(result);
     nightly_support::flush_producer(&producer, "retained-byte flush")?;
