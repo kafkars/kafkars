@@ -76,6 +76,11 @@ pub(super) fn broker_session_members(
             BrokerSessionMember::new(
                 prepared.fence().position(),
                 Arc::from(prepared.request.topic()),
+                prepared
+                    .request
+                    .topic_route()
+                    .unwrap_or_else(|| unreachable!("broker-routed Fetch retains topic identity"))
+                    .topic_id(),
             )
         })
         .collect()

@@ -23,8 +23,8 @@ pub(crate) use super::{
         normalize_session_fetch_outcome,
     },
     request::{
-        FETCH_NAME_ROUTE_MAX_VERSION, FETCH_NAME_ROUTE_MIN_VERSION, FetchRequestFailure,
-        FetchRequestSettings, fetch_request, fetch_request_with_session,
+        FETCH_NAME_ROUTE_MAX_VERSION, FETCH_NAME_ROUTE_MIN_VERSION, FETCH_TOPIC_ID_ROUTE_VERSION,
+        FetchRequestFailure, FetchRequestSettings, fetch_request, fetch_request_with_session,
     },
     request_broker::{
         BrokerFetchPartition, ForgottenFetchPartition, OwnedForgottenFetchPartition,

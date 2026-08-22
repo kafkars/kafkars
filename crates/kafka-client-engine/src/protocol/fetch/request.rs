@@ -16,7 +16,8 @@ pub(crate) const FETCH_NAME_ROUTE_MIN_VERSION: i16 = 4;
 /// This is a submission ceiling, not a selected version: driver negotiation
 /// must choose an intersection within `4..=12`.
 pub(crate) const FETCH_NAME_ROUTE_MAX_VERSION: i16 = 12;
-
+/// Fetch version carrying topic IDs, current leader epochs, and KIP-951 hints.
+pub(crate) const FETCH_TOPIC_ID_ROUTE_VERSION: i16 = 16;
 const MAX_TOPIC_NAME_BYTES: usize = 249;
 const CONSUMER_REPLICA_ID: i32 = -1;
 const UNKNOWN_LEADER_EPOCH: i32 = -1;

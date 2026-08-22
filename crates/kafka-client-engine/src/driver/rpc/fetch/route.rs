@@ -1,14 +1,15 @@
 //! Exact topic-view ownership resolving one prepared Fetch to its leader broker.
 
-use core::num::NonZeroI16;
-
 use kafka_client_core::{AssignedConsumerEffect, FetchFailure};
 use kafka_driver::{
     BrokerId as DriverBrokerId, Call, CompletionError, SubmitError, TopicName, TopicView,
     TopicViewError,
 };
 
-use super::{super::super::DriverOwner, admission::PartitionFetchRequest};
+use super::{
+    super::super::DriverOwner, admission::PartitionFetchRequest,
+    route_correlation::BrokerRoutedFetch,
+};
 
 /// Nonnegative Kafka broker identity retained by the broker-session owner.
 #[repr(transparent)]
@@ -27,19 +28,6 @@ impl BrokerId {
 
     pub(crate) const fn driver(self) -> DriverBrokerId {
         self.0
-    }
-}
-
-/// One prepared request paired with exact immutable metadata authority.
-#[must_use = "a broker-routed Fetch must be submitted or terminally settled"]
-pub(crate) struct BrokerRoutedFetch {
-    request: PartitionFetchRequest,
-    broker_id: BrokerId,
-}
-
-impl BrokerRoutedFetch {
-    pub(crate) fn into_parts(self) -> (PartitionFetchRequest, BrokerId) {
-        (self.request, self.broker_id)
     }
 }
 
@@ -91,7 +79,9 @@ impl BrokerFetchRouteCall {
         let request = self.request.take()?;
         Some(match result {
             Err(source) => Err(completion_failure(request, source)),
-            Ok(Err(source)) => Err(topic_view_failure(request, source)),
+            Ok(Err(source)) => Err(super::route_correlation::topic_view_failure(
+                request, source,
+            )),
             Ok(Ok(view)) => correlate_view(request, &self.topic, &view),
         })
     }
@@ -121,36 +111,13 @@ impl BrokerFetchRouteCall {
     }
 }
 
-/// Route-resolution failure retaining the exact prepared request.
-#[must_use = "route failure ownership must be settled or recovered"]
-pub(crate) struct BrokerFetchRouteFailure {
-    request: PartitionFetchRequest,
-    kind: BrokerFetchRouteFailureKind,
-}
-
-impl BrokerFetchRouteFailure {
-    const fn terminal(request: PartitionFetchRequest, failure: FetchFailure) -> Self {
-        Self {
-            request,
-            kind: BrokerFetchRouteFailureKind::Terminal(failure),
-        }
-    }
-
-    pub(crate) fn into_parts(self) -> (PartitionFetchRequest, BrokerFetchRouteFailureKind) {
-        (self.request, self.kind)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum BrokerFetchRouteFailureKind {
-    Backpressured,
-    Terminal(FetchFailure),
-    Completion,
-}
-
 #[allow(
     clippy::result_large_err,
     reason = "route failure returns the exact prepared Fetch request for deterministic settlement"
+)]
+#[allow(
+    clippy::redundant_closure_for_method_calls,
+    reason = "kafka-driver exposes the epoch value but does not reexport its concrete type"
 )]
 fn correlate_view(
     request: PartitionFetchRequest,
@@ -173,20 +140,55 @@ fn correlate_view(
             ));
         }
     };
-    let Some(broker_id) = (0..view.available_len()).find_map(|index| {
+    let Some((broker_id, leader_epoch)) = (0..view.available_len()).find_map(|index| {
         view.available_at(index)
             .filter(|entry| entry.partition().get() == partition)
-            .map(|entry| entry.broker_id())
+            .map(|entry| (entry.broker_id(), entry.leader_epoch()))
     }) else {
         return Err(BrokerFetchRouteFailure::terminal(
             request,
             FetchFailure::Transport,
         ));
     };
-    Ok(BrokerRoutedFetch {
+    let Some(topic_id) = view.topic_id() else {
+        return Err(BrokerFetchRouteFailure::terminal(
+            request,
+            FetchFailure::Compatibility,
+        ));
+    };
+    Ok(super::route_correlation::bind_route(
         request,
-        broker_id: BrokerId::from_driver(broker_id),
-    })
+        broker_id,
+        topic_id.to_bytes(),
+        leader_epoch.map(|epoch| epoch.get()),
+    ))
+}
+
+/// Route-resolution failure retaining the exact prepared request.
+#[must_use = "route failure ownership must be settled or recovered"]
+pub(crate) struct BrokerFetchRouteFailure {
+    request: PartitionFetchRequest,
+    kind: BrokerFetchRouteFailureKind,
+}
+
+impl BrokerFetchRouteFailure {
+    pub(super) const fn terminal(request: PartitionFetchRequest, failure: FetchFailure) -> Self {
+        Self {
+            request,
+            kind: BrokerFetchRouteFailureKind::Terminal(failure),
+        }
+    }
+
+    pub(crate) fn into_parts(self) -> (PartitionFetchRequest, BrokerFetchRouteFailureKind) {
+        (self.request, self.kind)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum BrokerFetchRouteFailureKind {
+    Backpressured,
+    Terminal(FetchFailure),
+    Completion,
 }
 
 fn admission_failure(
@@ -211,30 +213,4 @@ fn completion_failure(
         request,
         kind: BrokerFetchRouteFailureKind::Completion,
     }
-}
-
-#[allow(
-    clippy::match_same_arms,
-    unreachable_patterns,
-    reason = "the published driver RC exposes a non-exhaustive topic-view error while the reviewed path dependency is exhaustive"
-)]
-fn topic_view_failure(
-    request: PartitionFetchRequest,
-    source: TopicViewError,
-) -> BrokerFetchRouteFailure {
-    let failure = match source {
-        TopicViewError::DeadlineExceeded => FetchFailure::DeadlineElapsed,
-        TopicViewError::Broker { error_code } => {
-            NonZeroI16::new(error_code).map_or(FetchFailure::InvalidResponse, FetchFailure::Broker)
-        }
-        TopicViewError::MalformedMetadata => FetchFailure::InvalidResponse,
-        TopicViewError::ProjectionAllocationFailed
-        | TopicViewError::QueryCapacityReached { .. }
-        | TopicViewError::CapacityReached { .. } => FetchFailure::DriverRejected,
-        TopicViewError::Unavailable | TopicViewError::RefreshFailed | TopicViewError::Draining => {
-            FetchFailure::Transport
-        }
-        _ => FetchFailure::DriverRejected,
-    };
-    BrokerFetchRouteFailure::terminal(request, failure)
 }

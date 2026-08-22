@@ -42,7 +42,8 @@ fn requested_close_without_retained_sessions_clears_and_leaves_local_close_runna
 fn initial_session_is_removed_locally_and_reports_progress() {
     let (effect, _machine) = assignment();
     let broker = BrokerId::new(3).unwrap_or_else(|error| panic!("broker ID: {error}"));
-    let member = BrokerSessionMember::new(fetch_fence(effect).position(), Arc::from("events"));
+    let member =
+        BrokerSessionMember::new(fetch_fence(effect).position(), Arc::from("events"), [7; 16]);
     let mut executor = DirectFetchExecutor::create_unbound(1, 1, 1_024);
     executor
         .try_enable_sessions(1)

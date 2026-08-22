@@ -168,6 +168,7 @@ pub(super) fn request_from_plan(
     forgotten.extend(plan.forgotten().iter().map(|member| {
         OwnedForgottenFetchPartition::new(
             member.topic_owner(),
+            member.topic_id(),
             member.position().partition().partition().get(),
         )
     }));

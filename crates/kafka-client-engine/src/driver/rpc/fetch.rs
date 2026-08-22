@@ -36,6 +36,7 @@ mod forgotten;
 #[cfg(test)]
 mod forgotten_test;
 mod route;
+mod route_correlation;
 #[cfg(test)]
 mod route_test;
 #[cfg(test)]
@@ -59,6 +60,7 @@ mod submission_test;
 mod terminal;
 #[cfg(test)]
 mod terminal_test;
+mod topic_route;
 
 pub(crate) use admission::{FetchCallAdmission, PartitionFetchRequest};
 pub(crate) use broker_calls::{BrokerFetchCallAdmission, TrackedBrokerFetchCalls};

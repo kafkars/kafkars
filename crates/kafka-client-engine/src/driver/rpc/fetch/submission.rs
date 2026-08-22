@@ -8,7 +8,10 @@ use kafka_driver::{
 };
 use kafka_wire::{FetchRequest, FetchResponse};
 
-use crate::{driver::DriverOwner, protocol::fetch::FETCH_NAME_ROUTE_MAX_VERSION};
+use crate::{
+    driver::DriverOwner,
+    protocol::fetch::{FETCH_NAME_ROUTE_MAX_VERSION, FETCH_TOPIC_ID_ROUTE_VERSION},
+};
 
 use super::route::BrokerId;
 
@@ -76,7 +79,7 @@ impl DriverOwner {
         request: FetchRequest,
         deadline: Instant,
     ) -> Result<RoutedCall<FetchResponse>, FetchSubmitError> {
-        let options = fetch_options_for_request(deadline, &request);
+        let options = broker_fetch_options_for_request(deadline, &request);
         self.driver
             .request_tracked_with(
                 Route::Broker {
@@ -86,6 +89,21 @@ impl DriverOwner {
                 options,
             )
             .map_err(FetchSubmitError::Driver)
+    }
+}
+
+pub(super) const fn broker_fetch_options_for_request(
+    deadline: Instant,
+    request: &FetchRequest,
+) -> RequestOptions {
+    let options = RequestOptions::new(deadline)
+        .with_traffic_class(TrafficClass::LongPoll)
+        .with_minimum_version(ApiVersion::new(FETCH_TOPIC_ID_ROUTE_VERSION))
+        .with_maximum_version(ApiVersion::new(FETCH_TOPIC_ID_ROUTE_VERSION));
+    if request.session_id > 0 {
+        options.with_minimum_version(ApiVersion::new(FETCH_TOPIC_ID_ROUTE_VERSION))
+    } else {
+        options
     }
 }
 

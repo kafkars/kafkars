@@ -75,6 +75,7 @@ impl DirectFetchExecutor {
                 let normalized = normalize_session_fetch_outcome(
                     isolation,
                     request.topic(),
+                    request.topic_id(),
                     request.fence().position().partition().partition().get(),
                     request.next_offset().get(),
                     request.session(),

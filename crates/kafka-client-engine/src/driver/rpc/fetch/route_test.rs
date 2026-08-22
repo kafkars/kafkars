@@ -16,7 +16,8 @@ use crate::{
 use super::{
     super::super::DriverOwner,
     admission::PartitionFetchRequest,
-    route::{BrokerFetchRouteCall, BrokerFetchRouteFailureKind},
+    route::{BrokerFetchRouteCall, BrokerFetchRouteFailureKind, BrokerId},
+    routed_response_broker_test::{RoutedBroker, drive},
 };
 
 #[test]
@@ -43,6 +44,45 @@ fn shutdown_recovery_returns_the_unsettled_exact_request() {
         .shutdown_with_turn_limit(64, Duration::from_millis(10))
         .unwrap_or_else(|error| panic!("driver shutdown: {error}"));
     assert_eq!(call.recover_after_driver_shutdown().fence(), expected);
+}
+
+#[test]
+fn topic_view_binds_exact_uuid_leader_epoch_and_broker_before_fetch_admission() {
+    let mut broker = RoutedBroker::new();
+    let mut owner = DriverOwner::build(&EngineConfig::new(vec![broker.endpoint()]))
+        .unwrap_or_else(|error| panic!("build routed Fetch driver: {error}"));
+    RoutedBroker::await_seed(&mut owner);
+    broker.install_cluster(&mut owner);
+    let mut call = BrokerFetchRouteCall::submit(&owner, request("events"))
+        .unwrap_or_else(|_failure| panic!("topic-view admission"));
+    broker.install_topic(&mut owner);
+    let routed = (0..32)
+        .find_map(|_| {
+            call.try_terminal().or_else(|| {
+                drive(
+                    &mut owner,
+                    Duration::from_millis(100),
+                    "settle Fetch TopicView",
+                );
+                call.try_terminal()
+            })
+        })
+        .unwrap_or_else(|| panic!("Fetch TopicView did not settle"))
+        .unwrap_or_else(|failure| panic!("Fetch route: {:?}", failure.into_parts().1));
+    let (request, broker_id) = routed.into_parts();
+
+    assert_eq!(
+        broker_id,
+        BrokerId::new(1).unwrap_or_else(|error| panic!("broker ID: {error}"))
+    );
+    let route = request
+        .topic_route()
+        .unwrap_or_else(|| panic!("topic route"));
+    assert_eq!(route.topic_id(), [7; 16]);
+    assert_eq!(route.leader_epoch(), Some(9));
+    owner
+        .shutdown_with_turn_limit(64, Duration::from_millis(10))
+        .unwrap_or_else(|error| panic!("driver shutdown: {error}"));
 }
 
 fn request(topic: &str) -> PartitionFetchRequest {

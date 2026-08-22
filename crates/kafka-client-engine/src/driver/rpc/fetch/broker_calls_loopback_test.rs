@@ -39,7 +39,11 @@ fn forgotten_only_call_is_accepted_and_recovers_exact_request_after_shutdown() {
             Deadline::from_tick(60_000_000_000),
             Instant::now() + Duration::from_secs(60),
         ),
-        vec![OwnedForgottenFetchPartition::new(Arc::from("events"), 3)],
+        vec![OwnedForgottenFetchPartition::new(
+            Arc::from("events"),
+            [7; 16],
+            3,
+        )],
     );
     let call = TrackedForgottenFetchCall::submit(
         &driver,
@@ -112,7 +116,7 @@ fn requests() -> Vec<PartitionFetchRequest> {
         .into_effects()
         .into_iter()
         .map(|effect| {
-            PartitionFetchRequest::from_effect(
+            let mut request = PartitionFetchRequest::from_effect(
                 effect,
                 "events".to_owned(),
                 FetchRequestSettings::new(500, 1, 1024 * 1024, 1024 * 1024, 0),
@@ -122,7 +126,9 @@ fn requests() -> Vec<PartitionFetchRequest> {
                     Instant::now() + Duration::from_secs(60),
                 ),
             )
-            .unwrap_or_else(|error| panic!("prepared Fetch: {error:?}"))
+            .unwrap_or_else(|error| panic!("prepared Fetch: {error:?}"));
+            request.bind_topic_route(super::topic_route::FetchTopicRoute::new([7; 16], Some(9)));
+            request
         })
         .collect()
 }

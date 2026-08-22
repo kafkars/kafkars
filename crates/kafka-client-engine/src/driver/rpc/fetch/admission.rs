@@ -17,6 +17,7 @@ use crate::{
 };
 
 use super::submission::FetchSubmitError;
+use super::topic_route::FetchTopicRoute;
 
 /// One core-selected Fetch paired with engine catalog, limits, and deadline facts.
 #[must_use = "a prepared partition Fetch must be submitted or terminally settled"]
@@ -24,6 +25,7 @@ pub(crate) struct PartitionFetchRequest {
     fence: FetchFence,
     next_offset: NextFetchOffset,
     topic: String,
+    topic_route: Option<FetchTopicRoute>,
     settings: FetchRequestSettings,
     session: FetchSessionRequest,
     decode_limits: FetchDecodeLimits,
@@ -47,6 +49,7 @@ impl PartitionFetchRequest {
             fence,
             next_offset,
             topic,
+            topic_route: None,
             settings,
             session: FetchSessionRequest::LEGACY,
             decode_limits,
@@ -68,6 +71,7 @@ impl PartitionFetchRequest {
             fence,
             next_offset,
             topic,
+            topic_route: None,
             settings,
             session: FetchSessionRequest::LEGACY,
             decode_limits,
@@ -89,6 +93,18 @@ impl PartitionFetchRequest {
 
     pub(crate) fn topic(&self) -> &str {
         &self.topic
+    }
+
+    pub(crate) const fn topic_route(&self) -> Option<FetchTopicRoute> {
+        self.topic_route
+    }
+
+    pub(crate) fn topic_id(&self) -> Option<[u8; 16]> {
+        self.topic_route.map(FetchTopicRoute::topic_id)
+    }
+
+    pub(crate) fn bind_topic_route(&mut self, route: FetchTopicRoute) {
+        self.topic_route = Some(route);
     }
 
     pub(crate) const fn operation_deadline(&self) -> OperationDeadline {

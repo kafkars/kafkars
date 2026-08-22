@@ -42,6 +42,7 @@ fn classify_response_failure(failure: &FetchResponseFailure) -> FetchOutcomeFail
         FetchResponseFailure::Decode(failure) => classify_decode_failure(failure),
         FetchResponseFailure::TopicCount { .. }
         | FetchResponseFailure::TopicNameMismatch
+        | FetchResponseFailure::TopicIdMismatch
         | FetchResponseFailure::PartitionCount { .. }
         | FetchResponseFailure::PartitionIndexMismatch { .. } => {
             FetchOutcomeFailureClass::InvalidResponse

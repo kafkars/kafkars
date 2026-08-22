@@ -96,7 +96,6 @@ impl RoutedBroker {
         completed
     }
 }
-
 fn accept_after_driving(listener: &TcpListener, driver: &mut DriverOwner) -> TcpStream {
     listener
         .set_nonblocking(true)
@@ -124,7 +123,7 @@ fn complete_negotiation(peer: &mut TcpStream, driver: &mut DriverOwner) {
     response.api_keys = vec![
         advertisement(API_VERSIONS_API_DESCRIPTOR.api_key.value(), 0, 0),
         advertisement(METADATA_API_DESCRIPTOR.api_key.value(), 0, 13),
-        advertisement(FETCH_API_DESCRIPTOR.api_key.value(), 4, 12),
+        advertisement(FETCH_API_DESCRIPTOR.api_key.value(), 4, 16),
     ];
     write_response::<ApiVersionsRequest, _>(
         peer,
@@ -159,6 +158,7 @@ fn respond_metadata(
             let mut partition = MetadataResponsePartition::default();
             partition.partition_index = partition_index;
             partition.leader_id = if partition_index == 3 { 1 } else { -1 };
+            partition.leader_epoch = if partition_index == 3 { 9 } else { -1 };
             topic.partitions.push(partition);
         }
         response.topics.push(topic);
@@ -176,7 +176,7 @@ fn respond_fetch(peer: &mut TcpStream, driver: &mut DriverOwner) -> (ApiVersion,
     wait_for_frame(peer, driver, "write Fetch request");
     let request = read_request(peer);
     assert_eq!(request.api_key, FETCH_API_DESCRIPTOR.api_key.value());
-    assert_eq!(request.api_version, ApiVersion::new(12));
+    assert!(matches!(request.api_version.value(), 12 | 16));
     let decoded = request.decode::<FetchRequest>();
     write_response::<FetchRequest, _>(
         peer,

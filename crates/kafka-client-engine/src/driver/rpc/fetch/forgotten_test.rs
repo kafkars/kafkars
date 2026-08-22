@@ -22,8 +22,8 @@ fn materialization_preserves_session_settings_deadline_and_owned_identities() {
         incremental(),
         OperationDeadline::from_parts_for_test(Deadline::from_tick(50_000_010), transport),
         vec![
-            OwnedForgottenFetchPartition::new(Arc::from("alpha"), 1),
-            OwnedForgottenFetchPartition::new(Arc::from("alpha"), 3),
+            OwnedForgottenFetchPartition::new(Arc::from("alpha"), [1; 16], 1),
+            OwnedForgottenFetchPartition::new(Arc::from("alpha"), [1; 16], 3),
         ],
     );
 
@@ -48,7 +48,11 @@ fn only_nonempty_live_incremental_deltas_are_admitted() {
     );
     let legacy = request(
         FetchSessionRequest::LEGACY,
-        vec![OwnedForgottenFetchPartition::new(Arc::from("alpha"), 1)],
+        vec![OwnedForgottenFetchPartition::new(
+            Arc::from("alpha"),
+            [1; 16],
+            1,
+        )],
     );
     assert_eq!(
         materialize(&legacy, Moment::from_tick(0)),
@@ -60,7 +64,11 @@ fn only_nonempty_live_incremental_deltas_are_admitted() {
 fn elapsed_request_returns_before_generated_request_construction() {
     let request = request(
         incremental(),
-        vec![OwnedForgottenFetchPartition::new(Arc::from("alpha"), 1)],
+        vec![OwnedForgottenFetchPartition::new(
+            Arc::from("alpha"),
+            [1; 16],
+            1,
+        )],
     );
     assert_eq!(
         materialize(&request, Moment::from_tick(100)),

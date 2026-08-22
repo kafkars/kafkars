@@ -6,7 +6,7 @@ use kafka_wire::fetch_response::PartitionData;
 use super::{
     decode::normalize_fetch_response, failure::FetchDecodeFailure, limits::FetchDecodeLimits,
     model::FetchResponse, request::FETCH_NAME_ROUTE_MAX_VERSION,
-    request::FETCH_NAME_ROUTE_MIN_VERSION,
+    request::FETCH_NAME_ROUTE_MIN_VERSION, request::FETCH_TOPIC_ID_ROUTE_VERSION,
 };
 
 /// Why a generated response cannot settle one exact partition fetch.
@@ -16,13 +16,16 @@ pub(crate) enum FetchResponseFailure {
     RequestedPartitionOutOfRange { actual: u32 },
     TopicCount { actual: usize },
     TopicNameMismatch,
+    TopicIdMismatch,
     PartitionCount { actual: usize },
     PartitionIndexMismatch { actual: i32 },
     Decode(FetchDecodeFailure),
 }
 
 pub(super) fn validate_selected_version(selected_version: i16) -> Result<(), FetchResponseFailure> {
-    if !(FETCH_NAME_ROUTE_MIN_VERSION..=FETCH_NAME_ROUTE_MAX_VERSION).contains(&selected_version) {
+    if !(FETCH_NAME_ROUTE_MIN_VERSION..=FETCH_NAME_ROUTE_MAX_VERSION).contains(&selected_version)
+        && selected_version != FETCH_TOPIC_ID_ROUTE_VERSION
+    {
         return Err(FetchResponseFailure::UnsupportedApiVersion {
             actual: selected_version,
         });
@@ -32,7 +35,9 @@ pub(super) fn validate_selected_version(selected_version: i16) -> Result<(), Fet
 
 pub(super) fn correlate_partition<'a>(
     topic: &str,
+    topic_id: Option<[u8; 16]>,
     partition: u32,
+    selected_version: i16,
     response: &'a WireFetchResponse,
 ) -> Result<&'a PartitionData, FetchResponseFailure> {
     let expected_partition = i32::try_from(partition)
@@ -42,8 +47,12 @@ pub(super) fn correlate_partition<'a>(
             actual: response.responses.len(),
         });
     };
-    if topic_response.topic.as_str() != topic {
-        return Err(FetchResponseFailure::TopicNameMismatch);
+    if selected_version <= FETCH_NAME_ROUTE_MAX_VERSION {
+        if topic_response.topic.as_str() != topic {
+            return Err(FetchResponseFailure::TopicNameMismatch);
+        }
+    } else if topic_id != Some(topic_response.topic_id.to_bytes()) {
+        return Err(FetchResponseFailure::TopicIdMismatch);
     }
     let [partition_response] = topic_response.partitions.as_slice() else {
         return Err(FetchResponseFailure::PartitionCount {

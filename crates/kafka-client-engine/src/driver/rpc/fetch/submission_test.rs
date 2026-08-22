@@ -5,12 +5,19 @@ use std::time::{Duration, Instant};
 use kafka_driver::{ApiVersion, RouteKind, RoutedCall, TrafficClass};
 use kafka_wire::{FetchRequest, FetchResponse};
 
-use crate::{EngineConfig, driver::DriverOwner, protocol::fetch::FETCH_NAME_ROUTE_MAX_VERSION};
+use crate::{
+    EngineConfig,
+    driver::DriverOwner,
+    protocol::fetch::{FETCH_NAME_ROUTE_MAX_VERSION, FETCH_TOPIC_ID_ROUTE_VERSION},
+};
 
 use super::{
     route::BrokerId,
     routed_response_broker_test::{RoutedBroker, drive},
-    submission::{FetchSubmitError, fetch_options, fetch_options_for_request},
+    submission::{
+        FetchSubmitError, broker_fetch_options_for_request, fetch_options,
+        fetch_options_for_request,
+    },
 };
 
 #[test]
@@ -24,6 +31,22 @@ fn options_preserve_original_deadline_long_poll_lane_and_name_ceiling() {
         options.maximum_version(),
         Some(ApiVersion::new(FETCH_NAME_ROUTE_MAX_VERSION))
     );
+}
+
+#[test]
+fn broker_fetch_requires_the_topic_id_and_leader_hint_version() {
+    let deadline = Instant::now() + Duration::from_secs(7);
+    let options = broker_fetch_options_for_request(deadline, &FetchRequest::default());
+
+    assert_eq!(
+        options.minimum_version(),
+        Some(ApiVersion::new(FETCH_TOPIC_ID_ROUTE_VERSION))
+    );
+    assert_eq!(
+        options.maximum_version(),
+        Some(ApiVersion::new(FETCH_TOPIC_ID_ROUTE_VERSION))
+    );
+    assert_eq!(options.traffic_class(), TrafficClass::LongPoll);
 }
 
 #[test]
@@ -93,7 +116,10 @@ fn exact_broker_submission_reaches_the_selected_loopback_broker() {
         )
         .unwrap_or_else(|error| panic!("tracked exact-broker Fetch admission: {error}"));
 
-    assert_eq!(broker.complete_fetch(&mut owner).value(), 12);
+    assert_eq!(
+        broker.complete_fetch(&mut owner).value(),
+        FETCH_TOPIC_ID_ROUTE_VERSION
+    );
     let outcome = (0..32)
         .find_map(|_| {
             call.try_result().or_else(|| {

@@ -10,6 +10,7 @@ use kafka_wire::{
     FetchResponse,
     fetch_response::{FetchableTopicResponse, PartitionData},
 };
+use kafka_wire_core::Uuid;
 
 use crate::{
     clock::OperationDeadline,
@@ -18,6 +19,7 @@ use crate::{
 
 use super::{
     admission::PartitionFetchRequest, broker_calls::TrackedBrokerFetchCalls, settlement::FetchPoll,
+    topic_route::FetchTopicRoute,
 };
 
 #[test]
@@ -29,7 +31,7 @@ fn aggregate_response_becomes_two_exact_partition_terminals() {
         .collect::<Vec<_>>();
     let mut calls = TrackedBrokerFetchCalls::new(1);
     assert!(calls.has_admission_capacity());
-    calls.install_response_for_test(requests, Moment::from_tick(7), 12, response());
+    calls.install_response_for_test(requests, Moment::from_tick(7), 16, response());
     assert!(!calls.has_admission_capacity());
 
     for (expected_fence, expected_partition) in fences.into_iter().zip([3, 4]) {
@@ -65,7 +67,7 @@ fn response() -> FetchResponse {
     let mut response = FetchResponse::default();
     response.session_id = 91;
     let mut topic = FetchableTopicResponse::default();
-    topic.topic = "events".into();
+    topic.topic_id = Uuid::from_bytes([7; 16]);
     for partition_index in [3, 4] {
         let mut partition = PartitionData::default();
         partition.partition_index = partition_index;
@@ -91,7 +93,7 @@ fn requests() -> Vec<PartitionFetchRequest> {
         .into_effects()
         .into_iter()
         .map(|effect| {
-            PartitionFetchRequest::from_effect(
+            let mut request = PartitionFetchRequest::from_effect(
                 effect,
                 "events".to_owned(),
                 FetchRequestSettings::new(500, 1, 1024, 1024, 0),
@@ -101,7 +103,9 @@ fn requests() -> Vec<PartitionFetchRequest> {
                     Instant::now() + Duration::from_secs(1),
                 ),
             )
-            .unwrap_or_else(|error| panic!("prepared Fetch: {error:?}"))
+            .unwrap_or_else(|error| panic!("prepared Fetch: {error:?}"));
+            request.bind_topic_route(FetchTopicRoute::new([7; 16], Some(9)));
+            request
         })
         .collect()
 }

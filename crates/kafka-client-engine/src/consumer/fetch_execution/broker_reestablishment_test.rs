@@ -25,7 +25,7 @@ fn conflicting_partition_updates_leave_the_active_session_owned() {
     let (effect, mut machine) = assignment();
     let fence = fetch_fence(effect);
     let broker = BrokerId::new(3).unwrap_or_else(|error| panic!("broker ID: {error}"));
-    let member = BrokerSessionMember::new(fence.position(), Arc::from("events"));
+    let member = BrokerSessionMember::new(fence.position(), Arc::from("events"), [7; 16]);
     let retained =
         FetchSessionRequest::incremental(91, 1).unwrap_or_else(|| panic!("valid retained update"));
     let mut executor = DirectFetchExecutor::create_unbound(1, 1, OUTPUT_BYTES);
@@ -94,7 +94,7 @@ fn invalid_incremental_session_is_reset_and_requeued_without_failing_core() {
     let (effect, mut machine) = assignment();
     let fence = fetch_fence(effect);
     let broker = BrokerId::new(3).unwrap_or_else(|error| panic!("broker ID: {error}"));
-    let member = BrokerSessionMember::new(fence.position(), Arc::from("events"));
+    let member = BrokerSessionMember::new(fence.position(), Arc::from("events"), [7; 16]);
     let incremental = FetchSessionRequest::incremental(91, 1)
         .unwrap_or_else(|| panic!("valid incremental session"));
     let mut executor = DirectFetchExecutor::create_unbound(1, 1, OUTPUT_BYTES);
@@ -289,6 +289,7 @@ fn partition_offset_out_of_range_resets_the_complete_aggregated_session() {
             vec![BrokerSessionMember::new(
                 surviving_fence.position(),
                 Arc::from("events"),
+                [7; 16],
             )],
         )
         .unwrap_or_else(|(error, _active)| panic!("next plan: {error:?}"));

@@ -16,11 +16,16 @@ use super::broker_session_state::{BrokerSessionEntry, BrokerSessionError, Retain
 pub(super) struct BrokerSessionMember {
     position: PositionFence,
     topic: Arc<str>,
+    topic_id: [u8; 16],
 }
 
 impl BrokerSessionMember {
-    pub(super) fn new(position: PositionFence, topic: Arc<str>) -> Self {
-        Self { position, topic }
+    pub(super) fn new(position: PositionFence, topic: Arc<str>, topic_id: [u8; 16]) -> Self {
+        Self {
+            position,
+            topic,
+            topic_id,
+        }
     }
 
     pub(super) const fn position(&self) -> PositionFence {
@@ -33,6 +38,10 @@ impl BrokerSessionMember {
 
     pub(super) fn topic_owner(&self) -> Arc<str> {
         Arc::clone(&self.topic)
+    }
+
+    pub(super) const fn topic_id(&self) -> [u8; 16] {
+        self.topic_id
     }
 }
 

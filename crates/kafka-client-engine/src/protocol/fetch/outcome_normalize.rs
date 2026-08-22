@@ -63,6 +63,7 @@ pub(crate) fn normalize_fetch_outcome(
     normalize_session_fetch_outcome(
         isolation,
         topic,
+        None,
         partition,
         requested_offset,
         FetchSessionRequest::LEGACY,
@@ -82,6 +83,7 @@ pub(crate) fn normalize_fetch_outcome(
 pub(crate) fn normalize_session_fetch_outcome(
     isolation: FetchIsolation,
     topic: &str,
+    topic_id: Option<[u8; 16]>,
     partition: u32,
     requested_offset: i64,
     session: FetchSessionRequest,
@@ -98,12 +100,13 @@ pub(crate) fn normalize_session_fetch_outcome(
             .map(|outcome| (outcome, FetchSessionUpdate::Reset));
     }
     if !(session.is_incremental() && response.responses.is_empty()) {
-        let partition_code = match correlate_partition(topic, partition, &response) {
-            Ok(partition) => NonZeroI16::new(partition.error_code),
-            Err(failure) => {
-                return Err(reject(FetchOutcomeFailure::Response(failure), reservation));
-            }
-        };
+        let partition_code =
+            match correlate_partition(topic, topic_id, partition, selected_version, &response) {
+                Ok(partition) => NonZeroI16::new(partition.error_code),
+                Err(failure) => {
+                    return Err(reject(FetchOutcomeFailure::Response(failure), reservation));
+                }
+            };
         if let Some(code) = partition_code {
             return retain_broker(FetchBrokerLevel::Partition, code, reservation)
                 .map(|outcome| (outcome, FetchSessionUpdate::Reset));

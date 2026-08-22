@@ -2,6 +2,7 @@
 
 use kafka_client_core::Moment;
 use kafka_wire::{FetchResponse as WireFetchResponse, fetch_response::FetchableTopicResponse};
+use kafka_wire_core::Uuid;
 
 #[cfg(test)]
 use super::broker_calls::SettledBrokerFetchBatch;
@@ -26,6 +27,9 @@ pub(super) fn reserved_responses(
             .map_err(|_error| allocation())?;
         let mut topic = FetchableTopicResponse::default();
         topic.topic = request.topic().into();
+        if let Some(route) = request.topic_route() {
+            topic.topic_id = Uuid::from_bytes(route.topic_id());
+        }
         topic
             .partitions
             .try_reserve_exact(1)
@@ -70,7 +74,8 @@ fn distribute_response(
         slot.response.error_code = response.error_code;
         slot.response.session_id = response.session_id;
     }
-    let mut invalid = !response.node_endpoints.is_empty();
+    let mut invalid = false;
+    let topic_ids = selected_version.is_some_and(|version| version.value() >= 13);
     for mut topic in response.responses.drain(..) {
         if topic.partitions.is_empty() {
             invalid = true;
@@ -80,7 +85,11 @@ fn distribute_response(
                 slot.request
                     .as_ref()
                     .is_some_and(|request| {
-                        request.topic() == topic.topic.as_str()
+                        ((topic_ids
+                            && request.topic_route().is_some_and(|route| {
+                                route.topic_id() == topic.topic_id.to_bytes()
+                            }))
+                            || (!topic_ids && request.topic() == topic.topic.as_str()))
                             && request.fence().position().partition().partition().get()
                                 == u32::try_from(partition.partition_index).unwrap_or(u32::MAX)
                     })
@@ -185,6 +194,12 @@ impl TrackedBrokerFetchCalls {
         );
         let mut topic = FetchableTopicResponse::default();
         topic.topic = topic_name.into();
+        if let Some(route) = requests
+            .first()
+            .and_then(PartitionFetchRequest::topic_route)
+        {
+            topic.topic_id = Uuid::from_bytes(route.topic_id());
+        }
         topic.partitions = requests
             .iter()
             .zip(error_codes)

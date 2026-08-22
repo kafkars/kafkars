@@ -185,6 +185,7 @@ fn build_forgotten(
     forgotten.extend(plan.forgotten().iter().map(|member| {
         ForgottenFetchPartition::new(
             member.topic(),
+            member.topic_id(),
             member.position().partition().partition().get(),
         )
     }));

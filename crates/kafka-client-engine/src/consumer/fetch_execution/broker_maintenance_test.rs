@@ -198,7 +198,8 @@ fn established_executor(
         .try_enable_sessions(1)
         .unwrap_or_else(|()| panic!("reserve broker sessions"));
     configure_broker_sessions(&mut executor);
-    let member = BrokerSessionMember::new(fetch_fence(effect).position(), Arc::from("events"));
+    let member =
+        BrokerSessionMember::new(fetch_fence(effect).position(), Arc::from("events"), [7; 16]);
     let sessions = executor
         .broker_sessions
         .as_mut()

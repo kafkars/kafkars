@@ -4,6 +4,7 @@ use kafka_wire::{
     FetchResponse as WireFetchResponse,
     fetch_response::{FetchableTopicResponse, PartitionData},
 };
+use kafka_wire_core::Uuid;
 
 use super::{
     FetchDecodeLimits, FetchResponseFailure,
@@ -26,6 +27,13 @@ fn topic(name: &str, partitions: Vec<PartitionData>) -> FetchableTopicResponse {
     topic
 }
 
+fn topic_id(id: [u8; 16], partitions: Vec<PartitionData>) -> FetchableTopicResponse {
+    let mut topic = FetchableTopicResponse::default();
+    topic.topic_id = Uuid::from_bytes(id);
+    topic.partitions = partitions;
+    topic
+}
+
 fn response(topics: Vec<FetchableTopicResponse>) -> WireFetchResponse {
     let mut response = WireFetchResponse::default();
     response.responses = topics;
@@ -42,7 +50,7 @@ fn normalize_with(
     limits: FetchDecodeLimits,
 ) -> Result<super::FetchResponse, FetchResponseFailure> {
     validate_selected_version(selected_version)?;
-    let _partition = correlate_partition("events", 3, &response)?;
+    let _partition = correlate_partition("events", None, 3, selected_version, &response)?;
     normalize_correlated_response(response, limits)
 }
 
@@ -68,6 +76,23 @@ fn selected_version_must_preserve_name_routing_and_fetch_semantics() {
             .is_ok()
         );
     }
+    let modern = response(vec![topic_id([7; 16], vec![partition(3, 0)])]);
+    validate_selected_version(16).unwrap_or_else(|error| panic!("Fetch v16: {error:?}"));
+    assert!(correlate_partition("events", Some([7; 16]), 3, 16, &modern).is_ok());
+}
+
+#[test]
+fn fetch_v16_correlates_by_topic_id_and_rejects_name_or_identity_substitution() {
+    let modern = response(vec![topic_id([7; 16], vec![partition(3, 0)])]);
+    assert!(correlate_partition("ignored-name", Some([7; 16]), 3, 16, &modern).is_ok());
+    assert_eq!(
+        correlate_partition("events", Some([8; 16]), 3, 16, &modern),
+        Err(FetchResponseFailure::TopicIdMismatch)
+    );
+    assert_eq!(
+        correlate_partition("events", None, 3, 16, &modern),
+        Err(FetchResponseFailure::TopicIdMismatch)
+    );
 }
 
 #[test]
@@ -126,7 +151,9 @@ fn missing_duplicate_and_unexpected_partitions_never_correlate() {
     assert_eq!(
         correlate_partition(
             "events",
+            None,
             i32::MAX as u32 + 1,
+            SELECTED_VERSION,
             &response(vec![topic("events", vec![partition(3, 0)])]),
         ),
         Err(FetchResponseFailure::RequestedPartitionOutOfRange {

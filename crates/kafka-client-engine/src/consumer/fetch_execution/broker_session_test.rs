@@ -234,7 +234,7 @@ fn sessions() -> BrokerFetchSessions {
 }
 
 pub(super) fn member(effect: AssignedConsumerEffect, topic: &str) -> BrokerSessionMember {
-    BrokerSessionMember::new(fetch_fence(effect).position(), Arc::from(topic))
+    BrokerSessionMember::new(fetch_fence(effect).position(), Arc::from(topic), [7; 16])
 }
 
 pub(super) fn incremental(id: i32, epoch: i32) -> FetchSessionRequest {

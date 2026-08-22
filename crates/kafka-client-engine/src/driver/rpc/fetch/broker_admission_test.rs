@@ -14,7 +14,10 @@ use crate::{
     },
 };
 
-use super::{admission::PartitionFetchRequest, broker_admission::generated_broker_fetch_request};
+use super::{
+    admission::PartitionFetchRequest, broker_admission::generated_broker_fetch_request,
+    topic_route::FetchTopicRoute,
+};
 
 #[test]
 fn broker_request_carries_bound_session_and_forgotten_partitions() {
@@ -24,14 +27,20 @@ fn broker_request_carries_bound_session_and_forgotten_partitions() {
     request.bind_session(session);
     let (generated, _deadline) = generated_broker_fetch_request(
         std::slice::from_ref(&request),
-        &[ForgottenFetchPartition::new("old", 7)],
+        &[ForgottenFetchPartition::new("old", [8; 16], 7)],
         Moment::from_tick(0),
     )
     .unwrap_or_else(|error| panic!("broker request: {error:?}"));
 
     assert_eq!((generated.session_id, generated.session_epoch), (91, 3));
     assert_eq!(generated.topics[0].topic.as_str(), "events");
+    assert_eq!(generated.topics[0].topic_id.to_bytes(), [7; 16]);
+    assert_eq!(generated.topics[0].partitions[0].current_leader_epoch, 9);
     assert_eq!(generated.forgotten_topics_data[0].topic.as_str(), "old");
+    assert_eq!(
+        generated.forgotten_topics_data[0].topic_id.to_bytes(),
+        [8; 16]
+    );
     assert_eq!(generated.forgotten_topics_data[0].partitions, vec![7]);
 }
 
@@ -83,7 +92,7 @@ fn request_with_deadline(
         })
         .unwrap_or_else(|error| panic!("assignment: {error}"))
         .effects()[0];
-    PartitionFetchRequest::from_effect(
+    let mut request = PartitionFetchRequest::from_effect(
         effect,
         topic.to_owned(),
         FetchRequestSettings::new(500, 1, 1024, 1024, 0),
@@ -93,5 +102,7 @@ fn request_with_deadline(
             Instant::now() + transport_after,
         ),
     )
-    .unwrap_or_else(|error| panic!("prepared Fetch: {error:?}"))
+    .unwrap_or_else(|error| panic!("prepared Fetch: {error:?}"));
+    request.bind_topic_route(FetchTopicRoute::new([7; 16], Some(9)));
+    request
 }

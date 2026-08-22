@@ -99,13 +99,18 @@ pub(super) fn generated_broker_fetch_request(
     let active = requests
         .iter()
         .map(|request| {
-            BrokerFetchPartition::new(
+            let route = request
+                .topic_route()
+                .ok_or(FetchAdmissionFailureSource::InconsistentBrokerBatch)?;
+            Ok(BrokerFetchPartition::new(
                 request.topic(),
+                route.topic_id(),
+                route.leader_epoch(),
                 request.fence().position().partition().partition().get(),
                 request.next_offset().get(),
-            )
+            ))
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, FetchAdmissionFailureSource>>()?;
     let generated = broker_fetch_request(
         &active,
         forgotten,

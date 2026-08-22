@@ -194,6 +194,7 @@ fn normalize_session(
     normalize_session_fetch_outcome(
         FetchIsolation::ReadUncommitted,
         TOPIC,
+        None,
         PARTITION,
         requested_offset,
         metadata,
