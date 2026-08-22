@@ -145,6 +145,17 @@ pub(super) fn settle_success_effect(
                         })
                 }) =>
         {
+            let pending_matches = entry
+                .consumer
+                .as_ref()
+                .and_then(|execution| execution.machine().pending_assignment())
+                == entry
+                    .consumer_reconciliation
+                    .as_ref()
+                    .map(PreparedConsumerGroupAssignmentInstall::assignment);
+            if !pending_matches {
+                return Err(ConsumerGroupExecutionError::EffectShape);
+            }
             if entry.catalog.consumer_group_member_epoch() != Some(member_epoch) {
                 entry
                     .catalog
@@ -160,7 +171,10 @@ pub(super) fn settle_success_effect(
             && installed_epoch == member_epoch
             && schedule.assignment_generation() == Some(assignment_generation)
             && entry.catalog.current_member_id() == Some(member_id)
-            && entry.catalog.consumer_group_member_epoch() == Some(member_epoch)
+            && entry
+                .catalog
+                .consumer_group_member_epoch()
+                .is_some_and(|current| current <= member_epoch)
             && entry.catalog.live_assignment().is_none()
             && entry.consumer_revocation.is_none()
             && entry.consumer.as_ref().is_some_and(|execution| {
@@ -179,13 +193,13 @@ pub(super) fn settle_success_effect(
                 .take()
                 .ok_or(ConsumerGroupExecutionError::EffectShape)?;
             if install.member_id() != member_id
-                || install.member_epoch() != member_epoch
+                || install.member_epoch() > member_epoch
                 || install.assignment().assignment_generation() != assignment_generation
             {
                 entry.consumer_reconciliation = Some(install);
                 return Err(ConsumerGroupExecutionError::EffectShape);
             }
-            let install = install.refresh_resolution_boundary(deadline, now);
+            let install = install.refresh_resolution_boundary(member_epoch, deadline, now);
             install_reconciled_consumer_group_assignment(entry, install)?;
         }
         _ => return Err(ConsumerGroupExecutionError::EffectShape),

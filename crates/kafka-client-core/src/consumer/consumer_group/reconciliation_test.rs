@@ -4,9 +4,60 @@ use super::{
     ConsumerGroupHeartbeatEffect, ConsumerGroupHeartbeatErrorKind, ConsumerGroupHeartbeatInput,
     ConsumerGroupHeartbeatPhase, ConsumerGroupHeartbeatRequestKind,
     test_support::{
-        deadline, due_attempt, epoch, member, moment, partition, staged_reconciliation, succeed,
+        deadline, due_attempt, epoch, joining, member, moment, partition, staged_reconciliation,
+        succeed,
     },
 };
+
+#[test]
+fn same_epoch_assignment_change_stages_cooperative_replacement() {
+    let (mut machine, join) = joining();
+    let _ = succeed(
+        &mut machine,
+        join,
+        20,
+        1,
+        5,
+        0,
+        Some(vec![partition(1, 0), partition(1, 1)]),
+    );
+    let attempt = due_attempt(&mut machine);
+    let transition = succeed(
+        &mut machine,
+        attempt,
+        26,
+        1,
+        5,
+        0,
+        Some(vec![partition(1, 0)]),
+    );
+    let effects = transition.into_effects().collect::<Vec<_>>();
+    assert!(matches!(
+        effects.as_slice(),
+        [ConsumerGroupHeartbeatEffect::Reconcile {
+            previous: Some(previous),
+            assignment,
+            member_epoch,
+            schedule,
+        }] if previous.partitions() == [partition(1, 0), partition(1, 1)]
+            && assignment.partitions() == [partition(1, 0)]
+            && *member_epoch == epoch(1)
+            && schedule.assignment_generation().is_some_and(|generation| generation.get() == 1)
+    ));
+    assert_eq!(machine.member_epoch(), Some(epoch(1)));
+    assert_eq!(
+        machine
+            .live_assignment()
+            .map(crate::LiveGroupAssignment::partitions),
+        Some(&[partition(1, 0), partition(1, 1)][..])
+    );
+    assert_eq!(
+        machine
+            .pending_assignment()
+            .map(crate::LiveGroupAssignment::partitions),
+        Some(&[partition(1, 0)][..])
+    );
+}
 
 #[test]
 fn replacement_keeps_old_ownership_and_heartbeats_new_epoch_while_target_waits() {
@@ -103,6 +154,32 @@ fn repeated_target_is_idempotent_but_changed_same_epoch_target_is_rejected() {
         ConsumerGroupHeartbeatErrorKind::AssignmentChangedWithoutEpoch
     );
     assert_eq!(machine.in_flight(), Some(attempt));
+    assert_eq!(
+        machine
+            .pending_assignment()
+            .map(crate::LiveGroupAssignment::partitions),
+        Some(&[partition(1, 1)][..])
+    );
+}
+
+#[test]
+fn advanced_epoch_without_assignment_preserves_the_pending_target() {
+    let mut machine = staged_reconciliation();
+    let attempt = due_attempt(&mut machine);
+    let transition = succeed(&mut machine, attempt, 31, 3, 5, 0, None);
+    assert!(matches!(
+        transition.into_effects().next(),
+        Some(ConsumerGroupHeartbeatEffect::ArmHeartbeat { schedule })
+            if schedule.assignment_generation().is_some_and(|generation| generation.get() == 1)
+                && schedule.attempt().member_epoch() == Some(epoch(3))
+    ));
+    assert_eq!(machine.member_epoch(), Some(epoch(3)));
+    assert_eq!(
+        machine
+            .live_assignment()
+            .map(crate::LiveGroupAssignment::partitions),
+        Some(&[partition(1, 0)][..])
+    );
     assert_eq!(
         machine
             .pending_assignment()

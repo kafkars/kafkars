@@ -25,7 +25,7 @@ evidence and separate release authorization.
 | Producer | Bounded admission, partitioning, batching, retry, cancellation, flush, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
 | Direct consumer | Assignment, fetch, checkpoint, seek, events, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
 | Classic group consumer | Membership, assignment events, fetch, checkpoint commit, seek, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
-| KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, and owned-topic acknowledgement | Initial-assignment scenario defined; fetch, commit, and multi-member reconciliation are not yet broker-qualified |
+| KIP-848 consumer group | Topic UUID resolution, heartbeat, assignment translation, reconciliation, fetch, checkpoint commit, and owned-topic acknowledgement | Multi-member redistribution, explicit member close, client shutdown, and committed-offset resume scenario defined; no archived passing qualification cell |
 | Admin | Broad concrete request-specific core, engine, and facade paths including exact-broker routes | PR and nightly scenarios defined; no archived passing qualification cell |
 | Transactions | Initialization, begin, produce, offset transfer, commit, abort, fencing, and close paths | PR and nightly scenarios defined; no archived passing qualification cell |
 | Simulation | Virtual-time execution of deterministic core effects | Development evidence, not broker emulation |
@@ -108,11 +108,12 @@ distinct from Kafka protocol topic UUIDs.
 
 ### Multi-member group progress
 
-The broker matrix is scoped to cover initial classic cooperative assignment, initial
-KIP-848 assignment, and classic member shutdown/resume across separate client
-hosts. KIP-848 fetch and commit and concurrent multi-member progress within one
-client host are not yet qualified and must not be inferred from the
-single-member scenarios.
+The broker matrix is scoped to cover initial classic cooperative assignment,
+classic member shutdown/resume, and KIP-848 redistribution across separate
+client hosts. The KIP-848 scenario fetches and commits on both members, shuts
+one client down, then requires the survivor to resume both partitions at the
+committed offsets. Concurrent multi-member progress within one client host is
+not yet qualified.
 
 ### Fetch leader movement
 

@@ -415,9 +415,17 @@ class RendererTests(unittest.TestCase):
                     self.assertIn("tls_hostname_rejection", scenarios)
                 if "sasl" in security:
                     self.assertIn("sasl_wrong_secret_rejection", scenarios)
+        self.assertIn(
+            "kip848_multi_member_commit_shutdown_resume",
+            self.matrix["profiles"]["full"]["scenarios"],
+        )
+        self.assertNotIn(
+            "kip848_multi_member_commit_shutdown_resume",
+            self.matrix["profiles"]["classic"]["scenarios"],
+        )
         self.assertNotIn(
             "kip848_initial_assignment",
-            self.matrix["profiles"]["classic"]["scenarios"],
+            self.matrix["profiles"]["full"]["scenarios"],
         )
         self.assertEqual(len(self.matrix["profiles"]["full"]["scenarios"]), 14)
         self.assertEqual(len(self.matrix["profiles"]["classic"]["scenarios"]), 13)
@@ -426,7 +434,7 @@ class RendererTests(unittest.TestCase):
             [
                 scenario
                 for scenario in self.matrix["profiles"]["full"]["scenarios"]
-                if scenario != "kip848_initial_assignment"
+                if scenario != "kip848_multi_member_commit_shutdown_resume"
             ],
         )
         self.assertNotIn(

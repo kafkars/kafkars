@@ -167,11 +167,16 @@ impl GroupSessionCatalog {
             .unwrap_or_else(|| unreachable!("reconciliation retains a modern member"));
         debug_assert_eq!(current.member_id, candidate.member_id);
         debug_assert_eq!(current.member.as_ref(), candidate.member.as_ref());
-        debug_assert_eq!(current.member_epoch, Some(member_epoch));
+        debug_assert!(
+            current
+                .member_epoch
+                .is_some_and(|current| current <= member_epoch)
+        );
         debug_assert_eq!(assignment.group_id(), group_id);
         debug_assert_eq!(assignment.member_id(), candidate.member_id);
         current.member = candidate.member;
         current.installed_cycle = installed_cycle;
+        current.member_epoch = Some(member_epoch);
         current.assignment = Some(assignment);
         self.next_member_id = candidate.next_member_id;
         self.required_join_member = None;

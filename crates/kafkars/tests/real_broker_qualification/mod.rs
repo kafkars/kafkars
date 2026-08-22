@@ -14,6 +14,8 @@ mod nightly_consumer;
 mod nightly_control;
 #[path = "nightly_group.rs"]
 mod nightly_group;
+#[path = "nightly_kip848.rs"]
+mod nightly_kip848;
 #[path = "nightly_producer.rs"]
 mod nightly_producer;
 #[path = "nightly_resilience.rs"]

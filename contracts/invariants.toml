@@ -1263,6 +1263,19 @@ evidence = [
 ]
 
 [[invariant]]
+id = "CON-19"
+title = "KIP-848 reconciliation separates broker and local assignment epochs"
+statement = "A successful KIP-848 heartbeat accepts only a nonregressing broker member epoch, while its assignment remains an optional server-owned target. A changed assignment at the same member epoch stages one exact cooperative replacement instead of rejecting valid broker progress. A higher member epoch with no assignment advances only broker membership identity and preserves the exact live assignment or pending reconciliation target. Public ownership changes only when the engine retires the prior assignment, acknowledges empty ownership under the existing heartbeat authority, and atomically installs the exact pending target under a fresh local assignment generation. Engine catalog state, the prepared install, and core membership advance to the response member epoch together; stale, regressing, mismatched, or replacement-target-changing facts cannot mutate ownership. This introduces no second deadline, assignment owner, callback, async runtime, generated protocol type, or foreign binding surface."
+status = "enforced"
+evidence = [
+  "crates/kafka-client-core/src/consumer/consumer_group/reconciliation_test.rs::same_epoch_assignment_change_stages_cooperative_replacement",
+  "crates/kafka-client-core/src/consumer/consumer_group/machine_test.rs::changed_epoch_without_assignment_retains_ownership_and_fences_stale_attempts",
+  "crates/kafka-client-core/src/consumer/consumer_group/reconciliation_test.rs::advanced_epoch_without_assignment_preserves_the_pending_target",
+  "crates/kafka-client-engine/src/consumer/group/consumer_group_heartbeat_reconciliation_test.rs::same_member_epoch_changed_assignment_retires_then_installs_the_target",
+  "crates/kafka-client-engine/src/consumer/group/consumer_group_heartbeat_settlement_test.rs::omitted_assignment_advances_member_epoch_without_replacing_live_ownership",
+]
+
+[[invariant]]
 id = "DL-01"
 title = "Client policy consumes one absolute deadline"
 statement = "Engine deadline capture derives core and transport absolutes from one monotonic instant. Public operations capture at their public boundary, while engine-owned background Fetch captures at the exact internal-attempt boundary and fence rather than borrowing a later recv observation timeout. Accepted operation and direct-consumer bindings retain that pair unchanged, generated request timeout fields derive only from the remaining core deadline while the original transport instant is unchanged, core rejects already elapsed work, queued compression or submission expiry reproduces the exact core deadline fact, and a producer-identity coordinator-load backoff selects the earliest surviving unchanged public deadline without erasing identity-request deadline completion."

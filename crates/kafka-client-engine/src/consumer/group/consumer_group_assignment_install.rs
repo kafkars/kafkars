@@ -66,9 +66,11 @@ impl PreparedConsumerGroupAssignmentInstall {
 
     pub(super) const fn refresh_resolution_boundary(
         mut self,
+        member_epoch: ConsumerGroupMemberEpoch,
         deadline: OperationDeadline,
         observed_at: Moment,
     ) -> Self {
+        self.member_epoch = member_epoch;
         self.deadline = deadline;
         self.observed_at = observed_at;
         self

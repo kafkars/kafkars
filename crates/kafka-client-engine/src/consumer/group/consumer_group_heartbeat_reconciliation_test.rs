@@ -26,9 +26,9 @@ use super::{
 #[test]
 #[expect(
     clippy::too_many_lines,
-    reason = "the scenario proves the full retire acknowledge and install sequence under one membership epoch change"
+    reason = "the scenario proves one same-epoch replacement through retire, acknowledge, and install"
 )]
-fn changed_member_epoch_retires_then_installs_the_new_assignment() {
+fn same_member_epoch_changed_assignment_retires_then_installs_the_target() {
     let (mut entry, topic_id) = installed_modern_entry();
     activate_fetch(&mut entry);
     let clock = MonotonicClock::new();
@@ -45,7 +45,7 @@ fn changed_member_epoch_retires_then_installs_the_new_assignment() {
         .prepare_due_heartbeat(now, &clock)
         .unwrap_or_else(|error| panic!("prepare heartbeat: {error:?}"));
     assert_eq!(
-        settle_success(&mut entry, now, success_with(2, 1)),
+        settle_success(&mut entry, now, success_with(1, 1)),
         Ok(ConsumerGroupHeartbeatSettlementTurn::Progress)
     );
     assert!(entry.consumer_revocation.is_none());
@@ -60,7 +60,7 @@ fn changed_member_epoch_retires_then_installs_the_new_assignment() {
             .catalog
             .consumer_group_member_epoch()
             .map(kafka_client_core::ConsumerGroupMemberEpoch::get),
-        Some(2)
+        Some(1)
     );
     assert_eq!(
         entry
@@ -81,48 +81,15 @@ fn changed_member_epoch_retires_then_installs_the_new_assignment() {
         _ => panic!("graceful revocation event"),
     }
 
-    let steady = entry
-        .consumer
-        .as_ref()
-        .and_then(|consumer| consumer.machine().schedule())
-        .unwrap_or_else(|| panic!("steady heartbeat schedule"));
-    let steady_now = Moment::from_tick(steady.deadline().tick());
-    entry
-        .consumer
-        .as_mut()
-        .unwrap_or_else(|| panic!("modern execution"))
-        .prepare_due_heartbeat(steady_now, &clock)
-        .unwrap_or_else(|error| panic!("prepare steady heartbeat: {error:?}"));
-    let request = prepare_request(&entry)
-        .unwrap_or_else(|()| panic!("prepare old-owned heartbeat"))
-        .into_generated_request();
-    assert_eq!(request.member_epoch, 2);
-    assert_eq!(
-        request
-            .topic_partitions
-            .as_ref()
-            .and_then(|topics| topics.first())
-            .and_then(|topic| topic.partitions.first())
-            .copied(),
-        Some(0)
-    );
-    assert_eq!(
-        settle_success(&mut entry, steady_now, success_without_assignment(2)),
-        Ok(ConsumerGroupHeartbeatSettlementTurn::Progress)
-    );
-    assert!(entry.consumer_revocation.is_none());
-    assert!(entry.consumer_reconciliation.is_some());
-    assert!(entry.catalog.take_event().is_none());
-
     entry
         .revocation
-        .acknowledge(revocation_epoch, steady_now)
+        .acknowledge(revocation_epoch, now)
         .unwrap_or_else(|error| panic!("acknowledgment: {error:?}"));
     let mut registry =
         GroupConsumerRegistry::start().unwrap_or_else(|error| panic!("registry: {error:?}"));
     registry.entries.push(entry);
     assert_eq!(
-        registry.turn_graceful_revocation(steady_now),
+        registry.turn_graceful_revocation(now),
         Ok(super::classic_group_graceful_revocation::ClassicGroupRevocationTurn::Progress)
     );
     let entry = registry
@@ -133,7 +100,7 @@ fn changed_member_epoch_retires_then_installs_the_new_assignment() {
     assert!(entry.consumer_revocation.is_some());
 
     assert_eq!(
-        retire_entry_assignment(entry, steady_now, &clock),
+        retire_entry_assignment(entry, now, &clock),
         Ok(ConsumerGroupAssignmentRetirementTurn::Progress)
     );
     assert!(entry.catalog.live_assignment().is_none());
@@ -147,11 +114,15 @@ fn changed_member_epoch_retires_then_installs_the_new_assignment() {
     let request = prepare_request(entry)
         .unwrap_or_else(|()| panic!("prepare empty-owned acknowledgement"))
         .into_generated_request();
-    assert_eq!(request.member_epoch, 2);
+    assert_eq!(request.member_epoch, 1);
     assert!(request.topic_partitions.as_ref().is_some_and(Vec::is_empty));
     assert_eq!(
-        settle_success(entry, steady_now, success_without_assignment(2)),
+        settle_success(entry, now, success_without_assignment(2)),
         Ok(ConsumerGroupHeartbeatSettlementTurn::Progress)
+    );
+    assert_eq!(
+        entry.catalog.consumer_group_member_epoch(),
+        kafka_client_core::ConsumerGroupMemberEpoch::try_from_raw(2)
     );
     let assignment = entry
         .catalog

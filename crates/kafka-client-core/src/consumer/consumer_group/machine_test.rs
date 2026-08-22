@@ -107,7 +107,7 @@ fn due_schedule_submits_current_epoch_and_assignment_under_a_fresh_attempt_deadl
 }
 
 #[test]
-fn changed_epoch_requires_assignment_and_stale_attempt_cannot_mutate_membership() {
+fn changed_epoch_without_assignment_retains_ownership_and_fences_stale_attempts() {
     let (mut machine, attempt) = joining();
     let _ = succeed(
         &mut machine,
@@ -128,7 +128,7 @@ fn changed_epoch_requires_assignment_and_stale_attempt_cannot_mutate_membership(
         })
         .unwrap_or_else(|error| panic!("due heartbeat: {error}"));
     let current = machine.in_flight().unwrap_or_else(|| panic!("in flight"));
-    let error = machine
+    let transition = machine
         .apply(ConsumerGroupHeartbeatInput::HeartbeatSucceeded {
             attempt: current,
             now: moment(26),
@@ -138,11 +138,18 @@ fn changed_epoch_requires_assignment_and_stale_attempt_cannot_mutate_membership(
             throttle_ticks: 0,
             assignment: None,
         })
-        .err()
-        .unwrap_or_else(|| panic!("changed epoch without assignment must reject"));
+        .unwrap_or_else(|error| panic!("changed epoch without assignment: {error}"));
+    assert!(matches!(
+        transition.into_effects().next(),
+        Some(ConsumerGroupHeartbeatEffect::ArmHeartbeat { schedule })
+            if schedule.attempt().member_epoch() == Some(epoch(2))
+    ));
+    assert_eq!(machine.member_epoch(), Some(epoch(2)));
     assert_eq!(
-        error.kind(),
-        super::ConsumerGroupHeartbeatErrorKind::ChangedEpochMissingAssignment
+        machine
+            .live_assignment()
+            .map(crate::LiveGroupAssignment::partitions),
+        Some(&[partition(1, 0)][..])
     );
     let stale = machine
         .apply(ConsumerGroupHeartbeatInput::HeartbeatFailed {
@@ -153,9 +160,9 @@ fn changed_epoch_requires_assignment_and_stale_attempt_cannot_mutate_membership(
         .unwrap_or_else(|| panic!("stale attempt must reject"));
     assert_eq!(
         stale.kind(),
-        super::ConsumerGroupHeartbeatErrorKind::AttemptMismatch
+        super::ConsumerGroupHeartbeatErrorKind::InvalidPhase
     );
-    assert_eq!(machine.in_flight(), Some(current));
+    assert!(machine.in_flight().is_none());
 }
 
 #[test]

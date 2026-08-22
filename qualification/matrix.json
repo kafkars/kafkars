@@ -44,7 +44,7 @@
         "direct_fetch_seek_offset_reset",
         "classic_cooperative_initial_assignment",
         "classic_member_shutdown_commit_resume",
-        "kip848_initial_assignment",
+        "kip848_multi_member_commit_shutdown_resume",
         "transaction_fencing_abort_commit_read_committed",
         "admin_controller_coordinator_exact_broker",
         "cluster_usable_after_broker_restart",

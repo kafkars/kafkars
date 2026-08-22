@@ -2,10 +2,7 @@
 
 use std::{collections::BTreeSet, io};
 
-use kafkars::{
-    ClassicGroupAssignor, Client, ConsumerGroupProtocol, ErrorKind, GroupMembershipEpoch,
-    OffsetReset, Record,
-};
+use kafkars::{ClassicGroupAssignor, Client, OffsetReset, Record};
 
 use crate::real_broker_support::{
     TestError, client_builder_from_environment, ready_client, unique_name, wait_within,
@@ -137,57 +134,6 @@ pub(super) fn member_shutdown_commit_and_resume() -> Result<(), TestError> {
     consume::close_group(resumed, "classic resumed member close")?;
     nightly_support::close_producer(&producer, "classic resume producer close")?;
     fixture.finish()
-}
-
-pub(super) fn kip848_initial_assignment() -> Result<(), TestError> {
-    let fixture = nightly_support::Fixture::new("kip848", 2)?;
-    prove_partitions_writable(&fixture)?;
-    let group_id = unique_name("kafkars-kip848");
-    let expected = BTreeSet::from([(fixture.topic.clone(), 0), (fixture.topic.clone(), 1)]);
-    let first = consumer_protocol_consumer(&fixture.client, &fixture.topic, &group_id)?;
-    nightly_support::poll_until_result(|| {
-        if let Some(error) = first.startup_error() {
-            return Err(error.into());
-        }
-        let assignment = match first.assignment() {
-            Ok(Some(assignment)) => assignment,
-            Ok(None) => return Ok(None),
-            Err(error) if error.kind() == ErrorKind::Backpressure => return Ok(None),
-            Err(error) => return Err(error.into()),
-        };
-        let metadata = match first.group_metadata() {
-            Ok(Some(metadata)) => metadata,
-            Ok(None) => return Ok(None),
-            Err(error) if error.kind() == ErrorKind::Backpressure => return Ok(None),
-            Err(error) => return Err(error.into()),
-        };
-        if assignment_set(&assignment) != expected
-            || assignment.assignment_epoch() != metadata.assignment_epoch()
-        {
-            return Ok(None);
-        }
-        Ok(match metadata.membership_epoch() {
-            GroupMembershipEpoch::Consumer { member_epoch } if member_epoch > 0 => Some(()),
-            GroupMembershipEpoch::Classic { .. } | GroupMembershipEpoch::Consumer { .. } => None,
-        })
-    })?;
-    consume::close_group(first, "first KIP-848 member close")?;
-    fixture.finish()
-}
-
-fn consumer_protocol_consumer(
-    client: &Client,
-    topic: &str,
-    group_id: &str,
-) -> Result<kafkars::Consumer, TestError> {
-    consume::build_group(
-        client
-            .consumer(group_id)
-            .subscribe([topic])
-            .group_protocol(ConsumerGroupProtocol::Consumer)
-            .on_missing_offset(OffsetReset::Earliest),
-        "KIP-848 member build",
-    )
 }
 
 fn cooperative_consumer(

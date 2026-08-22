@@ -41,11 +41,9 @@ pub enum ConsumerGroupHeartbeatErrorKind {
     MemberMismatch,
     /// The response member epoch regressed.
     MemberEpochRegression,
-    /// A changed member epoch omitted its required assignment.
-    ChangedEpochMissingAssignment,
-    /// An unchanged member epoch attempted to change assignment.
+    /// A pending reconciliation target changed without a member-epoch change.
     AssignmentChangedWithoutEpoch,
-    /// A pending reconciliation unexpectedly changed broker member epoch.
+    /// A newer broker member epoch replaced an unfinished reconciliation target.
     ReconciliationEpochChanged,
     /// Retirement did not match the exact pending member and current assignment fence.
     ReconciliationMismatch,

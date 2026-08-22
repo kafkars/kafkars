@@ -178,15 +178,19 @@ impl ConsumerGroupHeartbeatMachine {
         next_sequence: Option<ConsumerGroupHeartbeatSequence>,
         cadence_deadline: crate::Deadline,
     ) -> Result<ConsumerGroupHeartbeatTransition, ConsumerGroupHeartbeatErrorKind> {
-        if self.member_epoch != Some(member_epoch) {
-            return Err(ConsumerGroupHeartbeatErrorKind::ReconciliationEpochChanged);
-        }
+        let prior_epoch = self
+            .member_epoch
+            .ok_or(ConsumerGroupHeartbeatErrorKind::InvariantViolation)?;
         let pending = self
             .pending_assignment
             .as_ref()
             .ok_or(ConsumerGroupHeartbeatErrorKind::InvariantViolation)?;
         if assignment.is_some_and(|partitions| partitions != pending.partitions()) {
-            return Err(ConsumerGroupHeartbeatErrorKind::AssignmentChangedWithoutEpoch);
+            return Err(if member_epoch == prior_epoch {
+                ConsumerGroupHeartbeatErrorKind::AssignmentChangedWithoutEpoch
+            } else {
+                ConsumerGroupHeartbeatErrorKind::ReconciliationEpochChanged
+            });
         }
         if self.live_assignment.is_some() {
             return self.arm_reportable_assignment(

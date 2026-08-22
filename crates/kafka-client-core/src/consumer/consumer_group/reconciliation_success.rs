@@ -102,27 +102,7 @@ impl ConsumerGroupHeartbeatMachine {
                 next_sequence,
                 cadence_deadline,
             ),
-            (Some(prior), Some(live), Some(partitions)) if member_epoch == prior => {
-                if live.partitions() != partitions {
-                    return Err(ConsumerGroupHeartbeatErrorKind::AssignmentChangedWithoutEpoch);
-                }
-                self.arm_reportable_assignment(
-                    member_id,
-                    member_epoch,
-                    next_attempt,
-                    next_sequence,
-                    cadence_deadline,
-                )
-            }
-            (Some(prior), Some(_), None) if member_epoch == prior => self
-                .arm_reportable_assignment(
-                    member_id,
-                    member_epoch,
-                    next_attempt,
-                    next_sequence,
-                    cadence_deadline,
-                ),
-            (Some(prior), Some(live), Some(partitions)) if member_epoch > prior => {
+            (Some(prior), Some(live), Some(partitions)) if member_epoch >= prior => {
                 if live.partitions() == partitions {
                     return self.arm_reportable_assignment(
                         member_id,
@@ -141,9 +121,14 @@ impl ConsumerGroupHeartbeatMachine {
                     cadence_deadline,
                 )
             }
-            (Some(prior), Some(_), None) if member_epoch > prior => {
-                Err(ConsumerGroupHeartbeatErrorKind::ChangedEpochMissingAssignment)
-            }
+            (Some(prior), Some(_), None) if member_epoch >= prior => self
+                .arm_reportable_assignment(
+                    member_id,
+                    member_epoch,
+                    next_attempt,
+                    next_sequence,
+                    cadence_deadline,
+                ),
             _ => Err(ConsumerGroupHeartbeatErrorKind::InvariantViolation),
         }
     }

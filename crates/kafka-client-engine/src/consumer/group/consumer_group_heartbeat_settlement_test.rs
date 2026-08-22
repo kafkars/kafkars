@@ -152,6 +152,49 @@ fn processing_expiry_closes_modern_membership_before_retiring_assignment() {
     );
 }
 
+#[test]
+fn omitted_assignment_advances_member_epoch_without_replacing_live_ownership() {
+    let (mut entry, _topic_id) = installed_modern_entry();
+    let clock = MonotonicClock::new();
+    let generation = entry
+        .catalog
+        .live_assignment()
+        .unwrap_or_else(|| panic!("live assignment"))
+        .assignment_generation();
+    assert!(matches!(
+        entry.catalog.take_event(),
+        Some(crate::consumer::GroupConsumerEvent::PartitionsAssigned(_))
+    ));
+    let schedule = entry
+        .consumer
+        .as_ref()
+        .and_then(|consumer| consumer.machine().schedule())
+        .unwrap_or_else(|| panic!("heartbeat schedule"));
+    let now = Moment::from_tick(schedule.deadline().tick());
+    entry
+        .consumer
+        .as_mut()
+        .unwrap_or_else(|| panic!("modern execution"))
+        .prepare_due_heartbeat(now, &clock)
+        .unwrap_or_else(|error| panic!("prepare heartbeat: {error:?}"));
+    assert_eq!(
+        settle_success(&mut entry, now, success_without_assignment(2)),
+        Ok(ConsumerGroupHeartbeatSettlementTurn::Progress)
+    );
+    assert_eq!(
+        entry.catalog.consumer_group_member_epoch(),
+        kafka_client_core::ConsumerGroupMemberEpoch::try_from_raw(2)
+    );
+    assert_eq!(
+        entry
+            .catalog
+            .live_assignment()
+            .map(kafka_client_core::LiveGroupAssignment::assignment_generation),
+        Some(generation)
+    );
+    assert!(entry.catalog.take_event().is_none());
+}
+
 pub(super) fn installed_modern_entry() -> (GroupConsumerEntry, kafka_client_core::TopicId) {
     installed_modern_entry_with_instance(None)
 }

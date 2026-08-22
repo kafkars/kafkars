@@ -274,6 +274,7 @@ pub(super) fn poll_until<T>(mut operation: impl FnMut() -> Option<T>) -> Result<
 }
 
 pub(super) fn poll_until_result<T>(
+    phase: &str,
     mut operation: impl FnMut() -> Result<Option<T>, TestError>,
 ) -> Result<T, TestError> {
     let deadline = Instant::now() + OPERATION_TIMEOUT;
@@ -282,9 +283,7 @@ pub(super) fn poll_until_result<T>(
             return Ok(value);
         }
         if Instant::now() >= deadline {
-            return Err(
-                io::Error::new(io::ErrorKind::TimedOut, "nightly condition timed out").into(),
-            );
+            return Err(io::Error::new(io::ErrorKind::TimedOut, phase).into());
         }
         thread::sleep(std::time::Duration::from_millis(50));
     }

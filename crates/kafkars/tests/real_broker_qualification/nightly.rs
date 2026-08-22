@@ -5,8 +5,8 @@ use std::io;
 use crate::real_broker_support::TestError;
 
 use super::{
-    evidence, nightly_admin, nightly_consumer, nightly_group, nightly_producer, nightly_resilience,
-    nightly_resources, nightly_transaction,
+    evidence, nightly_admin, nightly_consumer, nightly_group, nightly_kip848, nightly_producer,
+    nightly_resilience, nightly_resources, nightly_transaction,
 };
 
 type Scenario = (&'static str, fn() -> Result<(), TestError>);
@@ -43,8 +43,8 @@ const BEFORE_KIP_848: [Scenario; 7] = [
 ];
 
 const KIP_848: Scenario = (
-    "kip848_initial_assignment",
-    nightly_group::kip848_initial_assignment,
+    "kip848_multi_member_commit_shutdown_resume",
+    nightly_kip848::multi_member_commit_shutdown_and_resume,
 );
 
 const AFTER_KIP_848: [Scenario; 6] = [
