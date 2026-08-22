@@ -13,44 +13,52 @@ use super::result::{
     translate_control_kind, translate_end_observation, translate_failure_parts,
     translate_observer_error,
 };
-use crate::{DeliveryStatus, ErrorKind};
+use crate::{DeliveryStatus, ErrorKind, RetryAdvice};
 
 #[test]
-fn every_local_rejection_category_maps_without_hidden_retry_policy() {
+fn every_local_rejection_category_preserves_pre_admission_retry_safety() {
     let cases = [
         (
             TransactionInitializationAdmissionErrorKind::InvalidRequest,
             ErrorKind::Configuration,
+            RetryAdvice::DoNotRetry,
         ),
         (
             TransactionInitializationAdmissionErrorKind::Contended,
             ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
         ),
         (
             TransactionInitializationAdmissionErrorKind::Closed,
             ErrorKind::State,
+            RetryAdvice::DoNotRetry,
         ),
         (
             TransactionInitializationAdmissionErrorKind::Capacity,
             ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
         ),
         (
             TransactionInitializationAdmissionErrorKind::RetainedBytes,
             ErrorKind::Backpressure,
+            RetryAdvice::RetrySafe,
         ),
         (
             TransactionInitializationAdmissionErrorKind::IdentityExhausted,
             ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
         ),
         (
             TransactionInitializationAdmissionErrorKind::HostUnavailable,
             ErrorKind::Internal,
+            RetryAdvice::DoNotRetry,
         ),
     ];
-    for (input, expected) in cases {
+    for (input, expected, retry) in cases {
         let error = translate_admission_kind(input);
         assert_eq!(error.kind(), expected);
         assert_eq!(error.delivery_status(), Some(DeliveryStatus::NotSent));
+        assert_eq!(error.retry_advice(), retry);
     }
     assert_eq!(
         translate_capture_error(TransactionInitializationCaptureError::InvalidOperationDeadline)

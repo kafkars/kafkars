@@ -1,10 +1,15 @@
 //! Transaction fencing, abort, commit, and read-committed visibility.
 
-use std::{io, time::Duration};
+use std::{
+    io, thread,
+    time::{Duration, Instant},
+};
 
-use kafkars::{ErrorKind, OffsetReset, ReadIsolation, Record};
+use kafkars::{ErrorKind, OffsetReset, ReadIsolation, Record, RetryAdvice};
 
-use crate::real_broker_support::{OPERATION_TIMEOUT, TestError, unique_name, wait_within};
+use crate::real_broker_support::{
+    OPERATION_TIMEOUT, TestError, unique_name, wait_within, wait_within_for,
+};
 
 use super::{consume, nightly_support};
 
@@ -149,13 +154,33 @@ fn transactional(
     fixture: &nightly_support::Fixture,
     id: &str,
 ) -> Result<kafkars::TransactionalProducer, TestError> {
-    Ok(wait_within(
-        fixture
-            .client
-            .transactional_producer(id)
-            .transaction_timeout(Duration::from_secs(30))
-            .deadline_after(OPERATION_TIMEOUT)
-            .build(),
-        "nightly transactional producer initialization",
-    )??)
+    let deadline = Instant::now() + OPERATION_TIMEOUT;
+    loop {
+        let now = Instant::now();
+        if now >= deadline {
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "transaction initialization admission remained backpressured",
+            )
+            .into());
+        }
+        let remaining = deadline.saturating_duration_since(now);
+        let result = wait_within_for(
+            fixture
+                .client
+                .transactional_producer(id)
+                .transaction_timeout(Duration::from_secs(30))
+                .deadline_after(remaining)
+                .build(),
+            "nightly transactional producer initialization",
+            remaining,
+        )?;
+        match result {
+            Ok(producer) => return Ok(producer),
+            Err(error) if error.retry_advice() == RetryAdvice::RetrySafe => {
+                thread::sleep(Duration::from_millis(1));
+            }
+            Err(error) => return Err(error.into()),
+        }
+    }
 }

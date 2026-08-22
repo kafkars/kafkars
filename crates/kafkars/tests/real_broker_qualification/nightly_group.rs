@@ -17,13 +17,41 @@ pub(super) fn classic_cooperative_initial_assignment() -> Result<(), TestError> 
     let fixture = nightly_support::Fixture::new("classic-rebalance", 2)?;
     prove_partitions_writable(&fixture)?;
     let group_id = unique_name("kafkars-cooperative");
-    let first = cooperative_consumer(&fixture.client, &fixture.topic, &group_id)?;
+    let mut first = cooperative_consumer(&fixture.client, &fixture.topic, &group_id)?;
     nightly_support::poll_until(|| {
         let assignment = first.assignment().ok().flatten()?;
         (assignment_set(&assignment).len() == 2).then_some(())
     })?;
+    prove_group_partitions_active(&mut first, &fixture.topic)?;
     consume::close_group(first, "first cooperative close")?;
     fixture.finish()
+}
+
+fn prove_group_partitions_active(
+    consumer: &mut kafkars::Consumer,
+    topic: &str,
+) -> Result<(), TestError> {
+    let expected = BTreeSet::from([0, 1]);
+    let mut observed = BTreeSet::new();
+    for _batch in 0..2 {
+        let batch = wait_within(consumer.recv(), "cooperative partition readiness")??
+            .ok_or_else(|| io::Error::other("cooperative member closed before delivery"))?;
+        let partition = batch.partition();
+        let expected_value = format!("group-ready-{partition}");
+        if batch.topic() != topic
+            || !batch
+                .records()
+                .any(|record| record.value() == Some(expected_value.as_bytes()))
+        {
+            return Err(io::Error::other("cooperative partition payload did not match").into());
+        }
+        observed.insert(partition);
+        drop(batch);
+        if observed == expected {
+            return Ok(());
+        }
+    }
+    Err(io::Error::other("cooperative member did not activate both partitions").into())
 }
 
 fn prove_partitions_writable(fixture: &nightly_support::Fixture) -> Result<(), TestError> {

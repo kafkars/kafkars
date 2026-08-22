@@ -1606,7 +1606,7 @@ evidence = [
   "crates/kafkars/src/transaction/initialization_test.rs::named_initialization_is_one_sendable_observer",
   "crates/kafkars/src/transaction/producer_test.rs::initialized_owner_is_sendable_unique_and_not_shared",
   "crates/kafkars/src/transaction/producer_test.rs::initialized_owner_exposes_identity_begin_and_close",
-  "crates/kafkars/src/bridge/transaction/result_test.rs::every_local_rejection_category_maps_without_hidden_retry_policy",
+  "crates/kafkars/src/bridge/transaction/result_test.rs::every_local_rejection_category_preserves_pre_admission_retry_safety",
   "crates/kafkars/src/bridge/transaction/result_test.rs::terminal_failures_preserve_certainty_fencing_and_exact_broker_code",
   "crates/kafkars/src/bridge/transaction/result_test.rs::observer_and_accepted_faults_remain_stable_internal_categories",
 ]
